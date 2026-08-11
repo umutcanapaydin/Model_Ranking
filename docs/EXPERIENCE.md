@@ -26,3 +26,30 @@ should be reported upstream to the General_Pipeline template (candidate for its 
 **Numbers:** 4 waves · 74 tests · coverage 88% · 6 fault-injections (all RED, md5 reverts) ·
 reviews: 14 MINOR + 3 BLOCKING found, all closed · live run: 2154 prices, 173+68 scores,
 42 canonical models · security close: PASS, 0 BLOCKING.
+
+## 2026-08-11 — M2: New Sources + Everyday-Assistant Category
+
+**Owner amendments worked:** no per-wave git (milestone-boundary only) and council-instead-of-owner
+for questions. No council convened — no decision rose to that bar; the closest was Arena's dataset
+shape, resolved by evidence (WebFetch of the dataset card) rather than deliberation. Lesson: most
+"questions for the owner" are actually questions for a primary source.
+
+**What the reviews caught this time:** thresholds as code-branches (a third category would have
+silently inherited Elo thresholds on a % scale — latent-debt class, caught BEFORE the third
+category exists); assistant export overwriting the coding artifact; Arena page-cap silent
+truncation; a CI smoke step whose failures vanished behind `head` (no pipefail). Pattern across
+M1+M2: reviewers keep catching *the failure the author's imagination didn't contain* — redundancy
+pays on every wave.
+
+**Honesty engineering:** REQ-REC-006's stale disclosure is a deterministic proxy, and its
+limitation (a never-refreshed DB cannot self-report stale) is now WRITTEN IN THE DOCSTRING rather
+than discovered later. Doctrine: when a control is a proxy, its blind spot ships in its docs.
+
+**Sandbox boundary institutionalized:** HF/OpenRouter unreachable from the build sandbox → live
+verification moved to CI (weekly cron + manual dispatch). First live Arena/OpenRouter run happens
+in CI — treat its first green run as a milestone-closure condition analog (M1 doctrine: first live
+run belongs inside the wave; here the wave's live half runs where the network is).
+
+**Numbers:** 4 waves · 109 tests (104 unit + 5 gated) · coverage 90% · fault-injection ×4 (all RED,
+md5 reverts) · reviews: 11 MINOR + 2 PROCESS found, all applied · security close: PASS, 3 new
+invariants · D-105 recorded.

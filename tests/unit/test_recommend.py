@@ -136,10 +136,7 @@ def test_pareto_non_dominance() -> None:
         "sinirsiz",
     )
     for p in rec.picks:
-        dominated = any(
-            o.swebench_verified_pct > p.swebench_verified_pct and o.blended_per_m < p.blended_per_m
-            for o in ranking
-        )
+        dominated = any(o.score > p.score and o.blended_per_m < p.blended_per_m for o in ranking)
         assert not dominated, f"{p.model} is dominated"
 
 
@@ -175,7 +172,7 @@ def test_budget_pick_respects_min_quality() -> None:
     assert rec is not None
     cheap = rec.picks[2]
     assert cheap.model == "DeepSeek V3.2"  # cheapest above 65%; nano (40%) ineligible
-    assert cheap.swebench_verified_pct >= 65.0
+    assert cheap.score >= 65.0
 
 
 def test_confidence_grades_by_source_count() -> None:
@@ -258,7 +255,7 @@ def test_budget_pick_warns_when_quality_floor_unmet() -> None:
     rec = recommend(conn, "dusuk")
     assert rec is not None
     cheap = rec.picks[2]
-    assert cheap.swebench_verified_pct < MIN_QUALITY_PCT
+    assert cheap.score < MIN_QUALITY_PCT
     assert "UYARI" in cheap.why  # honest disclosure, not the standard floor text
     assert "geçen en ucuz model." not in cheap.why
 

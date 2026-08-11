@@ -1,30 +1,27 @@
 Project: model_ranking
-Latest milestone: M1 — Stage 4 CLOSED agent-side (security PASS, quality gate walked); OWNER session pending
-Last session date: 2026-08-10
+Latest milestone: M2 — ALL 4 WAVES + Stage 4 CLOSED agent-side; OWNER session pending
+Last session date: 2026-08-11
 Last work agent: Claude (Cowork cloud session)
 
 WHAT'S DONE
-- Stage 0 CLOSED: bootstrap-check PASS on owner machine (0 fail / 2 warn)
-- W1-W4 all closed: schema/clients/ingestion (3 sources) + canonical registry + ranking/export
-  + 3-answer recommendation engine + CLI. 71 tests + 3 gated contracts; live e2e green
-  (42 canonical models; Opus=quality, MiniMax M2=value, DeepSeek V3.2=budget)
-- 4 fresh-eyes reviews (W3 FAIL→fixed 2 BLOCKING; W4 CHANGES→fixed); fault-injection ×6
-- Artifacts: m1-wave-{1..4}-close.md, m1-w{1..4}-review.md, process-log, deliverables-plan (M1-M5)
+- M1 closed + committed by owner (github.com/umutcanapaydin/Model_Ranking)
+- M2 W1-W4 closed: OpenRouter pricing + median-of-medians · Arena (HF dataset API, CC-BY
+  attribution) · category layer (coding/assistant, thresholds as data, D-105) ·
+  recommend --task + stale-notice + contract-tests.yml CI
+- 109 tests, coverage 90%, 4 reviews PASS (13 findings applied), security close PASS (INV-9/10/11)
 
 WHAT'S OPEN
-- Owner: git init + initial commit + push (GitHub repo created 2026-08-11; commands in closure message)
-- Owner: host-side `make check` + gitleaks hook (sandbox ran same tools directly)
-- _to_delete/ klasörünü sil (içinde eski src/__init__.py var)
-- OQ-1/OQ-2/OQ-3 unchanged
+- OWNER milestone session: closure-report-m2.md → K.10 workflow diff (contract-tests.yml NEW) →
+  own tests → milestone commit + push → ratify D-105 → trigger contract-tests workflow (Actions tab)
+- First live Arena/OpenRouter validation = that CI run (sandbox can't reach them)
+- M3 scope open: subscription-plan table (OQ-2) + Epoch (deferred W5) + retrospect (M≥3)
 
 WHAT TO DO NEXT
-- OWNER 60-90 min session: read docs/closure-report-m1.md → run make install/check + pytest
-  → git init/remote/commit/push (repo: github.com/umutcanapaydin/Model_Ranking) → sign report
-  → ratify D-100..D-104 → answer OQ-1/OQ-2 (M2 scope)
+- Owner reads docs/closure-report-m2.md; after his commit: M3 planning (subscription table)
 
 ANCHOR
 - AGENTS.md: ~142 lines (within 150 hard cap; diet at closure)
-- Active ADRs: D-001..D-007 + P-001..P-009 universal; D-100..D-104 proposed
+- Active ADRs: universal set; D-100..D-104 (M1, owner-ratified), D-105 proposed
 - Active seeds count: starter default (64+8)
 - Most recent retrospect: N/A
 - Most recent quarterly handover: N/A

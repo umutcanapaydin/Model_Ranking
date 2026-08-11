@@ -1,0 +1,83 @@
+# Contract tests vs LIVE data sources (REQ-CI-001, M2).
+#
+# WHY a separate workflow: the default suite is network-free by rule
+# (permission-matrix §3); these tests hit the real LiteLLM / SWE-bench /
+# Aider / OpenRouter / Arena endpoints and exist to catch SOURCE SHAPE DRIFT
+# early — the build sandbox cannot reach HF/OpenRouter, so CI is the
+# canonical place they run (m2-plan §0).
+#
+# Hardening mirrors ci.yml: least-privilege token, timeout, concurrency
+# cancel. K.10: changes to this file are owner-review surface.
+
+name: contract-tests
+
+on:
+  workflow_dispatch: {}        # run on demand from the Actions tab
+  schedule:
+    - cron: "0 6 * * 1"        # Mondays 06:00 UTC — weekly source-drift probe
+
+concurrency:
+  group: contract-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  live-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4  # TODO: pin to SHA before going live (same note as ci.yml)
+      - uses: actions/setup-python@v5  # TODO: pin to SHA
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Live contract tests (source shape drift probe)
+        env:
+          RUN_CONTRACT_TESTS: "1"
+        run: pytest tests/integration -v
+      - name: End-to-end live pipeline smoke (reachable sources)
+        env:
+          RUN_CONTRACT_TESTS: "1"
+        run: |
+          python - <<'EOF'
+          import sqlite3
+          from app.clients.litellm import LiteLLMClient
+          from app.clients.openrouter import OpenRouterClient
+          from app.clients.swebench import SweBenchClient
+          from app.clients.aider import AiderClient
+          from app.clients.arena import ArenaClient
+          from app.workflows.schema import DDL
+          from app.workflows.ingest import (
+              RunContext, ingest_litellm, ingest_openrouter,
+              ingest_swebench, ingest_aider, ingest_arena,
+          )
+          from app.workflows.registry import reconcile
+
+          conn = sqlite3.connect("ci_advisor.db"); conn.executescript(DDL)
+          run = RunContext()
+          for fn, client in (
+              (ingest_litellm, LiteLLMClient()),
+              (ingest_openrouter, OpenRouterClient()),
+              (ingest_swebench, SweBenchClient()),
+              (ingest_aider, AiderClient()),
+              (ingest_arena, ArenaClient()),
+          ):
+              r = fn(conn, client, run)
+              print(f"{r.source}: stored={r.stored} skipped={r.skipped} health={r.health}")
+          rep = reconcile(conn)
+          print(f"reconcile: {rep.pricing_matched}/{rep.pricing_dropped} pricing, "
+                f"{rep.scores_matched}/{rep.scores_dropped} scores, models={rep.models_registered}")
+          assert rep.models_registered >= 20, "live reconciliation collapsed — registry drift?"
+          conn.commit()
+          EOF
+      - name: Recommend smoke (both tasks, real data)
+        run: |
+          set -o pipefail  # a recommend failure must fail the step, not vanish behind head
+          python -m app.workflows.recommend --db ci_advisor.db --budget sinirsiz --task coding | head -40
+          python -m app.workflows.recommend --db ci_advisor.db --budget dusuk --task assistant | head -40

@@ -67,3 +67,15 @@ generated, 2 seed candidates queued for owner. Owner opened GitHub repo (Model_R
 checkpoint commits collapse into owner's initial commit. Milestone closes at owner sign-off.
 Lesson: closure telemetry (fix-rate/churn) needs git history from day one — starting M2, checkpoint
 commits land per wave, so M2 will have real trust telemetry.
+
+## 2026-08-11 (2) — M2 W1-W4 + Stage 4 closure (Claude, Cowork)
+Owner signed m2-plan with 2 amendments (no per-wave git; council for questions). W1 OpenRouter +
+median-of-medians (REQ-ING-006 fixes M1 carried risk). W2 Arena via documented datasets-server API
+(shape pinned from dataset card via WebFetch; CC-BY attribution constant). W3 category layer:
+categories-as-data, generalized RankingRow (documented in D-105), attribution in exports. W4
+recommend --task coding|assistant, per-scale thresholds AS DATA, stale-notice disclosure,
+contract-tests.yml CI workflow. Reviews pair-batched (economy, separate verdicts): 4× PASS,
+11 MINOR + 2 PROCESS, all applied. Fault-injection ×4 RED + md5 reverts. Security close PASS
+(2 MINORs = replica artifacts; device repo verified). Suite: 104+5, coverage 90%.
+Lesson: "ask the owner" pressure mostly dissolves against a primary source (dataset card beat
+deliberation); council stayed unconvened.

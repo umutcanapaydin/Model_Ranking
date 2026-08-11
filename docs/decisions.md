@@ -308,4 +308,52 @@ the closure report. **Revisit when:** a second project's post-prod dataset exist
 
 ---
 
+## D-105 — Category layer: primary-benchmark-per-category; no cross-scale averaging; generic row contract
+
+**Status:** proposed (owner pre-accepted in m2-plan §13, 2026-08-11; ratify at M2 closure)
+
+**Decision:** Use cases live in `categories.py` as data (CategorySpec: primary benchmark, metric,
+native-scale thresholds, optional evidence-only secondary benchmark). A category ranks ONLY on its
+primary benchmark's native scale — Elo and % are never averaged; composite scores are out of scope
+until a normalization design passes review (M3+). To serve this, the M1 RankingRow/Pick contracts
+were GENERALIZED (swebench_verified_pct→score, swe_harness→harness, aider_*→secondary_*): a
+deliberate, versioned break of the m2-plan §4 "frozen" note — no external consumers existed
+(pre-API), all internal consumers + tests migrated in the same wave.
+
+**Rationale:** Research rule (both M0 reports): averaging raw scales produces a meaningless number;
+primary-benchmark ranking is honest and explainable. Data-driven thresholds prevent a third
+category from silently inheriting the wrong scale (M2-W4 review finding).
+
+**Mitigation if violated:** Any query mixing benchmarks in ORDER BY, or thresholds hardcoded on
+category id, is BLOCKING at review (structural test: test_no_cross_scale_averaging_structural).
+
+**Revisit when:** ≥4 categories exist and users demand a cross-category "overall" view.
+
+---
+
+## D-106 — OWNER DIRECTIVE: agent runs the test gate and performs git commits/pushes (scoped A1)
+
+**Status:** accepted (OWNER-INITIATED, 2026-08-11 — "Gerekli testleri senin koşman ve commitleri
+senin atman gerekecek benim yerime." This satisfies the autonomy-protocol bright line: an agent
+commit reaching main requires an explicit owner-initiated ADR, never erosion.)
+
+**Decision:** From M2 closure onward the lead agent (a) runs the full test gate (pytest, ruff,
+black, mypy) on the real repository state before every commit, and (b) authors and pushes the
+milestone commits to github.com/umutcanapaydin/Model_Ranking on the owner's behalf. Scope limits:
+commits only at wave/milestone boundaries with green gates; commit messages carry the agent
+trailer; the owner's GitHub token is held ONLY as an environment variable for the push, never
+written to any file or committed; catastrophe-class operations (force-push, history rewrite,
+reset --hard) remain FORBIDDEN (permission-matrix §5 — this ADR does NOT override them).
+
+**Rationale:** Owner wants hands-off operation between milestones; A0.5's owner-git touchpoint
+was the last manual step. Autonomy ladder allows A1 by explicit owner ADR.
+
+**Mitigation if violated:** Any commit outside green-gate boundaries, or any token persisted to
+disk, is an integrity violation → automatic demotion to A0.5 per autonomy-protocol §2/§5.
+
+**Revisit when:** first escaped blocker traceable to an agent-pushed commit (auto-fallback), or
+owner reasserts git at any time (always his right, no cause needed).
+
+---
+
 *Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*

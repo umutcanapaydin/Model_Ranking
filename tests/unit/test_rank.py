@@ -7,6 +7,8 @@ import json
 import sqlite3
 from pathlib import Path
 
+import pytest
+
 from app.clients.fakes import FakeRawSource
 from app.workflows.ingest import RunContext, ingest_litellm, ingest_swebench
 from app.workflows.rank import BLEND_NOTE, build_price_medians, coding_ranking, export_ranking
@@ -89,10 +91,10 @@ def test_ranking_takes_best_score_and_its_harness() -> None:
     ranking = coding_ranking(conn)
     assert [r.model for r in ranking] == ["Claude 4.5 Opus", "GPT-5"]
     gpt5 = ranking[1]
-    assert gpt5.swebench_verified_pct == 74.4
-    assert gpt5.swe_harness == "mini-SWE-agent"
-    assert gpt5.aider_polyglot_pct == 88.0
-    assert gpt5.aider_run_cost_usd == 12.5
+    assert gpt5.score == 74.4
+    assert gpt5.harness == "mini-SWE-agent"
+    assert gpt5.secondary_score == 88.0
+    assert gpt5.secondary_cost == 12.5
     assert gpt5.blended_per_m == round(1.25 * 0.75 + 10.0 * 0.25, 2)
 
 
@@ -141,8 +143,8 @@ def test_tied_best_scores_pick_deterministically() -> None:
     reconcile(conn)
     build_price_medians(conn)
     (row,) = coding_ranking(conn)
-    assert row.swe_harness == "alpha-agent"  # newest date wins regardless of insert order
-    assert row.swe_date == "2025-09-01"
+    assert row.harness == "alpha-agent"  # newest date wins regardless of insert order
+    assert row.evidence_date == "2025-09-01"
 
 
 def test_even_count_median_is_middle_mean() -> None:
@@ -171,6 +173,56 @@ def test_even_count_median_is_middle_mean() -> None:
     ).fetchone()
     assert in_m == 1.5
     assert out_m == 3.0
+
+
+def test_median_of_per_source_medians_beats_outlier_source() -> None:
+    """REQ-ING-006 (M2): a source with MANY cheap aliases must not outweigh another source."""
+    from app.workflows.ingest import ingest_openrouter
+
+    conn = connect()
+    run = RunContext(observed_at="t")
+    # litellm: ONE fair price
+    ingest_litellm(
+        conn,
+        FakeRawSource(
+            "litellm",
+            json.dumps(
+                {
+                    "gpt-5": {
+                        "mode": "chat",
+                        "input_cost_per_token": 1.25e-06,
+                        "output_cost_per_token": 1e-05,
+                    }
+                }
+            ),
+        ),
+        run,
+    )
+    # openrouter: THREE dirt-cheap aliases of the same model
+    cheap = {"prompt": "0.00000001", "completion": "0.00000001"}
+    ingest_openrouter(
+        conn,
+        FakeRawSource(
+            "openrouter",
+            json.dumps(
+                {
+                    "data": [
+                        {"id": "a/gpt-5", "pricing": cheap},
+                        {"id": "b/gpt-5", "pricing": cheap},
+                        {"id": "c/gpt-5", "pricing": cheap},
+                    ]
+                }
+            ),
+        ),
+        run,
+    )
+    reconcile(conn)
+    build_price_medians(conn)
+    in_m, _ = conn.execute("SELECT in_m, out_m FROM px_median WHERE model_id='gpt-5'").fetchone()
+    # per-source medians: litellm=1.25, openrouter=0.01 → cross-source median = 0.63 (mean of two)
+    # under the OLD flat median the three cheap rows would win outright (0.01)
+    assert in_m == pytest.approx((1.25 + 0.01) / 2, abs=0.01)
+    assert in_m > 0.5, "outlier source must not dominate the reference price"
 
 
 def test_export_empty_ranking_does_not_crash(tmp_path: Path) -> None:

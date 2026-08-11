@@ -110,6 +110,80 @@ def test_cli_missing_db_exits_2(tmp_path: Path) -> None:
     assert "not found" in json.loads(proc.stdout)["error"]
 
 
+def test_cli_task_assistant_through_entry_point(tmp_path: Path) -> None:
+    """REQ-REC-005 (V4C-50): --task assistant works through the REAL entry point."""
+    db_path = tmp_path / "advisor.db"
+    conn = sqlite3.connect(db_path)
+    from app.clients.fakes import FakeRawSource
+    from app.workflows.ingest import RunContext, ingest_arena, ingest_litellm
+    from app.workflows.registry import reconcile
+    from app.workflows.schema import DDL
+
+    conn.executescript(DDL)
+    run = RunContext(observed_at="2026-08-11T00:00:00+00:00")
+    ingest_litellm(
+        conn,
+        FakeRawSource(
+            "litellm",
+            json.dumps(
+                {
+                    "gpt-5-chat": {
+                        "mode": "chat",
+                        "input_cost_per_token": 1.25e-06,
+                        "output_cost_per_token": 1e-05,
+                    },
+                    "gemini-3-flash": {
+                        "mode": "chat",
+                        "input_cost_per_token": 5e-07,
+                        "output_cost_per_token": 3e-06,
+                    },
+                }
+            ),
+        ),
+        run,
+    )
+    arena = json.dumps(
+        {
+            "rows": [
+                {
+                    "row": {
+                        "model_name": "gpt-5-chat",
+                        "rating": 1420.0,
+                        "category": "full",
+                        "leaderboard_publish_date": "2026-08-01",
+                    }
+                },
+                {
+                    "row": {
+                        "model_name": "gemini-3-flash",
+                        "rating": 1398.0,
+                        "category": "full",
+                        "leaderboard_publish_date": "2026-08-01",
+                    }
+                },
+            ],
+            "num_rows_total": 2,
+        }
+    )
+    ingest_arena(conn, FakeRawSource("arena", arena), run)
+    reconcile(conn)
+    conn.commit()
+    conn.close()
+
+    proc = _run_cli("--db", str(db_path), "--budget", "sinirsiz", "--task", "assistant")
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["task"] == "assistant"
+    assert payload["picks"][0]["metric"] == "elo"
+    assert payload["picks"][0]["model"] == "GPT-5 chat"
+
+
+def test_cli_invalid_task_rejected(tmp_path: Path) -> None:
+    proc = _run_cli("--db", str(tmp_path / "x.db"), "--task", "resim")
+    assert proc.returncode == 2
+    assert "invalid choice" in proc.stderr
+
+
 def test_cli_corrupt_db_exits_2(tmp_path: Path) -> None:
     """W4 review MINOR-1: a DB without tables is a crash-class error (2), not 'no match' (1)."""
     db_path = tmp_path / "corrupt.db"
