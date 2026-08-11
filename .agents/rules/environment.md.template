@@ -1,0 +1,55 @@
+# YOUR Machine — Environment Specifics (gitignored)
+
+> Rename this template to `environment.md` (drop the `.template` suffix). The result is gitignored — your file, not committed.
+> Pipeline v2.0: per-developer environment.md replaces "works on my machine" drift. Each new clone generates their own on first session.
+
+---
+
+## 1. Shell
+
+- **Shell:** `<bash / zsh / fish / pwsh / cmd>`
+- **OS:** `<macOS Sonoma 14 / Ubuntu 24.04 / Windows 11 / etc.>`
+- **Syntax gotchas:** `<e.g., "PowerShell 5.1 has no &&; use ;" or "zsh on macOS needs sourced rcfile for venv">`
+
+## 2. Language runtime
+
+- **Python version:** `<e.g., 3.12.4>` (must satisfy `pyproject.toml requires-python = ">=3.11"`)
+- **Venv path:** `<e.g., .venv/ at repo root>`
+- **How to activate:** `<source .venv/bin/activate / .\.venv\Scripts\Activate.ps1 / conda activate <env>>`
+- **Node version:** `<if applicable, e.g., 20.11.0 via nvm>`
+
+## 3. Local services (if any)
+
+- **PostgreSQL:** `<port / connection string / container name if Dockerized>`
+- **Redis:** `<port / container name>`
+- **Mock servers:** `<list — e.g., mock-callback on :9090>`
+
+## 4. Editor / IDE
+
+- **Editor:** `<VS Code / PyCharm / Vim / Helix / etc.>`
+- **Claude Code CLI invocation:** `<e.g., "claude code" or "claude" — depends on install>`
+- **Extensions / plugins worth knowing:** `<e.g., "ruff extension for VS Code">`
+
+## 5. Personal env vars
+
+(NOT for committing; these go in `.env` which is gitignored)
+
+- **What lives in `.env`:** `<e.g., GITHUB_TOKEN, ANTHROPIC_API_KEY, MODEL_API_KEY, customer-test-app-codes>`
+- **How to source it:** `<e.g., automatically via direnv / manual `source .env`>`
+
+## 6. Custom shortcuts you use
+
+- **Aliases:** `<e.g., alias mc='make check', alias mp='make standup'>`
+- **Personal scripts in `~/bin`:** `<list any that reach into this repo>`
+
+## 7. Things that have bitten you on THIS repo specifically
+
+- `<bullet — e.g., "make check fails on M1 Mac without rosetta when pip-audit runs">`
+
+---
+
+## After filling this in
+
+1. Verify nothing here is identical to anything in `.agents/rules/practices.md` (that'd be a sign your machine specifics leaked into team practices).
+2. Verify this file is NOT in `git status` (it's gitignored via the project's `.gitignore`).
+3. Add any persistent shortcuts / aliases / scripts to your shell rcfile.

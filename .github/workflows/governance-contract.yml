@@ -1,0 +1,75 @@
+# Governance contract — the AGGREGATE required check (V4C-34, Increment 11).
+#
+# WHY THIS FILE EXISTS: until v4.1 the GP repo ROOT had no CI at all — every workflow lived inside
+# a general_pipeline_vX/ package (those are TEMPLATES for projects that copy the package). So the
+# decision trail at the repo root was validated by nothing. Increment 11's council found this.
+#
+# GATE SEMANTICS (this is a GATE, not a guardrail — the six-cut zero-gate streak ends here by
+# decision, Increment 11 §2):
+#   * `governance-contract` is ONE UNCONDITIONAL job. It must never be made conditional, and it
+#     must never be `continue-on-error`. GitHub reports a SKIPPED required job as SUCCESS — that is
+#     precisely the false pass this job exists to remove.
+#   * Owner action required once, outside this file: make `governance-contract` a REQUIRED status
+#     check on the protected branch, bind it to the intended app, and disable bypass.
+#     Until that is done this file is advisory and the gate is NOT in force.
+#   * Protect this file's own path (CODEOWNERS) — a validator a PR can weaken in the same PR is
+#     not a validator.
+#
+# COST LINE (V4C-13, binding): fires on every push/PR to the default branch; ~20-40 s;
+# bypass = admin merge or owner override, recorded in the wave-checklist row-9 bypass ledger.
+name: governance-contract
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governance-contract:
+    name: governance-contract (aggregate, unconditional)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 — SHA-pinned (V4C-44)
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0 — SHA-pinned
+        with:
+          python-version: '3.12'
+
+      # V4C-32 — the self-test runs FIRST: it proves the validator is not a silent no-op.
+      # Increment 11 found a ratified gate (`make check-templates`) that had never executed once.
+      - name: Validator self-test (conformance fixtures must fail with their declared diagnostics)
+        run: python3 scripts/check_records.py --self-test
+
+      # V4C-30/31/35/36 — records as validated data; blocking scope is the CURRENT package only
+      # (prior versions are FROZEN by the standing versioning rule).
+      - name: Validate governance records + current-package propagation
+        run: python3 scripts/check_records.py
+
+      # Informational: prior versions are frozen; findings there are history, not defects.
+      - name: Historical scan (informational, never blocks)
+        continue-on-error: true
+        run: python3 scripts/check_records.py --historical
+
+      # V4C-43 — a pin that is really /blob/main/ silently tracks HEAD. Our GDF constitution pin
+      # depends on real pins, so this is checked in CI, not only in an opt-in hook.
+      - name: No fake pins in governance paths
+        run: |
+          if grep -rInE 'https?://[^ ]*/blob/(main|master)/' \
+               --include='*.md' --include='*.yml' --include='*.yaml' \
+               . --exclude-dir=general_pipeline_v2.0 --exclude-dir=general_pipeline_v2.1 \
+                 --exclude-dir=general_pipeline_v2.2 --exclude-dir=general_pipeline_v3 \
+                 --exclude-dir=general_pipeline_v3.1 --exclude-dir=general_pipeline_v3.2 \
+                 --exclude-dir=general_pipeline_v3.3 --exclude-dir=general_pipeline_v3.4 \
+                 --exclude-dir=general_pipeline_v3.5 --exclude-dir=general_pipeline_v4.0 \
+                 --exclude-dir=research --exclude-dir=conformance \
+             | grep -iE 'pin|constitution'; then
+            echo "FAIL [N1]: a /blob/main/ URL is presented as a pin — it tracks HEAD. Use a commit SHA."
+            exit 1
+          fi
+          echo "OK: no fake pins in the current governance surface"

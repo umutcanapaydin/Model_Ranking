@@ -1,0 +1,96 @@
+[project]
+name = "model-ranking"
+version = "0.1.0"
+description = "LLM benchmark + pricing aggregation and deterministic recommendation engine"
+readme = "README.md"
+requires-python = ">=3.11"             # seed C.2: range, not point version
+license = { text = "Proprietary" }
+
+dependencies = [
+    # ── add as needed; mirror in AGENTS.md §1 (seed C.4) ──
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "httpx>=0.27",
+    "pyyaml>=6.0",
+    # planned (add on first import — security review M1 MINOR-1):
+    # pydantic-settings (K.2 config), structlog (JSON logging), orjson (API serving)
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5.0",
+    "ruff>=0.7",
+    "black>=24.10",
+    "mypy>=1.13",
+    "respx>=0.21",
+    "asgi-lifespan>=2.1",
+    "types-pyyaml>=6.0",
+    # v2.0 security gates (Stage 2 internal commit-gate via hooks, F.6/F.7/F.8)
+    "pip-audit>=2.7",     # dep CVE scan (F.7)
+    # Note: gitleaks installed system-wide via brew/apt (not pip); see Makefile.
+]
+
+# ───── Tooling ─────
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]                  # seed H.6: src-layout discovery
+
+[tool.ruff.lint]
+# Turkish user-facing strings in the recommendation engine (D-104 explanations)
+allowed-confusables = ["ı", "İ", "ş", "Ş", "ç", "Ç", "ö", "Ö", "ü", "Ü", "ğ", "Ğ"]
+select = [
+    "E", "F", "W",             # pycodestyle / pyflakes
+    "I",                       # isort
+    "B",                       # bugbear
+    "UP",                      # pyupgrade
+    "SIM",                     # simplify
+    "RUF",                     # ruff
+    "ASYNC",                   # async-misuse
+    "S",                       # flake8-bandit (security)
+    "PTH",                     # pathlib
+    "C90",                     # mccabe complexity
+]
+ignore = [
+    "S101",                    # asserts are fine in tests
+    "E501",                    # line length handled by formatter
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]   # ◄── change if package renamed
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "C90"]
+# Customer-wire-format schemas may need camelCase (seed H.1):
+# "src/<pkg>/schemas/**" = ["N815"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true                  # seed H.7: trust mypy narrowing
+warn_unused_ignores = true     # seed C.8: unused type:ignore is a signal
+warn_unreachable = true
+no_implicit_reexport = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers --strict-config --cov=src/app --cov-report=term-missing"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+pythonpath = ["src"]
+
+[tool.coverage.run]
+branch = true
+source = ["src/app"]           # ◄── change if package renamed

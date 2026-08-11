@@ -1,0 +1,35 @@
+# CODEOWNERS — cross-team file-ownership boundary (seed K.10, Pipeline v2.1 Day-1 baseline)
+#
+# WHY THIS FILE EXISTS
+# When the app team and DevOps share one repo, the files DevOps customizes for the
+# production build/deploy (Dockerfile, /deploy/**, CI/CD config) are a cross-TEAM
+# contract surface. A feature branch carrying its own copy of these files will silently
+# overwrite DevOps's customizations on merge, and the next CI build ships the wrong
+# image (the EF-AI S34 "deployed pod still ran the old code" hour). Marking the boundary
+# here means GitHub auto-requests the owning team's review on any PR that touches them,
+# and (with branch protection "Require review from Code Owners") can require their
+# approval before merge.
+#
+# SETUP (Stage 0):
+#   1. Replace <DEVOPS_HANDLE> with the real team/user, e.g. @your-org/devops.
+#      The owner MUST have write access to the repo (GitHub requirement).
+#   2. In repo Settings -> Branches (or a ruleset), enable
+#      "Require review from Code Owners" on the protected branch.
+#   3. If this is a solo / no-DevOps repo, delete the build/deploy lines below
+#      rather than leaving a fake owner — an unmatched/invalid owner assigns no one.
+#
+# SYNTAX: <path-pattern>  <owner1> [owner2 ...]  (last matching pattern wins)
+# Paths are case-sensitive. `!` negation and `[ ]` ranges are NOT supported here.
+
+# ---- DevOps-owned build & deploy surface (do not let an app-feature merge clobber) ----
+/Dockerfile          <DEVOPS_HANDLE>
+/.dockerignore       <DEVOPS_HANDLE>
+/deploy/             <DEVOPS_HANDLE>
+/.github/workflows/  <DEVOPS_HANDLE>
+/Makefile            <DEVOPS_HANDLE>
+
+# ---- Protect the ownership boundary itself (so it can't be quietly edited away) ----
+/.github/CODEOWNERS  <DEVOPS_HANDLE>
+
+# ---- (Optional) app-team default owner for everything else ----
+# *                  <APP_TEAM_HANDLE>

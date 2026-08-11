@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Pipeline v4.1 — Schema</title>
+<style>
+  :root {
+    --navy:#1E2761; --ice:#CADCFC; --white:#FFFFFF; --ink:#1A1A1A;
+    --muted:#5C6B8E; --red:#C7263E; --green:#1F7A4D; --amber:#B47B00;
+    --purple:#6B3F9C; --teal:#2A8C8C; --soft:#F4F7FB; --border:#D7E0F0;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--white); color: var(--ink); margin: 0; padding: 32px 24px; line-height: 1.45; }
+  .wrap { max-width: 1280px; margin: 0 auto; }
+  header { border-bottom: 3px solid var(--navy); padding-bottom: 18px; margin-bottom: 28px; }
+  h1 { font-family: Georgia, serif; color: var(--navy); margin: 0 0 6px 0; font-size: 34px; letter-spacing: -0.5px; }
+  h1 .ver { color: var(--muted); font-size: 16px; font-weight: normal; margin-left: 10px; }
+  .subtitle { color: var(--muted); font-size: 14px; }
+  .badge { display: inline-block; background: var(--green); color: var(--white); border-radius: 4px; padding: 2px 8px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; margin-left: 8px; }
+  h2 { font-family: Georgia, serif; color: var(--navy); margin-top: 36px; margin-bottom: 14px; font-size: 22px; border-left: 4px solid var(--navy); padding-left: 10px; }
+  h3 { color: var(--navy); margin-bottom: 8px; font-size: 16px; }
+  .two-layer { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; background: var(--soft); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .layer-card { background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .layer-card h3 { margin-top: 0; color: var(--navy); font-size: 15px; letter-spacing: 1.2px; text-transform: uppercase; }
+  .file-tree { font-family: Consolas, Menlo, monospace; font-size: 12px; color: var(--ink);
+    background: #FBFCFE; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px;
+    white-space: pre; overflow-x: auto; line-height: 1.55; }
+  .key { color: var(--navy); font-weight: bold; }
+  .anno { color: var(--muted); font-style: italic; }
+  .newbadge { background: var(--green); color: var(--white); border-radius: 3px; padding: 0px 5px; font-size: 10px; }
+  .flow { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 8px; }
+  .stage { background: var(--white); border: 2px solid var(--navy); border-radius: 8px; padding: 14px 18px; position: relative; }
+  .stage.s2 { border-color: var(--amber); }
+  .stage.s3 { border-color: var(--red); background: #FFF7F8; }
+  .stage.s4 { border-color: var(--green); background: #F4FAF6; }
+  .stage.s0 { background: #F4F7FB; }
+  .stage.s1 { background: #F4F7FB; }
+  .stage-head { display: flex; gap: 14px; align-items: baseline; border-bottom: 1px dashed var(--border); padding-bottom: 6px; margin-bottom: 8px; }
+  .stage-num { font-family: Consolas, monospace; font-size: 18px; color: var(--navy); font-weight: bold; letter-spacing: 1px; }
+  .stage.s2 .stage-num { color: var(--amber); }
+  .stage.s3 .stage-num { color: var(--red); }
+  .stage.s4 .stage-num { color: var(--green); }
+  .stage-title { font-family: Georgia, serif; font-size: 17px; color: var(--ink); flex: 1; }
+  .stage-meta { color: var(--muted); font-size: 12px; }
+  .stage-body { font-size: 13px; }
+  .stage-body ul { margin: 4px 0 4px 22px; padding: 0; }
+  .stage-body li { margin: 2px 0; }
+  .arrow { text-align: center; color: var(--navy); font-size: 22px; line-height: 1; margin: -2px 0; }
+  .arrow.amber { color: var(--amber); }
+  .arrow.red { color: var(--red); }
+  .loop { display: inline-block; background: var(--ice); color: var(--navy); border-radius: 12px;
+    padding: 3px 10px; font-size: 11.5px; letter-spacing: 1px; text-transform: uppercase; font-weight: bold; }
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px; }
+  .duo .card { background: var(--white); border: 1px solid var(--red); border-radius: 6px; padding: 10px 12px; }
+  .duo .card h4 { margin: 0 0 4px 0; color: var(--red); font-size: 13px; font-family: Consolas, monospace; letter-spacing: 1px; }
+  .duo .card ul { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.5; }
+  .closure-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 6px; }
+  .closure-grid .card { background: var(--white); border: 1px solid var(--green); border-radius: 6px; padding: 10px 12px; }
+  .closure-grid .card h4 { margin: 0 0 4px 0; color: var(--green); font-size: 13px; font-family: Consolas, monospace; letter-spacing: 1px; }
+  .closure-grid .card ul { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.45; }
+  .quality-pin { background: #FFF8E1; border-left: 4px solid var(--amber); border-radius: 4px; padding: 6px 10px; font-size: 12px; margin-top: 8px; }
+  .decision { text-align: center; margin: 8px 0; }
+  .diamond { display: inline-block; background: var(--white); border: 2px solid var(--red); color: var(--red);
+    padding: 10px 22px; font-weight: bold; font-size: 14px; transform: skewX(-10deg); font-family: Consolas, monospace; letter-spacing: 1px; }
+  .diamond span { display: inline-block; transform: skewX(10deg); }
+  .branch { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+  .branch .b { border: 1px dashed var(--border); border-radius: 6px; padding: 8px 12px; font-size: 12.5px; background: var(--white); }
+  .branch .b.fail { border-color: var(--red); background: #FFF7F8; }
+  .branch .b.pass { border-color: var(--green); background: #F4FAF6; }
+  .quarters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+  .quarter { border: 2px solid var(--purple); border-radius: 8px; padding: 10px 12px; background: #FAF6FE; }
+  .quarter .qlabel { font-family: Consolas, monospace; font-size: 12px; color: var(--purple); font-weight: bold; letter-spacing: 1.5px; }
+  .quarter .qms { margin-top: 5px; font-family: Consolas, monospace; font-size: 13px; color: var(--navy); }
+  .quarter .qhand { margin-top: 8px; background: var(--purple); color: var(--white); border-radius: 4px; font-size: 11.5px; padding: 3px 6px; font-family: Consolas, monospace; text-align: center; }
+  .tracks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+  .track { border-radius: 8px; padding: 10px 14px; color: var(--white); font-size: 13px; }
+  .track.cust { background: linear-gradient(90deg, #BC5A45, #D78F5C); }
+  .track.proc { background: linear-gradient(90deg, #555F8A, #7E89B3); }
+  .track h4 { margin: 0 0 4px 0; font-size: 13.5px; letter-spacing: 1px; text-transform: uppercase; }
+  .choice-box { margin-top: 8px; background: #FFF8E1; border: 1px solid var(--amber); border-radius: 6px; padding: 10px 14px; font-size: 12.5px; }
+  .choice-box h4 { margin: 0 0 5px 0; color: var(--amber); font-family: Consolas, monospace; font-size: 13px; letter-spacing: 1px; }
+  .choice-box ul { margin: 0; padding-left: 20px; line-height: 1.55; }
+  .layers-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 8px; }
+  .layers-3 .l { border: 2px solid var(--teal); border-radius: 8px; padding: 10px 12px; background: #F0F9F9; }
+  .layers-3 .l h4 { margin: 0 0 4px 0; color: var(--teal); font-family: Consolas, monospace; font-size: 13px; letter-spacing: 1px; }
+  .layers-3 .l ul { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.5; }
+  .hook-box { background: #FBFCFE; border: 1px dashed var(--amber); border-radius: 6px; padding: 8px 12px; font-size: 12.5px; margin-top: 6px; font-family: Consolas, monospace; }
+  .hook-box h5 { margin: 0 0 4px 0; color: var(--amber); font-family: Consolas, monospace; font-size: 12px; letter-spacing: 1px; }
+  .legend { margin-top: 30px; background: var(--soft); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; font-size: 12.5px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; }
+  .legend .l-item { display: flex; gap: 8px; align-items: center; }
+  .legend .swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+  .delta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+  .delta-grid .card { background: #FBFCFE; border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-size: 12.5px; line-height: 1.55; }
+  .delta-grid .card h4 { margin: 0 0 6px 0; color: var(--navy); font-size: 13px; letter-spacing: 1px; }
+  footer { margin-top: 40px; color: var(--muted); font-size: 11.5px; border-top: 1px dashed var(--border); padding-top: 14px; text-align: right; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Pipeline v4.1 — Schema <span class="ver">D-A Starter Package + Workflow</span><span class="badge">+ 2 gates · review-loop · security baseline · v3.1: wave checklists · risk tiers · living EXPERIENCE · v3.2: autonomy ladder · owner review pack · Explorer · v3.3: A0.5 milestone-cadence owner review · v3.4: Stage 5 maintenance loop + fixpack · v3.5: outward-facing checks (post-prod dataset) · v4.0: MARKET-INFORMED MAJOR — base-pinned policy invariant · advisory mutation + cross-model review · scheduled journey monitoring · friction/bypass telemetry · named semver + council machinery · v4.1: REPAIR + RECORDS AS DATA — dead controls fixed · stdlib record validator · conformance fixtures · FIRST GATE (governance-contract)</span></h1>
+  <div class="subtitle">v1.1 baseline + AI-native Claude Code harness from incoming team's docs + 6-agent consortium deliberation. Mandatory subagent profiles, hooks, skills, 3-layer issue management, quarterly handover.</div>
+</header>
+
+<h2>1 · Two Layers</h2>
+<div class="two-layer">
+  <div class="layer-card">
+    <h3>Layer 1 — Starter Package (~60 files)</h3>
+<div class="file-tree">project-from-template/
+├── <span class="key">AGENTS.md</span> + CLAUDE.md→symlink   <span class="anno">canonical (5/6 consortium)</span>
+├── <span class="key">Makefile</span> + pyproject.toml
+├── README.md + note.txt
+├── permission-matrix.md       <span class="anno">+ OS-aware + BLOCKING taxonomy</span>
+├── .gitignore + <span class="newbadge">.gitleaks.toml</span>
+├── <span class="newbadge">.pre-commit-config.yaml</span>     <span class="anno">opt-in</span>
+├── <span class="newbadge">.mcp.json</span>                   <span class="anno">GitHub/GitLab default</span>
+│
+├── <span class="newbadge">.claude/</span>
+│   ├── settings.json           <span class="anno">permissions + 2 baseline hooks</span>
+│   └── skills/ (×10)           <span class="anno">runtime-invokable</span>
+│
+├── <span class="newbadge">.agents/rules/</span>             <span class="anno">replaces docs/discipline-*.md</span>
+│   ├── practices.md
+│   ├── playbook-seeds.md       <span class="anno">64 inherited + 8 new</span>
+│   ├── environment.md          <span class="anno">.gitignored per-dev</span>
+│   └── README.md
+│
+├── <span class="newbadge">.github/workflows/</span>
+│   ├── ci.yml                  <span class="anno">hardened: SHA pin, narrow tokens</span>
+│   └── issue-agent.yml         <span class="anno">label-gated, draft-only</span>
+│
+├── docs/
+│   ├── prd.md, architecture.md
+│   ├── decisions.md (D-001..D-007)
+│   ├── retrospectives/
+│   ├── <span class="newbadge">handovers/</span>handover_q1.txt
+│   ├── plans/, reviews/
+│   ├── <span class="newbadge">wave-checklist.template.md</span>  <span class="anno">v3.1 · filled per wave close</span>
+│   ├── <span class="newbadge">EXPERIENCE.template.md</span>      <span class="anno">v3.1 · living · blocks handover</span>
+│   ├── <span class="newbadge">autonomy-protocol.md</span>        <span class="anno">v3.2 · A0/A1/A2 ladder</span>
+│   ├── <span class="newbadge">closure-report.template.md</span>  <span class="anno">v3.2 · the owner review pack</span>
+│   ├── onboarding.md
+│   ├── tool-suitability.md
+│   └── external-skills/ (×4)
+│
+├── subagent-profiles/   <span class="anno">MANDATORY</span>
+│   ├── Code-Reviewer.md  (per-wave)
+│   ├── Tester.md  (per-wave · NEW v3)
+│   ├── <span class="newbadge">Explorer.md</span>  (read-only · ≤2k summary · NEW v3.2)
+│   └── Security-Reviewer.md  (now at closure · v3)
+│
+├── src/&lt;pkg&gt;/, tests/, scripts/standup.sh</div>
+  </div>
+
+  <div class="layer-card">
+    <h3>Layer 2 — Workflow Glance</h3>
+    <div style="font-family: Consolas, monospace; font-size: 13px; line-height: 1.85; padding: 4px 0;">
+      <div><strong style="color: var(--navy);">Stage 0</strong> — Bootstrap (once)</div>
+      <div style="text-align:center;">↓</div>
+      <div><strong style="color: var(--navy);">Stage 1</strong> — Milestone Plan <em style="color:var(--muted);">+ profile choice + risk tier</em></div>
+      <div style="text-align:center;">↓</div>
+      <div style="border: 1px dashed var(--ice); padding: 6px 10px; border-radius: 4px; background: #FAFCFF;">
+        <div><strong style="color: var(--amber);">Stage 2</strong> — Wave Execution + Internal Commit-Gate <strong style="color: var(--amber);">(HOOKS!)</strong></div>
+        <div style="text-align:center;color: var(--amber);">↓</div>
+        <div><strong style="color: var(--red);">Stage 3</strong> — Per-Wave: Code Review + Tester (per-agent dev-test loop)</div>
+        <div style="text-align:center;color: var(--red);">↻ loop until all waves done</div>
+      </div>
+      <div style="text-align:center;">↓</div>
+      <div><strong style="color: var(--green);">Stage 4</strong> — Closure: Security Review (BLOCKING, pre-deploy) · Quality Gate · Capture · Deploy + Go-live · Handoff</div>
+      <div style="text-align:center;color: var(--purple);">↓ if M%3==0 → handover_q{N}.txt</div>
+      <div style="text-align:center; color: var(--muted); font-style: italic;">next milestone (back to Stage 1)</div>
+    </div>
+
+    <div class="tracks" style="margin-top: 14px;">
+      <div class="track cust"><h4>Customer Iteration</h4>snapshot → conflict catalog → ADR → downstream edit</div>
+      <div class="track proc"><h4>Process Capture</h4>process-log · seeds · ADRs · 3-file handoff</div>
+    </div>
+  </div>
+</div>
+
+<h2>2 · Workflow Detail</h2>
+<div class="flow">
+
+  <div class="stage s0">
+    <div class="stage-head"><div class="stage-num">STAGE 0</div><div class="stage-title">Bootstrap — once per project (~4-8 hours)</div><div class="stage-meta">project birth</div></div>
+    <div class="stage-body">
+      <strong>Two paths:</strong> Path A (paste repo-starter.md into Claude Code) · Path B (cp -r starter package + fill PROJECT placeholders).<br/>
+      <strong>Gates:</strong>
+      <ul>
+        <li>AGENTS.md ≤80 target / ≤150 hard cap, PROJECT filled, UNIVERSAL untouched, CLAUDE.md → AGENTS.md symlink</li>
+        <li>pyproject.toml + project name + initial deps (mirror AGENTS.md per C.4)</li>
+        <li>permission-matrix.md adapted; OS-aware Bash() / PowerShell() patterns confirmed</li>
+        <li>subagent-profiles/Code-Reviewer.md + Security-Reviewer.md baseline in place</li>
+        <li>.mcp.json: GitHub or GitLab MCP server set</li>
+        <li>Day-1 green: <code>make check</code> all green</li>
+        <li><strong>Host-side admin (one-time):</strong> branch protection on main + ANTHROPIC_API_KEY secret + 90-day rotation cal</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <div class="stage s1">
+    <div class="stage-head"><div class="stage-num">STAGE 1</div><div class="stage-title">Milestone Plan — per milestone (~1 hour)</div><div class="stage-meta">writing-plans format</div></div>
+    <div class="stage-body">
+      <strong>Output:</strong> <code>docs/plans/m{N}-plan.md</code>
+      <ul>
+        <li>Goal + REQ-ID acceptance + wave decomposition</li>
+        <li>K.8 contract surfaces grep-verified (grep -n output pasted)</li>
+        <li><strong>Token budget</strong> estimate + <strong>Risk tier</strong> LOW / MEDIUM / HIGH</li>
+        <li>Issue inventory: which issues this milestone resolves (K.4 wave vs /fix-issue routing)</li>
+      </ul>
+      <div class="choice-box">
+        <h4>SUBAGENT PROFILE SOURCE (user choice)</h4>
+        <ul>
+          <li><strong>A.</strong> Superpowers SKILL baseline (default; lowest friction)</li>
+          <li><strong>B.</strong> Claude generate fresh (milestone-specific)</li>
+          <li><strong>C.</strong> Codex generate fresh (A/B test or Codex platform)</li>
+          <li><strong>D.</strong> Mix per profile</li>
+        </ul>
+      </div>
+      <div style="margin-top: 6px; font-size: 12px; color: var(--muted);">User approval required before dispatch.</div>
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+  <div style="text-align:center; margin: -4px 0 -2px;"><span class="loop">▶ Wave Loop Start</span></div>
+
+  <div class="stage s2">
+    <div class="stage-head"><div class="stage-num">STAGE 2</div><div class="stage-title">Wave Execution — parallel subagents</div><div class="stage-meta">K.4 dispatch + Internal Commit-Gate</div></div>
+    <div class="stage-body">
+      <strong>Two execution modes:</strong> K.4 parallel waves (planned milestone work) OR <code>/fix-issue-implement</code> (reactive single-issue, label-gated).<br/>
+
+      <div class="hook-box">
+        <h5>★ NEW: PreToolUse + PostToolUse HOOKS</h5>
+        ✓ make check (lint + type + test) — C.1 (PostToolUse)<br/>
+        ✓ gitleaks (replaces TruffleHog) — F.6 (PostToolUse)<br/>
+        ✓ pip-audit (dep CVE) — F.7 (PostToolUse)<br/>
+        ✓ slopsquat (PyPI + maintainer-age) — F.8 (PostToolUse)<br/>
+        ✗ Block writes to .env / *.env* — F.6 + permission-matrix (PreToolUse)<br/>
+        ✗ Block git reset --hard / push --force / rm -rf — C.9 (PreToolUse)<br/>
+        Hooks exit non-zero with visible log on violation.
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow amber">↓</div>
+
+  <div class="stage s3">
+    <div class="stage-head"><div class="stage-num">STAGE 3</div><div class="stage-title">Per-Wave — Code Review &amp; Tester (fresh-eyes)</div><div class="stage-meta">fresh-eyes K.7 · Security → closure (v3) · risk-tiered + wave-checklist <span class="newbadge">★ v3.1</span></div></div>
+    <div class="stage-body">
+      <div class="duo">
+        <div class="card"><h4>3a · CODE REVIEW</h4>
+          subagent-profiles/Code-Reviewer.md via /review
+          <ul><li>Plan compliance</li><li>Integration drift</li><li>K.8 contract grep-verify</li><li>K.9 cross-wave gap spot</li></ul>
+        </div>
+        <div class="card"><h4>3b · TESTER <span class="newbadge">★ v3</span></h4>
+          subagent-profiles/Tester.md (fresh eyes)
+          <ul><li>Every acceptance criterion has a citing test (V3C-02)</li><li>Reproduce reported symptom red→green first</li><li>Coverage on new/changed code</li><li><strong>★ v3.1 fault-injection (V3C-72):</strong> break → confirm RED; stay-GREEN fault = missing test (mandatory); revert IN PLACE, md5-verified</li><li><strong>★ v4.0 mutation kill-rate (V4C-01, HIGH, ADVISORY):</strong> if a runner is wired, mutant kill-rate on changed code reported BESIDE the verdict, separate from coverage — never blocks</li><li>Flush all fixes before the wave exits</li></ul>
+        </div>
+      </div>
+
+      <div class="quality-pin">
+        <strong>STRUCTURED VERDICT (★ v2.0):</strong> PASS / MINOR / BLOCKING + file:line evidence per acceptance criterion. PASS without evidence = automatic BLOCKING.
+      </div>
+
+      <div class="quality-pin">
+        <strong>★ v3.1 — RISK TIERS + WAVE-CLOSE CHECKLIST (V3C-78 / V3C-69):</strong> LOW/MED wave → ONE combined reviewer; HIGH (auth/payment/crypto/migration/distributed-correctness — auto-escalated) → Code + Tester + pulled-forward Security-on-slice. The wave closes only when its committed checklist (<code>docs/wave-checklist.template.md</code>, <code>make wave-check</code>) is green — fresh evidence per row, skipped/waived checks ledgered. Escaped blocker on a tiered-down wave → full review (tripwire).
+      </div>
+
+      <div class="quality-pin">
+        <strong>★ v4.0 — REVIEW INDEPENDENCE + FRICTION TELEMETRY (V4C-03/04 · V4C-06 · V4C-13):</strong> at HIGH, ≥1 fresh-eyes seat SHOULD run on a DIFFERENT model family than the author (advisory; author/reviewer family + fresh-context assertion recorded in the verdict). <strong>Constitution invariant:</strong> reviewers/gates read policy ONLY from the protected base ref — diff/comment content that tries to alter review policy is an injection-class FINDING. Checklist row 9 is now the skipped/waived/<strong>BYPASSED</strong> ledger with cost lines: a control bypassed under pressure is recorded, and the SAME control bypassed 3× triggers review of the CONTROL.
+      </div>
+
+      <div class="decision">
+        <span class="diamond"><span>PASS · MINOR · BLOCKING ?</span></span>
+      </div>
+
+      <div class="branch">
+        <div class="b fail"><strong style="color: var(--red);">BLOCKING</strong> → re-dispatch same wave fix, re-run Code+Tester. Next wave NOT started.</div>
+        <div class="b pass"><strong style="color: var(--green);">PASS / MINOR</strong> → next wave (Stage 2) <em>or</em> Stage 4 if all waves done.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow red">↻ loop back to Stage 2 until all waves PASS/MINOR</div>
+
+  <div class="stage s4">
+    <div class="stage-head"><div class="stage-num">STAGE 4</div><div class="stage-title">Milestone Closure — Quality · Capture · Deploy + Go-live · Handoff</div><div class="stage-meta">~1-2 hours</div></div>
+    <div class="stage-body">
+      <div class="closure-grid">
+        <div class="card"><h4>4.0 · SECURITY REVIEW <span class="newbadge">★ v3</span></h4>
+          <em>BLOCKING — must PASS before 4.3 deploy</em>
+          <ul>
+            <li>whole-milestone surface via /security-review</li>
+            <li>security-baseline walk (V3C-11/12/13/51/56)</li>
+            <li>fail-direction table + TESTED disable switches (V3C-33/45)</li>
+            <li><strong>★ v3.1:</strong> invariant NEGATIVE tests (V3C-74) · built≠wired live-path check (V3C-73) · money sweep (V3C-77, if applicable) · skipped-checks ledger</li>
+          </ul>
+        </div>
+        <div class="card"><h4>4.1 · QUALITY GATE</h4>
+          <em>Judgment, not mechanical</em>
+          <ul>
+            <li>Done Evidence assembly</li>
+            <li>REQ-ID trace (coverage-by-req.md)</li>
+            <li>Coverage delta on new code</li>
+            <li>Strict mypy + ruff</li>
+            <li>LOC budget check</li>
+            <li>cost-log.md vs Stage 1 estimate</li>
+            <li><strong>BLOCKING → milestone NOT closed</strong></li>
+          </ul>
+        </div>
+        <div class="card"><h4>4.2 · CAPTURE</h4>
+          <ul>
+            <li>process-log.md S{N} (G.1)</li>
+            <li>ADRs via /log-decision skill</li>
+            <li>seeds proposed → user-approved → active</li>
+            <li>retrospect M≥3 via /retrospect (G.12) — <strong>hook fails closure if missing</strong></li>
+            <li>roadmap snapshot (I.1)</li>
+            <li>AGENTS.md diet ≤150</li>
+            <li><strong>★ v3.1:</strong> dated <code>EXPERIENCE.md</code> entry (V3C-81) · retro answers+poses the carried question (V3C-79)</li>
+            <li>Disciplines-retired count</li>
+          </ul>
+        </div>
+        <div class="card"><h4>4.3 · DEPLOY + GO-LIVE <span class="newbadge">★ v2.2</span></h4>
+          <em>only if the milestone deploys</em>
+          <ul>
+            <li><code>curl /health | jq .build</code> == intended tag (L.7); restart != rebuild</li>
+            <li>CODEOWNERS build files not clobbered (K.10)</li>
+            <li><code>make smoke-deps</code>: invoke each dep once — configured != working (L.8)</li>
+            <li>read config back from the process, not the values file (L.9)</li>
+            <li>pipe attribution via downstream run-log (E.6)</li>
+          </ul>
+        </div>
+        <div class="card"><h4>4.4 · HANDOFF</h4>
+          <ul>
+            <li>note.txt refresh (always)</li>
+            <li><strong>If M%3==0:</strong> /quarterly-handover → handover_q{N}.txt</li>
+            <li>Harness diet: retire unused hooks/skills/MCPs (90d)</li>
+            <li><strong>★ v3.1:</strong> handover BLOCKS without a fresh milestone-keyed EXPERIENCE.md entry (V3C-81)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">↓ after go-live</div>
+
+  <div class="stage s4">
+    <div class="stage-head"><div class="stage-num">STAGE 5</div><div class="stage-title">Maintenance Loop — post-deploy fixes <span class="newbadge">★ v3.4</span></div><div class="stage-meta">fix waves · fixpack deploy gate · owner out-of-sandbox <span class="newbadge">★ v4.0: scheduled journey + canary</span></div></div>
+    <div class="stage-body">
+      <div class="duo">
+        <div class="card"><h4>FIX WAVES (V3C-98)</h4>
+          <ul>
+            <li><strong>Red-test intake:</strong> no fix wave opens until the prod bug is a FAILING test — the red test IS the frozen spec; fixes only turn red green</li>
+            <li>Normal wave machinery applies: checklist + fresh-eyes Code-Reviewer + Tester (prod bugs on ⛔ paths auto-HIGH)</li>
+            <li>Exploitability triage per bug at intake; security-class → escalate-NOW + invariant test</li>
+            <li>Every red test joins the PERMANENT regression suite (bug-ID tagged)</li>
+          </ul>
+        </div>
+        <div class="card"><h4>FIXPACK = THE DEPLOY GATE</h4>
+          <ul>
+            <li>≤5 fixes / ~400 lines; HIGH/⛔ ships solo; security floor + full invariant suite + full regression on the exact final bundle</li>
+            <li><strong>OWNER OUT-OF-SANDBOX VERIFICATION (BLOCKING):</strong> reproduce on pre-fix build → gone on fixpack build → local tests → signature</li>
+            <li>Deploy via 4.3 gate · fix probe · watch window · <code>make journey</code> re-run green</li>
+            <li><strong>★ v4.0 (V4C-07):</strong> the journey script gains a SCHEDULED post-deploy life — monitoring-as-code: named on-call owner, flake/mute policy, synthetic-safe, CI-held scoped creds; results land in the watch record</li>
+            <li><strong>★ v4.0 (V4C-08, stack-conditional):</strong> canary/pre-post verify + mechanical rollback where the platform supports it — and a rollback that never fired is a doc, not a control (rehearse once per stack)</li>
+            <li><strong>Capture coupling (deploy condition):</strong> per-fix lessons append to EXPERIENCE; 3-strikes gate-attribution; N=3 fix-on-fix → surface locked, refactor milestone</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>3 · 3-Layer Issue Management <span class="badge">v2.0 NEW</span></h2>
+<p style="font-size: 13.5px; color: var(--muted); margin-top: 4px;">Full GitHub-automated flow. Human review only at PR merge (branch protection enforces).</p>
+
+<div class="layers-3">
+  <div class="l">
+    <h4>L1 · PURE CI (no agent)</h4>
+    Deterministic hygiene
+    <ul>
+      <li>Test suite on PR + push</li>
+      <li>Gitleaks (secret scan)</li>
+      <li>pip-audit (dep CVE)</li>
+      <li>Auto-label by title/path</li>
+      <li>Stale-issue bot (60d)</li>
+      <li>Link issue↔PR</li>
+    </ul>
+    <strong>Ship: day-1.</strong>
+  </div>
+  <div class="l">
+    <h4>L2 · CI-TRIGGERED AGENT</h4>
+    Headless Claude
+    <ul>
+      <li>agent:triage label → /triage-issue → diagnosis</li>
+      <li>agent:fix label → /fix-issue-prepare → /fix-issue-implement → draft PR</li>
+      <li>Label-gated, draft-only, timeout-capped</li>
+      <li>Least-privilege token</li>
+      <li>Pinned action SHAs</li>
+    </ul>
+    <strong>Ship: shadow-mode 1 milestone, then graduate.</strong>
+  </div>
+  <div class="l">
+    <h4>L3 · SCHEDULED + INTERACTIVE</h4>
+    Periodic + pairing
+    <ul>
+      <li>/schedule sweeps (dependency hygiene)</li>
+      <li>Layer-3 sweep opens issues</li>
+      <li>Interactive via GitHub/GitLab MCP</li>
+      <li>Backlog grooming</li>
+    </ul>
+    <strong>Ship: after L2 trusted (≥2 milestones).</strong>
+  </div>
+</div>
+
+<h2>4 · Quarterly Handover Cadence</h2>
+<p style="font-size: 13.5px; color: var(--muted); margin-top: 4px;">12-milestone project example. <code>note.txt</code> per-session/milestone (light); <code>handover_q{N}.txt</code> every 3rd milestone (heavy).</p>
+
+<div class="quarters">
+  <div class="quarter"><div class="qlabel">QUARTER 1</div><div class="qms">M1 → M2 → M3</div><div class="qhand">handover_q1.txt</div></div>
+  <div class="quarter"><div class="qlabel">QUARTER 2</div><div class="qms">M4 → M5 → M6</div><div class="qhand">handover_q2.txt</div></div>
+  <div class="quarter"><div class="qlabel">QUARTER 3</div><div class="qms">M7 → M8 → M9</div><div class="qhand">handover_q3.txt</div></div>
+  <div class="quarter"><div class="qlabel">QUARTER 4</div><div class="qms">M10 → M11 → M12</div><div class="qhand">handover_q4.txt</div></div>
+</div>
+
+<div style="margin-top: 14px; background: #FAF6FE; border-left: 4px solid var(--purple); border-radius: 4px; padding: 10px 14px; font-size: 13px;">
+  <strong style="color: var(--purple);">handover_q{N}.txt:</strong> shipped REQ-IDs · new ADRs · activated seeds · open risks queued · cumulative cost+tests+coverage · AGENTS.md state · next quarter plan · fresh-agent navigation map. Generated via <code>/quarterly-handover</code> skill. Committed at <code>docs/handovers/handover_q{N}.txt</code>.
+</div>
+
+<h2>5 · Version Deltas</h2>
+<div class="delta-grid">
+  <div class="card">
+    <h4>NEW in v4.1 <span class="newbadge">★</span> — REPAIR + RECORDS AS DATA</h4>
+    <ul>
+      <li><strong>Source: the council audited the REPO, not the briefing</strong> — and found ratified controls that did not work. <code>make check-templates</code> (V3C-99) was a <strong>shell syntax error and had never executed once</strong>; <code>make journey</code> called a script that <strong>did not exist</strong>; <code>cold-start</code> was echo-only. All repaired, and they now <strong>fail loudly when unwired</strong>. Doctrine: <em>a declared control that silently passes is worse than an absent one</em></li>
+      <li><strong>THE FIRST GATE</strong> (V4C-34): <code>governance-contract</code> — one unconditional aggregate required check at the repo root (which had NO CI at all until now), SHA-pinned actions, self-test first. GitHub reports a SKIPPED required job as SUCCESS, so conditional checks are advisory in disguise. <strong>The six-cut zero-gate streak ends here by decision (7 seats to 2), not by relabelling</strong></li>
+      <li><strong>Records become data</strong> (V4C-29/30/31): <code>scripts/check_records.py</code> — one stdlib-only validator (<code>python/peps</code> idiom, zero dependencies, on purpose) + <code>schemas/record.schema.json</code> + validated frontmatter on every governance record. Prose stays canonical markdown</li>
+      <li><strong>The validator is itself tested</strong> (V4C-32): <code>conformance/</code> — one fail fixture per blocking rule, each declaring its expected diagnostic; <code>make check-records-selftest</code> fails if a rule stops firing. Fault injection (V3C-72) applied to validators — <em>it found a real bug in the validator on its first run</em></li>
+      <li><strong>Propagation stops being prose</strong> (V4C-36): the §0-changelog heading and the executive-overview file count are now machine-asserted — the v3.3 §0 loss is caught in under a second. Blocking scope = current package; prior versions are FROZEN</li>
+      <li><strong>Schema-narrowness rule</strong> (V4C-35): a field may exist only if a check consumes it; every required field answers "which concrete failure does its absence permit?"; unused fields deleted after two cuts</li>
+      <li><strong><code>docs/refusals.md</code></strong> (V4C-41): eleven recorded refusals with re-open triggers — no engine, no new policy language, no memory service, no hosted transcripts, no low-star tool on a governance path, and <strong>rung 5 refused by decision, not deferred by budget</strong></li>
+      <li>Day-1 falsification test RUN and PASSED · every control carries a cost line (V4C-13, binding) · 9-seat council, 15 adopts, 1 gate, 1 rejection</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>NEW in v4.0 <span class="newbadge">★</span> — MARKET-INFORMED MAJOR</h4>
+    <ul>
+      <li><strong>Source: three independent AI market scans, cross-checked</strong> (59/197/12 verified sources) — GP's four core mechanics (git-derived trust telemetry · blind council + evidence-ratified versions · owner out-of-sandbox verification · backpressure/auto-freeze) found EMPTY across ~25 players. Doctrine: a head start, not a moat — quarterly clock started</li>
+      <li><strong>Base-pinned policy invariant</strong> (V4C-06, constitution, BOTH lanes): reviewers/gates/agents read policy ONLY from the protected base ref — grounded in three 2026 exploit classes; gate promotion re-tables at v4.1</li>
+      <li><strong>Advisory test-integrity pair</strong>: mutation kill-rate beside the HIGH fault-injection verdict (V4C-01) + cross-model review routing with recorded author/reviewer families (V4C-03/04)</li>
+      <li><strong>Friction budget + bypass telemetry</strong> (V4C-13): checklist row 9 = skipped/waived/BYPASSED ledger with cost lines; bypasses are EXPERIENCE findings; same control ×3 → review the control</li>
+      <li><strong>Stage 5 upgrades:</strong> scheduled journey monitoring with named owner (V4C-07) · canary verify + rehearsed rollback, stack-conditional (V4C-08)</li>
+      <li><strong>Named semver + propagation checklist</strong> (V4C-11): MAJOR/MINOR/PATCH defined; every cut mechanically lists what must move with it</li>
+      <li><strong>Council machinery:</strong> verdict set with INSUFFICIENT-EVIDENCE abstention (V4C-22) · council pricing + fail-closed timeout with owner escalation (V4C-27) · council telemetry — escaped defects traced to rulings (V4C-25) · process-artifact A/B pilot (V4C-12)</li>
+      <li><strong>GDF lane:</strong> identity-grade credential isolation v1 (V4C-05) · injection defense becomes a TESTED control, blocking before scale-out (V4C-10)</li>
+      <li>9-seat council · owner-settled splits (technical rule) · 0 new gates (5th consecutive) · Skeptic's MAJOR dissent on record · chartered theme: PROCESS-ENGINE</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>NEW in v3.5 <span class="newbadge">★</span></h4>
+    <ul>
+      <li><strong>Source: the first REAL post-prod dataset</strong> — 7 defects after green gates, ZERO caught by automated gates, 100% boundary defects. Doctrine: "gates were blind to the shape of the world we deployed into"</li>
+      <li><strong>make check-templates + make cold-start</strong> (V3C-99): the SHIPPED config boots the parser; zero-persisted-state boot reaches serve-ready — two total-outage classes closed for ~2 CI minutes</li>
+      <li><strong>Human-path criterion</strong> (V3C-100): a non-author with only shipped docs completes the primary journey (credentials mandated)</li>
+      <li><strong>Producer enumeration on hardened invariants</strong> (V3C-101, security-signed on auth-class) — the cross-wave seam gets an owner</li>
+      <li><strong>ready≠alive + diagnosable fail-closed</strong> (V3C-103, disclosure channel constrained) · boundary-grep delivery line (V3C-104) · cadence binds to artifacts (V3C-105) · boot-prereq ownership (V3C-107)</li>
+      <li><strong>Black-box journey tester</strong> (V3C-106, default-expected): <code>make journey URL=…</code> — authored during build, runs at 4.3 + every fixpack; found the defect no unit test could</li>
+      <li>5-seat council · 0 new gates · net new files: 0 · Skeptic's no-precedent dissent recorded</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>NEW in v3.4 <span class="newbadge">★</span></h4>
+    <ul>
+      <li><strong>Stage 5 — Maintenance Loop</strong> (V3C-98, owner directive): post-deploy bugs run as FIX WAVES through the existing wave machinery — red-test intake (the failing test IS the spec; fixes only turn red tests green)</li>
+      <li><strong>Fixpack = the deploy gate:</strong> per-fix evidence rows, ≤5 fixes/~400 lines (HIGH ships solo), security floor + full invariant suite, full regression on the final bundle, migration + rollback plan</li>
+      <li><strong>Owner out-of-sandbox verification (BLOCKING):</strong> reproduce pre-fix → confirm gone → local tests → sign — no signature, no deploy</li>
+      <li><strong>Fix probe + watch window</strong> at deploy; emergency path with never-skipped floor + 48h retro-close debt</li>
+      <li><strong>Mechanical capture:</strong> fixpack lessons append to EXPERIENCE as a deploy condition; memory-based harvest RETIRED; 3-strikes gate-attribution; N=3 fix-on-fix → refactor milestone</li>
+      <li>5-seat council; 0 new gates</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>NEW in v3.3 <span class="newbadge">★</span></h4>
+    <ul>
+      <li><strong>A0.5 ACTIVE (OD-4, PROVISIONAL):</strong> waves close AGENT-side (fresh-eyes reviews + green pinned checks + committed checklist); owner reviews, runs his own tests, and commits at every MILESTONE (60–90 min; cap ~4–6 waves / ~2k lines)</li>
+      <li><strong>Owner checkpoint commits</strong> per wave (<code>wip: NOT reviewed</code>) — F17 protection; agents never run git; <strong>agent commit on main = A1 = explicit owner ADR</strong></li>
+      <li><strong>Escalate-NOW list</strong> halts mid-wave (secrets, suppressions, HIGH BLOCKING, stay-green faults, gate changes…)</li>
+      <li><strong>Auto-reversion tripwire:</strong> escaped blocker an owner wave-pass would have caught → back to wave cadence</li>
+      <li>Assumption ledger ACTIVE · per-wave table + decisions-on-your-behalf in the closure report · reviewer countersign · semantic-security items</li>
+      <li>hcs_maas_vib final harvest closed (md5-identical to interim; 0 new findings); 7-seat chair-delegated council; 0 new gates</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>NEW in v3.2 <span class="newbadge">★</span></h4>
+    <ul>
+      <li><strong>Autonomy ladder — NORTH STAR, NOT ACTIVE</strong> (V3C-82; owner decision): design recorded (A0/A1/A2, telemetry-gated); <strong>A0 only</strong> — owner reviews every wave + milestone, runs tests/checks, makes all commits</li>
+      <li><strong>Owner review pack</strong> (V3C-83): per-closure <code>closure-report-m{N}.md</code> from raw referents; 2-page cap; BLOCKING prose architecture-delta</li>
+      <li><strong>Trust telemetry</strong> (V3C-84): mechanical fix-rate/churn/reverts/findings per task type — the promotion signal agents cannot author</li>
+      <li><strong>Explorer profile + context economy</strong> (V3C-85): ≤2k-token exploration summaries; token budget as a live circuit breaker</li>
+      <li><strong>AI-aware review smells</strong> (V3C-86) · <strong>L0 spike lane</strong> (V3C-87) · scoped plan interrogation (V3C-88)</li>
+      <li>Source: EXTERNAL research curriculum + OD-3; 2-phase council (6 core → 3 domain), chair-decided under owner delegation; <strong>0 new gates</strong></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>NEW in v3.1 <span class="newbadge">★</span></h4>
+    <ul>
+      <li><strong>0 new gates</strong> — reserve preserved; source: the FIRST field run of v3 itself (hcs_maas_vib) — all six v3 adopts validated, five sharpened</li>
+      <li><strong>Executable wave-close</strong> (V3C-69): <code>docs/wave-checklist.template.md</code> + <code>make wave-check</code> — evidence-cited, skip-ledgered</li>
+      <li><strong>Living EXPERIENCE.md</strong> (V3C-81): appended every milestone; quarterly handover BLOCKS without it</li>
+      <li><strong>Risk-tiered reviews</strong> (V3C-78/P-005): LOW/MED → 1 combined; HIGH → Code+Tester+Security-on-slice; escaped-blocker tripwire</li>
+      <li><strong>Tester fault-injection</strong> (V3C-72) · day-0 OSS license gate + consumption posture (V3C-70/71) · built≠wired + invariant negative tests (V3C-73/74) · integer-money rule (V3C-77, domain-scoped)</li>
+      <li>Legacy files renamed version-neutral: <code>pipeline-schema.html</code> · <code>pipeline-design.md</code>; 11-seat blind council + §5.6 self-validation cap</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>NEW in v3 <span class="newbadge">★</span></h4>
+    <ul>
+      <li><strong>2 gates</strong>: web/API security baseline in <strong>make bootstrap-check</strong> (V3C-11) · tests-cite-each-criterion at Quality Gate (V3C-02)</li>
+      <li><strong>Review-loop restructure</strong> (V3C-68): per-wave Code + <strong>Tester</strong> + per-agent dev-test loop; Security → closure, BLOCKING pre-deploy</li>
+      <li><strong>docs/security-baseline.md</strong>: server-authz · CORS allowlist · no default-creds · encrypt-at-rest · startup config-validation</li>
+      <li><strong>Guardrails</strong>: control-class fail-direction (closed=safety/open=fairness) · agent least-privilege + human-confirm writes · destructive-defaults-off · canonical-mock+contract</li>
+      <li><strong>Agent-Native / LLM-Ops</strong> theme chartered as CANDIDATE container (~20 seeds await a 2nd ecosystem)</li>
+      <li>From a 7-project harvest (Reimbursement-App · Poyraz-Dekorasyon · aop-portal · BotIm-AOP · aop_growth · HSC-MaaS · one-api); 13-seat blind council</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>NEW in v2.2 <span class="newbadge">★</span></h4>
+    <ul>
+      <li><strong>make bootstrap-check</strong> — executable Stage-0 gate (FB-1); starter health fixed to L.7</li>
+      <li><strong>Stage 4.3 go-live readiness</strong>: L.8 smoke-deps · L.9 config-reaches-process · E.6 run-log attribution</li>
+      <li><strong>OSS-license Stage-0 gate</strong> (FB-4): AGPL/GPL/SSPL = wrap-not-fork + sign-off</li>
+      <li><strong>ADR-ID convention</strong> (FB-2): process P-00x · projects D-100</li>
+      <li><strong>Cowork git caveat</strong> (FB-3) · <strong>K.11</strong> agent-UI guardrails (capability N=1)</li>
+      <li><strong>Council planning graduated</strong> (FB-5) → standing optional Stage-1 variant</li>
+      <li>From HCS-MaaS bootstrap + EF-AI S35; ratified by a 7-role blind council</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>NEW in v2.1 <span class="newbadge">★</span></h4>
+    <ul>
+      <li><strong>Theme L</strong> distributed correctness (L.1-L.7): enqueue-then-ack, reserve-then-release, at-least-once, atomic election, bounded queue, boot guard, version-stamped probe</li>
+      <li><strong>Stage 4.3 deploy-verify</strong>: curl /health, build==intended (restart != rebuild)</li>
+      <li><strong>L.7 /health stamp</strong> + <strong>K.10 CODEOWNERS</strong> = Day-1 baselines</li>
+      <li><strong>E.4 TDD-with-AI</strong> promoted ACTIVE (scoped: new module + locked contract)</li>
+      <li><strong>E.5</strong> subagent-death test-gap drill</li>
+      <li><strong>Council planning</strong> optional Stage-1 variant (N=1, opt-in)</li>
+      <li><strong>C.10</strong> folded into C.7 (sandbox full-gate shim)</li>
+      <li><strong>/pm-status</strong> template (candidate skill)</li>
+      <li>From EF-AI M12 (first project BLOCKING) + S34 (first prod deploy)</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>NEW in v2.0</h4>
+    <ul>
+      <li><strong>Hooks</strong> (.claude/settings.json): 2 baseline (block .env writes; PostToolUse make check)</li>
+      <li><strong>Skills</strong> (.claude/skills/): 10 starter</li>
+      <li><strong>.agents/rules/</strong> directory (replaces docs/discipline-*.md)</li>
+      <li><strong>environment.md</strong> gitignored per-developer</li>
+      <li><strong>.mcp.json</strong> committed (GitHub/GitLab default)</li>
+      <li><strong>3-layer issue management</strong> + hardened CI YAML</li>
+      <li><strong>BLOCKING taxonomy</strong> locked in writing</li>
+      <li><strong>PASS verdicts require file:line evidence</strong></li>
+      <li><strong>AGENTS.md canonical</strong> + CLAUDE.md symlink</li>
+      <li><strong>Gitleaks</strong> replaces TruffleHog mention</li>
+      <li><strong>Memory scoped</strong> to reference + feedback types only</li>
+      <li><strong>OS-aware permissions</strong> (Bash() vs PowerShell())</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>STAYS from v1.1</h4>
+    <ul>
+      <li>5 visible stages (no Stage 2.5)</li>
+      <li>Per-wave fresh-eyes review MANDATORY (v3: Code-Reviewer + Tester; Security → closure)</li>
+      <li>Mandatory subagent profiles (K.7 fresh-eyes)</li>
+      <li>64 inherited seeds + 8 new (5 ACTIVE + 3 CANDIDATE)</li>
+      <li>D-001..D-005 universal ADRs</li>
+      <li>Permission matrix as separate file (default-deny)</li>
+      <li>Three-file handoff pattern</li>
+      <li>G.12 retrospectives at M≥3</li>
+      <li>K.4 wave dispatch (parallel, plan-driven)</li>
+      <li>Quarterly handover (M%3==0)</li>
+      <li>AGENTS.md 80 target / 150 hard cap</li>
+      <li>Quality Gate at Stage 4 closure</li>
+    </ul>
+  </div>
+</div>
+
+<h2>6 · Legend</h2>
+<div class="legend">
+  <div class="l-item"><span class="swatch" style="background: var(--navy);"></span> Stage 0 / 1 — Universal scaffolding</div>
+  <div class="l-item"><span class="swatch" style="background: var(--amber);"></span> Stage 2 — Wave + hook-enforced commit-gate</div>
+  <div class="l-item"><span class="swatch" style="background: var(--red);"></span> Stage 3 — Per-Wave (Code + Tester; Security → closure)</div>
+  <div class="l-item"><span class="swatch" style="background: var(--green);"></span> Stage 4 — Closure (Quality, Capture, Handoff)</div>
+  <div class="l-item"><span class="swatch" style="background: var(--purple);"></span> Quarterly handover (M%3==0)</div>
+  <div class="l-item"><span class="swatch" style="background: var(--teal);"></span> 3-layer issue management</div>
+  <div class="l-item"><span class="swatch" style="background: var(--ice);"></span> Decision / loop boundary</div>
+  <div class="l-item"><span class="newbadge">★</span> NEW in v2.0</div>
+</div>
+
+<footer>Pipeline v3 Schema · Midnight Executive palette · D-A baseline · v3 increment 2026-06-26 (2 gates + review-loop restructure + security baseline + Agent-Native candidate theme, from a 7-project harvest; 13-seat blind council)</footer>
+
+</div>
+</body>
+</html>

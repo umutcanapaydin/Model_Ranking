@@ -1,0 +1,96 @@
+QUARTERLY HANDOVER -- Q1 (Milestones M1 -> M3)
+Project: <PROJECT_NAME>
+Quarter range: <e.g., 2026-06-01 to 2026-08-31>
+Quarter status: <ACTIVE / CLOSED>
+Generated via: /quarterly-handover skill
+
+═══════════════════════════════════════════════════════════════════════
+1. SHIPPED THIS QUARTER
+═══════════════════════════════════════════════════════════════════════
+REQ-IDs closed:
+  - REQ-XX-001 -- <one-line description>
+  - REQ-XX-002 -- <one-line description>
+
+Milestones completed:
+  - M1 (closed YYYY-MM-DD) -- <one-line outcome>
+  - M2 (closed YYYY-MM-DD) -- <one-line outcome>
+  - M3 (closed YYYY-MM-DD) -- <one-line outcome>
+
+═══════════════════════════════════════════════════════════════════════
+2. NEW DECISIONS (ADRs added; starts at D-008 for this project)
+═══════════════════════════════════════════════════════════════════════
+  - D-008 -- <topic>: <status>
+  - D-009 -- <topic>: ...
+
+═══════════════════════════════════════════════════════════════════════
+3. ACTIVATED SEEDS (proposed -> active this quarter)
+═══════════════════════════════════════════════════════════════════════
+  - <Theme.NN> -- <principle one-liner>
+  - ...
+
+═══════════════════════════════════════════════════════════════════════
+4. OPEN RISKS (queued to Q2)
+═══════════════════════════════════════════════════════════════════════
+  - Risk: <description>
+    Severity: HIGH / MEDIUM / LOW
+    Mitigation: <plan>
+
+═══════════════════════════════════════════════════════════════════════
+5. CUMULATIVE STATE
+═══════════════════════════════════════════════════════════════════════
+  - Tests: <total count> (was <baseline> at Q1 start)
+  - Coverage: <%> (was <%> at Q1 start)
+  - Token spend (cumulative): <$/M tokens>
+  - AGENTS.md size: <line count> (target ≤80, hard cap 150)
+  - Active seeds: <total>
+  - ADRs: D-001..D-<latest>
+  - Active hooks: <count> (D-007 baseline + any promoted)
+  - Active skills: <count> (10 starter + any added)
+  - Active MCP servers: <count>
+
+═══════════════════════════════════════════════════════════════════════
+6. HARNESS DIET (per PM consortium decision)
+═══════════════════════════════════════════════════════════════════════
+Retired this quarter (not fired in 90d):
+  - <none / list>
+Promoted this quarter (rule violated 3+ times → hook):
+  - <none / list>
+
+═══════════════════════════════════════════════════════════════════════
+7. NEXT QUARTER SKELETON
+═══════════════════════════════════════════════════════════════════════
+Tentative milestones M4, M5, M6:
+  M4 -- <goal>
+  M5 -- <goal>
+  M6 -- <goal>
+Next-Q risks to mitigate:
+  - <item>
+External dependencies to track:
+  - <item>
+
+═══════════════════════════════════════════════════════════════════════
+8. FRESH-AGENT NAVIGATION MAP
+═══════════════════════════════════════════════════════════════════════
+If you are picking up this project cold, read in this order:
+  1. AGENTS.md (house rules, ~80 lines)
+  2. permission-matrix.md (what you can / can't do; BLOCKING taxonomy)
+  3. docs/decisions.md (ADR-lite log; latest first)
+  4. docs/prd.md (REQ-IDs)
+  5. docs/retrospectives/m3-retrospective.md (latest learnings)
+  6. docs/plans/m4-plan.md (where we are headed; profile source choice)
+  7. note.txt (current turn handoff)
+  8. .claude/skills/<name>/SKILL.md for any skill you need to invoke
+
+═══════════════════════════════════════════════════════════════════════
+9. GOTCHAS, SHORTCUTS, INSIDE JOKES
+═══════════════════════════════════════════════════════════════════════
+Anything that won't show up in formal docs but is useful:
+  - <e.g., "tests/integration/fixtures/foo.json is hand-curated; do not regenerate">
+  - <e.g., "deploy uses make smoke; CI is GH Actions">
+  - <e.g., "M2's K.8 grep-verify caught a sneaky factory rename in clients/dify.py">
+
+═══════════════════════════════════════════════════════════════════════
+Signed off by: <name / agent>
+Quarter closed: <YYYY-MM-DD>
+Git tag: handover-q1
+═══════════════════════════════════════════════════════════════════════

@@ -1,0 +1,311 @@
+# Decisions
+
+> ADR-lite log. Pre-seeded with universal decisions (D-001..D-007) from EF-AI Phase-1 + v2.0 consortium.
+>
+> **ADR-ID convention (v2.2, seed B.6 / FB-2):** to avoid colliding with an inherited project's own ADR history, **process/universal ADRs use the `P-00x` namespace; project ADRs start at `D-100`** (the `D-001..D-099` band is reserved). The existing universal `D-001..D-007` are grandfathered (supersede-don't-edit, B.2) and are equivalently addressable as their `P-00x` mirror (see P-001). **Your project starts at D-100.** For an inherited project that already numbered low D-ids, run the Stage-0 reconciliation recipe in P-001.
+>
+> **Discipline:**
+> - When an assumption ossifies under uncertainty, add a new ADR with status `proposed` via `/log-decision` skill (seed B.1).
+> - To reverse: mark old as `superseded by D-NNN`. Never edit in place (seed B.2).
+> - IDs are immutable; deletion leaves a gap (seed B.5).
+>
+> **Status legend:**
+> `proposed` — captured, not yet ratified.
+> `accepted` — locked. Changing requires `superseded by`.
+> `superseded by D-NNN` — old; do not follow.
+
+---
+
+## D-001 — Cloud-agnostic SDK boundaries (UNIVERSAL)
+
+**Status:** accepted
+
+**Decision:** All external cloud / vendor SDK calls (object storage, model endpoints, telemetry, identity providers, payment, etc.) live behind a typed Protocol in `src/<pkg>/clients/`. Production implementations are isolated; a fake implementation lives alongside for tests.
+
+**Rationale:** A future cloud / vendor pivot is a `clients/` swap, not a feature rewrite. Phase-1 lesson: this single discipline saved an entire milestone of rework when the cloud target shifted.
+
+**Mitigation if violated:** Code calling vendor SDK directly from `workflows/` or `adapter/` is a contract violation; refactor before merge.
+
+**Revisit when:** Customer mandates a specific SDK in a way that breaks the Protocol abstraction.
+
+---
+
+## D-002 — ADR-lite format (UNIVERSAL)
+
+**Status:** accepted
+
+**Decision:** All non-trivial design decisions go in this file using this format: ID, Status, Decision, Rationale, Mitigation, Revisit. One-paragraph per field. No full IETF-ADR ceremony. Use `/log-decision` skill for format enforcement.
+
+**Rationale:** Phase-1 captured 40 ADRs cleanly with this format in <2 hours total; heavier ADR formats took ~15 min per decision and got skipped under pressure.
+
+**Mitigation:** None — this is the format.
+
+**Revisit when:** Project crosses ≥3 teams and needs richer audit format.
+
+---
+
+## D-003 — AGENTS.md diet (UNIVERSAL)
+
+**Status:** accepted
+
+**Decision:** `AGENTS.md` is **navigation, not encyclopedia**. Target ≤80 lines; hard cap 150 lines. Anything longer goes to `.agents/rules/practices.md` or related concern files.
+
+**Rationale:** Phase-1 measurement: AGENTS.md trended 250 → 218 → 170 lines across M5-M9. Each diet pass increased agent task success. ETH Zurich AGENTbench (arxiv:2602.11988) corroborates: LLM-generated context files >200 lines LOWER task success by ~3% and raise cost 20%+. v2.0 lowers the target from v1.1's 170-line tolerance to 80.
+
+**Mitigation:** At every milestone closure (§4.2 Capture), check `wc -l AGENTS.md`. If over cap, extract a section to `.agents/rules/`.
+
+**Revisit when:** Multi-week milestones consistently need >150 lines of navigation.
+
+---
+
+## D-004 — Permission matrix default-deny (UNIVERSAL)
+
+**Status:** accepted
+
+**Decision:** `permission-matrix.md` defines what coding agents may and may not do. Default for any sensitive action is DENY; allowances require a new ADR. v2.0 extends this with §10 OS-aware patterns + §11 BLOCKING taxonomy.
+
+**Rationale:** Replit DB deletion incident (July 2025) + Lovable RLS CVE-2025-48757 (May 2025) both stemmed from agents acting beyond authority. Standing matrix removes ambiguity.
+
+**Mitigation:** `permission-matrix.md` is editable only via ADR. Commits violating without prior `accepted` ADR are reverted.
+
+**Revisit when:** Permission categories themselves change.
+
+---
+
+## D-005 — Subagent-profiles mandatory: Code-Reviewer + Security-Reviewer (UNIVERSAL)
+
+**Status:** accepted — **superseded in part by P-004 (v3, V3C-68):** the per-wave pair is now Code-Reviewer + Tester; Security-Reviewer moves to Stage-4 closure (BLOCKING before deploy). Decision body preserved below per B.2 (supersede, don't edit).
+
+**Decision:** Every wave-end fires two subagent profiles in Stage 3: `subagent-profiles/Code-Reviewer.md` (3a) and `subagent-profiles/Security-Reviewer.md` (3b). These are MANDATORY. Other profiles (Architect, Docs, etc.) are project-specific and added per need. Profile content invoked via `/review` and `/security-review` skills.
+
+**Rationale:** Phase-1 K.7 (fresh-eyes review) caught BLOCKING at every milestone. Industry research (Veracode 45%, Lovable RLS, Replit) shows parallel security pass needed.
+
+**Mitigation:** Stage 0 ships baseline profile files. Stage 1 plan chooses source (A/B/C/D).
+
+**Revisit when:** A third profile graduates to mandatory (≥2 milestones PULLED-WEIGHT).
+
+---
+
+## D-006 — BLOCKING / MINOR / Catastrophe taxonomy locked (UNIVERSAL, v2.0)
+
+**Status:** accepted
+
+**Decision:** Stage 3 Per-Wave Duo verdicts (3a + 3b) and Stage 4.1 Quality Gate verdicts MUST use these categories:
+
+- **BLOCKING:** REQ unmet / test red / secret leak / contract-grep miss / coverage drop / PASS without `file:line` evidence / auth-PII-payment-migration without senior review / permission-matrix region touched without ADR / hook violation.
+- **MINOR:** style / doc drift / cross-wave K.9 candidate / AGENTS.md approaching cap (not over).
+- **Catastrophe-class (DENY always):** `git reset --hard` / `git push --force` / `rm -rf` / drop table / commit secret / log PII unredacted / self-merge agent's own PR / any `--force` on irreversible op without user confirmation.
+
+Full taxonomy in `permission-matrix.md` §11.
+
+**Rationale:** Quality consortium identified "undefined BLOCKING drifts per reviewer" as the highest-leverage quality bug in either of the merged models. Writing it down once eliminates per-reviewer reinterpretation.
+
+**Mitigation:** PASS verdicts WITHOUT file:line evidence are automatically demoted to BLOCKING (no false-pass surface). All BLOCKING findings need an attached evidence path.
+
+**Revisit when:** First Phase-2 milestone closes with a new BLOCKING class not covered.
+
+---
+
+## D-007 — Two baseline hooks ship day-1 (UNIVERSAL, v2.0)
+
+**Status:** accepted
+
+**Decision:** `.claude/settings.json` ships with exactly 2 PreToolUse/PostToolUse hooks at bootstrap:
+1. PreToolUse — block writes to `.env` / `*.env*` (catastrophe-class catch).
+2. PostToolUse — run `make check` after Write/Edit/MultiEdit (Stage 2 commit-gate enforcement).
+
+Additional hooks earn their way in only after a rule in `.agents/rules/practices.md` or `permission-matrix.md` is violated 3+ times in measured sessions. Catastrophe-class items (§11 of permission-matrix) may ship as hooks day-1 without violation prerequisite.
+
+**Rationale:** PM consortium lens — every hook is a maintenance liability. Shipping 2 catches the highest-leverage incidents (Lovable secret-commit class + lint-drift) while not pre-defining what doesn't break.
+
+**Mitigation:** Promotion rule documented in `permission-matrix.md`. Quarterly handover harness diet retires hooks not fired in 90 days.
+
+**Revisit when:** First Phase-2 milestone surfaces a recurrent rule violation that would benefit from a 3rd hook.
+
+---
+
+## P-001 — ADR-ID namespace convention (PROCESS, v2.2)
+
+**Status:** accepted
+
+**Decision:** Pipeline/process ADRs use the `P-00x` namespace; project ADRs start at `D-100`. The `D-001..D-099` band is reserved so an inherited project's existing `D-006+` history cannot collide with the pipeline's universal decisions. The grandfathered universal ADRs `D-001..D-007` keep their IDs (B.2) and are mirrored conceptually as `P-001`(this), `P-002`≙D-006 (BLOCKING taxonomy), `P-003`≙D-007 (baseline hooks).
+
+**Stage-0 reconciliation recipe (inherited project):** (1) keep the project's existing `D-ids` as-is; (2) do NOT renumber them; (3) record the pipeline's process ADRs under `P-00x` (or in `permission-matrix.md`); (4) write the mapping in `process-log.md` before the first commit; (5) new project ADRs continue from `D-100+`. `make bootstrap-check` C5 warns if project ADRs sit in the reserved `D-006..D-099` band.
+
+**Rationale:** HCS-MaaS bootstrap — the pipeline's universal `D-006/D-007` collided with the inherited project's own `D-006+` (cited across its PRD + feature list). A namespace split removes the collision class permanently.
+
+**Mitigation if violated:** ambiguous citations; a `D-0xx` reference could mean a universal or a project decision. The `bootstrap-check` warn + this recipe catch it at Stage 0.
+
+**Revisit when:** a project legitimately needs >900 ADRs, or a multi-project monorepo needs a third namespace.
+
+---
+
+## P-004 — Review-loop restructure: per-wave Code+Tester, Security at closure (PROCESS, v3)
+
+**Status:** accepted (v3, 2026-06-26) — supersedes D-005's reviewer composition. (`P-002`≙D-006 and `P-003`≙D-007 are reserved mirrors per P-001, so this new process ADR is `P-004`.)
+
+**Decision:** Per V3C-68. **Stage 2 (wave):** each implementing agent runs a dev-test loop (implement → write/run tests → self-review → fix) on its own slice. **Stage 3 (per-wave, fresh-eyes, never own code):** Code-Reviewer (`subagent-profiles/Code-Reviewer.md`) + **Tester** (`subagent-profiles/Tester.md`) flush all fixes before the wave closes. The Security-Reviewer is REMOVED from the per-wave gate and runs at **Stage 4 milestone closure (BLOCKING, before the deploy/go-live step).** Catastrophe-class always-on guardrails (no secrets, no destructive ops) still apply during every wave.
+
+**Rationale:** testing is needed continuously (every wave); security reviews the whole milestone surface at once, which is more efficient and complete. Safe because nothing ships mid-milestone (deploy is at closure), so security-at-closure always precedes go-live. Preserves K.7 fresh-eyes — the dev-test loop *adds to*, never replaces, the wave-exit Code+Tester. Ratified by the 13-seat v3 council.
+
+**Mitigation:** QM caveat — the security move ships WITH its executable check (V3C-11 in `make bootstrap-check` + `docs/security-baseline.md`), so security discipline is enforced, not merely deferred.
+
+**Revisit when:** a milestone is harmed by late security feedback (an early-wave security flaw caught only at closure) → reintroduce a HIGH-risk-path in-wave security trigger.
+
+---
+
+## P-005 — v3.1: risk-tiered review depth + executable wave-close (PROCESS, v3.1)
+
+**Status:** ACTIVE (2026-07-03) — amends P-004; ratified by the v3.1 council (`General_Pipeline/v3.1-ratification.md`)
+
+**Decision:** (1) Review depth is tiered by wave risk (V3C-78): LOW/MED → one combined fresh-eyes reviewer; HIGH (auth/payment/crypto/migration/distributed-correctness — auto-escalated if the diff touches authz/secrets/crypto/input-parsing/egress) → separate Code-Reviewer + Tester + a pulled-forward security pass on that slice. First escaped blocker on a tiered-down wave reverts the project to full per-wave review (tripwire). (2) Wave close is gated by a committed, evidence-cited checklist (V3C-69, `docs/wave-checklist.template.md`) whose required rows derive from the plan's risk tags.
+
+**Rationale:** measured on hcs_maas_vib (first GP-v3 field run): ~11→~5 reviewer runs per MED milestone, zero escaped blockers; the one process miss (F15) was exactly a memory-held, un-gated required pass.
+
+**Mitigation if violated:** the tripwire above; wave-checklist rows 3–4 block closure mechanically (`make wave-check`).
+
+**Revisit when:** the tripwire fires twice in one project, or a second independent project contradicts the tiering economics.
+
+---
+
+## P-006 — v3.2: owner review pack + evidence rule; autonomy ladder held as NORTH STAR (PROCESS, v3.2)
+
+**Status:** ACTIVE for items (2)–(3); item (1) **NORTH-STAR CANDIDATE — NOT ACTIVE** (owner decision 2026-07-03, overriding the delegated chair's activation: "we are not ready; I review every wave and milestone, run the tests/smoke tests/checks, and make the commits").
+
+**Decision:** (1) The autonomy ladder (A0/A1/A2, `docs/autonomy-protocol.md`) is RECORDED as the north-star design; **A0 is the only operating mode** — owner reviews every wave + milestone, runs all tests/checks, performs all commits; activation only by a future explicit owner-initiated ADR. (2) Every closure generates the owner review pack (`docs/closure-report.template.md`) derived from raw git/CI referents — an AID to the owner's review, replacing duplicated closure outputs, never replacing the owner. (3) The evidence rule (ACTIVE): anything measured about the pipeline (telemetry, gate inputs) is computed against protected refs; agent-asserted content never gates.
+
+**Rationale:** owner directive OD-3 names the destination; the owner's readiness call sets the pace. The 9/9-seat finding (agent-generated evidence must not certify agent autonomy) and the METR felt-vs-actual gap survive as the ACTIVE evidence rule.
+
+**Mitigation if violated:** any agent auto-approving or skipping an owner touchpoint "per the protocol" is an integrity violation → catastrophe-class (permission-matrix).
+
+**Revisit when:** the owner initiates — expected only after many versions of clean telemetry track record.
+
+---
+
+## P-007 — v3.3: A0.5 milestone-cadence owner review (PROCESS, v3.3)
+
+**Status:** ACTIVE — PROVISIONAL (2026-07-05); owner directive OD-4, shape ratified by a 7-seat council with all decisions chair-delegated (`General_Pipeline/v3.3-ratification.md`).
+
+**Decision:** The operating mode is **A0.5**: waves close agent-side (fresh-eyes reviews per tier, green checks pinned to the closing tree, committed evidence-cited checklist); the owner reviews, runs his own tests/smoke tests, and performs the commits at every MILESTONE boundary (session time-boxed; milestone capped ~4–6 waves / ~2k net lines); owner makes labeled non-approval checkpoint commits per wave. Escalate-NOW list halts to the owner immediately (AGENTS.md §3). Assumption ledger active. **Bright line:** an agent commit reaching main = A1 = explicit owner ADR only.
+
+**Rationale:** OD-4 + hcs_maas_vib field evidence (agent reviews caught the real blockers; owner wave passes rarely added catches — single-project evidence, hence PROVISIONAL). Skeptic's dissent recorded: 48-hour reversal pattern; answered with the tripwire.
+
+**Mitigation if violated:** auto-reversion tripwire (first escaped blocker an owner wave-pass would plausibly have caught → wave-cadence review for rest of milestone + one full milestone); fix-rate-vs-baseline line generated in every closure report.
+
+**Revisit when:** A0.5 survives (or trips) two full milestones on the next project.
+
+---
+
+## P-008 — v3.4: Stage 5 maintenance loop + fixpack deploy gate (PROCESS, v3.4)
+
+**Status:** ACTIVE (2026-07-17) — owner directive OD-6; 5-seat council (`General_Pipeline/v3.4-ratification.md`).
+
+**Decision:** post-deploy bugs run as fix WAVES through the existing wave machinery (red-test
+intake — the failing test is the frozen spec; fixes only turn red tests green). Ship via the
+FIXPACK deploy gate: per-fix evidence rows, caps, security floor, full regression on the bundle,
+**owner out-of-sandbox verification (BLOCKING)**, fix probe + watch window, emergency path with a
+never-skipped floor + 48h retro-close debt. Capture coupling: fixpack lessons append to
+EXPERIENCE.md as a deploy condition; **the standalone memory-based harvest is RETIRED.**
+3-strikes gate-attribution → gate-change proposal; N=3 fix-on-fix → refactor milestone.
+
+**Rationale:** first GP prod project accumulated ~5 ad-hoc fix deployments; GP ended at go-live.
+The Skeptic's finding: the deeper failure was capture (3 md5-identical harvest uploads) — hence
+the mechanical coupling and the retirement.
+
+**Mitigation if violated:** an unfilled fixpack row or missing owner signature blocks deploy;
+emergency erosion alarmed at >1/month.
+
+**Revisit when:** 3 fixpacks of field data (tune caps, watch windows, N=3 threshold).
+
+---
+
+## P-009 — v3.5: outward-facing deploy checks from the first post-prod dataset (PROCESS, v3.5)
+
+**Status:** ACTIVE (2026-07-27) — 5-seat council on Increment 9 (`General_Pipeline/v3.5-ratification.md`).
+
+**Decision:** adopt the boundary-defect countermeasures: check-templates + cold-start CI checks
+(V3C-99), the human-path criterion (V3C-100), producer enumeration on hardened invariants
+(V3C-101, with security sign-off on auth-class), narrow tooling rules (V3C-102), ready≠alive +
+channel-constrained diagnosable fail-closed (V3C-103), the boundary-grep delivery line (V3C-104
+split), artifact-bound cadence (V3C-105), the black-box journey tester as default-expected deploy
+deliverable (V3C-106), and the boot-prerequisite ownership rule (V3C-107).
+
+**Rationale:** 7 post-prod defects, zero caught by build gates, 100% boundary class — the suite
+tested the system we built; the defects lived in its contracts with everything outside it.
+
+**Mitigation if violated:** the checks are CI/checklist rows; a skipped journey run is recorded in
+the closure report. **Revisit when:** a second project's post-prod dataset exists (cross-stack check).
+
+---
+
+## D-100 — Stack & M1 shape: Python 3.11 + FastAPI (health-only) + SQLite
+
+**Status:** proposed
+
+**Decision:** M1 runs on Python 3.11, pytest, ruff/black/mypy per the starter lock. Persistence is a disposable SQLite file rebuilt from sources on every run. The FastAPI adapter ships /health (L.7) only; ranking/recommend HTTP endpoints and any Postgres migration are deferred to the API milestone. The iOS/SwiftUI client is a later milestone and likely a separate repo.
+
+**Rationale:** Smallest surface that exercises the whole pipeline discipline; dataset is tiny (<5MB) so SQLite is honest, not a shortcut. Matches the spike's proven shape.
+
+**Mitigation if violated:** Any new HTTP route or DB engine before the API milestone is out-of-plan scope; halt and re-plan.
+
+**Revisit when:** API milestone opens (OQ-3), or dataset outgrows single-file storage.
+
+---
+
+## D-101 — Data sources: free-and-legal core only; no scraping; provenance mandatory
+
+**Status:** proposed
+
+**Decision:** M1 ingests exactly three documented raw-data endpoints: LiteLLM pricing JSON (GitHub), SWE-bench leaderboard JSON (GitHub), Aider polyglot YAML (GitHub). HTML scraping is banned. Artificial Analysis is NOT integrated until a commercial agreement exists (their free tier is internal-use-only, 100 req/day — verified 2026-08-06). Every stored record carries source, source_url class, and observed_at; source licenses are tracked in the PRD/source register.
+
+**Rationale:** Comparison verdict: licensing is the project's gating risk; the free/legal core is sufficient for M1 and keeps the App Store path clean.
+
+**Mitigation if violated:** Any ingestion from an undocumented endpoint is BLOCKING at review; remove the data and the code path.
+
+**Revisit when:** AA commercial quote lands; Arena HF dataset + OpenRouter join at M2 (OQ-1).
+
+---
+
+## D-102 — The Cowork spike is L0 throwaway; production code is rebuilt through the pipeline
+
+**Status:** proposed
+
+**Decision:** The 2026-08-06 prototype (pipeline.py, recommend.py, advisor.db) is treated as a spike-* L0 lane artifact (V3C-87): its findings (alias variant-before-parent bug, median-not-min pricing, harness retention) are encoded as REQ-CAN-002/003 and tests, but its code is NOT imported into src/. It may be kept read-only outside src/ for reference.
+
+**Rationale:** V3C-87: productionize = rebuild through the pipeline; the spike bypassed reviews, tests, and gates by design.
+
+**Mitigation if violated:** Any file copied from the spike into src/ without tests citing its REQ-IDs is BLOCKING at wave review.
+
+**Revisit when:** never — spikes stay spikes.
+
+---
+
+## D-103 — Operating mode: A0.5 (owner-confirmed at kickoff echo-back)
+
+**Status:** proposed
+
+**Decision:** The project runs at autonomy A0.5 per OD-4: waves close agent-side with fresh-eyes Code-Reviewer + Tester; the owner reviews, runs his own checks, and performs ALL git commits at milestone boundaries plus labeled per-wave checkpoint commits. Agents never run git. Escalate-NOW list per AGENTS.md §3.
+
+**Rationale:** The autonomy protocol's default for a new project is A0, but the repo-wide active mode is A0.5 (OD-4, binding) and the owner approved proceeding on this basis in the kickoff echo-back (2026-08-06). Recorded here so the choice is auditable.
+
+**Mitigation if violated:** An agent commit reaching main = A1 without ADR → automatic demotion review per autonomy-protocol §2.
+
+**Revisit when:** A0.5 tripwire fires (escaped blocker on an unreviewed wave) → fallback to wave-cadence review.
+
+---
+
+## D-104 — Recommendation engine is deterministic; no LLM in the scoring/data path
+
+**Status:** proposed
+
+**Decision:** Rankings and recommendations are computed by rule-based, tested code: hard budget constraints first, Pareto non-dominance for value picks, explicit confidence grades, disclosed near-ties. No LLM generates, adjusts, or explains-with-invented-facts any score, price, or availability claim. A future natural-language intake layer may only translate user text into engine filters.
+
+**Rationale:** Both research docs converge on this; it is also the App Store 5.1.2(i) avoidance path and the neutrality moat.
+
+**Mitigation if violated:** Any model-generated number in output is BLOCKING; trace and remove.
+
+**Revisit when:** NL intake milestone opens (separate consent + privacy review).
+
+---
+
+*Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*

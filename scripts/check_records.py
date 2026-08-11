@@ -1,0 +1,569 @@
+#!/usr/bin/env python3
+"""check_records.py — governance-record validator (V4C-30, Increment 11).
+
+STDLIB ONLY. No dependencies, ever: this file sits on a governance path, and the round's most
+transferable empirical result was "adopt formats, write your own 150 lines, never adopt a 10-star
+dependency for governance" (V4C-41).
+
+Idiom copied from python/peps' check-peps.py: required-field sets, one validator per field,
+`path:line: message` output, non-zero exit. Prose stays canonical markdown; this reads only the
+YAML frontmatter block and a few cross-file facts.
+
+WHAT IT CHECKS
+  Per record (frontmatter):   R1 required fields · R2 closed enums · R3 id format+uniqueness
+  Cross-record:               X1 supersedes/requires resolve · X2 no cycle · X3 status-flow order
+  Propagation (V4C-36):       P1 declared propagation rows are not `pending`
+                              P2 each package's pipeline-design.md keeps its §0 changelog heading
+                                 (the ONE verified field incident: v3.3 lost it)
+                              P3 executive-overview file count == actual package file count
+                                 (the second, already-auto-fixed incident — kept as a regression test)
+  Pins (V4C-43-adjacent):     N1 no /blob/main|master/ URL is called a "pin"
+  Conditions (V4C-25, v4.2):  C1a a condition's closure artifact must be NAMEABLE (path or record
+                                  id in backticks), forward-only from v4.2
+                              C1b a DUE condition whose named artifact is absent = EVAPORATED
+                                  (the V4C-25 and V4C-12 incidents; see council-telemetry.md)
+  Drift (v4.2):               D1 the shipped validator copy == the one CI runs
+
+WHAT IT DELIBERATELY DOES NOT CHECK (V4C-35 narrowness rule): prose quality, rationale truth,
+whether a review was independent, or anything a human must judge. Shape only.
+
+Usage:
+  python3 scripts/check_records.py                 # validate the repo
+  python3 scripts/check_records.py --self-test     # run conformance/ fixtures (CI self-test, V4C-32)
+  python3 scripts/check_records.py --historical    # informational: ALL packages (day-1 falsification)
+Exit: 0 clean · 1 findings · 2 usage/internal error.
+
+COST LINE (V4C-13, binding condition of Increment 11): fires on every push and pre-commit;
+~1-3 s per run; bypass = `git commit --no-verify` or an admin merge, both recorded in the
+wave-checklist row-9 bypass ledger. Owner may bypass; agents may not.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime
+import os
+import re
+import sys
+from pathlib import Path
+
+# ── declared vocabulary (narrow by rule V4C-35: every field drives a check below) ──────────
+RECORD_TYPES = {"ratification", "register", "adr", "experience", "handover", "design", "council"}
+STATUS_FLOW = ["draft", "candidate", "ratified", "superseded", "retired"]  # X3 ordering
+REQUIRED = ("record_type", "id", "status")
+OPTIONAL = ("process_version", "supersedes", "requires", "subject_ref", "propagation",
+            "evidence_ref", "approvers", "date")
+ID_RE = re.compile(r"^[a-z0-9][a-z0-9.\-]{2,63}$")
+FM_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.S)
+PIN_RE = re.compile(r"https?://\S*/blob/(?:main|master)/\S*")
+
+
+def _today() -> str:
+    """Overridable so the C1 fixtures can pin a date instead of drifting into failure over time."""
+    return os.environ.get("CHECK_RECORDS_TODAY") or datetime.date.today().isoformat()
+
+
+class Finding:
+    __slots__ = ("path", "line", "rule", "msg")
+
+    def __init__(self, path, line, rule, msg):
+        self.path, self.line, self.rule, self.msg = path, line, rule, msg
+
+    def __str__(self) -> str:
+        return f"{self.path}:{self.line}: [{self.rule}] {self.msg}"
+
+
+# ── a deliberately tiny YAML subset: scalars, inline lists, and one level of list-of-maps ──
+def parse_frontmatter(text: str) -> tuple[dict | None, int]:
+    """Return (fields, first_line_of_frontmatter) or (None, 0) when absent."""
+    m = FM_RE.match(text)
+    if not m:
+        return None, 0
+    out: dict = {}
+    key = None
+    for raw in m.group(1).splitlines():
+        line = raw.rstrip()
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if re.match(r"^\s*-\s", line):  # list item under the last key
+            item = line.split("-", 1)[1].strip()
+            if key:
+                out.setdefault(key, [])
+                if isinstance(out[key], list):
+                    out[key].append(item.strip("\"'"))
+            continue
+        if ":" in line:
+            k, _, v = line.partition(":")
+            key = k.strip()
+            v = v.strip()
+            if v.startswith("[") and v.endswith("]"):
+                out[key] = [x.strip().strip("\"'") for x in v[1:-1].split(",") if x.strip()]
+            elif v == "":
+                out[key] = []
+            else:
+                out[key] = v.strip("\"'")
+    return out, 2
+
+
+def validate_record(path: Path, root: Path) -> tuple[list[Finding], dict | None]:
+    f: list[Finding] = []
+    rel = path.relative_to(root)
+    text = path.read_text(encoding="utf-8", errors="replace")
+    fields, ln = parse_frontmatter(text)
+    if fields is None:
+        return [Finding(rel, 1, "R1", "no YAML frontmatter block (record is unparsed prose)")], None
+
+    for k in REQUIRED:                                              # R1
+        if not fields.get(k):
+            f.append(Finding(rel, ln, "R1", f"missing required field `{k}`"))
+    rt = fields.get("record_type")
+    if rt and rt not in RECORD_TYPES:                               # R2
+        f.append(Finding(rel, ln, "R2", f"record_type `{rt}` not in {sorted(RECORD_TYPES)}"))
+    st = fields.get("status")
+    if st and st not in STATUS_FLOW:                                # R2
+        f.append(Finding(rel, ln, "R2", f"status `{st}` not in {STATUS_FLOW}"))
+    rid = fields.get("id")
+    if rid and not ID_RE.match(str(rid)):                           # R3
+        f.append(Finding(rel, ln, "R3", f"id `{rid}` must match {ID_RE.pattern}"))
+    for k in fields:                                                # V4C-35: no undeclared fields
+        if k not in REQUIRED + OPTIONAL:
+            f.append(Finding(rel, ln, "R2", f"undeclared field `{k}` "
+                                            "(V4C-35: only fields that drive a check may exist)"))
+    for row in fields.get("propagation", []) or []:                 # P1
+        if "pending" in str(row):
+            f.append(Finding(rel, ln, "P1", f"propagation row still pending: {row}"))
+    for i, line in enumerate(text.splitlines(), 1):                 # N1
+        if PIN_RE.search(line) and re.search(r"\bpin(ned)?\b", line, re.I):
+            f.append(Finding(rel, i, "N1", "a /blob/main/ URL is described as a pin — "
+                                           "it tracks HEAD; use a commit SHA"))
+    return f, fields
+
+
+def cross_record(records, root: Path) -> list[Finding]:
+    """Cross-file rules. `records` is a LIST of (path, fields).
+
+    v4.2 REPAIR (Increment 12, Quality seat): this used to take a dict keyed by record id, built by
+    `collect()`. Two records sharing an id therefore collapsed into one entry BEFORE arriving here,
+    so the R3 uniqueness branch below could never fire on any path — dead code since v4.1. Taking a
+    list means duplicates survive to be seen. Cluster A again, inside the validator itself.
+    """
+    if isinstance(records, dict):        # tolerate the old call shape
+        records = list(records.values())
+    f: list[Finding] = []
+    seen: dict[str, Path] = {}
+    for path, fields in records:
+        rid = str(fields.get("id", ""))
+        if rid in seen and seen[rid] != path:                       # R3 uniqueness
+            f.append(Finding(path.relative_to(root), 2, "R3",
+                             f"duplicate id `{rid}` (also {seen[rid].relative_to(root)})"))
+        seen.setdefault(rid, path)
+    by_id = {str(fl.get("id", "")): (p, fl) for p, fl in records}
+    for path, fields in records:
+        rel = path.relative_to(root)
+        for ref in (fields.get("supersedes", []) or []) + (fields.get("requires", []) or []):
+            if ref and ref not in seen:                             # X1
+                f.append(Finding(rel, 2, "X1", f"reference `{ref}` resolves to no record"))
+        sup = fields.get("supersedes", []) or []
+        for ref in sup:                                             # X2 (1-hop cycle)
+            other = by_id.get(ref)
+            if other and str(fields.get("id")) in (other[1].get("supersedes", []) or []):
+                f.append(Finding(rel, 2, "X2", f"supersession cycle with `{ref}`"))
+        for ref in fields.get("requires", []) or []:                # X3 status-flow ordering
+            other = by_id.get(ref)
+            if not other:
+                continue
+            try:
+                if STATUS_FLOW.index(str(fields.get("status"))) > STATUS_FLOW.index(
+                        str(other[1].get("status"))):
+                    f.append(Finding(rel, 2, "X3",
+                                     f"status `{fields.get('status')}` is ahead of its dependency "
+                                     f"`{ref}` (`{other[1].get('status')}`)"))
+            except ValueError:
+                pass
+    return f
+
+
+def current_package(root: Path) -> Path | None:
+    """The version the repo is shipping = the highest general_pipeline_v* by numeric order."""
+    def key(p: Path):
+        return [int(x) if x.isdigit() else 0
+                for x in re.findall(r"\d+", p.name.replace("general_pipeline_v", ""))]
+    pkgs = [p for p in root.glob("general_pipeline_v*") if p.is_dir()]
+    return max(pkgs, key=key) if pkgs else None
+
+
+def package_invariants(root: Path, scope: str = "current") -> list[Finding]:
+    """P2/P3 — the two propagation regressions we actually paid for.
+
+    scope="current": only the shipping version BLOCKS. Prior packages are FROZEN by the standing
+    versioning rule (never edit a prior version to produce a new one), so a finding there is
+    history, not a defect to fix — surface it with `--historical`.
+    """
+    f: list[Finding] = []
+    cur = current_package(root)
+    for pkg in sorted(root.glob("general_pipeline_v*")):
+        if not pkg.is_dir():
+            continue
+        if scope == "current" and pkg != cur:
+            continue
+        if pkg.name == "general_pipeline_v2.0":
+            continue  # the §0-changelog convention begins at v2.1; v2.0 predates it (scoped, not ignored)
+        design = pkg / "pipeline-design.md"
+        if not design.exists():
+            design = pkg / "pipeline-v2-design.md"
+        if design.exists():                                          # P2
+            body = design.read_text(encoding="utf-8", errors="replace")
+            if not re.search(r"^##\s*§0\s*[—-]\s*Changelog", body, re.M):
+                f.append(Finding(design.relative_to(root), 1, "P2",
+                                 "§0 changelog heading missing (the v3.3 propagation incident: "
+                                 "a patch helper consumed it and no check noticed)"))
+        overview = pkg / "docs" / "executive-overview.md"
+        if overview.exists():                                        # P3
+            actual = sum(1 for p in pkg.rglob("*")
+                         if (p.is_file() or p.is_symlink()) and "__pycache__" not in p.parts)
+            body = overview.read_text(encoding="utf-8", errors="replace")
+            claimed = {int(m) for m in re.findall(r"(?:about |\()(\d{2,3}) files", body)}
+            for c in claimed:
+                if c != actual:
+                    f.append(Finding(overview.relative_to(root), 1, "P3",
+                                     f"claims {c} files, package contains {actual}"))
+    return f
+
+
+# ── C1: condition closure (V4C-25, Increment 12) ────────────────────────────────────────────
+# WHY. V4C-22 ratified "conditions carry owner + date + closure artifact" and "a condition without
+# its artifact evaporates" — and created NO check that the artifact existed at the date. Two
+# conditions then evaporated in silence: V4C-25 (caught by the Skeptic seat) and V4C-12 (caught by
+# nobody until council-telemetry.md was written). See council-telemetry.md TB-006/TB-007.
+#
+# THE HONEST SCOPE, and it is a concession to the Software seat's audit. The corpus contains TWO
+# incompatible condition formats. v4.0-ratification.md embeds conditions as free prose in a ballot
+# table's 4th column, whose "dates" are release names ("v4.1 cut", "this cut", "at cut") and whose
+# artifacts are prose ("telemetry spec + first traceback report") — machine-unresolvable by
+# construction. A parser tuned to the newer 5-column table would NOT have caught TB-006/007, which
+# is precisely the false precision the seat warned about. So C1 does not pretend:
+#   C1a  FORWARD-ONLY, BLOCKING. In records at process_version >= v4.2, every condition row must
+#        name a closure artifact that is machine-resolvable — a backticked path that exists, or a
+#        record id that resolves. An unresolvable prose artifact FAILS. This is what makes C1b
+#        possible at all, and it is why the rule is worth having.
+#   C1b  BLOCKING wherever the artifact IS resolvable and the due marker has passed: the artifact
+#        must exist. "Evaporated" is the finding.
+# Legacy prose conditions are reported by --historical, never silently treated as satisfied.
+#
+# COST LINE (V4C-13): ~70 lines, no dependency, <0.1 s. One new failure mode — a malformed
+# conditions table reads as "no conditions" — which is why conformance/fail/ ships
+# `condition-evaporated.md` AND `condition-unresolvable-artifact.md`, and why the self-test asserts
+# on a degenerate table too. A check with no fixture is the thing this rule exists to punish.
+ISO_RE = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
+CUT_RE = re.compile(r"\bv(\d+\.\d+)\b|\b(?:this|the) cut\b|\bat cut\b", re.I)
+TICK_RE = re.compile(r"`([^`]+)`")
+PATHISH_RE = re.compile(r"(?:^|/)[\w.-]+\.(?:md|py|sh|ya?ml|html|json|txt|pdf|xlsx|csv)$|/")
+
+
+def _version_tuple(s: str):
+    return tuple(int(x) for x in re.findall(r"\d+", s))
+
+
+def _shipped_versions(root: Path) -> set:
+    return {p.name.replace("general_pipeline_v", "")
+            for p in root.glob("general_pipeline_v*") if p.is_dir()}
+
+
+def condition_rows(text: str):
+    """Yield (line_no, cells) for rows of a CONDITIONS table.
+
+    v4.2 fix (pre-ship external audit): the first version matched only tables under a heading
+    literally reading "binding conditions". A zero-context reviewer ran it across the corpus and
+    found it saw **1 of 16** governed records — every ratification record uses a different heading,
+    so C1 could not fire on the one document carrying live obligations even months past due. The
+    headline repair of this cut was itself a dead control.
+
+    A table is a conditions table when its HEADER ROW names all three parts of the V4C-22 contract:
+    a condition, a date/due, and a closure artifact. Structure, not prose. That is also exactly the
+    shape V4C-22 requires, so a table that does not match is not a conditions table by definition.
+    """
+    hdr_cond = re.compile(r"condition", re.I)
+    hdr_date = re.compile(r"\bdate\b|\bdue\b", re.I)
+    hdr_art = re.compile(r"artifact|artefact|closure|evidence", re.I)
+    in_tbl = False
+    for i, line in enumerate(text.splitlines(), 1):
+        if not line.lstrip().startswith("|"):
+            in_tbl = False
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 3:
+            in_tbl = False
+            continue
+        if set("".join(cells)) <= set("-: "):          # separator row — keep state
+            continue
+        # A HEADER row is short and unformatted. Without this, traceback DATA rows whose prose
+        # happens to contain "condition", a date and "artifact" were read as headers — found by
+        # running the rule against the corpus, which is how the previous version's blindness was
+        # found too. The three matches must also land on THREE DISTINCT cells: v4.0-ratification's
+        # legacy ballot column is literally headed "Binding conditions (owner · date · closure
+        # artifact)", one cell doing all three jobs, and that format is deprecated, not parsed.
+        if all(len(c) <= 30 and "`" not in c and "**" not in c for c in cells):
+            i_c = {n for n, c in enumerate(cells) if hdr_cond.search(c)}
+            i_d = {n for n, c in enumerate(cells) if hdr_date.search(c)}
+            i_a = {n for n, c in enumerate(cells) if hdr_art.search(c)}
+            if i_c and i_d and i_a and len(i_c | i_d | i_a) >= 3:
+                in_tbl = True                          # this is the header row
+                continue
+        if in_tbl:
+            yield i, cells
+
+
+def condition_closure(root: Path, records, scope: str = "current") -> list[Finding]:
+    f: list[Finding] = []
+    ids = {str(fl.get("id", "")) for _, fl in records}
+    shipped = _shipped_versions(root)
+    today = _today()
+    for path, fields in records:
+        pv = str(fields.get("process_version") or "")
+        # C1a (artifact must be machine-resolvable) is FORWARD-ONLY: ratified history is frozen and
+        # its prose conditions cannot be retroactively rewritten. C1b (a due, resolvable artifact
+        # must exist) applies to EVERY record — restricting it by generation was the first bug in
+        # this rule, and it silently exempted the exact register that carries the live conditions.
+        forward = bool(pv) and _version_tuple(pv) >= (4, 2)
+        rel = path.relative_to(root)
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for ln, cells in condition_rows(text):
+            row = " ".join(cells)
+            artifact_cell = cells[-1]
+            # ---- is it due? -------------------------------------------------------------
+            due = False
+            iso = ISO_RE.search(row)
+            if iso:
+                due = iso.group(1) <= today
+            else:
+                m = CUT_RE.search(row)
+                if m:
+                    due = (m.group(1) in shipped) if m.group(1) else (pv in shipped)
+            # ---- name the artifact ------------------------------------------------------
+            # The FIRST version of this block asked "is the artifact resolvable?" and then failed
+            # only when a resolvable artifact was missing — which is circular: resolvable meant it
+            # existed, so the branch could never fire. Caught by falsifying it before shipping.
+            # A named-but-absent artifact and an unnameable one are DIFFERENT findings.
+            satisfied = False        # a token that resolves: an existing path, or a real record id
+            missing: list = []       # tokens that are clearly path-shaped but absent from the tree
+            for tok in TICK_RE.findall(artifact_cell):
+                tok = tok.strip().split()[0].rstrip(",;:)")
+                if tok in ids or (root / tok).exists():
+                    satisfied = True
+                    break
+                if PATHISH_RE.search(tok):
+                    missing.append(tok)
+            # ---- C1b: due, an artifact was NAMED, and it is not there --------------------
+            if due and not satisfied and missing:
+                f.append(Finding(rel, ln, "C1b",
+                                 f"condition EVAPORATED — it is due and its named closure artifact "
+                                 f"`{missing[0]}` does not exist (V4C-22: a condition without its "
+                                 "artifact is not a condition)"))
+            # ---- C1a: forward-only — the artifact must be nameable at all ----------------
+            elif forward and not satisfied and not missing \
+                    and artifact_cell not in ("", "—", "-", "n/a", "–"):
+                f.append(Finding(rel, ln, "C1a",
+                                 "condition's closure artifact is not machine-resolvable — name a "
+                                 "`path` or a record `id` in backticks, not prose "
+                                 f"(row: {cells[0][:24]!r})"))
+    return f
+
+
+def collect(root: Path, paths: list[Path]) -> tuple[list[Finding], list]:
+    findings: list[Finding] = []
+    records: list[tuple[Path, dict]] = []          # v4.2: a LIST, not an id-keyed dict (see cross_record)
+    for p in sorted(paths):
+        fs, fields = validate_record(p, root)
+        findings += fs
+        if fields and fields.get("id"):
+            records.append((p, fields))
+    findings += cross_record(records, root)
+    return findings, records
+
+
+def governed_records(root: Path) -> list[Path]:
+    """Records under governance: repo-root decision trail. Narrow on purpose (V4C-35)."""
+    pats = ["v*-ratification.md", "increment-*-ratification.md", "v*-candidate-register.md",
+            "council-design.md", "differentiator-ledger.md",
+            # v4.2 (Increment 12, Skeptic + Software + Quality + DevOps + PM — all six seats):
+            # `council-telemetry.md` and `friction-ledger.md` were filed as governance instruments
+            # and matched NONE of the globs above, so the validator could not see the two documents
+            # the whole hearing ran on. Widened, and kept explicit rather than a bare *.md glob so
+            # the narrowness rule (V4C-35) still holds.
+            "council-telemetry.md", "friction-ledger.md", "increment-*-packet.md"]
+    # A repo may override the list with `.governed-records` (one glob per line, `#` comments).
+    # Added at v4.2 so GDF — a DIFFERENT repo with a different record set — can run this exact
+    # file rather than a forked near-copy. Narrow by rule (V4C-35): the manifest exists only
+    # because this function consumes it, and an empty/absent manifest falls back to the GP list.
+    manifest = root / ".governed-records"
+    if manifest.is_file():
+        lines = [ln.strip() for ln in manifest.read_text(encoding="utf-8").splitlines()]
+        override = [ln for ln in lines if ln and not ln.startswith("#")]
+        if override:
+            pats = override
+    out: list[Path] = []
+    for pat in pats:
+        out += [p for p in root.glob(pat) if p.is_file()]
+    return out
+
+
+def duplicate_drift(root: Path) -> list[Finding]:
+    """D1 — the shipped copy of this validator must match the one CI runs.
+
+    v4.2 (Increment 12, Software seat): `scripts/check_records.py` and
+    `general_pipeline_v<current>/scripts/check_records.py` were byte-identical at v4.1 and **nothing
+    checked that they stayed that way** — an unmonitored drift between the live validator and the
+    template projects copy. A divergence would mean projects ship a different governance contract
+    from the one this repo enforces, silently.
+    """
+    f: list[Finding] = []
+    cur = current_package(root)
+    if not cur:
+        return f
+    for rel in ("scripts/check_records.py", "schemas/record.schema.json"):
+        a, b = root / rel, cur / rel
+        if not a.is_file() or not b.is_file():
+            continue
+        if a.read_bytes() != b.read_bytes():
+            f.append(Finding(b.relative_to(root), 1, "D1",
+                             f"drifted from the live copy at {rel} — the shipped template and the "
+                             "validator CI runs must be byte-identical"))
+    return f
+
+
+def report(findings: list[Finding], label: str) -> int:
+    if findings:
+        for x in sorted(findings, key=lambda y: (str(y.path), y.line)):
+            print(x)
+        print(f"\ncheck_records FAIL [{label}]: {len(findings)} finding(s)")
+        return 1
+    print(f"check_records PASS [{label}]: no findings")
+    return 0
+
+
+def self_test(root: Path) -> int:
+    """V4C-32: every fail fixture must fail WITH its declared expected diagnostic.
+
+    v4.2 REPAIRS (Increment 12, Quality seat — verified by that seat with a built reproduction):
+      1. `self_test` never called `package_invariants()`, so **P2 and P3 were structurally
+         unreachable from the self-test** regardless of how many fixtures existed. P2/P3 are the
+         two rules this validator is actually credited with (the v3.3 §0-heading loss, the file-count
+         discrepancy) and the self-test was silent on both. Now asserted directly.
+      2. The fixture namespace was an id-keyed dict, so a duplicate-id fixture OVERWROTE the pass
+         record it was supposed to collide with — the same collapse bug as `collect()`. Now a list.
+      3. The `expect:` marker only matched `[A-Z]\\d`, which cannot express `C1a`/`C1b`.
+    A self-test that cannot reach a rule certifies nothing about it. That is V4C-50, applied here.
+    """
+    conf = root / "conformance"
+    if not conf.is_dir():
+        print("self-test FAIL: conformance/ missing", file=sys.stderr)
+        return 1
+    bad = 0
+    # The pass corpus is also the reference namespace for cross-record rules (X1/X2/X3),
+    # so a fail fixture's dangling reference is genuinely dangling.
+    pass_files = sorted((conf / "pass").glob("*.md"))
+    base_records: list[tuple[Path, dict]] = []
+    for p in pass_files:
+        fs, fields = validate_record(p, root)
+        if fields and fields.get("id"):
+            base_records.append((p, fields))
+        if fs:
+            bad += 1
+            print(f"self-test FAIL: {p.name} should PASS but produced: {[f.rule for f in fs]}")
+        else:
+            print(f"self-test ok: pass/{p.name}")
+    if cross_record(base_records, root):
+        bad += 1
+        print("self-test FAIL: the pass corpus is not cross-record clean")
+
+    for p in sorted((conf / "fail").glob("*.md")):
+        expect = ""
+        for line in p.read_text(encoding="utf-8").splitlines():
+            m = re.match(r"<!--\s*expect:\s*([A-Z]\d[a-z]?)\s*-->", line.strip())
+            if m:
+                expect = m.group(1)
+                break
+        fs, fields = validate_record(p, root)
+        if fields and fields.get("id"):  # cross-record rules need the fixture IN a namespace
+            ns = base_records + [(p, fields)]
+            fs = fs + [x for x in cross_record(ns, root) if x.path == p.relative_to(root)]
+            fs = fs + [x for x in condition_closure(root, [(p, fields)], scope="all")]   # C1
+        rules = {f.rule for f in fs}
+        if not expect:
+            bad += 1
+            print(f"self-test FAIL: fail/{p.name} declares no `<!-- expect: RULE -->` line")
+        elif expect not in rules:
+            bad += 1
+            print(f"self-test FAIL: fail/{p.name} expected {expect}, got {sorted(rules) or 'NOTHING'}")
+        else:
+            print(f"self-test ok: fail/{p.name} → {expect}")
+    # ── P2/P3 reachability (v4.2 repair #1) ─────────────────────────────────────────────
+    # Build a deliberately broken throwaway package and assert package_invariants() reports BOTH.
+    # Without this the self-test could pass while P2/P3 were no-ops, which is exactly what v4.1 did.
+    import shutil
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        probe = Path(td)
+        pkg = probe / "general_pipeline_v9.9"
+        (pkg / "docs").mkdir(parents=True)
+        (pkg / "pipeline-design.md").write_text("# design\n\nno changelog heading here\n")
+        (pkg / "docs" / "executive-overview.md").write_text("the package is about 77 files today\n")
+        cprobe = probe / "probe-conditions.md"
+        cprobe.write_text("---\nrecord_type: ratification\nid: probe-cond\nstatus: ratified\n"
+                          "process_version: v4.2\n---\n# probe\n\n"
+                          "| # | Condition | Owner | Date | Closure artifact |\n"
+                          "|---|---|---|---|---|\n"
+                          "| 1 | probe | chair | 2020-01-01 | `docs/never-written.md` |\n")
+        _, cfields = validate_record(cprobe, probe)
+        (probe / "scripts").mkdir(parents=True, exist_ok=True)
+        (pkg / "scripts").mkdir(parents=True, exist_ok=True)
+        (probe / "scripts" / "check_records.py").write_text("# live\n")
+        (pkg / "scripts" / "check_records.py").write_text("# DRIFTED\n")
+        got = {x.rule for x in package_invariants(probe, scope="current")}
+        got |= {x.rule for x in duplicate_drift(probe)}                      # D1
+        got |= {x.rule for x in condition_closure(probe, [(cprobe, cfields)], scope="all")}  # C1b
+        for rule, why in (("P2", "missing §0 changelog heading"), ("P3", "false file count"),
+                          ("D1", "drifted shipped-vs-live validator copy"),
+                          ("C1b", "a due condition whose named artifact is absent")):
+            if rule in got:
+                print(f"self-test ok: probe/{rule} fires on a {why}")
+            else:
+                bad += 1
+                print(f"self-test FAIL: {rule} did NOT fire on a {why} — the rule is unreachable "
+                      f"(got {sorted(got) or 'NOTHING'})")
+        shutil.rmtree(pkg, ignore_errors=True)
+
+    print(f"\nself-test {'FAIL' if bad else 'PASS'}: {bad} problem(s)")
+    return 1 if bad else 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="governance-record validator (V4C-30)")
+    ap.add_argument("--root", default=".", help="repo root (default: cwd)")
+    ap.add_argument("--self-test", action="store_true", help="run conformance fixtures (V4C-32)")
+    ap.add_argument("--historical", action="store_true",
+                    help="day-1 falsification: package invariants across ALL shipped versions")
+    a = ap.parse_args()
+    root = Path(a.root).resolve()
+
+    if a.self_test:
+        return self_test(root)
+    if a.historical:
+        _, hrecords = collect(root, governed_records(root))
+        return report(package_invariants(root, scope="all")
+                      + condition_closure(root, hrecords, scope="all"),
+                      "historical package invariants + legacy prose conditions "
+                      "(informational: prior versions are FROZEN)")
+
+    findings, records = collect(root, governed_records(root))
+    findings += package_invariants(root, scope="current")
+    findings += condition_closure(root, records, scope="current")     # C1 (V4C-25)
+    findings += duplicate_drift(root)                                 # D1
+    print(f"(scanned {len(records)} record(s) with frontmatter)")
+    return report(findings, "repo")
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(2)

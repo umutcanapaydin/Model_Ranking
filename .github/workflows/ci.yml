@@ -1,0 +1,64 @@
+name: CI
+
+# Pipeline v2.0 — Layer 1 (Pure CI) per consortium 3-layer model.
+# Hardened YAML per DevOps lens: least-privilege token, timeout, concurrency cancel,
+# dependency cache, pinned action SHAs (replace @v4-style refs with SHAs before going live).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Workflow-level: read-only by default. Each job expands ONLY what it needs.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4  # TODO: pin to SHA before going live (`gh api repos/actions/checkout/git/refs/tags/v4 -q .object.sha`)
+      - uses: actions/setup-python@v5  # TODO: pin to SHA
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Lint (ruff)
+        run: ruff check src tests
+      - name: Type check (mypy strict)
+        run: mypy src
+      - name: Test (pytest + coverage)
+        run: pytest
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4  # TODO: pin to SHA
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2  # TODO: pin to SHA — supply-chain critical
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dep-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4  # TODO: pin to SHA
+      - uses: actions/setup-python@v5  # TODO: pin to SHA
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install pip-audit
+        run: pip install pip-audit
+      - name: Run pip-audit
+        run: pip-audit --strict

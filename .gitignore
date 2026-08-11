@@ -1,0 +1,51 @@
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Secrets / env (D-004 default-deny — NEVER commit)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Build artifacts
+dist/
+build/
+*.egg
+
+# Pipeline v2.0 — local-only harness config
+.claude/settings.local.json
+.claude/last-check.log
+
+# Pipeline v2.0 — per-developer rules (.agents/rules/environment.md is gitignored)
+.agents/rules/environment.md
+
+# Local override docs (per-developer)
+*.local.md
+notes/
+
+# data artifacts (security review M1 MINOR-2)
+*.db
+*.sqlite3

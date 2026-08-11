@@ -1,0 +1,76 @@
+name: Issue agent
+
+# Pipeline v2.0 — Layer 2 (CI-triggered agent) per consortium 3-layer model.
+# Hardened YAML per DevOps lens.
+#
+# IMPORTANT: This workflow ships in SHADOW MODE for the first milestone:
+#   1. Agent only comments on issues (does not open PRs) — manual review of every comment.
+#   2. Graduate to draft-PR mode after 1 full milestone of successful shadow-mode runs.
+#   3. See pipeline-design.md §4 (Issue Management) for the rollout sequence.
+#
+# Safety rails (all consortium-locked):
+#   - Label-gated: only fires on agent:triage or agent:fix
+#   - Draft PR only (cannot self-merge; branch protection on main enforces)
+#   - Least-privilege token (contents/issues/pull-requests: write; nothing else)
+#   - Timeout-capped (20 min per run)
+#   - Concurrency cancel (newer event cancels stale runs on same issue)
+#   - Pinned action SHAs (replace @v1-style refs with SHAs before going live)
+
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  contents: write          # create branch + commits for the fix
+  issues: write            # comment + label
+  pull-requests: write     # open the draft PR
+  # Explicitly NOT granting: actions, packages, security-events, deployments
+
+concurrency:
+  group: issue-agent-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  agent:
+    # Gate: only run when a label exists. Default-off prevents firing on every drive-by issue.
+    if: contains(github.event.issue.labels.*.name, 'agent:triage') || contains(github.event.issue.labels.*.name, 'agent:fix')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4  # TODO: pin to SHA before going live
+
+      # TODO: pin the Claude Code action version to a commit SHA, not @v1
+      #   Get latest tag SHA: gh api repos/anthropics/claude-code-action/git/refs/tags/v1 -q .object.sha
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Route by label:
+            - If this issue has label `agent:fix`, run the /fix-issue-prepare skill FIRST,
+              then (only if prepare succeeds) run /fix-issue-implement.
+            - Else if `agent:triage`, run the /triage-issue skill (comment only, no code).
+
+            Constraints (NON-NEGOTIABLE):
+            - Read .agents/rules/ and permission-matrix.md before any action
+            - Branch naming: fix/issue-<number>-<slug>
+            - Never edit main
+            - Never force-push
+            - Never --no-verify
+            - PR opened MUST be DRAFT (gh pr create --draft)
+            - PR body MUST cite file:line evidence for each acceptance criterion (per permission-matrix §11)
+            - Touch only files relevant to the issue (no scope sprawl)
+
+            Issue number: ${{ github.event.issue.number }}
+
+# Host-side admin TODOs (one-time, requires admin):
+#   1. Add ANTHROPIC_API_KEY to repo secrets (masked + protected)
+#   2. Create labels: gh label create agent:triage --color FFA500 --description "Auto-triage by agent"
+#                     gh label create agent:fix    --color 1F7A4D --description "Auto-fix by agent"
+#                     gh label create auto:fix     --color CADCFC --description "PR opened by agent"
+#   3. Branch protection on main:
+#      - Require status checks: test, secret-scan, dep-audit
+#      - Require pull request reviews: 1+ (human required)
+#      - Restrict who can push to matching branches
+#   4. Set 90-day rotation reminder for ANTHROPIC_API_KEY
+#   5. Monthly cost cap monitoring (cost-anomaly alarm at >2x daily baseline)
