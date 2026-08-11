@@ -54,25 +54,25 @@ ROWS = [
     {
         "model_name": "gpt-5-chat",
         "rating": 1420.5,
-        "category": "full",
+        "category": "overall",
         "leaderboard_publish_date": FRESH,
     },
     {
         "model_name": "claude-4.5-opus",
         "rating": 1415.2,
-        "category": "full",
+        "category": "overall",
         "leaderboard_publish_date": FRESH,
     },
     {
         "model_name": "gemini-3-flash",
         "rating": 1398.0,
-        "category": "full",
+        "category": "overall",
         "leaderboard_publish_date": FRESH,
     },
     {
         "model_name": "kimi-k2",
         "rating": 1250.0,
-        "category": "full",
+        "category": "overall",
         "leaderboard_publish_date": FRESH,
     },
 ]
@@ -125,13 +125,13 @@ def test_assistant_close_call_wording_in_elo() -> None:
         {
             "model_name": "gpt-5-chat",
             "rating": 1420.5,
-            "category": "full",
+            "category": "overall",
             "leaderboard_publish_date": FRESH,
         },
         {
             "model_name": "gemini-3-flash",
             "rating": 1417.0,
-            "category": "full",
+            "category": "overall",
             "leaderboard_publish_date": FRESH,
         },
     ]

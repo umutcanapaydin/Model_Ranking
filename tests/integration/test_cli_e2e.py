@@ -149,7 +149,7 @@ def test_cli_task_assistant_through_entry_point(tmp_path: Path) -> None:
                     "row": {
                         "model_name": "gpt-5-chat",
                         "rating": 1420.0,
-                        "category": "full",
+                        "category": "overall",
                         "leaderboard_publish_date": "2026-08-01",
                     }
                 },
@@ -157,7 +157,7 @@ def test_cli_task_assistant_through_entry_point(tmp_path: Path) -> None:
                     "row": {
                         "model_name": "gemini-3-flash",
                         "rating": 1398.0,
-                        "category": "full",
+                        "category": "overall",
                         "leaderboard_publish_date": "2026-08-01",
                     }
                 },

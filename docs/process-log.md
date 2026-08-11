@@ -87,3 +87,12 @@ Fix: server-side /filter (category='full', syntax from HF docs) + 429 backoff + 
 with preserved cap regression. 6 red→green respx tests; suite 106+5; fault-injection RED+revert.
 Lesson: the "failure" was the control working — loud abort turned a wrong-leaderboard bug into
 a same-day fixpack.
+
+## 2026-08-11 (4) — FP-M2-2: Arena category value + snapshot semantics (Claude, Cowork)
+Owner's run #3 showed FP-M2-1 applied but Arena still red. Live probes: category='full' → 0 rows
+(invented fixture value; live value is 'overall'); with the right value, 386 rows spanning MULTIPLE
+publish dates → keep-best-score would have published a stale-but-higher rating. Fixed both:
+'overall' + newest-snapshot-only with counted drops; fixtures corrected in 5 test files.
+107+5 green, fault-injection ×2 RED+revert.
+Lesson: a fixture value invented without a live probe is an untested assumption in test clothing;
+contract tests proved SHAPE but never VALUES. New doctrine candidate for EXPERIENCE/seeds.

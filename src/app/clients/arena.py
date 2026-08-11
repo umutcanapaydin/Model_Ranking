@@ -25,15 +25,21 @@ from app.workflows.schema import ScoreRow
 DATASET = "lmarena-ai/leaderboard-dataset"
 ROWS_API = "https://datasets-server.huggingface.co/rows"
 FILTER_API = "https://datasets-server.huggingface.co/filter"
-# FIXPACK FP-M2-1 (live catch 2026-08-11): text/latest carries ALL category slices
-# (>5000 rows) — the page-cap guard fired exactly as designed. Server-side filter
-# fetches only the overall board; /rows pagination stays as the loud fallback.
-WHERE_FULL = "\"category\"='full'"
+# FIXPACK FP-M2-1/2 (live catches 2026-08-11): text/latest carries ALL category
+# slices AND multiple leaderboard snapshots (21 259 rows) — the page-cap guard
+# fired exactly as designed. FP-M2-2 corrections, verified against live rows:
+#   * the overall board's category value is 'overall' (NOT 'full' — that fixture
+#     value was invented in M2-W2 and never met live data: it filtered 0 rows);
+#   * the filtered slice (386 rows) spans SEVERAL publish dates, so "best score
+#     per model" could surface an OLD-but-higher rating as current. We therefore
+#     keep only the NEWEST snapshot present (see parse_arena).
+OVERALL_CATEGORY = "overall"
+WHERE_OVERALL = "\"category\"='overall'"
 BENCHMARK = "Arena text"
 METRIC = "elo"
 HARNESS = "arena-crowd"
 ATTRIBUTION = "Arena leaderboard data © LMArena — lmarena-ai/leaderboard-dataset (CC-BY-4.0)"
-PREFERRED_CATEGORY = "full"  # overall leaderboard; other category slices exist
+PREFERRED_CATEGORY = OVERALL_CATEGORY  # the overall board; 20+ other slices exist
 _PAGE = 100
 _MAX_PAGES = 50  # safety valve: latest split is a few hundred rows
 _TIMEOUT_S = 30.0
@@ -124,7 +130,7 @@ class ArenaClient:
         hit the page cap and abort loudly rather than truncate.
         """
         try:
-            return self._paginate(FILTER_API, {"where": WHERE_FULL})
+            return self._paginate(FILTER_API, {"where": WHERE_OVERALL})
         except SourceError:
             return self._paginate(ROWS_API, {})
 
@@ -163,8 +169,22 @@ def parse_arena(
     preferred = [r for r in rows_raw if r.get("category") == PREFERRED_CATEGORY]
     working = preferred or rows_raw
 
+    # FP-M2-2: the split holds several leaderboard snapshots. Keep ONLY the newest
+    # publish date present, so a stale-but-higher rating can never read as current.
+    dates = [
+        str(r.get("leaderboard_publish_date"))[:10]
+        for r in working
+        if isinstance(r.get("leaderboard_publish_date"), str)
+    ]
+    newest = max(dates) if dates else None
+    if newest is not None:
+        current = [r for r in working if str(r.get("leaderboard_publish_date", ""))[:10] == newest]
+        working, dropped_snapshots = current, len(working) - len(current)
+    else:
+        dropped_snapshots = 0
+
     best: dict[str, ScoreRow] = {}
-    skipped = dropped_wrappers + len(rows_raw) - len(working)
+    skipped = dropped_wrappers + dropped_snapshots + len(rows_raw) - len(preferred or rows_raw)
     for entry in working:
         name = entry.get("model_name")
         rating = entry.get("rating")

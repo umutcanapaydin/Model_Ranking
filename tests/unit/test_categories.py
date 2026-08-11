@@ -52,7 +52,7 @@ ARENA = json.dumps(
                 "row": {
                     "model_name": "gpt-5-chat",
                     "rating": 1420.5,
-                    "category": "full",
+                    "category": "overall",
                     "leaderboard_publish_date": "2026-08-01",
                 }
             },
@@ -60,7 +60,7 @@ ARENA = json.dumps(
                 "row": {
                     "model_name": "claude-4.5-opus",
                     "rating": 1415.2,
-                    "category": "full",
+                    "category": "overall",
                     "leaderboard_publish_date": "2026-08-01",
                 }
             },
@@ -68,7 +68,7 @@ ARENA = json.dumps(
                 "row": {
                     "model_name": "gemini-3-flash",
                     "rating": 1380.0,
-                    "category": "full",
+                    "category": "overall",
                     "leaderboard_publish_date": "2026-08-01",
                 }
             },

@@ -13,7 +13,7 @@ import httpx
 import pytest
 import respx
 
-from app.clients.arena import FILTER_API, ROWS_API, WHERE_FULL, ArenaClient
+from app.clients.arena import FILTER_API, ROWS_API, WHERE_OVERALL, ArenaClient
 from app.clients.protocols import SourceError
 
 
@@ -24,7 +24,7 @@ def _page(offset: int, n: int, total: int) -> httpx.Response:
             "row": {
                 "model_name": f"m{offset + i}",
                 "rating": 1300.0 + i,
-                "category": "full",
+                "category": "overall",
             },
         }
         for i in range(n)
@@ -33,14 +33,15 @@ def _page(offset: int, n: int, total: int) -> httpx.Response:
 
 
 @respx.mock
-def test_filter_endpoint_is_primary_with_full_slice_where() -> None:
-    """FP-M2-1 red test: the client must ask the SERVER for category='full' only."""
+def test_filter_endpoint_is_primary_with_overall_where() -> None:
+    """FP-M2-1/2 red test: the client asks the SERVER for the 'overall' slice only."""
     route = respx.get(FILTER_API)
     route.side_effect = [_page(0, 42, 42)]
     payload = json.loads(ArenaClient().fetch_raw())
     assert len(payload["rows"]) == 42
     sent = route.calls[0].request.url
-    assert sent.params["where"] == WHERE_FULL
+    assert sent.params["where"] == WHERE_OVERALL
+    assert "overall" in WHERE_OVERALL  # FP-M2-2: live value, not the invented 'full'
     assert route.call_count == 1
 
 

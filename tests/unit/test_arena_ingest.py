@@ -29,7 +29,7 @@ FIXTURE = _wrap(
             "rating": 1420.5,
             "rank": 1,
             "vote_count": 50000,
-            "category": "full",
+            "category": "overall",
             "leaderboard_publish_date": "2026-08-01",
         },
         {
@@ -37,7 +37,7 @@ FIXTURE = _wrap(
             "rating": 1415.2,
             "rank": 2,
             "vote_count": 42000,
-            "category": "full",
+            "category": "overall",
             "leaderboard_publish_date": "2026-08-01",
         },
         {
@@ -47,14 +47,14 @@ FIXTURE = _wrap(
             "category": "creative_writing",
             "leaderboard_publish_date": "2026-08-01",
         },
-        {"model_name": "broken-row", "rating": None, "category": "full"},
-        {"model_name": "gpt-5-chat", "rating": 1400.0, "category": "full"},
+        {"model_name": "broken-row", "rating": None, "category": "overall"},
+        {"model_name": "gpt-5-chat", "rating": 1400.0, "category": "overall"},
     ]
 )
 
 
-def test_prefers_full_category_slice() -> None:
-    """REQ-ING-007: overall ('full') slice ranks; other category slices are skipped."""
+def test_prefers_overall_category_slice() -> None:
+    """REQ-ING-007: the 'overall' slice ranks; other category slices are skipped."""
     rows, skipped = parse_arena(FIXTURE)
     names = {r.raw_name for r in rows}
     assert names == {"gpt-5-chat", "claude-4.5-opus"}
@@ -72,7 +72,43 @@ def test_elo_stored_with_metric_and_harness() -> None:
     assert top.run_date == "2026-08-01"
 
 
-def test_no_full_slice_falls_back_to_all_rows() -> None:
+def test_only_newest_snapshot_is_kept() -> None:
+    """FP-M2-2 red test: several publish dates in one split → only the newest ranks.
+
+    Live catch 2026-08-11: text/latest holds many snapshots, so keeping the highest
+    rating per model could surface a STALE-but-higher score as current.
+    """
+    payload = _wrap(
+        [
+            {
+                "model_name": "m1",
+                "rating": 1500.0,
+                "category": "overall",
+                "leaderboard_publish_date": "2026-06-10",
+            },
+            {
+                "model_name": "m1",
+                "rating": 1450.0,
+                "category": "overall",
+                "leaderboard_publish_date": "2026-08-10",
+            },
+            {
+                "model_name": "m2",
+                "rating": 1400.0,
+                "category": "overall",
+                "leaderboard_publish_date": "2026-08-10",
+            },
+        ]
+    )
+    rows, skipped = parse_arena(payload)
+    by_name = {r.raw_name: r for r in rows}
+    assert set(by_name) == {"m1", "m2"}
+    assert by_name["m1"].score == 1450.0, "newest snapshot wins over the higher old rating"
+    assert by_name["m1"].run_date == "2026-08-10"
+    assert skipped == 1  # the June row
+
+
+def test_no_overall_slice_falls_back_to_all_rows() -> None:
     """Tolerance branch: a dataset without a 'full' category still parses."""
     payload = _wrap([{"model_name": "m1", "rating": 1300.0, "category": "english"}])
     rows, skipped = parse_arena(payload)
@@ -103,7 +139,7 @@ def test_dropped_wrappers_are_counted() -> None:
     payload = json.dumps(
         {
             "rows": [
-                {"row": {"model_name": "m1", "rating": 1300.0, "category": "full"}},
+                {"row": {"model_name": "m1", "rating": 1300.0, "category": "overall"}},
                 "not-a-dict",
                 {"row_idx": 9},
             ],
