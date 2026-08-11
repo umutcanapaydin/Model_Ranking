@@ -79,3 +79,11 @@ contract-tests.yml CI workflow. Reviews pair-batched (economy, separate verdicts
 (2 MINORs = replica artifacts; device repo verified). Suite: 104+5, coverage 90%.
 Lesson: "ask the owner" pressure mostly dissolves against a primary source (dataset card beat
 deliberation); council stayed unconvened.
+
+## 2026-08-11 (3) — FP-M2-1: Arena live catch → fixpack (Claude, Cowork; D-106 commit)
+Owner's live run: OpenRouter contract PASSED (first live validation); Arena aborted loudly
+(>5000 rows in text/latest — anti-truncation guard fired as designed), then 429 on retry burst.
+Fix: server-side /filter (category='full', syntax from HF docs) + 429 backoff + /rows fallback
+with preserved cap regression. 6 red→green respx tests; suite 106+5; fault-injection RED+revert.
+Lesson: the "failure" was the control working — loud abort turned a wrong-leaderboard bug into
+a same-day fixpack.

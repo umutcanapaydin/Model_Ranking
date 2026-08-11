@@ -14,6 +14,7 @@ variance, vote_count, rank, category, leaderboard_publish_date``.
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 import httpx
@@ -23,6 +24,11 @@ from app.workflows.schema import ScoreRow
 
 DATASET = "lmarena-ai/leaderboard-dataset"
 ROWS_API = "https://datasets-server.huggingface.co/rows"
+FILTER_API = "https://datasets-server.huggingface.co/filter"
+# FIXPACK FP-M2-1 (live catch 2026-08-11): text/latest carries ALL category slices
+# (>5000 rows) — the page-cap guard fired exactly as designed. Server-side filter
+# fetches only the overall board; /rows pagination stays as the loud fallback.
+WHERE_FULL = "\"category\"='full'"
 BENCHMARK = "Arena text"
 METRIC = "elo"
 HARNESS = "arena-crowd"
@@ -31,6 +37,7 @@ PREFERRED_CATEGORY = "full"  # overall leaderboard; other category slices exist
 _PAGE = 100
 _MAX_PAGES = 50  # safety valve: latest split is a few hundred rows
 _TIMEOUT_S = 30.0
+_RETRIES_429 = 3
 
 
 class ArenaClient:
@@ -48,27 +55,49 @@ class ArenaClient:
         self.split = split
         self.url = f"{url}?dataset={DATASET}&config={config}&split={split}"
 
-    def fetch_raw(self) -> str:
-        merged: list[dict[str, Any]] = []
-        total: int | None = None
-        for page in range(_MAX_PAGES):
-            params: dict[str, str | int] = {
-                "dataset": DATASET,
-                "config": self.config,
-                "split": self.split,
-                "offset": page * _PAGE,
-                "length": _PAGE,
-            }
+    def _get_page(self, endpoint: str, page: int, extra: dict[str, str]) -> dict[str, Any]:
+        """One page with 429 backoff (FP-M2-1: HF rate-limited the live run)."""
+        params: dict[str, str | int] = {
+            "dataset": DATASET,
+            "config": self.config,
+            "split": self.split,
+            "offset": page * _PAGE,
+            "length": _PAGE,
+            **extra,
+        }
+        last_exc: Exception | None = None
+        for attempt in range(_RETRIES_429 + 1):
             try:
-                resp = httpx.get(ROWS_API, params=params, timeout=_TIMEOUT_S, follow_redirects=True)
+                resp = httpx.get(endpoint, params=params, timeout=_TIMEOUT_S, follow_redirects=True)
+                if resp.status_code == 429 and attempt < _RETRIES_429:
+                    retry_after = resp.headers.get("Retry-After")
+                    delay = (
+                        float(retry_after)
+                        if retry_after and retry_after.replace(".", "", 1).isdigit()
+                        else float(2 ** (attempt + 1))
+                    )
+                    time.sleep(min(delay, 30.0))
+                    continue
                 resp.raise_for_status()
                 payload = resp.json()
             except (httpx.HTTPError, ValueError) as exc:
-                msg = f"arena fetch failed (page {page}): {exc}"
-                raise SourceError(msg) from exc
+                last_exc = exc
+                break
+            if not isinstance(payload, dict):
+                last_exc = ValueError("payload is not an object")
+                break
+            return payload
+        msg = f"arena fetch failed (page {page}): {last_exc}"
+        raise SourceError(msg) from last_exc
+
+    def _paginate(self, endpoint: str, extra: dict[str, str]) -> str:
+        merged: list[dict[str, Any]] = []
+        total: int | None = None
+        for page in range(_MAX_PAGES):
+            payload = self._get_page(endpoint, page, extra)
             rows = payload.get("rows")
             if not isinstance(rows, list):
-                msg = f"arena rows API returned no rows list (page {page})"
+                msg = f"arena API returned no rows list (page {page})"
                 raise SourceError(msg)
             merged.extend(rows)
             total = (
@@ -85,6 +114,19 @@ class ArenaClient:
             )
             raise SourceError(msg)
         return json.dumps({"rows": merged, "num_rows_total": total})
+
+    def fetch_raw(self) -> str:
+        """Server-side filter first (overall board only); /rows fallback stays loud.
+
+        FP-M2-1: /filter with WHERE_FULL returns a few hundred rows instead of the
+        >5000-row full split. If /filter itself errors (endpoint change, dataset not
+        indexed), we fall back to plain /rows pagination — which may legitimately
+        hit the page cap and abort loudly rather than truncate.
+        """
+        try:
+            return self._paginate(FILTER_API, {"where": WHERE_FULL})
+        except SourceError:
+            return self._paginate(ROWS_API, {})
 
 
 def parse_arena(
