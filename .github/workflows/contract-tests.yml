@@ -114,6 +114,10 @@ jobs:
                 f"dropped_names={list(prep.dropped_names)}")
           conn.commit()
           EOF
+      - name: Plan coverage + source health report (REQ-SUB-005 / REQ-ING-011)
+        run: |
+          set -o pipefail
+          python -m app.workflows.coverage --db ci_advisor.db | tee coverage-report.json
       - name: Recommend smoke (both tasks + subscription, real data)
         run: |
           set -o pipefail  # a recommend failure must fail the step, not vanish behind head
