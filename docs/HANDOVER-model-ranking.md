@@ -210,9 +210,9 @@ part of the product, not bookkeeping.
 wait for M4? (My read: the subscription table alone is a full milestone.)
 
 **Carried technical debt (from M2 closure + reviews):**
-- **Elo thresholds are a first calibration and partly arbitrary** — `min_quality=1300`,
-  `value_window=30`, `close_call=5` in `categories.py`. Live top is ~1507 Elo. Recalibrate against
-  real data; changing them is a data edit, not a code change (by design).
+- ~~**Elo thresholds are a first calibration and partly arbitrary**~~ — CLOSED at M3 closure
+  (2026-08-15): recalibrated against 389 live rows to `min_quality=1400`, `value_window=30`,
+  `close_call=8` (docs/reviews/m3-elo-calibration.md). Changing them stays a data edit, by design.
 - `ArenaClient(url=...)` constructor param is provenance-only; `fetch_raw` always uses module
   constants. Misleading API — clean up.
 - GitHub Actions steps are tag-pinned (`@v4`), not SHA-pinned. Pin before the weekly cron matters.

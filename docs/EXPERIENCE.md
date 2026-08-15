@@ -97,3 +97,13 @@ target ships; `scripts/check_records.py`/`journey.py` fail their own repo-wide r
 fault-injection 7 faults, 6 RED + 1 stay-green → mandatory test added · security close: PASS,
 3 new invariant candidates (INV-12/13/14) · gitleaks: 1 ledgered false positive · live e2e:
 9 plans + 2176 prices + 173 SWE scores → three plan answers with 7 plans honestly unscored.
+
+**Closure addendum (2026-08-15, same day):** REQ-CAL-001 closed on live data the owner fetched
+out-of-sandbox — and the review of that data edit produced the milestone's sharpest lesson:
+**a calibrated NUMBER needs a test that fails when the number changes.** Reverting `close_call`
+8→5 left all 150 tests green; the value was written down, not defended. Second stay-green fault of
+the same class in one milestone (the other: the budget-cap boundary). Doctrine adopted: every
+threshold ships with (a) a fixture sitting exactly on it and (b) a citing test that dies if it
+moves. Corollary for records: a calibration document must ship its analysis SCRIPT — percentile
+method and bucketing convention silently shift the published figures, and this lineage has already
+paid once for a report whose own arithmetic could not be reproduced.

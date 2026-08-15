@@ -238,5 +238,7 @@ Research suggests Supabase or Cloudflare Workers for the serving layer. No decis
 
 ### REQ-CAL-001 — Elo threshold recalibration
 
-**Statement:** assistant-category thresholds recalibrated against live CI data as a data edit in categories.py, rationale recorded.
-**Status:** accepted (m3-plan signed; W3)
+**Statement:** assistant-category thresholds recalibrated against live data as a data edit in categories.py, rationale recorded.
+**Acceptance:** thresholds derived from the live board's distribution, not assumed; method + evidence committed.
+**Citing test:** tests/unit/test_recommend_assistant.py::test_assistant_budget_floor_uses_elo (asserts the shipped floor).
+**Status:** DONE (M3 closure, 2026-08-15 — docs/reviews/m3-elo-calibration.md; min_quality 1300→1400, close_call 5→8, value_window 30 kept-and-justified)

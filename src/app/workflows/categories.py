@@ -48,9 +48,12 @@ CATEGORIES: dict[str, CategorySpec] = {
         score_unit="Elo",
         secondary_benchmark=None,
         primary_source="arena",
-        min_quality=1300.0,
-        value_window=30.0,
-        close_call=5.0,
+        # RECALIBRATED 2026-08-15 against the live overall board (REQ-CAL-001;
+        # n=389, snapshot 2026-08-12; evidence + method: docs/reviews/m3-elo-calibration.md).
+        # This is a DATA edit — the engine did not change.
+        min_quality=1400.0,  # was 1300 (admitted 57% of the board); 1400 = top third, leader-108
+        value_window=30.0,  # kept: ~4x the noise threshold; 13 candidates within reach of the top
+        close_call=8.0,  # was 5; live 95% CIs still overlap for 64% of pairs 8-9 Elo apart
     ),
 }
 

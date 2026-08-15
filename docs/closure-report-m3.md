@@ -22,7 +22,7 @@ date: 2026-08-15
 | REQ-SUB-004 weekly re-verification gate | test_cli_exit_codes_through_real_entrypoint (the exact CI command); contract-tests.yml plan-staleness job (unconditional) | ✅* |
 | REQ-REC-007 recommend --subscription, three picks, caps as data | test_subscribe.py (13) incl. cap-boundary through main() | ✅ |
 | REQ-REC-008 stale-plan disclosure in output | test_stale_plan_rows_disclosed_in_output + through main() | ✅ |
-| REQ-CAL-001 Elo threshold recalibration | — | **OPEN** (criteria diff 1 — see §5) |
+| REQ-CAL-001 Elo threshold recalibration | test_assistant_budget_floor_uses_elo; method + evidence in docs/reviews/m3-elo-calibration.md | ✅ (closed at closure — owner fetched the live board 2026-08-15) |
 | Criteria diff 2 (acknowledged post-sign amendment) | W0.2 deletion list 17→18 (+ the Turkish deck edition, V4C-79) | ✅ |
 
 *Live half runs in CI — the plan-staleness job's first green run is yours to trigger (Actions tab).
@@ -35,7 +35,7 @@ date: 2026-08-15
 | W1 plan schema + seed | LOW | combined — FAIL→fixed | 1 BLOCKING + 4 MINOR / 5 | +20 | none |
 | W2 staleness + cadence | LOW | combined — PASS | 2 MINOR / 2 | +10 | none |
 | W3 subscription rec + debts | LOW | combined — PASS | 2 MINOR / 2 | +13 | none |
-| closure | — | Security-Reviewer — **PASS**, 0 BLOCKING | 2 MINOR + 3 NOTE / 2 | +1 | none |
+| closure | — | Security-Reviewer **PASS** (0 BLOCKING) + fresh-eyes review of the calibration data edit **PASS** (arithmetic independently recomputed, 0 BLOCKING) | 2+4 MINOR + 3+5 NOTE / 6 | +3 | **stay-green fault** (close_call=8 had no test) — fixed in-session, reported to owner |
 
 ## 1b. Decisions made on your behalf (assumption ledger)
 
@@ -53,7 +53,7 @@ date: 2026-08-15
 ## 2. File record (git = 4 agent commits, D-106 + V4C-64 trailers)
 
 Net M3: ~2.0k added lines (tooling sync ≈ half); new modules plans.py, subscribe.py, data/plans.yaml;
-suite 107 → **150 unit + 5 gated**, coverage steady (~90% touched modules); 18 files deleted (GP-internal).
+suite 107 → **152 unit + 5 gated**, coverage steady (~90% touched modules); 18 files deleted (GP-internal).
 
 ## 3. Trust telemetry
 
@@ -72,10 +72,19 @@ Supply chain: every workflow action SHA-pinned incl. the dormant issue-agent's C
 
 ## 5. Ledgers (nothing silent)
 
-- **OPEN criterion REQ-CAL-001:** live Arena distribution unreachable from sandbox + WebFetch (4
-  attempts); your curl fetch attempt returned an API error (my URL bug — corrected command in chat).
-  **Your options at this session:** (a) run the corrected fetch → I calibrate as a data edit now;
-  (b) descope to M4 → sign the criteria diff. Recommendation: (a) if ≤5 min, else (b).
+- **REQ-CAL-001 CLOSED during this session (was OPEN):** you ran the corrected fetch; 389 live rows
+  (one snapshot, 2026-08-12) drove a DATA edit in categories.py — floor 1300→**1400** (1300 admitted
+  57% of the board), close_call 5→**8** (at 5 Elo, 100% of top-60 pairs still have overlapping 95%
+  CIs — the old value under-disclosed real ties), value_window 30 kept and now justified. Method,
+  distribution table and reproduce-command: docs/reviews/m3-elo-calibration.md. No criteria diff.
+- **ESCALATE-NOW class, handled in-session (AGENTS.md §3):** the closure review found `close_call=8`
+  was a stay-green fault — reverting it to 5 left the whole suite green, i.e. the calibration was
+  undefended. Mandatory test added (`test_close_call_threshold_is_the_calibrated_elo_value`), both
+  mutants re-verified RED, and the alias constants in recommend.py are now asserted against the
+  category record so they cannot drift. Same review also: corrected an overstated sentence in the
+  calibration record (9 also satisfies the stated rule; we ship the conservative 8), added the
+  analysis script so every published figure is recomputable, and fixed three docs that still said
+  REQ-CAL-001 was open.
 - **Skipped:** live contract tests (sandbox rule — CI/your machine, unchanged); first CI runs of
   plan-staleness + governance-contract legs await your trigger.
 - **K.10 CI diffs for your review at this commit:** contract-tests.yml (plan-staleness job, plans in

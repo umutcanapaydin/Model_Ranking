@@ -13,8 +13,8 @@ WHAT'S DONE
 - D-107/D-108 proposed; first retrospective written (M>=3); closure-report-m3.md awaits sign-off
 
 WHAT'S OPEN
-- REQ-CAL-001 Elo recalibration: OPEN criterion — needs owner-side Arena fetch OR descope to M4
-  (owner decision at the milestone session; corrected curl command delivered in chat)
+- (CLOSED 2026-08-15) REQ-CAL-001 Elo recalibration: done from the owner's live fetch —
+  min_quality 1300->1400, close_call 5->8 (docs/reviews/m3-elo-calibration.md)
 - Owner session: read closure-report-m3.md, run out-of-sandbox tests, sign; trigger first CI runs
   (governance-contract legs + contract-tests incl. new plan-staleness job); W-001 gitleaks
   false-positive allowlist decision

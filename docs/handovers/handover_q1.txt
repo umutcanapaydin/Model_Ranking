@@ -16,8 +16,11 @@ REQ-IDs closed:
   M3: REQ-GP-001, REQ-SUB-001..004, REQ-REC-007/008
       (GP v4.3.1 migration; curated subscription-plan table with mandatory
       provenance + staleness workflow; recommend --subscription)
-OPEN at quarter close: REQ-CAL-001 (Elo recalibration — owner-side data
-fetch or descope to M4; ledgered in m3-wave-3-close.md row 9b).
+REQ-CAL-001 (Elo recalibration) was OPEN mid-closure and CLOSED in the same
+session once the owner fetched the live board: assistant floor 1300 -> 1400,
+close_call 5 -> 8, value_window 30 kept-and-justified. Method + evidence:
+docs/reviews/m3-elo-calibration.md; recompute with scripts/arena_calibration.py.
+No criterion left open at quarter close.
 
 =======================================================================
 2. NEW ADRs THIS QUARTER
@@ -35,7 +38,8 @@ D-108 (proposed: GP baseline v4.2 -> v4.3.1).
   (GPT-5.6 family) absent from benchmark sources; live SWE-bench now
   lists Claude 4.6 Opus / MiniMax M2.5 with no registry rules -> drops.
 - Google AI Plus price disputed between sources -> excluded, re-probe.
-- Elo thresholds still first-calibration (REQ-CAL-001 open).
+- Elo thresholds recalibrated 2026-08-15 against 389 live rows; revisit when
+  the board's shape moves materially (see the calibration record's rule).
 - First CI runs of governance-contract legs + plan-staleness job not yet
   triggered (owner's Actions tab).
 - gitleaks W-001 false positive awaits the owner's allowlist ruling.
@@ -45,17 +49,17 @@ D-108 (proposed: GP baseline v4.2 -> v4.3.1).
 =======================================================================
 4. CUMULATIVE STATE
 =======================================================================
-Tests: 150 unit + 5 network-gated (all green) - coverage ~90% on touched
+Tests: 152 unit + 5 network-gated (all green) - coverage ~90% on touched
 modules - AGENTS.md 145/150 lines - governed records: 8 with validated
 frontmatter - gates: make check = lint, typecheck, test, check-records,
 selftest, install-check, pin-check (all wired: make + pre-commit + CI) -
-commits: 4 (M1-M2 era) + 4 M3 boundary commits (D-106, V4C-64 trailers).
+commits: 4 (M1-M2 era) + 5 M3 commits, D-106 with V4C-64 trailers.
 
 =======================================================================
 5. NEXT-QUARTER MILESTONE SKELETON (owner signs each plan)
 =======================================================================
 M4 (candidate): registry + roster expansion (make plans scoreable) +
-   Epoch AI ingestion (owner ruled M4) + Elo calibration if carried.
+   Epoch AI ingestion (owner ruled M4) + Google AI Plus re-probe.
 M5 (candidate): HTTP API layer (D-100 opens serving question OQ-3).
 M6 (candidate): iOS-facing hardening + composite-score design review
    (D-105 revisit-when approaches if >=4 categories).
@@ -84,8 +88,13 @@ M6 (candidate): iOS-facing hardening + composite-score design review
   the false positive they were describing. Describe, don't quote.
 - Template syncs clobber mitigations: diff against the mitigations
   history (the W0 .gitignore incident), not just against the template.
-- For every threshold in the product, one fixture sits exactly ON it
-  (the cap-boundary mutant survived 148 green tests).
+- For every threshold in the product, one fixture sits exactly ON it, and
+  every calibrated NUMBER needs a test that fails when it changes: two
+  stay-green mutants this quarter (cap boundary, close_call=8) both got
+  their mandatory tests only because a reviewer mutated the value.
+- A calibration record must ship its analysis SCRIPT: percentile method and
+  bucketing convention silently move the published figures
+  (scripts/arena_calibration.py).
 - git push from the container -> proxy 403: deliver a bundle, or the
   owner adds the repo to the session's authorized sources.
 

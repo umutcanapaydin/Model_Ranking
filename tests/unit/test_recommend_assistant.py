@@ -102,13 +102,13 @@ def test_assistant_value_window_uses_elo_threshold() -> None:
 
 
 def test_assistant_budget_floor_uses_elo() -> None:
-    """REQ-REC-005: budget pick floor on Elo scale (kimi at 1250 < 1300 excluded)."""
-    assert MIN_QUALITY_ELO == 1300.0
+    """REQ-REC-005 + REQ-CAL-001: Elo floor, recalibrated to 1400 against the live board
+    (kimi 1250 and gemini 1398 are both below it; only the 1415.2 model clears)."""
+    assert MIN_QUALITY_ELO == 1400.0
     conn = _arena(ROWS)
     rec = recommend(conn, "sinirsiz", "assistant")
     assert rec is not None
-    assert rec.picks[2].model == "Gemini 3 Flash"
-    assert rec.picks[2].score >= 1300.0
+    assert rec.picks[2].score >= MIN_QUALITY_ELO
 
 
 def test_coding_task_unchanged_regression() -> None:
@@ -155,3 +155,45 @@ def test_stale_primary_source_is_disclosed() -> None:
     fresh_rec = recommend(fresh_conn, "sinirsiz", "assistant")
     assert fresh_rec is not None
     assert fresh_rec.stale_notice is None
+
+
+def test_close_call_threshold_is_the_calibrated_elo_value() -> None:
+    """REQ-CAL-001 citing test: close_call=8 must be DEFENDED, not merely written.
+
+    The M3 closure review injected 8→5 and the whole suite stayed green — a
+    stay-green fault, so this test is mandatory (V3C-72). The gap below (6.5 Elo)
+    sits INSIDE the calibrated window and OUTSIDE the old one: disclosure here
+    proves the shipped value is the calibrated one.
+    """
+    from app.workflows.categories import CATEGORIES
+    from app.workflows.recommend import CLOSE_CALL_ELO
+
+    assert CLOSE_CALL_ELO == 8.0
+    rows = [
+        {**ROWS[0], "rating": 1420.5},  # leader (gpt-5-chat)
+        # Runner-up 6.5 Elo behind AND cheaper, so it sits on the Pareto frontier
+        # (close_call only inspects the frontier — documented design choice):
+        # a tie under the calibrated 8, no tie under the old 5.
+        {**ROWS[2], "rating": 1414.0},
+        ROWS[3],
+    ]
+    rec = recommend(_arena(rows), "sinirsiz", "assistant")
+    assert rec is not None
+    assert rec.close_call is not None, "a 6.5-Elo gap must be disclosed under the calibrated 8"
+    assert "Elo" in rec.close_call
+    # The aliases in recommend.py are documentation of the shipped data — drift is a defect.
+    spec = CATEGORIES["assistant"]
+    assert (spec.min_quality, spec.value_window, spec.close_call) == (
+        MIN_QUALITY_ELO,
+        VALUE_WINDOW_ELO,
+        CLOSE_CALL_ELO,
+    )
+
+
+def test_assistant_quality_floor_unmet_warns_on_elo_scale() -> None:
+    """REQ-CAL-001 side effect (closure review NOTE-7): the recalibrated 1400 floor
+    makes the honesty branch reachable on the Elo scale — it must SAY so."""
+    rec = recommend(_arena(ROWS), "dusuk", "assistant")
+    assert rec is not None
+    assert "UYARI" in rec.picks[2].why
+    assert rec.picks[2].score < MIN_QUALITY_ELO

@@ -120,3 +120,14 @@ quarterly handover generated. REQ-CAL-001 OPEN (Arena unreachable from here; own
 descope at the milestone session). Suite 107 -> 150 unit tests, make check = 7 gates green.
 Lesson: describe a scanner trigger, never quote it — the ledger row about a false positive
 re-tripped the scanner twice; documentation is also an input to the gates it documents.
+
+## 2026-08-15 — M3 closure addendum: REQ-CAL-001 closed on live data — lead agent (Cowork)
+Owner fetched the live Arena overall board (389 rows, one snapshot 2026-08-12) after two failed
+command attempts (my URL bug: config=default vs text). Recalibrated the assistant thresholds as a
+DATA edit: min_quality 1300→1400 (1300 admitted 57% of the board), close_call 5→8 (at 5 Elo 100%
+of top-60 pairs still have overlapping 95% CIs), value_window 30 kept and justified. Fresh-eyes
+review recomputed every published figure from the raw pages (all reproduced) and found the
+calibration UNDEFENDED: reverting close_call left the suite green. Mandatory tests added, alias
+constants asserted against the category record, analysis script committed, four documents that
+still called the criterion open corrected. Gate: 152 unit + 5 gated, 7 gates green.
+Lesson: a threshold that no test defends is a comment with a float attached.
