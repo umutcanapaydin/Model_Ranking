@@ -37,6 +37,41 @@ MIN_QUALITY_ELO = 1400.0  # recalibrated M3 (REQ-CAL-001) — see categories.py
 VALUE_WINDOW_ELO = 30.0
 CLOSE_CALL_ELO = 8.0
 STALE_NOTICE_DAYS = 90  # REQ-REC-006
+# REQ-REC-010: scores reach the JSON contract ROUNDED. Arena hands us
+# 1481.5937567329202; an app rendering that is showing precision the benchmark
+# does not have. Ranking, Pareto and threshold comparisons keep the raw value —
+# only the boundary rounds, and it rounds once, here.
+SCORE_DECIMALS = 1
+
+
+def round_score(value: float) -> float:
+    """Round a score for OUTPUT (ranking math keeps the raw value)."""
+    return round(value, SCORE_DECIMALS)
+
+
+def round_optional_score(value: float | None) -> float | None:
+    """Same, for evidence-only scores that may be absent — absence is not zero."""
+    return None if value is None else round(value, SCORE_DECIMALS)
+
+
+def shown_gap(leader: float, other: float) -> float:
+    """Display delta, computed from the ROUNDED scores the JSON actually carries.
+
+    Subtracting first and rounding after would let the prose contradict the fields:
+    two picks both printed as 77.4 while the sentence between them claims a gap.
+    """
+    return round_score(round_score(leader) - round_score(other))
+
+
+def lead_phrase(leader: float, other: float, unit: str) -> str:
+    """"Liderden 1.8 puan düşük" — or, when the shown delta is zero, "Liderle aynı puanda".
+
+    W4 re-review MINOR-1: the zero-guard existed only on `close_call`, so the same
+    payload could say "same score" in one field and "0.0 points lower" in the next.
+    Every trade-off string in both engines goes through here.
+    """
+    delta = shown_gap(leader, other)
+    return "Liderle aynı puanda" if delta == 0 else f"Liderden {delta:.1f} {unit} düşük"
 
 
 @dataclass(frozen=True)
@@ -107,9 +142,9 @@ def _pick(label: str, row: RankingRow, spec: CategorySpec, why: str, trade_off: 
         label=label,
         model=row.model,
         vendor=row.vendor,
-        score=row.score,
+        score=round_score(row.score),
         metric=spec.metric,
-        secondary_score=row.secondary_score,
+        secondary_score=round_optional_score(row.secondary_score),
         blended_per_m=row.blended_per_m,
         input_per_m=row.input_per_m,
         output_per_m=row.output_per_m,
@@ -183,9 +218,10 @@ def recommend(
 
     close_call: str | None = None
     if len(frontier) > 1:
-        gap = quality.score - frontier[1].score
+        gap = quality.score - frontier[1].score  # RAW: the threshold decision
+        shown = shown_gap(quality.score, frontier[1].score)
         if gap <= close_pts:
-            tie = "aynı puanda" if gap == 0 else f"sadece {gap:.1f} {spec.score_unit} geride"
+            tie = "aynı puanda" if shown == 0 else f"sadece {shown:.1f} {spec.score_unit} geride"
             close_call = (
                 f"{frontier[1].model} {tie} — fark hata payı içinde, ikisi de savunulabilir."
             )
@@ -208,7 +244,7 @@ def recommend(
                 None
                 if value.model == quality.model
                 else (
-                    f"Liderden {quality.score - value.score:.1f} {unit} düşük, "
+                    f"{lead_phrase(quality.score, value.score, unit)}, "
                     f"karşılığında %{(1 - value.blended_per_m / quality.blended_per_m) * 100:.0f} daha ucuz."
                 )
             ),
@@ -229,7 +265,7 @@ def recommend(
                 None
                 if cheap.model == quality.model
                 else (
-                    f"Liderden {quality.score - cheap.score:.1f} {unit} düşük, "
+                    f"{lead_phrase(quality.score, cheap.score, unit)}, "
                     f"ama {quality.blended_per_m / cheap.blended_per_m:.0f} kat daha ucuz."
                 )
             ),

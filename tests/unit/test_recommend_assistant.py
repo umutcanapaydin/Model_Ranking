@@ -197,3 +197,22 @@ def test_assistant_quality_floor_unmet_warns_on_elo_scale() -> None:
     assert rec is not None
     assert "UYARI" in rec.picks[2].why
     assert rec.picks[2].score < MIN_QUALITY_ELO
+
+
+def test_elo_scores_are_rounded_in_the_output(tmp_path, capsys) -> None:
+    """REQ-REC-010 through the real CLI: no raw float reaches the JSON contract."""
+    import json as _json
+    import sqlite3
+
+    from app.workflows.recommend import main
+
+    db = tmp_path / "advisor.db"
+    src = _arena([{**ROWS[0], "rating": 1481.5937567329202}, ROWS[3]])
+    dest = sqlite3.connect(db)
+    src.commit()
+    src.backup(dest)
+    dest.commit()
+    dest.close()
+    assert main(["--db", str(db), "--budget", "sinirsiz", "--task", "assistant"]) == 0
+    out = _json.loads(capsys.readouterr().out)
+    assert out["picks"][0]["score"] == 1481.6

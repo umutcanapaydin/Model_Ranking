@@ -7,9 +7,11 @@
 #   "frontier models") stay in `limits` as text and produce NO model links (M1 rule 4: never guess).
 # - USD / US region first (owner Q2, 2026-08-15). No currency conversion, ever.
 # - Free tiers are out of scope (schema CHECK monthly_usd > 0): the product answers a purchase question.
-# - A price the sources DISPUTE does not enter this table. Excluded on 2026-08-15:
-#     Google AI Plus — $4.99 (felloai, cut dated 2026-06-08) vs $7.99 (costbench, verified 2026-05-27);
-#     re-probe at next verification pass (tracked in M3-W1 wave-close ledger).
+# - A price the sources DISPUTE does not enter this table. RESOLVED at M4-W4 (REQ-SUB-006):
+#     Google AI Plus was withheld at M3 over $4.99 vs $7.99. Re-probed 2026-08-15 — the two figures
+#     are not a disagreement but a BEFORE and AFTER: $7.99 was the US launch price, cut to $4.99 on
+#     2026-06-08, reported the same day by four independent outlets (9to5google, TechRepublic,
+#     Engadget, Digital Trends) and still quoted as current by two price trackers. Entered below.
 #
 # Verification evidence, 2026-08-15 (owner re-verifies out-of-sandbox at the milestone gate):
 # - chatgpt.com/pricing renders plan names/features but not USD amounts in our fetch; amounts
@@ -20,6 +22,14 @@
 # - one.google.com/about/google-ai-plans renders features but not amounts; amounts cross-checked
 #   (costbench.com, verified 2026-05-27; felloai.com/gemini-pricing) — both agree: Pro $19.99,
 #   Ultra from $99.99.
+# - Google AI Plus $4.99 (entered 2026-08-15, REQ-SUB-006). Same page, same rendering limit, so the
+#   amount rests on named sources: FOUR launch-day reports of the 2026-06-08 cut — 9to5google
+#   ("Google AI Plus drops to $4.99/month"), TechRepublic, Engadget, Digital Trends — plus two price
+#   trackers still quoting $4.99 as current: costbench.com (verified 2026-05-27, $7.99, i.e. PRE-cut,
+#   which is what produced the M3 "dispute") and felloai.com/gemini-pricing (updated 2026-06-11,
+#   $4.99, POST-cut). The two trackers do not disagree; they are dated either side of one price
+#   change. The row's `included_models` (Gemini 3.1 Pro) comes from the Google page itself, not the
+#   trackers — an amount may be cross-checked, a model list may not (M1 rule 4).
 # - Perplexity amounts cross-checked (felloai.com/perplexity-pricing, updated 2026-05-03): Pro $20,
 #   Max $200 — unchanged, long-stable.
 
@@ -97,6 +107,21 @@ plans:
       higher output limits for all tasks. Plan cards name no specific model versions (model names appear elsewhere on the page — owner re-verifies at the gate).
     included_models: []
     source_url: https://claude.com/pricing
+    last_verified: 2026-08-15
+
+  - id: google-ai-plus
+    provider: Google
+    name: Google AI Plus
+    monthly_usd: 4.99
+    currency: USD
+    region: US
+    limits: >-
+      2x access to Gemini vs free; Gemini 3.1 Pro and Deep Research; 400 GB storage.
+      Price cut from $7.99 on 2026-06-08 (the M3 "dispute" was a stale figure, not a
+      disagreement — see the header note).
+    included_models:
+      - Gemini 3.1 Pro
+    source_url: https://one.google.com/about/google-ai-plans/
     last_verified: 2026-08-15
 
   - id: google-ai-pro

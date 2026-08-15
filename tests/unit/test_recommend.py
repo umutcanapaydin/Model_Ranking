@@ -293,3 +293,53 @@ def test_budget_filters_nonempty_ranking_to_none() -> None:
 def test_unknown_budget_raises() -> None:
     with pytest.raises(ValueError, match="unknown budget"):
         recommend(connect(), "yok-boyle-butce")
+
+
+def test_secondary_score_rounds_and_absence_stays_absent(tmp_path, capsys) -> None:
+    """W4 review MINOR-2 citing test: `round_optional_score` through the real CLI.
+
+    REQ-REC-010 rounds the JSON contract, but the secondary (evidence-only) score is
+    nullable — and the one thing a rounding helper must never do to a missing number is
+    turn it into 0.0. Both halves are asserted in the same output: DeepSeek carries an
+    Aider score with junk precision, the leader carries none.
+    """
+    from app.workflows.recommend import main
+
+    conn = _db()
+    conn.execute(
+        "UPDATE scores SET score = 74.24444444 WHERE model_id = 'deepseek-v3.2'"
+        " AND benchmark = 'Aider polyglot'"
+    )
+    conn.commit()
+    db = tmp_path / "advisor.db"
+    dest = sqlite3.connect(db)
+    conn.backup(dest)
+    dest.commit()
+    dest.close()
+
+    assert main(["--db", str(db), "--budget", "sinirsiz"]) == 0
+    picks = {p["model"]: p for p in json.loads(capsys.readouterr().out)["picks"]}
+    assert picks["DeepSeek V3.2"]["secondary_score"] == 74.2  # rounded, not raw
+    assert picks["Claude 4.5 Opus"]["secondary_score"] is None  # absent, not 0.0
+
+
+def test_model_engine_trade_off_never_claims_a_gap_the_fields_deny() -> None:
+    """W4 re-review BLOCKING-A, model-engine half: same guard, second call site.
+
+    `lead_phrase` is shared with the subscription engine, so the helper itself is
+    defended there; this test pins the four CALL SITES in this module — inlining the raw
+    delta back into any trade-off string reintroduces "0.1 points lower" between two
+    picks the JSON both prints as 79.2.
+    """
+    conn = _db()
+    conn.execute("UPDATE scores SET score = 79.249 WHERE model_id = 'claude-4.5-opus'")
+    conn.execute("UPDATE scores SET score = 79.151 WHERE model_id = 'gemini-3-flash'")
+    rec = recommend(conn, "sinirsiz")
+    assert rec is not None
+    assert rec.picks[0].score == rec.picks[1].score == 79.2
+    assert rec.close_call is not None
+    assert "aynı puanda" in rec.close_call
+    trade_off = rec.picks[1].trade_off
+    assert trade_off is not None
+    assert trade_off.startswith("Liderle aynı puanda,")
+    assert "Liderden" not in trade_off

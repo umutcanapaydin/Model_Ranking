@@ -292,3 +292,216 @@ def test_plan_priced_exactly_at_cap_is_eligible_through_cli(tmp_path, capsys) ->
     assert out["stale_notice"] is not None
     assert "Cheap Plan" in out["stale_notice"]
     assert "2026-05-01" in out["stale_notice"]
+
+
+def test_scores_are_rounded_at_the_output_boundary_not_in_the_math() -> None:
+    """REQ-REC-010: the JSON contract carries 1 decimal; ranking keeps full precision.
+
+    Arena hands us values like 1481.5937567329202. An app rendering that shows
+    precision the benchmark does not have — but rounding BEFORE the comparison
+    would let two models tie that are not actually tied.
+    """
+    from app.workflows.categories import CATEGORIES
+    from app.workflows.subscribe import plan_ranking
+
+    conn = _db()
+    conn.execute("UPDATE scores SET score = 77.44444444 WHERE model_id = 'gemini-3.1-pro'")
+    conn.execute("UPDATE scores SET score = 77.45555555 WHERE model_id = 'claude-4.5-opus'")
+    # the ranking still separates them on the raw values...
+    ranking = plan_ranking(conn, CATEGORIES["coding"])
+    assert ranking[0].score == 77.45555555
+    assert ranking[0].score != ranking[1].score
+    # ...while the OUTPUT rounds once, at the boundary
+    rec = recommend_subscription(conn, "sinirsiz", "coding")
+    assert rec is not None
+    assert rec.picks[0].score == 77.5
+    assert all(len(str(p.score).split(".")[1]) <= 1 for p in rec.picks)
+
+
+TWIN_DOC = DOC.replace(
+    """  - id: vague-plan
+    provider: VagueCo
+    name: Vague Plan
+    monthly_usd: 15
+    currency: USD
+    region: US
+    limits: frontier models, roster unpublished
+    included_models: [Mystery Model X]""",
+    """  - id: twin-plan
+    provider: TwinCo
+    name: Twin Plan
+    monthly_usd: 12
+    currency: USD
+    region: US
+    limits: same engine, different badge
+    included_models: [Gemini 3.1 Pro]""",
+)
+
+
+def test_equivalent_plans_are_named_when_the_three_labels_collapse() -> None:
+    """REQ-REC-009 as evidence allows it: when several plans name the SAME model they
+    are indistinguishable on quality, so the answer says so and points at the cheapest
+    instead of manufacturing variety (measured live at M4-W4: three <=$25 plans all
+    scoring 1479.6 via Gemini 3.1 Pro)."""
+    rec = recommend_subscription(_db(TWIN_DOC), "orta", "coding")
+    assert rec is not None
+    # mid-plan ($20) and twin-plan ($12) both rank on Gemini 3.1 Pro at 77.4
+    assert rec.equivalent_plans == ("Mid Plan",)
+    assert rec.equivalence_note is not None
+    assert "Gemini 3.1 Pro" in rec.equivalence_note
+    # W4 review BLOCKING-2: `"Twin Plan" in note` passed on the plan LIST alone and so
+    # could not fail — the claim under test is that the note names the cheapest of the
+    # group WITH its price. Assert the sentence that carries the claim.
+    assert "Bu grupta en ucuzu Twin Plan ($12.00/ay)." in rec.equivalence_note
+    assert "Aynı model için aylık fark: $12.00 — $20.00." in rec.equivalence_note
+    # and when no picked plan has a twin, nothing is claimed
+    solo = recommend_subscription(_db(), "sinirsiz", "coding")
+    assert solo is not None
+    assert solo.equivalent_plans == ()
+    assert solo.equivalence_note is None
+
+
+def test_equivalence_is_computed_for_every_label_not_only_the_quality_pick() -> None:
+    """W4 review BLOCKING-1 citing test. The first cut compared plans only against the
+    QUALITY pick, so on live data it stayed SILENT in the case that mattered most: the
+    top plan was alone, while best_value and budget_pick both collapsed onto a plan that
+    a $99.99 plan ties exactly. Here Top Plan ($100, Claude) is alone, and the collapse
+    is on the value pick — the note must still fire and name the cheap twin.
+    """
+    rec = recommend_subscription(_db(TWIN_DOC), "sinirsiz", "coding")
+    assert rec is not None
+    assert rec.picks[0].plan == "Top Plan"  # quality pick has NO twin
+    assert rec.picks[1].plan == "Twin Plan"  # value pick does
+    assert rec.equivalent_plans == ("Mid Plan",)
+    assert rec.equivalence_note is not None
+    assert "Bu grupta en ucuzu Twin Plan ($12.00/ay)." in rec.equivalence_note
+
+
+def test_rounding_never_reaches_the_pareto_comparison() -> None:
+    """W4 review MINOR-1 citing test: REQ-REC-010 rounds at the OUTPUT boundary only.
+
+    Mid Plan beats Twin Plan by 0.04 — a real gap that disappears at 1 decimal. If
+    `round_score` moved into `plan_ranking`/`_pareto`, the two would tie and the cheaper
+    plan would take the quality label. The output still shows both as 77.4; the ORDER is
+    what proves the math ran on raw values.
+    """
+    conn = _db(TWIN_DOC)
+    conn.execute("UPDATE scores SET score = 77.44 WHERE model_id = 'gemini-3.1-pro'")
+    conn.execute(
+        "INSERT INTO scores (model_id, raw_name, benchmark, metric, score, harness,"
+        " run_date, source, source_url, observed_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (
+            "gpt-5",
+            "agent + GPT-5 (tuned)",
+            "SWE-bench Verified",
+            "% resolved",
+            77.40,
+            "test-agent",
+            "2026-08-01",
+            "swebench",
+            "https://x",
+            "2026-08-15T00:00:00+00:00",
+        ),
+    )
+    # Cheap Plan (GPT-5) 77.40 @ $8 vs Mid Plan (Gemini) 77.44 @ $20 vs Twin Plan 77.44 @ $12
+    rec = recommend_subscription(conn, "orta", "coding")
+    assert rec is not None
+    assert rec.picks[0].plan == "Twin Plan"  # 77.44 raw beats 77.40 raw
+    assert rec.picks[0].score == 77.4  # ...and the OUTPUT is still rounded
+    assert rec.picks[0].scored_by_model == "Gemini 3.1 Pro"
+    # Cheap Plan would have won the quality label had the comparison seen 77.4 == 77.4.
+    assert "Cheap Plan" not in rec.equivalent_plans
+
+
+def test_a_sub_rounding_gap_never_prints_as_a_zero_delta() -> None:
+    """W4 re-review BLOCKING-A citing test: the display delta is guarded in EVERY string.
+
+    A raw gap of 0.098 is real (the threshold uses it) but both scores round to the same
+    77.4 the JSON carries, so any sentence between them claiming a gap contradicts the
+    fields it sits next to. `close_call` AND the per-pick `trade_off` must both say "same
+    score". The fixture is deliberately chosen so `round(a) - round(b)` (0.0) differs from
+    `round(a - b)` (0.1): it fails BOTH if the zero-guard goes and if `shown_gap` rounds
+    after subtracting instead of before.
+    """
+    conn = _db()
+    conn.execute("UPDATE scores SET score = 77.449 WHERE model_id = 'claude-4.5-opus'")
+    conn.execute("UPDATE scores SET score = 77.351 WHERE model_id = 'gemini-3.1-pro'")
+    conn.execute("UPDATE plans SET monthly_usd = 30 WHERE id = 'top-plan'")
+    rec = recommend_subscription(conn, "sinirsiz", "coding")
+    assert rec is not None
+    assert rec.picks[0].score == rec.picks[1].score == 77.4  # the fields are identical...
+    assert rec.close_call is not None
+    assert "aynı puanda" in rec.close_call  # ...so the prose may not claim a gap
+    assert "0.0" not in rec.close_call
+    trade_off = rec.picks[1].trade_off
+    assert trade_off is not None
+    assert trade_off.startswith("Liderle aynı puanda,")
+    assert "Liderden" not in trade_off  # the raw-gap phrasing must not survive
+
+
+def test_equivalence_never_names_a_plan_the_budget_excluded() -> None:
+    """W4 re-review MINOR-2 citing test: the group is built from the CAP-FILTERED rows.
+
+    Top Plan ($100) names the same model as Mid Plan ($20). Under `orta` ($25) it is not
+    a purchasable option, so naming it — and stretching the quoted price span to $100 —
+    would be advice the user cannot act on. Building the group from the unfiltered
+    ranking instead of `rows` turns this red.
+    """
+    doc = DOC.replace("included_models: [Claude 4.5 Opus]", "included_models: [Gemini 3.1 Pro]")
+    rec = recommend_subscription(_db(doc), "orta", "coding")
+    assert rec is not None
+    assert rec.equivalent_plans == ()  # Mid Plan's only twin is over the cap
+    assert rec.equivalence_note is None
+    # sanity: without the cap the same data DOES pair them
+    unlimited = recommend_subscription(_db(doc), "sinirsiz", "coding")
+    assert unlimited is not None
+    assert unlimited.equivalent_plans == ("Top Plan",)  # picked Mid Plan ($20), tied Top ($100)
+
+
+def test_equivalence_group_membership_is_resolved_by_plan_id_not_name() -> None:
+    """W4 re-review MINOR-3 citing test: `plans.name` has no UNIQUE constraint.
+
+    Two curated rows may share a display name. Re-resolving group membership by name
+    then drags an unrelated plan — scoring a DIFFERENT model — into the price span the
+    note claims is "the same model". Here the $100 namesake ranks on Claude 4.5 Opus and
+    must not appear in the Gemini group's $8—$20 span, nor inflate its count.
+    """
+    doc = DOC.replace(
+        """  - id: vague-plan
+    provider: VagueCo
+    name: Vague Plan
+    monthly_usd: 15""",
+        """  - id: namesake-plan
+    provider: OtherCo
+    name: Twin Plan
+    monthly_usd: 150""",
+    ).replace(
+        "    limits: frontier models, roster unpublished\n    included_models: [Mystery Model X]",
+        "    limits: same NAME, different engine\n    included_models: [Claude 4.5 Opus]",
+    )
+    doc = doc.replace(
+        """  - id: mid-plan
+    provider: MidCo
+    name: Mid Plan""",
+        """  - id: mid-plan
+    provider: MidCo
+    name: Twin Plan""",
+    )
+    conn = _db(doc)
+    # cheap-plan (GPT-5) is re-pointed at the Gemini score so it ties mid-plan exactly
+    conn.execute("UPDATE scores SET score = 77.4 WHERE model_id = 'gpt-5'")
+    conn.execute(
+        "UPDATE plan_models SET raw_name = 'Gemini 3.1 Pro', model_id = 'gemini-3.1-pro'"
+        " WHERE plan_id = 'cheap-plan'"
+    )
+    rec = recommend_subscription(conn, "sinirsiz", "coding")
+    assert rec is not None
+    note = rec.equivalence_note
+    assert note is not None
+    assert "2 plan aynı modeli (Gemini 3.1 Pro)" in note  # NOT 3 — the namesake is not tied
+    assert (
+        "2 plan aynı modeli (Gemini 3.1 Pro) listeliyor, yani kalite açısından"
+        " ayırt edilemezler: Cheap Plan, Twin Plan."
+        " Bu grupta en ucuzu Cheap Plan ($8.00/ay)."
+        " Aynı model için aylık fark: $8.00 — $20.00."
+    ) in note  # the $150 namesake is in the OTHER group, never in this span

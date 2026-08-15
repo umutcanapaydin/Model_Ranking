@@ -22,6 +22,7 @@ from dataclasses import dataclass
 
 from app.workflows.categories import CategorySpec, get_category
 from app.workflows.plans import stale_plans
+from app.workflows.recommend import lead_phrase, round_score, shown_gap
 
 
 @dataclass(frozen=True)
@@ -76,6 +77,21 @@ class SubscriptionRecommendation:
     eligible_count: int
     frontier_size: int
     unscored_plans: tuple[str, ...]  # disclosed, never silently dropped
+    # Plans that rank IDENTICALLY because their pages name the same model. The
+    # three labels then legitimately collapse onto one plan, and the honest answer
+    # is not to manufacture variety — it is to say "these are the same engine, buy
+    # the cheapest" (M4-W4: measured on live assistant data, three <=$25 plans all
+    # scoring 1479.6 via Gemini 3.1 Pro).
+    # NOT every collapse is equivalence, and this field must never be read as if it
+    # were: on the CODING category the three labels also land on one plan, but for
+    # the opposite reason — only one curated plan is scoreable at all (1/10 after this
+    # wave adds Google AI Plus; M4-W3 measured 1/9 before it. SWE-bench has published
+    # nothing since 2026-02-26, so the denominator grows and the numerator does not).
+    # That is a COVERAGE failure,
+    # reported by `coverage.plan_coverage`, and it leaves this tuple empty because
+    # there is no second plan to be equivalent TO.
+    equivalent_plans: tuple[str, ...]
+    equivalence_note: str | None
     close_call: str | None
     stale_notice: str | None  # REQ-REC-008
     picks: tuple[PlanPick, ...]
@@ -195,7 +211,7 @@ def _pick(
         provider=row.provider,
         monthly_usd=row.monthly_usd,
         currency=row.currency,
-        score=row.score,
+        score=round_score(row.score),
         metric=spec.metric,
         scored_by_model=row.scored_by_model,
         scored_via=row.scored_via,
@@ -232,11 +248,72 @@ def recommend_subscription(
     floor_met = bool(floor_pool)
     cheap = min(floor_pool or rows, key=lambda r: (r.monthly_usd, r.plan))
 
+    # Equivalence (M4-W4 review BLOCKING-1). The first cut compared only against the
+    # QUALITY pick, so in the live `sinirsiz` case — where quality is Perplexity Max and
+    # BOTH other labels collapse onto Google AI Plus — it said nothing, and the single
+    # most useful fact in the data went unsaid: Google AI Ultra at $99.99 scores exactly
+    # what Google AI Plus scores at $4.99. Equivalence is now computed for EVERY plan a
+    # label actually picked.
+    #
+    # A group is built from PlanRank rows and keyed on `plan_id`, never on the display
+    # name (W4 re-review MINOR-3): `plans.name` carries no UNIQUE constraint, so two
+    # curated rows may share a name, and re-resolving membership by name would pull a
+    # DIFFERENT plan — scoring a different model — into the price span this sentence
+    # claims is "the same model". Only `rows` (already cap-filtered) is scanned, so a
+    # plan the budget excluded can never be named as an option.
+    groups: list[tuple[PlanRank, list[PlanRank]]] = []
+    seen_models: set[tuple[str, float]] = set()
+    for picked in (quality, value, cheap):
+        # One group per (model, score): the three labels frequently pick the same
+        # plan, and the note must not repeat itself when they do.
+        key = (picked.scored_by_model, picked.score)
+        if key in seen_models:
+            continue
+        seen_models.add(key)
+        tied = sorted(
+            (
+                r
+                for r in rows
+                if r.plan_id != picked.plan_id
+                and r.scored_by_model == picked.scored_by_model
+                and r.score == picked.score
+            ),
+            key=lambda r: (r.monthly_usd, r.plan, r.plan_id),
+        )
+        if tied:
+            groups.append((picked, tied))
+
+    equivalent = tuple(sorted({r.plan for _, tied in groups for r in tied}))
+    equivalence_note: str | None = None
+    if groups:
+        parts = []
+        for picked, tied in groups:
+            members = [picked, *tied]
+            cheapest = min(members, key=lambda r: (r.monthly_usd, r.plan))
+            dearest = max(members, key=lambda r: (r.monthly_usd, r.plan))
+            span = (
+                f" Aynı model için aylık fark: ${cheapest.monthly_usd:.2f} — "
+                f"${dearest.monthly_usd:.2f}."
+                if dearest.monthly_usd > cheapest.monthly_usd
+                else ""
+            )
+            parts.append(
+                f"{len(members)} plan aynı modeli ({picked.scored_by_model}) listeliyor, "
+                f"yani kalite açısından ayırt edilemezler: "
+                f"{', '.join(sorted(r.plan for r in members))}. "
+                f"Bu grupta en ucuzu {cheapest.plan} (${cheapest.monthly_usd:.2f}/ay).{span}"
+            )
+        equivalence_note = " ".join(parts)
+
     close_call: str | None = None
     if len(frontier) > 1:
-        gap = quality.score - frontier[1].score
+        gap = quality.score - frontier[1].score  # RAW: the threshold decision
+        # Display delta is computed from the ROUNDED scores the JSON actually carries,
+        # so the text can never contradict the fields (review MINOR-3), and a sub-0.05
+        # gap says "same score" instead of the nonsense "only 0.0 behind" (MINOR-4).
+        shown = shown_gap(quality.score, frontier[1].score)
         if gap <= spec.close_call:
-            tie = "aynı puanda" if gap == 0 else f"sadece {gap:.1f} {unit} geride"
+            tie = "aynı puanda" if shown == 0 else f"sadece {shown:.1f} {unit} geride"
             close_call = (
                 f"{frontier[1].plan} {tie} — fark hata payı içinde, ikisi de savunulabilir."
             )
@@ -269,7 +346,7 @@ def recommend_subscription(
                 None
                 if value.plan_id == quality.plan_id
                 else (
-                    f"Liderden {quality.score - value.score:.1f} {unit} düşük, karşılığında"
+                    f"{lead_phrase(quality.score, value.score, unit)}, karşılığında"
                     f" ayda ${quality.monthly_usd - value.monthly_usd:.2f} daha ucuz."
                 )
             ),
@@ -290,7 +367,7 @@ def recommend_subscription(
                 None
                 if cheap.plan_id == quality.plan_id
                 else (
-                    f"Liderden {quality.score - cheap.score:.1f} {unit} düşük,"
+                    f"{lead_phrase(quality.score, cheap.score, unit)},"
                     f" ama ayda ${quality.monthly_usd - cheap.monthly_usd:.2f} daha ucuz."
                 )
             ),
@@ -302,6 +379,8 @@ def recommend_subscription(
         eligible_count=len(rows),
         frontier_size=len(frontier),
         unscored_plans=unscored,
+        equivalent_plans=equivalent,
+        equivalence_note=equivalence_note,
         close_call=close_call,
         stale_notice=_stale_notice(conn),
         picks=picks,

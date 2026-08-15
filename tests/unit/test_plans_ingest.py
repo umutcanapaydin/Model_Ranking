@@ -165,7 +165,7 @@ def test_reconcile_plans_links_explicit_names_and_counts_drops() -> None:
 def test_seed_dataset_meets_req_sub_002() -> None:
     """REQ-SUB-002 citing test: the REAL shipped seed parses and meets scope."""
     rows = parse_plans(SEED_PATH.read_text(encoding="utf-8"))
-    assert len(rows) >= 6
+    assert len(rows) >= 10  # 9 at M3 + Google AI Plus, entered at M4-W4 (REQ-SUB-006)
     providers = {r.provider for r in rows}
     assert {"OpenAI", "Anthropic", "Google", "Perplexity"} <= providers
     for row in rows:  # REQ-SUB-003 half: provenance mandatory on every row
@@ -176,6 +176,24 @@ def test_seed_dataset_meets_req_sub_002() -> None:
     # Q1 scope sanity: the flagship $20 tiers are present.
     ids = {r.id for r in rows}
     assert {"chatgpt-plus", "claude-pro", "google-ai-pro", "perplexity-pro"} <= ids
+
+
+def test_sub_dollar_price_survives_the_seed_exactly() -> None:
+    """W4 review MINOR-5 citing test: REQ-SUB-006's price is $4.99, and it must STAY $4.99.
+
+    Google AI Plus is the first sub-$10 fractional price in the table, and the cheapest
+    plan in it — so it is the row the budget pick lands on. An int coercion, or a stray
+    `round()` on the way through the store, would move the number the owner is asked to
+    verify against the vendor's page. The parser and the database are both asserted.
+    """
+    rows = {r.id: r for r in parse_plans(SEED_PATH.read_text(encoding="utf-8"))}
+    assert rows["google-ai-plus"].monthly_usd == 4.99
+    conn = connect()
+    ingest_plans(conn, SEED_PATH.read_text(encoding="utf-8"), RunContext())
+    stored = conn.execute("SELECT monthly_usd FROM plans WHERE id = 'google-ai-plus'").fetchone()
+    assert stored[0] == 4.99
+    # ...and it is the table's minimum, i.e. the value a budget answer actually returns.
+    assert conn.execute("SELECT MIN(monthly_usd) FROM plans").fetchone()[0] == 4.99
 
 
 def test_seed_dataset_ingests_and_reconciles_end_to_end() -> None:
@@ -195,6 +213,7 @@ def test_seed_dataset_ingests_and_reconciles_end_to_end() -> None:
     assert linked == [
         ("chatgpt-plus", "GPT-5.6", "gpt-5.6"),
         ("chatgpt-pro", "GPT-5.6 Sol Pro", "gpt-5.6-sol"),
+        ("google-ai-plus", "Gemini 3.1 Pro", "gemini-3.1-pro"),
         ("google-ai-pro", "Gemini 3 Pro", "gemini-3-pro"),
         ("google-ai-pro", "Gemini 3.1 Pro", "gemini-3.1-pro"),
         ("google-ai-ultra", "Gemini 3.1 Pro", "gemini-3.1-pro"),
