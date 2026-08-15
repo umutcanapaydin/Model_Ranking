@@ -74,7 +74,13 @@ typecheck: install
 # ci.yml. The gate that decides whether a project is correctly INSTALLED was reachable only by
 # someone who already knew its name. Measured in the field: a project closed two milestones with 37
 # declared files missing. The owner, translated from Turkish: "you wrote a verify script -- that one does not fire either."
-check: lint typecheck test check-records check-records-selftest install-check
+check: lint typecheck test check-records check-records-selftest install-check pin-check
+
+pin-check:  ## M3 closure, V4C-49 + INV-14: every workflow action is SHA-pinned (40-hex), never a mutable tag
+	@echo "[pin-check] INV-14 — no mutable-tag 'uses:' in .github/workflows"
+	@if grep -rnE '^\s*-?\s*uses:\s*[^ ]+@(v[0-9][^ ]*|main|master)\b' .github/workflows/; then \
+	  echo "  FAIL: a workflow action is pinned to a MUTABLE tag — pin the 40-hex commit SHA (INV-14)."; exit 1; \
+	else echo "  OK: all actions SHA-pinned"; fi
 
 # v2.0: security gates as named Make targets
 secrets:

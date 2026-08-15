@@ -1,34 +1,43 @@
 Project: model_ranking
-Latest milestone: M2 CLOSED + committed + live-verified (13/13 contract tests). AGENT HANDOVER in progress.
-Last session date: 2026-08-11
-Last work agent: Claude (Cowork) — HANDING OVER: read docs/HANDOVER-model-ranking.md FIRST
+Latest milestone: M3 CLOSED agent-side (owner session PENDING: sign-off + out-of-sandbox tests)
+Last session date: 2026-08-15
+Last work agent: Claude (Cowork lead agent, D-106)
 
 WHAT'S DONE
-- M1 closed + committed by owner (github.com/umutcanapaydin/Model_Ranking)
-- M2 W1-W4 closed: OpenRouter pricing + median-of-medians · Arena (HF dataset API, CC-BY
-  attribution) · category layer (coding/assistant, thresholds as data, D-105) ·
-  recommend --task + stale-notice + contract-tests.yml CI
-- 109 tests, coverage 90%, 4 reviews PASS (13 findings applied), security close PASS (INV-9/10/11)
+- M1+M2 closed (see closure reports); M3 W0-W3 closed agent-side, 4 commits on main (local):
+  W0 GP v4.3.1 migration (install-check green, English rule, governed records, warnings ledger)
+  W1 plan schema + curated seed (data/plans.yaml — 9 plans, 4 providers, live-verified 2026-08-15)
+  W2 staleness-as-data + weekly CI re-verification gate
+  W3 recommend --subscription + ArenaClient cleanup + ALL actions SHA-pinned (+pin-check gate)
+- 150 unit + 5 gated tests; make check = 7 gates, all green; security close PASS (0 BLOCKING)
+- D-107/D-108 proposed; first retrospective written (M>=3); closure-report-m3.md awaits sign-off
 
 WHAT'S OPEN
-- M3 not planned yet: subscription-plan table (the moat) + open question: does Epoch ride along?
-- Carried debt: Elo threshold calibration, ArenaClient url param, Actions SHA-pin, stale-notice
-  proxy limitation, close_call frontier-only (all detailed in the handover doc §9)
-- Owner may add the repo to the Cowork session sources → then D-106 push works without bundles
+- REQ-CAL-001 Elo recalibration: OPEN criterion — needs owner-side Arena fetch OR descope to M4
+  (owner decision at the milestone session; corrected curl command delivered in chat)
+- Owner session: read closure-report-m3.md, run out-of-sandbox tests, sign; trigger first CI runs
+  (governance-contract legs + contract-tests incl. new plan-staleness job); W-001 gitleaks
+  false-positive allowlist decision
+- Push: container cannot push (proxy 403) — bundle delivered; owner pulls + pushes, or adds the
+  repo to the session's authorized sources to make D-106 pushes direct
+- M4 candidates: registry expansion (GPT-5.6 family; Claude 4.6 Opus / MiniMax M2.5 seen live),
+  Google AI Plus re-probe, Epoch ingestion (owner ruled M4), retrospective's carried product question
 
 WHAT TO DO NEXT
-- New agent: read docs/HANDOVER-model-ranking.md, then closure-report-m2.md + fixpack-1.md,
-  then draft docs/plans/m3-plan.md and STOP for the owner's signature
+- New agent: read docs/HANDOVER-model-ranking.md, closure-report-m3.md, the m3 wave checklists,
+  docs/retrospectives/m3-retrospective.md; process baseline is GP v4.3.1 (D-108)
 
 ANCHOR
-- AGENTS.md: ~142 lines (within 150 hard cap; diet at closure)
-- Active ADRs: universal set; D-100..D-104 (M1), D-105 (category layer), D-106 (agent runs tests+git)
-- Active seeds count: starter default (64+8)
-- Most recent retrospect: N/A
-- Most recent quarterly handover: N/A
+- AGENTS.md: 145 lines (within 150 cap)
+- Active ADRs: universal set; D-100..D-106 + D-107/D-108 (proposed, ratify at owner session)
+- Governed records: 8 with frontmatter (decisions, closure-reports m1-m3, fixpack-1, EXPERIENCE,
+  m3-security-review; validated by check-records in make check/pre-commit/CI)
+- Most recent retrospective: docs/retrospectives/m3-retrospective.md (first, 2026-08-15)
+- Most recent quarterly handover: docs/handovers/handover_q1.txt (M3 = M%3==0, 2026-08-15)
 
-HANDOFF NOTES (≤30 lines total per seed G.7)
-Spike prototype (pipeline.py/recommend.py) lives in the Cowork session workspace only;
-per D-102 it is L0 reference — findings encoded as REQ-CAN-002/003. Sandbox network
-reaches GitHub only (no HF/OpenRouter/Epoch) — M1 sources chosen accordingly.
-Artificial Analysis is banned until commercial agreement (D-101, verified 2026-08-06).
+HANDOFF NOTES
+Sandbox network: GitHub raw reachable; HF datasets-server/openrouter/epoch NOT (this container) —
+live halves run in CI or owner machine. WebFetch reaches provider pricing pages partially (JS
+pages hide amounts → cross-check two independent trackers, record evidence in plans.yaml header).
+Curated-data rules live in data/plans.yaml header + D-107. Turkish product strings are deliberate
+(.language-allow); everything committed from M3 on is English (V4C-79).

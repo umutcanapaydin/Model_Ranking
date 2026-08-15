@@ -39,9 +39,10 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0 — SHA-pinned (M3-W3)
 
-      # TODO: pin the Claude Code action version to a commit SHA, not @v1
-      #   Get latest tag SHA: gh api repos/anthropics/claude-code-action/git/refs/tags/v1 -q .object.sha
-      - uses: anthropics/claude-code-action@v1
+      # SHA-pinned at M3 closure (security review MINOR-2): this workflow holds
+      # contents:write + an API key, so a mutable tag was the one remaining
+      # supply-chain gap. Re-resolve deliberately when upgrading.
+      - uses: anthropics/claude-code-action@12310e4417c3473095c957cb311b3cf59a38d659  # v1.0.99 — SHA-pinned (M3 closure)
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}

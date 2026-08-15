@@ -362,4 +362,47 @@ owner reasserts git at any time (always his right, no cause needed).
 
 ---
 
+## D-107 — Subscription plans are curated in-repo data with mandatory per-row provenance
+
+**Status:** proposed (m3-plan §10; ratify at M3 closure)
+
+**Decision:** The subscription-plan table lives in `data/plans.yaml` (schema-versioned, validated
+by `parse_plans_doc`): provider, plan, monthly USD price, currency, region, verbatim limits,
+`source_url`, `last_verified`, and ONLY explicitly page-named `included_models`. Thresholds ride
+the document as data (staleness_days=30, budget_caps_usd dusuk 10 / orta 25). Curated data FAILS
+LOUD on any invalid row (authored data never skip-and-counts); ingest replaces the whole set
+atomically. Values are probed against a live source on entry day; disputed prices do NOT enter
+the table (first case: Google AI Plus, 2026-08-15).
+
+**Rationale:** No machine-readable feed for consumer AI subscriptions exists (M0 research — the
+moat); prices are volatile, so verification cadence (weekly CI staleness job, REQ-SUB-004) is a
+product feature, not bookkeeping.
+
+**Mitigation if violated:** a row without provenance/last_verified cannot parse (citing tests in
+tests/unit/test_plans_ingest.py); a stale row fails the weekly CI job loudly.
+
+**Revisit when:** a machine-readable plan feed appears, or region scope widens beyond USD/US.
+
+---
+
+## D-108 — Process baseline moves to General Pipeline v4.3.1
+
+**Status:** proposed (owner directive 2026-08-15; ratify at M3 closure)
+
+**Decision:** GP v4.2 is replaced by v4.3.1 as this project's process baseline. The install was
+repaired to manifest-correctness in M3-W0 (6 missing PROJECT paths added, 18 GP-INTERNAL files
+removed); `make check` now runs check-records + selftest + install-check + pin-check; the English
+rule (V4C-79) applies to everything committed from M3 on, with a reasoned `.language-allow`
+(Turkish PRODUCT strings and pre-M3 records exempt); agent git carries V4C-64 trailers under D-106.
+
+**Rationale:** Owner directive at the M3 kickoff; v4.3.1 is the first GP cut whose install-
+completeness rules can actually fire, and this repo was field evidence for why they must.
+
+**Mitigation if violated:** install-check/pin-check are wired into make check, pre-commit and CI —
+a drifting install fails the build rather than a council.
+
+**Revisit when:** GP ships its next version and the owner directs adoption.
+
+---
+
 *Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*

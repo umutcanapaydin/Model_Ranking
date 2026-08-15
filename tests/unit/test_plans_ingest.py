@@ -224,3 +224,25 @@ def test_validator_does_not_mutate_input() -> None:
     before = repr(doc)
     parse_plans(yaml.safe_dump(doc))
     assert repr(doc) == before
+
+
+def test_mid_transaction_failure_keeps_previous_working_set() -> None:
+    """M3 security review NOTE-1 (INV-12 citing test): a failure AFTER the delete,
+    mid-insert, must roll the whole replacement back — the old set survives."""
+
+    conn = connect()
+    ingest_plans(conn, VALID, RunContext())
+    # A trigger that rejects the incoming row forces an IntegrityError INSIDE
+    # the replacement transaction (parse passes; the DB itself fails).
+    conn.execute(
+        "CREATE TRIGGER reject_replacement BEFORE INSERT ON plans"
+        " WHEN NEW.monthly_usd = 25.0"
+        " BEGIN SELECT RAISE(ABORT, 'injected mid-transaction fault'); END"
+    )
+    with pytest.raises(SourceError, match="violates schema constraints"):
+        ingest_plans(conn, _valid_with(monthly_usd=25.0), RunContext())
+    row = conn.execute("SELECT monthly_usd FROM plans").fetchall()
+    assert row == [(20.0,)]  # the OLD set, untouched
+    assert conn.execute("SELECT COUNT(*) FROM plan_models").fetchone()[0] == 2
+    cfg = conn.execute("SELECT staleness_days FROM plan_config WHERE id=1").fetchone()
+    assert cfg == (30,)

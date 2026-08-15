@@ -59,3 +59,41 @@ run belongs inside the wave; here the wave's live half runs where the network is
 **Numbers:** 4 waves · 109 tests (104 unit + 5 gated) · coverage 90% · fault-injection ×4 (all RED,
 md5 reverts) · reviews: 11 MINOR + 2 PROCESS found, all applied · security close: PASS, 3 new
 invariants · D-105 recorded.
+
+## 2026-08-15 — M3: Subscription-Plan Table + GP v4.3.1 Migration
+
+**The install-completeness rule earned its keep on day one:** `make install-check` (new in
+v4.3.1) found this repo's v4.2 install wrong in BOTH directions — 6 PROJECT paths missing and
+18 GP-INTERNAL files leaked — before any product code moved. The v4.3 field story reproduced
+here exactly. Doctrine confirmed: a copy step with no declared contract cannot be wrong.
+
+**A template sync is a WRITE like any other:** the W0 migration clobbered the `.gitignore`
+`*.db/*.sqlite3` lines added by the M1 security review — caught by the fresh-eyes reviewer,
+not the author. Lesson: diff template syncs against the MITIGATIONS history, not just against
+the template. (Pattern count now M1+M2+M3: every milestone, the reviewer catches the failure
+the author's imagination didn't contain.)
+
+**Curated data flips the parser discipline:** fetched sources skip-and-count; an AUTHORED
+table fails loud on any invalid row — a curation error is a bug, not noise. Corollary paid
+for immediately: a disputed price (Google AI Plus, two sources disagreeing) does NOT enter
+the table; the dispute is recorded and re-probed instead. Honesty at data-entry time is
+cheaper than a fixpack later (the FP-M2-2 lesson, applied upstream).
+
+**Mutation probing caught what the suite could not name:** the reviewer's `<=`→`<` mutation on
+the budget-cap filter SURVIVED 148 green tests — no fixture priced a plan exactly at a cap.
+V3C-72's stay-green rule forced the boundary test. Seed candidate: "for every threshold in the
+product, one fixture sits exactly ON it."
+
+**Scanner findings self-replicate through documentation:** the gitleaks false positive's own
+LEDGER ROW re-tripped the scanner by quoting the trigger literal; so did the security review
+quoting the ledger. Rule adopted in both files: DESCRIBE a scanner trigger, never quote it.
+
+**Friction (V4C-13):** live Arena distribution unreachable from this sandbox AND via WebFetch
+(4 attempts, ledgered) → REQ-CAL-001 carried to the closure session (owner-side fetch or
+descope). GP-upstream notes: `make wave-check` cited by the template but no such Makefile
+target ships; `scripts/check_records.py`/`journey.py` fail their own repo-wide ruff/black.
+
+**Numbers:** 4 waves · 150 tests (+43) · reviews: 2 BLOCKING + 8 MINOR found, all closed ·
+fault-injection 7 faults, 6 RED + 1 stay-green → mandatory test added · security close: PASS,
+3 new invariant candidates (INV-12/13/14) · gitleaks: 1 ledgered false positive · live e2e:
+9 plans + 2176 prices + 173 SWE scores → three plan answers with 7 plans honestly unscored.

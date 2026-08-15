@@ -1,96 +1,92 @@
 QUARTERLY HANDOVER -- Q1 (Milestones M1 -> M3)
-Project: <PROJECT_NAME>
-Quarter range: <e.g., 2026-06-01 to 2026-08-31>
-Quarter status: <ACTIVE / CLOSED>
-Generated via: /quarterly-handover skill
+Project: model_ranking
+Quarter range: 2026-08-06 to 2026-08-15
+Quarter status: CLOSED agent-side (M3 owner session pending: sign-off + out-of-sandbox tests)
+Generated via: /quarterly-handover skill (M3, M%3==0), 2026-08-15
 
-═══════════════════════════════════════════════════════════════════════
+=======================================================================
 1. SHIPPED THIS QUARTER
-═══════════════════════════════════════════════════════════════════════
+=======================================================================
 REQ-IDs closed:
-  - REQ-XX-001 -- <one-line description>
-  - REQ-XX-002 -- <one-line description>
+  M1: REQ-ING-001..004, REQ-CAN-001..003, REQ-RANK-001/002, REQ-REC-001..004
+      (data layer: LiteLLM/SWE-bench/Aider; canonical registry; coding
+      ranking; deterministic three-answer recommender + CLI)
+  M2: REQ-ING-005..008, REQ-CAT-001..003, REQ-REC-005/006, REQ-CI-001
+      (OpenRouter + Arena sources; category layer as data; --task; CI)
+  M3: REQ-GP-001, REQ-SUB-001..004, REQ-REC-007/008
+      (GP v4.3.1 migration; curated subscription-plan table with mandatory
+      provenance + staleness workflow; recommend --subscription)
+OPEN at quarter close: REQ-CAL-001 (Elo recalibration — owner-side data
+fetch or descope to M4; ledgered in m3-wave-3-close.md row 9b).
 
-Milestones completed:
-  - M1 (closed YYYY-MM-DD) -- <one-line outcome>
-  - M2 (closed YYYY-MM-DD) -- <one-line outcome>
-  - M3 (closed YYYY-MM-DD) -- <one-line outcome>
+=======================================================================
+2. NEW ADRs THIS QUARTER
+=======================================================================
+D-100..D-104 (M1 foundations: stack, free-and-legal sources, spike-L0,
+A0.5, deterministic engine) - D-105 (category layer, no cross-scale
+averaging) - D-106 (OWNER-INITIATED: agent runs gates + git) -
+D-107 (proposed: curated plan data + provenance + verification cadence) -
+D-108 (proposed: GP baseline v4.2 -> v4.3.1).
 
-═══════════════════════════════════════════════════════════════════════
-2. NEW DECISIONS (ADRs added; starts at D-008 for this project)
-═══════════════════════════════════════════════════════════════════════
-  - D-008 -- <topic>: <status>
-  - D-009 -- <topic>: ...
+=======================================================================
+3. OPEN RISKS QUEUED TO NEXT QUARTER
+=======================================================================
+- Registry coverage is the moat's thinnest wall: plan pages name models
+  (GPT-5.6 family) absent from benchmark sources; live SWE-bench now
+  lists Claude 4.6 Opus / MiniMax M2.5 with no registry rules -> drops.
+- Google AI Plus price disputed between sources -> excluded, re-probe.
+- Elo thresholds still first-calibration (REQ-CAL-001 open).
+- First CI runs of governance-contract legs + plan-staleness job not yet
+  triggered (owner's Actions tab).
+- gitleaks W-001 false positive awaits the owner's allowlist ruling.
+- Retrospective's carried question: is "7 of 9 plans unscored" acceptable
+  user-facing behavior, or does M4 need registry+roster expansion first?
 
-═══════════════════════════════════════════════════════════════════════
-3. ACTIVATED SEEDS (proposed -> active this quarter)
-═══════════════════════════════════════════════════════════════════════
-  - <Theme.NN> -- <principle one-liner>
-  - ...
+=======================================================================
+4. CUMULATIVE STATE
+=======================================================================
+Tests: 150 unit + 5 network-gated (all green) - coverage ~90% on touched
+modules - AGENTS.md 145/150 lines - governed records: 8 with validated
+frontmatter - gates: make check = lint, typecheck, test, check-records,
+selftest, install-check, pin-check (all wired: make + pre-commit + CI) -
+commits: 4 (M1-M2 era) + 4 M3 boundary commits (D-106, V4C-64 trailers).
 
-═══════════════════════════════════════════════════════════════════════
-4. OPEN RISKS (queued to Q2)
-═══════════════════════════════════════════════════════════════════════
-  - Risk: <description>
-    Severity: HIGH / MEDIUM / LOW
-    Mitigation: <plan>
+=======================================================================
+5. NEXT-QUARTER MILESTONE SKELETON (owner signs each plan)
+=======================================================================
+M4 (candidate): registry + roster expansion (make plans scoreable) +
+   Epoch AI ingestion (owner ruled M4) + Elo calibration if carried.
+M5 (candidate): HTTP API layer (D-100 opens serving question OQ-3).
+M6 (candidate): iOS-facing hardening + composite-score design review
+   (D-105 revisit-when approaches if >=4 categories).
 
-═══════════════════════════════════════════════════════════════════════
-5. CUMULATIVE STATE
-═══════════════════════════════════════════════════════════════════════
-  - Tests: <total count> (was <baseline> at Q1 start)
-  - Coverage: <%> (was <%> at Q1 start)
-  - Token spend (cumulative): <$/M tokens>
-  - AGENTS.md size: <line count> (target ≤80, hard cap 150)
-  - Active seeds: <total>
-  - ADRs: D-001..D-<latest>
-  - Active hooks: <count> (D-007 baseline + any promoted)
-  - Active skills: <count> (10 starter + any added)
-  - Active MCP servers: <count>
+=======================================================================
+6. FRESH-AGENT NAVIGATION MAP
+=======================================================================
+1. docs/HANDOVER-model-ranking.md (the product handover; still accurate)
+2. note.txt (current state) -> docs/closure-report-m3.md
+3. docs/plans/m3-plan.md + m3-wave-*-close.md (how M3 actually ran)
+4. docs/retrospectives/m3-retrospective.md (discipline verdicts + carried question)
+5. Process: START_HERE.md -> AGENTS.md (GP v4.3.1; D-108)
+6. Product rules that bite: HANDOVER §4 (8 rules) + data/plans.yaml header
 
-═══════════════════════════════════════════════════════════════════════
-6. HARNESS DIET (per PM consortium decision)
-═══════════════════════════════════════════════════════════════════════
-Retired this quarter (not fired in 90d):
-  - <none / list>
-Promoted this quarter (rule violated 3+ times → hook):
-  - <none / list>
+=======================================================================
+7. GOTCHAS (not in formal docs, learned this quarter)
+=======================================================================
+- This container reaches GitHub raw but NOT HF datasets-server/OpenRouter
+  (the PREVIOUS agent's sandbox reached datasets-server — allowlists
+  differ per session; probe before promising).
+- WebFetch sees provider pricing pages but JS hides the USD amounts:
+  cross-check two independent trackers and record the evidence in the
+  plans.yaml header, or the value does not enter the table.
+- Never QUOTE a scanner trigger literal in any committed file — the
+  ledger row and the security review both re-tripped gitleaks by quoting
+  the false positive they were describing. Describe, don't quote.
+- Template syncs clobber mitigations: diff against the mitigations
+  history (the W0 .gitignore incident), not just against the template.
+- For every threshold in the product, one fixture sits exactly ON it
+  (the cap-boundary mutant survived 148 green tests).
+- git push from the container -> proxy 403: deliver a bundle, or the
+  owner adds the repo to the session's authorized sources.
 
-═══════════════════════════════════════════════════════════════════════
-7. NEXT QUARTER SKELETON
-═══════════════════════════════════════════════════════════════════════
-Tentative milestones M4, M5, M6:
-  M4 -- <goal>
-  M5 -- <goal>
-  M6 -- <goal>
-Next-Q risks to mitigate:
-  - <item>
-External dependencies to track:
-  - <item>
-
-═══════════════════════════════════════════════════════════════════════
-8. FRESH-AGENT NAVIGATION MAP
-═══════════════════════════════════════════════════════════════════════
-If you are picking up this project cold, read in this order:
-  1. AGENTS.md (house rules, ~80 lines)
-  2. permission-matrix.md (what you can / can't do; BLOCKING taxonomy)
-  3. docs/decisions.md (ADR-lite log; latest first)
-  4. docs/prd.md (REQ-IDs)
-  5. docs/retrospectives/m3-retrospective.md (latest learnings)
-  6. docs/plans/m4-plan.md (where we are headed; profile source choice)
-  7. note.txt (current turn handoff)
-  8. .claude/skills/<name>/SKILL.md for any skill you need to invoke
-
-═══════════════════════════════════════════════════════════════════════
-9. GOTCHAS, SHORTCUTS, INSIDE JOKES
-═══════════════════════════════════════════════════════════════════════
-Anything that won't show up in formal docs but is useful:
-  - <e.g., "tests/integration/fixtures/foo.json is hand-curated; do not regenerate">
-  - <e.g., "deploy uses make smoke; CI is GH Actions">
-  - <e.g., "M2's K.8 grep-verify caught a sneaky factory rename in clients/dify.py">
-
-═══════════════════════════════════════════════════════════════════════
-Signed off by: <name / agent>
-Quarter closed: <YYYY-MM-DD>
-Git tag: handover-q1
-═══════════════════════════════════════════════════════════════════════
+Signed: Claude (Cowork lead agent, D-106) - 2026-08-15

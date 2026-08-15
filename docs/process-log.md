@@ -108,3 +108,15 @@ review caught the .gitignore *.db mitigation clobber (BLOCKING, fixed byte-ident
 gitleaks run: 1 false positive, escalated (W-001), not suppressed.
 Lesson: a template sync is a WRITE like any other — diff it against the mitigations history, not
 just against the template; the reviewer, not the author, caught the one line that mattered.
+
+## 2026-08-15 — M3 W1-W3 + closure (agent-side) — lead agent (Cowork), same session
+W1: plans/plan_models schema + curated data/plans.yaml (9 plans, 4 providers; every value probed
+live same-day; disputed Google AI Plus price EXCLUDED). W2: staleness window + budget caps as
+data; weekly CI re-verification job (unconditional). W3: recommend --subscription (unscored plans
+disclosed, stale rows named); ArenaClient url-param debt closed; ALL workflow actions SHA-pinned
++ pin-check grep gate (V4C-49). Closure: security PASS (0 BLOCKING; INV-12/13/14 candidates),
+first retrospective (M>=3), EXPERIENCE entry, D-107/D-108 proposed, closure-report-m3 + Q1
+quarterly handover generated. REQ-CAL-001 OPEN (Arena unreachable from here; owner fetch or
+descope at the milestone session). Suite 107 -> 150 unit tests, make check = 7 gates green.
+Lesson: describe a scanner trigger, never quote it — the ledger row about a false positive
+re-tripped the scanner twice; documentation is also an input to the gates it documents.
