@@ -1,5 +1,5 @@
 Project: model_ranking
-Latest milestone: M3 CLOSED agent-side (owner session PENDING: sign-off + out-of-sandbox tests)
+Latest milestone: M3 CLOSED + SIGNED by the owner (2026-08-15, verified out-of-sandbox). M4 IN PROGRESS.
 Last session date: 2026-08-15
 Last work agent: Claude (Cowork lead agent, D-106)
 
@@ -15,9 +15,9 @@ WHAT'S DONE
 WHAT'S OPEN
 - (CLOSED 2026-08-15) REQ-CAL-001 Elo recalibration: done from the owner's live fetch —
   min_quality 1300->1400, close_call 5->8 (docs/reviews/m3-elo-calibration.md)
-- Owner session: read closure-report-m3.md, run out-of-sandbox tests, sign; trigger first CI runs
-  (governance-contract legs + contract-tests incl. new plan-staleness job); W-001 gitleaks
-  false-positive allowlist decision
+- (DONE 2026-08-15) owner session: verified + signed; M3 pushed to GitHub (f343545)
+- Still open for the owner: trigger the first CI runs (governance-contract legs + contract-tests
+  incl. the new plan-staleness job); W-001 gitleaks false-positive allowlist decision
 - Push: container cannot push (proxy 403) — bundle delivered; owner pulls + pushes, or adds the
   repo to the session's authorized sources to make D-106 pushes direct
 - M4 candidates: registry expansion (GPT-5.6 family; Claude 4.6 Opus / MiniMax M2.5 seen live),

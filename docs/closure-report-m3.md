@@ -1,7 +1,7 @@
 ---
 record_type: ratification
 id: closure-report-m3
-status: draft
+status: ratified
 date: 2026-08-15
 ---
 # Closure Report — M3: Subscription-Plan Table + GP v4.3.1 Migration
@@ -116,4 +116,6 @@ of the models providers name — today that is the moat's thinnest wall, and the
 you the question it raises.
 
 ---
-*Owner sign-off: ______ / date: ______*
+*Owner sign-off: **APPROVED** — Umut Can Apaydın, 2026-08-15 (out-of-sandbox verification run
+the same day: `make check` 152 passed / 7 gates green, 13/13 live contract tests, staleness gate
+green, live end-to-end pipeline + all three recommend modes). M3 CLOSED.*

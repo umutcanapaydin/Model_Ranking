@@ -1,6 +1,8 @@
 # M4 Plan — Make the Plan Answers Real (data depth)
 
-**Status:** DRAFT — awaiting owner signature (§13)
+**Status:** SIGNED — owner approved 2026-08-15: "I am signing the M3 closure report; if there is
+no problem we can continue with M4" (owner, translated from Turkish). Waves dispatch without
+stopping.
 **Date:** 2026-08-15 · **Risk tier:** LOW (public data only; no auth/PII/payment) · **Mode:** A0.5 + D-106
 **Process baseline:** GP v4.3.1 (D-108). Waves run without stopping; the owner runs the
 out-of-sandbox verification at the milestone gate (owner amendment, M3).
@@ -144,10 +146,10 @@ provider dashboards · iOS work.
 
 ## §13 Dispatch checklist (owner signs to release Wave 1)
 
-- [ ] M4 REQ-IDs accepted (§2) — especially REQ-REC-009 as the headline outcome
-- [ ] Wave decomposition + ~460k token estimate accepted
-- [ ] Registry rule additions may be authored by the agent (data-class edit, reviewed per wave)
-- [ ] Roster source approach accepted: documented provider pages only, never dashboard scraping
-- [ ] M3 closure report signed (prerequisite — M4 starts from a closed milestone)
+- [x] M4 REQ-IDs accepted (§2) — especially REQ-REC-009 as the headline outcome
+- [x] Wave decomposition + ~460k token estimate accepted
+- [x] Registry rule additions may be authored by the agent (data-class edit, reviewed per wave)
+- [x] Roster source approach accepted: documented provider pages only, never dashboard scraping
+- [x] M3 closure report signed (2026-08-15) — prerequisite met
 
-**Owner sign-off:** ______ · **Date:** ______
+**Owner sign-off:** APPROVED · **Date:** 2026-08-15
