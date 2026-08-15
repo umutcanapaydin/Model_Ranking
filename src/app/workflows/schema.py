@@ -75,9 +75,15 @@ CREATE TABLE IF NOT EXISTS plan_config (
     cap_orta       REAL NOT NULL CHECK (cap_orta > cap_dusuk)
 );
 CREATE TABLE IF NOT EXISTS plan_models (
-    plan_id  TEXT NOT NULL,
-    raw_name TEXT NOT NULL,               -- model name exactly as the page states it
-    model_id TEXT,                        -- canonical id; NULL until reconcile_plans (drops counted)
+    plan_id       TEXT NOT NULL,
+    raw_name      TEXT NOT NULL,          -- model name exactly as the page states it
+    model_id      TEXT,                   -- canonical id; NULL until reconcile_plans (drops counted)
+    -- Where the LINK came from (M4-W2). 'plan-page' = the plan's own pricing page
+    -- named the model; 'roster' = the provider's separate documented model list.
+    -- A link without provenance is a guess, and this product does not guess.
+    link_source   TEXT NOT NULL DEFAULT 'plan-page',
+    source_url    TEXT,                   -- set for roster links (the plan carries its own)
+    last_verified TEXT,                   -- set for roster links; roster rows age on their own clock
     UNIQUE (plan_id, raw_name)
 );
 CREATE INDEX IF NOT EXISTS idx_plan_models_plan ON plan_models (plan_id);
@@ -131,10 +137,37 @@ class ScoreRow:
     source_url: str
 
 
+# Columns added to EXISTING tables after M1. `CREATE TABLE IF NOT EXISTS` cannot add
+# them to a database that already exists, so a disposable-but-persisted advisor.db
+# from an earlier milestone would fail with "no such column" (M4-W2 review MINOR-3).
+# Idempotent, additive, and loud only on a real error — never a destructive migration.
+_MIGRATIONS: tuple[tuple[str, str, str], ...] = (
+    ("plan_models", "link_source", "TEXT NOT NULL DEFAULT 'plan-page'"),
+    ("plan_models", "source_url", "TEXT"),
+    ("plan_models", "last_verified", "TEXT"),
+)
+
+
+def migrate(conn: sqlite3.Connection) -> list[str]:
+    """Add post-M1 columns to tables that predate them; returns what was added."""
+    applied: list[str] = []
+    for table, column, decl in _MIGRATIONS:
+        existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if not existing:
+            continue  # table itself not created yet — DDL will create it complete
+        if column not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+            applied.append(f"{table}.{column}")
+    if applied:
+        conn.commit()
+    return applied
+
+
 def connect(path: str = ":memory:") -> sqlite3.Connection:
-    """Open a connection with the schema applied (idempotent)."""
+    """Open a connection with the schema applied + migrated (idempotent)."""
     conn = sqlite3.connect(path)
     conn.executescript(DDL)
+    migrate(conn)
     return conn
 
 

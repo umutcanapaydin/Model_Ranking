@@ -37,6 +37,10 @@ class PlanRank:
     source_url: str
     score: float
     scored_by_model: str
+    scored_via: str  # 'plan-page' or 'roster' — WHERE the plan->model link came from
+    link_source_url: (
+        str | None
+    )  # roster links carry their own source; plan-page links use the plan's
     harness: str
     evidence_date: str | None
 
@@ -53,6 +57,8 @@ class PlanPick:
     score: float
     metric: str
     scored_by_model: str
+    scored_via: str
+    link_source_url: str | None
     harness: str
     evidence_date: str | None
     last_verified: str
@@ -100,9 +106,13 @@ def plan_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[PlanRank]
         ),
         detail AS (
           SELECT pm.plan_id, m.display, s.harness, s.run_date, s.score,
+                 pm.link_source, pm.source_url,
                  ROW_NUMBER() OVER (
                    PARTITION BY pm.plan_id
-                   ORDER BY s.run_date DESC, s.harness ASC, m.display ASC
+                   -- plan-page links win ties: the plan's own page is the more
+                   -- specific statement about what the plan includes.
+                   ORDER BY (pm.link_source = 'plan-page') DESC,
+                            s.run_date DESC, s.harness ASC, m.display ASC
                  ) AS rn
           FROM plan_models pm
           JOIN scores s ON s.model_id = pm.model_id
@@ -112,9 +122,11 @@ def plan_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[PlanRank]
         )
         SELECT p.id, p.name, p.provider, p.monthly_usd, p.currency,
                p.last_verified, p.source_url, b.best,
-               (SELECT display  FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
-               (SELECT harness  FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
-               (SELECT run_date FROM detail d WHERE d.plan_id = p.id AND d.rn = 1)
+               (SELECT display     FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
+               (SELECT harness     FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
+               (SELECT run_date    FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
+               (SELECT link_source FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
+               (SELECT source_url  FROM detail d WHERE d.plan_id = p.id AND d.rn = 1)
         FROM plans p
         JOIN plan_best b ON b.plan_id = p.id
         ORDER BY b.best DESC, p.monthly_usd ASC, p.id
@@ -134,6 +146,8 @@ def plan_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[PlanRank]
             scored_by_model=r[8],
             harness=r[9],
             evidence_date=r[10],
+            scored_via=r[11],
+            link_source_url=r[12],
         )
         for r in rows
     ]
@@ -184,6 +198,8 @@ def _pick(
         score=row.score,
         metric=spec.metric,
         scored_by_model=row.scored_by_model,
+        scored_via=row.scored_via,
+        link_source_url=row.link_source_url,
         harness=row.harness,
         evidence_date=row.evidence_date,
         last_verified=row.last_verified,
@@ -232,8 +248,12 @@ def recommend_subscription(
             spec,
             why=(
                 f"Bütçeye uyan planlar içinde en yüksek {spec.primary_benchmark} skorlu model"
-                f" ({quality.scored_by_model}, {quality.score:.1f} {unit}) bu planın sayfasında"
-                " açıkça adıyla yer alıyor."
+                f" ({quality.scored_by_model}, {quality.score:.1f} {unit}) "
+                + (
+                    "bu planın sayfasında açıkça adıyla yer alıyor."
+                    if quality.scored_via == "plan-page"
+                    else "sağlayıcının yayımladığı plan model listesinde adıyla yer alıyor."
+                )
             ),
             trade_off=None,
         ),

@@ -24,3 +24,4 @@ src/app/workflows/recommend.py   # Turkish user-facing output strings by design 
 src/app/workflows/subscribe.py   # Turkish user-facing output strings by design (owner's market)
 tests/unit/test_recommend.py     # asserts the Turkish product strings above
 tests/unit/test_subscribe.py     # asserts the Turkish product strings above
+tests/unit/test_rosters.py       # asserts the Turkish product string for roster-sourced picks

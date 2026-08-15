@@ -1,0 +1,76 @@
+# Curated provider model ROSTERS (REQ-ING-009) — the second half of the moat.
+#
+# WHY THIS FILE EXISTS. A plan page that names no model cannot be ranked, and guessing is
+# forbidden (M1 rule 4). Some providers publish the model list for a plan somewhere OTHER than
+# the pricing page — a help-centre article, a plan detail page. That list is a SEPARATE source
+# with its own URL and its own verification clock, and this file is it.
+#
+# RULES (same discipline as data/plans.yaml, D-107):
+# - Only names a documented page states EXPLICITLY for THAT plan. No inference from an API
+#   catalogue, no "the provider probably includes X".
+# - Every roster carries source_url + last_verified (probe date). Stale rosters are disclosed.
+# - A roster name links to a model only through the registry; unmatched names DROP and are counted.
+# - A provider that publishes no per-plan list gets NO roster entry — its plans stay unscored and
+#   the coverage metric says so. That is the honest outcome, not a gap to paper over.
+#
+# PROBE LOG, 2026-08-15 (each URL fetched and read on this date):
+# - Perplexity — help centre publishes a per-tier model table: PUBLISHED, curated below.
+# - Anthropic — support.claude.com "What is the Pro plan?" and "What is the Max plan?" name NO
+#   models; claude.com/pricing names models only in the API-pricing and legacy sections, which is
+#   not a statement about consumer plan inclusion. NO ROSTER. Claude Pro/Max therefore remain
+#   unscoreable, by evidence rather than by omission.
+# - OpenAI — help.openai.com "What is ChatGPT Plus?" names no models and directs users to the
+#   in-product model picker ("Model availability changes during rollouts"). NO ROSTER. ChatGPT
+#   Go/Plus keep only what chatgpt.com/pricing itself names.
+# - Google — one.google.com/about/google-ai-plans already names models on the plan page itself,
+#   so no separate roster is needed.
+
+schema: 1
+staleness_days: 30   # same window as the plan table (owner Q3, 2026-08-15)
+
+rosters:
+  - plan_id: perplexity-pro
+    provider: Perplexity
+    source_url: https://www.perplexity.ai/help-center/en/articles/10354919-what-advanced-ai-models-are-included-in-my-subscription
+    last_verified: 2026-08-15
+    scope: search-models
+    note: >-
+      Transcribes the "Search Models (Pro and Max Plans)" table, Pro column, and NOTHING
+      ELSE on that page. The page contradicts itself across product surfaces: its
+      "Computer Orchestrator Models" section lists GPT-5.6 Sol, Claude Opus 5 and Claude
+      Fable 5 as available on Pro, while the Search table marks the first two Max-only.
+      We transcribe the SEARCH tier because that is the surface a "which subscription
+      should I buy for everyday questions" answer is about; the Computer surface is a
+      different product. Recorded as `scope` in DATA rather than prose so the choice is
+      auditable — review MINOR-1. Sonar 2, Nemotron 3 Ultra and Kimi K3 are listed by the
+      page but have no registry rule (no price, or no benchmark presence): they drop and
+      are counted, like any other name.
+    models:
+      - Sonar 2
+      - GPT-5.6 Terra
+      - Gemini 3.1 Pro
+      - Claude Sonnet 5
+      - Kimi K3
+      - GLM 5.2
+      - Grok 4.5
+      - Nemotron 3 Ultra
+
+  - plan_id: perplexity-max
+    provider: Perplexity
+    source_url: https://www.perplexity.ai/help-center/en/articles/10354919-what-advanced-ai-models-are-included-in-my-subscription
+    last_verified: 2026-08-15
+    scope: search-models
+    note: >-
+      Same table, Max column: everything in Pro plus the two Max-only entries
+      (GPT-5.6 Sol, Claude Opus 5). Same scope rule as the Pro roster above.
+    models:
+      - Sonar 2
+      - GPT-5.6 Terra
+      - GPT-5.6 Sol
+      - Gemini 3.1 Pro
+      - Claude Sonnet 5
+      - Claude Opus 5
+      - Kimi K3
+      - GLM 5.2
+      - Grok 4.5
+      - Nemotron 3 Ultra

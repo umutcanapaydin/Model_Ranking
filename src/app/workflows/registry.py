@@ -38,7 +38,10 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     # date stamps) are absorbed into the base model: they are runtime settings of the
     # same model at the same price, and the coding sources already behaved this way.
     ModelRule("claude-fable-5",    "Claude Fable 5",    "Anthropic", r"claude[-_ ]?fable[-_ ]?5"),
-    ModelRule("claude-5-opus",     "Claude Opus 5",     "Anthropic", r"claude[-_ ]?opus[-_ ]?5|claude[-_ ]?5[-_ ]?opus"),
+    ModelRule("claude-5-opus",     "Claude Opus 5",     "Anthropic", r"claude[-_ ]?opus[-_ ]?5(?![.\-]?\d)|claude[-_ ]?5[-_ ]?opus"),
+    # M4-W2: named by Perplexity's documented plan roster, and live in both pricing
+    # (claude-sonnet-5) and Arena (claude-sonnet-5-high).
+    ModelRule("claude-5-sonnet",   "Claude Sonnet 5",   "Anthropic", r"claude[-_ ]?sonnet[-_ ]?5(?![.\-]?\d)|claude[-_ ]?5[-_ ]?sonnet"),
     ModelRule("claude-4.8-opus",   "Claude Opus 4.8",   "Anthropic", r"claude[-_ ]?4[.\-]8[-_ ]?opus|claude[-_ ]?opus[-_ ]?4[.\-]8"),
     ModelRule("claude-4.7-opus",   "Claude Opus 4.7",   "Anthropic", r"claude[-_ ]?4[.\-]7[-_ ]?opus|claude[-_ ]?opus[-_ ]?4[.\-]7"),
     ModelRule("claude-4.6-opus",   "Claude Opus 4.6",   "Anthropic", r"claude[-_ ]?4[.\-]6[-_ ]?opus|claude[-_ ]?opus[-_ ]?4[.\-]6"),

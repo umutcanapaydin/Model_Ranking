@@ -44,6 +44,10 @@ jobs:
           pip install -e .
       - name: Curated plan table within staleness window (REQ-SUB-004)
         run: python -m app.workflows.plans --check-staleness data/plans.yaml
+      # M4-W2: the provider rosters carry their OWN verification clock (REQ-ING-009),
+      # so they get their own red light — a stale roster is a stale answer.
+      - name: Provider rosters within staleness window (REQ-ING-009)
+        run: python -m app.workflows.rosters --check-staleness data/rosters.yaml
 
   live-contracts:
     runs-on: ubuntu-latest
@@ -80,6 +84,7 @@ jobs:
           )
           from app.workflows.registry import reconcile, reconcile_plans
           from app.workflows.plans import ingest_plans
+          from app.workflows.rosters import ingest_rosters
 
           conn = sqlite3.connect("ci_advisor.db"); conn.executescript(DDL)
           run = RunContext()
@@ -87,6 +92,10 @@ jobs:
           with open("data/plans.yaml", encoding="utf-8") as fh:
               pr = ingest_plans(conn, fh.read(), run)
           print(f"{pr.source}: stored={pr.stored}")
+          with open("data/rosters.yaml", encoding="utf-8") as fh:
+              rr = ingest_rosters(conn, fh.read(), run)
+          print(f"{rr.source}: stored={rr.stored} skipped={rr.skipped}")
+          assert rr.stored > 0, "roster ingest stored nothing — a printed zero is not a pass"
           for fn, client in (
               (ingest_litellm, LiteLLMClient()),
               (ingest_openrouter, OpenRouterClient()),
