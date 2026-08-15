@@ -1,0 +1,16 @@
+# Which files in THIS project are governance records, one glob per line.
+#
+# WHY THIS FILE SHIPS (v4.3, auditor B4). `check_records.py` finds governed records by globbing GP's OWN
+# filenames -- `v*-ratification.md`, `council-telemetry.md`, `increment-*-packet.md`. A customer project
+# has none of those, so every project run printed `scanned 0 record(s)` and **14 of 20 rules could not
+# fire at all**: R1-R3, X1-X3, P1, N1, C1a, C1b. An auditor put a record with no frontmatter, a bad
+# record_type and a bad id into `docs/decisions.md` and got exit 0.
+#
+# The escape hatch existed in the code and was **never shipped and never documented**, which is the same
+# as not existing. Name your project's records here and the frontmatter and cross-reference rules start
+# working on them. Delete a line and you are choosing to leave those records ungoverned.
+docs/decisions.md
+docs/closure-report-*.md
+docs/wave-checklist-*.md
+docs/fixpack-*.md
+docs/EXPERIENCE.md

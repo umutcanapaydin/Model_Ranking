@@ -36,7 +36,7 @@
 ### A.4 — Catalog conflicts across multiple customer artifacts before saying "yes" to next-step work.
 - **Principle:** when the customer drops 3+ new artifacts in one batch (updated feature list + Error Handling Guide + requirement.md + verbal expert input), do a dedicated conflict-cataloging pass before any edit. List every cross-document conflict with severity. Resolve per-conflict with the user before building.
 - **Origin:** S18-bis (2026-05-21) — three docs arrived together; without the explicit pass we would have shipped SMS without taskId, 5-attempt callback retry (vs Guide's 3), and err_code 1005 (vs Guide's 413).
-- **Reusable artifact:** the numbered-decision-points format — `Karar N — <topic>: <context>. (Önerim: ...)` per conflict.
+- **Reusable artifact:** the numbered-decision-points format — `Decision N — <topic>: <context>. (Recommendation: ...)` per conflict.
 - **Risk if ignored:** agent silently picks the most recent doc as authoritative; conflicting decisions slip in and only surface at customer acceptance.
 
 ---
@@ -438,7 +438,7 @@
 ### G.8 — Numbered question list with recommendations, not open-ended Q&A.
 - **Principle:** when the agent needs N decisions from the user, present them as a numbered list (1..N), each with options + a recommendation. User responds per-number in batch.
 - **Origin:** S18-bis — 13 decisions resolved across two user replies; total turnaround under 30 minutes vs probable hour+ of unstructured Q&A.
-- **Reusable artifact:** the `Karar N — <topic>: <context>. (Önerim: ...)` (or `Decision N — <topic>: <context>. Recommended: ...`) format.
+- **Reusable artifact:** the `Decision N — <topic>: <context>. (Recommendation: ...)` (or `Decision N — <topic>: <context>. Recommended: ...`) format.
 - **Risk if ignored:** either over-asking (agent paralyzes), under-asking (silent guesses), or unstructured Q&A (user cannot answer in batch).
 
 ### G.9 — PM-friendly risk register: cap at 7 items, two lines each, zero engineer vocabulary.
@@ -698,14 +698,14 @@
 ### V3C-68 — Restructure the review loop: per-wave Code-Reviewer + Tester + per-agent dev-test loop; Security review -> milestone closure (BLOCKING before deploy). (TEMPLATE-CHANGE; ACTIVE)
 - **Principle:** during the wave each implementing agent runs a tight dev-test loop (implement->test->self-review->fix) owning its slice; at wave exit a Code-Reviewer + a Tester (fresh-eyes, never own code) flush all fixes; Security review runs once at milestone closure over the whole surface and is BLOCKING before the deploy/go-live step. Safe because nothing ships mid-milestone (waves don't deploy). Always-on catastrophe-class guardrails (no committed secrets, no destructive ops) still apply every wave.
 - **Origin:** owner proposal 2026-06-26 + convergent test evidence (V3C-02; zek F14; one-api F9 race). Replaces the v2.2 per-wave Duo (Code + Security) with per-wave (Code + Tester) + dev-test loop; Security joins Quality at Stage 4.
-- **Reusable artifact:** revised Stage 2/3/4 in `pipeline-design.md`; `subagent-profiles/Tester.md`; the closure Security step (`docs/closure-checklist.md` §B.2a); the HIGH-risk security trigger in `permission-matrix.md`.
+- **Reusable artifact:** revised Stage 2/3/4 in [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v4.3.1/general_pipeline_v4.3.1/pipeline-design.md); `subagent-profiles/Tester.md`; the closure Security step (`docs/closure-checklist.md` §B.2a); the HIGH-risk security trigger in `permission-matrix.md`.
 - **Risk if ignored:** self-review without fresh eyes misses integration drift (GP's measured win is K.7); or security feedback arrives only after deploy.
 - **Tradeoff / cost of adoption:** an early-wave security-shaped flaw may cost more rework (accepted: no prod exposure, since deploy is at closure and security is BLOCKING before it -- the cost is rework, not a leak). The dev-test loop must ADD to, never replace, the wave-exit fresh-eyes pass.
 
 ### V3C-44 — One canonical mock per integration, built before integration code, + a contract test. (TEMPLATE; ACTIVE)
 - **Principle:** for each external integration build one canonical mock/fake-client before the integration code (extends K.1's Protocol-typed fake); consolidate any parallel mocks into it; keep a contract test that runs against the real API so the mock can't silently drift.
 - **Origin:** BotIm-AOP F6+F8 (mock divergence), HSC-MaaS F6, one-api -- 3 gateways; validates GP's K.1 / J.4.
-- **Reusable artifact:** the canonical-mock convention in `pipeline-design.md` §7 (testing) + the closure check in `docs/closure-checklist.md` §A; tests drive the canonical fake, never bespoke per-test stubs.
+- **Reusable artifact:** the canonical-mock convention in [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v4.3.1/general_pipeline_v4.3.1/pipeline-design.md) §7 (testing) + the closure check in `docs/closure-checklist.md` §A; tests drive the canonical fake, never bespoke per-test stubs.
 - **Risk if ignored:** parallel mocks drift apart and the suite passes against a fiction the real API never honored.
 - **Tradeoff / cost of adoption:** one contract test per integration (a little quota / a live dependency to hit); buys protection against silent contract drift.
 
@@ -768,7 +768,7 @@
 ### V3C-50 / V3C-52 / V3C-01 / V3C-27 — Confirm / fold (doc). (ACTIVE doc updates)
 - **Principle:** V3C-50 write design notes + a gap-analysis (what exists vs what to build) before the first line of code -- keep it light (ceremony risk); V3C-52 commit per-repo rules to `.agents/rules/` + treat AGENTS.md §8 as a PROCESS routing index with lazy doc-loading (token economy) -- independently re-derives GP's own design; V3C-01 confirms L.7 (version-stamped /health); V3C-27 commit `.gitignore` first.
 - **Origin:** HSC-MaaS F1 + aop F1 (design+gap-analysis); BotIm-AOP F3/F4 (.agents/rules + routing index); Reimbursement-App F5 + both GP-v2.2 runs (V3C-01); Poyraz-Dekorasyon F1 (V3C-27).
-- **Reusable artifact:** Stage-1 gap-analysis line + START_HERE routing-index note (`pipeline-design.md`, `START_HERE.md`); these validate existing GP design (raise confidence, no new mechanism).
+- **Reusable artifact:** Stage-1 gap-analysis line + START_HERE routing-index note ([`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v4.3.1/general_pipeline_v4.3.1/pipeline-design.md), `START_HERE.md`); these validate existing GP design (raise confidence, no new mechanism).
 - **Risk if ignored:** code before a clear build/reuse picture; AGENTS.md bloats; untracked files leak into the first commit.
 - **Tradeoff / cost of adoption:** keep V3C-50 to a few lines so it doesn't become a heavyweight design phase for small milestones.
 

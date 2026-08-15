@@ -20,9 +20,20 @@ WHAT IT CHECKS
   Pins (V4C-43-adjacent):     N1 no /blob/main|master/ URL is called a "pin"
   Conditions (V4C-25, v4.2):  C1a a condition's closure artifact must be NAMEABLE (path or record
                                   id in backticks), forward-only from v4.2
-                              C1b a DUE condition whose named artifact is absent = EVAPORATED
+                              C1b a DUE condition whose named artifact is absent = EVAPORATED;
+                                  an artifact may be `path#anchor`, and the anchor string
+                                  must be IN the file (v4.3: 'the file exists' was not
+                                  evidence the change landed)
                                   (the V4C-25 and V4C-12 incidents; see council-telemetry.md)
   Drift (v4.2):               D1 the shipped validator copy == the one CI runs
+  Install (v4.3):             M1 a PROJECT path is missing from an install (--install)
+                              M2 a GP-INTERNAL path leaked into an install (--install)
+                              M3 a package path is in neither list (manifest rot)
+  Language (v4.3):            L1 the repository is written in ENGLISH (V4C-79); reasoned
+                                 allowlist at .language-allow
+  Warnings (v4.3):            C2a a warning may not survive the close it was raised in
+                              C2b the same control ACCEPTED 3x -> the CONTROL goes under review
+                              C2c ACCEPTED without a reason and an owning milestone
 
 WHAT IT DELIBERATELY DOES NOT CHECK (V4C-35 narrowness rule): prose quality, rationale truth,
 whether a review was independent, or anything a human must judge. Shape only.
@@ -343,21 +354,45 @@ def condition_closure(root: Path, records, scope: str = "current") -> list[Findi
             # only when a resolvable artifact was missing — which is circular: resolvable meant it
             # existed, so the branch could never fire. Caught by falsifying it before shipping.
             # A named-but-absent artifact and an unnameable one are DIFFERENT findings.
+            # v4.3 REPAIR. C1b used to accept "the file exists". Three conditions of this very cut
+            # named artefacts that ALREADY existed before the condition was written — so each one
+            # satisfied itself, and the validator passed green while none of the work had been done.
+            # Found by the owner asking for a full sweep. Same class as everything else this session:
+            # a control that cannot distinguish "arrived" from "was already there".
+            # FIX: an artefact may name `path#anchor`. The anchor is a literal string that must appear
+            # IN the file. That turns "the file exists" into "the change landed."
             satisfied = False        # a token that resolves: an existing path, or a real record id
-            missing: list = []       # tokens that are clearly path-shaped but absent from the tree
+            missing: list = []       # path-shaped tokens that are absent, or whose anchor is absent
             for tok in TICK_RE.findall(artifact_cell):
-                tok = tok.strip().split()[0].rstrip(",;:)")
-                if tok in ids or (root / tok).exists():
+                _parts = tok.strip().split()
+                if not _parts:        # an empty backtick pair -> IndexError, exit 1, later rules aborted
+                    continue
+                tok = _parts[0].rstrip(",;:)")
+                path_part, _, anchor = tok.partition("#")
+                target = root / path_part
+                if anchor:
+                    if target.is_file() and anchor in target.read_text(
+                            encoding="utf-8", errors="replace"):
+                        satisfied = True
+                        break
+                    if PATHISH_RE.search(path_part):
+                        missing.append(tok)
+                    continue
+                if tok in ids or target.exists():
                     satisfied = True
                     break
                 if PATHISH_RE.search(tok):
                     missing.append(tok)
             # ---- C1b: due, an artifact was NAMED, and it is not there --------------------
             if due and not satisfied and missing:
+                tok = missing[0]
+                why = ("does not exist" if "#" not in tok else
+                       "exists but does not contain the anchor the condition named — the file was "
+                       "already there; the CHANGE did not land")
                 f.append(Finding(rel, ln, "C1b",
                                  f"condition EVAPORATED — it is due and its named closure artifact "
-                                 f"`{missing[0]}` does not exist (V4C-22: a condition without its "
-                                 "artifact is not a condition)"))
+                                 f"`{tok}` {why} (V4C-22: a condition without its artifact is not "
+                                 "a condition)"))
             # ---- C1a: forward-only — the artifact must be nameable at all ----------------
             elif forward and not satisfied and not missing \
                     and artifact_cell not in ("", "—", "-", "n/a", "–"):
@@ -365,6 +400,291 @@ def condition_closure(root: Path, records, scope: str = "current") -> list[Findi
                                  "condition's closure artifact is not machine-resolvable — name a "
                                  "`path` or a record `id` in backticks, not prose "
                                  f"(row: {cells[0][:24]!r})"))
+    return f
+
+
+# ── M1/M2/M3: the install manifest (V4C-72/76, v4.3) ────────────────────────────────────────
+# WHY. For twelve cuts nobody declared which files constitute an installation, and the field showed
+# the copy step was wrong in BOTH directions simultaneously: a correct install carried 19 GP-internal
+# files (11 handovers, 2 decks, the design docs, the exec overview) into a customer delivery tree,
+# while the actual install silently dropped `.agents/rules/`, `.claude/` and `docs/closure-checklist.md`
+# — the house rules, the hooks, and the checklist Stage 4 opens by walking. Two milestones closed
+# without them. A copy step with no declared contract cannot be wrong, because nothing said what
+# right was. See INSTALL-MANIFEST.md.
+#
+# COST LINE (V4C-13): ~60 lines, stdlib, <0.1 s. New failure mode: a legitimately new package file
+# FAILS M3 until classified. Deliberate. Fixtured, so the rule is proven to fire.
+MANIFEST_NAME = "INSTALL-MANIFEST.md"
+FENCE_RE = re.compile(r"^```")
+
+
+def parse_manifest(path: Path) -> tuple[set, set]:
+    """Return (project_paths, gp_internal_paths) from the two fenced sections."""
+    project: set = set()
+    internal: set = set()
+    bucket = None
+    in_fence = False
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if re.match(r"^##\s+PROJECT\b", line):
+            bucket, in_fence = project, False
+            continue
+        if re.match(r"^##\s+GP-INTERNAL\b", line):
+            bucket, in_fence = internal, False
+            continue
+        if re.match(r"^##\s+What the check does|^##\s+Cost line|^##\s+How to read", line):
+            bucket = None
+            continue
+        if FENCE_RE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence and bucket is not None:
+            tok = line.split("#")[0].split("(")[0].strip().strip("`")
+            while tok.startswith("./"):      # NOT lstrip("./") -- that eats the dot in `.agents/`
+                tok = tok[2:]
+            # v4.3 REPAIR (auditor N4): an absolute or escaping declaration satisfied M1 trivially.
+            if not tok or tok.startswith("/") or ".." in Path(tok).parts:
+                continue
+            bucket.add(tok.rstrip("/") + ("/" if tok.endswith("/") else ""))
+    return project, internal
+
+
+def _pkg_paths(pkg: Path) -> set:
+    """Every path in a package, as manifest-shaped strings; a declared dir collapses its subtree."""
+    out = set()
+    for p in pkg.rglob("*"):
+        if "__pycache__" in p.parts:
+            continue
+        rel = p.relative_to(pkg).as_posix()
+        out.add(rel + "/" if p.is_dir() else rel)
+    return out
+
+
+def _covered(rel: str, declared: set) -> bool:
+    """A file is covered if itself is declared, or any ancestor directory is."""
+    if rel in declared:
+        return True
+    parts = rel.split("/")
+    for i in range(1, len(parts)):
+        if "/".join(parts[:i]) + "/" in declared:
+            return True
+    return False
+
+
+def _installed(p: Path) -> bool:
+    """Present AND carrying content.
+
+    v4.3 REPAIR (auditor B5). `.exists()` accepted a 0-byte file and an empty directory, so a filtered
+    `rsync` that creates the tree and copies nothing passed M1 with exit 0. The auditor emptied
+    `AGENTS.md`, `.claude/skills/`, `subagent-profiles/` and `conformance/` — 105 files down to 68 — and
+    got `PASS: no findings`. **That is the field incident this rule exists for, wearing a different hat.**
+    """
+    if p.is_dir():
+        return any(q.is_file() and q.stat().st_size > 0 for q in p.rglob("*"))
+    return p.is_file() and p.stat().st_size > 0
+
+
+def manifest_rules(root: Path, install: Path | None = None) -> list[Finding]:
+    """M1/M2/M3 against INSTALL-MANIFEST.md.
+
+    v4.3 REPAIR, found by a zero-context reviewer minutes after the rule shipped. The first version
+    located the manifest only inside `current_package(root)` — a `general_pipeline_v*` directory. But
+    every shipped invocation (`make install-check`, the CI leg, the pre-commit hook) runs with root
+    ".", and **once those files are copied into a customer project there is no such directory** — that
+    is precisely what M2 exists to guarantee. So the headline rule of this release passed silently,
+    with exit 0, in the one place it was written to run. The reviewer proved it with a fake project
+    containing both a missing PROJECT path and a leaked GP-INTERNAL file: `no findings`.
+    **A control that cannot fire where it matters is a dead control, however well it works elsewhere.**
+
+    FIX: the manifest is a declared PROJECT file, so an installed tree carries its own copy. Look for
+    it in the install tree FIRST, then fall back to the package.
+    """
+    f: list[Finding] = []
+    cur = current_package(root)
+    man = None
+    if install and (install / MANIFEST_NAME).is_file():
+        man = install / MANIFEST_NAME                    # the installed tree carries its own contract
+    elif cur:
+        man = cur / MANIFEST_NAME
+    if man is None:
+        if install:
+            return [Finding(Path(MANIFEST_NAME), 1, "M3",
+                            f"no {MANIFEST_NAME} in the install at {install.name} and no package to "
+                            "fall back on — this tree cannot be checked for completeness, which is "
+                            "NOT the same as being complete")]
+        return f
+    if not cur and not install:
+        return f
+    if not man.is_file():
+        return [Finding(Path(MANIFEST_NAME), 1, "M3",
+                        "no INSTALL-MANIFEST.md — the package does not declare what an "
+                        "installation is, which is how a copy step becomes unfalsifiable")]
+    project, internal = parse_manifest(man)
+    try:
+        rel_man = man.relative_to(root)
+    except ValueError:
+        rel_man = Path(MANIFEST_NAME)
+
+    # M3 — every package path is classified. Keeps the manifest from rotting silently.
+    for rel in sorted(_pkg_paths(cur) if cur else set()):
+        if rel.endswith("/"):
+            continue                                     # dirs are covered via their declaration
+        if not (_covered(rel, project) or _covered(rel, internal)):
+            f.append(Finding(rel_man, 1, "M3",
+                             f"`{rel}` exists in the package but is in neither list — classify it "
+                             "PROJECT or GP-INTERNAL"))
+
+    # M1/M2 — only meaningful against an actual project tree
+    if install:
+        for decl in sorted(project):
+            if decl.endswith("/"):
+                if not _installed(install / decl.rstrip("/")):
+                    f.append(Finding(rel_man, 1, "M1",
+                                     f"PROJECT path `{decl}` is MISSING from the install at "
+                                     f"{install.name} — the install is incomplete"))
+            elif not _installed(install / decl):
+                f.append(Finding(rel_man, 1, "M1",
+                                 f"PROJECT path `{decl}` is MISSING from the install at "
+                                 f"{install.name} — the install is incomplete"))
+        for decl in sorted(internal):
+            if (install / decl.rstrip("/")).exists():
+                f.append(Finding(rel_man, 1, "M2",
+                                 f"GP-INTERNAL path `{decl}` is PRESENT in the install at "
+                                 f"{install.name} — GP's own history does not belong in a delivery"))
+    return f
+
+
+# ── C2: a warning that nothing consumes is not a warning (V4C-77, v4.3) ─────────────────────
+# WHY, and this is the owner's own diagnosis (translated from Turkish): *"after the gates raise a
+# warning, making sure it is examined in context and actually acted on."* A gate that warns and produces no consequence is
+# indistinguishable from an absent gate. Measured: `gates SKIPPED: contract suite` appeared in FIVE
+# consecutive wave checklists; V4C-13's rule says the same control skipped 3x triggers review OF THE
+# CONTROL; `grep -rn "control-bypass" docs/` returned ZERO. The template recorded the truth every
+# time. Nothing read it. The Architecture seat named the class: a telemetry sink with no consumer.
+#
+# The cost of those five unconsumed warnings, measured: when the skipped suite finally ran once, it
+# produced SIX engine defects no unit test could reach, because every test double modelled the engine
+# the team believed in.
+#
+# This is C1's sibling. C1 made a CONDITION's closure checkable. C2 does it for a WARNING.
+# COST LINE (V4C-13): ~45 lines, stdlib, <0.1 s. New failure mode: a project must keep the ledger
+# current or the validator fails — which is the entire point, and is fixtured.
+WARN_LEDGER = "docs/warnings.ledger.md"
+WARN_STATUSES = {"OPEN", "FIXED", "ACCEPTED", "ESCALATED"}
+ACCEPT_LIMIT = 3
+
+
+def warning_ledger(root: Path) -> list[Finding]:
+    led = root / WARN_LEDGER
+    if not led.is_file():
+        return []                                        # M1 enforces its existence in a project
+    f: list[Finding] = []
+    rel = led.relative_to(root)
+    accepted: dict = {}
+    for i, line in enumerate(led.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+        if not line.lstrip().startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 5 or set("".join(cells)) <= set("-: "):
+            continue
+        if cells[0].lower() in ("id", "warn id"):
+            continue                                     # header
+        # v4.3 REPAIR (auditor B1). The template MANDATES a dated "no warning observed" row so that an
+        # empty ledger is a CLAIM rather than a silence — and then this rule failed that very row. Every
+        # correct install was RED on its first `make check`, against a README promising "green on day 1".
+        # The control was right and had simply never been run against the artefact the design requires.
+        if all(c.strip() in {"-", "\u2014", ""} for c in cells[:5]):
+            continue
+        wid, rule, seen, status = cells[0], cells[1], cells[2], cells[4].upper()
+        why = cells[5] if len(cells) > 5 else ""
+        if status not in WARN_STATUSES:
+            f.append(Finding(rel, i, "C2c",
+                             f"`{wid}` status `{cells[4]}` not in {sorted(WARN_STATUSES)}"))
+            continue
+        # C2a — a warning may not survive the close it was raised in
+        if status == "OPEN" and seen and seen.lower() not in ("current", "this wave", "-"):
+            f.append(Finding(rel, i, "C2a",
+                             f"`{wid}` is still OPEN and was first seen at `{seen}` — a warning may "
+                             "not survive the close it was raised in. Disposition it: FIXED, "
+                             "ACCEPTED (reason + owning milestone), or ESCALATED"))
+        # C2c — ACCEPTED is a decision and must be signed
+        if status == "ACCEPTED" and (len(why) < 12 or not re.search(r"[mM]\d|milestone", why)):
+            f.append(Finding(rel, i, "C2c",
+                             f"`{wid}` is ACCEPTED without a reason AND an owning milestone — "
+                             "'accepted' with no owner is how a warning becomes permanent"))
+        if status == "ACCEPTED":
+            accepted.setdefault(rule, []).append(wid)
+    # C2b — V4C-13's 3x trigger, finally countable by something
+    for rule, ids in sorted(accepted.items()):
+        if len(ids) >= ACCEPT_LIMIT:
+            f.append(Finding(rel, 1, "C2b",
+                             f"`{rule}` has been ACCEPTED {len(ids)}x ({', '.join(ids)}) — at "
+                             f"{ACCEPT_LIMIT} the CONTROL goes under review, not the people "
+                             "(V4C-13). Review it or refuse it; do not accept a fourth time"))
+    return f
+
+
+# ── L1: the repository is written in ENGLISH (V4C-79, owner directive 2026-08-12) ────────────
+# WHY. The owner works with the chair in Turkish and ships the repository to everyone else:
+# developers, other agents, and eventually customers. A repository half in one language is readable
+# by neither audience in full. His directive, translated: *"even though I prompt you in Turkish here,
+# you will keep BOTH the v4.3 repo and the main repo in English EVERYWHERE."*
+#
+# Detection is by Turkish-specific letters, which English does not use. This is deliberately a
+# CHARACTER test and not a language model: it is exact, it is free, and it cannot drift. It will not
+# catch Turkish written without diacritics — stated openly rather than implied, because the honest
+# limit of a check belongs next to the check.
+#
+# Owner quotes stay in the record as EVIDENCE, translated into English and marked as translated. The
+# original wording is not the artefact; the ruling is.
+#
+# COST LINE (V4C-13): ~25 lines, stdlib, <0.2 s. Failure mode: a legitimate proper noun -- a Turkish
+# surname, say -- trips it. Handled by the allowlist, which requires a written reason per entry.
+# (This comment originally SPELLED such a surname as its example and L1 flagged its own source
+#  on the first run. Left recorded rather than tidied away: it is the cheapest possible proof
+#  that the rule fires, and it fired on the person who wrote it.)
+TR_CHARS = re.compile(r"[\u011f\u0131\u015f\u00e7\u00f6\u00fc\u011e\u0130\u015e\u00c7\u00d6\u00dc]")
+LANG_ALLOW = ".language-allow"
+LANG_SUFFIXES = {".md", ".py", ".sh", ".yml", ".yaml", ".json", ".html", ".txt", ".toml"}
+LANG_EXTENSIONLESS = {"Makefile", "Dockerfile", "CODEOWNERS", "LICENSE"}
+
+
+def language_rule(root: Path) -> list[Finding]:
+    """L1 — no Turkish-specific letter in a tracked file, outside the reasoned allowlist."""
+    allow: list = []
+    af = root / LANG_ALLOW
+    if af.is_file():
+        for ln in af.read_text(encoding="utf-8", errors="replace").splitlines():
+            body = ln.split("#")[0].strip()
+            if body:
+                allow.append(body)
+    f: list[Finding] = []
+    for p in sorted(root.rglob("*")):
+        if not p.is_file() or p.is_symlink():
+            continue
+        rel = p.relative_to(root).as_posix()
+        if rel.startswith(".git/") or "__pycache__" in rel or rel == LANG_ALLOW:
+            continue
+        # v4.3 REPAIR: the first version skipped extensionless files, and a raw untranslated owner
+        # quote sat in `Makefile` for exactly that reason. A reviewer found it. Extensionless text
+        # files (Makefile, CODEOWNERS, Dockerfile) are scanned too.
+        if p.suffix and p.suffix not in LANG_SUFFIXES:
+            continue
+        if not p.suffix and p.name not in LANG_EXTENSIONLESS:
+            continue
+        if any(rel.startswith(a) for a in allow):
+            continue
+        try:
+            text = p.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
+        for i, line in enumerate(text.splitlines(), 1):
+            if TR_CHARS.search(line):
+                f.append(Finding(Path(rel), i, "L1",
+                                 "Turkish text in an English-only repository (V4C-79). Translate it; "
+                                 "if it is an owner quote, translate and mark it "
+                                 "'(owner, translated from Turkish)'. If the file is genuinely exempt, "
+                                 f"add its path prefix to `{LANG_ALLOW}` WITH A WRITTEN REASON"))
+                break                                    # one finding per file is enough to act on
     return f
 
 
@@ -396,7 +716,7 @@ def governed_records(root: Path) -> list[Path]:
     # because this function consumes it, and an empty/absent manifest falls back to the GP list.
     manifest = root / ".governed-records"
     if manifest.is_file():
-        lines = [ln.strip() for ln in manifest.read_text(encoding="utf-8").splitlines()]
+        lines = [ln.strip() for ln in manifest.read_text(encoding="utf-8", errors="replace").splitlines()]
         override = [ln for ln in lines if ln and not ln.startswith("#")]
         if override:
             pats = override
@@ -477,7 +797,7 @@ def self_test(root: Path) -> int:
 
     for p in sorted((conf / "fail").glob("*.md")):
         expect = ""
-        for line in p.read_text(encoding="utf-8").splitlines():
+        for line in p.read_text(encoding="utf-8", errors="replace").splitlines():
             m = re.match(r"<!--\s*expect:\s*([A-Z]\d[a-z]?)\s*-->", line.strip())
             if m:
                 expect = m.group(1)
@@ -521,9 +841,47 @@ def self_test(root: Path) -> int:
         got = {x.rule for x in package_invariants(probe, scope="current")}
         got |= {x.rule for x in duplicate_drift(probe)}                      # D1
         got |= {x.rule for x in condition_closure(probe, [(cprobe, cfields)], scope="all")}  # C1b
+        # v4.3 probes — M3 (manifest rot) and C2a/C2b/C2c (an unconsumed warning). Both are
+        # package/project-level rules that cannot be expressed inside a single record fixture, so
+        # they are asserted here against synthetic trees. Without this they would be unreachable
+        # from --self-test, which is exactly the defect the Quality seat found in P2/P3 at v4.2.
+        (pkg / "INSTALL-MANIFEST.md").write_text(
+            "# probe\n\n## PROJECT\n```\npipeline-design.md\n```\n\n"
+            "## GP-INTERNAL\n```\nnothing-here.md\n```\n")
+        (pkg / "UNCLASSIFIED.md").write_text("x\n")
+        got |= {x.rule for x in manifest_rules(probe)}                        # M3
+        (probe / "docs").mkdir(exist_ok=True)
+        (probe / "docs" / "warnings.ledger.md").write_text(
+            "| id | rule | first seen | path | status | reason |\n|---|---|---|---|---|---|\n"
+            "| W-1 | contract-suite | m1-wave-2 | t/ | OPEN | |\n"
+            "| W-2 | cold-start | m2-wave-0 | s/ | ACCEPTED | later |\n"
+            "| W-3 | contract-suite | m2-w0 | t/ | ACCEPTED | no engine; owner runs it — milestone M2 |\n"
+            "| W-4 | contract-suite | m2-w1 | t/ | ACCEPTED | no engine; owner runs it — milestone M2 |\n"
+            "| W-5 | contract-suite | m2-w2 | t/ | ACCEPTED | no engine; owner runs it — milestone M2 |\n")
+        got |= {x.rule for x in warning_ledger(probe)}                        # C2a/C2b/C2c
+        (probe / "turkish.md").write_text("bu satir Turkce karakter tasiyor: \u015fey\n")
+        got |= {x.rule for x in language_rule(probe)}                         # L1
+        # M1/M2 — the release's headline rules. They had NO coverage at all until a zero-context
+        # reviewer found they could not fire through any shipped invocation path. Probed here from
+        # the same direction a customer project runs them: a tree carrying its own manifest.
+        inst = probe / "fake-install"
+        (inst / "docs").mkdir(parents=True)
+        (inst / MANIFEST_NAME).write_text(
+            "# probe\n\n## PROJECT\n```\nAGENTS.md\nMakefile\n```\n\n"
+            "## GP-INTERNAL\n```\ndocs/HANDOVER-v9.9-material.md\n```\n")
+        (inst / "AGENTS.md").write_text("x\n")                       # Makefile MISSING      -> M1
+        (inst / "docs" / "HANDOVER-v9.9-material.md").write_text("x\n")  # leaked GP-INTERNAL -> M2
+        got |= {x.rule for x in manifest_rules(probe, install=inst)}          # M1/M2
         for rule, why in (("P2", "missing §0 changelog heading"), ("P3", "false file count"),
                           ("D1", "drifted shipped-vs-live validator copy"),
-                          ("C1b", "a due condition whose named artifact is absent")):
+                          ("C1b", "a due condition whose named artifact is absent"),
+                          ("M3", "an unclassified package path (manifest rot)"),
+                          ("C2a", "a warning that outlived its close"),
+                          ("C2b", "the same control ACCEPTED three times"),
+                          ("C2c", "ACCEPTED with no reason and no owning milestone"),
+                          ("L1", "Turkish text in an English-only repository"),
+                          ("M1", "a PROJECT path missing from an install"),
+                          ("M2", "a GP-INTERNAL path leaked into an install")):
             if rule in got:
                 print(f"self-test ok: probe/{rule} fires on a {why}")
             else:
@@ -540,6 +898,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="governance-record validator (V4C-30)")
     ap.add_argument("--root", default=".", help="repo root (default: cwd)")
     ap.add_argument("--self-test", action="store_true", help="run conformance fixtures (V4C-32)")
+    ap.add_argument("--install", default=None,
+                    help="a project tree to check against INSTALL-MANIFEST.md (M1/M2)")
     ap.add_argument("--historical", action="store_true",
                     help="day-1 falsification: package invariants across ALL shipped versions")
     a = ap.parse_args()
@@ -558,6 +918,9 @@ def main() -> int:
     findings += package_invariants(root, scope="current")
     findings += condition_closure(root, records, scope="current")     # C1 (V4C-25)
     findings += duplicate_drift(root)                                 # D1
+    findings += manifest_rules(root, install=Path(a.install).resolve() if a.install else None)
+    findings += warning_ledger(root)                                  # C2
+    findings += language_rule(root)                                   # L1
     print(f"(scanned {len(records)} record(s) with frontmatter)")
     return report(findings, "repo")
 

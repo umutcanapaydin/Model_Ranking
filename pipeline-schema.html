@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Pipeline v4.1 — Schema</title>
+<title>Pipeline v4.3 — Schema</title>
 <style>
   :root {
     --navy:#1E2761; --ice:#CADCFC; --white:#FFFFFF; --ink:#1A1A1A;
@@ -100,7 +100,7 @@
 <div class="wrap">
 
 <header>
-  <h1>Pipeline v4.1 — Schema <span class="ver">D-A Starter Package + Workflow</span><span class="badge">+ 2 gates · review-loop · security baseline · v3.1: wave checklists · risk tiers · living EXPERIENCE · v3.2: autonomy ladder · owner review pack · Explorer · v3.3: A0.5 milestone-cadence owner review · v3.4: Stage 5 maintenance loop + fixpack · v3.5: outward-facing checks (post-prod dataset) · v4.0: MARKET-INFORMED MAJOR — base-pinned policy invariant · advisory mutation + cross-model review · scheduled journey monitoring · friction/bypass telemetry · named semver + council machinery · v4.1: REPAIR + RECORDS AS DATA — dead controls fixed · stdlib record validator · conformance fixtures · FIRST GATE (governance-contract)</span></h1>
+  <h1>Pipeline v4.3 — Schema <span class="ver">D-A Starter Package + Workflow</span><span class="badge">+ 2 gates · review-loop · security baseline · v3.1: wave checklists · risk tiers · living EXPERIENCE · v3.2: autonomy ladder · owner review pack · Explorer · v3.3: A0.5 milestone-cadence owner review · v3.4: Stage 5 maintenance loop + fixpack · v3.5: outward-facing checks (post-prod dataset) · v4.0: MARKET-INFORMED MAJOR — base-pinned policy invariant · advisory mutation + cross-model review · scheduled journey monitoring · friction/bypass telemetry · named semver + council machinery · v4.1: REPAIR + RECORDS AS DATA — dead controls fixed · stdlib record validator · conformance fixtures · FIRST GATE (governance-contract)</span></h1>
   <div class="subtitle">v1.1 baseline + AI-native Claude Code harness from incoming team's docs + 6-agent consortium deliberation. Mandatory subagent profiles, hooks, skills, 3-layer issue management, quarterly handover.</div>
 </header>
 
@@ -194,7 +194,8 @@
         <li>permission-matrix.md adapted; OS-aware Bash() / PowerShell() patterns confirmed</li>
         <li>subagent-profiles/Code-Reviewer.md + Security-Reviewer.md baseline in place</li>
         <li>.mcp.json: GitHub or GitLab MCP server set</li>
-        <li>Day-1 green: <code>make check</code> all green</li>
+        <li><strong>v4.3 — install completeness FIRST (V4C-72/76):</strong> <code>make install-check</code> diffs this tree against <code>INSTALL-MANIFEST.md</code>. <em>M1</em> a declared PROJECT path missing → FAIL · <em>M2</em> a GP-INTERNAL path leaked in → FAIL. <span style="color:#c0392b">Measured on the first field run: <strong>39 declared files missing</strong> from a project that had already closed two milestones — including the whole <code>.agents/</code> house rules and <code>.claude/</code> hooks, so seven AGENTS.md citations pointed at nothing and those rules were never read.</span></li>
+        <li>Day-1 green: <code>make check</code> — now <code>lint typecheck test check-records install-check</code>. <strong>v4.3:</strong> the last two had targets and <em>no caller anywhere</em>; they are wired into <code>make check</code>, pre-commit <strong>and</strong> CI, unconditionally.</li>
         <li><strong>Host-side admin (one-time):</strong> branch protection on main + ANTHROPIC_API_KEY secret + 90-day rotation cal</li>
       </ul>
     </div>
@@ -208,6 +209,7 @@
       <strong>Output:</strong> <code>docs/plans/m{N}-plan.md</code>
       <ul>
         <li>Goal + REQ-ID acceptance + wave decomposition</li>
+        <li><strong>v4.3 — the warning ledger (V4C-77):</strong> every WARN gets an id in <code>docs/warnings.ledger.md</code> and <strong>a wave cannot close while one is undecided</strong>. <em>C2a</em> a warning may not outlive its close · <em>C2c</em> ACCEPTED needs a reason AND an owning milestone · <em>C2b</em> <strong>the same control ACCEPTED 3× fails the build.</strong> <span style="color:#c0392b">Measured: one control was skipped in <strong>five consecutive</strong> wave closes, the 3× trigger never fired because nothing counted, and when that suite finally ran once it produced <strong>six engine defects</strong> no unit test could reach.</span> <em>A control that warns into a void has not run.</em></li>
         <li>K.8 contract surfaces grep-verified (grep -n output pasted)</li>
         <li><strong>Token budget</strong> estimate + <strong>Risk tier</strong> LOW / MEDIUM / HIGH</li>
         <li>Issue inventory: which issues this milestone resolves (K.4 wave vs /fix-issue routing)</li>

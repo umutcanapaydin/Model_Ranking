@@ -1,3 +1,9 @@
+---
+record_type: register
+id: model-ranking-decisions
+status: ratified
+date: 2026-08-11
+---
 # Decisions
 
 > ADR-lite log. Pre-seeded with universal decisions (D-001..D-007) from EF-AI Phase-1 + v2.0 consortium.
@@ -333,8 +339,8 @@ category id, is BLOCKING at review (structural test: test_no_cross_scale_averagi
 
 ## D-106 — OWNER DIRECTIVE: agent runs the test gate and performs git commits/pushes (scoped A1)
 
-**Status:** accepted (OWNER-INITIATED, 2026-08-11 — "Gerekli testleri senin koşman ve commitleri
-senin atman gerekecek benim yerime." This satisfies the autonomy-protocol bright line: an agent
+**Status:** accepted (OWNER-INITIATED, 2026-08-11 — "You will need to run the required tests and
+make the commits on my behalf." (owner, translated from Turkish — V4C-79.) This satisfies the autonomy-protocol bright line: an agent
 commit reaching main requires an explicit owner-initiated ADR, never erosion.)
 
 **Decision:** From M2 closure onward the lead agent (a) runs the full test gate (pytest, ruff,

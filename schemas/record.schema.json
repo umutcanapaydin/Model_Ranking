@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/SADCAIVibe/General_Pipeline/schemas/record.schema.json",
-  "title": "GP governance record frontmatter (V4C-29/31/35)",
-  "description": "Narrow BY RULE (V4C-35): a field may exist here only if a check in scripts/check_records.py consumes it. Prose stays canonical markdown; this validates the frontmatter block only. Adding a field requires naming the concrete failure its absence permits.",
+  "title": "GP governance record frontmatter (V4C-29/31/35; rules through v4.3)",
+  "description": "Narrow BY RULE (V4C-35): a field may exist here only if a check in scripts/check_records.py consumes it. The validator has grown past this file: R1-R3/X1-X3/P1-P3/N1 read frontmatter, but C1a/C1b read a conditions TABLE, C2a/C2b/C2c read docs/warnings.ledger.md, M1/M2/M3 read INSTALL-MANIFEST.md and D1 compares two copies of the validator itself. None of those five add a frontmatter field, which is why this schema stayed narrow while the rule set trebled -- stated here so the next reader does not mistake this file for the full contract. A `gate` record_type is adopted for 2026-09-16 (V4C-58) and is deliberately NOT here yet. Prose stays canonical markdown; this validates the frontmatter block only. Adding a field requires naming the concrete failure its absence permits.",
   "type": "object",
   "additionalProperties": false,
   "required": ["record_type", "id", "status"],

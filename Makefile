@@ -69,7 +69,12 @@ format: install
 typecheck: install
 	$(PY) -m mypy src
 
-check: lint typecheck test
+# v4.3 REPAIR (V4C-78). `check:` used to be `lint typecheck test` — and `bootstrap-check` and
+# `check-records` had targets that NOTHING called: not here, not in .pre-commit-config.yaml, not in
+# ci.yml. The gate that decides whether a project is correctly INSTALLED was reachable only by
+# someone who already knew its name. Measured in the field: a project closed two milestones with 37
+# declared files missing. The owner, translated from Turkish: "you wrote a verify script -- that one does not fire either."
+check: lint typecheck test check-records check-records-selftest install-check
 
 # v2.0: security gates as named Make targets
 secrets:
@@ -119,6 +124,15 @@ wave-check:  ## v3.1 V3C-69: verify a filled wave-close checklist (make wave-che
 	@if grep -qE '\|[[:space:]]*\|[[:space:]]*$$' "$(FILE)"; then echo "FAIL [V3C-69]: empty evidence/status cells remain in $(FILE)"; exit 1; fi
 	@if grep -qE '<agent>|<YYYY-MM-DD>|<start>' "$(FILE)"; then echo "FAIL [V3C-69]: placeholders unfilled in $(FILE)"; exit 1; fi
 	@echo "wave-check PASS: $(FILE)"
+
+install-check:  ## v4.3 V4C-72/76: is this tree a COMPLETE install? (M1/M2/M3 vs INSTALL-MANIFEST.md)
+	@echo "[install-check] V4C-72/76 — every PROJECT path present, no GP-INTERNAL path leaked"
+# v4.3 REPAIR (auditor B2): without the python3 fallback, exit 127 from a missing interpreter was
+# laundered into the specific and FALSE diagnosis "this tree is not a complete install" -- on the
+# very first command the documentation tells a user to type.
+	@$(PY) scripts/check_records.py --install . 2>/dev/null || python3 scripts/check_records.py --install . || { \
+	  echo "  FAIL: this tree is not a complete install. See INSTALL-MANIFEST.md."; \
+	  echo "  A missing PROJECT path means a rule was never read, not that a file is untidy."; exit 1; }
 
 check-records:  ## v4.1 V4C-30: validate governance records (frontmatter, refs, propagation)
 	@$(PY) scripts/check_records.py --root . || python3 scripts/check_records.py --root .

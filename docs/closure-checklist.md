@@ -174,3 +174,22 @@ Per FIXPACK (the deploy gate — walk `docs/fixpack.template.md`):
 - [ ] Phase trigger for next phase
 - [ ] Last quarterly handover (`handover_q{last}.txt`) doubles as phase handover
 - [ ] If applicable: `docs/handover-to-prod-agent.md` (operator runbook)
+
+## Before you relax anything: the backtest rule (V4C-70, v4.3)
+
+**A proposal to relax a gate, a bar or a review depth must carry a backtest against the previous
+milestone's REAL defect list, naming which defects would pass.** No backtest, no relaxation.
+
+**Why this is first among the v4.3 adopts.** The owner opened a session convinced the process was too
+strict — *"security findings eat too much time, let us set aside the one-in-a-million ones."* A
+five-clause severity bar was designed to do exactly that, then applied backwards to the previous
+milestone's **21 real defects. It let 3 through: 14%.** The bar would not have shortened the milestone
+by a day. The time had gone to a **review loop** and to **controls that were never installed** — not to
+strictness. Without that number the relaxation would have been signed and the expected relief would
+never have arrived.
+
+**A relaxation proposal without a backtest is a feeling, not a measurement.**
+
+*(Open condition, recorded: the 14% figure's population is itself unreconciled — 21 vs 22 vs 23
+depending on the counting. The conclusion survives every denominator; the precise figure must be
+reconciled before it is cited again.)*

@@ -96,3 +96,15 @@ publish dates → keep-best-score would have published a stale-but-higher rating
 107+5 green, fault-injection ×2 RED+revert.
 Lesson: a fixture value invented without a live probe is an untested assumption in test clothing;
 contract tests proved SHAPE but never VALUES. New doctrine candidate for EXPERIENCE/seeds.
+
+## 2026-08-15 — M3 kickoff + W0 (GP v4.3.1 migration) — lead agent (Cowork), new session
+Handover consumed (docs/HANDOVER-model-ranking.md); gate verified green on a fresh clone before any
+change. Process baseline moved v4.2 → v4.3.1 (owner directive). m3-plan.md drafted, owner-signed
+same day with Q1-Q4 locked (core-4 providers, USD-first, 30-day staleness, weekly CI cadence) and
+one amendment (no stops between waves; owner tests post-milestone). Epoch → M4 (owner). W0 executed:
+18 GP-INTERNAL files removed, 6 missing PROJECT paths added, tooling/templates synced to v4.3.1,
+5 governed records got frontmatter, English rule adopted (L1 + reasoned .language-allow). Fresh-eyes
+review caught the .gitignore *.db mitigation clobber (BLOCKING, fixed byte-identical) + 4 MINOR.
+gitleaks run: 1 false positive, escalated (W-001), not suppressed.
+Lesson: a template sync is a WRITE like any other — diff it against the mitigations history, not
+just against the template; the reviewer, not the author, caught the one line that mattered.

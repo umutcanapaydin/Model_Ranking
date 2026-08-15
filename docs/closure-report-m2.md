@@ -1,3 +1,9 @@
+---
+record_type: ratification
+id: closure-report-m2
+status: ratified
+date: 2026-08-11
+---
 # Closure Report — M2: New Sources + Everyday-Assistant Category
 
 > Owner's A0.5 milestone-session review pack. Generated 2026-08-11 from committed artifacts.

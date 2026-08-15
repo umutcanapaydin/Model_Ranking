@@ -1,3 +1,9 @@
+---
+record_type: experience
+id: model-ranking-experience
+status: ratified
+date: 2026-08-11
+---
 # EXPERIENCE — model_ranking (living; V3C-81 — quarterly handover BLOCKS without it)
 
 ## 2026-08-11 — M1: Data Layer + Recommendation Engine (coding)

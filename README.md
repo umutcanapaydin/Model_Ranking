@@ -46,7 +46,7 @@ For a plain-language overview to share with managers or non-technical stakeholde
 1. `AGENTS.md` — house rules (≤80 lines, navigation only).
 2. `permission-matrix.md` — what you may + may not do (default-deny matrix + BLOCKING taxonomy).
 3. `docs/decisions.md` — what is settled (D-001..D-005 universal + project D-006+).
-4. `docs/onboarding.md` — Pazartesi-başla / Cuma-milestone-bitir rehberi (Monday-start, Friday-milestone-done guide).
+4. `docs/onboarding.md` — Monday-start / Friday-milestone-done guide.
 5. `docs/closure-checklist.md` — when you "ship," walk this.
 
 ## Repo layout

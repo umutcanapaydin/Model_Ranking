@@ -1,3 +1,9 @@
+---
+record_type: register
+id: fixpack-1
+status: ratified
+date: 2026-08-11
+---
 # Fixpack FP-M2-1 — Arena live fetch: page-cap abort + rate limit (red-test intake)
 
 **Intake (live evidence, owner terminal 2026-08-11):**

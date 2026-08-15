@@ -32,3 +32,18 @@ repos:
 #
 # To run manually:
 #   pre-commit run --all-files
+
+  # v4.3 (V4C-78): these two had Makefile targets and NO caller — not here, not in CI, not in
+  # `make check`. A gate nothing invokes is Tier 0 whatever its exit code does.
+  - repo: local
+    hooks:
+      - id: check-records
+        name: governance records are valid (V4C-30 · C2/L1 always; R/X/P/N/C1 only on paths you name in .governed-records; D1/M3 are GP-repo rules)
+        entry: python3 scripts/check_records.py
+        language: system
+        pass_filenames: false
+      - id: install-check
+        name: this tree is a complete install (V4C-72/76 · M1/M2)
+        entry: bash -c 'python3 scripts/check_records.py --install .'
+        language: system
+        pass_filenames: false

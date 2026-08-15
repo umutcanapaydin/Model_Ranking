@@ -143,4 +143,19 @@ with a *tested* disable switch and correct domain scope); **fairness controls (r
 
 Gateway/LLM-ops security candidates (circuit-breaker tri-state, classify-by-stable-signal, streaming
 rate-limit accounting, etc.) are CANDIDATE pending a 2nd independent ecosystem — see
-`pipeline-design.md` §3.6 and the candidate block in `.agents/rules/playbook-seeds.md`.
+[`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v4.3.1/general_pipeline_v4.3.1/pipeline-design.md) §3.6 and the candidate block in `.agents/rules/playbook-seeds.md`.
+
+## A verifier may not share its implementation with what it verifies (V4C-61, v4.3)
+
+**Measured, in a customer-facing console.** `store.js` minted an audit hash chain with a function its
+own comment called *"demo-grade"*, then **"verified" the chain with the same function**, and printed a
+green `PASS`. The verifier and the prover shared **both the implementation and the state** (browser
+storage, editable by the party being audited). No stronger hash fixes that — it is tautological at any
+key length.
+
+**The rule.** A verification path may not share an implementation with the production path it
+verifies, and **a client may never be the verifier of record.** Withdrawal fixes an instance; this
+fixes the class.
+
+**Corollary, binding:** audit-chain integrity may not be claimed — demo or live — until a
+**server-side** chain exists for a client to *display* and never to compute or self-check.

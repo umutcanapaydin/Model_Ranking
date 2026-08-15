@@ -1,0 +1,23 @@
+# Language allowlist for rule L1 (V4C-79 — every committed file in this repository is ENGLISH).
+#
+# One PATH PREFIX per line, each WITH a written reason. An entry without a reason is itself a
+# finding: an allowlist whose entries nobody had to justify becomes a list of things somebody
+# once silenced. English applies to everything committed from M3 (GP v4.3.1 adoption) onward;
+# the entries below are either proper nouns, Turkish-facing PRODUCT strings, or pre-migration
+# records kept verbatim under the append-only discipline (B.2).
+
+.venv/                           # local virtualenv — third-party site-packages, not repository content (gitignored)
+AGENTS.md                        # owner surname in §1 (proper noun — L1's documented failure mode)
+README.md                        # owner surname in the license line (proper noun)
+docs/prd.md                      # owner surname in the overview (proper noun)
+docs/project-brief.md            # owner surname (proper noun)
+docs/closure-report-m1.md        # pre-V4C-79 committed closure record — append-only history, kept verbatim
+docs/closure-report-m2.md        # pre-V4C-79 committed closure record — kept verbatim
+docs/plans/m1-plan.md            # owner-signed plan record, pre-V4C-79, kept verbatim
+docs/plans/m2-plan.md            # owner-signed plan record (owner amendments recorded in Turkish), kept verbatim
+docs/fixpack-1.md                # shipped fixpack record quoting Turkish product output, kept verbatim
+docs/HANDOVER-model-ranking.md   # 2026-08-11 agent-to-agent handover snapshot, kept verbatim
+pyproject.toml                   # ruff allowed-confusables config enumerates Turkish glyphs (functional, not prose)
+src/app/workflows/categories.py  # title_tr — Turkish display titles: the product is Turkish-user-facing by design
+src/app/workflows/recommend.py   # Turkish user-facing output strings by design (owner's market)
+tests/unit/test_recommend.py     # asserts the Turkish product strings above
