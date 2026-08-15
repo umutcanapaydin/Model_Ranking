@@ -20,4 +20,6 @@ docs/HANDOVER-model-ranking.md   # 2026-08-11 agent-to-agent handover snapshot, 
 pyproject.toml                   # ruff allowed-confusables config enumerates Turkish glyphs (functional, not prose)
 src/app/workflows/categories.py  # title_tr — Turkish display titles: the product is Turkish-user-facing by design
 src/app/workflows/recommend.py   # Turkish user-facing output strings by design (owner's market)
+src/app/workflows/subscribe.py   # Turkish user-facing output strings by design (owner's market)
 tests/unit/test_recommend.py     # asserts the Turkish product strings above
+tests/unit/test_subscribe.py     # asserts the Turkish product strings above

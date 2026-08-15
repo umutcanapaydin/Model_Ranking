@@ -25,6 +25,10 @@
 
 schema: 1
 staleness_days: 30   # owner Q3 (2026-08-15): a row older than this is disclosed as stale
+budget_caps_usd:     # monthly-USD tiers for --subscription (first calibration, M3-W3; data, not code)
+  dusuk: 10          # covers the $8 entry tier
+  orta: 25           # covers the $19.99-20 flagship tiers
+  sinirsiz: null     # uncapped by definition
 
 plans:
   - id: chatgpt-go

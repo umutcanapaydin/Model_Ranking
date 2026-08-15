@@ -99,3 +99,15 @@ def test_rows_fallback_page_cap_exhaustion_fails_loudly() -> None:
     rows_route.side_effect = [_page(i * 100, 100, 10_000) for i in range(50)]
     with pytest.raises(SourceError, match="aborted"):
         ArenaClient().fetch_raw()
+
+
+def test_client_has_no_misleading_url_parameter() -> None:
+    """M2 carried debt (M3-W3): provenance derives from the module constants the
+    client actually uses — a caller can no longer pass a url= that fetch_raw ignores."""
+    import inspect
+
+    from app.clients.arena import ROWS_API, ArenaClient
+
+    params = inspect.signature(ArenaClient.__init__).parameters
+    assert "url" not in params
+    assert ArenaClient().url.startswith(ROWS_API)

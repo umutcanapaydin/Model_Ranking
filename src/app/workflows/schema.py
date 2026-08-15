@@ -70,7 +70,9 @@ CREATE TABLE IF NOT EXISTS plans (
 );
 CREATE TABLE IF NOT EXISTS plan_config (
     id             INTEGER PRIMARY KEY CHECK (id = 1),   -- single row
-    staleness_days INTEGER NOT NULL CHECK (staleness_days > 0)
+    staleness_days INTEGER NOT NULL CHECK (staleness_days > 0),
+    cap_dusuk      REAL NOT NULL CHECK (cap_dusuk > 0),  -- monthly-USD budget caps (data, not code)
+    cap_orta       REAL NOT NULL CHECK (cap_orta > cap_dusuk)
 );
 CREATE TABLE IF NOT EXISTS plan_models (
     plan_id  TEXT NOT NULL,

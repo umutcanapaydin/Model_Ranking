@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4  # TODO: pin to SHA before going live
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0 — SHA-pinned (M3-W3)
 
       # TODO: pin the Claude Code action version to a commit SHA, not @v1
       #   Get latest tag SHA: gh api repos/anthropics/claude-code-action/git/refs/tags/v1 -q .object.sha

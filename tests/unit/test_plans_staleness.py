@@ -14,6 +14,7 @@ OLD = "2026-06-01"
 DOC = f"""
 schema: 1
 staleness_days: 30
+budget_caps_usd: {{dusuk: 10, orta: 25, sinirsiz: null}}
 plans:
   - id: fresh-plan
     provider: A

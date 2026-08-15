@@ -56,10 +56,13 @@ class ArenaClient:
 
     name = "arena"
 
-    def __init__(self, config: str = "text", split: str = "latest", url: str = ROWS_API) -> None:
+    def __init__(self, config: str = "text", split: str = "latest") -> None:
+        # M2-closure carried debt, cleaned in M3-W3: the old `url=` parameter was
+        # provenance-only while fetch_raw always used the module constants — a
+        # misleading API. Provenance now derives from the same constants it uses.
         self.config = config
         self.split = split
-        self.url = f"{url}?dataset={DATASET}&config={config}&split={split}"
+        self.url = f"{ROWS_API}?dataset={DATASET}&config={config}&split={split}"
 
     def _get_page(self, endpoint: str, page: int, extra: dict[str, str]) -> dict[str, Any]:
         """One page with 429 backoff (FP-M2-1: HF rate-limited the live run)."""

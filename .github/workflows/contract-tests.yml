@@ -34,8 +34,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4  # TODO: pin to SHA before going live (same note as ci.yml)
-      - uses: actions/setup-python@v5  # TODO: pin to SHA
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0 — SHA-pinned (M3-W3, carried debt)
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0 — SHA-pinned (M3-W3)
         with:
           python-version: '3.12'
       - name: Install
@@ -49,8 +49,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4  # TODO: pin to SHA before going live (same note as ci.yml)
-      - uses: actions/setup-python@v5  # TODO: pin to SHA
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0 — SHA-pinned (M3-W3, carried debt)
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0 — SHA-pinned (M3-W3)
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -78,10 +78,15 @@ jobs:
               RunContext, ingest_litellm, ingest_openrouter,
               ingest_swebench, ingest_aider, ingest_arena,
           )
-          from app.workflows.registry import reconcile
+          from app.workflows.registry import reconcile, reconcile_plans
+          from app.workflows.plans import ingest_plans
 
           conn = sqlite3.connect("ci_advisor.db"); conn.executescript(DDL)
           run = RunContext()
+          # M3: curated plan table joins the live pipeline (REQ-SUB-002)
+          with open("data/plans.yaml", encoding="utf-8") as fh:
+              pr = ingest_plans(conn, fh.read(), run)
+          print(f"{pr.source}: stored={pr.stored}")
           for fn, client in (
               (ingest_litellm, LiteLLMClient()),
               (ingest_openrouter, OpenRouterClient()),
@@ -95,10 +100,15 @@ jobs:
           print(f"reconcile: {rep.pricing_matched}/{rep.pricing_dropped} pricing, "
                 f"{rep.scores_matched}/{rep.scores_dropped} scores, models={rep.models_registered}")
           assert rep.models_registered >= 20, "live reconciliation collapsed — registry drift?"
+          prep = reconcile_plans(conn)
+          print(f"reconcile_plans: matched={prep.matched} dropped={prep.dropped} "
+                f"dropped_names={list(prep.dropped_names)}")
           conn.commit()
           EOF
-      - name: Recommend smoke (both tasks, real data)
+      - name: Recommend smoke (both tasks + subscription, real data)
         run: |
           set -o pipefail  # a recommend failure must fail the step, not vanish behind head
           python -m app.workflows.recommend --db ci_advisor.db --budget sinirsiz --task coding | head -40
           python -m app.workflows.recommend --db ci_advisor.db --budget dusuk --task assistant | head -40
+          # M3 REQ-REC-007 live half: three plan answers from real benchmark data
+          python -m app.workflows.recommend --db ci_advisor.db --budget orta --task coding --subscription | head -60

@@ -254,6 +254,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--db", required=True, help="path to the pipeline SQLite file")
     parser.add_argument("--budget", choices=sorted(BUDGETS), default="sinirsiz")
     parser.add_argument("--task", choices=sorted(CATEGORIES), default="coding")
+    parser.add_argument(
+        "--subscription",
+        action="store_true",
+        help="recommend a SUBSCRIPTION PLAN instead of a model (REQ-REC-007;"
+        " budget tiers = monthly-USD caps from the curated table)",
+    )
     args = parser.parse_args(argv)
 
     if not Path(args.db).exists():
@@ -261,19 +267,30 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     conn: sqlite3.Connection | None = None
     try:
+        from app.workflows.subscribe import SubscriptionRecommendation, recommend_subscription
+
         conn = sqlite3.connect(args.db)
-        rec = recommend(conn, args.budget, args.task)
+        rec: Recommendation | SubscriptionRecommendation | None
+        if args.subscription:
+            rec = recommend_subscription(conn, args.budget, args.task)
+        else:
+            rec = recommend(conn, args.budget, args.task)
     except sqlite3.Error as exc:
         print(json.dumps({"error": f"db unusable: {exc}"}))
+        return 2
+    except ValueError as exc:
+        # e.g. --subscription against a DB with no ingested plan table
+        print(json.dumps({"error": str(exc)}))
         return 2
     finally:
         if conn is not None:
             conn.close()
     if rec is None:
+        what = "plan" if args.subscription else "model"
         print(
             json.dumps(
                 {
-                    "error": "no eligible model for this budget",
+                    "error": f"no eligible {what} for this budget",
                     "budget": args.budget,
                     "task": args.task,
                 }

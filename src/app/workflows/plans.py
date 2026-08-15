@@ -96,10 +96,32 @@ def _validate_plan(entry: Any, seen_ids: set[str]) -> PlanRow:  # noqa: C901
 
 @dataclass(frozen=True)
 class PlansDoc:
-    """The whole curated document: threshold as DATA + validated rows (REQ-SUB-003)."""
+    """The whole curated document: thresholds as DATA + validated rows (REQ-SUB-003/-007)."""
 
     staleness_days: int
+    cap_dusuk: float  # monthly-USD budget caps for --subscription (owner-tunable data)
+    cap_orta: float
     rows: tuple[PlanRow, ...]
+
+
+def _validate_caps(caps: Any) -> tuple[float, float]:
+    """budget_caps_usd is DATA (owner-tunable) — validate shape + ordering loudly."""
+    if not isinstance(caps, dict) or set(caps) != {"dusuk", "orta", "sinirsiz"}:
+        raise _fail(
+            f"budget_caps_usd must map exactly dusuk/orta/sinirsiz (data, not a code default),"
+            f" got {caps!r}"
+        )
+    if caps["sinirsiz"] is not None:
+        raise _fail("budget_caps_usd.sinirsiz must be null (uncapped by definition)")
+    for name in ("dusuk", "orta"):
+        val = caps[name]
+        if isinstance(val, bool) or not isinstance(val, (int, float)) or not math.isfinite(val):
+            raise _fail(f"budget_caps_usd.{name} must be a finite number, got {val!r}")
+    if not 0 < float(caps["dusuk"]) < float(caps["orta"]):
+        raise _fail(
+            f"budget caps must satisfy 0 < dusuk < orta, got {caps['dusuk']!r}/{caps['orta']!r}"
+        )
+    return float(caps["dusuk"]), float(caps["orta"])
 
 
 def parse_plans_doc(raw: str) -> PlansDoc:
@@ -120,6 +142,7 @@ def parse_plans_doc(raw: str) -> PlansDoc:
             f"staleness_days must be a positive integer at the top level (data, not a code"
             f" default), got {staleness!r}"
         )
+    cap_dusuk, cap_orta = _validate_caps(doc.get("budget_caps_usd"))
     entries = doc.get("plans")
     if not isinstance(entries, list) or not entries:
         raise _fail("no 'plans' list — an empty curated table is a bug, not an empty market")
@@ -129,7 +152,12 @@ def parse_plans_doc(raw: str) -> PlansDoc:
         row = _validate_plan(entry, seen)
         seen.add(row.id)
         rows.append(row)
-    return PlansDoc(staleness_days=staleness, rows=tuple(rows))
+    return PlansDoc(
+        staleness_days=staleness,
+        cap_dusuk=float(cap_dusuk),
+        cap_orta=float(cap_orta),
+        rows=tuple(rows),
+    )
 
 
 def parse_plans(raw: str) -> list[PlanRow]:
@@ -151,8 +179,9 @@ def ingest_plans(conn: sqlite3.Connection, raw: str, run: RunContext) -> SourceR
             conn.execute("DELETE FROM plan_models")
             conn.execute("DELETE FROM plans")
             conn.execute(
-                "INSERT OR REPLACE INTO plan_config (id, staleness_days) VALUES (1, ?)",
-                (doc.staleness_days,),
+                "INSERT OR REPLACE INTO plan_config (id, staleness_days, cap_dusuk, cap_orta)"
+                " VALUES (1, ?, ?, ?)",
+                (doc.staleness_days, doc.cap_dusuk, doc.cap_orta),
             )
             conn.executemany(
                 "INSERT INTO plans (id, provider, name, monthly_usd, currency, region,"
