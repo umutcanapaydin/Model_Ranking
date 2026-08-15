@@ -242,3 +242,58 @@ Research suggests Supabase or Cloudflare Workers for the serving layer. No decis
 **Acceptance:** thresholds derived from the live board's distribution, not assumed; method + evidence committed.
 **Citing test:** tests/unit/test_recommend_assistant.py::test_assistant_budget_floor_uses_elo (asserts the shipped floor).
 **Status:** DONE (M3 closure, 2026-08-15 — docs/reviews/m3-elo-calibration.md; min_quality 1300→1400, close_call 5→8, value_window 30 kept-and-justified)
+
+## 11. M4 — Make the plan answers real (REQ-CAN / REQ-ING / REQ-SUB / REQ-REC)
+
+> Added 2026-08-15 at M4 closure, closing quality-gate finding F-1: the M4 REQ-IDs were specified
+> in the signed `docs/plans/m4-plan.md` §2 and had not been copied here. Canonical criterion text
+> lives in the signed plan; this section is the PRD's index of it, with the shipped status.
+> Full trace (criterion → implementing file:line → citing test) is `docs/coverage-by-req.md`.
+
+### REQ-CAN-004 — Registry expansion with a self-defending rule table
+
+**Statement:** adding a canonicalization rule is a cheap, tested, reviewable act; the rule table proves variant-before-parent ordering and sibling non-collision, and carries rules for the families live sources currently drop.
+**Acceptance:** every rule canonicalizes to itself; no duplicate ids or patterns; a live-name corpus resolves to the right model; plan-name drops fall to 0.
+**Status:** DONE (M4-W1, commit 17eec69 — plan-name drops 2→0; droplist record docs/reviews/m4-w1-registry-droplist.md)
+
+### REQ-ING-009 — Provider model rosters as a second documented source
+
+**Statement:** a provider's own model-availability page is ingested as a SEPARATE source with its own provenance and `last_verified`; a plan links to a roster model only through the registry, never guessed; a roster naming an unknown plan aborts.
+**Acceptance:** roster links carry `link_source`/`source_url`/`last_verified`; plan-page links win ties; the recommendation text states WHICH source named the model.
+**Status:** DONE (M4-W2, commit bc9c6de — assistant coverage 3/9 → 5/9; data/rosters.yaml carries the probe log for the providers that publish no roster)
+
+### REQ-SUB-005 — Plan coverage is a measured number
+
+**Statement:** how many curated plans can actually be ranked, per category, and for the rest WHY — separated into "no link at all" (curation gap) and "linked but no score on this benchmark" (benchmark gap).
+**Acceptance:** computed by the pipeline, printed by a CLI, wired into CI; zero coverage in a category exits non-zero.
+**Status:** DONE (M4-W3, commit ee5a582 — read-only by mechanism since M4 closure, `mode=ro`)
+
+### REQ-ING-011 — Source health is computed, not noticed
+
+**Statement:** how old each source's newest evidence is, reported on every run; unknown age fails TOWARD disclosure. **(a)** measure and report; **(b)** state plainly whether a fresher documented coding benchmark exists AND, if it does, ingest it.
+**Acceptance:** per-source age with the same 90-day window the engine discloses on (two clocks, stated); the investigation's verdict recorded either way.
+**Status:** (a) DONE (M4-W3). **(b) DEFERRED to M5** — a fresher documented source DOES exist (Epoch AI CC-BY bundle; Terminal-Bench 2.0 on HF), both proxy-403 from the build sandbox; evidence in docs/reviews/m4-w3-source-health.md §3.
+
+### REQ-ING-010 — Epoch AI ingestion
+
+**Statement:** ingest Epoch AI's documented CSV bundle as a source, provenance mandatory, loud-fail like every other source.
+**Status:** **DEFERRED to M5** (criteria diff, owner-accepted at the M4 gate). epoch.ai is proxy-403 from this container; no parser was written against an unseen shape (the FP-M2-2 rule). Unblock = one out-of-sandbox fetch; the command was delivered to the owner 2026-08-15.
+
+### REQ-REC-009 — Equivalent plans are named, not hidden
+
+**Statement (RESTATED at M4-W4 — see D-110):** where several plans within the budget rank on the same model at the same score, the answer declares them indistinguishable, names the cheapest with its price and the monthly spread, and says which members are linked via a roster rather than their own plan page.
+**Supersedes:** the signed criterion "`--subscription` returns ≥3 DISTINCT plans in `orta` and `sinirsiz` on live data", which is unachievable honestly — 4 of the 5 scoreable plans rank on the same model (measured 2026-08-15).
+**Acceptance:** groups computed for every plan a label picked; built from budget-filtered rows only; keyed on plan_id, never display name.
+**Status:** SHIPPED (M4-W4, commit 20312a1); **criterion restatement awaits the owner's signature at the M4 gate.**
+
+### REQ-REC-010 — Scores are rounded at the output boundary
+
+**Statement:** every score reaching the JSON contract or a user-facing string is rounded to 1 decimal, exactly once, at the boundary; ranking, Pareto and threshold comparisons keep the raw value; prose deltas are computed from the ROUNDED numbers so the text cannot contradict the fields.
+**Acceptance:** raw floats never reach the contract (tested through the real CLI); rounding inside the ranking is a test failure.
+**Status:** DONE (M4-W4 — D-109)
+
+### REQ-SUB-006 — Google AI Plus re-probe
+
+**Statement:** re-probe the price M3 excluded as disputed; the row enters only on dated evidence, otherwise the exclusion is re-recorded.
+**Acceptance:** the entry states WHY the dispute resolved; the model list comes from the provider's own page, never from a price tracker.
+**Status:** DONE (M4-W4 — $4.99; the "dispute" was a 2026-06-08 price cut, i.e. two trackers dated either side of one change)

@@ -131,3 +131,16 @@ calibration UNDEFENDED: reverting close_call left the suite green. Mandatory tes
 constants asserted against the category record, analysis script committed, four documents that
 still called the criterion open corrected. Gate: 152 unit + 5 gated, 7 gates green.
 Lesson: a threshold that no test defends is a comment with a float attached.
+
+## 2026-08-15 — M4 waves W1-W4 + closure — lead agent (Cowork)
+Four waves, no owner stops (standing amendment). W1 registry expansion (drops 2→0, 4 BLOCKING
+found and fixed); W2 provider rosters as a second documented source (assistant coverage 3/9→5/9);
+W3 coverage + source health as measured numbers (found: SWE-bench silent 170 days, Aider 316);
+W4 boundary rounding + plan equivalence. W4 needed TWO fresh-eyes passes: the first round's fixes
+shipped a defect class of their own and, worse, shipped undefended — caught only because the fix
+delta was re-reviewed. Closure: security PASS (0 BLOCKING, 6 MINOR — 2 fixed here, 4 ledgered);
+quality gate BLOCKING because I restated a SIGNED criterion ("≥3 distinct plans") after the live
+data showed 4 of 5 scoreable plans run the same model. Escalated to the owner immediately per the
+standing rule; D-109 (rounding boundary) and D-110 (equivalence disclosure) written; PRD §11 added
+so M4's REQ-IDs are no longer only in the signed plan. Gate: 193 unit + 5 gated, 8 gates green.
+Lesson: a fix written to close a review finding is new code and inherits the review obligation.

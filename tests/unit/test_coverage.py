@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import sqlite3
+from unittest import mock
 
 import pytest
 
@@ -162,3 +163,35 @@ def test_links_that_all_dropped_count_as_no_links() -> None:
     coding = next(c for c in plan_coverage(conn) if c.category == "coding")
     assert "Linked But Unscored" in coding.unscoreable_no_links
     assert "Linked But Unscored" not in coding.unscoreable_no_scores
+
+
+def test_cli_opens_the_database_read_only(tmp_path) -> None:
+    """M4 closure (security MINOR-4): the read-only claim is a MECHANISM, not a comment.
+
+    `test_coverage_is_read_only` proves the two functions do not write today. This proves
+    the CLI could not write even if a future edit tried: the handle it opens rejects
+    writes at the SQLite layer. The probe runs INSIDE the spy because `main()` closes the
+    connection before returning. Dropping `mode=ro` from `main()` turns this red.
+    """
+    db = tmp_path / "advisor.db"
+    _db(path=str(db)).close()
+
+    probes: list[str] = []
+    real_connect = sqlite3.connect
+
+    def spy(*args: object, **kwargs: object) -> sqlite3.Connection:
+        conn = real_connect(*args, **kwargs)  # type: ignore[arg-type]
+        try:
+            conn.execute("DELETE FROM plans")
+        except sqlite3.OperationalError as exc:
+            probes.append(str(exc))
+        else:  # pragma: no cover - only reached when the handle is writable
+            conn.rollback()
+            probes.append("WRITE ACCEPTED")
+        return conn
+
+    with mock.patch.object(sqlite3, "connect", spy):
+        assert main(["--db", str(db), "--today", "2026-08-15"]) in (0, 1)
+
+    assert probes, "the CLI must open the database through sqlite3.connect"
+    assert "readonly" in probes[0], probes[0]

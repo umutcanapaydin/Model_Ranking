@@ -107,3 +107,58 @@ threshold ships with (a) a fixture sitting exactly on it and (b) a citing test t
 moves. Corollary for records: a calibration document must ship its analysis SCRIPT — percentile
 method and bucketing convention silently shift the published figures, and this lineage has already
 paid once for a report whose own arithmetic could not be reproduced.
+
+## 2026-08-15 — M4: Make the Plan Answers Real (data depth)
+
+**What the pipeline caught that I would have shipped:**
+- W1 review, FOUR BLOCKING, all silent correctness: a new model folded into its base family
+  (`deepseek-v4-flash` → the base rule), a coverage number quoted wrong inside the record that
+  existed to defend it, a guard that blocked date stamps as if they were version tokens and so lost
+  a live score, and `gpt-5-pro` swallowing four Pro variants. Not one of them would have failed a
+  test I wrote, because I wrote tests for the failures I could imagine.
+- W2 review BLOCKING: a new tie-break and its provenance output had **no citing test** — both
+  mutants stayed green. My first replacement fixture then passed the "removed" mutant *by
+  alphabetical luck*; the fixture had to be rebuilt so the two orderings actually disagree. A test
+  that passes for a reason you did not intend is not evidence.
+- W4 review BLOCKING: equivalence was computed only against the quality pick, so on live data it
+  said **nothing** in the one case that mattered — the quality pick alone, both other labels
+  collapsed onto a $4.99 plan that a $99.99 plan ties exactly. The most valuable sentence in the
+  dataset was one comparison away from never being written.
+- **The one that matters most — the second review pass:** the fixes I wrote to close W4's findings
+  were themselves reviewed, and that pass found the display-delta fix shipped with **no citing test
+  in either engine**, plus three more defects it had introduced or left (a budget-excluded plan
+  could be advertised inside an equivalence group; group membership was re-resolved by display name
+  in a table with no UNIQUE constraint on names; the group sentence claimed plan pages "list" a
+  model when a roster-linked member's page lists nothing).
+
+**Lesson (the milestone's transferable one): a fix authored in response to a review is NEW CODE and
+inherits the review obligation.** "It was written to close a BLOCKING finding" feels like evidence
+of correctness and is not. Fault-inject the FIX, not only the original defect; re-review the fix
+delta with fresh eyes before the wave closes. This is V4C-49's shape (a rule shipped without its
+gate) applied to fixes rather than to rules.
+
+**Second lesson: a signed criterion can be wrong, and the honest move is to block on it.** M4's
+headline criterion ("≥3 distinct plans, live") was written before anyone had measured the data.
+The data said 4 of 5 scoreable plans run the same model — so the criterion could only be met by
+recommending $99.99 over $4.99 across a difference of zero. Restating it in the open, writing the
+ADR, and letting the quality gate go BLOCKING until the owner signs is the correct handling; the
+cheaper move is to notice earlier. **Rule adopted for the next plan: any criterion containing a
+number about live data gets a measurement task in the wave BEFORE it.**
+
+**Third: the coverage metric earned its keep on day one** by measuring something uncomfortable —
+the coding category can rank 1 plan in 10, because SWE-bench has published nothing since
+2026-02-26 and Aider since 2025-10-03. A product risk that used to be a demo surprise is now a
+number with a date next to it, in CI, on every run.
+
+**Friction (V4C-13):** epoch.ai and huggingface.co are proxy-403 from this container, so
+REQ-ING-010 and the fresh-benchmark ingestion could not be written without inventing a shape —
+the FP-M2-2 defect this project has already paid for twice. Both stayed OPEN and visible, with
+owner-fetch commands delivered, rather than being satisfied by a fixture. **Process gap found: the
+warnings ledger has no answer for a warning whose remedy is an OWNER decision** — W-001 survived
+its owning milestone's close because agents may never waive a scanner finding, which is the ledger's
+own headline rule broken by a rule it does not model. GP-upstream note.
+
+**Numbers:** 4 waves · 193 tests (+41) · 27 review findings (24 closed in-wave, 3 at closure,
+5 ledgered with owning milestones) · 18 fault injections, 2 initially stay-green, 18 RED after fixes ·
+security close PASS (0 BLOCKING, 6 MINOR) · quality gate BLOCKING on one owner signature ·
+plan-name drops 2→0 · assistant coverage 3/9→5/9 · coding coverage 1/10, unchanged by design.

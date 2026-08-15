@@ -143,7 +143,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     conn: sqlite3.Connection | None = None
     try:
-        conn = sqlite3.connect(args.db)
+        # M4 closure (security review MINOR-4): "this report never writes" was a
+        # convention held up by reading the code. `mode=ro` makes it a MECHANISM —
+        # SQLite refuses any write on this handle, so a future edit that adds one
+        # fails loudly here instead of silently mutating the owner's database.
+        conn = sqlite3.connect(f"file:{Path(args.db).as_posix()}?mode=ro", uri=True)
         cov = plan_coverage(conn)
         health = source_health(conn, today)
     except sqlite3.Error as exc:

@@ -498,10 +498,37 @@ def test_equivalence_group_membership_is_resolved_by_plan_id_not_name() -> None:
     assert rec is not None
     note = rec.equivalence_note
     assert note is not None
-    assert "2 plan aynı modeli (Gemini 3.1 Pro)" in note  # NOT 3 — the namesake is not tied
+    assert "2 plan aynı modele (Gemini 3.1 Pro)" in note  # NOT 3 — the namesake is not tied
     assert (
-        "2 plan aynı modeli (Gemini 3.1 Pro) listeliyor, yani kalite açısından"
+        "2 plan aynı modele (Gemini 3.1 Pro) bağlanıyor, yani kalite açısından"
         " ayırt edilemezler: Cheap Plan, Twin Plan."
         " Bu grupta en ucuzu Cheap Plan ($8.00/ay)."
         " Aynı model için aylık fark: $8.00 — $20.00."
     ) in note  # the $150 namesake is in the OTHER group, never in this span
+
+
+def test_equivalence_note_says_which_members_rest_on_a_roster() -> None:
+    """M4 closure L-1 citing test: the group sentence may not claim a plan PAGE names
+    the model when the link came from the provider's separate model list.
+
+    Live, this is asserted about Perplexity Pro, whose plan page names no model version
+    at all — the roster (M4-W2) is what links it. The per-pick `why` text already draws
+    this line; the group sentence must draw the same one, and must stay SILENT about
+    provenance when every member is plan-page-linked.
+    """
+    conn = _db(TWIN_DOC)
+    conn.execute(
+        "UPDATE plan_models SET link_source = 'roster',"
+        " source_url = 'https://twinco.example/models' WHERE plan_id = 'twin-plan'"
+    )
+    rec = recommend_subscription(conn, "orta", "coding")
+    assert rec is not None
+    note = rec.equivalence_note
+    assert note is not None
+    assert "aynı modele" in note and "listeliyor" not in note  # links to, not lists
+    assert "Bunlardan Twin Plan için kaynak, plan sayfası değil" in note
+    # ...and with no roster link in the group, no provenance clause is added at all
+    plain = recommend_subscription(_db(TWIN_DOC), "orta", "coding")
+    assert plain is not None
+    assert plain.equivalence_note is not None
+    assert "kaynak, plan sayfası değil" not in plain.equivalence_note

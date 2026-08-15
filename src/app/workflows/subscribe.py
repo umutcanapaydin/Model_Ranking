@@ -297,11 +297,24 @@ def recommend_subscription(
                 if dearest.monthly_usd > cheapest.monthly_usd
                 else ""
             )
+            # M4 closure L-1: the verb may not claim more than the evidence. A
+            # roster-linked member's PLAN PAGE names no model — the provider's separate
+            # model list does — so the group says "links to" and then names which
+            # members rest on the roster. `_pick`'s `why` text already draws exactly
+            # this line; the group sentence must not blur it back.
+            via_roster = sorted(r.plan for r in members if r.scored_via != "plan-page")
+            provenance = (
+                f" Bunlardan {', '.join(via_roster)} için kaynak, plan sayfası değil"
+                " sağlayıcının yayımladığı model listesi."
+                if via_roster
+                else ""
+            )
             parts.append(
-                f"{len(members)} plan aynı modeli ({picked.scored_by_model}) listeliyor, "
+                f"{len(members)} plan aynı modele ({picked.scored_by_model}) bağlanıyor, "
                 f"yani kalite açısından ayırt edilemezler: "
                 f"{', '.join(sorted(r.plan for r in members))}. "
-                f"Bu grupta en ucuzu {cheapest.plan} (${cheapest.monthly_usd:.2f}/ay).{span}"
+                f"Bu grupta en ucuzu {cheapest.plan} (${cheapest.monthly_usd:.2f}/ay)."
+                f"{span}{provenance}"
             )
         equivalence_note = " ".join(parts)
 

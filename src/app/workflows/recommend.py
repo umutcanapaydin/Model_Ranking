@@ -64,7 +64,7 @@ def shown_gap(leader: float, other: float) -> float:
 
 
 def lead_phrase(leader: float, other: float, unit: str) -> str:
-    """"Liderden 1.8 puan düşük" — or, when the shown delta is zero, "Liderle aynı puanda".
+    """ "Liderden 1.8 puan düşük" — or, when the shown delta is zero, "Liderle aynı puanda".
 
     W4 re-review MINOR-1: the zero-guard existed only on `close_call`, so the same
     payload could say "same score" in one field and "0.0 points lower" in the next.

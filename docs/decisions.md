@@ -403,6 +403,54 @@ a drifting install fails the build rather than a council.
 
 **Revisit when:** GP ships its next version and the owner directs adoption.
 
+## D-109 — Scores are rounded at the OUTPUT boundary only, to one decimal
+
+**Status:** proposed (M4-W4; ratify at M4 closure)
+
+**Decision:** every score reaching a JSON contract or a user-facing string is rounded to
+`SCORE_DECIMALS = 1`, and the rounding happens exactly once, at the boundary (`round_score` /
+`round_optional_score` in `recommend.py`). Ranking, the Pareto comparison and every threshold
+comparison keep the raw value. Prose deltas are computed from the ROUNDED numbers (`shown_gap`)
+and collapse to "same score" wording when the shown delta is zero (`lead_phrase`).
+
+**Rationale:** Arena publishes `1481.5937567329202`. Rendering that claims precision the benchmark
+does not have; rounding BEFORE a comparison invents ties that do not exist (a 0.04 gap would hand
+the quality label to the cheaper plan). Computing a delta from raw values and printing it beside
+rounded fields produces the opposite defect: prose that contradicts the JSON next to it.
+
+**Mitigation if violated:** three citing tests, all mutation-verified — rounding inside
+`plan_ranking`, rounding after subtracting instead of before, and `round_optional_score` turning
+an absent score into 0.0 each turn a specific test red.
+
+**Revisit when:** a source publishes a benchmark whose meaningful precision exceeds one decimal.
+
+---
+
+## D-110 — When plans rank on the same model, the product SAYS so instead of manufacturing variety
+
+**Status:** proposed (M4-W4; owner ratification requested at the M4 gate — this supersedes a
+SIGNED plan criterion, see below)
+
+**Decision:** where several plans within the budget rank on the same model at the same score, they
+are declared indistinguishable on quality: `equivalent_plans` names them and `equivalence_note`
+states the group, the cheapest member with its price, the monthly spread, and which members are
+linked through a provider roster rather than their own plan page. Groups are computed for EVERY
+plan a label picked (not only the quality pick), built from the budget-filtered rows only, and
+keyed on `plan_id` rather than display name.
+
+**Rationale:** M4's plan asked for "≥3 distinct plans" in the live answer. Measured 2026-08-15, 4
+of the 5 scoreable plans rank on Gemini 3.1 Pro at 1479.6 — so "distinct" would have meant
+recommending a $99.99 plan over a $4.99 plan on a difference of zero. Honesty is the product; the
+criterion was restated in the open rather than met by fabrication. **This retires a signed
+criterion and therefore requires the owner's signature, which the M4 closure report requests.**
+
+**Mitigation if violated:** four citing tests, mutation-verified, including the live shape where
+the quality pick is alone and only the other two labels collapse (the case the first
+implementation silently missed).
+
+**Revisit when:** plan coverage grows enough that distinct plans are genuinely distinct engines —
+`coverage.plan_coverage` is the number that says when.
+
 ---
 
 *Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*
