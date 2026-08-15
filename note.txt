@@ -1,6 +1,7 @@
 Project: model_ranking
-Latest milestone: M3 CLOSED + SIGNED. M4 waves ALL CLOSED agent-side; M4 closure report is
-  CANDIDATE — it is BLOCKED on ONE owner signature (see WHAT'S OPEN).
+Latest milestone: **M4 CLOSED + SIGNED** by the owner 2026-08-15, after his own verification run
+  (193 tests / 8 gates green, live pipeline rebuilt, subscription + coverage output matching the
+  closure report figure for figure). D-109 and D-110 ratified. M5 not yet planned.
 Last session date: 2026-08-15
 Last work agent: Claude (Cowork lead agent, D-106)
 

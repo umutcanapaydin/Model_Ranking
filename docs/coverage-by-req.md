@@ -216,7 +216,7 @@ headline criterion on evidence the owner has not yet ratified. Nothing is hidden
 in a wave checklist or a review record — but under V3C-02 a signed criterion without a citing test
 does not close on agent authority.
 
-**VERDICT: BLOCKING** — M4 does not close until the owner (a) ratifies the REQ-REC-009 restatement as
+**VERDICT (as it stood when the gate ran): BLOCKING** — M4 does not close until the owner (a) ratifies the REQ-REC-009 restatement as
 an ADR plus amended PRD text, (b) accepts REQ-ING-010 and REQ-ING-011b as a criteria diff to M5, and
 (c) dispositions W-001 and the two M4-closure-owned ledger items L-1 and L-3. Fix F-1 (M4 REQ-IDs
 absent from `docs/prd.md`) in the same pass. No code change is required to clear this gate.
@@ -232,6 +232,6 @@ Four of the five items above were actioned the same session; the remaining one i
 | **Security MINOR-4** (coverage's read-only claim was a convention) | **FIXED in code** — the CLI opens the database with `mode=ro`, so a future edit that writes fails at the SQLite layer instead of mutating the owner's file. Citing test `test_cli_opens_the_database_read_only`; mutant RED. |
 | **L-3** (`dusuk`: one eligible plan, three identical labels, nothing says five plans were priced out) | **LEDGERED as W-006**, owning milestone M5 — the remedy is a new output field with its own REQ-ID and ADR, and overloading `equivalence_note` would contradict D-110. |
 | Security MINOR-2/-3/-5 and W4 L-2 | **LEDGERED as W-003 / W-004 / W-005 / W-002**, all owning M5, each with the reason it was not patched at close. |
-| **REQ-REC-009 restatement · REQ-ING-010 + REQ-ING-011b criteria diff · W-001 allowlist** | **OWNER'S** — carried to the M4 gate in `docs/closure-report-m4.md`. This verdict stays BLOCKING until they are signed. |
+| **REQ-REC-009 restatement · REQ-ING-010 + REQ-ING-011b criteria diff · W-001 allowlist** | **CLEARED 2026-08-15.** The owner ratified D-110 (and D-109) and accepted the two ingestion criteria as a diff to M5 at the closure session, after verifying the run himself. W-001 carries to M5 as an owner action. **The gate verdict below is therefore superseded: M4 CLOSES.** |
 
 Test totals after the addendum: **193 passed, 5 gated** (was 191); `make check` green on all eight gates.

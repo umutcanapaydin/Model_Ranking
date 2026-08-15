@@ -1,7 +1,7 @@
 ---
 record_type: ratification
 id: closure-report-m4
-status: candidate
+status: ratified
 date: 2026-08-15
 ---
 # Closure Report — M4: Make the Plan Answers Real
@@ -11,7 +11,8 @@ date: 2026-08-15
 > cited, not recalled). Owner amendment in force: no stops between waves; the agent ran every gate
 > per wave (D-106); the owner runs the out-of-sandbox verification at THIS session.
 >
-> **Status: candidate — NOT closed.** The quality gate is BLOCKING on one signature. See §0.
+> **Status: CLOSED** — owner-signed 2026-08-15 after his own verification run (see the sign-off
+> line at the end). §0 records the ruling he was asked for and gave.
 
 ## 0. The one thing that needs you (read this first)
 
@@ -49,8 +50,8 @@ Everything else in this report is done, tested and committed.
 
 | Criterion | Citing test / gate | Status |
 |---|---|---|
-| REQ-CAN-004 registry expansion, self-defending rule table | test_registry.py: rule-table property tests + 41-entry live-name corpus | ✅ (W1) — plan-name drops **2 → 0** |
-| REQ-ING-009 provider rosters as a second documented source | test_rosters.py (14) incl. CLI, tie-break pair, migration | ✅ (W2) — assistant coverage **3/9 → 5/9** |
+| REQ-CAN-004 registry expansion, self-defending rule table | test_registry.py: rule-table property tests + 41-entry live-name corpus | ✅ (W1) — **plan-page** name drops **2 → 0** (see §1c: the live figure today is 3, all from rosters added later) |
+| REQ-ING-009 provider rosters as a second documented source | test_rosters.py (14) incl. CLI, tie-break pair, migration | ✅ (W2) — assistant coverage **3/9 → 5/9** at W2; **6/10** after W4 added Google AI Plus |
 | REQ-SUB-005 plan coverage measured and reported | test_coverage.py: counts, both failure buckets, CLI exit 1 on zero | ✅ (W3) |
 | REQ-ING-011a source health computed, fails toward disclosure | test_coverage.py: window boundary, unparseable date, window parity | ✅ (W3) |
 | REQ-ING-011b ingest a fresher coding benchmark **if one exists** | none — no code to cite | ⏸ **DEFERRED to M5** (§5) |
@@ -68,6 +69,21 @@ Everything else in this report is done, tested and committed.
 | W3 coverage + source health | LOW | combined — PASS | 3 MINOR / 3 | +9 | REQ-ING-010 blocked (evidence recorded, not hidden) |
 | W4 rounding + equivalence | LOW | combined — FAIL→fixed, **then a second fresh-eyes pass on the fix delta** — FAIL→fixed | round 1: 2 BLOCKING + 5 MINOR; round 2: 1 BLOCKING + 6 MINOR / 11 closed, 3 ledgered | +23 | **escaped-blocker tripwire** (§3) |
 | closure | — | Security **PASS** (0 BLOCKING, 6 MINOR) + Quality gate **BLOCKING** (§0) | 6 MINOR + 2 findings / 3 fixed, 5 ledgered | +2 | one signature (§0) |
+
+## 1c. Reading the live numbers against this report (owner verification run, 2026-08-15)
+
+The owner's out-of-sandbox run reproduced every figure in this report. Two of them read
+differently against a live pipeline than against the wave they were measured in, and the
+difference is stated here so no one has to reconcile it later:
+
+- **`reconcile_plans` reports `dropped=3`, not 0.** W1's "2 → 0" is a statement about **plan-page**
+  names and was true at W1. W2 then added provider rosters, which introduce three names Perplexity
+  publishes but our registry has no rule for — `Sonar 2`, `Nemotron 3 Ultra`, `Kimi K3` — because
+  they have no price or no benchmark presence. They are **counted, never guessed**, exactly as the
+  doctrine requires, and the reason is written into `data/rosters.yaml` where the names live. They
+  are the first candidates for M5's registry pass.
+- **Assistant coverage is 6/10, not 5/9.** W2 measured 5/9; W4 then added Google AI Plus, which is
+  both a new denominator and a new scoreable plan. Coding is 1/10 as reported.
 
 ## 1b. Decisions made on your behalf (assumption ledger)
 
@@ -178,4 +194,11 @@ keyed on `plan_id`, provenance stated), and the coverage number is the early-war
 day the underlying benchmarks stop being able to tell any two plans apart.
 
 ---
-*Owner sign-off: **PENDING** — three items in §0. M4 is NOT closed until they are signed.*
+*Owner sign-off: **APPROVED** — Umut Can Apaydın, 2026-08-15, after an out-of-sandbox verification
+run on his own machine (`make check`: 193 passed / 5 gated / 8 gates green; live pipeline rebuilt
+from source; `--subscription` and `coverage` re-run and matching this report figure for figure).
+Recorded rulings: (1) **D-110 RATIFIED** — the equivalence disclosure replaces the signed
+"≥3 distinct plans" criterion, and D-109 is ratified with it; (2) **REQ-ING-010 and REQ-ING-011b
+accepted as a criteria diff to M5** — the Epoch bundle has since been fetched and its real shapes
+recorded, so M5 opens with the blocker already cleared; (3) W-001 carried to M5 as an owner action.
+**M4 CLOSED.***

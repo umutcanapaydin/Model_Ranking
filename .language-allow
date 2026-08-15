@@ -13,6 +13,7 @@ docs/prd.md                      # owner surname in the overview (proper noun)
 docs/project-brief.md            # owner surname (proper noun)
 docs/closure-report-m1.md        # pre-V4C-79 committed closure record — append-only history, kept verbatim
 docs/closure-report-m3.md        # owner surname in the sign-off line (proper noun — L1's documented failure mode)
+docs/closure-report-m4.md        # same: owner surname in the sign-off line (proper noun). The report's prose is English
 docs/closure-report-m2.md        # pre-V4C-79 committed closure record — kept verbatim
 docs/plans/m1-plan.md            # owner-signed plan record, pre-V4C-79, kept verbatim
 docs/plans/m2-plan.md            # owner-signed plan record (owner amendments recorded in Turkish), kept verbatim

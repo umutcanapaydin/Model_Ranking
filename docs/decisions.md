@@ -405,7 +405,7 @@ a drifting install fails the build rather than a council.
 
 ## D-109 — Scores are rounded at the OUTPUT boundary only, to one decimal
 
-**Status:** proposed (M4-W4; ratify at M4 closure)
+**Status:** ratified (owner-signed at the M4 closure session, 2026-08-15)
 
 **Decision:** every score reaching a JSON contract or a user-facing string is rounded to
 `SCORE_DECIMALS = 1`, and the rounding happens exactly once, at the boundary (`round_score` /
@@ -428,8 +428,9 @@ an absent score into 0.0 each turn a specific test red.
 
 ## D-110 — When plans rank on the same model, the product SAYS so instead of manufacturing variety
 
-**Status:** proposed (M4-W4; owner ratification requested at the M4 gate — this supersedes a
-SIGNED plan criterion, see below)
+**Status:** ratified — owner-signed 2026-08-15 at the M4 closure session, after his own
+out-of-sandbox verification run reproduced the measurement this decision rests on. This
+formally retires the signed criterion named below.
 
 **Decision:** where several plans within the budget rank on the same model at the same score, they
 are declared indistinguishable on quality: `equivalent_plans` names them and `equivalence_note`
