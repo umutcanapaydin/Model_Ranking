@@ -1,7 +1,7 @@
 Project: model_ranking
-Latest milestone: M2 — ALL 4 WAVES + Stage 4 CLOSED agent-side; OWNER session pending
+Latest milestone: M2 CLOSED + committed + live-verified (13/13 contract tests). AGENT HANDOVER in progress.
 Last session date: 2026-08-11
-Last work agent: Claude (Cowork cloud session)
+Last work agent: Claude (Cowork) — HANDING OVER: read docs/HANDOVER-model-ranking.md FIRST
 
 WHAT'S DONE
 - M1 closed + committed by owner (github.com/umutcanapaydin/Model_Ranking)
@@ -11,17 +11,18 @@ WHAT'S DONE
 - 109 tests, coverage 90%, 4 reviews PASS (13 findings applied), security close PASS (INV-9/10/11)
 
 WHAT'S OPEN
-- OWNER milestone session: closure-report-m2.md → K.10 workflow diff (contract-tests.yml NEW) →
-  own tests → milestone commit + push → ratify D-105 → trigger contract-tests workflow (Actions tab)
-- First live Arena/OpenRouter validation = that CI run (sandbox can't reach them)
-- M3 scope open: subscription-plan table (OQ-2) + Epoch (deferred W5) + retrospect (M≥3)
+- M3 not planned yet: subscription-plan table (the moat) + open question: does Epoch ride along?
+- Carried debt: Elo threshold calibration, ArenaClient url param, Actions SHA-pin, stale-notice
+  proxy limitation, close_call frontier-only (all detailed in the handover doc §9)
+- Owner may add the repo to the Cowork session sources → then D-106 push works without bundles
 
 WHAT TO DO NEXT
-- Owner reads docs/closure-report-m2.md; after his commit: M3 planning (subscription table)
+- New agent: read docs/HANDOVER-model-ranking.md, then closure-report-m2.md + fixpack-1.md,
+  then draft docs/plans/m3-plan.md and STOP for the owner's signature
 
 ANCHOR
 - AGENTS.md: ~142 lines (within 150 hard cap; diet at closure)
-- Active ADRs: universal set; D-100..D-104 (M1, owner-ratified), D-105 proposed
+- Active ADRs: universal set; D-100..D-104 (M1), D-105 (category layer), D-106 (agent runs tests+git)
 - Active seeds count: starter default (64+8)
 - Most recent retrospect: N/A
 - Most recent quarterly handover: N/A
