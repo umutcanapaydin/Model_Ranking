@@ -1,69 +1,83 @@
 Project: model_ranking
-Latest milestone: **M4 CLOSED + SIGNED** by the owner 2026-08-15, after his own verification run
-  (193 tests / 8 gates green, live pipeline rebuilt, subscription + coverage output matching the
-  closure report figure for figure). D-109 and D-110 ratified. M5 not yet planned.
+State: **M1-M4 CLOSED + SIGNED.** M5 planned but **UNSIGNED** — nothing dispatches until the owner
+  signs `docs/plans/m5-plan.md`. Repo is green and idle: no half-finished work anywhere.
 Last session date: 2026-08-15
-Last work agent: Claude (Cowork lead agent, D-106)
+Last work agent: Claude (Cowork lead agent, D-106) — handing over here
+
+FIRST THREE THINGS A NEW AGENT DOES
+1. Read `docs/handovers/handover_m5-start.md` — written for exactly this moment.
+2. Read `docs/plans/m5-plan.md` — the next milestone, drafted and waiting for one signature.
+3. Ask the owner for that signature. Do not start W1 without it.
 
 WHAT'S DONE
-- M1+M2+M3 closed (see closure reports). M4 W1-W4 closed agent-side, 4 wave commits + 1 closure
-  commit on main (local):
-  W1 registry expansion — a rule table that defends its own ordering; plan-name drops 2 -> 0
-  W2 provider model rosters (data/rosters.yaml) — a SECOND documented source with its own
-     provenance and clock; assistant coverage 3/9 -> 5/9
-  W3 coverage + source health as MEASURED numbers (coverage.py, CLI + weekly CI leg). Found and
-     recorded: SWE-bench has published nothing since 2026-02-26, Aider since 2025-10-03
-  W4 boundary rounding (1 decimal, output only — D-109) + plan EQUIVALENCE disclosure (D-110)
-     + Google AI Plus entered at $4.99 (the M3 "dispute" was a dated price cut, not a conflict)
-- 193 unit + 5 gated tests; make check = 8 gates, all green; security close PASS (0 BLOCKING)
-- New records: coverage-by-req.md (quality gate), reviews/m4-security-review.md,
-  reviews/m4-w4-equivalence.md, retrospectives/m4-retrospective.md, closure-report-m4.md
-- PRD §11 added: M4's REQ-IDs are now in the PRD, not only in the signed plan
+- M1 data layer + coding recommendation engine · M2 new sources + assistant category ·
+  M3 subscription-plan table + GP v4.3.1 migration · **M4 "make the plan answers real"**.
+- M4 shipped: registry expansion (plan-page name drops 2 -> 0) · provider model rosters as a second
+  documented source with its own clock · coverage + source health as MEASURED numbers printed on
+  every run · boundary rounding (D-109) · plan EQUIVALENCE disclosure (D-110) · Google AI Plus
+  entered at $4.99 after the M3 "dispute" turned out to be a dated price cut.
+- 193 unit + 5 network-gated tests. `make check` = **7 targets**, all green: lint (ruff), typecheck
+  (mypy, 23 source files), test, check-records, check-records-selftest, install-check, pin-check.
+  **black is a declared dependency but `make check` never invokes it** — formatting is NOT gated
+  today (pre-commit uses ruff-format). Adding it is a gate-definition change = owner's call.
+  Security close PASS (0 BLOCKING).
+- Owner verified M4 out-of-sandbox on his own Mac and signed it (closure-report-m4.md sign-off line).
 
-WHAT'S OPEN
-- **BLOCKING — owner signature (closure-report-m4.md §0):** I restated a SIGNED criterion.
-  M4 asked for ">=3 DISTINCT plans" in the live subscription answer; live data shows 4 of the 5
-  scoreable plans rank on the SAME model (Gemini 3.1 Pro, 1479.6), so "distinct" could only be
-  produced by preferring a $99.99 plan over a $4.99 plan across a difference of zero. The engine
-  now NAMES the equivalence instead (D-110). An agent may not retire an owner-signed criterion:
-  M4 does not close until the owner ratifies D-110 (or rejects it and carries the original to M5).
-- Owner also owes: (a) accept REQ-ING-010 + REQ-ING-011b as a criteria diff to M5 — epoch.ai and
-  huggingface.co are proxy-403 from this container, unblock is one fetch on the owner's Mac
-  (commands delivered 2026-08-15); (b) rule on W-001, the gitleaks false positive, which has now
-  survived TWO milestone closes because an agent may never waive a scanner finding — the exact
-  .gitleaks.toml stanza is in closure-report-m4.md §5; (c) trigger the first CI runs of the
-  coverage-report and roster-staleness legs.
-- Push: container cannot push (proxy 403) — bundle delivered; owner pulls + pushes, or adds the
-  repo to the session's authorized sources so D-106 pushes work directly.
-- Carried to M5 (warnings ledger, each with an owning milestone): W-002 equivalent_plans loses
-  group structure with 2+ groups · W-003 roster last_verified written but never read (stale roster
-  links are not disclosed) · W-004 migrate() built but not wired to a command (a pre-W2 DB fails
-  CLOSED, exit 2) · W-005 YAML alias-expansion guard · W-006 the `dusuk` case never says that five
-  scoreable plans were priced out (the sharpest remaining honesty gap).
+WHAT'S OPEN (all of it is either the owner's, or M5 scope — nothing is half-built)
+- **M5 plan signature.** `docs/plans/m5-plan.md` is DRAFT/UNSIGNED. Owner decisions already locked
+  in its header: scope = rescue the coding category with Epoch; effort policy = rank on ONE named
+  effort level and disclose the range; primary-benchmark choice = MEASURE FIRST (W1), sign after.
+- **W-001 gitleaks false positive** — owner action, has now survived M3 and M4 closes because an
+  agent may never waive a scanner finding. Exact `.gitleaks.toml` stanza: closure-report-m4.md §5.
+- **First CI runs** of the coverage-report and roster-staleness legs still need triggering (Actions).
+- Ledger — docs/warnings.ledger.md is the TRUTH for these; this list is a copy, so trust the file:
+  W-001 gitleaks false positive (owner) · W-002 equivalent_plans loses group structure with 2+
+  groups (M6, with the API) · W-003 roster last_verified written but never read (M5-W4) · W-004
+  migrate() built but not wired to a command (M5-W4) · W-005 YAML alias-expansion guard (M6) ·
+  W-006 the `dusuk` case never says how many plans the cap priced out (M5-W4) · W-007 Arena's
+  filter endpoint 500s -> the client falls back to full pagination and rate-limits ITSELF into a
+  429, reproduced on the owner's machine 2026-08-15 (M5-W4).
+- Push: this container CANNOT push (proxy 403 — repo not in the session's authorized sources).
+  Every agent commit ships to the owner as a git bundle; he pulls and pushes. Adding the repo to the
+  session's sources would end that dance.
 
-WHAT TO DO NEXT
-- New agent: read docs/HANDOVER-model-ranking.md, closure-report-m4.md (start at §0),
-  docs/coverage-by-req.md, the m4 wave checklists, docs/retrospectives/m4-retrospective.md.
-  Process baseline is GP v4.3.1 (D-108). Do NOT treat M4 as closed until the §0 signature exists.
-- M5 candidates (from the plan + the ledger): HTTP API surface + deploy to Fly.io (owner's target,
-  recorded at M4 kickoff), Epoch/Terminal-Bench ingestion once the fetch lands, the five ledger
-  rows above, and the retrospective's carried question (what to do when a provider names a model
-  no benchmark covers — the answer decides whether inference ever enters the ranking path).
+THE DATA THAT IS ALREADY ON THE OWNER'S DISK (M5's unblocker — do not re-fetch blindly)
+`/Users/umutcanapaydin/Desktop/terminal_output/model_ranking/`
+- `epoch_data/` — the Epoch AI benchmarking bundle (CC-BY, ~79 files on the owner's disk; **5 CSVs
+  + README were staged into the agent container and are the only ones actually measured**:
+  swe_bench_verified, deepswe, frontiercode, terminalbench, aider_polyglot). The numbers are in
+  m5-plan.md §0. Attribution is a shipping obligation, not a nicety (REQ-LIC-001).
+- `arena_overall_*.json` — the owner's Arena fetch (389 rows, snapshot 2026-08-12). The live
+  ArenaClient path is flaky from his machine too (see W-007); these files are the fallback.
 
 ANCHOR
-- AGENTS.md: 145 lines (within 150 cap)
-- Active ADRs: universal set; D-100..D-108 + D-109/D-110 (proposed, ratify at the M4 owner session)
-- Governed records: 7 with frontmatter validated by check-records (decisions, closure reports
-  m1-m4, fixpack-1, EXPERIENCE, m3/m4 security reviews, coverage-by-req, m4-w3/m4-w4 records)
-- Most recent retrospective: docs/retrospectives/m4-retrospective.md (2026-08-15)
-- Most recent quarterly handover: docs/handovers/handover_q1.txt (M3 = M%3==0). Next: M6.
+- AGENTS.md: 145 lines (cap 150)
+- Active ADRs: universal set + D-100..D-110. D-109 (rounding boundary) and D-110 (equivalence
+  disclosure) were ratified by the owner at the M4 close.
+- Governed records — `.governed-records` globs match exactly **7 files** and those are what
+  check-records validates: docs/decisions.md, closure-report-m1..m4, fixpack-1.md, EXPERIENCE.md.
+  The review records (m3/m4 security reviews, coverage-by-req, m4-w1/w3/w4) DO carry valid
+  frontmatter but match no glob, so the R/X/P/N rules never fire on them. Widening the globs is a
+  gate-definition change = owner's call; it was queued at M3 and is still queued.
+- Most recent retrospective: docs/retrospectives/m4-retrospective.md (answers M3's carried question,
+  poses the next one: what to do when a provider names a model no benchmark covers).
+- Most recent quarterly handover: docs/handovers/handover_q1.txt (M3, since M%3==0). Next: M6.
+- **Deploy target:** the owner recorded Fly.io at the M4 kickoff (docs/plans/m4-plan.md §0), but
+  that line cites ADR "D-110", which COLLIDES with the ratified D-110 (equivalence disclosure), and
+  docs/prd.md OQ-3 still reads "no deploy target chosen yet". So the deploy decision is an owner
+  preference on record, NOT a valid ADR. Close it properly in M6, with a real ID.
+- Agent-to-agent handover for THIS boundary: docs/handovers/handover_m5-start.md
 
 HANDOFF NOTES
-Sandbox network: GitHub raw reachable; HF datasets-server / openrouter / epoch.ai NOT (this
-container) — live halves run in CI or on the owner's machine. WebFetch reaches provider pricing
-pages partially (JS pages hide amounts -> cross-check two independent trackers and record the
-evidence in the plans.yaml header). Curated-data rules live in the data/plans.yaml header + D-107;
+Sandbox network: GitHub raw reachable; HF datasets-server / openrouter / epoch.ai are proxy-403 from
+this container — live halves run in CI or on the owner's machine. WebFetch reaches provider pricing
+pages only partially (JS pages hide amounts -> cross-check two independent trackers and record the
+evidence in the plans.yaml header). Curated-data rules live in data/plans.yaml's header + D-107;
 roster rules in data/rosters.yaml + REQ-ING-009. Turkish product strings are deliberate
-(.language-allow, with reasons); everything else committed from M3 on is English (V4C-79).
-M4's transferable lesson, learned the hard way: a fix written to close a review finding is NEW
-CODE and inherits the review obligation — fault-inject the fix, and re-review the fix delta.
+(.language-allow, every entry carries a written reason); everything else committed from M3 on is
+English (V4C-79).
+The two lessons this project paid for, in one line each:
+- A fixture that encodes a remote VALUE is an untested assumption wearing a test's clothing — probe
+  the live source before the wave closes (FP-M2-2, paid for twice).
+- A fix written to close a review finding is NEW CODE and inherits the review obligation — fault
+  inject the FIX, and re-review the fix delta with fresh eyes (M4-W4, caught 4 more defects).

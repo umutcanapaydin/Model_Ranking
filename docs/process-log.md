@@ -144,3 +144,17 @@ data showed 4 of 5 scoreable plans run the same model. Escalated to the owner im
 standing rule; D-109 (rounding boundary) and D-110 (equivalence disclosure) written; PRD §11 added
 so M4's REQ-IDs are no longer only in the signed plan. Gate: 193 unit + 5 gated, 8 gates green.
 Lesson: a fix written to close a review finding is new code and inherits the review obligation.
+
+## 2026-08-15 — M4 sign-off + M5 plan + handover — lead agent (Cowork)
+Owner verified M4 on his own machine and signed it; D-109/D-110 ratified, Epoch criteria accepted as
+a diff to M5, W-001 carried. Drafted the M5 plan (coding-category rescue) against the Epoch bundle he
+fetched, with two owner decisions locked: rank on ONE named effort level and disclose the range;
+choose the primary benchmark only AFTER W1 measures it. Then wrote the agent-to-agent handover and
+ran a fresh-eyes VERIFIER over the whole handover package before shipping it — which found 13 false
+or misleading statements, three of them load-bearing: the plan claimed Epoch's SWE-bench would make
+the coding evidence fresher (for OUR models it is a day OLDER, so W1's rationale was wrong), it
+listed four effort levels where the data has five (`low` omitted — and `low` is where the spread's
+bottom sits), and it named W-007 as a ledger row that had never been written. All 13 corrected;
+W-007 added; W-002/W-005 re-assigned to M6 so the ledger and the plan agree.
+Lesson: a handover is the one artifact where a wrong number compounds — verify it adversarially
+before shipping, exactly like code.

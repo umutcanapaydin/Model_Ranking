@@ -14,7 +14,12 @@ date: 2026-08-15
 > **Status: CLOSED** — owner-signed 2026-08-15 after his own verification run (see the sign-off
 > line at the end). §0 records the ruling he was asked for and gave.
 
-## 0. The one thing that needs you (read this first)
+## 0. The one thing that needed you — **ANSWERED 2026-08-15** (read this first)
+
+> **Resolved.** The owner ruled on all three items at the closure session; the rulings are in the
+> sign-off line at the end of this report. This section is kept in its original wording because it
+> is the record of *what he was asked and why* — the question is history, not an open item. Nothing
+> in this report is waiting on anyone.
 
 M4's signed headline criterion was: *"live end-to-end proof that `--subscription` offers **≥3
 distinct plans**"*. On live data that criterion **cannot be met honestly.** Measured 2026-08-15
@@ -33,16 +38,18 @@ meant preferring a $99.99 plan over a $4.99 plan across a difference of **zero**
 dishonesty this product exists to refuse. So the criterion was **restated in the open**: the engine
 now names the equivalence and points at the cheapest, with the spread. That decision is written as
 **D-110** and the substitute behaviour is fully tested — but an agent may not retire a criterion the
-owner signed, so the quality gate stays BLOCKING until you rule.
+owner signed, so the quality gate stayed BLOCKING until he ruled — **which he did: D-110 ratified,
+2026-08-15.**
 
-**What I need from you, in one line each:**
+**What was asked, and what the owner ruled (2026-08-15):**
 
-1. **Ratify D-110** (equivalence disclosure replaces "≥3 distinct plans") — or reject it, and I carry
-   the original criterion to M5 unmet.
-2. **Accept REQ-ING-010 + REQ-ING-011b as a criteria diff to M5** (Epoch / fresh coding benchmark —
-   blocked by the sandbox proxy, unblock = one fetch on your machine; commands re-listed in §5).
-3. **Rule on W-001** — the gitleaks false positive, now surviving its second milestone because an
-   agent may never waive a scanner finding. The exact stanza to paste is in §5.
+1. **Ratify D-110** (equivalence disclosure replaces "≥3 distinct plans") — **RATIFIED.** D-109
+   ratified with it.
+2. **Accept REQ-ING-010 + REQ-ING-011b as a criteria diff to M5** — **ACCEPTED.** The owner then
+   fetched the Epoch bundle the same day, so M5 opens with that blocker already cleared and its real
+   shapes measured (see `docs/plans/m5-plan.md` §0).
+3. **Rule on W-001** (gitleaks false positive) — **carried to M5 as an owner action**; the exact
+   `.gitleaks.toml` stanza is in §5 and still needs pasting.
 
 Everything else in this report is done, tested and committed.
 
@@ -56,7 +63,7 @@ Everything else in this report is done, tested and committed.
 | REQ-ING-011a source health computed, fails toward disclosure | test_coverage.py: window boundary, unparseable date, window parity | ✅ (W3) |
 | REQ-ING-011b ingest a fresher coding benchmark **if one exists** | none — no code to cite | ⏸ **DEFERRED to M5** (§5) |
 | REQ-ING-010 Epoch AI ingestion | none — no code to cite | ⏸ **DEFERRED to M5** (§5) |
-| REQ-REC-009 ≥3 distinct plans | substitute (equivalence) covered by 5 tests, 4 mutants RED | ⚠ **RESTATED — needs your signature** (§0) |
+| REQ-REC-009 ≥3 distinct plans | substitute (equivalence) covered by 5 tests, 4 mutants RED | ✅ **RESTATED and SIGNED** — D-110, 2026-08-15 (§0) |
 | REQ-REC-010 boundary rounding, 1 decimal | 6 tests across both engines, 4 through the real CLI | ✅ (W4) — D-109 |
 | REQ-SUB-006 Google AI Plus re-probe | test_sub_dollar_price_survives_the_seed_exactly + seed end-to-end | ✅ (W4) — entered at **$4.99** |
 

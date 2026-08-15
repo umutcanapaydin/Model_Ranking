@@ -31,32 +31,53 @@ The owner then fetched the **Epoch AI benchmarking bundle** (CC-BY, ~79 CSVs, re
 Its real shapes are now on disk and measured — the FP-M2-2 rule is satisfied: nothing below is
 written against an unseen shape.
 
-**What the data actually says** (measured 2026-08-15 from the fetched bundle):
+**What the data actually says.** Every figure below was recomputed from the fetched CSVs on
+2026-08-15 and then re-verified by a fresh-eyes pass that caught three wrong numbers in this table's
+first draft — including one that would have made W1 ingest a board that moves the evidence age the
+WRONG way. The corrected reading:
 
-| Board | Rows | Newest run | Harness column | Carries the models our plans name? |
-|---|---|---|---|---|
-| Epoch `swe_bench_verified.csv` | 35 | **2026-06-25** | no (implicit: Epoch inspect_ai) | Gemini 3/3.1 Pro only |
-| `deepswe_external.csv` | 50 | 2026-07-24 | **yes** (mini-swe-agent) | **GPT-5.6, GPT-5.6 Sol, Claude Opus 5, Gemini 3.1 Pro** |
-| `frontiercode_external.csv` | 25 | 2026-07-24 | **yes** (claude-code / codex / …) | GPT-5.6 Sol, Claude Opus 5 — no Gemini |
-| `terminalbench_external.csv` | 204 | 2026-05-14 | **yes** (52 agents) | Gemini 3/3.1 Pro |
-| `aider_polyglot_external.csv` | 77 | 2025-10-03 | edit-format only | none |
+| Board | Rows | Real evaluation-date column? | Newest eval date (whole board) | Newest eval date **for the models our plans name** | Which of our models |
+|---|---|---|---|---|---|
+| Epoch `swe_bench_verified.csv` | 35 | yes (`Started at`) | 2026-06-25 | **2026-02-24** | Gemini 3.1 Pro (preview-customtools), Gemini 3 Pro |
+| `deepswe_external.csv` | 50 | **NO — `Release date` only** | — | — | **GPT-5.6, GPT-5.6 Sol, Claude Opus 5**, Gemini 3.1 Pro (preview) |
+| `frontiercode_external.csv` | 25 | **NO — `Release date` only** | — | — | GPT-5.6 Sol, Claude Opus 5 |
+| `terminalbench_external.csv` | 204 | yes (`Run date`) | **2026-05-15** | 2026-03-13 | Gemini 3.1 Pro, Gemini 3 Pro |
+| `aider_polyglot_external.csv` | 77 | yes (`Date of evaluation`) | 2025-10-03 | — | none |
 
-**No single board covers our plan surface.** That is the milestone's central constraint, and it is
-why the board choice is a signed decision rather than an implementation detail.
+Two constraints fall out of that table, and together they are the milestone:
+
+1. **No single board covers our plan surface.** The boards that carry ChatGPT's and Claude's models
+   (DeepSWE, FrontierCode) do not carry Gemini meaningfully; the board that carries Gemini best
+   (Epoch's SWE-bench) carries neither GPT-5.6 nor Opus 5.
+2. **Coverage and freshness live on DIFFERENT boards.** Epoch's SWE-bench looks fresh (2026-06-25)
+   but only for models no curated plan names — for OUR models its newest run is **2026-02-24**,
+   which is a day OLDER than the source we already have (2026-02-26). Ingesting it cannot improve
+   the coding category's evidence age. Meanwhile DeepSWE and FrontierCode — the two boards that
+   would actually fix coverage — publish **no evaluation date at all**, only the model's release
+   date. Ageing evidence by a model's launch date would let a re-released model look freshly
+   measured, which is precisely the silent-freshness failure `source_health` was built to prevent.
+
+That second point is why the board choice is a signed decision and not an implementation detail, and
+why W1 measures before anyone commits.
 
 ### The two traps this milestone must not walk into
 
-**Trap 1 — the Gemini contradiction.** `gemini-3.1-pro` scores **0.756** on Epoch's SWE-bench
-Verified and **0.118** on DeepSWE. Same model family, same task shape, a 6× gap. At least one of
-those numbers does not mean what a naive reading says (the DeepSWE row is a *preview* build run
-under `mini-swe-agent`; a tool-format mismatch is the leading hypothesis, unverified). Shipping
-either number without an explanation would hand a user a verdict the evidence does not support —
-and it would land squarely on Google AI Pro/Plus/Ultra, three of our ten plans.
+**Trap 1 — the Gemini contradiction.** Gemini 3.1 Pro scores **0.756** on Epoch's SWE-bench
+Verified and **0.118** on DeepSWE — a 6.4× gap on the same model family and the same task shape.
+Neither row is the plain model: SWE-bench carries `gemini-3.1-pro-preview-**customtools**`, DeepSWE
+carries `gemini-3.1-pro-preview` under `mini-swe-agent`. **Both are previews**, so "one is a preview"
+explains nothing — the distinguishing token is `customtools`, i.e. the tool interface the model was
+given. The leading hypothesis is therefore a tool-format mismatch under the default harness, and
+that is what W1 must test; it is unverified until it is. Shipping either number without the
+explanation would hand a user a verdict the evidence does not support — and it lands squarely on
+Google AI Pro/Plus/Ultra, three of our ten plans.
 
 **Trap 2 — effort is a scoring dimension we do not model.** Epoch reports the same model at
-`max / xhigh / high / medium`, and the spread is not cosmetic: `claude-opus-5` runs 0.736 (max) down
-to 0.581; `gpt-5.6-sol` 0.727 down to 0.454. Today a score in this system is a **(model, harness)**
-pair. If the registry canonicalises `claude-opus-5_max` → `claude-opus-5`, four different runs
+**five** levels — `max / xhigh / high / medium / low` (the first draft of this plan said four and
+omitted `low`; the fresh-eyes pass caught it, and `low` is exactly where the spread's bottom sits).
+The spread is not cosmetic: `claude-opus-5` runs 0.736 at max down to **0.581 at low**; `gpt-5.6-sol`
+0.727 down to **0.454**. Today a score in this system is a **(model, harness)** pair. If the registry
+canonicalises `claude-opus-5_max` → `claude-opus-5`, five different runs
 collapse into one and `MAX()` silently publishes the best-case number — advertising a performance
 level the buyer's plan may not even offer. **A score becomes a (model, harness, effort) triple in
 this milestone, or the ingestion is not honest.**
@@ -72,7 +93,7 @@ Also observed and to be handled, not assumed: FrontierCode's `Reasoning effort` 
 | REQ-ID | Criterion | Closes |
 |---|---|---|
 | **REQ-ING-010** | Epoch AI is a first-class source: documented CSV bundle, provenance mandatory, loud-fail per source, own `last_verified` clock, staleness disclosed like every other source | M4 deferral |
-| **REQ-ING-011b** | A fresher coding benchmark is INGESTED (not merely investigated), and the coding category's evidence age drops from 170 days to under 60 | M4 deferral |
+| **REQ-ING-011b** | A fresher coding benchmark is INGESTED (not merely investigated). **The freshness target is conditional on W1's finding and is stated as a fork, not a promise:** (a) if the signed board carries a real evaluation date, the coding category's evidence age drops below 60 days and the number is published; (b) if it dates only model releases, the ingestion MUST record that the date is a release date, `source_health` must refuse to read it as evidence age, and the output must say the category's evidence is undated rather than implying currency. Either branch closes the criterion; silently ageing on a release date fails it | M4 deferral |
 | **REQ-CAN-005** | Reasoning effort is PARSED and STORED, never swallowed: `model_version` suffixes and effort columns resolve to an explicit effort value; a row whose effort cannot be determined is counted and disclosed, never defaulted | Trap 2 |
 | **REQ-REC-011** | The coding answer states which effort level it ranked on and what the model reaches at higher effort (shipped string is Turkish, e.g. *"this model reaches 0.74 at max effort"*), per the owner's Q1 ruling | Trap 2 |
 | **REQ-SUB-007** | Coding plan coverage is re-measured through the real engine before and after, and the delta is published as a number in the closure report — a promise is not a measurement | §0 |
@@ -86,15 +107,21 @@ Also observed and to be handled, not assumed: FrontierCode's `Reasoning effort` 
 **W1 — Ingest what is safe, and MEASURE the rest (the decision wave)**
 1. `EpochClient` + parser over the documented CSV bundle. One canonical fake + a contract test
    against the real file shapes now on disk (V3C-44).
-2. Ingest **Epoch's SWE-bench Verified** first — it is the same benchmark the project already
-   carries, so it is the lowest-doctrine-risk step: fresher rows, harness recorded as Epoch's own
-   `inspect_ai` runs, disclosed as a distinct harness rather than merged into swebench.com's rows.
-3. **Investigate the Gemini contradiction** (REQ-REC-012) — probe Epoch's per-run logs (the CSV
-   carries a `Log viewer` / `Logs` column), compare run configuration, and write the verdict with
-   evidence either way.
-4. **Measure the coverage delta for each candidate board by actually running the registry and
-   `coverage.plan_coverage`** — not by name-matching in a spreadsheet. Deliver a ratified record
-   with the before/after numbers per board.
+2. Ingest **Epoch's SWE-bench Verified** first — same benchmark the project already carries, so it
+   is the lowest-doctrine-risk step and it exercises the whole Epoch path end to end. **It is NOT a
+   freshness win and must not be sold as one:** for the models our plans name its newest run is
+   2026-02-24, a day older than what we already have. Its value is breadth (24 more models, Epoch's
+   own `inspect_ai` harness recorded as a distinct harness, never merged into swebench.com's rows)
+   and a working ingestion the later boards reuse.
+3. **Investigate the Gemini contradiction** (REQ-REC-012) — the variable to test is `customtools`
+   vs the default tool interface, NOT "preview vs release" (both rows are previews). Epoch's
+   SWE-bench CSV carries `Log viewer` / `Logs` columns; use them. Write the verdict with evidence
+   either way, and if it cannot be explained, carry both numbers with the disagreement stated.
+4. **Measure, per candidate board, by actually running the registry and `coverage.plan_coverage`**
+   — not by name-matching in a spreadsheet — and report BOTH numbers that matter: the coverage delta
+   AND what the board's dates actually mean (evaluation date vs model release date). A board that
+   fixes coverage but cannot be aged is a different trade than one that can; the owner signs with
+   both numbers in front of him.
 5. **Owner touchpoint:** the record ends with a recommendation; the owner signs the primary-board
    choice. Waves continue on everything not blocked by that signature.
 
@@ -144,7 +171,14 @@ W1 ≈ 110k (investigation + measurement) · W2 ≈ 80k · W3 ≈ 70k · W4 ≈ 
 (**including a second fresh-eyes pass over every fix delta — M4's escaped-blocker lesson, now
 budgeted rather than improvised**) · closure ≈ 60k → **≈ 500k**.
 
-## 6. Issue inventory (carried in, with owners)
+## 6. Issue inventory
+
+**W-007 is NEW and is written into `docs/warnings.ledger.md` by this plan's commit** — it was found
+during the owner's M4 verification run, after the M4 ledger was closed. The rest are carried in.
+**Ledger reconciliation done here:** W-002 and W-005 were ledgered at M4 close with owning milestone
+"M5 (API contract wave)" on the assumption that M5 would be the API. The owner then set M5 = coding
+rescue, so both move to **M6 with the API**, and the ledger rows say so — the ledger is the truth,
+and it now matches this plan.
 
 | id | What | Wave |
 |---|---|---|

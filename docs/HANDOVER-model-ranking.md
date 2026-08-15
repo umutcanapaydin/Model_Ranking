@@ -1,5 +1,11 @@
 # HANDOVER — model_ranking (agent → agent, 2026-08-11)
 
+> ## ⚠ SUPERSEDED FOR CURRENT STATE — written before M3 and M4 existed.
+> **A newer handover covers this boundary: [`docs/handovers/handover_m5-start.md`](handovers/handover_m5-start.md).**
+> Read that one for where the project IS. This file is kept verbatim because its product
+> explanation and its "what bites" list are still accurate and worth reading — but every
+> statement here about *status, milestones or open work* is two milestones out of date.
+
 > **You are the stranger this was written for.** Continuity lives in files, not sessions.
 > Read this top-to-bottom once (~10 min), then `docs/closure-report-m2.md` and `note.txt`.
 > The pipeline methodology (General Pipeline) is being **replaced with v4.3.1 by the owner** —
