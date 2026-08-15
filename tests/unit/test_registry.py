@@ -187,3 +187,109 @@ def test_score_names_are_canonicalized_on_model_part_not_harness() -> None:
     reconcile(conn)
     mid = conn.execute("SELECT model_id FROM scores").fetchone()[0]
     assert mid == "claude-4.5-opus", "harness text must not drive the match"
+
+
+# ── REQ-CAN-004: rule-authoring safety net (M4-W1) ───────────────────────────
+# The M1-W3 defect (a parent rule swallowing a sibling variant) was found by a
+# reviewer reading regexes. These two tests turn that class into a property the
+# table proves about ITSELF, so every future rule is defended on the day it is
+# added instead of the day it breaks a ranking.
+
+
+def test_every_rule_canonicalizes_to_itself() -> None:
+    """A rule's own id/display must resolve to THAT rule — never to an earlier one.
+
+    This is the swallow check: if `gemini-3.1-pro` resolves to `gemini-3-pro`,
+    two different models share one price and one score, silently.
+    """
+    from app.workflows.registry import MODEL_RULES, canonicalize
+
+    for rule in MODEL_RULES:
+        for probe in (rule.canonical_id, rule.display, rule.canonical_id.replace("-", " ")):
+            got = canonicalize(probe)
+            assert got is not None, f"{rule.canonical_id}: own name {probe!r} matches NO rule"
+            assert got.canonical_id == rule.canonical_id, (
+                f"swallowed: {probe!r} (rule {rule.canonical_id}) resolves to "
+                f"{got.canonical_id} — a more specific rule must precede the general one"
+            )
+
+
+def test_no_duplicate_canonical_ids_or_patterns() -> None:
+    from app.workflows.registry import MODEL_RULES
+
+    ids = [r.canonical_id for r in MODEL_RULES]
+    assert len(ids) == len(set(ids)), "duplicate canonical id"
+    pats = [r.pattern for r in MODEL_RULES]
+    assert len(pats) == len(set(pats)), "duplicate pattern"
+
+
+# ── REQ-CAN-004 (M4-W1 review MINOR-7): rules are defended by LIVE NAMES ─────
+# The two properties above only probe a rule against its OWN id. The M4-W1
+# review proved that is too narrow: every real swallow it found involved a name
+# a SOURCE emits, not a name the table writes. This corpus is copied verbatim
+# from live sources on 2026-08-15 (LiteLLM pricing aliases, Arena model_name,
+# SWE-bench entries) — including every wrong mapping that review caught, so a
+# regression re-breaks the exact case that was paid for.
+LIVE_NAME_EXPECTATIONS: tuple[tuple[str, str | None], ...] = (
+    # variant must never fold into its base (own price AND own score live)
+    ("deepseek-v4-flash", "deepseek-v4-flash"),
+    ("deepseek-v4-pro", "deepseek-v4-pro"),
+    ("deepseek-v4", "deepseek-v4"),
+    ("minimax/MiniMax-M2.5-lightning", None),
+    ("zai/glm-5-code", None),
+    ("glm-5v-turbo", None),
+    ("oci/xai.grok-4.20-multi-agent", None),
+    # image / live-API products are not text models
+    ("gemini-3-pro-image", None),
+    ("gemini-3.1-flash-image", None),
+    ("gemini-3.1-flash-lite", None),
+    # versioned Pro models drop and are counted; they never join bare GPT-5 Pro
+    ("gpt-5.5-pro", None),
+    ("gpt-5.4-pro", None),
+    ("gpt-5.2-pro", None),
+    ("gpt-5-pro", "gpt-5-pro"),
+    # provider version notations: dotted, dashed, and Fireworks' `p`
+    ("fireworks_ai/glm-5p1", "glm-5.1"),
+    ("glm-5p2", "glm-5.2"),
+    ("fireworks_ai/minimax-m2p1", "minimax-m2.1"),
+    ("minimax-m2p7", "minimax-m2.7"),
+    ("minimax-m2.1-preview", "minimax-m2.1"),
+    # DATE stamps are absorbed (a version token is one digit; a date is not)
+    ("qwen3-max-2025-09-23", "qwen3-max"),
+    ("dashscope/qwen3-max-2026-01-23", "qwen3-max"),
+    ("gpt-5.5-2026-04-23", "gpt-5.5"),
+    ("claude-opus-4-6-20260205", "claude-4.6-opus"),
+    # effort / tier suffixes are absorbed
+    ("claude-opus-5-max", "claude-5-opus"),
+    ("claude-opus-5-high", "claude-5-opus"),
+    ("gpt-5.6-sol-xhigh", "gpt-5.6-sol"),
+    ("gemini-3.5-flash-medium", "gemini-3.5-flash"),
+    ("qwen3.7-max-preview", "qwen3.7-max"),
+    ("gemini-3-flash (thinking-minimal)", "gemini-3-flash"),
+    ("grok-4.20-beta-0309-reasoning", "grok-4.20"),
+    # version markers are NOT absorbed
+    ("gemini-3.1-pro-preview", "gemini-3.1-pro"),
+    ("gemini-3-pro", "gemini-3-pro"),
+    ("qwen3.5-max", "qwen3.5-max"),
+    ("minimax-m2.5", "minimax-m2.5"),
+    ("minimax-m2", "minimax-m2"),
+    ("glm-5", "glm-5"),
+    # the plan pages' own strings (what the product actually links on)
+    ("GPT-5.6", "gpt-5.6"),
+    ("GPT-5.6 Sol Pro", "gpt-5.6-sol"),
+    ("Gemini 3.1 Pro", "gemini-3.1-pro"),
+    ("Gemini 3 Pro", "gemini-3-pro"),
+)
+
+
+def test_live_names_resolve_to_the_right_model() -> None:
+    """Every entry is a string a real source emitted, with the answer we owe it."""
+    from app.workflows.registry import canonicalize
+
+    wrong = []
+    for name, expected in LIVE_NAME_EXPECTATIONS:
+        rule = canonicalize(name)
+        got = rule.canonical_id if rule else None
+        if got != expected:
+            wrong.append(f"{name!r} -> {got} (want {expected})")
+    assert not wrong, "live-name mapping regressions:\n  " + "\n  ".join(wrong)

@@ -14,7 +14,7 @@ from app.workflows.registry import reconcile_plans
 from app.workflows.schema import connect
 from app.workflows.subscribe import plan_ranking, recommend_subscription
 
-# Registry-matchable names on purpose: Gemini 3.1 Pro -> gemini-3-pro,
+# Registry-matchable names on purpose: Gemini 3.1 Pro -> gemini-3.1-pro,
 # Claude 4.5 Opus -> claude-4.5-opus, GPT-5 -> gpt-5. "Mystery Model X" matches nothing.
 DOC = """
 schema: 1
@@ -66,7 +66,7 @@ plans:
 SCORES = (
     # (model_id, raw_name, score) on SWE-bench Verified
     ("gpt-5", "agent + GPT-5", 70.0),
-    ("gemini-3-pro", "agent + Gemini 3.1 Pro", 77.4),
+    ("gemini-3.1-pro", "agent + Gemini 3.1 Pro", 77.4),
     ("claude-4.5-opus", "agent + Claude 4.5 Opus", 79.2),
 )
 
@@ -178,7 +178,9 @@ def test_stale_plan_rows_disclosed_in_output() -> None:
 
 def test_close_call_disclosed_on_near_tie() -> None:
     conn = _db()
-    conn.execute("UPDATE scores SET score = 78.5 WHERE model_id = 'gemini-3-pro'")  # gap 0.7 ≤ 1.5
+    conn.execute(
+        "UPDATE scores SET score = 78.5 WHERE model_id = 'gemini-3.1-pro'"
+    )  # gap 0.7 ≤ 1.5
     rec = recommend_subscription(conn, "sinirsiz", "coding")
     assert rec is not None
     assert rec.close_call is not None

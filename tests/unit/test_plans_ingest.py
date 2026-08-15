@@ -145,19 +145,19 @@ def test_reconcile_plans_links_explicit_names_and_counts_drops() -> None:
     conn = connect()
     ingest_plans(conn, VALID, RunContext())
     report = reconcile_plans(conn)
-    assert report.matched == 1  # Gemini 3.1 Pro -> gemini-3-pro
+    assert report.matched == 1  # Gemini 3.1 Pro -> gemini-3.1-pro (own id since M4-W1)
     assert report.dropped == 1  # Totally Unknown Model X: counted, never guessed
     assert report.dropped_names == ("Totally Unknown Model X",)
     linked = conn.execute(
         "SELECT model_id FROM plan_models WHERE raw_name = 'Gemini 3.1 Pro'"
     ).fetchone()[0]
-    assert linked == "gemini-3-pro"
+    assert linked == "gemini-3.1-pro"
     unlinked = conn.execute(
         "SELECT model_id FROM plan_models WHERE raw_name = 'Totally Unknown Model X'"
     ).fetchone()[0]
     assert unlinked is None
     # The matched model is registered in models (visible to future ranking joins).
-    assert conn.execute("SELECT vendor FROM models WHERE id='gemini-3-pro'").fetchone() == (
+    assert conn.execute("SELECT vendor FROM models WHERE id='gemini-3.1-pro'").fetchone() == (
         "Google",
     )
 
@@ -184,15 +184,21 @@ def test_seed_dataset_ingests_and_reconciles_end_to_end() -> None:
     report = ingest_plans(conn, SEED_PATH.read_text(encoding="utf-8"), run)
     assert report.stored >= 6
     rec = reconcile_plans(conn)
-    # Explicit Gemini names link; GPT-5.6* names have no registry rule yet —
-    # they DROP and are COUNTED (registry drift stays visible, never guessed).
-    assert rec.matched == 2  # distinct names: Gemini 3.1 Pro, Gemini 3 Pro
-    assert rec.dropped_names == ("GPT-5.6", "GPT-5.6 Sol Pro")
-    # Linked rows: google-ai-pro carries both Gemini names, google-ai-ultra one more.
-    assert (
-        conn.execute("SELECT COUNT(*) FROM plan_models WHERE model_id IS NOT NULL").fetchone()[0]
-        == 3
-    )
+    # M4-W1: the GPT-5.6 family and the dotted Gemini versions now have rules, so
+    # every name the seed's pages state EXPLICITLY links — zero drops.
+    assert rec.matched == 4  # GPT-5.6, GPT-5.6 Sol Pro, Gemini 3.1 Pro, Gemini 3 Pro
+    assert rec.dropped_names == ()
+    linked = conn.execute(
+        "SELECT plan_id, raw_name, model_id FROM plan_models WHERE model_id IS NOT NULL"
+        " ORDER BY plan_id, raw_name"
+    ).fetchall()
+    assert linked == [
+        ("chatgpt-plus", "GPT-5.6", "gpt-5.6"),
+        ("chatgpt-pro", "GPT-5.6 Sol Pro", "gpt-5.6-sol"),
+        ("google-ai-pro", "Gemini 3 Pro", "gemini-3-pro"),
+        ("google-ai-pro", "Gemini 3.1 Pro", "gemini-3.1-pro"),
+        ("google-ai-ultra", "Gemini 3.1 Pro", "gemini-3.1-pro"),
+    ]
 
 
 def test_schema_check_rejects_nonpositive_price_at_sqlite_layer() -> None:
