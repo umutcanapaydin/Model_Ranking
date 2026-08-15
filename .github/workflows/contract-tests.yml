@@ -24,6 +24,27 @@ permissions:
   contents: read
 
 jobs:
+  # REQ-SUB-004 (M3-W2, owner Q4): the weekly cron doubles as the plan-table
+  # re-verification reminder. A stale curated row FAILS this job — the failure
+  # IS the reminder, wired to a consumer (v4.3 doctrine: a warning nothing
+  # consumes has not warned). Independent of the network-gated job below:
+  # staleness needs no external endpoint, so it can never hide behind a
+  # source outage.
+  plan-staleness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4  # TODO: pin to SHA before going live (same note as ci.yml)
+      - uses: actions/setup-python@v5  # TODO: pin to SHA
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+      - name: Curated plan table within staleness window (REQ-SUB-004)
+        run: python -m app.workflows.plans --check-staleness data/plans.yaml
+
   live-contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 15

@@ -18,6 +18,7 @@ import datetime as dt
 import math
 import re
 import sqlite3
+from dataclasses import dataclass
 from typing import Any
 
 import yaml
@@ -93,14 +94,32 @@ def _validate_plan(entry: Any, seen_ids: set[str]) -> PlanRow:  # noqa: C901
     )
 
 
-def parse_plans(raw: str) -> list[PlanRow]:
-    """Parse + validate the curated plan table; ANY invalid row aborts loudly."""
+@dataclass(frozen=True)
+class PlansDoc:
+    """The whole curated document: threshold as DATA + validated rows (REQ-SUB-003)."""
+
+    staleness_days: int
+    rows: tuple[PlanRow, ...]
+
+
+def parse_plans_doc(raw: str) -> PlansDoc:
+    """Parse + validate the curated plan table; ANY invalid row aborts loudly.
+
+    ``staleness_days`` is REQUIRED at the top level — a default in code would be
+    a threshold living as a code branch, the exact M2-W4 latent-debt class.
+    """
     try:
         doc = yaml.safe_load(raw)
     except yaml.YAMLError as exc:
         raise _fail(f"unparseable YAML: {exc}") from exc
     if not isinstance(doc, dict) or doc.get("schema") != SCHEMA_VERSION:
         raise _fail(f"top-level must be a mapping with schema: {SCHEMA_VERSION}")
+    staleness = doc.get("staleness_days")
+    if isinstance(staleness, bool) or not isinstance(staleness, int) or staleness <= 0:
+        raise _fail(
+            f"staleness_days must be a positive integer at the top level (data, not a code"
+            f" default), got {staleness!r}"
+        )
     entries = doc.get("plans")
     if not isinstance(entries, list) or not entries:
         raise _fail("no 'plans' list — an empty curated table is a bug, not an empty market")
@@ -110,7 +129,12 @@ def parse_plans(raw: str) -> list[PlanRow]:
         row = _validate_plan(entry, seen)
         seen.add(row.id)
         rows.append(row)
-    return rows
+    return PlansDoc(staleness_days=staleness, rows=tuple(rows))
+
+
+def parse_plans(raw: str) -> list[PlanRow]:
+    """Row-only view of parse_plans_doc (kept for W1 call sites and tests)."""
+    return list(parse_plans_doc(raw).rows)
 
 
 def ingest_plans(conn: sqlite3.Connection, raw: str, run: RunContext) -> SourceReport:
@@ -120,11 +144,16 @@ def ingest_plans(conn: sqlite3.Connection, raw: str, run: RunContext) -> SourceR
     table — not per-source rows. Rollback on any violation keeps the previous
     working set (same fail-closed shape as _store_pricing / _store_scores).
     """
-    rows = parse_plans(raw)
+    doc = parse_plans_doc(raw)
+    rows = doc.rows
     try:
         with conn:
             conn.execute("DELETE FROM plan_models")
             conn.execute("DELETE FROM plans")
+            conn.execute(
+                "INSERT OR REPLACE INTO plan_config (id, staleness_days) VALUES (1, ?)",
+                (doc.staleness_days,),
+            )
             conn.executemany(
                 "INSERT INTO plans (id, provider, name, monthly_usd, currency, region,"
                 " limits, source_url, last_verified, observed_at)"
@@ -154,3 +183,104 @@ def ingest_plans(conn: sqlite3.Connection, raw: str, run: RunContext) -> SourceR
     report = SourceReport(source=SOURCE_NAME, stored=len(rows), skipped=0)
     run.reports.append(report)
     return report
+
+
+@dataclass(frozen=True)
+class StalePlan:
+    """One plan row past the staleness window (REQ-SUB-003 — disclosed, never hidden)."""
+
+    plan_id: str
+    name: str
+    last_verified: str
+    days_over: int
+
+
+def stale_plans(conn: sqlite3.Connection) -> tuple[StalePlan, ...]:
+    """Deterministic staleness: last_verified vs THIS ingest's observed_at stamp.
+
+    Same proxy shape as the M2 stale_notice, same documented blind spot: a
+    database that is never re-ingested cannot report itself stale (no
+    wall-clock anchor, by determinism design — D-104). The wall-clock check
+    lives in the CI cadence job (`--check-staleness`, REQ-SUB-004).
+    """
+    cfg = conn.execute("SELECT staleness_days FROM plan_config WHERE id = 1").fetchone()
+    if cfg is None:
+        return ()
+    window = int(cfg[0])
+    out: list[StalePlan] = []
+    for plan_id, name, verified, observed in conn.execute(
+        "SELECT id, name, last_verified, observed_at FROM plans ORDER BY id"
+    ):
+        try:
+            age = (dt.date.fromisoformat(str(observed)[:10]) - dt.date.fromisoformat(verified)).days
+        except ValueError as exc:
+            # last_verified is parser-gated and observed_at is a RunContext stamp, so this
+            # is unreachable through any in-repo write path — only out-of-band DB edits.
+            # Fail LOUD: a corrupt date must never make a stale row look fresh (W2 review).
+            raise _fail(f"{plan_id}: unparseable date in DB (out-of-band edit?): {exc}") from exc
+        if age > window:
+            out.append(StalePlan(plan_id, name, verified, age - window))
+    return tuple(out)
+
+
+def check_staleness(raw: str, today: dt.date) -> list[str]:
+    """Wall-clock re-verification check for CI (REQ-SUB-004).
+
+    Returns one message per plan row whose last_verified is older than the
+    document's own staleness_days relative to ``today``. Empty = all fresh.
+    """
+    doc = parse_plans_doc(raw)
+    msgs: list[str] = []
+    for row in doc.rows:
+        age = (today - dt.date.fromisoformat(row.last_verified)).days
+        if age > doc.staleness_days:
+            msgs.append(
+                f"{row.id}: last_verified {row.last_verified} is {age} days old"
+                f" (window {doc.staleness_days}) — re-verify {row.source_url}"
+            )
+    return msgs
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry point (V4C-50: the cadence job enters HERE, not a unit shim).
+
+    Exit codes match the recommend CLI contract: 0 ok, 1 stale rows found,
+    2 usage/file error.
+    """
+    import argparse
+    import sys
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(prog="plans", description=__doc__)
+    parser.add_argument("--check-staleness", metavar="PLANS_YAML", required=True)
+    parser.add_argument("--today", default=None, help="YYYY-MM-DD (tests/CI determinism)")
+    args = parser.parse_args(argv)
+
+    path = Path(args.check_staleness)
+    if not path.is_file():
+        print(f"error: no such file: {path}", file=sys.stderr)
+        return 2
+    try:
+        # UTC explicitly — a local-TZ date would move the boundary ±1 day per runner TZ.
+        today = (
+            dt.date.fromisoformat(args.today) if args.today else dt.datetime.now(tz=dt.UTC).date()
+        )
+    except ValueError:
+        print(f"error: --today is not YYYY-MM-DD: {args.today!r}", file=sys.stderr)
+        return 2
+    try:
+        msgs = check_staleness(path.read_text(encoding="utf-8"), today)
+    except SourceError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    for msg in msgs:
+        print(f"STALE: {msg}")
+    if msgs:
+        print(f"{len(msgs)} stale plan row(s) — the table needs a verification pass.")
+        return 1
+    print("all plan rows within the staleness window")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -24,6 +24,7 @@
 #   Max $200 — unchanged, long-stable.
 
 schema: 1
+staleness_days: 30   # owner Q3 (2026-08-15): a row older than this is disclosed as stale
 
 plans:
   - id: chatgpt-go

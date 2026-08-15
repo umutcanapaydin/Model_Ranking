@@ -68,6 +68,10 @@ CREATE TABLE IF NOT EXISTS plans (
     last_verified TEXT NOT NULL,          -- YYYY-MM-DD; staleness disclosure rides on this (M3)
     observed_at   TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS plan_config (
+    id             INTEGER PRIMARY KEY CHECK (id = 1),   -- single row
+    staleness_days INTEGER NOT NULL CHECK (staleness_days > 0)
+);
 CREATE TABLE IF NOT EXISTS plan_models (
     plan_id  TEXT NOT NULL,
     raw_name TEXT NOT NULL,               -- model name exactly as the page states it

@@ -214,7 +214,7 @@ Research suggests Supabase or Cloudflare Workers for the serving layer. No decis
 ### REQ-SUB-003 — Staleness is disclosed, never hidden
 
 **Statement:** a plan row older than the staleness window (30 days — owner Q3, stored as data) is flagged in exports and recommendation output.
-**Status:** accepted (m3-plan signed; wired in W2)
+**Status:** accepted (m3-plan signed; flag computation W2, output wiring W3 with REQ-REC-008)
 
 ### REQ-SUB-004 — Re-verification cadence
 

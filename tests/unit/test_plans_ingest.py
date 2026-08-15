@@ -21,6 +21,7 @@ SEED_PATH = REPO_ROOT / "data" / "plans.yaml"
 
 VALID = """
 schema: 1
+staleness_days: 30
 plans:
   - id: test-plan
     provider: TestCo
@@ -86,12 +87,18 @@ def test_duplicate_plan_id_fails_loud() -> None:
 
 def test_empty_table_fails_loud() -> None:
     with pytest.raises(SourceError, match="empty curated table"):
-        parse_plans("schema: 1\nplans: []\n")
+        parse_plans("schema: 1\nstaleness_days: 30\nplans: []\n")
 
 
 def test_wrong_schema_version_fails_loud() -> None:
     with pytest.raises(SourceError, match="schema"):
         parse_plans("schema: 99\nplans: []\n")
+
+
+def test_missing_staleness_window_fails_loud() -> None:
+    """REQ-SUB-003: the window is DATA — a code default would be the M2-W4 debt class."""
+    with pytest.raises(SourceError, match="staleness_days"):
+        parse_plans(VALID.replace("staleness_days: 30\n", ""))
 
 
 def test_ingest_replaces_working_set_atomically() -> None:
