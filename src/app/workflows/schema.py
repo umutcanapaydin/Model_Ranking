@@ -56,6 +56,25 @@ CREATE TABLE IF NOT EXISTS px_median (
     in_m     REAL NOT NULL,
     out_m    REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS plans (
+    id            TEXT PRIMARY KEY,
+    provider      TEXT NOT NULL,
+    name          TEXT NOT NULL,
+    monthly_usd   REAL NOT NULL CHECK (monthly_usd > 0),
+    currency      TEXT NOT NULL,
+    region        TEXT NOT NULL,
+    limits        TEXT NOT NULL,          -- verbatim from the provider page, never paraphrased
+    source_url    TEXT NOT NULL,
+    last_verified TEXT NOT NULL,          -- YYYY-MM-DD; staleness disclosure rides on this (M3)
+    observed_at   TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS plan_models (
+    plan_id  TEXT NOT NULL,
+    raw_name TEXT NOT NULL,               -- model name exactly as the page states it
+    model_id TEXT,                        -- canonical id; NULL until reconcile_plans (drops counted)
+    UNIQUE (plan_id, raw_name)
+);
+CREATE INDEX IF NOT EXISTS idx_plan_models_plan ON plan_models (plan_id);
 """
 
 
@@ -69,6 +88,26 @@ class PricingRow:
     context: int | None
     source: str
     source_url: str
+
+
+@dataclass(frozen=True)
+class PlanRow:
+    """One subscription plan from the curated table (REQ-SUB-001).
+
+    Curated data is authored, not fetched: any invalid row FAILS LOUD at parse
+    (SourceError), never skip-and-count — a curation error is a bug, not noise.
+    """
+
+    id: str
+    provider: str
+    name: str
+    monthly_usd: float
+    currency: str
+    region: str
+    limits: str
+    included_models: tuple[str, ...]  # ONLY names the page explicitly states — never guessed
+    source_url: str
+    last_verified: str
 
 
 @dataclass(frozen=True)

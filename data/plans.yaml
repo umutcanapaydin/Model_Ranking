@@ -1,0 +1,149 @@
+# Curated subscription-plan table (REQ-SUB-001/-002) — THE MOAT.
+#
+# RULES (m3-plan.md, D-107 candidate):
+# - Every value is probed against a live source ON THE DAY it is entered; last_verified = probe date.
+# - `limits` is what the page states, quoted/condensed faithfully — never our interpretation.
+# - `included_models` lists ONLY model names a page states EXPLICITLY. Vague claims ("latest models",
+#   "frontier models") stay in `limits` as text and produce NO model links (M1 rule 4: never guess).
+# - USD / US region first (owner Q2, 2026-08-15). No currency conversion, ever.
+# - Free tiers are out of scope (schema CHECK monthly_usd > 0): the product answers a purchase question.
+# - A price the sources DISPUTE does not enter this table. Excluded on 2026-08-15:
+#     Google AI Plus — $4.99 (felloai, cut dated 2026-06-08) vs $7.99 (costbench, verified 2026-05-27);
+#     re-probe at next verification pass (tracked in M3-W1 wave-close ledger).
+#
+# Verification evidence, 2026-08-15 (owner re-verifies out-of-sandbox at the milestone gate):
+# - chatgpt.com/pricing renders plan names/features but not USD amounts in our fetch; amounts
+#   cross-checked against two independent 2026 trackers (fritz.ai/chatgpt-pricing, updated 2026-07-14;
+#   felloai.com/chatgpt-pricing-guide..., updated 2026-04-24) — both agree: Go $8, Plus $20,
+#   Pro from $100 (a $200 higher tier exists; split dated 2026-04-09).
+# - claude.com/pricing rendered fully: Pro $20 month-to-month / $17 annual; Max from $100.
+# - one.google.com/about/google-ai-plans renders features but not amounts; amounts cross-checked
+#   (costbench.com, verified 2026-05-27; felloai.com/gemini-pricing) — both agree: Pro $19.99,
+#   Ultra from $99.99.
+# - Perplexity amounts cross-checked (felloai.com/perplexity-pricing, updated 2026-05-03): Pro $20,
+#   Max $200 — unchanged, long-stable.
+
+schema: 1
+
+plans:
+  - id: chatgpt-go
+    provider: OpenAI
+    name: ChatGPT Go
+    monthly_usd: 8.0
+    currency: USD
+    region: US
+    limits: >-
+      More messages with tools, more uploads, more image creation, more voice chats,
+      longer memory. Does not include the flagship reasoning model.
+    included_models: []
+    source_url: https://chatgpt.com/pricing/
+    last_verified: 2026-08-15
+
+  - id: chatgpt-plus
+    provider: OpenAI
+    name: ChatGPT Plus
+    monthly_usd: 20.0
+    currency: USD
+    region: US
+    limits: >-
+      Advanced reasoning models with GPT-5.6; expanded messages and uploads; more complex
+      and accurate image creation. First tier that unlocks the GPT-5.6 flagship model.
+    included_models:
+      - GPT-5.6
+    source_url: https://chatgpt.com/pricing/
+    last_verified: 2026-08-15
+
+  - id: chatgpt-pro
+    provider: OpenAI
+    name: ChatGPT Pro
+    monthly_usd: 100.0
+    currency: USD
+    region: US
+    limits: >-
+      From $100/mo; a $200/mo higher-capability tier exists (Pro split 2026-04-09).
+      5x or 20x more usage; GPT-5.6 Sol Pro; unlimited and faster image creation;
+      maximum deep research.
+    included_models:
+      - GPT-5.6 Sol Pro
+    source_url: https://chatgpt.com/pricing/
+    last_verified: 2026-08-15
+
+  - id: claude-pro
+    provider: Anthropic
+    name: Claude Pro
+    monthly_usd: 20.0
+    currency: USD
+    region: US
+    limits: >-
+      Everything in Free, plus more usage; includes Claude Code and Claude Cowork.
+      $17/month billed annually, $20 month-to-month. Plan cards name no specific model versions (model names appear elsewhere on the page — owner re-verifies at the gate).
+    included_models: []
+    source_url: https://claude.com/pricing
+    last_verified: 2026-08-15
+
+  - id: claude-max
+    provider: Anthropic
+    name: Claude Max
+    monthly_usd: 100.0
+    currency: USD
+    region: US
+    limits: >-
+      From $100/month. Everything in Pro, plus choose 5x or 20x more usage than Pro;
+      higher output limits for all tasks. Plan cards name no specific model versions (model names appear elsewhere on the page — owner re-verifies at the gate).
+    included_models: []
+    source_url: https://claude.com/pricing
+    last_verified: 2026-08-15
+
+  - id: google-ai-pro
+    provider: Google
+    name: Google AI Pro
+    monthly_usd: 19.99
+    currency: USD
+    region: US
+    limits: >-
+      4x access to Gemini vs free; Gemini 3.1 Pro and Deep Research; Gemini 3 Pro in
+      AI Mode for Google Search; 5 TB storage.
+    included_models:
+      - Gemini 3.1 Pro
+      - Gemini 3 Pro
+    source_url: https://one.google.com/about/google-ai-plans/
+    last_verified: 2026-08-15
+
+  - id: google-ai-ultra
+    provider: Google
+    name: Google AI Ultra
+    monthly_usd: 99.99
+    currency: USD
+    region: US
+    limits: >-
+      From $99.99/mo; a $199.99/mo higher-limit tier exists. Up to 20x access to Gemini;
+      Gemini 3.1 Pro, Deep Research, Gemini Agent; Deep Think reasoning mode; 20 TB storage.
+    included_models:
+      - Gemini 3.1 Pro
+    source_url: https://one.google.com/about/google-ai-plans/
+    last_verified: 2026-08-15
+
+  - id: perplexity-pro
+    provider: Perplexity
+    name: Perplexity Pro
+    monthly_usd: 20.0
+    currency: USD
+    region: US
+    limits: >-
+      Premium model picker routing to frontier models from OpenAI, Anthropic and Google
+      (roster not published per-plan); $200/year annual option.
+    included_models: []
+    source_url: https://www.perplexity.ai/
+    last_verified: 2026-08-15
+
+  - id: perplexity-max
+    provider: Perplexity
+    name: Perplexity Max
+    monthly_usd: 200.0
+    currency: USD
+    region: US
+    limits: >-
+      Everything in Pro with the highest usage limits; $2,000/year annual option.
+    included_models: []
+    source_url: https://www.perplexity.ai/
+    last_verified: 2026-08-15

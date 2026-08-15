@@ -106,6 +106,43 @@ class ReconcileReport:
     dropped_names: tuple[str, ...] = ()  # reviewed at closure — blind spots stay visible
 
 
+@dataclass(frozen=True)
+class PlanReconcileReport:
+    """Plan-model linkage outcome (REQ-SUB-001; drops counted, never guessed)."""
+
+    matched: int
+    dropped: int
+    dropped_names: tuple[str, ...] = ()
+
+
+def reconcile_plans(conn: sqlite3.Connection) -> PlanReconcileReport:
+    """Map plan_models.raw_name (page-stated names) to canonical models.
+
+    A plan's included-model name that no registry rule matches stays NULL and
+    is COUNTED — the drop list is the visibility mechanism for registry drift
+    (M1 rule 4), exactly as with pricing aliases and score raw_names.
+    """
+    matched = dropped = 0
+    dropped_names: list[str] = []
+    with conn:
+        for (raw_name,) in conn.execute("SELECT DISTINCT raw_name FROM plan_models").fetchall():
+            rule = canonicalize(raw_name)
+            if rule is None:
+                dropped += 1
+                dropped_names.append(raw_name)
+                continue
+            matched += 1
+            conn.execute(
+                "UPDATE plan_models SET model_id = ? WHERE raw_name = ?",
+                (rule.canonical_id, raw_name),
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO models (id, display, vendor) VALUES (?,?,?)",
+                (rule.canonical_id, rule.display, rule.vendor),
+            )
+    return PlanReconcileReport(matched, dropped, tuple(sorted(dropped_names)))
+
+
 def reconcile(conn: sqlite3.Connection) -> ReconcileReport:
     """Map pricing aliases + score raw_names to canonical models.
 

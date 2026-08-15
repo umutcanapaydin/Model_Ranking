@@ -189,3 +189,54 @@ The "which $20 plan" answer needs a manually curated plan table with a verificat
 **Status:** open
 **Asked on:** 2026-08-06
 Research suggests Supabase or Cloudflare Workers for the serving layer. No decision needed before the API milestone.
+
+---
+
+## 10. M3 — Subscription-plan table (REQ-SUB / REQ-REC / REQ-GP / REQ-CAL)
+
+> Added 2026-08-15 from the signed m3-plan.md §2 (Q1-Q4 locked by the owner the same day).
+> Note (doc drift, recorded): M2's REQ-ING-005..008 / REQ-CAT-001..003 / REQ-REC-005..006 /
+> REQ-CI-001 were specified in the signed m2-plan.md §2 and never copied here; their canonical
+> statements remain in that signed plan. New REQs land in BOTH from M3 on.
+
+### REQ-SUB-001 — Plan schema with mandatory provenance
+
+**Statement:** `plans` + `plan_models` tables: provider, plan name, monthly USD price (CHECK > 0), currency, region, limits verbatim, source_url, last_verified; included-model names link to canonical models via the registry, unmatched names stay NULL and are counted.
+**Acceptance:** schema enforces price > 0; every row carries source_url + last_verified; reconcile_plans counts drops (never guesses).
+**Status:** accepted (m3-plan signed)
+
+### REQ-SUB-002 — Curated seed dataset, live-verified
+
+**Statement:** `data/plans.yaml` ships ≥6 plans across ≥4 providers (OpenAI, Anthropic, Google, Perplexity — owner Q1), USD/US-first (owner Q2), every value probed against a live source on entry day; curated-file validation FAILS LOUD (skip-and-count is for fetched sources, not authored data).
+**Acceptance:** the real seed file parses, ingests transactionally, and meets the counts above (citing test: tests/unit/test_plans_ingest.py::test_seed_dataset_meets_req_sub_002).
+**Status:** accepted (m3-plan signed)
+
+### REQ-SUB-003 — Staleness is disclosed, never hidden
+
+**Statement:** a plan row older than the staleness window (30 days — owner Q3, stored as data) is flagged in exports and recommendation output.
+**Status:** accepted (m3-plan signed; wired in W2)
+
+### REQ-SUB-004 — Re-verification cadence
+
+**Statement:** a weekly scheduled CI job (owner Q4) fails/reminds when any plan row exceeds the staleness window.
+**Status:** accepted (m3-plan signed; wired in W2)
+
+### REQ-REC-007 — Subscription recommendation
+
+**Statement:** `recommend --subscription` returns three labeled plan picks (quality/value/budget) reusing the budget/quality logic, where a plan's linked models carry the category scores.
+**Status:** accepted (m3-plan signed; W3)
+
+### REQ-REC-008 — Stale-plan disclosure in output
+
+**Statement:** recommendation output disclosing stale plan rows, same honesty contract as stale_notice.
+**Status:** accepted (m3-plan signed; W3)
+
+### REQ-GP-001 — GP v4.3.1 install correctness
+
+**Statement:** `make install-check` green: PROJECT paths complete, GP-INTERNAL files absent, gates wired (make check + pre-commit + CI).
+**Status:** DONE (M3-W0, commit d703a77)
+
+### REQ-CAL-001 — Elo threshold recalibration
+
+**Statement:** assistant-category thresholds recalibrated against live CI data as a data edit in categories.py, rationale recorded.
+**Status:** accepted (m3-plan signed; W3)
