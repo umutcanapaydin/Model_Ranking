@@ -97,4 +97,36 @@ a sentinel — and both seats preferred the sentence to the test, because a call
 test to the implementation's shape. **So the guarantee this wave actually bought is temporal.** That
 is written here rather than in a test, deliberately.
 
+## Wave footprint — RECORD ONLY, no rule attached (v5.0)
+
+```
+Touched:        29 paths (`git diff --name-only f3c75b9..65af224`). Code: src/app/adapter/main.py ·
+                src/app/workflows/{serialize,recommend,subscribe,rank,registry,ingest,plans,
+                categories}.py. Data: data/plans.yaml · .language-allow. Tests: 13 files.
+                Records: docs/{decisions,warnings.ledger,gp-field-findings}.md ·
+                docs/plans/m6-wave-2-close.md · docs/reviews/m6-wave-2-review.md
+K.8 contracts:  CHANGED — `equivalent_plans` becomes labelled groups (REQ-REC-014), the export CSV
+                gains a leading metadata block with `read_export_csv` as its reader, and the whole
+                query vocabulary changed (`dusuk/orta/sinirsiz` -> `low/medium/unlimited`) under
+                D-118. NEW: `serialize.recommendation_json`, which both renderings now depend on.
+                This wave collides with W1's surface deliberately — it is the wave that unified it.
+Closure rounds: not yet — filled at milestone closure.
+```
+
+### Where this wave actually got stuck, and for how long
+
+| | |
+|---|---|
+| Elapsed, first commit to close | **74 min** (`f3c75b9` → `65af224`, three commits) |
+| Gate that consumed it | **row 3 — the fresh-eyes review**, again: BLOCKING, then MINOR on the fix |
+| Gates that cost minutes, not rounds | `lint` five times (unused imports and import order, every one a leftover of an edit rather than a design error), `typecheck` once (the structural `DataclassInstance` protocol needed `ClassVar[dict[str, Field[Any]]]`), `wave-check` twice (a `Filled by`/`Filed by` typo, then an unevidenced row) |
+| Gate that failed for a REAL reason | `check-records`/`L1` twice — once catching a Turkish owner quote I had pasted verbatim into an ADR, once catching the ADR that DESCRIBES `L1` because it spelled the letters `L1` looks for (now GPF-005) |
+| Self-inflicted, no gate involved | one hung test: `sqlite3.backup()` between two live connections blocked, ~5 min to isolate |
+
+**The comparison with W1 is the useful part.** W1: 52 minutes, 2 code files. W2: 74 minutes, 29
+paths. The extra 22 minutes did not buy 27 extra files — the D-118 vocabulary migration was
+mechanical and cost almost nothing. **Both waves spent the same shape of time: one review round to
+find the defect, one to find the defect in the fix.** The lint failures are noise in the total and
+are recorded only so the next reader can see they were noise.
+
 Filled by: `Claude (lead agent, local lane under D-114/D-117)` · Date: `2026-08-17` · Wave commit range: `f3c75b9..working tree`

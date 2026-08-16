@@ -65,6 +65,19 @@ def main(argv: list[str]) -> int:
     if footer and PLACEHOLDER.search(footer.group(0)):
         bad.append(f"the sign-off line is still a template: `{footer.group(0).strip()[:70]}` -- an "
                    "unsigned close names nobody and no commit range, so its evidence cannot be scoped")
+    # v5.0 — the wave footprint. NOT a rule about parallelism: no check here compares one wave's paths
+    # to another's, and none will until two milestones have filled these in. It is a rule that the
+    # RECORD gets filled, because a metadata field nobody is asked for is the sediment this release
+    # spent a day removing. The question it will eventually answer -- can waves run as parallel
+    # subagents -- needs measurement, and measurement needs a collector.
+    for field, why in (("Touched", "which paths this wave actually changed"),
+                       ("K.8 contracts", "which shared interfaces it changed, or NONE")):
+        m = re.search(rf"^\s*{re.escape(field)}:\s*(.*)$", text, re.M)
+        if not m:
+            bad.append(f"no `{field}:` line -- record {why}, from the diff and not from the plan")
+        elif not m.group(1).strip() or PLACEHOLDER.search(m.group(1)):
+            bad.append(f"`{field}:` is still a placeholder -- record {why}. Plan-time paths are a "
+                       "prediction; close-time paths are a measurement")
     if not re.search(r"Filled by:.*Date:.*commit range", text, re.I):
         bad.append("no signed footer (`Filled by: … Date: … Wave commit range: …`) -- an unsigned "
                    "close names nobody and no commit range, so its evidence cannot be scoped")

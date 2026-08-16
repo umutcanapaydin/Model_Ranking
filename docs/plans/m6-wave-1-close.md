@@ -56,4 +56,36 @@ database. The real fix — a median computation that does not write — is engin
 **W-017**, owning milestone M6-W3, where W-009's two migration entry points are already being
 reconciled.
 
+## Wave footprint — RECORD ONLY, no rule attached (v5.0)
+
+```
+Touched:        docs/decisions.md · docs/gp-field-findings.md · docs/plans/m6-wave-1-close.md ·
+                docs/reviews/m6-wave-1-{review,rereview,security}.md · docs/warnings.ledger.md ·
+                src/app/adapter/main.py · tests/unit/test_api_v1.py
+                (`git diff --name-only 1faaf77..f3c75b9` — 9 paths, 2 of them code)
+K.8 contracts:  the `/v1` envelope, the `surface` field and its two coding values,
+                `evidence_dating`, `source_health`, and the error body shape — ALL NEW, frozen by
+                this wave under D-115. No existing shared interface was changed: the engine was not
+                touched, verified by the reviewer two ways.
+Closure rounds: not yet — filled at milestone closure.
+```
+
+### Where this wave actually got stuck, and for how long
+
+Recorded because the owner asked for it and the template's three lines do not carry it. **The
+elapsed figures are commit-to-commit wall clock**, not agent working time, and they include the
+reviewers running in the background — they are an upper bound on the wave, not a cost of the code.
+
+| | |
+|---|---|
+| Elapsed, first commit to close | **52 min** (`1faaf77` → `f3c75b9`) |
+| Gate that consumed it | **row 3 / row 4 — the fresh-eyes review and the security pass** |
+| Gates that cost minutes, not rounds | `lint` twice (import order, then an unused import), `typecheck` once (a template `src/__init__.py` I copied in by mistake broke the src-layout: 64 errors) |
+| Gates that never failed | `test`, `check-records`, `install-check`, `wave-check` |
+
+**The shape of the delay is the finding.** Implementation to first green took a small fraction of
+the wave; the remaining time was three review rounds, and every round found something the previous
+one had not. Nothing was slow because it was hard to write. It was slow because it was wrong in
+ways the author could not see, twice.
+
 Filled by: `Claude (lead agent, local lane under D-114)` · Date: `2026-08-16` · Wave commit range: `1faaf77..working tree, uncommitted — under D-114 the owner makes this wave's commit`
