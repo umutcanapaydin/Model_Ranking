@@ -14,7 +14,7 @@ REQ-ING-011b — **plan evidence health**: how old the exact score row selected
 for each curated plan is. This is deliberately separate from source health: a
 fresh unrelated source row cannot make a stale selected plan row look fresh.
 
-Both are DERIVED — they read the database, never write it — so they can run
+All three are DERIVED — they read the database, never write it — so they can run
 after any ingest, in CI, or against the owner's local file.
 """
 
@@ -185,7 +185,9 @@ def plan_evidence_health(
                 status = "undated"
             else:
                 try:
-                    evidence_day = dt.date.fromisoformat(row.evidence_date[:10])
+                    evidence_day = dt.date.fromisoformat(row.evidence_date)
+                    if evidence_day.isoformat() != row.evidence_date:
+                        raise ValueError
                 except ValueError as exc:
                     msg = (
                         f"{spec.id}/{plan_id}: selected evidence date is not ISO-8601: "

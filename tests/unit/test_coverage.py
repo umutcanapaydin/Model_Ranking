@@ -272,10 +272,11 @@ def test_plan_evidence_health_uses_selected_row_not_source_max() -> None:
     assert stale.evidence_source == "epoch_swe_bench_verified"
 
 
-def test_invalid_selected_evidence_date_fails_loudly() -> None:
+@pytest.mark.parametrize("bad_date", ["not-a-date", "2026-06-18junk"])
+def test_invalid_selected_evidence_date_fails_loudly(bad_date: str) -> None:
     """REQ-ING-011b: corrupt selected dates are not silently relabelled undated."""
     conn = _evidence_db()
-    conn.execute("UPDATE scores SET run_date = 'not-a-date' WHERE model_id = 'glm-5.2'")
+    conn.execute("UPDATE scores SET run_date = ? WHERE model_id = 'glm-5.2'", (bad_date,))
 
     with pytest.raises(ValueError, match="selected evidence date is not ISO-8601"):
         plan_evidence_health(conn, CATEGORIES["coding"], today=dt.date(2026, 8, 16))

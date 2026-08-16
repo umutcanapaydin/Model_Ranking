@@ -31,6 +31,12 @@ fresh (`<60` days), stale (`>=60` days), undated, and unscored. DeepSWE is pre-f
 explicit `high` effort for this W1 comparison; its other 37 rows remain counted as filtered input.
 Release dates on DeepSWE and FrontierCode are intentionally stored as no evaluation date.
 
+The before snapshot is the complete 180-row Verified board extract from pinned SWE-bench commit
+`f42505b21a0eb31a9cc1204caafcbe0da6c1a259` (retrieved 2026-08-16), whose raw SHA-256 is
+`fa4b61d3167dfe99e1a834e007a38372c5bac07b7627f8e2c3904fb48cd4a006`. It preserves every field
+the shipped parser consumes and produces 173 stored rows plus 7 counted duplicates. The producer
+rejects provenance, row-count, field-set, or parser-count drift before measuring the 1/10 baseline.
+
 The pre-Epoch coding baseline is 1/10 scoreable. The selected row is Google AI Pro via Gemini 3 Pro,
 77.4, `live-SWE-agent`, evaluated 2025-11-20 (269 days old). The source itself has a newer row, which
 demonstrates why source-global newest dates cannot stand in for selected-plan evidence.
@@ -49,7 +55,7 @@ demonstrates why source-global newest dates cannot stand in for selected-plan ev
 
 - Fresh (52 days): Perplexity Pro and Perplexity Max select GLM-5.2, 78.7, `inspect_ai`,
   evaluated 2026-06-25. Their roster links are explicit and reconcile to `glm-5.2`.
-- Stale (173 days): Google AI Plus, Pro, and Ultra select Gemini 3.1 Pro, 75.6198,
+- Stale (173 days): Google AI Plus, Pro, and Ultra select Gemini 3.1 Pro, 75.6,
   `inspect_ai`, evaluated 2026-02-24.
 - Unscored: ChatGPT Go, ChatGPT Plus, ChatGPT Pro, Claude Pro, and Claude Max.
 
@@ -67,9 +73,9 @@ value of `medium`. The future parser must state precedence and count such confli
 
 ## Gemini contradiction (REQ-REC-012)
 
-Epoch reports `gemini-3.1-pro-preview-customtools` at 0.756198347107438 under `inspect_ai`.
-DeepSWE reports `gemini-3.1-pro-preview` at 0.11751662971175167 under `mini-swe-agent` and `high` effort:
-a 6.4348x difference.
+Epoch reports `gemini-3.1-pro-preview-customtools` at 75.6% under `inspect_ai`. DeepSWE reports
+`gemini-3.1-pro-preview` at 11.8% under `mini-swe-agent` and `high` effort: a 6.4x difference. The
+producer retains the source fractions for comparison but applies D-109 once at JSON/string output.
 
 A range-read of Epoch's `.eval` journal confirms task `swe_bench_verified`, agent `bash`, solver
 `bash_agent`, edit tools `text_editor` and `apply_patch`, 484 samples, inspect_ai 0.3.174, and

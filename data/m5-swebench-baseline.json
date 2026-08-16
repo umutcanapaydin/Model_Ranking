@@ -1,22 +1,1103 @@
 {
+  "snapshot": {
+    "source_commit": "f42505b21a0eb31a9cc1204caafcbe0da6c1a259",
+    "source_url": "https://raw.githubusercontent.com/swe-bench/swe-bench.github.io/f42505b21a0eb31a9cc1204caafcbe0da6c1a259/data/leaderboards.json",
+    "raw_sha256": "fa4b61d3167dfe99e1a834e007a38372c5bac07b7627f8e2c3904fb48cd4a006",
+    "extract_sha256": "b5b45c86522fa6a7ffa89e4fb2cf01fcc12df071b1a57f84dc285d274ec772a8",
+    "retrieved_at": "2026-08-16",
+    "board": "Verified",
+    "raw_rows": 180,
+    "parser_expected_rows": 173,
+    "fields": [
+      "name",
+      "resolved",
+      "date",
+      "cost"
+    ]
+  },
   "leaderboards": [
     {
       "name": "Verified",
       "results": [
         {
+          "name": "live-SWE-agent + Claude 4.5 Opus medium (20251101)",
+          "resolved": 79.2,
+          "date": "2025-12-15",
+          "cost": null
+        },
+        {
+          "name": "Sonar Foundation Agent + Claude 4.5 Opus",
+          "resolved": 79.2,
+          "date": "2025-12-05",
+          "cost": null
+        },
+        {
+          "name": "TRAE + Doubao-Seed-Code",
+          "resolved": 78.8,
+          "date": "2025-09-28",
+          "cost": null
+        },
+        {
           "name": "live-SWE-agent + Gemini 3 Pro Preview (2025-11-18)",
           "resolved": 77.4,
-          "date": "2025-11-20"
+          "date": "2025-11-20",
+          "cost": null
+        },
+        {
+          "name": "Atlassian Rovo Dev (2025-09-02)",
+          "resolved": 76.8,
+          "date": "2025-09-02",
+          "cost": null
+        },
+        {
+          "name": "EPAM AI/Run Developer Agent v20250719 + Claude 4 Sonnet",
+          "resolved": 76.8,
+          "date": "2025-08-04",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Claude 4.5 Opus (high)",
+          "resolved": 76.8,
+          "date": "2026-02-17",
+          "cost": 376.9539985
+        },
+        {
+          "name": "ACoder",
+          "resolved": 76.4,
+          "date": "2025-08-19",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Gemini 3 Flash (high)",
+          "resolved": 75.8,
+          "date": "2026-02-17",
+          "cost": 177.98206539999998
+        },
+        {
+          "name": "mini-SWE-agent + MiniMax M2.5 (high)",
+          "resolved": 75.8,
+          "date": "2026-02-17",
+          "cost": 36.644993922
+        },
+        {
+          "name": "Warp",
+          "resolved": 75.6,
+          "date": "2025-09-01",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Claude 4.6 Opus",
+          "resolved": 75.6,
+          "date": "2026-02-17",
+          "cost": 275.76132225
+        },
+        {
+          "name": "TRAE + Claude Sonnet 4 + Opus 4 + Sonnet 3.7 + Gemini 2.5 Pro",
+          "resolved": 75.2,
+          "date": "2025-06-12",
+          "cost": null
+        },
+        {
+          "name": "Harness AI",
+          "resolved": 74.8,
+          "date": "2025-07-31",
+          "cost": null
+        },
+        {
+          "name": "Sonar Foundation Agent + Claude 4.5 Sonnet",
+          "resolved": 74.8,
+          "date": "2025-11-03",
+          "cost": null
+        },
+        {
+          "name": "Lingxi-v1.5_claude-4-sonnet-20250514",
+          "resolved": 74.6,
+          "date": "2025-07-20",
+          "cost": null
+        },
+        {
+          "name": "JoyCode + Claude 4 Sonnet + GPT-4.1",
+          "resolved": 74.6,
+          "date": "2025-09-15",
+          "cost": null
+        },
+        {
+          "name": "Refact.ai Agent + Claude 4 Sonnet + o4-mini",
+          "resolved": 74.4,
+          "date": "2025-06-03",
+          "cost": null
+        },
+        {
+          "name": "Prometheus-v1.2.1 + GPT-5",
+          "resolved": 74.4,
+          "date": "2025-10-15",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Claude 4.5 Opus (20251101) (medium)",
+          "resolved": 74.4,
+          "date": "2025-11-24",
+          "cost": 360.6224985
         },
         {
           "name": "mini-SWE-agent + Gemini 3 Pro Preview (2025-11-18)",
           "resolved": 74.2,
-          "date": "2025-11-18"
+          "date": "2025-11-18",
+          "cost": 229.978759475
+        },
+        {
+          "name": "Salesforce AI Research SAGE (OpenHands)",
+          "resolved": 73.8,
+          "date": "2025-11-03",
+          "cost": null
+        },
+        {
+          "name": "Tools + Claude 4 Opus (2025-05-22)",
+          "resolved": 73.2,
+          "date": "2025-05-22",
+          "cost": null
+        },
+        {
+          "name": "Salesforce AI Research SAGE (bash-only)",
+          "resolved": 73.0,
+          "date": "2025-10-21",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + GPT 5.2 Codex",
+          "resolved": 72.8,
+          "date": "2026-02-19",
+          "cost": 224.71194935
+        },
+        {
+          "name": "mini-SWE-agent + GLM 5 (high)",
+          "resolved": 72.8,
+          "date": "2026-02-17",
+          "cost": 267.19456811
+        },
+        {
+          "name": "mini-SWE-agent + GPT 5.2 (high)",
+          "resolved": 72.8,
+          "date": "2026-02-17",
+          "cost": 236.78350885
+        },
+        {
+          "name": "Tools + Claude 4 Sonnet (2025-05-22)",
+          "resolved": 72.4,
+          "date": "2025-05-22",
+          "cost": null
+        },
+        {
+          "name": "OpenHands + GPT-5",
+          "resolved": 71.8,
+          "date": "2025-08-07",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + GPT 5.2 (2025-12-11) (high)",
+          "resolved": 71.8,
+          "date": "2025-12-11",
+          "cost": 260.1295018
+        },
+        {
+          "name": "mini-SWE-agent + Claude 4.5 Sonnet (high)",
+          "resolved": 71.4,
+          "date": "2026-02-17",
+          "cost": 328.9482492
+        },
+        {
+          "name": "Prometheus-v1.2 + GPT-5",
+          "resolved": 71.2,
+          "date": "2025-09-29",
+          "cost": null
+        },
+        {
+          "name": "Qodo Command",
+          "resolved": 71.2,
+          "date": "2025-07-15",
+          "cost": null
+        },
+        {
+          "name": "Bloop",
+          "resolved": 71.2,
+          "date": "2025-07-10",
+          "cost": null
+        },
+        {
+          "name": "Lingxi v1.5 x Kimi K2",
+          "resolved": 71.2,
+          "date": "2025-10-14",
+          "cost": null
+        },
+        {
+          "name": "Warp",
+          "resolved": 71.0,
+          "date": "2025-06-23",
+          "cost": null
+        },
+        {
+          "name": "Moatless Tools + Claude 4 Sonnet",
+          "resolved": 70.8,
+          "date": "2025-06-11",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Kimi K2.5 (high)",
+          "resolved": 70.8,
+          "date": "2026-02-17",
+          "cost": 73.276870372
+        },
+        {
+          "name": "TRAE",
+          "resolved": 70.6,
+          "date": "2025-05-19",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Claude 4.5 Sonnet (20250929)",
+          "resolved": 70.6,
+          "date": "2025-09-29",
+          "cost": 279.16737045
+        },
+        {
+          "name": "Refact.ai Agent",
+          "resolved": 70.4,
+          "date": "2025-05-15",
+          "cost": null
+        },
+        {
+          "name": "OpenHands + Claude 4 Sonnet",
+          "resolved": 70.4,
+          "date": "2025-05-24",
+          "cost": null
+        },
+        {
+          "name": "Augment Agent v1",
+          "resolved": 70.4,
+          "date": "2025-06-10",
+          "cost": null
+        },
+        {
+          "name": "devlo",
+          "resolved": 70.2,
+          "date": "2025-05-19",
+          "cost": null
+        },
+        {
+          "name": "Zencoder (2025-04-30)",
+          "resolved": 70.0,
+          "date": "2025-04-30",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + DeepSeek V3.2 (high)",
+          "resolved": 70.0,
+          "date": "2026-02-17",
+          "cost": 223.92324825
+        },
+        {
+          "name": "OpenHands + Qwen3-Coder-480B-A35B-Instruct",
+          "resolved": 69.6,
+          "date": "2025-08-05",
+          "cost": null
         },
         {
           "name": "mini-SWE-agent + Gemini 3 Pro",
           "resolved": 69.6,
-          "date": "2026-02-26"
+          "date": "2026-02-26",
+          "cost": 480.0099282
+        },
+        {
+          "name": "mini-SWE-agent + GPT 5.2 (2025-12-11)",
+          "resolved": 69.0,
+          "date": "2025-12-11",
+          "cost": 134.8337487
+        },
+        {
+          "name": "Nemotron-CORTEXA",
+          "resolved": 68.2,
+          "date": "2025-05-16",
+          "cost": null
+        },
+        {
+          "name": "GLM-4.6",
+          "resolved": 68.2,
+          "date": "2025-09-30",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Claude 4 Opus (20250514)",
+          "resolved": 67.6,
+          "date": "2025-08-02",
+          "cost": 565.6352234999999
+        },
+        {
+          "name": "SWE-agent + Claude 4 Sonnet",
+          "resolved": 66.6,
+          "date": "2025-05-22",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Claude 4.5 Haiku (high)",
+          "resolved": 66.6,
+          "date": "2026-02-17",
+          "cost": 165.46221805000002
+        },
+        {
+          "name": "Aime-coder v1 + Anthopic Claude 3.7 Sonnet",
+          "resolved": 66.4,
+          "date": "2025-05-14",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + GPT 5.1 Codex (medium)",
+          "resolved": 66.0,
+          "date": "2025-11-24",
+          "cost": 294.44117500000004
+        },
+        {
+          "name": "mini-SWE-agent + GPT 5.1 (2025-11-13) (medium)",
+          "resolved": 66.0,
+          "date": "2025-11-20",
+          "cost": 153.07773625000002
+        },
+        {
+          "name": "OpenHands",
+          "resolved": 65.8,
+          "date": "2025-04-15",
+          "cost": null
+        },
+        {
+          "name": "Augment Agent v0",
+          "resolved": 65.4,
+          "date": "2025-03-16",
+          "cost": null
+        },
+        {
+          "name": "Amazon Q Developer Agent (v20250405-dev)",
+          "resolved": 65.4,
+          "date": "2025-04-05",
+          "cost": null
+        },
+        {
+          "name": "OpenHands + Kimi K2",
+          "resolved": 65.4,
+          "date": "2025-07-16",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + GPT 5 (2025-08-07) (medium)",
+          "resolved": 65.0,
+          "date": "2025-08-07",
+          "cost": 140.19150875
+        },
+        {
+          "name": "mini-SWE-agent + Claude 4 Sonnet (20250514)",
+          "resolved": 64.93,
+          "date": "2025-07-26",
+          "cost": 185.7265839
+        },
+        {
+          "name": "W&B Programmer O1 crosscheck5",
+          "resolved": 64.6,
+          "date": "2025-01-17",
+          "cost": null
+        },
+        {
+          "name": "PatchPilot-v1.1",
+          "resolved": 64.6,
+          "date": "2025-05-03",
+          "cost": null
+        },
+        {
+          "name": "GLM-4.5",
+          "resolved": 64.2,
+          "date": "2025-07-28",
+          "cost": null
+        },
+        {
+          "name": "AgentScope",
+          "resolved": 63.4,
+          "date": "2025-02-06",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Kimi K2 Thinking",
+          "resolved": 63.4,
+          "date": "2025-12-10",
+          "cost": 219.15361769999998
+        },
+        {
+          "name": "Tools + Claude 3.7 Sonnet (2025-02-24)",
+          "resolved": 63.2,
+          "date": "2025-02-24",
+          "cost": null
+        },
+        {
+          "name": "Blackbox AI Agent",
+          "resolved": 62.8,
+          "date": "2025-01-10",
+          "cost": null
+        },
+        {
+          "name": "EPAM AI/Run Developer Agent v20250219 + Anthopic Claude 3.5 Sonnet",
+          "resolved": 62.8,
+          "date": "2025-02-28",
+          "cost": null
+        },
+        {
+          "name": "SWE-agent + Claude 3.7 Sonnet w/ Review Heavy",
+          "resolved": 62.4,
+          "date": "2025-02-25",
+          "cost": null
+        },
+        {
+          "name": "CodeStory Midwit Agent + swe-search",
+          "resolved": 62.2,
+          "date": "2024-12-21",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + MiniMax M2",
+          "resolved": 61.0,
+          "date": "2025-11-24",
+          "cost": 214.128088645
+        },
+        {
+          "name": "OpenHands + 4x Scaled (2024-02-03)",
+          "resolved": 60.8,
+          "date": "2025-02-03",
+          "cost": null
+        },
+        {
+          "name": "EntroPO + R2E + Qwen3-Coder-30B-A3B-Instruct",
+          "resolved": 60.4,
+          "date": "2025-09-01",
+          "cost": null
+        },
+        {
+          "name": "Learn-by-interact",
+          "resolved": 60.2,
+          "date": "2025-01-10",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + DeepSeek V3.2 Reasoner",
+          "resolved": 60.0,
+          "date": "2025-12-01",
+          "cost": 14.0381514
+        },
+        {
+          "name": "mini-SWE-agent + GPT 5 mini (2025-08-07) (medium)",
+          "resolved": 59.8,
+          "date": "2025-08-07",
+          "cost": 17.73853365
+        },
+        {
+          "name": "DeepSWE-Preview + TTS(Bo16)",
+          "resolved": 58.8,
+          "date": "2025-06-29",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + o3 (2025-04-16)",
+          "resolved": 58.4,
+          "date": "2025-07-26",
+          "cost": 166.826374
+        },
+        {
+          "name": "Nemotron-CORTEXA",
+          "resolved": 58.2,
+          "date": "2025-04-10",
+          "cost": null
+        },
+        {
+          "name": "devlo",
+          "resolved": 58.2,
+          "date": "2024-12-13",
+          "cost": null
+        },
+        {
+          "name": "Emergent E1 (v2024-12-23)",
+          "resolved": 57.2,
+          "date": "2024-12-23",
+          "cost": null
+        },
+        {
+          "name": "Gru(2024-12-08)",
+          "resolved": 57.0,
+          "date": "2024-12-08",
+          "cost": null
+        },
+        {
+          "name": "Artemis Agent v2 (2025-09-24)",
+          "resolved": 57.0,
+          "date": "2025-09-24",
+          "cost": null
+        },
+        {
+          "name": "SWE-Rizzo",
+          "resolved": 56.6,
+          "date": "2025-04-05",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Devstral Small (2512)",
+          "resolved": 56.4,
+          "date": "2025-12-09",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + GPT 5 mini",
+          "resolved": 56.2,
+          "date": "2026-02-17",
+          "cost": 23.600609549999998
+        },
+        {
+          "name": "EPAM AI/Run Developer Agent v20241212 + Anthopic Claude 3.5 Sonnet",
+          "resolved": 55.4,
+          "date": "2024-12-12",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Qwen3-Coder 480B/A35B Instruct",
+          "resolved": 55.4,
+          "date": "2025-08-02",
+          "cost": 123.963554
+        },
+        {
+          "name": "mini-SWE-agent + GLM 4.6 (T=1)",
+          "resolved": 55.4,
+          "date": "2025-12-01",
+          "cost": 48.3050376
+        },
+        {
+          "name": "Amazon Q Developer Agent (v20241202-dev)",
+          "resolved": 55.0,
+          "date": "2024-12-02",
+          "cost": null
+        },
+        {
+          "name": "devlo",
+          "resolved": 54.2,
+          "date": "2024-11-08",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + GLM 4.5 (2025-08-22)",
+          "resolved": 54.2,
+          "date": "2025-08-22",
+          "cost": 148.5951744
+        },
+        {
+          "name": "mini-SWE-agent + Devstral (2512)",
+          "resolved": 53.8,
+          "date": "2025-12-09",
+          "cost": null
+        },
+        {
+          "name": "FrogBoss-32B-2510",
+          "resolved": 53.6,
+          "date": "2025-11-10",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Gemini 2.5 Pro (2025-05-06)",
+          "resolved": 53.6,
+          "date": "2025-07-26",
+          "cost": 144.18604781250002
+        },
+        {
+          "name": "CodeSweep - SWE-agent - Kimi K2 Instruct",
+          "resolved": 53.4,
+          "date": "2025-08-04",
+          "cost": null
+        },
+        {
+          "name": "Bracket.sh",
+          "resolved": 53.2,
+          "date": "2025-01-20",
+          "cost": null
+        },
+        {
+          "name": "OpenHands + CodeAct v2.1 (claude-3-5-sonnet-20241022)",
+          "resolved": 53.0,
+          "date": "2024-10-29",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Claude 3.7 Sonnet (20250219)",
+          "resolved": 52.8,
+          "date": "2025-07-20",
+          "cost": 177.3077241
+        },
+        {
+          "name": "EntroPO + R2E + Qwen3-Coder-30B-A3B-Instruct",
+          "resolved": 52.2,
+          "date": "2025-09-01",
+          "cost": null
+        },
+        {
+          "name": "Google Jules + Gemini 2.0 Flash (v20241212-experimental)",
+          "resolved": 52.2,
+          "date": "2024-12-12",
+          "cost": null
+        },
+        {
+          "name": "Engine Labs (2024-11-25)",
+          "resolved": 51.8,
+          "date": "2024-11-25",
+          "cost": null
+        },
+        {
+          "name": "AutoCodeRover-v2.1 (Claude-3.5-Sonnet-20241022)",
+          "resolved": 51.6,
+          "date": "2025-01-22",
+          "cost": null
+        },
+        {
+          "name": "OpenHands + Qwen3-Coder-30B-A3B-Instruct",
+          "resolved": 51.6,
+          "date": "2025-08-05",
+          "cost": null
+        },
+        {
+          "name": "Agentless-1.5 + Claude-3.5 Sonnet (20241022)",
+          "resolved": 50.8,
+          "date": "2024-12-02",
+          "cost": null
+        },
+        {
+          "name": "Solver (2024-10-28)",
+          "resolved": 50.0,
+          "date": "2024-10-28",
+          "cost": null
+        },
+        {
+          "name": "Bytedance MarsCode Agent",
+          "resolved": 50.0,
+          "date": "2024-11-25",
+          "cost": null
+        },
+        {
+          "name": "nFactorial (2024-11-05)",
+          "resolved": 49.2,
+          "date": "2024-11-05",
+          "cost": null
+        },
+        {
+          "name": "Tools + Claude 3.5 Sonnet (2024-10-22)",
+          "resolved": 49.0,
+          "date": "2024-10-22",
+          "cost": null
+        },
+        {
+          "name": "Composio SWE-Kit (2024-10-25)",
+          "resolved": 48.6,
+          "date": "2024-10-25",
+          "cost": null
+        },
+        {
+          "name": "AppMap Navie v2",
+          "resolved": 47.2,
+          "date": "2024-11-06",
+          "cost": null
+        },
+        {
+          "name": "Skywork-SWE-32B + TTS(Bo8)",
+          "resolved": 47.0,
+          "date": "2025-06-16",
+          "cost": null
+        },
+        {
+          "name": "OpenHands + DevStral Small 2505",
+          "resolved": 46.8,
+          "date": "2025-05-20",
+          "cost": null
+        },
+        {
+          "name": "Emergent E1 (v2024-10-12)",
+          "resolved": 46.6,
+          "date": "2024-10-23",
+          "cost": null
+        },
+        {
+          "name": "AutoCodeRover-v2.0 (Claude-3.5-Sonnet-20241022)",
+          "resolved": 46.2,
+          "date": "2024-11-08",
+          "cost": null
+        },
+        {
+          "name": "PatchPilot + Co-PatcheR",
+          "resolved": 46.0,
+          "date": "2025-05-28",
+          "cost": null
+        },
+        {
+          "name": "Solver (2024-09-12)",
+          "resolved": 45.4,
+          "date": "2024-09-24",
+          "cost": null
+        },
+        {
+          "name": "Gru(2024-08-24)",
+          "resolved": 45.2,
+          "date": "2024-08-24",
+          "cost": null
+        },
+        {
+          "name": "FrogMini-14B-2510",
+          "resolved": 45.0,
+          "date": "2025-11-10",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + o4-mini (2025-04-16)",
+          "resolved": 45.0,
+          "date": "2025-07-26",
+          "cost": 104.9866664
+        },
+        {
+          "name": "CodeShellAgent + Gemini 2.0 Flash (Experimental)",
+          "resolved": 44.2,
+          "date": "2025-01-18",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Kimi K2 Instruct",
+          "resolved": 43.8,
+          "date": "2025-08-07",
+          "cost": 265.796683
+        },
+        {
+          "name": "Solver (2024-09-12)",
+          "resolved": 43.6,
+          "date": "2024-09-20",
+          "cost": null
+        },
+        {
+          "name": "Amazon Nova Premier 1.0 (2025-04-30)",
+          "resolved": 42.4,
+          "date": "2025-05-27",
+          "cost": null
+        },
+        {
+          "name": "Agentless Lite + O3 Mini (20250214)",
+          "resolved": 42.4,
+          "date": "2025-02-14",
+          "cost": null
+        },
+        {
+          "name": "DeepSWE-Preview",
+          "resolved": 42.2,
+          "date": "2025-06-29",
+          "cost": null
+        },
+        {
+          "name": "SWE-Exp",
+          "resolved": 42.0,
+          "date": "2025-08-06",
+          "cost": null
+        },
+        {
+          "name": "ugaiforge",
+          "resolved": 41.6,
+          "date": "2025-01-12",
+          "cost": null
+        },
+        {
+          "name": "nFactorial (2024-10-30)",
+          "resolved": 41.6,
+          "date": "2024-10-30",
+          "cost": null
+        },
+        {
+          "name": "SWE-RL (Llama3-SWE-RL-70B + Agentless Mini) (20250226)",
+          "resolved": 41.2,
+          "date": "2025-02-26",
+          "cost": null
+        },
+        {
+          "name": "Nebius AI Qwen 2.5 72B Generator + LLama 3.1 70B Critic",
+          "resolved": 40.6,
+          "date": "2024-11-13",
+          "cost": null
+        },
+        {
+          "name": "Tools + Claude 3.5 Haiku",
+          "resolved": 40.6,
+          "date": "2024-10-22",
+          "cost": null
+        },
+        {
+          "name": "Honeycomb",
+          "resolved": 40.6,
+          "date": "2024-08-20",
+          "cost": null
+        },
+        {
+          "name": "Composio SWEkit + Claude 3.5 Sonnet (2024-10-16)",
+          "resolved": 40.6,
+          "date": "2024-10-16",
+          "cost": null
+        },
+        {
+          "name": "SWE-agent + SWE-agent-LM-32B",
+          "resolved": 40.2,
+          "date": "2025-05-11",
+          "cost": null
+        },
+        {
+          "name": "EPAM AI/Run Developer Agent v20241029 + Anthopic Claude 3.5 Sonnet",
+          "resolved": 39.6,
+          "date": "2024-10-29",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + GPT 4.1 (2025-04-14)",
+          "resolved": 39.58,
+          "date": "2025-07-26",
+          "cost": 73.156562
+        },
+        {
+          "name": "Amazon Q Developer Agent (v20240719-dev)",
+          "resolved": 38.8,
+          "date": "2024-07-21",
+          "cost": null
+        },
+        {
+          "name": "Agentless-1.5 + GPT 4o (2024-05-13)",
+          "resolved": 38.8,
+          "date": "2024-10-28",
+          "cost": null
+        },
+        {
+          "name": "AutoCodeRover (v20240620) + GPT 4o (2024-05-13)",
+          "resolved": 38.4,
+          "date": "2024-06-28",
+          "cost": null
+        },
+        {
+          "name": "Skywork-SWE-32B",
+          "resolved": 38.0,
+          "date": "2025-06-16",
+          "cost": null
+        },
+        {
+          "name": "SWE-agent + DevStral Small 2507",
+          "resolved": 38.0,
+          "date": "2025-07-25",
+          "cost": null
+        },
+        {
+          "name": "Factory Code Droid",
+          "resolved": 37.0,
+          "date": "2024-06-17",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + GPT 5 nano (2025-08-07) (medium)",
+          "resolved": 34.8,
+          "date": "2025-08-07",
+          "cost": 19.037590390000002
+        },
+        {
+          "name": "SWE-agent + Claude 3.5 Sonnet",
+          "resolved": 33.6,
+          "date": "2024-06-20",
+          "cost": null
+        },
+        {
+          "name": "SWE-Fixer (Qwen2.5-7b retriever + Qwen2.5-72b editor)",
+          "resolved": 32.8,
+          "date": "2025-03-06",
+          "cost": null
+        },
+        {
+          "name": "MASAI + GPT 4o (2024-06-12)",
+          "resolved": 32.6,
+          "date": "2024-06-12",
+          "cost": null
+        },
+        {
+          "name": "Artemis Agent v1 (2024-11-20)",
+          "resolved": 32.0,
+          "date": "2024-11-20",
+          "cost": null
+        },
+        {
+          "name": "nFactorial (2024-10-07)",
+          "resolved": 31.6,
+          "date": "2024-10-07",
+          "cost": null
+        },
+        {
+          "name": "SWE-Fixer (Qwen2.5-7b retriever + Qwen2.5-72b editor) 20241128",
+          "resolved": 30.2,
+          "date": "2024-11-28",
+          "cost": null
+        },
+        {
+          "name": "Lingma Agent + Lingma SWE-GPT 72b (v0925)",
+          "resolved": 28.8,
+          "date": "2024-10-02",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Gemini 2.5 Flash (2025-04-17)",
+          "resolved": 28.73,
+          "date": "2025-07-26",
+          "cost": 66.942859175
+        },
+        {
+          "name": "EPAM AI/Run Developer Agent + GPT4o",
+          "resolved": 27.0,
+          "date": "2024-10-16",
+          "cost": null
+        },
+        {
+          "name": "AppMap Navie + GPT 4o (2024-05-13)",
+          "resolved": 26.2,
+          "date": "2024-06-15",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + gpt-oss-120b",
+          "resolved": 26.0,
+          "date": "2025-08-07",
+          "cost": 28.559527899999996
+        },
+        {
+          "name": "nFactorial (2024-10-01)",
+          "resolved": 25.8,
+          "date": "2024-10-01",
+          "cost": null
+        },
+        {
+          "name": "Amazon Q Developer Agent (v20240430-dev)",
+          "resolved": 25.6,
+          "date": "2024-05-09",
+          "cost": null
+        },
+        {
+          "name": "Lingma Agent + Lingma SWE-GPT 72b (v0918)",
+          "resolved": 25.0,
+          "date": "2024-09-18",
+          "cost": null
+        },
+        {
+          "name": "EPAM AI/Run Developer Agent + GPT4o",
+          "resolved": 24.0,
+          "date": "2024-08-20",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + GPT 4.1 mini (2025-04-14)",
+          "resolved": 23.94,
+          "date": "2025-07-20",
+          "cost": 217.57707639999998
+        },
+        {
+          "name": "MCTS-Refine-7B",
+          "resolved": 23.2,
+          "date": "2025-06-27",
+          "cost": null
+        },
+        {
+          "name": "SWE-agent + GPT 4o (2024-05-13)",
+          "resolved": 23.2,
+          "date": "2024-07-28",
+          "cost": null
+        },
+        {
+          "name": "SWE-agent + GPT 4 (1106)",
+          "resolved": 22.4,
+          "date": "2024-04-02",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + GPT 4o (2024-11-20)",
+          "resolved": 21.62,
+          "date": "2025-07-20",
+          "cost": 765.5740625000001
+        },
+        {
+          "name": "mini-SWE-agent + Llama 4 Maverick Instruct",
+          "resolved": 21.04,
+          "date": "2025-07-20",
+          "cost": 156.85304879999998
+        },
+        {
+          "name": "Lingma Agent + Lingma SWE-GPT 7b (v0925)",
+          "resolved": 18.2,
+          "date": "2024-10-02",
+          "cost": null
+        },
+        {
+          "name": "SWE-agent + Claude 3 Opus",
+          "resolved": 15.8,
+          "date": "2024-04-02",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Gemini 2.0 Flash",
+          "resolved": 13.52,
+          "date": "2025-07-26",
+          "cost": 0
+        },
+        {
+          "name": "Lingma Agent + Lingma SWE-GPT 7b (v0918)",
+          "resolved": 10.2,
+          "date": "2024-09-18",
+          "cost": null
+        },
+        {
+          "name": "mini-SWE-agent + Llama 4 Scout Instruct",
+          "resolved": 9.06,
+          "date": "2025-07-20",
+          "cost": 57.8157615
+        },
+        {
+          "name": "mini-SWE-agent + Qwen2.5-Coder 32B Instruct",
+          "resolved": 9.0,
+          "date": "2025-08-03",
+          "cost": 34.05807032999999
+        },
+        {
+          "name": "RAG + Claude 3 Opus",
+          "resolved": 7.0,
+          "date": "2024-04-02",
+          "cost": null
+        },
+        {
+          "name": "RAG + Claude 2",
+          "resolved": 4.4,
+          "date": "2023-10-10",
+          "cost": null
+        },
+        {
+          "name": "RAG + GPT 4 (1106)",
+          "resolved": 2.8,
+          "date": "2024-04-02",
+          "cost": null
+        },
+        {
+          "name": "RAG + SWE-Llama 7B",
+          "resolved": 1.4,
+          "date": "2023-10-10",
+          "cost": null
+        },
+        {
+          "name": "RAG + SWE-Llama 13B",
+          "resolved": 1.2,
+          "date": "2023-10-10",
+          "cost": null
+        },
+        {
+          "name": "RAG + ChatGPT 3.5",
+          "resolved": 0.4,
+          "date": "2023-10-10",
+          "cost": null
         }
       ]
     }

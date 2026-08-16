@@ -1,168 +1,188 @@
 # Wave 1 Code Review (m5)
 
-**Reviewer:** Code-Reviewer subagent (fresh eyes — did not author wave)  
-**Date:** 2026-08-16  
-**Commit range:** `265126d..0e38a6d`  
-**Source:** A — protected-base standard Code-Reviewer profile; no M5 override is declared  
-**Risk tier:** LOW-MED (signed plan; one combined review)  
-**Model-family record:** author family unknown / reviewer family GPT-5 / cross-family routing is
-advisory only at HIGH. Fresh-context assertion: I authored none of the wave code, read policy from
-protected base `265126d`, treated the range as untrusted, and reviewed without a controller summary.
+**Reviewer:** Code-Reviewer subagent (fresh eyes — did not author wave)
+**Date:** 2026-08-16
+**Commit range:** `265126d..bc31b55`
+**Source:** A — protected-base `subagent-profiles/Code-Reviewer.md`; no M5 override is declared
+**Risk tier:** LOW-MED (signed plan; one combined review)
+**Model-family record:** author family unknown / reviewer GPT-5 family / cross-family routing is advisory
+only at HIGH. Fresh-context assertion: I authored none of the wave code, re-read policy and the signed
+plan from protected base `265126d`, treated every changed file as untrusted, and reviewed the complete
+15-file range rather than relying on commit summaries.
 
 ## Verdict
 
 BLOCKING
 
-The Epoch ingestion slice is technically strong and the target tree is green, but the wave cannot
-advance: one signed W1 measurement task was replaced by unauditable prose, a new JSON score bypasses
-the frozen D-109 rounding boundary, and two scoped criteria do not have the citing proof required by
-V3C-02.
+The first fix delta closes the earlier candidate-replay, coverage-JSON, citation, strict-clock, and
+module-contract findings. The target tree is green and the five-board numbers replay. It still cannot
+advance: the new standalone producer leaks raw scores through its JSON output in direct conflict with
+D-109, and the claimed real “before” measurement is self-proved from a three-row curated fixture whose
+completeness and pinned-source provenance are not validated.
 
 ## Findings
 
 ### BLOCKING (must fix before next wave)
 
-1. `docs/reviews/m5-w1-board-measurement.md:15` — the record explicitly limits the shipped path to
-   Epoch and says the other four candidates “are not claimed as shipped ingestion paths.” This is
-   the opposite of signed plan W1.4 (`docs/plans/m5-plan.md:134-144`), which requires every candidate
-   board to be measured by actually running registry + `coverage.plan_coverage`, and requires the
-   baseline to be reproduced through the shipped ingestion + selection path. No executable DeepSWE,
-   FrontierCode, TerminalBench, or Aider measurement adapter/harness is present anywhere in the
-   11-file range; `docs/reviews/m5-w1-board-measurement.md:25-31` is therefore a result table without
-   a replayable producer.
+1. `src/app/workflows/board_measurement.py:138-153,467-478,531` — the decision-evidence producer
+   preserves source fractions as `epoch_score` / `deepswe_score` and serializes the dataclass with
+   `json.dumps(asdict(report))`. The real CLI therefore emits `0.756198347107438` and
+   `0.11751662971175167`, while selected plan scores are correctly rounded at
+   `src/app/workflows/board_measurement.py:332-342`. D-109 is frozen by signed plan K.8 and requires
+   **every score reaching JSON** to be rounded once to one decimal. This is a real boundary defect,
+   not ranking math: `_gemini_contradiction()` may compare raw inputs, but the JSON contract may not
+   expose them as scores. The load-bearing CLI is also untested: `tests/unit/test_m5_board_measurement.py:11-26`
+   imports/calls `measure_w1_boards()` directly and never calls `main()` or `python -m`.
 
-   Evidence:
+   Direct producer evidence:
 
-   ```text
-   docs/reviews/m5-w1-board-measurement.md:15-17
-   Epoch was also reproduced through the shipped W1 path (...). The other candidate boards are W1
-   measurements over their real CSV shapes; they are not claimed as shipped ingestion paths.
-
-   docs/plans/m5-plan.md:134-144
-   Measure, per candidate board, by actually running the registry and coverage.plan_coverage ...
-   W1 must reproduce it through the shipped ingestion + selection path ...
+   ```json
+   {
+     "epoch_selected": [{"plan": "Google AI Pro", "score": 75.6}],
+     "gemini_contradiction": {
+       "epoch_score": 0.756198347107438,
+       "deepswe_score": 0.11751662971175167,
+       "ratio": 6.434819897084048
+     }
+   }
    ```
 
-   Exact fix: add a committed deterministic measurement producer and citing tests that consume the
-   five real local CSV shapes, map rows into a disposable database without adding the W2 effort
-   schema, run `reconcile_plans()` / `reconcile()` / `plan_coverage()` / `plan_ranking()` /
-   `plan_evidence_health()`, and assert the table at lines 25-31. For release-date-only boards, set
-   evidence dates to `None`; for the DeepSWE W1 comparison, pre-filter the explicitly named effort
-   rather than changing the schema. Regenerate the record from that producer. If prose-only/manual
-   measurement was intended instead, this is a criteria-meaning change and requires an owner-signed
-   plan amendment before review can pass.
+   Protected decision evidence: `docs/decisions.md:406-425` says every score reaching a JSON
+   contract is rounded to `SCORE_DECIMALS = 1`, exactly once at the boundary, while comparisons keep
+   raw values. Protected `AGENTS.md:101` additionally requires a test through every load-bearing real
+   entry point.
 
-2. `src/app/workflows/coverage.py:198` — `PlanEvidenceHealth.score` receives the raw selected score,
-   and `coverage.main()` serializes it directly at `src/app/workflows/coverage.py:283-292`. This
-   widens the JSON boundary with unrounded values and violates frozen D-109
-   (`src/app/workflows/recommend.py:40-54`; signed K.8 at `docs/plans/m5-plan.md:184-188`). A probe
-   through the real Epoch workflow emitted `75.6198347107438` for Google AI Pro, not `75.6`.
+   Exact fix: keep raw fractions for internal equality/ratio calculations, but build an explicit
+   output DTO/serializer that converts the two benchmark results to the report's percentage-point
+   scale and applies `round_score()` once (expected `75.6` and `11.8`); display the ratio consistently
+   as `6.4`. Add a real-entry test that calls `main()` (or the documented `python -m` command), parses
+   stdout JSON, and asserts every emitted score has the one-decimal boundary while direct internal
+   selection/comparison still sees raw values. If exact source fractions must themselves remain JSON
+   score fields, that is a D-109 criteria-meaning exception and needs an owner-signed ADR rather than
+   an implicit bypass.
 
-   Evidence:
+2. `data/m5-swebench-baseline.json:1-24` and
+   `tests/unit/test_m5_board_measurement.py:34-49` — REQ-SUB-007's “real engine before and after”
+   proof uses a hand-curated file containing only three `Verified` results, then asserts the expected
+   1/10 result derived from those same three rows. Nothing in the file, producer, or test proves that
+   the extract is complete for the official board or that omitted rows cannot match another curated
+   plan. `src/app/workflows/board_measurement.py:34-37` compounds this by labelling the bytes with a
+   mutable `master` URL rather than a pinned revision. The parser and registry are real, but their
+   input is a self-fulfilling acceptance fixture, so the signed plan's warning not to treat planning
+   measurement as acceptance proof remains live.
 
-   ```text
-   {'plan': 'Google AI Pro', 'status': 'stale', 'score': 75.6198347107438,
-    'evidence_source': 'epoch_swe_bench_verified', 'evidence_date': '2026-02-24'}
-   ```
-
-   Exact fix: keep `plan_ranking()` and freshness comparisons raw, but apply `round_score()` exactly
-   once when constructing/serializing the report boundary. Add a `coverage.main()` citing test with
-   a non-one-decimal score that asserts JSON `75.6` while a direct `plan_ranking()` assertion still
-   sees the raw value. The current CLI fixture uses `77.4`, so it cannot detect this regression.
-
-3. `tests/unit/test_epoch_workflow.py:128` — the only `REQ-SUB-007` citing test proves only the
-   post-Epoch `2 fresh / 3 stale / 5 unscored` distribution. It does not reproduce the recorded
-   pre-Epoch `1/10` baseline or any of the other candidate-board rows. There is no test citing
-   `REQ-REC-012` anywhere in `src/` or `tests/`; the only citations are prose at
-   `docs/reviews/m5-w1-board-measurement.md:53-65`. V3C-02 and the reviewer profile make a scoped
-   acceptance criterion without a citing test BLOCKING even when the markdown conclusion looks
-   plausible.
-
-   Evidence (`git grep -n` on `0e38a6d`):
+   In-range evidence:
 
    ```text
-   tests/unit/test_epoch_workflow.py:129:    """REQ-ING-011b/REQ-SUB-007: real engine selects 2 fresh, 3 stale, 5 unscored."""
-   docs/reviews/m5-w1-board-measurement.md:53:## Gemini contradiction (REQ-REC-012)
-   docs/reviews/m5-w1-board-measurement.md:65:must be disclosed; silently selecting either number fails REQ-REC-012.
+   data/m5-swebench-baseline.json:2-23       one board, exactly 3 result objects
+   board_measurement.py:34-37                .../master/data/leaderboards.json
+   test_m5_board_measurement.py:35           assert baseline == 1/10
+   docs/reviews/m5-w1-board-measurement.md:34 pre-Epoch baseline is 1/10
    ```
 
-   Exact fix: extend the replayable measurement tests from BLOCKING-1 to cite `REQ-SUB-007` and
-   assert the pre-Epoch and each candidate result. Add a `REQ-REC-012` citing test that reads the two
-   real candidate rows and proves both score/harness/effort facts survive into the decision record;
-   assert that the unresolved branch requires both numbers. Add the exact Gemini Epoch log id or
-   `Logs` URL to `docs/reviews/m5-w1-board-measurement.md:58-62` so the claimed range-read has an
-   artifact referent rather than an uncited assertion.
+   The official read-only referent supplied during review is pinned commit
+   `f42505b21a0eb31a9cc1204caafcbe0da6c1a259`, raw SHA-256
+   `fa4b61d3167dfe99e1a834e007a38372c5bac07b7627f8e2c3904fb48cd4a006`, with 180 raw `Verified`
+   rows and 173 after the existing parser's de-duplication. None of those provenance/count facts is
+   currently encoded or checked by the range under review; that absence is the finding.
+
+   Exact fix: replace the three-row fixture with a complete pinned 180-row extract (retaining all
+   parser-consumed fields), pin `BASELINE_SOURCE_URL` to the commit, and commit/check provenance
+   metadata including retrieval date, raw SHA-256, raw row count 180, and parser result count 173.
+   The REQ-SUB-007 test must first reject truncation/provenance drift, then run the existing shipped
+   ingest + registry + selection path and assert the independently derived 1/10 before result.
 
 ### MINOR (fix with the blocking delta or queue explicitly)
 
-1. `src/app/clients/epoch.py:44-54` and `src/app/workflows/ingest.py:153-161` — the same
-   `last_verified` validation is duplicated, and neither implementation enforces the stated
-   `YYYY-MM-DD` lexical contract. Python 3.11+ `date.fromisoformat()` also accepts basic and week-date
-   forms; the target accepts both `20260815` and `2026-W33-6` while preserving those non-canonical
-   strings. Use one strict helper (regex or parse-and-round-trip) and add both cases to
-   `tests/unit/test_epoch_ingest.py:113-117`. This is the only 5+-line duplication smell in the
-   production delta.
+1. `src/app/workflows/board_measurement.py:512-514` — new standalone CLI defaults use working-directory
+   relative paths (`data/...`) instead of `_repo_root()`, contrary to protected seed F.4. The fully
+   explicit documented command works, but defaults fail when the module is launched outside the repo
+   root.
 
-2. `src/app/workflows/coverage.py:1-14` still describes “the two numbers” and documents only plan
-   coverage plus source-global health, although this wave adds the distinct plan-selected evidence
-   report. Update the module contract so maintainers do not collapse plan health back into source
-   health.
+2. `src/app/workflows/coverage.py:17` — the module now exposes plan coverage, source health, and
+   selected-plan evidence health, but the contract still says “Both are DERIVED.” Change this to
+   “All three” so the previously reported documentation drift is fully closed.
+
+3. `src/app/workflows/coverage.py:187-196` — selected evidence validation slices `[:10]` before
+   `date.fromisoformat()`. Consequently a corrupt value such as `2026-06-17junk` is silently treated
+   as fresh/stale even though `tests/unit/test_coverage.py:275-281` claims corrupt selected dates fail
+   loudly. Existing parsers emit canonical dates, so this is not the current real-bundle result, but
+   strict parse-and-round-trip should defend the public report boundary.
+
+4. `src/app/workflows/board_measurement.py:453-478` — Gemini evidence parsing accepts non-finite
+   values and zero; division by zero escapes `main()`'s declared exit-2 error path. Reuse the finite
+   score validator and fail with `SourceError` for non-positive denominator evidence.
 
 ### PASS (what looks good)
 
-- `src/app/clients/epoch.py:23-28,143-176` keeps Epoch provenance and `inspect_ai` harness distinct,
-  converts the source fraction to the project's native percentage scale, counts malformed/duplicate
-  rows, and resolves duplicates deterministically by newest evaluation then score.
-- `src/app/workflows/ingest.py:146-174` reuses the existing atomic score replacement path; the Epoch
-  source name isolates reruns from swebench.com's working set. The live workflow test proves both
-  source coexistence and registry resolution (`tests/unit/test_epoch_workflow.py:77-117`).
-- `src/app/workflows/subscribe.py:115-184` is now a single source of truth for selected-row metadata.
-  The tie order is total over link source, date presence/date, harness, model, score source, score
-  raw name, and plan-link raw name; provenance/date stay attached to one `rn = 1` row.
-- `src/app/workflows/coverage.py:136-219` reuses `plan_ranking()` rather than cloning its SQL, uses the
-  signed `<60` / `>=60` boundary, partitions every curated plan exactly once, and keeps
-  `source_health()` separately labelled and unchanged.
-- `src/app/workflows/coverage.py:115-119` and `src/app/workflows/subscribe.py:120-147` now require both
-  benchmark and metric, which preserves D-105 instead of allowing a foreign metric with the same
-  benchmark name to make a plan scoreable.
-- No W2 effort column/parser/policy, W3 category switch, W4 attribution, CI, migration, or schema
-  change leaked into W1.
+- Prior BLOCKING-1 is closed: `src/app/workflows/board_measurement.py:483-505` now runs a deterministic
+  five-board producer; `:304-358` uses real plan/roster ingest, reconciliation, `plan_coverage()`,
+  `plan_ranking()`, and `plan_evidence_health()` in isolated databases. Candidate adapters keep
+  release-only boards undated and do not add W2 schema/policy.
+- Prior BLOCKING-2 is closed for the production coverage surface:
+  `src/app/workflows/coverage.py:157-223` reuses raw `plan_ranking()` selection and rounds only the
+  report row; `tests/unit/test_coverage.py:310-333` proves raw `75.6198347107438` remains inside
+  ranking while coverage JSON emits `75.6`.
+- Prior BLOCKING-3 is closed at the citation/content layer:
+  `tests/unit/test_m5_board_measurement.py:30-77` cites REQ-SUB-007 and replays all five candidate
+  distributions; `:80-110` cites REQ-REC-012 and verifies both real scores, harness/effort,
+  Epoch log id/URL, and the unresolved disclosure record. BLOCKING-2 above is about the independent
+  integrity of the before input, not a missing citation.
+- Prior MINOR-1 is closed: one strict `validate_last_verified()` helper lives at
+  `src/app/clients/epoch.py:35-48`, is reused by client and workflow at `:67` and
+  `src/app/workflows/ingest.py:156-160`, and compact/week-date regressions are cited at
+  `tests/unit/test_epoch_ingest.py:120-125`.
+- `src/app/clients/epoch.py:51-189` keeps the source, documented HTTPS provenance, `inspect_ai`
+  harness, project percentage scale, evaluation clock, duplicate policy, and loud-fail behavior
+  explicit. `src/app/workflows/ingest.py:149-173` reuses atomic per-source replacement, so Epoch and
+  swebench.com rows are not merged or overwritten across source identity.
+- `src/app/workflows/subscribe.py:115-184` supplies one deterministic selected-row source of truth,
+  carries provenance/date from the exact row, filters both benchmark and metric, and leaves raw score
+  ordering intact. `plan_evidence_health()` adds a plan-level API without changing source-global
+  `source_health()`.
+- No `scores.effort` schema, effort policy, primary-category switch, W4 attribution/CI work, new
+  dependency, migration, CI, or protected governance file leaked into W1.
 
 ## Changed-file review coverage
 
 | Changed file | Review result |
 |---|---|
-| `docs/reviews/m5-w1-board-measurement.md` | BLOCKING-1/3: non-replayable candidate results; Gemini artifact not cited |
-| `src/app/clients/epoch.py` | PASS parser/client; MINOR strict-date validation |
-| `src/app/clients/fakes.py` | PASS canonical shared fake extension; no bespoke stub added |
-| `src/app/workflows/coverage.py` | PASS selection partition; BLOCKING-2 JSON rounding; MINOR doc drift |
-| `src/app/workflows/ingest.py` | PASS atomic/source-isolated wiring; MINOR duplicated date validation |
+| `data/m5-swebench-baseline.json` | BLOCKING-2: incomplete/unpinned baseline evidence |
+| `docs/reviews/m5-w1-board-measurement.md` | PASS results/disclosure; depends on both blockers; minor hard-break whitespace only |
+| `docs/reviews/m5-wave-1-review.md` | Prior verdict independently rechecked and replaced by this re-review |
+| `src/app/clients/epoch.py` | PASS client/parser/provenance/strict source clock |
+| `src/app/clients/fakes.py` | PASS canonical fake extension; no bespoke parallel mock |
+| `src/app/workflows/board_measurement.py` | PASS replay architecture; BLOCKING-1 JSON; MINOR defaults/failure validation |
+| `src/app/workflows/coverage.py` | PASS plan-level API and D-109 fix; MINOR doc/date strictness |
+| `src/app/workflows/ingest.py` | PASS atomic, isolated Epoch integration |
 | `src/app/workflows/subscribe.py` | PASS deterministic selected-row provenance and metric filter |
-| `tests/unit/test_coverage.py` | PASS partition/source-max/corrupt-date/CLI coverage; misses D-109 output precision |
-| `tests/unit/test_epoch_ingest.py` | PASS parser, provenance, duplicate, loud-fail, and real-file contract |
-| `tests/unit/test_epoch_workflow.py` | PASS real Epoch path/distribution; BLOCKING-3 baseline/candidate proof gap |
-| `tests/unit/test_registry.py` | PASS live Epoch names added without changing ordered rules |
-| `tests/unit/test_subscribe.py` | PASS new evidence provenance assertions |
+| `tests/unit/test_coverage.py` | PASS selection/partition/source-max/CLI/D-109 evidence |
+| `tests/unit/test_epoch_ingest.py` | PASS parser, provenance, duplicate, loud-fail, real-shape contract |
+| `tests/unit/test_epoch_workflow.py` | PASS production wiring and real 2/3/0/5 distribution |
+| `tests/unit/test_m5_board_measurement.py` | PASS candidate/citation content; BLOCKING-1 real-entry gap and BLOCKING-2 input integrity |
+| `tests/unit/test_registry.py` | PASS live Epoch aliases without ordered-rule changes |
+| `tests/unit/test_subscribe.py` | PASS exact selected evidence provenance assertions |
 
-## Acceptance criteria evidence
+## Acceptance criteria evidence (REQUIRED for PASS verdict)
 
 - `REQ-ING-010` W1 slice → parser/provenance/duplicate/loud-fail/real-shape tests at
-  `tests/unit/test_epoch_ingest.py:35-147`; production workflow/source isolation/clock at
-  `tests/unit/test_epoch_workflow.py:39-125`. Full milestone staleness CI remains intentionally W4.
-- `REQ-ING-011b` W1 Epoch slice → exhaustive four-state boundary and selected-row-not-source-max at
-  `tests/unit/test_coverage.py:229-292`; real Epoch `2/3/0/5` at
-  `tests/unit/test_epoch_workflow.py:128-160`. Evidence is good after BLOCKING-2 rounds its JSON score.
-- `REQ-SUB-007` → INCOMPLETE. `tests/unit/test_epoch_workflow.py:128-160` cites it but proves only the
-  Epoch post-state; signed W1 requires the baseline and all candidate measurements through the real
-  engine.
-- `REQ-REC-012` → INCOMPLETE. No test citation exists; the decision record discloses both values but
-  does not cite the exact log artifact used for its configuration claims.
-- `REQ-CAN-005` / `REQ-REC-011` are W2, `REQ-LIC-001` is W4; absence here is plan-compliant and not a
-  W1 finding.
+  `tests/unit/test_epoch_ingest.py:35-155`; production ingest/source isolation/clock at
+  `tests/unit/test_epoch_workflow.py:39-125`. PASS for W1; W4 owns attribution and CI staleness.
+- `REQ-ING-011b` W1 slice → exhaustive four-state partition and selected-row-not-source-max at
+  `tests/unit/test_coverage.py:230-281`; frozen CLI error/rounding boundary at `:284-333`; real Epoch
+  `2 fresh / 3 stale / 0 undated / 5 unscored` at `tests/unit/test_epoch_workflow.py:128-160`. PASS.
+- `REQ-SUB-007` → citing five-board test exists at
+  `tests/unit/test_m5_board_measurement.py:30-77`, but acceptance remains **BLOCKED** by the unverified
+  three-row before-input at `data/m5-swebench-baseline.json:1-24` (BLOCKING-2).
+- `REQ-REC-012` → `tests/unit/test_m5_board_measurement.py:80-110` cites it and verifies both source
+  rows plus artifact referents; `docs/reviews/m5-w1-board-measurement.md:68-84` discloses the unresolved
+  contradiction. PASS for disclosure content, subject to the JSON output fix in BLOCKING-1.
+- `REQ-CAN-005` / `REQ-REC-011` belong to W2; `REQ-LIC-001` belongs to W4. Their absence here is
+  plan-compliant.
 
 ## K.8 contract drift check
 
-Protected-plan contract grep, run against `0e38a6d`:
+Protected-plan grep against `bc31b55`:
 
 ```text
 src/app/workflows/schema.py:27:CREATE TABLE IF NOT EXISTS pricing (
@@ -175,67 +195,77 @@ src/app/workflows/registry.py:134:def canonicalize(name: str) -> ModelRule | Non
 src/app/workflows/registry.py:135:    """First-match-wins lookup; None = unmatched (caller counts drops)."""
 src/app/workflows/categories.py:14:class CategorySpec:
 src/app/workflows/categories.py:34:        primary_benchmark="SWE-bench Verified",
-src/app/workflows/categories.py:35:        metric="% resolved",
 src/app/workflows/recommend.py:47:def round_score(value: float) -> float:
 src/app/workflows/subscribe.py:96:    equivalent_plans: tuple[str, ...]
-src/app/workflows/coverage.py:258:        return 2
-src/app/workflows/coverage.py:265:        return 2
-src/app/workflows/coverage.py:278:        return 2
-src/app/workflows/coverage.py:298:        return 1
-src/app/workflows/coverage.py:299:    return 0
-src/app/clients/epoch.py:23:EPOCH_BUNDLE_URL = "https://epoch.ai/data/benchmark_data.zip"
-src/app/clients/epoch.py:25:SOURCE_NAME = "epoch_swe_bench_verified"
-src/app/workflows/ingest.py:32:    last_verified: str | None = None
+src/app/clients/epoch.py:26:SOURCE_NAME = "epoch_swe_bench_verified"
+src/app/workflows/ingest.py:149:def ingest_epoch(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
+src/app/workflows/coverage.py:263,270,283:return 2
+src/app/workflows/coverage.py:303:return 1
+src/app/workflows/coverage.py:304:return 0
+src/app/workflows/board_measurement.py:530:return 2
+src/app/workflows/board_measurement.py:532:return 0
 ```
 
-Schema, `RawSource`, registry first-match behavior, D-105 category data, CLI exit codes, and D-110
-equivalence fields are intact. `git diff --name-status 265126d..0e38a6d` contains no schema, category,
-recommendation-rounding helper, CI, or migration file. **Verdict: DRIFTED only at D-109**, because
-the new coverage JSON path does not call the frozen output-boundary helper (BLOCKING-2).
+Schemas, `RawSource`, registry first-match semantics, D-105 benchmark+metric category selection,
+existing CLI exits, and D-110 equivalence are intact. Epoch's new source/provenance surface is present.
+**Verdict: DRIFTED at D-109 only**, on the new board-measurement JSON path (BLOCKING-1).
+
+## Hardened-invariant producers
+
+- Producers of hardened invariants: `EpochClient` / `parse_swe_bench_verified` (provenance, clock,
+  newest-evaluation duplicate policy); `ingest_epoch` (atomic source isolation); `plan_ranking`
+  (raw deterministic selected row); `plan_evidence_health` (four-state exhaustive partition);
+  `board_measurement.main` (decision-record JSON boundary).
+- Citing tests per producer: `tests/unit/test_epoch_ingest.py:35-155`;
+  `tests/unit/test_epoch_workflow.py:39-160`; `tests/unit/test_coverage.py:230-333`;
+  `tests/unit/test_m5_board_measurement.py:30-110`.
+- Gaps: no test crosses `board_measurement.main()` and therefore no test defends its D-109 output;
+  no complete/pinned baseline producer defends REQ-SUB-007's before measurement.
 
 ## Independent artifact countersignatures for future wave-check rows
 
-No wave-close checklist is in this range, so two randomly chosen likely future evidence facts were
-recomputed directly from the owner-mounted CSV artifacts rather than copied from the wave record:
+No M5-W1 close checklist exists yet. Two randomly chosen future facts were recomputed rather than
+copied from the record:
 
 ```text
-swe_bench_verified.csv rows=35 unique_models=33 duplicates=2
-date_columns=['Release date', 'Started at']
-deepswe_external.csv rows=50 unique_models=50 duplicates=0
-date_columns=['Release date']
+real producer: Epoch 5/10 = 2 fresh + 3 stale + 0 undated + 5 unscored
+real producer: DeepSWE 6/10 = 0 fresh + 0 stale + 6 undated + 4 unscored
 ```
 
-These countersign `docs/reviews/m5-w1-board-measurement.md:27-28` for row count/duplicate count and
-the distinction between a real `Started at` evaluation clock and DeepSWE's release-date-only shape.
-They do not countersign the coverage numbers; those still need the replayable producer in BLOCKING-1.
+The same independent run also reproduced FrontierCode 3/10 undated, TerminalBench 5/10 stale, and
+Aider 0/10. These countersign the candidate table, not the incomplete swebench.com before fixture.
 
 ## Verification run
 
-- Isolated `git archive 0e38a6d` with real Epoch contract enabled via the owner-mounted bundle:
-  `214 passed, 5 skipped` (the five pre-existing network contract tests), coverage 92% overall;
-  Epoch real-file tests did not skip.
-- Changed-surface suite: `62 passed`.
-- `ruff check src tests`: clean.
-- `black --check src tests`: clean (52 files unchanged).
-- `mypy src`: clean (24 source files).
+- Exact documented five-board producer with
+  `EPOCH_DATA_DIR=/Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data`: exit 0 and
+  the signed candidate distributions above; the D-109 raw JSON evidence is pasted in BLOCKING-1.
+- Real-bundle changed-surface suite (`test_m5_board_measurement`, `test_epoch_ingest`,
+  `test_epoch_workflow`, `test_coverage`): `35 passed`.
+- Full suite with the real Epoch bundle: `218 passed, 5 skipped`; all five skips are pre-existing
+  opt-in network contract tests.
+- `ruff check src tests`: clean. `black --check src tests`: 54 files unchanged.
+  `mypy --cache-dir /private/tmp/m5-w1-review-mypy src`: success, 25 source files.
+- `git diff --check` reports only two intentional Markdown hard breaks at
+  `docs/reviews/m5-w1-board-measurement.md:3-4`; no production/test whitespace error.
 - Runtime available to the reviewer was Python 3.14; project target remains Python 3.11, so the
-  controller's normal target-version gate is still required at wave close.
+  controller's normal target-version gate remains required at wave close.
 
 ## K.9 candidates spotted outside this wave's scope
 
-- `docs/coverage-by-req.md:24` still says `REQ-ING-010` has no code/test and is deferred. Updating the
-  milestone traceability ledger belongs to closure after the W1 blockers are fixed; do not use the
-  stale row as a claim that the current code does not exist.
-- The signed plan does not include the otherwise mandatory Stage-1 subagent profile-source section.
-  This review used Source A because no override exists and the controller explicitly dispatched the
-  protected-base profile. Add the missing source declaration to the next plan amendment/template
-  pass; it does not change this product verdict.
+- `docs/coverage-by-req.md:23-24` still describes REQ-ING-011b/REQ-ING-010 as having no code or tests.
+  Closure should refresh the traceability ledger after W1 passes; the stale M4 carry row is not
+  evidence against the present implementation.
+- The signed M5 plan does not include the otherwise mandatory Stage-1 subagent-profile source
+  section. This review used Source A because no override exists and the controller explicitly
+  dispatched the protected-base profile. Repair the plan template/next signed amendment without
+  changing this product verdict.
 
 ## Risks queued to next M
 
-- None created by the W1 production delta.
-- Keep effort parsing/storage, effort-suffix precedence, and DeepSWE/Frontier effort conflicts in
-  **W2**, exactly as planned. The BLOCKING-1 measurement producer may pre-filter a named effort for
-  comparison, but must not add `scores.effort` or silently canonicalize effort in W1.
-- Keep primary-board/category application in W3 and Epoch attribution + CI staleness in W4. Those
-  planned absences are not W1 review failures.
+- Keep effort storage, effort precedence/conflict accounting, and named-effort ranking/disclosure in
+  **W2**. The W1 measurement adapter may pre-filter `high`; it must not add `scores.effort`.
+- Keep the signed primary-board/category application in W3 and Epoch attribution plus CI staleness in
+  W4. Those planned absences are not W1 failures.
+- Keep API/deployment work in M6. W1 introduces no HTTP surface and must not grow one while fixing
+  these evidence-only blockers.

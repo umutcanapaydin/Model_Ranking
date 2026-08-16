@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import hashlib
 import io
 import json
 import math
@@ -31,11 +32,19 @@ from app.workflows.rosters import ingest_rosters
 from app.workflows.schema import ScoreRow, connect
 from app.workflows.subscribe import plan_ranking
 
+BASELINE_SOURCE_COMMIT = "f42505b21a0eb31a9cc1204caafcbe0da6c1a259"
 BASELINE_SOURCE_URL = (
     "https://raw.githubusercontent.com/swe-bench/swe-bench.github.io/"
-    "master/data/leaderboards.json"
+    f"{BASELINE_SOURCE_COMMIT}/data/leaderboards.json"
 )
+BASELINE_RAW_SHA256 = "fa4b61d3167dfe99e1a834e007a38372c5bac07b7627f8e2c3904fb48cd4a006"
+BASELINE_EXTRACT_SHA256 = "b5b45c86522fa6a7ffa89e4fb2cf01fcc12df071b1a57f84dc285d274ec772a8"
+BASELINE_RETRIEVED_AT = "2026-08-16"
+BASELINE_RAW_ROWS = 180
+BASELINE_STORED_ROWS = 173
+_BASELINE_FIELDS = ("name", "resolved", "date", "cost")
 OBSERVED_AT = "2026-08-16T00:00:00+00:00"
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 @dataclass(frozen=True)
@@ -200,6 +209,50 @@ def _csv_rows(path: Path) -> list[dict[str, str | None]]:
     return rows
 
 
+def validate_baseline_snapshot(raw: str) -> None:
+    """Reject truncated, mutable, or incorrectly extracted before-evidence."""
+    try:
+        payload = json.loads(raw)
+        metadata = payload["snapshot"]
+        boards = payload["leaderboards"]
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise SourceError(f"W1 baseline snapshot envelope is malformed: {exc!r}") from exc
+    expected_metadata = {
+        "source_commit": BASELINE_SOURCE_COMMIT,
+        "source_url": BASELINE_SOURCE_URL,
+        "raw_sha256": BASELINE_RAW_SHA256,
+        "extract_sha256": BASELINE_EXTRACT_SHA256,
+        "retrieved_at": BASELINE_RETRIEVED_AT,
+        "board": "Verified",
+        "raw_rows": BASELINE_RAW_ROWS,
+        "parser_expected_rows": BASELINE_STORED_ROWS,
+        "fields": list(_BASELINE_FIELDS),
+    }
+    if not isinstance(metadata, dict) or any(
+        metadata.get(key) != value for key, value in expected_metadata.items()
+    ):
+        raise SourceError("W1 baseline snapshot provenance does not match the pinned source")
+    if not isinstance(boards, list) or len(boards) != 1 or not isinstance(boards[0], dict):
+        raise SourceError("W1 baseline snapshot must contain exactly the complete Verified board")
+    board = boards[0]
+    results = board.get("results")
+    if board.get("name") != "Verified" or not isinstance(results, list):
+        raise SourceError("W1 baseline snapshot has no complete Verified result list")
+    if len(results) != BASELINE_RAW_ROWS:
+        raise SourceError(
+            f"W1 baseline snapshot is truncated: expected {BASELINE_RAW_ROWS} rows, "
+            f"got {len(results)}"
+        )
+    fields = set(_BASELINE_FIELDS)
+    if any(not isinstance(row, dict) or set(row) != fields for row in results):
+        raise SourceError("W1 baseline snapshot does not preserve every parser-consumed field")
+    canonical = json.dumps(
+        results, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode()
+    if hashlib.sha256(canonical).hexdigest() != BASELINE_EXTRACT_SHA256:
+        raise SourceError("W1 baseline snapshot content drifted from the pinned complete extract")
+
+
 def _required_columns(rows: list[dict[str, str | None]], spec: _CandidateSpec) -> None:
     required = {"Model version", spec.score_column}
     if spec.harness_column is not None:
@@ -361,6 +414,7 @@ def _engine_measurement(
 def _baseline(
     plans_raw: str, rosters_raw: str, baseline_raw: str, today: dt.date
 ) -> BoardMeasurement:
+    validate_baseline_snapshot(baseline_raw)
     conn = _prepared_connection(plans_raw, rosters_raw)
     try:
         report = ingest_swebench(
@@ -368,6 +422,13 @@ def _baseline(
             _PayloadSource("swebench", BASELINE_SOURCE_URL, baseline_raw),
             RunContext(observed_at=OBSERVED_AT),
         )
+        if (report.stored, report.skipped) != (
+            BASELINE_STORED_ROWS,
+            BASELINE_RAW_ROWS - BASELINE_STORED_ROWS,
+        ):
+            raise SourceError(
+                "W1 baseline parser result drifted from the pinned complete-board snapshot"
+            )
         return _engine_measurement(
             conn,
             candidate="Existing SWE-bench baseline",
@@ -450,11 +511,15 @@ def _gemini_contradiction(bundle_dir: Path) -> GeminiContradiction:
         "gemini-3.1-pro-preview-customtools",
     )
     deep = _find_model(_csv_rows(bundle_dir / "deepswe_external.csv"), "gemini-3.1-pro-preview")
-    try:
-        epoch_score = float(epoch["mean_score"] or "")
-        deep_score = float(deep["Pass@1"] or "")
-    except (KeyError, ValueError) as exc:
-        raise SourceError("REQ-REC-012 Gemini evidence has an unusable score") from exc
+    epoch_score = _finite_score(epoch.get("mean_score"), 1.0)
+    deep_score = _finite_score(deep.get("Pass@1"), 1.0)
+    if (
+        epoch_score is None
+        or deep_score is None
+        or not 0.0 < epoch_score <= 1.0
+        or not 0.0 < deep_score <= 1.0
+    ):
+        raise SourceError("REQ-REC-012 Gemini evidence has an unusable fractional score")
     required = {
         "epoch_evaluation_date": _evaluation_date(epoch.get("Started at")),
         "epoch_log_id": epoch.get("id"),
@@ -505,13 +570,26 @@ def measure_w1_boards(
     )
 
 
+def _output_payload(report: W1Measurement) -> dict[str, object]:
+    """Apply D-109 exactly once at the standalone JSON boundary."""
+    payload: dict[str, object] = asdict(report)
+    conflict = payload["gemini_contradiction"]
+    if not isinstance(conflict, dict):  # pragma: no cover - dataclass invariant
+        raise AssertionError("Gemini contradiction output is not a mapping")
+    conflict["epoch_score"] = round_score(report.gemini_contradiction.epoch_score * 100.0)
+    conflict["deepswe_score"] = round_score(report.gemini_contradiction.deepswe_score * 100.0)
+    conflict["ratio"] = round_score(report.gemini_contradiction.ratio)
+    conflict["score_unit"] = "percentage points"
+    return payload
+
+
 def main(argv: list[str] | None = None) -> int:
     """Print the deterministic W1 measurement JSON. No files or databases are mutated."""
     parser = argparse.ArgumentParser(prog="m5-w1-measure-boards", description=__doc__)
     parser.add_argument("--bundle-dir", required=True)
-    parser.add_argument("--plans", default="data/plans.yaml")
-    parser.add_argument("--rosters", default="data/rosters.yaml")
-    parser.add_argument("--baseline", default="data/m5-swebench-baseline.json")
+    parser.add_argument("--plans", default=str(_REPO_ROOT / "data/plans.yaml"))
+    parser.add_argument("--rosters", default=str(_REPO_ROOT / "data/rosters.yaml"))
+    parser.add_argument("--baseline", default=str(_REPO_ROOT / "data/m5-swebench-baseline.json"))
     parser.add_argument("--today", default="2026-08-16")
     parser.add_argument("--last-verified", default="2026-08-15")
     args = parser.parse_args(argv)
@@ -528,7 +606,7 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, SourceError, ValueError) as exc:
         print(f"error: W1 measurement failed: {exc}", file=sys.stderr)
         return 2
-    print(json.dumps(asdict(report), ensure_ascii=False, indent=2))
+    print(json.dumps(_output_payload(report), ensure_ascii=False, indent=2))
     return 0
 
 
