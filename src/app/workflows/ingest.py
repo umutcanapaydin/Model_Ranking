@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 
 from app.clients.aider import parse_polyglot, staleness_flag
 from app.clients.arena import parse_arena
+from app.clients.deepswe import parse_deepswe
 from app.clients.epoch import (
     parse_swe_bench_verified as parse_epoch_swe_bench_verified,
 )
@@ -40,6 +41,8 @@ class SourceReport:
     skipped: int
     health: str | None = None  # REQ-ING-003: staleness / anomaly flags, never hidden
     last_verified: str | None = None  # source acquisition/curation clock, not evidence age
+    effort_unknown: int = 0  # REQ-CAN-005: cannot silently default an unclassified run
+    effort_conflicts: int = 0  # explicit-column/suffix disagreement, explicit value wins
 
 
 @dataclass
@@ -172,7 +175,7 @@ def ingest_epoch(conn: sqlite3.Connection, source: RawSource, run: RunContext) -
     if last_verified is None:
         msg = f"{source.name}: last_verified is mandatory for the Epoch bundle"
         raise SourceError(msg)
-    last_verified = validate_last_verified(last_verified)
+    last_verified = validate_last_verified(last_verified, source_name=source.name)
 
     rows, skipped = parse_epoch_swe_bench_verified(
         source.fetch_raw(), source=source.name, source_url=source.url
@@ -183,6 +186,32 @@ def ingest_epoch(conn: sqlite3.Connection, source: RawSource, run: RunContext) -
         stored=len(rows),
         skipped=skipped,
         last_verified=last_verified,
+    )
+    run.reports.append(report)
+    return report
+
+
+def ingest_deepswe(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
+    """Ingest the signed DeepSWE board with explicit effort accounting.
+
+    Release dates remain model metadata and are never stored as ``run_date``.
+    Consequently source and per-plan health disclose this board as undated.
+    """
+    last_verified = getattr(source, "last_verified", None)
+    if last_verified is None:
+        msg = f"{source.name}: last_verified is mandatory for the Epoch bundle"
+        raise SourceError(msg)
+    last_verified = validate_last_verified(last_verified, source_name=source.name)
+
+    rows, stats = parse_deepswe(source.fetch_raw(), source=source.name, source_url=source.url)
+    _store_scores(conn, source.name, rows, run)
+    report = SourceReport(
+        source=source.name,
+        stored=len(rows),
+        skipped=stats.skipped,
+        last_verified=last_verified,
+        effort_unknown=stats.unknown_effort,
+        effort_conflicts=stats.conflicts,
     )
     run.reports.append(report)
     return report

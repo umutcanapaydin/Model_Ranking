@@ -32,18 +32,18 @@ _REQUIRED_COLUMNS = frozenset({"Model version", "mean_score", "Started at"})
 _CANONICAL_DATE = re.compile(r"\d{4}-\d{2}-\d{2}\Z")
 
 
-def validate_last_verified(value: object) -> str:
+def validate_last_verified(value: object, *, source_name: str = SOURCE_NAME) -> str:
     """Return one canonical YYYY-MM-DD acquisition date or fail this source."""
     if not isinstance(value, str) or _CANONICAL_DATE.fullmatch(value) is None:
-        msg = f"{SOURCE_NAME}: last_verified must be YYYY-MM-DD"
+        msg = f"{source_name}: last_verified must be YYYY-MM-DD"
         raise SourceError(msg)
     try:
         parsed = dt.date.fromisoformat(value)
     except ValueError as exc:
-        msg = f"{SOURCE_NAME}: last_verified must be YYYY-MM-DD"
+        msg = f"{source_name}: last_verified must be YYYY-MM-DD"
         raise SourceError(msg) from exc
     if parsed.isoformat() != value:  # defensive: reject alternate ISO lexical forms
-        msg = f"{SOURCE_NAME}: last_verified must be YYYY-MM-DD"
+        msg = f"{source_name}: last_verified must be YYYY-MM-DD"
         raise SourceError(msg)
     return value
 

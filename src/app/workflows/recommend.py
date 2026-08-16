@@ -12,7 +12,8 @@ Rule-based and explainable — no LLM anywhere in this path (D-104):
      (REQ-REC-004).
 
 CLI (the live entry point, V4C-50):
-    python -m app.workflows.recommend --db advisor.db --budget dusuk|orta|sinirsiz --task coding|assistant
+    python -m app.workflows.recommend --db advisor.db --budget dusuk|orta|sinirsiz \
+        --task coding|assistant|agentic-coding
 """
 
 from __future__ import annotations

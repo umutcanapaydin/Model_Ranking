@@ -6,12 +6,19 @@ import csv
 import io
 import math
 from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING
 
+from app.clients.epoch import EPOCH_BUNDLE_URL, validate_last_verified
 from app.clients.protocols import SourceError
 from app.workflows.registry import resolve_effort
 from app.workflows.schema import ScoreRow
 
+if TYPE_CHECKING:
+    from app.clients.protocols import RawSource
+
 SOURCE_NAME = "epoch_deepswe_external"
+EPOCH_DEEPSWE_FILE = "deepswe_external.csv"
 BENCHMARK = "DeepSWE"
 METRIC = "% resolved"
 
@@ -27,6 +34,36 @@ class EffortParseStats:
     skipped: int
     unknown_effort: int
     conflicts: int
+
+
+class DeepSWEClient:
+    """RawSource over the allowlisted DeepSWE CSV in a local Epoch bundle.
+
+    ``last_verified`` records when the local bundle was acquired. DeepSWE has
+    no evaluation-date column, so this clock never becomes score evidence age.
+    """
+
+    name = SOURCE_NAME
+    url = f"{EPOCH_BUNDLE_URL}#{EPOCH_DEEPSWE_FILE}"
+
+    def __init__(self, bundle_dir: str | Path, *, last_verified: str) -> None:
+        if isinstance(bundle_dir, str) and "://" in bundle_dir:
+            msg = f"{SOURCE_NAME}: expected a local unpacked bundle directory, not a URL"
+            raise SourceError(msg)
+        self.bundle_dir = Path(bundle_dir)
+        self.last_verified = validate_last_verified(last_verified, source_name=SOURCE_NAME)
+
+    def fetch_raw(self) -> str:
+        """Read only the allowlisted board; acquisition stays out of runtime."""
+        path = self.bundle_dir / EPOCH_DEEPSWE_FILE
+        if not path.is_file():
+            msg = f"{SOURCE_NAME}: missing CSV in local unpacked bundle: {path}"
+            raise SourceError(msg)
+        try:
+            return path.read_text(encoding="utf-8-sig")
+        except (OSError, UnicodeError) as exc:
+            msg = f"{SOURCE_NAME}: CSV is unreadable: {path}: {exc}"
+            raise SourceError(msg) from exc
 
 
 def _entries(raw: str) -> list[dict[str, str | None]]:
@@ -113,3 +150,12 @@ def parse_deepswe(
     if not best:
         raise SourceError(f"{SOURCE_NAME}: CSV contains no usable DeepSWE rows")
     return list(best.values()), EffortParseStats(skipped, unknown, conflicts)
+
+
+def _static_conformance_check(client: RawSource) -> RawSource:
+    """Compile-time proof that DeepSWEClient satisfies RawSource (D-001)."""
+    return client
+
+
+if TYPE_CHECKING:
+    _static_conformance_check(DeepSWEClient(Path(), last_verified="2000-01-01"))
