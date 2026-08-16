@@ -157,6 +157,50 @@ any new project bootstrapping on v5.0 today.
 
 ---
 
+## GPF-004 — `test-git-authority.py` cannot tell a compliance ATTESTATION from an instruction (this section instructs nobody: it must not be read as a command)
+
+**Severity:** MED. It produces a false BLOCKING on exactly the artifact that proves compliance,
+which teaches a reviewer to stop writing the attestation.
+
+**How it surfaced.** A fresh-eyes reviewer, operating under the rule that agents do not run git in
+the local lane (D-114 here, `AGENTS.md` §3 in v5.0), ended its verdict with the sentence stating
+that no git state-changing command had been run, followed by its `git status --short` evidence.
+`conformance/test-git-authority.py` flagged that sentence as a local-lane git violation.
+
+**Cause, precisely.** The check's `NEGATION` regex exempts a line that *forbids* a command —
+`never`, `do not`, `must not`, `shall not`, `refuse`, `forbid`, `DENY`, `bypass`, and the
+owner-performs constructions. It does not recognise the past-tense negative attestation
+**"no `git commit` … was run"**. The check is section-aware and carefully written — its own comments
+record two earlier rounds of exactly this false-positive class being fixed — but every exemption so
+far is phrased as a PROHIBITION. A record of non-action is a third grammatical mood and the list has
+no entry for it.
+
+**Why it matters more than a wording nit.** The rule this check enforces is one an agent demonstrates
+compliance with by *writing the attestation down*. Under the current pattern, writing it down is what
+fails the build. The available responses are all bad: reshape the sentence to include a magic word
+(prose written to satisfy a grep), delete the attestation (lose the evidence), or ledger a permanent
+red leg (a gate nobody can pass stops being read). This is the same records-versus-instructions
+confusion as **GPF-001**, in a different check — which is the actual signal: two of the seven
+conformance tests share a blind spot, so it is a design gap in the suite rather than a bug in one file.
+
+**Proposed remedies:**
+
+1. **Exempt by artifact class, not by wording** — skip files carrying a `record_type` frontmatter
+   block, and files under `docs/reviews/`. A verdict is a record of what happened; only live
+   instructions can instruct. One rule would close GPF-001 and this together.
+2. **Add the attestation mood to `NEGATION`** — `\bno\b[^.]{0,40}\bwas run\b`, `\bdid not run\b`,
+   `\bnever ran\b`. Cheaper, and it keeps the same enumeration problem one round further out.
+3. **Ship the fixture with the rule (V4C-49):** a `pass/` fixture containing a compliance
+   attestation that must NOT fire, alongside the existing violation fixtures. The check has fixtures
+   for what it must reject and none for what it must accept, which is why two rounds of false
+   positives were found by users rather than by the suite.
+
+**Recorded locally as:** no warning row. Nothing in this project is defective; the finding is
+entirely about the package. The affected line is left as the reviewer wrote it or restated by the
+reviewer — not edited by the lead agent, because it is that reviewer's record.
+
+---
+
 ## What this project did NOT do
 
 It did not write these findings into the GP package tree. v5.0's `M3` rule fails the build on any

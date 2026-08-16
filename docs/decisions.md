@@ -584,4 +584,91 @@ AGENTS.md §3 is an A1 mode change and cannot be assumed from convenience.
 
 ---
 
+## D-115 — Both coding surfaces are served, and neither leads
+
+**Status:** ratified — owner ruling "A", 2026-08-16, answering the carried question M5's
+retrospective posed. Recorded at M6-W1 because that is the wave in which the contract froze;
+AGENTS.md §5 forbids shipping a public contract without an ADR, and permission-matrix §11 makes a
+contract widened without one BLOCKING.
+
+**Decision:** a request for a coding recommendation returns **two** answers — the `coding` surface
+and the `agentic-coding` surface — and **nothing in the payload ranks one above the other.**
+
+Concretely, and these are contract terms, not implementation notes:
+
+1. `task=coding` returns both surfaces. `task=agentic-coding` returns that surface alone: the rule
+   binds the coding *intent*, and a caller naming one surface has already chosen.
+2. There is no `primary` / `default` / `recommended` / `preferred` / `winner` flag, no top-level
+   single answer, and no ranking key — **under any spelling.** The prohibition is on the property,
+   not on a list of words. A citing test asserts the property.
+3. The answers are ordered alphabetically by surface id and the envelope says, in the payload, that
+   the order carries no meaning. Alphabetical is chosen *because* it is meaningless.
+4. Each answer states its own weakness in the payload: `coding` carries its effort-mix notice
+   (D-112) and dated evidence; `agentic-coding` carries `evidence_dating: "undated"` and the
+   sentence explaining that its board publishes release dates, not evaluation dates.
+5. The two answers are structurally symmetric — identical key sets — so that no asymmetry can be
+   read as precedence.
+
+**Rationale:** M5 shipped two honest coding surfaces and no rule saying which leads. `coding` has
+dated evidence over 5 of 10 plans; `agentic-coding` covers 6 of 10 on evidence carrying no
+evaluation date at all. Neither dominates. Choosing one would mean deciding whether
+dated-but-narrow beats undated-but-broad — a product judgement about which weakness a buyer should
+be exposed to. The owner was given the trade with both numbers and ruled that the buyer sees both,
+each labelled. **This is the honesty doctrine applied to a contract:** the product does not resolve
+an ambiguity the evidence does not resolve.
+
+**Mitigation if violated:** `tests/unit/test_api_v1.py` asserts that no key in the envelope matches
+the precedence pattern and that the two answers carry identical key sets. The first version of that
+guard was a nine-name denylist and the M6-W1 fresh-eyes review killed it with one rename
+(`primary_surface`), which is why clause 2 is written as a property. That review is the reason this
+ADR exists in the form it does.
+
+**Revisit when:** a coding board publishes dated evidence at `agentic-coding`'s coverage, which
+would collapse the two surfaces into one and make the question moot — or the owner rules that one
+surface leads, which is a public-contract change and needs a superseding ADR and a `/v2`.
+
+---
+
+## D-117 — Scoped inter-wave commit and push authority for the lead agent
+
+**Status:** ratified — owner directive, 2026-08-17: *"You may also use git to push between waves."*
+(owner, translated from Turkish), given together with the instruction not to pause between waves.
+**Narrows:** D-114, which remains in force for everything this ADR does not name.
+
+**Decision:** the lead agent MAY commit and push at **wave boundaries** during a milestone, under
+all five of the following, every one of which is a condition and not a preference:
+
+1. **The agent's own git identity** — `Claude <noreply@anthropic.com>` in this repository, never the
+   owner's name and never an unset placeholder.
+2. **`GP-Agent` and `GP-Task` trailers** on every commit (V4C-64).
+3. **Green gates only** — `make check` exit 0 at the committed tree. A red gate is not a commit.
+4. **Catastrophe-class git stays forbidden** regardless of this ADR: no `reset --hard`, no
+   `push --force`, no history rewriting, no `checkout`/`restore` over uncommitted work.
+5. **The milestone-closing commit and the out-of-sandbox verification remain the OWNER's.** This
+   ADR moves wave checkpoints, not the gate.
+
+**Rationale, including the part that argues against it.** This re-creates, in narrower form, the
+authority D-114 removed one day earlier — and D-114 was written because **W-011** happened here:
+twelve M5 commits authored under the owner's own name with an unset-git placeholder as the email.
+That risk is structurally different now: the agent's identity in this repository is distinct and
+verified, so a commit cannot be mistaken for the owner's, which is the harm the rule names in as many
+words. What the owner gains is that a five-wave milestone does not accumulate uncommitted work across
+sessions, where a single mistake loses it — the F17 class.
+
+**This is a project override of the GP v5.0 baseline** (D-113). v5.0's `AGENTS.md` §3 states that
+local-lane agents never commit and never push, and ships `conformance/test-git-authority.py` to
+enforce it. That check scans documents for local-lane git instructions, not the agent's own actions,
+so it will stay green — **which is itself worth recording: the control does not detect the thing this
+ADR permits.** The owner's directive governs; the divergence from the baseline is stated here rather
+than discovered later.
+
+**Mitigation if violated:** `git log --format='%an <%ae>'` over any milestone range must show no
+commit authored as the owner that an agent wrote; the M5 gate ran exactly that check and it is how
+W-011 was found.
+
+**Revisit when:** the owner withdraws it, or a commit under this authority reaches `main` with a red
+gate — either of which returns the project to D-114 unmodified.
+
+---
+
 *Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*
