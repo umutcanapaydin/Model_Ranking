@@ -8,6 +8,9 @@ Last session date: 2026-08-16
 Last work agent: Claude (Cowork lead agent, D-106) — inherited M5 mid-milestone from another agent
 
 FIRST THREE THINGS A NEW AGENT DOES
+0. **Read `docs/handovers/handover_rocky.txt` first** — the full agent-to-agent handover written at
+   the M5/M6 boundary (state, methodology, the owner, paths, environment footguns, the question M6
+   opens with). Everything below is its summary.
 1. Read `docs/closure-report-m5.md`, starting at §0 — it records the three rulings that closed M5.
 2. Read `docs/handovers/handover_m5-start.md` for the project's doctrine and footguns (still
    accurate; its "M5 is unsigned" framing is the only stale part — M5 was signed, built and closed).
@@ -72,6 +75,8 @@ ANCHOR
   and poses the next one: two coding surfaces now exist; should the product present both, or choose?
 - Most recent quarterly handover: docs/handovers/handover_q1.txt (M3). **M6 is M%3==0 — the next
   closure MUST generate handover_q2.txt.**
+- Handovers, newest first: `handover_rocky.txt` (M5→M6 boundary, THE one to read) ·
+  `handover_m5-start.md` (M4→M5) · `handover_q1.txt` (quarterly, M3).
 
 HANDOFF NOTES
 Sandbox network: GitHub raw reachable; HF datasets-server / openrouter / epoch.ai are proxy-403 —

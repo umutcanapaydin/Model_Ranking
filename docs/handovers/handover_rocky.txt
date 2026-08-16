@@ -1,0 +1,353 @@
+AGENT-TO-AGENT HANDOVER -- codename ROCKY
+Project: model_ranking
+Boundary: M5 CLOSED + SIGNED + PUSHED (2026-08-16) -> M6 NOT PLANNED
+Written by: Claude (Cowork lead agent, D-106), 2026-08-16, at the owner's request
+Unique name so it cannot be confused with the earlier handovers:
+  - docs/handovers/handover_m5-start.md  (start of M5; doctrine still accurate)
+  - docs/handovers/handover_q1.txt       (quarterly handover, generated at M3)
+  - THIS FILE                            (start of M6)
+
+=======================================================================
+0. READ THIS FIRST -- WHERE THINGS STAND
+=======================================================================
+The repository is GREEN, IDLE and PUSHED. There is no half-finished work, no
+failing gate, no unreviewed wave, and nothing waiting on the agent side.
+
+    origin/main = 8bffe56 "M5 SIGNED: three owner rulings recorded"
+    make check  = 7 targets green, 271 passed / 12 skipped
+    with the owner's Epoch bundle mounted: 278 passed / 5 skipped
+    working tree: clean
+
+M1 through M5 are all CLOSED and SIGNED by the owner. M5 was signed on
+2026-08-16 after the owner ran the whole gate on his own machine -- the first
+independent green outside an agent sandbox in this project.
+
+Exactly ONE thing blocks forward motion, and it is a QUESTION, not a defect:
+
+    M6 has no plan, and the plan cannot be written until the owner answers
+    the carried question in section 8.
+
+Do not start writing code. Do not dispatch a wave. Ask the question, write the
+plan, get it signed, then start. Milestone plans are signed by the owner --
+a standing constant in this project, not a formality.
+
+=======================================================================
+1. THE PROJECT IN SIX LINES
+=======================================================================
+It answers one question honestly: "which AI subscription should I buy?"
+- A curated plan table (data/plans.yaml, 10 plans) plus provider model rosters
+  (data/rosters.yaml) link a PLAN to the MODELS its provider explicitly names.
+- Free-and-legal benchmark and pricing sources score those models.
+- A deterministic, rule-based engine -- no LLM anywhere in the data or scoring
+  path (D-104) -- returns labeled answers per task category and budget.
+- The product's value is the honesty of the links, not the ranking math.
+- It is the engine behind a future iOS advisor app. The HTTP API is M6 scope.
+- Fly.io is the owner's recorded deploy preference but still has NO valid ADR
+  (the citation in m4-plan.md collides with the ratified D-110, and PRD OQ-3
+  still reads "not chosen yet"). Close that properly in M6 with a real ID.
+
+=======================================================================
+2. THE DOCTRINE YOU MUST NOT BREAK (every line was paid for)
+=======================================================================
+- A score is a (model, harness, EFFORT) triple as of M5. Never average across
+  scales. Never mix benchmarks within a category (D-105).
+- Never invent a price or a score. Unmatched names are DROPPED and COUNTED,
+  never guessed. A plan whose page names nothing rankable is disclosed as
+  unscored, never silently ranked.
+- Fail loud, fail closed, per source. A health check fails toward DISCLOSURE.
+- Only documented endpoints. Artificial Analysis is BANNED (D-101).
+- Honesty is a feature and it is implemented: close_call, stale_notice, the
+  budget notice, the effort-mix notice, D-110's equivalence note. If a change
+  makes the answer look better by saying less, it is wrong.
+- D-112 (ratified 2026-08-16): a category with no ranking_effort policy keeps
+  the best evidence each board published and DISCLOSES an unequal-effort
+  comparison instead of equalising it by shrinking the board. The owner ruled
+  that the single-effort rule binds a category that HAS an effort policy, not
+  every category. Do not re-litigate this; it was decided with the measured
+  cost in front of him (28 rankable models today, 19 / 4 / 3 if forced to
+  unspecified / high / max).
+- V4C-79: this repository is written in ENGLISH, everywhere. Conversation with
+  the owner is Turkish; every committed file is English. Genuine exemptions
+  (Turkish-facing PRODUCT strings, pre-M3 records) live in .language-allow
+  WITH A WRITTEN REASON. The L1 probe in scripts/check_records.py enforces it,
+  and it will fail your commit for a Turkish word in an example string -- that
+  has already happened once.
+- V4C-64 / AGENTS.md section 5: an agent commit must be attributable. Set your
+  own git identity BEFORE your first commit and carry GP-Agent / GP-Task
+  trailers. See section 7 for the trap that cost this project a whole ledger
+  entry.
+
+=======================================================================
+3. THE METHODOLOGY -- HOW WORK IS ACTUALLY DONE HERE
+=======================================================================
+Framework: General Pipeline (GP). The repo pins v4.3.1 in AGENTS.md; the GP
+folder on disk now ships v4.3.2 and the v4.3.1 directory no longer exists.
+That drift is known and harmless -- do not "fix" it by rewriting history.
+
+Operating mode: A0.5 with project override D-106.
+  - Waves close AGENT-side: fresh-eyes reviews, green gates pinned to the
+    closing tree, and a committed wave-close checklist.
+  - The OWNER reviews at every MILESTONE, runs his own tests, and signs.
+  - D-106 lets the lead agent run the full test gate and author/push
+    boundary commits on the owner's behalf. Green gates only. Catastrophe-class
+    git operations stay forbidden regardless.
+
+Stage shape per milestone:
+  Plan (owner signs) -> Waves 1..4 -> per-wave fresh-eyes review -> closure.
+  A milestone is capped at roughly 4-6 waves / 2k net lines. Close early;
+  never stretch.
+
+Per-wave controls:
+  - Fresh eyes (K.7): the reviewer never authored the wave's code. This is not
+    negotiable and its value is measured -- the one M5 wave that skipped its
+    review shipped three BLOCKING defects, one of which printed a success
+    message over a database it had not repaired.
+  - Risk tiers (P-005): LOW/MED gets one combined reviewer; HIGH (auth, PII,
+    payment, crypto, MIGRATION, distributed correctness) gets Code + Tester +
+    a pulled-forward security pass. Migration auto-escalates to HIGH.
+  - V3C-02: every acceptance criterion has a CITING TEST -- a test that would
+    fail if the criterion were violated. A criterion without one is BLOCKING
+    at the quality gate.
+  - V3C-72 fault injection: inject the mutant IN PLACE, watch a named test go
+    RED, then restore the file and verify md5 identity. NEVER `git checkout`
+    over uncommitted work.
+
+At closure:
+  - Stage 4.0 security review (BLOCKING before deploy)
+  - Stage 4.1 quality gate: Done Evidence + REQ-ID trace in
+    docs/coverage-by-req.md + V3C-02 + coverage delta
+  - Stage 4.2 capture: process-log, ADRs, EXPERIENCE entry, retrospective
+    (M >= 3) that ANSWERS the previous carried question and POSES the next
+  - Stage 4.3 deploy readiness (if it deploys)
+  - Stage 4.4 handoff: refresh note.txt ALWAYS; if M % 3 == 0 generate the
+    quarterly handover
+  - Every closure generates docs/closure-report-m{N}.md; its section 6
+    architecture-delta PROSE is BLOCKING
+
+  ** M6 IS M % 3 == 0. ITS CLOSURE MUST GENERATE docs/handovers/handover_q2.txt. **
+  The previous one is handover_q1.txt (M3). Do not forget this at the end of a
+  long milestone; it blocks without a dated EXPERIENCE entry as well.
+
+Escalate to the owner IMMEDIATELY, never wait for a boundary:
+  suspected secret; any scanner-finding suppression; BLOCKING at HIGH risk;
+  a stay-green fault with no test; CI/hook/gate-definition changes; a critical
+  CVE or slopsquatted dependency; a modified or deleted security-invariant
+  test; a question about what a CRITERION MEANS; a scope change that
+  invalidates the signed plan.
+
+=======================================================================
+4. THE OWNER -- HOW TO WORK WITH HIM
+=======================================================================
+Umut Can Apaydin (ILGAR). He owns the product, sets scope, signs plans and
+closure reports, and runs commands on his Mac. He does not write code.
+
+Standing constants, in his own words (owner, translated from Turkish):
+  - "If there is a suspected secret, a security finding, or a scope change
+    that invalidates the plan, CUT ME IN INSTANTLY."
+  - "Always send the command together with the path of the directory it runs
+    in -- I sometimes have several terminals open." Do this every single time.
+  - "No waiting between waves; your own tests are enough. I will run the
+    milestone tests afterwards."
+
+How to communicate: Turkish, plain language, short. Give copy-pasteable command
+blocks, one step at a time when the step is risky. NEVER put `rm` in the same
+paste block as a command whose success you have not confirmed -- that mistake
+was made in this project and it destroyed the artifacts of a SUCCESSFUL pull,
+making a success look like a failure.
+
+He is direct when something is going wrong and he is usually right. If he says
+you are looping, stop and check the state yourself instead of asking him for
+one more diagnostic.
+
+=======================================================================
+5. WHERE THINGS LIVE
+=======================================================================
+Repository on the owner's machine:
+  /Users/umutcanapaydin/Desktop/ILGAR/model_ranking
+GitHub:
+  https://github.com/umutcanapaydin/Model_Ranking   (branch: main)
+
+Read in this order before changing anything:
+  AGENTS.md                      house rules, 145 lines, hard cap 150
+  START_HERE.md                  5-minute orientation
+  permission-matrix.md           what is allowed; section 11 = review gates
+  docs/decisions.md              ADRs. Project ADRs are D-100..D-112.
+  docs/prd.md                    REQ-IDs
+  .agents/rules/practices.md     engineering rules
+  note.txt                       CURRENT STATE, always refreshed at closure
+
+The M5 record set, if you need to know why something is the way it is:
+  docs/closure-report-m5.md            section 0 = the three owner rulings
+  docs/retrospectives/m5-retrospective.md   discipline verdicts + carried question
+  docs/reviews/m5-security-review.md   the closure security pass
+  docs/coverage-by-req.md              REQ trace; the BLOCKING verdict is kept
+                                       verbatim next to the PASS that replaced it
+  docs/warnings.ledger.md              W-001..W-011 with owning milestones
+  docs/EXPERIENCE.md                   the lessons, dated per milestone
+  docs/process-log.md                  session-by-session narrative
+
+Owner's data, NOT in the repo (licence + size):
+  /Users/umutcanapaydin/Desktop/terminal_output/model_ranking/
+    epoch_data/            the Epoch AI bundle (CC-BY). Point EPOCH_DATA_DIR
+                           at it to un-skip 7 tests that carry the strongest
+                           evidence for REQ-ING-011b, REQ-SUB-007, REQ-REC-012.
+    arena_overall_*.json   Arena snapshot, 389 rows, 2026-08-12
+    terminal_out_*.txt     his pasted terminal transcripts; he will give you a
+                           path instead of pasting long output. Read the file.
+
+=======================================================================
+6. COMMANDS THAT MATTER
+=======================================================================
+All of these run in /Users/umutcanapaydin/Desktop/ILGAR/model_ranking
+
+  make check
+      The gate. 7 targets: ruff, mypy, pytest, check-records,
+      check-records-selftest, install-check, pin-check.
+      Expected today: 271 passed, 12 skipped.
+      NOTE: black is installed but is NOT invoked by the gate.
+
+  EPOCH_DATA_DIR=/Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data \
+    .venv/bin/python -m pytest -q
+      Expected today: 278 passed, 5 skipped. CI cannot see these 7 tests.
+
+  python -m app.workflows.schema migrate --db PATH
+      The explicit migration command. Atomic, idempotent, opens mode=rw,
+      refuses a database it cannot repair, leaves no rebuild table behind.
+      Reviewed and approved by the owner at the M5 gate.
+
+  make wave-check      wave-close checklist validator
+  make bootstrap-check Stage-0 gate
+
+=======================================================================
+7. ENVIRONMENT FOOTGUNS -- READ BEFORE YOU LOSE AN HOUR
+=======================================================================
+- The agent sandbox CANNOT PUSH (proxy 403 on git push; `git ls-remote` and
+  `git fetch` DO work). Commits reach the owner as a git BUNDLE which he pulls
+  on his Mac. Create with `git bundle create X.bundle <base>..HEAD`, write it
+  into his repo folder, and have him run `git pull ./X.bundle HEAD` -- the
+  `./` prefix is REQUIRED or git treats the name as a remote and fails with
+  "does not appear to be a git repository".
+- `git stash push -u` will swallow an untracked bundle sitting in the repo
+  folder and delete it from disk. That happened here and produced a confusing
+  "does not appear to be a git repository" one line later.
+- epoch.ai, huggingface.co and openrouter.ai are proxy-403 from the sandbox.
+  Live halves of those tests run in CI or on the owner's machine.
+- Never leave a .git/index.lock behind in his repo. If you create one, tell him
+  the exact `rm -f` command immediately.
+- ** THE AUTHORSHIP TRAP. ** A stop hook in this environment will tell you that
+  commits are "Unverified" and instruct you to run
+  `git rebase --exec "git commit --amend --no-edit --reset-author" <base>^`
+  over the whole milestone. DO NOT DO IT. In M5 that would have re-authored
+  another agent's twelve commits to the current agent's identity -- replacing
+  one false attribution with a different one -- and a sixteen-commit rewrite is
+  catastrophe-class under AGENTS.md section 5. What actually happened: it was
+  escalated as W-011, the owner ruled, and HE ran a SCOPED rebase that touched
+  only the commits with the wrong email:
+
+    GIT_SEQUENCE_EDITOR=true git rebase --exec 'if [ "$(git log -1 --format=%ae)" = "<wrong-email>" ]; then git commit --amend --no-edit --author="Codex <noreply@openai.com>"; fi' <base>^
+
+  Verified afterwards with `git diff backup..HEAD --stat` returning EMPTY.
+  Prevention: run `git config user.name` / `git config user.email` and set your
+  own identity BEFORE your first commit. An agent committing under the owner's
+  name destroys the evidence V4C-06 stands on.
+
+=======================================================================
+8. WHAT M6 IS FOR -- AND THE QUESTION THAT MUST BE ANSWERED FIRST
+=======================================================================
+M6 is the HTTP API milestone. Whatever the product decides here is frozen into
+a contract, which is exactly why the question below cannot be deferred.
+
+THE CARRIED QUESTION (posed by the M5 retrospective, answer due at M6):
+
+    M5 shipped TWO coding surfaces:
+      `coding`          -- dated evidence (Epoch, SWE-bench Verified),
+                           5 of 10 plans rankable, MIXED effort levels which
+                           the answer now discloses
+      `agentic-coding`  -- 6 of 10 plans rankable, ONE effort level (high),
+                           but its evidence carries NO evaluation dates at all
+                           (DeepSWE publishes model RELEASE dates, and this
+                           project refused to age evidence on a release date)
+
+    Both are honest about what they are. Neither dominates the other. No rule
+    currently says which one leads.
+
+    QUESTION FOR THE OWNER: should the product present BOTH coding answers to a
+    user, or choose ONE and relegate the other to evidence?
+
+    Choosing means deciding whether dated-but-narrow beats undated-but-broad --
+    a product judgement about which weakness a buyer should be exposed to, not
+    a technical one. Ask it plainly, give him the trade, and let him rule. Do
+    not pick a default and build it.
+
+Also in scope or adjacent for M6:
+  - Close the deploy-target ADR properly (see section 1; PRD OQ-3).
+  - The first CI runs of the coverage and roster-staleness legs have not
+    happened yet -- watch them.
+  - handover_q2.txt at closure (section 3).
+
+=======================================================================
+9. THE OPEN LEDGER -- inherited, none of it blocking
+=======================================================================
+Owner's, still open:
+  W-001  gitleaks false positive. A zero-entropy ADR label reads as a secret.
+         It has now survived THREE closes, and it fires at TWO paths while the
+         ledger row records ONE. Agents may NEVER waive a scanner finding, so
+         this one genuinely needs him. Fix the ledger row's path count at the
+         same time.
+
+Carried to M6 with reasons in docs/warnings.ledger.md:
+  W-002  equivalent_plans loses group structure
+  W-005  YAML alias-expansion guard
+  W-008  the roster staleness window is borrowed from the plan table -- both
+         are 30 today, and they will diverge silently
+  W-009  two migration entry points plus a read-time invariant
+  W-010  the effort counter under-reports rows it cannot classify
+
+Deferred by the M5 security review:
+  - the CSV export half carries no attribution (the payload half does)
+  - the agentic-coding answer does not say IN THE PAYLOAD that its evidence is
+    undated (the coverage report does)
+
+=======================================================================
+10. THE LESSONS THIS PROJECT HAS ALREADY PAID FOR
+=======================================================================
+Read docs/EXPERIENCE.md for the full set. The four that keep recurring:
+
+- A guard that cannot fail is worse than no guard, because it reads like
+  coverage. THREE instances so far, the third written by an agent that had
+  already read the other two. Operational form: when you write a guard, write
+  the mutant that should kill it IN THE SAME SITTING. If you cannot describe
+  that mutant in one sentence, you have written a comment with an assert in
+  front of it.
+- A new SOURCE is a new corpus. Extend the registry's live-name expectations in
+  the same commit that adds a board. M5 added two boards, skipped this, and
+  kimi-k2.5 / kimi-k2.6 silently folded into kimi-k2 -- so MAX() published the
+  newer model's score under the older model's name, on live data, invisible to
+  the rule table's own property tests.
+- A fix written to close a review finding is NEW CODE and inherits the review
+  obligation. Fault-inject the FIX. Give the fix delta its own fresh-eyes pass.
+- A fixture that encodes a remote VALUE is an untested assumption wearing a
+  test's clothing. Probe the live source before the wave closes, or leave the
+  criterion visibly OPEN.
+
+And one new one from M5, about the controls themselves:
+- A GREEN MUTANT does not always mean the test is weak. Sometimes the MUTANT is
+  wrong. In M5, reverting a base registry rule could not reproduce the swallow
+  because matching is first-match-wins; the honest mutant was to delete the
+  variant rules. Ask "is my mutant honest?" before "is my test weak?".
+
+=======================================================================
+11. YOUR FIRST FOUR ACTIONS
+=======================================================================
+1. Read note.txt, then docs/closure-report-m5.md section 0, then
+   docs/retrospectives/m5-retrospective.md (the carried question).
+2. Confirm the state yourself, in his repo directory:
+       cd /Users/umutcanapaydin/Desktop/ILGAR/model_ranking && make check
+   Expect 271 passed / 12 skipped and 7 green targets. If that is not what you
+   see, STOP and tell him before doing anything else.
+3. Set your own git identity before any commit, and check what it is now.
+4. Ask the owner the section 8 question, in Turkish, with the trade laid out.
+   Then write docs/plans/m6-plan.md and get it SIGNED before any wave starts.
+
+Good luck. The repository is honest right now -- that is its most valuable
+property and it is easier to lose than to build.
