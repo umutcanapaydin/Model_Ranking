@@ -1,6 +1,7 @@
 # M5 Plan — Rescue the Coding Category (data depth, phase 2)
 
-**Status:** **SIGNED** by the owner on 2026-08-16. Wave dispatch is authorized.
+**Status:** **SIGNED** by the owner on 2026-08-16; factual amendment approved by owner choice 1 on
+2026-08-16. Wave dispatch is authorized.
 **Date:** 2026-08-15 · **Risk tier:** LOW-MED · **Mode:** A0.5 + D-106
 **Process baseline:** GP v4.3.1 (D-108). Waves run without stopping (owner amendment, M3); the owner
 runs the out-of-sandbox verification at the milestone gate. **One planned mid-milestone touchpoint**
@@ -16,6 +17,8 @@ puts those with the owner, not the agent.
 - **Q2 primary benchmark: MEASURE FIRST, decide after.** W1 produces the evidence; the owner signs
   the board choice mid-milestone. (Directly applying M4's retrospective lesson: a criterion that
   contains a number about live data gets a measurement task in the wave *before* it.)
+- **2026-08-16 amendment:** the owner chose to correct the plan's Epoch freshness facts while
+  retaining Q2's measure-first decision gate. The amendment does not pre-select the primary board.
 
 ---
 
@@ -32,33 +35,34 @@ Its real shapes are now on disk and measured — the FP-M2-2 rule is satisfied: 
 written against an unseen shape.
 
 **What the data actually says.** Every figure below was recomputed from the fetched CSVs on
-2026-08-15 and then re-verified by a fresh-eyes pass that caught three wrong numbers in this table's
-first draft — including one that would have made W1 ingest a board that moves the evidence age the
-WRONG way. The corrected reading:
+2026-08-15. On 2026-08-16 the real registry + reconciliation + `coverage.plan_coverage` path found
+that the first signed version had omitted roster-named **GLM 5.2**: Perplexity Pro and Max name it,
+the registry canonicalises it to `glm-5.2`, and Epoch carries a 2026-06-25 evaluation. The
+owner-approved corrected reading is:
 
 | Board | Rows | Real evaluation-date column? | Newest eval date (whole board) | Newest eval date **for the models our plans name** | Which of our models |
 |---|---|---|---|---|---|
-| Epoch `swe_bench_verified.csv` | 35 | yes (`Started at`) | 2026-06-25 | **2026-02-24** | Gemini 3.1 Pro (preview-customtools), Gemini 3 Pro |
+| Epoch `swe_bench_verified.csv` | 35 | yes (`Started at`) | 2026-06-25 | **2026-06-25** | Gemini 3.1 Pro (preview-customtools), Gemini 3 Pro, **GLM 5.2** |
 | `deepswe_external.csv` | 50 | **NO — `Release date` only** | — | — | **GPT-5.6, GPT-5.6 Sol, Claude Opus 5**, Gemini 3.1 Pro (preview) |
 | `frontiercode_external.csv` | 25 | **NO — `Release date` only** | — | — | GPT-5.6 Sol, Claude Opus 5 |
-| `terminalbench_external.csv` | 204 | yes (`Run date`) | **2026-05-15** | 2026-03-13 | Gemini 3.1 Pro, Gemini 3 Pro |
+| `terminalbench_external.csv` | 204 | yes (`Run date`) | **2026-05-15** | **2026-05-14** | Gemini 3.1 Pro, Gemini 3 Pro |
 | `aider_polyglot_external.csv` | 77 | yes (`Date of evaluation`) | 2025-10-03 | — | none |
 
 Two constraints fall out of that table, and together they are the milestone:
 
-1. **No single board covers our plan surface.** The boards that carry ChatGPT's and Claude's models
-   (DeepSWE, FrontierCode) do not carry Gemini meaningfully; the board that carries Gemini best
-   (Epoch's SWE-bench) carries neither GPT-5.6 nor Opus 5.
-2. **Coverage and freshness live on DIFFERENT boards.** Epoch's SWE-bench looks fresh (2026-06-25)
-   but only for models no curated plan names — for OUR models its newest run is **2026-02-24**,
-   which is a day OLDER than the source we already have (2026-02-26). Ingesting it cannot improve
-   the coding category's evidence age. Meanwhile DeepSWE and FrontierCode — the two boards that
-   would actually fix coverage — publish **no evaluation date at all**, only the model's release
-   date. Ageing evidence by a model's launch date would let a re-released model look freshly
-   measured, which is precisely the silent-freshness failure `source_health` was built to prevent.
+1. **No single board covers our plan surface.** The real engine measures Epoch SWE-bench at **5/10**
+   plans, DeepSWE at **6/10**, FrontierCode at **3/10**, TerminalBench at **5/10**, and Aider at
+   **0/10**. Epoch carries Gemini and roster-named GLM 5.2, but neither GPT-5.6 nor Opus 5; the
+   boards that carry ChatGPT and Claude do not cover the whole Gemini/GLM surface.
+2. **Coverage and freshness are a real trade-off, not separate-board absolutes.** Epoch SWE-bench
+   supplies both 5/10 plan coverage and a real **2026-06-25** evaluation date — 52 days old on the
+   amendment date, so ingesting it can move coding evidence below the 60-day target. DeepSWE reaches
+   6/10 but publishes **no evaluation date at all**, only model release dates. FrontierCode is also
+   undated. Ageing either one by a model's launch date would let a re-released model look freshly
+   measured, precisely the silent-freshness failure `source_health` was built to prevent.
 
-That second point is why the board choice is a signed decision and not an implementation detail, and
-why W1 measures before anyone commits.
+That measured trade-off is why the primary-board choice remains a signed decision rather than an
+implementation detail. This amendment corrects the evidence; it does not consume the W1 owner gate.
 
 ### The two traps this milestone must not walk into
 
@@ -67,8 +71,11 @@ Verified and **0.118** on DeepSWE — a 6.4× gap on the same model family and t
 Neither row is the plain model: SWE-bench carries `gemini-3.1-pro-preview-**customtools**`, DeepSWE
 carries `gemini-3.1-pro-preview` under `mini-swe-agent`. **Both are previews**, so "one is a preview"
 explains nothing — the distinguishing token is `customtools`, i.e. the tool interface the model was
-given. The leading hypothesis is therefore a tool-format mismatch under the default harness, and
-that is what W1 must test; it is unverified until it is. Shipping either number without the
+given. A range-read of the Epoch `.eval` journal confirms `inspect_ai` task `swe_bench_verified`,
+agent `bash`, solver `bash_agent`, and edit tools `text_editor` + `apply_patch`; that establishes the
+configuration difference but not its causal effect. The leading hypothesis is therefore a
+tool-format mismatch under the default harness, and that is what W1 must test; it remains unverified.
+Shipping either number without the
 explanation would hand a user a verdict the evidence does not support — and it lands squarely on
 Google AI Pro/Plus/Ultra, three of our ten plans.
 
@@ -108,11 +115,11 @@ Also observed and to be handled, not assumed: FrontierCode's `Reasoning effort` 
 1. `EpochClient` + parser over the documented CSV bundle. One canonical fake + a contract test
    against the real file shapes now on disk (V3C-44).
 2. Ingest **Epoch's SWE-bench Verified** first — same benchmark the project already carries, so it
-   is the lowest-doctrine-risk step and it exercises the whole Epoch path end to end. **It is NOT a
-   freshness win and must not be sold as one:** for the models our plans name its newest run is
-   2026-02-24, a day older than what we already have. Its value is breadth (24 more models, Epoch's
-   own `inspect_ai` harness recorded as a distinct harness, never merged into swebench.com's rows)
-   and a working ingestion the later boards reuse.
+   is the lowest-doctrine-risk step and it exercises the whole Epoch path end to end. It **is** a
+   freshness win: roster-named GLM 5.2 has a real 2026-06-25 evaluation, 52 days old on 2026-08-16.
+   Its value is dated 5/10 plan coverage, breadth (24 more models), Epoch's own `inspect_ai` harness
+   recorded as a distinct harness (never merged into swebench.com's rows), and a working ingestion
+   the later boards reuse.
 3. **Investigate the Gemini contradiction** (REQ-REC-012) — the variable to test is `customtools`
    vs the default tool interface, NOT "preview vs release" (both rows are previews). Epoch's
    SWE-bench CSV carries `Log viewer` / `Logs` columns; use them. Write the verdict with evidence
@@ -121,7 +128,10 @@ Also observed and to be handled, not assumed: FrontierCode's `Reasoning effort` 
    — not by name-matching in a spreadsheet — and report BOTH numbers that matter: the coverage delta
    AND what the board's dates actually mean (evaluation date vs model release date). A board that
    fixes coverage but cannot be aged is a different trade than one that can; the owner signs with
-   both numbers in front of him.
+   both numbers in front of him. The pre-implementation baseline is Epoch SWE-bench 5/10 with a
+   2026-06-25 evaluation, DeepSWE 6/10 undated, FrontierCode 3/10 undated, TerminalBench 5/10 with a
+   2026-05-14 newest linked evaluation, and Aider 0/10; W1 must reproduce it through the shipped
+   ingestion path rather than treating this planning measurement as the acceptance proof.
 5. **Owner touchpoint:** the record ends with a recommendation; the owner signs the primary-board
    choice. Waves continue on everything not blocked by that signature.
 
