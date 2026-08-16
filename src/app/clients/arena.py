@@ -1,7 +1,7 @@
 """Arena (LMArena) leaderboard source: client + parser (REQ-ING-007/-008, D-101).
 
 Reads the OFFICIAL ``lmarena-ai/leaderboard-dataset`` (CC-BY-4.0) through the
-documented Hugging Face datasets-server rows API — never the arena.ai site
+documented Hugging Face datasets-server filter API — never the arena.ai site
 (its ToS bans scraping; the dataset is the sanctioned path). Attribution is
 REQUIRED and carried into every export (REQ-ING-008).
 
@@ -46,10 +46,25 @@ _TIMEOUT_S = 30.0
 _RETRIES_429 = 3
 
 
+def arena_source_url(config: str = "text", split: str = "latest") -> str:
+    """Return provenance for the exact server-filtered board surface we fetch."""
+    return str(
+        httpx.URL(
+            FILTER_API,
+            params={
+                "dataset": DATASET,
+                "config": config,
+                "split": split,
+                "where": WHERE_OVERALL,
+            },
+        )
+    )
+
+
 class ArenaClient:
     """Production RawSource for the Arena text leaderboard (D-001).
 
-    fetch_raw paginates the documented rows API and returns ONE merged JSON
+    fetch_raw paginates the documented filter API and returns ONE merged JSON
     document ``{"rows": [...], "num_rows_total": N}`` so the parser stays a
     pure function over a single payload.
     """
@@ -62,7 +77,7 @@ class ArenaClient:
         # misleading API. Provenance now derives from the same constants it uses.
         self.config = config
         self.split = split
-        self.url = f"{ROWS_API}?dataset={DATASET}&config={config}&split={split}"
+        self.url = arena_source_url(config, split)
 
     def _get_page(self, endpoint: str, page: int, extra: dict[str, str]) -> dict[str, Any]:
         """One page with 429 backoff (FP-M2-1: HF rate-limited the live run)."""
@@ -139,11 +154,11 @@ def parse_arena(
     raw: str,
     *,
     source: str = "arena",
-    source_url: str = f"{ROWS_API}?dataset={DATASET}&config=text&split=latest",
+    source_url: str = arena_source_url(),
 ) -> tuple[list[ScoreRow], int]:
     """Parse merged rows into Elo score records; returns (rows, skipped).
 
-    Prefers the overall leaderboard slice (``category == "full"``); when the
+    Prefers the overall leaderboard slice (``category == "overall"``); when the
     dataset carries no such slice, all rows are used (tolerant, tested).
     Duplicate model names keep the best rating (M1 live-run doctrine).
     """

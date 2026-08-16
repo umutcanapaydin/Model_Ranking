@@ -17,7 +17,8 @@ from app.workflows.ingest import (
     ingest_swebench,
 )
 from app.workflows.rank import (
-    ATTRIBUTIONS,
+    ARENA_ATTRIBUTION,
+    PRICING_ATTRIBUTION,
     build_price_medians,
     category_ranking,
     coding_ranking,
@@ -165,6 +166,10 @@ def test_export_carries_attribution(tmp_path: Path) -> None:
     assert "CC-BY-4.0" in attributions
     assert "lmarena-ai/leaderboard-dataset" in attributions
     assert "OpenRouter" in attributions
-    assert "Epoch AI" in attributions and "AI Benchmarking Hub" in attributions
-    assert tuple(payload["attribution"]) == ATTRIBUTIONS
+    # W4 review BLOCKING-2: an export cites the sources IT carries. This ranking is
+    # Arena-only, so claiming SWE-bench/Aider/Epoch here would be a false provenance
+    # claim — the exact defect the static catalogue produced in every payload.
+    assert "Epoch AI" not in attributions
+    assert "swebench.com" not in attributions
+    assert tuple(payload["attribution"]) == (ARENA_ATTRIBUTION, PRICING_ATTRIBUTION)
     assert payload["generated_from"][0]["observed_at"] == "2026-08-11T00:00:00+00:00"

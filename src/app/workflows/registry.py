@@ -110,7 +110,14 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("qwen3.5-max",       "Qwen3.5 Max",       "Alibaba",   r"qwen[-_ ]?3[.\-]5[-_ ]?max"),
     ModelRule("qwen3-coder",       "Qwen3 Coder",       "Alibaba",   r"qwen[-_ ]?3[-_ ]?coder(?![-_ ]?(?:flash|plus))"),
     ModelRule("qwen3-max",         "Qwen3 Max",         "Alibaba",   r"qwen[-_ ]?3[-_ ]?max"),
-    ModelRule("kimi-k2",           "Kimi K2",           "Moonshot",  r"kimi[-_ ]?k2"),
+    # Kimi K2.x are DISTINCT models, not effort variants of K2. The unguarded
+    # `kimi[-_ ]?k2` rule swallowed both (M5 closure, live Epoch SWE-bench: k2.5=73.8
+    # and k2.6=76.7 collapsed onto one id and MAX() published 76.7 as "Kimi K2") — the
+    # same swallow class M4-W1 fixed for the GPT-5.x Pro family, recurring on a new
+    # source because the live-name corpus had never seen these names.
+    ModelRule("kimi-k2.6",         "Kimi K2.6",         "Moonshot",  r"kimi[-_ ]?k2[.\-]6(?!\d)"),
+    ModelRule("kimi-k2.5",         "Kimi K2.5",         "Moonshot",  r"kimi[-_ ]?k2[.\-]5(?!\d)"),
+    ModelRule("kimi-k2",           "Kimi K2",           "Moonshot",  r"kimi[-_ ]?k2(?![.\-]\d)"),
     ModelRule("glm-5.2",           "GLM-5.2",           "Zhipu",     r"glm[-_ ]?5[.\-p]2(?!\d)"),
     ModelRule("glm-5.1",           "GLM-5.1",           "Zhipu",     r"glm[-_ ]?5[.\-p]1(?!\d)"),
     ModelRule("glm-5",             "GLM-5",             "Zhipu",     r"glm[-_ ]?5(?![.\-p]\d(?!\d))(?!v)(?![-_ ]?code)"),

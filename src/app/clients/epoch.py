@@ -27,10 +27,16 @@ SOURCE_NAME = "epoch_swe_bench_verified"
 BENCHMARK = "SWE-bench Verified"
 METRIC = "% resolved"
 HARNESS = "inspect_ai"
+# Epoch's OWN prescribed citation, quoted verbatim from the bundle's README, plus the
+# licence token. Two URLs appear in this module and they are different things on
+# purpose (W4 review BLOCKING-3, second half): `epoch.ai/benchmarks` is the citation
+# target Epoch requires; EPOCH_BUNDLE_URL above is where the bytes were acquired. The
+# licence is written ONCE, in the project's `CC-BY-4.0` convention (review MINOR-8 \u2014
+# it previously appeared twice, in two spellings, so a test could substring-match it).
 EPOCH_ATTRIBUTION = (
     "Epoch AI, \u2018AI Benchmarking Hub\u2019. Published online at epoch.ai. "
     "Retrieved from \u2018https://epoch.ai/benchmarks\u2019 [online resource]. "
-    "(CC BY 4.0 / CC-BY-4.0)"
+    "(CC-BY-4.0)"
 )
 
 _REQUIRED_COLUMNS = frozenset({"Model version", "mean_score", "Started at"})

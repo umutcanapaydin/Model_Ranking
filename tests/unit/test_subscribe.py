@@ -7,9 +7,9 @@ import sqlite3
 
 import pytest
 
-from app.clients.epoch import EPOCH_ATTRIBUTION
 from app.workflows.ingest import RunContext
 from app.workflows.plans import ingest_plans
+from app.workflows.rank import SWEBENCH_ATTRIBUTION
 from app.workflows.recommend import main
 from app.workflows.registry import reconcile_plans
 from app.workflows.schema import connect
@@ -142,7 +142,11 @@ def test_three_labeled_plan_picks_unlimited_budget() -> None:
     # Budget pick: cheapest meeting floor 65.0 → Cheap Plan (70.0 @ $8)
     assert rec.picks[2].plan == "Cheap Plan"
     assert "kalite şartını geçen en ucuz plan" in rec.picks[2].why
-    assert EPOCH_ATTRIBUTION in rec.sources  # REQ-LIC-001 subscription payload surface
+    # W4 review BLOCKING-2: this fixture's evidence is swebench, so that is what the
+    # payload cites — and it must NOT claim Epoch or the per-token pricing feeds the
+    # plan engine never reads. REQ-LIC-001's Epoch half is proven on Epoch evidence in
+    # test_subscription_payload_cites_epoch_only_when_it_ranks_on_epoch_evidence.
+    assert rec.sources == (SWEBENCH_ATTRIBUTION,)
 
 
 def test_budget_cap_filters_before_scoring() -> None:
@@ -586,3 +590,47 @@ def test_equivalence_note_says_which_members_rest_on_a_roster() -> None:
     assert plain is not None
     assert plain.equivalence_note is not None
     assert "kaynak, plan sayfası değil" not in plain.equivalence_note
+
+
+def test_budget_that_prices_out_everything_still_says_how_many(tmp_path, capsys) -> None:
+    """W4 review MINOR-1 citing test: the no-answer case is where the count matters MOST.
+
+    `recommend_subscription` returns None when the cap excludes every scoreable plan,
+    and the first cut computed `excluded_by_budget` AFTER that early return — so the
+    user who most needs "your budget excluded all of them" got a bare error, while the
+    ledger already recorded W-006 as FIXED. Asserted through the real CLI.
+    """
+    db = tmp_path / "advisor.db"
+    conn = connect(str(db))
+    ingest_plans(conn, DOC, RunContext())
+    reconcile_plans(conn)
+    for model_id, raw, score in SCORES:
+        conn.execute(
+            "INSERT INTO scores (model_id, raw_name, benchmark, metric, score, harness,"
+            " run_date, source, source_url, observed_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (
+                model_id,
+                raw,
+                "SWE-bench Verified",
+                "% resolved",
+                score,
+                "test-agent",
+                "2026-08-01",
+                "swebench",
+                "https://x",
+                "2026-08-15T00:00:00+00:00",
+            ),
+        )
+    # Price every scoreable plan above the low cap ($10).
+    conn.execute("UPDATE plans SET monthly_usd = 99 WHERE id != 'vague-plan'")
+    conn.commit()
+    conn.close()
+
+    assert main(["--db", str(db), "--budget", "dusuk", "--task", "coding", "--subscription"]) == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error"] == "no eligible plan for this budget"
+    assert payload["scoreable_plans"] == 3
+    assert payload["excluded_by_budget"] == 3
+    assert payload["budget_notice"] == (
+        "Bütçe sınırı 3 skorlanabilir planı seçenekler dışında bıraktı."
+    )

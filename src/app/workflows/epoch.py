@@ -19,6 +19,11 @@ from app.clients.protocols import SourceError
 
 SOURCE_ID = "epoch-benchmark-data"
 SCHEMA_VERSION = 1
+# The ONE committed acquisition clock. W4 review BLOCKING-3: the ingest path carried a
+# hardcoded `--last-verified` default while CI checked this file, so re-acquiring the
+# bundle and updating the file left the data stamped with the old date and CI green.
+# Anything that stamps Epoch data reads the clock from here.
+EPOCH_SOURCE_PATH = Path(__file__).resolve().parents[3] / "data" / "epoch-source.yaml"
 
 
 @dataclass(frozen=True)
@@ -101,3 +106,16 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def committed_last_verified(path: Path = EPOCH_SOURCE_PATH) -> str:
+    """The acquisition date the repository commits to, for anything that stamps data.
+
+    Fails loud if the committed record is missing or malformed — a stamp invented by a
+    default argument is exactly the drift BLOCKING-3 found.
+    """
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise SourceError(f"{SOURCE_ID}: committed acquisition record unreadable: {exc}") from exc
+    return parse_epoch_source_doc(raw).last_verified

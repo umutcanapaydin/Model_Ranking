@@ -12,6 +12,7 @@ import csv
 import json
 import sqlite3
 import statistics
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -22,13 +23,52 @@ from app.workflows.schema import EFFORT_LEVELS
 BLEND_INPUT_WEIGHT = 0.75
 BLEND_OUTPUT_WEIGHT = 0.25
 BLEND_NOTE = "blended $/1M = input*0.75 + output*0.25"
-# REQ-ING-008 / D-101: attribution travels with every export
+# REQ-ING-008 / D-101: attribution travels with every export.
+# ATTRIBUTIONS is the CATALOGUE — every citation this project can owe. It is the right
+# thing to print on a full export, which covers every source. It is the WRONG thing to
+# print in a recommendation payload under a key named `sources` (W4 review BLOCKING-2):
+# an `assistant` answer ranks purely on Arena Elo, and claiming SWE-bench, Aider and
+# Epoch alongside it is a false provenance claim in a machine contract. Payloads build
+# their list from the evidence they actually used, via `attributions_for`.
+PRICING_ATTRIBUTION = (
+    "Pricing data: BerriAI/litellm (MIT) and OpenRouter public model catalog (attribution required)"
+)
+ARENA_ATTRIBUTION = "Arena leaderboard data © LMArena — lmarena-ai/leaderboard-dataset (CC-BY-4.0)"
+SWEBENCH_ATTRIBUTION = "Coding scores: swebench.com leaderboard (SWE-bench) and Aider polyglot leaderboard (Apache-2.0)"
 ATTRIBUTIONS = (
-    "Arena leaderboard data © LMArena — lmarena-ai/leaderboard-dataset (CC-BY-4.0)",
-    "Pricing data: BerriAI/litellm (MIT) and OpenRouter public model catalog (attribution required)",
-    "Coding scores: swebench.com leaderboard (SWE-bench) and Aider polyglot leaderboard (Apache-2.0)",
+    ARENA_ATTRIBUTION,
+    PRICING_ATTRIBUTION,
+    SWEBENCH_ATTRIBUTION,
     EPOCH_ATTRIBUTION,
 )
+
+# Which citation each `scores.source` value obliges. A source missing from this map is
+# an unattributed source, which for a CC-BY feed is a licence breach — so it raises
+# rather than silently dropping the obligation (fail loud, D-107 discipline).
+SOURCE_ATTRIBUTION: dict[str, str] = {
+    "arena": ARENA_ATTRIBUTION,
+    "swebench": SWEBENCH_ATTRIBUTION,
+    "aider": SWEBENCH_ATTRIBUTION,
+    "epoch_swe_bench_verified": EPOCH_ATTRIBUTION,
+    "epoch_deepswe_external": EPOCH_ATTRIBUTION,
+}
+
+
+def attributions_for(evidence_sources: Iterable[str], *, priced: bool) -> tuple[str, ...]:
+    """The citations a payload actually owes, in catalogue order.
+
+    ``priced`` adds the pricing citation for payloads that rank on $/1M (the model
+    engine). The subscription engine ranks on the curated plan table's monthly price
+    and must not claim the per-token pricing feeds it never read.
+    """
+    owed = {PRICING_ATTRIBUTION} if priced else set()
+    for source in evidence_sources:
+        citation = SOURCE_ATTRIBUTION.get(source)
+        if citation is None:
+            msg = f"unattributed evidence source {source!r}; add it to SOURCE_ATTRIBUTION"
+            raise ValueError(msg)
+        owed.add(citation)
+    return tuple(c for c in ATTRIBUTIONS if c in owed)
 
 
 @dataclass(frozen=True)
@@ -240,7 +280,8 @@ def export_ranking(
 
     payload = {
         "note": BLEND_NOTE,
-        "attribution": ATTRIBUTIONS,
+        # W4 review BLOCKING-2: an export cites the sources IT carries, not the catalogue.
+        "attribution": attributions_for({r.evidence_source for r in ranking}, priced=True),
         "generated_from": generated_from,
         "rows": dicts,
     }

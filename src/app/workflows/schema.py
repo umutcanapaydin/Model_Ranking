@@ -189,7 +189,7 @@ def _migrate_scores_effort(conn: sqlite3.Connection) -> bool:
             "ALTER TABLE scores ADD COLUMN effort TEXT NOT NULL DEFAULT 'unspecified' "
             "CHECK (effort IN ('unspecified','low','medium','high','xhigh','max'))"
         )
-    conn.executescript("""
+    conn.execute("""
         CREATE TABLE scores__m5_effort (
             model_id    TEXT,
             raw_name    TEXT NOT NULL,
@@ -205,23 +205,25 @@ def _migrate_scores_effort(conn: sqlite3.Connection) -> bool:
             source_url  TEXT NOT NULL,
             observed_at TEXT NOT NULL,
             UNIQUE (raw_name, benchmark, metric, harness, effort, source)
-        );
+        )
+        """)
+    conn.execute("""
         INSERT INTO scores__m5_effort
             (model_id, raw_name, benchmark, metric, score, harness, effort,
              run_date, cost_total, source, source_url, observed_at)
         SELECT model_id, raw_name, benchmark, metric, score, harness,
                COALESCE(effort, 'unspecified'),
                run_date, cost_total, source, source_url, observed_at
-        FROM scores;
-        DROP TABLE scores;
-        ALTER TABLE scores__m5_effort RENAME TO scores;
-        CREATE INDEX idx_scores_model ON scores (model_id);
+        FROM scores
         """)
+    conn.execute("DROP TABLE scores")
+    conn.execute("ALTER TABLE scores__m5_effort RENAME TO scores")
+    conn.execute("CREATE INDEX idx_scores_model ON scores (model_id)")
     return True
 
 
-def migrate(conn: sqlite3.Connection) -> list[str]:
-    """Add post-M1 columns to tables that predate them; returns what was added."""
+def _migrate(conn: sqlite3.Connection) -> list[str]:
+    """Run migration statements inside the caller's transaction."""
     applied: list[str] = []
     for table, column, decl in _MIGRATIONS:
         existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
@@ -232,16 +234,122 @@ def migrate(conn: sqlite3.Connection) -> list[str]:
             applied.append(f"{table}.{column}")
     if _migrate_scores_effort(conn):
         applied.append("scores.effort")
-    if applied:
-        conn.commit()
     return applied
+
+
+def migrate(conn: sqlite3.Connection) -> list[str]:
+    """Atomically add post-M1 columns to tables that predate them."""
+    conn.execute("SAVEPOINT model_ranking_schema_migrate")
+    try:
+        applied = _migrate(conn)
+    except sqlite3.Error:
+        conn.execute("ROLLBACK TO model_ranking_schema_migrate")
+        conn.execute("RELEASE model_ranking_schema_migrate")
+        raise
+    conn.execute("RELEASE model_ranking_schema_migrate")
+    return applied
+
+
+def _apply_ddl(conn: sqlite3.Connection) -> None:
+    """Apply the static DDL without ``executescript``'s implicit pre-commit."""
+    statement = ""
+    for line in DDL.splitlines(keepends=True):
+        statement += line
+        if sqlite3.complete_statement(statement):
+            conn.execute(statement)
+            statement = ""
+    # W4 review MINOR-5: a comment-only remainder is not an incomplete statement.
+    # Before this guard, appending a trailing `-- note` line to DDL made connect()
+    # raise and took the whole application down over a comment.
+    remainder = "\n".join(line.split("--", 1)[0].strip() for line in statement.splitlines()).strip()
+    if remainder:
+        raise sqlite3.DatabaseError("internal DDL contains an incomplete statement")
+
+
+def _ddl_columns() -> dict[str, set[str]]:
+    """Column names per table, parsed from THIS module's own DDL.
+
+    W4 review BLOCKING-1: the previous validator carried a hand-written list of two
+    tables, so a legacy `plans` missing `observed_at` passed validation, migrated
+    "successfully" (exit 0, JSON emitted), and then killed the next
+    `recommend --subscription` with `no such column: observed_at` — the exact symptom
+    W-004 exists to eliminate, now hidden behind a success message. A hand-maintained
+    copy of the schema drifts from the schema; this one is DERIVED from it, so a new
+    column is covered the day it is added.
+    """
+    tables: dict[str, set[str]] = {}
+    current: str | None = None
+    for raw in DDL.splitlines():
+        line = raw.split("--", 1)[0].strip()
+        if not line:
+            continue
+        if line.upper().startswith("CREATE TABLE"):
+            current = line.split()[-2] if line.endswith("(") else line.split()[-1]
+            tables[current] = set()
+            continue
+        if current is None:
+            continue
+        if line.startswith(")"):
+            current = None
+            continue
+        first = line.split()[0]
+        # Table-level constraints are not columns.
+        if first.upper() in {"UNIQUE", "PRIMARY", "FOREIGN", "CHECK", "CONSTRAINT"}:
+            continue
+        if first.isidentifier():
+            tables[current].add(first)
+    return tables
+
+
+def _validate_migration_input(conn: sqlite3.Connection, tables: set[str]) -> None:
+    """Reject look-alike or previously poisoned databases before the first write.
+
+    A table that EXISTS must already carry every column the shipped DDL declares,
+    except the ones a migration is able to add — `CREATE TABLE IF NOT EXISTS` cannot
+    add a column to an existing table, so anything else would be a silent success on
+    a database the read paths cannot use.
+    """
+    migratable: dict[str, set[str]] = {}
+    for table, column, _ in _MIGRATIONS:
+        migratable.setdefault(table, set()).add(column)
+    # The effort migration REBUILDS `scores`, so its own column is addable too.
+    migratable.setdefault("scores", set()).add("effort")
+
+    required = {
+        table: columns - migratable.get(table, set()) for table, columns in _ddl_columns().items()
+    }
+    for table, columns in required.items():
+        if table not in tables:
+            continue
+        actual = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+        missing = sorted(columns - actual)
+        if missing:
+            raise sqlite3.DatabaseError(f"unsupported {table} schema; missing columns: {missing}")
+    if "scores__m5_effort" in tables:
+        raise sqlite3.DatabaseError("incomplete prior migration: scores__m5_effort exists")
+    if "scores" in tables and "effort" in {
+        row[1] for row in conn.execute("PRAGMA table_info(scores)")
+    }:
+        invalid = conn.execute(
+            "SELECT effort FROM scores WHERE effort NOT IN"
+            " ('unspecified','low','medium','high','xhigh','max') LIMIT 1"
+        ).fetchone()
+        if invalid is not None:
+            raise sqlite3.DatabaseError(f"scores contains unsupported effort: {invalid[0]!r}")
 
 
 def connect(path: str = ":memory:") -> sqlite3.Connection:
     """Open a connection with the schema applied + migrated (idempotent)."""
     conn = sqlite3.connect(path)
-    conn.executescript(DDL)
-    migrate(conn)
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        _apply_ddl(conn)
+        _migrate(conn)
+        conn.commit()
+    except sqlite3.Error:
+        conn.rollback()
+        conn.close()
+        raise
     return conn
 
 
@@ -278,9 +386,14 @@ def main(argv: list[str] | None = None) -> int:
         }
         if not tables.intersection({"scores", "plan_models"}):
             raise sqlite3.DatabaseError("not a model_ranking database")
-        conn.executescript(DDL)
-        applied = migrate(conn)
+        _validate_migration_input(conn, tables)
+        conn.execute("BEGIN IMMEDIATE")
+        _apply_ddl(conn)
+        applied = _migrate(conn)
+        conn.commit()
     except sqlite3.Error as exc:
+        if conn is not None:
+            conn.rollback()
         print(json.dumps({"error": f"db unusable: {exc}"}))
         return 2
     finally:

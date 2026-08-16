@@ -336,7 +336,12 @@ def test_selected_stale_roster_clock_is_disclosed_through_cli(tmp_path, capsys) 
     assert "2026-05-01" in payload["stale_notice"]
     assert "roster" in payload["stale_notice"]
     assert "https://quietco.example/help/models" in payload["stale_notice"]
-    assert any("Epoch AI" in source and "CC-BY-4.0" in source for source in payload["sources"])
+    # W4 review BLOCKING-2: this fixture's scores come from swebench, so that is what
+    # the payload cites. Claiming Epoch here would be a provenance claim about a source
+    # the answer never read; REQ-LIC-001's Epoch half is proven on Epoch evidence in
+    # tests/unit/test_recommend.py::test_req_lic_001_epoch_citation_ships_where_epoch_data_is_served.
+    assert any("swebench.com" in source for source in payload["sources"])
+    assert not any("Epoch AI" in source for source in payload["sources"])
 
 
 def test_stale_unselected_roster_link_is_not_disclosed() -> None:

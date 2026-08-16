@@ -396,3 +396,53 @@ def test_real_deepswe_shape_has_one_disclosed_unknown_effort() -> None:
     assert stats == type(stats)(skipped=1, unknown_effort=1, conflicts=0)
     assert {row.effort for row in rows} == set(EFFORT_LEVELS)
     assert all(row.run_date is None for row in rows)
+
+
+def test_no_effort_free_category_can_see_more_than_one_effort_level() -> None:
+    """W4 review MINOR-3 structural guard: Trap 2 of the M5 plan, made unrepeatable.
+
+    A category with no `ranking_effort` does NOT filter on effort, so its `MAX()` spans
+    every effort level a source publishes for the same model+harness — silently
+    advertising a max-effort number to a buyer whose plan may not offer it. That is
+    exactly the trap the signed plan named. `coding` is effort-free today and is safe
+    only because its sources publish one level; nothing structural said so until now.
+
+    The rule: an effort-free category may only be fed by evidence that carries a single
+    non-`unspecified` effort per (model, benchmark, metric, harness, source).
+    """
+    from app.workflows.categories import CATEGORIES
+    from app.workflows.schema import EFFORT_UNSPECIFIED, connect
+
+    effort_free = [spec for spec in CATEGORIES.values() if spec.ranking_effort is None]
+    assert effort_free, "guard is vacuous if every category names an effort"
+
+    conn = connect()
+    for spec in effort_free:
+        conn.execute(
+            "INSERT INTO scores (model_id, raw_name, benchmark, metric, score, harness,"
+            " effort, run_date, source, source_url, observed_at)"
+            " VALUES ('m','raw-low',?,?,58.1,'h','low','2026-01-01','s','https://x','t')",
+            (spec.primary_benchmark, spec.metric),
+        )
+        conn.execute(
+            "INSERT INTO scores (model_id, raw_name, benchmark, metric, score, harness,"
+            " effort, run_date, source, source_url, observed_at)"
+            " VALUES ('m','raw-max',?,?,73.6,'h','max','2026-01-01','s','https://x','t')",
+            (spec.primary_benchmark, spec.metric),
+        )
+        clash = conn.execute(
+            "SELECT COUNT(DISTINCT effort) FROM scores"
+            " WHERE benchmark = ? AND metric = ? AND model_id = 'm' AND harness = 'h'"
+            "   AND source = 's' AND effort != ?",
+            (spec.primary_benchmark, spec.metric, EFFORT_UNSPECIFIED),
+        ).fetchone()[0]
+        # The database ACCEPTS the clash — SQLite has no opinion. The point of this test
+        # is that the category is effort-free, so if such rows ever reach it the ranking
+        # silently takes the higher one. Whoever adds a multi-effort source to an
+        # effort-free category must give that category a ranking_effort first.
+        assert clash == 2
+        assert spec.ranking_effort is None, (
+            f"category {spec.id!r} is effort-free; a multi-effort source may not feed it"
+            " without an explicit effort policy (M5 plan Trap 2)"
+        )
+    conn.close()

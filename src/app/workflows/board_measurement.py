@@ -24,6 +24,7 @@ from app.clients.epoch import EpochClient
 from app.clients.protocols import SourceError
 from app.workflows.categories import CATEGORIES
 from app.workflows.coverage import plan_coverage, plan_evidence_health
+from app.workflows.epoch import committed_last_verified
 from app.workflows.ingest import RunContext, _store_scores, ingest_epoch, ingest_swebench
 from app.workflows.plans import ingest_plans
 from app.workflows.recommend import round_score
@@ -591,7 +592,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--rosters", default=str(_REPO_ROOT / "data/rosters.yaml"))
     parser.add_argument("--baseline", default=str(_REPO_ROOT / "data/m5-swebench-baseline.json"))
     parser.add_argument("--today", default="2026-08-16")
-    parser.add_argument("--last-verified", default="2026-08-15")
+    # W4 review BLOCKING-3: one clock, read from the committed record.
+    parser.add_argument("--last-verified", default=committed_last_verified())
     args = parser.parse_args(argv)
     try:
         today = dt.date.fromisoformat(args.today)

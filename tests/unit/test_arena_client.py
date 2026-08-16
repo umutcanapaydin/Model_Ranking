@@ -13,8 +13,10 @@ import httpx
 import pytest
 import respx
 
-from app.clients.arena import FILTER_API, ROWS_API, WHERE_OVERALL, ArenaClient
+from app.clients.arena import DATASET, FILTER_API, ROWS_API, WHERE_OVERALL, ArenaClient
 from app.clients.protocols import SourceError
+from app.workflows.ingest import RunContext, ingest_arena
+from app.workflows.schema import connect
 
 
 def _page(offset: int, n: int, total: int) -> httpx.Response:
@@ -110,8 +112,33 @@ def test_client_has_no_misleading_url_parameter() -> None:
     client actually uses — a caller can no longer pass a url= that fetch_raw ignores."""
     import inspect
 
-    from app.clients.arena import ROWS_API, ArenaClient
-
     params = inspect.signature(ArenaClient.__init__).parameters
     assert "url" not in params
-    assert ArenaClient().url.startswith(ROWS_API)
+    provenance = httpx.URL(ArenaClient().url)
+    assert str(provenance).split("?", maxsplit=1)[0] == FILTER_API
+    assert provenance.params["dataset"] == DATASET
+    assert provenance.params["config"] == "text"
+    assert provenance.params["split"] == "latest"
+    assert provenance.params["where"] == WHERE_OVERALL
+
+
+@respx.mock
+def test_ingest_persists_the_exact_filtered_surface_as_provenance() -> None:
+    """REQ-ING-004/D-101: stored provenance identifies the filter actually fetched."""
+    route = respx.get(FILTER_API).mock(return_value=_page(0, 1, 1))
+    source = ArenaClient()
+    conn = connect()
+
+    report = ingest_arena(conn, source, RunContext(observed_at="2026-08-16T00:00:00Z"))
+
+    assert report.stored == 1
+    sent = route.calls[0].request.url
+    stored = conn.execute("SELECT DISTINCT source_url FROM scores WHERE source='arena'").fetchone()[
+        0
+    ]
+    provenance = httpx.URL(stored)
+    assert str(provenance).split("?", maxsplit=1)[0] == FILTER_API
+    for key in ("dataset", "config", "split", "where"):
+        assert provenance.params[key] == sent.params[key]
+    assert provenance.params["where"] == WHERE_OVERALL
+    conn.close()

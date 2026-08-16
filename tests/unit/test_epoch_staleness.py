@@ -68,3 +68,36 @@ def test_weekly_workflow_wires_the_epoch_clock_without_a_conditional() -> None:
     assert command in plan_job
     step = plan_job[plan_job.index(command) - 180 : plan_job.index(command) + len(command)]
     assert "if:" not in step
+
+
+def test_ingest_stamp_and_committed_clock_are_one_value() -> None:
+    """W4 review BLOCKING-3 citing test: the acquisition clock exists ONCE.
+
+    The first cut kept the clock in two places — `data/epoch-source.yaml` (which CI
+    checks) and a hardcoded `--last-verified` default on the only production path that
+    constructs an `EpochClient`. Re-acquire the bundle, update the file, and CI goes
+    green while the data keeps carrying the old stamp. A committed record that the
+    ingest path does not read is not a record; it is a decoration.
+    """
+    import argparse
+    import inspect
+
+    from app.workflows import board_measurement
+    from app.workflows.epoch import EPOCH_SOURCE_PATH, committed_last_verified
+
+    committed = committed_last_verified()
+    assert (
+        committed
+        == parse_epoch_source_doc(EPOCH_SOURCE_PATH.read_text(encoding="utf-8")).last_verified
+    )
+
+    # The CLI's default must BE the committed value, not a literal that matches it today.
+    source = inspect.getsource(board_measurement.main)
+    assert "committed_last_verified()" in source
+    assert '"--last-verified", default="' not in source
+
+    parser_defaults = {}
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--last-verified", default=committed_last_verified())
+    parser_defaults["last_verified"] = parser.parse_args([]).last_verified
+    assert parser_defaults["last_verified"] == committed

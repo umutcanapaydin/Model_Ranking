@@ -23,7 +23,7 @@ from dataclasses import dataclass
 
 from app.workflows.categories import CategorySpec, get_category
 from app.workflows.plans import stale_plans
-from app.workflows.rank import ATTRIBUTIONS, higher_effort_evidence
+from app.workflows.rank import attributions_for, higher_effort_evidence
 from app.workflows.recommend import (
     effort_disclosure,
     lead_phrase,
@@ -319,6 +319,44 @@ def _pick(
     )
 
 
+def _budget_notice(excluded_by_budget: int) -> str | None:
+    """The one place the priced-out sentence is written (REQ-REC-013, D-111)."""
+    if not excluded_by_budget:
+        return None
+    return f"Bütçe sınırı {excluded_by_budget} skorlanabilir planı seçenekler dışında bıraktı."
+
+
+@dataclass(frozen=True)
+class BudgetShutout:
+    """Why a budget produced NO answer at all (W4 review MINOR-1).
+
+    `recommend_subscription` returns None when the cap excludes every scoreable plan —
+    and the first cut computed the priced-out count AFTER that early return, so the one
+    case where the user most needs the sentence ("your budget excluded all 6") printed
+    a bare error. W-006's complaint was unfixed at exactly its sharpest point while the
+    ledger row already read FIXED.
+    """
+
+    scoreable_plans: int
+    excluded_by_budget: int
+    budget_notice: str | None
+
+
+def budget_shutout(
+    conn: sqlite3.Connection, budget: str = "sinirsiz", task: str = "coding"
+) -> BudgetShutout:
+    """Count what the cap excluded, for the no-answer path. Read-only."""
+    spec = get_category(task)
+    cap = _budget_cap(conn, budget)
+    ranking = plan_ranking(conn, spec)
+    excluded = len([r for r in ranking if cap is not None and r.monthly_usd > cap])
+    return BudgetShutout(
+        scoreable_plans=len(ranking),
+        excluded_by_budget=excluded,
+        budget_notice=_budget_notice(excluded),
+    )
+
+
 def recommend_subscription(
     conn: sqlite3.Connection, budget: str = "sinirsiz", task: str = "coding"
 ) -> SubscriptionRecommendation | None:
@@ -331,11 +369,7 @@ def recommend_subscription(
     if not rows:
         return None
     excluded_by_budget = len(ranking) - len(rows)
-    budget_notice = (
-        f"Bütçe sınırı {excluded_by_budget} skorlanabilir planı seçenekler dışında bıraktı."
-        if excluded_by_budget
-        else None
-    )
+    budget_notice = _budget_notice(excluded_by_budget)
 
     frontier = _pareto(rows)
     quality = frontier[0]
@@ -490,7 +524,9 @@ def recommend_subscription(
         task=spec.id,
         budget=budget,
         ranking_effort=spec.ranking_effort,
-        sources=ATTRIBUTIONS,
+        # W4 review BLOCKING-2: the plan engine ranks on the curated monthly price,
+        # so it must NOT claim the per-token pricing feeds it never read.
+        sources=attributions_for({r.evidence_source for r in ranking}, priced=False),
         eligible_count=len(rows),
         excluded_by_budget=excluded_by_budget,
         budget_notice=budget_notice,

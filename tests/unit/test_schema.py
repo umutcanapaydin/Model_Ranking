@@ -159,8 +159,166 @@ def test_explicit_migrate_cli_refuses_missing_or_non_database_file(tmp_path, cap
     assert "db unusable" in json.loads(capsys.readouterr().out)["error"]
 
 
+def test_explicit_migrate_cli_refuses_invalid_legacy_rows_without_writing(tmp_path, capsys) -> None:
+    """W-004: an invalid legacy row is rejected before DDL touches the owner database."""
+    db = tmp_path / "invalid-legacy.db"
+    conn = sqlite3.connect(db)
+    conn.executescript(
+        "CREATE TABLE scores (model_id TEXT, raw_name TEXT NOT NULL, benchmark TEXT NOT NULL,"
+        " metric TEXT NOT NULL, score REAL NOT NULL, harness TEXT NOT NULL, effort TEXT NOT NULL,"
+        " run_date TEXT, cost_total REAL, source TEXT NOT NULL, source_url TEXT NOT NULL,"
+        " observed_at TEXT NOT NULL, UNIQUE (raw_name, benchmark, metric, harness, source));"
+        "INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source,"
+        " source_url, observed_at) VALUES ('old-model', 'DeepSWE', '% resolved', 50, 'agent',"
+        " 'turbo', 'epoch', 'https://x', 't');"
+    )
+    before_schema = conn.execute(
+        "SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY type, name"
+    ).fetchall()
+    before_rows = conn.execute("SELECT * FROM scores").fetchall()
+    conn.close()
+    before_bytes = db.read_bytes()
+
+    assert main(["migrate", "--db", str(db)]) == 2
+    assert "unsupported effort" in json.loads(capsys.readouterr().out)["error"]
+    assert db.read_bytes() == before_bytes
+
+    unchanged = sqlite3.connect(db)
+    assert (
+        unchanged.execute(
+            "SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY type, name"
+        ).fetchall()
+        == before_schema
+    )
+    assert unchanged.execute("SELECT * FROM scores").fetchall() == before_rows
+    assert unchanged.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE name='scores__m5_effort'"
+    ).fetchone() == (0,)
+    unchanged.close()
+
+
+def test_explicit_migrate_cli_rolls_back_a_failure_after_score_rebuild_starts(
+    tmp_path, capsys
+) -> None:
+    """W-004: DDL and the score-table rebuild are one transaction, including late failure."""
+    db = tmp_path / "late-failure.db"
+    conn = sqlite3.connect(db)
+    conn.executescript(
+        "CREATE TABLE scores (model_id TEXT, raw_name TEXT NOT NULL, benchmark TEXT NOT NULL,"
+        " metric TEXT NOT NULL, score REAL NOT NULL, harness TEXT NOT NULL, effort TEXT NOT NULL,"
+        " run_date TEXT, cost_total REAL, source TEXT NOT NULL, source_url TEXT NOT NULL,"
+        " observed_at TEXT NOT NULL, UNIQUE (raw_name, benchmark, metric, harness, source));"
+        "INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source,"
+        " source_url, observed_at) VALUES ('old-model', 'DeepSWE', '% resolved', 50, 'agent',"
+        " 'high', 'epoch', 'https://x', 't');"
+        "CREATE TABLE shadow (model_id TEXT);"
+        "CREATE INDEX idx_scores_model ON shadow(model_id);"
+    )
+    before_schema = conn.execute(
+        "SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY type, name"
+    ).fetchall()
+    before_rows = conn.execute("SELECT * FROM scores").fetchall()
+    conn.close()
+    before_bytes = db.read_bytes()
+
+    assert main(["migrate", "--db", str(db)]) == 2
+    assert "already exists" in json.loads(capsys.readouterr().out)["error"]
+    assert db.read_bytes() == before_bytes
+
+    unchanged = sqlite3.connect(db)
+    assert (
+        unchanged.execute(
+            "SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY type, name"
+        ).fetchall()
+        == before_schema
+    )
+    assert unchanged.execute("SELECT * FROM scores").fetchall() == before_rows
+    assert unchanged.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE name='scores__m5_effort'"
+    ).fetchone() == (0,)
+    unchanged.close()
+
+
 def test_reset_source_rejects_unknown_table() -> None:
     """reset_source is closed against SQL injection via table name."""
     conn = connect()
     with pytest.raises(ValueError, match="unknown table"):
         reset_source(conn, "models; DROP TABLE models", "s")
+
+
+def test_explicit_migrate_cli_refuses_a_legacy_table_it_cannot_repair(tmp_path, capsys) -> None:
+    """W4 review BLOCKING-1: exit 0 must never be printed over a database the read
+    paths cannot use.
+
+    The first cut validated exactly two tables by hand, so a pre-M3 `plans` missing
+    `observed_at` migrated "successfully" — and the next `recommend --subscription`
+    died with `no such column: observed_at`, which is the precise symptom W-004 was
+    written to remove. The validator now derives its requirement from the shipped DDL,
+    so a column added tomorrow is covered tomorrow.
+    """
+    db = tmp_path / "legacy.db"
+    conn = sqlite3.connect(db)
+    conn.executescript("""
+        CREATE TABLE plans (
+            id TEXT PRIMARY KEY, provider TEXT, name TEXT, monthly_usd REAL,
+            currency TEXT, region TEXT, limits TEXT, source_url TEXT, last_verified TEXT
+        );
+        CREATE TABLE plan_models (plan_id TEXT, raw_name TEXT, model_id TEXT);
+        """)
+    conn.execute(
+        "INSERT INTO plans VALUES ('p','Prov','Plan',9.99,'USD','US','x','https://x','2026-08-15')"
+    )
+    conn.commit()
+    conn.close()
+    before = db.read_bytes()
+
+    assert main(["migrate", "--db", str(db)]) == 2
+    error = json.loads(capsys.readouterr().out)["error"]
+    assert "plans" in error and "observed_at" in error
+    assert db.read_bytes() == before  # refused BEFORE the first write
+
+
+def test_migration_validator_requirements_are_derived_from_the_shipped_ddl() -> None:
+    """The guard above is only as good as its source: prove it reads the real DDL.
+
+    A hand-maintained copy of the schema drifts from the schema — that drift is what
+    BLOCKING-1 was. Every table the DDL declares must be covered, and the only columns
+    exempt are the ones a migration can actually add.
+    """
+    from app.workflows.schema import _MIGRATIONS, _ddl_columns
+
+    ddl = _ddl_columns()
+    assert {
+        "models",
+        "pricing",
+        "scores",
+        "px_median",
+        "plans",
+        "plan_config",
+        "plan_models",
+    } <= set(ddl)
+    assert "observed_at" in ddl["plans"]  # the column BLOCKING-1 let through
+    migratable = {column for _, column, _ in _MIGRATIONS} | {"effort"}
+    # Anything NOT addable by a migration must be demanded of an existing table.
+    assert "observed_at" not in migratable
+    assert "link_source" in migratable  # M4-W2 added it to an existing table
+
+
+def test_ddl_applier_survives_a_trailing_comment() -> None:
+    """W4 review MINOR-5: a comment must never take the application down.
+
+    `_apply_ddl` hand-splits the DDL (deliberately — `executescript` would commit the
+    open transaction). Its leftover check treated a comment-only remainder as an
+    incomplete statement, so adding a trailing `-- note` line to DDL made every
+    `connect()` raise.
+    """
+    import app.workflows.schema as schema_module
+
+    original = schema_module.DDL
+    try:
+        schema_module.DDL = original + "-- a maintainer's note\n"
+        conn = schema_module.connect()
+        assert conn.execute("SELECT COUNT(*) FROM plans").fetchone() == (0,)
+        conn.close()
+    finally:
+        schema_module.DDL = original

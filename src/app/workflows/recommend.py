@@ -25,7 +25,12 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from app.workflows.categories import CategorySpec, get_category
-from app.workflows.rank import ATTRIBUTIONS, RankingRow, build_price_medians, category_ranking
+from app.workflows.rank import (
+    RankingRow,
+    attributions_for,
+    build_price_medians,
+    category_ranking,
+)
 
 # Budget thresholds on blended $/1M (documented constants — REQ-REC-002)
 BUDGETS: dict[str, float | None] = {"dusuk": 2.0, "orta": 8.0, "sinirsiz": None}
@@ -311,7 +316,8 @@ def recommend(
         task=spec.id,
         budget=budget,
         ranking_effort=spec.ranking_effort,
-        sources=ATTRIBUTIONS,
+        # W4 review BLOCKING-2: name only the sources this answer actually read.
+        sources=attributions_for({r.evidence_source for r in rows}, priced=True),
         eligible_count=len(rows),
         frontier_size=len(frontier),
         close_call=close_call,
@@ -341,12 +347,20 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     conn: sqlite3.Connection | None = None
     try:
-        from app.workflows.subscribe import SubscriptionRecommendation, recommend_subscription
+        from app.workflows.subscribe import (
+            BudgetShutout,
+            SubscriptionRecommendation,
+            budget_shutout,
+            recommend_subscription,
+        )
 
         conn = sqlite3.connect(args.db)
         rec: Recommendation | SubscriptionRecommendation | None
+        shutout: BudgetShutout | None = None
         if args.subscription:
             rec = recommend_subscription(conn, args.budget, args.task)
+            if rec is None:
+                shutout = budget_shutout(conn, args.budget, args.task)
         else:
             rec = recommend(conn, args.budget, args.task)
     except sqlite3.Error as exc:
@@ -361,15 +375,18 @@ def main(argv: list[str] | None = None) -> int:
             conn.close()
     if rec is None:
         what = "plan" if args.subscription else "model"
-        print(
-            json.dumps(
-                {
-                    "error": f"no eligible {what} for this budget",
-                    "budget": args.budget,
-                    "task": args.task,
-                }
-            )
-        )
+        payload: dict[str, object] = {
+            "error": f"no eligible {what} for this budget",
+            "budget": args.budget,
+            "task": args.task,
+        }
+        if args.subscription and shutout is not None:
+            # W4 review MINOR-1: the case where the budget excluded EVERYTHING is the
+            # one the user most needs explained, so the count ships here too.
+            payload["scoreable_plans"] = shutout.scoreable_plans
+            payload["excluded_by_budget"] = shutout.excluded_by_budget
+            payload["budget_notice"] = shutout.budget_notice
+        print(json.dumps(payload, ensure_ascii=False))
         return 1
     print(json.dumps(asdict(rec), ensure_ascii=False, indent=2))
     return 0

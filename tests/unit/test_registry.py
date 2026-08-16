@@ -231,6 +231,16 @@ def test_no_duplicate_canonical_ids_or_patterns() -> None:
 # SWE-bench entries) — including every wrong mapping that review caught, so a
 # regression re-breaks the exact case that was paid for.
 LIVE_NAME_EXPECTATIONS: tuple[tuple[str, str | None], ...] = (
+    # M5 closure: found on the LIVE Epoch SWE-bench board, not in any earlier corpus.
+    # `kimi-k2.5` (73.8) and `kimi-k2.6` (76.7) both folded into `kimi-k2`, so MAX()
+    # published the newer model's score under the older model's name. Same swallow
+    # class as the GPT-5.x Pro family M4-W1 fixed — a rule table is only defended by
+    # the names its sources actually emit.
+    ("kimi-k2.6", "kimi-k2.6"),
+    ("kimi-k2.5", "kimi-k2.5"),
+    ("kimi-k2", "kimi-k2"),
+    ("Kimi K2.6", "kimi-k2.6"),
+    ("kimi-k2-instruct", "kimi-k2"),
     # variant must never fold into its base (own price AND own score live)
     ("deepseek-v4-flash", "deepseek-v4-flash"),
     ("deepseek-v4-pro", "deepseek-v4-pro"),

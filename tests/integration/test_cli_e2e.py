@@ -107,7 +107,11 @@ def test_cli_end_to_end_three_picks(tmp_path: Path) -> None:
     assert [p["label"] for p in payload["picks"]] == ["best_quality", "best_value", "budget_pick"]
     assert payload["picks"][0]["model"] == "Claude 4.5 Opus"
     assert payload["task"] == "coding"
-    assert any("Epoch AI" in source and "CC-BY-4.0" in source for source in payload["sources"])
+    # W4 review BLOCKING-2: cite what this run actually read (swebench + pricing), and
+    # do not claim Epoch, which this fixture never ingests.
+    assert any("swebench.com" in source for source in payload["sources"])
+    assert any("litellm" in source for source in payload["sources"])
+    assert not any("Epoch AI" in source for source in payload["sources"])
 
 
 def test_cli_budget_filters_through_entry_point(tmp_path: Path) -> None:

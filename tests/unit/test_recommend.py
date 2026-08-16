@@ -108,13 +108,47 @@ def test_three_labeled_deterministic_picks() -> None:
     assert rec1.picks[0].model == "Claude 4.5 Opus"
 
 
-def test_req_lic_001_epoch_citation_is_in_model_recommendation_and_readme() -> None:
-    """REQ-LIC-001: the licensed citation ships where recommendation data is served."""
-    rec = recommend(_db(), "sinirsiz")
+def test_req_lic_001_epoch_citation_ships_where_epoch_data_is_served() -> None:
+    """REQ-LIC-001 + W4 review BLOCKING-2: the citation rides the DATA, not the payload.
+
+    CC-BY obliges attribution wherever the licensed data is served — so a payload that
+    ranks on an Epoch row MUST carry the citation. The mirror obligation is just as
+    real and is what BLOCKING-2 caught: a payload that never read Epoch must not claim
+    it, because `sources` is a provenance claim in a machine contract.
+    """
+    from app.workflows.rank import SWEBENCH_ATTRIBUTION
+
+    conn = _db()
+    # Same benchmark, evidence supplied by the Epoch bundle instead of swebench.com.
+    conn.execute(
+        "UPDATE scores SET source = 'epoch_swe_bench_verified' WHERE benchmark = ?",
+        ("SWE-bench Verified",),
+    )
+    rec = recommend(conn, "sinirsiz")
     assert rec is not None
     assert EPOCH_ATTRIBUTION in rec.sources
+    assert SWEBENCH_ATTRIBUTION not in rec.sources  # swebench.com supplied nothing here
+
     readme = (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
-    assert EPOCH_ATTRIBUTION.removesuffix(" (CC BY 4.0 / CC-BY-4.0)") in readme
+    # The README must carry Epoch's prescribed citation text itself, not a paraphrase.
+    assert EPOCH_ATTRIBUTION.removesuffix(" (CC-BY-4.0)") in readme
+    assert "CC BY 4.0" in readme  # and name the licence
+
+
+def test_payload_never_claims_a_source_it_did_not_read() -> None:
+    """W4 review BLOCKING-2 citing test: `sources` is derived, not a static catalogue.
+
+    This fixture holds swebench + aider scores and litellm prices — no Arena row and no
+    Epoch row anywhere. The first cut stamped every payload with the full catalogue, so
+    it claimed Arena AND Epoch regardless: two sources it never opened.
+    """
+    from app.workflows.rank import ARENA_ATTRIBUTION, PRICING_ATTRIBUTION, SWEBENCH_ATTRIBUTION
+
+    rec = recommend(_db(), "sinirsiz")
+    assert rec is not None
+    assert rec.sources == (PRICING_ATTRIBUTION, SWEBENCH_ATTRIBUTION)
+    assert ARENA_ATTRIBUTION not in rec.sources
+    assert EPOCH_ATTRIBUTION not in rec.sources
 
 
 def test_budget_filter_is_hard_constraint() -> None:
