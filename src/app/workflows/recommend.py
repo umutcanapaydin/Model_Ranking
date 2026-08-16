@@ -444,7 +444,15 @@ def main(argv: list[str] | None = None) -> int:
             payload["budget_notice"] = shutout.budget_notice
         print(json.dumps(payload, ensure_ascii=False))
         return 1
-    print(json.dumps(asdict(rec), ensure_ascii=False, indent=2))
+    # The SAME serializer the /v1 adapter uses (REQ-API-003). Two renderings of one run may not
+    # be built by two functions: that is how M5 shipped a payload and a CSV of the same run
+    # disagreeing about effort, with every gate green.
+    from app.workflows.serialize import recommendation_json
+
+    if isinstance(rec, Recommendation):
+        print(json.dumps(recommendation_json(rec), ensure_ascii=False, indent=2))
+    else:
+        print(json.dumps(asdict(rec), ensure_ascii=False, indent=2))
     return 0
 
 

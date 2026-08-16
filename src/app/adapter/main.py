@@ -30,6 +30,7 @@ from __future__ import annotations
 import datetime as dt
 import os
 import sqlite3
+from dataclasses import fields
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,7 @@ from fastapi.responses import JSONResponse
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.coverage import SOURCE_STALE_DAYS, source_health
 from app.workflows.recommend import BUDGETS, Pick, Recommendation, recommend
+from app.workflows.serialize import recommendation_json
 
 APP_VERSION = "0.1.0"
 # CI/build sets APP_BUILD to the image tag or git SHA; defaults to "unknown".
@@ -294,28 +296,10 @@ def _source_health_json(
     }
 
 
-def _pick_json(pick: Pick) -> dict[str, Any]:
-    return {
-        "label": pick.label,
-        "model": pick.model,
-        "vendor": pick.vendor,
-        "score": pick.score,
-        "metric": pick.metric,
-        "secondary_score": pick.secondary_score,
-        "blended_per_m": pick.blended_per_m,
-        "input_per_m": pick.input_per_m,
-        "output_per_m": pick.output_per_m,
-        "evidence_date": pick.evidence_date,
-        "harness": pick.harness,
-        "effort": pick.effort,
-        "higher_effort": pick.higher_effort,
-        "higher_effort_score": pick.higher_effort_score,
-        "effort_note": pick.effort_note,
-        "confidence": pick.confidence,
-        "confidence_basis": pick.confidence_basis,
-        "why": pick.why,
-        "trade_off": pick.trade_off,
-    }
+#: `Recommendation` fields the envelope RELOCATES rather than repeats. `task` is the answer's
+#: `surface`; `budget` belongs to the query, which is one query for all the answers — repeating it
+#: per answer would give two copies of one value a chance to disagree.
+RELOCATED_FIELDS = ("task", "budget")
 
 
 def _answer_json(
@@ -324,28 +308,59 @@ def _answer_json(
     unavailable_reason: str | None,
     source_health_json: dict[str, Any],
 ) -> dict[str, Any]:
+    """One answer: the engine's own serialization, plus the fields only the API knows.
+
+    **Nothing here enumerates an engine field.** The previous version listed all nineteen `Pick`
+    fields and all ten `Recommendation` fields by hand; it was correct the day it was written and
+    the W1 review killed it by deleting one line, with every test still green. `recommendation_json`
+    walks the dataclass, so a field added to the engine arrives here whether anyone remembers it or
+    not — and `tests/unit/test_serializer_parity.py` fails if one does not.
+
+    The API's own additions are the ones the engine cannot know: which surface this is, how fresh
+    its source is on a wall clock, whether its evidence carries dates, and why it has no picks.
+    """
     picks = rec.picks if rec else ()
     dating, dating_note = _evidence_dating(picks)
+
+    if rec is not None:
+        # The engine's own serialization, and NOTHING to fall back on. The first version merged
+        # the engine over a scaffold of Nones built from the dataclass, which meant a field the
+        # serializer dropped was silently replaced by `null` — the W2 fault injection caught it:
+        # deleting `close_call` and `effort_mix_notice` left every test green because the scaffold
+        # supplied them. A default that hides a missing field is the mirror problem wearing a
+        # different hat.
+        engine = recommendation_json(rec)
+        for field in RELOCATED_FIELDS:
+            engine.pop(field, None)
+    else:
+        # No run happened, so there is nothing to serialize and every engine field is genuinely
+        # absent. This scaffold is a statement about an ANSWER THAT DOES NOT EXIST, not a fallback
+        # for one that does.
+        engine = {
+            field.name: [] if field.name == "picks" else None
+            for field in fields(Recommendation)
+            if field.name not in RELOCATED_FIELDS
+        }
+        engine.update(
+            eligible_count=0,
+            frontier_size=0,
+            sources=[],
+            # The caller asked about a surface and the surface has a policy, even with no run.
+            # Where a run EXISTS its own value wins — M5's BLOCKING-1, never the policy in place
+            # of the evidence.
+            ranking_effort=spec.ranking_effort,
+        )
+
     return {
+        **engine,
         "surface": spec.id,
         "title": spec.title,
         "primary_benchmark": spec.primary_benchmark,
         "metric": spec.metric,
-        # Read from the RUN, not from the category, even though the two are equal today. This
-        # module's own rule two functions up is that a payload publishes what a run produced;
-        # reading `spec` here would be the same coupling M5's BLOCKING-1 was.
-        "ranking_effort": rec.ranking_effort if rec else spec.ranking_effort,
         "source_health": source_health_json,
         "evidence_dating": dating,
         "evidence_dating_note": dating_note,
-        "sources": list(rec.sources) if rec else [],
-        "eligible_count": rec.eligible_count if rec else 0,
-        "frontier_size": rec.frontier_size if rec else 0,
-        "close_call": rec.close_call if rec else None,
-        "effort_mix_notice": rec.effort_mix_notice if rec else None,
-        "stale_notice": rec.stale_notice if rec else None,
         "unavailable_reason": unavailable_reason,
-        "picks": [_pick_json(p) for p in picks],
     }
 
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import csv
 import json
 import sqlite3
 from pathlib import Path
@@ -11,7 +10,13 @@ import pytest
 
 from app.clients.fakes import FakeRawSource
 from app.workflows.ingest import RunContext, ingest_litellm, ingest_swebench
-from app.workflows.rank import BLEND_NOTE, build_price_medians, coding_ranking, export_ranking
+from app.workflows.rank import (
+    BLEND_NOTE,
+    build_price_medians,
+    coding_ranking,
+    export_ranking,
+    read_export_csv,
+)
 from app.workflows.registry import reconcile
 from app.workflows.schema import connect
 
@@ -228,7 +233,9 @@ def test_median_of_per_source_medians_beats_outlier_source() -> None:
 def test_export_empty_ranking_does_not_crash(tmp_path: Path) -> None:
     """REQ-RANK-002 edge: empty ranking → header-only CSV + empty JSON rows."""
     csv_path, json_path = export_ranking([], tmp_path, [])
-    assert csv_path.read_text().strip().startswith("model,")
+    assert read_export_csv(csv_path) == []
+    # REQ-LIC-002: even an empty export carries its licence header.
+    assert csv_path.read_text().startswith("#")
     assert json.loads(json_path.read_text())["rows"] == []
 
 
@@ -242,8 +249,7 @@ def test_export_csv_and_json_identical_rows(tmp_path: Path) -> None:
     ]
     csv_path, json_path = export_ranking(ranking, tmp_path, meta)
 
-    with csv_path.open() as f:
-        csv_rows = list(csv.DictReader(f))
+    csv_rows = read_export_csv(csv_path)
     payload = json.loads(json_path.read_text())
     assert payload["note"] == BLEND_NOTE
     assert payload["generated_from"] == meta

@@ -264,6 +264,20 @@ def coding_ranking(conn: sqlite3.Connection) -> list[RankingRow]:
     return category_ranking(conn, CATEGORIES["coding"])
 
 
+#: Metadata lines the export writes above the header (REQ-LIC-002). Read them with
+#: `read_export_csv` rather than reinventing the skip at each call site — a reader that each
+#: consumer writes for itself is the same hand-mirror class the /v1 serializer just removed.
+EXPORT_COMMENT_PREFIX = "#"
+
+
+def read_export_csv(path: Path) -> list[dict[str, str]]:
+    """Read an exported ranking CSV, skipping the attribution/blend-note header lines."""
+    lines = [
+        line for line in path.read_text().splitlines() if not line.startswith(EXPORT_COMMENT_PREFIX)
+    ]
+    return list(csv.DictReader(lines))
+
+
 def export_ranking(
     ranking: list[RankingRow],
     out_dir: Path,
@@ -291,16 +305,26 @@ def export_ranking(
         item["secondary_score"] = round_optional_score(row.secondary_score)
         item["higher_effort_score"] = round_optional_score(row.higher_effort_score)
         dicts.append(item)
+    # W4 review BLOCKING-2: an export cites the sources IT carries, not the catalogue.
+    attribution = attributions_for({r.evidence_source for r in ranking}, priced=True)
+
     fields = list(RankingRow.__dataclass_fields__)
     with csv_path.open("w", newline="") as f:
+        # REQ-LIC-002. M5's security review left this half unattributed: the JSON cited its sources
+        # and the CSV of the SAME RUN cited nothing. A CC-BY obligation ships where the data is
+        # served, and this is the file an analyst actually opens — "it is in the other file" is not
+        # a licence position. Metadata rides as `#` comment lines ABOVE the header so a reader that
+        # skips comments gets exactly the table it got before; the header is still the first
+        # non-comment line.
+        for line in (BLEND_NOTE, *attribution):
+            f.write(f"# {line}\n")
         writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
         writer.writerows(dicts)
 
     payload = {
         "note": BLEND_NOTE,
-        # W4 review BLOCKING-2: an export cites the sources IT carries, not the catalogue.
-        "attribution": attributions_for({r.evidence_source for r in ranking}, priced=True),
+        "attribution": attribution,
         "generated_from": generated_from,
         "rows": dicts,
     }

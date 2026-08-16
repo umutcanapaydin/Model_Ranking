@@ -89,6 +89,39 @@ class PlanPick:
     trade_off: str | None
 
 
+#: The three labels a plan answer publishes. Named once so REQ-REC-014's `equivalent_to` can be
+#: validated against them instead of being any string at all.
+PLAN_PICK_LABELS = ("best_quality", "best_value", "budget_pick")
+
+
+@dataclass(frozen=True)
+class EquivalenceMember:
+    """One plan that is indistinguishable on quality from a pick (REQ-REC-014)."""
+
+    plan: str
+    plan_id: str
+    monthly_usd: float
+
+
+@dataclass(frozen=True)
+class EquivalenceGroup:
+    """The plans equivalent to ONE pick, and what makes them equivalent (REQ-REC-014, W-002).
+
+    W-002, raised at M4 and deferred here on purpose: `equivalent_plans` was a flat tuple of plan
+    names, so with two or more groups a machine consumer could not tell which pick each plan was
+    equivalent to, or at what price. The prose in `equivalence_note` carried the structure and the
+    field did not — and prose is not something a client can render from.
+
+    Deferred to the API milestone because the remedy is a CONTRACT shape, and a contract shape is
+    decided once, where it freezes.
+    """
+
+    equivalent_to: str  # the pick's label: best_quality / best_value / budget_pick
+    model: str  # the shared model that makes them indistinguishable
+    score: float
+    members: tuple[EquivalenceMember, ...]
+
+
 @dataclass(frozen=True)
 class SubscriptionRecommendation:
     """Deterministic three-plan result (REQ-REC-007)."""
@@ -111,7 +144,7 @@ class SubscriptionRecommendation:
     # because only one budget-eligible plan is scoreable. That is a coverage/budget
     # fact, reported separately by `coverage.plan_coverage`, `excluded_by_budget`, and
     # `budget_notice`; this tuple stays empty when no second plan is equivalent TO.
-    equivalent_plans: tuple[str, ...]
+    equivalent_plans: tuple[EquivalenceGroup, ...]
     equivalence_note: str | None
     close_call: str | None
     effort_mix_notice: str | None  # M5: comparisons across unequal effort are DISCLOSED
@@ -396,9 +429,10 @@ def recommend_subscription(
     # DIFFERENT plan — scoring a different model — into the price span this sentence
     # claims is "the same model". Only `rows` (already cap-filtered) is scanned, so a
     # plan the budget excluded can never be named as an option.
-    groups: list[tuple[PlanRank, list[PlanRank]]] = []
+    groups: list[tuple[str, PlanRank, list[PlanRank]]] = []
     seen_models: set[tuple[str, float]] = set()
-    for picked in (quality, value, cheap):
+    # Labelled, because REQ-REC-014 makes the pick a group is equivalent TO part of the contract.
+    for label, picked in zip(PLAN_PICK_LABELS, (quality, value, cheap), strict=True):
         # One group per (model, score): the three labels frequently pick the same
         # plan, and the note must not repeat itself when they do.
         key = (picked.scored_by_model, picked.score)
@@ -416,13 +450,24 @@ def recommend_subscription(
             key=lambda r: (r.monthly_usd, r.plan, r.plan_id),
         )
         if tied:
-            groups.append((picked, tied))
+            groups.append((label, picked, tied))
 
-    equivalent = tuple(sorted({r.plan for _, tied in groups for r in tied}))
+    equivalent = tuple(
+        EquivalenceGroup(
+            equivalent_to=label,
+            model=picked.scored_by_model,
+            score=picked.score,
+            members=tuple(
+                EquivalenceMember(plan=r.plan, plan_id=r.plan_id, monthly_usd=r.monthly_usd)
+                for r in tied
+            ),
+        )
+        for label, picked, tied in groups
+    )
     equivalence_note: str | None = None
     if groups:
         parts = []
-        for picked, tied in groups:
+        for _label, picked, tied in groups:
             members = [picked, *tied]
             cheapest = min(members, key=lambda r: (r.monthly_usd, r.plan))
             dearest = max(members, key=lambda r: (r.monthly_usd, r.plan))

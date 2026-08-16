@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import csv
 import json
 import os
 from pathlib import Path
@@ -14,7 +13,12 @@ from app.clients.fakes import FakeRawSource
 from app.workflows.categories import CATEGORIES
 from app.workflows.coverage import main as coverage_main
 from app.workflows.ingest import RunContext, ingest_swebench
-from app.workflows.rank import build_price_medians, category_ranking, export_ranking
+from app.workflows.rank import (
+    build_price_medians,
+    category_ranking,
+    export_ranking,
+    read_export_csv,
+)
 from app.workflows.recommend import main
 from app.workflows.registry import canonicalize, resolve_effort
 from app.workflows.schema import EFFORT_LEVELS, connect
@@ -317,8 +321,7 @@ def test_ranking_export_rounds_every_score_without_rounding_internal_math(tmp_pa
         row for row in json.loads(json_path.read_text())["rows"] if row["model"] == "GPT-5.6 Sol"
     )
     assert (json_gpt["score"], json_gpt["higher_effort_score"]) == (60.6, 75.6)
-    with csv_path.open() as handle:
-        csv_gpt = next(row for row in csv.DictReader(handle) if row["model"] == "GPT-5.6 Sol")
+    csv_gpt = next(row for row in read_export_csv(csv_path) if row["model"] == "GPT-5.6 Sol")
     assert (csv_gpt["score"], csv_gpt["higher_effort_score"]) == ("60.6", "75.6")
 
 

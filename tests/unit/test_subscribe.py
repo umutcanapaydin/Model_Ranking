@@ -395,6 +395,16 @@ TWIN_DOC = DOC.replace(
 )
 
 
+
+def _member_names(rec) -> tuple[str, ...]:
+    """Every equivalent plan name, flattened.
+
+    REQ-REC-014 (W-002) turned `equivalent_plans` from a flat name tuple into labelled groups, so
+    the assertions that only care about WHICH plans are equivalent flatten it here. The assertions
+    that care about the structure itself live in `test_serializer_parity.py`.
+    """
+    return tuple(sorted(m.plan for g in rec.equivalent_plans for m in g.members))
+
 def test_equivalent_plans_are_named_when_the_three_labels_collapse() -> None:
     """REQ-REC-009 as evidence allows it: when several plans name the SAME model they
     are indistinguishable on quality, so the answer says so and points at the cheapest
@@ -403,7 +413,7 @@ def test_equivalent_plans_are_named_when_the_three_labels_collapse() -> None:
     rec = recommend_subscription(_db(TWIN_DOC), "medium", "coding")
     assert rec is not None
     # mid-plan ($20) and twin-plan ($12) both rank on Gemini 3.1 Pro at 77.4
-    assert rec.equivalent_plans == ("Mid Plan",)
+    assert _member_names(rec) == ("Mid Plan",)
     assert rec.equivalence_note is not None
     assert "Gemini 3.1 Pro" in rec.equivalence_note
     # W4 review BLOCKING-2: `"Twin Plan" in note` passed on the plan LIST alone and so
@@ -429,7 +439,7 @@ def test_equivalence_is_computed_for_every_label_not_only_the_quality_pick() -> 
     assert rec is not None
     assert rec.picks[0].plan == "Top Plan"  # quality pick has NO twin
     assert rec.picks[1].plan == "Twin Plan"  # value pick does
-    assert rec.equivalent_plans == ("Mid Plan",)
+    assert _member_names(rec) == ("Mid Plan",)
     assert rec.equivalence_note is not None
     assert "Bu grupta en ucuzu Twin Plan ($12.00/ay)." in rec.equivalence_note
 
@@ -467,7 +477,7 @@ def test_rounding_never_reaches_the_pareto_comparison() -> None:
     assert rec.picks[0].score == 77.4  # ...and the OUTPUT is still rounded
     assert rec.picks[0].scored_by_model == "Gemini 3.1 Pro"
     # Cheap Plan would have won the quality label had the comparison seen 77.4 == 77.4.
-    assert "Cheap Plan" not in rec.equivalent_plans
+    assert "Cheap Plan" not in _member_names(rec)
 
 
 def test_a_sub_rounding_gap_never_prints_as_a_zero_delta() -> None:
@@ -512,7 +522,7 @@ def test_equivalence_never_names_a_plan_the_budget_excluded() -> None:
     # sanity: without the cap the same data DOES pair them
     unlimited = recommend_subscription(_db(doc), "unlimited", "coding")
     assert unlimited is not None
-    assert unlimited.equivalent_plans == ("Top Plan",)  # picked Mid Plan ($20), tied Top ($100)
+    assert _member_names(unlimited) == ("Top Plan",)  # picked Mid Plan ($20), tied Top ($100)
 
 
 def test_equivalence_group_membership_is_resolved_by_plan_id_not_name() -> None:

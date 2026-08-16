@@ -103,7 +103,7 @@ def ingest_openrouter(conn: sqlite3.Connection, source: RawSource, run: RunConte
 
 def _store_scores(
     conn: sqlite3.Connection, source_name: str, rows: list[ScoreRow], run: RunContext
-) -> None:
+) -> int:
     """Replace one source's score working set atomically (REQ-ING-004).
 
     An IntegrityError is re-raised as SourceError so THIS source aborts loudly
@@ -112,11 +112,16 @@ def _store_scores(
     """
     try:
         stored_rows = []
+        unclassified = 0
         for row in rows:
             if row.effort is not None and row.effort not in EFFORT_LEVELS:
                 msg = f"{source_name}: invalid score effort {row.effort!r}"
                 raise SourceError(msg)
             inferred = resolve_effort(row.raw_name, row.effort)
+            # W-010: `unspecified` is the right VALUE and silence is the wrong DISCLOSURE. A row
+            # whose name carries an effort-looking suffix nobody could confirm is counted here, so
+            # `effort_unknown: 0` means "none found" rather than "nothing looked".
+            unclassified += int(inferred.unclassified_suffix)
             stored_rows.append((row, inferred.effort or EFFORT_UNSPECIFIED))
         with conn:
             reset_source(conn, "scores", source_name)
@@ -144,13 +149,19 @@ def _store_scores(
     except sqlite3.IntegrityError as exc:
         msg = f"{source_name}: score working set violates schema constraints: {exc}"
         raise SourceError(msg) from exc
+    return unclassified
 
 
 def ingest_arena(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
     """Fetch + parse the Arena text leaderboard (REQ-ING-007/-004)."""
     rows, skipped = parse_arena(source.fetch_raw(), source=source.name, source_url=source.url)
-    _store_scores(conn, source.name, rows, run)
-    report = SourceReport(source=source.name, stored=len(rows), skipped=skipped)
+    unclassified = _store_scores(conn, source.name, rows, run)
+    report = SourceReport(
+        source=source.name,
+        stored=len(rows),
+        skipped=skipped,
+        effort_unknown=unclassified,
+    )
     run.reports.append(report)
     return report
 
@@ -158,8 +169,13 @@ def ingest_arena(conn: sqlite3.Connection, source: RawSource, run: RunContext) -
 def ingest_swebench(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
     """Fetch + parse SWE-bench Verified and replace its working set (REQ-ING-002/-004)."""
     rows, skipped = parse_verified(source.fetch_raw(), source=source.name, source_url=source.url)
-    _store_scores(conn, source.name, rows, run)
-    report = SourceReport(source=source.name, stored=len(rows), skipped=skipped)
+    unclassified = _store_scores(conn, source.name, rows, run)
+    report = SourceReport(
+        source=source.name,
+        stored=len(rows),
+        skipped=skipped,
+        effort_unknown=unclassified,
+    )
     run.reports.append(report)
     return report
 
@@ -180,12 +196,13 @@ def ingest_epoch(conn: sqlite3.Connection, source: RawSource, run: RunContext) -
     rows, skipped = parse_epoch_swe_bench_verified(
         source.fetch_raw(), source=source.name, source_url=source.url
     )
-    _store_scores(conn, source.name, rows, run)
+    unclassified = _store_scores(conn, source.name, rows, run)
     report = SourceReport(
         source=source.name,
         stored=len(rows),
         skipped=skipped,
         last_verified=last_verified,
+        effort_unknown=unclassified,
     )
     run.reports.append(report)
     return report
@@ -204,13 +221,15 @@ def ingest_deepswe(conn: sqlite3.Connection, source: RawSource, run: RunContext)
     last_verified = validate_last_verified(last_verified, source_name=source.name)
 
     rows, stats = parse_deepswe(source.fetch_raw(), source=source.name, source_url=source.url)
-    _store_scores(conn, source.name, rows, run)
+    unclassified = _store_scores(conn, source.name, rows, run)
     report = SourceReport(
         source=source.name,
         stored=len(rows),
         skipped=stats.skipped,
         last_verified=last_verified,
-        effort_unknown=stats.unknown_effort,
+        # Two populations, both REQ-CAN-005: the parser's rows whose EXPLICIT effort was
+        # unusable, plus W-010's rows whose suffix could not be confirmed at store time.
+        effort_unknown=stats.unknown_effort + unclassified,
         effort_conflicts=stats.conflicts,
     )
     run.reports.append(report)
@@ -220,12 +239,13 @@ def ingest_deepswe(conn: sqlite3.Connection, source: RawSource, run: RunContext)
 def ingest_aider(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
     """Fetch + parse Aider polyglot; staleness surfaces in the report (REQ-ING-003/-004)."""
     rows, skipped = parse_polyglot(source.fetch_raw(), source=source.name, source_url=source.url)
-    _store_scores(conn, source.name, rows, run)
+    unclassified = _store_scores(conn, source.name, rows, run)
     report = SourceReport(
         source=source.name,
         stored=len(rows),
         skipped=skipped,
         health=staleness_flag(rows, run.observed_at),
+        effort_unknown=unclassified,
     )
     run.reports.append(report)
     return report

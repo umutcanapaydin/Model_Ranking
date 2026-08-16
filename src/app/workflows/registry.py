@@ -158,6 +158,11 @@ class EffortResolution:
     effort: str | None
     conflict: bool = False
     invalid_explicit: bool = False
+    #: W-010. The raw name ends in an effort-looking token that could NOT be confirmed as an
+    #: effort, because the base name has no registry rule to compare against. The row is not
+    #: wrong to store as `unspecified` — it is wrong to store it SILENTLY. REQ-CAN-005 says an
+    #: undeterminable effort is counted and disclosed, never defaulted.
+    unclassified_suffix: bool = False
 
 
 def resolve_effort(model_name: str, explicit: str | None = None) -> EffortResolution:
@@ -195,6 +200,7 @@ def resolve_effort(model_name: str, explicit: str | None = None) -> EffortResolu
         effort=effort,
         conflict=bool(explicit_effort and suffix_effort and explicit_effort != suffix_effort),
         invalid_explicit=invalid_explicit,
+        unclassified_suffix=bool(match and suffix_effort is None and effort is None),
     )
 
 
