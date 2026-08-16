@@ -1,6 +1,6 @@
 # M5 Plan — Rescue the Coding Category (data depth, phase 2)
 
-**Status:** DRAFT — **UNSIGNED**, awaiting owner signature. No wave dispatches until it is signed.
+**Status:** **SIGNED** by the owner on 2026-08-16. Wave dispatch is authorized.
 **Date:** 2026-08-15 · **Risk tier:** LOW-MED · **Mode:** A0.5 + D-106
 **Process baseline:** GP v4.3.1 (D-108). Waves run without stopping (owner amendment, M3); the owner
 runs the out-of-sandbox verification at the milestone gate. **One planned mid-milestone touchpoint**
@@ -200,4 +200,4 @@ closure report + retrospective (answers M4's carried question about models no be
 
 ---
 
-*Owner signature: ____________________  (unsigned — no wave dispatches until this line is filled)*
+*Owner signature: **APPROVED — Umut Can Apaydin, 2026-08-16.***
