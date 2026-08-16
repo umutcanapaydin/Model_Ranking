@@ -187,7 +187,9 @@ def plan_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[PlanRank]
     ).fetchall()
     ranking: list[PlanRank] = []
     for r in rows:
-        higher_effort, higher_score = higher_effort_evidence(conn, r[8], spec)
+        higher_effort, higher_score = higher_effort_evidence(
+            conn, r[8], spec, harness=r[10], source=r[15]
+        )
         ranking.append(
             PlanRank(
                 plan_id=r[0],

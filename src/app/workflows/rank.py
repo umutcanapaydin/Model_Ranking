@@ -41,6 +41,7 @@ class RankingRow:
     vendor: str
     score: float
     harness: str
+    evidence_source: str
     effort: str
     higher_effort: str | None
     higher_effort_score: float | None
@@ -53,9 +54,14 @@ class RankingRow:
 
 
 def higher_effort_evidence(
-    conn: sqlite3.Connection, model_id: str, spec: CategorySpec
+    conn: sqlite3.Connection,
+    model_id: str,
+    spec: CategorySpec,
+    *,
+    harness: str,
+    source: str,
 ) -> tuple[str | None, float | None]:
-    """Score at the highest published effort above the category's named level."""
+    """Higher-effort score for the selected model+harness+source evidence identity."""
     if spec.ranking_effort is None:
         return None, None
     try:
@@ -65,8 +71,8 @@ def higher_effort_evidence(
     for effort in reversed(EFFORT_LEVELS[current + 1 :]):
         row = conn.execute(
             "SELECT MAX(score) FROM scores WHERE model_id = ? AND benchmark = ?"
-            " AND metric = ? AND effort = ?",
-            (model_id, spec.primary_benchmark, spec.metric, effort),
+            " AND metric = ? AND effort = ? AND harness = ? AND source = ?",
+            (model_id, spec.primary_benchmark, spec.metric, effort, harness, source),
         ).fetchone()
         if row is not None and row[0] is not None:
             return effort, row[0]
@@ -121,10 +127,10 @@ def category_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[Ranki
         ),
         primary_detail AS (
           -- deterministic tie-break: newest run first, then harness name (M1-W3 MINOR-3)
-          SELECT s.model_id, s.harness, s.effort, s.run_date, s.score,
+          SELECT s.model_id, s.harness, s.source, s.raw_name, s.effort, s.run_date, s.score,
                  ROW_NUMBER() OVER (
                    PARTITION BY s.model_id
-                   ORDER BY s.run_date DESC, s.harness ASC
+                   ORDER BY s.run_date DESC, s.harness ASC, s.source ASC, s.raw_name ASC
                  ) AS rn
           FROM scores s
           JOIN best_primary b ON b.model_id = s.model_id AND b.best = s.score
@@ -147,6 +153,7 @@ def category_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[Ranki
         )
         SELECT m.id, m.display, m.vendor, b.best,
                (SELECT harness  FROM primary_detail d WHERE d.model_id = m.id AND d.rn = 1),
+               (SELECT source   FROM primary_detail d WHERE d.model_id = m.id AND d.rn = 1),
                (SELECT effort   FROM primary_detail d WHERE d.model_id = m.id AND d.rn = 1),
                (SELECT run_date FROM primary_detail d WHERE d.model_id = m.id AND d.rn = 1),
                a.sec,
@@ -167,22 +174,25 @@ def category_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[Ranki
     ).fetchall()
     ranking: list[RankingRow] = []
     for r in rows:
-        higher_effort, higher_score = higher_effort_evidence(conn, r[0], spec)
+        higher_effort, higher_score = higher_effort_evidence(
+            conn, r[0], spec, harness=r[4], source=r[5]
+        )
         ranking.append(
             RankingRow(
                 model=r[1],
                 vendor=r[2],
                 score=r[3],
                 harness=r[4],
-                effort=r[5],
+                evidence_source=r[5],
+                effort=r[6],
                 higher_effort=higher_effort,
                 higher_effort_score=higher_score,
-                evidence_date=r[6],
-                secondary_score=r[7],
-                secondary_cost=r[8],
-                input_per_m=r[9],
-                output_per_m=r[10],
-                blended_per_m=round(r[9] * BLEND_INPUT_WEIGHT + r[10] * BLEND_OUTPUT_WEIGHT, 2),
+                evidence_date=r[7],
+                secondary_score=r[8],
+                secondary_cost=r[9],
+                input_per_m=r[10],
+                output_per_m=r[11],
+                blended_per_m=round(r[10] * BLEND_INPUT_WEIGHT + r[11] * BLEND_OUTPUT_WEIGHT, 2),
             )
         )
     return ranking
@@ -208,7 +218,18 @@ def export_ranking(
     csv_path = out_dir / f"{category}_ranking.csv"
     json_path = out_dir / f"{category}_ranking.json"
 
-    dicts = [asdict(r) for r in ranking]
+    # D-109: comparison keeps raw precision; every score is rounded once here,
+    # at the CSV/JSON boundary. Import locally to avoid the rank -> recommend ->
+    # rank module cycle while retaining the single ratified rounding helpers.
+    from app.workflows.recommend import round_optional_score, round_score
+
+    dicts = []
+    for row in ranking:
+        item = asdict(row)
+        item["score"] = round_score(row.score)
+        item["secondary_score"] = round_optional_score(row.secondary_score)
+        item["higher_effort_score"] = round_optional_score(row.higher_effort_score)
+        dicts.append(item)
     fields = list(RankingRow.__dataclass_fields__)
     with csv_path.open("w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fields)

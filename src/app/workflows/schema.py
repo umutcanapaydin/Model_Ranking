@@ -143,7 +143,8 @@ class ScoreRow:
 # Columns added to EXISTING tables after M1. `CREATE TABLE IF NOT EXISTS` cannot add
 # them to a database that already exists, so a disposable-but-persisted advisor.db
 # from an earlier milestone would fail with "no such column" (M4-W2 review MINOR-3).
-# Idempotent, additive, and loud only on a real error — never a destructive migration.
+# Migrations are idempotent and preserve rows. Most are additive; the effort migration
+# explicitly rebuilds the disposable scores table because SQLite cannot alter UNIQUE.
 _MIGRATIONS: tuple[tuple[str, str, str], ...] = (
     ("plan_models", "link_source", "TEXT NOT NULL DEFAULT 'plan-page'"),
     ("plan_models", "source_url", "TEXT"),

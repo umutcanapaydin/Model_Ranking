@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import os
 from pathlib import Path
@@ -10,7 +11,10 @@ import pytest
 
 from app.clients.deepswe import parse_deepswe
 from app.clients.fakes import FakeRawSource
+from app.workflows.categories import CATEGORIES
+from app.workflows.coverage import main as coverage_main
 from app.workflows.ingest import RunContext, ingest_swebench
+from app.workflows.rank import build_price_medians, category_ranking, export_ranking
 from app.workflows.recommend import main
 from app.workflows.registry import canonicalize, resolve_effort
 from app.workflows.schema import EFFORT_LEVELS, connect
@@ -170,6 +174,68 @@ def _effort_cli_db(path: Path) -> None:
                 SOURCE_URL,
                 "t",
             ),
+            (
+                "claude-5-opus",
+                "claude-opus-5_low",
+                "DeepSWE",
+                "% resolved",
+                40.0,
+                "mini-swe-agent",
+                "low",
+                "epoch_deepswe_external",
+                SOURCE_URL,
+                "t",
+            ),
+            (
+                "claude-5-opus",
+                "claude-opus-5_max_foreign_harness",
+                "DeepSWE",
+                "% resolved",
+                99.0,
+                "foreign-agent",
+                "max",
+                "epoch_deepswe_external",
+                SOURCE_URL,
+                "t",
+            ),
+            (
+                "claude-5-opus",
+                "claude-opus-5_max_foreign_source",
+                "DeepSWE",
+                "% resolved",
+                98.0,
+                "mini-swe-agent",
+                "max",
+                "other_deepswe_copy",
+                "https://other.example/board.csv",
+                "t",
+            ),
+            # Adversarial rows: neither a foreign harness nor a foreign source may
+            # supply the range disclosed beside mini-swe-agent/Epoch evidence.
+            (
+                "gpt-5.6-sol",
+                "gpt-5.6-sol_max_foreign_harness",
+                "DeepSWE",
+                "% resolved",
+                99.0,
+                "foreign-agent",
+                "max",
+                "epoch_deepswe_external",
+                SOURCE_URL,
+                "t",
+            ),
+            (
+                "gpt-5.6-sol",
+                "gpt-5.6-sol_max_foreign_source",
+                "DeepSWE",
+                "% resolved",
+                98.0,
+                "mini-swe-agent",
+                "max",
+                "other_deepswe_copy",
+                "https://other.example/board.csv",
+                "t",
+            ),
         ],
     )
     conn.commit()
@@ -196,7 +262,11 @@ def test_live_recommendation_ranks_high_and_discloses_higher_effort(
 
     claude = by_model["Claude Opus 5"]
     assert claude["higher_effort"] is None
-    assert "karşılaştırması yok" in claude["effort_note"]
+    assert claude["effort_note"] == (
+        "Bu model high effort düzeyinde sıralandı; aynı harness ve kaynakta "
+        "karşılaştırılabilir daha yüksek effort sonucu yok."
+    )
+    assert "yalnız" not in claude["effort_note"]  # low evidence also exists
 
 
 def test_live_subscription_answer_carries_the_same_effort_contract(
@@ -223,7 +293,97 @@ def test_live_subscription_answer_carries_the_same_effort_contract(
     assert by_model["GPT-5.6 Sol"]["score"] == 60.0
     assert by_model["GPT-5.6 Sol"]["higher_effort_score"] == 75.0
     assert "max effort" in by_model["GPT-5.6 Sol"]["effort_note"]
-    assert "karşılaştırması yok" in by_model["Claude Opus 5"]["effort_note"]
+    assert by_model["Claude Opus 5"]["effort_note"] == (
+        "Bu model high effort düzeyinde sıralandı; aynı harness ve kaynakta "
+        "karşılaştırılabilir daha yüksek effort sonucu yok."
+    )
+    assert "yalnız" not in by_model["Claude Opus 5"]["effort_note"]
+
+
+def test_ranking_export_rounds_every_score_without_rounding_internal_math(tmp_path: Path) -> None:
+    """D-109/REQ-REC-011: raw selection, one-decimal CSV+JSON boundary."""
+    db = tmp_path / "advisor.db"
+    _effort_cli_db(db)
+    conn = connect(str(db))
+    conn.execute("UPDATE scores SET score = 60.555 WHERE raw_name = 'gpt-5.6-sol_high'")
+    conn.execute("UPDATE scores SET score = 75.555 WHERE raw_name = 'gpt-5.6-sol_max'")
+    build_price_medians(conn)
+    ranking = category_ranking(conn, CATEGORIES["agentic-coding"])
+    gpt = next(row for row in ranking if row.model == "GPT-5.6 Sol")
+    assert (gpt.score, gpt.higher_effort_score) == (60.555, 75.555)
+
+    csv_path, json_path = export_ranking(ranking, tmp_path, [], category="agentic-coding")
+    json_gpt = next(
+        row for row in json.loads(json_path.read_text())["rows"] if row["model"] == "GPT-5.6 Sol"
+    )
+    assert (json_gpt["score"], json_gpt["higher_effort_score"]) == (60.6, 75.6)
+    with csv_path.open() as handle:
+        csv_gpt = next(row for row in csv.DictReader(handle) if row["model"] == "GPT-5.6 Sol")
+    assert (csv_gpt["score"], csv_gpt["higher_effort_score"]) == ("60.6", "75.6")
+
+
+def test_coverage_entrypoint_requires_the_category_effort(tmp_path: Path, capsys) -> None:
+    """REQ-CAN-005: max-only evidence cannot make a high-policy plan scoreable."""
+    db = tmp_path / "advisor.db"
+    _effort_cli_db(db)
+    conn = connect(str(db))
+    conn.execute("INSERT INTO models VALUES ('grok-4.6', 'Grok 4.6', 'xAI')")
+    conn.execute(
+        "INSERT INTO plans (id, provider, name, monthly_usd, currency, region, limits,"
+        " source_url, last_verified, observed_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (
+            "max-only-plan",
+            "xAI",
+            "Max Only Plan",
+            15.0,
+            "USD",
+            "US",
+            "verbatim",
+            "https://plans/max-only",
+            "2026-08-15",
+            "2026-08-16T00:00:00+00:00",
+        ),
+    )
+    conn.execute(
+        "INSERT INTO plan_models (plan_id, raw_name, model_id) VALUES (?,?,?)",
+        ("max-only-plan", "Grok 4.6", "grok-4.6"),
+    )
+    score_values = (
+        "grok-4.6_max",
+        "DeepSWE",
+        "% resolved",
+        80.0,
+        "mini-swe-agent",
+        "max",
+        "epoch_deepswe_external",
+        SOURCE_URL,
+        "t",
+    )
+    conn.execute(
+        "INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source,"
+        " source_url, observed_at, model_id) VALUES (?,?,?,?,?,?,?,?,?, 'grok-4.6')",
+        score_values,
+    )
+    conn.commit()
+    conn.close()
+
+    assert coverage_main(["--db", str(db), "--today", "2026-08-16"]) == 1
+    first = json.loads(capsys.readouterr().out)
+    agentic = next(row for row in first["plan_coverage"] if row["category"] == "agentic-coding")
+    assert "Max Only Plan" in agentic["unscoreable_no_scores"]
+
+    conn = connect(str(db))
+    conn.execute(
+        "INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source,"
+        " source_url, observed_at, model_id) VALUES (?,?,?,?,?,?,?,?,?, 'grok-4.6')",
+        ("grok-4.6_high", *score_values[1:5], "high", *score_values[6:]),
+    )
+    conn.commit()
+    conn.close()
+    assert coverage_main(["--db", str(db), "--today", "2026-08-16"]) == 1
+    second = json.loads(capsys.readouterr().out)
+    agentic = next(row for row in second["plan_coverage"] if row["category"] == "agentic-coding")
+    assert "Max Only Plan" in agentic["scoreable"]
 
 
 @pytest.mark.skipif(not os.getenv("EPOCH_DATA_DIR"), reason="set EPOCH_DATA_DIR for local contract")

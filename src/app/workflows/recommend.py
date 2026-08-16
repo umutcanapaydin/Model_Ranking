@@ -154,8 +154,8 @@ def effort_disclosure(
         return None
     if higher_effort is None or higher_effort_score is None:
         return (
-            f"Bu model yalnız {spec.ranking_effort} effort düzeyinde yayımlanmış; "
-            "daha yüksek effort karşılaştırması yok."
+            f"Bu model {spec.ranking_effort} effort düzeyinde sıralandı; "
+            "aynı harness ve kaynakta karşılaştırılabilir daha yüksek effort sonucu yok."
         )
     return (
         f"Bu model {spec.ranking_effort} effort düzeyinde sıralandı; "
