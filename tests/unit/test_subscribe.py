@@ -20,7 +20,7 @@ from app.workflows.subscribe import plan_ranking, recommend_subscription
 DOC = """
 schema: 1
 staleness_days: 30
-budget_caps_usd: {dusuk: 10, orta: 25, sinirsiz: null}
+budget_caps_usd: {low: 10, medium: 25, unlimited: null}
 plans:
   - id: cheap-plan
     provider: BudgetCo
@@ -130,7 +130,7 @@ def _db(doc: str = DOC) -> sqlite3.Connection:
 
 
 def test_three_labeled_plan_picks_unlimited_budget() -> None:
-    rec = recommend_subscription(_db(), budget="sinirsiz", task="coding")
+    rec = recommend_subscription(_db(), budget="unlimited", task="coding")
     assert rec is not None
     labels = [p.label for p in rec.picks]
     assert labels == ["best_quality", "best_value", "budget_pick"]
@@ -141,7 +141,7 @@ def test_three_labeled_plan_picks_unlimited_budget() -> None:
     assert rec.picks[1].trade_off is not None
     # Budget pick: cheapest meeting floor 65.0 → Cheap Plan (70.0 @ $8)
     assert rec.picks[2].plan == "Cheap Plan"
-    assert "kalite şartını geçen en ucuz plan" in rec.picks[2].why
+    assert "minimum-quality bar" in rec.picks[2].why
     # W4 review BLOCKING-2: this fixture's evidence is swebench, so that is what the
     # payload cites — and it must NOT claim Epoch or the per-token pricing feeds the
     # plan engine never reads. REQ-LIC-001's Epoch half is proven on Epoch evidence in
@@ -150,32 +150,32 @@ def test_three_labeled_plan_picks_unlimited_budget() -> None:
 
 
 def test_budget_cap_filters_before_scoring() -> None:
-    rec = recommend_subscription(_db(), budget="orta", task="coding")
+    rec = recommend_subscription(_db(), budget="medium", task="coding")
     assert rec is not None
     assert {p.plan for p in rec.picks} <= {"Cheap Plan", "Mid Plan"}  # $100 plan excluded
     assert rec.picks[0].plan == "Mid Plan"
-    rec = recommend_subscription(_db(), budget="dusuk", task="coding")
+    rec = recommend_subscription(_db(), budget="low", task="coding")
     assert rec is not None
     assert all(p.plan == "Cheap Plan" for p in rec.picks)
 
 
 def test_budget_notice_counts_only_scoreable_plans_excluded_by_price() -> None:
     """REQ-REC-013: six scoreable rows under low budget disclose five priced-out rows."""
-    rec = recommend_subscription(_db(SIX_SCOREABLE_DOC), budget="dusuk", task="coding")
+    rec = recommend_subscription(_db(SIX_SCOREABLE_DOC), budget="low", task="coding")
     assert rec is not None
     assert rec.eligible_count == 1
     assert rec.excluded_by_budget == 5
-    assert rec.budget_notice == "Bütçe sınırı 5 skorlanabilir planı seçenekler dışında bıraktı."
+    assert rec.budget_notice == "The budget cap excluded 5 scoreable plan(s) from the options."
     assert rec.unscored_plans == ("Vague Plan",)
 
-    unlimited = recommend_subscription(_db(SIX_SCOREABLE_DOC), budget="sinirsiz", task="coding")
+    unlimited = recommend_subscription(_db(SIX_SCOREABLE_DOC), budget="unlimited", task="coding")
     assert unlimited is not None
     assert unlimited.excluded_by_budget == 0
     assert unlimited.budget_notice is None
 
 
 def test_unscored_plan_is_disclosed_never_ranked() -> None:
-    rec = recommend_subscription(_db(), budget="sinirsiz", task="coding")
+    rec = recommend_subscription(_db(), budget="unlimited", task="coding")
     assert rec is not None
     assert rec.unscored_plans == ("Vague Plan",)
     assert all(p.plan != "Vague Plan" for p in rec.picks)
@@ -185,17 +185,17 @@ def test_no_rankable_plan_returns_none() -> None:
     conn = connect()
     ingest_plans(conn, DOC, RunContext())
     reconcile_plans(conn)  # no scores inserted → nothing rankable
-    assert recommend_subscription(conn, "sinirsiz", "coding") is None
+    assert recommend_subscription(conn, "unlimited", "coding") is None
 
 
 def test_quality_floor_unmet_warns_instead_of_pretending() -> None:
     """The M1-W4 honesty lesson, on the plan axis."""
     conn = _db()
     conn.execute("UPDATE scores SET score = 40.0")  # everyone below the 65.0 floor
-    rec = recommend_subscription(conn, "sinirsiz", "coding")
+    rec = recommend_subscription(conn, "unlimited", "coding")
     assert rec is not None
-    assert "UYARI" in rec.picks[2].why
-    assert "kaliteden ödün veriyorsun" in rec.picks[2].why
+    assert "WARNING" in rec.picks[2].why
+    assert "trading quality away" in rec.picks[2].why
 
 
 def test_stale_plan_rows_disclosed_in_output() -> None:
@@ -223,7 +223,7 @@ def test_stale_plan_rows_disclosed_in_output() -> None:
                 "2026-08-15T00:00:00+00:00",
             ),
         )
-    rec = recommend_subscription(conn, "sinirsiz", "coding")
+    rec = recommend_subscription(conn, "unlimited", "coding")
     assert rec is not None
     assert rec.stale_notice is not None
     assert "Cheap Plan" in rec.stale_notice
@@ -235,7 +235,7 @@ def test_close_call_disclosed_on_near_tie() -> None:
     conn.execute(
         "UPDATE scores SET score = 78.5 WHERE model_id = 'gemini-3.1-pro'"
     )  # gap 0.7 ≤ 1.5
-    rec = recommend_subscription(conn, "sinirsiz", "coding")
+    rec = recommend_subscription(conn, "unlimited", "coding")
     assert rec is not None
     assert rec.close_call is not None
     assert "Mid Plan" in rec.close_call
@@ -278,42 +278,42 @@ def test_cli_subscription_through_real_entrypoint(tmp_path, capsys) -> None:
     conn.commit()
     conn.close()
 
-    assert main(["--db", str(db), "--budget", "orta", "--task", "coding", "--subscription"]) == 0
+    assert main(["--db", str(db), "--budget", "medium", "--task", "coding", "--subscription"]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["picks"][0]["plan"] == "Mid Plan"
     assert out["unscored_plans"] == ["Vague Plan"]
 
-    # exit 1: no eligible plan (dusuk excludes everything rankable after price bump)
+    # exit 1: no eligible plan (low excludes everything rankable after price bump)
     conn = sqlite3.connect(db)
     conn.execute("UPDATE plans SET monthly_usd = 500")
     conn.commit()
     conn.close()
-    assert main(["--db", str(db), "--budget", "dusuk", "--task", "coding", "--subscription"]) == 1
+    assert main(["--db", str(db), "--budget", "low", "--task", "coding", "--subscription"]) == 1
     assert "no eligible plan" in capsys.readouterr().out
 
     # exit 2: DB without an ingested plan table config
     empty = tmp_path / "empty.db"
     connect(str(empty)).close()
-    assert main(["--db", str(empty), "--budget", "orta", "--subscription"]) == 2
+    assert main(["--db", str(empty), "--budget", "medium", "--subscription"]) == 2
 
 
 def test_model_path_regression_untouched(tmp_path, capsys) -> None:
     """--subscription is additive: the model CLI behaves exactly as before."""
     empty = tmp_path / "m.db"
     connect(str(empty)).close()
-    assert main(["--db", str(empty), "--budget", "sinirsiz", "--task", "coding"]) == 1
+    assert main(["--db", str(empty), "--budget", "unlimited", "--task", "coding"]) == 1
     assert "no eligible model" in capsys.readouterr().out
 
 
 def test_missing_plan_config_fails_with_usage_error() -> None:
     with pytest.raises(ValueError, match="plan_config missing"):
-        recommend_subscription(connect(), "orta", "coding")
+        recommend_subscription(connect(), "medium", "coding")
 
 
 def test_plan_priced_exactly_at_cap_is_eligible_through_cli(tmp_path, capsys) -> None:
     """W3 review MINOR-1+2: cap boundary is INCLUSIVE (<=) and stale disclosure
     survives the real entrypoint — both asserted through main() (V4C-50)."""
-    doc = DOC.replace("monthly_usd: 20", "monthly_usd: 25")  # mid-plan lands ON the orta cap
+    doc = DOC.replace("monthly_usd: 20", "monthly_usd: 25")  # mid-plan lands ON the medium cap
     doc = doc.replace("last_verified: 2026-08-15", "last_verified: 2026-05-01", 1)  # cheap stale
     db = tmp_path / "advisor.db"
     conn = connect(str(db))
@@ -340,7 +340,7 @@ def test_plan_priced_exactly_at_cap_is_eligible_through_cli(tmp_path, capsys) ->
         )
     conn.commit()
     conn.close()
-    assert main(["--db", str(db), "--budget", "orta", "--task", "coding", "--subscription"]) == 0
+    assert main(["--db", str(db), "--budget", "medium", "--task", "coding", "--subscription"]) == 0
     out = json.loads(capsys.readouterr().out)
     # Boundary: the $25 plan under cap 25 MUST be eligible — and it wins on score.
     assert out["picks"][0]["plan"] == "Mid Plan"
@@ -369,7 +369,7 @@ def test_scores_are_rounded_at_the_output_boundary_not_in_the_math() -> None:
     assert ranking[0].score == 77.45555555
     assert ranking[0].score != ranking[1].score
     # ...while the OUTPUT rounds once, at the boundary
-    rec = recommend_subscription(conn, "sinirsiz", "coding")
+    rec = recommend_subscription(conn, "unlimited", "coding")
     assert rec is not None
     assert rec.picks[0].score == 77.5
     assert all(len(str(p.score).split(".")[1]) <= 1 for p in rec.picks)
@@ -400,7 +400,7 @@ def test_equivalent_plans_are_named_when_the_three_labels_collapse() -> None:
     are indistinguishable on quality, so the answer says so and points at the cheapest
     instead of manufacturing variety (measured live at M4-W4: three <=$25 plans all
     scoring 1479.6 via Gemini 3.1 Pro)."""
-    rec = recommend_subscription(_db(TWIN_DOC), "orta", "coding")
+    rec = recommend_subscription(_db(TWIN_DOC), "medium", "coding")
     assert rec is not None
     # mid-plan ($20) and twin-plan ($12) both rank on Gemini 3.1 Pro at 77.4
     assert rec.equivalent_plans == ("Mid Plan",)
@@ -410,9 +410,9 @@ def test_equivalent_plans_are_named_when_the_three_labels_collapse() -> None:
     # could not fail — the claim under test is that the note names the cheapest of the
     # group WITH its price. Assert the sentence that carries the claim.
     assert "Bu grupta en ucuzu Twin Plan ($12.00/ay)." in rec.equivalence_note
-    assert "Aynı model için aylık fark: $12.00 — $20.00." in rec.equivalence_note
+    assert "Monthly difference for the same model: $12.00 — $20.00." in rec.equivalence_note
     # and when no picked plan has a twin, nothing is claimed
-    solo = recommend_subscription(_db(), "sinirsiz", "coding")
+    solo = recommend_subscription(_db(), "unlimited", "coding")
     assert solo is not None
     assert solo.equivalent_plans == ()
     assert solo.equivalence_note is None
@@ -425,7 +425,7 @@ def test_equivalence_is_computed_for_every_label_not_only_the_quality_pick() -> 
     a $99.99 plan ties exactly. Here Top Plan ($100, Claude) is alone, and the collapse
     is on the value pick — the note must still fire and name the cheap twin.
     """
-    rec = recommend_subscription(_db(TWIN_DOC), "sinirsiz", "coding")
+    rec = recommend_subscription(_db(TWIN_DOC), "unlimited", "coding")
     assert rec is not None
     assert rec.picks[0].plan == "Top Plan"  # quality pick has NO twin
     assert rec.picks[1].plan == "Twin Plan"  # value pick does
@@ -461,7 +461,7 @@ def test_rounding_never_reaches_the_pareto_comparison() -> None:
         ),
     )
     # Cheap Plan (GPT-5) 77.40 @ $8 vs Mid Plan (Gemini) 77.44 @ $20 vs Twin Plan 77.44 @ $12
-    rec = recommend_subscription(conn, "orta", "coding")
+    rec = recommend_subscription(conn, "medium", "coding")
     assert rec is not None
     assert rec.picks[0].plan == "Twin Plan"  # 77.44 raw beats 77.40 raw
     assert rec.picks[0].score == 77.4  # ...and the OUTPUT is still rounded
@@ -484,33 +484,33 @@ def test_a_sub_rounding_gap_never_prints_as_a_zero_delta() -> None:
     conn.execute("UPDATE scores SET score = 77.449 WHERE model_id = 'claude-4.5-opus'")
     conn.execute("UPDATE scores SET score = 77.351 WHERE model_id = 'gemini-3.1-pro'")
     conn.execute("UPDATE plans SET monthly_usd = 30 WHERE id = 'top-plan'")
-    rec = recommend_subscription(conn, "sinirsiz", "coding")
+    rec = recommend_subscription(conn, "unlimited", "coding")
     assert rec is not None
     assert rec.picks[0].score == rec.picks[1].score == 77.4  # the fields are identical...
     assert rec.close_call is not None
-    assert "aynı puanda" in rec.close_call  # ...so the prose may not claim a gap
+    assert "is level" in rec.close_call  # ...so the prose may not claim a gap
     assert "0.0" not in rec.close_call
     trade_off = rec.picks[1].trade_off
     assert trade_off is not None
-    assert trade_off.startswith("Liderle aynı puanda,")
+    assert trade_off.startswith("level with the leader,")
     assert "Liderden" not in trade_off  # the raw-gap phrasing must not survive
 
 
 def test_equivalence_never_names_a_plan_the_budget_excluded() -> None:
     """W4 re-review MINOR-2 citing test: the group is built from the CAP-FILTERED rows.
 
-    Top Plan ($100) names the same model as Mid Plan ($20). Under `orta` ($25) it is not
+    Top Plan ($100) names the same model as Mid Plan ($20). Under `medium` ($25) it is not
     a purchasable option, so naming it — and stretching the quoted price span to $100 —
     would be advice the user cannot act on. Building the group from the unfiltered
     ranking instead of `rows` turns this red.
     """
     doc = DOC.replace("included_models: [Claude 4.5 Opus]", "included_models: [Gemini 3.1 Pro]")
-    rec = recommend_subscription(_db(doc), "orta", "coding")
+    rec = recommend_subscription(_db(doc), "medium", "coding")
     assert rec is not None
     assert rec.equivalent_plans == ()  # Mid Plan's only twin is over the cap
     assert rec.equivalence_note is None
     # sanity: without the cap the same data DOES pair them
-    unlimited = recommend_subscription(_db(doc), "sinirsiz", "coding")
+    unlimited = recommend_subscription(_db(doc), "unlimited", "coding")
     assert unlimited is not None
     assert unlimited.equivalent_plans == ("Top Plan",)  # picked Mid Plan ($20), tied Top ($100)
 
@@ -551,16 +551,16 @@ def test_equivalence_group_membership_is_resolved_by_plan_id_not_name() -> None:
         "UPDATE plan_models SET raw_name = 'Gemini 3.1 Pro', model_id = 'gemini-3.1-pro'"
         " WHERE plan_id = 'cheap-plan'"
     )
-    rec = recommend_subscription(conn, "sinirsiz", "coding")
+    rec = recommend_subscription(conn, "unlimited", "coding")
     assert rec is not None
     note = rec.equivalence_note
     assert note is not None
-    assert "2 plan aynı modele (Gemini 3.1 Pro)" in note  # NOT 3 — the namesake is not tied
+    assert "2 plans link to the same model (Gemini 3.1 Pro)" in note  # NOT 3 — the namesake is not tied
     assert (
-        "2 plan aynı modele (Gemini 3.1 Pro) bağlanıyor, yani kalite açısından"
-        " ayırt edilemezler: Cheap Plan, Twin Plan."
+        "2 plans link to the same model (Gemini 3.1 Pro), so they are"
+        " indistinguishable on quality: Cheap Plan, Twin Plan."
         " Bu grupta en ucuzu Cheap Plan ($8.00/ay)."
-        " Aynı model için aylık fark: $8.00 — $20.00."
+        " Monthly difference for the same model: $8.00 — $20.00."
     ) in note  # the $150 namesake is in the OTHER group, never in this span
 
 
@@ -579,17 +579,17 @@ def test_equivalence_note_says_which_members_rest_on_a_roster() -> None:
         " source_url = 'https://twinco.example/models', last_verified = '2026-08-15'"
         " WHERE plan_id = 'twin-plan'"
     )
-    rec = recommend_subscription(conn, "orta", "coding")
+    rec = recommend_subscription(conn, "medium", "coding")
     assert rec is not None
     note = rec.equivalence_note
     assert note is not None
-    assert "aynı modele" in note and "listeliyor" not in note  # links to, not lists
-    assert "Bunlardan Twin Plan için kaynak, plan sayfası değil" in note
+    assert "the same model" in note and "listeliyor" not in note  # links to, not lists
+    assert "For Twin Plan the source is the provider's published model" in note
     # ...and with no roster link in the group, no provenance clause is added at all
-    plain = recommend_subscription(_db(TWIN_DOC), "orta", "coding")
+    plain = recommend_subscription(_db(TWIN_DOC), "medium", "coding")
     assert plain is not None
     assert plain.equivalence_note is not None
-    assert "kaynak, plan sayfası değil" not in plain.equivalence_note
+    assert "the source is the provider's published model" not in plain.equivalence_note
 
 
 def test_budget_that_prices_out_everything_still_says_how_many(tmp_path, capsys) -> None:
@@ -626,11 +626,11 @@ def test_budget_that_prices_out_everything_still_says_how_many(tmp_path, capsys)
     conn.commit()
     conn.close()
 
-    assert main(["--db", str(db), "--budget", "dusuk", "--task", "coding", "--subscription"]) == 1
+    assert main(["--db", str(db), "--budget", "low", "--task", "coding", "--subscription"]) == 1
     payload = json.loads(capsys.readouterr().out)
     assert payload["error"] == "no eligible plan for this budget"
     assert payload["scoreable_plans"] == 3
     assert payload["excluded_by_budget"] == 3
     assert payload["budget_notice"] == (
-        "Bütçe sınırı 3 skorlanabilir planı seçenekler dışında bıraktı."
+        "The budget cap excluded 3 scoreable plan(s) from the options."
     )

@@ -258,15 +258,15 @@ def test_live_recommendation_ranks_high_and_discloses_higher_effort(
     assert gpt["score"] == 60.0  # max=75 exists but never enters high-level ordering
     assert (gpt["higher_effort"], gpt["higher_effort_score"]) == ("max", 75.0)
     assert "max effort" in gpt["effort_note"]
-    assert "75.0 puan" in gpt["effort_note"]
+    assert "75.0 points" in gpt["effort_note"]
 
     claude = by_model["Claude Opus 5"]
     assert claude["higher_effort"] is None
     assert claude["effort_note"] == (
-        "Bu model high effort düzeyinde sıralandı; aynı harness ve kaynakta "
-        "karşılaştırılabilir daha yüksek effort sonucu yok."
+        "This model was ranked at high effort; the same harness and source "
+        "publish no comparable result at a higher effort."
     )
-    assert "yalnız" not in claude["effort_note"]  # low evidence also exists
+    assert "only" not in claude["effort_note"]  # low evidence also exists
 
 
 def test_live_subscription_answer_carries_the_same_effort_contract(
@@ -294,10 +294,10 @@ def test_live_subscription_answer_carries_the_same_effort_contract(
     assert by_model["GPT-5.6 Sol"]["higher_effort_score"] == 75.0
     assert "max effort" in by_model["GPT-5.6 Sol"]["effort_note"]
     assert by_model["Claude Opus 5"]["effort_note"] == (
-        "Bu model high effort düzeyinde sıralandı; aynı harness ve kaynakta "
-        "karşılaştırılabilir daha yüksek effort sonucu yok."
+        "This model was ranked at high effort; the same harness and source "
+        "publish no comparable result at a higher effort."
     )
-    assert "yalnız" not in by_model["Claude Opus 5"]["effort_note"]
+    assert "only" not in by_model["Claude Opus 5"]["effort_note"]
 
 
 def test_ranking_export_rounds_every_score_without_rounding_internal_math(tmp_path: Path) -> None:
@@ -434,7 +434,7 @@ def test_pick_publishes_the_effort_of_its_evidence_not_the_category_policy() -> 
     )
     conn.commit()
 
-    rec = recommend(conn, "sinirsiz", "coding")
+    rec = recommend(conn, "unlimited", "coding")
     assert rec is not None
     pick = rec.picks[0]
     assert pick.score == 78.7
@@ -453,7 +453,7 @@ def test_pick_publishes_the_effort_of_its_evidence_not_the_category_policy() -> 
     plan_doc = """
 schema: 1
 staleness_days: 30
-budget_caps_usd: {dusuk: 10, orta: 25, sinirsiz: null}
+budget_caps_usd: {low: 10, medium: 25, unlimited: null}
 plans:
   - id: only-plan
     provider: ProvCo
@@ -482,7 +482,7 @@ plans:
     conn.execute("UPDATE plan_models SET model_id = 'gemini-3.1-pro'")
     conn.commit()
 
-    sub = recommend_subscription(conn, "sinirsiz", "coding")
+    sub = recommend_subscription(conn, "unlimited", "coding")
     assert sub is not None
     assert sub.picks[0].score == 80.0
     assert sub.picks[0].effort == "max"
@@ -525,7 +525,7 @@ def test_comparison_across_unequal_effort_is_disclosed() -> None:
         )
     conn.commit()
 
-    rec = recommend(conn, "sinirsiz", "coding")
+    rec = recommend(conn, "unlimited", "coding")
     assert rec is not None
     assert rec.effort_mix_notice is not None
     assert "max" in rec.effort_mix_notice and "unspecified" in rec.effort_mix_notice
@@ -533,7 +533,7 @@ def test_comparison_across_unequal_effort_is_disclosed() -> None:
     # ...and it stays SILENT when every compared answer is from one level.
     conn.execute("UPDATE scores SET effort = 'max'")
     conn.commit()
-    same = recommend(conn, "sinirsiz", "coding")
+    same = recommend(conn, "unlimited", "coding")
     assert same is not None
     assert same.effort_mix_notice is None
     conn.close()

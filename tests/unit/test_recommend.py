@@ -97,8 +97,8 @@ def _db() -> sqlite3.Connection:
 def test_three_labeled_deterministic_picks() -> None:
     """REQ-REC-001: exactly three labeled picks; every field populated; deterministic."""
     conn = _db()
-    rec1 = recommend(conn, "sinirsiz")
-    rec2 = recommend(conn, "sinirsiz")
+    rec1 = recommend(conn, "unlimited")
+    rec2 = recommend(conn, "unlimited")
     assert rec1 is not None
     assert rec1 == rec2  # same state + inputs → same picks
     assert [p.label for p in rec1.picks] == ["best_quality", "best_value", "budget_pick"]
@@ -124,7 +124,7 @@ def test_req_lic_001_epoch_citation_ships_where_epoch_data_is_served() -> None:
         "UPDATE scores SET source = 'epoch_swe_bench_verified' WHERE benchmark = ?",
         ("SWE-bench Verified",),
     )
-    rec = recommend(conn, "sinirsiz")
+    rec = recommend(conn, "unlimited")
     assert rec is not None
     assert EPOCH_ATTRIBUTION in rec.sources
     # This fixture ALSO serves an Aider secondary score and grades confidence on it, so
@@ -147,7 +147,7 @@ def test_payload_never_claims_a_source_it_did_not_read() -> None:
     """
     from app.workflows.rank import ARENA_ATTRIBUTION, PRICING_ATTRIBUTION, SWEBENCH_ATTRIBUTION
 
-    rec = recommend(_db(), "sinirsiz")
+    rec = recommend(_db(), "unlimited")
     assert rec is not None
     assert rec.sources == (PRICING_ATTRIBUTION, SWEBENCH_ATTRIBUTION)
     assert ARENA_ATTRIBUTION not in rec.sources
@@ -157,10 +157,10 @@ def test_payload_never_claims_a_source_it_did_not_read() -> None:
 def test_budget_filter_is_hard_constraint() -> None:
     """REQ-REC-002: low budget → no pick may exceed the threshold; constants tested."""
     conn = _db()
-    assert BUDGETS["dusuk"] == 2.0
-    assert BUDGETS["orta"] == 8.0
-    assert BUDGETS["sinirsiz"] is None
-    rec = recommend(conn, "dusuk")
+    assert BUDGETS["low"] == 2.0
+    assert BUDGETS["medium"] == 8.0
+    assert BUDGETS["unlimited"] is None
+    rec = recommend(conn, "low")
     assert rec is not None
     for p in rec.picks:
         assert p.blended_per_m <= 2.0, f"{p.model} exceeds the low-budget cap"
@@ -171,17 +171,17 @@ def test_budget_filter_is_hard_constraint() -> None:
 def test_no_eligible_model_returns_none() -> None:
     """REQ-REC-002 edge: an impossible budget yields None, not a bad answer."""
     conn = connect()  # empty db
-    assert recommend(conn, "dusuk") is None
+    assert recommend(conn, "low") is None
 
 
 def test_pareto_non_dominance() -> None:
     """REQ-REC-003: no recommended model is worse AND more expensive than another."""
     conn = _db()
-    rec = recommend(conn, "sinirsiz")
+    rec = recommend(conn, "unlimited")
     assert rec is not None
     ranking = eligible_rows(
         __import__("app.workflows.rank", fromlist=["coding_ranking"]).coding_ranking(conn),
-        "sinirsiz",
+        "unlimited",
     )
     for p in rec.picks:
         dominated = any(o.score > p.score and o.blended_per_m < p.blended_per_m for o in ranking)
@@ -204,7 +204,7 @@ def test_value_pick_rule_within_window_cheapest() -> None:
     """REQ-REC-003: value = within VALUE_WINDOW_PTS of leader, cheapest on frontier."""
     assert VALUE_WINDOW_PTS == 6.0
     conn = _db()
-    rec = recommend(conn, "sinirsiz")
+    rec = recommend(conn, "unlimited")
     assert rec is not None
     value = rec.picks[1]
     # leader 79.2; window ≥73.2 → Gemini 3 Flash (75.8, $1.12) beats Claude ($11.25)
@@ -216,7 +216,7 @@ def test_budget_pick_respects_min_quality() -> None:
     """REQ-REC-001/002: budget pick = cheapest ≥ MIN_QUALITY_PCT (nano at 40% excluded)."""
     assert MIN_QUALITY_PCT == 65.0
     conn = _db()
-    rec = recommend(conn, "sinirsiz")
+    rec = recommend(conn, "unlimited")
     assert rec is not None
     cheap = rec.picks[2]
     assert cheap.model == "DeepSeek V3.2"  # cheapest above 65%; nano (40%) ineligible
@@ -226,7 +226,7 @@ def test_budget_pick_respects_min_quality() -> None:
 def test_confidence_grades_by_source_count() -> None:
     """REQ-REC-004: DeepSeek has SWE+Aider → High; single-source models → Medium."""
     conn = _db()
-    rec = recommend(conn, "sinirsiz")
+    rec = recommend(conn, "unlimited")
     assert rec is not None
     by_label = {p.label: p for p in rec.picks}
     assert by_label["budget_pick"].confidence == "High"
@@ -268,10 +268,10 @@ def test_close_call_is_disclosed() -> None:
     ingest_litellm(conn, FakeRawSource("litellm", pricing), run)
     ingest_swebench(conn, FakeRawSource("swebench", scores), run)
     reconcile(conn)
-    rec = recommend(conn, "sinirsiz")
+    rec = recommend(conn, "unlimited")
     assert rec is not None
     assert rec.close_call is not None
-    assert "aynı puanda" in rec.close_call
+    assert "is level" in rec.close_call
 
 
 def test_budget_pick_warns_when_quality_floor_unmet() -> None:
@@ -300,12 +300,12 @@ def test_budget_pick_warns_when_quality_floor_unmet() -> None:
     ingest_litellm(conn, FakeRawSource("litellm", pricing), run)
     ingest_swebench(conn, FakeRawSource("swebench", scores), run)
     reconcile(conn)
-    rec = recommend(conn, "dusuk")
+    rec = recommend(conn, "low")
     assert rec is not None
     cheap = rec.picks[2]
     assert cheap.score < MIN_QUALITY_PCT
-    assert "UYARI" in cheap.why  # honest disclosure, not the standard floor text
-    assert "geçen en ucuz model." not in cheap.why
+    assert "WARNING" in cheap.why  # honest disclosure, not the standard floor text
+    assert "minimum-quality bar." not in cheap.why
 
 
 def test_budget_filters_nonempty_ranking_to_none() -> None:
@@ -334,8 +334,8 @@ def test_budget_filters_nonempty_ranking_to_none() -> None:
     ingest_litellm(conn, FakeRawSource("litellm", pricing), run)
     ingest_swebench(conn, FakeRawSource("swebench", scores), run)
     reconcile(conn)
-    assert recommend(conn, "sinirsiz") is not None  # sanity: it ranks
-    assert recommend(conn, "dusuk") is None  # $11.25 blended > $2 cap
+    assert recommend(conn, "unlimited") is not None  # sanity: it ranks
+    assert recommend(conn, "low") is None  # $11.25 blended > $2 cap
 
 
 def test_unknown_budget_raises() -> None:
@@ -365,7 +365,7 @@ def test_secondary_score_rounds_and_absence_stays_absent(tmp_path, capsys) -> No
     dest.commit()
     dest.close()
 
-    assert main(["--db", str(db), "--budget", "sinirsiz"]) == 0
+    assert main(["--db", str(db), "--budget", "unlimited"]) == 0
     picks = {p["model"]: p for p in json.loads(capsys.readouterr().out)["picks"]}
     assert picks["DeepSeek V3.2"]["secondary_score"] == 74.2  # rounded, not raw
     assert picks["Claude 4.5 Opus"]["secondary_score"] is None  # absent, not 0.0
@@ -382,14 +382,14 @@ def test_model_engine_trade_off_never_claims_a_gap_the_fields_deny() -> None:
     conn = _db()
     conn.execute("UPDATE scores SET score = 79.249 WHERE model_id = 'claude-4.5-opus'")
     conn.execute("UPDATE scores SET score = 79.151 WHERE model_id = 'gemini-3-flash'")
-    rec = recommend(conn, "sinirsiz")
+    rec = recommend(conn, "unlimited")
     assert rec is not None
     assert rec.picks[0].score == rec.picks[1].score == 79.2
     assert rec.close_call is not None
-    assert "aynı puanda" in rec.close_call
+    assert "is level" in rec.close_call
     trade_off = rec.picks[1].trade_off
     assert trade_off is not None
-    assert trade_off.startswith("Liderle aynı puanda,")
+    assert trade_off.startswith("level with the leader,")
     assert "Liderden" not in trade_off
 
 
@@ -407,7 +407,7 @@ def test_secondary_benchmark_evidence_is_cited_too() -> None:
         "UPDATE scores SET source = 'epoch_swe_bench_verified' WHERE benchmark = ?",
         ("SWE-bench Verified",),
     )
-    rec = recommend(conn, "sinirsiz")
+    rec = recommend(conn, "unlimited")
     assert rec is not None
     graded_on_two = [p for p in rec.picks if p.secondary_score is not None]
     assert graded_on_two, "fixture must serve a secondary score for this to mean anything"

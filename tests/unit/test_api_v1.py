@@ -155,7 +155,7 @@ def _walk_keys(node: object) -> set[str]:
 
 def test_coding_returns_both_surfaces_and_nothing_ranks_them(client: TestClient) -> None:
     """REQ-API-002: two answers for the coding intent, and NO field puts one above the other."""
-    response = client.get("/v1/recommendations", params={"task": "coding", "budget": "sinirsiz"})
+    response = client.get("/v1/recommendations", params={"task": "coding", "budget": "unlimited"})
     assert response.status_code == 200
     body = response.json()
 

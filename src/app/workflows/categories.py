@@ -15,7 +15,7 @@ class CategorySpec:
     """One rankable use case (REQ-CAT-001)."""
 
     id: str
-    title_tr: str
+    title: str
     primary_benchmark: str
     metric: str  # metric name as stored in scores.metric
     score_unit: str  # human label for trade-off wording (REQ-REC-005)
@@ -31,10 +31,10 @@ class CategorySpec:
 CATEGORIES: dict[str, CategorySpec] = {
     "coding": CategorySpec(
         id="coding",
-        title_tr="Kodlama",
+        title="Coding",
         primary_benchmark="SWE-bench Verified",
         metric="% resolved",
-        score_unit="puan",
+        score_unit="points",
         secondary_benchmark="Aider polyglot",
         primary_source="swebench",
         min_quality=65.0,
@@ -43,7 +43,7 @@ CATEGORIES: dict[str, CategorySpec] = {
     ),
     "assistant": CategorySpec(
         id="assistant",
-        title_tr="Günlük asistan / sohbet",
+        title="Everyday assistant / chat",
         primary_benchmark="Arena text",
         metric="elo",
         score_unit="Elo",
@@ -61,10 +61,10 @@ CATEGORIES: dict[str, CategorySpec] = {
     # with Epoch SWE-bench for Gemini. Q1 fixes comparison at one DATA-owned level.
     "agentic-coding": CategorySpec(
         id="agentic-coding",
-        title_tr="Ajanlı kodlama",
+        title="Agentic coding",
         primary_benchmark="DeepSWE",
         metric="% resolved",
-        score_unit="puan",
+        score_unit="points",
         secondary_benchmark=None,
         primary_source="epoch_deepswe_external",
         min_quality=50.0,

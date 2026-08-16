@@ -22,7 +22,7 @@ SEED_PATH = REPO_ROOT / "data" / "plans.yaml"
 VALID = """
 schema: 1
 staleness_days: 30
-budget_caps_usd: {dusuk: 10, orta: 25, sinirsiz: null}
+budget_caps_usd: {low: 10, medium: 25, unlimited: null}
 plans:
   - id: test-plan
     provider: TestCo
@@ -90,7 +90,7 @@ def test_empty_table_fails_loud() -> None:
     with pytest.raises(SourceError, match="empty curated table"):
         parse_plans(
             "schema: 1\nstaleness_days: 30\n"
-            "budget_caps_usd: {dusuk: 10, orta: 25, sinirsiz: null}\nplans: []\n"
+            "budget_caps_usd: {low: 10, medium: 25, unlimited: null}\nplans: []\n"
         )
 
 
@@ -108,11 +108,11 @@ def test_missing_staleness_window_fails_loud() -> None:
 def test_missing_or_malformed_budget_caps_fail_loud() -> None:
     """REQ-REC-007: budget tiers are DATA; a code default is the same debt class."""
     with pytest.raises(SourceError, match="budget_caps_usd"):
-        parse_plans(VALID.replace("budget_caps_usd: {dusuk: 10, orta: 25, sinirsiz: null}\n", ""))
-    with pytest.raises(SourceError, match="dusuk < orta"):
-        parse_plans(VALID.replace("{dusuk: 10, orta: 25", "{dusuk: 25, orta: 10"))
-    with pytest.raises(SourceError, match="sinirsiz"):
-        parse_plans(VALID.replace("sinirsiz: null", "sinirsiz: 999"))
+        parse_plans(VALID.replace("budget_caps_usd: {low: 10, medium: 25, unlimited: null}\n", ""))
+    with pytest.raises(SourceError, match="low < medium"):
+        parse_plans(VALID.replace("{low: 10, medium: 25", "{low: 25, medium: 10"))
+    with pytest.raises(SourceError, match="unlimited"):
+        parse_plans(VALID.replace("unlimited: null", "unlimited: 999"))
 
 
 def test_ingest_replaces_working_set_atomically() -> None:

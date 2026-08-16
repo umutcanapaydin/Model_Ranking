@@ -671,4 +671,46 @@ gate — either of which returns the project to D-114 unmodified.
 
 ---
 
+## D-118 — The product's user-facing text and query vocabulary are ENGLISH
+
+**Status:** ratified — owner ruling, 2026-08-17: *"Let the payload be English, and the query values
+too."* (owner, translated from Turkish), in answer to the M6-W1 review finding that one `/v1` answer
+carried two languages.
+
+**Decision:** every user-facing string the product emits, and every value a caller sends, is English:
+
+1. **Query vocabulary.** `budget` takes `low` / `medium` / `unlimited`, not the Turkish tier names.
+   `task` values were already English. The keys in `data/plans.yaml`'s `budget_caps_usd` change with
+   them, because a curated-data key and a query value that mean the same thing may not differ.
+2. **Payload strings.** `title`, `why`, `trade_off`, `close_call`, the effort disclosures, the budget
+   notice, the staleness notices — all English. `CategorySpec.title_tr` becomes `title`.
+3. **`.language-allow` loses its product-string exemptions.** Five test files and three source files
+   were exempt because they carried deliberate Turkish; they are no longer exempt, which means `L1`
+   now guards the whole product surface instead of stopping at its edge.
+
+**Rationale.** The W1 code review found a single `/v1` answer carrying `ordering_note` in English
+beside `why` and `close_call` in Turkish, and no gate caught it — `L1` looks for Turkish letters and
+the adapter's strings are ASCII. The owner ruled English rather than translating the adapter back.
+
+**The consequence worth stating plainly: the CLI becomes English too.** It prints what the engine
+produces, and the alternative — translating at the API boundary — would give the product two sources
+of user-facing text for one run. That is exactly Trap 1 of the M6 plan, the defect class M5's
+security review caught by reading two artifacts of one run against each other. **One source, one
+language.** If a Turkish-facing surface is wanted later it is a localization layer over structured
+message keys, which is a milestone of its own and not a set of translated literals.
+
+**Scope boundary held deliberately:** `plan_config`'s COLUMN names (`cap_dusuk`, `cap_orta`) keep
+their spelling for now. They are internal identifiers, not contract, and renaming them is a schema
+migration — which belongs in M6-W3 where a migration is already planned, not in a wave that would
+have to acquire one for a cosmetic gain.
+
+**Mitigation if violated:** `L1` in `check_records.py` now covers `recommend.py`, `subscribe.py`,
+`categories.py` and their tests; a Turkish string in any of them fails `make check`.
+
+**Revisit when:** the product acquires a real localization layer, at which point this ADR is
+superseded rather than amended — the decision it records is "one language at a time", not "English
+forever".
+
+---
+
 *Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*

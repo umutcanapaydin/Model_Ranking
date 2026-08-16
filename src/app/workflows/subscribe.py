@@ -124,7 +124,7 @@ def _budget_cap(conn: sqlite3.Connection, budget: str) -> float | None:
     if row is None:
         msg = "plan_config missing — ingest the curated plan table first"
         raise ValueError(msg)
-    caps: dict[str, float | None] = {"dusuk": row[0], "orta": row[1], "sinirsiz": None}
+    caps: dict[str, float | None] = {"low": row[0], "medium": row[1], "unlimited": None}
     if budget not in caps:
         msg = f"unknown budget {budget!r}; expected one of {sorted(caps)}"
         raise ValueError(msg)
@@ -249,10 +249,10 @@ def _stale_notice(conn: sqlite3.Connection, ranking: list[PlanRank]) -> str | No
     notices: list[str] = []
     stale = stale_plans(conn)
     if stale:
-        listed = ", ".join(f"{s.name} (son doğrulama {s.last_verified})" for s in stale)
+        listed = ", ".join(f"{s.name} (last verified {s.last_verified})" for s in stale)
         notices.append(
-            f"Dikkat: {len(stale)} plan satırının fiyat doğrulaması eskidi — {listed}. "
-            "Fiyatlar değişmiş olabilir; tabloyu yeniden doğrulamadan karara güvenme."
+            f"Note: the price verification of {len(stale)} plan row(s) has gone stale — {listed}. "
+            "Prices may have changed; do not rely on this answer without re-verifying the table."
         )
 
     cfg = conn.execute("SELECT staleness_days FROM plan_config WHERE id = 1").fetchone()
@@ -280,13 +280,13 @@ def _stale_notice(conn: sqlite3.Connection, ranking: list[PlanRank]) -> str | No
             stale_rosters.append(row)
     if stale_rosters:
         listed = ", ".join(
-            f"{row.plan} (roster son doğrulama {row.link_last_verified}, "
+            f"{row.plan} (roster last verified {row.link_last_verified}, "
             f"kaynak {row.link_source_url})"
             for row in stale_rosters
         )
         notices.append(
-            f"Dikkat: {len(stale_rosters)} seçili roster bağlantısının doğrulaması eskidi — "
-            f"{listed}. Model listesini yeniden doğrulamadan karara güvenme."
+            f"Note: the verification of {len(stale_rosters)} selected roster link(s) has gone "
+            f"stale — {listed}. Do not rely on this answer without re-verifying the model list."
         )
     return " ".join(notices) or None
 
@@ -324,7 +324,7 @@ def _budget_notice(excluded_by_budget: int) -> str | None:
     """The one place the priced-out sentence is written (REQ-REC-013, D-111)."""
     if not excluded_by_budget:
         return None
-    return f"Bütçe sınırı {excluded_by_budget} skorlanabilir planı seçenekler dışında bıraktı."
+    return f"The budget cap excluded {excluded_by_budget} scoreable plan(s) from the options."
 
 
 @dataclass(frozen=True)
@@ -344,7 +344,7 @@ class BudgetShutout:
 
 
 def budget_shutout(
-    conn: sqlite3.Connection, budget: str = "sinirsiz", task: str = "coding"
+    conn: sqlite3.Connection, budget: str = "unlimited", task: str = "coding"
 ) -> BudgetShutout:
     """Count what the cap excluded, for the no-answer path. Read-only."""
     spec = get_category(task)
@@ -359,7 +359,7 @@ def budget_shutout(
 
 
 def recommend_subscription(
-    conn: sqlite3.Connection, budget: str = "sinirsiz", task: str = "coding"
+    conn: sqlite3.Connection, budget: str = "unlimited", task: str = "coding"
 ) -> SubscriptionRecommendation | None:
     """Three plan answers for a task; None when no rankable plan fits the budget."""
     spec = get_category(task)
@@ -384,7 +384,7 @@ def recommend_subscription(
     cheap = min(floor_pool or rows, key=lambda r: (r.monthly_usd, r.plan))
 
     # Equivalence (M4-W4 review BLOCKING-1). The first cut compared only against the
-    # QUALITY pick, so in the live `sinirsiz` case — where quality is Perplexity Max and
+    # QUALITY pick, so in the live `unlimited` case — where quality is Perplexity Max and
     # BOTH other labels collapse onto Google AI Plus — it said nothing, and the single
     # most useful fact in the data went unsaid: Google AI Ultra at $99.99 scores exactly
     # what Google AI Plus scores at $4.99. Equivalence is now computed for EVERY plan a
@@ -427,7 +427,7 @@ def recommend_subscription(
             cheapest = min(members, key=lambda r: (r.monthly_usd, r.plan))
             dearest = max(members, key=lambda r: (r.monthly_usd, r.plan))
             span = (
-                f" Aynı model için aylık fark: ${cheapest.monthly_usd:.2f} — "
+                f" Monthly difference for the same model: ${cheapest.monthly_usd:.2f} — "
                 f"${dearest.monthly_usd:.2f}."
                 if dearest.monthly_usd > cheapest.monthly_usd
                 else ""
@@ -439,14 +439,14 @@ def recommend_subscription(
             # this line; the group sentence must not blur it back.
             via_roster = sorted(r.plan for r in members if r.scored_via != "plan-page")
             provenance = (
-                f" Bunlardan {', '.join(via_roster)} için kaynak, plan sayfası değil"
-                " sağlayıcının yayımladığı model listesi."
+                f" For {', '.join(via_roster)} the source is the provider's published model "
+                "list, not the plan page."
                 if via_roster
                 else ""
             )
             parts.append(
-                f"{len(members)} plan aynı modele ({picked.scored_by_model}) bağlanıyor, "
-                f"yani kalite açısından ayırt edilemezler: "
+                f"{len(members)} plans link to the same model ({picked.scored_by_model}), so "
+                f"they are indistinguishable on quality: "
                 f"{', '.join(sorted(r.plan for r in members))}. "
                 f"Bu grupta en ucuzu {cheapest.plan} (${cheapest.monthly_usd:.2f}/ay)."
                 f"{span}{provenance}"
@@ -461,9 +461,10 @@ def recommend_subscription(
         # gap says "same score" instead of the nonsense "only 0.0 behind" (MINOR-4).
         shown = shown_gap(quality.score, frontier[1].score)
         if gap <= spec.close_call:
-            tie = "aynı puanda" if shown == 0 else f"sadece {shown:.1f} {unit} geride"
+            tie = "is level" if shown == 0 else f"is only {shown:.1f} {unit} behind"
             close_call = (
-                f"{frontier[1].plan} {tie} — fark hata payı içinde, ikisi de savunulabilir."
+                f"{frontier[1].plan} {tie} — the gap is within the margin of error and either "
+                "choice is defensible."
             )
 
     picks = (
@@ -472,12 +473,12 @@ def recommend_subscription(
             quality,
             spec,
             why=(
-                f"Bütçeye uyan planlar içinde en yüksek {spec.primary_benchmark} skorlu model"
+                f"The plan within budget whose model has the highest {spec.primary_benchmark} score"
                 f" ({quality.scored_by_model}, {quality.score:.1f} {unit}) "
                 + (
-                    "bu planın sayfasında açıkça adıyla yer alıyor."
+                    "is named explicitly on this plan's own page."
                     if quality.scored_via == "plan-page"
-                    else "sağlayıcının yayımladığı plan model listesinde adıyla yer alıyor."
+                    else "is named in the provider's published model list for this plan."
                 )
             ),
             trade_off=None,
@@ -487,14 +488,14 @@ def recommend_subscription(
             value,
             spec,
             why=(
-                f"Skor-fiyat Pareto sınırında, liderin {spec.value_window:.0f} {unit}"
-                " yakınında kalan en ucuz plan."
+                f"On the score-price Pareto frontier, the cheapest plan within "
+                f"{spec.value_window:.0f} {unit} of the leader."
             ),
             trade_off=(
                 None
                 if value.plan_id == quality.plan_id
                 else (
-                    f"{lead_phrase(quality.score, value.score, unit)}, karşılığında"
+                    f"{lead_phrase(quality.score, value.score, unit)}, and"
                     f" ayda ${quality.monthly_usd - value.monthly_usd:.2f} daha ucuz."
                 )
             ),
@@ -504,11 +505,12 @@ def recommend_subscription(
             cheap,
             spec,
             why=(
-                f"Minimum {spec.min_quality:.0f} {unit} kalite şartını geçen en ucuz plan."
+                f"Cheapest plan clearing the {spec.min_quality:.0f} {unit} minimum-quality bar."
                 if floor_met
                 else (
-                    f"UYARI: bu bütçede {spec.min_quality:.0f} {unit} kalite şartını geçen plan"
-                    " YOK; bu, mevcutların en ucuzu — kaliteden ödün veriyorsun."
+                    f"WARNING: no plan in this budget clears the {spec.min_quality:.0f} {unit} "
+                    "minimum-quality bar; this is the cheapest available and you are trading "
+                    "quality away."
                 )
             ),
             trade_off=(

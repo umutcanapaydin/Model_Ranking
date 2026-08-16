@@ -20,17 +20,15 @@ docs/plans/m2-plan.md            # owner-signed plan record (owner amendments re
 docs/fixpack-1.md                # shipped fixpack record quoting Turkish product output, kept verbatim
 docs/HANDOVER-model-ranking.md   # 2026-08-11 agent-to-agent handover snapshot, kept verbatim
 pyproject.toml                   # ruff allowed-confusables config enumerates Turkish glyphs (functional, not prose)
-src/app/workflows/categories.py  # title_tr — Turkish display titles: the product is Turkish-user-facing by design
-src/app/workflows/recommend.py   # Turkish user-facing output strings by design (owner's market)
-src/app/workflows/subscribe.py   # Turkish user-facing output strings by design (owner's market)
-tests/unit/test_recommend.py     # asserts the Turkish product strings above
-tests/unit/test_subscribe.py     # asserts the Turkish product strings above
-tests/unit/test_rosters.py       # asserts the Turkish product string for roster-sourced picks
-tests/unit/test_effort.py        # asserts exact Turkish effort/range disclosures at both live CLI boundaries
-tests/unit/test_deepswe_workflow.py # asserts the Turkish priced-out disclosure at the real bundle CLI boundary
 docs/reviews/m4-w4-equivalence.md # §1 quotes the shipped Turkish `equivalence_note` VERBATIM as the wave's
                                   # measured evidence; paraphrasing it would break the record-vs-referent rule
                                   # (the claim is about the exact sentence the product prints). The record's
                                   # own prose is English.
 docs/reviews/m5-wave-2-review.md # append-only BLOCKING audit quotes the faulty Turkish output verbatim;
                                  # preserving the exact rejected sentence is evidence for the corrected test
+
+# REMOVED 2026-08-17 by D-118 (owner ruled the product's user-facing text and query vocabulary
+# are ENGLISH): the eight product-string exemptions above this line are gone — three source files
+# and five test files. `L1` now guards the whole product surface instead of stopping at its edge.
+# What remains exempt is proper nouns, pre-M3 records, and records that quote a shipped Turkish
+# sentence as measured evidence — none of which is live product text.

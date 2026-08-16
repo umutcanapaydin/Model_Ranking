@@ -106,22 +106,22 @@ class PlansDoc:
 
 def _validate_caps(caps: Any) -> tuple[float, float]:
     """budget_caps_usd is DATA (owner-tunable) — validate shape + ordering loudly."""
-    if not isinstance(caps, dict) or set(caps) != {"dusuk", "orta", "sinirsiz"}:
+    if not isinstance(caps, dict) or set(caps) != {"low", "medium", "unlimited"}:
         raise _fail(
-            f"budget_caps_usd must map exactly dusuk/orta/sinirsiz (data, not a code default),"
+            f"budget_caps_usd must map exactly low/medium/unlimited (data, not a code default),"
             f" got {caps!r}"
         )
-    if caps["sinirsiz"] is not None:
-        raise _fail("budget_caps_usd.sinirsiz must be null (uncapped by definition)")
-    for name in ("dusuk", "orta"):
+    if caps["unlimited"] is not None:
+        raise _fail("budget_caps_usd.unlimited must be null (uncapped by definition)")
+    for name in ("low", "medium"):
         val = caps[name]
         if isinstance(val, bool) or not isinstance(val, (int, float)) or not math.isfinite(val):
             raise _fail(f"budget_caps_usd.{name} must be a finite number, got {val!r}")
-    if not 0 < float(caps["dusuk"]) < float(caps["orta"]):
+    if not 0 < float(caps["low"]) < float(caps["medium"]):
         raise _fail(
-            f"budget caps must satisfy 0 < dusuk < orta, got {caps['dusuk']!r}/{caps['orta']!r}"
+            f"budget caps must satisfy 0 < low < medium, got {caps['low']!r}/{caps['medium']!r}"
         )
-    return float(caps["dusuk"]), float(caps["orta"])
+    return float(caps["low"]), float(caps["medium"])
 
 
 def parse_plans_doc(raw: str) -> PlansDoc:

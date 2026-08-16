@@ -81,7 +81,7 @@ ROWS = [
 def test_assistant_task_three_picks_on_elo_scale() -> None:
     """REQ-REC-005: --task assistant yields three picks scored in Elo, wording in Elo."""
     conn = _arena(ROWS)
-    rec = recommend(conn, "sinirsiz", "assistant")
+    rec = recommend(conn, "unlimited", "assistant")
     assert rec is not None
     assert rec.task == "assistant"
     assert [p.label for p in rec.picks] == ["best_quality", "best_value", "budget_pick"]
@@ -95,7 +95,7 @@ def test_assistant_value_window_uses_elo_threshold() -> None:
     """REQ-REC-005: Elo window (30) picks the cheapest within reach of the leader."""
     assert VALUE_WINDOW_ELO == 30.0
     conn = _arena(ROWS)
-    rec = recommend(conn, "sinirsiz", "assistant")
+    rec = recommend(conn, "unlimited", "assistant")
     assert rec is not None
     # window: 1420.5-30 = 1390.5 → gemini (1398, $1.13) is in; kimi (1250) is out
     assert rec.picks[1].model == "Gemini 3 Flash"
@@ -106,7 +106,7 @@ def test_assistant_budget_floor_uses_elo() -> None:
     (kimi 1250 and gemini 1398 are both below it; only the 1415.2 model clears)."""
     assert MIN_QUALITY_ELO == 1400.0
     conn = _arena(ROWS)
-    rec = recommend(conn, "sinirsiz", "assistant")
+    rec = recommend(conn, "unlimited", "assistant")
     assert rec is not None
     assert rec.picks[2].score >= MIN_QUALITY_ELO
 
@@ -114,8 +114,8 @@ def test_assistant_budget_floor_uses_elo() -> None:
 def test_coding_task_unchanged_regression() -> None:
     """REQ-REC-005: default task stays coding; empty coding data → None (unchanged)."""
     conn = _arena(ROWS)  # arena data only — no coding scores
-    assert recommend(conn, "sinirsiz") is None  # coding default finds nothing
-    assert recommend(conn, "sinirsiz", "assistant") is not None
+    assert recommend(conn, "unlimited") is None  # coding default finds nothing
+    assert recommend(conn, "unlimited", "assistant") is not None
 
 
 def test_assistant_close_call_wording_in_elo() -> None:
@@ -136,23 +136,23 @@ def test_assistant_close_call_wording_in_elo() -> None:
         },
     ]
     conn = _arena(rows)
-    rec = recommend(conn, "sinirsiz", "assistant")
+    rec = recommend(conn, "unlimited", "assistant")
     assert rec is not None
     assert rec.close_call is not None
-    assert "3.5 Elo geride" in rec.close_call
+    assert "is only 3.5 Elo behind" in rec.close_call
 
 
 def test_stale_primary_source_is_disclosed() -> None:
     """REQ-REC-006: old Arena snapshot → stale_notice present; fresh → None."""
     old_rows = [dict(r, leaderboard_publish_date="2025-01-01") for r in ROWS]
     conn = _arena(old_rows, observed="2026-08-11T00:00:00+00:00")
-    rec = recommend(conn, "sinirsiz", "assistant")
+    rec = recommend(conn, "unlimited", "assistant")
     assert rec is not None
     assert rec.stale_notice is not None
-    assert "eski" in rec.stale_notice
+    assert "days old" in rec.stale_notice
 
     fresh_conn = _arena(ROWS, observed="2026-08-11T00:00:00+00:00")
-    fresh_rec = recommend(fresh_conn, "sinirsiz", "assistant")
+    fresh_rec = recommend(fresh_conn, "unlimited", "assistant")
     assert fresh_rec is not None
     assert fresh_rec.stale_notice is None
 
@@ -177,7 +177,7 @@ def test_close_call_threshold_is_the_calibrated_elo_value() -> None:
         {**ROWS[2], "rating": 1414.0},
         ROWS[3],
     ]
-    rec = recommend(_arena(rows), "sinirsiz", "assistant")
+    rec = recommend(_arena(rows), "unlimited", "assistant")
     assert rec is not None
     assert rec.close_call is not None, "a 6.5-Elo gap must be disclosed under the calibrated 8"
     assert "Elo" in rec.close_call
@@ -193,9 +193,9 @@ def test_close_call_threshold_is_the_calibrated_elo_value() -> None:
 def test_assistant_quality_floor_unmet_warns_on_elo_scale() -> None:
     """REQ-CAL-001 side effect (closure review NOTE-7): the recalibrated 1400 floor
     makes the honesty branch reachable on the Elo scale — it must SAY so."""
-    rec = recommend(_arena(ROWS), "dusuk", "assistant")
+    rec = recommend(_arena(ROWS), "low", "assistant")
     assert rec is not None
-    assert "UYARI" in rec.picks[2].why
+    assert "WARNING" in rec.picks[2].why
     assert rec.picks[2].score < MIN_QUALITY_ELO
 
 
@@ -213,6 +213,6 @@ def test_elo_scores_are_rounded_in_the_output(tmp_path, capsys) -> None:
     src.backup(dest)
     dest.commit()
     dest.close()
-    assert main(["--db", str(db), "--budget", "sinirsiz", "--task", "assistant"]) == 0
+    assert main(["--db", str(db), "--budget", "unlimited", "--task", "assistant"]) == 0
     out = _json.loads(capsys.readouterr().out)
     assert out["picks"][0]["score"] == 1481.6

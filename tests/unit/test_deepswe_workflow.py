@@ -270,7 +270,7 @@ def test_real_board_reproduces_signed_coverage_and_undated_health(
                 "--db",
                 str(db),
                 "--budget",
-                "dusuk",
+                "low",
                 "--task",
                 "agentic-coding",
                 "--subscription",

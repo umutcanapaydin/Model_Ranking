@@ -328,7 +328,7 @@ def _answer_json(
     dating, dating_note = _evidence_dating(picks)
     return {
         "surface": spec.id,
-        "title": spec.title_tr,
+        "title": spec.title,
         "primary_benchmark": spec.primary_benchmark,
         "metric": spec.metric,
         # Read from the RUN, not from the category, even though the two are equal today. This
@@ -413,7 +413,7 @@ def categories() -> dict[str, Any]:
         "categories": [
             {
                 "id": spec.id,
-                "title": spec.title_tr,
+                "title": spec.title,
                 "primary_benchmark": spec.primary_benchmark,
                 "metric": spec.metric,
                 "ranking_effort": spec.ranking_effort,
@@ -428,7 +428,7 @@ def categories() -> dict[str, Any]:
 @app.get(f"/{API_VERSION}/recommendations")
 def recommendations(
     task: str = Query(default="coding"),
-    budget: str = Query(default="sinirsiz"),
+    budget: str = Query(default="unlimited"),
 ) -> Any:
     """Ruling A's endpoint: `task=coding` answers on BOTH coding surfaces, neither leading.
 

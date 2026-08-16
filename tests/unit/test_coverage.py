@@ -27,7 +27,7 @@ from app.workflows.subscribe import plan_ranking
 PLANS = """
 schema: 1
 staleness_days: 30
-budget_caps_usd: {dusuk: 10, orta: 25, sinirsiz: null}
+budget_caps_usd: {low: 10, medium: 25, unlimited: null}
 plans:
   - id: scored-plan
     provider: A

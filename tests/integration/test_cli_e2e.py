@@ -101,7 +101,7 @@ def _run_schema_cli(*args: str) -> subprocess.CompletedProcess[str]:
 def test_cli_end_to_end_three_picks(tmp_path: Path) -> None:
     """V4C-50: the REAL entry point returns three valid picks as JSON."""
     db = _build_db(tmp_path)
-    proc = _run_cli("--db", str(db), "--budget", "sinirsiz")
+    proc = _run_cli("--db", str(db), "--budget", "unlimited")
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(proc.stdout)
     assert [p["label"] for p in payload["picks"]] == ["best_quality", "best_value", "budget_pick"]
@@ -116,14 +116,14 @@ def test_cli_end_to_end_three_picks(tmp_path: Path) -> None:
 
 def test_cli_budget_filters_through_entry_point(tmp_path: Path) -> None:
     db = _build_db(tmp_path)
-    proc = _run_cli("--db", str(db), "--budget", "dusuk")
+    proc = _run_cli("--db", str(db), "--budget", "low")
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(proc.stdout)
     assert all(p["blended_per_m"] <= 2.0 for p in payload["picks"])
 
 
 def test_cli_missing_db_exits_2(tmp_path: Path) -> None:
-    proc = _run_cli("--db", str(tmp_path / "nope.db"), "--budget", "orta")
+    proc = _run_cli("--db", str(tmp_path / "nope.db"), "--budget", "medium")
     assert proc.returncode == 2
     assert "not found" in json.loads(proc.stdout)["error"]
 
@@ -188,7 +188,7 @@ def test_cli_task_assistant_through_entry_point(tmp_path: Path) -> None:
     conn.commit()
     conn.close()
 
-    proc = _run_cli("--db", str(db_path), "--budget", "sinirsiz", "--task", "assistant")
+    proc = _run_cli("--db", str(db_path), "--budget", "unlimited", "--task", "assistant")
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(proc.stdout)
     assert payload["task"] == "assistant"
@@ -206,7 +206,7 @@ def test_cli_corrupt_db_exits_2(tmp_path: Path) -> None:
     """W4 review MINOR-1: a DB without tables is a crash-class error (2), not 'no match' (1)."""
     db_path = tmp_path / "corrupt.db"
     db_path.write_bytes(b"")  # exists, but has no schema
-    proc = _run_cli("--db", str(db_path), "--budget", "orta")
+    proc = _run_cli("--db", str(db_path), "--budget", "medium")
     assert proc.returncode == 2
     assert "db unusable" in json.loads(proc.stdout)["error"]
 
@@ -225,7 +225,7 @@ def test_cli_no_eligible_model_exits_1(tmp_path: Path) -> None:
     conn.executescript(DDL)
     conn.commit()
     conn.close()
-    proc = _run_cli("--db", str(db_path), "--budget", "dusuk")
+    proc = _run_cli("--db", str(db_path), "--budget", "low")
     assert proc.returncode == 1
     assert "no eligible model" in json.loads(proc.stdout)["error"]
 

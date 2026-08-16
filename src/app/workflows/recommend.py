@@ -12,7 +12,7 @@ Rule-based and explainable — no LLM anywhere in this path (D-104):
      (REQ-REC-004).
 
 CLI (the live entry point, V4C-50):
-    python -m app.workflows.recommend --db advisor.db --budget dusuk|orta|sinirsiz \
+    python -m app.workflows.recommend --db advisor.db --budget low|medium|unlimited \
         --task coding|assistant|agentic-coding
 """
 
@@ -35,7 +35,7 @@ from app.workflows.rank import (
 from app.workflows.schema import EFFORT_UNSPECIFIED
 
 # Budget thresholds on blended $/1M (documented constants — REQ-REC-002)
-BUDGETS: dict[str, float | None] = {"dusuk": 2.0, "orta": 8.0, "sinirsiz": None}
+BUDGETS: dict[str, float | None] = {"low": 2.0, "medium": 8.0, "unlimited": None}
 # Per-category thresholds live in CategorySpec (data, not code — M2-W4 review finding 1).
 # These aliases exist for tests/documentation of the shipped values:
 MIN_QUALITY_PCT = 65.0
@@ -72,14 +72,14 @@ def shown_gap(leader: float, other: float) -> float:
 
 
 def lead_phrase(leader: float, other: float, unit: str) -> str:
-    """ "Liderden 1.8 puan düşük" — or, when the shown delta is zero, "Liderle aynı puanda".
+    """ "1.8 points below the leader" — or, when the shown delta is zero, "level with the leader".
 
     W4 re-review MINOR-1: the zero-guard existed only on `close_call`, so the same
     payload could say "same score" in one field and "0.0 points lower" in the next.
     Every trade-off string in both engines goes through here.
     """
     delta = shown_gap(leader, other)
-    return "Liderle aynı puanda" if delta == 0 else f"Liderden {delta:.1f} {unit} düşük"
+    return "level with the leader" if delta == 0 else f"{delta:.1f} {unit} below the leader"
 
 
 @dataclass(frozen=True)
@@ -175,20 +175,19 @@ def effort_disclosure(
         if effort in (None, EFFORT_UNSPECIFIED):
             return None
         return (
-            f"Bu kategori sabit bir effort düzeyinde karşılaştırmıyor; "
-            f"bu skor {effort} effort düzeyindeki koşudan geliyor."
+            f"This category does not compare at a fixed effort level; this score comes from a "
+            f"run at {effort} effort."
         )
     if effort is None:
         return None
     if higher_effort is None or higher_effort_score is None:
         return (
-            f"Bu model {spec.ranking_effort} effort düzeyinde sıralandı; "
-            "aynı harness ve kaynakta karşılaştırılabilir daha yüksek effort sonucu yok."
+            f"This model was ranked at {spec.ranking_effort} effort; the same harness and source "
+            "publish no comparable result at a higher effort."
         )
     return (
-        f"Bu model {spec.ranking_effort} effort düzeyinde sıralandı; "
-        f"{higher_effort} effort düzeyinde "
-        f"{round_score(higher_effort_score):.1f} {spec.score_unit} değerine ulaşıyor."
+        f"This model was ranked at {spec.ranking_effort} effort; at {higher_effort} effort it "
+        f"reaches {round_score(higher_effort_score):.1f} {spec.score_unit}."
     )
 
 
@@ -210,9 +209,9 @@ def effort_mix_notice(efforts: list[str | None], spec: CategorySpec) -> str | No
         return None
     named = ", ".join(sorted(distinct))
     return (
-        "Dikkat: bu kategori sabit bir effort düzeyinde karşılaştırmıyor ve bu cevaptaki "
-        f"skorlar farklı düzeylerden geliyor ({named}). Yüksek effort'ta koşulmuş bir "
-        "model, düşük effort'ta koşulmuş bir modele karşı avantajlı görünebilir."
+        "Note: this category does not compare at a fixed effort level, and the scores in this "
+        f"answer come from different levels ({named}). A model run at a higher effort can look "
+        "better than one run at a lower effort."
     )
 
 
@@ -268,14 +267,14 @@ def _stale_notice(conn: sqlite3.Connection, spec: CategorySpec) -> str | None:
         return None
     if age > STALE_NOTICE_DAYS:
         return (
-            f"Dikkat: {spec.primary_benchmark} verisinin son koşusu {latest_run} — "
-            f"{age} gün eski; sıralama güncel olmayabilir."
+            f"Note: the latest run of {spec.primary_benchmark} data is {latest_run} — "
+            f"{age} days old; the ranking may not be current."
         )
     return None
 
 
 def recommend(
-    conn: sqlite3.Connection, budget: str = "sinirsiz", task: str = "coding"
+    conn: sqlite3.Connection, budget: str = "unlimited", task: str = "coding"
 ) -> Recommendation | None:
     """Compute the three answers for a task; None when no model fits (REQ-REC-005)."""
     if budget not in BUDGETS:
@@ -306,9 +305,10 @@ def recommend(
         gap = quality.score - frontier[1].score  # RAW: the threshold decision
         shown = shown_gap(quality.score, frontier[1].score)
         if gap <= close_pts:
-            tie = "aynı puanda" if shown == 0 else f"sadece {shown:.1f} {spec.score_unit} geride"
+            tie = "is level" if shown == 0 else f"is only {shown:.1f} {spec.score_unit} behind"
             close_call = (
-                f"{frontier[1].model} {tie} — fark hata payı içinde, ikisi de savunulabilir."
+                f"{frontier[1].model} {tie} — the gap is within the margin of error and either "
+                "choice is defensible."
             )
 
     unit = spec.score_unit
@@ -317,20 +317,22 @@ def recommend(
             "best_quality",
             quality,
             spec,
-            why=f"Uygun modeller içinde en yüksek {spec.primary_benchmark} skoru ({quality.score:.1f} {unit}).",
+            why=f"Highest {spec.primary_benchmark} score among eligible models ({quality.score:.1f} {unit}).",
             trade_off=None,
         ),
         _pick(
             "best_value",
             value,
             spec,
-            why=(f"Pareto sınırında, liderin {window:.0f} {unit} yakınında kalan en ucuz model."),
+            why=(
+                f"On the Pareto frontier, the cheapest model within {window:.0f} {unit} of the leader."
+            ),
             trade_off=(
                 None
                 if value.model == quality.model
                 else (
                     f"{lead_phrase(quality.score, value.score, unit)}, "
-                    f"karşılığında %{(1 - value.blended_per_m / quality.blended_per_m) * 100:.0f} daha ucuz."
+                    f"and {(1 - value.blended_per_m / quality.blended_per_m) * 100:.0f}% cheaper."
                 )
             ),
         ),
@@ -339,11 +341,12 @@ def recommend(
             cheap,
             spec,
             why=(
-                f"Minimum {floor:.0f} {unit} kalite şartını geçen en ucuz model."
+                f"Cheapest model that clears the {floor:.0f} {unit} minimum-quality bar."
                 if floor_met
                 else (
-                    f"UYARI: bu bütçede {floor:.0f} {unit} kalite şartını geçen model YOK; "
-                    "bu, mevcutların en ucuzu — kaliteden ödün veriyorsun."
+                    f"WARNING: no model in this budget clears the {floor:.0f} {unit} "
+                    "minimum-quality bar; this is the cheapest available and you are trading "
+                    "quality away."
                 )
             ),
             trade_off=(
@@ -351,7 +354,7 @@ def recommend(
                 if cheap.model == quality.model
                 else (
                     f"{lead_phrase(quality.score, cheap.score, unit)}, "
-                    f"ama {quality.blended_per_m / cheap.blended_per_m:.0f} kat daha ucuz."
+                    f"but {quality.blended_per_m / cheap.blended_per_m:.0f}x cheaper."
                 )
             ),
         ),
@@ -385,7 +388,7 @@ def main(argv: list[str] | None = None) -> int:
     from app.workflows.categories import CATEGORIES
 
     parser.add_argument("--db", required=True, help="path to the pipeline SQLite file")
-    parser.add_argument("--budget", choices=sorted(BUDGETS), default="sinirsiz")
+    parser.add_argument("--budget", choices=sorted(BUDGETS), default="unlimited")
     parser.add_argument("--task", choices=sorted(CATEGORIES), default="coding")
     parser.add_argument(
         "--subscription",

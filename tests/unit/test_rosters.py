@@ -30,7 +30,7 @@ SEED_PLANS = REPO_ROOT / "data" / "plans.yaml"
 PLANS = """
 schema: 1
 staleness_days: 30
-budget_caps_usd: {dusuk: 10, orta: 25, sinirsiz: null}
+budget_caps_usd: {low: 10, medium: 25, unlimited: null}
 plans:
   - id: quiet-plan
     provider: QuietCo
@@ -294,11 +294,11 @@ def test_recommendation_text_states_which_source_named_the_model() -> None:
     """REQ-ING-009 honesty half: the user is told WHERE the link came from."""
     from app.workflows.subscribe import recommend_subscription
 
-    rec = recommend_subscription(_scored_db(60.0, 77.0), "sinirsiz", "coding")
+    rec = recommend_subscription(_scored_db(60.0, 77.0), "unlimited", "coding")
     assert rec is not None
     quality = rec.picks[0]
     assert quality.scored_via == "roster"
-    assert "sağlayıcının yayımladığı plan model listesinde" in quality.why
+    assert "the provider's published model list for this plan" in quality.why
     assert quality.link_source_url == "https://quietco.example/help/models"
     assert quality.link_last_verified == "2026-08-15"
 
@@ -324,7 +324,7 @@ def test_selected_stale_roster_clock_is_disclosed_through_cli(tmp_path, capsys) 
 
     assert (
         recommend_main(
-            ["--db", str(db), "--budget", "sinirsiz", "--task", "coding", "--subscription"]
+            ["--db", str(db), "--budget", "unlimited", "--task", "coding", "--subscription"]
         )
         == 0
     )
@@ -353,7 +353,7 @@ def test_stale_unselected_roster_link_is_not_disclosed() -> None:
         "UPDATE plan_models SET last_verified='2026-05-01'"
         " WHERE plan_id='quiet-plan' AND link_source='roster'"
     )
-    rec = recommend_subscription(conn, "sinirsiz", "coding")
+    rec = recommend_subscription(conn, "unlimited", "coding")
     assert rec is not None
     assert rec.stale_notice is None
 
@@ -368,14 +368,14 @@ def test_selected_roster_staleness_boundary_is_data_owned() -> None:
         "UPDATE plan_models SET last_verified='2026-07-17'"
         " WHERE plan_id='quiet-plan' AND link_source='roster'"
     )
-    fresh = recommend_subscription(conn, "sinirsiz", "coding")
+    fresh = recommend_subscription(conn, "unlimited", "coding")
     assert fresh is not None and fresh.stale_notice is None
 
     conn.execute(
         "UPDATE plan_models SET last_verified='2026-07-16'"
         " WHERE plan_id='quiet-plan' AND link_source='roster'"
     )
-    stale = recommend_subscription(conn, "sinirsiz", "coding")
+    stale = recommend_subscription(conn, "unlimited", "coding")
     assert stale is not None and "2026-07-16" in (stale.stale_notice or "")
 
 
