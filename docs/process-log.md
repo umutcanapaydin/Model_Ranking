@@ -184,3 +184,17 @@ ruling is a signature rather than an open question. M5 closes on two owner items
 migration review permission-matrix §11 requires.
 Lesson: a guard that cannot fail is worse than no guard — the W4 structural guard asserted the
 predicate it had filtered on and stayed green while the defect it named shipped in the payload.
+
+## 2026-08-16 — M5 gate, owner session — lead agent (Cowork)
+The owner pulled the closure bundle and ran the gate himself for the first time in this milestone:
+`make check` 7/7 green, 271 passed / 12 skipped, and 278 / 5 with `EPOCH_DATA_DIR` mounted on his own
+Epoch bundle — the first independent confirmation that the closing tree is green outside the agent
+sandbox. He then ruled on all three §0 items in one sitting: D-112 and D-111 ratified, the schema
+migration reviewed and approved (permission-matrix §11 discharged), and W-011 ruled RE-AUTHOR, so the
+twelve placeholder-email commits are rewritten to the identity that actually wrote them BEFORE the
+first push rather than after it. The quality gate's single BLOCKING item cleared on the ratification,
+not on new code: the citing tests for D-112's rule already existed and had already been shown able to
+fail. Two ledger rows closed with the ruling; W-001 survives into a fourth milestone.
+Lesson: escalating a criterion-meaning question with the measured cost of each option attached turns
+the owner's gate from an open question into a signature — the block cleared in one sitting because
+the decision arrived with its price tag, not with a request for guidance.

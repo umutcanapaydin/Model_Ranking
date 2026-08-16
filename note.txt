@@ -1,14 +1,19 @@
 Project: model_ranking
-State: **M1-M4 CLOSED + SIGNED. M5 built, reviewed, and CLOSED agent-side — waiting on TWO owner
-  items** (docs/closure-report-m5.md §0). Repo is green: 271 tests, 8 gates, clean tree.
+State: **M1-M5 CLOSED + SIGNED.** The owner ran the gate on his own machine (271 passed / 12
+  skipped; 278 / 5 with the Epoch bundle) and ruled on all three §0 items on 2026-08-16: D-112 and
+  D-111 RATIFIED, migration REVIEWED AND APPROVED, W-011 ruled RE-AUTHOR. Repo is green: 271 tests,
+  8 gates, clean tree. **Next milestone is M6 — and M6 is M%3==0, so its closure MUST generate
+  `docs/handovers/handover_q2.txt`.**
 Last session date: 2026-08-16
 Last work agent: Claude (Cowork lead agent, D-106) — inherited M5 mid-milestone from another agent
 
 FIRST THREE THINGS A NEW AGENT DOES
-1. Read `docs/closure-report-m5.md`, starting at §0 — it names the two owner decisions.
+1. Read `docs/closure-report-m5.md`, starting at §0 — it records the three rulings that closed M5.
 2. Read `docs/handovers/handover_m5-start.md` for the project's doctrine and footguns (still
-   accurate; its "M5 is unsigned" framing is the only stale part — M5 was signed and built).
-3. Do not start M6 planning until the owner rules on D-112 and reviews the migration.
+   accurate; its "M5 is unsigned" framing is the only stale part — M5 was signed, built and closed).
+3. Read `docs/retrospectives/m5-retrospective.md` §"Carried question" — M6's plan must answer it:
+   two coding surfaces now exist (`coding`, `agentic-coding`); does the product present both or
+   choose one? The HTTP API freezes whatever is decided into a contract.
 
 WHAT'S DONE
 - M1 data layer · M2 assistant category · M3 subscription table · M4 plan answers made real ·
@@ -24,26 +29,24 @@ WHAT'S DONE
   check-records, selftest, install-check, pin-check — black is installed but NOT invoked by the gate).
 - Security close PASS (conditional on the owner's migration review). 22 fault injections, all RED.
 
+SETTLED AT THE M5 GATE (2026-08-16) — do not re-litigate
+- **D-112 RATIFIED.** A category with no `ranking_effort` policy keeps the best evidence each board
+  published and DISCLOSES an unequal-effort comparison instead of equalising it by shrinking. The
+  owner was shown the cost of the alternative (28 rankable models today; 19 / 4 / 3 at
+  `unspecified` / `high` / `max`) and ruled that Q1's single-effort rule binds a category that HAS
+  an effort policy, not every category. **D-111 ratified in the same session.**
+- **Migration REVIEWED AND APPROVED** by the owner — permission-matrix §11 satisfied; the Stage-4.0
+  security PASS is now unconditional.
+- **W-011 ruled RE-AUTHOR.** The twelve placeholder-email commits are rewritten to
+  `Codex <noreply@openai.com>` by the OWNER before the first push, scoped so the closing agent's own
+  commits keep their identity:
+      git rebase --exec 'if [ "$(git log -1 --format=%ae)" = "the address you want on commits" ]; then git commit --amend --no-edit --author="Codex <noreply@openai.com>"; fi' 57de98e^
+
 WHAT'S OPEN
-- **OWNER ITEM 1 — ratify D-112** (docs/decisions.md). The quality gate BLOCKS on it. `coding` has
-  no effort policy and no level keeps the board (28 rankable models today; 19 at `unspecified`, 4 at
-  `high`, 3 at `max`). D-112 proposes: keep the 28, publish each pick's OWN evidence effort, and
-  carry a notice when the compared answers came from different levels. The alternative is to force a
-  level and accept the coverage loss. Measured table is in the closure report §0.
-- **OWNER ITEM 2 — review the schema migration.** permission-matrix §11 makes a migration change
-  BLOCKING until senior human review; the security reviewer's pass cannot substitute.
-- **W-011 — commit authorship, decide BEFORE the first push.** Twelve of the sixteen M5 wave
-  commits are authored as the owner's own name with a placeholder email: an agent committed
-  under the owner's name with a placeholder email (V4C-64 / AGENTS.md §5). The closing agent did NOT
-  rewrite them — re-authoring another agent's commits to its own identity is a second false
-  attribution, and a 16-commit rewrite is catastrophe-class. Nothing is pushed, so the fix is still
-  one command. To re-author them accurately:
-      git rebase --exec 'git commit --amend --no-edit --author="Codex <noreply@openai.com>"' 57de98e^
-  Leaving them is also defensible — 11 of the 12 carry a `GP-Agent: Codex` trailer that records the
-  truth. Owner's call either way.
 - W-001 gitleaks false positive — has now survived THREE closes; it fires at two paths while the
   ledger row records one. Owner action.
-- D-111 awaits ratification alongside D-112.
+- **M6 is not planned yet.** Its plan must answer M5's carried question (two coding surfaces:
+  present both, or choose?) and its closure MUST generate `handover_q2.txt`.
 - Carried to M6 (docs/warnings.ledger.md is the truth): W-002 equivalent_plans group structure ·
   W-005 YAML expansion guard · W-008 roster staleness window borrowed from the plan table ·
   W-009 two migration entry points + a read-time invariant · W-010 the effort counter under-reports
@@ -61,7 +64,7 @@ THE DATA ON THE OWNER'S DISK
 
 ANCHOR
 - AGENTS.md: 145 lines (cap 150)
-- Active ADRs: universal set + D-100..D-112. D-111 and D-112 are `proposed`, both awaiting the M5 gate.
+- Active ADRs: universal set + D-100..D-112. D-111 and D-112 are `ratified` (owner-signed 2026-08-16).
 - Governed records: `.governed-records` globs match 8 files (decisions, closure-report-m1..m5,
   fixpack-1, EXPERIENCE). The review records carry frontmatter but match no glob — widening the
   globs is a gate-definition change and therefore the owner's call.

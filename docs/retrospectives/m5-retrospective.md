@@ -57,6 +57,10 @@ the M6 plan, and the HTTP API freezes whatever is decided into a contract.
 
 4 waves + closure · +78 tests (193 → 271) · 40 review findings (20 in-wave, 20 at closure; 4 BLOCKING
 total) · 22 fault injections, 2 initially green · coding coverage 1/10 → 5/10, new agentic-coding
-6/10, union 6/10 · security close PASS (conditional on the owner's migration review) · quality gate
-BLOCKING on one owner ruling · 5 warnings carried to M6 with owning milestones · 1 tautological test
-found and removed · 1 agent handover mid-milestone, recovered from files alone.
+6/10, union 6/10 · security close PASS (condition — the owner's migration review — discharged at the
+gate) · quality gate BLOCKING on one owner ruling, cleared by ratifying D-112 at the gate · 5
+warnings carried to M6 with owning milestones · 1 tautological test found and removed · 1 agent
+handover mid-milestone, recovered from files alone.
+
+**Gate outcome (2026-08-16):** three rulings — D-112 and D-111 ratified, migration reviewed and
+approved, W-011 ruled RE-AUTHOR. M5 CLOSED and signed.

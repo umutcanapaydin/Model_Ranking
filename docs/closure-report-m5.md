@@ -1,15 +1,16 @@
 ---
 record_type: ratification
 id: closure-report-m5
-status: candidate
+status: ratified
 date: 2026-08-16
 ---
 # Closure Report — M5: Rescue the Coding Category
 
 > Owner's A0.5 milestone-session review pack, generated 2026-08-16 from committed artifacts.
 >
-> **Status: candidate — NOT closed.** Two items need the owner (§0). Everything else is done,
-> tested and committed.
+> **Status: CLOSED.** The three owner items in §0 were ruled on at the closure session of
+> 2026-08-16, after the owner ran the full gate on his own machine (271 passed / 12 skipped; 278
+> passed / 5 skipped with the Epoch bundle mounted).
 >
 > **This milestone had two agents.** The first planned and built W1–W4 and ran out of budget at a
 > checkpoint commit labelled `wip: NOT reviewed`, with four files still uncommitted and no review of
@@ -19,7 +20,30 @@ date: 2026-08-16
 > repository (wave-close checklists, review records, a W4 implementation plan) is what made the
 > reconstruction possible at all.
 
-## 0. What needs you (three items)
+## 0. The three owner rulings (2026-08-16)
+
+> This section was written as *"what needs you"* and is preserved with the rulings recorded against
+> each item, because the question a decision answered is part of the decision. The owner ran
+> `make check` and the Epoch-mounted suite on his own machine before ruling.
+
+| # | Item | Ruling |
+|---|---|---|
+| 1 | D-112 — the effort-comparison rule | **RATIFIED.** Keep the 28-model board, publish each pick's own evidence effort, carry the notice. D-111 ratified alongside it. |
+| 2 | Schema migration — senior human review | **REVIEWED AND APPROVED.** `permission-matrix.md` §11 is satisfied; the security review's PASS is now unconditional. |
+| 3 | W-011 — M5 commit authorship | **RE-AUTHOR.** The twelve owner-named commits are rewritten to `Codex <noreply@openai.com>` before the first push; the closing agent's own commits keep their own identity. |
+
+**Consequences.** The quality gate's single BLOCKING item (REQ-REC-011) is cleared by ruling 1 —
+the criterion is met in the form D-112 defines, and §1's table below reads ✅. Ruling 2 lifts the
+condition on the Stage-4.0 security PASS. Ruling 3 is executed by the owner as a rebase over
+`57de98e^..HEAD` scoped to the placeholder-email commits only, while nothing is pushed and the
+rewrite is therefore still cheap.
+
+**Still open and still the owner's, carried to M6:** **W-001** (the gitleaks false positive) has now
+survived THREE closes and fires at two paths against a one-path ledger row.
+
+---
+
+*The original text of the three items follows, unedited.*
 
 **1. Ratify D-112 — the effort-comparison rule.** This is the criterion-meaning question the
 quality gate is blocking on, and it is yours by the escalate-now rule, not mine.
@@ -68,6 +92,8 @@ Also non-blocking but yours: **W-001** (the gitleaks false positive) has now sur
 and fires at two paths against a one-path ledger row; **D-111** (budget disclosure) awaits
 ratification with D-112.
 
+*(End of the original §0. Rulings are in the table above.)*
+
 ## 1. What shipped
 
 | Criterion | Status |
@@ -75,7 +101,7 @@ ratification with D-112.
 | REQ-ING-010 Epoch as a first-class source | ✅ 22 citing tests; CI staleness leg |
 | REQ-ING-011b a fresher coding benchmark, INGESTED | ✅ **both fork branches** — Epoch carries a real evaluation date; DeepSWE refuses to age on a release date and reports its evidence undated |
 | REQ-CAN-005 effort parsed and stored, never swallowed | ✅ (under-count of unclassifiable rows ledgered as W-010) |
-| REQ-REC-011 the answer states its effort level and range | ⚠️ **BLOCKING on §0.1** — covered for `agentic-coding`, and for `coding` only in the form D-112 proposes |
+| REQ-REC-011 the answer states its effort level and range | ✅ — `agentic-coding` names one level; `coding` discloses the mix in the form D-112 defines (ratified §0.1) |
 | REQ-SUB-007 coverage re-measured through the real engine | ✅ before/after below |
 | REQ-LIC-001 Epoch CC-BY attribution where the data is served | ✅ one constant, derived per payload, README + export + both payloads |
 | REQ-REC-012 the Gemini contradiction resolved or disclosed | ✅ carried on both categories with `verdict: unresolved` and the log id pinned |
@@ -142,8 +168,9 @@ defect neither review caught. Every one of these was live in the tree you were a
 
 ## 4. Security & invariants
 
-Stage 4.0: **PASS (conditional)** — `docs/reviews/m5-security-review.md`. 1 BLOCKING (fixed at
-closure, §2.4), 7 MINOR (4 fixed, 3 ledgered), 8 NOTE. Conditional on your migration review (§0.2).
+Stage 4.0: **PASS** — `docs/reviews/m5-security-review.md`. 1 BLOCKING (fixed at closure, §2.4),
+7 MINOR (4 fixed, 3 ledgered), 8 NOTE. The one condition — the owner's migration review — was
+discharged at the closure session (§0.2), so this PASS is unconditional.
 
 gitleaks: 2 findings, **0 secrets** — the same zero-entropy ADR-label false positive at two paths;
 M5 introduced neither. pip-audit: **0 vulnerabilities**, no dependency added in M5. No new network
@@ -190,4 +217,6 @@ answer used, so adding a source without adding its citation, or a category witho
 will surface as a raised exception or a printed notice rather than as a quietly wrong claim.
 
 ---
-*Owner sign-off: **PENDING** — two items in §0.*
+*Owner sign-off: **SIGNED**, 2026-08-16 — three rulings recorded in §0. Gate run on the owner's own
+machine: `make check` 7/7 green, 271 passed / 12 skipped; with `EPOCH_DATA_DIR` mounted, 278 passed
+/ 5 skipped. M5 is CLOSED.*

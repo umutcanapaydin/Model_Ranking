@@ -456,7 +456,7 @@ implementation silently missed).
 
 ## D-111 — Budget exclusion is a separate, counted disclosure
 
-**Status:** proposed (M5-W4 implementation; owner ratification requested at the M5 gate)
+**Status:** ratified — owner-signed 2026-08-16 at the M5 closure session, together with D-112
 
 **Decision:** subscription recommendation payloads expose `excluded_by_budget`, the count of
 otherwise scoreable plans removed by the selected monthly-price cap, and `budget_notice`, a
@@ -480,8 +480,10 @@ count's exact scoreable-before-cap meaning during that migration.
 
 ## D-112 — An unequal-effort comparison is DISCLOSED, not silently equalised
 
-**Status:** proposed (M5 closure; **owner ratification requested at the M5 gate — this is the
-criterion-meaning question the quality gate is blocking on**)
+**Status:** ratified — owner-signed 2026-08-16 at the M5 closure session. The owner was shown the
+measured coverage cost of the alternative (28 rankable models today; 19 / 4 / 3 at `unspecified` /
+`high` / `max`) and ruled that Q1's single-effort rule binds a category that HAS an effort policy,
+not every category: `coding` keeps the board and discloses the inequality.
 
 **Decision:** a category with no `ranking_effort` policy keeps ranking on the best evidence each
 board published, and the answer carries `effort_mix_notice` whenever the compared picks come from

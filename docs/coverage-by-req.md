@@ -269,7 +269,7 @@ W1/W2/W3: "no auth, tenancy, or money invariant changed"). What this gate carrie
 | W1-W3 | Mechanical mutation runner not wired (HIGH advisory) | SKIPPED | Manual fault injection ran instead, in every wave and again at this gate |
 | W4 | The wave shipped as an unreviewed checkpoint and was closed by a second agent | Escaped-blocker tripwire FIRED | Three BLOCKING defects were sitting in it, all fixed before close. K.7 satisfied structurally |
 | W4 | A live registry swallow (`kimi-k2.5` / `kimi-k2.6` both folding into `kimi-k2`) found while closing, not by the review | Live-data defect, fixed | Lesson recorded: a new SOURCE is a new corpus |
-| Closure | M5 security review: 1 BLOCKING, 7 MINOR, 8 NOTE | Fixed / ledgered | BLOCKING-1 and four MINOR fixed in the closure fix-set with mutants; three MINOR ledgered to M6; one MINOR accepted with the reason written down. Verdict after disposition: PASS, conditional on the OWNER's own migration review (permission-matrix §11) |
+| Closure | M5 security review: 1 BLOCKING, 7 MINOR, 8 NOTE | Fixed / ledgered | BLOCKING-1 and four MINOR fixed in the closure fix-set with mutants; three MINOR ledgered to M6; one MINOR accepted with the reason written down. Verdict after disposition: PASS, conditional on the OWNER's own migration review (permission-matrix §11) — condition DISCHARGED at the 2026-08-16 gate, so the PASS is unconditional |
 | — | `scripts/` fails repo-wide ruff/black; the gate is scoped to `src tests` | Pre-existing | GP-upstream note, unchanged across three milestones |
 
 **Warnings ledger.** Ten rows. W-003, W-004, W-006, W-007 are **FIXED** in W4 with citing tests.
@@ -326,9 +326,19 @@ release-date-only board that refuses to age and reports 6 undated on `agentic-co
 tautological guard the M5 security review found was replaced before this gate with a test that fails
 on the real defect, and the pattern is recorded in place so the fourth instance is harder.
 
-One criterion does not close.
+One criterion did not close at the time this register was written. It closed at the gate itself.
 
-**VERDICT: BLOCKING** — on **REQ-REC-011** alone. The `coding` category, the milestone's namesake,
+**VERDICT AFTER THE OWNER'S RULING (2026-08-16): PASS.** The owner ratified **D-112**, which settles
+what REQ-REC-011 means for a category with no effort policy: `coding` keeps its board and DISCLOSES
+the inequality rather than equalising it by shrinking. The citing tests for that rule are
+`tests/unit/test_effort.py:401` (`test_pick_publishes_the_effort_of_its_evidence_not_the_category_policy`)
+and `tests/unit/test_effort.py:493` (`test_comparison_across_unequal_effort_is_disclosed`), both
+present and both shown able to fail by mutants at this gate. **D-111** was ratified in the same
+session, discharging item 1 below; the owner's migration review discharged item 4. The original
+BLOCKING verdict is preserved verbatim below, because the register's value is that it recorded the
+block before it was resolved, not after.
+
+**ORIGINAL VERDICT (pre-ruling): BLOCKING** — on **REQ-REC-011** alone. The `coding` category, the milestone's namesake,
 does not rank on one named effort level and discloses no higher-effort reach; on the owner's live
 bundle it ranks a `max`-effort run above an `unspecified`-effort run and the two losing picks say
 nothing about effort at all. That is Trap 2 of the signed plan reaching the shipped answer, and the
