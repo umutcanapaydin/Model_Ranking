@@ -1,9 +1,12 @@
 # M5 W3 — Signed DeepSWE board application and coverage measurement
 
-**Date:** 2026-08-16  
-**Input:** owner-mounted Epoch bundle, local allowlist only  
+**Date:** 2026-08-16
+
+**Input:** owner-mounted Epoch bundle, local allowlist only
+
 **Engine path:** `DeepSWEClient -> ingest_deepswe -> reconcile/reconcile_plans ->`
-`plan_coverage/plan_ranking/plan_evidence_health`  
+`plan_coverage/plan_ranking/plan_evidence_health`
+
 **Decision applied:** keep Epoch SWE-bench Verified on `coding`; add DeepSWE at `high` as the
 separate `agentic-coding` category.
 

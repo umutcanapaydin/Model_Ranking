@@ -26,7 +26,10 @@ src/app/workflows/subscribe.py   # Turkish user-facing output strings by design 
 tests/unit/test_recommend.py     # asserts the Turkish product strings above
 tests/unit/test_subscribe.py     # asserts the Turkish product strings above
 tests/unit/test_rosters.py       # asserts the Turkish product string for roster-sourced picks
+tests/unit/test_effort.py        # asserts exact Turkish effort/range disclosures at both live CLI boundaries
 docs/reviews/m4-w4-equivalence.md # §1 quotes the shipped Turkish `equivalence_note` VERBATIM as the wave's
                                   # measured evidence; paraphrasing it would break the record-vs-referent rule
                                   # (the claim is about the exact sentence the product prints). The record's
                                   # own prose is English.
+docs/reviews/m5-wave-2-review.md # append-only BLOCKING audit quotes the faulty Turkish output verbatim;
+                                 # preserving the exact rejected sentence is evidence for the corrected test
