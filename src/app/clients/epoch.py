@@ -11,6 +11,7 @@ import csv
 import datetime as dt
 import io
 import math
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -28,6 +29,23 @@ METRIC = "% resolved"
 HARNESS = "inspect_ai"
 
 _REQUIRED_COLUMNS = frozenset({"Model version", "mean_score", "Started at"})
+_CANONICAL_DATE = re.compile(r"\d{4}-\d{2}-\d{2}\Z")
+
+
+def validate_last_verified(value: object) -> str:
+    """Return one canonical YYYY-MM-DD acquisition date or fail this source."""
+    if not isinstance(value, str) or _CANONICAL_DATE.fullmatch(value) is None:
+        msg = f"{SOURCE_NAME}: last_verified must be YYYY-MM-DD"
+        raise SourceError(msg)
+    try:
+        parsed = dt.date.fromisoformat(value)
+    except ValueError as exc:
+        msg = f"{SOURCE_NAME}: last_verified must be YYYY-MM-DD"
+        raise SourceError(msg) from exc
+    if parsed.isoformat() != value:  # defensive: reject alternate ISO lexical forms
+        msg = f"{SOURCE_NAME}: last_verified must be YYYY-MM-DD"
+        raise SourceError(msg)
+    return value
 
 
 class EpochClient:
@@ -45,13 +63,8 @@ class EpochClient:
         if isinstance(bundle_dir, str) and "://" in bundle_dir:
             msg = f"{SOURCE_NAME}: expected a local unpacked bundle directory, not a URL"
             raise SourceError(msg)
-        try:
-            dt.date.fromisoformat(last_verified)
-        except (TypeError, ValueError) as exc:
-            msg = f"{SOURCE_NAME}: last_verified must be YYYY-MM-DD"
-            raise SourceError(msg) from exc
         self.bundle_dir = Path(bundle_dir)
-        self.last_verified = last_verified
+        self.last_verified = validate_last_verified(last_verified)
 
     def fetch_raw(self) -> str:
         """Read the allowlisted CSV; missing/unreadable input aborts this source."""

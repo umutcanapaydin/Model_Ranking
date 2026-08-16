@@ -117,6 +117,14 @@ def test_client_last_verified_is_its_own_mandatory_clock(tmp_path: Path) -> None
         EpochClient(tmp_path, last_verified="15/08/2026")
 
 
+@pytest.mark.parametrize("bad_date", ["20260815", "2026-W33-6"])
+def test_client_rejects_noncanonical_iso_verification_dates(tmp_path: Path, bad_date: str) -> None:
+    """REQ-ING-010: alternate ISO lexical forms cannot leak into the source clock."""
+    (tmp_path / EPOCH_SWE_BENCH_FILE).write_text(FIXTURE, encoding="utf-8")
+    with pytest.raises(SourceError, match="YYYY-MM-DD"):
+        EpochClient(tmp_path, last_verified=bad_date)
+
+
 def test_missing_epoch_board_fails_loudly_per_source(tmp_path: Path) -> None:
     """REQ-ING-010: a missing CSV aborts Epoch only with a source-identifying error."""
     client = EpochClient(tmp_path, last_verified="2026-08-15")

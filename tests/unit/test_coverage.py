@@ -22,6 +22,7 @@ from app.workflows.ingest import RunContext
 from app.workflows.plans import ingest_plans
 from app.workflows.registry import reconcile_plans
 from app.workflows.schema import connect
+from app.workflows.subscribe import plan_ranking
 
 PLANS = """
 schema: 1
@@ -309,7 +310,13 @@ def test_boundary_exactly_at_the_window_is_not_stale() -> None:
 def test_cli_reports_json_and_fails_loud_on_zero_coverage(tmp_path, capsys) -> None:
     """V4C-50: the exact command CI runs. Exit 1 when a category can answer nothing."""
     db = tmp_path / "advisor.db"
-    _db(path=str(db)).close()
+    conn = _db(path=str(db))
+    raw_score = 75.6198347107438
+    conn.execute("UPDATE scores SET score = ?", (raw_score,))
+    conn.commit()
+    ranking = plan_ranking(conn, CATEGORIES["coding"])
+    assert ranking[0].score == raw_score  # D-109: selection compares unrounded evidence
+    conn.close()
 
     # assistant has zero coverage in this fixture -> exit 1, and the JSON still prints
     assert main(["--db", str(db), "--today", "2026-08-15"]) == 1
@@ -322,6 +329,8 @@ def test_cli_reports_json_and_fails_loud_on_zero_coverage(tmp_path, capsys) -> N
     assert coding_health["total_plans"] == 3
     assert coding_health["fresh"] == 1
     assert coding_health["unscored"] == 2
+    scored = next(plan for plan in coding_health["plans"] if plan["plan"] == "Scored Plan")
+    assert scored["score"] == 75.6  # D-109: round exactly once at the JSON/report boundary
 
     assert main(["--db", str(tmp_path / "missing.db")]) == 2
     assert main(["--db", str(db), "--today", "nope"]) == 2

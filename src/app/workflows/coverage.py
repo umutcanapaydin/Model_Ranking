@@ -1,4 +1,4 @@
-"""Coverage + source health: the two numbers that must never drift silently.
+"""Coverage and evidence health reports that must never drift silently.
 
 REQ-SUB-005 — **plan coverage**: how many curated plans can actually be ranked,
 per category, and for the ones that cannot, WHY. M3 shipped a subscription
@@ -9,6 +9,10 @@ REQ-ING-011 — **source health**: how old each source's newest evidence is. The
 M3 owner run surfaced it by accident (SWE-bench's newest run was 170 days old,
 Aider's 316). Freshness is now computed, reported, and disclosed rather than
 noticed.
+
+REQ-ING-011b — **plan evidence health**: how old the exact score row selected
+for each curated plan is. This is deliberately separate from source health: a
+fresh unrelated source row cannot make a stale selected plan row look fresh.
 
 Both are DERIVED — they read the database, never write it — so they can run
 after any ingest, in CI, or against the owner's local file.
@@ -26,6 +30,7 @@ from pathlib import Path
 from typing import Literal
 
 from app.workflows.categories import CATEGORIES, CategorySpec
+from app.workflows.recommend import round_score
 from app.workflows.subscribe import plan_ranking
 
 # A source whose newest evidence is older than this is reported stale. Same
@@ -195,7 +200,7 @@ def plan_evidence_health(
                 plan=plan,
                 status=status,
                 selected_model=row.scored_by_model,
-                score=row.score,
+                score=round_score(row.score),
                 harness=row.harness,
                 evidence_source=row.evidence_source,
                 evidence_source_url=row.evidence_source_url,

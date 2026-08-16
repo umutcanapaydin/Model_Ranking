@@ -6,15 +6,30 @@
 
 ## Method
 
-The measurement ran the project's real selection path: curated plans and rosters were ingested,
-plan links and benchmark names were reconciled through the ordered registry, coverage was computed,
-and `subscribe.plan_ranking()` selected each plan's highest scoring evidence row. Freshness is the
-age of that selected row, never the newest unrelated row in the source. The four exhaustive states
-are fresh (`<60` days), stale (`>=60` days), undated, and unscored.
+The committed, deterministic producer is `python -m app.workflows.board_measurement`. It consumes
+the five owner-mounted CSVs without network access, creates a separate disposable SQLite database
+for every candidate, and runs `reconcile_plans()` / `reconcile()` / `plan_coverage()` /
+`plan_ranking()` / `plan_evidence_health()`. The existing baseline and Epoch use the shipped
+`ingest_swebench()` and `EpochClient -> ingest_epoch()` paths respectively. The remaining boards use
+explicit W1 measurement adapters; they do not add production source policy or the W2 effort schema.
+Each candidate is mapped onto the current coding benchmark/metric fields only inside its isolated
+comparison database so the existing category predicates execute. The record interprets coverage
+and selected-evidence dates, not cross-board score ordering or semantic equivalence.
+The result table below was regenerated with:
 
-Epoch was also reproduced through the shipped W1 path (`EpochClient` -> `ingest_epoch` ->
-`reconcile_plans` / `reconcile` -> `plan_evidence_health`). The other candidate boards are W1
-measurements over their real CSV shapes; they are not claimed as shipped ingestion paths.
+```bash
+PYTHONPATH=src .venv/bin/python \
+  -m app.workflows.board_measurement \
+  --bundle-dir /path/to/unpacked/epoch_data \
+  --plans data/plans.yaml --rosters data/rosters.yaml \
+  --baseline data/m5-swebench-baseline.json \
+  --today 2026-08-16 --last-verified 2026-08-15
+```
+
+Freshness is the age of the selected row, never the newest unrelated source row. The four states are
+fresh (`<60` days), stale (`>=60` days), undated, and unscored. DeepSWE is pre-filtered to its
+explicit `high` effort for this W1 comparison; its other 37 rows remain counted as filtered input.
+Release dates on DeepSWE and FrontierCode are intentionally stored as no evaluation date.
 
 The pre-Epoch coding baseline is 1/10 scoreable. The selected row is Google AI Pro via Gemini 3 Pro,
 77.4, `live-SWE-agent`, evaluated 2025-11-20 (269 days old). The source itself has a newer row, which
@@ -25,10 +40,10 @@ demonstrates why source-global newest dates cannot stand in for selected-plan ev
 | Candidate | CSV rows | Scoreable plans | Selected-evidence freshness | Date meaning |
 |---|---:|---:|---|---|
 | Epoch SWE-bench Verified | 35 (33 stored, 2 older duplicates skipped) | 5/10 | **2 fresh, 3 stale, 5 unscored** | Real `Started at` evaluation timestamps |
-| DeepSWE | 50 | 6/10 | **6 undated, 4 unscored** | Only model `Release date`; not evidence age |
-| FrontierCode | 25 | 3/10 | **3 undated, 7 unscored** | Only model `Release date`; not evidence age |
-| TerminalBench | 204 | 5/10 | **5 stale, 5 unscored** | Real `Run date`; selected rows are 2026-03-13 |
-| Aider polyglot | 77 | 0/10 | **10 unscored** | Real evaluation dates, no curated-plan match |
+| DeepSWE | 50 (13 high-effort stored, 37 explicitly filtered) | 6/10 | **6 undated, 4 unscored** | Only model `Release date`; not evidence age |
+| FrontierCode | 25 (20 stored, 5 empty-name skipped) | 3/10 | **3 undated, 7 unscored** | Only model `Release date`; not evidence age |
+| TerminalBench | 204 (181 stored, 23 empty/duplicate skipped) | 5/10 | **5 stale, 5 unscored** | Real `Run date`; selected rows are 2026-03-13 |
+| Aider polyglot | 77 (71 stored, 6 empty/duplicate skipped) | 0/10 | **10 unscored** | Real evaluation dates, no curated-plan match |
 
 ### Epoch selected rows
 
@@ -52,14 +67,18 @@ value of `medium`. The future parser must state precedence and count such confli
 
 ## Gemini contradiction (REQ-REC-012)
 
-Epoch reports `gemini-3.1-pro-preview-customtools` at 0.756198. DeepSWE reports
-`gemini-3.1-pro-preview` at 0.117517 under `mini-swe-agent` and `high` effort: a 6.4348x difference.
+Epoch reports `gemini-3.1-pro-preview-customtools` at 0.756198347107438 under `inspect_ai`.
+DeepSWE reports `gemini-3.1-pro-preview` at 0.11751662971175167 under `mini-swe-agent` and `high` effort:
+a 6.4348x difference.
 
 A range-read of Epoch's `.eval` journal confirms task `swe_bench_verified`, agent `bash`, solver
 `bash_agent`, edit tools `text_editor` and `apply_patch`, 484 samples, inspect_ai 0.3.174, and
 benchmark version 2.0.2. This proves a configuration difference. It does **not** prove that the
 tool interface caused the score gap: the local bundle has no `.eval` file, DeepSWE exposes no
 equivalent tool-interface log, and no controlled same-board customtools/default pair is available.
+
+The exact Epoch artifact referent is log id `8QQQWDgmmEsmQVUJWcxx4P`,
+`https://epoch-benchmarks-staging-public.s3.us-east-2.amazonaws.com/inspect_ai_logs/8QQQWDgmmEsmQVUJWcxx4P.eval`.
 
 Verdict: the contradiction is unresolved causally. Both scores and the harness/effort disagreement
 must be disclosed; silently selecting either number fails REQ-REC-012.

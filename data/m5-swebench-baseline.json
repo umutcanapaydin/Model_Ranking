@@ -1,0 +1,24 @@
+{
+  "leaderboards": [
+    {
+      "name": "Verified",
+      "results": [
+        {
+          "name": "live-SWE-agent + Gemini 3 Pro Preview (2025-11-18)",
+          "resolved": 77.4,
+          "date": "2025-11-20"
+        },
+        {
+          "name": "mini-SWE-agent + Gemini 3 Pro Preview (2025-11-18)",
+          "resolved": 74.2,
+          "date": "2025-11-18"
+        },
+        {
+          "name": "mini-SWE-agent + Gemini 3 Pro",
+          "resolved": 69.6,
+          "date": "2026-02-26"
+        }
+      ]
+    }
+  ]
+}

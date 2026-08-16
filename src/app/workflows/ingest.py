@@ -9,11 +9,14 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 
 from app.clients.aider import parse_polyglot, staleness_flag
 from app.clients.arena import parse_arena
-from app.clients.epoch import parse_swe_bench_verified as parse_epoch_swe_bench_verified
+from app.clients.epoch import (
+    parse_swe_bench_verified as parse_epoch_swe_bench_verified,
+)
+from app.clients.epoch import validate_last_verified
 from app.clients.litellm import parse_pricing
 from app.clients.openrouter import parse_models
 from app.clients.protocols import RawSource, SourceError
@@ -151,14 +154,10 @@ def ingest_epoch(conn: sqlite3.Connection, source: RawSource, run: RunContext) -
     independently attributable. Re-runs replace only this Epoch board's rows.
     """
     last_verified = getattr(source, "last_verified", None)
-    if not isinstance(last_verified, str):
+    if last_verified is None:
         msg = f"{source.name}: last_verified is mandatory for the Epoch bundle"
         raise SourceError(msg)
-    try:
-        date.fromisoformat(last_verified)
-    except ValueError as exc:
-        msg = f"{source.name}: last_verified must be YYYY-MM-DD"
-        raise SourceError(msg) from exc
+    last_verified = validate_last_verified(last_verified)
 
     rows, skipped = parse_epoch_swe_bench_verified(
         source.fetch_raw(), source=source.name, source_url=source.url
