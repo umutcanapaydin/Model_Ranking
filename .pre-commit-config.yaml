@@ -47,3 +47,9 @@ repos:
         entry: bash -c 'python3 scripts/check_records.py --install .'
         language: system
         pass_filenames: false
+      - id: conformance
+        name: conformance -- every gate rejects what it must (V4C-80)
+        entry: python3 conformance/run-all.py
+        language: system
+        pass_filenames: false
+        always_run: true

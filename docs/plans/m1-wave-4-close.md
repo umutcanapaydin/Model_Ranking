@@ -1,3 +1,9 @@
+---
+record_type: wave
+id: m1-wave-4-close
+status: ratified
+date: 2026-08-11
+---
 # Wave-Close Checklist — M1 Wave 4 (v4.1; V3C-69 + V3C-90/OD-4 + V4C-13 + V4C-40)
 
 Wave scope: recommendation engine + CLI + e2e through real entry point (m1-plan.md §3 W4).

@@ -23,5 +23,5 @@ description: At every 3rd milestone closure (M%3==0), generate docs/handovers/ha
    - Fresh-agent navigation map (which files to read in what order)
    - Gotchas + inside jokes (anything not in formal docs but useful to know)
 4. Sign off with name + date.
-5. Commit: `git add docs/handovers/handover_q{N/3}.txt && git commit -m "docs: quarterly handover Q{N/3} (M{N})"`.
+5. **Stage only — do not commit.** `git add docs/handovers/handover_q{N/3}.txt`, then print the commit message you would have used and stop. A0.5: the owner makes every commit in the local lane, because in the field one agent commit carried his identity and he could not tell it apart afterwards.
 6. Tag the commit: `git tag handover-q{N/3}`.

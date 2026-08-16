@@ -22,8 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0 — SHA-pinned (M3-W3, carried debt)
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0 — SHA-pinned (M3-W3)
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -42,10 +42,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0 — SHA-pinned (M3-W3)
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2.3.9 — SHA-pinned (M3-W3, supply-chain critical)
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -53,12 +53,50 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0 — SHA-pinned (M3-W3)
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0 — SHA-pinned (M3-W3)
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: '3.12'
           cache: 'pip'
       - name: Install pip-audit
         run: pip install pip-audit
+      # v4.3.2 REPAIR. An earlier edit removed the two governance steps from this job and left their
+      # `run:` key behind. YAML folded the orphan into the step ABOVE it, so this step was named
+      # "Run pip-audit" and executed `check_records.py`. **The dependency audit had not run at all**,
+      # and the job was green. Found by an external reviewer who parsed the YAML instead of reading it.
+      # Verified by `conformance/test-ci-yaml.py`, which asserts every step's name matches its command.
+      - name: Install project dependencies
+        # pip-audit --strict audits the ENVIRONMENT. With nothing installed it audits pip-audit's own
+        # dependencies and passes, which is a green light for a scan that never saw the project.
+        run: |
+          if   [ -f requirements.txt ]; then pip install -r requirements.txt
+          elif [ -f pyproject.toml   ]; then pip install -e .
+          else echo "::error::no requirements.txt or pyproject.toml -- pip-audit would scan nothing"; exit 1
+          fi
       - name: Run pip-audit
         run: pip-audit --strict
+
+  # v4.3 REPAIR (auditor B3). These two legs used to be STEPS inside `dep-audit`, downstream of
+  # `pip-audit --strict`. The comment called them unconditional; they were conditional on the step
+  # above them, and the only status name a maintainer could protect was `dep-audit`. That is the
+  # "a skipped required job reports SUCCESS" defect relocated one level down. Own job, no `if:`,
+  # no `continue-on-error`, and a NAME worth adding to branch protection.
+  install-and-governance:
+    name: install-and-governance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.11'
+      - name: Install completeness (M1/M2/M3)
+        run: python3 scripts/check_records.py --install .
+      - name: Governance records (R/X/P/N/C1 -- only on paths named in .governed-records; C2/L1/M3 always)
+        run: python3 scripts/check_records.py
+      - name: Validator is not a no-op (V4C-32)
+        run: python3 scripts/check_records.py --self-test
+      - name: Conformance -- every gate rejects what it must (V4C-80)
+        run: python3 conformance/run-all.py
+      - name: Falsification -- every control broken on purpose (V4C-84)
+        run: python3 conformance/falsify.py
+

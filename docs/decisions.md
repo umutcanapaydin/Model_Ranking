@@ -518,4 +518,70 @@ category, in which case `coding` takes a level and the coverage cost above is ac
 
 ---
 
+## D-113 — Process baseline moves to General Pipeline v5.0
+
+**Status:** ratified — owner directive, 2026-08-16, given in the M6 planning session.
+**Supersedes:** D-108 (process baseline GP v4.3.1).
+
+**Decision:** this project's process baseline is **GP v5.0**. The installation was produced with
+v5.0's own `make export-project`, not by copying the distribution directory — v5.0 is the first cut
+that distinguishes the DISTRIBUTION package from an INSTALLATION, and a directory copy would import
+23 GP-INTERNAL records (GP's own version history and decks) that a customer tree must never carry.
+
+**What the project takes from v5.0:** the git-authority rule (recorded separately as D-114), the
+`conformance/` suite and `make conformance`, `make gate` as the canonical gate name, `docs/watchlist.md`,
+and the repaired `check_records.py`, `bootstrap-check.sh` and CI workflows. Project-owned content —
+`docs/decisions.md`, `docs/prd.md`, `docs/process-log.md`, `docs/architecture.md`, the warnings
+ledger, `note.txt`, `README.md`, `pyproject.toml`, `.language-allow`, `src/**` and AGENTS.md §1–§2 —
+was preserved; only GP-owned files were replaced.
+
+**Rationale:** the owner directed the move before M6's first wave, and a milestone boundary with a
+green, idle, pushed repository is the cheapest moment a baseline change will ever have. Changing it
+mid-milestone would invalidate a signed plan.
+
+**Consequence recorded honestly:** v5.0's gate no longer runs the `pin-check` target — action
+pinning moved into `conformance/test-action-pins.py`. The project's "8 gates / 7 targets" figure is
+therefore stale wherever it appears, and three historical records still name that removed target.
+See the migration findings in `docs/warnings.ledger.md`.
+
+**Mitigation if violated:** `make install-check` fails if a declared PROJECT path is missing or a
+GP-INTERNAL path leaked; `conformance/run-all.py` fails if a documented command does not exist.
+
+**Revisit when:** GP cuts v5.1 or later, or a conformance leg proves unworkable against this
+project's records.
+
+---
+
+## D-114 — Local-lane git authority: the agent stages, the owner commits
+
+**Status:** ratified — owner ruling, 2026-08-16: *"Do it — I am moving to 5.0 anyway. I support your
+view."* (owner, translated from Turkish), in answer to the question of D-106's fate under v5.0.
+**Supersedes:** D-106 (agent runs the test gate and authors/pushes boundary commits).
+
+**Decision:** in the LOCAL lane — anything running on the owner's machine, including every skill in
+`.claude/skills/` — the agent **never runs `git commit` and never runs `git push`.** It may stage
+(`git add -u`) and it must write the commit message for the owner to run. The lead agent still runs
+the full test gate; that half of D-106 is retained and is not what this ADR removes.
+
+In the LAYER-2 CI lane the issue agent may commit under all four of: a machine identity that is not
+the owner's, a `fix/issue-*` branch, a DRAFT pull request it cannot merge, and a `GP-Agent:` trailer
+on every commit.
+
+**Rationale:** this project already paid for the failure the rule exists to prevent. **W-011:**
+twelve of sixteen M5 wave commits were authored under the owner's own name with an unset-git
+placeholder as the email, and the owner had to run a scoped rebase before the first push to repair
+it. GP v5.0 states the rule in as many words and ships `conformance/test-git-authority.py` to enforce
+it mechanically — the rule was never "agents cannot use git", it is **"no commit may be mistaken for
+the owner's."** An owner who cannot tell which commits he wrote cannot review his own history.
+
+**Mitigation if violated:** `conformance/test-git-authority.py` scans `.claude/`, `scripts/`,
+`.agents/`, `subagent-profiles/` and `docs/` for local-lane commit/push instructions and fails the
+gate. The v4.3.1-era `test-and-commit` skill, which committed, is deleted and replaced by
+`test-and-stage`, which stops at staging.
+
+**Revisit when:** the owner explicitly re-delegates commit authority in a new ADR, which under
+AGENTS.md §3 is an A1 mode change and cannot be assumed from convenience.
+
+---
+
 *Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*

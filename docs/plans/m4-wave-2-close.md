@@ -1,3 +1,9 @@
+---
+record_type: wave
+id: m4-wave-2-close
+status: ratified
+date: 2026-08-15
+---
 # Wave-Close Checklist — M4 Wave 2 (provider model rosters; v4.1 template)
 
 > Wave scope: m4-plan.md §3 W2 (REQ-ING-009).

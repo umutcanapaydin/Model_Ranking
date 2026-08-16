@@ -1,3 +1,9 @@
+---
+record_type: wave
+id: m4-wave-4-close
+status: ratified
+date: 2026-08-15
+---
 # Wave-Close Checklist — M4 Wave 4 (rounding, equivalence, the $4.99 row; v4.1 template)
 
 > Wave scope: m4-plan.md §3 W4 (REQ-REC-009, REQ-REC-010, REQ-SUB-006).

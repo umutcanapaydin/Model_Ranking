@@ -21,7 +21,14 @@ on:
     types: [opened, labeled]
 
 permissions:
-  contents: write          # create branch + commits for the fix
+  # v4.3.2. `AGENTS.md` said "agents NEVER run git" while this file granted commit rights. The
+  # contradiction was real but the resolution is not to revoke this: a CI agent on a draft PR it cannot
+  # merge is a DIFFERENT trust boundary from an agent in the owner's sandbox. What was missing is
+  # ATTRIBUTION -- in the field one agent commit carried the owner's own identity and nothing
+  # distinguished it. GDF solved this with a machine account and required trailers a week earlier;
+  # GP had neither. Both are below.
+  contents: write          # create a fix/issue-* branch + commits; NEVER main (branch protection)
+  pull-requests: write     # open a DRAFT PR only -- it cannot merge its own work
   issues: write            # comment + label
   pull-requests: write     # open the draft PR
   # Explicitly NOT granting: actions, packages, security-events, deployments
@@ -36,13 +43,17 @@ jobs:
     if: contains(github.event.issue.labels.*.name, 'agent:triage') || contains(github.event.issue.labels.*.name, 'agent:fix')
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      GIT_AUTHOR_NAME: gp-issue-agent
+      GIT_AUTHOR_EMAIL: gp-issue-agent@users.noreply.github.com
+      GIT_COMMITTER_NAME: gp-issue-agent
+      GIT_COMMITTER_EMAIL: gp-issue-agent@users.noreply.github.com
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0 — SHA-pinned (M3-W3)
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
-      # SHA-pinned at M3 closure (security review MINOR-2): this workflow holds
-      # contents:write + an API key, so a mutable tag was the one remaining
-      # supply-chain gap. Re-resolve deliberately when upgrading.
-      - uses: anthropics/claude-code-action@12310e4417c3473095c957cb311b3cf59a38d659  # v1.0.99 — SHA-pinned (M3 closure)
+      # TODO: pin the Claude Code action version to a commit SHA, not @v1
+      #   Get latest tag SHA: gh api repos/anthropics/claude-code-action/git/refs/tags/v1 -q .object.sha
+      - uses: anthropics/claude-code-action@9d7150bc8a3dae8149739a88019d192b579ad90c  # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -70,8 +81,13 @@ jobs:
 #                     gh label create agent:fix    --color 1F7A4D --description "Auto-fix by agent"
 #                     gh label create auto:fix     --color CADCFC --description "PR opened by agent"
 #   3. Branch protection on main:
-#      - Require status checks: test, secret-scan, dep-audit
+#      - Require status checks: test, secret-scan, dep-audit, install-and-governance  # single source: docs/branch-protection.md
 #      - Require pull request reviews: 1+ (human required)
 #      - Restrict who can push to matching branches
 #   4. Set 90-day rotation reminder for ANTHROPIC_API_KEY
 #   5. Monthly cost cap monitoring (cost-anomaly alarm at >2x daily baseline)
+
+# Every commit this workflow produces must carry the trailer below. `conformance/test-git-authority.py`
+# asserts it, because a policy that lives only in a comment is a policy nobody enforces.
+#
+#   GP-Agent: issue-agent (Layer 2, draft PR, cannot merge)

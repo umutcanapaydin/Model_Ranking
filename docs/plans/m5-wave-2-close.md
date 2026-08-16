@@ -1,3 +1,9 @@
+---
+record_type: wave
+id: m5-wave-2-close
+status: ratified
+date: 2026-08-16
+---
 # Wave-Close Checklist — M5 Wave 2
 
 > Filled from `docs/wave-checklist.template.md`. Scope: M5 plan §3 W2 — effort-aware score

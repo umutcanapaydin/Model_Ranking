@@ -6,7 +6,7 @@
 fail fixture does not produce its declared rule.
 
 This is our own fault-injection doctrine (V3C-72: break it → confirm RED → revert) applied to the
-validator itself. It exists because Increment 11 found that `make check-templates` — a ratified
+validator itself. It exists because Increment 11 found that ~~`make check-templates`~~ — a ratified  <!-- **REMOVED at the v5 control screen (2026-08-12) — on `docs/watchlist.md`, returns at 2 recurrences.** It needs a deployed URL and a live environment that neither this package nor a fresh project has, so in five versions nobody could write down how to break it and it was never once shown to catch anything. -->  <!-- REMOVED at the v5 control screen 2026-08-12 -- see `docs/watchlist.md`, returns after 2 recurrences. It needs a deployed URL and a live environment neither this package nor a fresh project has, so in five versions nobody could write down how to break it and it was never once shown to catch anything. Left visible on purpose: a control that quietly vanishes is how a checklist becomes folklore. -->
 gate — had never executed once: a control nobody exercises is a control nobody has.
 
 Adding a blocking rule to `check_records.py` REQUIRES adding its fail fixture in the same change.

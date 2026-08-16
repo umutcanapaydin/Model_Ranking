@@ -1,3 +1,13 @@
+---
+record_type: warnings
+id: warnings-ledger-template
+status: draft
+process_version: v5.0
+date: 2026-08-12
+---
+<!-- When you copy this template, KEEP this frontmatter and change `id` to match your
+     filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
+     which is exactly what shipped in v4.3.1. -->
 # Warning ledger (V4C-77, v4.3) — copy to `docs/warnings.ledger.md` at Stage 0
 
 > **Why this file exists.** A gate that warns and produces no consequence is indistinguishable from

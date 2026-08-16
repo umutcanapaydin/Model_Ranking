@@ -44,14 +44,18 @@ MUST_FILL=("README.md" "pyproject.toml" "src/app/adapter/main.py" \
 ph_hits=0
 for f in "${MUST_FILL[@]}"; do
   [ -f "$f" ] || { warn "missing file: $f"; continue; }
-  if grep -nE '<[A-Z][A-Z0-9_]+>' "$f" >/dev/null 2>&1; then
-    fail "placeholder(s) left in $f: $(grep -oE '<[A-Z][A-Z0-9_]+>' "$f" | sort -u | tr '\n' ' ')"
+# v4.3.2 REPAIR. These patterns required UPPERCASE placeholders, so a PRD and an architecture
+# doc full of `<one-paragraph summary>`, `<token format ...>` and dozens of other lowercase
+# stubs were both reported `[ok] filled`. The gate that decides whether the core documents are
+# real yet was reading for a convention the templates do not use.
+  if grep -nE '<[A-Za-z][A-Za-z0-9 _/|.-]{2,}>' "$f" >/dev/null 2>&1; then
+    fail "placeholder(s) left in $f: $(grep -oE '<[A-Za-z][A-Za-z0-9 _/|.-]{2,}>' "$f" | sort -u | tr '\n' ' ')"
     ph_hits=$((ph_hits+1))
   fi
 done
 if [ -f AGENTS.md ]; then
   proj=$(awk '/UNIVERSAL/{exit} {print}' AGENTS.md)
-  if printf '%s' "$proj" | grep -qE '<[A-Z][A-Z0-9_]+>'; then
+  if printf '%s' "$proj" | grep -qE '<[A-Za-z][A-Za-z0-9 _/|.-]{2,}>'; then
     fail "placeholder(s) left in AGENTS.md PROJECT section"
     ph_hits=$((ph_hits+1))
   fi
@@ -75,7 +79,7 @@ fi
 say "[C3] core docs are filled (not still templates)"
 for f in docs/prd.md docs/architecture.md docs/decisions.md; do
   [ -f "$f" ] || { fail "missing $f"; continue; }
-  if grep -qE '<[A-Z][A-Z0-9_]+>|TEMPLATE|fill this|TODO: replace' "$f"; then
+  if grep -qE '<[A-Za-z][A-Za-z0-9 _/|.-]{2,}>|TEMPLATE|fill this|TODO: replace|\bTBD\b' "$f"; then
     fail "$f still looks like a template (placeholder / TEMPLATE / 'fill this')"
   else
     ok "$f filled"
@@ -99,9 +103,19 @@ fi
 # with the reserved universal range D-001..D-099.
 say "[C5] ADR-ID convention (projects start at D-100; universal/process = P-00x)"
 if [ -f docs/decisions.md ]; then
-  # project ADRs in the reserved D-006..D-099 band are a collision smell
-  if grep -qE 'D-0(0[6-9]|[1-9][0-9])\b' docs/decisions.md; then
-    warn "project ADRs found in reserved D-006..D-099 band -- prefer D-100+ (or reconcile per Stage-0 recipe)"
+  # v5.0. This band started at D-006 while the package SHIPS `D-006` and `D-007`, both labelled
+  # UNIVERSAL in `docs/decisions.md`, and `START_HERE.md:117` says "D-001..D-007 universal". So every
+  # correctly-installed project carried this warning forever, about content the package put there.
+  # **A permanent warning on correct work is how warnings become invisible** -- which is the exact
+  # doctrine `docs/warnings.ledger.md` exists to enforce, contradicted by a check two files away.
+  # Found by installing the package as a user and reading what it said. The band starts at D-008.
+  # project ADRs in the reserved D-008..D-099 band are a collision smell
+  # ...and only in HEADINGS. Scanning the whole file made the check fire on the file's own
+  # explanation of the rule -- `docs/decisions.md` says "the D-001..D-099 band is reserved", so
+  # every project has carried this warning since v2.2 because the convention documents itself.
+  # **A checker that cannot tell a rule from an instance of it will cry wolf forever.**
+    if grep -qE '^#+ *D-0(0[89]|[1-9][0-9])\b' docs/decisions.md; then
+    warn "project ADRs found in reserved D-008..D-099 band -- prefer D-100+ (or reconcile per Stage-0 recipe)"
   else
     ok "no project ADRs in the reserved universal band"
   fi
@@ -109,9 +123,23 @@ fi
 
 # --- C6: license review of any wrapped/forked OSS engine (FB-4 / F.10) ------
 say "[C6] OSS-engine license review (FB-4)"
-if [ -f docs/license-review.md ] && ! grep -qE '<[A-Z][A-Z0-9_]+>|TEMPLATE' docs/license-review.md; then
+if [ -f docs/license-review.md ] && ! grep -qE '<[A-Za-z][A-Za-z0-9 _/|.-]{2,}>|TEMPLATE' docs/license-review.md; then
   ok "docs/license-review.md present and filled"
-elif grep -RqiE 'wrap|fork' docs/project-brief.md 2>/dev/null; then
+# v4.3.2 REPAIR: this read only `docs/project-brief.md`, but the file the workflow tells you to fill is
+# `docs/project-brief.template.md`. With just the template present the grep matched nothing and the OSS
+# wrap/fork licence question was skipped in silence -- on a project whose whole architecture is a wrap.
+# v5.0 REPAIR, and it is a repair of the previous repair. TB-031's fix widened this to read the
+# TEMPLATE as well as the filled brief -- and the template's own checkbox label reads
+# "Wraps / forks an OSS engine", so the check fired on EVERY project, unconditionally, telling
+# everyone they wrap an OSS engine. Found by running the installation as a user would.
+#
+# The filled brief is the only thing that can answer this, and a CHECKED box is the answer -- not the
+# presence of the words. If the brief has not been filled at all, say THAT: it is the real Stage-0 gap,
+# and "you wrap an OSS engine" is a false and confusing way to report a missing file.
+elif [ ! -f docs/project-brief.md ]; then
+  fail "docs/project-brief.md absent -- copy docs/project-brief.template.md and fill it. Until then
+       nobody can tell whether this project wraps an OSS engine, which decides whether FB-4 applies"
+elif grep -qiE '^\s*-\s*\[[xX]\].*(wrap|fork)' docs/project-brief.md 2>/dev/null; then
   fail "project wraps/forks an OSS engine but docs/license-review.md is absent (AGPL/GPL/SSPL => wrap-not-fork + legal sign-off)"
 else
   warn "no docs/license-review.md -- required only if you wrap/fork an OSS engine (FB-4); confirm N/A"

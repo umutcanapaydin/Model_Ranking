@@ -1,3 +1,13 @@
+---
+record_type: status
+id: pm-status-template
+status: draft
+process_version: v5.0
+date: 2026-08-12
+---
+<!-- When you copy this template, KEEP this frontmatter and change `id` to match your
+     filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
+     which is exactly what shipped in v4.3.1. -->
 # PM Status Snapshot — `<PROJECT_NAME>` — `<YYYY-MM-DD>`
 
 > A PM-readable status snapshot (Pipeline v2.1, candidate `/pm-status`). Pairs with the

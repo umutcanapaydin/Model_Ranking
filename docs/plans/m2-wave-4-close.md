@@ -1,3 +1,9 @@
+---
+record_type: wave
+id: m2-wave-4-close
+status: ratified
+date: 2026-08-11
+---
 # Wave-Close Checklist — M2 Wave 4 (task-aware recommender + CI)
 
 | # | Check | Evidence | ✅/WAIVED |

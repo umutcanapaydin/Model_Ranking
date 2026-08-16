@@ -1,3 +1,9 @@
+---
+record_type: wave
+id: m3-wave-0-close
+status: ratified
+date: 2026-08-15
+---
 # Wave-Close Checklist — M3 Wave 0 (GP v4.3.1 migration; v4.1 template, V3C-69 + V3C-90/OD-4 + V4C-13 + V4C-40)
 
 > Filled per docs/wave-checklist.template.md. Wave scope: m3-plan.md §3 W0 (process only, no product code).

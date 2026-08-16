@@ -1,3 +1,13 @@
+---
+record_type: wave
+id: wave-checklist-template
+status: draft
+process_version: v5.0
+date: 2026-08-12
+---
+<!-- When you copy this template, KEEP this frontmatter and change `id` to match your
+     filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
+     which is exactly what shipped in v4.3.1. -->
 # Wave-Close Checklist — M{N} Wave {W} (v4.1; V3C-69 + V3C-90/OD-4 + V4C-13 + V4C-40)
 
 > **Copy to `docs/plans/m{N}-wave-{W}-close.md`, fill, and COMMIT at every wave close.**
@@ -32,7 +42,7 @@
 | 9c | **Invariant hardening (v3.5, V3C-101 — origin FIX-03 cross-wave seam):** if this wave hardens a shared invariant (auth/tenancy/money), the producer list is enumerated FROM CODE (create/rotate/import/…) with a citing test per producer; missing tests recorded as tracked gaps; security sign-off on auth-class | producer list + test refs | |
 | 9b | **Scope & checkpoint (v3.3, V3C-90/OD-4 — origin: F17 uncommitted-loss class + cross-wave honesty):** scope row appended — planned vs delivered vs deferred vs the signed plan (append-only); owner's labeled checkpoint commit exists for this wave (`wip(m{N}-w{W}): checkpoint — NOT reviewed`) | plan ref + commit sha | |
 | 9a | **Economy (v3.2, V3C-85/86 — origin: DORA −7.2% on large changes; token-budget circuit breaker):** wave diff within ~≤400 changed lines OR variance noted (WARN, not block); projected token spend within the milestone budget line, else pause + variance note | diffstat + cost-log ref | |
-| 9 | **Skipped/waived/BYPASSED ledger + run summary (v4.1, V4C-13 + V4C-40-lite — friction & spend telemetry):** first the RUN LINE — `gates run: <list> · gates SKIPPED: <list> · tokens/cost: <n> · outcome: <shipped|abandoned>` (a wave that burned budget and produced nothing is invisible in git otherwise — survivorship bias). Then: list every check that did NOT run this wave — legitimate skips (tier-down, N/A) AND pressure bypasses — one-line reason + rough cost (minutes) each. Bypasses are first-class EXPERIENCE findings; the SAME control bypassed 3× triggers review of the CONTROL, not just the people (field origin: HIGH/auth fix shipped unreviewed, support-phase psychology) | — | |
+| 9 | **Skipped/waived/BYPASSED ledger + run summary (v4.1, V4C-13 + V4C-40-lite — friction & spend telemetry):** first the RUN LINE — `gates run: <list> · gates SKIPPED: <list> · tokens/cost: <n> · outcome: <shipped or abandoned>` (a wave that burned budget and produced nothing is invisible in git otherwise — survivorship bias). Then: list every check that did NOT run this wave — legitimate skips (tier-down, N/A) AND pressure bypasses — one-line reason + rough cost (minutes) each. Bypasses are first-class EXPERIENCE findings; the SAME control bypassed 3× triggers review of the CONTROL, not just the people (field origin: HIGH/auth fix shipped unreviewed, support-phase psychology) |  |  |
 
 **Escaped-blocker tripwire (V3C-78):** if a blocker escapes a tiered-down (LOW/MED) wave, the
 project reverts to full per-wave Code+Tester review until the next milestone closes clean.

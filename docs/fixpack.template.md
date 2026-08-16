@@ -1,3 +1,13 @@
+---
+record_type: fixpack
+id: fixpack-template
+status: draft
+process_version: v5.0
+date: 2026-08-12
+---
+<!-- When you copy this template, KEEP this frontmatter and change `id` to match your
+     filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
+     which is exactly what shipped in v4.3.1. -->
 # Fixpack — {vX.Y.Z+1} (v4.0; V3C-98 + V4C-07/08 — Stage 5 Maintenance Loop; THE DEPLOY GATE)
 
 > **Copy to `docs/fixpack-{N}.md`. Deploy is BLOCKED until every row is complete.** One page.
@@ -51,7 +61,7 @@
 
 - [ ] 4.3 gate passed (new SHA live via /health; restart ≠ rebuild)
 - [ ] **Fix probe:** each previously-broken behavior exercised in prod — new behavior confirmed
-- [ ] **v3.5 (V3C-106):** `make journey URL=<deployed>` re-run green after the pack lands
+- [ ] ~~**v3.5 (V3C-106):** `make journey URL=<deployed>` re-run green after the pack lands ~~ — **REMOVED at the v5 control screen (2026-08-12) — on `docs/watchlist.md`, returns at 2 recurrences.** It needs a deployed URL and a live environment that neither this package nor a fresh project has, so in five versions nobody could write down how to break it and it was never once shown to catch anything.
 - [ ] Watch window `<30–60 min; longer for HIGH>` clean — errors/logs flat → pack CLOSED
 - [ ] **v4.0 (V4C-07):** scheduled journey run confirmed ACTIVE post-pack (same script, on cadence, named on-call owner, flake/mute policy; result lands in this watch record) — monitoring-as-code, not a one-shot
 - [ ] **v4.0 (V4C-08, stack-conditional):** if the platform supports canary/pre-post verify, the pack rode it; note: *a rollback that has never fired is a doc, not a control* — rollback rehearsed once per supported stack: `<date/ref | N/A + why>`

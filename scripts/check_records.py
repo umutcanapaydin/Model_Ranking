@@ -58,7 +58,12 @@ import sys
 from pathlib import Path
 
 # ── declared vocabulary (narrow by rule V4C-35: every field drives a check below) ──────────
-RECORD_TYPES = {"ratification", "register", "adr", "experience", "handover", "design", "council"}
+# v4.3.2. The first seven are GP's OWN governance species. The rest are a PROJECT's, added when an
+# external reviewer pointed out that `.governed-records` shipped naming project files that could never
+# pass `R2` — the record model literally had no word for a closure report. **A governance model that
+# cannot name the artefacts of the thing it governs is not installed, it is on display.**
+RECORD_TYPES = {"ratification", "register", "adr", "experience", "handover", "design", "council",
+                "closure", "wave", "fixpack", "brief", "status", "license-review", "warnings"}
 STATUS_FLOW = ["draft", "candidate", "ratified", "superseded", "retired"]  # X3 ordering
 REQUIRED = ("record_type", "id", "status")
 OPTIONAL = ("process_version", "supersedes", "requires", "subject_ref", "propagation",
@@ -414,19 +419,37 @@ def condition_closure(root: Path, records, scope: str = "current") -> list[Findi
 #
 # COST LINE (V4C-13): ~60 lines, stdlib, <0.1 s. New failure mode: a legitimately new package file
 # FAILS M3 until classified. Deliberate. Fixtured, so the rule is proven to fire.
+# v4.3.2 REPAIR (audit B2). The walk had no exclusions, so `make check` -- whose first steps create a
+# virtualenv -- then failed L1 on Turkish characters inside `pip/_vendor/rich/_emoji_codes.py`. The gate
+# poisoned itself with the output of its own first step, and told the user to translate pip's source or
+# add it to `.language-allow`. **README promised "green on day 1"; it was red the moment you installed.**
+SKIP_DIRS = {".venv", "venv", ".git", "node_modules", "site-packages", "__pycache__",
+             ".mypy_cache", ".pytest_cache", ".ruff_cache", "dist", "build", ".tox", ".eggs"}
+
+
+def _skip(rel: Path) -> bool:
+    return any(part in SKIP_DIRS or part.endswith(".egg-info") for part in rel.parts)
+
+
+LOCK_NAME = ".install-lock"          # per-directory file counts, written at export
+DIST_MARKER = ".gp-distribution"   # present in the package, never in an install
 MANIFEST_NAME = "INSTALL-MANIFEST.md"
 FENCE_RE = re.compile(r"^```")
 
 
-def parse_manifest(path: Path) -> tuple[set, set]:
-    """Return (project_paths, gp_internal_paths) from the two fenced sections."""
+def parse_manifest(path: Path) -> tuple[set, set, set]:
+    """Return (project_paths, gp_internal_paths, ships_empty) from the fenced sections."""
     project: set = set()
     internal: set = set()
+    empty: set = set()
     bucket = None
     in_fence = False
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         if re.match(r"^##\s+PROJECT\b", line):
             bucket, in_fence = project, False
+            continue
+        if re.match(r"^###\s+Ships empty\b", line):
+            bucket, in_fence = empty, False
             continue
         if re.match(r"^##\s+GP-INTERNAL\b", line):
             bucket, in_fence = internal, False
@@ -445,14 +468,17 @@ def parse_manifest(path: Path) -> tuple[set, set]:
             if not tok or tok.startswith("/") or ".." in Path(tok).parts:
                 continue
             bucket.add(tok.rstrip("/") + ("/" if tok.endswith("/") else ""))
-    return project, internal
+    return project, internal, empty
 
 
 def _pkg_paths(pkg: Path) -> set:
+    # S1: the exclusion had been wired into L1 only, so M3 emitted one finding per venv file.
     """Every path in a package, as manifest-shaped strings; a declared dir collapses its subtree."""
     out = set()
     for p in pkg.rglob("*"):
-        if "__pycache__" in p.parts:
+        # S1: the SKIP_DIRS exclusion had been wired into L1 only, so a `.venv` in the package made
+        # M3 emit one finding per vendored file and P3 fail on the count. Half a repair reads as none.
+        if _skip(p.relative_to(pkg)):
             continue
         rel = p.relative_to(pkg).as_posix()
         out.add(rel + "/" if p.is_dir() else rel)
@@ -470,7 +496,7 @@ def _covered(rel: str, declared: set) -> bool:
     return False
 
 
-def _installed(p: Path) -> bool:
+def _installed(p: Path, empty_ok: bool = False, expect_min: int | None = None) -> bool:
     """Present AND carrying content.
 
     v4.3 REPAIR (auditor B5). `.exists()` accepted a 0-byte file and an empty directory, so a filtered
@@ -479,7 +505,33 @@ def _installed(p: Path) -> bool:
     got `PASS: no findings`. **That is the field incident this rule exists for, wearing a different hat.**
     """
     if p.is_dir():
-        return any(q.is_file() and q.stat().st_size > 0 for q in p.rglob("*"))
+        # A directory holding only `.gitkeep` is INTENTIONALLY empty and is correctly installed. The
+        # size>0 rule (added to catch a filtered copy that made directories and copied nothing) flagged
+        # `docs/plans/`, `docs/reviews/` and `docs/retrospectives/` as missing, because `.gitkeep` is
+        # zero bytes by definition. **A repair that cannot tell "deliberately empty" from "silently
+        # dropped" has replaced one false report with another.**
+        # v4.3.2 REPAIR, SECOND ATTEMPT (audit B4). The first `.gitkeep` exemption applied to every
+        # declared directory: an auditor cut `.claude/skills/`, `subagent-profiles/` and `conformance/`
+        # to one 0-byte `.gitkeep` each -- 118 files to 42 -- and got PASS. The chair's first repair of
+        # THAT read "only `.gitkeep` present is fine", which is the identical hole restated. Emptiness
+        # cannot be inferred from the tree, because an emptied directory and a deliberately empty one
+        # look the same. **It has to be DECLARED**, so `empty_ok` comes from the manifest's own
+        # "Ships empty" section and nowhere else.
+        if empty_ok:
+            return True
+        # THIRD iteration of this hole (105->68, then 118->42, then 121->67). Each repair moved the
+        # threshold -- `.exists()`, then "any file", then "any non-empty file" -- and each time an
+        # auditor satisfied the new threshold with a token file. A byte count cannot express "this
+        # directory still contains what it shipped with". **Compare against the manifest's own count.**
+        # Count the SAME WAY the lock counts, or the two disagree and the gate fails correct work:
+        # the first pairing had the lock count all files and this count only non-empty ones, so a
+        # legitimately empty `src/__init__.py` made `src/` look incomplete. When a count is available
+        # the size threshold is redundant AND wrong; it only matters as a fallback.
+        files = [q for q in p.rglob("*") if q.is_file() and q.name != ".gitkeep"
+                 and not _skip(q.relative_to(p))]
+        if expect_min is not None:
+            return len(files) >= expect_min
+        return any(q.stat().st_size > 0 for q in files)
     return p.is_file() and p.stat().st_size > 0
 
 
@@ -501,6 +553,17 @@ def manifest_rules(root: Path, install: Path | None = None) -> list[Finding]:
     f: list[Finding] = []
     cur = current_package(root)
     man = None
+    if install and (install / DIST_MARKER).is_file():
+        # v4.3.2. `README.md` says "first command: make install-check", and a person who has just
+        # copied the package runs it THERE. It then reported 23 findings -- 19 GP-INTERNAL files
+        # "leaked" and three `.gitkeep` directories "missing" -- because the distribution package is
+        # not an installation and never was. Both concepts had the same directory.
+        # **Refusing loudly with the right command is the only honest answer; passing would be a lie
+        # and 23 findings is noise that teaches people to ignore the gate.**
+        return [Finding(Path(DIST_MARKER), 1, "M0",
+                        "this is the DISTRIBUTION package, not an installation -- it is supposed to "
+                        "contain every GP-INTERNAL file. Run `make export-project DEST=/path/to/your-project` "
+                        "to produce an installation, then run install-check inside THAT tree")]
     if install and (install / MANIFEST_NAME).is_file():
         man = install / MANIFEST_NAME                    # the installed tree carries its own contract
     elif cur:
@@ -518,7 +581,21 @@ def manifest_rules(root: Path, install: Path | None = None) -> list[Finding]:
         return [Finding(Path(MANIFEST_NAME), 1, "M3",
                         "no INSTALL-MANIFEST.md — the package does not declare what an "
                         "installation is, which is how a copy step becomes unfalsifiable")]
-    project, internal = parse_manifest(man)
+    project, internal, empty = parse_manifest(man)
+    lock: dict = {}
+    if install:
+        lf = install / LOCK_NAME
+        if lf.is_file():
+            for line in lf.read_text(encoding="utf-8", errors="replace").splitlines():
+                k, _, v = line.partition("\t")
+                if v.strip().isdigit():
+                    lock[k.strip()] = int(v)
+        else:
+            f.append(Finding(Path(LOCK_NAME), 1, "M4",
+                             f"no {LOCK_NAME} -- this tree was not produced by `make export-project`, "
+                             "so nothing records how many files each directory shipped with. Three "
+                             "separate audits gutted an install past M1 using one placeholder file "
+                             "per directory; a hand-copied tree cannot be checked for completeness"))
     try:
         rel_man = man.relative_to(root)
     except ValueError:
@@ -537,7 +614,17 @@ def manifest_rules(root: Path, install: Path | None = None) -> list[Finding]:
     if install:
         for decl in sorted(project):
             if decl.endswith("/"):
-                if not _installed(install / decl.rstrip("/")):
+                # How many files did the PACKAGE ship in this directory? An install must carry at least that
+                # many. This is the only test that cannot be satisfied by a placeholder.
+                # FOURTH attempt (audit S3). `.exists()`, then "any file", then "any non-empty file"
+                # -- each threshold was satisfied by one token placeholder per directory: 105->68,
+                # 118->42, 121->67. The third repair compared against the source package, which does
+                # not exist in a customer project, so it did nothing in the only place it mattered.
+                # (It also referenced an undefined `pkg` and would have raised NameError had `cur`
+                # ever been set here -- a dead branch hiding a crash.)
+                # **The expected count must TRAVEL WITH the install.** No placeholder satisfies a count.
+                want = lock.get(decl.rstrip("/"))
+                if not _installed(install / decl.rstrip("/"), decl.rstrip("/") in empty, want):
                     f.append(Finding(rel_man, 1, "M1",
                                      f"PROJECT path `{decl}` is MISSING from the install at "
                                      f"{install.name} — the install is incomplete"))
@@ -648,6 +735,44 @@ LANG_SUFFIXES = {".md", ".py", ".sh", ".yml", ".yaml", ".json", ".html", ".txt",
 LANG_EXTENSIONLESS = {"Makefile", "Dockerfile", "CODEOWNERS", "LICENSE"}
 
 
+def telemetry_verdicts(root: Path) -> list[Finding]:
+    """T1 — every traceback carries a verdict (V4C-86).
+
+    `council-telemetry.md` §3.2 makes it a condition of REPORTED that every entry resolves to a record
+    id or `NONE-PROPOSED`. Thirty-six did not, and the register had drifted from a nine-column table to
+    prose sections without anything noticing -- richer to read, structurally invisible. Four ids were
+    cited by an instrument and had no entry at all; two KEEP verdicts rested on them.
+
+    **The instrument built to hold the council accountable could not hold itself to its own bright
+    line, for three cuts.** Found by a seat counting, not by any check.
+
+    A traceback id counts as covered if it appears in a table row -- the original nine-column format or
+    the §15 verdict index -- with a non-empty verdict cell.
+    """
+    f: list[Finding] = []
+    tel = root / "council-telemetry.md"
+    if not tel.is_file():
+        return f
+    body = tel.read_text(encoding="utf-8", errors="replace")
+    covered: set[str] = set()
+    for line in body.splitlines():
+        if not line.lstrip().startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        m = re.match(r"\*?\*?(TB-\d+)", cells[0]) if cells else None
+        if m and len(cells) >= 3 and any(c and set(c) - set("-* ") for c in cells[2:]):
+            covered.add(m.group(1))
+    seen = set(re.findall(r"TB-\d+", body))
+    for tid in sorted(seen - covered, key=lambda x: int(x[3:])):
+        f.append(Finding(Path("council-telemetry.md"), 1, "T1",
+                         f"`{tid}` has no table row carrying a verdict. Section 3.2 makes that a "
+                         "condition of REPORTED: a verdict resolves to a record id or `NONE-PROPOSED`. "
+                         "**An entry with no disposition is an open loop wearing a finding's clothes** "
+                         "-- and four such ids were cited as evidence by a control screen while having "
+                         "no entry at all"))
+    return f
+
+
 def language_rule(root: Path) -> list[Finding]:
     """L1 — no Turkish-specific letter in a tracked file, outside the reasoned allowlist."""
     allow: list = []
@@ -659,6 +784,8 @@ def language_rule(root: Path) -> list[Finding]:
                 allow.append(body)
     f: list[Finding] = []
     for p in sorted(root.rglob("*")):
+        if _skip(p.relative_to(root)):
+            continue
         if not p.is_file() or p.is_symlink():
             continue
         rel = p.relative_to(root).as_posix()
@@ -709,7 +836,7 @@ def governed_records(root: Path) -> list[Path]:
             # and matched NONE of the globs above, so the validator could not see the two documents
             # the whole hearing ran on. Widened, and kept explicit rather than a bare *.md glob so
             # the narrowness rule (V4C-35) still holds.
-            "council-telemetry.md", "friction-ledger.md", "increment-*-packet.md"]
+            "council-telemetry.md", "friction-ledger.md", "CONTROL-SCREEN.md", "increment-*-packet.md"]
     # A repo may override the list with `.governed-records` (one glob per line, `#` comments).
     # Added at v4.2 so GDF — a DIFFERENT repo with a different record set — can run this exact
     # file rather than a forked near-copy. Narrow by rule (V4C-35): the manifest exists only
@@ -921,6 +1048,7 @@ def main() -> int:
     findings += manifest_rules(root, install=Path(a.install).resolve() if a.install else None)
     findings += warning_ledger(root)                                  # C2
     findings += language_rule(root)                                   # L1
+    findings += telemetry_verdicts(root)                              # T1
     print(f"(scanned {len(records)} record(s) with frontmatter)")
     return report(findings, "repo")
 

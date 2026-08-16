@@ -1,3 +1,13 @@
+---
+record_type: closure
+id: closure-report-template
+status: draft
+process_version: v5.0
+date: 2026-08-12
+---
+<!-- When you copy this template, KEEP this frontmatter and change `id` to match your
+     filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
+     which is exactly what shipped in v4.3.1. -->
 # Closure Report — M{N} (v3.3, V3C-83/90 — the owner's milestone-session review pack)
 
 > **Generated at every milestone closure** (Stage 4.2) — the owner's review pack for the A0.5

@@ -1,3 +1,9 @@
+---
+record_type: wave
+id: m5-wave-1-close
+status: ratified
+date: 2026-08-16
+---
 # Wave-Close Checklist — M5 Wave 1
 
 > Filled from `docs/wave-checklist.template.md`. Scope: M5 plan §3 W1 — local Epoch ingestion,

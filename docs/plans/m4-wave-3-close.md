@@ -1,3 +1,9 @@
+---
+record_type: wave
+id: m4-wave-3-close
+status: ratified
+date: 2026-08-15
+---
 # Wave-Close Checklist — M4 Wave 3 (coverage, source health, Epoch; v4.1 template)
 
 > Wave scope: m4-plan.md §3 W3 (REQ-SUB-005, REQ-ING-010, REQ-ING-011).

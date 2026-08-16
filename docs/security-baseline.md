@@ -143,7 +143,7 @@ with a *tested* disable switch and correct domain scope); **fairness controls (r
 
 Gateway/LLM-ops security candidates (circuit-breaker tri-state, classify-by-stable-signal, streaming
 rate-limit accounting, etc.) are CANDIDATE pending a 2nd independent ecosystem — see
-[`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v4.3.1/general_pipeline_v4.3.1/pipeline-design.md) §3.6 and the candidate block in `.agents/rules/playbook-seeds.md`.
+[`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v5.0/general_pipeline_v5.0/pipeline-design.md) §3.6 and the candidate block in `.agents/rules/playbook-seeds.md`.
 
 ## A verifier may not share its implementation with what it verifies (V4C-61, v4.3)
 

@@ -1,3 +1,9 @@
+---
+record_type: wave
+id: m3-wave-2-close
+status: ratified
+date: 2026-08-15
+---
 # Wave-Close Checklist — M3 Wave 2 (staleness + verification workflow; v4.1 template)
 
 > Wave scope: m3-plan.md §3 W2 (REQ-SUB-003/-004).

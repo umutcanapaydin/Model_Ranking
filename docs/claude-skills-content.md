@@ -200,7 +200,7 @@ description: At every 3rd milestone closure (M%3==0), generate docs/handovers/ha
    - Fresh-agent navigation map (which files to read in what order)
    - Gotchas + inside jokes (anything not in formal docs but useful to know)
 4. Sign off with name + date.
-5. Commit: `git add docs/handovers/handover_q{N/3}.txt && git commit -m "docs: quarterly handover Q{N/3} (M{N})"`.
+5. **Stage only — do not commit** (A0.5). `git add docs/handovers/handover_q{N/3}.txt`, print the commit message, stop. The owner commits.
 6. Tag the commit: `git tag handover-q{N/3}`.
 ```
 --- END quarterly-handover ---
@@ -329,4 +329,4 @@ description: LLM-free project state dump. Calls scripts/standup.sh. Use at the s
 2. Test invocation: type `/standup` in a Claude Code session — should execute.
 3. Run `/log-decision` to add D-006 (your project's first project-specific ADR).
 4. Run `make check` once — confirm the PostToolUse hook fires correctly.
-5. Commit: `git add -A && git commit -m "chore: pipeline v2.0 starter skills"`.
+5. **Stage only — do not commit** (A0.5). `git add docs/handovers/handover_q{N/3}.txt`, print the commit message, stop. The owner commits.

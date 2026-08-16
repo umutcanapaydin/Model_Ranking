@@ -186,9 +186,16 @@ The "which $20 plan" answer needs a manually curated plan table with a verificat
 
 ### OQ-3 — Hosting / deploy target
 **Asked of:** owner
-**Status:** open
+**Status:** open — **DUE NOW.** The API milestone arrived: M6-W4 closes this with ADR **D-116**.
 **Asked on:** 2026-08-06
 Research suggests Supabase or Cloudflare Workers for the serving layer. No decision needed before the API milestone.
+
+> **Update 2026-08-16 (M6 planning).** "No decision needed before the API milestone" has expired —
+> M6 *is* the API milestone. The deferral also hid a defect: `docs/plans/m4-plan.md` records Fly.io
+> as the owner's preference and cites an ADR ID that collides with the ratified D-110, so the deploy
+> target is simultaneously "recorded" in a plan and "not chosen yet" here. **A preference in a plan
+> is not an ADR.** M6-W4 closes this with a real ID (D-116) that supersedes the collision, and this
+> question moves to closed with that ID next to it. Recording a preference again would not close it.
 
 ---
 
@@ -314,3 +321,28 @@ Research suggests Supabase or Cloudflare Workers for the serving layer. No decis
 | REQ-LIC-001 | Required Epoch citation is in ranking exports, both recommendation payload source lists, and README. Citing tests: `test_categories.py`, `test_recommend.py`, `test_deepswe_workflow.py`. | IMPLEMENTED; pending M5 owner gate |
 | REQ-REC-012 | Board measurement carries both Gemini results and states the disagreement. Citing test: `test_m5_board_measurement.py`. | IMPLEMENTED; pending M5 owner gate |
 | REQ-REC-013 | `excluded_by_budget` counts scoreable plans removed by the cap and `budget_notice` narrates it, separate from unscored/equivalent plans. Citing tests: `test_subscribe.py`, `test_deepswe_workflow.py`; contract proposed in D-111. | IMPLEMENTED; pending D-111 owner ratification at M5 gate |
+
+## 13. M6 — The HTTP API (REQ-API / REQ-REC / REQ-LIC / REQ-SUB)
+
+> Added 2026-08-16 from the signed `docs/plans/m6-plan.md` §2, per the M3 rule that new REQs land in
+> BOTH the plan and this file. **Status for every row below is SPECIFIED — nothing is implemented.**
+> The milestone freezes the owner's Ruling A into a public contract: a coding request returns BOTH
+> the `coding` and the `agentic-coding` answer, and neither is presented as leading the other
+> (recorded as D-115 when the milestone ratifies it).
+
+| REQ-ID | Statement | Status |
+|---|---|---|
+| REQ-API-001 | A versioned, read-only HTTP surface: `GET /v1/recommendations`, `GET /v1/categories`, and the existing `/health` with its L.7 build stamp unchanged. M6 ships no mutating route, and a citing test asserts that absence — V3C-12 server-side authz is satisfied by having no mutating surface, never by claiming one is protected. | SPECIFIED (m6-plan signed) |
+| REQ-API-002 | Ruling A: `task=coding` returns two answers, neither flagged as primary, emitted in a documented non-semantic order, with the envelope stating that the order carries no meaning. An explicit `task=agentic-coding` returns that surface alone. Citing test asserts two members AND that no field ranks them. | SPECIFIED (m6-plan signed) |
+| REQ-API-003 | Rendering parity: `close_call`, `stale_notice`, `effort_mix_notice`, the D-111 budget notice, D-110 equivalence and per-pick `effort` appear in the JSON payload, the CSV export and the CLI output, all derived from ONE serializer. Citing test compares all three renderings of a single run field-for-field. A disclosure present in one and absent from another is BLOCKING. | SPECIFIED (m6-plan signed) |
+| REQ-API-004 | An answer whose evidence carries no evaluation date says so IN THE PAYLOAD, not only in the coverage report (INV-24; the `agentic-coding` case). | SPECIFIED (m6-plan signed; M5 security deferral) |
+| REQ-API-005 | Error contract: unknown task, unknown budget, an unhealthy source and a missing database each produce a stable documented error shape that fails loud and closed and leaks no filesystem path into the response body. | SPECIFIED (m6-plan signed) |
+| REQ-API-006 | Security baseline for the surface (V3C-11/12/13/51/56): CORS is an allowlist and never allow-all-with-credentials; security config is validated at startup and the process refuses to serve in production if it is wrong; the API's database handle is read-only; no plaintext credential in source. | SPECIFIED (m6-plan signed) |
+| REQ-REC-014 | `equivalent_plans` carries group structure, so a machine consumer can tell which pick each plan is equivalent to and at what price. | SPECIFIED (m6-plan signed; closes W-002) |
+| REQ-LIC-002 | The CSV half of `export_ranking` carries the same attribution and blend note the JSON half already carries. | SPECIFIED (m6-plan signed; M5 security deferral) |
+| REQ-SUB-008 | The roster-link staleness sentence reads the roster's OWN persisted window, not the curated plan table's. Citing test proves the two windows can diverge and that the correct one is used. | SPECIFIED (m6-plan signed; closes W-008) |
+
+**Red-test intakes carried into M6 against existing REQs (not new requirements):** W-010 against
+REQ-CAN-005 (the effort counter under-reports suffix-bearing rows it cannot classify), plus W-005
+(YAML alias-expansion guard) and W-009 (two migration entry points) as hardening the API boundary
+creates. Each is reproduced with a failing test before it is fixed.

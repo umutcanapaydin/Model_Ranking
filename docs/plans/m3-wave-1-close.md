@@ -1,3 +1,9 @@
+---
+record_type: wave
+id: m3-wave-1-close
+status: ratified
+date: 2026-08-15
+---
 # Wave-Close Checklist — M3 Wave 1 (plan schema + live-verified seed; v4.1 template)
 
 > Wave scope: m3-plan.md §3 W1 (REQ-SUB-001/-002).

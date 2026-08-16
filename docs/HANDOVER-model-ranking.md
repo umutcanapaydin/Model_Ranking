@@ -6,6 +6,14 @@
 > explanation and its "what bites" list are still accurate and worth reading — but every
 > statement here about *status, milestones or open work* is two milestones out of date.
 
+> ## ⚠ ITS GIT AND ENVIRONMENT INSTRUCTIONS ARE SUPERSEDED — you must not follow §7.
+> **D-114 (2026-08-16) removed local-lane commit authority from agents; D-113 moved the process
+> baseline to GP v5.0.** §7 was written for the Cowork container: it tells an agent to set a git
+> identity, amend commits and hand the owner a bundle. None of that is current practice, and the
+> environment it describes is not the one this project runs in. Kept verbatim under the append-only
+> rule (B.2) because it is the record of how that environment actually behaved — flagged, not
+> rewritten. Ledgered as **W-014**.
+
 > **You are the stranger this was written for.** Continuity lives in files, not sessions.
 > Read this top-to-bottom once (~10 min), then `docs/closure-report-m2.md` and `note.txt`.
 > The pipeline methodology (General Pipeline) is being **replaced with v4.3.1 by the owner** —
@@ -163,6 +171,12 @@ put in a fixture, before the wave closes.**
 ---
 
 ## 7. Environment gotchas that will cost you an hour each (learn them free)
+
+### ⚠ SUPERSEDED (W-014) — an agent must not follow this section
+
+Everything below describes the **Cowork container**, which is not the environment this project runs
+in, and items 4–6 instruct an agent to commit, amend and push — which **D-114 forbids in the local
+lane**. Preserved verbatim as a record of that environment; do not act on it.
 
 1. **The build sandbox cannot reach `huggingface.co`, `openrouter.ai`, or `epoch.ai`** (proxy 403).
    GitHub raw and the HF *datasets-server* work. Live validation of Arena/OpenRouter therefore runs

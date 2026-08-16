@@ -1,3 +1,9 @@
+---
+record_type: wave
+id: m3-wave-3-close
+status: ratified
+date: 2026-08-15
+---
 # Wave-Close Checklist — M3 Wave 3 (subscription recommender + carried debt; v4.1 template)
 
 > Wave scope: m3-plan.md §3 W3 (REQ-REC-007/-008, REQ-CAL-001, ArenaClient cleanup, Actions SHA-pin).

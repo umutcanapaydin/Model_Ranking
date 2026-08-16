@@ -51,11 +51,6 @@ jobs:
       - name: Validate governance records + current-package propagation
         run: python3 scripts/check_records.py
 
-      # V4C-72/76 (added M3-W0, GP v4.3.1 migration) — the install stays complete: every PROJECT
-      # path present, no GP-INTERNAL path leaked. Unconditional, same gate semantics as above.
-      - name: Install completeness (M1/M2 vs INSTALL-MANIFEST.md)
-        run: python3 scripts/check_records.py --install .
-
       # Informational: prior versions are frozen; findings there are history, not defects.
       - name: Historical scan (informational, never blocks)
         continue-on-error: true

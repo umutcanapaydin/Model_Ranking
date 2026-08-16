@@ -1,3 +1,9 @@
+---
+record_type: wave
+id: m5-wave-4-close
+status: ratified
+date: 2026-08-16
+---
 # Wave-Close Checklist — M5 Wave 4 (attribution, migrate command, carried warnings; v4.1 template)
 
 > Wave scope: `docs/plans/m5-wave-4-implementation.md` (REQ-LIC-001 + W-003/W-004/W-006/W-007 +

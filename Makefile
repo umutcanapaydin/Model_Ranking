@@ -15,7 +15,6 @@ PYTHON ?= $(shell \
 VENV ?= .venv
 PIP := $(VENV)/bin/pip
 PY := $(VENV)/bin/python
-JOURNEY ?= scripts/journey.py
 RECORDS ?= docs
 
 # Hard fail if no compatible Python was found.
@@ -30,7 +29,21 @@ _check_python:
 	fi
 	@echo "Using Python: $$($(PYTHON) --version) at $$(command -v $(PYTHON))"
 
-.PHONY: help install test lint format typecheck check run clean standup secrets deps slopsquat bootstrap-check smoke-deps _check_python
+# v4.3.2 REPAIR (audit B1). `conformance` is also a DIRECTORY in this package. Make saw a target
+# with no prerequisites whose name is an existing file, called it up to date, and never ran the recipe:
+#   $ make conformance   ->  "make: 'conformance' is up to date."  exit 0, recipe never expanded
+# So `make gate` -- the one name this release says means "everything we claim" -- silently skipped the
+# entire conformance suite, which is this release's flagship deliverable. **A control with a caller,
+# a name, and no execution.** Every target is declared here now, not just the ones that collide today.
+# v5 control screen (2026-08-12): `check-templates`, `cold-start` and `journey` were REMOVED.
+# All three test the SHIPPED artifact against the real world, which is a good idea and the reason they
+# were written. All three need a deployed URL and a live environment that neither this package nor a
+# fresh project has -- so in five versions nobody was ever able to write down how to break them, and
+# none was ever demonstrated to catch anything. Two of them are TB-001 and TB-002, the ORIGINAL dead
+# controls whose discovery produced "a declared control that silently passes is worse than an absent
+# one." They are on `docs/watchlist.md` with their triggers, and they come back the day a project can
+# actually run them. **Unprovable here is not the same as wrong -- but it is not a control either.**
+.PHONY: falsify bootstrap-check check check-records check-records-selftest  clean  conformance deps export-project format gate help install install-check  lint run secrets slopsquat smoke-deps standup test typecheck wave-check
 
 help:
 	@echo "Commands:"
@@ -74,13 +87,29 @@ typecheck: install
 # ci.yml. The gate that decides whether a project is correctly INSTALLED was reachable only by
 # someone who already knew its name. Measured in the field: a project closed two milestones with 37
 # declared files missing. The owner, translated from Turkish: "you wrote a verify script -- that one does not fire either."
-check: lint typecheck test check-records check-records-selftest install-check pin-check
+# v4.3.2. `pipeline-design.md` described a commit hook running make check + gitleaks + pip-audit +
+# slopsquat, and a PreToolUse hook blocking .env writes AND destructive git commands. The hook ran
+# `make check` and blocked .env. `make check` called no security target at all. **Four of six advertised
+# controls did not exist**, in the document every reviewer reads to learn what is enforced.
+#
+# `gate` is now the ONE name that means "everything this pipeline claims to enforce". The hook calls it,
+# CI calls it, and the design doc points at it. If a control is not reachable from here, we do not claim it.
+gate: check conformance falsify secrets deps slopsquat  ## THE canonical gate -- everything the docs claim, actually wired
+	@echo "gate PASS: lint typecheck test records install secrets deps slopsquat"
 
-pin-check:  ## M3 closure, V4C-49 + INV-14: every workflow action is SHA-pinned (40-hex), never a mutable tag
-	@echo "[pin-check] INV-14 — no mutable-tag 'uses:' in .github/workflows"
-	@if grep -rnE '^\s*-?\s*uses:\s*[^ ]+@(v[0-9][^ ]*|main|master)\b' .github/workflows/; then \
-	  echo "  FAIL: a workflow action is pinned to a MUTABLE tag — pin the 40-hex commit SHA (INV-14)."; exit 1; \
-	else echo "  OK: all actions SHA-pinned"; fi
+falsify:  ## v5: break every control on purpose; one that cannot be broken is not a control
+# Distribution-side. In an installation there is no `.gp-distribution` and no `export_project.py`,
+# so this SAYS SO rather than failing on a missing file the user never had. It does not silently
+# skip: silence is how a leg leaves a gate unnoticed.
+	@if [ -f .gp-distribution ]; then python3 conformance/falsify.py; else \
+	  echo "falsify SKIPPED: this is an installation, not the distribution package."; \
+	  echo "  The falsification registry proves GP's own controls before a package ships."; \
+	  echo "  Your project does not maintain them, so there is nothing here to falsify."; fi
+
+conformance:  ## v4.3.2: every gate proven against inputs it must reject (V4C-80)
+	@$(PY) conformance/run-all.py 2>/dev/null || python3 conformance/run-all.py
+
+check: lint typecheck test check-records check-records-selftest install-check
 
 # v2.0: security gates as named Make targets
 secrets:
@@ -90,9 +119,8 @@ secrets:
 deps: install
 	$(PY) -m pip_audit
 
-slopsquat: install
-	@echo "Checking all imports exist on PyPI..."
-	@$(PY) -c "import importlib.metadata as m; [print(d.metadata['Name']) for d in m.distributions()]" | sort -u
+slopsquat:  ## F.8: DECLARED deps exist on PyPI and are not brand new (offline = non-zero, never clean)
+	@python3 scripts/slopsquat_check.py
 
 run: install
 	$(PY) -m uvicorn app.adapter.main:app --host 0.0.0.0 --port 8080 --reload
@@ -119,17 +147,35 @@ bootstrap-check:
 # dependency once for real and inspect the RESULT, not the config screen. Replace
 # the body below with one real smoke call per dependency (model / queue / store /
 # callback target). Until filled, this is a no-op reminder so it never blocks CI.
-smoke-deps:
-	@echo "L.8 (configured != working): add one real invocation per external dependency here."
-	@echo "  e.g. call the model endpoint once; publish+consume one queue message; ping the callback."
-	@echo "  Inspect the response, not the catalog/config UI. (L.9: also read config back from the process.)"
+smoke-deps:  ## Stage 4.3 (L.8): invoke EACH external dependency for real and inspect the RESULT
+# v4.3.2 REPAIR. This target shipped as an explicit no-op that exited 0 -- with a comment saying
+# "until filled, this is a no-op reminder so it never blocks CI." That sentence is the exact inverse of
+# this lineage's founding doctrine: **a declared control that silently passes is worse than an absent
+# one.** An unwired control must FAIL LOUDLY. It now does, and wiring it is a one-line file.
+	@test -f docs/smoke-deps.sh || { \
+	  echo "FAIL [L.8]: docs/smoke-deps.sh does not exist."; \
+	  echo "  This gate says every external dependency was invoked for real and its RESULT inspected."; \
+	  echo "  Nothing is wired, so that claim is currently false and this build is red on purpose."; \
+	  echo "  Write one real call per dependency (model / queue / store / callback), then re-run."; \
+	  echo "  Refusing the gate is also a legal answer: record it in docs/refusals.md and say why."; \
+	  exit 1; }
+	@bash docs/smoke-deps.sh
 
 wave-check:  ## v3.1 V3C-69: verify a filled wave-close checklist (make wave-check FILE=docs/plans/mN-wave-W-close.md)
-	@test -n "$(FILE)" || { echo "usage: make wave-check FILE=docs/plans/m{N}-wave-{W}-close.md"; exit 1; }
+# v4.3.2 REPAIR. `make wave-check FILE=README.md` returned PASS, and so did the closure checklist. The
+# gate tested "is this a file with no empty table cells and no three specific placeholders" -- which
+# almost any document satisfies. It never checked that the file WAS a wave checklist. **A gate that
+# passes a file it was never meant to read is not lenient, it is uninstalled**, and this one signed off
+# five wave closes in the field.
+	@test -n "$(FILE)" || { echo "usage: make wave-check FILE=docs/plans/m{N}-wave-{W}-close.md"; exit 2; }
 	@test -f "$(FILE)" || { echo "FAIL [V3C-69]: $(FILE) missing -- copy docs/wave-checklist.template.md"; exit 1; }
-	@if grep -qE '\|[[:space:]]*\|[[:space:]]*$$' "$(FILE)"; then echo "FAIL [V3C-69]: empty evidence/status cells remain in $(FILE)"; exit 1; fi
-	@if grep -qE '<agent>|<YYYY-MM-DD>|<start>' "$(FILE)"; then echo "FAIL [V3C-69]: placeholders unfilled in $(FILE)"; exit 1; fi
-	@echo "wave-check PASS: $(FILE)"
+	@python3 scripts/wave_check.py "$(FILE)"
+
+export-project:  ## v4.3.2: produce an INSTALLATION from this distribution package (DEST=/path/to/project)
+	@test -n "$(DEST)" || { echo "usage: make export-project DEST=/path/to/your-project"; exit 2; }
+	@test ! -e "$(DEST)" -o -d "$(DEST)" || { echo "FAIL: $(DEST) exists and is not a directory"; exit 2; }
+	@python3 scripts/export_project.py "$(DEST)"
+	@echo "  now: cd $(DEST) && make install-check"
 
 install-check:  ## v4.3 V4C-72/76: is this tree a COMPLETE install? (M1/M2/M3 vs INSTALL-MANIFEST.md)
 	@echo "[install-check] V4C-72/76 — every PROJECT path present, no GP-INTERNAL path leaked"
@@ -146,35 +192,3 @@ check-records:  ## v4.1 V4C-30: validate governance records (frontmatter, refs, 
 check-records-selftest:  ## v4.1 V4C-32: prove the validator is not a no-op (conformance fixtures)
 	@python3 scripts/check_records.py --self-test --root .
 
-check-templates:  ## v3.5 V3C-99 (REPAIRED v4.1): every SHIPPED config template must instantiate the settings parser
-	@echo "[check-templates] booting settings from each shipped env template..."
-	@found=0; fail=0; \
-	for f in .env.example deploy/*.env.example; do \
-	  [ -f "$$f" ] || continue; \
-	  found=1; \
-	  if env $$(grep -vE '^\s*(#|$$)' "$$f" | xargs) $(PY) -c "from app.config import Settings; Settings()" >/dev/null 2>&1; then \
-	    echo "  OK   $$f"; \
-	  else \
-	    echo "  FAIL $$f — the shipped template does not satisfy the settings parser"; fail=1; \
-	  fi; \
-	done; \
-	if [ "$$found" = "0" ]; then \
-	  echo "  NOT WIRED [V3C-99]: no .env.example / deploy/*.env.example found."; \
-	  echo "  This target is UNWIRED in the starter package and FAILS ON PURPOSE (v4.1 Phase-0 repair:"; \
-	  echo "  a declared control that silently passes is worse than an absent one). Wire it to your"; \
-	  echo "  settings module + shipped templates, or delete the row from docs/closure-checklist.md §B.3."; \
-	  exit 1; \
-	fi; \
-	exit $$fail
-
-cold-start:  ## v3.5 V3C-99 (REPAIRED v4.1): boot against ZERO persisted state; serve-ready or honest not-ready
-	@echo "[cold-start] NOT WIRED [V3C-99] — this target FAILS until the project wires it (v4.1 Phase-0 repair)."
-	@echo "  Wire: bring up an EMPTY datastore (e.g. docker run --rm postgres:16), boot the app from the"
-	@echo "  SHIPPED template, poll /ready until 200 or exit non-zero WITH the not-ready reason."
-	@echo "  Then replace this body and add the CI job. Guidance-only targets must not report success."
-	@exit 1
-
-journey:  ## v3.5 V3C-106 (script SHIPPED in v4.1): black-box customer journey (make journey URL=https://...)
-	@test -n "$(URL)" || { echo "usage: make journey URL=https://deployed-host [JOURNEY=scripts/journey.py]"; exit 1; }
-	@test -f "$(JOURNEY)" || { echo "FAIL [V3C-106]: $(JOURNEY) missing — copy scripts/journey.py and fill the steps"; exit 1; }
-	@$(PY) "$(JOURNEY)" --base-url "$(URL)"

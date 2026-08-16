@@ -1,3 +1,9 @@
+---
+record_type: wave
+id: m2-wave-3-close
+status: ratified
+date: 2026-08-11
+---
 # Wave-Close Checklist — M2 Wave 3 (category layer + generalized ranking)
 
 | # | Check | Evidence | ✅/WAIVED |

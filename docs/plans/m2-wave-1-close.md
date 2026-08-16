@@ -1,3 +1,9 @@
+---
+record_type: wave
+id: m2-wave-1-close
+status: ratified
+date: 2026-08-11
+---
 # Wave-Close Checklist — M2 Wave 1 (OpenRouter pricing + median-of-medians)
 
 | # | Check | Evidence | ✅/WAIVED |

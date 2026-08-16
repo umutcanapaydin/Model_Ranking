@@ -100,7 +100,7 @@
 | Run `make check` | ✅ ALLOWED | Encouraged |
 | Run `make standup` | ✅ ALLOWED | LLM-free state dump |
 | Run `make run` (local server) | ✅ ALLOWED | Local only |
-| Run `make smoke` against staging | ⚠ ASK | If staging exists |
+| Run `make smoke` against staging *(illustrative: YOUR project's target, not one GP ships)* | ⚠ ASK | If staging exists |
 
 ---
 

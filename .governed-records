@@ -11,6 +11,6 @@
 # working on them. Delete a line and you are choosing to leave those records ungoverned.
 docs/decisions.md
 docs/closure-report-*.md
-docs/wave-checklist-*.md
+docs/plans/m*-wave-*-close.md
 docs/fixpack-*.md
 docs/EXPERIENCE.md

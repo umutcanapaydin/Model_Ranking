@@ -13,9 +13,9 @@
 - **Project name:** model_ranking
 - **Customer / owner:** Umut Can Apaydın (ILGAR)
 - **One-line description:** Aggregates free-and-legal LLM benchmark + pricing data into a canonical registry and serves deterministic, budget-aware model recommendations (engine behind a future iOS AI-advisor app).
-- **Tech stack:** Python 3.11, FastAPI (health-only in M1), SQLite, pytest, ruff/black/mypy (must match `pyproject.toml` — seed C.4)
-- **Target environment:** local dev / CI in M1; serving target open (OQ-3)
-- **REQ-ID prefix scheme:** REQ-ING / REQ-CAN / REQ-RANK / REQ-REC (see docs/prd.md)
+- **Tech stack:** Python 3.11, FastAPI (health-only until M6), SQLite, pytest, ruff/black/mypy (must match `pyproject.toml` — seed C.4)
+- **Target environment:** local dev / CI; serving target closed by M6's deploy ADR (was OQ-3)
+- **REQ-ID prefix scheme:** REQ-ING / REQ-CAN / REQ-RANK / REQ-REC / REQ-SUB / REQ-API (see docs/prd.md)
 
 For full requirements see `docs/prd.md`. For deployment topology see `docs/architecture.md`. For open decisions see `docs/decisions.md`.
 
@@ -23,16 +23,16 @@ For full requirements see `docs/prd.md`. For deployment topology see `docs/archi
 
 | Customer term | Our term | Notes |
 |---|---|---|
-| leaderboard entry | score record (model+harness) | a coding score always names its agent harness |
+| leaderboard entry | score record (model+harness+effort) | a coding score always names its agent harness; effort is stored data since M5 |
 | model (marketing name) | canonical model + alias | alias table maps source names to one ID |
 | blended price | in×0.75 + out×0.25 $/1M | reference mix for comparisons |
 
 <!-- ═══════════════════ UNIVERSAL (do not edit without ADR) ═══════════════ -->
 
 ## 3. Workflow
-- **A harvest produces PROCESS changes only (V4C-71).** Every finding from a field harvest resolves to exactly one: **GP change** · **HANDED BACK** to the project with its `file:line` and remedy · **REFUSED** in `docs/refusals.md`.
+- **A harvest produces PROCESS changes only (V4C-71).** Every finding from a field harvest resolves to exactly one: **GP change** · **HANDED BACK** to the project with its `file:line` and remedy · **REFUSED** in `docs/refusals.md`. A finding with no disposition is an open loop, and an open loop in a governance record is how a council acquires a backlog that is not its own.
 
-Pipeline v4 — 5 stages: Bootstrap → Plan → Wave (+ dev-test loop) → Per-Wave Review (Code + Tester) → Closure (Security BLOCKING before deploy) + Stage 5 Maintenance Loop. Cross-cutting: Customer Iteration + Process Capture. **Operating mode A0.5 (v3.3, OD-4 — binding):** waves close AGENT-side (fresh-eyes reviews + green checks pinned to the closing tree + committed checklist); the OWNER reviews, runs his own tests/smoke tests, and makes the commits at EVERY MILESTONE (60–90 min session; milestone capped at ~4–6 waves / ~2k net lines — close early, never stretch). Owner also makes a labeled checkpoint commit per wave (`wip: NOT reviewed`; agents NEVER run git — **project override D-106, owner-initiated ADR:** the lead agent runs the full test gate and authors/pushes wave/milestone-boundary commits on the owner's behalf; green gates only; V4C-64 attributable trailers; catastrophe-class git stays forbidden). **Escalate NOW, never wait for the boundary:** suspected secret; any scanner-finding suppression (agents may never waive gitleaks/SCA); BLOCKING at HIGH incl. test-integrity; stay-green fault with no test; CI/hook/gate-definition changes; critical-CVE/slopsquat dep; security-invariant test modified/deleted; ⛔-zone or criteria-meaning questions; plan-invalidating scope change. ⛔-glob touch mid-milestone → async ping. A1/A2 stay NOT active; agent commit on main = A1 = explicit owner ADR only.
+Pipeline v4 — 5 stages: Bootstrap → Plan → Wave (+ dev-test loop) → Per-Wave Review (Code + Tester) → Closure (Security BLOCKING before deploy) + Stage 5 Maintenance Loop. Cross-cutting: Customer Iteration + Process Capture. **Operating mode A0.5 (v3.3, OD-4 — binding):** waves close AGENT-side (fresh-eyes reviews + green checks pinned to the closing tree + committed checklist); the OWNER reviews, runs his own tests/smoke tests, and makes the commits at EVERY MILESTONE (60–90 min session; milestone capped at ~4–6 waves / ~2k net lines — close early, never stretch). Owner also makes a labeled checkpoint commit per wave (`wip: NOT reviewed`). **Git authority, stated precisely because v4.3.1 shipped a flat "agents NEVER run git" that two shipped components contradicted:** in the LOCAL lane — anything running in the owner's sandbox, including every skill in `.claude/skills/` — agents never `commit` and never `push`. They may stage and may write a commit message for the owner to run. In the LAYER-2 CI lane the issue agent may commit, and ONLY under all four of: a machine identity that is not the owner's, a `fix/issue-*` branch, a DRAFT pull request it cannot merge, and a `GP-Agent:` trailer on every commit. **The rule was never "agents cannot use git" — it is "no commit may be mistaken for the owner's." One field commit already carried the owner's identity for work an agent did.** **Escalate NOW, never wait for the boundary:** suspected secret; any scanner-finding suppression (agents may never waive gitleaks/SCA); BLOCKING at HIGH incl. test-integrity; stay-green fault with no test; CI/hook/gate-definition changes; critical-CVE/slopsquat dep; security-invariant test modified/deleted; ⛔-zone or criteria-meaning questions; plan-invalidating scope change. ⛔-glob touch mid-milestone → async ping. A1/A2 stay NOT active; agent commit on main = A1 = explicit owner ADR only.
 
 ### 3.1 Read order before any change
 1. `permission-matrix.md` — what's allowed
@@ -77,8 +77,8 @@ Non-trivial choices → new ADR in `docs/decisions.md` with status `proposed`. U
 - Quality runs at MILESTONE CLOSURE (Stage 4.1), NOT per-wave
 
 ## 5. Sensitive areas (default-deny)
-- **This repository is written in ENGLISH, everywhere (V4C-79).** Owner directive, 2026-08-12; adopted here at M3 (GP v4.3.1). Prompts and conversation may be in any language; **every committed file is English.** Owner quotes stay as evidence, translated, marked *(owner, translated from Turkish)*. Enforced by `L1` in `check_records.py`; genuine exemptions (incl. Turkish-facing PRODUCT strings and pre-M3 records) live in `.language-allow` **with a written reason**.
-- **Agent-run git must be ATTRIBUTABLE (V4C-64).** D-106 commits carry the agent identity **and** the `GP-Agent` / `GP-Task` trailers — an agent commit indistinguishable from the owner's destroys the evidence V4C-06 stands on.
+- **This repository is written in ENGLISH, everywhere (V4C-79).** Owner directive, 2026-08-12. Prompts and conversation may be in any language; **every committed file is English.** An owner quote stays as evidence, translated, marked *(owner, translated from Turkish)* — the ruling is the artefact, not its original wording. Enforced by `L1` in `check_records.py`; genuine exemptions go in `.language-allow` **with a written reason**.
+- **Agent-run git must be ATTRIBUTABLE (V4C-64).** If the owner lifts the no-git default for an operation, the commit carries `machine_account` identity **and** the `GP-Agent` / `GP-Task` trailers. An agent commit indistinguishable from the owner's destroys the only evidence V4C-06 and the evidence rule stand on — measured: 22 of 23 commits in a field repo were one identity.
 
 See `permission-matrix.md`. Agent shall NOT:
 - Write production database / drop tables
@@ -138,7 +138,8 @@ PASS verdicts MUST cite `file:line` evidence per acceptance criterion (otherwise
 - `docs/onboarding.md` — Monday-start / Friday-milestone-done
 - `docs/tool-suitability.md` — Strong/Medium/Weak fit task matrix
 - `docs/external-skills/` — 4 superpowers SKILL.md cache (writing-plans, requesting-code-review, subagent-driven-development, using-git-worktrees)
-- [`pipeline-architecture.html`](https://github.com/SADCAIVibe/General_Pipeline/blob/v4.3.1/general_pipeline_v4.3.1/pipeline-architecture.html) — Architecture & Technical Design (GP-INTERNAL; pinned URL at tag v4.3.1, not a local copy)
+- [`docs/executive-overview.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v5.0/general_pipeline_v5.0/docs/executive-overview.md) (+ `.pdf`) — manager-facing overview; regenerate via [`docs/executive-overview.gen.py`](https://github.com/SADCAIVibe/General_Pipeline/blob/v5.0/general_pipeline_v5.0/docs/executive-overview.gen.py)
+- [`pipeline-architecture.html`](https://github.com/SADCAIVibe/General_Pipeline/blob/v5.0/general_pipeline_v5.0/pipeline-architecture.html) — Architecture & Technical Design: components, interfaces, enforcement tiers, trust boundaries, record model, threat model, traceability
 
 <!-- ═══════════════════ DIET DISCIPLINE ═══════════════════════════════════ -->
 <!-- This file ≤80 target, ≤150 hard cap (per seed C.5 + ETH Zurich AGENTbench). -->

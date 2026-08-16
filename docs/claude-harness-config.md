@@ -21,7 +21,7 @@ Create this file at the repo root inside a `.claude/` directory. Commit it (it's
       "Bash(cat:*)",
       "Bash(grep:*)",
       "Bash(find:*)",
-      "Bash(make check:*)",
+      "Bash(make gate:*)",
       "Bash(make test:*)",
       "Bash(make lint:*)",
       "Bash(make typecheck:*)",
@@ -57,7 +57,7 @@ Create this file at the repo root inside a `.claude/` directory. Commit it (it's
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" && { make check 2>&1 | tee -a .claude/last-check.log; } && echo 'POST-EDIT GATE: make check GREEN' || { echo 'POST-EDIT GATE: make check RED -- fix before next edit (see .claude/last-check.log)' >&2; exit 1; }"
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && { make gate 2>&1 | tee -a .claude/last-check.log; } && echo 'POST-EDIT GATE: make gate GREEN' || { echo 'POST-EDIT GATE: make gate RED -- fix before next edit (see .claude/last-check.log)' >&2; exit 1; }"
           }
         ]
       }
@@ -76,7 +76,7 @@ Create this file at the repo root inside a `.claude/` directory. Commit it (it's
 
 **PreToolUse hook (baseline #1):** Blocks writes to any `.env` / `*.env*` file with a clear error message. Catches accidental secret commit at the model layer before gitleaks fires at commit time.
 
-**PostToolUse hook (baseline #2):** Runs `make check` after every Write / Edit / MultiEdit. Logs to `.claude/last-check.log`. Exits non-zero (visible failure) when red — the subagent must fix before continuing.
+**PostToolUse hook (baseline #2):** Runs `make gate` after every Write / Edit / MultiEdit. Logs to `.claude/last-check.log`. Exits non-zero (visible failure) when red — the subagent must fix before continuing.
 
 **Promotion rule:** A rule from AGENTS.md or `.agents/rules/practices.md` gets promoted to a hook only after Claude violates it 3+ times in measured sessions (PM lens). Catastrophe-class items (per `permission-matrix.md` §11) can ship as hooks day-1.
 
@@ -154,7 +154,7 @@ After all files are created, your repo should have:
 
 ## After manual creation
 
-1. Run `make check` — must be GREEN.
+1. Run `make gate` — must be GREEN.
 2. Run any skill once (e.g., `/standup`) to verify the harness loads.
 3. Set up `GITHUB_TOKEN` in `.env` and verify `mcp` connects.
-4. Commit: `git add -A && git commit -m "chore: complete pipeline v2.0 harness setup"`.
+4. **Stage only — never commit** (A0.5, and `conformance/test-git-authority.py` enforces it): stage the files, print the commit message, and stop. The owner commits. *This step used to say "Commit:" and contradicted `AGENTS.md` for several versions.*

@@ -1,3 +1,13 @@
+---
+record_type: brief
+id: project-brief-template
+status: draft
+process_version: v5.0
+date: 2026-08-12
+---
+<!-- When you copy this template, KEEP this frontmatter and change `id` to match your
+     filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
+     which is exactly what shipped in v4.3.1. -->
 # Project Brief — `<PROJECT_NAME>`
 
 > Fill this out before handing the agent a fresh project. ~5-10 minutes to complete; saves a 30-40 minute back-and-forth round with the agent during Stage 0.
@@ -63,7 +73,7 @@ If a dependency isn't delivered by its ETA, the agent must surface it as a miles
 
 v2.1 ships with these as **opt-in**. Pick before Stage 0 dispatch:
 
-- [ ] **Pre-commit hook** (lint + format at the keyboard): yes / no  *(default: opt-in for Python; reasoning per [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v4.3.1/general_pipeline_v4.3.1/pipeline-design.md) §11)*
+- [ ] **Pre-commit hook** (lint + format at the keyboard): yes / no  *(default: opt-in for Python; reasoning per [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v5.0/general_pipeline_v5.0/pipeline-design.md) §11)*
 - [ ] **Issue-agent Layer 2** (headless Claude in CI on labeled issues): yes / no  *(default: ship in shadow-mode for M1, graduate to draft-PR mode after one successful milestone)*
 - [ ] **MCP servers beyond GitHub default:** `<list any: Linear / Slack / Notion / ...>` *(default: GitHub MCP only; add only if team uses tool daily)*
 - [ ] **Additional subagent profiles beyond mandatory Code-Reviewer + Security-Reviewer:** `<list any candidate, e.g., Architect, Migration-Specialist, Docs-Writer>` *(default: only the mandatory 2; others CANDIDATE per playbook-seeds L'; graduate after ≥2 milestones of PULLED-WEIGHT)*
@@ -74,7 +84,7 @@ v2.1 ships with these as **opt-in**. Pick before Stage 0 dispatch:
 
 ## 7. Budget and cadence
 
-- **Token budget cap per milestone:** `<e.g., $5 / 500k tokens / no cap>` *(default per [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v4.3.1/general_pipeline_v4.3.1/pipeline-design.md) §13: 50k-500k tokens per milestone)*
+- **Token budget cap per milestone:** `<e.g., $5 / 500k tokens / no cap>` *(default per [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v5.0/general_pipeline_v5.0/pipeline-design.md) §13: 50k-500k tokens per milestone)*
 - **Token budget cap for whole project:** `<...>` *(optional)*
 - **Wall-clock cadence expectation:** `<e.g., 2-week milestones / 1-week milestones / flexible>`
 - **Quarterly handover cadence:** `<v2.0 default is M3/M6/M9/M12; deviate?>`

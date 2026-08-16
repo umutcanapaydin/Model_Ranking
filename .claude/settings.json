@@ -35,7 +35,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if echo \"$TOOL_INPUT_FILE_PATH\" | grep -qE '(^|/)\\.env(\\.|$|/)'; then echo 'BLOCKED: writes to .env / *.env* are denied per permission-matrix.md §6 (default-deny secrets). Use environment variables instead.' >&2; exit 1; fi"
+            "command": "p=$(python3 -c 'import sys,json;print(json.load(sys.stdin).get(\"tool_input\",{}).get(\"file_path\",\"\"))' 2>/dev/null); case \"$p\" in *.env|*.env.*|*/.env|.env) echo 'BLOCKED: writes to .env are denied per permission-matrix.md S6 (default-deny secrets).' >&2; exit 1;; esac"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "c=$(python3 -c 'import sys,json;print(json.load(sys.stdin).get(\"tool_input\",{}).get(\"command\",\"\"))' 2>/dev/null); if printf '%s' \"$c\" | grep -qE '(^|[;&|[:space:]])git[[:space:]][^;&|]*\\breset\\b[^;&|]*--hard|(^|[;&|[:space:]])git[[:space:]][^;&|]*\\bpush\\b[^;&|]*(--force|--force-with-lease|-f([[:space:]]|$)|[[:space:]]\\+)|(^|[;&|[:space:]])git[[:space:]][^;&|]*\\bclean\\b[^;&|]*-[a-z]*f|(^|[;&|[:space:]])rm[[:space:]]+(-[a-zA-Z]*[rR][a-zA-Z]*[fF]|-[a-zA-Z]*[fF][a-zA-Z]*[rR])'; then echo 'BLOCKED: destructive command (C.9, permission-matrix.md S6). Escalate to the owner instead.' >&2; exit 1; fi"
           }
         ]
       }
@@ -46,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" && { make check 2>&1 | tee -a .claude/last-check.log; } && echo 'POST-EDIT GATE: make check GREEN' || { echo 'POST-EDIT GATE: make check RED -- fix before next edit (see .claude/last-check.log)' >&2; exit 1; }"
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && set -o pipefail; make gate 2>&1 | tee -a .claude/last-check.log; rc=${PIPESTATUS[0]}; if [ \"$rc\" -eq 0 ]; then echo 'POST-EDIT GATE: make gate GREEN'; else echo \"POST-EDIT GATE: make gate FAILED (exit $rc) -- fix before the next edit\" >&2; exit 1; fi"
           }
         ]
       }

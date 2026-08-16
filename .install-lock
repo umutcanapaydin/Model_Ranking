@@ -1,0 +1,13 @@
+# Written by export_project.py: per-directory file counts at the moment of export.
+# `M1` reads this. A directory with fewer files than it shipped with is an incomplete
+# install, and unlike a byte threshold a count cannot be satisfied by a placeholder.
+.claude/skills	10
+conformance	27
+docs/external-skills	5
+docs/handovers	1
+docs/plans	0
+docs/retrospectives	0
+docs/reviews	0
+src	7
+subagent-profiles	5
+tests	4

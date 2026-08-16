@@ -5,7 +5,44 @@ State: **M1-M5 CLOSED + SIGNED.** The owner ran the gate on his own machine (271
   8 gates, clean tree. **Next milestone is M6 — and M6 is M%3==0, so its closure MUST generate
   `docs/handovers/handover_q2.txt`.**
 Last session date: 2026-08-16
-Last work agent: Claude (Cowork lead agent, D-106) — inherited M5 mid-milestone from another agent
+Last work agent: Claude (Claude Code CLI, local lane under D-114) — took over at the M5/M6 boundary
+  from the Cowork lead agent via docs/handovers/handover_rocky.txt
+
+PROCESS BASELINE CHANGED 2026-08-16 — READ THIS BEFORE ANYTHING ELSE
+- **GP v5.0 is the baseline (D-113, supersedes D-108).** Installed with v5.0's own
+  `make export-project`, not by copying the package. GP-owned files were replaced; project-owned
+  content (decisions, prd, process-log, architecture, ledger, note.txt, README, pyproject,
+  .language-allow, src/**, AGENTS.md §1-§2) was preserved.
+- **The agent no longer commits (D-114, supersedes D-106).** Local lane: stage and write the message;
+  the OWNER runs the commit and the push. The lead agent still runs the full test gate. The
+  `test-and-commit` skill is deleted; `test-and-stage` replaces it.
+- **The gate is now `make gate`** = check + conformance + falsify + secrets + deps + slopsquat.
+  `make check` is 6 targets, NOT 7 — v5.0 removed the `pin-check` target and moved action pinning
+  into `conformance/test-action-pins.py`. Every "7 targets / 8 gates" figure in older records is
+  stale; the records are append-only and were left alone.
+- **New: `conformance/` — 7 tests that prove each control rejects what it must.** On its first run
+  against this repository it produced THREE findings, W-012/W-013/W-014. The owner ruled on all
+  three the same day and all three are RESOLVED in the ledger:
+  - **W-012 FIXED** — `.governed-records` globbed `docs/wave-checklist-*.md`, a name this project
+    never used, so **20 wave-close records had never been governed by anything**. Glob corrected to
+    `docs/plans/m*-wave-*-close.md`; that surfaced `R1` on all 20 (no frontmatter — the v4.3.1
+    template shipped without it). Frontmatter added to all 20, **no content line altered**,
+    `process_version` deliberately omitted rather than falsely stamped v5.0. Validator now scans
+    **28** records, was 8.
+  - **W-013 HANDED BACK to GP** — the removed `pin-check` target is still named by three historical
+    records that are append-only. Records untouched; written up as **GPF-001** in
+    `docs/gp-field-findings.md` with ranked remedies, together with **GPF-002** (the shipped record
+    schema declares 7 record types, the validator enforces 14, and nothing validates against it).
+    `make conformance` stays RED on those three lines until GP rules — that is the honest state.
+  - **W-014 BANNERED** — `docs/HANDOVER-model-ranking.md` §7 is Cowork-era doctrine telling agents to
+    commit. Two superseded banners added, nothing rewritten.
+- Verified after the migration: `make check` exit 0, 271 passed / 12 skipped, check_records PASS
+  (28 records), self-test PASS, install-check PASS. `make conformance` 6 of 7 PASS; the one RED leg
+  is W-013/GPF-001 and is deliberate.
+- **M6 is PLANNED and SIGNED.** `docs/plans/m6-plan.md` — the HTTP API. Owner ruled **A** on M5's
+  carried question: the product presents BOTH coding answers and neither leads. §2's nine REQ-IDs
+  are also landed in `docs/prd.md` §13. PRD OQ-3 is marked DUE NOW and closes at M6-W4 with D-116.
+  ADR ids reserved by the plan: **D-115** (Ruling A contract), **D-116** (deploy target).
 
 FIRST THREE THINGS A NEW AGENT DOES
 0. **Read `docs/handovers/handover_rocky.txt` first** — the full agent-to-agent handover written at
@@ -48,8 +85,8 @@ SETTLED AT THE M5 GATE (2026-08-16) — do not re-litigate
 WHAT'S OPEN
 - W-001 gitleaks false positive — has now survived THREE closes; it fires at two paths while the
   ledger row records one. Owner action.
-- **M6 is not planned yet.** Its plan must answer M5's carried question (two coding surfaces:
-  present both, or choose?) and its closure MUST generate `handover_q2.txt`.
+- **M6 is planned and signed** (see the process-baseline block above). Its closure MUST still
+  generate `handover_q2.txt` — M6 is M%3==0.
 - Carried to M6 (docs/warnings.ledger.md is the truth): W-002 equivalent_plans group structure ·
   W-005 YAML expansion guard · W-008 roster staleness window borrowed from the plan table ·
   W-009 two migration entry points + a read-time invariant · W-010 the effort counter under-reports

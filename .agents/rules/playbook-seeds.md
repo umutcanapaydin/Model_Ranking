@@ -366,9 +366,9 @@
 - **Tradeoff / cost of adoption:** minor cognitive shift — `timeout` is the C-stdlib word for this concept. Mitigation: docstring explicitly calls out the rename rationale.
 
 ### C.7 — Sandbox-as-canary: run ruff in the dev sandbox even when pytest cannot.
-- **Principle:** When the local sandbox Python version mismatches the project's required version (e.g. Python 3.10 sandbox vs 3.11 project), `make check` won't run end-to-end. But ruff is version-agnostic at the AST level — it will still flag style/lint drift before the Mac round-trip. Wire a sandbox-friendly `make lint-only` (or accept ruff as a single command) so the controller catches 90% of cleanup work pre-push.
+- **Principle:** When the local sandbox Python version mismatches the project's required version (e.g. Python 3.10 sandbox vs 3.11 project), `make check` won't run end-to-end. But ruff is version-agnostic at the AST level — it will still flag style/lint drift before the Mac round-trip. Wire a sandbox-friendly `make lint-only` *(example from a past project, not a GP target)* (or accept ruff as a single command) so the controller catches 90% of cleanup work pre-push.
 - **Origin:** S23 — M7 cleanup: 14 ruff errors caught on Mac after first push attempt. Subsequently ran `~/.local/bin/ruff check src tests` in the sandbox (Python 3.10 incompatible with 3.11 project) and found the same 14 issues without needing Mac round-trip. 6 of 14 were auto-fixable in-place; the rest fixed via Edit. Saved ~3 Mac round-trips.
-- **Reusable artifact:** `make lint-only` target that runs `ruff check src tests` and nothing else; cheap to add. Reference in AGENTS.md §3.x as the pre-push canary.
+- **Reusable artifact:** `make lint-only` *(example from a past project, not a GP target)* target that runs `ruff check src tests` and nothing else; cheap to add. Reference in AGENTS.md §3.x as the pre-push canary.
 - **Risk if ignored:** cleanup loops via Mac become long-tail; each ruff round trip is 30-60s + context switch; teams either push dirty (CI ruff fails) or stop using ruff aggressively.
 - **Tradeoff / cost of adoption:** ruff may flag a small number of false positives that only matter on the target Python version — extremely rare. The 99% case is "if it lints clean in sandbox, it lints clean on Mac".
 
@@ -601,7 +601,7 @@
 
 ### L.7 — Version-stamp the health/readiness probe so "which code is live?" is one curl. (graduates the S28 candidate)
 - **Principle:** bake the build identity (image tag / git SHA) into the running app via an env var the CI/build sets (`APP_BUILD`), and surface it in the `/health` (or `/version`) body alongside an app `version`. A green probe proves the process is *up*, never *which code* it is; the stamp closes that gap. Keep the probe's status field unchanged (additive fields only) so the liveness contract is untouched.
-- **Origin:** EF-AI — first raised as a candidate at M10/S28 ("a green liveness probe says the server is up, not that it's running the code you think"; stale `make mock-qwen` process scored 7/11). Graduated at S34 when a prod pod ran M11 code behind a green `/health` and it took three exec-and-grep checks (`/ready` 404, missing modules, ImportError) to prove it. Fix: `APP_BUILD` env → `/health` returns `{status, version, build}`.
+- **Origin:** EF-AI — first raised as a candidate at M10/S28 ("a green liveness probe says the server is up, not that it's running the code you think"; stale `make mock-qwen` *(example from a past project, not a GP target)* process scored 7/11). Graduated at S34 when a prod pod ran M11 code behind a green `/health` and it took three exec-and-grep checks (`/ready` 404, missing modules, ImportError) to prove it. Fix: `APP_BUILD` env → `/health` returns `{status, version, build}`.
 - **Reusable artifact:** an `APP_BUILD = os.environ.get("APP_BUILD", "unknown")` module constant surfaced in the probe body; CI bakes the tag (`ENV APP_BUILD=<tag>` in the Dockerfile, or the deploy env). A drift check becomes `curl /health | jq .build` vs the tag you expected to deploy.
 - **Risk if ignored:** deploy-roll failures (old image still running) are invisible behind a green probe; you debug "why didn't my change take effect?" by exec'ing into pods and grepping for symbols — exactly the S34 hour.
 - **Tradeoff / cost of adoption:** one env var the build must set (defaults to "unknown" if unset, so dev/test are unaffected); the probe body grows two fields — verify no consumer asserts the body by exact equality (one test needed updating here).
@@ -698,14 +698,14 @@
 ### V3C-68 — Restructure the review loop: per-wave Code-Reviewer + Tester + per-agent dev-test loop; Security review -> milestone closure (BLOCKING before deploy). (TEMPLATE-CHANGE; ACTIVE)
 - **Principle:** during the wave each implementing agent runs a tight dev-test loop (implement->test->self-review->fix) owning its slice; at wave exit a Code-Reviewer + a Tester (fresh-eyes, never own code) flush all fixes; Security review runs once at milestone closure over the whole surface and is BLOCKING before the deploy/go-live step. Safe because nothing ships mid-milestone (waves don't deploy). Always-on catastrophe-class guardrails (no committed secrets, no destructive ops) still apply every wave.
 - **Origin:** owner proposal 2026-06-26 + convergent test evidence (V3C-02; zek F14; one-api F9 race). Replaces the v2.2 per-wave Duo (Code + Security) with per-wave (Code + Tester) + dev-test loop; Security joins Quality at Stage 4.
-- **Reusable artifact:** revised Stage 2/3/4 in [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v4.3.1/general_pipeline_v4.3.1/pipeline-design.md); `subagent-profiles/Tester.md`; the closure Security step (`docs/closure-checklist.md` §B.2a); the HIGH-risk security trigger in `permission-matrix.md`.
+- **Reusable artifact:** revised Stage 2/3/4 in [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v5.0/general_pipeline_v5.0/pipeline-design.md); `subagent-profiles/Tester.md`; the closure Security step (`docs/closure-checklist.md` §B.2a); the HIGH-risk security trigger in `permission-matrix.md`.
 - **Risk if ignored:** self-review without fresh eyes misses integration drift (GP's measured win is K.7); or security feedback arrives only after deploy.
 - **Tradeoff / cost of adoption:** an early-wave security-shaped flaw may cost more rework (accepted: no prod exposure, since deploy is at closure and security is BLOCKING before it -- the cost is rework, not a leak). The dev-test loop must ADD to, never replace, the wave-exit fresh-eyes pass.
 
 ### V3C-44 — One canonical mock per integration, built before integration code, + a contract test. (TEMPLATE; ACTIVE)
 - **Principle:** for each external integration build one canonical mock/fake-client before the integration code (extends K.1's Protocol-typed fake); consolidate any parallel mocks into it; keep a contract test that runs against the real API so the mock can't silently drift.
 - **Origin:** BotIm-AOP F6+F8 (mock divergence), HSC-MaaS F6, one-api -- 3 gateways; validates GP's K.1 / J.4.
-- **Reusable artifact:** the canonical-mock convention in [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v4.3.1/general_pipeline_v4.3.1/pipeline-design.md) §7 (testing) + the closure check in `docs/closure-checklist.md` §A; tests drive the canonical fake, never bespoke per-test stubs.
+- **Reusable artifact:** the canonical-mock convention in [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v5.0/general_pipeline_v5.0/pipeline-design.md) §7 (testing) + the closure check in `docs/closure-checklist.md` §A; tests drive the canonical fake, never bespoke per-test stubs.
 - **Risk if ignored:** parallel mocks drift apart and the suite passes against a fiction the real API never honored.
 - **Tradeoff / cost of adoption:** one contract test per integration (a little quota / a live dependency to hit); buys protection against silent contract drift.
 
@@ -768,7 +768,7 @@
 ### V3C-50 / V3C-52 / V3C-01 / V3C-27 — Confirm / fold (doc). (ACTIVE doc updates)
 - **Principle:** V3C-50 write design notes + a gap-analysis (what exists vs what to build) before the first line of code -- keep it light (ceremony risk); V3C-52 commit per-repo rules to `.agents/rules/` + treat AGENTS.md §8 as a PROCESS routing index with lazy doc-loading (token economy) -- independently re-derives GP's own design; V3C-01 confirms L.7 (version-stamped /health); V3C-27 commit `.gitignore` first.
 - **Origin:** HSC-MaaS F1 + aop F1 (design+gap-analysis); BotIm-AOP F3/F4 (.agents/rules + routing index); Reimbursement-App F5 + both GP-v2.2 runs (V3C-01); Poyraz-Dekorasyon F1 (V3C-27).
-- **Reusable artifact:** Stage-1 gap-analysis line + START_HERE routing-index note ([`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v4.3.1/general_pipeline_v4.3.1/pipeline-design.md), `START_HERE.md`); these validate existing GP design (raise confidence, no new mechanism).
+- **Reusable artifact:** Stage-1 gap-analysis line + START_HERE routing-index note ([`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v5.0/general_pipeline_v5.0/pipeline-design.md), `START_HERE.md`); these validate existing GP design (raise confidence, no new mechanism).
 - **Risk if ignored:** code before a clear build/reuse picture; AGENTS.md bloats; untracked files leak into the first commit.
 - **Tradeoff / cost of adoption:** keep V3C-50 to a few lines so it doesn't become a heavyweight design phase for small milestones.
 
@@ -873,8 +873,8 @@
 > machinery outward. 0 new gates; net new package files: 0. Skeptic's dissent recorded: two cuts
 > in one week is not precedent.
 
-- **V3C-99 (ACTIVE, guardrail)** — `make check-templates` (SHIPPED templates instantiate the
-  parser) + `make cold-start` (zero persisted state → serve-ready/honest not-ready); CI at
+- **V3C-99 (ACTIVE, guardrail)** — ~~`make check-templates`~~ (SHIPPED templates instantiate the  <!-- **REMOVED at the v5 control screen (2026-08-12) — on `docs/watchlist.md`, returns at 2 recurrences.** It needs a deployed URL and a live environment that neither this package nor a fresh project has, so in five versions nobody could write down how to break it and it was never once shown to catch anything. -->  <!-- REMOVED at the v5 control screen 2026-08-12 -- see `docs/watchlist.md`, returns after 2 recurrences. It needs a deployed URL and a live environment neither this package nor a fresh project has, so in five versions nobody could write down how to break it and it was never once shown to catch anything. Left visible on purpose: a control that quietly vanishes is how a checklist becomes folklore. -->
+  parser) + ~~`make cold-start`~~ (zero persisted state → serve-ready/honest not-ready); CI at  <!-- **REMOVED at the v5 control screen (2026-08-12) — on `docs/watchlist.md`, returns at 2 recurrences.** It needs a deployed URL and a live environment that neither this package nor a fresh project has, so in five versions nobody could write down how to break it and it was never once shown to catch anything. -->  <!-- REMOVED at the v5 control screen 2026-08-12 -- see `docs/watchlist.md`, returns after 2 recurrences. It needs a deployed URL and a live environment neither this package nor a fresh project has, so in five versions nobody could write down how to break it and it was never once shown to catch anything. Left visible on purpose: a control that quietly vanishes is how a checklist becomes folklore. -->
   merge+release; no default creds in the boot path. *FIX-01/02: two total outages.*
 - **V3C-100 (ACTIVE, template)** — human-path: a non-author, shipped docs only, completes the
   primary journey (credentials instance mandated). *FIX-04.*
@@ -889,7 +889,7 @@
 - **V3C-105 (ACTIVE, edit)** — cadence binds to ARTIFACTS: every outward deliverable = a wave
   close. *FIX-07.*
 - **V3C-106 (ACTIVE, template — default-expected, not mandatory)** — black-box journey tester
-  (`make journey URL=…`, stdlib, shipped in-package, authored during build; QM bar: cold entry ·
+  (~~`make journey URL=…`~~, stdlib, shipped in-package, authored during build; QM bar: cold entry ·  <!-- **REMOVED at the v5 control screen (2026-08-12) — on `docs/watchlist.md`, returns at 2 recurrences.** It needs a deployed URL and a live environment that neither this package nor a fresh project has, so in five versions nobody could write down how to break it and it was never once shown to catch anything. -->  <!-- REMOVED at the v5 control screen 2026-08-12 -- see `docs/watchlist.md`, returns after 2 recurrences. It needs a deployed URL and a live environment neither this package nor a fresh project has, so in five versions nobody could write down how to break it and it was never once shown to catch anything. Left visible on purpose: a control that quietly vanishes is how a checklist becomes folklore. -->
   credential lifecycle · paying-customer round trip asserting CONTENT · one cross-wave sequence;
   custody: minted short-TTL tokens, never stored secrets); runs at 4.3 + every fixpack; skips
   recorded. *Found FIX-03.*

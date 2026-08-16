@@ -33,6 +33,13 @@ file — an unclassified path is itself a finding (rule `M3`).
 
 ### Control surface — the files that make the rules real
 ```
+conformance/test-action-pins.py
+scripts/pin-actions.sh
+docs/branch-protection.md
+conformance/test-documented-commands.py
+docs/watchlist.md
+scripts/slopsquat_check.py
+scripts/wave_check.py
 .governed-records
 AGENTS.md
 CLAUDE.md                      (symlink → AGENTS.md)
@@ -53,7 +60,6 @@ reading a document; these are the ones whose absence means a rule was never read
 Makefile
 scripts/bootstrap-check.sh
 scripts/check_records.py
-scripts/journey.py
 scripts/standup.sh
 scripts/README.md
 schemas/record.schema.json
@@ -134,11 +140,46 @@ our reasoning, and our reasoning is not a deliverable.*
 a GP-INTERNAL document is a **pinned URL** at tag `v4.3`, not a relative path. A pinned link cannot go
 stale silently. A relative path to a file `M2` deletes is simply a lie.*
 
+### Distribution-side only — reclassified 2026-08-12 by council ruling
+`conformance/falsify.py` and `conformance/falsifications.py` prove GP's controls **before** a package
+ships. They were classified PROJECT while `scripts/export_project.py`, which `falsify.py` invokes, is
+GP-INTERNAL — so `make gate` called a file the manifest guarantees is absent from every install.
+
+**Three seats found this independently, and PM found the part that settles it: the two states are
+mutually unsatisfiable.** Ship `export_project.py` to fix `falsify` and `install-check` fails with `M2`;
+withhold it and `falsify` fails. *There was no state of a customer tree in which `make gate` could be
+green.* That is TB-014's class — one gate requiring a file another gate requires absent — on the
+canonical gate, one increment after the telemetry catalogued it.
+
+A project does not maintain GP's control set and has no reason to falsify it. **The gate belongs where
+the controls are authored.**
+
+### Generated at export — declared in neither list, deliberately
+`.install-lock` is written by `export_project.py` into the delivery, not shipped from the package. It
+records how many files each directory carried at the moment of export, and `M1` compares against it.
+It is the only test three separate audits could not defeat with a placeholder file, because a count
+does not care what the file contains.
+
+### Ships empty — directories that legitimately contain only `.gitkeep`
+```
+docs/plans
+docs/reviews
+docs/retrospectives
+```
+*Emptiness has to be DECLARED, not inferred. An emptied directory and a deliberately empty one are
+indistinguishable in the tree — and an auditor proved it twice: first by reducing a 105-file install to
+68 (`M1` accepted `.exists()`), then by reducing 118 to 42 after the repair exempted any directory
+holding a `.gitkeep`. Every directory NOT in this list must carry real content or `M1` fails.*
+
 ## GP-INTERNAL — never copied into a project
 
 ### GP's own version history
 ```
-docs/HANDOVER-v4.3.1-material.md
+conformance/falsify.py
+conformance/falsifications.py
+scripts/export_project.py
+.gp-distribution
+docs/HANDOVER-v5.0-material.md
 pipeline-design.md
 pipeline-architecture.html
 docs/HANDOVER-v2.1-material.md

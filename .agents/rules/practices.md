@@ -12,7 +12,7 @@ For the full 64+8 seed compendium see `.agents/rules/playbook-seeds.md`. This fi
 
 Output a short plan: goal, files touched, test approach, risks. Skip only for typo edits. See `docs/external-skills/writing-plans.md` for the format superpowers established.
 
-For a full milestone, write a `docs/plans/m{N}-plan.md` per the Stage 1 template in [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v4.3.1/general_pipeline_v4.3.1/pipeline-design.md). Mandatory sections: Goal, REQ-ID acceptance, Risk tier, Wave decomp, K.8 contracts grep-verified, Token budget, Subagent profile source.
+For a full milestone, write a `docs/plans/m{N}-plan.md` per the Stage 1 template in [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v5.0/general_pipeline_v5.0/pipeline-design.md). Mandatory sections: Goal, REQ-ID acceptance, Risk tier, Wave decomp, K.8 contracts grep-verified, Token budget, Subagent profile source.
 
 ## Code quality (consolidated from playbook seeds H.1-H.10 + K.x)
 
@@ -93,7 +93,7 @@ For a full milestone, write a `docs/plans/m{N}-plan.md` per the Stage 1 template
 - **V3C-65 — race detector as a recommended CI step.** For concurrent packages, run the race detector (`-race` / equivalent) in CI; a `// BUG:` touching shared state blocks release. Recommended, not a universal gate (evidence is Go-only).
 
 ### Agent-Native / LLM-Ops (CANDIDATE container)
-- The agent-native/LLM-ops + gateway cluster (provider registry, deterministic fallbacks, LLM output contracts, tracing, MCP pooling, circuit-breakers, streaming rate-limit accounting, ...) is **CANDIDATE, not active** — most evidence is one ecosystem (Botim AOP + one-api/NewAPI gateway family). Promote on a 2nd independent ecosystem. See [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v4.3.1/general_pipeline_v4.3.1/pipeline-design.md) §3.6 and the candidate block in `playbook-seeds.md`. Adopted now from this cluster: V3C-33/45 (fail direction), V3C-08/36 (least-privilege), V3C-44 (canonical mock), V3C-56 (encrypt at rest).
+- The agent-native/LLM-ops + gateway cluster (provider registry, deterministic fallbacks, LLM output contracts, tracing, MCP pooling, circuit-breakers, streaming rate-limit accounting, ...) is **CANDIDATE, not active** — most evidence is one ecosystem (Botim AOP + one-api/NewAPI gateway family). Promote on a 2nd independent ecosystem. See [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v5.0/general_pipeline_v5.0/pipeline-design.md) §3.6 and the candidate block in `playbook-seeds.md`. Adopted now from this cluster: V3C-33/45 (fail direction), V3C-08/36 (least-privilege), V3C-44 (canonical mock), V3C-56 (encrypt at rest).
 
 ## v3.1 guardrails (first GP-v3 field run — hcs_maas_vib, 2026-07-03)
 
@@ -104,8 +104,8 @@ For a full milestone, write a `docs/plans/m{N}-plan.md` per the Stage 1 template
 
 ## v3.5 — outward-facing checks (Increment 9: the post-prod dataset, 2026-07-27)
 
-- **Test the world's shape, not your imagination of it:** `make check-templates` (shipped
-  templates instantiate the parser) + `make cold-start` (zero persisted state → serve-ready or
+- **Test the world's shape, not your imagination of it:** ~~`make check-templates`~~ (shipped  <!-- **REMOVED at the v5 control screen (2026-08-12) — on `docs/watchlist.md`, returns at 2 recurrences.** It needs a deployed URL and a live environment that neither this package nor a fresh project has, so in five versions nobody could write down how to break it and it was never once shown to catch anything. -->  <!-- REMOVED at the v5 control screen 2026-08-12 -- see `docs/watchlist.md`, returns after 2 recurrences. It needs a deployed URL and a live environment neither this package nor a fresh project has, so in five versions nobody could write down how to break it and it was never once shown to catch anything. Left visible on purpose: a control that quietly vanishes is how a checklist becomes folklore. -->
+  templates instantiate the parser) + ~~`make cold-start`~~ (zero persisted state → serve-ready or  <!-- **REMOVED at the v5 control screen (2026-08-12) — on `docs/watchlist.md`, returns at 2 recurrences.** It needs a deployed URL and a live environment that neither this package nor a fresh project has, so in five versions nobody could write down how to break it and it was never once shown to catch anything. -->  <!-- REMOVED at the v5 control screen 2026-08-12 -- see `docs/watchlist.md`, returns after 2 recurrences. It needs a deployed URL and a live environment neither this package nor a fresh project has, so in five versions nobody could write down how to break it and it was never once shown to catch anything. Left visible on purpose: a control that quietly vanishes is how a checklist becomes folklore. -->
   honest not-ready) run in CI at merge + release. The tested artifact is the SHIPPED artifact.
 - **Human-path criterion (general form):** a person who did NOT build it, using only shipped docs
   and artifacts, completes the surface's primary journey. Mandated instance: credentials.
@@ -215,7 +215,7 @@ The goal: when something breaks in production, boundary logs alone tell you whic
 
 - `playbook-seeds.md` — full seed compendium (themes A-L + v1.1/M12/S34 ADDENDA + ★ v2.2 RATIFIED: C.11 bootstrap-gate, B.6 ADR-ID ranges, F.10 OSS-license gate, L.8/L.9 go-live, E.6 pipe-attribution, K.11 agent-UI, C.12 git-in-mount + ★ v3 RATIFIED: V3C-11 security gate, V3C-02 tests gate, V3C-68 review-loop restructure, V3C-44 canonical-mock, V3C-12/13/51/56 security baseline, V3C-33/45 fail-direction, V3C-08/36 least-privilege, V3C-06/53 + build guardrails, + Agent-Native CANDIDATE sub-block)
 - `docs/security-baseline.md` — web/API security baseline (V3C-11/12/13/51/56)
-- [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v4.3.1/general_pipeline_v4.3.1/pipeline-design.md) §3.5 (Theme L) + Stage 4.3 (deploy verification) + §0 (v2.1 changelog)
+- [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v5.0/general_pipeline_v5.0/pipeline-design.md) §3.5 (Theme L) + Stage 4.3 (deploy verification) + §0 (v2.1 changelog)
 - `docs/pm-status.template.md` — PM-readable status snapshot (pairs with G.9)
 - `permission-matrix.md` — default-deny matrix + BLOCKING taxonomy
 - `docs/decisions.md` — D-001..D-005 universal + your project D-006+

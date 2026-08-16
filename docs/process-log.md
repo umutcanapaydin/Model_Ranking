@@ -198,3 +198,24 @@ fail. Two ledger rows closed with the ruling; W-001 survives into a fourth miles
 Lesson: escalating a criterion-meaning question with the measured cost of each option attached turns
 the owner's gate from an open question into a signature — the block cleared in one sitting because
 the decision arrived with its price tag, not with a request for guidance.
+
+## 2026-08-16 — M6 planning + GP v5.0 migration — lead agent (Claude Code, local lane)
+A new agent took over at the M5/M6 boundary from `handover_rocky.txt`, verified the state itself
+(`make check` exit 0, 271 passed / 12 skipped, tree clean, `main` = `origin/main`, W-011's re-author
+confirmed executed across all 22 commits), and asked the carried question with the trade laid out.
+The owner ruled **A — present BOTH coding answers**, then signed the M6 plan and, in the same
+session, directed the move to **GP v5.0**. Two ADRs recorded it: D-113 (baseline, supersedes D-108)
+and D-114 (local-lane git authority, supersedes D-106 — the agent stages, the owner commits). The
+migration was done with v5.0's own `make export-project` into an empty tree and applied file-by-file,
+because the export script refuses a non-empty destination by design and a directory copy would have
+imported 23 GP-INTERNAL records. Two self-inflicted errors, both caught by the gate rather than by
+review: copying the template `src/__init__.py` broke the project's src-layout (64 mypy errors), and
+quoting the owner's ruling in its original Turkish tripped `L1` in the ADR that recorded it.
+v5.0's new `conformance/` suite then produced three findings on first run — a `.governed-records`
+glob that matched no file (so **20** wave-close records had never been governed by anything), a
+removed Make target still named by three historical records, and a superseded handover still telling
+agents to commit. The owner ruled all three: fix, hand back, banner. Fixing the glob surfaced `R1` on
+all 20 records; frontmatter was added without altering one line of content.
+Lesson: a control's first run is a measurement of the past, not of the change that installed it —
+every one of these findings had been true for milestones, and the only new thing in the repository
+was something finally looking. Budget the first run of a new gate as discovery work, not as setup.

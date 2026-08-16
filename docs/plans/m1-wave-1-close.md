@@ -1,3 +1,9 @@
+---
+record_type: wave
+id: m1-wave-1-close
+status: ratified
+date: 2026-08-11
+---
 # Wave-Close Checklist — M1 Wave 1 (v4.1; V3C-69 + V3C-90/OD-4 + V4C-13 + V4C-40)
 
 Wave scope: schema + source Protocols + LiteLLM ingestion (m1-plan.md §3 W1).
