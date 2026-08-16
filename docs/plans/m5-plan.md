@@ -4,9 +4,9 @@
 approved by owner choices 1 on 2026-08-16. Wave dispatch is authorized.
 **Date:** 2026-08-15 · **Risk tier:** LOW-MED · **Mode:** A0.5 + D-106
 **Process baseline:** GP v4.3.1 (D-108). Waves run without stopping (owner amendment, M3); the owner
-runs the out-of-sandbox verification at the milestone gate. **One planned mid-milestone touchpoint**
-— see §2 Q2: the primary-benchmark choice is a criteria-meaning question and the escalate-now list
-puts those with the owner, not the agent.
+runs the out-of-sandbox verification at the milestone gate. On 2026-08-16 the owner delegated the
+remaining inter-wave decisions so the milestone can run unattended; the owner and agent test
+together only at the milestone gate.
 
 **Owner decisions locked 2026-08-15 (this session):**
 - **Scope:** rescue the coding category with the Epoch data. NOT the HTTP API — that moves to M6,
@@ -14,14 +14,20 @@ puts those with the owner, not the agent.
 - **Q1 effort policy: rank on ONE named effort level and disclose the range.** Effort is stored as
   data; comparisons happen at a single level so they stay fair; the output says what the model
   reaches at higher effort instead of hiding it.
-- **Q2 primary benchmark: MEASURE FIRST, decide after.** W1 produces the evidence; the owner signs
-  the board choice mid-milestone. (Directly applying M4's retrospective lesson: a criterion that
+- **Q2 primary benchmark: RESOLVED after measurement under delegated owner authority.** Keep Epoch
+  SWE-bench Verified as the existing `coding` category's primary evidence and add DeepSWE at the
+  single `high` effort level as a separate `agentic-coding` category/evidence surface. W1 produced
+  the evidence before this choice. (Directly applying M4's retrospective lesson: a criterion that
   contains a number about live data gets a measurement task in the wave *before* it.)
 - **2026-08-16 amendment:** the owner chose to correct the plan's Epoch freshness facts while
   retaining Q2's measure-first decision gate. The amendment does not pre-select the primary board.
 - **2026-08-16 freshness ruling:** freshness is judged on the evidence row the engine actually
   selects for each plan, not the newest row anywhere in a source. Publish fresh / stale / undated /
   unscored plan counts together; a source-global `MAX(run_date)` cannot close REQ-ING-011b alone.
+- **2026-08-16 unattended-wave ruling:** the owner instructed the agent not to ask questions between
+  waves and delegated the pending board choice. The agent selected the W1 record's recommended
+  option: Epoch primary plus a separate DeepSWE-high `agentic-coding` surface. This does not waive
+  the milestone-end joint verification or any security/destructive permission boundary.
 
 ---
 
@@ -67,8 +73,9 @@ Two constraints fall out of that table, and together they are the milestone:
    source-global `source_health()` maximum is still useful source telemetry, but it can mask the
    age of a plan's selected row and cannot satisfy the amended criterion by itself.
 
-That measured trade-off is why the primary-board choice remains a signed decision rather than an
-implementation detail. This amendment corrects the evidence; it does not consume the W1 owner gate.
+That measured trade-off is why the primary-board choice was recorded as a decision rather than an
+implementation detail. The 2026-08-16 unattended-wave ruling consumed the W1 gate only after the
+shipped measurement was complete.
 
 ### The two traps this milestone must not walk into
 
@@ -142,8 +149,9 @@ Also observed and to be handled, not assumed: FrontierCode's `Reasoning effort` 
    TerminalBench 5/10 with plan-specific selected dates to report, and Aider 0/10; W1 must reproduce
    it through the shipped ingestion + selection path rather than treating this planning measurement
    as the acceptance proof.
-5. **Owner touchpoint:** the record ends with a recommendation; the owner signs the primary-board
-   choice. Waves continue on everything not blocked by that signature.
+5. **Delegated decision gate:** the record ends with a recommendation. Under the owner's
+   2026-08-16 unattended-wave instruction, the agent selected recommended option 1 and recorded the
+   basis before W2 began.
 
 **W2 — Effort becomes data (REQ-CAN-005, REQ-REC-011)**
 1. Schema: `effort` on `scores`, with a migration (the M4 lesson: a new column needs `migrate()` and
@@ -186,6 +194,19 @@ Frozen: `plans` / `plan_models` / `plan_config` / `scores` / `pricing` schema **
 the D-105 category contract; D-109 rounding boundary; D-110 equivalence disclosure.
 New shared surface: Epoch source name + its provenance columns, the effort field and its policy
 value, the attribution string. `grep -n` output pasted at each wave's dispatch.
+
+### M5 data-boundary invariants
+
+- Epoch runtime ingestion reads only an explicitly local, unpacked, allowlisted CSV bundle. A URL,
+  missing board, malformed provenance/date, malformed shape, or wholly unusable board fails that
+  source loudly; `tests/unit/test_epoch_ingest.py` contains the negative cases.
+- Release dates never become evaluation dates. An undated board remains `undated` and cannot look
+  fresh through model-release metadata; `tests/unit/test_coverage.py` exercises the four-state
+  partition and the 60-day boundary.
+
+Effective wave review tiers: W1 **HIGH** (input parsing), W2 **HIGH** (migration + input parsing),
+W3 **HIGH** (new board ingestion), W4 **LOW-MED** unless its final diff crosses an auto-HIGH
+boundary. The milestone's overall product-risk label remains LOW-MED.
 
 ## 5. Token budget estimate
 

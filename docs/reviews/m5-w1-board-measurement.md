@@ -1,6 +1,6 @@
 # M5 W1 Primary-board Measurement
 
-**Status:** AWAITING OWNER BOARD SIGNATURE  
+**Status:** RESOLVED — recommended option 1 selected under delegated owner authority
 **Measured:** 2026-08-16  
 **Decision basis:** `docs/plans/m5-plan.md` W1 and the owner-approved plan-level freshness ruling
 
@@ -89,7 +89,7 @@ The exact Epoch artifact referent is log id `8QQQWDgmmEsmQVUJWcxx4P`,
 Verdict: the contradiction is unresolved causally. Both scores and the harness/effort disagreement
 must be disclosed; silently selecting either number fails REQ-REC-012.
 
-## Recommendation and owner gate
+## Recommendation and delegated decision
 
 **Recommended:** keep Epoch SWE-bench Verified as the primary `coding` evidence, and add DeepSWE at
 the single `high` effort level as a separate `agentic-coding` category/evidence surface. This keeps
@@ -99,9 +99,11 @@ without pretending its release dates are evaluation dates or averaging unlike ha
 If only one board is authorized, choose Epoch: DeepSWE adds only one scoreable plan (6/10 vs 5/10)
 but all six are undated, the Gemini result is unexplained, and effort must be modelled first.
 
-Owner choice required before W3:
+On 2026-08-16 the owner instructed the agent to run the remaining waves unattended and delegated
+inter-wave decisions until the milestone-end joint test. Exercising that authority after this
+measurement was complete, the agent selected option 1:
 
-1. Epoch primary + separate DeepSWE-high agentic-coding surface (**recommended**).
+1. **SELECTED — Epoch primary + separate DeepSWE-high agentic-coding surface (recommended).**
 2. Epoch primary only.
 3. DeepSWE-high primary, explicitly undated.
 4. Another named board/policy (requires a signed plan amendment).
