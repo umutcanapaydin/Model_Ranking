@@ -23,8 +23,10 @@ import sqlite3
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Literal
 
-from app.workflows.categories import CATEGORIES
+from app.workflows.categories import CATEGORIES, CategorySpec
+from app.workflows.subscribe import plan_ranking
 
 # A source whose newest evidence is older than this is reported stale. Same
 # WINDOW as the recommendation engine's stale_notice (REQ-REC-006), so "old"
@@ -34,6 +36,7 @@ from app.workflows.categories import CATEGORIES
 # while this report compares run_date to TODAY, because a report is allowed to
 # know what day it is. Review MINOR-2: say which clock, do not imply one.
 SOURCE_STALE_DAYS = 90
+PLAN_FRESH_DAYS = 60
 
 
 @dataclass(frozen=True)
@@ -59,6 +62,39 @@ class SourceHealth:
     stale: bool  # True also when rows exist but no parseable date does (fail toward disclosure)
 
 
+EvidenceStatus = Literal["fresh", "stale", "undated", "unscored"]
+
+
+@dataclass(frozen=True)
+class PlanEvidenceHealth:
+    """Freshness of the exact score row selected for one curated plan."""
+
+    category: str
+    plan_id: str
+    plan: str
+    status: EvidenceStatus
+    selected_model: str | None
+    score: float | None
+    harness: str | None
+    evidence_source: str | None
+    evidence_source_url: str | None
+    evidence_date: str | None
+    age_days: int | None
+
+
+@dataclass(frozen=True)
+class CategoryEvidenceHealth:
+    """REQ-ING-011b partition: every curated plan counted exactly once."""
+
+    category: str
+    total_plans: int
+    fresh: int
+    stale: int
+    undated: int
+    unscored: int
+    plans: tuple[PlanEvidenceHealth, ...]
+
+
 def plan_coverage(conn: sqlite3.Connection) -> tuple[CategoryCoverage, ...]:
     """Per category: which plans can be ranked, and why the rest cannot."""
     total = conn.execute("SELECT COUNT(*) FROM plans").fetchone()[0]
@@ -78,8 +114,8 @@ def plan_coverage(conn: sqlite3.Connection) -> tuple[CategoryCoverage, ...]:
             for (pid,) in conn.execute(
                 "SELECT DISTINCT pm.plan_id FROM plan_models pm"
                 " JOIN scores s ON s.model_id = pm.model_id"
-                " WHERE s.benchmark = ? AND pm.model_id IS NOT NULL",
-                (spec.primary_benchmark,),
+                " WHERE s.benchmark = ? AND s.metric = ? AND pm.model_id IS NOT NULL",
+                (spec.primary_benchmark, spec.metric),
             )
         }
         no_links = sorted(names.get(p, p) for p in names if p not in linked)
@@ -95,6 +131,92 @@ def plan_coverage(conn: sqlite3.Connection) -> tuple[CategoryCoverage, ...]:
             )
         )
     return tuple(out)
+
+
+def plan_evidence_health(
+    conn: sqlite3.Connection,
+    spec: CategorySpec,
+    today: dt.date,
+    window_days: int = PLAN_FRESH_DAYS,
+) -> CategoryEvidenceHealth:
+    """Classify each plan by the evidence row the ranking engine selects.
+
+    Source-global newest dates answer whether a feed is still publishing. They
+    do not answer how old the evidence behind a particular plan recommendation
+    is. Reusing ``plan_ranking`` keeps score/model/harness/date/provenance tied to
+    one real selected row and prevents a fresh unrelated row masking stale picks.
+    """
+    if window_days <= 0:
+        raise ValueError("plan evidence freshness window must be positive")
+
+    selected = {row.plan_id: row for row in plan_ranking(conn, spec)}
+    plans: list[PlanEvidenceHealth] = []
+    counts: dict[EvidenceStatus, int] = {
+        "fresh": 0,
+        "stale": 0,
+        "undated": 0,
+        "unscored": 0,
+    }
+    for plan_id, plan in conn.execute("SELECT id, name FROM plans ORDER BY id"):
+        row = selected.get(plan_id)
+        if row is None:
+            status: EvidenceStatus = "unscored"
+            item = PlanEvidenceHealth(
+                category=spec.id,
+                plan_id=plan_id,
+                plan=plan,
+                status=status,
+                selected_model=None,
+                score=None,
+                harness=None,
+                evidence_source=None,
+                evidence_source_url=None,
+                evidence_date=None,
+                age_days=None,
+            )
+        else:
+            age: int | None = None
+            if row.evidence_date is None:
+                status = "undated"
+            else:
+                try:
+                    evidence_day = dt.date.fromisoformat(row.evidence_date[:10])
+                except ValueError as exc:
+                    msg = (
+                        f"{spec.id}/{plan_id}: selected evidence date is not ISO-8601: "
+                        f"{row.evidence_date!r}"
+                    )
+                    raise ValueError(msg) from exc
+                age = (today - evidence_day).days
+                status = "fresh" if age < window_days else "stale"
+            item = PlanEvidenceHealth(
+                category=spec.id,
+                plan_id=plan_id,
+                plan=plan,
+                status=status,
+                selected_model=row.scored_by_model,
+                score=row.score,
+                harness=row.harness,
+                evidence_source=row.evidence_source,
+                evidence_source_url=row.evidence_source_url,
+                evidence_date=row.evidence_date,
+                age_days=age,
+            )
+        counts[status] += 1
+        plans.append(item)
+
+    total = len(plans)
+    if sum(counts.values()) != total:  # pragma: no cover - defensive invariant
+        raise AssertionError("plan evidence statuses do not partition the curated plans")
+    return CategoryEvidenceHealth(
+        category=spec.id,
+        total_plans=total,
+        fresh=counts["fresh"],
+        stale=counts["stale"],
+        undated=counts["undated"],
+        unscored=counts["unscored"],
+        plans=tuple(plans),
+    )
 
 
 def source_health(
@@ -150,8 +272,9 @@ def main(argv: list[str] | None = None) -> int:
         conn = sqlite3.connect(f"file:{Path(args.db).as_posix()}?mode=ro", uri=True)
         cov = plan_coverage(conn)
         health = source_health(conn, today)
-    except sqlite3.Error as exc:
-        print(f"error: db unusable: {exc}", file=sys.stderr)
+        plan_health = tuple(plan_evidence_health(conn, spec, today) for spec in CATEGORIES.values())
+    except (sqlite3.Error, ValueError) as exc:
+        print(f"error: evidence unusable: {exc}", file=sys.stderr)
         return 2
     finally:
         if conn is not None:
@@ -162,6 +285,7 @@ def main(argv: list[str] | None = None) -> int:
             {
                 "plan_coverage": [asdict(c) for c in cov],
                 "source_health": [asdict(h) for h in health],
+                "plan_evidence_health": [asdict(h) for h in plan_health],
             },
             ensure_ascii=False,
             indent=2,

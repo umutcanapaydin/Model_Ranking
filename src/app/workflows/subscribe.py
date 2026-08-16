@@ -44,6 +44,9 @@ class PlanRank:
     )  # roster links carry their own source; plan-page links use the plan's
     harness: str
     evidence_date: str | None
+    evidence_source: str
+    evidence_source_url: str
+    evidence_raw_name: str
 
 
 @dataclass(frozen=True)
@@ -117,24 +120,30 @@ def plan_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[PlanRank]
           SELECT pm.plan_id, MAX(s.score) AS best
           FROM plan_models pm
           JOIN scores s ON s.model_id = pm.model_id
-          WHERE s.benchmark = :primary AND pm.model_id IS NOT NULL
+          WHERE s.benchmark = :primary AND s.metric = :metric
+            AND pm.model_id IS NOT NULL
           GROUP BY pm.plan_id
         ),
         detail AS (
           SELECT pm.plan_id, m.display, s.harness, s.run_date, s.score,
-                 pm.link_source, pm.source_url,
+                 pm.link_source, pm.source_url AS link_source_url,
+                 s.source AS evidence_source,
+                 s.source_url AS evidence_source_url,
+                 s.raw_name AS evidence_raw_name,
                  ROW_NUMBER() OVER (
                    PARTITION BY pm.plan_id
                    -- plan-page links win ties: the plan's own page is the more
                    -- specific statement about what the plan includes.
                    ORDER BY (pm.link_source = 'plan-page') DESC,
-                            s.run_date DESC, s.harness ASC, m.display ASC
+                            (s.run_date IS NOT NULL) DESC, s.run_date DESC,
+                            s.harness ASC, m.display ASC, s.source ASC,
+                            s.raw_name ASC, pm.raw_name ASC
                  ) AS rn
           FROM plan_models pm
           JOIN scores s ON s.model_id = pm.model_id
           JOIN models m ON m.id = pm.model_id
           JOIN plan_best b ON b.plan_id = pm.plan_id AND b.best = s.score
-          WHERE s.benchmark = :primary
+          WHERE s.benchmark = :primary AND s.metric = :metric
         )
         SELECT p.id, p.name, p.provider, p.monthly_usd, p.currency,
                p.last_verified, p.source_url, b.best,
@@ -142,12 +151,15 @@ def plan_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[PlanRank]
                (SELECT harness     FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
                (SELECT run_date    FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
                (SELECT link_source FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
-               (SELECT source_url  FROM detail d WHERE d.plan_id = p.id AND d.rn = 1)
+               (SELECT link_source_url FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
+               (SELECT evidence_source FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
+               (SELECT evidence_source_url FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
+               (SELECT evidence_raw_name FROM detail d WHERE d.plan_id = p.id AND d.rn = 1)
         FROM plans p
         JOIN plan_best b ON b.plan_id = p.id
         ORDER BY b.best DESC, p.monthly_usd ASC, p.id
         """,
-        {"primary": spec.primary_benchmark},
+        {"primary": spec.primary_benchmark, "metric": spec.metric},
     ).fetchall()
     return [
         PlanRank(
@@ -164,6 +176,9 @@ def plan_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[PlanRank]
             evidence_date=r[10],
             scored_via=r[11],
             link_source_url=r[12],
+            evidence_source=r[13],
+            evidence_source_url=r[14],
+            evidence_raw_name=r[15],
         )
         for r in rows
     ]

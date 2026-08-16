@@ -264,6 +264,9 @@ LIVE_NAME_EXPECTATIONS: tuple[tuple[str, str | None], ...] = (
     ("claude-opus-5-high", "claude-5-opus"),
     ("gpt-5.6-sol-xhigh", "gpt-5.6-sol"),
     ("gemini-3.5-flash-medium", "gemini-3.5-flash"),
+    # Epoch SWE-bench rows copied verbatim from the owner-fetched 2026-08-15 bundle
+    ("glm-5.2_max", "glm-5.2"),
+    ("gemini-3.1-pro-preview-customtools", "gemini-3.1-pro"),
     ("qwen3.7-max-preview", "qwen3.7-max"),
     ("gemini-3-flash (thinking-minimal)", "gemini-3-flash"),
     ("grok-4.20-beta-0309-reasoning", "grok-4.20"),

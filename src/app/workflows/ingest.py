@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from app.clients.aider import parse_polyglot, staleness_flag
 from app.clients.arena import parse_arena
+from app.clients.epoch import parse_swe_bench_verified as parse_epoch_swe_bench_verified
 from app.clients.litellm import parse_pricing
 from app.clients.openrouter import parse_models
 from app.clients.protocols import RawSource, SourceError
@@ -28,6 +29,7 @@ class SourceReport:
     stored: int
     skipped: int
     health: str | None = None  # REQ-ING-003: staleness / anomaly flags, never hidden
+    last_verified: str | None = None  # source acquisition/curation clock, not evidence age
 
 
 @dataclass
@@ -137,6 +139,37 @@ def ingest_swebench(conn: sqlite3.Connection, source: RawSource, run: RunContext
     rows, skipped = parse_verified(source.fetch_raw(), source=source.name, source_url=source.url)
     _store_scores(conn, source.name, rows, run)
     report = SourceReport(source=source.name, stored=len(rows), skipped=skipped)
+    run.reports.append(report)
+    return report
+
+
+def ingest_epoch(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
+    """Ingest Epoch's local SWE-bench CSV as its own source (REQ-ING-010).
+
+    The benchmark and metric deliberately match the existing SWE-bench category,
+    while ``source.name`` and the parser's ``inspect_ai`` harness keep the evidence
+    independently attributable. Re-runs replace only this Epoch board's rows.
+    """
+    last_verified = getattr(source, "last_verified", None)
+    if not isinstance(last_verified, str):
+        msg = f"{source.name}: last_verified is mandatory for the Epoch bundle"
+        raise SourceError(msg)
+    try:
+        date.fromisoformat(last_verified)
+    except ValueError as exc:
+        msg = f"{source.name}: last_verified must be YYYY-MM-DD"
+        raise SourceError(msg) from exc
+
+    rows, skipped = parse_epoch_swe_bench_verified(
+        source.fetch_raw(), source=source.name, source_url=source.url
+    )
+    _store_scores(conn, source.name, rows, run)
+    report = SourceReport(
+        source=source.name,
+        stored=len(rows),
+        skipped=skipped,
+        last_verified=last_verified,
+    )
     run.reports.append(report)
     return report
 

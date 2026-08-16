@@ -9,7 +9,15 @@ from unittest import mock
 
 import pytest
 
-from app.workflows.coverage import SOURCE_STALE_DAYS, main, plan_coverage, source_health
+from app.workflows.categories import CATEGORIES
+from app.workflows.coverage import (
+    PLAN_FRESH_DAYS,
+    SOURCE_STALE_DAYS,
+    main,
+    plan_coverage,
+    plan_evidence_health,
+    source_health,
+)
 from app.workflows.ingest import RunContext
 from app.workflows.plans import ingest_plans
 from app.workflows.registry import reconcile_plans
@@ -77,6 +85,95 @@ def _db(run_date: str = "2026-08-01", path: str = ":memory:") -> sqlite3.Connect
     return conn
 
 
+def _evidence_db() -> sqlite3.Connection:
+    """Four plans exercising the exhaustive freshness partition."""
+    conn = connect()
+    conn.executemany(
+        "INSERT INTO plans (id, provider, name, monthly_usd, currency, region, limits,"
+        " source_url, last_verified, observed_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        [
+            (
+                plan_id,
+                "Provider",
+                name,
+                10.0,
+                "USD",
+                "US",
+                "test",
+                f"https://example.test/{plan_id}",
+                "2026-08-15",
+                "2026-08-16T00:00:00+00:00",
+            )
+            for plan_id, name in (
+                ("fresh-plan", "Fresh Plan"),
+                ("stale-plan", "Stale Plan"),
+                ("undated-plan", "Undated Plan"),
+                ("unscored-plan", "Unscored Plan"),
+            )
+        ],
+    )
+    conn.executemany(
+        "INSERT INTO models (id, display, vendor) VALUES (?,?,?)",
+        [
+            ("glm-5.2", "GLM-5.2", "Zhipu"),
+            ("gemini-3.1-pro", "Gemini 3.1 Pro", "Google"),
+            ("gpt-5.6-sol", "GPT-5.6 Sol", "OpenAI"),
+        ],
+    )
+    conn.executemany(
+        "INSERT INTO plan_models (plan_id, raw_name, model_id) VALUES (?,?,?)",
+        [
+            ("fresh-plan", "GLM-5.2", "glm-5.2"),
+            ("stale-plan", "Gemini 3.1 Pro", "gemini-3.1-pro"),
+            ("undated-plan", "GPT-5.6 Sol", "gpt-5.6-sol"),
+        ],
+    )
+    conn.executemany(
+        "INSERT INTO scores (model_id, raw_name, benchmark, metric, score, harness,"
+        " run_date, source, source_url, observed_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        [
+            (
+                "glm-5.2",
+                "glm-5.2_max",
+                "SWE-bench Verified",
+                "% resolved",
+                78.7,
+                "inspect_ai",
+                "2026-06-18",  # 59 days: fresh
+                "epoch_swe_bench_verified",
+                "https://epoch.ai/data/benchmark_data.zip",
+                "2026-08-16T00:00:00+00:00",
+            ),
+            (
+                "gemini-3.1-pro",
+                "gemini-3.1-pro-preview-customtools",
+                "SWE-bench Verified",
+                "% resolved",
+                75.6,
+                "inspect_ai",
+                "2026-06-17",  # 60 days: stale boundary
+                "epoch_swe_bench_verified",
+                "https://epoch.ai/data/benchmark_data.zip",
+                "2026-08-16T00:00:00+00:00",
+            ),
+            (
+                "gpt-5.6-sol",
+                "gpt-5.6-sol_high",
+                "SWE-bench Verified",
+                "% resolved",
+                72.7,
+                "mini-swe-agent",
+                None,
+                "deepswe",
+                "https://epoch.ai/benchmarks",
+                "2026-08-16T00:00:00+00:00",
+            ),
+        ],
+    )
+    conn.commit()
+    return conn
+
+
 def test_coverage_counts_and_explains_every_unscoreable_plan() -> None:
     """The number alone is not enough: a plan that cannot rank must say WHY."""
     cov = {c.category: c for c in plan_coverage(_db())}
@@ -91,6 +188,31 @@ def test_coverage_counts_and_explains_every_unscoreable_plan() -> None:
     assert cov["assistant"].scoreable_plans == 0
 
 
+def test_coverage_requires_the_category_metric_not_only_the_benchmark() -> None:
+    """D-105: a foreign metric sharing the benchmark name cannot make a plan scoreable."""
+    conn = _db()
+    conn.execute(
+        "INSERT INTO scores (model_id, raw_name, benchmark, metric, score, harness,"
+        " run_date, source, source_url, observed_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (
+            "grok-4.5",
+            "Grok 4.5",
+            "SWE-bench Verified",
+            "not % resolved",
+            999.0,
+            "foreign",
+            "2026-08-15",
+            "foreign",
+            "https://example.test/foreign",
+            "2026-08-15T00:00:00+00:00",
+        ),
+    )
+
+    coding = next(row for row in plan_coverage(conn) if row.category == "coding")
+    assert coding.scoreable == ("Scored Plan",)
+    assert coding.unscoreable_no_scores == ("Linked But Unscored",)
+
+
 def test_source_health_flags_a_source_that_went_quiet() -> None:
     """REQ-ING-011: the M3 owner-run finding (SWE-bench 170 days old) is now computed."""
     health = {h.source: h for h in source_health(_db(), today=dt.date(2026, 8, 15))}
@@ -102,6 +224,72 @@ def test_source_health_flags_a_source_that_went_quiet() -> None:
     old = {h.source: h for h in source_health(_db("2026-01-01"), today=dt.date(2026, 8, 15))}
     assert old["swebench"].age_days == 226
     assert old["swebench"].stale is True
+
+
+def test_plan_evidence_health_partitions_every_plan_once() -> None:
+    """REQ-ING-011b: selected evidence yields fresh/stale/undated/unscored exactly once."""
+    health = plan_evidence_health(_evidence_db(), CATEGORIES["coding"], today=dt.date(2026, 8, 16))
+
+    assert PLAN_FRESH_DAYS == 60
+    assert (health.total_plans, health.fresh, health.stale, health.undated, health.unscored) == (
+        4,
+        1,
+        1,
+        1,
+        1,
+    )
+    assert sum((health.fresh, health.stale, health.undated, health.unscored)) == 4
+    by_id = {plan.plan_id: plan for plan in health.plans}
+    assert len(by_id) == 4
+    assert (by_id["fresh-plan"].status, by_id["fresh-plan"].age_days) == ("fresh", 59)
+    assert (by_id["stale-plan"].status, by_id["stale-plan"].age_days) == ("stale", 60)
+    assert by_id["undated-plan"].status == "undated"
+    assert by_id["unscored-plan"].status == "unscored"
+
+
+def test_plan_evidence_health_uses_selected_row_not_source_max() -> None:
+    """REQ-ING-011b: a fresh source row must not mask a stale selected plan row."""
+    conn = _evidence_db()
+    source = {row.source: row for row in source_health(conn, today=dt.date(2026, 8, 16))}[
+        "epoch_swe_bench_verified"
+    ]
+    plans = {
+        row.plan_id: row
+        for row in plan_evidence_health(
+            conn, CATEGORIES["coding"], today=dt.date(2026, 8, 16)
+        ).plans
+    }
+
+    assert source.newest_run_date == "2026-06-18"
+    assert source.stale is False
+    stale = plans["stale-plan"]
+    assert (stale.status, stale.evidence_date, stale.selected_model) == (
+        "stale",
+        "2026-06-17",
+        "Gemini 3.1 Pro",
+    )
+    assert stale.evidence_source == "epoch_swe_bench_verified"
+
+
+def test_invalid_selected_evidence_date_fails_loudly() -> None:
+    """REQ-ING-011b: corrupt selected dates are not silently relabelled undated."""
+    conn = _evidence_db()
+    conn.execute("UPDATE scores SET run_date = 'not-a-date' WHERE model_id = 'glm-5.2'")
+
+    with pytest.raises(ValueError, match="selected evidence date is not ISO-8601"):
+        plan_evidence_health(conn, CATEGORIES["coding"], today=dt.date(2026, 8, 16))
+
+
+def test_cli_returns_usage_error_for_invalid_selected_evidence_date(tmp_path, capsys) -> None:
+    """REQ-ING-011b: corrupt evidence fails through the frozen CLI 0/1/2 contract."""
+    db = tmp_path / "invalid-evidence.db"
+    conn = _db(path=str(db))
+    conn.execute("UPDATE scores SET run_date = 'not-a-date'")
+    conn.commit()
+    conn.close()
+
+    assert main(["--db", str(db), "--today", "2026-08-16"]) == 2
+    assert "selected evidence date is not ISO-8601" in capsys.readouterr().err
 
 
 def test_stale_window_matches_the_engines_disclosure_window() -> None:
@@ -130,6 +318,10 @@ def test_cli_reports_json_and_fails_loud_on_zero_coverage(tmp_path, capsys) -> N
     assert coding["scoreable_plans"] == 1
     assert coding["unscoreable_no_links"] == ["Silent Plan"]
     assert out["source_health"][0]["source"] == "swebench"
+    coding_health = next(h for h in out["plan_evidence_health"] if h["category"] == "coding")
+    assert coding_health["total_plans"] == 3
+    assert coding_health["fresh"] == 1
+    assert coding_health["unscored"] == 2
 
     assert main(["--db", str(tmp_path / "missing.db")]) == 2
     assert main(["--db", str(db), "--today", "nope"]) == 2

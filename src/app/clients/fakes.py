@@ -12,9 +12,17 @@ from app.clients.protocols import SourceError
 class FakeRawSource:
     """RawSource fake returning a fixed payload (or raising, to test fail paths)."""
 
-    def __init__(self, name: str, payload: str | None, url: str = "fixture://payload") -> None:
+    def __init__(
+        self,
+        name: str,
+        payload: str | None,
+        url: str = "fixture://payload",
+        *,
+        last_verified: str | None = None,
+    ) -> None:
         self.name = name
         self.url = url
+        self.last_verified = last_verified
         self._payload = payload
 
     def fetch_raw(self) -> str:

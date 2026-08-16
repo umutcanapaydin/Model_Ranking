@@ -193,6 +193,9 @@ def test_plan_ranking_orders_by_score_then_price() -> None:
     ranking = plan_ranking(_db(), CATEGORIES["coding"])
     assert [r.plan_id for r in ranking] == ["top-plan", "mid-plan", "cheap-plan"]
     assert ranking[0].score == 79.2
+    assert ranking[0].evidence_source == "swebench"
+    assert ranking[0].evidence_source_url == "https://x"
+    assert ranking[0].evidence_raw_name == "agent + Claude 4.5 Opus"
 
 
 def test_cli_subscription_through_real_entrypoint(tmp_path, capsys) -> None:
