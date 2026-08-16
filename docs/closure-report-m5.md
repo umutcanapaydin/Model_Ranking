@@ -19,7 +19,7 @@ date: 2026-08-16
 > repository (wave-close checklists, review records, a W4 implementation plan) is what made the
 > reconstruction possible at all.
 
-## 0. What needs you (two items)
+## 0. What needs you (three items)
 
 **1. Ratify D-112 — the effort-comparison rule.** This is the criterion-meaning question the
 quality gate is blocking on, and it is yours by the escalate-now rule, not mine.
@@ -50,6 +50,19 @@ until senior human review. The security reviewer's pass cannot substitute for yo
 `python -m app.workflows.schema migrate --db PATH`; it opens `mode=rw`, is atomic, idempotent,
 refuses a database it cannot repair, and leaves no rebuild table behind — all probed against six
 database shapes. Your review is a formality only in the sense that it is required.
+
+**3. Decide what to do about the M5 commit authorship (W-011), before you push.** Twelve of the
+sixteen wave commits are authored as **the OWNER'S OWN NAME, with `the address you want on commits` as the email** — the
+building agent committed under YOUR name with an unset-git placeholder as the email. AGENTS.md §5
+names this exact failure: an agent commit indistinguishable from the owner's destroys the evidence
+V4C-06 stands on. Eleven of them do carry a `GP-Agent: Codex` trailer, so the intent was there and
+the identity was not; the other four are correctly `Codex <noreply@openai.com>`.
+
+I did not rewrite them. Rewriting another agent's commits to MY identity replaces one false
+attribution with another, and a sixteen-commit rewrite is catastrophe-class under §5 whoever it
+benefits. It is cheap today only because **nothing is pushed yet**. Your options: leave it and let
+the trailers carry the truth, or re-author the twelve to `Codex <noreply@openai.com>` before the
+first push. Command for the second option is in note.txt.
 
 Also non-blocking but yours: **W-001** (the gitleaks false positive) has now survived THREE closes
 and fires at two paths against a one-path ledger row; **D-111** (budget disclosure) awaits

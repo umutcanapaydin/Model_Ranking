@@ -32,6 +32,15 @@ WHAT'S OPEN
   level and accept the coverage loss. Measured table is in the closure report §0.
 - **OWNER ITEM 2 — review the schema migration.** permission-matrix §11 makes a migration change
   BLOCKING until senior human review; the security reviewer's pass cannot substitute.
+- **W-011 — commit authorship, decide BEFORE the first push.** Twelve of the sixteen M5 wave
+  commits are authored as the owner's own name with a placeholder email: an agent committed
+  under the owner's name with a placeholder email (V4C-64 / AGENTS.md §5). The closing agent did NOT
+  rewrite them — re-authoring another agent's commits to its own identity is a second false
+  attribution, and a 16-commit rewrite is catastrophe-class. Nothing is pushed, so the fix is still
+  one command. To re-author them accurately:
+      git rebase --exec 'git commit --amend --no-edit --author="Codex <noreply@openai.com>"' 57de98e^
+  Leaving them is also defensible — 11 of the 12 carry a `GP-Agent: Codex` trailer that records the
+  truth. Owner's call either way.
 - W-001 gitleaks false positive — has now survived THREE closes; it fires at two paths while the
   ledger row records one. Owner action.
 - D-111 awaits ratification alongside D-112.
