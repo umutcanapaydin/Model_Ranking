@@ -7,40 +7,52 @@
 ## 1. System diagram
 
 ```
-[ GitHub raw data endpoints ]          (LiteLLM pricing / SWE-bench JSON / Aider YAML)
-        │  scheduled or manual fetch (httpx, no scraping — D-101)
-        ▼
-[ src/app/clients/ ]   ── Protocol-typed source clients (D-001); one fake per client for tests
-        ▼
-[ src/app/workflows/ingest ]  ── parse → validate → canonicalize aliases (REQ-CAN) → provenance stamp
-        ▼
-[ SQLite (M1) ]        ── models / pricing / scores / px_median tables; disposable, rebuildable
-        ▼
-[ src/app/workflows/rank ]    ── coding ranking + median prices + CSV/JSON export (REQ-RANK)
-        ▼
-[ src/app/workflows/recommend ] ── deterministic 3-answer engine (REQ-REC, D-104)
-        ▼
-[ src/app/adapter/ ]   ── FastAPI: /health (L.7) only in M1; ranking/recommend endpoints in a later milestone
-        ▼
-[ future iOS app / CLI consumers ]
+[ documented network sources ]          [ owner-fetched local Epoch bundle ]
+  LiteLLM / OpenRouter / Arena             SWE-bench Verified / DeepSWE
+              │                                          │
+              └─────────────── [ src/app/clients/ ] ─────┘
+                                      │ parse + validate + provenance
+                                      ▼
+                         [ src/app/workflows/ingest ]
+                                      │ canonical registry + effort identity
+                                      ▼
+ [ curated plans.yaml + rosters.yaml ] → [ disposable SQLite working set ]
+                                      │
+                   ┌──────────────────┼───────────────────┐
+                   ▼                  ▼                   ▼
+        [ rank + CSV/JSON ]   [ coverage + health ]   [ recommend ]
+            coding and          selected evidence      model or plan,
+          agentic-coding          per plan             deterministic
+                   └──────────────────┬───────────────────┘
+                                      ▼
+                              [ CLI consumers ]
 ```
+
+Epoch acquisition is deliberately outside runtime HTTP: an owner fetches and unpacks the documented
+bundle, then the allowlisted clients read local CSV files. `data/epoch-source.yaml` is the separate
+90-day acquisition clock used by CI; board evaluation dates remain row-owned evidence.
 
 ## 2. Component responsibilities
 
 | Component | Owns | Does not own |
 |---|---|---|
-| `src/app/adapter/` | HTTP surface: `/health` (M1); future read-only rankings API | Business logic, persistence |
-| `src/app/clients/` | Source fetch Protocols (LiteLLM, SWE-bench, Aider) + fakes (D-001 / K.1) | Parsing rules, scoring |
-| `src/app/workflows/` | Ingest, canonical registry, ranking, recommendation logic | External fetches, HTTP |
+| `src/app/adapter/` | HTTP surface: `/health`; future read-only rankings API | Business logic, persistence |
+| `src/app/clients/` | Protocol-typed network clients plus local Epoch board readers and fakes | Cross-source ranking policy |
+| `src/app/workflows/` | Ingest, registry, effort-aware ranking, plan coverage/health, model and subscription recommendation | External fetches, HTTP |
+| `data/` | Curated plan/roster facts, owner-tunable thresholds, Epoch acquisition metadata | Benchmark evaluation dates |
 | `src/app/workers/` | (M1: unused) future scheduled refresh | — |
 
 ## 3. Cross-cutting concerns
 
 - **AuthN / AuthZ:** none in M1 (no mutating routes, no user data); revisit at the API milestone.
-- **Logging:** JSON via structlog; per-run source row/drop counts; no secrets, no PII exists in domain.
+- **Logging/observability:** per-run source row/drop/conflict counts plus source and selected-plan
+  freshness; no secrets or PII exist in the domain.
 - **Tracing:** single-process pipeline; run-id stamped into export metadata.
 - **Configuration:** pydantic-settings + .env (source URLs overridable for tests); K.2.
 - **Error handling:** a failing source aborts ITS ingestion with a loud report; other sources proceed; partial runs are labeled partial (fairness-class fail OPEN, per V3C-33/45 this is not an auth control).
+- **Schema evolution:** read paths stay migration-free. Operators explicitly run
+  `python -m app.workflows.schema migrate --db PATH`; the command refuses missing/unusable files,
+  preserves rows, and is idempotent.
 
 ## 4. Deployment topology
 

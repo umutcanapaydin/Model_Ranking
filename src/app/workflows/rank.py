@@ -15,6 +15,7 @@ import statistics
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from app.clients.epoch import EPOCH_ATTRIBUTION
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.schema import EFFORT_LEVELS
 
@@ -26,6 +27,7 @@ ATTRIBUTIONS = (
     "Arena leaderboard data © LMArena — lmarena-ai/leaderboard-dataset (CC-BY-4.0)",
     "Pricing data: BerriAI/litellm (MIT) and OpenRouter public model catalog (attribution required)",
     "Coding scores: swebench.com leaderboard (SWE-bench) and Aider polyglot leaderboard (Apache-2.0)",
+    EPOCH_ATTRIBUTION,
 )
 
 

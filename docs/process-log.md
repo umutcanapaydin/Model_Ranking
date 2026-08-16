@@ -158,3 +158,15 @@ bottom sits), and it named W-007 as a ledger row that had never been written. Al
 W-007 added; W-002/W-005 re-assigned to M6 so the ledger and the plan agree.
 Lesson: a handover is the one artifact where a wrong number compounds — verify it adversarially
 before shipping, exactly like code.
+
+## 2026-08-16 — M5 W1-W4 implementation — lead agent (Codex)
+W1 ingested the owner-fetched Epoch SWE-bench board and measured selected-plan freshness rather
+than substituting the source-global newest date. W2 made reasoning effort part of score identity and
+locked same-harness/same-source range disclosure. W3 applied DeepSWE to a separate agentic-coding
+category: 50 source rows became 49 stored, six plans scoreable, all six honestly undated. W4 added
+the Epoch licence citation, an independent 90-day acquisition clock, explicit schema migration,
+selected-roster staleness, budget-exclusion disclosure, and removed Arena's self-rate-limiting
+fallback. The implementation is ready for fresh review; final M5 acceptance and D-111 remain the
+owner's milestone-gate decisions.
+Lesson: freshness is not one timestamp — acquisition, source telemetry, and selected evidence must
+remain distinct clocks in code, tests, and user output.

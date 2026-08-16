@@ -1,0 +1,12 @@
+# Acquisition metadata for the explicitly local Epoch benchmark bundle (REQ-ING-010).
+# This is NOT evaluation evidence. Per-score evaluation dates come only from each board's
+# evaluation-date column; release dates never become evidence dates.
+
+schema: 1
+# Source acquisition uses the same 90-day source-health window as other benchmark feeds.
+# The 30-day plan/roster window ages volatile commercial curation, not benchmark bundles.
+staleness_days: 90
+source:
+  id: epoch-benchmark-data
+  source_url: https://epoch.ai/data/benchmark_data.zip
+  last_verified: 2026-08-15

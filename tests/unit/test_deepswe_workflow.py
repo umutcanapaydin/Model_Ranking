@@ -22,6 +22,7 @@ from app.workflows.coverage import main as coverage_main
 from app.workflows.coverage import plan_coverage, plan_evidence_health, source_health
 from app.workflows.ingest import RunContext, ingest_deepswe, ingest_epoch, ingest_swebench
 from app.workflows.plans import ingest_plans
+from app.workflows.recommend import main as recommend_main
 from app.workflows.registry import reconcile, reconcile_plans
 from app.workflows.rosters import ingest_rosters
 from app.workflows.schema import connect
@@ -261,4 +262,28 @@ def test_real_board_reproduces_signed_coverage_and_undated_health(
         49,
         None,
         True,
+    )
+
+    assert (
+        recommend_main(
+            [
+                "--db",
+                str(db),
+                "--budget",
+                "dusuk",
+                "--task",
+                "agentic-coding",
+                "--subscription",
+            ]
+        )
+        == 0
+    )
+    recommendation = json.loads(capsys.readouterr().out)
+    assert recommendation["eligible_count"] == 1
+    assert recommendation["excluded_by_budget"] == 5
+    assert recommendation["budget_notice"] is not None
+    assert "5" in recommendation["budget_notice"]
+    assert "skorlanabilir plan" in recommendation["budget_notice"]
+    assert any(
+        "Epoch AI" in source and "CC-BY-4.0" in source for source in recommendation["sources"]
     )

@@ -15,8 +15,11 @@ px_median   median reference price per canonical model (W3, REQ-CAN-003)
 
 from __future__ import annotations
 
+import argparse
+import json
 import sqlite3
 from dataclasses import dataclass
+from pathlib import Path
 
 DDL = """
 CREATE TABLE IF NOT EXISTS models (
@@ -252,3 +255,45 @@ def reset_source(conn: sqlite3.Connection, table: str, source: str) -> None:
         msg = f"reset_source: unknown table {table!r}"
         raise ValueError(msg)
     conn.execute(f"DELETE FROM {table} WHERE source = ?", (source,))  # noqa: S608
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Explicit operator migration command (W-004); never runs from a read-only CLI."""
+    parser = argparse.ArgumentParser(prog="schema", description=__doc__)
+    parser.add_argument("command", choices=("migrate",))
+    parser.add_argument("--db", required=True, help="existing model_ranking SQLite database")
+    args = parser.parse_args(argv)
+    path = Path(args.db)
+    if not path.is_file():
+        print(json.dumps({"error": f"db not found: {path}"}))
+        return 2
+
+    conn: sqlite3.Connection | None = None
+    try:
+        uri = f"{path.resolve().as_uri()}?mode=rw"
+        conn = sqlite3.connect(uri, uri=True)
+        tables = {
+            row[0]
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        }
+        if not tables.intersection({"scores", "plan_models"}):
+            raise sqlite3.DatabaseError("not a model_ranking database")
+        conn.executescript(DDL)
+        applied = migrate(conn)
+    except sqlite3.Error as exc:
+        print(json.dumps({"error": f"db unusable: {exc}"}))
+        return 2
+    finally:
+        if conn is not None:
+            conn.close()
+    print(
+        json.dumps(
+            {"database": str(path), "applied": applied, "applied_count": len(applied)},
+            indent=2,
+        )
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

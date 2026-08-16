@@ -27,6 +27,7 @@ tests/unit/test_recommend.py     # asserts the Turkish product strings above
 tests/unit/test_subscribe.py     # asserts the Turkish product strings above
 tests/unit/test_rosters.py       # asserts the Turkish product string for roster-sourced picks
 tests/unit/test_effort.py        # asserts exact Turkish effort/range disclosures at both live CLI boundaries
+tests/unit/test_deepswe_workflow.py # asserts the Turkish priced-out disclosure at the real bundle CLI boundary
 docs/reviews/m4-w4-equivalence.md # §1 quotes the shipped Turkish `equivalence_note` VERBATIM as the wave's
                                   # measured evidence; paraphrasing it would break the record-vs-referent rule
                                   # (the claim is about the exact sentence the product prints). The record's

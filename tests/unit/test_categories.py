@@ -165,5 +165,6 @@ def test_export_carries_attribution(tmp_path: Path) -> None:
     assert "CC-BY-4.0" in attributions
     assert "lmarena-ai/leaderboard-dataset" in attributions
     assert "OpenRouter" in attributions
+    assert "Epoch AI" in attributions and "AI Benchmarking Hub" in attributions
     assert tuple(payload["attribution"]) == ATTRIBUTIONS
     assert payload["generated_from"][0]["observed_at"] == "2026-08-11T00:00:00+00:00"

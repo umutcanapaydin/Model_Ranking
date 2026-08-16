@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from pathlib import Path
 
 import pytest
 
+from app.clients.epoch import EPOCH_ATTRIBUTION
 from app.clients.fakes import FakeRawSource
 from app.workflows.ingest import RunContext, ingest_aider, ingest_litellm, ingest_swebench
 from app.workflows.recommend import (
@@ -104,6 +106,15 @@ def test_three_labeled_deterministic_picks() -> None:
         assert p.model and p.vendor and p.why and p.confidence in ("High", "Medium")
         assert p.harness
     assert rec1.picks[0].model == "Claude 4.5 Opus"
+
+
+def test_req_lic_001_epoch_citation_is_in_model_recommendation_and_readme() -> None:
+    """REQ-LIC-001: the licensed citation ships where recommendation data is served."""
+    rec = recommend(_db(), "sinirsiz")
+    assert rec is not None
+    assert EPOCH_ATTRIBUTION in rec.sources
+    readme = (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+    assert EPOCH_ATTRIBUTION.removesuffix(" (CC BY 4.0 / CC-BY-4.0)") in readme
 
 
 def test_budget_filter_is_hard_constraint() -> None:

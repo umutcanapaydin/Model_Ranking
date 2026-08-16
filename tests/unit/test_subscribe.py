@@ -7,6 +7,7 @@ import sqlite3
 
 import pytest
 
+from app.clients.epoch import EPOCH_ATTRIBUTION
 from app.workflows.ingest import RunContext
 from app.workflows.plans import ingest_plans
 from app.workflows.recommend import main
@@ -63,6 +64,39 @@ plans:
     last_verified: 2026-08-15
 """
 
+SIX_SCOREABLE_DOC = DOC + """
+  - id: extra-one
+    provider: ExtraCo
+    name: Extra One
+    monthly_usd: 30
+    currency: USD
+    region: US
+    limits: synthetic budget disclosure fixture
+    included_models: [GPT-5]
+    source_url: https://extra.example/one
+    last_verified: 2026-08-15
+  - id: extra-two
+    provider: ExtraCo
+    name: Extra Two
+    monthly_usd: 40
+    currency: USD
+    region: US
+    limits: synthetic budget disclosure fixture
+    included_models: [Gemini 3.1 Pro]
+    source_url: https://extra.example/two
+    last_verified: 2026-08-15
+  - id: extra-three
+    provider: ExtraCo
+    name: Extra Three
+    monthly_usd: 50
+    currency: USD
+    region: US
+    limits: synthetic budget disclosure fixture
+    included_models: [Claude 4.5 Opus]
+    source_url: https://extra.example/three
+    last_verified: 2026-08-15
+"""
+
 SCORES = (
     # (model_id, raw_name, score) on SWE-bench Verified
     ("gpt-5", "agent + GPT-5", 70.0),
@@ -108,6 +142,7 @@ def test_three_labeled_plan_picks_unlimited_budget() -> None:
     # Budget pick: cheapest meeting floor 65.0 → Cheap Plan (70.0 @ $8)
     assert rec.picks[2].plan == "Cheap Plan"
     assert "kalite şartını geçen en ucuz plan" in rec.picks[2].why
+    assert EPOCH_ATTRIBUTION in rec.sources  # REQ-LIC-001 subscription payload surface
 
 
 def test_budget_cap_filters_before_scoring() -> None:
@@ -118,6 +153,21 @@ def test_budget_cap_filters_before_scoring() -> None:
     rec = recommend_subscription(_db(), budget="dusuk", task="coding")
     assert rec is not None
     assert all(p.plan == "Cheap Plan" for p in rec.picks)
+
+
+def test_budget_notice_counts_only_scoreable_plans_excluded_by_price() -> None:
+    """REQ-REC-013: six scoreable rows under low budget disclose five priced-out rows."""
+    rec = recommend_subscription(_db(SIX_SCOREABLE_DOC), budget="dusuk", task="coding")
+    assert rec is not None
+    assert rec.eligible_count == 1
+    assert rec.excluded_by_budget == 5
+    assert rec.budget_notice == "Bütçe sınırı 5 skorlanabilir planı seçenekler dışında bıraktı."
+    assert rec.unscored_plans == ("Vague Plan",)
+
+    unlimited = recommend_subscription(_db(SIX_SCOREABLE_DOC), budget="sinirsiz", task="coding")
+    assert unlimited is not None
+    assert unlimited.excluded_by_budget == 0
+    assert unlimited.budget_notice is None
 
 
 def test_unscored_plan_is_disclosed_never_ranked() -> None:
@@ -522,7 +572,8 @@ def test_equivalence_note_says_which_members_rest_on_a_roster() -> None:
     conn = _db(TWIN_DOC)
     conn.execute(
         "UPDATE plan_models SET link_source = 'roster',"
-        " source_url = 'https://twinco.example/models' WHERE plan_id = 'twin-plan'"
+        " source_url = 'https://twinco.example/models', last_verified = '2026-08-15'"
+        " WHERE plan_id = 'twin-plan'"
     )
     rec = recommend_subscription(conn, "orta", "coding")
     assert rec is not None

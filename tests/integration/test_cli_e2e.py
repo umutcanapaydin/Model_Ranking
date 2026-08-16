@@ -85,6 +85,19 @@ def _run_cli(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _run_schema_cli(*args: str) -> subprocess.CompletedProcess[str]:
+    prior = os.environ.get("PYTHONPATH")
+    pythonpath = str(SRC_DIR) if not prior else f"{SRC_DIR}{os.pathsep}{prior}"
+    return subprocess.run(
+        [sys.executable, "-m", "app.workflows.schema", *args],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+        env={**os.environ, "PYTHONPATH": pythonpath},
+    )
+
+
 def test_cli_end_to_end_three_picks(tmp_path: Path) -> None:
     """V4C-50: the REAL entry point returns three valid picks as JSON."""
     db = _build_db(tmp_path)
@@ -94,6 +107,7 @@ def test_cli_end_to_end_three_picks(tmp_path: Path) -> None:
     assert [p["label"] for p in payload["picks"]] == ["best_quality", "best_value", "budget_pick"]
     assert payload["picks"][0]["model"] == "Claude 4.5 Opus"
     assert payload["task"] == "coding"
+    assert any("Epoch AI" in source and "CC-BY-4.0" in source for source in payload["sources"])
 
 
 def test_cli_budget_filters_through_entry_point(tmp_path: Path) -> None:
@@ -210,3 +224,36 @@ def test_cli_no_eligible_model_exits_1(tmp_path: Path) -> None:
     proc = _run_cli("--db", str(db_path), "--budget", "dusuk")
     assert proc.returncode == 1
     assert "no eligible model" in json.loads(proc.stdout)["error"]
+
+
+def test_explicit_schema_migrate_command_through_real_module_entrypoint(tmp_path: Path) -> None:
+    """W-004 / V4C-50: the documented migrate subcommand, not a unit shim, evolves the DB."""
+    db = tmp_path / "legacy.db"
+    conn = sqlite3.connect(db)
+    conn.executescript(
+        "CREATE TABLE plan_models (plan_id TEXT NOT NULL, raw_name TEXT NOT NULL,"
+        " model_id TEXT, UNIQUE (plan_id, raw_name));"
+        "INSERT INTO plan_models (plan_id, raw_name) VALUES ('legacy', 'Old Model');"
+        "CREATE TABLE scores (model_id TEXT, raw_name TEXT NOT NULL, benchmark TEXT NOT NULL,"
+        " metric TEXT NOT NULL, score REAL NOT NULL, harness TEXT NOT NULL, run_date TEXT,"
+        " cost_total REAL, source TEXT NOT NULL, source_url TEXT NOT NULL, observed_at TEXT NOT NULL,"
+        " UNIQUE (raw_name, benchmark, metric, harness, source));"
+        "INSERT INTO scores (raw_name, benchmark, metric, score, harness, source, source_url,"
+        " observed_at) VALUES ('old-model', 'DeepSWE', '% resolved', 50, 'agent', 'epoch',"
+        " 'https://x', 't');"
+    )
+    conn.close()
+
+    proc = _run_schema_cli("migrate", "--db", str(db))
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["applied_count"] == 4
+    migrated = sqlite3.connect(db)
+    assert migrated.execute(
+        "SELECT plan_id, raw_name, link_source FROM plan_models"
+    ).fetchone() == ("legacy", "Old Model", "plan-page")
+    assert migrated.execute("SELECT raw_name, effort FROM scores").fetchone() == (
+        "old-model",
+        "unspecified",
+    )
+    migrated.close()

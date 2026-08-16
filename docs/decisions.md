@@ -454,4 +454,28 @@ implementation silently missed).
 
 ---
 
+## D-111 — Budget exclusion is a separate, counted disclosure
+
+**Status:** proposed (M5-W4 implementation; owner ratification requested at the M5 gate)
+
+**Decision:** subscription recommendation payloads expose `excluded_by_budget`, the count of
+otherwise scoreable plans removed by the selected monthly-price cap, and `budget_notice`, a
+user-facing sentence narrating the same count. The count is computed as the complete category
+ranking minus the budget-filtered ranking. It never includes unscored plans and never overloads
+D-110's model-equivalence fields.
+
+**Rationale:** `eligible_count: 1` did not explain that five scoreable plans were excluded in the
+measured low-budget agentic-coding case. Counting all plans would incorrectly mix budget exclusion
+with missing benchmark coverage; using `equivalence_note` would confuse price filtering with plans
+that deliver identical model evidence.
+
+**Mitigation if violated:** `REQ-REC-013` has a six-scoreable/one-unscored acceptance fixture and a
+real-bundle CLI assertion. Removing the notice, counting the unscored plan, or computing after the
+cap turns a citing test red.
+
+**Revisit when:** the API milestone structures exclusion reasons into typed groups; preserve this
+count's exact scoreable-before-cap meaning during that migration.
+
+---
+
 *Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*

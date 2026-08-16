@@ -297,3 +297,20 @@ Research suggests Supabase or Cloudflare Workers for the serving layer. No decis
 **Statement:** re-probe the price M3 excluded as disputed; the row enters only on dated evidence, otherwise the exclusion is re-recorded.
 **Acceptance:** the entry states WHY the dispute resolved; the model list comes from the provider's own page, never from a price tracker.
 **Status:** DONE (M4-W4 — $4.99; the "dispute" was a 2026-06-08 price cut, i.e. two trackers dated either side of one change)
+
+## 12. M5 — Rescue the coding category (implementation trace pending owner gate)
+
+> Added 2026-08-16 from the signed `docs/plans/m5-plan.md`. Historical M4 deferral text above is
+> preserved as the record of that gate. This newer section supersedes it for current implementation
+> status, but no M5 item is recorded as owner-accepted until the milestone verification session.
+
+| REQ-ID | Implemented behavior and evidence | Current status |
+|---|---|---|
+| REQ-ING-010 | Local allowlisted Epoch CSV ingestion with required provenance and an independent acquisition clock. Citing tests: `test_epoch_ingest.py`, `test_epoch_workflow.py`, `test_deepswe_workflow.py`, `test_epoch_staleness.py`. | IMPLEMENTED; pending M5 owner gate |
+| REQ-ING-011b | Selected-row evidence partitions coding as 2 fresh / 3 stale / 5 unscored and agentic-coding as 6 undated / 4 unscored; source-global dates remain telemetry. Citing tests: `test_coverage.py`, `test_deepswe_workflow.py`. | IMPLEMENTED; pending M5 owner gate |
+| REQ-CAN-005 | Effort is parsed, validated, stored, and reconciled; unknown/conflicting rows are counted. Citing tests: `test_schema.py`, `test_effort.py`, `test_deepswe_workflow.py`. | IMPLEMENTED; pending M5 owner gate |
+| REQ-REC-011 | Model and plan output name ranked effort and compare only same-harness/same-source higher effort. Citing test: `test_effort.py`. | IMPLEMENTED; pending M5 owner gate |
+| REQ-SUB-007 | Pinned baseline coding 1/10; Epoch coding 5/10; DeepSWE agentic-coding 6/10; cross-category union 6/10. Citing tests: `test_m5_board_measurement.py`, `test_deepswe_workflow.py`. | IMPLEMENTED; pending M5 owner gate |
+| REQ-LIC-001 | Required Epoch citation is in ranking exports, both recommendation payload source lists, and README. Citing tests: `test_categories.py`, `test_recommend.py`, `test_deepswe_workflow.py`. | IMPLEMENTED; pending M5 owner gate |
+| REQ-REC-012 | Board measurement carries both Gemini results and states the disagreement. Citing test: `test_m5_board_measurement.py`. | IMPLEMENTED; pending M5 owner gate |
+| REQ-REC-013 | `excluded_by_budget` counts scoreable plans removed by the cap and `budget_notice` narrates it, separate from unscored/equivalent plans. Citing tests: `test_subscribe.py`, `test_deepswe_workflow.py`; contract proposed in D-111. | IMPLEMENTED; pending D-111 owner ratification at M5 gate |

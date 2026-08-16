@@ -70,35 +70,39 @@ def test_429_backs_off_then_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @respx.mock
-def test_429_exhaustion_falls_back_to_rows_then_fails_loud(
+def test_429_exhaustion_fails_loud_without_full_rows_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """W-007: a filtered-source failure must not trigger self-rate-limiting full pagination."""
     monkeypatch.setattr("app.clients.arena.time.sleep", lambda _s: None)
     respx.get(FILTER_API).mock(return_value=httpx.Response(429))
-    respx.get(ROWS_API).mock(return_value=httpx.Response(429))
+    rows_route = respx.get(ROWS_API).mock(return_value=_page(0, 1, 1))
     with pytest.raises(SourceError, match="arena fetch failed"):
         ArenaClient().fetch_raw()
+    assert rows_route.call_count == 0
 
 
 @respx.mock
-def test_filter_failure_falls_back_to_rows() -> None:
-    """If /filter errors (endpoint drift), /rows pagination still serves — loudly capped."""
+def test_filter_failure_fails_loud_without_full_rows_fallback() -> None:
+    """W-007: endpoint drift aborts this source; it never downloads unrelated category rows."""
     respx.get(FILTER_API).mock(return_value=httpx.Response(500))
     rows_route = respx.get(ROWS_API)
     rows_route.side_effect = [_page(0, 30, 30)]
-    payload = json.loads(ArenaClient().fetch_raw())
-    assert len(payload["rows"]) == 30
-    assert rows_route.call_count == 1
+    with pytest.raises(SourceError, match="arena fetch failed"):
+        ArenaClient().fetch_raw()
+    assert rows_route.call_count == 0
 
 
 @respx.mock
-def test_rows_fallback_page_cap_exhaustion_fails_loudly() -> None:
-    """The original live failure, preserved as a regression on the fallback path."""
-    respx.get(FILTER_API).mock(return_value=httpx.Response(500))
+def test_filter_page_cap_exhaustion_fails_loudly_without_rows_fallback() -> None:
+    """The anti-truncation cap applies to /filter without opening the W-007 fallback path."""
+    filter_route = respx.get(FILTER_API)
+    filter_route.side_effect = [_page(i * 100, 100, 10_000) for i in range(50)]
     rows_route = respx.get(ROWS_API)
-    rows_route.side_effect = [_page(i * 100, 100, 10_000) for i in range(50)]
     with pytest.raises(SourceError, match="aborted"):
         ArenaClient().fetch_raw()
+    assert filter_route.call_count == 50
+    assert rows_route.call_count == 0
 
 
 def test_client_has_no_misleading_url_parameter() -> None:

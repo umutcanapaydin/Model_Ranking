@@ -48,6 +48,10 @@ jobs:
       # so they get their own red light — a stale roster is a stale answer.
       - name: Provider rosters within staleness window (REQ-ING-009)
         run: python -m app.workflows.rosters --check-staleness data/rosters.yaml
+      # M5-W4: Epoch acquisition has its OWN clock. This does not age benchmark
+      # evidence; selected rows keep evaluation-date/undated semantics.
+      - name: Epoch bundle acquisition within staleness window (REQ-ING-010)
+        run: python -m app.workflows.epoch --check-staleness data/epoch-source.yaml
 
   live-contracts:
     runs-on: ubuntu-latest

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -285,6 +287,7 @@ def test_higher_scoring_roster_link_still_wins_and_carries_its_source() -> None:
     assert quiet.scored_by_model == "Claude Opus 5"
     assert quiet.scored_via == "roster"
     assert quiet.link_source_url == "https://quietco.example/help/models"
+    assert quiet.link_last_verified == "2026-08-15"
 
 
 def test_recommendation_text_states_which_source_named_the_model() -> None:
@@ -297,6 +300,78 @@ def test_recommendation_text_states_which_source_named_the_model() -> None:
     assert quality.scored_via == "roster"
     assert "sağlayıcının yayımladığı plan model listesinde" in quality.why
     assert quality.link_source_url == "https://quietco.example/help/models"
+    assert quality.link_last_verified == "2026-08-15"
+
+
+def test_selected_stale_roster_clock_is_disclosed_through_cli(tmp_path, capsys) -> None:
+    """W-003 / REQ-REC-008: a fresh price cannot mask the selected roster link's old clock."""
+    conn = _scored_db(60.0, 77.0)
+    conn.execute(
+        "UPDATE plans SET observed_at='2026-08-16T00:00:00+00:00'," " last_verified='2026-08-15'"
+    )
+    conn.execute(
+        "UPDATE plan_models SET last_verified='2026-05-01'"
+        " WHERE plan_id='quiet-plan' AND link_source='roster'"
+    )
+    conn.commit()
+    db = tmp_path / "advisor.db"
+    target = sqlite3.connect(db)
+    conn.backup(target)
+    target.close()
+    conn.close()
+
+    from app.workflows.recommend import main as recommend_main
+
+    assert (
+        recommend_main(
+            ["--db", str(db), "--budget", "sinirsiz", "--task", "coding", "--subscription"]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["picks"][0]["plan"] == "Quiet Plan"
+    assert payload["picks"][0]["link_last_verified"] == "2026-05-01"
+    assert payload["stale_notice"] is not None
+    assert "Quiet Plan" in payload["stale_notice"]
+    assert "2026-05-01" in payload["stale_notice"]
+    assert "roster" in payload["stale_notice"]
+    assert "https://quietco.example/help/models" in payload["stale_notice"]
+    assert any("Epoch AI" in source and "CC-BY-4.0" in source for source in payload["sources"])
+
+
+def test_stale_unselected_roster_link_is_not_disclosed() -> None:
+    """W-003: staleness follows the selected evidence row, not every candidate link."""
+    from app.workflows.subscribe import recommend_subscription
+
+    conn = _scored_db(80.0, 77.0)  # plan-page model wins for quiet-plan
+    conn.execute(
+        "UPDATE plan_models SET last_verified='2026-05-01'"
+        " WHERE plan_id='quiet-plan' AND link_source='roster'"
+    )
+    rec = recommend_subscription(conn, "sinirsiz", "coding")
+    assert rec is not None
+    assert rec.stale_notice is None
+
+
+def test_selected_roster_staleness_boundary_is_data_owned() -> None:
+    """W-003: the plan-config 30-day boundary is fresh; age 31 is stale."""
+    from app.workflows.subscribe import recommend_subscription
+
+    conn = _scored_db(60.0, 77.0)
+    conn.execute("UPDATE plans SET observed_at='2026-08-16T00:00:00+00:00'")
+    conn.execute(
+        "UPDATE plan_models SET last_verified='2026-07-17'"
+        " WHERE plan_id='quiet-plan' AND link_source='roster'"
+    )
+    fresh = recommend_subscription(conn, "sinirsiz", "coding")
+    assert fresh is not None and fresh.stale_notice is None
+
+    conn.execute(
+        "UPDATE plan_models SET last_verified='2026-07-16'"
+        " WHERE plan_id='quiet-plan' AND link_source='roster'"
+    )
+    stale = recommend_subscription(conn, "sinirsiz", "coding")
+    assert stale is not None and "2026-07-16" in (stale.stale_notice or "")
 
 
 def test_migration_repairs_a_pre_wave_database(tmp_path) -> None:

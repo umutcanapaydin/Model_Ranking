@@ -1,6 +1,6 @@
-# model_ranking — LLM Benchmark & Recommendation Engine (Pipeline v4.2)
+# model_ranking — LLM Benchmark & Recommendation Engine (Pipeline v4.3.1)
 
-> model_ranking: aggregates free-and-legal LLM benchmark + pricing data and produces budget-aware, per-use-case model recommendations (engine behind a future iOS advisor app). Generated from the D-A vibe-engineering pipeline template v4.2. Run `make check` (day-1 green) and `make bootstrap-check` (the Stage-0 gate) until both pass. (v2→v4 changelog: `pipeline-design.md` §0.)
+> model_ranking: aggregates free-and-legal LLM benchmark + pricing data and produces budget-aware, per-use-case model recommendations (engine behind a future iOS advisor app). Process baseline: General Pipeline v4.3.1. Run `make check` (day-1 green) and `make bootstrap-check` (the Stage-0 gate) until both pass.
 >
 > **★ Fresh agent or new team member?** Read [`START_HERE.md`](START_HERE.md) first (5-minute orientation). Then `AGENTS.md`, then the rest.
 >
@@ -84,3 +84,9 @@ Both names point to the same file. Industry standard (AGENTS.md, in 60k+ public 
 ## License
 
 Proprietary — ILGAR / Umut Can Apaydın. All rights reserved.
+
+## Data attribution
+
+Epoch AI benchmark data is used under CC BY 4.0. Required citation: Epoch AI, ‘AI Benchmarking Hub’. Published online at epoch.ai. Retrieved from ‘https://epoch.ai/benchmarks’ [online resource].
+This citation also travels in every ranking export and recommendation payload source list
+(REQ-LIC-001).

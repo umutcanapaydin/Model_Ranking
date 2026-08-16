@@ -235,3 +235,24 @@ Four of the five items above were actioned the same session; the remaining one i
 | **REQ-REC-009 restatement · REQ-ING-010 + REQ-ING-011b criteria diff · W-001 allowlist** | **CLEARED 2026-08-15.** The owner ratified D-110 (and D-109) and accepted the two ingestion criteria as a diff to M5 at the closure session, after verifying the run himself. W-001 carries to M5 as an owner action. **The gate verdict below is therefore superseded: M4 CLOSES.** |
 
 Test totals after the addendum: **193 passed, 5 gated** (was 191); `make check` green on all eight gates.
+
+## 9. M5 implementation trace addendum (2026-08-16; pending owner milestone gate)
+
+This section supersedes the M4-era `DEFERRED` status for REQ-ING-010/011b without rewriting that
+historical gate. Evidence is the M5 tree; final acceptance remains reserved for the owner's joint
+milestone verification.
+
+| REQ-ID | Implementation | Citing acceptance evidence | Status |
+|---|---|---|---|
+| REQ-ING-010 | `clients/epoch.py`, `clients/deepswe.py`, `workflows/ingest.py`, `workflows/epoch.py`, `data/epoch-source.yaml` | `test_epoch_ingest.py`; `test_epoch_workflow.py`; `test_deepswe_workflow.py`; `test_epoch_staleness.py` | IMPLEMENTED |
+| REQ-ING-011b | `coverage.plan_evidence_health` reads the same deterministic row selected by `subscribe.plan_ranking`; releases never become run dates | `test_coverage.py` selected-row/source-MAX adversary + 59/60 boundary; real Epoch/DeepSWE acceptance tests | IMPLEMENTED |
+| REQ-CAN-005 | effort-aware schema identity, parser policy, registry reconciliation, explicit `schema migrate` operator command | `test_schema.py`; `test_effort.py`; `test_deepswe_workflow.py`; real CLI migration test | IMPLEMENTED |
+| REQ-REC-011 | model and plan payloads disclose ranked effort and same-harness/same-source higher effort | `test_effort.py` model/subscription CLI and cross-identity adversaries | IMPLEMENTED |
+| REQ-SUB-007 | baseline producer + real-engine board application | `test_m5_board_measurement.py`; `test_deepswe_workflow.py`: coding 1/10 -> 5/10; agentic 6/10; union 6/10 | IMPLEMENTED |
+| REQ-LIC-001 | one Epoch citation constant reused in export attribution and both recommendation `sources` lists, mirrored in README | `test_categories.py`; `test_recommend.py`; real subscription CLI assertion in `test_deepswe_workflow.py` | IMPLEMENTED |
+| REQ-REC-012 | board measurement publishes rounded Epoch and DeepSWE Gemini values plus contradiction narrative | `test_m5_board_measurement.py` real CLI boundary | IMPLEMENTED |
+| REQ-REC-013 | scoreable-before-cap exclusion count and separate user notice, never mixed with unscored/equivalent plans | six-scoreable synthetic acceptance in `test_subscribe.py`; real five-excluded assertion in `test_deepswe_workflow.py` | IMPLEMENTED; D-111 proposed |
+
+W4 also closes carried implementation warnings W-003, W-004, W-006, and W-007. Their final
+dispositions and exact test surfaces are retained in `docs/warnings.ledger.md`; W-002 and W-005
+remain assigned to M6, and W-001 remains an owner escalation.

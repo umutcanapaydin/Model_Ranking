@@ -17,12 +17,13 @@ User-facing strings are Turkish by design (owner's market — .language-allow).
 
 from __future__ import annotations
 
+import datetime as dt
 import sqlite3
 from dataclasses import dataclass
 
 from app.workflows.categories import CategorySpec, get_category
 from app.workflows.plans import stale_plans
-from app.workflows.rank import higher_effort_evidence
+from app.workflows.rank import ATTRIBUTIONS, higher_effort_evidence
 from app.workflows.recommend import (
     effort_disclosure,
     lead_phrase,
@@ -49,6 +50,7 @@ class PlanRank:
     link_source_url: (
         str | None
     )  # roster links carry their own source; plan-page links use the plan's
+    link_last_verified: str | None
     harness: str
     effort: str
     higher_effort: str | None
@@ -73,6 +75,7 @@ class PlanPick:
     scored_by_model: str
     scored_via: str
     link_source_url: str | None
+    link_last_verified: str | None
     harness: str
     effort: str | None
     higher_effort: str | None
@@ -92,7 +95,10 @@ class SubscriptionRecommendation:
     task: str
     budget: str
     ranking_effort: str | None
+    sources: tuple[str, ...]
     eligible_count: int
+    excluded_by_budget: int
+    budget_notice: str | None
     frontier_size: int
     unscored_plans: tuple[str, ...]  # disclosed, never silently dropped
     # Plans that rank IDENTICALLY because their pages name the same model. The
@@ -100,14 +106,10 @@ class SubscriptionRecommendation:
     # is not to manufacture variety — it is to say "these are the same engine, buy
     # the cheapest" (M4-W4: measured on live assistant data, three <=$25 plans all
     # scoring 1479.6 via Gemini 3.1 Pro).
-    # NOT every collapse is equivalence, and this field must never be read as if it
-    # were: on the CODING category the three labels also land on one plan, but for
-    # the opposite reason — only one curated plan is scoreable at all (1/10 after this
-    # wave adds Google AI Plus; M4-W3 measured 1/9 before it. SWE-bench has published
-    # nothing since 2026-02-26, so the denominator grows and the numerator does not).
-    # That is a COVERAGE failure,
-    # reported by `coverage.plan_coverage`, and it leaves this tuple empty because
-    # there is no second plan to be equivalent TO.
+    # NOT every label collapse is equivalence: all labels may also land on one plan
+    # because only one budget-eligible plan is scoreable. That is a coverage/budget
+    # fact, reported separately by `coverage.plan_coverage`, `excluded_by_budget`, and
+    # `budget_notice`; this tuple stays empty when no second plan is equivalent TO.
     equivalent_plans: tuple[str, ...]
     equivalence_note: str | None
     close_call: str | None
@@ -144,6 +146,7 @@ def plan_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[PlanRank]
           SELECT pm.plan_id, m.id AS model_id, m.display, s.harness, s.effort,
                  s.run_date, s.score,
                  pm.link_source, pm.source_url AS link_source_url,
+                 pm.last_verified AS link_last_verified,
                  s.source AS evidence_source,
                  s.source_url AS evidence_source_url,
                  s.raw_name AS evidence_raw_name,
@@ -172,6 +175,7 @@ def plan_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[PlanRank]
                (SELECT run_date    FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
                (SELECT link_source FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
                (SELECT link_source_url FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
+               (SELECT link_last_verified FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
                (SELECT evidence_source FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
                (SELECT evidence_source_url FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
                (SELECT evidence_raw_name FROM detail d WHERE d.plan_id = p.id AND d.rn = 1)
@@ -188,7 +192,7 @@ def plan_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[PlanRank]
     ranking: list[PlanRank] = []
     for r in rows:
         higher_effort, higher_score = higher_effort_evidence(
-            conn, r[8], spec, harness=r[10], source=r[15]
+            conn, r[8], spec, harness=r[10], source=r[16]
         )
         ranking.append(
             PlanRank(
@@ -208,9 +212,10 @@ def plan_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[PlanRank]
                 evidence_date=r[12],
                 scored_via=r[13],
                 link_source_url=r[14],
-                evidence_source=r[15],
-                evidence_source_url=r[16],
-                evidence_raw_name=r[17],
+                link_last_verified=r[15],
+                evidence_source=r[16],
+                evidence_source_url=r[17],
+                evidence_raw_name=r[18],
             )
         )
     return ranking
@@ -237,16 +242,51 @@ def _pareto(rows: list[PlanRank]) -> list[PlanRank]:
     )
 
 
-def _stale_notice(conn: sqlite3.Connection) -> str | None:
-    """REQ-REC-008: stale plan rows named in the output, with their dates."""
+def _stale_notice(conn: sqlite3.Connection, ranking: list[PlanRank]) -> str | None:
+    """REQ-REC-008/W-003: disclose price and selected-roster clocks separately."""
+    notices: list[str] = []
     stale = stale_plans(conn)
-    if not stale:
-        return None
-    listed = ", ".join(f"{s.name} (son doğrulama {s.last_verified})" for s in stale)
-    return (
-        f"Dikkat: {len(stale)} plan satırının fiyat doğrulaması eskidi — {listed}. "
-        "Fiyatlar değişmiş olabilir; tabloyu yeniden doğrulamadan karara güvenme."
-    )
+    if stale:
+        listed = ", ".join(f"{s.name} (son doğrulama {s.last_verified})" for s in stale)
+        notices.append(
+            f"Dikkat: {len(stale)} plan satırının fiyat doğrulaması eskidi — {listed}. "
+            "Fiyatlar değişmiş olabilir; tabloyu yeniden doğrulamadan karara güvenme."
+        )
+
+    cfg = conn.execute("SELECT staleness_days FROM plan_config WHERE id = 1").fetchone()
+    if cfg is None:
+        return " ".join(notices) or None
+    window = int(cfg[0])
+    observed = {
+        plan_id: value
+        for plan_id, value in conn.execute("SELECT id, observed_at FROM plans ORDER BY id")
+    }
+    stale_rosters: list[PlanRank] = []
+    for row in ranking:
+        if row.scored_via != "roster":
+            continue
+        if row.link_last_verified is None or row.link_source_url is None:
+            raise ValueError(f"{row.plan_id}: selected roster link has incomplete provenance")
+        try:
+            age = (
+                dt.date.fromisoformat(str(observed[row.plan_id])[:10])
+                - dt.date.fromisoformat(row.link_last_verified)
+            ).days
+        except (KeyError, ValueError) as exc:
+            raise ValueError(f"{row.plan_id}: selected roster link has invalid dates") from exc
+        if age > window:
+            stale_rosters.append(row)
+    if stale_rosters:
+        listed = ", ".join(
+            f"{row.plan} (roster son doğrulama {row.link_last_verified}, "
+            f"kaynak {row.link_source_url})"
+            for row in stale_rosters
+        )
+        notices.append(
+            f"Dikkat: {len(stale_rosters)} seçili roster bağlantısının doğrulaması eskidi — "
+            f"{listed}. Model listesini yeniden doğrulamadan karara güvenme."
+        )
+    return " ".join(notices) or None
 
 
 def _pick(
@@ -263,6 +303,7 @@ def _pick(
         scored_by_model=row.scored_by_model,
         scored_via=row.scored_via,
         link_source_url=row.link_source_url,
+        link_last_verified=row.link_last_verified,
         harness=row.harness,
         effort=spec.ranking_effort,
         higher_effort=row.higher_effort,
@@ -289,6 +330,12 @@ def recommend_subscription(
     rows = [r for r in ranking if cap is None or r.monthly_usd <= cap]
     if not rows:
         return None
+    excluded_by_budget = len(ranking) - len(rows)
+    budget_notice = (
+        f"Bütçe sınırı {excluded_by_budget} skorlanabilir planı seçenekler dışında bıraktı."
+        if excluded_by_budget
+        else None
+    )
 
     frontier = _pareto(rows)
     quality = frontier[0]
@@ -443,12 +490,15 @@ def recommend_subscription(
         task=spec.id,
         budget=budget,
         ranking_effort=spec.ranking_effort,
+        sources=ATTRIBUTIONS,
         eligible_count=len(rows),
+        excluded_by_budget=excluded_by_budget,
+        budget_notice=budget_notice,
         frontier_size=len(frontier),
         unscored_plans=unscored,
         equivalent_plans=equivalent,
         equivalence_note=equivalence_note,
         close_call=close_call,
-        stale_notice=_stale_notice(conn),
+        stale_notice=_stale_notice(conn, ranking),
         picks=picks,
     )

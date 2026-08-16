@@ -125,17 +125,14 @@ class ArenaClient:
         return json.dumps({"rows": merged, "num_rows_total": total})
 
     def fetch_raw(self) -> str:
-        """Server-side filter first (overall board only); /rows fallback stays loud.
+        """Fetch only the documented, server-filtered overall board.
 
-        FP-M2-1: /filter with WHERE_FULL returns a few hundred rows instead of the
-        >5000-row full split. If /filter itself errors (endpoint change, dataset not
-        indexed), we fall back to plain /rows pagination — which may legitimately
-        hit the page cap and abort loudly rather than truncate.
+        W-007: a filter failure used to trigger full ``/rows`` pagination, downloading
+        unrelated category slices until the client rate-limited itself. The bounded
+        filtered surface is required now; failure aborts this source loudly and leaves
+        its prior working set intact.
         """
-        try:
-            return self._paginate(FILTER_API, {"where": WHERE_OVERALL})
-        except SourceError:
-            return self._paginate(ROWS_API, {})
+        return self._paginate(FILTER_API, {"where": WHERE_OVERALL})
 
 
 def parse_arena(

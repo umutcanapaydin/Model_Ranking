@@ -25,7 +25,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from app.workflows.categories import CategorySpec, get_category
-from app.workflows.rank import RankingRow, build_price_medians, category_ranking
+from app.workflows.rank import ATTRIBUTIONS, RankingRow, build_price_medians, category_ranking
 
 # Budget thresholds on blended $/1M (documented constants — REQ-REC-002)
 BUDGETS: dict[str, float | None] = {"dusuk": 2.0, "orta": 8.0, "sinirsiz": None}
@@ -107,6 +107,7 @@ class Recommendation:
     task: str
     budget: str
     ranking_effort: str | None
+    sources: tuple[str, ...]
     eligible_count: int
     frontier_size: int
     close_call: str | None
@@ -310,6 +311,7 @@ def recommend(
         task=spec.id,
         budget=budget,
         ranking_effort=spec.ranking_effort,
+        sources=ATTRIBUTIONS,
         eligible_count=len(rows),
         frontier_size=len(frontier),
         close_call=close_call,

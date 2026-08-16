@@ -27,6 +27,11 @@ SOURCE_NAME = "epoch_swe_bench_verified"
 BENCHMARK = "SWE-bench Verified"
 METRIC = "% resolved"
 HARNESS = "inspect_ai"
+EPOCH_ATTRIBUTION = (
+    "Epoch AI, \u2018AI Benchmarking Hub\u2019. Published online at epoch.ai. "
+    "Retrieved from \u2018https://epoch.ai/benchmarks\u2019 [online resource]. "
+    "(CC BY 4.0 / CC-BY-4.0)"
+)
 
 _REQUIRED_COLUMNS = frozenset({"Model version", "mean_score", "Started at"})
 _CANONICAL_DATE = re.compile(r"\d{4}-\d{2}-\d{2}\Z")

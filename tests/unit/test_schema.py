@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 
 import pytest
 
-from app.workflows.schema import connect, migrate, reset_source
+from app.workflows.schema import connect, main, migrate, reset_source
 
 
 def test_schema_creates_all_tables() -> None:
@@ -99,6 +100,63 @@ def test_scores_reject_unknown_effort() -> None:
             " source, source_url, observed_at)"
             " VALUES ('m', 'b', '%', 1.0, 'h', 'turbo', 's', 'u', 't')"
         )
+
+
+def test_explicit_migrate_cli_preserves_legacy_rows_and_is_idempotent(tmp_path, capsys) -> None:
+    """W-004 / REQ-CAN-005: the operator command reaches migration without mutating read CLIs."""
+    db = tmp_path / "legacy.db"
+    legacy = sqlite3.connect(db)
+    legacy.executescript(
+        "CREATE TABLE plan_models (plan_id TEXT NOT NULL, raw_name TEXT NOT NULL,"
+        " model_id TEXT, UNIQUE (plan_id, raw_name));"
+        "INSERT INTO plan_models (plan_id, raw_name) VALUES ('old-plan', 'Old Model');"
+        "CREATE TABLE scores (model_id TEXT, raw_name TEXT NOT NULL, benchmark TEXT NOT NULL,"
+        " metric TEXT NOT NULL, score REAL NOT NULL, harness TEXT NOT NULL, run_date TEXT,"
+        " cost_total REAL, source TEXT NOT NULL, source_url TEXT NOT NULL, observed_at TEXT NOT NULL,"
+        " UNIQUE (raw_name, benchmark, metric, harness, source));"
+        "INSERT INTO scores (raw_name, benchmark, metric, score, harness, source, source_url,"
+        " observed_at) VALUES ('old-model', 'DeepSWE', '% resolved', 50, 'agent', 'epoch',"
+        " 'https://x', 't');"
+    )
+    legacy.close()
+
+    assert main(["migrate", "--db", str(db)]) == 0
+    first = json.loads(capsys.readouterr().out)
+    assert first["applied"] == [
+        "plan_models.link_source",
+        "plan_models.source_url",
+        "plan_models.last_verified",
+        "scores.effort",
+    ]
+    assert first["applied_count"] == 4
+
+    conn = sqlite3.connect(db)
+    assert conn.execute("SELECT plan_id, raw_name, link_source FROM plan_models").fetchone() == (
+        "old-plan",
+        "Old Model",
+        "plan-page",
+    )
+    assert conn.execute("SELECT raw_name, effort FROM scores").fetchone() == (
+        "old-model",
+        "unspecified",
+    )
+    conn.close()
+
+    assert main(["migrate", "--db", str(db)]) == 0
+    assert json.loads(capsys.readouterr().out)["applied"] == []
+
+
+def test_explicit_migrate_cli_refuses_missing_or_non_database_file(tmp_path, capsys) -> None:
+    """W-004: an operator typo must not create a new empty database or hide invalid input."""
+    missing = tmp_path / "missing.db"
+    assert main(["migrate", "--db", str(missing)]) == 2
+    assert not missing.exists()
+    assert "db not found" in json.loads(capsys.readouterr().out)["error"]
+
+    broken = tmp_path / "broken.db"
+    broken.write_text("not sqlite", encoding="utf-8")
+    assert main(["migrate", "--db", str(broken)]) == 2
+    assert "db unusable" in json.loads(capsys.readouterr().out)["error"]
 
 
 def test_reset_source_rejects_unknown_table() -> None:
