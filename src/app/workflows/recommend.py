@@ -30,7 +30,9 @@ from app.workflows.rank import (
     attributions_for,
     build_price_medians,
     category_ranking,
+    secondary_evidence_sources,
 )
+from app.workflows.schema import EFFORT_UNSPECIFIED
 
 # Budget thresholds on blended $/1M (documented constants — REQ-REC-002)
 BUDGETS: dict[str, float | None] = {"dusuk": 2.0, "orta": 8.0, "sinirsiz": None}
@@ -95,6 +97,12 @@ class Pick:
     output_per_m: float
     evidence_date: str | None
     harness: str
+    # The effort the SELECTED EVIDENCE carries. M5 security review BLOCKING-1: this
+    # published the category's ranking POLICY instead, so `coding` (no policy) served a
+    # max-effort score with `effort: null` while the CSV export of the same run printed
+    # `effort,max` for the same model — two artifacts contradicting each other, and
+    # Trap 2 of the signed plan shipped. The policy is stated once, per answer, in
+    # `Recommendation.ranking_effort`.
     effort: str | None
     higher_effort: str | None
     higher_effort_score: float | None
@@ -116,6 +124,7 @@ class Recommendation:
     eligible_count: int
     frontier_size: int
     close_call: str | None
+    effort_mix_notice: str | None  # M5: comparisons across unequal effort are DISCLOSED
     stale_notice: str | None  # REQ-REC-006: primary source health, never hidden
     picks: tuple[Pick, ...]
 
@@ -154,9 +163,21 @@ def effort_disclosure(
     higher_effort_score: float | None,
     spec: CategorySpec,
 ) -> str | None:
-    """REQ-REC-011 Turkish disclosure for the named comparison level and range."""
+    """REQ-REC-011 Turkish disclosure for the named comparison level and range.
+
+    M5 security review BLOCKING-1, second half: a category with NO effort policy used to
+    say nothing at all — so a max-effort score served under `coding` was silent about
+    being a max-effort score. Silence about an effort the evidence explicitly carries is
+    the same overclaim in a quieter register. It now says which level the evidence is
+    from, and that this category does not compare at a fixed level.
+    """
     if spec.ranking_effort is None:
-        return None
+        if effort in (None, EFFORT_UNSPECIFIED):
+            return None
+        return (
+            f"Bu kategori sabit bir effort düzeyinde karşılaştırmıyor; "
+            f"bu skor {effort} effort düzeyindeki koşudan geliyor."
+        )
     if effort is None:
         return None
     if higher_effort is None or higher_effort_score is None:
@@ -168,6 +189,30 @@ def effort_disclosure(
         f"Bu model {spec.ranking_effort} effort düzeyinde sıralandı; "
         f"{higher_effort} effort düzeyinde "
         f"{round_score(higher_effort_score):.1f} {spec.score_unit} değerine ulaşıyor."
+    )
+
+
+def effort_mix_notice(efforts: list[str | None], spec: CategorySpec) -> str | None:
+    """Say so when the compared answers do NOT come from one effort level.
+
+    M5 quality gate: the owner's Q1 ruling is "rank at ONE named effort level so the
+    comparison stays fair". A category with no policy compares whatever each board
+    published — on the live Epoch board that means an 83.5 at `max` ranked above a 78.7
+    at an unstated level. No model mixes efforts with ITSELF there, so nothing is
+    overstated per model; what was unstated is that the models are not compared at equal
+    effort. This does not make an unequal comparison fair. It makes it VISIBLE, which is
+    the least this product may do while the policy question is with the owner.
+    """
+    if spec.ranking_effort is not None:
+        return None  # the category already compares at one declared level
+    distinct = {e for e in efforts if e}
+    if len(distinct) < 2:
+        return None
+    named = ", ".join(sorted(distinct))
+    return (
+        "Dikkat: bu kategori sabit bir effort düzeyinde karşılaştırmıyor ve bu cevaptaki "
+        f"skorlar farklı düzeylerden geliyor ({named}). Yüksek effort'ta koşulmuş bir "
+        "model, düşük effort'ta koşulmuş bir modele karşı avantajlı görünebilir."
     )
 
 
@@ -185,12 +230,11 @@ def _pick(label: str, row: RankingRow, spec: CategorySpec, why: str, trade_off: 
         output_per_m=row.output_per_m,
         evidence_date=row.evidence_date,
         harness=row.harness,
-        effort=spec.ranking_effort,
+        effort=row.effort,
         higher_effort=row.higher_effort,
         higher_effort_score=round_optional_score(row.higher_effort_score),
-        effort_note=effort_disclosure(
-            spec.ranking_effort, row.higher_effort, row.higher_effort_score, spec
-        ),
+        # Pass the EVIDENCE effort, not the policy — the policy is already `spec`.
+        effort_note=effort_disclosure(row.effort, row.higher_effort, row.higher_effort_score, spec),
         confidence=conf,
         confidence_basis=basis,
         why=why,
@@ -317,10 +361,19 @@ def recommend(
         budget=budget,
         ranking_effort=spec.ranking_effort,
         # W4 review BLOCKING-2: name only the sources this answer actually read.
-        sources=attributions_for({r.evidence_source for r in rows}, priced=True),
+        sources=attributions_for(
+            {r.evidence_source for r in rows}
+            | (
+                secondary_evidence_sources(conn, spec)
+                if any(r.secondary_score is not None for r in rows)
+                else set()
+            ),
+            priced=True,
+        ),
         eligible_count=len(rows),
         frontier_size=len(frontier),
         close_call=close_call,
+        effort_mix_notice=effort_mix_notice([p.effort for p in picks], spec),
         stale_notice=_stale_notice(conn, spec),
         picks=picks,
     )

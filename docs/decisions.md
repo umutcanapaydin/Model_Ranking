@@ -478,4 +478,42 @@ count's exact scoreable-before-cap meaning during that migration.
 
 ---
 
+## D-112 — An unequal-effort comparison is DISCLOSED, not silently equalised
+
+**Status:** proposed (M5 closure; **owner ratification requested at the M5 gate — this is the
+criterion-meaning question the quality gate is blocking on**)
+
+**Decision:** a category with no `ranking_effort` policy keeps ranking on the best evidence each
+board published, and the answer carries `effort_mix_notice` whenever the compared picks come from
+different effort levels. Each pick also publishes the effort of its OWN evidence and says which
+level that is. The alternative — forcing `coding` to one named effort — is measured below and is
+rejected as the worse trade unless the owner rules otherwise.
+
+**Rationale (measured on the owner's Epoch bundle, 2026-08-16, 28 canonical models on the coding
+board):** no model carries both an `unspecified` and an explicit effort row, so `MAX()` never
+inflates a single model — Trap 2's headline failure does not occur here. What DOES occur is a
+cross-model comparison at unequal effort: Claude Opus 4.7 at `max` (83.5) ranks above Claude Opus
+4.6 at an unstated level (78.7). Forcing one level costs almost the whole board:
+
+| `coding.ranking_effort` | Rankable models |
+|---|---|
+| (none — today) | **28** |
+| `unspecified` | 19 |
+| `high` | 4 |
+| `max` | 3 |
+| `medium` / `xhigh` / `low` | 1 / 1 / 0 |
+
+There is no level that keeps the board. Ranking 3 models is not a product; ranking 28 while
+claiming they were compared fairly is not honest. Disclosure is the only option that is both.
+
+**Mitigation if violated:** `test_comparison_across_unequal_effort_is_disclosed` fails if the notice
+is suppressed, and `test_pick_publishes_the_effort_of_its_evidence_not_the_category_policy` fails if
+a pick reports the policy instead of its evidence — the defect that shipped through four waves.
+
+**Revisit when:** the coding board's sources publish effort systematically (as DeepSWE already
+does — `agentic-coding` names `high` and needs none of this), or the owner rules that Q1 binds every
+category, in which case `coding` takes a level and the coverage cost above is accepted.
+
+---
+
 *Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*

@@ -397,3 +397,35 @@ def test_cli_opens_the_database_read_only(tmp_path) -> None:
 
     assert probes, "the CLI must open the database through sqlite3.connect"
     assert "readonly" in probes[0], probes[0]
+
+
+def test_coverage_cli_read_only_survives_a_path_containing_a_question_mark(tmp_path) -> None:
+    """M5 security review: `as_posix()` concatenation let a path defeat `mode=ro`.
+
+    A '?' in the database path terminated the URI, so the mode parameter was dropped
+    AND sqlite fell back to CREATING a database — a read-only command that writes. The
+    migrate command already used `as_uri()`; this one does now too.
+    """
+    tricky = tmp_path / "advisor?x.db"
+    _db(path=str(tricky)).close()
+    size_before = tricky.stat().st_size
+
+    probes: list[str] = []
+    real_connect = sqlite3.connect
+
+    def spy(*args: object, **kwargs: object) -> sqlite3.Connection:
+        conn = real_connect(*args, **kwargs)  # type: ignore[arg-type]
+        try:
+            conn.execute("DELETE FROM plans")
+        except sqlite3.OperationalError as exc:
+            probes.append(str(exc))
+        else:  # pragma: no cover - only reached when the handle is writable
+            conn.rollback()
+            probes.append("WRITE ACCEPTED")
+        return conn
+
+    with mock.patch.object(sqlite3, "connect", spy):
+        assert main(["--db", str(tricky), "--today", "2026-08-15"]) in (0, 1)
+
+    assert probes and "readonly" in probes[0], probes
+    assert tricky.stat().st_size == size_before

@@ -398,51 +398,142 @@ def test_real_deepswe_shape_has_one_disclosed_unknown_effort() -> None:
     assert all(row.run_date is None for row in rows)
 
 
-def test_no_effort_free_category_can_see_more_than_one_effort_level() -> None:
-    """W4 review MINOR-3 structural guard: Trap 2 of the M5 plan, made unrepeatable.
+def test_pick_publishes_the_effort_of_its_evidence_not_the_category_policy() -> None:
+    """M5 security review BLOCKING-1 citing test: `effort` is EVIDENCE, not policy.
 
-    A category with no `ranking_effort` does NOT filter on effort, so its `MAX()` spans
-    every effort level a source publishes for the same model+harness — silently
-    advertising a max-effort number to a buyer whose plan may not offer it. That is
-    exactly the trap the signed plan named. `coding` is effort-free today and is safe
-    only because its sources publish one level; nothing structural said so until now.
+    `coding` has no ranking effort, so the first cut published `effort: null` on every
+    coding pick — including one whose selected row was a MAX-effort run. The CSV export
+    of the same ranking printed `effort,max` for that model, so two artifacts of one run
+    contradicted each other, and Trap 2 of the signed plan shipped in the payload.
 
-    The rule: an effort-free category may only be fed by evidence that carries a single
-    non-`unspecified` effort per (model, benchmark, metric, harness, source).
+    The replaced version of this guard asserted `spec.ranking_effort is None` on a list
+    it had just filtered by that same predicate — a tautology, which is precisely why
+    the defect survived four waves of green gates.
     """
     from app.workflows.categories import CATEGORIES
-    from app.workflows.schema import EFFORT_UNSPECIFIED, connect
+    from app.workflows.recommend import recommend
+    from app.workflows.schema import connect
+    from app.workflows.subscribe import recommend_subscription
 
-    effort_free = [spec for spec in CATEGORIES.values() if spec.ranking_effort is None]
-    assert effort_free, "guard is vacuous if every category names an effort"
+    spec = CATEGORIES["coding"]
+    assert spec.ranking_effort is None, "fixture assumes an effort-free category"
 
     conn = connect()
-    for spec in effort_free:
+    conn.execute("INSERT INTO models (id, display, vendor) VALUES ('m','Model M','Vendor')")
+    conn.execute(
+        "INSERT INTO pricing (alias, model_id, input_per_m, output_per_m, source,"
+        " source_url, observed_at) VALUES ('m','m',1.0,2.0,'litellm','https://x','t')"
+    )
+    # One row, explicitly a MAX-effort run — exactly the live GLM-5.2 shape.
+    conn.execute(
+        "INSERT INTO scores (model_id, raw_name, benchmark, metric, score, harness,"
+        " effort, run_date, source, source_url, observed_at)"
+        " VALUES ('m','m_max',?,?,78.7,'inspect_ai','max','2026-06-25',"
+        "'epoch_swe_bench_verified','https://x','t')",
+        (spec.primary_benchmark, spec.metric),
+    )
+    conn.commit()
+
+    rec = recommend(conn, "sinirsiz", "coding")
+    assert rec is not None
+    pick = rec.picks[0]
+    assert pick.score == 78.7
+    # The payload must not call a max-effort run effortless.
+    assert pick.effort == "max"
+    assert rec.ranking_effort is None  # the POLICY is still stated, separately
+    assert pick.effort_note is not None
+    assert "max" in pick.effort_note
+
+    # The SUBSCRIPTION engine has its own `_pick` and carried the identical defect —
+    # a mutant restored in only one of the two files must not stay green.
+    from app.workflows.ingest import RunContext
+    from app.workflows.plans import ingest_plans
+    from app.workflows.registry import reconcile_plans
+
+    plan_doc = """
+schema: 1
+staleness_days: 30
+budget_caps_usd: {dusuk: 10, orta: 25, sinirsiz: null}
+plans:
+  - id: only-plan
+    provider: ProvCo
+    name: Only Plan
+    monthly_usd: 20
+    currency: USD
+    region: US
+    limits: single-plan effort fixture
+    included_models: [Gemini 3.1 Pro]
+    source_url: https://provco.example/pricing
+    last_verified: 2026-08-15
+"""
+    ingest_plans(conn, plan_doc, RunContext())
+    reconcile_plans(conn)
+    conn.execute(
+        "INSERT OR IGNORE INTO models (id, display, vendor)"
+        " VALUES ('gemini-3.1-pro','Gemini 3.1 Pro','Google')"
+    )
+    conn.execute(
+        "INSERT INTO scores (model_id, raw_name, benchmark, metric, score, harness,"
+        " effort, run_date, source, source_url, observed_at)"
+        " VALUES ('gemini-3.1-pro','g_max',?,?,80.0,'inspect_ai','max','2026-06-25',"
+        "'epoch_swe_bench_verified','https://x','t')",
+        (spec.primary_benchmark, spec.metric),
+    )
+    conn.execute("UPDATE plan_models SET model_id = 'gemini-3.1-pro'")
+    conn.commit()
+
+    sub = recommend_subscription(conn, "sinirsiz", "coding")
+    assert sub is not None
+    assert sub.picks[0].score == 80.0
+    assert sub.picks[0].effort == "max"
+    assert sub.picks[0].effort_note is not None and "max" in sub.picks[0].effort_note
+    conn.close()
+
+
+def test_comparison_across_unequal_effort_is_disclosed() -> None:
+    """M5 quality gate citing test: an unequal comparison must at least be VISIBLE.
+
+    `coding` has no effort policy, so it ranks whatever each board published. On the
+    owner's live Epoch board that means 83.5 at `max` above 78.7 at an unstated level.
+    No model mixes efforts with itself there, so nothing is overstated per model — what
+    was unstated is that the models are not compared at equal effort. Silence about that
+    is the quiet half of Trap 2.
+    """
+    from app.workflows.categories import CATEGORIES
+    from app.workflows.recommend import recommend
+    from app.workflows.schema import connect
+
+    spec = CATEGORIES["coding"]
+    assert spec.ranking_effort is None
+
+    conn = connect()
+    for i, (model, score, effort, price) in enumerate(
+        [("hi", 83.5, "max", 9.0), ("lo", 78.7, "unspecified", 1.0)]
+    ):
+        conn.execute("INSERT INTO models (id, display, vendor) VALUES (?,?,?)", (model, model, "V"))
+        conn.execute(
+            "INSERT INTO pricing (alias, model_id, input_per_m, output_per_m, source,"
+            " source_url, observed_at) VALUES (?,?,?,?,'litellm','https://x','t')",
+            (model, model, price, price),
+        )
         conn.execute(
             "INSERT INTO scores (model_id, raw_name, benchmark, metric, score, harness,"
             " effort, run_date, source, source_url, observed_at)"
-            " VALUES ('m','raw-low',?,?,58.1,'h','low','2026-01-01','s','https://x','t')",
-            (spec.primary_benchmark, spec.metric),
+            " VALUES (?,?,?,?,?,'inspect_ai',?,'2026-06-25','epoch_swe_bench_verified',"
+            "'https://x','t')",
+            (model, f"{model}_{i}", spec.primary_benchmark, spec.metric, score, effort),
         )
-        conn.execute(
-            "INSERT INTO scores (model_id, raw_name, benchmark, metric, score, harness,"
-            " effort, run_date, source, source_url, observed_at)"
-            " VALUES ('m','raw-max',?,?,73.6,'h','max','2026-01-01','s','https://x','t')",
-            (spec.primary_benchmark, spec.metric),
-        )
-        clash = conn.execute(
-            "SELECT COUNT(DISTINCT effort) FROM scores"
-            " WHERE benchmark = ? AND metric = ? AND model_id = 'm' AND harness = 'h'"
-            "   AND source = 's' AND effort != ?",
-            (spec.primary_benchmark, spec.metric, EFFORT_UNSPECIFIED),
-        ).fetchone()[0]
-        # The database ACCEPTS the clash — SQLite has no opinion. The point of this test
-        # is that the category is effort-free, so if such rows ever reach it the ranking
-        # silently takes the higher one. Whoever adds a multi-effort source to an
-        # effort-free category must give that category a ranking_effort first.
-        assert clash == 2
-        assert spec.ranking_effort is None, (
-            f"category {spec.id!r} is effort-free; a multi-effort source may not feed it"
-            " without an explicit effort policy (M5 plan Trap 2)"
-        )
+    conn.commit()
+
+    rec = recommend(conn, "sinirsiz", "coding")
+    assert rec is not None
+    assert rec.effort_mix_notice is not None
+    assert "max" in rec.effort_mix_notice and "unspecified" in rec.effort_mix_notice
+
+    # ...and it stays SILENT when every compared answer is from one level.
+    conn.execute("UPDATE scores SET effort = 'max'")
+    conn.commit()
+    same = recommend(conn, "sinirsiz", "coding")
+    assert same is not None
+    assert same.effort_mix_notice is None
     conn.close()

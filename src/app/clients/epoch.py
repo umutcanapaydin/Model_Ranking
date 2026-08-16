@@ -80,7 +80,20 @@ class EpochClient:
     def fetch_raw(self) -> str:
         """Read the allowlisted CSV; missing/unreadable input aborts this source."""
         path = self.bundle_dir / EPOCH_SWE_BENCH_FILE
-        if not path.is_file():
+        # M5 security review MINOR: a bundle is an unpacked ZIP from the internet, and a
+        # ZIP can carry a symlink. Following one reads whatever it points at (reproduced
+        # against /etc/shadow). The allowlisted name must resolve INSIDE the bundle.
+        try:
+            resolved = path.resolve(strict=True)
+            root = self.bundle_dir.resolve(strict=True)
+        except OSError as exc:
+            raise SourceError(
+                f"{SOURCE_NAME}: missing CSV in local unpacked bundle: {path}"
+            ) from exc
+        if not resolved.is_relative_to(root) or resolved.is_symlink():
+            msg = f"{SOURCE_NAME}: refused a CSV that resolves outside the bundle: {path}"
+            raise SourceError(msg)
+        if not resolved.is_file():
             msg = f"{SOURCE_NAME}: missing CSV in local unpacked bundle: {path}"
             raise SourceError(msg)
         try:

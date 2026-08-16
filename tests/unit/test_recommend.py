@@ -127,7 +127,10 @@ def test_req_lic_001_epoch_citation_ships_where_epoch_data_is_served() -> None:
     rec = recommend(conn, "sinirsiz")
     assert rec is not None
     assert EPOCH_ATTRIBUTION in rec.sources
-    assert SWEBENCH_ATTRIBUTION not in rec.sources  # swebench.com supplied nothing here
+    # This fixture ALSO serves an Aider secondary score and grades confidence on it, so
+    # it owes that citation too (M5 security review MINOR): served data, served credit.
+    assert SWEBENCH_ATTRIBUTION in rec.sources
+    assert any(p.secondary_score is not None for p in rec.picks)
 
     readme = (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
     # The README must carry Epoch's prescribed citation text itself, not a paraphrase.
@@ -388,3 +391,25 @@ def test_model_engine_trade_off_never_claims_a_gap_the_fields_deny() -> None:
     assert trade_off is not None
     assert trade_off.startswith("Liderle aynı puanda,")
     assert "Liderden" not in trade_off
+
+
+def test_secondary_benchmark_evidence_is_cited_too() -> None:
+    """M5 security review MINOR citing test: a served secondary score owes its credit.
+
+    The first cut derived attribution from PRIMARY evidence only, so a payload whose
+    primary rows came from Epoch served an Aider secondary score, graded its confidence
+    "two independent benchmarks" on it, and cited only Epoch.
+    """
+    from app.workflows.rank import SWEBENCH_ATTRIBUTION
+
+    conn = _db()
+    conn.execute(
+        "UPDATE scores SET source = 'epoch_swe_bench_verified' WHERE benchmark = ?",
+        ("SWE-bench Verified",),
+    )
+    rec = recommend(conn, "sinirsiz")
+    assert rec is not None
+    graded_on_two = [p for p in rec.picks if p.secondary_score is not None]
+    assert graded_on_two, "fixture must serve a secondary score for this to mean anything"
+    assert all(p.confidence == "High" for p in graded_on_two)
+    assert SWEBENCH_ATTRIBUTION in rec.sources  # Aider's citation lives in this string

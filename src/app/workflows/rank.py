@@ -54,6 +54,25 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
 }
 
 
+def secondary_evidence_sources(conn: sqlite3.Connection, spec: CategorySpec) -> set[str]:
+    """Sources that supplied the category's SECONDARY benchmark rows.
+
+    M5 security review MINOR: a payload whose primary evidence is Epoch can still serve
+    an Aider secondary score and grade its confidence "two independent benchmarks" —
+    while citing only Epoch. The second benchmark is served data too, so it owes its
+    citation.
+    """
+    if not spec.secondary_benchmark:
+        return set()
+    return {
+        row[0]
+        for row in conn.execute(
+            "SELECT DISTINCT source FROM scores WHERE benchmark = ? AND model_id IS NOT NULL",
+            (spec.secondary_benchmark,),
+        )
+    }
+
+
 def attributions_for(evidence_sources: Iterable[str], *, priced: bool) -> tuple[str, ...]:
     """The citations a payload actually owes, in catalogue order.
 

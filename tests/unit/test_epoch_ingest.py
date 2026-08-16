@@ -153,3 +153,39 @@ def test_real_epoch_swe_bench_csv_satisfies_the_parser_contract() -> None:
     assert by_name["gpt-5.1-2025-11-13_high"].run_date == "2026-02-18"
     assert "gemini-3.1-pro-preview-customtools" in by_name
     assert all(row.harness == "inspect_ai" and row.source_url == client.url for row in rows)
+
+
+def test_bundle_client_refuses_a_symlink_that_escapes_the_bundle(tmp_path) -> None:
+    """M5 security review: an unpacked ZIP can carry a symlink out of the bundle.
+
+    A bundle is downloaded from the internet and unpacked by an operator. If the
+    allowlisted CSV name is a symlink, following it reads whatever it points at — the
+    reviewer reproduced this against /etc/shadow. The allowlisted name must resolve
+    INSIDE the directory the operator named.
+    """
+    import pytest
+
+    from app.clients.epoch import EPOCH_SWE_BENCH_FILE, EpochClient
+    from app.clients.protocols import SourceError
+
+    outside = tmp_path / "outside.csv"
+    outside.write_text("Model version,mean_score,Started at\nx,0.5,2026-01-01\n", encoding="utf-8")
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    (bundle / EPOCH_SWE_BENCH_FILE).symlink_to(outside)
+
+    client = EpochClient(bundle, last_verified="2026-08-15")
+    with pytest.raises(SourceError, match="resolves outside the bundle"):
+        client.fetch_raw()
+
+
+def test_bundle_client_still_reads_a_real_file(tmp_path) -> None:
+    """The guard above must not break the normal path."""
+    from app.clients.epoch import EPOCH_SWE_BENCH_FILE, EpochClient
+
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    (bundle / EPOCH_SWE_BENCH_FILE).write_text(
+        "Model version,mean_score,Started at\nx,0.5,2026-01-01\n", encoding="utf-8"
+    )
+    assert "Model version" in EpochClient(bundle, last_verified="2026-08-15").fetch_raw()

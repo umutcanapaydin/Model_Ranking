@@ -26,6 +26,7 @@ from app.workflows.plans import stale_plans
 from app.workflows.rank import attributions_for, higher_effort_evidence
 from app.workflows.recommend import (
     effort_disclosure,
+    effort_mix_notice,
     lead_phrase,
     round_optional_score,
     round_score,
@@ -113,6 +114,7 @@ class SubscriptionRecommendation:
     equivalent_plans: tuple[str, ...]
     equivalence_note: str | None
     close_call: str | None
+    effort_mix_notice: str | None  # M5: comparisons across unequal effort are DISCLOSED
     stale_notice: str | None  # REQ-REC-008
     picks: tuple[PlanPick, ...]
 
@@ -305,12 +307,11 @@ def _pick(
         link_source_url=row.link_source_url,
         link_last_verified=row.link_last_verified,
         harness=row.harness,
-        effort=spec.ranking_effort,
+        effort=row.effort,
         higher_effort=row.higher_effort,
         higher_effort_score=round_optional_score(row.higher_effort_score),
-        effort_note=effort_disclosure(
-            spec.ranking_effort, row.higher_effort, row.higher_effort_score, spec
-        ),
+        # Pass the EVIDENCE effort, not the policy — the policy is already `spec`.
+        effort_note=effort_disclosure(row.effort, row.higher_effort, row.higher_effort_score, spec),
         evidence_date=row.evidence_date,
         last_verified=row.last_verified,
         source_url=row.source_url,
@@ -535,6 +536,7 @@ def recommend_subscription(
         equivalent_plans=equivalent,
         equivalence_note=equivalence_note,
         close_call=close_call,
+        effort_mix_notice=effort_mix_notice([p.effort for p in picks], spec),
         stale_notice=_stale_notice(conn, ranking),
         picks=picks,
     )

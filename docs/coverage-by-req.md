@@ -2,257 +2,349 @@
 record_type: register
 id: coverage-by-req
 status: ratified
-date: 2026-08-15
+date: 2026-08-16
 ---
-# REQ-ID coverage trace — M4 Quality Gate (Stage 4.1)
+# REQ-ID coverage trace — M5 Quality Gate (Stage 4.1)
 
-**Scope:** every acceptance criterion in M4's signed scope, traced to its implementing code and to
+**Scope:** every acceptance criterion in M5's signed scope, traced to its implementing code and to
 the test(s) that would FAIL if the criterion were violated (V3C-02, BLOCKING). Criteria are quoted
-from `docs/plans/m4-plan.md` §2 (lines 48-67), **not** from `docs/prd.md` — see Finding F-1 below:
-the M4 REQ-IDs were never copied into the PRD, so the signed plan is the only canonical statement of
-them. Evidence pinned to the tree at commit `20312a1` (M4-W4), test run 2026-08-15.
+from `docs/plans/m5-plan.md` §2 (lines 113-121), and — unlike M4 — they are also present in
+`docs/prd.md` §12 (lines 277-316), so the F-1 drift the M4 gate raised did not recur.
+
+**This register replaces the M4 trace.** The full M4 version — its eight criteria, its DEFERRED
+disposition for REQ-ING-010 / REQ-ING-011b, the REQ-REC-009 restatement, and the closure-session
+addendum that let M4 close — is preserved in git history at the M4 closure commit and is not
+reproduced here. Nothing in it is retracted; M5 is the milestone that discharges the two ingestion
+criteria it deferred.
+
+**Evidence pinning.** Working tree at `828f623` plus the uncommitted closure fix-set for the M5
+security review (10 files: `deepswe.py`, `epoch.py`, `coverage.py`, `rank.py`, `recommend.py`,
+`subscribe.py` and their four test files). Test runs 2026-08-16, this gate, on that tree.
+
+---
 
 ## 1. Trace table
 
-| REQ-ID | Criterion (one line, from m4-plan.md §2) | Implementing file:line | Citing test(s) file:line | Verdict |
+| REQ-ID | Criterion (one line, from m5-plan.md §2) | Implementing file:line | Citing test(s) file:line | Verdict |
 |---|---|---|---|---|
-| REQ-CAN-004 | Rule-authoring path with a table-driven test proving variant-before-parent ordering and sibling non-collision, plus rules for families live sources drop | `src/app/workflows/registry.py:32` (MODEL_RULES, 71 rules) | `tests/unit/test_registry.py:199` `test_every_rule_canonicalizes_to_itself`; `:217` `test_no_duplicate_canonical_ids_or_patterns`; `:285` `test_live_names_resolve_to_the_right_model` (41-entry live corpus); `:57` `test_sibling_variants_never_leak_into_parent_families`; `:85` `test_rule_order_variants_precede_parents` | COVERED |
-| REQ-ING-009 | Provider model-roster ingestion as a SEPARATE source with provenance + last_verified; a plan links to a roster model only through the registry, never guessed | `src/app/workflows/rosters.py:119` `ingest_rosters`, `:168` `stale_rosters`; `src/app/workflows/schema.py:84` (`link_source`/`source_url`/`last_verified`), `:151` `migrate`; `data/rosters.yaml:1` | `tests/unit/test_rosters.py:83` `test_roster_links_a_plan_whose_page_names_nothing`; `:117` `test_roster_links_reconcile_through_the_registry_and_count_drops`; `:185` `test_shipped_roster_file_is_valid_and_fresh_on_entry_day`; `:204` `test_cli_exit_codes_through_real_entrypoint`; `:266`/`:278` tie-break pair; `:290` `test_recommendation_text_states_which_source_named_the_model`; `:302` `test_migration_repairs_a_pre_wave_database` | COVERED |
-| REQ-SUB-005 | Plan coverage is a measured, reported number (`scoreable_plans / total_plans` per category), emitted by the pipeline; a drop is visible, not silent | `src/app/workflows/coverage.py:62` `plan_coverage`, `:127` `main`; CI leg `.github/workflows/contract-tests.yml:117` | `tests/unit/test_coverage.py:79` `test_coverage_counts_and_explains_every_unscoreable_plan`; `:157` `test_links_that_all_dropped_count_as_no_links`; `:120` `test_cli_reports_json_and_fails_loud_on_zero_coverage` (through `main()`); `:137` `test_coverage_is_read_only` | COVERED (one closure obligation — §2.4) |
-| REQ-ING-011a | Per-source freshness (newest run_date vs today) is computed, reported and surfaced | `src/app/workflows/coverage.py:100` `source_health`, `:36` `SOURCE_STALE_DAYS` | `tests/unit/test_coverage.py:93` `test_source_health_flags_a_source_that_went_quiet`; `:113` `test_boundary_exactly_at_the_window_is_not_stale`; `:147` `test_unparseable_run_date_is_reported_not_guessed`; `:106` `test_stale_window_matches_the_engines_disclosure_window` | COVERED |
-| REQ-ING-011b | The M4 closure states plainly whether a fresher documented coding benchmark exists **and, if it does, ingests it** | none (investigation only: `docs/reviews/m4-w3-source-health.md` §3) | none — no ingestion code exists to cite a test against | DEFERRED |
-| REQ-ING-010 | Epoch AI ingestion: documented endpoint only, provenance mandatory, loud-fail per source | none | none (W3 close row 6 states this explicitly) | DEFERRED |
-| REQ-REC-009 | `--subscription` returns **>=3 DISTINCT plans** in at least the `orta` and `sinirsiz` budgets on live data (the milestone's headline outcome) | not implemented as signed; substitute behaviour at `src/app/workflows/subscribe.py:266-306` (equivalence group + note), `:382` | none for the signed text. Substitute is covered by `tests/unit/test_subscribe.py:341`, `:364`, `:442`, `:461` | NOT COVERED (as signed; substitute COVERED — §2.1) |
-| REQ-REC-010 | Scores are rounded at the output boundary (Elo -> 1 dp, % -> 1 dp) with the raw value never reaching the JSON contract | `src/app/workflows/recommend.py:47` `round_score`, `:52` `round_optional_score`, `:57` `shown_gap`, `:66` `lead_phrase`; consumed in `src/app/workflows/subscribe.py:25` | `tests/unit/test_subscribe.py:297` `test_scores_are_rounded_at_the_output_boundary_not_in_the_math`; `:380` `test_rounding_never_reaches_the_pareto_comparison`; `:416` `test_a_sub_rounding_gap_never_prints_as_a_zero_delta`; `tests/unit/test_recommend_assistant.py:202` `test_elo_scores_are_rounded_in_the_output` (real CLI); `tests/unit/test_recommend.py:298` `test_secondary_score_rounds_and_absence_stays_absent` (real CLI); `:326` `test_model_engine_trade_off_never_claims_a_gap_the_fields_deny` | COVERED |
-| REQ-SUB-006 | Google AI Plus re-probe: the row enters only if two independent sources agree (D-107), otherwise the exclusion is re-recorded | `data/plans.yaml:112` (row), `:10-33` (curation header with the dated evidence) | `tests/unit/test_plans_ingest.py:181` `test_sub_dollar_price_survives_the_seed_exactly`; `:165` `test_seed_dataset_meets_req_sub_002`; `:199` `test_seed_dataset_ingests_and_reconciles_end_to_end` | COVERED (with a stated limit — §2.5) |
+| REQ-ING-010 | Epoch is a first-class source: documented CSV bundle, provenance mandatory, loud-fail per source, own `last_verified` clock, staleness disclosed | `src/app/clients/epoch.py:62` (`EpochClient`), `:108` (`parse_swe_bench_verified`), `:46` (`validate_last_verified`); `src/app/clients/deepswe.py:39`, `:108`; `src/app/workflows/ingest.py:167` `ingest_epoch`, `:194` `ingest_deepswe`; `src/app/workflows/epoch.py:76` (clock CLI); `data/epoch-source.yaml:1`; CI leg `.github/workflows/contract-tests.yml:53` | `tests/unit/test_epoch_ingest.py:35`, `:52`, `:79`, `:93`, `:99`, `:113`, `:121`, `:128`, `:135` (real shape), `:158` (symlink escape); `tests/unit/test_epoch_workflow.py:39`, `:77`, `:120`; `tests/unit/test_deepswe_workflow.py:49`, `:64`, `:115`, `:127`; `tests/unit/test_epoch_staleness.py:19`, `:30`, `:48`, `:62`, `:73` | COVERED |
+| REQ-ING-011b | A fresher coding benchmark is INGESTED and freshness is published per curated plan from the row the engine actually selects; four-state partition; source-global dates are telemetry only; release dates are never evidence age | `src/app/workflows/coverage.py:147` `plan_evidence_health` (reuses `subscribe.plan_ranking:132`), `:44` `PLAN_FRESH_DAYS`, `:235` `source_health` (kept separate), `:300` (separate JSON sections); `src/app/clients/deepswe.py:149` `run_date=None` | `tests/unit/test_coverage.py:230` (four states, 59/60 boundary), `:251` (source MAX must not mask a stale selection), `:276`, `:285`; `tests/unit/test_epoch_workflow.py:128` (real board 2/3/0/5); `tests/unit/test_deepswe_workflow.py:74` (release dates stay out), `:161` (real board 0/0/6/4 + CLI JSON) | COVERED — branch (a) and branch (b) both shipped; one narrowness, §2.2 |
+| REQ-CAN-005 | Reasoning effort is PARSED and STORED, never swallowed; a row whose effort cannot be determined is counted and disclosed, never defaulted | `src/app/workflows/registry.py:163` `resolve_effort`; `src/app/workflows/schema.py:177` `_migrate_scores_effort`, `:240` `migrate`, `:368` `migrate` CLI, `EFFORT_LEVELS` + 6-column UNIQUE identity; `src/app/workflows/ingest.py:114-118` (domain check), `:44` `effort_unknown`; `src/app/clients/deepswe.py:130-141` (explicit column beats suffix, conflicts counted) | `tests/unit/test_effort.py:27` (suffix family, parametrised), `:38` (`qwen3.7-max` is not an effort), `:45` (precedence + unknown + conflict counts), `:63` (reaches the stored row), `:325` (category effort gates coverage), `:390` (real 50-row board); `tests/unit/test_schema.py:55` (pre-wave DB), `:94`, `:105`, `:249`, `:281`; `tests/unit/test_deepswe_workflow.py:74`, `:161` | COVERED — one under-count ledgered as W-010, §2.4 |
+| REQ-REC-011 | The coding answer states which effort level it ranked on and what the model reaches at higher effort, per the owner's Q1 ruling | `src/app/workflows/categories.py:73` (`agentic-coding` `ranking_effort="high"` — DATA); `src/app/workflows/rank.py:117` `higher_effort_evidence` (same harness + same source only); `src/app/workflows/recommend.py:158` `effort_disclosure`, `:203` (model `_pick`); `src/app/workflows/subscribe.py:309` (plan `_pick`) | `tests/unit/test_effort.py:245` (model CLI), `:272` (subscription CLI), `:303` (D-109 boundary), `:401` (evidence effort, not policy — both engines) | **PARTIAL — see §2.1. COVERED for `agentic-coding`; NOT COVERED for the `coding` category, which ranks across mixed effort levels and discloses no higher-effort reach.** |
+| REQ-SUB-007 | Coding plan coverage is re-measured through the real engine before and after, and the delta is published as a number in the closure report | `src/app/workflows/board_measurement.py:587` `main`, `:379-397` (`coverage.scoreable_plans` cross-checked against `plan_ranking`), `validate_baseline_snapshot`; `data/m5-swebench-baseline.json`; `src/app/workflows/coverage.py:103` `plan_coverage` | `tests/unit/test_m5_board_measurement.py:43` (before 1/10 + five candidates through the real registry/coverage/ranking), `:127` (baseline is complete and provenance-pinned, rejects truncation and content drift), `:163` (real CLI, D-109 once); `tests/unit/test_deepswe_workflow.py:161` (after: coding 5/10, agentic 6/10, union 6/10) | COVERED — with one closure obligation outstanding, §2.3 |
+| REQ-LIC-001 | Epoch's CC-BY attribution ships where the data is served: the citation string in the recommendation payload's source list AND in the README | `src/app/clients/epoch.py:36` `EPOCH_ATTRIBUTION` (one constant, one spelling); `src/app/workflows/rank.py:48` `SOURCE_ATTRIBUTION`, `:76` `attributions_for` (raises on an unattributed source), `:303` (export); `src/app/workflows/recommend.py:339`; `src/app/workflows/subscribe.py:528`; `README.md:90` | `tests/unit/test_recommend.py:111` (payload + README, verbatim not paraphrase), `:141` (mirror: never claim a source not read), `:396` (secondary sources cited too); `tests/unit/test_categories.py:156` (export attribution is derived, not stamped); `tests/unit/test_deepswe_workflow.py:287` (real bundle, subscription CLI); `tests/integration/test_cli_e2e.py:114` (negative, through the real CLI) | COVERED |
+| REQ-REC-012 | The Gemini contradiction is resolved or DISCLOSED; silently picking one number is a milestone failure | `src/app/workflows/board_measurement.py:150` `GeminiContradiction`, `:523`/`:532` (non-finite and missing-provenance refusals), `:545` (verdict string), `:581` (D-109 at the JSON boundary); `src/app/workflows/categories.py:62` (the two numbers are carried on two categories, never averaged); `docs/reviews/m5-w1-board-measurement.md:74-90` | `tests/unit/test_m5_board_measurement.py:94` (both rows, both harnesses, ratio, log id/URL, verdict `unresolved`, and the same artifacts asserted present in the decision record); `:163` (both numbers survive to the real CLI at one decimal) | COVERED |
+| REQ-REC-013 / D-111 | Budget disclosure: `excluded_by_budget` counts scoreable plans removed by the price cap, narrated separately from unscored and equivalent plans (added by W4 beyond the signed plan) | `src/app/workflows/subscribe.py:321` `_budget_notice`, `:329` `BudgetShutout` (the all-excluded case), payload fields `excluded_by_budget` / `budget_notice`; `docs/decisions.md:457` D-111 | `tests/unit/test_subscribe.py:162` (six scoreable, five priced out, and the unlimited-budget negative), `:595` (budget that prices out EVERYTHING still says how many — through the real CLI); `tests/unit/test_deepswe_workflow.py:282` (real bundle, five excluded) | COVERED — D-111 is `proposed`, §2.5 |
 
-**Independent verification of the citing tests.** The wave checklists claim fault-injection results;
-this gate re-proved the load-bearing one without touching any source file. `MODEL_RULES` was mutated
-in-process and the property re-run: the unmutated table has zero swallow violations; a *widened*
-`gemini-3-pro` pattern placed before `gemini-3.1-pro` produces 3+ violations and 3 live-corpus
-regressions, so `test_every_rule_canonicalizes_to_itself` and `test_live_names_resolve_to_the_right_model`
-both go RED. Recorded doubt: a *reorder-only* mutation (same patterns, order swapped) stays GREEN,
-because the shipped patterns carry their own negative lookaheads. The table-driven guard is therefore
-**behavioural, not structural** — it proves that no swallow actually happens, which is the property
-that matters, but it does not enforce ordering as such. See §2.6.
+---
 
 ## 2. Dispositions for everything not plainly COVERED
 
-### 2.1 REQ-REC-009 — NOT COVERED as signed; the criterion was changed by the agent
+### 2.1 REQ-REC-011 — PARTIAL, and this is the gate's blocking finding
 
-The signed text demands ">=3 DISTINCT plans" in `orta` and `sinirsiz` on live data, and §13 of the
-plan singles it out as "the headline outcome". On live data (2026-08-15) four of the five scoreable
-plans rank on the *same* model (Gemini 3.1 Pro at 1479.6), so three distinct plans cannot be produced
-without recommending a $99.99 plan over a $4.99 plan on a difference of zero. W4 therefore replaced
-the criterion with an equivalence disclosure: the engine names the plans that tie on one model and
-points at the cheapest. The substitute is well defended (4 citing tests; 10 fault-injection mutants
-RED, two of which were staying-green probes found by a second fresh-eyes pass).
+The criterion, in the signed plan's words: *"The coding answer states which effort level it ranked
+on and what the model reaches at higher effort ... per the owner's Q1 ruling."* Q1 is *"rank on ONE
+named effort level and disclose the range."*
 
-**Why this is still NOT COVERED:** a criterion the owner signed as the milestone's headline cannot be
-retired on agent authority, and no test can cite the signed text because the signed text is knowingly
-false on live data. The change is fully in the open (`docs/plans/m4-wave-4-close.md` row 9b;
-`docs/reviews/m4-w4-equivalence.md` §1) — it is a decision awaiting ratification, not a hidden failure.
-**To clear:** owner ratifies the restatement, it lands as an ADR (D-112 candidate) and as amended
-REQ-REC-009 text in `docs/prd.md`.
+The `agentic-coding` category does exactly this. `categories.py:73` sets `ranking_effort="high"` as
+DATA, `rank.py:117` supplies the higher-effort comparable from the SAME harness and the SAME source,
+and both live CLIs are pinned by `tests/unit/test_effort.py:245` and `:272`. Mutant M5 below proves
+those tests fail if the range half is removed.
 
-### 2.2 REQ-ING-010 — DEFERRED to M5 as an acknowledged criteria diff
+The `coding` category does not. `categories.py:32` leaves `ranking_effort` unset, so
+`rank.category_ranking` keeps the `MAX(score)` selection across every effort level the board carries.
+Reproduced this gate through the shipped subscription engine on the owner's real Epoch bundle:
 
-No Epoch ingestion code exists and W3's close checklist says so in its own row 6 ("REQ-ING-010 has NO
-citing test because it is not implemented"). The honest disposition is a **criteria diff carried to
-M5**, and the evidence that makes it an acceptable close rather than a hidden failure is all of the
-following, held together:
+| Label | Plan | Model | Score | Effort of the selected row | Higher-effort reach disclosed |
+|---|---|---|---:|---|---|
+| best_quality | Perplexity Pro | GLM-5.2 | 78.7 | `max` | none |
+| best_value | Google AI Plus | Gemini 3.1 Pro | 75.6 | `unspecified` | none |
+| budget_pick | Google AI Plus | Gemini 3.1 Pro | 75.6 | `unspecified` | none |
 
-1. **The blocker is environmental and reproduced independently.** `epoch.ai` and `huggingface.co`
-   return proxy 403 from this container; the wave's reviewer reproduced all five probes separately
-   (`docs/reviews/m4-w3-source-health.md` §3, W3 close row 9b).
-2. **The alternative was refused on a named prior defect.** Writing a parser against an unseen shape
-   is the FP-M2-2 defect this project already paid for twice; guessed paths were probed and rejected
-   (four candidate raw-GitHub URLs returned 404) rather than assumed (record §3).
-3. **No code shipped without a test.** The deferral removes scope; it does not leave untested
-   behaviour in the tree. There is nothing for a citing test to attach to.
-4. **The unblock is specified and already in motion.** Both candidates need exactly one out-of-sandbox
-   fetch — the same pattern that closed REQ-CAL-001 at the M3 gate — and the two commands were
-   delivered to the owner on 2026-08-15 (record §4).
-5. **The gap is now a permanently visible number, not a demo surprise.** The source-health report
-   (REQ-ING-011a) prints SWE-bench at 170 days and Aider at 316 days on every run and in CI.
+The stored Epoch effort distribution behind that answer is `high 4 / max 3 / medium 1 / xhigh 1 /
+unspecified 24`. So a `max`-effort run is ranked above an `unspecified`-effort run and wins the
+headline pick. That is Trap 2 of the signed plan in the shape the plan describes it — *"advertising a
+performance level the buyer's plan may not even offer"* — surviving into the milestone's namesake
+category. What the closure fix-set added is a disclosure, not a policy: the winning pick now carries
+a sentence which translates as *"This category does not compare at a fixed effort level; this score
+comes from a run at max effort."* The two `unspecified` picks carry `effort_note: null` and say
+nothing at all.
 
-What makes it *not* a clean close: the criterion was accepted for M4 and remains unmet, so M4 closes
-with a scope reduction the owner must accept explicitly.
+**Why this is PARTIAL and not COVERED.** No test asserts that the coding answer names a ranked effort
+level, and no test anywhere asserts a higher-effort reach on the coding surface: `grep -rn
+higher_effort tests/` returns hits only in `tests/unit/test_effort.py`, and every one of them
+exercises `agentic-coding`. The half of the criterion that is unimplemented is, necessarily, the half
+with no citing test. Under V3C-02 that does not close on agent authority.
 
-### 2.3 REQ-ING-011b — DEFERRED with REQ-ING-010, same blocker
+**This was seen before this gate and not carried.** The M5 security review's owner checklist, item 1,
+second sentence, says: *"Separately decide whether `coding` should acquire a `ranking_effort`, which
+is a one-field data edit to `categories.py` and is the only thing that makes the cross-model
+comparison satisfy the Q1 ruling."* The closure disposition table records BLOCKING-1 as FIXED and is
+silent on that second sentence. The fix that landed was the disclosure; the policy decision was not
+taken.
 
-The criterion has an `if` branch that fired: a fresher documented coding benchmark **does** exist
-(Epoch AI Benchmarking Hub, CC-BY, CSV bundle updated 2026-08-14; Terminal-Bench 2.0 on the same HF
-datasets-server API the Arena source already uses). The "states plainly" half is delivered
-(`docs/reviews/m4-w3-source-health.md` §2-3); the "ingests it" half is blocked by the same proxy 403.
-This clause is separated from REQ-ING-011a in the table because the measurement half is fully covered
-and the ingestion half has no code and no test — merging them would let a COVERED verdict on the
-first hide an untested obligation in the second.
+**To clear (owner, at the milestone gate), either:**
+1. **Set the policy.** Give `coding` a `ranking_effort` in `categories.py` (a DATA edit) and add the
+   citing test that the coding answer names its ranked level and its higher-effort reach. Note the
+   measured consequence before choosing: 24 of 33 Epoch rows are `unspecified`, so a strict level
+   would drop most of the board — probe M11 below shows 57 existing tests move when the field is set,
+   because the whole fixture corpus assumes no effort policy on `coding`. This is a real design
+   choice, not a one-line patch, which is why it belongs to the owner.
+2. **Or restate the criterion.** Ratify, as an ADR plus amended `docs/prd.md` text, that Q1's
+   single-level ranking is discharged by the `agentic-coding` surface and that `coding` ranks
+   best-available-effort with per-pick effort disclosure — and then land the citing test for THAT
+   rule (today the `unspecified` branch is silent, so even the restated rule would need the note
+   extended to every pick).
 
-### 2.4 REQ-SUB-005 — COVERED, with one obligation outstanding at closure
+Either path is cheap. Neither is an agent's to take: the M4 gate blocked on precisely this shape
+(REQ-REC-009 retired on agent authority) and the lesson is in the register above.
 
-The measured-number half is complete and tested through the real CLI entry point and wired as an
-unconditional CI leg. The criterion also says the number is "printed in the closure report";
-`docs/closure-report-m4.md` does not exist yet (it is Stage 4.2/4.3 work). The figures to carry are
-assistant **5/9** and coding **1/9** (`docs/reviews/m4-w3-source-health.md` §1). Not a gate failure —
-an unfinished closure step, listed here so it cannot be forgotten.
+### 2.2 REQ-ING-011b — COVERED, both branches, with one narrowness recorded
 
-### 2.5 REQ-SUB-006 — COVERED, with a stated limit on what a test can prove
+The criterion forks and the shipped code took **both** branches, because the signed board decision
+put one board on each side of the fork:
 
-The testable half is pinned hard: `$4.99` survives parse and store exactly, and is asserted to be the
-table minimum (the value every budget answer lands on). The other half — "only if two independent
-sources agree (D-107)" — is a *curation* rule about evidence, not a code behaviour, so no test can
-fail on it. It rests on the dated evidence in `data/plans.yaml:10-33` and
-`docs/reviews/m4-w4-equivalence.md` §4: $7.99 was the US launch price, cut to $4.99 on 2026-06-08,
-reported the same day by four independent outlets, with the two price trackers dated either side of
-the cut (so they never disagreed). This is verifiable by the owner out-of-sandbox and should be part
-of his verification pass.
+- **Branch (a) — a real evaluation date that drops the age below 60 days.** Epoch SWE-bench Verified
+  carries a genuine `Started at` column. Perplexity Pro and Perplexity Max select GLM-5.2's
+  2026-06-25 row: 52 days old on 2026-08-16, therefore `fresh`. The three Google plans select Gemini
+  3.1 Pro's 2026-02-24 row: 173 days, therefore `stale`. Five plans are `unscored`. The published
+  distribution is **2 fresh / 3 stale / 0 undated / 5 unscored** — the plan's measured target, not
+  the "5/10 fresh" the criterion explicitly forbids. Citing test
+  `tests/unit/test_epoch_workflow.py:128`, through the real engine on the real bundle.
+- **Branch (b) — a release-date-only board must refuse to age on it and say the evidence is
+  undated.** DeepSWE has only `Release date`. `deepswe.py:149` hard-codes `run_date=None` with the
+  reason written at `:113-114`; every one of the 49 stored rows has a NULL `run_date`. The
+  `agentic-coding` partition publishes **0 fresh / 0 stale / 6 undated / 4 unscored**, and source
+  telemetry reports `newest_run_date: null, age_days: null, stale: true` — failing toward disclosure,
+  not toward freshness. Citing tests `tests/unit/test_deepswe_workflow.py:74` and `:161`.
 
-### 2.6 REQ-CAN-004 — COVERED, with a recorded narrowness
+The **"must SAY so" half is delivered in the coverage report** — `status: "undated"` with
+`evidence_date: null` and `age_days: null`, per plan, per category, printed by the `coverage` CLI
+that CI runs. It is **not** delivered in the recommendation payload: the `agentic-coding` answer
+returns `stale_notice: null` and three picks with `evidence_date: null` and no sentence naming the
+board as undated. The M5 security review raised this as MINOR-5 and the closure disposition ledgered
+it to M6 on the reasoning that *"the coverage report already carries the fact, and REQ-ING-011b's
+branch (b) is satisfied at the source level."*
 
-The auto-extending guard probes each rule against **its own** id, display and space-form. A new rule
-is therefore defended on the day it is added only against names shaped like its own id; a name a
-*source* emits that differs from the id is defended only if someone adds it to
-`LIVE_NAME_EXPECTATIONS` (`tests/unit/test_registry.py:233`), which is hand-maintained. The W1 review
-found exactly this (MINOR-7) and answered it with the 41-entry live corpus, but the corpus does not
-grow by itself. Verdict stays COVERED — the criterion asks for a table-driven test and it exists, and
-every wrong mapping the review found is pinned — but the residual risk is real and belongs in M5's
-registry work.
+**This gate agrees with that verdict, narrowly.** The criterion's own text asks for freshness
+*"published per curated plan from the evidence row the engine actually selects"* and defines the
+four states — it never names the recommendation payload as the surface. Nothing false is stated
+anywhere: no release date has become an evaluation date, which mutant M1 below independently
+confirms. But the gap is real and is the same shape as M4's MINOR-2 (a control that is measured but
+that the user never sees), so it is recorded here rather than left in a review appendix:
+**proposed INV-24 — unknown evidence age is disclosed in the answer, not only in the report** — with
+M6 as its owning milestone.
 
-## 3. Reverse direction — code without a criterion, and criteria the code does not satisfy
+### 2.3 REQ-SUB-007 — COVERED, with one closure obligation outstanding
 
-Every file M4 touched traces to a criterion: `registry.py` -> REQ-CAN-004; `rosters.py`, the
-`plan_models` provenance columns and `schema.migrate` -> REQ-ING-009; `coverage.py` and its CI leg ->
-REQ-SUB-005 / REQ-ING-011a; the rounding helpers in `recommend.py` and their use in `subscribe.py` ->
-REQ-REC-010; the equivalence block in `subscribe.py` -> the restated REQ-REC-009; the
-`data/plans.yaml` row -> REQ-SUB-006. **No orphan M4 code was found.** Two observations:
+The measurement half is complete, runs through the real engine, and is defended by a
+provenance-pinned before-snapshot that rejects truncation, commit drift and row-content drift
+(`tests/unit/test_m5_board_measurement.py:127`). The published delta:
 
-- **F-1 (documentation drift, needs fixing at closure).** None of the eight M4 REQ-IDs appears in
-  `docs/prd.md`. The PRD's own §10 note says "New REQs land in BOTH from M3 on" — M4 repeated the
-  exact drift that note was written to stop. The canonical M4 criteria therefore live only in the
-  signed plan. Cheap remedy: copy m4-plan.md §2 into `docs/prd.md` as §11, with the REQ-REC-009 text
-  amended per §2.1 once the owner ratifies.
-- **F-2 (minor, pre-existing, out of M4 scope).** `eligible_count` is emitted by both engines
-  (`recommend.py:104`, `subscribe.py:77`) and asserted by no test. It is M3 surface (REQ-REC-007), not
-  an M4 criterion, but it is the field the W4 ledger item L-3 is about — worth closing together.
+| Surface | Before | After | Delta |
+|---|---:|---:|---:|
+| `coding` (Epoch replaces the 180-row swebench.com extract) | 1/10 | 5/10 | +4 plans |
+| `agentic-coding` (new, DeepSWE at `high`) | 0/10 | 6/10 | +6 plans |
+| Unique plans covered by either coding surface | 1/10 | 6/10 | +5 plans |
 
-## 4. Wave-close checklist: waived, skipped, and ledgered items
+The two numerators must not be added; the categories overlap on five plans and DeepSWE's single
+unique addition is ChatGPT Pro.
 
-**No check in any of the four wave checklists is marked WAIVED.** All rows are ✅. What was skipped or
-carried, and therefore belongs in the closure report:
+**Outstanding:** the criterion says the delta is *"published as a number in the closure report"*, and
+`docs/closure-report-m5.md` does not exist yet — it is Stage 4.2/4.3 work. This is the same
+unfinished-step disposition the M4 gate recorded for REQ-SUB-005, listed here so it cannot be
+forgotten. Not a gate failure; the numbers to carry are the three rows above.
+
+### 2.4 REQ-CAN-005 — COVERED, with a counted under-count already ledgered
+
+Effort is a first-class column with a migration, a six-value domain enforced by the schema, a
+resolver with documented explicit-over-suffix precedence, and counters for unknown and conflicting
+rows. Mutants M4 and M9 below prove the storage and the coverage predicate are both defended.
+
+The narrowness, found by the closure live-data probe and ledgered as **W-010** (owning milestone M6):
+`resolve_effort` infers a suffix effort only when the base name canonicalizes to the same model as
+the full name — which is correct, and is exactly why `qwen3.7-max` is not read as an effort. The
+consequence is that a row whose model has no registry rule loses its effort too. Four live Epoch rows
+carrying a literal `_high` / `_medium` suffix were stored as `unspecified` while the ingest reported
+`effort_unknown=0`. The criterion says an undeterminable effort is counted, so the counter
+under-reports. No shipped answer is affected — those rows are also registry-dropped and never reach a
+ranking — and the row is open with the remedy named, so the verdict stays COVERED.
+
+### 2.5 REQ-REC-013 / D-111 — COVERED as a criterion; the ADR is still `proposed`
+
+This criterion is not in the signed plan §2. It was added in W4 to discharge ledger row **W-006**
+(the `dusuk` budget returns one plan under three labels and never says how many plans the cap priced
+out). It is properly constituted: a REQ-ID in `docs/prd.md` §12, an ADR at `docs/decisions.md:457`
+(D-111), an implementation with a single writer, and three citing tests including the all-excluded
+case through the real CLI — which the W4 review found unfixed at its sharpest point while the ledger
+already read FIXED. Mutant M7 kills all three.
+
+D-111's status is `proposed`, so the CONTRACT is pending owner ratification even though the behaviour
+is covered. That is the correct state for a criterion the owner has not signed; it is on the gate
+agenda, not a defect.
+
+### 2.6 Vacuous-test audit (the failure mode this project has now paid for three times)
+
+The gate looked specifically for assertions that are true by construction. One was found and is
+already fixed; two decorative-but-harmless lines are recorded so nobody mistakes them for coverage.
+
+- **FIXED before this gate — the W4 "structural guard" against Trap 2.**
+  `test_no_effort_free_category_can_see_more_than_one_effort_level` filtered
+  `[spec for spec in CATEGORIES.values() if spec.ranking_effort is None]` and then asserted
+  `spec.ranking_effort is None` on the result — the predicate it had just filtered on. It also
+  asserted that SQLite ACCEPTS two clashing rows, which the test's own comment conceded. It passed
+  unconditionally, and it passed for the entire time BLOCKING-1 was live in the shipped payload. The
+  M5 security review caught it as MINOR-7; the closure fix-set replaced it with
+  `tests/unit/test_effort.py:401`, which drives both real engines and fails on the real defect. Its
+  docstring now records the tautology in place — the right thing to do with a burn of this class.
+  This is the third instance of the pattern in this project's history and the second caught by a
+  fresh-eyes review rather than by a gate.
+- **Decorative, not load-bearing:** `tests/unit/test_coverage.py:234` `assert PLAN_FRESH_DAYS == 60`
+  and the `sum(...) == 4` partition line in the same test are guaranteed by construction (the
+  dataclass is built from the same counter dict, and `plan_evidence_health` already raises on a
+  non-partition). They are harmless because the same test also asserts the exact 1/1/1/1 distribution
+  and the per-plan statuses at ages 59 and 60, which mutants M2 and M3 kill.
+- **Legitimate fixture precondition:** `tests/unit/test_effort.py:419`
+  `assert spec.ranking_effort is None, "fixture assumes an effort-free category"` is the same SHAPE
+  as the tautology above, but here it guards a fixture assumption and the test then asserts real
+  behaviour (`pick.effort == "max"` on both engines). Kept, flagged, not counted as coverage.
+
+No other assertion in the M5 test surface was found to be true by construction.
+
+---
+
+## 3. Independent verification — mutants run by this gate
+
+Every mutant below was applied **in place** to the working tree, exercised with the owner's real
+Epoch bundle mounted (`EPOCH_DATA_DIR`), then restored from a byte copy and verified md5-identical.
+No git command was used to restore anything. Bytecode caches were cleared around every probe (the M4
+gate's recorded tooling incident). Ten mutants: nine kills, one probe.
+
+| # | Criterion | Mutation | Result |
+|---|---|---|---|
+| M1 | REQ-ING-011b (b) | `deepswe.py` maps `Release date` into `run_date` — the exact "a re-released model looks freshly measured" defect | **RED** — 4 tests: `test_ingest_publishes_effort_accounting_and_keeps_release_dates_out`, `test_real_board_reproduces_signed_coverage_and_undated_health`, `test_explicit_effort_wins_suffix_conflict_and_unknown_is_visible`, `test_real_deepswe_shape_has_one_disclosed_unknown_effort` |
+| M2 | REQ-ING-011b | freshness window widened by one day (`age < window` to `age <= window`) | **RED** — `test_plan_evidence_health_partitions_every_plan_once`, `test_plan_evidence_health_uses_selected_row_not_source_max` |
+| M3 | REQ-ING-011b | an undated selected row falls back to the source-global `MAX(run_date)` and reports `fresh` — the precise defect the criterion forbids | **RED** — `test_plan_evidence_health_partitions_every_plan_once`, `test_real_board_reproduces_signed_coverage_and_undated_health` |
+| M4 | REQ-CAN-005 | the resolved suffix effort is dropped at the storage boundary (suffix swallowed into the base row) | **RED** — `test_suffix_effort_is_stored_through_existing_ingest_entrypoint`, `test_real_board_reproduces_signed_coverage_and_undated_health` |
+| M5 | REQ-REC-011 | the higher-effort range half of `effort_disclosure` removed | **RED** — `test_live_recommendation_ranks_high_and_discloses_higher_effort`, `test_live_subscription_answer_carries_the_same_effort_contract` (both engines) |
+| M6 | REQ-LIC-001 | Epoch's prescribed citation replaced by a paraphrase | **RED** — `test_req_lic_001_epoch_citation_ships_where_epoch_data_is_served` (payload AND README halves) |
+| M7 | REQ-REC-013 | the priced-out sentence silenced | **RED** — `test_budget_notice_counts_only_scoreable_plans_excluded_by_price`, `test_budget_that_prices_out_everything_still_says_how_many`, `test_real_board_reproduces_signed_coverage_and_undated_health` |
+| M8 | REQ-ING-010 | the DeepSWE acquisition clock made optional (defaulted instead of demanded) | **RED** — `test_workflow_requires_and_validates_the_independent_verification_clock` |
+| M9 | REQ-CAN-005 | the category effort predicate in `plan_coverage` neutered, so max-only evidence makes a `high`-policy plan scoreable | **RED** — `test_coverage_entrypoint_requires_the_category_effort` |
+| M10 | REQ-REC-012 | the Gemini verdict flipped to "resolved; customtools explains the gap" | **RED** — `test_gemini_contradiction_is_preserved_in_the_decision_record` |
+| M11 | REQ-REC-011 (probe, not a kill) | `coding` given `ranking_effort="max"` | 57 tests move — but from **fixture coupling**, not from a criterion assertion: the fixture corpus stores `unspecified` scores, so any effort policy makes them unscoreable. This does NOT constitute a citing test for the coding half of REQ-REC-011; it is the evidence that the coding effort policy is unpinned in both directions. See §2.1. |
+
+Restore integrity: every mutated file's md5 before and after is identical, verified per probe.
+
+---
+
+## 4. Reverse direction — code without a criterion
+
+Every module M5 touched traces to a criterion: `clients/epoch.py`, `clients/deepswe.py`,
+`workflows/epoch.py` and the `ingest_epoch` / `ingest_deepswe` loaders to REQ-ING-010;
+`coverage.plan_evidence_health` to REQ-ING-011b; `registry.resolve_effort`, the `scores.effort`
+column and its migration to REQ-CAN-005; `rank.higher_effort_evidence` and `recommend.effort_disclosure`
+to REQ-REC-011; `workflows/board_measurement.py` to REQ-SUB-007 and REQ-REC-012;
+`rank.attributions_for` to REQ-LIC-001; `subscribe._budget_notice` and `BudgetShutout` to
+REQ-REC-013. **No orphan M5 code was found.** Two observations:
+
+- **The M4 gate's F-1 did not recur.** All seven signed criteria plus REQ-REC-013 are indexed in
+  `docs/prd.md` §12 with their citing test files and an explicit "pending M5 owner gate" status.
+- **`rank.export_ranking` still has no production caller** (grep across `src/`, `scripts/`,
+  `Makefile`, `.github/`). It is exercised only by tests. That is pre-existing, it is what keeps the
+  security review's MINOR-2 (no attribution on the CSV half of the export) at MINOR, and it is
+  ledgered to M6 with the export contract.
+
+---
+
+## 5. Wave-close and review status
+
+All four wave checklists are filled and every row is ✅ or an explicitly reasoned WAIVED (row 9c in
+W1/W2/W3: "no auth, tenancy, or money invariant changed"). What this gate carries forward:
 
 | Wave | Item | Kind | Disposition |
 |---|---|---|---|
-| W1-W4 | Live contract tests not run in-sandbox | SKIPPED (standing rule) | Run in CI / on the owner's machine; 5 tests skipped in every local run |
-| W1 | OpenRouter aliases could not be probed (openrouter.ai unreachable) | SKIPPED | Recorded as a known blind spot of the drop-list probe; enters the drop list in CI only |
-| W1 | Bytecode-cache poisoning during fault injection (a same-length mutation inside one second read a stale module) | Tooling incident, recorded | Caches now cleared before every probe; lesson to EXPERIENCE |
-| W2 | Claude Fable 5 deliberately excluded from the Perplexity rosters | Ledgered curation choice | The page states it only in a section that contradicts the Search table transcribed; including it would have changed the top pick. Recorded as `scope: search-models` in data |
-| W2 | `claude-sonnet-4-6` canonicalizes to `claude-4-sonnet` (no 4.6-sonnet rule) | Pre-existing defect, queued | Raised at W2, reviewer-confirmed, still open — carry to M5 registry work |
-| W3, W4 | `scripts/` fails repo-wide ruff/black; the gate is scoped to `src tests`, so scripts drift is structurally invisible | Pre-existing, out of scope | GP-upstream note, unchanged across two waves |
-| W3 | REQ-ING-010 + fresh-benchmark ingestion NOT DELIVERED | Ledgered criteria diff | See §2.2 / §2.3 |
-| W4 | L-1 — the equivalence note says N plans "list" the model, but a roster-sourced link means the provider's *separate* page names it | Ledgered, not fixed | Owner declared **M4 closure** — due now, not carried |
-| W4 | L-2 — `equivalent_plans` flattens to a name list, so with 2+ groups a machine consumer cannot tell which pick each plan is equivalent to | Ledgered, not fixed | Owner declared **M5**, with the API contract |
-| W4 | L-3 — under `dusuk` one plan is eligible, all three labels return it, and no prose says five scoreable plans were priced out | Ledgered, not fixed | Owner declared **M4 closure** — due now; needs a new output field + REQ-ID + ADR |
-| W4 | **Escaped-blocker tripwire: one.** The round-1 review's own MINOR-3/-4 fix shipped with no citing test; caught only because the fix delta got a second fresh-eyes pass | Tripwire fired | Both engines now covered; lesson for EXPERIENCE: a fix authored in response to a review is new code and inherits the review obligation |
+| W1-W4 | Five opt-in network contract tests skipped in every local run | SKIPPED (standing rule) | Unchanged since M1; run in CI / on the owner's machine |
+| W1-W4 | Seven `EPOCH_DATA_DIR`-gated tests skipped unless the owner's bundle is mounted | SKIPPED (by design) | **Material to this gate:** these seven include the strongest citing evidence for REQ-ING-011b, REQ-SUB-007, REQ-REC-012 and half of REQ-CAN-005. They are green here because the gate mounted the bundle; they are NOT green in CI, because the bundle is not in CI. Recorded, not waived — see §7 |
+| W1-W3 | Mechanical mutation runner not wired (HIGH advisory) | SKIPPED | Manual fault injection ran instead, in every wave and again at this gate |
+| W4 | The wave shipped as an unreviewed checkpoint and was closed by a second agent | Escaped-blocker tripwire FIRED | Three BLOCKING defects were sitting in it, all fixed before close. K.7 satisfied structurally |
+| W4 | A live registry swallow (`kimi-k2.5` / `kimi-k2.6` both folding into `kimi-k2`) found while closing, not by the review | Live-data defect, fixed | Lesson recorded: a new SOURCE is a new corpus |
+| Closure | M5 security review: 1 BLOCKING, 7 MINOR, 8 NOTE | Fixed / ledgered | BLOCKING-1 and four MINOR fixed in the closure fix-set with mutants; three MINOR ledgered to M6; one MINOR accepted with the reason written down. Verdict after disposition: PASS, conditional on the OWNER's own migration review (permission-matrix §11) |
+| — | `scripts/` fails repo-wide ruff/black; the gate is scoped to `src tests` | Pre-existing | GP-upstream note, unchanged across three milestones |
 
-Two of the three W4 ledger items (L-1, L-3) name **M4 closure** as their owning milestone. They are
-due in this closure, not carryable to M5 without an explicit re-assignment.
+**Warnings ledger.** Ten rows. W-003, W-004, W-006, W-007 are **FIXED** in W4 with citing tests.
+W-002, W-005, W-008, W-009, W-010 are **ACCEPTED** with owning milestone **M6** and a written reason
+each. **W-001** (gitleaks `generic-api-key`, an ADR compliance label in English prose) is still
+**ESCALATED** and has now survived M3, M4 and M5. The M5 security review additionally found the rule
+firing at **two** paths while the ledger row names one; the second occurrence entered at the M4
+closure commit, so M5 introduced no new finding. Not waived, not baselined, not suppressed — agents
+may not. Owner action: land the scoped `.gitleaks.toml` allowlist, or extend and re-stamp the row.
 
-## 5. Warnings ledger status
-
-`docs/warnings.ledger.md` carries exactly one row, **W-001** (gitleaks `generic-api-key`, first seen
-2026-08-15 at M3-W0, on `docs/reviews/m2-security-review.md:8`), status **ESCALATED**, owning
-milestone **M3**.
-
-- **Mechanically clean.** `make check-records` is green; C2a fires only on status `OPEN`, and
-  ESCALATED is a valid disposition (agents may never waive a scanner finding — AGENTS.md §3). C2b
-  (same control ACCEPTED 3x) and C2c (ACCEPTED with no reason/owner) do not fire: there are no
-  ACCEPTED rows at all.
-- **Substantively, it has survived its close.** The rule in the ledger's own words is "a warning may
-  not survive the close it was raised in." W-001 was raised in M3-W0, its owning milestone is M3,
-  M3 closed (commit `430a74c`), and the row is **still open** at the M4 gate — the proposed remedy (a
-  scoped `.gitleaks.toml` allowlist for the ADR-label pattern) is an owner decision that has not been
-  taken. It has now slipped a full milestone.
-- **No new warnings were raised in M4.** W1's run line records "Control-bypass ledger: none"; W2-W4
-  record no bypasses.
-
-**Recommendation:** W-001 goes on the M4 closure agenda for an owner decision. It is a confirmed false
-positive (zero-entropy ADR compliance label following the word "APIs" in prose), so the cost of
-leaving it open is process erosion, not exposure — but a second silent slip would make the ledger's
-own rule decorative.
+---
 
 ## 6. Test and coverage evidence
 
-`.venv/bin/python -m pytest -q` on the closing tree, 2026-08-15:
+`make check` on this tree, 2026-08-16 — **green, exit 0**, all gates:
 
-**191 passed, 5 skipped, 94 warnings in 9.21s.** The 5 skips are the network contract tests
-(`RUN_CONTRACT_TESTS=1` unset) — 2 in `test_arena_openrouter_contract.py`, 1 in
-`test_litellm_contract.py`, 2 in `test_scores_contract.py`. This matches W4's close row 2 exactly
-(191 passed + 5 gated). Total coverage **92%** (1303 statements, 91 missed; 280 branches, 34 partial).
+| Gate | Result |
+|---|---|
+| `ruff check src tests` | All checks passed |
+| `mypy src` | Success: no issues found in 27 source files |
+| `pytest` | **270 passed, 12 skipped**, 131 warnings, 7.40s |
+| `check-records` | PASS, no findings (7 records with frontmatter) |
+| `check-records-selftest` | PASS, 0 problems (every rule probe fires) |
+| `install-check` | PASS |
+| `pin-check` | PASS, all workflow actions SHA-pinned |
 
-| Module | Cover | Module | Cover |
+Coverage on that run: **84%** (2312 statements, 329 missed; 556 branches, 73 partial).
+
+With the owner's Epoch bundle mounted, the seven gated contract tests also run:
+**277 passed, 5 skipped** (the 5 being the network contract tests), coverage **90%**. Both figures
+are reported because the difference between them is exactly the evidence CI cannot see.
+
+| Module | Cover (bundle mounted) | Module | Cover (bundle mounted) |
 |---|---|---|---|
-| `src/app/adapter/main.py` | 100% | `src/app/workflows/categories.py` | 100% |
-| `src/app/clients/aider.py` | 77% | `src/app/workflows/coverage.py` | 91% |
-| `src/app/clients/arena.py` | 89% | `src/app/workflows/ingest.py` | 96% |
-| `src/app/clients/fakes.py` | 100% | `src/app/workflows/plans.py` | 93% |
-| `src/app/clients/litellm.py` | 98% | `src/app/workflows/rank.py` | 100% |
-| `src/app/clients/openrouter.py` | 87% | `src/app/workflows/recommend.py` | 95% |
-| `src/app/clients/protocols.py` | 100% | `src/app/workflows/registry.py` | 100% |
-| `src/app/clients/swebench.py` | 84% | `src/app/workflows/rosters.py` | 85% |
-| | | `src/app/workflows/schema.py` | 97% |
-| | | `src/app/workflows/subscribe.py` | 98% |
+| `workflows/registry.py` | 98% | `workflows/coverage.py` | 94% |
+| `workflows/subscribe.py` | 96% | `workflows/recommend.py` | 95% |
+| `workflows/ingest.py` | 95% | `workflows/rank.py` | 94% |
+| `workflows/schema.py` | 92% | `workflows/categories.py` | 100% |
+| `clients/epoch.py` / `clients/deepswe.py` | high, negative paths covered | `workflows/board_measurement.py` | 41% without the bundle |
 
-The two M4 modules carrying the milestone's new behaviour sit at 91% (`coverage.py`) and 85%
-(`rosters.py`); the uncovered lines in `rosters.py` are validation branches in `_validate` and the
-CLI's error paths. `registry.py` — the product's core IP — is at 100%.
+`board_measurement.py` is the one module whose coverage collapses without the bundle (41%); it is a
+measurement producer, not a serving path, and its uncovered lines are the five per-board adapters.
+
+---
 
 ## 7. Verdict
 
-Six of the eight M4 criteria are COVERED with citing tests that were shown able to fail. Two are not:
-REQ-ING-010 and REQ-ING-011b are DEFERRED behind a reproduced environmental blocker with the unblock
-already specified, and REQ-REC-009 is NOT COVERED as signed because the agent changed the milestone's
-headline criterion on evidence the owner has not yet ratified. Nothing is hidden — every gap is named
-in a wave checklist or a review record — but under V3C-02 a signed criterion without a citing test
-does not close on agent authority.
+Seven of the eight criteria traced are COVERED by tests this gate independently showed able to fail.
+Ten mutants were injected in place and killed by named tests; every file was restored md5-identical
+without git. The two ingestion criteria M4 deferred are genuinely discharged: Epoch is a first-class
+source with its own clock and loud per-source failure, and REQ-ING-011b's fork is satisfied on both
+sides — real evaluation dates ageing to 2 fresh / 3 stale / 5 unscored on `coding`, and a
+release-date-only board that refuses to age and reports 6 undated on `agentic-coding`. The
+tautological guard the M5 security review found was replaced before this gate with a test that fails
+on the real defect, and the pattern is recorded in place so the fourth instance is harder.
 
-**VERDICT (as it stood when the gate ran): BLOCKING** — M4 does not close until the owner (a) ratifies the REQ-REC-009 restatement as
-an ADR plus amended PRD text, (b) accepts REQ-ING-010 and REQ-ING-011b as a criteria diff to M5, and
-(c) dispositions W-001 and the two M4-closure-owned ledger items L-1 and L-3. Fix F-1 (M4 REQ-IDs
-absent from `docs/prd.md`) in the same pass. No code change is required to clear this gate.
+One criterion does not close.
 
-## 8. Closure-session addendum (2026-08-15, after this gate ran)
+**VERDICT: BLOCKING** — on **REQ-REC-011** alone. The `coding` category, the milestone's namesake,
+does not rank on one named effort level and discloses no higher-effort reach; on the owner's live
+bundle it ranks a `max`-effort run above an `unspecified`-effort run and the two losing picks say
+nothing about effort at all. That is Trap 2 of the signed plan reaching the shipped answer, and the
+half of the criterion that is unimplemented has, necessarily, no citing test. The remedy is an
+owner decision, not an agent's: either set `coding.ranking_effort` in DATA and land the citing test,
+or ratify the restatement that Q1 is discharged by the `agentic-coding` surface and land the citing
+test for that rule instead. §2.1 states both paths and the measured cost of each.
 
-Four of the five items above were actioned the same session; the remaining one is the owner's.
+Also on the owner's gate agenda, none of them blocking this register:
 
-| Item | Disposition |
-|---|---|
-| **F-1** (M4 REQ-IDs missing from the PRD) | **FIXED** — `docs/prd.md` §11 added, indexing all eight M4 REQ-IDs with shipped status and pointing at this trace for the criterion-level evidence. |
-| **L-1** (the equivalence note's verb overclaimed: it said the plans *list* the model, which is false for a roster-linked member) | **FIXED in code** — the sentence now says the plans *link to* the model and names which members rest on a provider roster. Citing test `tests/unit/test_subscribe.py::test_equivalence_note_says_which_members_rest_on_a_roster`; two mutants (verb restored, provenance clause dropped) verified RED. Live output carries the added clause, which translates as: *"of these, the source for Perplexity Pro is not the plan page but the provider's published model list."* (The shipped string is Turkish, by product design; it is quoted verbatim only in `docs/reviews/m4-w4-equivalence.md`, the one record allowlisted for it.) |
-| **Security MINOR-4** (coverage's read-only claim was a convention) | **FIXED in code** — the CLI opens the database with `mode=ro`, so a future edit that writes fails at the SQLite layer instead of mutating the owner's file. Citing test `test_cli_opens_the_database_read_only`; mutant RED. |
-| **L-3** (`dusuk`: one eligible plan, three identical labels, nothing says five plans were priced out) | **LEDGERED as W-006**, owning milestone M5 — the remedy is a new output field with its own REQ-ID and ADR, and overloading `equivalence_note` would contradict D-110. |
-| Security MINOR-2/-3/-5 and W4 L-2 | **LEDGERED as W-003 / W-004 / W-005 / W-002**, all owning M5, each with the reason it was not patched at close. |
-| **REQ-REC-009 restatement · REQ-ING-010 + REQ-ING-011b criteria diff · W-001 allowlist** | **CLEARED 2026-08-15.** The owner ratified D-110 (and D-109) and accepted the two ingestion criteria as a diff to M5 at the closure session, after verifying the run himself. W-001 carries to M5 as an owner action. **The gate verdict below is therefore superseded: M4 CLOSES.** |
+1. **D-111** is `proposed`; REQ-REC-013 is a criterion the owner has not signed.
+2. **`docs/closure-report-m5.md`** must carry the REQ-SUB-007 before/after numbers (§2.3).
+3. **W-001** has survived a third close and now fires at two paths against a one-path ledger row.
+4. **The owner's own review of the migration path** (`schema.py:368-408` and `_migrate_scores_effort`)
+   — permission-matrix §11 requires a human for a migration and no agent's pass substitutes.
+5. **Proposed INV-24** — unknown evidence age belongs in the answer, not only in the report (§2.2).
 
-Test totals after the addendum: **193 passed, 5 gated** (was 191); `make check` green on all eight gates.
-
-## 9. M5 implementation trace addendum (2026-08-16; pending owner milestone gate)
-
-This section supersedes the M4-era `DEFERRED` status for REQ-ING-010/011b without rewriting that
-historical gate. Evidence is the M5 tree; final acceptance remains reserved for the owner's joint
-milestone verification.
-
-| REQ-ID | Implementation | Citing acceptance evidence | Status |
-|---|---|---|---|
-| REQ-ING-010 | `clients/epoch.py`, `clients/deepswe.py`, `workflows/ingest.py`, `workflows/epoch.py`, `data/epoch-source.yaml` | `test_epoch_ingest.py`; `test_epoch_workflow.py`; `test_deepswe_workflow.py`; `test_epoch_staleness.py` | IMPLEMENTED |
-| REQ-ING-011b | `coverage.plan_evidence_health` reads the same deterministic row selected by `subscribe.plan_ranking`; releases never become run dates | `test_coverage.py` selected-row/source-MAX adversary + 59/60 boundary; real Epoch/DeepSWE acceptance tests | IMPLEMENTED |
-| REQ-CAN-005 | effort-aware schema identity, parser policy, registry reconciliation, explicit `schema migrate` operator command | `test_schema.py`; `test_effort.py`; `test_deepswe_workflow.py`; real CLI migration test | IMPLEMENTED |
-| REQ-REC-011 | model and plan payloads disclose ranked effort and same-harness/same-source higher effort | `test_effort.py` model/subscription CLI and cross-identity adversaries | IMPLEMENTED |
-| REQ-SUB-007 | baseline producer + real-engine board application | `test_m5_board_measurement.py`; `test_deepswe_workflow.py`: coding 1/10 -> 5/10; agentic 6/10; union 6/10 | IMPLEMENTED |
-| REQ-LIC-001 | one Epoch citation constant reused in export attribution and both recommendation `sources` lists, mirrored in README | `test_categories.py`; `test_recommend.py`; real subscription CLI assertion in `test_deepswe_workflow.py` | IMPLEMENTED |
-| REQ-REC-012 | board measurement publishes rounded Epoch and DeepSWE Gemini values plus contradiction narrative | `test_m5_board_measurement.py` real CLI boundary | IMPLEMENTED |
-| REQ-REC-013 | scoreable-before-cap exclusion count and separate user notice, never mixed with unscored/equivalent plans | six-scoreable synthetic acceptance in `test_subscribe.py`; real five-excluded assertion in `test_deepswe_workflow.py` | IMPLEMENTED; D-111 proposed |
-
-W4 also closes carried implementation warnings W-003, W-004, W-006, and W-007. Their final
-dispositions and exact test surfaces are retained in `docs/warnings.ledger.md`; W-002 and W-005
-remain assigned to M6, and W-001 remains an owner escalation.
+No code change is required to clear item 1 through 5. Item 0 — REQ-REC-011 — requires either one
+data edit plus one test, or one ADR plus one test.

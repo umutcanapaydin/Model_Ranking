@@ -162,3 +162,60 @@ own headline rule broken by a rule it does not model. GP-upstream note.
 5 ledgered with owning milestones) · 18 fault injections, 2 initially stay-green, 18 RED after fixes ·
 security close PASS (0 BLOCKING, 6 MINOR) · quality gate BLOCKING on one owner signature ·
 plan-name drops 2→0 · assistant coverage 3/9→5/9 · coding coverage 1/10, unchanged by design.
+
+## 2026-08-16 — M5: Rescue the Coding Category (data depth, phase 2)
+
+**This milestone was built by one agent and closed by another, with no handover** — the first ran
+out of budget at a `wip: NOT reviewed` checkpoint with four files uncommitted and no review of any
+kind having run. What made the recovery possible was not memory but FILES: wave-close checklists, a
+W4 implementation plan, and review records for W1–W3. The second agent reconstructed the exact tree
+from a bundle, ran the reviews the wave never got, and closed it.
+
+**What the reviews that never ran would have caught — and did, at closure:**
+- `schema migrate` printed exit 0 over a database it had NOT repaired. A pre-M3 `plans` missing
+  `observed_at` "migrated", and the next recommend died with `no such column` — the exact symptom
+  the command exists to eliminate, now hidden behind a success message. The validator carried a
+  hand-written list of two tables; it now DERIVES the requirement from the shipped DDL.
+- `sources` claimed sources the answer never read (an Arena-only answer citing SWE-bench, Aider and
+  Epoch). A field named `sources` is a provenance claim in a machine contract.
+- The Epoch acquisition clock existed twice; CI checked one and the ingest stamped the other.
+- The picks published the effort POLICY instead of the effort EVIDENCE, so a max-effort score shipped
+  with `effort: null` while the same run's CSV printed `effort,max`.
+- Running the REAL bundle found what no review did: `kimi-k2.5` and `kimi-k2.6` both folding into
+  `kimi-k2`, so MAX() published the newer model's score under the older model's name.
+
+**Lesson 1 — a new SOURCE is a new corpus.** The registry's live-name property tests are only as
+good as the names they have met. M4-W1 built that corpus from the boards we had; M5 added two boards
+and the corpus was never extended, so the same swallow class walked straight back in. Rule adopted:
+every milestone that adds a source replays the live-name expectations against it, and the corpus
+grows in the same commit as the source.
+
+**Lesson 2 — a guard that cannot fail is worse than no guard.** The W4 "structural guard" against
+the effort trap filtered a list by a predicate and then asserted that predicate. It was green in
+every gate while the defect it was named for was live in the shipped payload. **Third instance of
+this class in this project** (after the vacuous `"Twin Plan" in note` and the undefended
+`close_call=8`). It reads like coverage, which is precisely what makes it expensive. Rule: when you
+write a guard, write the mutant that should kill it in the same sitting — and if you cannot describe
+that mutant, you have not written a test.
+
+**Lesson 3 — a green mutant means the MUTANT might be wrong.** Two injections stayed green: one
+because first-match-wins meant reverting a base rule could not reproduce the swallow, one because
+the citing test drove only one of the two engines that share the defect. The reflex "test is weak"
+was wrong the first time and right the second. Check the mutant before rewriting the test.
+
+**Lesson 4 — a criterion written before the data exists gets rewritten by the data.** M5's own plan
+promised the coding evidence age would drop below 60 days. The fresher board turned out to publish
+model RELEASE dates, not evaluation dates. The criterion was restated as a fork (age it, or refuse
+to age it and SAY the evidence is undated) rather than satisfied by ageing on a launch date. This is
+the second consecutive milestone whose headline criterion was corrected by measurement — M4's was
+"≥3 distinct plans". The rule adopted at M4 (measure in the wave BEFORE the criterion) worked: W1
+measured, and the board choice changed because of it.
+
+**Friction (V4C-13):** the agent handover cost a full review cycle that a completed wave would not
+have needed, and the closure had to re-derive numbers the previous agent had already computed.
+Recorded, not hidden.
+
+**Numbers:** 17 commits · 271 tests (+78) · coding coverage 1/10 → 5/10, plus a new agentic-coding
+category at 6/10 (union 6/10) · 40 review findings (20 in-wave, 20 at closure) · 22 fault injections,
+22 RED after fixes, 2 initially green · security close PASS (1 BLOCKING fixed at closure) · quality
+gate BLOCKING on one owner ruling (D-112) · 5 warnings carried to M6.

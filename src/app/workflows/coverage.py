@@ -282,7 +282,11 @@ def main(argv: list[str] | None = None) -> int:
         # convention held up by reading the code. `mode=ro` makes it a MECHANISM —
         # SQLite refuses any write on this handle, so a future edit that adds one
         # fails loudly here instead of silently mutating the owner's database.
-        conn = sqlite3.connect(f"file:{Path(args.db).as_posix()}?mode=ro", uri=True)
+        # M5 security review MINOR: `as_posix()` string-concatenation let a '?' in the
+        # path terminate the URI, so the mode parameter was dropped AND the connection
+        # fell back to creating a database. `as_uri()` percent-encodes it, the way the
+        # migrate command already does (schema.py).
+        conn = sqlite3.connect(f"{Path(args.db).resolve().as_uri()}?mode=ro", uri=True)
         cov = plan_coverage(conn)
         health = source_health(conn, today)
         plan_health = tuple(plan_evidence_health(conn, spec, today) for spec in CATEGORIES.values())

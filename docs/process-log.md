@@ -170,3 +170,17 @@ fallback. The implementation is ready for fresh review; final M5 acceptance and 
 owner's milestone-gate decisions.
 Lesson: freshness is not one timestamp — acquisition, source telemetry, and selected evidence must
 remain distinct clocks in code, tests, and user output.
+
+## 2026-08-16 — M5 closure, inherited mid-milestone — lead agent (Cowork)
+Took over M5 from another agent that ran out of budget at a `wip: NOT reviewed` W4 checkpoint with
+four files uncommitted and no review of any kind. Reconstructed the tree from a bundle, verified
+nothing was lost, then ran the reviews the wave never got: fresh-eyes code review (3 BLOCKING + 9
+MINOR), security review (1 more BLOCKING + 7 MINOR), quality gate (BLOCKING on one criterion). Fixed
+all four BLOCKING plus seven MINOR, ledgered five, and found one defect no review caught by running
+the owner's real Epoch bundle through ingest: kimi-k2.5 and kimi-k2.6 folding into kimi-k2, so MAX()
+published the newer model's score under the older model's name. Wrote D-112 with the measured trade
+(no effort level keeps the coding board: 28 models today, 19 at best under any policy) so the owner's
+ruling is a signature rather than an open question. M5 closes on two owner items: D-112 and the
+migration review permission-matrix §11 requires.
+Lesson: a guard that cannot fail is worse than no guard — the W4 structural guard asserted the
+predicate it had filtered on and stayed green while the defect it named shipped in the payload.
