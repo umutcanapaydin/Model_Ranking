@@ -9,7 +9,7 @@ Tables
 ------
 models      canonical model registry (filled in W3, REQ-CAN-001)
 pricing     per-alias API prices from pricing sources (W1, REQ-ING-001)
-scores      benchmark score records — ALWAYS model+harness pairs (W2, REQ-ING-002)
+scores      benchmark score records — model+harness+effort evidence (REQ-CAN-005)
 px_median   median reference price per canonical model (W3, REQ-CAN-003)
 """
 
@@ -41,13 +41,15 @@ CREATE TABLE IF NOT EXISTS scores (
     benchmark   TEXT NOT NULL,
     metric      TEXT NOT NULL,
     score       REAL NOT NULL,
-    harness     TEXT NOT NULL,        -- a score is a model+harness pair (REQ-ING-002)
+    harness     TEXT NOT NULL,
+    effort      TEXT NOT NULL DEFAULT 'unspecified'
+                CHECK (effort IN ('unspecified','low','medium','high','xhigh','max')),
     run_date    TEXT,
     cost_total  REAL,
     source      TEXT NOT NULL,
     source_url  TEXT NOT NULL,
     observed_at TEXT NOT NULL,
-    UNIQUE (raw_name, benchmark, metric, harness, source)
+    UNIQUE (raw_name, benchmark, metric, harness, effort, source)
 );
 CREATE INDEX IF NOT EXISTS idx_pricing_model ON pricing (model_id);
 CREATE INDEX IF NOT EXISTS idx_scores_model  ON scores  (model_id);
@@ -124,7 +126,7 @@ class PlanRow:
 
 @dataclass(frozen=True)
 class ScoreRow:
-    """One benchmark score record; harness is mandatory (REQ-ING-002)."""
+    """One benchmark score record; harness and effort identity are explicit."""
 
     raw_name: str
     benchmark: str
@@ -135,6 +137,7 @@ class ScoreRow:
     cost_total: float | None
     source: str
     source_url: str
+    effort: str | None = None
 
 
 # Columns added to EXISTING tables after M1. `CREATE TABLE IF NOT EXISTS` cannot add
@@ -147,6 +150,71 @@ _MIGRATIONS: tuple[tuple[str, str, str], ...] = (
     ("plan_models", "last_verified", "TEXT"),
 )
 
+EFFORT_UNSPECIFIED = "unspecified"
+EFFORT_LEVELS: tuple[str, ...] = ("low", "medium", "high", "xhigh", "max")
+
+
+def _scores_effort_schema(conn: sqlite3.Connection) -> bool:
+    """Whether ``scores`` has the W2 effort column and effort-aware identity."""
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(scores)")}
+    if not columns:
+        return True  # DDL will create a complete table later.
+    if "effort" not in columns:
+        return False
+    for row in conn.execute("PRAGMA index_list(scores)"):
+        if not row[2]:  # not UNIQUE
+            continue
+        indexed = tuple(item[2] for item in conn.execute(f"PRAGMA index_info({row[1]})").fetchall())
+        if indexed == ("raw_name", "benchmark", "metric", "harness", "effort", "source"):
+            return True
+    return False
+
+
+def _migrate_scores_effort(conn: sqlite3.Connection) -> bool:
+    """Preserve a pre-W2 score table while replacing its obsolete UNIQUE key.
+
+    SQLite cannot alter a table-level UNIQUE constraint. Rebuilding this disposable
+    evidence table is therefore the only way to let one model+harness retain several
+    explicit effort rows without losing existing data.
+    """
+    if _scores_effort_schema(conn):
+        return False
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(scores)")}
+    if "effort" not in columns:
+        conn.execute(
+            "ALTER TABLE scores ADD COLUMN effort TEXT NOT NULL DEFAULT 'unspecified' "
+            "CHECK (effort IN ('unspecified','low','medium','high','xhigh','max'))"
+        )
+    conn.executescript("""
+        CREATE TABLE scores__m5_effort (
+            model_id    TEXT,
+            raw_name    TEXT NOT NULL,
+            benchmark   TEXT NOT NULL,
+            metric      TEXT NOT NULL,
+            score       REAL NOT NULL,
+            harness     TEXT NOT NULL,
+            effort      TEXT NOT NULL DEFAULT 'unspecified'
+                        CHECK (effort IN ('unspecified','low','medium','high','xhigh','max')),
+            run_date    TEXT,
+            cost_total  REAL,
+            source      TEXT NOT NULL,
+            source_url  TEXT NOT NULL,
+            observed_at TEXT NOT NULL,
+            UNIQUE (raw_name, benchmark, metric, harness, effort, source)
+        );
+        INSERT INTO scores__m5_effort
+            (model_id, raw_name, benchmark, metric, score, harness, effort,
+             run_date, cost_total, source, source_url, observed_at)
+        SELECT model_id, raw_name, benchmark, metric, score, harness,
+               COALESCE(effort, 'unspecified'),
+               run_date, cost_total, source, source_url, observed_at
+        FROM scores;
+        DROP TABLE scores;
+        ALTER TABLE scores__m5_effort RENAME TO scores;
+        CREATE INDEX idx_scores_model ON scores (model_id);
+        """)
+    return True
+
 
 def migrate(conn: sqlite3.Connection) -> list[str]:
     """Add post-M1 columns to tables that predate them; returns what was added."""
@@ -158,6 +226,8 @@ def migrate(conn: sqlite3.Connection) -> list[str]:
         if column not in existing:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
             applied.append(f"{table}.{column}")
+    if _migrate_scores_effort(conn):
+        applied.append("scores.effort")
     if applied:
         conn.commit()
     return applied

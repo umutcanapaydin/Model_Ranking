@@ -119,8 +119,14 @@ def plan_coverage(conn: sqlite3.Connection) -> tuple[CategoryCoverage, ...]:
             for (pid,) in conn.execute(
                 "SELECT DISTINCT pm.plan_id FROM plan_models pm"
                 " JOIN scores s ON s.model_id = pm.model_id"
-                " WHERE s.benchmark = ? AND s.metric = ? AND pm.model_id IS NOT NULL",
-                (spec.primary_benchmark, spec.metric),
+                " WHERE s.benchmark = ? AND s.metric = ?"
+                " AND (? IS NULL OR s.effort = ?) AND pm.model_id IS NOT NULL",
+                (
+                    spec.primary_benchmark,
+                    spec.metric,
+                    spec.ranking_effort,
+                    spec.ranking_effort,
+                ),
             )
         }
         no_links = sorted(names.get(p, p) for p in names if p not in linked)

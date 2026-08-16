@@ -21,7 +21,14 @@ from app.clients.litellm import parse_pricing
 from app.clients.openrouter import parse_models
 from app.clients.protocols import RawSource, SourceError
 from app.clients.swebench import parse_verified
-from app.workflows.schema import PricingRow, ScoreRow, reset_source
+from app.workflows.registry import resolve_effort
+from app.workflows.schema import (
+    EFFORT_LEVELS,
+    EFFORT_UNSPECIFIED,
+    PricingRow,
+    ScoreRow,
+    reset_source,
+)
 
 
 @dataclass(frozen=True)
@@ -101,12 +108,19 @@ def _store_scores(
     the transaction rolls back, so the old working set survives.
     """
     try:
+        stored_rows = []
+        for row in rows:
+            if row.effort is not None and row.effort not in EFFORT_LEVELS:
+                msg = f"{source_name}: invalid score effort {row.effort!r}"
+                raise SourceError(msg)
+            inferred = resolve_effort(row.raw_name, row.effort)
+            stored_rows.append((row, inferred.effort or EFFORT_UNSPECIFIED))
         with conn:
             reset_source(conn, "scores", source_name)
             conn.executemany(
-                "INSERT INTO scores (raw_name, benchmark, metric, score, harness,"
+                "INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort,"
                 " run_date, cost_total, source, source_url, observed_at)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?)",
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 [
                     (
                         r.raw_name,
@@ -114,13 +128,14 @@ def _store_scores(
                         r.metric,
                         r.score,
                         r.harness,
+                        effort,
                         r.run_date,
                         r.cost_total,
                         r.source,
                         r.source_url,
                         run.observed_at,
                     )
-                    for r in rows
+                    for r, effort in stored_rows
                 ],
             )
     except sqlite3.IntegrityError as exc:

@@ -22,7 +22,14 @@ from dataclasses import dataclass
 
 from app.workflows.categories import CategorySpec, get_category
 from app.workflows.plans import stale_plans
-from app.workflows.recommend import lead_phrase, round_score, shown_gap
+from app.workflows.rank import higher_effort_evidence
+from app.workflows.recommend import (
+    effort_disclosure,
+    lead_phrase,
+    round_optional_score,
+    round_score,
+    shown_gap,
+)
 
 
 @dataclass(frozen=True)
@@ -43,6 +50,9 @@ class PlanRank:
         str | None
     )  # roster links carry their own source; plan-page links use the plan's
     harness: str
+    effort: str
+    higher_effort: str | None
+    higher_effort_score: float | None
     evidence_date: str | None
     evidence_source: str
     evidence_source_url: str
@@ -64,6 +74,10 @@ class PlanPick:
     scored_via: str
     link_source_url: str | None
     harness: str
+    effort: str | None
+    higher_effort: str | None
+    higher_effort_score: float | None
+    effort_note: str | None
     evidence_date: str | None
     last_verified: str
     source_url: str
@@ -77,6 +91,7 @@ class SubscriptionRecommendation:
 
     task: str
     budget: str
+    ranking_effort: str | None
     eligible_count: int
     frontier_size: int
     unscored_plans: tuple[str, ...]  # disclosed, never silently dropped
@@ -121,11 +136,13 @@ def plan_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[PlanRank]
           FROM plan_models pm
           JOIN scores s ON s.model_id = pm.model_id
           WHERE s.benchmark = :primary AND s.metric = :metric
+            AND (:effort IS NULL OR s.effort = :effort)
             AND pm.model_id IS NOT NULL
           GROUP BY pm.plan_id
         ),
         detail AS (
-          SELECT pm.plan_id, m.display, s.harness, s.run_date, s.score,
+          SELECT pm.plan_id, m.id AS model_id, m.display, s.harness, s.effort,
+                 s.run_date, s.score,
                  pm.link_source, pm.source_url AS link_source_url,
                  s.source AS evidence_source,
                  s.source_url AS evidence_source_url,
@@ -144,11 +161,14 @@ def plan_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[PlanRank]
           JOIN models m ON m.id = pm.model_id
           JOIN plan_best b ON b.plan_id = pm.plan_id AND b.best = s.score
           WHERE s.benchmark = :primary AND s.metric = :metric
+            AND (:effort IS NULL OR s.effort = :effort)
         )
         SELECT p.id, p.name, p.provider, p.monthly_usd, p.currency,
                p.last_verified, p.source_url, b.best,
+               (SELECT model_id   FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
                (SELECT display     FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
                (SELECT harness     FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
+               (SELECT effort      FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
                (SELECT run_date    FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
                (SELECT link_source FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
                (SELECT link_source_url FROM detail d WHERE d.plan_id = p.id AND d.rn = 1),
@@ -159,29 +179,39 @@ def plan_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[PlanRank]
         JOIN plan_best b ON b.plan_id = p.id
         ORDER BY b.best DESC, p.monthly_usd ASC, p.id
         """,
-        {"primary": spec.primary_benchmark, "metric": spec.metric},
+        {
+            "primary": spec.primary_benchmark,
+            "metric": spec.metric,
+            "effort": spec.ranking_effort,
+        },
     ).fetchall()
-    return [
-        PlanRank(
-            plan_id=r[0],
-            plan=r[1],
-            provider=r[2],
-            monthly_usd=r[3],
-            currency=r[4],
-            last_verified=r[5],
-            source_url=r[6],
-            score=r[7],
-            scored_by_model=r[8],
-            harness=r[9],
-            evidence_date=r[10],
-            scored_via=r[11],
-            link_source_url=r[12],
-            evidence_source=r[13],
-            evidence_source_url=r[14],
-            evidence_raw_name=r[15],
+    ranking: list[PlanRank] = []
+    for r in rows:
+        higher_effort, higher_score = higher_effort_evidence(conn, r[8], spec)
+        ranking.append(
+            PlanRank(
+                plan_id=r[0],
+                plan=r[1],
+                provider=r[2],
+                monthly_usd=r[3],
+                currency=r[4],
+                last_verified=r[5],
+                source_url=r[6],
+                score=r[7],
+                scored_by_model=r[9],
+                harness=r[10],
+                effort=r[11],
+                higher_effort=higher_effort,
+                higher_effort_score=higher_score,
+                evidence_date=r[12],
+                scored_via=r[13],
+                link_source_url=r[14],
+                evidence_source=r[15],
+                evidence_source_url=r[16],
+                evidence_raw_name=r[17],
+            )
         )
-        for r in rows
-    ]
+    return ranking
 
 
 def _unscored(conn: sqlite3.Connection, ranked_ids: set[str]) -> tuple[str, ...]:
@@ -232,6 +262,12 @@ def _pick(
         scored_via=row.scored_via,
         link_source_url=row.link_source_url,
         harness=row.harness,
+        effort=spec.ranking_effort,
+        higher_effort=row.higher_effort,
+        higher_effort_score=round_optional_score(row.higher_effort_score),
+        effort_note=effort_disclosure(
+            spec.ranking_effort, row.higher_effort, row.higher_effort_score, spec
+        ),
         evidence_date=row.evidence_date,
         last_verified=row.last_verified,
         source_url=row.source_url,
@@ -404,6 +440,7 @@ def recommend_subscription(
     return SubscriptionRecommendation(
         task=spec.id,
         budget=budget,
+        ranking_effort=spec.ranking_effort,
         eligible_count=len(rows),
         frontier_size=len(frontier),
         unscored_plans=unscored,

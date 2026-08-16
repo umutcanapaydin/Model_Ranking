@@ -89,6 +89,10 @@ class Pick:
     output_per_m: float
     evidence_date: str | None
     harness: str
+    effort: str | None
+    higher_effort: str | None
+    higher_effort_score: float | None
+    effort_note: str | None
     confidence: str
     confidence_basis: str
     why: str
@@ -101,6 +105,7 @@ class Recommendation:
 
     task: str
     budget: str
+    ranking_effort: str | None
     eligible_count: int
     frontier_size: int
     close_call: str | None
@@ -136,6 +141,29 @@ def pareto_frontier(rows: list[RankingRow]) -> list[RankingRow]:
     )
 
 
+def effort_disclosure(
+    effort: str | None,
+    higher_effort: str | None,
+    higher_effort_score: float | None,
+    spec: CategorySpec,
+) -> str | None:
+    """REQ-REC-011 Turkish disclosure for the named comparison level and range."""
+    if spec.ranking_effort is None:
+        return None
+    if effort is None:
+        return None
+    if higher_effort is None or higher_effort_score is None:
+        return (
+            f"Bu model yalnız {spec.ranking_effort} effort düzeyinde yayımlanmış; "
+            "daha yüksek effort karşılaştırması yok."
+        )
+    return (
+        f"Bu model {spec.ranking_effort} effort düzeyinde sıralandı; "
+        f"{higher_effort} effort düzeyinde "
+        f"{round_score(higher_effort_score):.1f} {spec.score_unit} değerine ulaşıyor."
+    )
+
+
 def _pick(label: str, row: RankingRow, spec: CategorySpec, why: str, trade_off: str | None) -> Pick:
     conf, basis = confidence_of(row, spec)
     return Pick(
@@ -150,6 +178,12 @@ def _pick(label: str, row: RankingRow, spec: CategorySpec, why: str, trade_off: 
         output_per_m=row.output_per_m,
         evidence_date=row.evidence_date,
         harness=row.harness,
+        effort=spec.ranking_effort,
+        higher_effort=row.higher_effort,
+        higher_effort_score=round_optional_score(row.higher_effort_score),
+        effort_note=effort_disclosure(
+            spec.ranking_effort, row.higher_effort, row.higher_effort_score, spec
+        ),
         confidence=conf,
         confidence_basis=basis,
         why=why,
@@ -274,6 +308,7 @@ def recommend(
     return Recommendation(
         task=spec.id,
         budget=budget,
+        ranking_effort=spec.ranking_effort,
         eligible_count=len(rows),
         frontier_size=len(frontier),
         close_call=close_call,

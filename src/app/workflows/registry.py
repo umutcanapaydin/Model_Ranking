@@ -16,6 +16,7 @@ import sqlite3
 from dataclasses import dataclass
 
 from app.clients.swebench import split_harness
+from app.workflows.schema import EFFORT_LEVELS, EFFORT_UNSPECIFIED
 
 
 @dataclass(frozen=True)
@@ -34,9 +35,9 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     # M4-W1: families added from a LIVE drop-list probe (LiteLLM pricing + SWE-bench +
     # Arena overall board, 2026-08-15). A family is only added when live data carries
     # BOTH a score and a price for it — a rule for a model that cannot rank is dead code.
-    # Effort/tier suffixes (-max, -high, -xhigh, -medium, -low, -thinking, -preview,
-    # date stamps) are absorbed into the base model: they are runtime settings of the
-    # same model at the same price, and the coding sources already behaved this way.
+    # Effort suffixes (-max/-xhigh/-high/-medium/-low) map to the same priced model,
+    # but M5 resolves and stores the suffix BEFORE this table is consulted. They are
+    # never allowed to disappear as score dimensions. Preview/date tokens remain aliases.
     ModelRule("claude-fable-5",    "Claude Fable 5",    "Anthropic", r"claude[-_ ]?fable[-_ ]?5"),
     ModelRule("claude-5-opus",     "Claude Opus 5",     "Anthropic", r"claude[-_ ]?opus[-_ ]?5(?![.\-]?\d)|claude[-_ ]?5[-_ ]?opus"),
     # M4-W2: named by Perplexity's documented plan roster, and live in both pricing
@@ -139,6 +140,57 @@ def canonicalize(name: str) -> ModelRule | None:
     return None
 
 
+_EFFORT_SUFFIX = re.compile(r"(?P<separator>[-_])(?P<effort>max|xhigh|high|medium|low)\Z", re.I)
+
+
+@dataclass(frozen=True)
+class EffortResolution:
+    """Explicit score effort plus the model name with a true effort suffix removed."""
+
+    model_name: str
+    effort: str | None
+    conflict: bool = False
+    invalid_explicit: bool = False
+
+
+def resolve_effort(model_name: str, explicit: str | None = None) -> EffortResolution:
+    """Resolve score effort without mistaking model-family names for settings.
+
+    A terminal token is an effort suffix only when removing it leaves the same
+    canonical model. Thus ``claude-opus-5_max`` resolves to Claude Opus 5 at max,
+    while the model family ``qwen3.7-max`` remains intact. A valid explicit column
+    wins a suffix disagreement and the caller can disclose the conflict.
+    """
+    explicit_value = explicit.strip().lower() if isinstance(explicit, str) else ""
+    explicit_effort = explicit_value if explicit_value in EFFORT_LEVELS else None
+    invalid_explicit = bool(explicit_value and explicit_effort is None)
+
+    suffix_effort: str | None = None
+    base_name = model_name
+    match = _EFFORT_SUFFIX.search(model_name.strip())
+    if match:
+        candidate_base = model_name.strip()[: match.start()]
+        full_rule = canonicalize(model_name)
+        base_rule = canonicalize(candidate_base)
+        if (
+            full_rule is not None
+            and base_rule is not None
+            and full_rule.canonical_id == base_rule.canonical_id
+        ):
+            suffix_effort = match.group("effort").lower()
+            base_name = candidate_base
+
+    effort = explicit_effort or suffix_effort
+    if effort == EFFORT_UNSPECIFIED:  # defensive; not a valid explicit parser value
+        effort = None
+    return EffortResolution(
+        model_name=base_name,
+        effort=effort,
+        conflict=bool(explicit_effort and suffix_effort and explicit_effort != suffix_effort),
+        invalid_explicit=invalid_explicit,
+    )
+
+
 @dataclass(frozen=True)
 class ReconcileReport:
     """Reconciliation outcome (REQ-CAN-001: drops are counted, never guessed)."""
@@ -211,9 +263,13 @@ def reconcile(conn: sqlite3.Connection) -> ReconcileReport:
             conn.execute(
                 "UPDATE pricing SET model_id = ? WHERE alias = ?", (rule.canonical_id, alias)
             )
-        for (raw_name,) in conn.execute("SELECT DISTINCT raw_name FROM scores").fetchall():
+        for raw_name, effort in conn.execute(
+            "SELECT DISTINCT raw_name, effort FROM scores"
+        ).fetchall():
             _, model_part = split_harness(raw_name)
-            rule = canonicalize(model_part)
+            explicit = None if effort == EFFORT_UNSPECIFIED else effort
+            identity = resolve_effort(model_part, explicit)
+            rule = canonicalize(identity.model_name)
             if rule is None:
                 s_dropped += 1
                 dropped.append(raw_name)
@@ -221,7 +277,8 @@ def reconcile(conn: sqlite3.Connection) -> ReconcileReport:
             s_matched += 1
             seen[rule.canonical_id] = rule
             conn.execute(
-                "UPDATE scores SET model_id = ? WHERE raw_name = ?", (rule.canonical_id, raw_name)
+                "UPDATE scores SET model_id = ? WHERE raw_name = ? AND effort = ?",
+                (rule.canonical_id, raw_name, effort),
             )
         for rule in seen.values():
             conn.execute(

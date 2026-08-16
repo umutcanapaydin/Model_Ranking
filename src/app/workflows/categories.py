@@ -25,6 +25,7 @@ class CategorySpec:
     min_quality: float  # Budget Pick floor
     value_window: float  # Best Value: within N of the leader
     close_call: float  # near-tie disclosure threshold
+    ranking_effort: str | None = None  # named comparable level; None = board has no effort policy
 
 
 CATEGORIES: dict[str, CategorySpec] = {
@@ -54,6 +55,22 @@ CATEGORIES: dict[str, CategorySpec] = {
         min_quality=1400.0,  # was 1300 (admitted 57% of the board); 1400 = top third, leader-108
         value_window=30.0,  # kept: ~4x the noise threshold; 13 candidates within reach of the top
         close_call=8.0,  # was 5; live 95% CIs still overlap for 64% of pairs 8-9 Elo apart
+    ),
+    # M5 owner-delegated board decision: DeepSWE is a separate surface because its
+    # release dates are not evaluation dates and its harness materially disagrees
+    # with Epoch SWE-bench for Gemini. Q1 fixes comparison at one DATA-owned level.
+    "agentic-coding": CategorySpec(
+        id="agentic-coding",
+        title_tr="Ajanlı kodlama",
+        primary_benchmark="DeepSWE",
+        metric="% resolved",
+        score_unit="puan",
+        secondary_benchmark=None,
+        primary_source="epoch_deepswe_external",
+        min_quality=50.0,
+        value_window=6.0,
+        close_call=1.5,
+        ranking_effort="high",
     ),
 }
 

@@ -16,6 +16,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from app.workflows.categories import CATEGORIES, CategorySpec
+from app.workflows.schema import EFFORT_LEVELS
 
 BLEND_INPUT_WEIGHT = 0.75
 BLEND_OUTPUT_WEIGHT = 0.25
@@ -40,12 +41,36 @@ class RankingRow:
     vendor: str
     score: float
     harness: str
+    effort: str
+    higher_effort: str | None
+    higher_effort_score: float | None
     evidence_date: str | None
     secondary_score: float | None
     secondary_cost: float | None
     input_per_m: float
     output_per_m: float
     blended_per_m: float
+
+
+def higher_effort_evidence(
+    conn: sqlite3.Connection, model_id: str, spec: CategorySpec
+) -> tuple[str | None, float | None]:
+    """Score at the highest published effort above the category's named level."""
+    if spec.ranking_effort is None:
+        return None, None
+    try:
+        current = EFFORT_LEVELS.index(spec.ranking_effort)
+    except ValueError as exc:
+        raise ValueError(f"unknown ranking effort {spec.ranking_effort!r}") from exc
+    for effort in reversed(EFFORT_LEVELS[current + 1 :]):
+        row = conn.execute(
+            "SELECT MAX(score) FROM scores WHERE model_id = ? AND benchmark = ?"
+            " AND metric = ? AND effort = ?",
+            (model_id, spec.primary_benchmark, spec.metric, effort),
+        ).fetchone()
+        if row is not None and row[0] is not None:
+            return effort, row[0]
+    return None, None
 
 
 def build_price_medians(conn: sqlite3.Connection) -> int:
@@ -90,19 +115,21 @@ def category_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[Ranki
         """
         WITH best_primary AS (
           SELECT model_id, MAX(score) AS best FROM scores
-          WHERE benchmark = :primary AND model_id IS NOT NULL
+          WHERE benchmark = :primary AND metric = :metric
+            AND (:effort IS NULL OR effort = :effort) AND model_id IS NOT NULL
           GROUP BY model_id
         ),
         primary_detail AS (
           -- deterministic tie-break: newest run first, then harness name (M1-W3 MINOR-3)
-          SELECT s.model_id, s.harness, s.run_date, s.score,
+          SELECT s.model_id, s.harness, s.effort, s.run_date, s.score,
                  ROW_NUMBER() OVER (
                    PARTITION BY s.model_id
                    ORDER BY s.run_date DESC, s.harness ASC
                  ) AS rn
           FROM scores s
           JOIN best_primary b ON b.model_id = s.model_id AND b.best = s.score
-          WHERE s.benchmark = :primary
+          WHERE s.benchmark = :primary AND s.metric = :metric
+            AND (:effort IS NULL OR s.effort = :effort)
         ),
         best_secondary AS (
           SELECT model_id, MAX(score) AS sec FROM scores
@@ -118,8 +145,9 @@ def category_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[Ranki
           JOIN best_secondary a ON a.model_id = s.model_id AND a.sec = s.score
           WHERE s.benchmark = :secondary
         )
-        SELECT m.display, m.vendor, b.best,
+        SELECT m.id, m.display, m.vendor, b.best,
                (SELECT harness  FROM primary_detail d WHERE d.model_id = m.id AND d.rn = 1),
+               (SELECT effort   FROM primary_detail d WHERE d.model_id = m.id AND d.rn = 1),
                (SELECT run_date FROM primary_detail d WHERE d.model_id = m.id AND d.rn = 1),
                a.sec,
                (SELECT cost_total FROM secondary_cost c WHERE c.model_id = m.id AND c.rn = 1),
@@ -130,23 +158,34 @@ def category_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[Ranki
         LEFT JOIN best_secondary a ON a.model_id = m.id
         ORDER BY b.best DESC, m.display
         """,
-        {"primary": spec.primary_benchmark, "secondary": secondary},
+        {
+            "primary": spec.primary_benchmark,
+            "metric": spec.metric,
+            "secondary": secondary,
+            "effort": spec.ranking_effort,
+        },
     ).fetchall()
-    return [
-        RankingRow(
-            model=r[0],
-            vendor=r[1],
-            score=r[2],
-            harness=r[3],
-            evidence_date=r[4],
-            secondary_score=r[5],
-            secondary_cost=r[6],
-            input_per_m=r[7],
-            output_per_m=r[8],
-            blended_per_m=round(r[7] * BLEND_INPUT_WEIGHT + r[8] * BLEND_OUTPUT_WEIGHT, 2),
+    ranking: list[RankingRow] = []
+    for r in rows:
+        higher_effort, higher_score = higher_effort_evidence(conn, r[0], spec)
+        ranking.append(
+            RankingRow(
+                model=r[1],
+                vendor=r[2],
+                score=r[3],
+                harness=r[4],
+                effort=r[5],
+                higher_effort=higher_effort,
+                higher_effort_score=higher_score,
+                evidence_date=r[6],
+                secondary_score=r[7],
+                secondary_cost=r[8],
+                input_per_m=r[9],
+                output_per_m=r[10],
+                blended_per_m=round(r[9] * BLEND_INPUT_WEIGHT + r[10] * BLEND_OUTPUT_WEIGHT, 2),
+            )
         )
-        for r in rows
-    ]
+    return ranking
 
 
 def coding_ranking(conn: sqlite3.Connection) -> list[RankingRow]:

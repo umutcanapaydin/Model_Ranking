@@ -6,7 +6,7 @@ import sqlite3
 
 import pytest
 
-from app.workflows.schema import connect, reset_source
+from app.workflows.schema import connect, migrate, reset_source
 
 
 def test_schema_creates_all_tables() -> None:
@@ -48,6 +48,56 @@ def test_scores_require_harness() -> None:
             "INSERT INTO scores (raw_name, benchmark, metric, score, harness,"
             " source, source_url, observed_at)"
             " VALUES ('m', 'b', '%', 1.0, NULL, 's', 'u', 't')"
+        )
+
+
+def test_effort_migration_preserves_pre_wave_rows_and_expands_identity(tmp_path) -> None:
+    """REQ-CAN-005: a pre-W2 DB gains effort without merging distinct effort rows."""
+    db = tmp_path / "pre-w2.db"
+    legacy = sqlite3.connect(db)
+    legacy.executescript("""
+        CREATE TABLE scores (
+          model_id TEXT, raw_name TEXT NOT NULL, benchmark TEXT NOT NULL,
+          metric TEXT NOT NULL, score REAL NOT NULL, harness TEXT NOT NULL,
+          run_date TEXT, cost_total REAL, source TEXT NOT NULL,
+          source_url TEXT NOT NULL, observed_at TEXT NOT NULL,
+          UNIQUE (raw_name, benchmark, metric, harness, source)
+        );
+        INSERT INTO scores
+          (raw_name, benchmark, metric, score, harness, source, source_url, observed_at)
+        VALUES ('same-model', 'DeepSWE', '% resolved', 50, 'agent', 'epoch', 'https://x', 't');
+        """)
+    legacy.close()
+
+    # `connect()` is the shipped DB entrypoint and must invoke the migration.
+    conn = connect(str(db))
+    assert conn.execute("SELECT effort FROM scores").fetchone() == ("unspecified",)
+
+    base = ("same-model", "DeepSWE", "% resolved", "agent", "epoch")
+    for effort, score in (("high", 60.0), ("max", 75.0)):
+        conn.execute(
+            "INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort,"
+            " source, source_url, observed_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (base[0], base[1], base[2], score, base[3], effort, base[4], "https://x", "t"),
+        )
+    assert conn.execute("SELECT COUNT(*) FROM scores").fetchone() == (3,)
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort,"
+            " source, source_url, observed_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (base[0], base[1], base[2], 61, base[3], "high", base[4], "https://x", "t"),
+        )
+    assert migrate(conn) == []
+
+
+def test_scores_reject_unknown_effort() -> None:
+    """REQ-CAN-005: unknown effort cannot be persisted as if it were comparable."""
+    conn = connect()
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort,"
+            " source, source_url, observed_at)"
+            " VALUES ('m', 'b', '%', 1.0, 'h', 'turbo', 's', 'u', 't')"
         )
 
 

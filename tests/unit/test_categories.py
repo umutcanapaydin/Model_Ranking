@@ -103,9 +103,10 @@ def _db() -> sqlite3.Connection:
 
 def test_categories_are_data_not_code(monkeypatch: pytest.MonkeyPatch) -> None:
     """REQ-CAT-001: adding a category = adding a map entry, no code branch."""
-    assert set(CATEGORIES) == {"coding", "assistant"}
+    assert set(CATEGORIES) == {"coding", "assistant", "agentic-coding"}
     for spec in CATEGORIES.values():
         assert spec.primary_benchmark and spec.metric and spec.primary_source
+    assert CATEGORIES["agentic-coding"].ranking_effort == "high"
     with pytest.raises(ValueError, match="unknown task"):
         get_category("photoshop")
 
