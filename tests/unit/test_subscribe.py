@@ -419,7 +419,7 @@ def test_equivalent_plans_are_named_when_the_three_labels_collapse() -> None:
     # W4 review BLOCKING-2: `"Twin Plan" in note` passed on the plan LIST alone and so
     # could not fail — the claim under test is that the note names the cheapest of the
     # group WITH its price. Assert the sentence that carries the claim.
-    assert "Bu grupta en ucuzu Twin Plan ($12.00/ay)." in rec.equivalence_note
+    assert "The cheapest in this group is Twin Plan ($12.00/month)." in rec.equivalence_note
     assert "Monthly difference for the same model: $12.00 — $20.00." in rec.equivalence_note
     # and when no picked plan has a twin, nothing is claimed
     solo = recommend_subscription(_db(), "unlimited", "coding")
@@ -441,7 +441,7 @@ def test_equivalence_is_computed_for_every_label_not_only_the_quality_pick() -> 
     assert rec.picks[1].plan == "Twin Plan"  # value pick does
     assert _member_names(rec) == ("Mid Plan",)
     assert rec.equivalence_note is not None
-    assert "Bu grupta en ucuzu Twin Plan ($12.00/ay)." in rec.equivalence_note
+    assert "The cheapest in this group is Twin Plan ($12.00/month)." in rec.equivalence_note
 
 
 def test_rounding_never_reaches_the_pareto_comparison() -> None:
@@ -569,7 +569,7 @@ def test_equivalence_group_membership_is_resolved_by_plan_id_not_name() -> None:
     assert (
         "2 plans link to the same model (Gemini 3.1 Pro), so they are"
         " indistinguishable on quality: Cheap Plan, Twin Plan."
-        " Bu grupta en ucuzu Cheap Plan ($8.00/ay)."
+        " The cheapest in this group is Cheap Plan ($8.00/month)."
         " Monthly difference for the same model: $8.00 — $20.00."
     ) in note  # the $150 namesake is in the OTHER group, never in this span
 

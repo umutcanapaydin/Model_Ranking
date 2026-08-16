@@ -21,7 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 
 from app.workflows.categories import CategorySpec, get_category
@@ -449,10 +449,7 @@ def main(argv: list[str] | None = None) -> int:
     # disagreeing about effort, with every gate green.
     from app.workflows.serialize import recommendation_json
 
-    if isinstance(rec, Recommendation):
-        print(json.dumps(recommendation_json(rec), ensure_ascii=False, indent=2))
-    else:
-        print(json.dumps(asdict(rec), ensure_ascii=False, indent=2))
+    print(json.dumps(recommendation_json(rec), ensure_ascii=False, indent=2))
     return 0
 
 

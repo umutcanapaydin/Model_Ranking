@@ -271,11 +271,21 @@ EXPORT_COMMENT_PREFIX = "#"
 
 
 def read_export_csv(path: Path) -> list[dict[str, str]]:
-    """Read an exported ranking CSV, skipping the attribution/blend-note header lines."""
-    lines = [
-        line for line in path.read_text().splitlines() if not line.startswith(EXPORT_COMMENT_PREFIX)
-    ]
-    return list(csv.DictReader(lines))
+    """Read an exported ranking CSV, skipping the LEADING attribution/blend-note lines.
+
+    Leading, not "any line starting with `#`". The first version filtered every such line in the
+    file, so a model whose name begins with `#` would have lost its row silently — the file, the
+    JSON half's row count and every existing assertion would all have stayed plausible. A reader
+    that quietly drops data is worse than one that fails, and this was found by review rather than
+    by any test, because nothing in the fixtures is named that way.
+
+    Metadata only ever precedes the header, so the skip stops at the first non-comment line.
+    """
+    lines = path.read_text().splitlines()
+    start = 0
+    while start < len(lines) and lines[start].startswith(EXPORT_COMMENT_PREFIX):
+        start += 1
+    return list(csv.DictReader(lines[start:]))
 
 
 def export_ranking(

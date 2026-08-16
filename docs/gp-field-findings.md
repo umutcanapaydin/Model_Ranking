@@ -201,6 +201,48 @@ reviewer — not edited by the lead agent, because it is that reviewer's record.
 
 ---
 
+## GPF-005 — `L1` has no negation escape hatch, so no record can state what it detects (this section describes, never instructs)
+
+**Severity:** MED, and it is the same defect as GPF-004 in a second rule — which is the finding.
+
+**How it surfaced, twice in one session.** A fresh-eyes reviewer's verdict failed `check-records`
+because it quoted the characters `L1` looks for, in order to explain a finding about `L1`. Then the
+ADR correcting that finding failed for the same reason. Both documents were *about* the rule; neither
+instructed anything.
+
+**Cause.** `conformance/test-git-authority.py` ships a `NEGATION` list precisely so a rule may name
+the command it forbids — its own comments record two rounds of that false-positive class being
+repaired. `L1` in `scripts/check_records.py` has no equivalent. There is therefore **no way to
+document the rule inside the repository the rule governs**: any accurate description of it is a
+violation of it.
+
+**The pattern across GPF-001, GPF-004 and now this.** Three of the suite's checks cannot distinguish
+a document that DESCRIBES a thing from one that DOES it — a removed command named in a historical
+record, a compliance attestation about git, and now the alphabet an English-only rule detects. One
+check solved it (section-aware negation) and the solution was not generalised. **That is a
+suite-level design gap, not three bugs.**
+
+**Additional finding about the rule's reach, measured here:** `L1` detects an ALPHABET, not a
+language. Turkish written in pure ASCII passes it silently — this project shipped four such strings
+after declaring an English-only migration complete, with the gate green (recorded locally as W-019).
+A project reading `L1`'s name would reasonably believe it enforces the policy V4C-79 states, and it
+enforces a proper subset.
+
+**Proposed remedies:**
+
+1. **Generalise the artifact-class exemption** proposed in GPF-001 across every conformance rule and
+   `L1` — a file carrying a `record_type` frontmatter block, or living under `docs/reviews/`, is a
+   record. One rule, three findings closed.
+2. **Give `L1` the negation mechanism `test-git-authority.py` already has**, so a heading that says
+   "describes, does not instruct" exempts its section.
+3. **Rename or re-document `L1`** so its stated scope matches its reach: it is a non-ASCII-letter
+   detector, and the gap between that and "English-only" is where a migration will stop.
+
+**Recorded locally as:** W-019 for the reach gap; no local warning for the escape-hatch gap, which is
+entirely GP's.
+
+---
+
 ## What this project did NOT do
 
 It did not write these findings into the GP package tree. v5.0's `M3` rule fails the build on any

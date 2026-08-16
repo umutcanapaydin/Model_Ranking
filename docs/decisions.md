@@ -704,8 +704,22 @@ their spelling for now. They are internal identifiers, not contract, and renamin
 migration — which belongs in M6-W3 where a migration is already planned, not in a wave that would
 have to acquire one for a cosmetic gain.
 
-**Mitigation if violated:** `L1` in `check_records.py` now covers `recommend.py`, `subscribe.py`,
-`categories.py` and their tests; a Turkish string in any of them fails `make check`.
+**Mitigation if violated — CORRECTED 2026-08-17, because the first version of this paragraph was
+false.** It claimed that with the exemptions removed, "a Turkish string in any of them fails
+`make check`". It does not. `L1` detects Turkish-SPECIFIC LETTERS, so it is silent on Turkish
+written in pure ASCII, and the W2 fresh-eyes review found four such strings still shipping after the
+migration was declared done — including a `trade_off` that rendered as one sentence in two languages.
+**The migration had followed the gate's signal and stopped exactly where the gate stops**, and three
+tests had been left pinning the surviving Turkish in a file whose exemption this ADR had just removed
+on the grounds that it no longer carried any.
+
+What is actually true: `L1` covers `recommend.py`, `subscribe.py`, `categories.py` and their tests,
+and catches any Turkish carrying the alphabet's non-ASCII letters — the cedilla, breve, dotless-i
+and umlaut forms, which this record deliberately DESCRIBES rather than lists, because `L1` has no
+negation escape hatch and a record that spelled them would fail the gate it documents (GPF-005).
+It cannot catch ASCII Turkish. The remaining
+guard is the tests that assert exact English sentences, plus review. Recorded as **W-019** rather
+than closed, because writing a stronger claim would repeat the mistake this paragraph is correcting.
 
 **Revisit when:** the product acquires a real localization layer, at which point this ADR is
 superseded rather than amended — the decision it records is "one language at a time", not "English

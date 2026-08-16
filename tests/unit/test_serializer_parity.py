@@ -21,7 +21,6 @@ A parity test that only passes after the extraction proves nothing. Its mutants 
 
 from __future__ import annotations
 
-import csv
 import json
 from dataclasses import fields
 from pathlib import Path
@@ -29,7 +28,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.workflows.rank import export_ranking
+from app.workflows.ingest import RunContext
+from app.workflows.rank import export_ranking, read_export_csv
 from app.workflows.recommend import Pick, Recommendation, recommend
 from app.workflows.schema import connect
 
@@ -146,8 +146,7 @@ def test_the_csv_metadata_does_not_corrupt_the_table(tmp_path: Path) -> None:
     csv_path, json_path = _export(tmp_path)
     rows_json = json.loads(json_path.read_text())["rows"]
 
-    lines = [ln for ln in csv_path.read_text().splitlines() if not ln.startswith("#")]
-    parsed = list(csv.DictReader(lines))
+    parsed = read_export_csv(csv_path)
     assert len(parsed) == len(rows_json)
     assert parsed[0]["model"] == rows_json[0]["model"]
     assert set(parsed[0]) == set(rows_json[0]), "CSV columns drifted from the JSON row shape"
@@ -157,8 +156,7 @@ def test_the_two_export_halves_carry_the_same_rows(tmp_path: Path) -> None:
     """Trap 1, at the export boundary: same run, same numbers, both files."""
     csv_path, json_path = _export(tmp_path)
     rows_json = json.loads(json_path.read_text())["rows"]
-    lines = [ln for ln in csv_path.read_text().splitlines() if not ln.startswith("#")]
-    parsed = list(csv.DictReader(lines))
+    parsed = read_export_csv(csv_path)
 
     for csv_row, json_row in zip(parsed, rows_json, strict=True):
         for key, value in json_row.items():
@@ -348,3 +346,99 @@ def test_each_equivalence_group_names_the_pick_it_belongs_to(tmp_path: Path) -> 
         assert group.members
         for member in group.members:
             assert member.plan and member.plan_id and member.monthly_usd > 0
+
+
+def test_the_subscription_cli_rendering_carries_every_engine_field(tmp_path: Path, capsys) -> None:
+    """REQ-API-003 + REQ-REC-014, through the LIVE subscription entry point.
+
+    Mandatory test for a stay-green fault the W2 review found (V3C-72). Deleting
+    `equivalent_plans` from the printed subscription JSON left 308 tests green, because all three
+    REQ-REC-014 tests inspected the in-memory dataclass and two of them were `dataclasses.fields`
+    reflection that would pass against an empty implementation. The subscription rendering was the
+    one path this wave had not routed through the shared serializer — the identical defect the W1
+    review found in the adapter, reproduced one wave later in the sibling path, inside the wave
+    whose purpose was to make it impossible.
+
+    So this asserts the SHIPPED TEXT, not the object: what a caller of the CLI actually receives.
+    """
+    from dataclasses import fields as dc_fields
+
+    from app.workflows.plans import ingest_plans
+    from app.workflows.recommend import main as recommend_main
+    from app.workflows.registry import reconcile_plans
+    from app.workflows.subscribe import SubscriptionRecommendation
+
+    from .test_subscribe import SCORES, TWIN_DOC
+
+    db = tmp_path / "subs.db"
+    conn = connect(str(db))
+    try:
+        ingest_plans(conn, TWIN_DOC, RunContext())
+        reconcile_plans(conn)
+        for model_id, raw, score in SCORES:
+            conn.execute(
+                "INSERT INTO scores (model_id, raw_name, benchmark, metric, score, harness,"
+                " run_date, source, source_url, observed_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (
+                    model_id,
+                    raw,
+                    "SWE-bench Verified",
+                    "% resolved",
+                    score,
+                    "test-agent",
+                    "2026-08-01",
+                    "swebench",
+                    "https://x",
+                    "2026-08-15T00:00:00+00:00",
+                ),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+    assert (
+        recommend_main(
+            ["--db", str(db), "--budget", "unlimited", "--task", "coding", "--subscription"]
+        )
+        == 0
+    )
+    printed = json.loads(capsys.readouterr().out)
+
+    missing = sorted({f.name for f in dc_fields(SubscriptionRecommendation)} - set(printed))
+    assert missing == [], f"engine fields absent from the subscription CLI output: {missing}"
+
+    # ...and the REQ-REC-014 structure survives the round trip as DATA, not as prose.
+    assert printed["equivalent_plans"], "the contract field is empty in the shipped rendering"
+    group = printed["equivalent_plans"][0]
+    assert group["equivalent_to"] and group["model"] and group["members"]
+    assert group["members"][0]["plan"] and group["members"][0]["monthly_usd"] > 0
+
+
+def test_the_export_reader_does_not_drop_a_row_named_like_a_comment(tmp_path: Path) -> None:
+    """A reader that silently drops data is worse than one that fails.
+
+    Found by review, not by test: `read_export_csv` filtered EVERY line starting with `#`, so a
+    model whose name begins with `#` would have vanished from the table while the file, the row
+    count in the JSON half and every existing assertion stayed plausible.
+    """
+    from app.workflows.rank import RankingRow, read_export_csv
+
+    row = RankingRow(
+        model="#1 Model",
+        vendor="Test",
+        score=70.0,
+        harness="test-agent",
+        evidence_source="swebench",
+        effort="unspecified",
+        higher_effort=None,
+        higher_effort_score=None,
+        evidence_date="2026-02-26",
+        secondary_score=None,
+        secondary_cost=None,
+        input_per_m=1.0,
+        output_per_m=2.0,
+        blended_per_m=1.25,
+    )
+    csv_path, _ = export_ranking([row], tmp_path / "out", generated_from=[], category="coding")
+    parsed = read_export_csv(csv_path)
+    assert [r["model"] for r in parsed] == ["#1 Model"]

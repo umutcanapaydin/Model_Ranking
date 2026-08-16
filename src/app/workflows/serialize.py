@@ -20,9 +20,10 @@ from dataclasses import asdict
 from typing import Any
 
 from app.workflows.recommend import Recommendation
+from app.workflows.subscribe import SubscriptionRecommendation
 
 
-def recommendation_json(rec: Recommendation) -> dict[str, Any]:
+def recommendation_json(rec: Recommendation | SubscriptionRecommendation) -> dict[str, Any]:
     """A recommendation as plain JSON-safe data, field for field, with nothing enumerated.
 
     `asdict` walks the dataclass, so this function cannot fall behind the engine. Tuples become
@@ -31,6 +32,12 @@ def recommendation_json(rec: Recommendation) -> dict[str, Any]:
     D-109 is NOT applied here. Scores are rounded once, at the point the engine builds a `Pick`
     (`recommend._pick`), and rounding a second time at the boundary would be a second opinion about
     a number the engine has already published.
+
+    Both recommendation shapes go through here. The subscription rendering was left on its own
+    `asdict` call in the first version of this wave, and the W2 review found the consequence
+    immediately: deleting `equivalent_plans` from the printed subscription JSON left every test
+    green — the same defect the W1 review had just found in the model rendering, reproduced one
+    wave later in the sibling path, inside the wave whose purpose was to make it impossible.
     """
     data = asdict(rec)
     return {key: list(value) if isinstance(value, tuple) else value for key, value in data.items()}

@@ -314,7 +314,7 @@ def _stale_notice(conn: sqlite3.Connection, ranking: list[PlanRank]) -> str | No
     if stale_rosters:
         listed = ", ".join(
             f"{row.plan} (roster last verified {row.link_last_verified}, "
-            f"kaynak {row.link_source_url})"
+            f"source {row.link_source_url})"
             for row in stale_rosters
         )
         notices.append(
@@ -493,7 +493,7 @@ def recommend_subscription(
                 f"{len(members)} plans link to the same model ({picked.scored_by_model}), so "
                 f"they are indistinguishable on quality: "
                 f"{', '.join(sorted(r.plan for r in members))}. "
-                f"Bu grupta en ucuzu {cheapest.plan} (${cheapest.monthly_usd:.2f}/ay)."
+                f"The cheapest in this group is {cheapest.plan} (${cheapest.monthly_usd:.2f}/month)."
                 f"{span}{provenance}"
             )
         equivalence_note = " ".join(parts)
@@ -541,7 +541,7 @@ def recommend_subscription(
                 if value.plan_id == quality.plan_id
                 else (
                     f"{lead_phrase(quality.score, value.score, unit)}, and"
-                    f" ayda ${quality.monthly_usd - value.monthly_usd:.2f} daha ucuz."
+                    f" ${quality.monthly_usd - value.monthly_usd:.2f} a month cheaper."
                 )
             ),
         ),
@@ -563,7 +563,7 @@ def recommend_subscription(
                 if cheap.plan_id == quality.plan_id
                 else (
                     f"{lead_phrase(quality.score, cheap.score, unit)},"
-                    f" ama ayda ${quality.monthly_usd - cheap.monthly_usd:.2f} daha ucuz."
+                    f" but ${quality.monthly_usd - cheap.monthly_usd:.2f} a month cheaper."
                 )
             ),
         ),
