@@ -1,7 +1,7 @@
 # M5 Plan — Rescue the Coding Category (data depth, phase 2)
 
-**Status:** **SIGNED** by the owner on 2026-08-16; factual amendment approved by owner choice 1 on
-2026-08-16. Wave dispatch is authorized.
+**Status:** **SIGNED** by the owner on 2026-08-16; factual and REQ-ING-011b meaning amendments
+approved by owner choices 1 on 2026-08-16. Wave dispatch is authorized.
 **Date:** 2026-08-15 · **Risk tier:** LOW-MED · **Mode:** A0.5 + D-106
 **Process baseline:** GP v4.3.1 (D-108). Waves run without stopping (owner amendment, M3); the owner
 runs the out-of-sandbox verification at the milestone gate. **One planned mid-milestone touchpoint**
@@ -19,6 +19,9 @@ puts those with the owner, not the agent.
   contains a number about live data gets a measurement task in the wave *before* it.)
 - **2026-08-16 amendment:** the owner chose to correct the plan's Epoch freshness facts while
   retaining Q2's measure-first decision gate. The amendment does not pre-select the primary board.
+- **2026-08-16 freshness ruling:** freshness is judged on the evidence row the engine actually
+  selects for each plan, not the newest row anywhere in a source. Publish fresh / stale / undated /
+  unscored plan counts together; a source-global `MAX(run_date)` cannot close REQ-ING-011b alone.
 
 ---
 
@@ -54,12 +57,15 @@ Two constraints fall out of that table, and together they are the milestone:
    plans, DeepSWE at **6/10**, FrontierCode at **3/10**, TerminalBench at **5/10**, and Aider at
    **0/10**. Epoch carries Gemini and roster-named GLM 5.2, but neither GPT-5.6 nor Opus 5; the
    boards that carry ChatGPT and Claude do not cover the whole Gemini/GLM surface.
-2. **Coverage and freshness are a real trade-off, not separate-board absolutes.** Epoch SWE-bench
-   supplies both 5/10 plan coverage and a real **2026-06-25** evaluation date — 52 days old on the
-   amendment date, so ingesting it can move coding evidence below the 60-day target. DeepSWE reaches
-   6/10 but publishes **no evaluation date at all**, only model release dates. FrontierCode is also
-   undated. Ageing either one by a model's launch date would let a re-released model look freshly
-   measured, precisely the silent-freshness failure `source_health` was built to prevent.
+2. **Coverage and freshness are a plan-level trade-off, not source-wide absolutes.** Epoch
+   SWE-bench makes 5/10 plans scoreable, but only Perplexity Pro and Max select GLM 5.2's real
+   **2026-06-25** evaluation (52 days old). Google AI Plus, Pro, and Ultra select Gemini 3.1 Pro's
+   **2026-02-24** evaluation (173 days old). The honest Epoch baseline is therefore **2/10 fresh,
+   3/10 stale, 5/10 unscored** — never "5/10 fresh". DeepSWE reaches 6/10 but publishes **no
+   evaluation date at all**, only model release dates; FrontierCode is also undated. Ageing either
+   one by a model's launch date would let a re-released model look freshly measured. The current
+   source-global `source_health()` maximum is still useful source telemetry, but it can mask the
+   age of a plan's selected row and cannot satisfy the amended criterion by itself.
 
 That measured trade-off is why the primary-board choice remains a signed decision rather than an
 implementation detail. This amendment corrects the evidence; it does not consume the W1 owner gate.
@@ -100,7 +106,7 @@ Also observed and to be handled, not assumed: FrontierCode's `Reasoning effort` 
 | REQ-ID | Criterion | Closes |
 |---|---|---|
 | **REQ-ING-010** | Epoch AI is a first-class source: documented CSV bundle, provenance mandatory, loud-fail per source, own `last_verified` clock, staleness disclosed like every other source | M4 deferral |
-| **REQ-ING-011b** | A fresher coding benchmark is INGESTED (not merely investigated). **The freshness target is conditional on W1's finding and is stated as a fork, not a promise:** (a) if the signed board carries a real evaluation date, the coding category's evidence age drops below 60 days and the number is published; (b) if it dates only model releases, the ingestion MUST record that the date is a release date, `source_health` must refuse to read it as evidence age, and the output must say the category's evidence is undated rather than implying currency. Either branch closes the criterion; silently ageing on a release date fails it | M4 deferral |
+| **REQ-ING-011b** | A fresher coding benchmark is INGESTED (not merely investigated), and freshness is published **per curated plan from the evidence row the engine actually selects**. Every plan is counted exactly once as fresh (<60 days), stale (dated, ≥60 days), undated (score exists but only a release date/no evaluation date exists), or unscored. Source-global newest dates may be reported as telemetry but cannot satisfy this criterion. For an undated board, release dates MUST be identified as release dates and MUST NOT be read as evidence age. The initial Epoch target is the measured **2/10 fresh, 3/10 stale, 5/10 unscored** distribution; silently promoting that to "5/10 fresh" fails the criterion | M4 deferral + owner meaning ruling 2026-08-16 |
 | **REQ-CAN-005** | Reasoning effort is PARSED and STORED, never swallowed: `model_version` suffixes and effort columns resolve to an explicit effort value; a row whose effort cannot be determined is counted and disclosed, never defaulted | Trap 2 |
 | **REQ-REC-011** | The coding answer states which effort level it ranked on and what the model reaches at higher effort (shipped string is Turkish, e.g. *"this model reaches 0.74 at max effort"*), per the owner's Q1 ruling | Trap 2 |
 | **REQ-SUB-007** | Coding plan coverage is re-measured through the real engine before and after, and the delta is published as a number in the closure report — a promise is not a measurement | §0 |
@@ -116,10 +122,11 @@ Also observed and to be handled, not assumed: FrontierCode's `Reasoning effort` 
    against the real file shapes now on disk (V3C-44).
 2. Ingest **Epoch's SWE-bench Verified** first — same benchmark the project already carries, so it
    is the lowest-doctrine-risk step and it exercises the whole Epoch path end to end. It **is** a
-   freshness win: roster-named GLM 5.2 has a real 2026-06-25 evaluation, 52 days old on 2026-08-16.
-   Its value is dated 5/10 plan coverage, breadth (24 more models), Epoch's own `inspect_ai` harness
-   recorded as a distinct harness (never merged into swebench.com's rows), and a working ingestion
-   the later boards reuse.
+   freshness win for two plans: roster-named GLM 5.2 gives Perplexity Pro/Max real 2026-06-25
+   evidence, 52 days old on 2026-08-16. It does **not** freshen the three Google plans, whose
+   selected Gemini evidence is 2026-02-24. Its value is honest 2-fresh/3-stale/5-unscored coverage,
+   breadth (24 more models), Epoch's own `inspect_ai` harness recorded as a distinct harness (never
+   merged into swebench.com's rows), and a working ingestion the later boards reuse.
 3. **Investigate the Gemini contradiction** (REQ-REC-012) — the variable to test is `customtools`
    vs the default tool interface, NOT "preview vs release" (both rows are previews). Epoch's
    SWE-bench CSV carries `Log viewer` / `Logs` columns; use them. Write the verdict with evidence
@@ -128,10 +135,13 @@ Also observed and to be handled, not assumed: FrontierCode's `Reasoning effort` 
    — not by name-matching in a spreadsheet — and report BOTH numbers that matter: the coverage delta
    AND what the board's dates actually mean (evaluation date vs model release date). A board that
    fixes coverage but cannot be aged is a different trade than one that can; the owner signs with
-   both numbers in front of him. The pre-implementation baseline is Epoch SWE-bench 5/10 with a
-   2026-06-25 evaluation, DeepSWE 6/10 undated, FrontierCode 3/10 undated, TerminalBench 5/10 with a
-   2026-05-14 newest linked evaluation, and Aider 0/10; W1 must reproduce it through the shipped
-   ingestion path rather than treating this planning measurement as the acceptance proof.
+   both numbers in front of him. Freshness is computed from each plan's selected row, not the
+   board's newest linked row: TerminalBench, for example, has a 2026-05-14 linked row while the
+   current MAX-score selection can carry a 2026-03-13 row. The pre-implementation baseline is Epoch
+   SWE-bench 5/10 = 2 fresh + 3 stale, DeepSWE 6/10 undated, FrontierCode 3/10 undated,
+   TerminalBench 5/10 with plan-specific selected dates to report, and Aider 0/10; W1 must reproduce
+   it through the shipped ingestion + selection path rather than treating this planning measurement
+   as the acceptance proof.
 5. **Owner touchpoint:** the record ends with a recommendation; the owner signs the primary-board
    choice. Waves continue on everything not blocked by that signature.
 
@@ -150,7 +160,9 @@ Also observed and to be handled, not assumed: FrontierCode's `Reasoning effort` 
    signs the two-category option, add the second category through the existing D-105 category
    contract — no new mechanism).
 2. Re-measure coverage through the real engine; publish before/after.
-3. Update every disclosure string that names the coding benchmark, so no text still claims
+3. Publish fresh/stale/undated/unscored counts from each plan's selected evidence row; keep
+   source-global health explicitly labelled as source telemetry.
+4. Update every disclosure string that names the coding benchmark, so no text still claims
    SWE-bench when the category no longer rests on it.
 
 **W4 — Attribution, ledger, and the sources that fight back (REQ-LIC-001 + carried ledger)**
