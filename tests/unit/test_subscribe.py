@@ -395,7 +395,6 @@ TWIN_DOC = DOC.replace(
 )
 
 
-
 def _member_names(rec) -> tuple[str, ...]:
     """Every equivalent plan name, flattened.
 
@@ -404,6 +403,7 @@ def _member_names(rec) -> tuple[str, ...]:
     that care about the structure itself live in `test_serializer_parity.py`.
     """
     return tuple(sorted(m.plan for g in rec.equivalent_plans for m in g.members))
+
 
 def test_equivalent_plans_are_named_when_the_three_labels_collapse() -> None:
     """REQ-REC-009 as evidence allows it: when several plans name the SAME model they
@@ -565,7 +565,9 @@ def test_equivalence_group_membership_is_resolved_by_plan_id_not_name() -> None:
     assert rec is not None
     note = rec.equivalence_note
     assert note is not None
-    assert "2 plans link to the same model (Gemini 3.1 Pro)" in note  # NOT 3 — the namesake is not tied
+    assert (
+        "2 plans link to the same model (Gemini 3.1 Pro)" in note
+    )  # NOT 3 — the namesake is not tied
     assert (
         "2 plans link to the same model (Gemini 3.1 Pro), so they are"
         " indistinguishable on quality: Cheap Plan, Twin Plan."

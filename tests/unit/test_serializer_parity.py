@@ -442,3 +442,60 @@ def test_the_export_reader_does_not_drop_a_row_named_like_a_comment(tmp_path: Pa
     csv_path, _ = export_ranking([row], tmp_path / "out", generated_from=[], category="coding")
     parsed = read_export_csv(csv_path)
     assert [r["model"] for r in parsed] == ["#1 Model"]
+
+
+def test_the_serializer_imports_no_engine_module() -> None:
+    """The one serializer must not depend on what it serializes.
+
+    The first version named both recommendation classes in its signature, creating
+    `serialize -> subscribe -> recommend`. That made a deferred import inside `recommend.main`
+    load-bearing while the comment above it explained something else entirely — so a later import
+    tidy would have broken the CLI at runtime rather than at lint. The W2 review measured it. The
+    function only needs a dataclass instance, so it asks for one structurally.
+
+    This asserts the property rather than the import line, because the import line is what a tidy
+    would move.
+    """
+    import ast
+
+    source = Path("src/app/workflows/serialize.py").read_text()
+    imported = {
+        node.module
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.ImportFrom) and node.module
+    } | {
+        alias.name
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Import)
+        for alias in node.names
+    }
+    engine = sorted(m for m in imported if m.startswith("app."))
+    assert engine == [], f"the serializer imports engine modules: {engine}"
+
+
+def test_nested_tuples_become_lists_at_every_depth() -> None:
+    """The docstring's claim, asserted — it was true only at the top level.
+
+    `equivalent_plans[0]["members"]` came back a tuple while the sentence a later reader would
+    trust said tuples become lists. Harmless in `json.dumps`; wrong as a definition.
+    """
+    from app.workflows.serialize import recommendation_json
+    from app.workflows.subscribe import EquivalenceGroup, EquivalenceMember
+
+    group = EquivalenceGroup(
+        equivalent_to="best_value",
+        model="gpt-5",
+        score=70.0,
+        members=(EquivalenceMember(plan="Twin Plan", plan_id="twin", monthly_usd=12.0),),
+    )
+    rendered = recommendation_json(group)
+    assert isinstance(rendered["members"], list)
+    assert isinstance(rendered["members"][0], dict)
+
+
+def test_the_serializer_refuses_a_non_dataclass() -> None:
+    """Fail loud rather than return a plausible empty dict."""
+    from app.workflows.serialize import recommendation_json
+
+    with pytest.raises(TypeError):
+        recommendation_json({"not": "a dataclass"})  # type: ignore[arg-type]

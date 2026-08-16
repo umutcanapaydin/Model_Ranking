@@ -33,6 +33,7 @@ from app.workflows.rank import (
     secondary_evidence_sources,
 )
 from app.workflows.schema import EFFORT_UNSPECIFIED
+from app.workflows.serialize import recommendation_json
 
 # Budget thresholds on blended $/1M (documented constants — REQ-REC-002)
 BUDGETS: dict[str, float | None] = {"low": 2.0, "medium": 8.0, "unlimited": None}
@@ -444,11 +445,6 @@ def main(argv: list[str] | None = None) -> int:
             payload["budget_notice"] = shutout.budget_notice
         print(json.dumps(payload, ensure_ascii=False))
         return 1
-    # The SAME serializer the /v1 adapter uses (REQ-API-003). Two renderings of one run may not
-    # be built by two functions: that is how M5 shipped a payload and a CSV of the same run
-    # disagreeing about effort, with every gate green.
-    from app.workflows.serialize import recommendation_json
-
     print(json.dumps(recommendation_json(rec), ensure_ascii=False, indent=2))
     return 0
 

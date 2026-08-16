@@ -327,3 +327,167 @@ GPF-001 records, exactly as declared.
 
 **Consequence (profile, "When you finish"): BLOCKING → STOP. W3 does not dispatch until BLOCKING-1
 and BLOCKING-2 are fixed and this review re-runs.** Both are small edits; neither is a redesign.
+
+---
+---
+
+# RE-REVIEW — the W2 fix delta (2026-08-17)
+
+*Appended as a marked section. Everything above this line is the original verdict and is unchanged;
+it stands as the record of what was found.*
+
+**Reviewer:** same fresh-eyes seat; authored no line of the wave or of the fix delta
+**Delta reviewed:** `2f3847b..HEAD` (`2214db4`), committed under D-117, working tree clean
+**Method:** re-ran my own mutants against a scratch copy of the tree. No repository source or test
+file was modified; I never ran `git commit`, `git push`, `git checkout`, `git restore` or
+`git stash`.
+
+## Re-review verdict
+
+**MINOR — both BLOCKING findings are CLOSED. The wave may close.**
+
+| | |
+|---|---|
+| BLOCKING-1 (D-118 incomplete) | **CLOSED** |
+| BLOCKING-2 (subscription rendering) | **CLOSED** |
+| MINOR carried from the original verdict | 8, dispositions below |
+| MINOR newly introduced by the fix delta | **3** |
+| Verdict-changing findings | none |
+
+## BLOCKING-1 — CLOSED
+
+All four fragments are translated, and translated into English that reads as English rather than as
+a substitution: `subscribe.py:317` now `source {url}`, `:496` "The cheapest in this group is X
+($12.00/month).", and the two `trade_off` clauses now render as "…, and $7.00 a month cheaper." /
+"…, but $4.00 a month cheaper." The three pinning assertions are updated at
+`tests/unit/test_subscribe.py:422`, `:444`, `:572`.
+
+I re-ran my own sweep rather than checking the four lines I had named — the point of the finding was
+that four lines were the symptom:
+
+```
+$ grep -rniE '\b(kaynak|puan|dusuk|orta|sinirsiz|ayda|ucuz|ucuzu|daha|grupta|gun|eski|veri|
+    fiyat|kalite|yok|icin|ile|ayni|satir)\b' src/app tests --include="*.py" | grep -v cap_dusuk
+tests/unit/test_recommend.py:343:        recommend(connect(), "yok-boyle-butce")
+```
+
+One hit, and it is out of scope: a deliberately-invalid budget **input** string in a test, not text
+the product emits. D-118 clause 2 governs emitted strings. I record it only so the next sweep does
+not re-find it and think it new.
+
+**The D-118 correction is the right fix and is better than what I asked for.** The rewritten
+Mitigation paragraph states what `L1` actually detects, says the migration "had followed the gate's
+signal and stopped exactly where the gate stops", and describes the letters rather than listing them
+so the record does not fail the gate it documents (GPF-005 — my incidental finding, correctly
+promoted).
+
+**And I withdraw my own proposed remedy.** I suggested a word-list companion for `L1`. W-019 declines
+it on the grounds that a word-list is the denylist class this milestone has already been caught by
+twice — which is precisely the argument I used to make BLOCKING-2 of W1 a blocker, turned back on my
+own suggestion, and it is correct. Widening `L1` is also a gate-definition change and therefore the
+owner's, not an agent's. **W-019 ACCEPTED with the residual gap named, rather than closed with a
+mechanism nobody validated, is the right disposition,** and it is the disposition I would now write
+myself.
+
+## BLOCKING-2 — CLOSED
+
+`recommend.main` has no `asdict` branch left; `recommendation_json` takes both shapes. Measured:
+
+| mutant | before the delta | after |
+|---|---|---|
+| V8 — `equivalent_plans` dropped from the printed subscription JSON | 308 passed, green | **RED** — `test_the_subscription_cli_rendering_carries_every_engine_field` |
+| **V8b (new, mine)** — group structure flattened back to a list of plan names, i.e. the W-002 regression | not previously run | **RED**, same test |
+| V1 — serializer drops `stale_notice` (regression check) | RED | **RED**, now on four tests |
+
+The new test is the right shape: it drives `recommend_main(["--db", …, "--subscription"])` — the real
+entry point — and asserts the **printed JSON**, both that every `SubscriptionRecommendation` field is
+present and that the REQ-REC-014 group carries `equivalent_to`, `model`, `members` and a member price.
+V8b matters because it is the mutant that reverts W-002 itself rather than deleting the field, and it
+dies too.
+
+`read_export_csv` is also fixed and has a citing test that would have caught the original: reverting
+to the blanket filter turns `test_the_export_reader_does_not_drop_a_row_named_like_a_comment` RED,
+and the test exports a genuine `#1 Model` row through `export_ranking` rather than hand-writing a
+file. The three inlined skips now call the one reader (MINOR-3 closed).
+
+## The verification you asked me to do — CONFIRMED, with a sharper framing
+
+**The complete hand mirror still stays green: 310 passed, 12 skipped.** Restoring a hand-written
+enumeration of every engine field in `adapter/main.py:_answer_json` breaks nothing.
+
+Your proposed conclusion — "no test can distinguish a correct hand mirror from a derived one" — is
+almost right, and the part it gets wrong is the part worth writing down:
+
+1. **No black-box *output* test can distinguish them, by identity.** A correct mirror and a
+   derivation emit the same bytes today. That is not a test gap; asking a test to see the difference
+   is asking it to see intent.
+2. **What the derived test actually buys is detection of the mirror's ROT, not of its EXISTENCE.**
+   `test_every_recommendation_field_reaches_the_v1_answer` builds `expected` from
+   `fields(Recommendation)`, so a mirror goes red the instant the engine gains a field. **The
+   guarantee is temporal, not structural:** a mirror cannot silently *stay* correct, though it can
+   silently *exist*. That is the property that matters, and it does hold — which is why this was
+   MINOR and not BLOCKING.
+3. **A test CAN distinguish them, cheaply, if it asserts the CALL instead of the output.**
+   Monkeypatch `serialize.recommendation_json` to return a sentinel key and assert the sentinel
+   reaches the `/v1` answer: about four lines, and it fails against any mirror however complete.
+
+So the honest record is not "the class is closed" and not "no test could tell". It is: *the
+derivation is enforced against drift, not against reintroduction; reintroduction is caught by review,
+or by a four-line call-assertion if the project wants it mechanical.* Either the test or that
+sentence closes it. **I do not block on which** — and I would take the sentence, because a
+call-assertion couples the test to the implementation's shape, which has its own cost.
+
+## MINOR — introduced by the fix delta
+
+- **RR-1 — the deferred import in `recommend.main` is now load-bearing, and nothing says so.**
+  Adding `from app.workflows.subscribe import SubscriptionRecommendation` to `serialize.py:23`
+  created a cycle: `serialize` → `subscribe` → `recommend`. Measured — moving
+  `from app.workflows.serialize import recommendation_json` from inside `main` to module scope
+  raises `ImportError: cannot import name 'Recommendation' from partially initialized module
+  'app.workflows.recommend' (most likely due to a circular import)`. In my original K.9 list I noted
+  that this function-level import looked cosmetic and flagged it "so it is not mistaken for a
+  cycle-breaking workaround later"; one delta later it is exactly that, and the comment above it
+  still explains something else entirely (which serializer, not why it is deferred). A future import
+  tidy breaks the CLI at runtime, not at lint. **Two fixes, either fine:** one comment saying the
+  import is deferred to break a cycle, or — better — type the parameter structurally, since
+  `recommendation_json` only calls `asdict` and does not need either concrete class. The second also
+  restores the dependency direction: a rendering module currently imports two engine modules.
+- **RR-2 — `recommendation_json`'s contract sentence is now inaccurate for the shape it just
+  gained.** "Tuples become lists because JSON has no tuple" is true only at the top level;
+  `asdict` leaves nested tuples as tuples, so `equivalent_plans[0]["members"]` comes back a tuple
+  (verified). Nothing breaks — `json.dumps` and FastAPI both emit arrays — but this is the one
+  module whose docstring every future author will trust as the definition of the boundary. One line
+  either way: convert recursively, or say "at the top level".
+- **RR-3 — `black --check` would reformat `tests/unit/test_subscribe.py`** (the longer English
+  assertions push a line over). No gate is red — `make lint` runs ruff only (`Makefile:75-76`) — but
+  `make format` will rewrite it inside someone else's wave and produce a diff they did not make.
+  Same class as W1's MINOR-9.
+
+## The three deliberate non-fixes — all three are right
+
+- **`equivalent_plans` ADR deferred to closure with D-116:** agreed, and your reasoning is better
+  than my framing. ADR IDs are immutable and a deleted one leaves a permanent gap (seed B.5), so
+  minting one mid-wave to satisfy a MINOR is the higher-risk order. It is in my K.9 list and in the
+  wave record; that is enough to keep it from being lost.
+- **Row 5's caveat recorded as my countersignature rather than restated as your claim:** exactly
+  what a countersignature is for. A checklist that absorbs the reviewer's correction into its own
+  voice loses the evidence that anyone independent looked.
+- **Row 6's two overstatements corrected in the record rather than argued:** right.
+- **Row 9c left alone:** right, per my own finding — the mapping is covered by four tests.
+
+## Carried MINORs from the original verdict
+
+Closed by this delta: MINOR-3 (inlined readers), MINOR-4 (`read_export_csv` dropping data),
+MINOR-6 (`serialize.py`'s reach — now accurate, since both shapes really do go through it),
+MINOR-8 (the Turkish assertions, fixed at the code as required). Open and correctly queued:
+MINOR-1 (the CLI/API parity test still does not invoke the CLI — note that the *subscription* path
+now has a real live-entry parity test and the model path still does not, which is an odd asymmetry
+worth one line in W3), MINOR-2 (the hand-mirror caveat, ruled on above), MINOR-5 (the ADR),
+MINOR-7 (row 9c, informational).
+
+**Independently re-run gates:** `pytest` **310 passed / 12 skipped** · `ruff` clean · `mypy` clean
+over 28 source files · `check_records.py` PASS · conformance 6 of 7, the RED leg being GPF-001 as
+declared · `black --check` one file, RR-3.
+
+**Consequence: MINOR → the wave may close and W3 may dispatch.** Nothing here blocks. RR-1 is the
+one I would fix before the next agent touches imports.
