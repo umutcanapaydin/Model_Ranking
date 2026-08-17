@@ -1,7 +1,10 @@
 Project: model_ranking
-State: **M1-M6 CLOSED agent-side. M6 awaits TWO owner items** (docs/closure-report-m6.md §0) and the
-  Stage-4.0 security verdict. Repo green: 354 tests / 12 skipped (361 / 5 with the Epoch bundle),
-  `make smoke-deps` PASS, gitleaks clean for the first time in the project's history.
+State: **M1-M6 CLOSED agent-side; M6 awaits only the owner's signature** (docs/closure-report-m6.md
+  §0). Repo green: 365 tests / 12 skipped (372 / 5 with the Epoch bundle), `make smoke-deps` PASS,
+  gitleaks clean for the first time in the project's history.
+  **Nothing here is deployable yet** — three independent records block the first deploy (§0 items 3,
+  3b, 3c): W-017's snapshot, W-023's pre-M5 database, and the Stage-4.0 re-verification. AGENTS.md
+  §6 binds the security gate to go-live, not to closure, and M6 deploys nothing.
 Last session date: 2026-08-17
 Last work agent: Claude (Claude Code CLI, local lane under D-117)
 
@@ -37,10 +40,18 @@ SETTLED THIS MILESTONE — do not re-litigate
   criterion amendment** (an unhealthy source is DISCLOSED in a 200, never refused).
 
 WHAT'S OPEN
-- **Stage-4.0 security verdict** — running at the time of writing. BLOCKING.
+- **Stage-4.0 re-verification** — the review ran TWICE and its five BLOCKING are all closed, but no
+  seat has reviewed the post-fix tree. Re-run `/security-review` before go-live. Not a closure
+  blocker: AGENTS.md §6 says "must PASS before 4.3 deploy" and 4.3 is "if the milestone deploys".
 - **W-017** — the serving snapshot copies the whole database into memory per unauthenticated GET.
-  **A CONDITION of go-live under D-116, not a follow-up.** Stage 4.0 must re-derive the number
-  independently rather than cite W1 or W3.
+  Its three Stage-4.0 conditions are closed (amplification re-derived, ceiling now subtracts the
+  serving process's own baseline, `fly.toml` ties concurrency to the budget) but **the snapshot
+  itself is unchanged**. **A CONDITION of go-live under D-116, not a follow-up.**
+- **W-023** — `advisor.db` / `owner_advisor.db` are pre-M5 (no `effort` column) and the serving path
+  is read-only by design, so it cannot migrate them. Deployed as-is: `/health` 200 with the right
+  build stamp, and **every query 200 with zero picks** — while Stage 4.3 verifies via `/health`.
+  Run `.venv/bin/python -m app.workflows.schema migrate --db advisor.db` first (exit 3 + operator
+  actions is the expected D-120 path if rosters need re-ingesting).
 - **W-021** — `.github/CODEOWNERS` owns every path to a placeholder that assigns nobody. Owner call.
 - **W-019** — `L1` detects an alphabet, not a language. No mechanical fix proposed on purpose.
 - **GPF-001..005** in `docs/gp-field-findings.md` — findings about GP v5.0 itself, for the owner to

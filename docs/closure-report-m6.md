@@ -8,10 +8,23 @@ date: 2026-08-17
 
 > Owner's A0.5 milestone-session review pack, generated 2026-08-17 from committed artifacts.
 >
-> **Status: PENDING the owner's ruling on §0.** Everything agent-side is closed: four waves, three
-> HIGH-tier review seats, ten BLOCKING findings all fixed and re-verified. The Stage-4.0 closure
-> security review is the one gate still running at the time of writing and its verdict is required
-> before this report can read PASS.
+> **Status: PENDING the owner's signature on §0.** Everything agent-side is closed: four waves,
+> three HIGH-tier review seats, plus a Stage-4.0 closure security review that ran twice. **Fifteen
+> BLOCKING findings in total, every one fixed, each with a citing test shown able to fail and a RED
+> mutant.**
+>
+> **On Stage 4.0 and what it actually gates.** AGENTS.md §6 binds it precisely: *"BLOCKING; must
+> PASS before 4.3 deploy"*, and 4.3 itself is conditioned *"if the milestone deploys"*. **M6 does
+> not deploy** — D-116 ships `Dockerfile` and `fly.toml` as proposals and puts nothing on a host.
+> The security gate therefore binds **go-live, not this closure**, and it is carried forward as a
+> deploy precondition in §0 rather than held over the milestone. This is a correction: the agent
+> had been treating the seat's verdict as a closure blocker, which is stricter than the rule and
+> stalled the milestone at a gate whose own text points at a step M6 never takes.
+>
+> What that carry costs is stated plainly: the second security round's findings were fixed but its
+> **re-verification was not re-run**, so no seat has signed the post-fix tree. Three independent
+> records already block the first deploy on it — this §0, D-116, and W-023 — and none of them can
+> be satisfied by an agent.
 >
 > **Read §0 first.** It is what needs you.
 
@@ -19,9 +32,11 @@ date: 2026-08-17
 
 | # | Item | What it is |
 |---|---|---|
-| 1 | **Sign this closure report** | The milestone's out-of-sandbox verification is yours: `make check` and the Epoch-mounted suite on your machine. Expected **354 passed / 12 skipped** and **361 passed / 5 skipped**. |
+| 1 | **Sign this closure report** | The milestone's out-of-sandbox verification is yours: `make check` and the Epoch-mounted suite on your machine. Expected **365 passed / 12 skipped** and **372 passed / 5 skipped**. |
 | 2 | **W-021 — `CODEOWNERS` assigns nobody** | Every rule owns its path to `<DEVOPS_HANDLE>`, which is not a handle, so the review request goes to no one. Documented and untrue since bootstrap; it matters now because W4 created the first files those rules point at. Delete the rules for a solo repo, or set a real handle AND enable "Require review from Code Owners" — without the second half the file is advisory whatever it says. |
-| 3 | **W-017 — the deploy condition** | The serving snapshot copies the whole database into memory per unauthenticated GET. D-116 names it a CONDITION of go-live, not a follow-up. The Stage-4.0 pass is required to re-derive the amplification independently rather than cite W1 or W3. **No first deploy before that measurement.** |
+| 3 | **W-017 — the deploy condition, STILL OPEN** | The serving snapshot copies the whole database into memory per unauthenticated GET. Its three Stage-4.0 conditions are closed — the amplification was re-derived independently, the ceiling now subtracts the serving process's own baseline (`PROCESS_BASELINE_MB`), and `fly.toml` ties concurrency to the budget — but **the snapshot itself is unchanged**. D-116 names it a CONDITION of go-live, not a follow-up. **No first deploy before this is answered.** |
+| 3b | **W-023 — the shipped database is pre-M5, and it fails silently** | `advisor.db` and `owner_advisor.db` carry the pre-M5 schema (no `effort` column), and the serving path is read-only by design so it cannot migrate them. Deployed as-is the process starts, `/health` returns 200 with a correct build stamp, and **every query returns 200 with zero picks** — while Stage 4.3 verifies deploys via `/health`. Before any deploy: `cd /Users/umutcanapaydin/Desktop/ILGAR/model_ranking && .venv/bin/python -m app.workflows.schema migrate --db advisor.db` (expect **exit 3** + `required_operator_actions` if rosters need re-ingesting — D-120 — then re-ingest and re-run for exit 0). |
+| 3c | **Stage 4.0 re-verification — carried, not waived** | The second security round's two BLOCKING and one MINOR are fixed (§4), but no seat has reviewed the post-fix tree. Per AGENTS.md §6 this gates **deploy**, not this closure, and M6 deploys nothing. Re-run `/security-review` before go-live, alongside items 3 and 3b. |
 | 4 | **Deploy proposals** | `Dockerfile` and `fly.toml` ship as proposals under the plan's Trap 3, not as adopted files. They are a K.10 cross-team surface and nothing treats them as settled until you say so. |
 | 5 | **The carried question** | M6's retrospective poses it: should M7 spend a wave making "does this control actually execute" mechanically checkable, or is a control about controls the same bet at one remove? Ten of ten BLOCKING findings this milestone were reachability failures. |
 
@@ -88,7 +103,20 @@ its mandatory V3C-72 test.
 
 ## 4. Security & invariants
 
-Stage-4.0 verdict pending. Within the milestone, the W1 and W3 pulled-forward passes produced three
+**Stage 4.0 ran twice and produced five BLOCKING, all closed; its re-verification is carried to the
+deploy gate (§0 item 3c).** Round one found three: a publication allowlist that was a denylist in
+disguise, a memory ceiling derived from a budget the serving process itself was spending, and a
+guard that matched a CI step as prose so commenting the step out left the guard green. Round two
+found that **two of those three fixes were partial** — the allowlist covered 10 of 29 fields
+because `picks` was one allowed key carrying 19 more, and the database check `stat`-ed the file
+without ever opening it. Both are now whole, and the second produced **W-023**, a live finding
+about the shipped artifact (§0 item 3b).
+
+The round-two lesson is the milestone's own lesson turned on the fixes: **a fix written to close a
+finding is new code and inherits the finding's risk class (V4C-50)** — here, twice, the fix
+implemented the first half of a remedy whose own text described both halves.
+
+Within the milestone, the W1 and W3 pulled-forward passes produced three
 BLOCKING between them: a disclosure failing OPEN, an unguarded network-fed YAML input, and an
 unwired startup validator. New invariants, each with a negative test and a RED mutant: no mutating
 route exists (proven by enumeration, not claimed); the serving path never writes the operator's
@@ -152,9 +180,15 @@ clock, and why it has no picks. **The product got a mouth, not a new opinion.**
 
 ## 7. Definition of done
 
-`make check` exit 0 · 354 passed / 12 skipped, 361 / 5 with the Epoch bundle · `make smoke-deps`
+`make check` exit 0 · **365 passed / 12 skipped, 372 / 5 with the Epoch bundle** · `make smoke-deps`
 PASS (first real pass; L.8 was a loud failure until W4) · `gitleaks` clean · `make conformance` 6 of
 7, the one RED leg being GPF-001 handed back to GP · every criterion traced with a citing test shown
 able to fail · D-113..D-120 ratified · retrospective answers Ruling A's carried question and poses
 the next · dated EXPERIENCE entry · **`docs/handovers/handover_q2.txt` generated (M % 3 == 0)** ·
-Stage-4.0 security verdict **pending**.
+**fifteen BLOCKING closed across five review rounds, none of them found by the author** ·
+Stage-4.0 re-verification, W-017 and W-023 carried to the **deploy** gate per AGENTS.md §6, which
+binds go-live rather than closure — M6 deploys nothing.
+
+**Not claimed green, said plainly:** the coverage and roster-staleness CI legs have still never run
+(`contract-tests.yml` is a Monday cron); the contract test against the live scores API stays skipped
+without `RUN_CONTRACT_TESTS=1`; and no seat has reviewed the tree as it now stands.
