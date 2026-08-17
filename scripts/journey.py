@@ -59,9 +59,14 @@ def call(
         headers["Authorization"] = f"Bearer {token}"
     if extra_headers:
         headers.update(extra_headers)
-    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    # The scheme is CHECKED rather than the warning suppressed: urllib will happily open `file:`
+    # and custom schemes, and a journey pointed at a local file would "pass" against no server.
+    if not url.startswith(("http://", "https://")):
+        msg = f"refusing a non-HTTP base URL: {url!r}"
+        raise ValueError(msg)
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)  # noqa: S310
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:  # noqa: S310
             raw = r.read().decode("utf-8", "replace")
             status = r.status
     except urllib.error.HTTPError as e:  # 4xx/5xx are DATA here, not exceptions
@@ -103,25 +108,118 @@ def step_1_cold_entry(base: str) -> str:
 
 
 def step_2_credential_lifecycle(base: str) -> str:
-    token = mint_token(base)  # raises StepTodo until wired
-    status, body = call(base, "/v1/whoami", token=token)
-    if status != 200:
-        raise AssertionError(f"authenticated call returned {status} (token redacted): {str(body)[:200]}")
-    return "credential accepted on an authenticated route"
+    """NOT APPLICABLE to this product, declared rather than stubbed.
+
+    The template's step 2 mints a credential the way the shipped docs say and uses it. This
+    service has no authentication surface to exercise: `/v1` is a public read-only API over
+    published benchmark data (D-115), and the QM bar asks for a credential lifecycle because most
+    products have one, not because a product without one may skip the question.
+
+    So the question is ANSWERED instead of deferred: the check is that no authenticated surface
+    exists to have a lifecycle. If one is ever added, this step starts failing and whoever added it
+    inherits the job of wiring it — which is the opposite of a stub, and the reason this is not
+    left raising StepTodo. An unwired step exits 2 forever; a wrong claim of N/A would exit 0
+    forever.
+    """
+    status, body = call(base, "/v1/whoami")
+    if status not in (404, 405):
+        raise AssertionError(
+            f"/v1/whoami answered {status}: an authenticated surface appears to exist, so this "
+            f"step is no longer N/A and must be wired. Body: {str(body)[:160]}"
+        )
+    return "n/a by design — public read-only API, no credential surface (D-115)"
+
+
+def _check_picks(answer: dict) -> int:
+    """CONTENT: every pick carries the fields a user is shown, with usable values."""
+    picks = answer.get("picks") or []
+    for pick in picks:
+        for field in ("label", "model", "score", "blended_per_m", "why"):
+            if pick.get(field) in (None, ""):
+                raise AssertionError(
+                    f"{answer.get('surface')} pick {pick.get('model')!r} has no {field}; "
+                    "a served answer with an empty field is not an answer"
+                )
+        if not isinstance(pick.get("score"), (int, float)):
+            raise AssertionError(f"score is {pick.get('score')!r}, not a number")
+    return len(picks)
 
 
 def step_3_paying_customer_round_trip(base: str) -> str:
-    raise StepTodo(
-        "primary value action not wired: perform the real round trip and ASSERT CONTENT "
-        "(the field/value a paying customer receives), not merely status 200"
-    )
+    """The primary value action, asserting CONTENT: a real recommendation with real picks.
+
+    Status 200 is not the check. M6 shipped an artifact that answered 200 with ZERO picks for every
+    query while `/health` reported a healthy build (W-023), and Stage 4.3 verifies deploys with
+    `/health` — so a journey that stopped at status codes would have called that deploy good.
+    """
+    status, body = call(base, "/v1/recommendations?task=coding&budget=unlimited")
+    if status != 200:
+        raise AssertionError(f"/v1/recommendations returned {status}: {str(body)[:200]}")
+    if not isinstance(body, dict):
+        raise AssertionError(f"expected a JSON object, got {type(body).__name__}")
+
+    answers = body.get("answers") or []
+    if len(answers) != 2:
+        raise AssertionError(
+            f"a coding request must return BOTH coding surfaces (owner Ruling A, D-115); got "
+            f"{len(answers)}: {[a.get('surface') for a in answers]}"
+        )
+    surfaces = sorted(a.get("surface") for a in answers)
+    if surfaces != ["agentic-coding", "coding"]:
+        raise AssertionError(f"unexpected surfaces: {surfaces}")
+
+    total = sum(_check_picks(a) for a in answers)
+    if total == 0:
+        raise AssertionError(
+            "every surface answered with ZERO picks. This is exactly W-023's shape: a deploy that "
+            "looks healthy and cannot answer. Rebuild the artifact with `app.workflows.build`"
+        )
+
+    # Nothing may rank one coding surface above the other (Ruling A frozen by D-115).
+    banned = {"primary", "primary_surface", "top_pick", "display_order", "rank", "suggested"}
+    for answer in answers:
+        present = banned & set(answer)
+        if present:
+            raise AssertionError(f"a precedence field reached the payload: {sorted(present)}")
+
+    return f"{total} picks across both coding surfaces, all fields populated, no precedence field"
 
 
 def step_4_cross_wave_sequence(base: str) -> str:
-    raise StepTodo(
-        "cross-wave sequence not wired: use two features built in DIFFERENT waves together — "
-        "the seam is where boundary defects live (Increment 9: 100% of escaped defects)"
-    )
+    """Two features from different waves, used together — discovery then recommendation.
+
+    `/v1/categories` (M6-W1) publishes what may be asked for; `/v1/recommendations` (M6-W1, its
+    engine reworked in M7-W2/W3) answers it. The seam is that the discovery surface must not name
+    a task the answering surface rejects, which no single-endpoint test can see.
+    """
+    status, body = call(base, "/v1/categories")
+    if status != 200:
+        raise AssertionError(f"/v1/categories returned {status}: {str(body)[:200]}")
+    ids = [c.get("id") for c in (body.get("categories") or [])] if isinstance(body, dict) else []
+    if not ids:
+        raise AssertionError(f"/v1/categories published no categories: {str(body)[:200]}")
+
+    checked = []
+    for task in ids:
+        code, payload = call(base, f"/v1/recommendations?task={task}&budget=unlimited")
+        if code != 200:
+            raise AssertionError(
+                f"discovery published task {task!r}, but asking for it returned {code} — the two "
+                f"surfaces disagree about what exists: {str(payload)[:160]}"
+            )
+        answers = payload.get("answers") or [] if isinstance(payload, dict) else []
+        if not answers:
+            raise AssertionError(f"task {task!r} returned no answer object at all")
+        # A surface with nothing to say must SAY so rather than return a bare empty list.
+        for answer in answers:
+            if not answer.get("picks") and not answer.get("unavailable_reason"):
+                raise AssertionError(
+                    f"{answer.get('surface')} returned an empty answer with no reason; silence is "
+                    "the one answer this product may not give"
+                )
+        checked.append(task)
+
+    return f"discovery published {len(ids)} tasks and every one answers: {', '.join(checked)}"
 
 
 STEPS = [
