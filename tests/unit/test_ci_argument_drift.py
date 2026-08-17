@@ -81,6 +81,27 @@ def test_each_vocabulary_is_non_empty(flag: str) -> None:
 _MODULE = re.compile(r"python(?:3)? +-m +([A-Za-z_][A-Za-z0-9_.]*)")
 
 
+
+def unresolvable_modules(blocks: list[tuple[str, str]]) -> list[str]:
+    """Return one entry per `python -m app.*` invocation that does not resolve.
+
+    Extracted from the test body deliberately. When the predicate lived inside the test, replacing
+    it with `if False:` left the suite fully green — a guard that cannot fail, which is this
+    project's most-repeated defect and which its own author reproduced here. As a named function it
+    can be called with a known-bad input by a second test, so disabling it breaks something.
+    """
+    import importlib.util
+
+    offences: list[str] = []
+    for name, script in blocks:
+        for module in _MODULE.findall(script):
+            if not module.startswith("app."):
+                continue  # stdlib and third-party entry points are not ours to pin
+            if importlib.util.find_spec(module) is None:
+                offences.append(f"{name}: `python -m {module}` does not resolve")
+    return offences
+
+
 def test_every_module_ci_invokes_actually_resolves() -> None:
     """The Tester's finding: this file checked flag VALUES and not whether the COMMAND exists.
 
@@ -89,21 +110,20 @@ def test_every_module_ci_invokes_actually_resolves() -> None:
     module names are read from the YAML and resolved against the installed package, so a typo is
     RED here rather than red in six days.
     """
-    import importlib.util
-
-    offences: list[str] = []
-    for name, script in _run_scripts():
-        for module in _MODULE.findall(script):
-            if not module.startswith("app."):
-                continue  # stdlib and third-party entry points are not ours to pin
-            if importlib.util.find_spec(module) is None:
-                offences.append(f"{name}: `python -m {module}` does not resolve")
+    offences = unresolvable_modules(_run_scripts())
     assert not offences, "CI invokes modules that do not exist:\n  " + "\n  ".join(offences)
 
 
 def test_the_module_check_can_fail() -> None:
-    """V3C-02: prove the resolver actually returns None for a plausible typo."""
-    import importlib.util
+    """V3C-02: drive the REAL predicate with a known-bad block and require it to complain.
 
-    assert importlib.util.find_spec("app.workflows.build") is not None
-    assert importlib.util.find_spec("app.workflows.builder") is None
+    This is what makes the guard above falsifiable. It does not re-implement the check; it calls
+    it, so `if False:` inside `unresolvable_modules` turns this red.
+    """
+    good = [("fake.yml", "python -m app.workflows.build --db x.db")]
+    bad = [("fake.yml", "python -m app.workflows.builder --db x.db")]
+
+    assert unresolvable_modules(good) == []
+    offences = unresolvable_modules(bad)
+    assert len(offences) == 1
+    assert "app.workflows.builder" in offences[0]
