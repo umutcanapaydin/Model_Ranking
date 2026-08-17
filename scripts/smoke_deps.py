@@ -24,13 +24,17 @@ from __future__ import annotations
 import sys
 import traceback
 from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.workflows.sources import RemoteSource
 
 
 def _probe(name: str, run: Callable[[], str]) -> bool:
     """Run one dependency end to end and report what its RESULT actually was."""
     try:
         detail = run()
-    except Exception as exc:  # noqa: BLE001 - a smoke gate reports every failure shape
+    except Exception as exc:
         print(f"  FAIL  {name:<28} {type(exc).__name__}: {str(exc)[:90]}")
         if "-v" in sys.argv:
             traceback.print_exc()
@@ -39,81 +43,57 @@ def _probe(name: str, run: Callable[[], str]) -> bool:
     return True
 
 
-def _litellm() -> str:
-    from app.clients.litellm import LiteLLMClient, parse_pricing
+def _probe_for(source: RemoteSource) -> Callable[[], str]:
+    """Build one probe from the registry entry rather than from a second hand-written list.
 
-    rows, skipped = parse_pricing(LiteLLMClient().fetch_raw())
-    if len(rows) < 100:
-        msg = f"only {len(rows)} priced rows parsed — the feed shape has changed"
-        raise ValueError(msg)
-    return f"{len(rows)} priced rows, {skipped} skipped"
+    **M7-W1 changed this and the reason is the whole point of the module.** These probes used to be
+    a tuple of five functions typed out here, while `build.py` needed its own list of the same five
+    dependencies. Two enumerations of one set, in two files, free to diverge — which is precisely
+    the defect this file's own docstring was written about after the shell version probed a URL
+    nothing in the project called. Both consumers now read `app.workflows.sources.REMOTE_SOURCES`,
+    so a source cannot be added to the build and forgotten in the gate.
 
+    The floor comes from the registry too: `minimum_rows` is what separates "the feed answered"
+    from "the feed answered usefully", and a 200 carrying an empty list fails both here and in the
+    build for the same declared reason.
+    """
 
-def _swebench() -> str:
-    from app.clients.swebench import SweBenchClient, parse_verified
+    def probe() -> str:
+        rows, skipped = source.parse(source.client().fetch_raw())
+        if len(rows) < source.minimum_rows:
+            msg = (
+                f"only {len(rows)} rows parsed, below the declared floor of "
+                f"{source.minimum_rows} — the feed shape has changed"
+            )
+            raise ValueError(msg)
+        return f"{len(rows)} rows, {skipped} skipped"
 
-    rows, skipped = parse_verified(SweBenchClient().fetch_raw())
-    if not rows:
-        msg = "the Verified leaderboard parsed to zero rows"
-        raise ValueError(msg)
-    return f"{len(rows)} Verified rows, {skipped} skipped"
-
-
-def _aider() -> str:
-    from app.clients.aider import AiderClient, parse_polyglot
-
-    rows, skipped = parse_polyglot(AiderClient().fetch_raw())
-    if not rows:
-        msg = "the polyglot leaderboard parsed to zero rows"
-        raise ValueError(msg)
-    return f"{len(rows)} rows, {skipped} skipped"
+    return probe
 
 
-def _openrouter() -> str:
-    from app.clients.openrouter import OpenRouterClient, parse_models
-
-    rows, skipped = parse_models(OpenRouterClient().fetch_raw())
-    if len(rows) < 50:
-        msg = f"only {len(rows)} models in the catalogue — the feed shape has changed"
-        raise ValueError(msg)
-    return f"{len(rows)} models, {skipped} skipped"
-
-
-def _arena() -> str:
-    from app.clients.arena import ArenaClient, parse_arena
-
-    rows, skipped = parse_arena(ArenaClient().fetch_raw())
-    if not rows:
-        msg = "the Arena filter endpoint parsed to zero rows"
-        raise ValueError(msg)
-    # W-007 is the reason this probe matters beyond reachability: a 500 on the filter endpoint used
-    # to drop the client into full pagination and rate-limit itself. An unusable filter endpoint is
-    # a FAILED dependency even though the data exists behind the slower route.
-    #
-    # **Measured at the M6 deploy gate, and deliberately NOT retried here:** 4 of 5 attempts
-    # returned 389 rows in 5-10 s; one exceeded the client's 30 s read. That is this dependency's
-    # real behaviour, and a gate that retries until green reports a reliability the deploy will not
-    # have. If this probe is red, run it again and record BOTH results — the flake rate is the
-    # finding, not the failure.
-    return f"{len(rows)} rows via the filter endpoint, {skipped} skipped"
-
-
-PROBES: tuple[tuple[str, Callable[[], str]], ...] = (
-    ("litellm pricing", _litellm),
-    ("openrouter catalogue", _openrouter),
-    ("swebench Verified", _swebench),
-    ("aider polyglot", _aider),
-    ("arena via HF filter", _arena),
-)
+# W-007 is why the arena probe matters beyond reachability: a 500 on the filter endpoint used to
+# drop the client into full pagination and rate-limit itself. An unusable filter endpoint is a
+# FAILED dependency even though the data exists behind the slower route.
+#
+# **Measured at the M6 deploy gate, and deliberately NOT retried:** 4 of 5 attempts returned 389
+# rows in 5-10 s; one exceeded the client's 30 s read. That is this dependency's real behaviour,
+# and a gate that retries until green reports a reliability the deploy will not have. If a probe is
+# red, run it again and record BOTH results — the flake rate is the finding, not the failure.
+#
+# **Standing finding, W-024 (2026-08-17):** arena has been returning an upstream HTTP 500 across
+# repeated runs, which is an outage rather than a flake.
 
 
 def main() -> int:
-    print("[smoke-deps] L.8 — every dependency invoked through its own client, RESULT parsed")
-    results = [_probe(name, run) for name, run in PROBES]
+    from app.workflows.sources import LOCAL_BUNDLES, REMOTE_SOURCES
 
-    # Epoch is deliberately NOT fetched: D-101 and the M5 data-boundary invariant make it an
-    # owner-fetched local bundle, and a runtime fetch would be the violation, not the check.
-    print("  n/a   epoch bundle                 local artifact by design (D-101); not fetched")
+    print("[smoke-deps] L.8 — every dependency invoked through its own client, RESULT parsed")
+    results = [_probe(source.name, _probe_for(source)) for source in REMOTE_SOURCES]
+
+    # Local bundles are deliberately NOT fetched, and the list of them is read from the registry
+    # rather than typed here — a bundle added there is reported here without editing this file.
+    for bundle in LOCAL_BUNDLES:
+        print(f"  n/a   {bundle.name:<28} {bundle.reason}")
 
     print()
     if not all(results):

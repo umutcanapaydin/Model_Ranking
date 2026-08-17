@@ -275,6 +275,20 @@ Research suggests Supabase or Cloudflare Workers for the serving layer. No decis
 **Acceptance:** computed by the pipeline, printed by a CLI, wired into CI; zero coverage in a category exits non-zero.
 **Status:** DONE (M4-W3, commit ee5a582 — read-only by mechanism since M4 closure, `mode=ro`)
 
+### REQ-ING-012 — One runnable production entry point builds the evidence database
+
+**Statement:** a single command in `src/` builds the artifact end to end — schema, plans, rosters, every remote source, reconciliation, and the price medians — and is typed, linted, tested and covered like the rest of the product.
+**Acceptance:** the entry point produces an artifact that serves real answers, and the counts it reports are read back OUT of the built file rather than reported by the writers that filled it.
+**Why it did not exist before:** until M7 the pipeline was a heredoc inside `.github/workflows/contract-tests.yml`, invisible to every tool and run by a cron that never fired. That is the root of W-023.
+**Status:** M7-W1.
+
+### REQ-ING-013 — A partial build is a failed build
+
+**Statement:** the builder exits non-zero and names the operator action on any hollow stage — an unreachable source, a source below its declared row floor, a collapsed reconciliation, empty price medians — and leaves no artifact behind.
+**Acceptance:** each failure mode forced by fault injection; each exits non-zero; no partially-populated database survives a failed run.
+**Why the floor matters:** `rank.py` JOINs `px_median`. An empty table yields zero rows and `/v1` answers 200 with no picks — a confident wrong answer that passes every existence check, including `/health`.
+**Status:** M7-W1.
+
 ### REQ-ING-011 — Source health is computed, not noticed
 
 **Statement:** how old each source's newest evidence is, reported on every run; unknown age fails TOWARD disclosure. **(a)** measure and report; **(b)** state plainly whether a fresher documented coding benchmark exists AND, if it does, ingest it.

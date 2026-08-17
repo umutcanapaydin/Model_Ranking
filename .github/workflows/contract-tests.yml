@@ -70,54 +70,15 @@ jobs:
         env:
           RUN_CONTRACT_TESTS: "1"
         run: pytest tests/integration -v
-      - name: End-to-end live pipeline smoke (reachable sources)
+      # M7-W1: this step used to BE the pipeline — a ~30-line heredoc that was the only place this
+      # project's evidence database was ever built. It was invisible to ruff, mypy, pytest and
+      # coverage, it wrote to a throwaway file, and this workflow's Monday cron never fired, so it
+      # had never run. That is why advisor.db sat on the pre-M5 schema (W-023): nothing rebuilt it.
+      # The pipeline now lives in src/app/workflows/build.py with tests. This step INVOKES it.
+      - name: Build the evidence database through the real entry point (REQ-ING-012)
         env:
           RUN_CONTRACT_TESTS: "1"
-        run: |
-          python - <<'EOF'
-          import sqlite3
-          from app.clients.litellm import LiteLLMClient
-          from app.clients.openrouter import OpenRouterClient
-          from app.clients.swebench import SweBenchClient
-          from app.clients.aider import AiderClient
-          from app.clients.arena import ArenaClient
-          from app.workflows.schema import DDL
-          from app.workflows.ingest import (
-              RunContext, ingest_litellm, ingest_openrouter,
-              ingest_swebench, ingest_aider, ingest_arena,
-          )
-          from app.workflows.registry import reconcile, reconcile_plans
-          from app.workflows.plans import ingest_plans
-          from app.workflows.rosters import ingest_rosters
-
-          conn = sqlite3.connect("ci_advisor.db"); conn.executescript(DDL)
-          run = RunContext()
-          # M3: curated plan table joins the live pipeline (REQ-SUB-002)
-          with open("data/plans.yaml", encoding="utf-8") as fh:
-              pr = ingest_plans(conn, fh.read(), run)
-          print(f"{pr.source}: stored={pr.stored}")
-          with open("data/rosters.yaml", encoding="utf-8") as fh:
-              rr = ingest_rosters(conn, fh.read(), run)
-          print(f"{rr.source}: stored={rr.stored} skipped={rr.skipped}")
-          assert rr.stored > 0, "roster ingest stored nothing — a printed zero is not a pass"
-          for fn, client in (
-              (ingest_litellm, LiteLLMClient()),
-              (ingest_openrouter, OpenRouterClient()),
-              (ingest_swebench, SweBenchClient()),
-              (ingest_aider, AiderClient()),
-              (ingest_arena, ArenaClient()),
-          ):
-              r = fn(conn, client, run)
-              print(f"{r.source}: stored={r.stored} skipped={r.skipped} health={r.health}")
-          rep = reconcile(conn)
-          print(f"reconcile: {rep.pricing_matched}/{rep.pricing_dropped} pricing, "
-                f"{rep.scores_matched}/{rep.scores_dropped} scores, models={rep.models_registered}")
-          assert rep.models_registered >= 20, "live reconciliation collapsed — registry drift?"
-          prep = reconcile_plans(conn)
-          print(f"reconcile_plans: matched={prep.matched} dropped={prep.dropped} "
-                f"dropped_names={list(prep.dropped_names)}")
-          conn.commit()
-          EOF
+        run: python -m app.workflows.build --db ci_advisor.db
       - name: Plan coverage + source health report (REQ-SUB-005 / REQ-ING-011)
         run: |
           set -o pipefail
@@ -125,7 +86,12 @@ jobs:
       - name: Recommend smoke (both tasks + subscription, real data)
         run: |
           set -o pipefail  # a recommend failure must fail the step, not vanish behind head
-          python -m app.workflows.recommend --db ci_advisor.db --budget sinirsiz --task coding | head -40
-          python -m app.workflows.recommend --db ci_advisor.db --budget dusuk --task assistant | head -40
+          # M7-W1: these three lines passed `sinirsiz`, `dusuk` and `orta` until this wave. D-118
+          # made the budget vocabulary English in M6 and every one of these would have been
+          # rejected by BUDGETS on the first line — but this workflow has never run, so the drift
+          # sat here unseen. Same file, same defect, same milestone-defining lesson: an unrun step
+          # does not hold still, it rots.
+          python -m app.workflows.recommend --db ci_advisor.db --budget unlimited --task coding | head -40
+          python -m app.workflows.recommend --db ci_advisor.db --budget low --task assistant | head -40
           # M3 REQ-REC-007 live half: three plan answers from real benchmark data
-          python -m app.workflows.recommend --db ci_advisor.db --budget orta --task coding --subscription | head -60
+          python -m app.workflows.recommend --db ci_advisor.db --budget medium --task coding --subscription | head -60
