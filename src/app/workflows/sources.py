@@ -25,6 +25,8 @@ from dataclasses import dataclass
 
 from app.clients.aider import AiderClient, parse_polyglot
 from app.clients.arena import ArenaClient, parse_arena
+from app.clients.deepswe import DeepSWEClient
+from app.clients.epoch import EpochClient
 from app.clients.litellm import LiteLLMClient, parse_pricing
 from app.clients.openrouter import OpenRouterClient, parse_models
 from app.clients.protocols import RawSource
@@ -34,6 +36,8 @@ from app.workflows.ingest import (
     SourceReport,
     ingest_aider,
     ingest_arena,
+    ingest_deepswe,
+    ingest_epoch,
     ingest_litellm,
     ingest_openrouter,
     ingest_swebench,
@@ -71,16 +75,28 @@ class RemoteSource:
 
 @dataclass(frozen=True)
 class LocalBundle:
-    """A source that is an owner-supplied local artifact and must NEVER be fetched.
+    """A source read from an owner-placed local bundle, never fetched at runtime.
 
-    D-101 and the M5 data-boundary invariant make these the operator's to place. A runtime fetch
-    would be the violation, not the check — so they are declared here to be excluded, rather than
-    omitted and indistinguishable from an oversight.
+    D-101 and the M5 data-boundary invariant make acquisition the operator's job: the bundle is
+    downloaded and unpacked out of band, and this project only ever READS the allowlisted files
+    inside it. A runtime fetch would be the violation, not the check.
+
+    **These are ingested, not skipped.** M7-W1 found that the build produced an artifact in which
+    `agentic-coding` had zero picks on every query, because the pipeline ingested the five remote
+    sources and no local bundle at all — leaving M6's Ruling A (both coding answers, neither
+    leading) true in the contract and hollow in the data. A bundle that is absent at build time is
+    reported like a failed optional source, never omitted in silence.
     """
 
     name: str
-    client_class: str
+    client_type: type
+    ingest: IngestFn
     reason: str
+
+    @property
+    def client_class(self) -> str:
+        """The class name, derived rather than restated, for the registry-coverage test."""
+        return self.client_type.__name__
 
 
 REMOTE_SOURCES: tuple[RemoteSource, ...] = (
@@ -131,13 +147,17 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
 
 LOCAL_BUNDLES: tuple[LocalBundle, ...] = (
     LocalBundle(
-        name="epoch",
-        client_class="EpochClient",
-        reason="D-101: owner-fetched local bundle; a runtime fetch would breach the data boundary",
+        name="epoch_swe_bench_verified",
+        client_type=EpochClient,
+        ingest=ingest_epoch,
+        reason="D-101: owner-placed bundle, read from disk; a runtime fetch would breach the boundary",
     ),
     LocalBundle(
-        name="deepswe",
-        client_class="DeepSWEClient",
-        reason="M5 data boundary: a local artifact the operator places, never fetched at build time",
+        name="epoch_deepswe_external",
+        client_type=DeepSWEClient,
+        ingest=ingest_deepswe,
+        # This one is the sole primary evidence for `agentic-coding`, which is half of the answer
+        # Ruling A froze. Without it that surface has nothing to say.
+        reason="M5 data boundary: an allowlisted CSV inside the same owner-placed Epoch bundle",
     ),
 )

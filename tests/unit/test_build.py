@@ -201,19 +201,42 @@ def test_build_error_names_the_operator_action_not_a_stack_trace() -> None:
 # --- the CLI (REQ-ING-012's runnable half) ------------------------------------------------------
 
 
-def test_cli_builds_a_file_and_reports_zero(tmp_path: Path, capsys: pytest.CaptureFixture[str],
-                                            monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cli_reports_three_when_a_surface_lost_its_evidence(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Exit 3 is 'built but NOT servable' — the D-120 contract this module deliberately mirrors.
+
+    With no --epoch-dir the artifact is real and usable for coding, and agentic-coding has no
+    primary evidence. That is not a success and it is not a failure; it is exactly what 3 means.
+    """
     monkeypatch.setattr(build_mod, "REMOTE_SOURCES", _sources())
     monkeypatch.setattr(build_mod, "MINIMUM_MODELS_REGISTERED", 2)
     target = tmp_path / "built.db"
 
     code = main(["--db", str(target)])
 
-    assert code == 0
+    assert code == 3
     assert target.is_file()
     payload = json.loads(capsys.readouterr().out)
     assert payload["built"] is True
     assert payload["verified_from_artifact"]["px_median"] > 0
+    assert any("agentic-coding" in a for a in payload["required_operator_actions"])
+
+
+def test_cli_reports_zero_when_nothing_is_missing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The 0 path must be reachable, or 3 would be the only outcome and mean nothing."""
+    monkeypatch.setattr(build_mod, "REMOTE_SOURCES", _sources())
+    monkeypatch.setattr(build_mod, "LOCAL_BUNDLES", ())
+    monkeypatch.setattr(build_mod, "MINIMUM_MODELS_REGISTERED", 2)
+    target = tmp_path / "clean.db"
+
+    code = main(["--db", str(target)])
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["required_operator_actions"] == []
 
 
 def test_cli_leaves_no_half_built_artifact_behind(tmp_path: Path,
@@ -261,3 +284,43 @@ def test_read_back_refuses_a_table_name_it_cannot_vouch_for() -> None:
     conn.execute('CREATE TABLE "weird-name!" (a int)')
     with pytest.raises(BuildError, match="unexpected name"):
         build_mod._read_back(conn)
+
+
+# --- local bundles (D-101): read, never fetched, and never silently skipped -------------------
+
+
+def test_a_missing_bundle_directory_is_reported_not_skipped() -> None:
+    """The defect this stage was added for: agentic-coding answered empty and nothing said why."""
+    conn = connect(":memory:")
+    report = _build(conn, bundle_dir=None)
+
+    actions = " ".join(report.required_operator_actions)
+    assert "epoch_deepswe_external" in actions
+    assert "agentic-coding" in actions, "the blinded SURFACE must be named, not just the source"
+
+
+def test_a_bundle_directory_without_the_allowlisted_files_is_reported(tmp_path: Path) -> None:
+    """An empty directory is a missing bundle, not an empty ingest."""
+    conn = connect(":memory:")
+    report = _build(conn, bundle_dir=tmp_path)
+
+    assert report.required_operator_actions
+    assert "agentic-coding" in " ".join(report.required_operator_actions)
+
+
+def test_the_blinded_surface_list_is_derived_from_categories_not_typed() -> None:
+    """Change a category's primary source and the report must follow without editing build.py."""
+    from app.workflows.categories import CATEGORIES
+
+    actions = build_mod._surfaces_left_without_evidence(["arena: down"])
+    expected = sorted(t for t, s in CATEGORIES.items() if s.primary_source == "arena")
+    assert expected, "fixture assumption: some surface must name arena"
+    for surface in expected:
+        assert surface in actions[0]
+
+
+def test_an_unknown_failed_source_still_reports_rather_than_vanishing() -> None:
+    """A source no category names must not produce an empty action list."""
+    actions = build_mod._surfaces_left_without_evidence(["not-a-real-source: down"])
+    assert len(actions) == 1
+    assert "not-a-real-source" in actions[0]

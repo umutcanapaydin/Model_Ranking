@@ -38,6 +38,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from app.clients.protocols import SourceError
+from app.workflows.epoch import committed_last_verified
 from app.workflows.ingest import RunContext, SourceReport
 from app.workflows.plans import ingest_plans
 from app.workflows.rank import build_price_medians
@@ -49,7 +50,7 @@ from app.workflows.registry import (
 )
 from app.workflows.rosters import ingest_rosters
 from app.workflows.schema import connect
-from app.workflows.sources import REMOTE_SOURCES, RemoteSource
+from app.workflows.sources import LOCAL_BUNDLES, REMOTE_SOURCES, LocalBundle, RemoteSource
 
 MINIMUM_MODELS_REGISTERED = 20
 """Below this the registry has drifted and the artifact is not servable.
@@ -175,6 +176,43 @@ def _surfaces_left_without_evidence(missing: Sequence[str]) -> list[str]:
     return actions
 
 
+def _ingest_bundles(
+    conn: sqlite3.Connection,
+    bundle_dir: Path | None,
+    run: RunContext,
+    bundles: Sequence[LocalBundle] | None = None,
+) -> tuple[list[SourceReport], list[str]]:
+    """Read the owner-placed bundle, never fetch it (D-101).
+
+    Absence is a REPORTED degradation rather than a skipped step. That distinction is the whole
+    reason this function exists: the pipeline this module replaced ingested five remote sources and
+    no bundle at all, so `agentic-coding` answered every query with an empty list while the
+    contract said both coding surfaces were presented equally.
+    """
+    # Read at CALL time. Binding LOCAL_BUNDLES as a default here would repeat, inside the very
+    # wave that fixed it in build(), the defect this milestone is about: a default argument is
+    # bound at definition time, so the injection point silently ignores the module attribute.
+    bundles = LOCAL_BUNDLES if bundles is None else bundles
+    if bundle_dir is None:
+        return [], [f"{b.name}: no local bundle directory supplied" for b in bundles]
+
+    results: list[SourceReport] = []
+    missing: list[str] = []
+    last_verified = committed_last_verified()
+    for bundle in bundles:
+        try:
+            client = bundle.client_type(bundle_dir, last_verified=last_verified)
+            result = bundle.ingest(conn, client, run)
+            if result.stored <= 0:
+                msg = f"stored 0 rows from {bundle_dir}"
+                raise SourceError(msg)
+        except (SourceError, OSError) as exc:
+            missing.append(f"{bundle.name}: {exc}")
+            continue
+        results.append(result)
+    return results, missing
+
+
 def _ingest_sources(
     conn: sqlite3.Connection, sources: Sequence[RemoteSource], run: RunContext
 ) -> tuple[list[SourceReport], list[str]]:
@@ -217,6 +255,7 @@ def build(
     plans_yaml: str,
     rosters_yaml: str,
     sources: Sequence[RemoteSource] | None = None,
+    bundle_dir: Path | None = None,
     run: RunContext | None = None,
     minimum_models: int | None = None,
 ) -> BuildReport:
@@ -242,7 +281,11 @@ def build(
         "roster", lambda: ingest_rosters(conn, rosters_yaml, run)
     )
     report.sources, degraded = _ingest_sources(conn, sources, run)
-    report.required_operator_actions = _surfaces_left_without_evidence(degraded)
+    bundle_reports, bundle_missing = _ingest_bundles(conn, bundle_dir, run)
+    report.sources.extend(bundle_reports)
+    report.required_operator_actions = _surfaces_left_without_evidence(
+        [*degraded, *bundle_missing]
+    )
 
     reconciled = reconcile(conn)
     if reconciled.models_registered < minimum_models:
@@ -279,6 +322,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--plans", default="data/plans.yaml")
     parser.add_argument("--rosters", default="data/rosters.yaml")
     parser.add_argument(
+        "--epoch-dir",
+        default=None,
+        help=(
+            "unpacked Epoch bundle directory (D-101: acquired out of band, never fetched here). "
+            "Omitting it builds an artifact in which agentic-coding has no primary evidence, "
+            "which is reported as a required operator action rather than passed over."
+        ),
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="overwrite an existing --db (destructive defaults stay OFF, V3C-06/53)",
@@ -304,6 +356,7 @@ def main(argv: list[str] | None = None) -> int:
             conn,
             plans_yaml=Path(args.plans).read_text(encoding="utf-8"),
             rosters_yaml=Path(args.rosters).read_text(encoding="utf-8"),
+            bundle_dir=Path(args.epoch_dir) if args.epoch_dir else None,
         )
     except (BuildError, SourceError, sqlite3.Error, OSError) as exc:
         if conn is not None:
