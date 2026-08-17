@@ -77,6 +77,36 @@ def test_every_remote_source_declares_a_non_zero_floor() -> None:
         assert source.minimum_rows > 0, f"{source.name} has no floor; a hollow feed would pass"
 
 
+def test_arena_is_the_only_optional_source() -> None:
+    """D-121 permits exactly one exception, and an exception nobody pins becomes the default.
+
+    Added by the Stage-3b Tester: flipping `arena` back to required, and separately flipping the
+    dataclass default to `required=False` for every source, both left the suite green. `required`
+    is the flag that decides whether an upstream outage produces a refusal or a quiet artifact, so
+    its value is an acceptance criterion, not an implementation detail.
+    """
+    optional = {source.name for source in REMOTE_SOURCES if not source.required}
+    assert optional == {"arena"}, f"D-121 names arena and only arena as optional; found {optional}"
+
+
+def test_every_source_a_category_names_as_primary_exists_in_the_registry() -> None:
+    """The registry's names are the join key the blinded-surface report is derived through.
+
+    `build.py:_surfaces_left_without_evidence` matches `CATEGORIES[*].primary_source` against
+    `RemoteSource.name`. Renaming a source therefore silently empties the surface report rather
+    than breaking loudly — the mutant that renamed `arena` stayed green.
+    """
+    from app.workflows.categories import CATEGORIES
+
+    known = {source.name for source in REMOTE_SOURCES} | {b.name for b in LOCAL_BUNDLES}
+    unknown = {
+        task: spec.primary_source
+        for task, spec in CATEGORIES.items()
+        if spec.primary_source not in known
+    }
+    assert not unknown, f"categories name primary sources the registry does not define: {unknown}"
+
+
 def test_source_names_are_unique() -> None:
     names = [source.name for source in REMOTE_SOURCES]
     assert len(names) == len(set(names)), f"duplicate source names: {names}"

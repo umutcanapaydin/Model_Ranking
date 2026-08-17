@@ -10,7 +10,9 @@ contract suite was skipped.
 Checks now: the filename shape, the frontmatter, the required sections, that every row carries evidence
 and a legal status, and that nothing is left as a placeholder. Exit 0 pass · 1 fail · 2 usage.
 """
-import sys, re, pathlib
+import pathlib
+import re
+import sys
 
 # v4.3.2 SECOND REPAIR (audit B5/B6). The first version was written against the fixture instead of
 # against `docs/wave-checklist.template.md` -- the artefact the Makefile tells you to copy. Consequence:

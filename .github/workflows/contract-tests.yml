@@ -78,7 +78,26 @@ jobs:
       - name: Build the evidence database through the real entry point (REQ-ING-012)
         env:
           RUN_CONTRACT_TESTS: "1"
-        run: python -m app.workflows.build --db ci_advisor.db
+        # Exit 3 is EXPECTED here and is not a failure: a CI runner has no Epoch bundle (D-101
+        # makes it an owner-placed artifact), so agentic-coding's evidence is absent by design and
+        # `main()` correctly reports "built but not fully servable". Exit 0 is also fine. Only 2 --
+        # a real build failure -- fails the job.
+        #
+        # The first version of this step just ran the command, which meant it returned 3 on every
+        # run, forever, and the three steps below it never executed. Three review seats found that
+        # independently: this wave replaced an unrun step with an unpassable one, and a permanently
+        # red step is how a `continue-on-error` gets added later (V4C-13).
+        run: |
+          set -o pipefail
+          python -m app.workflows.build --db ci_advisor.db | tee build-report.json
+          code=${PIPESTATUS[0]}
+          if [ "$code" = "3" ]; then
+            echo "::notice::built with degraded evidence (expected on a runner: no Epoch bundle)"
+            python -c "import json;[print('  ACTION:',a) for a in json.load(open('build-report.json'))['required_operator_actions']]"
+          elif [ "$code" != "0" ]; then
+            echo "::error::build failed with exit $code"
+            exit "$code"
+          fi
       - name: Plan coverage + source health report (REQ-SUB-005 / REQ-ING-011)
         run: |
           set -o pipefail

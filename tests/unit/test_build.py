@@ -164,6 +164,63 @@ def test_an_unreachable_source_fails_the_build_rather_than_being_skipped() -> No
         _build(conn, sources=_sources(aider=None))
 
 
+def test_an_unbuilt_px_median_fails_the_build() -> None:
+    """REQ-ING-013's headline failure mode, added by the Stage-3b Tester (M7-W1 fault injection).
+
+    Trap 1 of the plan, stated exactly: `rank.py` JOINs `px_median`, so an empty table yields zero
+    rows and `/v1` answers 200 with no picks. Every other test in this file builds an artifact whose
+    medians happen to be non-empty, which means the guard at `build.py:303` was never executed —
+    removing it left the suite fully green. This test forces the condition: no pricing source, so
+    `build_price_medians` has nothing to compute, and the build must refuse rather than hand back a
+    report whose `price_models` is 0.
+    """
+    conn = connect(":memory:")
+    pricing_free = tuple(s for s in _sources() if s.name != "litellm")
+    with pytest.raises(BuildError, match="price medians built 0 models"):
+        _build(conn, sources=pricing_free)
+
+
+def test_a_median_writer_that_reports_success_without_writing_is_caught(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The read-back floor is a control, not a comment: prove it can fire (Trap 3).
+
+    `build.py:310-313` re-counts the artifact's tables because a writer that reports what it
+    *intended* to write cannot detect a lost write. Nothing exercised it — the tuple could be
+    emptied of `px_median` and the suite stayed green. Here the median stage claims 7 models and
+    writes none, which is the only shape that distinguishes the read-back check from the
+    `price_models <= 0` check above it.
+    """
+    monkeypatch.setattr(build_mod, "build_price_medians", lambda _conn: 7)
+    conn = connect(":memory:")
+    with pytest.raises(BuildError, match="px_median is empty in the built artifact"):
+        _build(conn)
+
+
+def test_a_failed_optional_source_names_the_surface_it_blinds() -> None:
+    """D-121's whole mechanism, which had no citing test (build.py:243-247 was uncovered).
+
+    A REQUIRED source that fails raises; an OPTIONAL one must instead be NAMED in
+    `required_operator_actions`, in surface terms. Dropping the `missing.append` entirely — the
+    optional source vanishing without trace — left the suite green, which is the exact silence
+    D-121 says it is permitted only because it does not happen.
+    """
+    conn = connect(":memory:")
+    optional_arena = RemoteSource(
+        name="arena",
+        client=lambda: FakeRawSource("arena", None),
+        ingest=ingest_aider,
+        parse=lambda _: ([], 0),
+        minimum_rows=1,
+        required=False,
+    )
+    report = _build(conn, sources=(*_sources(), optional_arena))
+
+    actions = " ".join(report.required_operator_actions)
+    assert "arena" in actions, "an optional source that failed vanished from the report"
+    assert "assistant" in actions, "the blinded SURFACE must be named, not just the source"
+
+
 def test_an_empty_source_list_is_refused() -> None:
     conn = connect(":memory:")
     with pytest.raises(BuildError, match="no evidence sources configured"):
@@ -237,6 +294,70 @@ def test_cli_reports_zero_when_nothing_is_missing(
     assert code == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["required_operator_actions"] == []
+
+
+def test_cli_artifact_reopened_from_disk_holds_what_the_payload_claims(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-ING-012's acceptance sentence, taken literally: read the counts back OUT of the FILE.
+
+    `_read_back` counts through the SAME connection the build wrote on, so every existing assertion
+    about "the artifact" is really an assertion about an in-flight transaction. Deleting
+    `conn.commit()` at build.py:307 — and even replacing it with `conn.rollback()` — left the whole
+    suite green. This test re-opens the closed file read-only, which is the only vantage point a
+    serving process ever has.
+    """
+    monkeypatch.setattr(build_mod, "REMOTE_SOURCES", _sources())
+    monkeypatch.setattr(build_mod, "MINIMUM_MODELS_REGISTERED", 2)
+    target = tmp_path / "durable.db"
+
+    assert main(["--db", str(target)]) == 3
+    claimed = json.loads(capsys.readouterr().out)["verified_from_artifact"]
+
+    reopened = sqlite3.connect(f"file:{target}?mode=ro", uri=True)
+    try:
+        for table, count in claimed.items():
+            live = reopened.execute(f'SELECT count(*) FROM "{table}"').fetchone()[0]
+            assert live == count, f"{table}: payload claimed {count}, the FILE holds {live}"
+        assert claimed["px_median"] > 0
+    finally:
+        reopened.close()
+
+
+def test_cli_exit_three_fires_on_a_single_missing_action(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One blinded surface is already exit 3. Two is not the threshold; any is.
+
+    Every existing exit-3 test leaves BOTH bundles missing, so a mutant demanding more than one
+    action before reporting 3 stayed green — and the single-missing-source case is the one D-121
+    actually describes.
+    """
+    monkeypatch.setattr(build_mod, "REMOTE_SOURCES", _sources())
+    monkeypatch.setattr(build_mod, "LOCAL_BUNDLES", build_mod.LOCAL_BUNDLES[:1])
+    monkeypatch.setattr(build_mod, "MINIMUM_MODELS_REGISTERED", 2)
+
+    assert main(["--db", str(tmp_path / "one.db")]) == 3
+    assert len(json.loads(capsys.readouterr().out)["required_operator_actions"]) == 1
+
+
+def test_cli_epoch_dir_argument_actually_reaches_the_bundle_stage(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--epoch-dir` is a documented operator control; nothing proved it was wired.
+
+    Replacing the argument with a hard-coded `None` left the suite green, because the only
+    difference the two paths produce is WHICH sentence lands in `required_operator_actions`. The
+    directory the operator named must appear in the report, or the flag is decoration.
+    """
+    monkeypatch.setattr(build_mod, "REMOTE_SOURCES", _sources())
+    monkeypatch.setattr(build_mod, "MINIMUM_MODELS_REGISTERED", 2)
+    bundle_dir = tmp_path / "epoch-bundle"
+    bundle_dir.mkdir()
+
+    assert main(["--db", str(tmp_path / "e.db"), "--epoch-dir", str(bundle_dir)]) == 3
+    actions = " ".join(json.loads(capsys.readouterr().out)["required_operator_actions"])
+    assert str(bundle_dir) in actions, "--epoch-dir never reached the bundle stage"
 
 
 def test_cli_leaves_no_half_built_artifact_behind(tmp_path: Path,

@@ -79,7 +79,7 @@ def _today() -> str:
 
 
 class Finding:
-    __slots__ = ("path", "line", "rule", "msg")
+    __slots__ = ("line", "msg", "path", "rule")
 
     def __init__(self, path, line, rule, msg):
         self.path, self.line, self.rule, self.msg = path, line, rule, msg

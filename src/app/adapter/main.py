@@ -729,6 +729,26 @@ def _answer_for(
     except sqlite3.DatabaseError:
         return _answer_json(spec, None, "This surface's evidence could not be read.", health)
     if rec is None:
+        # WHY the answer is empty decides whether it is honest, and there are two different
+        # reasons. M7-W1's security and code-review seats both found this line attaching the
+        # BUDGET explanation unconditionally, including on a surface whose evidence source is
+        # absent entirely — where nothing was excluded by budget and the sentence is simply false.
+        #
+        # One payload then carried two contradictory accounts of itself: `source_health` correctly
+        # said "no evidence source is present", and this field said "nothing fits your budget".
+        # D-121 permits a degraded build ONLY because the surface discloses a missing source, so a
+        # false cause served beside the true one invalidates the ADR rather than inconveniencing
+        # it. An evidence engine with no evidence fails CLOSED on the question (V3C-33/45): it says
+        # it cannot answer, rather than implying it looked and found nothing.
+        if not health.get("sources"):
+            return _answer_json(
+                spec,
+                None,
+                f"This surface has no evidence at all: no {spec.primary_benchmark} source is "
+                "present in the served database, so nothing was ranked and no budget was applied. "
+                "This is a gap in the evidence, not a result.",
+                health,
+            )
         return _answer_json(
             spec,
             None,

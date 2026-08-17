@@ -49,7 +49,7 @@ from app.workflows.registry import (
     reconcile_plans,
 )
 from app.workflows.rosters import ingest_rosters
-from app.workflows.schema import connect
+from app.workflows.schema import connect, reset_source
 from app.workflows.sources import LOCAL_BUNDLES, REMOTE_SOURCES, LocalBundle, RemoteSource
 
 MINIMUM_MODELS_REGISTERED = 20
@@ -237,6 +237,20 @@ def _ingest_sources(
                 )
                 raise BuildError(msg)
         except (SourceError, BuildError) as exc:
+            # A source we REJECT must leave nothing behind. `ingest` has already written by the
+            # time the floor is evaluated, and for an optional source the error is swallowed — so
+            # without this the partial rows were committed anyway. The artifact would hold, say,
+            # three arena rows while the build reported arena as unavailable, and at serving time
+            # the "no evidence source is present" branch would NOT fire, because the source IS
+            # present: the surface would answer confidently from truncated evidence, defeating the
+            # exact disclosure D-121 stakes itself on. (Security review MINOR-1.)
+            #
+            # A SAVEPOINT cannot do this job: every `ingest_*` commits internally via `with conn:`,
+            # which ends the transaction and discards outstanding savepoints. `reset_source` is
+            # the mechanism this project already uses to replace a source's working set, so the
+            # rollback is expressed in the same terms as the write.
+            for table in ("pricing", "scores"):
+                reset_source(conn, table, source.name)
             if source.required:
                 msg = f"{source.name}: dependency unusable: {exc}"
                 raise BuildError(msg) from exc
@@ -256,6 +270,7 @@ def build(
     rosters_yaml: str,
     sources: Sequence[RemoteSource] | None = None,
     bundle_dir: Path | None = None,
+    bundles: Sequence[LocalBundle] | None = None,
     run: RunContext | None = None,
     minimum_models: int | None = None,
 ) -> BuildReport:
@@ -281,7 +296,7 @@ def build(
         "roster", lambda: ingest_rosters(conn, rosters_yaml, run)
     )
     report.sources, degraded = _ingest_sources(conn, sources, run)
-    bundle_reports, bundle_missing = _ingest_bundles(conn, bundle_dir, run)
+    bundle_reports, bundle_missing = _ingest_bundles(conn, bundle_dir, run, bundles)
     report.sources.extend(bundle_reports)
     report.required_operator_actions = _surfaces_left_without_evidence(
         [*degraded, *bundle_missing]
@@ -338,6 +353,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     target = Path(args.db)
+    # MINOR-3: a directory target used to raise PermissionError and exit 1, a code the D-120
+    # contract above does not define. Refuse it by name, before any work, with the declared code.
+    if target.is_dir():
+        print(json.dumps({"error": f"{target} is a directory, not a database path"}))
+        return 2
     if target.exists() and not args.force:
         print(json.dumps({"error": f"{target} exists; pass --force to overwrite"}))
         return 2
@@ -346,29 +366,49 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"error": f"{name} file not found: {path}"}))
             return 2
 
-    if target.exists():
-        target.unlink()
+    # BUILD TO A TEMPORARY FILE AND RENAME ONLY ON SUCCESS.
+    #
+    # The first version of this function deleted the target BEFORE doing any work, then deleted it
+    # again on the failure path. The M7-W1 security review measured what that costs: a 970 KB
+    # working artifact, `--force`, one mistyped `--plans`, and the operator is left with nothing —
+    # having had a good database thirty seconds earlier. Any of the four required sources going
+    # down mid-build does the same, and this wave's own ledger (W-024) is proof that upstreams do.
+    #
+    # The same review found a second escape: an AttributeError from an upstream payload walked past
+    # the except clause entirely and left a schema-valid, px_median-empty database at the target —
+    # Trap 1's artifact, produced by the builder written to prevent it.
+    #
+    # Both are the same defect: the target was the workspace. Now the workspace is a temp file and
+    # the target is only ever replaced by a database that finished. `except BaseException` is
+    # deliberate and not over-broad — whatever kills this process, including KeyboardInterrupt and
+    # MemoryError, must not leave a partial artifact behind.
+    workspace = target.with_name(target.name + ".building")
+    workspace.unlink(missing_ok=True)
 
     conn: sqlite3.Connection | None = None
     try:
-        conn = connect(str(target))
+        conn = connect(str(workspace))
         report = build(
             conn,
             plans_yaml=Path(args.plans).read_text(encoding="utf-8"),
             rosters_yaml=Path(args.rosters).read_text(encoding="utf-8"),
             bundle_dir=Path(args.epoch_dir) if args.epoch_dir else None,
         )
-    except (BuildError, SourceError, sqlite3.Error, OSError) as exc:
+    except BaseException as exc:
         if conn is not None:
             conn.close()
-        # A half-built artifact that looks servable is the failure mode this milestone exists to
-        # end. Nothing partial survives a failed build.
-        target.unlink(missing_ok=True)
-        print(json.dumps({"error": str(exc), "built": False}))
-        return 2
+        workspace.unlink(missing_ok=True)
+        if isinstance(exc, (BuildError, SourceError, sqlite3.Error, OSError, ValueError)):
+            print(json.dumps({"error": str(exc), "built": False}))
+            return 2
+        # Anything else is a bug in this builder rather than a bad input. The artifact is already
+        # safe; let the traceback out rather than dressing an unknown failure as a clean exit 2.
+        raise
     finally:
         if conn is not None:
             conn.close()
+
+    workspace.replace(target)
 
     payload = report.as_json()
     payload["built"] = True

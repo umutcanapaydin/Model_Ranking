@@ -62,10 +62,22 @@ def parse_pricing(
     missing prices or non-chat mode (REQ-ING-001: never stored as zero).
     """
     try:
-        data: dict[str, Any] = json.loads(raw)
+        # Annotated `Any`, not `dict[str, Any]`, and the distinction is the bug's whole history:
+        # the previous annotation ASSERTED the envelope instead of checking it, so mypy believed
+        # the payload was a dict and reported the guard below as unreachable code. A type
+        # annotation over `json.loads` is a wish, not a validation.
+        data: Any = json.loads(raw)
     except json.JSONDecodeError as exc:
         msg = f"litellm payload is not valid JSON: {exc}"
         raise SourceError(msg) from exc
+    # M7-W1 security review, BLOCKING-2: this parser was the only one of the five without an
+    # envelope guard. Valid JSON that is a list, a string or null reached `.items()` and raised
+    # AttributeError, which is not SourceError — so it escaped every caller's except clause, killed
+    # the build with an undeclared exit code, and left a half-populated database at the target. The
+    # trigger is a third party's response body, not anything an operator does.
+    if not isinstance(data, dict):
+        msg = f"litellm payload is valid JSON but not an object: got {type(data).__name__}"
+        raise SourceError(msg)
 
     rows: list[PricingRow] = []
     skipped = 0

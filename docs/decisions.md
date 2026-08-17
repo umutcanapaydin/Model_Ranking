@@ -813,6 +813,24 @@ array on a blind surface, and learns the difference only from `source_health`. W
 should refuse more loudly on a surface with no primary evidence is carried as an open question to
 M7-W2, alongside REQ-API-008.
 
+**AMENDED 2026-08-17, same day, by the M7-W1 review round — the paragraph above was incomplete and
+the ADR was signed on an incomplete reading of the surface it cites.** The security seat and the
+code-review seat independently found that a blind surface did not merely show an empty `picks`
+array: it also served `unavailable_reason` = *"No model on this surface's benchmark fits the
+requested budget"*. That sentence is false when the cause is a missing source — nothing was
+excluded by budget, because nothing was ranked at all — and it sat in the same object as the
+`source_health` notice correctly reporting that no evidence source was present. **One payload,
+two contradictory accounts of itself, with the false one in the human-readable field.**
+
+This did not inconvenience the decision above, it removed its justification: the ONLY reason a
+degraded build may ship is that the surface tells the truth about the gap.
+
+**Closed in W1 rather than deferred**, at `adapter/main.py`: when a surface has no evidence source,
+the answer now says so and states explicitly that no budget was applied. Verified against the built
+artifact, and pinned by `tests/unit/test_empty_answer_reasons.py`, which also asserts that a surface
+WITH evidence still gets the budget sentence — the fix must not replace one blanket explanation
+with another. The `picks: []` question genuinely does remain open for W2's REQ-API-008.
+
 **Revisit when:** Arena returns and stays up for a full milestone, at which point `required=True`
 should be restored rather than left optional by inertia; or when a second source becomes optional,
 which would mean this is a pattern rather than an incident.

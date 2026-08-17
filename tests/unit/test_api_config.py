@@ -673,9 +673,14 @@ def test_a_pre_m5_database_refuses_to_serve(monkeypatch: pytest.MonkeyPatch, tmp
 def test_the_repositorys_own_artifact_is_checked_not_assumed() -> None:
     """The probe is pointed at the real file, because that is the artifact D-116 ships.
 
-    This asserts the CURRENT, honest state rather than a desired one: `advisor.db` is pre-M5 and
-    must be migrated before it is shipped. If someone migrates it, this test tells them to update
-    the expectation — which is the conversation that should happen, rather than silence.
+    **Inverted at M7-W1, and the inversion is the point.** This test used to assert that
+    `advisor.db` was pre-M5 and unusable — the honest state at the time, written so that whoever
+    fixed it would be told to come here and update the expectation rather than meet silence. That
+    is exactly what happened: `app.workflows.build` produced the artifact for the first time, this
+    test went red, and W-023 closed. It now pins the opposite property.
+
+    A test that pins a KNOWN DEFECT has to be able to notice when the defect is gone, or it
+    quietly becomes a test that requires the defect.
     """
     from pathlib import Path
 
@@ -686,7 +691,7 @@ def test_the_repositorys_own_artifact_is_checked_not_assumed() -> None:
         pytest.skip("advisor.db is not present in this checkout")
 
     problem = adapter._database_unusable(artifact)
-    assert problem is not None and "effort" in problem, (
-        "advisor.db now passes the probe — if it was migrated, update this test and the M6 closure "
-        "report's owner item; if it was replaced, check what replaced it"
+    assert problem is None, (
+        f"advisor.db is not servable: {problem}. Rebuild it with "
+        "`python -m app.workflows.build --db advisor.db --force --epoch-dir <bundle>` (W-023)."
     )

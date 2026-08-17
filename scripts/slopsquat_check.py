@@ -17,7 +17,13 @@ control that reports clean because it could not run is the failure this whole li
 
 Exit: 0 clean · 1 findings · 2 could not run (network, no manifest).
 """
-import sys, json, re, pathlib, datetime, urllib.request, urllib.error
+import datetime
+import json
+import pathlib
+import re
+import sys
+import urllib.error
+import urllib.request
 
 MIN_AGE_DAYS = 90
 TIMEOUT = 6
@@ -55,7 +61,7 @@ def pypi(name: str) -> tuple[str, str]:
         if e.code == 404:
             return "missing", "no such project on PyPI"
         return "unreachable", f"HTTP {e.code}"
-    except Exception as e:                                   # noqa: BLE001 - offline must be loud
+    except Exception as e:
         return "unreachable", type(e).__name__
     stamps = [f["upload_time_iso_8601"] for rel in data.get("releases", {}).values() for f in rel
               if f.get("upload_time_iso_8601")]
