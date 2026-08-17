@@ -26,6 +26,7 @@ import yaml
 from app.clients.protocols import SourceError
 from app.workflows.ingest import RunContext, SourceReport
 from app.workflows.schema import PlanRow
+from app.workflows.yaml_guard import safe_load_bounded
 
 SOURCE_NAME = "plans-curated"
 PLAN_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{2,63}$")
@@ -131,7 +132,7 @@ def parse_plans_doc(raw: str) -> PlansDoc:
     a threshold living as a code branch, the exact M2-W4 latent-debt class.
     """
     try:
-        doc = yaml.safe_load(raw)
+        doc = safe_load_bounded(raw, what="the curated plan table (data/plans.yaml)")
     except yaml.YAMLError as exc:
         raise _fail(f"unparseable YAML: {exc}") from exc
     if not isinstance(doc, dict) or doc.get("schema") != SCHEMA_VERSION:

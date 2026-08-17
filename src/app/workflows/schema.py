@@ -76,6 +76,12 @@ CREATE TABLE IF NOT EXISTS plans (
 CREATE TABLE IF NOT EXISTS plan_config (
     id             INTEGER PRIMARY KEY CHECK (id = 1),   -- single row
     staleness_days INTEGER NOT NULL CHECK (staleness_days > 0),
+    -- REQ-SUB-008 / W-008: the ROSTER's own window, separate from the plan table's above. They are
+    -- both 30 on shipped data, which is why borrowing one for the other stayed invisible: the
+    -- product would call a roster link stale that the roster's own policy calls fresh, and every
+    -- gate would stay green. Nullable so a pre-M6 database migrates without inventing a policy;
+    -- `roster_staleness_days()` is where the absence is resolved, loudly.
+    roster_staleness_days INTEGER CHECK (roster_staleness_days IS NULL OR roster_staleness_days > 0),
     cap_dusuk      REAL NOT NULL CHECK (cap_dusuk > 0),  -- monthly-USD budget caps (data, not code)
     cap_orta       REAL NOT NULL CHECK (cap_orta > cap_dusuk)
 );
@@ -152,6 +158,10 @@ _MIGRATIONS: tuple[tuple[str, str, str], ...] = (
     ("plan_models", "link_source", "TEXT NOT NULL DEFAULT 'plan-page'"),
     ("plan_models", "source_url", "TEXT"),
     ("plan_models", "last_verified", "TEXT"),
+    # M6-W3 / REQ-SUB-008. Nullable and no DEFAULT on purpose: a default would silently give an old
+    # database a roster policy nobody set, which is the shape of the defect this column exists to
+    # remove. An unmigrated row reads as "unset" and `roster_staleness_days()` says so.
+    ("plan_config", "roster_staleness_days", "INTEGER"),
 )
 
 EFFORT_UNSPECIFIED = "unspecified"

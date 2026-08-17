@@ -288,18 +288,28 @@ def _stale_notice(conn: sqlite3.Connection, ranking: list[PlanRank]) -> str | No
             "Prices may have changed; do not rely on this answer without re-verifying the table."
         )
 
-    cfg = conn.execute("SELECT staleness_days FROM plan_config WHERE id = 1").fetchone()
-    if cfg is None:
+    # REQ-SUB-008 / W-008: the ROSTER's window, not the plan table's. This line read
+    # `plan_config.staleness_days` — the curated PLAN table's clock — while `rosters.py` aged
+    # roster FILES against the roster file's own. Both are 30 on shipped data, so the two readings
+    # agreed and the defect had no way to show itself.
+    from app.workflows.rosters import roster_staleness_days
+
+    if conn.execute("SELECT 1 FROM plan_config WHERE id = 1").fetchone() is None:
         return " ".join(notices) or None
-    window = int(cfg[0])
+    roster_rows = [row for row in ranking if row.scored_via == "roster"]
+    if not roster_rows:
+        # No roster link is being served, so no roster policy is needed. Demanding one here would
+        # make a database with plans and no rosters unusable for a question it never asks — and it
+        # would make the loud failure fire on the wrong databases, which is how a loud failure gets
+        # softened back into a silent default.
+        return " ".join(notices) or None
+    window = roster_staleness_days(conn)
     observed = {
         plan_id: value
         for plan_id, value in conn.execute("SELECT id, observed_at FROM plans ORDER BY id")
     }
     stale_rosters: list[PlanRank] = []
-    for row in ranking:
-        if row.scored_via != "roster":
-            continue
+    for row in roster_rows:
         if row.link_last_verified is None or row.link_source_url is None:
             raise ValueError(f"{row.plan_id}: selected roster link has incomplete provenance")
         try:

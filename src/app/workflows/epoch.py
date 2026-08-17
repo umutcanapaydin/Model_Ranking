@@ -16,6 +16,7 @@ import yaml
 
 from app.clients.epoch import EPOCH_BUNDLE_URL, validate_last_verified
 from app.clients.protocols import SourceError
+from app.workflows.yaml_guard import safe_load_bounded
 
 SOURCE_ID = "epoch-benchmark-data"
 SCHEMA_VERSION = 1
@@ -38,7 +39,7 @@ class EpochSourceDoc:
 def parse_epoch_source_doc(raw: str) -> EpochSourceDoc:
     """Parse authored source metadata; malformed configuration fails loudly."""
     try:
-        doc = yaml.safe_load(raw)
+        doc = safe_load_bounded(raw, what="the Epoch source manifest (data/epoch-source.yaml)")
     except yaml.YAMLError as exc:
         raise SourceError(f"{SOURCE_ID}: unparseable YAML: {exc}") from exc
     if not isinstance(doc, dict) or set(doc) != {"schema", "staleness_days", "source"}:

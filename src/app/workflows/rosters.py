@@ -23,6 +23,7 @@ import yaml
 
 from app.clients.protocols import SourceError
 from app.workflows.ingest import RunContext, SourceReport
+from app.workflows.yaml_guard import safe_load_bounded
 
 SOURCE_NAME = "rosters-curated"
 LINK_SOURCE = "roster"
@@ -96,7 +97,7 @@ def _validate(entry: Any, seen: set[str]) -> RosterRow:  # noqa: C901
 def parse_rosters(raw: str) -> RostersDoc:
     """Parse + validate the curated roster file; ANY invalid row aborts loudly."""
     try:
-        doc = yaml.safe_load(raw)
+        doc = safe_load_bounded(raw, what="the curated roster table (data/rosters.yaml)")
     except yaml.YAMLError as exc:
         raise _fail(f"unparseable YAML: {exc}") from exc
     if not isinstance(doc, dict) or doc.get("schema") != SCHEMA_VERSION:
@@ -133,6 +134,13 @@ def ingest_rosters(conn: sqlite3.Connection, raw: str, run: RunContext) -> Sourc
         raise _fail(f"roster references unknown plan id(s): {sorted(unknown)}")
     try:
         with conn:
+            # REQ-SUB-008: the roster file's OWN window is persisted here, in the same transaction
+            # that stores the links it governs. Writing it anywhere else would let a database carry
+            # links from one roster policy and a window from another.
+            conn.execute(
+                "UPDATE plan_config SET roster_staleness_days = ? WHERE id = 1",
+                (doc.staleness_days,),
+            )
             conn.execute("DELETE FROM plan_models WHERE link_source = ?", (LINK_SOURCE,))
             conn.executemany(
                 "INSERT INTO plan_models"
@@ -217,3 +225,29 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def roster_staleness_days(conn: sqlite3.Connection) -> int:
+    """The window roster links are aged against — the ROSTER's own, never the plan table's.
+
+    REQ-SUB-008 / W-008. Until M6 this number came from `plan_config.staleness_days`, the CURATED
+    PLAN table's clock, while `data/rosters.yaml` declared its own and `check_staleness` above aged
+    roster FILES against that one. Both are 30 on shipped data, so the two readings agreed and
+    nothing failed — the divergence was a future defect with no test able to see it.
+
+    Fails LOUD on an unset value rather than falling back to the plan window. A fallback here would
+    reinstate exactly the coupling this function was written to remove, and it would do it silently,
+    on the databases most likely to be old.
+    """
+    row = conn.execute("SELECT roster_staleness_days FROM plan_config WHERE id = 1").fetchone()
+    if row is None:
+        msg = "plan_config missing — ingest the curated plan table first"
+        raise ValueError(msg)
+    if row[0] is None:
+        msg = (
+            "plan_config.roster_staleness_days is unset — re-ingest data/rosters.yaml so the roster"
+            " window comes from the roster policy (REQ-SUB-008); it is deliberately NOT defaulted"
+            " to the plan table's window"
+        )
+        raise ValueError(msg)
+    return int(row[0])

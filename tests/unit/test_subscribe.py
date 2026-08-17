@@ -591,6 +591,11 @@ def test_equivalence_note_says_which_members_rest_on_a_roster() -> None:
         " source_url = 'https://twinco.example/models', last_verified = '2026-08-15'"
         " WHERE plan_id = 'twin-plan'"
     )
+    # REQ-SUB-008: this fixture inserts roster links by hand rather than through `ingest_rosters`,
+    # so it must also supply the roster policy that governs them. A database carrying roster links
+    # with no roster window is incoherent, and `roster_staleness_days` now says so loudly instead
+    # of quietly borrowing the plan table's number.
+    conn.execute("UPDATE plan_config SET roster_staleness_days = 30 WHERE id = 1")
     rec = recommend_subscription(conn, "medium", "coding")
     assert rec is not None
     note = rec.equivalence_note
