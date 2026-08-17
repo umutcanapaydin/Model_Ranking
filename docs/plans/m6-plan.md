@@ -112,7 +112,9 @@ New REQs land in `docs/prd.md` as well as here (the M3 rule).
 | **REQ-API-002** | **Ruling A.** `task=coding` returns two answers, neither flagged, ordered non-semantically, with the envelope stating the order carries no meaning. Citing test asserts two members AND asserts that no field ranks them | Ruling A / Trap 2 |
 | **REQ-API-003** | **Rendering parity.** Every disclosure the engine produces — `close_call`, `stale_notice`, `effort_mix_notice`, the budget notice (D-111), D-110 equivalence, per-pick `effort` — is present in the JSON payload, the CSV export and the CLI output, derived from ONE serializer. Citing test compares all three renderings of a single run field-for-field; a disclosure in one and not another is BLOCKING | Trap 1 |
 | **REQ-API-004** | **Undated evidence is disclosed in the answer, not only in the report** (INV-24). An answer whose evidence carries no evaluation date says so in the payload. Citing test on the `agentic-coding` answer | M5 security deferral |
-| **REQ-API-005** | **Error contract.** Unknown task, unknown budget, an unhealthy source, and a missing database each produce a stable, documented error shape that fails loud and closed and **leaks no filesystem path** into the response body. Citing test per case | §0 |
+| **REQ-API-005** | **Error contract.** Unknown task, unknown budget and a missing database each produce a stable, documented error shape that fails loud and closed and **leaks no filesystem path** into the response body. **An unhealthy source is DISCLOSED in a 200 answer, not refused** — see the amendment below. Citing test per case | §0 |
+
+> **AMENDMENT, owner-ratified 2026-08-17.** The criterion as signed listed four cases producing "the error shape", and the fourth — an unhealthy source — was wrong as written. Refusing to answer over stale evidence would contradict the honesty doctrine this product is built on: the rule is *fail toward DISCLOSURE*, and `coverage.py` was hardened for exactly that direction. All three W3 review seats read the wording as wrong and the behaviour as right, independently. The behaviour ships as implemented — a 200 answer carrying `source_health` with `stale: true`, its age, and a notice — and this criterion now says so. **Explicitly not a 503.** The three refusal cases keep the error shape unchanged. |
 | **REQ-API-006** | **Security baseline for the surface** (V3C-11/12/13/51/56, `docs/security-baseline.md`): CORS is an allowlist and never allow-all-with-credentials; security-relevant config is validated at startup and the process refuses to serve in production if it is wrong; the API's database handle is opened read-only; no plaintext credential exists in source. Citing test per clause | New external surface |
 | **REQ-REC-014** | `equivalent_plans` carries **group structure** — a machine consumer can tell which pick each plan is equivalent to, and at what price. Prose already carries it; the field does not | W-002 |
 | **REQ-LIC-002** | The **CSV half** of `export_ranking` carries the same attribution and blend note the JSON half carries (CC-BY obligation ships where the data is served — REQ-LIC-001's rule, applied to the rendering it missed) | M5 security deferral |
@@ -196,7 +198,14 @@ body shape. Changing any of them after M6 closes is a public-contract change and
   it exactly as D-112 was nearly re-litigated.
 - **D-116 — Deploy target (closes OQ-3),** superseding the `m4-plan.md` citation collision.
 
-(D-113 and D-114 were taken by the v5.0 baseline move recorded in §8, which was ratified first.)
+- **D-119 — `equivalent_plans` carries labelled groups.** REQ-REC-014 changed a public-ish shape and
+  nothing records the decision, so a future change would have nothing to supersede. Owner-accepted
+  2026-08-17; written at CLOSURE alongside D-116 rather than mid-wave, because ADR IDs are immutable
+  and a deleted one leaves a permanent gap — minting an ID to satisfy a MINOR is the higher-risk
+  order, and the code reviewer agreed the reasoning was better than its own framing.
+
+(D-113, D-114, D-117 and D-118 were taken by the v5.0 baseline move, the git-authority rulings and
+the English contract; §8 and the ledger record why each was ratified when it was.)
 
 **Effective wave review tiers:** W1 **MED + pulled-forward security**, W2 **MED**, W3 **HIGH**
 (migration, auto-escalated), W4 **LOW-MED** unless its final diff crosses an auto-HIGH boundary.
