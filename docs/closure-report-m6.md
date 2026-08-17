@@ -33,7 +33,7 @@ date: 2026-08-17
 | # | Item | What it is |
 |---|---|---|
 | 1 | **Sign this closure report** | The milestone's out-of-sandbox verification is yours: `make check` and the Epoch-mounted suite on your machine. Expected **365 passed / 12 skipped** and **372 passed / 5 skipped**. |
-| 2 | **W-021 — `CODEOWNERS` assigns nobody** | Every rule owns its path to `<DEVOPS_HANDLE>`, which is not a handle, so the review request goes to no one. Documented and untrue since bootstrap; it matters now because W4 created the first files those rules point at. Delete the rules for a solo repo, or set a real handle AND enable "Require review from Code Owners" — without the second half the file is advisory whatever it says. |
+| 2 | **W-021 — `CODEOWNERS` assigned nobody — RULED AND CLOSED** | Every rule owned its path to `<DEVOPS_HANDLE>`, which is not a handle, so the review request went to no one — untrue since bootstrap, and it mattered now because W4 created the first files those rules pointed at. **The owner ruled DELETE.** A solo repository is the case the file's own Stage-0 note prescribes deletion for; a real handle without "Require review from Code Owners" would only have made an inert control look better. K.10's boundary moves to where it executes — AGENTS.md §5 and `conformance/test-governed-paths.py` — and the deleted rules survive as a comment so restoring them needs no archaeology. |
 | 3 | **W-017 — the deploy condition, STILL OPEN** | The serving snapshot copies the whole database into memory per unauthenticated GET. Its three Stage-4.0 conditions are closed — the amplification was re-derived independently, the ceiling now subtracts the serving process's own baseline (`PROCESS_BASELINE_MB`), and `fly.toml` ties concurrency to the budget — but **the snapshot itself is unchanged**. D-116 names it a CONDITION of go-live, not a follow-up. **No first deploy before this is answered.** |
 | 3b | **W-023 — the shipped database is pre-M5, and it fails silently** | `advisor.db` and `owner_advisor.db` carry the pre-M5 schema (no `effort` column), and the serving path is read-only by design so it cannot migrate them. Deployed as-is the process starts, `/health` returns 200 with a correct build stamp, and **every query returns 200 with zero picks** — while Stage 4.3 verifies deploys via `/health`. Before any deploy: `cd /Users/umutcanapaydin/Desktop/ILGAR/model_ranking && .venv/bin/python -m app.workflows.schema migrate --db advisor.db` (expect **exit 3** + `required_operator_actions` if rosters need re-ingesting — D-120 — then re-ingest and re-run for exit 0). |
 | 3c | **Stage 4.0 re-verification — carried, not waived** | The second security round's two BLOCKING and one MINOR are fixed (§4), but no seat has reviewed the post-fix tree. Per AGENTS.md §6 this gates **deploy**, not this closure, and M6 deploys nothing. Re-run `/security-review` before go-live, alongside items 3 and 3b. |
@@ -130,7 +130,10 @@ a wildcard CORS origin is refused in every environment; production fails closed 
 **Paid this milestone:** W-002, W-005, W-008, W-009, W-010 — all five deferred to "the API
 milestone" with reasons, all five closed. **W-001 closed** after four surviving closes.
 **W-012/W-013/W-014/W-016/W-018/W-020 closed.** **Open and carried:** W-017 (escalated; a go-live
-condition), W-019 (`L1` detects an alphabet, not a language), W-021 (`CODEOWNERS`).
+condition), W-019 (`L1` detects an alphabet, not a language), W-023, W-024, W-025.
+**W-021 closed at this gate by the owner's ruling** — the `CODEOWNERS` rules are deleted rather
+than given a fake handle, and K.10's boundary now lives where it is actually executed
+(AGENTS.md §5 plus `conformance/test-governed-paths.py`) rather than in a file that assigned nobody.
 **Handed back to GP:** GPF-001..005 in `docs/gp-field-findings.md`, three of which are the same
 records-versus-instructions blind spot in three different checks.
 

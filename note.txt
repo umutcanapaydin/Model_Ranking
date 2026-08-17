@@ -52,7 +52,10 @@ WHAT'S OPEN
   build stamp, and **every query 200 with zero picks** — while Stage 4.3 verifies via `/health`.
   Run `.venv/bin/python -m app.workflows.schema migrate --db advisor.db` first (exit 3 + operator
   actions is the expected D-120 path if rosters need re-ingesting).
-- **W-021** — `.github/CODEOWNERS` owns every path to a placeholder that assigns nobody. Owner call.
+- ~~**W-021**~~ — CLOSED at the M6 gate: the owner ruled DELETE the `CODEOWNERS` rules rather than
+  give a placeholder a real-looking handle. K.10's boundary now lives in AGENTS.md §5 and
+  `conformance/test-governed-paths.py`, both of which run. Restore the rules WITH branch protection
+  if a second contributor ever joins.
 - **W-019** — `L1` detects an alphabet, not a language. No mechanical fix proposed on purpose.
 - **GPF-001..005** in `docs/gp-field-findings.md` — findings about GP v5.0 itself, for the owner to
   carry to the pipeline repo. Three are the same records-versus-instructions blind spot.

@@ -21,30 +21,27 @@
 # SYNTAX: <path-pattern>  <owner1> [owner2 ...]  (last matching pattern wins)
 # Paths are case-sensitive. `!` negation and `[ ]` ranges are NOT supported here.
 
-# ---- M6-W4 FINDING, 2026-08-17: these owners are PLACEHOLDERS and assign nobody ----
-# `<DEVOPS_HANDLE>` is not a GitHub handle, so every rule below matches a pattern and requests
-# review from no one. This file's own SETUP note says a solo repo should DELETE these lines rather
-# than leave a fake owner, "because an unmatched/invalid owner assigns no one" — which is exactly
-# what has been true here since Stage 0. It is a control that reads as installed and is inert:
-# the class this project has found four times this milestone.
+# ---- W-021 RULED AND CLOSED, 2026-08-17 (M6 closure, owner's decision) ----
+# This file used to carry six rules assigning `/Dockerfile`, `/.dockerignore`, `/deploy/`,
+# `/.github/workflows/`, `/Makefile` and this file itself to `<DEVOPS_HANDLE>`.
 #
-# NOT deleted by the agent, because K.10 is a boundary and removing one is the owner's call. Two
-# honest options at the milestone gate:
-#   (a) solo repo -> delete the five rules below and keep this note as the record of why;
-#   (b) a real reviewer exists -> replace the placeholder with their handle and enable
-#       "Require review from Code Owners" on the protected branch, without which the file is
-#       advisory whatever it says.
-# Recorded as W-021.
+# `<DEVOPS_HANDLE>` is not a GitHub handle. Every rule matched its pattern and requested review
+# from no one, and that had been true since Stage 0 — a control that read as installed and was
+# inert. M6-W4 made it matter by creating the first files those rules pointed at (`Dockerfile`,
+# `fly.toml`), and M6 found the same class of defect four separate times, so leaving a sixth
+# standing at the closing gate was not defensible.
+#
+# **The owner ruled: delete the rules.** This is a solo repository with no DevOps team, which is
+# the case the SETUP note above already prescribes deletion for — an unmatched or invalid owner
+# assigns no one, so a rule naming a placeholder is advisory fiction that reads as a boundary.
+# The alternative (a real handle PLUS "Require review from Code Owners" on the protected branch)
+# was rejected as describing a review that no second person exists to perform.
+#
+# **K.10's boundary is not abandoned, it is relocated to where it is actually enforced:**
+# AGENTS.md §5 forbids agents overwriting DevOps-owned build/deploy files, and
+# `conformance/test-governed-paths.py` checks the governed globs. Those run. This file did not.
+#
+# If a second contributor or a DevOps team ever joins, restore the rules with a real handle AND
+# enable the branch-protection setting in the same change — the file is advisory without it.
 
-# ---- DevOps-owned build & deploy surface (do not let an app-feature merge clobber) ----
-/Dockerfile          <DEVOPS_HANDLE>
-/.dockerignore       <DEVOPS_HANDLE>
-/deploy/             <DEVOPS_HANDLE>
-/.github/workflows/  <DEVOPS_HANDLE>
-/Makefile            <DEVOPS_HANDLE>
-
-# ---- Protect the ownership boundary itself (so it can't be quietly edited away) ----
-/.github/CODEOWNERS  <DEVOPS_HANDLE>
-
-# ---- (Optional) app-team default owner for everything else ----
-# *                  <APP_TEAM_HANDLE>
+# (No rules: intentionally empty. See above.)
