@@ -52,7 +52,10 @@ bundle, then the allowlisted clients read local CSV files. `data/epoch-source.ya
 - **Error handling:** a failing source aborts ITS ingestion with a loud report; other sources proceed; partial runs are labeled partial (fairness-class fail OPEN, per V3C-33/45 this is not an auth control).
 - **Schema evolution:** read paths stay migration-free. Operators explicitly run
   `python -m app.workflows.schema migrate --db PATH`; the command refuses missing/unusable files,
-  preserves rows, and is idempotent.
+  preserves rows, and is idempotent. **Exit codes (D-120, K.8 frozen contract):** `0` migrated and
+  servable · `2` could not migrate, nothing changed · `3` migrated and NOT yet servable, with
+  `required_operator_actions` naming what the schema cannot supply. A migration can add a column;
+  it cannot supply a policy.
 
 ## 4. Deployment topology
 

@@ -55,7 +55,7 @@ class YamlGuardError(yaml.YAMLError, ValueError):
     """
 
 
-def _expanded_size(node: yaml.Node, memo: dict[int, int], in_progress: set[int]) -> int:
+def _expanded_size(node: yaml.Node, memo: dict[yaml.Node, int], in_progress: set[yaml.Node]) -> int:
     """How many nodes this subtree becomes once aliases are resolved.
 
     **This is the whole guard, and the first version did not have it.** That version counted alias
@@ -74,7 +74,12 @@ def _expanded_size(node: yaml.Node, memo: dict[int, int], in_progress: set[int])
     # after a single attack. The same change had just routed the remote-fed Aider input through
     # here, so one hostile HTTP body would have persistently disabled YAML ingestion — a denial of
     # service introduced by the fix for a denial of service.
-    key = id(node)
+    # Keyed on the NODE, not `id(node)`. `yaml.Node` is hashable by identity, so this costs nothing
+    # and removes a lifetime argument: an id collision used to produce a wrong count, and since the
+    # cycle check went in it would produce a spurious "recursive anchor" refusal — the same denial
+    # of service that fix closed, arriving by a different route. The code review raised this in
+    # round 1 and I did not take it; a lifetime argument is exactly what failed the round after.
+    key = node
     if key in memo:
         return memo[key]
     # A node reached again while it is still being counted is a CYCLE, and a cycle expands without

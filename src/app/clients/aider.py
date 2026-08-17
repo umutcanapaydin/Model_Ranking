@@ -15,7 +15,7 @@ import yaml
 
 from app.clients.protocols import SourceError
 from app.workflows.schema import ScoreRow
-from app.workflows.yaml_guard import safe_load_bounded
+from app.workflows.yaml_guard import MAX_YAML_BYTES, safe_load_bounded
 
 AIDER_URL = (
     "https://raw.githubusercontent.com/Aider-AI/aider/main/"
@@ -43,6 +43,15 @@ class AiderClient:
         except httpx.HTTPError as exc:
             msg = f"aider fetch failed: {exc}"
             raise SourceError(msg) from exc
+        # The guard bounds what the PARSER is given; this bounds what the SOCKET is given, and it
+        # is the only unbounded step left on the guarded path once the parse is capped. A remote
+        # host that streams gigabytes costs the same either way if nobody stops the read.
+        if len(resp.content) > MAX_YAML_BYTES:
+            msg = (
+                f"{self.name}: response is {len(resp.content)} bytes, past the"
+                f" {MAX_YAML_BYTES}-byte limit for a curated leaderboard"
+            )
+            raise SourceError(msg)
         return resp.text
 
 

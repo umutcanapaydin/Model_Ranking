@@ -91,35 +91,59 @@ def test_the_bound_is_on_the_expanded_size_not_the_alias_count() -> None:
 
 
 def test_every_yaml_entry_point_goes_through_the_guard() -> None:
-    """Built is not wired (V3C-73) — and the LIST OF INPUTS is derived, not written down.
+    """Built is not wired (V3C-73) — the FILE SET is derived and so is the PREDICATE.
 
-    **This test previously hard-coded three module names, and that is how the wave shipped its worst
-    defect.** It was written to prove "a guard on two of three inputs is a guard on none", and it
-    was itself a guard on three of four: `src/app/clients/aider.py` parses a third-party HTTP body
-    and was not in the literal, so the one input with a real untrusted producer was the one nobody
-    checked. Both review seats found it independently.
+    Two rounds of the same lesson are baked into this test. Round one: it hard-coded three module
+    names, so the one input with a real untrusted producer — `src/app/clients/aider.py`, a
+    third-party HTTP body — was the one nobody checked. Round two: the file set was derived and the
+    predicate was still a four-word list on one identifier, which the code review measured as
+    detecting **1 of 7** entry-point forms. `yaml.safe_load_all`, `yaml.load_all`, `yaml.parse`,
+    `yaml.compose`, `from yaml import safe_load` and `import yaml as y` all walked past it.
 
-    So the enumeration walks the whole source tree. A fifth YAML entry point added tomorrow fails
-    here whether or not anyone remembers this file exists — which is the only version of
-    "enumerated from code" that means anything.
+    **A denylist inside a derived enumeration is still a denylist.** So this resolves the `yaml`
+    module however it was imported, and flags ANY attribute call on it except the one composition
+    the guard itself performs — the allowlist shape this project has now arrived at three times.
     """
     import ast
     from pathlib import Path
 
-    unguarded: list[str] = []
-    for path in sorted(Path("src").rglob("*.py")):
-        if path.name == "yaml_guard.py":
-            continue
-        for node in ast.walk(ast.parse(path.read_text())):
-            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
-                continue
-            if (
-                node.func.attr in {"safe_load", "load", "full_load", "unsafe_load"}
-                and isinstance(node.func.value, ast.Name)
-                and node.func.value.id == "yaml"
-            ):
-                unguarded.append(f"{path}:{node.lineno}")
-    assert unguarded == [], f"these parse YAML without the bound: {unguarded}"
+    root = Path(__file__).resolve().parents[2] / "src"
+    files = sorted(root.rglob("*.py"))
+    assert files, "the source glob matched nothing — this test would pass vacuously"
+
+    #: The only yaml call the guard module itself is allowed to make outside `safe_load_bounded`.
+    allowed_in_guard = {"compose", "safe_load", "YAMLError"}
+    offenders: list[str] = []
+
+    for path in files:
+        tree = ast.parse(path.read_text())
+        # Every local name that refers to the yaml module, however it got here.
+        aliases = {
+            alias.asname or alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Import)
+            for alias in node.names
+            if alias.name == "yaml"
+        }
+        # `from yaml import safe_load` — the function is bound directly, with no module in sight.
+        direct = {
+            alias.asname or alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom) and node.module == "yaml"
+            for alias in node.names
+        }
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                func = node.func
+                if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+                    if func.value.id in aliases:
+                        if path.name == "yaml_guard.py" and func.attr in allowed_in_guard:
+                            continue
+                        offenders.append(f"{path.name}:{node.lineno} yaml.{func.attr}")
+                elif isinstance(func, ast.Name) and func.id in direct:
+                    offenders.append(f"{path.name}:{node.lineno} {func.id} (imported from yaml)")
+
+    assert offenders == [], f"these reach PyYAML without the bound: {offenders}"
 
 
 def test_the_guard_runs_before_the_parser_not_after() -> None:
@@ -214,3 +238,62 @@ def test_the_expansion_budget_is_pinned() -> None:
 
     assert MAX_EXPANDED_NODES == 500_000
     assert MAX_YAML_BYTES == 1_048_576
+
+
+def test_the_remote_fetch_bounds_the_body_before_the_parser_sees_it() -> None:
+    """The guard caps the PARSER's input; this caps the SOCKET's.
+
+    Carried by the W3 code review after the guard went on: once the parse is bounded, the fetch is
+    the only unbounded step left on the path, and a host that streams gigabytes costs the same
+    whether or not the parser would have refused the result.
+    """
+    import httpx
+
+    from app.clients.aider import AiderClient
+    from app.clients.protocols import SourceError
+    from app.workflows.yaml_guard import MAX_YAML_BYTES
+
+    class _Fat:
+        status_code = 200
+        content = b"x" * (MAX_YAML_BYTES + 1)
+        text = "x" * (MAX_YAML_BYTES + 1)
+
+        def raise_for_status(self) -> None:
+            return None
+
+    client = AiderClient()
+    original = httpx.get
+    httpx.get = lambda *a, **k: _Fat()  # type: ignore[assignment]
+    try:
+        with pytest.raises(SourceError, match="past the"):
+            client.fetch_raw()
+    finally:
+        httpx.get = original
+
+
+def test_the_savepoint_wrapper_has_a_citing_test() -> None:
+    """The code review's MINOR: reverting the savepoint fix verbatim left 351 green.
+
+    `migrate()` must ROLLBACK TO its savepoint on any exception, not only `sqlite3.Error`, and must
+    RELEASE it on every path — an open savepoint means the next statement on that connection runs
+    inside a transaction nobody knows about.
+    """
+    import ast
+    from pathlib import Path
+
+    source = Path("src/app/workflows/schema.py").read_text()
+    fn = next(
+        node
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.FunctionDef) and node.name == "migrate"
+    )
+    handlers = [h for node in ast.walk(fn) if isinstance(node, ast.Try) for h in node.handlers]
+    assert handlers, "migrate() no longer guards its savepoint"
+    caught = {h.type.id if isinstance(h.type, ast.Name) else None for h in handlers}
+    assert "BaseException" in caught, (
+        "migrate() catches a narrower exception than BaseException, so a KeyboardInterrupt or any "
+        "non-sqlite3 error leaves the savepoint open"
+    )
+    assert any(
+        isinstance(node, ast.Try) and node.finalbody for node in ast.walk(fn)
+    ), "the RELEASE is not in a finally, so a path exists that leaves the savepoint open"

@@ -410,3 +410,35 @@ def test_a_migrated_database_cannot_serve_a_nonsense_window(tmp_path) -> None:
             fresh.execute("UPDATE plan_config SET roster_staleness_days = -5 WHERE id = 1")
     finally:
         fresh.close()
+
+
+def test_the_migrate_exit_codes_are_exactly_these_three(tmp_path) -> None:
+    """D-120: CLI exit codes are a K.8 frozen contract, so the SET is pinned, not just each value.
+
+    Exit 3 shipped in the W3 fix delta without an ADR, a test, or a line in `docs/architecture.md`,
+    and the code review caught it in the delta that closed the same defect class one round earlier.
+    A script under `set -e` reads a successful migration as a failure, and roster links are the
+    NORMAL case — the shipped database has 18.
+    """
+    import json
+    from contextlib import redirect_stdout
+    from io import StringIO
+
+    from app.workflows.schema import main as schema_main
+
+    # 2 — cannot migrate: the file does not exist.
+    buffer = StringIO()
+    with redirect_stdout(buffer):
+        assert schema_main(["migrate", "--db", str(tmp_path / "absent.db")]) == 2
+    assert "error" in json.loads(buffer.getvalue())
+
+    # 0 — migrated and servable: a fresh database needs nothing from an operator.
+    db = tmp_path / "fresh.db"
+    connect(str(db)).close()
+    buffer = StringIO()
+    with redirect_stdout(buffer):
+        assert schema_main(["migrate", "--db", str(db)]) == 0
+    assert json.loads(buffer.getvalue())["required_operator_actions"] == []
+
+    # 3 is covered by test_a_pre_m6_database_WITH_roster_links_migrates_and_then_serves, which
+    # exercises the whole round trip rather than the code alone.

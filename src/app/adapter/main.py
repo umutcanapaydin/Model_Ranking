@@ -28,6 +28,7 @@ would re-introduce a ranking the owner did not make.
 from __future__ import annotations
 
 import datetime as dt
+import logging
 import os
 import sqlite3
 from dataclasses import fields
@@ -162,6 +163,14 @@ app = FastAPI(
 #: independently, and the security seat named why mutation testing could not: a mutant of a
 #: function no production path reaches is killed by a test of a function nobody calls.
 STARTUP_WARNINGS = validate_startup_config()
+if STARTUP_WARNINGS:
+    # **Emitted, not just returned.** The first version computed these and dropped them, which is a
+    # smaller instance of the defect this same fix closed one line up — and the test asserting the
+    # development path had a docstring saying "a developer machine that stays silent about it is a
+    # control nobody learns from" while the process stayed silent. Found by the W3 code review.
+    logging.getLogger(__name__).warning(
+        "model_ranking starting with unmet configuration: %s", "; ".join(STARTUP_WARNINGS)
+    )
 
 _ALLOWED_ORIGINS = cors_origins()
 if _ALLOWED_ORIGINS:
