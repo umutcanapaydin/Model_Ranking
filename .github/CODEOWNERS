@@ -21,6 +21,21 @@
 # SYNTAX: <path-pattern>  <owner1> [owner2 ...]  (last matching pattern wins)
 # Paths are case-sensitive. `!` negation and `[ ]` ranges are NOT supported here.
 
+# ---- M6-W4 FINDING, 2026-08-17: these owners are PLACEHOLDERS and assign nobody ----
+# `<DEVOPS_HANDLE>` is not a GitHub handle, so every rule below matches a pattern and requests
+# review from no one. This file's own SETUP note says a solo repo should DELETE these lines rather
+# than leave a fake owner, "because an unmatched/invalid owner assigns no one" — which is exactly
+# what has been true here since Stage 0. It is a control that reads as installed and is inert:
+# the class this project has found four times this milestone.
+#
+# NOT deleted by the agent, because K.10 is a boundary and removing one is the owner's call. Two
+# honest options at the milestone gate:
+#   (a) solo repo -> delete the five rules below and keep this note as the record of why;
+#   (b) a real reviewer exists -> replace the placeholder with their handle and enable
+#       "Require review from Code Owners" on the protected branch, without which the file is
+#       advisory whatever it says.
+# Recorded as W-021.
+
 # ---- DevOps-owned build & deploy surface (do not let an app-feature merge clobber) ----
 /Dockerfile          <DEVOPS_HANDLE>
 /.dockerignore       <DEVOPS_HANDLE>

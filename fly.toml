@@ -1,0 +1,47 @@
+# PROPOSAL — M6-W4, not yet adopted. D-116 names Fly.io as the target; this file is what that would
+# look like, for the owner's review. K.10 cross-team surface; see `.github/CODEOWNERS`.
+#
+# NOT A DEPLOY AUTHORISATION. D-116 states it explicitly: W-017 — the serving snapshot copies the
+# whole database into memory per unauthenticated request, measured at ~9,100x amplification at
+# today's size — is BLOCKING at Stage 4.3, and the closure pass must re-derive that number
+# independently before any first deploy.
+
+app = "model-ranking"
+primary_region = "fra"
+
+[build]
+  # APP_BUILD is supplied at build time so /health can answer "which code is live" (L.7).
+  [build.args]
+    APP_BUILD = "set-me-to-the-git-sha"
+
+[env]
+  APP_ENV = "production"
+  MODEL_RANKING_DB = "/data/advisor.db"
+
+[[mounts]]
+  source = "model_ranking_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Deliberately not scaling to zero: the first request after a cold start would pay the snapshot
+  # cost W-017 records, which is the one cost this service should not pay on a user's latency.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    # Bounded on purpose, and this is W-017's containment until the engine write is fixed: each
+    # in-flight request holds a full in-memory copy of the database.
+    type = "requests"
+    soft_limit = 4
+    hard_limit = 8
+
+[checks.health]
+  type = "http"
+  port = 8080
+  method = "get"
+  path = "/health"
+  interval = "30s"
+  timeout = "5s"
