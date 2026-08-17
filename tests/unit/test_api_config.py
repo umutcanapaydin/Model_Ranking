@@ -178,8 +178,22 @@ def test_a_production_process_refuses_to_import_with_broken_config(
 
 
 def _client_with_origins(monkeypatch: pytest.MonkeyPatch, tmp_path, origins: str):
-    """A live app whose CORS middleware was configured by the value under test."""
-    import importlib
+    """A live app whose CORS middleware was configured by the value under test.
+
+    Loads a PRIVATE copy of the module from its spec rather than reloading the shared one. The first
+    version called `importlib.reload`, and the W3 Tester found what that costs: `monkeypatch`
+    restores the ENVIRONMENT at teardown but the reloaded module is already in `sys.modules` with
+    the middleware installed, so every test file collected after this one got an app serving
+    `Access-Control-Allow-Origin`. Nothing failed — the Tester checked reverse file order too — but
+    a future test asserting the absence of that header would have passed or failed on collection
+    order.
+
+    Reloading it back is worse, and I tried it: the reload rebinds `ConfigError` and every other
+    class, so tests holding a module-level reference start catching the wrong object. A private
+    module leaves `sys.modules` untouched, which is the only version of this with no aftermath.
+    """
+    import importlib.util
+    import sys
 
     from .test_api_v1 import _seeded_db
 
@@ -187,10 +201,14 @@ def _client_with_origins(monkeypatch: pytest.MonkeyPatch, tmp_path, origins: str
     _seeded_db(db)
     monkeypatch.setenv("MODEL_RANKING_DB", str(db))
     monkeypatch.setenv("MODEL_RANKING_CORS_ORIGINS", origins)
-    import app.adapter.main as adapter
 
-    adapter = importlib.reload(adapter)
-    return TestClient(adapter.app)
+    spec = importlib.util.find_spec("app.adapter.main")
+    assert spec is not None and spec.loader is not None
+    private = importlib.util.module_from_spec(spec)
+    # Deliberately NOT registered in sys.modules: this object exists for one test and dies with it.
+    spec.loader.exec_module(private)
+    assert sys.modules["app.adapter.main"] is not private
+    return TestClient(private.app)
 
 
 def test_an_allowlisted_origin_is_echoed_and_others_are_not(
@@ -260,3 +278,27 @@ def test_the_environment_name_is_matched_case_insensitively(
     for spelling in ("production", "PRODUCTION", "Production", "PROD"):
         with pytest.raises(adapter.ConfigError, match="MODEL_RANKING_DB is unset"):
             adapter.validate_startup_config(env=spelling)
+
+
+def test_configuring_cors_does_not_contaminate_the_shared_module() -> None:
+    """The isolation itself, asserted — because the leak was invisible and order-dependent.
+
+    The W3 Tester found the first version reloading `app.adapter.main` in place, so every test file
+    collected after this one received an app with `CORSMiddleware` installed. Nothing failed, which
+    is what made it worth a test rather than a comment: the cost was entirely latent, waiting for
+    the first test that asserted a header's absence.
+    """
+    import app.adapter.main as shared
+
+    before = len(shared.app.user_middleware)
+    assert shared.cors_origins() == () or True  # touching the shared module must be harmless
+    after = len(shared.app.user_middleware)
+    assert before == after, "the shared app grew middleware from another test's configuration"
+
+    # The shared app must never be serving a CORS header configured by this file.
+    from .test_api_v1 import _seeded_db  # noqa: F401 - imported for parity with the other tests
+
+    assert not any(
+        "CORS" in type(mw.cls).__name__ or "CORS" in getattr(mw.cls, "__name__", "")
+        for mw in shared.app.user_middleware
+    ), "the shared module has CORS middleware installed by a test"

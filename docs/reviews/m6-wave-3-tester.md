@@ -715,3 +715,153 @@ run at the milestone gate is the control that caught it.
 behaviour in the wave. The fix delta closed three of my four round-1 BLOCKING/MINOR clusters cleanly
 and introduced one defect worse than the MINOR it was fixing — which is the ordinary risk of fixing a
 security MINOR under time pressure, and the reason a fix inherits the risk class of its bug.
+
+---
+---
+
+# RE-REVIEW — round 3, final (appended 2026-08-17)
+
+**Trigger:** coordinator's final W3 round on `git diff 8279f70..HEAD` (`57c8d70`, `e54849a`, `5154f88`),
+with W4 running in parallel and findings landing fix-forward rather than as a hold.
+
+**Attestation, round 3.** Six further injections, each restored in place and md5-verified.
+**I never ran `git checkout` or `git restore` on the uncommitted tree.**
+**I never ran `git stash`.**
+**I never ran `git commit`.**
+**I never ran `git push`.**
+All 8 source and test files byte-identical (`/tmp/m6w3/baseline3.md5`). `git status --short` is **empty** —
+this round left nothing behind at all, including in this file until this section was written.
+
+## Round-3 verdict
+
+**PASS.** B-3 and B-4 are both closed, and I could not break either. One MINOR introduced, fix-forward,
+recorded below. **Round-3 mutants: 6 run, 6 killed. Across all three rounds: 52 mutants, 36 killed.**
+**Every fault that ever stayed green in this wave is now RED.**
+
+| Fault | Round 1 | Round 2 | Round 3 |
+|---|---|---|---|
+| B-4 module-scoped in-progress set (F01) | *(n/a)* | *(the defect)* | **RED** |
+| B-3 SAVEPOINT trio deleted (F03) | GREEN | GREEN | **RED** |
+| B-3 `ROLLBACK TO` removed (F04) | GREEN | GREEN | **RED** |
+| `MAX_EXPANDED_NODES` loosened 20× (F05) | GREEN | GREEN | **RED** |
+| `APP_ENV` `.lower()` removed (F06) | GREEN | GREEN | **RED** |
+| guard moved after the parser (F07) | GREEN | GREEN | **RED** |
+
+## B-4 — CLOSED. I tried to break the loop and could not
+
+The fix is the right one: `in_progress` is a parameter threaded alongside `memo`, both per-call, and
+`_IN_PROGRESS` is gone. F01 reintroduces the exact defect in one line — passing a module-scoped set
+instead of a fresh one — and `test_a_refused_document_does_not_poison_the_next_one` is the only test in
+350 that fails.
+
+**You asked me to try to break the 60-iteration loop the way I broke the last test. I could not, and
+here is the measurement rather than the opinion.** Against the real module-scope regression, across 40
+independent trials of the shipped loop:
+
+```
+detected within 60 iterations:  40/40
+iteration of first detection:   min=1  median=1  max=2
+```
+
+The loop has a **30–60× margin** on the defect it was written for. That is the answer to the question:
+the loop is enough, and it is not close.
+
+I then attacked it with the thing that *would* beat a short loop — an intermittent leak, where guard
+state escapes only some of the time (40 runs of the 60-iteration loop at each rate):
+
+```
+state escapes 100% of calls: caught 40/40      state escapes  5% of calls: caught 27/40
+state escapes  50% of calls: caught 40/40      state escapes  2% of calls: caught  8/40
+state escapes  20% of calls: caught 40/40      state escapes  1% of calls: caught  2/40
+state escapes  10% of calls: caught 35/40
+```
+
+So the loop is a **deterministic** detector down to ~20% and degrades from there. I do not think that
+degradation is worth spending another iteration on, and I want to say why rather than leave it as an
+open number: **this defect class cannot be partial.** A set is either per-call or it is not; there is
+no way to accidentally write one that escapes 1% of the time. The intermittent column measures a
+regression nobody can write. 60 is the right number.
+
+Two further properties I checked because the refactor touched the hot path:
+
+- **The arithmetic is unchanged.** Re-ran my round-1 hand-computed boundary table against the new
+  three-argument signature: `k=49997→499984`, `k=49998→499994` (LOADED), `k=49999→500004`,
+  `k=50000→500014` (REFUSED) — predicted equals actual in all four, `>` still correct at the boundary.
+  Cycles still refused, merge keys still bounded, both real curated files still load.
+- **The guard is now thread-safe, which it was not before.** 8 threads × 40 iterations interleaving
+  hostile and legitimate documents: **0 false refusals.** Under the module-scoped version this was a
+  data race as well as a leak; the per-call parameter closes both. Worth recording because the guard
+  now sits behind a network-facing process.
+- Cost: the loop test runs in **0.50s**, the slowest in its file and ~17% of the suite's 2.9s. Fine.
+
+## B-3 — CLOSED
+
+The assertion now sits **inside** the transaction, before `conn.rollback()`, which is the whole fix.
+F03 (delete the SAVEPOINT/try/except/RELEASE trio) and F04 (delete `ROLLBACK TO` alone) are both RED
+against `test_the_migration_rolls_back_a_REAL_failure`. The distinguishing observation I measured in
+round 2 — `probe_ok` present without the savepoint, absent with it — is now the thing the test reads.
+
+## MINOR-2, MINOR-4, MINOR-7 — all closed, and MINOR-2 closed better than I framed it
+
+- **MINOR-2.** I proposed un-pinning the line numbers; the delta replaced `yaml.safe_load` with a
+  tripwire and asserts `calls == []` at the moment of refusal, then `calls == ["safe_load"]` on a
+  legitimate document. That is the property, not a proxy for it — F07 is RED. The framing in the
+  test's docstring is right: *line numbers were the wrong instrument, same as the alias count was.*
+  Mine was the weaker suggestion.
+- **MINOR-4.** `test_the_expansion_budget_is_pinned` pins both constants by value. F05 RED.
+- **MINOR-7.** `test_the_environment_name_is_matched_case_insensitively` asserts four spellings. F06 RED.
+  The comment about resolving `ConfigError` through the module rather than the top-of-file import is
+  correct and non-obvious — it is the same reload hazard as the MINOR below.
+
+## NEW MINOR-10 (fix-forward, not blocking) — `tests/unit/test_api_config.py:190` — the reload helper leaks a configured app into every later test file
+
+`_client_with_origins` calls `importlib.reload(app.adapter.main)` with `MODEL_RANKING_CORS_ORIGINS`
+set. `monkeypatch` restores the env var, but the reload has already baked it into the module object
+that stays in `sys.modules`. Measured with a probe file run immediately after `test_api_config.py`:
+
+```
+MODEL_RANKING_CORS_ORIGINS env after the file: None      <- env correctly restored
+adapter._ALLOWED_ORIGINS:                      ('https://app.example.com',)
+middleware installed on adapter.app:           ['BaseHTTPMiddleware', 'CORSMiddleware']
+ACAO header leaking to later files:            https://app.example.com
+```
+
+Every test file collected after `test_api_config.py` — alphabetically that includes `test_api_v1.py` —
+imports an app with CORS middleware installed that production would not have.
+
+**Not blocking, and I checked rather than assumed.** `test_api_v1.py` passes identically alone (25) and
+after the contamination (40 total), the full suite passes in **reverse file order** (350 passed), and
+no parallel runner is installed (`pytest-xdist`/`pytest-randomly` absent), so the global
+`yaml.safe_load` tripwire in the placement test is safe today for the same reason. The cost is latent:
+a future test asserting the *absence* of a CORS header will pass or fail on file order, which is the
+failure mode `test_no_cors_header_is_served_when_no_allowlist_is_configured` exists to prevent and
+would silently stop preventing. A `finally: importlib.reload(adapter)` with the env cleared, or a
+fixture that restores the module, closes it in one line. **Queue to W4 or M7; do not hold W3.**
+
+MINOR-5 (concurrent migration) and MINOR-6 (`plan_config missing` branch) remain open and unchanged.
+
+## The pattern this wave actually produced
+
+Three rounds, and the dominant defect mode was constant: **a check that cannot run is not a check.**
+A validator no path called (B-1); a rollback assertion the outer transaction satisfied, written twice
+(B-3); a placement test that pinned line numbers instead of placement (MINOR-2); constants recorded as
+pinned with no test (MINOR-4, MINOR-7); seven tests the CI cannot execute (the Epoch bundle). B-4 is
+the one exception and the one thing mutation testing could not have found either — only running the
+guard twice in one process finds it, which is why the loop, not a mutant, is its citing test.
+
+On the hand-back accuracy: the coordinator's note that this was the third hand-back claiming more than
+the delta supported, and that it has stopped being treated as an accident, is the right conclusion and
+I have nothing to add to it. This round's hand-back was accurate in every particular I checked.
+
+## Round-3 gates
+
+- `.venv/bin/python -m pytest tests/ -q`: **350 passed / 12 skipped**, matching the hand-back.
+- Reverse file order: **350 passed** — no order dependence today.
+- `conformance/test-git-authority.py`: **PASS, 0 violations.**
+- md5: all 8 injected files byte-identical. `git status --short`: clean.
+
+**Final verdict for M6-W3, all rounds: PASS.** Three BLOCKING findings from round 1 and two from
+round 2 are closed with tests that fail when the behaviour is removed — verified by 52 mutants, of
+which every one that ever survived is now killed. One MINOR introduced this round, queued fix-forward.
+The wave took three rounds to get here, and the reason is worth keeping: every one of the five
+BLOCKINGs was a control that existed, was cited, and did not run.
