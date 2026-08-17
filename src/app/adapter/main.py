@@ -110,6 +110,12 @@ MAX_CONCURRENT_REQUESTS = int(os.environ.get("MODEL_RANKING_MAX_CONCURRENCY", "8
 #: so the out-of-the-box configuration is the one the budget describes rather than a happier one.
 MEMORY_BUDGET_MB = int(os.environ.get("MODEL_RANKING_MEMORY_BUDGET_MB", "256"))
 
+#: What the process costs before it holds a single snapshot — interpreter, framework, engine.
+#: Measured by the Stage-4.0 re-review at 60.9 MiB. **Subtracted, because the first version of this
+#: budget spent 100% of the VM on snapshots and left nothing for the process doing the serving:
+#: at the declared ceiling it needed ~317 MiB on a 256 MiB machine, a gate permissive by ~31%.**
+PROCESS_BASELINE_MB = int(os.environ.get("MODEL_RANKING_PROCESS_BASELINE_MB", "70"))
+
 
 def max_database_bytes() -> int:
     """The largest database this process may serve without exceeding its declared budget.
@@ -117,7 +123,8 @@ def max_database_bytes() -> int:
     Derived, never typed: change the concurrency cap or the memory budget and this moves with them.
     A hand-written byte limit would be the fifth typed-out constant this milestone had to replace.
     """
-    return int((MEMORY_BUDGET_MB * 1024 * 1024) / (MAX_CONCURRENT_REQUESTS * RSS_FACTOR))
+    available = max(MEMORY_BUDGET_MB - PROCESS_BASELINE_MB, 0) * 1024 * 1024
+    return int(available / (MAX_CONCURRENT_REQUESTS * RSS_FACTOR))
 
 
 class ConfigError(RuntimeError):
@@ -169,6 +176,58 @@ def cors_origins() -> tuple[str, ...]:
     return origins
 
 
+def open_readonly(path: Path) -> sqlite3.Connection:
+    """Open the pipeline database READ-ONLY.
+
+    INV-23: the URI is derived through `Path.resolve().as_uri()`, never concatenated -- a `?` in
+    the path silently dropped the mode and created a database when this was string-built elsewhere.
+
+    Read-only is not a precaution here, it is the contract. `schema.connect()` migrates on open
+    (W-009), so a serving path that used it would let an anonymous GET rewrite the operator's
+    schema. The API reads; the operator migrates, explicitly, with `schema migrate`.
+    """
+    uri = f"{path.resolve().as_uri()}?mode=ro"
+    return sqlite3.connect(uri, uri=True)
+
+
+def _database_unusable(db: Path) -> str | None:
+    """Open the evidence database read-only and ask it whether it can answer. `None` if it can.
+
+    Three checks, and each of them is a way the previous stat-only version said yes to a database
+    that could not serve: it must open as SQLite, it must carry the tables the serving path reads,
+    and those tables must carry the columns this milestone's engine selects. The third is the one
+    that catches a pre-M6 artifact — the schema migrated forward and the read-only path cannot.
+    """
+    try:
+        conn = open_readonly(db)
+    except sqlite3.Error as exc:
+        return f"MODEL_RANKING_DB cannot be opened read-only: {type(exc).__name__}"
+    try:
+        tables = {
+            row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+        missing = {"scores", "pricing"} - tables
+        if missing:
+            return (
+                f"MODEL_RANKING_DB is not a model_ranking database — missing table(s) "
+                f"{sorted(missing)}"
+            )
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(scores)")}
+        if "effort" not in columns:
+            return (
+                "MODEL_RANKING_DB predates M5's effort column, and the serving path is read-only "
+                "so it cannot migrate. Run `python -m app.workflows.schema migrate --db PATH` "
+                "before shipping this artifact; serving it would answer every request with zero "
+                "picks while /health reported the deploy healthy"
+            )
+    except sqlite3.Error as exc:
+        return f"MODEL_RANKING_DB is unreadable: {type(exc).__name__}"
+    finally:
+        with contextlib.suppress(sqlite3.Error):
+            conn.close()
+    return None
+
+
 def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
     """Check the security-relevant configuration once, at import, and FAIL CLOSED unless told not to.
 
@@ -211,6 +270,16 @@ def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
             "over a total evidence outage"
         )
     else:
+        # **Stage 4.0 re-review RR-BLOCKING-2: stat is not open.** The previous check asked the
+        # filesystem about the path and never asked SQLite about the contents, so a zero-byte file,
+        # a truncated one, a non-SQLite one and one the process cannot read all booted and answered
+        # `/health` with 200. It was not hypothetical: this repository's own `advisor.db` is
+        # pre-M6 schema, the read-only serving path cannot migrate it, and the process would have
+        # served 200s with zero picks over it. Stage 4.3 verifies deploys with `/health`.
+        problem = _database_unusable(db)
+        if problem:
+            problems.append(problem)
+
         # W-017 condition (a): the ceiling is linear in a file nothing was measuring. Now it is
         # measured at startup, against a budget derived from the other two declared terms.
         size = db.stat().st_size
@@ -317,20 +386,6 @@ async def _unhandled(request: Any, exc: Exception) -> JSONResponse:
     response = _error(500, "internal_error", "The request could not be served.")
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
-
-
-def open_readonly(path: Path) -> sqlite3.Connection:
-    """Open the pipeline database READ-ONLY.
-
-    INV-23: the URI is derived through `Path.resolve().as_uri()`, never concatenated -- a `?` in
-    the path silently dropped the mode and created a database when this was string-built elsewhere.
-
-    Read-only is not a precaution here, it is the contract. `schema.connect()` migrates on open
-    (W-009), so a serving path that used it would let an anonymous GET rewrite the operator's
-    schema. The API reads; the operator migrates, explicitly, with `schema migrate`.
-    """
-    uri = f"{path.resolve().as_uri()}?mode=ro"
-    return sqlite3.connect(uri, uri=True)
 
 
 def serving_snapshot(path: Path) -> sqlite3.Connection:
@@ -535,6 +590,39 @@ PUBLIC_ANSWER_FIELDS = frozenset(
 #: one is a recorded decision rather than an omission.
 WITHHELD_ANSWER_FIELDS: frozenset[str] = frozenset()
 
+#: **The same decision, one level down (Stage 4.0 re-review RR-BLOCKING-1).** `picks` is a single
+#: allowlisted key whose value is the recursive serialization of every `Pick` — nineteen more
+#: fields, and the first version of this fix filtered none of them. The finding it was closing had
+#: named both halves in its own narration ("all nineteen `Pick` fields and all ten `Recommendation`
+#: fields") and the fix restored the allowlist for the ten. An allowlist that stops at the top level
+#: of a nested document is not an allowlist; it is a lid on one drawer.
+PUBLIC_PICK_FIELDS = frozenset(
+    {
+        "label",
+        "model",
+        "vendor",
+        "score",
+        "metric",
+        "secondary_score",
+        "blended_per_m",
+        "input_per_m",
+        "output_per_m",
+        "evidence_date",
+        "harness",
+        "effort",
+        "higher_effort",
+        "higher_effort_score",
+        "effort_note",
+        "confidence",
+        "confidence_basis",
+        "why",
+        "trade_off",
+    }
+)
+
+#: Pick fields deliberately WITHHELD. Empty today, same reason as above.
+WITHHELD_PICK_FIELDS: frozenset[str] = frozenset()
+
 
 def _answer_json(
     spec: CategorySpec,
@@ -568,6 +656,11 @@ def _answer_json(
         # carry. An undeclared field is dropped rather than served, and the citing test fails on it
         # so the drop is loud in CI rather than silent in production.
         engine = {k: v for k, v in engine.items() if k in PUBLIC_ANSWER_FIELDS}
+        # ...and the same filter one level down, because `picks` is a door rather than a value.
+        engine["picks"] = [
+            {k: v for k, v in pick.items() if k in PUBLIC_PICK_FIELDS}
+            for pick in engine.get("picks", [])
+        ]
     else:
         # No run happened, so there is nothing to serialize and every engine field is genuinely
         # absent. This scaffold is a statement about an ANSWER THAT DOES NOT EXIST, not a fallback

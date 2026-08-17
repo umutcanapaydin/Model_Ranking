@@ -607,3 +607,432 @@ Stage 4.0 does not pass. Stage 4.3 does not proceed.
   (`DELETE` + `INSERT` on `px_median`) is why a read API needs a private copy at
   all. Every containment in this milestone is downstream of that one write.
 
+
+---
+---
+
+# RE-REVIEW — Stage 4.0 fix delta (`git diff ec952f5^..HEAD`)
+
+**Reviewer:** Security-Reviewer subagent
+**Date:** 2026-08-17
+**Scope:** the two fix commits — `ec952f5` (three BLOCKING closed + W-022) and
+`fd71b7e` (W-017's three conditions closed).
+**Why a full pass and not a spot check:** V4C-49 — a fix inherits the risk class
+of the bug it fixes. All six changes land directly on the unauthenticated
+surface, the startup gate, or the containment arithmetic.
+
+**Standing correction accepted.** The coordinator disclosed W-022: the
+fault-injection harness was measuring stale bytecode, and at least one mutant
+reported killed was not. I have therefore re-derived every number below myself,
+under `python -B`, and cited none of the coordinator's figures as evidence. My
+own W-017 measurement in the section above was taken in fresh interpreters
+against live processes rather than by mutation, so it is unaffected; I have
+re-checked its one load-bearing output (the RSS factor) regardless — see
+RR-NOTE-1.
+
+Classification unchanged: **BLOCKING** = ships now and is exploitable now.
+**MINOR** = hygienic. **NOTE** = observation. A fail-open finding is never
+ledgered.
+
+---
+
+## RR-BLOCKING-1 — the publication allowlist was restored for the ten fields and not for the nineteen
+
+`src/app/adapter/main.py:509-536` (`PUBLIC_ANSWER_FIELDS` + `WITHHELD_ANSWER_FIELDS`),
+`src/app/adapter/main.py:570` (the filter),
+`tests/unit/test_api_config.py:310-341` (the citing test).
+
+**BLOCKING-1's fix is correct and it is one level too shallow.**
+
+`PUBLIC_ANSWER_FIELDS` governs the top level of an answer. `picks` is one
+member of that set, and its value is the recursive `asdict` walk of every
+`Pick` — nineteen fields, none of them declared anywhere, filtered by nothing.
+The comprehension at `main.py:570` is a flat dict comprehension over
+`engine.items()`; it never descends.
+
+The original finding's own narration names the split exactly: W1's deleted
+dictionary enumerated *"all nineteen `Pick` fields and all ten `Recommendation`
+fields"* (`serialize.py:5-7`, and the docstring at `main.py:545-549` repeats
+it). The fix reinstated the allowlist for the ten. The nineteen are still
+governed by nothing, and they are where the per-model data actually is — model
+name, vendor, harness, prices, evidence dates, confidence basis.
+
+**Measured, not argued.** Two probes, fresh interpreter, `python -B`, against a
+seeded database through a real `TestClient`:
+
+(a) The mirror of the fix's own stay-green test, one level down. A
+`recommendation_json` that injects `internal_vendor_api_key_fragment` into each
+pick dict: **6 of 6 picks served that field to an anonymous caller**, value
+intact. The top-level equivalent of this injection is caught by
+`test_the_allowlist_actually_filters_an_undeclared_field`
+(`test_api_config.py:421-461`); the nested one is caught by nothing.
+
+(b) The real scenario rather than an injection. A `Pick` subclass carrying one
+extra field `operator_debug_note`, passed through `_answer_json`. Served payload
+key set for the pick: twenty keys, including `operator_debug_note`. **A field
+added to the engine's `Pick` reaches the public internet with no human in the
+path.**
+
+**And the new citing test cannot fail on it.**
+`test_no_engine_field_reaches_the_public_surface_undeclared`
+(`test_api_config.py:310-341`) computes `{f.name for f in fields(Recommendation)}`
+— ten names. `fields(Pick)` is never enumerated.
+`test_the_public_payload_carries_only_declared_fields`
+(`test_api_config.py:342-369`) compares `set(answer)`, the top-level keys, and
+never opens `answer["picks"]`. So the property the fix commit claims — *"fails
+when the engine gains a field until a human files it in one of three lists"* —
+holds for ten of the twenty-nine engine fields and is false for the other
+nineteen, with the entire suite green.
+
+**Fail direction: discloses by default**, on an unauthenticated surface, which
+is the same direction and the same surface as the finding it was fixing. It may
+not be ledgered.
+
+**Remedy, small and symmetrical:** a `PUBLIC_PICK_FIELDS` frozenset, the filter
+applied to each pick, and the citing test extended to `fields(Pick)`. The three
+existing lists become six; nothing else in the fix changes.
+
+---
+
+## RR-PASS-1 — BLOCKING-2 is closed, and it is closed correctly
+
+`src/app/adapter/main.py:83` (`RELAXED_ENVS`), `main.py:195-203`, `main.py:197`.
+
+The default is now inverted the way the finding asked: `strict` is the
+complement of an explicitly spelled relaxed set, so "unknown" and "unset" both
+land in the harsh branch. Re-derived myself, eight cases, each a fresh
+interpreter under `python -B` with the environment scrubbed:
+
+| `APP_ENV` | `MODEL_RANKING_DB` | result |
+|---|---|---|
+| unset | unset | **refuses** (`ConfigError`, both problems reported at once) |
+| `staging` | unset | **refuses**, and names the unrecognised value |
+| `" production "` (padded) | unset | **refuses** — `.strip()` at `main.py:190` |
+| `PROD_EU` | unset | **refuses** |
+| `development` | unset | boots with a warning — correct, that is the point |
+| `test` | unset | boots with a warning |
+| unset | real file, no `APP_BUILD` | **refuses** on `APP_BUILD` |
+| unset | real file + `APP_BUILD` | boots, no warnings |
+
+My original scenario — `APP_ENV=staging` with no database — now raises. The
+`APP_BUILD` requirement moved from `environment in PRODUCTION_ENVS` to `strict`
+(`main.py:225`), which is the same inversion applied to the second check, and it
+is right.
+
+`tests/conftest.py:18` (`os.environ.setdefault("APP_ENV", "test")`) is a
+declaration and not a suppression, as its docstring claims: every test that
+exercises the strict branch passes `env=` explicitly
+(`test_api_config.py:371-393`, `:395-418`, `:485-509`) or spawns a real
+subprocess (`test_api_config.py:151-176`), and `setdefault` cannot override an
+environment that already names itself. I checked that the suppression reading
+was wrong rather than assuming it.
+
+---
+
+## RR-BLOCKING-2 — BLOCKING-3's fix stats the file and never opens it, so `/health` is still green over an evidence outage — and the two databases in this tree are already in that state
+
+`src/app/adapter/main.py:207-212` (`db.is_file()`),
+`src/app/adapter/main.py:649-657` (`/health`),
+`tests/unit/test_api_config.py:395-418`, `fly.toml:59-66`.
+
+The finding's remedy had two parts. **One shipped.** The absent-file case is
+genuinely closed: `MODEL_RANKING_DB` pointing into an unmounted volume now
+raises at import, measured. A directory raises too.
+
+**The other did not.** The check asks `Path.is_file()`. It never opens the
+database, and `/health` still reports no evidence field. So the failure mode
+moved from *file absent* to *file present and unusable* — which on a volume
+whose contents are shipped separately (D-116 §2) is the more likely of the two,
+because a partial copy, a wrong-permission file, or a stale artifact all leave a
+file behind. Measured, six database states, real `TestClient` against the real
+app, `python -B`:
+
+| volume state | boots? | `/health` | `/v1/recommendations` |
+|---|---|---|---|
+| directory | **refuses** | — | — |
+| absent | **refuses** | — | — |
+| zero bytes | boots | `200 {"status":"ok"}` | 200, every answer `unavailable_reason` |
+| truncated copy (⅓ of the file) | boots | `200 {"status":"ok"}` | 503 `evidence_unavailable` |
+| non-SQLite bytes | boots | `200 {"status":"ok"}` | 503 `evidence_unavailable` |
+| valid file, `chmod 000` | boots | `200 {"status":"ok"}` | 503 `evidence_unavailable` |
+
+The zero-byte row is not an accident of my probe: the new citing test
+`test_a_database_that_does_not_exist_fails_closed`
+(`test_api_config.py:414-418`) writes `b""` and **asserts that it validates
+clean**. An empty file is explicitly blessed by the test that closes this
+finding.
+
+**And this is not hypothetical here.** The two evidence artifacts sitting in
+this tree — `advisor.db` (1,019,904 bytes) and `owner_advisor.db` (1,052,672
+bytes), the file `Dockerfile:23` and `fly.toml:19` mount at `/data/advisor.db` —
+are at a **pre-M6 schema**: `scores` has no `effort` column. The M6 schema
+migration is deliberately operator-run
+(`schema.py:419` — *"never runs from a read-only CLI"*), and the serving path is
+read-only by design, so nothing on the serving host migrates them. Driven
+end-to-end through `serving_snapshot`, both raise
+`OperationalError: no such column: effort`, which the handler converts into an
+answer carrying `unavailable_reason`.
+
+The composed result, measured: **the process boots, startup validation passes
+(the file exists and is inside the size budget), `/health` returns
+`{"status":"ok","build":"deadbee"}`, and every `/v1/recommendations` returns
+HTTP 200 with zero picks and "This surface's evidence could not be read."** Not
+even a 503 — a 200. Stage 4.3 verifies deploys with `curl /health | jq .build`
+(`fly.toml:59-63` points the platform probe at the same route), and a smoke test
+that checks status codes passes too.
+
+**Fail direction: reports healthy when broken** — unchanged from the original
+finding, on a narrower but more probable trigger, and now with a *new* startup
+check standing beside it that looks like it verified the database and only
+weighed it. That is the reason this cannot be ledgered: the fix makes the gap
+harder to see than it was before.
+
+**Remedy, still small:** open the database read-only at startup and run one
+cheap statement against it (`SELECT 1 FROM sqlite_master`, or a schema-version
+probe that would have caught the `effort` column) and fail closed in a strict
+environment; and add an `evidence` field to `/health` so the deploy gate and the
+platform probe see the outage rather than the process.
+
+---
+
+## RR-PASS-2 — W-017's three conditions: all three are closed, and (c) is closed in the process, not only in a test
+
+### Condition (a) — the ceiling is derived and the process refuses to boot past it — **CLOSED**
+
+`src/app/adapter/main.py:102-120` (`RSS_FACTOR`, `MAX_CONCURRENT_REQUESTS`,
+`MEMORY_BUDGET_MB`, `max_database_bytes`), `main.py:213-224` (the refusal).
+
+`max_database_bytes()` is genuinely derived from the other two declared terms —
+it is one expression over the two constants, so moving either moves the limit.
+Measured against the live module: `MAX_CONCURRENT_REQUESTS=8`,
+`MEMORY_BUDGET_MB=256`, `RSS_FACTOR=2.2`, `max_database_bytes() = 15,252,014`
+(14.55 MiB), against a 1,019,904-byte database.
+
+**I re-derived the one number of mine the gate now depends on**, because
+`RSS_FACTOR` is my 2.09 rounded up and I measured that at ~1 MiB — where
+SQLite's fixed per-connection overhead is a large share of the cost. If the
+factor *grew* with size the budget would be optimistic in the exact regime the
+gate authorises. Marginal resident cost per held snapshot, fresh interpreter,
+`python -B`, N=8, three purpose-built databases:
+
+| db size | marginal RSS per held snapshot | factor |
+|---|---|---|
+| 1,064,960 | 1,419,264 | 1.33 |
+| 5,292,032 | 6,877,184 | 1.30 |
+| 15,331,328 | 19,789,824 | 1.29 |
+
+The copy term is flat-to-slightly-decreasing with size. **2.2 is conservative at
+the ceiling, not just at today's size**, which is what the condition needed.
+
+### Condition (b) — the VM is declared and a test fails on drift — **CLOSED**
+
+`fly.toml:32-34` (`[[vm]] size` + `memory = "256mb"`),
+`tests/unit/test_api_config.py:538-566`.
+
+The `[[vm]]` block exists, so the containment now has a denominator. The
+agreement test reads `fly.toml` with comment lines stripped
+(`test_api_config.py:552-556`) and asserts four couplings: process concurrency ==
+declared concurrency, budget == declared budget, `hard_limit` == process
+concurrency, and declared VM >= budget. I checked the failure direction rather
+than the success: if any of the four terms stops being declared in a shape the
+regexes recognise, the first assertion fires with *"fly.toml stopped declaring a
+term"*. It cannot silently degrade into matching nothing.
+
+I also confirmed the coupling is live in both directions and not decorative:
+raising `MODEL_RANKING_MAX_CONCURRENCY` to 40 (AnyIO's old default) against the
+5.37 MB probe database makes the **process refuse to boot**, because the derived
+limit falls to 3,050,402 bytes. The arithmetic is load-bearing.
+
+### Condition (c) — the cap is real in the running process — **CLOSED, and I verified it outside the test**
+
+`src/app/adapter/main.py:239-254` (`_lifespan`), `main.py:263` (wired),
+`tests/unit/test_api_config.py:511-536`.
+
+The coordinator's own test reads the limiter back from inside a running loop,
+which is the right shape. But a lifespan that works under `anyio.run` is not
+proof that it works under the process the `Dockerfile` actually starts, so I
+measured that instead — `uvicorn app.adapter.main:app` (`Dockerfile:46`), real
+HTTP over a socket, 60 parallel clients x 6 requests each, server RSS sampled
+from outside the process, against a 5,365,760-byte seeded database:
+
+| | predicted peak over baseline | measured |
+|---|---|---|
+| cap honoured (8) | ~90 MB | **81 MB** |
+| cap not honoured (AnyIO's 40) | ~450 MB | — |
+
+**81 MB.** The cap is honoured by the real server, not only by the test. This
+was the condition most likely to be "built ≠ wired" (V3C-73) and it is wired.
+
+---
+
+## RR-MINOR-1 — the memory budget is the whole VM, so the derived ceiling has no room for the process itself
+
+`src/app/adapter/main.py:111` and `main.py:120`, `fly.toml:24` and `fly.toml:34`.
+
+`MEMORY_BUDGET_MB` is set to 256 and the VM is declared at 256 MB, so
+`max_database_bytes()` solves for snapshots occupying **100% of the machine**:
+`8 x 2.2 x 15,252,014 = 268,435,446` bytes = exactly 256.0 MiB. Nothing is
+reserved for the interpreter, FastAPI, uvicorn, or the response objects.
+
+Measured baseline of the real process — import, app construction, one `/health`
+— is **60.9 MiB** (`ru_maxrss`, fresh interpreter). So at the size the gate
+declares servable the process needs roughly **317 MiB on a 256 MiB machine**.
+Using the factor I actually measured through the socket (1.89 rather than the
+conservative 2.2) it is still ~281 MiB. Either way the gate says "safe" for a
+band it cannot survive.
+
+Corrected ceiling with a baseline term: `(256 - 61) MiB / (8 x 2.2)` =
+**11.08 MiB**, against the 14.55 MiB the gate currently permits — the gate is
+permissive by about 31%.
+
+**MINOR and not BLOCKING**, deliberately: today's database is 1.02 MiB, eleven
+times under even the corrected ceiling, and the failure is an OOM-kill of a
+read-only process — availability only, no disclosure, no write, and the
+attacker cannot move the term that decides it. But it belongs on the 4.3
+checklist, because the number's whole purpose is to be trusted without being
+re-derived. **Remedy:** one more declared term — `PROCESS_BASELINE_MB`,
+subtracted before the division — which keeps the "derived, never typed"
+property the docstring at `main.py:115-119` is right to insist on.
+
+---
+
+## RR-NOTE-1 — the comment-matching class, swept for others (the coordinator's specific ask)
+
+The `fly.toml` bug — a guard that searched a whole file and matched its own
+explanatory comment — was found and fixed by its author. I swept the repository
+for the same shape: every place a test or gate asserts a property by searching
+raw file text rather than parsed structure.
+
+**Found one more, and it is live.**
+`tests/unit/test_epoch_staleness.py:62-70`
+(`test_weekly_workflow_wires_the_epoch_clock_without_a_conditional`) is a V4C-49
+wiring guard: it searches `.github/workflows/contract-tests.yml` for the
+staleness command, checks it appears exactly once, and checks no `if:` guards it.
+Measured against a mutant that comments the step out — i.e. the cadence check no
+longer runs in CI at all:
+
+| workflow | guard |
+|---|---|
+| original | PASS |
+| the step commented out, so the check is disabled | **PASS** |
+
+A `#`-prefixed line still satisfies `count(command) == 1` and still satisfies
+`command in plan_job`. Same shape, different file, and it is the shape's more
+dangerous variant: here the comment-out is what *disables* the control. MINOR
+rather than BLOCKING because this gates data-freshness cadence, not the
+unauthenticated surface. **Remedy is the one already applied to `fly.toml`:**
+strip comment lines, or parse the YAML and look at the job's steps.
+
+**Checked and clean:**
+
+- `scripts/bootstrap-check.sh:69` (C2, the L.7 `/health` contract) is three
+  `grep -q` calls over the whole of `main.py` with no comment stripping — the
+  same construction. I mutated `main.py` to delete the `/health` route entirely
+  and re-ran them: `APP_BUILD` still matched (4 of its 5 occurrences are prose),
+  but `"build"` and `"version"` did not, because those two literals occur
+  exactly once in the file, in the return statement (`main.py:657`). The gate
+  holds **today, by a property of the file rather than by construction** — the
+  day a docstring quotes `"build"` it stops holding. Recorded, not blocking.
+- `tests/unit/test_api_config.py:136` and `tests/unit/test_serializer_parity.py:461`
+  both `ast.parse` the source and assert over the tree. That is the correct
+  construction and it is immune to this class entirely; worth naming as the
+  in-repo counterexample the other two should be moved to.
+
+---
+
+## RR-NOTE-2 — smaller observations on the fix delta
+
+- **`PUBLIC_ANSWER_FIELDS` and `WITHHELD_ANSWER_FIELDS` are not asserted
+  disjoint** (`main.py:521-536`, `test_api_config.py:310-341`). The citing test
+  unions the three lists, so a field named in *both* is "declared" and is
+  published while the record says it is withheld. One `assert not (PUBLIC &
+  WITHHELD)` closes it. Not exploitable today — `WITHHELD` is empty.
+- **Malformed containment values fail closed, but as raw tracebacks rather than
+  through `ConfigError`** (`main.py:107`, `main.py:111`, `main.py:120`).
+  Measured: `MODEL_RANKING_MAX_CONCURRENCY=0` gives `ZeroDivisionError`,
+  `abc` and empty give `ValueError`, and `-1` imports but then refuses on the
+  budget check because the derived limit goes negative. Every path refuses, which
+  is the direction that matters, but none joins the "print all problems at once"
+  shape V3C-51 pairs with L.6, and an operator reading a `ZeroDivisionError`
+  traceback learns nothing about which variable was wrong.
+- **The strictness inversion changed developer behaviour and that is recorded
+  where it should be.** `APP_BUILD` is now required in every strict environment
+  (`main.py:225`), not only production, so a bare `import app.adapter.main`
+  refuses. `tests/conftest.py` declares the suite's environment rather than
+  patching around the check — verified above, and the right shape.
+- **`test_the_declared_numbers_agree_with_the_deploy_proposal` reads
+  `Path("fly.toml")` relative to the working directory**
+  (`test_api_config.py:556`). Run from anywhere but the repo root it raises
+  `FileNotFoundError` — loud, so fail-closed, but it is the one path in that
+  test that is not robust to how it is invoked.
+- **The `/v1` surface is unchanged by the fixes.** Re-probed after the delta:
+  three GET routes (`/health`, `/v1/categories`, `/v1/recommendations`);
+  `POST`/`PUT`/`PATCH`/`DELETE` all 405; `/openapi.json`, `/docs`, `/redoc` all
+  404. Adding a lifespan did not add a surface.
+
+---
+
+## Gates (re-review)
+
+- [x] **Full suite** — `363 passed, 12 skipped` under `python -B`, matching the
+      coordinator's claim. Re-run by me, not cited.
+- [x] **`make check` exit 0** — including `check_records PASS [repo]`, the
+      `L1` English gate, and the record self-tests, at the tree containing this
+      file.
+- [x] **gitleaks clean on the fix delta** — `ec952f5^..HEAD`, 2 commits,
+      ~62 KB, `no leaks found`.
+- [x] **No new external surface, no new dependency** — the delta adds
+      `contextlib`, `collections.abc` and `anyio.to_thread`; `anyio` is already a
+      transitive requirement of Starlette and is not newly declared. No new
+      third-party import to slopsquat-check.
+- [x] **No source or test file modified by this review**, no
+      `git commit/push/checkout/restore/stash` run. All mutants were written to
+      a scratch directory outside the repository.
+- [x] **Bytecode disabled for every measurement** (`python -B`), per W-022.
+- [ ] **`/health` reports serving capability** — NOT MET, see RR-BLOCKING-2.
+- [ ] **Publication is a decision for every published field** — NOT MET for the
+      nineteen `Pick` fields, see RR-BLOCKING-1.
+
+## Re-review verdict
+
+**BLOCKING** — two findings, both fail-open, neither ledgerable.
+
+| original finding | status |
+|---|---|
+| BLOCKING-1 — publication allowlist deleted | **PARTIALLY CLOSED** — closed for the ten `Recommendation` fields, open for the nineteen `Pick` fields → **RR-BLOCKING-1** |
+| BLOCKING-2 — startup gate disabled by an unvalidated `APP_ENV` | **CLOSED** — verified across eight environment cases |
+| BLOCKING-3 — startup check validates a string, not a database | **PARTIALLY CLOSED** — absent file and directory now refuse; present-but-unusable still boots green → **RR-BLOCKING-2** |
+| W-017 (a) derived ceiling, refuses to boot past it | **CLOSED** — and `RSS_FACTOR` re-verified conservative at the ceiling, 1.29–1.33 measured |
+| W-017 (b) `[[vm]] memory` declared + drift test | **CLOSED** — coupling verified live in both directions |
+| W-017 (c) thread limiter set in the lifespan | **CLOSED** — verified under a real `uvicorn`, 81 MB against a 450 MB uncapped prediction |
+
+| # | new finding | file:line | fail direction |
+|---|---|---|---|
+| RR-BLOCKING-1 | the allowlist governs the top level only; a new `Pick` field publishes itself to anonymous callers, and the new citing test enumerates `fields(Recommendation)` only | `main.py:521-536`, `main.py:570`, `test_api_config.py:310-341` | discloses by default |
+| RR-BLOCKING-2 | the startup check stats the file and never opens it; `/health` is 200 over an unreadable, truncated or schema-stale database — and both databases in this tree are schema-stale | `main.py:207-212`, `main.py:649-657`, `test_api_config.py:414-418` | reports healthy when broken |
+| RR-MINOR-1 | the memory budget is 100% of the VM, so the derived ceiling has no room for the 60.9 MiB process; permissive by ~31% | `main.py:111`, `main.py:120`, `fly.toml:24,34` | guard says safe for a band it cannot survive |
+| RR-NOTE-1 | one more comment-matching guard, live: a commented-out CI step still satisfies it | `tests/unit/test_epoch_staleness.py:62-70` | control disable is invisible |
+| RR-NOTE-2 | disjointness, malformed-value ergonomics, relative path, surface re-probe | as listed | — |
+
+**Counts (re-review): 2 BLOCKING, 1 MINOR, 2 NOTE. Closed: BLOCKING-2 and all
+three W-017 conditions.**
+
+### The shape worth naming
+
+Both re-opened findings are the *same defect one level down from where it was
+fixed*. BLOCKING-1's allowlist was restored for the ten fields the original
+dictionary named and not for the nineteen it also named — and the original
+finding's own text named both numbers. BLOCKING-3's database check was moved
+from "is the variable set" to "is there a file" when the property that matters
+is "can this process serve from it". Each fix took the finding's example rather
+than the finding's class.
+
+That is the coordinator's own recurring shape — a guard that reads the
+description of the thing instead of the thing — arriving one more time, and this
+time in the remedies rather than in a test. It is worth saying plainly because
+the *verification* around both fixes is good: the fault-injection stay-green
+test at `test_api_config.py:421-461` is exactly the right instinct, and it was
+aimed one level too shallow, which is why it passed.
+
+Stage 4.0 does not pass on this delta. Stage 4.3 does not proceed. Both remedies
+are small and neither disturbs what the fix commits got right.

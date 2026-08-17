@@ -60,14 +60,27 @@ def test_epoch_clock_rejects_wrong_schema_threshold_or_provenance(mutation: str)
 
 
 def test_weekly_workflow_wires_the_epoch_clock_without_a_conditional() -> None:
-    """V4C-49: the signed cadence rule ships with one unconditional CI consumer."""
-    workflow = WORKFLOW.read_text(encoding="utf-8")
+    """V4C-49: the signed cadence rule ships with one unconditional CI consumer.
+
+    **Parsed as YAML, not matched as text (M6 Stage-4.0 re-review).** The first version searched
+    the file's raw contents, so COMMENTING THE STEP OUT left this guard passing — the control was
+    disabled and its citing test said nothing. Measured by the security seat, and it is the same
+    shape as the config test that matched `hard_limit` inside a comment: a guard that reads prose
+    reports on documentation rather than on behaviour.
+    """
+    import yaml as _yaml
+
+    doc = _yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     command = "python -m app.workflows.epoch --check-staleness data/epoch-source.yaml"
-    assert workflow.count(command) == 1
-    plan_job = workflow.split("\n  plan-staleness:", 1)[1].split("\n  live-contracts:", 1)[0]
-    assert command in plan_job
-    step = plan_job[plan_job.index(command) - 180 : plan_job.index(command) + len(command)]
-    assert "if:" not in step
+
+    job = doc["jobs"]["plan-staleness"]
+    steps = [s for s in job["steps"] if command in str(s.get("run", ""))]
+    assert len(steps) == 1, (
+        "the epoch staleness step is not present exactly once in the plan-staleness job — "
+        "commenting it out must fail here, which is what the text-matching version allowed"
+    )
+    assert "if" not in steps[0], "the cadence step is conditional, so it can report success unrun"
+    assert "if" not in job, "the whole job is conditional; a skipped required job reports SUCCESS"
 
 
 def test_ingest_stamp_and_committed_clock_are_one_value() -> None:

@@ -335,6 +335,25 @@ def test_no_engine_field_reaches_the_public_surface_undeclared() -> None:
         f"engine field(s) {undeclared} are neither published, relocated nor withheld — decide "
         "before they reach an unauthenticated surface"
     )
+
+    # **And the same at the nested level (RR-BLOCKING-1).** The first version of this test
+    # enumerated ten of the twenty-nine engine fields: `picks` was one allowlisted key whose value
+    # carried nineteen more, filtered by nothing. An allowlist that stops at the top level of a
+    # nested document is a lid on one drawer.
+    from app.adapter.main import PUBLIC_PICK_FIELDS, WITHHELD_PICK_FIELDS
+    from app.workflows.recommend import Pick
+
+    pick_engine = {f.name for f in fields(Pick)}
+    pick_declared = PUBLIC_PICK_FIELDS | WITHHELD_PICK_FIELDS
+    pick_undeclared = sorted(pick_engine - pick_declared)
+    assert (
+        pick_undeclared == []
+    ), f"pick field(s) {pick_undeclared} are neither published nor withheld"
+    assert sorted(pick_declared - pick_engine) == [], "the pick lists name fields the engine lost"
+    assert undeclared == [], (
+        f"engine field(s) {undeclared} are neither published, relocated nor withheld — decide "
+        "before they reach an unauthenticated surface"
+    )
     stale = sorted(declared - engine)
     assert stale == [], f"the lists name field(s) the engine no longer has: {stale}"
 
@@ -363,9 +382,17 @@ def test_the_public_payload_carries_only_declared_fields(
         "evidence_dating_note",
         "unavailable_reason",
     }
+    from app.adapter.main import PUBLIC_PICK_FIELDS
+
     for answer in body["answers"]:
         extra = set(answer) - PUBLIC_ANSWER_FIELDS - api_only
         assert extra == set(), f"undeclared field(s) served to an anonymous caller: {sorted(extra)}"
+        # ...and OPEN the picks. The first version compared top-level keys only and never looked
+        # inside, which is exactly where the nineteen unfiltered fields were.
+        assert answer["picks"], "no picks to inspect — this assertion would pass vacuously"
+        for pick in answer["picks"]:
+            extra_pick = set(pick) - PUBLIC_PICK_FIELDS
+            assert extra_pick == set(), f"undeclared pick field(s) served: {sorted(extra_pick)}"
 
 
 def test_an_unrecognised_environment_is_treated_as_strict(
@@ -411,9 +438,19 @@ def test_a_database_that_does_not_exist_fails_closed(
     with pytest.raises(adapter.ConfigError, match="no readable file"):
         adapter.validate_startup_config(env="production")
 
-    # A real file passes, so the check is about existence rather than about refusing everything.
+    # A zero-byte file used to pass here, and the re-review was right to call that a blessing:
+    # it is not a database, and the previous check only ever asked the filesystem about the path.
+    empty = tmp_path / "empty.db"
+    empty.write_bytes(b"")
+    monkeypatch.setenv("MODEL_RANKING_DB", str(empty))
+    with pytest.raises(adapter.ConfigError, match="not a model_ranking database"):
+        adapter.validate_startup_config(env="production")
+
+    # A REAL database passes, so the check is a probe rather than a refusal.
+    from app.workflows.schema import connect
+
     real = tmp_path / "advisor.db"
-    real.write_bytes(b"")
+    connect(str(real)).close()
     monkeypatch.setenv("MODEL_RANKING_DB", str(real))
     assert adapter.validate_startup_config(env="production") == ()
 
@@ -445,12 +482,19 @@ def test_the_allowlist_actually_filters_an_undeclared_field(
     def leaky(rec):
         data = real(rec)
         data["internal_operator_note"] = "connection string, row counts, anything"
+        for pick in data.get("picks", []):
+            pick["internal_pick_note"] = "the nested half, which the first fix missed"
         return data
 
     monkeypatch.setattr(adapter, "recommendation_json", leaky)
     body = TestClient(adapter.app).get("/v1/recommendations", params={"task": "coding"}).json()
 
     for answer in body["answers"]:
+        for pick in answer["picks"]:
+            assert "internal_pick_note" not in pick, (
+                "an undeclared field reached an anonymous caller INSIDE a pick — the nested half "
+                "of the allowlist is not filtering"
+            )
         assert "internal_operator_note" not in answer, (
             "an undeclared field reached an unauthenticated caller — the publication allowlist is "
             "not filtering, only documenting"
@@ -473,10 +517,8 @@ def test_the_servable_database_size_is_derived_from_the_declared_budget() -> Non
     """
     import app.adapter.main as adapter
 
-    expected = int(
-        (adapter.MEMORY_BUDGET_MB * 1024 * 1024)
-        / (adapter.MAX_CONCURRENT_REQUESTS * adapter.RSS_FACTOR)
-    )
+    available = max(adapter.MEMORY_BUDGET_MB - adapter.PROCESS_BASELINE_MB, 0) * 1024 * 1024
+    expected = int(available / (adapter.MAX_CONCURRENT_REQUESTS * adapter.RSS_FACTOR))
     assert adapter.max_database_bytes() == expected
     # Derived, not typed: move either declared term and the limit moves with it.
     assert expected != 0
@@ -495,15 +537,25 @@ def test_a_database_larger_than_the_budget_refuses_to_boot(
     monkeypatch.delenv("MODEL_RANKING_CORS_ORIGINS", raising=False)
     monkeypatch.setattr(adapter, "APP_BUILD", "deadbee")
 
+    # A REAL database, padded past the budget — writing zeros would now be refused as "not a
+    # model_ranking database", which would pass this test for the wrong reason.
+    from app.workflows.schema import connect
+
     oversized = tmp_path / "huge.db"
-    oversized.write_bytes(b"\0" * (adapter.max_database_bytes() + 1))
+    conn = connect(str(oversized))
+    conn.execute("CREATE TABLE _ballast (blob BLOB)")
+    chunk = b"\0" * 1_000_000
+    while oversized.stat().st_size <= adapter.max_database_bytes():
+        conn.execute("INSERT INTO _ballast (blob) VALUES (?)", (chunk,))
+        conn.commit()
+    conn.close()
     monkeypatch.setenv("MODEL_RANKING_DB", str(oversized))
     with pytest.raises(adapter.ConfigError, match="may serve at most"):
         adapter.validate_startup_config(env="production")
 
     # ...and one inside the budget boots, so the check is a budget and not a refusal.
     ok = tmp_path / "fine.db"
-    ok.write_bytes(b"\0" * 1024)
+    connect(str(ok)).close()
     monkeypatch.setenv("MODEL_RANKING_DB", str(ok))
     assert adapter.validate_startup_config(env="production") == ()
 
@@ -570,3 +622,71 @@ def test_the_declared_numbers_agree_with_the_deploy_proposal() -> None:
     assert (
         int(vm_memory.group(1)) >= adapter.MEMORY_BUDGET_MB
     ), "the VM is smaller than the budget the process is allowed to spend"
+
+
+def test_a_pre_m5_database_refuses_to_serve(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    """Mandatory test for a stay-green fault (V3C-72), and the case is LIVE in this repository.
+
+    `advisor.db` and `owner_advisor.db` are pre-M5 schema — no `effort` column — and the serving
+    path is read-only, so it cannot migrate them. Before this probe the process booted, answered
+    `/health` with 200 and the build stamp, and returned 200 with zero picks for every real query.
+    Stage 4.3 verifies deploys with `/health`, so it would have called that deploy healthy.
+
+    Removing the column check left every test green, which is why this exists: the probe's other
+    two branches were covered and its most specific one was not.
+    """
+    import sqlite3
+
+    import app.adapter.main as adapter
+
+    old = tmp_path / "pre-m5.db"
+    conn = sqlite3.connect(str(old))
+    try:
+        # The M4-era shape: the tables exist, so the "not a model_ranking database" branch does not
+        # fire; only the column check can catch this.
+        conn.executescript("""
+            CREATE TABLE scores (
+                model_id TEXT, raw_name TEXT NOT NULL, benchmark TEXT NOT NULL,
+                metric TEXT NOT NULL, score REAL NOT NULL, harness TEXT NOT NULL,
+                run_date TEXT, source TEXT NOT NULL, source_url TEXT NOT NULL,
+                observed_at TEXT NOT NULL
+            );
+            CREATE TABLE pricing (model_id TEXT, source TEXT NOT NULL);
+            """)
+        conn.commit()
+    finally:
+        conn.close()
+
+    problem = adapter._database_unusable(old)
+    assert problem is not None and "effort" in problem, (
+        "a pre-M5 database passed the probe — it would boot, report /health 200, and answer every "
+        "query with zero picks"
+    )
+
+    monkeypatch.delenv("MODEL_RANKING_CORS_ORIGINS", raising=False)
+    monkeypatch.setattr(adapter, "APP_BUILD", "deadbee")
+    monkeypatch.setenv("MODEL_RANKING_DB", str(old))
+    with pytest.raises(adapter.ConfigError, match="effort"):
+        adapter.validate_startup_config(env="production")
+
+
+def test_the_repositorys_own_artifact_is_checked_not_assumed() -> None:
+    """The probe is pointed at the real file, because that is the artifact D-116 ships.
+
+    This asserts the CURRENT, honest state rather than a desired one: `advisor.db` is pre-M5 and
+    must be migrated before it is shipped. If someone migrates it, this test tells them to update
+    the expectation — which is the conversation that should happen, rather than silence.
+    """
+    from pathlib import Path
+
+    import app.adapter.main as adapter
+
+    artifact = Path("advisor.db")
+    if not artifact.exists():
+        pytest.skip("advisor.db is not present in this checkout")
+
+    problem = adapter._database_unusable(artifact)
+    assert problem is not None and "effort" in problem, (
+        "advisor.db now passes the probe — if it was migrated, update this test and the M6 closure "
+        "report's owner item; if it was replaced, check what replaced it"
+    )
