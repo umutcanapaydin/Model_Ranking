@@ -776,6 +776,47 @@ than closed, because writing a stronger claim would repeat the mistake this para
 superseded rather than amended — the decision it records is "one language at a time", not "English
 forever".
 
+## D-121 — A source may be optional, but a blind surface may never be silent
+
+**Status:** accepted · **Date:** 2026-08-17 (M7-W1) · **Decided by:** the owner, at the wave
+
+**Context.** M7-W1 moved the build pipeline into product code. On its first real run the build
+refused to produce anything: the Arena dependency has been returning an upstream HTTP 500 from the
+HF datasets-server for hours (**W-024**), and every source was mandatory. One external incident
+could therefore block a milestone indefinitely.
+
+The tempting fix is a `try/except` around the fetch. That is the inverse of why the L.8 gate was
+repaired in v4.3.2, and it would convert a loud outage into a quiet one.
+
+**What made the decision non-obvious** is that Arena is not one input among many: it is the SOLE
+primary evidence for the `assistant` category (`categories.py`). Dropping it does not thin that
+surface's answers, it empties them — and an empty answer is indistinguishable from "nothing met
+your budget", which is a different and false statement.
+
+**Decision.** Sources carry a `required` flag. An optional source that fails does not stop the
+build; it downgrades the run to **exit 3** — the same "done but not servable" code `schema migrate`
+already uses under D-120 — with `required_operator_actions` naming, in surface terms rather than
+operations terms, which categories now have no primary evidence. The mapping from a failed source
+to the surfaces it blinds is derived from `CATEGORIES`, never typed out.
+
+Arena is the only source marked optional. This is permitted **only because** the serving path
+already discloses a missing source: `/v1` reports `source_health.stale = true` with a notice naming
+the absent evidence. Verified against the real artifact at this wave rather than assumed.
+
+**The condition this decision stands on.** If that disclosure is ever weakened, this ADR is
+invalidated, not merely inconvenienced — the whole justification for letting a build succeed
+without Arena is that a user asking about `assistant` is told there is no evidence rather than
+shown an empty list.
+
+**Known gap, recorded rather than smoothed:** a consumer reading only `picks` still sees an empty
+array on a blind surface, and learns the difference only from `source_health`. Whether the payload
+should refuse more loudly on a surface with no primary evidence is carried as an open question to
+M7-W2, alongside REQ-API-008.
+
+**Revisit when:** Arena returns and stays up for a full milestone, at which point `required=True`
+should be restored rather than left optional by inertia; or when a second source becomes optional,
+which would mean this is a pattern rather than an incident.
+
 ---
 
 *Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*

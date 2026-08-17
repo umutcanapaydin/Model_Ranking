@@ -57,6 +57,16 @@ class RemoteSource:
     A 200 carrying an empty list is the failure mode this number exists for: it passes a status
     check, passes a parser, and produces a database that answers every question with silence.
     """
+    required: bool = True
+    """Whether the build refuses to produce an artifact at all without this source.
+
+    **Set False only when the artifact is still honest without it**, and understand what that
+    costs: a source is the sole evidence for at least one category, so dropping it does not thin
+    the answers on that surface, it empties them. An optional source that fails downgrades the
+    build to exit 3 with the affected surface named in `required_operator_actions` — never to a
+    silent exit 0, and never to a surface that answers with an empty list instead of saying it has
+    no evidence.
+    """
 
 
 @dataclass(frozen=True)
@@ -109,6 +119,13 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         ingest=ingest_arena,
         parse=parse_arena,
         minimum_rows=1,
+        # OPTIONAL by the owner's ruling at M7-W1 (W-024, ADR D-121). The HF datasets-server has
+        # been returning HTTP 500 for hours, and making the whole artifact unbuildable by one
+        # upstream outage would block the milestone on somebody else's incident. It is optional
+        # only because the serving surface DISCLOSES a missing source rather than answering with
+        # an empty list — arena is the sole evidence for `assistant`, so without it that surface
+        # has nothing to say and must say so.
+        required=False,
     ),
 )
 

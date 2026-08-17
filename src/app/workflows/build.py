@@ -148,9 +148,36 @@ def _ingest_curated(
     return result.stored
 
 
+
+def _surfaces_left_without_evidence(missing: Sequence[str]) -> list[str]:
+    """Translate failed optional sources into the SURFACES a user would notice.
+
+    "arena is unreachable" is an operations sentence. "the assistant surface has no evidence" is
+    the one that decides whether this artifact may be deployed, and it is derived from CATEGORIES
+    rather than typed here, so a category that changes its primary source starts reporting
+    correctly without this function being edited.
+    """
+    from app.workflows.categories import CATEGORIES
+
+    actions: list[str] = []
+    for entry in missing:
+        source = entry.split(":", 1)[0]
+        blinded = sorted(
+            task for task, spec in CATEGORIES.items() if spec.primary_source == source
+        )
+        if blinded:
+            actions.append(
+                f"{source} is unavailable, so these surfaces have NO primary evidence and must "
+                f"disclose it rather than answer: {', '.join(blinded)} ({entry})"
+            )
+        else:
+            actions.append(f"{source} is unavailable (no surface names it as primary): {entry}")
+    return actions
+
+
 def _ingest_sources(
     conn: sqlite3.Connection, sources: Sequence[RemoteSource], run: RunContext
-) -> list[SourceReport]:
+) -> tuple[list[SourceReport], list[str]]:
     """Ingest every declared source, failing loud on an unusable or hollow one.
 
     A source that fetches, parses and stores nothing is the failure this checks for. It passes a
@@ -161,20 +188,27 @@ def _ingest_sources(
         raise BuildError(msg)
 
     results: list[SourceReport] = []
+    missing: list[str] = []
     for source in sources:
         try:
             result = source.ingest(conn, source.client(), run)
-        except SourceError as exc:
-            msg = f"{source.name}: dependency unusable: {exc}"
-            raise BuildError(msg) from exc
-        if result.stored < source.minimum_rows:
-            msg = (
-                f"{source.name}: stored {result.stored} rows, below its floor of "
-                f"{source.minimum_rows} — the feed answered but its shape has changed"
-            )
-            raise BuildError(msg)
+            if result.stored < source.minimum_rows:
+                msg = (
+                    f"{source.name}: stored {result.stored} rows, below its floor of "
+                    f"{source.minimum_rows} — the feed answered but its shape has changed"
+                )
+                raise BuildError(msg)
+        except (SourceError, BuildError) as exc:
+            if source.required:
+                msg = f"{source.name}: dependency unusable: {exc}"
+                raise BuildError(msg) from exc
+            # An OPTIONAL source that fails does not stop the build, and it does not disappear
+            # either. It is named here, surfaces as exit 3, and the categories it was the sole
+            # evidence for will disclose that they have none.
+            missing.append(f"{source.name}: {exc}")
+            continue
         results.append(result)
-    return results
+    return results, missing
 
 
 def build(
@@ -207,7 +241,8 @@ def build(
     report.rosters_stored = _ingest_curated(
         "roster", lambda: ingest_rosters(conn, rosters_yaml, run)
     )
-    report.sources = _ingest_sources(conn, sources, run)
+    report.sources, degraded = _ingest_sources(conn, sources, run)
+    report.required_operator_actions = _surfaces_left_without_evidence(degraded)
 
     reconciled = reconcile(conn)
     if reconciled.models_registered < minimum_models:
