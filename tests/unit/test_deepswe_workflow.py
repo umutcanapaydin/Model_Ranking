@@ -283,7 +283,13 @@ def test_real_board_reproduces_signed_coverage_and_undated_health(
     assert recommendation["excluded_by_budget"] == 5
     assert recommendation["budget_notice"] is not None
     assert "5" in recommendation["budget_notice"]
-    assert "skorlanabilir plan" in recommendation["budget_notice"]
+    assert "scoreable plan(s) from the options" in recommendation["budget_notice"]
+    # D-118 note: this assertion survived the English migration because the whole test is
+    # EPOCH_DATA_DIR-gated and therefore skipped in CI and skipped during the migration. The
+    # migration followed what the gate could see, twice over — once because L1 detects an
+    # alphabet, and once because these seven tests do not run unless the owner mounts his
+    # bundle. Found by running the mounted suite at the milestone gate, which is what that
+    # gate is for.
     assert any(
         "Epoch AI" in source and "CC-BY-4.0" in source for source in recommendation["sources"]
     )

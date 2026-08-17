@@ -47,4 +47,32 @@ date: 2026-08-12
 **Escaped-blocker tripwire (V3C-78):** if a blocker escapes a tiered-down (LOW/MED) wave, the
 project reverts to full per-wave Code+Tester review until the next milestone closes clean.
 
-Filled by: `Code-Reviewer` · Date: `2026-08-12` · Wave commit range: `a1b2c3d..f4e5d6c`
+Filled by: `Code-Reviewer` · Date: `2026-08-16` · Wave commit range: `a1b2c3d..f4e5d6c`
+
+## Wave footprint — RECORD ONLY, no rule attached (v5.0)
+
+**Fill these from the actual diff at close, not from the plan.** Plan-time paths are a prediction;
+close-time paths are a measurement, and everything this lineage learned in 2026-08 says the difference
+is where the defects live.
+
+```
+Touched:        src/app/quota/read.py, src/app/quota/schema.py, tests/unit/test_quota_read.py
+K.8 contracts:  NONE — read path only; QuotaRepo signature unchanged
+Closure rounds: 1
+```
+
+**Why this exists, and what it is NOT.** The owner asked whether four waves could run as parallel
+subagents. The honest answer needs data nobody has: **do waves actually touch disjoint file sets, and
+do they share contracts?** If they are disjoint, parallel execution is free. If they collide, it is a
+merge-conflict generator that ships four times the code into the one place that was already the
+bottleneck.
+
+Increment 13 measured that bottleneck: **W0–W4 each converged, and closure ran four rounds and never
+passed — rounds 2, 3 and 4 each finding defects in code written by the previous round's fix.** So the
+slow part was never the waves. Parallelising them would speed up what was fast and quadruple the input
+to what was slow.
+
+**There is no gate on these three lines and there will not be one until two milestones have filled
+them.** They are here so that the next time this question is asked, it is answered with a measurement
+instead of an intuition — and `V4.3-6`'s calibration data, which currently has no collector and
+therefore a trigger that can never fire, starts accumulating as a side effect.
