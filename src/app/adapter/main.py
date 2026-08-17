@@ -43,7 +43,7 @@ from fastapi.responses import JSONResponse
 
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.coverage import SOURCE_STALE_DAYS, source_health
-from app.workflows.rank import category_ranking
+from app.workflows.rank import UnbuiltEvidenceError, category_ranking
 from app.workflows.recommend import BUDGETS, Pick, Recommendation, recommend
 from app.workflows.serialize import recommendation_json
 
@@ -220,6 +220,19 @@ def _database_unusable(db: Path) -> str | None:
                 "so it cannot migrate. Run `python -m app.workflows.schema migrate --db PATH` "
                 "before shipping this artifact; serving it would answer every request with zero "
                 "picks while /health reported the deploy healthy"
+            )
+        # M7-W2: a FOURTH way to say yes to a database that cannot serve. Until this wave
+        # `recommend()` built the price medians itself, so an empty `px_median` was impossible at
+        # serving time. The build moved to `app.workflows.build`, and `rank.py` JOINs that table —
+        # an empty one yields zero rows, `recommend()` returns None, and every query answers 200
+        # with no picks while `/health` reports a healthy build. Refusing to boot is the fail-closed
+        # direction (V3C-33/45), and it names the command rather than leaving an operator to guess.
+        if "px_median" not in tables or not conn.execute(
+            "SELECT count(*) FROM px_median"
+        ).fetchone()[0]:
+            return (
+                "MODEL_RANKING_DB has no price medians, so every query would answer with no "
+                "picks. Build it with `python -m app.workflows.build --db <path>`"
             )
     except sqlite3.Error as exc:
         return f"MODEL_RANKING_DB is unreadable: {type(exc).__name__}"
@@ -727,6 +740,13 @@ def _answer_for(
         }
     try:
         rec = recommend(conn, budget=budget, task=task)
+    except UnbuiltEvidenceError:
+        # Defence in depth behind the startup probe, which normally stops the process from booting
+        # on an unbuilt artifact. This catches the case where the file is replaced UNDER a running
+        # process — the mounted-artifact deploy shape (D-116) makes that a real sequence, not a
+        # hypothetical. Re-raised as the same 503 class M6 already uses for an unreadable database,
+        # because both are "the server cannot answer", not "the answer is empty".
+        raise
     except sqlite3.DatabaseError:
         return _answer_json(spec, None, "This surface's evidence could not be read.", health)
     if rec is None:
@@ -834,6 +854,13 @@ def recommendations(
         return _error(503, "evidence_unavailable", "The evidence database is not available.")
     try:
         answers = [_answer_for(conn, surface, budget) for surface in surfaces]
+    except UnbuiltEvidenceError:
+        # REQ-API-008. NOT a 200 with empty picks: an unbuilt artifact means the server cannot
+        # answer, which is the `evidence_unavailable` class M6 already defined, not an answer whose
+        # result happens to be empty. The remedy stays OUT of the body — the operator finds it in
+        # the startup log and in the CLI, and a public error body is not the place to publish what
+        # command fixes this host.
+        return _error(503, "evidence_unavailable", "The evidence database is not available.")
     finally:
         conn.close()
 

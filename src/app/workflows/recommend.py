@@ -27,9 +27,10 @@ from pathlib import Path
 from app.workflows.categories import CategorySpec, get_category
 from app.workflows.rank import (
     RankingRow,
+    UnbuiltEvidenceError,
     attributions_for,
-    build_price_medians,
     category_ranking,
+    require_price_medians,
     secondary_evidence_sources,
 )
 from app.workflows.schema import EFFORT_UNSPECIFIED
@@ -277,12 +278,23 @@ def _stale_notice(conn: sqlite3.Connection, spec: CategorySpec) -> str | None:
 def recommend(
     conn: sqlite3.Connection, budget: str = "unlimited", task: str = "coding"
 ) -> Recommendation | None:
-    """Compute the three answers for a task; None when no model fits (REQ-REC-005)."""
+    """Compute the three answers for a task; None when no model fits (REQ-REC-005).
+
+    **This function no longer writes (M7-W2, REQ-API-007).** It used to call
+    `build_price_medians`, which runs `DELETE FROM px_median` + `INSERT` — so a read API rewrote an
+    operator table on every request, and could not be driven from a read-only handle at all. M6
+    could not remove it (the plan forbade engine changes) and contained it instead, by copying the
+    whole database into memory per unauthenticated GET: **W-017**, measured at roughly 47,000x
+    amplification and named by D-116 as a condition of go-live.
+
+    The medians were only ever persisted at READ time because there was no BUILD time to persist
+    them at. M7-W1 created one, so the write moves there and the containment it forced can go.
+    """
     if budget not in BUDGETS:
         msg = f"unknown budget {budget!r}; expected one of {sorted(BUDGETS)}"
         raise ValueError(msg)
     spec = get_category(task)
-    build_price_medians(conn)
+    require_price_medians(conn)
     rows = eligible_rows(category_ranking(conn, spec), budget)
     if not rows:
         return None
@@ -420,6 +432,14 @@ def main(argv: list[str] | None = None) -> int:
                 shutout = budget_shutout(conn, args.budget, args.task)
         else:
             rec = recommend(conn, args.budget, args.task)
+    except UnbuiltEvidenceError as exc:
+        # **Exit 2, not 1, and the distinction is the whole point of M7-W2.** Exit 1 means "no
+        # model fits this budget" — a RESULT, computed from real evidence. An artifact whose price
+        # medians were never built produces no evidence at all, and reporting that as exit 1 would
+        # tell the operator their budget was too tight when the truth is the database was never
+        # finished. Same false-cause defect the /v1 surface had, one boundary over.
+        print(json.dumps({"error": str(exc), "artifact": "unbuilt"}))
+        return 2
     except sqlite3.Error as exc:
         print(json.dumps({"error": f"db unusable: {exc}"}))
         return 2

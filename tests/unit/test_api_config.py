@@ -13,6 +13,24 @@ from fastapi.testclient import TestClient
 from app.adapter.main import ConfigError, cors_origins, validate_startup_config
 
 
+def _servable(path) -> None:
+    """Create a database the startup probe accepts: schema, plus one price median.
+
+    M7-W2 added a fourth probe check — an artifact with an EMPTY `px_median` answers every query
+    with no picks, so it is refused at boot. That makes `connect(path).close()` no longer a
+    servable fixture, which is the same lesson these tests already carried one line up: a fixture
+    that is invalid for a DIFFERENT reason passes the test for the wrong reason.
+    """
+    from app.workflows.schema import connect
+
+    conn = connect(str(path))
+    try:
+        conn.execute("INSERT INTO px_median (model_id, in_m, out_m) VALUES ('m', 1.0, 2.0)")
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def test_a_wildcard_origin_is_refused_not_warned_about(monkeypatch: pytest.MonkeyPatch) -> None:
     """V3C-13: this surface forbids allow-all outright, not only allow-all WITH credentials.
 
@@ -446,11 +464,12 @@ def test_a_database_that_does_not_exist_fails_closed(
     with pytest.raises(adapter.ConfigError, match="not a model_ranking database"):
         adapter.validate_startup_config(env="production")
 
-    # A REAL database passes, so the check is a probe rather than a refusal.
-    from app.workflows.schema import connect
-
+    # A REAL database passes, so the check is a probe rather than a refusal. M7-W2: "real" now
+    # means SERVABLE, not merely schema-shaped — an empty `px_median` answers every query with no
+    # picks, so the probe refuses it and this fixture has to be an artifact that could actually
+    # serve.
     real = tmp_path / "advisor.db"
-    connect(str(real)).close()
+    _servable(real)
     monkeypatch.setenv("MODEL_RANKING_DB", str(real))
     assert adapter.validate_startup_config(env="production") == ()
 
@@ -555,7 +574,7 @@ def test_a_database_larger_than_the_budget_refuses_to_boot(
 
     # ...and one inside the budget boots, so the check is a budget and not a refusal.
     ok = tmp_path / "fine.db"
-    connect(str(ok)).close()
+    _servable(ok)
     monkeypatch.setenv("MODEL_RANKING_DB", str(ok))
     assert adapter.validate_startup_config(env="production") == ()
 

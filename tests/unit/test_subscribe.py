@@ -298,11 +298,20 @@ def test_cli_subscription_through_real_entrypoint(tmp_path, capsys) -> None:
 
 
 def test_model_path_regression_untouched(tmp_path, capsys) -> None:
-    """--subscription is additive: the model CLI behaves exactly as before."""
+    """--subscription is additive: the model CLI behaves exactly as before.
+
+    M7-W2 changed what an EMPTY database means at this boundary, and the change is the point.
+    It used to exit 1 with "no eligible model" — telling the operator their budget was too tight
+    when the truth was that the artifact had never been built. That is exit 2 now, because exit 1
+    is a RESULT computed from evidence and this case has none. The additive-CLI property this test
+    exists for is unchanged and still asserted below.
+    """
     empty = tmp_path / "m.db"
     connect(str(empty)).close()
-    assert main(["--db", str(empty), "--budget", "unlimited", "--task", "coding"]) == 1
-    assert "no eligible model" in capsys.readouterr().out
+    assert main(["--db", str(empty), "--budget", "unlimited", "--task", "coding"]) == 2
+    out = capsys.readouterr().out
+    assert "unbuilt" in out
+    assert "no eligible model" not in out, "an unbuilt artifact must not be reported as a budget result"
 
 
 def test_missing_plan_config_fails_with_usage_error() -> None:

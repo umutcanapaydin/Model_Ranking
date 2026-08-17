@@ -11,6 +11,7 @@ import pytest
 from app.clients.epoch import EPOCH_ATTRIBUTION
 from app.clients.fakes import FakeRawSource
 from app.workflows.ingest import RunContext, ingest_aider, ingest_litellm, ingest_swebench
+from app.workflows.rank import UnbuiltEvidenceError, build_price_medians
 from app.workflows.recommend import (
     BUDGETS,
     CLOSE_CALL_PTS,
@@ -91,12 +92,17 @@ def _db() -> sqlite3.Connection:
     ingest_swebench(conn, FakeRawSource("swebench", SCORES), run)
     ingest_aider(conn, FakeRawSource("aider", AIDER), run)
     reconcile(conn)
+    # M7-W2: production builds the price medians in `app.workflows.build`, not inside
+    # `recommend()`. A fixture that reconciles is standing in for that build, so it does
+    # the same last step -- otherwise it seeds an artifact the engine correctly refuses.
+    build_price_medians(conn)
     return conn
 
 
 def test_three_labeled_deterministic_picks() -> None:
     """REQ-REC-001: exactly three labeled picks; every field populated; deterministic."""
     conn = _db()
+    build_price_medians(conn)  # M7-W2: production builds these in app.workflows.build
     rec1 = recommend(conn, "unlimited")
     rec2 = recommend(conn, "unlimited")
     assert rec1 is not None
@@ -124,6 +130,7 @@ def test_req_lic_001_epoch_citation_ships_where_epoch_data_is_served() -> None:
         "UPDATE scores SET source = 'epoch_swe_bench_verified' WHERE benchmark = ?",
         ("SWE-bench Verified",),
     )
+    build_price_medians(conn)  # M7-W2: production builds these in app.workflows.build
     rec = recommend(conn, "unlimited")
     assert rec is not None
     assert EPOCH_ATTRIBUTION in rec.sources
@@ -160,6 +167,7 @@ def test_budget_filter_is_hard_constraint() -> None:
     assert BUDGETS["low"] == 2.0
     assert BUDGETS["medium"] == 8.0
     assert BUDGETS["unlimited"] is None
+    build_price_medians(conn)  # M7-W2: production builds these in app.workflows.build
     rec = recommend(conn, "low")
     assert rec is not None
     for p in rec.picks:
@@ -168,15 +176,27 @@ def test_budget_filter_is_hard_constraint() -> None:
     assert all(p.model != "Claude 4.5 Opus" for p in rec.picks)
 
 
-def test_no_eligible_model_returns_none() -> None:
-    """REQ-REC-002 edge: an impossible budget yields None, not a bad answer."""
-    conn = connect()  # empty db
-    assert recommend(conn, "low") is None
+def test_an_unbuilt_database_is_refused_rather_than_answered_empty() -> None:
+    """M7-W2 INVERTS this test, and the inversion is REQ-API-008.
+
+    It used to assert that an EMPTY database returns None -- indistinguishable, to every caller,
+    from "your budget excluded everything". That was safe only while `recommend()` built the price
+    medians itself. Now that the build lives in `app.workflows.build`, an empty database is an
+    UNBUILT ARTIFACT, and answering it with None is the 200-with-no-picks failure W-023 shipped.
+    An evidence engine with no evidence fails closed and names the command that fixes it.
+
+    The genuine "budget excluded everything" case is covered by
+    `test_budget_filters_nonempty_ranking_to_none`, which seeds real rows first.
+    """
+    conn = connect()  # empty db: schema present, nothing ingested, medians never built
+    with pytest.raises(UnbuiltEvidenceError, match=r"app\.workflows\.build"):
+        recommend(conn, "low")
 
 
 def test_pareto_non_dominance() -> None:
     """REQ-REC-003: no recommended model is worse AND more expensive than another."""
     conn = _db()
+    build_price_medians(conn)  # M7-W2: production builds these in app.workflows.build
     rec = recommend(conn, "unlimited")
     assert rec is not None
     ranking = eligible_rows(
@@ -204,6 +224,7 @@ def test_value_pick_rule_within_window_cheapest() -> None:
     """REQ-REC-003: value = within VALUE_WINDOW_PTS of leader, cheapest on frontier."""
     assert VALUE_WINDOW_PTS == 6.0
     conn = _db()
+    build_price_medians(conn)  # M7-W2: production builds these in app.workflows.build
     rec = recommend(conn, "unlimited")
     assert rec is not None
     value = rec.picks[1]
@@ -216,6 +237,7 @@ def test_budget_pick_respects_min_quality() -> None:
     """REQ-REC-001/002: budget pick = cheapest ≥ MIN_QUALITY_PCT (nano at 40% excluded)."""
     assert MIN_QUALITY_PCT == 65.0
     conn = _db()
+    build_price_medians(conn)  # M7-W2: production builds these in app.workflows.build
     rec = recommend(conn, "unlimited")
     assert rec is not None
     cheap = rec.picks[2]
@@ -226,6 +248,7 @@ def test_budget_pick_respects_min_quality() -> None:
 def test_confidence_grades_by_source_count() -> None:
     """REQ-REC-004: DeepSeek has SWE+Aider → High; single-source models → Medium."""
     conn = _db()
+    build_price_medians(conn)  # M7-W2: production builds these in app.workflows.build
     rec = recommend(conn, "unlimited")
     assert rec is not None
     by_label = {p.label: p for p in rec.picks}
@@ -268,6 +291,10 @@ def test_close_call_is_disclosed() -> None:
     ingest_litellm(conn, FakeRawSource("litellm", pricing), run)
     ingest_swebench(conn, FakeRawSource("swebench", scores), run)
     reconcile(conn)
+    # M7-W2: production builds the price medians in `app.workflows.build`, not inside
+    # `recommend()`. A fixture that reconciles is standing in for that build, so it does
+    # the same last step -- otherwise it seeds an artifact the engine correctly refuses.
+    build_price_medians(conn)
     rec = recommend(conn, "unlimited")
     assert rec is not None
     assert rec.close_call is not None
@@ -300,6 +327,10 @@ def test_budget_pick_warns_when_quality_floor_unmet() -> None:
     ingest_litellm(conn, FakeRawSource("litellm", pricing), run)
     ingest_swebench(conn, FakeRawSource("swebench", scores), run)
     reconcile(conn)
+    # M7-W2: production builds the price medians in `app.workflows.build`, not inside
+    # `recommend()`. A fixture that reconciles is standing in for that build, so it does
+    # the same last step -- otherwise it seeds an artifact the engine correctly refuses.
+    build_price_medians(conn)
     rec = recommend(conn, "low")
     assert rec is not None
     cheap = rec.picks[2]
@@ -334,11 +365,20 @@ def test_budget_filters_nonempty_ranking_to_none() -> None:
     ingest_litellm(conn, FakeRawSource("litellm", pricing), run)
     ingest_swebench(conn, FakeRawSource("swebench", scores), run)
     reconcile(conn)
+    # M7-W2: production builds the price medians in `app.workflows.build`, not inside
+    # `recommend()`. A fixture that reconciles is standing in for that build, so it does
+    # the same last step -- otherwise it seeds an artifact the engine correctly refuses.
+    build_price_medians(conn)
     assert recommend(conn, "unlimited") is not None  # sanity: it ranks
     assert recommend(conn, "low") is None  # $11.25 blended > $2 cap
 
 
 def test_unknown_budget_raises() -> None:
+    """The budget check runs BEFORE any database work, so an empty connection is the right fixture.
+
+    M7-W2 note: this also pins the ordering. `require_price_medians` must not run first, or a
+    caller's typo would be reported as an unbuilt artifact.
+    """
     with pytest.raises(ValueError, match="unknown budget"):
         recommend(connect(), "yok-boyle-butce")
 
@@ -382,6 +422,7 @@ def test_model_engine_trade_off_never_claims_a_gap_the_fields_deny() -> None:
     conn = _db()
     conn.execute("UPDATE scores SET score = 79.249 WHERE model_id = 'claude-4.5-opus'")
     conn.execute("UPDATE scores SET score = 79.151 WHERE model_id = 'gemini-3-flash'")
+    build_price_medians(conn)  # M7-W2: production builds these in app.workflows.build
     rec = recommend(conn, "unlimited")
     assert rec is not None
     assert rec.picks[0].score == rec.picks[1].score == 79.2
@@ -407,6 +448,7 @@ def test_secondary_benchmark_evidence_is_cited_too() -> None:
         "UPDATE scores SET source = 'epoch_swe_bench_verified' WHERE benchmark = ?",
         ("SWE-bench Verified",),
     )
+    build_price_medians(conn)  # M7-W2: production builds these in app.workflows.build
     rec = recommend(conn, "unlimited")
     assert rec is not None
     graded_on_two = [p for p in rec.picks if p.secondary_score is not None]

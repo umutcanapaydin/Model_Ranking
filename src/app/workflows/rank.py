@@ -171,6 +171,50 @@ def build_price_medians(conn: sqlite3.Connection) -> int:
     return len(by_model)
 
 
+class UnbuiltEvidenceError(RuntimeError):
+    """The evidence database was never finished, so no answer can be computed from it.
+
+    Deliberately NOT a subclass of ValueError: `recommend()` raises ValueError for an unknown
+    budget, which is a caller mistake, and callers that catch it must not silently absorb this.
+    """
+
+
+def require_price_medians(conn: sqlite3.Connection) -> None:
+    """Refuse to answer from an artifact whose price medians were never built (REQ-API-008).
+
+    **This is the door M7-W2 opens and must close in the same wave.** Until now `recommend()`
+    built the medians itself on every call, so an unbuilt `px_median` was impossible. With the
+    build moved to `app.workflows.build`, an artifact can reach the serving path with that table
+    empty — and `category_ranking` JOINs it, so an empty table yields zero rows, `recommend()`
+    returns None, and `/v1` answers **200 with no picks**. That is a confident wrong answer, and it
+    is exactly the shape W-023 shipped: a database that looks healthy to every existence check.
+
+    An evidence engine with no evidence fails CLOSED (V3C-33/45). It says the artifact is unbuilt
+    and names the command that builds it, rather than implying it looked and found nothing.
+    """
+    try:
+        built = conn.execute("SELECT count(*) FROM px_median").fetchone()[0]
+    except sqlite3.OperationalError as exc:
+        # ONLY a missing table means "unbuilt". Anything else — a truncated file, a non-SQLite
+        # blob, a locked database — is a corrupt-artifact error and must keep reporting itself as
+        # one. Swallowing those into "unbuilt" would tell an operator to rebuild when the real
+        # problem is that the file they pointed at is not a database, which is the same
+        # wrong-cause defect this guard exists to prevent, inverted.
+        if "no such table" not in str(exc).lower():
+            raise
+        msg = (
+            "the evidence database has no px_median table; it was not produced by "
+            "`python -m app.workflows.build`"
+        )
+        raise UnbuiltEvidenceError(msg) from exc
+    if built <= 0:
+        msg = (
+            "the evidence database has no price medians, so nothing can be ranked. This artifact "
+            "was never finished: rebuild it with `python -m app.workflows.build --db <path>`"
+        )
+        raise UnbuiltEvidenceError(msg)
+
+
 def category_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[RankingRow]:
     """Best primary-benchmark score per model + median prices (REQ-CAT-002).
 

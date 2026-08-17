@@ -21,6 +21,7 @@ from fastapi.testclient import TestClient
 
 from app.clients.fakes import FakeRawSource
 from app.workflows.ingest import RunContext, ingest_deepswe, ingest_litellm, ingest_swebench
+from app.workflows.rank import build_price_medians
 from app.workflows.registry import reconcile
 from app.workflows.schema import connect
 
@@ -118,6 +119,10 @@ def _seeded_db(path: Path) -> None:
         run,
     )
     reconcile(conn)
+    # M7-W2: production builds the price medians in `app.workflows.build`, not inside
+    # `recommend()`. A fixture that reconciles is standing in for that build, so it does
+    # the same last step -- otherwise it seeds an artifact the engine correctly refuses.
+    build_price_medians(conn)
     conn.commit()
     conn.close()
 
@@ -575,14 +580,21 @@ def test_an_unset_database_env_fails_closed_rather_than_guessing(
     assert response.json()["error"]["code"] == "evidence_unavailable"
 
 
-def test_a_surface_that_cannot_answer_is_disclosed_not_dropped(
+def test_an_unbuilt_artifact_is_refused_rather_than_answered_empty(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """REQ-API-005 + the honesty doctrine: silence is the one answer this product may not give.
+    """M7-W2 splits this test in two, and the split IS REQ-API-008.
 
-    An empty database can rank nothing. The wrong behaviours are (a) omitting the surface, which
-    reads as "there is only one coding answer", and (b) 500. The right one is to serve the answer
-    with no picks and say why.
+    It used to point an EMPTY database at `/v1` and assert a 200 carrying two empty-but-explained
+    answers. That was right while `recommend()` built the price medians itself, because an empty
+    database genuinely was "nothing ranks here". The build moved to `app.workflows.build`, so an
+    empty database is now an UNFINISHED ARTIFACT — a server-side fault, not a result — and
+    answering it 200 is the 200-with-no-picks failure W-023 shipped.
+
+    Refusal is the `evidence_unavailable` class M6 already defined for a database that cannot be
+    read, because both mean "this server cannot answer". The remedy is deliberately NOT in the
+    body: it is in the startup log and the CLI, and a public error body is not the place to
+    publish what command fixes this host.
     """
     db = tmp_path / "empty.db"
     connect(str(db)).close()
@@ -590,12 +602,49 @@ def test_a_surface_that_cannot_answer_is_disclosed_not_dropped(
     from app.adapter import main as adapter
 
     response = TestClient(adapter.app).get("/v1/recommendations", params={"task": "coding"})
+
+    assert response.status_code == 503
+    body = response.json()
+    assert body["error"]["code"] == "evidence_unavailable"
+    assert "build" not in body["error"]["message"], "the remedy must not be published to callers"
+
+
+def test_a_surface_that_cannot_answer_is_disclosed_not_dropped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-API-005 + the honesty doctrine: silence is the one answer this product may not give.
+
+    The other half of the split above. On a BUILT artifact where one surface's evidence source is
+    absent, the wrong behaviours are still (a) omitting the surface, which reads as "there is only
+    one coding answer", and (b) a 500. The right one is a 200 that carries the answer with no picks
+    and says why — and D-121 stakes a degraded build's whole legitimacy on this.
+
+    The seeded fixture gives BOTH coding surfaces evidence, so Ruling A is checked there; the
+    surface with none is `assistant`, whose Arena source this fixture never ingests. Both halves
+    matter and they are different claims, so the test makes both rather than picking whichever
+    happened to be empty.
+    """
+    db = tmp_path / "partial.db"
+    _seeded_db(db)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    from app.adapter import main as adapter
+
+    response = TestClient(adapter.app).get("/v1/recommendations", params={"task": "coding"})
     assert response.status_code == 200
     answers = response.json()["answers"]
-    assert len(answers) == 2  # BOTH still present — Ruling A does not bend on empty data
-    for answer in answers:
-        assert answer["picks"] == []
-        assert answer["unavailable_reason"]
+    assert len(answers) == 2, "BOTH surfaces stay present — Ruling A does not bend on thin data"
+
+    assistant = TestClient(adapter.app).get(
+        "/v1/recommendations", params={"task": "assistant"}
+    )
+    assert assistant.status_code == 200, "a surface with no evidence is DISCLOSED, never refused"
+    (blind,) = assistant.json()["answers"]
+    assert blind["picks"] == []
+    assert blind["unavailable_reason"], "an empty answer must say why it is empty"
+    assert "no evidence" in blind["unavailable_reason"].lower(), (
+        "the reason must name the evidence gap, not blame the budget"
+    )
+    assert blind["source_health"]["stale"] is True
 
 
 # ---------------------------------------------------------------- read-only handle

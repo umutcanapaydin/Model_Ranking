@@ -242,6 +242,9 @@ def _effort_cli_db(path: Path) -> None:
             ),
         ],
     )
+    # M7-W2: `recommend()` no longer builds the price medians; `app.workflows.build` does.
+    # A fixture standing in for a shipped artifact must do that last step too.
+    build_price_medians(conn)
     conn.commit()
     conn.close()
 
@@ -437,6 +440,7 @@ def test_pick_publishes_the_effort_of_its_evidence_not_the_category_policy() -> 
     )
     conn.commit()
 
+    build_price_medians(conn)  # M7-W2: production builds these in app.workflows.build
     rec = recommend(conn, "unlimited", "coding")
     assert rec is not None
     pick = rec.picks[0]
@@ -528,6 +532,7 @@ def test_comparison_across_unequal_effort_is_disclosed() -> None:
         )
     conn.commit()
 
+    build_price_medians(conn)  # M7-W2: production builds these in app.workflows.build
     rec = recommend(conn, "unlimited", "coding")
     assert rec is not None
     assert rec.effort_mix_notice is not None

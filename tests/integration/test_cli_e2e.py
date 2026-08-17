@@ -20,6 +20,7 @@ SRC_DIR = Path(__file__).parents[2] / "src"
 def _build_db(tmp_path: Path) -> Path:
     from app.clients.fakes import FakeRawSource
     from app.workflows.ingest import RunContext, ingest_litellm, ingest_swebench
+    from app.workflows.rank import build_price_medians
     from app.workflows.registry import reconcile
 
     pricing = json.dumps(
@@ -66,6 +67,10 @@ def _build_db(tmp_path: Path) -> Path:
     ingest_litellm(conn, FakeRawSource("litellm", pricing), run)
     ingest_swebench(conn, FakeRawSource("swebench", scores), run)
     reconcile(conn)
+    # M7-W2: production builds the price medians in `app.workflows.build`, not inside
+    # `recommend()`. A fixture that reconciles is standing in for that build, so it does
+    # the same last step -- otherwise it seeds an artifact the engine correctly refuses.
+    build_price_medians(conn)
     conn.commit()
     conn.close()
     return db_path
@@ -134,6 +139,7 @@ def test_cli_task_assistant_through_entry_point(tmp_path: Path) -> None:
     conn = sqlite3.connect(db_path)
     from app.clients.fakes import FakeRawSource
     from app.workflows.ingest import RunContext, ingest_arena, ingest_litellm
+    from app.workflows.rank import build_price_medians
     from app.workflows.registry import reconcile
     from app.workflows.schema import DDL
 
@@ -185,6 +191,10 @@ def test_cli_task_assistant_through_entry_point(tmp_path: Path) -> None:
     )
     ingest_arena(conn, FakeRawSource("arena", arena), run)
     reconcile(conn)
+    # M7-W2: production builds the price medians in `app.workflows.build`, not inside
+    # `recommend()`. A fixture that reconciles is standing in for that build, so it does
+    # the same last step -- otherwise it seeds an artifact the engine correctly refuses.
+    build_price_medians(conn)
     conn.commit()
     conn.close()
 
@@ -208,7 +218,11 @@ def test_cli_corrupt_db_exits_2(tmp_path: Path) -> None:
     db_path.write_bytes(b"")  # exists, but has no schema
     proc = _run_cli("--db", str(db_path), "--budget", "medium")
     assert proc.returncode == 2
-    assert "db unusable" in json.loads(proc.stdout)["error"]
+    # M7-W2: the exit CLASS this test was written for (2, crash-class, not 1 "no match") is
+    # unchanged. The message improved: SQLite reads a zero-byte file as a valid empty database, so
+    # the honest complaint is that it holds no evidence and names the command that builds one,
+    # rather than the older, vaguer "db unusable".
+    assert "app.workflows.build" in json.loads(proc.stdout)["error"]
 
 
 def test_cli_invalid_budget_rejected_by_argparse(tmp_path: Path) -> None:
@@ -217,7 +231,15 @@ def test_cli_invalid_budget_rejected_by_argparse(tmp_path: Path) -> None:
     assert "invalid choice" in proc.stderr
 
 
-def test_cli_no_eligible_model_exits_1(tmp_path: Path) -> None:
+def test_cli_an_unbuilt_artifact_exits_2_not_1(tmp_path: Path) -> None:
+    """M7-W2 inverts this: a schema-valid, EMPTY database is an unbuilt artifact, not a result.
+
+    Exit 1 means "no model fits this budget" — computed from real evidence. Until this wave
+    `recommend()` built the price medians itself, so an empty database really did produce that
+    answer. Now the build lives in `app.workflows.build`, and reporting an unfinished artifact as
+    a budget outcome would tell the operator to loosen their budget when the fix is to build the
+    database. Same false-cause defect the /v1 surface had, at the CLI boundary.
+    """
     db_path = tmp_path / "empty.db"
     conn = sqlite3.connect(db_path)
     from app.workflows.schema import DDL
@@ -226,8 +248,11 @@ def test_cli_no_eligible_model_exits_1(tmp_path: Path) -> None:
     conn.commit()
     conn.close()
     proc = _run_cli("--db", str(db_path), "--budget", "low")
-    assert proc.returncode == 1
-    assert "no eligible model" in json.loads(proc.stdout)["error"]
+    assert proc.returncode == 2
+    payload = json.loads(proc.stdout)
+    assert payload["artifact"] == "unbuilt"
+    assert "app.workflows.build" in payload["error"], "the remedy must be named, not implied"
+    assert "no eligible model" not in payload["error"]
 
 
 def test_explicit_schema_migrate_command_through_real_module_entrypoint(tmp_path: Path) -> None:

@@ -7,6 +7,7 @@ import sqlite3
 
 from app.clients.fakes import FakeRawSource
 from app.workflows.ingest import RunContext, ingest_arena, ingest_litellm
+from app.workflows.rank import build_price_medians
 from app.workflows.recommend import MIN_QUALITY_ELO, VALUE_WINDOW_ELO, recommend
 from app.workflows.registry import reconcile
 from app.workflows.schema import connect
@@ -46,6 +47,10 @@ def _arena(
     payload = json.dumps({"rows": [{"row": r} for r in rows], "num_rows_total": len(rows)})
     ingest_arena(conn, FakeRawSource("arena", payload), run)
     reconcile(conn)
+    # M7-W2: production builds the price medians in `app.workflows.build`, not inside
+    # `recommend()`. A fixture that reconciles is standing in for that build, so it does
+    # the same last step -- otherwise it seeds an artifact the engine correctly refuses.
+    build_price_medians(conn)
     return conn
 
 
