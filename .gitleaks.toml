@@ -23,6 +23,13 @@ paths = [
 regexes = [
   '''sk-test-[a-zA-Z0-9]{20,}''',     # Stripe test mode
   '''dummy-[a-zA-Z0-9_-]{12,}''',     # dummy / placeholder tokens
+  # W-001, owner-ratified 2026-08-17 after surviving four milestone closes.
+  # gitleaks' `generic-api-key` rule reads an ADR compliance label that follows the word "APIs"
+  # in prose as a key VALUE. Zero entropy, present since the M2 commit, and self-propagating:
+  # every record that documented the finding re-triggered it by naming the shape.
+  # Scoped to the LABEL SHAPE, deliberately NOT to a path — `docs/reviews/**` must keep being
+  # scanned, because those files quote real tooling output and are where a real leak would land.
+  '''D-\d{3}-compliant''',
 ]
 
 # To add a project-specific rule, append:

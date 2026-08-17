@@ -140,6 +140,10 @@ provider dashboards · iOS work.
 - D-109: provider model rosters are a second curated source class with their own provenance and
   verification clock (extends D-107 rather than widening the plan table).
 - D-110: deploy target Fly.io (owner decision 2026-08-15; recorded now, spent in M5).
+  **CORRECTION appended 2026-08-17, not overwritten (B.2):** this line cites the wrong ADR.
+  D-110 is the plan-equivalence disclosure decision; the deploy target had no ADR at all
+  until **D-116** closed OQ-3. The owner's choice recorded here was real; only its ID was
+  wrong, and it read as settled for two milestones because of it.
 - D-111: score presentation precision rule at the output boundary.
 
 ---

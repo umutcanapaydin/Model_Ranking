@@ -629,6 +629,57 @@ surface leads, which is a public-contract change and needs a superseding ADR and
 
 ---
 
+## D-116 — Deploy target: Fly.io, with the evidence database as a shipped artifact (closes OQ-3)
+
+**Status:** ratified — the owner chose Fly.io on 2026-08-15 and it was recorded in
+`docs/plans/m4-plan.md` §"Owner decisions locked". This ADR does not make that choice again; it
+gives it an ID that exists, states what it commits to, and repairs the citation.
+
+**Supersedes:** nothing. **Repairs:** `docs/plans/m4-plan.md:142`, which cites the decision as
+"D-110". **D-110 is not that decision** — it is *"when plans rank on the same model, the product
+SAYS so instead of manufacturing variety"*, ratified for a different purpose entirely. The M4 plan
+named an ID that was later spent elsewhere, so for two milestones the deploy target was
+simultaneously "recorded" in a plan and "not chosen yet" in `docs/prd.md` OQ-3. **A preference
+written in a plan is not an ADR, and a citation that points at the wrong ADR is worse than no
+citation, because it reads as settled.** That is the defect this milestone was told to close
+properly, and closing it means the ID, not the sentence.
+
+**Decision.** The serving target is **Fly.io**. The service is the read-only `/v1` surface from
+D-115; the evidence database is a **build- or deploy-time artifact**, not a runtime dependency on
+anything Fly.io provides:
+
+1. **`MODEL_RANKING_DB` must point at a real file, and the process refuses to boot in production if
+   it does not** (REQ-API-006). There is no managed database in this design and no network call in
+   the serving path — the API reads one SQLite file read-only and never writes it (W-017's
+   containment).
+2. **Ingestion does not run on the serving host.** The pipeline that builds the database runs where
+   the owner runs it today, and the artifact is shipped. This keeps the network-fetching code — and
+   the untrusted-producer boundary W-005 guards — off the public surface entirely.
+3. **`APP_BUILD` is set at build time** so `curl /health | jq .build` answers "which code is live"
+   (L.7). Production refuses to boot without it, for the same reason.
+
+**Rationale for recording it as-is rather than re-opening it.** The owner's stated reason in M4 was
+operational simplicity for a single small read-only service, and nothing measured since contradicts
+it. The PRD's original research named Supabase and Cloudflare Workers; both assume a managed
+datastore or an edge runtime, and this service wants neither — it wants a filesystem and one
+process. Re-litigating a settled owner choice to produce a more impressive ADR would be the kind of
+motion this project has a rule against.
+
+**What this ADR explicitly does NOT authorise:** a deployment. M6 ships deploy READINESS and the
+owner signed the plan on that basis. **W-017 is a named condition of go-live, not a follow-up:** the
+serving snapshot copies the whole database into memory per unauthenticated request, measured at
+roughly 9,100x amplification at today's 761 KB and 450,000x at 51 MB, and the W3 security pass ruled
+it BLOCKING at Stage 4.3 with the closure pass required to re-derive the number independently. **A
+first deploy before that measurement is exactly the shape of decision this ADR exists to prevent
+someone making from a plan sentence.**
+
+**Mitigation if violated:** `validate_startup_config` fails the process closed in production on an
+unset `MODEL_RANKING_DB` or `APP_BUILD`, with citing tests including a real subprocess import.
+
+**Revisit when:** the service acquires state that a filesystem cannot hold, or the amplification in
+W-017 is closed and the traffic shape is known — either of which changes the premise this choice
+rests on.
+
 ## D-117 — Scoped inter-wave commit and push authority for the lead agent
 
 **Status:** ratified — owner directive, 2026-08-17: *"You may also use git to push between waves."*

@@ -186,7 +186,7 @@ The "which $20 plan" answer needs a manually curated plan table with a verificat
 
 ### OQ-3 — Hosting / deploy target
 **Asked of:** owner
-**Status:** open — **DUE NOW.** The API milestone arrived: M6-W4 closes this with ADR **D-116**.
+**Status:** **CLOSED 2026-08-17 by D-116** (Fly.io; the evidence database is a shipped artifact, not a managed datastore). Open for 11 days short of a year of project time and through five milestones, because the decision existed in a plan and its ID pointed at the wrong ADR.
 **Asked on:** 2026-08-06
 Research suggests Supabase or Cloudflare Workers for the serving layer. No decision needed before the API milestone.
 
