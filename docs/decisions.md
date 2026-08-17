@@ -837,4 +837,47 @@ which would mean this is a pattern rather than an incident.
 
 ---
 
+## D-122 — Review depth is calibrated by what the code can get WRONG, not by wave number
+
+**Status:** accepted · **Date:** 2026-08-18 (M7-W1 closure) · **Decided by:** the owner
+
+**Context.** M7-W1 ran three review seats through three rounds and closed thirty BLOCKING findings.
+The findings were real — the shipped artifact had never been built, a rebuild could destroy it, and
+the CI step that was supposed to prove all of it could never pass. But the owner named the cost
+plainly: *"we are not writing avionics"* (owner, translated from Turkish). One wave consumed an
+entire session on a solo project with no users, nothing deployed, no authentication, no personal
+data and no payments.
+
+He had already given this instruction in M6 and the agent did not apply it: adapt the council when
+process cost starts eating delivery, while still fixing anything root-cause.
+
+**Decision.** Depth follows the blast radius of being wrong, not the wave's position in a plan.
+
+**FULL depth — the scoring path.** `rank.py`, `recommend.py`, `categories.py`, `subscribe.py`, the
+serializer, and the `/v1` contract. Separate Code-Reviewer and Tester, fault injection, a citing
+test per criterion. Rationale: this product's entire value is that its advice is correct, and a
+defect here makes a person buy the wrong subscription. The `/v1` contract joins this list rather
+than sitting below it, because the iOS app is the NEXT piece of work and a frozen contract with a
+real consumer is expensive to get wrong.
+
+**SINGLE PASS — plumbing.** Build scripts, CI workflows, `Dockerfile`, `fly.toml`, deploy wiring,
+governance tooling. One reviewer, one round. Findings that survive go to the warnings ledger with an
+owning milestone instead of into another round. Rationale: a defect here costs a red build or a
+failed deploy, both loud and both recoverable, neither of which reaches a user with a wrong answer.
+
+**ROUND CAP — two.** If a second round's findings are located inside the first round's FIXES rather
+than in new surface, the wave stops and the remainder is ledgered. Chasing a third round is how a
+wave stops converging: M7-W1's rounds went 14 → 8 findings, and every round after the first found
+defects the agent had introduced while fixing the previous one.
+
+**What this does NOT relax**, so the boundary is not read as general permission: escalate-now still
+binds (suspected secret, scanner suppression, plan-invalidating scope change); a stay-green mutant
+still earns its mandatory test; a criterion still needs a citing test able to fail; and a root-cause
+defect is fixed regardless of which category it was found in.
+
+**Revisit when:** the product acquires real users, authentication, or payments — any of which moves
+the plumbing into the full-depth column, because a failed deploy stops being recoverable in private.
+
+---
+
 *Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*
