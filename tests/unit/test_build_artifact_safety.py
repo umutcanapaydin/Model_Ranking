@@ -154,6 +154,120 @@ def test_no_workspace_file_survives_either_outcome(
     assert not leftovers, f"build left temporary files behind: {leftovers}"
 
 
+def test_a_successful_rebuild_replaces_the_artifact_and_leaves_nothing_behind(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The other half of the temp-then-rename property, which had no test at re-review.
+
+    Added by the Stage-3b Tester. Every test above proves the OLD artifact SURVIVES a failure.
+    None proved the new one is actually INSTALLED on success, so three mutants stayed green:
+    keeping the stale artifact and discarding the fresh workspace, copying instead of renaming
+    (leaving a 970 KB `.building` file behind on every successful run), and reporting the
+    workspace path to the operator as if it were the artifact.
+
+    `test_no_workspace_file_survives_either_outcome` cannot see the leak because it runs a
+    success and then a FAILURE, and the failure path unlinks the workspace the success left.
+    """
+    target = _good_artifact(tmp_path, capsys)
+    first = sqlite3.connect(f"file:{target}?mode=ro", uri=True)
+    try:
+        before_rows = first.execute("SELECT count(*) FROM scores").fetchone()[0]
+    finally:
+        first.close()
+
+    richer = json.dumps(
+        [
+            {"model": "gpt-5 (high)", "pass_rate_2": 61.0, "edit_format": "diff"},
+            {"model": "claude-4-5-opus", "pass_rate_2": 70.5, "edit_format": "diff"},
+        ]
+    )
+    monkeypatch.setattr(
+        build_mod,
+        "REMOTE_SOURCES",
+        (
+            *_sources()[:2],
+            RemoteSource(
+                name="aider",
+                client=lambda: FakeRawSource("aider", richer),
+                ingest=ingest_aider,
+                parse=lambda _: ([], 0),
+                minimum_rows=1,
+            ),
+        ),
+    )
+
+    assert main(["--db", str(target), "--force"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["path"] == str(target), "the operator was told the workspace path, not the target"
+    assert [p.name for p in tmp_path.iterdir()] == [target.name], (
+        "a SUCCESSFUL build left a workspace file behind"
+    )
+
+    after = sqlite3.connect(f"file:{target}?mode=ro", uri=True)
+    try:
+        after_rows = after.execute("SELECT count(*) FROM scores").fetchone()[0]
+    finally:
+        after.close()
+    assert after_rows > before_rows, (
+        "the --force rebuild reported success but the artifact still holds the OLD evidence"
+    )
+
+
+def test_a_stale_workspace_from_a_killed_run_is_never_reused(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`except BaseException` cannot catch SIGKILL, so a stale workspace IS reachable.
+
+    Added by the Stage-3b Tester: deleting the pre-build `workspace.unlink(missing_ok=True)` left
+    the suite green, and the consequence is precise — `connect()` applies the DDL idempotently, so
+    a previous run's half-written file is opened, built ON TOP of, and then renamed onto the
+    target. That is a partially-populated artifact reaching the operator through a door the
+    temp-then-rename fix opened itself.
+    """
+    target = tmp_path / "resumed.db"
+    stale = target.with_name(target.name + ".building")
+    poisoned = sqlite3.connect(stale)
+    try:
+        poisoned.execute("CREATE TABLE poison_marker (a int)")
+        poisoned.execute("INSERT INTO poison_marker VALUES (1)")
+        poisoned.commit()
+    finally:
+        poisoned.close()
+
+    assert main(["--db", str(target)]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert "poison_marker" not in payload["verified_from_artifact"], (
+        "the build resumed inside a stale workspace instead of starting clean"
+    )
+
+    # AMENDED by the lead agent after the security seat's BLOCKING-4, with the change flagged back
+    # to the Tester seat rather than made quietly. This test originally also asserted the stale
+    # file was DELETED, which was the right assertion against a deterministic `<target>.building`
+    # workspace — there, the stale file and this run's workspace were the same path.
+    #
+    # The workspace name is now unique per run (`tempfile.mkstemp`), because the deterministic name
+    # let two overlapping builds share one path: build A published build B's truncated database
+    # while reporting "built": true with 73 models read back. Under unique names this run cannot
+    # know whether `resumed.db.building` is a dead run's litter or a LIVE sibling build's
+    # workspace, and deleting it would reintroduce exactly the race that was just closed.
+    #
+    # So the property this test pins is the safety one, which is unchanged and is what its name
+    # says: a stale workspace is never built inside. The litter is real, minor, and recorded as
+    # W-028 rather than traded for a corruption bug.
+    assert stale.exists(), (
+        "the build deleted a workspace path it does not own; under unique per-run names that file "
+        "may belong to a live sibling build (see W-028)"
+    )
+    reopened = sqlite3.connect(f"file:{target}?mode=ro", uri=True)
+    try:
+        tables = {r[0] for r in reopened.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    finally:
+        reopened.close()
+    assert "poison_marker" not in tables, "a killed run's leftovers shipped inside the artifact"
+
+
 # --- BLOCKING-2: an exception nobody declared must not produce an artifact ----------------------
 
 
@@ -363,16 +477,37 @@ def test_a_rejected_optional_source_leaves_none_of_its_rows_behind(
     the source as PRESENT and never fires the "no evidence source" disclosure, answering
     confidently from truncated evidence. That defeats the very branch D-121 stakes itself on.
     """
-    hollow = json.dumps([{"model": "gpt-5 (high)", "pass_rate_2": 61.0, "edit_format": "diff"}])
+    # The rejected source is named `deepswe`, NOT `aider`. The first version of this test
+    # registered a SECOND source called `aider` alongside the healthy one, and `reset_source`
+    # deletes by name — so a rollback and a "destroyed the healthy source's rows" bug produced
+    # identical output and the assertion could not tell them apart. Caught by the code-review seat.
+    hollow = json.dumps(
+        {
+            "leaderboards": [
+                {
+                    "name": "Verified",
+                    "results": [
+                        {
+                            "name": "live-SWE-agent + GPT-5",
+                            "resolved": 40.0,
+                            "date": "2025-11-01",
+                            "logs": True,
+                            "trajs": True,
+                        }
+                    ],
+                }
+            ]
+        }
+    )
     monkeypatch.setattr(
         build_mod,
         "REMOTE_SOURCES",
         (
             *_sources(),
             RemoteSource(
-                name="aider",
-                client=lambda: FakeRawSource("aider", hollow),
-                ingest=ingest_aider,
+                name="rejected-probe",
+                client=lambda: FakeRawSource("rejected-probe", hollow),
+                ingest=ingest_swebench,
                 parse=lambda _: ([], 0),
                 minimum_rows=10_000,  # forces rejection AFTER the rows are written
                 required=False,
@@ -388,9 +523,99 @@ def test_a_rejected_optional_source_leaves_none_of_its_rows_behind(
 
     conn = sqlite3.connect(f"file:{target}?mode=ro", uri=True)
     try:
-        rows = conn.execute(
-            "SELECT count(*) FROM scores WHERE source = 'aider'"
+        rejected = conn.execute(
+            "SELECT count(*) FROM scores WHERE source = 'rejected-probe'"
         ).fetchone()[0]
+        healthy = conn.execute("SELECT count(*) FROM scores WHERE source = 'aider'").fetchone()[0]
     finally:
         conn.close()
-    assert rows == 0, f"a rejected source left {rows} rows in the artifact"
+    assert rejected == 0, f"a rejected source left {rejected} rows in the artifact"
+    assert healthy > 0, "the rollback destroyed a HEALTHY source's rows, which is the other bug"
+
+
+def test_a_rejected_source_leaves_none_of_its_PRICING_rows_behind(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The other table the rollback clears, and the half no test reached.
+
+    Added by the Stage-3b Tester: narrowing the rollback to `("scores",)` alone left the suite
+    green, because the only rollback test rejects `aider`, which writes scores and never pricing.
+    Pricing is the more consequential half — `build_price_medians` reads it, so a rejected feed's
+    prices go on to set the median reference price for every model the artifact ranks. The rows
+    are invisible to `source_health` (which reads `scores`), so nothing downstream discloses them.
+    """
+    monkeypatch.setattr(
+        build_mod,
+        "REMOTE_SOURCES",
+        (
+            *_sources(),
+            RemoteSource(
+                name="litellm_beta",
+                client=lambda: FakeRawSource("litellm_beta", PRICING),
+                ingest=ingest_litellm,
+                parse=lambda _: ([], 0),
+                minimum_rows=10_000,  # forces rejection AFTER the pricing rows are written
+                required=False,
+            ),
+        ),
+    )
+    target = tmp_path / "priced.db"
+
+    assert main(["--db", str(target)]) == 3
+    capsys.readouterr()
+
+    conn = sqlite3.connect(f"file:{target}?mode=ro", uri=True)
+    try:
+        rejected = conn.execute(
+            "SELECT count(*) FROM pricing WHERE source = 'litellm_beta'"
+        ).fetchone()[0]
+        kept = conn.execute("SELECT count(*) FROM pricing WHERE source = 'litellm'").fetchone()[0]
+    finally:
+        conn.close()
+
+    assert rejected == 0, f"a rejected source left {rejected} pricing rows feeding px_median"
+    assert kept > 0, "the rollback took the accepted source's rows with it"
+
+
+def test_a_rejected_source_leaves_no_pricing_rows_either(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """MR3: narrowing the rollback to `("scores",)` stayed green — pricing had no test.
+
+    A rejected PRICING source's rows would survive into `build_price_medians`, so the artifact's
+    reference prices (REQ-CAN-003) would be computed partly from a feed the build declared
+    unusable. Different table, same defect as MINOR-1, and it needed its own citing test.
+    """
+    thin = json.dumps(
+        {"solo-model": {"mode": "chat", "input_cost_per_token": 1e-06, "output_cost_per_token": 2e-06}}
+    )
+    monkeypatch.setattr(
+        build_mod,
+        "REMOTE_SOURCES",
+        (
+            *_sources(),
+            RemoteSource(
+                name="thin-pricing",
+                client=lambda: FakeRawSource("thin-pricing", thin),
+                ingest=ingest_litellm,
+                parse=lambda _: ([], 0),
+                minimum_rows=10_000,
+                required=False,
+            ),
+        ),
+    )
+    target = tmp_path / "pricing_rollback.db"
+
+    assert main(["--db", str(target)]) == 3
+    capsys.readouterr()
+
+    conn = sqlite3.connect(f"file:{target}?mode=ro", uri=True)
+    try:
+        rejected = conn.execute(
+            "SELECT count(*) FROM pricing WHERE source = 'thin-pricing'"
+        ).fetchone()[0]
+        healthy = conn.execute("SELECT count(*) FROM pricing WHERE source = 'litellm'").fetchone()[0]
+    finally:
+        conn.close()
+    assert rejected == 0, f"a rejected pricing source left {rejected} rows for the medians to use"
+    assert healthy > 0, "the rollback destroyed the healthy pricing source"

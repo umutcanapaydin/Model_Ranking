@@ -440,6 +440,38 @@ def test_the_blinded_surface_list_is_derived_from_categories_not_typed() -> None
         assert surface in actions[0]
 
 
+def test_the_bundles_parameter_is_honoured_over_the_module_registry(tmp_path: Path) -> None:
+    """The injection point this fix ADDED, which nothing proved was wired.
+
+    Added by the Stage-3b Tester at re-review. `build()` gained `bundles=` precisely so the local
+    bundle SUCCESS path could be driven through the real entry point — yet replacing the forwarded
+    argument with a hard-coded `None` left the whole suite green, because every bundle test
+    monkeypatches `build_mod.LOCAL_BUNDLES` instead and would pass either way. An injection point
+    that cannot be shown to inject is the defect this module's own docstring calls the project's
+    most-repeated one.
+    """
+    from app.workflows.ingest import SourceReport
+    from app.workflows.sources import LocalBundle
+
+    class _Client:
+        def __init__(self, _dir: object, *, last_verified: str) -> None:
+            self.last_verified = last_verified
+
+    injected = LocalBundle(
+        name="epoch_deepswe_external",
+        client_type=_Client,
+        ingest=lambda *_a, **_k: SourceReport(source="injected-bundle", stored=4, skipped=0),
+        reason="fixture",
+    )
+    conn = connect(":memory:")
+    report = _build(conn, bundle_dir=tmp_path, bundles=(injected,))
+
+    assert report.required_operator_actions == [], (
+        "the module registry was used instead of the injected bundles"
+    )
+    assert any(r.source == "injected-bundle" and r.stored == 4 for r in report.sources)
+
+
 def test_an_unknown_failed_source_still_reports_rather_than_vanishing() -> None:
     """A source no category names must not produce an empty action list."""
     actions = build_mod._surfaces_left_without_evidence(["not-a-real-source: down"])

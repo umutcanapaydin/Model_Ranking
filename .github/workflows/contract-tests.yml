@@ -87,13 +87,26 @@ jobs:
         # run, forever, and the three steps below it never executed. Three review seats found that
         # independently: this wave replaced an unrun step with an unpassable one, and a permanently
         # red step is how a `continue-on-error` gets added later (V4C-13).
+        # SECOND correction, found by all three seats independently. The version above this one
+        # added `set -o pipefail` in order to READ the exit code -- and that single line is what
+        # made the handler unreachable. GitHub runs `run:` blocks as `bash -e {0}`, so under
+        # errexit a pipeline carrying status 3 terminates the script immediately: the assignment
+        # below it and the whole `if` never executed. The step stayed red on every run, now with a
+        # comment above it explaining that it no longer did.
+        #
+        # `|| code=$?` keeps the failure from tripping errexit at all, which is the only shape that
+        # works under `bash -e`. Verified by EXECUTING this block under `bash -e` with a stubbed
+        # `python` on PATH, not by reading it -- the YAML text was correct and the shell was not.
         run: |
-          set -o pipefail
-          python -m app.workflows.build --db ci_advisor.db | tee build-report.json
-          code=${PIPESTATUS[0]}
+          code=0
+          python -m app.workflows.build --db ci_advisor.db > build-report.json || code=$?
+          cat build-report.json
           if [ "$code" = "3" ]; then
             echo "::notice::built with degraded evidence (expected on a runner: no Epoch bundle)"
-            python -c "import json;[print('  ACTION:',a) for a in json.load(open('build-report.json'))['required_operator_actions']]"
+            # `|| true`: this line REPORTS, it does not gate. Without it a malformed report or a
+            # non-zero interpreter aborts the step under `bash -e`, and we are back to a
+            # permanently red step for a reason unrelated to the build.
+            python -c "import json;[print('  ACTION:',a) for a in json.load(open('build-report.json'))['required_operator_actions']]" || true
           elif [ "$code" != "0" ]; then
             echo "::error::build failed with exit $code"
             exit "$code"

@@ -107,6 +107,42 @@ def test_every_source_a_category_names_as_primary_exists_in_the_registry() -> No
     assert not unknown, f"categories name primary sources the registry does not define: {unknown}"
 
 
+def test_a_registry_name_matches_the_name_its_client_writes_rows_under() -> None:
+    """The join key the M7-W1 rejection-rollback silently depends on.
+
+    Added by the Stage-3b Tester at re-review. `build.py` rolls a rejected source back with
+    `reset_source(conn, table, source.name)` — the REGISTRY's name — while `ingest.py` writes every
+    row under `source.name` of the CLIENT. Those are two different objects that happen to agree
+    today, and nothing asserted it: if they ever diverge the rollback deletes nothing, the rejected
+    feed's rows stay in the artifact, `source_health` then reports the source as PRESENT, and the
+    serving path's "no evidence source" disclosure never fires. That is the exact chain D-121
+    stakes itself on, broken by a name mismatch nobody would look for.
+    """
+    for source in REMOTE_SOURCES:
+        client = source.client()
+        assert client.name == source.name, (
+            f"registry calls it {source.name!r} but its client writes rows as {client.name!r}; "
+            "the rejection rollback keys on the registry name and would delete nothing"
+        )
+
+
 def test_source_names_are_unique() -> None:
     names = [source.name for source in REMOTE_SOURCES]
     assert len(names) == len(set(names)), f"duplicate source names: {names}"
+
+
+def test_the_registry_name_matches_the_client_name_it_rolls_back_by() -> None:
+    """MINOR-6: the rollback's join key is asserted, not assumed.
+
+    `_ingest_sources` rolls a rejected source back with `reset_source(conn, table, source.name)` —
+    the REGISTRY name. The rows were written under `client.name`. All five agree today and nothing
+    said so, which is the same silent-divergence class this file exists for: if a registry entry is
+    ever renamed without its client, the rollback stops matching and MINOR-1 comes back with no
+    test to notice.
+    """
+    for source in REMOTE_SOURCES:
+        client_name = getattr(source.client(), "name", None)
+        assert client_name == source.name, (
+            f"registry calls it {source.name!r} but its client writes rows as {client_name!r}; "
+            "the rejected-source rollback joins on the registry name and would miss them"
+        )

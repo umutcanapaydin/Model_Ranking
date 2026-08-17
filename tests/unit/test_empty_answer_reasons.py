@@ -138,6 +138,42 @@ def test_a_surface_with_no_evidence_source_says_so_and_does_not_blame_the_budget
     assert answer["source_health"]["stale"] is True  # type: ignore[index]
 
 
+def test_a_surface_with_evidence_but_nothing_affordable_blames_the_budget(
+    served_db: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The OTHER branch, which this wave accidentally left with no citing test at all.
+
+    Added by the Stage-3b Tester at re-review. Before M7-W1 the budget sentence was covered by
+    `test_api_v1.py:598`, which asserts `unavailable_reason` is truthy on an EMPTY database. The
+    new no-evidence branch fires first on an empty database, so that assertion moved onto the new
+    branch and the budget branch was left uncovered — `main.py:752` is a missing line, and six
+    separate mutants of the branch condition and of the budget sentence itself all stayed green,
+    including returning `None` as the reason.
+
+    A fix that silently un-covers the path it forked from is the V3C-86 shape arrived at by
+    accident, so the pin is the pair: same request, both branches, different sentences.
+    """
+    monkeypatch.setenv("MODEL_RANKING_DB", str(served_db))
+    monkeypatch.setenv("APP_ENV", "test")
+
+    answers = {a["surface"]: a for a in _answers(served_db, "coding", budget="low")}
+    coding = answers["coding"]
+    agentic = answers["agentic-coding"]
+
+    assert coding["picks"] == [], "fixture assumption: nothing on coding fits the low budget"
+    budget_reason = str(coding["unavailable_reason"])
+    assert budget_reason, "a surface WITH evidence and no affordable model must still say why"
+    assert "budget" in budget_reason.lower()
+    assert "no evidence" not in budget_reason.lower(), (
+        "the budget branch is serving the evidence-gap sentence; the two causes have collapsed "
+        "back into one blanket explanation"
+    )
+
+    gap_reason = str(agentic["unavailable_reason"])
+    assert "no evidence" in gap_reason.lower()
+    assert gap_reason != budget_reason, "one payload must not give one cause for two conditions"
+
+
 def test_the_two_reasons_are_not_the_same_sentence(
     served_db: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

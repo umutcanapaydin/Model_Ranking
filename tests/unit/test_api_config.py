@@ -688,7 +688,13 @@ def test_the_repositorys_own_artifact_is_checked_not_assumed() -> None:
 
     artifact = Path("advisor.db")
     if not artifact.exists():
-        pytest.skip("advisor.db is not present in this checkout")
+        pytest.skip(
+            "advisor.db is not present in this checkout. It is gitignored and mounted at\n"
+            "deploy time (D-116), so this guard protects the OWNER'S machine only: CI\n"
+            "cannot check an artifact CI does not have. What protects a deploy is the\n"
+            "startup probe in adapter.main, which refuses to boot on an unusable database.\n"
+            "Recorded as W-029 so the gap is stated rather than inferred from a skip."
+        )
 
     problem = adapter._database_unusable(artifact)
     assert problem is None, (

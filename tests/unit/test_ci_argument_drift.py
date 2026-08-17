@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import pathlib
 import re
+import subprocess
 
 import pytest
 import yaml
@@ -127,3 +128,75 @@ def test_the_module_check_can_fail() -> None:
     offences = unresolvable_modules(bad)
     assert len(offences) == 1
     assert "app.workflows.builder" in offences[0]
+
+
+def _build_step_script() -> str:
+    """The one `run:` block that invokes the builder, straight out of the workflow."""
+    for _name, script in _run_scripts():
+        if "app.workflows.build " in script and "build-report.json" in script:
+            return script
+    msg = "the build step is no longer findable in the workflows"
+    raise AssertionError(msg)
+
+
+@pytest.mark.parametrize("exit_code", [0, 3])
+def test_the_build_step_survives_its_own_exit_codes_under_bash_e(
+    exit_code: int, tmp_path: pathlib.Path
+) -> None:
+    """EXECUTE the step under `bash -e`, because reading it is what missed the bug.
+
+    All three review seats found the same defect and none of them could have found it from the
+    YAML: the text was correct. GitHub runs `run:` blocks as `bash -e {0}`, and the previous
+    version's `set -o pipefail` made a status-3 pipeline abort the script before its own exit-code
+    handler — so the step stayed red on every run while claiming to tolerate exit 3.
+
+    Exit 3 is the NORMAL outcome on a runner (D-101: no Epoch bundle there), so a step that cannot
+    survive 3 is a step that never passes.
+    """
+    stub = tmp_path / "python"
+    stub.write_text(
+        "#!/bin/sh\n"
+        'printf \'{"built": true, "required_operator_actions": ["stub"]}\\n\'\n'
+        f"exit {exit_code}\n",
+        encoding="utf-8",
+    )
+    stub.chmod(0o755)
+
+    script = tmp_path / "step.sh"
+    script.write_text(_build_step_script(), encoding="utf-8")
+
+    proc = subprocess.run(
+        ["/bin/bash", "-e", str(script)],
+        cwd=tmp_path,
+        env={"PATH": f"{tmp_path}:/usr/bin:/bin", "HOME": str(tmp_path)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 0, (
+        f"the build step exits {proc.returncode} when the builder exits {exit_code}; "
+        f"under `bash -e` this step can never pass.\nstdout: {proc.stdout}\nstderr: {proc.stderr}"
+    )
+    if exit_code == 3:
+        assert "::notice::" in proc.stdout, "the degraded-build notice never printed"
+
+
+def test_the_build_step_still_fails_on_a_real_failure(tmp_path: pathlib.Path) -> None:
+    """Tolerating 3 must not have turned the step into one that tolerates everything."""
+    stub = tmp_path / "python"
+    stub.write_text("#!/bin/sh\nprintf '{\"built\": false}\\n'\nexit 2\n", encoding="utf-8")
+    stub.chmod(0o755)
+    script = tmp_path / "step.sh"
+    script.write_text(_build_step_script(), encoding="utf-8")
+
+    proc = subprocess.run(
+        ["/bin/bash", "-e", str(script)],
+        cwd=tmp_path,
+        env={"PATH": f"{tmp_path}:/usr/bin:/bin", "HOME": str(tmp_path)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2, "a real build failure must still fail the step"

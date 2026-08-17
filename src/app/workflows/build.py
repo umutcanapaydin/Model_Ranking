@@ -30,9 +30,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sqlite3
 import sys
+import tempfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -207,6 +209,12 @@ def _ingest_bundles(
                 msg = f"stored 0 rows from {bundle_dir}"
                 raise SourceError(msg)
         except (SourceError, OSError) as exc:
+            # Same rollback as a rejected remote source (MINOR-1), and the reason applies harder
+            # here: `epoch_deepswe_external` is the sole primary evidence for `agentic-coding`, so
+            # a partial bundle left in place would make that surface answer from fragments while
+            # the build reports it as having none.
+            for table in ("pricing", "scores"):
+                reset_source(conn, table, bundle.name)
             missing.append(f"{bundle.name}: {exc}")
             continue
         results.append(result)
@@ -382,8 +390,17 @@ def main(argv: list[str] | None = None) -> int:
     # the target is only ever replaced by a database that finished. `except BaseException` is
     # deliberate and not over-broad — whatever kills this process, including KeyboardInterrupt and
     # MemoryError, must not leave a partial artifact behind.
-    workspace = target.with_name(target.name + ".building")
-    workspace.unlink(missing_ok=True)
+    # The workspace name is UNIQUE PER RUN, and the first version's was not. With a deterministic
+    # `<target>.building`, two overlapping builds shared one path: the security seat drove build A
+    # to completion — `"built": true`, 73 models read back — while build B truncated the same file
+    # underneath it, and A then published B's empty database. **Trap 1's artifact, from a
+    # successful build**, because `_read_back` validates the CONNECTION and `replace()` acts on the
+    # PATH. SQLite's unlink detection kills the loser of a natural race, which protects the loser
+    # and not the target, and a ~60 s build makes overlap ordinary rather than exotic.
+    handle, raw = tempfile.mkstemp(prefix=f"{target.name}.", suffix=".building", dir=target.parent)
+    os.close(handle)
+    workspace = Path(raw)
+    workspace.unlink()  # sqlite wants to create it; mkstemp only reserved the name
 
     conn: sqlite3.Connection | None = None
     try:
@@ -398,7 +415,11 @@ def main(argv: list[str] | None = None) -> int:
         if conn is not None:
             conn.close()
         workspace.unlink(missing_ok=True)
-        if isinstance(exc, (BuildError, SourceError, sqlite3.Error, OSError, ValueError)):
+        # `ValueError` was in this tuple with no reachable trigger, and the comment beside
+        # it said the opposite of what it did. The Tester seat's R62 makes the direction
+        # explicit: WIDENING this catch is the dangerous move, because every class added
+        # here turns a builder bug into a tidy exit 2 that reads like a bad input.
+        if isinstance(exc, (BuildError, SourceError, sqlite3.Error, OSError)):
             print(json.dumps({"error": str(exc), "built": False}))
             return 2
         # Anything else is a bug in this builder rather than a bad input. The artifact is already
@@ -408,7 +429,16 @@ def main(argv: list[str] | None = None) -> int:
         if conn is not None:
             conn.close()
 
-    workspace.replace(target)
+    # The publish itself can fail (EPERM, a read-only directory), and when it did it left a
+    # complete database at the workspace path plus an uncaught traceback — the one added line that
+    # sat outside the guard. It is inside now: the target is still never corrupted, and a failed
+    # publish cleans up after itself instead of leaving a 929 KB file nobody will recognise.
+    try:
+        workspace.replace(target)
+    except OSError as exc:
+        workspace.unlink(missing_ok=True)
+        print(json.dumps({"error": f"could not publish to {target}: {exc}", "built": False}))
+        return 2
 
     payload = report.as_json()
     payload["built"] = True

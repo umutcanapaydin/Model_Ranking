@@ -43,6 +43,7 @@ from fastapi.responses import JSONResponse
 
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.coverage import SOURCE_STALE_DAYS, source_health
+from app.workflows.rank import category_ranking
 from app.workflows.recommend import BUDGETS, Pick, Recommendation, recommend
 from app.workflows.serialize import recommendation_json
 
@@ -740,12 +741,20 @@ def _answer_for(
         # false cause served beside the true one invalidates the ADR rather than inconveniencing
         # it. An evidence engine with no evidence fails CLOSED on the question (V3C-33/45): it says
         # it cannot answer, rather than implying it looked and found nothing.
-        if not health.get("sources"):
+        # **The predicate asks whether evidence reached the RANKING, not whether rows landed in a
+        # table**, and the difference is a finding rather than a refinement. The first version
+        # tested `health["sources"]`, which is non-empty as soon as a single row exists under this
+        # benchmark — including a row whose model name never reconciled to the registry and so
+        # never entered `category_ranking`. The security seat reached that state deliberately: one
+        # unreconciled arena row put the surface back on the budget sentence with nothing ranked.
+        # `minimum_rows` counts rows STORED, not rows usable, and the build's reconciliation floor
+        # is global rather than per-benchmark, so nothing upstream rules the state out.
+        if not category_ranking(conn, spec):
             return _answer_json(
                 spec,
                 None,
-                f"This surface has no evidence at all: no {spec.primary_benchmark} source is "
-                "present in the served database, so nothing was ranked and no budget was applied. "
+                f"This surface has no evidence to rank: nothing on {spec.primary_benchmark} "
+                "reached the ranking in the served database, so no budget was applied. "
                 "This is a gap in the evidence, not a result.",
                 health,
             )
