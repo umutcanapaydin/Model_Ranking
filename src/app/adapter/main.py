@@ -83,49 +83,26 @@ PRODUCTION_ENVS = frozenset({"production", "prod"})
 #: inverted this default.
 RELAXED_ENVS = frozenset({"development", "dev", "test", "local"})
 
-# --- W-017 containment, made explicit rather than inherited (Stage 4.0 conditions) ------------------
+# --- W-017 is CLOSED (M7-W3), and the budget machinery went with it -------------------------------
 #
-# `serving_snapshot` copies the whole evidence database into memory for the duration of a request.
-# Three passes measured the amplification and got three answers — ~450,000x, ~9,100x, ~47,000x —
-# and the closure review explained why: the ratio is dominated by DATABASE SIZE, an operator
-# variable an attacker cannot move. **So the per-byte ratio is the wrong quantity to gate on.** The
-# one that decides whether the process survives is the ceiling:
+# M6 could not fix the write-while-serving defect -- its signed plan forbade engine changes -- so it
+# CONTAINED it by copying the database into memory per request, and then spent a Stage-4.0 round
+# deriving a memory ceiling for that copy: an RSS factor, a VM budget, a process baseline, a
+# concurrency cap, and a derived `max_database_bytes()`. Every one of those constants existed to
+# size a copy that no longer happens.
 #
-#     peak memory  ~=  concurrency  x  RSS_FACTOR  x  database size
+# M7-W2 removed the write; M7-W3 removed the copy. The serving path now opens the operator's file
+# read-only and reads it. **A ceiling for a copy that does not happen is a control with nothing
+# behind it**, so the constants are deleted rather than left at comfortable values -- keeping them
+# would leave a future reader tuning a budget that governs nothing.
 #
-# Every term is now declared instead of inherited. Before this, concurrency was 40 — AnyIO's default
-# thread-pool limiter, which nothing in this project had chosen — and the memory budget was whatever
-# the host happened to give, with `fly.toml` declaring no VM size at all.
+# What DOES still bound this process is the thread-pool limiter, which is a real property of the
+# server regardless of snapshots: sync handlers run on AnyIO's pool, whose default of 40 is a
+# number nobody in this project chose.
 
-#: Resident bytes held per in-flight request, per byte of database. Measured end-to-end by the
-#: Stage-4.0 review at 2.09 (SQLite's page cache plus the engine's own writes into the copy).
-#: Rounded UP, because a containment budget that uses the optimistic figure is not a budget.
-RSS_FACTOR = 2.2
-
-#: How many requests may hold a snapshot at once. Sync `def` handlers run on AnyIO's thread pool, so
-#: this is set on the limiter at startup — otherwise the real cap is AnyIO's default of 40, which is
-#: a number nobody in this project chose and `fly.toml` was contradicting with `hard_limit = 8`.
+#: How many requests may execute a handler at once. Set on AnyIO's limiter at startup; `fly.toml`
+#: ties its edge concurrency to the same number, and a test fails if the two drift.
 MAX_CONCURRENT_REQUESTS = int(os.environ.get("MODEL_RANKING_MAX_CONCURRENCY", "8"))
-
-#: The memory this process is allowed to reach, in MiB. Default 256 matches Fly.io's default VM,
-#: so the out-of-the-box configuration is the one the budget describes rather than a happier one.
-MEMORY_BUDGET_MB = int(os.environ.get("MODEL_RANKING_MEMORY_BUDGET_MB", "256"))
-
-#: What the process costs before it holds a single snapshot — interpreter, framework, engine.
-#: Measured by the Stage-4.0 re-review at 60.9 MiB. **Subtracted, because the first version of this
-#: budget spent 100% of the VM on snapshots and left nothing for the process doing the serving:
-#: at the declared ceiling it needed ~317 MiB on a 256 MiB machine, a gate permissive by ~31%.**
-PROCESS_BASELINE_MB = int(os.environ.get("MODEL_RANKING_PROCESS_BASELINE_MB", "70"))
-
-
-def max_database_bytes() -> int:
-    """The largest database this process may serve without exceeding its declared budget.
-
-    Derived, never typed: change the concurrency cap or the memory budget and this moves with them.
-    A hand-written byte limit would be the fifth typed-out constant this milestone had to replace.
-    """
-    available = max(MEMORY_BUDGET_MB - PROCESS_BASELINE_MB, 0) * 1024 * 1024
-    return int(available / (MAX_CONCURRENT_REQUESTS * RSS_FACTOR))
 
 
 class ConfigError(RuntimeError):
@@ -294,18 +271,13 @@ def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
         if problem:
             problems.append(problem)
 
-        # W-017 condition (a): the ceiling is linear in a file nothing was measuring. Now it is
-        # measured at startup, against a budget derived from the other two declared terms.
-        size = db.stat().st_size
-        budget = max_database_bytes()
-        if size > budget:
-            problems.append(
-                f"MODEL_RANKING_DB is {size} bytes; at {MAX_CONCURRENT_REQUESTS} concurrent "
-                f"requests and a {MEMORY_BUDGET_MB} MiB budget this process may serve at most "
-                f"{budget} bytes (W-017: each in-flight request holds ~{RSS_FACTOR}x the file in "
-                "memory). Raise MODEL_RANKING_MEMORY_BUDGET_MB with the VM, lower "
-                "MODEL_RANKING_MAX_CONCURRENCY, or bound the snapshot"
-            )
+        # The database-size ceiling was DELETED at M7-W3 along with the snapshot it existed for.
+        # It refused to boot when `size > concurrency x RSS_FACTOR x budget`, which was the right
+        # check while every in-flight request held a private in-memory COPY of the file. Nothing
+        # copies now: the serving path reads the operator's database directly and the process
+        # holds SQLite's page cache, not the file. Keeping the check would refuse to boot on a
+        # perfectly servable artifact for a cost the process no longer pays, and keeping it "just
+        # in case" is how a gate outlives its reason and starts blocking correct configurations.
 
     if strict and APP_BUILD == "unknown":
         problems.append(
@@ -402,34 +374,19 @@ async def _unhandled(request: Any, exc: Exception) -> JSONResponse:
     return response
 
 
-def serving_snapshot(path: Path) -> sqlite3.Connection:
-    """A private in-memory copy of the operator's database, for one request to compute against.
-
-    **Why this exists, stated plainly because it is a workaround and workarounds rot when the
-    reason is lost.** `recommend()` is a read API that WRITES: `build_price_medians` does
-    `DELETE FROM px_median` + `INSERT` on every call (`rank.py:143-170`). M5's closure security
-    review already recorded this as NOTE-7 / MINOR-3 — `recommend.main` opens a read-write handle
-    *correctly*, because the engine genuinely writes.
-
-    An HTTP surface cannot. Serving from a read-write handle would let an anonymous GET rewrite
-    the operator's table, and `schema.connect()` would migrate the file on top of that (W-009).
-
-    So the file is opened READ-ONLY and copied into memory; the engine writes into the copy, which
-    is discarded when the request ends. The operator's bytes are never touched — asserted by
-    `test_the_api_never_writes_to_the_database`.
-
-    **This does not fix the defect, it contains it.** The real fix is to let the median computation
-    run without writing, which is an engine change M6-W1 is not allowed to make (the signed plan:
-    "if a route needs the engine to behave differently, that is a finding"). Filed as such.
-    """
-    source = open_readonly(path)
-    try:
-        memory = sqlite3.connect(":memory:")
-        source.backup(memory)
-    finally:
-        source.close()
-    return memory
-
+# `serving_snapshot` was DELETED at M7-W3, and W-017 closed with it.
+#
+# It copied the whole evidence database into memory for every unauthenticated GET, because
+# `recommend()` wrote on every call and an HTTP surface cannot serve from a read-write handle. That
+# containment was measured at roughly 47,000x amplification and named by D-116 as a condition of
+# go-live. Three security passes derived three different numbers for it and the closure review
+# explained why: the ratio is dominated by database SIZE, an operator variable an attacker cannot
+# move, so the per-byte figure was never the quantity that decided anything.
+#
+# **The amplification is not bounded now, it is gone.** M7-W2 moved the median build into
+# `app.workflows.build`, so the serving path performs no write at all and reads the operator's file
+# directly through `open_readonly`. Nothing is copied, so there is no ceiling to compute and no
+# budget to tune -- the machinery that existed only to size that copy went with it.
 
 def _echo(value: str, limit: int = 40) -> str:
     """Attacker-controlled text going back out. Bounded, and bounded visibly."""
@@ -849,7 +806,8 @@ def recommendations(
 
     surfaces = CODING_INTENT if task == "coding" else (task,)
     try:
-        conn = serving_snapshot(path)
+        # Direct read-only handle: nothing is copied, because nothing writes.
+        conn = open_readonly(path)
     except sqlite3.Error:
         return _error(503, "evidence_unavailable", "The evidence database is not available.")
     try:

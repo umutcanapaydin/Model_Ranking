@@ -474,6 +474,96 @@ def test_a_database_that_does_not_exist_fails_closed(
     assert adapter.validate_startup_config(env="production") == ()
 
 
+def test_the_concurrency_cap_is_chosen_and_the_edge_agrees_with_it() -> None:
+    """RESTORED at M7-W3, and the restoration is the finding.
+
+    I deleted three tests when the memory-budget machinery went, on the grounds that they guarded a
+    control that no longer exists. One of them also guarded a control that DOES still exist — the
+    agreement between the process's concurrency cap and `fly.toml`'s edge `hard_limit` — and two
+    mutants walked straight through the gap: setting the cap back to AnyIO's unchosen default of
+    40, and drifting the edge limit to 32. Neither has anything to do with snapshots.
+
+    The docstring of the test that replaced them says deleting a test quietly is how a control
+    disappears without anyone deciding it should. That is what happened, in the same change.
+
+    Why the agreement matters without W-017: `hard_limit` is what the EDGE will admit, and
+    MAX_CONCURRENT_REQUESTS is what the process will actually run at once. If the edge admits more
+    than the process runs, the surplus queues inside the app instead of being shed at the edge,
+    and latency degrades in the place with the least visibility.
+    """
+    import re
+    from pathlib import Path
+
+    import app.adapter.main as adapter
+
+    assert adapter.MAX_CONCURRENT_REQUESTS == 8, (
+        "the concurrency cap is a CHOSEN number; AnyIO's default of 40 is what this replaced"
+    )
+
+    fly = Path("fly.toml").read_text(encoding="utf-8")
+    # Comments are stripped: an M6 review found this exact assertion matching `hard_limit = 8`
+    # inside a comment while the live value differed.
+    live = "\n".join(line.split("#", 1)[0] for line in fly.splitlines())
+
+    hard = re.search(r"hard_limit\s*=\s*(\d+)", live)
+    assert hard, "fly.toml declares no hard_limit"
+    assert int(hard.group(1)) == adapter.MAX_CONCURRENT_REQUESTS, (
+        f"the edge admits {hard.group(1)} concurrent requests while the process runs "
+        f"{adapter.MAX_CONCURRENT_REQUESTS}; the surplus queues inside the app"
+    )
+
+    env = re.search(r"MODEL_RANKING_MAX_CONCURRENCY\s*=\s*\"(\d+)\"", live)
+    assert env and int(env.group(1)) == adapter.MAX_CONCURRENT_REQUESTS
+
+
+def test_w017_is_closed_by_deletion_not_by_a_bounded_copy() -> None:
+    """W-017: the serving path holds no copy of the database, so there is no ceiling to tune.
+
+    Three of this file's tests were REMOVED at M7-W3, and they are named here because deleting a
+    test quietly is how a control disappears without anyone deciding it should:
+
+      * `test_the_servable_database_size_is_derived_from_the_declared_budget`
+      * `test_a_database_larger_than_the_budget_refuses_to_boot`
+      * `test_the_declared_numbers_agree_with_the_deploy_proposal`
+
+    All three guarded `max_database_bytes()` and the constants behind it — `RSS_FACTOR`,
+    `MEMORY_BUDGET_MB`, `PROCESS_BASELINE_MB` — which existed for exactly one reason: every
+    in-flight request held a private in-memory COPY of the evidence database, and the process had
+    to refuse to boot on a file too large to copy that many times.
+
+    M7-W2 removed the write that forced the copy; M7-W3 removed the copy. **A ceiling for a copy
+    that does not happen is a control with nothing behind it**, and keeping it would refuse to boot
+    on a perfectly servable artifact. So the tests go with the code, and this one replaces them by
+    asserting the property that made them unnecessary.
+    """
+    import ast
+    from pathlib import Path
+
+    import app.adapter.main as adapter
+
+    source = Path("src/app/adapter/main.py").read_text(encoding="utf-8")
+
+    assert not hasattr(adapter, "serving_snapshot"), (
+        "serving_snapshot is back; W-017's amplification returns with it"
+    )
+    for gone in ("max_database_bytes", "RSS_FACTOR", "MEMORY_BUDGET_MB", "PROCESS_BASELINE_MB"):
+        assert not hasattr(adapter, gone), (
+            f"{gone} is back — it only ever sized a copy the serving path no longer makes"
+        )
+
+    # The mechanism, not the name: nothing in the adapter may copy a database into memory.
+    tree = ast.parse(source)
+    backups = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "backup"
+    ]
+    assert not backups, "the adapter calls sqlite3 backup(); that is the snapshot, renamed"
+    assert ":memory:" not in source, "the adapter opens an in-memory database again"
+
+
 def test_the_allowlist_actually_filters_an_undeclared_field(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
@@ -525,60 +615,6 @@ def test_the_allowlist_actually_filters_an_undeclared_field(
 # --------------------------------------------------------- W-017's three conditions (Stage 4.0)
 
 
-def test_the_servable_database_size_is_derived_from_the_declared_budget() -> None:
-    """W-017 condition (a): the ceiling was linear in a file nothing measured.
-
-    Three review passes measured the amplification and got ~450,000x, ~9,100x and ~47,000x. They
-    disagreed because the ratio is dominated by DATABASE SIZE — an operator variable an attacker
-    cannot move — which is why the per-byte ratio is the wrong quantity to gate on. The quantity
-    that decides whether the process survives is concurrency x RSS factor x file size, and every
-    term of it is now declared.
-    """
-    import app.adapter.main as adapter
-
-    available = max(adapter.MEMORY_BUDGET_MB - adapter.PROCESS_BASELINE_MB, 0) * 1024 * 1024
-    expected = int(available / (adapter.MAX_CONCURRENT_REQUESTS * adapter.RSS_FACTOR))
-    assert adapter.max_database_bytes() == expected
-    # Derived, not typed: move either declared term and the limit moves with it.
-    assert expected != 0
-
-
-def test_a_database_larger_than_the_budget_refuses_to_boot(
-    monkeypatch: pytest.MonkeyPatch, tmp_path
-) -> None:
-    """W-017 condition (a), on a real file: a refresh that outgrows the machine fails at DEPLOY.
-
-    The alternative is what the deploy proposals shipped before this: a process that boots happily
-    and exhausts its VM under the first burst of traffic.
-    """
-    import app.adapter.main as adapter
-
-    monkeypatch.delenv("MODEL_RANKING_CORS_ORIGINS", raising=False)
-    monkeypatch.setattr(adapter, "APP_BUILD", "deadbee")
-
-    # A REAL database, padded past the budget — writing zeros would now be refused as "not a
-    # model_ranking database", which would pass this test for the wrong reason.
-    from app.workflows.schema import connect
-
-    oversized = tmp_path / "huge.db"
-    conn = connect(str(oversized))
-    conn.execute("CREATE TABLE _ballast (blob BLOB)")
-    chunk = b"\0" * 1_000_000
-    while oversized.stat().st_size <= adapter.max_database_bytes():
-        conn.execute("INSERT INTO _ballast (blob) VALUES (?)", (chunk,))
-        conn.commit()
-    conn.close()
-    monkeypatch.setenv("MODEL_RANKING_DB", str(oversized))
-    with pytest.raises(adapter.ConfigError, match="may serve at most"):
-        adapter.validate_startup_config(env="production")
-
-    # ...and one inside the budget boots, so the check is a budget and not a refusal.
-    ok = tmp_path / "fine.db"
-    _servable(ok)
-    monkeypatch.setenv("MODEL_RANKING_DB", str(ok))
-    assert adapter.validate_startup_config(env="production") == ()
-
-
 def test_the_concurrency_cap_is_applied_to_the_running_loop() -> None:
     """W-017 condition (c): the cap must be real in the process, not asserted in a config file.
 
@@ -604,43 +640,6 @@ def test_the_concurrency_cap_is_applied_to_the_running_loop() -> None:
     assert (
         adapter.app.router.lifespan_context is adapter._lifespan
     ), "the lifespan is defined but the app is not wired to it — the cap would never run"
-
-
-def test_the_declared_numbers_agree_with_the_deploy_proposal() -> None:
-    """The three W-017 terms live in two files and must say the same thing.
-
-    `fly.toml` is a PROPOSAL and binds nothing, which is exactly why its numbers can drift from the
-    code's without anyone noticing — and a containment described in a file that disagrees with the
-    process is the defect Stage 4.0 found, not a fix for it.
-    """
-    import re
-    from pathlib import Path
-
-    import app.adapter.main as adapter
-
-    # Comment lines are STRIPPED before matching. The first version searched the whole file and
-    # found `hard_limit = 8` inside a comment that was *explaining* the cap — so the check read
-    # prose and passed while the real setting said 40. A guard that parses documentation instead of
-    # configuration is this milestone's recurring shape, arriving one more time in its own test.
-    fly = "\n".join(
-        line
-        for line in Path("fly.toml").read_text().splitlines()
-        if not line.strip().startswith("#")
-    )
-    concurrency = re.search(r'MODEL_RANKING_MAX_CONCURRENCY\s*=\s*"(\d+)"', fly)
-    budget = re.search(r'MODEL_RANKING_MEMORY_BUDGET_MB\s*=\s*"(\d+)"', fly)
-    hard_limit = re.search(r"hard_limit\s*=\s*(\d+)", fly)
-    vm_memory = re.search(r'memory\s*=\s*"(\d+)mb"', fly)
-
-    assert concurrency and budget and hard_limit and vm_memory, "fly.toml stopped declaring a term"
-    assert int(concurrency.group(1)) == adapter.MAX_CONCURRENT_REQUESTS
-    assert int(budget.group(1)) == adapter.MEMORY_BUDGET_MB
-    assert (
-        int(hard_limit.group(1)) == adapter.MAX_CONCURRENT_REQUESTS
-    ), "the edge cap and the process cap disagree; the memory arithmetic assumes they match"
-    assert (
-        int(vm_memory.group(1)) >= adapter.MEMORY_BUDGET_MB
-    ), "the VM is smaller than the budget the process is allowed to spend"
 
 
 def test_a_pre_m5_database_refuses_to_serve(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:

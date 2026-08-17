@@ -1,10 +1,12 @@
 # PROPOSAL — M6-W4, not yet adopted. D-116 names Fly.io as the target; this file is what that would
 # look like, for the owner's review. K.10 cross-team surface; see `.github/CODEOWNERS`.
 #
-# NOT A DEPLOY AUTHORISATION. D-116 states it explicitly: W-017 — the serving snapshot copies the
-# whole database into memory per unauthenticated request, measured at ~9,100x amplification at
-# today's size — is BLOCKING at Stage 4.3, and the closure pass must re-derive that number
-# independently before any first deploy.
+# NOT A DEPLOY AUTHORISATION until the owner adopts it. **W-017 is CLOSED as of M7-W3**: the
+# serving snapshot that copied the whole database into memory per unauthenticated request has been
+# DELETED, not bounded. M7-W2 removed the write that forced it and M7-W3 removed the copy, so the
+# process reads the operator's file directly. Measured after the change: 30 additional requests
+# grew peak RSS by 0.64 MiB against a 0.93 MiB database, where a copy per request would have added
+# roughly 28 MiB.
 
 app = "model-ranking"
 primary_region = "fra"
@@ -17,18 +19,19 @@ primary_region = "fra"
 [env]
   APP_ENV = "production"
   MODEL_RANKING_DB = "/data/advisor.db"
-  # W-017 conditions (a) and (c), declared here so the VM below and the process agree. The app
-  # derives its maximum servable database size from these two numbers and REFUSES TO BOOT past it,
-  # so a data refresh that outgrows the machine fails at deploy rather than under load.
+  # Concurrency is still DECLARED rather than inherited: sync handlers run on AnyIO's thread pool,
+  # whose default of 40 is a number nobody in this project chose. `hard_limit` below must equal it.
+  #
+  # MODEL_RANKING_MEMORY_BUDGET_MB was REMOVED at M7-W3 along with the snapshot it sized. It fed a
+  # `max_database_bytes()` ceiling that refused to boot on a file too large to copy per request;
+  # nothing copies now, so the ceiling would refuse a perfectly servable artifact for a cost this
+  # process no longer pays.
   MODEL_RANKING_MAX_CONCURRENCY = "8"
-  MODEL_RANKING_MEMORY_BUDGET_MB = "256"
 
-# W-017 condition (b): the VM size is DECLARED. It was absent, which meant Fly's 256 MB default —
-# a number nobody had chosen while `hard_limit = 8` was being described as "W-017's containment".
-# The three numbers are now one arithmetic: 8 requests x ~2.2x RSS x the database file must fit in
-# `memory`, and `max_database_bytes()` in the app is that same expression solved for the file.
-# Raising this without raising MODEL_RANKING_MEMORY_BUDGET_MB buys nothing; lowering it without
-# lowering the budget lets the process boot into a machine it can exhaust.
+# The VM size stays DECLARED rather than defaulted — it was absent once, which silently meant Fly's
+# 256 MB while `hard_limit = 8` was being described as W-017's containment. It is no longer tied to
+# a snapshot arithmetic, because there is no snapshot: measured resident use is ~62 MiB serving a
+# 0.93 MiB database, and it grows with SQLite's page cache rather than with request count.
 [[vm]]
   size = "shared-cpu-1x"
   memory = "256mb"

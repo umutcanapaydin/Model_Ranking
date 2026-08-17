@@ -280,7 +280,7 @@ def test_fresh_evidence_reports_healthy_and_says_nothing(tmp_path: Path) -> None
 
     db = tmp_path / "fresh.db"
     _seeded_db(db)
-    conn = adapter.serving_snapshot(db)
+    conn = adapter.open_readonly(db)
     try:
         # 2026-03-01 is three days after the fixture's SWE-bench evaluation date.
         health = adapter._source_health_json(conn, CATEGORIES["coding"], today=dt.date(2026, 3, 1))
@@ -325,7 +325,7 @@ def test_health_covers_every_source_behind_the_benchmark_not_just_the_declared_o
     writable.commit()
     writable.close()
 
-    conn = adapter.serving_snapshot(db)
+    conn = adapter.open_readonly(db)
     try:
         # Three days after the swebench rows: that source alone would read FRESH.
         health = adapter._source_health_json(conn, CATEGORIES["coding"], today=dt.date(2026, 3, 1))
@@ -381,7 +381,7 @@ def test_evidence_dated_in_the_future_is_not_healthy(tmp_path: Path) -> None:
 
     db = tmp_path / "future.db"
     _seeded_db(db)
-    conn = adapter.serving_snapshot(db)
+    conn = adapter.open_readonly(db)
     try:
         health = adapter._source_health_json(conn, CATEGORIES["coding"], today=dt.date(2025, 1, 1))
     finally:
@@ -493,7 +493,7 @@ def test_responses_forbid_content_type_sniffing(client: TestClient) -> None:
 
     crashing = TestClient(adapter.app, raise_server_exceptions=False)
     with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(adapter, "serving_snapshot", _boom)
+        patch.setattr(adapter, "open_readonly", _boom)
         response = crashing.get("/v1/recommendations", params={"task": "coding"})
     assert response.status_code == 500
     assert response.headers["x-content-type-options"] == "nosniff"
