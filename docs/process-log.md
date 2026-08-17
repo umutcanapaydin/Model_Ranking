@@ -219,3 +219,16 @@ all 20 records; frontmatter was added without altering one line of content.
 Lesson: a control's first run is a measurement of the past, not of the change that installed it —
 every one of these findings had been true for milestones, and the only new thing in the repository
 was something finally looking. Budget the first run of a new gate as discovery work, not as setup.
+
+## 2026-08-17 — M6 closure — lead agent (Claude Code, local lane under D-117)
+Four waves closed, ten BLOCKING findings across three review seats, all fixed and re-verified.
+Stage 4.1 traced nine criteria with DERIVED file:line evidence rather than transcribed — three seats
+had caught this author transcribing numbers that did not hold, so the trace is generated. D-116
+closed OQ-3 with an ADR that exists, repairing a citation that had pointed at D-110 for two
+milestones; D-119 and D-120 recorded shapes that had shipped without one. W-001 closed after four
+surviving closes, in one message, once it was put to the owner as a decision rather than a status.
+The L.8 dependency gate ran green for the first time in the project's history, and its own first
+version was wrong in exactly the way it exists to catch. `handover_q2.txt` generated (M % 3 == 0).
+Lesson: an enumeration that is typed out is a denylist wearing better clothes — four instances in one
+milestone, each missing precisely the member with real exposure; and ten of ten BLOCKING findings
+were reachability failures, which is the property this project's citing tests are worst at.

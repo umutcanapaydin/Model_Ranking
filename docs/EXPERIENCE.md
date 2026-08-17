@@ -219,3 +219,62 @@ Recorded, not hidden.
 category at 6/10 (union 6/10) · 40 review findings (20 in-wave, 20 at closure) · 22 fault injections,
 22 RED after fixes, 2 initially green · security close PASS (1 BLOCKING fixed at closure) · quality
 gate BLOCKING on one owner ruling (D-112) · 5 warnings carried to M6.
+
+## 2026-08-17 — M6: the HTTP API, and four proofs that a typed-out list is a denylist
+
+**What shipped.** `/v1`, read-only, freezing the owner's Ruling A: a coding request returns BOTH
+coding answers and nothing in the payload ranks them. Plus one serializer behind three renderings,
+the product's user-facing text and query vocabulary in English (D-118), a persisted roster staleness
+window with a migration, an alias-expansion guard on every YAML input, the CORS and startup-
+validation baseline, and Fly.io recorded as the deploy target with an ADR that exists (D-116).
+
+**The lesson, and it cost ten BLOCKING findings to learn properly.** This project already knew that
+*a guard that cannot fail is worse than no guard*. M6 adds the harder half: **an enumeration that is
+typed out is a denylist wearing better clothes**, and it recurred four times in one milestone.
+
+- The guard protecting Ruling A was a nine-name denylist. Renaming the field `primary_surface`
+  walked past it. Its replacement was a sixteen-stem regex; `display_order` and `suggested` walked
+  past that. The third formulation freezes the key set — an allowlist — and holds.
+- The test written to prove *"a guard on two of three inputs is a guard on none"* enumerated three
+  filenames in a literal, so it was itself a guard on three of four. The missing one,
+  `src/app/clients/aider.py`, is the only YAML input this project fetches over a network — the exact
+  case W-005's deferral condition had named two milestones earlier.
+- That test's replacement derived the FILE SET and kept a four-word predicate, which detected 1 of 7
+  ways to reach PyYAML.
+- The L.8 smoke gate typed its endpoints in and reported a 404 for a working dependency, because it
+  said `main/` where the client says `master/`. Its own docstring said a smoke test against a URL
+  nobody calls proves the network works and nothing else.
+
+**Operational form:** when you write a list of things to check, write the code that produces the
+list. If you cannot derive it, name in the same sitting the member you would most regret missing,
+and check that one by hand.
+
+**The second lesson, from the reviewers rather than the code.** All ten BLOCKING findings were the
+same shape: *a control that existed, was cited, and did not run.* A startup validator called by
+nothing that let production boot with no database. A CORS block whose complete deletion changed no
+test. A rollback whose test executed zero statements. A migration reporting success on a database it
+had left unservable. **Reachability, not logic** — and reachability is the property this project's
+citing tests are worst at, because a test of a function nobody calls passes exactly as well as a
+test of one that ships.
+
+**A fix inherits the risk class of the bug it fixes (V4C-50), demonstrated the hard way.** The cycle
+guard added to close a denial-of-service kept its state at module scope and never cleared it on the
+raise path; one hostile document then poisoned later parses, measured at 159 of 160 legitimate loads
+refused — and the same commit had just routed the remote-fed input through that guard. **A denial of
+service introduced by the fix for a denial of service.** Only a Tester running the guard twice in one
+process could find it; no mutant can.
+
+**Friction (V4C-13):** W3 needed four review rounds and W1 three. No control was skipped under
+pressure and none was waived. The cost was real and it was the right cost — but the author's own
+fault-injection sets killed 100% of the author's own mutants while reviewer mutants stayed green 22
+times across the milestone, which is a measurement of imagination, not of discipline.
+
+**W-001 closed after surviving four milestone closes.** Its diagnosis was right on day one and its
+remedy never changed. What blocked it was that the remedy is a waiver only the owner may grant, and
+every closure session filled before he was asked for a decision rather than shown a status. **A
+control whose only remedy requires the owner will survive every close until someone asks.**
+
+**Numbers:** 12 commits · 354 tests (+83; 361 with the Epoch bundle) · 10 BLOCKING across three
+review seats, all closed · 47 author mutants all killed, 52 Tester mutants with 16 initially green ·
+5 carried ledger rows paid, W-001 closed, 4 new rows · 7 ADRs (D-113..D-120) · 1 criterion amended at
+the gate · 5 findings handed back to GP.

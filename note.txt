@@ -1,128 +1,73 @@
 Project: model_ranking
-State: **M1-M5 CLOSED + SIGNED.** The owner ran the gate on his own machine (271 passed / 12
-  skipped; 278 / 5 with the Epoch bundle) and ruled on all three §0 items on 2026-08-16: D-112 and
-  D-111 RATIFIED, migration REVIEWED AND APPROVED, W-011 ruled RE-AUTHOR. Repo is green: 271 tests,
-  8 gates, clean tree. **Next milestone is M6 — and M6 is M%3==0, so its closure MUST generate
-  `docs/handovers/handover_q2.txt`.**
-Last session date: 2026-08-16
-Last work agent: Claude (Claude Code CLI, local lane under D-114) — took over at the M5/M6 boundary
-  from the Cowork lead agent via docs/handovers/handover_rocky.txt
-
-PROCESS BASELINE CHANGED 2026-08-16 — READ THIS BEFORE ANYTHING ELSE
-- **GP v5.0 is the baseline (D-113, supersedes D-108).** Installed with v5.0's own
-  `make export-project`, not by copying the package. GP-owned files were replaced; project-owned
-  content (decisions, prd, process-log, architecture, ledger, note.txt, README, pyproject,
-  .language-allow, src/**, AGENTS.md §1-§2) was preserved.
-- **The agent no longer commits (D-114, supersedes D-106).** Local lane: stage and write the message;
-  the OWNER runs the commit and the push. The lead agent still runs the full test gate. The
-  `test-and-commit` skill is deleted; `test-and-stage` replaces it.
-- **The gate is now `make gate`** = check + conformance + falsify + secrets + deps + slopsquat.
-  `make check` is 6 targets, NOT 7 — v5.0 removed the `pin-check` target and moved action pinning
-  into `conformance/test-action-pins.py`. Every "7 targets / 8 gates" figure in older records is
-  stale; the records are append-only and were left alone.
-- **New: `conformance/` — 7 tests that prove each control rejects what it must.** On its first run
-  against this repository it produced THREE findings, W-012/W-013/W-014. The owner ruled on all
-  three the same day and all three are RESOLVED in the ledger:
-  - **W-012 FIXED** — `.governed-records` globbed `docs/wave-checklist-*.md`, a name this project
-    never used, so **20 wave-close records had never been governed by anything**. Glob corrected to
-    `docs/plans/m*-wave-*-close.md`; that surfaced `R1` on all 20 (no frontmatter — the v4.3.1
-    template shipped without it). Frontmatter added to all 20, **no content line altered**,
-    `process_version` deliberately omitted rather than falsely stamped v5.0. Validator now scans
-    **28** records, was 8.
-  - **W-013 HANDED BACK to GP** — the removed `pin-check` target is still named by three historical
-    records that are append-only. Records untouched; written up as **GPF-001** in
-    `docs/gp-field-findings.md` with ranked remedies, together with **GPF-002** (the shipped record
-    schema declares 7 record types, the validator enforces 14, and nothing validates against it).
-    `make conformance` stays RED on those three lines until GP rules — that is the honest state.
-  - **W-014 BANNERED** — `docs/HANDOVER-model-ranking.md` §7 is Cowork-era doctrine telling agents to
-    commit. Two superseded banners added, nothing rewritten.
-- Verified after the migration: `make check` exit 0, 271 passed / 12 skipped, check_records PASS
-  (28 records), self-test PASS, install-check PASS. `make conformance` 6 of 7 PASS; the one RED leg
-  is W-013/GPF-001 and is deliberate.
-- **M6 is PLANNED and SIGNED.** `docs/plans/m6-plan.md` — the HTTP API. Owner ruled **A** on M5's
-  carried question: the product presents BOTH coding answers and neither leads. §2's nine REQ-IDs
-  are also landed in `docs/prd.md` §13. PRD OQ-3 is marked DUE NOW and closes at M6-W4 with D-116.
-  ADR ids reserved by the plan: **D-115** (Ruling A contract), **D-116** (deploy target).
+State: **M1-M6 CLOSED agent-side. M6 awaits TWO owner items** (docs/closure-report-m6.md §0) and the
+  Stage-4.0 security verdict. Repo green: 354 tests / 12 skipped (361 / 5 with the Epoch bundle),
+  `make smoke-deps` PASS, gitleaks clean for the first time in the project's history.
+Last session date: 2026-08-17
+Last work agent: Claude (Claude Code CLI, local lane under D-117)
 
 FIRST THREE THINGS A NEW AGENT DOES
-0. **Read `docs/handovers/handover_rocky.txt` first** — the full agent-to-agent handover written at
-   the M5/M6 boundary (state, methodology, the owner, paths, environment footguns, the question M6
-   opens with). Everything below is its summary.
-1. Read `docs/closure-report-m5.md`, starting at §0 — it records the three rulings that closed M5.
-2. Read `docs/handovers/handover_m5-start.md` for the project's doctrine and footguns (still
-   accurate; its "M5 is unsigned" framing is the only stale part — M5 was signed, built and closed).
-3. Read `docs/retrospectives/m5-retrospective.md` §"Carried question" — M6's plan must answer it:
-   two coding surfaces now exist (`coding`, `agentic-coding`); does the product present both or
-   choose one? The HTTP API freezes whatever is decided into a contract.
+0. **Read `docs/handovers/handover_q2.txt` first** — the quarterly handover generated at this
+   closure. State, doctrine, the owner, environment, and what M7 opens with. Everything below is
+   its summary.
+1. Read `docs/closure-report-m6.md` §0 — the five items that need the owner.
+2. Verify the state yourself: `make check` (354/12) and, with the owner's bundle mounted,
+   `EPOCH_DATA_DIR=... .venv/bin/python -m pytest -q` (361/5). If that is not what you see, STOP.
 
-WHAT'S DONE
-- M1 data layer · M2 assistant category · M3 subscription table · M4 plan answers made real ·
-  **M5 coding-category rescue**.
-- M5 shipped: Epoch AI as a first-class source (CC-BY, local bundle, own acquisition clock) ·
-  DeepSWE as a SEPARATE `agentic-coding` category (D-105 intact — no board mixed inside a category) ·
-  effort became stored data, so a score is now a (model, harness, effort) triple · budget exclusion
-  counted and disclosed (D-111) · an explicit `schema migrate` command · Epoch cadence in CI.
-- **The number M5 existed to move: coding coverage 1/10 -> 5/10, plus a new agentic-coding category
-  at 6/10; unique plans rankable on either surface 1/10 -> 6/10.** The two numerators must NOT be
-  added — the categories overlap on five plans.
-- 271 unit + 12 gated tests. `make check` = 7 targets, all green (lint/ruff, typecheck, test,
-  check-records, selftest, install-check, pin-check — black is installed but NOT invoked by the gate).
-- Security close PASS (conditional on the owner's migration review). 22 fault injections, all RED.
+WHAT M6 SHIPPED
+- **The product answers over HTTP.** `/v1/recommendations?task=coding` returns BOTH coding answers
+  with neither leading — the owner's Ruling A, frozen as a contract by **D-115**, enforced by a
+  frozen payload key set after a denylist and then a regex were both walked past.
+- One serializer behind three renderings (JSON payload, CSV export, CLI) — `serialize.py` imports no
+  engine module and enumerates nothing.
+- **D-118: the product speaks English**, at the source rather than the API boundary. Query values
+  are `low`/`medium`/`unlimited`. The CLI became English as a consequence, stated in the ADR.
+- A persisted roster staleness window with a migration (W-008), an alias-expansion guard on all four
+  YAML inputs including the remote-fed one (W-005), one migration entry point (W-009), the effort
+  counter fixed (W-010), `equivalent_plans` as labelled groups (W-002/D-119).
+- CORS allowlist with no wildcard in any environment, startup validation failing closed in
+  production, read-only database handle.
+- **D-116 closes OQ-3**: Fly.io, evidence database as a shipped artifact, no ingestion on the
+  serving host. Deploy proposals only — nothing is deployed.
 
-SETTLED AT THE M5 GATE (2026-08-16) — do not re-litigate
-- **D-112 RATIFIED.** A category with no `ranking_effort` policy keeps the best evidence each board
-  published and DISCLOSES an unequal-effort comparison instead of equalising it by shrinking. The
-  owner was shown the cost of the alternative (28 rankable models today; 19 / 4 / 3 at
-  `unspecified` / `high` / `max`) and ruled that Q1's single-effort rule binds a category that HAS
-  an effort policy, not every category. **D-111 ratified in the same session.**
-- **Migration REVIEWED AND APPROVED** by the owner — permission-matrix §11 satisfied; the Stage-4.0
-  security PASS is now unconditional.
-- **W-011 ruled RE-AUTHOR.** The twelve placeholder-email commits are rewritten to
-  `Codex <noreply@openai.com>` by the OWNER before the first push, scoped so the closing agent's own
-  commits keep their identity:
-      git rebase --exec 'if [ "$(git log -1 --format=%ae)" = "the address you want on commits" ]; then git commit --amend --no-edit --author="Codex <noreply@openai.com>"; fi' 57de98e^
+SETTLED THIS MILESTONE — do not re-litigate
+- **Ruling A** (both coding answers, neither leading) · **D-113** GP v5.0 baseline · **D-114 then
+  D-117** on git authority (the agent commits at wave boundaries under five conditions; the
+  milestone commit stays the owner's) · **D-118** English · **D-120** `schema migrate` exit 3 ·
+  **W-001's gitleaks waiver**, scoped to a label shape rather than a path · the **REQ-API-005
+  criterion amendment** (an unhealthy source is DISCLOSED in a 200, never refused).
 
 WHAT'S OPEN
-- W-001 gitleaks false positive — has now survived THREE closes; it fires at two paths while the
-  ledger row records one. Owner action.
-- **M6 is planned and signed** (see the process-baseline block above). Its closure MUST still
-  generate `handover_q2.txt` — M6 is M%3==0.
-- Carried to M6 (docs/warnings.ledger.md is the truth): W-002 equivalent_plans group structure ·
-  W-005 YAML expansion guard · W-008 roster staleness window borrowed from the plan table ·
-  W-009 two migration entry points + a read-time invariant · W-010 the effort counter under-reports
-  rows it cannot classify. Plus two security deferrals: the CSV export half carries no attribution;
-  the agentic-coding payload does not say its evidence is undated (the coverage report does).
-- Push: this container CANNOT push (proxy 403). Commits ship to the owner as a git bundle.
+- **Stage-4.0 security verdict** — running at the time of writing. BLOCKING.
+- **W-017** — the serving snapshot copies the whole database into memory per unauthenticated GET.
+  **A CONDITION of go-live under D-116, not a follow-up.** Stage 4.0 must re-derive the number
+  independently rather than cite W1 or W3.
+- **W-021** — `.github/CODEOWNERS` owns every path to a placeholder that assigns nobody. Owner call.
+- **W-019** — `L1` detects an alphabet, not a language. No mechanical fix proposed on purpose.
+- **GPF-001..005** in `docs/gp-field-findings.md` — findings about GP v5.0 itself, for the owner to
+  carry to the pipeline repo. Three are the same records-versus-instructions blind spot.
+- The coverage and roster-staleness CI legs have still never RUN (`contract-tests.yml` is a Monday
+  cron). Carried to M7; better said than claimed green.
 
-THE DATA ON THE OWNER'S DISK
-`/Users/umutcanapaydin/Desktop/terminal_output/model_ranking/`
-- `epoch_data/` — the Epoch bundle (CC-BY). Point `EPOCH_DATA_DIR` at it to un-skip 7 tests that
-  carry the strongest evidence for REQ-ING-011b, REQ-SUB-007 and REQ-REC-012 (277 passed with it,
-  270 without). CI cannot see them.
-- `arena_overall_*.json` — the Arena snapshot (389 rows, 2026-08-12); the live client is flaky (W-007
-  is FIXED — the self-inflicted rate-limit fallback is gone — but the upstream 500s remain).
+THE LESSON M6 PAID FOR
+**An enumeration that is typed out is a denylist wearing better clothes** — four instances in one
+milestone (the precedence guard, the YAML wiring predicate, the list of YAML inputs, the smoke-test
+endpoints), each missing exactly the member with real exposure. And **ten of ten BLOCKING findings
+were reachability failures**: a control that existed, was cited, and did not run.
 
 ANCHOR
-- AGENTS.md: 145 lines (cap 150)
-- Active ADRs: universal set + D-100..D-112. D-111 and D-112 are `ratified` (owner-signed 2026-08-16).
-- Governed records: `.governed-records` globs match 8 files (decisions, closure-report-m1..m5,
-  fixpack-1, EXPERIENCE). The review records carry frontmatter but match no glob — widening the
-  globs is a gate-definition change and therefore the owner's call.
-- Most recent retrospective: docs/retrospectives/m5-retrospective.md — answers M4's carried question
-  and poses the next one: two coding surfaces now exist; should the product present both, or choose?
-- Most recent quarterly handover: docs/handovers/handover_q1.txt (M3). **M6 is M%3==0 — the next
-  closure MUST generate handover_q2.txt.**
-- Handovers, newest first: `handover_rocky.txt` (M5→M6 boundary, THE one to read) ·
-  `handover_m5-start.md` (M4→M5) · `handover_q1.txt` (quarterly, M3).
+- AGENTS.md: 146 lines (cap 150)
+- Active ADRs: universal set + D-100..D-120. D-113..D-120 ratified this milestone.
+- Governed records: 32 scanned by `check_records`, up from 8 before the W-012 glob fix.
+- Most recent retrospective: docs/retrospectives/m6-retrospective.md — answers Ruling A's carried
+  question and poses the next: is "does this control actually execute" worth automating, or is a
+  control about controls the same bet at one remove?
+- Most recent quarterly handover: **docs/handovers/handover_q2.txt (M6)**. Previous: handover_q1.txt.
+- Handovers newest first: handover_q2.txt · handover_rocky.txt (M5->M6 doctrine, still accurate) ·
+  handover_m5-start.md · handover_q1.txt.
 
 HANDOFF NOTES
-Sandbox network: GitHub raw reachable; HF datasets-server / openrouter / epoch.ai are proxy-403 —
-live halves run in CI or on the owner's machine. Turkish product strings are deliberate
-(.language-allow, each with a reason); everything else committed from M3 on is English (V4C-79).
-The lessons this project has paid for, in one line each:
-- A fixture that encodes a remote VALUE is an untested assumption wearing a test's clothing (FP-M2-2).
-- A fix written to close a review finding is NEW CODE and inherits the review obligation (M4-W4).
-- A guard that cannot fail is worse than no guard, because it reads like coverage — write the mutant
-  that should kill it in the same sitting (M5, third instance of this class).
-- A new SOURCE is a new corpus: extend the registry's live-name expectations in the same commit that
-  adds the board (M5, kimi-k2.5/k2.6 swallow).
+You are probably running ON the owner's Mac, not in a sandbox — the git-bundle protocol in older
+handovers is obsolete. Push under D-117, green gates only, never as the owner. The Epoch bundle at
+/Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data un-skips 7 tests CI cannot
+see, and M6 proved that matters: a Turkish assertion survived the English migration inside one of
+them because the migration followed what the gate could see.

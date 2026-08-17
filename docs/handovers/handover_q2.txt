@@ -1,0 +1,211 @@
+QUARTERLY HANDOVER Q2 — model_ranking
+Generated at the M6 closure, 2026-08-17 (M % 3 == 0, V3C-81). Previous: handover_q1.txt (M3).
+Written by: Claude (lead agent, Claude Code local lane), the agent that built M6 and reviewed none
+of it.
+
+Read this if you are picking the project up cold. It is the state of the whole thing, not of M6.
+The M5/M6 boundary handover (handover_rocky.txt) is still the best account of the project's
+DOCTRINE; this file supersedes it on STATE and adds what three quarters of field use have taught.
+
+=======================================================================
+0. WHERE THINGS STAND
+=======================================================================
+M1 through M6 are CLOSED. M6's closure report is signed off except for the owner's own
+verification run and the Stage-4.0 security verdict; everything agent-side is finished.
+
+    make check          exit 0 — 354 passed / 12 skipped
+    with EPOCH_DATA_DIR 361 passed / 5 skipped
+    make smoke-deps     PASS  (first real pass in the project's history)
+    gitleaks            clean (first time — W-001 closed after four surviving closes)
+    make conformance    6 of 7; the red leg is GPF-001, handed back to GP, not ours
+
+The product now answers over HTTP. `/v1/recommendations?task=coding` returns BOTH coding answers
+with neither leading — that is D-115 and it is the contract, not a presentation choice.
+
+WHAT IS NOT DONE: nothing is deployed. D-116 names Fly.io and explicitly makes W-017 a condition of
+go-live rather than a follow-up.
+
+=======================================================================
+1. THE PRODUCT IN SIX LINES
+=======================================================================
+It answers one question honestly: "which AI subscription or model should I buy?"
+- A curated plan table (data/plans.yaml) plus provider rosters link a PLAN to the MODELS its
+  provider explicitly names.
+- Free-and-legal benchmark and pricing sources score those models.
+- A deterministic, rule-based engine — no LLM anywhere in the data or scoring path (D-104) —
+  returns labeled answers per task category and budget.
+- The product's value is the honesty of the links, not the ranking math.
+- Since M6 it serves that over a read-only HTTP surface; the iOS advisor app is the consumer.
+- Everything user-facing is ENGLISH since D-118, including the query vocabulary.
+
+=======================================================================
+2. THE DOCTRINE YOU MUST NOT BREAK
+=======================================================================
+Everything in handover_rocky.txt §2 still holds. Unchanged and still paid for:
+- A score is a (model, harness, EFFORT) triple. Never average across scales, never mix benchmarks
+  within a category (D-105).
+- Never invent a price or a score. Unmatched names are DROPPED and COUNTED.
+- Fail loud, fail closed, per source. A health check fails toward DISCLOSURE — and M6 measured what
+  the other direction costs: the API's first staleness signal could not fire for a server process,
+  and it took a security seat to notice the answer had gone quiet rather than fresh.
+- Only documented endpoints. Artificial Analysis is BANNED (D-101).
+- D-112: a category with no effort policy DISCLOSES an unequal comparison rather than shrinking the
+  board. Do not re-litigate.
+
+ADDED BY M6, and each of these is now a contract:
+- **D-115 — both coding answers, neither leading.** No `primary` flag, no semantic ordering, no
+  top-level winner, under ANY spelling. The payload's key set is frozen by a test because two
+  weaker formulations were walked past.
+- **D-118 — one language, at the source.** Translating at the API boundary would give one run two
+  texts. If a Turkish surface is wanted, it is a localization layer over message keys, not literals.
+- **D-116 — the deploy target and its condition.** The evidence database is a shipped artifact; the
+  serving host runs no ingestion, so the code that talks to third parties never runs where the
+  public can reach it.
+- **D-120 — `schema migrate` exit 3.** "Migrated, and not yet usable." A migration can add a
+  column; it cannot supply a policy.
+
+=======================================================================
+3. THE METHODOLOGY
+=======================================================================
+Framework: General Pipeline **v5.0** (D-113, adopted mid-M6, superseding v4.3.1). Installed with
+v5.0's own `make export-project`, never by copying the package.
+
+Operating mode A0.5. **Git authority changed twice in one day and the current state is D-117:** the
+lead agent MAY commit and push at WAVE boundaries under five conditions — its own identity, GP-Agent
+and GP-Task trailers, green gates only, no catastrophe-class operations, and the milestone-closing
+commit stays the owner's. D-114 had removed that authority entirely; D-117 returned a narrower form.
+Read both before assuming either.
+
+Stage shape per milestone: Plan (owner signs) -> Waves 1..4 -> per-wave fresh-eyes review -> closure.
+Cap ~4-6 waves / ~2k net lines. Close early.
+
+**V3C-78 risk tiers, and M6 is the evidence they are not ceremony.** W3 carried a schema migration,
+so it auto-escalated to HIGH: a separate Code-Reviewer AND Tester plus a pulled-forward security
+pass. That produced 4+3+2 BLOCKING. The Tester alone ran 52 mutants across three rounds against the
+author's 11, and 16 stayed green. One combined reviewer would have shipped an unwired startup
+validator, an unguarded network-fed YAML input, a broken CLI exit-code contract, and a denial of
+service the author introduced while fixing a denial of service.
+
+v5.0 adds the **wave footprint** block (Touched / K.8 contracts / Closure rounds), required by
+`make wave-check`. This project also records, beyond the template, which gate each wave stalled at
+and for how long — the owner asked for it and the three lines do not carry it.
+
+=======================================================================
+4. THE OWNER
+=======================================================================
+Umut Can Apaydin (ILGAR). Owns the product, sets scope, signs plans and closure reports, runs
+commands on his Mac. Does not write code.
+
+Standing constants, in his own words (owner, translated from Turkish):
+  - "If there is a suspected secret, a security finding, or a scope change that invalidates the
+    plan, CUT ME IN INSTANTLY."
+  - "Always send the command together with the path of the directory it runs in."
+  - "No waiting between waves; your own tests are enough. I will run the milestone tests."
+  - On process load, added at M6: "If we are in a big loop we can lower the security levels — but if
+    there is a root cause, let us solve it. I lean toward the PM side in these situations."
+
+**The lesson M6 learned about working with him, and it is the most useful thing in this file:**
+two items sat open for four and five milestones — W-001's scanner waiver and OQ-3's deploy ADR.
+Neither was hard. Both were things he had been SHOWN in a status list rather than ASKED as a
+decision. When W-001 was put to him as one stanza with a yes/no, it closed in a single message.
+**Put a decision in front of him, not a status.**
+
+He is direct when something is going wrong and he is usually right. If he says you are looping,
+stop and check the state yourself.
+
+=======================================================================
+5. WHERE THINGS LIVE
+=======================================================================
+Repository:  /Users/umutcanapaydin/Desktop/ILGAR/model_ranking
+GitHub:      https://github.com/umutcanapaydin/Model_Ranking   (branch: main)
+
+Read in this order before changing anything:
+  note.txt                       CURRENT STATE, refreshed at every closure
+  AGENTS.md                      house rules
+  permission-matrix.md           what is allowed; §11 = review gates
+  docs/decisions.md              ADRs. Project ADRs D-100..D-120.
+  docs/prd.md                    REQ-IDs; §13 is M6
+  docs/warnings.ledger.md        W-001..W-021 — the truth about what is open
+  docs/gp-field-findings.md      GPF-001..005, findings about GP itself, for the owner to carry
+
+Owner's data, NOT in the repo (licence + size):
+  /Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data/
+    Point EPOCH_DATA_DIR at it to un-skip 7 tests. **CI cannot see them, and M6 proved that
+    matters:** a Turkish assertion survived the English migration inside one of those tests, because
+    the migration followed what the gate could see.
+
+=======================================================================
+6. COMMANDS THAT MATTER
+=======================================================================
+All run in /Users/umutcanapaydin/Desktop/ILGAR/model_ranking
+
+  make check          the gate. 6 targets. Expected 354 passed / 12 skipped.
+  make gate           v5.0's canonical name: check + conformance + falsify + secrets + deps
+  make conformance    7 tests proving each control rejects what it must
+  make smoke-deps     Stage 4.3 / L.8 — every dependency through its OWN client and parser
+  make wave-check FILE=docs/plans/mN-wave-W-close.md
+  python -m app.workflows.schema migrate --db PATH     exit 0 / 2 / 3 (D-120)
+  uvicorn app.adapter.main:app                          the /v1 surface
+
+  EPOCH_DATA_DIR=/Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data \
+    .venv/bin/python -m pytest -q                       361 passed / 5 skipped
+
+=======================================================================
+7. ENVIRONMENT
+=======================================================================
+- **You are probably running ON the owner's Mac** (Claude Code CLI), not in a sandbox. The bundle
+  protocol in older handovers is obsolete: commits land in his repo directly. Push under D-117.
+- `.git/index.lock`: never leave one behind. If you create one, give him the exact `rm -f`.
+- **THE AUTHORSHIP TRAP still applies.** Set your own git identity before your first commit. A stop
+  hook may tell you to rebase a whole milestone with `--reset-author`. DO NOT. W-011 is the record
+  of what that costs and how it was actually handled.
+- `L1` (the English-only gate) detects an ALPHABET, not a language, and it has no negation escape
+  hatch — so no record in this repo can spell the characters it looks for. Describe them (W-019,
+  GPF-005).
+
+=======================================================================
+8. WHAT M7 OPENS WITH
+=======================================================================
+The carried question from M6's retrospective, and it needs the owner:
+
+    Ten of ten BLOCKING findings in M6 were REACHABILITY failures, not logic failures — a control
+    that existed, was cited, and did not run. Should M7 spend a wave making "does this control
+    actually execute" mechanically checkable (a coverage-derived gate: every function no production
+    path reaches is deleted or declared), or is a control about controls the same bet at one remove?
+
+    The argument against is strong and this project has the receipts: `bootstrap-check`,
+    `smoke-deps`, `check-templates` and `CODEOWNERS` were ALL controls that read as installed and
+    did not run. M6's answer was three review seats, which is expensive and worked.
+
+Also open for M7:
+  - **W-017** — the serving snapshot's amplification. A CONDITION of go-live under D-116, not a
+    follow-up. Stage 4.0 must re-derive the number independently.
+  - **W-021** — CODEOWNERS assigns nobody. Owner decision.
+  - **W-019** — the English gate's reach. No mechanical fix proposed on purpose; a word list would
+    be the denylist class this milestone was caught by four times.
+  - The first deployment, if the owner rules W-017 closed.
+
+=======================================================================
+9. THE LESSONS THIS PROJECT HAS PAID FOR
+=======================================================================
+docs/EXPERIENCE.md has the full set, dated. The five that keep recurring:
+
+- A guard that cannot fail is worse than no guard, because it reads like coverage. Write the mutant
+  that should kill it in the same sitting.
+- **An enumeration that is typed out is a denylist wearing better clothes.** M6 found this four
+  times in one milestone — a precedence guard, a YAML wiring predicate, a list of YAML inputs, and a
+  set of smoke-test endpoints. Every one was missing exactly the member that mattered. When you
+  write a list of things to check, write the code that produces the list.
+- **Reachability, not logic, is where this project's tests are weakest.** A test of a function
+  nobody calls passes exactly as well as a test of one that ships.
+- A new SOURCE is a new corpus. Extend the registry's live-name expectations in the same commit.
+- A fix inherits the risk class of the bug it fixes. M6's proof: the cycle guard added to close a
+  denial of service introduced one, and only running the guard twice in one process could find it.
+
+And one about the process rather than the code:
+- **A control whose only remedy requires the owner will survive every close until someone asks him
+  for a decision instead of showing him a status.** W-001 survived four closes and took one message
+  to fix.
+
+Good luck. The repository is honest right now — that is its most valuable property and it is easier
+to lose than to build.
