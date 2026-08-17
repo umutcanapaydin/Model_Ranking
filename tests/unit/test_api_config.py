@@ -302,3 +302,158 @@ def test_configuring_cors_does_not_contaminate_the_shared_module() -> None:
         "CORS" in type(mw.cls).__name__ or "CORS" in getattr(mw.cls, "__name__", "")
         for mw in shared.app.user_middleware
     ), "the shared module has CORS middleware installed by a test"
+
+
+# ------------------------------------------------ Stage 4.0 closure findings (composition defects)
+
+
+def test_no_engine_field_reaches_the_public_surface_undeclared() -> None:
+    """Stage 4.0 BLOCKING-1: publication is a DECISION, not a default.
+
+    W1's hand-written dictionary was a drift hazard and W2 was right to kill it — but on an
+    unauthenticated surface that dictionary was also the publication allowlist, and the `asdict`
+    passthrough that replaced it made "served to anonymous callers" the default for every future
+    engine field. The parity tests could not see it: they enforce that engine fields REACH the
+    payload, never that only declared ones do.
+
+    This test fails when the engine gains a field, until a human puts it in one of the three lists.
+    That failure is the point — it is the decision being forced.
+    """
+    from dataclasses import fields
+
+    from app.adapter.main import (
+        PUBLIC_ANSWER_FIELDS,
+        RELOCATED_FIELDS,
+        WITHHELD_ANSWER_FIELDS,
+    )
+    from app.workflows.recommend import Recommendation
+
+    engine = {f.name for f in fields(Recommendation)}
+    declared = PUBLIC_ANSWER_FIELDS | set(RELOCATED_FIELDS) | WITHHELD_ANSWER_FIELDS
+    undeclared = sorted(engine - declared)
+    assert undeclared == [], (
+        f"engine field(s) {undeclared} are neither published, relocated nor withheld — decide "
+        "before they reach an unauthenticated surface"
+    )
+    stale = sorted(declared - engine)
+    assert stale == [], f"the lists name field(s) the engine no longer has: {stale}"
+
+
+def test_the_public_payload_carries_only_declared_fields(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """The same property on a real response, because a set comparison is not a served payload."""
+    from app.adapter.main import PUBLIC_ANSWER_FIELDS
+
+    from .test_api_v1 import _seeded_db
+
+    db = tmp_path / "pipeline.db"
+    _seeded_db(db)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    import app.adapter.main as adapter
+
+    body = TestClient(adapter.app).get("/v1/recommendations", params={"task": "coding"}).json()
+    api_only = {
+        "surface",
+        "title",
+        "primary_benchmark",
+        "metric",
+        "source_health",
+        "evidence_dating",
+        "evidence_dating_note",
+        "unavailable_reason",
+    }
+    for answer in body["answers"]:
+        extra = set(answer) - PUBLIC_ANSWER_FIELDS - api_only
+        assert extra == set(), f"undeclared field(s) served to an anonymous caller: {sorted(extra)}"
+
+
+def test_an_unrecognised_environment_is_treated_as_strict(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Stage 4.0 BLOCKING-2: the hardening must not depend on spelling one of two exact strings.
+
+    Measured by the closure review: `APP_ENV=staging` with no database booted and served happily,
+    because anything that was not `production`/`prod` fell into the permissive branch — and the
+    only places setting those two were `Dockerfile` and `fly.toml`, files this milestone explicitly
+    declines to adopt. A process that cannot tell where it runs now assumes production.
+    """
+    import app.adapter.main as adapter
+
+    monkeypatch.delenv("MODEL_RANKING_DB", raising=False)
+    monkeypatch.delenv("MODEL_RANKING_CORS_ORIGINS", raising=False)
+
+    for unknown in ("staging", "uat", "prod-eu", "", "  "):
+        with pytest.raises(adapter.ConfigError):
+            adapter.validate_startup_config(env=unknown)
+
+    # ...and a RELAXED environment must still be relaxed, or every developer machine is blocked.
+    warnings = adapter.validate_startup_config(env="development")
+    assert any("MODEL_RANKING_DB" in w for w in warnings)
+
+
+def test_a_database_that_does_not_exist_fails_closed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """Stage 4.0 BLOCKING-3: the check asked whether the VARIABLE was set, not whether a file exists.
+
+    The deploy proposals set `MODEL_RANKING_DB` unconditionally against a separately-shipped volume,
+    so a total evidence outage produced a process that booted, answered `/health` 200, and failed
+    every real request. Stage 4.3 verifies deploys with `/health` — it would have called that deploy
+    healthy.
+    """
+    import app.adapter.main as adapter
+
+    monkeypatch.delenv("MODEL_RANKING_CORS_ORIGINS", raising=False)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(tmp_path / "no-such-volume" / "advisor.db"))
+    monkeypatch.setattr(adapter, "APP_BUILD", "deadbee")
+
+    with pytest.raises(adapter.ConfigError, match="no readable file"):
+        adapter.validate_startup_config(env="production")
+
+    # A real file passes, so the check is about existence rather than about refusing everything.
+    real = tmp_path / "advisor.db"
+    real.write_bytes(b"")
+    monkeypatch.setenv("MODEL_RANKING_DB", str(real))
+    assert adapter.validate_startup_config(env="production") == ()
+
+
+def test_the_allowlist_actually_filters_an_undeclared_field(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """Mandatory test for a stay-green fault (V3C-72): the filter's EFFECT was unobservable.
+
+    Every engine field today is in the allowlist, so removing the filter changed nothing a test
+    could see — the set-level check catches a new field being *declared*, and nothing caught the
+    filter itself being *deleted*. That is the same shape as the defect this whole fix addresses:
+    a control that is correct and unproven.
+
+    So this makes the serializer emit a field the allowlist does not name, and asserts it does not
+    reach an anonymous caller.
+    """
+    from .test_api_v1 import _seeded_db
+
+    db = tmp_path / "pipeline.db"
+    _seeded_db(db)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+
+    import app.adapter.main as adapter
+    from app.workflows import serialize
+
+    real = serialize.recommendation_json
+
+    def leaky(rec):
+        data = real(rec)
+        data["internal_operator_note"] = "connection string, row counts, anything"
+        return data
+
+    monkeypatch.setattr(adapter, "recommendation_json", leaky)
+    body = TestClient(adapter.app).get("/v1/recommendations", params={"task": "coding"}).json()
+
+    for answer in body["answers"]:
+        assert "internal_operator_note" not in answer, (
+            "an undeclared field reached an unauthenticated caller — the publication allowlist is "
+            "not filtering, only documenting"
+        )
+    # ...and the answer is still a real answer, so the filter is not just emptying the payload.
+    assert any(a["picks"] for a in body["answers"])

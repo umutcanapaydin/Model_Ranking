@@ -77,6 +77,6 @@ path reaches is either deleted or declared. The argument for is that all ten BLO
 milestone were reachability failures, not logic failures, and reachability is the one property a
 tool can decide. The argument against is that this project has now shipped four controls that read
 as installed and did not run, and a fifth that checks the other four is the same bet at one remove —
-`make bootstrap-check`, `make smoke-deps`, `make check-templates` and `CODEOWNERS` were all exactly
-that. **The owner's judgement is needed on whether the pattern is worth automating or worth
+the bootstrap gate, the dependency smoke gate, the template gate v5.0 removed, and `CODEOWNERS`
+were all exactly that. **The owner's judgement is needed on whether the pattern is worth automating or worth
 staffing**, because M6's answer to it was three review seats and that is expensive but it worked.

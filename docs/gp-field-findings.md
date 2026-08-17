@@ -238,8 +238,9 @@ enforces a proper subset.
 3. **Rename or re-document `L1`** so its stated scope matches its reach: it is a non-ASCII-letter
    detector, and the gap between that and "English-only" is where a migration will stop.
 
-**RECURRENCE COUNT, updated 2026-08-17: THREE in one project, one milestone.** A W1 reviewer's
-verdict, the ADR that documented the finding, and a W3 Tester's verdict — every one of them a record
+**RECURRENCE COUNT, updated 2026-08-17: FOUR in one project, one milestone.** A W1 reviewer's
+verdict, the ADR that documented the finding, a W3 Tester's verdict, and the Stage-4.0 closure
+review — every one of them a record
 of non-action, every one flagged as an instruction. The count matters because this lineage's own rule
 is that the same control tripping three times sends the CONTROL for review, not the people. Two
 different checks (`test-git-authority` and `L1`) are producing it, so the review is of the suite's

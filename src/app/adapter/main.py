@@ -74,6 +74,11 @@ DECLARED_ROUTES: frozenset[str] = frozenset(
 #: convenience. Anything else is a developer machine, where refusing to boot helps nobody.
 PRODUCTION_ENVS = frozenset({"production", "prod"})
 
+#: The only environments allowed to RELAX the startup checks, spelled exactly. Everything else —
+#: including unset — is strict. See `validate_startup_config` for the two Stage-4.0 findings that
+#: inverted this default.
+RELAXED_ENVS = frozenset({"development", "dev", "test", "local"})
+
 
 class ConfigError(RuntimeError):
     """Security-relevant configuration is missing or unusable. Raised at STARTUP, never per-request.
@@ -125,25 +130,54 @@ def cors_origins() -> tuple[str, ...]:
 
 
 def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
-    """Check the security-relevant configuration once, at import, and fail CLOSED in production.
+    """Check the security-relevant configuration once, at import, and FAIL CLOSED unless told not to.
 
-    V3C-51. Returns the warnings a non-production process is allowed to run with, so that a
-    developer machine is not blocked by a missing deploy variable while production is.
+    V3C-51. Returns the warnings a deliberately relaxed environment may run with; raises otherwise.
+
+    **Two Stage-4.0 BLOCKING findings live in the first three lines of this function.**
+
+    *The environment used to default to `development`*, which is the permissive branch — so the
+    hardening activated only when `APP_ENV` was spelled exactly `production` or `prod`, and the only
+    places setting that were `Dockerfile` and `fly.toml`, two files this milestone explicitly
+    declines to adopt. `APP_ENV=staging` with no database booted and served happily. An unset or
+    unrecognised environment is now the STRICT branch: a process that cannot tell where it runs
+    assumes the place where being wrong costs the most.
+
+    *And the database check asked whether the VARIABLE was set*, never whether a database exists —
+    while the deploy proposals set that variable unconditionally against a separately-shipped
+    volume. The result was a process that booted, answered `/health` with 200, and failed every real
+    request; Stage 4.3 verifies deploys with `/health`, so it would have called that deploy healthy.
     """
-    environment = (env if env is not None else os.environ.get("APP_ENV", "development")).lower()
+    raw_env = env if env is not None else os.environ.get("APP_ENV", "")
+    environment = raw_env.strip().lower()
     problems: list[str] = []
 
     cors_origins()  # raises ConfigError on a wildcard or a malformed origin, in every environment
 
-    if _db_path() is None:
+    strict = environment not in RELAXED_ENVS
+    if environment and environment not in RELAXED_ENVS and environment not in PRODUCTION_ENVS:
+        problems.append(
+            f"APP_ENV={raw_env.strip()!r} is not a recognised environment, so the startup checks "
+            f"are being applied strictly. Set one of {sorted(RELAXED_ENVS | PRODUCTION_ENVS)}"
+        )
+
+    db = _db_path()
+    if db is None:
         problems.append("MODEL_RANKING_DB is unset — the process has no evidence database to serve")
-    if environment in PRODUCTION_ENVS and APP_BUILD == "unknown":
+    elif not db.is_file():
+        problems.append(
+            "MODEL_RANKING_DB points at no readable file — the evidence database is a shipped "
+            "artifact (D-116) and this process has none, so /health would report a healthy deploy "
+            "over a total evidence outage"
+        )
+
+    if strict and APP_BUILD == "unknown":
         problems.append(
             "APP_BUILD is unset — /health cannot say which code is live, so a deploy cannot be"
             " verified (L.7)"
         )
 
-    if problems and environment in PRODUCTION_ENVS:
+    if problems and strict:
         raise ConfigError("; ".join(problems))
     return tuple(problems)
 
@@ -399,6 +433,35 @@ def _source_health_json(
 #: per answer would give two copies of one value a chance to disagree.
 RELOCATED_FIELDS = ("task", "budget")
 
+#: **The publication allowlist for an UNAUTHENTICATED surface (Stage 4.0 BLOCKING-1).**
+#:
+#: W1's hand-written dictionary was a drift hazard and W2 was right to kill it — but on a public
+#: surface that dictionary was also doing a second job nobody had named: it decided what gets
+#: PUBLISHED. Replacing it with an `asdict` passthrough made the default for every future engine
+#: field "served to anonymous callers, because nobody excluded it". The parity tests could not see
+#: it: they enforce that engine fields REACH the payload, never that only declared ones do.
+#:
+#: So the two jobs are now separate and both explicit. `recommendation_json` still enumerates
+#: nothing — a field added to the engine cannot silently fail to arrive. This set decides whether
+#: it is allowed OUT, and `test_no_engine_field_reaches_the_public_surface_undeclared` fails until
+#: a human puts a new field in one of the three lists. **Publication is a decision, not a default.**
+PUBLIC_ANSWER_FIELDS = frozenset(
+    {
+        "ranking_effort",
+        "sources",
+        "eligible_count",
+        "frontier_size",
+        "close_call",
+        "effort_mix_notice",
+        "stale_notice",
+        "picks",
+    }
+)
+
+#: Engine fields deliberately WITHHELD from `/v1`. Empty today, and it exists so that withholding
+#: one is a recorded decision rather than an omission.
+WITHHELD_ANSWER_FIELDS: frozenset[str] = frozenset()
+
 
 def _answer_json(
     spec: CategorySpec,
@@ -428,8 +491,10 @@ def _answer_json(
         # supplied them. A default that hides a missing field is the mirror problem wearing a
         # different hat.
         engine = recommendation_json(rec)
-        for field in RELOCATED_FIELDS:
-            engine.pop(field, None)
+        # Filtered to what this surface DECLARES it publishes, not to what the engine happens to
+        # carry. An undeclared field is dropped rather than served, and the citing test fails on it
+        # so the drop is loud in CI rather than silent in production.
+        engine = {k: v for k, v in engine.items() if k in PUBLIC_ANSWER_FIELDS}
     else:
         # No run happened, so there is nothing to serialize and every engine field is genuinely
         # absent. This scaffold is a statement about an ANSWER THAT DOES NOT EXIST, not a fallback
@@ -437,7 +502,7 @@ def _answer_json(
         engine = {
             field.name: [] if field.name == "picks" else None
             for field in fields(Recommendation)
-            if field.name not in RELOCATED_FIELDS
+            if field.name in PUBLIC_ANSWER_FIELDS
         }
         engine.update(
             eligible_count=0,
