@@ -27,14 +27,17 @@ would re-introduce a ranking the owner did not make.
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import logging
 import os
 import sqlite3
+from collections.abc import AsyncIterator
 from dataclasses import fields
 from pathlib import Path
 from typing import Any
 
+import anyio.to_thread
 from fastapi import FastAPI, Query
 from fastapi.responses import JSONResponse
 
@@ -78,6 +81,43 @@ PRODUCTION_ENVS = frozenset({"production", "prod"})
 #: including unset — is strict. See `validate_startup_config` for the two Stage-4.0 findings that
 #: inverted this default.
 RELAXED_ENVS = frozenset({"development", "dev", "test", "local"})
+
+# --- W-017 containment, made explicit rather than inherited (Stage 4.0 conditions) ------------------
+#
+# `serving_snapshot` copies the whole evidence database into memory for the duration of a request.
+# Three passes measured the amplification and got three answers — ~450,000x, ~9,100x, ~47,000x —
+# and the closure review explained why: the ratio is dominated by DATABASE SIZE, an operator
+# variable an attacker cannot move. **So the per-byte ratio is the wrong quantity to gate on.** The
+# one that decides whether the process survives is the ceiling:
+#
+#     peak memory  ~=  concurrency  x  RSS_FACTOR  x  database size
+#
+# Every term is now declared instead of inherited. Before this, concurrency was 40 — AnyIO's default
+# thread-pool limiter, which nothing in this project had chosen — and the memory budget was whatever
+# the host happened to give, with `fly.toml` declaring no VM size at all.
+
+#: Resident bytes held per in-flight request, per byte of database. Measured end-to-end by the
+#: Stage-4.0 review at 2.09 (SQLite's page cache plus the engine's own writes into the copy).
+#: Rounded UP, because a containment budget that uses the optimistic figure is not a budget.
+RSS_FACTOR = 2.2
+
+#: How many requests may hold a snapshot at once. Sync `def` handlers run on AnyIO's thread pool, so
+#: this is set on the limiter at startup — otherwise the real cap is AnyIO's default of 40, which is
+#: a number nobody in this project chose and `fly.toml` was contradicting with `hard_limit = 8`.
+MAX_CONCURRENT_REQUESTS = int(os.environ.get("MODEL_RANKING_MAX_CONCURRENCY", "8"))
+
+#: The memory this process is allowed to reach, in MiB. Default 256 matches Fly.io's default VM,
+#: so the out-of-the-box configuration is the one the budget describes rather than a happier one.
+MEMORY_BUDGET_MB = int(os.environ.get("MODEL_RANKING_MEMORY_BUDGET_MB", "256"))
+
+
+def max_database_bytes() -> int:
+    """The largest database this process may serve without exceeding its declared budget.
+
+    Derived, never typed: change the concurrency cap or the memory budget and this moves with them.
+    A hand-written byte limit would be the fifth typed-out constant this milestone had to replace.
+    """
+    return int((MEMORY_BUDGET_MB * 1024 * 1024) / (MAX_CONCURRENT_REQUESTS * RSS_FACTOR))
 
 
 class ConfigError(RuntimeError):
@@ -170,6 +210,19 @@ def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
             "artifact (D-116) and this process has none, so /health would report a healthy deploy "
             "over a total evidence outage"
         )
+    else:
+        # W-017 condition (a): the ceiling is linear in a file nothing was measuring. Now it is
+        # measured at startup, against a budget derived from the other two declared terms.
+        size = db.stat().st_size
+        budget = max_database_bytes()
+        if size > budget:
+            problems.append(
+                f"MODEL_RANKING_DB is {size} bytes; at {MAX_CONCURRENT_REQUESTS} concurrent "
+                f"requests and a {MEMORY_BUDGET_MB} MiB budget this process may serve at most "
+                f"{budget} bytes (W-017: each in-flight request holds ~{RSS_FACTOR}x the file in "
+                "memory). Raise MODEL_RANKING_MEMORY_BUDGET_MB with the VM, lower "
+                "MODEL_RANKING_MAX_CONCURRENCY, or bound the snapshot"
+            )
 
     if strict and APP_BUILD == "unknown":
         problems.append(
@@ -182,12 +235,32 @@ def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
     return tuple(problems)
 
 
+@contextlib.asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """W-017 condition (c): cap in-process concurrency EXPLICITLY, inside the running loop.
+
+    Sync handlers run on AnyIO's thread pool, whose default limiter is **40** — a number this
+    project never chose, while `fly.toml` asserted `hard_limit = 8` as "W-017's containment". Two
+    different caps, one of them accidental, is not a containment; it is a coincidence that happened
+    to be in the safer direction. Setting it here makes the memory arithmetic above true of the
+    process that actually runs, and `test_the_concurrency_cap_is_applied_to_the_running_loop` reads
+    it back rather than trusting this comment.
+
+    It cannot be done at import: the limiter needs a loop, and asking for one outside a lifespan
+    raises. That is also why the first attempt at this condition failed loudly instead of silently
+    doing nothing — which is the better of the two ways to get it wrong.
+    """
+    anyio.to_thread.current_default_thread_limiter().total_tokens = MAX_CONCURRENT_REQUESTS
+    yield
+
+
 app = FastAPI(
     title="model_ranking",
     version=APP_VERSION,
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
+    lifespan=_lifespan,
 )
 
 

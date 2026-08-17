@@ -17,6 +17,21 @@ primary_region = "fra"
 [env]
   APP_ENV = "production"
   MODEL_RANKING_DB = "/data/advisor.db"
+  # W-017 conditions (a) and (c), declared here so the VM below and the process agree. The app
+  # derives its maximum servable database size from these two numbers and REFUSES TO BOOT past it,
+  # so a data refresh that outgrows the machine fails at deploy rather than under load.
+  MODEL_RANKING_MAX_CONCURRENCY = "8"
+  MODEL_RANKING_MEMORY_BUDGET_MB = "256"
+
+# W-017 condition (b): the VM size is DECLARED. It was absent, which meant Fly's 256 MB default —
+# a number nobody had chosen while `hard_limit = 8` was being described as "W-017's containment".
+# The three numbers are now one arithmetic: 8 requests x ~2.2x RSS x the database file must fit in
+# `memory`, and `max_database_bytes()` in the app is that same expression solved for the file.
+# Raising this without raising MODEL_RANKING_MEMORY_BUDGET_MB buys nothing; lowering it without
+# lowering the budget lets the process boot into a machine it can exhaust.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
 
 [[mounts]]
   source = "model_ranking_data"
@@ -32,8 +47,11 @@ primary_region = "fra"
   min_machines_running = 1
 
   [http_service.concurrency]
-    # Bounded on purpose, and this is W-017's containment until the engine write is fixed: each
-    # in-flight request holds a full in-memory copy of the database.
+    # This is the EDGE half of the cap; the process half is `MODEL_RANKING_MAX_CONCURRENCY` above,
+    # applied to AnyIO's thread limiter at startup. Before Stage 4.0 only this half existed and the
+    # process was quietly running AnyIO's default of 40 — so the file asserted a containment the
+    # code was not honouring. `hard_limit` must equal MODEL_RANKING_MAX_CONCURRENCY; the app's
+    # budget arithmetic assumes it.
     type = "requests"
     soft_limit = 4
     hard_limit = 8

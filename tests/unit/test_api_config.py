@@ -457,3 +457,116 @@ def test_the_allowlist_actually_filters_an_undeclared_field(
         )
     # ...and the answer is still a real answer, so the filter is not just emptying the payload.
     assert any(a["picks"] for a in body["answers"])
+
+
+# --------------------------------------------------------- W-017's three conditions (Stage 4.0)
+
+
+def test_the_servable_database_size_is_derived_from_the_declared_budget() -> None:
+    """W-017 condition (a): the ceiling was linear in a file nothing measured.
+
+    Three review passes measured the amplification and got ~450,000x, ~9,100x and ~47,000x. They
+    disagreed because the ratio is dominated by DATABASE SIZE — an operator variable an attacker
+    cannot move — which is why the per-byte ratio is the wrong quantity to gate on. The quantity
+    that decides whether the process survives is concurrency x RSS factor x file size, and every
+    term of it is now declared.
+    """
+    import app.adapter.main as adapter
+
+    expected = int(
+        (adapter.MEMORY_BUDGET_MB * 1024 * 1024)
+        / (adapter.MAX_CONCURRENT_REQUESTS * adapter.RSS_FACTOR)
+    )
+    assert adapter.max_database_bytes() == expected
+    # Derived, not typed: move either declared term and the limit moves with it.
+    assert expected != 0
+
+
+def test_a_database_larger_than_the_budget_refuses_to_boot(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """W-017 condition (a), on a real file: a refresh that outgrows the machine fails at DEPLOY.
+
+    The alternative is what the deploy proposals shipped before this: a process that boots happily
+    and exhausts its VM under the first burst of traffic.
+    """
+    import app.adapter.main as adapter
+
+    monkeypatch.delenv("MODEL_RANKING_CORS_ORIGINS", raising=False)
+    monkeypatch.setattr(adapter, "APP_BUILD", "deadbee")
+
+    oversized = tmp_path / "huge.db"
+    oversized.write_bytes(b"\0" * (adapter.max_database_bytes() + 1))
+    monkeypatch.setenv("MODEL_RANKING_DB", str(oversized))
+    with pytest.raises(adapter.ConfigError, match="may serve at most"):
+        adapter.validate_startup_config(env="production")
+
+    # ...and one inside the budget boots, so the check is a budget and not a refusal.
+    ok = tmp_path / "fine.db"
+    ok.write_bytes(b"\0" * 1024)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(ok))
+    assert adapter.validate_startup_config(env="production") == ()
+
+
+def test_the_concurrency_cap_is_applied_to_the_running_loop() -> None:
+    """W-017 condition (c): the cap must be real in the process, not asserted in a config file.
+
+    Sync handlers run on AnyIO's thread pool. Its default limiter is 40 — never chosen by this
+    project — while `fly.toml` described `hard_limit = 8` as W-017's containment. Two caps, one of
+    them accidental, is a coincidence rather than a containment.
+
+    Read from INSIDE a running loop, because the limiter is per-loop: the first version of this
+    test read it from the test thread and raised, which is the same shape as the defect — a check
+    that looks at the wrong process.
+    """
+    import anyio
+
+    import app.adapter.main as adapter
+
+    async def probe() -> float:
+        async with adapter._lifespan(adapter.app):
+            return anyio.to_thread.current_default_thread_limiter().total_tokens
+
+    assert anyio.run(probe) == adapter.MAX_CONCURRENT_REQUESTS
+
+    # ...and the app must actually USE that lifespan, or the cap is applied to nothing.
+    assert (
+        adapter.app.router.lifespan_context is adapter._lifespan
+    ), "the lifespan is defined but the app is not wired to it — the cap would never run"
+
+
+def test_the_declared_numbers_agree_with_the_deploy_proposal() -> None:
+    """The three W-017 terms live in two files and must say the same thing.
+
+    `fly.toml` is a PROPOSAL and binds nothing, which is exactly why its numbers can drift from the
+    code's without anyone noticing — and a containment described in a file that disagrees with the
+    process is the defect Stage 4.0 found, not a fix for it.
+    """
+    import re
+    from pathlib import Path
+
+    import app.adapter.main as adapter
+
+    # Comment lines are STRIPPED before matching. The first version searched the whole file and
+    # found `hard_limit = 8` inside a comment that was *explaining* the cap — so the check read
+    # prose and passed while the real setting said 40. A guard that parses documentation instead of
+    # configuration is this milestone's recurring shape, arriving one more time in its own test.
+    fly = "\n".join(
+        line
+        for line in Path("fly.toml").read_text().splitlines()
+        if not line.strip().startswith("#")
+    )
+    concurrency = re.search(r'MODEL_RANKING_MAX_CONCURRENCY\s*=\s*"(\d+)"', fly)
+    budget = re.search(r'MODEL_RANKING_MEMORY_BUDGET_MB\s*=\s*"(\d+)"', fly)
+    hard_limit = re.search(r"hard_limit\s*=\s*(\d+)", fly)
+    vm_memory = re.search(r'memory\s*=\s*"(\d+)mb"', fly)
+
+    assert concurrency and budget and hard_limit and vm_memory, "fly.toml stopped declaring a term"
+    assert int(concurrency.group(1)) == adapter.MAX_CONCURRENT_REQUESTS
+    assert int(budget.group(1)) == adapter.MEMORY_BUDGET_MB
+    assert (
+        int(hard_limit.group(1)) == adapter.MAX_CONCURRENT_REQUESTS
+    ), "the edge cap and the process cap disagree; the memory arithmetic assumes they match"
+    assert (
+        int(vm_memory.group(1)) >= adapter.MEMORY_BUDGET_MB
+    ), "the VM is smaller than the budget the process is allowed to spend"
