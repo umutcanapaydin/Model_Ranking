@@ -6,6 +6,14 @@
 **Source:** A (baseline profile, `subagent-profiles/Security-Reviewer.md`)
 **Scope:** `git diff 67fd92b..HEAD` — `afcae35`, `915e97b`. The reviewer authored none of this code.
 
+> **Correction, 2026-08-17 (M6 closure, lead agent).** BLOCKING-1's evidence paragraph named the
+> entry point as a `serve` target. **No such target exists**; the target at the cited `Makefile:126`
+> is `make run`, and the command it runs is exactly as the paragraph describes. The finding, its
+> reasoning and its verdict are unaffected — only the target's name was wrong. Corrected in place
+> rather than appended because leaving it would keep instructing a reader to run a command that does
+> not exist, which is the precise defect `conformance/test-documented-commands.py` flagged it for.
+> Recorded here so the amendment is visible rather than silent (B.2).
+
 ## Verdict
 
 **BLOCKING** — 2 blocking, 3 minor, 5 notes.
@@ -33,7 +41,7 @@ grep -rn "validate_startup_config" src tests docs scripts Makefile pyproject.tom
   tests/unit/test_api_config.py:13,60,73,86,98                          <- tests only
 ```
 
-`make serve` (`Makefile:126`) runs `uvicorn app.adapter.main:app`, which imports the module. The
+`make run` (`Makefile:126`) runs `uvicorn app.adapter.main:app`, which imports the module. The
 import executes `cors_origins()` at `main.py:148` — so the **CORS half of the clause is genuinely
 wired** — but it never executes the validator, and there is no `lifespan`, no `on_event("startup")`,
 and no deploy entrypoint of any kind (`grep` for `lifespan`/`on_event` returns nothing; there is no

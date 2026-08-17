@@ -180,15 +180,42 @@ clock, and why it has no picks. **The product got a mouth, not a new opinion.**
 
 ## 7. Definition of done
 
-`make check` exit 0 · **365 passed / 12 skipped, 372 / 5 with the Epoch bundle** · `make smoke-deps`
-PASS (first real pass; L.8 was a loud failure until W4) · `gitleaks` clean · `make conformance` 6 of
-7, the one RED leg being GPF-001 handed back to GP · every criterion traced with a citing test shown
+`make check` exit 0 · **365 passed / 12 skipped, 372 / 5 with the Epoch bundle** · `gitleaks` clean ·
+**`make smoke-deps` FAILS at the closing tree — see the correction below** · `make conformance` 5 of
+7 · every criterion traced with a citing test shown
 able to fail · D-113..D-120 ratified · retrospective answers Ruling A's carried question and poses
 the next · dated EXPERIENCE entry · **`docs/handovers/handover_q2.txt` generated (M % 3 == 0)** ·
 **fifteen BLOCKING closed across five review rounds, none of them found by the author** ·
 Stage-4.0 re-verification, W-017 and W-023 carried to the **deploy** gate per AGENTS.md §6, which
 binds go-live rather than closure — M6 deploys nothing.
 
-**Not claimed green, said plainly:** the coverage and roster-staleness CI legs have still never run
-(`contract-tests.yml` is a Monday cron); the contract test against the live scores API stays skipped
-without `RUN_CONTRACT_TESTS=1`; and no seat has reviewed the tree as it now stands.
+**Correction, made by the owner's run and recorded rather than smoothed.** Two lines above this one
+previously read *"`make smoke-deps` PASS (first real pass)"* and *"`make conformance` 6 of 7, the one
+RED leg being GPF-001"*. **Both were wrong at the closing tree, and the owner's out-of-sandbox run is
+what caught them** — the agent had measured each once, earlier, and carried the result forward as
+though a measurement were a property.
+
+- **`make smoke-deps` exits 1 (W-024).** Four of five remote dependencies parse; **arena fails on an
+  upstream HTTP 500 from the HF datasets-server**, on two consecutive runs. Arena is an ingestion
+  source, so `/v1` and the suite are unaffected — but **Stage 4.3 does not pass while it stands**,
+  and it is not fixed here because the failure is entirely upstream and muffling it would turn a
+  loud outage into a quiet one.
+- **`make conformance` is 5 of 7, not 6.** Two legs are RED, not one: `test-documented-commands`
+  (**GPF-001**, `pin-check` removed by v5.0) and `test-git-authority` (**GPF-004**, which reads a
+  reviewer's attestation that it did *not* run git as an instruction to run git). Both are handed
+  back to General_Pipeline. The count of failing legs is now derived from the log rather than
+  remembered.
+- The fourth dangling command was **not** GPF-001 and **was** a real defect in an M6 record:
+  `docs/reviews/m6-wave-3-security.md` cited a `serve` target that does not exist — the target at
+  the `Makefile:126` it cites is `make run`. Corrected, with the amendment noted in the record.
+- **Writing that correction reproduced the bug it described**, which is worth more than the fix:
+  both amendment notes *quoted* the bad target, and `test-documented-commands` counted the quotes as
+  instructions — dangling went 4 → 5. Same blind spot as GPF-004 and GPF-005, now in a third check:
+  **the suite cannot distinguish naming a command from telling a reader to run one.** Worked around
+  by writing the name without its invocation; handed back to GP as part of GPF-001's remedy, because
+  a record that may not quote a broken command cannot document having fixed one.
+
+**Also not claimed green, said plainly:** the coverage and roster-staleness CI legs have still never
+run (`contract-tests.yml` is a Monday cron); the contract test against the live scores API stays
+skipped without `RUN_CONTRACT_TESTS=1`; no seat has reviewed the tree as it now stands; and the
+owner's authoritative verification runs on **Python 3.14, which no CI leg covers** (W-025).

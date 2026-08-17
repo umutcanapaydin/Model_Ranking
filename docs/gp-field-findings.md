@@ -39,6 +39,23 @@ globs. Editing them would rewrite the record of what a milestone actually ran, t
 changed afterwards. The record is not wrong: the target existed, the milestone ran it, and the
 statement was true on the day it was written.
 
+**New evidence, 2026-08-17 (M6 closure) — the check has a second mode of failure and it is worse.**
+The owner's out-of-sandbox run surfaced a fourth dangling command that was NOT this finding: an M6
+review record cited a `serve` target that never existed (the target is `make run`). That one was a
+genuine defect and was corrected. **But writing the correction note re-broke the check**: both
+amendment notes had to name the bad target in order to say what was wrong with it, and
+`test-documented-commands.py` counted those citations as instructions — dangling went 4 → 5, and the
+repair looked identical to the disease.
+
+The workaround was to write the target's name without its invocation prefix, which is a formatting
+trick, not a fix. The point for GP is structural: **a project cannot document having fixed a broken
+command, because the fix record must quote the broken command.** This is the same records-versus-
+instructions blind spot as GPF-004 (`test-git-authority` reading an attestation as an order) and
+GPF-005 (`L1` having no negation escape hatch) — **now confirmed in a third check of seven.** Three
+of seven conformance tests share one design gap; that is a property of the suite, not a coincidence
+among its files. Whatever mechanism GP adopts for GPF-004/005 — a negation list, a quoted-citation
+form, a `record_type`-aware mode — must cover this check in the same change.
+
 **The general shape, which is the part GP should care about.** `test-documented-commands.py` asserts
 that every command a document names still exists. That is exactly right for *live* documentation and
 exactly wrong for *records*. A methodology that is simultaneously append-only and command-verified
