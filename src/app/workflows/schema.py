@@ -248,7 +248,19 @@ def _migrate(conn: sqlite3.Connection) -> list[str]:
 
 
 def migrate(conn: sqlite3.Connection) -> list[str]:
-    """Atomically add post-M1 columns to tables that predate them."""
+    """Atomically add post-M1 columns to tables that predate them.
+
+    **W-009: this is now the only migration entry point, and it is the one production runs.**
+    Until M6-W3 both `connect()` and `main()` called the private `_migrate` directly inside their
+    own `BEGIN IMMEDIATE`, so the SAVEPOINT wrapper here was exercised by tests and by nothing else
+    — the atomicity the suite proved was not the transaction that shipped. Two entry points where
+    one is tested and the other runs is worse than one untested entry point, because the test
+    reports on a path nobody takes.
+
+    `migrate` is a K.8 frozen contract name, so the reconciliation went the other way: the callers
+    moved to it. SAVEPOINT nests correctly inside a caller's transaction, which is what it is for,
+    and works standalone when there is none.
+    """
     conn.execute("SAVEPOINT model_ranking_schema_migrate")
     try:
         applied = _migrate(conn)
@@ -354,7 +366,7 @@ def connect(path: str = ":memory:") -> sqlite3.Connection:
     try:
         conn.execute("BEGIN IMMEDIATE")
         _apply_ddl(conn)
-        _migrate(conn)
+        migrate(conn)  # W-009: the same entry point the tests exercise
         conn.commit()
     except sqlite3.Error:
         conn.rollback()
@@ -399,7 +411,7 @@ def main(argv: list[str] | None = None) -> int:
         _validate_migration_input(conn, tables)
         conn.execute("BEGIN IMMEDIATE")
         _apply_ddl(conn)
-        applied = _migrate(conn)
+        applied = migrate(conn)  # W-009: the same entry point the tests exercise
         conn.commit()
     except sqlite3.Error as exc:
         if conn is not None:

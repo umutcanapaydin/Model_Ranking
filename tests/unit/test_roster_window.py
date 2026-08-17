@@ -152,3 +152,99 @@ def test_a_pre_m6_database_migrates_without_inventing_a_policy(tmp_path) -> None
         assert migrate(conn) == []
     finally:
         conn.close()
+
+
+def test_production_runs_the_migration_entry_point_the_tests_exercise() -> None:
+    """W-009: one entry point, and it is the tested one.
+
+    Both `connect()` and `schema.main()` called the PRIVATE `_migrate` directly, inside their own
+    `BEGIN IMMEDIATE`, while the public `migrate()`'s SAVEPOINT wrapper was reached only by tests.
+    Two entry points where one is tested and the other ships is worse than one untested entry point,
+    because the suite then reports on a path nobody takes.
+
+    Asserted from source rather than by observing behaviour: the two paths behave identically today,
+    which is exactly why nothing caught the divergence, and a behavioural test would keep passing
+    if someone switched back.
+    """
+    from pathlib import Path
+
+    source = Path("src/app/workflows/schema.py").read_text()
+    body = source[source.index("def connect(") :]
+    assert "_migrate(conn)" not in body, (
+        "a production path calls the private _migrate again — the SAVEPOINT the tests prove is "
+        "then not the transaction that ships"
+    )
+    assert body.count("migrate(conn)") >= 2, "the production paths no longer migrate at all"
+
+
+def test_the_public_migration_rolls_back_cleanly_inside_a_caller_transaction() -> None:
+    """The property that made the private call tempting: SAVEPOINT must nest.
+
+    `migrate()` is now called from inside `connect()`'s `BEGIN IMMEDIATE`. If SAVEPOINT did not
+    nest, the reconciliation would have traded a tested-but-unused path for an untested-and-used
+    one.
+    """
+    conn = connect()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        from app.workflows.schema import migrate
+
+        assert migrate(conn) == []  # already current: nothing to apply, no error inside the txn
+        conn.execute(
+            "INSERT INTO plan_config (id, staleness_days, cap_dusuk, cap_orta)"
+            " VALUES (1, 30, 10.0, 25.0)"
+        )
+        conn.commit()
+        assert conn.execute("SELECT staleness_days FROM plan_config").fetchone()[0] == 30
+    finally:
+        conn.close()
+
+
+def test_the_served_notice_ages_a_roster_link_on_the_roster_window() -> None:
+    """W-008's actual criterion: which window the ANSWER used, not which column exists.
+
+    Mandatory test for a stay-green fault (V3C-72), and the most important one in this wave. The
+    first version of this file proved the plumbing — the column exists, ingest writes it, the
+    migration does not default it — and asserted nothing about the served sentence. Fault injection
+    restored the original defect (the notice reading `plan_config.staleness_days`) and every test
+    stayed green. **A fix whose citing tests cover the mechanism and not the behaviour is a fix
+    nobody has checked.**
+
+    The two windows are set apart deliberately: plan 365, roster 5, against a link verified 10 days
+    before the plans were observed. Under the defect the link reads FRESH (10 < 365) and the answer
+    says nothing. Under the fix it reads STALE (10 > 5) and the answer says so.
+    """
+    from .test_subscribe import TWIN_DOC, _db
+
+    conn = _db(TWIN_DOC)
+    try:
+        conn.execute("UPDATE plans SET observed_at = '2026-08-15T00:00:00+00:00'")
+        conn.execute(
+            "UPDATE plan_models SET link_source = 'roster',"
+            " source_url = 'https://twinco.example/models', last_verified = '2026-08-05'"
+            " WHERE plan_id = 'twin-plan'"
+        )
+        conn.execute(
+            "UPDATE plan_config SET staleness_days = 365, roster_staleness_days = 5 WHERE id = 1"
+        )
+        conn.commit()
+
+        from app.workflows.subscribe import recommend_subscription
+
+        rec = recommend_subscription(conn, "unlimited", "coding")
+        assert rec is not None
+        assert rec.stale_notice is not None, (
+            "a roster link 10 days old went unmentioned against a 5-day roster window — the answer "
+            "is aging it on the plan table's 365-day clock"
+        )
+        assert "roster" in rec.stale_notice
+
+        # ...and the converse, so the test cannot pass by always finding something stale: widen the
+        # ROSTER window alone and the same link goes quiet, while the plan window never moved.
+        conn.execute("UPDATE plan_config SET roster_staleness_days = 90 WHERE id = 1")
+        conn.commit()
+        quiet = recommend_subscription(conn, "unlimited", "coding")
+        assert quiet is not None
+        assert quiet.stale_notice is None or "roster" not in quiet.stale_notice
+    finally:
+        conn.close()

@@ -69,6 +69,73 @@ DECLARED_ROUTES: frozenset[str] = frozenset(
 
 # docs_url / redoc_url / openapi_url are OFF because the plan declares three routes and these
 # would make seven. `/v1/categories` is the discovery surface; it needs no CDN.
+#: Environments where a missing or permissive security config is a defect rather than a
+#: convenience. Anything else is a developer machine, where refusing to boot helps nobody.
+PRODUCTION_ENVS = frozenset({"production", "prod"})
+
+
+class ConfigError(RuntimeError):
+    """Security-relevant configuration is missing or unusable. Raised at STARTUP, never per-request.
+
+    V3C-51: a process that boots with a broken security config and fails per-request has already
+    served the request that mattered.
+    """
+
+
+def cors_origins() -> tuple[str, ...]:
+    """The explicit origin allowlist, from `MODEL_RANKING_CORS_ORIGINS` (V3C-13).
+
+    **A wildcard is refused, not warned about.** The baseline forbids allow-all with credentials;
+    this surface goes further and forbids allow-all outright, because the answer is public data and
+    no caller needs a wildcard to read it — while a wildcard frozen into `/v1` would be a contract
+    to widen later rather than a default to tighten.
+
+    Empty means NO cross-origin access, which is what a same-origin iOS client needs and is the
+    safer of the two possible defaults. The W1 security pass judged deferring this safe on exactly
+    that condition: that W3 would not satisfy the clause with a wildcard.
+    """
+    raw = os.environ.get("MODEL_RANKING_CORS_ORIGINS", "").strip()
+    if not raw:
+        return ()
+    origins = tuple(part.strip() for part in raw.split(",") if part.strip())
+    for origin in origins:
+        if origin == "*":
+            msg = (
+                "MODEL_RANKING_CORS_ORIGINS contains '*'. This surface serves public data and needs"
+                " no wildcard; a wildcard frozen into /v1 becomes a contract. List origins"
+                " explicitly, or leave it unset for no cross-origin access."
+            )
+            raise ConfigError(msg)
+        if not origin.startswith(("http://", "https://")):
+            msg = f"MODEL_RANKING_CORS_ORIGINS entry {origin!r} is not an absolute origin"
+            raise ConfigError(msg)
+    return origins
+
+
+def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
+    """Check the security-relevant configuration once, at import, and fail CLOSED in production.
+
+    V3C-51. Returns the warnings a non-production process is allowed to run with, so that a
+    developer machine is not blocked by a missing deploy variable while production is.
+    """
+    environment = (env if env is not None else os.environ.get("APP_ENV", "development")).lower()
+    problems: list[str] = []
+
+    cors_origins()  # raises ConfigError on a wildcard or a malformed origin, in every environment
+
+    if _db_path() is None:
+        problems.append("MODEL_RANKING_DB is unset — the process has no evidence database to serve")
+    if environment in PRODUCTION_ENVS and APP_BUILD == "unknown":
+        problems.append(
+            "APP_BUILD is unset — /health cannot say which code is live, so a deploy cannot be"
+            " verified (L.7)"
+        )
+
+    if problems and environment in PRODUCTION_ENVS:
+        raise ConfigError("; ".join(problems))
+    return tuple(problems)
+
+
 app = FastAPI(
     title="model_ranking",
     version=APP_VERSION,
@@ -76,6 +143,21 @@ app = FastAPI(
     redoc_url=None,
     openapi_url=None,
 )
+
+
+_ALLOWED_ORIGINS = cors_origins()
+if _ALLOWED_ORIGINS:
+    from fastapi.middleware.cors import CORSMiddleware
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(_ALLOWED_ORIGINS),
+        # Credentials are never allowed on this surface: it serves public data and authenticates
+        # nobody, so allowing them could only ever be an accident with consequences.
+        allow_credentials=False,
+        allow_methods=["GET"],
+        allow_headers=["Accept", "Content-Type"],
+    )
 
 
 @app.middleware("http")
