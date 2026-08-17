@@ -1,14 +1,14 @@
 ---
 record_type: ratification
 id: closure-report-m6
-status: draft
+status: ratified
 date: 2026-08-17
 ---
 # Closure Report — M6: The HTTP API
 
 > Owner's A0.5 milestone-session review pack, generated 2026-08-17 from committed artifacts.
 >
-> **Status: PENDING the owner's signature on §0.** Everything agent-side is closed: four waves,
+> **Status: RATIFIED by the owner on 2026-08-17. M6 is CLOSED.** Everything agent-side is closed: four waves,
 > three HIGH-tier review seats, plus a Stage-4.0 closure security review that ran twice. **Fifteen
 > BLOCKING findings in total, every one fixed, each with a citing test shown able to fail and a RED
 > mutant.**
