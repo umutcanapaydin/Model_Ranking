@@ -5,6 +5,13 @@ declare an anchor, alias it into itself repeatedly, and expand to gigabytes whil
 the "billion laughs" shape. M4's security review measured it here: MemoryError in about ten seconds
 under a 1 GiB limit, from a file of a few hundred bytes.
 
+**Correction, measured by two review seats at M6-W3:** the M4 note says `safe_load` itself raises
+MemoryError in about ten seconds. It does not — PyYAML shares constructed objects between aliases,
+so the attack document loads in about a millisecond. The blowup is real and it is DOWNSTREAM: the
+same object serialised with `json.dumps` measured 2.29 GB. The control belongs exactly where it is,
+before anything walks the result; the original description of where the cost lands was wrong and is
+not repeated here.
+
 That was ACCEPTED at M4 with a stated trigger, and the trigger is what matters now. Both YAML inputs
 were repo-committed data with no untrusted producer, so the boundary was theoretical. **M6 puts a
 network surface in front of the same process.** Nothing in `/v1` reads YAML today, and this guard is
@@ -34,8 +41,21 @@ MAX_YAML_BYTES = 1_048_576
 MAX_EXPANDED_NODES = 500_000
 
 
-class YamlGuardError(ValueError):
-    """A curated document was refused before it was materialised. Loud, never partially applied."""
+class YamlGuardError(yaml.YAMLError, ValueError):
+    """A document was refused before it was materialised. Loud, never partially applied.
+
+    **Inherits `yaml.YAMLError`, and that is a contract requirement rather than tidiness.** The
+    first version subclassed `ValueError` alone, so every caller's `except yaml.YAMLError` handler
+    was bypassed and `SourceError` was never raised — malformed roster YAML went from a clean
+    `exit 2` to an uncaught traceback and `exit 1`, and in that CLI `exit 1` means "stale rosters
+    found". A CI cadence job would have read a parse failure as a staleness result. CLI exit codes
+    are a K.8 frozen contract; a new exception type is a change to it.
+
+    `ValueError` is retained so the guard's own callers can keep catching it as a value error.
+    """
+
+
+_IN_PROGRESS: set[int] = set()
 
 
 def _expanded_size(node: yaml.Node, memo: dict[int, int]) -> int:
@@ -53,12 +73,18 @@ def _expanded_size(node: yaml.Node, memo: dict[int, int]) -> int:
     key = id(node)
     if key in memo:
         return memo[key]
-    memo[key] = 1  # cycle guard: a self-referential anchor counts once rather than recursing
+    # A node reached again while it is still being counted is a CYCLE, and a cycle expands without
+    # bound. The first version seeded the memo with 1 and let the recursion unwind, which scored a
+    # self-referential anchor at 12 and let it through. Unbounded is not small.
+    if key in _IN_PROGRESS:
+        raise YamlGuardError("document contains a recursive anchor, which expands without bound")
+    _IN_PROGRESS.add(key)
     total = 1
     if isinstance(node, yaml.SequenceNode):
         total += sum(_expanded_size(child, memo) for child in node.value)
     elif isinstance(node, yaml.MappingNode):
         total += sum(_expanded_size(k, memo) + _expanded_size(v, memo) for k, v in node.value)
+    _IN_PROGRESS.discard(key)
     memo[key] = total
     return total
 

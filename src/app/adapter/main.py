@@ -82,6 +82,17 @@ class ConfigError(RuntimeError):
     """
 
 
+def _db_path() -> Path | None:
+    """The evidence database, named EXPLICITLY or not at all.
+
+    The W1 security pass: a working-directory-relative default serves the WRONG DATABASE with a
+    200 instead of refusing to boot, and a server's CWD is not a thing anyone reviews. There is no
+    default. Unset is a fail-closed 503, like every other unusable-evidence condition.
+    """
+    raw = os.environ.get("MODEL_RANKING_DB", "").strip()
+    return Path(raw) if raw else None
+
+
 def cors_origins() -> tuple[str, ...]:
     """The explicit origin allowlist, from `MODEL_RANKING_CORS_ORIGINS` (V3C-13).
 
@@ -144,6 +155,13 @@ app = FastAPI(
     openapi_url=None,
 )
 
+
+#: **Run at import, which is the only startup this process has.** `make serve` is
+#: `uvicorn app.adapter.main:app`, so importing this module IS the boot — and until M6-W3 this
+#: validator was defined and called by nothing but tests. All three review seats found it
+#: independently, and the security seat named why mutation testing could not: a mutant of a
+#: function no production path reaches is killed by a test of a function nobody calls.
+STARTUP_WARNINGS = validate_startup_config()
 
 _ALLOWED_ORIGINS = cors_origins()
 if _ALLOWED_ORIGINS:
@@ -226,17 +244,6 @@ def serving_snapshot(path: Path) -> sqlite3.Connection:
     finally:
         source.close()
     return memory
-
-
-def _db_path() -> Path | None:
-    """The evidence database, named EXPLICITLY or not at all.
-
-    The W1 security pass: a working-directory-relative default serves the WRONG DATABASE with a
-    200 instead of refusing to boot, and a server's CWD is not a thing anyone reviews. There is no
-    default. Unset is a fail-closed 503, like every other unusable-evidence condition.
-    """
-    raw = os.environ.get("MODEL_RANKING_DB", "").strip()
-    return Path(raw) if raw else None
 
 
 def _echo(value: str, limit: int = 40) -> str:

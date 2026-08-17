@@ -114,3 +114,129 @@ def test_no_cors_header_is_served_when_no_allowlist_is_configured(
     )
     assert response.status_code == 200
     assert "access-control-allow-origin" not in {k.lower() for k in response.headers}
+
+
+# ---------------------------------------------- wiring, not definitions (V3C-73, all three seats)
+
+
+def test_the_startup_validator_is_actually_CALLED_at_import() -> None:
+    """BLOCKING from all three W3 seats: the validator was defined and invoked by nothing.
+
+    Measured by two of them independently: `APP_ENV=production` with no database and no build stamp
+    imported cleanly and served 200s. Four tests exercised the function; none exercised the
+    invariant. The security seat named the reason mutation testing could not see it — *a mutant of
+    a function no production path reaches is killed by a test of a function nobody calls.*
+
+    Asserted from source, because the failure mode is the CALL going missing, and a behavioural
+    test would keep passing as long as the module still imports.
+    """
+    import ast
+    from pathlib import Path
+
+    module = ast.parse(Path("src/app/adapter/main.py").read_text())
+    module_level_calls = {
+        node.value.func.id
+        for node in module.body
+        if isinstance(node, ast.Assign)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+    }
+    assert "validate_startup_config" in module_level_calls, (
+        "the startup validator is not called at import — `uvicorn app.adapter.main:app` never "
+        "runs it, so REQ-API-006's startup clause is unmet however many unit tests it has"
+    )
+    assert "cors_origins" in module_level_calls
+
+
+def test_a_production_process_refuses_to_import_with_broken_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The same invariant, proven through the real import rather than through the function.
+
+    This is what row 7's clause (c) claimed and did not have: the process, not the helper.
+    """
+    import subprocess
+    import sys
+
+    env = {
+        "PATH": "/usr/bin:/bin",
+        "APP_ENV": "production",
+        "PYTHONPATH": "src",
+    }
+    result = subprocess.run(
+        [sys.executable, "-c", "import app.adapter.main"],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=".",
+    )
+    assert result.returncode != 0, "a production process imported with no evidence database"
+    assert "MODEL_RANKING_DB is unset" in result.stderr
+
+
+# ---------------------------------------------- the CORS middleware itself, not the pure function
+
+
+def _client_with_origins(monkeypatch: pytest.MonkeyPatch, tmp_path, origins: str):
+    """A live app whose CORS middleware was configured by the value under test."""
+    import importlib
+
+    from .test_api_v1 import _seeded_db
+
+    db = tmp_path / "pipeline.db"
+    _seeded_db(db)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    monkeypatch.setenv("MODEL_RANKING_CORS_ORIGINS", origins)
+    import app.adapter.main as adapter
+
+    adapter = importlib.reload(adapter)
+    return TestClient(adapter.app)
+
+
+def test_an_allowlisted_origin_is_echoed_and_others_are_not(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """BLOCKING from the code review: deleting the whole `add_middleware` block left 336 green.
+
+    The previous CORS tests called `cors_origins()` — a pure function — and one asserted the
+    ABSENCE of a header, which holds vacuously when the middleware is gone. So the implementation
+    was correct, unproven and deletable, which the reviewer correctly called worse than wrong.
+    """
+    client = _client_with_origins(monkeypatch, tmp_path, "https://app.example.com")
+
+    allowed = client.get("/v1/categories", headers={"Origin": "https://app.example.com"})
+    assert allowed.headers.get("access-control-allow-origin") == "https://app.example.com"
+
+    denied = client.get("/v1/categories", headers={"Origin": "https://evil.example.com"})
+    assert "access-control-allow-origin" not in {k.lower() for k in denied.headers}
+
+
+def test_credentials_are_never_allowed_across_origins(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """V3C-13's actual rule, asserted on a response: allow-all WITH credentials is the banned pair.
+
+    This surface authenticates nobody, so allowing credentials could only ever be an accident.
+    """
+    client = _client_with_origins(monkeypatch, tmp_path, "https://app.example.com")
+    response = client.get("/v1/categories", headers={"Origin": "https://app.example.com"})
+    assert "access-control-allow-credentials" not in {k.lower() for k in response.headers}
+
+
+def test_a_preflight_is_answered_for_get_and_refuses_a_mutating_verb(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """The surface is three GET routes; a preflight must not advertise anything else."""
+    client = _client_with_origins(monkeypatch, tmp_path, "https://app.example.com")
+    preflight = client.options(
+        "/v1/categories",
+        headers={
+            "Origin": "https://app.example.com",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert preflight.status_code in (200, 204)
+    allowed_methods = preflight.headers.get("access-control-allow-methods", "")
+    assert "GET" in allowed_methods
+    for verb in ("POST", "PUT", "PATCH", "DELETE"):
+        assert verb not in allowed_methods

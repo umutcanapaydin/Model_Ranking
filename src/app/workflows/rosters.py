@@ -250,4 +250,15 @@ def roster_staleness_days(conn: sqlite3.Connection) -> int:
             " to the plan table's window"
         )
         raise ValueError(msg)
-    return int(row[0])
+    window = int(row[0])
+    if window <= 0:
+        # SQLite cannot ALTER a CHECK constraint onto an existing table, so a MIGRATED database
+        # accepts a value a FRESH one refuses. The schema cannot enforce it there, so the read
+        # boundary does — found by the W3 security pass.
+        msg = (
+            f"plan_config.roster_staleness_days is {window}, which is not a window. A database"
+            " migrated from a pre-M6 schema carries no CHECK on this column; re-ingest"
+            " data/rosters.yaml."
+        )
+        raise ValueError(msg)
+    return window

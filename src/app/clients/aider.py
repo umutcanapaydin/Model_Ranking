@@ -15,6 +15,7 @@ import yaml
 
 from app.clients.protocols import SourceError
 from app.workflows.schema import ScoreRow
+from app.workflows.yaml_guard import safe_load_bounded
 
 AIDER_URL = (
     "https://raw.githubusercontent.com/Aider-AI/aider/main/"
@@ -63,7 +64,13 @@ def parse_polyglot(
     """Parse the polyglot YAML into score rows; entries without a usable
     model name or pass_rate_2 are skipped (never stored as zero)."""
     try:
-        entries = yaml.safe_load(raw)
+        # The ONLY YAML input in this project with a genuinely external producer: this is a
+        # third-party HTTP body, not a repo-committed file. W-005 was deferred with the
+        # condition "when an untrusted producer becomes possible" — that condition has been
+        # met at this call site since M2, and M6-W3 first installed the guard on the three
+        # curated files and missed this one. Measured by the security pass: a 312-byte
+        # hostile payload in this parser's expected shape reaches 2.29 GB downstream.
+        entries = safe_load_bounded(raw, what="the Aider polyglot leaderboard (remote)")
     except yaml.YAMLError as exc:
         msg = f"aider payload is not valid YAML: {exc}"
         raise SourceError(msg) from exc

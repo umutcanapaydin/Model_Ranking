@@ -17,6 +17,7 @@ asserts which one the answer used.
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -248,3 +249,159 @@ def test_the_served_notice_ages_a_roster_link_on_the_roster_window() -> None:
         assert quiet.stale_notice is None or "roster" not in quiet.stale_notice
     finally:
         conn.close()
+
+
+def test_a_pre_m6_database_WITH_roster_links_migrates_and_then_serves(tmp_path) -> None:
+    """The Tester's "single most important missing test", and it was missing for a precise reason.
+
+    Every REQ-SUB-008 test used either a FRESH database (always populated) or a roster-FREE one
+    (which takes the early-out added in this wave). Neither is the database that exists. The
+    migration and the serving path were each tested against a database the other would never see —
+    and the real `advisor.db`, with 18 roster links, migrated with `applied_count: 2` and then
+    refused every subscription query.
+
+    A schema migration can add a COLUMN. It cannot supply a POLICY. So the end state is honest —
+    "migrated, and not yet usable" — but it must be said at MIGRATE time, which is what exit 3 and
+    `required_operator_actions` now do.
+    """
+    import json
+    from contextlib import redirect_stdout
+    from io import StringIO
+
+    from app.workflows.ingest import RunContext
+    from app.workflows.plans import ingest_plans
+    from app.workflows.schema import main as schema_main
+
+    db = tmp_path / "with-links.db"
+    conn = connect(str(db))
+    try:
+        ingest_plans(conn, Path("data/plans.yaml").read_text(), RunContext())
+        # A roster link, exactly as a pre-M6 database would carry it: link present, policy absent.
+        conn.execute(
+            "UPDATE plan_models SET link_source = 'roster',"
+            " source_url = 'https://example.test/models', last_verified = '2026-08-01'"
+            " WHERE rowid = (SELECT MIN(rowid) FROM plan_models)"
+        )
+        conn.execute("UPDATE plan_config SET roster_staleness_days = NULL WHERE id = 1")
+        conn.commit()
+    finally:
+        conn.close()
+
+    buffer = StringIO()
+    with redirect_stdout(buffer):
+        code = schema_main(["migrate", "--db", str(db)])
+    report = json.loads(buffer.getvalue())
+
+    assert code == 3, "a migration that leaves the database unservable reported success"
+    assert report["required_operator_actions"], "the operator was told nothing"
+    assert "re-ingest data/rosters.yaml" in report["required_operator_actions"][0]
+
+    # ...and once the operator does what it says, the same database serves.
+    from app.workflows.rosters import ingest_rosters, roster_staleness_days
+
+    conn = connect(str(db))
+    try:
+        ingest_rosters(conn, Path("data/rosters.yaml").read_text(), RunContext())
+        assert roster_staleness_days(conn) == 30
+    finally:
+        conn.close()
+
+    buffer = StringIO()
+    with redirect_stdout(buffer):
+        assert schema_main(["migrate", "--db", str(db)]) == 0
+    assert json.loads(buffer.getvalue())["required_operator_actions"] == []
+
+
+def test_the_migration_rolls_back_a_REAL_failure(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """B-3: the rollback was described and never proven — deleting the SAVEPOINT left 336 green.
+
+    The old test called `migrate()` on an already-current schema, so zero statements ran and the
+    SAVEPOINT did nothing observable. A rollback is only observable when a migration gets PARTWAY
+    and then fails, so this one makes that happen: a migration list whose first entry is valid and
+    whose second is not. If the SAVEPOINT works, neither is applied. If it does not, the first one
+    survives — which is the half-migrated database the wrapper exists to prevent.
+    """
+    import sqlite3 as sq
+
+    from app.workflows import schema as schema_mod
+
+    db = tmp_path / "rollback.db"
+    conn = connect(str(db))
+    try:
+        conn.execute(
+            "INSERT INTO plan_config (id, staleness_days, cap_dusuk, cap_orta)"
+            " VALUES (1, 30, 10.0, 25.0)"
+        )
+        conn.commit()
+
+        monkeypatch.setattr(
+            schema_mod,
+            "_MIGRATIONS",
+            (
+                ("plan_config", "probe_ok", "INTEGER"),
+                ("plan_config", "probe_bad", "INTEGER NOT NULL"),  # SQLite refuses: no default
+            ),
+        )
+
+        conn.execute("BEGIN IMMEDIATE")
+        with pytest.raises(sq.Error):
+            schema_mod.migrate(conn)
+        conn.rollback()
+
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(plan_config)")}
+        assert "probe_ok" not in columns, (
+            "the first migration statement survived a failure in the second — the SAVEPOINT did "
+            "not roll back, so a failed migration leaves a half-migrated database"
+        )
+        assert "probe_bad" not in columns
+        assert conn.execute("SELECT staleness_days FROM plan_config").fetchone()[0] == 30
+    finally:
+        conn.close()
+
+
+def test_a_migrated_database_cannot_serve_a_nonsense_window(tmp_path) -> None:
+    """Security MINOR-3: SQLite cannot ALTER a CHECK on, so the read boundary enforces it.
+
+    A FRESH database refuses `roster_staleness_days = -5` at the schema — verified below. A MIGRATED
+    one accepts the write, because `ALTER TABLE ADD COLUMN` cannot attach a constraint. The two
+    databases would otherwise disagree about what is storable, which is the kind of split a
+    migration is supposed to close rather than create.
+    """
+    db = tmp_path / "migrated.db"
+    old = sqlite3.connect(str(db))
+    try:
+        old.executescript("""
+            CREATE TABLE plan_config (
+                id             INTEGER PRIMARY KEY CHECK (id = 1),
+                staleness_days INTEGER NOT NULL CHECK (staleness_days > 0),
+                cap_dusuk      REAL NOT NULL CHECK (cap_dusuk > 0),
+                cap_orta       REAL NOT NULL CHECK (cap_orta > cap_dusuk)
+            );
+            INSERT INTO plan_config (id, staleness_days, cap_dusuk, cap_orta)
+                VALUES (1, 30, 10.0, 25.0);
+            """)
+        old.commit()
+    finally:
+        old.close()
+
+    conn = connect(str(db))  # migrates: adds the bare column, no CHECK available
+    try:
+        conn.execute("UPDATE plan_config SET roster_staleness_days = -5 WHERE id = 1")
+        conn.commit()
+        with pytest.raises(ValueError, match="not a window"):
+            _roster_window(conn)
+    finally:
+        conn.close()
+
+    # ...and the fresh schema refuses the same write outright, which is why only the read boundary
+    # can cover both shapes.
+    fresh = connect()
+    try:
+        fresh.execute(
+            "INSERT INTO plan_config (id, staleness_days, roster_staleness_days, cap_dusuk,"
+            " cap_orta) VALUES (1, 30, 30, 10.0, 25.0)"
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            fresh.execute("UPDATE plan_config SET roster_staleness_days = -5 WHERE id = 1")
+    finally:
+        fresh.close()

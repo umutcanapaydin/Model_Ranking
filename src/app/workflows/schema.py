@@ -264,11 +264,15 @@ def migrate(conn: sqlite3.Connection) -> list[str]:
     conn.execute("SAVEPOINT model_ranking_schema_migrate")
     try:
         applied = _migrate(conn)
-    except sqlite3.Error:
+    except BaseException:
+        # BaseException and a `finally` RELEASE, both deliberate. The first version caught only
+        # `sqlite3.Error`, so any other exception — including a KeyboardInterrupt mid-migration —
+        # left the savepoint OPEN, and the next statement on the connection would have run inside
+        # a transaction nobody knew was there. Found by the W3 code review, new with W-009.
         conn.execute("ROLLBACK TO model_ranking_schema_migrate")
-        conn.execute("RELEASE model_ranking_schema_migrate")
         raise
-    conn.execute("RELEASE model_ranking_schema_migrate")
+    finally:
+        conn.execute("RELEASE model_ranking_schema_migrate")
     return applied
 
 
@@ -321,6 +325,30 @@ def _ddl_columns() -> dict[str, set[str]]:
         if first.isidentifier():
             tables[current].add(first)
     return tables
+
+
+def _required_operator_actions(conn: sqlite3.Connection) -> list[str]:
+    """What the operator must still do before this database can serve.
+
+    A schema migration can add a COLUMN. It cannot supply a POLICY, and inventing one is the defect
+    `roster_staleness_days` exists to prevent — so the honest end state for a database with roster
+    links and no roster window is "migrated, and not yet usable", said out loud at migrate time
+    rather than discovered at serve time.
+    """
+    actions: list[str] = []
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if {"plan_models", "plan_config"} <= tables:
+        links = conn.execute(
+            "SELECT COUNT(*) FROM plan_models WHERE link_source = 'roster'"
+        ).fetchone()[0]
+        row = conn.execute("SELECT roster_staleness_days FROM plan_config WHERE id = 1").fetchone()
+        if links and (row is None or row[0] is None):
+            actions.append(
+                f"{links} roster link(s) are present but plan_config.roster_staleness_days is "
+                "unset: re-ingest data/rosters.yaml so the roster window comes from the roster "
+                "policy (REQ-SUB-008). The migration cannot supply a policy, only a column."
+            )
+    return actions
 
 
 def _validate_migration_input(conn: sqlite3.Connection, tables: set[str]) -> None:
@@ -412,6 +440,7 @@ def main(argv: list[str] | None = None) -> int:
         conn.execute("BEGIN IMMEDIATE")
         _apply_ddl(conn)
         applied = migrate(conn)  # W-009: the same entry point the tests exercise
+        required = _required_operator_actions(conn)
         conn.commit()
     except sqlite3.Error as exc:
         if conn is not None:
@@ -423,11 +452,21 @@ def main(argv: list[str] | None = None) -> int:
             conn.close()
     print(
         json.dumps(
-            {"database": str(path), "applied": applied, "applied_count": len(applied)},
+            {
+                "database": str(path),
+                "applied": applied,
+                "applied_count": len(applied),
+                "required_operator_actions": required,
+            },
             indent=2,
         )
     )
-    return 0
+    # A migration that reports success and leaves the database unservable is the W-004 symptom
+    # class this command exists to remove. The Tester found it reinstated with a new column: a real
+    # pre-M6 database with 18 roster links migrated with `applied_count: 2` and then refused every
+    # subscription query. Exit 3 says "migrated, and not yet usable" — distinct from 0 (done) and
+    # from 2 (could not migrate), because a CI job needs to tell those apart.
+    return 3 if required else 0
 
 
 if __name__ == "__main__":
