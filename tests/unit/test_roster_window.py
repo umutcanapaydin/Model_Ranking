@@ -346,14 +346,19 @@ def test_the_migration_rolls_back_a_REAL_failure(tmp_path, monkeypatch: pytest.M
         conn.execute("BEGIN IMMEDIATE")
         with pytest.raises(sq.Error):
             schema_mod.migrate(conn)
-        conn.rollback()
 
+        # **Asserted BEFORE the outer rollback, and that is the entire test.** The previous version
+        # checked after `conn.rollback()`, where the caller's own `BEGIN IMMEDIATE` has already
+        # discarded the partial work — so the SAVEPOINT did nothing observable and deleting it left
+        # 347 tests passing. Same defect class as the test it replaced, caught by the same seat
+        # twice. Measured: `probe_ok` is present here WITHOUT the savepoint and absent WITH it.
         columns = {row[1] for row in conn.execute("PRAGMA table_info(plan_config)")}
         assert "probe_ok" not in columns, (
             "the first migration statement survived a failure in the second — the SAVEPOINT did "
             "not roll back, so a failed migration leaves a half-migrated database"
         )
         assert "probe_bad" not in columns
+        conn.rollback()
         assert conn.execute("SELECT staleness_days FROM plan_config").fetchone()[0] == 30
     finally:
         conn.close()

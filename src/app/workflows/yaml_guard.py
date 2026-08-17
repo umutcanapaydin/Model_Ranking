@@ -55,10 +55,7 @@ class YamlGuardError(yaml.YAMLError, ValueError):
     """
 
 
-_IN_PROGRESS: set[int] = set()
-
-
-def _expanded_size(node: yaml.Node, memo: dict[int, int]) -> int:
+def _expanded_size(node: yaml.Node, memo: dict[int, int], in_progress: set[int]) -> int:
     """How many nodes this subtree becomes once aliases are resolved.
 
     **This is the whole guard, and the first version did not have it.** That version counted alias
@@ -70,21 +67,31 @@ def _expanded_size(node: yaml.Node, memo: dict[int, int]) -> int:
     `yaml.compose` builds the graph with aliases as SHARED references, so walking it is linear in
     the document's real size. The multiplication happens here, in integers, instead of in memory.
     """
+    # **Both of these are per-CALL, and that is the whole point.** The first version kept the
+    # in-progress set at module scope and never cleared it on the raise path, so one hostile
+    # document left node addresses behind and CPython recycled them into the next parse: measured
+    # by the W3 Tester at 159 of 160 legitimate loads of `data/plans.yaml` refused as recursive
+    # after a single attack. The same change had just routed the remote-fed Aider input through
+    # here, so one hostile HTTP body would have persistently disabled YAML ingestion — a denial of
+    # service introduced by the fix for a denial of service.
     key = id(node)
     if key in memo:
         return memo[key]
     # A node reached again while it is still being counted is a CYCLE, and a cycle expands without
     # bound. The first version seeded the memo with 1 and let the recursion unwind, which scored a
     # self-referential anchor at 12 and let it through. Unbounded is not small.
-    if key in _IN_PROGRESS:
+    if key in in_progress:
         raise YamlGuardError("document contains a recursive anchor, which expands without bound")
-    _IN_PROGRESS.add(key)
+    in_progress.add(key)
     total = 1
     if isinstance(node, yaml.SequenceNode):
-        total += sum(_expanded_size(child, memo) for child in node.value)
+        total += sum(_expanded_size(child, memo, in_progress) for child in node.value)
     elif isinstance(node, yaml.MappingNode):
-        total += sum(_expanded_size(k, memo) + _expanded_size(v, memo) for k, v in node.value)
-    _IN_PROGRESS.discard(key)
+        total += sum(
+            _expanded_size(k, memo, in_progress) + _expanded_size(v, memo, in_progress)
+            for k, v in node.value
+        )
+    in_progress.discard(key)
     memo[key] = total
     return total
 
@@ -114,7 +121,7 @@ def safe_load_bounded(raw: object, *, what: str) -> Any:
     if node is None:
         return None
 
-    expanded = _expanded_size(node, {})
+    expanded = _expanded_size(node, {}, set())
     if expanded > MAX_EXPANDED_NODES:
         msg = (
             f"{what}: expands to {expanded} nodes, past the {MAX_EXPANDED_NODES} limit — alias "

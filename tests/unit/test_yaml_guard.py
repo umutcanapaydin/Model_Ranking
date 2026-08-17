@@ -125,29 +125,33 @@ def test_every_yaml_entry_point_goes_through_the_guard() -> None:
 def test_the_guard_runs_before_the_parser_not_after() -> None:
     """Placement is the control. After the parse, the bound is a report on damage already done.
 
-    The Tester moved the guard below `safe_load` and every test stayed green, while this file's own
-    docstring claimed that was impossible. Asserted from source: the refusal must precede the load.
+    Asserted BEHAVIOURALLY rather than by comparing source line numbers, which was the previous
+    version's weakness: line numbers move when anyone reformats, so the test pinned the wrong thing.
+    Here the parser is replaced with one that refuses to run — if the guard is placed after it, the
+    refusal never happens and this fails.
     """
-    import ast
-    from pathlib import Path
+    import yaml as _yaml
 
-    source = Path("src/app/workflows/yaml_guard.py").read_text()
-    fn = next(
-        node
-        for node in ast.walk(ast.parse(source))
-        if isinstance(node, ast.FunctionDef) and node.name == "safe_load_bounded"
-    )
-    lines = {"compose": None, "raise": None, "safe_load": None}
-    for node in ast.walk(fn):
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-            if node.func.attr == "compose" and lines["compose"] is None:
-                lines["compose"] = node.lineno
-            if node.func.attr == "safe_load":
-                lines["safe_load"] = node.lineno
-        if isinstance(node, ast.Raise) and lines["raise"] is None:
-            lines["raise"] = node.lineno
-    assert lines["compose"] < lines["safe_load"], "the graph is composed after the document loads"
-    assert lines["raise"] < lines["safe_load"], "the refusal happens after the document loads"
+    from app.workflows import yaml_guard
+
+    calls: list[str] = []
+    real_load = _yaml.safe_load
+
+    def tripwire(raw):
+        calls.append("safe_load")
+        return real_load(raw)
+
+    original = yaml_guard.yaml.safe_load
+    yaml_guard.yaml.safe_load = tripwire
+    try:
+        with pytest.raises(YamlGuardError):
+            safe_load_bounded("a: " + "x" * (MAX_YAML_BYTES + 1), what="oversized")
+        assert calls == [], "the document was parsed before the guard refused it"
+
+        safe_load_bounded("a: 1\n", what="fine")
+        assert calls == ["safe_load"], "a legitimate document was never parsed"
+    finally:
+        yaml_guard.yaml.safe_load = original
 
 
 def test_a_recursive_anchor_is_refused_rather_than_undercounted() -> None:
@@ -174,3 +178,39 @@ def test_the_guard_error_is_catchable_as_a_yaml_error() -> None:
     assert issubclass(YamlGuardError, _yaml.YAMLError)
     with pytest.raises(_yaml.YAMLError):
         safe_load_bounded("a: " + "x" * (MAX_YAML_BYTES + 1), what="caught as a YAML error")
+
+
+def test_a_refused_document_does_not_poison_the_next_one() -> None:
+    """B-4: the cycle guard's state must not outlive the call that created it.
+
+    The first version kept the in-progress set at module scope and never cleared it on the raise
+    path. CPython recycles object addresses, so after one hostile document 159 of 160 legitimate
+    loads of `data/plans.yaml` were refused as recursive — and because the same change routed the
+    remote-fed Aider input through this guard, one hostile HTTP body would have persistently
+    disabled YAML ingestion. **A denial of service introduced by the fix for a denial of service.**
+
+    The Tester's own note is why this test is written as a loop rather than as a pair: reverse
+    ordering passed 8/8 because the failure is allocation-state dependent, not order dependent.
+    """
+    from pathlib import Path
+
+    real = Path("data/plans.yaml").read_text()
+    for attempt in range(60):
+        with pytest.raises(YamlGuardError, match="recursive"):
+            safe_load_bounded("a: &a [*a,*a,*a]\n", what="hostile")
+        assert safe_load_bounded(real, what="data/plans.yaml") is not None, (
+            f"a legitimate document was refused after {attempt + 1} hostile one(s) — guard state "
+            "is leaking between calls"
+        )
+
+
+def test_the_expansion_budget_is_pinned() -> None:
+    """A limit nobody asserts can be loosened twentyfold in a diff nobody reads.
+
+    Claimed as pinned in the last hand-back and it was not — the Tester checked and the mutant
+    stayed green. Recorded here rather than argued about.
+    """
+    from app.workflows.yaml_guard import MAX_EXPANDED_NODES, MAX_YAML_BYTES
+
+    assert MAX_EXPANDED_NODES == 500_000
+    assert MAX_YAML_BYTES == 1_048_576

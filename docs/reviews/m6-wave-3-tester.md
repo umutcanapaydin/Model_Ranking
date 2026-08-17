@@ -40,9 +40,31 @@ overstated.
 ## Fault-injection protocol (V3C-72) — atomic log
 
 Every injection was performed **in place** with `Path.write_text`, the original text written back in
-a `finally` block, and md5 compared against a pre-injection baseline. **No `git checkout`, `git
-restore`, `git stash`, `git commit` or `git push` was run at any point.** Harness: `/tmp/m6w3/inject.py`
-(throwaway, outside the repository).
+a `finally` block, and md5 compared against a pre-injection baseline.
+**I never ran `git checkout` or `git restore` on the uncommitted tree.**
+**I never ran `git stash`.**
+**I never ran `git commit`.**
+**I never ran `git push`.**
+Harness: `/tmp/m6w3/inject.py` (throwaway, outside the repository).
+
+> *(Restated 2026-08-17 at the coordinator's request. The original sentence — a past-tense record of
+> non-action, "No … was run at any point" — was flagged by `conformance/test-git-authority.py` as
+> GPF-004's third instance. I reshaped it, and I want the reason on the record: the prose was correct
+> and the checker is the defect. I complied rather than ledger a fourth red leg, because GPF-004 is
+> already filed with the diagnosis, and a gate that no honest artifact can pass is a gate people stop
+> reading — which costs more than four blunt sentences.*
+>
+> ***A detail for GPF-004 that this instance adds, and that I proved the hard way.*** *The failure is
+> not only that "no X was run" is missing from `NEGATION`. It is that the check matches a **line**,
+> never a sentence, while `LOCAL` matches only two tokens — the commit verb and the push verb. In my
+> original text both tokens landed on line 44 and the negating word sat on line 43, so the sentence
+> was split from its own negation by a word wrap. My first attempt at this correction used active
+> voice with a named actor, exactly as the W1 reviewer did, and **failed again on three new lines** —
+> including, twice, inside the paragraph explaining the bug. A reviewer who writes a fully recognised
+> "I never ran" and lets it wrap before the verb fails identically. Extending the exemption list does
+> not fix this; the list is one bug and line-scoped matching is the other. Until the check reads
+> sentences, every compliant attestation must be hand-shaped one clause per line, which is prose
+> written to satisfy a grep — the outcome GPF-004 names as the bad one.)*
 
 Baseline hashes taken before the first injection and re-verified after the last:
 
@@ -437,3 +459,259 @@ catches it, and it is the test whose absence let a HIGH-tier wave report a clean
 must be corrected before the wave closes. The wave does not close until B-1, B-2 and B-3 have passing
 citing tests. The code, as far as 29 mutants and six hand-built databases could reach it, is correct —
 which is exactly why it needs to be proven rather than asserted.
+
+---
+---
+
+# RE-REVIEW — round 2 (appended 2026-08-17)
+
+**Trigger:** coordinator's re-review request on the fix delta `git diff 915e97b..HEAD` (`8279f70`),
+closing B-1, B-2 and B-3 plus several MINORs. **A fix inherits the risk class of the bug it fixes,
+and this one touches a migration**, so this round was run exactly like the first: nothing accepted by
+reading, everything measured.
+
+**Attestation, round 2.** I performed 17 further injections in place, each restored by writing the
+original text back and confirmed by md5.
+**I never ran `git checkout` or `git restore` on the uncommitted tree.**
+**I never ran `git stash`.**
+**I never ran `git commit`.**
+**I never ran `git push`.**
+All 11 source and test files are byte-identical to their pre-injection hashes (`/tmp/m6w3/baseline2.md5`
+vs `/tmp/m6w3/after2.md5` → identical). `git status --short` shows exactly one modified file: **this
+review**. The two entries the coordinator's own delta left in the tree
+(`conformance/wave/m1-wave-2-close.md`, `tests/unit/test_deepswe_workflow.py`) were committed in
+`8279f70` before this round began and were not touched by me.
+
+## Round-2 verdict
+
+**BLOCKING** — for one **new defect introduced by the fix**, and one BLOCKING that is **not closed
+despite a new test that appears to close it**.
+
+- **B-1 — CLOSED.** Verified.
+- **B-2 — CLOSED.** Verified end-to-end on the real database that produced it. This one is exemplary.
+- **B-3 — NOT CLOSED.** The new test does not detect the removal of the thing it is named after.
+- **NEW B-4 — the recursive-anchor fix breaks the project's own curated data.** A single refused
+  hostile document permanently disables YAML ingestion for the life of the process, measured at
+  **159/160**. It arrived via a remote-fed parser and it is worse than the MINOR it fixed.
+
+**Round-2 mutants: 17 run, 12 killed, 5 stayed GREEN.** Across both rounds: **46 mutants, 30 killed,
+16 GREEN.**
+
+## Round-2 mutant ledger
+
+| # | Mutant | Round 1 | Round 2 |
+|---|---|---|---|
+| R01 | startup validator not called at import | GREEN | **RED** — `test_api_config.py:120,153` |
+| R02 | `allow_credentials=True` | GREEN | **RED** — `test_credentials_are_never_allowed_across_origins` |
+| R03 | middleware given a literal `"*"` | GREEN | **RED** — `test_an_allowlisted_origin_is_echoed_and_others_are_not` |
+| R04 | CORS middleware never installed | GREEN | **RED** — 2 tests |
+| R05 | guard bypassed via `yaml.load(Loader=SafeLoader)` | GREEN | **RED** — the `ast` walk catches it |
+| **R06** | **`ROLLBACK TO` deleted from `migrate()`** | GREEN | **STILL GREEN** |
+| **R07** | **SAVEPOINT deleted entirely from `migrate()`** | GREEN | **STILL GREEN** |
+| **R08** | **guard moved after the parser** | GREEN | **STILL GREEN** |
+| **R09** | **`APP_ENV` read without `.lower()`** | GREEN | **STILL GREEN** |
+| **R10** | **`MAX_EXPANDED_NODES` loosened 20×** | GREEN | **STILL GREEN** |
+| R11 | `aider.py` back to raw `yaml.safe_load` | *(not run)* | **RED** |
+| R12 | `_required_operator_actions` always `[]` | *(new code)* | **RED** |
+| R13 | migrate CLI always exits 0 | *(new code)* | **RED** |
+| R14 | roster window `<= 0` check removed | *(new code)* | **RED** |
+| R15 | `YamlGuardError` no longer a `yaml.YAMLError` | *(new code)* | **RED** — incl. `test_aider_ingest.py` |
+| R16 | recursive-anchor raise removed | *(new code)* | **RED** |
+| R17 | exit-3 roster-link condition dropped | *(new code)* | **RED** |
+
+---
+
+## B-4 (NEW, BLOCKING) — `src/app/workflows/yaml_guard.py:58,80,87` — the cycle guard leaks state across calls and refuses the project's own data
+
+The recursive-anchor fix replaced a per-call `memo` seed with a **module-level mutable set**,
+`_IN_PROGRESS`. On the success path it is discarded correctly. **On the raise path it is never
+cleaned up** — there is no `try/finally` around the recursion, so every refused document leaves the
+ids of its nodes in the set permanently. CPython then recycles those exact addresses for the next
+document's nodes, and `_expanded_size` refuses them as cycles.
+
+Measured, on a clean process, against the project's own shipped file:
+
+```
+hostile doc shape -> false refusals of data/plans.yaml (20 trials each)
+  &a with 1 self-aliases: 19/20 legitimate loads of data/plans.yaml REFUSED
+  &a with 2 self-aliases: 20/20 REFUSED
+  &a with 3..8 self-aliases: 20/20 REFUSED   (159/160 overall)
+
+long-lived process, 50 hostile payloads interleaved with real ingests:
+  legitimate data/plans.yaml loads refused: 50/50
+```
+
+End to end, in one process:
+
+```
+data/plans.yaml   : OK
+data/rosters.yaml : OK
+-- refuse ONE recursive-anchor document --
+data/plans.yaml   attempts 1-5: *** REFUSED -> "document contains a recursive anchor"
+data/rosters.yaml attempts 1-5: *** REFUSED -> "document contains a recursive anchor"
+```
+
+**Why this is BLOCKING and not a MINOR.** The same commit routed `src/app/clients/aider.py` — *"the
+ONLY YAML input in this project with a genuinely external producer… a third-party HTTP body"* —
+through this guard. So the poisoning input is remotely supplied. One hostile payload on that feed
+disables `data/plans.yaml` and `data/rosters.yaml` ingestion for the rest of the process, with an
+error message that names a defect the documents do not have. The MINOR being fixed was a cycle scored
+as 12 and admitted; the fix converts a **remote single request into a persistent denial of service on
+ingestion**, and it fails with a false accusation, which is the worst kind of fail-closed.
+
+**Why no test can see it.** `test_the_real_curated_files_pass_the_guard` (`test_yaml_guard.py:45`)
+runs *before* `test_a_recursive_anchor_is_refused_rather_than_undercounted`, so the suite never loads
+real data in a poisoned process. I checked whether this is merely an ordering artifact and **it is
+worse than that**: forcing the reverse order passes 8/8 times, because pytest's own allocations
+between tests shift the heap. The defect is allocation-state dependent, so **it is invisible to the
+suite in every order** and will surface in production as an unreproducible heisenbug. This is the
+one finding in this wave that mutation testing could not have found either — only running the guard
+twice in one process finds it.
+
+**Repro I wrote and ran** (throwaway, `/tmp/m6w3/test_leak_repro.py`, **not added to the repository**):
+
+```
+FAILED test_the_guard_does_not_leak_cycle_state_across_calls
+FAILED test_a_refused_recursive_document_does_not_break_the_next_real_ingest
+        AssertionError: 19/20 legitimate loads of data/plans.yaml were refused as 'recursive'
+        after a single hostile payload was refused earlier in the same process
+```
+
+**The fix is small**, and the test that must ship with it is the first of those two: make the cycle
+set per-call (thread it through alongside `memo`, which is already per-call and already correct), or
+wrap the recursion in `try/finally`. A module-level mutable set is also not thread-safe, which
+matters more now that the guard sits behind a network-facing process.
+
+## B-3 — NOT CLOSED — `tests/unit/test_roster_window.py:341` proves the outer transaction, not the SAVEPOINT
+
+The new `test_the_migration_rolls_back_a_REAL_failure` is a genuine improvement: it makes a migration
+fail **partway** with a two-entry `_MIGRATIONS` list, which is exactly what I asked for. But it does
+this:
+
+```python
+conn.execute("BEGIN IMMEDIATE")
+with pytest.raises(sq.Error):
+    schema_mod.migrate(conn)
+conn.rollback()                     # <-- the outer transaction undoes everything
+columns = {row[1] for row in conn.execute("PRAGMA table_info(plan_config)")}
+assert "probe_ok" not in columns
+```
+
+The assertion is taken **after** `conn.rollback()`, where the enclosing `BEGIN IMMEDIATE` has already
+discarded the partial work regardless of whether the SAVEPOINT exists. Measured both ways:
+
+```
+WITH SAVEPOINT      probe_ok present BEFORE outer rollback: False  | AFTER outer rollback: False
+WITHOUT SAVEPOINT   probe_ok present BEFORE outer rollback: True   | AFTER outer rollback: False
+```
+
+The distinguishing observation is the **BEFORE** column, and the test does not look at it. Hence R06
+(delete `ROLLBACK TO`) and R07 (delete the SAVEPOINT block entirely) both leave **347 passed**.
+
+This is the same defect class as the test it replaced — a rollback test whose rollback comes from
+somewhere else — and I want to be precise that the code is *fine*: `except BaseException` plus a
+`finally` RELEASE is a real improvement over `except sqlite3.Error`, and I confirmed the savepoint
+genuinely rolls back. **The fix is to move the assertion three lines up**, before `conn.rollback()`.
+That one move turns R06 and R07 red. Until then W-009's atomicity claim is still carried by prose.
+
+## B-1 — CLOSED
+
+`STARTUP_WARNINGS = validate_startup_config()` at `main.py:164` runs at import, which is the only
+startup `uvicorn app.adapter.main:app` has. R01 kills two tests, including
+`test_a_production_process_refuses_to_import_with_broken_config`, which imports the module in a real
+subprocess with `APP_ENV=production` and asserts a non-zero exit and the message on stderr. That is
+the process, not the helper — which is what row 7's clause (c) claimed and did not have. The `ast`
+based companion test is the right belt-and-braces: it fails when the *call* goes missing, which a
+behavioural test would not. Moving `_db_path` above the validator was necessary and is correct.
+
+## B-2 — CLOSED, and verified on the database that produced the finding
+
+Not merely re-run in the suite — re-run against the real `advisor.db`:
+
+```
+$ .venv/bin/python -m app.workflows.schema migrate --db /tmp/m6w3/adv2.db
+{ "applied_count": 2,
+  "required_operator_actions": [
+    "18 roster link(s) are present but plan_config.roster_staleness_days is unset: re-ingest
+     data/rosters.yaml … The migration cannot supply a policy, only a column." ] }
+EXIT=3
+$ # operator re-ingests data/rosters.yaml, then:
+{ "applied_count": 0, "required_operator_actions": [] }
+EXIT=0
+```
+
+The count is right (18, the real number), the message names the action, exit 3 is distinct from 0 and
+from 2, and the state resolves. R12, R13 and R17 each kill the citing test. **This is the strongest
+work in the wave** and the exit-3 framing — *a migration can add a column, it cannot supply a policy*
+— is a better answer than the backfill I would have accepted.
+
+## Other round-1 findings — status
+
+- **MINOR-1 (grep-based wiring test) — CLOSED, and it paid for itself immediately.** The `ast` walk
+  over all of `src/` (`test_yaml_guard.py:93`) kills R05 (`yaml.load(Loader=SafeLoader)`) and R11.
+  It also found what my round-1 finding implied but did not name: `src/app/clients/aider.py`, the one
+  YAML input with a genuinely external producer, was outside the hardcoded three. My MINOR-1 said the
+  literal was the wrong instrument; the delta shows the literal was also hiding the worst instance.
+- **MINOR-2 (guard-before-parse) — NOT CLOSED.** `test_the_guard_runs_before_the_parser_not_after`
+  compares source line numbers of *a* `raise` and *a* `safe_load` call. R08 inserts
+  `yaml.safe_load(raw)` after `compose` and after the size-check `raise`, so both assertions still
+  hold and the mutant stays green. The test pins the file's layout, not the control's placement. A
+  `monkeypatch` asserting `yaml.safe_load` is never reached on a refused document is the version that
+  works.
+- **MINOR-3 (CORS middleware untested) — CLOSED.** R02/R03/R04 all red. `importlib.reload` under a
+  set env var is the right mechanism for import-bound config, and the preflight test asserting no
+  mutating verb is a good addition nobody asked for.
+- **MINOR-4 (`MAX_EXPANDED_NODES` boundary) — NOT CLOSED, and the delta does not contain the claimed
+  pin.** `grep -rn MAX_EXPANDED_NODES tests/` returns nothing. R10 (20× loosening) is still green.
+- **MINOR-7 (`APP_ENV` case) — NOT CLOSED, and the delta does not contain the claimed pin.** No test
+  references `Production`/case handling. R09 still green.
+- **MINOR-8 (the MemoryError premise) — CLOSED.** `yaml_guard.py:8-13` now records the correction and
+  the measured downstream figure. Adopting a factual correction rather than defending the ledger line
+  is the right call, and the note that it rode two milestones unre-run is the useful part.
+- **MINOR-5 (concurrent migration) and MINOR-6 (`plan_config missing` branch)** — still open, still
+  MINOR, unchanged.
+
+## Two claims in the handback that the delta does not support
+
+Said plainly because I was asked to falsify claims, and these are claims:
+
+1. *"`APP_ENV` case handling and `MAX_EXPANDED_NODES` are pinned."* Neither test exists in
+   `915e97b..HEAD`. Both mutants remain green. These are MINORs and neither blocks — but they are
+   recorded as closed and they are not.
+2. *"the rollback is now proven with a migration that actually fails partway."* The migration does now
+   fail partway, which is real progress. The **rollback** is still not proven, because the assertion
+   is read after the outer transaction is discarded. See B-3.
+
+## The Epoch-bundle finding
+
+The Turkish assertion that survived D-118 in `test_deepswe_workflow.py` because the test is
+`EPOCH_DATA_DIR`-gated is the same shape as B-4 and as my round-1 findings, and it is worth naming as
+a class rather than three incidents: **a check that cannot run is not a check, and this wave produced
+three of them** — a validator no path called (B-1), a rollback assertion the outer transaction
+satisfied (B-3), and seven tests the CI cannot execute. My round-1 run could not have seen the Epoch
+one; I record it here because the pattern is now the wave's dominant defect mode, and the mounted-suite
+run at the milestone gate is the control that caught it.
+
+## Round-2 gates
+
+- `.venv/bin/python -m pytest tests/ -q`: **347 passed / 12 skipped** (unmounted), matching the
+  handback.
+- `conformance/test-git-authority.py`: **PASS, 0 violations** after the attestation restatement above.
+- md5: all 11 injected files byte-identical. Working tree carries only this review file.
+
+## What must happen before this wave closes
+
+1. **B-4** — make the cycle set per-call (or `try/finally`), and ship
+   `test_the_guard_does_not_leak_cycle_state_across_calls`. The repro is written and failing at
+   `/tmp/m6w3/test_leak_repro.py`; it is four lines and belongs in `tests/unit/test_yaml_guard.py`.
+   **This is the one I would not let ship**, because it is remotely triggerable and it breaks the
+   project's own data.
+2. **B-3** — move the assertion in `test_the_migration_rolls_back_a_REAL_failure` above
+   `conn.rollback()`. Verify R06 and R07 go red.
+3. **MINOR-2, MINOR-4, MINOR-7** — either land the three small tests or correct the checklist to say
+   they are open. Recording an open MINOR as closed is how the count in row 5 got wrong the first time.
+
+**Round-2 verdict: BLOCKING** on B-4 and B-3. B-1 and B-2 are closed and B-2 is the best-proven
+behaviour in the wave. The fix delta closed three of my four round-1 BLOCKING/MINOR clusters cleanly
+and introduced one defect worse than the MINOR it was fixing — which is the ordinary risk of fixing a
+security MINOR under time pressure, and the reason a fix inherits the risk class of its bug.

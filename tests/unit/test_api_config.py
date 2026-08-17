@@ -240,3 +240,23 @@ def test_a_preflight_is_answered_for_get_and_refuses_a_mutating_verb(
     assert "GET" in allowed_methods
     for verb in ("POST", "PUT", "PATCH", "DELETE"):
         assert verb not in allowed_methods
+
+
+def test_the_environment_name_is_matched_case_insensitively(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Claimed as pinned in a hand-back and it was not — the Tester checked and the mutant lived.
+
+    `APP_ENV=PRODUCTION` from a deploy config must fail closed exactly like `production`. Dropping
+    the `.lower()` would make the strictest environment the one spelled the least carefully.
+    """
+    # Resolved through the MODULE, not through the name imported at the top of this file: the CORS
+    # tests above reload `app.adapter.main`, which rebinds `ConfigError` to a new class object, and
+    # a stale reference would make this test pass alone and fail in file order. It did exactly that.
+    import app.adapter.main as adapter
+
+    monkeypatch.delenv("MODEL_RANKING_DB", raising=False)
+    monkeypatch.delenv("MODEL_RANKING_CORS_ORIGINS", raising=False)
+    for spelling in ("production", "PRODUCTION", "Production", "PROD"):
+        with pytest.raises(adapter.ConfigError, match="MODEL_RANKING_DB is unset"):
+            adapter.validate_startup_config(env=spelling)
