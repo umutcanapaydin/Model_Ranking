@@ -37,9 +37,9 @@ perfectly servable artifact for a cost the process no longer pays.
 
 | # | Check | Evidence | ✅ |
 |---|---|---|---|
-| 1 | Risk tier — D-122 | Serving path + a deleted security control ⇒ FULL depth | ✅ |
+| 1 | Risk tier — D-122 | Serving path + a deleted security control ⇒ FULL depth (`docs/decisions.md` D-122; `src/app/adapter/main.py`) | ✅ |
 | 2 | REQ-API-007 has a citing test able to fail | `test_api_config.py::test_w017_is_closed_by_deletion_not_by_a_bounded_copy` asserts the MECHANISM, not the name: it parses the adapter and fails on any `backup()` call or `:memory:` connection | ✅ |
-| 3 | Fault injection — V3C-72 | 5 mutants, 3 killed first pass, **5/5** after. A mutant that re-introduced the snapshot under a different name was killed by the mechanism assertion | ✅ |
+| 3 | Fault injection — V3C-72 | `m7w3_lead_faultinject.py`: 5 mutants, 3 killed first pass, **5/5** after. A mutant that re-introduced the snapshot under a different name was killed by the mechanism assertion | ✅ |
 | 4 | Deploy proposal follows the code | `fly.toml` no longer ties its VM size to a snapshot arithmetic; the concurrency declaration stays, because it is a real property of the server | ✅ |
 | 5 | Gates green | `make check` exit 0 · 482 passed / 12 skipped | ✅ |
 | 6 | W-017 closed in the ledger with its measurement | `docs/warnings.ledger.md` W-017 → FIXED | ✅ |
@@ -63,3 +63,18 @@ thing in the same change. The guard is restored and both mutants are RED.
 A smaller one worth keeping: I also wrote a limiter test that read the per-loop value from the test
 thread — and a correct version further down the same file already warns about exactly that in its
 docstring. Deleted as a worse duplicate rather than kept as coverage.
+
+---
+
+Touched: `docs/warnings.ledger.md`, `fly.toml`, `src/app/adapter/main.py`, `tests/unit/test_api_config.py`, `tests/unit/test_api_v1.py`
+(5 files changed, 163 insertions(+), 190 deletions(-))
+
+K.8 contracts: `adapter.serving_snapshot` REMOVED, with `RSS_FACTOR`, `MEMORY_BUDGET_MB`, `PROCESS_BASELINE_MB` and `max_database_bytes()`. `fly.toml` drops `MODEL_RANKING_MEMORY_BUDGET_MB`. `MAX_CONCURRENT_REQUESTS` kept and still tied to `fly.toml`'s `hard_limit`.
+
+Filled by: the lead agent (Claude, Claude Code CLI) · Date: 2026-08-18 · Wave commit range: `fb258f3..c68dcd6`
+
+> Added at M7 closure after `scripts/wave_check.py` failed all four of this milestone's wave records
+> on exactly these three lines. The gate exists, it works, and `make check` does not run it — the
+> same shape this project has spent five milestones finding in its code, here in its records.
+> Ledgered as **W-032**; wiring `make wave-check` into `make check` is a gate-definition change and
+> therefore the owner's.

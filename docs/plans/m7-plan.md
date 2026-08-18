@@ -1,6 +1,10 @@
 # M7 Plan — Build the artifact, stop writing while serving, go live
 
 **Status:** **SIGNED** by the owner on 2026-08-17. Wave dispatch is authorized.
+**SCOPE AMENDED 2026-08-18 by the owner, before signature of the closure report:** W4's deploy step
+moves to **M8** (**D-123**). M7 delivers the engine deploy-READY; go-live ships with the iOS client.
+This is recorded here rather than left as an ADR the plan does not mention, so that M7's definition
+of done does not contain a step M7 did not take.
 **Date:** 2026-08-17 · **Risk tier:** HIGH (W2 touches the scoring path; W1 creates a new
 production entry point — both auto-escalate under V3C-78)
 **Mode:** A0.5 + **D-117** (the agent commits at wave boundaries under five conditions; the
@@ -152,7 +156,20 @@ build without arena is acceptable for a first deploy — that ruling becomes an 
 4. Prove the negative (REQ-API-007): the database file is byte-identical and mtime-unchanged across
    a run of requests, and `serving_snapshot` is absent from the tree.
 
-### W4 — Go live (risk: **MED**, but gated by a BLOCKING Stage 4.0)
+### W4 — Deploy readiness (risk: **MED**) — *go-live moved to M8, D-123*
+
+> **AMENDED 2026-08-18.** Items 2-5 below were written as "deploy and verify a live host". `fly
+> launch` stopped on a Fly.io payment method, and the owner ruled that a hosted endpoint buys
+> nothing until the iOS client needs one — the simulator reaches the engine on `localhost`, and
+> Xcode is free. **W4 keeps items 1 and 4's local half; the deploy itself is M8's.**
+>
+> What W4 DID deliver, all of it measured rather than asserted: the image builds, the container
+> serves the mounted artifact, `scripts/journey.py` passes 4/4 against it and fails when pointed at
+> nothing, and the process refuses to boot on an unbuilt or pre-M5 database while naming the command
+> that fixes each.
+>
+> What moved with the deploy, and is NOT covered by any of the above: REQ-API-009's over-the-network
+> half (**W-030**) and the Fly platform's own behaviour (**W-031**).
 
 1. **Stage 4.0 security review runs before this wave deploys anything** — AGENTS.md §6 binds it to
    4.3, and this is the milestone where 4.3 finally happens. It re-derives W-017 and finds nothing

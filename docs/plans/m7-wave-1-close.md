@@ -36,15 +36,15 @@ was true in the contract and empty in the data until this wave.
 | # | Check | Evidence (fresh referent) | ✅/WAIVED |
 |---|---|---|---|
 | 1 | Risk tier recorded — V3C-78 | `docs/plans/m7-plan.md` §2 records W1 **HIGH** (new production entry point + untrusted remote input). Both triggers were real: the entry point is the first code in this project that fetches five remote sources and reads an unpacked third-party bundle | ✅ |
-| 2 | Dev-test loop ran — V3C-68 | Implement → test → self-review → fix, three times over. The author's own round found the last surviving mutant (the module-resolution predicate living inside its own test) | ✅ |
+| 2 | Dev-test loop ran — V3C-68 | Implement → test → self-review → fix, three times over (`src/app/workflows/build.py`, `src/app/workflows/sources.py`). The author's own round found the last surviving mutant (the module-resolution predicate living inside its own test) | ✅ |
 | 3 | Review per tier — V3C-78 | **Three seats, three rounds.** Code-Reviewer, Tester and a pulled-forward Security pass, each with fresh eyes (K.7 — none authored the code). Records: `docs/reviews/m7-wave-1-review.md`, `m7-wave-1-tester.md`, `m7-wave-1-security.md` and their three re-reviews | ✅ |
-| 4 | Fault injection — V3C-72 | Author: 15 mutants over the fix delta, 14 killed first pass, 15/15 after extracting the survivor's predicate. Tester seat: **55 mutants round one (26 stayed green), 63 round two (41 killed as submitted, 54 after its own 7 tests)**. Every stay-green mutant received its mandatory test | ✅ |
+| 4 | Fault injection — V3C-72 | Author: `m7w1_lead_faultinject.py`, 15 mutants over the fix delta, 14 killed first pass, 15/15 after extracting the survivor's predicate. Tester seat: **55 mutants round one (26 stayed green), 63 round two (41 killed as submitted, 54 after its own 7 tests)**. Every stay-green mutant received its mandatory test | ✅ |
 | 5 | Every criterion has a citing test able to fail — V3C-02 | REQ-ING-012: `test_build.py::test_build_produces_an_artifact_that_can_actually_answer` + the CLI tests. REQ-ING-013: the eleven failure tests in `test_build_artifact_safety.py`, each verified RED against its mutant. W-023: `test_api_config.py::test_the_repositorys_own_artifact_is_checked_not_assumed`, **inverted** at this wave — it used to assert the artifact was broken and went red the moment it was fixed | ✅ |
 | 6 | New REQ-IDs in the PRD, at the wave not at closure | `docs/prd.md` REQ-ING-012 and REQ-ING-013, added during W1 to avoid the F-1 drift the M4 gate raised | ✅ |
 | 7 | Gates green at the closing tree | `make check` exit 0 · **474 passed / 12 skipped** (396 at wave start) · `ruff` clean · `mypy` clean across 31 files · `gitleaks` clean · `check_records` PASS across 33 records | ✅ |
-| 8 | ADRs for decisions made | **D-121** (a source may be optional, but a blind surface may never be silent) — amended the same day when the security seat proved its justifying claim was contradicted inside its own payload. **D-122** (review depth by blast radius) | ✅ |
-| 9 | Warnings ledger current | W-023 **closed**. W-026, W-027, W-028, W-029 opened — two escalated to the owner as gate-definition changes, two ACCEPTED with reasons | ✅ |
-| 10 | Plan promises delivered | **NOT fully.** §5 assigned "coverage / roster-staleness CI legs, never run" to W1 and the triggers are byte-identical. Ledgered as **W-027** with the one-line owner remedy, rather than quietly dropped | **WAIVED — ledgered** |
+| 8 | ADRs for decisions made | `docs/decisions.md` **D-121** (a source may be optional, but a blind surface may never be silent) — amended the same day when the security seat proved its justifying claim was contradicted inside its own payload. **D-122** (review depth by blast radius) | ✅ |
+| 9 | Warnings ledger current | `docs/warnings.ledger.md`: W-023 **closed**; W-026, W-027, W-028, W-029 opened — two escalated to the owner as gate-definition changes, two ACCEPTED with reasons | ✅ |
+| 10 | Plan promises delivered | **NOT fully.** `docs/plans/m7-plan.md` §5 assigned "coverage / roster-staleness CI legs, never run" to W1; `.github/workflows/contract-tests.yml:14-17` is byte-identical to `9f4471d`. Ledgered as **W-027** with the one-line owner remedy, rather than quietly dropped | WAIVED — ledgered as W-027 |
 
 ## The three findings this wave should be remembered for
 
@@ -73,3 +73,18 @@ the sentence documenting the fix.
   that skips in a clean checkout because CI cannot verify an artifact it does not have.
 - **The workflow has still never run.** W1 delivered a workflow that would now survive a run; the
   run itself is `gh workflow run contract-tests.yml` and belongs to the owner.
+
+---
+
+Touched: `.github/workflows/contract-tests.yml`, `docs/decisions.md`, `docs/plans/m7-wave-1-close.md`, `docs/prd.md`, `docs/reviews/m7-wave-1-rereview.md`, `docs/reviews/m7-wave-1-review.md`, `docs/reviews/m7-wave-1-security-rereview.md`, `docs/reviews/m7-wave-1-tester-rereview.md`, `docs/reviews/m7-wave-1-tester.md`, `docs/warnings.ledger.md`, `scripts/check_records.py`, `scripts/slopsquat_check.py`, `scripts/smoke_deps.py`, `scripts/wave_check.py`, `src/app/adapter/main.py`, `src/app/clients/litellm.py`, `src/app/workflows/build.py`, `src/app/workflows/sources.py`, `tests/unit/test_api_config.py`, `tests/unit/test_build.py`, `tests/unit/test_build_artifact_safety.py`, `tests/unit/test_ci_argument_drift.py`, `tests/unit/test_empty_answer_reasons.py`, `tests/unit/test_parser_envelopes.py`, `tests/unit/test_sources.py`
+(25 files changed, 4486 insertions(+), 126 deletions(-))
+
+K.8 contracts: `app.workflows.sources` (NEW registry), `app.workflows.build` (NEW entry point), `contract-tests.yml` build step. Frozen surfaces untouched: `/v1` payload (D-115), CLI vocabulary (D-118), `schema migrate` exit codes (D-120).
+
+Filled by: the lead agent (Claude, Claude Code CLI) · Date: 2026-08-18 · Wave commit range: `9f4471d..95d206e`
+
+> Added at M7 closure after `scripts/wave_check.py` failed all four of this milestone's wave records
+> on exactly these three lines. The gate exists, it works, and `make check` does not run it — the
+> same shape this project has spent five milestones finding in its code, here in its records.
+> Ledgered as **W-032**; wiring `make wave-check` into `make check` is a gate-definition change and
+> therefore the owner's.

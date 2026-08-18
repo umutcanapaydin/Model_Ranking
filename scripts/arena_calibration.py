@@ -17,7 +17,6 @@ Conventions (they change the published figures — state them, never imply them)
 
 from __future__ import annotations
 
-import glob
 import json
 import statistics as st
 import sys
@@ -29,8 +28,8 @@ TOP_N_PAIRS = 60
 
 def load(directory: str) -> list[dict]:
     rows: list[dict] = []
-    for path in sorted(glob.glob(str(Path(directory) / "arena_overall_*.json"))):
-        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    for path in sorted(Path(directory).glob("arena_overall_*.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
         if "rows" not in payload:
             print(f"!! {path}: no rows (payload={str(payload)[:80]})")
             continue

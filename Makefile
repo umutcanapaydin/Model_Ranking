@@ -73,7 +73,7 @@ test: install
 	$(PY) -m pytest
 
 lint: install
-	$(PY) -m ruff check src tests
+	$(PY) -m ruff check src tests scripts
 
 format: install
 	$(PY) -m black src tests

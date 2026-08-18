@@ -399,8 +399,11 @@ def condition_closure(root: Path, records, scope: str = "current") -> list[Findi
                                  f"`{tok}` {why} (V4C-22: a condition without its artifact is not "
                                  "a condition)"))
             # ---- C1a: forward-only — the artifact must be nameable at all ----------------
+            # The dash variants below are DATA, not prose: a record may write "no artifact" as an
+            # em dash, an en dash, a hyphen or `n/a`, and the rule accepts all four. Flagging the
+            # en dash as a typo would be right in a sentence and wrong in a set of accepted spellings.
             elif forward and not satisfied and not missing \
-                    and artifact_cell not in ("", "—", "-", "n/a", "–"):
+                    and artifact_cell not in ("", "—", "-", "n/a", "–"):  # noqa: RUF001
                 f.append(Finding(rel, ln, "C1a",
                                  "condition's closure artifact is not machine-resolvable — name a "
                                  "`path` or a record `id` in backticks, not prose "
@@ -490,10 +493,7 @@ def _covered(rel: str, declared: set) -> bool:
     if rel in declared:
         return True
     parts = rel.split("/")
-    for i in range(1, len(parts)):
-        if "/".join(parts[:i]) + "/" in declared:
-            return True
-    return False
+    return any("/".join(parts[:i]) + "/" in declared for i in range(1, len(parts)))
 
 
 def _installed(p: Path, empty_ok: bool = False, expect_min: int | None = None) -> bool:
@@ -802,7 +802,12 @@ def language_rule(root: Path) -> list[Finding]:
             continue
         try:
             text = p.read_text(encoding="utf-8", errors="replace")
-        except Exception:
+        except OSError as exc:
+            # A file the language rule cannot READ used to be skipped in silence, which means the
+            # gate reported clean on a file it never looked at — the exact shape this project has
+            # been caught by five times. It is now a FINDING, so an unreadable record is visible.
+            f.append(Finding(Path(rel), 0, "L1",
+                             f"could not be read for the English-only check: {exc}"))
             continue
         for i, line in enumerate(text.splitlines(), 1):
             if TR_CHARS.search(line):
@@ -931,7 +936,7 @@ def self_test(root: Path) -> int:
                 break
         fs, fields = validate_record(p, root)
         if fields and fields.get("id"):  # cross-record rules need the fixture IN a namespace
-            ns = base_records + [(p, fields)]
+            ns = [*base_records, (p, fields)]
             fs = fs + [x for x in cross_record(ns, root) if x.path == p.relative_to(root)]
             fs = fs + [x for x in condition_closure(root, [(p, fields)], scope="all")]   # C1
         rules = {f.rule for f in fs}

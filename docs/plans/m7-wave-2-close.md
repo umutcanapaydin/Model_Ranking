@@ -45,11 +45,11 @@ picks**. That is precisely the artifact W-023 shipped. Four boundaries now refus
 | # | Check | Evidence | ✅ |
 |---|---|---|---|
 | 1 | Risk tier — V3C-78 / D-122 | Scoring path ⇒ FULL depth. `rank.py`, `recommend.py` and the `/v1` error contract all changed | ✅ |
-| 2 | REQ-CAN-003 unchanged, value for value | 72 medians and 9 recommendation shapes identical against a pre-change baseline | ✅ |
+| 2 | REQ-CAN-003 unchanged, value for value | 72 medians and 9 recommendation shapes identical against a pre-change baseline (`src/app/workflows/rank.py::build_price_medians`, called from `src/app/workflows/build.py`) | ✅ |
 | 3 | REQ-API-008 has citing tests able to fail | `test_unbuilt_evidence.py` (8 tests), `test_api_v1.py::test_an_unbuilt_artifact_is_refused_rather_than_answered_empty`, `test_cli_e2e.py::test_cli_an_unbuilt_artifact_exits_2_not_1` | ✅ |
-| 4 | Fault injection — V3C-72 | 11 mutants, 7 killed first pass; all four survivors given mandatory tests; **11/11** after | ✅ |
+| 4 | Fault injection — V3C-72 | `m7w2_lead_faultinject.py`: 11 mutants, 7 killed first pass; all four survivors given mandatory tests in `tests/unit/test_unbuilt_evidence.py`; **11/11** after | ✅ |
 | 5 | Gates green | `make check` exit 0 · 483 passed / 12 skipped | ✅ |
-| 6 | Tests whose MEANING changed are documented as inversions | Three: an empty database used to mean "nothing ranks here" and now means "this artifact was never built". Each carries the reasoning in its docstring rather than being edited quietly | ✅ |
+| 6 | Tests whose MEANING changed are documented as inversions | Three, in `tests/unit/test_recommend.py`, `tests/unit/test_api_v1.py` and `tests/integration/test_cli_e2e.py`: an empty database used to mean "nothing ranks here" and now means "this artifact was never built". Each carries the reasoning in its docstring rather than being edited quietly | ✅ |
 
 ## What this wave should be remembered for
 
@@ -67,3 +67,18 @@ control, and never execute it.
 **And one mutant I counted as a survivor was equivalent:** `(False and X) or Y` still evaluates `Y`.
 A mutant that changes no behaviour proves nothing about the test that "survived" it, and counting it
 as a gap would have sent me looking for a hole that was not there.
+
+---
+
+Touched: `src/app/adapter/main.py`, `src/app/workflows/rank.py`, `src/app/workflows/recommend.py`, `tests/integration/test_cli_e2e.py`, `tests/unit/test_api_config.py`, `tests/unit/test_api_v1.py`, `tests/unit/test_effort.py`, `tests/unit/test_recommend.py`, `tests/unit/test_recommend_assistant.py`, `tests/unit/test_subscribe.py`, `tests/unit/test_unbuilt_evidence.py`
+(11 files changed, 538 insertions(+), 29 deletions(-))
+
+K.8 contracts: `recommend()` no longer writes (REQ-API-007); `rank.require_price_medians` NEW; the CLI's exit-code contract gains 2 for an unbuilt artifact; `/v1` gains 503 for the same. `/v1`'s SUCCESS payload is unchanged (D-115 intact).
+
+Filled by: the lead agent (Claude, Claude Code CLI) · Date: 2026-08-18 · Wave commit range: `95d206e..fb258f3`
+
+> Added at M7 closure after `scripts/wave_check.py` failed all four of this milestone's wave records
+> on exactly these three lines. The gate exists, it works, and `make check` does not run it — the
+> same shape this project has spent five milestones finding in its code, here in its records.
+> Ledgered as **W-032**; wiring `make wave-check` into `make check` is a gate-definition change and
+> therefore the owner's.

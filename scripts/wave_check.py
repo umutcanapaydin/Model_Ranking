@@ -34,10 +34,10 @@ PLACEHOLDER = re.compile(r"<[A-Za-z][A-Za-z0-9 _/-]{2,}>|\bTBD\b|\bTODO\b|\bFIXM
 
 def main(argv: list[str]) -> int:
     if len(argv) != 2:
-        print("usage: wave_check.py FILE"); return 2
+        print("usage: wave_check.py FILE")
+        return 2
     p = pathlib.Path(argv[1])
     text = p.read_text(encoding="utf-8", errors="replace")
-    low = text.lower()
     bad: list[str] = []
 
     if not NAME_RE.match(p.name):

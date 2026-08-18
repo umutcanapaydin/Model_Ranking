@@ -43,12 +43,12 @@ a healthy build.
 
 | # | Check | Evidence | ✅ |
 |---|---|---|---|
-| 1 | Risk tier — D-122 | Plumbing ⇒ single pass. The Stage-4.0 closure review covers this surface and is separate from the wave tier | ✅ |
-| 2 | REQ-API-009 citing evidence | `scripts/journey.py` exit 0 against a container; falsified two ways | **PARTIAL — W-030** |
+| 1 | Risk tier — D-122 | Plumbing ⇒ single pass (`docs/decisions.md` D-122). The Stage-4.0 closure review covers this surface and is separate from the wave tier | ✅ |
+| 2 | REQ-API-009 citing evidence | `scripts/journey.py` exit 0 against a container; falsified two ways | WAIVED — partial, ledgered as W-030 |
 | 3 | L.7 build stamp | `/health` returns `{"status":"ok","version":"0.1.0","build":"m7w4-local"}` from inside the image | ✅ |
-| 4 | Stage 4.0 security PASS before deploy | PASS, 0 BLOCKING, 8 MINOR — six fixed, two accepted as unverified-without-a-deploy | ✅ |
-| 5 | `make smoke-deps` exit 0 | **NO** — arena's upstream 500 (W-024). Handled by D-121: the artifact ships without assistant evidence and the surface discloses it | **WAIVED — W-024** |
-| 6 | Deploy executed | **NO — deferred to M8 by D-123.** Nothing was created on Fly.io; there is no half-provisioned state | **DEFERRED** |
+| 4 | Stage 4.0 security PASS before deploy | `docs/reviews/m7-security-review.md`: PASS, 0 BLOCKING, 8 MINOR — six fixed, two accepted as unverified-without-a-deploy | ✅ |
+| 5 | `make smoke-deps` exit 0 | **NO** — arena's upstream 500, open in the ledger as **W-024**. Handled by `docs/decisions.md` D-121, not resolved: the artifact ships without assistant evidence and the surface discloses it | WAIVED — ledgered as W-024 |
+| 6 | Deploy executed | **Deferred to M8** by `docs/decisions.md` D-123. Nothing was created on Fly.io; there is no half-provisioned state | N/A — moved to M8 by D-123 |
 | 7 | Gates green | `make check` exit 0 · 511 passed / 12 skipped · gitleaks clean | ✅ |
 
 ## What is NOT verified, and must not be read as covered
@@ -58,3 +58,18 @@ deploy leaves them exactly there. They are ledgered as **W-030** (REQ-API-009's 
 half — TLS, DNS, Fly's proxy, real latency) and **W-031** (volume permissions against a non-root
 uid, machine OOM and restart behaviour, `force_https`). A local container is a good proxy for a
 platform and is not the platform.
+
+---
+
+Touched: `scripts/journey.py`
+(1 file changed, 113 insertions(+), 15 deletions(-))
+
+K.8 contracts: NONE. `scripts/journey.py` is a black-box client and imports nothing from the project; `Dockerfile` and `fly.toml` are unchanged in this wave.
+
+Filled by: the lead agent (Claude, Claude Code CLI) · Date: 2026-08-18 · Wave commit range: `c68dcd6..ec09883`
+
+> Added at M7 closure after `scripts/wave_check.py` failed all four of this milestone's wave records
+> on exactly these three lines. The gate exists, it works, and `make check` does not run it — the
+> same shape this project has spent five milestones finding in its code, here in its records.
+> Ledgered as **W-032**; wiring `make wave-check` into `make check` is a gate-definition change and
+> therefore the owner's.
