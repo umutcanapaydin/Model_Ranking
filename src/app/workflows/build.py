@@ -14,6 +14,14 @@ that artifact. So every stage here is checked against a floor and the whole run 
 final act is to read the counts back OUT of the file rather than trust what the writers reported
 (the M6 lesson: *configured is not working, and neither is measured-once*).
 
+**A build is NOT reproducible across time, and that is correct.** Four of five sources are live
+feeds, so two builds a day apart legitimately differ: at M7's Stage-4.0 round a rebuild moved four
+models' price medians (deepseek, kimi, glm — models whose vendors move prices) while the model set
+and every other median stayed identical. Comparing two artifacts and finding drift is therefore not
+evidence of a code defect. What IS reproducible, and what W2's parity proof rests on, is
+same-inputs-same-output: the streamed fetch was verified to return byte-identical text to the
+unbounded one, parsing to identical rows.
+
 **Exit codes** mirror `schema.py`'s frozen D-120 contract, deliberately, so an operator learns one
 convention rather than two:
 

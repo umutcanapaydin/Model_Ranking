@@ -12,9 +12,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-import httpx
-
-from app.clients.protocols import SourceError
+from app.clients.protocols import SourceError, fetch_bounded
 from app.workflows.schema import PricingRow
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/models"
@@ -30,13 +28,7 @@ class OpenRouterClient:
         self.url = url
 
     def fetch_raw(self) -> str:
-        try:
-            resp = httpx.get(self.url, timeout=_TIMEOUT_S, follow_redirects=True)
-            resp.raise_for_status()
-        except httpx.HTTPError as exc:
-            msg = f"openrouter fetch failed: {exc}"
-            raise SourceError(msg) from exc
-        return resp.text
+        return fetch_bounded(self.url, self.name, _TIMEOUT_S)
 
 
 def _price_per_m(v: object) -> float | None:

@@ -10,10 +10,9 @@ from __future__ import annotations
 
 import datetime as dt
 
-import httpx
 import yaml
 
-from app.clients.protocols import SourceError
+from app.clients.protocols import SourceError, fetch_bounded
 from app.workflows.schema import ScoreRow
 from app.workflows.yaml_guard import MAX_YAML_BYTES, safe_load_bounded
 
@@ -37,22 +36,17 @@ class AiderClient:
         self.url = url
 
     def fetch_raw(self) -> str:
-        try:
-            resp = httpx.get(self.url, timeout=_TIMEOUT_S, follow_redirects=True)
-            resp.raise_for_status()
-        except httpx.HTTPError as exc:
-            msg = f"aider fetch failed: {exc}"
-            raise SourceError(msg) from exc
-        # The guard bounds what the PARSER is given; this bounds what the SOCKET is given, and it
-        # is the only unbounded step left on the guarded path once the parse is capped. A remote
-        # host that streams gigabytes costs the same either way if nobody stops the read.
-        if len(resp.content) > MAX_YAML_BYTES:
+        # `fetch_bounded` stops the SOCKET at MAX_RESPONSE_BYTES; this keeps aider's stricter
+        # curated-leaderboard cap, which is the bound the YAML guard was sized against. Two limits,
+        # both deliberate: the outer one protects the process, the inner one protects the parser.
+        raw = fetch_bounded(self.url, self.name, _TIMEOUT_S)
+        if len(raw.encode("utf-8")) > MAX_YAML_BYTES:
             msg = (
-                f"{self.name}: response is {len(resp.content)} bytes, past the"
+                f"{self.name}: response is {len(raw.encode('utf-8'))} bytes, past the"
                 f" {MAX_YAML_BYTES}-byte limit for a curated leaderboard"
             )
             raise SourceError(msg)
-        return resp.text
+        return raw
 
 
 def _as_date_str(v: object) -> str | None:

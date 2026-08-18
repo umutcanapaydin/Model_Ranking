@@ -15,9 +15,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any, TypeGuard
 
-import httpx
-
-from app.clients.protocols import SourceError
+from app.clients.protocols import SourceError, fetch_bounded
 from app.workflows.schema import PricingRow
 
 if TYPE_CHECKING:
@@ -39,13 +37,7 @@ class LiteLLMClient:
         self.url = url
 
     def fetch_raw(self) -> str:
-        try:
-            resp = httpx.get(self.url, timeout=_TIMEOUT_S, follow_redirects=True)
-            resp.raise_for_status()
-        except httpx.HTTPError as exc:
-            msg = f"litellm fetch failed: {exc}"
-            raise SourceError(msg) from exc
-        return resp.text
+        return fetch_bounded(self.url, self.name, _TIMEOUT_S)
 
 
 def _is_price(v: object) -> TypeGuard[int | float]:

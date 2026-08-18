@@ -19,7 +19,7 @@ from typing import Any
 
 import httpx
 
-from app.clients.protocols import SourceError
+from app.clients.protocols import MAX_RESPONSE_BYTES, SourceError
 from app.workflows.schema import ScoreRow
 
 DATASET = "lmarena-ai/leaderboard-dataset"
@@ -92,18 +92,38 @@ class ArenaClient:
         last_exc: Exception | None = None
         for attempt in range(_RETRIES_429 + 1):
             try:
-                resp = httpx.get(endpoint, params=params, timeout=_TIMEOUT_S, follow_redirects=True)
-                if resp.status_code == 429 and attempt < _RETRIES_429:
-                    retry_after = resp.headers.get("Retry-After")
-                    delay = (
-                        float(retry_after)
-                        if retry_after and retry_after.replace(".", "", 1).isdigit()
-                        else float(2 ** (attempt + 1))
-                    )
-                    time.sleep(min(delay, 30.0))
-                    continue
-                resp.raise_for_status()
-                payload = resp.json()
+                # Streamed rather than fetched whole (M7 Stage-4.0 MINOR-4). Two reasons, and the
+                # second is why this reads better than the version it replaces: the body is capped
+                # WHILE it is read, so a hostile or broken upstream cannot make this process buffer
+                # gigabytes; and the status and headers arrive BEFORE the body, so the 429 retry
+                # below decides without paying for a response it is about to discard.
+                with httpx.stream(
+                    "GET",
+                    endpoint,
+                    params=params,
+                    timeout=_TIMEOUT_S,
+                    follow_redirects=True,
+                ) as resp:
+                    if resp.status_code == 429 and attempt < _RETRIES_429:
+                        retry_after = resp.headers.get("Retry-After")
+                        delay = (
+                            float(retry_after)
+                            if retry_after and retry_after.replace(".", "", 1).isdigit()
+                            else float(2 ** (attempt + 1))
+                        )
+                        time.sleep(min(delay, 30.0))
+                        continue
+                    resp.raise_for_status()
+                    body = bytearray()
+                    for chunk in resp.iter_bytes():
+                        body += chunk
+                        if len(body) > MAX_RESPONSE_BYTES:
+                            msg = (
+                                f"arena: page {page} exceeded {MAX_RESPONSE_BYTES} bytes "
+                                "and was cut off; the filter endpoint has changed shape"
+                            )
+                            raise SourceError(msg)
+                payload = json.loads(bytes(body).decode("utf-8", "replace"))
             except (httpx.HTTPError, ValueError) as exc:
                 last_exc = exc
                 break

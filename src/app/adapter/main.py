@@ -102,7 +102,6 @@ RELAXED_ENVS = frozenset({"development", "dev", "test", "local"})
 
 #: How many requests may execute a handler at once. Set on AnyIO's limiter at startup; `fly.toml`
 #: ties its edge concurrency to the same number, and a test fails if the two drift.
-MAX_CONCURRENT_REQUESTS = int(os.environ.get("MODEL_RANKING_MAX_CONCURRENCY", "8"))
 
 
 class ConfigError(RuntimeError):
@@ -111,6 +110,64 @@ class ConfigError(RuntimeError):
     V3C-51: a process that boots with a broken security config and fails per-request has already
     served the request that mattered.
     """
+
+
+def _positive_env(name: str, default: str) -> int:
+    """An operator-supplied count that must be a positive integer, checked at import.
+
+    Stage-4.0 MINOR-6: `MODEL_RANKING_MAX_CONCURRENCY=0` made the process boot, bind its port, and
+    then hang EVERY request including `/health` — measured at 120 s with no response. A liveness
+    probe that never answers reads as a slow start, so the deploy would have been retried rather
+    than diagnosed. A negative value does the same, and a non-numeric one crashed with a ValueError
+    that said nothing about which variable was wrong.
+    """
+    raw = os.environ.get(name, default).strip()
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        msg = f"{name} must be a positive integer; got {raw!r}"
+        raise ConfigError(msg) from exc
+    if value < 1:
+        msg = (
+            f"{name} must be at least 1; got {value}. A limiter of zero binds the port and then "
+            "answers nothing, including /health"
+        )
+        raise ConfigError(msg)
+    return value
+
+
+MAX_CONCURRENT_REQUESTS = _positive_env("MODEL_RANKING_MAX_CONCURRENCY", "8")
+
+#: The largest ranked-model count this process will serve. Measured rather than guessed: the
+#: Stage-4.0 pass drove a container capped at the VM size `fly.toml` declares and found ~10,000
+#: ranked models using 58% of it and ~50,000 OOM-killed, against 73 in the shipped artifact. Set an
+#: order of magnitude below the measured failure and two above today's data, so a refresh that
+#: doubles the registry is fine and one that multiplies it by a hundred stops at deploy.
+MAX_RANKED_ROWS = int(os.environ.get("MODEL_RANKING_MAX_RANKED_ROWS", "5000"))
+
+
+def _ranked_row_count(db: Path) -> int | None:
+    """How many models the artifact can actually rank, or None if it cannot be asked.
+
+    Counts DISTINCT reconciled models carrying a score, which is what `category_ranking` joins over
+    and therefore what the process pays memory for. An unreadable database returns None here rather
+    than raising: `_database_unusable` above is the check that reports that, and two checks
+    reporting the same fault in different words is how an operator learns to skim them.
+    """
+    try:
+        conn = open_readonly(db)
+    except sqlite3.Error:
+        return None
+    try:
+        row = conn.execute(
+            "SELECT count(DISTINCT model_id) FROM scores WHERE model_id IS NOT NULL"
+        ).fetchone()
+        return int(row[0]) if row else 0
+    except sqlite3.Error:
+        return None
+    finally:
+        with contextlib.suppress(sqlite3.Error):
+            conn.close()
 
 
 def _db_path() -> Path | None:
@@ -271,13 +328,25 @@ def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
         if problem:
             problems.append(problem)
 
-        # The database-size ceiling was DELETED at M7-W3 along with the snapshot it existed for.
-        # It refused to boot when `size > concurrency x RSS_FACTOR x budget`, which was the right
-        # check while every in-flight request held a private in-memory COPY of the file. Nothing
-        # copies now: the serving path reads the operator's database directly and the process
-        # holds SQLite's page cache, not the file. Keeping the check would refuse to boot on a
-        # perfectly servable artifact for a cost the process no longer pays, and keeping it "just
-        # in case" is how a gate outlives its reason and starts blocking correct configurations.
+        # The database-SIZE ceiling was deleted at M7-W3 with the snapshot it existed for, and the
+        # Stage-4.0 pass proved that deletion right by measuring the thing it measured: a file
+        # inflated to 121 MB with the same 73 models cost **zero** additional memory, so the old
+        # check would have refused a harmless artifact. It also showed what the old check MISSED —
+        # a 6 MB artifact with 10,000 ranked models reached 58% of a 256 MB VM, and 50,000 models
+        # was OOM-killed. **The cost is linear in RANKED ROWS, not in file bytes.**
+        #
+        # So the ceiling is not restored, it is re-pointed at the right quantity. Not attacker
+        # reachable — `task` and `budget` are closed enums and the artifact is operator-built — but
+        # a data refresh that outgrows the machine should still fail at DEPLOY rather than under
+        # the first burst of traffic, which is what W-017's condition (a) was always about.
+        ranked = _ranked_row_count(db)
+        if ranked is not None and ranked > MAX_RANKED_ROWS:
+            problems.append(
+                f"MODEL_RANKING_DB ranks {ranked} models; this process refuses past "
+                f"{MAX_RANKED_ROWS}. Measured at Stage 4.0: ~10,000 ranked models reach 58% of a "
+                "256 MiB VM and ~50,000 are OOM-killed. Raise MODEL_RANKING_MAX_RANKED_ROWS with "
+                "the VM, or narrow what the build ingests"
+            )
 
     if strict and APP_BUILD == "unknown":
         problems.append(
@@ -527,6 +596,28 @@ def _source_health_json(
     }
 
 
+#: Pick fields whose value is VERBATIM third-party text rather than a number or an allowlisted
+#: identifier. `model` and `vendor` are safe: they come from the canonical registry, so a source can
+#: only influence WHICH registered name is chosen, never what the string is. `harness` is different
+#: — it is copied out of a leaderboard row, and nothing upstream bounds it.
+UNTRUSTED_PICK_TEXT = frozenset({"harness"})
+
+#: Where a third-party string is cut. Far longer than every real harness name in the current
+#: artifact; short enough that a hostile leaderboard row cannot push a megabyte through an
+#: unauthenticated GET into whatever renders it. Stage 4.0 MINOR-7 — hygiene today, and worth doing
+#: now because an iOS client is the next piece of work rather than a distant one.
+MAX_UNTRUSTED_TEXT = 120
+
+
+def _bounded_pick(pick: dict[str, Any]) -> dict[str, Any]:
+    """Bound the pick fields that carry third-party text through to the caller."""
+    for field in UNTRUSTED_PICK_TEXT:
+        value = pick.get(field)
+        if isinstance(value, str) and len(value) > MAX_UNTRUSTED_TEXT:
+            pick[field] = value[:MAX_UNTRUSTED_TEXT] + "…"
+    return pick
+
+
 #: `Recommendation` fields the envelope RELOCATES rather than repeats. `task` is the answer's
 #: `surface`; `budget` belongs to the query, which is one query for all the answers — repeating it
 #: per answer would give two copies of one value a chance to disagree.
@@ -629,7 +720,7 @@ def _answer_json(
         engine = {k: v for k, v in engine.items() if k in PUBLIC_ANSWER_FIELDS}
         # ...and the same filter one level down, because `picks` is a door rather than a value.
         engine["picks"] = [
-            {k: v for k, v in pick.items() if k in PUBLIC_PICK_FIELDS}
+            _bounded_pick({k: v for k, v in pick.items() if k in PUBLIC_PICK_FIELDS})
             for pick in engine.get("picks", [])
         ]
     else:

@@ -22,6 +22,7 @@ import json
 import pathlib
 import re
 import sys
+import tomllib
 import urllib.error
 import urllib.request
 
@@ -31,23 +32,44 @@ DEP_RE = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)")
 
 
 def declared(root: pathlib.Path) -> list[str]:
+    """Every dependency this project declares — PARSED, not pattern-matched.
+
+    **M7 Stage-4.0 MINOR-3: this function used to return `['fastapi']`.** One name, out of five,
+    and the gate printed PASS on it. The cause is worth keeping: the dependency block was located
+    with a NON-GREEDY bracket match, so it stopped at the first closing bracket in the file — the
+    one inside `uvicorn[standard]`. Everything past that extra was invisible, including four
+    dependencies and every optional group.
+
+    A dependency gate that inspects one fifth of the dependencies and reports success is this
+    project's most-repeated defect wearing a regex. `tomllib` reads the file the way the packaging
+    tools do, so a dependency cannot be added in a shape the gate cannot see.
+    """
     names: list[str] = []
+
     req = root / "requirements.txt"
     if req.is_file():
-        for line in req.read_text(encoding="utf-8", errors="replace").splitlines():
-            line = line.split("#")[0].strip()
+        for raw in req.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = raw.split("#")[0].strip()
             if line and not line.startswith("-"):
                 m = DEP_RE.match(line)
                 if m:
                     names.append(m.group(1))
+
     pyp = root / "pyproject.toml"
     if pyp.is_file():
-        body = pyp.read_text(encoding="utf-8", errors="replace")
-        for block in re.findall(r"dependencies\s*=\s*\[(.*?)\]", body, re.S):
-            for item in re.findall(r"['\"]([^'\"]+)['\"]", block):
-                m = DEP_RE.match(item)
-                if m:
-                    names.append(m.group(1))
+        with pyp.open("rb") as fh:
+            doc = tomllib.load(fh)
+        project = doc.get("project", {})
+        specs: list[str] = list(project.get("dependencies", []) or [])
+        # Optional groups too: `[dev]` is where a typo-squatted test helper would land, and it is
+        # installed by CI on every run.
+        for group in (project.get("optional-dependencies", {}) or {}).values():
+            specs.extend(group or [])
+        for item in specs:
+            m = DEP_RE.match(item)
+            if m:
+                names.append(m.group(1))
+
     return sorted(set(names))
 
 

@@ -241,34 +241,92 @@ def test_the_expansion_budget_is_pinned() -> None:
 
 
 def test_the_remote_fetch_bounds_the_body_before_the_parser_sees_it() -> None:
-    """The guard caps the PARSER's input; this caps the SOCKET's.
+    """TWO bounds, and M7's Stage-4.0 pass is why there are two.
 
-    Carried by the W3 code review after the guard went on: once the parse is bounded, the fetch is
-    the only unbounded step left on the path, and a host that streams gigabytes costs the same
-    whether or not the parser would have refused the result.
+    Carried by the W3 code review: once the parse is bounded, the fetch is the only unbounded step
+    left, and a host that streams gigabytes costs the same whether or not the parser would have
+    refused the result.
+
+    **What Stage 4.0 then measured is that the first version of this bound was too late.** It
+    checked `len(resp.content)`, which httpx populates only after it has buffered AND decompressed
+    the whole body — so a 4.6 MB gzip response expanded to 434 MB of text in a 1.94 GB process, and
+    the check fired afterwards. The socket bound is now enforced while READING, in
+    `protocols.fetch_bounded`, and aider keeps its stricter curated-leaderboard cap on top.
     """
     import httpx
 
     from app.clients.aider import AiderClient
-    from app.clients.protocols import SourceError
+    from app.clients.protocols import MAX_RESPONSE_BYTES, SourceError
     from app.workflows.yaml_guard import MAX_YAML_BYTES
 
-    class _Fat:
+    class _Stream:
+        """A response that dribbles out more bytes than either cap allows."""
+
+        def __init__(self, total: int) -> None:
+            self._total = total
+
         status_code = 200
-        content = b"x" * (MAX_YAML_BYTES + 1)
-        text = "x" * (MAX_YAML_BYTES + 1)
 
         def raise_for_status(self) -> None:
             return None
 
+        def iter_bytes(self):
+            sent = 0
+            while sent < self._total:
+                chunk = b"x" * min(65536, self._total - sent)
+                sent += len(chunk)
+                yield chunk
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc: object) -> None:
+            return None
+
+    original = httpx.stream
     client = AiderClient()
-    original = httpx.get
-    httpx.get = lambda *a, **k: _Fat()  # type: ignore[assignment]
     try:
+        # OUTER bound: the socket is stopped mid-read, so the process never holds the whole body.
+        httpx.stream = lambda *a, **k: _Stream(MAX_RESPONSE_BYTES + 65536)  # type: ignore[assignment]
+        with pytest.raises(SourceError, match="exceeded"):
+            client.fetch_raw()
+
+        # INNER bound: a body small enough for the socket but too large for a curated leaderboard.
+        assert MAX_YAML_BYTES < MAX_RESPONSE_BYTES, "the inner cap must be the stricter one"
+        httpx.stream = lambda *a, **k: _Stream(MAX_YAML_BYTES + 1024)  # type: ignore[assignment]
         with pytest.raises(SourceError, match="past the"):
             client.fetch_raw()
     finally:
-        httpx.get = original
+        httpx.stream = original
+
+
+def test_every_remote_client_reads_through_the_bounded_fetcher() -> None:
+    """DERIVED, not typed: no client may open its own unbounded read.
+
+    Four of the five had no bound at all before Stage 4.0, and the one that did checked too late.
+    Walking the module with `ast` means a sixth client added tomorrow is covered without anyone
+    remembering this test exists — the alternative is a list of four filenames, which is the shape
+    this project has been caught by five times.
+    """
+    import ast
+    import pathlib as _pathlib
+
+    clients_dir = _pathlib.Path("src/app/clients")
+    offenders = []
+    for path in sorted(clients_dir.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "get"
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "httpx"
+            ):
+                offenders.append(f"{path.name}:{node.lineno}")
+    assert not offenders, (
+        f"these clients call httpx.get directly, bypassing the streamed byte cap: {offenders}"
+    )
 
 
 def test_the_savepoint_wrapper_has_a_citing_test() -> None:
