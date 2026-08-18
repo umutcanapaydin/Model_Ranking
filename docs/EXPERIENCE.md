@@ -278,3 +278,48 @@ control whose only remedy requires the owner will survive every close until some
 review seats, all closed · 47 author mutants all killed, 52 Tester mutants with 16 initially green ·
 5 carried ledger rows paid, W-001 closed, 4 new rows · 7 ADRs (D-113..D-120) · 1 criterion amended at
 the gate · 5 findings handed back to GP.
+
+## M7 — 2026-08-18 — The engine feeds itself, and stops writing while it reads
+
+**What the milestone was.** The product's data-production pipeline existed only as a ~30-line
+heredoc inside a CI workflow on a cron that had never fired. That is why the shipped `advisor.db`
+answered zero picks for every query: nothing rebuilt it. M7 lifted the pipeline into `src/`, moved
+the price-median build off the read path, deleted the in-memory snapshot that the write had forced,
+and packaged the result. It did not deploy — the owner moved go-live to ship with the iOS client
+(D-123).
+
+**The lesson, and it corrects M6's.** M6 concluded that reachability is where this project's tests
+are weakest — ten of ten BLOCKING findings were controls that never ran — and asked whether to build
+a gate for it. M7's headline defect was the opposite shape:
+
+> **A control that runs on every request can still be the defect, and no reachability tool will say
+> so. The question is not "does this execute" but "should this exist".**
+
+`serving_snapshot` executed perfectly, on every request, for an entire milestone. It was cited,
+tested, measured by three separate security passes, and given a memory budget with five declared
+constants. A reachability gate would have called it healthy. Deleting the *reason* it existed — a
+write on the read path — removed the control, the constants, the budget, three tests and the whole
+class of finding in one move. And the Stage-4.0 pass then showed the deleted ceiling had been
+measuring the wrong quantity all along: it would have refused a harmless 121 MB artifact while
+admitting a 6 MB one that used 58% of the VM.
+
+**Second lesson, paid twice in one milestone.** *Deleting a test is a decision needing the same care
+as writing one.* Three tests guarded the memory budget and went with it; one of them also guarded
+the concurrency agreement, which is live and has nothing to do with snapshots. Two mutants walked
+through the gap. The test written to replace them says, in its own docstring, that quiet deletion is
+how a control disappears.
+
+**Third, about records.** The D-121 amendment claimed a test file asserted something it did not —
+a record asserting a control that was not there, committed in the sentence documenting a fix. Fifth
+milestone for this class. And W-023 taught a variant: **a correct diagnosis can carry an
+insufficient remedy for two milestones because nobody re-reads the remedy.** Its ledger row
+prescribed a one-line `schema migrate`, which cannot populate a table.
+
+**What the reviews cost and returned.** Thirty BLOCKING in W1 alone, none found by the author,
+across three seats and three rounds — rounds two and three finding defects the author introduced
+while fixing round one. That is also what produced **D-122**: the owner ruled that review depth
+follows blast radius rather than wave number, after one wave consumed a whole session on a project
+with no users. He had given the same instruction in M6 and it had not been applied.
+
+**Numbers.** 396 → 511 tests. W-017 and W-023 closed, both the oldest open rows, and neither the way
+its own row proposed. 0 deploys.

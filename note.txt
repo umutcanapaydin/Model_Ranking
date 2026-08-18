@@ -1,87 +1,77 @@
 Project: model_ranking
-State: **M1-M6 CLOSED agent-side; M6 awaits only the owner's signature** (docs/closure-report-m6.md
-  §0). Repo green: 365 tests / 12 skipped (372 / 5 with the Epoch bundle), `make smoke-deps` PASS,
-  gitleaks clean for the first time in the project's history.
-  **Nothing here is deployable yet** — three independent records block the first deploy (§0 items 3,
-  3b, 3c): W-017's snapshot, W-023's pre-M5 database, and the Stage-4.0 re-verification. AGENTS.md
-  §6 binds the security gate to go-live, not to closure, and M6 deploys nothing.
-Last session date: 2026-08-17
+State: **M1-M7 CLOSED agent-side. M7 awaits the owner's signature** (docs/closure-report-m7.md §0).
+  Repo green: 511 tests / 12 skipped. Stage 4.0 security review PASS, 0 blocking.
+  **The engine is deploy-READY and NOT deployed** — go-live moved to M8 to ship with the iOS client
+  (D-123). Nothing exists on Fly.io; nothing is billing.
+Last session date: 2026-08-18
 Last work agent: Claude (Claude Code CLI, local lane under D-117)
 
 FIRST THREE THINGS A NEW AGENT DOES
-0. **Read `docs/handovers/handover_q2.txt` first** — the quarterly handover generated at this
-   closure. State, doctrine, the owner, environment, and what M7 opens with. Everything below is
-   its summary.
-1. Read `docs/closure-report-m6.md` §0 — the five items that need the owner.
-2. Verify the state yourself: `make check` (354/12) and, with the owner's bundle mounted,
-   `EPOCH_DATA_DIR=... .venv/bin/python -m pytest -q` (361/5). If that is not what you see, STOP.
+1. Read `docs/closure-report-m7.md` §0 — the three items that need the owner.
+2. Read `docs/decisions.md` D-121, D-122, D-123 — the three rulings that shape how M8 runs.
+3. Verify the state yourself: `make check` (511/12). If that is not what you see, STOP.
 
-WHAT M6 SHIPPED
-- **The product answers over HTTP.** `/v1/recommendations?task=coding` returns BOTH coding answers
-  with neither leading — the owner's Ruling A, frozen as a contract by **D-115**, enforced by a
-  frozen payload key set after a denylist and then a regex were both walked past.
-- One serializer behind three renderings (JSON payload, CSV export, CLI) — `serialize.py` imports no
-  engine module and enumerates nothing.
-- **D-118: the product speaks English**, at the source rather than the API boundary. Query values
-  are `low`/`medium`/`unlimited`. The CLI became English as a consequence, stated in the ADR.
-- A persisted roster staleness window with a migration (W-008), an alias-expansion guard on all four
-  YAML inputs including the remote-fed one (W-005), one migration entry point (W-009), the effort
-  counter fixed (W-010), `equivalent_plans` as labelled groups (W-002/D-119).
-- CORS allowlist with no wildcard in any environment, startup validation failing closed in
-  production, read-only database handle.
-- **D-116 closes OQ-3**: Fly.io, evidence database as a shipped artifact, no ingestion on the
-  serving host. Deploy proposals only — nothing is deployed.
+WHAT M7 SHIPPED
+- **The product can produce its own data.** `python -m app.workflows.build --db advisor.db
+  --epoch-dir <bundle>` builds the evidence database end to end. Before M7 that pipeline existed
+  ONLY as a heredoc in a CI cron that had never fired, which is why the shipped artifact answered
+  zero picks for every query (W-023). It now answers 3 picks on `coding` and 3 on `agentic-coding`.
+- **The engine no longer writes while it serves.** `build_price_medians` left `recommend()`;
+  parity proven value-for-value (72 medians, 9 recommendation shapes byte-identical) on a
+  READ-ONLY connection, which was impossible before.
+- **W-017 CLOSED by deletion.** `serving_snapshot` is gone, and with it RSS_FACTOR,
+  MEMORY_BUDGET_MB, PROCESS_BASELINE_MB, max_database_bytes() and the boot-time size ceiling.
+  Stage 4.0 re-derived it independently: a file inflated to 121 MB with the same 73 models cost
+  ZERO additional memory.
+- An unbuilt artifact is refused at four boundaries — the engine, the startup probe, the CLI
+  (exit 2, not 1) and `/v1` (503). Exit 1 means "no model fits this budget", which is a RESULT.
+- `scripts/journey.py` wired for this product and RUN: 4/4 against the real container, falsified
+  two ways. The container fails closed on unbuilt and pre-M5 artifacts, naming the right command.
 
 SETTLED THIS MILESTONE — do not re-litigate
-- **Ruling A** (both coding answers, neither leading) · **D-113** GP v5.0 baseline · **D-114 then
-  D-117** on git authority (the agent commits at wave boundaries under five conditions; the
-  milestone commit stays the owner's) · **D-118** English · **D-120** `schema migrate` exit 3 ·
-  **W-001's gitleaks waiver**, scoped to a label shape rather than a path · the **REQ-API-005
-  criterion amendment** (an unhealthy source is DISCLOSED in a 200, never refused).
+- **D-121** a source may be optional, but a blind surface may never be silent (arena is the only
+  optional one) · **D-122** review depth follows BLAST RADIUS, not wave number: full depth on the
+  scoring path and `/v1`, single pass on plumbing, round cap of two · **D-123** go-live ships with
+  the iOS app; D-116 (Fly.io) is NOT superseded, only its timing.
 
 WHAT'S OPEN
-- **Stage-4.0 re-verification** — the review ran TWICE and its five BLOCKING are all closed, but no
-  seat has reviewed the post-fix tree. Re-run `/security-review` before go-live. Not a closure
-  blocker: AGENTS.md §6 says "must PASS before 4.3 deploy" and 4.3 is "if the milestone deploys".
-- **W-017** — the serving snapshot copies the whole database into memory per unauthenticated GET.
-  Its three Stage-4.0 conditions are closed (amplification re-derived, ceiling now subtracts the
-  serving process's own baseline, `fly.toml` ties concurrency to the budget) but **the snapshot
-  itself is unchanged**. **A CONDITION of go-live under D-116, not a follow-up.**
-- **W-023** — `advisor.db` / `owner_advisor.db` are pre-M5 (no `effort` column) and the serving path
-  is read-only by design, so it cannot migrate them. Deployed as-is: `/health` 200 with the right
-  build stamp, and **every query 200 with zero picks** — while Stage 4.3 verifies via `/health`.
-  Run `.venv/bin/python -m app.workflows.schema migrate --db advisor.db` first (exit 3 + operator
-  actions is the expected D-120 path if rosters need re-ingesting).
-- ~~**W-021**~~ — CLOSED at the M6 gate: the owner ruled DELETE the `CODEOWNERS` rules rather than
-  give a placeholder a real-looking handle. K.10's boundary now lives in AGENTS.md §5 and
-  `conformance/test-governed-paths.py`, both of which run. Restore the rules WITH branch protection
-  if a second contributor ever joins.
-- **W-019** — `L1` detects an alphabet, not a language. No mechanical fix proposed on purpose.
-- **GPF-001..005** in `docs/gp-field-findings.md` — findings about GP v5.0 itself, for the owner to
-  carry to the pipeline repo. Three are the same records-versus-instructions blind spot.
-- The coverage and roster-staleness CI legs have still never RUN (`contract-tests.yml` is a Monday
-  cron). Carried to M7; better said than claimed green.
+- **W-030 / W-031** — REQ-API-009's network half and the entire Fly platform surface are
+  UNVERIFIED because nothing is deployed. A local container is a good proxy and is not the
+  platform. Do not report these as covered.
+- **W-024** — arena's upstream HTTP 500, standing for days. Handled by D-121 (the artifact ships,
+  `assistant` discloses it has no evidence), not resolved.
+- **W-026 / W-027** — owner calls, both gate-definition changes: `make lint` does not cover
+  `scripts/` (18 findings); `contract-tests.yml` has still never run (`gh workflow run`).
+- **W-019, W-025, W-028, W-029** — carried with reasons.
+- GPF-001..005 handed back to General_Pipeline; `make conformance` is 5 of 7 on two of them.
 
-THE LESSON M6 PAID FOR
-**An enumeration that is typed out is a denylist wearing better clothes** — four instances in one
-milestone (the precedence guard, the YAML wiring predicate, the list of YAML inputs, the smoke-test
-endpoints), each missing exactly the member with real exposure. And **ten of ten BLOCKING findings
-were reachability failures**: a control that existed, was cited, and did not run.
+THE LESSON M7 PAID FOR
+**A control that runs on every request can still be the defect, and no reachability tool will say
+so. The question is not "does this execute" but "should this exist".** `serving_snapshot` ran on
+every request for a whole milestone — cited, tested, measured three times, given a five-constant
+budget. Deleting the WRITE that forced it removed the control, the budget, the tests and the entire
+class of finding at once.
+
+Corollary, paid twice: **deleting a test needs the same care as writing one.** W3 removed three
+tests with the budget they guarded; one also guarded a live control, and two mutants walked through.
+
+M8 OPENS WITH
+The iOS client — the first consumer `/v1` has ever had that is not a test. Xcode and the Simulator
+are free; the app reaches the engine on `localhost` via `make run`. Money is only needed at the very
+end: Apple Developer to put the app on someone else's device, Fly.io when something off the owner's
+machine must call the engine.
+
+**Carried question (answer due M8):** `/v1` was frozen by D-115 with no consumer in existence. Does
+"frozen" mean frozen before or after the first real reader? Decide it in the abstract, now, rather
+than when a specific field turns out to be inconvenient.
 
 ANCHOR
-- AGENTS.md: 146 lines (cap 150)
-- Active ADRs: universal set + D-100..D-120. D-113..D-120 ratified this milestone.
-- Governed records: 32 scanned by `check_records`, up from 8 before the W-012 glob fix.
-- Most recent retrospective: docs/retrospectives/m6-retrospective.md — answers Ruling A's carried
-  question and poses the next: is "does this control actually execute" worth automating, or is a
-  control about controls the same bet at one remove?
-- Most recent quarterly handover: **docs/handovers/handover_q2.txt (M6)**. Previous: handover_q1.txt.
-- Handovers newest first: handover_q2.txt · handover_rocky.txt (M5->M6 doctrine, still accurate) ·
-  handover_m5-start.md · handover_q1.txt.
+- Active ADRs: universal set + D-100..D-123.
+- Governed records: 38.
+- Most recent retrospective: docs/retrospectives/m7-retrospective.md
+- Most recent quarterly handover: docs/handovers/handover_q2.txt (M6). M7 is not M%3==0.
 
 HANDOFF NOTES
-You are probably running ON the owner's Mac, not in a sandbox — the git-bundle protocol in older
-handovers is obsolete. Push under D-117, green gates only, never as the owner. The Epoch bundle at
-/Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data un-skips 7 tests CI cannot
-see, and M6 proved that matters: a Turkish assertion survived the English migration inside one of
-them because the migration followed what the gate could see.
+You are running ON the owner's Mac. Push under D-117, green gates only, never as the owner. The
+Epoch bundle at /Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data is required
+by `--epoch-dir` for `agentic-coding` to have any evidence at all.

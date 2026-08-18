@@ -880,4 +880,42 @@ the plumbing into the full-depth column, because a failed deploy stops being rec
 
 ---
 
+## D-123 — Go-live moves to M8 and ships with the iOS app, not before it
+
+**Status:** accepted · **Date:** 2026-08-18 (M7 closure) · **Decided by:** the owner
+
+**Context.** M7's signed plan defined W4 as "deploy + go-live readiness", and everything up to the
+deploy itself was completed and verified: the image builds, the container serves the mounted
+artifact, `scripts/journey.py` passes 4/4 against it, and the process refuses to boot on an unbuilt
+or pre-M5 database. `fly launch` then stopped on a payment method: Fly.io requires a card before it
+will place a machine, including at the smallest size.
+
+**The question that decided it was not cost but timing.** The iOS app is the next milestone, and
+during its development the simulator can reach the engine on `localhost` — Xcode and the iOS
+Simulator are free, and an Apple Developer membership is only needed to put the app on someone
+else's device. A hosted endpoint becomes necessary at exactly one moment: when something outside
+the owner's machine has to call the engine. Deploying earlier buys a monthly bill and a public
+surface that no user reaches.
+
+**Decision.** M7 closes with the engine **deploy-READY and not deployed**. Go-live moves to M8 and
+happens alongside the iOS client, when the app needs an endpoint it cannot get from `localhost`.
+
+**D-116 is NOT superseded.** Fly.io remains the target and `fly.toml` remains its declaration; only
+the moment of execution moves. `fly.toml` and `Dockerfile` stay in the repository — a passing test
+depends on `fly.toml`'s concurrency declaration, it carries W-017's closure record, and the
+`Dockerfile` is what proved the container fails closed on a bad artifact. Nothing was created on
+Fly.io, so nothing is left running or billing.
+
+**What this defers, stated so it is not mistaken for verified.** The Stage-4.0 security pass marked
+two things unverified BECAUSE no deployment existed, and they stay unverified: the over-the-network
+half of REQ-API-009 (the journey ran against a local container, not a host), and Fly volume
+permissions, OOM behaviour and `force_https`. **Neither may be reported as covered until a real
+deploy exercises them.** They carry to M8 as ledger rows, not as footnotes.
+
+**Revisit when:** the iOS client needs an endpoint off the owner's machine — a physical device, a
+TestFlight build, or a second person. That is the trigger, and it is a product event rather than a
+date.
+
+---
+
 *Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*
