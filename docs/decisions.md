@@ -918,4 +918,40 @@ date.
 
 ---
 
+## D-124 — `/v1` freezes AFTER its first real reader, not before
+
+**Status:** accepted · **Date:** 2026-08-18 (M8 opening) · **Decided by:** the owner
+**Amends:** D-115, which froze the `/v1` contract in M6.
+
+**Context.** D-115 froze the payload while the only consumers were tests. M7's retrospective put the
+consequence as a question: every field in that contract was designed by someone imagining a client,
+and M6 demonstrated four separate times that an enumeration written from imagination misses the
+member that matters. M8 writes the first real reader.
+
+**Decision.** **The contract may move once, during M8, in response to what the client actually
+needs.** After M8 closes it is frozen again under D-115's original terms.
+
+**What this permits, narrowly.** A field the client genuinely cannot render correctly, a value the
+client would otherwise have to compute itself (which Trap 1 forbids), or a disclosure the payload
+carries in a shape no interface can present. Each one is an ADR, not an edit.
+
+**What it does NOT permit**, because the reason D-115 exists is unchanged: re-opening **Ruling A**.
+Both coding surfaces are served with neither leading, and no field may be added, renamed or ordered
+in a way that ranks them. That took three review rounds to enforce against a denylist, a regex and
+finally a frozen key set, and it is not a rendering convenience.
+
+**Why "once" and why "during M8".** A contract that moves whenever a consumer complains is not a
+contract. A contract frozen before anyone read it is a guess with a lock on it. Bounding the window
+to the first client's construction is the narrowest form that gets the benefit: after M8 the payload
+has been shaped by a real reader, and every later change goes back to being expensive on purpose.
+
+**Operational rule for M8 (Trap 3).** A gap the client hits is recorded as a finding against `/v1`
+**before** any client-side workaround, and the workaround is not written while the finding is open.
+Otherwise "the contract may move once" becomes "the client quietly compensates", which is the
+outcome both this ADR and D-115 exist to prevent.
+
+**Revisit when:** M8 closes. At that point this ADR expires by its own terms and D-115 resumes.
+
+---
+
 *Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*

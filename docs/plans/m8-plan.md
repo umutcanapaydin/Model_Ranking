@@ -1,6 +1,8 @@
 # M8 Plan — The iOS app: the engine gets its first real reader
 
-**Status:** DRAFT — awaiting the owner's signature. No wave dispatches until it is SIGNED.
+**Status:** **SIGNED** by the owner on 2026-08-18. Wave dispatch is authorized.
+**The §5 question is ANSWERED — see D-124:** `/v1` may move ONCE during M8, in response to what the
+client actually needs, and re-freezes when M8 closes. Ruling A is explicitly out of scope for that.
 **Date:** 2026-08-18 · **Risk tier:** MED (a new client codebase; the engine's frozen surface is
 touched only if the owner rules it may be)
 **Mode:** A0.5 + **D-117** · **Process baseline:** GP v5.0 (D-113) · **Review depth:** **D-122**
