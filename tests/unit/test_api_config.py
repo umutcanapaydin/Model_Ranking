@@ -399,6 +399,11 @@ def test_the_public_payload_carries_only_declared_fields(
         "evidence_dating",
         "evidence_dating_note",
         "unavailable_reason",
+        # D-125 (M8-W2, the single revision D-124 permitted): the full ranking is published
+        # beside the picks, because the client could not open a category it could not see. It is
+        # listed HERE, in the guard, rather than being allowed through by widening the filter —
+        # this assertion is the reason a fourth and fifth field cannot arrive unnoticed.
+        "ranking",
     }
     from app.adapter.main import PUBLIC_PICK_FIELDS
 

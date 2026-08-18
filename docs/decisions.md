@@ -954,4 +954,45 @@ outcome both this ADR and D-115 exist to prevent.
 
 ---
 
+## D-125 — `/v1` publishes the full ranking beside the three answers (the one D-124 change)
+
+**Status:** accepted · **Date:** 2026-08-18 (M8-W1) · **Decided by:** the owner, from the running app
+**Uses:** the single contract revision **D-124** permits during M8. **Closes:** W-033.
+
+**Context.** The owner ran the app and asked for each category to show its recommendations plus the
+top few models, and to open into the full list. `/v1` serves three picks. The engine already ranks
+**44 models for `coding` and 13 for `agentic-coding`** — the data exists and the contract does not
+publish it, which is precisely the gap D-124 held a window open for.
+
+**The distinction that shapes the payload.** The three picks are not the top three of anything: they
+answer three DIFFERENT questions — best quality, best value, budget pick — chosen by three different
+rules. A ranked list answers ONE question, in score order. Serving "more picks" would collapse two
+ideas into one and quietly invent a fourth and fifth label. So the payload gains a **separate
+list**, and the picks keep their meaning.
+
+Evidence that the difference is real rather than pedantic: on the current artifact the same model
+(Grok 4.5) is both `best_quality` and `budget_pick`, and the score-ordered top 5 for `coding`
+contains four models priced above $8/1M while `best_value` — MiniMax M2.5, 3.5 points off the leader
+at 84% less — does not appear in it at all. A screen showing only the ranked list would lose the
+product's actual claim.
+
+**Decision.** Each answer gains a `ranking` array: every model the engine ranked for that surface,
+in the engine's own order, each carrying the same fields a `Pick` carries minus the pick-specific
+labelling (`label`, `why`, `trade_off`). `picks` is unchanged. The client renders the picks, then as
+many ranking rows as its screen wants, and asks for nothing more to open the full list.
+
+**What this does NOT change**, so the window is not read as wider than it is: **Ruling A stays
+untouched** — both coding surfaces are served with neither leading, and `ranking` is per-answer, so
+it cannot become a cross-surface leaderboard. No field is renamed or removed. The engine computes
+the order; the client never re-sorts (M8 plan, Trap 1).
+
+**The cost, stated.** The payload grows from 3 picks to 3 picks plus up to 44 rows per answer. That
+is a real size increase on an unauthenticated GET, and it is why `ranking` carries fewer fields per
+row than `picks` does rather than being a second copy of everything.
+
+**This is the change D-124 permitted.** After it lands, `/v1` is frozen again for the rest of M8;
+another gap becomes an M9 decision rather than a second revision.
+
+---
+
 *Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*

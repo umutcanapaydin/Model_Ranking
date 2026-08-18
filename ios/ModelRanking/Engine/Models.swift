@@ -62,6 +62,13 @@ struct Answer: Decodable, Identifiable {
     let sources: [String]
     let sourceHealth: SourceHealth?
 
+    /// Every model the engine ranked for this surface, in ITS order (D-125).
+    ///
+    /// This is not "more picks". The three picks answer three different questions; this answers
+    /// one, in score order. **The client never re-sorts it** (M8 plan, Trap 1) — re-ordering the
+    /// engine's answer is answering a different question with its numbers.
+    let ranking: [RankedModel]
+
     var id: String { surface }
 
     enum CodingKeys: String, CodingKey {
@@ -77,6 +84,34 @@ struct Answer: Decodable, Identifiable {
         case evidenceDating = "evidence_dating"
         case evidenceDatingNote = "evidence_dating_note"
         case sourceHealth = "source_health"
+        case ranking
+    }
+}
+
+/// One model's position in a surface's ranking. Carries no `label`, `why` or `trade_off`, because
+/// nothing chose it — those belong to a `Pick`.
+struct RankedModel: Decodable, Identifiable {
+    let model: String
+    let vendor: String
+    let score: Double
+    let metric: String
+    let secondaryScore: Double?
+    let blendedPerM: Double
+    let inputPerM: Double
+    let outputPerM: Double
+    let evidenceDate: String?
+    let harness: String
+    let effort: String?
+
+    var id: String { model }
+
+    enum CodingKeys: String, CodingKey {
+        case model, vendor, score, metric, harness, effort
+        case secondaryScore = "secondary_score"
+        case blendedPerM = "blended_per_m"
+        case inputPerM = "input_per_m"
+        case outputPerM = "output_per_m"
+        case evidenceDate = "evidence_date"
     }
 }
 

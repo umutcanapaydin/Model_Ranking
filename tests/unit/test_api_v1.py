@@ -57,6 +57,15 @@ ANSWER_KEYS = {
     "stale_notice",
     "unavailable_reason",
     "picks",
+    # ADDED at M8-W2 by D-125 — the ONE contract revision D-124 permitted, and the only one this
+    # milestone gets. The client could not open a category it could not see: the engine ranks 44
+    # models for `coding` and published 3.
+    #
+    # It is written into this set by hand, deliberately. The set exists because M6 shipped a
+    # denylist that a rename walked past and then a regex that three more renames walked past, and
+    # the frozen key set was the third attempt and the one that held. A field arriving here has
+    # therefore been decided rather than allowed, and the next one fails this line first.
+    "ranking",
 }
 
 SOURCE_HEALTH_KEYS = {"benchmark", "sources", "stale", "notice"}

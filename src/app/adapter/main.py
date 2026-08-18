@@ -43,7 +43,7 @@ from fastapi.responses import JSONResponse
 
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.coverage import SOURCE_STALE_DAYS, source_health
-from app.workflows.rank import UnbuiltEvidenceError, category_ranking
+from app.workflows.rank import RankingRow, UnbuiltEvidenceError, category_ranking
 from app.workflows.recommend import BUDGETS, Pick, Recommendation, recommend
 from app.workflows.serialize import recommendation_json
 
@@ -686,8 +686,52 @@ PUBLIC_PICK_FIELDS = frozenset(
 WITHHELD_PICK_FIELDS: frozenset[str] = frozenset()
 
 
+#: Fields a RANKING row publishes. Deliberately smaller than `PUBLIC_PICK_FIELDS`: a ranking row is
+#: a model's position in one ordering, while a pick additionally carries WHY the engine chose it
+#: (`label`, `why`, `trade_off`), which is meaningless for a row nobody chose. Keeping the sets
+#: separate also keeps the payload honest about its own size — up to 44 rows per answer.
+PUBLIC_RANKING_FIELDS = frozenset(
+    {
+        "model",
+        "vendor",
+        "score",
+        "metric",
+        "secondary_score",
+        "blended_per_m",
+        "input_per_m",
+        "output_per_m",
+        "evidence_date",
+        "harness",
+        "effort",
+    }
+)
+
+
+def _ranking_json(rows: list[RankingRow], spec: CategorySpec) -> list[dict[str, Any]]:
+    """The full ranking for one surface, in the ENGINE's order (D-125).
+
+    **The client never re-sorts this** (M8 plan, Trap 1). The order is the engine's answer to one
+    question — highest primary-benchmark score first — and a client that re-orders it is answering
+    a different question with the engine's numbers.
+
+    Derived from the dataclass rather than enumerated, for the same reason `_answer_json` stopped
+    listing nineteen `Pick` fields by hand: a field added to `RankingRow` arrives here whether or
+    not anyone remembers this function exists, and the allowlist above decides what is published.
+    """
+    published = []
+    for row in rows:
+        raw = {f.name: getattr(row, f.name) for f in fields(row)}
+        entry = {k: v for k, v in raw.items() if k in PUBLIC_RANKING_FIELDS}
+        # The metric is a property of the SURFACE, not of the row, and the client needs it beside
+        # every score it renders rather than having to reach back up the payload.
+        entry["metric"] = spec.metric
+        published.append(_bounded_pick(entry))
+    return published
+
+
 def _answer_json(
     spec: CategorySpec,
+    ranking: list[dict[str, Any]],
     rec: Recommendation | None,
     unavailable_reason: str | None,
     source_health_json: dict[str, Any],
@@ -746,6 +790,9 @@ def _answer_json(
         **engine,
         "surface": spec.id,
         "title": spec.title,
+        # D-125: every model the engine ranked for this surface, in its order. Per-answer by
+        # construction, so it cannot become a cross-surface leaderboard — Ruling A is untouched.
+        "ranking": ranking,
         "primary_benchmark": spec.primary_benchmark,
         "metric": spec.metric,
         "source_health": source_health_json,
@@ -796,7 +843,17 @@ def _answer_for(
         # because both are "the server cannot answer", not "the answer is empty".
         raise
     except sqlite3.DatabaseError:
-        return _answer_json(spec, None, "This surface's evidence could not be read.", health)
+        return _answer_json(spec, [], None, "This surface's evidence could not be read.", health)
+
+    # Computed ONCE and reused: the no-evidence predicate below already needs to know whether
+    # anything reached the ranking, and D-125 publishes the same rows. Asking the database twice
+    # for one answer is how the two drift.
+    try:
+        ranked = category_ranking(conn, spec)
+    except sqlite3.DatabaseError:
+        ranked = []
+    ranking = _ranking_json(ranked, spec)
+
     if rec is None:
         # WHY the answer is empty decides whether it is honest, and there are two different
         # reasons. M7-W1's security and code-review seats both found this line attaching the
@@ -817,9 +874,10 @@ def _answer_for(
         # unreconciled arena row put the surface back on the budget sentence with nothing ranked.
         # `minimum_rows` counts rows STORED, not rows usable, and the build's reconciliation floor
         # is global rather than per-benchmark, so nothing upstream rules the state out.
-        if not category_ranking(conn, spec):
+        if not ranked:
             return _answer_json(
                 spec,
+                ranking,
                 None,
                 f"This surface has no evidence to rank: nothing on {spec.primary_benchmark} "
                 "reached the ranking in the served database, so no budget was applied. "
@@ -828,12 +886,13 @@ def _answer_for(
             )
         return _answer_json(
             spec,
+            ranking,
             None,
             "No model on this surface's benchmark fits the requested budget, so this answer "
             "ranks nothing. It is shown rather than hidden.",
             health,
         )
-    return _answer_json(spec, rec, None, health)
+    return _answer_json(spec, ranking, rec, None, health)
 
 
 @app.get("/health")

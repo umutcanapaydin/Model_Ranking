@@ -1,26 +1,29 @@
-//  ContentView.swift — W1's one screen.
+//  ContentView.swift — the home screen (M8-W2).
 //
-//  **Deliberately plain.** W1 exists to prove the seam: Swift's decoder against the real payload,
-//  on the simulator's network stack, against a running engine. Design is W2's, and W2 opens with a
-//  decision only the owner can make — how do you show two EQUAL answers on a phone, when a list has
-//  a first item and tabs have a selected one?
+//  The owner's shape: categories stacked, each showing its three recommendations and then the top
+//  few of the full ranking, with the whole list one tap away. A search field at the top FILTERS by
+//  model name — it does not re-rank, because the ranking is the engine's answer and searching is
+//  the user narrowing what they look at (owner's ruling, M8-W1 review).
 //
-//  Until he rules, this screen makes the least-committal choice available: both answers are laid
-//  out identically, one after the other, under the engine's own sentence saying the order means
-//  nothing. That is not a neutral presentation — there is none — but it is the one that adds the
-//  least of its own.
+//  Why the picks stay above the list, and it is a product decision rather than a layout habit: the
+//  three picks answer three different questions, and on today's data the score-ordered top 5 for
+//  `coding` is four models above $8/1M while `best_value` — 3.5 points off the leader at 84% less —
+//  does not appear in it at all. A screen showing only the ranked list would lose the claim the
+//  product is making.
 
 import SwiftUI
 
+/// How many ranking rows the home screen previews before "See all".
+private let homePreviewCount = 5
+
 struct ContentView: View {
     @State private var state: LoadState = .idle
-    @State private var task = "coding"
-    @State private var budget = "medium"
+    @State private var filter = ""
+    private let budget = "unlimited"
 
     enum LoadState {
-        case idle
-        case loading
-        case loaded(Recommendation)
+        case idle, loading
+        case loaded([Answer], orderingNote: String)
         case failed(EngineError)
     }
 
@@ -32,112 +35,111 @@ struct ContentView: View {
                 switch state {
                 case .idle, .loading:
                     ProgressView("Asking the engine…")
-                case let .loaded(recommendation):
-                    loaded(recommendation)
+                case let .loaded(answers, note):
+                    home(answers, orderingNote: note)
                 case let .failed(error):
                     failure(error)
                 }
             }
             .navigationTitle("Which model?")
+            .searchable(text: $filter, prompt: "Filter by model name")
             .task { await load() }
         }
     }
 
-    // MARK: - Loaded
+    // MARK: - Home
 
     @ViewBuilder
-    private func loaded(_ recommendation: Recommendation) -> some View {
+    private func home(_ answers: [Answer], orderingNote: String) -> some View {
         List {
             Section {
-                // The engine's own words about the ordering. Rendered because a caller who does not
-                // read documentation still reads the screen (M6, ORDERING_NOTE).
-                Text(recommendation.orderingNote)
+                Text(orderingNote)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
-            ForEach(recommendation.answers) { answer in
-                Section(answer.title) {
-                    if answer.picks.isEmpty {
+            ForEach(answers) { answer in
+                Section {
+                    if answer.picks.isEmpty && answer.ranking.isEmpty {
                         emptyAnswer(answer)
                     } else {
                         ForEach(answer.picks) { pick in
-                            pickRow(pick)
+                            PickRow(pick: pick)
                         }
+                        rankingPreview(answer)
                     }
                     disclosures(answer)
+                } header: {
+                    Text(answer.title)
+                } footer: {
+                    if !answer.ranking.isEmpty {
+                        Text("\(answer.ranking.count) models ranked on \(answer.primaryBenchmark)")
+                    }
                 }
             }
         }
         .refreshable { await load() }
     }
 
-    /// A surface with nothing to say still appears, carrying the engine's reason.
-    /// Dropping it would read as "there is only one coding answer", which is the thing Ruling A
-    /// exists to prevent.
+    /// The top of the full ranking, plus the door to the rest.
+    @ViewBuilder
+    private func rankingPreview(_ answer: Answer) -> some View {
+        let rows = filtered(answer.ranking)
+        if !rows.isEmpty {
+            ForEach(rows.prefix(homePreviewCount)) { row in
+                RankedRow(row: row)
+            }
+            NavigationLink {
+                RankingList(answer: answer, filter: filter)
+            } label: {
+                Text("See all \(answer.ranking.count)")
+                    .font(.subheadline)
+            }
+        } else if !filter.isEmpty {
+            Text("No model here matches “\(filter)”.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Name-only filtering. It narrows what is SHOWN and never changes the order — the engine
+    /// decided that, and a client that re-sorts is answering a different question (Trap 1).
+    private func filtered(_ rows: [RankedModel]) -> [RankedModel] {
+        guard !filter.isEmpty else { return rows }
+        return rows.filter {
+            $0.model.localizedCaseInsensitiveContains(filter)
+                || $0.vendor.localizedCaseInsensitiveContains(filter)
+        }
+    }
+
     @ViewBuilder
     private func emptyAnswer(_ answer: Answer) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("No picks")
-                .font(.headline)
+            Text("No picks").font(.headline)
             if let reason = answer.unavailableReason {
-                Text(reason)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Text(reason).font(.subheadline).foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 4)
     }
 
-    @ViewBuilder
-    private func pickRow(_ pick: Pick) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(pick.label.replacingOccurrences(of: "_", with: " ").capitalized)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Text(pick.model)
-                .font(.headline)
-            Text(pick.vendor)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            // Values are rendered AS RECEIVED. The engine rounds at its own output boundary
-            // (D-109); formatting them differently here would publish a second precision.
-            Text("\(pick.score, specifier: "%g") \(pick.metric)  ·  $\(pick.blendedPerM, specifier: "%g")/1M")
-                .font(.subheadline)
-                .monospacedDigit()
-
-            Text(pick.why)
-                .font(.footnote)
-            if let tradeOff = pick.tradeOff {
-                Text(tradeOff)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 4)
-    }
-
-    /// Everything the engine discloses about its own evidence. All of it, because each of these
-    /// sentences cost a review round to make the server say.
+    /// Everything the engine discloses about its own evidence. Each of these sentences cost a
+    /// review round to make the server say; a client that drops them undoes the property.
     @ViewBuilder
     private func disclosures(_ answer: Answer) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(
-                [
-                    answer.sourceHealth?.notice,
-                    answer.staleNotice,
-                    answer.evidenceDatingNote,
-                    answer.effortMixNotice,
-                    answer.closeCall,
-                ].compactMap { $0 },
-                id: \.self
-            ) { notice in
-                Label(notice, systemImage: "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
+        ForEach(
+            [
+                answer.sourceHealth?.notice,
+                answer.staleNotice,
+                answer.evidenceDatingNote,
+                answer.effortMixNotice,
+                answer.closeCall,
+            ].compactMap { $0 },
+            id: \.self
+        ) { notice in
+            Label(notice, systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(.orange)
         }
     }
 
@@ -149,12 +151,9 @@ struct ContentView: View {
             Label("No answer", systemImage: "exclamationmark.triangle")
         } description: {
             VStack(spacing: 12) {
-                // The ENGINE's sentence, not ours.
                 Text(error.errorDescription ?? "")
                 if let recovery = error.recovery {
-                    Text(recovery)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    Text(recovery).font(.footnote).foregroundStyle(.secondary)
                 }
             }
         } actions: {
@@ -162,16 +161,104 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Loading
-
     private func load() async {
         state = .loading
         do {
-            state = .loaded(try await client.recommendation(task: task, budget: budget))
+            // One request carries every surface for the coding intent (Ruling A), so the home
+            // screen cannot show one answer while another is still loading.
+            let recommendation = try await client.recommendation(task: "coding", budget: budget)
+            state = .loaded(recommendation.answers, orderingNote: recommendation.orderingNote)
         } catch let error as EngineError {
             state = .failed(error)
         } catch {
             state = .failed(.undecodable(String(describing: error)))
         }
+    }
+}
+
+// MARK: - Rows
+
+struct PickRow: View {
+    let pick: Pick
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(pick.label.replacingOccurrences(of: "_", with: " ").capitalized)
+                .font(.caption)
+                .foregroundStyle(.tint)
+            Text(pick.model).font(.headline)
+            Text(pick.vendor).font(.subheadline).foregroundStyle(.secondary)
+            Text(Format.scoreAndPrice(pick.score, pick.metric, pick.blendedPerM))
+                .font(.subheadline)
+                .monospacedDigit()
+            Text(pick.why).font(.footnote)
+            if let tradeOff = pick.tradeOff {
+                Text(tradeOff).font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+struct RankedRow: View {
+    let row: RankedModel
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(row.model)
+                Text(row.vendor).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(Format.scoreAndPrice(row.score, row.metric, row.blendedPerM))
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// The whole ranking for one surface.
+struct RankingList: View {
+    let answer: Answer
+    @State var filter: String
+
+    var body: some View {
+        List {
+            ForEach(rows) { row in
+                RankedRow(row: row)
+            }
+        }
+        .navigationTitle(answer.title)
+        .searchable(text: $filter, prompt: "Filter by model name")
+    }
+
+    private var rows: [RankedModel] {
+        guard !filter.isEmpty else { return answer.ranking }
+        return answer.ranking.filter {
+            $0.model.localizedCaseInsensitiveContains(filter)
+                || $0.vendor.localizedCaseInsensitiveContains(filter)
+        }
+    }
+}
+
+/// Number formatting, in one place.
+///
+/// **Deliberately not localised.** The device locale is `en_TR` on the owner's simulator, which
+/// rendered the engine's `2.06` as `$2,06` — and `$2,06` reads as two thousand and six to anyone
+/// outside a comma-decimal locale, beside a `$` that is unambiguously not local currency. The
+/// engine rounds at its own output boundary (D-109); this prints what it sent.
+enum Format {
+    static func scoreAndPrice(_ score: Double, _ metric: String, _ price: Double) -> String {
+        "\(trim(score)) \(metric)  ·  $\(trim(price))/1M"
+    }
+
+    private static func trim(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = false
+        formatter.maximumFractionDigits = 3
+        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
     }
 }
