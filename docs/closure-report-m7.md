@@ -1,10 +1,15 @@
 ---
 record_type: ratification
 id: closure-report-m7
-status: draft
+status: ratified
 date: 2026-08-18
 ---
 # Closure Report — M7: The engine feeds itself, and stops writing while it reads
+
+> **RATIFIED by the owner on 2026-08-19.** Signed during M8, together with the three §0
+> items that were waiting on him. The frontmatter carries `status: ratified` and nothing
+> else: a `ratified_by` field was added here and removed the same minute, because no check
+> consumes it and V4C-35 says a field may exist only if one does.
 
 > Owner's A0.5 milestone-session review pack, generated 2026-08-18 from committed artifacts.
 >

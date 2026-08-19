@@ -323,3 +323,55 @@ with no users. He had given the same instruction in M6 and it had not been appli
 
 **Numbers.** 396 → 511 tests. W-017 and W-023 closed, both the oldest open rows, and neither the way
 its own row proposed. 0 deploys.
+
+## M8 — 2026-08-19 — The engine gets a reader, and the product stops being about coding
+
+**Scope changed mid-milestone and the architecture held.** D-126 widened the product from coding
+models to all AI tools, with a boundary the owner stated as a rule: the free LLM in the middle may
+route a question to a pre-existing category and may **never** say a model is good. D-127 set nine
+categories. Six were added by writing six `CategorySpec` entries and one parameterised board reader
+— **no branch anywhere in the scoring path.** "Categories are data, not code" had been asserted
+since M2 and had never been tested at more than three.
+
+**The defect that mattered lived between two correct things.** `ranking_effort` is served by the
+engine, decoded by the client, and was displayed by nothing. Every server test passed; every client
+structure was right. A score shown without the effort level it was measured at invites a comparison
+against one measured elsewhere, which is the entire reason the field exists. Neither side's reviews
+could see it, because the gap was between them.
+
+> **The lesson, in the form it will recur: a control whose SCOPE is narrower than the rule it cites
+> is not a gate.** The same milestone produced it twice more. An attribution guard asked only about
+> each category's `primary_source`, so a mutant deleting `epoch_mmlu`'s citation walked through —
+> `epoch_mmlu` is nobody's primary source, it is served as evidence, which is exactly the population
+> the control covers and the test did not. Rebasing it on the source registry then made it too WIDE,
+> demanding citations from two pricing sources. The fix was to make the codebase say out loud which
+> sources are evidence (`writes_scores`), because the distinction had been implicit and cost a test
+> its meaning.
+
+**Measuring the wrong population is not a mistake you make once.** Three calibrations against three
+different wrong sets — CSV rows, parsed board rows, then the full board instead of the
+reconciled-and-priced subset the engine actually ranks (58 of 521 on ECI). Each caught by measuring,
+none by reading. The recurrence has one cause: **the ranked population has no name in the codebase**,
+so the question gets answered from whatever data is nearest.
+
+**Sometimes the honest answer is the untidy one.** `expert` admits 25 value candidates against
+`coding`'s 7, and it stays that way: on GPQA the top twelve priced models span 1.8 points against a
+2.52 standard error, and on AIME three tie at exactly 100. Narrowing the window below `close_call`
+would let the product call a model "level with the leader" and refuse to consider it in the same
+breath — ranking noise as quality. **The tidier number was the dishonest one.**
+
+**Two operational lessons paid for in debugging time:**
+
+1. **A seam is only a seam if it reaches the caller.** Third instance of this project's most-repeated
+   defect, in a new half: `_ingest_boards` read its `boards` parameter at call time — correctly —
+   while `build()` exposed no way to pass one. The previous two instances were about when a default
+   was bound; this one was about whether the parameter was reachable at all.
+2. **Restart is not rebuild, and the build stamp is the only witness.** `app.sh restart` restarted
+   the app and not the engine. A running process keeps the replaced file's inode, so `/health`
+   answered 200 the whole time: nine categories in the artifact, three on the wire, every gate
+   green. Only `dev-60cce36` against a HEAD of `d47a379` gave it away.
+
+**What was accepted rather than solved:** three waves closed with no fresh-eyes review, each an
+explicit owner ruling under D-122, each recorded as a `control-bypass`. The third fires `C2b` — the
+CONTROL goes for review at M9, not the seat. And go-live did not happen for the second milestone
+running; W-030 and W-031 have now been UNVERIFIED for three.

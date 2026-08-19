@@ -232,3 +232,23 @@ version was wrong in exactly the way it exists to catch. `handover_q2.txt` gener
 Lesson: an enumeration that is typed out is a denylist wearing better clothes — four instances in one
 milestone, each missing precisely the member with real exposure; and ten of ten BLOCKING findings
 were reachability failures, which is the property this project's citing tests are worst at.
+
+## 2026-08-19 — M8 closure (agent-side)
+
+- Nine categories wired end to end; six added as DATA with no branch in the scoring path. The iOS
+  app fetches `/v1/categories` and reaches all of them; failure states verified by stopping the
+  engine.
+- Three seam gaps found by the agent's own tests, none by reading: a `boards` parameter that never
+  reached the caller, an attribution guard narrower than the rule it cited, and a disclosure
+  (`ranking_effort`) that no view mentioned.
+- Calibration corrected for the THIRD time against a different wrong population; the ranked set is
+  the reconciled-and-priced subset (58 of 521 on ECI), which has no name in the codebase — W-037.
+- Records: `docs/closure-report-m8.md` (draft, awaiting signature), `m8-retrospective.md`,
+  `m8-security-review.md` (self-review, PASS 0 BLOCKING), three wave-close records, W-035..W-039.
+- Two DoD rows closed RED and were stated rather than absorbed: no fresh-eyes review on any wave
+  (three PRESSURE bypasses, `C2b` fired), and no deploy (D-123 undischarged for a second milestone).
+- Procedural fix adopted after a third recurrence: never embed markdown containing backticks in a
+  `python3 -c "..."` shell string — the shell expands them and words vanish from the file silently.
+
+Lesson: **a control whose scope is narrower than the rule it cites is not a gate** — and the space
+between two individually correct components is where neither component's reviews can look.

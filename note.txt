@@ -1,6 +1,7 @@
 Project: model_ranking
-State: **M1-M7 CLOSED agent-side. M8 IN PROGRESS** (scope widened to all AI tools -- D-126/D-127).
-  Repo green: 526 tests / 12 skipped at `a9dc034`. Nothing on Fly.io; nothing is billing.
+State: **M1-M7 CLOSED and M7 RATIFIED. M8 CLOSED agent-side, awaiting the owner's signature**
+  (docs/closure-report-m8.md section 0 -- four items, two of them red rows this milestone did NOT close).
+  Repo green: 533 tests / 12 skipped. Nothing on Fly.io; nothing is billing.
   **Nine categories answer end to end and the iOS app can reach every one of them.**
 Last session date: 2026-08-19
 Last work agent: Claude (Claude Code CLI, local lane under D-117)
@@ -17,9 +18,10 @@ WHAT WORKS RIGHT NOW, verified on the running Simulator
   discloses that it has no evidence while arena is down.
 
 FIRST THREE THINGS A NEW AGENT DOES
-1. Read `docs/closure-report-m7.md` §0 — the three items that need the owner.
+1. Read `docs/closure-report-m8.md` §0 — the four items that need the owner. Two rows of §7 are
+   RED and stated: no fresh-eyes review ran (C2b fired), and the deploy did not happen.
 2. Read `docs/decisions.md` D-121, D-122, D-123 — the three rulings that shape how M8 runs.
-3. Verify the state yourself: `make check` (526/12). If that is not what you see, STOP.
+3. Verify the state yourself: `make check` (533/12). If that is not what you see, STOP.
 
 WHAT M7 SHIPPED
 - **The product can produce its own data.** `python -m app.workflows.build --db advisor.db
@@ -78,7 +80,7 @@ than when a specific field turns out to be inconvenient.
 ANCHOR
 - Active ADRs: universal set + D-100..D-123.
 - Governed records: 38.
-- Most recent retrospective: docs/retrospectives/m7-retrospective.md
+- Most recent retrospective: docs/retrospectives/m8-retrospective.md
 - Most recent quarterly handover: docs/handovers/handover_q2.txt (M6). M7 is not M%3==0.
 
 HANDOFF NOTES
