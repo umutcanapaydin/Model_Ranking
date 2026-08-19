@@ -36,17 +36,32 @@ is the threshold that genuinely is a measurement question.
 
 ## The numbers
 
-| Category | Scale | n | Leader | Floor (top ⅓) | Noise | `close_call` | `value_window` | Candidates in window |
-|---|---|---|---|---|---|---|---|---|
-| Everyday questions | ECI | 521 | 161.7 | **149.9** | 0.25 (gap) | **0.5** | **2.0** | 28 |
-| Expert reasoning | % | 263 | 94.8 | **83.6** | 2.52 (stderr) | **5.0** | **8.0** | 62 |
-| Mathematics | % | 238 | 100.0 | **84.4** | 4.74 (stderr) | **9.5** | **15.0** | 77 |
-| Computer use | % | 204 | 84.7 | **52.4** | 0.40 (gap) | **0.8** | **10.0** | 19 |
-| Abstract reasoning | % | 191 | 98.0 | **76.5** | 0.50 (gap) | **1.0** | **5.0** | 23 |
-| Web development | Elo | 109 | 1711.9 | **1471.0** | 3.39 (gap) | **6.8** | **150.0** | 9 |
+**Corrected 2026-08-19 after the first pass calibrated the wrong population.** The first run measured
+the distribution of CSV ROWS. The engine ranks MODELS, and ingestion keeps one row per model — its
+best score, the same rule `parse_swe_bench_verified` already applies. On several boards those are
+very different populations: `terminalbench` is 204 rows and **59 models**, `mmlu` 249 rows and 137,
+`arc_agi` 191 and 168. Keeping each model's best also shifts the distribution upward, so the
+original floors were low against the population they would actually govern.
 
-Coding keeps its existing 65 / 6.0 / 1.5, and `agentic-coding` and `assistant` are unchanged by this
-record.
+Every figure below is measured on the output of `parse_board` — exactly what reaches the database.
+
+| Category | Scale | Models | Leader | Floor (top ⅓) | `close_call` | `value_window` | Candidates |
+|---|---|---|---|---|---|---|---|
+| Everyday questions | ECI | 521 | 161.7 | **149.9** | **0.5** | **3.0** | 42 |
+| Expert reasoning | % | 263 | 94.8 | **83.6** | **5.0** | **8.0** | 62 |
+| Mathematics | % | 238 | 100.0 | **84.4** | **9.5** | **15.0** | 77 |
+| Computer use | % | **59** | 84.7 | **53.4** | **0.8** | **20.0** | 11 |
+| Abstract reasoning | % | 168 | 98.0 | **72.8** | **1.0** | **8.0** | 30 |
+| Web development | Elo | 102 | 1711.9 | **1478.9** | **6.8** | **150.0** | 9 |
+
+`close_call` is measurement (2 × the board's own stderr where published, else the median gap between
+adjacent models). `value_window` is sized by candidate count. `min_quality` is the top third.
+
+Mathematics is the one place the two constraints nearly collide: AIME's stderr is 4.74 points, so
+`close_call` is 9.5 — a window narrower than that would declare models "within reach" while also
+declaring the same gap to be noise. 15 clears it.
+
+Coding keeps its existing 65 / 6.0 / 1.5; `agentic-coding` and `assistant` are unchanged.
 
 ## Two findings the owner should see
 
@@ -57,7 +72,24 @@ cross-scale mixing D-105 forbids — 0.65 and 65% are the same number. It is rec
 un-converted fraction silently fails every threshold: a floor of 83.6 rejects a board whose leader
 reads 0.948.
 
-**2. Web development is the weakest of the six, and the reason is its shape.** Its leader sits 30
+**2. TWO categories are structurally thin, not one — and the first calibration hid the second.**
+
+**Web development**: its leader sits 30 Elo above second and the top twelve span 160 Elo, so no
+floor rescues it. At every floor from the 50th to the 75th percentile a 30-Elo window admits ONE
+candidate; it needs 150 Elo to offer nine.
+
+**Computer use**: the same shape, and it only became visible once the population was corrected. It
+has **59 models, not 204** — the board lists each model many times under different scaffolds. Its
+top six cluster between 78.4 and 84.7 and then drop to 69.9, so a 10-point window admits six
+candidates and it takes **20 points** to offer eleven. Lowering the floor changes nothing, exactly
+as with web development.
+
+Both will be saying "20 points below the leader" or "150 Elo below the leader" where coding says
+"3.5 points below, and 84% cheaper". **The engine discloses the gap in the trade-off sentence, so
+nothing is hidden** — but these two make a thinner promise than their neighbours, and shipping them
+as equals is a decision rather than an oversight.
+
+**3. Web development, in detail.** Its leader sits 30
 Elo above second place and the top twelve span 160 Elo, so no floor rescues it: at every floor from
 the 50th to the 75th percentile, a 30-Elo window admits **one** candidate and a 60-Elo window admits
 four. It needs a **150-Elo** window to offer nine alternatives.
