@@ -80,7 +80,15 @@ struct ContentView: View {
                     Text(answer.title)
                 } footer: {
                     if !answer.ranking.isEmpty {
-                        Text("\(answer.ranking.count) models ranked on \(answer.primaryBenchmark)")
+                        // `ranking_effort` is part of what the number MEANS: agentic-coding ranks
+                        // at a named comparable level, and a score shown without it invites the
+                        // reader to compare it against one measured somewhere else.
+                        Text(
+                            answer.rankingEffort.map {
+                                "\(answer.ranking.count) models ranked on "
+                                    + "\(answer.primaryBenchmark), at \($0) effort"
+                            } ?? "\(answer.ranking.count) models ranked on \(answer.primaryBenchmark)"
+                        )
                     }
                 }
             }

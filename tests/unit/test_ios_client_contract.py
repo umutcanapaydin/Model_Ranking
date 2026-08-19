@@ -1,0 +1,173 @@
+"""REQ-APP-001/-002/-003/-005 — the client invariants, gated by reading the Swift source.
+
+**What these tests are and are not.** This repository has no iOS test target (W-038), so nothing
+executes a line of Swift. These tests parse the client's source and assert structural properties of
+it. They cannot prove the app looks right or behaves correctly; they CAN prove the three things the
+M8 plan calls traps, each of which is a property of the source rather than of a running screen:
+
+* Trap 1 — the client re-deriving a number the engine already sent (REQ-APP-005). Arithmetic on a
+  served value is visible in the text.
+* Trap 2 — the client silently improving on the server's honesty (REQ-APP-003). A disclosure the
+  client never mentions cannot be displayed, and the disclosure SET is derived from the Swift model
+  rather than typed here, so adding one to the API and forgetting the view goes red.
+* Ruling A being undone by an ordering the client applies for itself (REQ-APP-002).
+
+The derivation is the point. `ContentView.disclosures(_:)` is a hand-written list of five fields --
+an enumeration, which this project has repeatedly found to be a denylist wearing better clothes.
+This test is what turns that list from silent into gated: it already caught `ranking_effort`, which
+the API sends, the Swift model decodes, and no view mentioned.
+"""
+
+from __future__ import annotations
+
+import pathlib
+import re
+
+CLIENT = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking"
+MODELS = CLIENT / "Engine/Models.swift"
+
+
+def _swift_sources() -> dict[str, str]:
+    sources = {p.name: p.read_text(encoding="utf-8") for p in CLIENT.rglob("*.swift")}
+    assert sources, f"no Swift sources under {CLIENT}; this test would pass vacuously"
+    return sources
+
+
+def _optional_properties(struct: str) -> set[str]:
+    """Every `let name: T?` in one struct — the fields the engine may or may not send."""
+    source = MODELS.read_text(encoding="utf-8")
+    start = source.index(f"struct {struct}:")
+    end = source.index("enum CodingKeys", start)
+    return {m.group(1) for m in re.finditer(r"let\s+(\w+):\s*[\w\[\]]+\?", source[start:end])}
+
+
+# --- REQ-APP-003: every disclosure the API sends is visible ------------------------------------
+
+
+def test_the_client_references_every_optional_field_the_answer_carries() -> None:
+    """Trap 2. An `Answer`'s optional fields ARE its disclosures — that is what optional means here.
+
+    A field the engine sends only when it has something to say is, by construction, the sentence it
+    wanted said. If no view names it, the payload carries it and the user never sees it, and every
+    gate on both sides stays green.
+
+    Caught `rankingEffort` on first run: `agentic-coding` ranks at a named comparable level, the
+    model decoded it, and the screen showed a score with no statement of what it was measured at.
+
+    The limit, stated rather than implied: this proves the field is REFERENCED, not that it is
+    rendered legibly or at all. A reference inside dead code would satisfy it.
+    """
+    disclosures = _optional_properties("Answer")
+    assert disclosures, "Answer declares no optional fields; the derivation is broken, not clean"
+
+    views = {name: text for name, text in _swift_sources().items() if name != "Models.swift"}
+    body = "\n".join(views.values())
+
+    unreferenced = sorted(field for field in disclosures if f".{field}" not in body)
+    assert not unreferenced, (
+        f"the engine can send {unreferenced} and no view in {sorted(views)} mentions them; a "
+        "disclosure the client never names is one the user never sees"
+    )
+
+
+# --- REQ-APP-005: the client computes no ranking value of its own -------------------------------
+
+
+#: Numbers the ENGINE decided. Rounding, ordering and comparison of these belong to D-104/105/109.
+SERVED_NUMBERS = (
+    "score",
+    "secondaryScore",
+    "blendedPerM",
+    "inputPerM",
+    "outputPerM",
+    "higherEffortScore",
+    "eligibleCount",
+    "frontierSize",
+)
+
+
+def test_the_client_performs_no_arithmetic_on_a_number_the_engine_sent() -> None:
+    """Trap 1, and it protects three ADRs at once.
+
+    D-109 puts rounding at the output boundary, D-105 forbids cross-scale averaging and D-104 keeps
+    the scoring path deterministic. All three are engine invariants, and the cheapest way to break
+    every one of them is a client that computes "just this one percentage" locally. A saving of
+    "17% cheaper" that the app worked out itself is a second scoring implementation with no tests
+    and no ADR.
+
+    Fails on `pick.score - other.score`, `blendedPerM / 1000`, or a `%` computed in the view.
+    """
+    offenders: list[str] = []
+    for name, text in _swift_sources().items():
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            code = line.split("//", 1)[0]
+            for field in SERVED_NUMBERS:
+                # `x.field <op>` or `<op> x.field`, where op is real arithmetic. `.count` and
+                # string interpolation are untouched; so is `.score` passed to a formatter.
+                if re.search(rf"\.{field}\s*[-+*/]\s*[\w(.]", code) or re.search(
+                    rf"[\w)]\s*[-+*/]\s*\w+\.{field}\b", code
+                ):
+                    offenders.append(f"{name}:{lineno}: {line.strip()}")
+    assert not offenders, (
+        "the client does arithmetic on a value the engine computed, which is a second scoring "
+        "implementation with no ADR:\n  " + "\n  ".join(offenders)
+    )
+
+
+# --- REQ-APP-002: Ruling A survives the client -------------------------------------------------
+
+
+def test_the_client_applies_no_ordering_of_its_own() -> None:
+    """Ruling A's real cost, three milestones after the ruling.
+
+    `/v1` emits two coding answers in a documented non-semantic order and states in the envelope
+    that the order carries no meaning. A client that sorts them — by score, by name, by anything —
+    manufactures the ranking the engine refused to publish, and it would look perfectly reasonable
+    in review.
+
+    Deliberately blunt: ANY sort in the client fails this, including one on a collection where it
+    would be harmless. A legitimate need is a five-word exemption in this test with a reason
+    attached, which is the point — the exemption is the record.
+    """
+    offenders: list[str] = []
+    for name, text in _swift_sources().items():
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            code = line.split("//", 1)[0]
+            if re.search(r"\.(sorted|reversed|shuffled)\s*[({]|\.sort\s*\(", code):
+                offenders.append(f"{name}:{lineno}: {line.strip()}")
+    assert not offenders, (
+        "the client orders a collection itself; if this is the answers or the ranking it "
+        "undoes Ruling A, and if it is something else it needs a reason recorded here:\n  "
+        + "\n  ".join(offenders)
+    )
+
+
+# --- REQ-APP-001: real data, no fixtures in the shipping target ---------------------------------
+
+
+def test_the_shipping_client_carries_no_canned_payload() -> None:
+    """A mock that ships is a screen that lies while the engine is down.
+
+    The app is supposed to state a failure, not fall back to data that looks like an answer. This
+    checks the target directory for both shapes a fixture takes: a bundled `.json` resource and a
+    payload pasted into the Swift as a literal.
+    """
+    resources = [p.name for p in CLIENT.rglob("*.json")]
+    assert not resources, f"a JSON resource ships inside the app target: {resources}"
+
+    # The quotes may be ESCAPED. A payload pasted into Swift arrives as `"{\"api_version\": ...}"`,
+    # so a search for a bare `"api_version"` finds nothing — which is how the first version of this
+    # test passed while a canned payload sat in the view. Both spellings are matched now, and the
+    # triple-quoted form, which escapes nothing at all.
+    markers = ("api_version", "ordering_note", "best_value")
+    embedded = [
+        f"{name} contains {marker!r}"
+        for name, text in _swift_sources().items()
+        if name != "Models.swift"
+        for marker in markers
+        if re.search(rf'\\?"{marker}\\?"', text)
+    ]
+    assert not embedded, (
+        "a payload appears as a literal in a view, which is how a fixture survives into a "
+        f"release build: {embedded}"
+    )

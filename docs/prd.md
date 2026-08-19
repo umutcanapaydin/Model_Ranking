@@ -360,3 +360,23 @@ Research suggests Supabase or Cloudflare Workers for the serving layer. No decis
 REQ-CAN-005 (the effort counter under-reports suffix-bearing rows it cannot classify), plus W-005
 (YAML alias-expansion guard) and W-009 (two migration entry points) as hardening the API boundary
 creates. Each is reproduced with a failing test before it is fixed.
+
+## M8 — the iOS client (REQ-APP), added at the wave rather than at closure
+
+The engine's first consumer that is not a test. These were proposed in `docs/plans/m8-plan.md` §1
+and belong here from the wave they are worked in, to avoid the F-1 drift the M4 gate raised.
+
+**A standing limitation, stated once and true of every row below: this repository has no iOS test
+target** (W-038). Where a criterion says "citing test", the test runs on the PYTHON side and gates
+the seam between the two — it derives what the app requires from the Swift source and asserts the
+engine satisfies it. That gates the contract, not the rendering. The Swift itself is unexecuted by
+any gate, and a row whose only reachable evidence is a screenshot says so.
+
+| REQ-ID | Requirement | Status |
+|---|---|---|
+| REQ-APP-001 | A SwiftUI app runs in the iOS Simulator, asks the engine for a recommendation and renders the real answer. No mock data in the shipping target, and no fixture JSON compiled in. | **MET** — verified against a live engine on the Simulator, `dev-a9dc034`; a citing test asserts the client carries no embedded payload. |
+| REQ-APP-002 | Ruling A survives the client: `task=coding` shows BOTH surfaces with neither presented as the winner — no default tab, no first-position emphasis, no client-side sort. | **MET** — both surfaces render as peer sections in the order the engine sent, and a citing test asserts the client applies no ordering of its own to `answers` or `ranking`. |
+| REQ-APP-003 | Every disclosure the API sends is visible: `unavailable_reason`, `source_health` notices, `stale_notice`, `evidence_dating_note`, `effort_mix_notice`, `close_call`, `ranking_effort` and the ordering note. | **MET** — a citing test derives the disclosure field set from `Models.swift` and fails when the client stops referencing one. `ranking_effort` was found MISSING by that test and is now rendered. |
+| REQ-APP-004 | The app degrades honestly: engine unreachable, 503, an empty answer and a slow response each produce a stated condition — never a blank screen and never an endless spinner. | **W3.** |
+| REQ-APP-005 | The app computes no ranking value of its own. Scores, prices and orderings are rendered as received (Trap 1; protects D-104, D-105, D-109). | **MET** — a citing test parses the Swift for arithmetic and comparison applied to served numbers. |
+| REQ-API-010 | Any contract gap the client finds is recorded as a finding against `/v1` before any client-side workaround. | **ONGOING** — the ledger is the evidence; see D-124 for the one move `/v1` is permitted during M8. |
