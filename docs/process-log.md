@@ -252,3 +252,26 @@ were reachability failures, which is the property this project's citing tests ar
 
 Lesson: **a control whose scope is narrower than the rule it cites is not a gate** — and the space
 between two individually correct components is where neither component's reviews can look.
+
+## 2026-08-19 — M8-W5: the review the owner authorised after C2b fired
+
+- Three independent seats read `bfd93bf..HEAD`, the fifteen commits no fresh eyes had seen. All
+  three returned BLOCKING. Author's fault-injection claim (23/23) did not survive an independently
+  designed set: **12 of 47**.
+- Live defects closed: one model published with two different scores in one payload (D-109);
+  `run_date` accepting any ten characters as a date, so `'<script>al'` was served as evidence
+  dating; a client that followed server-chosen redirects; an ATS refusal reported as "the engine
+  is not running".
+- `epoch_board.py` went from 32% coverage and zero tests to 91% and 26. Its bundle-escape guard
+  cited M5's `/etc/shadow` finding in prose while carrying no test — the check was inherited, the
+  proof was not.
+- Records that stated the opposite of reality were corrected in place with the error named: the
+  closure report, two wave records and the retrospective all claimed D-124's `/v1` window was
+  unspent when D-125 had spent it.
+- Escalated rather than fixed: W-040 (unbounded ranking payload — bounding it honestly needs a
+  second `/v1` revision D-124 no longer permits), W-041 (**no `--cov-fail-under`, the control that
+  would have caught the 32% module**), W-042, W-043.
+
+Lesson: **a test cannot fail if its fixture cannot reach what it asserts.** Three times in one wave
+— scores already round, no secondary-benchmark rows at all, `stored == skipped == 2`. It is the
+same defect as a control narrower than its rule, one level down: in the DATA rather than the code.

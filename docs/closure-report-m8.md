@@ -16,10 +16,19 @@ date: 2026-08-19
    Mac indefinitely and the app is a local tool until that changes.
 2. **The design direction is still unpicked.** Three artboards were drafted and published; the
    category strip shipped as a deliberate placeholder that commits to none of them.
-3. **`C2b` has fired on the review control.** Three consecutive waves closed with no fresh-eyes
-   review, each under an explicit owner ruling. The rule says the third sends the CONTROL for
-   review, not the seat. Carried to M9 rather than declared satisfied.
-4. **Four decisions still open from M7:** W-027 (`contract-tests.yml` has never run), W-032 (wire
+3. **`C2b` fired on the review control, and the owner then ran the review. It found three
+   BLOCKING.** Three waves had closed with no fresh eyes, each under an explicit ruling. When
+   three independent seats finally read the fifteen-commit range, every one returned BLOCKING —
+   including a module at 32% coverage with no test naming it, a payload publishing one model's
+   score twice with two different values, and this report itself stating the opposite of what
+   `docs/decisions.md` records. **This is the measured cost of the bypass, and it is the evidence
+   the CONTROL review should be decided on.** W5 closes the findings; `docs/plans/m8-wave-5-close.md`.
+4. **Four items are escalated and unresolved**, ledgered W-040..W-043: the unbounded `ranking`
+   payload (which cannot be fixed honestly without a SECOND `/v1` revision that D-124 no longer
+   permits), the missing `--cov-fail-under` (**the control that would have caught the 32%
+   module**), `app.sh` running the relaxed startup lane, and REQ-API-010 having no expressible
+   citing test.
+5. **Four decisions still open from M7:** W-027 (`contract-tests.yml` has never run), W-032 (wire
    `make wave-check` into `make check`), the Artificial Analysis API key, and whether
    `agentic-coding` stays as a tenth category.
 
@@ -43,6 +52,7 @@ Epoch boards, 73 models, 72 price medians. Nine surfaces answer at unlimited/med
 | W1 | `docs/plans/m8-wave-1-close.md` | The screen, and the six categories it needed to be worth looking at | 526 passed / 12 skipped |
 | W2 | `docs/plans/m8-wave-2-close.md` | Ruling A and the disclosures; four client invariants became gates | 530 passed / 12 skipped |
 | W3 | `docs/plans/m8-wave-3-close.md` | The failure states; one verified by stopping the engine | 533 passed / 12 skipped |
+| W5 | `docs/plans/m8-wave-5-close.md` | The fix wave: everything three independent seats found | **578 passed** / 12 skipped |
 
 ## 1b. Decisions made on your behalf
 
@@ -67,9 +77,10 @@ trailer; none is attributable to the owner (V4C-64, the rule W-011 was raised un
 `wave-check` PASS on all three M8 wave records. `make secrets` — no leaks, 32.99 MB scanned.
 `xcodebuild` exit 0.
 
-**Fault injection across the milestone: 23 mutants, 23 killed** — but four of them only after the
-test that should have caught them was corrected, and one after the mutant itself was re-aimed. That
-ratio is the honest number, not 23/23 first pass.
+**Fault injection, corrected by the independent tester.** The author reported 23 mutants, 23
+killed. An independently designed set of 47 was **12 killed, 35 survived — 25.5%**. Every survivor
+is closed or ledgered in W5. The honest reading is that a 100% kill rate against one's own mutants
+measures the imagination of the person writing them.
 
 ## 4. Security & invariants
 
@@ -127,16 +138,16 @@ has one, the question keeps being answered from whatever data is nearest.
 
 | Requirement | State |
 |---|---|
-| `make check` exit 0 | ✅ 533 / 12 |
+| `make check` exit 0 | ✅ **578 / 12** |
 | App builds and runs against a live engine | ✅ verified on the Simulator, `dev-c10bf3a` |
-| Every criterion has a citing test able to fail | ✅ REQ-APP-001/-002/-003/-005 met; REQ-APP-004 met with one case recorded as unreachable (W-039) |
+| Every criterion has a citing test able to fail | ⚠ **PARTIAL, honestly stated.** REQ-APP-001/-003 met; REQ-APP-004 met with one case unreachable (W-039); **REQ-APP-002 and REQ-APP-005 DOWNGRADED to PARTIAL** — their gates are source tripwires that an independent tester walked through, and no proof exists without an iOS test target (W-038); **REQ-API-010 has no expressible citing test** (W-043) |
 | Fault injection on the client's failure states | ✅ 6 mutants, 6 killed |
-| Fresh-eyes review per D-122 | ❌ **NOT DONE** — three PRESSURE bypasses, `C2b` fired |
+| Fresh-eyes review per D-122 | ✅ **DONE at W5**, after three PRESSURE bypasses fired `C2b`. Three seats, all BLOCKING; findings closed or escalated |
 | ADRs for contract questions | ✅ D-125 written; D-124's window is SPENT and recorded as such |
 | Retrospective (M ≥ 3) | ✅ `docs/retrospectives/m8-retrospective.md` |
 | Dated `docs/EXPERIENCE.md` entry | ✅ |
 | `note.txt` refreshed | ✅ |
 | Deploy (4.3) | ❌ **NOT DONE** — §0 item 1 |
 
-**M8 closes AGENT-side with two rows red, both stated rather than absorbed.** It awaits the owner's
-signature.
+**M8 closes AGENT-side with the deploy row red and the citing-test row partial, both stated rather
+than absorbed.** The review row turned green the hard way. It awaits the owner's signature.
