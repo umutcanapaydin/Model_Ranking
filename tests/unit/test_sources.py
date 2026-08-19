@@ -14,7 +14,12 @@ from __future__ import annotations
 import ast
 import pathlib
 
-from app.workflows.sources import LOCAL_BUNDLES, REMOTE_SOURCES
+from app.workflows.sources import (
+    EPOCH_BOARD_CLIENT,
+    EPOCH_BOARDS,
+    LOCAL_BUNDLES,
+    REMOTE_SOURCES,
+)
 
 CLIENTS_DIR = pathlib.Path(__file__).resolve().parents[2] / "src" / "app" / "clients"
 
@@ -44,7 +49,12 @@ def test_every_client_is_either_ingested_or_declared_a_local_bundle() -> None:
     """
     declared_remote = {source.client.__name__ for source in REMOTE_SOURCES}
     declared_local = {bundle.client_class for bundle in LOCAL_BUNDLES}
-    declared = declared_remote | declared_local
+    # M8: a THIRD kind of registry entry. `EPOCH_BOARDS` declares many boards that all read
+    # through one parameterised client, so the client is named once here rather than per board —
+    # which is the whole point of that table. This guard caught the new client the moment it
+    # appeared and before it could be used, which is what it was written for.
+    declared_boards = {EPOCH_BOARD_CLIENT.__name__} if EPOCH_BOARDS else set()
+    declared = declared_remote | declared_local | declared_boards
 
     undeclared = {
         name: module for name, module in _client_classes().items() if name not in declared
@@ -146,3 +156,42 @@ def test_the_registry_name_matches_the_client_name_it_rolls_back_by() -> None:
             f"registry calls it {source.name!r} but its client writes rows as {client_name!r}; "
             "the rejected-source rollback joins on the registry name and would miss them"
         )
+
+
+# --- the Epoch board table (D-127) --------------------------------------------------------------
+
+
+def test_every_declared_board_is_distinct_and_complete() -> None:
+    """A duplicate source name would silently overwrite a category's evidence at ingestion."""
+    from app.workflows.sources import EPOCH_BOARDS
+
+    names = [b.source_name for b in EPOCH_BOARDS]
+    files = [b.file for b in EPOCH_BOARDS]
+    assert len(names) == len(set(names)), f"duplicate source names: {names}"
+    assert len(files) == len(set(files)), f"duplicate files: {files}"
+    for board in EPOCH_BOARDS:
+        assert board.file.endswith(".csv")
+        assert board.benchmark and board.metric and board.score_column
+        assert board.scale in {"fraction", "raw"}
+
+
+def test_a_fraction_board_declares_a_ceiling_and_a_raw_board_does_not() -> None:
+    """The pairing is what keeps a unit conversion from becoming a silent corruption.
+
+    A `fraction` board is multiplied by 100, so a value above 1.0 is not a score — it is a sign the
+    upstream column changed meaning, and it must be rejected rather than multiplied into nonsense.
+    A `raw` board (Elo, an index) has no natural ceiling, so declaring one would reject real rows.
+    """
+    from app.workflows.sources import EPOCH_BOARDS
+
+    for board in EPOCH_BOARDS:
+        if board.scale == "fraction":
+            assert board.maximum == 1.0, (
+                f"{board.source_name} is a fraction board with no 1.0 ceiling; a value of 84.7 "
+                "would be multiplied to 8470"
+            )
+        else:
+            assert board.maximum is None, (
+                f"{board.source_name} is a raw board with a ceiling of {board.maximum}; an Elo "
+                "board has no natural maximum and this would silently drop its leaders"
+            )

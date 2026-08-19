@@ -27,6 +27,7 @@ from app.clients.aider import AiderClient, parse_polyglot
 from app.clients.arena import ArenaClient, parse_arena
 from app.clients.deepswe import DeepSWEClient
 from app.clients.epoch import EpochClient
+from app.clients.epoch_board import EpochBoard, EpochBoardClient
 from app.clients.litellm import LiteLLMClient, parse_pricing
 from app.clients.openrouter import OpenRouterClient, parse_models
 from app.clients.protocols import RawSource
@@ -159,5 +160,79 @@ LOCAL_BUNDLES: tuple[LocalBundle, ...] = (
         # This one is the sole primary evidence for `agentic-coding`, which is half of the answer
         # Ruling A froze. Without it that surface has nothing to say.
         reason="M5 data boundary: an allowlisted CSV inside the same owner-placed Epoch bundle",
+    ),
+)
+
+
+#: The Epoch boards D-127's categories rank on, declared as DATA rather than as one client per
+#: board. The bundle carries 77 CSVs; adding a category is a row here, not a new module.
+#:
+#: Two shapes in one list, and the difference is visible in `date_column`: `gpqa` and `aime` are
+#: evaluations Epoch RAN, so they carry evaluation dates. The rest are boards Epoch AGGREGATES —
+#: no dates at all, which makes their rows undated evidence the engine discloses per answer
+#: (REQ-API-004), exactly as it already does for DeepSWE.
+#:
+#: `scale` is per board because five of them publish 0-1 fractions while this project reports on
+#: 0-100. That is a unit change of one quantity, NOT the cross-scale mixing D-105 forbids — and it
+#: is declared rather than inferred because an unconverted fraction silently fails every threshold.
+#: The one client every declared board reads through. Held here rather than named as a string
+#: wherever it is needed, so the registry-coverage test derives it instead of typing it.
+EPOCH_BOARD_CLIENT = EpochBoardClient
+
+EPOCH_BOARDS: tuple[EpochBoard, ...] = (
+    EpochBoard(
+        file="epoch_capabilities_index.csv",
+        source_name="epoch_eci",
+        benchmark="Epoch Capabilities Index",
+        metric="ECI",
+        score_column="ECI Score",
+        scale="raw",
+        maximum=None,
+    ),
+    EpochBoard(
+        file="gpqa_diamond.csv",
+        source_name="epoch_gpqa",
+        benchmark="GPQA Diamond",
+        metric="% correct",
+        score_column="mean_score",
+        date_column="Started at",
+    ),
+    EpochBoard(
+        file="otis_mock_aime_2024_2025.csv",
+        source_name="epoch_aime",
+        benchmark="AIME (mock)",
+        metric="% correct",
+        score_column="mean_score",
+        date_column="Started at",
+    ),
+    EpochBoard(
+        file="terminalbench_external.csv",
+        source_name="epoch_terminalbench",
+        benchmark="TerminalBench",
+        metric="% resolved",
+        score_column="Accuracy mean",
+    ),
+    EpochBoard(
+        file="arc_agi_external.csv",
+        source_name="epoch_arc_agi",
+        benchmark="ARC-AGI",
+        metric="% correct",
+        score_column="Score",
+    ),
+    EpochBoard(
+        file="webdev_arena_external.csv",
+        source_name="epoch_webdev",
+        benchmark="WebDev Arena",
+        metric="elo",
+        score_column="Arena Score",
+        scale="raw",
+        maximum=None,
+    ),
+    EpochBoard(
+        file="mmlu_external.csv",
+        source_name="epoch_mmlu",
+        benchmark="MMLU",
+        metric="% correct",
+        score_column="EM",
     ),
 )
