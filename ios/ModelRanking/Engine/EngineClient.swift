@@ -19,6 +19,14 @@ enum EngineError: LocalizedError, Equatable {
     /// The engine accepted the connection and did not answer in time. NOT the same as unreachable,
     /// and telling them apart is the point: "start the engine" is wrong advice for a running one.
     case timedOut(seconds: Int)
+    /// The connection was refused because it is not encrypted (App Transport Security).
+    ///
+    /// Separate from `unreachable` for one specific reason: this is the ONE moment the platform's
+    /// cleartext protection actually fires, and reporting it as "the engine is not running" sends
+    /// the developer to restart a healthy server. The shortest path from that wrong diagnosis is
+    /// `NSAllowsArbitraryLoads`, which would ship this product's first real network call in the
+    /// clear. Naming it is the whole mitigation.
+    case insecureTransport
     /// The device has no network at all. Irrelevant on `localhost` and not once D-116 puts the
     /// engine on a host, which is why it is named now rather than discovered then.
     case offline
@@ -34,6 +42,8 @@ enum EngineError: LocalizedError, Equatable {
             return "The engine is not answering."
         case let .timedOut(seconds):
             return "The engine did not answer within \(seconds) seconds."
+        case .insecureTransport:
+            return "The connection was refused because it is not encrypted."
         case .offline:
             return "This device has no network connection."
         case let .refused(_, _, message):
@@ -51,6 +61,11 @@ enum EngineError: LocalizedError, Equatable {
         case .timedOut:
             return "It is running but slow to respond. Trying again is reasonable; if it keeps "
                 + "happening the artifact is probably being rebuilt underneath it."
+        case .insecureTransport:
+            return "This is the platform refusing plain HTTP to a named host, and it is correct. "
+                + "Point the app at an https:// engine. Do NOT add NSAllowsArbitraryLoads — that "
+                + "permits cleartext to every host, not just this one, and it is the one-line "
+                + "\"fix\" this message exists to head off."
         case .offline:
             return "Reconnect and try again."
         case .refused:
@@ -60,6 +75,33 @@ enum EngineError: LocalizedError, Equatable {
             return "This is a mismatch between the app and the /v1 contract, and it is a defect in "
                 + "one of them rather than something to retry.\n\n\(detail)"
         }
+    }
+}
+
+/// Refuses any redirect that leaves the host the app was configured to talk to.
+///
+/// `URLSession` follows up to twenty redirects by default, so a `302 Location:` from the engine —
+/// or injected on a cleartext hop — decides the next host this app contacts, credentials and all.
+/// An M8 security review found the client had no delegate and that the review before it had
+/// claimed, wrongly, that "nothing in a response can redirect the app at another host."
+///
+/// Same-host redirects are still followed: those are the engine's own business (a trailing slash,
+/// a version prefix) and refusing them would break a deploy for no security gain.
+final class SameHostOnly: NSObject, URLSessionTaskDelegate {
+    private let host: String?
+
+    init(host: String?) {
+        self.host = host
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        completionHandler(request.url?.host == host ? request : nil)
     }
 }
 
@@ -126,7 +168,9 @@ struct EngineClient {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await session.data(from: components.url!)
+            (data, response) = try await session.data(
+                from: components.url!, delegate: SameHostOnly(host: baseURL.host)
+            )
         } catch let error as URLError {
             // Mapped rather than flattened. All three arrive here as one thrown URLError, and all
             // three deserve different advice — the M8 plan's Trap 2 is the client replacing the
@@ -134,6 +178,8 @@ struct EngineClient {
             switch error.code {
             case .timedOut:
                 throw EngineError.timedOut(seconds: EngineClient.requestTimeout)
+            case .appTransportSecurityRequiresSecureConnection, .secureConnectionFailed:
+                throw EngineError.insecureTransport
             case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed:
                 throw EngineError.offline
             default:

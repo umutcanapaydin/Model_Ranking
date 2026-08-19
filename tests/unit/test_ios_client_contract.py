@@ -335,3 +335,54 @@ def test_every_failure_the_client_names_reaches_the_screen_with_a_sentence() -> 
     assert ".recovery" in views, (
         "no view reads the remedy; the user is told what broke and nothing about what to do"
     )
+
+
+def test_the_client_refuses_a_redirect_that_leaves_its_configured_host() -> None:
+    """M8 security review, M-4: the client followed server-controlled redirects.
+
+    `URLSession` follows up to twenty redirects by default. A `302 Location:` from the engine — or
+    injected on the cleartext hop — therefore chose the next host this app would contact. The
+    security review before this one asserted the opposite in as many words: *"there is no path
+    where a served value becomes a URL, so nothing in a response can redirect the app at another
+    host."* The `Location` header is that path, and it was unmitigated.
+
+    Dies to: dropping the delegate from the `data(from:delegate:)` call, or widening the delegate
+    to accept a different host.
+    """
+    client = (CLIENT / "Engine/EngineClient.swift").read_text(encoding="utf-8")
+
+    assert "willPerformHTTPRedirection" in client, (
+        "no redirect delegate; the engine's Location header decides where this app goes next"
+    )
+    assert re.search(r"data\(\s*from:[^)]*delegate:", client, re.S), (
+        "the delegate exists and is not passed to the request that needs it — an injection point "
+        "that cannot inject, which is this project's most-repeated defect"
+    )
+    assert re.search(r"request\.url\?\.host\s*==\s*host", client), (
+        "the redirect delegate no longer compares hosts; a same-host check that does not check "
+        "the host follows every redirect while looking like a control"
+    )
+
+
+def test_the_one_moment_transport_security_fires_is_not_reported_as_a_dead_server() -> None:
+    """M8 security review: `URLError -1022` fell into `default:` and became `.unreachable`.
+
+    Whose recovery text says *"Start it with `make run` in the engine repository."* So the single
+    moment the platform's cleartext protection actually works, the app tells the developer their
+    server is down — and the shortest fix for a server that is not down is
+    `NSAllowsArbitraryLoads`, which permits cleartext to every host. The mitigation for that risk
+    is naming the condition, which is what this pins.
+    """
+    client = (CLIENT / "Engine/EngineClient.swift").read_text(encoding="utf-8")
+
+    assert "appTransportSecurityRequiresSecureConnection" in client, (
+        "an ATS refusal is still mapped to 'the engine is not answering'"
+    )
+    assert re.search(r"case\s+insecureTransport", client), "no named case for a refused cleartext load"
+
+    recovery = client[client.index("var recovery"):]
+    ats = recovery[recovery.index("case .insecureTransport"):]
+    assert "NSAllowsArbitraryLoads" in ats[:600], (
+        "the remedy text does not warn against the ATS exception; the whole point of naming this "
+        "case is to head off the one-line 'fix' that ships cleartext to every host"
+    )

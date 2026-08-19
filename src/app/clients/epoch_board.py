@@ -71,8 +71,16 @@ class EpochBoardClient:
     def fetch_raw(self) -> str:
         """Read the allowlisted CSV, refusing anything that resolves outside the bundle.
 
-        The symlink check is M5's finding, kept verbatim in behaviour: a bundle is an unpacked ZIP
-        from the internet and a ZIP can carry a symlink, which was reproduced against /etc/shadow.
+        M5's finding: a bundle is an unpacked ZIP from the internet, a ZIP can carry a symlink, and
+        that was reproduced against /etc/shadow. The control is `is_relative_to(root)` on the
+        RESOLVED path, which catches a symlink and a `../` traversal alike.
+
+        An earlier version also tested `resolved.is_symlink()` and the docstring presented that as
+        the M5 check. It is dead by construction -- `resolve(strict=True)` on the line above has
+        already followed every link, so the predicate is always False. Removed rather than left
+        reading as a second control: a tautology cited as a guard is how the next reader concludes
+        a check exists where there is none. `tests/unit/test_epoch_board.py` now executes the real
+        one against a planted symlink.
         """
         path = self.bundle_dir / self.board.file
         try:
@@ -81,7 +89,7 @@ class EpochBoardClient:
         except OSError as exc:
             msg = f"{self.name}: missing CSV in local unpacked bundle: {path}"
             raise SourceError(msg) from exc
-        if not resolved.is_relative_to(root) or resolved.is_symlink():
+        if not resolved.is_relative_to(root):
             msg = f"{self.name}: refused a CSV that resolves outside the bundle: {path}"
             raise SourceError(msg)
         try:
@@ -106,6 +114,34 @@ def _number(value: object, *, maximum: float | None) -> float | None:
     return score
 
 
+def _check_header(reader: csv.DictReader[str], board: EpochBoard) -> None:
+    """Refuse a board whose SHAPE changed, loudly and before any row is read.
+
+    Extracted from `parse_board` when containing `csv.Error` pushed that function past the
+    complexity gate. Keeping it inline would have meant either a `# noqa` or a quieter check, and
+    the shape guards are the reason this reader fails loud rather than empty.
+    """
+    try:
+        fieldnames = reader.fieldnames
+    except csv.Error as exc:
+        msg = f"{board.source_name}: CSV header is unreadable: {exc}"
+        raise SourceError(msg) from exc
+    if not fieldnames:
+        msg = f"{board.source_name}: CSV has no header"
+        raise SourceError(msg)
+    if "Model version" not in fieldnames:
+        msg = f"{board.source_name}: CSV has no 'Model version' column"
+        raise SourceError(msg)
+    if board.score_column not in fieldnames:
+        # Loud rather than empty: a renamed upstream column would otherwise ingest zero rows and
+        # look like a quiet outage instead of the shape change it is.
+        msg = (
+            f"{board.source_name}: declared score column {board.score_column!r} is not in the CSV. "
+            f"Columns present: {fieldnames}"
+        )
+        raise SourceError(msg)
+
+
 def parse_board(
     raw: str, board: EpochBoard, *, source: str | None = None, source_url: str | None = None
 ) -> tuple[list[ScoreRow], int]:
@@ -119,26 +155,24 @@ def parse_board(
         raise SourceError(msg)
 
     reader = csv.DictReader(io.StringIO(raw))
-    if not reader.fieldnames:
-        msg = f"{board.source_name}: CSV has no header"
-        raise SourceError(msg)
-    if "Model version" not in reader.fieldnames:
-        msg = f"{board.source_name}: CSV has no 'Model version' column"
-        raise SourceError(msg)
-    if board.score_column not in reader.fieldnames:
-        # Loud rather than empty: a renamed upstream column would otherwise ingest zero rows and
-        # look like a quiet outage instead of the shape change it is.
-        msg = (
-            f"{board.source_name}: declared score column {board.score_column!r} is not in the CSV. "
-            f"Columns present: {reader.fieldnames}"
-        )
-        raise SourceError(msg)
+    _check_header(reader, board)
+
+    # `csv.Error` is a BAD INPUT, not a builder bug, and it escaped as an uncaught traceback:
+    # `_ingest_boards` catches `(SourceError, OSError)`, and a single cell over csv's 131_072-byte
+    # field limit -- or a NUL byte -- propagated all the way out and broke D-120's exit contract.
+    # `build.py` reserves the traceback path for "a bug in this builder rather than a bad input"
+    # in as many words. One oversized cell in an operator-supplied file is exactly a bad input.
+    try:
+        entries = list(reader)
+    except csv.Error as exc:
+        msg = f"{board.source_name}: CSV is malformed: {exc}"
+        raise SourceError(msg) from exc
 
     multiplier = 100.0 if board.scale == "fraction" else 1.0
     best: dict[str, ScoreRow] = {}
     skipped = 0
 
-    for entry in reader:
+    for entry in entries:
         name = (entry.get("Model version") or "").strip()
         score = _number(entry.get(board.score_column), maximum=board.maximum)
         if not name or score is None:

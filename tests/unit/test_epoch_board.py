@@ -264,3 +264,45 @@ def test_a_board_with_no_date_column_leaves_evidence_undated() -> None:
     that staying None rather than being filled with something plausible."""
     rows, _ = parse_board(_csv("Model version,Elo", "m,1500"), RAW)
     assert rows[0].run_date is None
+
+
+def test_a_malformed_csv_is_a_bad_input_and_not_a_builder_crash() -> None:
+    """M-3: `csv.Error` escaped the module and broke D-120's exit contract.
+
+    `_ingest_boards` catches `(SourceError, OSError)`. A single cell over csv's 131_072-byte field
+    limit is neither, so it propagated through `parse_board` -> `_ingest_boards` -> `build()` and
+    out of `main()` as an uncaught traceback. `build.py` reserves that path, in as many words, for
+    "a bug in this builder rather than a bad input" — and an oversized cell in an operator-supplied
+    file is exactly a bad input. The artifact was never at risk (the workspace is unlinked before
+    the target is touched); what broke was the operator's ability to tell the two apart.
+    """
+    huge = "x" * 200_000
+    raw = f'Model version,Score\n"{huge}",0.5\n'
+    with pytest.raises(SourceError, match="malformed"):
+        parse_board(raw, FRACTION)
+
+
+def test_the_bundle_guard_is_the_resolved_path_check_and_not_a_tautology() -> None:
+    """The dead predicate, pinned so it cannot come back as reassurance.
+
+    `resolved.is_symlink()` sat beside the real check and the docstring presented it as M5's
+    control. `Path.resolve(strict=True)` has already followed every link by then, so it was always
+    False — a tautology cited as a guard, which is how a reader concludes a check exists where
+    there is none. This asserts the surviving control still works from both directions.
+    """
+    import ast
+
+    # Parsed, not grepped. The first version of this test searched the file text and failed on its
+    # own explanatory comment -- a prose mention of the dead predicate is exactly what this test
+    # WANTS to allow, and only a call in executable position is what it must forbid.
+    tree = ast.parse(Path("src/app/clients/epoch_board.py").read_text(encoding="utf-8"))
+    calls = {
+        node.func.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    }
+    assert "is_symlink" not in calls, (
+        "the dead predicate is back in executable position; it can never be True after "
+        "resolve(strict=True), and citing it makes one control read as two"
+    )
+    assert "is_relative_to" in calls, "the real bundle-escape control is gone"
