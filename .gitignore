@@ -49,3 +49,4 @@ notes/
 # data artifacts (security review M1 MINOR-2)
 *.db
 *.sqlite3
+ios/.build/
