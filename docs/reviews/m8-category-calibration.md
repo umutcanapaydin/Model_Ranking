@@ -99,3 +99,64 @@ That is honest but weaker than the other categories. Coding can say "3.5 points 
 trade for price, and the user needs to see it to judge. **The engine already discloses the gap in
 the trade-off sentence, so nothing is hidden** — but this category makes a thinner promise than the
 others, and shipping it as an equal is a decision rather than an oversight.
+
+---
+
+## Correction, 2026-08-19: the table above measures a population the engine never ranks
+
+Appended rather than edited: the numbers above were honestly derived and were derived from the
+wrong set, and replacing them would erase the third instance of a mistake worth being able to count.
+
+**What was measured:** every model on each board. **What the engine ranks:** models that reconcile
+to the registry AND carry a price median. Only those can be recommended, because a model nobody can
+buy is not an answer. The gap is not small:
+
+| Board | Rows ingested | Reconciled to a model | Priced — the ranked population |
+|---|---|---|---|
+| `epoch_eci` | 521 | 284 | **58** |
+| `epoch_gpqa` | 263 | 130 | **50** |
+| `epoch_aime` | 238 | 131 | **51** |
+| `epoch_arc_agi` | 168 | 125 | **39** |
+| `epoch_webdev` | 102 | 72 | **49** |
+| `epoch_terminalbench` | 59 | 47 | **33** |
+| `epoch_mmlu` | 136 | 6 | 3 |
+
+`epoch_mmlu` is the clearest case: it lists academic and pre-commercial models, six of which this
+product has ever heard of. A threshold calibrated on its 136 rows would describe a population the
+engine cannot serve at all.
+
+**Why it changed the answer.** The priced subset is the COMMERCIAL FRONTIER, and the frontier is far
+more tightly clustered than the board behind it — `expert` has a median of 89.6 against a leader of
+94.4. Windows sized on the full board were therefore far too generous once applied to the frontier:
+
+| Category | Window (as drafted) | Candidates admitted | Window (corrected) | Candidates |
+|---|---|---|---|---|
+| `expert` | 8.0 | 34 of 37 above the floor | **5.0** | 25 |
+| `mathematics` | 15.0 | 34 of 34 | **10.0** | 28 |
+| `computer-use` | 20.0 | 14 of 14 | **5.0** | 5 |
+| `abstract` | 8.0 | 20 of 20 | **5.0** | 8 |
+| `web-dev` | 150.0 | 23 of 23 | **100.0** | 3 |
+| `everyday` | 3.0 | — | **3.0** (unchanged) | 5 |
+
+`coding`, the reference this product already ships, admits 7. A window admitting every model above
+the floor does not select — it re-states the floor, and Best Value collapses into "the cheapest
+thing we would recommend at all".
+
+**Why `expert` and `mathematics` are not narrowed to match `coding`.** Because they cannot be,
+honestly. §61 above states the invariant and this is the first data that exercises it: on GPQA the
+twelve highest-scoring priced models span 1.8 points against a 2.52 standard error, and on AIME
+three models tie at exactly 100.0. Those models are indistinguishable at the boards' own precision.
+Narrowing the window below `close_call` would make the product disclose "level with the leader"
+about a model and simultaneously refuse to consider it — ranking noise as though it were quality.
+25 and 28 candidates is the honest count when 25 and 28 models are genuinely tied. Both boards are
+ledgered as **W-035**: a benchmark at its ceiling stops recording improvement, and these two will
+grow less informative on their own with every gate green.
+
+**The invariant is now executable**, not remembered:
+`tests/unit/test_categories.py::test_no_category_can_exclude_a_model_it_calls_level_with_the_leader`.
+
+**Third occurrence, ledgered as W-037.** This is the third time these thresholds have been sized
+against the wrong population — CSV rows, then parsed board rows, now the full board instead of the
+ranked subset — and all three were caught by measuring rather than by review. The engine's ranked
+population has no name in the codebase, so the question keeps getting answered from whatever data
+is nearest to hand.
