@@ -1,15 +1,25 @@
 Project: model_ranking
-State: **M1-M7 CLOSED agent-side. M7 awaits the owner's signature** (docs/closure-report-m7.md §0).
-  Repo green: 511 tests / 12 skipped. Stage 4.0 security review PASS, 0 blocking.
-  **The engine is deploy-READY and NOT deployed** — go-live moved to M8 to ship with the iOS client
-  (D-123). Nothing exists on Fly.io; nothing is billing.
-Last session date: 2026-08-18
+State: **M1-M7 CLOSED agent-side. M8 IN PROGRESS** (scope widened to all AI tools -- D-126/D-127).
+  Repo green: 526 tests / 12 skipped at `a9dc034`. Nothing on Fly.io; nothing is billing.
+  **Nine categories answer end to end and the iOS app can reach every one of them.**
+Last session date: 2026-08-19
 Last work agent: Claude (Claude Code CLI, local lane under D-117)
+
+WHAT WORKS RIGHT NOW, verified on the running Simulator
+  ./ios/app.sh up            engine + simulator + build + launch
+  ./ios/app.sh restart       after ANY change -- it cycles the ENGINE too, since 2026-08-19
+  ./ios/app.sh down          when finished
+  Rebuild the artifact:  .venv/bin/python -B -m app.workflows.build --db advisor.db --force \
+      --epoch-dir /Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data
+      (exit 3 is EXPECTED: arena's upstream 500, W-024, reported as a blind surface not hidden)
+
+  All nine surfaces answer at unlimited/medium/low except `assistant`, which correctly
+  discloses that it has no evidence while arena is down.
 
 FIRST THREE THINGS A NEW AGENT DOES
 1. Read `docs/closure-report-m7.md` §0 — the three items that need the owner.
 2. Read `docs/decisions.md` D-121, D-122, D-123 — the three rulings that shape how M8 runs.
-3. Verify the state yourself: `make check` (511/12). If that is not what you see, STOP.
+3. Verify the state yourself: `make check` (526/12). If that is not what you see, STOP.
 
 WHAT M7 SHIPPED
 - **The product can produce its own data.** `python -m app.workflows.build --db advisor.db
