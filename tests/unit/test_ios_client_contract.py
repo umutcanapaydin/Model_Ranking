@@ -171,3 +171,85 @@ def test_the_shipping_client_carries_no_canned_payload() -> None:
         "a payload appears as a literal in a view, which is how a fixture survives into a "
         f"release build: {embedded}"
     )
+
+
+# --- REQ-APP-004: the app degrades honestly -----------------------------------------------------
+
+
+def test_no_failure_switch_falls_back_to_a_default_clause() -> None:
+    """The compiler is the gate here, and a `default:` is what disables it.
+
+    Swift requires a switch over an enum to be exhaustive, so adding an `EngineError` case without
+    giving it a sentence is a BUILD failure — which is the strongest guarantee available in a
+    repository with no iOS test target. Writing `default:` in either switch throws that away: the
+    new case compiles, and the person holding the phone is told whatever the fallback says instead
+    of what actually happened. That is Trap 2 with the compiler's help removed.
+
+    This test does not check that the sentences are good. It checks that a new failure mode CANNOT
+    be added silently.
+    """
+    client = (CLIENT / "Engine/EngineClient.swift").read_text(encoding="utf-8")
+    enum_start = client.index("enum EngineError")
+    enum_end = client.index("struct EngineClient")
+    body = client[enum_start:enum_end]
+
+    offenders = [
+        f"line {body[:m.start()].count(chr(10)) + client[:enum_start].count(chr(10)) + 1}"
+        for m in re.finditer(r"^\s*default\s*:", body, re.MULTILINE)
+    ]
+    assert not offenders, (
+        "EngineError has a `default:` clause, so a new failure case would compile without a "
+        f"message and reach the user as a generic sentence: {offenders}"
+    )
+
+    cases = set(re.findall(r"^\s*case\s+(\w+)", body, re.MULTILINE))
+    assert len(cases) >= 3, f"expected the failure vocabulary to be named; found {cases}"
+
+
+def test_the_client_bounds_how_long_it_will_wait() -> None:
+    """"A spinner that never ends" is listed as a failure state, not as a slow success.
+
+    `URLSession.shared` waits SIXTY seconds by default. The screen shows `ProgressView` until the
+    request returns, so an engine that accepts the connection and stalls produces exactly the
+    screen the plan forbids — and it does so while every test passes, because nothing here is
+    wrong, only unbounded.
+
+    Fails by removing the timeout configuration or by taking `URLSession.shared` as the default
+    session again.
+    """
+    client = (CLIENT / "Engine/EngineClient.swift").read_text(encoding="utf-8")
+
+    assert "timeoutIntervalForRequest" in client, (
+        "the client sets no request timeout; a stalled engine leaves the spinner running"
+    )
+    assert "timeoutIntervalForResource" in client, (
+        "only the request is bounded; a response that dribbles bytes forever is still unbounded"
+    )
+    assert "session: URLSession = .shared" not in client, (
+        "URLSession.shared is the default again, and it carries the 60-second wait this "
+        "configuration exists to replace"
+    )
+    assert re.search(r"case\s+timedOut", client), (
+        "a timeout would be reported as `unreachable`, whose recovery tells the user to start an "
+        "engine that is already running"
+    )
+
+
+def test_every_failure_the_client_names_reaches_the_screen_with_a_sentence() -> None:
+    """A named error that no view renders is the blank screen REQ-APP-004 forbids.
+
+    The failure view must show BOTH halves: the condition (`errorDescription`) and what to do about
+    it (`recovery`). Rendering only the first gives a dead end; rendering only the second gives
+    advice about nothing.
+    """
+    views = "\n".join(
+        text for name, text in _swift_sources().items() if name not in {"Models.swift", "EngineClient.swift"}
+    )
+    # The PROPERTY ACCESS, not the word. The first version of this test asked whether "recovery"
+    # appeared anywhere in the views, and a mutant that stopped reading `error.recovery` while
+    # keeping `recovery` as a local binding name walked straight through it. A test that matches an
+    # identifier rather than a read is measuring spelling.
+    assert ".errorDescription" in views, "no view reads the condition; the screen would be blank"
+    assert ".recovery" in views, (
+        "no view reads the remedy; the user is told what broke and nothing about what to do"
+    )

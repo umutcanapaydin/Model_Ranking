@@ -16,6 +16,12 @@ import Foundation
 enum EngineError: LocalizedError, Equatable {
     /// Nothing is listening. Almost always: the engine is not running.
     case unreachable(String)
+    /// The engine accepted the connection and did not answer in time. NOT the same as unreachable,
+    /// and telling them apart is the point: "start the engine" is wrong advice for a running one.
+    case timedOut(seconds: Int)
+    /// The device has no network at all. Irrelevant on `localhost` and not once D-116 puts the
+    /// engine on a host, which is why it is named now rather than discovered then.
+    case offline
     /// The engine answered, and refused. Its own message is carried through unchanged.
     case refused(status: Int, code: String, message: String)
     /// The engine answered with something this app could not read — a contract mismatch.
@@ -26,6 +32,10 @@ enum EngineError: LocalizedError, Equatable {
         switch self {
         case .unreachable:
             return "The engine is not answering."
+        case let .timedOut(seconds):
+            return "The engine did not answer within \(seconds) seconds."
+        case .offline:
+            return "This device has no network connection."
         case let .refused(_, _, message):
             return message
         case .undecodable:
@@ -38,6 +48,11 @@ enum EngineError: LocalizedError, Equatable {
         switch self {
         case let .unreachable(detail):
             return "Start it with `make run` in the engine repository, then try again.\n\n\(detail)"
+        case .timedOut:
+            return "It is running but slow to respond. Trying again is reasonable; if it keeps "
+                + "happening the artifact is probably being rebuilt underneath it."
+        case .offline:
+            return "Reconnect and try again."
         case .refused:
             // The engine's message is the recovery; repeating it here would say it twice.
             return nil
@@ -57,9 +72,24 @@ struct EngineClient {
     /// and the iOS Simulator shares that host's loopback.
     static let localDefault = URL(string: "http://127.0.0.1:8080")!
 
-    init(baseURL: URL = EngineClient.localDefault, session: URLSession = .shared) {
+    /// How long a person will stare at a spinner before the app owes them a sentence.
+    ///
+    /// `URLSession.shared` defaults to SIXTY seconds, which on a phone is the "spinner that never
+    /// ends" the M8 plan names as a failure state in its own right. Ten is long enough for a cold
+    /// artifact read and short enough to still be an app.
+    static let requestTimeout = 10
+
+    init(baseURL: URL = EngineClient.localDefault, session: URLSession? = nil) {
         self.baseURL = baseURL
-        self.session = session
+        if let session {
+            self.session = session
+        } else {
+            let configuration = URLSessionConfiguration.ephemeral
+            configuration.timeoutIntervalForRequest = TimeInterval(EngineClient.requestTimeout)
+            configuration.timeoutIntervalForResource = TimeInterval(EngineClient.requestTimeout)
+            configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+            self.session = URLSession(configuration: configuration)
+        }
     }
 
     /// Ask for a recommendation. `task` and `budget` are the engine's vocabulary (D-118), passed
@@ -97,6 +127,18 @@ struct EngineClient {
         let response: URLResponse
         do {
             (data, response) = try await session.data(from: components.url!)
+        } catch let error as URLError {
+            // Mapped rather than flattened. All three arrive here as one thrown URLError, and all
+            // three deserve different advice — the M8 plan's Trap 2 is the client replacing the
+            // real condition with one generic sentence.
+            switch error.code {
+            case .timedOut:
+                throw EngineError.timedOut(seconds: EngineClient.requestTimeout)
+            case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed:
+                throw EngineError.offline
+            default:
+                throw EngineError.unreachable(error.localizedDescription)
+            }
         } catch {
             throw EngineError.unreachable(error.localizedDescription)
         }
