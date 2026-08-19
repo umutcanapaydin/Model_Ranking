@@ -62,6 +62,15 @@ class RemoteSource:
     A 200 carrying an empty list is the failure mode this number exists for: it passes a status
     check, passes a parser, and produces a database that answers every question with silence.
     """
+    writes_scores: bool = True
+    """Whether this source contributes EVIDENCE rows (`scores`) rather than pricing.
+
+    The distinction was implicit until M8 and cost a test its meaning: a guard asserting that
+    every ingested source can be attributed swept in `litellm` and `openrouter`, which write
+    `pricing` and never appear in `scores.source`, so it demanded citations for data that is
+    never cited. Only evidence needs attribution, and only this field says which is which.
+    """
+
     required: bool = True
     """Whether the build refuses to produce an artifact at all without this source.
 
@@ -108,6 +117,7 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         parse=parse_pricing,
         # The feed carries thousands of entries; a hundred is a shape change, not a slow day.
         minimum_rows=100,
+        writes_scores=False,  # pricing, not evidence
     ),
     RemoteSource(
         name="openrouter",
@@ -115,6 +125,7 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         ingest=ingest_openrouter,
         parse=parse_models,
         minimum_rows=50,
+        writes_scores=False,  # pricing, not evidence
     ),
     RemoteSource(
         name="swebench",

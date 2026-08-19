@@ -99,6 +99,7 @@ def _offline(monkeypatch: pytest.MonkeyPatch) -> None:
     """Every test here drives main(); none of them may touch the network."""
     monkeypatch.setattr(build_mod, "REMOTE_SOURCES", _sources())
     monkeypatch.setattr(build_mod, "LOCAL_BUNDLES", ())
+    monkeypatch.setattr(build_mod, "EPOCH_BOARDS", ())
     monkeypatch.setattr(build_mod, "MINIMUM_MODELS_REGISTERED", 2)
 
 

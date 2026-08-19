@@ -47,9 +47,10 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.clients.epoch_board import EpochBoard, parse_board
 from app.clients.protocols import SourceError
 from app.workflows.epoch import committed_last_verified
-from app.workflows.ingest import RunContext, SourceReport
+from app.workflows.ingest import RunContext, SourceReport, _store_scores
 from app.workflows.plans import ingest_plans
 from app.workflows.rank import build_price_medians
 from app.workflows.registry import (
@@ -60,7 +61,14 @@ from app.workflows.registry import (
 )
 from app.workflows.rosters import ingest_rosters
 from app.workflows.schema import connect, reset_source
-from app.workflows.sources import LOCAL_BUNDLES, REMOTE_SOURCES, LocalBundle, RemoteSource
+from app.workflows.sources import (
+    EPOCH_BOARD_CLIENT,
+    EPOCH_BOARDS,
+    LOCAL_BUNDLES,
+    REMOTE_SOURCES,
+    LocalBundle,
+    RemoteSource,
+)
 
 MINIMUM_MODELS_REGISTERED = 20
 """Below this the registry has drifted and the artifact is not servable.
@@ -186,6 +194,49 @@ def _surfaces_left_without_evidence(missing: Sequence[str]) -> list[str]:
     return actions
 
 
+def _ingest_boards(
+    conn: sqlite3.Connection,
+    bundle_dir: Path | None,
+    run: RunContext,
+    boards: Sequence[EpochBoard] | None = None,
+) -> tuple[list[SourceReport], list[str]]:
+    """Read the declared Epoch boards (D-127). Same bundle, same read-only rules as `_ingest_bundles`.
+
+    Separate from `_ingest_bundles` because these are DATA-declared boards sharing one reader, while
+    the two bundles above are distinct clients with their own parsers. Merging them would mean the
+    board table pretending to be a client list, which is what the registry exists to stop.
+    """
+    boards = EPOCH_BOARDS if boards is None else boards
+    if bundle_dir is None:
+        return [], [f"{b.source_name}: no local bundle directory supplied" for b in boards]
+
+    results: list[SourceReport] = []
+    missing: list[str] = []
+    last_verified = committed_last_verified()
+    for board in boards:
+        try:
+            client = EPOCH_BOARD_CLIENT(bundle_dir, board, last_verified=last_verified)
+            rows, skipped = parse_board(client.fetch_raw(), board)
+            if not rows:
+                msg = f"parsed 0 rows from {board.file}"
+                raise SourceError(msg)
+            stored = _store_scores(conn, board.source_name, rows, run)
+        except (SourceError, OSError) as exc:
+            for table in ("pricing", "scores"):
+                reset_source(conn, table, board.source_name)
+            missing.append(f"{board.source_name}: {exc}")
+            continue
+        results.append(
+            SourceReport(
+                source=board.source_name,
+                stored=len(rows),
+                skipped=skipped,
+                effort_unknown=stored,
+            )
+        )
+    return results, missing
+
+
 def _ingest_bundles(
     conn: sqlite3.Connection,
     bundle_dir: Path | None,
@@ -287,6 +338,7 @@ def build(
     sources: Sequence[RemoteSource] | None = None,
     bundle_dir: Path | None = None,
     bundles: Sequence[LocalBundle] | None = None,
+    boards: Sequence[EpochBoard] | None = None,
     run: RunContext | None = None,
     minimum_models: int | None = None,
 ) -> BuildReport:
@@ -300,6 +352,10 @@ def build(
     # the first version of this function did exactly that: a test that believed it was injecting
     # fakes reached the real network instead, and only a live upstream outage revealed it. An
     # injection point that cannot actually be injected is this project's most-repeated defect.
+    # Third instance, M8: `_ingest_boards` took a `boards` parameter and read it at call time --
+    # correctly -- while `build()` exposed no way to pass one, so eight tests that believed they
+    # controlled the source set silently ran the real board list against a bundle directory that
+    # did not exist. A seam is only a seam if it reaches the caller.
     sources = REMOTE_SOURCES if sources is None else sources
     minimum_models = MINIMUM_MODELS_REGISTERED if minimum_models is None else minimum_models
     run = run or RunContext()
@@ -313,9 +369,11 @@ def build(
     )
     report.sources, degraded = _ingest_sources(conn, sources, run)
     bundle_reports, bundle_missing = _ingest_bundles(conn, bundle_dir, run, bundles)
+    board_reports, board_missing = _ingest_boards(conn, bundle_dir, run, boards)
+    report.sources.extend(board_reports)
     report.sources.extend(bundle_reports)
     report.required_operator_actions = _surfaces_left_without_evidence(
-        [*degraded, *bundle_missing]
+        [*degraded, *bundle_missing, *board_missing]
     )
 
     reconciled = reconcile(conn)

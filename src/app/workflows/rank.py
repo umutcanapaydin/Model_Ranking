@@ -51,6 +51,17 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "aider": SWEBENCH_ATTRIBUTION,
     "epoch_swe_bench_verified": EPOCH_ATTRIBUTION,
     "epoch_deepswe_external": EPOCH_ATTRIBUTION,
+    # D-127's boards. All seven come out of the same owner-placed Epoch bundle and carry the same
+    # citation, so they are listed individually rather than matched by an `epoch_` prefix: a
+    # prefix rule would attribute a source nobody had reviewed the licence of, which is the
+    # opposite of what this table is for.
+    "epoch_eci": EPOCH_ATTRIBUTION,
+    "epoch_gpqa": EPOCH_ATTRIBUTION,
+    "epoch_aime": EPOCH_ATTRIBUTION,
+    "epoch_terminalbench": EPOCH_ATTRIBUTION,
+    "epoch_arc_agi": EPOCH_ATTRIBUTION,
+    "epoch_webdev": EPOCH_ATTRIBUTION,
+    "epoch_mmlu": EPOCH_ATTRIBUTION,
 }
 
 

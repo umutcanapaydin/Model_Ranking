@@ -104,7 +104,17 @@ def _db() -> sqlite3.Connection:
 
 def test_categories_are_data_not_code(monkeypatch: pytest.MonkeyPatch) -> None:
     """REQ-CAT-001: adding a category = adding a map entry, no code branch."""
-    assert set(CATEGORIES) == {"coding", "assistant", "agentic-coding"}
+    assert set(CATEGORIES) == {
+        "coding",
+        "assistant",
+        "agentic-coding",
+        "everyday",
+        "expert",
+        "mathematics",
+        "computer-use",
+        "abstract",
+        "web-dev",
+    }
     for spec in CATEGORIES.values():
         assert spec.primary_benchmark and spec.metric and spec.primary_source
     assert CATEGORIES["agentic-coding"].ranking_effort == "high"
@@ -173,3 +183,64 @@ def test_export_carries_attribution(tmp_path: Path) -> None:
     assert "swebench.com" not in attributions
     assert tuple(payload["attribution"]) == (ARENA_ATTRIBUTION, PRICING_ATTRIBUTION)
     assert payload["generated_from"][0]["observed_at"] == "2026-08-11T00:00:00+00:00"
+
+
+# --- M8: the six categories added when the scope widened to all AI tools (D-126/D-127) ---------
+
+
+def test_no_category_can_exclude_a_model_it_calls_level_with_the_leader() -> None:
+    """The invariant the M8 calibration was rebuilt on: `value_window` >= `close_call`.
+
+    `close_call` is a MEASURED fact about the benchmark -- two scores inside it are
+    indistinguishable at the board's own precision, and the surface says so. `value_window` is
+    the reach of the Best Value pick. If a window were narrower than the close-call threshold,
+    the product would disclose "level with the leader" about a model and in the same breath
+    refuse to consider it -- ranking noise as if it were quality, which is the one thing this
+    engine exists not to do.
+
+    It can fail: `expert` was drafted at window 8.0 against close_call 5.0 and passed; the
+    original `mathematics` draft (window 15.0, close 9.5) passed too. Narrow either below its
+    close_call and this goes red.
+    """
+    for name, spec in CATEGORIES.items():
+        assert spec.value_window >= spec.close_call, (
+            f"{name}: value_window {spec.value_window} is narrower than close_call "
+            f"{spec.close_call}; models the surface calls indistinguishable from the leader "
+            "would be excluded from the value pick"
+        )
+
+
+def test_every_source_the_build_ingests_can_be_attributed() -> None:
+    """A source whose evidence cannot be credited must never reach a user (REQ-ING-008).
+
+    This gates a defect that has already happened: wiring the Epoch boards raised
+    `ValueError: unattributed evidence source 'epoch_mmlu'` at BUILD time, after the categories
+    were written and the ingestion had run. The rule existed and its gate did not, so the only
+    thing that caught it was running the pipeline by hand.
+
+    The referent is the SOURCE REGISTRY, not the category map -- deliberately, because the first
+    version of this test asked only about each category's `primary_source` and a mutant that
+    deleted `epoch_mmlu`'s attribution walked straight through it. `epoch_mmlu` is nobody's
+    primary source; it is served as EVIDENCE, which is precisely the population the control
+    covers and the test did not. A test narrower than the rule it cites is not a gate.
+    """
+    from app.workflows.rank import SOURCE_ATTRIBUTION
+    from app.workflows.sources import EPOCH_BOARDS, LOCAL_BUNDLES, REMOTE_SOURCES
+
+    ingested = (
+        {s.name for s in REMOTE_SOURCES if s.writes_scores}
+        | {b.name for b in LOCAL_BUNDLES}
+        | {b.source_name for b in EPOCH_BOARDS}
+    )
+    unattributed = sorted(ingested - set(SOURCE_ATTRIBUTION))
+    assert not unattributed, (
+        f"the build ingests {unattributed} with no SOURCE_ATTRIBUTION entry; serving a pick "
+        "whose evidence comes from one of these raises at request time"
+    )
+
+
+def test_every_category_is_reachable_by_the_name_the_api_accepts() -> None:
+    """A category in the map that `get_category` cannot resolve is a category nobody can query."""
+    for name, spec in CATEGORIES.items():
+        assert get_category(name) is spec
+        assert spec.id == name, f"{name} carries id {spec.id!r}; the API would route on the key"

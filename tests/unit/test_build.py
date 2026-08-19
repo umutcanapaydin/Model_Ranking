@@ -286,6 +286,7 @@ def test_cli_reports_zero_when_nothing_is_missing(
     """The 0 path must be reachable, or 3 would be the only outcome and mean nothing."""
     monkeypatch.setattr(build_mod, "REMOTE_SOURCES", _sources())
     monkeypatch.setattr(build_mod, "LOCAL_BUNDLES", ())
+    monkeypatch.setattr(build_mod, "EPOCH_BOARDS", ())
     monkeypatch.setattr(build_mod, "MINIMUM_MODELS_REGISTERED", 2)
     target = tmp_path / "clean.db"
 
@@ -335,6 +336,7 @@ def test_cli_exit_three_fires_on_a_single_missing_action(
     """
     monkeypatch.setattr(build_mod, "REMOTE_SOURCES", _sources())
     monkeypatch.setattr(build_mod, "LOCAL_BUNDLES", build_mod.LOCAL_BUNDLES[:1])
+    monkeypatch.setattr(build_mod, "EPOCH_BOARDS", ())
     monkeypatch.setattr(build_mod, "MINIMUM_MODELS_REGISTERED", 2)
 
     assert main(["--db", str(tmp_path / "one.db")]) == 3
@@ -440,7 +442,9 @@ def test_the_blinded_surface_list_is_derived_from_categories_not_typed() -> None
         assert surface in actions[0]
 
 
-def test_the_bundles_parameter_is_honoured_over_the_module_registry(tmp_path: Path) -> None:
+def test_the_bundle_and_board_parameters_are_honoured_over_the_module_registry(
+    tmp_path: Path,
+) -> None:
     """The injection point this fix ADDED, which nothing proved was wired.
 
     Added by the Stage-3b Tester at re-review. `build()` gained `bundles=` precisely so the local
@@ -449,6 +453,12 @@ def test_the_bundles_parameter_is_honoured_over_the_module_registry(tmp_path: Pa
     monkeypatches `build_mod.LOCAL_BUNDLES` instead and would pass either way. An injection point
     that cannot be shown to inject is the defect this module's own docstring calls the project's
     most-repeated one.
+
+    Extended at M8 for the THIRD instance of the same defect. `_ingest_boards` took a `boards`
+    parameter and read it at call time -- correctly -- but `build()` exposed no way to pass one,
+    so eight tests that believed they controlled the source set silently ran the seven real Epoch
+    boards against a bundle directory that did not exist. Both halves are asserted here now:
+    the argument reaches the ingest, AND it wins over the module registry.
     """
     from app.workflows.ingest import SourceReport
     from app.workflows.sources import LocalBundle
@@ -464,12 +474,16 @@ def test_the_bundles_parameter_is_honoured_over_the_module_registry(tmp_path: Pa
         reason="fixture",
     )
     conn = connect(":memory:")
-    report = _build(conn, bundle_dir=tmp_path, bundles=(injected,))
+    report = _build(conn, bundle_dir=tmp_path, bundles=(injected,), boards=())
 
     assert report.required_operator_actions == [], (
         "the module registry was used instead of the injected bundles"
     )
     assert any(r.source == "injected-bundle" and r.stored == 4 for r in report.sources)
+    assert not any(r.source.startswith("epoch_") and r.source != "epoch_deepswe_external"
+                   for r in report.sources), (
+        "the module board registry was read despite boards=() -- the seam does not reach the call"
+    )
 
 
 def test_an_unknown_failed_source_still_reports_rather_than_vanishing() -> None:

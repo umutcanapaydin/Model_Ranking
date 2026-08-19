@@ -108,7 +108,11 @@ def test_every_source_a_category_names_as_primary_exists_in_the_registry() -> No
     """
     from app.workflows.categories import CATEGORIES
 
-    known = {source.name for source in REMOTE_SOURCES} | {b.name for b in LOCAL_BUNDLES}
+    known = (
+        {source.name for source in REMOTE_SOURCES}
+        | {b.name for b in LOCAL_BUNDLES}
+        | {b.source_name for b in EPOCH_BOARDS}
+    )
     unknown = {
         task: spec.primary_source
         for task, spec in CATEGORIES.items()
