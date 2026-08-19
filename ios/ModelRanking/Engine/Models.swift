@@ -33,6 +33,31 @@ struct Recommendation: Decodable {
     }
 }
 
+/// One rankable surface, as the engine advertises it on `/v1/categories`.
+///
+/// Fetched rather than hardcoded, deliberately. The engine derives this list from CATEGORIES; a
+/// copy of it in Swift would be a second roster to keep in step, and this project has already
+/// spent two milestones on the cost of a list typed out by hand.
+struct Category: Decodable, Identifiable, Equatable {
+    let id: String
+    let title: String
+    let primaryBenchmark: String
+    let metric: String
+    let rankingEffort: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case primaryBenchmark = "primary_benchmark"
+        case metric
+        case rankingEffort = "ranking_effort"
+    }
+}
+
+struct CategoryList: Decodable {
+    let categories: [Category]
+}
+
 struct Query: Decodable {
     let task: String
     let budget: String

@@ -19,6 +19,9 @@ private let homePreviewCount = 5
 struct ContentView: View {
     @State private var state: LoadState = .idle
     @State private var filter = ""
+    /// Fetched from the engine on first load, never listed here. See `EngineClient.categories()`.
+    @State private var categories: [Category] = []
+    @State private var task = "coding"
     private let budget = "unlimited"
 
     enum LoadState {
@@ -41,7 +44,11 @@ struct ContentView: View {
                     failure(error)
                 }
             }
+            .safeAreaInset(edge: .top) { categoryStrip }
             .navigationTitle("Which model?")
+            // Inline, because the category strip already occupies the top of the screen and a
+            // large title left an empty band above it with nothing in it.
+            .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $filter, prompt: "Filter by model name")
             .task { await load() }
         }
@@ -161,12 +168,55 @@ struct ContentView: View {
         }
     }
 
+    /// The nine surfaces, horizontally. PROVISIONAL: the home-screen direction is still the
+    /// owner's to pick from the three drafted artboards, and this commits to none of them — it
+    /// exists so every category the engine can answer is reachable and visible on a device.
+    @ViewBuilder
+    private var categoryStrip: some View {
+        if categories.count > 1 {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(categories) { category in
+                        Button {
+                            guard category.id != task else { return }
+                            task = category.id
+                            Task { await load() }
+                        } label: {
+                            Text(category.title)
+                                .font(.subheadline)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(
+                                    Capsule().fill(
+                                        category.id == task
+                                            ? AnyShapeStyle(.tint)
+                                            : AnyShapeStyle(.quaternary)
+                                    )
+                                )
+                                .foregroundStyle(category.id == task ? .white : .primary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+            }
+            .background(.bar)
+        }
+    }
+
     private func load() async {
         state = .loading
         do {
+            // Asked once and reused. A failure here is NOT fatal to the screen: the strip simply
+            // does not appear, and the default surface still answers — a discovery call that can
+            // blank the product would be a worse dependency than the hardcoded list it replaces.
+            if categories.isEmpty {
+                categories = (try? await client.categories()) ?? []
+            }
             // One request carries every surface for the coding intent (Ruling A), so the home
             // screen cannot show one answer while another is still loading.
-            let recommendation = try await client.recommendation(task: "coding", budget: budget)
+            let recommendation = try await client.recommendation(task: task, budget: budget)
             state = .loaded(recommendation.answers, orderingNote: recommendation.orderingNote)
         } catch let error as EngineError {
             state = .failed(error)

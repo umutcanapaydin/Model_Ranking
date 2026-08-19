@@ -66,14 +66,32 @@ struct EngineClient {
     /// straight through — the app does not translate them, because two vocabularies is how one run
     /// acquires two spellings.
     func recommendation(task: String, budget: String) async throws -> Recommendation {
+        try await get(
+            "v1/recommendations",
+            query: [
+                URLQueryItem(name: "task", value: task),
+                URLQueryItem(name: "budget", value: budget),
+            ]
+        )
+    }
+
+    /// The surfaces this engine can rank, asked rather than assumed.
+    ///
+    /// The app has no list of its own. Nine categories shipped in one build and more will follow;
+    /// a Swift copy would be a roster that drifts silently, which is the defect this project keeps
+    /// paying for in other forms.
+    func categories() async throws -> [Category] {
+        let list: CategoryList = try await get("v1/categories", query: [])
+        return list.categories
+    }
+
+    /// One request shape for every endpoint, so the error vocabulary cannot diverge between them.
+    private func get<T: Decodable>(_ path: String, query: [URLQueryItem]) async throws -> T {
         var components = URLComponents(
-            url: baseURL.appendingPathComponent("v1/recommendations"),
+            url: baseURL.appendingPathComponent(path),
             resolvingAgainstBaseURL: false
         )!
-        components.queryItems = [
-            URLQueryItem(name: "task", value: task),
-            URLQueryItem(name: "budget", value: budget),
-        ]
+        components.queryItems = query.isEmpty ? nil : query
 
         let data: Data
         let response: URLResponse
@@ -99,7 +117,7 @@ struct EngineClient {
         }
 
         do {
-            return try JSONDecoder().decode(Recommendation.self, from: data)
+            return try JSONDecoder().decode(T.self, from: data)
         } catch {
             throw EngineError.undecodable(String(describing: error))
         }

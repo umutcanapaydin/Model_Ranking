@@ -3,7 +3,7 @@
 #
 #   ./ios/app.sh up       engine + simulator + build + install + launch
 #   ./ios/app.sh down     stop the app and the engine (leaves the simulator open)
-#   ./ios/app.sh restart   rebuild and relaunch, engine untouched
+#   ./ios/app.sh restart   rebuild and relaunch BOTH the engine and the app
 #   ./ios/app.sh logs      follow the engine's log
 #   ./ios/app.sh status    what is actually running right now
 #
@@ -112,9 +112,17 @@ case "${1:-up}" in
     echo "  ./ios/app.sh down      when you are finished"
     ;;
   restart)
-    engine_up || { echo "engine   : not running — use 'up'"; exit 1; }
+    # The ENGINE is cycled too, and it was not always. This command used to leave the engine
+    # running while `up` advertised it as the thing to run "after a code change" — true for Swift,
+    # silently false for Python and for a rebuilt advisor.db, because a running process keeps the
+    # old file's inode and `/health` goes on answering 200. That is L.7 exactly: restart is not
+    # rebuild, and the build stamp is the only thing that tells you which you got. It cost one
+    # debugging round here: nine categories in the artifact, three on the wire, everything green.
+    if engine_up; then stop_engine; fi
+    start_engine
     start_simulator
     build_and_launch
+    echo "engine   : $(curl -sf -m 2 "http://127.0.0.1:$PORT/health" || echo unreachable)"
     ;;
   down)
     xcrun simctl terminate booted "$BUNDLE" 2>/dev/null && echo "app      : stopped"
