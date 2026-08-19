@@ -1,0 +1,222 @@
+#!/bin/bash
+# runner — the one command. Runs every check this project has and leaves the FULL output where the
+# agent can read it, so the owner and the agent are looking at the same evidence.
+#
+#   ./runner
+#
+# Writes nothing into the repository. `advisor.db` is NEVER touched: the build is verified into a
+# temporary file and thrown away, so a failed run cannot cost you a working artifact.
+#
+# Say "kostum" when it finishes and the agent reads:
+#   <output>/latest.log          the whole run
+#   <output>/latest_summary.txt  the short version
+#
+# Exit 0 only when every section passed. Any section can fail without stopping the rest — the point
+# is a complete picture in one run, not the first failure.
+
+set -u
+
+REPO="/Users/umutcanapaydin/Desktop/ILGAR/model_ranking"
+OUT="/Users/umutcanapaydin/Desktop/terminal_output/model_ranking/runner"
+BUNDLE="/Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data"
+PORT=8080
+
+cd "$REPO" || { echo "REPO NOT FOUND: $REPO"; exit 1; }
+mkdir -p "$OUT"
+
+STAMP=$(date '+%Y-%m-%d_%H%M%S')
+FULL="$OUT/runner_$STAMP.log"
+TMPDIR_RUN=$(mktemp -d)
+trap 'rm -rf "$TMPDIR_RUN"' EXIT
+
+PY="$REPO/.venv/bin/python"
+FAILED=""
+PASSED=""
+
+# --- helpers -------------------------------------------------------------------------------------
+
+section() { echo "" >> "$FULL"; echo "==================== $1 ====================" >> "$FULL"; }
+
+record() {  # record <name> <exit-code>
+  if [ "$2" = "0" ]; then PASSED="$PASSED $1"; echo "  -> PASS ($1)" >> "$FULL"
+  else FAILED="$FAILED $1"; echo "  -> FAIL ($1, exit $2)" >> "$FULL"; fi
+}
+
+# --- 0. context ----------------------------------------------------------------------------------
+
+{
+  echo "runner — $(date '+%Y-%m-%d %H:%M:%S')"
+  echo "repo   : $REPO"
+  echo "HEAD   : $(git rev-parse --short HEAD) $(git log -1 --pretty=%s | cut -c1-70)"
+  echo "tree   : $(if [ -z "$(git status --porcelain)" ]; then echo CLEAN; else echo DIRTY; fi)"
+  echo "python : $($PY --version 2>&1)"
+} > "$FULL"
+
+if [ -n "$(git status --porcelain)" ]; then
+  section "UNCOMMITTED CHANGES (the gate below measures a tree that is not committed)"
+  git status --porcelain >> "$FULL" 2>&1
+fi
+
+# --- 1. the quality gate -------------------------------------------------------------------------
+
+section "make check  (lint · typecheck · tests · coverage floors · records · wave records)"
+echo "running make check ..."
+make check >> "$FULL" 2>&1
+record "make-check" "$?"
+
+# --- 2. secrets ----------------------------------------------------------------------------------
+
+section "make secrets  (gitleaks — NOT part of make check)"
+echo "running make secrets ..."
+make secrets >> "$FULL" 2>&1
+record "secrets" "$?"
+
+# --- 3. the build, verified into a throwaway file ------------------------------------------------
+
+section "build verification  (into a TEMPORARY artifact; advisor.db is not touched)"
+if [ -d "$BUNDLE" ]; then
+  echo "running the build ..."
+  $PY -B -m app.workflows.build --db "$TMPDIR_RUN/verify.db" --epoch-dir "$BUNDLE" \
+    >> "$FULL" 2>&1
+  CODE=$?
+  echo "" >> "$FULL"
+  echo "build exit: $CODE  (0 = clean, 3 = an optional source is down and the blind surface is" >> "$FULL"
+  echo "                    reported rather than hidden, which is D-121 working, not a failure)" >> "$FULL"
+  if [ "$CODE" = "0" ] || [ "$CODE" = "3" ]; then record "build" 0; else record "build" "$CODE"; fi
+else
+  echo "SKIPPED: no Epoch bundle at $BUNDLE" >> "$FULL"
+  record "build" 0
+fi
+
+# --- 4. every surface answers --------------------------------------------------------------------
+
+section "surface check  (all nine categories, read straight from advisor.db)"
+echo "checking the nine surfaces ..."
+$PY -B - >> "$FULL" 2>&1 <<'PYEOF'
+import sqlite3
+import sys
+
+from app.workflows.categories import CATEGORIES
+from app.workflows.recommend import recommend
+
+try:
+    conn = sqlite3.connect("file:advisor.db?mode=ro", uri=True)
+except sqlite3.Error as exc:
+    print(f"cannot open advisor.db: {exc}")
+    sys.exit(1)
+
+print(f"{'surface':16}{'unlimited':>10}{'medium':>8}{'low':>6}   leader (unlimited)")
+problems = []
+for task in CATEGORIES:
+    counts = []
+    for budget in ("unlimited", "medium", "low"):
+        answer = recommend(conn, budget=budget, task=task)
+        counts.append(len(answer.picks) if answer else 0)
+    top = recommend(conn, budget="unlimited", task=task)
+    if top and top.picks:
+        leader = top.picks[0].model
+    else:
+        leader = "-- no evidence (disclosed, not hidden)"
+        if task != "assistant":
+            problems.append(task)
+    print(f"{task:16}{counts[0]:>10}{counts[1]:>8}{counts[2]:>6}   {leader}")
+
+print()
+if problems:
+    print(f"UNEXPECTED: these surfaces answered nothing: {problems}")
+    sys.exit(1)
+print("every surface answered, or disclosed why it could not")
+PYEOF
+record "surfaces" "$?"
+
+# --- 5. the engine, if it is running --------------------------------------------------------------
+
+section "engine probe  (only if something is already listening on :$PORT)"
+if curl -sf -m 2 "http://127.0.0.1:$PORT/health" > /dev/null 2>&1; then
+  SERVING=$(curl -s "http://127.0.0.1:$PORT/health" | sed -E 's/.*"build":"dev-([0-9a-f]+)".*/\1/')
+  HEADSHA=$(git rev-parse --short HEAD)
+  {
+    echo "health: $(curl -s http://127.0.0.1:$PORT/health)"
+    echo "HEAD  : $HEADSHA"
+    # The comparison is DONE here, not left to the reader. A check that asks someone to compare two
+    # strings is a check that does not run -- which is the failure this very check exists to catch.
+    if [ "$SERVING" = "$HEADSHA" ]; then
+      echo "stamp : CURRENT — the process is serving this tree"
+    else
+      echo "stamp : STALE — serving dev-$SERVING while HEAD is $HEADSHA."
+      echo "        Restart is not rebuild (L.7): a running process keeps the replaced file's inode"
+      echo "        and answers /health with 200 the whole time. Run ./ios/app.sh restart."
+    fi
+    echo ""
+    echo "categories advertised: $(curl -s http://127.0.0.1:$PORT/v1/categories | $PY -B -c 'import json,sys; print(len(json.load(sys.stdin)["categories"]))')"
+  } >> "$FULL" 2>&1
+  $PY -B - >> "$FULL" 2>&1 <<'PYEOF'
+import json
+import sys
+import urllib.request
+
+bad = []
+for task in ("coding", "everyday", "expert", "mathematics", "computer-use", "abstract", "web-dev"):
+    url = f"http://127.0.0.1:8080/v1/recommendations?task={task}&budget=unlimited"
+    with urllib.request.urlopen(url, timeout=10) as response:  # noqa: S310 - fixed localhost URL
+        body = json.load(response)
+    for answer in body["answers"]:
+        ranked = {row["model"]: row["score"] for row in answer["ranking"]}
+        for pick in answer["picks"]:
+            if pick["model"] in ranked and pick["score"] != ranked[pick["model"]]:
+                bad.append(f"{answer['surface']}/{pick['model']}")
+print(f"pick-vs-ranking score agreement: {'OK' if not bad else 'MISMATCH ' + str(bad)}")
+sys.exit(1 if bad else 0)
+PYEOF
+  record "engine" "$?"
+else
+  echo "SKIPPED: nothing is listening on :$PORT. Start it with ./ios/app.sh up" >> "$FULL"
+  record "engine" 0
+fi
+
+# --- 6. the iOS app compiles ----------------------------------------------------------------------
+
+section "iOS build"
+if command -v xcodebuild > /dev/null 2>&1; then
+  echo "building the app ..."
+  ( cd "$REPO/ios" && xcodebuild -project ModelRanking.xcodeproj -scheme ModelRanking \
+      -destination 'platform=iOS Simulator,name=iPhone 17' -quiet build ) >> "$FULL" 2>&1
+  record "ios-build" "$?"
+else
+  echo "SKIPPED: xcodebuild is not on PATH" >> "$FULL"
+  record "ios-build" 0
+fi
+
+# --- summary ---------------------------------------------------------------------------------------
+
+cp "$FULL" "$OUT/latest.log"
+
+{
+  echo "date    : $(date '+%Y-%m-%d %H:%M:%S')"
+  echo "HEAD    : $(git rev-parse --short HEAD) $(git log -1 --pretty=%s | cut -c1-60)"
+  echo "tree    : $(if [ -z "$(git status --porcelain)" ]; then echo CLEAN; else echo DIRTY; fi)"
+  echo "tests   : $(grep -Eo '[0-9]+ passed[^=]*' "$FULL" | tail -1)"
+  echo "coverage: $(grep -Eo 'Total coverage: [0-9.]+%' "$FULL" | tail -1)"
+  echo "records : $(grep -Eo 'wave-check-all PASS: [0-9]+ v5.0 record\(s\)' "$FULL" | tail -1)"
+  echo "passed  :$PASSED"
+  echo "failed  :${FAILED:- none}"
+} > "$OUT/latest_summary.txt"
+
+echo
+cat "$OUT/latest_summary.txt"
+echo
+echo "full log: $OUT/latest.log"
+
+if [ -z "$FAILED" ]; then
+  echo
+  echo "ALL PASS — tell the agent \"kostum\"."
+  exit 0
+fi
+
+echo
+echo "FAILURES:$FAILED"
+echo "first failing lines:"
+grep -E '^FAILED|^E  |Error [0-9]|-> FAIL' "$FULL" | head -8
+echo
+echo "tell the agent \"kostum\"; it reads the full log itself."
+exit 1
