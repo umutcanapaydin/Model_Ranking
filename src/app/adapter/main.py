@@ -152,6 +152,51 @@ MAX_CONCURRENT_REQUESTS = _positive_env("MODEL_RANKING_MAX_CONCURRENCY", "8")
 #: doubles the registry is fine and one that multiplies it by a hundred stops at deploy.
 MAX_RANKED_ROWS = int(os.environ.get("MODEL_RANKING_MAX_RANKED_ROWS", "5000"))
 
+#: The largest ranking ONE answer may publish. This is an EGRESS bound, not a memory bound, and it
+#: is checked at BOOT rather than trimmed at serve time -- deliberately.
+#:
+#: D-125 added the full `ranking` array beside the three picks, which took an unauthenticated GET
+#: from ~1-2 KB to ~20 KB. The obvious fix, truncating in the serializer, is the one thing this
+#: product refuses: a silently shortened list is a list the reader believes is complete, and
+#: disclosing the truncation would need a new payload field -- a SECOND contract revision, where
+#: D-124 permits one and D-125 already spent it.
+#:
+#: So the artifact is bounded instead of the response. An artifact that would publish a larger
+#: answer cannot boot, and the operator is told which surface and what the bound is. Nothing is
+#: ever truncated, because the state that would require truncating is unreachable.
+#:
+#: 500 is a runaway guard, not a product limit: the largest surface today is 58 rows, and 500 caps
+#: one answer near ~100 KB. Raising it is a deliberate egress decision, which is why it is an
+#: environment variable with a name that says what it costs.
+MAX_PUBLISHED_RANKING_ROWS = int(
+    os.environ.get("MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS", "500")
+)
+
+
+def _largest_surface_row_count(db: Path) -> tuple[str, int] | None:
+    """The biggest ranking any single answer would publish, and which surface it is.
+
+    Calls `category_ranking` rather than mirroring its join in a COUNT query. A second copy of that
+    query would be a second definition of "what gets published", and this project has spent several
+    milestones on what happens when two definitions of the same set drift apart.
+    """
+    try:
+        conn = open_readonly(db)
+    except sqlite3.Error:
+        return None
+    try:
+        worst = ("", 0)
+        for name, spec in CATEGORIES.items():
+            size = len(category_ranking(conn, spec))
+            if size > worst[1]:
+                worst = (name, size)
+        return worst
+    except sqlite3.Error:
+        return None
+    finally:
+        with contextlib.suppress(sqlite3.Error):
+            conn.close()
+
 
 def _ranked_row_count(db: Path) -> int | None:
     """How many models the artifact can actually rank, or None if it cannot be asked.
@@ -346,6 +391,17 @@ def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
         # reachable — `task` and `budget` are closed enums and the artifact is operator-built — but
         # a data refresh that outgrows the machine should still fail at DEPLOY rather than under
         # the first burst of traffic, which is what W-017's condition (a) was always about.
+        largest = _largest_surface_row_count(db)
+        if largest is not None and largest[1] > MAX_PUBLISHED_RANKING_ROWS:
+            problems.append(
+                f"MODEL_RANKING_DB would publish {largest[1]} ranking rows in a single answer on "
+                f"the {largest[0]!r} surface; this process refuses past "
+                f"{MAX_PUBLISHED_RANKING_ROWS}. The response is not truncated to fit — a silently "
+                "shortened ranking is one the reader believes is complete. Narrow what the build "
+                "ingests, or raise MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS knowing it raises what "
+                "one unauthenticated request costs to serve"
+            )
+
         ranked = _ranked_row_count(db)
         if ranked is not None and ranked > MAX_RANKED_ROWS:
             problems.append(

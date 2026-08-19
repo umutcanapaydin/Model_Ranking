@@ -102,7 +102,7 @@ disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
 [tool.pytest.ini_options]
-addopts = "-ra --strict-markers --strict-config --cov=src/app --cov-report=term-missing"
+addopts = "-ra --strict-markers --strict-config --cov=src/app --cov-report=term-missing --cov-report=json"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 pythonpath = ["src"]
@@ -110,3 +110,20 @@ pythonpath = ["src"]
 [tool.coverage.run]
 branch = true
 source = ["src/app"]           # ◄── change if package renamed
+
+[tool.coverage.report]
+# W-041. The permission matrix has always listed "coverage drop on a touched module" as BLOCKING
+# and NOTHING computed it, which is how a new module -- the single reader behind six of the nine
+# served surfaces -- reached a closing tree at 32% coverage with zero tests naming it, through a
+# green gate, a wave close, a closure report and a self-run security review. Three independent
+# reviewers found it in the same pass.
+#
+# 85 against a measured 88 is deliberately close: a floor with ten points of slack is a floor that
+# never fires. Raising this number is the normal outcome of adding tests; LOWERING it is a decision
+# that belongs in the ledger.
+#
+# This global figure is necessary and NOT sufficient -- 88% total is exactly what concealed the 32%
+# module. `scripts/coverage_floor.py` is the per-module half, and it is the one that would have
+# caught it.
+fail_under = 85
+show_missing = true

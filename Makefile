@@ -109,7 +109,18 @@ falsify:  ## v5: break every control on purpose; one that cannot be broken is no
 conformance:  ## v4.3.2: every gate proven against inputs it must reject (V4C-80)
 	@$(PY) conformance/run-all.py 2>/dev/null || python3 conformance/run-all.py
 
-check: lint typecheck test check-records check-records-selftest install-check
+coverage-floor: install
+	@# W-041. The per-module half of the coverage gate; the global floor lives in pyproject.
+	@# Runs AFTER `test`, which writes coverage.json as part of its normal run.
+	$(PY) -B scripts/coverage_floor.py
+
+check: lint typecheck test coverage-floor check-records check-records-selftest install-check wave-check-all
+
+wave-check-all: install
+	@# W-032 / this project's own field finding: a gate that is not in the command people type
+	@# does not run. The wave-record validator failed all four of one milestone's records on the
+	@# same three lines and nobody knew until someone ran it by hand at closure.
+	$(PY) -B scripts/wave_check_all.py
 
 # v2.0: security gates as named Make targets
 secrets:

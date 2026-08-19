@@ -50,3 +50,4 @@ notes/
 *.db
 *.sqlite3
 ios/.build/
+coverage.json

@@ -62,7 +62,10 @@ Epoch boards, 73 models, 72 price medians. Nine surfaces answer at unlimited/med
   one command; the build is atomic and preserves the previous file on failure.
 - **`expert` and `mathematics` keep wide value windows** (25 and 28 candidates against `coding`'s 7)
   because narrowing them below `close_call` would rank measurement noise. See §6.
-- **`/v1` was NOT moved.** D-124 permits one move during M8; it is UNSPENT. Every field the client
+- **`/v1` WAS moved, and D-124's single window is SPENT by D-125**, which adds the `ranking`
+  array and says so in its own text. An earlier version of this report claimed the opposite
+  in four places and built a retrospective conclusion on it. **M9 must not spend this window
+  again.**
   needed already existed.
 
 ## 2. Git record

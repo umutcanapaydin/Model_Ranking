@@ -54,6 +54,30 @@ start_engine() {
     echo "           .venv/bin/python -m app.workflows.build --db advisor.db --epoch-dir <bundle>"
     exit 1
   fi
+  # PREFLIGHT, added to close W-042. The engine serves in the RELAXED lane (`APP_ENV=test`) so a
+  # developer is not made to supply production config on a laptop -- but in that lane
+  # `validate_startup_config` RETURNS its problems as warnings instead of raising, so the
+  # fail-closed startup control was never exercised on the one command anybody actually runs. A
+  # security review's phrasing: it is how a command gets copied into a deploy script.
+  #
+  # So the checks still run in the relaxed lane, and this refuses to start on any problem they
+  # report. Same evidence, same messages, strict CONSEQUENCE, without relabelling a laptop as
+  # production.
+  PREFLIGHT=$(APP_ENV=test MODEL_RANKING_DB=advisor.db \
+    APP_BUILD="dev-$(git rev-parse --short HEAD)" \
+    "$REPO/.venv/bin/python" -B -c \
+    'from app.adapter.main import validate_startup_config
+import sys
+problems = validate_startup_config()
+if problems:
+    print("\n".join(problems))
+    sys.exit(1)' 2>&1)
+  if [ -n "$PREFLIGHT" ]; then
+    echo "engine   : REFUSED to start — the startup checks reported:"
+    echo "$PREFLIGHT" | sed 's/^/           /'
+    exit 1
+  fi
+
   echo "engine   : starting on :$PORT"
   APP_ENV=test MODEL_RANKING_DB=advisor.db APP_BUILD="dev-$(git rev-parse --short HEAD)" \
     "$REPO/.venv/bin/python" -m uvicorn app.adapter.main:app \
