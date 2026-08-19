@@ -1052,4 +1052,64 @@ quiet exception to this one.
 
 ---
 
+## D-127 — Nine categories to open with, `assistant` split, Tier-3 demoted to evidence
+
+**Status:** accepted · **Date:** 2026-08-19 · **Decided by:** the owner
+**Implements:** D-126's scope, using `docs/research/category-map-draft-2026-08-19.md`.
+
+**The nine, with the evidence each rests on:**
+
+| Category | Primary evidence | Models |
+|---|---|---|
+| Everyday questions | `epoch_capabilities_index`, `mmlu_external` | 819 / 249 |
+| Expert reasoning | `gpqa_diamond`, `critpt`, `hle_external` | 263 / 139 / 51 |
+| Mathematics | `otis_mock_aime_2024_2025`, `gsm8k_external` | 238 / 235 |
+| Computer use | `terminalbench_external`, `os_world_external` | 204 / 58 |
+| Coding *(exists)* | SWE-bench Verified (live) | 173 |
+| Abstract reasoning | `arc_agi_external`, `arc_agi_2_external` | 191 / 172 |
+| Web development | `webdev_arena_external` | 109 |
+| Image generation | Arena mirror `text-to-image` | 76 |
+| Image editing | Arena mirror `image-edit` | 53 |
+
+**`agentic-coding` is retained, making ten.** It sits in the draft's Tier 2 and was therefore not
+among the nine, but it already exists and **Ruling A is built on it** — a coding question returns
+both coding answers with neither leading, frozen by D-115 and enforced only after three review
+rounds walked past a denylist and then a regex. Dropping a surface to tidy a list would retire that
+ruling as a side effect. Removing it needs its own decision; this ADR does not make one.
+
+**`assistant` is SPLIT into "everyday questions" and "expert reasoning".** They are different needs
+resting on different evidence: a model that is good at day-to-day questions is not necessarily good
+at GPQA-level science, and merging them guarantees that one of the two answers is wrong for whoever
+asked. The split also unblocks the category: `assistant` has answered nothing since Arena went down
+(**W-024**), and both halves can be served from evidence already on disk.
+
+**W-024 is NOT closed by this.** Arena's human-preference Elo measures something MMLU does not —
+what people actually prefer, rather than what scores well on an exam — and the product keeps saying
+Arena is down rather than quietly substituting a different measurement for it.
+
+**Tier 3 becomes EVIDENCE, not headings.** `gdpval`, `the_agent_company`, `cad_eval`, `geobench`,
+`spatialviz`, `mindcube`, `osworld_2`, `rli`, `algotune`, `cl_bench`, `blueprint_bench_2` carry 5 to
+32 models each. A category with eight models spends its life answering "nothing fits your budget"
+for reasons that have nothing to do with the user's budget, so they attach to a broader category as
+secondary evidence — which REQ-REC-004 already pays for by raising confidence when a second
+independent benchmark agrees.
+
+**The twelve saturated academic instruments stay out entirely** as categories: `bool_q`,
+`wino_grande`, `piqa`, `hella_swag`, `lambada`, `open_book_qa`, `trivia_qa`, `arc_ai2`,
+`science_qa`, `superglue`, `common_sense_qa_2`, `adversarial_nli`. High model counts and the wrong
+kind of thing — nobody asks which model is best at WinoGrande, and publishing them as headings
+would fill the menu with questions no user asks, which is the problem D-126's router exists to
+solve.
+
+**What this obliges, and it is the expensive part.** Each category needs its own quality floor,
+value window and close-call threshold. **These may not be borrowed across scales** (D-105): coding
+uses 65 on a percent-resolved scale, an Elo category cannot inherit that number, and an ECI index
+is a third scale again. A threshold copied from one scale to another is a wrong answer wearing a
+correct-looking constant.
+
+**Revisit when:** a category's evidence source stops updating. The ledger row is the mechanism, not
+a rewrite of this ADR.
+
+---
+
 *Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*
