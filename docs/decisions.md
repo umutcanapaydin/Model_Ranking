@@ -995,4 +995,61 @@ another gap becomes an M9 decision rather than a second revision.
 
 ---
 
+## D-126 — The product is a dashboard over the world's measurements, for ALL AI tools
+
+**Status:** accepted · **Date:** 2026-08-19 · **Decided by:** the owner
+**Scope change:** the largest since Ruling A. Widens the product from text LLMs to every kind of AI
+tool, and states what the product IS in a way the earlier ADRs only implied.
+
+**The owner's framing, and it is the clearest statement of this product's identity so far:**
+
+> *"We do not do benchmarking. We are like a weather app for the AI world."*
+
+A weather app owns no thermometer. It reads the stations, presents what they measured, says when a
+reading is old, and never offers an opinion of its own. That is exactly what this engine does with
+SWE-bench, Aider, DeepSWE and Arena — and it is why every disclosure control built in M5–M7 exists.
+The framing is not a metaphor for marketing; it decides what the product may and may not say.
+
+**Decision 1 — scope: all AI tools.** Not only text LLMs. Image generation and editing, speech,
+music, video, document understanding, agents — anything a person might reach for, wherever a public
+and legally usable measurement of it exists.
+
+**What that costs, stated now rather than discovered later.** The engine's price model is
+`input_per_m` / `output_per_m` — tokens. An image model is priced per image, a speech model per
+minute, a video model per second. `blended_per_m` is not a universal unit, and D-105 already forbids
+averaging across scales. **Pricing becomes per-modality before this scope is real**, and that is
+engine work, not a category row.
+
+**Decision 2 — the router, and its absolute boundary.** A free model sits in front of the catalogue
+with ONE job: read what the user actually wrote — not keyword-match it — and decide which of OUR
+pre-existing categories to show first. It is a translator between the end user's language and this
+product's menu, so that someone who wants to improve a profile picture types that instead of
+hunting through fifteen headings.
+
+> **It may never say a model is good.** Not "I recommend", not "this one is best for you", not a
+> re-ordering, not a nudge. The owner's words: *"we do not do benchmarking, so we cannot let it
+> choose either."*
+
+The line is exact: **the router picks the QUESTION; the engine answers it.** Routing is a language
+task and the model is good at it. Ranking is an evidence task and the model has no evidence — it
+would be substituting its training for measurements, which is the one thing a weather app must
+never do. **D-104 is unchanged and this ADR does not soften it**: no LLM in the scoring path.
+
+**Two consequences that follow from the boundary, not from taste.** The router's choice is SHOWN to
+the user and is correctable — a routing decision the user cannot see is one they cannot overrule.
+And a routing failure degrades to the menu, never to a guess: if the model cannot tell what was
+meant, the product shows the categories rather than picking one.
+
+**Decision 3 — a category exists only where a measurement exists.** Inventing fifteen headings is
+an afternoon's work; each one needs a public, free, legally usable source, plus a client, a parser
+and an ingestion path. A category without evidence is a screen that says "I have nothing", which is
+what `assistant` says today while Arena is down (W-024). **Demand does not create a category.
+Evidence does.**
+
+**Revisit when:** a modality the owner wants has no public measurement at all. That is a real case —
+it is the "workaround" he has already anticipated — and it needs its own decision rather than a
+quiet exception to this one.
+
+---
+
 *Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*
