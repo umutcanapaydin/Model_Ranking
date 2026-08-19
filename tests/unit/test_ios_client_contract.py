@@ -44,29 +44,78 @@ def _optional_properties(struct: str) -> set[str]:
 # --- REQ-APP-003: every disclosure the API sends is visible ------------------------------------
 
 
-def test_the_client_references_every_optional_field_the_answer_carries() -> None:
-    """Trap 2. An `Answer`'s optional fields ARE its disclosures — that is what optional means here.
+#: Optional `Answer` fields that are NOT sentences and are deliberately not rendered.
+#: An exemption may exist only with a reason, and the reason must survive being read aloud.
+NON_DISCLOSURE_ANSWER_FIELDS = {
+    # A machine-readable classification ("dated" / "undated" / "mixed" / "unknown"). Its HUMAN form
+    # is `evidenceDatingNote`, which IS rendered, and which the engine sets to nil in exactly the
+    # cases where there is nothing to disclose (main.py:_evidence_dating). Showing the raw token
+    # beside the sentence would say the same thing twice, once in a vocabulary nobody asked for.
+    "evidenceDating",
+}
+
+
+def test_the_client_renders_every_optional_field_the_answer_carries() -> None:
+    """Trap 2. An `Answer`'s optional fields are its disclosures — that is what optional means here.
 
     A field the engine sends only when it has something to say is, by construction, the sentence it
     wanted said. If no view names it, the payload carries it and the user never sees it, and every
     gate on both sides stays green.
 
-    Caught `rankingEffort` on first run: `agentic-coding` ranks at a named comparable level, the
-    model decoded it, and the screen showed a score with no statement of what it was measured at.
-
-    The limit, stated rather than implied: this proves the field is REFERENCED, not that it is
-    rendered legibly or at all. A reference inside dead code would satisfy it.
+    **This test was green for the wrong reason and an independent tester caught it.** It matched
+    `f".{field}" in body`, so `.evidenceDating` was satisfied by the substring inside
+    `.evidenceDatingNote` — zero real references, reported as covered. Any new optional whose name
+    is a PREFIX of an already-rendered one was silently exempt. It matches on a word boundary now,
+    which immediately exposed that the rule itself over-derived: `evidenceDating` is a
+    classification, not a sentence. Exemptions are therefore named and reasoned above rather than
+    granted by accident of spelling.
     """
-    disclosures = _optional_properties("Answer")
+    disclosures = _optional_properties("Answer") - NON_DISCLOSURE_ANSWER_FIELDS
     assert disclosures, "Answer declares no optional fields; the derivation is broken, not clean"
 
     views = {name: text for name, text in _swift_sources().items() if name != "Models.swift"}
     body = "\n".join(views.values())
 
-    unreferenced = sorted(field for field in disclosures if f".{field}" not in body)
+    unreferenced = sorted(f for f in disclosures if not re.search(rf"\.{f}\b", body))
     assert not unreferenced, (
-        f"the engine can send {unreferenced} and no view in {sorted(views)} mentions them; a "
-        "disclosure the client never names is one the user never sees"
+        f"the engine can send {unreferenced} and no view in {sorted(views)} names them; a "
+        "disclosure the client never reads is one the user never sees"
+    )
+
+    stale = sorted(f for f in NON_DISCLOSURE_ANSWER_FIELDS if f not in _optional_properties("Answer"))
+    assert not stale, (
+        f"{stale} is exempted from the disclosure rule and no longer exists on Answer; an "
+        "exemption that outlives its field silently widens the next time the name is reused"
+    )
+
+
+def test_the_disclosure_view_is_actually_reached_from_the_rendered_screen() -> None:
+    """The attack the test above cannot see, found by an independent tester and reproduced here.
+
+    Deleting the single call `disclosures(answer)` from the answer section removes EVERY disclosure
+    from EVERY screen — and the `disclosures(_:)` function survives further down the file, so all
+    the `.staleNotice` / `.closeCall` / `.effortMixNotice` references the field test greps for are
+    still present. Green, with nothing disclosed. The field test's own docstring conceded that "a
+    reference inside dead code would satisfy it"; this is that concession at whole-feature scale.
+
+    So: the helper must be CALLED, not merely defined. This is still structural — it cannot prove
+    the call sits on a code path a user reaches — but it closes the difference between a function
+    that exists and a function that runs, which is this project's most-repeated defect class.
+    """
+    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+
+    definitions = re.findall(r"func\s+disclosures\s*\(", view)
+    assert definitions, "the disclosure view is gone entirely"
+
+    calls = [
+        line.strip()
+        for line in view.splitlines()
+        if re.search(r"(?<!func )\bdisclosures\s*\(", line.split("//", 1)[0])
+        and not re.search(r"func\s+disclosures", line)
+    ]
+    assert calls, (
+        "`disclosures(_:)` is defined and never called; every notice the engine sends would be "
+        "decoded, held in memory, and shown to nobody"
     )
 
 
@@ -125,15 +174,24 @@ def test_the_client_applies_no_ordering_of_its_own() -> None:
     manufactures the ranking the engine refused to publish, and it would look perfectly reasonable
     in review.
 
-    Deliberately blunt: ANY sort in the client fails this, including one on a collection where it
-    would be harmless. A legitimate need is a five-word exemption in this test with a reason
-    attached, which is the point — the exemption is the record.
+    **The limit, corrected after an independent tester walked through it twice.** This bans a list
+    of SPELLINGS -- it is not, as this docstring once claimed, "deliberately blunt: ANY sort fails".
+    A hand-rolled insertion sort over `answers` contains no banned identifier and passes, as does
+    any comparison written out longhand. The list is widened here to cover `max(by:)`/`min(by:)`,
+    which is how the tester picked a winner across the two coding surfaces, but the honest statement
+    is that **this is a tripwire on the obvious spellings, not a proof of absence.** The proof would
+    need a UI test asserting the two surfaces render as peers, and there is no iOS test target
+    (W-038).
     """
     offenders: list[str] = []
     for name, text in _swift_sources().items():
         for lineno, line in enumerate(text.splitlines(), start=1):
             code = line.split("//", 1)[0]
-            if re.search(r"\.(sorted|reversed|shuffled)\s*[({]|\.sort\s*\(", code):
+            if re.search(
+                r"\.(sorted|reversed|shuffled)\s*[({]|\.sort\s*\(|"
+                r"\.(max|min)\s*\(\s*by\s*:|\.swapAt\s*\(",
+                code,
+            ):
                 offenders.append(f"{name}:{lineno}: {line.strip()}")
     assert not offenders, (
         "the client orders a collection itself; if this is the answers or the ranking it "
@@ -159,13 +217,17 @@ def test_the_shipping_client_carries_no_canned_payload() -> None:
     # so a search for a bare `"api_version"` finds nothing — which is how the first version of this
     # test passed while a canned payload sat in the view. Both spellings are matched now, and the
     # triple-quoted form, which escapes nothing at all.
-    markers = ("api_version", "ordering_note", "best_value")
+    # `Models.swift` is NO LONGER EXCLUDED. It used to be, so its `CodingKeys` string constants
+    # would not false-positive -- and an independent tester shipped a canned payload inside exactly
+    # that exclusion. The hole was the size of the requirement. The check now matches a marker in
+    # JSON KEY POSITION (preceded by `{` or `,`, followed by `:`), which a `case x = "api_version"`
+    # declaration can never be, so every file is scanned and no exemption is needed.
+    markers = ("api_version", "ordering_note", "best_value", "unavailable_reason")
     embedded = [
-        f"{name} contains {marker!r}"
+        f"{name} carries {marker!r} in JSON key position"
         for name, text in _swift_sources().items()
-        if name != "Models.swift"
         for marker in markers
-        if re.search(rf'\\?"{marker}\\?"', text)
+        if re.search(rf'[{{,]\s*\\?"{marker}\\?"\s*:', text)
     ]
     assert not embedded, (
         "a payload appears as a literal in a view, which is how a fixture survives into a "
@@ -225,6 +287,19 @@ def test_the_client_bounds_how_long_it_will_wait() -> None:
     assert "timeoutIntervalForResource" in client, (
         "only the request is bounded; a response that dribbles bytes forever is still unbounded"
     )
+
+    # THE VALUE, not the symbol. An independent tester changed `requestTimeout` from 10 to 86_400
+    # and this test stayed green: both symbols were still present, `URLSession.shared` was still
+    # absent, `case timedOut` still existed. A 24-hour spinner satisfied every assertion above --
+    # which is the exact failure state the docstring claims to prevent. A configuration that is
+    # PRESENT is not a configuration that BOUNDS.
+    declared = re.search(r"static let requestTimeout\s*=\s*([\d_]+)", client)
+    assert declared, "requestTimeout is no longer a literal this test can read"
+    seconds = int(declared.group(1).replace("_", ""))
+    assert 0 < seconds <= 30, (
+        f"the client waits {seconds} seconds before it owes the user a sentence; anything past "
+        "~30 is the endless spinner wearing a number"
+    )
     assert "session: URLSession = .shared" not in client, (
         "URLSession.shared is the default again, and it carries the 60-second wait this "
         "configuration exists to replace"
@@ -242,8 +317,15 @@ def test_every_failure_the_client_names_reaches_the_screen_with_a_sentence() -> 
     it (`recovery`). Rendering only the first gives a dead end; rendering only the second gives
     advice about nothing.
     """
+    # COMMENTS STRIPPED. An independent tester replaced the failure view with
+    # `Text("Something went wrong.")` and left `.errorDescription` / `.recovery` surviving as a
+    # comment; this test greps raw file text and stayed green. That is precisely the defect this
+    # module already claimed to have fixed elsewhere -- "a test that matches an identifier rather
+    # than a read is measuring spelling" -- committed again two functions later.
     views = "\n".join(
-        text for name, text in _swift_sources().items() if name not in {"Models.swift", "EngineClient.swift"}
+        "\n".join(line.split("//", 1)[0] for line in text.splitlines())
+        for name, text in _swift_sources().items()
+        if name not in {"Models.swift", "EngineClient.swift"}
     )
     # The PROPERTY ACCESS, not the word. The first version of this test asked whether "recovery"
     # appeared anywhere in the views, and a mutant that stopped reading `error.recovery` while

@@ -44,7 +44,14 @@ from fastapi.responses import JSONResponse
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.coverage import SOURCE_STALE_DAYS, source_health
 from app.workflows.rank import RankingRow, UnbuiltEvidenceError, category_ranking
-from app.workflows.recommend import BUDGETS, Pick, Recommendation, recommend
+from app.workflows.recommend import (
+    BUDGETS,
+    Pick,
+    Recommendation,
+    recommend,
+    round_optional_score,
+    round_score,
+)
 from app.workflows.serialize import recommendation_json
 
 APP_VERSION = "0.1.0"
@@ -722,6 +729,14 @@ def _ranking_json(rows: list[RankingRow], spec: CategorySpec) -> list[dict[str, 
     for row in rows:
         raw = {f.name: getattr(row, f.name) for f in fields(row)}
         entry = {k: v for k, v in raw.items() if k in PUBLIC_RANKING_FIELDS}
+        # D-109: rounding happens at the OUTPUT BOUNDARY, and this is one. Every other boundary
+        # already did it -- recommend.py, rank.py's export, subscribe.py, coverage.py -- and this
+        # function, added with D-125, did not. The result was one model appearing TWICE in a single
+        # payload with two different scores: 83.5 in `picks` and 83.47107438016529 in `ranking`,
+        # rendered on the phone as "83.5 % resolved" directly above "83.471 % resolved". D-109's
+        # own rationale names this exact shape. Found by the M8 fresh-eyes review.
+        entry["score"] = round_score(entry["score"])
+        entry["secondary_score"] = round_optional_score(entry["secondary_score"])
         # The metric is a property of the SURFACE, not of the row, and the client needs it beside
         # every score it renders rather than having to reach back up the payload.
         entry["metric"] = spec.metric

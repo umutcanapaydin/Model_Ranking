@@ -112,3 +112,43 @@ def test_every_advertised_category_is_one_the_recommendations_route_accepts() ->
             f"the app advertises {task!r} as a tappable surface and the recommendations route "
             f"answered {response.status_code}"
         )
+
+
+def test_the_discovery_surface_advertises_every_category_the_engine_can_rank() -> None:
+    """API-04, found by an independent tester: nothing asserted the LIST was complete.
+
+    The client has no roster of its own — that was a deliberate decision, so the engine stays the
+    single source of the surface list. The consequence is that `/v1/categories` IS the product's
+    navigation: serving three of nine makes six surfaces unreachable from the app, while
+    `test_the_categories_endpoint_serves_every_field_the_app_decodes` iterates whatever is served
+    and passes, and `test_every_advertised_category_is_one_the_recommendations_route_accepts`
+    checks only the other direction.
+
+    Dies to: `for spec in list(CATEGORIES.values())[:3]` in the endpoint.
+    """
+    from app.workflows.categories import CATEGORIES
+
+    client = TestClient(adapter.app)
+    advertised = {c["id"] for c in client.get("/v1/categories").json()["categories"]}
+
+    missing = sorted(set(CATEGORIES) - advertised)
+    assert not missing, (
+        f"the engine can rank {missing} and the discovery surface does not offer them; the app "
+        "has no list of its own, so these surfaces are unreachable"
+    )
+    assert advertised == set(CATEGORIES), f"unknown surfaces advertised: {advertised - set(CATEGORIES)}"
+
+
+def test_ruling_a_holds_on_the_discovery_surface_too() -> None:
+    """API-05: the same flag is asserted on `/v1/recommendations` and was free on `/v1/categories`.
+
+    `surfaces_are_ranked` is Ruling A in one boolean. `test_ranking_payload.py` pins it on the
+    recommendations payload; the identical field here was unasserted, so flipping it to `True`
+    told every client that this list is ordered by quality — the exact claim the engine refuses to
+    make — with the whole suite green.
+    """
+    body = TestClient(adapter.app).get("/v1/categories").json()
+    assert body["surfaces_are_ranked"] is False, (
+        "the discovery surface claims its categories are ranked; Ruling A says the order carries "
+        "no meaning and the engine publishes no ordering between surfaces"
+    )

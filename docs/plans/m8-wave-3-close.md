@@ -59,6 +59,6 @@ sentences — it protects the guarantee, not the wording.
 
 Touched: `docs/prd.md`, `docs/warnings.ledger.md`, `ios/ModelRanking/Engine/EngineClient.swift`, `tests/unit/test_ios_client_contract.py`
 
-K.8 contracts: none moved. `/v1` payload frozen (D-115); D-124's single permitted move is UNSPENT at M8 close.
+K.8 contracts: none moved by THIS wave. `/v1` was moved earlier in M8 by D-125; D-124's single permitted revision is **SPENT** at M8 close.
 
 Filled by: the lead agent (Claude, Claude Code CLI) · Date: 2026-08-19 · Wave commit range: `c10bf3a..dbbc436`

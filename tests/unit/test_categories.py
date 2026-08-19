@@ -244,3 +244,85 @@ def test_every_category_is_reachable_by_the_name_the_api_accepts() -> None:
     for name, spec in CATEGORIES.items():
         assert get_category(name) is spec
         assert spec.id == name, f"{name} carries id {spec.id!r}; the API would route on the key"
+
+
+# --- M8 fresh-eyes review: eight of ten threshold mutants survived ------------------------------
+
+
+def test_a_category_ranks_on_the_board_it_names_and_reads_the_metric_that_board_publishes() -> None:
+    """CAT-05 / CAT-06: nothing checked that a category and its source agree about WHAT is measured.
+
+    `test_every_source_a_category_names_as_primary_exists_in_the_registry` asserts only that the
+    source NAME resolves. An independent tester pointed `expert` at `epoch_eci` and relabelled
+    `abstract`'s metric as `"elo"`; both stayed green across the whole suite. The first ranks a
+    category on the wrong board, the second describes a percentage board as an Elo board — and
+    D-105's whole point is that a number is meaningless without its scale.
+
+    The check is DERIVED: `EpochBoard` already declares the benchmark and metric it publishes, so
+    the agreement can be computed rather than restated. That is what makes it a gate and not a
+    second copy of the table.
+    """
+    from app.workflows.sources import EPOCH_BOARDS
+
+    boards = {b.source_name: b for b in EPOCH_BOARDS}
+    checked = 0
+    for name, spec in CATEGORIES.items():
+        board = boards.get(spec.primary_source)
+        if board is None:
+            continue  # not a declared Epoch board; covered by the registry test
+        checked += 1
+        assert spec.primary_benchmark == board.benchmark, (
+            f"{name} says it ranks on {spec.primary_benchmark!r} and its source "
+            f"{spec.primary_source!r} publishes {board.benchmark!r}"
+        )
+        assert spec.metric == board.metric, (
+            f"{name} reads {spec.metric!r} from a board that publishes {board.metric!r}; a score "
+            "relabelled onto another scale is D-105's defect with a different spelling"
+        )
+    assert checked >= 6, f"expected the six board-backed categories to be checked; saw {checked}"
+
+
+def test_no_threshold_is_on_a_scale_its_own_metric_cannot_reach() -> None:
+    """CAT-01 / CAT-02 / CAT-09: no test pinned any `min_quality`, on any scale.
+
+    D-127 states the obligation and shipped no gate for it: *"A threshold copied from one scale to
+    another is a wrong answer wearing a correct-looking constant."* An independent tester moved
+    `web-dev`'s Elo floor to `100.0` (every model clears it, so the floor stops existing and no
+    disclosure fires) and `expert`'s percentage floor to `200.0` (nobody ever qualifies, forever).
+    Both green.
+
+    This does not pin the calibrated VALUES — those are measured and will move as boards move. It
+    pins the property that outlives any recalibration: a percentage threshold lives in (0, 100],
+    and an Elo threshold cannot.
+    """
+    for name, spec in CATEGORIES.items():
+        assert spec.min_quality > 0, (
+            f"{name} has a floor of {spec.min_quality}; a floor of zero admits the whole board and "
+            "is a Budget Pick with no quality bar at all"
+        )
+        assert spec.close_call > 0, (
+            f"{name} has a close-call threshold of {spec.close_call}, so it would never disclose a "
+            "near tie — on a board whose measurement error is real, that publishes noise as rank"
+        )
+        if spec.metric.startswith("%"):
+            assert spec.min_quality <= 100.0, (
+                f"{name} measures {spec.metric!r} and its floor is {spec.min_quality}, which no "
+                "score on that scale can reach"
+            )
+            assert spec.value_window <= 100.0, (
+                f"{name}'s value window of {spec.value_window} spans more than the whole scale"
+            )
+        # An Elo board has no natural ceiling, so "<= 100" cannot bound its window. This does,
+        # and it holds on all nine: a value window WIDER than the quality floor reaches models the
+        # floor has already rejected, which makes the two controls contradict each other. Added
+        # after CAT-10 (`web-dev`'s window set to 1e9, making every model "best value") survived
+        # the first version of this test.
+        assert spec.value_window < spec.min_quality, (
+            f"{name}'s value window ({spec.value_window}) is wider than its quality floor "
+            f"({spec.min_quality}); Best Value would reach models Budget Pick refuses"
+        )
+        if spec.metric == "elo":
+            assert spec.min_quality >= 1000.0, (
+                f"{name} ranks on Elo and its floor is {spec.min_quality}; that is a percentage "
+                "constant on an Elo board, and every model would clear it"
+            )

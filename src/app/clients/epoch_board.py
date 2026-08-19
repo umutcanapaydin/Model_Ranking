@@ -21,6 +21,7 @@ one leaves `run_date` as `None` and lets the surface say so.
 from __future__ import annotations
 
 import csv
+import datetime as dt
 import io
 import math
 from dataclasses import dataclass
@@ -145,8 +146,18 @@ def parse_board(
             continue
         run_date = None
         if board.date_column:
-            stamp = (entry.get(board.date_column) or "").strip()
-            run_date = stamp[:10] if len(stamp) >= 10 else None
+            # VALIDATED, not truncated. `stamp[:10]` accepted any ten characters as a date, so
+            # `<script>alert(1)</script>` became the evidence date `'<script>al'` -- and because
+            # `_evidence_dating` only asks whether the date is not-None, the surface then reported
+            # its evidence as DATED. This module's own docstring says a reader that invented a date
+            # would defeat that disclosure; inventing one by truncation is still inventing one.
+            # It also put ten characters of third-party text into an unauthenticated payload.
+            # The sibling client has always validated (clients/epoch.py uses date.fromisoformat).
+            stamp = (entry.get(board.date_column) or "").strip()[:10]
+            try:
+                run_date = dt.date.fromisoformat(stamp).isoformat() if stamp else None
+            except ValueError:
+                run_date = None
         row = ScoreRow(
             raw_name=name,
             benchmark=board.benchmark,

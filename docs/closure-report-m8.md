@@ -79,9 +79,10 @@ so the day `baseURL` points at a deployed host, iOS will refuse cleartext and th
 broken. **That refusal is the control working.** The fastest "fix" is `NSAllowsArbitraryLoads`,
 which would ship this product's first real network call unencrypted.
 
-Engine invariants held: D-104 (no LLM in the scoring path — the client computes nothing, gated by
-test), D-105 (no cross-scale averaging), D-109 (rounding at the output boundary), D-115 (`/v1`
-frozen — unmoved), D-118 (English query values), D-121 (a blind surface is never silent — exercised
+Engine invariants: D-104 (no LLM in the scoring path) and D-105 (no cross-scale averaging) held.
+**D-109 was BROKEN by this milestone** — `_ranking_json` publishes unrounded scores, so one model
+appears twice in one payload with two different values. **D-115 was moved once, under D-124's
+permission, by D-125.** D-118 (English query values) held; D-121 (a blind surface is never silent — exercised
 for real, since arena was down for the whole milestone).
 
 ## 5. Ledgers
@@ -131,7 +132,7 @@ has one, the question keeps being answered from whatever data is nearest.
 | Every criterion has a citing test able to fail | ✅ REQ-APP-001/-002/-003/-005 met; REQ-APP-004 met with one case recorded as unreachable (W-039) |
 | Fault injection on the client's failure states | ✅ 6 mutants, 6 killed |
 | Fresh-eyes review per D-122 | ❌ **NOT DONE** — three PRESSURE bypasses, `C2b` fired |
-| ADRs for contract questions | ✅ D-124 unspent and recorded as such |
+| ADRs for contract questions | ✅ D-125 written; D-124's window is SPENT and recorded as such |
 | Retrospective (M ≥ 3) | ✅ `docs/retrospectives/m8-retrospective.md` |
 | Dated `docs/EXPERIENCE.md` entry | ✅ |
 | `note.txt` refreshed | ✅ |

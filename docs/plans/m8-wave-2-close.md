@@ -27,7 +27,7 @@ invariants became executable gates, and `app.sh restart` stopped lying about wha
 | 5 | Every criterion has a citing test able to fail — V3C-02 | REQ-APP-002: `tests/unit/test_ios_client_contract.py::test_the_client_applies_no_ordering_of_its_own`. REQ-APP-003: `::test_the_client_references_every_optional_field_the_answer_carries`. REQ-APP-005: `::test_the_client_performs_no_arithmetic_on_a_number_the_engine_sent`. All three proven RED against mutants on 2026-08-19 | ✅ |
 | 6 | New REQ-IDs in the PRD, at the wave not at closure | `docs/prd.md` — REQ-APP-001..005 and REQ-API-010 added here. Late for W1's rows (see `docs/plans/m8-wave-1-close.md` row 6), on time for this wave's | ✅ |
 | 7 | Gates green at the closing tree | `make check` exit 0 · **530 passed / 12 skipped** · `xcodebuild` exit 0 · ruff and mypy clean · `check_records` PASS | ✅ |
-| 8 | ADRs for decisions made | None needed. `/v1` was not moved, so **D-124**'s single permitted move remains UNSPENT — the client's needs were met by fields the payload already carried | ✅ |
+| 8 | ADRs for decisions made | `docs/decisions.md` **D-125** — `/v1` publishes the full ranking beside the three answers. This SPENDS the single revision D-124 permitted during M8, and D-125 says so itself. An earlier version of this row claimed the window was unspent | ✅ |
 | 9 | Warnings ledger current | `docs/warnings.ledger.md`: **W-038** (there is no iOS test target at all) opened and ACCEPTED with M9 as the owning milestone | ✅ |
 | 10 | Plan promises delivered | `docs/plans/m8-plan.md` §2 W2 asked for both coding answers with neither leading, and every disclosure visible. Both delivered; the second was delivered only because the test went looking | ✅ |
 
@@ -56,6 +56,6 @@ that gave it away was the build stamp reading `dev-60cce36` against a HEAD of `d
 
 Touched: `docs/prd.md`, `docs/warnings.ledger.md`, `ios/ModelRanking/ContentView.swift`, `ios/ModelRanking/Engine/EngineClient.swift`, `ios/ModelRanking/Engine/Models.swift`, `ios/app.sh`, `tests/unit/test_ios_client_contract.py`, `tests/unit/test_ios_payload_contract.py`
 
-K.8 contracts: `/v1/categories` gains a consumer. Frozen surfaces untouched: `/v1` payload (D-115) — D-124's permitted move is UNSPENT.
+K.8 contracts: `/v1/categories` gains a consumer. **`/v1` payload MOVED once (D-125), which is D-124's single permitted revision — now SPENT.**
 
 Filled by: the lead agent (Claude, Claude Code CLI) · Date: 2026-08-19 · Wave commit range: `a9dc034..c10bf3a`

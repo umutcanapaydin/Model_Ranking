@@ -138,3 +138,87 @@ def test_a_surface_with_no_evidence_has_an_empty_ranking_and_still_says_why(
     assert answer["ranking"] == []
     assert answer["picks"] == []
     assert answer["unavailable_reason"], "an empty answer must still say why it is empty"
+
+
+@pytest.fixture
+def unrounded_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    """The shared fixture cannot exercise rounding, because every score in it is already round.
+
+    That is not a small detail — it is why the first version of the two tests below passed with the
+    rounding REMOVED. A fixture whose values cannot violate the invariant makes any assertion about
+    that invariant unfalsifiable, which is a test that reads as a gate and is a decoration.
+
+    `83.47107438016529` is a real shape: SWE-bench Verified reports resolved/total, and 101/121 is
+    exactly this number. `0.6` is the classic float that survives naive rounding checks.
+    """
+    import sqlite3
+
+    from .test_api_v1 import _seeded_db
+
+    db = tmp_path / "unrounded.db"
+    _seeded_db(db)
+    conn = sqlite3.connect(db)
+    try:
+        conn.execute(
+            "UPDATE scores SET score = 83.47107438016529"
+            " WHERE score = (SELECT max(score) FROM scores)"
+        )
+        # The SECONDARY benchmark has to EXIST before it can be unrounded. Removing only
+        # `round_optional_score` stayed green twice: first because the seeded scores were already
+        # round, then because this fixture carries no Aider rows at all, so `secondary_score` is
+        # None everywhere and the mutant is equivalent HERE while remaining live in production.
+        # A fixture that cannot reach a field cannot defend it.
+        conn.execute(
+            "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score, harness,"
+            " source_url, observed_at) VALUES ('claude-4.5-opus', 'Claude 4.5 Opus', 'aider',"
+            " 'Aider polyglot', '% resolved', 61.9834710743809, 'aider', 'fixture://x', 't')"
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    monkeypatch.setenv("APP_ENV", "test")
+    return TestClient(adapter.app)
+
+
+def test_one_model_has_one_score_in_one_payload(unrounded_client: TestClient) -> None:
+    """D-109, at the boundary D-125 added and forgot to round.
+
+    `_ranking_json` published `RankingRow` fields raw while every other output boundary called
+    `round_score` — so the SAME model arrived twice in the SAME answer with two different numbers:
+    `83.5` under `picks` and `83.47107438016529` under `ranking`. The phone rendered them one above
+    the other, `83.5 % resolved` and `83.471 % resolved`, and the client comment claiming "the
+    engine rounds at its own output boundary; this prints what it sent" was false for every row.
+
+    D-109's own rationale names this shape: prose that contradicts the JSON beside it. On the Elo
+    surfaces it is worse — an unrounded Elo publishes as `1481.5937567329202`.
+
+    Found by the M8 fresh-eyes code review, which was the first independent read of that range.
+    """
+    for answer in _answers(unrounded_client):
+        by_model = {row["model"]: row["score"] for row in answer["ranking"]}
+        for pick in answer["picks"]:
+            if pick["model"] in by_model:
+                assert pick["score"] == by_model[pick["model"]], (
+                    f"{pick['model']} on surface {answer['surface']} is published as "
+                    f"{pick['score']} in picks and {by_model[pick['model']]} in ranking; one "
+                    "model, one payload, two scores"
+                )
+
+
+def test_no_published_ranking_number_carries_more_precision_than_the_engine_rounds_to(
+    unrounded_client: TestClient,
+) -> None:
+    """The other direction, so the fix cannot be satisfied by making the PICKS raw instead.
+
+    Asserting only that the two agree would be satisfied by rounding neither. This pins the actual
+    contract: what leaves the boundary is what `round_score` produces.
+    """
+    for answer in _answers(unrounded_client):
+        for row in answer["ranking"]:
+            assert row["score"] == round(row["score"], 1), (
+                f"{row['model']} publishes {row['score']}, which is not rounded at the output "
+                "boundary (D-109)"
+            )
+            if row["secondary_score"] is not None:
+                assert row["secondary_score"] == round(row["secondary_score"], 1)

@@ -28,6 +28,12 @@ class CategorySpec:
     ranking_effort: str | None = None  # named comparable level; None = board has no effort policy
 
 
+#: **Every threshold below is sized on the RANKED population** -- models that reconcile to the
+#: registry AND carry a price median -- not on the full board. The engine can only recommend a
+#: model somebody can buy, and the two populations differ by an order of magnitude (58 of 521
+#: on ECI). Calibrating against the board has now produced wrong thresholds three times
+#: (W-037); evidence and method: `docs/reviews/m8-category-calibration.md`, including its
+#: 2026-08-19 correction section, which supersedes the table above it.
 CATEGORIES: dict[str, CategorySpec] = {
     "coding": CategorySpec(
         id="coding",
@@ -93,7 +99,8 @@ CATEGORIES: dict[str, CategorySpec] = {
         score_unit="ECI",
         secondary_benchmark="MMLU",
         primary_source="epoch_eci",
-        # 521 models, leader 161.7, median 144.6. A 3-point window leaves 42 candidates.
+        # Sized on the RANKED population -- reconciled and priced -- not the board: 58 models,
+        # not 521. A 3-point window leaves 5 candidates, against coding's 7.
         min_quality=149.9,
         value_window=3.0,
         close_call=0.5,
@@ -122,7 +129,9 @@ CATEGORIES: dict[str, CategorySpec] = {
         primary_source="epoch_aime",
         # The noisiest board here: stderr median 4.74 points, so close_call is 9.5. The window has
         # to CLEAR that -- a narrower one would call a gap "within reach" while also calling the
-        # same gap noise. 15 points leaves 77 candidates.
+        # same gap noise. On the 51 models that actually rank, 10 points admits 28. That is high
+        # against coding's 7 and it is the honest number: AIME has three models tied at exactly
+        # 100.0, so they are indistinguishable at the board's own precision (W-035).
         min_quality=84.4,
         value_window=10.0,
         close_call=9.5,
@@ -135,11 +144,9 @@ CATEGORIES: dict[str, CategorySpec] = {
         score_unit="points",
         secondary_benchmark=None,
         primary_source="epoch_terminalbench",
-        # STRUCTURALLY THIN, and the wide window is the honest consequence rather than a preference.
-        # 59 models. The top six cluster between 78.4 and 84.7 and then drop to 69.9, so a 10-point
-        # window admits six candidates at ANY floor from the 50th to the 75th percentile. 20 points
-        # offers eleven. This surface will be saying "20 points below the leader" where coding says
-        # "3.5 points below, and 84% cheaper" -- disclosed in the trade-off sentence, never hidden.
+        # STRUCTURALLY THIN. 59 models on the board, 33 that reconcile and carry a price. Sized on
+        # those 33, a 5-point window admits 5 candidates -- the 20 points an earlier draft argued
+        # for was measured on the full board and would have admitted every model above the floor.
         min_quality=53.4,
         value_window=5.0,
         close_call=0.8,
@@ -152,7 +159,8 @@ CATEGORIES: dict[str, CategorySpec] = {
         score_unit="points",
         secondary_benchmark=None,
         primary_source="epoch_arc_agi",
-        # 168 models, leader 98.0. An 8-point window leaves 30 candidates.
+        # 168 on the board, 39 ranked. A 5-point window leaves 8 candidates; the 8-point window an
+        # earlier draft proposed was sized on the board and admitted all 20 above the floor.
         min_quality=72.8,
         value_window=5.0,
         close_call=1.0,
@@ -165,10 +173,10 @@ CATEGORIES: dict[str, CategorySpec] = {
         score_unit="Elo",
         secondary_benchmark=None,
         primary_source="epoch_webdev",
-        # The other thin surface, on a different scale and for the same structural reason. 102
-        # models; the leader sits 30 Elo above second and the top twelve span 160, so a 30-Elo
-        # window admits ONE candidate at every floor tested. 150 Elo offers nine. Elo thresholds
-        # are NOT comparable to the percentage categories above -- that is what D-105 forbids.
+        # The other thin surface, on a different scale and for the same structural reason. 102 on
+        # the board, 49 ranked; the leader sits 30 Elo above second. A 100-Elo window admits 3 of
+        # those 49. Elo thresholds are NOT comparable to the percentage categories above -- that is
+        # what D-105 forbids.
         min_quality=1478.9,
         value_window=100.0,
         close_call=6.8,

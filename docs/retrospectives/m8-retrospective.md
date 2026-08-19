@@ -14,15 +14,18 @@ date: 2026-08-19
 **Answered by D-124 before W1: `/v1` may move ONCE during M8, in response to what the client
 actually needs, and re-freezes at close.**
 
-**The interesting part is that the move was never spent.** The client was written, it rendered every
-surface, it handled every failure — and it asked for nothing. Every field it needed was already
-there. The ruling was made in the abstract precisely so it could not be bent around a specific
-inconvenient field, and the outcome is that no field was inconvenient.
+**The window was SPENT, by D-125, which added the `ranking` array so the client could show the full
+list beside the three picks.** The ruling was made in the abstract precisely so it could not be bent
+around a specific inconvenient field, and it worked as designed: one revision, written as an ADR,
+with the frozen allowlist requiring a human edit on both sides before `ranking` could be published.
 
-That is a genuine result about the M6 review process rather than luck: a payload designed by people
-imagining a client turned out to be sufficient for a real one. But it comes with the finding below,
-which is the part worth carrying, because sufficiency of the CONTRACT is not sufficiency of the
-PRODUCT.
+**An earlier version of this retrospective said the opposite** — that the move was never spent and
+that a payload designed by people imagining a consumer proved sufficient for a real one. That was
+false, and worse than false: it was a CONCLUSION drawn from a fact nobody checked, in the document
+whose job is to say what was learned. It survived into a closure report, two wave records and a
+commit message before three independent reviewers read the range. **The lesson is not about `/v1`.
+It is that a retrospective is the easiest place in this process to launder an unverified premise
+into a finding**, because nothing downstream re-derives it.
 
 ## What this milestone actually taught
 
