@@ -226,14 +226,17 @@ def _ingest_boards(
                 reset_source(conn, table, board.source_name)
             missing.append(f"{board.source_name}: {exc}")
             continue
-        results.append(
-            SourceReport(
-                source=board.source_name,
-                stored=len(rows),
-                skipped=skipped,
-                effort_unknown=stored,
-            )
+        report = SourceReport(
+            source=board.source_name,
+            stored=len(rows),
+            skipped=skipped,
+            effort_unknown=stored,
         )
+        # Boards were the ONE source kind that never reached `run.reports`; every `ingest_*` in
+        # `ingest.py` appends. Harmless while nothing in production reads that field, and exactly
+        # the kind of inconsistency that becomes a bug the day something does.
+        run.reports.append(report)
+        results.append(report)
     return results, missing
 
 

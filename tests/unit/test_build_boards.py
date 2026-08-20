@@ -224,3 +224,25 @@ def test_the_board_ingest_catches_bad_input_and_not_every_exception() -> None:
             f"_ingest_boards catches {names}; a programming error inside the reader would be "
             "reported to the operator as a missing source"
         )
+
+
+def test_a_board_report_reaches_the_run_context_like_every_other_source(tmp_path: Path) -> None:
+    """MINOR-7: boards were the one source kind that never appended to `run.reports`.
+
+    Every `ingest_*` in `ingest.py` appends; `_ingest_boards` built the report and returned it
+    without recording it. Harmless while nothing in production reads that field — and precisely the
+    inconsistency that becomes a defect the day something does, in the source kind that carries six
+    of the nine surfaces.
+    """
+    conn = connect(":memory:")
+    try:
+        bundle = _bundle(tmp_path, "Model version,Score\nalpha,0.9\n")
+        (reports, missing), run = _run(conn, bundle)
+    finally:
+        conn.close()
+
+    assert not missing
+    assert reports, "fixture assumption: the board must ingest"
+    assert [r.source for r in run.reports] == ["epoch_probe"], (
+        "the board's SourceReport never reached the run context; every other ingest records one"
+    )

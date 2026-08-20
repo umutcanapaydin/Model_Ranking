@@ -1,7 +1,7 @@
 ---
 record_type: register
 id: m8-category-calibration
-status: draft
+status: ratified
 date: 2026-08-19
 ---
 # Threshold calibration for D-127's categories
@@ -101,6 +101,10 @@ the trade-off sentence, so nothing is hidden** — but this category makes a thi
 others, and shipping it as an equal is a decision rather than an oversight.
 
 ---
+
+> **Ratified 2026-08-20.** It sat `draft` while being the sole cited evidence for thresholds
+> already shipping in the scoring path — an independent review's MINOR-5. A draft record that
+> load-bearing is a record nobody has agreed to and everybody is relying on.
 
 ## Correction, 2026-08-19: the table above measures a population the engine never ranks
 

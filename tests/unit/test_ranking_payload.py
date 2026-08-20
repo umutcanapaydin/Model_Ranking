@@ -222,3 +222,41 @@ def test_no_published_ranking_number_carries_more_precision_than_the_engine_roun
             )
             if row["secondary_score"] is not None:
                 assert row["secondary_score"] == round(row["secondary_score"], 1)
+
+
+def test_third_party_text_in_a_ranking_row_is_bounded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """API-08: a tester's mutant bypassed `_bounded_pick` on ranking rows and stayed green.
+
+    `harness` is `UNTRUSTED_PICK_TEXT` — it comes from a third-party board, and D-125 put it on up
+    to N ranking rows per answer on an unauthenticated GET. The bound was applied and nothing
+    asserted it, so removing it cost nothing. That is the shape this project keeps finding: a
+    control that runs, is cited, and is undefended.
+    """
+    import sqlite3
+
+    from .test_api_v1 import _seeded_db
+
+    db = tmp_path / "long_harness.db"
+    _seeded_db(db)
+    conn = sqlite3.connect(db)
+    try:
+        conn.execute("UPDATE scores SET harness = ?", ("h" * 5000,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    monkeypatch.setenv("APP_ENV", "test")
+    answers = _answers(TestClient(adapter.app))
+
+    seen = 0
+    for answer in answers:
+        for row in answer["ranking"]:
+            seen += 1
+            assert len(row["harness"]) <= 200, (
+                f"a ranking row published {len(row['harness'])} characters of third-party text; "
+                "the bound exists for exactly this field on exactly this surface"
+            )
+    assert seen, "fixture assumption: at least one ranking row must be published"

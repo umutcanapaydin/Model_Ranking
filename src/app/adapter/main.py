@@ -916,9 +916,13 @@ def _answer_for(
     except sqlite3.DatabaseError:
         return _answer_json(spec, [], None, "This surface's evidence could not be read.", health)
 
-    # Computed ONCE and reused: the no-evidence predicate below already needs to know whether
-    # anything reached the ranking, and D-125 publishes the same rows. Asking the database twice
-    # for one answer is how the two drift.
+    # Computed HERE, and `recommend()` computes it again at `recommend.py:298`. An earlier version
+    # of this comment claimed it was "computed ONCE and reused" and that asking twice "is how the
+    # two drift" -- both false, and an independent review caught it. They cannot drift: it is the
+    # same function against the same connection inside one request, so the two results are the
+    # same rows by construction. The real cost is a duplicate query per answer, twice per coding
+    # request. Ledgered rather than threaded through `recommend()`, because that is a signature
+    # change on the scoring path and this is a comment that was wrong, not a defect that was.
     try:
         ranked = category_ranking(conn, spec)
     except sqlite3.DatabaseError:
