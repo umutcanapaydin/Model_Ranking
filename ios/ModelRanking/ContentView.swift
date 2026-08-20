@@ -107,7 +107,20 @@ struct ContentView: View {
             NavigationLink {
                 RankingList(answer: answer, filter: filter)
             } label: {
-                Text("See all \(answer.ranking.count)")
+                // The full ranking is NOT budget-filtered — D-125 publishes every ranked model
+                // beside the three picks, deliberately. A review found the payload giving two
+                // accounts of one query: `budget=low` reporting 25 eligible models and then
+                // serving 58 rows whose most expensive is $36/1M, with no marker on any row.
+                //
+                // The engine is right and the SCREEN was silent, so the screen says it. Both
+                // numbers are already in the payload; nothing here is computed, and no contract
+                // moved. It reads as one sentence when they agree and as a disclosure when they
+                // do not.
+                Text(
+                    answer.eligibleCount < answer.ranking.count
+                        ? "See all \(answer.ranking.count) — \(answer.eligibleCount) fit your budget"
+                        : "See all \(answer.ranking.count)"
+                )
                     .font(.subheadline)
             }
         } else if !filter.isEmpty {

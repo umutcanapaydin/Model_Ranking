@@ -386,3 +386,31 @@ def test_the_one_moment_transport_security_fires_is_not_reported_as_a_dead_serve
         "the remedy text does not warn against the ATS exception; the whole point of naming this "
         "case is to head off the one-line 'fix' that ships cleartext to every host"
     )
+
+
+def test_the_client_says_when_the_full_ranking_is_wider_than_the_budget() -> None:
+    """M8 review MAJOR-3: one payload, two accounts of the same query, and the screen was silent.
+
+    `/v1` publishes the FULL ranking beside the three picks (D-125), which is correct and
+    deliberate — but a `budget=low` answer reports 25 eligible models and then serves 58 ranking
+    rows whose most expensive is $36/1M, with no per-row marker. The engine already carries both
+    numbers; the screen showed only one of them, under a heading that reads as a continuation of
+    the budgeted picks above it.
+
+    The client renders the difference. It computes nothing — both values are served — so this does
+    not touch REQ-APP-005, and no contract moved, which matters because D-124's single revision is
+    already spent.
+
+    Dies to: dropping the comparison, or rendering only `ranking.count`.
+    """
+    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
+
+    assert ".eligibleCount" in code, (
+        "the client never reads eligible_count, so it cannot tell the reader that the list below "
+        "is wider than what their budget affords"
+    )
+    assert re.search(r"eligibleCount\s*<\s*\w+\.ranking\.count", code), (
+        "the client no longer compares the eligible count against the published ranking; the "
+        "'See all N' heading then reads as a continuation of the budgeted picks above it"
+    )

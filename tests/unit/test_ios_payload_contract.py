@@ -28,29 +28,59 @@ from app.adapter import main as adapter
 SWIFT_MODELS = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/Engine/Models.swift"
 
 
-def _coding_keys(struct: str) -> dict[str, str]:
-    """Map Swift property -> JSON key for one struct's CodingKeys block.
+def _struct_body(struct: str) -> str:
+    """One struct's own source, bounded at the NEXT struct declaration.
 
-    `case primaryBenchmark = "primary_benchmark"` -> {"primaryBenchmark": "primary_benchmark"}
-    `case title` -> {"title": "title"}
+    The bound is the whole point. The first version searched forward from `struct X:` for the next
+    `enum CodingKeys` with no upper limit, so a struct that declares none silently inherited the
+    NEXT struct's keys -- `SourceHealth` was tested against `SourceRow`'s field set and the test
+    reported a missing `newest_run_date` that the API was never supposed to send there. A
+    derivation that reads past its subject is worse than a hand-written list, because it looks
+    authoritative.
     """
     source = SWIFT_MODELS.read_text(encoding="utf-8")
     start = source.index(f"struct {struct}:")
-    block = source[source.index("enum CodingKeys", start) : source.index("}", source.index("enum CodingKeys", start))]
-    keys: dict[str, str] = {}
-    for line in block.splitlines():
-        match = re.match(r'\s*case\s+(\w+)(?:\s*=\s*"([^"]+)")?\s*$', line)
-        if match:
-            keys[match.group(1)] = match.group(2) or match.group(1)
-    return keys
+    following = re.search(r"^struct \w+[:\s]", source[start + 1 :], re.MULTILINE)
+    return source[start : start + 1 + following.start()] if following else source[start:]
+
+
+def _coding_keys(struct: str) -> dict[str, str]:
+    """Map Swift property -> JSON key for one struct.
+
+    `case primaryBenchmark = "primary_benchmark"` -> {"primaryBenchmark": "primary_benchmark"}
+    `case title` -> {"title": "title"}
+
+    A struct with NO CodingKeys block decodes by property name, so its properties ARE its keys.
+    Returning an empty map for that case would silently exempt the struct from every assertion --
+    which is how `SourceHealth` and `Query` would have passed while carrying nothing at all.
+    """
+    body = _struct_body(struct)
+    if "enum CodingKeys" in body:
+        block = body[body.index("enum CodingKeys") :]
+        block = block[: block.index("}")]
+        keys: dict[str, str] = {}
+        for line in block.splitlines():
+            match = re.match(r"\s*case\s+(.+?)\s*$", line)
+            if not match:
+                continue
+            # Swift allows several cases on ONE line: `case model, vendor, score`. The first
+            # version of this parser required end-of-line after a single name, so it silently
+            # skipped every such line -- `RankedModel` parsed as 5 of its 11 fields, and a mutant
+            # deleting `harness` from the published set walked straight through. An under-reading
+            # parser does not fail; it EXEMPTS, which is the more dangerous half.
+            for part in match.group(1).split(","):
+                named = re.match(r'\s*(\w+)(?:\s*=\s*"([^"]+)")?\s*$', part)
+                if named:
+                    keys[named.group(1)] = named.group(2) or named.group(1)
+        return keys
+    return {name: name for name in re.findall(r"^\s*let\s+(\w+):", body, re.MULTILINE)}
 
 
 def _optional_properties(struct: str) -> set[str]:
     """Swift properties declared `T?` -- the only ones allowed to arrive null."""
-    source = SWIFT_MODELS.read_text(encoding="utf-8")
-    start = source.index(f"struct {struct}:")
-    body = source[start : source.index("enum CodingKeys", start)]
-    return {m.group(1) for m in re.finditer(r"let\s+(\w+):\s*[\w\[\]]+\?", body)}
+    body = _struct_body(struct)
+    head = body[: body.index("enum CodingKeys")] if "enum CodingKeys" in body else body
+    return {m.group(1) for m in re.finditer(r"let\s+(\w+):\s*[\w\[\]]+\?", head)}
 
 
 def test_the_swift_category_struct_can_be_parsed_at_all() -> None:
@@ -66,33 +96,109 @@ def test_the_swift_category_struct_can_be_parsed_at_all() -> None:
     assert "id" in keys and "title" in keys
 
 
+def _declared_properties(struct: str) -> list[str]:
+    """Every `let name:` in the struct's own body — what the parser must account for."""
+    body = _struct_body(struct)
+    head = body[: body.index("enum CodingKeys")] if "enum CodingKeys" in body else body
+    return re.findall(r"^\s*let\s+(\w+):", head, re.MULTILINE)
+
+
+def _assert_struct_is_satisfied(struct: str, entry: dict, where: str) -> None:
+    """Every CodingKey of one Swift struct is present, and non-null where Swift demands non-null."""
+    keys = _coding_keys(struct)
+    optional = _optional_properties(struct)
+    assert keys, f"{struct} declares no CodingKeys; the app's decoding contract cannot be derived"
+
+    # THE PARSER MUST PROVE IT READ EVERYTHING. Swift requires an explicit CodingKeys enum to be
+    # exhaustive, so a property with no key means this parser missed it -- and a missed key is a
+    # silent exemption, not a visible failure. It has happened twice in this file already: a
+    # forward search that ran past its struct, and a regex that could not see comma-separated
+    # cases. This is the assertion that makes the next one loud.
+    missed = sorted(set(_declared_properties(struct)) - set(keys))
+    assert not missed, (
+        f"{struct} declares {missed} and this parser produced no key for them, so nothing about "
+        "those fields is being checked. Fix the parser, not the struct"
+    )
+
+    for prop, json_key in keys.items():
+        assert json_key in entry, (
+            f"the app decodes {json_key!r} into {struct}.{prop} and {where} does not carry it"
+        )
+        if prop not in optional:
+            assert entry[json_key] is not None, (
+                f"{struct}.{prop} is non-optional in Swift and {where} served null for "
+                f"{json_key!r}; the app would fail to decode the WHOLE response, not this field"
+            )
+
+
 def test_the_categories_endpoint_serves_every_field_the_app_decodes() -> None:
     """REQ-API: the app discovers surfaces instead of hardcoding them, so this payload is load-bearing.
 
     Fails by renaming or removing any field in `/v1/categories` that `Category` names -- for
     example shortening `primary_benchmark` to `benchmark`, which no server-side test would notice.
     """
-    keys = _coding_keys("Category")
-    optional = _optional_properties("Category")
-
     client = TestClient(adapter.app)
     response = client.get("/v1/categories")
     assert response.status_code == 200
 
     served = response.json()["categories"]
     assert served, "the endpoint advertised no categories at all"
-
     for entry in served:
-        for prop, json_key in keys.items():
-            assert json_key in entry, (
-                f"the app decodes {json_key!r} into Category.{prop} and surface "
-                f"{entry.get('id')!r} does not carry it"
-            )
-            if prop not in optional:
-                assert entry[json_key] is not None, (
-                    f"Category.{prop} is non-optional in Swift and {entry.get('id')!r} served "
-                    f"null for {json_key!r}; the app would fail to decode the whole list"
-                )
+        _assert_struct_is_satisfied("Category", entry, f"surface {entry.get('id')!r}")
+
+
+def test_the_recommendation_payload_satisfies_every_struct_the_app_decodes(
+    tmp_path: pathlib.Path, monkeypatch
+) -> None:
+    """The gap this file's own docstring did not cover, found by the M8 fresh-eyes review.
+
+    The helpers here are generic and were called for `Category` ALONE. `Answer`, `Pick`,
+    `RankedModel`, `SourceHealth` and `SourceRow` -- every struct that decodes an actual
+    recommendation -- were ungated, while `ios/README.md`, W-038 and the M8 closure report all
+    leaned on this file as the thing that means "a server-side rename can no longer break the app
+    silently". It could. Renaming `blended_per_m`, or making `harness` nullable, would fail
+    `Answer` at runtime with `EngineError.undecodable` while every Python test passed.
+
+    That is this project's most-repeated shape once more: a control whose SCOPE is narrower than
+    the sentence describing it. The machinery was already written; only the loop was missing.
+    """
+    from .test_api_v1 import _seeded_db
+
+    db = tmp_path / "seeded.db"
+    _seeded_db(db)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    monkeypatch.setenv("APP_ENV", "test")
+
+    response = TestClient(adapter.app).get(
+        "/v1/recommendations", params={"task": "coding", "budget": "unlimited"}
+    )
+    assert response.status_code == 200
+    answers = response.json()["answers"]
+    assert answers, "fixture assumption: the coding intent must return answers"
+
+    checked = {"Answer": 0, "Pick": 0, "RankedModel": 0, "SourceHealth": 0, "SourceRow": 0}
+    for answer in answers:
+        _assert_struct_is_satisfied("Answer", answer, f"surface {answer.get('surface')!r}")
+        checked["Answer"] += 1
+        for pick in answer["picks"]:
+            _assert_struct_is_satisfied("Pick", pick, f"pick {pick.get('label')!r}")
+            checked["Pick"] += 1
+        for row in answer["ranking"]:
+            _assert_struct_is_satisfied("RankedModel", row, f"ranking row {row.get('model')!r}")
+            checked["RankedModel"] += 1
+        health = answer.get("source_health")
+        if health is not None:
+            _assert_struct_is_satisfied("SourceHealth", health, "source_health")
+            checked["SourceHealth"] += 1
+            for source in health["sources"]:
+                _assert_struct_is_satisfied("SourceRow", source, f"source {source.get('source')!r}")
+                checked["SourceRow"] += 1
+
+    empty = sorted(name for name, count in checked.items() if count == 0)
+    assert not empty, (
+        f"{empty} were never reached by this fixture, so nothing about them was proven. A test "
+        "that walks a tree proves only the branches the fixture grew"
+    )
 
 
 def test_every_advertised_category_is_one_the_recommendations_route_accepts() -> None:
