@@ -1,6 +1,6 @@
 # M9 Plan — The refresh: the product keeps itself current, unattended
 
-**Status:** **DRAFT — awaiting the owner's signature.** No wave starts until it is signed.
+**Status:** **SIGNED** by the owner on 2026-08-21. Wave dispatch is authorized.
 **Date:** 2026-08-21 · **Risk tier:** **HIGH** overall (an unattended process that REPLACES what
 users are served) · **Mode:** A0.5 + D-117 · **Process baseline:** GP v5.0 · **Review depth:** D-122
 **Quarterly obligation:** M9 IS `M % 3 == 0` — `/quarterly-handover` generates
