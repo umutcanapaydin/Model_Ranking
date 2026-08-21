@@ -375,3 +375,34 @@ breath — ranking noise as quality. **The tidier number was the dishonest one.*
 explicit owner ruling under D-122, each recorded as a `control-bypass`. The third fires `C2b` — the
 CONTROL goes for review at M9, not the seat. And go-live did not happen for the second milestone
 running; W-030 and W-031 have now been UNVERIFIED for three.
+
+## M9 opening note — 2026-08-21 — two measurements that changed a plan before it was written
+
+Recorded here rather than in a retrospective because both were made while PLANNING, and both
+replaced a belief the records already held.
+
+**The hot swap was never a problem.** M9 was scoped expecting to build artifact hand-over: a running
+engine keeps the replaced file's inode, so a refresh would serve stale data until someone restarted
+it — and this project had been bitten by exactly that shape twice. The experiment took two minutes:
+`advisor.db` was atomically replaced under a live engine with a modified copy, and the very next
+request returned the new data. The adapter opens a read-only connection **per request**, so a swap
+lands immediately and an in-flight request finishes on the inode it started on. **A third of the
+milestone did not need building; it needed a test.**
+
+The two earlier "stale artifact" incidents were stale CODE wearing the same symptoms — the process
+was running an older commit, which the build stamp said and nothing else did.
+
+**arena was never down.** For an entire milestone the records said an upstream dependency was
+returning 500 and a user-facing surface shipped blind because of it. The dataset was healthy the
+whole time: `/is-valid` reports filter support, `/splits` lists the split, `/first-rows` returns the
+rows, `/rows` serves them. **Only the `filter` endpoint fails, and it fails with no `where` clause
+at all** — so it was never our query, and the remedy is a bounded read of a different endpoint.
+
+> **The lesson is about how a dependency gets written off.** One endpoint returned an error, the
+> error was reproduced twice minutes apart, and that was enough to record "the source is down" and
+> carry it as an accepted condition through a whole milestone. Reproducing a failure proves the
+> failure is real; it proves nothing about its SCOPE. Nobody asked the dataset whether it was there,
+> and asking took four commands.
+
+Both findings share a shape with the milestone that produced them: a claim that was true when
+measured, held as true long after the thing it described had changed or been misread.

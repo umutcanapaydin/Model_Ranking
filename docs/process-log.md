@@ -275,3 +275,19 @@ between two individually correct components is where neither component's reviews
 Lesson: **a test cannot fail if its fixture cannot reach what it asserts.** Three times in one wave
 — scores already round, no secondary-benchmark rows at all, `stored == skipped == 2`. It is the
 same defect as a control narrower than its rule, one level down: in the DATA rather than the code.
+
+## 2026-08-21 — M8 closed, M7 carry-over worked, M9 planned
+
+- Open warnings 22 -> 11. Five (W-002/-005/-008/-009/-010) had been FIXED at M6 with the rows never
+  closed — the ledger denying controls that were present, for three milestones.
+- Fixed here: W-019 (ASCII-Turkish guard; L1 detects an alphabet, not a language), W-025 (a 3.14 CI
+  leg — the interpreter the authoritative run uses was the one no leg covered), W-028 (workspace
+  sweep), W-029/W-032/W-015 closed on their real dispositions. GPF-006 filed.
+- W-024 diagnosed and the diagnosis overturned the row: arena is not down, its `filter` endpoint is.
+  Remedy prepared and REVERTED — it rewrites a security finding's citing test, which is escalate-now.
+  Owner ruled to leave it, and W-027, open while nothing deploys.
+- M8 ratified with two DoD rows red on purpose. M9 planned (`docs/plans/m9-plan.md`), unsigned.
+
+Lesson: **reproducing a failure proves it is real and proves nothing about its scope.** A dependency
+was written off for a milestone on one endpoint's word; asking the dataset directly took four
+commands and four minutes.

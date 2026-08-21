@@ -1,28 +1,31 @@
 Project: model_ranking
-State: **M1-M7 CLOSED and M7 RATIFIED. M8 CLOSED agent-side, awaiting the owner's signature**
-  (docs/closure-report-m8.md section 0 -- four items, two of them red rows this milestone did NOT close).
-  Repo green: 578 tests / 12 skipped. Nothing on Fly.io; nothing is billing.
-  **Nine categories answer end to end and the iOS app can reach every one of them.**
-Last session date: 2026-08-19
+State: **M1-M8 CLOSED. M8 ratified 2026-08-21. M9 PLANNED, plan awaiting signature.**
+  Repo green: 587 tests / 12 skipped. Nothing on Fly.io; nothing is billing.
+  Nine surfaces answer; `assistant` discloses it has no evidence (W-024).
+Last session date: 2026-08-21
 Last work agent: Claude (Claude Code CLI, local lane under D-117)
 
 WHAT WORKS RIGHT NOW, verified on the running Simulator
-  ./ios/app.sh up            engine + simulator + build + launch
-  ./ios/app.sh restart       after ANY change -- it cycles the ENGINE too, since 2026-08-19
-  ./ios/app.sh down          when finished
+  ./runner                   ONE command: gate + secrets + build + surfaces + engine + iOS build.
+                             Full output lands in the terminal-output folder; nothing is written
+                             into the repo and advisor.db is never touched.
+  ./ios/app.sh up|restart|down    restart cycles the ENGINE too and prints the build stamp.
   Rebuild the artifact:  .venv/bin/python -B -m app.workflows.build --db advisor.db --force \
       --epoch-dir /Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data
-      (exit 3 is EXPECTED: arena's upstream 500, W-024, reported as a blind surface not hidden)
+      (exit 3 is EXPECTED: arena's blind surface reported, not hidden)
 
-  All nine surfaces answer at unlimited/medium/low except `assistant`, which correctly
-  discloses that it has no evidence while arena is down.
+M9 IS THE REFRESH (docs/plans/m9-plan.md, W-034). Measured 2026-08-21 and worth knowing before
+you plan anything: **the hot swap ALREADY WORKS** — advisor.db was replaced under a live engine and
+the next request returned the new data with no restart, because the adapter opens a read-only
+connection per request. M9 must PIN that with a test, not build it. What is missing is the
+scheduler, change detection, and the rule that a refresh may never publish something WORSE than
+what it replaces.
 
 FIRST THREE THINGS A NEW AGENT DOES
-1. Read `docs/closure-report-m8.md` §0 — five items need the owner. The fresh-eyes review DID
-   run (W5) after C2b fired, and all three seats returned BLOCKING; W-040..W-043 are what it
-   left behind. The deploy still did not happen.
+1. Read `docs/plans/m9-plan.md` §5 — three decisions M9 must make before W2, and §0, which
+   records what is already built. Then `docs/closure-report-m8.md` §0 for what M8 left open.
 2. Read `docs/decisions.md` D-121, D-122, D-123 — the three rulings that shape how M8 runs.
-3. Verify the state yourself: `make check` (578/12). If that is not what you see, STOP.
+3. Verify the state yourself: ./runner. If it is not all-PASS, STOP.
 
 WHAT M7 SHIPPED
 - **The product can produce its own data.** `python -m app.workflows.build --db advisor.db

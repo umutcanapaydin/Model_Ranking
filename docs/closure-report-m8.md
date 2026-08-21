@@ -1,10 +1,16 @@
 ---
 record_type: ratification
 id: closure-report-m8
-status: draft
+status: ratified
 date: 2026-08-19
 ---
 # Closure Report — M8: The engine gets a reader, and the product stops being about coding
+
+> **CLOSED at the owner's ruling, 2026-08-21.** Signed after the M7 carry-over was worked
+> (eleven of fifteen rows closed) and after he ruled that W-024, W-027, W-030 and W-031 stay
+> open while nothing deploys. Two §7 rows remain red and are meant to: the deploy did not
+> happen, and the citing-test row is PARTIAL because two client criteria are gated by source
+> tripwires an independent tester walked through. Both are stated rather than absorbed.
 
 ## 0. What needs the owner
 
@@ -28,9 +34,20 @@ date: 2026-08-19
    permits), the missing `--cov-fail-under` (**the control that would have caught the 32%
    module**), `app.sh` running the relaxed startup lane, and REQ-API-010 having no expressible
    citing test.
-5. **Four decisions still open from M7:** W-027 (`contract-tests.yml` has never run), W-032 (wire
-   `make wave-check` into `make check`), the Artificial Analysis API key, and whether
-   `agentic-coding` stays as a tenth category.
+5. **The M7 carry-over was worked on 2026-08-21: eleven of the fifteen open rows closed.**
+   W-032 shipped with the coverage floors. W-002/-005/-008/-009/-010 turned out to have been
+   FIXED at M6 with nobody closing the rows — the ledger denying controls that were present, for
+   three milestones. W-015 handed back as GPF-003; W-019 mitigated locally and handed back as
+   **GPF-006**; W-025 (a 3.14 CI leg), W-028 (workspace sweep) and W-029 (closed on the control
+   that does run) resolved. **Left open by the owner's ruling of 2026-08-21, since nothing
+   deploys:** W-024, W-027, W-030, W-031.
+6. **W-024 is not what the records said it was.** Diagnosed 2026-08-21: the arena dataset is
+   healthy — `/is-valid`, `/splits`, `/first-rows` and `/rows` all answer, and `category='overall'`
+   is present. It is the `filter` ENDPOINT that fails, and it fails **with no `where` clause at
+   all**, so it was never our query. A dependency was written off for the whole milestone on one
+   endpoint's word. A bounded read of `/rows` would restore the surface in four or five requests;
+   it is NOT done, because it requires rewriting the citing test of a security finding (W-007),
+   which is an owner call and was deferred with the rest.
 
 ## 1. What shipped
 
