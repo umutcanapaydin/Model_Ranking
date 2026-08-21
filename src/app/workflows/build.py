@@ -43,6 +43,7 @@ import re
 import sqlite3
 import sys
 import tempfile
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -407,6 +408,37 @@ def build(
     return report
 
 
+#: How long a `.building` file must be untouched before this build treats it as abandoned.
+#:
+#: W-028: a SIGKILLed build leaves its workspace behind, and the unique-per-run naming that closed
+#: a much worse corruption bug means a run cannot tell another run's litter from a LIVE sibling's
+#: workspace — so it deleted neither, and the litter accumulated. Age tells them apart: a running
+#: build writes continuously, so a workspace untouched for hours belongs to a process that is gone.
+#: Six hours is far beyond any observed build (~60 s) and far below any plausible pause.
+ABANDONED_WORKSPACE_AGE_S = 6 * 60 * 60
+
+
+def _sweep_abandoned_workspaces(target: Path, *, now: float | None = None) -> list[Path]:
+    """Delete `.building` files old enough to be certainly dead. Returns what it removed.
+
+    Deliberately conservative in the one direction that matters: an in-flight sibling's workspace
+    is seconds old and is never touched, so the worst case of a wrong guess here is litter that
+    stays one more cycle — never a live build losing its file underneath it, which is the failure
+    the unique naming exists to prevent.
+    """
+    swept: list[Path] = []
+    clock = time.time() if now is None else now
+    for candidate in target.parent.glob(f"{target.name}.*.building"):
+        try:
+            if clock - candidate.stat().st_mtime < ABANDONED_WORKSPACE_AGE_S:
+                continue
+            candidate.unlink()
+        except OSError:
+            continue  # a sibling won the race, or the file is not ours to remove
+        swept.append(candidate)
+    return swept
+
+
 def main(argv: list[str] | None = None) -> int:
     """Operator entry point (REQ-ING-012). See the module docstring for the exit codes."""
     parser = argparse.ArgumentParser(prog="build", description="Build the evidence database.")
@@ -466,6 +498,7 @@ def main(argv: list[str] | None = None) -> int:
     # successful build**, because `_read_back` validates the CONNECTION and `replace()` acts on the
     # PATH. SQLite's unlink detection kills the loser of a natural race, which protects the loser
     # and not the target, and a ~60 s build makes overlap ordinary rather than exotic.
+    _sweep_abandoned_workspaces(target)
     handle, raw = tempfile.mkstemp(prefix=f"{target.name}.", suffix=".building", dir=target.parent)
     os.close(handle)
     workspace = Path(raw)

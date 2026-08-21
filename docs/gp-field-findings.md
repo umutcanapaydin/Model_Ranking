@@ -275,3 +275,41 @@ package path that appears in neither manifest class, so dropping a file into
 `general_pipeline_v5.0/docs/` would break GP's own gate unless `INSTALL-MANIFEST.md` were edited in
 the same change — and editing another repository's manifest is not this project's call to make.
 The owner carries these across.
+
+---
+
+## GPF-006 — `L1` detects an ALPHABET, not a language, and a project can pass it while shipping the language
+
+**Rule:** `check_records.py` rule `L1`, which enforces V4C-79 (an adopting project's committed files
+are English).
+
+**What GP ships:** `L1` flags the six letters that exist in Turkish and not in English. That is a
+reasonable first approximation and it is what makes the rule cheap. It is also, precisely, an
+alphabet check wearing a language check's name — and the gap is not theoretical.
+
+**Measured in the field.** After this project's English-only migration was declared complete and
+its full gate was green, **four fragments of Turkish written in pure ASCII were still shipping in
+live user-facing strings**, one of them rendering a single sentence in two languages. The migration
+had followed the gate's signal and stopped exactly where the gate stops. Three tests had also been
+left pinning the survivors, so the suite was asserting the defect.
+
+**Why the adopting project cannot simply fix this.** It can mitigate — this one now parses its own
+string literals and matches a conservative list of ASCII spellings that have no English meaning —
+but that list is language-specific, and the next project adopting v5.0 will be shipping a different
+language with a different ASCII footprint. The rule belongs where the rule is.
+
+**Two remedies, ranked.**
+
+1. **Make the rule's SCOPE honest in its own message.** One sentence in the failure text — that
+   `L1` detects the alphabet and not the language, so a clean run is not evidence of a completed
+   migration — costs nothing and stops the reading that produced the defect here. A gate whose
+   limits are stated is a gate people calibrate against.
+2. **Let a project declare its non-English source language** in `.language-allow` or beside it, and
+   ship a small per-language ASCII marker list that `L1` consults. Optional, opt-in, and it turns a
+   letter check into a language check for the one language each project actually risks.
+
+**Related, and found while writing this up:** the mitigation test above **failed `L1` on its first
+run**, because its docstring wrote out the six letters in order to explain what the rule detects.
+That is **GPF-005 reproducing itself in a new file** — no record can state what the rule catches.
+The workaround was to name the letters in prose instead. Two findings that look separate are one:
+`L1` has no way to distinguish text that IS the thing from text ABOUT the thing.
