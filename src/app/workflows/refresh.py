@@ -24,8 +24,10 @@ import datetime as dt
 import fcntl
 import hashlib
 import json
+import math
 import os
 import sqlite3
+import stat
 import statistics
 import sys
 import tempfile
@@ -38,12 +40,23 @@ from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
 from app.workflows.rank import category_ranking
 from app.workflows.recommend import BUDGETS, eligible_rows, round_optional_score, round_score
+from app.workflows.schema import open_readonly
 
 # NOTHING IS IMPORTED FROM `app.adapter`, and that is REQ-REF-007 rather than tidiness. D-116 keeps
 # ingestion off the serving host; a refresh that imports the adapter to borrow a helper has reached
-# into the serving process, and the boundary would then exist only in prose. The adapter has its own
-# `open_readonly`; this opens read-only with the stdlib URI form directly, which is two lines of
-# `sqlite3` and not a second definition of any project behaviour.
+# into the serving process, and the boundary would then exist only in prose.
+#
+# What this comment USED TO SAY was that opening read-only here with the stdlib URI form directly
+# is "two lines of `sqlite3` and not a second definition of any project behaviour". It was a second
+# definition, and it was the broken one: `f"file:{path}?mode=ro"` returns a WRITABLE connection for
+# four different path shapes, measured at M10 Stage 4.0. `adapter.main.open_readonly` had carried
+# the correct construction and a docstring describing this exact defect since M6.
+#
+# The boundary and the single definition are not in tension — `open_readonly` now lives in
+# `app.workflows.schema`, which is a workflows module. The rule that was actually needed is
+# narrower than the one the old comment enforced: do not import the ADAPTER, rather than do not
+# share code at all. "Avoiding a dependency" is not a reason to keep a private copy of a
+# security-relevant construction.
 
 #: Published, because something a user would notice changed.
 EXIT_PUBLISHED = 0
@@ -371,7 +384,7 @@ def fingerprint_of(path: Path) -> ServingSummary | None:
     if not path.is_file():
         return None  # nothing to compare against; the caller publishes
     try:
-        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        conn = open_readonly(path)
     except sqlite3.Error as exc:
         raise UnreadableArtifact(str(exc)) from exc
     try:
@@ -385,6 +398,41 @@ def fingerprint_of(path: Path) -> ServingSummary | None:
         raise UnreadableArtifact(str(exc)) from exc
     finally:
         conn.close()
+
+
+def environment_problems(target: Path, *, at: float) -> list[str]:
+    """Assumptions this cycle makes about the world, stated as CHECKS. REQ-GRD-003.
+
+    A Stage-4.0 review's phrasing: the lock, the record, the candidate and the artifact all share
+    one directory, and today that is the owner-owned repository root — so the classic attacks do
+    not apply. **Nothing enforced the assumption.** In a group- or world-writable directory a
+    stranger could pre-create the lock and stop every refresh, or pre-seed the status record and
+    defeat the staleness signal that is the only thing telling a human the refresh has stopped.
+
+    V3C-51 asks for exactly this shape: validate the environment at startup and refuse, rather than
+    assume and continue.
+    """
+    problems: list[str] = []
+
+    directory = target.parent
+    try:
+        mode = directory.stat().st_mode
+    except OSError as exc:
+        problems.append(f"the artifact's directory cannot be inspected: {exc}")
+    else:
+        if mode & (stat.S_IWGRP | stat.S_IWOTH):
+            problems.append(
+                f"{directory} is writable by group or others (mode {stat.filemode(mode)}), so the "
+                "lock and the status record can be pre-created by somebody else — one stops every "
+                "refresh, the other defeats the signal that says a refresh has stopped"
+            )
+
+    if not math.isfinite(at):
+        problems.append(f"the clock returned {at!r}, which no staleness arithmetic can use")
+    elif at <= 0:
+        problems.append(f"the clock returned {at!r}, which predates every artifact this can serve")
+
+    return problems
 
 
 def lock_path(target: Path) -> Path:
@@ -448,6 +496,15 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
     opposite of what the record is for.
     """
     path = status_path(target)
+
+    # The record must always carry a timestamp `runner` can do arithmetic on. A non-finite clock is
+    # refused by `environment_problems` — but the REFUSAL still has to be recorded, and `json.dumps`
+    # rejects NaN, so recording the fault would have crashed on the very value it was reporting.
+    # The wall clock is substituted and the reason says what was wrong; a record that cannot be
+    # written is indistinguishable from a cycle that never ran, which is the one state D-129
+    # forbids.
+    if not math.isfinite(at):
+        at = time.time()
 
     # W-046: the record was DEPTH-1, so cycle N+1 erased cycle N and the file could not represent
     # "two refusals in a row" — the exact state the plan's §5.2 says the product must not sit in
@@ -541,6 +598,20 @@ def refresh(
         return outcome, code
 
     try:
+        problems = environment_problems(target, at=clock())
+        if problems:
+            return record(
+                RefreshOutcome(
+                    published=False,
+                    reason="the environment this cycle runs in is not one it can trust — "
+                    + "; ".join(problems),
+                    live_fingerprint=None,
+                    candidate_fingerprint="",
+                    surfaces=0,
+                ),
+                EXIT_FAILED,
+            )
+
         with _hold_lock(target) as held:
             if not held:
                 # M1: this used to write a FULL record — from a cycle that does not hold the lock.

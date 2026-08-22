@@ -43,6 +43,17 @@ PREFERRED_CATEGORY = OVERALL_CATEGORY  # the overall board; 20+ other slices exi
 _PAGE = 100
 _MAX_PAGES = 50  # safety valve: latest split is a few hundred rows
 _TIMEOUT_S = 30.0
+#: REQ-GRD-002 / W-050. Each PAGE is capped at `MAX_RESPONSE_BYTES`, and until now nothing capped
+#: the total: fifty full pages accumulate into one list and are then copied by `json.dumps`, which
+#: a hostile upstream can turn into gigabytes of live objects on the owner's laptop, unattended,
+#: every twelve hours. A page count is not a size bound.
+#:
+#: 5,000 rows against a board that carries ~394 is a twelve-fold margin, and the split it reads is
+#: 10,359 rows — so this also stops a reordered split from paging the whole thing in.
+#: 2,000 and NOT 5,000: `_MAX_PAGES * _PAGE` is exactly 5,000, so a limit set there fires at the
+#: same instant as the page cap and never actually runs — measured, the page cap's message won and
+#: this one was unreachable. A bound that coincides with another bound is not a bound.
+_MAX_MERGED_ROWS = 2_000
 _RETRIES_429 = 3
 
 
@@ -173,6 +184,13 @@ class ArenaClient:
                 raise SourceError(msg)
             rows, board_ended = self._overall_prefix(rows)
             merged.extend(rows)
+            if len(merged) > _MAX_MERGED_ROWS:
+                msg = (
+                    f"arena fetch aborted: more than {_MAX_MERGED_ROWS} rows in the overall board "
+                    f"of {self.config}/{self.split} — a board this size is a shape change, and "
+                    "accumulating it unattended is how one upstream fills this machine"
+                )
+                raise SourceError(msg)
             if board_ended:
                 break
             total = (

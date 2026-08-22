@@ -1595,3 +1595,49 @@ def test_a_median_price_collapse_is_refused(tmp_path: Path) -> None:
 
     ordinary = upward_anomalies(summary(4.00), summary(4.40))
     assert ordinary == [], "a 10% median move was refused; ordinary movement measured at 0%"
+
+
+# --- REQ-GRD-003: the environment, checked rather than assumed ----------------------------------
+
+
+def test_a_world_writable_artifact_directory_stops_the_cycle(tmp_path: Path) -> None:
+    """A Stage-4.0 finding: everything shares one directory and nothing checked whose it is.
+
+    In a group- or world-writable directory a stranger can pre-create the lock and stop every
+    refresh, or pre-seed the status record and defeat the staleness signal that is the only thing
+    telling a human the refresh has stopped. The assumption was correct today and unenforced, which
+    is the shape V3C-51 exists for.
+    """
+    import stat as stat_module
+
+    directory = tmp_path / "open"
+    directory.mkdir()
+    directory.chmod(0o777)
+    live = directory / "advisor.db"
+
+    outcome, code = refresh(live, builder=_builder(), clock=lambda: 1.0)
+
+    assert code == EXIT_FAILED, f"a world-writable directory was trusted: {outcome.reason}"
+    assert "writable by group or others" in outcome.reason
+    assert not live.exists(), "an artifact was published into a directory the cycle does not trust"
+
+    directory.chmod(stat_module.S_IRWXU)
+    _outcome, code = refresh(live, builder=_builder(), clock=lambda: 2.0)
+    assert code == EXIT_PUBLISHED, "a private directory was refused"
+
+
+@pytest.mark.parametrize("bad_clock", [float("nan"), float("inf"), 0.0, -1.0])
+def test_a_clock_that_cannot_be_reasoned_about_stops_the_cycle(
+    tmp_path: Path, bad_clock: float
+) -> None:
+    """`runner` computes staleness from this number and prints a date derived from it.
+
+    `json.loads` accepts `NaN`, and `nan > 24` is False — so a non-finite timestamp would make the
+    staleness check pass forever, which is precisely the signal that says a refresh has stopped.
+    The check belongs where the number enters, not where it is read.
+    """
+    live = tmp_path / "advisor.db"
+    outcome, code = refresh(live, builder=_builder(), clock=lambda: bad_clock)
+
+    assert code == EXIT_FAILED, f"a clock of {bad_clock} was accepted: {outcome.reason}"
+    assert "clock" in outcome.reason

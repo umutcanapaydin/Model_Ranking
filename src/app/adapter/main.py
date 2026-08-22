@@ -52,6 +52,7 @@ from app.workflows.recommend import (
     round_optional_score,
     round_score,
 )
+from app.workflows.schema import open_readonly as schema_open_readonly
 from app.workflows.serialize import recommendation_json
 
 APP_VERSION = "0.1.0"
@@ -268,13 +269,14 @@ def open_readonly(path: Path) -> sqlite3.Connection:
 
     INV-23: the URI is derived through `Path.resolve().as_uri()`, never concatenated -- a `?` in
     the path silently dropped the mode and created a database when this was string-built elsewhere.
+    The construction itself now lives in `app.workflows.schema.open_readonly`, because "elsewhere"
+    turned out to include a module written three milestones after this warning (M10 Stage 4.0).
 
     Read-only is not a precaution here, it is the contract. `schema.connect()` migrates on open
     (W-009), so a serving path that used it would let an anonymous GET rewrite the operator's
     schema. The API reads; the operator migrates, explicitly, with `schema migrate`.
     """
-    uri = f"{path.resolve().as_uri()}?mode=ro"
-    return sqlite3.connect(uri, uri=True)
+    return schema_open_readonly(path)
 
 
 def _database_unusable(db: Path) -> str | None:

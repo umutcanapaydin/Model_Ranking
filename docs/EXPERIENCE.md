@@ -465,3 +465,46 @@ three BLOCKING. An ADR claimed to answer a plan question it does not address, an
 repeated the claim. Another ADR's worked arithmetic was off by one in both examples, in the
 direction that made its rule look tighter than it is. And I committed on a red gate for the third
 time in this project, having recorded the same mistake twice before.
+
+## M10 closure — 2026-08-22 — the milestone whose carried question was answered against it
+
+M9 asked what this system does when it is wrong and nobody is looking, and wondered aloud whether a
+status file and an escalation counter were the answer. M10 produced two receipts saying they were
+not.
+
+**A counter fired and nothing consumed it.** `C2b` exists so that the third bypass of a control
+sends the CONTROL for review rather than the seat. It fired at M8 over K.7, named M9, and M9 closed
+without doing it; M10 bypassed K.7 a fourth time. The telemetry was flawless. **Being written down
+is not the same as being read** (W-055, escalated to the owner).
+
+**A defect survived a milestone with every gate green.** `f"file:{path}?mode=ro"` returns a WRITABLE
+connection — measured against four path shapes, all four wrote into the artifact. It shipped in M9's
+refresh on the path that opens the LIVE database, passed M9's Stage 4.0 (which found three real
+blocking findings, so not a lazy pass), and passed every gate through M10-W3. It was found by typing
+the expression into a Python process and watching it write.
+
+Three shapes worth keeping:
+
+1. **A fix that lives in one module is not a fix.** The correct construction and a docstring
+   describing this exact defect had been in `adapter/main.py` since M6. `workflows/refresh.py`
+   rebuilt the broken form under a comment arguing the copy was "not a second definition of any
+   project behaviour". The comment's premise (do not import the adapter — D-116) was right; its
+   conclusion did not follow, because the third option — move the definition where both may reach
+   it — was never considered. **A boundary rule and a single-definition rule collide eventually,
+   and the collision is resolved by moving the definition.**
+2. **A control that runs and cannot trigger.** The first aggregate row bound was 5,000, which is
+   exactly `_MAX_PAGES * _PAGE`. Coverage sees it covered; review sees a sensible constant; only an
+   attempt to REACH it sees anything.
+3. **A name is not a control until something is required to call it.** REQ-EVI-002's accessor
+   existed from M9 and the calibration script still sized thresholds off the raw board — the exact
+   defect W-037 records three times, alive inside the tool written to recompute W-037's record.
+
+**What was accepted rather than solved:** nothing deployed, third milestone running (D-123, W-030,
+W-031); the iOS app has never been opened by a human, so every router claim is from a probe; the
+12-hour refresh has never run unattended (W-054).
+
+**Carried to M11:** the defects that mattered here were found by EXECUTION, not by gates, records or
+review. What is the smallest amount of running this project could add to its close — a suspect
+expression in isolation, or the product in front of a person — and what does it cost? Not a tenth
+gate in `make check`.
+

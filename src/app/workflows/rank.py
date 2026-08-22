@@ -226,6 +226,25 @@ def require_price_medians(conn: sqlite3.Connection) -> None:
         raise UnbuiltEvidenceError(msg)
 
 
+def ranked_population(conn: sqlite3.Connection, spec: CategorySpec) -> list[RankingRow]:
+    """**The models this engine can actually recommend on one surface.** REQ-EVI-002, W-037.
+
+    Reconciled to the registry AND carrying a price median. Nothing else can be offered to a
+    reader, because a model nobody can buy is not an answer — so this, and not the board, is the
+    population every threshold in `categories.py` describes.
+
+    **It has a name because not having one cost three wrong calibrations.** Thresholds were derived
+    from raw CSV rows (204 rows for 59 models on one board), then from parsed board rows, then from
+    the full board — 521 models on ECI where the engine ranks 58. Each was caught by measuring and
+    none by reading, and the reason it kept happening is that there was no term to look up and no
+    function to call, so the question got answered from whatever data was nearest.
+
+    Calibration work calls THIS. `docs/reviews/m8-category-calibration.md` is the record of what
+    happens when it does not.
+    """
+    return category_ranking(conn, spec)
+
+
 def category_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[RankingRow]:
     """Best primary-benchmark score per model + median prices (REQ-CAT-002).
 

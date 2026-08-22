@@ -388,6 +388,23 @@ def _validate_migration_input(conn: sqlite3.Connection, tables: set[str]) -> Non
             raise sqlite3.DatabaseError(f"scores contains unsupported effort: {invalid[0]!r}")
 
 
+def open_readonly(path: str | Path) -> sqlite3.Connection:
+    """Open an artifact READ-ONLY, with the URI DERIVED and never concatenated. INV-23.
+
+    `f"file:{path}?mode=ro"` does not open a database read-only. It opens whatever URI the path
+    happens to spell: a path ending in `?`, `#`, or carrying its own `mode=` takes over the query
+    string, and the connection comes back WRITABLE against the real file. All four shapes were
+    measured at M10 Stage 4.0, and all four wrote into the artifact they were supposed to be
+    reading.
+
+    This function exists because that fix was already made once — `adapter.main.open_readonly`,
+    INV-23, whose own docstring describes this exact defect — and then `workflows.refresh`
+    string-built the URI anyway. A fix that lives in one module is not a fix; it is a module that
+    happens to be correct. Everything that opens an artifact read-only calls THIS.
+    """
+    return sqlite3.connect(f"{Path(path).resolve().as_uri()}?mode=ro", uri=True)
+
+
 def connect(path: str = ":memory:") -> sqlite3.Connection:
     """Open a connection with the schema applied + migrated (idempotent)."""
     conn = sqlite3.connect(path)

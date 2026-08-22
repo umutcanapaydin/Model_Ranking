@@ -139,8 +139,15 @@ def test_page_cap_exhaustion_fails_loudly_without_falling_back(monkeypatch) -> N
     error, a board that ends too early.
     """
     monkeypatch.setattr("app.clients.arena.time.sleep", lambda _s: None)
+    # The ROW bound is raised for this test, and that is the finding rather than a convenience.
+    # Adding it made the page cap unreachable in normal operation: full pages trip 2,000 rows at
+    # page 21, and a short page ends the walk. The page cap is now the backstop for the day
+    # somebody raises the row bound, so the only honest way to exercise it is to raise the row
+    # bound — and a guard that can only be reached that way should be reached that way in a test
+    # rather than left looking live.
+    monkeypatch.setattr("app.clients.arena._MAX_MERGED_ROWS", 10_000)
     rows_route = respx.get(ROWS_API)
-    rows_route.side_effect = [_page(i * 100, 100, 10_000) for i in range(50)]
+    rows_route.side_effect = [_page(i * 100, 100, 100_000) for i in range(50)]
     filter_route = respx.get(FILTER_API)
     with pytest.raises(SourceError, match="aborted"):
         ArenaClient().fetch_raw()
@@ -185,3 +192,26 @@ def test_ingest_persists_the_exact_filtered_surface_as_provenance() -> None:
     for key in ("dataset", "config", "split"):
         assert provenance.params[key] == sent.params[key]
         conn.close()
+
+
+@respx.mock
+def test_the_total_merged_rows_are_bounded_not_only_the_page_count() -> None:
+    """REQ-GRD-002 / W-050: a page cap is not a size bound.
+
+    Each page is capped at `MAX_RESPONSE_BYTES`, and nothing capped the total — fifty full pages
+    accumulate into one list which `json.dumps` then copies, which a hostile upstream turns into
+    gigabytes of live objects on the owner's laptop, unattended, every twelve hours. M9 amplified
+    this rather than creating it: the server-side filter used to keep the real read at ~400 rows,
+    and paging a 10,359-row split is now ordinary.
+    """
+    route = respx.get(ROWS_API)
+    # Every page full of `overall` rows, so the category boundary never stops the walk.
+    route.side_effect = [_page(i * 100, 100, 10_000) for i in range(50)]
+
+    with pytest.raises(SourceError, match="more than"):
+        ArenaClient().fetch_raw()
+
+    assert route.call_count < 50, (
+        "the client paged to the page cap before the size bound fired; the row limit must stop it "
+        "first, or the bound is only a slower version of the same accumulation"
+    )

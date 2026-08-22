@@ -311,3 +311,25 @@ Lesson: **the failure that looks like success is the one to design against.** An
 that freezes is worse than one that publishes something bad — every gate green, every cycle exiting
 0, the artifact quietly ageing. The plan NAMED that trap and it arrived anyway, through the
 fingerprint rather than through the guard.
+
+## 2026-08-22 — M10 W3+W4: the guards, and a fix that had already been made once
+
+- W3 closed three carried warnings (W-037, W-050, W-051). The row bound was written twice: the
+  first value, 5,000, is exactly `_MAX_PAGES * _PAGE` and therefore unreachable. Found by trying
+  to write a test that fires it, not by reading it.
+- REQ-EVI-002's accessor already existed; `scripts/arena_calibration.py` was still sizing
+  thresholds off the raw board — W-037's own defect, alive in the script written to recompute
+  W-037's record. Fixed, plus an `ast` gate so the next script cannot do it.
+- Stage 4.0 returned BLOCKING: `f"file:{path}?mode=ro"` opens WRITABLE for four measured path
+  shapes, on the path the refresh uses to read the live artifact. The correct construction had
+  been in `adapter/main.py` with an explanatory docstring since M6. One definition now, in
+  `app.workflows.schema`, with a gate.
+- K.7 bypassed a fourth time; `C2b` fired at M8, named M9, and M9 closed without consuming it.
+  ESCALATED as W-055 — a gate-definition change, so the owner's.
+- 666 passed / 12 skipped, `make check` exit 0, 12 mutants across W3+W4, 12 killed.
+
+Lesson: **a fix that lives in one module is not a fix.** A boundary rule and a single-definition
+rule will collide, and the collision is resolved by moving the definition — never by duplicating
+it. "Avoiding a dependency" is the justification that quietly authorises a private copy of
+security-relevant code, and it is most persuasive exactly where the boundary is real.
+

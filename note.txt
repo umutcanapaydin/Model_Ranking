@@ -1,7 +1,7 @@
 Project: model_ranking
-State: **M1-M9 CLOSED. M9 awaits the owner's signature** (docs/closure-report-m9.md section 0).
-  Repo green: 638 tests / 12 skipped. Nothing on Fly.io; nothing is billing.
-  **All NINE surfaces answer** — arena came back at M9 and it had never actually been down.
+State: **M1-M9 CLOSED. M10 CODE COMPLETE, awaits the owner's signature** (docs/closure-report-m10.md
+  section 0). Repo green: 666 tests / 12 skipped, `make check` exit 0. Nothing on Fly.io; nothing
+  is billing. All NINE surfaces answer.
 Last session date: 2026-08-22
 Last work agent: Claude (Claude Code CLI, local lane under D-117)
 
@@ -10,82 +10,79 @@ ONE COMMAND
                Writes nothing into the repo and NEVER touches advisor.db. If it is not
                all-PASS, stop and read latest.log before doing anything else.
 
-THE REFRESH IS BUILT AND NOT SCHEDULED. `python -m app.workflows.refresh --db advisor.db
---epoch-dir <bundle>` runs one cycle: build a candidate, compare what it would SERVE, publish or
-refuse. Exit 0 published / 1 unchanged / 2 failed / 3 refused / 4 busy. It never leaves the
-artifact worse than it found it, including under SIGKILL. Turning on the 12-hour schedule is ONE
-owner command, in `deploy/com.hcs.modelranking.refresh.plist`.
+WHAT M10 SHIPPED
+- **The reader types a question instead of picking a category.** `ios/ModelRanking/Engine/Router.swift`
+  routes it to one of the nine surfaces in three tiers: `FoundationModels` constrained generation
+  (iOS 26+), centred `NLContextualEmbedding` cosine similarity (iOS 13+), and the list the reader
+  already had. Nothing on the screen depends on a tier existing. Probe score: 7 of 8
+  (`docs/reviews/m10-router-calibration.md`).
+- **The router is IN FRONT of the catalogue, not inside it.** D-104 stays literally true: the typed
+  text never crosses the network boundary, and the only thing the router contributes to a request
+  is one of nine ids the client re-validates after the model produced it (REQ-RTR-004).
+- **The refresh can now refuse evidence that moved UP implausibly** (D-132), not only down.
+  Thresholds were chosen after measuring ordinary movement, not before.
+- **`app.workflows.schema.open_readonly` is the ONE way to open an artifact read-only.** See below.
 
-READ THIS BEFORE PLANNING ANYTHING: `docs/handovers/handover_q3.txt` section 4. There is one
-machine, and several load-bearing separations (D-116 chief among them) are claims about a topology
-that does not exist. REQ-REF-007 is marked PARTIAL for exactly this reason.
+THE ONE THING A NEW AGENT MUST NOT UNDO
+`f"file:{path}?mode=ro"` DOES NOT open a database read-only. Four path shapes defeat it and all
+four write into the real file (`?mode=rwc&z=`, `#`, `?`, `?vfs=unix&mode=rwc&j=`). Call
+`app.workflows.schema.open_readonly`. `tests/unit/test_readonly_uri.py` fails any `file:`-prefixed
+f-string in `src/` or `scripts/`. This fix was already made once, in `adapter/main.py` at M6, and a
+module written three milestones later rebuilt the bug anyway — under a comment defending it.
+**A fix that lives in one module is not a fix** (W-052).
+
+THE REFRESH IS BUILT AND NOT SCHEDULED. `python -m app.workflows.refresh --db advisor.db
+--epoch-dir <bundle>` runs one cycle. Exit 0 published / 1 unchanged / 2 failed / 3 refused /
+4 busy. Turning on the 12-hour schedule is ONE owner command, in
+`deploy/com.hcs.modelranking.refresh.plist`. **It has never run unattended** (W-054), so every
+security verdict in `docs/reviews/m10-security-review.md` describes code rather than operation.
 
 FIRST THREE THINGS A NEW AGENT DOES
-1. Read `docs/closure-report-m9.md` §0 — four items need the owner, and §0.2 is the one
-   that matters: a separation you cannot violate because you only have one machine is not a
-   separation you have verified.
-2. Read `docs/decisions.md` D-121, D-122, D-123 — the three rulings that shape how M8 runs.
+1. Read `docs/closure-report-m10.md` §0 — four items need the owner, and §0.3 is the one that
+   matters: K.7 has been bypassed four times and the telemetry that exists to catch that fired at
+   M8 and was never consumed (W-055, ESCALATED).
+2. Read `docs/retrospectives/m10-retrospective.md` — M9's carried question was answered AGAINST
+   this project, with two receipts.
 3. Verify the state yourself: ./runner. If it is not all-PASS, STOP.
 
-WHAT M7 SHIPPED
-- **The product can produce its own data.** `python -m app.workflows.build --db advisor.db
-  --epoch-dir <bundle>` builds the evidence database end to end. Before M7 that pipeline existed
-  ONLY as a heredoc in a CI cron that had never fired, which is why the shipped artifact answered
-  zero picks for every query (W-023). It now answers 3 picks on `coding` and 3 on `agentic-coding`.
-- **The engine no longer writes while it serves.** `build_price_medians` left `recommend()`;
-  parity proven value-for-value (72 medians, 9 recommendation shapes byte-identical) on a
-  READ-ONLY connection, which was impossible before.
-- **W-017 CLOSED by deletion.** `serving_snapshot` is gone, and with it RSS_FACTOR,
-  MEMORY_BUDGET_MB, PROCESS_BASELINE_MB, max_database_bytes() and the boot-time size ceiling.
-  Stage 4.0 re-derived it independently: a file inflated to 121 MB with the same 73 models cost
-  ZERO additional memory.
-- An unbuilt artifact is refused at four boundaries — the engine, the startup probe, the CLI
-  (exit 2, not 1) and `/v1` (503). Exit 1 means "no model fits this budget", which is a RESULT.
-- `scripts/journey.py` wired for this product and RUN: 4/4 against the real container, falsified
-  two ways. The container fails closed on unbuilt and pre-M5 artifacts, naming the right command.
-
-SETTLED THIS MILESTONE — do not re-litigate
-- **D-121** a source may be optional, but a blind surface may never be silent (arena is the only
-  optional one) · **D-122** review depth follows BLAST RADIUS, not wave number: full depth on the
-  scoring path and `/v1`, single pass on plumbing, round cap of two · **D-123** go-live ships with
-  the iOS app; D-116 (Fly.io) is NOT superseded, only its timing.
+SETTLED — do not re-litigate
+- **D-104** no LLM in the scoring path · **D-115/D-125** `/v1` frozen, its one revision window
+  SPENT · **D-116** no ingestion on the serving host · **D-121** a blind surface may never be
+  silent · **D-122** review depth by blast radius · **D-126** all AI tools + the router boundary ·
+  **D-127** nine categories · **D-128** the refusal rule · **D-129** the record is a file and
+  `runner` makes it visible · **D-130** launchd not cron · **D-132** the upward-anomaly axis.
+- **INV-23** the read-only URI is DERIVED, never concatenated.
 
 WHAT'S OPEN
-- **W-030 / W-031** — REQ-API-009's network half and the entire Fly platform surface are
-  UNVERIFIED because nothing is deployed. A local container is a good proxy and is not the
-  platform. Do not report these as covered.
-- **W-024** — arena's upstream HTTP 500, standing for days. Handled by D-121 (the artifact ships,
-  `assistant` discloses it has no evidence), not resolved.
-- **W-026 / W-027** — owner calls, both gate-definition changes: `make lint` does not cover
-  `scripts/` (18 findings); `contract-tests.yml` has still never run (`gh workflow run`).
-- **W-019, W-025, W-028, W-029** — carried with reasons.
-- GPF-001..005 handed back to General_Pipeline; `make conformance` is 5 of 7 on two of them.
+- **W-055 ESCALATED** — K.7 bypassed four times; `C2b` fired at M8 and nothing consumed it. Either
+  a second reviewing seat exists or the rule is amended. Gate-definition change, so the OWNER'S.
+- **W-030 / W-031 / D-123** — nothing is deployed, third milestone running. A local container is a
+  good proxy and is not the platform. Do not report these as covered.
+- **W-054** — nothing has ever run unattended. **W-053** — two MINORs, M11.
+- **W-035, W-036, W-038, W-039, W-044** — carried with reasons.
+- **GPF-001..006** — General_Pipeline's, handed back.
 
-THE LESSON M7 PAID FOR
-**A control that runs on every request can still be the defect, and no reachability tool will say
-so. The question is not "does this execute" but "should this exist".** `serving_snapshot` ran on
-every request for a whole milestone — cited, tested, measured three times, given a five-constant
-budget. Deleting the WRITE that forced it removed the control, the budget, the tests and the entire
-class of finding at once.
+THE LESSON M10 PAID FOR
+**What this system does when it is wrong and nobody is looking is keep going, greenly, with the
+evidence of the fault already written down somewhere nobody re-reads.** The gates catch the class
+of defect they were written for. The residue is caught by EXECUTION and by nothing else: the
+read-only defect was found by running the expression, the dead bound by trying to reach it, the
+router's two failed implementations by a probe that produced a number.
 
-Corollary, paid twice: **deleting a test needs the same care as writing one.** W3 removed three
-tests with the budget they guarded; one also guarded a live control, and two mutants walked through.
+Corollary: **a name is not a control until something is required to call it.** REQ-EVI-002's
+accessor existed for a whole milestone while the calibration script kept sizing thresholds off the
+raw board — the exact defect it was written to prevent.
 
-M8 OPENS WITH
-The iOS client — the first consumer `/v1` has ever had that is not a test. Xcode and the Simulator
-are free; the app reaches the engine on `localhost` via `make run`. Money is only needed at the very
-end: Apple Developer to put the app on someone else's device, Fly.io when something off the owner's
-machine must call the engine.
-
-**Carried question (answer due M8):** `/v1` was frozen by D-115 with no consumer in existence. Does
-"frozen" mean frozen before or after the first real reader? Decide it in the abstract, now, rather
-than when a specific field turns out to be inconvenient.
+M11 OPENS WITH
+The carried question: what is the smallest amount of RUNNING this project could add to its close —
+a suspect expression in isolation, or the product in front of a person — and what does it cost?
+Not a tenth gate in `make check`. Answer it before planning.
 
 ANCHOR
-- Active ADRs: universal set + D-100..D-123.
-- Governed records: 38.
-- Most recent retrospective: docs/retrospectives/m9-retrospective.md
-- Most recent quarterly handover: docs/handovers/handover_q3.txt (M9).
+- Active ADRs: universal set + D-100..D-132.
+- Governed records: 50.
+- Most recent retrospective: docs/retrospectives/m10-retrospective.md
+- Most recent quarterly handover: docs/handovers/handover_q3.txt (M9). M10 % 3 != 0 — none due.
 
 HANDOFF NOTES
 You are running ON the owner's Mac. Push under D-117, green gates only, never as the owner. The
