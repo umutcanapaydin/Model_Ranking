@@ -114,7 +114,12 @@ coverage-floor: install
 	@# Runs AFTER `test`, which writes coverage.json as part of its normal run.
 	$(PY) -B scripts/coverage_floor.py
 
-check: lint typecheck test coverage-floor check-records check-records-selftest install-check wave-check-all
+conformance-gate: install
+	@# CI had been RED since at least M8 on this suite and `make check` did not run it, so nobody
+	@# looked. Per-FINDING exemptions, never per-leg: one of the five failures turned out to be ours.
+	$(PY) -B scripts/conformance_gate.py
+
+check: lint typecheck test coverage-floor check-records check-records-selftest install-check wave-check-all conformance-gate
 
 wave-check-all: install
 	@# W-032 / this project's own field finding: a gate that is not in the command people type

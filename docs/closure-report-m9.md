@@ -1,10 +1,14 @@
 ---
 record_type: ratification
 id: closure-report-m9
-status: draft
+status: ratified
 date: 2026-08-22
 ---
 # Closure Report — M9: The product keeps itself current, and finds out what one machine costs
+
+> **RATIFIED by the owner on 2026-08-22.** He ran `./runner` himself (seven sections, `failed: none`), made the closure commit and pushed to origin — `origin/main` and the local
+> tree are the same commit, which is the first time in this project's history that has been
+> true at a milestone close.
 
 ## 0. What needs the owner
 

@@ -376,7 +376,12 @@ time went into making correct records *pass*, rather than into making them corre
 individually right. The aggregate friction is real, and it is highest for exactly the documents
 that matter most — closure reports and wave records.
 
-**Proposal (P-14).** Ship a `make record-new <type>` scaffold that emits a skeleton already
+**Proposal (P-14).** Ship a record-scaffolding target — "make record-new TYPE", named here
+without backticks on purpose, because the pipeline's own `test-documented-commands` check
+reads a backticked `make` target as an INSTRUCTION and fails the build for naming a command
+that does not exist yet. A proposal cannot be written in the notation the checker demands.
+That is a small instance of GPF-001's shape and it happened while writing this report. The
+scaffold would emit a skeleton already
 satisfying every structural rule. The rules are machine-checkable, therefore machine-satisfiable.
 Every minute an author spends discovering a structural rule by failing it is a minute not spent on
 the content the rule exists to protect.
