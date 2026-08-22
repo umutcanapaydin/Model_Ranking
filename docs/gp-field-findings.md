@@ -313,3 +313,38 @@ run**, because its docstring wrote out the six letters in order to explain what 
 That is **GPF-005 reproducing itself in a new file** — no record can state what the rule catches.
 The workaround was to name the letters in prose instead. Two findings that look separate are one:
 `L1` has no way to distinguish text that IS the thing from text ABOUT the thing.
+
+## GPF-007 — `bootstrap-check.sh` reads code and comments as prose
+
+**Where:** `scripts/bootstrap-check.sh`, checks C1 and C3 (GP-owned; every project on v5.0 has this).
+
+**What happens.** v4.3.2 correctly widened the placeholder scan to catch lowercase template stubs —
+a PRD full of `<one-paragraph summary>` had been reported filled. The widened pattern scans the
+whole file, so it also fails on angle-bracket NOTATION. Measured on one field project:
+**7 blocking failures, all 7 legitimate.**
+
+| What it flagged | What it actually was |
+|---|---|
+| `<artifact>` in `docs/prd.md` | a record's filename pattern, inside backticks |
+| `<pkg>` in `docs/decisions.md` | `src/<pkg>/clients/` in a **universal ADR**, generic on purpose |
+| `<path>` in `main.py` | inside a command an error message tells an operator to run |
+| `<pkg>` in `README.md` | a directory tree inside a fenced code block |
+| `<pkg>` in `pyproject.toml` | a commented-out example line |
+
+**Why it matters more than a false positive.** `bootstrap-check` is the Stage-0 gate, and a gate
+that blocks on correct work is a gate people stop running. This one had been failing in this
+project since the v5.0 install and was carried as an open warning for five milestones rather than
+being fixed, because the obvious remedy — editing the documents — is the wrong one: a universal ADR
+is generic deliberately, and an error message naming `<path>` is telling the reader to substitute
+one. **The pressure the false positive creates is pressure to make the records worse.**
+
+**Remedy applied in the field, offered upstream.** Keep the widening, narrow the scope. A
+`prose_only` helper strips fenced blocks, whole-line comments and inline code spans before either
+scan runs, because the question both checks ask is whether a template stub was left in the PROSE.
+Applied to C1 **and** C3 in the same change — two scans asking one question in two places is how a
+repair lands on only one of them.
+
+**Proven both directions before shipping**, which is the part a remedy like this needs: a bare
+`<one-paragraph summary>` appended to a PRD still BLOCKS; the identical text inside backticks
+passes. A scope narrowing that is not shown to still catch the original defect is a loosening.
+

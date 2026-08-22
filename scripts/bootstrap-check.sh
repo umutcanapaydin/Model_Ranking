@@ -37,6 +37,29 @@ say "== Stage-0 bootstrap-check (Pipeline v3 / FB-1 + V3C-11) =="
 # Scan only files a real project MUST fill. Template files (*.template.*) and the
 # design/seed docs (which legitimately mention <PLACEHOLDER> as instructions) are
 # excluded by construction (not in this list).
+# M11-W3 REPAIR (W-015). The v4.3.2 widening above was RIGHT -- a PRD full of lowercase
+# `<one-paragraph summary>` stubs was being reported filled -- and it scanned the whole file, so
+# it began failing on angle-bracket NOTATION as well as on unfilled template stubs. Measured on
+# this project: 7 failures, and all 7 were legitimate. `<artifact>.refresh.json` naming a record's
+# filename pattern; `src/<pkg>/clients/` in a universal ADR that must stay generic; `--db <path>`
+# inside a command an error message tells an operator to run; a directory tree in a fenced block.
+#
+# Rewriting those to suit the checker was the wrong fix and was rejected: a universal ADR is
+# generic ON PURPOSE, and an error message that names `<path>` is telling the reader to substitute
+# one. The question the check actually asks is "did anyone leave a template stub in the PROSE",
+# and code spans, fenced blocks and comments are not prose.
+#
+# What still FAILS, deliberately: a bare `<one-paragraph summary>` in a paragraph, a heading, or a
+# table cell. Proven both directions before shipping.
+prose_only() {
+  awk '
+    /^[[:space:]]*```/ { fence = !fence; next }   # fenced code block
+    fence               { next }
+    /^[[:space:]]*#/    { next }                  # whole-line comment (shell, toml, python)
+    { gsub(/`[^`]*`/, ""); print }                # inline code spans
+  ' "$1"
+}
+
 say "[C1] placeholders in must-fill files"
 MUST_FILL=("README.md" "pyproject.toml" "src/app/adapter/main.py" \
            "docs/prd.md" "docs/architecture.md" "docs/decisions.md")
@@ -48,8 +71,8 @@ for f in "${MUST_FILL[@]}"; do
 # doc full of `<one-paragraph summary>`, `<token format ...>` and dozens of other lowercase
 # stubs were both reported `[ok] filled`. The gate that decides whether the core documents are
 # real yet was reading for a convention the templates do not use.
-  if grep -nE '<[A-Za-z][A-Za-z0-9 _/|.-]{2,}>' "$f" >/dev/null 2>&1; then
-    fail "placeholder(s) left in $f: $(grep -oE '<[A-Za-z][A-Za-z0-9 _/|.-]{2,}>' "$f" | sort -u | tr '\n' ' ')"
+  if [ -n "$(prose_only "$f" | grep -oE '<[A-Za-z][A-Za-z0-9 _/|.-]{2,}>' | sort -u)" ]; then
+    fail "placeholder(s) left in $f: $(prose_only "$f" | grep -oE '<[A-Za-z][A-Za-z0-9 _/|.-]{2,}>' | sort -u | tr '\n' ' ')"
     ph_hits=$((ph_hits+1))
   fi
 done
@@ -79,7 +102,11 @@ fi
 say "[C3] core docs are filled (not still templates)"
 for f in docs/prd.md docs/architecture.md docs/decisions.md; do
   [ -f "$f" ] || { fail "missing $f"; continue; }
-  if grep -qE '<[A-Za-z][A-Za-z0-9 _/|.-]{2,}>|TEMPLATE|fill this|TODO: replace|\bTBD\b' "$f"; then
+  # Same repair as C1, and it has to be the same repair: two scans asking one question in two
+  # places is how a fix lands on one of them. `prose_only` strips fenced blocks, whole-line
+  # comments and inline code spans, so a `TODO: replace` INSIDE a quoted template example still
+  # reads as an example rather than as an unfilled document.
+  if prose_only "$f" | grep -qE '<[A-Za-z][A-Za-z0-9 _/|.-]{2,}>|TEMPLATE|fill this|TODO: replace|\bTBD\b'; then
     fail "$f still looks like a template (placeholder / TEMPLATE / 'fill this')"
   else
     ok "$f filled"
