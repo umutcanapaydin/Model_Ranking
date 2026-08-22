@@ -161,3 +161,55 @@ final class RankingPreviewTests: XCTestCase {
         XCTAssertEqual(preview, ["a", "b", "c", "d", "e"])
     }
 }
+
+// MARK: - Second owner session, 2026-08-23
+
+private struct Row: Equatable {
+    let model: String
+    let vendor: String
+}
+
+final class RankingFilterTests: XCTestCase {
+
+    private let rows = [
+        Row(model: "Claude Opus 4.7", vendor: "Anthropic"),
+        Row(model: "GPT-5.5", vendor: "OpenAI"),
+        Row(model: "Gemini 3.5 Flash", vendor: "Google"),
+        Row(model: "GPT-5.2 Codex", vendor: "OpenAI"),
+        Row(model: "Qwen3 Coder", vendor: "Alibaba"),
+    ]
+
+    private func matches(_ text: String) -> [String] {
+        filterRanking(rows, by: text, name: { $0.model }, vendor: { $0.vendor }).map(\.model)
+    }
+
+    /// The owner's report was *"it filters by category, not by model name"*. It does not — and this
+    /// is the test that says so. `c` matches every model whose NAME or VENDOR contains it,
+    /// including Claude, which is the row he was not looking at because the list had kept its
+    /// scroll offset and clamped to the end.
+    func testASingleLetterMatchesEveryNameThatContainsIt() {
+        XCTAssertEqual(matches("c"), ["Claude Opus 4.7", "GPT-5.2 Codex", "Qwen3 Coder"])
+    }
+
+    func testTheVendorMatchesToo() {
+        XCTAssertEqual(matches("anthropic"), ["Claude Opus 4.7"])
+        XCTAssertEqual(matches("google"), ["Gemini 3.5 Flash"])
+    }
+
+    func testCaseDoesNotMatter() {
+        XCTAssertEqual(matches("CLAUDE"), matches("claude"))
+    }
+
+    func testAnEmptyOrBlankFilterShowsEverything() {
+        XCTAssertEqual(matches("").count, rows.count)
+        XCTAssertEqual(matches("   ").count, rows.count)
+    }
+
+    func testSurroundingSpaceDoesNotBreakAMatch() {
+        XCTAssertEqual(matches("  codex  "), ["GPT-5.2 Codex"])
+    }
+
+    func testNothingMatchesWhenNothingMatches() {
+        XCTAssertEqual(matches("zzzz"), [])
+    }
+}

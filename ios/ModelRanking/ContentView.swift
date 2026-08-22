@@ -26,10 +26,6 @@ struct ContentView: View {
     @State private var question = ""
     @State private var routing: RoutingOutcome?
     @State private var routingInFlight = false
-    /// Which chip the horizontal strip is scrolled to. Bound so selecting a category does not
-    /// throw the reader back to the start of a list they had scrolled through (owner session,
-    /// 2026-08-22).
-    @State private var visibleChip: String?
     private let budget = "unlimited"
     private let router = TieredRouter()
 
@@ -229,11 +225,7 @@ struct ContentView: View {
     /// Name-only filtering. It narrows what is SHOWN and never changes the order — the engine
     /// decided that, and a client that re-sorts is answering a different question (Trap 1).
     private func filtered(_ rows: [RankedModel]) -> [RankedModel] {
-        guard !filter.isEmpty else { return rows }
-        return rows.filter {
-            $0.model.localizedCaseInsensitiveContains(filter)
-                || $0.vendor.localizedCaseInsensitiveContains(filter)
-        }
+        filterRanking(rows, by: filter, name: \.model, vendor: \.vendor)
     }
 
     @ViewBuilder
@@ -300,6 +292,7 @@ struct ContentView: View {
             // `scrollPosition(id:)` persists the visible chip across the rebuild. It does NOT
             // scroll on his behalf: the strip moves when he moves it and at no other time, which
             // is what he asked for.
+            ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(categories) { category in
@@ -327,9 +320,29 @@ struct ContentView: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
-                .scrollTargetLayout()
             }
-            .scrollPosition(id: $visibleChip)
+            // **No `.scrollPosition(id:)` here, and that is the fix.** The first attempt bound the
+            // scroll offset AND asked a `ScrollViewReader` to centre the selection; the two
+            // control the same thing and the binding wins, so the programmatic scroll silently did
+            // nothing. Measured, not reasoned: tapping a clipped chip selected it and the strip did
+            // not move a pixel.
+            //
+            // Centring on selection subsumes what the binding was for. The strip cannot snap back
+            // to the start, because on every change it goes to the chosen chip instead.
+            // CENTRE the selected chip. Keeping the reader's scroll offset was the first fix and
+            // it was not enough: he scrolled right, tapped `Web development`, and the chip he had
+            // just chosen sat half-cut against the right edge — the strip had not jumped back to
+            // the start, but the thing he selected was not the thing he could see.
+            //
+            // `anchor: .center` rather than `.leading`, because a chip pinned to the left edge
+            // hides the categories before it and reads as "you are at the start of the list"
+            // again. The move happens only on a SELECTION; dragging is still entirely his.
+            .onChange(of: task) { _, now in
+                withAnimation(.easeOut(duration: 0.25)) {
+                    proxy.scrollTo(now, anchor: .center)
+                }
+            }
+            }
             .background(.bar)
         }
     }
@@ -486,9 +499,25 @@ struct RankingList: View {
     @State var filter: String
 
     var body: some View {
-        List {
-            ForEach(rows) { row in
-                RankedRow(row: row)
+        ScrollViewReader { proxy in
+            List {
+                ForEach(rows) { row in
+                    RankedRow(row: row).id(row.id)
+                }
+            }
+            // **Back to the top whenever the filter changes**, and this is the defect the owner
+            // reported as "it filters by category, not by model name". It never did: on `coding`,
+            // `c` matches 12 of 44 models and the first is Claude Opus 4.7. He was scrolled
+            // halfway down a 44-row list; typing shrank it to 12, the offset clamped to the end,
+            // and what he was left looking at were the three lowest-scoring matches — GPT-5.2
+            // Codex, Qwen3 Coder, GPT-5.1 Codex — which read exactly like a category filter.
+            //
+            // A list that changes underneath the reader has to take them to the top of what they
+            // are now looking at. Anything else shows them an arbitrary slice of a new list and
+            // lets them draw a conclusion from it, which is precisely what happened.
+            .onChange(of: filter) { _, _ in
+                guard let first = rows.first else { return }
+                proxy.scrollTo(first.id, anchor: .top)
             }
         }
         .navigationTitle(answer.title)
@@ -496,11 +525,7 @@ struct RankingList: View {
     }
 
     private var rows: [RankedModel] {
-        guard !filter.isEmpty else { return answer.ranking }
-        return answer.ranking.filter {
-            $0.model.localizedCaseInsensitiveContains(filter)
-                || $0.vendor.localizedCaseInsensitiveContains(filter)
-        }
+        filterRanking(answer.ranking, by: filter, name: \.model, vendor: \.vendor)
     }
 }
 

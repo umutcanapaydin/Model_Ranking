@@ -373,3 +373,28 @@ struct TieredRouter {
         )
     }
 }
+
+/// Narrow a ranking by what the reader typed. NAME and VENDOR only, never the surface.
+///
+/// The owner reported this as *"I press C and it filters by category, not by model name"*. It does
+/// not, and the measurement said so: on `coding`, `c` matches 12 of 44 models and the first is
+/// Claude Opus 4.7. What he was looking at was the TAIL of those 12 — GPT-5.2 Codex, Qwen3 Coder,
+/// GPT-5.1 Codex — because the list kept its scroll offset from before the filter was typed, and a
+/// 44-row list scrolled halfway down clamps to the end when it shrinks to 12.
+///
+/// So the defect was never the predicate; it was that a list which changes underneath the reader
+/// does not take them back to the top of what they are now looking at. The predicate is extracted
+/// here anyway, for two reasons: it was written out twice in the view layer with no test on either
+/// copy, and a filter that silently included the SURFACE would produce exactly the symptom that was
+/// reported — so it is worth a test that says it does not.
+public func filterRanking<Row>(
+    _ rows: [Row], by text: String, name: (Row) -> String, vendor: (Row) -> String
+) -> [Row] {
+    let needle = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !needle.isEmpty else { return rows }
+    return rows.filter {
+        name($0).localizedCaseInsensitiveContains(needle)
+            || vendor($0).localizedCaseInsensitiveContains(needle)
+    }
+}
+
