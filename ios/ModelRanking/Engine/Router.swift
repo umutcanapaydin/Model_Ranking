@@ -216,7 +216,7 @@ struct ModelRouter: QuestionRouter {
         let schema = GenerationSchema(
             type: String.self,
             description: "The single surface that best answers the question",
-            anyOf: known
+            anyOf: ModelOutputBoundary.schemaChoices(for: known)
         )
 
         let session = LanguageModelSession(
@@ -224,6 +224,11 @@ struct ModelRouter: QuestionRouter {
             You choose which of several measurement surfaces answers a question. You never \
             recommend a model, never say anything is good or best, and never write prose. \
             Choose the surface whose description best matches the question.
+
+            If NOTHING here measures what was asked — image editing, cooking, travel, medical or \
+            legal questions, anything outside these descriptions — answer exactly \
+            `\(ModelOutputBoundary.declineSentinel)`. Answering with a surface that does not \
+            measure the question tells the reader we measured something we did not.
 
             Surfaces:
             \(known.compactMap { id in CategoryHints.byID[id].map { "- \(id): \($0)" } }
@@ -253,10 +258,74 @@ struct ModelRouter: QuestionRouter {
 /// OUTSIDE the `#if canImport(FoundationModels)` block, so the boundary is tested on every machine
 /// rather than only on one that carries the model.
 enum ModelOutputBoundary {
+    /// The value the model emits for **"none of these measures this question"**.
+    ///
+    /// Added 2026-08-22 after the owner used the app: he typed *"Profile picture polishing"* and
+    /// got Agentic coding, under the sentence *"Matched your question to this surface on this
+    /// device."* The match was not bad luck. `GenerationSchema(anyOf: known)` constrained the model
+    /// to the nine ids the engine serves, so **tier 1 had no expressible way to decline** — every
+    /// question in the world came back as a measured surface with a confident sentence attached.
+    ///
+    /// REQ-RTR-005's disclosure existed only in the similarity tier's floor, which runs SECOND and
+    /// therefore almost never runs on a device that carries the model. The control lived in the
+    /// path that does not execute — this project's most-recorded defect, arriving through the
+    /// front door of its newest feature.
+    ///
+    /// Not a category id, and a test asserts it never becomes one: a sentinel that collided with a
+    /// real surface would turn a refusal into a recommendation.
+    static let declineSentinel = "__none__"
+
+    /// What the model is allowed to emit: the ids the engine serves, plus the way out.
+    static func schemaChoices(for known: [String]) -> [String] {
+        known + [declineSentinel]
+    }
+
     static func outcome(for id: String?, within known: [String]) -> RoutingOutcome? {
-        guard let id, known.contains(id) else { return nil }
+        guard let id else { return nil }
+        if id == declineSentinel {
+            // The same refusal the similarity tier makes below its floor, and the same disclosure.
+            guard known.contains(CategoryHints.unmeasuredFallback) else { return nil }
+            return RoutingOutcome(
+                categoryID: CategoryHints.unmeasuredFallback, tier: .model, unmeasured: true
+            )
+        }
+        guard known.contains(id) else { return nil }
         return RoutingOutcome(categoryID: id, tier: .model, unmeasured: false)
     }
+}
+
+/// Which answer speaks first. REQ-RTR-001, and a defect the owner found by reading the screen.
+///
+/// He typed "Coding", the app selected Coding, and the first block on screen read "Agentic
+/// coding" — three times, which read as the router ignoring him. `task=coding` expands server-side
+/// to two surfaces and `/v1` states **in its own payload** that answer order carries no meaning,
+/// so the alphabetically-first surface always spoke first.
+///
+/// This is not the re-sorting the M11 plan forbids. That rule is about reordering MODELS inside a
+/// ranking, which IS the engine's answer. Which of two answers appears first is explicitly
+/// meaningless to the engine and entirely meaningful to the reader who just asked a question.
+public func orderAnswers(surfaces: [String], selected: String) -> [String] {
+    guard surfaces.contains(selected) else { return surfaces }
+    return [selected] + surfaces.filter { $0 != selected }
+}
+
+/// The ranking rows the home screen previews beneath the picks.
+///
+/// The owner: *"there is no point showing, further down the list, the ones we already showed in
+/// the first three... of the top five, the first three large and the next two small."* The preview
+/// had been the top of the FULL ranking, so Claude Opus 5 appeared as Best Quality in large type
+/// and again, four lines below, in small type.
+///
+/// `visibleTotal` is five because that is the number he asked for; the split between large and
+/// small is however many picks there turned out to be. A surface can produce fewer than three
+/// distinct picks — his own screenshot shows DeepSeek V4 Flash as both Best Value and Budget Pick
+/// — and in that case the preview grows so the reader still sees five models rather than four.
+public func previewRows<Model: Equatable>(
+    ranking: [Model], pickedModels: [Model], visibleTotal: Int = 5
+) -> [Model] {
+    let remaining = ranking.filter { !pickedModels.contains($0) }
+    let room = max(0, visibleTotal - pickedModels.count)
+    return Array(remaining.prefix(room))
 }
 
 // MARK: - The tiers in order

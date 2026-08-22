@@ -26,6 +26,10 @@ struct ContentView: View {
     @State private var question = ""
     @State private var routing: RoutingOutcome?
     @State private var routingInFlight = false
+    /// Which chip the horizontal strip is scrolled to. Bound so selecting a category does not
+    /// throw the reader back to the start of a list they had scrolled through (owner session,
+    /// 2026-08-22).
+    @State private var visibleChip: String?
     private let budget = "unlimited"
     private let router = TieredRouter()
 
@@ -63,6 +67,11 @@ struct ContentView: View {
 
     @ViewBuilder
     private func home(_ answers: [Answer], orderingNote: String) -> some View {
+        // Computed once here rather than in the `ForEach`, so the footer below can ask "is this the
+        // first answer?" of the SAME list the reader is looking at.
+        let ordered = orderAnswers(
+            surfaces: answers.map(\.surface), selected: task
+        ).compactMap { id in answers.first { $0.surface == id } }
         List {
             Section {
                 // THE FRONT DOOR (D-126). The router picks the QUESTION; the engine answers it.
@@ -89,7 +98,12 @@ struct ContentView: View {
                 Text("Ask")
             }
 
-            ForEach(answers) { answer in
+            // The surface the reader SELECTED speaks first. `task=coding` expands server-side to
+            // two answers and `/v1` says in its own payload that their order carries no meaning —
+            // so it always arrived alphabetically, and "Agentic coding" answered every question
+            // about coding. Ordering ANSWERS is not the re-sorting Trap 1 forbids: that rule is
+            // about reordering models inside a ranking, which is the engine's answer.
+            ForEach(ordered) { answer in
                 Section {
                     if answer.picks.isEmpty && answer.ranking.isEmpty {
                         emptyAnswer(answer)
@@ -103,7 +117,7 @@ struct ContentView: View {
                 } header: {
                     Text(answer.title)
                 } footer: {
-                    if answer.id == answers.first?.id {
+                    if answer.id == ordered.first?.id {
                         // Ruling A's disclosure. It used to open the screen; the question field
                         // took that place, so it moved to where the answers START rather than
                         // being dropped — it is about how the ANSWERS are ordered, and that is
@@ -130,9 +144,17 @@ struct ContentView: View {
     /// The top of the full ranking, plus the door to the rest.
     @ViewBuilder
     private func rankingPreview(_ answer: Answer) -> some View {
-        let rows = filtered(answer.ranking)
+        // The picks are already on screen in large type; repeating them four lines below in small
+        // type was the first thing the owner pointed at. Five models visible in total, split by
+        // however many DISTINCT picks there turned out to be — one model can hold two pick labels.
+        let picked = Set(answer.picks.map(\.model))
+        let rows = previewRows(
+            ranking: filtered(answer.ranking),
+            pickedModels: filtered(answer.ranking).filter { picked.contains($0.model) },
+            visibleTotal: homePreviewCount
+        )
         if !rows.isEmpty {
-            ForEach(rows.prefix(homePreviewCount)) { row in
+            ForEach(rows) { row in
                 RankedRow(row: row)
             }
             NavigationLink {
@@ -226,6 +248,15 @@ struct ContentView: View {
     @ViewBuilder
     private var categoryStrip: some View {
         if categories.count > 1 {
+            // **The strip keeps where the reader put it.** Selecting a category rebuilds this
+            // view, and without a bound position SwiftUI recreates the ScrollView at offset zero —
+            // so the owner scrolled right to Mathematics, tapped it, and the strip snapped back to
+            // Coding with no chip visibly selected. He had to scroll again to see what he had
+            // chosen.
+            //
+            // `scrollPosition(id:)` persists the visible chip across the rebuild. It does NOT
+            // scroll on his behalf: the strip moves when he moves it and at no other time, which
+            // is what he asked for.
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(categories) { category in
@@ -248,11 +279,14 @@ struct ContentView: View {
                                 .foregroundStyle(category.id == task ? .white : .primary)
                         }
                         .buttonStyle(.plain)
+                        .id(category.id)
                     }
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
+                .scrollTargetLayout()
             }
+            .scrollPosition(id: $visibleChip)
             .background(.bar)
         }
     }

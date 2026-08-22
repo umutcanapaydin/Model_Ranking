@@ -115,7 +115,7 @@ struct Answer: Decodable, Identifiable {
 
 /// One model's position in a surface's ranking. Carries no `label`, `why` or `trade_off`, because
 /// nothing chose it — those belong to a `Pick`.
-struct RankedModel: Decodable, Identifiable {
+struct RankedModel: Decodable, Identifiable, Equatable {
     let model: String
     let vendor: String
     let score: Double
