@@ -203,6 +203,20 @@ print(f"outcome    : {written['outcome']} (exit {written['exit_code']})")
 print(f"reason     : {written['reason']}")
 print(f"surfaces   : {written['surfaces_answering']} answering")
 
+# CYCLE age and ARTIFACT age are different questions and they diverge exactly when it matters: a
+# refresh cycling happily every twelve hours while refusing every candidate looks perfectly healthy
+# on the first number and is serving week-old evidence on the second.
+published_at = written.get("last_published_at")
+if published_at:
+    published_h = (time.time() - float(published_at)) / 3600.0
+    print(f"artifact   : last replaced {published_h:.1f} hours ago")
+else:
+    print("artifact   : never replaced by a refresh (built by hand, or first run)")
+
+refusals = int(written.get("consecutive_refusals") or 0)
+if refusals:
+    print(f"refusals   : {refusals} in a row")
+
 # The schedule is twelve hours, so anything past twenty-four means at least one cycle did not
 # happen. A stopped refresh is the failure this record exists to make visible, and it stays
 # invisible unless something compares the timestamp to the clock - a comparison the reader should
@@ -211,10 +225,20 @@ if age_h > 24:
     print(f"STALE: the last cycle was {age_h:.0f} hours ago and the schedule is 12.")
     print("       At least one refresh did not run.")
     sys.exit(1)
+if refusals >= 2:
+    # Plan §5.2. One refusal is an upstream blip. Two in a row is a state the product must not sit
+    # in quietly, because the artifact keeps ageing while every surface still claims to be current.
+    print(f"ESCALATE: {refusals} consecutive refusals. The artifact has not been replaced since")
+    print("          the first of them, and the upstream has not recovered on its own.")
+    sys.exit(1)
 if written["outcome"] == "refused":
     print("REFUSED: the last candidate was worse than what is being served (D-128).")
     print("         The artifact is intact; look at the upstream, not at this process.")
     sys.exit(1)
+if written["outcome"] == "busy":
+    print("BUSY: another cycle held the lock. Ordinary if a run overlapped a trigger; suspicious")
+    print("      if it repeats, which would mean a cycle is wedged holding the lock.")
+    sys.exit(0)
 if written["outcome"] == "failed":
     print("FAILED: the last cycle could not produce a candidate. The artifact is intact.")
     sys.exit(1)

@@ -1166,3 +1166,216 @@ def test_a_surface_missing_from_the_candidate_counts_as_lost(tmp_path: Path) -> 
     assert any("would now answer nothing" in reason for reason in reasons), (
         f"the surface-count branch did not report the loss; only these fired: {reasons}"
     )
+
+
+# --- W3: the lock, the counter, and the two clauses that were MET without a test ------------------
+
+
+def test_a_second_cycle_does_not_run_while_one_holds_the_lock(tmp_path: Path) -> None:
+    """W-047. Nothing serialised two refreshes, and two demonstrated failures came from that.
+
+    The loser reports BUSY and does NOT wait: waiting turns a scheduler into a queue, and a
+    trigger firing while the previous run is still going is ordinary rather than wrong.
+    """
+    from app.workflows.refresh import EXIT_BUSY, lock_path
+
+    live = tmp_path / "advisor.db"
+    inner: list[int] = []
+
+    def builds_then_reenters(argv: list[str]) -> int:
+        _artifact(Path(argv[argv.index("--db") + 1]))
+        # A second cycle, while the first still holds the lock.
+        _, code = refresh(live, builder=_builder(), clock=lambda: 5.0)
+        inner.append(code)
+        return 0
+
+    refresh(live, builder=builds_then_reenters, clock=lambda: 1.0)
+
+    assert inner == [EXIT_BUSY], f"a second cycle ran inside the first: {inner}"
+    assert not lock_path(live).exists(), "the lock outlived the cycle that took it"
+
+
+def test_a_lock_left_by_a_dead_process_is_reclaimed_at_once(tmp_path: Path) -> None:
+    """A SIGKILL must not wedge the refresh until the age threshold expires.
+
+    The holder writes its pid, so a lock belonging to a process that no longer exists is taken
+    immediately. Without this, one kill costs two hours — on a twelve-hour schedule, a skipped
+    cycle for a process that is already gone.
+    """
+    from app.workflows.refresh import lock_path
+
+    live = tmp_path / "advisor.db"
+    stale = lock_path(live)
+    stale.write_text("999999\n", encoding="utf-8")  # a pid that cannot be running
+
+    outcome, code = refresh(live, builder=_builder(), clock=lambda: 1.0)
+
+    assert code == EXIT_PUBLISHED, f"a dead holder's lock blocked a cycle: {outcome.reason}"
+
+
+def test_a_lock_held_by_a_LIVE_process_is_respected(tmp_path: Path) -> None:
+    """The other direction, and the dangerous one: reclaiming a live lock is how two cycles
+    publish over each other."""
+    import os
+
+    from app.workflows.refresh import EXIT_BUSY, lock_path
+
+    live = tmp_path / "advisor.db"
+    lock_path(live).write_text(f"{os.getpid()}\n", encoding="utf-8")
+
+    _outcome, code = refresh(live, builder=_builder(), clock=lambda: 1.0)
+    assert code == EXIT_BUSY, "a lock held by a running process was taken anyway"
+
+
+def test_a_baseline_replaced_mid_cycle_is_not_published_over(tmp_path: Path) -> None:
+    """W-047's second half. The lock stops two REFRESHES; it cannot stop a human.
+
+    An independent review demonstrated it: a hand-run `build.py` published 95.0 mid-cycle and the
+    refresh then overwrote it with its own candidate, having compared against the pre-build
+    artifact. The decision was sound about an artifact that no longer existed.
+    """
+    live = _artifact(tmp_path / "advisor.db", top_score=74.5)
+
+    def builds_while_someone_else_publishes(argv: list[str]) -> int:
+        _artifact(Path(argv[argv.index("--db") + 1]), top_score=80.0)
+        _artifact(live, top_score=95.0)  # another writer, mid-cycle
+        return 0
+
+    outcome, code = refresh(live, builder=builds_while_someone_else_publishes)
+
+    assert code == EXIT_REFUSED, f"a concurrent publish was overwritten: {outcome.reason}"
+    assert "changed while this cycle was building" in outcome.reason
+    conn = sqlite3.connect(f"file:{live}?mode=ro", uri=True)
+    try:
+        kept = conn.execute("SELECT max(score) FROM scores").fetchone()[0]
+    finally:
+        conn.close()
+    assert kept == pytest.approx(95.0), "the other writer's artifact was lost"
+
+
+def test_consecutive_refusals_are_counted_and_reset(tmp_path: Path) -> None:
+    """W-046 / plan §5.2. One refusal is a blip; two in a row is a state to escalate on.
+
+    The record was depth-1, so it could not represent "two in a row" at all — and a transient
+    refusal vanished within twelve hours, so an owner reading `runner` the next day saw
+    `published` and never learned a refusal had happened.
+    """
+    import json
+
+    from app.workflows.refresh import status_path
+
+    live = _wide(tmp_path / "advisor.db", models=12)
+
+    def shrinking(argv: list[str]) -> int:
+        _wide(Path(argv[argv.index("--db") + 1]), models=12, keep=8)
+        return 0
+
+    for expected, clock in ((1, 100.0), (2, 200.0), (3, 300.0)):
+        refresh(live, builder=shrinking, clock=lambda c=clock: c)
+        written = json.loads(status_path(live).read_text())
+        assert written["consecutive_refusals"] == expected
+        assert written["last_published_at"] is None, "nothing was published, so nothing to date"
+
+    def improving(argv: list[str]) -> int:
+        target = Path(argv[argv.index("--db") + 1])
+        _wide(target, models=12)
+        conn = sqlite3.connect(target)
+        try:
+            conn.execute("UPDATE scores SET score = score + 1")
+            conn.commit()
+        finally:
+            conn.close()
+        return 0
+
+    refresh(live, builder=improving, clock=lambda: 400.0)
+    written = json.loads(status_path(live).read_text())
+    assert written["consecutive_refusals"] == 0, "the counter did not reset on a publish"
+    assert written["last_published_at"] == 400.0, (
+        "the artifact's own age is unknowable, so a refresh that cycles happily while refusing "
+        "every candidate looks healthy forever"
+    )
+
+
+def test_a_sigkilled_cycle_leaves_the_live_artifact_byte_identical(tmp_path: Path) -> None:
+    """REQ-REF-001's SIGKILL clause, which was marked MET with no test (W-048).
+
+    It was plausible by construction — the candidate is a separate file and publishing is an atomic
+    rename — and V3C-02 does not accept "obviously true" as evidence. This kills a REAL process
+    mid-build, in a subprocess, because a signal cannot be simulated in-process.
+
+    Two properties, and the second is the one that only appeared once the first was written: the
+    artifact survives untouched, AND the next cycle is not wedged behind the dead cycle's lock.
+    """
+    import os
+    import signal
+    import subprocess
+    import sys
+    import time
+
+    live = _artifact(tmp_path / "advisor.db", top_score=74.5)
+    before = live.read_bytes()
+    marker = tmp_path / "building.marker"
+
+    program = f"""
+import sys, time, pathlib
+sys.path.insert(0, {str(Path("src").resolve())!r})
+sys.path.insert(0, {str(Path("tests").resolve())!r})
+from app.workflows.refresh import refresh
+
+def slow(argv):
+    pathlib.Path({str(marker)!r}).write_text("in the build")
+    time.sleep(120)
+    return 0
+
+refresh(pathlib.Path({str(live)!r}), builder=slow)
+"""
+    child = subprocess.Popen([sys.executable, "-B", "-c", program])
+    try:
+        deadline = time.time() + 30
+        while not marker.exists() and time.time() < deadline:
+            time.sleep(0.05)
+        assert marker.exists(), "the child never reached the build; the kill would prove nothing"
+        os.kill(child.pid, signal.SIGKILL)
+    finally:
+        child.wait(timeout=30)
+
+    assert child.returncode == -signal.SIGKILL
+    assert live.read_bytes() == before, "a SIGKILLed cycle changed the artifact it was refreshing"
+
+    outcome, code = refresh(live, builder=_builder(top_score=81.0))
+    assert code == EXIT_PUBLISHED, (
+        f"the next cycle was blocked by the dead one's lock: {outcome.reason}"
+    )
+
+
+def test_a_reader_open_before_the_swap_finishes_on_consistent_data(tmp_path: Path) -> None:
+    """REQ-REF-006's in-flight clause, marked MET on the strength of the NEXT request only (W-048).
+
+    The property a request in flight depends on is not "the next request sees new data" — it is
+    that a connection opened BEFORE the swap keeps reading a coherent artifact rather than half of
+    each. POSIX gives that: the replaced inode survives as long as something holds it open. Tested
+    at the layer that provides it, because that is where it can actually be broken — by copying
+    into the file instead of renaming over it, which is what publishing across a filesystem
+    boundary would do.
+    """
+    live = _artifact(tmp_path / "advisor.db", top_score=74.5)
+    reader = sqlite3.connect(f"file:{live}?mode=ro", uri=True)
+    try:
+        assert reader.execute("SELECT max(score) FROM scores").fetchone()[0] == pytest.approx(74.5)
+
+        replacement = _artifact(tmp_path / "next.db", top_score=91.5)
+        replacement.replace(live)
+
+        still = reader.execute("SELECT max(score) FROM scores").fetchone()[0]
+        assert still == pytest.approx(74.5), (
+            "a reader open across the swap saw the new artifact mid-flight; a request could read "
+            "half of one artifact and half of another"
+        )
+    finally:
+        reader.close()
+
+    after = sqlite3.connect(f"file:{live}?mode=ro", uri=True)
+    try:
+        assert after.execute("SELECT max(score) FROM scores").fetchone()[0] == pytest.approx(91.5)
+    finally:
+        after.close()

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The 12-hour refresh (REQ-REF-005, D-130).
+
+  launchd rather than cron, and the reason is the whole decision: cron does not fire a trigger it
+  missed while the machine was asleep, and a laptop is asleep for most of a night. On a 12-hour
+  interval that is not a delayed refresh, it is a SKIPPED one, and two skipped triggers is a day of
+  the product claiming a freshness it is not maintaining. launchd runs a missed StartInterval job
+  when the machine wakes.
+
+  THIS FILE IS NOT INSTALLED BY THE BUILD OR BY ANY AGENT. Loading a background job onto someone's
+  machine is the owner's action. Install and remove:
+
+    cp deploy/com.hcs.modelranking.refresh.plist ~/Library/LaunchAgents/
+    launchctl load  ~/Library/LaunchAgents/com.hcs.modelranking.refresh.plist
+    launchctl unload ~/Library/LaunchAgents/com.hcs.modelranking.refresh.plist
+
+  Exit codes it will see, and what each means for a human:
+    0  published   something a reader would notice changed
+    1  unchanged   nothing did — a RESULT, not a failure
+    2  failed      the candidate could not be built; the artifact is untouched
+    3  refused     the candidate was worse than what is served (D-128); look upstream
+    4  busy        a cycle was already running; this trigger did nothing
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.hcs.modelranking.refresh</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/umutcanapaydin/Desktop/ILGAR/model_ranking/.venv/bin/python</string>
+    <string>-B</string>
+    <string>-m</string>
+    <string>app.workflows.refresh</string>
+    <string>--db</string>
+    <string>advisor.db</string>
+    <string>--epoch-dir</string>
+    <string>/Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/umutcanapaydin/Desktop/ILGAR/model_ranking</string>
+
+  <!-- D-116: ingestion never runs on a serving host. Nothing is deployed, so the only host is this
+       machine; when a deploy happens this job moves off the serving box and D-130 is superseded. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PYTHONPATH</key>
+    <string>/Users/umutcanapaydin/Desktop/ILGAR/model_ranking/src</string>
+  </dict>
+
+  <key>StartInterval</key>
+  <integer>43200</integer>
+
+  <!-- Deliberately absent: RunAtLoad. Installing the job should not immediately rebuild the
+       artifact somebody is currently serving; the first cycle can wait twelve hours. -->
+
+  <key>StandardOutPath</key>
+  <string>/Users/umutcanapaydin/Desktop/terminal_output/model_ranking/refresh.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/umutcanapaydin/Desktop/terminal_output/model_ranking/refresh.err.log</string>
+</dict>
+</plist>

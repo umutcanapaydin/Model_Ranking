@@ -28,7 +28,7 @@ import sqlite3
 import sys
 import tempfile
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, fields
 from pathlib import Path
 
@@ -52,6 +52,10 @@ EXIT_PUBLISHED = 0
 EXIT_UNCHANGED = 1
 #: The candidate could not be built, or could not be published. The live artifact is untouched.
 EXIT_FAILED = 2
+#: Another cycle holds the lock. Nothing was attempted and nothing is wrong — a scheduler firing
+#: while the previous run is still going is ordinary, and it must not read as a failure or it will
+#: page somebody for working correctly.
+EXIT_BUSY = 4
 #: The candidate built fine and is WORSE than what is being served, so it was refused (D-128).
 #: A first-class outcome and not an error: nothing is broken, and the right response is to look at
 #: the upstream rather than at this process.
@@ -288,6 +292,90 @@ def fingerprint_of(path: Path) -> ServingSummary | None:
         conn.close()
 
 
+#: A lock older than this belongs to a process that is gone. Same reasoning as the build's
+#: abandoned-workspace sweep: a live cycle refreshes nothing but exists continuously, and a build
+#: has never taken more than ~60 s, so two hours is far past any real run and far short of any
+#: plausible pause. Without a staleness rule a single SIGKILL would wedge the refresh forever.
+ABANDONED_LOCK_AGE_S = 2 * 60 * 60
+
+
+def _lock_mtime(path: Path) -> float:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def _holder_is_alive(path: Path) -> bool:
+    """Whether the process named inside the lock still exists.
+
+    Unreadable, empty or unparseable contents answer TRUE — the conservative direction. Reclaiming
+    a lock we cannot account for is how two cycles end up publishing over each other, and the age
+    rule will release it soon enough.
+    """
+    try:
+        pid = int(path.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        return True
+    if pid <= 0:
+        return True
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True  # e.g. EPERM: it exists and belongs to someone else
+    return True
+
+
+def lock_path(target: Path) -> Path:
+    return target.with_name(target.name + ".refresh.lock")
+
+
+@contextlib.contextmanager
+def _hold_lock(target: Path, *, at: float) -> Iterator[bool]:
+    """Hold an exclusive lock for one cycle, or yield False if another cycle holds it.
+
+    W-047, found by an independent review: nothing serialised two refreshes. Two demonstrated
+    failures, both from the same absence — the record's scratch path was a fixed shared name, so
+    two cycles collided on it and one ended up publishing the OTHER's payload; and a cycle could
+    decide against a baseline another writer had already replaced.
+
+    `O_CREAT | O_EXCL` is the primitive: the filesystem decides the winner, atomically, with no
+    check-then-act window. The loser does not wait — waiting turns a scheduler into a queue — it
+    reports BUSY and lets the next trigger try.
+    """
+    path = lock_path(target)
+    try:
+        handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+    except FileExistsError:
+        # WHOSE lock is it? The holder writes its pid, so a lock left by a process that no longer
+        # exists — a SIGKILL, a reboot mid-cycle — is reclaimed immediately instead of wedging the
+        # refresh until the age threshold expires. Without this, one SIGKILL costs two hours, which
+        # on a twelve-hour schedule is a skipped cycle for a process that is already gone.
+        #
+        # The age rule stays as the fallback for the case the pid cannot answer: a recycled pid, an
+        # unreadable lock, a holder on another machine sharing the directory.
+        if not _holder_is_alive(path) or (at - _lock_mtime(path)) >= ABANDONED_LOCK_AGE_S:
+            with contextlib.suppress(OSError):
+                path.unlink()
+            try:
+                handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+            except FileExistsError:
+                yield False
+                return
+        else:
+            yield False
+            return
+    try:
+        os.write(handle, f"{os.getpid()}\n".encode())
+        os.close(handle)
+        yield True
+    finally:
+        with contextlib.suppress(OSError):
+            path.unlink()
+
+
 def status_path(target: Path) -> Path:
     """Where a cycle records what it did, beside the artifact it was refreshing."""
     return target.with_name(target.name + ".refresh.json")
@@ -305,6 +393,25 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
     opposite of what the record is for.
     """
     path = status_path(target)
+
+    # W-046: the record was DEPTH-1, so cycle N+1 erased cycle N and the file could not represent
+    # "two refusals in a row" — the exact state the plan's §5.2 says the product must not sit in
+    # quietly. Rewriting history is not the answer; carrying two counters forward is. A transient
+    # refusal also used to vanish within twelve hours, so an owner reading `runner` the next day
+    # saw `published` and never learned a refusal had happened.
+    previous: dict[str, object] = {}
+    with contextlib.suppress(OSError, ValueError):
+        previous = json.loads(path.read_text(encoding="utf-8"))
+
+    refused_before = previous.get("consecutive_refusals", 0)
+    consecutive = (int(refused_before) if isinstance(refused_before, int) else 0) + 1 if (
+        code == EXIT_REFUSED
+    ) else 0
+
+    last_published = previous.get("last_published_at")
+    if code == EXIT_PUBLISHED:
+        last_published = at
+
     payload = {
         "at": at,
         "at_iso": dt.datetime.fromtimestamp(at, tz=dt.UTC).isoformat(),
@@ -319,10 +426,28 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
         "surfaces_answering": outcome.surfaces,
         "live_fingerprint": outcome.live_fingerprint,
         "candidate_fingerprint": outcome.candidate_fingerprint,
+        #: How many cycles IN A ROW have refused. One refusal is an upstream blip; two is a state
+        #: the product should not sit in quietly, because the artifact is now a day old while every
+        #: surface still claims to be current.
+        "consecutive_refusals": consecutive,
+        #: When the served artifact was last actually replaced. Cycle age answers "is the refresh
+        #: running"; this answers "is what people are reading current", and they diverge exactly
+        #: when it matters — a refresh cycling happily and refusing every time.
+        "last_published_at": last_published,
     }
-    scratch = path.with_name(path.name + ".writing")
-    scratch.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    scratch.replace(path)
+    # UNIQUE scratch, not a shared name. The artifact's candidate has always used `mkstemp` and
+    # this used a fixed `<name>.writing` — the same lesson applied once. An independent review
+    # produced the interleave: two cycles collided on that one path, one raised FileNotFoundError
+    # on the rename, and the record left on disk carried the OTHER cycle's payload.
+    handle, raw = tempfile.mkstemp(prefix=path.name + ".", suffix=".writing", dir=path.parent)
+    scratch = Path(raw)
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8") as stream:
+            stream.write(json.dumps(payload, indent=2) + "\n")
+        scratch.replace(path)
+    except BaseException:
+        scratch.unlink(missing_ok=True)
+        raise
     return path
 
 
@@ -354,7 +479,20 @@ def refresh(
         return outcome, code
 
     try:
-        return _cycle(target, build_args, builder, record)
+        with _hold_lock(target, at=clock()) as held:
+            if not held:
+                return record(
+                    RefreshOutcome(
+                        published=False,
+                        reason="another refresh cycle is already running; this trigger did "
+                        "nothing and the live artifact is untouched",
+                        live_fingerprint=None,
+                        candidate_fingerprint="",
+                        surfaces=0,
+                    ),
+                    EXIT_BUSY,
+                )
+            return _cycle(target, build_args, builder, record)
     except BaseException as exc:
         # B1, found by an independent review: `record()` was reachable only from the four `return`
         # sites INSIDE the try, so a builder that raised wrote no record at all — and the previous
@@ -458,6 +596,26 @@ def _cycle(
                     ),
                     EXIT_REFUSED,
                 )
+
+        # RE-READ the baseline immediately before publishing. The degradation decision was made
+        # against the artifact as it was when this cycle started, and a hand-run `build.py` can
+        # replace it in between — an independent review demonstrated exactly that, with a score of
+        # 95.0 published mid-cycle and then overwritten by this cycle's 80.0 candidate, whose
+        # comparison had been against the pre-build 74.5. The lock stops two REFRESHES; it cannot
+        # stop a human, and a human is who runs `build.py`.
+        current = fingerprint_of(target)
+        if current is not None and live is not None and current.digest != live.digest:
+            return record(
+                RefreshOutcome(
+                    published=False,
+                    reason="the live artifact changed while this cycle was building; refusing "
+                    "rather than publishing over a decision made against an artifact that is gone",
+                    live_fingerprint=live.digest,
+                    candidate_fingerprint=fresh.digest,
+                    surfaces=fresh.answering,
+                ),
+                EXIT_REFUSED,
+            )
 
         try:
             candidate.replace(target)
