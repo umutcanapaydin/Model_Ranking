@@ -171,7 +171,7 @@ For a full milestone, write a `docs/plans/m{N}-plan.md` per the Stage 1 template
 - **Subagent dispatch via parallel waves** for independent scope (K.4).
 - **Drift-guard between data dictionaries and consumers** — factor coercer when 3+ subagents produce the same helper (K.5).
 - **Subagent prompts specify bar + leave discretion** within ≤5 min scope (K.6).
-- **Code-quality review delegated to fresh subagent** (Code-Reviewer profile per K.7). The reviewer MUST NOT be the one that authored any of the wave's code.
+- **Code-quality review delegated to fresh subagent** (Code-Reviewer profile per K.7). The reviewer MUST NOT be the one that authored any of the wave's code. In a single-agent lane the reviewing seat is a SEPARATE SESSION carrying the diff and the base-ref rules, not the authoring context, and **it writes a file** — `docs/reviews/*.md` with `seat: independent` in its frontmatter. A review returned as a conversational report leaves the wave record citing evidence that does not exist; that happened once, on the one row certifying K.7 itself (W-056).
 - **Cross-subagent contracts grep-verified** in plan (K.8) — paste `grep -n <symbol>` output into the plan.
 - **Subagent self-spotting cross-Wave gaps** — flag K.9 candidates; don't fix; queue to next-M.
 - **DevOps-owned files in a shared repo are a cross-TEAM contract** (K.10) — never let an app-feature merge overwrite `Dockerfile` / `/deploy/**` / CI config; mark them in `CODEOWNERS` and require DevOps review.

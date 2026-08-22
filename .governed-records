@@ -12,5 +12,25 @@
 docs/decisions.md
 docs/closure-report-*.md
 docs/plans/m*-wave-*-close.md
+# M11-W1. Added by the independent seat's BLOCKING-2: 44 files under `docs/reviews/` carried
+# `record_type: review` and NONE of them was ever scanned, because this file never named them.
+# The line above says it plainly -- "delete a line and you are choosing to leave those records
+# ungoverned" -- and nobody had chosen; the directory simply never got a line. D-133 makes a
+# review record load-bearing (a wave closes green on what its `seat:` says), so an ungoverned
+# review is now an unchecked dependency of every wave close.
+#
+# SCOPED BY ERA, and the scope is a decision rather than an accident. `docs/reviews/*.md` produced
+# 30 findings, every one of them in an M1-M7 record and none in M8 or later: 27 files predate
+# frontmatter entirely and 3 carry a `status:` value the flow no longer has. GPF-001 already ruled
+# that a tool may not retroactively invalidate records written before it existed, so the glob names
+# M8 onward -- the era in which a review record became load-bearing. The pre-M8 reviews are
+# out of scope and are NOT silently fine; they are unparsed prose, and that is what they were.
+#
+# A review that is cited by a wave close and matches none of these globs is still not free: D-133's
+# gate reads `seat:` out of the cited record's FRONTMATTER, so a wave cannot close green on a review
+# this manifest does not reach.
+docs/reviews/m8-*.md
+docs/reviews/m9-*.md
+docs/reviews/m1[0-9]-*.md
 docs/fixpack-*.md
 docs/EXPERIENCE.md

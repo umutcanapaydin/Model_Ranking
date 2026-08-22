@@ -1305,3 +1305,45 @@ moving is news, not damage.**
 **It refuses; it never judges.** Under the owner's ruling of 2026-08-22 the refresh may prepare,
 compare and refuse, and may not acquire new judgement. This rule reports what looks wrong and the
 cycle stops — it never decides something is acceptable on balance and publishes anyway.
+
+## D-133 — In a single-agent lane, K.7 means a separate SESSION, and the review is a FILE
+
+**Status:** accepted · **Date:** 2026-08-22 · **Decided by:** the owner, in session on 2026-08-22,
+choosing "amend the rule to match reality — a separate review session" from three options put to him
+after W-055 was escalated. Recorded because the independent seat's N4 found this ADR was the only
+one since D-125 with no attribution clause, on the one change AGENTS.md §3 classes as
+Escalate-NOW. · **Supersedes nothing; amends the application of K.7.**
+
+**Context.** K.7 says the reviewer never authored the code. In this project's local lane there has
+only ever been one agent, so the rule described a situation that did not exist, and the gap was
+filled the only way it could be: the author reviewed their own work and declared it. That happened
+four times, each recorded, each closed green (W-055). `C2b` — the telemetry whose entire purpose is
+that a third bypass sends the CONTROL for review — fired at M8, named M9, and M9 closed without
+consuming it.
+
+Then the gate written to enforce this ADR failed, on its first run, the one wave record in the
+project's history that claimed K.7 WAS satisfied: `m8-wave-5-close.md` cited two review records by
+path, and neither has ever existed. The three seats reported back in conversation and nobody wrote
+the reports down (W-056).
+
+**Decision.** For the LOCAL single-agent lane:
+
+1. **The reviewing seat is a separate session.** It receives the diff and reads its policy from the
+   protected base ref (V4C-06) — never the authoring session's context, because context is what
+   makes a reviewer agree with the author.
+2. **The review is a file**, `docs/reviews/*.md`, with `seat: independent` or `seat: author` in its
+   frontmatter. A review that exists only as a report in a conversation is not evidence.
+3. **A self-review cannot close a wave green.** `seat: author` forces the review row to WAIVED,
+   which Block D already forces to name a ledger row, which puts the bypass in front of the owner.
+
+**What this decision explicitly does NOT claim.** The gate cannot prove a review ran in a separate
+session, and this ADR does not pretend otherwise. It makes a self-review *unable to pass silently*,
+and it makes a cited-but-absent review *impossible*, in every era. The honesty of `independent`
+rests on process. That is acceptable here for a specific reason: **the failure this rule exists to
+stop was never a lie.** Every K.7 bypass was declared in the open, in the record, and closed green
+anyway — the problem was never concealment, it was that nothing blocked.
+
+**Consequences.** M11-W4's Stage 4.0 is the first review in this project run by a seat that did not
+write the code and that leaves a file. The two rules that must not drift back together: reviewing
+one's own code is allowed and it is not GREEN; and a review nobody can read is not a review.
+

@@ -242,16 +242,35 @@ struct ModelRouter: QuestionRouter {
 /// works, and the reader is told which of the three happened rather than left with a text field
 /// that silently does nothing.
 struct TieredRouter {
+    /// The best tier this device can run, or `nil` where it cannot run one.
+    ///
+    /// **This is injectable and the similarity tier already was; the asymmetry was the defect.**
+    /// `route` used to construct `ModelRouter()` inline, so on a machine where `FoundationModels`
+    /// IS available no test could reach the fallback chain — the property REQ-RTR-003 exists to
+    /// guarantee (any tier may be absent and the screen still works) was the one property the
+    /// tests could not express. A seam is only a seam if it reaches the caller.
+    ///
+    /// The default is evaluated per instance, not once at definition. That is Swift's semantics
+    /// rather than a precaution, and it is spelled out because the Python half of this project has
+    /// shipped the definition-time version of this bug four times.
+    var model: QuestionRouter? = TieredRouter.platformModelRouter()
     var similarity: QuestionRouter = SimilarityRouter()
 
-    func route(_ question: String, within known: [String]) async -> RoutingOutcome {
+    /// The on-device model tier where the OS carries one. Not a policy decision — purely "does
+    /// this device have it", which is why it is separate from `route`'s ordering.
+    static func platformModelRouter() -> QuestionRouter? {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, macOS 26.0, *) {
-            if let outcome = await ModelRouter().route(question, within: known) {
-                return outcome
-            }
+            return ModelRouter()
         }
         #endif
+        return nil
+    }
+
+    func route(_ question: String, within known: [String]) async -> RoutingOutcome {
+        if let model, let outcome = await model.route(question, within: known) {
+            return outcome
+        }
         if let outcome = await similarity.route(question, within: known) {
             return outcome
         }

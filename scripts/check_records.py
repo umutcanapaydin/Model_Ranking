@@ -63,10 +63,28 @@ from pathlib import Path
 # pass `R2` — the record model literally had no word for a closure report. **A governance model that
 # cannot name the artefacts of the thing it governs is not installed, it is on display.**
 RECORD_TYPES = {"ratification", "register", "adr", "experience", "handover", "design", "council",
-                "closure", "wave", "fixpack", "brief", "status", "license-review", "warnings"}
+                "closure", "wave", "fixpack", "brief", "status", "license-review", "warnings",
+                # M11-W1, found by the independent seat the same wave created. `review` was absent
+                # while 44 files carried `record_type: review` -- and they PASSED, because
+                # `.governed-records` did not list `docs/reviews/` either, so none of them was ever
+                # scanned. Two absences cancelling into a green gate. Adding `seat` to the schema
+                # without this would have made D-133's mandated frontmatter UNREPRESENTABLE:
+                # declare `review` and R2 fires, declare anything else and R6 fires.
+                # N3, same wave, same class as `review` above: `docs/plans/m11-plan.md` declares
+                # `record_type: plan`, which was also absent. Ungoverned TODAY (the manifest reaches
+                # only wave-close records under `docs/plans/`) — named here so the type is legal the
+                # day it is governed, rather than becoming a second B1.
+                "review", "plan"}
 STATUS_FLOW = ["draft", "candidate", "ratified", "superseded", "retired"]  # X3 ordering
 REQUIRED = ("record_type", "id", "status")
-OPTIONAL = ("process_version", "supersedes", "requires", "subject_ref", "propagation",
+#: Who reviewed. `author` = the seat that wrote the code reviewed it; `independent` = a seat that
+#: did not. OPTIONAL rather than required, deliberately: 44 review records predate this field, and
+#: GPF-001 already ruled that a tool may not retroactively invalidate records written before it
+#: existed. `wave_check.py` REQUIRES it on any review a v5.0 wave-close record cites, which is where
+#: the consequence belongs — this file checks SHAPE and never judges independence (see the module
+#: docstring).
+SEATS = ("author", "independent")
+OPTIONAL = ("seat", "process_version", "supersedes", "requires", "subject_ref", "propagation",
             "evidence_ref", "approvers", "date")
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9.\-]{2,63}$")
 FM_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.S)
@@ -134,6 +152,13 @@ def validate_record(path: Path, root: Path) -> tuple[list[Finding], dict | None]
     rt = fields.get("record_type")
     if rt and rt not in RECORD_TYPES:                               # R2
         f.append(Finding(rel, ln, "R2", f"record_type `{rt}` not in {sorted(RECORD_TYPES)}"))
+    seat = fields.get("seat")
+    if seat is not None and seat not in SEATS:
+        f.append(Finding(rel, ln, "R6", f"seat `{seat}` not in {sorted(SEATS)} -- a review either "
+                         "was reviewed by the seat that wrote the code, or it was not"))
+    if seat is not None and rt != "review":
+        f.append(Finding(rel, ln, "R6", f"`seat` on a `{rt}` record -- the field is consumed only "
+                         "for reviews (V4C-35: a field may exist only if a check consumes it)"))
     st = fields.get("status")
     if st and st not in STATUS_FLOW:                                # R2
         f.append(Finding(rel, ln, "R2", f"status `{st}` not in {STATUS_FLOW}"))

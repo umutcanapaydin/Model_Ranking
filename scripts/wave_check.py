@@ -32,6 +32,100 @@ NEEDED = ("gates", "evidence")
 PLACEHOLDER = re.compile(r"<[A-Za-z][A-Za-z0-9 _/-]{2,}>|\bTBD\b|\bTODO\b|\bFIXME\b")
 
 
+#: REQ-REV-001 was written at M11. GPF-001 already ruled that a tool may not retroactively
+#: invalidate records written before it existed, so the FORMAT half of this gate -- cite a review
+#: record, and let it declare its seat -- applies from M11 onward. The other half does not scope:
+#: citing a file that DOES NOT EXIST was wrong in every era, and the first run of this gate found
+#: exactly one, in the one wave record that claimed an independent review (W-056).
+SEAT_RULE_FROM_MILESTONE = 11
+
+
+def review_seat_problems(text: str, root: pathlib.Path, milestone: int | None) -> list[str]:
+    """REQ-REV-001 — a self-review may not close a wave GREEN.
+
+    **What this checks, stated narrowly because the opposite claim is this project's own recurring
+    defect.** It does NOT verify that a review ran in a separate session; no file can show that. It
+    checks one thing: a wave-close record whose review row is PASS must cite a review record, and
+    that record must declare `seat: independent`. A review declaring `seat: author` forces the row
+    to be WAIVED, which Block D already forces to name a ledger id, which puts it in front of the
+    owner.
+
+    So the gate converts "the author reviewed their own code" from a sentence in a record into a
+    thing that cannot pass silently. Whether `independent` is TRUE remains a claim the process
+    makes -- and the reason that is acceptable here is that the failure this rule exists to stop
+    was never a lie. K.7 was bypassed four times in the open, each time recorded, and closed green
+    anyway.
+    """
+    bad: list[str] = []
+    # PASS ONE -- every line, every era, no status filter. The first version of this function put
+    # the broken-citation check AFTER the `WAIVED`/`SKIPPED` early exit, and the W-056 remediation
+    # then set the offending row to WAIVED: the record that motivated this entire gate became
+    # invisible to it, by way of its own fix. Reported by the independent seat as BLOCKING-3, which
+    # is the first thing that seat existed to do.
+    for i, line in enumerate(text.splitlines(), 1):
+        for rel in re.findall(r"`(docs/reviews/[^`]+\.md)`", line):
+            if ".." in rel:
+                bad.append(f"line {i}: cites `{rel}`, which escapes `docs/reviews/`. A wave record "
+                           "that can cite itself as its own review is not a citation")
+            elif not (root / rel).is_file():
+                bad.append(f"line {i}: cites `{rel}`, which does not exist. A review that is not a "
+                           "file is a claim about a conversation")
+
+    # PASS TWO -- the FORMAT rules, which apply from M11 (GPF-001).
+    if milestone is not None and milestone < SEAT_RULE_FROM_MILESTONE:
+        return bad
+    for i, line in enumerate(text.splitlines(), 1):
+        if not line.lstrip().startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 2:
+            continue
+        # Match on the CHECK-NAME cell, not the whole line. Case-insensitive and not a fixed
+        # phrase, because the seat proved a self-review passed simply by relabelling the row
+        # `Fresh-eyes code review`. But scanning the WHOLE line over-corrects the other way: this
+        # record's own rows 2 and 5 mention "self-review" and "test_review_seat_gate.py" in their
+        # EVIDENCE, and were read as review rows that cite nothing. The check being performed lives
+        # in one cell; that is the only cell that says what a row IS.
+        name = cells[1] if len(cells) >= 3 else cells[0]
+        if not re.search(r"K\.7|review", name, re.I):
+            continue
+        status = cells[-1].upper().split()[0] if cells[-1].split() else ""
+        cited = [r for r in re.findall(r"`(docs/reviews/[^`]+\.md)`", line) if ".." not in r]
+        if status in ("SKIPPED", "WAIVED"):
+            # Block D makes a waiver declare its KIND. AGENTS.md additionally claims a waived review
+            # row names a LEDGER ROW, and that claim was false until the seat checked it: a row
+            # reading `WAIVED -- PRESSURE`, admitting a self-review in its own text and citing no
+            # review at all, passed. The claim is now true.
+            if not re.search(r"\bW-\d{3}\b", line):
+                bad.append(f"line {i}: the review row is {status} and names no ledger row. A bypass "
+                           "that is not counted is invisible to the 3x trigger (V4C-13)")
+            continue
+        if not cited:
+            bad.append(f"line {i}: the review row passes but cites no review record. A review that "
+                       "is not a file is a claim about a conversation")
+            continue
+        for rel in cited:
+            path = root / rel
+            if not path.is_file():
+                continue  # already reported above, in every era
+            # FRONTMATTER ONLY. Reading `^seat:` from anywhere in the file meant a four-line
+            # document with no frontmatter at all, containing the prose line `seat: independent`,
+            # closed a wave green -- verified by the independent seat. The frontmatter block is the
+            # part `check_records.py` validates; the body is prose, and prose is what this whole
+            # rule exists to stop being evidence.
+            body = path.read_text(encoding="utf-8")
+            front = re.match(r"^---\s*\n(.*?)\n---\s*(\n|$)", body, re.S)
+            seat = re.search(r"^seat:\s*(\S+)\s*$", front.group(1), re.M) if front else None
+            if seat is None:
+                bad.append(f"line {i}: `{rel}` declares no `seat:` -- REQ-REV-001 requires every "
+                           "review a v5.0 close relies on to say whether the seat wrote the code")
+            elif seat.group(1) != "independent":
+                bad.append(f"line {i}: `{rel}` declares `seat: {seat.group(1)}` and the row is "
+                           f"{status or 'PASS'}. A self-review does not close a wave green -- WAIVE "
+                           "the row with its ledger id so the bypass is counted (V4C-13)")
+    return bad
+
+
 def main(argv: list[str]) -> int:
     if len(argv) != 2:
         print("usage: wave_check.py FILE")
@@ -119,6 +213,15 @@ def main(argv: list[str]) -> int:
                   or (status in {"SKIPPED", "N/A", "WAIVED"} and re.search(r"\d{4}-\d{2}-\d{2}", ev)))
         if not has_ev:
             evidence_less += 1
+
+    # The repo root is derived from the record's OWN path rather than the cwd, because this gate is
+    # invoked both from `make` and per-file by `wave_check_all.py`, and a cwd-relative lookup would
+    # make the review-record check silently vacuous from one of them. A check that passes because it
+    # found nothing to look at is this project's most-repeated defect.
+    root = next((a for a in p.resolve().parents if (a / "docs").is_dir()), p.resolve().parent)
+    milestone_match = re.match(r"m(\d+)-wave-", p.name)
+    bad.extend(review_seat_problems(
+        text, root, int(milestone_match.group(1)) if milestone_match else None))
 
     if rows == 0:
         bad.append("no checklist rows found -- this is not a filled checklist")

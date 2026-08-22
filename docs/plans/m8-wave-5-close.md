@@ -29,7 +29,7 @@ date: 2026-08-19
 |---|---|---|---|
 | 1 | Risk tier recorded — V3C-78 | **HIGH.** V4C-50: a fix inherits the risk class of the bug it fixes, and this wave repairs the scoring path (`epoch_board.py`, `categories.py`), the frozen payload's serializer (`_ranking_json`) and a network trust boundary (the redirect delegate). Re-tiered from the client-only MED of W1–W3 rather than inherited | ✅ |
 | 2 | Dev-test loop ran — V3C-68 | Implement → test → self-review → fix on every item, with each fix's mutant replayed before it was accepted. Three of this wave's own tests had to be corrected because their FIXTURES could not violate what they asserted (`docs/plans/m8-wave-5-close.md` below) | ✅ |
-| 3 | Review per tier — V3C-78 / K.7 | **This wave IS the review**, run by three seats that authored none of the code: `docs/reviews/m8-code-review.md` equivalents returned as agent reports, plus `docs/reviews/m8-security-review-independent.md`. The three PRESSURE bypasses recorded in W1–W3 are what it answers | ✅ |
+| 3 | Review per tier — V3C-78 / K.7 | **AMENDED 2026-08-22 — see the note at the foot of this record.** This wave WAS the review, run by three seats that authored none of the code, and the three PRESSURE bypasses recorded in W1–W3 are what it answers. But the reviews came back as agent REPORTS and were never written to files: the two paths this row originally cited — docs/reviews/m8-code-review.md and docs/reviews/m8-security-review-independent.md, written here as NAMES rather than as citations, because citing a file that does not exist is the defect — have never existed in this repository's history. The findings were acted on; the evidence was not retained. Ledgered as W-056 | WAIVED — NO-ENVIRONMENT (the reviews left no artifact); ledgered as W-056 |
 | 4 | Fault injection — V3C-72 | 2026-08-19, against `src/app/clients/epoch_board.py`, `src/app/workflows/build.py`, `src/app/workflows/categories.py`, `src/app/adapter/main.py` and `ios/ModelRanking/Engine/EngineClient.swift`. Author replayed **35 of the tester's survivors** plus 12 new mutants of this wave's own fixes; every file md5-verified restored, tree confirmed byte-identical to HEAD after the tester's run (which had its own restore incident, caught by its md5 assertion in seconds) | ✅ |
 | 5 | Every criterion has a citing test able to fail — V3C-02 | `tests/unit/test_epoch_board.py` (26), `test_build_boards.py` (10), plus new tests in `test_categories.py`, `test_ranking_payload.py`, `test_ios_client_contract.py`, `test_ios_payload_contract.py`. **REQ-APP-002 and REQ-APP-005 were DOWNGRADED to PARTIAL in `docs/prd.md`** rather than left claiming a grep is a proof | ✅ |
 | 6 | REQ-IDs current in the PRD | `docs/prd.md` — REQ-APP-004's unreachable case and the two downgrades written at this wave, 2026-08-19 | ✅ |
@@ -77,3 +77,25 @@ Touched: `docs/closure-report-m8.md`, `docs/plans/m8-wave-2-close.md`, `docs/pla
 K.8 contracts: none moved. `/v1` stays as D-125 left it; D-124's window remains SPENT.
 
 Filled by: the lead agent (Claude, Claude Code CLI) · Date: 2026-08-19 · Wave commit range: `bb42224..acc9ffa`
+
+> **Amendment, 2026-08-22 (M11-W1).** REQ-REV-001's gate was written to stop a self-review closing
+> a wave green, and on its first run it failed this record — the ONE wave in this project that
+> claimed K.7 was satisfied. The row cited two review records by path. Neither has ever existed:
+> `git log --diff-filter=A` returns nothing for either.
+>
+> **Second amendment, same day.** The first version of this note dropped the `docs/reviews/`
+> prefix from the two dead paths while setting the row to WAIVED — and the gate skipped WAIVED rows
+> before scanning citations, so the record that motivated the gate became invisible to it, twice
+> over, by way of its own fix. The independent seat raised it as BLOCKING. The citation scan now
+> runs on every line in every era before any status filter, and the paths are written in full so
+> this record fails the gate if either file is ever deleted after being written. The word doing the work was *"equivalents"* —
+> the three seats reported back in conversation, their findings were acted on, and nobody wrote the
+> reports down.
+>
+> The row is amended rather than deleted, and its verdict is amended too: a ✅ that rests on two
+> paths which do not exist was never a ✅. **This is the project's own most-recorded defect — a
+> record that asserts a control which is not there — sitting on the single row that certifies the
+> control everything else defers to.** Ledgered as W-056; the gate that found it is
+> `scripts/wave_check.py::review_seat_problems`, and it checks broken citations in EVERY era for
+> exactly this reason.
+

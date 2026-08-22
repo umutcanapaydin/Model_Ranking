@@ -68,7 +68,17 @@ Non-trivial choices → new ADR in `docs/decisions.md` with status `proposed`. U
 - **V3C-68 review loop** — Stage 2: each agent runs a dev-test loop on its slice (implement→test→self-review→fix). Stage 3 (per wave, fresh eyes, never own code): **Code-Reviewer + Tester** (PROFILES MANDATORY; `subagent-profiles/`). **Security review moved to Stage 4.0 closure (BLOCKING before deploy)** — not per-wave; a HIGH-risk wave (auth/PII/payment/crypto/migration) may pull a security pass forward.
 - **V3C-78 risk tiers (v3.1, P-005):** LOW/MED wave → ONE combined reviewer; HIGH (auth/payment/crypto/migration/distributed-correctness — auto-escalated) → Code + Tester + pulled-forward security-on-slice. Escaped blocker on a tiered-down wave → full review until next clean milestone.
 - **V3C-69 wave close (v3.1):** fill + commit the wave-close checklist (`docs/wave-checklist.template.md`, `make wave-check`) — every ✅ cites fresh wave-scoped evidence; skipped/waived checks ledgered. Tester runs the fault-injection protocol on HIGH waves (V3C-72; revert IN PLACE, never `git checkout` on uncommitted work).
-- **K.7** — fresh eyes preserved: the reviewer/tester never authored the wave's code
+- **K.7** — fresh eyes preserved: the reviewer/tester never authored the wave's code. **In the
+  LOCAL single-agent lane this means a SEPARATE SESSION** (owner ruling, 2026-08-22): the reviewing
+  seat receives the diff and reads its policy from the PROTECTED BASE REF (V4C-06), never from the
+  authoring session's context. **The review is a FILE.** A review that exists only as a report in a
+  conversation is not evidence, and `scripts/wave_check.py::review_seat_problems` enforces both
+  halves — a wave-close review row that passes must cite a `docs/reviews/*.md` record, and that
+  record must declare `seat: independent` in its frontmatter. `seat: author` forces the row to be
+  WAIVED, which forces it to name a ledger row, which puts the bypass in front of the owner
+  (V4C-13). **The gate does not prove independence and does not claim to** — it makes a self-review
+  unable to close a wave green. K.7 was bypassed four times in the open before this existed, and
+  every one of them was recorded and closed green anyway (W-055, W-056).
 - **K.8** — Shared contracts grep-verified in plan (paste `grep -n` output)
 - **v3.2 context hygiene (V3C-85):** one task per session; compact at wave boundaries (state lives in FILES, re-read them); repo exploration goes to the read-only **Explorer** profile (≤2k-token summary), never inline.
 - **v3.2 spike lane (V3C-87):** `spike-*` branch = declared L0 throwaway — exempt from gates EXCEPT secrets scanning; NEVER merged (branch-guard + closure check); productionize = rebuild through the pipeline.

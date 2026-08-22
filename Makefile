@@ -119,7 +119,23 @@ conformance-gate: install
 	@# looked. Per-FINDING exemptions, never per-leg: one of the five failures turned out to be ours.
 	$(PY) -B scripts/conformance_gate.py
 
-check: lint typecheck test coverage-floor check-records check-records-selftest install-check wave-check-all conformance-gate
+swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING sources
+	@# A test nobody types is a test that does not run -- W-032, this project's own finding, which
+	@# is why this is in `check:` and not a thing you remember. SKIPPED rather than failed where
+	@# there is no toolchain: a gate that fails on a machine without Xcode gets switched off, and
+	@# the skip is loud so it cannot be mistaken for a pass.
+	@# NO PIPE. `swift test | tail -3` was written here first and `make swift-test` returned 0 with
+	@# a deliberately broken assertion -- the pipe hands make `tail`'s status, and the failure did
+	@# not even appear in the three lines shown. A gate that cannot fail, shipped inside the wave
+	@# whose whole subject is code nothing executes. Proven broken, then fixed, then proven again.
+	@if command -v swift > /dev/null 2>&1; then \
+		out=`cd ios && swift test 2>&1` || { echo "$$out" | tail -40; exit 1; }; \
+		echo "$$out" | grep -E "Executed [0-9]+ tests, with" | tail -1; \
+	else \
+		echo "swift-test SKIPPED NO-ENVIRONMENT: no swift toolchain on PATH"; \
+	fi
+
+check: lint typecheck test coverage-floor check-records check-records-selftest install-check wave-check-all conformance-gate swift-test
 
 wave-check-all: install
 	@# W-032 / this project's own field finding: a gate that is not in the command people type

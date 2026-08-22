@@ -255,6 +255,24 @@ record "refresh-status" "$?"
 # --- 6. the iOS app compiles ----------------------------------------------------------------------
 
 section "iOS build"
+# W-038: the app was COMPILED here for two milestones and never RUN. `swift test` executes the
+# Engine layer against the same sources the .xcodeproj builds, so a green build stops meaning
+# "it parses".
+section "swift-tests"
+if command -v swift > /dev/null 2>&1; then
+  # No pipe between `swift test` and the log, for the reason recorded in the Makefile: a pipe
+  # hands the shell tail's status and the gate stops being able to fail.
+  if swift_out=$( cd "$REPO/ios" && swift test 2>&1 ); then
+    printf '%s\n' "$swift_out" | grep -E "Executed [0-9]+ tests, with" | tail -1 >> "$FULL"
+    pass "swift-tests"
+  else
+    printf '%s\n' "$swift_out" | tail -40 >> "$FULL"
+    fail "swift-tests"
+  fi
+else
+  echo "SKIPPED: swift is not on PATH" >> "$FULL"
+fi
+
 if command -v xcodebuild > /dev/null 2>&1; then
   echo "building the app ..."
   ( cd "$REPO/ios" && xcodebuild -project ModelRanking.xcodeproj -scheme ModelRanking \
