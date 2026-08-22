@@ -20,12 +20,14 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import datetime as dt
 import hashlib
 import json
 import os
 import sqlite3
 import sys
 import tempfile
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -50,6 +52,10 @@ EXIT_PUBLISHED = 0
 EXIT_UNCHANGED = 1
 #: The candidate could not be built, or could not be published. The live artifact is untouched.
 EXIT_FAILED = 2
+#: The candidate built fine and is WORSE than what is being served, so it was refused (D-128).
+#: A first-class outcome and not an error: nothing is broken, and the right response is to look at
+#: the upstream rather than at this process.
+EXIT_REFUSED = 3
 
 
 @dataclass(frozen=True)
@@ -74,8 +80,63 @@ class RefreshOutcome:
         )
 
 
-def serving_fingerprint(conn: sqlite3.Connection) -> tuple[str, int]:
-    """A digest of what this artifact would SERVE, plus how many surfaces answer.
+#: D-128. A surface losing MORE than this fraction of its ranked models is damage, not churn.
+#:
+#: Not zero, and the reason matters more than the number: boards drop models constantly, so
+#: "refuse on any loss" would refuse nearly every real refresh and freeze the product at whatever
+#: artifact happened to be current — while every gate reported healthy and every cycle exited
+#: cleanly. **That failure looks exactly like success**, which is why it is the one to fear. A
+#: refusal is recoverable by waiting; a freeze is only recoverable by someone noticing.
+#:
+#: A quarter is a judgement recorded as one. The smallest surface ships 13 models, so it trips at
+#: three — above routine churn, below anything a real outage could hide behind.
+MAX_SURFACE_LOSS = 0.25
+
+
+def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
+    """Every way the candidate would be WORSE than what is being served. Empty means it is safe.
+
+    Reasons are returned rather than a boolean, because the operator's first question on a refusal
+    is always "worse how", and a rule that cannot answer that gets disabled the second time it
+    fires.
+
+    Deliberately NOT degradations: a surface gaining models, prices moving either way, scores
+    falling. **A model getting worse is news, not damage** — reporting what the measurements say is
+    the product, and refusing to publish a decline would be worse than publishing it.
+    """
+    reasons: list[str] = []
+    for name, was in sorted(live.surfaces.items()):
+        now = candidate.surfaces.get(name, 0)
+        if was and not now:
+            reasons.append(f"{name} answered with {was} models and would now answer nothing")
+        elif was and now < was * (1 - MAX_SURFACE_LOSS):
+            lost = was - now
+            reasons.append(
+                f"{name} would lose {lost} of {was} models "
+                f"({lost / was:.0%}, over the {MAX_SURFACE_LOSS:.0%} limit)"
+            )
+    return reasons
+
+
+@dataclass(frozen=True)
+class ServingSummary:
+    """What an artifact would serve: one digest, and the size of every surface behind it.
+
+    The digest answers "did anything change". The per-surface counts answer "did it get WORSE",
+    which is a different question and the one D-128 is about. They are produced together, from one
+    pass, so the two can never describe different artifacts.
+    """
+
+    digest: str
+    surfaces: dict[str, int]
+
+    @property
+    def answering(self) -> int:
+        return sum(1 for count in self.surfaces.values() if count)
+
+
+def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
+    """A digest of what this artifact would SERVE, and how many models stand behind each surface.
 
     REQ-REF-002 says "changed" is decided on served content, and every word of that is load-bearing:
 
@@ -104,7 +165,7 @@ def serving_fingerprint(conn: sqlite3.Connection) -> tuple[str, int]:
     could fail to notice, and W2's refusal rule is built on this same count.
     """
     digest = hashlib.sha256()
-    answering = 0
+    surfaces: dict[str, int] = {}
     for name in sorted(CATEGORIES):
         spec = CATEGORIES[name]
         # NO `except sqlite3.DatabaseError: rows = []` HERE, and its absence is the point.
@@ -121,8 +182,7 @@ def serving_fingerprint(conn: sqlite3.Connection) -> tuple[str, int]:
         # nothing.
         rows = category_ranking(conn, spec)
         digest.update(f"surface:{name}:{len(rows)}\n".encode())
-        if rows:
-            answering += 1
+        surfaces[name] = len(rows)
         for row in rows:
             digest.update(
                 (
@@ -131,10 +191,10 @@ def serving_fingerprint(conn: sqlite3.Connection) -> tuple[str, int]:
                     f"{row.blended_per_m}|{row.harness}|{row.effort}\n"
                 ).encode()
             )
-    return digest.hexdigest(), answering
+    return ServingSummary(digest=digest.hexdigest(), surfaces=surfaces)
 
 
-def fingerprint_of(path: Path) -> tuple[str, int] | None:
+def fingerprint_of(path: Path) -> ServingSummary | None:
     """The fingerprint of an artifact on disk, or None when there is nothing readable to compare.
 
     None is not an error and must not be treated as one: the first refresh on a fresh machine has
@@ -152,11 +212,49 @@ def fingerprint_of(path: Path) -> tuple[str, int] | None:
         # about what it would serve — otherwise "it opened" is mistaken for "it is readable", which
         # is the `stat` is not `open` finding this project already paid for once at M7.
         conn.execute("SELECT count(*) FROM sqlite_master").fetchone()
-        return serving_fingerprint(conn)
+        return serving_summary(conn)
     except sqlite3.Error:
         return None
     finally:
         conn.close()
+
+
+def status_path(target: Path) -> Path:
+    """Where a cycle records what it did, beside the artifact it was refreshing."""
+    return target.with_name(target.name + ".refresh.json")
+
+
+def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float) -> Path:
+    """Record this cycle. REQ-REF-004.
+
+    Written on EVERY path, including failures and refusals — especially those. A record that only
+    exists when things went well cannot distinguish "nothing needed doing" from "this stopped
+    running three days ago", and that distinction is the whole point of keeping one (D-129).
+
+    Written to a temp file and renamed, for the same reason the artifact is: a reader that catches
+    this mid-write would see truncated JSON and conclude the refresh is broken, which is the
+    opposite of what the record is for.
+    """
+    path = status_path(target)
+    payload = {
+        "at": at,
+        "at_iso": dt.datetime.fromtimestamp(at, tz=dt.UTC).isoformat(),
+        "exit_code": code,
+        "outcome": {
+            EXIT_PUBLISHED: "published",
+            EXIT_UNCHANGED: "unchanged",
+            EXIT_FAILED: "failed",
+            EXIT_REFUSED: "refused",
+        }.get(code, "unknown"),
+        "reason": outcome.reason,
+        "surfaces_answering": outcome.surfaces,
+        "live_fingerprint": outcome.live_fingerprint,
+        "candidate_fingerprint": outcome.candidate_fingerprint,
+    }
+    scratch = path.with_name(path.name + ".writing")
+    scratch.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    scratch.replace(path)
+    return path
 
 
 def refresh(
@@ -164,6 +262,7 @@ def refresh(
     *,
     build_args: Sequence[str] = (),
     builder: Callable[[list[str]], int] | None = None,
+    clock: Callable[[], float] | None = None,
 ) -> tuple[RefreshOutcome, int]:
     """Run one cycle against `target`. Returns the outcome and the process exit code.
 
@@ -180,6 +279,11 @@ def refresh(
     took twelve seconds because they were running the real build.
     """
     builder = build_main if builder is None else builder
+    clock = time.time if clock is None else clock
+    def record(outcome: RefreshOutcome, code: int) -> tuple[RefreshOutcome, int]:
+        write_status(target, outcome, code, at=clock())
+        return outcome, code
+
     live = fingerprint_of(target)
 
     # The candidate is built NEXT TO the live artifact, because publishing is an atomic rename and
@@ -206,57 +310,72 @@ def refresh(
                 published=False,
                 reason=f"the candidate could not be built (build exit {code}); "
                 "the live artifact is untouched",
-                live_fingerprint=live[0] if live else None,
+                live_fingerprint=live.digest if live else None,
                 candidate_fingerprint="",
                 surfaces=0,
             )
-            return outcome, EXIT_FAILED
+            return record(outcome, EXIT_FAILED)
 
         fresh = fingerprint_of(candidate)
         if fresh is None:
             outcome = RefreshOutcome(
                 published=False,
                 reason="the candidate built but cannot be read back; the live artifact is untouched",
-                live_fingerprint=live[0] if live else None,
+                live_fingerprint=live.digest if live else None,
                 candidate_fingerprint="",
                 surfaces=0,
             )
-            return outcome, EXIT_FAILED
+            return record(outcome, EXIT_FAILED)
 
-        if live is not None and fresh[0] == live[0]:
-            return (
+        if live is not None and fresh.digest == live.digest:
+            return record(
                 RefreshOutcome(
                     published=False,
                     reason="nothing a user would notice changed",
-                    live_fingerprint=live[0],
-                    candidate_fingerprint=fresh[0],
-                    surfaces=fresh[1],
+                    live_fingerprint=live.digest,
+                    candidate_fingerprint=fresh.digest,
+                    surfaces=fresh.answering,
                 ),
                 EXIT_UNCHANGED,
             )
 
+        if live is not None:
+            worse = degradations(live, fresh)
+            if worse:
+                return record(
+                    RefreshOutcome(
+                        published=False,
+                        reason="refused: the candidate is worse than what is being served — "
+                        + "; ".join(worse),
+                        live_fingerprint=live.digest,
+                        candidate_fingerprint=fresh.digest,
+                        surfaces=fresh.answering,
+                    ),
+                    EXIT_REFUSED,
+                )
+
         try:
             candidate.replace(target)
         except OSError as exc:
-            return (
+            return record(
                 RefreshOutcome(
                     published=False,
                     reason=f"the candidate could not be published: {exc}; "
                     "the live artifact is untouched",
-                    live_fingerprint=live[0] if live else None,
-                    candidate_fingerprint=fresh[0],
-                    surfaces=fresh[1],
+                    live_fingerprint=live.digest if live else None,
+                    candidate_fingerprint=fresh.digest,
+                    surfaces=fresh.answering,
                 ),
                 EXIT_FAILED,
             )
 
-        return (
+        return record(
             RefreshOutcome(
                 published=True,
                 reason="first artifact" if live is None else "the served content changed",
-                live_fingerprint=live[0] if live else None,
-                candidate_fingerprint=fresh[0],
-                surfaces=fresh[1],
+                live_fingerprint=live.digest if live else None,
+                candidate_fingerprint=fresh.digest,
+                surfaces=fresh.answering,
             ),
             EXIT_PUBLISHED,
         )

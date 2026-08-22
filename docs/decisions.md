@@ -1113,3 +1113,85 @@ a rewrite of this ADR.
 ---
 
 *Append new ADRs in sequence via `/log-decision` skill. IDs are immutable; deletion leaves a gap (seed B.5).*
+
+## D-128 — A refresh refuses on a blinded surface or a quarter of a surface lost
+
+**Status:** accepted · **Date:** 2026-08-21 · **Decided by:** the lead agent, under the owner's
+instruction to proceed and decide. **Reversible in one constant; say the word and it moves.**
+**Answers:** `docs/plans/m9-plan.md` §5 question 1. **Implements:** REQ-REF-003.
+
+**Decision.** An unattended refresh REFUSES to publish a candidate when, compared with the artifact
+it would replace, either:
+
+1. a surface that was answering would answer nothing, or
+2. any surface loses **more than a quarter** of its ranked models.
+
+**Why a threshold at all, and why not zero.** The tempting rule is "refuse on any loss", and it is
+the dangerous one. Boards drop models constantly — a provider retires a checkpoint, a leaderboard
+prunes a stale entry — so "any loss" would refuse almost every real refresh. The product would then
+freeze at whatever artifact happened to be current, **while every gate reported healthy and every
+cycle exited cleanly.** That is the failure mode this milestone must fear most, because it looks
+exactly like success: nothing breaks, nothing alerts, and the answers quietly stop being true.
+
+The opposite error is cheaper to recover from. If the threshold is too loose, a bad upstream day
+publishes a thinner artifact and the next good day publishes a full one back. **A refusal is
+recoverable by waiting; a freeze is only recoverable by someone noticing.**
+
+**Why 25%.** It is a judgement, not a measurement, and it is recorded as one. The reasoning: the
+smallest surface this product ships ranks 13 models (`agentic-coding`), so a quarter is three — big
+enough that routine churn does not trip it, small enough that a real outage cannot hide behind it.
+On the largest (`everyday`, 58) it is fourteen, which no ordinary board movement produces.
+
+**Explicitly NOT a refusal condition:** a surface gaining models, prices moving in either
+direction, or scores falling. **A model getting worse is news, not damage** — this product's job is
+to report what the measurements say, and refusing to publish a decline would be the one thing worse
+than publishing it.
+
+---
+
+## D-129 — The refresh's record is a file, and `runner` is what makes it visible
+
+**Status:** accepted · **Date:** 2026-08-21 · **Decided by:** the lead agent, under the owner's
+instruction to proceed. **Answers:** `docs/plans/m9-plan.md` §5 question 3. **Implements:**
+REQ-REF-004, and constrains REQ-REF-005.
+
+**Decision.** Every cycle writes its outcome to a status file beside the artifact. `runner` reads
+that file and reports it, including **how long ago** the last cycle ran, so a refresh that stopped
+entirely is visible in the one command the owner already runs.
+
+**The limit is stated rather than hidden: this only reaches him when he runs `runner`.** It is a
+record he can find, not an alert that finds him, and REQ-REF-005 asks for the second thing.
+
+**Why this and not a notification, today.** A desktop notification is the only option that arrives
+unbidden, and it is also a thing that starts appearing on someone's screen because an agent decided
+it should. That is not a reversible change in the way a constant is. The status file is the part
+that is unambiguously right — nothing can alert on state it never recorded — so it ships first, and
+W3 chooses the channel on top of it with the owner present.
+
+**What this forbids:** treating a silent, absent status file as success. If the file is missing or
+its timestamp is old, `runner` must say so loudly. **Silence is the failure mode, so silence is what
+gets reported.**
+
+---
+
+## D-130 — The schedule is `launchd`, because a missed trigger must be caught up
+
+**Status:** accepted · **Date:** 2026-08-21 · **Decided by:** the lead agent, under the owner's
+instruction to proceed. **Answers:** `docs/plans/m9-plan.md` §5 question 2, in part.
+**Implements:** REQ-REF-005. **Constrained by:** D-116 — ingestion never runs on a serving host.
+
+**Decision.** The 12-hour schedule is a `launchd` agent on the owner's Mac, using `StartInterval`.
+
+**Why not `cron`.** `cron` does not fire for triggers missed while the machine was asleep, and a
+laptop is asleep for most of a night. On a 12-hour interval that is not a delayed refresh, it is a
+**skipped** one — and two skipped triggers is a day of the product claiming freshness it is not
+maintaining. `launchd` runs a missed `StartInterval` job when the machine wakes, which is the whole
+reason to prefer it here.
+
+**Why the owner's Mac at all.** D-116 forbids ingestion on the SERVING host, and nothing is
+deployed, so there is exactly one host. When a deploy happens (D-123, still undischarged), the
+refresh moves off the serving box and this ADR is superseded rather than amended.
+
+**What ships in W3 and what does not.** The plist and an install command ship; **the agent does not
+install it.** Loading a background job onto someone's machine is the owner's action, and it is one
+command he can read before he runs it.

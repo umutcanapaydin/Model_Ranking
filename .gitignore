@@ -51,3 +51,4 @@ notes/
 *.sqlite3
 ios/.build/
 coverage.json
+advisor.db.refresh.json

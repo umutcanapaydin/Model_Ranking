@@ -174,6 +174,53 @@ else
   record "engine" 0
 fi
 
+# --- 5b. the refresh's own record ------------------------------------------------------------------
+
+section "refresh status  (D-129 - the record a refresh leaves, and how old it is)"
+echo "reading the refresh record ..."
+$PY -B - >> "$FULL" 2>&1 <<'REFRESH_STATUS'
+import json
+import pathlib
+import sys
+import time
+
+from app.workflows.refresh import status_path
+
+record = status_path(pathlib.Path("advisor.db"))
+if not record.is_file():
+    # NOT a failure: a refresh has never run on this machine, which is true today and must read as
+    # "not set up" rather than "broken". D-129's rule is that silence is never reported as success,
+    # and this is the sentence that keeps that promise.
+    print(f"no refresh record at {record} - the refresh has never run here.")
+    print("Run one with:")
+    print("  .venv/bin/python -B -m app.workflows.refresh --db advisor.db --epoch-dir <bundle>")
+    sys.exit(0)
+
+written = json.loads(record.read_text(encoding="utf-8"))
+age_h = (time.time() - float(written["at"])) / 3600.0
+print(f"last cycle : {written['at_iso']}  ({age_h:.1f} hours ago)")
+print(f"outcome    : {written['outcome']} (exit {written['exit_code']})")
+print(f"reason     : {written['reason']}")
+print(f"surfaces   : {written['surfaces_answering']} answering")
+
+# The schedule is twelve hours, so anything past twenty-four means at least one cycle did not
+# happen. A stopped refresh is the failure this record exists to make visible, and it stays
+# invisible unless something compares the timestamp to the clock - a comparison the reader should
+# never be asked to perform themselves.
+if age_h > 24:
+    print(f"STALE: the last cycle was {age_h:.0f} hours ago and the schedule is 12.")
+    print("       At least one refresh did not run.")
+    sys.exit(1)
+if written["outcome"] == "refused":
+    print("REFUSED: the last candidate was worse than what is being served (D-128).")
+    print("         The artifact is intact; look at the upstream, not at this process.")
+    sys.exit(1)
+if written["outcome"] == "failed":
+    print("FAILED: the last cycle could not produce a candidate. The artifact is intact.")
+    sys.exit(1)
+REFRESH_STATUS
+record "refresh-status" "$?"
+
 # --- 6. the iOS app compiles ----------------------------------------------------------------------
 
 section "iOS build"

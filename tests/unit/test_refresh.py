@@ -20,10 +20,11 @@ import pytest
 from app.workflows.refresh import (
     EXIT_FAILED,
     EXIT_PUBLISHED,
+    EXIT_REFUSED,
     EXIT_UNCHANGED,
     fingerprint_of,
     refresh,
-    serving_fingerprint,
+    serving_summary,
 )
 
 from .test_api_v1 import _seeded_db
@@ -119,8 +120,12 @@ def test_a_surface_going_blind_changes_the_fingerprint(tmp_path: Path) -> None:
     before = fingerprint_of(full)
     after = fingerprint_of(blinded)
     assert before is not None and after is not None
-    assert before[0] != after[0], "a surface lost all its evidence and the fingerprint did not move"
-    assert after[1] < before[1], "the answering-surface count must fall when a surface goes blind"
+    assert before.digest != after.digest, (
+        "a surface lost all its evidence and the fingerprint did not move"
+    )
+    assert after.answering < before.answering, (
+        "the answering-surface count must fall when a surface goes blind"
+    )
 
 
 # --- REQ-REF-001: the live artifact is never left worse ------------------------------------------
@@ -321,7 +326,7 @@ def test_asking_a_corrupt_artifact_what_it_serves_raises_rather_than_answering_e
     conn = sqlite3.connect(f"file:{junk}?mode=ro", uri=True)
     try:
         with pytest.raises(sqlite3.DatabaseError):
-            serving_fingerprint(conn)
+            serving_summary(conn)
     finally:
         conn.close()
 
@@ -410,13 +415,15 @@ def test_the_same_rows_under_a_different_surface_are_a_different_fingerprint(
 
     # Fixture assumption, asserted: BOTH artifacts must actually rank their one row, or this is
     # "something versus nothing" and proves nothing about surface identity.
-    coding_fp, coding_n = fingerprint_of(coding)
-    agentic_fp, agentic_n = fingerprint_of(agentic)
-    assert coding_n == 1 and agentic_n == 1, (
-        f"the construction is wrong: {coding_n} and {agentic_n} surfaces answer, and both must be 1"
+    coding_summary = fingerprint_of(coding)
+    agentic_summary = fingerprint_of(agentic)
+    assert coding_summary is not None and agentic_summary is not None
+    assert coding_summary.answering == 1 and agentic_summary.answering == 1, (
+        f"the construction is wrong: {coding_summary.answering} and "
+        f"{agentic_summary.answering} surfaces answer, and both must be 1"
     )
 
-    assert coding_fp != agentic_fp, (
+    assert coding_summary.digest != agentic_summary.digest, (
         "the same evidence under a different surface produced the same fingerprint; a category "
         "could swap its entire content and the refresh would report nothing changed"
     )
@@ -573,3 +580,258 @@ def test_the_cli_exit_codes_distinguish_published_unchanged_and_failed(
 
     monkeypatch.setattr(refresh_mod, "build_main", lambda argv: 2)
     assert refresh_mod.main(["--db", str(live)]) == EXIT_FAILED
+
+
+# --- REQ-REF-003: a refresh may not publish something WORSE (D-128) ------------------------------
+
+
+def _wide(path: Path, *, models: int = 12, keep: int | None = None) -> Path:
+    """A `coding` surface with exactly `keep` of `models` ranked models.
+
+    Twelve, because the fixture used elsewhere has THREE — and with three, "loses more than a
+    quarter" and "loses everything" are the same event, so a threshold of 0%, 25% or 100% behaves
+    identically and three mutants on it survived. Twelve lets one lost model (8%) and four lost
+    models (33%) fall on opposite sides of the line.
+    """
+    _artifact(path)
+    conn = sqlite3.connect(path)
+    try:
+        conn.execute("DELETE FROM scores WHERE benchmark = 'SWE-bench Verified'")
+        surviving = models if keep is None else keep
+        for index in range(models):
+            model = f"probe-{index:02d}"
+            conn.execute(
+                "INSERT OR IGNORE INTO models (id, display, vendor) VALUES (?, ?, 'Probe')",
+                (model, f"Probe {index:02d}"),
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO px_median (model_id, in_m, out_m) VALUES (?, 2.0, 6.0)",
+                (model,),
+            )
+            if index < surviving:
+                conn.execute(
+                    "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score,"
+                    " harness, source_url, observed_at) VALUES (?, ?, 'swebench',"
+                    " 'SWE-bench Verified', '% resolved', ?, 'none', 'fixture://x', 't')",
+                    (model, f"Probe {index:02d}", 70.0 + index),
+                )
+        conn.commit()
+    finally:
+        conn.close()
+    return path
+
+
+def _sized(path: Path, *, drop_models: int = 0, blind: bool = False) -> Path:
+    """An artifact whose `coding` surface can be shrunk or blinded on purpose."""
+    _artifact(path)
+    conn = sqlite3.connect(path)
+    try:
+        if blind:
+            conn.execute("DELETE FROM scores WHERE benchmark = 'SWE-bench Verified'")
+        elif drop_models:
+            conn.execute(
+                "DELETE FROM scores WHERE benchmark = 'SWE-bench Verified' AND model_id IN "
+                "(SELECT model_id FROM scores WHERE benchmark = 'SWE-bench Verified' "
+                "ORDER BY score ASC LIMIT ?)",
+                (drop_models,),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+    return path
+
+
+def test_a_candidate_that_blinds_a_surface_is_refused(tmp_path: Path) -> None:
+    """The condition that made unattended operation dangerous in the first place.
+
+    A source blips for an hour; the build succeeds and reports the blind surface honestly per
+    D-121; and without this rule the cycle publishes an artifact where a category that was
+    answering an hour ago now says it has no evidence. Every gate green, every disclosure correct,
+    product degraded, nobody told.
+    """
+    live = _sized(tmp_path / "advisor.db")
+    before = live.read_bytes()
+
+    def blinding(argv: list[str]) -> int:
+        _sized(Path(argv[argv.index("--db") + 1]), blind=True)
+        return 0
+
+    outcome, code = refresh(live, builder=blinding)
+
+    assert code == EXIT_REFUSED, f"a blinded surface was published: {outcome.reason}"
+    assert not outcome.published
+    assert live.read_bytes() == before
+    assert "would now answer nothing" in outcome.reason
+    assert "coding" in outcome.reason, "the refusal must name WHICH surface"
+
+
+def test_a_candidate_losing_more_than_a_quarter_of_a_surface_is_refused(tmp_path: Path) -> None:
+    """D-128's threshold, exercised JUST PAST it and not by wiping the surface.
+
+    The first version of this test dropped every model, which trips the blinded-surface branch
+    instead — so the threshold itself was never executed and three mutants on it survived,
+    including one setting it to 100% (refuse nothing) and one setting it to 0% (refuse everything).
+    A test that reaches the wrong branch proves the wrong rule.
+    """
+    live = _wide(tmp_path / "advisor.db", models=12)
+    summary = fingerprint_of(live)
+    assert summary is not None and summary.surfaces["coding"] == 12
+
+    def shrinking(argv: list[str]) -> int:
+        _wide(Path(argv[argv.index("--db") + 1]), models=12, keep=8)  # 33% lost, over the line
+        return 0
+
+    outcome, code = refresh(live, builder=shrinking)
+    assert code == EXIT_REFUSED, f"a third of a surface vanished and was published: {outcome.reason}"
+    assert not outcome.published
+    assert "coding" in outcome.reason and "33%" in outcome.reason
+
+
+def test_a_candidate_losing_less_than_a_quarter_is_published(tmp_path: Path) -> None:
+    """The side of the line that keeps the product alive.
+
+    Boards drop a model routinely. If that refused, the product would freeze at whatever artifact
+    happened to be current while every gate reported healthy and every cycle exited cleanly — the
+    failure that looks like success, and the one D-128 exists to avoid. One of twelve is 8%.
+    """
+    live = _wide(tmp_path / "advisor.db", models=12)
+
+    def slightly_smaller(argv: list[str]) -> int:
+        _wide(Path(argv[argv.index("--db") + 1]), models=12, keep=11)
+        return 0
+
+    outcome, code = refresh(live, builder=slightly_smaller)
+    assert code == EXIT_PUBLISHED, f"routine churn was refused: {outcome.reason}"
+
+
+def test_a_candidate_losing_a_little_is_published(tmp_path: Path) -> None:
+    """The other direction, and the one that matters more.
+
+    A rule that refuses on ANY loss freezes the product at whatever artifact happened to be
+    current, while every gate reports healthy and every cycle exits cleanly — the failure that
+    looks like success. Boards drop a model routinely; that must still publish.
+    """
+    live = _sized(tmp_path / "advisor.db")
+    summary = fingerprint_of(live)
+    assert summary is not None and summary.surfaces["coding"] >= 3
+
+    def slightly_smaller(argv: list[str]) -> int:
+        _sized(Path(argv[argv.index("--db") + 1]), drop_models=0)
+        conn = sqlite3.connect(Path(argv[argv.index("--db") + 1]))
+        try:  # a change that is not a loss: one score moves
+            conn.execute("UPDATE scores SET score = 71.5 WHERE score = 71.0")
+            conn.commit()
+        finally:
+            conn.close()
+        return 0
+
+    outcome, code = refresh(live, builder=slightly_smaller)
+    assert code == EXIT_PUBLISHED, f"an ordinary change was refused: {outcome.reason}"
+
+
+def test_a_surface_getting_BIGGER_or_scores_falling_is_not_a_refusal(tmp_path: Path) -> None:
+    """A model getting worse is NEWS, not damage.
+
+    This product reports what the measurements say. Refusing to publish a decline would be the one
+    thing worse than publishing it — the engine would quietly hold the last flattering artifact.
+    """
+    live = _sized(tmp_path / "advisor.db")
+
+    def worse_scores(argv: list[str]) -> int:
+        target = Path(argv[argv.index("--db") + 1])
+        _sized(target)
+        conn = sqlite3.connect(target)
+        try:
+            conn.execute("UPDATE scores SET score = score / 2")
+            conn.commit()
+        finally:
+            conn.close()
+        return 0
+
+    outcome, code = refresh(live, builder=worse_scores)
+    assert code == EXIT_PUBLISHED, f"a decline in the measurements was refused: {outcome.reason}"
+
+
+# --- REQ-REF-004: the record ---------------------------------------------------------------------
+
+
+def test_every_cycle_records_what_it_did(tmp_path: Path) -> None:
+    """Including — especially — the ones that did not publish.
+
+    A record that only exists when things went well cannot tell "nothing needed doing" from "this
+    stopped running three days ago", and that distinction is the entire reason to keep one (D-129).
+    """
+    import json
+
+    from app.workflows.refresh import status_path
+
+    live = tmp_path / "advisor.db"
+    record = status_path(live)
+
+    refresh(live, builder=_builder(top_score=74.5), clock=lambda: 1_000.0)
+    assert json.loads(record.read_text())["outcome"] == "published"
+
+    refresh(live, builder=_builder(top_score=74.5), clock=lambda: 2_000.0)
+    unchanged = json.loads(record.read_text())
+    assert unchanged["outcome"] == "unchanged"
+    assert unchanged["at"] == 2_000.0, "the record did not move; staleness would be unreadable"
+
+    refresh(live, builder=lambda argv: 2, clock=lambda: 3_000.0)
+    failed = json.loads(record.read_text())
+    assert failed["outcome"] == "failed"
+    assert failed["exit_code"] == EXIT_FAILED
+    assert "untouched" in failed["reason"]
+
+
+def test_the_record_names_the_surface_that_caused_a_refusal(tmp_path: Path) -> None:
+    """"Worse how" is the operator's first question, and a rule that cannot answer it gets
+    disabled the second time it fires."""
+    import json
+
+    from app.workflows.refresh import status_path
+
+    live = _sized(tmp_path / "advisor.db")
+
+    def blinding(argv: list[str]) -> int:
+        _sized(Path(argv[argv.index("--db") + 1]), blind=True)
+        return 0
+
+    refresh(live, builder=blinding, clock=lambda: 5_000.0)
+    written = json.loads(status_path(live).read_text())
+
+    assert written["outcome"] == "refused"
+    assert written["exit_code"] == EXIT_REFUSED
+    assert "coding" in written["reason"]
+
+
+def test_the_record_is_never_left_half_written(tmp_path: Path) -> None:
+    """A reader catching a truncated file would conclude the refresh is broken, which is the
+    opposite of what the record exists to say. Written to a scratch file and renamed."""
+    from app.workflows.refresh import status_path
+
+    live = tmp_path / "advisor.db"
+    refresh(live, builder=_builder(), clock=lambda: 1.0)
+
+    assert status_path(live).is_file()
+    assert not list(tmp_path.glob("*.writing")), "a scratch record survived the write"
+
+
+def test_the_record_is_written_atomically_rather_than_in_place() -> None:
+    """W8: a reader catching a half-written record concludes the refresh is broken.
+
+    Asserted structurally, because observing a torn write reliably would mean racing the
+    filesystem. The property IS the scratch-then-rename, and it is the kind that decays silently
+    during a "simplify this" pass — `path.write_text(...)` looks tidier and is wrong for the same
+    reason the artifact is never written in place.
+    """
+    import ast
+
+    source = Path("src/app/workflows/refresh.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    function = next(
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and node.name == "write_status"
+    )
+    body = ast.dump(function)
+    assert "replace" in body, "the record is no longer renamed into place"
+    assert "scratch" in body, "the record is written straight to its final path"
