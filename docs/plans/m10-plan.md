@@ -1,156 +1,160 @@
-# M10 Plan — What this system does when it is wrong and nobody is looking
+# M10 Plan — The router, and the guard that is missing on the way up
 
 **Status:** **DRAFT — awaiting the owner's signature.** No wave starts until it is signed.
-**Date:** 2026-08-22 · **Risk tier:** **HIGH** (the guards that decide what reaches users)
-**Mode:** A0.5 + D-117 · **Process baseline:** GP v5.0 · **Review depth:** D-122
-**Quarterly obligation:** M10 is not `M % 3 == 0`. `note.txt` refresh still mandatory at 4.4.
+**Date:** 2026-08-22 · **Risk tier:** **HIGH** (a free model in front of the catalogue; the guards
+that decide what reaches users) · **Mode:** A0.5 + D-117 · **Process baseline:** GP v5.0 ·
+**Review depth:** D-122 · M10 is not `M % 3 == 0`.
 
 ---
 
-## 0. Why this milestone exists
+## 0. Three owner rulings this plan is built on
 
-M9's retrospective carried this question forward, and it is this milestone's whole shape:
+Given 2026-08-22, and each one narrows the milestone rather than widening it:
 
-> **The refresh removes the last human from the loop, and the human was the error-detection
-> mechanism for everything the gates do not cover.** A build that "fails loud" is loud to somebody
-> reading. So: what does this system do when it is wrong and nobody is looking?
+**1. Finish with what exists; revisions come later.** So `/v1` gets **no new revision window**.
+D-124 permitted one and D-125 spent it, and nothing here asks for another. Anything needing a new
+payload field is out of M10 by construction — which removes the saturation disclosure (W-035) from
+this milestone and leaves it stated in the ledger where it already is.
 
-M9 answered part of it by accident. Its own Stage-4.0 review named the half that is missing, and
-it is not a hypothetical:
+**2. Do not let M9's refresh make decisions on its own.** The cycle may prepare, compare and
+REFUSE. It may not acquire new judgement. Practically: every axis added here errs toward refusing
+and telling somebody, never toward "this looks fabricated but I will publish it anyway", and no
+wave in this milestone adds autonomy the refresh does not already have.
 
-**Every automated defence on served content is a SHRINKAGE detector.** The `minimum_rows` floors
-catch a source going short. D-128 catches a surface going blind, losing a quarter of its models, or
-pricing a budget out. Every one of them explicitly exempts gains and score movement, on the
-reasoning — correct, as far as it goes — that a model getting worse is news rather than damage.
-
-**The inverse has no guard at all.** An upstream that ADDS fabricated models with high ratings,
-renames existing ones, or drops prices produces a larger, cheaper artifact. Every check reports
-healthy. It ships to users twice a day. Five remote sources are fetched over TLS with no pinning,
-no signature and no provenance, and the build report that a human used to read now goes to a log
-nothing opens.
-
-**That is the failure mode the refresh CREATED**, not one it exposed, and it is W-049.
-
-### The trap this milestone must not walk into
-
-**Adding guards until nothing publishes.** M9 established the shape of this risk and it applies
-harder here: a guard tuned to catch a fabricated model will also catch a real new model, and a
-product that refuses every genuine improvement freezes while reporting health. **The freeze remains
-worse than the bad publish**, because a freeze is invisible and a bad publish is at least a wrong
-answer somebody can see.
-
-So every axis added in this milestone must state, in its ADR, what ORDINARY upstream movement looks
-like on that axis and why the threshold does not catch it. A threshold without that sentence is a
-guess wearing a number — which D-128 already had to correct once, when its worked arithmetic turned
-out to be off by one in both examples.
+**3. The free routing model goes on the home screen, in place of the first block of text.** D-126
+ruled this at M8 — *"the router picks the QUESTION; the engine answers it"* — and **it has never
+been given a REQ-ID or a wave.** It is the product's front door and it does not exist. That is
+this milestone's first wave.
 
 ---
 
-## 1. Acceptance criteria (new REQ-IDs — into `docs/prd.md` AT W1, not at closure)
+## 1. Why this milestone exists
+
+Two things are missing, one from the product and one from the machinery, and they are the same
+milestone because both are about what happens at the edges of what this engine can vouch for.
+
+**The product has no front door.** Nine categories are reachable only by tapping a chip whose
+wording the user has to map onto their own question. D-126 settled the answer — a free model reads
+the question and picks the surface — and settled its boundary in the same breath: **it may never
+say a model is good.** Not "I recommend", not "this one is best for you". It picks the question;
+the engine answers it. That line is what keeps this product a dashboard over measurements rather
+than one more assistant with opinions.
+
+**The machinery has no guard on the way up.** M9's Stage-4.0 review named it: every automated
+defence on served content is a SHRINKAGE detector. The `minimum_rows` floors catch a source going
+short; D-128 catches a surface going blind, losing a quarter of its models, or pricing a budget
+out. Every one exempts gains. **An upstream that ADDS fabricated high-rated models, renames
+existing ones, or drops prices produces a larger, cheaper artifact that every check calls healthy
+and that ships twice a day.** Five sources, TLS only, no pinning, no signature, no provenance —
+and the build report a human used to read now goes to a log nobody opens. That is W-049, and it is
+the failure the refresh CREATED rather than one it exposed.
+
+### The two traps
+
+**Trap 1 — the router acquiring an opinion.** It will be asked to. A user will type "which is
+best", and the honest answer is to route that to a surface and let the engine answer with its
+disclosures. The boundary must be STRUCTURAL, not a prompt instruction: **the router returns one id
+from a closed set of nine, and anything else is discarded.** A model cannot be talked into
+recommending if the only thing the product can read from it is a category id — and a user typing
+"ignore your instructions" then gets the manual chips, which is a worse experience and not a wrong
+answer.
+
+**Trap 2 — adding guards until nothing publishes.** A threshold tuned to catch a fabricated model
+also catches a real new one, and a product that refuses every genuine improvement freezes while
+reporting health. **The freeze is worse than the bad publish**, because a freeze is invisible.
+Every axis added here must state, in its ADR, what ORDINARY upstream movement looks like on that
+axis and why the threshold does not catch it — the sentence D-128 lacked and had to be corrected
+for.
+
+---
+
+## 2. Acceptance criteria (new REQ-IDs — into `docs/prd.md` AT W1, not at closure)
 
 | # | REQ-ID | Criterion | Verified by |
 |---|---|---|---|
-| 1 | **REQ-GRD-001** | A refresh refuses a candidate whose evidence moved UPWARD in a way ordinary upstream movement does not produce: a surface gaining more than a stated share of previously-unseen model names, or a surface's median published price moving more than a stated share. | A candidate built with fabricated high-rated models is refused and NAMES the surface; a candidate with one genuine new model publishes |
-| 2 | **REQ-GRD-002** | No single refresh can be made to allocate without bound by an upstream. Every paginating client caps total accumulated rows and bytes, not only its request count. | A hostile fixture serving full pages to the page cap is refused loudly rather than accumulated |
-| 3 | **REQ-GRD-003** | The refresh states its environment assumptions as CHECKS. The directory it locks and publishes in is verified not group- or world-writable at startup, and a timestamp it reads is verified finite and not in the future. | Each assumption violated in a fixture produces a refusal, not a silent pass |
-| 4 | **REQ-GRD-004** | Nothing a refresh writes can make `runner` lie or crash: every value it prints is bounded, sanitized, and defined for the hostile case. | A record containing `NaN`, a future timestamp, ANSI escapes and an oversized reason is handled and reported honestly |
-| 5 | **REQ-EVI-001** | A surface whose primary benchmark can no longer separate its top models SAYS so, on the surface, in the payload. | The two saturated boards produce the disclosure; a healthy board does not (W-035) |
-| 6 | **REQ-EVI-002** | The population the engine actually ranks — reconciled AND priced — has a NAME in the code, and calibration work is required to call it. | A citing test that fails if a threshold is derived from any other population (W-037) |
+| 1 | **REQ-RTR-001** | A user types a question in their own words and the app opens the surface that answers it. The router's choice is SHOWN and can be changed with one tap (D-126). | A question per surface routes correctly; the chosen surface is visible and overridable |
+| 2 | **REQ-RTR-002** | **The router can only ever return one of the nine category ids.** Any other output — a recommendation, a model name, prose, an injected instruction — is discarded and the user gets the manual chips. | Adversarial inputs, including explicit attempts to make it name a model, produce either a valid id or the fallback, never a recommendation |
+| 3 | **REQ-RTR-003** | The router is never required. If it is unreachable, slow, rate-limited or wrong, the product still works by tapping a chip, and says which happened. | Each condition forced; the app remains usable and states the condition |
+| 4 | **REQ-RTR-004** | Nothing the user types reaches the ENGINE, and nothing the engine serves is influenced by the router beyond which surface is opened. The scoring path is untouched (D-104). | A test that the routing call and the recommendation call share no data but the category id |
+| 5 | **REQ-GRD-001** | A refresh REFUSES a candidate whose evidence moved upward in a way ordinary upstream movement does not produce: a surface gaining more than a stated share of previously-unseen model names, or its median published price moving more than a stated share. **It refuses; it never judges and publishes.** | A candidate with fabricated high-rated models is refused and NAMES the surface; a candidate with one genuine new model publishes |
+| 6 | **REQ-GRD-002** | No refresh can be made to allocate without bound by an upstream: every paginating client caps total accumulated rows and bytes, not only its request count. | A hostile fixture serving full pages to the cap is refused loudly |
+| 7 | **REQ-GRD-003** | The refresh states its environment assumptions as CHECKS — the directory it locks and publishes in is not group- or world-writable, and a timestamp it reads is finite and not in the future. | Each assumption violated in a fixture produces a refusal, not a silent pass |
+| 8 | **REQ-EVI-002** | The population the engine actually ranks — reconciled AND priced — has a NAME in the code, and calibration is required to call it. | A citing test that fails if a threshold is derived from any other population (W-037) |
 
-**Criterion-to-wave map:** W1 owns 1. W2 owns 2, 3, 4. W3 owns 5 and 6. W4 closure.
+**Criterion-to-wave map:** W1 owns 1–4. W2 owns 5. W3 owns 6, 7, 8. W4 closure.
 
 ---
 
-## 2. Waves
+## 3. Waves
 
-### W1 — The upward-anomaly axis (risk: **HIGH**, and this is the wave that matters)
+### W1 — The router (risk: **HIGH**, and it is the wave the owner wants to see)
 
-W-049. The guard that does not exist. Its whole difficulty is the trap in §0: the axis must
-distinguish "an upstream published twelve models that do not exist" from "an upstream published a
-new model", and those look identical to a row count.
+A free model in front of the catalogue, on the home screen, in place of the first block of text.
 
-The likely shape, to be decided at the wave and not assumed here: compare the SET of model names, not
-the count, and treat a large fraction of previously-unseen names as the signal — a real board adds
-models one or two at a time, and a fabricated one arrives all at once. Price movement is the second
-axis and needs its own threshold with its own ordinary-movement sentence.
+The whole wave is the boundary. The model reads a question and returns a category id; the app
+validates that id against the nine it already fetches from `/v1/categories` and discards anything
+else. **The engine is not touched** — no new route, no payload change, no LLM anywhere near the
+scoring path (D-104). The router picks which existing question to ask.
 
-**Full depth under D-122**: this is the supply line of the scoring path, and an independent seat is
-required on this wave. M9 closed two of three waves without one and the seats that ran found six
-BLOCKING between them.
+Three things to settle at the wave and NOT assume here: which free model and on whose terms (§5.1),
+what the app does with a question that fits no surface, and whether the typed text leaves the
+device at all before the owner has said it may.
 
-### W2 — Bounds and the environment assumptions (risk: **MED**)
+### W2 — The upward-anomaly axis (risk: **HIGH**)
 
-W-050 and W-051 together, because they are the same sentence: **things this code assumes about the
-world and does not check.** Aggregate allocation, directory permissions, timestamp sanity, and the
-values `runner` prints to the person deciding whether the product is healthy.
+W-049. Set names, not counts: a real board adds models one or two at a time and a fabricated set
+arrives at once. Price movement is the second axis with its own threshold and its own
+ordinary-movement sentence.
 
-### W3 — Two surfaces that are quietly becoming wrong (risk: **MED**)
+Under ruling 2 the outcome is always **refuse**, never a judgement call that publishes anyway. An
+independent seat is required on this wave — M9 closed two of three waves without one and the seats
+that ran found six BLOCKING between them.
 
-W-035 and W-037, and this is the product half of the same question.
+### W3 — Bounds, environment, and a name for the ranked population (risk: **MED**)
 
-`expert` and `mathematics` rank on boards that have stopped separating their top models: on GPQA the
-twelve highest-scoring priced models span 1.8 points against a 2.52 standard error, and on AIME
-three models tie at exactly 100.0. The engine handles it honestly per-answer — `close_call` fires —
-but **nothing says the SURFACE is saturated**, and a board at its ceiling cannot record next
-quarter's improvement. It gets less informative on its own, with every gate green. That is the
-milestone's question in the data rather than in the machinery.
-
-W-037 rides along because it is one named accessor and it prevents a fourth wrong calibration.
+W-050, W-051 and W-037. Three small things sharing one sentence: **assumptions this code makes
+about the world and does not check.**
 
 ### W4 — Closure (risk: **LOW**)
 
 ---
 
-## 3. Shared contracts (K.8)
+## 4. Shared contracts (K.8)
 
-**FROZEN, and this milestone must not move it without a new ADR:** the `/v1` payload. D-115 froze
-it, D-124 permitted ONE revision during M8, and D-125 spent that revision. **There is no unspent
-window.** REQ-EVI-001 needs a saturation disclosure on a surface, which is a payload field — so it
-requires an ADR opening a new window, and that ADR is §5's first question rather than something a
-wave decides on the way past.
+**FROZEN and not moved by this milestone:** the `/v1` payload — no unspent revision window exists
+and ruling 1 forbids opening one. Also D-104 (no LLM in the scoring path — **the router is in front
+of the catalogue, not inside it**, and REQ-RTR-004 is what proves that), D-105, D-109, D-118,
+D-120, D-128 (amendable, with its ordinary-movement sentence), D-130.
 
-Also frozen: D-104, D-105, D-109, D-118, D-120, D-128 (amendable, with its ordinary-movement
-sentence), D-130.
+**Touched:** the iOS client, and `app.workflows.refresh`.
 
 ---
 
-## 4. Definition of done
+## 5. Three questions to answer before W1 writes any code
 
-`make check` exit 0 — now nine gates including conformance · every criterion with a citing test
-**proven RED** · fault injection with an INDEPENDENT mutant set on W1 (M9 measured the difference:
-40 mutants and 8 survivors against a self-designed 24 with none) · fresh-eyes review, **mandatory on
-W1** · ADRs for every §5 question · retrospective · dated EXPERIENCE entry · `note.txt` ·
-`docs/closure-report-m10.md`.
+**1. Which free model, and does the user's typed question leave the device?** A routing call sends
+what somebody typed to a third party. That is a privacy decision and it is the owner's, not a
+default. If the answer is "not yet", W1 ships the boundary and the fallback with an on-device or
+keyword router and the model arrives later — the structure is the same either way.
 
-**Carried in and NOT blocking W1:** W-030, W-031 (unverifiable without a deploy), W-036, W-038,
-W-039, W-044, GPF-001..006.
+**2. What happens to a question that fits no surface?** "Which AI should I use to do my taxes" maps
+to nothing this product measures. Saying so plainly is the honest answer and it is also a product
+decision about how often the front door says no.
 
----
-
-## 5. Three questions to answer before W1 writes a threshold
-
-**1. Does `/v1` get a new revision window?** REQ-EVI-001 cannot ship without a payload field, and
-there is no unspent window. Either a new ADR opens one — with the same one-shot discipline D-124
-had — or the saturation disclosure waits and W3 ships only W-037. **Decide this before W3 makes a
-specific field tempting**, which is exactly why D-124 was written in the abstract.
-
-**2. What does ordinary upstream movement look like?** Every threshold in W1 needs this measured,
-not estimated. The project has the data: nine boards, and a build history. **A threshold set without
-measuring the normal case is the mistake D-128 made and had to correct.**
-
-**3. What is the refresh allowed to do on its own, ever?** Today it can replace what every user
-reads, unattended, on a timer. It cannot yet refuse permanently, alert anybody, or stop itself. As
-the guards get better at catching bad candidates, the product gets closer to a state where it
-refuses everything and reports health. **Is there a point at which the refresh should stop trying
-and demand a human?** M9 added an escalation counter and nobody has said what it escalates TO.
+**3. What does the escalation counter escalate TO?** M9 added it and nobody has said. Under ruling
+2 the refresh refuses more often, so this stops being theoretical: a refusal that reaches nobody is
+a product that quietly stops updating. Today the only channel is `runner`, which only speaks when
+the owner runs it.
 
 ---
 
 ## 6. What this milestone is NOT
 
-- **Not the deploy.** D-123 is undischarged for a third milestone and W-030/W-031 stay unverifiable.
-  If the owner deploys, that is its own milestone.
-- **Not the iOS test target** (W-038). It is real, it has been open since M8, and it is a
-  `project.pbxproj` edit plus a test suite — a milestone's worth of work in the wrong subject.
-- **Not new categories or new sources.** Nine surfaces is settled (D-127).
-- **Not the design.** The owner has said the interface gets its attention after the coding.
+- **Not a `/v1` revision.** Ruling 1. The saturation disclosure (W-035) waits.
+- **Not more refresh autonomy.** Ruling 2.
+- **Not the deploy.** D-123 undischarged for a third milestone; W-030/W-031 stay unverifiable.
+- **Not the iOS test target** (W-038), and it is worth naming that this milestone puts real logic in
+  the client while no Swift is executed by any gate. The router's boundary is therefore enforced
+  where it CAN be tested — in the validation of the returned id, which is data the Python side can
+  see — rather than in the client alone.
+- **Not the design pass.** The owner has said the interface gets its attention after the coding.
