@@ -1,0 +1,165 @@
+QUARTERLY HANDOVER Q3 — model_ranking
+Generated at the M9 closure, 2026-08-22 (M % 3 == 0, V3C-81). Previous: handover_q2.txt (M6).
+Written by: the lead agent (Claude Code, local lane), the agent that built M7, M8 and M9 and
+reviewed almost none of it — which is the single most important sentence in this file.
+
+Read this if you are picking the project up cold. It is the state of the whole thing, not of M9.
+handover_rocky.txt is still the best account of the project's DOCTRINE; this supersedes q2 on STATE.
+
+=======================================================================
+0. WHERE THINGS STAND
+=======================================================================
+M1 through M9 are CLOSED. M9's closure report is draft, awaiting the owner's signature.
+
+    ./runner            ONE command. Gate + secrets + build + surfaces + engine + refresh
+                        record + iOS build. Writes nothing into the repo; never touches
+                        advisor.db. Output lands in the owner's terminal-output folder.
+    make check          exit 0 — 638 passed / 12 skipped, coverage 87.9% (floor 85, plus a
+                        60% per-module floor)
+    make secrets        clean
+    wave-check-all      15 v5.0 records; the 20 pre-migration ones are out of scope on purpose
+
+THE PRODUCT NOW: nine surfaces, all nine answering. An iOS app that reaches every one of them. A
+refresh cycle that keeps the evidence current on its own — one `launchctl load` away from running
+every twelve hours.
+
+WHAT IS NOT DONE, AND IT IS THE SAME THING IT WAS TWO QUARTERS AGO: nothing is deployed. That is no
+longer only a schedule fact — see §4.
+
+=======================================================================
+1. THE PRODUCT IN SIX LINES
+=======================================================================
+It answers "which AI tool should I use, at my budget" from public measurements, deterministically,
+with no LLM anywhere in the scoring path (D-104). Nine categories, each ranked on ONE benchmark on
+its own native scale — Elo and percentages are never averaged (D-105). Three picks per surface:
+best quality, best value, budget pick. Every answer carries what it is unsure about: near-ties,
+stale evidence, undated evidence, a surface with no evidence at all. The engine serves it over
+`/v1`; a SwiftUI app reads it; a refresh keeps it current. **Its whole claim is that it tells you
+what is true right now, and everything above exists to keep that sentence honest.**
+
+=======================================================================
+2. WHAT THE LAST THREE MILESTONES ADDED
+=======================================================================
+M7  The product can produce its own data. The build pipeline existed only as a heredoc in a CI
+    cron that had never fired, which is why the shipped artifact answered zero picks for every
+    query. It is `app.workflows.build` now, and the engine no longer writes while it serves.
+
+M8  The scope widened to ALL AI tools (D-126/D-127): nine categories, six of them new, added as
+    DATA with no branch in the scoring path. And the engine got its first reader that is not a
+    test — an iOS client that fetches the surface list rather than hardcoding it.
+
+M9  The refresh. A cycle that builds a candidate, decides whether anything a READER would notice
+    changed, and publishes or refuses. Plus a `launchd` schedule, an exclusive lock, and a status
+    record the `runner` reads and escalates on.
+
+Out of band, at M9: **arena came back.** It had been recorded as "upstream down" for a whole
+milestone and the diagnosis was wrong — only one endpoint fails, and it fails with no query at all.
+All nine surfaces answer for the first time.
+
+=======================================================================
+3. WHAT THREE QUARTERS OF FIELD USE HAVE ACTUALLY TAUGHT
+=======================================================================
+These are ranked by how often they recurred, not by how interesting they are.
+
+(a) ALMOST NOTHING IS FOUND BY READING. Across M7-M9, essentially every serious defect was found by
+    fault injection or by a seat that had not written the code. The measured version: at M9 an
+    independent reviewer wrote 40 mutants against a module whose author had written 24 and reported
+    all killed; 8 survived. **A mutant set written by the author tests the author's model of the
+    code.** If you do one thing from this file, get someone else to write the mutants.
+
+(b) A CONTROL WHOSE SCOPE IS NARROWER THAN THE RULE IT CITES IS NOT A GATE. This is the newest
+    named class and the most productive. It runs, it fails on some inputs, and it reads as a gate in
+    every record. Diagnostic question: name the population this control examines, then name the
+    population the rule covers — are they the same set?
+
+(c) A TEST CANNOT FAIL IF ITS FIXTURE CANNOT REACH WHAT IT ASSERTS. Six instances across M8-M9. A
+    surface with three models cannot express "loses more than a quarter"; a fixture with no
+    secondary-benchmark rows cannot express a secondary-score change. Both read identically to
+    tests that work.
+
+(d) AN ENUMERATION THAT IS TYPED OUT IS A DENYLIST WEARING BETTER CLOTHES. Still true, still
+    recurring. M9's version was a hand-written list of six hashed fields where the payload published
+    ten — and the four missing ones made the refresh unable to publish a freshness update at all.
+    **Derive the set; name the exclusions.**
+
+(e) A SEAM IS ONLY A SEAM IF IT REACHES THE CALLER. Four instances now. The fourth was written into
+    the module whose own docstring claimed the parameter was read at call time.
+
+(f) RESTART IS NOT REBUILD, AND THE BUILD STAMP IS THE ONLY WITNESS. Twice.
+
+(g) REPRODUCING A FAILURE PROVES IT IS REAL AND PROVES NOTHING ABOUT ITS SCOPE. A dependency was
+    written off for a milestone on one endpoint's word; asking the dataset directly took four
+    commands.
+
+(h) THE FAILURE THAT LOOKS LIKE SUCCESS IS THE ONE TO DESIGN AGAINST. An unattended process that
+    FREEZES is worse than one that publishes something bad, because a freeze is invisible: every
+    gate green, every cycle exiting 0, the artifact quietly ageing.
+
+=======================================================================
+4. THE THING A NEW READER MOST NEEDS TO KNOW
+=======================================================================
+**There is one machine, and several of this project's load-bearing separations are claims about a
+topology that does not exist.**
+
+D-116 says ingestion never runs on the serving host. M9 wrote REQ-REF-007 to enforce it and could
+not: the owner's Mac is the serving host and the only host. The structural half is real — the
+refresh imports nothing from the adapter, and a test walks the AST to prove it — but the physical
+half has never been tested, because there is nowhere else for it to run.
+
+W-030 and W-031 have said a version of this about the platform surface for three milestones. It is
+the same sentence, arriving from inside the product rather than from a deploy checklist:
+
+    A separation you cannot violate because you only have one machine is not a
+    separation you have verified.
+
+Nothing is on Fly.io. Nothing is billing. The engine is deploy-ready and has been since M7.
+
+=======================================================================
+5. HOW TO WORK HERE
+=======================================================================
+- `./runner` first, always. If it is not all-PASS, stop and read `latest.log` before anything else.
+- The owner runs the milestone tests and makes the milestone commits. Agents commit at wave
+  boundaries under D-117, never as the owner (V4C-64), and never on a red gate — a rule broken
+  three times in this project, each time by reading the exit code after the commit.
+- Every criterion needs a citing test PROVEN RED. "A test exists" is not the bar and never was.
+- Escalate immediately, without waiting for a boundary: a suspected secret, a security finding, a
+  scanner suppression, or a scope change that invalidates the plan. M8 stopped mid-change to ask
+  before rewriting a security finding's citing test, and that was the correct call.
+- Records are append-only. When a record is wrong, correct it and NAME the error — do not rewrite
+  it into having been right. M9 did this twice and both corrections carry more information than the
+  original text did.
+
+=======================================================================
+6. WHAT IS OPEN
+=======================================================================
+NEEDS THE OWNER
+  - One `launchctl load` turns the refresh schedule on. Until then nothing runs on a timer.
+  - `gh workflow run contract-tests.yml` — the workflow has still never run, and 21 commits are
+    unpushed (W-027).
+  - The deploy (D-123), undischarged for a third milestone. §4 is what that now costs.
+  - The iOS design direction: three artboards were drafted and none picked; the app ships a
+    deliberately provisional category strip.
+
+CARRIED WARNINGS
+  W-030 / W-031  unverifiable without a deploy
+  W-035          two boards have stopped separating their top models (AIME, GPQA)
+  W-036          the build's source set is injected by monkeypatching module globals
+  W-037          the ranked population has no name in the codebase — three wrong calibrations
+  W-038          there is no iOS test target; no Swift is executed by any gate
+  W-039          `/v1`'s 503 branch cannot be reached, because the startup probe fires first
+  W-044          `ranking` is not budget-filtered and the payload does not say so
+  GPF-001..006   findings handed BACK to the pipeline, including two about its English-only rule
+
+=======================================================================
+7. THE QUESTION THIS QUARTER LEAVES
+=======================================================================
+The refresh removes the last human from the loop, and the human was the error-detection mechanism
+for everything the gates do not cover. A build that "fails loud" is loud to somebody reading.
+
+    What does this system do when it is wrong and nobody is looking?
+
+Not "when a source is down" — that is designed for, disclosed, and tested. The question is what
+happens to a defect no gate catches, in a product that now updates itself, when the person who used
+to notice is no longer in the path. M9 added a status file and an escalation counter. That may be
+the answer, or it may be the smallest thing that let the milestone close. **M10 should find out
+which, before adding anything else.**

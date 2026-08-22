@@ -4,7 +4,7 @@ id: coverage-by-req
 status: ratified
 date: 2026-08-18
 ---
-# REQ-ID coverage trace — M7 Quality Gate (Stage 4.1)
+# REQ-ID coverage trace — M9 Quality Gate (Stage 4.1)
 
 **Scope:** every acceptance criterion in M7's signed scope (`docs/plans/m7-plan.md` §1), traced to
 its implementing code and to the test(s) that would FAIL if the criterion were violated (V3C-02,
@@ -45,3 +45,32 @@ itself rather than discovered afterwards.
 **Deferring the deploy (D-123) does not convert them into coverage.** A local container is a good
 proxy for a platform and is not the platform, and this project's recurring defect is precisely the
 step where a proxy gets written down as the thing itself.
+
+
+---
+
+## M9 — the refresh (REQ-REF), added at the M9 quality gate
+
+**Scope:** every acceptance criterion in `docs/plans/m9-plan.md` §1. An independent seat reviewed
+W2 and returned **BLOCKING with three findings**, all of them in rows that read COVERED at the
+time — so the caveat above is not rhetorical, it is this milestone's measured experience.
+
+| # | REQ-ID | Verdict | Implementing code | Citing test shown able to fail |
+|---|---|---|---|---|
+| 1 | **REQ-REF-001** — one command performs one cycle and never leaves the artifact worse | COVERED | `src/app/workflows/refresh.py` (`refresh`, `_cycle`), which CALLS `build.py` rather than reimplementing its safety | `test_refresh.py`: failed build, raising builder, unreadable candidate, a build that FAILS while leaving something readable, no candidate surviving any outcome, and a **real SIGKILL in a subprocess** with the artifact verified byte-identical |
+| 2 | **REQ-REF-002** — "changed" is decided on the content that would be SERVED | COVERED | `refresh.py::serving_summary`, `_row_digest`, derived from `RankingRow`'s fields minus a measured exclusion set | `test_refresh.py`: insensitive to `observed_at` and sub-precision noise; sensitive to score, a one-cent price, a model rename, harness, effort, a surface going blind, the same evidence under a different surface, and **a freshness update** — the case an independent seat found the first version could not publish at all |
+| 3 | **REQ-REF-003** — a refresh REFUSES to publish something worse (D-128) | COVERED | `refresh.py::degradations`, `EXIT_REFUSED` | `test_refresh.py`: blinded surface, 33% loss NAMED, **exactly 25%**, a pricing feed that blinds a budget, and the two non-degradations (a surface growing, scores falling) proven to publish |
+| 4 | **REQ-REF-004** — every cycle leaves a durable record of what it did (D-129) | COVERED | `refresh.py::write_status`, the `record()` wrapper reached from every return AND from `except BaseException` | `test_refresh.py`: published / unchanged / failed / refused / **crashed**, the refusal naming its surface, the payload's numbers matched against the artifact, `at_iso` against `at`, and the rename's source proven not to be its destination |
+| 5 | **REQ-REF-005** — runs every 12 hours; a human can find out it STOPPED | **PARTIAL — agent-side complete, one owner command from live** | `deploy/com.hcs.modelranking.refresh.plist` (`launchd`, `StartInterval`), `runner`'s refresh-status section | `test_refresh.py::test_consecutive_refusals_are_counted_and_reset`; `runner` reports cycle age, ARTIFACT age and escalates at two refusals. **The plist is not installed — that is the owner's command and deliberately not the agent's.** Until it is loaded, nothing runs every twelve hours |
+| 6 | **REQ-REF-006** — the engine serves a replaced artifact without a restart | COVERED | No new code: measured before the milestone was planned and PINNED here | `test_refresh.py`: a swap under `TestClient` changes the next response, and a reader opened BEFORE the swap finishes on a coherent artifact rather than half of each |
+| 7 | **REQ-REF-007** — ingestion never runs on the serving host (D-116) | **PARTIAL, and the missing half cannot be met today** | `refresh.py` imports nothing from `app.adapter` | `test_refresh.py::test_the_refresh_never_imports_the_serving_adapter` walks the AST. **The structural half is enforced; the physical half is unmeetable while the owner's Mac is both the serving host and the only host there is.** It becomes real when D-123 discharges |
+
+**Two rows are PARTIAL and neither is a hedge.** REQ-REF-005 needs one `launchctl load` that an
+agent must not run on someone's machine; REQ-REF-007 needs a second host that does not exist. Both
+are stated as half-met rather than rounded up, because rounding up is how a proxy becomes the thing
+itself — which the M7 note above already warns about and which this project has done before.
+
+**Concurrency controls added at W3 and traced here** because they protect every row above:
+`refresh.py::_hold_lock` (an `O_EXCL` lock, `EXIT_BUSY`, pid-liveness reclaim) and the baseline
+re-read before `replace`. Cited by four tests: lock held, dead holder reclaimed, live holder
+respected, and a baseline replaced mid-cycle refusing rather than overwriting.

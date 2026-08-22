@@ -131,8 +131,13 @@ class ArenaClient:
         raise SourceError(msg) from last_exc
 
     @staticmethod
-    def _overall_prefix(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], bool]:
+    def _overall_prefix(rows: list[Any]) -> tuple[list[Any], bool]:
         """The leading run of `overall` rows in one page, and whether the board ended inside it.
+
+        Typed `list[Any]`, deliberately. These rows are parsed JSON from an endpoint on the
+        internet, so `list[dict[str, Any]]` is an assertion about the upstream rather than a fact
+        about the value — and annotating it that way made mypy call the isinstance guard below
+        UNREACHABLE, which is how a type hint talks a guard out of existing.
 
         The split is ordered by category — MEASURED on 2026-08-21, not assumed: `overall` occupies
         roughly the first 400 of 10,359 rows and `chinese` begins at ~400. So the board we want is
@@ -144,6 +149,13 @@ class ArenaClient:
             # the category lives inside. Reading it off the outer object matched nothing, so the
             # prefix ended at row zero and every board came back empty — caught by the existing
             # client tests on the first run, which is what they are for.
+            if not isinstance(entry, dict):
+                # `parse_arena` guards this and the prefix scan did not, so a payload of
+                # `{"rows": ["x"]}` raised AttributeError — not a SourceError, so `build.py`
+                # deliberately re-raises it and the whole unattended cycle died on a traceback.
+                # A hostile or broken upstream is a BAD INPUT, and a bad input ends this source.
+                msg = f"{OVERALL_CATEGORY}: a row in the payload is not an object"
+                raise SourceError(msg)
             nested = entry.get("row")
             record: dict[str, Any] = nested if isinstance(nested, dict) else entry
             if record.get("category") != OVERALL_CATEGORY:

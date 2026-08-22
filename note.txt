@@ -1,29 +1,29 @@
 Project: model_ranking
-State: **M1-M8 CLOSED. M8 ratified 2026-08-21. M9 PLANNED, plan awaiting signature.**
-  Repo green: 587 tests / 12 skipped. Nothing on Fly.io; nothing is billing.
-  Nine surfaces answer; `assistant` discloses it has no evidence (W-024).
-Last session date: 2026-08-21
+State: **M1-M9 CLOSED. M9 awaits the owner's signature** (docs/closure-report-m9.md section 0).
+  Repo green: 638 tests / 12 skipped. Nothing on Fly.io; nothing is billing.
+  **All NINE surfaces answer** — arena came back at M9 and it had never actually been down.
+Last session date: 2026-08-22
 Last work agent: Claude (Claude Code CLI, local lane under D-117)
 
-WHAT WORKS RIGHT NOW, verified on the running Simulator
-  ./runner                   ONE command: gate + secrets + build + surfaces + engine + iOS build.
-                             Full output lands in the terminal-output folder; nothing is written
-                             into the repo and advisor.db is never touched.
-  ./ios/app.sh up|restart|down    restart cycles the ENGINE too and prints the build stamp.
-  Rebuild the artifact:  .venv/bin/python -B -m app.workflows.build --db advisor.db --force \
-      --epoch-dir /Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data
-      (exit 3 is EXPECTED: arena's blind surface reported, not hidden)
+ONE COMMAND
+  ./runner     gate + secrets + build + surfaces + engine + refresh record + iOS build.
+               Writes nothing into the repo and NEVER touches advisor.db. If it is not
+               all-PASS, stop and read latest.log before doing anything else.
 
-M9 IS THE REFRESH (docs/plans/m9-plan.md, W-034). Measured 2026-08-21 and worth knowing before
-you plan anything: **the hot swap ALREADY WORKS** — advisor.db was replaced under a live engine and
-the next request returned the new data with no restart, because the adapter opens a read-only
-connection per request. M9 must PIN that with a test, not build it. What is missing is the
-scheduler, change detection, and the rule that a refresh may never publish something WORSE than
-what it replaces.
+THE REFRESH IS BUILT AND NOT SCHEDULED. `python -m app.workflows.refresh --db advisor.db
+--epoch-dir <bundle>` runs one cycle: build a candidate, compare what it would SERVE, publish or
+refuse. Exit 0 published / 1 unchanged / 2 failed / 3 refused / 4 busy. It never leaves the
+artifact worse than it found it, including under SIGKILL. Turning on the 12-hour schedule is ONE
+owner command, in `deploy/com.hcs.modelranking.refresh.plist`.
+
+READ THIS BEFORE PLANNING ANYTHING: `docs/handovers/handover_q3.txt` section 4. There is one
+machine, and several load-bearing separations (D-116 chief among them) are claims about a topology
+that does not exist. REQ-REF-007 is marked PARTIAL for exactly this reason.
 
 FIRST THREE THINGS A NEW AGENT DOES
-1. Read `docs/plans/m9-plan.md` §5 — three decisions M9 must make before W2, and §0, which
-   records what is already built. Then `docs/closure-report-m8.md` §0 for what M8 left open.
+1. Read `docs/closure-report-m9.md` §0 — four items need the owner, and §0.2 is the one
+   that matters: a separation you cannot violate because you only have one machine is not a
+   separation you have verified.
 2. Read `docs/decisions.md` D-121, D-122, D-123 — the three rulings that shape how M8 runs.
 3. Verify the state yourself: ./runner. If it is not all-PASS, STOP.
 
@@ -84,8 +84,8 @@ than when a specific field turns out to be inconvenient.
 ANCHOR
 - Active ADRs: universal set + D-100..D-123.
 - Governed records: 38.
-- Most recent retrospective: docs/retrospectives/m8-retrospective.md
-- Most recent quarterly handover: docs/handovers/handover_q2.txt (M6). M7 is not M%3==0.
+- Most recent retrospective: docs/retrospectives/m9-retrospective.md
+- Most recent quarterly handover: docs/handovers/handover_q3.txt (M9).
 
 HANDOFF NOTES
 You are running ON the owner's Mac. Push under D-117, green gates only, never as the owner. The

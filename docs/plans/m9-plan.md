@@ -161,5 +161,10 @@ decorative**, and it should be made deliberately rather than defaulted to "we wr
   where the build runs today.
 - **Not the arena fix.** W-024 has a diagnosed remedy and it touches a security finding's citing
   test; it is the owner's call and is not smuggled in here.
+  **SUPERSEDED 2026-08-22 by D-131.** The owner authorised it in session on 2026-08-21 and the fix
+  landed inside M9 — with the authorization living only in a chat log until a Stage-4.0 security
+  seat returned BLOCKING on exactly that. The line above stayed true at HEAD while the code
+  contradicted it, which is the state this note exists to end. The code was sound; the paperwork
+  was the finding.
 - **Not new categories or new sources.** The product's shape is settled at nine surfaces (D-127);
   this milestone is about keeping what exists true.

@@ -1177,7 +1177,7 @@ def test_a_second_cycle_does_not_run_while_one_holds_the_lock(tmp_path: Path) ->
     The loser reports BUSY and does NOT wait: waiting turns a scheduler into a queue, and a
     trigger firing while the previous run is still going is ordinary rather than wrong.
     """
-    from app.workflows.refresh import EXIT_BUSY, lock_path
+    from app.workflows.refresh import EXIT_BUSY
 
     live = tmp_path / "advisor.db"
     inner: list[int] = []
@@ -1192,39 +1192,78 @@ def test_a_second_cycle_does_not_run_while_one_holds_the_lock(tmp_path: Path) ->
     refresh(live, builder=builds_then_reenters, clock=lambda: 1.0)
 
     assert inner == [EXIT_BUSY], f"a second cycle ran inside the first: {inner}"
-    assert not lock_path(live).exists(), "the lock outlived the cycle that took it"
+
+    # The lock FILE is deliberately left behind — `flock` is on the open file description, not on
+    # the file's existence, and unlinking it is its own race against a waiter holding the inode.
+    # What must be true is that it is RELEASED, which the next cycle proves by acquiring it.
+    _outcome, code = refresh(live, builder=_builder(top_score=99.0), clock=lambda: 9.0)
+    assert code in (EXIT_PUBLISHED, EXIT_UNCHANGED), (
+        "the lock was not released when the cycle that held it finished"
+    )
 
 
-def test_a_lock_left_by_a_dead_process_is_reclaimed_at_once(tmp_path: Path) -> None:
-    """A SIGKILL must not wedge the refresh until the age threshold expires.
+def test_a_lock_file_left_by_a_dead_process_does_not_block(tmp_path: Path) -> None:
+    """A SIGKILL must not wedge the refresh, and with `flock` that is free.
 
-    The holder writes its pid, so a lock belonging to a process that no longer exists is taken
-    immediately. Without this, one kill costs two hours — on a twelve-hour schedule, a skipped
-    cycle for a process that is already gone.
+    The first scheme parsed a pid and applied a two-hour staleness rule to decide when a lock was
+    abandoned — and a security review demonstrated it reclaiming a lock from a holder that was
+    demonstrably ALIVE, because the age rule was joined with `or`. The kernel already knows: it
+    releases a `flock` when the holding process dies, for any reason. A leftover lock FILE with a
+    dead process's pid in it is just a file.
     """
     from app.workflows.refresh import lock_path
 
     live = tmp_path / "advisor.db"
-    stale = lock_path(live)
-    stale.write_text("999999\n", encoding="utf-8")  # a pid that cannot be running
+    lock_path(live).write_text("999999\n", encoding="utf-8")  # a pid that cannot be running
 
     outcome, code = refresh(live, builder=_builder(), clock=lambda: 1.0)
 
-    assert code == EXIT_PUBLISHED, f"a dead holder's lock blocked a cycle: {outcome.reason}"
+    assert code == EXIT_PUBLISHED, f"a dead holder's lock file blocked a cycle: {outcome.reason}"
 
 
 def test_a_lock_held_by_a_LIVE_process_is_respected(tmp_path: Path) -> None:
-    """The other direction, and the dangerous one: reclaiming a live lock is how two cycles
-    publish over each other."""
-    import os
+    """The dangerous direction: taking a live lock is how two cycles publish over each other.
+
+    Held by a real SUBPROCESS, because that is the only way to have a genuinely separate holder —
+    and because the scheme this replaces failed exactly here, evicting a live holder whose lock had
+    merely aged past a threshold. Age is not liveness, and the kernel is the only thing that knows
+    the difference.
+    """
+    import subprocess
+    import sys
+    import time
 
     from app.workflows.refresh import EXIT_BUSY, lock_path
 
     live = tmp_path / "advisor.db"
-    lock_path(live).write_text(f"{os.getpid()}\n", encoding="utf-8")
+    _artifact(live)
+    lock = lock_path(live)
+    ready = tmp_path / "held.marker"
 
-    _outcome, code = refresh(live, builder=_builder(), clock=lambda: 1.0)
-    assert code == EXIT_BUSY, "a lock held by a running process was taken anyway"
+    program = f"""
+import fcntl, os, pathlib, time
+handle = os.open({str(lock)!r}, os.O_CREAT | os.O_RDWR, 0o644)
+fcntl.flock(handle, fcntl.LOCK_EX)
+pathlib.Path({str(ready)!r}).write_text("held")
+time.sleep(120)
+"""
+    holder = subprocess.Popen([sys.executable, "-B", "-c", program])
+    try:
+        deadline = time.time() + 30
+        while not ready.exists() and time.time() < deadline:
+            time.sleep(0.05)
+        assert ready.exists(), "the holder never took the lock; the test would prove nothing"
+
+        _outcome, code = refresh(live, builder=_builder(), clock=lambda: 1.0)
+        assert code == EXIT_BUSY, "a lock held by a LIVE process was taken anyway"
+    finally:
+        holder.kill()
+        holder.wait(timeout=30)
+
+    # And once the holder is gone — killed, not exited cleanly — the next cycle proceeds, with no
+    # staleness rule involved.
+    _outcome, code = refresh(live, builder=_builder(top_score=88.0), clock=lambda: 2.0)
+    assert code == EXIT_PUBLISHED, "the kernel did not release the dead holder's lock"
 
 
 def test_a_baseline_replaced_mid_cycle_is_not_published_over(tmp_path: Path) -> None:
@@ -1379,3 +1418,49 @@ def test_a_reader_open_before_the_swap_finishes_on_consistent_data(tmp_path: Pat
         assert after.execute("SELECT max(score) FROM scores").fetchone()[0] == pytest.approx(91.5)
     finally:
         after.close()
+
+
+def test_an_unreadable_live_artifact_refuses_instead_of_publishing(tmp_path: Path) -> None:
+    """B2, raised at the W2 review as MAJOR, left unfixed, and returned as Stage-4.0 BLOCKING.
+
+    `fingerprint_of` used to answer `None` for three different facts — no artifact, not a database,
+    any read error — and the cycle treated all three as "first artifact". So one unreadable read of
+    the LIVE file disarmed the degradation guard AND the pre-publish baseline check, and the
+    candidate published unconditionally. The record then said `first artifact`, which was untrue.
+
+    That gives a poisoning attack a cheap enabler: corrupt the served file, then let the timer
+    publish whatever the upstream is offering. **If you cannot fingerprint what you would replace,
+    you cannot claim the replacement is not worse.**
+    """
+    live = tmp_path / "advisor.db"
+    live.write_bytes(b"present, and not a database" * 400)
+    before = live.read_bytes()
+
+    def blinding(argv: list[str]) -> int:
+        target = Path(argv[argv.index("--db") + 1])
+        _artifact(target)
+        conn = sqlite3.connect(target)
+        try:
+            conn.execute("DELETE FROM scores")
+            conn.commit()
+        finally:
+            conn.close()
+        return 0
+
+    outcome, code = refresh(live, builder=blinding, clock=lambda: 1.0)
+
+    assert code == EXIT_FAILED, f"an unreadable artifact was published over: {outcome.reason}"
+    assert live.read_bytes() == before
+    assert "unreadable" in outcome.reason
+    assert "first artifact" not in outcome.reason, "the record described a state that was not true"
+
+
+def test_a_missing_live_artifact_still_publishes(tmp_path: Path) -> None:
+    """The other half of the split sentinel, so the fix cannot collapse into "never publish".
+
+    A machine with no artifact yet is the reason to publish, not a reason to refuse — and
+    conflating the two was the original defect in the opposite direction.
+    """
+    live = tmp_path / "advisor.db"
+    outcome, code = refresh(live, builder=_builder(), clock=lambda: 1.0)
+    assert code == EXIT_PUBLISHED and outcome.reason == "first artifact"

@@ -406,3 +406,62 @@ at all** — so it was never our query, and the remedy is a bounded read of a di
 
 Both findings share a shape with the milestone that produced them: a claim that was true when
 measured, held as true long after the thing it described had changed or been misread.
+
+## M9 — 2026-08-22 — The product starts keeping itself current, and finds out what that costs
+
+**A refresh cycle now builds a candidate, decides whether anything a reader would notice changed,
+and publishes or refuses.** `launchd` will run it every twelve hours once the owner loads it. The
+artifact is never left worse than it was found — proven against a failed build, a raising builder,
+an unreadable candidate, a build that fails while leaving something readable, and **a real SIGKILL
+in a subprocess**.
+
+**A third of the milestone evaporated before it was planned, because of one two-minute experiment.**
+M9 was scoped expecting to build artifact hand-over: a running engine keeps a replaced file's inode,
+so a refresh would serve stale data until restarted — a shape this project had been bitten by twice.
+The measurement: `advisor.db` replaced under a live engine, and the very next request returned the
+new data. The adapter opens a read-only connection per request. **The two earlier "stale artifact"
+incidents were stale CODE wearing the same symptoms.** Two beliefs, both grounded in a real
+incident, both about the wrong mechanism.
+
+> **The lesson that generalises: measure the thing you are about to build BEFORE you plan it.** The
+> experiment cost two minutes and removed a wave.
+
+**Every serious defect this milestone was found by fault injection or by someone else. Not one by
+reading.** An independent seat wrote 40 mutants where the author reported 24; 8 survived where the
+author reported none. It returned three BLOCKING, and the worst of them is worth carrying:
+
+> **The refresh was structurally incapable of publishing a freshness update.** `evidence_date`,
+> `vendor`, `input_per_m` and `output_per_m` were all served to readers and none was in the
+> fingerprint, so the same scores republished with FRESH EVALUATION DATES read as "nothing a user
+> would notice changed". The artifact would keep disclosing `stale: true` forever while every cycle
+> exited 0 and every gate stayed green.
+
+That is the failure the plan had NAMED in advance — a refresh that freezes the product is worse
+than one that publishes something bad, because a freeze is invisible — arriving through the door
+nobody was watching. **The trap was correctly identified and incompletely defended**, and the fix
+was to stop hand-listing the hashed fields and derive them from the row, so a field added tomorrow
+is covered by default.
+
+**A guard that compares one quantity sees one kind of damage.** The refusal rule compared row
+counts, so a pricing feed multiplying every price left every surface exactly the same SIZE while
+two of three budget tiers answered nothing on all nine surfaces. The ADR had reasoned that prices
+are not damage because a price is a reported number — **true of a score, false of a price, because
+the price is also a hard filter applied before scoring.** The reviewer's verdict on the threshold
+is the reusable part: *the answer to a guard that misses things is more axes, not more stringency.*
+
+**Writing a test changed a design, in the order this project keeps saying it wants.** The SIGKILL
+test showed that a killed cycle left its lock behind and wedged the refresh for two hours — a
+skipped cycle for a process already gone. The lock holder writes its pid, so a lock whose holder no
+longer exists is now reclaimed at once.
+
+**And the carried question got answered by a requirement rather than by an argument.** REQ-REF-007
+says ingestion never runs on the serving host. It cannot be met: there is one machine. **A
+separation you cannot violate because you only have one host is not a separation you have
+verified** — which is what W-030 and W-031 have been saying about the platform for three
+milestones, arriving this time from inside the product.
+
+**What went badly:** two of three waves closed with no independent seat, and the one that ran found
+three BLOCKING. An ADR claimed to answer a plan question it does not address, and the wave record
+repeated the claim. Another ADR's worked arithmetic was off by one in both examples, in the
+direction that made its rule look tighter than it is. And I committed on a red gate for the third
+time in this project, having recorded the same mistake twice before.

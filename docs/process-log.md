@@ -291,3 +291,23 @@ same defect as a control narrower than its rule, one level down: in the DATA rat
 Lesson: **reproducing a failure proves it is real and proves nothing about its scope.** A dependency
 was written off for a milestone on one endpoint's word; asking the dataset directly took four
 commands and four minutes.
+
+## 2026-08-22 — M9 closed agent-side (the refresh), quarterly handover Q3
+
+- Three waves: one cycle by hand, the refusal rule (D-128/-129/-130), then the lock, the escalation
+  counter and the schedule. `launchd` plist ships and is NOT installed — the owner's command.
+- An independent seat reviewed W2 and returned BLOCKING with three findings, all in rows that read
+  COVERED. Worst: the refresh could not publish a FRESHNESS update, because the fingerprint
+  hand-listed six fields where the payload published ten.
+- It wrote 40 mutants where the author had written 24 and reported all killed; 8 survived. All
+  eight now die.
+- Out of band: W-024 closed. arena was never down — only its `filter` endpoint is, and it fails
+  with no query at all. All nine surfaces answer for the first time.
+- M8's carried question answered by REQ-REF-007 rather than by argument: there is one machine, so
+  D-116 is currently a claim about a topology that does not exist.
+- One commit went in on a red gate. Third time; the next commit says so in its subject.
+
+Lesson: **the failure that looks like success is the one to design against.** An unattended process
+that freezes is worse than one that publishes something bad — every gate green, every cycle exiting
+0, the artifact quietly ageing. The plan NAMED that trap and it arrived anyway, through the
+fingerprint rather than through the guard.

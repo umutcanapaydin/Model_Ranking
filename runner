@@ -225,6 +225,13 @@ if age_h > 24:
     print(f"STALE: the last cycle was {age_h:.0f} hours ago and the schedule is 12.")
     print("       At least one refresh did not run.")
     sys.exit(1)
+# M6: artifact age was PRINTED and never thresholded, so a refresh that cycles happily and never
+# publishes — the exact state D-129 names as the one to fear — kept `at` fresh forever and reported
+# PASS. Seventy-two hours is six missed publishes on a twelve-hour schedule.
+if published_at and (time.time() - float(published_at)) / 3600.0 > 72:
+    print("STALE ARTIFACT: the refresh is running but has not replaced the artifact in over 72")
+    print("                hours. The cycle is healthy and what people are reading is not.")
+    sys.exit(1)
 if refusals >= 2:
     # Plan §5.2. One refusal is an upstream blip. Two in a row is a state the product must not sit
     # in quietly, because the artifact keeps ageing while every surface still claims to be current.

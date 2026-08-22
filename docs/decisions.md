@@ -1225,3 +1225,41 @@ refresh moves off the serving box and this ADR is superseded rather than amended
 **What ships in W3 and what does not.** The plist and an install command ship; **the agent does not
 install it.** Loading a background job onto someone's machine is the owner's action, and it is one
 command he can read before he runs it.
+
+## D-131 — The arena restoration, and the authorization that was missing from the repository
+
+**Status:** accepted · **Date:** 2026-08-22 · **Decided by:** the owner, in session on 2026-08-21
+(*"you can close the ones left behind too"* — owner, translated from Turkish), recorded here at the
+Stage-4.0 review's insistence. **Supersedes:** `docs/plans/m9-plan.md` §6's exclusion of the arena
+fix, and the W-024 disposition of 2026-08-21.
+
+**Why this ADR exists at all.** The work was authorised and the REPOSITORY could not show it. A
+Stage-4.0 security seat, reading only the protected base ref as V4C-06 requires, found:
+
+- the signed M9 plan §6 saying, still true at HEAD, *"Not the arena fix… it touches a security
+  finding's citing test; it is the owner's call and is not smuggled in here"*;
+- the W-024 ledger row at the range's base saying **NOT APPLIED** for the same reason;
+- `CLAUDE.md` §3 listing "security-invariant test modified/deleted" as escalate-NOW;
+- and the only authorization anywhere being prose the implementing agent wrote **inside the range
+  under review**.
+
+It returned BLOCKING on the authorization and explicitly not on the code. That is the correct
+verdict and the finding is a real one: **an owner's ruling that lives only in a chat log is not
+available to any reviewer, any future agent, or the owner himself in three months.** V4C-06 exists
+because a change cannot be its own permission slip.
+
+**Decision.** The arena restoration stands. The client reads the overall board as the ordered prefix
+of `/rows` (394 rows, 394 models measured live), `minimum_rows` moves from 1 to 250, and the three
+tests citing security finding **W-007 are RE-EXPRESSED rather than deleted** — each still asserts
+that a failure of the primary read aborts loudly and touches no other endpoint, with the forbidden
+endpoint now being the other one. W-007's invariant is preserved; only which endpoint is primary
+changed, because the one it named stopped serving this dataset.
+
+**What this ADR does not do.** It does not retroactively make the sequencing right. The correct
+order was: owner ruling → ADR → code. What happened was: owner ruling in chat → code → ADR at
+review. The gap is one milestone wide and it is recorded rather than smoothed over, because the
+next time the finding will look identical and may not be authorised.
+
+**The rule this makes explicit for anyone working here:** when the owner authorises something that
+a signed plan excludes, the authorization goes into an ADR **before** the code, in his own words,
+translated and marked. A chat message is a decision; only a record is evidence.
