@@ -1347,3 +1347,43 @@ anyway — the problem was never concealment, it was that nothing blocked.
 write the code and that leaves a file. The two rules that must not drift back together: reviewing
 one's own code is allowed and it is not GREEN; and a review nobody can read is not a review.
 
+## D-134 — A sibling resource is not a payload revision: `/v1/budgets`
+
+**Status:** accepted · **Date:** 2026-08-22 · **Decided by:** the owner, in session on 2026-08-22,
+choosing "a new `/v1/budgets` endpoint" over a third payload revision and over accepting W-044
+permanently.
+
+**Context.** `/v1/recommendations` answers a `budget=low` query with `eligible_count: 25` beside a
+`ranking` array of 58 rows whose most expensive model is $36.09/1M. The array is unfiltered **by
+design** — D-125 spent D-124's one revision window adding it precisely so a client could show every
+ranked model. What was missing was the cap those 25 were counted against. It is $2.00/1M blended,
+it lives in `recommend.BUDGETS`, and it was published nowhere: no endpoint, no field, no OpenAPI
+document (`docs_url` and friends are off by security decision). This app reconciles the two numbers
+on screen. **Any other consumer could not, because the input was not in the API.**
+
+**Decision.** Publish the caps as a fourth route, `/v1/budgets`, returning each budget id with its
+blended cap (`null` for `unlimited` — the absence of a cap, not a large one) plus the blend weights
+that produce the `blended_per_m` each ranking row already carries.
+
+**Why this is not a contract move D-115 forbids.** D-115 froze the `/v1` **payload**, and D-124
+granted one revision to it which D-125 spent. A new resource changes no existing response: every
+field of every current answer is byte-identical after this change. The frozen thing is what a
+consumer already parses, and nothing a consumer already parses moved.
+
+**The reading this ADR explicitly rejects.** "Any addition to `/v1` is a revision." Under that
+reading the API could never gain a resource without an owner-level window, which would make the
+freeze a ban on the surface rather than a stability promise about the payload — and would have left
+W-044 with only two options, both worse: a third revision, or telling every non-first-party
+consumer to hardcode a constant out of the source.
+
+**What makes it honest rather than convenient.** The endpoint is checked against the engine, not
+against itself: `tests/unit/test_budgets_endpoint.py` filters the served `ranking` by the served
+cap and asserts the result equals the served `eligible_count`, across three surfaces and two
+budgets on real data. A cap that did not reproduce the count would be a THIRD account of one query,
+published somewhere new — worse than the two it was written to reconcile.
+
+**Consequences.** `DECLARED_ROUTES` is four. The route-drift test's expectation is written out
+independently of the module, so adding a route stays a two-file change that cannot self-approve.
+The caps are policy constants, so the endpoint answers while the artifact is missing or being
+republished — which, since M9, happens every twelve hours.
+

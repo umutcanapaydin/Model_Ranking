@@ -459,7 +459,8 @@ def test_no_mutating_route_exists(client: TestClient) -> None:
 
 
 def test_the_shipped_surface_is_exactly_the_declared_surface(client: TestClient) -> None:
-    """REQ-API-001: the plan declares three routes. Anything else shipped was never reviewed.
+    """REQ-API-001: the shipped surface is exactly the declared one. Anything else was never
+    reviewed.
 
     The security pass found FastAPI's defaults adding `/docs`, `/redoc`, `/openapi.json` and
     `/docs/oauth2-redirect` — seven routes where the plan declares three, two of them executing
@@ -473,7 +474,12 @@ def test_the_shipped_surface_is_exactly_the_declared_surface(client: TestClient)
     # real `@app.get("/v1/purge")` and the constant in one change left every test green, because
     # the test asked the module to confirm itself. The re-review found it — the same lesson the
     # author had already applied to the exemption set and not to this one.
-    expected = {"/health", "/v1/categories", "/v1/recommendations"}
+    # FOUR since M11-W3 (D-134). `/v1/budgets` publishes the caps `eligible_count` is computed
+    # against, which appeared nowhere in the API — so a consumer received 58 rows under a
+    # `budget=low` query with no way to tell which 25 fit (W-044). Written out here rather than
+    # read from the module for the reason the comment below gives, and that reason is exactly why
+    # adding a route costs two edits instead of one.
+    expected = {"/health", "/v1/categories", "/v1/recommendations", "/v1/budgets"}
     shipped = {path for path, _ in _all_routes(adapter.app)}
     assert (
         shipped == expected

@@ -171,6 +171,18 @@ slopsquat:  ## F.8: DECLARED deps exist on PyPI and are not brand new (offline =
 	@python3 scripts/slopsquat_check.py
 
 run: install
+	@# W-061, found by running it: `make run` is the command `note.txt` tells a developer to use to
+	@# reach the engine, and from a clean environment it DID NOT START. `validate_startup_config`
+	@# fails closed on an unset `MODEL_RANKING_DB` (nothing to serve) and an unset `APP_BUILD`
+	@# (`/health` cannot say which code is live -- L.7). Both refusals are correct; what was wrong
+	@# is that the documented command supplied neither, so the only way to run the engine was to
+	@# already know something the documentation did not say.
+	@#
+	@# The defaults are the developer defaults and nothing more: the repo's own artifact, and a
+	@# build stamp derived from HEAD so `/health` reports the commit it was started from. `?=`
+	@# means an operator who sets either one keeps it -- these do not override a real deployment.
+	MODEL_RANKING_DB="$${MODEL_RANKING_DB:-$(CURDIR)/advisor.db}" \
+	APP_BUILD="$${APP_BUILD:-dev-$$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}" \
 	$(PY) -m uvicorn app.adapter.main:app --host 0.0.0.0 --port 8080 --reload
 
 clean:

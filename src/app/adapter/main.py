@@ -43,7 +43,14 @@ from fastapi.responses import JSONResponse
 
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.coverage import SOURCE_STALE_DAYS, source_health
-from app.workflows.rank import RankingRow, UnbuiltEvidenceError, category_ranking
+from app.workflows.rank import (
+    BLEND_INPUT_WEIGHT,
+    BLEND_NOTE,
+    BLEND_OUTPUT_WEIGHT,
+    RankingRow,
+    UnbuiltEvidenceError,
+    category_ranking,
+)
 from app.workflows.recommend import (
     BUDGETS,
     Pick,
@@ -77,7 +84,17 @@ ORDERING_NOTE = (
 #: more routes than the plan declares, two of which execute unpinned third-party JavaScript from
 #: a CDN. A route nobody declared is a route nobody reviewed.
 DECLARED_ROUTES: frozenset[str] = frozenset(
-    {"/health", f"/{API_VERSION}/categories", f"/{API_VERSION}/recommendations"}
+    {
+        "/health",
+        f"/{API_VERSION}/categories",
+        f"/{API_VERSION}/recommendations",
+        # FOURTH route, added at M11-W3 under D-134. `/v1/recommendations` reports
+        # `eligible_count` beside a `ranking` array that is NOT budget-filtered, and the cap the
+        # count was computed against was published nowhere — so a consumer receiving 58 rows under
+        # `budget=low` could not even work out which 25 fit (W-044). This resource publishes the
+        # caps. It does not change the recommendations payload, which is what D-115 froze.
+        f"/{API_VERSION}/budgets",
+    }
 )
 
 # docs_url / redoc_url / openapi_url are OFF because the plan declares three routes and these
@@ -1019,6 +1036,43 @@ def categories() -> dict[str, Any]:
         ],
         "coding_intent_surfaces": list(CODING_INTENT),
         "surfaces_are_ranked": False,
+    }
+
+
+@app.get(f"/{API_VERSION}/budgets")
+def budgets() -> dict[str, Any]:
+    """The budget caps, so a consumer can tell which ranked rows fit. REQ-API-010, W-044, D-134.
+
+    **The defect this closes, measured before it was written.** `/v1/recommendations` answers a
+    `budget=low` query with `eligible_count: 25` and a `ranking` array of **58** rows whose most
+    expensive model is $36.09/1M. The array is unfiltered by design — D-125 publishes every ranked
+    model — but the cap those 25 were counted against ($2.00/1M blended) appeared nowhere in the
+    API. This app handles it on screen; **any other consumer received 58 rows under a low-budget
+    query with nothing saying they were unfiltered, and no way to compute it either.**
+
+    Published here rather than added to the answer, on the owner's ruling. D-115 froze the `/v1`
+    PAYLOAD and D-124 granted one revision window that D-125 spent; a sibling resource changes no
+    existing response, so it costs no window. The alternative — a third revision — was on the table
+    and was not taken.
+
+    `blend` ships with the caps because a cap in blended dollars is not actionable without the
+    formula that produces the number it is compared against. Every ranking row already carries
+    `blended_per_m`, so a consumer needs the cap to filter; it needs the weights to REPRODUCE the
+    filter, and a threshold nobody can reproduce is a number to trust rather than check.
+    """
+    return {
+        "api_version": API_VERSION,
+        "blend": {
+            "note": BLEND_NOTE,
+            "input_weight": BLEND_INPUT_WEIGHT,
+            "output_weight": BLEND_OUTPUT_WEIGHT,
+        },
+        "budgets": [
+            # `null` is the honest encoding of `unlimited`: it is the ABSENCE of a cap, not a very
+            # large one. A sentinel would invite a consumer to compare against it.
+            {"id": name, "blended_cap_per_m": cap}
+            for name, cap in BUDGETS.items()
+        ],
     }
 
 

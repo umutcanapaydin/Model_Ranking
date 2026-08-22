@@ -31,6 +31,7 @@ Conventions (they change the published figures — state them, never imply them)
 
 from __future__ import annotations
 
+import argparse
 import json
 import statistics as st
 import sys
@@ -85,22 +86,27 @@ def _thresholds_refused(board_n: int) -> None:
 
 
 def parse_args(argv: list[str]) -> tuple[str, str | None, str] | None:
-    """`<dir> [--db PATH] [--category ID]`. Returns None when the usage is wrong."""
-    args = list(argv[1:])
-    options = {"--db": None, "--category": "assistant"}
-    for flag in ("--db", "--category"):
-        if flag not in args:
-            continue
-        index = args.index(flag)
-        if index + 1 >= len(args):
-            print(f"{flag} needs a value")
-            return None
-        options[flag] = args[index + 1]
-        del args[index : index + 2]
-    if len(args) != 1:
-        print(__doc__)
+    """`<dir> [--db PATH] [--category ID]`. Returns None when the usage is wrong.
+
+    `argparse` rather than hand-rolled flag scanning (W-053 N1). The hand-rolled version worked and
+    was replaced anyway: it accepted `--db` twice, silently ignored an unknown flag, and would have
+    read `--category` as a positional if the value were missing. None of those produces a wrong
+    NUMBER — the figures are computed from the artifact either way — but a calibration tool that
+    quietly does something other than what was typed is the wrong tool to be relaxed about, given
+    what this file's own history is (W-037: thresholds calibrated against the wrong population
+    three times, each time because a question got answered from whatever data was nearest).
+    """
+    parser = argparse.ArgumentParser(
+        prog="arena_calibration.py", description=__doc__, add_help=True
+    )
+    parser.add_argument("directory", help="directory holding arena_overall_*.json")
+    parser.add_argument("--db", default=None, help="artifact to read the ranked population from")
+    parser.add_argument("--category", default="assistant", help="surface to calibrate against")
+    try:
+        args = parser.parse_args(argv[1:])
+    except SystemExit:
         return None
-    return args[0], options["--db"], str(options["--category"])
+    return args.directory, args.db, args.category
 
 
 def report_board(rows: list[dict]) -> None:

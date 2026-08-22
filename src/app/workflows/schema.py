@@ -397,6 +397,13 @@ def open_readonly(path: str | Path) -> sqlite3.Connection:
     measured at M10 Stage 4.0, and all four wrote into the artifact they were supposed to be
     reading.
 
+    **It RESOLVES SYMLINKS, and that is a property to read rather than discover** (W-053 N2).
+    `Path.resolve()` follows every link in the path, which is correct for every caller here — an
+    operator names the artifact and following the link is the intent, and it is also what makes the
+    URI construction safe. It would NOT be correct in a context where the path came from an
+    untrusted source and a link could point somewhere else. No such caller exists today; this
+    sentence is here so the first one that appears is a decision rather than an accident.
+
     This function exists because that fix was already made once — `adapter.main.open_readonly`,
     INV-23, whose own docstring describes this exact defect — and then `workflows.refresh`
     string-built the URI anyway. A fix that lives in one module is not a fix; it is a module that
