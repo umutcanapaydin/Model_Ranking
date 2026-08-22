@@ -15,6 +15,49 @@ on:
   workflow_dispatch: {}        # run on demand from the Actions tab
   schedule:
     - cron: "0 6 * * 1"        # Mondays 06:00 UTC — weekly source-drift probe
+  # W-027, closed 2026-08-22 on the owner's ruling. Until now this ran ONLY on the Monday cron and
+  # on demand, so a change that broke a parser was invisible for up to a week — and the week it
+  # did go red, nobody looked, because the workflow had never once been green and a permanently
+  # red badge carries no information.
+  #
+  # SCOPED BY PATH, deliberately. These jobs hit five live endpoints; running them on every push
+  # would hammer other people's services for a docs typo and would go red for network reasons
+  # nobody caused. A gate that fails for reasons nobody caused is how `continue-on-error` gets
+  # added later (V4C-13), and adding it here would give back everything this change bought.
+  #
+  # The paths are the ones that can actually change how an upstream payload is read: the client
+  # code, the source registry, the ingest/build path, the integration tests themselves, and this
+  # workflow. A docs commit does not touch a parser.
+  #
+  # **The right response to a flaky red here is a quarantine with a name and a ledger row, never
+  # `continue-on-error`.** Stated now, while nothing is flaky, because that decision is always made
+  # under pressure.
+  # The two lists are written out rather than shared with a YAML anchor: GitHub Actions does not
+  # support anchors or aliases in workflow files, and an unsupported anchor does not degrade — the
+  # workflow becomes invalid and stops running ENTIRELY, which is a worse outcome than the one this
+  # change is fixing. Eight duplicated lines against a silently dead workflow is not a trade.
+  push:
+    branches: [main]
+    paths:
+      - "src/app/clients/**"
+      - "src/app/workflows/sources.py"
+      - "src/app/workflows/ingest.py"
+      - "src/app/workflows/build.py"
+      - "src/app/workflows/epoch*.py"
+      - "tests/integration/**"
+      - "scripts/ci_coverage_gate.py"
+      - ".github/workflows/contract-tests.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/app/clients/**"
+      - "src/app/workflows/sources.py"
+      - "src/app/workflows/ingest.py"
+      - "src/app/workflows/build.py"
+      - "src/app/workflows/epoch*.py"
+      - "tests/integration/**"
+      - "scripts/ci_coverage_gate.py"
+      - ".github/workflows/contract-tests.yml"
 
 concurrency:
   group: contract-${{ github.ref }}
