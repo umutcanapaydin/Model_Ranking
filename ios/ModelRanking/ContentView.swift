@@ -72,72 +72,91 @@ struct ContentView: View {
         let ordered = orderAnswers(
             surfaces: answers.map(\.surface), selected: task
         ).compactMap { id in answers.first { $0.surface == id } }
-        List {
-            Section {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 24) {
                 // THE FRONT DOOR (D-126). The router picks the QUESTION; the engine answers it.
                 // Nothing here says a model is good, and nothing typed leaves the device.
-                HStack {
-                    Image(systemName: "text.bubble")
-                        .foregroundStyle(.secondary)
-                    TextField("What do you want an AI to do?", text: $question)
-                        .submitLabel(.search)
-                        .onSubmit { Task { await ask() } }
-                    if routingInFlight {
-                        ProgressView().controlSize(.small)
-                    }
-                }
-                if let outcome = routing {
-                    // The choice is SHOWN, and changeable with one tap — the strip above is the
-                    // override. D-126 requires the reader to see which question was picked, and a
-                    // router whose choice cannot be corrected is one that decides FOR them.
-                    Text(outcome.explanation)
-                        .font(.footnote)
-                        .foregroundStyle(outcome.unmeasured ? .orange : .secondary)
-                }
-            } header: {
-                Text("Ask")
-            }
-
-            // The surface the reader SELECTED speaks first. `task=coding` expands server-side to
-            // two answers and `/v1` says in its own payload that their order carries no meaning —
-            // so it always arrived alphabetically, and "Agentic coding" answered every question
-            // about coding. Ordering ANSWERS is not the re-sorting Trap 1 forbids: that rule is
-            // about reordering models inside a ranking, which is the engine's answer.
-            ForEach(ordered) { answer in
-                Section {
-                    if answer.picks.isEmpty && answer.ranking.isEmpty {
-                        emptyAnswer(answer)
-                    } else {
-                        ForEach(answer.picks) { pick in
-                            PickRow(pick: pick)
+                Card {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "text.bubble")
+                                .foregroundStyle(.secondary)
+                            TextField("What do you want an AI to do?", text: $question)
+                                .submitLabel(.search)
+                                .onSubmit { Task { await ask() } }
+                            if routingInFlight {
+                                ProgressView().controlSize(.small)
+                            }
                         }
-                        rankingPreview(answer)
+                        if let outcome = routing {
+                            // The choice is SHOWN, and changeable with one tap — the strip above
+                            // is the override. D-126 requires the reader to see which question was
+                            // picked, and a router whose choice cannot be corrected is one that
+                            // decides FOR them.
+                            Divider()
+                            Text(outcome.explanation)
+                                .font(.footnote)
+                                .foregroundStyle(outcome.unmeasured ? .orange : .secondary)
+                        }
                     }
-                    disclosures(answer)
-                } header: {
-                    Text(answer.title)
-                } footer: {
-                    if answer.id == ordered.first?.id {
-                        // Ruling A's disclosure. It used to open the screen; the question field
-                        // took that place, so it moved to where the answers START rather than
-                        // being dropped — it is about how the ANSWERS are ordered, and that is
-                        // where a reader needs it (REQ-APP-003).
-                        Text(orderingNote)
-                    }
-                    if !answer.ranking.isEmpty {
-                        // `ranking_effort` is part of what the number MEANS: agentic-coding ranks
-                        // at a named comparable level, and a score shown without it invites the
-                        // reader to compare it against one measured somewhere else.
-                        Text(
-                            answer.rankingEffort.map {
-                                "\(answer.ranking.count) models ranked on "
-                                    + "\(answer.primaryBenchmark), at \($0) effort"
-                            } ?? "\(answer.ranking.count) models ranked on \(answer.primaryBenchmark)"
-                        )
+                }
+
+                // The surface the reader SELECTED speaks first. `task=coding` expands server-side
+                // to two answers and `/v1` says in its own payload that their order carries no
+                // meaning — so it always arrived alphabetically, and "Agentic coding" answered
+                // every question about coding. Ordering ANSWERS is not the re-sorting Trap 1
+                // forbids: that rule is about reordering models inside a ranking, which IS the
+                // engine's answer.
+                ForEach(ordered) { answer in
+                    VStack(alignment: .leading, spacing: 12) {
+                        SectionTitle(text: answer.title)
+
+                        if answer.picks.isEmpty && answer.ranking.isEmpty {
+                            Card { emptyAnswer(answer) }
+                        } else {
+                            ForEach(answer.picks) { pick in
+                                PickRow(pick: pick)
+                            }
+                            rankingPreview(answer)
+                        }
+                        disclosures(answer)
+
+                        if answer.id == ordered.first?.id {
+                            // Ruling A's disclosure. It used to open the screen; the question
+                            // field took that place, so it moved to where the answers START rather
+                            // than being dropped — it is about how the ANSWERS are ordered, and
+                            // that is where a reader needs it (REQ-APP-003).
+                            Text(orderingNote)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        if !answer.ranking.isEmpty {
+                            // `ranking_effort` is part of what the number MEANS: agentic-coding
+                            // ranks at a named comparable level, and a score shown without it
+                            // invites the reader to compare it against one measured elsewhere.
+                            Text(
+                                answer.rankingEffort.map {
+                                    "\(answer.ranking.count) models ranked on "
+                                        + "\(answer.primaryBenchmark), at \($0) effort"
+                                } ?? "\(answer.ranking.count) models ranked on "
+                                    + "\(answer.primaryBenchmark)"
+                            )
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 20)
+            // The search field docks at the BOTTOM on this OS and floats over the scroll view. A
+            // `List` reserves space for it; a `ScrollView` does not, so the last card sat under it
+            // — visible in the first screenshot of this design and fixed before hand-over rather
+            // than after. Measured by looking at the running app, which is the only way a layout
+            // defect is ever found.
+            .padding(.bottom, 88)
         }
+        .background(Color(.systemGroupedBackground))
         .refreshable { await load() }
     }
 
@@ -154,12 +173,23 @@ struct ContentView: View {
             visibleTotal: homePreviewCount
         )
         if !rows.isEmpty {
-            ForEach(rows) { row in
-                RankedRow(row: row)
-            }
-            NavigationLink {
-                RankingList(answer: answer, filter: filter)
-            } label: {
+            // The remaining models live in ONE card rather than a card each: they are the tail of
+            // a list, not three separate answers, and giving them the same weight as the picks
+            // would undo the distinction the picks exist to make.
+            Card(padding: 4) {
+                VStack(spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                        RankedRow(row: row)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                        if index < rows.count - 1 {
+                            Divider().padding(.leading, 12)
+                        }
+                    }
+                    Divider().padding(.leading, 12)
+                    NavigationLink {
+                        RankingList(answer: answer, filter: filter)
+                    } label: {
                 // The full ranking is NOT budget-filtered — D-125 publishes every ranked model
                 // beside the three picks, deliberately. A review found the payload giving two
                 // accounts of one query: `budget=low` reporting 25 eligible models and then
@@ -169,12 +199,25 @@ struct ContentView: View {
                 // numbers are already in the payload; nothing here is computed, and no contract
                 // moved. It reads as one sentence when they agree and as a disclosure when they
                 // do not.
-                Text(
-                    answer.eligibleCount < answer.ranking.count
-                        ? "See all \(answer.ranking.count) — \(answer.eligibleCount) fit your budget"
-                        : "See all \(answer.ranking.count)"
-                )
-                    .font(.subheadline)
+                        HStack {
+                            Text(
+                                answer.eligibleCount < answer.ranking.count
+                                    ? "See all \(answer.ranking.count) — "
+                                        + "\(answer.eligibleCount) fit your budget"
+                                    : "See all \(answer.ranking.count)"
+                            )
+                            .font(.subheadline)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 12)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         } else if !filter.isEmpty {
             Text("No model here matches “\(filter)”.")
@@ -335,25 +378,87 @@ struct ContentView: View {
 
 // MARK: - Rows
 
+
+// MARK: - The design vocabulary (M11-W3.5)
+//
+// Three shapes and nothing else: a CARD, a BADGE, and a SECTION TITLE. The owner asked for
+// something less plain after using the app, and chose "card-based and breathing" from three
+// directions. Kept to three shapes deliberately — a screen whose vocabulary grows past that stops
+// being consistent and starts being decorated, and this product's whole claim is that it says
+// exactly what it measured.
+//
+// **Nothing about WHAT is shown changed.** Every disclosure the list carried is still on screen:
+// the unmeasured sentence, the ordering note, the stale-evidence notice, the effort-mix notice,
+// "See all N — M fit your budget". A design pass that quietly drops one of those would be the
+// worst outcome available here, because the disclosures are what make this product honest and not
+// one of them is load-bearing to a layout.
+
+/// A rounded surface with real padding. The one container everything sits in.
+struct Card<Content: View>: View {
+    var padding: CGFloat = 16
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        content
+            .padding(padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+            )
+    }
+}
+
+/// The pick label — "Best Quality", "Best Value", "Budget Pick" — as a badge rather than a caption.
+///
+/// Each pick answers a DIFFERENT question, and the label is the only thing that says which. As a
+/// small tinted caption it read as decoration; as a badge it reads as the heading it actually is.
+struct PickBadge: View {
+    let label: String
+
+    var body: some View {
+        Text(label.replacingOccurrences(of: "_", with: " ").uppercased())
+            .font(.caption2.weight(.semibold))
+            .tracking(0.6)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(Color.accentColor.opacity(0.14)))
+            .foregroundStyle(Color.accentColor)
+    }
+}
+
+/// A surface's name, above its cards.
+struct SectionTitle: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.title3.weight(.semibold))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 4)
+    }
+}
+
 struct PickRow: View {
     let pick: Pick
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(pick.label.replacingOccurrences(of: "_", with: " ").capitalized)
-                .font(.caption)
-                .foregroundStyle(.tint)
-            Text(pick.model).font(.headline)
-            Text(pick.vendor).font(.subheadline).foregroundStyle(.secondary)
-            Text(Format.scoreAndPrice(pick.score, pick.metric, pick.blendedPerM))
-                .font(.subheadline)
-                .monospacedDigit()
-            Text(pick.why).font(.footnote)
-            if let tradeOff = pick.tradeOff {
-                Text(tradeOff).font(.footnote).foregroundStyle(.secondary)
+        Card {
+            VStack(alignment: .leading, spacing: 8) {
+                PickBadge(label: pick.label)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(pick.model).font(.title3.weight(.semibold))
+                    Text(pick.vendor).font(.subheadline).foregroundStyle(.secondary)
+                }
+                Text(Format.scoreAndPrice(pick.score, pick.metric, pick.blendedPerM))
+                    .font(.subheadline.weight(.medium))
+                    .monospacedDigit()
+                Text(pick.why).font(.footnote).foregroundStyle(.secondary)
+                if let tradeOff = pick.tradeOff {
+                    Text(tradeOff).font(.footnote).foregroundStyle(.tertiary)
+                }
             }
         }
-        .padding(.vertical, 4)
     }
 }
 

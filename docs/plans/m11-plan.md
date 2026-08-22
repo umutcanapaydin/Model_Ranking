@@ -110,6 +110,29 @@ REQ-IOS-003, REQ-RUN-001, REQ-RUN-002, REQ-API-010. Closes **W-039**, **W-044**,
   status file read back. This is the first time any refusal, lock or threshold runs unattended.
 - **W-053** — the two MINORs, folded in here because they are minutes.
 
+### W3.5 — The design pass (risk: **MED**)
+
+Added 2026-08-22 by owner ruling, AFTER he walked the app: *"should we put our design into
+something like the one in Cowork, it is very plain, could we make it a bit nicer?"* (owner,
+translated from Turkish). He chose **card-based and breathing** from three directions put to him,
+and chose to add it to M11 rather than defer it to M12.
+
+**Recorded as a plan change rather than absorbed into W3**, because W3 was signed as "run it and
+see" and this is new work. The reasoning for taking it now: M11 is the milestone that puts the
+product in front of a person, and making it better once he has seen it is the same thought
+continued, not a different one.
+
+- Cards instead of stock list rows: rounded surfaces, real spacing, the pick label as a badge
+  rather than a caption.
+- **Nothing about what is SHOWN changes.** Every disclosure survives: the unmeasured sentence, the
+  ordering note, the stale-evidence notice, the effort-mix notice, "See all N — M fit your budget".
+  A design pass that quietly drops a disclosure is the worst outcome available here, because the
+  disclosures are what make the product honest and none of them is load-bearing to a layout.
+- Risk is **MED and not LOW** for one measured reason: `ContentView` is the half of the product no
+  test executes (W-060). The mitigation is to keep the view's calls into the Engine identical —
+  `orderAnswers`, `previewRows`, the disclosure builders — so the logic under test is untouched,
+  and to verify the result by SCREENSHOTTING the running app rather than by reading the diff.
+
 ### W4 — Closure (risk: **LOW**)
 Stage 4.0 under the **new** K.7 rule: the first Stage 4.0 in this project's history run by a seat
 that did not write the code. Then 4.1, 4.2, 4.4. **4.3 does not run — nothing deploys.**
