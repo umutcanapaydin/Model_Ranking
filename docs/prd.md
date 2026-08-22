@@ -419,7 +419,7 @@ needs iOS 13 and covers every device this app targets (deployment target 18.0).
 | REQ-RTR-003 | The router is never required. Unreachable, ineligible, disabled, slow or wrong — the product still works by tapping a chip, and says which happened. | **W1.** |
 | REQ-RTR-004 | Nothing typed reaches the ENGINE, and nothing the engine serves is influenced by the router beyond which surface is opened. The scoring path is untouched (D-104). | **W1.** |
 | REQ-RTR-005 | A question the catalogue does not measure routes to `assistant` **and says so** — that it is not measured here and is being answered with the general chat ranking. | **W1.** |
-| REQ-GRD-001 | A refresh REFUSES a candidate whose evidence moved upward in a way ordinary upstream movement does not produce. It refuses; it never judges and publishes. | **W2.** |
+| REQ-GRD-001 | A refresh REFUSES a candidate whose evidence moved upward in a way ordinary upstream movement does not produce. It refuses; it never judges and publishes. | **MET (W2), D-132.** Two axes — more than a quarter of a surface's models being names never seen before, and a median price moving more than a quarter in either direction — with ordinary movement MEASURED at 0% on both before either threshold was chosen. A surface returning from blind is exempt, and a single genuine launch publishes. |
 | REQ-GRD-002 | No refresh can be made to allocate without bound by an upstream: every paginating client caps total accumulated rows and bytes. | **W3.** |
 | REQ-GRD-003 | The refresh states its environment assumptions as CHECKS, not assumptions. | **W3.** |
 | REQ-EVI-002 | The population the engine actually ranks — reconciled AND priced — has a NAME in the code, and calibration must call it. | **W3.** |

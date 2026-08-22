@@ -1153,9 +1153,13 @@ def test_a_surface_missing_from_the_candidate_counts_as_lost(tmp_path: Path) -> 
     live = ServingSummary(
         digest="a",
         surfaces={"coding": 12},
+        models={"coding": frozenset(f"m{i}" for i in range(12))},
+        median_price={"coding": 3.0},
         eligible={"coding": {"low": 4, "medium": 8, "unlimited": 12}},
     )
-    candidate = ServingSummary(digest="b", surfaces={}, eligible={})
+    candidate = ServingSummary(
+        digest="b", surfaces={}, models={}, median_price={}, eligible={}
+    )
 
     reasons = degradations(live, candidate)
     assert reasons, "a surface absent from the candidate entirely was not treated as a loss"
@@ -1464,3 +1468,130 @@ def test_a_missing_live_artifact_still_publishes(tmp_path: Path) -> None:
     live = tmp_path / "advisor.db"
     outcome, code = refresh(live, builder=_builder(), clock=lambda: 1.0)
     assert code == EXIT_PUBLISHED and outcome.reason == "first artifact"
+
+
+# --- REQ-GRD-001 / W-049: the guard that was missing on the way UP (D-132) -----------------------
+
+
+def _injected(path: Path, *, models: int, fabricated: int, price: float = 6.0) -> Path:
+    """A `coding` surface with `models` real rows plus `fabricated` high-rated ones nobody has seen."""
+    _wide(path, models=models)
+    conn = sqlite3.connect(path)
+    try:
+        for index in range(fabricated):
+            model = f"ghost-{index:02d}"
+            conn.execute(
+                "INSERT OR IGNORE INTO models (id, display, vendor) VALUES (?, ?, 'Nowhere')",
+                (model, f"Ghost {index:02d}"),
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO px_median (model_id, in_m, out_m) VALUES (?, ?, ?)",
+                (model, price, price),
+            )
+            conn.execute(
+                "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score,"
+                " harness, source_url, observed_at) VALUES (?, ?, 'swebench',"
+                " 'SWE-bench Verified', '% resolved', 99.0, 'none', 'fixture://x', 't')",
+                (model, f"Ghost {index:02d}"),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+    return path
+
+
+def test_a_surface_filling_with_models_nobody_has_seen_is_refused(tmp_path: Path) -> None:
+    """W-049, and it is the failure the refresh CREATED rather than one it exposed.
+
+    Every other automated defence on served content is a shrinkage detector, and all of them exempt
+    gains. So an upstream adding fabricated high-rated models produced a LARGER artifact that every
+    check called healthy and that shipped twice a day. Twelve real models plus eight ghosts scoring
+    99: bigger, better-looking, and entirely invented.
+    """
+    live = _wide(tmp_path / "advisor.db", models=12)
+    before = live.read_bytes()
+
+    def injecting(argv: list[str]) -> int:
+        _injected(Path(argv[argv.index("--db") + 1]), models=12, fabricated=8)
+        return 0
+
+    outcome, code = refresh(live, builder=injecting)
+
+    assert code == EXIT_REFUSED, f"a surface filled with invented models published: {outcome.reason}"
+    assert live.read_bytes() == before
+    assert "never seen" in outcome.reason and "coding" in outcome.reason
+
+
+def test_one_genuinely_new_model_still_publishes(tmp_path: Path) -> None:
+    """The side of the line that keeps the product alive, and the one the trap is about.
+
+    A guard tuned to catch a fabricated set will also catch a real launch, and a product that
+    refuses every genuine improvement freezes while reporting health. Measured ordinary movement
+    between two consecutive live builds was **0% new names on all nine surfaces**, so one new model
+    out of thirteen is far inside the limit and must go straight through.
+    """
+    live = _wide(tmp_path / "advisor.db", models=12)
+
+    def one_launch(argv: list[str]) -> int:
+        _injected(Path(argv[argv.index("--db") + 1]), models=12, fabricated=1, price=4.0)
+        return 0
+
+    outcome, code = refresh(live, builder=one_launch)
+    assert code == EXIT_PUBLISHED, f"an ordinary model launch was refused: {outcome.reason}"
+
+
+def test_a_surface_returning_from_blind_is_never_refused_as_an_anomaly(tmp_path: Path) -> None:
+    """`assistant` went from nothing to 65 models when arena came back.
+
+    Every name was new, so a naive gain ratio would have refused the one event everybody wanted —
+    and kept refusing it every twelve hours, freezing the product on the day it got better.
+    """
+    from app.workflows.refresh import ServingSummary, upward_anomalies
+
+    blind = ServingSummary(
+        digest="a",
+        surfaces={"assistant": 0},
+        models={"assistant": frozenset()},
+        median_price={"assistant": 0.0},
+        eligible={"assistant": {"low": 0, "medium": 0, "unlimited": 0}},
+    )
+    returned = ServingSummary(
+        digest="b",
+        surfaces={"assistant": 65},
+        models={"assistant": frozenset(f"m{i}" for i in range(65))},
+        median_price={"assistant": 2.63},
+        eligible={"assistant": {"low": 20, "medium": 40, "unlimited": 65}},
+    )
+
+    assert upward_anomalies(blind, returned) == [], (
+        "a surface coming back from having no evidence was treated as suspicious"
+    )
+
+
+def test_a_median_price_collapse_is_refused(tmp_path: Path) -> None:
+    """The second axis. A cheaper artifact is a more attractive one, which is why it is an attack.
+
+    One provider cutting a price is news and does not move a surface's median. A median moving by a
+    quarter is a FEED — and a feed is what a bug or an attacker controls. Measured ordinary movement
+    between two consecutive live builds: 0.0% on all nine surfaces.
+    """
+    from app.workflows.refresh import ServingSummary, upward_anomalies
+
+    def summary(price: float) -> ServingSummary:
+        names = frozenset(f"m{i}" for i in range(12))
+        return ServingSummary(
+            digest=f"d{price}",
+            surfaces={"coding": 12},
+            models={"coding": names},
+            median_price={"coding": price},
+            eligible={"coding": {"low": 4, "medium": 8, "unlimited": 12}},
+        )
+
+    collapsed = upward_anomalies(summary(4.00), summary(1.00))
+    assert collapsed and "median price" in collapsed[0] and "down" in collapsed[0]
+
+    spiked = upward_anomalies(summary(4.00), summary(9.00))
+    assert spiked and "up" in spiked[0], "a median price SPIKE is a feed fault too"
+
+    ordinary = upward_anomalies(summary(4.00), summary(4.40))
+    assert ordinary == [], "a 10% median move was refused; ordinary movement measured at 0%"

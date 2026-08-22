@@ -1263,3 +1263,45 @@ next time the finding will look identical and may not be authorised.
 **The rule this makes explicit for anyone working here:** when the owner authorises something that
 a signed plan excludes, the authorization goes into an ADR **before** the code, in his own words,
 translated and marked. A chat message is a decision; only a record is evidence.
+
+## D-132 — A surface may not change by more than a quarter in either direction unwatched
+
+**Status:** accepted · **Date:** 2026-08-22 · **Decided by:** the lead agent under the owner's
+signed M10 plan · **Implements:** REQ-GRD-001, closes **W-049** · **Extends:** D-128, which guarded
+only the way down.
+
+**Decision.** An unattended refresh REFUSES a candidate when, compared with what is being served:
+
+1. more than **a quarter** of a surface's models are names this artifact has never seen, or
+2. a surface's **median published price** moves by more than **a quarter**, in either direction.
+
+Together with D-128 the rule a reader can hold in one sentence is: **a surface may not change by
+more than a quarter, in either direction, without somebody looking.**
+
+**What ordinary movement actually is, measured.** This is the sentence D-128 was missing and had to
+be corrected for, so it comes first here. Between two consecutive builds against live sources on
+2026-08-22: **0% previously-unseen names on all nine surfaces, and 0.0% median price movement on all
+nine.** Rosters are stable and individual prices move without shifting a median. A quarter is
+therefore not a tight limit being defended — it is a wide one that ordinary movement does not come
+near, which is the right shape when the failure to fear is the product freezing while every check
+reports healthy.
+
+**Why names and not counts.** A count cannot see a roster that was REPLACED rather than resized —
+twelve models swapped for twelve different ones is the same number and a different product. Names
+also carry the signal that separates the two cases this rule exists to tell apart: a real board adds
+models one or two at a time, and an injected set arrives together.
+
+**Why the median and not a price.** One provider cutting a price is news, and this product exists to
+report news. A whole surface's median moving is a FEED, and a feed is what a bug or an attacker
+controls. The axis fires in BOTH directions: cheaper is the attack, because a cheaper artifact is a
+more attractive one, and dearer is a fault.
+
+**Three things this deliberately does NOT refuse.** A surface returning from blind — when arena came
+back, `assistant` went from nothing to 65 models and every name was new; refusing that would have
+frozen the product on the day it got better, every twelve hours. A surface simply growing within the
+limit. And scores rising, which is the same reasoning D-128 used for scores falling: **a measurement
+moving is news, not damage.**
+
+**It refuses; it never judges.** Under the owner's ruling of 2026-08-22 the refresh may prepare,
+compare and refuse, and may not acquire new judgement. This rule reports what looks wrong and the
+cycle stops — it never decides something is acceptable on balance and publishes anyway.

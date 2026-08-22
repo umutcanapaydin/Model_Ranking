@@ -26,6 +26,7 @@ import hashlib
 import json
 import os
 import sqlite3
+import statistics
 import sys
 import tempfile
 import time
@@ -96,6 +97,69 @@ class RefreshOutcome:
 #: A quarter is a judgement recorded as one. The smallest surface ships 13 models, so it trips at
 #: three — above routine churn, below anything a real outage could hide behind.
 MAX_SURFACE_LOSS = 0.25
+
+
+#: D-132. How much of a surface's roster may be NEW, and how far its median price may move, before
+#: a human has to look. Both are a quarter, deliberately the same figure as D-128's shrinkage
+#: limit: the rule a reader can hold in their head is that **a surface may not change by more than
+#: a quarter in either direction without somebody looking.**
+#:
+#: ORDINARY MOVEMENT, MEASURED — the sentence D-128 lacked and had to be corrected for. Between two
+#: consecutive builds against live sources on 2026-08-22: **0% new names on all nine surfaces, and
+#: 0.0% median price movement on all nine.** Rosters are stable; individual prices move without
+#: shifting a median. So a quarter is not a tight threshold being defended, it is a wide one that
+#: ordinary movement does not come close to — which is the right shape, because the failure to fear
+#: is the product freezing while every check reports healthy.
+MAX_SURFACE_GAIN = 0.25
+MAX_MEDIAN_PRICE_MOVE = 0.25
+
+
+def upward_anomalies(live: ServingSummary, candidate: ServingSummary) -> list[str]:
+    """Ways the candidate is implausibly BETTER. Empty means nothing suspicious.
+
+    W-049, and it is the failure the refresh CREATED rather than one it exposed. Every other
+    automated defence on served content is a shrinkage detector — the `minimum_rows` floors, and
+    every axis of D-128. All of them exempt gains, on the reasoning that a model getting worse is
+    news rather than damage. **The inverse had no guard at all**, so an upstream that added
+    fabricated high-rated models, or dropped prices, produced a larger and cheaper artifact that
+    every check called healthy and that shipped to readers twice a day.
+
+    Under the owner's ruling of 2026-08-22 the outcome is always REFUSE. This function never
+    decides that something is fine on balance; it reports what looks wrong and the cycle stops.
+    """
+    reasons: list[str] = []
+
+    for name, was in sorted(live.models.items()):
+        now = candidate.models.get(name, frozenset())
+        if not now:
+            continue  # a surface losing everything is `degradations`' business, not this one
+        if not was:
+            # It was blind and now answers. That is a surface RETURNING — exactly what happened
+            # when arena came back and `assistant` went from nothing to 65 models — and refusing it
+            # would freeze the product for the one event everybody wants.
+            continue
+        fresh = now - was
+        if len(fresh) > len(now) * MAX_SURFACE_GAIN:
+            reasons.append(
+                f"{name} would be {len(fresh)} of {len(now)} models this artifact has never seen "
+                f"({len(fresh) / len(now):.0%}, over the {MAX_SURFACE_GAIN:.0%} limit); a board "
+                "adds models one or two at a time"
+            )
+
+    for name, before in sorted(live.median_price.items()):
+        after = candidate.median_price.get(name, 0.0)
+        if before <= 0 or after <= 0:
+            continue
+        move = abs(after - before) / before
+        if move > MAX_MEDIAN_PRICE_MOVE:
+            direction = "down" if after < before else "up"
+            reasons.append(
+                f"{name}'s median price would move {direction} {move:.0%} "
+                f"(${before:.2f} to ${after:.2f}, over the {MAX_MEDIAN_PRICE_MOVE:.0%} limit); one "
+                "provider changing a price does not move a surface's median"
+            )
+
+    return reasons
 
 
 def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
@@ -195,6 +259,13 @@ class ServingSummary:
 
     digest: str
     surfaces: dict[str, int]
+    #: surface -> the NAMES it ranks. Counts cannot see a roster that was replaced rather than
+    #: resized, and names are what tells a new model from a fabricated one: a real board adds one
+    #: or two at a time, and an injected set arrives together.
+    models: dict[str, frozenset[str]]
+    #: surface -> the median published price. One provider cutting a price is news; a whole
+    #: surface's median moving is a feed, and a feed is what an attacker or a bug controls.
+    median_price: dict[str, float]
     #: surface -> budget -> how many models a reader on that budget could actually be offered.
     #:
     #: Row counts alone cannot see the failure that matters most here. `BUDGETS` is a HARD FILTER
@@ -243,6 +314,8 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
     digest = hashlib.sha256()
     surfaces: dict[str, int] = {}
     eligible: dict[str, dict[str, int]] = {}
+    names: dict[str, frozenset[str]] = {}
+    prices: dict[str, float] = {}
     for name in sorted(CATEGORIES):
         spec = CATEGORIES[name]
         # NO `except sqlite3.DatabaseError: rows = []` HERE, and its absence is the point.
@@ -261,10 +334,16 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         digest.update(f"surface:{name}:{len(rows)}\n".encode())
         surfaces[name] = len(rows)
         eligible[name] = {b: len(eligible_rows(rows, b)) for b in sorted(BUDGETS)}
+        names[name] = frozenset(row.model for row in rows)
+        prices[name] = statistics.median([row.blended_per_m for row in rows]) if rows else 0.0
         for row in rows:
             digest.update(_row_digest(row).encode())
     return ServingSummary(
-        digest=digest.hexdigest(), surfaces=surfaces, eligible=eligible
+        digest=digest.hexdigest(),
+        surfaces=surfaces,
+        models=names,
+        median_price=prices,
+        eligible=eligible,
     )
 
 
@@ -527,6 +606,13 @@ def _reason_to_refuse(
     worse = degradations(live, fresh)
     if worse:
         return "refused: the candidate is worse than what is being served — " + "; ".join(worse)
+
+    suspicious = upward_anomalies(live, fresh)
+    if suspicious:
+        return (
+            "refused: the candidate improved in a way ordinary upstream movement does not "
+            "produce — " + "; ".join(suspicious)
+        )
 
     # RE-READ the baseline immediately before publishing. The decision above was made against the
     # artifact as it was when this cycle started, and a hand-run `build.py` can replace it in
