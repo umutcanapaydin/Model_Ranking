@@ -146,3 +146,80 @@ final class RouterBoundaryTests: XCTestCase {
         XCTAssertTrue(nine.contains(outcome!.categoryID))
     }
 }
+
+// MARK: - Remediation of the M11-W2 independent review
+//
+// Nine of twenty mutants survived the first version of this file. The pattern in every survivor
+// was the same and it is this project's most-recorded defect: the test built the VALUE it wanted
+// to check by hand, so the code that produces that value was never run. `unmeasured` was asserted
+// on a `RoutingOutcome` literal; the floor was never crossed; the default tier was never observed.
+
+final class RouterThresholdTests: XCTestCase {
+
+    /// REQ-RTR-005 through the REAL router. `unmeasured: true` → `false` at `Router.swift:171`
+    /// survived all 18 tests before this existed.
+    func testAQuestionBelowTheFloorIsFlaggedUnmeasured() async {
+        // A floor cosine can never reach, so every question takes the unmeasured branch. The
+        // question itself is ordinary on purpose: what is under test is the THRESHOLD, and using
+        // a nonsense string would leave the result depending on the embedding's opinion of it.
+        let router = SimilarityRouter(floor: 2.0)
+
+        let outcome = await router.route("fix the failing unit test in my python project", within: nine)
+
+        XCTAssertEqual(outcome?.unmeasured, true,
+                       "a question below the floor was returned as MEASURED; the product would "
+                       + "imply it had measured something it has not")
+        XCTAssertEqual(outcome?.categoryID, CategoryHints.unmeasuredFallback)
+    }
+
+    /// The other side, so the flag cannot collapse into "always unmeasured".
+    func testAQuestionAboveTheFloorIsNotFlaggedUnmeasured() async {
+        let router = SimilarityRouter(floor: -2.0)  // below the minimum cosine: nothing is unmeasured
+
+        let outcome = await router.route("fix the failing unit test in my python project", within: nine)
+
+        XCTAssertEqual(outcome?.unmeasured, false)
+    }
+
+    /// The unmeasured branch refuses rather than inventing a surface the engine did not serve.
+    func testAnUnmeasuredQuestionYieldsNothingWhenTheFallbackSurfaceIsNotServed() async {
+        let router = SimilarityRouter(floor: 2.0)
+
+        let outcome = await router.route("anything", within: ["coding", "web-dev"])
+
+        XCTAssertNil(outcome, "the router named `assistant` on a surface list that does not have it")
+    }
+
+    /// The default must be the MEASURED value, or the seam above becomes a way to ship a
+    /// different threshold than the one the calibration record describes.
+    func testTheDefaultFloorIsTheCalibratedValue() {
+        XCTAssertEqual(SimilarityRouter().floor, 0.15, accuracy: 0.0001)
+    }
+}
+
+final class DefaultTierTests: XCTestCase {
+
+    /// MAJOR from the review: nothing asserted that the DEFAULT router carries the on-device tier,
+    /// so `platformModelRouter()` returning nil survived — the app could ship with tier 1
+    /// permanently off and every test would stay green.
+    func testTheDefaultRouterCarriesTheOnDeviceTierWhereThePlatformHasOne() {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, macOS 26.0, *) {
+            XCTAssertNotNil(TieredRouter().model,
+                            "the platform carries FoundationModels and the default router has no "
+                            + "model tier; tier 1 would be off in the shipped app")
+            return
+        }
+        #endif
+        XCTAssertNil(TieredRouter().model, "a model tier appeared on a platform that has none")
+    }
+
+    /// And the similarity tier is always present — it is the one every supported device can run.
+    func testTheDefaultRouterAlwaysCarriesTheSimilarityTier() async {
+        let outcome = await TieredRouter(model: nil).route("write a sql query", within: nine)
+
+        XCTAssertNotEqual(outcome.tier, .manual,
+                          "with no model tier the router gave up instead of falling back to the "
+                          + "tier every supported device can run")
+    }
+}

@@ -979,8 +979,28 @@ def health() -> dict[str, str]:
     A green probe proves the process is *up*, never *which code* it is; the
     `build` stamp closes that gap (one `curl /health | jq .build` vs three
     exec-and-grep checks). Additive fields only; `status` is unchanged.
+
+    `evidence` is the M11-W3 addition, and it exists because of a measurement: the startup probe
+    refuses to BOOT on an unservable artifact, but the artifact can stop being servable afterwards
+    — which is not hypothetical, since M9 shipped a refresh that replaces that exact file every
+    twelve hours. In that state every `/v1` query answered 503 and this endpoint answered
+    `{"status": "ok"}`. Stage 4.3 verifies a deploy by curling here, so the deploy check was
+    measuring the process rather than the product: the W-023 shape, which is a thing that looks
+    healthy to every existence check and answers nothing.
+
+    **`status` is NOT changed, on purpose.** The line above promises additive fields and a fixed
+    `status`, and re-defining what a liveness probe reports is a contract change that belongs to
+    the owner rather than to the wave that noticed it (W-058). This adds the field a deploy check
+    can read; whether the deploy check reads it is the owner's call.
     """
-    return {"status": "ok", "version": APP_VERSION, "build": APP_BUILD}
+    path = _db_path()
+    problem = "no database configured" if path is None else _database_unusable(path)
+    return {
+        "status": "ok",
+        "version": APP_VERSION,
+        "build": APP_BUILD,
+        "evidence": "servable" if problem is None else "unavailable",
+    }
 
 
 @app.get(f"/{API_VERSION}/categories")

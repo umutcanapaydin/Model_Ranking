@@ -262,12 +262,21 @@ section "swift-tests"
 if command -v swift > /dev/null 2>&1; then
   # No pipe between `swift test` and the log, for the reason recorded in the Makefile: a pipe
   # hands the shell tail's status and the gate stops being able to fail.
+  # `record <name> <exit-code>` is the ONLY reporting verb this script has. The first version of
+  # this section called `pass` and `fail`, which are not commands here: with `set -u` and no
+  # `set -e` both branches died as "command not found", `$FAILED` stayed empty, and `runner`
+  # reported ALL PASS with the Swift tests red. Found by the independent seat, who replicated
+  # these lines byte-for-byte against a red tree rather than reading them.
+  #
+  # The lesson is not "check your function names". The OTHER half of this same change -- the
+  # Makefile recipe -- was proven by breaking an assertion and watching the gate go red. This half
+  # was only read. Proving one half of a change proves nothing about the other half.
   if swift_out=$( cd "$REPO/ios" && swift test 2>&1 ); then
     printf '%s\n' "$swift_out" | grep -E "Executed [0-9]+ tests, with" | tail -1 >> "$FULL"
-    pass "swift-tests"
+    record "swift-tests" 0
   else
     printf '%s\n' "$swift_out" | tail -40 >> "$FULL"
-    fail "swift-tests"
+    record "swift-tests" 1
   fi
 else
   echo "SKIPPED: swift is not on PATH" >> "$FULL"

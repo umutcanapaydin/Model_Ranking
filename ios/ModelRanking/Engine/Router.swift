@@ -101,7 +101,17 @@ struct SimilarityRouter: QuestionRouter {
     /// surface scored 0.18–0.51 and a question the catalogue does not measure scored 0.19, so the
     /// floor separates "nothing like anything" from "a weak but real match" and deliberately does
     /// not try to separate more than that. Tier 2 matches on WORDING and its outcome says so.
-    static let floor: Double = 0.15
+    var floor: Double = SimilarityRouter.defaultFloor
+
+    /// The measured default, kept separate from the instance property so a test can MOVE the
+    /// threshold and exercise both sides of it.
+    ///
+    /// The independent seat measured that raising this to 2.0 — a value cosine can never exceed,
+    /// so every question in the world becomes unmeasured — survived all 18 tests. A threshold with
+    /// no test on either side of it is a number, not a decision, and `unmeasured` is the field
+    /// REQ-RTR-005 exists to protect: routing an unmeasured question to `assistant` silently would
+    /// let the product imply it had measured something it has not.
+    static let defaultFloor: Double = 0.15
 
     func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
         let text = question.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -165,7 +175,7 @@ struct SimilarityRouter: QuestionRouter {
             if score > best.score { best = (hint.id, score) }
         }
 
-        if best.score < Self.floor {
+        if best.score < floor {
             guard known.contains(CategoryHints.unmeasuredFallback) else { return nil }
             return RoutingOutcome(
                 categoryID: CategoryHints.unmeasuredFallback, tier: .similarity, unmeasured: true

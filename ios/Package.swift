@@ -19,10 +19,24 @@ import PackageDescription
 
 let package = Package(
     name: "ModelRankingEngine",
-    // macOS is where `swift test` runs. The floor is 26 because `FoundationModels` is compiled in
-    // under `#if canImport` and its tier is `@available(macOS 26.0, *)` — a lower floor would build
-    // the file with that whole tier stripped, and the tests would pass against code the app does
-    // not ship. iOS 18 is the app target and is declared so the platform pair cannot silently drift.
+    // macOS is where `swift test` runs.
+    //
+    // **The rationale first written here was wrong, and the independent seat disproved it by
+    // measurement.** It claimed the macOS floor had to be 26 or the `FoundationModels` tier would
+    // be stripped and the tests would pass against code the app does not ship. Lowering it to
+    // `.macOS(.v14)` leaves the suite green AND the tier still compiled — `#if canImport` and
+    // `@available` do that work, not the manifest floor. The claim was plausible, load-bearing in
+    // its own comment, and false: a record stating the opposite of the code, which is the defect
+    // this project has recorded more times than any other.
+    //
+    // The floor stays at 26 because that is the toolchain this is developed and run on, and a
+    // manifest that understates its platform is a different lie. It is NOT what keeps the tier
+    // compiled.
+    //
+    // The iOS line is likewise NOT a drift guard — nothing compares it to the project's
+    // `IPHONEOS_DEPLOYMENT_TARGET`, and the first version of this comment said it was (W-059).
+    // It is declared because a library needs a platform, and it is set to the app's target so the
+    // two at least START in agreement.
     platforms: [.macOS(.v26), .iOS(.v18)],
     products: [.library(name: "ModelRankingEngine", targets: ["ModelRankingEngine"])],
     targets: [
