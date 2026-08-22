@@ -401,3 +401,25 @@ started on. REQ-REF-006 therefore PINS existing behaviour rather than requiring 
 | REQ-REF-005 | A refresh runs every 12 hours without a human, and a human can find out that it stopped running at all. **Silence must not be indistinguishable from success.** | **MET agent-side (W3), D-130; ONE owner command away from live.** `deploy/com.hcs.modelranking.refresh.plist` — `launchd` with `StartInterval`, chosen because `cron` does not fire a trigger missed while the machine slept, and on a 12-hour interval that is a SKIPPED cycle rather than a late one. **The agent does not install it:** loading a background job onto someone's machine is the owner's action, and the plist documents the two commands. The finding-out half is live now — `runner` reports cycle age, ARTIFACT age, consecutive refusals, and escalates at two. |
 | REQ-REF-006 | The running engine serves a replaced artifact without a restart, and a request in flight during the swap completes on consistent data. | **MET (W1), and it PINS behaviour that already existed.** Measured by hand before the milestone was planned, now asserted through `TestClient`: an artifact replaced under a live app changes the next response. The test exists because making the adapter hold one long-lived connection is a reasonable-looking optimisation that would silently break every future refresh. |
 | REQ-REF-007 | Ingestion never runs on the serving host (D-116). The refresh produces an artifact and hands it over; it does not reach into a serving process. | **PARTIAL, and stated rather than claimed.** The STRUCTURAL half is enforced and tested: an AST check asserts `refresh.py` imports nothing from `app.adapter`, and the refresh only ever hands over a file. The PHYSICAL half cannot be met today — nothing is deployed, so the owner's Mac is both the serving host and the only host there is. The separation becomes physical when D-123 discharges; until then this row is honest about being half a requirement. |
+
+## M10 — the router (REQ-RTR) and the guards, added at W1
+
+D-126 ruled the router at M8 — *"the router picks the QUESTION; the engine answers it"*, and it may
+never say a model is good — and it was never given a REQ-ID or a wave until the owner asked where
+it had gone. These are written here at W1, before any code.
+
+**Measured before planning:** the on-device options cost **zero app bytes** and send nothing off the
+phone. `FoundationModels` needs iOS 26 and an Apple Intelligence-eligible device; `NLEmbedding`
+needs iOS 13 and covers every device this app targets (deployment target 18.0).
+
+| REQ-ID | Requirement | Status |
+|---|---|---|
+| REQ-RTR-001 | A user types a question in their own words and the app opens the surface that answers it. The router's choice is SHOWN and changeable with one tap (D-126). | **W1.** |
+| REQ-RTR-002 | **The router can only ever yield one of the nine category ids.** A recommendation, a model name, prose or an injected instruction is discarded and the user gets the manual chips. Where the framework allows it the closed set is a SCHEMA constraint, not a prompt instruction. | **W1.** |
+| REQ-RTR-003 | The router is never required. Unreachable, ineligible, disabled, slow or wrong — the product still works by tapping a chip, and says which happened. | **W1.** |
+| REQ-RTR-004 | Nothing typed reaches the ENGINE, and nothing the engine serves is influenced by the router beyond which surface is opened. The scoring path is untouched (D-104). | **W1.** |
+| REQ-RTR-005 | A question the catalogue does not measure routes to `assistant` **and says so** — that it is not measured here and is being answered with the general chat ranking. | **W1.** |
+| REQ-GRD-001 | A refresh REFUSES a candidate whose evidence moved upward in a way ordinary upstream movement does not produce. It refuses; it never judges and publishes. | **W2.** |
+| REQ-GRD-002 | No refresh can be made to allocate without bound by an upstream: every paginating client caps total accumulated rows and bytes. | **W3.** |
+| REQ-GRD-003 | The refresh states its environment assumptions as CHECKS, not assumptions. | **W3.** |
+| REQ-EVI-002 | The population the engine actually ranks — reconciled AND priced — has a NAME in the code, and calibration must call it. | **W3.** |

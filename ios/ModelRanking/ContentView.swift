@@ -22,7 +22,12 @@ struct ContentView: View {
     /// Fetched from the engine on first load, never listed here. See `EngineClient.categories()`.
     @State private var categories: [Category] = []
     @State private var task = "coding"
+    /// What the reader typed, and what the router made of it (D-126, REQ-RTR-001).
+    @State private var question = ""
+    @State private var routing: RoutingOutcome?
+    @State private var routingInFlight = false
     private let budget = "unlimited"
+    private let router = TieredRouter()
 
     enum LoadState {
         case idle, loading
@@ -60,9 +65,28 @@ struct ContentView: View {
     private func home(_ answers: [Answer], orderingNote: String) -> some View {
         List {
             Section {
-                Text(orderingNote)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                // THE FRONT DOOR (D-126). The router picks the QUESTION; the engine answers it.
+                // Nothing here says a model is good, and nothing typed leaves the device.
+                HStack {
+                    Image(systemName: "text.bubble")
+                        .foregroundStyle(.secondary)
+                    TextField("What do you want an AI to do?", text: $question)
+                        .submitLabel(.search)
+                        .onSubmit { Task { await ask() } }
+                    if routingInFlight {
+                        ProgressView().controlSize(.small)
+                    }
+                }
+                if let outcome = routing {
+                    // The choice is SHOWN, and changeable with one tap — the strip above is the
+                    // override. D-126 requires the reader to see which question was picked, and a
+                    // router whose choice cannot be corrected is one that decides FOR them.
+                    Text(outcome.explanation)
+                        .font(.footnote)
+                        .foregroundStyle(outcome.unmeasured ? .orange : .secondary)
+                }
+            } header: {
+                Text("Ask")
             }
 
             ForEach(answers) { answer in
@@ -79,6 +103,13 @@ struct ContentView: View {
                 } header: {
                     Text(answer.title)
                 } footer: {
+                    if answer.id == answers.first?.id {
+                        // Ruling A's disclosure. It used to open the screen; the question field
+                        // took that place, so it moved to where the answers START rather than
+                        // being dropped — it is about how the ANSWERS are ordered, and that is
+                        // where a reader needs it (REQ-APP-003).
+                        Text(orderingNote)
+                    }
                     if !answer.ranking.isEmpty {
                         // `ranking_effort` is part of what the number MEANS: agentic-coding ranks
                         // at a named comparable level, and a score shown without it invites the
@@ -223,6 +254,27 @@ struct ContentView: View {
                 .padding(.vertical, 8)
             }
             .background(.bar)
+        }
+    }
+
+    /// Route the typed question to a surface, then load it.
+    private func ask() async {
+        let typed = question.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !typed.isEmpty else { return }
+        routingInFlight = true
+        defer { routingInFlight = false }
+
+        let known = categories.map(\.id)
+        guard !known.isEmpty else { return }
+
+        let outcome = await router.route(typed, within: known)
+        routing = outcome
+        // The engine is asked for a SURFACE and nothing else. What the reader typed never reaches
+        // it, and the only thing the router contributes to the request is which of nine ids it is
+        // (REQ-RTR-004 — the scoring path is untouched, D-104).
+        if outcome.categoryID != task {
+            task = outcome.categoryID
+            await load()
         }
     }
 

@@ -1,6 +1,6 @@
 # M10 Plan — The router, and the guard that is missing on the way up
 
-**Status:** **DRAFT — awaiting the owner's signature.** No wave starts until it is signed.
+**Status:** **SIGNED** by the owner on 2026-08-22. Wave dispatch is authorized.
 **Date:** 2026-08-22 · **Risk tier:** **HIGH** (a free model in front of the catalogue; the guards
 that decide what reaches users) · **Mode:** A0.5 + D-117 · **Process baseline:** GP v5.0 ·
 **Review depth:** D-122 · M10 is not `M % 3 == 0`.
@@ -96,9 +96,12 @@ validates that id against the nine it already fetches from `/v1/categories` and 
 else. **The engine is not touched** — no new route, no payload change, no LLM anywhere near the
 scoring path (D-104). The router picks which existing question to ask.
 
-Three things to settle at the wave and NOT assume here: which free model and on whose terms (§5.1),
-what the app does with a question that fits no surface, and whether the typed text leaves the
-device at all before the owner has said it may.
+**Three tiers, because the phone decides how good the routing can be and none of them costs a
+byte:** `FoundationModels` with a schema-constrained closed set where the device allows it,
+`NLEmbedding` similarity against the nine category descriptions everywhere else, and the manual
+chips when neither answers. The product must state which tier answered when it matters — a
+keyword-grade match presented as an understanding of the question is a small lie the interface
+would be telling all day.
 
 ### W2 — The upward-anomaly axis (risk: **HIGH**)
 
@@ -130,21 +133,45 @@ D-120, D-128 (amendable, with its ordinary-movement sentence), D-130.
 
 ---
 
-## 5. Three questions to answer before W1 writes any code
+## 5. The three questions, ANSWERED before W1 writes any code
 
-**1. Which free model, and does the user's typed question leave the device?** A routing call sends
-what somebody typed to a third party. That is a privacy decision and it is the owner's, not a
-default. If the answer is "not yet", W1 ships the boundary and the fallback with an on-device or
-keyword router and the model arrives later — the structure is the same either way.
+**1. Which model, and does the typed question leave the device? — ANSWERED: nothing leaves the
+device, and nothing is embedded.** Measured against the installed SDK rather than assumed:
 
-**2. What happens to a question that fits no surface?** "Which AI should I use to do my taxes" maps
-to nothing this product measures. Saying so plainly is the honest answer and it is also a product
-decision about how often the front door says no.
+| Option | Minimum iOS | App size cost | Text leaves device |
+|---|---|---|---|
+| `FoundationModels` (`SystemLanguageModel`) | **26.0**, and an Apple Intelligence-eligible device with it enabled | **0 bytes** — ships with the OS | no |
+| `NLEmbedding` similarity | **13.0** — every phone this app targets | **0 bytes** | no |
+| Manual chips | any | 0 | no |
 
-**3. What does the escalation counter escalate TO?** M9 added it and nobody has said. Under ruling
-2 the refresh refuses more often, so this stops being theoretical: a refusal that reaches nobody is
-a product that quietly stops updating. Today the only channel is `runner`, which only speaks when
-the owner runs it.
+The app's deployment target is **18.0**, so tier 2 covers every device the product runs on and
+tier 1 is a quality upgrade where the phone allows it. **The owner's expectation that Apple
+Intelligence exists on iOS 17 is not correct** — it arrived with 18.1, and this developer framework
+with 26 — but the conclusion he drew from it survives: it will work on his phone, on tier 2 if not
+tier 1.
+
+**And the boundary gets stronger than the plan asked for.** `GenerationSchema(anyOf:)` constrains
+the model to a closed set at the FRAMEWORK level, so REQ-RTR-002 stops being "validate what came
+back" and becomes "the model was never able to produce anything else". `SystemLanguageModel`
+also reports `unavailable(deviceNotEligible | appleIntelligenceNotEnabled | modelNotReady)`, which
+is exactly the disclosure REQ-RTR-003 asks for.
+
+**2. What happens to a question that fits no surface? — ANSWERED: route it to `assistant`, and SAY
+that is what happened.** The owner's reasoning is right and it does not breach D-126, because
+`assistant` is a MEASURED surface: a general-purpose chat model genuinely is the tool for a question
+nothing here measures specifically.
+
+The honesty condition is the second half. Routing "which AI does my taxes" to `assistant` silently
+would let the product imply it had measured tax software. The fallback must say, on the surface,
+**that this question is not one the catalogue measures and it is being answered with the general
+chat ranking.** Without that sentence the front door quietly widens the product's claim, which is
+the one thing this engine exists not to do.
+
+**3. What does the escalation counter escalate TO? — DEFERRED, and named as deferred.** Ruling 1
+says finish with what exists, and ruling 2 caps the refresh's autonomy rather than extending it.
+`runner` remains the only channel, and it only speaks when the owner runs it. This stays open and is
+the first thing M11 should settle, because a refusal reaching nobody is a product that quietly stops
+updating.
 
 ---
 
