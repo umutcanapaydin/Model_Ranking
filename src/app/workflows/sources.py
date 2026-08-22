@@ -146,7 +146,13 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         client=ArenaClient,
         ingest=ingest_arena,
         parse=parse_arena,
-        minimum_rows=1,
+        minimum_rows=250,
+        # W-024. This was **1**, which cannot catch anything: a "successful" fetch of a single row
+        # would have passed. It matters more now that the board is read as an ordered PREFIX of a
+        # 10,359-row split — the stop condition trusts that ordering, and this floor is what turns
+        # a wrong guess into a FAILED dependency instead of a silently thin `assistant` surface.
+        # The board has carried ~389 models; 250 is comfortably below any real day and far above
+        # any truncation.
         # OPTIONAL by the owner's ruling at M7-W1 (W-024, ADR D-121). The HF datasets-server has
         # been returning HTTP 500 for hours, and making the whole artifact unbuildable by one
         # upstream outage would block the milestone on somebody else's incident. It is optional

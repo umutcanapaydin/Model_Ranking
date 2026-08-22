@@ -453,7 +453,11 @@ def test_source_floors_are_pinned_by_value_not_only_by_sign() -> None:
     assert floors["openrouter"] == 50
     assert floors["swebench"] == 1
     assert floors["aider"] == 1
-    assert floors["arena"] == 1
+    # W-024: arena's floor moved from 1 to 250 when the client stopped asking the server to filter
+    # and started reading the board as the ordered PREFIX of a 10,359-row split. The stop condition
+    # trusts an ordering upstream does not owe us, and a floor of 1 could not catch a wrong guess:
+    # a "successful" fetch of a single row would have passed. The board carries ~394 models.
+    assert floors["arena"] == 250
 
 
 def test_building_over_a_directory_fails_cleanly(tmp_path: Path,

@@ -47,17 +47,13 @@ _RETRIES_429 = 3
 
 
 def arena_source_url(config: str = "text", split: str = "latest") -> str:
-    """Return provenance for the exact server-filtered board surface we fetch."""
+    """Provenance for the surface we actually read.
+
+    W-024: this named the FILTER endpoint long after that endpoint stopped serving this dataset.
+    A citation pointing at a URL the code does not call is one nobody can follow.
+    """
     return str(
-        httpx.URL(
-            FILTER_API,
-            params={
-                "dataset": DATASET,
-                "config": config,
-                "split": split,
-                "where": WHERE_OVERALL,
-            },
-        )
+        httpx.URL(ROWS_API, params={"dataset": DATASET, "config": config, "split": split})
     )
 
 
@@ -134,6 +130,26 @@ class ArenaClient:
         msg = f"arena fetch failed (page {page}): {last_exc}"
         raise SourceError(msg) from last_exc
 
+    @staticmethod
+    def _overall_prefix(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], bool]:
+        """The leading run of `overall` rows in one page, and whether the board ended inside it.
+
+        The split is ordered by category — MEASURED on 2026-08-21, not assumed: `overall` occupies
+        roughly the first 400 of 10,359 rows and `chinese` begins at ~400. So the board we want is
+        a PREFIX, and reading past its end is downloading unrelated slices, which is the
+        self-rate-limiting chain W-007 removed.
+        """
+        for index, entry in enumerate(rows):
+            # The record is NESTED: this API wraps each one as {"row_idx": N, "row": {...}}, and
+            # the category lives inside. Reading it off the outer object matched nothing, so the
+            # prefix ended at row zero and every board came back empty — caught by the existing
+            # client tests on the first run, which is what they are for.
+            nested = entry.get("row")
+            record: dict[str, Any] = nested if isinstance(nested, dict) else entry
+            if record.get("category") != OVERALL_CATEGORY:
+                return rows[:index], True
+        return rows, False
+
     def _paginate(self, endpoint: str, extra: dict[str, str]) -> str:
         merged: list[dict[str, Any]] = []
         total: int | None = None
@@ -143,7 +159,10 @@ class ArenaClient:
             if not isinstance(rows, list):
                 msg = f"arena API returned no rows list (page {page})"
                 raise SourceError(msg)
+            rows, board_ended = self._overall_prefix(rows)
             merged.extend(rows)
+            if board_ended:
+                break
             total = (
                 payload.get("num_rows_total")
                 if isinstance(payload.get("num_rows_total"), int)
@@ -160,14 +179,29 @@ class ArenaClient:
         return json.dumps({"rows": merged, "num_rows_total": total})
 
     def fetch_raw(self) -> str:
-        """Fetch only the documented, server-filtered overall board.
+        """Fetch the overall board as the ordered PREFIX of the split.
 
-        W-007: a filter failure used to trigger full ``/rows`` pagination, downloading
-        unrelated category slices until the client rate-limited itself. The bounded
-        filtered surface is required now; failure aborts this source loudly and leaves
-        its prior working set intact.
+        **W-024, and it was never an outage.** For an entire milestone this source was recorded as
+        "upstream down" on the strength of a 500 from the `filter` endpoint, and a user-facing
+        surface shipped blind because of it. The dataset was healthy the whole time: `/is-valid`
+        reports filter support, `/splits` lists `text/latest`, `/first-rows` returns rows carrying
+        `category='overall'`, and `/rows` serves them. Only `filter` fails — and it fails **with no
+        `where` clause at all**, so it was never our query.
+
+        Reproducing a failure proves the failure is real. It proves nothing about its SCOPE.
+
+        **This is not W-007's fallback returning.** W-007 removed an AUTOMATIC one: a filter failure
+        silently began paginating everything, category after category, until the client
+        rate-limited itself. This is a deliberate read of a different endpoint, under the same page
+        valve, that STOPS at the first row outside the board — four or five requests, not a
+        hundred. There is no fallback and no chain: if this fails, the source fails loudly and the
+        artifact keeps its previous working set.
+
+        Two guards stand behind the ordering assumption, because "the rows happen to be sorted" is
+        not something upstream owes us: `parse_arena` filters by category again, and the source's
+        `minimum_rows` floor turns a short read into a FAILED dependency instead of a quiet one.
         """
-        return self._paginate(FILTER_API, {"where": WHERE_OVERALL})
+        return self._paginate(ROWS_API, {})
 
 
 def parse_arena(
