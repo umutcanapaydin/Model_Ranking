@@ -122,6 +122,21 @@ else
   say "  using booted device $DEVICE"
   open -a Simulator 2>/dev/null
 fi
+
+# Both keyboards on, idempotently. Owner ruling 2026-08-23: typing from the Mac keyboard AND the
+# app's own keyboard on tap. The Simulator suppresses the on-screen keyboard when a hardware one is
+# connected, so the default gives you one or the other.
+if osascript "$REPO/scripts/simtools/keyboards_on.scpt" >> "$LOG" 2>&1; then
+  say "  hardware keyboard: on — you can type from the Mac"
+  say "  software keyboard: press Cmd-K in the Simulator to show it as well."
+  say "                     It cannot be set from here: unlike the hardware item, that menu"
+  say "                     entry carries no state a script can read, so a script could only"
+  say "                     FLIP it — and would turn it back off on the next run."
+else
+  say "  keyboards: could not be set — grant Accessibility to this terminal in"
+  say "             System Settings > Privacy & Security > Accessibility, or set them by hand"
+  say "             in the Simulator's I/O > Keyboard menu."
+fi
 say ""
 
 # --- 3. build + install -------------------------------------------------------------------------
