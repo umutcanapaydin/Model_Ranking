@@ -234,15 +234,30 @@ struct ModelRouter: QuestionRouter {
         guard let response = try? await session.respond(to: question, schema: schema) else {
             return nil
         }
-        guard let id = try? String(response.content), known.contains(id) else {
-            // Defence in depth: the schema should make this unreachable, and an unreachable guard
-            // on a model's output is worth its two lines.
-            return nil
-        }
-        return RoutingOutcome(categoryID: id, tier: .model, unmeasured: false)
+        return ModelOutputBoundary.outcome(for: try? String(response.content), within: known)
     }
 }
 #endif
+
+/// **D-104's boundary, extracted so it can be executed.** REQ-RTR-002.
+///
+/// This is the check that keeps a language model's output from becoming a value this product acts
+/// on: whatever the model returns, it is either one of the ids the engine served or it is nothing.
+/// The generation schema should already make a stray value impossible, which is precisely why the
+/// guard is worth its lines — a control whose justification is "the layer above should prevent
+/// this" is the one nobody notices has stopped working.
+///
+/// It lived INSIDE `ModelRouter.route`, behind an `@available(iOS 26)` call to the on-device model,
+/// so no test could reach it: the independent seat's mutant deleting `known.contains(id)` survived
+/// the whole suite. It is a free function of two values and never needed to be there. Deliberately
+/// OUTSIDE the `#if canImport(FoundationModels)` block, so the boundary is tested on every machine
+/// rather than only on one that carries the model.
+enum ModelOutputBoundary {
+    static func outcome(for id: String?, within known: [String]) -> RoutingOutcome? {
+        guard let id, known.contains(id) else { return nil }
+        return RoutingOutcome(categoryID: id, tier: .model, unmeasured: false)
+    }
+}
 
 // MARK: - The tiers in order
 

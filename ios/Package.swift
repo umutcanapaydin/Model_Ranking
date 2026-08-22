@@ -40,7 +40,23 @@ let package = Package(
     platforms: [.macOS(.v26), .iOS(.v18)],
     products: [.library(name: "ModelRankingEngine", targets: ["ModelRankingEngine"])],
     targets: [
-        .target(name: "ModelRankingEngine", path: "ModelRanking/Engine"),
+        .target(
+            name: "ModelRankingEngine",
+            path: "ModelRanking/Engine",
+            // The SAME FILES compiled in a DIFFERENT language mode is a narrower guarantee than
+            // "compiles what the app ships", and the independent seat is what made the difference
+            // legible: `swift-tools-version: 6.2` puts the target in Swift 6 mode while the
+            // project sets `SWIFT_VERSION = 5.0`. Nothing in the Engine is conditionally compiled
+            // today, so nothing diverged — but "no divergence today" is a measurement, not a
+            // property, and the claim in this manifest was the stronger one.
+            //
+            // Pinned to the app's mode so the claim is true of the COMPILATION and not only of the
+            // file list. `tests/unit/test_ios_platform_drift.py` compares the two and fails when
+            // they part, so this pin cannot silently rot the way the comment above it once did.
+            // The TEST target stays in the newer mode: strict concurrency on the test code is free
+            // and does not change what the Engine is built as.
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
         .testTarget(
             name: "ModelRankingEngineTests",
             dependencies: ["ModelRankingEngine"],

@@ -16,26 +16,26 @@ date: 2026-08-22
 
 - `ios/Package.swift` — a package whose target `path` is `ModelRanking/Engine`, so `swift test`
   compiles **the sources the app ships**. The `.xcodeproj` is not modified; there is no second copy.
-- `ios/EngineTests/` — **33 tests** over the router's boundary, the similarity threshold, the
+- `ios/EngineTests/` — **39 tests** over the router's boundary, the similarity threshold, the
   redirect guard and the client's failure decisions.
 - `make swift-test` in `check:`, and a `swift-tests` section in `runner`.
 - Two seams opened in production code, both because a property the requirement depends on could
   not be reached: `TieredRouter.model` and `SimilarityRouter.floor`.
 - `tests/unit/test_ios_platform_drift.py` — the drift guard `Package.swift` had merely CLAIMED.
 
-**Measured at the closing tree:** `make check` exit **0** · **689 Python passed / 12 skipped** ·
-**33 Swift tests** · ruff, mypy, gitleaks clean · `check_records` PASS · `wave-check-all` PASS ·
+**Measured at the closing tree:** `make check` exit **0** · **691 Python passed / 12 skipped** ·
+**39 Swift tests** · ruff, mypy, gitleaks clean · `check_records` PASS · `wave-check-all` PASS ·
 `conformance-gate` PASS.
 
 | # | Check | Evidence (fresh referent) | ✅/WAIVED |
 |---|---|---|---|
 | 1 | Risk tier recorded — V3C-78 | `docs/plans/m11-plan.md` §3 records W2 **HIGH** (the only unexecuted half of the product) | ✅ |
 | 2 | Dev-test loop ran — V3C-68 | Implement → test → self-review → fix on `ios/Package.swift`, `ios/EngineTests/`, `ios/ModelRanking/Engine/Router.swift`, then a full remediation round against the seat's findings | ✅ |
-| 3 | Review per tier — V3C-78 / K.7 | `docs/reviews/m11-wave-2-review.md`, `seat: independent`. Returned BLOCKING; all 3 blocking and all 4 major fixed in this wave | ✅ |
+| 3 | Review per tier — V3C-78 / K.7 | `docs/reviews/m11-wave-2-review.md`, `seat: independent`. Returned BLOCKING; all 3 blocking, all 4 major and 6 of 8 minor fixed in this wave, the remaining two ledgered as W-060 | ✅ |
 | 4 | Fault injection — V3C-72 | The seat ran **20 mutants, 9 killed / 9 survived**. Every survivor it named is now killed: re-run of its 8 behavioural survivors gives **8/8**, md5 restore verified on `Router.swift` and `EngineClient.swift` | ✅ |
 | 5 | Every criterion has a citing test able to fail — V3C-02 | REQ-IOS-001: `ios/EngineTests/`, `Makefile` `swift-test`, `runner` · REQ-IOS-002: `ios/EngineTests/RouterBoundaryTests.swift`, both sides of the floor driven. `make swift-test` proven to exit 2 on a broken assertion and 0 otherwise | ✅ |
 | 6 | New REQ-IDs in the PRD at the wave | `docs/prd.md` REQ-IOS-001, REQ-IOS-002 | ✅ |
-| 7 | Gates green at the closing tree | `make check` exit 0 · 689 passed / 12 skipped · 33 Swift tests · `scripts/check_records.py` PASS · `scripts/wave_check_all.py` PASS · `scripts/conformance_gate.py` PASS | ✅ |
+| 7 | Gates green at the closing tree | `make check` exit 0 · 691 passed / 12 skipped · 39 Swift tests · `scripts/check_records.py` PASS · `scripts/wave_check_all.py` PASS · `scripts/conformance_gate.py` PASS | ✅ |
 | 8 | ADRs for decisions made | None. The package scopes to the Engine layer, which is a scoping decision recorded in `ios/Package.swift` and in W-038 rather than a project ruling | ✅ |
 | 9 | Warnings ledger current | `docs/warnings.ledger.md` — W-038 **FIXED**, W-059 raised and **FIXED**, W-060 opened | ✅ |
 | 10 | Plan promises delivered | `docs/plans/m11-plan.md` §3 W2, all four items | ✅ |

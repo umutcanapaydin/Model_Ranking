@@ -17,8 +17,10 @@ import XCTest
 /// A tier that answers with whatever it was told to, or refuses.
 private struct StubRouter: QuestionRouter {
     let outcome: RoutingOutcome?
-    private(set) var asked: Bool = false
 
+    // `asked` used to live here, never assigned and never read — a value type cannot record being
+    // called, which is why `SpyRouter` below is a class. A dead member on a test double reads as
+    // coverage that is not there.
     func route(_ question: String, within known: [String]) async -> RoutingOutcome? { outcome }
 }
 
@@ -223,3 +225,46 @@ final class DefaultTierTests: XCTestCase {
                           + "tier every supported device can run")
     }
 }
+
+
+final class ModelOutputBoundaryTests: XCTestCase {
+
+    /// D-104, REQ-RTR-002 — the one guard standing between a language model's output and a value
+    /// this product acts on. The seat's mutant deleting it survived the entire suite, because it
+    /// sat behind an `@available(iOS 26)` call to the real model and nothing could reach it.
+
+    func testAnIdTheEngineDidNotServeIsRefused() {
+        XCTAssertNil(ModelOutputBoundary.outcome(for: "sql-tuning", within: nine),
+                     "the model named a surface the engine does not have, and it was accepted")
+    }
+
+    func testAnIdTheEngineDidServeIsAccepted() {
+        // Fixture blindness: without this the test above passes if the boundary refuses everything.
+        let outcome = ModelOutputBoundary.outcome(for: "web-dev", within: nine)
+
+        XCTAssertEqual(outcome?.categoryID, "web-dev")
+        XCTAssertEqual(outcome?.tier, .model)
+        XCTAssertEqual(outcome?.unmeasured, false)
+    }
+
+    func testNoOutputAtAllIsRefusedRatherThanDefaulted() {
+        XCTAssertNil(ModelOutputBoundary.outcome(for: nil, within: nine),
+                     "an unreadable model response fell through to a surface instead of declining")
+    }
+
+    func testAnEmptyStringIsNotASurface() {
+        XCTAssertNil(ModelOutputBoundary.outcome(for: "", within: nine))
+    }
+
+    func testTheBoundaryRefusesEverythingWhenTheEngineServedNoSurfaces() {
+        XCTAssertNil(ModelOutputBoundary.outcome(for: "coding", within: []),
+                     "with no surfaces served, the router still produced one")
+    }
+
+    func testACaseVariantIsNotTheSameSurface() {
+        // The ids are the engine's own vocabulary. Accepting `Coding` for `coding` would mean the
+        // client is normalising a contract value on the model's behalf.
+        XCTAssertNil(ModelOutputBoundary.outcome(for: "Coding", within: nine))
+    }
+}
+

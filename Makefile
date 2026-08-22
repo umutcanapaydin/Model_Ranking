@@ -43,7 +43,7 @@ _check_python:
 # controls whose discovery produced "a declared control that silently passes is worse than an absent
 # one." They are on `docs/watchlist.md` with their triggers, and they come back the day a project can
 # actually run them. **Unprovable here is not the same as wrong -- but it is not a control either.**
-.PHONY: falsify bootstrap-check check check-records check-records-selftest  clean  conformance deps export-project format gate help install install-check  lint run secrets slopsquat smoke-deps standup test typecheck wave-check
+.PHONY: falsify bootstrap-check check check-records check-records-selftest  clean  conformance deps export-project format gate help install install-check  lint run secrets slopsquat smoke-deps standup test typecheck wave-check swift-test
 
 help:
 	@echo "Commands:"
@@ -119,6 +119,9 @@ conformance-gate: install
 	@# looked. Per-FINDING exemptions, never per-leg: one of the five failures turned out to be ours.
 	$(PY) -B scripts/conformance_gate.py
 
+#: Raise when tests are added; never lower without a ledger row.
+SWIFT_TEST_FLOOR = 39
+
 swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING sources
 	@# A test nobody types is a test that does not run -- W-032, this project's own finding, which
 	@# is why this is in `check:` and not a thing you remember. SKIPPED rather than failed where
@@ -128,9 +131,22 @@ swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING so
 	@# a deliberately broken assertion -- the pipe hands make `tail`'s status, and the failure did
 	@# not even appear in the three lines shown. A gate that cannot fail, shipped inside the wave
 	@# whose whole subject is code nothing executes. Proven broken, then fixed, then proven again.
+	@# A COUNT FLOOR, because `swift test` exits 0 having executed nothing. Measured: a package
+	@# whose test target contains no cases prints `Executed 0 tests, with 0 failures` and returns 0,
+	@# so a target excluded by a bad `path:`, or a suite that stops being discovered, would pass this
+	@# gate in silence. That is the THIRD time in this one wave that a Swift gate could not fail --
+	@# first a pipe swallowing the status, then `runner` calling commands that do not exist, now
+	@# this. Same shape as `coverage-floor`: the floor is raised deliberately, never lowered quietly.
 	@if command -v swift > /dev/null 2>&1; then \
 		out=`cd ios && swift test 2>&1` || { echo "$$out" | tail -40; exit 1; }; \
-		echo "$$out" | grep -E "Executed [0-9]+ tests, with" | tail -1; \
+		line=`echo "$$out" | grep -E "Executed [0-9]+ tests, with" | tail -1`; \
+		n=`echo "$$line" | sed -E 's/.*Executed ([0-9]+) tests.*/\1/'`; \
+		if [ -z "$$n" ] || [ "$$n" -lt $(SWIFT_TEST_FLOOR) ]; then \
+			echo "swift-test FAIL: ran $${n:-0} test(s), floor is $(SWIFT_TEST_FLOOR)."; \
+			echo "  A suite that stops being discovered exits 0 and reports nothing."; \
+			exit 1; \
+		fi; \
+		echo "swift-test PASS: $$n test(s) (floor $(SWIFT_TEST_FLOOR))"; \
 	else \
 		echo "swift-test SKIPPED NO-ENVIRONMENT: no swift toolchain on PATH"; \
 	fi
