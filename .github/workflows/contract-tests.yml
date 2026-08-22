@@ -125,9 +125,24 @@ jobs:
             exit "$code"
           fi
       - name: Plan coverage + source health report (REQ-SUB-005 / REQ-ING-011)
+        # `coverage` exits 1 on any empty category, which on a runner is GUARANTEED: seven of the
+        # nine surfaces are Epoch-backed and D-101 makes that bundle owner-placed, so no runner has
+        # one. The build step above had already been taught this exact tolerance — it accepts
+        # exit 3 and says "expected on a runner: no Epoch bundle" — and the lesson was not carried
+        # one step down. The step therefore failed on every run that reached it, which is every run
+        # since the coverage floor above stopped blocking it (i.e. one).
+        #
+        # The tolerance is NOT "ignore exit 1". `scripts/ci_coverage_gate.py` allows a category to
+        # be empty ONLY where the build declared that source unavailable, fails on any other empty
+        # category, and fails outright if NOTHING scored — so a green badge cannot sit on an empty
+        # artifact. It is a file, not a heredoc, because W-023 cost this project a milestone: the
+        # evidence pipeline once lived only inside a `run:` block, invisible to every gate, and had
+        # never run. `tests/unit/test_ci_coverage_gate.py` covers both directions.
         run: |
           set -o pipefail
-          python -m app.workflows.coverage --db ci_advisor.db | tee coverage-report.json
+          python -m app.workflows.coverage --db ci_advisor.db > coverage-report.json || true
+          cat coverage-report.json
+          python scripts/ci_coverage_gate.py build-report.json coverage-report.json
       - name: Recommend smoke (both tasks + subscription, real data)
         run: |
           set -o pipefail  # a recommend failure must fail the step, not vanish behind head
