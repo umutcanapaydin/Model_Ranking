@@ -1142,10 +1142,40 @@ smallest surface this product ships ranks 13 models (`agentic-coding`), so a qua
 enough that routine churn does not trip it, small enough that a real outage cannot hide behind it.
 On the largest (`everyday`, 58) it is fourteen, which no ordinary board movement produces.
 
-**Explicitly NOT a refusal condition:** a surface gaining models, prices moving in either
-direction, or scores falling. **A model getting worse is news, not damage** — this product's job is
-to report what the measurements say, and refusing to publish a decline would be the one thing worse
-than publishing it.
+**Explicitly NOT a refusal condition:** a surface gaining models, or scores falling. **A model
+getting worse is news, not damage** — this product's job is to report what the measurements say,
+and refusing to publish a decline would be the one thing worse than publishing it.
+
+---
+
+**AMENDED 2026-08-22, after an independent review landed three degradations on the product that
+this rule did not object to.**
+
+**1. Prices ARE a refusal condition, and the original reasoning here was wrong.** This ADR said
+"prices moving in either direction" is not damage, on the ground that a price is a reported number.
+That is true of a score and false of a price: `BUDGETS` is a **hard filter applied before any
+scoring** (REQ-REC-002), so a feed that multiplies every price leaves every surface exactly the
+same SIZE while `low` and `medium` answer nothing at all, on all nine surfaces. The reviewer built
+that candidate and it published. A surface that answered a reader on `low` and now answers nothing
+is "fewer surfaces answering" in the only sense a reader experiences.
+
+So the rule gains a third condition: **a (surface, budget) pair that offered models and would now
+offer none.** Row counts cannot see it — the rows are all still there, merely unaffordable.
+
+**2. The boundary was `<` and is now `<=`**, so a loss of exactly a quarter refuses. A mutant
+flipping it survived thirty-three tests: one character between routine churn publishing and a step
+toward the freeze this ADR exists to prevent.
+
+**3. The worked arithmetic above is off by one, in both examples.** `now <= was * 0.75` trips on
+the smallest surface (13 models) at the **fourth** model lost — **30.8%**, not "a quarter is three"
+— and on `everyday` (58) at the **fifteenth**, not the fourteenth. The reasoning stands and the
+numbers do not: the effective threshold on the tightest surface is 31%, so *"small enough that a
+real outage cannot hide behind it"* is weaker there than this ADR originally claimed.
+
+**What did NOT change, and why.** The 25% figure itself. Every degradation the review actually
+landed passes at any value of it, because none changes a row count — so tightening would catch none
+of them while moving the product closer to the freeze. **The answer to a guard that misses things
+is more axes, not more stringency.**
 
 ---
 

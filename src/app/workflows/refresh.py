@@ -29,13 +29,13 @@ import sys
 import tempfile
 import time
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pathlib import Path
 
 from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
 from app.workflows.rank import category_ranking
-from app.workflows.recommend import round_optional_score, round_score
+from app.workflows.recommend import BUDGETS, eligible_rows, round_optional_score, round_score
 
 # NOTHING IS IMPORTED FROM `app.adapter`, and that is REQ-REF-007 rather than tidiness. D-116 keeps
 # ingestion off the serving host; a refresh that imports the adapter to borrow a helper has reached
@@ -109,13 +109,74 @@ def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
         now = candidate.surfaces.get(name, 0)
         if was and not now:
             reasons.append(f"{name} answered with {was} models and would now answer nothing")
-        elif was and now < was * (1 - MAX_SURFACE_LOSS):
+        elif was and now <= was * (1 - MAX_SURFACE_LOSS):
             lost = was - now
             reasons.append(
                 f"{name} would lose {lost} of {was} models "
-                f"({lost / was:.0%}, over the {MAX_SURFACE_LOSS:.0%} limit)"
+                f"({lost / was:.0%}, at or over the {MAX_SURFACE_LOSS:.0%} limit)"
             )
+
+    # The budget axis. A surface that answered a reader on some budget and would now answer nothing
+    # is "fewer surfaces answering" in the only sense a reader experiences — REQ-REF-003's own
+    # words — and it is invisible to every row count, because the rows are all still there and
+    # merely unaffordable.
+    for name, budgets in sorted(live.eligible.items()):
+        after = candidate.eligible.get(name, {})
+        for budget, was_eligible in sorted(budgets.items()):
+            if was_eligible and not after.get(budget, 0):
+                reasons.append(
+                    f"{name} offered {was_eligible} models at the {budget} budget "
+                    "and would now offer none"
+                )
     return reasons
+
+
+#: Fields of a ranked row that are DELIBERATELY outside the fingerprint, each with its reason.
+#:
+#: The set is an exclusion list rather than an inclusion list, and the direction is the point: a
+#: field added to `RankingRow` is hashed by DEFAULT and has to be excluded on purpose. An inclusion
+#: list fails the other way — a new published field silently falls out of the comparison, which is
+#: exactly what happened. An independent review measured the cost: `evidence_date`, `vendor`,
+#: `input_per_m` and `output_per_m` were all published to users and none was hashed, so **the same
+#: scores republished with FRESH EVALUATION DATES read as "nothing a user would notice changed"**.
+#: The refresh was structurally incapable of publishing a freshness improvement, which inverts this
+#: milestone's entire purpose.
+#: MEASURED, not guessed: these two are the only fields of a ranked row that appear in neither
+#: `PUBLIC_RANKING_FIELDS` nor `PUBLIC_PICK_FIELDS`, so no reader can see them on any surface and a
+#: change to one must not swap what everybody else sees. `higher_effort` and `higher_effort_score`
+#: are deliberately NOT here — they are absent from a ranking row and present on a PICK, which is
+#: still somewhere a reader looks.
+UNHASHED_ROW_FIELDS = {
+    "evidence_source",
+    "secondary_cost",
+}
+
+
+def _row_digest(row: object) -> str:
+    """One ranked row, as the reader would receive it.
+
+    Scores are rounded exactly as the output boundary rounds them (D-109); prices are NOT, because
+    `rank.py` already rounds them to the two decimals the product prints and re-rounding here to one
+    would mask a visible one-cent move.
+    """
+    parts: list[str] = []
+    for field in fields(row):  # type: ignore[arg-type]
+        if field.name in UNHASHED_ROW_FIELDS:
+            continue
+        value = getattr(row, field.name)
+        if field.name == "score":
+            value = round_score(value)
+        elif field.name == "secondary_score":
+            value = round_optional_score(value)
+        elif field.name in ("input_per_m", "output_per_m"):
+            # `rank.py:311` rounds `blended_per_m` to two decimals and leaves these two RAW, so a
+            # median carrying float noise in its ninth decimal would otherwise read as a change
+            # nobody can see. Two decimals, matching the precision the product prints prices at —
+            # and NOT one, which would mask a visible cent (the mistake this fingerprint already
+            # made once with the blended price).
+            value = round(value, 2)
+        parts.append(f"{field.name}={value}")
+    return "|".join(parts) + "\n"
 
 
 @dataclass(frozen=True)
@@ -129,6 +190,16 @@ class ServingSummary:
 
     digest: str
     surfaces: dict[str, int]
+    #: surface -> budget -> how many models a reader on that budget could actually be offered.
+    #:
+    #: Row counts alone cannot see the failure that matters most here. `BUDGETS` is a HARD FILTER
+    #: applied before any scoring (REQ-REC-002), so a pricing feed that multiplies every price
+    #: leaves every surface exactly the same SIZE while `low` and `medium` answer nothing at all,
+    #: on all nine surfaces. An independent review landed that on the product and the guard did not
+    #: object. D-128 had reasoned that "prices moving in either direction" is not damage because a
+    #: price is a reported number — true of the score, false of the price, because the price is
+    #: also a filter.
+    eligible: dict[str, dict[str, int]]
 
     @property
     def answering(self) -> int:
@@ -166,6 +237,7 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
     """
     digest = hashlib.sha256()
     surfaces: dict[str, int] = {}
+    eligible: dict[str, dict[str, int]] = {}
     for name in sorted(CATEGORIES):
         spec = CATEGORIES[name]
         # NO `except sqlite3.DatabaseError: rows = []` HERE, and its absence is the point.
@@ -183,15 +255,12 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         rows = category_ranking(conn, spec)
         digest.update(f"surface:{name}:{len(rows)}\n".encode())
         surfaces[name] = len(rows)
+        eligible[name] = {b: len(eligible_rows(rows, b)) for b in sorted(BUDGETS)}
         for row in rows:
-            digest.update(
-                (
-                    f"{row.model}|{round_score(row.score)}|"
-                    f"{round_optional_score(row.secondary_score)}|"
-                    f"{row.blended_per_m}|{row.harness}|{row.effort}\n"
-                ).encode()
-            )
-    return ServingSummary(digest=digest.hexdigest(), surfaces=surfaces)
+            digest.update(_row_digest(row).encode())
+    return ServingSummary(
+        digest=digest.hexdigest(), surfaces=surfaces, eligible=eligible
+    )
 
 
 def fingerprint_of(path: Path) -> ServingSummary | None:
@@ -284,6 +353,42 @@ def refresh(
         write_status(target, outcome, code, at=clock())
         return outcome, code
 
+    try:
+        return _cycle(target, build_args, builder, record)
+    except BaseException as exc:
+        # B1, found by an independent review: `record()` was reachable only from the four `return`
+        # sites INSIDE the try, so a builder that raised wrote no record at all — and the previous
+        # record survived, saying `published` with its own old timestamp. `runner` then printed
+        # "outcome: published, last cycle: minutes ago" and exited 0. **A refresh crashing on every
+        # cycle read as healthy**, which is precisely what D-129 forbids: silence reported as
+        # success. This function's own docstring claimed "written on EVERY path"; the claim and the
+        # code disagreed.
+        #
+        # `BaseException` deliberately, matching `build.py`: whatever kills this cycle, the record
+        # must say so before it goes. The exception is then re-raised unchanged — recording is not
+        # handling.
+        record(
+            RefreshOutcome(
+                published=False,
+                reason=f"the cycle crashed: {type(exc).__name__}: {exc}; "
+                "the live artifact is untouched",
+                live_fingerprint=None,
+                candidate_fingerprint="",
+                surfaces=0,
+            ),
+            EXIT_FAILED,
+        )
+        raise
+
+
+def _cycle(
+    target: Path,
+    build_args: Sequence[str],
+    builder: Callable[[list[str]], int],
+    record: Callable[[RefreshOutcome, int], tuple[RefreshOutcome, int]],
+) -> tuple[RefreshOutcome, int]:
+    """The cycle itself. Split out so `refresh` can record a crash around ALL of it, including the
+    live-artifact read and the workspace creation, both of which used to sit outside the guard."""
     live = fingerprint_of(target)
 
     # The candidate is built NEXT TO the live artifact, because publishing is an atomic rename and

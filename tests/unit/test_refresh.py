@@ -47,6 +47,16 @@ def _artifact(path: Path, *, top_score: float = 74.5, stamp: str = "t0") -> Path
     return path
 
 
+def _wide_builder(**kwargs):
+    """A build that writes a `_wide` artifact wherever it is told."""
+
+    def build(argv: list[str]) -> int:
+        _wide(Path(argv[argv.index("--db") + 1]), **kwargs)
+        return 0
+
+    return build
+
+
 def _builder(**kwargs):
     """A build that writes a controlled artifact wherever it is told, and reports success."""
 
@@ -835,3 +845,324 @@ def test_the_record_is_written_atomically_rather_than_in_place() -> None:
     body = ast.dump(function)
     assert "replace" in body, "the record is no longer renamed into place"
     assert "scratch" in body, "the record is written straight to its final path"
+
+
+# --- the three BLOCKING findings from the independent M9-W2 review --------------------------------
+
+
+def test_a_crashed_cycle_records_that_it_crashed(tmp_path: Path) -> None:
+    """B1. Without this, a refresh crashing on EVERY cycle reads as healthy.
+
+    `record()` used to be reachable only from the return sites inside the try, so a builder that
+    raised wrote nothing — and the PREVIOUS record survived, still saying `published` with its own
+    old timestamp. `runner` then printed "outcome: published, last cycle: minutes ago" and exited
+    0. D-129's rule is that silence is never reported as success; this was worse than silence,
+    because the file actively asserted health.
+
+    `write_status`'s own docstring claimed "written on EVERY path". The claim and the code
+    disagreed, and only an independent seat noticed.
+    """
+    import json
+
+    from app.workflows.refresh import status_path
+
+    live = tmp_path / "advisor.db"
+    refresh(live, builder=_builder(top_score=74.5), clock=lambda: 1_000.0)
+    assert json.loads(status_path(live).read_text())["outcome"] == "published"
+
+    def crashing(argv: list[str]) -> int:
+        raise RuntimeError("upstream parser bug")
+
+    with pytest.raises(RuntimeError):
+        refresh(live, builder=crashing, clock=lambda: 99_999.0)
+
+    after = json.loads(status_path(live).read_text())
+    assert after["outcome"] == "failed", "a crashed cycle left the previous record asserting health"
+    assert after["at"] == 99_999.0, "the record kept the OLD timestamp, so staleness reads as fresh"
+    assert "crashed" in after["reason"] and "untouched" in after["reason"]
+
+
+def test_a_crash_before_the_build_is_recorded_too(tmp_path: Path) -> None:
+    """The read of the LIVE artifact and the workspace creation used to sit outside the guard.
+
+    A failure there is exactly the kind that recurs every cycle — a permissions change, a full
+    disk — so it is the kind that most needs to be visible.
+    """
+    import json
+
+    from app.workflows import refresh as refresh_mod
+    from app.workflows.refresh import status_path
+
+    live = tmp_path / "advisor.db"
+    _artifact(live)
+
+    def exploding_read(_path: Path) -> None:
+        raise OSError("the artifact directory vanished")
+
+    original = refresh_mod.fingerprint_of
+    refresh_mod.fingerprint_of = exploding_read  # type: ignore[assignment]
+    try:
+        with pytest.raises(OSError):
+            refresh(live, builder=_builder(), clock=lambda: 7_000.0)
+    finally:
+        refresh_mod.fingerprint_of = original  # type: ignore[assignment]
+
+    written = json.loads(status_path(live).read_text())
+    assert written["outcome"] == "failed" and written["at"] == 7_000.0
+
+
+def test_a_pricing_feed_that_blinds_a_budget_is_refused(tmp_path: Path) -> None:
+    """B2. The degradation nobody could see, because every row was still there.
+
+    `BUDGETS` is a HARD FILTER applied before any scoring (REQ-REC-002), so multiplying every price
+    leaves each surface exactly the same SIZE while `low` and `medium` answer nothing at all, on
+    every surface. D-128 had reasoned that "prices moving in either direction" is not damage
+    because a price is a reported number — true of the score, false of the price, because the price
+    is also a filter.
+    """
+    live = _artifact(tmp_path / "advisor.db")
+    before = live.read_bytes()
+
+    def inflated(argv: list[str]) -> int:
+        target = Path(argv[argv.index("--db") + 1])
+        _artifact(target)
+        conn = sqlite3.connect(target)
+        try:
+            conn.execute("UPDATE px_median SET in_m = in_m * 100, out_m = out_m * 100")
+            conn.commit()
+        finally:
+            conn.close()
+        return 0
+
+    outcome, code = refresh(live, builder=inflated)
+
+    assert code == EXIT_REFUSED, f"a feed that priced every model out was published: {outcome.reason}"
+    assert live.read_bytes() == before
+    assert "budget" in outcome.reason and "would now offer none" in outcome.reason
+
+
+def test_a_loss_of_exactly_a_quarter_is_refused(tmp_path: Path) -> None:
+    """B2/M7: the boundary itself, which the 12-model fixture straddled and never landed on.
+
+    `now < was * 0.75` let an exactly-quarter loss through, and a mutant flipping the comparison
+    survived 33 tests. One character between "routine churn publishes" and a step toward the freeze
+    D-128 exists to prevent — so the boundary is pinned rather than inferred.
+    """
+    live = _wide(tmp_path / "advisor.db", models=12)
+
+    def exactly_a_quarter(argv: list[str]) -> int:
+        _wide(Path(argv[argv.index("--db") + 1]), models=12, keep=9)
+        return 0
+
+    outcome, code = refresh(live, builder=exactly_a_quarter)
+    assert code == EXIT_REFUSED, f"exactly 25% was published: {outcome.reason}"
+
+
+def test_the_fingerprint_covers_every_field_a_ranked_row_carries(tmp_path: Path) -> None:
+    """B3, and it is written as a DERIVATION so it cannot rot the way the original did.
+
+    The digest was a hand-written format string over six fields. Four more were published to
+    users — `evidence_date`, `vendor`, `input_per_m`, `output_per_m` — and none was hashed, so the
+    same scores republished with FRESH EVALUATION DATES read as "nothing a user would notice
+    changed". The refresh was structurally incapable of publishing a freshness improvement, which
+    inverts this milestone's entire purpose.
+
+    An inclusion list fails that way by design. This asserts the EXCLUSION list instead: every
+    field of `RankingRow` is hashed unless it is named as deliberately outside, so a field added
+    tomorrow is covered by default and dropping one requires saying so out loud.
+    """
+    from dataclasses import fields as dataclass_fields
+
+    from app.workflows.rank import RankingRow
+    from app.workflows.refresh import UNHASHED_ROW_FIELDS, _row_digest
+
+    declared = {f.name for f in dataclass_fields(RankingRow)}
+    stale = sorted(UNHASHED_ROW_FIELDS - declared)
+    assert not stale, f"{stale} are excluded from the fingerprint and no longer exist on the row"
+
+    live = _artifact(tmp_path / "a.db")
+    summary = fingerprint_of(live)
+    assert summary is not None
+
+    conn = sqlite3.connect(f"file:{live}?mode=ro", uri=True)
+    try:
+        from app.workflows.categories import CATEGORIES
+        from app.workflows.rank import category_ranking
+
+        row = category_ranking(conn, CATEGORIES["coding"])[0]
+    finally:
+        conn.close()
+
+    digest = _row_digest(row)
+    missing = sorted(
+        name for name in declared - UNHASHED_ROW_FIELDS if f"{name}=" not in digest
+    )
+    assert not missing, (
+        f"{missing} are published on a ranked row and absent from the fingerprint; a change to "
+        "them would never be published"
+    )
+
+
+@pytest.mark.parametrize(
+    ("column", "value"),
+    [("run_date", "2026-08-22"), ("harness", "other")],
+)
+def test_a_freshness_or_provenance_update_is_published(
+    tmp_path: Path, column: str, value: str
+) -> None:
+    """The milestone's thesis, stated as a test.
+
+    Same scores, newer evidence dates. If this does not publish, the served artifact keeps
+    disclosing `stale: true` forever while every cycle exits 0 and `runner` reports healthy — the
+    plan §0 freeze, arriving through the fingerprint instead of through the threshold.
+    """
+    live = tmp_path / "advisor.db"
+
+    def dated(stamp: str | None):
+        def build(argv: list[str]) -> int:
+            target = Path(argv[argv.index("--db") + 1])
+            _artifact(target)
+            conn = sqlite3.connect(target)
+            try:
+                # The column comes from this test's own parametrize list, never from input.
+                conn.execute(f"UPDATE scores SET {column} = ?", (stamp,))
+                conn.commit()
+            finally:
+                conn.close()
+            return 0
+
+        return build
+
+    refresh(live, builder=dated("2026-02-26" if column == "run_date" else "none"))
+    outcome, code = refresh(live, builder=dated(value))
+
+    assert code == EXIT_PUBLISHED, (
+        f"a change to {column} was discarded as 'nothing a user would notice': {outcome.reason}"
+    )
+
+
+# --- the record's payload, which four surviving mutants showed was almost entirely unasserted ----
+
+
+def test_the_record_carries_the_numbers_it_decided_on(tmp_path: Path) -> None:
+    """REQ-REF-004 says "the numbers it decided on", and the numbers were the untested part.
+
+    Four mutants survived here — `surfaces_answering` always zero, both fingerprints dropped, a
+    published cycle reporting no surfaces — and every one of them corrupts a field `runner` prints
+    to the owner. A record that is written faithfully on every path is worthless if what it
+    contains is wrong.
+    """
+    import json
+
+    from app.workflows.refresh import fingerprint_of, status_path
+
+    live = tmp_path / "advisor.db"
+    _outcome, code = refresh(live, builder=_wide_builder(models=12), clock=lambda: 1_000.0)
+    assert code == EXIT_PUBLISHED
+
+    written = json.loads(status_path(live).read_text())
+    served = fingerprint_of(live)
+    assert served is not None
+
+    assert written["surfaces_answering"] == served.answering > 0, (
+        "the record reports a surface count that does not match the artifact it published"
+    )
+    assert written["candidate_fingerprint"] == served.digest, (
+        "the record's fingerprint does not identify what was actually published, so it cannot be "
+        "compared against anything later"
+    )
+    assert written["live_fingerprint"] is None, "there was no live artifact to have a fingerprint"
+
+    refresh(live, builder=_wide_builder(models=12, keep=11), clock=lambda: 2_000.0)
+    again = json.loads(status_path(live).read_text())
+    assert again["live_fingerprint"] == served.digest, (
+        "the record does not say WHAT was replaced; a reader cannot tell which artifact this "
+        "cycle was comparing against"
+    )
+
+
+def test_the_human_readable_timestamp_agrees_with_the_machine_one(tmp_path: Path) -> None:
+    """`runner` prints `at_iso` as the headline and computes staleness from `at`.
+
+    A mutant freezing `at_iso` survived, so the human and the machine could read two different
+    dates out of one file with the whole suite green — the owner seeing "last cycle: 1970" while
+    the staleness check reported everything fine, or the reverse.
+    """
+    import datetime as dt
+    import json
+
+    from app.workflows.refresh import status_path
+
+    live = tmp_path / "advisor.db"
+    refresh(live, builder=_builder(), clock=lambda: 1_700_000_000.0)
+    written = json.loads(status_path(live).read_text())
+
+    expected = dt.datetime.fromtimestamp(written["at"], tz=dt.UTC).isoformat()
+    assert written["at_iso"] == expected, (
+        f"the record's human timestamp ({written['at_iso']}) disagrees with its machine one "
+        f"({expected}); runner prints one and computes staleness from the other"
+    )
+
+
+def test_the_record_is_never_written_directly_to_its_final_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """M24: the previous atomicity test AST-dumped the function and asserted two identifiers.
+
+    A mutant setting `scratch = path` kept both identifiers, wrote the record straight to its final
+    path, and restored the torn-read window — surviving the one test written to defend against
+    exactly that. `runner` does `json.loads(record.read_text())`, so a torn read is a traceback in
+    the owner's one command.
+
+    This asserts the BEHAVIOUR: the rename's source is not its destination.
+    """
+    from app.workflows.refresh import status_path
+
+    renames: list[tuple[Path, Path]] = []
+    original = Path.replace
+
+    def watched(self: Path, target) -> Path:  # type: ignore[no-untyped-def]
+        renames.append((self, Path(target)))
+        return original(self, target)
+
+    monkeypatch.setattr(Path, "replace", watched)
+
+    live = tmp_path / "advisor.db"
+    refresh(live, builder=_builder(), clock=lambda: 1.0)
+
+    record = status_path(live)
+    record_renames = [(src, dst) for src, dst in renames if dst == record]
+    assert record_renames, "the record was never renamed into place; it was written directly"
+    for source, destination in record_renames:
+        assert source != destination, (
+            "the record's scratch path IS its final path, so a reader can catch it half written"
+        )
+
+
+def test_a_surface_missing_from_the_candidate_counts_as_lost(tmp_path: Path) -> None:
+    """M09: `candidate.surfaces.get(name, 0)` — the default is the guard's fail direction.
+
+    `serving_summary` emits every category today, so the default is unreachable and the mutant
+    changing it to `was` is equivalent. It is pinned anyway, at the level where it CAN be reached:
+    the day a summary stops emitting a surface, the difference between defaulting to 0 and
+    defaulting to `was` is the difference between refusing and silently publishing its
+    disappearance.
+    """
+    from app.workflows.refresh import ServingSummary, degradations
+
+    live = ServingSummary(
+        digest="a",
+        surfaces={"coding": 12},
+        eligible={"coding": {"low": 4, "medium": 8, "unlimited": 12}},
+    )
+    candidate = ServingSummary(digest="b", surfaces={}, eligible={})
+
+    reasons = degradations(live, candidate)
+    assert reasons, "a surface absent from the candidate entirely was not treated as a loss"
+    # The assertion has to name the COUNT branch specifically. The first version asserted only that
+    # some reason mentioned `coding`, and the budget axis produces one of those too — so the mutant
+    # survived while a different guard did the catching. A test satisfied by the wrong control
+    # proves the wrong control.
+    assert any("would now answer nothing" in reason for reason in reasons), (
+        f"the surface-count branch did not report the loss; only these fired: {reasons}"
+    )
