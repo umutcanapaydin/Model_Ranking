@@ -71,9 +71,68 @@ def review_seat_problems(text: str, root: pathlib.Path, milestone: int | None) -
                 bad.append(f"line {i}: cites `{rel}`, which does not exist. A review that is not a "
                            "file is a claim about a conversation")
 
-    # PASS TWO -- the FORMAT rules, which apply from M11 (GPF-001).
+    # PASS TWO -- the RECORD-level rule, which applies from M11 (GPF-001).
+    #
+    # **This asks nothing about row LABELS, and that is the whole repair.** The first version found
+    # the review row by grepping the name cell for `review|K.7`, so renaming row 3 to "Fresh eyes
+    # per tier" made the gate skip it entirely and the record closed green with no review cited and
+    # none in existence. Reproduced by the independent seat against a copy of a real wave record:
+    # baseline PASS, rename, still PASS, exit 0. The gate failed OPEN on a label it did not know.
+    #
+    # A gate whose scope is set by free text a filler chooses is a gate the filler can switch off
+    # without meaning to. So the question moved from "is this row a review row" -- which only the
+    # label answers -- to one the record answers as a whole:
+    #
+    #   **does this close cite a review by a seat that did not write the code, or does it name a
+    #   ledger row for the bypass?**
+    #
+    # Both remedies stay available and neither can be renamed away.
     if milestone is not None and milestone < SEAT_RULE_FROM_MILESTONE:
         return bad
+
+    cited = {r for r in re.findall(r"`(docs/reviews/[^`]+\.md)`", text) if ".." not in r}
+    seats: dict[str, str | None] = {}
+    for rel in sorted(cited):
+        path = root / rel
+        if not path.is_file():
+            continue  # already reported in pass one, in every era
+        front = re.match(r"^---\s*\n(.*?)\n---\s*(\n|$)", path.read_text(encoding="utf-8"), re.S)
+        # FRONTMATTER ONLY. Reading `^seat:` from anywhere in the file meant a four-line document
+        # with no frontmatter at all, containing the prose line `seat: independent`, closed a wave
+        # green -- measured by the seat that reviewed this gate.
+        found = re.search(r"^seat:\s*(\S+)\s*$", front.group(1), re.M) if front else None
+        seats[rel] = found.group(1) if found else None
+
+    if any(seat == "independent" for seat in seats.values()):
+        return bad
+
+    # No independent review. Then the bypass has to be COUNTED (V4C-13), which means a waived or
+    # skipped row naming a ledger id. Block D already forces a waiver to declare its kind; this is
+    # the half AGENTS.md claimed and did not have.
+    waived_with_ledger = any(
+        re.search(r"\bW-\d{3}\b", line)
+        and re.search(r"\b(WAIVED|SKIPPED)\b", line.upper())
+        for line in text.splitlines()
+        if line.lstrip().startswith("|")
+    )
+    if waived_with_ledger:
+        return bad
+
+    unseated = sorted(rel for rel, seat in seats.items() if seat is None)
+    if unseated:
+        bad.append(f"cites {', '.join(f'`{r}`' for r in unseated)}, which declare no `seat:` -- "
+                   "REQ-REV-001 requires every review a v5.0 close relies on to say whether the "
+                   "seat wrote the code")
+    elif seats:
+        authored = sorted(rel for rel, seat in seats.items() if seat != "independent")
+        bad.append(f"the only review(s) cited are {', '.join(f'`{r}`' for r in authored)}, and "
+                   "none declares `seat: independent`. A self-review does not close a wave green "
+                   "-- waive a row with its ledger id so the bypass is counted (V4C-13)")
+    else:
+        bad.append("this close cites no review record at all, and waives nothing. A review that "
+                   "is not a file is a claim about a conversation -- cite one with "
+                   "`seat: independent`, or waive a row naming its ledger id")
+    return bad
     for i, line in enumerate(text.splitlines(), 1):
         if not line.lstrip().startswith("|"):
             continue

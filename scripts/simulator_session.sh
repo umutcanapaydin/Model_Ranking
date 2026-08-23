@@ -22,7 +22,17 @@ say() { printf '%s\n' "$*" | tee -a "$LOG"; }
 cleanup() {
   say ""
   say "shutting the engine down (pid ${ENGINE_PID:-none})"
-  [ -n "${ENGINE_PID:-}" ] && kill "$ENGINE_PID" 2>/dev/null
+  if [ -n "${ENGINE_PID:-}" ]; then
+    kill "$ENGINE_PID" 2>/dev/null
+    # Verified, not assumed. The whole point of the `exec` above is that this pid IS uvicorn; if a
+    # future edit reintroduces the subshell, this says so instead of leaving a silent orphan on
+    # 8080 for the next session to mistake for a current engine (L.7).
+    sleep 1
+    if curl -sf -m 2 http://127.0.0.1:8080/health > /dev/null 2>&1; then
+      say "  WARNING: something is STILL answering on 8080. It was not this script's child."
+      say "           Find it with: lsof -ti tcp:8080"
+    fi
+  fi
   say "engine log : $ENGINE_LOG"
   say "session log: $LOG"
 }
@@ -60,9 +70,18 @@ else
   #
   # `APP_BUILD` is derived from HEAD, which is what makes the drift check above mean anything:
   # an engine started by this script always stamps the commit it was started from.
+  # `exec`, and it is not decoration. `( cd … && cmd ) &` is TWO commands, so bash forks a real
+  # subshell and `$!` is the SUBSHELL's pid — killing it leaves uvicorn running, orphaned, holding
+  # port 8080. The line below said "Ctrl-C … that stops the engine" and it did not, which is also
+  # where this script's own stale-engine warning kept coming from. Raised by the M11 security seat
+  # and reproduced here with the exact construct: subshell killed, `/health` still answering.
+  #
+  # The first attempt to reproduce it used a SINGLE-command subshell and the engine died, because
+  # bash optimises that case into no fork at all. A simplified repro that does not reproduce is
+  # worse than none: it says the finding was wrong.
   ( cd "$REPO" && MODEL_RANKING_DB="$REPO/advisor.db" \
       APP_BUILD="dev-$(git rev-parse --short HEAD)" \
-      .venv/bin/python -m uvicorn app.adapter.main:app \
+      exec .venv/bin/python -m uvicorn app.adapter.main:app \
       --host 127.0.0.1 --port 8080 > "$ENGINE_LOG" 2>&1 ) &
   ENGINE_PID=$!
   for _ in $(seq 1 40); do

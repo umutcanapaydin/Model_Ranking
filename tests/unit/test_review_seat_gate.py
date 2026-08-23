@@ -20,6 +20,12 @@ import pytest
 from scripts.wave_check import SEAT_RULE_FROM_MILESTONE, review_seat_problems
 
 ROW = "| 3 | Review per tier — V3C-78 | {evidence} | {status} |"
+#: The SAME row with a label the gate has never heard of. Renaming row 3 to this used
+#: to switch the gate off entirely — it grepped the name cell for `review|K.7`, found
+#: nothing, and skipped the record. Raised BLOCKING by the M11 security seat, who
+#: reproduced it against a copy of a real wave-close record: baseline PASS, rename,
+#: still PASS, exit 0, no review cited and none in existence.
+RENAMED_ROW = "| 3 | Fresh eyes per tier — V3C-78 | {evidence} | {status} |"
 
 
 def _repo(tmp_path: pathlib.Path, reviews: dict[str, str | None]) -> pathlib.Path:
@@ -43,8 +49,8 @@ def test_a_self_review_cannot_close_a_wave_green(tmp_path: pathlib.Path) -> None
     problems = review_seat_problems(row, root, milestone=11)
 
     assert problems, "a self-review passed a wave green; that is W-055 happening a fifth time"
-    assert "seat: author" in problems[0]
-    assert "WAIVE" in problems[0], "the gate must name the remedy that counts the bypass (V4C-13)"
+    assert "seat: independent" in problems[0]
+    assert "waive" in problems[0].lower(), "the gate must name the remedy that counts the bypass"
 
 
 def test_an_independent_review_closes_it(tmp_path: pathlib.Path) -> None:
@@ -76,7 +82,7 @@ def test_a_passing_row_that_cites_no_review_at_all_fails(tmp_path: pathlib.Path)
 
     problems = review_seat_problems(row, root, milestone=11)
 
-    assert problems and "cites no review record" in problems[0]
+    assert problems and "cites no review record at all" in problems[0]
 
 
 def test_a_review_without_a_seat_declaration_fails_from_m11(tmp_path: pathlib.Path) -> None:
@@ -88,7 +94,7 @@ def test_a_review_without_a_seat_declaration_fails_from_m11(tmp_path: pathlib.Pa
 
     problems = review_seat_problems(row, tmp_path, milestone=11)
 
-    assert problems and "declares no `seat:`" in problems[0]
+    assert problems and "declare no `seat:`" in problems[0]
 
 
 # --- the era split, which is the half that found W-056 ------------------------------------------
@@ -207,7 +213,7 @@ def test_a_seat_declared_in_PROSE_rather_than_frontmatter_does_not_count(
 
     problems = review_seat_problems(row, root, milestone=11)
 
-    assert problems and "declares no `seat:`" in problems[0]
+    assert problems and "declare no `seat:`" in problems[0]
 
 
 def test_a_waived_review_row_must_name_a_ledger_row(tmp_path: pathlib.Path) -> None:
@@ -218,7 +224,7 @@ def test_a_waived_review_row_must_name_a_ledger_row(tmp_path: pathlib.Path) -> N
 
     problems = review_seat_problems(row, root, milestone=11)
 
-    assert problems and "names no ledger row" in problems[0]
+    assert problems, "a waived review row with no ledger id closed a wave"
 
 
 def test_a_wave_record_cannot_cite_itself_through_a_traversal(tmp_path: pathlib.Path) -> None:
@@ -257,3 +263,40 @@ def test_a_review_row_labelled_something_else_is_still_seen(tmp_path: pathlib.Pa
     row = "| 3 | Fresh-eyes code REVIEW | `docs/reviews/self.md` | ✅ |"
 
     assert review_seat_problems(row, root, milestone=11), "renaming the row disabled the gate"
+
+
+def test_renaming_the_review_row_cannot_switch_the_gate_off(tmp_path: pathlib.Path) -> None:
+    """**BLOCKING-1 of the M11 security review.** The gate used to find its subject by grepping the
+    name cell, so a label it did not recognise made it skip the record and close it green.
+
+    The repair was not a longer list of labels — that is the same defect with more words in it. The
+    question moved to one the record answers as a whole: does this close cite an independent review,
+    or name a ledger row for the bypass? Neither can be renamed away.
+    """
+    root = _repo(tmp_path, {})
+    row = RENAMED_ROW.format(evidence="Reviewed at MED tier as the plan requires", status="✅")
+
+    assert review_seat_problems(row, root, milestone=11), (
+        "a wave closed green with no review cited and none in existence, because row 3 was called "
+        "something the gate had not been taught"
+    )
+
+
+def test_the_renamed_row_passes_when_an_independent_review_IS_cited(tmp_path: pathlib.Path) -> None:
+    """Fixture blindness: the rule must be about the EVIDENCE, not about the label being unknown.
+    If an unrecognised label failed unconditionally, the test above would prove nothing."""
+    root = _repo(tmp_path, {"seat.md": "independent"})
+    row = RENAMED_ROW.format(evidence="`docs/reviews/seat.md`", status="✅")
+
+    assert review_seat_problems(row, root, milestone=11) == []
+
+
+def test_a_waiver_anywhere_in_the_record_counts_the_bypass(tmp_path: pathlib.Path) -> None:
+    """The second remedy. A close with no independent review is allowed to say so — that is what
+    makes the rule survivable — but it has to name the ledger row that counts it (V4C-13)."""
+    root = _repo(tmp_path, {})
+    row = RENAMED_ROW.format(
+        evidence="No second seat was available", status="WAIVED — NO-ENVIRONMENT, ledger W-055"
+    )
+
+    assert review_seat_problems(row, root, milestone=11) == []
