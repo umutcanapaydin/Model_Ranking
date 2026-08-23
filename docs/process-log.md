@@ -333,3 +333,26 @@ rule will collide, and the collision is resolved by moving the definition — ne
 it. "Avoiding a dependency" is the justification that quietly authorises a private copy of
 security-relevant code, and it is most persuasive exactly where the boundary is real.
 
+## 2026-08-23 — M11: the reviewer became somebody else, and then a user arrived
+
+- **W1** D-133: in the local single-agent lane K.7 means a SEPARATE SESSION reading policy from the
+  protected base ref, and the review is a FILE. The first seat under the new rule returned BLOCKING
+  on the machinery enforcing it. Two absences had cancelled into a green gate — `record_type:
+  review` missing from the schema AND `docs/reviews/` missing from the manifest, so 44 files with
+  an illegal type were never scanned. The gate then failed the one record in this project claiming
+  K.7 was satisfied: it cited two review files that have never existed (W-056).
+- **W2** 1,093 lines of Swift stop being unexecuted. `ios/Package.swift` compiles the SHIPPING
+  sources. Nine of twenty mutants survived the first tests, all with the same shape: the assertion
+  was made against a value the test built by hand.
+- **W3** `/v1/budgets` (D-134) closes W-044 without spending a revision window. `contract-tests.yml`
+  green for the first time in its life — it was structurally unpassable, not drifting.
+- **W3.5** The design pass, and six defects the owner found by USING the app.
+- **Closing audit** REQ-RUN-002 was a signed plan promise that never became a PRD row (W-071).
+- 711 Python / 59 Swift, `make check` exit 0, 21 mutants across the milestone, 21 killed.
+
+Lesson: **the smallest amount of running worth adding to a close is one person and one session.**
+Execution of code found real defects this milestone and they were worth their cost; a person using
+the app for twenty minutes found six that eleven milestones of gates had not, and five requirements
+nobody inside the project would have written. A test suite cannot hold an opinion about what a
+reader concludes from what they can see.
+
