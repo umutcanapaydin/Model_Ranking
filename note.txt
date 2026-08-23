@@ -1,90 +1,88 @@
 Project: model_ranking
-State: **M1-M9 CLOSED. M10 CODE COMPLETE, awaits the owner's signature** (docs/closure-report-m10.md
-  section 0). Repo green: 666 tests / 12 skipped, `make check` exit 0. Nothing on Fly.io; nothing
-  is billing. All NINE surfaces answer.
-Last session date: 2026-08-22
+State: **M1-M10 CLOSED. M11 CODE COMPLETE, awaits the owner's signature**
+  (docs/closure-report-m11.md section 0). Repo green: 714 Python + 59 Swift, `make check` exit 0.
+  Nothing on Fly.io; nothing is billing. All NINE surfaces answer.
+Last session date: 2026-08-23
 Last work agent: Claude (Claude Code CLI, local lane under D-117)
 
 ONE COMMAND
-  ./runner     gate + secrets + build + surfaces + engine + refresh record + iOS build.
+  ./runner     gate + secrets + build + surfaces + engine + refresh record + Swift tests + iOS build.
                Writes nothing into the repo and NEVER touches advisor.db. If it is not
                all-PASS, stop and read latest.log before doing anything else.
 
-WHAT M10 SHIPPED
-- **The reader types a question instead of picking a category.** `ios/ModelRanking/Engine/Router.swift`
-  routes it to one of the nine surfaces in three tiers: `FoundationModels` constrained generation
-  (iOS 26+), centred `NLContextualEmbedding` cosine similarity (iOS 13+), and the list the reader
-  already had. Nothing on the screen depends on a tier existing. Probe score: 7 of 8
-  (`docs/reviews/m10-router-calibration.md`).
-- **The router is IN FRONT of the catalogue, not inside it.** D-104 stays literally true: the typed
-  text never crosses the network boundary, and the only thing the router contributes to a request
-  is one of nine ids the client re-validates after the model produced it (REQ-RTR-004).
-- **The refresh can now refuse evidence that moved UP implausibly** (D-132), not only down.
-  Thresholds were chosen after measuring ordinary movement, not before.
-- **`app.workflows.schema.open_readonly` is the ONE way to open an artifact read-only.** See below.
+TWO MORE, AND THEY ARE THE ONES THAT FIND THINGS
+  ./scripts/simulator_session.sh   starts the engine, builds, installs and launches the app on a
+                                   booted simulator. This is what found six defects that eleven
+                                   milestones of gates did not.
+  ./scripts/enable_refresh.sh      turns the 12-hour refresh on. STILL NOT RUN (REQ-RUN-002).
 
-THE ONE THING A NEW AGENT MUST NOT UNDO
-`f"file:{path}?mode=ro"` DOES NOT open a database read-only. Four path shapes defeat it and all
-four write into the real file (`?mode=rwc&z=`, `#`, `?`, `?vfs=unix&mode=rwc&j=`). Call
-`app.workflows.schema.open_readonly`. `tests/unit/test_readonly_uri.py` fails any `file:`-prefixed
-f-string in `src/` or `scripts/`. This fix was already made once, in `adapter/main.py` at M6, and a
-module written three milestones later rebuilt the bug anyway — under a comment defending it.
-**A fix that lives in one module is not a fix** (W-052).
+WHAT M11 SHIPPED
+- **The reviewer is somebody else (D-133).** In the local single-agent lane K.7 means a SEPARATE
+  SESSION that reads policy from the protected base ref and leaves a FILE. A close that cannot cite
+  a review with `seat: independent` must name a ledger row for the bypass. Three seats ran under it
+  this milestone and all three returned BLOCKING — and every blocking finding was in the MACHINERY,
+  never in the served product.
+- **1,093 lines of Swift stopped being unexecuted.** `ios/Package.swift` compiles the sources the
+  app ships; 59 tests in `make check` and `runner` behind a count floor. Scope: the Engine layer.
+  SwiftUI is still unexecuted (W-060) and the records say so everywhere.
+- **`/v1/budgets`** (D-134) — the caps `eligible_count` is computed against are published, so a
+  consumer can tell which ranked rows fit. A sibling resource is not a payload revision.
+- **`/health` reports `evidence`** — it used to say `{"status":"ok"}` while every query answered 503.
+- **`contract-tests.yml` is green for the first time in its life.** It had run twice and failed
+  both, and not for source drift: it enforced the full suite's coverage floor on a step running 14
+  network tests, so it was unpassable from the day it was written.
 
-THE REFRESH IS BUILT AND NOT SCHEDULED. `python -m app.workflows.refresh --db advisor.db
---epoch-dir <bundle>` runs one cycle. Exit 0 published / 1 unchanged / 2 failed / 3 refused /
-4 busy. Turning on the 12-hour schedule is ONE owner command, in
-`deploy/com.hcs.modelranking.refresh.plist`. **It has never run unattended** (W-054), so every
-security verdict in `docs/reviews/m10-security-review.md` describes code rather than operation.
+THE THING A NEW AGENT SHOULD READ FIRST
+`docs/plans/m12-inputs.md`. The owner gave the app to other people; one is a 60-year-old CFO. Five
+requirements came back and four are one finding: **the product explains what it measured in the
+language of the measurement.** `161.7 ECI`. `$1.03/1M`. `Abstract reasoning`. All correct, none
+usable. Eleven milestones were specified by people who already knew what a benchmark was.
 
-FIRST THREE THINGS A NEW AGENT DOES
-1. Read `docs/closure-report-m10.md` §0 — four items need the owner, and §0.3 is the one that
-   matters: K.7 has been bypassed four times and the telemetry that exists to catch that fired at
-   M8 and was never consumed (W-055, ESCALATED).
-2. Read `docs/retrospectives/m10-retrospective.md` — M9's carried question was answered AGAINST
-   this project, with two receipts.
-3. Verify the state yourself: ./runner. If it is not all-PASS, STOP.
+WHAT NEEDS THE OWNER
+- **REQ-RUN-002 is NOT MET** — the refresh has never run unattended, and the requirement was never
+  written into the PRD at its wave, so nothing traced it (W-071). One command; two cycles observed.
+- **W-074** — `shellcheck` is not installed and NO gate lints any shell here, across `runner` and
+  six scripts, while M11 shipped three shell defects nothing looked for. Gate-definition change.
+- **W-058** — Stage 4.3 failing a deploy on `evidence: unavailable`. Waits on a deploy.
+- **D-123 / W-030 / W-031** — nothing deployed, fourth milestone. His sequencing: local, then his
+  phone, then the App Store.
 
 SETTLED — do not re-litigate
-- **D-104** no LLM in the scoring path · **D-115/D-125** `/v1` frozen, its one revision window
-  SPENT · **D-116** no ingestion on the serving host · **D-121** a blind surface may never be
-  silent · **D-122** review depth by blast radius · **D-126** all AI tools + the router boundary ·
-  **D-127** nine categories · **D-128** the refusal rule · **D-129** the record is a file and
-  `runner` makes it visible · **D-130** launchd not cron · **D-132** the upward-anomaly axis.
-- **INV-23** the read-only URI is DERIVED, never concatenated.
+- **D-104** no LLM in the scoring path · **D-115/D-125** `/v1` payload frozen, window SPENT ·
+  **D-133** K.7 = a separate session, and the review is a file · **D-134** a sibling resource is not
+  a payload revision · **D-121, D-122, D-126..D-132** as before · **INV-23** read-only URIs derived,
+  never concatenated.
 
-WHAT'S OPEN
-- **W-055 ESCALATED** — K.7 bypassed four times; `C2b` fired at M8 and nothing consumed it. Either
-  a second reviewing seat exists or the rule is amended. Gate-definition change, so the OWNER'S.
-- **W-030 / W-031 / D-123** — nothing is deployed, third milestone running. A local container is a
-  good proxy and is not the platform. Do not report these as covered.
-- **W-054** — nothing has ever run unattended. **W-053** — two MINORs, M11.
-- **W-035, W-036, W-038, W-039, W-044** — carried with reasons.
-- **GPF-001..006** — General_Pipeline's, handed back.
+THE LESSON M11 PAID FOR
+**A control in the path that does not execute is not a control.** The router put its "we do not
+measure this" disclosure in the similarity tier's floor; on any device carrying the on-device model
+that tier runs second and almost never runs, and the tier that DOES run was schema-constrained to
+the nine ids with no way to decline. Every question in the world came back as a confident measured
+match. The requirement was satisfied in a path nobody reaches.
 
-THE LESSON M10 PAID FOR
-**What this system does when it is wrong and nobody is looking is keep going, greenly, with the
-evidence of the fault already written down somewhere nobody re-reads.** The gates catch the class
-of defect they were written for. The residue is caught by EXECUTION and by nothing else: the
-read-only defect was found by running the expression, the dead bound by trying to reach it, the
-router's two failed implementations by a probe that produced a number.
+Corollary, paid three times in one milestone: **proving one half of a change proves nothing about
+the other half.** A Make recipe was proven by breaking a test; four lines below, the `runner` half
+shipped the same class of defect by different mechanics; a third instance followed in the same wave.
 
-Corollary: **a name is not a control until something is required to call it.** REQ-EVI-002's
-accessor existed for a whole milestone while the calibration script kept sizing thresholds off the
-raw board — the exact defect it was written to prevent.
+And one about gates: **a gate whose scope is set by free text a filler chooses is a gate the filler
+can switch off without meaning to.** The K.7 gate found its subject by grepping a row's name cell.
 
-M11 OPENS WITH
-The carried question: what is the smallest amount of RUNNING this project could add to its close —
-a suspect expression in isolation, or the product in front of a person — and what does it cost?
-Not a tenth gate in `make check`. Answer it before planning.
+M12 OPENS WITH
+The carried question: eleven milestones specified this product and every requirement predates any
+user. The fix for each of the CFO's five items is obvious once stated; the question is why none was
+ever stated. **A correctness culture measures whether a number is right and has no instrument for
+whether it is understood.** What would this project have to measure to catch the next one before a
+user does?
 
 ANCHOR
-- Active ADRs: universal set + D-100..D-132.
-- Governed records: 50.
-- Most recent retrospective: docs/retrospectives/m10-retrospective.md
-- Most recent quarterly handover: docs/handovers/handover_q3.txt (M9). M10 % 3 != 0 — none due.
+- Active ADRs: universal set + D-100..D-134.
+- Governed records: 61. v5.0 wave records: 20.
+- Most recent retrospective: docs/retrospectives/m11-retrospective.md
+- Most recent quarterly handover: docs/handovers/handover_q3.txt (M9). 11 % 3 != 0 — none due.
 
 HANDOFF NOTES
-You are running ON the owner's Mac. Push under D-117, green gates only, never as the owner. The
-Epoch bundle at /Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data is required
-by `--epoch-dir` for `agentic-coding` to have any evidence at all.
+You are running ON the owner's Mac. Agent commits carry a DISTINCT identity and `GP-Agent:` /
+`GP-Task:` trailers under the owner's standing permission of 2026-08-22 — never commit as him.
+Green gates only. The Epoch bundle at
+/Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data is required by `--epoch-dir`
+for seven of the nine surfaces to have any evidence at all.
