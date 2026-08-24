@@ -16,11 +16,14 @@ date: 2026-08-23
    `GP-Agent:` / `GP-Task:` trailers, under the standing permission he gave on 2026-08-22 — this is
    the first milestone in the project's history where agent work is distinguishable from his in
    `git log`, which is what V4C-64 exists for.
-2. **REQ-RUN-002 is NOT MET and it is a signed plan promise.** The 12-hour refresh has still never
-   run unattended. One command starts it —
-   `/Users/umutcanapaydin/Desktop/ILGAR/model_ranking/scripts/enable_refresh.sh` — and two cycles
-   then have to be OBSERVED. Worse than the gap: the requirement was never written into the PRD at
-   its wave, so nothing traced it and W3 closed without noticing (W-071).
+2. **REQ-RUN-002 is PARTLY MET, and the remaining half is his to schedule.** Done on 2026-08-24:
+   the launchd job is installed and has executed a real cycle — `runs = 1`, exit 0 — and it
+   **published**, replacing the artifact beneath a running engine without breaking it. Every
+   refusal, lock and threshold built at M9 and M10 has now executed for real at least once. NOT
+   done: two firings on the 12-hour schedule, because that cycle was kickstarted. His ruling is to
+   trigger on demand and verify the schedule later. The row is left PARTLY MET rather than rounded
+   up, because the thing this project keeps paying for is the gap between what a milestone hoped
+   and what it did (W-071, and W-075 the same day).
 3. **Two gate-definition changes are his and only his.** `shellcheck` is not installed and no gate
    lints any shell in this repository, across `runner` and six scripts, while this milestone
    shipped three shell defects nothing looked for (W-074). And Stage 4.3 reading `/health.evidence`
@@ -38,7 +41,7 @@ date: 2026-08-23
 | REQ-IOS-003 | The 503 can be PRODUCED on demand | `tests/unit/test_unavailable_after_boot.py` |
 | REQ-API-010 | `/v1` gives ONE account of a query | `tests/unit/test_budgets_endpoint.py` — the served cap reproduces the served `eligible_count` |
 | REQ-RUN-001 | A person has operated the product and written down what happened | the owner's two sessions, 2026-08-22 and 2026-08-23; `scripts/simulator_session.sh` |
-| REQ-RUN-002 | Two unattended refresh cycles, observed | **NOT MET.** See §0.2 |
+| REQ-RUN-002 | Two unattended refresh cycles, observed | **PARTLY MET** — one real launchd cycle, which PUBLISHED. See §0.2 |
 
 ## 1a. Per-wave table
 

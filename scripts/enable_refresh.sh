@@ -37,7 +37,17 @@ echo
 launchctl print "gui/$(id -u)/$LABEL" 2>/dev/null \
   | grep -E "state|program|last exit code|runs" | sed 's/^/  /'
 echo
-echo "It is on. The first cycle runs now; the second in 12 hours."
+echo "It is on. **The first cycle is in 12 hours, not now.**"
+echo
+echo "  \`RunAtLoad\` is deliberately absent from the plist, and its own comment says why:"
+echo "  installing the job must not immediately rebuild the artifact somebody is serving."
+echo "  An earlier version of THIS script said \"the first cycle runs now\", which was a"
+echo "  message contradicting the plist it had just installed. Measured after a real load:"
+echo "  runs = 0, no log, and the refresh record still showing the previous day."
+echo
+echo "  To run one through launchd RIGHT NOW — same environment, same redirection, the"
+echo "  production path, only the trigger is yours:"
+echo "    launchctl kickstart gui/\$(id -u)/$LABEL"
 echo "What it leaves behind, which is what actually gets checked:"
 echo "  $REPO/advisor.db.refresh.json     <- the record of every cycle"
 echo "  ./runner                          <- reads it and reports staleness"
