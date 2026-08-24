@@ -348,3 +348,28 @@ repair lands on only one of them.
 `<one-paragraph summary>` appended to a PRD still BLOCKS; the identical text inside backticks
 passes. A scope narrowing that is not shown to still catch the original defect is a loosening.
 
+## GPF-008 — `L1` blocked the record that reports a Turkish-locale defect
+
+**Where:** `scripts/check_records.py` rule `L1` (GP-owned). **Third occurrence**, and the first two
+are already filed as GPF-005.
+
+**What happened.** A council record documenting a defect that only appears under a Turkish locale
+could not be written, because explaining the defect requires naming the letter that causes it, and
+`L1` reads any Turkish character as a violation of the English-only rule. The record was reporting
+that `localizedCaseInsensitiveContains` stops matching under `tr_TR`; to say WHY, it has to show
+the letter; showing the letter fails the gate.
+
+**Why this one is worth filing separately from GPF-005.** The earlier occurrences were a rule
+explaining itself. This one is a rule blocking a SECURITY-ADJACENT finding about the very language
+the rule is written to keep out of the repository. The workaround — describing the letter in
+English prose instead of showing it — makes the record measurably worse: a reader now has to
+reconstruct the defect from a description rather than see it.
+
+**The shape, stated generally:** `L1` has no way to distinguish text that IS the thing from text
+ABOUT the thing, and the more important the finding, the more likely it needs to quote the thing.
+A localisation rule that cannot document a localisation bug is a rule pointed at its own foot.
+
+**Suggested remedy, offered upstream:** exempt fenced code blocks and inline code spans, the same
+narrowing that `bootstrap-check.sh` needed in GPF-007 for the same reason — a rule about PROSE
+should read prose. Then a record can write the letter inside backticks and say what it does.
+

@@ -41,9 +41,20 @@ and the trap was already sprung; the question was only whether to notice.**
 
 ### 2. A link to each tool's official site — "Go to Page"
 
-**Needs data this project does not have.** The payload carries `evidence_source_url`, which is the
-BENCHMARK's source, not the vendor's product page. A model→URL map has to be curated, and being
-wrong here sends a reader to the wrong company. Scope it as a source, not as a button.
+**Needs data this project does not have, and this paragraph originally said so incorrectly.**
+
+*Written 2026-08-23:* "The payload carries `evidence_source_url`, which is the BENCHMARK's source,
+not the vendor's product page."
+
+*Corrected 2026-08-24, by the council's product seat:* **`evidence_source_url` is not in the
+payload at all.** It is a column in the artifact and it is not in `PUBLIC_ANSWER_FIELDS`; a
+`/v1/recommendations` response contains the string zero times, measured. So the gap is wider than
+this record claimed — there is no URL of any kind on the wire, not even the wrong one.
+
+The conclusion survives and is stronger: a model→vendor URL map has to be curated as a SOURCE, and
+being wrong sends a reader to the wrong company. The correction is kept in place rather than
+overwritten, because this record exists to be planned against and a plan built on "we have almost
+the right URL" is a different plan from one built on "we have no URL".
 
 ### 3. Simpler category names
 
