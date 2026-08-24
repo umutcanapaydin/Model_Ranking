@@ -1,13 +1,18 @@
 ---
 record_type: ratification
 id: closure-report-m11
-status: draft
+status: ratified
 date: 2026-08-23
 ---
 # Closure Report — M11: the reviewer became somebody else, and then a user arrived
 
-> **AWAITING THE OWNER'S SIGNATURE.** Section 0 is what needs him. Every figure below was measured
-> at the closing tree rather than reported by the thing that produced it.
+> **RATIFIED by the owner on 2026-08-24.** He ran `./runner` at `5455f34` — **eight sections,
+> `failed: none`**, 714 passed / 12 skipped, coverage 88.34%, 20 v5.0 records validated, tree
+> CLEAN. Every figure below was measured at that tree rather than reported by the thing that
+> produced it.
+>
+> Section 0 is what still needs him, and it is shorter than it was when this report was drafted:
+> the refresh has now run for real and published.
 
 ## 0. What needs the owner
 

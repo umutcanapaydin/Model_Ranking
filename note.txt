@@ -1,6 +1,6 @@
 Project: model_ranking
-State: **M1-M10 CLOSED. M11 CODE COMPLETE, awaits the owner's signature**
-  (docs/closure-report-m11.md section 0). Repo green: 714 Python + 59 Swift, `make check` exit 0.
+State: **M1-M11 CLOSED.** Ratified by the owner 2026-08-24 on a runner with `failed: none`
+  across eight sections (docs/closure-report-m11.md). Repo green: 714 Python + 59 Swift, `make check` exit 0.
   Nothing on Fly.io; nothing is billing. All NINE surfaces answer.
 Last session date: 2026-08-23
 Last work agent: Claude (Claude Code CLI, local lane under D-117)
@@ -39,8 +39,11 @@ language of the measurement.** `161.7 ECI`. `$1.03/1M`. `Abstract reasoning`. Al
 usable. Eleven milestones were specified by people who already knew what a benchmark was.
 
 WHAT NEEDS THE OWNER
-- **REQ-RUN-002 is NOT MET** — the refresh has never run unattended, and the requirement was never
-  written into the PRD at its wave, so nothing traced it (W-071). One command; two cycles observed.
+- **REQ-RUN-002 is PARTLY MET.** The refresh HAS now run through launchd and it **published** —
+  `runs = 1`, exit 0, the artifact replaced beneath a running engine without breaking it. What is
+  missing is two firings on the 12-HOUR SCHEDULE; the owner's ruling is to trigger on demand and
+  verify the schedule later (W-054). Trigger one with:
+  `launchctl kickstart gui/$(id -u)/com.hcs.modelranking.refresh`
 - **W-074** — `shellcheck` is not installed and NO gate lints any shell here, across `runner` and
   six scripts, while M11 shipped three shell defects nothing looked for. Gate-definition change.
 - **W-058** — Stage 4.3 failing a deploy on `evidence: unavailable`. Waits on a deploy.

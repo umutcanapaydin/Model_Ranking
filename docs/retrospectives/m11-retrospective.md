@@ -1,7 +1,7 @@
 ---
 record_type: retrospective
 id: m11-retrospective
-status: draft
+status: ratified
 date: 2026-08-23
 ---
 # M11 Retrospective — the milestone that answered its own question and then met a user

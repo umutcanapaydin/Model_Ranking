@@ -1,7 +1,7 @@
 ---
 record_type: wave
 id: m11-wave-4-close
-status: draft
+status: ratified
 process_version: v5.0
 date: 2026-08-23
 ---
