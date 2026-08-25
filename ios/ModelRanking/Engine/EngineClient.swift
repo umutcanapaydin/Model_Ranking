@@ -181,6 +181,13 @@ struct EngineClient {
     /// The app has no list of its own. Nine categories shipped in one build and more will follow;
     /// a Swift copy would be a roster that drifts silently, which is the defect this project keeps
     /// paying for in other forms.
+    /// The budgets a reader may choose, with their caps. D-134: a sibling resource, so the
+    /// frozen `/v1` answer payload did not have to move to make the app budget-aware.
+    func budgets() async throws -> [BudgetOption] {
+        let list: BudgetList = try await get("v1/budgets", query: [])
+        return list.budgets
+    }
+
     func categories() async throws -> [Category] {
         let list: CategoryList = try await get("v1/categories", query: [])
         return list.categories

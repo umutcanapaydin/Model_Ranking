@@ -180,7 +180,13 @@ private final class StubProtocol: URLProtocol, @unchecked Sendable {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func stopLoading() {}
 
+    /// The URL the last request actually asked for. The point of the budget picker is that the
+    /// CHOICE reaches the engine, and a picker that changes a `@State` and sends the old value
+    /// would look identical on screen until somebody compared two answers.
+    nonisolated(unsafe) static var lastRequestedURL: URL?
+
     override func startLoading() {
+        Self.lastRequestedURL = request.url
         switch Self.outcome {
         case let .failure(error):
             client?.urlProtocol(self, didFailWithError: error)
@@ -363,3 +369,56 @@ final class UserFacingMessageTests: XCTestCase {
         XCTAssertNil(EngineError.timedOut(seconds: 10).diagnostic)
     }
 }
+
+// MARK: - M12-W3 — the chosen budget reaches the engine
+
+final class BudgetIsSentTests: XCTestCase {
+    private func client() -> EngineClient {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubProtocol.self]
+        return EngineClient(
+            baseURL: URL(string: "http://127.0.0.1:8080")!,
+            session: URLSession(configuration: configuration)
+        )
+    }
+
+    private func query(task: String, budget: String) async -> [String: String] {
+        StubProtocol.lastRequestedURL = nil
+        StubProtocol.outcome = .success((200, Data(#"{"not_a_recommendation": true}"#.utf8)))
+        _ = try? await client().recommendation(task: task, budget: budget)
+        guard let url = StubProtocol.lastRequestedURL,
+              let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+        else { return [:] }
+        return Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value ?? "") })
+    }
+
+    /// **REQ-BGT-001's other half.** The picker was added because the product called itself
+    /// budget-aware while `ContentView` hardcoded `unlimited`. A picker that updates state and
+    /// sends the old value would reproduce that defect while looking fixed.
+    func testTheBudgetTheReaderChoseIsWhatTheEngineIsAsked() async {
+        for budget in ["low", "medium", "unlimited"] {
+            let sent = await query(task: "coding", budget: budget)
+
+            XCTAssertEqual(sent["budget"], budget,
+                           "the engine was asked for `\(sent["budget"] ?? "nothing")`")
+        }
+    }
+
+    func testTheSurfaceAndTheBudgetAreBothSentAndNothingElseIs() async {
+        let sent = await query(task: "everyday", budget: "low")
+
+        XCTAssertEqual(sent, ["task": "everyday", "budget": "low"],
+                       "the request carries something other than the two things it should")
+    }
+
+    func testNothingTheReaderTypedIsEverSent() async {
+        // REQ-RTR-004, re-asserted here because the budget picker is the first new control to
+        // touch this request since the router was built. D-104's boundary is that the typed
+        // question never crosses the network.
+        let sent = await query(task: "coding", budget: "low")
+
+        XCTAssertNil(sent["question"])
+        XCTAssertNil(sent["q"])
+    }
+}
+

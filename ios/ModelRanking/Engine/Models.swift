@@ -214,3 +214,22 @@ struct EngineErrorBody: Decodable {
     }
     let error: Detail
 }
+
+/// One budget a reader can choose, as `/v1/budgets` publishes it (D-134).
+///
+/// `blendedCapPerM` is `null` for `unlimited` — the ABSENCE of a cap, not a very large one — and
+/// the client must not turn that into a number it then compares against.
+struct BudgetOption: Decodable, Identifiable, Equatable {
+    let id: String
+    let blendedCapPerM: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case blendedCapPerM = "blended_cap_per_m"
+    }
+}
+
+struct BudgetList: Decodable {
+    let budgets: [BudgetOption]
+}
+

@@ -26,7 +26,20 @@ struct ContentView: View {
     @State private var question = ""
     @State private var routing: RoutingOutcome?
     @State private var routingInFlight = false
-    private let budget = "unlimited"
+    /// **The reader's budget, and until M12-W3 this was a constant.**
+    ///
+    /// The product's own one-line description is "budget-aware recommendations". `/v1/budgets`
+    /// publishes the caps, `eligible_count` arrives on every answer, and the "N fit your budget"
+    /// line was written at M11 — all of it serving a control that did not exist. The council's
+    /// product seat found it by reading this line.
+    ///
+    /// `unlimited` stays the default: a reader who has not said what they can spend has not asked
+    /// to be limited, and showing them fewer models before they choose would be an assumption the
+    /// engine is careful never to make.
+    @State private var budget = "unlimited"
+    /// The caps, read from `/v1/budgets` rather than hardcoded — the whole point of D-134 is that
+    /// a consumer does not have to know what `low` means.
+    @State private var budgets: [BudgetOption] = []
     private let router = TieredRouter()
 
     enum LoadState {
@@ -49,7 +62,12 @@ struct ContentView: View {
                     failure(error)
                 }
             }
-            .safeAreaInset(edge: .top) { categoryStrip }
+            .safeAreaInset(edge: .top) {
+                VStack(spacing: 0) {
+                    categoryStrip
+                    budgetStrip
+                }
+            }
             .navigationTitle("Which model?")
             // Inline, because the category strip already occupies the top of the screen and a
             // large title left an empty band above it with nothing in it.
@@ -302,6 +320,45 @@ struct ContentView: View {
     /// The nine surfaces, horizontally. PROVISIONAL: the home-screen direction is still the
     /// owner's to pick from the three drafted artboards, and this commits to none of them — it
     /// exists so every category the engine can answer is reachable and visible on a device.
+    /// Three choices, and the caps come from the engine.
+    ///
+    /// Rendered as plain text rather than a segmented control so the CAP is visible: "under
+    /// $2/1M" is what a CFO needs to see, and a control showing only "Low" would be a second
+    /// vocabulary he has to learn.
+    @ViewBuilder
+    private var budgetStrip: some View {
+        if budgets.count > 1 {
+            HStack(spacing: 8) {
+                ForEach(budgets) { option in
+                    Button {
+                        guard option.id != budget else { return }
+                        budget = option.id
+                        Task { await load() }
+                    } label: {
+                        VStack(spacing: 1) {
+                            Text(option.title).font(.footnote.weight(.medium))
+                            if let cap = option.capLabel {
+                                Text(cap).font(.caption2)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(option.id == budget
+                                      ? AnyShapeStyle(.tint)
+                                      : AnyShapeStyle(.quaternary))
+                        )
+                        .foregroundStyle(option.id == budget ? .white : .primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+        }
+    }
+
     @ViewBuilder
     private var categoryStrip: some View {
         if categories.count > 1 {
@@ -398,6 +455,13 @@ struct ContentView: View {
             // blank the product would be a worse dependency than the hardcoded list it replaces.
             if categories.isEmpty {
                 categories = (try? await client.categories()) ?? []
+            }
+            // Same rule as the categories: a discovery call that can blank the product would be a
+            // worse dependency than the hardcoded list it replaces. If `/v1/budgets` is missing —
+            // an older engine, a partial deploy — the strip does not appear and the app answers at
+            // `unlimited`, which is what it did for eleven milestones.
+            if budgets.isEmpty {
+                budgets = (try? await client.budgets()) ?? []
             }
             // One request carries every surface for the coding intent (Ruling A), so the home
             // screen cannot show one answer while another is still loading.

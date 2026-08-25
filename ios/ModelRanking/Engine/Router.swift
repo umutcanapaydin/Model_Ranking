@@ -591,3 +591,31 @@ public func classifyDisclosures(
     return out
 }
 
+// MARK: - How a budget is offered (M12-W3, REQ-BGT-001)
+
+extension BudgetOption {
+    /// What the reader sees on the button.
+    ///
+    /// The engine's ids are `low`, `medium`, `unlimited` — a vocabulary, and the CFO finding is
+    /// that this product had been asking people to learn its vocabularies. "Any price" says what
+    /// `unlimited` does without the reader having to work out that unlimited refers to spending
+    /// rather than to models.
+    var title: String {
+        switch id {
+        case "low": return "Cheaper"
+        case "medium": return "Mid-priced"
+        case "unlimited": return "Any price"
+        default: return id.capitalized
+        }
+    }
+
+    /// The cap itself, beside the name, because the name alone is a second vocabulary.
+    ///
+    /// `nil` for `unlimited`: there is no cap, and inventing a label for one would be exactly the
+    /// sentinel D-134 refused to publish.
+    var capLabel: String? {
+        guard let cap = blendedCapPerM else { return nil }
+        return "under $\(String(format: "%g", cap))/1M"
+    }
+}
+
