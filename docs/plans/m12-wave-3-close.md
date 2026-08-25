@@ -35,7 +35,7 @@ PASS · **3 mutants, 3 killed**.
 | 5 | Every criterion has a citing test able to fail — V3C-02 | REQ-BGT-001: `BudgetOptionTests` and `BudgetIsSentTests` in `ios/EngineTests/` | ✅ |
 | 6 | New REQ-IDs in the PRD at the wave | `docs/prd.md` REQ-BGT-001 | ✅ |
 | 7 | Gates green at the closing tree | `make check` exit 0 · 747 passed / 12 skipped · 97 Swift · `scripts/check_records.py` PASS (70) · `scripts/wave_check_all.py` PASS · `scripts/conformance_gate.py` PASS | ✅ |
-| 8 | ADRs for decisions made | None. D-134 (M11-W3) already ruled that the caps are published as a sibling resource; this wave is the consumer that ruling was for | ✅ |
+| 8 | ADRs for decisions made | None. `docs/decisions.md` D-134 (M11-W3) already ruled that the caps are published as a sibling resource; this wave is the consumer that ruling was for | ✅ |
 | 9 | Warnings ledger current | `docs/warnings.ledger.md` — W-083 raised and **FIXED**; **W-040 re-scoped** | ✅ |
 | 10 | Plan promises delivered | `docs/plans/m12-plan.md` §W3 — all three items | ✅ |
 
