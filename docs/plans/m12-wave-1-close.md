@@ -1,7 +1,7 @@
 ---
 record_type: wave
 id: m12-wave-1-close
-status: draft
+status: ratified
 process_version: v5.0
 date: 2026-08-25
 ---
@@ -31,7 +31,7 @@ PASS · `wave-check-all` PASS · `conformance-gate` PASS.
 |---|---|---|---|
 | 1 | Risk tier recorded — V3C-78 | `docs/plans/m12-plan.md` §3 records W1 **MED** (gate-definition changes plus a shipped-behaviour fix) | ✅ |
 | 2 | Dev-test loop ran — V3C-68 | Reproduce → fix → prove on each of the four: `docs/decisions.md`, `Makefile`, `scripts/check_records.py`, `ios/ModelRanking/Engine/Router.swift`. Every finding was measured before it was fixed | ✅ |
-| 3 | Review per tier — V3C-78 / K.7 | `docs/reviews/m11-council-senior-swe.md` and `docs/reviews/m11-council-senior-mobile.md`, both `seat: independent` — this wave implements THEIR findings, so the review preceded the code | ✅ |
+| 3 | Review per tier — V3C-78 / K.7 | `docs/reviews/m11-council-senior-swe.md` and `docs/reviews/m11-council-senior-mobile.md`, both `seat: independent` — this wave implements THEIR findings, so the review preceded the code **WAIVED — ledger row W-087.** Corrected at M12-W5: that review is dated 2026-08-24 and every commit in this wave is 2026-08-25, so it shaped the wave but did not read it (D-137). The independent read happened at Stage 4.0 and found two BLOCKING defects. | WAIVED |
 | 4 | Fault injection — V3C-72 | **13 mutants, 13 killed** across `docs/decisions.md` (3), `scripts/check_records.py` (4), `ios/ModelRanking/Engine/Router.swift` (3, then 2 re-run), md5 restore verified on every file | ✅ |
 | 5 | Every criterion has a citing test able to fail — V3C-02 | REQ-GOV-001: `tests/unit/test_adr_citations.py`, `tests/unit/test_c2b_counter.py`, and the rewritten `--self-test` probe · REQ-LOC-002: `ios/EngineTests/OwnerSessionDefectTests.swift` | ✅ |
 | 6 | New REQ-IDs in the PRD at the wave | `docs/prd.md` REQ-GOV-001 and REQ-LOC-002, both marked DONE with their citing files | ✅ |

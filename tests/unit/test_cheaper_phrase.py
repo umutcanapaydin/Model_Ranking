@@ -2,18 +2,47 @@
 
 `f"{ratio:.0f}x cheaper"` shipped for eleven milestones. For every ratio under 1.5 it rounds to
 **"1x cheaper"**, which tells a reader they give up points and save nothing — the opposite of the
-trade-off the sentence exists to describe. Found by the M11 council, and NOT visible on today's
-data, where every ratio is 3x or more.
+trade-off the sentence exists to describe. Found by the M11 council.
 
-That is why it has tests rather than a fix: a defect that today's data hides is one that waits for
-a price change, and the shipped artifact is republished every twelve hours.
+**Rewritten at M12-W5 (Stage 4.0 MAJOR-5), and the rewrite is the point.**
+
+These nine assertions were written against `cheaper_phrase`, which W2 added and **nothing ever
+called**. W4 then wrote a second implementation of the same rule — `trade_off_facts` +
+`trade_off_sentence` — and wired THAT one into the answer. So the rule shipped twice: once tested
+and dead, once live and covered only by its own newer tests. Nine green tests stood beside a
+function the product could not reach, and they would have gone on passing after the live rule
+drifted, because the thing they measured was not the thing that runs. V3C-73: an implemented,
+unit-green control that is not on the live request path is an unshipped control.
+
+`cheaper_phrase` is now DELETED and every assertion below goes through the shipping composer. Where
+the two disagreed, the live one is the contract, because it is the one the reader sees.
+
+The header used to add: *"NOT visible on today's data, where every ratio is 3x or more, which is
+why it has tests rather than a fix."* **That was false when it was written.** The M12 starting tree,
+against the shipped `advisor.db`, served `task=computer-use&budget=low` a `budget_pick` reading
+`2.7 points below the leader, but 1x cheaper.` — `best_quality` at `0.98`, `budget_pick` at `0.69`,
+a ratio of `1.4203`. It was on a live surface on the day the sentence was written. The fix was real;
+the reasoning recorded beside it was an assumption nobody measured, and an assumption is exactly
+what a nine-test substitute for a fix rests on.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from app.workflows.recommend import cheaper_phrase
+from app.workflows.recommend import trade_off_facts, trade_off_sentence
+
+
+def cheaper_phrase(dearer: float, cheaper: float) -> str:
+    """The clause the reader actually gets, taken off the SHIPPING path.
+
+    Not a reimplementation: it calls the same two functions the answer calls, and
+    returns the part of the sentence these tests are about. If the live rule
+    changes, these nine fail — which is what they were supposed to do all along.
+    """
+    fact = trade_off_facts(10.0, 10.0, "points", dearer, cheaper)
+    return trade_off_sentence(fact).split("leader, ", 1)[-1]
+
 
 
 def test_a_small_saving_is_a_percentage_not_a_rounded_multiple() -> None:

@@ -32,3 +32,26 @@ docs/reviews/m5-wave-2-review.md # append-only BLOCKING audit quotes the faulty 
 # and five test files. `L1` now guards the whole product surface instead of stopping at its edge.
 # What remains exempt is proper nouns, pre-M3 records, and records that quote a shipped Turkish
 # sentence as measured evidence — none of which is live product text.
+
+# AMENDED 2026-08-25 (M12-W5, Stage 4.0 MINOR-3). The note above was written when D-118 said every
+# user-facing string is English. **D-136 superseded that clause**: M12-W4 shipped a localisation
+# layer and the product now speaks Turkish to a Turkish reader. So the note's closing sentence —
+# "L1 now guards the whole product surface instead of stopping at its edge" — was doubly untrue:
+# the exemptions came back with the localisation, and `.swift` was not in `LANG_SUFFIXES` at all,
+# so L1 had never read one line of the client in its life.
+#
+# `.swift` is now scanned, and these four files are exempt BY NAME rather than by a blanket `ios/`
+# prefix. A prefix would restore exactly the blindness this fixes: the client is ~30 Swift files
+# and four of them hold Turkish. The other twenty-six are now guarded for the first time.
+
+ios/ModelRanking/Engine/Language.swift  # the localisation layer itself — Turkish product strings are
+                                        # its entire subject matter (D-136). English-only here would
+                                        # mean the product has no Turkish
+ios/ModelRanking/Engine/Router.swift    # `priceInPages` and the budget labels render Turkish amounts
+                                        # ("2.000 altı"); the file's own prose and comments are English
+ios/EngineTests/LanguageTests.swift     # asserts the exact Turkish sentences the product composes —
+                                        # paraphrasing them would break the record-vs-referent rule,
+                                        # the same reason m4-w4-equivalence.md is exempt above
+ios/EngineTests/OwnerSessionDefectTests.swift # pins the tr_TR locale defect with a Turkish fixture
+                                        # ("Şirket AI" vs "sirket"); the bug IS the character folding,
+                                        # so an ASCII fixture would test nothing

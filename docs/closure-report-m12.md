@@ -1,7 +1,7 @@
 ---
 record_type: ratification
 id: closure-report-m12
-status: draft
+status: ratified
 date: 2026-08-25
 ---
 # Closure Report — M12: the 60-year-old CFO can use it
@@ -11,6 +11,12 @@ date: 2026-08-25
 
 ## 0. What needs the owner
 
+0. **Read section 4 first this time.** A fifth wave exists that was not in the plan you signed.
+   Stage 4.0 found three BLOCKING defects — two of them crashes reachable from a number in the
+   payload — and, worse, found that the review which should have caught them earlier had never
+   happened: all four M12 waves closed their independent-review row green citing council reviews
+   written the day *before* the code. Everything is discharged and both gates are green; you are
+   being told because a milestone that certified itself is not a thing to learn about later.
 1. **Run `./runner`, then `./scripts/simulator_session.sh`, then make the milestone commit.** The
    second one matters more than usual this time: **this is the first milestone written entirely
    from what people outside the work said**, and the only way to know whether it landed is to look
@@ -45,7 +51,7 @@ date: 2026-08-25
 | W2 | MED | Six renames, rank + scale + price-in-pages, disclosures under D-135, three council defects | `docs/plans/m12-wave-2-close.md` |
 | W3 | LOW | The budget picker | `docs/plans/m12-wave-3-close.md` |
 | W4 | HIGH | D-136, the contract move; Turkish across the screen; `L1` narrowed to prose | `docs/plans/m12-wave-4-close.md` |
-| W5 | LOW | Stage 4.0, capture, this report | `docs/plans/m12-wave-5-close.md` |
+| W5 | HIGH | Stage 4.0 discharged: 3 BLOCKING, 7 MAJOR, 4 of 6 MINOR. D-137; C2b made countable; `L1` reads Swift | `docs/plans/m12-wave-5-close.md` |
 
 ## 1b. Decisions made on your behalf
 
@@ -65,17 +71,26 @@ and `GP-Agent:` / `GP-Task:` trailers. The owner makes the closing commit.
 
 ## 3. Trust telemetry
 
-- Tests: **714 → 781 Python**, **59 → 121 Swift.** 12 skipped, unchanged.
-- Governed records: 61 → **71**.
+- Tests: **714 → 785 Python**, **59 → 132 Swift.** 12 skipped, unchanged.
+- Governed records: 61 → **73**.
 - `make check` exit 0 **and `make gate` exit 0** — the second for the first time in this project's
   history, on a target that had been red for months while the post-edit hook ran it.
-- Fault injection: **34 mutants across the milestone, 34 killed.**
+- Fault injection: **38 mutants across the milestone, 38 killed.**
 - Independent seats: **five** — four council chairs before the milestone, one Stage 4.0 within it.
-- **Zero new K.7 waivers.**
+- **Four K.7 waivers, all raised at W5 against work already closed.** The number was reported as
+  zero in this report's first draft, and it was zero by the gate's reading — which is the finding.
+  All four M12 waves closed the K.7 row green citing reviews dated the day BEFORE the code they
+  covered; the seat caught it, D-137 makes the date load-bearing, `scripts/wave_check.py` enforces
+  it, and W-087 carries the bypass. **A milestone that reports zero waivers because nothing could
+  see one is not a milestone with zero waivers.**
 
 ## 4. Security & invariants
 
-Stage 4.0: `docs/reviews/m12-security-review.md`, run by a seat that wrote none of the code.
+Stage 4.0: `docs/reviews/m12-security-review.md`, run by a seat that wrote none of the code, and
+**discharged in full at W5** — `docs/plans/m12-wave-5-close.md`. It found three BLOCKING defects,
+two of them in shipped client code (`Int(Double)` traps on a wire value) and one in the governance
+record itself. That review is also the first independent read of M12's code, four waves after the
+code was written, which is the milestone's own finding about itself.
 
 **The payload MOVED**, deliberately and additively, under D-136 — the second recorded move in this
 project's history and the first since D-125. Every pre-existing field is unchanged; `why_fact` and
@@ -86,9 +101,11 @@ how to say anything.
 
 ## 5. Ledgers
 
-**Opened this milestone:** W-076..W-086 — eleven rows, nine of them **FIXED** in the same wave that
-raised them. **Open in total: 28**, unchanged from M11 — every row this milestone added, it also
-closed, except the two that are the owner's.
+**Opened this milestone:** W-076..W-087 — twelve rows, nine of them **FIXED** in the same wave
+that raised them. **W-081 was corrected at W5**: it named `cheaper_phrase` as its fix, a symbol
+nothing ever called, and gave a reason (*"not visible on today's data"*) that was measurably false
+on the day it was written. **Open in total: 28**, unchanged from M11 — every row this milestone
+added, it also closed, except W-087 and the two that are the owner's.
 
 ## 6. Architecture delta — prose
 

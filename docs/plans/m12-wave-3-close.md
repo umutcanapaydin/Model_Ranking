@@ -1,7 +1,7 @@
 ---
 record_type: wave
 id: m12-wave-3-close
-status: draft
+status: ratified
 process_version: v5.0
 date: 2026-08-25
 ---
@@ -30,7 +30,7 @@ PASS · **3 mutants, 3 killed**.
 |---|---|---|---|
 | 1 | Risk tier recorded — V3C-78 | `docs/plans/m12-plan.md` §3 records W3 **LOW** — one control, over a payload built and tested at M11 | ✅ |
 | 2 | Dev-test loop ran — V3C-68 | Implement → screenshot the running app → test the half a screenshot cannot show. `ios/ModelRanking/ContentView.swift`, `ios/ModelRanking/Engine/Router.swift`, `ios/EngineTests/EngineClientTests.swift` | ✅ |
-| 3 | Review per tier — V3C-78 / K.7 | `docs/reviews/m11-council-product.md`, `seat: independent` — this wave is its lead finding | ✅ |
+| 3 | Review per tier — V3C-78 / K.7 | `docs/reviews/m11-council-product.md`, `seat: independent` — this wave is its lead finding **WAIVED — ledger row W-087.** Corrected at M12-W5: that review is dated 2026-08-24 and every commit in this wave is 2026-08-25, so it shaped the wave but did not read it (D-137). The independent read happened at Stage 4.0 and found two BLOCKING defects. | WAIVED |
 | 4 | Fault injection — V3C-72 | 3 mutants, 3 killed on `ios/ModelRanking/Engine/EngineClient.swift` and `Router.swift`; md5 restore verified | ✅ |
 | 5 | Every criterion has a citing test able to fail — V3C-02 | REQ-BGT-001: `BudgetOptionTests` and `BudgetIsSentTests` in `ios/EngineTests/` | ✅ |
 | 6 | New REQ-IDs in the PRD at the wave | `docs/prd.md` REQ-BGT-001 | ✅ |

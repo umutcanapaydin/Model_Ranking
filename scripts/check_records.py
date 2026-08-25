@@ -80,9 +80,34 @@ RECORD_TYPES = {"ratification", "register", "adr", "experience", "handover", "de
 #: counting them would make C2b fire on rows that merely cite an ADR.
 #: An inline code span. A rule about the language of this repository reads PROSE; what is quoted
 #: inside backticks is evidence, and evidence has to be allowed to be in the language it is about.
-INLINE_CODE = re.compile(r"`[^`]*`")
+#: A code span, in the two forms CommonMark defines. The double-backtick form must be tried FIRST:
+#: it is the delimiter you are required to use when the quoted text itself contains a backtick, and
+#: the single-backtick pattern reads ``a `b` c`` as two empty spans with the content between them
+#: left exposed as prose. Measured at M12-W5 (Stage 4.0 MINOR-2): a correctly-formed double-backtick
+#: quotation of a Turkish product string produced an L1 finding inside the security review itself.
+#:
+#: **Under-enforcing on an unbalanced fence and over-enforcing on a legitimate quotation is the
+#: pairing that gets a rule switched off**, and both halves were live in the same rule at once.
+INLINE_CODE = re.compile(r"``.+?``|`[^`]*`", re.S)
+
+#: A code span longer than this is prose wearing backticks.
+#:
+#: The exemption exists so a record can quote a defect verbatim — a symbol, a path, a flag, a short
+#: sentence of shipped output. This project habitually backticks everything, so without a bound the
+#: substance of an entire record can be non-English and pass. Chosen by measurement, not taste: the
+#: longest legitimate code span in this repository's non-exempt records is well under this, and the
+#: records that genuinely quote a long Turkish sentence as evidence are named in `.language-allow`
+#: for exactly that reason.
+INLINE_CODE_MAX = 120
 
 CONTROL_ID = re.compile(r"\b(K\.\d+|V3C-\d+|V4C-\d+|[A-L]\.\d+|INV-\d+)\b")
+#: The one token that discharges C2b: written deliberately, naming the decision that reviewed the
+#: control. Never a bare ADR reference -- rows cite ADRs for a dozen unrelated reasons.
+#: `@N` anchors the discharge to the count it was written against. A marker with no anchor, or an
+#: anchor below today's count, does NOT discharge: the control has been accepted again SINCE it was
+#: reviewed, which is the thing V4C-13 exists to notice. A trigger that can never fire twice is the
+#: defect this milestone spent itself finding.
+C2B_REVIEWED = re.compile(r"C2b-reviewed:\s*[DP]-\d{3}\s*@(\d+)")
 
 STATUS_FLOW = ["draft", "candidate", "ratified", "superseded", "retired"]  # X3 ordering
 REQUIRED = ("record_type", "id", "status")
@@ -743,8 +768,24 @@ def warning_ledger(root: Path) -> list[Finding]:
             # it. The key is now the CONTROL identifier taken from the context column -- `K.7`,
             # `V3C-78`, `V4C-13`, `INV-23`, the lettered seeds -- which is the thing V4C-13 is
             # actually about: not who accepted, but WHAT keeps being accepted.
-            for control in sorted(set(CONTROL_ID.findall(cells[3]))):
+            # Read the WHOLE row, not just the path column. Measured at M12-W5: of 22 ACCEPTED
+            # rows, **19 name no control anywhere in the path column** -- because that column
+            # holds a PATH. C2b was reading 3 rows out of 22 and calling the other 19 zero.
+            # A row that cannot be keyed is not a row that was never accepted.
+            controls = sorted(set(CONTROL_ID.findall(" ".join(cells))))
+            for control in controls:
                 accepted.setdefault(control, []).append((wid, why))
+            # C2d -- coverage. An acceptance that does not say WHAT it accepts is uncountable, and
+            # an uncountable acceptance is exactly the one that repeats. Required from W-087 on:
+            # the 86 rows before it were written against a rule that did not ask (GPF-001 -- a
+            # tool may not retroactively invalidate older records), and the blind spot is stated
+            # here ONCE rather than as 19 findings (D-135).
+            if not controls and wid >= "W-087":
+                f.append(Finding(rel, i, "C2d",
+                                 f"`{wid}` is ACCEPTED but names no control (`K.n`, `V3C-n`, "
+                                 "`V4C-n`, `INV-n`) anywhere in the row — C2b counts acceptances "
+                                 "per CONTROL, so an acceptance that names none is invisible to "
+                                 "the trigger that exists to catch repetition"))
     # C2b — V4C-13's 3x trigger, finally countable by something
     for control, rows in sorted(accepted.items()):
         if len(rows) < ACCEPT_LIMIT:
@@ -754,14 +795,21 @@ def warning_ledger(root: Path) -> list[Finding]:
         # is an alarm to be silenced; this one is discharged by DOING what it asks and pointing at
         # the result. K.7 reached three, the control was reviewed, and D-133 is the outcome -- so
         # the rows that cite it satisfy this and the ones that do not, do not.
-        if any(re.search(r"\b[DP]-\d{3}\b", why) for _wid, why in rows):
+        # The discharge must be EXPLICIT and it must be about THIS control. The previous form
+        # accepted any `D-nnn` anywhere in any of the counted rows -- so W-020's incidental
+        # mention of D-120 (the CLI exit-code contract, nothing to do with fresh eyes) silenced
+        # K.7 permanently and silently. A trigger discharged by a coincidence is not a trigger.
+        anchors = [int(m.group(1)) for _wid, why in rows if (m := C2B_REVIEWED.search(why))]
+        if anchors and max(anchors) >= len(rows):
             continue
         ids = ", ".join(wid for wid, _why in rows)
         f.append(Finding(rel, 1, "C2b",
                          f"`{control}` has been ACCEPTED {len(rows)}x ({ids}) and no row names the "
                          f"decision that reviewed it — at {ACCEPT_LIMIT} the CONTROL goes under "
-                         "review, not the people (V4C-13). Review it and cite the ADR, or refuse "
-                         "it; do not accept a fourth time"))
+                         "review, not the people (V4C-13). Review the control, then write "
+                         f"`C2b-reviewed: D-nnn @{len(rows)}` into one of those rows naming the "
+                         "decision — or "
+                         "refuse it; do not accept a fourth time"))
     return f
 
 
@@ -786,8 +834,19 @@ def warning_ledger(root: Path) -> list[Finding]:
 #  that the rule fires, and it fired on the person who wrote it.)
 TR_CHARS = re.compile(r"[\u011f\u0131\u015f\u00e7\u00f6\u00fc\u011e\u0130\u015e\u00c7\u00d6\u00dc]")
 LANG_ALLOW = ".language-allow"
-LANG_SUFFIXES = {".md", ".py", ".sh", ".yml", ".yaml", ".json", ".html", ".txt", ".toml"}
+#: `.swift` ADDED at M12-W5 (Stage 4.0 MINOR-3). D-118 claims L1 *"now guards the whole product
+#: surface instead of stopping at its edge"* — and the product surface is now half Swift, which L1
+#: had never once read. So the wave that actually introduced Turkish into this repository was the
+#: one wave L1 could not see, and the narrowing written to accommodate it was never needed.
+#: A claim about coverage is worth exactly the suffix list underneath it.
+LANG_SUFFIXES = {".md", ".py", ".sh", ".yml", ".yaml", ".json", ".html", ".txt", ".toml", ".swift"}
 LANG_EXTENSIONLESS = {"Makefile", "Dockerfile", "CODEOWNERS", "LICENSE"}
+
+
+def _strip_short_span(match: re.Match[str]) -> str:
+    """Remove a code span from the prose — unless it is long enough to BE the prose."""
+    span = match.group(0)
+    return span if len(span) > INLINE_CODE_MAX else ""
 
 
 def telemetry_verdicts(root: Path) -> list[Finding]:
@@ -876,14 +935,24 @@ def language_rule(root: Path) -> list[Finding]:
         # reads code as prose fails on correct work, and a gate that fails correct work gets
         # switched off. A backticked span is a QUOTATION; bare Turkish in a sentence is still a
         # finding, and the self-test probe proves it.
+        lines = text.splitlines()
+        # **FAIL CLOSED on an unbalanced fence.** A running toggle is the wrong mechanism for a
+        # linear scan: one unmatched ``` exempts everything after it, and that was LIVE — 26 lines
+        # of a real review record went unchecked, and the M12 Stage 4.0 seat's own first draft
+        # reproduced the bug in the report about it.
+        #
+        # When the fences do not pair, this scanner cannot tell code from prose, so it stops
+        # claiming it can and reads the WHOLE file. Noisier, never quieter — which is the only
+        # direction a language rule may fail in, and the direction GPF-007's narrowing also took.
+        balanced = sum(1 for line in lines if line.lstrip().startswith("```")) % 2 == 0
         fenced = False
-        for i, line in enumerate(text.splitlines(), 1):
-            if line.lstrip().startswith("```"):
+        for i, line in enumerate(lines, 1):
+            if balanced and line.lstrip().startswith("```"):
                 fenced = not fenced
                 continue
             if fenced:
                 continue
-            prose = INLINE_CODE.sub("", line)
+            prose = INLINE_CODE.sub(_strip_short_span, line)
             if TR_CHARS.search(prose):
                 f.append(Finding(Path(rel), i, "L1",
                                  "Turkish text in an English-only repository (V4C-79). Translate it; "
@@ -1073,7 +1142,56 @@ def self_test(root: Path) -> int:
             "| W-5 | contract-suite | m2-w2 | K.7 / V3C-78 | ACCEPTED | no engine; owner runs it — milestone M2 |\n")
         got |= {x.rule for x in warning_ledger(probe)}                        # C2a/C2b/C2c
         (probe / "turkish.md").write_text("bu satir Turkce karakter tasiyor: \u015fey\n")
-        got |= {x.rule for x in language_rule(probe)}                         # L1
+        # L1's own failure modes, probed. V4C-32/49: the narrowing shipped at M12-W4 with no test
+        # for the way it could fail, and the way it could fail was the one that mattered — an
+        # unbalanced fence exempting the rest of a file. The M12 Stage 4.0 seat found it live in a
+        # real record, and its own first draft of the report reproduced the same bug.
+        #
+        # Three probes, because a narrowing needs BOTH directions and its edge:
+        (probe / "tr-in-code.md").write_text(
+            "A record quoting product output: `\u015fey` — this must NOT fire.\n")
+        (probe / "tr-unbalanced.md").write_text(
+            "```\n\nbu satir dengesiz bir fence sonrasinda: \u015fey\n")
+        (probe / "tr-fenced.md").write_text(
+            "```\nbir urun ciktisi: \u015fey\n```\n")
+        # MINOR-2's two halves. The double-backtick form is the delimiter CommonMark REQUIRES when
+        # the quoted text contains a backtick, and L1 used to scan its contents as prose.
+        (probe / "tr-double-tick.md").write_text(
+            "A record quoting output that contains a backtick: ``\u015fey `x` \u015fey`` "
+            "— this must NOT fire.\n")
+        # ...and the other direction: a code span long enough to be the record's substance is
+        # prose wearing backticks, and the exemption was never meant to cover it.
+        (probe / "tr-long-span.md").write_text(
+            "`bu cok uzun bir metin ve tamamen Turkce yazilmis olup bir sembol degil bir "
+            "paragraftir ve boyle bir sey L1 tarafindan okunmalidir cunku kaydin ozu budur "
+            "\u015fey`\n")
+        l1 = language_rule(probe)
+        got |= {x.rule for x in l1}                                           # L1
+        # L1's SCOPE, asserted per file — the half a "does the rule fire" probe cannot see.
+        # A narrowing is only correct if it still catches the original defect, and the way this one
+        # could fail was the way it did: silently, on a file it had decided not to read.
+        flagged = {f.path.name for f in l1}
+        for name, must_fire, why in (
+            ("turkish.md", True, "bare Turkish in prose"),
+            ("tr-in-code.md", False, "Turkish quoted inside a code span — evidence, not prose"),
+            ("tr-fenced.md", False, "Turkish inside a balanced fenced block"),
+            ("tr-unbalanced.md", True,
+             "Turkish after an UNBALANCED fence — the scanner cannot tell code from prose here, "
+             "so it must read everything"),
+            ("tr-double-tick.md", False,
+             "Turkish inside a DOUBLE-backtick span — the form CommonMark requires when the quote "
+             "contains a backtick, and the one L1 used to read as prose"),
+            ("tr-long-span.md", True,
+             "Turkish inside a code span long enough to BE the record — an exemption without a "
+             "bound lets a whole record's substance hide behind one pair of backticks"),
+        ):
+            if (name in flagged) == must_fire:
+                print(f"self-test ok: probe/L1 {'fires' if must_fire else 'stays quiet'} on {why}")
+            else:
+                bad += 1
+                print(f"self-test FAIL: L1 {'did NOT fire' if must_fire else 'FIRED'} on {why} "
+                      f"({name}) — the language rule's scope is wrong in the "
+                      f"{'quiet' if must_fire else 'noisy'} direction", file=sys.stderr)
         # M1/M2 — the release's headline rules. They had NO coverage at all until a zero-context
         # reviewer found they could not fire through any shipped invocation path. Probed here from
         # the same direction a customer project runs them: a tree carrying its own manifest.

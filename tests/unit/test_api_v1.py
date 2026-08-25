@@ -68,6 +68,35 @@ ANSWER_KEYS = {
     "ranking",
 }
 
+# **The freeze stopped here until M12-W5, one level above where a pick lives.**
+#
+# Measured by the Stage 4.0 seat against unmodified sources: `primary`, `display_order` and
+# `internal_debug_sql` injected into every pick, `authoritative` into every ranking row, and both
+# assertions above passed. Three of those four names are the literal keys the comment's own history
+# says killed versions 1 and 2 of this control — the set was frozen against exactly them, at a
+# level they do not appear.
+#
+# `src/app/adapter/main.py` had already learned this and written it down: *"An allowlist that stops
+# at the top level of a nested document is not an allowlist; it is a lid on one drawer."* The
+# lesson was applied to `PUBLIC_PICK_FIELDS` and not to its twin here, which is V4C-50 exactly — a
+# lesson attaches to an artifact, not to the person who learned it.
+#
+# Written out by hand rather than imported from `PUBLIC_PICK_FIELDS`. Deriving it would make this
+# assertion agree with the publication code by construction, and two computations that agree by
+# construction are one computation with a second name on it.
+PICK_KEYS = {
+    "label", "model", "vendor", "score", "metric", "secondary_score",
+    "blended_per_m", "input_per_m", "output_per_m", "evidence_date", "harness",
+    "effort", "higher_effort", "higher_effort_score", "effort_note",
+    "confidence", "confidence_basis", "why", "trade_off",
+    "why_fact", "trade_off_fact",          # D-136, M12-W4
+}
+
+RANKING_ROW_KEYS = {
+    "model", "vendor", "score", "metric", "secondary_score",
+    "blended_per_m", "input_per_m", "output_per_m", "evidence_date", "harness", "effort",
+}
+
 SOURCE_HEALTH_KEYS = {"benchmark", "sources", "stale", "notice"}
 SOURCE_ENTRY_KEYS = {"source", "rows", "newest_run_date", "age_days", "stale"}
 
@@ -187,6 +216,20 @@ def test_coding_returns_both_surfaces_and_nothing_ranks_them(client: TestClient)
     assert set(body) == ENVELOPE_KEYS, f"envelope key set changed: {set(body) ^ ENVELOPE_KEYS}"
     for answer in answers:
         assert set(answer) == ANSWER_KEYS, f"answer key set changed: {set(answer) ^ ANSWER_KEYS}"
+        # Subset per item, because a pick legitimately omits keys that do not apply to it; equality
+        # on the UNION, so the vocabulary is exercised and not merely permitted. A `<=` alone would
+        # pass on a payload that had lost every optional field.
+        seen_pick_keys: set[str] = set()
+        for pick in answer["picks"]:
+            assert set(pick) <= PICK_KEYS, f"new pick key: {set(pick) - PICK_KEYS}"
+            seen_pick_keys |= set(pick)
+        assert seen_pick_keys == PICK_KEYS, f"pick vocabulary changed: {seen_pick_keys ^ PICK_KEYS}"
+        seen_row_keys: set[str] = set()
+        for row in answer.get("ranking") or []:
+            assert set(row) <= RANKING_ROW_KEYS, f"new ranking key: {set(row) - RANKING_ROW_KEYS}"
+            seen_row_keys |= set(row)
+        if answer.get("ranking"):
+            assert seen_row_keys == RANKING_ROW_KEYS, f"ranking vocabulary: {seen_row_keys}"
         assert set(answer["source_health"]) == SOURCE_HEALTH_KEYS
         for entry in answer["source_health"]["sources"]:
             assert set(entry) == SOURCE_ENTRY_KEYS

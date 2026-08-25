@@ -724,7 +724,7 @@ gate — either of which returns the project to D-114 unmodified.
 
 ## D-118 — The product's user-facing text and query vocabulary are ENGLISH
 
-**Status:** ratified — owner ruling, 2026-08-17: *"Let the payload be English, and the query values
+**Status:** SUPERSEDED IN PART by D-136 (2026-08-25) — see the closing note. Originally ratified — owner ruling, 2026-08-17: *"Let the payload be English, and the query values
 too."* (owner, translated from Turkish), in answer to the M6-W1 review finding that one `/v1` answer
 carried two languages.
 
@@ -775,6 +775,25 @@ than closed, because writing a stronger claim would repeat the mistake this para
 **Revisit when:** the product acquires a real localization layer, at which point this ADR is
 superseded rather than amended — the decision it records is "one language at a time", not "English
 forever".
+
+**SUPERSEDED IN PART by D-136, 2026-08-25 (M12-W5, on the Stage 4.0 seat's MAJOR-6).**
+
+This ADR's Revisit-when read: *"the product acquires a real localization layer, at which point this
+ADR is superseded rather than amended."* **M12-W4 shipped exactly that** — a localisation layer, a
+language switch, and a Turkish rendering of titles, surfaces, budgets, pick badges, placeholders,
+scales, prices and units. The marker was never applied, so for one milestone a ratified,
+unsuperseded ADR forbade the product surface the milestone had just shipped, and the ADR that
+authorised it (D-136) named neither this one nor the clause it overtook. That is the
+record-contradicts-code class, occurring inside the decision log itself, which is the one place it
+cannot be caught by running the software.
+
+**Precisely which half falls, because the other half is still doing work.** The *"every user-facing
+string the product EMITS is English"* clause is superseded: the client now emits Turkish, composed
+from the engine's facts. The **payload** clause is NOT — `/v1` is English, the query vocabulary is
+English, and D-136's architecture is what keeps it that way: the engine publishes facts and never a
+translated sentence, so the localisation layer that overtook the first clause is the same mechanism
+that enforces the second. Read together, the two ADRs say: **the product speaks the reader's
+language; the contract speaks one language, and it is English.**
 
 ## D-121 — A source may be optional, but a blind surface may never be silent
 
@@ -1422,6 +1441,7 @@ recorded as a ruling with its measurement attached rather than made quietly in a
 one becomes visible for the first time. `docs/prd.md` REQ-APP rows that specify per-surface notices
 are amended at the wave that implements this, not at closure.
 
+
 ## D-119 — `equivalent_plans` carries LABELLED groups, not a flat list of names
 
 **Status:** accepted · **Ratified 2026-08-25, describing a decision in force since M6.**
@@ -1526,3 +1546,72 @@ than left to be discovered by a Turkish reader.**
 the same way D-125 amended it: the payload moves once, additively, under a recorded ruling. Any
 future sentence added to a pick must arrive with its fact, and a test enforces it.
 
+
+
+**AMENDED 2026-08-25 (M12-W5, on the Stage 4.0 seat's MAJOR-2). The prose did NOT stay, and this
+ADR said it did.** The sentence above — *"The English prose stays and is derived from the same
+values, so there is one source of truth and no consumer breaks"* — is true of the MECHANISM and
+false of the OUTCOME, and the second half is the half a consumer feels.
+
+The seat measured it by extracting `d13c810` into a scratch tree, pointing both trees at the same
+copy of `advisor.db`, and calling every endpoint: the SHAPE moved exactly once and additively, as
+recorded (`why_fact` and `trade_off_fact` added to a pick; every other level byte-identical; all
+status codes identical). But **116 existing-field VALUES differ**, and while the title and
+`ordering_note` changes are recorded product decisions (W-080), the 27 `trade_off` changes were
+recorded nowhere. Re-measured here against today's real `advisor.db` across every category at three
+budgets: **15 of the 24 `best_value` trade-off sentences now use the multiple form** (`but 3x
+cheaper.`) where the pre-M12 `best_value` sentence was hardcoded to a percentage.
+
+The cause is exactly the derivation this ADR ordered: the old `best_value` prose was a separate,
+hardcoded string, and routing it through the one `trade_off_sentence` re-decides
+percentage-vs-multiple from the ratio. That is the RIGHT outcome — it is what having one source of
+truth means, and the old string was the second source — but it is a prose change on 27 sites and it
+belongs in the record, not in the diff.
+
+**The precedent this fixes, which is why the paragraph is load-bearing.** The next reader will use
+this ADR to decide what "additive" permits. Additive is a claim about the SHAPE of a payload and
+says nothing about its VALUES. A consumer keying on `"% cheaper"` in a `best_value` trade-off is
+broken by this milestone, and D-115 exists so that a consumer is not broken for the server's
+convenience. Unifying two sources of truth is worth breaking that consumer; **not saying so is
+not.** A record that describes the mechanism and not the outcome leaves the next person to
+rediscover the outcome from a user complaint.
+
+## D-137 — A review has a DATE, and a review dated before the code did not read the code
+
+**Status:** accepted · **Date:** 2026-08-25 · **Decided by:** the lead coding agent at M12-W5, on
+the Stage 4.0 seat's BLOCKING-3, under the standing instruction to finish the milestone. Recorded
+because it amends the application of a control (V3C-78) that C2b had just sent for review, and
+because it is the second time a review rule has been found to be missing an axis rather than
+misapplied. · **Supersedes nothing; amends the application of V3C-78 and K.7.**
+
+**The finding.** All four M12 waves closed the K.7 row GREEN citing council reviews dated
+2026-08-24. Every M12 code commit is dated 2026-08-25. The rows stated the timing themselves — *"the
+review preceded the code"* — written as a defence, and it is the proof: those seats reviewed M11's
+product and named findings that M12 then implemented. **Nobody independently read M12's code until
+this Stage 4.0 pass, which found two BLOCKING defects in it** (an `Int` conversion that traps on
+non-finite input, and an L1 scope hole where an unbalanced fence exempted 26 lines from the
+English-only rule). Both were in code that four green K.7 rows said had been reviewed.
+
+**Why the rule did not catch it.** V3C-78 tiers review DEPTH by risk — one combined reviewer for a
+LOW/MED wave, more seats for HIGH. D-133 settled review IDENTITY — a separate session, and the
+review is a file. Between them they answer *how much* and *by whom*, and neither answers **when**.
+A review is the only artifact in this process whose value depends entirely on its position in time,
+and it was the one property nothing asserted. The gate inherited the blind spot exactly: it asked
+whether a cited review exists and declares `seat: independent`, and had no notion of whether that
+seat could have SEEN the work.
+
+**The decision.** A review discharges K.7 for a body of work only if it is dated on or after the
+record that cites it. An earlier review may still be CITED — it is often precisely what shaped the
+wave, as M11's council shaped all of M12 — but it cannot close the row. The wave either cites a
+review of ITS OWN code, or it WAIVES, and the waiver names a ledger row, which is what puts the
+bypass in front of the owner (V4C-13).
+
+**Shipped with its gate (V4C-49).** `scripts/wave_check.py::review_seat_problems` now reads the
+`date:` of every cited review and refuses to let a stale one satisfy the seat requirement. Measured
+across every wave record in the repository, it fires on exactly five: M12's four, and
+`m7-wave-1-close.md`, which predates the seat rule entirely.
+
+**The general form, which is the part worth keeping.** *Dates are a coarse instrument, and they are
+the one the records already carry.* This is the fourth instance this milestone of the council's
+through-line — a thing asserted somewhere and exercised nowhere, each half locally correct. The
+council reviewed. The waves cited. Both were true, and no code was read.

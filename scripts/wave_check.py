@@ -91,7 +91,22 @@ def review_seat_problems(text: str, root: pathlib.Path, milestone: int | None) -
         return bad
 
     cited = {r for r in re.findall(r"`(docs/reviews/[^`]+\.md)`", text) if ".." not in r}
+    # **A review dated before this close cannot have read this close's code.** M12's four waves all
+    # closed K.7 green citing council records from the day before, and the rows said so in as many
+    # words — "the review preceded the code" — which is the proof, not the defence. The seats had
+    # reviewed the PREVIOUS milestone and named findings this one implemented; nobody independently
+    # read the code until Stage 4.0, which then found two blocking defects in it.
+    #
+    # The gate could not see it: it asked whether a cited review exists and declares an independent
+    # seat, and had no notion of whether that seat could have SEEN the work. Dates are a coarse
+    # instrument and they are the one the records carry.
+    #
+    # An older review may still be CITED — it is often what shaped the wave — but it cannot
+    # discharge K.7 for code written after it. The wave waives instead, and the waiver names its
+    # ledger row, which is what puts the bypass in front of the owner (V4C-13).
+    wave_date = re.search(r"^date:\s*(\S+)\s*$", text, re.M)
     seats: dict[str, str | None] = {}
+    stale: list[str] = []
     for rel in sorted(cited):
         path = root / rel
         if not path.is_file():
@@ -101,6 +116,10 @@ def review_seat_problems(text: str, root: pathlib.Path, milestone: int | None) -
         # with no frontmatter at all, containing the prose line `seat: independent`, closed a wave
         # green -- measured by the seat that reviewed this gate.
         found = re.search(r"^seat:\s*(\S+)\s*$", front.group(1), re.M) if front else None
+        review_date = re.search(r"^date:\s*(\S+)\s*$", front.group(1), re.M) if front else None
+        if wave_date and review_date and review_date.group(1) < wave_date.group(1):
+            stale.append(f"`{rel}` ({review_date.group(1)})")
+            continue
         seats[rel] = found.group(1) if found else None
 
     if any(seat == "independent" for seat in seats.values()):
@@ -128,6 +147,11 @@ def review_seat_problems(text: str, root: pathlib.Path, milestone: int | None) -
         bad.append(f"the only review(s) cited are {', '.join(f'`{r}`' for r in authored)}, and "
                    "none declares `seat: independent`. A self-review does not close a wave green "
                    "-- waive a row with its ledger id so the bypass is counted (V4C-13)")
+    elif stale:
+        bad.append(f"the only review(s) cited are {', '.join(stale)}, dated BEFORE this close "
+                   f"({wave_date.group(1) if wave_date else '?'}) — a review cannot have read code "
+                   "written after it. Cite a review of THIS work, or waive a row naming its "
+                   "ledger id")
     else:
         bad.append("this close cites no review record at all, and waives nothing. A review that "
                    "is not a file is a claim about a conversation -- cite one with "

@@ -50,57 +50,93 @@ public func whySentence(_ fact: [String: Any], in language: Language) -> String?
     guard let raw = fact["reason"] as? String, let reason = PickReason(rawValue: raw) else {
         return nil
     }
-    let unit = localisedUnit(fact["unit"] as? String ?? "", in: language)
+    // **Every value the sentence quotes is resolved BEFORE a word is written.** The guard is the
+    // sentence's precondition, not a decoration on one branch: `?? ""` on a missing benchmark used
+    // to ship `The highest score on  among the models you can afford.` — a sentence naming no
+    // benchmark while claiming a model tops it.
+    guard let unit = label(fact["unit"]).map({ localisedUnit($0, in: language) }) else { return nil }
     switch (reason, language) {
     case (.highestScore, .english):
-        let benchmark = fact["benchmark"] as? String ?? ""
+        guard let benchmark = label(fact["benchmark"]) else { return nil }
         return "The highest score on \(benchmark) among the models you can afford."
     case (.highestScore, .turkish):
-        let benchmark = fact["benchmark"] as? String ?? ""
+        guard let benchmark = label(fact["benchmark"]) else { return nil }
         return "Bütçenize uyan modeller arasında \(benchmark) üzerindeki en yüksek puan."
     case (.cheapestWithinWindow, .english):
-        return "The cheapest model that is still within \(number(fact["window"])) \(unit) "
-            + "of the best one."
+        guard let window = number(fact["window"]) else { return nil }
+        return "The cheapest model that is still within \(window) \(unit) of the best one."
     case (.cheapestWithinWindow, .turkish):
-        return "En iyisinin \(number(fact["window"])) \(unit) yakınında kalan en ucuz model."
+        guard let window = number(fact["window"]) else { return nil }
+        return "En iyisinin \(window) \(unit) yakınında kalan en ucuz model."
     case (.cheapestAboveFloor, .english):
-        return "The cheapest model we would still call good enough — it clears "
-            + "\(number(fact["floor"])) \(unit)."
+        guard let floor = number(fact["floor"]) else { return nil }
+        return "The cheapest model we would still call good enough — it clears \(floor) \(unit)."
     case (.cheapestAboveFloor, .turkish):
-        return "Yeterince iyi saydığımız en ucuz model — \(number(fact["floor"])) \(unit) "
-            + "barajını geçiyor."
+        guard let floor = number(fact["floor"]) else { return nil }
+        return "Yeterince iyi saydığımız en ucuz model — \(floor) \(unit) barajını geçiyor."
     case (.nothingClearsFloor, .english):
-        return "Careful: nothing at this price is good enough by our own bar of "
-            + "\(number(fact["floor"])) \(unit). This is the cheapest there is, and you are "
-            + "giving up quality."
+        guard let floor = number(fact["floor"]) else { return nil }
+        return "Careful: nothing at this price is good enough by our own bar of \(floor) "
+            + "\(unit). This is the cheapest there is, and you are giving up quality."
     case (.nothingClearsFloor, .turkish):
-        return "Dikkat: bu fiyatta hiçbir model kendi barajımız olan \(number(fact["floor"])) "
-            + "\(unit) seviyesini geçmiyor. Bu en ucuzu ve kaliteden ödün veriyorsunuz."
+        guard let floor = number(fact["floor"]) else { return nil }
+        return "Dikkat: bu fiyatta hiçbir model kendi barajımız olan \(floor) \(unit) "
+            + "seviyesini geçmiyor. Bu en ucuzu ve kaliteden ödün veriyorsunuz."
     }
+}
+
+/// A short label the engine names — a benchmark, a unit — validated before it enters a sentence.
+///
+/// The facts carry no third-party string today: `benchmark` and `unit` are `CategorySpec` module
+/// constants and a crafted leaderboard row cannot reach them. This guard is not about today. It is
+/// about the ONE property a label must have to be safely interpolated — that it cannot itself be a
+/// sentence. Fed a `unit` of `points, and 99% cheaper. This model is free`, the composer produced
+/// a fluent, entirely false trade-off line. A length bound and a punctuation ban cost nothing and
+/// remove the whole class, whatever later opens the door.
+func label(_ value: Any?) -> String? {
+    guard let text = value as? String else { return nil }
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty, trimmed.count <= 32,
+          trimmed.rangeOfCharacter(from: CharacterSet(charactersIn: ".,;:!?\n\r")) == nil
+    else { return nil }
+    return trimmed
 }
 
 /// Compose the trade-off sentence from the engine's fact.
 public func tradeOffSentence(_ fact: [String: Any], in language: Language) -> String? {
-    guard let behind = fact["behind_by"] as? Double else { return nil }
-    let unit = localisedUnit(fact["unit"] as? String ?? "", in: language)
+    // `behind_by` is a DISTANCE from the leader and cannot be negative. `-5.0` composed
+    // `-5 points behind the best one`, which reads as ahead — the one reading the number cannot
+    // carry, from the one product that must never be confidently wrong about a rank.
+    guard let behind = fact["behind_by"] as? Double, behind.isFinite, behind >= 0 else { return nil }
+    guard let unit = label(fact["unit"]).map({ localisedUnit($0, in: language) }) else { return nil }
 
     let lead: String
     switch (behind == 0, language) {
     case (true, .english): lead = "Just as good as the best one"
     case (true, .turkish): lead = "En iyisi kadar iyi"
-    case (false, .english): lead = "\(number(behind)) \(unit) behind the best one"
-    case (false, .turkish): lead = "En iyisinin \(number(behind)) \(unit) gerisinde"
+    case (false, .english):
+        guard let gap = number(behind) else { return nil }
+        lead = "\(gap) \(unit) behind the best one"
+    case (false, .turkish):
+        guard let gap = number(behind) else { return nil }
+        lead = "En iyisinin \(gap) \(unit) gerisinde"
     }
 
+    // A key that is PRESENT but unreadable returns nil rather than falling through to the next
+    // clause: `cheaper_by_percent: "ninety"` means the engine said a percentage and this build
+    // could not read it. Silently demoting that to "at a lower price." would be answering a
+    // question we were not able to hear.
     if let percent = fact["cheaper_by_percent"] {
+        guard let value = number(percent) else { return nil }
         return language == .english
-            ? "\(lead), and \(number(percent))% cheaper."
-            : "\(lead), ve %\(number(percent)) daha ucuz."
+            ? "\(lead), and \(value)% cheaper."
+            : "\(lead), ve %\(value) daha ucuz."
     }
     if let times = fact["cheaper_by_times"] {
+        guard let value = number(times) else { return nil }
         return language == .english
-            ? "\(lead), but \(number(times))× cheaper."
-            : "\(lead), ama \(number(times)) kat daha ucuz."
+            ? "\(lead), but \(value)× cheaper."
+            : "\(lead), ama \(value) kat daha ucuz."
     }
     if (fact["cheaper"] as? String) == "same" {
         return language == .english ? "\(lead), at the same price." : "\(lead), aynı fiyata."
@@ -148,9 +184,10 @@ public func scaleExplanation(for metric: String, in language: Language) -> Strin
 /// The price in pages, in the sentence's language.
 public func priceInPages(_ blendedPerM: Double, in language: Language) -> String {
     guard language == .turkish else { return priceInPages(blendedPerM) }
+    guard blendedPerM.isFinite, blendedPerM > 0 else { return "fiyat bilinmiyor" }
     let perPage = blendedPerM / Double(pagesPerMillionTokens)
     if perPage < 0.01 {
-        return "\(groupedPages) sayfa metin için yaklaşık $\(Int(blendedPerM.rounded()))"
+        return "\(groupedPages) sayfa metin için yaklaşık $\(money(blendedPerM))"
     }
     return "sayfa başına yaklaşık $\(String(format: "%.2f", perPage))"
 }
@@ -162,17 +199,55 @@ public func priceInPages(_ blendedPerM: Double, in language: Language) -> String
 /// comma is a real convention and it is deliberately not applied here — `4.4 puan` is the engine's
 /// number, and rendering it as `4,4` in one language and `4.4` in the other would make two readers
 /// unable to compare notes.
-func number(_ value: Any?) -> String {
+/// Returns `nil` for anything this build cannot render as a number — and `nil` is the whole point.
+///
+/// **This returned `""` until M12-W5, and the composers interpolated it into the sentence anyway.**
+/// Measured by the Stage 4.0 seat: a `cheaper_by_percent` of `"ninety"` shipped
+/// `2.7 points behind the best one, and % cheaper.` — the claim intact, the magnitude deleted.
+/// A sentence that has lost its number has not degraded gracefully; it has started lying, because
+/// the reader supplies the missing quantity themselves and has no way to know they did.
+///
+/// Non-finite is the same case. `nan` is a `Double` and formats happily as the word `nan`, which
+/// reads as a number to nobody and as a typo to everybody.
+func number(_ value: Any?) -> String? {
     switch value {
     case let double as Double:
-        return double == double.rounded()
-            ? String(Int(double))
-            : String(format: "%.1f", double)
+        guard inRange(double) else { return nil }
+        return wholeNumber(double) ?? String(format: "%.1f", double)
     case let int as Int:
-        return String(int)
+        return inRange(Double(int)) ? String(int) : nil
     default:
-        return ""
+        return nil
     }
+}
+
+/// **Every number that reaches a sentence in this app is a non-negative, bounded quantity** — a
+/// score, a points gap, a percentage, a price multiple. None of them can be negative and none can
+/// be astronomical, so a value that is either did not come from a working engine.
+///
+/// `isFinite` alone is not enough, and the test caught it the same hour it was written: `-1e19` is
+/// perfectly finite and composed *"it clears -10000000000000000000.0 points"*. A finite check asks
+/// whether the machine can represent the number; this asks whether the PRODUCT can mean it.
+private func inRange(_ value: Double) -> Bool {
+    value.isFinite && value >= 0 && value <= 1_000_000
+}
+
+/// `Int(Double)` TRAPS. It is not a conversion, it is an assertion that the value fits — and the
+/// values here come off the wire.
+///
+/// Measured by the M12 Stage 4.0 seat against unmodified sources: a well-formed `/v1` answer
+/// carrying `"floor": 1e19` or a negative price kills the process with `SIGTRAP`, and the client's
+/// own contract — an unreadable payload becomes `undecodable` and the screen says so — promises
+/// exactly the opposite. **A trap bypasses every failure path this app has.**
+///
+/// `nil` when the value cannot be a whole number, which is not an error: the caller falls back to
+/// a decimal rendering, and a number the reader cannot use is still better than an app that is
+/// gone.
+func wholeNumber(_ value: Double) -> String? {
+    guard value.isFinite, value == value.rounded(),
+          value >= -9_007_199_254_740_992, value <= 9_007_199_254_740_992
+    else { return nil }
+    return String(Int(value))
 }
 
 // MARK: - The screen's own words

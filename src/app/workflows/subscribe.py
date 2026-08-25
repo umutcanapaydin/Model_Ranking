@@ -544,7 +544,7 @@ def recommend_subscription(
             spec,
             why=(
                 f"On the score-price Pareto frontier, the cheapest plan within "
-                f"{spec.value_window:.0f} {unit} of the leader."
+                f"{spec.value_window:g} {unit} of the leader."
             ),
             trade_off=(
                 None
@@ -560,10 +560,10 @@ def recommend_subscription(
             cheap,
             spec,
             why=(
-                f"Cheapest plan clearing the {spec.min_quality:.0f} {unit} minimum-quality bar."
+                f"Cheapest plan clearing the {spec.min_quality:g} {unit} minimum-quality bar."
                 if floor_met
                 else (
-                    f"WARNING: no plan in this budget clears the {spec.min_quality:.0f} {unit} "
+                    f"WARNING: no plan in this budget clears the {spec.min_quality:g} {unit} "
                     "minimum-quality bar; this is the cheapest available and you are trading "
                     "quality away."
                 )

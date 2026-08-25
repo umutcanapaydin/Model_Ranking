@@ -1,7 +1,7 @@
 ---
 record_type: retrospective
 id: m12-retrospective
-status: draft
+status: ratified
 date: 2026-08-25
 ---
 # M12 Retrospective — the milestone that stopped speaking in the language of the measurement
@@ -96,6 +96,41 @@ read it. Caught only by asking why the answer was zero.
 - **The Turkish flag has never been tapped by a human.** Proven by tests and by forcing the stored
   setting; synthetic taps do not land on that control.
 - **Nothing deployed, fifth milestone.**
+
+## The lesson W5 paid for, which the other four waves could not have found
+
+**Every control in this process asks *how much*, *by whom*, and *what for*. Not one asked *when*.**
+
+The four waves before this one closed their independent-review row green, each citing a real review
+by a real independent seat. The reviews existed, said useful things, and shaped the work. They were
+also written the day before the code they were cited as covering — which the rows stated in their
+own evidence column, as the justification. Stage 4.0 was therefore the first independent read of
+M12's code, and it found two BLOCKING crashes reachable from a number in the payload.
+
+What makes this the milestone's own shape rather than an accident: **the gate had the same blind
+spot the humans did.** `review_seat_problems` was written at M11 to stop exactly this class, and it
+checks the two things anyone would think to check — does the cited review exist, does it declare an
+independent seat. A review is the only artifact here whose entire value is its position in time,
+and time was the property nobody thought of, in the rule and in the gate written to enforce the
+rule, by the same person on the same day.
+
+The second-order finding is worse and is the one to carry forward. The control that exists to
+notice a repeatedly bypassed rule — C2b — **had been silenced by a coincidence**: it read any
+`D-nnn` anywhere in a counted row as evidence the control had been reviewed, and W-020's passing
+mention of D-120 (the CLI exit-code contract, unrelated) discharged K.7 permanently. So K.7 was
+bypassed four more times with the alarm already off, and the milestone's closure report reported
+**zero** waivers — truthfully, by the gate's reading.
+
+Three shapes, and they are the same shape:
+
+- a review that cannot have read the code, cited as having read it;
+- a counter keyed on a column that does not hold its key, reporting silence as zero;
+- a discharge that can never be revoked, on a trigger whose whole purpose is repetition.
+
+**Each is a thing asserted somewhere and exercised nowhere, and each half is locally correct.**
+That sentence was the council's through-line about the product. W5 found it in the machinery this
+project uses to check itself — which is the one place it cannot be caught by running the software,
+and the reason M13's carried question is about staffing rather than tooling.
 
 ## The question carried to M13
 

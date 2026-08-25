@@ -1,7 +1,7 @@
 ---
 record_type: wave
 id: m12-wave-4-close
-status: draft
+status: ratified
 process_version: v5.0
 date: 2026-08-25
 ---
@@ -33,7 +33,7 @@ date: 2026-08-25
 |---|---|---|---|
 | 1 | Risk tier recorded — V3C-78 | `docs/plans/m12-plan.md` §3 records W4 **HIGH** — a contract move, and 551 unexecuted SwiftUI lines behind it | ✅ |
 | 2 | Dev-test loop ran — V3C-68 | Implement → screenshot the running app in BOTH languages → fix what the screenshot showed → test. `English units inside Turkish sentences` was found that way | ✅ |
-| 3 | Review per tier — V3C-78 / K.7 | `docs/reviews/m11-council-senior-mobile.md`, `seat: independent` — its recommendation shaped where the composition lives | ✅ |
+| 3 | Review per tier — V3C-78 / K.7 | `docs/reviews/m11-council-senior-mobile.md`, `seat: independent` — its recommendation shaped where the composition lives **WAIVED — ledger row W-087.** Corrected at M12-W5: that review is dated 2026-08-24 and every commit in this wave is 2026-08-25, so it shaped the wave but did not read it (D-137). The independent read happened at Stage 4.0 and found two BLOCKING defects. | WAIVED |
 | 4 | Fault injection — V3C-72 | 6 mutants, 6 killed over `ios/ModelRanking/Engine/Language.swift`, `src/app/workflows/recommend.py`, `src/app/adapter/main.py`; md5 restore verified | ✅ |
 | 5 | Every criterion has a citing test able to fail — V3C-02 | REQ-LOC-001: `tests/unit/test_why_facts.py` (34 cases) and `ios/EngineTests/LanguageTests.swift` | ✅ |
 | 6 | New REQ-IDs in the PRD at the wave | `docs/prd.md` REQ-LOC-001 | ✅ |

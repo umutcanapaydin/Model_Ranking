@@ -113,9 +113,37 @@ struct SimilarityRouter: QuestionRouter {
     /// let the product imply it had measured something it has not.
     static let defaultFloor: Double = 0.15
 
+    /// This tier reads ENGLISH, and after M12-W4 the app asks the question in Turkish.
+    ///
+    /// `UIText.askPlaceholder(.turkish)` invites `Yapay zekânın ne yapmasını istiyorsun?`, and
+    /// every vector below is built with `language: .english`. A Turkish sentence embedded as
+    /// English does not fail — it produces a vector, and a centred cosine that clears 0.15 is
+    /// noise that reads exactly like a weak match. The product would then route the reader to a
+    /// surface on no evidence and, because `unmeasured` is false on that path, would not say so.
+    /// That is the one outcome `defaultFloor` and REQ-RTR-005 exist to prevent, arriving through a
+    /// door the localisation opened.
+    ///
+    /// So the tier declines what it cannot read, and the caller drops to the manual chips — which
+    /// is REQ-RTR-003, the path already built for "the assets are not on the device". **Declining
+    /// is the honest answer: the alternative is a confident answer computed from a sentence this
+    /// tier did not understand.** D-136 records what it does not localise; the router is the item
+    /// that list was missing.
+    static func readsEnglish(_ text: String) -> Bool {
+        let recogniser = NLLanguageRecognizer()
+        recogniser.processString(text)
+        guard let language = recogniser.dominantLanguage else { return true }
+        // Undetermined stays IN. A two-word question ("swe bench") is often unclassifiable, and
+        // refusing those would break the English path this tier exists to serve. Only a confident
+        // non-English reading declines.
+        guard language != .english, language != .undetermined else { return true }
+        let confidence = recogniser.languageHypotheses(withMaximum: 1)[language] ?? 0
+        return confidence < 0.65
+    }
+
     func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
         let text = question.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !text.isEmpty else { return nil }
+        guard SimilarityRouter.readsEnglish(text) else { return nil }
         guard let embedding = NLContextualEmbedding(language: .english),
               embedding.hasAvailableAssets,
               (try? embedding.load()) != nil
@@ -503,12 +531,26 @@ var groupedPages: String {
 /// The CFO's words, translated: this has to be explainable to a 60-year-old. He thinks in cost per
 /// unit of work; "per million tokens" is a unit only this industry uses. The exact price stays and
 /// gains a companion — never a replacement, because the exact figure is what he would check.
+/// A price, rounded, that cannot crash the app.
+///
+/// `Int(Double)` traps on anything that does not fit, and every number here arrives from `/v1`.
+/// A price that is not a real, sensible amount of money is rendered as the decimal it is rather
+/// than asserted into an integer — the screen stays up and the reader sees something odd, which is
+/// the correct order of those two outcomes.
+func money(_ value: Double) -> String {
+    wholeNumber(value.isFinite ? value.rounded() : value) ?? String(format: "%.2f", value)
+}
+
 public func priceInPages(_ blendedPerM: Double) -> String {
+    // A negative or non-finite price satisfies `perPage < 0.01` and used to reach `Int(...)`. The
+    // guard below is not defensive noise: the seat reproduced a crash from a NEGATIVE price, and
+    // "cheaper than free" is not a sentence this product should try to compose either.
+    guard blendedPerM.isFinite, blendedPerM > 0 else { return "price unavailable" }
     let perPage = blendedPerM / Double(pagesPerMillionTokens)
     if perPage < 0.01 {
         // Below a cent a page, "per page" stops being informative and the round number does the
         // work: what a whole book costs, not what a page does.
-        return "about $\(Int(blendedPerM.rounded())) per \(groupedPages) pages of text"
+        return "about $\(money(blendedPerM)) per \(groupedPages) pages of text"
     }
     return "about $\(String(format: "%.2f", perPage)) per page of text"
 }

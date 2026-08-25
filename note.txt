@@ -1,6 +1,6 @@
 Project: model_ranking
 State: **M1-M11 CLOSED. M12 CODE COMPLETE, awaits the owner's signature**
-  (docs/closure-report-m12.md section 0). Repo green: 781 Python + 121 Swift.
+  (docs/closure-report-m12.md section 0). Repo green: 785 Python + 132 Swift.
   `make check` AND `make gate` both exit 0. Nothing on Fly.io; nothing is billing.
 Last session date: 2026-08-25
 Last work agent: Claude (Claude Code CLI, local lane under D-117)
@@ -32,12 +32,29 @@ WHAT M12 SHIPPED
 - **D-119 and D-120 finally exist.** Thirty files cited them as a frozen contract. `make gate`
   exits 0 for the first time. `C2b` had never fired in its life.
 
+THE FINDING M12 ALMOST DID NOT MAKE
+All four M12 waves closed the K.7 (independent review) row GREEN citing council reviews dated
+2026-08-24. Every M12 code commit is 2026-08-25. The rows said so themselves -- "the review
+preceded the code" -- written as the defence and standing as the proof. **Nobody read M12's code
+independently until Stage 4.0, which found two BLOCKING crashes in it.** D-137 now says a review
+has a DATE; `scripts/wave_check.py` refuses a review older than the record citing it; W-087 carries
+the bypass. The control that should have caught this (C2b) had been silenced by a coincidence: it
+accepted any `D-nnn` anywhere in a counted row, so W-020's passing mention of D-120 discharged K.7
+forever. The discharge is now `C2b-reviewed: D-nnn @N`, and `@N` re-arms on the next acceptance.
+**A trigger that can never fire twice is not a trigger.**
+
 THE ONE THING A NEW AGENT MUST NOT UNDO
 `/v1`'s prose is DERIVED from `why_fact` / `trade_off_fact`, not computed beside it. Two parallel
 computations that agree today are two sources of truth, and this pair did not manage even today —
 `3x cheaper` shipped beside a fact carrying `3.1`. `tests/unit/test_why_facts.py` asserts every
 number the English quotes is in the fact. **If the fact and the sentence disagree, the fact is
 right and the sentence is a defect.**
+
+Second: `whySentence`/`tradeOffSentence` return **nil** for any value they cannot render, and the
+caller falls back to the engine's English. Do not "fix" that with a default. The function used to
+render an unreadable value as "" and shipped `and % cheaper.` -- the claim intact, the magnitude
+deleted. A sentence that has lost its number has not degraded; it has started lying, because the
+reader supplies the missing quantity and cannot know they did.
 
 WHAT NEEDS THE OWNER
 - **W-074** — no shell linting anywhere. Offered at M11, DECLINED. A decision, not an oversight.
@@ -72,8 +89,8 @@ milestones, was correctness — and correctness was never what stood between thi
 HAS, or something it reaches for when somebody remembers.
 
 ANCHOR
-- Active ADRs: universal set + D-100..D-136.
-- Governed records: 71. v5.0 wave records: 25.
+- Active ADRs: universal set + D-100..D-137. D-118 is SUPERSEDED IN PART by D-136.
+- Governed records: 73. v5.0 wave records: 25.
 - Most recent retrospective: docs/retrospectives/m12-retrospective.md
 - Most recent quarterly handover: docs/handovers/handover_q3.txt (M9). 12 % 3 == 0 — **one is due
   at this closure**.

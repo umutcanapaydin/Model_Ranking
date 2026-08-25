@@ -1,7 +1,7 @@
 ---
 record_type: wave
 id: m12-wave-2-close
-status: draft
+status: ratified
 process_version: v5.0
 date: 2026-08-25
 ---
@@ -31,7 +31,7 @@ ruff, mypy, gitleaks clean · `check_records` PASS across 69 records · `wave-ch
 |---|---|---|---|
 | 1 | Risk tier recorded — V3C-78 | `docs/plans/m12-plan.md` §3 records W2 **MED** — presentation, but on every screen a reader sees | ✅ |
 | 2 | Dev-test loop ran — V3C-68 | Implement → screenshot the running app → fix what the screenshot showed → test. The `1500` grouping defect was found that way, in a wave whose entire subject is readability | ✅ |
-| 3 | Review per tier — V3C-78 / K.7 | `docs/reviews/m11-council-product.md`, `seat: independent` — this wave implements its inventory, so the review preceded the code | ✅ |
+| 3 | Review per tier — V3C-78 / K.7 | `docs/reviews/m11-council-product.md`, `seat: independent` — this wave implements its inventory, so the review preceded the code **WAIVED — ledger row W-087.** Corrected at M12-W5: that review is dated 2026-08-24 and every commit in this wave is 2026-08-25, so it shaped the wave but did not read it (D-137). The independent read happened at Stage 4.0 and found two BLOCKING defects. | WAIVED |
 | 4 | Fault injection — V3C-72 | **6 mutants, 6 killed** over `ios/ModelRanking/Engine/Router.swift`, `src/app/workflows/recommend.py`, `src/app/workflows/categories.py`; md5 restore verified | ✅ |
 | 5 | Every criterion has a citing test able to fail — V3C-02 | REQ-CMP-001/002: `ios/EngineTests/OwnerSessionDefectTests.swift` · REQ-CMP-003: `tests/unit/test_category_titles.py` · REQ-DSC-001: `DisclosureClassificationTests` | ✅ |
 | 6 | New REQ-IDs in the PRD at the wave | `docs/prd.md` REQ-CMP-001, REQ-CMP-002, REQ-CMP-003, REQ-DSC-001 | ✅ |

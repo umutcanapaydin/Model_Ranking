@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import inspect
 import json
+import pathlib
 import sqlite3
 from pathlib import Path
 
@@ -326,3 +328,42 @@ def test_no_threshold_is_on_a_scale_its_own_metric_cannot_reach() -> None:
                 f"{name} ranks on Elo and its floor is {spec.min_quality}; that is a percentage "
                 "constant on an Elo board, and every model would clear it"
             )
+
+
+def test_no_surface_states_a_bar_the_engine_does_not_apply() -> None:
+    """One product, one bar. Stage 4.0 MINOR-1.
+
+    W-084 established the rule — *"printing `84` states a bar the engine does not apply"* — and it
+    was applied to `recommend.py` and not to `subscribe.py`. On **6 of 9 surfaces** the CLI then
+    stated a different minimum-quality bar than the API: `expert` said `84` where the engine
+    applies `83.6`, `mathematics` said `84` where the engine applies `84.4`. One product, two bars.
+
+    That is the recurring shape rather than a formatting slip: **a lesson attaches to an artifact,
+    not to the person who learned it** (V4C-50). It is attached here, to the constants, because
+    that is the one place every surface that quotes them can be reached at once.
+
+    **The first version of this test passed against the reverted defect** and was thrown away. It
+    compared strings that could not differ. What it needed to do is what it does now: take the
+    format specifier each surface actually writes, apply it to the real constant, and check the
+    number a reader would see.
+    """
+    import re
+
+    from app.workflows import recommend, subscribe
+
+    quoted = re.compile(r"\{spec\.(min_quality|value_window)(:[^}]+)?\}")
+    offenders = []
+    for module in (subscribe, recommend):
+        source = pathlib.Path(inspect.getsourcefile(module) or "").read_text(encoding="utf-8")
+        for field, fmt in quoted.findall(source):
+            for task, spec in CATEGORIES.items():
+                value = getattr(spec, field)
+                shown = format(value, fmt[1:]) if fmt else str(value)
+                if shown != f"{value:g}":
+                    offenders.append(
+                        f"{module.__name__}: `{{spec.{field}{fmt}}}` shows {shown} on {task}, "
+                        f"but the engine applies {value:g}"
+                    )
+    assert not offenders, "a surface states a bar the engine does not apply:\n" + "\n".join(
+        sorted(set(offenders))
+    )

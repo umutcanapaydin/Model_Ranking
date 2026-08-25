@@ -14,6 +14,20 @@ Two properties are pinned here and they pull against each other on purpose:
   * it must be DISCHARGEABLE — by doing what it asks and naming the decision that reviewed the
     control. A finding that cannot be discharged is an alarm somebody eventually silences, and the
     silencing is never recorded.
+
+**Amended at M12-W5 on the Stage 4.0 seat's MAJOR-1, which found the rekey had not made the counter
+able to count.** Two defects, opposite in direction:
+
+  * the key was read from the PATH column, and a path does not name a control — 19 of 22 ACCEPTED
+    rows had no key at all, so C2b was reading three rows and calling the other nineteen zero. It
+    now reads the whole row, and `C2d` requires any acceptance from W-087 on to name its control,
+    because an acceptance nobody can count is precisely the one that repeats.
+  * the discharge was any `D-nnn` appearing anywhere in any counted row. W-020 mentions D-120 — the
+    CLI exit-code contract, nothing to do with fresh eyes — and that incidental mention silenced
+    K.7 permanently. The discharge is now the explicit token `C2b-reviewed: D-nnn @N`, and `@N`
+    anchors it to the count it was written against, so a FOURTH acceptance after the review re-arms
+    the trigger. **A trigger that can never fire twice is not a trigger**, and this milestone spent
+    itself finding that shape elsewhere.
 """
 
 from __future__ import annotations
@@ -68,9 +82,58 @@ def test_naming_the_decision_that_reviewed_the_control_discharges_it(tmp_path: P
     rows = "".join(
         f"| W-{n} | some review, MINOR-{n} | m6-w{n} | K.7 / V3C-78 | ACCEPTED | {WHY} |\n"
         for n in (1, 2)
-    ) + f"| W-3 | some review | m6-w3 | K.7 / V3C-78 | ACCEPTED | {WHY}; superseded by D-133 |\n"
+    ) + (f"| W-3 | some review | m6-w3 | K.7 / V3C-78 | ACCEPTED | {WHY}; "
+         "C2b-reviewed: D-133 @3 |\n")
 
     assert "C2b" not in _rules(_ledger(tmp_path, rows))
+
+
+def test_a_loose_ADR_mention_does_not_discharge_the_trigger(tmp_path: Path) -> None:
+    """Stage 4.0 MAJOR-1. Rows cite ADRs for a dozen unrelated reasons.
+
+    The real W-020 names D-120, the CLI exit-code contract, in a row about fresh eyes — and under
+    the previous rule that silenced K.7 for good. A control discharged by a coincidence was never
+    reviewed; it was merely mentioned near one.
+    """
+    rows = "".join(
+        f"| W-{n} | some review | m6-w{n} | K.7 | ACCEPTED | {WHY}; see D-120 for the exit codes |\n"
+        for n in (1, 2, 3)
+    )
+    assert "C2b" in _rules(_ledger(tmp_path, rows))
+
+
+def test_the_discharge_re_arms_when_the_control_is_accepted_again(tmp_path: Path) -> None:
+    """`@N` anchors the discharge to the count it was written against.
+
+    K.7 was reviewed at three acceptances and D-133 recorded the outcome. M12 then bypassed it four
+    more times, because D-133 settled who reviews and never touched WHEN — so the fourth acceptance
+    has to be heard. Without the anchor it could not be: the marker silenced the control forever,
+    which is the same defect as a gate that cannot fail, wearing governance clothes.
+    """
+    def rows(count: int) -> str:
+        body = "".join(
+            f"| W-{n} | some review | m6-w{n} | K.7 | ACCEPTED | {WHY} |\n"
+            for n in range(1, count)
+        )
+        return body + (f"| W-{count} | some review | m6-w{count} | K.7 | ACCEPTED | {WHY}; "
+                       "C2b-reviewed: D-133 @3 |\n")
+
+    assert "C2b" not in _rules(_ledger(tmp_path, rows(3))), "an anchor at its own count discharges"
+    assert "C2b" in _rules(_ledger(tmp_path, rows(4))), "a fourth acceptance must re-arm"
+
+
+def test_an_acceptance_that_names_no_control_is_reported_rather_than_counted_as_zero(
+    tmp_path: Path,
+) -> None:
+    """C2d. 19 of the 22 real ACCEPTED rows named no control anywhere.
+
+    Silence and zero are not the same measurement, and a counter that cannot tell them apart
+    reports the wrong one with total confidence.
+    """
+    rows = f"| W-087 | some review | m12-w5 | `src/app/main.py` | ACCEPTED | {WHY} |\n"
+    assert "C2d" in _rules(_ledger(tmp_path, rows))
+    keyed = f"| W-087 | some review | m12-w5 | K.7 — `src/app/main.py` | ACCEPTED | {WHY} |\n"
+    assert "C2d" not in _rules(_ledger(tmp_path, keyed))
 
 
 def test_three_DIFFERENT_controls_do_not_fire(tmp_path: Path) -> None:

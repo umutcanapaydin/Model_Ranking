@@ -127,29 +127,15 @@ def trade_off_sentence(fact: dict[str, object]) -> str:
     return f"{lead}, but {fact['cheaper_by_times']}x cheaper."
 
 
-def cheaper_phrase(dearer: float, cheaper: float) -> str:
-    """How much cheaper, in a form that cannot claim a saving that is not there.
-
-    `f"{ratio:.0f}x cheaper"` was the original, and it is wrong for every ratio under 1.5: a model
-    1.42x cheaper was told to the reader as **"1x cheaper"**, which says *you give up points and
-    save nothing*. Found by the M11 council; not visible on today's data, where every ratio is 3x
-    or more, and therefore exactly the kind of defect that waits for a price change.
-
-    Below 2x the ratio stops being the readable form anyway — "1.4x cheaper" is arithmetic, "29%
-    cheaper" is a sentence — so the wording follows the size of the difference rather than forcing
-    one shape onto both.
-    """
-    if cheaper <= 0 or dearer <= 0:
-        return "at a lower price."
-    ratio = dearer / cheaper
-    if ratio < 1.005:
-        # Two different models at the same price. "0% cheaper" is not a saving reported small, it
-        # is a sentence that should not exist — and it is reachable: nothing stops two models
-        # sharing a price, and nine pairs do so in the shipped artifact.
-        return "at the same price."
-    if ratio < 2:
-        return f"and {(1 - cheaper / dearer) * 100:.0f}% cheaper."
-    return f"but {ratio:.0f}x cheaper."
+# `cheaper_phrase` was DELETED at M12-W5 (Stage 4.0 MAJOR-5). It implemented this module's
+# percentage-vs-multiple rule a second time, W2 wrote it, W4 wired `trade_off_facts` +
+# `trade_off_sentence` instead, and **nothing ever called it** — while nine unit tests stood beside
+# it, green, measuring a rule the product could not reach. Those tests now run through the shipping
+# composer (`tests/unit/test_cheaper_phrase.py`), where a drift in the live rule fails them.
+#
+# The general form, and the reason this is a comment rather than a silent deletion: **two parallel
+# computations that agree today are two sources of truth**, and the dangerous half is always the
+# one with the test suite, because that is the half that looks maintained.
 
 
 def lead_phrase(leader: float, other: float, unit: str) -> str:

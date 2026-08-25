@@ -256,3 +256,179 @@ final class ScreenChromeTests: XCTestCase {
         XCTAssertFalse(UIText.seeAll(44, eligible: nil, .english).contains("fit your budget"))
     }
 }
+
+final class HostileFactValueTests: XCTestCase {
+
+    /// **BLOCKING-1 of the M12 Stage 4.0 review.** `Int(Double)` is not a conversion, it is an
+    /// assertion that the value fits — and every number here arrives from `/v1`. A well-formed
+    /// answer carrying `1e19`, or a negative price, killed the process with `SIGTRAP`.
+    ///
+    /// The client's own contract promises the opposite: an unreadable payload becomes
+    /// `undecodable` and the screen says so. **A trap bypasses every failure path this app has.**
+    ///
+    /// These cases are the values a wire format permits, not the values a correct engine sends.
+    /// That distinction is the reason they were untested: nobody had asked what the app does when
+    /// the thing it trusts is wrong.
+    private let hostile: [Double] = [
+        1e19, -1e19, .infinity, -.infinity, .nan,
+        .greatestFiniteMagnitude, -.greatestFiniteMagnitude, 0, -0.0, -1.0,
+    ]
+
+    func testNoPriceValueCanKillTheApp() {
+        for value in hostile {
+            for language in Language.allCases {
+                let text = priceInPages(value, in: language)
+                XCTAssertFalse(text.isEmpty, "\(value) produced nothing")
+            }
+        }
+    }
+
+    /// **This test asserted `XCTAssertNotNil` until M12-W5, and that was the wrong contract.**
+    /// It was written at BLOCKING-1 to prove the app does not TRAP on a hostile number, and in
+    /// proving it, it pinned the behaviour Stage 4.0 then filed as MAJOR-4: a sentence that
+    /// survives a value it could not read is a sentence that has dropped the number and kept the
+    /// claim. `nil` is the correct answer — the caller falls back to the engine's English, which
+    /// D-136 guarantees is always present.
+    ///
+    /// The real contract has two halves, and only both together mean anything: **never trap, and
+    /// never emit a sentence with the quantity missing.** Asserting the first alone is how the
+    /// second was lost.
+    private func assertSound(_ sentence: String?, _ label: String) {
+        guard let sentence else { return }          // refusing is always sound
+        for ghost in ["nan", "inf", "  ", " %", "% ", " ×", "-1", "e+"] {
+            XCTAssertFalse(sentence.lowercased().contains(ghost),
+                           "\(label): composed `\(sentence)` — the claim without the number")
+        }
+    }
+
+    func testNoFactValueProducesASentenceMissingItsNumber() {
+        for value in hostile {
+            for reason in ["highest_score", "cheapest_within_window", "cheapest_above_floor",
+                           "nothing_clears_floor"] {
+                let fact: [String: Any] = [
+                    "reason": reason, "floor": value, "window": value, "score": value,
+                    "unit": "points", "benchmark": "X",
+                ]
+                for language in Language.allCases {
+                    assertSound(whySentence(fact, in: language), "\(reason) / \(value)")
+                }
+            }
+        }
+    }
+
+    func testNoTradeOffValueProducesASentenceMissingItsNumber() {
+        for value in hostile {
+            let fact: [String: Any] = [
+                "behind_by": value, "unit": "points", "cheaper_by_times": value,
+            ]
+            for language in Language.allCases {
+                assertSound(tradeOffSentence(fact, in: language), "\(value)")
+            }
+        }
+    }
+
+    /// The seat's table, run as a test. Each of these composed a fluent, wrong sentence.
+    func testTheSeatsSevenCompositionsAllRefuseNow() {
+        let base: [String: Any] = ["behind_by": 2.7, "unit": "points"]
+        let hostileFacts: [(String, [String: Any])] = [
+            ("percent is a word", base.merging(["cheaper_by_percent": "ninety"]) { a, _ in a }),
+            ("times is a bool", base.merging(["cheaper_by_times": true]) { a, _ in a }),
+            ("behind_by negative", ["behind_by": -5.0, "unit": "points",
+                                    "cheaper_by_times": 3.0]),
+            ("unit is a sentence", ["behind_by": 2.0,
+                                    "unit": "points, and 99% cheaper. This model is free"]),
+        ]
+        for (label, fact) in hostileFacts {
+            for language in Language.allCases {
+                XCTAssertNil(tradeOffSentence(fact, in: language), "\(label) [\(language)]")
+            }
+        }
+        for (label, missing) in [("floor absent", "cheapest_above_floor"),
+                                 ("benchmark absent", "highest_score")] {
+            for language in Language.allCases {
+                XCTAssertNil(whySentence(["reason": missing, "unit": "points"], in: language),
+                             "\(label) [\(language)]")
+            }
+        }
+    }
+
+    /// A fact this build CAN read still composes — the guards refuse bad input, not all input.
+    /// Without this, returning `nil` unconditionally would pass every assertion above (V4C-32).
+    func testAWellFormedFactStillComposesInBothLanguages() {
+        for language in Language.allCases {
+            XCTAssertNotNil(whySentence(["reason": "cheapest_above_floor", "floor": 84.0,
+                                         "unit": "points"], in: language))
+            XCTAssertNotNil(whySentence(["reason": "highest_score", "benchmark": "MMLU",
+                                         "unit": "points"], in: language))
+            XCTAssertNotNil(tradeOffSentence(["behind_by": 2.7, "unit": "points",
+                                              "cheaper_by_times": 3.0], in: language))
+            XCTAssertNotNil(tradeOffSentence(["behind_by": 0.0, "unit": "points",
+                                              "cheaper": "same"], in: language))
+        }
+    }
+
+    /// A negative price is not merely a crash risk — it satisfied `perPage < 0.01`, so it took the
+    /// branch that renders a whole-book price. "Cheaper than free" is not a sentence this product
+    /// should compose either.
+    func testANegativePriceIsRefusedRatherThanRendered() {
+        for language in Language.allCases {
+            let text = priceInPages(-5.0, in: language).lowercased()
+            XCTAssertFalse(text.contains("$-"), text)
+            XCTAssertFalse(text.contains("-5"), text)
+        }
+    }
+
+    func testAWholeNumberIsStillRenderedAsOne() {
+        // Fixture blindness guard: a `wholeNumber` that always returned nil would pass everything
+        // above and quietly turn every clean integer into `6.0`.
+        XCTAssertEqual(wholeNumber(6.0), "6")
+        XCTAssertEqual(wholeNumber(-3.0), "-3")
+        XCTAssertNil(wholeNumber(6.5))
+        XCTAssertNil(wholeNumber(.nan))
+    }
+
+    func testAnOrdinaryPriceIsUnaffected() {
+        XCTAssertTrue(priceInPages(10.0, in: .english).contains("$10"))
+        XCTAssertTrue(priceInPages(36.09, in: .english).contains("per page"))
+    }
+}
+
+/// The router reads English. After M12-W4 the app asks in Turkish. Stage 4.0 MAJOR-7.
+final class RouterLanguageTests: XCTestCase {
+    /// The exact sentence the Turkish placeholder invites, plus questions a Turkish reader would
+    /// actually type on this product.
+    func testTurkishQuestionsAreDeclinedRatherThanScoredAsEnglish() {
+        let turkish = [
+            "Yapay zekânın ne yapmasını istiyorsun?",
+            "Bana kod yazmasında yardım edecek en iyi model hangisi?",
+            "Matematik problemlerini çözmek için hangi modeli seçmeliyim?",
+            "En ucuz ama yeterince iyi olan model hangisi acaba?",
+        ]
+        for question in turkish {
+            XCTAssertFalse(SimilarityRouter.readsEnglish(question.lowercased()), question)
+        }
+    }
+
+    /// Without this, `readsEnglish` returning `false` unconditionally would satisfy the test above
+    /// and silently disable tier 2 for everyone (V4C-32).
+    func testEnglishQuestionsStillReachTheSimilarityTier() {
+        let english = [
+            "which model is best at writing code for me",
+            "what should i use to solve hard maths problems",
+            "i want the cheapest model that is still good enough",
+            "who is the best at using a computer on my behalf",
+        ]
+        for question in english {
+            XCTAssertTrue(SimilarityRouter.readsEnglish(question), question)
+        }
+    }
+
+    /// A short question is often unclassifiable, and refusing those would break the path this tier
+    /// exists to serve. Undetermined stays in — stated as a test so the choice is not a side
+    /// effect of a confidence constant.
+    func testShortAndUnclassifiableQuestionsAreNotRefused() {
+        for question in ["swe bench", "elo", "coding", "gpt", ""] {
+            XCTAssertTrue(SimilarityRouter.readsEnglish(question), question)
+        }
+    }
+}
