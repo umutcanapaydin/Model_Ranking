@@ -1,0 +1,164 @@
+QUARTERLY HANDOVER Q4 — model_ranking
+Generated at the M12 closure, 2026-08-25 (M % 3 == 0, V3C-81). Previous: handover_q3.txt (M9).
+Written by: the lead agent (Claude Code, local lane), which built M10, M11 and M12 — and, unlike
+the agent that wrote q3, did NOT review most of it. Five independent seats did. That difference is
+the single most important sentence in this file.
+
+Read this if you are picking the project up cold. handover_rocky.txt is still the best account of
+the DOCTRINE; this supersedes q3 on STATE.
+
+=======================================================================
+0. WHERE THINGS STAND
+=======================================================================
+M1 through M11 are CLOSED. M12's closure report is draft, awaiting the owner's signature.
+
+    ./runner                        ONE command. Gate + secrets + build + surfaces + engine +
+                                    refresh record + Swift tests + iOS build.
+    ./scripts/simulator_session.sh  Starts the engine and puts the app on a simulator. THIS is
+                                    what finds what the gates cannot. Read §4.
+    make check                      exit 0 — 781 Python / 12 skipped, 121 Swift, coverage 88.3%
+    make gate                       exit 0 — for the first time in the project's history (§5)
+
+THE PRODUCT NOW: nine surfaces, all answering. An iOS app with a budget picker, a router that can
+decline, and two languages. Nothing is deployed; nothing bills. The refresh has run for real
+through launchd and PUBLISHED — every refusal, lock and threshold built at M9 and M10 has now
+executed at least once.
+
+=======================================================================
+1. WHAT CHANGED IN THIS QUARTER, AND WHY IT MATTERS MORE THAN THE FEATURES
+=======================================================================
+M10 shipped a router. M11 made the reviewer somebody else and executed 1,093 lines of Swift that
+nothing had ever run. M12 made the product usable by a person who does not work here.
+
+The features are not the story. The story is that in this quarter the project STOPPED REVIEWING
+ITSELF, and the results were immediate and uncomfortable:
+
+  * D-133 (M11-W1) — K.7 had described a situation that did not exist in a single-agent lane, so
+    the author reviewed their own work four times, each declared, each closed green. Now the
+    reviewing seat is a separate session that reads policy from the protected base ref and leaves
+    a FILE. **Three seats ran under the new rule at M11 and all three returned BLOCKING — and every
+    blocking finding was in the machinery built to enforce a rule, never in the served product.**
+  * The M11 council (four seats, two of them chairs the owner added) found ONE defect with eight
+    instances: a thing asserted somewhere and exercised nowhere, each half locally correct. A
+    product calling itself budget-aware with no budget control. An ADR cited in 30 files that had
+    never been written. A counter that had never once fired while two records claimed it had.
+  * M12 was planned entirely from what four seats and one CFO said.
+
+**What independent review bought was not better code. It was the discovery that the controls were
+weaker than the records said.**
+
+=======================================================================
+2. THE DEFECT CLASS THIS PROJECT KEEPS PAYING FOR
+=======================================================================
+Every milestone in this quarter found the same shape, and it is worth learning before you touch
+anything:
+
+    A thing is asserted in one place and exercised in none, and BOTH HALVES ARE LOCALLY CORRECT.
+
+The code is right about what it does. The record is right about something. The gap exists only
+across the boundary between them, and no review that looks at one side can see it. Instances:
+
+  * `D-120` — "a K.8 frozen contract, so the SET is pinned" (a test's words). Never written.
+  * `budget = "unlimited"` — hardcoded, while `/v1/budgets`, `eligible_count` and a rendered
+    "25 fit your budget" all served it.
+  * `C2b` — 22 accepted rows, 22 unique keys, zero triggers ever, two records asserting it fired.
+  * `MIN_QUALITY_PCT == 65.0` — a literal compared to itself in the module that defines it, while
+    the engine reads `spec.min_quality`.
+  * Code signing "skipped for the Simulator" — `DEVELOPMENT_TEAM` appears zero times; the device
+    build has never once succeeded.
+  * `ORDERING_NOTE` — "ordered alphabetically", true when written and false from the moment the
+    client began putting the selected surface first.
+
+If you find yourself writing "as X guarantees" in a comment, go and check that X does.
+
+=======================================================================
+3. THE TESTING LESSON, WHICH IS NOT THE ONE YOU EXPECT
+=======================================================================
+This suite is large and takes testing seriously, and its recurring failure is not laziness. It is
+**a fixture that cannot reach what it asserts**, in progressively subtler forms:
+
+  * data — a threshold fixture whose prices are nowhere near the cap (M11 tester seat: 22% kill
+    rate on the nine surfaces' calibrations, against 71% on the engine);
+  * ENVIRONMENT — the Turkish locale fix passed four behavioural tests with `Locale.current`
+    restored, because this machine folds like English. Only asserting the CHOICE killed it;
+  * LOCATION — three tests in two waves went red on changes that kept every word of their intent,
+    because they pinned an offset (a literal phrase, a 600-character window, a grep for a
+    comparison that had moved into a tested function).
+
+The rule that came out of it: **pin the claim and the audience, never the offset.** A test that
+fails when text moves teaches people to leave text where it is.
+
+=======================================================================
+4. THE SMALLEST AMOUNT OF RUNNING WORTH ADDING TO A CLOSE
+=======================================================================
+M10 asked this. M11 answered it and the answer was not close.
+
+Executing code found real defects and they were worth their cost — a `runner` section calling
+commands that do not exist, a Make recipe that passed on zero tests, a CI workflow that had run
+twice in its life and failed both times because it was structurally unpassable.
+
+**A person using the app for twenty minutes found six defects that eleven milestones of gates had
+not**, because every one of them is about what a reader CONCLUDES from what they can see. Then five
+requirements arrived that nobody inside the project would have written.
+
+M12 then asked what could be MEASURED to catch that earlier, and the honest answer is: not much.
+A jargon gate exists and catches the words you already regret. The 28-row inventory that drove the
+whole milestone came from a seat told to read the product as a stranger and given no other job.
+**You cannot gate comprehension, but you can staff it.**
+
+=======================================================================
+5. GATES — WHAT RUNS, AND WHAT HAD BEEN LYING
+=======================================================================
+`make check` runs ten legs including `swift-test` (new at M11) behind a COUNT FLOOR — because
+`swift test` exits 0 having executed nothing, and an undiscovered suite would otherwise pass in
+silence. That was the third gate-cannot-fail in one wave; the other two were a pipe swallowing an
+exit code, and a `runner` section calling `pass`/`fail`, which are not commands in that script.
+
+`make gate` exited 2 on a clean tree for months, and it is what the post-edit hook runs. Its own
+log had never been written. Fixed at M12-W1.
+
+`contract-tests.yml` had run TWICE in its life and failed both times — not from source drift, but
+because it enforced the full suite's coverage floor on a step running 14 network tests. Structurally
+unpassable from the day it was written, and because step 1 failed the three steps below it had
+never executed once. **A badge that has always been red carries no information.**
+
+`shellcheck` is NOT installed and NO gate lints any shell: `runner`, six scripts, `ios/app.sh`.
+Offered to the owner at M11, DECLINED. It is W-074 and it is a decision, not an oversight.
+
+=======================================================================
+6. WHAT IS OPEN, HONESTLY
+=======================================================================
+28 warnings open. The ones that matter:
+
+  W-030/W-031/D-123  Nothing deployed, fifth milestone. A local container is a good proxy and is
+                     not the platform. Do not report these as covered.
+  W-074              No shell linting. The owner's decision.
+  W-040              Is the unfiltered ranking too long? His judgement, and answerable now that a
+                     budget can be chosen (it could not be, before M12-W3).
+  W-054              Two refresh cycles ON THE SCHEDULE have not been observed. One real launchd
+                     cycle has run, and published.
+  W-060             `ContentView.swift` is unexecuted by any test, and the Swift gate runs on no
+                     CI machine — every job is `ubuntu-latest`.
+  The notices        Not localised. A Turkish reader gets Turkish sentences and English
+                     disclosures. D-136 scopes this out in its own text.
+
+=======================================================================
+7. THE QUESTION THIS QUARTER LEAVES
+=======================================================================
+Every wave of M12 discharged findings that came from outside the people doing the work, and it
+produced the largest usability gain in twelve milestones.
+
+**The work the team chose for itself, across eleven milestones, was correctness — and correctness
+was never the thing standing between this product and a user.**
+
+The council was convened once, by the owner, on a hunch. Decide whether an outside seat is a thing
+this project HAS — scheduled, with a standing question — or a thing it reaches for when somebody
+remembers.
+
+=======================================================================
+8. IF YOU READ ONLY FOUR FILES
+=======================================================================
+    note.txt                            where things are, and the three commands
+    docs/council-m11-assessment.md      the four seats, and the one defect with eight instances
+    docs/plans/m12-inputs.md            what a real user actually said, recorded the day he said it
+    handover_rocky.txt                  the doctrine; still the best thing written about this repo
