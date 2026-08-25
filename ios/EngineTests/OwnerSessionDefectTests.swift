@@ -287,3 +287,187 @@ final class FilterLocaleTests: XCTestCase {
                           + "the one above still does")
     }
 }
+
+// MARK: - M12-W2 — saying what a number means
+
+private struct Ranked: Equatable {
+    let model: String
+}
+
+final class ComprehensionTests: XCTestCase {
+
+    // MARK: rank
+
+    func testTheRankIsThePositionInTheEnginesOwnOrdering() {
+        let ranking = [Ranked(model: "a"), Ranked(model: "b"), Ranked(model: "c")]
+
+        XCTAssertEqual(rankOf("a", in: ranking, name: \.model), 1)
+        XCTAssertEqual(rankOf("c", in: ranking, name: \.model), 3)
+    }
+
+    func testAModelOutsideTheRankingHasNoRankRatherThanAWrongOne() {
+        XCTAssertNil(rankOf("z", in: [Ranked(model: "a")], name: \.model))
+    }
+
+    func testTheRankIsOneBasedBecauseNobodyOutsideThisTradeCountsFromZero() {
+        XCTAssertEqual(rankOf("a", in: [Ranked(model: "a")], name: \.model), 1)
+    }
+
+    // MARK: what the scale is
+
+    func testTheTwoScalesTheOwnerCouldNotReadAreExplained() {
+        // `161.7 ECI` and `1504.2 elo` were the two he named. Both must say what they are.
+        XCTAssertNotNil(scaleExplanation(for: "ECI"))
+        XCTAssertNotNil(scaleExplanation(for: "elo"))
+    }
+
+    func testTheExplanationsUseNoWordFromInsideThisField() {
+        let jargon = ["elo", "eci", "benchmark", "index score", "token", "eval", "arena"]
+
+        for metric in ["ECI", "elo", "% resolved", "% correct"] {
+            let text = (scaleExplanation(for: metric) ?? "").lowercased()
+            for word in jargon where word != "index score" {
+                XCTAssertFalse(text.contains(word),
+                               "the explanation of \(metric) uses `\(word)`, which is the problem")
+            }
+        }
+    }
+
+    func testAnUnknownMetricExplainsNothingRatherThanGuessing() {
+        // A missing explanation is a gap; a wrong one is a lie. The app shows the bare number.
+        XCTAssertNil(scaleExplanation(for: "f1"))
+        XCTAssertNil(scaleExplanation(for: ""))
+    }
+
+    func testTheMetricLookupIsCaseInsensitiveBecauseTheEngineSpellsItBothWays() {
+        XCTAssertEqual(scaleExplanation(for: "ECI"), scaleExplanation(for: "eci"))
+    }
+
+    // MARK: price in a unit a person uses
+
+    func testACheapModelIsPricedInWholePagesRatherThanFractionsOfACent() {
+        // $1.03 / 1M is $0.0007 a page. "about $0.00 per page" would be worse than the original.
+        let text = priceInPages(1.03)
+
+        XCTAssertTrue(text.contains("1,500"),
+                      "the page count is unformatted — this whole wave is about readability: \(text)")
+        XCTAssertFalse(text.contains("0.00"), "a sub-cent page price rounded to nothing: \(text)")
+    }
+
+    func testAnExpensiveModelIsPricedPerPage() {
+        // $36.09 / 1M is about 2.4 cents a page, which is a number a person can hold.
+        let text = priceInPages(36.09)
+
+        XCTAssertTrue(text.contains("per page"), "got: \(text)")
+        XCTAssertFalse(text.contains("0.00"), "got: \(text)")
+    }
+
+    func testThePageConversionIsRoundBecauseItIsAnApproximation() {
+        // A precise-looking 1,483 would claim an accuracy this conversion does not have.
+        XCTAssertEqual(pagesPerMillionTokens % 100, 0)
+    }
+
+    func testTheExactPriceIsNeverReplaced() {
+        // The companion says "about"; the exact figure lives beside it and is what a CFO checks.
+        XCTAssertTrue(priceInPages(1.03).contains("about"))
+        XCTAssertTrue(priceInPages(36.09).contains("about"))
+    }
+}
+
+// MARK: - M12-W2 — disclosures under D-135
+
+final class DisclosureClassificationTests: XCTestCase {
+
+    private let staleness = "Evidence behind SWE-bench Verified may be out of date past the 90-day window."
+    private let dating = "This answer's benchmark publishes no evaluation dates, only model release dates."
+    private let effort = "Note: this category does not compare at a fixed effort level."
+    private let tie = "DeepSeek V4 Pro is only 1.1 points behind — the gap is within the margin of error."
+
+    /// **D-135's own test, and it is the one that must never be deleted.** The ruling is not a
+    /// licence to show less; it is a licence to repeat less. If a fact stops being reachable, the
+    /// change was wrong and D-121 governs.
+    func testEveryFactSurvivesClassification() {
+        let out = classifyDisclosures(
+            stalenessNotice: staleness, ageDays: [179], datingNote: dating,
+            effortMixNotice: effort, closeCall: tie
+        )
+
+        for fact in [staleness, dating, effort, tie] {
+            XCTAssertTrue(out.contains { $0.text == fact },
+                          "a disclosure was dropped rather than quietened: \(fact)")
+        }
+    }
+
+    /// The duplication the council measured: two sentences, one fact, both orange, on five of the
+    /// nine surfaces.
+    func testAnUndatedSourceSaysItOnceRatherThanTwice() {
+        let out = classifyDisclosures(
+            stalenessNotice: staleness, ageDays: [nil, nil], datingNote: dating,
+            effortMixNotice: nil, closeCall: nil
+        )
+
+        XCTAssertEqual(out.count, 1, "the same fact was stated twice: \(out.map(\.text))")
+        XCTAssertEqual(out.first?.text, dating, "the surviving sentence should be the accurate one")
+        XCTAssertEqual(out.first?.weight, .property)
+    }
+
+    func testRealStalenessKeepsItsWarningTreatment() {
+        // SWE-bench at 179 days is a STATE: it became true and fresher data would clear it.
+        let out = classifyDisclosures(
+            stalenessNotice: staleness, ageDays: [179], datingNote: nil,
+            effortMixNotice: nil, closeCall: nil
+        )
+
+        XCTAssertEqual(out.map(\.weight), [.state])
+    }
+
+    func testStructuralStalenessIsQuietenedNotDropped() {
+        // No dating note arrived, but every source is undated. Losing the sentence would be a CUT.
+        let out = classifyDisclosures(
+            stalenessNotice: staleness, ageDays: [nil], datingNote: nil,
+            effortMixNotice: nil, closeCall: nil
+        )
+
+        XCTAssertEqual(out.count, 1)
+        XCTAssertEqual(out.first?.weight, .property, "a structural fact kept a transient's volume")
+    }
+
+    func testANearTieIsAStateBecauseTomorrowsNumbersMayNotHaveOne() {
+        let out = classifyDisclosures(
+            stalenessNotice: nil, ageDays: [], datingNote: nil,
+            effortMixNotice: nil, closeCall: tie
+        )
+
+        XCTAssertEqual(out.map(\.weight), [.state])
+    }
+
+    func testTheEffortMixIsAPropertyOfTheBoard() {
+        let out = classifyDisclosures(
+            stalenessNotice: nil, ageDays: [], datingNote: nil,
+            effortMixNotice: effort, closeCall: nil
+        )
+
+        XCTAssertEqual(out.map(\.weight), [.property])
+    }
+
+    func testASurfaceWithNothingToDiscloseDisclosesNothing() {
+        // Fixture blindness guard: without this, everything above passes if the function always
+        // returned every argument it was handed.
+        XCTAssertTrue(classifyDisclosures(
+            stalenessNotice: nil, ageDays: [12], datingNote: nil,
+            effortMixNotice: nil, closeCall: nil
+        ).isEmpty)
+    }
+
+    func testAMixedSourceSetCountsAsDatedBecauseOneRealAgeIsActionable() {
+        // One source dated at 200 days and another undated: the staleness is real for the first,
+        // so the reader can act on it and it keeps its weight.
+        let out = classifyDisclosures(
+            stalenessNotice: staleness, ageDays: [nil, 200], datingNote: dating,
+            effortMixNotice: nil, closeCall: nil
+        )
+
+        XCTAssertEqual(out.count, 2, "both facts must survive: \(out.map(\.text))")
+        XCTAssertEqual(out.first?.weight, .state)
+    }
+}

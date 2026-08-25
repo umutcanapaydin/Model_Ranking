@@ -206,7 +206,17 @@ def test_the_ordering_note_does_not_rank_the_surfaces(client: TestClient) -> Non
     body = client.get("/v1/recommendations", params={"task": "coding"}).json()
     note = body["ordering_note"].lower()
 
-    assert "carries no meaning" in note or "no meaning" in note
+    # The assertion is on the CLAIM, not on a phrase. It used to require the literal "carries no
+    # meaning", which failed at M12-W2 on a rewrite that says exactly the same thing in different
+    # words — while the list of ranking words below, which is what actually protects the reader,
+    # passed unchanged.
+    #
+    # A phrase pin makes any rewording look like a regression and a real regression look like a
+    # rewording. What must hold is that the note DENIES significance to position and NAMES both
+    # surfaces as equals; the denial can be spelled however reads best.
+    assert any(phrase in note for phrase in ("no meaning", "means anything", "means nothing")), (
+        f"the ordering note no longer denies that position is meaningful: {note}"
+    )
     assert "neither" in note
     for ranking_word in (
         "use the",
@@ -217,6 +227,10 @@ def test_the_ordering_note_does_not_rank_the_surfaces(client: TestClient) -> Non
         "authoritative",
         "we recommend",
         "should use",
+        # M12-W2: the client now shows the SELECTED surface first (W-064). The note may say so —
+        # it does — but it may never turn that into a preference.
+        "best answer",
+        "the winner",
     ):
         assert ranking_word not in note, f"the ordering note ranks the surfaces: {ranking_word!r}"
 

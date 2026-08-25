@@ -34,6 +34,35 @@ class CategorySpec:
 #: on ECI). Calibrating against the board has now produced wrong thresholds three times
 #: (W-037); evidence and method: `docs/reviews/m8-category-calibration.md`, including its
 #: 2026-08-19 correction section, which supersedes the table above it.
+# --- M12-W2: the titles are what a reader MEETS, and they were written by people who already knew
+# what a benchmark was ------------------------------------------------------------------------
+#
+# Renamed after a 60-year-old CFO used the app. Each new name says what the surface MEASURES rather
+# than what the field calls it:
+#
+#   Everyday assistant / chat  ->  Chat
+#   Everyday questions         ->  General knowledge
+#   Expert reasoning           ->  Hard science questions   (GPQA is PhD-level science, not "for experts")
+#   Computer use               ->  Operating a computer
+#   Abstract reasoning         ->  Puzzles & pattern finding (ARC-AGI is unseen visual puzzles)
+#
+# `Coding`, `Mathematics` and `Web development` are unchanged: they already say what they measure.
+#
+# **`Agentic coding` is unchanged BY OWNER RULING**, and the council's suggested rename was
+# reverted to honour it. Asked which names to simplify he answered, translated from Turkish:
+# *"Coding, Agentic Coding ok — there is no simpler version of those, or of mathematics."* The
+# lead agent renamed it anyway on the council's recommendation and the naming test caught it,
+# because `Coding on its own` collides with `Coding` on its first word — the very defect the test
+# exists for. Two corrections in one: the owner had already ruled, and the new name was worse.
+#
+# **Two of the nine used to begin with "Everyday"** — `assistant` was "Everyday assistant / chat"
+# and `everyday` was "Everyday questions". The owner mixed them up on his own screen during the
+# M11-W3.5 session, and so did the lead agent while reading his screenshots. That is not a naming
+# preference; it is two labels a reader cannot tell apart.
+#
+# The IDs are untouched. They are the contract (`/v1/categories`, D-127); the titles are the
+# product.
+
 CATEGORIES: dict[str, CategorySpec] = {
     "coding": CategorySpec(
         id="coding",
@@ -49,7 +78,7 @@ CATEGORIES: dict[str, CategorySpec] = {
     ),
     "assistant": CategorySpec(
         id="assistant",
-        title="Everyday assistant / chat",
+        title="Chat",
         primary_benchmark="Arena text",
         metric="elo",
         score_unit="Elo",
@@ -93,7 +122,7 @@ CATEGORIES: dict[str, CategorySpec] = {
     # category** (D-105): the scales differ, and M8 found that the RULE does not transfer either.
     "everyday": CategorySpec(
         id="everyday",
-        title="Everyday questions",
+        title="General knowledge",
         primary_benchmark="Epoch Capabilities Index",
         metric="ECI",
         score_unit="ECI",
@@ -107,7 +136,7 @@ CATEGORIES: dict[str, CategorySpec] = {
     ),
     "expert": CategorySpec(
         id="expert",
-        title="Expert reasoning",
+        title="Hard science questions",
         primary_benchmark="GPQA Diamond",
         metric="% correct",
         score_unit="points",
@@ -138,7 +167,7 @@ CATEGORIES: dict[str, CategorySpec] = {
     ),
     "computer-use": CategorySpec(
         id="computer-use",
-        title="Computer use",
+        title="Operating a computer",
         primary_benchmark="TerminalBench",
         metric="% resolved",
         score_unit="points",
@@ -153,7 +182,7 @@ CATEGORIES: dict[str, CategorySpec] = {
     ),
     "abstract": CategorySpec(
         id="abstract",
-        title="Abstract reasoning",
+        title="Puzzles & pattern finding",
         primary_benchmark="ARC-AGI",
         metric="% correct",
         score_unit="points",

@@ -115,11 +115,17 @@ final class EngineErrorVocabularyTests: XCTestCase {
         XCTAssertTrue(sentence.contains("10"), "the timeout does not say how long it waited: \(sentence)")
     }
 
-    func testUnreachableTellsThemHowToStartTheEngine() {
-        let recovery = EngineError.unreachable("connection refused").recovery ?? ""
+    func testUnreachableNamesTheRemedy_toTheAUDIENCEThatCanActOnIt() {
+        // Written at M11 asserting `recovery` contained "make run". At M12-W2 that became wrong
+        // for the right reason: an end user does not own a repository, so the developer remedy
+        // moved to `diagnostic`. The INTENT is unchanged and is asserted on both halves — the
+        // remedy is still named, and the reader is no longer the one being told to run it.
+        let error = EngineError.unreachable("connection refused")
 
-        XCTAssertTrue(recovery.contains("make run"),
-                      "the one recoverable failure does not name the remedy: \(recovery)")
+        XCTAssertTrue((error.diagnostic ?? "").contains("make run"),
+                      "the developer remedy is not named anywhere: \(error.diagnostic ?? "nil")")
+        XCTAssertFalse((error.recovery ?? "").contains("make run"),
+                       "the person holding the phone is still being told to run a build command")
     }
 }
 
@@ -282,5 +288,78 @@ final class EngineClientDecisionTests: XCTestCase {
         let categories = try await self.client().categories()
 
         XCTAssertEqual(categories.map { $0.id }, ["coding"])
+    }
+}
+
+// MARK: - M12-W2 — what the person holding the phone is told
+
+final class UserFacingMessageTests: XCTestCase {
+
+    private let all: [EngineError] = [
+        .unreachable("Could not connect to the server."),
+        .timedOut(seconds: 10),
+        .insecureTransport,
+        .offline,
+        .refused(status: 503, code: "evidence_unavailable", message: "The evidence is not available."),
+        .undecodable("missing key `answers`"),
+    ]
+
+    /// **The strings a reader sees must not contain a developer's world.**
+    ///
+    /// For eleven milestones this app told an end user to *"start it with `make run` in the engine
+    /// repository"* and explained `NSAllowsArbitraryLoads` to them. That was correct while the only
+    /// reader was the person who built it, and stopped being correct the week a 60-year-old CFO
+    /// opened the app.
+    func testNoUserFacingSentenceAssumesTheReaderOwnsTheSystem() {
+        let developerWorld = [
+            "make run", "repository", "nsallowsarbitraryloads", "/v1", "contract", "artifact",
+            "http", "localhost", "127.0.0.1", "endpoint", "payload", "json",
+        ]
+
+        for error in all {
+            let text = ((error.errorDescription ?? "") + " " + (error.recovery ?? "")).lowercased()
+            for term in developerWorld {
+                XCTAssertFalse(text.contains(term),
+                               "a reader is shown `\(term)` in: \(text)")
+            }
+        }
+    }
+
+    func testEveryFailureStillTellsThemSomethingTheyCanDoOrThatNothingCanBeDone() {
+        for error in all {
+            let recovery = error.recovery
+            if case .refused = error {
+                XCTAssertNil(recovery, "the engine's own message is the recovery; do not say it twice")
+                continue
+            }
+            XCTAssertNotNil(recovery, "\(error) leaves the reader with nothing")
+            XCTAssertFalse(recovery!.isEmpty)
+        }
+    }
+
+    /// **The detail is moved, not deleted**, and this is the test that stops the next person
+    /// deleting it. The `unreachable` detail is what tells whoever is debugging that this was a
+    /// refused connection rather than a DNS failure.
+    func testTheDeveloperDetailSurvivesWhereItIsNeeded() {
+        guard let diagnostic = EngineError.unreachable("Could not connect to the server.").diagnostic
+        else {
+            return XCTFail("the transport detail was dropped rather than moved")
+        }
+
+        XCTAssertTrue(diagnostic.contains("Could not connect to the server."))
+        XCTAssertTrue(diagnostic.contains("make run"), "the developer remedy went missing entirely")
+    }
+
+    func testTheCleartextWarningSurvivesForWhoeverWouldOtherwiseDisableIt() {
+        // This one exists to head off a one-line "fix" that would ship the product's first network
+        // call in the clear. It must not be lost just because a reader should not see it.
+        let diagnostic = EngineError.insecureTransport.diagnostic ?? ""
+
+        XCTAssertTrue(diagnostic.contains("NSAllowsArbitraryLoads"))
+    }
+
+    func testAFailureWithNothingExtraToSayDoesNotInventADiagnostic() {
+        XCTAssertNil(EngineError.offline.diagnostic)
+        XCTAssertNil(EngineError.timedOut(seconds: 10).diagnostic)
     }
 }

@@ -433,3 +433,161 @@ func matchesFilter(_ haystack: String, _ needle: String) -> Bool {
     ) != nil
 }
 
+// MARK: - Saying what a number MEANS (M12-W2, REQ-CMP-001 / REQ-CMP-002)
+//
+// A 60-year-old CFO used this app and could read `83.5 % resolved` and `94.4 % correct` without
+// help. He could not read `161.7 ECI` or `1504.2 elo`, and he is right: those scales are not
+// published anywhere on the screen, so the number is unreadable by construction rather than by
+// unfamiliarity. `161.7 out of what?`
+//
+// The fix is NOT to replace the number — every one of them is defensible and several are
+// load-bearing, and "very good" would be the vaguer product the M12 plan names as Trap 1. The fix
+// is to put a RANK beside it. A rank needs no scale to be understood, and it comes from the
+// engine's own ordering, so the client reads a position rather than computing one.
+
+/// Where a model sits in the ranking the engine served, 1-based, or `nil` if it is not in it.
+///
+/// Reading a position out of an ordered list the engine produced is not the re-sorting Trap 1
+/// forbids: the order is the engine's answer and this does not touch it.
+public func rankOf<Row>(_ model: String, in ranking: [Row], name: (Row) -> String) -> Int? {
+    ranking.firstIndex(where: { name($0) == model }).map { $0 + 1 }
+}
+
+/// One short line saying what the scale is, keyed by the metric the engine advertises.
+///
+/// Deliberately keyed on the METRIC rather than the surface: two surfaces share `elo` and three
+/// share `% correct`, and a table keyed on nine surfaces would have to be edited every time a
+/// tenth arrives. An unknown metric returns `nil` and the app simply shows the number — a missing
+/// explanation is a gap, a wrong one is a lie.
+public func scaleExplanation(for metric: String) -> String? {
+    switch metric.lowercased() {
+    case "elo":
+        return "a head-to-head rating from people comparing answers side by side"
+    case "eci":
+        return "an overall capability index — the scale has no fixed maximum"
+    case "% resolved":
+        return "the share of real tasks it finished"
+    case "% correct":
+        return "the share of questions it got right"
+    default:
+        return nil
+    }
+}
+
+/// Roughly how many pages of text one million tokens is.
+///
+/// A million tokens is about 750,000 words, and a page of prose is about 500 words. The number is
+/// deliberately round: it exists so a reader can think in pages, and a precise-looking 1,483 would
+/// claim an accuracy this conversion does not have.
+public let pagesPerMillionTokens = 1_500
+
+/// `1,500` rather than `1500`. Grouped with a fixed separator, not the reader's locale: this is a
+/// round approximation the sentence itself calls "about", and a number that changes shape between
+/// devices reads as data rather than as the rough figure it is. Seen on the first screenshot of
+/// this wave, in a change whose entire subject is readability.
+private var groupedPages: String {
+    let formatter = NumberFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.numberStyle = .decimal
+    // POSIX deliberately has NO grouping separator, so `.decimal` alone produced `1500` — measured
+    // on the first screenshot of this wave. Setting it explicitly keeps the locale pinned (the
+    // number must not change shape between devices) while still grouping.
+    formatter.usesGroupingSeparator = true
+    formatter.groupingSeparator = ","
+    formatter.groupingSize = 3
+    return formatter.string(from: NSNumber(value: pagesPerMillionTokens)) ?? "\(pagesPerMillionTokens)"
+}
+
+/// `$1.03/1M` in a unit somebody outside this industry uses, without removing the exact figure.
+///
+/// The CFO's words, translated: this has to be explainable to a 60-year-old. He thinks in cost per
+/// unit of work; "per million tokens" is a unit only this industry uses. The exact price stays and
+/// gains a companion — never a replacement, because the exact figure is what he would check.
+public func priceInPages(_ blendedPerM: Double) -> String {
+    let perPage = blendedPerM / Double(pagesPerMillionTokens)
+    if perPage < 0.01 {
+        // Below a cent a page, "per page" stops being informative and the round number does the
+        // work: what a whole book costs, not what a page does.
+        return "about $\(Int(blendedPerM.rounded())) per \(groupedPages) pages of text"
+    }
+    return "about $\(String(format: "%.2f", perPage)) per page of text"
+}
+
+// MARK: - Disclosures, under D-135 (M12-W2, REQ-DSC-001)
+//
+// The council measured what eleven milestones of "never be silent" had produced: **eight blocks per
+// screen, 155-185 words of caveat against 40-60 words of answer**, rendered as up to five identical
+// orange triangles with no severity order, carrying about four distinct facts.
+//
+// Six of nine surfaces showed a permanent "may be out of date" notice. **Five of those show it
+// because the source publishes no dates at all** — so the notice can never clear, on any data,
+// ever. A structural property of a source wearing the costume of a transient warning, drowning the
+// one notice that is transient and real.
+//
+// D-135, the owner's ruling: a limitation that is a PROPERTY OF A SOURCE is stated once, calmly; a
+// limitation that is a STATE OF THE DATA keeps its warning treatment. **Nothing is removed.** The
+// test of any change under it is whether a reader can still learn every limitation that applies —
+// if not, D-121 governs and the change is wrong.
+
+/// How loudly a disclosure should speak.
+public enum DisclosureWeight {
+    /// Something became true and can become false again: real staleness, a near-tie in today's
+    /// numbers. Keeps the warning treatment, because acting on it is possible.
+    case state
+    /// A property of the source that no amount of fresher data will change. Said once, calmly.
+    case property
+}
+
+public struct Disclosure: Equatable {
+    public let text: String
+    public let weight: DisclosureWeight
+
+    public init(text: String, weight: DisclosureWeight) {
+        self.text = text
+        self.weight = weight
+    }
+}
+
+/// Classify and DEDUPLICATE a surface's disclosures.
+///
+/// The classification needs no text parsing, which matters: the fact is already in the payload.
+/// `age_days` is `null` when the source publishes no evaluation dates — structural — and a number
+/// when the evidence has genuinely aged. Reading the number rather than the sentence means a
+/// re-worded notice upstream cannot silently change how loudly this app speaks.
+///
+/// The deduplication is the other half. `source_health.notice` and `evidence_dating_note` say the
+/// same thing to the same five surfaces: *"this benchmark publishes no evaluation dates."* Two
+/// sentences, one fact, both orange.
+public func classifyDisclosures(
+    stalenessNotice: String?,
+    ageDays: [Int?],
+    datingNote: String?,
+    effortMixNotice: String?,
+    closeCall: String?
+) -> [Disclosure] {
+    var out: [Disclosure] = []
+
+    // A source with no dates at all cannot be "out of date"; it can only be undated. When every
+    // row is undated, the staleness notice IS the dating note, so the dating note carries it and
+    // the staleness sentence is dropped as the duplicate it is.
+    let anyDated = ageDays.contains { $0 != nil }
+
+    if let stalenessNotice, anyDated {
+        out.append(Disclosure(text: stalenessNotice, weight: .state))
+    }
+    if let closeCall {
+        out.append(Disclosure(text: closeCall, weight: .state))
+    }
+    if let datingNote {
+        out.append(Disclosure(text: datingNote, weight: .property))
+    } else if let stalenessNotice, !anyDated {
+        // No dating note arrived, but the staleness is structural anyway. Keep the sentence and
+        // drop the volume — losing it would be a disclosure CUT, which D-135 forbids.
+        out.append(Disclosure(text: stalenessNotice, weight: .property))
+    }
+    if let effortMixNotice {
+        out.append(Disclosure(text: effortMixNotice, weight: .property))
+    }
+    return out
+}
+

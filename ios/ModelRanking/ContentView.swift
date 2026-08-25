@@ -111,7 +111,11 @@ struct ContentView: View {
                             Card { emptyAnswer(answer) }
                         } else {
                             ForEach(answer.picks) { pick in
-                                PickRow(pick: pick)
+                                PickRow(
+                                    pick: pick,
+                                    ranking: answer.ranking,
+                                    scale: scaleExplanation(for: answer.metric)
+                                )
                             }
                             rankingPreview(answer)
                         }
@@ -243,19 +247,37 @@ struct ContentView: View {
     /// review round to make the server say; a client that drops them undoes the property.
     @ViewBuilder
     private func disclosures(_ answer: Answer) -> some View {
-        ForEach(
-            [
-                answer.sourceHealth?.notice,
-                answer.staleNotice,
-                answer.evidenceDatingNote,
-                answer.effortMixNotice,
-                answer.closeCall,
-            ].compactMap { $0 },
-            id: \.self
-        ) { notice in
-            Label(notice, systemImage: "exclamationmark.triangle")
-                .font(.caption)
-                .foregroundStyle(.orange)
+        // D-135. Classified and DEDUPLICATED in the Engine, where it is tested, rather than here
+        // where nothing executes. What arrives is already: every fact, each said once, each
+        // carrying how loudly it should speak.
+        //
+        // Before this, five of the nine surfaces printed the same fact twice in the same orange —
+        // `source_health.notice` and `evidence_dating_note` both saying the benchmark publishes no
+        // evaluation dates — and the one notice that was real and actionable, SWE-bench at 179
+        // days, wore exactly the same triangle as the five that can never clear.
+        let items = classifyDisclosures(
+            stalenessNotice: answer.sourceHealth?.notice ?? answer.staleNotice,
+            ageDays: (answer.sourceHealth?.sources ?? []).map(\.ageDays),
+            datingNote: answer.evidenceDatingNote,
+            effortMixNotice: answer.effortMixNotice,
+            closeCall: answer.closeCall
+        )
+        return VStack(alignment: .leading, spacing: 8) {
+            ForEach(items, id: \.text) { item in
+                switch item.weight {
+                case .state:
+                    // Became true, can become false. Worth interrupting for.
+                    Label(item.text, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                case .property:
+                    // A fact about the source. Present, readable, and not shouting — no icon,
+                    // because five identical triangles is how the real one got lost.
+                    Text(item.text)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
@@ -454,6 +476,22 @@ struct SectionTitle: View {
 
 struct PickRow: View {
     let pick: Pick
+    /// The surface's full ranking, so this row can say WHERE the model sits. Optional because a
+    /// surface can serve picks with nothing ranked behind them.
+    var ranking: [RankedModel] = []
+    /// What the score's scale is, in one line. `nil` when the metric is one we cannot explain —
+    /// a missing explanation is a gap, a wrong one is a lie.
+    var scale: String?
+
+    private var pickMeaning: String? {
+        var parts: [String] = []
+        if let rank = rankOf(pick.model, in: ranking, name: \.model) {
+            parts.append("#\(rank) of \(ranking.count)")
+        }
+        if let scale { parts.append(scale) }
+        parts.append(priceInPages(pick.blendedPerM))
+        return parts.isEmpty ? nil : parts.joined(separator: "  ·  ")
+    }
 
     var body: some View {
         Card {
@@ -466,6 +504,15 @@ struct PickRow: View {
                 Text(Format.scoreAndPrice(pick.score, pick.metric, pick.blendedPerM))
                     .font(.subheadline.weight(.medium))
                     .monospacedDigit()
+                // REQ-CMP-001/002. The exact number is never replaced — it gains a companion.
+                // `161.7 ECI` is unreadable because its scale is published nowhere; `#1 of 58` is
+                // readable by anyone. The rank is a POSITION in the engine's own ordering, so
+                // nothing is re-sorted (Trap 1).
+                if let meaning = pickMeaning {
+                    Text(meaning)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 Text(pick.why).font(.footnote).foregroundStyle(.secondary)
                 if let tradeOff = pick.tradeOff {
                     Text(tradeOff).font(.footnote).foregroundStyle(.tertiary)

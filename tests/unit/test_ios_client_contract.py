@@ -380,11 +380,23 @@ def test_the_one_moment_transport_security_fires_is_not_reported_as_a_dead_serve
     )
     assert re.search(r"case\s+insecureTransport", client), "no named case for a refused cleartext load"
 
-    recovery = client[client.index("var recovery"):]
-    ats = recovery[recovery.index("case .insecureTransport"):]
-    assert "NSAllowsArbitraryLoads" in ats[:600], (
-        "the remedy text does not warn against the ATS exception; the whole point of naming this "
-        "case is to head off the one-line 'fix' that ships cleartext to every host"
+    # The warning must EXIST and must reach whoever would otherwise apply the one-line "fix".
+    # It used to live in `recovery`, and this assertion used to look for it in the 600 characters
+    # after that case. At M12-W2 the user-facing strings were rewritten for an audience that does
+    # not own a repository, and the developer half moved to `diagnostic` — so a position-anchored
+    # assertion failed on a change that kept every word of the mitigation.
+    #
+    # Pinning the PRESENCE rather than the OFFSET is the repair. A test that fails when text moves
+    # teaches people to leave text where it is, which is how a user-facing string ends up
+    # explaining App Transport Security to a CFO.
+    assert "NSAllowsArbitraryLoads" in client, (
+        "the ATS exception is no longer warned against anywhere in the client; the whole point of "
+        "naming this case is to head off the one-line 'fix' that ships cleartext to every host"
+    )
+    # And it must NOT be in the sentence a reader sees.
+    recovery = client[client.index("var recovery"):client.index("var diagnostic")]
+    assert "NSAllowsArbitraryLoads" not in recovery, (
+        "the person holding the phone is being told about App Transport Security"
     )
 
 

@@ -54,26 +54,55 @@ enum EngineError: LocalizedError, Equatable {
     }
 
     /// What the person holding the phone can actually DO about it. Empty when there is nothing.
+    /// What the PERSON HOLDING THE PHONE can do. Not what a developer would do.
+    ///
+    /// **Rewritten at M12-W2.** These strings told an end user to *"start it with `make run` in the
+    /// engine repository"* and lectured them about `NSAllowsArbitraryLoads` and the `/v1` contract.
+    /// They were written when the only reader was the person who built it, which was true for
+    /// eleven milestones and stopped being true the week a 60-year-old CFO opened the app.
+    ///
+    /// The developer detail is not deleted — it moves to `diagnostic`, which the app can show
+    /// behind a disclosure and a log can carry. **Losing it would be the opposite mistake:** the
+    /// `unreachable` detail is what tells whoever is debugging that this is a refused connection
+    /// rather than a DNS failure.
     var recovery: String? {
         switch self {
-        case let .unreachable(detail):
-            return "Start it with `make run` in the engine repository, then try again.\n\n\(detail)"
+        case .unreachable:
+            return "The service that answers these questions is not reachable right now. "
+                + "Try again in a moment."
         case .timedOut:
-            return "It is running but slow to respond. Trying again is reasonable; if it keeps "
-                + "happening the artifact is probably being rebuilt underneath it."
+            return "It answered too slowly. Trying again usually works."
         case .insecureTransport:
-            return "This is the platform refusing plain HTTP to a named host, and it is correct. "
-                + "Point the app at an https:// engine. Do NOT add NSAllowsArbitraryLoads — that "
-                + "permits cleartext to every host, not just this one, and it is the one-line "
-                + "\"fix\" this message exists to head off."
+            return "This connection was refused because it is not encrypted. That is the phone "
+                + "protecting you, not a fault you can fix here."
         case .offline:
-            return "Reconnect and try again."
+            return "This device has no internet connection. Reconnect and try again."
         case .refused:
             // The engine's message is the recovery; repeating it here would say it twice.
             return nil
+        case .undecodable:
+            return "This version of the app could not read the answer it was sent. Updating the "
+                + "app is the fix."
+        }
+    }
+
+    /// The half a developer needs, kept out of the sentence a reader sees.
+    ///
+    /// `nil` where there is nothing a developer would not already know from the case itself.
+    var diagnostic: String? {
+        switch self {
+        case let .unreachable(detail):
+            return "Engine unreachable: \(detail). If this is a development build, start it with "
+                + "`make run` in the engine repository."
+        case .insecureTransport:
+            return "App Transport Security refused cleartext to a named host. Point the app at an "
+                + "https:// engine. Do NOT add NSAllowsArbitraryLoads — that permits cleartext to "
+                + "every host, not just this one."
         case let .undecodable(detail):
-            return "This is a mismatch between the app and the /v1 contract, and it is a defect in "
-                + "one of them rather than something to retry.\n\n\(detail)"
+            return "Payload did not match the /v1 contract: \(detail). Under D-124 this is a "
+                + "finding against /v1 before it is a client-side workaround."
+        case .timedOut, .offline, .refused:
+            return nil
         }
     }
 }

@@ -73,10 +73,25 @@ API_VERSION = "v1"
 #: a ranking is the defect this constant exists to avoid.
 CODING_INTENT: tuple[str, ...] = ("agentic-coding", "coding")
 
+#: Ruling A's disclosure (REQ-APP-003). It exists to stop a reader inferring a winner from a
+#: position, which is the whole reason `task=coding` answers with two surfaces instead of one.
+#:
+#: **Rewritten at M12-W2 because it had become false, and by our own hand.** It used to open
+#: "Answers are ordered alphabetically by surface id" — true when it was written, and untrue since
+#: M11 fixed W-064, where the client began putting the SELECTED surface first so that asking for
+#: coding stopped being answered by "Agentic coding" three times in a row. The note kept asserting
+#: an ordering the reader could see was not happening.
+#:
+#: The sentence now says what is INVARIANT rather than what the order happens to be: no position
+#: means anything. That survives a client reordering, which is the point — a disclosure pinned to
+#: an implementation detail is a disclosure with an expiry date.
+#:
+#: "plans" also became "models" here. The engine ranks MODELS on these surfaces; plans are the
+#: subscription CLI's subject, and the word had been copied across (council finding, M11).
 ORDERING_NOTE = (
-    "Answers are ordered alphabetically by surface id. The order carries no meaning: neither "
-    "coding surface leads the other. They rank different sets of plans on different evidence, "
-    "and each states its own weakness."
+    "No position here means anything: neither coding surface leads the other, and the one you "
+    "chose is shown first only because you chose it. They rank different sets of models on "
+    "different evidence, and each states its own weakness."
 )
 
 #: The ENTIRE surface this milestone declares (REQ-API-001). Asserted exactly, not merely
