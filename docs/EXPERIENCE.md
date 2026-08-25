@@ -558,3 +558,51 @@ already knew what a benchmark was. The fixes are easy once stated; the question 
 was ever stated. **A correctness culture measures whether a number is right and has no instrument
 at all for whether it is understood.**
 
+## M12 closure — 2026-08-25 — you cannot gate comprehension, but you can staff it
+
+M11 asked what this project would have to MEASURE to catch a comprehensibility defect before a user
+does. M12 answered it twice and only one answer is a measurement.
+
+A gate can be built and it is weaker than it sounds: `test_category_titles.py` refuses two surfaces
+beginning with the same word, and refuses a title containing a term from inside this field. It
+caught a real defect on its first run — the lead agent renaming a surface against an explicit owner
+ruling — and what it tests is a proxy: *does this text contain something we already know is
+jargon*. It cannot ask whether a sentence lands.
+
+The honest answer is not a gate. **The 28-row comprehensibility inventory that drove this entire
+milestone came from a council seat told to read the product as a stranger and given no other job.**
+The CFO had found five of those rows; the seat found twenty-eight. Nothing mechanical produced it,
+and what made it repeatable was a CHAIR, created because every existing seat was accountable for
+correctness.
+
+Three engineering shapes worth keeping:
+
+1. **Two parallel computations that agree today are two sources of truth.** D-136 claims the prose
+   is derived from the fact; the first implementation computed both separately and did not manage
+   to agree even today — `3x cheaper` beside a fact carrying `3.1`, then `84` beside `84.4`, then
+   `6` beside `6.0`. One test caught all three on its first run, because it held the PROPERTY the
+   design claimed rather than checking an output.
+2. **Rounding the claim is not rounding the display.** The obvious fix for `84` beside `84.4` was
+   to round the fact. Wrong: the bar really is 84.4, and `84` states a bar the engine does not
+   apply. A number a product rounds is a claim it makes.
+3. **A test that pins WHERE logic lives is a tax on improvement.** Three times in two waves a test
+   went red on a change that kept every word of its intent. Pin the claim and the audience, never
+   the offset — a test that fails when text moves teaches people to leave text where it is, which
+   is how a user-facing string ends up explaining App Transport Security to a CFO.
+
+**And a rule pointed at its own foot.** `L1` keeps this repository English, and it blocked the
+records DOCUMENTING non-English defects — a finding that cannot explain itself without naming the
+letter that causes it. Fourth occurrence, fixed by narrowing the rule to prose. The proof of the
+narrowing was nearly a defect too: the first attempt tested a file already exempt, and would have
+"passed" against a rule that never read it.
+
+**What was accepted rather than solved:** the notices are not localised, so a Turkish reader gets
+Turkish sentences and English disclosures; the flag has never been tapped by a human; nothing
+deployed, fifth milestone; and a fifth commit landed on a red gate, the fourth with the identical
+cause — edit a RECORD after a green check and commit without re-running.
+
+**Carried to M13:** every wave of this milestone discharged findings from outside the people doing
+the work, and it produced the largest usability gain in twelve milestones. **The work the team
+chose for itself, across eleven milestones, was correctness — and correctness was never what stood
+between this product and a user.** What else is the team not choosing?
+

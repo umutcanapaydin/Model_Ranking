@@ -356,3 +356,27 @@ the app for twenty minutes found six that eleven milestones of gates had not, an
 nobody inside the project would have written. A test suite cannot hold an opinion about what a
 reader concludes from what they can see.
 
+## 2026-08-25 — M12: the product stops speaking in the language of the measurement
+
+- **W1** wrote D-119 and D-120, cited in 30 files and never written; `make gate` exited 2 on a
+  clean tree and is what the post-edit hook runs; `C2b` had never fired in its life because it
+  grouped on a column unique per row; the Turkish case-folding defect fixed before Turkish shipped.
+- **W2** renamed six surfaces, put a RANK beside every score, priced in pages, and classified
+  disclosures under D-135. Three council defects fixed: a false ordering note, `1x cheaper`, and an
+  app telling end users to run `make run`.
+- **W3** gave the app a budget picker. It had called itself budget-aware for a milestone while
+  `ContentView` held `budget = "unlimited"` — a whole milestone of M11 work served a control that
+  did not exist.
+- **W4** D-136: `/v1` publishes the facts, the client writes the sentence. Turkish across the
+  screen. `L1` narrowed to prose at the fourth occurrence of it blocking a record about Turkish.
+- 781 Python / 121 Swift, `make check` and `make gate` both exit 0, 34 mutants across the
+  milestone, 34 killed.
+
+Lesson: **you cannot gate comprehension, but you can staff it.** A jargon list catches the words
+you already regret; the 28-row inventory that drove this milestone came from a seat told to read
+the product as a stranger and given no other job. Nothing mechanical produced it, and what made it
+repeatable was a CHAIR rather than a check.
+
+Corollary paid three times in two waves: **pin the claim, never the offset.** A test that fails
+when text moves teaches people to leave text where it is.
+
