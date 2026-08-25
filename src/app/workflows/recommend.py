@@ -73,6 +73,60 @@ def shown_gap(leader: float, other: float) -> float:
     return round_score(round_score(leader) - round_score(other))
 
 
+def trade_off_facts(
+    leader_score: float, other_score: float, unit: str, dearer: float, cheaper: float
+) -> dict[str, object]:
+    """The values a trade-off sentence quotes — computed ONCE, so the sentence can be derived.
+
+    D-136 says the prose is derived from the fact. That is only true if there is one computation:
+    the first version of this rounded independently in two places and the sentence said "3x
+    cheaper" while the fact carried `3.1`, so a client composing from the fact would have written a
+    different sentence than the one the engine shipped. **Caught by the derivation test on its
+    first run**, which is the whole reason that test exists.
+
+    The rounding lives HERE, in the fact, because what the product chooses to round is part of what
+    it claims — `3x cheaper` is a claim about magnitude, not a truncated `3.1`.
+    """
+    fact: dict[str, object] = {
+        "behind_by": shown_gap(leader_score, other_score),
+        "unit": unit,
+    }
+    if cheaper <= 0 or dearer <= 0:
+        fact["cheaper"] = "unpriced"
+        return fact
+    ratio = dearer / cheaper
+    if ratio < 1.005:
+        fact["cheaper"] = "same"
+    elif ratio < 2:
+        fact["cheaper_by_percent"] = round((1 - cheaper / dearer) * 100)
+    else:
+        fact["cheaper_by_times"] = round(ratio)
+    return fact
+
+
+def trade_off_sentence(fact: dict[str, object]) -> str:
+    """The English sentence, composed from the fact and from nothing else.
+
+    Every number it prints comes out of `fact`, which is what makes the two halves one source of
+    truth rather than two that agree today.
+    """
+    # `lead_phrase`'s exact wording, reproduced from the fact rather than re-invented. The first
+    # version of this said "is level with the leader" and a test caught the drift: a refactor that
+    # changes shipped wording as a side effect is a product change nobody approved.
+    lead = (
+        "level with the leader"
+        if fact["behind_by"] == 0
+        else f"{fact['behind_by']:.1f} {fact['unit']} below the leader"
+    )
+    if fact.get("cheaper") == "same":
+        return f"{lead}, at the same price."
+    if fact.get("cheaper") == "unpriced":
+        return f"{lead}, at a lower price."
+    if "cheaper_by_percent" in fact:
+        return f"{lead}, and {fact['cheaper_by_percent']}% cheaper."
+    return f"{lead}, but {fact['cheaper_by_times']}x cheaper."
+
+
 def cheaper_phrase(dearer: float, cheaper: float) -> str:
     """How much cheaper, in a form that cannot claim a saving that is not there.
 
@@ -138,6 +192,14 @@ class Pick:
     confidence_basis: str
     why: str
     trade_off: str | None
+    #: D-136. The machine-readable half of `why` and `trade_off`: the REASON each pick was chosen
+    #: and the values its sentence quotes. The English prose above is DERIVED from these — one
+    #: source of truth — so a client can compose the same sentence in another language without the
+    #: engine having to hold a second copy of the product's voice.
+    #:
+    #: If the fact and the sentence ever disagree, the FACT is right and the sentence is a defect.
+    why_fact: dict[str, object]
+    trade_off_fact: dict[str, object] | None
 
 
 @dataclass(frozen=True)
@@ -242,7 +304,15 @@ def effort_mix_notice(efforts: list[str | None], spec: CategorySpec) -> str | No
     )
 
 
-def _pick(label: str, row: RankingRow, spec: CategorySpec, why: str, trade_off: str | None) -> Pick:
+def _pick(
+    label: str,
+    row: RankingRow,
+    spec: CategorySpec,
+    why: str,
+    trade_off: str | None,
+    why_fact: dict[str, object],
+    trade_off_fact: dict[str, object] | None = None,
+) -> Pick:
     conf, basis = confidence_of(row, spec)
     return Pick(
         label=label,
@@ -265,6 +335,8 @@ def _pick(label: str, row: RankingRow, spec: CategorySpec, why: str, trade_off: 
         confidence_basis=basis,
         why=why,
         trade_off=trade_off,
+        why_fact=why_fact,
+        trade_off_fact=trade_off_fact,
     )
 
 
@@ -350,6 +422,15 @@ def recommend(
             )
 
     unit = spec.score_unit
+    # Computed ONCE, before either sentence, because D-136's claim is that the prose is DERIVED.
+    # Two parallel computations that agree today are two sources of truth, and the derivation test
+    # caught them disagreeing on its first run: `3x cheaper` beside a fact carrying `3.1`.
+    value_trade_off = trade_off_facts(
+        quality.score, value.score, unit, quality.blended_per_m, value.blended_per_m
+    )
+    cheap_trade_off = trade_off_facts(
+        quality.score, cheap.score, unit, quality.blended_per_m, cheap.blended_per_m
+    )
     picks = (
         _pick(
             "best_quality",
@@ -357,44 +438,56 @@ def recommend(
             spec,
             why=f"Highest {spec.primary_benchmark} score among eligible models ({quality.score:.1f} {unit}).",
             trade_off=None,
+            why_fact={
+                "reason": "highest_score",
+                "benchmark": spec.primary_benchmark,
+                "score": round_score(quality.score),
+                "unit": unit,
+            },
         ),
         _pick(
             "best_value",
             value,
             spec,
             why=(
-                f"On the Pareto frontier, the cheapest model within {window:.0f} {unit} of the leader."
+                f"On the Pareto frontier, the cheapest model within {window:g} {unit} of the leader."
             ),
             trade_off=(
-                None
-                if value.model == quality.model
-                else (
-                    f"{lead_phrase(quality.score, value.score, unit)}, "
-                    f"and {(1 - value.blended_per_m / quality.blended_per_m) * 100:.0f}% cheaper."
-                )
+                None if value.model == quality.model else trade_off_sentence(value_trade_off)
             ),
+            why_fact={
+                "reason": "cheapest_within_window",
+                "window": window,
+                "unit": unit,
+            },
+            trade_off_fact=None if value.model == quality.model else value_trade_off,
         ),
         _pick(
             "budget_pick",
             cheap,
             spec,
             why=(
-                f"Cheapest model that clears the {floor:.0f} {unit} minimum-quality bar."
+                # `:g`, not `:.0f`. The floor is a real threshold — `84.4` — and printing it as
+                # `84` states a bar the engine does not apply, while the fact beside it carries the
+                # true number. D-136's derivation test caught the pair disagreeing; the answer is
+                # to stop rounding the claim, not to round the fact.
+                f"Cheapest model that clears the {floor:g} {unit} minimum-quality bar."
                 if floor_met
                 else (
-                    f"WARNING: no model in this budget clears the {floor:.0f} {unit} "
+                    f"WARNING: no model in this budget clears the {floor:g} {unit} "
                     "minimum-quality bar; this is the cheapest available and you are trading "
                     "quality away."
                 )
             ),
             trade_off=(
-                None
-                if cheap.model == quality.model
-                else (
-                    f"{lead_phrase(quality.score, cheap.score, unit)}, "
-                    f"{cheaper_phrase(quality.blended_per_m, cheap.blended_per_m)}"
-                )
+                None if cheap.model == quality.model else trade_off_sentence(cheap_trade_off)
             ),
+            why_fact={
+                "reason": "cheapest_above_floor" if floor_met else "nothing_clears_floor",
+                "floor": floor,
+                "unit": unit,
+            },
+            trade_off_fact=None if cheap.model == quality.model else cheap_trade_off,
         ),
     )
     return Recommendation(

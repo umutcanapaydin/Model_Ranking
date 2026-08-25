@@ -188,11 +188,22 @@ struct Pick: Decodable, Identifiable {
     let why: String
     /// What this choice costs relative to the leader. Absent when there is nothing to trade off.
     let tradeOff: String?
+    /// D-136: the machine-readable half of the two sentences above. `[String: Any]` is not
+    /// `Decodable`, so these arrive through `JSONValue` and are unwrapped on demand — the client
+    /// composes from them, and falls back to `why` / `tradeOff` when a reason is one this build
+    /// does not know.
+    let whyFact: JSONValue?
+    let tradeOffFact: JSONValue?
+
+    var whyFactDictionary: [String: Any] { whyFact?.dictionary ?? [:] }
+    var tradeOffFactDictionary: [String: Any] { tradeOffFact?.dictionary ?? [:] }
 
     var id: String { "\(label)-\(model)" }
 
     enum CodingKeys: String, CodingKey {
         case label, model, vendor, score, metric, harness, effort, confidence, why
+        case whyFact = "why_fact"
+        case tradeOffFact = "trade_off_fact"
         case secondaryScore = "secondary_score"
         case blendedPerM = "blended_per_m"
         case inputPerM = "input_per_m"
@@ -231,5 +242,55 @@ struct BudgetOption: Decodable, Identifiable, Equatable {
 
 struct BudgetList: Decodable {
     let budgets: [BudgetOption]
+}
+
+/// A JSON value of unknown shape, decoded without losing it.
+///
+/// D-136's facts are open-ended by design — a new reason may carry values this build has never
+/// seen — so decoding them into a fixed struct would either drop fields or refuse payloads a
+/// newer engine sends. This keeps them, and the composition layer reads what it recognises.
+enum JSONValue: Decodable {
+    case string(String)
+    case number(Double)
+    case bool(Bool)
+    case object([String: JSONValue])
+    case array([JSONValue])
+    case null
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() {
+            self = .null
+        } else if let value = try? container.decode(Bool.self) {
+            self = .bool(value)
+        } else if let value = try? container.decode(Double.self) {
+            self = .number(value)
+        } else if let value = try? container.decode(String.self) {
+            self = .string(value)
+        } else if let value = try? container.decode([String: JSONValue].self) {
+            self = .object(value)
+        } else if let value = try? container.decode([JSONValue].self) {
+            self = .array(value)
+        } else {
+            self = .null
+        }
+    }
+
+    /// Flatten to the loose dictionary the composition functions read. Nested objects and arrays
+    /// are dropped rather than half-converted: no fact uses them today, and a client that guessed
+    /// at their shape would be inventing structure the engine did not send.
+    var dictionary: [String: Any] {
+        guard case let .object(fields) = self else { return [:] }
+        var out: [String: Any] = [:]
+        for (key, value) in fields {
+            switch value {
+            case let .string(text): out[key] = text
+            case let .number(double): out[key] = double
+            case let .bool(flag): out[key] = flag
+            case .object, .array, .null: continue
+            }
+        }
+        return out
+    }
 }
 

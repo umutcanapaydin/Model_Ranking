@@ -485,7 +485,7 @@ public let pagesPerMillionTokens = 1_500
 /// round approximation the sentence itself calls "about", and a number that changes shape between
 /// devices reads as data rather than as the rough figure it is. Seen on the first screenshot of
 /// this wave, in a change whose entire subject is readability.
-private var groupedPages: String {
+var groupedPages: String {
     let formatter = NumberFormatter()
     formatter.locale = Locale(identifier: "en_US_POSIX")
     formatter.numberStyle = .decimal
@@ -613,9 +613,15 @@ extension BudgetOption {
     ///
     /// `nil` for `unlimited`: there is no cap, and inventing a label for one would be exactly the
     /// sentinel D-134 refused to publish.
-    var capLabel: String? {
+    var capLabel: String? { capLabel(in: .english) }
+
+    /// The cap in the reader's language. `under $2/1M` was still English on an otherwise Turkish
+    /// screen — a caption is a sentence too, and half a translated screen is the trap the M12 plan
+    /// names. The FIGURE never changes: `$2/1M` is what the engine caps at, in both languages.
+    func capLabel(in language: Language) -> String? {
         guard let cap = blendedCapPerM else { return nil }
-        return "under $\(String(format: "%g", cap))/1M"
+        let amount = "$\(String(format: "%g", cap))/1M"
+        return language == .turkish ? "\(amount) altı" : "under \(amount)"
     }
 }
 

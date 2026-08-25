@@ -415,14 +415,24 @@ def test_the_client_says_when_the_full_ranking_is_wider_than_the_budget() -> Non
 
     Dies to: dropping the comparison, or rendering only `ranking.count`.
     """
-    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
-    code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
+    # Read the whole client, not one file. At M12-W4 the comparison moved out of `ContentView`
+    # into `UIText.seeAll`, where it is tested directly in Swift and composed in two languages —
+    # and this assertion failed on a change that kept every part of the behaviour.
+    #
+    # **Third time this shape has cost a wave** (the ordering note, the ATS warning, this). A test
+    # that pins WHERE logic lives fails when it moves and passes when it is deleted from the place
+    # it moved to. What must hold is that the client READS both numbers and COMPARES them; which
+    # file does it is not the reader's concern and should not be the test's.
+    code = "\n".join(
+        "\n".join(line.split("//", 1)[0] for line in path.read_text(encoding="utf-8").splitlines())
+        for path in sorted(CLIENT.rglob("*.swift"))
+    )
 
-    assert ".eligibleCount" in code, (
+    assert ".eligibleCount" in code or "eligible:" in code, (
         "the client never reads eligible_count, so it cannot tell the reader that the list below "
         "is wider than what their budget affords"
     )
-    assert re.search(r"eligibleCount\s*<\s*\w+\.ranking\.count", code), (
+    assert re.search(r"eligible\w*\s*<\s*\w*[Tt]otal|eligibleCount\s*<\s*\w+\.ranking\.count", code), (
         "the client no longer compares the eligible count against the published ranking; the "
         "'See all N' heading then reads as a continuation of the budgeted picks above it"
     )

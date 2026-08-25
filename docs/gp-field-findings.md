@@ -369,7 +369,16 @@ reconstruct the defect from a description rather than see it.
 ABOUT the thing, and the more important the finding, the more likely it needs to quote the thing.
 A localisation rule that cannot document a localisation bug is a rule pointed at its own foot.
 
-**Suggested remedy, offered upstream:** exempt fenced code blocks and inline code spans, the same
-narrowing that `bootstrap-check.sh` needed in GPF-007 for the same reason — a rule about PROSE
-should read prose. Then a record can write the letter inside backticks and say what it does.
+**Suggested remedy, offered upstream — and APPLIED in the field on 2026-08-25 after a fourth
+occurrence.** `L1` now strips inline code spans and fenced blocks before scanning, the same
+narrowing `bootstrap-check.sh` needed in GPF-007 for the same reason: a rule about PROSE should
+read prose. A record can now quote the defective sentence inside backticks and say what is wrong
+with it.
+
+**Proven in both directions before shipping, because a scope narrowing that is not shown to still
+catch the original defect is a loosening:** bare Turkish appended to a non-exempt record still
+FIRES `L1`; the identical text inside backticks passes. The first attempt to prove it used
+`docs/prd.md`, which is already in `.language-allow` for the owner's surname — the test would have
+"passed" against a file the rule never reads, which is the shape this project has now recorded a
+dozen times and caught here only by checking why the answer was zero.
 

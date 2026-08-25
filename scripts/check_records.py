@@ -78,6 +78,10 @@ RECORD_TYPES = {"ratification", "register", "adr", "experience", "handover", "de
 #: Control identifiers as this project writes them: K.7, V3C-02, V4C-13, L.7, E.4, INV-23.
 #: Deliberately NOT `D-\d+` or `REQ-...`: a decision is not a control that gets bypassed, and
 #: counting them would make C2b fire on rows that merely cite an ADR.
+#: An inline code span. A rule about the language of this repository reads PROSE; what is quoted
+#: inside backticks is evidence, and evidence has to be allowed to be in the language it is about.
+INLINE_CODE = re.compile(r"`[^`]*`")
+
 CONTROL_ID = re.compile(r"\b(K\.\d+|V3C-\d+|V4C-\d+|[A-L]\.\d+|INV-\d+)\b")
 
 STATUS_FLOW = ["draft", "candidate", "ratified", "superseded", "retired"]  # X3 ordering
@@ -860,8 +864,27 @@ def language_rule(root: Path) -> list[Finding]:
             f.append(Finding(Path(rel), 0, "L1",
                              f"could not be read for the English-only check: {exc}"))
             continue
+        # **The rule is about PROSE, and inline code spans are not prose (GPF-005, -008; fourth
+        # occurrence).** `L1` keeps the repository English, and it kept blocking the records that
+        # DOCUMENT non-English behaviour: a security finding about Turkish case folding could not
+        # explain itself without naming the letter that causes it, and a ledger row could not quote
+        # the defective sentence it was reporting. Each time the workaround was to describe the text
+        # instead of showing it, which makes the record measurably worse — a reader now has to
+        # reconstruct the defect from a paraphrase.
+        #
+        # Same narrowing GPF-007 needed in `bootstrap-check.sh`, for the same reason: a rule that
+        # reads code as prose fails on correct work, and a gate that fails correct work gets
+        # switched off. A backticked span is a QUOTATION; bare Turkish in a sentence is still a
+        # finding, and the self-test probe proves it.
+        fenced = False
         for i, line in enumerate(text.splitlines(), 1):
-            if TR_CHARS.search(line):
+            if line.lstrip().startswith("```"):
+                fenced = not fenced
+                continue
+            if fenced:
+                continue
+            prose = INLINE_CODE.sub("", line)
+            if TR_CHARS.search(prose):
                 f.append(Finding(Path(rel), i, "L1",
                                  "Turkish text in an English-only repository (V4C-79). Translate it; "
                                  "if it is an owner quote, translate and mark it "

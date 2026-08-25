@@ -776,6 +776,12 @@ PUBLIC_PICK_FIELDS = frozenset(
         "confidence_basis",
         "why",
         "trade_off",
+        # D-136: the machine-readable half of the two sentences above. Published so a client can
+        # compose them in another language from the same values the English is derived from,
+        # rather than the engine holding a second copy of the product's voice — which is what
+        # `?lang=tr` would have made it hold.
+        "why_fact",
+        "trade_off_fact",
     }
 )
 

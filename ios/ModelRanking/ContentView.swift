@@ -40,6 +40,9 @@ struct ContentView: View {
     /// The caps, read from `/v1/budgets` rather than hardcoded — the whole point of D-134 is that
     /// a consumer does not have to know what `low` means.
     @State private var budgets: [BudgetOption] = []
+    /// The reader's language. `@AppStorage` so the choice survives a relaunch — a flag switch that
+    /// forgets is a flag switch nobody uses twice.
+    @AppStorage("language") private var language: Language = .english
     private let router = TieredRouter()
 
     enum LoadState {
@@ -62,17 +65,30 @@ struct ContentView: View {
                     failure(error)
                 }
             }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    // D-136. Two flags, because a flag is the one label that needs no language to
+                    // read — which is the whole problem this milestone is about.
+                    Picker("", selection: $language) {
+                        ForEach(Language.allCases) { option in
+                            Text(option.flag).tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 96)
+                }
+            }
             .safeAreaInset(edge: .top) {
                 VStack(spacing: 0) {
                     categoryStrip
                     budgetStrip
                 }
             }
-            .navigationTitle("Which model?")
+            .navigationTitle(UIText.title(language))
             // Inline, because the category strip already occupies the top of the screen and a
             // large title left an empty band above it with nothing in it.
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $filter, prompt: "Filter by model name")
+            .searchable(text: $filter, prompt: UIText.filterPlaceholder(language))
             .task { await load() }
         }
     }
@@ -95,7 +111,7 @@ struct ContentView: View {
                         HStack(spacing: 10) {
                             Image(systemName: "text.bubble")
                                 .foregroundStyle(.secondary)
-                            TextField("What do you want an AI to do?", text: $question)
+                            TextField(UIText.askPlaceholder(language), text: $question)
                                 .submitLabel(.search)
                                 .onSubmit { Task { await ask() } }
                             if routingInFlight {
@@ -123,7 +139,7 @@ struct ContentView: View {
                 // engine's answer.
                 ForEach(ordered) { answer in
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionTitle(text: answer.title)
+                        SectionTitle(text: UIText.surface(id: answer.surface, engineTitle: answer.title, language))
 
                         if answer.picks.isEmpty && answer.ranking.isEmpty {
                             Card { emptyAnswer(answer) }
@@ -132,7 +148,8 @@ struct ContentView: View {
                                 PickRow(
                                     pick: pick,
                                     ranking: answer.ranking,
-                                    scale: scaleExplanation(for: answer.metric)
+                                    scale: scaleExplanation(for: answer.metric, in: language),
+                                    language: language
                                 )
                             }
                             rankingPreview(answer)
@@ -197,7 +214,7 @@ struct ContentView: View {
             Card(padding: 4) {
                 VStack(spacing: 0) {
                     ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                        RankedRow(row: row)
+                        RankedRow(row: row, language: language)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 10)
                         if index < rows.count - 1 {
@@ -206,7 +223,7 @@ struct ContentView: View {
                     }
                     Divider().padding(.leading, 12)
                     NavigationLink {
-                        RankingList(answer: answer, filter: filter)
+                        RankingList(answer: answer, filter: filter, language: language)
                     } label: {
                 // The full ranking is NOT budget-filtered — D-125 publishes every ranked model
                 // beside the three picks, deliberately. A review found the payload giving two
@@ -218,12 +235,7 @@ struct ContentView: View {
                 // moved. It reads as one sentence when they agree and as a disclosure when they
                 // do not.
                         HStack {
-                            Text(
-                                answer.eligibleCount < answer.ranking.count
-                                    ? "See all \(answer.ranking.count) — "
-                                        + "\(answer.eligibleCount) fit your budget"
-                                    : "See all \(answer.ranking.count)"
-                            )
+                            Text(UIText.seeAll(answer.ranking.count, eligible: answer.eligibleCount, language))
                             .font(.subheadline)
                             Spacer()
                             Image(systemName: "chevron.right")
@@ -336,8 +348,8 @@ struct ContentView: View {
                         Task { await load() }
                     } label: {
                         VStack(spacing: 1) {
-                            Text(option.title).font(.footnote.weight(.medium))
-                            if let cap = option.capLabel {
+                            Text(UIText.budget(option.id, language)).font(.footnote.weight(.medium))
+                            if let cap = option.capLabel(in: language) {
                                 Text(cap).font(.caption2)
                             }
                         }
@@ -380,7 +392,7 @@ struct ContentView: View {
                             task = category.id
                             Task { await load() }
                         } label: {
-                            Text(category.title)
+                            Text(UIText.surface(id: category.id, engineTitle: category.title, language))
                                 .font(.subheadline)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 8)
@@ -513,10 +525,12 @@ struct Card<Content: View>: View {
 /// Each pick answers a DIFFERENT question, and the label is the only thing that says which. As a
 /// small tinted caption it read as decoration; as a badge it reads as the heading it actually is.
 struct PickBadge: View {
+    /// Already localised by the caller — `UIText.pickLabel`. The badge renders a word; deciding
+    /// WHICH word is a language question and does not belong in a view.
     let label: String
 
     var body: some View {
-        Text(label.replacingOccurrences(of: "_", with: " ").uppercased())
+        Text(label)
             .font(.caption2.weight(.semibold))
             .tracking(0.6)
             .padding(.horizontal, 10)
@@ -546,6 +560,20 @@ struct PickRow: View {
     /// What the score's scale is, in one line. `nil` when the metric is one we cannot explain —
     /// a missing explanation is a gap, a wrong one is a lie.
     var scale: String?
+    /// D-136. The sentences below are composed from the engine's FACTS in this language, and fall
+    /// back to the engine's own English when the fact carries a reason this build does not know.
+    /// **Falling back is correct**; inventing a Turkish sentence for a reason we do not understand
+    /// would be the product speaking without knowing what it is saying.
+    var language: Language = .english
+
+    private var whyText: String {
+        whySentence(pick.whyFactDictionary, in: language) ?? pick.why
+    }
+
+    private var tradeOffText: String? {
+        guard let prose = pick.tradeOff else { return nil }
+        return tradeOffSentence(pick.tradeOffFactDictionary, in: language) ?? prose
+    }
 
     private var pickMeaning: String? {
         var parts: [String] = []
@@ -553,19 +581,19 @@ struct PickRow: View {
             parts.append("#\(rank) of \(ranking.count)")
         }
         if let scale { parts.append(scale) }
-        parts.append(priceInPages(pick.blendedPerM))
+        parts.append(priceInPages(pick.blendedPerM, in: language))
         return parts.isEmpty ? nil : parts.joined(separator: "  ·  ")
     }
 
     var body: some View {
         Card {
             VStack(alignment: .leading, spacing: 8) {
-                PickBadge(label: pick.label)
+                PickBadge(label: UIText.pickLabel(pick.label, language))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(pick.model).font(.title3.weight(.semibold))
                     Text(pick.vendor).font(.subheadline).foregroundStyle(.secondary)
                 }
-                Text(Format.scoreAndPrice(pick.score, pick.metric, pick.blendedPerM))
+                Text(Format.scoreAndPrice(pick.score, UIText.metric(pick.metric, language), pick.blendedPerM))
                     .font(.subheadline.weight(.medium))
                     .monospacedDigit()
                 // REQ-CMP-001/002. The exact number is never replaced — it gains a companion.
@@ -577,8 +605,8 @@ struct PickRow: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                Text(pick.why).font(.footnote).foregroundStyle(.secondary)
-                if let tradeOff = pick.tradeOff {
+                Text(whyText).font(.footnote).foregroundStyle(.secondary)
+                if let tradeOff = tradeOffText {
                     Text(tradeOff).font(.footnote).foregroundStyle(.tertiary)
                 }
             }
@@ -588,6 +616,9 @@ struct PickRow: View {
 
 struct RankedRow: View {
     let row: RankedModel
+    /// Passed in, never read from storage here — see `RankingList`: two views on one screen
+    /// disagreeing about the reader's language would be worse than one that is untranslated.
+    var language: Language = .english
 
     var body: some View {
         HStack {
@@ -596,7 +627,7 @@ struct RankedRow: View {
                 Text(row.vendor).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            Text(Format.scoreAndPrice(row.score, row.metric, row.blendedPerM))
+            Text(Format.scoreAndPrice(row.score, UIText.metric(row.metric, language), row.blendedPerM))
                 .font(.caption)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
@@ -608,12 +639,16 @@ struct RankedRow: View {
 struct RankingList: View {
     let answer: Answer
     @State var filter: String
+    /// Passed in rather than read from storage here: a detail screen that could disagree with the
+    /// screen that opened it about what language the reader is in would be worse than one that is
+    /// simply not translated.
+    var language: Language = .english
 
     var body: some View {
         ScrollViewReader { proxy in
             List {
                 ForEach(rows) { row in
-                    RankedRow(row: row).id(row.id)
+                    RankedRow(row: row, language: language).id(row.id)
                 }
             }
             // **Back to the top whenever the filter changes**, and this is the defect the owner
@@ -631,8 +666,8 @@ struct RankingList: View {
                 proxy.scrollTo(first.id, anchor: .top)
             }
         }
-        .navigationTitle(answer.title)
-        .searchable(text: $filter, prompt: "Filter by model name")
+        .navigationTitle(UIText.surface(id: answer.surface, engineTitle: answer.title, language))
+        .searchable(text: $filter, prompt: UIText.filterPlaceholder(language))
     }
 
     private var rows: [RankedModel] {
