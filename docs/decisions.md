@@ -1387,3 +1387,38 @@ independently of the module, so adding a route stays a two-file change that cann
 The caps are policy constants, so the endpoint answers while the artifact is missing or being
 republished — which, since M9, happens every twelve hours.
 
+## D-135 — A structural absence is stated ONCE, not repeated per surface
+
+**Status:** accepted · **Date:** 2026-08-25 · **Decided by:** the owner, choosing "say the
+structural one once, do not repeat it" from three options after the council measured the disclosure
+load. · **Amends the application of D-121; does not supersede it.**
+
+**Context.** D-121 says a source may be optional but a blind surface may never be silent, and eleven
+milestones have applied it by attaching a notice wherever a limitation touches an answer. The
+council measured what that produced: **eight disclosure blocks per screen, 155–185 words of caveat
+against 40–60 words of answer**, rendered as up to five identical orange warning triangles with no
+severity order, carrying about four distinct facts.
+
+Six of the nine surfaces carry a permanent *"evidence may be out of date"* notice. **Five of those
+carry it because the source publishes no dates at all** — so the notice can never clear, on any
+data, ever. It is a structural property of the source wearing the costume of a transient warning,
+and it drowns the one notice that is transient and real: SWE-bench, 179 days.
+
+**Decision.** A limitation that is a PROPERTY OF A SOURCE is stated once, per source, in calm
+language. A limitation that is a STATE OF THE DATA — something that became true and can become
+false again — keeps its warning treatment and its prominence.
+
+**What this decision is NOT.** It is not a reduction in what the product discloses. Every fact
+survives; the repetition does not. The test of any change under this ADR is: *can a reader still
+learn every limitation that applies to the answer they are looking at?* If the answer is no, the
+change is wrong and D-121 governs.
+
+**Why this is the owner's ruling and not an implementation detail.** This project's identity is
+that it never goes silent about what it cannot see. Reducing the volume of disclosure is exactly
+the kind of change that is defensible in each instance and corrosive in aggregate, so it is
+recorded as a ruling with its measurement attached rather than made quietly in a design pass.
+
+**Consequences.** Six permanent staleness notices become one statement per source. The transient
+one becomes visible for the first time. `docs/prd.md` REQ-APP rows that specify per-surface notices
+are amended at the wave that implements this, not at closure.
+
