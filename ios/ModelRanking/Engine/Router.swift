@@ -392,9 +392,44 @@ public func filterRanking<Row>(
 ) -> [Row] {
     let needle = text.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !needle.isEmpty else { return rows }
-    return rows.filter {
-        name($0).localizedCaseInsensitiveContains(needle)
-            || vendor($0).localizedCaseInsensitiveContains(needle)
-    }
+    return rows.filter { matchesFilter(name($0), needle) || matchesFilter(vendor($0), needle) }
+}
+
+/// Case-insensitive containment that does NOT change meaning with the reader's language.
+///
+/// **`localizedCaseInsensitiveContains` folds case using the CURRENT LOCALE, and Turkish folds
+/// differently.** Turkish has a dotless lower-case counterpart to capital I, so under `tr_TR` the
+/// capital letter no longer folds to the ordinary lower-case i — and searching for that letter
+/// stops matching "GPT-5.1 Instruct". Measured in three locales before this was written:
+/// `en_US` matches, `en_TR` matches, `tr_TR` does not.
+///
+/// The app is about to ship Turkish. This would have broken the model filter on the day it did,
+/// on the exact screen the owner had already reported once (W-069) — and the six tests pinning
+/// this predicate would all have stayed green, because they inherit the process locale and cannot
+/// see a locale they do not set.
+///
+/// `Locale(identifier: "en_US_POSIX")` is the fix and it is deliberate rather than defensive: a
+/// model name is an IDENTIFIER, not prose in the reader's language. "GPT-5.1 Instruct" is spelled
+/// the same in Ankara and in Ohio, so folding it by the reader's locale was never right — it only
+/// happened to be harmless while every reader was English.
+///
+/// The locale is a NAMED CONSTANT rather than an inline argument, and that is the difference
+/// between a behaviour and a decision. A mutant putting `Locale.current` back survived every
+/// behavioural test in this file, because the machine running them is set to `en_TR` — which folds
+/// like English. The tests could describe the property and could not detect its loss. Naming the
+/// constant lets a test assert the CHOICE, which no process locale can disguise.
+///
+/// **Two adjacent call sites were checked and deliberately NOT changed:** `uppercased()` and
+/// `lowercased()` elsewhere in this file operate on values that are already locale-independent.
+/// A sweep that "fixed" all three would have been a bigger change and a wrong one.
+let filterLocale = Locale(identifier: "en_US_POSIX")
+
+func matchesFilter(_ haystack: String, _ needle: String) -> Bool {
+    haystack.range(
+        of: needle,
+        options: [.caseInsensitive, .diacriticInsensitive],
+        range: nil,
+        locale: filterLocale
+    ) != nil
 }
 

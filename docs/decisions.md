@@ -1422,3 +1422,63 @@ recorded as a ruling with its measurement attached rather than made quietly in a
 one becomes visible for the first time. `docs/prd.md` REQ-APP rows that specify per-surface notices
 are amended at the wave that implements this, not at closure.
 
+## D-119 — `equivalent_plans` carries LABELLED groups, not a flat list of names
+
+**Status:** accepted · **Ratified 2026-08-25, describing a decision in force since M6.**
+**Decided by:** the M6 wave that implemented REQ-REC-014.
+
+**This ADR is late by six milestones and that is the reason it is worth reading.** `docs/plans/m6-plan.md`
+proposed it, `docs/closure-report-m6.md` states *"D-119 written at closure rather than mid-wave"*,
+and it was never written. The code shipped, the tests pin it, three records cite it — and the
+decision itself existed nowhere. Written now with today's date rather than backdated: a false date
+would commit, inside the repair, the same defect the repair exists to fix.
+
+**Context.** `equivalent_plans` was a flat tuple of plan names (W-002, raised at M4). With two or
+more equivalence groups, a machine consumer could not tell which PICK each plan was equivalent to —
+the labels had been flattened away, so "these three plans are equivalent" lost the answer to
+"equivalent to what?".
+
+**Decision.** `equivalent_plans` is a tuple of `EquivalenceGroup`, each carrying the label of the
+pick it belongs to (`src/app/workflows/subscribe.py:147`). Not every label collapse is equivalence:
+all labels may land on one plan, and the tuple stays empty when no second plan is equivalent to
+anything.
+
+**Consequences.** A consumer can group plans by the pick they match. The tuple is empty on the
+shipped artifact today, measured — which is a fact about the data, not about the contract, and is
+exactly why the shape matters before it is populated.
+
+## D-120 — CLI exit codes are a frozen contract, and `3` is NOT uniform across it
+
+**Status:** accepted · **Ratified 2026-08-25, describing a convention in force since M6.**
+**Decided by:** the M6 wave that established it, with the divergence recorded here for the first
+time.
+
+**Cited in 26 files — including `src/app/workflows/build.py:25` as "`schema.py`'s frozen D-120
+contract", and in `tests/unit/test_roster_window.py:416` as "a K.8 frozen contract, so the SET is
+pinned" — and never written.** The M10 and M11 plans both list it among the frozen surfaces this
+project promises not to move. **The most-deferred-to contract in the repository had no record.**
+
+**Decision, as it actually shipped.** An operator learns one convention rather than one per tool:
+
+| Code | Meaning | Where |
+|---|---|---|
+| `0` | did what was asked | everywhere |
+| `1` | a RESULT, not a failure — "no model fits this budget", "nothing changed" | `recommend.py`, `coverage.py`, `refresh.py` |
+| `2` | the command failed; the target is not usable | everywhere |
+| `3` | **two different things — see below** | `build.py`, `schema.py`, `refresh.py` |
+
+**The divergence, stated rather than tidied away.** In `build.py:549` and `schema.py:493`, `3` means
+*built but NOT servable*, with `required_operator_actions` naming what is missing — a degraded
+success. In `refresh.py:77`, `3` is `EXIT_REFUSED` — the refresh declined to publish, which is a
+deliberate refusal and not a degraded anything.
+
+Both are defensible in isolation and the pair is not a convention. It is recorded here as a KNOWN
+divergence rather than resolved, for one reason: `contract-tests.yml` already tolerates `build.py`'s
+`3` explicitly, and `runner` already reads `refresh.py`'s codes, so changing either number now would
+break a consumer to tidy a document. **The document is what was wrong.** Resolving it needs a
+migration and belongs in a plan, not in the ADR that finally writes the contract down.
+
+**Consequences.** The SET is frozen: no CLI in this repository may introduce a fourth meaning, and
+no existing code may change meaning without an ADR superseding this one. The divergence at `3` is
+now a thing this project knows about instead of a thing it has been asserting is uniform.
+

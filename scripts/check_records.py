@@ -75,6 +75,11 @@ RECORD_TYPES = {"ratification", "register", "adr", "experience", "handover", "de
                 # only wave-close records under `docs/plans/`) — named here so the type is legal the
                 # day it is governed, rather than becoming a second B1.
                 "review", "plan"}
+#: Control identifiers as this project writes them: K.7, V3C-02, V4C-13, L.7, E.4, INV-23.
+#: Deliberately NOT `D-\d+` or `REQ-...`: a decision is not a control that gets bypassed, and
+#: counting them would make C2b fire on rows that merely cite an ADR.
+CONTROL_ID = re.compile(r"\b(K\.\d+|V3C-\d+|V4C-\d+|[A-L]\.\d+|INV-\d+)\b")
+
 STATUS_FLOW = ["draft", "candidate", "ratified", "superseded", "retired"]  # X3 ordering
 REQUIRED = ("record_type", "id", "status")
 #: Who reviewed. `author` = the seat that wrote the code reviewed it; `independent` = a seat that
@@ -706,7 +711,7 @@ def warning_ledger(root: Path) -> list[Finding]:
         # The control was right and had simply never been run against the artefact the design requires.
         if all(c.strip() in {"-", "\u2014", ""} for c in cells[:5]):
             continue
-        wid, rule, seen, status = cells[0], cells[1], cells[2], cells[4].upper()
+        wid, seen, status = cells[0], cells[2], cells[4].upper()
         why = cells[5] if len(cells) > 5 else ""
         if status not in WARN_STATUSES:
             f.append(Finding(rel, i, "C2c",
@@ -724,14 +729,35 @@ def warning_ledger(root: Path) -> list[Finding]:
                              f"`{wid}` is ACCEPTED without a reason AND an owning milestone — "
                              "'accepted' with no owner is how a warning becomes permanent"))
         if status == "ACCEPTED":
-            accepted.setdefault(rule, []).append(wid)
+            # GROUPED BY CONTROL, not by provenance. `cells[1]` is the free-text "where this came
+            # from" column -- "M8 independent security review, MAJOR-1" -- and it is unique on
+            # every row by construction, so C2b could never reach three and never fired once.
+            # Measured at M12-W1: 22 ACCEPTED rows, 22 distinct keys, zero triggers, **while two
+            # records asserted that it had fired** and K.7 had been bypassed ten times.
+            #
+            # A counter that cannot count is worse than no counter, because records start citing
+            # it. The key is now the CONTROL identifier taken from the context column -- `K.7`,
+            # `V3C-78`, `V4C-13`, `INV-23`, the lettered seeds -- which is the thing V4C-13 is
+            # actually about: not who accepted, but WHAT keeps being accepted.
+            for control in sorted(set(CONTROL_ID.findall(cells[3]))):
+                accepted.setdefault(control, []).append((wid, why))
     # C2b — V4C-13's 3x trigger, finally countable by something
-    for rule, ids in sorted(accepted.items()):
-        if len(ids) >= ACCEPT_LIMIT:
-            f.append(Finding(rel, 1, "C2b",
-                             f"`{rule}` has been ACCEPTED {len(ids)}x ({', '.join(ids)}) — at "
-                             f"{ACCEPT_LIMIT} the CONTROL goes under review, not the people "
-                             "(V4C-13). Review it or refuse it; do not accept a fourth time"))
+    for control, rows in sorted(accepted.items()):
+        if len(rows) < ACCEPT_LIMIT:
+            continue
+        # **The trigger is SATISFIABLE, and that is deliberate.** V4C-13 says the third acceptance
+        # sends the CONTROL for review rather than the people. A finding that cannot be discharged
+        # is an alarm to be silenced; this one is discharged by DOING what it asks and pointing at
+        # the result. K.7 reached three, the control was reviewed, and D-133 is the outcome -- so
+        # the rows that cite it satisfy this and the ones that do not, do not.
+        if any(re.search(r"\b[DP]-\d{3}\b", why) for _wid, why in rows):
+            continue
+        ids = ", ".join(wid for wid, _why in rows)
+        f.append(Finding(rel, 1, "C2b",
+                         f"`{control}` has been ACCEPTED {len(rows)}x ({ids}) and no row names the "
+                         f"decision that reviewed it — at {ACCEPT_LIMIT} the CONTROL goes under "
+                         "review, not the people (V4C-13). Review it and cite the ADR, or refuse "
+                         "it; do not accept a fourth time"))
     return f
 
 
@@ -1012,9 +1038,16 @@ def self_test(root: Path) -> int:
             "| id | rule | first seen | path | status | reason |\n|---|---|---|---|---|---|\n"
             "| W-1 | contract-suite | m1-wave-2 | t/ | OPEN | |\n"
             "| W-2 | cold-start | m2-wave-0 | s/ | ACCEPTED | later |\n"
-            "| W-3 | contract-suite | m2-w0 | t/ | ACCEPTED | no engine; owner runs it — milestone M2 |\n"
-            "| W-4 | contract-suite | m2-w1 | t/ | ACCEPTED | no engine; owner runs it — milestone M2 |\n"
-            "| W-5 | contract-suite | m2-w2 | t/ | ACCEPTED | no engine; owner runs it — milestone M2 |\n")
+            # The three ACCEPTED rows carry the SAME CONTROL in the path column, which is what C2b
+            # now groups on. Updated at M12-W1 with the rule itself: the probe used to vary only
+            # the provenance column, so it proved a version of C2b that could never fire in the
+            # field. A self-test that passes against a fixture the real data cannot produce is the
+            # same defect V4C-32 exists to catch, one level up.
+            #
+            # None of them names an ADR, so the trigger is NOT discharged and C2b must fire.
+            "| W-3 | contract-suite | m2-w0 | K.7 / V3C-78 | ACCEPTED | no engine; owner runs it — milestone M2 |\n"
+            "| W-4 | contract-suite | m2-w1 | K.7 / V3C-78 | ACCEPTED | no engine; owner runs it — milestone M2 |\n"
+            "| W-5 | contract-suite | m2-w2 | K.7 / V3C-78 | ACCEPTED | no engine; owner runs it — milestone M2 |\n")
         got |= {x.rule for x in warning_ledger(probe)}                        # C2a/C2b/C2c
         (probe / "turkish.md").write_text("bu satir Turkce karakter tasiyor: \u015fey\n")
         got |= {x.rule for x in language_rule(probe)}                         # L1

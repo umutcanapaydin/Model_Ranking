@@ -94,7 +94,16 @@ typecheck: install
 #
 # `gate` is now the ONE name that means "everything this pipeline claims to enforce". The hook calls it,
 # CI calls it, and the design doc points at it. If a control is not reachable from here, we do not claim it.
-gate: check conformance falsify secrets deps slopsquat  ## THE canonical gate -- everything the docs claim, actually wired
+#: M12-W1. `gate` depended on the RAW `conformance` leg while `check` runs `conformance-gate`,
+#: which applies the per-finding exemptions. So `make gate` exited 2 on a clean tree — measured —
+#: and it is the only thing `.claude/settings.json` runs after an edit. Its own log file had never
+#: been written, and CI never calls it, so a gate that has been red for months went unread by
+#: everybody including the hook that runs it.
+#:
+#: The six findings it failed on are all exempted, all still firing, and all handed back to the
+#: pipeline; four of them are W-013 — historical records naming `make pin-check`, a target v5.0
+#: removed. Exempting them was already the ruling; `gate` simply never got the memo.
+gate: check falsify secrets deps slopsquat  ## THE canonical gate -- everything the docs claim, actually wired
 	@echo "gate PASS: lint typecheck test records install secrets deps slopsquat"
 
 falsify:  ## v5: break every control on purpose; one that cannot be broken is not a control
@@ -120,7 +129,7 @@ conformance-gate: install
 	$(PY) -B scripts/conformance_gate.py
 
 #: Raise when tests are added; never lower without a ledger row.
-SWIFT_TEST_FLOOR = 59
+SWIFT_TEST_FLOOR = 64
 
 swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING sources
 	@# A test nobody types is a test that does not run -- W-032, this project's own finding, which

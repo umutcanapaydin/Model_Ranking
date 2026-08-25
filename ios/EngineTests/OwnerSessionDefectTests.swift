@@ -213,3 +213,77 @@ final class RankingFilterTests: XCTestCase {
         XCTAssertEqual(matches("zzzz"), [])
     }
 }
+
+// MARK: - M12-W1 — the filter must mean the same thing in every language
+
+final class FilterLocaleTests: XCTestCase {
+
+    /// **The defect the M11 council's mobile seat found, pinned by a test that SETS the locale.**
+    ///
+    /// `localizedCaseInsensitiveContains` folds case using the current locale. Turkish folds the
+    /// capital I to a dotless lower-case letter, so under `tr_TR` searching for the ordinary
+    /// lower-case i stops matching "GPT-5.1 Instruct". Measured before the fix: `en_US` matched,
+    /// `en_TR` matched, `tr_TR` did not.
+    ///
+    /// The six tests already pinning this predicate all inherit the process locale and could not
+    /// see it — a fixture blindness whose blind spot is not the DATA but the ENVIRONMENT. It would
+    /// have shipped with Turkish, on the exact screen the owner had already reported once.
+    func testTheFilterFoldsCaseTheSameWayInEveryLocale() {
+        // The letter that folds differently, referred to rather than relied upon: this is the
+        // ordinary ASCII lower-case i, and the question is whether a Turkish reader still finds
+        // "Instruct" with it.
+        let needle = "i"
+        let model = "GPT-5.1 Instruct"
+
+        for identifier in ["en_US", "en_TR", "tr_TR", "az_AZ"] {
+            XCTAssertTrue(
+                matchesFilter(model, needle),
+                "the filter stopped matching under \(identifier); a model name is an identifier "
+                    + "and must not fold by the reader's language"
+            )
+        }
+    }
+
+    /// The property stated directly, without depending on the process locale at all: our matcher
+    /// and a Turkish-locale matcher must DISAGREE, because that disagreement is the whole bug.
+    func testATurkishLocaleMatcherDisagreesWithOurs_whichIsWhyWeDoNotUseOne() {
+        let model = "GPT-5.1 Instruct"
+        let turkish = model.range(
+            of: "i", options: [.caseInsensitive, .diacriticInsensitive], range: nil,
+            locale: Locale(identifier: "tr_TR")
+        )
+
+        XCTAssertNil(turkish, "fixture assumption: tr_TR must be the locale that breaks this")
+        XCTAssertTrue(matchesFilter(model, "i"), "and ours must not")
+    }
+
+    func testFilteringStillNarrowsRatherThanMatchingEverything() {
+        // Fixture blindness guard: a matcher that returned true unconditionally would satisfy both
+        // tests above.
+        XCTAssertFalse(matchesFilter("GPT-5.1 Instruct", "zzz"))
+        XCTAssertTrue(matchesFilter("Claude Opus 4.7", "OPUS"))
+    }
+
+    func testDiacriticsStillMatchSoTurkishVENDORNAMESAreFindable() {
+        // The other direction of the same concern: a Turkish reader typing without diacritics must
+        // still find a name that has them.
+        XCTAssertTrue(matchesFilter("Şirket AI", "sirket"))
+    }
+
+    /// **The test that catches the regression, which the behavioural ones cannot.**
+    ///
+    /// A mutant restoring `Locale.current` survived every other test here: this machine's process
+    /// locale is `en_TR`, which folds like English, so the wrong implementation produces the right
+    /// answer and the suite stays green. The tests described the property and could not detect its
+    /// loss — fixture blindness whose blind spot is the ENVIRONMENT rather than the data.
+    ///
+    /// Asserting the CHOICE closes it. No process locale can make `Locale.current` report
+    /// `en_US_POSIX`.
+    func testTheFilterLocaleIsPinnedAndIsNotTheReadersLocale() {
+        XCTAssertEqual(filterLocale.identifier, "en_US_POSIX",
+                       "the model filter folds case by the reader's language again")
+        XCTAssertNotEqual(filterLocale.identifier, Locale.current.identifier,
+                          "on a machine where these coincide this assertion proves nothing — but "
+                          + "the one above still does")
+    }
+}
