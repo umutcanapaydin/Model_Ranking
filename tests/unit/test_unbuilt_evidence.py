@@ -22,15 +22,20 @@ from app.workflows.rank import UnbuiltEvidenceError, require_price_medians
 from app.workflows.recommend import recommend
 from app.workflows.schema import connect
 
+from .test_api_v1 import _seeded_db
+
 
 def _built(path: Path) -> None:
-    """A minimal artifact the startup probe accepts."""
-    conn = connect(str(path))
-    try:
-        conn.execute("INSERT INTO px_median (model_id, in_m, out_m) VALUES ('m', 1.0, 2.0)")
-        conn.commit()
-    finally:
-        conn.close()
+    """A genuinely servable artifact — one that ranks something on a real surface.
+
+    **M13-W1 review BLOCKING-1 corrected this fixture, and the correction is the finding.** It used
+    to insert one `px_median` row (and, here, some `scores` rows on a benchmark no surface ranks)
+    and call itself "an artifact the startup probe accepts". It was — and it ranked NOTHING on any
+    of the nine advertised surfaces, so it would have answered every real query with no picks while
+    `/health` reported a healthy build. The probe now refuses that, correctly, so a fixture claiming
+    to be servable has to actually be servable. It delegates to the canonical seed.
+    """
+    _seeded_db(path)
 
 
 # --- M3: a corrupt database must not be reported as merely unbuilt -----------------------------
@@ -71,9 +76,9 @@ def test_an_operational_error_that_is_not_a_missing_table_is_re_raised(tmp_path:
         with pytest.raises(sqlite3.OperationalError) as exc:
             require_price_medians(reader)
         assert "locked" in str(exc.value).lower()
-        assert not isinstance(exc.value, UnbuiltEvidenceError), (
-            "a locked database was reported as unbuilt; the remedy named would be the wrong one"
-        )
+        assert not isinstance(
+            exc.value, UnbuiltEvidenceError
+        ), "a locked database was reported as unbuilt; the remedy named would be the wrong one"
     finally:
         holder.rollback()
         holder.close()
@@ -240,9 +245,9 @@ def test_a_surface_with_real_evidence_and_an_impossible_budget_still_blames_the_
     assert answer["picks"] == [], "fixture assumption: the low budget must exclude this model"
     reason = str(answer["unavailable_reason"]).lower()
     assert "budget" in reason
-    assert "no evidence" not in reason, (
-        "a surface WITH evidence was told it has none; the two causes have collapsed again"
-    )
+    assert (
+        "no evidence" not in reason
+    ), "a surface WITH evidence was told it has none; the two causes have collapsed again"
 
 
 def test_the_cli_and_the_api_agree_that_an_unbuilt_artifact_is_not_a_budget_result(

@@ -16,18 +16,35 @@ from fastapi.testclient import TestClient
 from app.adapter import main as adapter
 from app.workflows.schema import connect
 
+from .test_api_v1 import _seeded_db
+
 
 def _servable(path: Path, ranked: int = 1) -> None:
-    """An artifact the startup probe accepts, with a chosen number of ranked models."""
+    """A servable artifact, padded to a chosen number of ranked rows.
+
+    **M13-W1 review BLOCKING-1 corrected this fixture, and the correction is the finding.** It used
+    to insert one `px_median` row (and, here, some `scores` rows on a benchmark no surface ranks)
+    and call itself "an artifact the startup probe accepts". It was — and it ranked NOTHING on any
+    of the nine advertised surfaces, so it would have answered every real query with no picks while
+    `/health` reported a healthy build. The probe now refuses that, correctly, so a fixture claiming
+    to be servable has to actually be servable. It delegates to the canonical seed.
+
+    The padding rows keep their synthetic benchmark name on purpose: this helper exists to exercise
+    the ranked-ROW ceiling, and `_ranked_row_count` counts rows in `scores` rather than rows any
+    surface serves. The seed underneath is what makes the artifact servable at all.
+    """
+    _seeded_db(path)
     conn = connect(str(path))
     try:
-        conn.execute("INSERT INTO px_median (model_id, in_m, out_m) VALUES ('m', 1.0, 2.0)")
-        for i in range(ranked):
+        # Pad to a TOTAL of `ranked`, not `ranked` MORE. The canonical seed brings its own models,
+        # and these tests assert exact counts — `_servable(db, ranked=3)` must produce three.
+        baseline = conn.execute("SELECT count(DISTINCT model_id) FROM scores").fetchone()[0]
+        for i in range(max(0, ranked - baseline)):
             conn.execute(
                 "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score,"
                 " harness, source_url, observed_at) VALUES (?, ?, 's', 'b', 'm', 1.0, 'none',"
                 " 'fixture://x', 't')",
-                (f"m{i}", f"M{i}"),
+                (f"pad{i}", f"Pad{i}"),
             )
         conn.commit()
     finally:
@@ -80,10 +97,17 @@ def test_the_ranked_count_is_distinct_reconciled_models_not_score_rows(tmp_path:
                 (f"unreconciled-{i}",),
             )
         # ...and a second row for a model already counted, which must not count twice.
+        # The id is READ from the artifact rather than hardcoded: it used to be the literal `m0`,
+        # which stopped existing when `_servable` began delegating to the canonical seed, so the
+        # "duplicate" quietly became a fourth distinct model and the test measured nothing.
+        existing = conn.execute(
+            "SELECT model_id FROM scores WHERE model_id IS NOT NULL ORDER BY model_id LIMIT 1"
+        ).fetchone()[0]
         conn.execute(
             "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score,"
-            " harness, source_url, observed_at) VALUES ('m0', 'M0', 's2', 'b', 'm', 2.0, 'none',"
-            " 'fixture://x', 't')"
+            " harness, source_url, observed_at) VALUES (?, ?, 's2', 'b', 'm', 2.0, 'none',"
+            " 'fixture://x', 't')",
+            (existing, existing),
         )
         conn.commit()
     finally:

@@ -204,9 +204,64 @@ class Recommendation:
     picks: tuple[Pick, ...]
 
 
-def confidence_of(row: RankingRow, spec: CategorySpec) -> tuple[str, str]:
-    """REQ-REC-004: two independent benchmarks → High; one → Medium."""
-    if row.secondary_score is not None and spec.secondary_benchmark:
+def _secondary_age_days(conn: sqlite3.Connection, spec: CategorySpec) -> int | None:
+    """How old the SECONDARY board is, or `None` when it cannot be aged. REQ-UNC-002.
+
+    Deliberately the same shape as `_stale_notice`'s arithmetic for the primary: newest `run_date`
+    on the benchmark, against `MAX(observed_at)` as the anchor. Determinism over wall clock, so a
+    rebuild of the same artifact yields the same answer.
+
+    **Board-level, not row-level, and that is the correct grain.** Aider has not been re-run since
+    2025-10-03 for anybody; asking per model would compute the same number forty-four times and
+    invite a future reader to think some rows were fresher than others.
+    """
+    if not spec.secondary_benchmark:
+        return None
+    row = conn.execute(
+        "SELECT MAX(run_date), (SELECT MAX(observed_at) FROM scores) FROM scores"
+        " WHERE benchmark = ?",
+        (spec.secondary_benchmark,),
+    ).fetchone()
+    latest_run, observed = row if row else (None, None)
+    if latest_run is None or observed is None:
+        return None
+    import datetime as _dt
+
+    try:
+        return (
+            _dt.date.fromisoformat(str(observed)[:10])
+            - _dt.date.fromisoformat(str(latest_run)[:10])
+        ).days
+    except ValueError:
+        return None
+
+
+def confidence_of(
+    row: RankingRow, spec: CategorySpec, secondary_age_days: int | None = None
+) -> tuple[str, str]:
+    """REQ-REC-004 / REQ-UNC-002: two CURRENT independent benchmarks → High; otherwise Medium.
+
+    **What this used to do, and what the council ruled on 2026-09-06.** It returned "High" whenever
+    a secondary score existed, with no regard for the board's age. Measured across nine surfaces and
+    three budgets, exactly one pick of eighteen reached High: the coding BUDGET PICK — on the
+    strength of Aider polyglot, last run 2025-10-03, **328 days before the artifact's own anchor**,
+    covering 15 of 74 models. The flagship best-quality answer, Claude Opus 4.7, read "Medium".
+    **The product was most confident about its cheapest fallback**, because a defunct leaderboard
+    happened to have measured the older cheap model and not the newer one.
+
+    `STALE_NOTICE_DAYS` is reused rather than a second figure invented: this module already uses 90
+    to decide whether the PRIMARY can stand unqualified (REQ-REC-006), and one file holding two
+    disagreeing definitions of "stale" is how a threshold becomes folklore.
+
+    `secondary_age_days is None` means the board publishes no dates and cannot be aged, and it does
+    NOT upgrade. Being unable to check is not the same as having checked — the "undated is fresh"
+    assumption this repository has already shipped once.
+
+    **This is still a coverage count wearing the word "confidence", and renaming it is a separate
+    open question.** What changed is only that the count now requires the evidence to be current.
+    """
+    fresh = secondary_age_days is not None and secondary_age_days <= STALE_NOTICE_DAYS
+    if row.secondary_score is not None and spec.secondary_benchmark and fresh:
         return (
             "High",
             f"two independent benchmarks ({spec.primary_benchmark} + {spec.secondary_benchmark})",
@@ -220,14 +275,47 @@ def eligible_rows(ranking: list[RankingRow], budget: str) -> list[RankingRow]:
     return [r for r in ranking if cap is None or r.blended_per_m <= cap]
 
 
+def _dominates(o: RankingRow, r: RankingRow) -> bool:
+    """Does `o` dominate `r` on (quality, cost)? REQ-FIX-001.
+
+    **The predicate this replaces was strict on BOTH axes** — `o.score > r.score and
+    o.blended_per_m < r.blended_per_m` — and shipped that way from M2 to M13. Strictness on both is
+    not dominance: it exempts every tie. A model with the SAME score at a HIGHER price survived,
+    and so did one at the SAME price with a LOWER score, though in each case the reader is simply
+    being shown a worse row with nothing to trade for it.
+
+    Measured before the fix, against `advisor.db`: **9 of 27 (surface, budget) combinations
+    published a `frontier_size` too large** — and `frontier_size` is a `/v1` field the client
+    decodes (`Models.swift`). **No pick moved on that artifact**, checked across all 27
+    combinations, so this is not a repair of a recommendation anybody received.
+
+    **It is not a repair that CANNOT move a pick, and the first version of this comment said it
+    was — M13-W1 review MAJOR-3.** The claimed proof was that a wrongly-retained row is never
+    strictly cheaper than its dominator. The value key is `(blended_per_m, model)`, so a PRICE TIE
+    breaks on model NAME, and a reviewer built the counterexample: rows `aaa-worse 80.0 @ $3`,
+    `zzz-better 84.0 @ $3`, `leader 86.0 @ $9` returned `aaa-worse` as best value before the fix
+    and `zzz-better` after it. The movement is always toward a strictly better model, which is why
+    this is a fix rather than a change — but "did not move here" and "cannot move" are different
+    claims, and this repository treats a comment's reasoning as load-bearing.
+
+    The `subscription` engine is the one where this bites: an independent seat measured **15 of 27
+    combinations changing `frontier_size` there, and 10 changing the published `close_call`
+    sentence** — because plans sharing a model at a dearer price are exactly the equal-score case,
+    and that is the norm in a plan catalogue rather than an edge of it.
+
+    **Ties dominate nothing, and that is deliberate.** Two rows equal on score AND price leave the
+    strict clause false, so both survive. Dropping one would trade an overstated count for a model
+    that vanishes for no reason a reader could see, which is the worse defect of the two.
+    """
+    at_least_as_good = o.score >= r.score and o.blended_per_m <= r.blended_per_m
+    strictly_better = o.score > r.score or o.blended_per_m < r.blended_per_m
+    return at_least_as_good and strictly_better
+
+
 def pareto_frontier(rows: list[RankingRow]) -> list[RankingRow]:
-    """REQ-REC-003: models not dominated on (quality, cost)."""
+    """REQ-REC-003 / REQ-FIX-001: models not dominated on (quality, cost)."""
     return sorted(
-        (
-            r
-            for r in rows
-            if not any(o.score > r.score and o.blended_per_m < r.blended_per_m for o in rows)
-        ),
+        (r for r in rows if not any(_dominates(o, r) for o in rows)),
         key=lambda r: (-r.score, r.blended_per_m, r.model),
     )
 
@@ -298,8 +386,9 @@ def _pick(
     trade_off: str | None,
     why_fact: dict[str, object],
     trade_off_fact: dict[str, object] | None = None,
+    secondary_age_days: int | None = None,
 ) -> Pick:
-    conf, basis = confidence_of(row, spec)
+    conf, basis = confidence_of(row, spec, secondary_age_days)
     return Pick(
         label=label,
         model=row.model,
@@ -411,6 +500,10 @@ def recommend(
     # Computed ONCE, before either sentence, because D-136's claim is that the prose is DERIVED.
     # Two parallel computations that agree today are two sources of truth, and the derivation test
     # caught them disagreeing on its first run: `3x cheaper` beside a fact carrying `3.1`.
+    # REQ-UNC-002: computed ONCE per answer, not per pick. Staleness is a property of the board,
+    # so three picks asking the same question would get the same answer three times and tempt a
+    # future reader into thinking they could differ.
+    secondary_age = _secondary_age_days(conn, spec)
     value_trade_off = trade_off_facts(
         quality.score, value.score, unit, quality.blended_per_m, value.blended_per_m
     )
@@ -430,6 +523,7 @@ def recommend(
                 "score": round_score(quality.score),
                 "unit": unit,
             },
+            secondary_age_days=secondary_age,
         ),
         _pick(
             "best_value",
@@ -447,6 +541,7 @@ def recommend(
                 "unit": unit,
             },
             trade_off_fact=None if value.model == quality.model else value_trade_off,
+            secondary_age_days=secondary_age,
         ),
         _pick(
             "budget_pick",
@@ -474,6 +569,7 @@ def recommend(
                 "unit": unit,
             },
             trade_off_fact=None if cheap.model == quality.model else cheap_trade_off,
+            secondary_age_days=secondary_age,
         ),
     )
     return Recommendation(

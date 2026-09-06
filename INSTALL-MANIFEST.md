@@ -40,6 +40,7 @@ conformance/test-documented-commands.py
 docs/watchlist.md
 scripts/slopsquat_check.py
 scripts/wave_check.py
+scripts/runner_verdict.sh
 .governed-records
 AGENTS.md
 CLAUDE.md                      (symlink → AGENTS.md)

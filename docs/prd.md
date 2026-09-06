@@ -438,3 +438,23 @@ needs iOS 13 and covers every device this app targets (deployment target 18.0).
 | REQ-DSC-001 | A limitation that is a property of a SOURCE is stated once per source; a limitation that is a STATE of the data keeps its warning treatment (D-135). Every fact remains reachable. | **M12-W2 DONE.** `classifyDisclosures` classifies without parsing text — `age_days == null` is structural, a number is a state — and deduplicates the two fields that told five surfaces the same fact twice in the same orange. `testEveryFactSurvivesClassification` is D-135's own test and must never be deleted. |
 | REQ-BGT-001 | A reader can choose a budget in the app, and the answer changes when they do. | **M12-W3 DONE.** `ContentView.swift` — `budget` is `@State` and the strip offers the caps `/v1/budgets` publishes (D-134), so the app does not hardcode what `low` means. `ios/EngineTests/` proves the CHOSEN budget is what the engine is asked, which is the half a picker can silently get wrong: updating state and sending the old value looks identical on screen. `unlimited` stays the default — a reader who has not said what they can spend has not asked to be limited. |
 | REQ-LOC-001 | `/v1` returns the FACTS behind each sentence; the client composes the sentence, in English or Turkish, from those facts alone. | **M12-W4 DONE for the pick sentences; the notices are NOT localised and D-136 says so.** `why_fact` and `trade_off_fact` are published (D-136); `ios/ModelRanking/Engine/Language.swift` composes both languages from them, and `tests/unit/test_why_facts.py` asserts every number the English prose quotes is in the fact — which is what makes it one source of truth instead of two that agree today. It caught the pair disagreeing on its first run. |
+
+## M13 — the instrument (REQ-FIX), added at W1 before any code
+
+Four defects, every one of them reproduced against the shipping functions before this section was
+written. Three were found by an independent second-opinion review that read the code without the
+council's brief; the fourth affects how this repository reports its own health, which is why it is
+here rather than in a tooling backlog.
+
+**The through-line:** each of these is a check that says yes to something it should refuse. A
+frontier that keeps a dominated row, a startup probe that admits a database the serving path cannot
+read, a fingerprint blind to a change the reader sees, and a runner that scores an unrun leg as a
+pass. This project has paid for that shape before — W-023 and W-058, both "healthy to every
+existence check, answering nothing".
+
+| REQ-ID | Criterion | Status |
+|---|---|---|
+| REQ-FIX-001 | Pareto dominance admits equality on one axis: a row is dominated when another is at least as good on BOTH quality and cost and strictly better on at least one. Both the model engine and the subscription engine agree. | **M13-W1.** |
+| REQ-FIX-002 | Startup refuses an evidence database the serving path cannot read. A database carrying `scores`, `pricing` and a non-empty `px_median` but missing a table a ranking joins is REFUSED, not admitted. | **M13-W1.** |
+| REQ-FIX-003 | A change that alters the attribution a reader is shown changes the refresh fingerprint, so the artifact publishes. Attribution is a licence obligation (REQ-LIC-001), not a display detail. | **M13-W1.** |
+| REQ-FIX-004 | `runner` cannot report a leg it did not run as a pass. An absent environment is `SKIPPED`, and any skip prevents the all-green claim. | **M13-W1.** |

@@ -185,9 +185,18 @@ LOCAL_BUNDLES: tuple[LocalBundle, ...] = (
 #: board. The bundle carries 77 CSVs; adding a category is a row here, not a new module.
 #:
 #: Two shapes in one list, and the difference is visible in `date_column`: `gpqa` and `aime` are
-#: evaluations Epoch RAN, so they carry evaluation dates. The rest are boards Epoch AGGREGATES —
-#: no dates at all, which makes their rows undated evidence the engine discloses per answer
-#: (REQ-API-004), exactly as it already does for DeepSWE.
+#: evaluations Epoch RAN, so they carry evaluation dates. Boards Epoch AGGREGATES mostly publish
+#: none, which makes their rows undated evidence the engine discloses per answer (REQ-API-004),
+#: exactly as it already does for DeepSWE.
+#:
+#: **M13-W2, REQ-UNC-003: "mostly" is doing work that the previous wording did not do, and its
+#: absence cost a real date.** This comment used to read *"The rest are boards Epoch AGGREGATES —
+#: no dates at all"*, which turned an observation about most of the boards into a property of all
+#: of them. `terminalbench_external.csv` is aggregated AND dated — `Run date`, populated on 204 of
+#: 204 rows — and nobody looked, because the list already had a rule that explained why not.
+#: **Read the header of a board you are adding; do not infer its dating from which half of this
+#: sentence it falls in.** `tests/unit/test_board_run_dates.py` now names every board's dating
+#: decision explicitly and fails when a new board is added without one.
 #:
 #: `scale` is per board because five of them publish 0-1 fractions while this project reports on
 #: 0-100. That is a unit change of one quantity, NOT the cross-scale mixing D-105 forbids — and it
@@ -228,6 +237,18 @@ EPOCH_BOARDS: tuple[EpochBoard, ...] = (
         benchmark="TerminalBench",
         metric="% resolved",
         score_column="Accuracy mean",
+        # M13-W2, REQ-UNC-003: this board is NOT one of the undated ones, and had been treated as
+        # one since it was declared. `terminalbench_external.csv` carries a `Run date` column
+        # populated on 204 of 204 rows with real evaluation dates from 2025-10-31 onward — a date
+        # the product held and threw away, leaving `computer-use` reporting its evidence as undated
+        # and therefore un-ageable.
+        #
+        # It is the exception the comment above this tuple did not anticipate: Epoch AGGREGATES
+        # this board rather than running it, and it still publishes when each run happened.
+        # `webdev_arena_external.csv` carries `Last updated` and is deliberately NOT wired the same
+        # way — 33 of 109 rows, every one the same value, which is the date the page was refreshed
+        # and not the date a model was measured.
+        date_column="Run date",
     ),
     EpochBoard(
         file="arc_agi_external.csv",

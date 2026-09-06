@@ -475,6 +475,12 @@ def test_a_failed_build_that_leaves_a_READABLE_artifact_is_still_not_published(
         ("models", "display", "Claude 4.5 Opus RENAMED"),
         ("scores", "harness", "some-other-agent"),
         ("scores", "effort", "low"),
+        # M13-W1, REQ-FIX-003. `evidence_source` was EXCLUDED from the fingerprint on the reasoning
+        # that no reader sees it — true of the field, false of its consequence: `sources` is derived
+        # from it (`rank.attributions_for`) and `sources` is published. So a change of board changed
+        # the citation on screen and did not publish. The unit test pins the digest; this pins that
+        # a real cycle acts on it, which is the half a rule nothing calls would fail.
+        ("scores", "source", "arena"),
     ],
 )
 def test_every_published_field_moves_the_fingerprint(

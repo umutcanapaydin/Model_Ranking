@@ -223,13 +223,28 @@ def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
 #: scores republished with FRESH EVALUATION DATES read as "nothing a user would notice changed"**.
 #: The refresh was structurally incapable of publishing a freshness improvement, which inverts this
 #: milestone's entire purpose.
-#: MEASURED, not guessed: these two are the only fields of a ranked row that appear in neither
-#: `PUBLIC_RANKING_FIELDS` nor `PUBLIC_PICK_FIELDS`, so no reader can see them on any surface and a
-#: change to one must not swap what everybody else sees. `higher_effort` and `higher_effort_score`
-#: are deliberately NOT here — they are absent from a ranking row and present on a PICK, which is
-#: still somewhere a reader looks.
+#: MEASURED, not guessed: a field belongs here only when NOTHING a reader sees is a function of it.
+#: `higher_effort` and `higher_effort_score` are deliberately NOT here — they are absent from a
+#: ranking row and present on a PICK, which is still somewhere a reader looks.
+#:
+#: **M13-W1, REQ-FIX-003: `evidence_source` was here and should never have been, and the reasoning
+#: that put it here is worth keeping because it was one question too shallow.** The original note
+#: read: *"these two are the only fields of a ranked row that appear in neither
+#: `PUBLIC_RANKING_FIELDS` nor `PUBLIC_PICK_FIELDS`, so no reader can see them on any surface."*
+#: Every clause of that is true. But `rank.attributions_for` maps each `scores.source` through
+#: `SOURCE_ATTRIBUTION` to build the `sources` list, and `sources` IS in `PUBLIC_ANSWER_FIELDS` —
+#: so the field is invisible while its VALUE decides visible text.
+#:
+#: The consequence was a refresh that would not publish an artifact whose evidence had moved from
+#: one board to another, while the citation on screen went on naming a source the answer no longer
+#: came from. REQ-LIC-001 makes a CC-BY citation a licence obligation carried by every export, so
+#: that is not a display detail.
+#:
+#: **The test to apply is not "is this field in the payload" but "is anything in the payload a
+#: function of it".** `secondary_cost` passes that test — it is read and rendered nowhere, and
+#: nothing derives from it — so it stays, and `tests/unit/test_refresh_attribution_fingerprint.py`
+#: pins both halves so a later sweep cannot take it along.
 UNHASHED_ROW_FIELDS = {
-    "evidence_source",
     "secondary_cost",
 }
 
@@ -593,6 +608,7 @@ def refresh(
     """
     builder = build_main if builder is None else builder
     clock = time.time if clock is None else clock
+
     def record(outcome: RefreshOutcome, code: int) -> tuple[RefreshOutcome, int]:
         write_status(target, outcome, code, at=clock())
         return outcome, code
@@ -844,8 +860,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     passthrough: list[str] = []
-    for flag, value in (("--plans", args.plans), ("--rosters", args.rosters),
-                        ("--epoch-dir", args.epoch_dir)):
+    for flag, value in (
+        ("--plans", args.plans),
+        ("--rosters", args.rosters),
+        ("--epoch-dir", args.epoch_dir),
+    ):
         if value:
             passthrough += [flag, value]
 

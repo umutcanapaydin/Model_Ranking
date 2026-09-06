@@ -77,7 +77,20 @@ SCORES = json.dumps(
         ]
     }
 )
+#: M13-W2 (REQ-UNC-002): the `date` here became LOAD-BEARING and was previously incidental.
+#: `2026-02-17` against this fixture's `observed_at` of 2026-08-10 is 174 days — nearly twice
+#: `STALE_NOTICE_DAYS`, so under the amended rule it no longer upgrades confidence and the test
+#: below stopped testing what its name says. Moved inside the window so it keeps exercising "two
+#: CURRENT benchmarks -> High"; the stale case gained its own test rather than being lost.
 AIDER = """
+- model: deepseek-v3.2
+  pass_rate_2: 74.2
+  total_cost: 3.5
+  date: 2026-07-01
+"""
+
+#: The same board, last run 174 days before the anchor. Used only by the staleness test.
+AIDER_STALE = """
 - model: deepseek-v3.2
   pass_rate_2: 74.2
   total_cost: 3.5
@@ -246,7 +259,14 @@ def test_budget_pick_respects_min_quality() -> None:
 
 
 def test_confidence_grades_by_source_count() -> None:
-    """REQ-REC-004: DeepSeek has SWE+Aider → High; single-source models → Medium."""
+    """REQ-REC-004 / REQ-UNC-002: DeepSeek has SWE + a CURRENT Aider → High; one source → Medium.
+
+    The word "current" is M13-W2's amendment. A second benchmark only widens the evidence if it
+    still describes the models being ranked; Aider's real board has not run since 2025-10-03 and
+    was upgrading the coding budget pick on that basis. See
+    `tests/unit/test_secondary_evidence_age.py` for the rule, and the sibling below for the
+    end-to-end stale case.
+    """
     conn = _db()
     build_price_medians(conn)  # M7-W2: production builds these in app.workflows.build
     rec = recommend(conn, "unlimited")
@@ -256,9 +276,121 @@ def test_confidence_grades_by_source_count() -> None:
     assert by_label["best_quality"].confidence == "Medium"
 
 
+def test_a_gap_wider_than_the_threshold_is_not_disclosed_as_a_close_call() -> None:
+    """REQ-REC-004's NEGATIVE direction — M13-W1 tester MAJOR-3.
+
+    A tester replaced `if gap <= close_pts:` with `if True:` and all 810 tests stayed green: a
+    runner-up forty points behind would have been announced as "within the margin of error and
+    either choice is defensible". `CLOSE_CALL_PTS == 1.5` was asserted as a CONSTANT and never as a
+    THRESHOLD, and the sibling above asserts `close_call is None` for a different reason
+    (a one-row frontier), so neither test touching close-call semantics constrained it.
+
+    Here the frontier has two rows and the gap is 9.2 points — far outside 1.5 — so silence is the
+    only correct answer.
+    """
+    conn = connect()
+    run = RunContext(observed_at="2026-08-10T00:00:00+00:00")
+    ingest_litellm(conn, FakeRawSource("litellm", PRICING), run)
+    ingest_swebench(conn, FakeRawSource("swebench", SCORES), run)
+    reconcile(conn)
+    build_price_medians(conn)
+    rec = recommend(conn, "unlimited")
+    assert rec is not None
+    # Claude 4.5 Opus 79.2 @ $11.25 and Gemini 3 Flash 75.8 @ $1.12 are a genuine trade-off, so
+    # both are on the frontier -- the branch is REACHED, and must decline to fire.
+    assert rec.frontier_size > 1
+    assert rec.close_call is None
+
+
+def test_a_stale_secondary_does_not_grade_up() -> None:
+    """REQ-UNC-002 end to end: the same fixture, with the Aider board 174 days old.
+
+    The unit test pins the rule; this pins that `recommend()` actually threads the board's age
+    into the pick. A rule nothing calls is the shape this project has already shipped once, when
+    nine green tests stood beside a `cheaper_phrase` the product could not reach.
+    """
+    conn = connect()
+    run = RunContext(observed_at="2026-08-10T00:00:00+00:00")
+    ingest_litellm(conn, FakeRawSource("litellm", PRICING), run)
+    ingest_swebench(conn, FakeRawSource("swebench", SCORES), run)
+    ingest_aider(conn, FakeRawSource("aider", AIDER_STALE), run)
+    reconcile(conn)
+    build_price_medians(conn)
+    rec = recommend(conn, "unlimited")
+    assert rec is not None
+    by_label = {p.label: p for p in rec.picks}
+    assert by_label["budget_pick"].confidence == "Medium"
+    assert "Aider" not in by_label["budget_pick"].confidence_basis
+
+
 def test_close_call_is_disclosed() -> None:
-    """REQ-REC-004: a near-tie at the top is stated, not hidden."""
+    """REQ-REC-004: a near-tie at the top is stated, not hidden.
+
+    **Fixture corrected at M13-W1 (REQ-FIX-001), and the correction is the finding.** This test
+    used to seed both models at EXACTLY 75.8 with different prices, and passed because the shipped
+    Pareto predicate was strict on both axes and therefore kept a row that was equal on quality and
+    dearer. So the "near-tie at the top" it asserted was a tie between one viable model and one
+    that was simply worse — the product disclosed a trade-off nobody had to make.
+
+    Under correct dominance the cheaper twin wins outright and there is no second frontier row, so
+    the disclosure correctly disappears. The scores now differ by 0.9 — inside `CLOSE_CALL_PTS` and
+    not equal — which is what a near-tie is, and what this criterion was always about.
+
+    The exact-tie case did not lose its coverage: it moved to
+    `test_an_equal_score_at_a_higher_price_is_not_a_close_call` below, which asserts the NEW
+    behaviour rather than the old.
+    """
     assert CLOSE_CALL_PTS == 1.5
+    conn = connect()
+    pricing = json.dumps(
+        {
+            "gpt-5": {
+                "mode": "chat",
+                "input_cost_per_token": 1e-06,
+                "output_cost_per_token": 4e-06,
+            },
+            "gemini-3-flash": {
+                "mode": "chat",
+                "input_cost_per_token": 5e-07,
+                "output_cost_per_token": 3e-06,
+            },
+        }
+    )
+    scores = json.dumps(
+        {
+            "leaderboards": [
+                {
+                    "name": "Verified",
+                    "results": [
+                        {"name": "a + GPT-5", "resolved": 75.8, "date": "2025-09-01"},
+                        {"name": "b + Gemini 3 Flash", "resolved": 74.9, "date": "2026-02-17"},
+                    ],
+                }
+            ]
+        }
+    )
+    run = RunContext(observed_at="t")
+    ingest_litellm(conn, FakeRawSource("litellm", pricing), run)
+    ingest_swebench(conn, FakeRawSource("swebench", scores), run)
+    reconcile(conn)
+    # M7-W2: production builds the price medians in `app.workflows.build`, not inside
+    # `recommend()`. A fixture that reconciles is standing in for that build, so it does
+    # the same last step -- otherwise it seeds an artifact the engine correctly refuses.
+    build_price_medians(conn)
+    rec = recommend(conn, "unlimited")
+    assert rec is not None
+    assert rec.close_call is not None
+    assert "is only 0.9 points behind" in rec.close_call
+
+
+def test_an_equal_score_at_a_higher_price_is_not_a_close_call() -> None:
+    """REQ-FIX-001: a dearer twin is dominated, so there is no trade-off to disclose.
+
+    This is the scenario `test_close_call_is_disclosed` used to carry, asserted the other way
+    round. Two models at exactly 75.8 where one is cheaper: the cheaper one wins on both axes at
+    once, the frontier is a single row, and calling that a close call would tell the reader they
+    had a decision to make when they do not.
+    """
     conn = connect()
     pricing = json.dumps(
         {
@@ -291,14 +423,11 @@ def test_close_call_is_disclosed() -> None:
     ingest_litellm(conn, FakeRawSource("litellm", pricing), run)
     ingest_swebench(conn, FakeRawSource("swebench", scores), run)
     reconcile(conn)
-    # M7-W2: production builds the price medians in `app.workflows.build`, not inside
-    # `recommend()`. A fixture that reconciles is standing in for that build, so it does
-    # the same last step -- otherwise it seeds an artifact the engine correctly refuses.
     build_price_medians(conn)
     rec = recommend(conn, "unlimited")
     assert rec is not None
-    assert rec.close_call is not None
-    assert "is level" in rec.close_call
+    assert rec.frontier_size == 1
+    assert rec.close_call is None
 
 
 def test_budget_pick_warns_when_quality_floor_unmet() -> None:

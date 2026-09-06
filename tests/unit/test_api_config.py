@@ -12,23 +12,24 @@ from fastapi.testclient import TestClient
 
 from app.adapter.main import ConfigError, cors_origins, validate_startup_config
 
+from .test_api_v1 import _seeded_db
+
 
 def _servable(path) -> None:
-    """Create a database the startup probe accepts: schema, plus one price median.
+    """Create a database the startup probe accepts — one that actually RANKS something.
 
     M7-W2 added a fourth probe check — an artifact with an EMPTY `px_median` answers every query
-    with no picks, so it is refused at boot. That makes `connect(path).close()` no longer a
-    servable fixture, which is the same lesson these tests already carried one line up: a fixture
-    that is invalid for a DIFFERENT reason passes the test for the wrong reason.
-    """
-    from app.workflows.schema import connect
+    with no picks, so it is refused at boot. That made `connect(path).close()` no longer a servable
+    fixture, which is the same lesson these tests already carried one line up: a fixture that is
+    invalid for a DIFFERENT reason passes the test for the wrong reason.
 
-    conn = connect(str(path))
-    try:
-        conn.execute("INSERT INTO px_median (model_id, in_m, out_m) VALUES ('m', 1.0, 2.0)")
-        conn.commit()
-    finally:
-        conn.close()
+    **M13-W1 added the fifth check and this fixture failed it, which is the lesson a third time.**
+    Schema plus one `px_median` row still ranks NOTHING on any of the nine surfaces — it would
+    answer every real query with no picks while `/health` reported healthy, the exact shape the new
+    check refuses. The comment two paragraphs down already said what this needed to be: *"'real'
+    now means SERVABLE, not merely schema-shaped."* It now is.
+    """
+    _seeded_db(path)
 
 
 def test_a_wildcard_origin_is_refused_not_warned_about(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -501,9 +502,9 @@ def test_the_concurrency_cap_is_chosen_and_the_edge_agrees_with_it() -> None:
 
     import app.adapter.main as adapter
 
-    assert adapter.MAX_CONCURRENT_REQUESTS == 8, (
-        "the concurrency cap is a CHOSEN number; AnyIO's default of 40 is what this replaced"
-    )
+    assert (
+        adapter.MAX_CONCURRENT_REQUESTS == 8
+    ), "the concurrency cap is a CHOSEN number; AnyIO's default of 40 is what this replaced"
 
     fly = Path("fly.toml").read_text(encoding="utf-8")
     # Comments are stripped: an M6 review found this exact assertion matching `hard_limit = 8`
@@ -548,13 +549,13 @@ def test_w017_is_closed_by_deletion_not_by_a_bounded_copy() -> None:
 
     source = Path("src/app/adapter/main.py").read_text(encoding="utf-8")
 
-    assert not hasattr(adapter, "serving_snapshot"), (
-        "serving_snapshot is back; W-017's amplification returns with it"
-    )
+    assert not hasattr(
+        adapter, "serving_snapshot"
+    ), "serving_snapshot is back; W-017's amplification returns with it"
     for gone in ("max_database_bytes", "RSS_FACTOR", "MEMORY_BUDGET_MB", "PROCESS_BASELINE_MB"):
-        assert not hasattr(adapter, gone), (
-            f"{gone} is back — it only ever sized a copy the serving path no longer makes"
-        )
+        assert not hasattr(
+            adapter, gone
+        ), f"{gone} is back — it only ever sized a copy the serving path no longer makes"
 
     # The mechanism, not the name: nothing in the adapter may copy a database into memory.
     tree = ast.parse(source)

@@ -265,14 +265,26 @@ def _unscored(conn: sqlite3.Connection, ranked_ids: set[str]) -> tuple[str, ...]
     )
 
 
+def _plan_dominates(o: PlanRank, r: PlanRank) -> bool:
+    """Does plan `o` dominate plan `r` on (quality, monthly price)? REQ-FIX-001.
+
+    The SECOND copy of the predicate `recommend._dominates` documents, and the reason this repair
+    is two edits rather than one. V4C-49's shape exactly: a rule written twice is a rule half-fixed
+    unless both copies move together, and nothing in the build would have failed if this one had
+    been left behind — the two engines rank different things (blended $/1M against a curated
+    monthly plan price) and no test compared them.
+
+    `tests/unit/test_pareto_dominance.py` now runs ONE table against BOTH engines for that reason.
+    """
+    at_least_as_good = o.score >= r.score and o.monthly_usd <= r.monthly_usd
+    strictly_better = o.score > r.score or o.monthly_usd < r.monthly_usd
+    return at_least_as_good and strictly_better
+
+
 def _pareto(rows: list[PlanRank]) -> list[PlanRank]:
-    """Plans not dominated on (quality score, monthly price) — REQ-REC-003 shape."""
+    """Plans not dominated on (quality score, monthly price) — REQ-REC-003 / REQ-FIX-001."""
     return sorted(
-        (
-            r
-            for r in rows
-            if not any(o.score > r.score and o.monthly_usd < r.monthly_usd for o in rows)
-        ),
+        (r for r in rows if not any(_plan_dominates(o, r) for o in rows)),
         key=lambda r: (-r.score, r.monthly_usd, r.plan),
     )
 

@@ -201,9 +201,7 @@ MAX_RANKED_ROWS = int(os.environ.get("MODEL_RANKING_MAX_RANKED_ROWS", "5000"))
 #: 500 is a runaway guard, not a product limit: the largest surface today is 58 rows, and 500 caps
 #: one answer near ~100 KB. Raising it is a deliberate egress decision, which is why it is an
 #: environment variable with a name that says what it costs.
-MAX_PUBLISHED_RANKING_ROWS = int(
-    os.environ.get("MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS", "500")
-)
+MAX_PUBLISHED_RANKING_ROWS = int(os.environ.get("MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS", "500"))
 
 
 def _largest_surface_row_count(db: Path) -> tuple[str, int] | None:
@@ -311,6 +309,23 @@ def open_readonly(path: Path) -> sqlite3.Connection:
     return schema_open_readonly(path)
 
 
+#: Memo for `_database_unusable`, keyed on the artifact's identity rather than its path.
+#:
+#: **M13-W1 review MAJOR-1.** The serving-path probe is the right check and it is not free: an
+#: independent seat measured the old structural checks at ~0.06 ms and the new nine-ranking probe at
+#: ~11 ms on the shipping artifact, ~75 ms at the largest artifact this process will boot, and
+#: ~910 ms at the `MAX_RANKED_ROWS` ceiling. `health()` calls this **per request**, `fly.toml` and
+#: `Dockerfile` each poll `/health` every 30 s, and `health()` is a sync handler occupying a worker
+#: from the same bounded pool `/v1` uses. The wave reasoned about boot cost only, and the second
+#: call site was not in its plan.
+#:
+#: The key is `(path, st_mtime_ns, st_size)` and NOT the path alone, because the refresh publishes
+#: by replacing the file (D-129). A memo keyed on the path would keep answering for the artifact
+#: that was retired, which is the "healthy to every existence check" shape this module keeps
+#: paying for. When the artifact is swapped the key changes and the probe runs again.
+_UNUSABLE_MEMO: dict[tuple[str, int, int], str | None] = {}
+
+
 def _database_unusable(db: Path) -> str | None:
     """Open the evidence database read-only and ask it whether it can answer. `None` if it can.
 
@@ -319,6 +334,28 @@ def _database_unusable(db: Path) -> str | None:
     and those tables must carry the columns this milestone's engine selects. The third is the one
     that catches a pre-M6 artifact — the schema migrated forward and the read-only path cannot.
     """
+    try:
+        stat = db.stat()
+    except OSError:
+        # A file that cannot be stat'd cannot be memoised, and it must not acquire a NEW refusal
+        # message here: an absent artifact is already reported by the open below, in words an
+        # operator has seen since Stage 4.0 BLOCKING-3. Fall through and let it say so.
+        return _probe_database(db)
+    key = (str(db), stat.st_mtime_ns, stat.st_size)
+    if key in _UNUSABLE_MEMO:
+        return _UNUSABLE_MEMO[key]
+    verdict = _probe_database(db)
+    # Bounded so a long-lived process that sees many artifacts cannot grow this without limit. Two
+    # entries is enough for the case that matters -- the artifact being served and the one that just
+    # replaced it -- and the cost of a miss is one probe, not an error.
+    if len(_UNUSABLE_MEMO) > 4:
+        _UNUSABLE_MEMO.clear()
+    _UNUSABLE_MEMO[key] = verdict
+    return verdict
+
+
+def _probe_database(db: Path) -> str | None:
+    """The probe itself. Separated only so `_database_unusable` can memoise it."""
     try:
         conn = open_readonly(db)
     except sqlite3.Error as exc:
@@ -347,12 +384,64 @@ def _database_unusable(db: Path) -> str | None:
         # an empty one yields zero rows, `recommend()` returns None, and every query answers 200
         # with no picks while `/health` reports a healthy build. Refusing to boot is the fail-closed
         # direction (V3C-33/45), and it names the command rather than leaving an operator to guess.
-        if "px_median" not in tables or not conn.execute(
-            "SELECT count(*) FROM px_median"
-        ).fetchone()[0]:
+        if (
+            "px_median" not in tables
+            or not conn.execute("SELECT count(*) FROM px_median").fetchone()[0]
+        ):
             return (
                 "MODEL_RANKING_DB has no price medians, so every query would answer with no "
                 "picks. Build it with `python -m app.workflows.build --db <path>`"
+            )
+        # M13-W1, REQ-FIX-002: the FIFTH way this probe said yes to a database that cannot serve,
+        # and the last one it can be made to have.
+        #
+        # Every check above names an object from a list somebody wrote down. `models` was never on
+        # that list — and `rank.py` joins it on every ranking — so an artifact with `scores`,
+        # `pricing` and price medians but no `models` was reported USABLE. The process booted,
+        # `/health` said the build was live, and each surface answered unavailable per request.
+        # W-023 and W-058 are the same shape: healthy to every existence check, answering nothing.
+        #
+        # A longer list would only move the failure to the next table a query acquires, because a
+        # list is a thing somebody has to remember. So the probe RUNS the serving path instead —
+        # one real ranking per advertised surface, read-only, measured at 14 ms for all nine on the
+        # shipping artifact. It cannot drift from the code it is checking, because it IS that code.
+        #
+        # `UnbuiltEvidenceError` is deliberately NOT caught: it is the engine's own way of saying
+        # "this artifact is not built", which the checks above already report in words an operator
+        # can act on, and swallowing it here would hide a real refusal behind a generic one.
+        # **The result is READ, not merely produced — M13-W1 review BLOCKING-1.** The first cut of
+        # this loop called `category_ranking` and threw the rows away, so it caught a MISSING table
+        # (which raises) and missed an EMPTY one (which returns zero rows). An independent seat
+        # reproduced three artifacts that still booted green: `DELETE FROM models`,
+        # `DELETE FROM scores`, and a `px_median` holding one row that joins nothing. Each answered
+        # every surface with "no evidence to rank" while `/health` said `servable`. The comment
+        # here previously claimed to be "the last way this probe can say yes"; it was not, and the
+        # claim was refuted by a three-line reproduction.
+        #
+        # **The rule is ZERO surfaces, not any surface, and the difference is a deliberate refusal
+        # to fail closed too hard.** An artifact that ranks eight of nine is degraded, and the
+        # engine already answers the ninth honestly per request (`main.py` returns "no evidence to
+        # rank" for that surface). Refusing to boot on it would turn a partial outage into a total
+        # one. An artifact that ranks NOTHING serves nothing, and that is what this refuses.
+        rankable = 0
+        for surface, spec in CATEGORIES.items():
+            try:
+                if category_ranking(conn, spec):
+                    rankable += 1
+            except sqlite3.Error as exc:
+                return (
+                    f"MODEL_RANKING_DB cannot answer the `{surface}` surface: "
+                    f"{type(exc).__name__}: {exc}. The schema is missing something the ranking "
+                    f"reads; serving this artifact would report a healthy build and answer every "
+                    f"query with nothing"
+                )
+        if rankable == 0:
+            return (
+                "MODEL_RANKING_DB ranks nothing on any of the "
+                f"{len(CATEGORIES)} advertised surfaces. Its schema is readable, so this is an "
+                "EMPTY or half-built artifact rather than a wrong one — the shape that answers "
+                "every query with no picks while /health reports a healthy build. Build it with "
+                "`python -m app.workflows.build --db <path>`"
             )
     except sqlite3.Error as exc:
         return f"MODEL_RANKING_DB is unreadable: {type(exc).__name__}"
@@ -553,6 +642,7 @@ async def _unhandled(request: Any, exc: Exception) -> JSONResponse:
 # `app.workflows.build`, so the serving path performs no write at all and reads the operator's file
 # directly through `open_readonly`. Nothing is copied, so there is no ceiling to compute and no
 # budget to tune -- the machinery that existed only to size that copy went with it.
+
 
 def _echo(value: str, limit: int = 40) -> str:
     """Attacker-controlled text going back out. Bounded, and bounded visibly."""

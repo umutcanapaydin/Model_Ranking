@@ -37,9 +37,20 @@ PASSED=""
 
 section() { echo "" >> "$FULL"; echo "==================== $1 ====================" >> "$FULL"; }
 
-record() {  # record <name> <exit-code>
-  if [ "$2" = "0" ]; then PASSED="$PASSED $1"; echo "  -> PASS ($1)" >> "$FULL"
-  else FAILED="$FAILED $1"; echo "  -> FAIL ($1, exit $2)" >> "$FULL"; fi
+# M13-W1 (REQ-FIX-004): the accounting lives in `scripts/runner_verdict.sh` so it can be TESTED.
+# It used to live here, it was wrong, and it stayed wrong because checking it meant running this
+# whole script. `tests/unit/test_runner_accounting.py` now drives the same code in milliseconds.
+. "$REPO/scripts/runner_verdict.sh"
+
+record() {  # record <name> <exit-code> -- a leg that RAN
+  runner_record "$1" "$2"
+  if [ "$2" = "0" ]; then echo "  -> PASS ($1)" >> "$FULL"
+  else echo "  -> FAIL ($1, exit $2)" >> "$FULL"; fi
+}
+
+skip() {  # skip <name> <reason> -- a leg the environment could not run. NEVER a pass.
+  runner_skip "$1" "$2"
+  echo "  -> SKIPPED ($1: $2) -- this leg did NOT run" >> "$FULL"
 }
 
 # --- 0. context ----------------------------------------------------------------------------------
@@ -84,8 +95,7 @@ if [ -d "$BUNDLE" ]; then
   echo "                    reported rather than hidden, which is D-121 working, not a failure)" >> "$FULL"
   if [ "$CODE" = "0" ] || [ "$CODE" = "3" ]; then record "build" 0; else record "build" "$CODE"; fi
 else
-  echo "SKIPPED: no Epoch bundle at $BUNDLE" >> "$FULL"
-  record "build" 0
+  skip "build" "no Epoch bundle at $BUNDLE"
 fi
 
 # --- 4. every surface answers --------------------------------------------------------------------
@@ -170,8 +180,7 @@ sys.exit(1 if bad else 0)
 PYEOF
   record "engine" "$?"
 else
-  echo "SKIPPED: nothing is listening on :$PORT. Start it with ./ios/app.sh up" >> "$FULL"
-  record "engine" 0
+  skip "engine" "nothing is listening on :$PORT -- start it with ./ios/app.sh up"
 fi
 
 # --- 5b. the refresh's own record ------------------------------------------------------------------
@@ -279,7 +288,7 @@ if command -v swift > /dev/null 2>&1; then
     record "swift-tests" 1
   fi
 else
-  echo "SKIPPED: swift is not on PATH" >> "$FULL"
+  skip "swift-tests" "swift is not on PATH"
 fi
 
 if command -v xcodebuild > /dev/null 2>&1; then
@@ -288,8 +297,7 @@ if command -v xcodebuild > /dev/null 2>&1; then
       -destination 'platform=iOS Simulator,name=iPhone 17' -quiet build ) >> "$FULL" 2>&1
   record "ios-build" "$?"
 else
-  echo "SKIPPED: xcodebuild is not on PATH" >> "$FULL"
-  record "ios-build" 0
+  skip "ios-build" "xcodebuild is not on PATH"
 fi
 
 # --- summary ---------------------------------------------------------------------------------------
@@ -303,8 +311,7 @@ cp "$FULL" "$OUT/latest.log"
   echo "tests   : $(grep -Eo '[0-9]+ passed[^=]*' "$FULL" | tail -1)"
   echo "coverage: $(grep -Eo 'Total coverage: [0-9.]+%' "$FULL" | tail -1)"
   echo "records : $(grep -Eo 'wave-check-all PASS: [0-9]+ v5.0 record\(s\)' "$FULL" | tail -1)"
-  echo "passed  :$PASSED"
-  echo "failed  :${FAILED:- none}"
+  runner_summary
 } > "$OUT/latest_summary.txt"
 
 echo
@@ -312,16 +319,16 @@ cat "$OUT/latest_summary.txt"
 echo
 echo "full log: $OUT/latest.log"
 
-if [ -z "$FAILED" ]; then
-  echo
-  echo "ALL PASS — tell the agent \"kostum\"."
+echo
+if runner_verdict; then
+  echo "tell the agent \"kostum\"."
   exit 0
 fi
 
-echo
-echo "FAILURES:$FAILED"
-echo "first failing lines:"
-grep -E '^FAILED|^E  |Error [0-9]|-> FAIL' "$FULL" | head -8
+if [ -n "$FAILED" ]; then
+  echo "first failing lines:"
+  grep -E '^FAILED|^E  |Error [0-9]|-> FAIL' "$FULL" | head -8
+fi
 echo
 echo "tell the agent \"kostum\"; it reads the full log itself."
 exit 1
