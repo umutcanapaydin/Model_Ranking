@@ -192,7 +192,10 @@ public func priceInPages(_ blendedPerM: Double, in language: Language) -> String
     guard blendedPerM.isFinite, blendedPerM > 0 else { return "fiyat bilinmiyor" }
     let perPage = blendedPerM / Double(pagesPerMillionTokens)
     if perPage < 0.01 {
-        return "\(groupedPages) sayfa metin için yaklaşık $\(money(blendedPerM))"
+        guard let amount = money(blendedPerM) else {
+            return "\(groupedPages) sayfa metin için $0.01'den az"
+        }
+        return "\(groupedPages) sayfa metin için yaklaşık $\(amount)"
     }
     return "sayfa başına yaklaşık $\(String(format: "%.2f", perPage))"
 }
@@ -301,7 +304,11 @@ public enum UIText {
         switch (label, language) {
         case ("best_quality", .turkish): return "EN İYİSİ"
         case ("best_value", .turkish): return "EN İYİ DEĞER"
-        case ("budget_pick", .turkish): return "BÜTÇE SEÇİMİ"
+        // M13-W4: not "BUDGET PICK". With no budget control on the screen, a label saying the
+        // reader set a budget is false; the pick is the cheapest model that clears the floor
+        // (plan §2 W4). The engine's id `budget_pick` is the contract (D-127) and does not move.
+        case ("budget_pick", .english): return "AFFORDABLE PICK"
+        case ("budget_pick", .turkish): return "UYGUN FİYATLI SEÇİM"
         default: return label.replacingOccurrences(of: "_", with: " ").uppercased()
         }
     }

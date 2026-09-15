@@ -582,7 +582,8 @@ struct Card<Content: View>: View {
     }
 }
 
-/// The pick label — "Best Quality", "Best Value", "Budget Pick" — as a badge rather than a caption.
+/// The pick label — "Best Quality", "Best Value", "Affordable Pick" — as a badge rather than a
+/// caption.
 ///
 /// Each pick answers a DIFFERENT question, and the label is the only thing that says which. As a
 /// small tinted caption it read as decoration; as a badge it reads as the heading it actually is.
@@ -656,19 +657,21 @@ struct PickRow: View {
         return tradeOffSentence(pick.tradeOffFactDictionary, in: language) ?? prose
     }
 
+    /// REQ-UNC-001: `#1–27 of 50` where the engine's margin cannot narrow the position, and a single
+    /// number only where it can. `nil` when the pick is not in the ranking it came with.
+    private var rankText: String? {
+        guard let position = rankOf(pick.model, in: ranking, name: \.model) else { return nil }
+        return rankLabel(
+            at: position - 1,
+            in: ranges ?? rankRanges(ranking.map(\.score), margin: nil),
+            of: ranking.count,
+            language
+        )
+    }
+
     private var pickMeaning: String? {
         var parts: [String] = []
-        // REQ-UNC-001: `#1–27 of 50` where the engine's margin cannot narrow the position, and a
-        // single number only where it can.
-        if let position = rankOf(pick.model, in: ranking, name: \.model),
-           let rank = rankLabel(
-               at: position - 1,
-               in: ranges ?? rankRanges(ranking.map(\.score), margin: nil),
-               of: ranking.count,
-               language
-           ) {
-            parts.append(rank)
-        }
+        if let rank = rankText { parts.append(rank) }
         if let scale { parts.append(scale) }
         parts.append(priceInPages(pick.blendedPerM, in: language))
         return parts.isEmpty ? nil : parts.joined(separator: "  ·  ")
@@ -682,13 +685,17 @@ struct PickRow: View {
                     Text(pick.model).font(.title3.weight(.semibold))
                     Text(pick.vendor).font(.subheadline).foregroundStyle(.secondary)
                 }
-                Text(Format.scoreAndPrice(pick.score, UIText.metric(pick.metric, language), pick.blendedPerM))
+                // REQ-CMP-004: a score says what it is out of, or only the rank is shown — and
+                // where there is no rank to show, the engine's own number stays (MINOR-8).
+                Text(figuresLine(
+                    score: pick.score, metric: pick.metric, blendedPerM: pick.blendedPerM, language,
+                    ranked: rankText != nil
+                ))
                     .font(.subheadline.weight(.medium))
                     .monospacedDigit()
-                // REQ-CMP-001/002. The exact number is never replaced — it gains a companion.
-                // `161.7 ECI` is unreadable because its scale is published nowhere; `#1 of 58` is
-                // readable by anyone. The rank is a POSITION in the engine's own ordering, so
-                // nothing is re-sorted (Trap 1).
+                // REQ-CMP-001/002, amended for ECI by D-140: a number either says what it is out of
+                // or gives way to the rank below, which anyone can read. The rank is a POSITION in
+                // the engine's own ordering, so nothing is re-sorted (Trap 1).
                 if let meaning = pickMeaning {
                     Text(meaning)
                         .font(.footnote)
@@ -728,7 +735,10 @@ struct RankedRow: View {
                 Text(row.vendor).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            Text(Format.scoreAndPrice(row.score, UIText.metric(row.metric, language), row.blendedPerM))
+            Text(figuresLine(
+                score: row.score, metric: row.metric, blendedPerM: row.blendedPerM, language,
+                ranked: rank != nil
+            ))
                 .font(.caption)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
@@ -794,23 +804,6 @@ struct RankingList: View {
     }
 }
 
-/// Number formatting, in one place.
-///
-/// **Deliberately not localised.** The device locale is `en_TR` on the owner's simulator, which
-/// rendered the engine's `2.06` as `$2,06` — and `$2,06` reads as two thousand and six to anyone
-/// outside a comma-decimal locale, beside a `$` that is unambiguously not local currency. The
-/// engine rounds at its own output boundary (D-109); this prints what it sent.
-enum Format {
-    static func scoreAndPrice(_ score: Double, _ metric: String, _ price: Double) -> String {
-        "\(trim(score)) \(metric)  ·  $\(trim(price))/1M"
-    }
-
-    private static func trim(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.numberStyle = .decimal
-        formatter.usesGroupingSeparator = false
-        formatter.maximumFractionDigits = 3
-        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
-    }
-}
+// `Format` moved to the Engine at M13-W4 as `figuresLine` / `priceTag` (`Scores.swift`), where
+// `swift test` runs it. The rule it carried is unchanged: numbers are printed in POSIX form,
+// never in the reader's locale, because `$2,06` reads as two thousand and six.

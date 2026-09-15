@@ -652,8 +652,19 @@ var groupedPages: String {
 /// A price that is not a real, sensible amount of money is rendered as the decimal it is rather
 /// than asserted into an integer — the screen stays up and the reader sees something odd, which is
 /// the correct order of those two outcomes.
-func money(_ value: Double) -> String {
-    wholeNumber(value.isFinite ? value.rounded() : value) ?? String(format: "%.2f", value)
+///
+/// **Cents below a dollar, and `nil` below a cent (M13-W4).** Whole dollars everywhere turned $0.13
+/// into `$0`: the M13-W3 simulator screenshot read "about $0 per 1,500 pages of text" for a model
+/// that is not free. A price that rounds to nothing is a claim, not a rounding.
+///
+/// Whole dollars from 0.995, not from 1: `%.2f` prints 0.995–0.999 as `1.00`, and one amount printed
+/// two ways (`$1.00` beside `$1`) is noise (W4 review MINOR-3).
+func money(_ value: Double) -> String? {
+    guard value.isFinite, value >= 0 else { return nil }
+    if value >= 0.995 {
+        return wholeNumber(value.rounded()) ?? String(format: "%.2f", value)
+    }
+    return value >= 0.01 ? String(format: "%.2f", value) : nil
 }
 
 public func priceInPages(_ blendedPerM: Double) -> String {
@@ -665,7 +676,10 @@ public func priceInPages(_ blendedPerM: Double) -> String {
     if perPage < 0.01 {
         // Below a cent a page, "per page" stops being informative and the round number does the
         // work: what a whole book costs, not what a page does.
-        return "about $\(money(blendedPerM)) per \(groupedPages) pages of text"
+        guard let amount = money(blendedPerM) else {
+            return "under $0.01 per \(groupedPages) pages of text"
+        }
+        return "about $\(amount) per \(groupedPages) pages of text"
     }
     return "about $\(String(format: "%.2f", perPage)) per page of text"
 }

@@ -64,3 +64,5 @@ ios/ModelRanking/Engine/FrontDoor.swift # M13-W3: the routing notices and on-dev
                                         # in both languages; its prose and comments are English
 ios/EngineTests/FrontDoorTests.swift    # asserts a Turkish notice by its words, for the reason
                                         # LanguageTests.swift is exempt above
+ios/EngineTests/ScoresTests.swift       # M13-W4: asserts the Turkish score, price and pick-label
+                                        # strings verbatim, for the same reason

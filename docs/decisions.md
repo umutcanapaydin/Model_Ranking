@@ -1686,3 +1686,62 @@ missing fact.
 
 **Revisit when:** the engine should compute the ranges itself, on raw scores, which would remove
 the rounding concession above. That moves the answer payload and is therefore a real revision.
+
+---
+
+## D-139 — A second benchmark older than 90 days, or undated, does not upgrade a coverage claim
+
+**Status:** accepted · **Date:** 2026-09-15 (ruled 2026-09-06; implemented in `3440abe`) ·
+**Decided by:** the three-seat blind council the owner delegated his decisions to (M13 plan §7,
+ruling 1, "A3"). **Written late, and recorded as late:** plan §5 says each answer becomes an ADR at
+the wave that consumes it. W1 consumed this one, in `3440abe`, and no ADR was written until W4
+noticed the gap. Plan §7 row 1 says W2; the commit says W1.
+
+**Context.** `confidence_of` returned "High" whenever a second benchmark had scored the model. On a
+coding surface the only such benchmark was Aider polyglot: last run 2025-10-03, 328 days before the
+artifact's anchor, and covering 15 of 74 models. Measured across nine surfaces and three budgets,
+exactly one pick of eighteen read High, and it was the coding budget pick. The product was most
+confident about its cheapest fallback, because a defunct board happened to have run the older model.
+
+**Decision.** A second board counts only if its newest run is at most `STALE_NOTICE_DAYS` (90) days
+old against the artifact's own anchor. An undated board does not count: being unable to check is not
+the same as having checked. The threshold is REUSED from REQ-REC-006, so the module holds one
+definition of stale.
+
+**Consequence, stated.** On today's artifact every pick reads one benchmark. The field is still
+named `confidence` in `/v1`, frozen by D-115. Since D-138 the client renders the count and the
+second board's age, and never the word.
+
+**Revisit when:** a payload revision renames the field (second-opinion Q10), or a current second
+benchmark enters a surface.
+
+---
+
+## D-140 — A score says what it is out of: `/ 100`, a named scale, or a rank alone
+
+**Status:** accepted · **Date:** 2026-09-15 · **Decided by:** the council (M13 plan §7, ruling 3,
+"C1"), under the plan the owner signed; consumed at M13-W4. · **Amends REQ-CMP-001** for ECI only.
+
+**Context.** The owner asked for one "Score" on every card (owner, translated from Turkish). Taken
+literally, that prints `Score 161.7` beside `Score 83.5`: two numbers on unrelated scales in the same
+shape. That is the comparison D-105 forbids the engine from making. The five-seat council that
+preceded the plan refused a bare "Score" 4–1, and every one of its seats endorsed the intent: stop
+printing numbers a reader cannot place (`docs/handovers/handover_m13-start.md`). The three-seat §7
+council then ruled the form, C1.
+
+**Decision.**
+- A bounded percentage metric reads `Score 83.5 / 100`.
+- Elo reads `Score 1504.2 Elo`: unbounded, with the name of its scale and no invented ceiling. C1
+  wrote `Score 1504 Elo`; the decimal is D-109's rounding of the served number, kept because
+  REQ-CMP-001 keeps a served number exact.
+- ECI prints NO score number. Its scale publishes neither a ceiling nor a unit a reader can hold, so
+  only its rank range and the one-line scale explanation are shown.
+- A metric this build does not know keeps the engine's own label.
+
+The logic is `ios/ModelRanking/Engine/Scores.swift`, and the payload does not move.
+
+**The cost, stated.** REQ-CMP-001 (M12) said the exact number is never replaced, only given a
+companion. For ECI it is now replaced by its rank, on the card and in the ranking rows. The number
+is still in the payload, and M14's detail screen is where it can return with its explanation.
+
+**Revisit when:** ECI publishes a ceiling or a readable unit, or the detail screen ships.

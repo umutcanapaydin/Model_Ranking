@@ -699,3 +699,50 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     # The controls this wave removed stay removed from the home screen.
     assert "budgetStrip" not in home and "categoryStrip" not in home
     assert ".searchable(" not in home, "a second text field is back on the home screen"
+
+
+def test_every_score_on_screen_goes_through_the_figures_line() -> None:
+    """REQ-CMP-004, M13-W4 review MAJOR-1: a served score reaches the screen only via `figuresLine`.
+
+    `swift test` proves what `figuresLine` returns and cannot see whether the view calls it. The
+    seat replaced each call with a hand-built `Text` -- bare `Score 161.7` on a card, `161.7 ECI` in
+    every ranking row -- and both mutants passed every test. Each half below fails on one of them.
+    """
+    view = "\n".join(
+        line.split("//", 1)[0]
+        for line in (CLIENT / "ContentView.swift").read_text(encoding="utf-8").splitlines()
+    )
+
+    for struct, value, rank in (
+        ("PickRow", "pick", r"rankText\s*!=\s*nil"),
+        ("RankedRow", "row", r"rank\s*!=\s*nil"),
+    ):
+        start = view.index(f"struct {struct}: View")
+        end = view.find("\nstruct ", start + 1)
+        body = view[start : end if end != -1 else len(view)]
+        call = (
+            rf"figuresLine\(\s*score:\s*{value}\.score,\s*metric:\s*{value}\.metric,\s*"
+            rf"blendedPerM:\s*{value}\.blendedPerM,\s*language,\s*ranked:\s*{rank}\s*\)"
+        )
+        assert re.search(call, body), (
+            f"`{struct}` no longer renders its score through `figuresLine` with its own score, "
+            "metric, price and whether a rank is shown beside it"
+        )
+
+    # Nothing else turns a served score into text. A score may appear as a key path mapped into the
+    # rank ranges, which never print it, or as the `score:` argument of a composer, and nowhere
+    # else. The key path is held to `.map(` too (W4 re-review NEW-3): `row[keyPath: \.score]` reads
+    # the same number by another door.
+    for match in re.finditer(r"(\\)?\.score\b", view):
+        before = view[max(0, match.start() - 40) : match.start()]
+        line = view.count("\n", 0, match.start()) + 1
+        if match.group(1):
+            assert before.endswith(".map("), (
+                f"ContentView.swift:{line} uses a `\\.score` key path outside `.map(`; only the rank "
+                "ranges may read the served scores as a column"
+            )
+            continue
+        assert re.search(r"score:\s*\w+$", before), (
+            f"ContentView.swift:{line} reads a served score outside a composer's `score:` argument; "
+            "a score printed by hand says nothing about what it is out of (D-140)"
+        )
