@@ -304,3 +304,17 @@ in another.**
 - **The vendor-origin allowlist is twelve entries, not eleven** — 20 of the free 44 URLs derive from
   `hugging_face_id` to a HuggingFace card, and `huggingface.co` is not a vendor. Either it goes on
   the list as a third-party host, stated as one, or those 20 drop to their vendor origin.
+
+---
+
+## 8. Owner rulings, 2026-09-15 — in session, answering the lead agent directly
+
+Appended rather than edited into §7, because §7 records what the council ruled and this records
+where the owner changed it.
+
+| # | Question | Ruling | Consequence |
+|---|---|---|---|
+| 1 | M12 is unsigned and M13 is open over it | **Signed** | `docs/closure-report-m12.md` records it; the §0 prerequisite is discharged nine days late, ledgered in the W2 close |
+| 2 | The margin and the second board's age are published nowhere; §3 freezes `/v1` | **Add them to `/v1/categories`** | D-138. The answer payload's field sets do not move |
+| 3 | Wave commits under D-117 | **Commit and push** | Each wave lands as its own agent-identity commit; the milestone-closing commit stays the owner's |
+| 4 | §7 ruling 4 (D1, greedy tie bands) orders 47 within-margin pairs on today's data (45 on raw scores) | **Rank ranges** (`#1–27 of 50`) | Ruling 4 is SUPERSEDED. REQ-UNC-001's verification reads "overlapping ranges" where it read "a shared band" |

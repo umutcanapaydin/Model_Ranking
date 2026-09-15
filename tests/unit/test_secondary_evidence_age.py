@@ -44,8 +44,8 @@ from app.workflows.categories import CATEGORIES
 from app.workflows.rank import RankingRow
 from app.workflows.recommend import (
     STALE_NOTICE_DAYS,
-    _secondary_age_days,
     confidence_of,
+    secondary_age_days,
 )
 from app.workflows.schema import connect
 
@@ -124,12 +124,12 @@ def test_the_boundary_is_the_existing_threshold(age_days: int, expected: str) ->
 def test_the_age_is_derived_from_the_secondary_board_not_the_primary() -> None:
     """The seam that makes this testable, asserted so it cannot quietly close.
 
-    `_secondary_age_days` asks the SECONDARY benchmark for its newest run, against the same
+    `secondary_age_days` asks the SECONDARY benchmark for its newest run, against the same
     `observed_at` anchor `_stale_notice` uses for the primary. Reading the primary's age here would
     make every coding pick High again the moment SWE-bench was re-ingested, which is the opposite
     of what the ruling asks for.
     """
     conn = connect()
     assert (
-        _secondary_age_days(conn, CODING) is None
+        secondary_age_days(conn, CODING) is None
     ), "an empty database cannot age anything, and must not claim it can"

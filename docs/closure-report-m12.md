@@ -6,8 +6,11 @@ date: 2026-08-25
 ---
 # Closure Report — M12: the 60-year-old CFO can use it
 
-> **AWAITING THE OWNER'S SIGNATURE.** Section 0 is what needs him. Every figure below was measured
-> at the closing tree rather than reported by the thing that produced it.
+> **SIGNED by the owner on 2026-09-15**, in session, answering the M13 lead agent's question
+> "M12's closure report is still unsigned — sign it, waive it, or leave it?" with *"I sign it"*
+> (owner, translated from Turkish). M13 had been open over this unsigned milestone since 2026-09-06.
+> Every figure below was measured at the closing tree rather than reported by the thing that
+> produced it.
 
 ## 0. What needs the owner
 

@@ -58,6 +58,7 @@ from app.workflows.recommend import (
     recommend,
     round_optional_score,
     round_score,
+    secondary_age_days,
 )
 from app.workflows.schema import open_readonly as schema_open_readonly
 from app.workflows.serialize import recommendation_json
@@ -67,6 +68,8 @@ APP_VERSION = "0.1.0"
 APP_BUILD = os.environ.get("APP_BUILD", "unknown")
 
 API_VERSION = "v1"
+
+_LOG = logging.getLogger(__name__)
 
 #: Ruling A: the surfaces a bare coding request answers on, in a DELIBERATELY
 #: non-semantic order. Alphabetical is the point -- any order that could be read as
@@ -654,12 +657,22 @@ def _error(status: int, code: str, message: str) -> JSONResponse:
     return JSONResponse(status_code=status, content={"error": {"code": code, "message": message}})
 
 
-def _evidence_dating(picks: tuple[Pick, ...]) -> tuple[str, str | None]:
+def _evidence_dating(picks: tuple[Pick, ...], benchmark: str) -> tuple[str, str | None]:
     """Whether the evidence THIS ANSWER served carries evaluation dates (REQ-API-004).
 
     Derived from the rows actually published, never from the category's policy -- publishing the
     policy where the reader will assume evidence is the exact defect M5's security review caught
     as BLOCKING-1.
+
+    **The note NAMES the benchmark (M13-W2, REQ-UNC-003).** It used to say "This answer's
+    benchmark", and six of the twelve score sources in the shipping artifact carry no evaluation
+    date at all. The criterion is that every source carries a date or the product names the one
+    that does not; a sentence about "this answer's benchmark" names nothing a reader could look up.
+
+    It describes the EVIDENCE IN THIS ANSWER, not the board's publishing habits. The first version
+    said "TerminalBench publishes no evaluation dates", which is false: the board publishes a `Run
+    date` column that the shipping artifact was built before this milestone learned to read. Which
+    of the two is true is a fact about the build, and the answer can only see its own rows.
     """
     if not picks:
         return "unknown", None
@@ -669,13 +682,13 @@ def _evidence_dating(picks: tuple[Pick, ...]) -> tuple[str, str | None]:
     if not any(dated):
         return (
             "undated",
-            "This answer's benchmark publishes no evaluation dates, only model release dates. "
-            "Its scores cannot be aged, so freshness is unknown rather than recent.",
+            f"The {benchmark} evidence in this answer carries no evaluation dates, only model "
+            "release dates. Its scores cannot be aged, so freshness is unknown rather than recent.",
         )
     return (
         "mixed",
-        "Some picks in this answer carry an evaluation date and some do not; the undated ones "
-        "cannot be aged.",
+        f"Some picks in this answer carry an evaluation date from {benchmark} and some do not; "
+        "the undated ones cannot be aged.",
     )
 
 
@@ -949,7 +962,7 @@ def _answer_json(
     its source is on a wall clock, whether its evidence carries dates, and why it has no picks.
     """
     picks = rec.picks if rec else ()
-    dating, dating_note = _evidence_dating(picks)
+    dating, dating_note = _evidence_dating(picks, spec.primary_benchmark)
 
     if rec is not None:
         # The engine's own serialization, and NOTHING to fall back on. The first version merged
@@ -1131,9 +1144,54 @@ def health() -> dict[str, str]:
     }
 
 
+def _secondary_ages() -> dict[str, int | None]:
+    """Each surface's SECONDARY board age, read from the served artifact. D-138, REQ-UNC-002.
+
+    The one field on `/v1/categories` that is not a policy constant, and so the one that may be
+    absent. Discovery must keep answering while the artifact is missing or being republished: the
+    app builds its navigation from this route, and a discovery call that can blank the product is a
+    worse dependency than the fact it would add. An unreadable artifact therefore yields no ages,
+    never an error.
+    """
+    path = _db_path()
+    if path is None or not path.is_file():
+        return {}
+    try:
+        conn = open_readonly(path)
+    except sqlite3.Error as exc:
+        # Logged, not raised and not silent: the route answers, and an operator can still find out
+        # why every age read null (M13-W2 review NIT-3).
+        _LOG.warning("/v1/categories could not open the artifact for ages: %s", type(exc).__name__)
+        return {}
+    try:
+        return {
+            spec.id: secondary_age_days(conn, spec)
+            for spec in CATEGORIES.values()
+            if spec.secondary_benchmark
+        }
+    except sqlite3.Error as exc:
+        _LOG.warning("/v1/categories could not read ages from the artifact: %s", type(exc).__name__)
+        return {}
+    finally:
+        with contextlib.suppress(sqlite3.Error):
+            conn.close()
+
+
 @app.get(f"/{API_VERSION}/categories")
 def categories() -> dict[str, Any]:
-    """The rankable surfaces, so a client discovers them instead of hardcoding them."""
+    """The rankable surfaces, so a client discovers them instead of hardcoding them.
+
+    **D-138 (M13-W2) adds three fields, and the recommendations answer's field sets do not move.**
+    The engine has
+    always decided two things it never published: the margin inside which it calls two models
+    indistinguishable (`close_call`, native scale), and how old the second board is that decides
+    whether a pick counts as measured twice. A client that wanted to stop printing `#2 of 50` for a
+    model the engine calls tied with the first had to invent the margin, and inventing it on the
+    phone is the thing `Models.swift` promises never to do. D-134's reasoning applies unchanged: the
+    frozen thing is the answer payload a consumer already parses, and its field sets do not move.
+    One VALUE does: `evidence_dating_note` now names its benchmark (REQ-UNC-003).
+    """
+    ages = _secondary_ages()
     return {
         "categories": [
             {
@@ -1142,6 +1200,14 @@ def categories() -> dict[str, Any]:
                 "primary_benchmark": spec.primary_benchmark,
                 "metric": spec.metric,
                 "ranking_effort": spec.ranking_effort,
+                # REQ-UNC-001. On the surface's own scale, like every threshold in `categories.py`:
+                # 5.0 on `expert` is points, 8.0 on `assistant` is Elo. Never comparable across
+                # surfaces, which is D-105 and why it is not normalised here.
+                "close_call_margin": spec.close_call,
+                # REQ-UNC-002. The age is the engine's own (`recommend.secondary_age_days`) against
+                # the artifact's anchor; `null` when the board is undated or unreadable.
+                "secondary_benchmark": spec.secondary_benchmark,
+                "secondary_age_days": ages.get(spec.id),
             }
             for spec in CATEGORIES.values()
         ],

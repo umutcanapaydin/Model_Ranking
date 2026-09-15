@@ -144,15 +144,32 @@ struct ContentView: View {
                         if answer.picks.isEmpty && answer.ranking.isEmpty {
                             Card { emptyAnswer(answer) }
                         } else {
+                            // REQ-UNC-001, the owner's ruling of 2026-09-15: every position is the
+                            // RANGE the engine's own margin (D-138) cannot narrow. Computed ONCE per
+                            // answer so the picks, the preview and the full list cannot disagree.
+                            let info = category(for: answer)
+                            let ranges = rankRanges(
+                                answer.ranking.map(\.score), margin: info?.closeCallMargin
+                            )
                             ForEach(answer.picks) { pick in
                                 PickRow(
                                     pick: pick,
                                     ranking: answer.ranking,
                                     scale: scaleExplanation(for: answer.metric, in: language),
-                                    language: language
+                                    language: language,
+                                    ranges: ranges,
+                                    secondaryBenchmark: info?.secondaryBenchmark,
+                                    secondaryAgeDays: info?.secondaryAgeDays
                                 )
                             }
-                            rankingPreview(answer)
+                            rankingPreview(
+                                answer,
+                                ranges: ranges,
+                                leaderNote: leaderSentence(
+                                    ranges: ranges, margin: info?.closeCallMargin,
+                                    metric: answer.metric, language
+                                )
+                            )
                         }
                         disclosures(answer)
 
@@ -197,7 +214,9 @@ struct ContentView: View {
 
     /// The top of the full ranking, plus the door to the rest.
     @ViewBuilder
-    private func rankingPreview(_ answer: Answer) -> some View {
+    private func rankingPreview(_ answer: Answer, ranges: [RankRange], leaderNote: String?)
+        -> some View
+    {
         // The picks are already on screen in large type; repeating them four lines below in small
         // type was the first thing the owner pointed at. Five models visible in total, split by
         // however many DISTINCT picks there turned out to be — one model can hold two pick labels.
@@ -214,7 +233,12 @@ struct ContentView: View {
             Card(padding: 4) {
                 VStack(spacing: 0) {
                     ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                        RankedRow(row: row, language: language)
+                        RankedRow(
+                            row: row,
+                            rank: rankOf(row.model, in: answer.ranking, name: \.model)
+                                .flatMap { shortRankLabel(at: $0 - 1, in: ranges) },
+                            language: language
+                        )
                             .padding(.horizontal, 12)
                             .padding(.vertical, 10)
                         if index < rows.count - 1 {
@@ -223,7 +247,10 @@ struct ContentView: View {
                     }
                     Divider().padding(.leading, 12)
                     NavigationLink {
-                        RankingList(answer: answer, filter: filter, language: language)
+                        RankingList(
+                            answer: answer, filter: filter, language: language,
+                            ranges: ranges, leaderNote: leaderNote
+                        )
                     } label: {
                 // The full ranking is NOT budget-filtered — D-125 publishes every ranked model
                 // beside the three picks, deliberately. A review found the payload giving two
@@ -260,6 +287,11 @@ struct ContentView: View {
     /// decided that, and a client that re-sorts is answering a different question (Trap 1).
     private func filtered(_ rows: [RankedModel]) -> [RankedModel] {
         filterRanking(rows, by: filter, name: \.model, vendor: \.vendor)
+    }
+
+    /// The discovery entry for an answer's surface: its margin and its second board (D-138).
+    private func category(for answer: Answer) -> Category? {
+        categories.first { $0.id == answer.surface }
     }
 
     @ViewBuilder
@@ -465,8 +497,12 @@ struct ContentView: View {
             // Asked once and reused. A failure here is NOT fatal to the screen: the strip simply
             // does not appear, and the default surface still answers — a discovery call that can
             // blank the product would be a worse dependency than the hardcoded list it replaces.
-            if categories.isEmpty {
-                categories = (try? await client.categories()) ?? []
+            // Re-read on every load (M13-W2 review MINOR-1). The second board's age is a fact about
+            // the ARTIFACT, which the refresh replaces every twelve hours, and a copy held for a
+            // whole session can say "last ran 17 days ago, so it is not counted" about a board the
+            // engine now counts. A failed re-read keeps the list it had.
+            if let fresh = try? await client.categories(), !fresh.isEmpty {
+                categories = fresh
             }
             // Same rule as the categories: a discovery call that can blank the product would be a
             // worse dependency than the hardcoded list it replaces. If `/v1/budgets` is missing —
@@ -565,9 +601,28 @@ struct PickRow: View {
     /// **Falling back is correct**; inventing a Turkish sentence for a reason we do not understand
     /// would be the product speaking without knowing what it is saying.
     var language: Language = .english
+    /// REQ-UNC-001. The answer's rank ranges, computed once by the caller from the engine's margin.
+    /// `nil` renders the exact positions that shipped before D-138.
+    var ranges: [RankRange]?
+    /// REQ-UNC-002. The surface's second board and its age, from `/v1/categories` (D-138).
+    var secondaryBenchmark: String?
+    var secondaryAgeDays: Int?
 
     private var whyText: String {
         whySentence(pick.whyFactDictionary, in: language) ?? pick.why
+    }
+
+    /// REQ-UNC-002: a count a reader can check, and never the word "confidence".
+    private var evidenceText: String? {
+        evidenceLine(
+            verdict: pick.confidence,
+            basis: pick.confidenceBasis,
+            secondaryScore: pick.secondaryScore,
+            secondaryBenchmark: secondaryBenchmark,
+            secondaryAgeDays: secondaryAgeDays,
+            evidenceDate: pick.evidenceDate,
+            language
+        )
     }
 
     private var tradeOffText: String? {
@@ -577,8 +632,16 @@ struct PickRow: View {
 
     private var pickMeaning: String? {
         var parts: [String] = []
-        if let rank = rankOf(pick.model, in: ranking, name: \.model) {
-            parts.append("#\(rank) of \(ranking.count)")
+        // REQ-UNC-001: `#1–27 of 50` where the engine's margin cannot narrow the position, and a
+        // single number only where it can.
+        if let position = rankOf(pick.model, in: ranking, name: \.model),
+           let rank = rankLabel(
+               at: position - 1,
+               in: ranges ?? rankRanges(ranking.map(\.score), margin: nil),
+               of: ranking.count,
+               language
+           ) {
+            parts.append(rank)
         }
         if let scale { parts.append(scale) }
         parts.append(priceInPages(pick.blendedPerM, in: language))
@@ -606,6 +669,9 @@ struct PickRow: View {
                         .foregroundStyle(.secondary)
                 }
                 Text(whyText).font(.footnote).foregroundStyle(.secondary)
+                if let evidence = evidenceText {
+                    Text(evidence).font(.footnote).foregroundStyle(.secondary)
+                }
                 if let tradeOff = tradeOffText {
                     Text(tradeOff).font(.footnote).foregroundStyle(.tertiary)
                 }
@@ -616,12 +682,21 @@ struct PickRow: View {
 
 struct RankedRow: View {
     let row: RankedModel
+    /// `5–13`, `1`: the row's position as the engine's margin allows it (REQ-UNC-001). `nil` shows
+    /// none.
+    var rank: String?
     /// Passed in, never read from storage here — see `RankingList`: two views on one screen
     /// disagreeing about the reader's language would be worse than one that is untranslated.
     var language: Language = .english
 
     var body: some View {
         HStack {
+            if let rank {
+                Text(rank)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 30, alignment: .leading)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.model)
                 Text(row.vendor).font(.caption).foregroundStyle(.secondary)
@@ -643,12 +718,23 @@ struct RankingList: View {
     /// screen that opened it about what language the reader is in would be worse than one that is
     /// simply not translated.
     var language: Language = .english
+    /// Computed by the home screen from the engine's margin, so both screens agree on every range.
+    var ranges: [RankRange] = []
+    /// How many models the benchmark cannot separate from the leader. Said here, where the ranges
+    /// appear in bulk, and not on the home screen, where the engine's `close_call` already says it.
+    var leaderNote: String?
 
     var body: some View {
         ScrollViewReader { proxy in
             List {
-                ForEach(rows) { row in
-                    RankedRow(row: row, language: language).id(row.id)
+                Section {
+                    ForEach(rows) { row in
+                        RankedRow(row: row, rank: rank(of: row), language: language).id(row.id)
+                    }
+                } header: {
+                    if let leaderNote {
+                        Text(leaderNote).textCase(nil)
+                    }
                 }
             }
             // **Back to the top whenever the filter changes**, and this is the defect the owner
@@ -672,6 +758,13 @@ struct RankingList: View {
 
     private var rows: [RankedModel] {
         filterRanking(answer.ranking, by: filter, name: \.model, vendor: \.vendor)
+    }
+
+    /// Read from the FULL ranking, never the filtered one. Filtering narrows what is shown; a
+    /// model's tie with the leader does not change because the reader typed a letter.
+    private func rank(of row: RankedModel) -> String? {
+        rankOf(row.model, in: answer.ranking, name: \.model)
+            .flatMap { shortRankLabel(at: $0 - 1, in: ranges) }
     }
 }
 

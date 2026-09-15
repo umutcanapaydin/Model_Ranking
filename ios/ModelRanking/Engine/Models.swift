@@ -44,6 +44,15 @@ struct Category: Decodable, Identifiable, Equatable {
     let primaryBenchmark: String
     let metric: String
     let rankingEffort: String?
+    /// D-138 (M13-W2). The margin inside which this surface's engine calls two models
+    /// indistinguishable, on the surface's own scale. Optional because an engine older than D-138
+    /// does not send it, and a client that then invented one would be computing on the phone the
+    /// very number this file promises never to compute. Absent means exact positions, not "no ties".
+    let closeCallMargin: Double?
+    /// The evidence-only second board, and how many days old its newest run is against the
+    /// artifact's own anchor. A `nil` age: the board publishes no dates, or the artifact is unread.
+    let secondaryBenchmark: String?
+    let secondaryAgeDays: Int?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -51,6 +60,9 @@ struct Category: Decodable, Identifiable, Equatable {
         case primaryBenchmark = "primary_benchmark"
         case metric
         case rankingEffort = "ranking_effort"
+        case closeCallMargin = "close_call_margin"
+        case secondaryBenchmark = "secondary_benchmark"
+        case secondaryAgeDays = "secondary_age_days"
     }
 }
 

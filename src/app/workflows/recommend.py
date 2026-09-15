@@ -204,8 +204,13 @@ class Recommendation:
     picks: tuple[Pick, ...]
 
 
-def _secondary_age_days(conn: sqlite3.Connection, spec: CategorySpec) -> int | None:
+def secondary_age_days(conn: sqlite3.Connection, spec: CategorySpec) -> int | None:
     """How old the SECONDARY board is, or `None` when it cannot be aged. REQ-UNC-002.
+
+    **Public since M13-W2, because `/v1/categories` publishes it (D-138).** The age decides whether
+    a pick counts as measured twice, and a reader who is told "measured on one benchmark" beside a
+    second score deserves the number that decided it. The route calls THIS function rather than a
+    copy, so the age on screen and the age that decided the count cannot be two different numbers.
 
     Deliberately the same shape as `_stale_notice`'s arithmetic for the primary: newest `run_date`
     on the benchmark, against `MAX(observed_at)` as the anchor. Determinism over wall clock, so a
@@ -503,7 +508,7 @@ def recommend(
     # REQ-UNC-002: computed ONCE per answer, not per pick. Staleness is a property of the board,
     # so three picks asking the same question would get the same answer three times and tempt a
     # future reader into thinking they could differ.
-    secondary_age = _secondary_age_days(conn, spec)
+    secondary_age = secondary_age_days(conn, spec)
     value_trade_off = trade_off_facts(
         quality.score, value.score, unit, quality.blended_per_m, value.blended_per_m
     )

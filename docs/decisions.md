@@ -1615,3 +1615,74 @@ across every wave record in the repository, it fires on exactly five: M12's four
 the one the records already carry.* This is the fourth instance this milestone of the council's
 through-line — a thing asserted somewhere and exercised nowhere, each half locally correct. The
 council reviewed. The waves cited. Both were true, and no code was read.
+
+---
+
+## D-138 — `/v1/categories` publishes the margin and the second board's age
+
+**Status:** accepted · **Date:** 2026-09-15 · **Decided by:** the owner, in session on 2026-09-15,
+choosing "add to `/v1/categories`" over a fifth route (`/v1/margins`) and over leaving the contract
+untouched and deferring the tie bands to M14; and, the same day, choosing rank RANGES over the
+council's greedy bands (M13 plan §7 ruling 4, D1) after the W2 review. · **Amends the M13 plan §3
+field freeze, for `/v1/categories` only; supersedes the plan's §7 ruling 4.**
+
+**Context.** M13-W2 owns REQ-UNC-001 (no ordered rank inside the engine's own margin) and
+REQ-UNC-002 (a coverage count, with the age of the second board). The engine decides both with
+numbers it never published: `CategorySpec.close_call`, the margin `recommend()` compares the
+runner-up against, and `recommend.secondary_age_days`, the age that decides whether a second score
+counts. The M13 plan froze every `/v1` field set (§3) and named exactly this situation an escalation.
+Measured on the shipping artifact: `expert` printed `#2 of 50` for a model 0.3 points behind the
+leader, while 25 of its 50 models sit inside the 5-point margin on raw scores.
+
+**Decision.** Each `/v1/categories` entry gains `close_call_margin` (the surface's margin, on its
+native scale), `secondary_benchmark`, and `secondary_age_days` (the engine's own age against the
+artifact's anchor; `null` when the board is undated OR the artifact cannot be read — a client may
+claim only that the age is unavailable). The client shows every model's position as the RANGE of
+places that margin allows (the `expert` leader reads `#1–27 of 50`: 25 on raw scores, plus the
+rounding step conceded below), and states the benchmark count with that age.
+
+**Why ranges, and why not the bands this ADR first shipped with.** The council's D1 ruling grouped
+the ranking into greedy bands anchored at the top. The W2 Code-Reviewer measured it on the shipping
+artifact: 47 adjacent pairs inside the margin (45 on raw scores) were printed in different bands —
+`=2` beside `=5`,
+0.6 points apart — which is the ordering REQ-UNC-001 forbids. No single rank number can avoid that,
+because "within the margin" is not transitive. A range can: `best` counts the models clearly ahead,
+`worst` the models clearly behind, and two models inside the margin of each other always overlap.
+`ios/EngineTests/UncertaintyTests.swift` asserts the overlap as a property over every shipping
+margin. The owner chose ranges over "keep D1 and narrow the criterion to the leader's band" and
+over "rank only the leader's band".
+
+**The rounding direction.** Served scores carry one decimal (D-109) and the engine decides on raw
+ones, so a served gap is within 0.1 of the raw gap. The client treats two models as separable only
+beyond `margin + 0.1`, which makes it impossible for rounding to order a pair the engine calls
+tied. The cost, accepted: a pair whose raw gap is just outside the margin can be shown as
+overlapping. Overstating the uncertainty by one rounding step is the error the criterion allows;
+overstating the order is the one it exists to prevent.
+
+**REQ-APP-005 is crossed, by name.** A range compares two served scores against the engine's
+threshold, which is arithmetic on a served number. It prints no new number. The client-contract
+tripwire used to match only the spelling `.score -` and could not see this crossing; it now also
+matches arithmetic on a local `score`, and `SCORE_ARITHMETIC_PERMITTED` names `Uncertainty.swift`
+with this ADR, so a second crossing fails until someone writes the ADR that permits it.
+REQ-APP-005's prd row records the amendment.
+
+**Why this is not the payload move D-115 forbids.** The argument D-134 made: the frozen thing is
+what a consumer already parses, and the `/v1/recommendations` FIELD SETS do not move —
+`tests/unit/test_uncertainty_contract.py::test_the_recommendations_route_did_not_gain_a_field`
+compares every answer against the frozen key set. **It is not byte-identical, and the first draft
+of this ADR said it was:** REQ-UNC-003 changes the VALUE of `evidence_dating_note` so that it names
+its benchmark. The three new fields are additive on a discovery resource, and all three are
+optional on the client so an older engine still decodes.
+
+**What makes it honest rather than convenient.** The margin is checked against the engine, not
+against itself: a test steers the margin just above and just below the fixture's real frontier gap
+and asserts the served value reproduces the engine's `close_call` decision in both directions. The
+age is the engine's own function, called by the route, not a copy of its query.
+
+**The cost, stated.** `/v1/categories` now opens the artifact once per request, for two surfaces'
+ages. It still answers with no artifact at all (the ages arrive as `null`), because the app builds
+its navigation from this route and a discovery call that can blank the product is worse than a
+missing fact.
+
+**Revisit when:** the engine should compute the ranges itself, on raw scores, which would remove
+the rounding concession above. That moves the answer payload and is therefore a real revision.

@@ -55,3 +55,8 @@ ios/EngineTests/LanguageTests.swift     # asserts the exact Turkish sentences th
 ios/EngineTests/OwnerSessionDefectTests.swift # pins the tr_TR locale defect with a Turkish fixture
                                         # ("Şirket AI" vs "sirket"); the bug IS the character folding,
                                         # so an ASCII fixture would test nothing
+ios/ModelRanking/Engine/Uncertainty.swift # M13-W2: composes the tie-band and evidence sentences in
+                                        # both languages from engine facts, the Language.swift shape;
+                                        # its prose and comments are English
+ios/EngineTests/UncertaintyTests.swift  # asserts those exact Turkish sentences, for the same reason
+                                        # LanguageTests.swift is exempt above

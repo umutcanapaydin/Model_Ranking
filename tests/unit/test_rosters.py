@@ -220,7 +220,9 @@ def test_cli_exit_codes_through_real_entrypoint(tmp_path, capsys) -> None:
 def _scored_db(page_score: float, roster_score: float):
     """One plan carrying BOTH a plan-page link and a roster link, to two models."""
     conn = connect()
-    run = RunContext()
+    # Pinned: staleness is `observed_at - last_verified`, so an unpinned stamp is the wall clock
+    # and every fixture date below expires 30 days after it was written (it did, on 2026-09-15).
+    run = RunContext(observed_at="2026-08-16T00:00:00+00:00")
     ingest_plans(
         conn,
         # Grok 4.5 sorts AFTER Claude Opus 5 alphabetically on purpose: if the

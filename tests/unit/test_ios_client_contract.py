@@ -163,6 +163,46 @@ def test_the_client_performs_no_arithmetic_on_a_number_the_engine_sent() -> None
     )
 
 
+#: Files permitted to do arithmetic on a served score, each with the ADR that permits it. D-138:
+#: a rank range compares two served scores against the engine's own published margin and prints
+#: no new number. Every other file is still held to REQ-APP-005.
+SCORE_ARITHMETIC_PERMITTED = {"Uncertainty.swift": "D-138"}
+
+
+def test_score_arithmetic_happens_only_where_an_adr_permits_it() -> None:
+    """M13-W2 re-review NEW-1: the tripwire above could not see the one crossing that shipped.
+
+    `rankRanges` subtracts served scores held in local bindings (`other - score`), which the
+    property-access patterns above were written not to match. Rather than leave the tripwire
+    knowingly blind, this matches arithmetic on a LOCAL named `score` or `scores` as well, and the
+    one file allowed to do it is named with its ADR. A second file doing it fails here until
+    somebody writes the ADR that permits it.
+
+    Laundering through a binding with some other name still passes. That half of REQ-APP-005 stays
+    PARTIAL, as its prd row says.
+    """
+    pattern = re.compile(r"\bscores?\b\s*[-+*/]\s*[\w(.]|[\w)]\s*[-+*/]\s*\bscores?\b")
+    offenders: list[str] = []
+    used: set[str] = set()
+    for name, text in _swift_sources().items():
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            if not pattern.search(line.split("//", 1)[0]):
+                continue
+            if name in SCORE_ARITHMETIC_PERMITTED:
+                used.add(name)
+            else:
+                offenders.append(f"{name}:{lineno}: {line.strip()}")
+
+    assert not offenders, (
+        "arithmetic on a served score outside the files an ADR permits:\n  " + "\n  ".join(offenders)
+    )
+    stale = sorted(set(SCORE_ARITHMETIC_PERMITTED) - used)
+    assert not stale, (
+        f"{stale} is permitted to do score arithmetic and no longer does; an exemption that outlives "
+        "its reason silently widens the next time the file changes"
+    )
+
+
 # --- REQ-APP-002: Ruling A survives the client -------------------------------------------------
 
 
@@ -436,3 +476,50 @@ def test_the_client_says_when_the_full_ranking_is_wider_than_the_budget() -> Non
         "the client no longer compares the eligible count against the published ranking; the "
         "'See all N' heading then reads as a continuation of the budgeted picks above it"
     )
+
+
+def test_the_screen_calls_the_uncertainty_functions_it_depends_on() -> None:
+    """M13-W2 Tester finding: every change to how `ContentView` calls the Engine stayed green.
+
+    `swift test` does not compile `ContentView`, so a view that stopped passing the engine's
+    published margin (and printed exact positions again), or that went back to rendering the raw
+    basis, broke nothing. Structural, like every test in this file: it proves the calls exist
+    outside comments WITH the arguments that carry the engine's facts, and that their results are
+    the text rendered — not that a reader sees them.
+
+    **The first version checked only that the function NAMES appeared**, and the Tester seat's
+    re-run showed what that let through: `PickRow` losing `ranges: ranges` (the picks read `#2 of
+    50` again — the defect REQ-UNC-001 removes), `Text(pick.confidenceBasis)` in place of the
+    evidence line, a nil margin into `leaderSentence`, and the leader note never rendered.
+    """
+    view = "\n".join(
+        line.split("//", 1)[0]
+        for line in (CLIENT / "ContentView.swift").read_text(encoding="utf-8").splitlines()
+    )
+
+    assert re.search(
+        r"rankRanges\(\s*answer\.ranking\.map\(\\\.score\),\s*margin:\s*info\?\.closeCallMargin",
+        view,
+    ), "the ranking is not ranged with the margin the engine publishes (D-138)"
+
+    pick_row = re.search(r"\bPickRow\(\s*\n(.*?)\n\s*\)", view, re.S)
+    assert pick_row, "the home screen no longer builds a PickRow"
+    for argument in (
+        "ranges: ranges",
+        "secondaryBenchmark: info?.secondaryBenchmark",
+        "secondaryAgeDays: info?.secondaryAgeDays",
+    ):
+        assert argument in pick_row.group(1), f"the picks are built without `{argument}`"
+
+    assert re.search(r"\brankLabel\(", view), "the picks no longer say where they sit"
+    assert re.search(r"\bshortRankLabel\(", view), "the ranking rows no longer say where they sit"
+    assert re.search(r"\bevidenceLine\(", view), "the picks no longer state how they were measured"
+    assert re.search(r"Text\(evidence\)", view), "the evidence line is composed and never rendered"
+    assert not re.search(r"Text\(pick\.confidenceBasis\)", view), (
+        "the engine's basis is rendered directly, bypassing the composer that never says "
+        "'confidence' and says nothing on a self-contradicting payload"
+    )
+    assert re.search(
+        r"leaderSentence\(\s*ranges:\s*ranges,\s*margin:\s*info\?\.closeCallMargin", view
+    ), "the leader's tie is stated without the engine's margin"
+    assert re.search(r"Text\(leaderNote\)", view), "the leader's tie is composed and never shown"
