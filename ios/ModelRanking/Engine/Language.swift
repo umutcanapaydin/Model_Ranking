@@ -58,10 +58,15 @@ public func whySentence(_ fact: [String: Any], in language: Language) -> String?
     switch (reason, language) {
     case (.highestScore, .english):
         guard let benchmark = label(fact["benchmark"]) else { return nil }
-        return "The highest score on \(benchmark) among the models you can afford."
+        // M13-W3 review MINOR-1: not "among the models you can afford". With the budget control
+        // gone the reader has set no budget, and a sentence saying they did describes a choice
+        // they never made.
+        return "The highest score on \(benchmark) of all the models ranked here."
     case (.highestScore, .turkish):
         guard let benchmark = label(fact["benchmark"]) else { return nil }
-        return "Bütçenize uyan modeller arasında \(benchmark) üzerindeki en yüksek puan."
+        // Not "Burada sıralanan": `HostileFactValueTests` hunts the ghost `nan` in every sentence,
+        // and "sıralanan" carries it. The test is right to be blunt; the sentence moved.
+        return "Buradaki tüm modeller arasında \(benchmark) üzerindeki en yüksek puan."
     case (.cheapestWithinWindow, .english):
         guard let window = number(fact["window"]) else { return nil }
         return "The cheapest model that is still within \(window) \(unit) of the best one."
@@ -301,14 +306,45 @@ public enum UIText {
         }
     }
 
-    /// A budget button's words.
-    public static func budget(_ id: String, _ language: Language) -> String {
-        switch (id, language) {
-        case ("low", .turkish): return "Daha ucuz"
-        case ("medium", .turkish): return "Orta"
-        case ("unlimited", .turkish): return "Fiyat farketmez"
-        default: return BudgetOption(id: id, blendedCapPerM: nil).title
-        }
+    /// The control that corrects the surface the router chose (M13-W3, REQ-ASK-002).
+    public static func change(_ language: Language) -> String {
+        language == .turkish ? "Değiştir" : "Change"
+    }
+
+    /// Before any question has been asked: which surface is on screen.
+    public static func showing(_ language: Language) -> String {
+        language == .turkish ? "Gösterilen" : "Showing"
+    }
+
+    /// The send button's accessibility label. The button itself is an arrow.
+    public static func send(_ language: Language) -> String {
+        language == .turkish ? "Sor" : "Ask"
+    }
+
+    /// The Change sheet's title.
+    public static func chooseSurface(_ language: Language) -> String {
+        language == .turkish ? "Neyi sıralayalım?" : "What should we rank?"
+    }
+
+    /// Before the one-tap alternatives under the echo.
+    public static func alternatives(_ language: Language) -> String {
+        language == .turkish ? "Ya da:" : "Or:"
+    }
+
+    /// Before the surfaces offered under a DECLINED question (W3 re-review-2 R3-1). They are not
+    /// alternatives to a match, because nothing matched; they are the nearest things this catalogue
+    /// does measure, and "Or:" above `Puzzles` for a cat picture read as a suggestion.
+    public static func closestMeasured(_ language: Language) -> String {
+        language == .turkish ? "Ölçtüklerimizden en yakınları:" : "Closest we measure:"
+    }
+
+    /// When the engine's list of surfaces could not be read (M13-W3 review MINOR-7). A question
+    /// cannot be routed without it and the Change sheet would be empty, so the card says so rather
+    /// than offering a send button that silently does nothing.
+    public static func surfacesUnavailable(_ language: Language) -> String {
+        language == .turkish
+            ? "Alan listesi yüklenemedi; yeniden denemek için aşağı çekin."
+            : "The list of surfaces could not be loaded; pull down to try again."
     }
 
     /// A surface's name.

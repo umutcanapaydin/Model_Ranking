@@ -1,9 +1,14 @@
-//  ContentView.swift — the home screen (M8-W2).
+//  ContentView.swift — the home screen (M8-W2; the front door rebuilt at M13-W3).
 //
-//  The owner's shape: categories stacked, each showing its three recommendations and then the top
-//  few of the full ranking, with the whole list one tap away. A search field at the top FILTERS by
-//  model name — it does not re-rank, because the ranking is the engine's answer and searching is
-//  the user narrowing what they look at (owner's ruling, M8-W1 review).
+//  M13-W3, REQ-ASK-001..004. The owner, translated from Turkish: *"it felt like a search bar, not an
+//  AI"*. The question field is now the only input on the home screen. The category strip and the
+//  budget strip are gone: the council removed the budget strip unanimously, and the nine surfaces
+//  moved behind a `Change` sheet reached from the matched-surface row, which keeps the correction
+//  D-126 requires. The model-name filter moved to the full ranking. Two text fields on one screen
+//  is why the question bar read as the weaker of two search boxes.
+//
+//  Every decision this screen makes lives in the Engine, where `swift test` runs it
+//  (`FrontDoor.swift`, `Uncertainty.swift`). This file renders.
 //
 //  Why the picks stay above the list, and it is a product decision rather than a layout habit: the
 //  three picks answer three different questions, and on today's data the score-ordered top 5 for
@@ -18,32 +23,37 @@ private let homePreviewCount = 5
 
 struct ContentView: View {
     @State private var state: LoadState = .idle
-    @State private var filter = ""
-    /// Fetched from the engine on first load, never listed here. See `EngineClient.categories()`.
+    /// Fetched from the engine on every load, never listed here. See `EngineClient.categories()`.
     @State private var categories: [Category] = []
     @State private var task = "coding"
-    /// What the reader typed, and what the router made of it (D-126, REQ-RTR-001).
+    /// What the reader is typing, and what they had typed when they last asked (D-126).
     @State private var question = ""
+    @State private var asked = ""
     @State private var routing: RoutingOutcome?
     @State private var routingInFlight = false
-    /// **The reader's budget, and until M12-W3 this was a constant.**
-    ///
-    /// The product's own one-line description is "budget-aware recommendations". `/v1/budgets`
-    /// publishes the caps, `eligible_count` arrives on every answer, and the "N fit your budget"
-    /// line was written at M11 — all of it serving a control that did not exist. The council's
-    /// product seat found it by reading this line.
-    ///
-    /// `unlimited` stays the default: a reader who has not said what they can spend has not asked
-    /// to be limited, and showing them fewer models before they choose would be an assumption the
-    /// engine is careful never to make.
-    @State private var budget = "unlimited"
-    /// The caps, read from `/v1/budgets` rather than hardcoded — the whole point of D-134 is that
-    /// a consumer does not have to know what `low` means.
-    @State private var budgets: [BudgetOption] = []
+    /// REQ-ASK-001. Explicit, because the field used to give no visible response to a tap and never
+    /// raised the software keyboard (handover §3.3). The field, its icon and the send button all
+    /// act on this one binding.
+    @FocusState private var questionFocused: Bool
+    /// REQ-ASK-004. Every load takes a ticket, and only the latest may change the screen.
+    @State private var gate = RequestGate()
+    /// REQ-ASK-004 for the QUESTION (M13-W3 review BLOCKING-2): routing is the slow half of a
+    /// question, and a `Change` selection made while it runs retires its ticket.
+    @State private var routingGate = RequestGate()
+    /// A reload after the first: the answers stay on screen and the progress shows in the card,
+    /// rather than the whole screen, question field included, being replaced by a spinner.
+    @State private var reloading = false
+    /// The `Change` sheet (REQ-ASK-002).
+    @State private var choosingSurface = false
     /// The reader's language. `@AppStorage` so the choice survives a relaunch — a flag switch that
     /// forgets is a flag switch nobody uses twice.
     @AppStorage("language") private var language: Language = .english
     private let router = TieredRouter()
+    /// Whether the on-device tier can run here, said as quiet help when it cannot.
+    private let onDevice = TieredRouter.onDeviceState()
+    /// Every question is asked at `unlimited` since the budget strip went (M13-W3). The engine still
+    /// takes a budget, and `/v1/budgets` still publishes the caps for other consumers (D-134).
+    private let budget = "unlimited"
 
     enum LoadState {
         case idle, loading
@@ -78,17 +88,9 @@ struct ContentView: View {
                     .frame(width: 96)
                 }
             }
-            .safeAreaInset(edge: .top) {
-                VStack(spacing: 0) {
-                    categoryStrip
-                    budgetStrip
-                }
-            }
             .navigationTitle(UIText.title(language))
-            // Inline, because the category strip already occupies the top of the screen and a
-            // large title left an empty band above it with nothing in it.
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $filter, prompt: UIText.filterPlaceholder(language))
+            .sheet(isPresented: $choosingSurface) { surfaceSheet }
             .task { await load() }
         }
     }
@@ -106,30 +108,7 @@ struct ContentView: View {
             LazyVStack(alignment: .leading, spacing: 24) {
                 // THE FRONT DOOR (D-126). The router picks the QUESTION; the engine answers it.
                 // Nothing here says a model is good, and nothing typed leaves the device.
-                Card {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 10) {
-                            Image(systemName: "text.bubble")
-                                .foregroundStyle(.secondary)
-                            TextField(UIText.askPlaceholder(language), text: $question)
-                                .submitLabel(.search)
-                                .onSubmit { Task { await ask() } }
-                            if routingInFlight {
-                                ProgressView().controlSize(.small)
-                            }
-                        }
-                        if let outcome = routing {
-                            // The choice is SHOWN, and changeable with one tap — the strip above
-                            // is the override. D-126 requires the reader to see which question was
-                            // picked, and a router whose choice cannot be corrected is one that
-                            // decides FOR them.
-                            Divider()
-                            Text(outcome.explanation)
-                                .font(.footnote)
-                                .foregroundStyle(outcome.unmeasured ? .orange : .secondary)
-                        }
-                    }
-                }
+                questionCard
 
                 // The surface the reader SELECTED speaks first. `task=coding` expands server-side
                 // to two answers and `/v1` says in its own payload that their order carries no
@@ -201,15 +180,147 @@ struct ContentView: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 20)
-            // The search field docks at the BOTTOM on this OS and floats over the scroll view. A
-            // `List` reserves space for it; a `ScrollView` does not, so the last card sat under it
-            // — visible in the first screenshot of this design and fixed before hand-over rather
-            // than after. Measured by looking at the running app, which is the only way a layout
-            // defect is ever found.
-            .padding(.bottom, 88)
         }
+        // The bottom search field this compensated for (`.padding(.bottom, 88)`, handover §3.2) is
+        // gone from this screen, and the safe area is the platform's number rather than ours.
+        .safeAreaPadding(.bottom)
+        .scrollDismissesKeyboard(.interactively)
         .background(Color(.systemGroupedBackground))
         .refreshable { await load() }
+    }
+
+    // MARK: - The front door (REQ-ASK-001..003)
+
+    private var questionCard: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: "text.bubble")
+                        .foregroundStyle(.secondary)
+                        .onTapGesture { questionFocused = true }
+                    TextField(UIText.askPlaceholder(language), text: $question)
+                        .focused($questionFocused)
+                        .submitLabel(.send)
+                        .onSubmit(submit)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                    // A visible way to send. With a hardware keyboard attached and focus lost,
+                    // `.onSubmit` was the ONLY way, which meant no way (handover §3.2).
+                    Button(action: submit) {
+                        if routingInFlight || reloading {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "arrow.up.circle.fill").font(.title2)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.tint)
+                    // No surfaces, nothing to route to: disabled and SAID (below), rather than a
+                    // spinner followed by a question silently dropped (review MINOR-7).
+                    .disabled(!canSubmit(question, inFlight: routingInFlight) || categories.isEmpty)
+                    .accessibilityLabel(UIText.send(language))
+                }
+                Divider()
+                matchedSurfaceRow
+            }
+        }
+    }
+
+    /// What the screen understood, and the one tap that corrects it (REQ-ASK-002).
+    @ViewBuilder
+    private var matchedSurfaceRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Group {
+                    if let outcome = routing,
+                       let echo = echoLine(question: asked, surfaceTitle: surfaceTitle(outcome.categoryID))
+                    {
+                        Text(echo)
+                    } else {
+                        Text("\(UIText.showing(language)): \(surfaceTitle(task))")
+                    }
+                }
+                .font(.subheadline.weight(.medium))
+                Spacer(minLength: 8)
+                Button(UIText.change(language)) { choosingSurface = true }
+                    .font(.subheadline)
+                    .disabled(categories.isEmpty)
+            }
+            if categories.isEmpty {
+                Text(UIText.surfacesUnavailable(language))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            if let outcome = routing {
+                // REQ-ASK-003: for an unmeasured question this is the sentence ABOVE the ranking
+                // saying what that ranking cannot tell the reader.
+                Text(routingNotice(outcome, language))
+                    .font(.footnote)
+                    .foregroundStyle(outcome.unmeasured ? .orange : .secondary)
+                if !outcome.alternatives.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            Text(outcome.unmeasured
+                                 ? UIText.closestMeasured(language)
+                                 : UIText.alternatives(language))
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                            ForEach(outcome.alternatives, id: \.self) { id in
+                                Button(surfaceTitle(id)) { select(id) }
+                                    .font(.footnote)
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                            }
+                        }
+                    }
+                }
+                // Quiet help, never an error: the wording tier still routes. Shown only when the
+                // question was NOT routed by the model, since that is the only time it explains
+                // anything the reader is looking at.
+                if outcome.tier != .model, let help = onDevice.help(language) {
+                    Text(help)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+    }
+
+    /// Every surface the engine serves, two to a row. The correction reaches all nine.
+    private var surfaceSheet: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    ForEach(surfaceChoices(categories, selected: task, language)) { choice in
+                        Button { select(choice.id) } label: {
+                            Text(choice.title)
+                                .font(.subheadline.weight(choice.isSelected ? .semibold : .regular))
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                                .padding(12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(choice.isSelected
+                                              ? AnyShapeStyle(Color.accentColor.opacity(0.18))
+                                              : AnyShapeStyle(Color(.secondarySystemGroupedBackground)))
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(16)
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle(UIText.chooseSurface(language))
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    /// A surface's title in the reader's language, from the engine's own list.
+    private func surfaceTitle(_ id: String) -> String {
+        let title = categories.first { $0.id == id }?.title ?? id
+        return UIText.surface(id: id, engineTitle: title, language)
     }
 
     /// The top of the full ranking, plus the door to the rest.
@@ -222,8 +333,8 @@ struct ContentView: View {
         // however many DISTINCT picks there turned out to be — one model can hold two pick labels.
         let picked = Set(answer.picks.map(\.model))
         let rows = previewRows(
-            ranking: filtered(answer.ranking),
-            pickedModels: filtered(answer.ranking).filter { picked.contains($0.model) },
+            ranking: answer.ranking,
+            pickedModels: answer.ranking.filter { picked.contains($0.model) },
             visibleTotal: homePreviewCount
         )
         if !rows.isEmpty {
@@ -247,20 +358,18 @@ struct ContentView: View {
                     }
                     Divider().padding(.leading, 12)
                     NavigationLink {
+                        // The model-name filter lives HERE since M13-W3, on the full list where
+                        // narrowing by name is useful, and not on the home screen beside the
+                        // question field.
                         RankingList(
-                            answer: answer, filter: filter, language: language,
+                            answer: answer, filter: "", language: language,
                             ranges: ranges, leaderNote: leaderNote
                         )
                     } label: {
                 // The full ranking is NOT budget-filtered — D-125 publishes every ranked model
-                // beside the three picks, deliberately. A review found the payload giving two
-                // accounts of one query: `budget=low` reporting 25 eligible models and then
-                // serving 58 rows whose most expensive is $36/1M, with no marker on any row.
-                //
-                // The engine is right and the SCREEN was silent, so the screen says it. Both
-                // numbers are already in the payload; nothing here is computed, and no contract
-                // moved. It reads as one sentence when they agree and as a disclosure when they
-                // do not.
+                // beside the three picks, deliberately. `UIText.seeAll` reads as one sentence when
+                // the eligible count and the ranking agree and as a disclosure when they do not;
+                // at `unlimited` they agree, and the comparison stays for the day they do not.
                         HStack {
                             Text(UIText.seeAll(answer.ranking.count, eligible: answer.eligibleCount, language))
                             .font(.subheadline)
@@ -276,17 +385,7 @@ struct ContentView: View {
                     .buttonStyle(.plain)
                 }
             }
-        } else if !filter.isEmpty {
-            Text("No model here matches “\(filter)”.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
-    }
-
-    /// Name-only filtering. It narrows what is SHOWN and never changes the order — the engine
-    /// decided that, and a client that re-sorts is answering a different question (Trap 1).
-    private func filtered(_ rows: [RankedModel]) -> [RankedModel] {
-        filterRanking(rows, by: filter, name: \.model, vendor: \.vendor)
     }
 
     /// The discovery entry for an answer's surface: its margin and its second board (D-138).
@@ -361,163 +460,90 @@ struct ContentView: View {
         }
     }
 
-    /// The nine surfaces, horizontally. PROVISIONAL: the home-screen direction is still the
-    /// owner's to pick from the three drafted artboards, and this commits to none of them — it
-    /// exists so every category the engine can answer is reachable and visible on a device.
-    /// Three choices, and the caps come from the engine.
-    ///
-    /// Rendered as plain text rather than a segmented control so the CAP is visible: "under
-    /// $2/1M" is what a CFO needs to see, and a control showing only "Low" would be a second
-    /// vocabulary he has to learn.
-    @ViewBuilder
-    private var budgetStrip: some View {
-        if budgets.count > 1 {
-            HStack(spacing: 8) {
-                ForEach(budgets) { option in
-                    Button {
-                        guard option.id != budget else { return }
-                        budget = option.id
-                        Task { await load() }
-                    } label: {
-                        VStack(spacing: 1) {
-                            Text(UIText.budget(option.id, language)).font(.footnote.weight(.medium))
-                            if let cap = option.capLabel(in: language) {
-                                Text(cap).font(.caption2)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(option.id == budget
-                                      ? AnyShapeStyle(.tint)
-                                      : AnyShapeStyle(.quaternary))
-                        )
-                        .foregroundStyle(option.id == budget ? .white : .primary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
-        }
-    }
+    // MARK: - Actions
 
-    @ViewBuilder
-    private var categoryStrip: some View {
-        if categories.count > 1 {
-            // **The strip keeps where the reader put it.** Selecting a category rebuilds this
-            // view, and without a bound position SwiftUI recreates the ScrollView at offset zero —
-            // so the owner scrolled right to Mathematics, tapped it, and the strip snapped back to
-            // Coding with no chip visibly selected. He had to scroll again to see what he had
-            // chosen.
-            //
-            // `scrollPosition(id:)` persists the visible chip across the rebuild. It does NOT
-            // scroll on his behalf: the strip moves when he moves it and at no other time, which
-            // is what he asked for.
-            ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(categories) { category in
-                        Button {
-                            guard category.id != task else { return }
-                            task = category.id
-                            Task { await load() }
-                        } label: {
-                            Text(UIText.surface(id: category.id, engineTitle: category.title, language))
-                                .font(.subheadline)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(
-                                    Capsule().fill(
-                                        category.id == task
-                                            ? AnyShapeStyle(.tint)
-                                            : AnyShapeStyle(.quaternary)
-                                    )
-                                )
-                                .foregroundStyle(category.id == task ? .white : .primary)
-                        }
-                        .buttonStyle(.plain)
-                        .id(category.id)
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-            }
-            // **No `.scrollPosition(id:)` here, and that is the fix.** The first attempt bound the
-            // scroll offset AND asked a `ScrollViewReader` to centre the selection; the two
-            // control the same thing and the binding wins, so the programmatic scroll silently did
-            // nothing. Measured, not reasoned: tapping a clipped chip selected it and the strip did
-            // not move a pixel.
-            //
-            // Centring on selection subsumes what the binding was for. The strip cannot snap back
-            // to the start, because on every change it goes to the chosen chip instead.
-            // CENTRE the selected chip. Keeping the reader's scroll offset was the first fix and
-            // it was not enough: he scrolled right, tapped `Web development`, and the chip he had
-            // just chosen sat half-cut against the right edge — the strip had not jumped back to
-            // the start, but the thing he selected was not the thing he could see.
-            //
-            // `anchor: .center` rather than `.leading`, because a chip pinned to the left edge
-            // hides the categories before it and reads as "you are at the start of the list"
-            // again. The move happens only on a SELECTION; dragging is still entirely his.
-            .onChange(of: task) { _, now in
-                withAnimation(.easeOut(duration: 0.25)) {
-                    proxy.scrollTo(now, anchor: .center)
-                }
-            }
-            }
-            .background(.bar)
-        }
+    /// Send the question. Return and the button both come here, and both ask `canSubmit`.
+    ///
+    /// `routingInFlight` is set HERE, synchronously, before the task starts: set inside `ask()`,
+    /// a second tap could land between the tap and the task's first line and route twice.
+    private func submit() {
+        guard canSubmit(question, inFlight: routingInFlight) else { return }
+        routingInFlight = true
+        questionFocused = false
+        Task { await ask() }
     }
 
     /// Route the typed question to a surface, then load it.
+    ///
+    /// REQ-ASK-004 for the question (M13-W3 review BLOCKING-2). Routing is the slow half, and the
+    /// reader can pick a surface from `Change` while it runs; the result is applied only if no
+    /// selection has been made since. The echo and its sentence appear once the answer they describe
+    /// has LOADED, so "Below is the general chat ranking" never sits above the previous surface's
+    /// ranking (review MINOR-8).
     private func ask() async {
-        let typed = question.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !typed.isEmpty else { return }
-        routingInFlight = true
         defer { routingInFlight = false }
-
+        let typed = question.trimmingCharacters(in: .whitespacesAndNewlines)
+        if categories.isEmpty { await load() }
         let known = categories.map(\.id)
-        guard !known.isEmpty else { return }
+        guard !typed.isEmpty, !known.isEmpty else { return }
 
+        let ticket = routingGate.begin()
         let outcome = await router.route(typed, within: known)
-        routing = outcome
+        guard routingGate.isCurrent(ticket) else { return }
         // The engine is asked for a SURFACE and nothing else. What the reader typed never reaches
         // it, and the only thing the router contributes to the request is which of nine ids it is
         // (REQ-RTR-004 — the scoring path is untouched, D-104).
         if outcome.categoryID != task {
             task = outcome.categoryID
             await load()
+            guard routingGate.isCurrent(ticket) else { return }
         }
+        asked = typed
+        routing = outcome
+    }
+
+    /// The reader corrected the surface: from the sheet, or from an alternative under the echo.
+    /// The echo describes the ROUTER's choice, so it goes once the reader has overruled it, and a
+    /// question still routing is retired with it.
+    private func select(_ id: String) {
+        choosingSurface = false
+        routingGate.invalidate()
+        routing = nil
+        guard id != task else { return }
+        task = id
+        Task { await load() }
     }
 
     private func load() async {
-        state = .loading
+        // REQ-ASK-004. The ticket is compared at the moment of APPLYING a result, so a slower
+        // answer for a surface the reader has already left is dropped rather than rendered.
+        let ticket = gate.begin()
+        if case .loaded = state {
+            reloading = true
+        } else {
+            state = .loading
+        }
+        defer {
+            if gate.isCurrent(ticket) { reloading = false }
+        }
+        // Re-read on every load (M13-W2 review MINOR-1). The second board's age is a fact about
+        // the ARTIFACT, which the refresh replaces every twelve hours. A failed re-read keeps the
+        // list it had: a discovery call that can blank the product is a worse dependency than the
+        // facts it adds.
+        if let fresh = try? await client.categories(), !fresh.isEmpty, gate.isCurrent(ticket) {
+            categories = fresh
+        }
         do {
-            // Asked once and reused. A failure here is NOT fatal to the screen: the strip simply
-            // does not appear, and the default surface still answers — a discovery call that can
-            // blank the product would be a worse dependency than the hardcoded list it replaces.
-            // Re-read on every load (M13-W2 review MINOR-1). The second board's age is a fact about
-            // the ARTIFACT, which the refresh replaces every twelve hours, and a copy held for a
-            // whole session can say "last ran 17 days ago, so it is not counted" about a board the
-            // engine now counts. A failed re-read keeps the list it had.
-            if let fresh = try? await client.categories(), !fresh.isEmpty {
-                categories = fresh
-            }
-            // Same rule as the categories: a discovery call that can blank the product would be a
-            // worse dependency than the hardcoded list it replaces. If `/v1/budgets` is missing —
-            // an older engine, a partial deploy — the strip does not appear and the app answers at
-            // `unlimited`, which is what it did for eleven milestones.
-            if budgets.isEmpty {
-                budgets = (try? await client.budgets()) ?? []
-            }
             // One request carries every surface for the coding intent (Ruling A), so the home
             // screen cannot show one answer while another is still loading.
             let recommendation = try await client.recommendation(task: task, budget: budget)
+            guard gate.isCurrent(ticket) else { return }
             state = .loaded(recommendation.answers, orderingNote: recommendation.orderingNote)
         } catch let error as EngineError {
+            guard gate.isCurrent(ticket) else { return }
             state = .failed(error)
         } catch {
+            guard gate.isCurrent(ticket) else { return }
             state = .failed(.undecodable(String(describing: error)))
         }
     }

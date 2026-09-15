@@ -240,6 +240,33 @@ def test_the_client_applies_no_ordering_of_its_own() -> None:
     )
 
 
+#: Collections this client orders BY HAND, each with its reason — the route the tripwire above asks
+#: for (M13-W3 review MINOR-2). A hand-rolled ordering is exactly what that tripwire cannot see, so
+#: a sanctioned one is recorded here rather than passing quietly through its blind spot.
+ORDERED_BY_HAND = {
+    "Router.swift": (
+        "SimilarityRouter keeps its three closest routing HINTS by insertion, to offer two "
+        "alternatives. Hints are the router's own and never answers or models, so Ruling A is "
+        "untouched"
+    ),
+}
+
+
+def test_every_hand_ordering_is_recorded_and_still_exists() -> None:
+    """An insertion at an index is how a hand-rolled sort is spelled; each one must be recorded."""
+    offenders: list[str] = []
+    used: set[str] = set()
+    for name, text in _swift_sources().items():
+        code = "\n".join(line.split("//", 1)[0] for line in text.splitlines())
+        # `.*` and not `[^)]*`: the element inserted is often a tuple, `(hint.id, score)`, and a
+        # pattern that stops at its first `)` never reaches `at:`.
+        if re.search(r"\.insert\(.*\bat:", code):
+            (used.add(name) if name in ORDERED_BY_HAND else offenders.append(name))
+    assert not offenders, f"unrecorded hand ordering in {offenders}; say why in ORDERED_BY_HAND"
+    stale = sorted(set(ORDERED_BY_HAND) - used)
+    assert not stale, f"{stale} is recorded as ordering by hand and no longer does"
+
+
 # --- REQ-APP-001: real data, no fixtures in the shipping target ---------------------------------
 
 
@@ -523,3 +550,152 @@ def test_the_screen_calls_the_uncertainty_functions_it_depends_on() -> None:
         r"leaderSentence\(\s*ranges:\s*ranges,\s*margin:\s*info\?\.closeCallMargin", view
     ), "the leader's tie is stated without the engine's margin"
     assert re.search(r"Text\(leaderNote\)", view), "the leader's tie is composed and never shown"
+
+
+def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
+    """M13-W3, REQ-ASK-001..004: the front door's rules live in `FrontDoor.swift`, where `swift
+    test` runs them. This pins that `ContentView` actually goes through them.
+
+    Written before the wave's review rather than after it, because W2's Tester seat showed what
+    happens otherwise: every argument-level change to how the screen called the Engine stayed green.
+    Structural, like the rest of this file.
+    """
+    # Split on the RAW text, then strip comments: the marker is itself a comment, so stripping first
+    # erased it and made "the home screen" the whole file, the full ranking's filter included.
+    raw = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    assert "// MARK: - Rows" in raw, "the marker ending the home screen's code has moved"
+    home = "\n".join(
+        line.split("//", 1)[0] for line in raw[: raw.index("// MARK: - Rows")].splitlines()
+    )
+
+    # REQ-ASK-001: focusable, submittable from Return AND from a visible button, never twice.
+    assert re.search(r"\.focused\(\$questionFocused\)", home), "the field has no focus binding"
+    assert re.search(r"\.onSubmit\(submit\)", home), "Return does not submit"
+    assert re.search(r"Button\(action:\s*submit\)", home), "there is no visible way to send"
+    assert re.search(
+        r"\.disabled\(!canSubmit\(question,\s*inFlight:\s*routingInFlight\)", home
+    ), "the send button is not governed by the tested submission rule"
+    # Every question is asked at `unlimited`: the budget control is gone, and a hidden cap would
+    # narrow the ranking with nothing on screen saying so (W3 review MAJOR-3, mutant M2).
+    assert re.search(r'private let budget = "unlimited"', home), "a budget cap is back, unseen"
+    submit = re.search(r"func submit\(\)\s*\{(.*?)\n    \}", home, re.S)
+    assert submit, "the single submission path is gone"
+    assert "guard canSubmit(" in submit.group(1), "submission skips the tested rule"
+    assert re.search(
+        r"routingInFlight = true[\s\S]*Task \{", submit.group(1)
+    ), "the in-flight flag is not set before the task starts, so a second tap can route twice"
+
+    # REQ-ASK-002: the reader's own words, and a correction reaching every surface.
+    assert re.search(
+        r"echoLine\(question:\s*asked", home
+    ), "the echo quotes the live field, not the question that was actually routed"
+    assert re.search(r"surfaceChoices\(categories", home), "the Change sheet is not the full list"
+    assert "outcome.alternatives" in home, "the one-tap alternatives are never shown"
+
+    # REQ-ASK-002/003: a routed question LOADS the surface it was routed to — "returns a ranking"
+    # (W3 review MAJOR-3, mutant M5) — and its echo appears only once that answer has loaded.
+    ask = re.search(r"private func ask\(\) async \{(.*?)\n    \}", home, re.S)
+    assert ask, "the question path is gone"
+    body = ask.group(1)
+    assert re.search(
+        r"if outcome\.categoryID != task \{\s*task = outcome\.categoryID\s*await load\(\)", body
+    ), "a routed question no longer loads the surface it was routed to"
+    assert body.index("routing = outcome") > body.rindex(
+        "await load()"
+    ), "the echo is shown above the previous surface's ranking while the new one loads"
+
+    # REQ-ASK-004 for the QUESTION (W3 review BLOCKING-2): a ticket before the router is awaited,
+    # checked after it, and retired by a `Change` selection.
+    assert re.search(
+        r"let ticket = routingGate\.begin\(\)\s*let outcome = await router\.route", body
+    ), "routing takes no ticket before it suspends"
+    assert re.search(
+        r"await router\.route\([^)]*\)\s*guard routingGate\.isCurrent\(ticket\) else \{ return \}",
+        body,
+    ), "a late routing result is applied whatever the reader chose meanwhile"
+    select = re.search(r"private func select\(_ id: String\) \{(.*?)\n    \}", home, re.S)
+    assert select and "routingGate.invalidate()" in select.group(
+        1
+    ), "a Change selection does not retire the question still routing"
+
+    # REQ-ASK-003: the sentence above an unmeasured answer, in the colour that marks it (M6), and
+    # the on-device reason whenever the model did not route (M4).
+    assert re.search(
+        r"Text\(routingNotice\(outcome,\s*language\)\)\s*\.font\(\.footnote\)\s*"
+        r"\.foregroundStyle\(outcome\.unmeasured \? \.orange : \.secondary\)",
+        home,
+    ), "the routing notice is gone, or no longer marks an unmeasured answer"
+    assert re.search(
+        r"outcome\.tier != \.model, let help = onDevice\.help\(language\)", home
+    ), "the on-device reason is not said when the model did not route"
+
+    # REQ-ASK-004 for loads: every result is applied only DIRECTLY after its guard (W3 review
+    # MAJOR-3, mutant M1 — counting guard lines let one move below the state change it protects).
+    load = home[home.index("private func load() async {") :]
+    assert "gate.begin()" in load, "loads take no ticket"
+    before = re.findall(r"\n([^\n]*)\n[ \t]*state = \.(?:loaded|failed)\(", load)
+    assert len(before) >= 3, "the load no longer applies both an answer and a failure"
+    assert all(
+        line.strip() == "guard gate.isCurrent(ticket) else { return }" for line in before
+    ), f"a result is applied without the guard directly above it: {before}"
+    assert re.search(
+        r"if gate\.isCurrent\(ticket\) \{ reloading = false \}", load
+    ), "an abandoned load can clear the progress of the current one"
+    assert re.search(
+        r"!fresh\.isEmpty,\s*gate\.isCurrent\(ticket\)", load
+    ), "a stale surface list can overwrite the current one"
+
+    # The correction path, end to end (W3 Tester WF5, WF10, WF11, WF13): `Change` opens the sheet,
+    # the sheet selects, and every alternative shown selects.
+    assert re.search(
+        r"Button\(UIText\.change\(language\)\)\s*\{\s*choosingSurface = true\s*\}", home
+    ), "Change does not open the sheet"
+    assert re.search(
+        r"\.sheet\(isPresented:\s*\$choosingSurface\)\s*\{\s*surfaceSheet\s*\}", home
+    ), "the sheet of surfaces is never presented"
+    assert re.search(
+        r"Button\s*\{\s*select\(choice\.id\)\s*\}", home
+    ), "choosing a surface in the sheet does nothing"
+    assert re.search(
+        r"ForEach\(outcome\.alternatives,\s*id:\s*\\\.self\)\s*\{\s*id in\s*"
+        r"Button\(surfaceTitle\(id\)\)\s*\{\s*select\(id\)\s*\}",
+        home,
+    ), "an alternative is shown and does not select"
+
+    # The echo is rendered, and it quotes what was ASKED (WF8, WF14).
+    assert re.search(r"Text\(echo\)", home), "the echo is composed and never shown"
+    assert "asked = typed" in body, "the echo quotes nothing the reader asked"
+
+    # The field unlocks after every question however it ends (WF12), and a selection clears the
+    # echo of the choice it overruled (WF9).
+    assert re.search(
+        r"defer \{ routingInFlight = false \}", body
+    ), "the field stays locked after the first question"
+    assert "routing = nil" in select.group(1), "a selection keeps the echo it overruled"
+
+    # A late routing result is dropped even after its own load (W3 re-review NEW-2), and with no
+    # surface list the send button and `Change` are disabled rather than silently doing nothing.
+    assert re.search(
+        r"await load\(\)\s*guard routingGate\.isCurrent\(ticket\) else \{ return \}", body
+    ), "a routing result is applied after its load even if the reader chose meanwhile"
+    assert re.search(
+        r"\.disabled\(!canSubmit\(question,\s*inFlight:\s*routingInFlight\)\s*\|\|\s*"
+        r"categories\.isEmpty\)",
+        home,
+    ), "send stays enabled with no surfaces to route to"
+    assert re.search(
+        r"Button\(UIText\.change\(language\)\)\s*\{\s*choosingSurface = true\s*\}\s*"
+        r"\.font\(\.subheadline\)\s*\.disabled\(categories\.isEmpty\)",
+        home,
+    ), "Change opens an empty sheet when there are no surfaces"
+    # ...and the card SAYS why (CE), and a question asked with no list re-reads it first (AK1).
+    assert re.search(
+        r"if categories\.isEmpty \{\s*Text\(UIText\.surfacesUnavailable\(language\)\)", home
+    ), "with no surfaces the controls go dead and nothing says why"
+    assert re.search(r"if categories\.isEmpty \{ await load\(\) \}", body), (
+        "a question asked before the surface list arrived is dropped instead of retried"
+    )
+
+    # The controls this wave removed stay removed from the home screen.
+    assert "budgetStrip" not in home and "categoryStrip" not in home
+    assert ".searchable(" not in home, "a second text field is back on the home screen"

@@ -53,7 +53,10 @@ final class RouterBoundaryTests: XCTestCase {
 
         XCTAssertEqual(outcome.tier, .manual, "giving up must be a named outcome, not a hang")
         XCTAssertTrue(nine.contains(outcome.categoryID))
-        XCTAssertFalse(outcome.unmeasured, "manual is not a claim about what we measure")
+        // Inverted at M13-W3 by the signed plan's REQ-ASK-003: "`tier = manual` may not carry
+        // `unmeasured = false`". The screen loads a ranking for this outcome, so it is an
+        // unmeasured answer and must say so; it used to claim otherwise while doing it.
+        XCTAssertTrue(outcome.unmeasured, "manual loads a ranking; it must not claim to be measured")
     }
 
     func testTheModelTierIsPreferredWhenItAnswers() async {

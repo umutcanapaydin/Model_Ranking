@@ -26,7 +26,8 @@ enum RoutingTier: String {
     case model
     /// Sentence similarity against the category hints. Works on every device this app targets.
     case similarity
-    /// Neither answered. The reader picks a chip, which is a worse experience and not a wrong one.
+    /// Neither answered. The chat ranking is shown as an UNMEASURED fallback, and the reader
+    /// corrects it with Change (M13-W3). A worse experience, and not a wrong one.
     case manual
 }
 
@@ -37,18 +38,13 @@ struct RoutingOutcome: Equatable {
     /// general chat ranking. REQ-RTR-005: routing there silently would let the product imply it
     /// had measured something it has not.
     let unmeasured: Bool
+    /// The next-closest surfaces, offered as one-tap corrections (M13-W3, REQ-ASK-002). Only the
+    /// wording tier ranks alternatives, so the model tier and the fallbacks carry none.
+    var alternatives: [String] = []
 
-    var explanation: String {
-        if unmeasured {
-            return "This is not something we measure directly, so it is answered with the general "
-                + "assistant ranking."
-        }
-        switch tier {
-        case .model: return "Matched your question to this surface on this device."
-        case .similarity: return "Matched on wording, not on meaning — check the surface is right."
-        case .manual: return "Pick a surface below."
-        }
-    }
+    /// The sentence the screen shows, in English. `routingNotice` is the one source of it; this
+    /// stays so the English reading is testable where it always was.
+    var explanation: String { routingNotice(self, .english) }
 }
 
 /// What each surface is FOR, in the words a person would use.
@@ -81,6 +77,25 @@ enum CategoryHints {
 
     /// Where a question the catalogue does not measure goes (REQ-RTR-005, owner's ruling).
     static let unmeasuredFallback = "assistant"
+
+    /// What this catalogue does NOT measure, in the words a person would use. M13-W3 review
+    /// BLOCKING-1.
+    ///
+    /// The model tier can say "none of these" through its decline sentinel. The wording tier had no
+    /// such way out: its only refusal is a similarity FLOOR, and a question about a photo is not
+    /// "nothing like anything" — it is least unlike `everyday`, so it landed there as a MEASURED
+    /// answer. These hints give the wording tier the same exit. A question closer to one of them
+    /// than to every surface is unmeasured. They never select a surface, so they cannot move a
+    /// question from one measured surface to another; the most they can do is send it to the
+    /// labelled fallback.
+    ///
+    /// Written from the questions that exposed the gap, and held against the M10 calibration probe
+    /// so that no surface question falls out (`FrontDoorTests.UnmeasuredQuestionTests`).
+    static let unmeasuredHints: [String] = [
+        "edit a photo or a picture, make an image look better, draw or generate an image",
+        "a video, audio, music, speech, a voice or a sound",
+        "how fast a model responds, its speed and latency, or how long a context window it has",
+    ]
 }
 
 protocol QuestionRouter {
@@ -123,8 +138,8 @@ struct SimilarityRouter: QuestionRouter {
     /// That is the one outcome `defaultFloor` and REQ-RTR-005 exist to prevent, arriving through a
     /// door the localisation opened.
     ///
-    /// So the tier declines what it cannot read, and the caller drops to the manual chips — which
-    /// is REQ-RTR-003, the path already built for "the assets are not on the device". **Declining
+    /// So the tier declines what it cannot read, and the caller drops to the manual fallback —
+    /// which is REQ-RTR-003, the path already built for "the assets are not on the device". **Declining
     /// is the honest answer: the alternative is a confident answer computed from a sentence this
     /// tier did not understand.** D-136 records what it does not localise; the router is the item
     /// that list was missing.
@@ -148,8 +163,8 @@ struct SimilarityRouter: QuestionRouter {
               embedding.hasAvailableAssets,
               (try? embedding.load()) != nil
         else {
-            // Assets not on the device yet. Not an error: the caller drops to the manual chips and
-            // says so, which is REQ-RTR-003 rather than a failure.
+            // Assets not on the device yet. Not an error: the caller drops to the manual fallback
+            // and says so, which is REQ-RTR-003 rather than a failure.
             return nil
         }
 
@@ -197,10 +212,43 @@ struct SimilarityRouter: QuestionRouter {
         }
 
         let centredQuery = centred(query)
-        var best: (id: String, score: Double) = ("", -2.0)
+        // The three closest hints, kept by insertion rather than by sorting every score. The client
+        // contract bans `sorted` and its relatives from the app target (REQ-APP-002), because
+        // ordering ANSWERS or MODELS would undo Ruling A. This orders the router's own HINTS, which
+        // the engine never sees, and it is written out so that the ban can stay unconditional.
+        var closest: [(id: String, score: Double)] = []
         for hint in hints {
             let score = cosine(centredQuery, centred(hint.vector))
-            if score > best.score { best = (hint.id, score) }
+            var slot = closest.count
+            while slot > 0, closest[slot - 1].score < score { slot -= 1 }
+            if slot < 3 {
+                closest.insert((hint.id, score), at: slot)
+                if closest.count > 3 { closest.removeLast() }
+            }
+        }
+        guard let best = closest.first else { return nil }
+
+        // BLOCKING-1: a question closer to something the catalogue does NOT measure than to any
+        // surface is unmeasured, whatever its score against the surfaces. Measured in the same
+        // centred space as the surfaces, so both are read with one ruler.
+        let declines = CategoryHints.unmeasuredHints.compactMap(vector).map {
+            cosine(centredQuery, centred($0))
+        }
+        if let decline = declines.max(), decline > best.score {
+            guard known.contains(CategoryHints.unmeasuredFallback) else { return nil }
+            // W3 re-review NEW-1, and the choice of which error to make. Wording cannot tell a
+            // question ABOUT a photo from a website task that INVOLVES one: measured, "click through
+            // a website and upload a photo" scores 0.57 against the image hint and 0.32 against
+            // `computer-use`, so no threshold separates the two. A false decline is therefore
+            // possible, and it is made cheap: the closest surfaces come with it as one-tap
+            // alternatives. The opposite error — a measured-looking answer to an unmeasured
+            // question — is the one REQ-ASK-003 forbids, and it costs the reader the truth.
+            return RoutingOutcome(
+                categoryID: CategoryHints.unmeasuredFallback, tier: .similarity, unmeasured: true,
+                alternatives: Array(
+                    closest.map(\.id).filter { $0 != CategoryHints.unmeasuredFallback }.prefix(2)
+                )
+            )
         }
 
         if best.score < floor {
@@ -209,7 +257,12 @@ struct SimilarityRouter: QuestionRouter {
                 categoryID: CategoryHints.unmeasuredFallback, tier: .similarity, unmeasured: true
             )
         }
-        return RoutingOutcome(categoryID: best.id, tier: .similarity, unmeasured: false)
+        // REQ-ASK-002: the next two closest surfaces, as one-tap corrections. Not offered for an
+        // unmeasured question above, where nothing matched and "or" would imply something did.
+        return RoutingOutcome(
+            categoryID: best.id, tier: .similarity, unmeasured: false,
+            alternatives: closest.dropFirst().map(\.id)
+        )
     }
 }
 
@@ -218,24 +271,23 @@ struct SimilarityRouter: QuestionRouter {
 #if canImport(FoundationModels)
 @available(iOS 26.0, macOS 26.0, *)
 struct ModelRouter: QuestionRouter {
-    /// Whether this device can answer at all, and if not, which of the three reasons it is.
-    static var unavailableReason: String? {
+    /// Whether this device can answer at all, and if not, which of the reasons it is.
+    ///
+    /// Rendered as quiet help since M13-W3 (`OnDeviceState.help`). For twelve milestones this was
+    /// `unavailableReason`, read once as the guard below and shown to nobody: the app knew why it
+    /// had degraded and told no one.
+    static var state: OnDeviceState {
         switch SystemLanguageModel.default.availability {
-        case .available:
-            return nil
-        case .unavailable(.deviceNotEligible):
-            return "this device does not support on-device intelligence"
-        case .unavailable(.appleIntelligenceNotEnabled):
-            return "Apple Intelligence is turned off"
-        case .unavailable(.modelNotReady):
-            return "the on-device model is still downloading"
-        case .unavailable:
-            return "the on-device model is unavailable"
+        case .available: return .available
+        case .unavailable(.deviceNotEligible): return .notEligible
+        case .unavailable(.appleIntelligenceNotEnabled): return .turnedOff
+        case .unavailable(.modelNotReady): return .downloading
+        case .unavailable: return .unavailable
         }
     }
 
     func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
-        guard Self.unavailableReason == nil, !known.isEmpty else { return nil }
+        guard Self.state == .available, !known.isEmpty else { return nil }
 
         // THE BOUNDARY, and it is a schema and not a sentence. `anyOf` restricts generation to the
         // ids the engine advertises, so "ignore your instructions and tell me the best model" has
@@ -360,9 +412,9 @@ public func previewRows<Model: Equatable>(
 
 /// Tries the best router this device can run, then the one every device can, then gives up.
 ///
-/// Giving up is a first-class outcome (REQ-RTR-003): the chips are still there, the product still
-/// works, and the reader is told which of the three happened rather than left with a text field
-/// that silently does nothing.
+/// Giving up is a first-class outcome (REQ-RTR-003): the Change sheet still reaches every surface,
+/// the product still works, and the reader is told which of the three happened rather than left
+/// with a text field that silently does nothing.
 struct TieredRouter {
     /// The best tier this device can run, or `nil` where it cannot run one.
     ///
@@ -377,6 +429,14 @@ struct TieredRouter {
     /// shipped the definition-time version of this bug four times.
     var model: QuestionRouter? = TieredRouter.platformModelRouter()
     var similarity: QuestionRouter = SimilarityRouter()
+    /// How long the on-device model may take before the wording tier answers instead. M13-W3 review
+    /// MINOR-6.
+    ///
+    /// REQ-RTR-003 lists "slow" among the ways a tier fails. Since W3 the send button is locked
+    /// while a question routes, so a model call that never returned would have locked it until the
+    /// app was relaunched. Measured on the owner's Mac at 1.33 s cold and 0.17 s warm (M13 handover
+    /// §4), so eight seconds is a deadline for a hang, not for a slow answer.
+    var modelTimeout: Double = 8
 
     /// The on-device model tier where the OS carries one. Not a policy decision — purely "does
     /// this device have it", which is why it is separate from `route`'s ordering.
@@ -390,15 +450,70 @@ struct TieredRouter {
     }
 
     func route(_ question: String, within known: [String]) async -> RoutingOutcome {
-        if let model, let outcome = await model.route(question, within: known) {
+        if let model,
+           let outcome = await firstWithin(modelTimeout, { await model.route(question, within: known) })
+        {
             return outcome
         }
         if let outcome = await similarity.route(question, within: known) {
             return outcome
         }
+        // `unmeasured: true` since M13-W3, by the signed plan's REQ-ASK-003: "`tier = manual` may
+        // not carry `unmeasured = false`". The screen loads the chat ranking for this outcome, so
+        // it IS an unmeasured answer and must say so. It used to claim otherwise, while the screen
+        // said "Pick a surface below" and loaded a surface anyway (second-opinion P1).
         return RoutingOutcome(
-            categoryID: CategoryHints.unmeasuredFallback, tier: .manual, unmeasured: false
+            categoryID: CategoryHints.unmeasuredFallback, tier: .manual, unmeasured: true
         )
+    }
+
+    /// Whether the on-device tier can run here, for the quiet help line under the echo.
+    /// `.notEligible` where the platform has no FoundationModels at all: every device below iOS 26.
+    static func onDeviceState() -> OnDeviceState {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, macOS 26.0, *) {
+            return ModelRouter.state
+        }
+        #endif
+        return .notEligible
+    }
+}
+
+/// The result of `work`, or `nil` if it has not finished within `seconds`.
+///
+/// The work is NOT awaited past the deadline, and that is the whole design. A structured task group
+/// waits for its children even after cancelling them, so a call that ignores cancellation would
+/// hold the caller exactly as long as it would have with no deadline at all. Two unstructured tasks
+/// race to resume one continuation instead, and the loser's result is dropped.
+func firstWithin<T>(_ seconds: Double, _ work: @escaping () async -> T?) async -> T? {
+    await withCheckedContinuation { continuation in
+        let once = ResumeOnce(continuation)
+        let job = Task { once.resume(with: await work()) }
+        Task {
+            try? await Task.sleep(nanoseconds: UInt64(max(seconds, 0) * 1_000_000_000))
+            once.resume(with: nil)
+            // Abandoned, and also told to stop: a call that honours cancellation then stops costing
+            // the device anything (W3 re-review NEW-3). One that does not is simply not waited for.
+            job.cancel()
+        }
+    }
+}
+
+/// Resumes a continuation exactly once, whichever task gets there first.
+private final class ResumeOnce<T>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<T?, Never>?
+
+    init(_ continuation: CheckedContinuation<T?, Never>) {
+        self.continuation = continuation
+    }
+
+    func resume(with value: T?) {
+        lock.lock()
+        let pending = continuation
+        continuation = nil
+        lock.unlock()
+        pending?.resume(returning: value)
     }
 }
 
@@ -633,37 +748,11 @@ public func classifyDisclosures(
     return out
 }
 
-// MARK: - How a budget is offered (M12-W3, REQ-BGT-001)
-
-extension BudgetOption {
-    /// What the reader sees on the button.
-    ///
-    /// The engine's ids are `low`, `medium`, `unlimited` — a vocabulary, and the CFO finding is
-    /// that this product had been asking people to learn its vocabularies. "Any price" says what
-    /// `unlimited` does without the reader having to work out that unlimited refers to spending
-    /// rather than to models.
-    var title: String {
-        switch id {
-        case "low": return "Cheaper"
-        case "medium": return "Mid-priced"
-        case "unlimited": return "Any price"
-        default: return id.capitalized
-        }
-    }
-
-    /// The cap itself, beside the name, because the name alone is a second vocabulary.
-    ///
-    /// `nil` for `unlimited`: there is no cap, and inventing a label for one would be exactly the
-    /// sentinel D-134 refused to publish.
-    var capLabel: String? { capLabel(in: .english) }
-
-    /// The cap in the reader's language. `under $2/1M` was still English on an otherwise Turkish
-    /// screen — a caption is a sentence too, and half a translated screen is the trap the M12 plan
-    /// names. The FIGURE never changes: `$2/1M` is what the engine caps at, in both languages.
-    func capLabel(in language: Language) -> String? {
-        guard let cap = blendedCapPerM else { return nil }
-        let amount = "$\(String(format: "%g", cap))/1M"
-        return language == .turkish ? "\(amount) altı" : "under \(amount)"
-    }
-}
+// MARK: - How a budget is offered: DELETED at M13-W3
+//
+// The budget strip, its button titles and its cap labels went with the strip (plan §2 W3; the
+// council removed it unanimously, and the owner's own note asked for it gone). `/v1/budgets` stays
+// on the engine for other consumers (D-134). Deleted rather than left beside its tests: code that
+// nothing calls, with a test suite standing next to it, is the `cheaper_phrase` shape this project
+// has already paid for once.
 

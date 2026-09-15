@@ -194,7 +194,13 @@ final class ScreenChromeTests: XCTestCase {
             (UIText.title(.english), UIText.title(.turkish)),
             (UIText.askPlaceholder(.english), UIText.askPlaceholder(.turkish)),
             (UIText.filterPlaceholder(.english), UIText.filterPlaceholder(.turkish)),
-            (UIText.budget("low", .english), UIText.budget("low", .turkish)),
+            (UIText.change(.english), UIText.change(.turkish)),
+            (UIText.showing(.english), UIText.showing(.turkish)),
+            (UIText.send(.english), UIText.send(.turkish)),
+            (UIText.chooseSurface(.english), UIText.chooseSurface(.turkish)),
+            (UIText.alternatives(.english), UIText.alternatives(.turkish)),
+            (UIText.surfacesUnavailable(.english), UIText.surfacesUnavailable(.turkish)),
+            (UIText.closestMeasured(.english), UIText.closestMeasured(.turkish)),
             (UIText.pickLabel("best_quality", .english), UIText.pickLabel("best_quality", .turkish)),
         ]
 
@@ -230,13 +236,6 @@ final class ScreenChromeTests: XCTestCase {
     /// engine serves would be a worse answer than showing it in the wrong language.
     func testAnUnknownSurfaceShowsTheEnginesNameRatherThanVanishing() {
         XCTAssertEqual(UIText.surface(id: "quantum", engineTitle: "Quantum", .turkish), "Quantum")
-    }
-
-    func testTheBudgetCapKeepsItsFigureInBothLanguages() {
-        let low = BudgetOption(id: "low", blendedCapPerM: 2.0)
-
-        XCTAssertEqual(low.capLabel(in: .english), "under $2/1M")
-        XCTAssertEqual(low.capLabel(in: .turkish), "$2/1M altı")
     }
 
     func testTheSeeAllLineCountsTheSameInBothLanguages() {

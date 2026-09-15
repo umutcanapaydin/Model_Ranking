@@ -60,3 +60,7 @@ ios/ModelRanking/Engine/Uncertainty.swift # M13-W2: composes the tie-band and ev
                                         # its prose and comments are English
 ios/EngineTests/UncertaintyTests.swift  # asserts those exact Turkish sentences, for the same reason
                                         # LanguageTests.swift is exempt above
+ios/ModelRanking/Engine/FrontDoor.swift # M13-W3: the routing notices and on-device help, composed
+                                        # in both languages; its prose and comments are English
+ios/EngineTests/FrontDoorTests.swift    # asserts a Turkish notice by its words, for the reason
+                                        # LanguageTests.swift is exempt above
