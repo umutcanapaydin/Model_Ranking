@@ -129,14 +129,7 @@ Walk `docs/closure-checklist.md`. Sub-steps:
 
 ## 7. Final reply (Done Evidence template)
 
-End every task with:
-- Files changed
-- Tests run + outcomes
-- Assumptions made
-- New ADRs (D-IDs)
-- Risks queued to next milestone
-
-PASS verdicts MUST cite `file:line` evidence per acceptance criterion (otherwise BLOCKING per permission-matrix §11).
+End every task with the Done Evidence template in `.agents/rules/practices.md` (files, tests + outcomes, assumptions, ADRs, risks). PASS verdicts MUST cite `file:line` per acceptance criterion (else BLOCKING, permission-matrix §11).
 
 ## 8. Detail docs
 

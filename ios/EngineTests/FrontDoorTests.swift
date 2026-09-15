@@ -476,6 +476,17 @@ final class SlowTierTests: XCTestCase {
         try? await Task.sleep(nanoseconds: 400_000_000)  // the deadline task fires in here
     }
 
+    /// M13 Stage 4.0 NIT-1: `UInt64(_:)` traps on NaN and past about 1.8e10 seconds. No wire value
+    /// reaches the deadline today, so surviving these calls IS the test.
+    func testADeadlineThatIsNotASensibleNumberDoesNotTrap() async {
+        for hostile in [Double.nan, -.infinity, .infinity] {
+            let result: Int? = await firstWithin(hostile) { 1 }
+            XCTAssertTrue(result == nil || result == 1, "\(hostile)")
+        }
+        let astronomical: Int? = await firstWithin(1e30) { 1 }
+        XCTAssertEqual(astronomical, 1, "a huge deadline is clamped, and the work still wins")
+    }
+
     func testTheShippedDeadlineIsLongerThanTheMeasuredColdStart() {
         // 1.33 s cold on the owner's Mac (M13 handover §4). A deadline under that would send every
         // first question of the day to the wording tier.

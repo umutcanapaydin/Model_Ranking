@@ -1745,3 +1745,36 @@ companion. For ECI it is now replaced by its rank, on the card and in the rankin
 is still in the payload, and M14's detail screen is where it can return with its explanation.
 
 **Revisit when:** ECI publishes a ceiling or a readable unit, or the detail screen ships.
+
+---
+
+## D-141 — A HIGH wave owes its pulled-forward security pass, and its author cannot waive it
+
+**Status:** proposed · **Date:** 2026-09-15 · **Proposed by:** the lead agent at M13 closure, as the
+control review C2b asked for (W-088, W-089, W-090). **Ratifying it is the owner's**, because it
+changes what a wave-close row may say.
+
+**Context.** Two texts define when a HIGH wave gets a security read, and they disagree. V3C-78 in
+`AGENTS.md` §4 makes the pulled-forward security pass part of the HIGH tier: Code-Reviewer, Tester,
+and security on the slice. The Security-Reviewer profile says a HIGH wave MAY pull one forward, and
+names auth, PII, payment, crypto and migration. M13 tagged three waves HIGH, and each waived the
+pass under the profile's narrower reading. The waivers were honest and each named a local ledger
+row. None reached `docs/warnings.ledger.md`, so C2b could not count them. The Stage 4.0 seat then
+found the cost: W1's `/health` memo reported an artifact the process could not read as `servable`
+(M13 security review MAJOR-1). This is the control's seventh acceptance.
+
+**Decision (proposed).**
+- A wave tagged HIGH gets its pulled-forward security pass, whatever surface its author believes it
+  touches. The tag is the plan's decision, and the author is the one person who cannot judge what
+  the wave's own slice exposes.
+- If the pass cannot run, row 4 reads WAIVED and names a row in `docs/warnings.ledger.md`, not only
+  a local one, so the waiver is counted where C2b reads.
+- A plan that does not want the pass for a wave tags that wave MED, and says why, in the plan the
+  owner signs.
+
+**Consequence.** One more independent seat per HIGH wave: for M13, three reads of a few hundred
+lines each, against a MAJOR that escaped to closure. The profile's list stays as the trigger for
+pulling a pass into a MED wave.
+
+**Revisit when:** a HIGH wave's pass finds nothing for three consecutive milestones. That would say
+the plans tag too widely, not that the pass is wasted.

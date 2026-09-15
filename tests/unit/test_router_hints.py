@@ -101,13 +101,24 @@ def test_the_router_never_produces_anything_but_a_category_id() -> None:
     `RoutingOutcome` carries a category id, a tier and a flag. There is no field a recommendation,
     a model name or a sentence of praise could travel in — which is the only version of this
     guarantee that does not depend on a prompt being obeyed.
+
+    **Every STORED field, `var` as well as `let` (M13 Stage 4.0 MINOR-2).** The first version matched
+    `let` only; W3 added `var alternatives`, the set was never updated, and the seat's mutant `var
+    praise: String = "the best model is X"` passed. A computed property carries a `{` on its line
+    and stores nothing, so it is not a field.
     """
     source = ROUTER.read_text(encoding="utf-8")
     block = source[source.index("struct RoutingOutcome") : source.index("var explanation")]
-    fields = set(re.findall(r"let (\w+):", block))
-    assert fields == {"categoryID", "tier", "unmeasured"}, (
-        f"RoutingOutcome carries {sorted(fields)}; anything beyond a surface id, how it was chosen "
-        "and whether it is measured is a channel for an opinion the router may not have"
+    fields = set(
+        re.findall(r"^\s*(?:public\s+)?(?:let|var)\s+(\w+)\s*:[^{\n]*$", block, re.MULTILINE)
+    )
+    assert fields == {"categoryID", "tier", "unmeasured", "alternatives"}, (
+        f"RoutingOutcome carries {sorted(fields)}; anything beyond a surface id, how it was chosen, "
+        "whether it is measured and the other surface ids it came close to is a channel for an "
+        "opinion the router may not have"
+    )
+    assert re.search(r"var alternatives:\s*\[String\]", block), (
+        "`alternatives` must stay a list of surface ids; any other type can carry a sentence"
     )
 
 
@@ -117,11 +128,63 @@ def test_nothing_typed_by_the_reader_reaches_the_engine() -> None:
     `/v1` takes `task` and `budget` and nothing else, and the router's only contribution to a
     request is which of nine ids the task is. The scoring path is untouched (D-104) because the
     typed text never enters it.
+
+    **Asserted as data flow, not vocabulary (M13 Stage 4.0 MAJOR-2).** The first version looked for
+    the word `question` beside `URLQueryItem`. W3 rewrote this path around `asked` and `typed`, and
+    the seat's mutant `client.recommendation(task: asked.isEmpty ? task : asked, budget: budget)`
+    compiled, sent the reader's words to the engine on every reload, and passed. So: every argument
+    of every engine call is the bare `task` or `budget`, and `task` is only ever assigned the
+    router's surface id or the id the reader tapped.
     """
     view = (ROUTER.parent.parent / "ContentView.swift").read_text(encoding="utf-8")
     code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
 
-    assert "task = outcome.categoryID" in code, "the router's choice does not select the surface"
+    calls = re.findall(r"\bclient\.(\w+)\(([^)]*)\)", code)
+    assert calls, "no engine call found in ContentView; this test would pass vacuously"
+    for name, arguments in calls:
+        for argument in filter(None, (a.strip() for a in arguments.split(","))):
+            label, _, value = (part.strip() for part in argument.partition(":"))
+            assert label in {"task", "budget"} and value == label, (
+                f"`client.{name}` is sent `{argument}`; the engine may only be sent the selected "
+                "surface and the budget, never anything derived from what the reader typed"
+            )
+
+    assigned = re.findall(r"(?<!\w)(?:self\.)?task\s*=(?!=)\s*([^\n]+)", code)
+    declared = [value for value in assigned if value.strip().startswith('"')]
+    assert len(declared) == 1 and re.fullmatch(r'"[a-z-]+"', declared[0].strip()), (
+        f"`task` must start as one literal surface id, got {declared}"
+    )
+    for value in assigned:
+        if value in declared:
+            continue
+        assert value.strip() in {"outcome.categoryID", "id"}, (
+            f"`task` is assigned `{value.strip()}`; only the router's surface id or the id the "
+            "reader tapped may select what the engine is asked"
+        )
+    assert "outcome.categoryID" in [value.strip() for value in assigned], (
+        "the router's choice does not select the surface"
+    )
+    assert "$task" not in code, "`task` is bound to a control, so a reader can type into it"
+
+    # The other doors into `task` (Stage 4.0 re-verification MINOR-4). Four mutants carried the typed
+    # text past the rules above: `select(typed)`, `task += typed`, a second `EngineClient` called
+    # directly, and a `RoutingOutcome` built in the view with the typed text as its id.
+    for argument in re.findall(r"\bselect\(([^)]*)\)", code):
+        if argument.strip().startswith("_ "):
+            continue  # the declaration, `func select(_ id: String)`
+        assert argument.strip() in {"id", "choice.id"}, (
+            f"`select({argument.strip()})`: only a surface id the reader tapped may select what the "
+            "engine is asked"
+        )
+    assert "RoutingOutcome(" not in code, (
+        "the view builds its own routing outcome; only the router may choose a surface"
+    )
+    assert not re.search(
+        r"(?<!\w)(?:self\.)?task\s*[-+*/%&|^]=|\btask\.(?:append|insert|remove|replace)", code
+    ), "`task` is changed in place; it may only be replaced by a surface id"
+    assert code.count("EngineClient(") == 1, (
+        "a second engine client in the view would escape the argument check on `client.`"
+    )
     assert not re.search(r"question[^\n]*URLQueryItem|URLQueryItem[^\n]*question", code), (
         "the reader's typed question is being put into a request to the engine"
     )

@@ -486,11 +486,15 @@ struct TieredRouter {
 /// hold the caller exactly as long as it would have with no deadline at all. Two unstructured tasks
 /// race to resume one continuation instead, and the loser's result is dropped.
 func firstWithin<T>(_ seconds: Double, _ work: @escaping () async -> T?) async -> T? {
-    await withCheckedContinuation { continuation in
+    // Clamped before it is converted: `UInt64(_:)` traps on NaN (which `max` passes through) and
+    // past about 1.8e10 seconds (M13 Stage 4.0 NIT-1, the M12 BLOCKING-1 class). A deadline that
+    // is not a number means "do not wait", which every caller already handles as a timeout.
+    let bounded = seconds.isFinite ? min(max(seconds, 0), 3_600) : 0
+    return await withCheckedContinuation { continuation in
         let once = ResumeOnce(continuation)
         let job = Task { once.resume(with: await work()) }
         Task {
-            try? await Task.sleep(nanoseconds: UInt64(max(seconds, 0) * 1_000_000_000))
+            try? await Task.sleep(nanoseconds: UInt64(bounded * 1_000_000_000))
             once.resume(with: nil)
             // Abandoned, and also told to stop: a call that honours cancellation then stops costing
             // the device anything (W3 re-review NEW-3). One that does not is simply not waited for.

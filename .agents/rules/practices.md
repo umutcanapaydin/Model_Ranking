@@ -211,6 +211,20 @@ The goal: when something breaks in production, boundary logs alone tell you whic
 - Continuously prune "AI slop" — don't accumulate stale docs that contradict current decisions.
 - At quarterly handover (every M%3==0), do a harness diet: retire any skill / hook / MCP not fired in 90 days.
 
+## Final reply (Done Evidence template)
+
+Moved here from `AGENTS.md` §7 at the M13 closure diet check (that file had reached 156 lines against
+its 150-line cap, since M11-W1). `AGENTS.md` keeps a one-line pointer and the PASS rule.
+
+End every task with:
+- Files changed
+- Tests run + outcomes
+- Assumptions made
+- New ADRs (D-IDs)
+- Risks queued to next milestone
+
+PASS verdicts MUST cite `file:line` evidence per acceptance criterion (otherwise BLOCKING per permission-matrix §11).
+
 ## See also
 
 - `playbook-seeds.md` — full seed compendium (themes A-L + v1.1/M12/S34 ADDENDA + ★ v2.2 RATIFIED: C.11 bootstrap-gate, B.6 ADR-ID ranges, F.10 OSS-license gate, L.8/L.9 go-live, E.6 pipe-attribution, K.11 agent-UI, C.12 git-in-mount + ★ v3 RATIFIED: V3C-11 security gate, V3C-02 tests gate, V3C-68 review-loop restructure, V3C-44 canonical-mock, V3C-12/13/51/56 security baseline, V3C-33/45 fail-direction, V3C-08/36 least-privilege, V3C-06/53 + build guardrails, + Agent-Native CANDIDATE sub-block)

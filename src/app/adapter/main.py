@@ -322,11 +322,29 @@ def open_readonly(path: Path) -> sqlite3.Connection:
 #: from the same bounded pool `/v1` uses. The wave reasoned about boot cost only, and the second
 #: call site was not in its plan.
 #:
-#: The key is `(path, st_mtime_ns, st_size)` and NOT the path alone, because the refresh publishes
-#: by replacing the file (D-129). A memo keyed on the path would keep answering for the artifact
-#: that was retired, which is the "healthy to every existence check" shape this module keeps
-#: paying for. When the artifact is swapped the key changes and the probe runs again.
-_UNUSABLE_MEMO: dict[tuple[str, int, int], str | None] = {}
+#: The key is the artifact's identity and NOT its path, because the refresh publishes by replacing
+#: the file (D-129). A memo keyed on the path would keep answering for the artifact that was
+#: retired, which is the "healthy to every existence check" shape this module keeps paying for.
+#:
+#: **M13 Stage 4.0 MAJOR-1: the first key asked the wrong question.** `(path, mtime, size)` asks "is
+#: this the same content?", and the probe answers "can this process serve it?". A `chmod 000`, or a
+#: same-size write with the mtime set back, left that key unchanged and `/health` read `servable`
+#: over a 503. `st_ctime_ns` moves on every chmod, chown and content write, and `os.utime` cannot set
+#: it; `st_dev`/`st_ino` name the file itself; the mode and owners are the access the probe depends
+#: on, kept in the key for a filesystem whose ctime is coarse.
+_UNUSABLE_MEMO: dict[tuple[str | int, ...], str | None] = {}
+
+
+def _artifact_key(db: Path) -> tuple[str | int, ...] | None:
+    """The artifact's identity for the memos below, or `None` when it cannot be stat'd."""
+    try:
+        s = db.stat()
+    except OSError:
+        return None
+    return (
+        str(db), s.st_dev, s.st_ino, s.st_mtime_ns, s.st_ctime_ns, s.st_size,
+        s.st_mode, s.st_uid, s.st_gid,
+    )  # fmt: skip
 
 
 def _database_unusable(db: Path) -> str | None:
@@ -337,14 +355,12 @@ def _database_unusable(db: Path) -> str | None:
     and those tables must carry the columns this milestone's engine selects. The third is the one
     that catches a pre-M6 artifact — the schema migrated forward and the read-only path cannot.
     """
-    try:
-        stat = db.stat()
-    except OSError:
+    key = _artifact_key(db)
+    if key is None:
         # A file that cannot be stat'd cannot be memoised, and it must not acquire a NEW refusal
         # message here: an absent artifact is already reported by the open below, in words an
         # operator has seen since Stage 4.0 BLOCKING-3. Fall through and let it say so.
         return _probe_database(db)
-    key = (str(db), stat.st_mtime_ns, stat.st_size)
     if key in _UNUSABLE_MEMO:
         return _UNUSABLE_MEMO[key]
     verdict = _probe_database(db)
@@ -1161,7 +1177,7 @@ def _secondary_ages() -> dict[str, int | None]:
     except sqlite3.Error as exc:
         # Logged, not raised and not silent: the route answers, and an operator can still find out
         # why every age read null (M13-W2 review NIT-3).
-        _LOG.warning("/v1/categories could not open the artifact for ages: %s", type(exc).__name__)
+        _warn_once(path, "/v1/categories could not open the artifact for ages: %s", exc)
         return {}
     try:
         return {
@@ -1170,11 +1186,28 @@ def _secondary_ages() -> dict[str, int | None]:
             if spec.secondary_benchmark
         }
     except sqlite3.Error as exc:
-        _LOG.warning("/v1/categories could not read ages from the artifact: %s", type(exc).__name__)
+        _warn_once(path, "/v1/categories could not read ages from the artifact: %s", exc)
         return {}
     finally:
         with contextlib.suppress(sqlite3.Error):
             conn.close()
+
+
+#: `(artifact identity, message)` pairs already logged. **M13 Stage 4.0 MINOR-1:** the route is
+#: unauthenticated, so one warning per REQUEST was a log volume a caller chose -- 101 requests
+#: against a corrupt artifact wrote 101 lines. Once per artifact says the same thing once, and a
+#: republished artifact that is still bad says it again, because its identity changed.
+_WARNED: set[tuple[tuple[str | int, ...] | None, str]] = set()
+
+
+def _warn_once(path: Path, message: str, exc: Exception) -> None:
+    seen = (_artifact_key(path), message)
+    if seen in _WARNED:
+        return
+    if len(_WARNED) > 8:
+        _WARNED.clear()
+    _WARNED.add(seen)
+    _LOG.warning(message, type(exc).__name__)
 
 
 @app.get(f"/{API_VERSION}/categories")
