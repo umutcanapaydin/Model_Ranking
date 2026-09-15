@@ -380,3 +380,27 @@ repeatable was a CHAIR rather than a check.
 Corollary paid three times in two waves: **pin the claim, never the offset.** A test that fails
 when text moves teaches people to leave text where it is.
 
+## 2026-09-15 — M13: the question is the front door, and the numbers stop overstating
+
+- **W1** (`3440abe`, 2026-09-06): four checks that said yes to things they should have refused —
+  Pareto dominance, the startup probe, the refresh fingerprint, the runner's skip accounting. All
+  four were found by a second opinion with no brief.
+- **W2** (`10a521c`): D-138 publishes the margin and the second board's age on `/v1/categories`.
+  The first review was BLOCKING (greedy bands ordered 47 tied pairs), the owner ruled rank ranges,
+  and the re-review measured 0. M12 signed. A wall-clock fixture that expired on the day was pinned.
+- **W3** (`cda57b1`): the question field is the only input; `Change` sheet, echo, alternatives,
+  unmeasured statement, `RequestGate`; the budget strip and its code deleted. Focus verified on the
+  simulator; the keyboard is the environment's, shown by a Safari control.
+- **W4** (`3b13b11`): `Score 83.5 / 100`, `Score 1504.2 Elo`, rank-only ECI (D-140); `AFFORDABLE
+  PICK`; a sub-dollar price no longer prints as `$0`. D-139 written late for council ruling A3.
+- **W5** (`a5e3c89`): Stage 4.0 PASS WITH FINDINGS, and PASS WITH FINDINGS again on re-verification, with every MAJOR closed.
+  - The `/health` memo keyed on everything the probe depends on.
+  - Two invariant tests rewritten to assert data flow.
+  - The three waived security passes ledgered, with D-141 proposed as the control review.
+  - The Swift floor escalated.
+  - `AGENTS.md` back under its cap: 156 → 149.
+  - 874 Python / 215 Swift.
+
+Lesson: **a ruling is a hypothesis until someone measures it.** Three council rulings were
+overturned by measurement this milestone, the last one by a reviewer; the fix it forced (ranges)
+is better than the ruling it replaced.

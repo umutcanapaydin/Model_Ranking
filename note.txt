@@ -1,79 +1,36 @@
 Project: model_ranking
-State: **M13 OPEN. W1 CODE COMPLETE AND REVIEWED; W2 PARTIAL. NOTHING IS COMMITTED.**
-  Repo green: 853 Python + 132 Swift, coverage 88.55%. `make check` exits 0.
-  `./runner` exits 1 on ONE leg — `refresh-status` — and that leg is YOURS (see below).
-  Nothing on Fly.io; nothing is billing.
-Last session date: 2026-09-06 (overnight, on your instruction to keep going)
-Last work agent: Claude (Claude Code CLI, local lane under D-117)
+State: **M13 CLOSED AGENT-SIDE, AWAITING YOUR SIGNATURE AND MILESTONE COMMIT.**
+  Repo green at a5e3c89: 874 Python + 215 Swift, `make check` exit 0.
+  Wave commits W1..W4 pushed under the agent identity (D-117). Nothing deployed; nothing is billing.
+Last session date: 2026-09-15 · Last work agent: Claude (Claude Code CLI, local lane)
 
 THE THREE THINGS THAT NEED YOU, IN ORDER
-  1. `launchctl kickstart -p gui/$(id -u)/com.hcs.modelranking.refresh`
-     If it still returns 78, give Full Disk Access to `.venv/bin/python3.14`.
-     **The D-128 half of this has cleared on its own** — measured this session, no surface
-     breaches the 25% limit against today's upstream (largest: web-dev +17.5%). Only the
-     launchd spawn fault remains, and loading that job is your action by the plist's own rule.
-  2. Sign M12, or waive it in writing. M13 is open over an unsigned milestone.
-  3. Review and commit. The tree is STAGED with a prepared message; no agent commit was made
-     (AGENTS.md §3 — agent commit on main = A1 = explicit owner ADR only, and there is none).
+  1. Type a question into the app (`./ios/app.sh up`; ⌘K if no keyboard). Nobody has, ever.
+     Safari's own field raised no keyboard on this simulator either, so that gap is the
+     simulator's, but a person still has to press Return and the arrow once.
+  2. `launchctl kickstart -p gui/$(id -u)/com.hcs.modelranking.refresh` (still exit 78).
+     The artifact is from 2026-08-27; the terminalbench dates fixed in W2 appear only after it runs.
+  3. Ratify, amend or refuse D-141 (proposed): a HIGH wave owes its security pass. And raise
+     SWIFT_TEST_FLOOR in the Makefile to the count `make check` prints (W-091).
+  4. Read `docs/closure-report-m13.md` §0 and §1b, run `make check`, sign, commit.
 
-READ FIRST: `docs/plans/m13-plan.md` §7 — the council's rulings, and the two I overturned
-The plan is SIGNED. §7 records the three-seat blind council you delegated to, and states plainly
-where measurement overturned a ruling rather than applying it quietly. Then read
-`docs/second-opinion.md` (your 23 open questions) and `docs/handovers/handover_m13-start.md`.
-
-WHAT W1 SHIPPED — four defects, each reproduced before it was diagnosed
-- **Pareto dominance was wrong in BOTH engines** since M2: strict on both axes, so a model equal on
-  quality and dearer was never dominated. 9 of 27 (surface, budget) combinations published a
-  `frontier_size` too large. No pick moved on today's data — stated precisely, because the first
-  version of that comment claimed picks COULD not move and a reviewer built the counterexample.
-- **Startup accepted a database the serving path cannot read.** It checked a hand-written table
-  list; `models` was never on it. It now RUNS a real ranking per surface and reads the result.
-- **The refresh fingerprint ignored `evidence_source`** — invisible field, visible consequence: the
-  `sources` citation is derived from it, so a change of board went unpublished while the credit on
-  screen went stale. REQ-LIC-001 makes that a licence matter, not a display one.
-- **`runner` scored an unrun leg as a pass.** Accounting extracted to `scripts/runner_verdict.sh`
-  so it can be tested in milliseconds instead of minutes.
-
-W2 SO FAR
-- `terminalbench` had a `Run date` column on 204/204 rows that nobody read. Wired. **The other five
-  undated sources are honestly undated and the engine already says so** — verified live; the plan
-  had recorded that as a defect and it was a repair of nothing.
-- A stale secondary no longer upgrades `confidence`. Threshold REUSED (`STALE_NOTICE_DAYS = 90`),
-  not invented. Note the cost the council named itself: `confidence` is now "Medium" everywhere,
-  which makes the real problem visible rather than solving it — the field is a coverage count
-  wearing a statistics word, and renaming it is still open (Q10).
+WHAT M13 SHIPPED
+  - Scoring instruments fixed (W1): Pareto dominance, the startup probe, the refresh fingerprint,
+    the runner's skip accounting.
+  - Honest numbers (W2): rank RANGES (`#1–27 of 50`, your ruling) from the engine's own margin,
+    published with the second board's age on `/v1/categories` (D-138); "confidence" never shown.
+  - The front door (W3): one question field, echo + one-tap correction, `Change` sheet, unmeasured
+    questions answered AND labelled, no stale overwrite; budget strip and its code gone.
+  - The card (W4): `Score 83.5 / 100`, `Score 1504.2 Elo`, rank-only ECI (D-140); AFFORDABLE PICK;
+    a $0.13 price no longer reads as $0.
 
 THE THING A NEW AGENT MUST NOT UNDO
-Everything in the previous note still stands (D-104, the fact-derived prose, the `nil`-returning
-sentence composers). Added this session:
-- **The derived-score layer is refused on EVIDENCE.** Leave-one-out from the latent axis: DeepSWE
-  R² **-0.104** — worse than printing the mean — SWE-bench 0.334, WebDev 0.398. If anyone proposes
-  predicting an unmeasured surface from a capability axis again, that table is the answer.
-- **Artificial Analysis must not be ingested under the free tier.** Attribution is granted;
-  redistribution is not, and their base ToS URL 404s.
-- **Display LOGIC belongs in `ModelRanking/Engine/`, not `ContentView`.** There is no iOS test
-  target — `ModelRankingTests/` is empty and `Package.swift` scopes to `Engine`, so ContentView's
-  697 lines are unexecuted. Nine of M13's fourteen criteria are client-rendering criteria.
-
-THE LESSON THIS SESSION PAID FOR
-**A fixture that claims a property does not have it.** Three separate test fixtures called
-themselves "a servable artifact" and ranked nothing on any surface; each had a docstring already
-asserting what it lacked. They passed for years because the probe they were written against asked
-only whether tables existed. Correcting the probe exposed all three at once.
-
-Corollary, from two independent seats on the same day: **proving a library is not proving the
-instrument.** Every test of the new accounting passed while six mutants of `runner`'s own wiring
-survived — including one that reproduced the original defect verbatim with 810 tests green.
+  - `Uncertainty.swift` is the ONE file allowed to do arithmetic on a served score (D-138); the gate
+    names it. Rounding concedes toward "tied" on purpose.
+  - Everything in the previous notes still stands (D-104, D-136, nil-returning composers, English
+    repository, no commit as the owner).
 
 ANCHOR
-- Active ADRs: universal set + D-100..D-137. No new ADR this session; §5 of the plan names four
-  that get written at the wave that consumes them.
-- Governed records: 77. v5.0 wave records: 26.
-- Reviews this session: `docs/reviews/m13-wave-1-review.md`, `docs/reviews/m13-wave-1-tester.md`
-  (both `seat: independent`, both returned BLOCKING, both blockers discharged).
-- Most recent quarterly handover: `docs/handovers/handover_q4.txt` (M12).
-
-HANDOFF NOTES
-You are running ON the owner's Mac. Agent commits carry a DISTINCT identity and `GP-Agent:` /
-`GP-Task:` trailers — never commit as him. Green gates only. Before any long unattended run:
-`caffeinate -dimsu &` — a five-agent council was lost to a sleeping machine this week.
+  ADRs D-100..D-141 (D-141 proposed) · reviews for every wave in `docs/reviews/m13-*` · retro
+  `docs/retrospectives/m13-retrospective.md` · 13 % 3 != 0: no quarterly handover due.
+  M14 opens on: device build + a non-localhost engine, the detail screen, image-edit + typed pricing.

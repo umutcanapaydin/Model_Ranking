@@ -74,3 +74,31 @@ itself — which the M7 note above already warns about and which this project ha
 `refresh.py::_hold_lock` (an `O_EXCL` lock, `EXIT_BUSY`, pid-liveness reclaim) and the baseline
 re-read before `replace`. Cited by four tests: lock held, dead holder reclaimed, live holder
 respected, and a baseline replaced mid-cycle refusing rather than overwriting.
+
+## M13 — traced at the M13 quality gate (Stage 4.1)
+
+**The gap before this section, stated first.** This register stopped at M9. M10, M11 and M12 each
+closed with their criteria traced in their closure reports, and nothing was added here. Those rows
+are not reconstructed now: a trace written three milestones late is transcription, not measurement.
+The owner should decide whether to backfill them or retire this register in favour of the closure
+reports.
+
+**Evidence pinning.** a5e3c89. `make check` exit 0, 874 Python / 215 Swift.
+
+| # | REQ-ID | Verdict | Implementing code | Citing test shown able to fail |
+|---|---|---|---|---|
+| 1 | **REQ-FIX-001** — Pareto dominance admits equality on one axis | COVERED | `recommend.py::_dominates`, `subscribe.py::_plan_dominates` | `test_pareto_dominance.py`: one table run against both engines; 7 of its cases failed on the pre-fix predicate |
+| 2 | **REQ-FIX-002** — startup refuses an unservable database | COVERED | `main.py::_probe_database` runs a real ranking per surface | `test_startup_schema_validation.py::test_an_artifact_that_ranks_nothing_is_refused` and its positive pair |
+| 3 | **REQ-FIX-003** — attribution changes the refresh fingerprint | COVERED | `refresh.py::UNHASHED_ROW_FIELDS` without `evidence_source` | `test_refresh_attribution_fingerprint.py`; `test_refresh.py`'s real cycle |
+| 4 | **REQ-FIX-004** — `runner` cannot score an unrun leg as a pass | COVERED | `scripts/runner_verdict.sh` | `test_runner_accounting.py`, executing `runner`'s own wrappers |
+| 5 | **REQ-UNC-001** — no order inside the engine's margin | COVERED | `Uncertainty.swift::rankRanges`; margin on `/v1/categories` (D-138) | `UncertaintyTests.testTwoModelsInsideTheMarginOfEachOtherAlwaysOverlap` (property, every shipping margin); `test_uncertainty_contract.py::test_the_served_margin_reproduces_the_engines_own_close_call_decision` |
+| 6 | **REQ-UNC-002** — a count, never "confidence"; a stale second board carries its age | COVERED | `Uncertainty.swift::evidenceLine`/`evidenceBreadth`; `recommend.confidence_of` (D-139) | `EvidenceBreadthTests.testASecondScoreFromAStaleBoardCarriesItsAge`, `…NoRenderingEverCallsACoverageCountAConfidence`; `test_secondary_evidence_age.py` |
+| 7 | **REQ-UNC-003** — every source dated, or named | COVERED, with a visible lag | `main.py::_evidence_dating`; terminalbench's `Run date` read | `test_uncertainty_contract.py::test_an_undated_surface_names_its_benchmark_on_the_live_route`; `test_board_run_dates.py`. **The shipping artifact predates the terminalbench fix** |
+| 8 | **REQ-ASK-001** — focusable, raises a keyboard, submittable without one | **PARTIAL** | `FrontDoor.swift::canSubmit`; `ContentView` focus, send button, synchronous in-flight flag | `FrontDoorTests.SubmissionTests`; the source-contract test. **Focus verified on the simulator; the keyboard and typing were not** (W3 close, ledger L2) |
+| 9 | **REQ-ASK-002** — shows what it understood; corrected in one tap | COVERED | `echoLine`, `surfaceChoices`, `SimilarityRouter` alternatives | `FrontDoorTests.EchoTests`, `AlternativeSurfaceTests`; the Change sheet seen on the simulator |
+| 10 | **REQ-ASK-003** — an unmeasured question gets a ranking and the sentence | COVERED | `routingNotice`; `TieredRouter` manual fallback unmeasured | `FrontDoorTests.UnmeasuredQuestionTests`; `RouterBoundaryTests.testWithNoTierAtAllTheReaderStillGetsASurface` |
+| 11 | **REQ-ASK-004** — an older answer never replaces a newer selection | COVERED | `RequestGate`, applied in `ContentView.load()` | `FrontDoorTests.RequestGateTests`; the source-contract test's three guards |
+| 12 | **REQ-CMP-004** — a score says what it is out of | COVERED, per metric family | `Scores.swift::scoreText`/`figuresLine` (D-140), called by `PickRow` and `RankedRow` | `ScoresTests.ScoreFormTests`, one per metric family, each in both languages; `test_ios_client_contract.py::test_every_score_on_screen_goes_through_the_figures_line`, shown RED on three mutants of the call sites |
+
+**One row is PARTIAL and it is not a hedge.** REQ-ASK-001's keyboard half needs a person at a
+keyboard, which this environment cannot supply and the plan (§4) reserved for the owner anyway.

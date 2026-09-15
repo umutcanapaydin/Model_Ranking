@@ -606,3 +606,43 @@ the work, and it produced the largest usability gain in twelve milestones. **The
 chose for itself, across eleven milestones, was correctness — and correctness was never what stood
 between this product and a user.** What else is the team not choosing?
 
+## M13 closure — 2026-09-15 — a ruling is a hypothesis until someone measures it
+
+M12 asked what else the team was not choosing. M13 answered with evidence: every defect that
+mattered this milestone was found by a seat outside the work, and each KIND of seat found a
+different kind. A second opinion with no brief found four defects in the scoring path and its
+instruments that five briefed council seats had missed, including Pareto dominance, wrong in both
+engines since M2. The council was right about direction and wrong three times in detail. Each time a
+measurement overturned it, and the third overturn is the one the product now shows: the greedy tie
+bands printed 47 within-margin pairs as ordered, and the owner chose rank ranges (`#1–27 of 50`).
+
+Engineering shapes worth keeping:
+
+1. **A fixture's clock is part of the fixture.** The gate went red on 2026-09-15 with no code
+   change: a fixture's wall-clock stamp aged its literal dates past a 30-day window. Pin the clock at
+   the source (`RunContext(observed_at=...)`), and sweep the suite under a future clock once.
+2. **When a criterion is about a relation, check whether the relation is transitive first.** "Within
+   the margin" is not, so no single rank number can avoid ordering a tied pair. A range can, by
+   construction, and a property test can prove it.
+3. **Structural tests must pin arguments, not names.** A source-contract test that checked only that
+   the Engine functions were CALLED let every argument-level change through, twice. The test now
+   checks the arguments that carry the engine's facts.
+4. **Reproduce a defect in the system's own component before calling it the app's.** The simulator
+   raised no software keyboard for the app's field, and none for Safari's address bar either.
+5. **A memo must key on everything its answer depends on.** The `/health` memo keyed on mtime and
+   size, and a `chmod` left it reading `servable` over a 503. `st_ctime` moves on every chmod, chown
+   and write, and `os.utime` cannot set it.
+
+**Control bypass (`control-bypass`):** the HIGH-tier pulled-forward security pass was waived in all
+three code waves (W-088..W-090), and the waived W1 slice shipped the memo defect in point 5. The
+waivers were local, so the repetition counter could not see them. The control is under review as
+D-141 (proposed).
+
+**What was accepted rather than solved:** the software keyboard and typing were never exercised, in
+an environment where synthetic keystrokes do not arrive (owner action); the artifact predates the
+terminalbench date fix because the refresh is stopped on a launchd spawn fault (owner action); ECI's
+exact number is no longer printed, only its rank (D-140); nothing deployed, sixth milestone.
+
+**Carried to M14:** what would it take for the next milestone's evidence to come from the product as
+a reader meets it — refreshed data, a real keyboard, a real device — rather than from the
+instruments around it?
