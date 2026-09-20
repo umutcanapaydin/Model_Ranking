@@ -193,3 +193,33 @@ def test_nothing_typed_by_the_reader_reaches_the_engine() -> None:
     assert not re.search(r"\bquestion\b", client), (
         "the engine client mentions the reader's question; it must only ever send task and budget"
     )
+
+
+def test_the_gap_register_stays_on_the_device() -> None:
+    """REQ-GAP-001 (M14-W3): what the reader typed is recorded locally and nowhere else.
+
+    The register is the one place the app keeps the reader's words, so it is the most likely place
+    for them to leak. Held structurally: it is saved only through `GapRegisterStore`, whose file is
+    excluded from iCloud backup; the register code opens no network connection; and no engine call
+    is ever handed the register (the data-flow test above already pins every `client.` argument).
+    """
+    front = (ROUTER.parent / "FrontDoor.swift").read_text(encoding="utf-8")
+    view = (ROUTER.parent.parent / "ContentView.swift").read_text(encoding="utf-8")
+    register = front[front.index("// MARK: - The gap register") :]
+    code = "\n".join(line.split("//", 1)[0] for line in register.splitlines())
+
+    assert "isExcludedFromBackup = true" in code, "the register would be uploaded with the backup"
+    # Review S-1: on the phone the register is unreadable while the device is locked.
+    assert re.search(r"writeOptions:\s*\[\.atomic,\s*\.completeFileProtection\]", code), (
+        "the on-device register is written without file protection"
+    )
+    for network in ("URLSession", "URLRequest", "EngineClient", "http"):
+        assert network not in code, f"the gap register reaches for `{network}`"
+    view_code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
+    # Review m-1: through the tested predicate, so a router failure (manual tier) is not a gap.
+    assert re.search(r"if recordsGap\(outcome\) \{\s*gaps\.record\(typed\)", view_code), (
+        "the register is not fed by the routed unmeasured outcome, or is fed something else"
+    )
+    assert not re.search(r"client\.\w+\([^)]*gaps", view_code), (
+        "an engine call is handed the register"
+    )

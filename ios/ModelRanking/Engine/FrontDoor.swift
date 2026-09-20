@@ -199,3 +199,136 @@ public enum OnDeviceState: Equatable {
         }
     }
 }
+
+// MARK: - The gap register (M14-W3, REQ-GAP-001/002, D-142 §3)
+//
+// Every question the catalogue could not answer is a person telling us which surface to build next.
+// Until this wave the decline sentinel was the product's own demand signal and it was thrown away.
+// Now each unmeasured question is recorded ON THIS DEVICE with a count, and the owner reads the
+// list, most-asked first. It never reaches the engine: REQ-RTR-004's data-flow test holds, and the
+// register is written to a file excluded from iCloud backup, because "nothing leaves the device" is
+// not true of a file the phone uploads every night.
+//
+// It lives in this file, not a new one, so the app target's project file does not change.
+
+/// One question the catalogue could not answer, and how often it has been asked.
+public struct GapEntry: Codable, Equatable, Identifiable {
+    /// As the reader first typed it, trimmed and capped. Shown as-is.
+    public let question: String
+    public var count: Int
+    public var lastAsked: Date
+
+    public var id: String { gapKey(question) }
+}
+
+/// Two spellings of one question count as one: case and runs of whitespace do not make a new gap.
+///
+/// Folded with a PINNED locale, for W-079's reason: under `tr_TR` the capital I folds to a dotless
+/// letter, and the same question typed on two phones would count as two.
+func gapKey(_ question: String) -> String {
+    question
+        .lowercased(with: Locale(identifier: "en_US_POSIX"))
+        .split(whereSeparator: \.isWhitespace)
+        .joined(separator: " ")
+}
+
+/// The register itself: a value, so it is tested without a disk and saved as one document.
+public struct GapRegister: Codable, Equatable {
+    /// A bound on what the phone keeps. When full, the least-asked, oldest entry makes room.
+    public static let maxEntries = 200
+    /// A bound on what one entry keeps, so a pasted document is not stored as a "question".
+    public static let maxLength = 200
+    /// Review S-3: the character bound alone is not a size bound. One `Character` can carry
+    /// thousands of combining marks, so an entry is also held to this many UTF-8 bytes.
+    public static let maxBytes = 800
+
+    public private(set) var entries: [GapEntry] = []
+
+    public init() {}
+
+    /// REQ-GAP-001. Records one unmeasured question. Blank text records nothing.
+    public mutating func record(_ question: String, at date: Date = Date()) {
+        var trimmed = String(question.trimmingCharacters(in: .whitespacesAndNewlines)
+            .prefix(Self.maxLength))
+        while trimmed.utf8.count > Self.maxBytes { trimmed.removeLast() }
+        let key = gapKey(trimmed)
+        guard !key.isEmpty else { return }
+        if let index = entries.firstIndex(where: { $0.id == key }) {
+            entries[index].count += 1
+            entries[index].lastAsked = date
+            return
+        }
+        if entries.count >= Self.maxEntries, let weakest = entries.indices.min(by: {
+            (entries[$0].count, entries[$0].lastAsked) < (entries[$1].count, entries[$1].lastAsked)
+        }) {
+            entries.remove(at: weakest)
+        }
+        entries.append(GapEntry(question: trimmed, count: 1, lastAsked: date))
+    }
+
+    /// REQ-GAP-002. Most-asked first; among equals, the most recent first.
+    public var ordered: [GapEntry] {
+        entries.sorted { ($0.count, $0.lastAsked) > ($1.count, $1.lastAsked) }
+    }
+
+    public mutating func clear() { entries.removeAll() }
+}
+
+/// Where the register is kept: one JSON file on this device, never backed up.
+public struct GapRegisterStore {
+    public let url: URL
+    /// Review S-1: how the file is written. The phone's store adds `.completeFileProtection`, so the
+    /// register is unreadable while the device is locked; a store built on a test host's temporary
+    /// folder writes atomically only. A parameter, not an `#if os(...)`: the Engine is compiled the
+    /// same way for `swift test` and for the app (`test_ios_platform_drift.py`).
+    public let writeOptions: Data.WritingOptions
+
+    public init(url: URL, writeOptions: Data.WritingOptions = .atomic) {
+        self.url = url
+        self.writeOptions = writeOptions
+    }
+
+    /// Application Support, which the system does not purge, in a folder of its own that is
+    /// excluded from backup (review S-2): the exclusion then belongs to the FOLDER, which an atomic
+    /// write never replaces, rather than to a file every save swaps out.
+    public static var onDevice: GapRegisterStore {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            .first ?? FileManager.default.temporaryDirectory
+        return GapRegisterStore(
+            url: base.appendingPathComponent("GapRegister", isDirectory: true)
+                .appendingPathComponent("gap-register.json"),
+            writeOptions: [.atomic, .completeFileProtection]
+        )
+    }
+
+    /// An unreadable or absent file is an EMPTY register, never a crash on launch.
+    public func load() -> GapRegister {
+        guard let data = try? Data(contentsOf: url),
+              let register = try? JSONDecoder().decode(GapRegister.self, from: data)
+        else { return GapRegister() }
+        return register
+    }
+
+    /// Best effort: a register that cannot be written costs the owner a signal, not the reader
+    /// their answer, so a failure here is swallowed rather than surfaced in the middle of a question.
+    public func save(_ register: GapRegister) {
+        guard let data = try? JSONEncoder().encode(register) else { return }
+        var folder = url.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? folder.setResourceValues(values)
+        guard (try? data.write(to: url, options: writeOptions)) != nil else { return }
+        var target = url
+        try? target.setResourceValues(values)
+    }
+}
+
+/// REQ-GAP-001, review m-1: which routing outcomes are a GAP in what the product measures.
+///
+/// `unmeasured` alone also covers the manual tier, where the reader picked no question at all or the
+/// router failed; those are the router's misses, not questions the catalogue cannot answer, and
+/// counting them would tell the owner to build surfaces for failures.
+func recordsGap(_ outcome: RoutingOutcome) -> Bool {
+    outcome.unmeasured && outcome.tier != .manual
+}

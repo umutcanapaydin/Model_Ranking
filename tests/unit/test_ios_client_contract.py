@@ -206,6 +206,34 @@ def test_score_arithmetic_happens_only_where_an_adr_permits_it() -> None:
 # --- REQ-APP-002: Ruling A survives the client -------------------------------------------------
 
 
+#: Sorts this client may perform, keyed on (file, the RECEIVER of the sort call), each with its
+#: reason. Review m-3 (M14-W3/W4): the key used to be a substring of the LINE, so any line in
+#: `FrontDoor.swift` mentioning `entries.` passed -- including one that also sorted the engine's
+#: ranking. Now every sort call on a line is checked on its own, and each must be applied directly
+#: to a permitted receiver (`entries`, not `x.entries` or `answer.ranking`).
+SORTING_PERMITTED = {
+    ("FrontDoor.swift", "entries"): (
+        "M14-W3, REQ-GAP-002: the gap register orders the OWNER'S unanswered questions by how often "
+        "they were asked. It is never an answer, a ranking or a model -- Ruling A is about the "
+        "engine's answers, which this collection never holds."
+    ),
+    ("FrontDoor.swift", "entries.indices"): (
+        "M14-W3, REQ-GAP-001: when the register is full, the least-asked entry makes room."
+    ),
+}
+
+_SORT_CALL = re.compile(
+    r"\.(sorted|reversed|shuffled)\s*[({]|\.sort\s*\(|\.(max|min)\s*\(\s*by\s*:|\.swapAt\s*\("
+)
+
+
+def _sort_receiver(code: str, start: int) -> str:
+    """The dotted expression a sort call at `start` is applied to: `entries.indices` for
+    `entries.indices.min(by:`, `answer.ranking` for `answer.ranking.sorted {`."""
+    match = re.search(r"([A-Za-z_][\w]*(?:\??\.[A-Za-z_]\w*)*)$", code[:start])
+    return match.group(1) if match else ""
+
+
 def test_the_client_applies_no_ordering_of_its_own() -> None:
     """Ruling A's real cost, three milestones after the ruling.
 
@@ -224,15 +252,18 @@ def test_the_client_applies_no_ordering_of_its_own() -> None:
     (W-038).
     """
     offenders: list[str] = []
+    used: set[tuple[str, str]] = set()
     for name, text in _swift_sources().items():
         for lineno, line in enumerate(text.splitlines(), start=1):
             code = line.split("//", 1)[0]
-            if re.search(
-                r"\.(sorted|reversed|shuffled)\s*[({]|\.sort\s*\(|"
-                r"\.(max|min)\s*\(\s*by\s*:|\.swapAt\s*\(",
-                code,
-            ):
+            for call in _SORT_CALL.finditer(code):
+                key = (name, _sort_receiver(code, call.start()))
+                if key in SORTING_PERMITTED:
+                    used.add(key)
+                    continue
                 offenders.append(f"{name}:{lineno}: {line.strip()}")
+    stale = sorted(set(SORTING_PERMITTED) - used)
+    assert not stale, f"{stale} is permitted to sort and no longer does; remove the exemption"
     assert not offenders, (
         "the client orders a collection itself; if this is the answers or the ranking it "
         "undoes Ruling A, and if it is something else it needs a reason recorded here:\n  "
@@ -535,8 +566,36 @@ def test_the_screen_calls_the_uncertainty_functions_it_depends_on() -> None:
         "ranges: ranges",
         "secondaryBenchmark: info?.secondaryBenchmark",
         "secondaryAgeDays: info?.secondaryAgeDays",
+        "anchor: info?.scoreAnchor",  # D-143 (M14-W4): the card reads out of 100
     ):
         assert argument in pick_row.group(1), f"the picks are built without `{argument}`"
+
+    # Review M-4 (M14-W3/W4): the ROWS are pinned too. A mutant anchoring the preview rows and the
+    # full list on `answer.ranking.map(\.score).max()` -- the board maximum REQ-SCR-003 forbids --
+    # compiled and passed every test, because only the picks were checked.
+    ranked_row = re.search(r"RankedRow\((.*?)\n\s*\)", view, re.S)
+    assert ranked_row, "the preview rows are no longer built here"
+    assert "anchor: category(for: answer)?.scoreAnchor" in ranked_row.group(1), (
+        "the preview rows are not anchored on the surface's pinned anchor"
+    )
+    ranking_list = re.search(r"RankingList\((.*?)\n\s*\)", view, re.S)
+    assert ranking_list, "the full ranking is no longer built here"
+    assert "anchor: category(for: answer)?.scoreAnchor" in ranking_list.group(1), (
+        "the full ranking is not anchored on the surface's pinned anchor"
+    )
+    assert not re.search(r"anchor:[^\n]*\.(max|min)\s*\(", view), (
+        "an anchor is derived from the board itself (REQ-SCR-003)"
+    )
+    # M-1/M-2: the sentences speak the card's unit.
+    assert re.search(r"whySentence\(cardFact\(", view), "the why line still speaks native Elo"
+    assert re.search(r"tradeOffSentence\(cardFact\(", view), "the trade-off still speaks native Elo"
+    assert re.search(
+        r"leaderSentence\([^)]*leader:\s*answer\.ranking\.first\?\.score,\s*"
+        r"anchor:\s*info\?\.scoreAnchor",
+        view,
+    ), (
+        "the tie note is built without the surface's anchor"
+    )
 
     assert re.search(r"\brankLabel\(", view), "the picks no longer say where they sit"
     assert re.search(r"\bshortRankLabel\(", view), "the ranking rows no longer say where they sit"
@@ -722,7 +781,10 @@ def test_every_score_on_screen_goes_through_the_figures_line() -> None:
         body = view[start : end if end != -1 else len(view)]
         call = (
             rf"figuresLine\(\s*score:\s*{value}\.score,\s*metric:\s*{value}\.metric,\s*"
-            rf"blendedPerM:\s*{value}\.blendedPerM,\s*language,\s*ranked:\s*{rank}\s*\)"
+            rf"blendedPerM:\s*{value}\.blendedPerM,\s*language,\s*ranked:\s*{rank},\s*"
+            # D-143 (M14-W4): and the surface's anchor, or an Elo row prints a different kind of
+            # number from the card above it.
+            rf"anchor:\s*anchor\s*\)"
         )
         assert re.search(call, body), (
             f"`{struct}` no longer renders its score through `figuresLine` with its own score, "
@@ -742,7 +804,11 @@ def test_every_score_on_screen_goes_through_the_figures_line() -> None:
                 "ranges may read the served scores as a column"
             )
             continue
-        assert re.search(r"score:\s*\w+$", before), (
+        # D-143 amendment (review M-1/M-2): the ENGINE'S leader is handed to the two composers that
+        # restate a distance on the /100 scale (`anchoredFact`, `leaderSentence`). They print a
+        # difference, never the leader's score, and live in `Uncertainty.swift` (D-138).
+        leader_argument = re.search(r"leader:\s*(answer\.)?ranking\.first\?$", before)
+        assert re.search(r"score:\s*\w+$", before) or leader_argument, (
             f"ContentView.swift:{line} reads a served score outside a composer's `score:` argument; "
             "a score printed by hand says nothing about what it is out of (D-140)"
         )

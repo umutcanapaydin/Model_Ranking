@@ -146,3 +146,150 @@ final class PickLabelTests: XCTestCase {
         XCTAssertEqual(UIText.pickLabel("best_value", .turkish), "EN İYİ DEĞER")
     }
 }
+
+// MARK: - M14-W4: one score out of 100, per surface (D-143)
+
+final class OutOf100Tests: XCTestCase {
+    /// REQ-SCR-001: an anchored Elo reads out of 100, and a model exactly at the anchor reads 50.
+    func testAnEloRatingAtItsAnchorReadsFiftyOutOfAHundred() {
+        XCTAssertEqual(scoreText(1467.5, metric: "elo", .english, anchor: 1467.5), "Score 50 / 100")
+        XCTAssertEqual(scoreText(1467.5, metric: "elo", .turkish, anchor: 1467.5), "Puan 50 / 100")
+    }
+
+    /// The Elo expectation, checked against numbers worked by hand: 400 points above the anchor is
+    /// ten-to-one, 100/(1 + 10^-1) = 90.9.
+    func testTheConversionIsTheEloExpectationAgainstTheAnchor() {
+        XCTAssertEqual(scoreOutOf100(1800, metric: "elo", anchor: 1400)!, 90.909, accuracy: 0.001)
+        XCTAssertEqual(scoreOutOf100(1000, metric: "elo", anchor: 1400)!, 9.091, accuracy: 0.001)
+    }
+
+    /// REQ-SCR-002: strictly monotonic, so the conversion can never reorder a ranking. Over a whole
+    /// served-looking Elo board, descending in, strictly descending out.
+    func testTheConversionNeverReordersARanking() {
+        let board = stride(from: 1516.3, through: 1361.4, by: -0.7).map { $0 }
+        let converted = board.compactMap { scoreOutOf100($0, metric: "elo", anchor: 1450.6) }
+
+        XCTAssertEqual(converted.count, board.count)
+        for (higher, lower) in zip(converted, converted.dropFirst()) {
+            XCTAssertGreaterThan(higher, lower, "a lower rating read as a higher score")
+        }
+        XCTAssertTrue(converted.allSatisfy { (0...100).contains($0) })
+    }
+
+    /// A percentage is already out of 100: identity, with or without an anchor.
+    func testAPercentageIsUnchangedByTheConversion() {
+        XCTAssertEqual(scoreOutOf100(83.5, metric: "% resolved", anchor: nil), 83.5)
+        XCTAssertEqual(scoreText(83.5, metric: "% resolved", .english, anchor: 1400), "Score 83.5 / 100")
+    }
+
+    /// No anchor, no conversion: an engine older than W4 renders exactly as before.
+    func testWithoutAnAnchorTheNamedScaleStays() {
+        XCTAssertEqual(scoreText(1504.2, metric: "elo", .english, anchor: nil), "Score 1504.2 Elo")
+        XCTAssertNil(scoreOutOf100(1504.2, metric: "elo", anchor: nil))
+        XCTAssertNil(scoreOutOf100(1504.2, metric: "elo", anchor: .nan))
+    }
+
+    /// D-143 leaves ECI undecided, so it stays rank-only even if an anchor were ever sent.
+    func testECIStaysRankOnly() {
+        XCTAssertNil(scoreOutOf100(161.7, metric: "eci", anchor: 150))
+        XCTAssertNil(scoreText(161.7, metric: "ECI", .english, anchor: 150))
+    }
+
+    /// Cards and rows go through `figuresLine`, which must pass the anchor on.
+    func testTheFiguresLineCarriesTheConvertedScore() {
+        let line = figuresLine(
+            score: 1467.5, metric: "elo", blendedPerM: 5.0, .english, ranked: true, anchor: 1467.5
+        )
+        XCTAssertTrue(line.hasPrefix("Score 50 / 100"), line)
+    }
+
+    /// Review m-2 (REQ-SCR-002): monotone for EVERY anchor the engine pins today, over the whole
+    /// span a served Elo board occupies (±400 Elo, at the served 0.1 resolution). Kept in step with
+    /// `PINNED_SCORE_ANCHORS` in `test_uncertainty_contract.py`.
+    func testTheConversionNeverReordersOnAnyPinnedAnchor() {
+        for anchor in [1400.0, 1478.9, 1467.5, 1450.6] {
+            let board = stride(from: anchor + 400, through: anchor - 400, by: -0.1).map { $0 }
+            let converted = board.compactMap { scoreOutOf100($0, metric: "elo", anchor: anchor) }
+            XCTAssertEqual(converted.count, board.count, "anchor \(anchor)")
+            XCTAssertTrue(
+                zip(converted, converted.dropFirst()).allSatisfy { $0 > $1 }, "anchor \(anchor)"
+            )
+        }
+    }
+
+    /// Review S-4: an anchor nowhere near the score is broken data, not a reference. The card keeps
+    /// the engine's own scale rather than reading every model as 0 / 100.
+    func testAnUnreasonableAnchorIsRefused() {
+        XCTAssertNil(scoreOutOf100(1450, metric: "elo", anchor: 1e300))
+        XCTAssertNil(scoreOutOf100(1450, metric: "elo", anchor: -1e6))
+        XCTAssertEqual(scoreText(1504.2, metric: "elo", .english, anchor: 1e300), "Score 1504.2 Elo")
+        XCTAssertNotNil(scoreOutOf100(1450, metric: "elo", anchor: 1450 + 2000))
+    }
+
+    /// And the line under the card says what that 100 means, in both languages, only when anchored.
+    func testTheScaleLineExplainsTheHundredOnlyWhenAnchored() {
+        XCTAssertNotNil(anchoredScaleExplanation(for: "elo", anchored: true, in: .english))
+        XCTAssertNotNil(anchoredScaleExplanation(for: "elo", anchored: true, in: .turkish))
+        XCTAssertNil(anchoredScaleExplanation(for: "elo", anchored: false, in: .english))
+        XCTAssertNil(anchoredScaleExplanation(for: "% correct", anchored: true, in: .english))
+    }
+}
+
+/// Review M-1/M-2: the sentences on an anchored card speak the card's unit, never `Elo`.
+final class OutOf100SentenceTests: XCTestCase {
+    /// The assistant best-value card the seat measured: anchor 1400, a leader reading 65.0 / 100
+    /// (1507.5) and a pick 25.5 Elo behind it reading 61.6. The sentence must say 3.4 points.
+    func testTheTradeOffSaysPointsOutOf100NotElo() {
+        let fact: [String: Any] = ["behind_by": 25.5, "unit": "Elo", "cheaper_by_percent": 90.0]
+        let restated = anchoredFact(fact, leader: 1507.5, metric: "elo", anchor: 1400)
+        let sentence = tradeOffSentence(restated, in: .english)!
+
+        XCTAssertFalse(sentence.contains("Elo"), sentence)
+        XCTAssertTrue(sentence.hasPrefix("3.4 points behind the best one"), sentence)
+        XCTAssertTrue(tradeOffSentence(restated, in: .turkish)!.contains("puan"))
+    }
+
+    /// The floor is a POSITION: at the anchor it is exactly 50.
+    func testTheFloorIsRestatedAsAPosition() {
+        let fact: [String: Any] = ["reason": "cheapest_above_floor", "floor": 1400.0, "unit": "Elo"]
+        let restated = anchoredFact(fact, leader: 1455.4, metric: "elo", anchor: 1400)
+        XCTAssertEqual(restated["floor"] as? Double, 50)
+        XCTAssertEqual(restated["unit"] as? String, "points")
+    }
+
+    /// All or nothing: one number that cannot be converted leaves the whole fact native, so a
+    /// sentence never mixes Elo and points.
+    func testAnUnconvertibleFactStaysWhole() {
+        let fact: [String: Any] = ["behind_by": 25.5, "window": "thirty", "unit": "Elo"]
+        let restated = anchoredFact(fact, leader: 1455.4, metric: "elo", anchor: 1400)
+        XCTAssertEqual(restated["unit"] as? String, "Elo")
+        XCTAssertEqual(restated["behind_by"] as? Double, 25.5)
+    }
+
+    /// Off an anchored Elo surface the fact is untouched.
+    func testOtherScalesAreUntouched() {
+        let fact: [String: Any] = ["behind_by": 4.0, "unit": "% correct"]
+        XCTAssertEqual(
+            anchoredFact(fact, leader: 90, metric: "% correct", anchor: nil)["behind_by"] as? Double, 4
+        )
+        XCTAssertEqual(
+            anchoredFact(fact, leader: 1455.4, metric: "elo", anchor: nil)["unit"] as? String,
+            "% correct"
+        )
+    }
+
+    /// The tie note: the margin in points below the leader, never `Elo` above /100 rows. Which
+    /// models are tied does not change (REQ-SCR-004): only the sentence's unit does.
+    func testTheLeaderNoteSpeaksPointsWhenAnchored() {
+        let ranges = rankRanges([1455.4, 1453.0, 1450.1, 1400.0], margin: 8)
+        let native = leaderSentence(ranges: ranges, margin: 8, metric: "elo", .english)!
+        let anchored = leaderSentence(
+            ranges: ranges, margin: 8, metric: "elo", .english, leader: 1455.4, anchor: 1400
+        )!
+
+        XCTAssertTrue(native.contains("8 Elo"), native)
+        XCTAssertFalse(anchored.contains("Elo"), anchored)
+        XCTAssertTrue(anchored.contains("points"), anchored)
+        XCTAssertEqual(ranges, rankRanges([1455.4, 1453.0, 1450.1, 1400.0], margin: 8))
+    }
+}

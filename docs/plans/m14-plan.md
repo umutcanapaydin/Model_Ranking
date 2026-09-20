@@ -160,8 +160,8 @@ every card, and the last time this project changed what a number MEANS it needed
 - **AMENDED 2026-09-20 at the W3/W4 review (D-146, proposed).** (a) Rank ranges stay on the engine's
   native margin: the conversion is monotonic, so the ties are identical, and a margin converted at
   one point of a curved scale is wrong at every other; the tie SENTENCE is restated in points on the
-  /100 scale instead. (b) `/v1/categories` gains `score_anchor`, which the line above forbids; D-146
-  asks the owner to allow it. (c) The anchor is its own `CategorySpec` field, not `min_quality`.
+  /100 scale instead. (b) `/v1/categories` gains `score_anchor`, which the line above forbids; D-146,
+  accepted by the owner 2026-09-20, allows it. (c) The anchor is its own `CategorySpec` field, not `min_quality`.
   (d) The last two bullets were not delivered in W4: W-098.
 
 ### W5 — Closure (risk: **LOW**)

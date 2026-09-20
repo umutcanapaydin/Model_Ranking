@@ -45,6 +45,9 @@ struct ContentView: View {
     @State private var reloading = false
     /// The `Change` sheet (REQ-ASK-002).
     @State private var choosingSurface = false
+    /// REQ-GAP-001/002 (M14-W3). What people asked that nothing here measures, kept on this device.
+    @State private var gaps = GapRegisterStore.onDevice.load()
+    @State private var showingGaps = false
     /// The reader's language. `@AppStorage` so the choice survives a relaunch — a flag switch that
     /// forgets is a flag switch nobody uses twice.
     @AppStorage("language") private var language: Language = .english
@@ -76,6 +79,13 @@ struct ContentView: View {
                 }
             }
             .toolbar {
+                // REQ-GAP-002: the owner reads the register here, most-asked first.
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showingGaps = true } label: {
+                        Image(systemName: "tray.full")
+                    }
+                    .accessibilityLabel(UIText.gapsTitle(language))
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     // D-136. Two flags, because a flag is the one label that needs no language to
                     // read — which is the whole problem this milestone is about.
@@ -91,6 +101,7 @@ struct ContentView: View {
             .navigationTitle(UIText.title(language))
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $choosingSurface) { surfaceSheet }
+            .sheet(isPresented: $showingGaps) { gapSheet }
             .task { await load() }
         }
     }
@@ -130,15 +141,21 @@ struct ContentView: View {
                             let ranges = rankRanges(
                                 answer.ranking.map(\.score), margin: info?.closeCallMargin
                             )
+                            // D-143: on an anchored Elo surface the card's number is out of 100,
+                            // and the line under it says what that 100 means.
+                            let scale = anchoredScaleExplanation(
+                                for: answer.metric, anchored: info?.scoreAnchor != nil, in: language
+                            ) ?? scaleExplanation(for: answer.metric, in: language)
                             ForEach(answer.picks) { pick in
                                 PickRow(
                                     pick: pick,
                                     ranking: answer.ranking,
-                                    scale: scaleExplanation(for: answer.metric, in: language),
+                                    scale: scale,
                                     language: language,
                                     ranges: ranges,
                                     secondaryBenchmark: info?.secondaryBenchmark,
-                                    secondaryAgeDays: info?.secondaryAgeDays
+                                    secondaryAgeDays: info?.secondaryAgeDays,
+                                    anchor: info?.scoreAnchor
                                 )
                             }
                             rankingPreview(
@@ -146,7 +163,9 @@ struct ContentView: View {
                                 ranges: ranges,
                                 leaderNote: leaderSentence(
                                     ranges: ranges, margin: info?.closeCallMargin,
-                                    metric: answer.metric, language
+                                    metric: answer.metric, language,
+                                    leader: answer.ranking.first?.score,
+                                    anchor: info?.scoreAnchor
                                 )
                             )
                         }
@@ -317,6 +336,39 @@ struct ContentView: View {
         .presentationDetents([.medium, .large])
     }
 
+    /// REQ-GAP-002. The register, most-asked first, with how many times each was asked.
+    private var gapSheet: some View {
+        NavigationStack {
+            List {
+                if gaps.entries.isEmpty {
+                    Text(UIText.noGaps(language)).foregroundStyle(.secondary)
+                } else {
+                    ForEach(gaps.ordered) { entry in
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(entry.question)
+                            Spacer(minLength: 8)
+                            Text("\(entry.count)")
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle(UIText.gapsTitle(language))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(UIText.clearGaps(language)) {
+                        gaps.clear()
+                        GapRegisterStore.onDevice.save(gaps)
+                    }
+                    .disabled(gaps.entries.isEmpty)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
     /// A surface's title in the reader's language, from the engine's own list.
     private func surfaceTitle(_ id: String) -> String {
         let title = categories.first { $0.id == id }?.title ?? id
@@ -348,7 +400,8 @@ struct ContentView: View {
                             row: row,
                             rank: rankOf(row.model, in: answer.ranking, name: \.model)
                                 .flatMap { shortRankLabel(at: $0 - 1, in: ranges) },
-                            language: language
+                            language: language,
+                            anchor: category(for: answer)?.scoreAnchor
                         )
                             .padding(.horizontal, 12)
                             .padding(.vertical, 10)
@@ -363,7 +416,8 @@ struct ContentView: View {
                         // question field.
                         RankingList(
                             answer: answer, filter: "", language: language,
-                            ranges: ranges, leaderNote: leaderNote
+                            ranges: ranges, leaderNote: leaderNote,
+                            anchor: category(for: answer)?.scoreAnchor
                         )
                     } label: {
                 // The full ranking is NOT budget-filtered — D-125 publishes every ranked model
@@ -500,6 +554,12 @@ struct ContentView: View {
         }
         asked = typed
         routing = outcome
+        // REQ-GAP-001. A question nothing here measures is recorded on THIS device and nowhere
+        // else. It goes to the register, never to `client` (REQ-RTR-004).
+        if recordsGap(outcome) {
+            gaps.record(typed)
+            GapRegisterStore.onDevice.save(gaps)
+        }
     }
 
     /// The reader corrected the surface: from the sheet, or from an alternative under the echo.
@@ -634,9 +694,11 @@ struct PickRow: View {
     /// REQ-UNC-002. The surface's second board and its age, from `/v1/categories` (D-138).
     var secondaryBenchmark: String?
     var secondaryAgeDays: Int?
+    /// D-143: the surface's pinned anchor, so an Elo score reads out of 100. `nil` keeps the scale.
+    var anchor: Double?
 
     private var whyText: String {
-        whySentence(pick.whyFactDictionary, in: language) ?? pick.why
+        whySentence(cardFact(pick.whyFactDictionary), in: language) ?? pick.why
     }
 
     /// REQ-UNC-002: a count a reader can check, and never the word "confidence".
@@ -654,7 +716,13 @@ struct PickRow: View {
 
     private var tradeOffText: String? {
         guard let prose = pick.tradeOff else { return nil }
-        return tradeOffSentence(pick.tradeOffFactDictionary, in: language) ?? prose
+        return tradeOffSentence(cardFact(pick.tradeOffFactDictionary), in: language) ?? prose
+    }
+
+    /// D-143 (review M-1): the sentences speak the card's unit. On an anchored Elo surface that is
+    /// points out of 100, measured from the engine's own leader; elsewhere the fact is unchanged.
+    private func cardFact(_ fact: [String: Any]) -> [String: Any] {
+        anchoredFact(fact, leader: ranking.first?.score, metric: pick.metric, anchor: anchor)
     }
 
     /// REQ-UNC-001: `#1–27 of 50` where the engine's margin cannot narrow the position, and a single
@@ -689,7 +757,7 @@ struct PickRow: View {
                 // where there is no rank to show, the engine's own number stays (MINOR-8).
                 Text(figuresLine(
                     score: pick.score, metric: pick.metric, blendedPerM: pick.blendedPerM, language,
-                    ranked: rankText != nil
+                    ranked: rankText != nil, anchor: anchor
                 ))
                     .font(.subheadline.weight(.medium))
                     .monospacedDigit()
@@ -721,6 +789,8 @@ struct RankedRow: View {
     /// Passed in, never read from storage here — see `RankingList`: two views on one screen
     /// disagreeing about the reader's language would be worse than one that is untranslated.
     var language: Language = .english
+    /// D-143: every row reads out of 100 on an anchored surface, like the cards above it.
+    var anchor: Double?
 
     var body: some View {
         HStack {
@@ -737,7 +807,7 @@ struct RankedRow: View {
             Spacer()
             Text(figuresLine(
                 score: row.score, metric: row.metric, blendedPerM: row.blendedPerM, language,
-                ranked: rank != nil
+                ranked: rank != nil, anchor: anchor
             ))
                 .font(.caption)
                 .monospacedDigit()
@@ -759,13 +829,16 @@ struct RankingList: View {
     /// How many models the benchmark cannot separate from the leader. Said here, where the ranges
     /// appear in bulk, and not on the home screen, where the engine's `close_call` already says it.
     var leaderNote: String?
+    /// D-143: passed from the home screen so both screens print the same score.
+    var anchor: Double?
 
     var body: some View {
         ScrollViewReader { proxy in
             List {
                 Section {
                     ForEach(rows) { row in
-                        RankedRow(row: row, rank: rank(of: row), language: language).id(row.id)
+                        RankedRow(row: row, rank: rank(of: row), language: language, anchor: anchor)
+                            .id(row.id)
                     }
                 } header: {
                     if let leaderNote {

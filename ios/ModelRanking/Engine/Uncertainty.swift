@@ -112,12 +112,24 @@ public func shortRankLabel(at index: Int, in ranges: [RankRange]) -> String? {
 /// rounding step `rankRanges` concedes. And it says "cannot separate" rather than "margin of error":
 /// on boards that publish no standard error the margin is the median gap between neighbours, which
 /// is a resolution, not an error bar.
+///
+/// D-143 amendment (review M-2): on a surface whose rows read out of 100, the margin is restated
+/// as the distance it covers BELOW THE LEADER on that scale, in points. Which models are tied is
+/// still decided on the engine's native scale by `rankRanges` (REQ-SCR-004); only the sentence
+/// changes unit, so a reader never meets `8 Elo` above rows that say `65.0 / 100`.
 public func leaderSentence(
-    ranges: [RankRange], margin: Double?, metric: String, _ language: Language
+    ranges: [RankRange], margin: Double?, metric: String, _ language: Language,
+    leader: Double? = nil, anchor: Double? = nil
 ) -> String? {
     let tied = ranges.filter { $0.best == 1 }.count
-    guard tied > 1, let margin, let amount = number(margin) else { return nil }
-    let unit = marginUnit(for: metric, singular: amount == "1", language)
+    guard tied > 1, let margin else { return nil }
+    let converted = leader.flatMap {
+        distanceOutOf100(below: $0, by: margin, metric: metric, anchor: anchor)
+    }
+    guard let amount = number(converted ?? margin) else { return nil }
+    let unit = converted != nil
+        ? marginUnit(for: "% correct", singular: amount == "1", language)
+        : marginUnit(for: metric, singular: amount == "1", language)
     switch language {
     case .english:
         return "The top \(tied) of \(ranges.count) are too close to the leader for this benchmark "
@@ -142,6 +154,46 @@ func marginUnit(for metric: String, singular: Bool, _ language: Language) -> Str
     case "elo": return "Elo"
     case "eci": return "ECI"
     default: return localisedUnit(metric, in: language)
+    }
+}
+
+// MARK: - One score out of 100, per surface (D-143, M14-W4)
+
+/// A served score on a 0–100 scale, or `nil` where no honest conversion exists. REQ-SCR-001..004.
+///
+/// **In this file because it is arithmetic on a served score**, and D-138 names this file as the one
+/// place allowed to do that; `test_ios_client_contract.py` enforces it. D-143 extends the permission
+/// to this function by name.
+///
+/// - A share of a fixed whole (`% correct`, `% resolved`) is already out of 100: identity.
+/// - An Elo rating is converted by the Elo expectation against the surface's PINNED anchor,
+///   `100 / (1 + 10^((anchor - score) / 400))`: how often people would prefer this model over one
+///   rated exactly at the anchor. The engine publishes the anchor (`score_anchor`, the surface's own
+///   quality floor), so 50 means "at the bar this product recommends from". Never the board's
+///   maximum: that would move a model's number whenever a different model joined (REQ-SCR-003).
+/// - ECI has no readable anchor and stays rank-only (D-143 leaves it undecided on purpose).
+///
+/// **Strictly monotonic in `score` for a fixed anchor, so it can never reorder a ranking**
+/// (REQ-SCR-002). And the rank RANGES are still computed on the engine's native scale by
+/// `rankRanges` from the engine's own margin, so ties are exactly what they were before this
+/// conversion existed (REQ-SCR-004): the conversion is display, and only display.
+/// How far an anchor may sit from a score and still be read as a reference point. 2000 Elo is a
+/// 99.999% preference: beyond it the conversion only says 0 or 100, which is no information.
+let anchorReach = 2000.0
+
+public func scoreOutOf100(_ score: Double, metric: String, anchor: Double?) -> Double? {
+    guard score.isFinite else { return nil }
+    switch scoreForm(for: metric) {
+    case .bounded:
+        return (0...100).contains(score) ? score : nil
+    case .namedScale:
+        // Review S-4: an anchor more than `anchorReach` away from the score is not a reference
+        // point, it is a broken one — `1e300` would read every model as 0 / 100, a confident
+        // wrong number. `nil` keeps the engine's own scale, which is honest.
+        guard let anchor, anchor.isFinite, abs(anchor - score) <= anchorReach else { return nil }
+        return 100 / (1 + pow(10, (anchor - score) / 400))
+    case .rankOnly, .unknown:
+        return nil
     }
 }
 
@@ -276,4 +328,54 @@ func isoDate(_ value: String?) -> String? {
           days.contains(date)
     else { return nil }
     return day
+}
+
+/// A distance on an Elo board, restated as the distance it covers on the /100 scale just below the
+/// leader: `s100(leader) − s100(leader − distance)`. `nil` wherever `scoreOutOf100` is `nil` (no
+/// anchor, a bounded or rank-only scale, an unreasonable anchor), so the caller keeps the native
+/// unit rather than inventing one. Review M-1/M-2.
+///
+/// Measured from the LEADER because every distance the engine states is a distance from the leader
+/// (`behind_by`, the value window, the tie margin). Rounded to the served resolution, like every
+/// other number on the card.
+public func distanceOutOf100(
+    below leader: Double, by distance: Double, metric: String, anchor: Double?
+) -> Double? {
+    guard case .namedScale = scoreForm(for: metric), distance.isFinite, distance >= 0,
+          let top = scoreOutOf100(leader, metric: metric, anchor: anchor),
+          let bottom = scoreOutOf100(leader - distance, metric: metric, anchor: anchor)
+    else { return nil }
+    return ((top - bottom) * 10).rounded() / 10
+}
+
+/// A pick's fact, restated on the /100 scale so its sentence speaks the card's unit (review M-1).
+///
+/// `behind_by` and `window` are distances from the leader; `floor` is a position. The unit becomes
+/// `points`. **All or nothing:** if any number the fact carries cannot be converted, the fact comes
+/// back untouched in its native unit — a sentence mixing `Elo` and `points` would be worse than
+/// either. On a scale that is not an anchored Elo, the fact is returned as it came.
+public func anchoredFact(
+    _ fact: [String: Any], leader: Double?, metric: String, anchor: Double?
+) -> [String: Any] {
+    guard case .namedScale = scoreForm(for: metric), let leader, let anchor,
+          scoreOutOf100(leader, metric: metric, anchor: anchor) != nil
+    else { return fact }
+    var restated = fact
+    for key in ["behind_by", "window"] {
+        guard let value = fact[key] else { continue }
+        guard let distance = value as? Double,
+              let converted = distanceOutOf100(
+                  below: leader, by: distance, metric: metric, anchor: anchor
+              )
+        else { return fact }
+        restated[key] = converted
+    }
+    if let value = fact["floor"] {
+        guard let floor = value as? Double,
+              let converted = scoreOutOf100(floor, metric: metric, anchor: anchor)
+        else { return fact }
+        restated["floor"] = (converted * 10).rounded() / 10
+    }
+    restated["unit"] = "points"
+    return restated
 }

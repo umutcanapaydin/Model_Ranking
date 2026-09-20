@@ -1763,7 +1763,7 @@ row. None reached `docs/warnings.ledger.md`, so C2b could not count them. The St
 found the cost: W1's `/health` memo reported an artifact the process could not read as `servable`
 (M13 security review MAJOR-1). This is the control's seventh acceptance.
 
-**Decision (proposed).**
+**Decision.**
 - A wave tagged HIGH gets its pulled-forward security pass, whatever surface its author believes it
   touches. The tag is the plan's decision, and the author is the one person who cannot judge what
   the wave's own slice exposes.
@@ -2000,10 +2000,11 @@ in W-094 rather than hidden.
 
 ## D-146 — The out-of-100 anchor is its own pinned field, and `/v1/categories` publishes it
 
-**Status:** **proposed — awaiting the owner.** · **Date:** 2026-09-20 · **Proposed by:** the lead
+**Status:** **accepted by the owner 2026-09-20** (in session: "1. evet" to the field, "2. A" to
+keeping the anchors and their cost as written) · **Date:** 2026-09-20 · **Proposed by:** the lead
 agent, because the M14-W3/W4 review (`docs/reviews/m14-wave-3-4-review.md` B-1) found that W4 widened
 `/v1` against the owner's ruling "No K.8 change in M14" (`docs/plans/m14-plan.md` §0 ruling 2).
-**Amends D-143 and that ruling, for `/v1/categories` only.** Ratifying, amending or refusing it is his.
+**Amends D-143 and that ruling, for `/v1/categories` only.**
 
 **Context.** D-143 says an Elo score is converted against a reference "pinned in `CategorySpec`". The
 phone computes the conversion (D-138: `Uncertainty.swift`), so the phone needs that reference. W4 sent
@@ -2036,6 +2037,8 @@ that the record is missing.
 board's LAST ranked model would put the `document` leader at 65.7: these boards are narrow (113 Elo
 from first to last on `document`), and no pinned Elo anchor spreads them like a percentage. A reader
 who compares two surfaces will misread them. D-143 already names that cost; this ADR records its size.
+**The owner chose to accept it (option A)** over relabelling Elo cards as a preference rate (option
+B): the line under each card already says what 50 means.
 
 **Revisit when:** the owner asks for Elo surfaces to look different from percentage surfaces, or a
 recalibration makes a pinned anchor sit outside its board.

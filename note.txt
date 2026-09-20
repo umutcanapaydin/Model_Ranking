@@ -1,6 +1,6 @@
 Project: model_ranking
 State: **2026-09-20 — M14 W1–W4 DONE (uncommitted). M13 signed by the owner in session; the
-commit script makes the commits. W4 waits on D-146.**
+commit script makes the commits. D-146 accepted (field yes, option A).**
 
   WHAT IS NEW SINCE M13
   - Two new surfaces on the live artifact: `document` (Working with documents, 29 models) and
@@ -18,8 +18,8 @@ commit script makes the commits. W4 waits on D-146.**
     (per-source carry-forward, ~30-day limit -> M15), D-145 (floors follow shipped rule).
 
   STILL OPEN FOR THE OWNER
-  - D-146 (proposed): allow `score_anchor` on /v1/categories (breaks his "no K.8 change in M14"),
-    and accept the cost that Elo leaders read 57–79 while percentage leaders read 73–100.
+  - D-146 ACCEPTED 2026-09-20: `score_anchor` on /v1/categories allowed; Elo leaders reading 57–79
+    beside percentage leaders 73–100 accepted as is (option A).
   - Run the runner (Swift compiles only on the Mac), then commit_m13_m14.sh.
   - D-141 still proposed. W-098: detail-screen price and metric name not built -> M15 scope.
   - M15 carry-overs: D-144 carry-forward, search_factuality, image pricing, W-094, app/harness split.

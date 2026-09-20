@@ -265,3 +265,44 @@ def test_the_recommendations_route_did_not_gain_a_field(seeded: Path) -> None:
     assert served["answers"]
     for answer in served["answers"]:
         assert set(answer) == ANSWER_KEYS, set(answer) ^ ANSWER_KEYS
+
+
+
+def test_every_elo_surface_publishes_its_pinned_score_anchor(seeded: Path) -> None:
+    """REQ-SCR-003 (M14-W4, D-143): an Elo score is converted against a PINNED anchor.
+
+    The anchor is a pinned constant per surface -- data only an owner ruling moves. Never the
+    current board's maximum, which would move a model's score whenever a different model joined,
+    and (review M-3) not `min_quality` either, which every recalibration re-measures. A scale that
+    is already out of 100 publishes no anchor (identity), and ECI publishes none because D-143
+    leaves it rank-only.
+    """
+    served = _served_categories()
+    for surface, spec in CATEGORIES.items():
+        anchor = served[surface]["score_anchor"]
+        if spec.metric == "elo":
+            assert anchor == PINNED_SCORE_ANCHORS[surface], surface
+        else:
+            assert anchor is None, surface
+    assert {s for s, spec in CATEGORIES.items() if spec.metric == "elo"} == set(PINNED_SCORE_ANCHORS)
+
+
+#: The anchors as the owner ruled them (D-143). A recalibration that edits `min_quality` leaves this
+#: table alone; moving a card's number out of 100 means editing THIS table, in a reviewed change.
+PINNED_SCORE_ANCHORS = {
+    "assistant": 1400.0,
+    "web-dev": 1478.9,
+    "document": 1467.5,
+    "factuality": 1450.6,
+}
+
+
+def test_a_recalibration_cannot_move_the_anchor() -> None:
+    """Review M-3: the anchor is its own field, so moving the floor leaves every /100 number alone."""
+    from dataclasses import replace
+
+    for surface, spec in CATEGORIES.items():
+        if spec.metric != "elo":
+            continue
+        moved = replace(spec, min_quality=spec.min_quality + 50)
+        assert moved.score_anchor == spec.score_anchor, surface

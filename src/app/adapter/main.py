@@ -1237,6 +1237,13 @@ def categories() -> dict[str, Any]:
                 # 5.0 on `expert` is points, 8.0 on `assistant` is Elo. Never comparable across
                 # surfaces, which is D-105 and why it is not normalised here.
                 "close_call_margin": spec.close_call,
+                # D-143 / REQ-SCR-003 (M14-W4). The PINNED reference an Elo score is converted
+                # against to read out of 100: the surface's own quality floor, so 50 means "exactly at
+                # the bar this product recommends from". Data, not a board maximum: it moves only
+                # when an owner ruling moves the floor, never because another model joined the board.
+                # `null` on a scale that is already out of 100 (identity) or that has no readable
+                # anchor at all (ECI, which D-143 leaves rank-only).
+                "score_anchor": spec.score_anchor,
                 # REQ-UNC-002. The age is the engine's own (`recommend.secondary_age_days`) against
                 # the artifact's anchor; `null` when the board is undated or unreadable.
                 "secondary_benchmark": spec.secondary_benchmark,

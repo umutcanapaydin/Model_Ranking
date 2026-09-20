@@ -40,7 +40,9 @@ public func scoreForm(for metric: String) -> ScoreForm {
 /// `nil` also for a number the form cannot hold: a "percentage" above 100 has no honest rendering
 /// against a ceiling of 100, and a number that does not fit the scale did not come from a working
 /// engine. The rank beside it still says where the model sits.
-public func scoreText(_ score: Double, metric: String, _ language: Language) -> String? {
+public func scoreText(
+    _ score: Double, metric: String, _ language: Language, anchor: Double? = nil
+) -> String? {
     guard let value = number(score) else { return nil }
     let word = language == .turkish ? "Puan" : "Score"
     switch scoreForm(for: metric) {
@@ -48,6 +50,13 @@ public func scoreText(_ score: Double, metric: String, _ language: Language) -> 
         guard score <= 100 else { return nil }
         return "\(word) \(value) / 100"
     case let .namedScale(name):
+        // D-143 (M14-W4): one scale for the reader, out of 100, when the engine publishes the
+        // surface's anchor. An engine older than W4 sends none, and the named scale stays.
+        if let converted = scoreOutOf100(score, metric: metric, anchor: anchor),
+           let shown = number(converted)
+        {
+            return "\(word) \(shown) / 100"
+        }
         return "\(word) \(value) \(name)"
     case .rankOnly:
         return nil
@@ -82,9 +91,10 @@ public func priceTag(_ blendedPerM: Double) -> String {
 /// nowhere at all (M13-W4 review MINOR-8). Without a rank, a rank-only metric keeps the engine's own
 /// number and label, the form it had before D-140.
 public func figuresLine(
-    score: Double, metric: String, blendedPerM: Double, _ language: Language, ranked: Bool
+    score: Double, metric: String, blendedPerM: Double, _ language: Language, ranked: Bool,
+    anchor: Double? = nil
 ) -> String {
-    var shown = scoreText(score, metric: metric, language)
+    var shown = scoreText(score, metric: metric, language, anchor: anchor)
     if shown == nil, !ranked, scoreForm(for: metric) == .rankOnly, let value = number(score) {
         shown = "\(value) \(localisedUnit(metric, in: language))"
     }

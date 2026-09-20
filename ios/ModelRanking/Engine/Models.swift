@@ -53,6 +53,9 @@ struct Category: Decodable, Identifiable, Equatable {
     /// artifact's own anchor. A `nil` age: the board publishes no dates, or the artifact is unread.
     let secondaryBenchmark: String?
     let secondaryAgeDays: Int?
+    /// D-143 (M14-W4). The pinned reference an Elo score is read out of 100 against. `nil` from an
+    /// engine older than W4, and for a scale that is already out of 100 or has no anchor (ECI).
+    let scoreAnchor: Double?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -63,6 +66,7 @@ struct Category: Decodable, Identifiable, Equatable {
         case closeCallMargin = "close_call_margin"
         case secondaryBenchmark = "secondary_benchmark"
         case secondaryAgeDays = "secondary_age_days"
+        case scoreAnchor = "score_anchor"
     }
 }
 
