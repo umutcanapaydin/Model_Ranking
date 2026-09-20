@@ -306,3 +306,238 @@ def test_live_names_resolve_to_the_right_model() -> None:
         if got != expected:
             wrong.append(f"{name!r} -> {got} (want {expected})")
     assert not wrong, "live-name mapping regressions:\n  " + "\n  ".join(wrong)
+
+
+# ── REQ-CAN-002 on the MODALITY axis (M14-W1) ──────────────────────────────────
+#
+# Every alias below was reconciled to the text model beside it in `advisor.db` built
+# 2026-08-27, and three of those models published an inflated price because of it.
+# The pairs are live data, not invented fixtures.
+MODALITY_CONTAMINATION = (
+    ("openai/gpt-5-image", "gpt-5"),
+    ("openai/gpt-5-image-mini", "gpt-5"),
+    ("openai/gpt-5.4-image-2", "gpt-5.4"),
+    ("google/gemini-2.5-flash-image", "gemini-2.5-flash"),
+    ("gpt-4o-audio-preview", "gpt-4o"),
+    ("gpt-4o-audio-preview-2024-12-17", "gpt-4o"),
+    ("azure/gpt-4o-audio-preview-2024-12-17", "gpt-4o"),
+    ("gemini-2.5-flash-native-audio-latest", "gemini-2.5-flash"),
+    ("gemini-2.5-pro-preview-tts", "gemini-2.5-pro"),
+    ("gpt-4o-search-preview", "gpt-4o"),
+    ("deepseek/deepseek-v4-flash-vision-exp", "deepseek-v4-flash"),
+)
+
+
+def test_a_modality_variant_is_not_its_text_family() -> None:
+    """REQ-CAN-002: an image, audio, tts, search or vision SKU is a different product.
+
+    Each of these matched a text family rule and set that model's price. They are dropped now,
+    and a drop is counted rather than guessed (REQ-CAN-001).
+    """
+    from app.workflows.registry import canonicalize
+
+    leaked = []
+    for alias, family in MODALITY_CONTAMINATION:
+        rule = canonicalize(alias)
+        if rule is not None:
+            leaked.append(f"{alias!r} -> {rule.canonical_id} (was leaking into {family})")
+    assert not leaked, "modality variants still reconcile to a text family:\n  " + "\n  ".join(
+        leaked
+    )
+
+
+def test_the_guard_names_the_token_it_refused_on() -> None:
+    """A drop with no reason cannot be counted by reason. REQ-CAN-001's counting half."""
+    from app.workflows.registry import MODEL_RULES, modality_mismatch
+
+    gpt5 = next(r for r in MODEL_RULES if r.canonical_id == "gpt-5")
+    assert modality_mismatch("openai/gpt-5-image", gpt5) == "image"
+    assert modality_mismatch("gpt-4o-audio-preview", gpt5) == "audio"
+    assert modality_mismatch("openai/gpt-5", gpt5) is None
+
+
+def test_the_text_model_itself_still_reconciles() -> None:
+    """The guard must not be a blanket drop: the families above keep their own aliases."""
+    from app.workflows.registry import canonicalize
+
+    for alias, expected in (
+        ("openai/gpt-5", "gpt-5"),
+        ("gpt-5", "gpt-5"),
+        ("openai/gpt-5.4", "gpt-5.4"),
+        ("google/gemini-2.5-flash", "gemini-2.5-flash"),
+        ("gemini-2.5-pro", "gemini-2.5-pro"),
+        ("gpt-4o", "gpt-4o"),
+        ("deepseek/deepseek-v4-flash", "deepseek-v4-flash"),
+    ):
+        rule = canonicalize(alias)
+        assert rule is not None and rule.canonical_id == expected, alias
+
+
+def test_a_modality_model_reconciles_to_its_own_rule_whatever_it_is_called() -> None:
+    """**The test the first version of this guard got wrong, and the seat caught.**
+
+    The cheap guard asks whether the canonical id CONTAINS the token. That works for
+    `gpt-image-1` — and the first fixture here was `gpt-image-1`, so it pinned the one naming
+    convention under which the bug cannot be seen. The image-editing board this milestone is
+    adding leads with `nano-banana-pro`, `seedream-4` and `flux-1-kontext`: ids with no modality
+    token anywhere, whose live pricing aliases all carry one. Under the id-substring guard a
+    correctly-ordered rule for them dropped its own aliases as a mismatch against itself.
+
+    Modality is therefore a DECLARED field on the rule. This test uses a model named after a
+    banana on purpose.
+    """
+    from app.workflows.registry import ModelRule, modality_mismatch
+
+    nano = ModelRule(
+        "nano-banana-pro",
+        "Nano Banana Pro",
+        "Google",
+        r"nano[-_ ]?banana[-_ ]?pro|gemini[-_ ]?3[-_ ]?pro[-_ ]?image",
+        modality="image",
+    )
+    for alias in (
+        "nano-banana-pro",
+        "gemini-3-pro-image",
+        "google/gemini-3-pro-image-preview",
+        "gemini-3-pro-image-preview-11-2025",
+    ):
+        assert modality_mismatch(alias, nano) is None, alias
+    # a DIFFERENT modality is still refused against an image model
+    assert modality_mismatch("gemini-3-pro-image-audio", nano) == "audio"
+
+    # and the mirror: a text rule declares text, so any modality token is a mismatch
+    text_rule = ModelRule("gpt-5", "GPT-5", "OpenAI", r"gpt[-_ ]?5", modality="text")
+    assert modality_mismatch("openai/gpt-5-image", text_rule) == "image"
+
+
+def test_every_shipped_rule_declares_text_until_a_surface_says_otherwise() -> None:
+    """A rule that forgets to declare its modality must not silently behave like a text model."""
+    from app.workflows.registry import MODEL_RULES
+
+    assert {r.modality for r in MODEL_RULES} == {"text"}
+
+
+def test_a_modality_token_is_a_whole_segment_and_not_a_substring() -> None:
+    """**This test pins a CHOICE, because its effect is not visible in today's data.**
+
+    Dropping the segment boundary from the modality pattern — matching `tts` anywhere in the
+    string rather than as its own token — leaves every other test in this file green. It was
+    measured: 3,824 live alias and score names, and exactly two are classified differently.
+
+    Both are agentic-coding score rows where **`TTS` means Test-Time Scaling**, not text to
+    speech: `DeepSWE-Preview + TTS(Bo16)` and `Skywork-SWE-32B + TTS(Bo8)`. Today they are
+    dropped either way, because `TTS(Bo16)` is not a model this registry knows — so the boundary
+    changes nothing that ships, and saying otherwise would overstate it.
+
+    What it protects is the next name of that shape. A row reading `deepseek-v4-pro + TTS(Bo16)`
+    resolves to a model this registry DOES know, and a substring match would drop a real
+    agentic-coding score as an audio product. The registry would be refusing evidence for a
+    reason that is not true of it.
+
+    So the assertion is on the pattern's semantics rather than on an outcome it changes today.
+    """
+    from app.workflows.registry import MODEL_RULES, modality_mismatch
+
+    deepseek = next(r for r in MODEL_RULES if r.canonical_id == "deepseek-v4-pro")
+
+    # `TTS` inside `TTS(Bo16)` is not a modality segment: `(` does not end a token.
+    assert modality_mismatch("deepseek-v4-pro + TTS(Bo16)", deepseek) is None
+    assert modality_mismatch("DeepSWE-Preview + TTS(Bo16)", deepseek) is None
+    # and the real audio suffix still is one
+    assert modality_mismatch("deepseek-v4-pro-tts", deepseek) == "tts"
+    assert modality_mismatch("deepseek-v4-pro-tts-preview", deepseek) == "tts"
+
+
+def test_a_modality_refusal_is_counted_apart_from_registry_drift() -> None:
+    """MAJOR-2 from the M14-W1 seat: the reason was computed and thrown away.
+
+    A drop that means "we have no rule for this model" is registry drift and belongs in the
+    triage queue read at closure. A drop that means "the guard refused a different product" is
+    the guard working. Nineteen of the second kind sitting anonymously among 2,393 of the first
+    makes the queue lie about its own size.
+
+    This test drives `reconcile()` — the real entry point — and not `canonicalize` directly,
+    which is the gap the seat named under V4C-50.
+    """
+    from app.workflows.registry import reconcile
+    from app.workflows.schema import connect
+
+    conn = connect(":memory:")
+    with conn:
+        for alias in (
+            "openai/gpt-5",  # matches, kept
+            "openai/gpt-5-image",  # matched then refused: modality
+            "gpt-4o-audio-preview",  # matched then refused: modality
+            "a-model-nobody-has-a-rule-for",  # genuine drift
+        ):
+            conn.execute(
+                "INSERT INTO pricing (alias, input_per_m, output_per_m, context, source,"
+                " source_url, observed_at) VALUES (?,1.0,2.0,1000,'litellm','http://x','2026-09-18')",
+                (alias,),
+            )
+
+    report = reconcile(conn)
+
+    assert report.pricing_matched == 1
+    assert report.pricing_dropped == 3
+    # the two refusals are attributed, with the token that refused each
+    assert dict(report.modality_drops) == {
+        "openai/gpt-5-image": "image",
+        "gpt-4o-audio-preview": "audio",
+    }
+    # and the drift number excludes them: exactly one name here is a missing rule
+    assert report.drift_dropped == 1
+    # they remain in the full drop list, because they ARE drops
+    assert "openai/gpt-5-image" in report.dropped_names
+
+
+def test_a_refused_alias_does_not_fall_through_to_a_later_rule() -> None:
+    """MAJOR-4: `return None` versus `continue` was an unpinned choice no test could tell apart.
+
+    Both designs are identical on today's table and diverge the moment a modality rule sits
+    AFTER a text rule that also matches the alias. The wave chose to refuse the whole lookup:
+    first-match-wins means the first match decides, and a refused match does not get to hand the
+    name to a looser rule further down. A mutant using `continue` survives every other test in
+    this file and dies here.
+    """
+    from app.workflows import registry
+
+    text_rule = registry.ModelRule("m-text", "M", "V", r"m[-_ ]?1", modality="text")
+    image_rule = registry.ModelRule(
+        "m-image", "M Image", "V", r"m[-_ ]?1[-_ ]?image", modality="image"
+    )
+    original = registry._COMPILED
+    try:
+        registry._COMPILED = tuple(
+            (r, __import__("re").compile(r.pattern, __import__("re").IGNORECASE))
+            for r in (text_rule, image_rule)  # deliberately the WRONG order
+        )
+        # the text rule matches first, carries the wrong modality, and the lookup stops there
+        assert registry.canonicalize("m-1-image") is None
+        assert registry.canonicalize_with_reason("m-1-image") == (None, "image")
+    finally:
+        registry._COMPILED = original
+
+
+def test_a_refused_modality_alias_is_not_reported_as_an_undeterminable_effort() -> None:
+    """MINOR-4: the guard must not leak into REQ-CAN-005's counter.
+
+    `resolve_effort` compares the full name against its base to decide whether a terminal token
+    is an effort suffix. When the guard refuses the full name, the comparison has no rule to
+    make and the row was flagged `unclassified_suffix` — which REQ-CAN-005 defines as "the base
+    name has no registry rule", a different and untrue statement about these rows.
+
+    No live row has this shape today (all 1,166 score identities were measured unchanged), so
+    this pins the meaning rather than a behaviour that ships.
+    """
+    from app.workflows.registry import resolve_effort
+
+    refused = resolve_effort("gpt-5-image-low")
+    assert refused.effort is None
+    assert not refused.unclassified_suffix, (
+        "a modality refusal is a known model producing a different thing, "
+        "not an undeterminable effort suffix"
+    )
+    # the ordinary case is untouched
+    ordinary = resolve_effort("gpt-5-low")
+    assert ordinary.effort == "low" and not ordinary.unclassified_suffix

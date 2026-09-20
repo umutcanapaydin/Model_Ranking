@@ -27,6 +27,21 @@ class ModelRule:
     display: str
     vendor: str
     pattern: str
+    #: What this model PRODUCES, declared by whoever writes the rule. Every rule in the table
+    #: below is `"text"`; an image-editing or audio model states its own. `modality_mismatch`
+    #: compares an alias's modality token against THIS field.
+    #:
+    #: **It is a declared field and not a substring of `canonical_id` on purpose, and the
+    #: independent seat is why.** The first version of the guard asked whether the canonical id
+    #: contained the token, which works for `gpt-image-1` and silently fails for every image
+    #: model named after something else: `nano-banana-pro`, `seedream-4`, `flux-1-kontext`. Under
+    #: that version a correctly-ordered `nano-banana-pro` rule dropped its own live pricing
+    #: aliases — `gemini-3-pro-image`, `google/gemini-3-pro-image-preview` — as a modality
+    #: mismatch against itself, and the test that claimed to prove the guard was future-proof
+    #: used `gpt-image-1` as its fixture, so it pinned the one naming convention under which the
+    #: bug is invisible. That is the fixture-blindness shape this repository has recorded three
+    #: times. The rule now states what it is instead of being guessed at by its name.
+    modality: str = "text"
 
 
 # fmt: off
@@ -139,12 +154,104 @@ _COMPILED: tuple[tuple[ModelRule, re.Pattern[str]], ...] = tuple(
 )
 
 
-def canonicalize(name: str) -> ModelRule | None:
-    """First-match-wins lookup; None = unmatched (caller counts drops)."""
+#: **REQ-CAN-002's defect class, on the axis nobody enumerated.** The module docstring already
+#: states the rule: a variant's price or score may never leak into its parent family, and the rule
+#: table orders sub-variants first so `gpt-5-nano` cannot be read as `gpt-5`. That ordering defends
+#: the SIZE axis. It does nothing on the MODALITY axis, because there is no `gpt-5-image` rule for
+#: `openai/gpt-5-image` to match first — so it fell through to the `gpt-5` family rule and an image
+#: model's price became the text model's price.
+#:
+#: **Measured on `advisor.db` built 2026-08-27, and the figures below are the INDEPENDENT SEAT's,
+#: not the author's.** The author's first write-up of this block undercounted three of them, in a
+#: file its own docstring calls the project's core IP; the numbers here are the ones that survived
+#: re-measurement, and the correction is recorded in `docs/warnings.ledger.md` rather than quietly
+#: overwritten.
+#:
+#: Of 2,661 distinct pricing aliases, **19 carrying five modality tokens were reconciled to six
+#: text models** (`gpt-4o`, `gpt-5`, `gpt-5.4`, `gemini-2.5-flash`, `gemini-2.5-pro`,
+#: `deepseek-v4-flash`). **Four of those models published an inflated price:**
+#: `gpt-5` input `1.562` where the text-only rows give `1.094` (**+43%**), `gpt-5.4` `2.5/15.0`
+#: against `2.188/13.125`, `gemini-2.5-flash` `0.3/2.5` against `0.262/2.188`, and
+#: `deepseek-v4-flash` `0.105/0.21` against `0.1/0.2`.
+#:
+#: **It did not stop at a printed number, and the first version of this comment said it did.**
+#: 72 price cells moved across eight of the nine surfaces, and **the comparative sentences moved
+#: with them**: `trade_off` and its D-136 `trade_off_fact` differ on **16 of 27** (surface, budget)
+#: answers — `computer-use` / Best Value went from `cheaper_by_percent: 20` to `9`, a 2.2x swing in
+#: a claim the product composes a sentence from. What did NOT move, verified across all 27
+#: answers: the model order, the identity of every pick, `eligible_count` and `frontier_size`.
+#: Nobody was recommended the wrong model. Everybody was told the wrong price, and some were told
+#: the wrong saving.
+#:
+#: A modality token makes an alias a DIFFERENT PRODUCT, priced on a different basis — an image
+#: model per image, an audio model per second, a transcription SKU per minute. The guard is
+#: deliberately NOT "drop anything containing these words": it refuses only when the alias carries
+#: a modality the matched rule does not DECLARE, so a rule that states `modality="image"` keeps its
+#: own aliases whatever it is named.
+#:
+#: **What this does not cover, stated rather than implied.** A retrieval SKU of a text model is
+#: still a different product at a different price, and the tokens below catch `gpt-4o-search-preview`
+#: while leaving `gpt-5-search-api` and `o4-mini-deep-research` reconciled to their families
+#: (measured: no price effect today, the two-stage median absorbs them). That is a naming-fashion
+#: boundary, not a principled one. The principled fix is a declared SKU axis, which is larger than
+#: this wave; it is ledgered, not hidden.
+# fmt: off
+_MODALITY_TOKENS: tuple[str, ...] = (
+    "image", "video", "audio", "speech", "tts", "transcribe", "transcription",
+    "embed", "embedding", "rerank", "moderation", "vision", "search-preview",
+)
+# fmt: on
+
+_MODALITY_RX: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
+    (token, re.compile(rf"(^|[-_/. ]){re.escape(token)}([-_/. ]|\d|$)", re.IGNORECASE))
+    for token in _MODALITY_TOKENS
+)
+
+
+def modality_mismatch(name: str, rule: ModelRule) -> str | None:
+    """The modality token that makes ``name`` a different product from ``rule``, if any.
+
+    Returns the offending token so the caller can COUNT the drop by reason rather than record an
+    anonymous miss. `None` means the alias and the matched model agree on modality.
+    """
+    for token, rx in _MODALITY_RX:
+        if rx.search(name) and token != rule.modality:
+            return token
+    return None
+
+
+def canonicalize_with_reason(name: str) -> tuple[ModelRule | None, str | None]:
+    """The lookup plus WHY it failed: ``(rule, None)``, ``(None, token)`` or ``(None, None)``.
+
+    Two refusals are not the same fact and REQ-CAN-001 counts drops for a reason:
+
+    * ``(None, None)`` — no rule matched. That is **registry drift**: a model we do not know
+      about yet, and the drop list is the triage queue for it.
+    * ``(None, token)`` — a rule matched and was refused, because the name carries a modality
+      this model does not produce. That is **not drift**; it is the guard working, and a name
+      that lands here must never be triaged as a missing rule.
+
+    The seat that reviewed the first version of this wave found the reason computed and then
+    thrown away: nineteen refusals went into the same flat list as 2,393 genuine blind spots, in
+    a list whose stated purpose is to find drift at closure. Returning the reason is what makes
+    the two countable apart.
+    """
     for rule, rx in _COMPILED:
         if rx.search(name):
-            return rule
-    return None
+            token = modality_mismatch(name, rule)
+            return (None, token) if token else (rule, None)
+    return (None, None)
+
+
+def canonicalize(name: str) -> ModelRule | None:
+    """First-match-wins lookup; None = unmatched (caller counts drops).
+
+    A match is refused when the name carries a modality the matched model does not produce
+    (`modality_mismatch`): an image, audio or transcription variant is a different product and
+    its price is not this model's price. Callers that need to know WHICH refusal happened use
+    `canonicalize_with_reason`.
+    """
+    return canonicalize_with_reason(name)[0]
 
 
 _EFFORT_SUFFIX = re.compile(r"(?P<separator>[-_])(?P<effort>max|xhigh|high|medium|low)\Z", re.I)
@@ -178,11 +285,12 @@ def resolve_effort(model_name: str, explicit: str | None = None) -> EffortResolu
     invalid_explicit = bool(explicit_value and explicit_effort is None)
 
     suffix_effort: str | None = None
+    full_refused_for: str | None = None
     base_name = model_name
     match = _EFFORT_SUFFIX.search(model_name.strip())
     if match:
         candidate_base = model_name.strip()[: match.start()]
-        full_rule = canonicalize(model_name)
+        full_rule, full_refused_for = canonicalize_with_reason(model_name)
         base_rule = canonicalize(candidate_base)
         if (
             full_rule is not None
@@ -200,7 +308,14 @@ def resolve_effort(model_name: str, explicit: str | None = None) -> EffortResolu
         effort=effort,
         conflict=bool(explicit_effort and suffix_effort and explicit_effort != suffix_effort),
         invalid_explicit=invalid_explicit,
-        unclassified_suffix=bool(match and suffix_effort is None and effort is None),
+        # REQ-CAN-005 counts a suffix it could not classify BECAUSE the base name has no rule to
+        # compare against. A name the modality guard refused is a different fact: the registry
+        # knows this family perfectly well and is declining a different product from it. Counting
+        # that as an undeterminable effort would put a working control's output into a register
+        # that exists to measure our blind spots (M14-W1 review, MINOR-4).
+        unclassified_suffix=bool(
+            match and suffix_effort is None and effort is None and full_refused_for is None
+        ),
     )
 
 
@@ -214,6 +329,15 @@ class ReconcileReport:
     scores_dropped: int
     models_registered: int
     dropped_names: tuple[str, ...] = ()  # reviewed at closure — blind spots stay visible
+    #: The subset of `dropped_names` refused by the modality guard, each with the token that
+    #: refused it. These are NOT registry drift and must be subtracted before the drop list is
+    #: read as a list of models we are missing (M14-W1 review, MAJOR-2).
+    modality_drops: tuple[tuple[str, str], ...] = ()
+
+    @property
+    def drift_dropped(self) -> int:
+        """Drops that really do mean "no rule for this model" — the triage number."""
+        return self.pricing_dropped + self.scores_dropped - len(self.modality_drops)
 
 
 @dataclass(frozen=True)
@@ -262,14 +386,17 @@ def reconcile(conn: sqlite3.Connection) -> ReconcileReport:
     """
     seen: dict[str, ModelRule] = {}
     dropped: list[str] = []
+    modality_drops: list[tuple[str, str]] = []
     p_matched = p_dropped = s_matched = s_dropped = 0
 
     with conn:
         for (alias,) in conn.execute("SELECT DISTINCT alias FROM pricing").fetchall():
-            rule = canonicalize(alias)
+            rule, refused_for = canonicalize_with_reason(alias)
             if rule is None:
                 p_dropped += 1
                 dropped.append(alias)
+                if refused_for:
+                    modality_drops.append((alias, refused_for))
                 continue
             p_matched += 1
             seen[rule.canonical_id] = rule
@@ -282,10 +409,12 @@ def reconcile(conn: sqlite3.Connection) -> ReconcileReport:
             _, model_part = split_harness(raw_name)
             explicit = None if effort == EFFORT_UNSPECIFIED else effort
             identity = resolve_effort(model_part, explicit)
-            rule = canonicalize(identity.model_name)
+            rule, refused_for = canonicalize_with_reason(identity.model_name)
             if rule is None:
                 s_dropped += 1
                 dropped.append(raw_name)
+                if refused_for:
+                    modality_drops.append((raw_name, refused_for))
                 continue
             s_matched += 1
             seen[rule.canonical_id] = rule
@@ -299,5 +428,11 @@ def reconcile(conn: sqlite3.Connection) -> ReconcileReport:
                 (rule.canonical_id, rule.display, rule.vendor),
             )
     return ReconcileReport(
-        p_matched, p_dropped, s_matched, s_dropped, len(seen), tuple(sorted(dropped))
+        p_matched,
+        p_dropped,
+        s_matched,
+        s_dropped,
+        len(seen),
+        tuple(sorted(dropped)),
+        tuple(sorted(modality_drops)),
     )
