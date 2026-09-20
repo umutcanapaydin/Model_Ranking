@@ -1,14 +1,17 @@
 ---
 record_type: closure
 id: closure-report-m13
-status: draft
+status: ratified
 process_version: v5.0
 date: 2026-09-15
 ---
 # Closure Report — M13: the question is the front door, and the numbers stop overstating
 
-> **AWAITING THE OWNER'S SIGNATURE.** Section 0 is what needs you. Every figure below was measured
-> at the closing tree.
+> **SIGNED by the owner on 2026-09-20**, in session: *"I am signing M13; let's run M14"* (owner,
+> translated from Turkish). Every figure below was measured at the closing tree. Of §0: item 1
+> discharged 2026-09-18; item 2 (the refresh) closed by W-096; item 4 done (`SWIFT_TEST_FLOOR`
+> 215, W-091); **item 3, D-141, was explained to the owner and left PROPOSED — he signed without
+> ruling on it**, so it stays open and W-090's `C2b-reviewed` marker stands on a proposed ADR.
 
 ## 0. What needs the owner
 
@@ -16,6 +19,13 @@ date: 2026-09-15
    press Return and then the arrow. If no keyboard shows, press ⌘K. Safari's address bar showed no
    keyboard on this simulator either (W3 close, ledger L2), so the keyboard gap is the simulator's,
    not the app's. That still has to be seen by a person.
+   **Discharged 2026-09-18, and the original text above is left standing.** The owner brought the
+   app up and a question was typed into it for the first time in the project's life. The keyboard
+   raised, so the simulator gap reported at W3 did not reproduce. What the run returned is more
+   than this item asked for: the notice on screen is reachable only with `tier == .model`, so
+   **Apple Intelligence now runs inside the simulator and chose the decline sentinel.** The
+   handover §4 left that *probable, not measured*; it is measured now. It also corrects W-067 in
+   the warnings ledger, which was closed at M11 on a disclosure the similarity tier had produced.
 2. **`launchctl kickstart -p gui/$(id -u)/com.hcs.modelranking.refresh`.** It still exits 78, and
    the artifact dates from 2026-08-27. Until it runs, the terminalbench dates this milestone fixed
    stay invisible. If it returns 78 again, give Full Disk Access to `.venv/bin/python3.14`.
