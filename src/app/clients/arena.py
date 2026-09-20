@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import time
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -40,6 +41,44 @@ METRIC = "elo"
 HARNESS = "arena-crowd"
 ATTRIBUTION = "Arena leaderboard data © LMArena — lmarena-ai/leaderboard-dataset (CC-BY-4.0)"
 PREFERRED_CATEGORY = OVERALL_CATEGORY  # the overall board; 20+ other slices exist
+
+
+@dataclass(frozen=True)
+class ArenaBoard:
+    """One config of the dataset, read as its own source.
+
+    **The dataset carries 22 boards and this project read one of them for twelve milestones.**
+    They are configs of the SAME dataset under the SAME CC-BY-4.0 grant through the SAME
+    documented endpoint, with byte-identical columns — verified against `document` and
+    `text_factuality` on 2026-09-18, both carrying `category: overall` exactly as `text` does.
+    Adding one is a row in this table, not a client.
+
+    `id` is the `scores.source` value and is load-bearing: `CategorySpec.primary_source` names it,
+    and `build.py` maps a failed source to the surfaces that go silent. **`text` keeps the id
+    `arena`** because rows carrying that source are already in every built artifact and renaming it
+    would orphan them.
+    """
+
+    id: str
+    config: str
+    benchmark: str
+    minimum_rows: int
+    """Floor below which a technically-successful fetch is a FAILED dependency.
+
+    Sized per board and NOT copied from `text`'s 250: `document`'s whole `latest` split is 44 rows.
+    A floor borrowed from a bigger board fails every day; a floor of 1 catches nothing (W-024).
+    """
+
+
+ARENA_BOARDS: dict[str, ArenaBoard] = {
+    "text": ArenaBoard("arena", "text", BENCHMARK, 250),
+    # Which model is best with documents. 44 rows in the whole `latest` split, ~40 in the overall
+    # board; 25 is below any real day and far above a truncation.
+    "document": ArenaBoard("arena_document", "document", "Arena document", 25),
+    # Which model makes things up least. The split is large (3,582 rows across slices) but the
+    # overall board is the same order of size as the others.
+    "text_factuality": ArenaBoard("arena_factuality", "text_factuality", "Arena factuality", 25),
+}
 _PAGE = 100
 _MAX_PAGES = 50  # safety valve: latest split is a few hundred rows
 _TIMEOUT_S = 30.0
@@ -63,9 +102,7 @@ def arena_source_url(config: str = "text", split: str = "latest") -> str:
     W-024: this named the FILTER endpoint long after that endpoint stopped serving this dataset.
     A citation pointing at a URL the code does not call is one nobody can follow.
     """
-    return str(
-        httpx.URL(ROWS_API, params={"dataset": DATASET, "config": config, "split": split})
-    )
+    return str(httpx.URL(ROWS_API, params={"dataset": DATASET, "config": config, "split": split}))
 
 
 class ArenaClient:
@@ -82,6 +119,23 @@ class ArenaClient:
         # M2-closure carried debt, cleaned in M3-W3: the old `url=` parameter was
         # provenance-only while fetch_raw always used the module constants — a
         # misleading API. Provenance now derives from the same constants it uses.
+        #
+        # M14-W2: the board decides `name` and `benchmark`, and `name` becomes an INSTANCE
+        # attribute shadowing the class one. The class attribute stays so that anything reading
+        # `ArenaClient.name` without an instance still sees the original source id.
+        #
+        # An unknown config is refused rather than defaulted. Defaulting it would ingest the
+        # `document` board under the `arena` source id and silently merge two boards' Elo into one
+        # surface — different scales, one ranking, which is the comparison D-105 forbids.
+        if config not in ARENA_BOARDS:
+            msg = (
+                f"arena: no board registered for config {config!r}; "
+                f"known boards: {sorted(ARENA_BOARDS)}"
+            )
+            raise SourceError(msg)
+        self.board = ARENA_BOARDS[config]
+        self.name = self.board.id
+        self.benchmark = self.board.benchmark
         self.config = config
         self.split = split
         self.url = arena_source_url(config, split)
@@ -239,6 +293,7 @@ def parse_arena(
     *,
     source: str = "arena",
     source_url: str = arena_source_url(),
+    benchmark: str = BENCHMARK,
 ) -> tuple[list[ScoreRow], int]:
     """Parse merged rows into Elo score records; returns (rows, skipped).
 
@@ -297,7 +352,7 @@ def parse_arena(
         pub = entry.get("leaderboard_publish_date")
         row = ScoreRow(
             raw_name=name,
-            benchmark=BENCHMARK,
+            benchmark=benchmark,
             metric=METRIC,
             score=float(rating),
             harness=HARNESS,
@@ -313,3 +368,27 @@ def parse_arena(
                 continue
         best[name] = row
     return list(best.values()), skipped
+
+
+class ArenaDocumentClient(ArenaClient):
+    """The `document` board: which model is best with documents.
+
+    A named subclass and not a lambda, because `test_the_registry_names_nothing_that_does_not_exist`
+    checks that every registered source names a class that exists in the tree — a guard against a
+    client being deleted while its registry row lingers. A lambda has no name to check, so
+    registering one would quietly retire that guard for these sources.
+    """
+
+    name = "arena_document"  # class level too: a class-level read must not see "arena" (m3)
+
+    def __init__(self, split: str = "latest") -> None:
+        super().__init__(config="document", split=split)
+
+
+class ArenaFactualityClient(ArenaClient):
+    """The `text_factuality` board: which model makes things up least."""
+
+    name = "arena_factuality"
+
+    def __init__(self, split: str = "latest") -> None:
+        super().__init__(config="text_factuality", split=split)

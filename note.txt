@@ -1,18 +1,60 @@
 Project: model_ranking
-State: **M13 CLOSED AGENT-SIDE, AWAITING YOUR SIGNATURE AND MILESTONE COMMIT.**
-  Repo green at a5e3c89: 874 Python + 215 Swift, `make check` exit 0.
-  Wave commits W1..W4 pushed under the agent identity (D-117). Nothing deployed; nothing is billing.
-Last session date: 2026-09-15 · Last work agent: Claude (Claude Code CLI, local lane)
+State: **2026-09-20 — M14 W1–W4 DONE (uncommitted). M13 signed by the owner in session; the
+commit script makes the commits. W4 waits on D-146.**
+
+  WHAT IS NEW SINCE M13
+  - Two new surfaces on the live artifact: `document` (Working with documents, 29 models) and
+    `factuality` (Getting facts right, 59 models), from boards of the LMArena dataset already licensed.
+    Floors by D-145 (the rule the product ships); calibration record docs/reviews/m14-category-calibration.md.
+  - Price fix W-092 is live (image/audio SKUs no longer set a text model's price).
+  - The 12-hour refresh job WORKS again (W-096): program and logs moved out of ~/Desktop.
+    Logs: ~/Library/Logs/model-ranking-refresh.log.
+  - W3: the gap register. A question the router declines is kept ON THE PHONE with a count; the
+    owner reads it from the tray button, most-asked first. Nothing leaves the device.
+  - W4: one score out of 100 per surface (D-143). Percentages as they are; Elo as "how often people
+    prefer it over a model at the surface's pinned anchor" (50 = at the anchor); ECI rank-only.
+    Card sentences and the tie note speak points on the same scale; ties are the engine's own.
+  - Owner rulings: D-142 (answer real questions), D-143 (one score /100, per surface), D-144 as amended
+    (per-source carry-forward, ~30-day limit -> M15), D-145 (floors follow shipped rule).
+
+  STILL OPEN FOR THE OWNER
+  - D-146 (proposed): allow `score_anchor` on /v1/categories (breaks his "no K.8 change in M14"),
+    and accept the cost that Elo leaders read 57–79 while percentage leaders read 73–100.
+  - Run the runner (Swift compiles only on the Mac), then commit_m13_m14.sh.
+  - D-141 still proposed. W-098: detail-screen price and metric name not built -> M15 scope.
+  - M15 carry-overs: D-144 carry-forward, search_factuality, image pricing, W-094, app/harness split.
+
+Last session date: 2026-09-18 · Last work agent: Claude (Claude Code CLI, local lane)
+  2026-09-18 session: tier-1 confirmed in the simulator; the owner's coverage ruling (D-142) and
+  his one-score ruling (D-143); the M14 plan with §5 ruled; M14-W1 run to close. Two source files
+  changed (`registry.py`, `test_registry.py`), seven records written. NOTHING COMMITTED.
 
 THE THREE THINGS THAT NEED YOU, IN ORDER
-  1. Type a question into the app (`./ios/app.sh up`; ⌘K if no keyboard). Nobody has, ever.
-     Safari's own field raised no keyboard on this simulator either, so that gap is the
-     simulator's, but a person still has to press Return and the arrow once.
-  2. `launchctl kickstart -p gui/$(id -u)/com.hcs.modelranking.refresh` (still exit 78).
-     The artifact is from 2026-08-27; the terminalbench dates fixed in W2 appear only after it runs.
+  1. DONE 2026-09-18. The owner ran `./ios/app.sh up` and a question was typed into the app for
+     the first time: `Image enchantment`. The screen returned the tier-1 unmeasured notice, so
+     **Apple Intelligence now runs inside the simulator and emitted the decline sentinel** — the
+     question the M13 handover §4 left as *probable, not measured*. It also corrects W-067,
+     which was closed in M11 on a disclosure that came from the similarity tier. The keyboard
+     raised; the simulator gap reported at W3 did not reproduce.
+  2. DONE 2026-09-18, by accident and recorded as W-095. The refresh RAN and PUBLISHED: the served
+     artifact is fresh for the first time since 2026-08-27, so the terminalbench dates W2 fixed are
+     now visible, and the W-092 price correction went live with it (gpt-5 input 1.562 -> 1.094).
+     **The launchd JOB: cause-hunt closed 2026-09-20 (W-096).** A bash wrapper runs it; install with
+     `~/Desktop/terminal_output/model_ranking/install_refresh_wrapper.sh` (changes state). Before that:
+     **the launchd JOB was broken** — last exit code 78, and it has never been what ran. Two
+     bisects ruled out the Desktop paths, the interpreter, the plist contents and the command
+     itself. The one hypothesis left is a stale launchd registration;
+     `~/Desktop/terminal_output/model_ranking/refresh_reload.sh` tests it and CHANGES STATE, so it
+     is the owner's to run knowingly.
   3. Ratify, amend or refuse D-141 (proposed): a HIGH wave owes its security pass. And raise
      SWIFT_TEST_FLOOR in the Makefile to the count `make check` prints (W-091).
   4. Read `docs/closure-report-m13.md` §0 and §1b, run `make check`, sign, commit.
+  5. NEW — run `make check` for M14-W1 too. The Swift and iOS gates did NOT run this session
+     (no Xcode on either available shell; ledger L4). The wave changes no Swift file, so the
+     risk is reasoned rather than measured, and your `make check` is what measures it.
+  6. NEW — rule on the image pricing question (`docs/plans/m14-wave-1-close.md`, "What this wave
+     hands to W2"): extend pricing to a per-image basis, or drop the rule that the engine only
+     ranks models somebody can buy. There is no third path, and W2 cannot start without it.
 
 WHAT M13 SHIPPED
   - Scoring instruments fixed (W1): Pareto dominance, the startup probe, the refresh fingerprint,
@@ -33,4 +75,7 @@ THE THING A NEW AGENT MUST NOT UNDO
 ANCHOR
   ADRs D-100..D-141 (D-141 proposed) · reviews for every wave in `docs/reviews/m13-*` · retro
   `docs/retrospectives/m13-retrospective.md` · 13 % 3 != 0: no quarterly handover due.
-  M14 opens on: device build + a non-localhost engine, the detail screen, image-edit + typed pricing.
+  M14 opened 2026-09-18 on the owner's five rulings (plan §5). W1 closed; W2 blocked on the
+  pricing decision. D-143 (one score out of 100, per surface) owns W4 and is the largest change.
+  `docs/research/question-coverage-2026-09-18.md` holds the owner's 02:36 direction and the
+  finding that the LMArena dataset we already license carries 22 boards, of which we read two.

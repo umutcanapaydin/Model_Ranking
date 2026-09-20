@@ -24,7 +24,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from app.clients.aider import AiderClient, parse_polyglot
-from app.clients.arena import ArenaClient, parse_arena
+from app.clients.arena import (
+    ARENA_BOARDS,
+    ArenaClient,
+    ArenaDocumentClient,
+    ArenaFactualityClient,
+    parse_arena,
+)
 from app.clients.deepswe import DeepSWEClient
 from app.clients.epoch import EpochClient
 from app.clients.epoch_board import EpochBoard, EpochBoardClient
@@ -159,6 +165,28 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         # only because the serving surface DISCLOSES a missing source rather than answering with
         # an empty list — arena is the sole evidence for `assistant`, so without it that surface
         # has nothing to say and must say so.
+        required=False,
+    ),
+    # ── M14-W2: two more boards of the SAME dataset, under the same grant ──────────────────
+    #
+    # They are OPTIONAL for the same reason `arena` is (D-121): the serving surface discloses a
+    # missing source rather than answering with an empty list, and one upstream incident must not
+    # make the whole artifact unbuildable. Each is the sole evidence for its own surface, so
+    # without it that surface has nothing to say and says so.
+    RemoteSource(
+        name="arena_document",
+        client=ArenaDocumentClient,
+        ingest=ingest_arena,
+        parse=parse_arena,
+        minimum_rows=ARENA_BOARDS["document"].minimum_rows,  # one source of truth (M14-W2 m2)
+        required=False,
+    ),
+    RemoteSource(
+        name="arena_factuality",
+        client=ArenaFactualityClient,
+        ingest=ingest_arena,
+        parse=parse_arena,
+        minimum_rows=ARENA_BOARDS["text_factuality"].minimum_rows,
         required=False,
     ),
 )

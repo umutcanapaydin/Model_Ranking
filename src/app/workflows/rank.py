@@ -47,6 +47,11 @@ ATTRIBUTIONS = (
 # rather than silently dropping the obligation (fail loud, D-107 discipline).
 SOURCE_ATTRIBUTION: dict[str, str] = {
     "arena": ARENA_ATTRIBUTION,
+    # M14-W2. Other configs of the SAME dataset under the SAME CC-BY-4.0 grant, so the citation is
+    # identical. Listed individually and not matched by an `arena_` prefix, for the reason the
+    # Epoch block below gives: a prefix rule attributes a source nobody reviewed the licence of.
+    "arena_document": ARENA_ATTRIBUTION,
+    "arena_factuality": ARENA_ATTRIBUTION,
     "swebench": SWEBENCH_ATTRIBUTION,
     "aider": SWEBENCH_ATTRIBUTION,
     "epoch_swe_bench_verified": EPOCH_ATTRIBUTION,
@@ -159,8 +164,7 @@ def build_price_medians(conn: sqlite3.Connection) -> int:
     """
     per_source: dict[tuple[str, str], tuple[list[float], list[float]]] = {}
     for mid, src, i, o in conn.execute(
-        "SELECT model_id, source, input_per_m, output_per_m FROM pricing"
-        " WHERE model_id IS NOT NULL"
+        "SELECT model_id, source, input_per_m, output_per_m FROM pricing WHERE model_id IS NOT NULL"
     ):
         ins, outs = per_source.setdefault((mid, src), ([], []))
         ins.append(i)

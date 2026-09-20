@@ -70,7 +70,12 @@ install: $(VENV)/bin/python
 	$(PIP) install -e ".[dev]"
 
 test: install
-	$(PY) -m pytest
+	@# `-n auto`: one worker per core (8 on the owner's Mac). Measured before adopting it: three
+	@# parallel runs, 908 passed each time, and coverage.json identical to a serial run (3188
+	@# lines, 89%) -- the coverage floor below reads that file, so a parallel run that lost
+	@# coverage data would have turned the floor into a false alarm. CI stays serial: `.github/`
+	@# is a DevOps-owned surface (AGENTS.md section 5). A single test by hand: plain `pytest path`.
+	$(PY) -m pytest -n auto
 
 lint: install
 	$(PY) -m ruff check src tests scripts
@@ -129,7 +134,7 @@ conformance-gate: install
 	$(PY) -B scripts/conformance_gate.py
 
 #: Raise when tests are added; never lower without a ledger row.
-SWIFT_TEST_FLOOR = 121
+SWIFT_TEST_FLOOR := 241
 
 swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING sources
 	@# A test nobody types is a test that does not run -- W-032, this project's own finding, which

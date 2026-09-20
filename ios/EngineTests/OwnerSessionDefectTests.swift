@@ -11,9 +11,12 @@ import XCTest
 
 @testable import ModelRankingEngine
 
-private let nine = [
+// Every surface `/v1/categories` serves, in the engine's order. Eleven since M14-W2: the router
+// centres its similarity scores on the mean over THESE ids, so a list that lags the engine tests a
+// router the app does not ship (M14-W2 review MAJOR-4).
+private let served = [
     "coding", "agentic-coding", "assistant", "everyday", "expert",
-    "mathematics", "computer-use", "abstract", "web-dev",
+    "mathematics", "computer-use", "abstract", "web-dev", "document", "factuality",
 ]
 
 // MARK: - Defect 1 — the on-device tier cannot say "I do not measure this"
@@ -24,9 +27,9 @@ final class UnmeasurableThroughTheModelTierTests: XCTestCase {
     /// "Matched your question to this surface on this device."**
     ///
     /// The cause is structural, not a bad match. `GenerationSchema(anyOf: known)` constrains the
-    /// model to the nine ids the engine serves, so tier 1 has no expressible way to decline —
+    /// model to the served ids the engine serves, so tier 1 has no expressible way to decline —
     /// every question in the world, including image editing and calorie counting, comes back as
-    /// one of nine measured surfaces with a confident sentence attached.
+    /// one of served measured surfaces with a confident sentence attached.
     ///
     /// REQ-RTR-005 says an unmeasured question routes to `assistant` AND says so. That disclosure
     /// lived only in the SIMILARITY tier's floor, which runs second and therefore almost never
@@ -34,7 +37,7 @@ final class UnmeasurableThroughTheModelTierTests: XCTestCase {
     /// execute.**
     func testTheModelTierCanExpressThatNothingMeasuresTheQuestion() {
         let outcome = ModelOutputBoundary.outcome(
-            for: ModelOutputBoundary.declineSentinel, within: nine)
+            for: ModelOutputBoundary.declineSentinel, within: served)
 
         XCTAssertEqual(outcome?.unmeasured, true,
                        "the model declined and the app reported a measured match")
@@ -43,17 +46,17 @@ final class UnmeasurableThroughTheModelTierTests: XCTestCase {
 
     func testTheDeclineSentinelIsOfferedToTheModelAlongsideTheRealIds() {
         // A sentinel the schema does not contain is a sentinel the model can never emit.
-        let choices = ModelOutputBoundary.schemaChoices(for: nine)
+        let choices = ModelOutputBoundary.schemaChoices(for: served)
 
         XCTAssertTrue(choices.contains(ModelOutputBoundary.declineSentinel),
                       "the model is still forced to choose a measured surface")
-        XCTAssertEqual(Set(choices).subtracting([ModelOutputBoundary.declineSentinel]), Set(nine),
+        XCTAssertEqual(Set(choices).subtracting([ModelOutputBoundary.declineSentinel]), Set(served),
                        "the choice list drifted from the ids the engine actually serves")
     }
 
     func testTheSentinelIsNotAValidSurfaceId() {
         // If it collided with a real id the decline would silently become a recommendation.
-        XCTAssertFalse(nine.contains(ModelOutputBoundary.declineSentinel))
+        XCTAssertFalse(served.contains(ModelOutputBoundary.declineSentinel))
     }
 
     func testDecliningStillRefusesWhenTheFallbackSurfaceIsNotServed() {
@@ -65,7 +68,7 @@ final class UnmeasurableThroughTheModelTierTests: XCTestCase {
 
     func testAMeasuredAnswerIsStillMeasured() {
         // Fixture blindness: the decline path must not swallow ordinary answers.
-        let outcome = ModelOutputBoundary.outcome(for: "web-dev", within: nine)
+        let outcome = ModelOutputBoundary.outcome(for: "web-dev", within: served)
 
         XCTAssertEqual(outcome?.unmeasured, false)
         XCTAssertEqual(outcome?.categoryID, "web-dev")
@@ -399,7 +402,7 @@ final class DisclosureClassificationTests: XCTestCase {
     }
 
     /// The duplication the council measured: two sentences, one fact, both orange, on five of the
-    /// nine surfaces.
+    /// served surfaces.
     func testAnUndatedSourceSaysItOnceRatherThanTwice() {
         let out = classifyDisclosures(
             stalenessNotice: staleness, ageDays: [nil, nil], datingNote: dating,

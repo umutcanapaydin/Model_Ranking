@@ -215,3 +215,168 @@ def test_the_total_merged_rows_are_bounded_not_only_the_page_count() -> None:
         "the client paged to the page cap before the size bound fired; the row limit must stop it "
         "first, or the bound is only a slower version of the same accumulation"
     )
+
+
+# ── M14-W2: one dataset, several boards ───────────────────────────────────────────────────────
+
+
+def test_each_board_carries_its_own_source_id_and_benchmark() -> None:
+    """The failure this pins is two boards' Elo landing in one surface.
+
+    `scores.source` decides which surface a row can serve and `benchmark` decides which ranking it
+    joins. If a second board inherited `text`'s pair, its ratings would merge into `assistant` — a
+    different Elo scale inside one ranking, which is the comparison D-105 forbids and which nothing
+    downstream could detect, because both are plausible Elo numbers for plausible model names.
+    """
+    from app.clients.arena import (
+        ARENA_BOARDS,
+        ArenaClient,
+        ArenaDocumentClient,
+        ArenaFactualityClient,
+    )
+
+    # REQ-SRC-011. Over the whole TABLE, not three hand-picked clients: the first version checked a
+    # fixed list, so a fourth board registered as ("arena", "Arena text") passed (review m1).
+    boards = list(ARENA_BOARDS.values())
+    assert len({b.id for b in boards}) == len(boards), "two boards share a source id"
+    assert len({b.benchmark for b in boards}) == len(boards), "two boards share a benchmark label"
+    # and each named client, read at CLASS level as well as on an instance (review m3)
+    for cls, sid in (
+        (ArenaClient, "arena"),
+        (ArenaDocumentClient, "arena_document"),
+        (ArenaFactualityClient, "arena_factuality"),
+    ):
+        assert cls.name == sid
+        assert cls().name == sid
+
+
+def test_the_text_board_keeps_the_source_id_already_in_every_artifact() -> None:
+    """`arena` is in built databases and named by `CategorySpec.primary_source`.
+
+    Renaming it to `arena_text` for symmetry would orphan every stored row and silence the
+    `assistant` surface on the next build. Symmetry is not worth that.
+    """
+    from app.clients.arena import ArenaClient
+    from app.workflows.categories import CATEGORIES
+
+    assert ArenaClient().name == "arena"
+    assert CATEGORIES["assistant"].primary_source == "arena"
+
+
+def test_an_unregistered_board_is_refused_and_never_defaulted() -> None:
+    """Defaulting an unknown config is how two boards quietly become one.
+
+    `ArenaClient(config="image_edit")` with a default would fetch the image-editing board and store
+    it under the `arena` source id, against the `Arena text` benchmark. Every row would look
+    ordinary. The client refuses instead, and names the boards it knows.
+    """
+    from app.clients.arena import ARENA_BOARDS, ArenaClient
+    from app.clients.protocols import SourceError
+
+    for unknown in ("image_edit", "vision", "webdev", "", "TEXT"):
+        try:
+            ArenaClient(config=unknown)
+        except SourceError as exc:
+            assert "no board registered" in str(exc)
+        else:  # pragma: no cover - the assertion below reports it
+            raise AssertionError(f"config {unknown!r} was accepted; known: {sorted(ARENA_BOARDS)}")
+
+
+def test_the_parser_labels_rows_with_the_board_it_was_given() -> None:
+    """One parser now serves several boards, so the label has to travel with the call."""
+    import json
+
+    from app.clients.arena import parse_arena
+
+    payload = json.dumps(
+        {
+            "rows": [
+                {
+                    "row": {
+                        "model_name": "claude-opus-5-high",
+                        "rating": 1516.26,
+                        "category": "overall",
+                        "leaderboard_publish_date": "2026-09-13",
+                    }
+                }
+            ]
+        }
+    )
+    rows, _ = parse_arena(payload, source="arena_document", benchmark="Arena document")
+    assert [r.benchmark for r in rows] == ["Arena document"]
+    assert [r.source for r in rows] == ["arena_document"]
+    # and the default is still the text board, so no existing caller changed meaning
+    rows, _ = parse_arena(payload)
+    assert [r.benchmark for r in rows] == ["Arena text"]
+
+
+def test_every_registered_arena_board_is_attributed_and_floored() -> None:
+    """A CC-BY feed with no citation is a licence breach; a floor of 1 catches nothing (W-024)."""
+    from app.clients.arena import ARENA_BOARDS
+    from app.workflows.rank import SOURCE_ATTRIBUTION
+    from app.workflows.sources import REMOTE_SOURCES
+
+    registered = {s.name: s for s in REMOTE_SOURCES}
+    for board in ARENA_BOARDS.values():
+        assert board.id in SOURCE_ATTRIBUTION, f"{board.id} serves evidence with no citation"
+        assert board.id in registered, f"{board.id} is a known board nothing ingests"
+        assert registered[board.id].minimum_rows >= 25, board.id
+
+
+def test_ingest_stores_each_board_under_its_own_benchmark() -> None:
+    """REQ-SRC-011, through the REAL entry point (`ingest_arena`), the path the seat broke.
+
+    M14-W2 review MAJOR-1: replacing the ingest's benchmark lookup with the text label merged the
+    `document` board into `assistant` -- Claude Opus 5 at 1516.3 became the chat leader -- and the
+    whole suite stayed green, because every test called the parser directly and none the ingest.
+    """
+    import json
+
+    from app.clients.fakes import FakeRawSource
+    from app.workflows.ingest import RunContext, ingest_arena
+    from app.workflows.schema import connect
+
+    payload = json.dumps(
+        {
+            "rows": [
+                {
+                    "row": {
+                        "model_name": "claude-opus-5-high",
+                        "rating": 1516.26,
+                        "category": "overall",
+                        "leaderboard_publish_date": "2026-09-13",
+                    }
+                }
+            ]
+        }
+    )
+    conn = connect()
+    run = RunContext(observed_at="2026-09-20T00:00:00Z")
+    for source_id in ("arena", "arena_document", "arena_factuality"):
+        ingest_arena(conn, FakeRawSource(source_id, payload), run)
+
+    stored = dict(conn.execute("SELECT source, benchmark FROM scores").fetchall())
+    assert stored == {
+        "arena": "Arena text",
+        "arena_document": "Arena document",
+        "arena_factuality": "Arena factuality",
+    }
+
+
+def test_ingest_refuses_a_source_no_board_claims() -> None:
+    """REQ-SRC-011: an unregistered source id is refused, never filed under the text board."""
+    import json
+
+    import pytest
+
+    from app.clients.fakes import FakeRawSource
+    from app.clients.protocols import SourceError
+    from app.workflows.ingest import RunContext, ingest_arena
+    from app.workflows.schema import connect
+
+    with pytest.raises(SourceError, match="no registered board"):
+        ingest_arena(
+            connect(),
+            FakeRawSource("arena_image_edit", json.dumps({"rows": []})),
+            RunContext(observed_at="2026-09-20T00:00:00Z"),
+        )

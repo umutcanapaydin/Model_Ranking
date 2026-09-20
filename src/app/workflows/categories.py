@@ -26,6 +26,11 @@ class CategorySpec:
     value_window: float  # Best Value: within N of the leader
     close_call: float  # near-tie disclosure threshold
     ranking_effort: str | None = None  # named comparable level; None = board has no effort policy
+    # D-143 amendment (M14-W4 review M-3): the Elo score a reader sees as 50 / 100. PINNED, and
+    # deliberately NOT `min_quality`: the floor is re-measured at every recalibration, and a
+    # recalibration must not move every card's number without a new measurement. Set on Elo
+    # surfaces only; `None` elsewhere (percentages are already out of 100, ECI stays rank-only).
+    score_anchor: float | None = None
 
 
 #: **Every threshold below is sized on the RANKED population** -- models that reconcile to the
@@ -90,6 +95,7 @@ CATEGORIES: dict[str, CategorySpec] = {
         min_quality=1400.0,  # was 1300 (admitted 57% of the board); 1400 = top third, leader-108
         value_window=30.0,  # kept: ~4x the noise threshold; 13 candidates within reach of the top
         close_call=8.0,  # was 5; live 95% CIs still overlap for 64% of pairs 8-9 Elo apart
+        score_anchor=1400.0,  # pinned 2026-09-20 (D-143); moves only by owner ruling
     ),
     # M5 owner-delegated board decision: DeepSWE is a separate surface because its
     # release dates are not evaluation dates and its harness materially disagrees
@@ -209,6 +215,52 @@ CATEGORIES: dict[str, CategorySpec] = {
         min_quality=1478.9,
         value_window=100.0,
         close_call=6.8,
+        score_anchor=1478.9,  # pinned 2026-09-20 (D-143); moves only by owner ruling
+    ),
+    # ── M14-W2: two boards of the dataset `assistant` already reads (D-142, D-145) ─────────────
+    #
+    # `min_quality` = the top third of the WHOLE board, counted over DISTINCT models (each model's
+    # best rating). That is the rule the nine surfaces above were actually measured by (W-094), and
+    # the owner ruled on 2026-09-20 that new surfaces follow it so the product has one rule (D-145).
+    # Reproduce with `scripts/calibrate_board.py --config <board>`, which prints `board_third`.
+    # Record: `docs/reviews/m14-category-calibration.md`.
+    #
+    # `close_call` is the median rating gap between pairs whose PUBLISHED 95% intervals overlap --
+    # the board's own statement of what it cannot tell apart -- measured on the owner's machine on
+    # 2026-09-18 (the intervals are not stored in the artifact). This is a different rule from M8's
+    # "2 x stderr, else the median adjacent gap", and it is stated as one. `value_window` is sized
+    # by candidate count on the ranked population, which is M8's rule.
+    "document": CategorySpec(
+        id="document",
+        title="Working with documents",
+        primary_benchmark="Arena document",
+        metric="elo",
+        score_unit="Elo",
+        secondary_benchmark=None,
+        primary_source="arena_document",
+        # 36 distinct models on the board, 29 ranked. Board third 1467.5 admits 10 of 29 (the
+        # ranked-third rule, 1471.0, would also admit 10). A 35-Elo window admits 7.
+        min_quality=1467.5,
+        value_window=35.0,
+        close_call=8.7,
+        score_anchor=1467.5,  # pinned 2026-09-20 (D-143); moves only by owner ruling
+    ),
+    "factuality": CategorySpec(
+        id="factuality",
+        title="Getting facts right",
+        primary_benchmark="Arena factuality",
+        metric="elo",
+        score_unit="Elo",
+        secondary_benchmark=None,
+        primary_source="arena_factuality",
+        # 143 distinct models on the board, 59 ranked, the densest board in the product (median
+        # neighbour gap 1.4 Elo). Board third 1450.6 admits 32 of 59; the ranked-third rule
+        # (1460.7) would admit 20 -- the surface where W-094's open question actually bites. A
+        # 20-Elo window admits 6.
+        min_quality=1450.6,
+        value_window=20.0,
+        close_call=4.0,
+        score_anchor=1450.6,  # pinned 2026-09-20 (D-143); moves only by owner ruling
     ),
 }
 

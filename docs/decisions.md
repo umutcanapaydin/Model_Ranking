@@ -1778,3 +1778,265 @@ pulling a pass into a MED wave.
 
 **Revisit when:** a HIGH wave's pass finds nothing for three consecutive milestones. That would say
 the plans tag too widely, not that the pass is wasted.
+
+---
+
+## D-142 — The product answers the question a person actually asks, and coverage is how
+
+**Status:** accepted · **Date:** 2026-09-18 · **Decided by:** **the owner, in session**, after
+reading the council's finding and the M13 handover §5–6 and overruling them where they conflict.
+His words, translated from Turkish: *"I don't care what the council said. We are going to do this,
+we will find a way, if necessary we will pull every benchmark in the world and produce meaningful
+results for what the end user asks."* · **Supersedes** the scope half of the M13 council's B-ballot
+reading. · **Does not touch** D-104, D-105 or D-126.
+
+**Context.** The product ranks models on nine measured surfaces. A person opened it on 2026-09-18
+and typed `Image enchantment`, meaning *which model best polishes a profile photo*. The routing
+worked perfectly: the on-device model understood the question, found nothing in the catalogue that
+measures it, and said so. **The failure was not comprehension. It was that there was nothing to
+answer with** — and the app's honest refusal is, from the reader's side, still a refusal.
+
+Three prior findings bear on this and all three stand as measurements:
+
+- **The catalogue gap here is a COVERAGE gap, not a measurement gap** (handover §5, Finding 1).
+  Image editing is publicly benchmarked with Elo: LMArena Single-Image Edit (`cc-by-4.0`, clean),
+  ImgEdit-Bench, GEditBench v2. Artificial Analysis's arena grants no redistribution right, which
+  under this project's free-and-legal rule is operationally a prohibition (Finding 5).
+- **A single general-capability axis is real in our data.** 73 models × 12 columns, 50.2% filled;
+  on the largest complete block PC1 = 0.806, and 0 of 2000 column permutations came near it.
+- **And it does not predict a held-out board well enough to print.** Leave-one-out: ARC-AGI 0.813,
+  TerminalBench 0.560, WebDev 0.398, SWE-bench Verified 0.334, **DeepSWE −0.104 — worse than
+  printing the mean.** The council killed the derived layer 5–0 on exactly this.
+
+**Decision.**
+
+1. **The product's purpose is restated.** It is not a ranking that a reader must already know how to
+   query. It is a thing that answers the question a person asks in their own words. Listing is the
+   means, not the end. Every milestone from M14 is measured against that.
+2. **Coverage is the instrument, and its ceiling is the licence, not the effort.** The project will
+   ingest as many benchmarks as it can legally serve, beginning with the surfaces real questions
+   land on. "How hard is it to ingest" is not a reason to decline a surface; "we may not legally
+   republish it" is the only reason that counts.
+3. **The demand signal is captured instead of discarded.** Every decline sentinel is a person asking
+   for a surface the catalogue does not have. It is recorded on the device, it leaves the device
+   never (D-126 is untouched), and it becomes the ranked list of what to ingest next. The product
+   learns its own gaps from the people using it.
+4. **Research into answering a genuinely unmeasured capability is REOPENED**, against the council's
+   5–0. The owner's ruling is that the question is worth work even after a negative result.
+5. **What may not ship is unchanged, and the owner is not asked to move it.** A number nobody can
+   falsify does not go on a card. The LOO figures above are the standing bar: a derived estimate
+   ships when it beats printing the mean on a held-out board, and not before. Research is
+   authorized; publication is earned.
+
+**The cost, stated.** Clause 4 spends effort on a direction this project has already measured a
+negative result in, and the negative result was not marginal — one of five boards came out worse
+than the mean in the easy case. If clause 5 holds, the likely outcome of clause 4 is another
+negative result and the work is spent on knowing that more firmly. The owner has read this and
+ruled anyway, which is his to do; it is recorded here so that outcome is not a surprise later.
+
+**The lead agent's clarification, recorded separately because it is not the owner's ruling.** Most
+of what clause 1 asks for is not in conflict with the council at all. The council endorsed coverage;
+what it refused was inventing a surface from the latent axis. Pulling every benchmark in the world
+*is* the coverage path, and it is the fastest route to the owner's own example — image editing is
+already measured by somebody with a clean licence. The genuinely contested slice is narrow: what the
+product does when **no benchmark anywhere** measures the question. Clause 4 owns that slice and
+clause 5 fences it.
+
+**Revisit when:** a derived estimate clears the held-out bar in clause 5, or three milestones of
+coverage work show the decline sentinel still firing on questions that no public benchmark measures.
+The second outcome would say the gap is real and structural rather than a backlog.
+
+---
+
+## D-143 — One score, out of 100, and the unit stops being the reader's problem
+
+**Status:** accepted · **Date:** 2026-09-18 · **Decided by:** **the owner, in session**, answering
+the M14 plan §5 question about the ranking rows and ruling further than it asked. · **Amends D-140
+and REQ-CMP-004.** · **Does not amend D-105.**
+
+**Context.** M13-W4 put `Score 83.5 / 100` and `Score 1504.2 Elo` on the card, and gave ECI no number
+at all, because its scale publishes no ceiling a reader can hold (D-140). That decision was built to
+stop the product printing two numbers on unrelated scales in the same shape. The owner's ruling
+accepts that the reader should not be handed the scale at all.
+
+His words, translated from Turkish: *"the aim here is that the end user should not have to know how
+the ranking and the scoring are done, or what the unit is. Let it show on all of them, but let us
+convert it — a simple conversion to how much it is out of 100 — and show that. 'Resolved' and the
+other measurement units: if somebody knows that much already, let them go and read the thousands of
+benchmarks, they will understand it from there. Ours has to be simpler. So we reduce it to a single
+scoring."*
+
+**Decision.**
+
+1. **Every ranking row carries a score**, not only the cards.
+2. **Every score is displayed on one 0–100 scale**, and the name of the underlying metric
+   (`% resolved`, `Elo`, `ECI`) is not put in front of the reader on the card or in the rows.
+3. **The conversion is PER SURFACE.** It is a presentation of one board against itself. It is not,
+   and may not become, a number comparable across surfaces.
+4. **The conversion must be strictly monotonic within a surface.** It changes what a reader sees and
+   never what the engine ordered. A conversion that reorders anybody is a defect, not a rounding.
+5. **The tie margin converts with the score.** D-138's rank ranges are computed from the engine's own
+   margin; if the score is rescaled and the margin is not, ties silently break or silently widen.
+   Both are the same bug in opposite directions.
+
+**What this ruling does NOT do, stated because the sentence "a single scoring" can be read as it.**
+It does not create one number for a model across surfaces. D-105 stands: scores are never averaged
+across boards. The M13 council measured why — PC2 is Arena, human preference is a separate axis, and
+any single score folding it in destroys the one thing this product measures most credibly. **Ten
+surface-local scores out of 100 is this decision. One overall score out of 100 is not, and the data
+refuses it** (D-142 clause 5).
+
+**The open problem this decision creates, and W4 owns it: what is 100?**
+
+- **A bounded percentage metric** is already out of 100. Identity, no work.
+- **Elo has no ceiling.** The honest conversion is the expected score against a **pinned reference
+  rating** — the logistic Elo expectation, which is by construction a number between 0 and 100 and
+  means something a reader can state: how often this model is preferred over the reference. The
+  anchor is pinned in `CategorySpec` and versioned.
+- **A ceiling taken from the current board's maximum is forbidden.** It makes a model's score move
+  when a different model is added, with no change to any measurement of it. This project has shipped
+  a number that moved for the wrong reason before; it is not shipping another.
+- **ECI is unresolved.** It publishes neither a ceiling nor a readable unit. W4 either finds a
+  defensible anchor for it or that surface keeps rank-only under D-140. **This ADR does not decide
+  it**, and W4 may not invent one to be consistent.
+
+**Where the code goes.** The conversion is arithmetic on a served score, and D-138 makes
+`Uncertainty.swift` the one file allowed to do that, named by the gate. The conversion goes there, or
+D-138 is amended in the same wave and the gate updated with it. It does not quietly appear in a third
+file.
+
+**The cost, stated.** A reader loses the ability to tell a measured percentage from a preference
+score, and two surfaces' "83" will look like the same kind of fact when they are not. That is exactly
+the confusion D-140 was written to prevent, and four of five council seats refused a bare "Score" on
+that reasoning. The owner has ruled that the unit was noise to the reader this product is built for —
+the reading that began with the 60-year-old CFO at M12-W2 — and that simplicity is worth the loss.
+Recorded so the trade is visible rather than forgotten.
+
+**Revisit when:** a reader compares two surfaces' scores out loud and gets a wrong answer from it, or
+ECI's anchor cannot be defended.
+
+---
+
+## D-144 — The optional-source exception belongs to the upstream, not to one board of it
+
+**Status:** **accepted as amended by the owner 2026-09-20** · **Date:** 2026-09-18 · **Proposed by:** the lead agent at M14-W2,
+because the change is to a rule the owner made. **Ratifying, amending or refusing it is his.** ·
+**Extends D-121.**
+
+**Context.** D-121 is the owner's ruling from M7-W1: `arena` may be an OPTIONAL source, so an
+upstream outage cannot make the whole artifact unbuildable, and it is safe to allow because the
+serving surface discloses a missing source rather than answering with an empty list. The ruling
+names one source, and `tests/unit/test_sources.py::test_arena_is_the_only_optional_source` pins
+that — deliberately, because an exception nobody pins becomes the default.
+
+M14-W2 adds two more boards. They are not another vendor: they are other configs of the same
+dataset, fetched from the same endpoint, under the same CC-BY-4.0 grant. **The outage D-121 exists
+for takes all three at once.**
+
+**The forced choice, stated plainly.** If the new boards are REQUIRED, one LMArena incident blocks
+an artifact that today survives that same incident — the system becomes more fragile than the state
+the owner's ruling was written to protect, as a side effect of adding coverage. If they are
+OPTIONAL, the exception now covers three sources instead of one and the pin has to say so.
+
+**Decision (proposed).** The exception attaches to the UPSTREAM. Every board of
+`lmarena-ai/leaderboard-dataset` is optional, on D-121's own reasoning and its own condition: each
+board is the sole evidence for its surface, and a surface with no evidence must SAY so rather than
+answer with an empty list. A source from any other upstream stays required unless the owner rules
+otherwise, one upstream at a time.
+
+**What is NOT proposed.** This does not make optionality a default, and it does not extend to a
+second vendor. If a future board comes from somewhere else, that is a new ruling.
+
+**Consequence if refused.** `arena_document` and `arena_factuality` become `required=True`, the
+pinning test returns to `{"arena"}`, and an LMArena outage fails the build. That is a coherent
+position — it says a thin artifact is worse than no artifact — and it is the owner's to take.
+
+**Revisit when:** a second upstream asks for the same exception, or an LMArena outage actually
+costs a build.
+
+**RULED by the owner, 2026-09-20, and the ruling is broader than the proposal.** Translated from
+Turkish: *"if its data does not arrive, its last data stays valid. If the data is about a month old,
+the list drops. If the data updates within that month, nothing happens and it joins the
+calculations."* So the rule is not "optional or required" but **carry forward, with an age limit**:
+
+- A source that fails a cycle keeps serving its **last good data**; the other sources still refresh.
+- A source whose last good data is **older than ~30 days** takes its list down, and the list says so.
+- A fresh fetch inside that window simply replaces the carried data.
+
+**What the code does today is different, and the difference is the work.** A failed optional source
+today leaves its surface empty in the candidate; D-128 then refuses the WHOLE candidate as worse, so
+the old artifact keeps serving — which carries Arena forward, but also blocks every OTHER source's
+fresh data (measured 2026-09-20: an Arena timeout refused a cycle that had fresh LiteLLM, OpenRouter,
+SWE-bench and both new boards). The owner's rule carries forward per source, not per artifact. This
+is scheduled as an M14 wave; D-144's status is superseded by this ruling.
+
+---
+
+## D-145 — A new surface's floor follows the rule the product ships, until one rule is chosen for all
+
+**Status:** accepted · **Date:** 2026-09-20 · **Decided by:** the owner, in session, answering "A"
+to the question put in plain words: *should the two new surfaces' quality floor be the top third of
+the whole board, as the nine shipped surfaces actually are, or of the models the engine can sell, as
+the header of `categories.py` says they are?* · **Disposes W-094 for M14.** · **Does not decide
+W-094's underlying question.**
+
+**Context.** W-094 measured that the nine shipped `min_quality` values are the top third of the
+WHOLE board, while the comment above them says they are sized on the ranked population. The two new
+surfaces had to pick one. On `document` the two rules admit the same 10 models; on `factuality` the
+board rule admits 32 of 59 and the ranked rule 20.
+
+**Decision.** New surfaces use the rule the product ships: the top third of the whole board,
+counted over distinct models (each model's best rating). `document` 1467.5, `factuality` 1450.6.
+The product keeps one rule across all eleven surfaces.
+
+**What stays open.** Which rule is RIGHT is still W-094's question, and it is one decision for
+all eleven surfaces at once, not a private choice for two. Until it is made, the header comment of
+`categories.py` states a rule the numbers do not follow; that contradiction is now recorded here and
+in W-094 rather than hidden.
+
+**Revisit when:** W-094's question is decided for the whole product.
+
+---
+
+## D-146 — The out-of-100 anchor is its own pinned field, and `/v1/categories` publishes it
+
+**Status:** **proposed — awaiting the owner.** · **Date:** 2026-09-20 · **Proposed by:** the lead
+agent, because the M14-W3/W4 review (`docs/reviews/m14-wave-3-4-review.md` B-1) found that W4 widened
+`/v1` against the owner's ruling "No K.8 change in M14" (`docs/plans/m14-plan.md` §0 ruling 2).
+**Amends D-143 and that ruling, for `/v1/categories` only.** Ratifying, amending or refusing it is his.
+
+**Context.** D-143 says an Elo score is converted against a reference "pinned in `CategorySpec`". The
+phone computes the conversion (D-138: `Uncertainty.swift`), so the phone needs that reference. W4 sent
+it as a new optional field on each `/v1/categories` entry, `score_anchor`. That is a contract change,
+and the owner had ruled there would be none in M14. The review is right that the field is sound and
+that the record is missing.
+
+**Decision (proposed).**
+
+1. `/v1/categories` gains one optional field per entry, `score_anchor`: a number on Elo surfaces,
+   `null` everywhere else. Additive; an older app ignores it and keeps showing the engine's own
+   scale. No existing field moves. `/v1/answers` is untouched.
+2. **The anchor is its own field in `CategorySpec`**, not the surface's `min_quality` (review M-3).
+   The floor is re-measured at every recalibration; if it were also the anchor, every card's number
+   would move with no new measurement of any model. The four values are pinned at 2026-09-20 to the
+   floors of that day (`assistant` 1400.0, `web-dev` 1478.9, `document` 1467.5, `factuality`
+   1450.6) and move only by a reviewed edit to `PINNED_SCORE_ANCHORS` in
+   `tests/unit/test_uncertainty_contract.py`.
+3. **Ties stay on the engine's own scale** (amends D-143 clause 5 as written). `rankRanges` keeps
+   the native margin: the conversion is monotonic, so which models are tied is identical, and a
+   margin converted at one point of a curved scale would be wrong at every other point. What converts
+   is the SENTENCE: the tie note and the why/trade-off lines restate their distances on the /100
+   scale, measured below the engine's leader, in points (`anchoredFact`, `distanceOutOf100`).
+4. An anchor more than 2000 Elo from a score is refused on the phone (review S-4); the card keeps the
+   engine's scale rather than reading every model as 0.
+
+**The cost, stated, with the live numbers of 2026-09-20.** An Elo leader reads 57–79 out of 100
+(`document` 57.0, `factuality` 57.2, `assistant` 65.0, `web-dev` 79.3); a percentage leader reads
+72.8–100. The same model reads 54.6 on `assistant` and 94.4 on `mathematics`. Even anchoring at each
+board's LAST ranked model would put the `document` leader at 65.7: these boards are narrow (113 Elo
+from first to last on `document`), and no pinned Elo anchor spreads them like a percentage. A reader
+who compares two surfaces will misread them. D-143 already names that cost; this ADR records its size.
+
+**Revisit when:** the owner asks for Elo surfaces to look different from percentage surfaces, or a
+recalibration makes a pinned anchor sit outside its board.
+

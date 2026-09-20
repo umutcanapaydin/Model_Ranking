@@ -70,7 +70,9 @@ def test_the_registry_names_nothing_that_does_not_exist() -> None:
     existing = set(_client_classes())
     declared_local = {bundle.client_class for bundle in LOCAL_BUNDLES}
 
-    assert declared_local <= existing, f"local bundles name absent classes: {declared_local - existing}"
+    assert declared_local <= existing, (
+        f"local bundles name absent classes: {declared_local - existing}"
+    )
     for source in REMOTE_SOURCES:
         assert source.client.__name__ in existing, f"{source.name} names an absent client"
 
@@ -96,7 +98,14 @@ def test_arena_is_the_only_optional_source() -> None:
     its value is an acceptance criterion, not an implementation detail.
     """
     optional = {source.name for source in REMOTE_SOURCES if not source.required}
-    assert optional == {"arena"}, f"D-121 names arena and only arena as optional; found {optional}"
+    # M14-W2 widened this set, and the owner ruled on it (D-144, amended 2026-09-20): every board of
+    # the LMArena dataset may fail a cycle without failing the build. His ruling goes further --
+    # a failed source keeps serving its last good data for about a month, then its list drops --
+    # and that carry-forward is scheduled work, not what this assertion pins. What it pins is the
+    # SET: an exception nobody pins becomes the default.
+    assert optional == {"arena", "arena_document", "arena_factuality"}, (
+        f"D-121 + D-144 name the LMArena boards and only those as optional; found {optional}"
+    )
 
 
 def test_every_source_a_category_names_as_primary_exists_in_the_registry() -> None:

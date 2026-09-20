@@ -116,6 +116,10 @@ def test_categories_are_data_not_code(monkeypatch: pytest.MonkeyPatch) -> None:
         "computer-use",
         "abstract",
         "web-dev",
+        # M14-W2: added as two map entries and no code branch, which is the property this test
+        # names -- the rest of the engine served them without a line changing.
+        "document",
+        "factuality",
     }
     for spec in CATEGORIES.values():
         assert spec.primary_benchmark and spec.metric and spec.primary_source
@@ -367,3 +371,19 @@ def test_no_surface_states_a_bar_the_engine_does_not_apply() -> None:
     assert not offenders, "a surface states a bar the engine does not apply:\n" + "\n".join(
         sorted(set(offenders))
     )
+
+
+def test_the_two_board_surfaces_rank_only_their_own_board() -> None:
+    """REQ-SUR-001: `document` and `factuality` each rank ONLY their own benchmark.
+
+    D-105: an Elo on one board is not comparable to an Elo on another, so a row labelled
+    `Arena document` must never reach `assistant`, and the reverse.
+    """
+    for surface, benchmark in (("document", "Arena document"), ("factuality", "Arena factuality")):
+        spec = CATEGORIES[surface]
+        assert spec.primary_benchmark == benchmark
+        assert spec.metric == "elo"
+        assert spec.primary_benchmark != CATEGORIES["assistant"].primary_benchmark
+        # D-145: the floor is on the board's own scale, and below its value window's reach
+        assert spec.min_quality >= 1000.0
+        assert spec.value_window < spec.min_quality

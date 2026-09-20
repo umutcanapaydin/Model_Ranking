@@ -186,6 +186,22 @@ public func scaleExplanation(for metric: String, in language: Language) -> Strin
     }
 }
 
+/// What the card's score means once D-143 has put it out of 100. `nil` where the scale is not an
+/// anchored Elo, so the caller keeps the metric's own explanation.
+public func anchoredScaleExplanation(for metric: String, anchored: Bool, in language: Language)
+    -> String?
+{
+    guard anchored, metric.lowercased() == "elo" else { return nil }
+    switch language {
+    case .english:
+        return "out of 100: how often people prefer it over a model at the bar we recommend from — "
+            + "50 is at the bar"
+    case .turkish:
+        return "100 üzerinden: insanların onu, önerdiğimiz çıtadaki bir modele ne sıklıkla tercih "
+            + "ettiği — 50 tam çıtada demek"
+    }
+}
+
 /// The price in pages, in the sentence's language.
 public func priceInPages(_ blendedPerM: Double, in language: Language) -> String {
     guard language == .turkish else { return priceInPages(blendedPerM) }
@@ -328,6 +344,23 @@ public enum UIText {
         language == .turkish ? "Sor" : "Ask"
     }
 
+    /// The gap register's title (M14-W3): what people asked that we cannot yet answer.
+    public static func gapsTitle(_ language: Language) -> String {
+        language == .turkish ? "Sorulan ama ölçmediklerimiz" : "Asked, but not measured"
+    }
+
+    /// The register when nothing has been recorded yet.
+    public static func noGaps(_ language: Language) -> String {
+        language == .turkish
+            ? "Henüz ölçmediğimiz bir soru sorulmadı."
+            : "Nobody has asked anything we do not measure yet."
+    }
+
+    /// Empties the register on this device.
+    public static func clearGaps(_ language: Language) -> String {
+        language == .turkish ? "Temizle" : "Clear"
+    }
+
     /// The Change sheet's title.
     public static func chooseSurface(_ language: Language) -> String {
         language == .turkish ? "Neyi sıralayalım?" : "What should we rank?"
@@ -375,6 +408,8 @@ public enum UIText {
         case "computer-use": return "Bilgisayar kullanma"
         case "abstract": return "Bulmaca ve örüntü"
         case "web-dev": return "Web geliştirme"
+        case "document": return "Belgelerle çalışma"
+        case "factuality": return "Doğru bilgi verme"
         default: return engineTitle
         }
     }

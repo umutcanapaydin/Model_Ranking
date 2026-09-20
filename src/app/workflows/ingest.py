@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from app.clients.aider import parse_polyglot, staleness_flag
-from app.clients.arena import parse_arena
+from app.clients.arena import ARENA_BOARDS, parse_arena
 from app.clients.deepswe import parse_deepswe
 from app.clients.epoch import (
     parse_swe_bench_verified as parse_epoch_swe_bench_verified,
@@ -154,7 +154,24 @@ def _store_scores(
 
 def ingest_arena(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
     """Fetch + parse the Arena text leaderboard (REQ-ING-007/-004)."""
-    rows, skipped = parse_arena(source.fetch_raw(), source=source.name, source_url=source.url)
+    # REQ-SRC-011. The benchmark label is looked up from the REGISTERED board whose id is this
+    # source's name -- never defaulted. The first version read `getattr(source, "benchmark",
+    # "Arena text")`, and the M14-W2 seat showed what that cost: replace it with the text label and
+    # the `document` board's Elo merged into `assistant` (Claude Opus 5 at 1516.3 became the chat
+    # leader) while all 905 tests stayed green. A source name no board claims is refused here.
+    board = next((b for b in ARENA_BOARDS.values() if b.id == source.name), None)
+    if board is None:
+        msg = (
+            f"arena ingest: no registered board has source id {source.name!r}; "
+            f"known: {sorted(b.id for b in ARENA_BOARDS.values())}"
+        )
+        raise SourceError(msg)
+    rows, skipped = parse_arena(
+        source.fetch_raw(),
+        source=source.name,
+        source_url=source.url,
+        benchmark=board.benchmark,
+    )
     unclassified = _store_scores(conn, source.name, rows, run)
     report = SourceReport(
         source=source.name,

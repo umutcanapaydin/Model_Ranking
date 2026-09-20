@@ -53,9 +53,12 @@ private struct Hanging: QuestionRouter {
     }
 }
 
-private let nine = [
+// Every surface `/v1/categories` serves, in the engine's order. Eleven since M14-W2: the router
+// centres its similarity scores on the mean over THESE ids, so a list that lags the engine tests a
+// router the app does not ship (M14-W2 review MAJOR-4).
+private let served = [
     "coding", "agentic-coding", "assistant", "everyday", "expert",
-    "mathematics", "computer-use", "abstract", "web-dev",
+    "mathematics", "computer-use", "abstract", "web-dev", "document", "factuality",
 ]
 
 // MARK: - REQ-ASK-004
@@ -168,7 +171,7 @@ final class EchoTests: XCTestCase {
     }
 
     func testTheCorrectionReachesEverySurfaceTheEngineServes() throws {
-        let categories = try nine.map { id in
+        let categories = try served.map { id in
             try JSONDecoder().decode(
                 ModelRankingEngine.Category.self,
                 from: Data(#"{"id": "\#(id)", "title": "T-\#(id)", "primary_benchmark": "B", "metric": "elo", "ranking_effort": null}"#.utf8)
@@ -177,7 +180,7 @@ final class EchoTests: XCTestCase {
 
         let choices = surfaceChoices(categories, selected: "mathematics", .english)
 
-        XCTAssertEqual(choices.map(\.id), nine, "a surface is unreachable, or the engine's order moved")
+        XCTAssertEqual(choices.map(\.id), served, "a surface is unreachable, or the engine's order moved")
         XCTAssertEqual(choices.filter(\.isSelected).map(\.id), ["mathematics"])
         XCTAssertEqual(choices.first?.title, "T-coding", "English uses the engine's own title")
     }
@@ -203,7 +206,7 @@ final class UnmeasuredQuestionTests: XCTestCase {
 
     /// Wrong MODALITY: an image job, which no surface measures.
     func testAnImageQuestionIsAnsweredWithARankingAndTheSentenceSayingWhatItCannotTell() async {
-        let outcome = await shipping.route("make my profile photo look better", within: nine)
+        let outcome = await shipping.route("make my profile photo look better", within: served)
 
         XCTAssertEqual(outcome.categoryID, "assistant", "no ranking was loaded for the question")
         XCTAssertTrue(outcome.unmeasured, "an image question was answered as a measured one")
@@ -212,7 +215,7 @@ final class UnmeasuredQuestionTests: XCTestCase {
 
     /// Wrong AXIS: a measured domain, asked about a property nothing measures.
     func testASpeedQuestionIsAnsweredWithARankingAndTheSentenceSayingWhatItCannotTell() async {
-        let outcome = await shipping.route("which model answers fastest", within: nine)
+        let outcome = await shipping.route("which model answers fastest", within: served)
 
         XCTAssertEqual(outcome.categoryID, "assistant")
         XCTAssertTrue(outcome.unmeasured, "a speed question was answered as a measured one")
@@ -221,7 +224,7 @@ final class UnmeasuredQuestionTests: XCTestCase {
 
     /// The reviewer's third probe, and the same axis gap.
     func testAContextWindowQuestionIsNotAnsweredAsMeasured() async {
-        let outcome = await shipping.route("which model has the longest context window", within: nine)
+        let outcome = await shipping.route("which model has the longest context window", within: served)
 
         XCTAssertTrue(outcome.unmeasured, "a context-window question was answered as a measured one")
     }
@@ -239,7 +242,7 @@ final class UnmeasuredQuestionTests: XCTestCase {
             ("build a photo gallery website", "web-dev"),
         ]
         for (question, surface) in cases {
-            let outcome = await shipping.route(question, within: nine)
+            let outcome = await shipping.route(question, within: served)
 
             if outcome.unmeasured {
                 XCTAssertEqual(outcome.alternatives.first, surface,
@@ -259,7 +262,7 @@ final class UnmeasuredQuestionTests: XCTestCase {
             ("optimise the latency of my web API", ["coding", "web-dev"]),
         ]
         for (question, reasonable) in cases {
-            let outcome = await shipping.route(question, within: nine)
+            let outcome = await shipping.route(question, within: served)
 
             if outcome.unmeasured {
                 XCTAssertFalse(reasonable.isDisjoint(with: outcome.alternatives),
@@ -280,12 +283,12 @@ final class UnmeasuredQuestionTests: XCTestCase {
     }
 
     func testADeclineNeverOffersTheChatRankingItIsAlreadyShowing() async {
-        let outcome = await shipping.route("make my profile photo look better", within: nine)
+        let outcome = await shipping.route("make my profile photo look better", within: served)
 
         XCTAssertTrue(outcome.unmeasured)
         XCTAssertFalse(outcome.alternatives.contains(CategoryHints.unmeasuredFallback))
         XCTAssertLessThanOrEqual(outcome.alternatives.count, 2)
-        XCTAssertTrue(outcome.alternatives.allSatisfy(nine.contains))
+        XCTAssertTrue(outcome.alternatives.allSatisfy(served.contains))
     }
 
     /// The other side, so the decline hints cannot pass the tests above by declining everything:
@@ -302,7 +305,7 @@ final class UnmeasuredQuestionTests: XCTestCase {
             ("help me write an email to my landlord", "assistant"),
         ]
         for (question, surface) in probe {
-            let outcome = await SimilarityRouter().route(question, within: nine)
+            let outcome = await SimilarityRouter().route(question, within: served)
 
             XCTAssertEqual(outcome?.categoryID, surface, question)
             XCTAssertEqual(outcome?.unmeasured, false, question)
@@ -313,7 +316,7 @@ final class UnmeasuredQuestionTests: XCTestCase {
     /// does not read the question, and it is not cited as the wrong-modality or wrong-axis test.
     func testTheModelTiersDeclineIsCarriedThroughToTheNotice() async {
         let outcome = await TieredRouter(model: DecliningModel(), similarity: Silent())
-            .route("anything at all", within: nine)
+            .route("anything at all", within: served)
 
         XCTAssertEqual(outcome.tier, .model)
         XCTAssertTrue(outcome.unmeasured)
@@ -348,7 +351,7 @@ final class UnmeasuredQuestionTests: XCTestCase {
     func testWhenBothTiersDeclineTheFallbackIsLabelledUnmeasured() async {
         let router = TieredRouter(model: nil, similarity: Silent())
 
-        let outcome = await router.route("¿cuál es el mejor modelo?", within: nine)
+        let outcome = await router.route("¿cuál es el mejor modelo?", within: served)
 
         XCTAssertEqual(outcome.tier, .manual)
         XCTAssertTrue(outcome.unmeasured, "`tier = manual` may not carry `unmeasured = false`")
@@ -389,19 +392,19 @@ final class UnmeasuredQuestionTests: XCTestCase {
 final class AlternativeSurfaceTests: XCTestCase {
     func testTheWordingTierOffersTheNextClosestSurfacesAsAlternatives() async {
         let outcome = await SimilarityRouter(floor: -2.0)
-            .route("fix the failing unit test in my python project", within: nine)
+            .route("fix the failing unit test in my python project", within: served)
 
         let alternatives = outcome?.alternatives ?? []
         XCTAssertEqual(alternatives.count, 2)
         XCTAssertFalse(alternatives.contains(outcome?.categoryID ?? ""),
                        "the chosen surface was offered as its own alternative")
-        XCTAssertTrue(alternatives.allSatisfy(nine.contains), "an alternative is not a served surface")
+        XCTAssertTrue(alternatives.allSatisfy(served.contains), "an alternative is not a served surface")
         XCTAssertEqual(Set(alternatives).count, alternatives.count)
     }
 
     func testAnUnmeasuredQuestionOffersNoAlternativesBecauseNothingMatched() async {
         let outcome = await SimilarityRouter(floor: 2.0)
-            .route("fix the failing unit test in my python project", within: nine)
+            .route("fix the failing unit test in my python project", within: served)
 
         XCTAssertEqual(outcome?.alternatives, [])
     }
@@ -410,9 +413,9 @@ final class AlternativeSurfaceTests: XCTestCase {
     /// must not move with it.
     func testTheAlternativesDoNotDependOnTheOrderTheSurfacesArrivedIn() async {
         let question = "fix the failing unit test in my python project"
-        let rotated = Array(nine[4...] + nine[..<4])
+        let rotated = Array(served[4...] + served[..<4])
 
-        let first = await SimilarityRouter(floor: -2.0).route(question, within: nine)
+        let first = await SimilarityRouter(floor: -2.0).route(question, within: served)
         let second = await SimilarityRouter(floor: -2.0).route(question, within: rotated)
 
         XCTAssertEqual(first?.categoryID, second?.categoryID)
@@ -430,7 +433,7 @@ final class SlowTierTests: XCTestCase {
                                   modelTimeout: 0.2)
         let started = Date()
 
-        let outcome = await router.route("fix my code", within: nine)
+        let outcome = await router.route("fix my code", within: served)
 
         XCTAssertEqual(outcome.tier, .similarity, "the question waited for a model that never came")
         XCTAssertLessThan(Date().timeIntervalSince(started), 5,
@@ -442,7 +445,7 @@ final class SlowTierTests: XCTestCase {
         let router = TieredRouter(model: Fixed(outcome: model), similarity: Fixed(outcome: wording),
                                   modelTimeout: 5)
 
-        let outcome = await router.route("build me a landing page", within: nine)
+        let outcome = await router.route("build me a landing page", within: served)
 
         XCTAssertEqual(outcome.tier, .model, "the deadline cut off a model that answered")
     }
@@ -524,5 +527,126 @@ final class OnDeviceHelpTests: XCTestCase {
         }
         #endif
         XCTAssertEqual(TieredRouter.onDeviceState(), .notEligible)
+    }
+}
+
+// MARK: - REQ-GAP-001/002 (M14-W3): the gap register
+
+final class GapRegisterTests: XCTestCase {
+    private let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+
+    /// REQ-GAP-001: an unmeasured question is recorded with a count.
+    func testAQuestionIsRecordedAndCounted() {
+        var register = GapRegister()
+        register.record("make my profile photo look better", at: t0)
+        register.record("make my profile photo look better", at: t0.addingTimeInterval(60))
+
+        XCTAssertEqual(register.entries.count, 1)
+        XCTAssertEqual(register.entries.first?.count, 2)
+        XCTAssertEqual(register.entries.first?.lastAsked, t0.addingTimeInterval(60))
+    }
+
+    /// Case and runs of whitespace do not make a second gap -- and the fold ignores the reader's
+    /// locale, so a Turkish phone does not split `I` from `i` (W-079).
+    func testTwoSpellingsOfOneQuestionAreOneGap() {
+        var register = GapRegister()
+        register.record("Image  Enchantment", at: t0)
+        register.record("  image enchantment ", at: t0)
+
+        XCTAssertEqual(register.entries.count, 1)
+        XCTAssertEqual(register.entries.first?.count, 2)
+        XCTAssertEqual(register.entries.first?.question, "Image  Enchantment", "shown as first typed")
+    }
+
+    /// Blank text is not a question.
+    func testBlankTextRecordsNothing() {
+        var register = GapRegister()
+        register.record("   \n ", at: t0)
+        XCTAssertTrue(register.entries.isEmpty)
+    }
+
+    /// REQ-GAP-002: most-asked first; among equals, the most recent first.
+    func testTheOwnerReadsTheMostAskedFirst() {
+        var register = GapRegister()
+        register.record("a", at: t0)
+        register.record("b", at: t0.addingTimeInterval(10))
+        register.record("b", at: t0.addingTimeInterval(20))
+        register.record("c", at: t0.addingTimeInterval(30))
+
+        XCTAssertEqual(register.ordered.map(\.question), ["b", "c", "a"])
+    }
+
+    /// Bounded: a pasted document is not stored whole, and the list cannot grow without end.
+    func testTheRegisterIsBounded() {
+        var register = GapRegister()
+        register.record(String(repeating: "x", count: 5_000), at: t0)
+        XCTAssertEqual(register.entries.first?.question.count, GapRegister.maxLength)
+
+        register.clear()
+        for index in 0..<(GapRegister.maxEntries + 5) {
+            register.record("question \(index)", at: t0.addingTimeInterval(Double(index)))
+        }
+        XCTAssertEqual(register.entries.count, GapRegister.maxEntries)
+        XCTAssertFalse(register.entries.contains { $0.question == "question 0" },
+                       "the least-asked, oldest entry is the one that makes room")
+    }
+
+    /// It survives a relaunch, and an unreadable file is an empty register rather than a crash.
+    func testTheRegisterRoundTripsThroughItsFile() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString).appendingPathComponent("gap-register.json")
+        let store = GapRegisterStore(url: url)
+        var register = GapRegister()
+        register.record("which model is best at tax tables", at: t0)
+        store.save(register)
+
+        XCTAssertEqual(store.load(), register)
+
+        try Data("not json".utf8).write(to: url)
+        XCTAssertEqual(store.load(), GapRegister())
+    }
+}
+
+/// The M14-W3/W4 review's fixes to the gap register (m-1, S-2, S-3).
+final class GapRegisterHardeningTests: XCTestCase {
+    /// m-1: a router failure is not a gap in the catalogue.
+    func testOnlyARoutedUnmeasuredQuestionIsAGap() {
+        XCTAssertTrue(recordsGap(RoutingOutcome(categoryID: "assistant", tier: .similarity, unmeasured: true)))
+        XCTAssertTrue(recordsGap(RoutingOutcome(categoryID: "assistant", tier: .model, unmeasured: true)))
+        XCTAssertFalse(recordsGap(RoutingOutcome(categoryID: "assistant", tier: .manual, unmeasured: true)))
+        XCTAssertFalse(recordsGap(RoutingOutcome(categoryID: "coding", tier: .similarity, unmeasured: false)))
+    }
+
+    /// S-3: one character loaded with combining marks is still held to the byte bound.
+    func testAnEntryIsBoundedInBytesNotOnlyCharacters() {
+        var register = GapRegister()
+        let heavy = "a" + String(repeating: "\u{0301}", count: 5_000) + " photo"
+        register.record(heavy)
+        let stored = register.entries.first?.question ?? ""
+        XCTAssertLessThanOrEqual(stored.utf8.count, GapRegister.maxBytes)
+    }
+
+    /// S-2: the register lives in a folder of its own, which is what carries the backup exclusion.
+    func testTheRegisterLivesInItsOwnFolder() {
+        XCTAssertEqual(
+            GapRegisterStore.onDevice.url.deletingLastPathComponent().lastPathComponent, "GapRegister"
+        )
+    }
+
+    /// S-1: the phone's store writes with complete file protection.
+    func testThePhonesStoreIsProtectedWhileLocked() {
+        XCTAssertTrue(GapRegisterStore.onDevice.writeOptions.contains(.completeFileProtection))
+    }
+
+    /// And a save into a fresh folder round-trips, folder created on the way.
+    func testASaveCreatesItsFolderAndRoundTrips() throws {
+        let folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = GapRegisterStore(url: folder.appendingPathComponent("gap-register.json"))
+        var register = GapRegister()
+        register.record("remove the background from my photo")
+        store.save(register)
+        XCTAssertEqual(store.load(), register)
     }
 }

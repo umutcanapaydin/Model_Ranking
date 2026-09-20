@@ -73,6 +73,14 @@ enum CategoryHints {
         "computer-use": "control a computer or a browser: click buttons, fill in forms, navigate an interface",
         "abstract": "abstract reasoning and puzzles: patterns, sequences, logic with no worked example",
         "web-dev": "build a website or a web page: front end, HTML, CSS, a landing page, a web app",
+        // M14-W2. Written for the question a reader asks, not for the board's name.
+        // Worded AWAY from its neighbours on purpose (M14-W2 review MAJOR-4): no "report" (it
+        // pulled "write a report" here) and nothing that reads as a general question ("accurate
+        // answers" overlapped `assistant` and `everyday`).
+        "document": "read or summarise a long document I give it: a PDF, a contract, a paper, "
+            + "pages of text to answer questions from",
+        "factuality": "is this true or made up: a fact that must be correct, no invented details, "
+            + "citations, names or numbers",
     ]
 
     /// Where a question the catalogue does not measure goes (REQ-RTR-005, owner's ruling).

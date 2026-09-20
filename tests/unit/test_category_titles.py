@@ -48,7 +48,9 @@ def test_no_two_titles_begin_with_the_same_word() -> None:
 
     collisions = {word: titles for word, titles in firsts.items() if len(titles) > 1}
 
-    assert not collisions, f"these titles start with the same word and will be confused: {collisions}"
+    assert not collisions, (
+        f"these titles start with the same word and will be confused: {collisions}"
+    )
 
 
 @pytest.mark.parametrize("surface", sorted(CATEGORIES))
@@ -70,8 +72,19 @@ def test_the_ids_are_unchanged_because_they_are_the_contract() -> None:
     a set compared against itself confirms nothing.
     """
     assert set(CATEGORIES) == {
-        "coding", "agentic-coding", "assistant", "everyday", "expert",
-        "mathematics", "computer-use", "abstract", "web-dev",
+        "coding",
+        "agentic-coding",
+        "assistant",
+        "everyday",
+        "expert",
+        "mathematics",
+        "computer-use",
+        "abstract",
+        "web-dev",
+        # M14-W2: two ids ADDED. An addition extends the contract a client already reads; it moves
+        # nothing an existing client depends on. A rename or a removal still fails here.
+        "document",
+        "factuality",
     }
 
 
