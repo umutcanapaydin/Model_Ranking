@@ -44,6 +44,11 @@ EXEMPT: dict[str, str] = {
     # sentence as the act it forbids.
     "docs/reviews/m6-security-review.md:556": "GPF-004 — an attestation read as an instruction",
     "docs/reviews/m6-security-review.md:989": "GPF-004 — same",
+    # GPF-001 again, from the other direction: the M14 closure seat's record QUOTES the four
+    # dangling `make pin-check` findings above while explaining that they are pre-M14 and standing.
+    # A record that names an exemption is read by this check as documenting the command. Exempted
+    # rather than reworded: an independent seat's record is not edited to please a gate.
+    "docs/reviews/m14-closure-review.md:60": "GPF-001 — a seat's record quoting the exemptions above",
 }
 
 FINDING = re.compile(r"^\s*FAIL\s+(\S+?:\d+)\s+(.*)$")

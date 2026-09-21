@@ -1,7 +1,7 @@
 ---
-record_type: research
+record_type: brief
 id: question-coverage-2026-09-18
-status: draft
+status: ratified
 process_version: v5.0
 date: 2026-09-18
 ---

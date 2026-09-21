@@ -19,6 +19,29 @@ DST="$HOME/Library/LaunchAgents/$LABEL.plist"
 [ -f "$SRC" ] || { echo "FAIL: $SRC is not there"; exit 1; }
 mkdir -p "$HOME/Library/LaunchAgents"
 
+# M14 closure seat, MAJOR-1. The plist no longer names a program inside the repository: since
+# W-096 it runs a wrapper under Application Support, because macOS privacy protection stops
+# launchd opening a program that lives under ~/Desktop. Installing only the plist therefore left a
+# job whose program did not exist -- the same silent outage W-096 was raised for, reinstated by the
+# fix for it. The wrapper is part of THIS install, and the two are checked against each other so a
+# future edit to either cannot drift apart unnoticed.
+WRAPPER_SRC="$REPO/scripts/refresh_job.sh"
+WRAPPER_DST="$HOME/Library/Application Support/model-ranking/refresh_job.sh"
+WANTED="$(/usr/libexec/PlistBuddy -c 'Print :ProgramArguments:1' "$SRC" 2>/dev/null)"
+[ -f "$WRAPPER_SRC" ] || { echo "FAIL: $WRAPPER_SRC is not there"; exit 1; }
+if [ "$WANTED" != "$WRAPPER_DST" ]; then
+  echo "FAIL: the plist runs"
+  echo "        $WANTED"
+  echo "      and this installer writes"
+  echo "        $WRAPPER_DST"
+  echo "      One of the two is wrong. Nothing was installed."
+  exit 1
+fi
+mkdir -p "$(dirname "$WRAPPER_DST")"
+cp "$WRAPPER_SRC" "$WRAPPER_DST" || { echo "FAIL: could not copy the wrapper"; exit 1; }
+chmod 700 "$WRAPPER_DST"
+echo "installed: $WRAPPER_DST"
+
 # Already running? Take it down first, or bootstrap refuses with "service already loaded".
 if launchctl print "gui/$(id -u)/$LABEL" > /dev/null 2>&1; then
   echo "already loaded — taking it down first so the new plist is the one that runs"

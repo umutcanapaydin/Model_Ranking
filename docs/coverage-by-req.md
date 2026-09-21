@@ -102,3 +102,36 @@ reports.
 
 **One row is PARTIAL and it is not a hedge.** REQ-ASK-001's keyboard half needs a person at a
 keyboard, which this environment cannot supply and the plan (§4) reserved for the owner anyway.
+
+---
+
+## M14 — traced at the M14 quality gate (Stage 4.1)
+
+**Evidence pinning.** `fc7fe5b` plus the closure wave. `pytest 918 passed / 13 skipped`; Swift
+`241 test(s)` from the owner's `make check` of 2026-09-20, which predates this wave's one new Swift
+test. Line numbers are derived by symbol search, never transcribed (M6's lesson, three times).
+
+**Read the verdicts literally.** COVERED means a named test fails if the criterion is violated, and
+for four rows below that is only true *after* the closure seat's findings were fixed — those rows
+say so, because a trace that hides how close it came is not a trace.
+
+| # | REQ-ID | Verdict | Implementing code | Citing test shown able to fail |
+|---|---|---|---|---|
+| 1 | **REQ-SRC-010** — the board's licence is on record before its data is served | COVERED (as amended) | `src/app/clients/arena.py` header; the grant is dataset-level CC-BY-4.0 at D-101 | `tests/unit/test_arena_client.py::test_every_registered_arena_board_is_attributed_and_floored` — a board with no attribution fails it |
+| 2 | **REQ-SRC-011** — each board under its own source id and benchmark, never defaulted | COVERED | `src/app/clients/arena.py::ARENA_BOARDS`, `src/app/workflows/ingest.py::ingest_arena` | `test_arena_client.py::test_ingest_stores_each_board_under_its_own_benchmark` (through the real ingest; kills the W2 mutant that merged `document` into `assistant`), `::test_ingest_refuses_a_source_no_board_claims` |
+| 3 | **REQ-IMG-001** — the ranked population is counted and published before any threshold | COVERED | `scripts/calibrate_board.py`, `src/app/workflows/rank.py::ranked_population` | `docs/plans/m14-wave-1-close.md` — the count was zero and the wave stopped; `test_calibrate_board.py` self-check |
+| 4 | **REQ-IMG-002/003** — the tenth surface and its routing | **NOT DELIVERED** | — | Dropped with the image surface when REQ-IMG-001 measured zero. No disposition existed until the closure seat found it: `docs/warnings.ledger.md` W-105, owning milestone M15 |
+| 5 | **REQ-SUR-001** — the two new surfaces rank only their own board | COVERED **after the closure seat** | `src/app/workflows/categories.py`, `src/app/workflows/rank.py::category_ranking` | `tests/unit/test_categories.py::test_a_board_only_reaches_its_own_surface_through_the_ranking_query` — three boards, one shared model at three ratings. The wave-2 record cited a test that read four dataclass fields and could not fail on this (W-102) |
+| 6 | **REQ-GAP-001** — every decline recorded on the device, and nothing leaves it | COVERED **after the closure seat** | `ios/ModelRanking/Engine/FrontDoor.swift::GapRegister`, `recordsGap`, `GapRegisterStore` | `tests/unit/test_router_hints.py::test_the_gap_register_stays_on_the_device` — now bans every network door in `ContentView.swift` as well; the seat's four-line `URLSession` mutant was re-run and dies (W-099). Bounds and eviction: `ios/EngineTests/FrontDoorTests.swift::GapRegisterTests`, `GapRegisterHardeningTests` |
+| 7 | **REQ-GAP-002** — the owner reads the register, most-asked first | COVERED in code; **one half is the owner's** | `ios/ModelRanking/ContentView.swift` `gapSheet`, `GapRegister.ordered` | `FrontDoorTests.swift::GapRegisterTests`. The plan's definition of done also asks that it be read on a running app at least once: **not done**, `docs/closure-report-m14.md` §0 |
+| 8 | **REQ-SCR-001** — a score out of 100 on every card and row; no metric name in front of the reader | COVERED | `ios/ModelRanking/Engine/Uncertainty.swift::scoreOutOf100`, `anchoredFact`; `Scores.swift::figuresLine` | `ios/EngineTests/ScoresTests.swift::OutOf100Tests`, `OutOf100SentenceTests`; `tests/unit/test_ios_client_contract.py::test_every_score_on_screen_goes_through_the_figures_line`. ECI stays rank-only by D-143 |
+| 9 | **REQ-SCR-002** — per surface, strictly monotonic, never reorders | COVERED | the same conversion | `ScoresTests.swift::testTheConversionNeverReordersOnAnyPinnedAnchor` — all four pinned anchors, ±400 Elo at the served resolution |
+| 10 | **REQ-SCR-003** — no surface's 100 comes from the current board, and a recalibration cannot move it | COVERED **after the closure seat** | `src/app/workflows/categories.py::CategorySpec.score_anchor`, `src/app/adapter/main.py` `/v1/categories` | `tests/unit/test_uncertainty_contract.py::test_the_served_anchor_does_not_follow_a_moved_floor` (the seat's surviving mutant now dies, W-107), `::test_every_elo_surface_publishes_its_pinned_score_anchor`; client-side row pins in `test_ios_client_contract.py` |
+| 11 | **REQ-SCR-004** — ties are the engine's; the tie note speaks the card's scale | COVERED (as amended by D-146 clause 3) | `ios/ModelRanking/Engine/Uncertainty.swift::rankRanges`, `leaderSentence` | `ScoresTests.swift::testTheLeaderNoteSpeaksPointsWhenAnchored`, which also asserts the ranges are byte-identical before and after |
+| 12 | **REQ-RUN-002 (carried)** — the 12-hour refresh runs, and can be installed from this repository | COVERED **after the closure seat** | `deploy/com.hcs.modelranking.refresh.plist`, `scripts/refresh_job.sh`, `scripts/enable_refresh.sh`, `scripts/install_refresh_wrapper.sh` | `tests/unit/test_refresh_job_install.py` — three tests pinning the plist's program, both installers' destinations and the log paths against each other (W-100) |
+
+**Four rows read "COVERED after the closure seat", and that is the finding of this trace.** Each of
+the four passed every gate in the repository while the criterion it names was unproven or, in
+REQ-RUN-002's case, untrue. The gates did not get worse; the criteria got harder to prove in a lane
+with no Swift compiler and no live artifact.
+

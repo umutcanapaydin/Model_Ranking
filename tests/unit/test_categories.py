@@ -373,6 +373,46 @@ def test_no_surface_states_a_bar_the_engine_does_not_apply() -> None:
     )
 
 
+def test_every_surface_names_the_source_its_board_arrives_on() -> None:
+    """MAJOR-2 of the M14 closure seat: `primary_source` decides who DISCLOSES, so it must be right.
+
+    `build.py` answers "this source is missing, which surfaces must stay silent?" from this field
+    (D-121). The seat repointed `document` at `arena` and every one of 912 tests stayed green: the
+    surface would then keep answering from a board nobody fetched, and the missing-source action
+    would say "no surface names it as primary" about a board two surfaces are built on.
+
+    Pinned as a TABLE rather than a rule, because the pairing is a fact about each board's
+    registration, not something a pattern can derive: `assistant` reads the source `arena` whose
+    benchmark label is `Arena text`, and no rule turns one name into the other.
+    """
+    from app.workflows.build import _surfaces_left_without_evidence
+
+    pairs = {
+        "assistant": "arena",
+        "document": "arena_document",
+        "factuality": "arena_factuality",
+        "coding": "swebench",
+        "agentic-coding": "epoch_deepswe_external",
+        "everyday": "epoch_eci",
+        "expert": "epoch_gpqa",
+        "mathematics": "epoch_aime",
+        "computer-use": "epoch_terminalbench",
+        "abstract": "epoch_arc_agi",
+        "web-dev": "epoch_webdev",
+    }
+    assert set(pairs) == set(CATEGORIES), "a surface was added or removed without pinning its source"
+    for surface, source in pairs.items():
+        assert CATEGORIES[surface].primary_source == source, surface
+
+    # ...and the pairing is load-bearing THROUGH the live entry point: an unavailable source must
+    # name its own surfaces, which is what a reader is told instead of an answer.
+    for surface, source in pairs.items():
+        actions = _surfaces_left_without_evidence([f"{source}: fetch failed"])
+        assert any(surface in action and "must" in action for action in actions), (
+            f"{source} going missing does not silence {surface}"
+        )
+
+
 def test_the_two_board_surfaces_rank_only_their_own_board() -> None:
     """REQ-SUR-001: `document` and `factuality` each rank ONLY their own benchmark.
 
@@ -387,3 +427,68 @@ def test_the_two_board_surfaces_rank_only_their_own_board() -> None:
         # D-145: the floor is on the board's own scale, and below its value window's reach
         assert spec.min_quality >= 1000.0
         assert spec.value_window < spec.min_quality
+
+
+def test_a_board_only_reaches_its_own_surface_through_the_ranking_query() -> None:
+    """REQ-SUR-001 behaviourally, through `category_ranking` -- the M14 closure seat's MAJOR-3.
+
+    The wave record cited a test that only read `CategorySpec` fields, which cannot fail on the
+    thing the criterion is about: the criterion is a property of the QUERY, not of four strings.
+    Here three boards carry the same model at three different ratings, plus one model that exists
+    on one board only, and each surface must see exactly its own.
+
+    D-105 in one assertion: an Elo on the document board is not an Elo on the chat board, and a
+    leader on one must never arrive as a leader on the other.
+    """
+    import json
+
+    from app.clients.fakes import FakeRawSource
+    from app.workflows.ingest import RunContext, ingest_arena, ingest_litellm
+    from app.workflows.rank import build_price_medians, category_ranking
+    from app.workflows.registry import reconcile
+    from app.workflows.schema import connect
+
+    from .test_api_v1 import PRICING
+
+    def board(rows: list[tuple[str, float]]) -> str:
+        return json.dumps(
+            {
+                "rows": [
+                    {
+                        "row": {
+                            "model_name": name,
+                            "rating": rating,
+                            "category": "overall",
+                            "leaderboard_publish_date": "2026-09-13",
+                        }
+                    }
+                    for name, rating in rows
+                ]
+            }
+        )
+
+    conn = connect()
+    run = RunContext(observed_at="2026-09-21T00:00:00Z")
+    ingest_litellm(conn, FakeRawSource("litellm", PRICING), run)
+    shared, only_here = "GPT-5", "DeepSeek V3.2"  # display names, as the registry canonicalises
+    ingest_arena(conn, FakeRawSource("arena", board([("gpt-5", 1400.0)])), run)
+    ingest_arena(
+        conn,
+        FakeRawSource("arena_document", board([("gpt-5", 1500.0), ("deepseek-v3.2", 1490.0)])),
+        run,
+    )
+    ingest_arena(conn, FakeRawSource("arena_factuality", board([("gpt-5", 1600.0)])), run)
+    reconcile(conn)
+    build_price_medians(conn)
+
+    seen = {
+        surface: {row.model: row.score for row in category_ranking(conn, CATEGORIES[surface])}
+        for surface in ("assistant", "document", "factuality")
+    }
+    assert seen["assistant"].get(shared) == 1400.0, seen["assistant"]
+    assert seen["document"].get(shared) == 1500.0, seen["document"]
+    assert seen["factuality"].get(shared) == 1600.0, seen["factuality"]
+    # The model that exists on ONE board reaches ONE surface. This is the assertion the mutant that
+    # merged the boards at ingest died on, now stated where a reader meets it.
+    assert only_here in seen["document"], seen["document"]
+    assert only_here not in seen["assistant"] and only_here not in seen["factuality"]

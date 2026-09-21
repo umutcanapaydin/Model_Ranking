@@ -297,6 +297,27 @@ PINNED_SCORE_ANCHORS = {
 }
 
 
+def test_the_served_anchor_does_not_follow_a_moved_floor(
+    seeded: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D-146 clause 2, through `/v1/categories`. The M14 closure seat's MAJOR-8.
+
+    Every pinned anchor currently equals its surface's `min_quality`, so an endpoint serving the
+    FLOOR passes every assertion that compares the served number to the pinned table. The seat ran
+    that mutant and it survived. Here one surface's floor is moved and its anchor is not: an
+    endpoint reading the floor now serves a number no ruling produced, which is precisely the
+    regression -- a recalibration moving every card's number with no new measurement of any model.
+    """
+    surface = "document"
+    spec = CATEGORIES[surface]
+    moved = dataclasses.replace(spec, min_quality=spec.min_quality + 123.0)
+    monkeypatch.setitem(CATEGORIES, surface, moved)
+
+    served = _served_categories()
+    assert served[surface]["score_anchor"] == PINNED_SCORE_ANCHORS[surface]
+    assert served[surface]["score_anchor"] != moved.min_quality
+
+
 def test_a_recalibration_cannot_move_the_anchor() -> None:
     """Review M-3: the anchor is its own field, so moving the floor leaves every /100 number alone."""
     from dataclasses import replace

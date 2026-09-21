@@ -2012,7 +2012,7 @@ it as a new optional field on each `/v1/categories` entry, `score_anchor`. That 
 and the owner had ruled there would be none in M14. The review is right that the field is sound and
 that the record is missing.
 
-**Decision (proposed).**
+**Decision.**
 
 1. `/v1/categories` gains one optional field per entry, `score_anchor`: a number on Elo surfaces,
    `null` everywhere else. Additive; an older app ignores it and keeps showing the engine's own

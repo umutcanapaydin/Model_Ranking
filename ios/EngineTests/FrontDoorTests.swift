@@ -312,6 +312,30 @@ final class UnmeasuredQuestionTests: XCTestCase {
         }
     }
 
+    /// The POSITIVE half, added by the M14 closure seat's MAJOR-4: a reader can actually REACH the
+    /// two surfaces M14 added.
+    ///
+    /// Every other test of these ids checks that the nine older questions do not fall out of an
+    /// eleven-id list -- all negatives. The milestone's premise is that people reach a surface by
+    /// asking for it in their own words, and nothing asserted that. This runs the real embedding
+    /// router, like the calibration probe above, so a hint reworded into a neighbour's territory
+    /// fails here rather than on a reader's phone.
+    ///
+    /// If this fails after a hint edit, the hint is the defect, not the test: both questions are
+    /// plain readings of what each surface measures.
+    func testTheTwoNewSurfacesAreReachableByAsking() async {
+        let probe: [(String, String)] = [
+            ("summarise this 40 page contract pdf for me", "document"),
+            ("is this quote real or did it invent the citation", "factuality"),
+        ]
+        for (question, surface) in probe {
+            let outcome = await SimilarityRouter().route(question, within: served)
+
+            XCTAssertEqual(outcome?.categoryID, surface, question)
+            XCTAssertEqual(outcome?.unmeasured, false, question)
+        }
+    }
+
     /// The model tier's decline PATH, labelled as what it is: the sentinel reaches the notice. It
     /// does not read the question, and it is not cited as the wrong-modality or wrong-axis test.
     func testTheModelTiersDeclineIsCarriedThroughToTheNotice() async {

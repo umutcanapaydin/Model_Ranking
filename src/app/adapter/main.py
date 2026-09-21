@@ -1243,6 +1243,12 @@ def categories() -> dict[str, Any]:
                 # when an owner ruling moves the floor, never because another model joined the board.
                 # `null` on a scale that is already out of 100 (identity) or that has no readable
                 # anchor at all (ECI, which D-143 leaves rank-only).
+                #
+                # Its own field, and never `spec.min_quality` -- which today holds the SAME four
+                # numbers, so serving the floor instead passes by coincidence. The M14 closure seat
+                # ran exactly that mutant and it survived; `test_uncertainty_contract.py::
+                # test_the_served_anchor_does_not_follow_a_moved_floor` moves one floor and not the
+                # other so the coincidence cannot stand in for the decision (D-146 clause 2).
                 "score_anchor": spec.score_anchor,
                 # REQ-UNC-002. The age is the engine's own (`recommend.secondary_age_days`) against
                 # the artifact's anchor; `null` when the board is undated or unreadable.

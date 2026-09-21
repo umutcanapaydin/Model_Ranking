@@ -223,3 +223,23 @@ def test_the_gap_register_stays_on_the_device() -> None:
     assert not re.search(r"client\.\w+\([^)]*gaps", view_code), (
         "an engine call is handed the register"
     )
+
+    # M14 closure seat, BLOCKING-1. The three asserts above search the REGISTER's own section of
+    # `FrontDoor.swift`. The reader's words are recorded from `ContentView.ask`, so a mutant that
+    # POSTs `typed` to a remote host from the view -- four lines, immediately after `gaps.record` --
+    # survived every gate in this repository, `swift test` included (the Engine target does not
+    # compile `ContentView.swift`, which is why these source-contract tests exist at all).
+    #
+    # So the ban is on the WHOLE view, not on one section of one file: the view has exactly one way
+    # to reach the network, `EngineClient`, and `test_the_client_sends_only_the_surface_and_budget`
+    # above pins every argument that may go through it. A view that opens its own connection is the
+    # D-126 defect whatever it sends -- `URLSession`, `URLRequest`, a socket or a raw URL string.
+    for door in ("URLSession", "URLRequest", "URL(string:", "NWConnection", "CFStream"):
+        assert door not in view_code, (
+            f"the screen opens its own network door (`{door}`); the reader's words are on this "
+            "screen, and the only sanctioned egress is EngineClient with the arguments pinned above"
+        )
+    for door in ("URLSession", "URLRequest", "NWConnection"):
+        assert door not in "\n".join(
+            line.split("//", 1)[0] for line in front.splitlines()
+        ), f"the front door opens its own network door (`{door}`)"

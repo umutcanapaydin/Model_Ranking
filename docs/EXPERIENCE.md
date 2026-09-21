@@ -646,3 +646,38 @@ exact number is no longer printed, only its rank (D-140); nothing deployed, sixt
 **Carried to M14:** what would it take for the next milestone's evidence to come from the product as
 a reader meets it — refreshed data, a real keyboard, a real device — rather than from the
 instruments around it?
+
+## M14 closure — 2026-09-21 — a proof is scoped to the file it reads, not to the invariant it names
+
+M13 asked what it would take for the evidence to come from the product rather than from the
+instruments around it. M14's answer was: the owner's machine, and only it. Nine probes in the agent
+lane cleared the Desktop paths, the interpreter, the plist and the registration by measurement, and
+every one of them was wrong — they ran Apple-signed programs, and macOS decides privacy protection
+per program. One run on his machine with the real wrapper produced the first honest error of the
+hunt. The inverse is now the standing risk: `ContentView.swift` is compiled by nothing in this
+project's suite, so the one file holding the reader's typed words carries the least proof, and the
+closure seat found exactly that.
+
+Engineering shapes worth keeping:
+
+1. **Scope a structural test to the invariant, not to the section.** REQ-GAP-001 says nothing the
+   reader types leaves the device; its test searched the register's own section of one file while
+   the recording happens in another. A four-line `URLSession` POST of the typed question survived
+   every gate. Ban the egress spellings across every file the data can reach, and leave one
+   sanctioned door whose arguments are pinned.
+2. **A remedy named in a record is a deliverable with a path.** A ledger row closed a 24-day outage
+   citing an installer script that existed only in the owner's scratch folder, while the
+   repository's own install path was left writing a plist whose program was absent — the same
+   outage, reinstated by its fix.
+3. **A pin that passes by coincidence is not a pin.** Four pinned anchors happened to equal four
+   thresholds, so serving the wrong one passed every test. Move one and not the other.
+4. **Diff the criteria table at closure; do not read it.** Two REQ-IDs left the milestone with no
+   disposition anywhere. `grep` found them in a minute; three reviews had not.
+5. **A stop condition is worth more than a plan.** The milestone's centrepiece surface was refused
+   in its first wave by its own measurement — a ranked population of zero — and two surfaces the
+   data supported were built instead.
+
+**What was accepted rather than solved:** Elo surfaces read 57–79 against percentage surfaces'
+73–100, on the owner's ruling; the detail screen the plan leaned on does not exist; two gates
+reproduce only on the owner's machine; the HIGH-tier security pass was waived twice more while its
+ADR stays proposed — fifth and sixth occurrence of `control-bypass`.

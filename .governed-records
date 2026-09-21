@@ -34,3 +34,8 @@ docs/reviews/m9-*.md
 docs/reviews/m1[0-9]-*.md
 docs/fixpack-*.md
 docs/EXPERIENCE.md
+# M14 closure seat, MINOR. `docs/research/` was ungoverned and M14 put a record there; the seat
+# gave that file a bogus `record_type`, a duplicate `id` and a bogus `status`, and the gate still
+# reported PASS. A directory nobody named is W-012's shape, and a research record is cited by a
+# plan the owner rules from.
+docs/research/*.md

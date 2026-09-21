@@ -20,7 +20,13 @@ class CategorySpec:
     metric: str  # metric name as stored in scores.metric
     score_unit: str  # human label for trade-off wording (REQ-REC-005)
     secondary_benchmark: str | None  # evidence-only; NEVER affects ordering (REQ-CAT-003)
-    primary_source: str  # informational; health flags live on ingest reports (not persisted yet)
+    # LOAD-BEARING, and it did not say so until the M14 closure seat mutated it (MAJOR-2). It is
+    # not used for ORDERING -- `category_ranking` joins on `primary_benchmark`, and keying the join
+    # on this field was a defect once (`src/app/adapter/main.py`, the note beside the join). It is
+    # used for DISCLOSURE: `build.py` maps an unavailable source to the surfaces that must go
+    # silent rather than answer (D-121). A surface pointed at the wrong source keeps answering from
+    # a board nobody fetched, quietly. `tests/unit/test_categories.py` pins every pair.
+    primary_source: str
     # Engine thresholds on the category's NATIVE scale (M2-W4 review: data, not code branches):
     min_quality: float  # Budget Pick floor
     value_window: float  # Best Value: within N of the leader
