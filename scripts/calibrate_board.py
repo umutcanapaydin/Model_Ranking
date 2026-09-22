@@ -116,6 +116,19 @@ def _published_intervals(payload: dict[str, Any]) -> dict[str, tuple[float, floa
     return intervals
 
 
+def one_name_per_model(model_of: dict[str, str], by_name: dict[str, float]) -> dict[str, str]:
+    """Each model's best-rated board name, keyed by model (W-113).
+
+    One model often sits on a board under two or three names -- a dated snapshot, a thinking
+    variant. Counting or pairing NAMES counts a model more than once and pairs it with itself.
+    """
+    best: dict[str, str] = {}
+    for name, model in model_of.items():
+        if model not in best or by_name[name] > by_name[best[model]]:
+            best[model] = name
+    return best
+
+
 def _overlapping_gaps(
     rankable: list[str], by_name: dict[str, float], intervals: dict[str, tuple[float, float]]
 ) -> list[float]:
@@ -201,11 +214,15 @@ def main(argv: list[str] | None = None) -> int:
         population = ranked_population(conn, provisional_spec(client))
         ranked_models = {row.model for row in population}
         rankable = [n for n in by_name if _display_of(conn, n) in ranked_models]
+        # W-113: one name per model -- its best-rated one, the score the engine ranks it on.
+        # Pairing every name with every other paired a model with its own snapshot and moved
+        # `close_call` (vision 8.1 on names, 7.8 on models; search_factuality 4.2 against 4.9).
+        best_name = one_name_per_model({n: _display_of(conn, n) for n in rankable}, by_name)
         conn.close()
     ratings = [row.score for row in population]
     dropped = [n for n in by_name if n not in set(rankable)]
 
-    gaps = _overlapping_gaps(rankable, by_name, intervals)
+    gaps = _overlapping_gaps(list(best_name.values()), by_name, intervals)
 
     # D-145: the floor the product SHIPS is the top third of the WHOLE board over distinct models
     # (each model's best rating), not of the ranked population. Printed so the shipped number is
@@ -230,7 +247,12 @@ def main(argv: list[str] | None = None) -> int:
         "benchmark": client.benchmark,
         "board_rows": len(rows),
         "skipped": skipped,
-        "ranked_population": len(rankable),
+        # W-113: the ranked population counts MODELS, as `ranked_population()` and
+        # `survey_boards.py` do. One model often sits on a board under two or three names
+        # (a dated snapshot, a thinking variant), so counting the names read 64 for `vision`
+        # where there are 41 models. The name count is kept, labelled for what it is.
+        "ranked_population": len(ranked_models),
+        "rankable_board_names": len(rankable),
         "dropped": sorted(dropped),
         "overlapping_pairs": len(gaps),
         "rating_min": round(min(ratings), 1) if ratings else None,

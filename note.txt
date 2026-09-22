@@ -1,50 +1,33 @@
 Project: model_ranking
-State: 2026-09-22 — M15 W1, W2, W3 are committed AND pushed (origin/main). M15-W4 (closure) is IN
-PROGRESS: its work so far (D-141 and D-148 accepted, W-108 fixed, W-116 deferred, the Stage 4.0
-security review and the W1 review) is committed as a checkpoint before the owner reset the machine.
-Agent identity, at the owner's request in session.
-
-NEWEST RULING (2026-09-22): D-149 — ONE APPLICATION. The owner wants the engine to also be the
-updater: the engine runs the 12-hour refresh itself (the launchd job retires), and the app gets an
-"update now" action plus "last refreshed" time. Collection stays on the Mac. This REPLACES the
-"separate the app from the harness" proposal W4 was going to write. Built in M16, not M15.
+State: 2026-09-22 — M15 is CLOSED agent-side, committed and pushed on the owner's instruction (agent
+identity, D-117); it awaits the owner's sign-off (D-150 clause 2). make check green on
+the owner's Mac (pytest 956/15, Swift 258); Xcode app build of this tree: BUILD SUCCEEDED.
 
 READ IN THIS ORDER
   1. this file
-  2. docs/handovers/handover_project-2026-09-21.md   — the whole project, for someone who knows nothing
-  3. docs/closure-report-m14.md §0                   — the four rulings the owner still owes
-  4. docs/plans/m15-plan.md                          — what M15 is, and §0 what it waits on
-  5. docs/warnings.ledger.md W-105..W-115            — everything open, newest first
+  2. docs/closure-report-m15.md §0          — what the owner still owes (D-150 clause 2, sign-off)
+  3. docs/plans/m16-plan.md                  — the next milestone, §0 rulings it waits on
+  4. docs/handovers/handover_project-2026-09-21.md — the whole project, for someone who knows nothing
+  5. docs/warnings.ledger.md W-111..W-122    — everything open, newest first
 
-WHAT THE THREE COMMITS CARRY
-  - M15-W1: scripts/survey_boards.py + docs/research/m15-board-survey-2026-09-21.md. All 22 boards
-    of the licensed dataset measured on one footing; W-094 answered (D-145's board-third rule is
-    the one the product actually ships).
-  - M15-W2: the detail screen. ios/ModelRanking/Engine/Detail.swift + DetailTests.swift + the two
-    doors in ContentView. Independent review: docs/reviews/m15-wave-2-review.md (was BLOCKING; all
-    fixed or escalated).
-  - M15-W3: three surfaces — vision, search, search_factuality. Boards, sources, attribution,
-    thresholds (docs/reviews/m15-category-calibration.md), router hints, Turkish titles, tests.
-  - D-147 (owner-accepted 2026-09-22): the router's wording tier routes on six example questions
-    per surface (CategoryHints.examples), because W3's one-sentence hints broke 7 of 18 M10 probe
-    routes. Probe 21/21, held-out 18/22. docs/reviews/m15-router-recalibration.md; the probe is
-    scripts/router_probe/ and a change to any example owes it a run on BOTH question sets.
-  - UI refresh (another agent, 2026-09-22): ContentView.swift, Design.swift,
-    tests/unit/test_ios_visual_contract.py, docs/plans/m15-ui-refresh-plan.md and its review.
+WHAT THE CLOSURE DID
+  - W-113: calibrate_board.py counted board NAMES as models. Fixed; owner ruled two tie margins in
+    (vision 7.8/31.2, search_factuality 4.9/19.5). Test runs main() end to end.
+  - Retroactive W3 review (BLOCKING) — two test gaps fixed (W-117); router floor (W-118) and search
+    price disclosure (W-119) ruled to M16. W3 closed with no review: W-120.
+  - W4 review + re-review: the D-126 privacy gate rebuilt to read RAW source plus a normalized view
+    (W-121); 54 of 54 attempts die. Still a word list: resolved-declaration check is M16-W1 (W-122).
+  - D-150: Swift floor → committed list of test names (clause 1, amended after a false claim);
+    K.8 kept as is (clause 2, PROPOSED — owner ratifies at sign-off).
+  - Wave closes W1/W3/W4, coverage-by-req §M15, retrospective, EXPERIENCE, M16 plan.
 
-FIRST THING TO DO IN A LANE THAT HAS SWIFT
-  `make check` — green at the W3 commit: Python 951 passed / 12 skipped, Swift 257 (floor 257).
-  W-114 and W-115 are fixed. Xcode Debug build of this tree for the iPhone 17 Pro simulator:
-  BUILD SUCCEEDED (2026-09-22). Still unmeasured: the router's speed on a phone (D-147's cost).
-
-THEN
-  Finish M15-W4: the W4 close, closure-report-m15, retrospective, EXPERIENCE, and the M16 plan.
-  M16 must carry: D-149 (one application, its own build wave + a /v1 ADR for the refresh request),
-  the floor re-derivation under D-148, and D-144's carry-forward (W-116).
+M16 IN ONE LINE: one application (engine refreshes itself, app has "update now", D-149), floors
+re-derived under D-148, carry-forward (D-144), the router floor re-measured first.
 
 THE THING A NEW AGENT MUST NOT UNDO
   - Uncertainty.swift is the ONE file allowed arithmetic on a served score (D-138).
-  - Nothing typed leaves the device (D-126). The egress ban covers every file under
-    ios/ModelRanking, with EngineClient.swift the one named exemption (W-110).
+  - Nothing typed leaves the device (D-126). The gate reads RAW source under ios/ModelRanking; a
+    comment may not name a banned API either. EngineClient.swift is the one door (W-121).
   - No commit as the owner (D-117); English-only repository; deploy/ and .github/ are the owner's.
-  - Before writing a file, RE-READ the copy on disk. W-114 is what happens otherwise.
+  - Before writing a file, RE-READ the copy on disk (W-114). Before recommending a mechanism to the
+    owner, test that it does what you say (D-150's amendment).

@@ -424,3 +424,15 @@ Lesson: after an interrupted session, compare the current owner tree before tran
 - D-147 (owner-approved): six example questions per surface, scored as the mean of the two closest.
   Probe 21 of 21, held-out 18 of 22, Swift 257 of 257 with no test edited.
 Lesson: write the held-out questions before the first change, or the probe measures the tuning.
+
+## 2026-09-22 — M15-W4 closure
+
+- W-113 resolved by running both scripts on one artifact minutes apart: `calibrate_board.py` counted
+  board names (64), not models (41), and paired a model with its own snapshot in `close_call`.
+  Owner ruled the corrected margins in: `vision` 7.8 / 31.2, `search_factuality` 4.9 / 19.5.
+- Owner rulings: W-112 publish the floor on `/v1` in M16 under an ADR; W-111 derive the Swift floor.
+- `check_records` C2b stopped the close at the third acceptance of V3C-02 and K.8; D-150 is the
+  control review (clause 1 accepted, clause 2 proposed for the sign-off).
+- Wave closes for W1 (late), W3 and W4, independent W3 and W4 seats, closure report, retrospective,
+  EXPERIENCE, M16 plan.
+Lesson: when two measurements disagree, run both on the same input before writing an explanation.

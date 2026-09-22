@@ -96,6 +96,8 @@ ARENA_BOARDS: dict[str, ArenaBoard] = {
     ),
 }
 _PAGE = 100
+#: The ratings an Arena Elo board can plausibly carry; anything outside is refused and counted.
+ELO_BAND = (0.0, 5000.0)
 _MAX_PAGES = 50  # safety valve: latest split is a few hundred rows
 _TIMEOUT_S = 30.0
 #: REQ-GRD-002 / W-050. Each PAGE is capped at `MAX_RESPONSE_BYTES`, and until now nothing capped
@@ -366,6 +368,9 @@ def parse_arena(
             or not isinstance(rating, int | float)
             or isinstance(rating, bool)
             or not math.isfinite(rating)
+            # W4 review MINOR-4: a finite 1e308 would be served as the leader. Every Arena board
+            # is an Elo board, and a real rating sits in the low thousands.
+            or not ELO_BAND[0] < rating < ELO_BAND[1]
         ):
             skipped += 1
             continue

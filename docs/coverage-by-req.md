@@ -135,3 +135,24 @@ the four passed every gate in the repository while the criterion it names was un
 REQ-RUN-002's case, untrue. The gates did not get worse; the criteria got harder to prove in a lane
 with no Swift compiler and no live artifact.
 
+
+---
+
+## M15 — traced at the M15 quality gate (Stage 4.1)
+
+**Evidence pinning.** The M15-W4 tree (`8640202` plus the M15 closure commit).
+`pytest 956 passed / 15 skipped` from `make check` on the owner's Mac, 2026-09-22; `swift-test PASS:
+258 test(s) (floor 258)` from the same run. "Shown able to fail" names the mutant that turned the
+test red, and which seat ran it.
+
+| # | REQ-ID | Verdict | Implementing code | Citing test shown able to fail |
+|---|---|---|---|---|
+| 1 | **REQ-DTL-001** — one model opened from a pick or any row: score, price in both forms, tie margin; nothing computed by the client | COVERED | `ios/ModelRanking/Engine/Detail.swift::detailFacts`, `ContentView.swift::ModelDetail` | `ios/EngineTests/DetailTests.swift::DetailFactTests`; `tests/unit/test_ios_client_contract.py::test_the_detail_screen_is_reachable_and_composes_nothing_itself`, red on the W2 seat's mutant that stops the rows opening it (`docs/reviews/m15-wave-2-review.md`) |
+| 2 | **REQ-DTL-002** — the metric and the engine's own number, with the board named and dated | COVERED | the same composer | `DetailTests.swift::testTheUnitTheCardHidesComesBackHere`, `::testARankOnlyMetricStillStatesItsNumberHere`, `::testAnUndatedBoardSaysItIsUndated` (W2 seat's mutants, re-run dead). **The surface's floor is not on the screen:** `/v1` does not publish it (W-112, M16) |
+| 3 | **REQ-SUR-002** — three surfaces, each ranking only its own board; each reachable in a reader's own words | COVERED **after the W3 seat** for isolation; **PARTIAL** for "a reader's own words" | `src/app/workflows/categories.py`, `src/app/clients/arena.py::ARENA_BOARDS`, `ios/ModelRanking/Engine/Router.swift` | Isolation: `tests/unit/test_categories.py::test_a_board_only_reaches_its_own_surface_through_the_ranking_query`, now over every Arena surface — red on the seat's M7 (`vision` on the chat board), which passed the wave's own tree (W-117). Thresholds: `::test_the_m15_surfaces_ship_the_thresholds_their_calibration_record_states`, red on M5 and M8. Routing: `ios/EngineTests/FrontDoorTests.swift::testTheTwoNewSurfacesAreReachableByAsking` uses paraphrases of the router's own examples (W3 review m-4); held-out questions move into Swift in M16-W1 with W-118 |
+| 4 | **REQ-SUR-003** — a board the engine cannot recommend from is refused, with the count on record | COVERED | `src/app/clients/arena.py::ARENA_BOARDS` (registered boards only); `docs/research/m15-board-survey-2026-09-21.md` | `tests/unit/test_arena_client.py::test_an_unregistered_board_is_refused_and_never_defaulted`; `::test_every_registered_arena_board_is_attributed_and_floored`, red on the seat's M9 (floor cut to 20) since the floors were pinned (W-117) |
+| 5 | **REQ-GAP-001** (re-traced) — nothing the reader types leaves the device | COVERED **against every named shape**, not as a data flow (W-122) | every file under `ios/ModelRanking`; `EngineClient.swift` the one door | `tests/unit/test_router_hints.py::test_the_gap_register_stays_on_the_device`, rebuilt three times this milestone: 54 of 54 attempts die (M01–M11, M15 from the Stage 4.0 seat; N01–N11 from the W4 seat; the re-review's 27; four more); the gate at `d8cd650` caught 2 of the Stage 4.0 seat's 12 (W-121). Behavioural half: `ios/EngineTests/FrontDoorTests.swift`, backup exclusion read back from disk |
+| 6 | **REQ-IMG-002/003** — the tenth surface and its routing | **NOT DELIVERED**, carried | — | Still with the image-pricing question (W-105, W-113's history). Named in `docs/plans/m16-plan.md` §1 as "not this milestone" |
+
+**One row is PARTIAL and it is the seat's finding, not a hedge:** the router test proves the
+examples' wording reaches each surface, not that a stranger's does.

@@ -1,12 +1,13 @@
 //  probe.swift — the wording tier's calibration probe (docs/reviews/m15-router-recalibration.md).
 //
 //  A standalone replica of `SimilarityRouter.route`'s arithmetic that PRINTS every score, because
-//  `swift test` only says pass or fail and the margins are what a hint change moves. Run:
+//  `swift test` only says pass or fail and the margins are what a hint change moves. Run from this
+//  folder (`build/` at the repository root is gitignored):
 //
-//      python3 extract_examples.py /tmp/examples.json
-//      swiftc -O probe.swift -o /tmp/probe
-//      /tmp/probe /tmp/examples.json probe_questions.json      # add a 3rd argument: misses only
-//      /tmp/probe /tmp/examples.json heldout_questions.json
+//      python3 extract_examples.py ../../build/examples.json
+//      swiftc -O probe.swift -o ../../build/probe
+//      ../../build/probe ../../build/examples.json probe_questions.json      # add a 3rd argument: misses only
+//      ../../build/probe ../../build/examples.json heldout_questions.json
 //
 //  MODE=max|top2|mean picks how a group of examples scores (the router ships top2). FLOOR defaults
 //  to SimilarityRouter.defaultFloor. An expected id ending in `~` passes when it is the answer OR

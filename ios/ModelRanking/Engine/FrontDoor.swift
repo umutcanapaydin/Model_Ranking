@@ -18,7 +18,7 @@ import Foundation
 /// reader had chosen since. On a local engine the race is invisible; over a phone network, choosing
 /// Mathematics and then Coding could leave Mathematics on screen under a Coding selection.
 ///
-/// **Identity rather than cancellation, deliberately.** Cancelling a `URLSession` task is
+/// **Identity rather than cancellation, deliberately.** Cancelling a network task is
 /// best-effort and a cancelled response can still be delivered. A ticket compared at the moment of
 /// APPLYING is exact: it is the comparison, not the network, that decides what is shown.
 public struct RequestGate: Equatable {

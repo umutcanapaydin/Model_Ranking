@@ -32,3 +32,18 @@ def test_real_arena_latest_satisfies_parser_contract() -> None:
     rows, skipped = parse_arena(ArenaClient().fetch_raw())
     assert len(rows) >= 20, f"only {len(rows)} arena rows (skipped={skipped})"
     assert all(r.metric == "elo" and r.harness == "arena-crowd" for r in rows)
+
+
+@pytest.mark.parametrize("config", ["vision", "search", "search_factuality"])
+def test_every_m15_arena_board_satisfies_the_parser_contract(config: str) -> None:
+    """V3C-44 for the three M15 boards (M15-W3 review m-2): each live board parses, nothing is
+    skipped wholesale, and it clears its own truncation floor."""
+    from app.clients.arena import ARENA_BOARDS, ArenaClient, parse_arena
+
+    board = ARENA_BOARDS[config]
+    client = ArenaClient(config=config)
+    rows, skipped = parse_arena(
+        client.fetch_raw(), source=client.name, source_url=client.url, benchmark=client.benchmark
+    )
+    assert len(rows) >= board.minimum_rows, f"{config}: {len(rows)} rows (skipped={skipped})"
+    assert {r.benchmark for r in rows} == {board.benchmark}

@@ -233,6 +233,9 @@ def test_each_board_carries_its_own_source_id_and_benchmark() -> None:
         ArenaClient,
         ArenaDocumentClient,
         ArenaFactualityClient,
+        ArenaSearchClient,
+        ArenaSearchFactualityClient,
+        ArenaVisionClient,
     )
 
     # REQ-SRC-011. Over the whole TABLE, not three hand-picked clients: the first version checked a
@@ -245,6 +248,9 @@ def test_each_board_carries_its_own_source_id_and_benchmark() -> None:
         (ArenaClient, "arena"),
         (ArenaDocumentClient, "arena_document"),
         (ArenaFactualityClient, "arena_factuality"),
+        (ArenaVisionClient, "arena_vision"),
+        (ArenaSearchClient, "arena_search"),
+        (ArenaSearchFactualityClient, "arena_search_factuality"),
     ):
         assert cls.name == sid
         assert cls().name == sid
@@ -320,14 +326,19 @@ def test_a_rating_that_is_not_a_finite_number_is_refused_and_counted() -> None:
 
     good = {"model_name": "claude-opus-5-high", "rating": 1516.26, "category": "overall",
             "leaderboard_publish_date": "2026-09-13"}
+    # and, W4 review MINOR-4, finite ratings no Elo board carries: 1e308 would lead every surface
     bad = [dict(good, model_name=f"m{i}", rating=value)
-           for i, value in enumerate((float("inf"), float("-inf"), float("nan")))]
+           for i, value in enumerate((float("inf"), float("-inf"), float("nan"), 1e308, -5.0))]
     payload = json.dumps({"rows": [{"row": r} for r in (good, *bad)]})
 
     rows, skipped = parse_arena(payload)
 
     assert [r.raw_name for r in rows] == ["claude-opus-5-high"]
-    assert skipped == 3
+    assert skipped == 5
+    # the band itself is pinned: widening it (re-review MINOR-3) is a reviewed edit here
+    from app.clients.arena import ELO_BAND
+
+    assert ELO_BAND == (0.0, 5000.0)
 
 
 def test_every_registered_arena_board_is_attributed_and_floored() -> None:
@@ -340,13 +351,27 @@ def test_every_registered_arena_board_is_attributed_and_floored() -> None:
     for board in ARENA_BOARDS.values():
         assert board.id in SOURCE_ATTRIBUTION, f"{board.id} serves evidence with no citation"
         assert board.id in registered, f"{board.id} is a known board nothing ingests"
-        # **Proportion, not an absolute** (M15-W3). The floor exists to tell a truncated fetch
-        # from a small day, so what matters is how much of the board it demands: `text` asks for
-        # 250 of ~402 (62%), `search_factuality` for 20 of 32 (63%). A flat 25 would have been
-        # tighter on the small boards than 250 is on the largest one, and `factuality`'s 25 of 171
-        # (15%) shows the absolute was never the rule either. 20 is the smallest floor any board
-        # here carries, and a board that returns fewer than 20 rows has not had a quiet day.
-        assert registered[board.id].minimum_rows >= 20, board.id
+        # M15-W3 review B-2: this line said "proportion, not an absolute" and asserted `>= 20`, an
+        # absolute loosened from 25 to admit the new boards; cutting `vision` to 20 (13% of it)
+        # passed. No single number fits boards of 32 and 402 rows, so each floor is PINNED beside
+        # the board size it was set against, and moving one is an edit a reviewer sees here.
+        assert registered[board.id].minimum_rows == board.minimum_rows, board.id
+    assert {c: b.minimum_rows for c, b in ARENA_BOARDS.items()} == PINNED_ROW_FLOORS
+    # and every floor sits below a real day's size, so an ordinary fetch never trips it
+    for config, floor in PINNED_ROW_FLOORS.items():
+        assert floor < MEASURED_BOARD_ROWS[config], (config, floor)
+
+
+#: Each board's truncation floor as set, beside its row count in the M15-W1 survey
+#: (`docs/research/m15-board-survey-2026-09-21.md`, `latest` split, 2026-09-21).
+MEASURED_BOARD_ROWS = {
+    "text": 402, "text_factuality": 171, "document": 44,
+    "vision": 152, "search": 34, "search_factuality": 32,
+}
+PINNED_ROW_FLOORS = {
+    "text": 250, "text_factuality": 25, "document": 25,
+    "vision": 60, "search": 20, "search_factuality": 20,
+}
 
 
 def test_ingest_stores_each_board_under_its_own_benchmark() -> None:
@@ -378,14 +403,20 @@ def test_ingest_stores_each_board_under_its_own_benchmark() -> None:
     )
     conn = connect()
     run = RunContext(observed_at="2026-09-20T00:00:00Z")
-    for source_id in ("arena", "arena_document", "arena_factuality"):
-        ingest_arena(conn, FakeRawSource(source_id, payload), run)
+    # M15-W3 review B-1: every registered board, not the three that existed at M14.
+    from app.clients.arena import ARENA_BOARDS
+
+    for board in ARENA_BOARDS.values():
+        ingest_arena(conn, FakeRawSource(board.id, payload), run)
 
     stored = dict(conn.execute("SELECT source, benchmark FROM scores").fetchall())
     assert stored == {
         "arena": "Arena text",
         "arena_document": "Arena document",
         "arena_factuality": "Arena factuality",
+        "arena_vision": "Arena vision",
+        "arena_search": "Arena search",
+        "arena_search_factuality": "Arena search factuality",
     }
 
 

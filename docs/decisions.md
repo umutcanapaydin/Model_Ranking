@@ -2165,3 +2165,48 @@ rate limit and a place in the security review.
 
 **Revisit when:** the engine moves off the owner's Mac (the `fly.toml` deployment), where a
 scheduler inside a server that can be scaled to zero or to several copies behaves differently.
+
+---
+
+## D-150 — Two controls reviewed at their third acceptance: the Swift floor, and a fact `/v1` does not carry
+
+**Status:** clause 1 **accepted by the owner 2026-09-22** (in session, at M15-W4, choosing "derive
+it") and **AMENDED the same day** -- the mechanism it was accepted on cannot do what it claimed, see
+the amendment under clause 1; clause 2 **proposed**, for the owner to ratify or refuse at the M15 sign-off · **Date:**
+2026-09-22 · **Proposed by:** the lead agent, because `check_records` C2b stopped the M15 closure:
+V3C-02 and K.8 each reached their third acceptance (W-043, W-048, W-111; W-009, W-020, W-112).
+
+**Clause 1 — V3C-02: the Swift test floor is derived, not typed (W-111).**
+*Context.* `SWIFT_TEST_FLOOR` is an integer in the `Makefile` that someone raises by hand. It has
+been wrong three times (W-091, W-111 and the M14 closure's count), and each time the gap was a
+number of tests that could be deleted with `make check` green, which is V3C-02's hole: a criterion
+whose only citing test disappears silently. The two earlier acceptances (W-043, W-048) were
+criteria that had no test at all; this one is a test that exists and is not protected.
+*Decision.* The floor is computed at check time from the `func test` declarations under
+`ios/EngineTests`, and `swift test` must run at least that many. A deleted test lowers both numbers
+together only if its declaration is deleted too, which is a visible diff, not a silent loss.
+*Owning milestone:* M16, first build wave. Until then the typed floor stays at the count the runner
+prints (258).
+
+*Amendment, 2026-09-22 (M15-W4 independent review, MAJOR-2).* **The decision above is wrong, and the
+lead agent wrote it and put it to the owner in those words.** A floor derived from the declarations
+drops together with the declarations: deleting a whole test removes one of each, and `make check`
+stays green. It only catches a test that is declared but no longer runs. Put to the owner again,
+correctly: **the check reads a committed list of test names, and fails when a listed test did not
+run**, so a deletion needs a visible edit to the list, which a reviewer sees in the diff. Ruled by
+the owner 2026-09-22 (in session). The paragraph above stands as the record of what was first
+accepted and why it was withdrawn.
+
+**Clause 2 — K.8: the control held; it keeps its shape (W-112).**
+*Context.* In all three acceptances the rule did its job: nothing was added to `/v1` without an ADR.
+W-112 is the plan promising a fact on the detail screen that `/v1` does not publish; W2 dropped it
+and recorded the drop instead of adding the field quietly. The owner ruled the field IN, to be
+published under its own ADR in M16.
+*Proposed decision.* K.8 stays as it is. What repeats is not a bypass of the contract but a plan
+line written before anyone checked what `/v1` carries, so the plan template's shared-contracts
+section should list, for every screen a wave builds, which `/v1` field each fact comes from. That
+check belongs in the plan the owner signs, not in a wave.
+*If refused:* W-112's row loses its `C2b-reviewed` marker and K.8 goes back under review.
+
+**Revisit when:** the name list misses a deletion (clause 1), or a fourth K.8 acceptance is
+about a field that WAS added without an ADR (clause 2).

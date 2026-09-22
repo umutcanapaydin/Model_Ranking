@@ -46,9 +46,11 @@ class CategorySpec:
 #: `document`, `factuality`, `vision`, `search`, `search_factuality` (floored on distinct models)
 #: and `agentic-coding` (50.0, which fits neither count). They move in M16, in a calibration wave
 #: with its own review, because a floor change changes what the surface recommends.
-#: The window and tie margin are still sized by candidate count on the ranked population
-#: (`docs/reviews/m8-category-calibration.md`), because a window is about the models a reader
-#: can actually buy.
+#: On the M8 surfaces the window and tie margin are sized by candidate count on the ranked
+#: population (`docs/reviews/m8-category-calibration.md`), because a window is about the models a
+#: reader can actually buy. The five M14/M15 surfaces use the M14 rule written above them instead
+#: (median gap of overlapping published intervals, window four times it); which rule D-148 clause 2
+#: means for them is checked in M16-W3.
 # --- M12-W2: the titles are what a reader MEETS, and they were written by people who already knew
 # what a benchmark was ------------------------------------------------------------------------
 #
@@ -284,7 +286,8 @@ CATEGORIES: dict[str, CategorySpec] = {
     #                  the ranked-population one).
     #   close_call   = the median rating gap among pairs whose PUBLISHED 95% intervals overlap --
     #                  the board's own statement of what it cannot tell apart (the M14 rule).
-    #   value_window = four times `close_call`, the ratio `assistant` ships (30 against 8).
+    #   value_window = four times `close_call`, the ratio `assistant` ships (30 against 8) -- four
+    #                  times the UNROUNDED median, so 4.9 ships beside 19.5 and 6.5 beside 25.9.
     #
     # `score_anchor` is the floor as pinned TODAY and does not move with a recalibration (D-146).
     "vision": CategorySpec(
@@ -295,11 +298,14 @@ CATEGORIES: dict[str, CategorySpec] = {
         score_unit="Elo",
         secondary_benchmark=None,
         primary_source="arena_vision",
-        # 129 distinct models on the board, 64 ranked; 333 pairs still overlap at their published
-        # intervals, which is why the tie margin is the widest of the three.
+        # 129 distinct models on the board, 41 ranked; 156 pairs of ranked models still overlap at
+        # their published intervals, which is why the tie margin is the widest of the three.
+        # W-113: first pinned at 8.1 / 32.3 from a count that paired every NAME on the board, so a
+        # model was compared with its own snapshot; re-measured over one name per model, and
+        # corrected on the owner's ruling (2026-09-22).
         min_quality=1248.2,
-        value_window=32.3,
-        close_call=8.1,
+        value_window=31.2,
+        close_call=7.8,
         score_anchor=1248.2,  # pinned 2026-09-22 (D-143/D-146)
     ),
     "search": CategorySpec(
@@ -310,7 +316,7 @@ CATEGORIES: dict[str, CategorySpec] = {
         score_unit="Elo",
         secondary_benchmark=None,
         primary_source="arena_search",
-        # 33 distinct models, 26 ranked. The board is small because it only holds models that can
+        # 33 distinct models, 25 ranked. The board is small because it only holds models that can
         # search at all -- most rows are retrieval SKUs of models this catalogue already prices.
         min_quality=1206.9,
         value_window=25.9,
@@ -328,9 +334,11 @@ CATEGORIES: dict[str, CategorySpec] = {
         # The same population as `search`, scored on whether what it brought back was TRUE. Kept as
         # its own surface rather than folded in: "which model searches well" and "which model
         # reports what it found honestly" are two questions, and this board answers the second.
+        # W-113: first pinned at 4.2 / 17.0 over every board name; 4.9 / 19.5 over one name per
+        # model, corrected on the owner's ruling (2026-09-22).
         min_quality=1203.7,
-        value_window=17.0,
-        close_call=4.2,
+        value_window=19.5,
+        close_call=4.9,
         score_anchor=1203.7,  # pinned 2026-09-22
     ),
 }

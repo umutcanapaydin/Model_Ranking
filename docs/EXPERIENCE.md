@@ -681,3 +681,42 @@ Engineering shapes worth keeping:
 73–100, on the owner's ruling; the detail screen the plan leaned on does not exist; two gates
 reproduce only on the owner's machine; the HIGH-tier security pass was waived twice more while its
 ADR stays proposed — fifth and sixth occurrence of `control-bypass`.
+
+## M15 closure — 2026-09-22 — the numbers held; the lists and the counts around them did not
+
+M14 carried a question about what the gap register would say. It said almost nothing: one entry,
+the owner's own test, declined as designed. The register cannot tell this project what people ask
+until strangers use the app. So M15 answered from the other side — every board of the licensed
+dataset, measured on one footing — and three new surfaces came out of the measurement. Every
+number that shipped survived an independent recomputation. What failed was everything written
+AROUND the numbers: a gate that was a list of spellings, a file written from a stale copy, a count
+of names mistaken for a count of models, and a planned item that no record mentioned again.
+
+Engineering shapes worth keeping:
+
+1. **An invariant gate is an allowlist.** The D-126 egress gate was rewritten from a two-file list
+   to every file in W2, and was still a list of six API names: 10 of 12 privacy mutants passed it
+   (fifth occurrence). Its replacement stripped comments with a hand-written parser, and the next
+   seat fooled the parser three ways (sixth). Reading raw source ended the parser problem, and the
+   re-review still found 27 plausible surfaces nobody had named. A word list converges on the
+   features someone thought of; the invariant needs a check on resolved declarations (W-122).
+2. **Re-read the file on disk before writing it.** One sync wrote `Language.swift` from a copy that
+   predated the UI refresh and deleted eleven screen strings the view still called. Nothing that
+   runs without Xcode could see it. A test now resolves every string the client calls.
+3. **Two measurements of one thing that disagree get run side by side the same day.** `vision` read
+   41 ranked models in one script and 64 in the other; the explanation written down was price
+   movement. Run on one artifact, the difference was names against models, and it had also moved
+   two shipped tie margins.
+4. **Write the held-out set before the first change.** D-147's router rewrite was measured on 22
+   questions written before any tuning, so its 18/22 measures the method.
+5. **A recommendation to the owner is a claim, and gets checked like one.** "Deriving the floor
+   catches a deleted test" was put to the owner and accepted; it cannot, since both numbers drop
+   together. One deletion would have shown it.
+6. **A counter that stops the closure is working.** `check_records` C2b refused to accept V3C-02 and
+   K.8 a third time. The answer was a control review (D-150), not a different control name.
+
+**What was accepted rather than solved:** the gap register is an instrument only after readers
+exist; the router's speed on a phone is unmeasured; image pricing stays open; nothing deployed,
+eighth milestone. **Control bypass:** K.7 on the HIGH wave (W-120): committed with no review, and
+the retroactive seat found two BLOCKING test gaps. D-141 accepted after five waivers; the same
+wave's security pass landed at closure rather than before its commit.

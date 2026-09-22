@@ -474,28 +474,62 @@ def test_a_board_only_reaches_its_own_surface_through_the_ranking_query() -> Non
             }
         )
 
+    from app.clients.arena import ARENA_BOARDS
+
+    # M15-W3 review B-1: the first version ingested three boards and checked a hand-written tuple
+    # of three surfaces, so pointing `vision` at the chat board passed. Every surface fed by an
+    # Arena board is now in the fixture, each board carrying the shared model at its OWN rating.
+    arena_ids = {b.id for b in ARENA_BOARDS.values()}
+    surfaces = sorted(s for s, spec in CATEGORIES.items() if spec.primary_source in arena_ids)
+    assert {"assistant", "document", "factuality", "vision", "search", "search_factuality"} <= set(
+        surfaces
+    ), surfaces
+    sources = sorted({CATEGORIES[s].primary_source for s in surfaces})
+    rating = {sid: 1400.0 + 10.0 * i for i, sid in enumerate(sources)}
+
     conn = connect()
     run = RunContext(observed_at="2026-09-21T00:00:00Z")
     ingest_litellm(conn, FakeRawSource("litellm", PRICING), run)
     shared, only_here = "GPT-5", "DeepSeek V3.2"  # display names, as the registry canonicalises
-    ingest_arena(conn, FakeRawSource("arena", board([("gpt-5", 1400.0)])), run)
-    ingest_arena(
-        conn,
-        FakeRawSource("arena_document", board([("gpt-5", 1500.0), ("deepseek-v3.2", 1490.0)])),
-        run,
-    )
-    ingest_arena(conn, FakeRawSource("arena_factuality", board([("gpt-5", 1600.0)])), run)
+    for sid in sources:
+        rows = [("gpt-5", rating[sid])]
+        if sid == "arena_document":
+            rows.append(("deepseek-v3.2", rating[sid] - 5.0))
+        ingest_arena(conn, FakeRawSource(sid, board(rows)), run)
     reconcile(conn)
     build_price_medians(conn)
 
     seen = {
         surface: {row.model: row.score for row in category_ranking(conn, CATEGORIES[surface])}
-        for surface in ("assistant", "document", "factuality")
+        for surface in surfaces
     }
-    assert seen["assistant"].get(shared) == 1400.0, seen["assistant"]
-    assert seen["document"].get(shared) == 1500.0, seen["document"]
-    assert seen["factuality"].get(shared) == 1600.0, seen["factuality"]
+    for surface in surfaces:
+        own = rating[CATEGORIES[surface].primary_source]
+        assert seen[surface].get(shared) == own, (surface, seen[surface])
     # The model that exists on ONE board reaches ONE surface. This is the assertion the mutant that
     # merged the boards at ingest died on, now stated where a reader meets it.
     assert only_here in seen["document"], seen["document"]
-    assert only_here not in seen["assistant"] and only_here not in seen["factuality"]
+    assert [s for s in surfaces if only_here in seen[s]] == ["document"]
+
+
+#: The three M15 surfaces' thresholds as the calibration record states them after the W-113
+#: correction (`docs/reviews/m15-category-calibration.md`, correction of 2026-09-22). M15-W3 review
+#: m-1 and W4 review MINOR-2: only the anchors were pinned, so moving a floor or putting a
+#: corrected margin back to its old value passed every test.
+PINNED_M15_THRESHOLDS = {
+    "vision": (1248.2, 7.8, 31.2),
+    "search": (1206.9, 6.5, 25.9),
+    "search_factuality": (1203.7, 4.9, 19.5),
+}
+
+
+def test_the_m15_surfaces_ship_the_thresholds_their_calibration_record_states() -> None:
+    for surface, (floor, close_call, window) in PINNED_M15_THRESHOLDS.items():
+        spec = CATEGORIES[surface]
+        assert (spec.min_quality, spec.close_call, spec.value_window) == (
+            floor,
+            close_call,
+            window,
+        ), surface
+        # the M14 rule: the window is four times the unrounded median, so within rounding of 4x
+        assert abs(spec.value_window - 4 * spec.close_call) <= 0.2, surface

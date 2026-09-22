@@ -294,75 +294,83 @@ def test_the_gap_register_stays_on_the_device() -> None:
 #: and the rest are refused by their absence here: a new one is a reviewed edit to this set.
 CLIENT_IMPORTS = {"Foundation", "SwiftUI", "NaturalLanguage", "FoundationModels"}
 
-#: Every spelling that reaches the network, opens a URL, or writes text somewhere other than the
-#: gap register's own backup-excluded file. Matched after comments are stripped.
+# M15-W4 review, MAJOR-1 (the sixth recurrence of this shape). The gate used to strip comments
+# first, and a hand-written stripper that does not model string interpolation, raw strings or
+# regex literals could be made to eat the real code after them -- three bypasses, each a literal
+# `URLSession` upload `swift test` compiled. **So nothing is stripped any more.** The gate reads
+# the RAW text of every client file, comments and strings included. The cost is that a comment
+# may not name a banned API either; the gain is that there is no parser to fool.
+
+#: Every spelling that reaches the network, opens a URL or a share sheet, builds a URL, or writes
+#: text anywhere other than the gap register's own backup-excluded file. Matched on raw source.
 EGRESS = (
-    r"\bURLSession\b", r"\bURLRequest\b", r"\bURL\s*\(\s*string\s*:", r"\bURL\.init\b",
-    r"\bURLComponents\b", r"\bNWConnection\b", r"\bCFStream", r"\bNetwork\.", r"\bopenURL\b",
-    r"\bUIApplication\b", r"\bLink\s*\(", r"\bWKWebView\b", r"\bSFSafariViewController\b",
-    r"\bUIPasteboard\b", r"\bNSPasteboard\b", r"\bNSUbiquitousKeyValueStore\b", r"\bCKContainer\b",
-    r"\bUserDefaults\b", r"\bSceneStorage\b", r"\bAppStorage\s*\((?!\s*\"language\"\s*\))",
-    r"\bNSLog\b", r"\bos_log\b", r"\bLogger\s*\(", r"\bprint\s*\(", r"\bdebugPrint\s*\(",
-    r"\bdump\s*\(", r"\bcontentsOf\s*:", r"isExcludedFromBackup\s*=(?!\s*true\b)",
+    # the network, under any class name (a leading `\b` would miss `NSMutableURLRequest`)
+    r"URLSession", r"URLRequest", r"\bURLComponents\b", r"QueryItem", r"\bNSURL\b", r"\bCFURL",
+    r"\bNW[A-Z]\w*", r"\bCFStream", r"\bNetwork\.", r"\bNetService", r"\bsocket\s*\(", r"\bsockaddr",
+    # building a URL, any spelling; and a URL-typed value, which a decoder can fill from anywhere
+    r"\bURL\s*\(", r"\bURL\s*\.", r":\s*\[?\s*URL\b", r"(?<!self)(?<!super)\.init\s*\(",
+    r"\binit\s*\(\s*string\s*:", r"(?i)\b(?:https?|ftp|wss?)://", r"(?i)\bmailto:",
+    r"\bresourceBytes\b", r"\.lines\b",
+    # opening, sharing, handing off -- every system surface that carries text somewhere else
+    r"\bopenURL\b", r"\.open\s*\(", r"\bUIApplication\b", r"\bUIScene\b",
+    r"(?<!Navigation)Link\s*\(", r"\bShareLink\b", r"\bUIActivity", r"\bAsyncImage\b",
+    r"WebView\b", r"\bSFSafari", r"\bmarkdown\s*:", r"\bAttributedString\s*\(\s*markdown",
+    r"\buserActivity\b", r"\bNSUserActivity\b", r"\bfileExporter\b", r"\bfileMover\b",
+    r"\bdraggable\b", r"\bonDrag\b", r"\bUIPrint", r"\bUIDocument", r"Pasteboard\b",
+    # storage outside the register, and anything that syncs
+    r"Ubiquit", r"\bCKContainer\b", r"\bCloudKit\b", r"\bUserDefaults\b", r"\bSceneStorage\b",
+    r"\bCFPreferences", r"\bSecItem", r"\bNSKeyedArchiver\b", r"\bcontentsOf\s*:", r"\btoFile\s*:",
+    r"\bwrite\s*\(", r"\bFileManager\b", r"\bFileHandle\b", r"\bOutputStream\b", r"\bcreateFile\b",
+    r"\bfopen\s*\(", r"\bfwrite\s*\(",
+    # logs and crash reports
+    r"\bNSLog\b", r"\bos_log\b", r"\bLogger\b", r"\bprint\s*\(", r"\bdebugPrint\s*\(",
+    r"\bdump\s*\(", r"\bf?puts\s*\(", r"\bstderr\b",
+    r"\b(?:fatalError|preconditionFailure|precondition|assertionFailure|assert)\s*\([^\n]*\\\(",
+    # indirection a text gate cannot follow, refused outright
+    r"\btypealias\b", r"\bNSClassFromString\b", r"\bNSSelectorFromString\b", r"\bdlopen\b",
+    r"\bdlsym\b", r"@_silgen_name", r"\bperform\s*\(\s*(?:#selector|Selector)",
 )
 
-#: The sanctioned exceptions, each one file and one reason. `contentsOf:` in FrontDoor is the
-#: register reading its own local file; the URL and URLComponents in EngineClient are the door.
+#: The door, permitted by pattern for the whole file: `EngineClient.swift` IS the network layer,
+#: and what it may send is pinned argument by argument in `ios/EngineTests/EngineClientTests.swift`
+#: (`testTheSurfaceAndTheBudgetAreBothSentAndNothingElseIs`, `testNothingTheReaderTypedIsEverSent`).
 EGRESS_PERMITTED = {
-    ("EngineClient.swift", r"\bURL\s*\(\s*string\s*:"): "D-126: the engine's base URL",
+    ("EngineClient.swift", r"\bURL\s*\("): "D-126: the engine's base URL",
+    ("EngineClient.swift", r":\s*\[?\s*URL\b"): "D-126: the engine's base URL, typed",
+    ("EngineClient.swift", r"(?i)\b(?:https?|ftp|wss?)://"): "D-126: the engine's address",
     ("EngineClient.swift", r"\bURLComponents\b"): "D-126: the request; its arguments are pinned",
-    ("EngineClient.swift", r"\bURLSession\b"): "D-126: the one sanctioned door",
-    ("EngineClient.swift", r"\bURLRequest\b"): "D-126: the one sanctioned door",
-    ("FrontDoor.swift", r"\bcontentsOf\s*:"): "REQ-GAP-001: the register reads its own local file",
+    ("EngineClient.swift", r"QueryItem"): "D-126: the request's two pinned arguments",
+    ("EngineClient.swift", r"URLSession"): "D-126: the one sanctioned door",
+    ("EngineClient.swift", r"URLRequest"): "D-126: the one sanctioned door",
 }
 
+#: Everything else is permitted as an EXACT expression, each occurring exactly once, removed before
+#: the scan -- never a pattern over a whole file. The W4 seat sent the register itself off the
+#: device with a second `Data(contentsOf:)` inside `save()`, which a file-wide permission let through.
+EGRESS_EXACT = {
+    ("FrontDoor.swift", "FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)"): "REQ-GAP-001: where the register lives",
+    ("FrontDoor.swift", "FileManager.default.temporaryDirectory"): "REQ-GAP-001: the fallback folder",
+    ("FrontDoor.swift", "FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)"): "REQ-GAP-001: the register's folder",
+    ("FrontDoor.swift", "Data(contentsOf: url)"): "REQ-GAP-001: the register reads its own file",
+    ("FrontDoor.swift", "data.write(to: url, options: writeOptions)"): "REQ-GAP-001: the register writes its own file",
+    ("FrontDoor.swift", "public let url: URL"): "REQ-GAP-001: the register's own file",
+    ("FrontDoor.swift", "public init(url: URL,"): "REQ-GAP-001: the register's own file",
+}
 
-def _strip_comments(source: str) -> str:
-    """Swift source with `//` and `/* */` comments removed, and string literals kept whole.
+#: The one piece of app storage the client keeps: the language choice, typed as `Language`, so it
+#: cannot hold a string the reader typed. A second `@AppStorage`, whatever its key, is refused.
+APP_STORAGE = r'@AppStorage\("language"\)\s*private\s+var\s+language\s*:\s*Language\s*='
 
-    Cutting each line at its first `//` (the old gate) treated `"https://..."` as a comment, so a
-    call later on that line was never read. This walks the text and only starts a comment outside a
-    literal; `\"` escapes and `\"\"\"` multi-line literals are honoured.
-    """
-    out: list[str] = []
-    i, n = 0, len(source)
-    string: str | None = None
-    while i < n:
-        if string is not None:
-            if source.startswith("\\", i):
-                out.append(source[i : i + 2])
-                i += 2
-                continue
-            if source.startswith(string, i):
-                out.append(string)
-                i += len(string)
-                string = None
-                continue
-            out.append(source[i])
-            i += 1
-            continue
-        if source.startswith('"""', i):
-            string = '"""'
-            out.append(string)
-            i += 3
-        elif source[i] == '"':
-            string = '"'
-            out.append('"')
-            i += 1
-        elif source.startswith("//", i):
-            end = source.find("\n", i)
-            i = n if end == -1 else end
-        elif source.startswith("/*", i):
-            end = source.find("*/", i + 2)
-            i = n if end == -1 else end + 2
-        else:
-            out.append(source[i])
-            i += 1
-    return "".join(out)
+IMPORT = re.compile(
+    r"\bimport\b(?:\s|/\*[\s\S]*?\*/|//[^\n]*\n)*"
+    r"(?:(?:struct|class|enum|protocol|typealias|func|var|let)\b(?:\s|/\*[\s\S]*?\*/)*)?"
+    r"([A-Za-z_]\w*)"
+)
 
 
 def _assert_the_client_has_no_way_off_the_device() -> None:
     used: set[tuple[str, str]] = set()
+    storage = 0
     for path in sorted(p for p in CLIENT.rglob("*") if p.is_file()):
         if ".xcassets" in path.parts or path.name == ".DS_Store":
             continue
@@ -372,19 +380,34 @@ def _assert_the_client_has_no_way_off_the_device() -> None:
         )
         if path.suffix != ".swift":
             continue
-        code = _strip_comments(path.read_text(encoding="utf-8"))
-        for module in re.findall(
-            r"^[ \t]*(?:@\w+[ \t]+)*import[ \t]+"
-            r"(?:(?:struct|class|enum|protocol|typealias|func|var|let)[ \t]+)?(\w+)",
-            code,
-            re.MULTILINE,
-        ):
+        code = path.read_text(encoding="utf-8")
+        # Every `import`, anywhere -- not only at the start of a line, and through comments.
+        for module in IMPORT.findall(code.replace("`", "")):
             assert module in CLIENT_IMPORTS, (
                 f"{path.name} imports `{module}`, which is not on the client's allowlist; the "
                 "reader's words reach every client file, so a new framework is a reviewed edit"
             )
-        for pattern in EGRESS:
-            if not re.search(pattern, code):
+        for (name, snippet), _reason in EGRESS_EXACT.items():
+            if name != path.name:
+                continue
+            assert code.count(snippet) == 1, (
+                f"{name} must contain `{snippet}` exactly once; it is permitted as that expression"
+            )
+            code = code.replace(snippet, " ")
+            used.add((name, snippet))
+        storage += len(re.findall(r"\bAppStorage\s*\(", code.replace("`", "")))
+        code = re.sub(APP_STORAGE, " ", code)
+        # the backup exclusion is only ever `= true` and the statement ends there
+        assert len(re.findall(r"isExcludedFromBackup", code)) == len(
+            re.findall(r"\bisExcludedFromBackup = true[ \t]*(?:\n|;)", code)
+        ), f"{path.name} sets isExcludedFromBackup to something other than a plain true"
+        # M15-W4 re-review MAJOR-1: backticks (`` `URL`( ``) and inline comments (`URL/**/(`) split
+        # a banned spelling without changing what compiles. Every pattern is matched against the
+        # raw text AND against a view with both removed. Removing is only ever an EXTRA view, never
+        # the only one, so nothing a stripper eats can hide from the raw scan.
+        joined = re.sub(r"/\*[\s\S]*?\*/", "", code.replace("`", ""))
+        for pattern in (*EGRESS, r"\bAppStorage\s*\("):
+            if not (re.search(pattern, code) or re.search(pattern, joined)):
                 continue
             if (path.name, pattern) in EGRESS_PERMITTED:
                 used.add((path.name, pattern))
@@ -393,8 +416,16 @@ def _assert_the_client_has_no_way_off_the_device() -> None:
                 f"{path.name} matches `{pattern}`: a way for text to leave the device or reach "
                 "shared storage; the only sanctioned egress is EngineClient with its arguments pinned"
             )
-    stale = set(EGRESS_PERMITTED) - used
+    assert storage == 1, f"{storage} `@AppStorage` declarations; the client keeps exactly one"
+    stale = (set(EGRESS_PERMITTED) | set(EGRESS_EXACT)) - used
     assert not stale, (
         f"{sorted(stale)} is permitted and no longer used; an exemption that outlives its use "
         "silently widens the next time the same call is added"
     )
+    # The Xcode target compiles the synchronized `ModelRanking` folder. A source file referenced
+    # from anywhere else would be compiled and never read by this gate (W4 review, N10's note).
+    project = (CLIENT.parent / "ModelRanking.xcodeproj" / "project.pbxproj").read_text()
+    assert "sourcecode." not in project, "the project references a source file outside the folder"
+    assert re.findall(r"isa = PBXFileSystemSynchronizedRootGroup;\s*path = (\w+);", project) == [
+        "ModelRanking"
+    ], "the target compiles a folder this gate does not read"
