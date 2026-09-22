@@ -124,8 +124,8 @@ Measured in the clean clone:
 - `AGENTS.md:49-50` — *"a dedicated make target (removed at ) and never pushed"*.
 - `AGENTS.md:121` — *"Change `/` (or equivalent) public contract without ADR"* (was `/v2`).
 - `docs/decisions.md:164-206` — four headings read *"P-005 —: risk-tiered…"*.
-- `docs/decisions.md:268` — *"the checkpoint lane (.1)"*; `:289` — *"This record does not edit
-  D-196"*, an ADR that exists in no project.
+- `docs/decisions.md:268` — *"the checkpoint lane (.1)"*; `:289` says it "does not edit" an
+  ADR numbered 196 in DevFlow's own register, which exists in no installation.
 - `AGENTS.md` §3: *"A harvest produces PROCESS changes only ."* (a dangling citation).
 
 **Fix.** Run the stripper's output through a check for empty parentheses, `—:` and a space before
@@ -157,6 +157,55 @@ nothing about its frontmatter, so a project that types it `retrospective` (the o
 
 **Fix.** Add `retrospective` to `RECORD_TYPES` (and regenerate the schema), and have
 `/cycle-close` write the frontmatter. **Workaround here:** added locally, schema regenerated.
+
+### A12. `test-ci-yaml.py` crashes, reported as a FAILURE with no output, on a test matrix — HIGH
+
+**What.** Without PyYAML the check falls back to `_minimal_parse`, whose docstring promises to
+REFUSE (exit 2) on constructs it does not handle. It raises `ValueError` instead, `main()` does not
+catch it, and the process exits 1 with a traceback on stderr, so `run-all.py` prints
+`[FAIL] test-ci-yaml.py (no output)`. The construct is the most common one a project adds to its
+CI: `python-version: ['3.12', '3.14']` in a matrix. The shipped `install-and-governance` job runs
+the check with the runner's bare interpreter, which has no PyYAML.
+
+**Repro.** Add a matrix line like the above under `jobs:` in a clean clone's `ci.yml`, then run
+`python3 conformance/test-ci-yaml.py` with an interpreter that lacks PyYAML: traceback, exit 1.
+
+**Fix.** Catch the refusal in `main()` and exit 2 (NOT-EVALUABLE) as documented, and install PyYAML
+in the governance job (it is already a declared dev dependency). **Workaround here:** the job
+installs PyYAML first.
+
+### A13. The shipped `dep-audit` job fails on every new project — HIGH
+
+**What.** `ci.yml` installs the project editable and runs `pip-audit --strict` over the
+ENVIRONMENT. The project itself is in that environment and is not on PyPI, and `--strict` turns
+"could not be audited" into a failure. `--skip-editable` does not help: under `--strict` a skipped
+distribution is also an error. Locally `make deps` passes because it runs without `--strict`, so
+the gate is green on the owner's machine and red in CI.
+
+**Repro.** Any clean clone with a real project name: `pip install -e . && pip-audit --strict` ->
+`Dependency not found on PyPI and could not be audited: <name>`.
+
+**Fix.** `pip-audit --strict .` audits the project's DECLARED dependencies, which is the question
+the job asks; measured here: `No known vulnerabilities found`. Make `make deps` and CI run the same
+command.
+
+### A14. The shipped CI calls a distribution-only script — MEDIUM
+
+**What.** `install-and-governance` runs `python3 conformance/falsify.py`. INSTALL-MANIFEST classes
+that file GP-INTERNAL and it is absent from the package, so the step fails in every installation.
+`make falsify` already handles this correctly (it says SKIPPED in an installation).
+
+**Fix.** Call `make falsify` from CI. **Workaround here:** done.
+
+### A15. `test-documented-paths.py` reads the working tree, so it passes locally and fails in CI — MEDIUM
+
+**What.** A path resolves if the file EXISTS on disk, so gitignored, generated files
+(`coverage.json`, a status record written next to a database, a per-session note under `.claude/`)
+satisfy the check on the developer's machine and are missing on the CI runner. The same commit is
+green locally and red in CI, with no hint why.
+
+**Fix.** Resolve against `git ls-files` (plus the manifest's PROJECT list) rather than the
+filesystem, so a local run answers the question CI will ask.
 
 ---
 

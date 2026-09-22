@@ -3,6 +3,6 @@
 gp_version: v6.0
 manifest_sha256: fc6bbcaad48c44e70cf1dfa1dc24e2b8e67ad706460e734422b807f52b82be48
 manifest_path: INSTALL-MANIFEST.md
-installed_from_commit: 5fc3f0228e2d3d96bf92f88da918085085cd70cf
+installed_from_commit: 071c956ce0ab3444cb188fdd3c2e05a3f8e37169
 installed_on: 2026-09-23
 version_derived_from: docs/decisions.md, docs/watchlist.md

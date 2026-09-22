@@ -448,6 +448,6 @@ Lesson: when two measurements disagree, run both on the same input before writin
 - `make gate` PASS: pytest 1015/15, Swift 268, client-decls 4 configurations, conformance 14/14
   with every exemption a declared row, gitleaks clean, pip-audit clean, slopsquat clean.
 - DevFlow defects found and reproduced on a clean clone before being written down:
-  `docs/research/devflow-v6-field-findings-2026-09-23.md` (11 fresh-install, 4 growth, 5 upgrade).
+  `docs/research/devflow-v6-field-findings-2026-09-23.md` (15 fresh-install, 4 growth, 5 upgrade).
 Lesson: merge a methodology upgrade three ways against the tag you installed, never copy over it.
 

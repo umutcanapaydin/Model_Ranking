@@ -135,3 +135,8 @@ GP-v4.1-presentation.html                      # GP-internal deck named in the v
 General_Pipeline/*                             # GP's own ratification records, cited by the universal P-00x ADR bodies
 scripts/conformance_gate.py                    # the project's per-finding conformance wrapper (M10-M16), retired at D-155
 conformance_gate.py                            # same, named without its directory
+# 6. Files generated at run time and gitignored: present on a developer machine, absent in CI.
+advisor.db.refresh.json                        # the refresh's own status record, written next to the artifact
+advisor.db.refresh.lock                        # the refresh's flock file
+coverage.json                                  # pytest-cov's JSON report, read by the module coverage floor
+RESUME.md                                      # a per-session resume note under .claude/, gitignored
