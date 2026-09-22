@@ -78,7 +78,8 @@ def main() -> int:
         text = record.read_text(encoding="utf-8")
         version = _front(text, "process_version")
         date = _front(text, "date") or ""
-        if version == "v5.0":
+        # v6.0 records (DevFlow, D-155) are in scope exactly as v5.0 ones are.
+        if version in {"v5.0", "v6.0"}:
             in_scope.append(record)
         elif date > MIGRATION_DATE:
             dodged.append(
@@ -115,7 +116,7 @@ def main() -> int:
         return 1
 
     print(
-        f"wave-check-all PASS: {len(in_scope)} v5.0 record(s) validated; "
+        f"wave-check-all PASS: {len(in_scope)} v5.0/v6.0 record(s) validated; "
         f"{len(legacy)} pre-migration record(s) out of scope (GPF-001 — a tool may not retroactively "
         "invalidate records written before it existed)"
     )

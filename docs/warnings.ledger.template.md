@@ -2,13 +2,13 @@
 record_type: warnings
 id: warnings-ledger-template
 status: draft
-process_version: v5.0
+process_version: v6.0
 date: 2026-08-12
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
-     filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
-     which is exactly what shipped in v4.3.1. -->
-# Warning ledger (V4C-77, v4.3) — copy to `docs/warnings.ledger.md` at Stage 0
+ filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
+ which is exactly what shipped in v4.3.1. -->
+# Warning ledger — copy to `docs/warnings.ledger.md` at Stage 0
 
 > **Why this file exists.** A gate that warns and produces no consequence is indistinguishable from
 > an absent gate. This was measured, not theorised: `gates SKIPPED: contract suite` appeared in **five
@@ -32,7 +32,7 @@ ESCALATED. There is no fourth option and no silence.
 
 1. A check WARNs → add a row **in the same session**, before the wave closes.
 2. Give it an id (`W-001`, monotonic, never reused) and name the **rule that warned**, not the symptom
-   — `C2b` counts by rule, so a re-coined name hides a repeat.
+ — `C2b` counts by rule, so a re-coined name hides a repeat.
 3. Set a status. `OPEN` is legal only for the wave you are currently in.
 4. At wave close, every row is `FIXED`, `ACCEPTED` or `ESCALATED`. `check_records.py` fails otherwise.
 
@@ -47,7 +47,7 @@ ESCALATED. There is no fourth option and no silence.
 
 **`C2b`: the same rule ACCEPTED three times fails the build.** Not the fourth time — the third.
 
-That is V4C-13's original *"same control bypassed 3× → review the CONTROL, not the people"*, except
+That is 's original *"same control bypassed 3× → review the CONTROL, not the people"*, except
 something now counts. The five skips that produced nothing were five accepts nobody tallied. When
 `C2b` fires, the answer is never a fourth acceptance: **review the control, or refuse it and record
 the refusal.**
@@ -75,7 +75,7 @@ absence.
 
 -->
 
-## Cost line (V4C-13)
+## Cost line 
 
 ~3 minutes per wave to file and disposition rows; `<0.1 s` to validate. **The cost of NOT having it
 is on the record: six engine defects and four closure rounds that never passed.**

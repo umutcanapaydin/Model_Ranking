@@ -1,0 +1,163 @@
+# Paths a shipped document may name although no such file ships (V4C-80 lineage,
+# `test-documented-paths.py`). GLOB per line, then `#` and the REASON. A row without a reason is
+# not a declaration -- an allowlist that accepts bare lines is how a control gets widened until it
+# grades nothing.
+
+# ── 1. Files the PROJECT creates. The package documents them; they exist once the project fills
+#       them in. Naming them is the instruction, not a broken promise.
+docs/EXPERIENCE.md            # the project's own experience log, created at Stage 0
+docs/license-review.md        # produced from license-review.template.md at closure
+docs/cost-log.md              # the project's spend ledger, opened when autonomy is enabled
+docs/coverage-by-req.md       # closure artifact, generated per milestone
+docs/pipeline-readiness-audit.md  # closure artifact at milestone N-2
+docs/handover-to-prod-agent.md    # closure artifact for the operating team
+handover-to-prod-agent.md     # same artifact, named without its directory in the plan template
+external-influences-impact.md # closure artifact when an external dependency moved
+docs/pm-status-*.md           # dated PM status snapshots
+docs/claude-harness-config.md # written when the project configures its agent harness
+environment.md                # the project's environment notes (Stage 0 deliverable)
+architecture.md               # the project's architecture doc (Stage 0 deliverable)
+data-model.md                 # the project's data model (Stage 0 deliverable)
+security.md                   # the project's security notes (Stage 0 deliverable)
+deploy.md                     # the project's deployment notes (Stage 0 deliverable)
+issues.md                     # the project's issue register
+roadmap.md                    # the project's roadmap
+repo-starter.md               # the starter a project generates for a second repository
+MEMORY.md                     # the agent memory file a project's harness creates
+START_HERE.md                 # the entry file an INSTALLATION gets, not the distribution
+AGENTS.template.md            # named in a seed describing how a project bootstraps AGENTS.md
+mcp.json                      # the project's own MCP server configuration
+PROCESS.md                    # a project-side process note named in a seed
+
+# ── 2. FIELD EVIDENCE. `playbook-seeds.md` cites where a lesson was measured -- paths inside the
+#       harvested projects, under their aliases. They are evidence, and evidence is not ours to
+#       ship. A reader is not told to open them.
+
+adapter/*                     # measured-in path from a harvested project
+clients/*                     # measured-in path from a harvested project
+mock_callback/*               # measured-in path from a harvested project
+validation/*                  # measured-in path from a harvested project
+schemas/common.py             # measured-in path from a harvested project
+settings.py                   # measured-in module from a harvested project
+insight.py                    # measured-in module from a harvested project
+obs_compensation.py           # measured-in module from a harvested project
+statement_format.py           # measured-in module from a harvested project
+statement.yaml                # measured-in config from a harvested project
+config_doctor.py              # measured-in module from a harvested project
+fake_dify_orchestrator.py     # measured-in test double from a harvested project
+sitecustomize.py              # measured-in interpreter hook from a harvested project
+epic-list.sh                  # measured-in script from a harvested project
+search.sh                     # measured-in script from a harvested project
+status.sh                     # measured-in script from a harvested project
+handover.txt                  # measured-in handover file from a harvested project
+handover_q1..q4.txt           # measured-in handover series, written as a range
+HEAD.lock                     # a git internal named in the worktree-guard seed
+docs/m*-plan.md               # measured-in plan from a harvested project
+docs/m*-retrospective.md      # measured-in retrospective from a harvested project
+docs/discipline-*.md          # measured-in discipline note from a harvested project
+
+# ── 3. Scripts a project may add. `scripts/README.md` describes the shape of the directory, not a
+#       set of files GP ships into it.
+smoke.sh                      # example project script named in scripts/README.md
+deploy.sh                     # example project script named in scripts/README.md
+release.sh                    # example project script named in scripts/README.md
+
+# ── 4. Deliberately absent, by a recorded decision.
+GP-v4.1-presentation-TR.html  # removed at v4.3 under the English-only rule; the manifest says so
+research/**/*                 # GP's own research tree, which lives in the authoring repository
+docs/roadmap.md               # the project's roadmap, named in a seed
+
+# ── model_ranking (DevFlow v6.0 adoption, D-155) ────────────────────────────────────────────────
+# This project is 16 milestones old. Its records are append-only (B.2) and they quote paths that
+# existed WHEN they were written, or that live outside this tree. Each group says which.
+#
+# 1. Upstream files this engine reads, named in the PRD and the reviews by their upstream names.
+model_prices_and_context_window.json  # LiteLLM's pricing file, fetched by the pricing source
+polyglot_leaderboard.yml              # Aider's leaderboard file, fetched by the aider source
+*_external.csv                        # Epoch AI bundle files (owner-fetched, outside the repo)
+swe_bench_verified.csv                # Epoch AI bundle file (owner-fetched, outside the repo)
+other.csv                             # a hypothetical bundle file in the M5 security review's probe
+coding_ranking.*                      # an output format the M1 PRD specified; ranking is served by /v1 now
+survey.json                           # an upstream board payload quoted as fetched in a research or review record
+vision.json                           # an upstream board payload quoted as fetched in a research or review record
+agent.json                            # an upstream board payload quoted as fetched in a research or review record
+text-to-image.json                    # an upstream board payload quoted as fetched in a research or review record
+text-to-video.json                    # an upstream board payload quoted as fetched in a research or review record
+image-edit.json                       # an upstream board payload quoted as fetched in a research or review record
+data/latest.json                      # an upstream payload path quoted in a review
+# 2. The engine's own modules named relative to the package (`src/app/`), which this test does not
+#    resolve: every one of these exists under `src/app/`.
+# 3. Reviewer and author scratch: probes, drivers and run outputs that lived in a session scratchpad
+#    and are quoted as evidence. Never shipped, by design.
+exp*.py                               # measurement scripts in a research record
+m7w*_lead_faultinject.py              # M7 fault-injection drivers, quoted by the wave records
+apply_w4.py                           # a one-off apply script quoted in a wave record
+due.py                                # a probe script quoted in a review
+runner.sh                             # a review seat's harness script
+survey.sh                             # the board-survey driver used in a research record
+survey.txt                            # a board-survey output quoted in a research record
+latest_summary.txt                    # a run output quoted in a review
+m14-runs/*                            # a run directory quoted in M14 records
+m15-runs/*                            # a run directory quoted in M15 records
+20260921-*/*                          # the same run directory, quoted by its timestamp
+calib-*/*                             # a calibration run output quoted in M15 records
+commit_*.sh                           # owner-run commit scripts quoted in handovers (pre-D-155 git lane)
+build-report.json                     # a build output quoted in M7 reviews
+index.lock                            # git's own lock file, named in an incident note
+uv.lock                               # a lock file the M6 security review checked was ABSENT
+poetry.lock                           # same
+# 4. Deliberately absent: mutants and negative tests in reviews name files that must not exist.
+docs/reviews/prose.md                 # a mutant's citation in the M11 review-seat tests
+docs/reviews/r.md                     # same
+docs/reviews/never-written.md         # same
+docs/reviews/../plans/self.md         # the path-escape mutant
+# 5. Records and files that existed at the time and were later removed or renamed.
+docs/reviews/m8-code-review.md                 # M8 reviews filed under other names; the ledger row says so
+docs/reviews/m8-security-review-independent.md # same
+m8-code-review.md                              # same, named without its directory
+m7-wave-1-security.md                          # an M7 review later filed as a security re-review
+m11-wave-9-close.md                            # a mutant name in the M11 wave-check tests
+handover_q5.txt                                # a handover named as due at a later closure
+docs/license-review-lmarena.md                 # a license review planned at M5 and folded into prd
+docs/HANDOVER-model-ranking.md                 # the 2026-08-11 handover, archived
+docs/onboarding.md                             # GP v5.0's onboarding guide, removed at DevFlow v6.0
+docs/executive-overview.*                      # GP-internal overview, never part of this install
+GP-v4.1-presentation.html                      # GP-internal deck named in the v4.3.1 adoption record
+General_Pipeline/*                             # GP's own ratification records, cited by the universal P-00x ADR bodies
+scripts/conformance_gate.py                    # the project's per-finding conformance wrapper (M10-M16), retired at D-155
+conformance_gate.py                            # same, named without its directory
+# 6. Files generated at run time and gitignored: present on a developer machine, absent in CI.
+advisor.db.refresh.json                        # the refresh's own status record, written next to the artifact
+advisor.db.refresh.lock                        # the refresh's flock file
+coverage.json                                  # pytest-cov's JSON report, read by the module coverage floor
+RESUME.md                                      # a per-session resume note under .claude/, gitignored
+# 7. Exact rows replacing the broad `src/*`, `tests/*`, `test_*.py`, `docs/plans/*`, `docs/research/*`,
+#    `workflows/*` and `scratchpad/*` patterns (independent review MAJOR-2: `*` crosses `/` in fnmatch,
+#    so those rows hid EVERY dangling path under those directories, live documents included).
+src/ef_ai/adapter/main.py                      # playbook-seeds field evidence from a harvested project
+src/ef_ai/workflows/sms_format.py              # same
+test_sms_workflow.py                           # same
+tests/contracts/test_adapter_routes.py         # same
+tests/integration/test_sms_workflow.py         # same
+docs/research/newapi-legal-note.md             # same
+src/__init__.py                                # DevFlow ships it; this project deliberately does not (D-155 clause 4)
+workflows/refresh.py                           # = src/app/workflows/refresh.py, named relative to the package
+workflows/sources.py                           # = src/app/workflows/sources.py
+workflows/rank.py                              # = src/app/workflows/rank.py
+workflows/recommend.py                         # = src/app/workflows/recommend.py
+app/workflows/refresh.py                       # = src/app/workflows/refresh.py
+docs/plans/m10-wave-1-close.md                 # the M10 closure report cites wave closes never filed; recorded as found here
+docs/plans/m10-wave-2-close.md                 # same
+docs/plans/m11-wave-3-close.md                 # same, M11
+docs/plans/m11-wave-9-close.md                 # a mutant name in the M11 wave-check tests
+docs/plans/self.md                             # the path-escape mutant in the M11 review
+docs/plans/m99-plan.md                         # a planted mutant in the DevFlow adoption review
+src/app/adapter/gone_main.py                   # same
+tests/unit/test_gone.py                        # same
+scratchpad/tester_m7w1_rereview_driver.py      # an M7 review seat's scratch driver
+scratchpad/runner.py                           # same
+workflows/schema.py                            # = src/app/workflows/schema.py, named relative to the package
+workflows/rosters.py                           # = src/app/workflows/rosters.py, named relative to the package
+workflows/subscribe.py                         # = src/app/workflows/subscribe.py, named relative to the package
+workflows/yaml_guard.py                        # = src/app/workflows/yaml_guard.py, named relative to the package
+scripts/checkpoint.sh                          # a planted mutant in the adoption review; DevFlow removed the script at D-999. Rows are keyed by TARGET, so this cannot be scoped to that one record (field finding B1)

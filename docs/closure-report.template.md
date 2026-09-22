@@ -2,16 +2,16 @@
 record_type: closure
 id: closure-report-template
 status: draft
-process_version: v5.0
+process_version: v6.0
 date: 2026-08-12
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
-     filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
-     which is exactly what shipped in v4.3.1. -->
-# Closure Report — M{N} (v3.3, V3C-83/90 — the owner's milestone-session review pack)
+ filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
+ which is exactly what shipped in v4.3.1. -->
+# Closure Report — M{N} (the owner's milestone-session review pack)
 
 > **Generated at every milestone closure** (Stage 4.2) — the owner's review pack for the A0.5
-> milestone session (v3.3, OD-4): the owner reviews THIS + the per-wave diffs, runs his own tests /
+> milestone session: the owner reviews THIS + the per-wave diffs, runs his own tests /
 > smoke tests / checks, and performs the milestone commits. Time-box: 60–90 min; if the pack needs
 > more than ~15 min of reading before the owner can start his own tests, the milestone was too big
 > (cap: ~4–6 waves / ~2k net lines — close early next time). **Copy to `docs/closure-report-m{N}.md`.**
@@ -31,23 +31,23 @@ date: 2026-08-12
 
 **Criteria diffs since plan signature:** `<NONE, or highlighted diff — A2 requires zero unacked>`
 
-## 1a. Per-wave table (v3.3 — one row per wave; each cell links to committed evidence)
+## 1a. Per-wave table (one row per wave; each cell links to committed evidence)
 
 | Wave | Risk tier | Review depth applied | Findings opened/closed | Test Δ | Escalations | Checkpoint sha |
 |---|---|---|---|---|---|---|
 | W{1} | `<tier>` | `<combined / C-R+Tester+sec>` | `<n>/<n>` | `<+n>` | `<none|list>` | `<sha>` |
 
-## 1b. Decisions made on your behalf (v3.3 — assumption ledger + agent judgment calls)
+## 1b. Decisions made on your behalf (assumption ledger + agent judgment calls)
 
 - `<each assumption/decision, one line, with its ledger referent — the section the owner's attention pays for>`
 
-## 2. Git record (annotated)## 2. Git record (annotated)
+## 2. Git record (annotated)
 
 - Commit range: `<start>..<closure-tag>` · diffstat: `<files/+/->` · waves: `<K>`
 - Notable commits, one line each (agent-authorship trailer per convention: `Co-Authored-By: <agent> (GP-v3.2)`):
-  - `<sha>` — `<what and why, one line>`
+ - `<sha>` — `<what and why, one line>`
 
-## 3. Trust telemetry (mechanical — script-computed vs protected refs; V3C-84)
+## 3. Trust telemetry (mechanical — script-computed vs protected refs)
 
 | Task type | Post-closure fix rate | Churn (N-day) | Reverts | Findings (sec separately) |
 |---|---|---|---|---|
@@ -55,8 +55,8 @@ date: 2026-08-12
 
 **Agent self-report vs telemetry (METR clause):** `<agent's one-line self-assessment>` — *placed
 beside the numbers so the believed-vs-actual gap is visible.*
-**Mode: A0.5 (milestone-cadence owner review — PROVISIONAL, v3.3).** Fix-rate vs owner-per-wave
-baseline: `<generated comparison line — the OD-4 falsifier>`. Tripwires: `<none|event → auto-fallback to wave cadence>`
+**Mode: A0.5 (milestone-cadence owner review — PROVISIONAL).** Fix-rate vs owner-per-wave
+baseline: `<generated comparison line — the falsifier>`. Tripwires: `<none|event → auto-fallback to wave cadence>`
 
 ## 4. Security & invariants
 

@@ -52,6 +52,23 @@ jobs:
         run: mypy src
       - name: Test (pytest + coverage)
         run: pytest
+      # v5.2 (17-3 / 15-6). A green job is not a run that verified anything. In the field, 214
+      # contract tests skipped on every PR because the job had no `services:` block, and the board
+      # stayed green -- in the same commit whose practices.md said "a skip is not a pass".
+      # This reads the report the run produced. It does NOT close condition 15-8, which is open on
+      # "nothing in GP inspects a real CI run"; six seats made that a condition of adopting it.
+      - name: Skip budget (a skip is not a pass)
+        run: python3 scripts/coverage_floor.py --junit .pytest-report.xml
+      # model_ranking (D-155). The project's own legs of `make check`, which caller-liveness found had
+      # no CI caller. `client_decl_gate.py` needs Xcode and says SKIPPED NO-ENVIRONMENT here, loudly;
+      # `swift-test` is not run on Linux at all (the Engine imports NaturalLanguage) and stays an
+      # owner-machine leg, as W-111 records.
+      - name: Per-module coverage floor (W-041)
+        run: python scripts/module_coverage_floor.py
+      - name: Every wave-close record, not only the one named (V3C-69)
+        run: python scripts/wave_check_all.py
+      - name: Client privacy declarations (D-126, W-122) -- SKIPPED loudly without Xcode
+        run: python scripts/client_decl_gate.py
 
   secret-scan:
     runs-on: ubuntu-latest
@@ -88,8 +105,12 @@ jobs:
           elif [ -f pyproject.toml   ]; then pip install -e .
           else echo "::error::no requirements.txt or pyproject.toml -- pip-audit would scan nothing"; exit 1
           fi
+      # D-155. `--strict` on the ENVIRONMENT fails on the project itself, installed editable and absent
+      # from PyPI ("could not be audited") -- red on main since the v5.0 install. Auditing the
+      # project's DECLARED dependencies is the question the step exists to answer. Reported to
+      # DevFlow (field finding A13).
       - name: Run pip-audit
-        run: pip-audit --strict
+        run: pip-audit --strict .
 
   # v4.3 REPAIR (auditor B3). These two legs used to be STEPS inside `dep-audit`, downstream of
   # `pip-audit --strict`. The comment called them unconditional; they were conditional on the step
@@ -104,6 +125,11 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: '3.11'
+      # D-155. `conformance/test-ci-yaml.py` falls back to a minimal parser without PyYAML, and that
+      # parser crashes (exit 1, no output) on this file's test matrix `python-version: [...]`.
+      # Reported to DevFlow (field finding A12); here the real parser is simply installed.
+      - name: Governance dependencies (PyYAML for the workflow conformance check)
+        run: python -m pip install "PyYAML>=6.0"
       - name: Install completeness (M1/M2/M3)
         run: python3 scripts/check_records.py --install .
       - name: Governance records (R/X/P/N/C1 -- only on paths named in .governed-records; C2/L1/M3 always)
@@ -113,5 +139,28 @@ jobs:
       - name: Conformance -- every gate rejects what it must (V4C-80)
         run: python3 conformance/run-all.py
       - name: Falsification -- every control broken on purpose (V4C-84)
-        run: python3 conformance/falsify.py
+        run: make falsify   # D-155: falsify.py is distribution-only; the make target says SKIPPED in an installation
+      # v5.2, found by condition 16-8's caller-liveness check ON ITS FIRST RUN. `slopsquat` is a leg
+      # of `make gate` -- the name this package says means "everything we claim" -- and it appeared
+      # in no workflow and in no pre-commit hook. Its only caller was someone who already knew its
+      # name, which is the founding defect of this lineage, shipped for a fifth time at a fifth
+      # altitude. The check that caught it was written to catch exactly this and caught it immediately.
+      - name: Slopsquat -- declared deps exist on PyPI and are not brand new (F.8)
+        run: python3 scripts/slopsquat_check.py
+      # v5.2, 18-B(iv) (Increment 18). `harvest-context-check` is a leg of `make check` and had no
+      # CI caller anywhere -- the Security seat found it at Increment 17 and caller-liveness could
+      # not see it, because the check passed a leg when ANY ONE of its transitive tokens appeared.
+      # `ruff` was vouching for it. In an installation this step reports SKIPPED and exits 0, which
+      # is correct: a project maintains no control roster. It is here so the leg has a caller.
+      # B8, Increment 19 council (DevOps seat). This step did not exist, and nothing anywhere
+      # ran `shell_dialect_check.sh` -- not CI, not pre-commit, not the hook config. Condition
+      # 15-12's gate was adopted at Increment 18, is a leg of `make check` and therefore of
+      # `make gate`, and had no caller in the template a project receives. `caller-liveness`
+      # could not see it because its token extractor matched `.py` only (TB-101); the moment
+      # that was repaired, the finding appeared -- and a second defect in the same function,
+      # a `make check` mentioned in comment PROSE, swallowed it again.
+      - name: Shell dialect -- every shipped .sh parses and declares one dialect (15-12)
+        run: bash scripts/shell_dialect_check.sh
+      - name: Harvest context is current (16-2)
+        run: make harvest-context-check
 

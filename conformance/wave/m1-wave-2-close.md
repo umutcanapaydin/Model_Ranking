@@ -2,7 +2,7 @@
 record_type: wave
 id: m1-wave-2-close
 status: ratified
-process_version: v5.0
+process_version: v6.0
 date: 2026-08-12
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
@@ -35,7 +35,7 @@ date: 2026-08-12
 | 2 | Per-agent dev-test loop ran (implement → test → self-review → fix) — V3C-68 | `src/api.py:42` in this wave (commit a1b2c3d) | ✅ |
 | 3 | Review per tier: LOW/MED → ONE combined reviewer; HIGH → Code-Reviewer + Tester separately — V3C-78. **v3.3: reviewer countersigns 2 randomly-chosen rows of THIS checklist against the actual artifacts (anti self-attestation)** | `src/api.py:42` in this wave (commit a1b2c3d) | ✅ |
 | 4 | *(plan-tag)* HIGH slice: pulled-forward security pass on this slice DONE — V3C-68/F15 | `src/api.py:42` in this wave (commit a1b2c3d) | ✅ |
-| 5 | Tester fault-injection on the 1–2 most load-bearing behaviors: break → RED confirmed → reverted byte-identical (md5); every stay-GREEN fault got its mandatory new test — V3C-72/F5. **v4.0 (V4C-01, HIGH only, ADVISORY):** if a mutation runner is wired, mutant kill-rate on changed code recorded beside the verdict — never blocks | `src/api.py:42` in this wave (commit a1b2c3d) | ✅ |
+| 5 | Tester fault-injection on the 1–2 most load-bearing behaviors: break → RED confirmed; restore reproduces pre-injection BYTES (md5), never re-derived; after any FIX round, replay the previous round's mutant set — the independent set's survivors where one exists (P-13) → reverted byte-identical (md5); every stay-GREEN fault got its mandatory new test — V3C-72/F5. **v4.0 (V4C-01, HIGH only, ADVISORY):** if a mutation runner is wired, mutant kill-rate on changed code recorded beside the verdict — never blocks | `src/api.py:42` in this wave (commit a1b2c3d) | ✅ |
 | 6 | Every acceptance criterion touched has a citing test entering through the LIVE entrypoint (not a unit shim) — V3C-02 + V3C-73/F6 ("built ≠ wired") | `src/api.py:42` in this wave (commit a1b2c3d) | ✅ |
 | 7 | New/changed security invariants added to the milestone invariants list with their NEGATIVE test — V3C-74/F7 | `src/api.py:42` in this wave (commit a1b2c3d) | ✅ |
 | 8 | No `git checkout`/`restore` was run on uncommitted work this wave (reverts were in-place + hash-verified) — V3C-06/F17 | `src/api.py:42` in this wave (commit a1b2c3d) | ✅ |
@@ -47,7 +47,7 @@ date: 2026-08-12
 **Escaped-blocker tripwire (V3C-78):** if a blocker escapes a tiered-down (LOW/MED) wave, the
 project reverts to full per-wave Code+Tester review until the next milestone closes clean.
 
-Filled by: `Code-Reviewer` · Date: `2026-08-16` · Wave commit range: `a1b2c3d..f4e5d6c`
+Filled by: `Code-Reviewer` · Date: `2026-08-20` · Wave commit range: `a1b2c3d..f4e5d6c`
 
 ## Wave footprint — RECORD ONLY, no rule attached (v5.0)
 
@@ -56,8 +56,11 @@ close-time paths are a measurement, and everything this lineage learned in 2026-
 is where the defects live.
 
 ```
-Touched:        src/app/quota/read.py, src/app/quota/schema.py, tests/unit/test_quota_read.py
-K.8 contracts:  NONE — read path only; QuotaRepo signature unchanged
+Touched:        src/app/quota/read.py, tests/unit/test_quota_read.py
+Mutant set author: Tester seat (independent — authored no line of the diff); set at `docs/reviews/m1-w2-mutants.md`
+Observed RED:   flipped `>=` to `>` in read.py:88 → `test_quota_boundary` failed on the boundary assertion
+Owner instruction: "tenant admin kendi kotasini gorsun" (owner, translated: tenant admin sees own quota) → delivered: GET /quota returns caller-tenant rows only
+K.8 contracts:  NONE — read path only
 Closure rounds: 1
 ```
 

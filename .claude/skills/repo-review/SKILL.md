@@ -1,17 +1,22 @@
 ---
 name: repo-review
-description: Review the current branch's changes against this repo's documented practices. Loads .agents/rules/ before reviewing. Use before opening a PR.
+description: Use after finishing a slice, a phase, or a branch and before pre-merge — and whenever asked to review, check over, or sanity-check a change. Grades the diff against THIS repository's documented practices, not generic advice. A review from memory is an opinion.
 ---
 
-1. Read every file in `.agents/rules/` so the review is grounded in this repo's standards, not generic best practices.
-2. Read `subagent-profiles/Code-Reviewer.md` to align with the K.7 fresh-eyes review pattern.
-3. Run `git diff <base-branch>...HEAD` to see the full set of changes on this branch.
-4. Run the built-in `/review` workflow on the diff, with the rules loaded in Step 1-2 as additional context.
-5. In the report, flag specifically:
-   - Violations of `.agents/rules/practices.md`
-   - Missing tests for new capabilities (with `file:line` evidence of REQ-ID citations per seed E.2)
-   - README / CLAUDE.md / AGENTS.md drift
-   - K.8 contract drift (run `grep -n` to verify shared symbol names)
-   - PASS verdicts WITHOUT `file:line` evidence (automatically BLOCKING per permission-matrix §11)
-6. Keep the review under ~30 bullet points. Prioritize correctness > clarity > nits.
-7. Output verdict as PASS / MINOR / BLOCKING.
+1. **Load every file in `.agents/rules/` first.** The review is grounded in this repo's rules or
+ it is grounded in best practices in general, and those are different reviews.
+2. `git diff <base>...HEAD` for the full set of changes on this branch. Read the PR's real base
+ rather than assuming the default branch.
+3. Review that diff with the rules as context.
+
+Flag specifically:
+
+- violations of `practices.md`
+- **missing tests for new capabilities** — in the same change, exercising the behaviour rather
+ than importing it
+- README and documentation drift
+- **duplicated knowledge that was not updated in sync** — one fact in two artefacts with no gate
+ between them is the most recurrent defect in this corpus
+
+Under ~30 bullets. **Correctness > clarity > nits.** A review that spends its budget on style has
+spent the reviewer's attention on the cheapest thing in the diff.

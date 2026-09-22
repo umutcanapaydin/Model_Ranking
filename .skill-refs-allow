@@ -1,0 +1,44 @@
+# Backticked `/token`s in shipped documents that are NOT skill invocations.
+# Read by conformance/test-documented-skills.py. Format: `token<TAB>reason`.
+#
+# WHY A DECLARATION AND NOT A HEURISTIC. A shipped document writes `/health` and
+# `/repo-review` identically, and no amount of pattern-matching separates an HTTP
+# route from a slash-command reliably. So the exemptions are NAMED, each with a
+# written reason -- the form V5C-110 permits -- rather than guessed at.
+#
+# THE FAIL DIRECTION: forgetting to declare a route here produces a FALSE POSITIVE,
+# which is loud and takes one line to fix. A heuristic that guessed wrong would
+# produce SILENCE, which is how ten dangling skill references shipped for eight cuts.
+health	the L.7 version-stamped liveness/readiness contract; the single most-cited endpoint in this package
+ready	a readiness probe route, paired with /health in the go-live checks
+version	a build-identity route named beside /health
+deploy	a directory in the repository layout (`/deploy/**`), a DevOps-owned contract surface per K.10
+tmp	a filesystem path in shell examples
+schedule	an example application route in the permission matrix
+v2	an example public API contract version, used to show what may not change without an ADR
+skill	the literal placeholder in the control roster's own description of `documented-skills` -- "a document telling a reader to type a `/skill` that does not exist". HARVEST-CONTEXT.md is GENERATED from that description, so the control quoting itself tripped itself. Not a route and not an invocation: no skill will ever be named `skill`
+
+# ── model_ranking (DevFlow v6.0 adoption, D-155) ────────────────────────────────────────────────
+# This engine's own HTTP routes, named in its PRD and plans.
+recommend	the engine's /v1 recommendation route, named in docs/deliverables-plan.md
+rankings	the engine's ranking route, named in docs/deliverables-plan.md
+# Upstream HTTP APIs this project reads, quoted in records as the URLs it fetched.
+rows	Hugging Face datasets-server endpoint, quoted in closure reports, plans and decisions
+first-rows	Hugging Face datasets-server endpoint, quoted as fetched
+splits	Hugging Face datasets-server endpoint, quoted as fetched
+is-valid	Hugging Face datasets-server endpoint, quoted as fetched
+filter	Hugging Face datasets-server endpoint, quoted in docs/fixpack-1.md
+# Claude Code's BUILT-IN commands. They are not shipped skills and never will be; a record that says
+# a seat ran `/security-review` or that a session was `/rewind`-ed is naming the harness.
+review	Claude Code built-in command, named in the universal D-005 body as first shipped
+security-review	Claude Code built-in command, named in the M6 closure report and D-005
+rewind	Claude Code built-in command, named in .claude/RESUME.md
+# Filesystem paths and FastAPI's own routes, quoted in security reviews as attack surface.
+docs	FastAPI's auto-generated docs route, which the security reviews verified is OFF
+redoc	FastAPI's auto-generated ReDoc route, verified OFF in the same reviews
+app	a container filesystem path (/app) in the M7 security review's path-traversal probes
+data	a container filesystem path (/data) in the M7 security review
+etc	a filesystem path (/etc) in the M7 security review's path-traversal probes
+home	a filesystem path (/home) in the M7 security review
+usr	a filesystem path (/usr) in the M7 security review
+nonexistent	a deliberately absent path in the M11 security review's negative test

@@ -12,11 +12,15 @@ YAML frontmatter block and a few cross-file facts.
 WHAT IT CHECKS
   Per record (frontmatter):   R1 required fields · R2 closed enums · R3 id format+uniqueness
   Cross-record:               X1 supersedes/requires resolve · X2 no cycle · X3 status-flow order
+                              X5 a rule id the package cites exists in the decision trail
+                              X4 a path a ROOT document points at resolves — in the tree,
+                                 in the tag its path names, or declared in
+                                 .root-path-refs-allow with a reason
   Propagation (V4C-36):       P1 declared propagation rows are not `pending`
                               P2 each package's pipeline-design.md keeps its §0 changelog heading
                                  (the ONE verified field incident: v3.3 lost it)
-                              P3 executive-overview file count == actual package file count
-                                 (the second, already-auto-fixed incident — kept as a regression test)
+                              (P3, the executive-overview file count, RETIRED at v6.0 with the
+                                 document it graded — see package_invariants)
   Pins (V4C-43-adjacent):     N1 no /blob/main|master/ URL is called a "pin"
   Conditions (V4C-25, v4.2):  C1a a condition's closure artifact must be NAMEABLE (path or record
                                   id in backticks), forward-only from v4.2
@@ -52,8 +56,11 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import fnmatch
+import functools
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -74,7 +81,21 @@ RECORD_TYPES = {"ratification", "register", "adr", "experience", "handover", "de
                 # `record_type: plan`, which was also absent. Ungoverned TODAY (the manifest reaches
                 # only wave-close records under `docs/plans/`) — named here so the type is legal the
                 # day it is governed, rather than becoming a second B1.
-                "review", "plan"}
+                "review", "plan",
+                # DevFlow v6.0 adoption (model_ranking, 2026-09-23). Nine retrospectives under
+                # `docs/retrospectives/` declare `record_type: retrospective` and were never scanned
+                # while selection was by glob. Deriving the set from frontmatter found them all
+                # "invalid" -- the schema had no word for a record `/cycle-close` itself writes.
+                "retrospective",
+                # v5.2 (17-8). `harvest` was missing for five versions. Field harvests are the
+                # evidence every council runs on, and the schema had no word for them -- which went
+                # unnoticed because the filename-glob selector never reached one. Deriving the set
+                # from `record_type:` surfaced nine of them at once, all "invalid".
+                "harvest",
+                # v5.2 (17-8). A harvest may ship a companion GPF register -- defects in
+                # GP's OWN machinery, filed separately and filed hard. Two exist in the
+                # corpus and neither was ever governed.
+                "field-findings"}
 #: Control identifiers as this project writes them: K.7, V3C-02, V4C-13, L.7, E.4, INV-23.
 #: Deliberately NOT `D-\d+` or `REQ-...`: a decision is not a control that gets bypassed, and
 #: counting them would make C2b fire on rows that merely cite an ADR.
@@ -118,7 +139,15 @@ REQUIRED = ("record_type", "id", "status")
 #: the consequence belongs — this file checks SHAPE and never judges independence (see the module
 #: docstring).
 SEATS = ("author", "independent")
-OPTIONAL = ("seat", "process_version", "supersedes", "requires", "subject_ref", "propagation",
+# v5.2 (17-8): the fields the harvest prompt's third edition requires a field agent to declare.
+# V4C-35 DEBT, recorded rather than hidden: `harvest_context_sha256` has no machine consumer yet --
+# the Security seat measured that its three-outcome policy (match / missing / MISMATCH files an
+# injection-class finding) exists only as a docstring. Declaring the field here does not discharge
+# that; condition 18-x owes the consumer, and if it is not written these fields are deleted after
+# two cuts per V4C-35 rather than carried as decoration.
+HARVEST_FIELDS = ("process_version_harvested", "process_version_target", "project",
+                  "harvest_context_sha256", "harvester_conflict", "companion", "parent")
+OPTIONAL = (*HARVEST_FIELDS, "seat", "process_version", "supersedes", "requires", "subject_ref", "propagation",
             "evidence_ref", "approvers", "date")
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9.\-]{2,63}$")
 FM_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.S)
@@ -234,10 +263,27 @@ def cross_record(records, root: Path) -> list[Finding]:
     by_id = {str(fl.get("id", "")): (p, fl) for p, fl in records}
     for path, fields in records:
         rel = path.relative_to(root)
-        for ref in (fields.get("supersedes", []) or []) + (fields.get("requires", []) or []):
+        # v5.1 hardening. A `supersedes:` carrying a prose STRING (not a list, not an id) crashed this
+        # line with a TypeError -- and a crashed validator aborts every later rule while looking like
+        # a finding. Found by the chair breaking it accidentally minutes after editing a frontmatter;
+        # the crash class is TB-047's (a broken instrument reporting as evidence). Wrong-typed fields
+        # are now a FINDING, never an exception.
+        _reported: set = set()
+        def _refs(key):
+            v = fields.get(key) or []
+            if isinstance(v, str):
+                if key in _reported:
+                    return []
+                _reported.add(key)
+                f.append(Finding(rel, 1, "R2",
+                                 f"`{key}` is prose (`{v[:40]}...`) -- it must be a list of record "
+                                 "ids. A reference nothing can resolve is a reference to nothing"))
+                return []
+            return v if isinstance(v, list) else []
+        for ref in _refs("supersedes") + _refs("requires"):
             if ref and ref not in seen:                             # X1
                 f.append(Finding(rel, 2, "X1", f"reference `{ref}` resolves to no record"))
-        sup = fields.get("supersedes", []) or []
+        sup = _refs("supersedes")
         for ref in sup:                                             # X2 (1-hop cycle)
             other = by_id.get(ref)
             if other and str(fields.get("id")) in (other[1].get("supersedes", []) or []):
@@ -257,6 +303,55 @@ def cross_record(records, root: Path) -> list[Finding]:
     return f
 
 
+_HIST_CACHE: dict = {}
+
+
+def _historical_paths(root: Path) -> dict:
+    """Every path this repository has shipped under any tag, indexed by basename.
+
+    One `git ls-tree` per tag, cached for the run -- sixteen git calls, not one per citation. The
+    alternative was asking git about each unresolved path separately, which is how a validator that
+    runs on every push becomes a validator people disable.
+    """
+    key = str(root)
+    if key in _HIST_CACHE:
+        return _HIST_CACHE[key]
+    index: dict = {}
+    try:
+        tags = subprocess.run(["git", "-C", str(root), "tag"],
+                              capture_output=True, text=True, timeout=10)
+        names = [t for t in tags.stdout.split() if t] if tags.returncode == 0 else []
+        for tag in names:
+            out = subprocess.run(["git", "-C", str(root), "ls-tree", "-r", "--name-only", tag],
+                                 capture_output=True, text=True, timeout=20)
+            if out.returncode != 0:
+                continue
+            for line in out.stdout.splitlines():
+                index.setdefault(line.rsplit("/", 1)[-1], set()).add(line)
+    except (OSError, subprocess.SubprocessError):
+        index = {}
+    _HIST_CACHE[key] = index
+    return index
+
+
+def _git_blob(root: Path, path_part: str) -> str | None:
+    """Read `general_pipeline_vX.Y/...` out of the tag `vX.Y` when the directory is no longer checked out.
+
+    Returns the file's text, or None if the repository does not hold it either. A missing `git`, a
+    tree that is not a repository, or an absent tag all return None -- this only ever RESCUES a
+    citation, it can never satisfy one that the repository cannot produce.
+    """
+    tag = path_part.split("/", 1)[0][len("general_pipeline_"):]
+    if not tag:
+        return None
+    try:
+        out = subprocess.run(["git", "-C", str(root), "show", f"{tag}:{path_part}"],
+                             capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out.stdout if out.returncode == 0 else None
+
+
 def current_package(root: Path) -> Path | None:
     """The version the repo is shipping = the highest general_pipeline_v* by numeric order."""
     def key(p: Path):
@@ -267,7 +362,13 @@ def current_package(root: Path) -> Path | None:
 
 
 def package_invariants(root: Path, scope: str = "current") -> list[Finding]:
-    """P2/P3 — the two propagation regressions we actually paid for.
+    """P2 — the propagation regression we actually paid for.
+
+    P3 RETIRED, v6.0 (owner, 2026-09-22). It graded one sentence — the file count in
+    `docs/executive-overview.md` — and the document it graded was deleted: seven cuts stale (it
+    narrated v4.3), withheld from every delivery, and its header overwritten by its own generator's
+    stdout, which no control saw because P3 read one number and nothing else. A rule left standing
+    behind `if overview.exists()` would have gone quietly inert; retired by name instead.
 
     scope="current": only the shipping version BLOCKS. Prior packages are FROZEN by the standing
     versioning rule (never edit a prior version to produce a new one), so a finding there is
@@ -291,16 +392,6 @@ def package_invariants(root: Path, scope: str = "current") -> list[Finding]:
                 f.append(Finding(design.relative_to(root), 1, "P2",
                                  "§0 changelog heading missing (the v3.3 propagation incident: "
                                  "a patch helper consumed it and no check noticed)"))
-        overview = pkg / "docs" / "executive-overview.md"
-        if overview.exists():                                        # P3
-            actual = sum(1 for p in pkg.rglob("*")
-                         if (p.is_file() or p.is_symlink()) and "__pycache__" not in p.parts)
-            body = overview.read_text(encoding="utf-8", errors="replace")
-            claimed = {int(m) for m in re.findall(r"(?:about |\()(\d{2,3}) files", body)}
-            for c in claimed:
-                if c != actual:
-                    f.append(Finding(overview.relative_to(root), 1, "P3",
-                                     f"claims {c} files, package contains {actual}"))
     return f
 
 
@@ -320,6 +411,10 @@ def package_invariants(root: Path, scope: str = "current") -> list[Finding]:
 #        name a closure artifact that is machine-resolvable — a backticked path that exists, or a
 #        record id that resolves. An unresolvable prose artifact FAILS. This is what makes C1b
 #        possible at all, and it is why the rule is worth having.
+#   C1c  FORWARD-ONLY, BLOCKING (v5.3, TB-082). In records at process_version >= v5.2, a condition
+#        whose artifact ALREADY EXISTS must name `path#anchor` — a literal string the change adds.
+#        Without one the row satisfies itself the day it is signed and can never fail. Increment 16
+#        wrote twelve such rows and ten of them went unwritten for nineteen days, green.
 #   C1b  BLOCKING wherever the artifact IS resolvable and the due marker has passed: the artifact
 #        must exist. "Evaporated" is the finding.
 # Legacy prose conditions are reported by --historical, never silently treated as satisfied.
@@ -391,6 +486,30 @@ def condition_closure(root: Path, records, scope: str = "current") -> list[Findi
     f: list[Finding] = []
     ids = {str(fl.get("id", "")) for _, fl in records}
     shipped = _shipped_versions(root)
+    # v6.0. A THIRD verdict, SUPERSEDED, added the first time a condition needed it. 18-6's
+    # closure artifact was `$CUT/.claude/skills/retrospect/SKILL.md`; v6.0 merged that skill into
+    # `cycle-close` and the path stopped existing. The condition was BUILT -- retiring it would
+    # say the work was abandoned and refusing it would say it was declined, and both are false.
+    #
+    # It also exposes a tension section 1.3 created at Increment 18. `$CUT` was adopted so a
+    # condition naming a FROZEN package could still close; the cost is that a condition now
+    # follows the cut forward and breaks whenever the cut reorganises. Neither resolution is free:
+    # pin to the cut that satisfied it and you cannot see later removals, follow the cut and every
+    # rename is an evaporation. SUPERSEDED is the record of that choice being made per condition.
+    #
+    # v5.3, 18-x (Increment 18). Conditions the council has RETIRED or REFUSED. Until now a
+    # condition could only be built or report EVAPORATED forever -- there was no third state, so
+    # the owner's "leave nothing open" instruction was unexecutable. Ratified tables are never
+    # rewritten; this register sits beside them. Fail-closed: an entry naming a condition no
+    # ratified table contains is a finding, reported by `retirement_integrity()`.
+    retired: set[str] = set()
+    _ret = root / "retired-conditions.md"
+    if _ret.is_file():
+        for _ln in _ret.read_text(encoding="utf-8", errors="replace").splitlines():
+            _m = re.match(r"^\|\s*`([^`]+)`\s*\|\s*(RETIRED|REFUSED|SUPERSEDED)", _ln)
+            if _m:
+                retired.add(_m.group(1).strip())
+
     today = _today()
     for path, fields in records:
         pv = str(fields.get("process_version") or "")
@@ -399,9 +518,16 @@ def condition_closure(root: Path, records, scope: str = "current") -> list[Findi
         # must exist) applies to EVERY record — restricting it by generation was the first bug in
         # this rule, and it silently exempted the exact register that carries the live conditions.
         forward = bool(pv) and _version_tuple(pv) >= (4, 2)
+        # C1c has its own epoch: it was adopted at v5.2 and, like C1a, does not reach back
+        # into ratified history. Applying it at C1a's v4.2 epoch produced 43 findings on
+        # frozen records the council cannot rewrite -- a rule that indicts the past instead
+        # of binding the future, which is noise and teaches the reader to skip the report.
+        forward_c1c = bool(pv) and _version_tuple(pv) >= (5, 2)
         rel = path.relative_to(root)
         text = path.read_text(encoding="utf-8", errors="replace")
         for ln, cells in condition_rows(text):
+            if cells and cells[0].strip().strip("`") in retired:
+                continue
             row = " ".join(cells)
             artifact_cell = cells[-1]
             # ---- is it due? -------------------------------------------------------------
@@ -427,14 +553,72 @@ def condition_closure(root: Path, records, scope: str = "current") -> list[Findi
             # IN the file. That turns "the file exists" into "the change landed."
             satisfied = False        # a token that resolves: an existing path, or a real record id
             missing: list = []       # path-shaped tokens that are absent, or whose anchor is absent
+            anchored = False         # v5.2 C1c: did ANY token name `path#anchor`?
             for tok in TICK_RE.findall(artifact_cell):
-                _parts = tok.strip().split()
-                if not _parts:        # an empty backtick pair -> IndexError, exit 1, later rules aborted
+                # v5.3, TB-084. The `.split()` guard here was added to survive an empty backtick
+                # pair, and it silently TRUNCATED EVERY ANCHOR AT ITS FIRST SPACE. Measured against
+                # Increment 17's own conditions table: `#A RULE MAY NOT OUTLIVE ITS GATE` resolved
+                # to `A`, `#A skip is not a pass` to `A`, `#a second independent outsider grading`
+                # to `a`. **Three of thirteen rows were satisfied by any non-empty file** -- exactly
+                # the bare `target.exists()` that C1c was written to end, inside C1c's own repair.
+                #
+                # The chair greped the full literal by hand and got 12/12; the checker greped `A`,
+                # `A`, `a`. A human grep and the machine's grep disagreed on nine of thirteen rows,
+                # and the human's is what got recorded as verification. Found by the DX seat.
+                #
+                # Split on `#` FIRST, then take the first whitespace token of the path only. The
+                # anchor keeps every word.
+                raw = tok.strip().rstrip(",;:)")
+                if not raw:           # an empty backtick pair -> IndexError, exit 1, later rules aborted
                     continue
-                tok = _parts[0].rstrip(",;:)")
-                path_part, _, anchor = tok.partition("#")
+                path_part, _, anchor = raw.partition("#")
+                _pp = path_part.split()
+                path_part = _pp[0] if _pp else ""
+                anchor = anchor.strip()
+                tok = raw
                 target = root / path_part
+                # v5.3, §1.3 (Increment 18), proposed independently by three seats. A condition
+                # naming a path into a FROZEN package can never close: 15-6's work shipped as
+                # `general_pipeline_v5.2/scripts/coverage_floor.py` while the row names
+                # `general_pipeline_v5.1/...`, so `C1b` reported it EVAPORATED forever although the
+                # work was done. A permanent false RED teaches the same blindness as a false
+                # GREEN -- it is how `slopsquat` survived five versions.
+                #
+                # So a version-pinned artifact also resolves against the CURRENT package. Write
+                # `$CUT/` in new conditions and this is unnecessary; the fallback exists for rows
+                # the council ratified before the rule.
+                if not target.exists() and path_part.startswith("general_pipeline_v"):
+                    cur = current_package(root)
+                    if cur is not None:
+                        alt = cur / path_part.split("/", 1)[1] if "/" in path_part else None
+                        if alt is not None and alt.exists():
+                            target = alt
+                    # v6.0, 2026-09-22. The spring cleaning removed fifteen frozen package
+                    # directories from the WORKING TREE after tagging each cut. The decision trail
+                    # cites 108 paths inside them, and one of those citations is a closure artifact
+                    # -- so `C1b` reported a condition EVAPORATED whose artifact was never lost, only
+                    # moved out of the checkout. **The working tree is not the repository.** A path
+                    # under `general_pipeline_vX.Y/` resolves against the tag `vX.Y` when the
+                    # directory is gone, which is how the citations stay true without rewriting 108
+                    # records to say the same thing differently.
+                    if not target.exists():
+                        blob = _git_blob(root, path_part)
+                        if blob is not None:
+                            if anchor:
+                                anchored = True
+                                if anchor in blob:
+                                    satisfied = True
+                                    break
+                                missing.append(tok)
+                                continue
+                            satisfied = True
+                            break
+                elif path_part.startswith("$CUT/"):
+                    cur = current_package(root)
+                    if cur is not None:
+                        target = cur / path_part[len("$CUT/"):]
                 if anchor:
+                    anchored = True
                     if target.is_file() and anchor in target.read_text(
                             encoding="utf-8", errors="replace"):
                         satisfied = True
@@ -457,12 +641,36 @@ def condition_closure(root: Path, records, scope: str = "current") -> list[Findi
                                  f"condition EVAPORATED — it is due and its named closure artifact "
                                  f"`{tok}` {why} (V4C-22: a condition without its artifact is not "
                                  "a condition)"))
+            # ---- C1c: forward-only — a condition may not be able to satisfy itself --------
+            # v5.3, TB-082, and it is the defect that cost this lineage nineteen days.
+            #
+            # `C1b` treats a condition as satisfied when its artifact `target.exists()`. Increment
+            # 16 wrote TWELVE conditions, every one naming a file that ALREADY EXISTED — Makefile,
+            # closure-checklist.md, the harvest prompt. **All twelve satisfied themselves on the day
+            # they were signed.** The validator was correctly, honestly green for nineteen days
+            # while ten of them had not been written, and `V5C-110` — adopted 6/6 — existed in no
+            # file outside the ratification that adopted it.
+            #
+            # The v4.3 repair above made `path#anchor` POSSIBLE and left it OPTIONAL, so the defect
+            # recurred at full scale one cut later. Optional is how a control becomes folklore.
+            # Forward-only for the same reason C1a is: ratified history is frozen.
+            #
+            # A condition that names an existing file without an anchor cannot fail. It is not a
+            # condition; it is a sentence. Found by the DX seat at Increment 17, not by the chair,
+            # whose own closure record misdiagnosed it as a governed-records glob problem.
+            if forward_c1c and satisfied and not anchored \
+                    and artifact_cell not in ("", "—", "-", "n/a", "–"):
+                f.append(Finding(rel, ln, "C1c",
+                                 "condition satisfies itself — its artifact already exists and no "
+                                 "`#anchor` was named, so this row can never fail. Name "
+                                 "`path#a-literal-string-the-change-adds` "
+                                 f"(row: {cells[0][:24]!r})"))
             # ---- C1a: forward-only — the artifact must be nameable at all ----------------
             # The dash variants below are DATA, not prose: a record may write "no artifact" as an
             # em dash, an en dash, a hyphen or `n/a`, and the rule accepts all four. Flagging the
             # en dash as a typo would be right in a sentence and wrong in a set of accepted spellings.
             elif forward and not satisfied and not missing \
-                    and artifact_cell not in ("", "—", "-", "n/a", "–"):  # noqa: RUF001
+                    and artifact_cell not in ("", "—", "-", "n/a", "–"):
                 f.append(Finding(rel, ln, "C1a",
                                  "condition's closure artifact is not machine-resolvable — name a "
                                  "`path` or a record `id` in backticks, not prose "
@@ -471,6 +679,10 @@ def condition_closure(root: Path, records, scope: str = "current") -> list[Findi
 
 
 # ── M1/M2/M3: the install manifest (V4C-72/76, v4.3) ────────────────────────────────────────
+# Written by `scripts/write_install_marker.py` (MARKER_DIR / "installed") in the project that runs
+# `make install`. A literal, not an import: this validator also runs at GP's root, where that
+# script does not exist. `test-delivered-tree` proves the two agree, in the delivery.
+INSTALL_MARKER = ".gp/installed"
 # WHY. For twelve cuts nobody declared which files constitute an installation, and the field showed
 # the copy step was wrong in BOTH directions simultaneously: a correct install carried 19 GP-internal
 # files (11 handovers, 2 decks, the design docs, the exec overview) into a customer delivery tree,
@@ -489,8 +701,38 @@ SKIP_DIRS = {".venv", "venv", ".git", "node_modules", "site-packages", "__pycach
              ".mypy_cache", ".pytest_cache", ".ruff_cache", "dist", "build", ".tox", ".eggs"}
 
 
-def _skip(rel: Path) -> bool:
-    return any(part in SKIP_DIRS or part.endswith(".egg-info") for part in rel.parts)
+@functools.cache
+def _ignored(pkg: Path) -> frozenset:
+    """Paths git is already ignoring in this tree — the exclusion, DERIVED (V5C-110).
+
+    v6.0. `SKIP_DIRS` above excludes junk DIRECTORIES and no junk FILES, so a `.DS_Store` — which
+    macOS writes the moment anyone opens the folder in Finder, and which `.gitignore` has excluded
+    since the first cut — turned this gate red on TWO findings at once: `M3` (a path in neither
+    manifest list) and `P3` ("claims 160 files, package contains 161"). The false count landed on
+    the one doc-sync check GP owns. That is this list's third repair in three cuts — `.venv` at
+    v4.3.2, the half-wired exclusion at v5.3, junk files now — and a hand-kept list beside the
+    thing it guards, drifting, IS the finding V5C-110 names. `.gitignore` one directory away has
+    held the answer the whole time, so the answer is read rather than re-typed.
+
+    FAIL DIRECTION. No git, no repository, or a git that errors → the empty set, which restores the
+    OLD behaviour: junk is counted and the gate goes red. The fallback is never a pass that the
+    full walk would have refused, and `SKIP_DIRS` still applies underneath it either way.
+    """
+    try:
+        r = subprocess.run(["git", "-C", str(pkg), "ls-files", "--others", "--ignored",
+                            "--exclude-standard", "-z"],
+                           capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return frozenset()
+    if r.returncode != 0:
+        return frozenset()
+    return frozenset(x for x in r.stdout.split("\0") if x)
+
+
+def _skip(rel: Path, pkg: Path | None = None) -> bool:
+    if any(part in SKIP_DIRS or part.endswith(".egg-info") for part in rel.parts):
+        return True
+    return pkg is not None and rel.as_posix() in _ignored(pkg)
 
 
 LOCK_NAME = ".install-lock"          # per-directory file counts, written at export
@@ -540,7 +782,7 @@ def _pkg_paths(pkg: Path) -> set:
     for p in pkg.rglob("*"):
         # S1: the SKIP_DIRS exclusion had been wired into L1 only, so a `.venv` in the package made
         # M3 emit one finding per vendored file and P3 fail on the count. Half a repair reads as none.
-        if _skip(p.relative_to(pkg)):
+        if _skip(p.relative_to(pkg), pkg):
             continue
         rel = p.relative_to(pkg).as_posix()
         out.add(rel + "/" if p.is_dir() else rel)
@@ -692,6 +934,15 @@ def manifest_rules(root: Path, install: Path | None = None) -> list[Finding]:
                                  f"PROJECT path `{decl}` is MISSING from the install at "
                                  f"{install.name} — the install is incomplete"))
         for decl in sorted(internal):
+            # v6.0. The project's OWN `make install` writes `.gp/installed` -- the manifest says so
+            # ("the project then COMMITS that one") -- while GP's copy of it stays GP-INTERNAL so
+            # the export withholds it. M2 could not tell the two apart and flagged the project's
+            # marker as a leak, so every `make check` after a successful install was red. Nobody
+            # saw, because until the same cut no delivery had ever got past `make install`.
+            # What this gives up, stated: a HAND copy of GP's tree carrying GP's marker is no
+            # longer an M2 finding; the export never copies it, and it is the path GP ships.
+            if decl == INSTALL_MARKER:
+                continue
             if (install / decl.rstrip("/")).exists():
                 f.append(Finding(rel_man, 1, "M2",
                                  f"GP-INTERNAL path `{decl}` is PRESENT in the install at "
@@ -887,6 +1138,184 @@ def telemetry_verdicts(root: Path) -> list[Finding]:
     return f
 
 
+PATH_REF_RE = re.compile(
+    r"`([A-Za-z0-9_][\w./-]*\.(?:md|py|sh|yml|yaml|toml|json|html|txt|csv|pdf|xlsx))`")
+ROOT_PATH_ALLOW = ".root-path-refs-allow"
+
+
+def root_path_refs(root: Path) -> list[Finding]:
+    """X4 — a path a ROOT document routes a reader to must resolve, or be declared absent.
+
+    WHY (2026-09-22). `test-documented-paths.py` grades this inside the PACKAGE, on V4C-80's line:
+    anything a reader is told to type is an interface, and a path is that promise in a different
+    shape. The repo ROOT had no such control, and the gap was not hypothetical -- the spring
+    cleaning removed fifteen frozen package directories and the root README went on handing a
+    non-technical stakeholder `general_pipeline_v5.0/docs/executive-overview.pdf`. It was found by
+    READING, which is the method the mutation census exists to replace.
+
+    Three ways a reference resolves, and the middle one is the interesting one:
+      * the path exists in the working tree, absolutely or beside the citing document
+      * the path exists in the REPOSITORY -- `general_pipeline_vX.Y/...` is read out of the tag
+        `vX.Y` when the directory is no longer checked out. The working tree is not the repository,
+        and the decision trail cites 108 such paths that are all still true.
+      * a glob in `.root-path-refs-allow`, each row carrying a written reason. A row without a
+        reason is not a declaration.
+
+    NOT graded: conformance fixtures, which name absent artifacts ON PURPOSE -- demanding that a
+    fixture's missing file exist deletes the fixture's point. Packages are excluded because they
+    carry their own control; grading them twice with different boundaries is how two authorities
+    of different vintage end up disagreeing about the same subject.
+    """
+    # SCOPE. This validator ships inside the package and runs in every installation. There, the
+    # same promise is graded by `conformance/test-documented-paths.py` against the project's own
+    # tree -- and grading it twice with different boundaries is how two authorities of different
+    # vintage end up disagreeing about one subject, which is the reason `pipeline-design.md` is
+    # GP-INTERNAL in the first place. X4 is the DISTRIBUTION repository's rule: it runs where the
+    # cut packages live, and nowhere else.
+    if current_package(root) is None:
+        return []
+
+    allow: list = []
+    af = root / ROOT_PATH_ALLOW
+    if af.is_file():
+        for ln in af.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = ln.strip()
+            if not line or line.startswith("#"):
+                continue
+            pat, _, reason = line.partition("#")
+            if reason.strip():
+                allow.append(pat.strip())
+
+    def _evidence(rel: str) -> bool:
+        """Documents that QUOTE other repositories rather than route a reader inside this one.
+
+        A field harvest says *the defect was at `src/app/config.py:42`* about a customer's tree, and
+        the external research corpus quotes Kubernetes' `hack/verify-kep-metadata.sh`. Neither is a
+        promise this repository can keep, and demanding it would turn the evidence into findings --
+        617 of them on the first run, which is how a control teaches its reader to skip the report.
+        """
+        return (rel.startswith("research/") or rel.startswith("other_projects_exp/")
+                or Path(rel).name.startswith("EXPERIENCE-HARVEST-"))
+
+    docs = [q for q in sorted(root.rglob("*.md"))
+            if not q.is_symlink()
+            and not _skip(q.relative_to(root))
+            and not q.relative_to(root).as_posix().startswith("general_pipeline_v")
+            and not _evidence(q.relative_to(root).as_posix())
+            and not re.match(r"^conformance/(fail|pass|wave)/",
+                             q.relative_to(root).as_posix())]
+    if not docs:
+        return [Finding(Path(), 1, "X4",
+                        "no root document found to grade. An empty derived set is a failure, "
+                        "never a vacuous pass (G1)")]
+
+    basenames = {q.name for q in root.rglob("*") if (q.is_file() or q.is_symlink())
+                 and not _skip(q.relative_to(root))}
+    cur = current_package(root)
+    f: list[Finding] = []
+    for doc in docs:
+        rel = doc.relative_to(root)
+        for n, line in enumerate(doc.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            for m in PATH_REF_RE.finditer(line):
+                target = m.group(1)
+                if (root / target).exists() or (doc.parent / target).exists():
+                    continue
+                if "/" not in target and target in basenames:
+                    continue
+                # A root record naming `docs/closure-checklist.md` means the CURRENT package's
+                # copy. The convention predates this rule -- `condition_closure` already resolves
+                # `$CUT/` the same way -- and a record is not wrong for using the shorthand the
+                # repository has always used.
+                if cur is not None and (cur / target).exists():
+                    continue
+                # A template placeholder is not a path: `general_pipeline_vX/...` names every cut
+                # and none of them. Same for `$CUT/` and angle-bracket slots.
+                if re.search(r"general_pipeline_v[XN]\b|\$CUT|[<>{}*]", target):
+                    continue
+                # A version-pinned path also resolves against the CURRENT package -- the same
+                # fallback C1b carries, for the same measured reason: 15-6's work shipped as
+                # `general_pipeline_v5.2/scripts/coverage_floor.py` while the record names v5.1,
+                # and a permanent false RED teaches the same blindness as a false GREEN.
+                if target.startswith("general_pipeline_v") and cur is not None:
+                    tail = target.split("/", 1)[1] if "/" in target else ""
+                    if tail and (cur / tail).exists():
+                        continue
+                # The repository is larger than the checkout: a path this repo shipped at ANY cut
+                # is a real path, whether or not it survives today. `pipeline-v2-design.md` was
+                # real in v2.x and the record that names it is not wrong for saying so.
+                hist = _historical_paths(root)
+                base = target.rsplit("/", 1)[-1]
+                if base in hist and (target in hist[base]
+                                     or any(h.endswith("/" + target) for h in hist[base])):
+                    continue
+                if target.startswith("general_pipeline_v") and _git_blob(root, target) is not None:
+                    continue
+                if any(fnmatch.fnmatch(target, pat) for pat in allow):
+                    continue
+                f.append(Finding(rel, n, "X4",
+                                 f"`{target}` resolves nowhere -- not in the tree, not in the tag "
+                                 f"its path names, and no row in {ROOT_PATH_ALLOW} declares it"))
+    return f
+
+
+RULE_ID_RE = re.compile(r"\b(?:V[0-9]C-\d+|TB-\d+)\b")
+
+
+def rule_id_refs(root: Path) -> list[Finding]:
+    """X5 — a rule id the package cites must exist in the decision trail.
+
+    WHY (2026-09-22, the owner's ruling two days into the provenance work). GP keeps its citations
+    ON PURPOSE: *"when experience arrives from another project later, how else will we know which
+    rule it matches?"* That mechanism is only as good as the citations. A dead `V4C-77` does not
+    fail loudly -- it routes the next field harvest to a rule that was never written down, and the
+    match comes back empty or, worse, lands on the wrong neighbour.
+
+    Measured on first run: the package cites 144 distinct ids and **two of them exist nowhere in
+    the trail** -- `V4C-76` in the install manifest's title and `V4C-77`, which is the stated
+    authority for the warnings ledger AND for the `C2` rule inside this very validator. The v4
+    register runs to V4C-90, so this is a hole in the middle of it, not an id assigned after a
+    close.
+
+    GROUND TRUTH is the trail itself -- every id mentioned by any root record. Not a definition
+    PATTERN: the registers introduce ids as table rows, as `###` headings, as bold bullets, and as
+    `## 13.12 OD-11 / V4C-79 —`, and chasing those shapes is the blacklist this repository keeps
+    warning about. The weaker question answers the one that matters: does the decision trail know
+    this id at all?
+
+    SCOPE, like X4: this validator ships inside the package and runs in installations, where there
+    is no trail to check against and a project's own ids are its own business. It returns early
+    without a package directory.
+
+    OUT OF SCOPE, with the reason: `OD-` (owner directives are announced in prose, not registered)
+    and `GDF-` (the sister repository's register, which is not in this tree).
+    """
+    cur = current_package(root)
+    if cur is None:
+        return []
+    trail: set = set()
+    for q in sorted(root.glob("*.md")) + sorted(root.glob("other_projects_exp/*.md")):
+        trail |= set(RULE_ID_RE.findall(q.read_text(encoding="utf-8", errors="replace")))
+    if not trail:
+        return [Finding(Path(), 1, "X5",
+                        "no rule id found in any root record. An empty ground truth is a failure, "
+                        "never a vacuous pass (G1)")]
+    f: list[Finding] = []
+    for doc in sorted(cur.rglob("*")):
+        if not doc.is_file() or doc.is_symlink() or doc.suffix not in {".md", ".html", ".py"}:
+            continue
+        if any(part in {"__pycache__", ".venv"} for part in doc.parts):
+            continue
+        rel = doc.relative_to(root)
+        for n, line in enumerate(doc.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            for tok in RULE_ID_RE.findall(line):
+                if tok not in trail:
+                    f.append(Finding(rel, n, "X5",
+                                     f"`{tok}` is cited here and appears in no record of the "
+                                     f"decision trail -- a harvest matching a finding to this rule "
+                                     f"would find nothing"))
+    return f
+
+
 def language_rule(root: Path) -> list[Finding]:
     """L1 — no Turkish-specific letter in a tracked file, outside the reasoned allowlist."""
     allow: list = []
@@ -976,28 +1405,101 @@ def collect(root: Path, paths: list[Path]) -> tuple[list[Finding], list]:
 
 
 def governed_records(root: Path) -> list[Path]:
-    """Records under governance: repo-root decision trail. Narrow on purpose (V4C-35)."""
-    pats = ["v*-ratification.md", "increment-*-ratification.md", "v*-candidate-register.md",
-            "council-design.md", "differentiator-ledger.md",
-            # v4.2 (Increment 12, Skeptic + Software + Quality + DevOps + PM — all six seats):
-            # `council-telemetry.md` and `friction-ledger.md` were filed as governance instruments
-            # and matched NONE of the globs above, so the validator could not see the two documents
-            # the whole hearing ran on. Widened, and kept explicit rather than a bare *.md glob so
-            # the narrowness rule (V4C-35) still holds.
-            "council-telemetry.md", "friction-ledger.md", "CONTROL-SCREEN.md", "increment-*-packet.md"]
-    # A repo may override the list with `.governed-records` (one glob per line, `#` comments).
-    # Added at v4.2 so GDF — a DIFFERENT repo with a different record set — can run this exact
-    # file rather than a forked near-copy. Narrow by rule (V4C-35): the manifest exists only
-    # because this function consumes it, and an empty/absent manifest falls back to the GP list.
+    """Records under governance, DERIVED FROM CONTENT: any `.md` declaring `record_type:`.
+
+    v5.2, condition 17-8. This function had failed the same way FIVE times and been repaired four
+    times, each repair adding a pattern to a hand-kept list sitting beside the records it selects:
+
+        v4.1  5 patterns                  baseline
+        v4.2  +3  council-telemetry, friction-ledger, increment-*-packet
+              -- the two instruments "the whole hearing ran on" were invisible
+        v5.0  +1  CONTROL-SCREEN.md       (unrecorded at the time)
+        v5.1  +1  EXPERIENCE-HARVEST-PROMPT.md   (unrecorded at the time)
+        v5.2  increment-*.md              -- announced as "derived"; it was a ninth glob
+
+    At the Increment 17 sitting, **nine records carrying `record_type:` were ungoverned — including
+    the three field records the council was convened to judge.** The v4.2 sentence was true again,
+    verbatim, inside the hearing called to adopt its repair.
+
+    A filename cannot say whether a document is a governance record; its frontmatter already does.
+    So selection is by content, recursively, and the hand-kept list inverts into an EXEMPTION list
+    that carries a written reason per entry — which is what V5C-110 prescribes and what this
+    function, of all functions, was not obeying.
+
+    FAILS CLOSED (Security seat's ratified V5C-110 amendment #4, and it was unmet here until now):
+    an empty derived set raises rather than returning quietly. A one-line edit to an in-tree
+    `.governed-records` used to yield `(scanned 0 record(s)) PASS exit=0` — the whole governance
+    validator switched off, green, by a file the change under evaluation could edit.
+    """
+    # Version packages carry their own records and are validated as installations, not as the
+    # repo's decision trail. `.git`, caches and virtualenvs are not documents.
+    # `conformance/` holds the validator's OWN fixtures -- records deliberately broken so the rules
+    # can be watched failing (`--self-test`). Governing them would report every fixture as a finding
+    # and drown the real ones, which is how a report teaches its reader to skip it.
+    # (the local SKIP_DIRS tuple was replaced by the anchored test below; adoption review MINOR-2)
+    FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n", re.S)
+    HAS_TYPE = re.compile(r"^record_type:\s*\S", re.M)
+
+    exempt: list[str] = []
+    exempt_file = root / ".governed-records-exempt"
+    if exempt_file.is_file():
+        for ln in exempt_file.read_text(encoding="utf-8", errors="replace").splitlines():
+            ln = ln.strip()
+            if ln and not ln.startswith("#"):
+                # `path  # reason` -- the reason is required by V5C-110 and read by a human, not
+                # by this code. An entry with no `#` reason is still honoured and still visible;
+                # the rule is enforced at review, because a machine cannot grade a justification.
+                exempt.append(ln.split("#")[0].strip())
+
+    out: list[Path] = []
+    for path in sorted(root.rglob("*.md")):
+        rel = path.relative_to(root)
+        # Adoption review MINOR-2: a prefix match on every segment dropped `docs/reviews/conformance-*.md`
+        # and `.github/`. Fixtures are skipped only as the ROOT-level `conformance/` directory.
+        if (rel.parts[:1] == ("conformance",) or any(part in {".git", ".venv", "__pycache__", "node_modules"}
+                                                     or part.startswith("general_pipeline_v") for part in rel.parts)):
+            continue
+        # v5.3, TB-090 (Increment 18). This also matched by BASENAME, so the single exemption
+        # entry -- written to hide a duplicate -- hid the CANONICAL copy too. Measured: the file
+        # the exemption's own written reason calls "the canonical copy" was absent from the
+        # governed set. **The exemption written to hide the duplicate hid the original**, four
+        # hours after the repair that was supposed to end exactly this class. Exact path only; a
+        # bare basename is an error, not a wildcard.
+        if str(rel) in exempt:
+            continue
+        # A BROKEN SYMLINK is not a record. `CLAUDE.md -> AGENTS.md` ships in every installation,
+        # and the `M1` falsification deletes `AGENTS.md` on purpose -- so the recursive walk found a
+        # dangling link and `read_text` raised, aborting every later rule with a traceback.
+        # `is_file()` is False for a dangling symlink, which is the whole check. Caught by
+        # `falsify.py` scoring the recipe BAD-RECIPE rather than FALSIFIED: the crash-vs-fired
+        # distinction earning its place the first time this walk touched a file it had never read.
+        if not path.is_file():
+            continue
+        try:
+            body = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        head = FRONTMATTER.match(body)
+        if head and HAS_TYPE.search(head.group(1)):
+            out.append(path)
+
+    # A repo with a `.governed-records` manifest ADDS to the derived set; it can no longer replace
+    # it. GDF's reason for the manifest -- a different repo with a different record set -- is served
+    # by addition. Replacement was a V4C-06 violation: the validator read its own scope from the
+    # tree under evaluation, so the change being checked chose what got checked.
     manifest = root / ".governed-records"
     if manifest.is_file():
-        lines = [ln.strip() for ln in manifest.read_text(encoding="utf-8", errors="replace").splitlines()]
-        override = [ln for ln in lines if ln and not ln.startswith("#")]
-        if override:
-            pats = override
-    out: list[Path] = []
-    for pat in pats:
-        out += [p for p in root.glob(pat) if p.is_file()]
+        for ln in manifest.read_text(encoding="utf-8", errors="replace").splitlines():
+            ln = ln.strip()
+            if ln and not ln.startswith("#"):
+                out += [q for q in root.glob(ln) if q.is_file() and q not in out]
+
+    # The empty case is a FAILURE, but it is not this function's to declare: `--install` runs
+    # against trees that legitimately hold no governance records yet (a fresh Stage 0, or the
+    # synthetic minimal tree `test-make-targets` builds to prove install-check accepts one).
+    # Raising here made a correct installation fail. The caller that governs decides -- see G1 in
+    # repo mode. **Fail-closed means the check that would have run reports its absence, not that
+    # every caller inherits someone else's precondition.**
     return out
 
 
@@ -1009,12 +1511,21 @@ def duplicate_drift(root: Path) -> list[Finding]:
     checked that they stayed that way** — an unmonitored drift between the live validator and the
     template projects copy. A divergence would mean projects ship a different governance contract
     from the one this repo enforces, silently.
+
+    v6.0. A third pair joins them: `.claude/settings.json`. Until today GP shipped a harness --
+    the destructive-command hook, the `.env` write block, the protected-branch guard, the
+    post-edit gate -- and did not install it at the root where GP is authored, so every one of
+    those guards was proven in a scratch copy and enforced nowhere on the repo that writes them.
+    Installing it creates exactly the drift D1 exists for: a root copy someone loosens on a bad
+    afternoon while the package keeps promising the strict version. A missing file still skips,
+    so a project that has no `.claude/` is unaffected.
     """
     f: list[Finding] = []
     cur = current_package(root)
     if not cur:
         return f
-    for rel in ("scripts/check_records.py", "schemas/record.schema.json"):
+    for rel in ("scripts/check_records.py", "schemas/record.schema.json",
+                ".claude/settings.json"):
         a, b = root / rel, cur / rel
         if not a.is_file() or not b.is_file():
             continue
@@ -1091,8 +1602,8 @@ def self_test(root: Path) -> int:
             print(f"self-test FAIL: fail/{p.name} expected {expect}, got {sorted(rules) or 'NOTHING'}")
         else:
             print(f"self-test ok: fail/{p.name} → {expect}")
-    # ── P2/P3 reachability (v4.2 repair #1) ─────────────────────────────────────────────
-    # Build a deliberately broken throwaway package and assert package_invariants() reports BOTH.
+    # ── P2 reachability (v4.2 repair #1; P3 retired at v6.0) ─────────────────────────────────────────────
+    # Build a deliberately broken throwaway package and assert package_invariants() reports P2.
     # Without this the self-test could pass while P2/P3 were no-ops, which is exactly what v4.1 did.
     import shutil
     import tempfile
@@ -1101,7 +1612,6 @@ def self_test(root: Path) -> int:
         pkg = probe / "general_pipeline_v9.9"
         (pkg / "docs").mkdir(parents=True)
         (pkg / "pipeline-design.md").write_text("# design\n\nno changelog heading here\n")
-        (pkg / "docs" / "executive-overview.md").write_text("the package is about 77 files today\n")
         cprobe = probe / "probe-conditions.md"
         cprobe.write_text("---\nrecord_type: ratification\nid: probe-cond\nstatus: ratified\n"
                           "process_version: v4.2\n---\n# probe\n\n"
@@ -1203,7 +1713,47 @@ def self_test(root: Path) -> int:
         (inst / "AGENTS.md").write_text("x\n")                       # Makefile MISSING      -> M1
         (inst / "docs" / "HANDOVER-v9.9-material.md").write_text("x\n")  # leaked GP-INTERNAL -> M2
         got |= {x.rule for x in manifest_rules(probe, install=inst)}          # M1/M2
-        for rule, why in (("P2", "missing §0 changelog heading"), ("P3", "false file count"),
+
+        # v6.0, 2026-09-22. C1b now rescues a citation into a deleted package directory by reading
+        # it out of that cut's TAG. The rescue must be BOUNDED: a package-shaped path that no tag
+        # holds still evaporates. Without this probe the rescue could satisfy any citation that
+        # merely LOOKS like one, which would be a false GREEN on the rule whose whole job is to
+        # notice an artifact that never arrived.
+        ctag = probe / "condition-probe-tagless.md"
+        ctag.write_text("---\nrecord_type: ratification\nid: condition-probe-tagless\n"
+                        "status: ratified\nprocess_version: v6.0\ndate: 2020-01-01\n---\n"
+                        "# probe\n\n## Conditions\n\n| # | condition | owner | due | artifact |\n"
+                        "|---|---|---|---|---|\n"
+                        "| 1 | probe | chair | 2020-01-01 | `general_pipeline_v9.9/scripts/nothing.sh` |\n")
+        _, tfields = validate_record(ctag, probe)
+        tagless = {x.rule for x in condition_closure(probe, [(ctag, tfields)], scope="all")}
+        if "C1b" in tagless:
+            print("self-test ok: probe/C1b-tagless fires on a package path no tag holds — the git "
+                  "rescue is bounded")
+        else:
+            bad += 1
+            print("self-test FAIL: a condition naming a path inside a package NO TAG HOLDS did not "
+                  "evaporate — the tag rescue is unbounded and C1b can no longer fail")
+
+        # v6.0, 2026-09-22. X4 -- a root document routing a reader at a file that resolves nowhere.
+        # The probe needs a package directory present, because X4 is the distribution repo's rule
+        # and returns early without one; `pkg` above is exactly that.
+        (probe / "ROOT-DOC.md").write_text("Read `docs/a-file-that-was-never-written.md` first.\n")
+        got |= {x.rule for x in root_path_refs(probe)}                        # X4
+
+        # X5 -- the package cites a rule id the trail has never heard of. The root record below is
+        # the whole ground truth for the probe, so the citation in the package cannot resolve.
+        (probe / "TRAIL.md").write_text("The council adopted V4C-01 and TB-001.\n")
+        (pkg / "docs").mkdir(parents=True, exist_ok=True)
+        # The id is ASSEMBLED at run time on purpose: written as a literal it would sit in this
+        # file, and X5 scans the package's own sources -- the real finding that built this rule was
+        # `V4C-77` cited inside `check_records.py` itself. A probe that trips its own control is a
+        # false positive nobody can fix without weakening the control.
+        fake = "V9C-" + "999"
+        (pkg / "docs" / "cites.md").write_text(f"Enforced per `{fake}`, which nothing ratified.\n")
+        got |= {x.rule for x in rule_id_refs(probe)}                          # X5
+
+        for rule, why in (("P2", "missing §0 changelog heading"),
                           ("D1", "drifted shipped-vs-live validator copy"),
                           ("C1b", "a due condition whose named artifact is absent"),
                           ("M3", "an unclassified package path (manifest rot)"),
@@ -1212,7 +1762,9 @@ def self_test(root: Path) -> int:
                           ("C2c", "ACCEPTED with no reason and no owning milestone"),
                           ("L1", "Turkish text in an English-only repository"),
                           ("M1", "a PROJECT path missing from an install"),
-                          ("M2", "a GP-INTERNAL path leaked into an install")):
+                          ("M2", "a GP-INTERNAL path leaked into an install"),
+                          ("X4", "a root document pointing at a file that resolves nowhere"),
+                          ("X5", "a rule id the package cites that the decision trail never recorded")):
             if rule in got:
                 print(f"self-test ok: probe/{rule} fires on a {why}")
             else:
@@ -1253,6 +1805,23 @@ def main() -> int:
     findings += warning_ledger(root)                                  # C2
     findings += language_rule(root)                                   # L1
     findings += telemetry_verdicts(root)                              # T1
+    findings += root_path_refs(root)                                  # X4
+    findings += rule_id_refs(root)                                    # X5
+    # G1 (v5.2, 17-8) -- FAIL CLOSED. The Security seat's ratified V5C-110 amendment #4: an empty
+    # or errored derived set is a FAILURE, never a vacuous pass. It was unmet at this exact site
+    # until Increment 17: a one-line edit to an in-tree `.governed-records` produced
+    # `(scanned 0 record(s)) PASS exit=0` -- the entire governance validator switched off, green,
+    # by a file the change under evaluation could write.
+    # ...and only when this run is GOVERNING. `--install` shares this code path but asks a
+    # different question -- "is this tree a complete installation?" -- of trees that may hold no
+    # governance records at all. Conflating the two made a correct install fail, which is the
+    # inverse of the defect G1 exists to catch and would have taught people to pass `--install`
+    # to make the noise stop.
+    if not records and not a.install:
+        findings.append(Finding(Path(), 1, "G1",
+                                "the governed-record set is EMPTY -- nothing under this root "
+                                "carries `record_type:` frontmatter, or everything is exempted. A "
+                                "validator that governs nothing reports PASS forever"))
     print(f"(scanned {len(records)} record(s) with frontmatter)")
     return report(findings, "repo")
 

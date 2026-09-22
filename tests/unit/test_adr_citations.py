@@ -34,6 +34,10 @@ DECISIONS = ROOT / "docs" / "decisions.md"
 #: D-006/D-007. A reserved id is not a phantom; it is a decision about numbering.
 RESERVED = {"P-002", "P-003"}
 
+#: A review that PLANTS an ADR id as a mutant cites it on purpose. Exempt by (id, citing file) only,
+#: so the same id anywhere else -- or written for real -- is still graded.
+PLANTED = {("D-" + "156", "docs/reviews/devflow-v6-adoption-review.md")}  # MAJOR-4 probe; split so this file cites nothing
+
 #: **This gate owns the PROJECT band only.** `P-001` reserves `D-001..D-099` for the pipeline's own
 #: decisions, and this repository inherits them rather than authoring them: `docs/onboarding.md`
 #: and `scripts/bootstrap-check.sh` are GP-owned files citing GP-owned ADRs, and `decisions.md`
@@ -78,9 +82,10 @@ def test_every_cited_adr_exists() -> None:
     defined, cited = _defined(), _cited()
 
     phantom = {
-        adr: sorted(files)
+        adr: sorted(unplanted)
         for adr, files in cited.items()
         if adr not in defined and adr not in RESERVED and _owned(adr)
+        and (unplanted := {f for f in files if (adr, f) not in PLANTED})
     }
 
     assert not phantom, (

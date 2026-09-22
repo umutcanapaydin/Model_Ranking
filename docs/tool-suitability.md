@@ -8,18 +8,18 @@
 
 ## Strong fit — Delegate freely (Risk tier LOW)
 
-Tasks where AI agents perform reliably with light review. The Stage 3 per-wave Code-Reviewer + Tester (v3, V3C-68) is sufficient. Stage 4.1 Quality Gate runs standard checks; the closure Security review (Stage 4.0) is light at this tier.
+Tasks where AI agents perform reliably with light review. The Stage 3 per-wave Code-Reviewer + Tester is sufficient. Stage 4.1 Quality Gate runs standard checks; the closure Security review (Stage 4.0) is light at this tier.
 
 - Test generation (unit + integration)
 - Documentation updates (README, changelog, inline comments, ADR drafts via `/log-decision`)
 - Refactoring with clear patterns (rename, extract, move)
 - Small features with explicit acceptance criteria (≤2 files)
-- Bug reproduction from clear steps (use `/triage-issue` + `/fix-issue-prepare`)
+- Bug reproduction from clear steps (use `/triage-issue` + `/fix-issue`)
 - Internal tools, CLI utilities, data parsing
 - API client wrappers (Protocol implementations behind D-001 boundary)
 - Migration helpers (data shape transformations)
 - Boilerplate (config files, schema definitions)
-- Code review first pass (via Code-Reviewer profile + `/review` skill)
+- Code review first pass (via Code-Reviewer profile + `/repo-review` skill)
 - Codebase explanation / onboarding doc generation
 - Requirements-to-task conversion (REQ-IDs → wave decomposition)
 
@@ -56,7 +56,7 @@ Tasks where AI agents have known high failure rate. Stage 3 per-wave Code-Review
 - **Large refactors** (>10 files) without architecture constraints.
 
 Risk tier HIGH milestone gates:
-- A security-touching wave pulls a security pass forward into Stage 3 (HIGH-risk trigger); the closure Security review (Stage 4.0) still runs and is BLOCKING before deploy (v3, V3C-68)
+- A security-touching wave pulls a security pass forward into Stage 3 (HIGH-risk trigger); the closure Security review (Stage 4.0) still runs and is BLOCKING before deploy 
 - Security-Reviewer runs full SAST scan (bandit + semgrep OR Veracode-class if budgeted via F.5)
 - Mandatory senior human review appended after Stage 3 / at closure
 - All BLOCKING/MINOR findings tracked through to milestone closure

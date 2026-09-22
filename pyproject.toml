@@ -30,7 +30,11 @@ dev = [
     "asgi-lifespan>=2.1",
     "types-pyyaml>=6.0",
     # v2.0 security gates (Stage 2 internal commit-gate via hooks, F.6/F.7/F.8)
-    "pip-audit>=2.7",     # dep CVE scan (F.7)
+    "pip-audit>=2.7",  # dep CVE scan (F.7)
+    # `conformance/test-ci-yaml.py` parses the workflows and exits 2 rather than reporting clean when
+    # PyYAML is absent. That refusal is correct; what was wrong is that PyYAML was never declared, so
+    # `make gate` was unrunnable on a machine with only the system interpreter (TB-061).
+    "PyYAML>=6.0",
     # Note: gitleaks installed system-wide via brew/apt (not pip); see Makefile.
 ]
 
@@ -80,8 +84,19 @@ known-first-party = ["app"]   # ◄── change if package renamed
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S", "C90"]
-"scripts/check_records.py" = ["C901"]   # see the note above [tool.ruff.lint.isort]
 "scripts/wave_check.py" = ["C901"]      # same reason: one branch per V3C-69 row rule
+# DevFlow v6.0 adoption (D-155). These files arrived from the methodology and are kept close to it,
+# so the next DevFlow sync is a small three-way merge. What is exempted, and why, rule by rule:
+#   S603/S607  the governance scripts call `git` (history, blobs, identity) with literal arguments
+#   B023       check_records.py `_refs` is defined AND called inside the same loop turn -- read at
+#              scripts/check_records.py `_refs`; the late-binding hazard the rule names cannot occur
+#   S314       coverage_floor.py parses the JUnit report this repository's own pytest just wrote
+#   RUF001     an en dash quoted inside a message that is ABOUT typography
+#   C901       closure_check.py is a rules engine, the same reason as the two lines above
+"scripts/check_records.py" = ["C901", "S603", "S607", "B023", "RUF001"]
+"scripts/write_install_marker.py" = ["S603", "S607"]
+"scripts/coverage_floor.py" = ["S314"]
+"scripts/closure_check.py" = ["C901"]
 # Customer-wire-format schemas may need camelCase (seed H.1):
 # "src/<pkg>/schemas/**" = ["N815"]
 
@@ -103,7 +118,11 @@ disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
 [tool.pytest.ini_options]
-addopts = "-ra --strict-markers --strict-config --cov=src/app --cov-report=term-missing --cov-report=json"
+# v5.2 (15-6 / 17-3). `--cov-fail-under` was missing for five versions: a fully-skipped run
+# exited 0 and `make test` reported green, in the template handed to every project. The
+# floor starts low on purpose -- a floor nobody can meet gets deleted, and a deleted floor
+# is worth less than a low one. Raise it in the tree, where a reviewer sees the diff.
+addopts = "-ra --strict-markers --strict-config --cov=src/app --cov-report=term-missing --cov-report=json --cov-fail-under=60 --junitxml=.pytest-report.xml"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 pythonpath = ["src"]

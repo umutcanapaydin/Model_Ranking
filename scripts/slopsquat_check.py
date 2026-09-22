@@ -2,7 +2,7 @@
 """F.8 — slopsquat / dependency-confusion check.
 
 WHAT IT REPLACES. The `slopsquat` target printed the names of the distributions already installed in
-the virtualenv, sorted, and exited 0. It verified nothing. `pipeline-design.md` described it as
+the virtualenv, sorted, and exited 0. It verified nothing. `METHODOLOGY.md` described it as
 "PyPI existence + maintainer-age". **A package that is already installed has by definition survived the
 only question this check was pretending to ask**, and an LLM-hallucinated dependency reaches your lock
 file before it reaches your venv -- so the check ran at the one moment it could not possibly help.

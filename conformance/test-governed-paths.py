@@ -19,7 +19,7 @@ def main() -> int:
         print("test-governed-paths FAIL: .governed-records missing -- 14 rules are asleep"); return 1
 
     corpus = ""
-    for f in ("Makefile", "AGENTS.md", "START_HERE.md"):
+    for f in ("Makefile", "AGENTS.md", "README.md"):
         p = root / f
         if p.is_file():
             corpus += p.read_text(encoding="utf-8", errors="replace")

@@ -3,7 +3,7 @@
 
 WHY. The v5 control screen removed `check-templates`, `cold-start` and `journey` from the Makefile and
 left them standing as **blocking closure checkboxes** in `docs/closure-checklist.md`, as ACTIVE house
-rules in `.agents/rules/practices.md`, and as advice in `START_HERE.md`. Every board was green. A
+rules in `.agents/rules/practices.md`, and as advice in the orientation file. Every board was green. A
 customer following the closure checklist would type `make journey URL=…` and get
 `No rule to make target`.
 
@@ -18,6 +18,14 @@ import re, sys, pathlib
 SKIP_DIRS = {"__pycache__", ".venv", "node_modules", "archive"}
 # Historical records describe what PAST versions did; they are not instructions.
 SKIP_FILES = re.compile(r"HANDOVER-v[\d.]+-material\.md$|watchlist\.md$|CHANGELOG")
+
+# GPF-001 (v5.1): three of a field project's historical records cited `make pin-check` -- a target
+# v5.0 legitimately removed -- and this check failed the RECORDS. A closure report describes what was
+# run when it was written; removing a target must not retroactively falsify history. Records are
+# skipped by artifact class (lib_record); live instruction surfaces are still fully checked.
+import sys as _sys
+_sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from lib_record import doc_text, documents, is_record as _is_record
 # Backticked or fenced ONLY. The first version matched bare prose and reported `make it`, `make the`
 # and `make every` from sentences like "make it work" -- 12 false positives on its first run. A check
 # that cries wolf gets switched off, and this one is guarding a defect that already shipped once.
@@ -33,12 +41,14 @@ def main() -> int:
     targets = set(re.findall(r"^([A-Za-z0-9_.-]+):", mk.read_text(encoding="utf-8"), re.M))
 
     bad, checked = [], 0
-    for p in sorted(root.rglob("*.md")):
+    for p in documents(root):
         rel = p.relative_to(root)
         if any(d in rel.parts for d in SKIP_DIRS) or SKIP_FILES.search(p.name):
             continue
+        if _is_record(p):
+            continue                    # a record is history, not an instruction (GPF-001)
         in_fence = False
-        for i, line in enumerate(p.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+        for i, line in enumerate(doc_text(p).splitlines(), 1):
             if FENCE.match(line):
                 in_fence = not in_fence
                 continue

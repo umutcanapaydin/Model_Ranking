@@ -55,3 +55,10 @@ advisor.db.refresh.json
 advisor.db.refresh.lock
 *.candidate
 *.building
+
+# DevFlow v6.0: the JUnit report `pytest` writes for the CI skip budget (scripts/coverage_floor.py)
+.pytest-report.xml
+
+# DevFlow v6.0 install marker. `make install` rewrites it on every target (its commit field moves
+# with HEAD), so tracking it dirtied the tree after every `make check` (adoption review MINOR-3, D-155).
+.gp/

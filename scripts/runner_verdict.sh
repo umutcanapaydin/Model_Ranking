@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # runner_verdict.sh — how `runner` accounts for its legs, and what it is allowed to claim.
 #
 # Sourced by `runner`. It exists as a separate file for one reason: the accounting was wrong, and
