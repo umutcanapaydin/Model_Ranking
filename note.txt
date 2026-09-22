@@ -1,13 +1,18 @@
 Project: model_ranking
-RESUME HERE (2026-09-22, after the checkpoint 89b9b3c): M16-W1 has been through THREE review rounds.
-  1. review (docs/reviews/m16-wave-1-review.md): BLOCKING 3/4/10/2. BLOCKINGs + MAJORs fixed in 89b9b3c.
-  2. minors + nits fixed or recorded, record corrections made (uncommitted).
-  3. re-review (docs/reviews/m16-wave-1-rereview.md): BLOCKING 1/3/7/0 -- CoreFoundation allowlisted
-     whole gave every client file a TCP socket (R-B1). All of it fixed; 13 mutants re-run red.
-  4. a second, narrow re-review of round 3 (docs/reviews/m16-wave-1-rereview-2.md): PASS, 2 NIT.
-W1 is CLOSED agent-side (docs/plans/m16-wave-1-close.md). What is LEFT: the commit, ONLY if the
-owner says so (agent identity + GP-Agent/GP-Task trailers, D-117); then M16-W2 (the nightly refresh
-inside the engine, D-151 -- a HIGH wave: pull a security pass forward).
+RESUME HERE (2026-09-23): M16-W1 CLOSED and pushed (acef579). M16-W2 CLOSED agent-side, UNCOMMITTED
+(docs/plans/m16-wave-2-close.md; review + security + re-review, all fixed). Waiting for the owner's commit word.
+  - Engine: src/app/adapter/nightly.py (D-154, proposed) runs refresh.py as a CHILD PROCESS once a
+    night in 23:00-01:00 and once at startup on a stale record; off unless MODEL_RANKING_REFRESH=
+    nightly (ios/app.sh sets it); refused outside dev envs (D-116). /health gains refresh fields.
+    Proven end to end on a COPY of advisor.db (port 8099): a real nightly cycle published at 00:41.
+  - App: detail screen shows the floor (min_quality, W-112 FIXED); search surfaces say the search
+    call is not in the price (price_excludes, W-119 FIXED). make check green: pytest 1000/15, Swift 268.
+  - W-124 ACCEPTED: a cycle killed at the timeout leaves its .candidate file (fix in refresh.py later).
+  - W-125 (server loads the source parsers), W-126 (a stuck child outlives a hard-killed engine)
+    ACCEPTED to the M16 closure with W-124. Next wave: M16-W3 (floors under D-148; owner rules
+    each surface whose pick changes, plan §0.3).
+  - OWNER, after the commit: ./ios/app.sh restart, check `curl -s localhost:8080/health`, then run
+    scripts/retire_refresh.sh to remove the old launchd job.
 
 State: 2026-09-22 -- M15 is CLOSED and the owner signed off (D-150 clause 2 ratified). make check
 green on the owner's Mac: pytest 962/15, Swift 262 (each named in the manifest), client-decls PASS

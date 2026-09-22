@@ -95,6 +95,10 @@ Nothing a reader sees changes. Everything the later waves need written down firs
   gain, from W1's two fields: the floor on the detail screen ("we would not recommend below this")
   and, on the two search surfaces, the line saying the search call is not in the price — both in
   each language, composed in the Engine from facts the server sent.
+  **K.8, fact by fact (D-150 clause 2)** -- `grep -n` against `src/app/adapter/main.py`:
+  the floor line reads `/v1/categories` `min_quality` (`"min_quality": spec.min_quality`), scaled by
+  the same entry's `score_anchor`; the price note reads `/v1/categories` `price_excludes`
+  (`"price_excludes": spec.price_excludes`). Nothing else on either screen is new.
 - **The launchd job retires.** `deploy/` is the owner's surface, so the wave writes the removal
   steps and the owner runs them; the plist stays in the repository until the owner has.
 - HIGH, so D-141 applies: Code-Reviewer, Tester and a pulled-forward security pass on the slice —

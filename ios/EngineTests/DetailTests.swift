@@ -30,6 +30,8 @@ final class DetailFactTests: XCTestCase {
         margin: Double? = 8,
         second: String? = nil,
         age: Int? = nil,
+        floor: Double? = nil,
+        excludes: String? = nil,
         _ language: Language = .english
     ) -> [DetailFact] {
         detailFacts(
@@ -39,6 +41,8 @@ final class DetailFactTests: XCTestCase {
             closeCallMargin: margin,
             secondaryBenchmark: second,
             secondaryAgeDays: age,
+            minQuality: floor,
+            priceExcludes: excludes,
             in: language
         )
     }
@@ -219,8 +223,13 @@ final class DetailFactTests: XCTestCase {
         var subject = Subject()
         subject.secondaryScore = 71.2
         subject.effort = "high"
-        let english = facts(subject, second: "Aider Polyglot", age: 40, .english)
-        let turkish = facts(subject, second: "Aider Polyglot", age: 40, .turkish)
+        // M16-W2: the floor and the price exclusion are in both, so their lines are held to this too.
+        let english = facts(
+            subject, second: "Aider Polyglot", age: 40, floor: 1300, excludes: "search_call", .english
+        )
+        let turkish = facts(
+            subject, second: "Aider Polyglot", age: 40, floor: 1300, excludes: "search_call", .turkish
+        )
 
         XCTAssertEqual(english.count, turkish.count, "the two languages show different lines")
         XCTAssertFalse(english.isEmpty)
@@ -240,6 +249,51 @@ final class DetailFactTests: XCTestCase {
         XCTAssertFalse(
             value(turkish, "Giriş / çıkış")?.contains("per") == true, "`per 1M` was not translated"
         )
+    }
+
+    /// REQ-FLR-002 (D-152, W-112): the floor, on the SAME scale as the score above it. 1400 against
+    /// the surface's anchor of 1400 is the anchor itself, which the card's conversion reads as 50.
+    func testTheFloorIsShownOnTheCardsScale() {
+        let lines = facts(Subject(), floor: 1400)
+        XCTAssertEqual(value(lines, "Recommendation floor"), "Score 50 / 100")
+        XCTAssertEqual(value(lines, "Recommendation floor"),
+                       scoreText(1400, metric: "elo", .english, anchor: 1400),
+                       "the floor is printed by a different call from the card's score")
+        XCTAssertEqual(value(facts(Subject(), anchor: nil, floor: 1300), "Recommendation floor"),
+                       "Score 1300 Elo", "without an anchor the floor keeps the board's own scale")
+    }
+
+    /// An engine older than W1 sends no floor, and this build invents none.
+    func testNoFloorIsInventedWhenTheEngineSendsNone() {
+        XCTAssertNil(value(facts(Subject()), "Recommendation floor"))
+    }
+
+    /// ECI prints no score on the card (D-140), so its floor is stated in the board's own unit.
+    func testARankOnlyFloorIsStatedInItsOwnUnit() {
+        var subject = Subject()
+        subject.metric = "eci"
+        subject.score = 150.2
+        let floor = value(facts(subject, anchor: nil, floor: 140), "Recommendation floor")
+        XCTAssertEqual(floor, "140 \(scoreUnit(for: "eci", in: .english))")
+    }
+
+    /// REQ-PRC-002 (D-153): the code becomes a sentence in the reader's language, and the SAME
+    /// sentence on the card and here, because both call `priceExclusion`.
+    func testTheSearchSurfacesSayTheSearchCallIsNotInThePrice() {
+        XCTAssertEqual(value(facts(Subject(), excludes: "search_call"), "Not in the price"),
+                       priceExclusion("search_call", in: .english))
+        XCTAssertEqual(priceExclusion("search_call", in: .english),
+                       "Search calls are not included in this price")
+        XCTAssertEqual(priceExclusion("search_call", in: .turkish),
+                       "Arama çağrıları bu fiyata dahil değil")
+    }
+
+    /// Every other surface sends no code, and a code this build does not know is not printed raw.
+    func testNoCodeOrAnUnknownCodeSaysNothing() {
+        XCTAssertNil(value(facts(Subject()), "Not in the price"))
+        XCTAssertNil(priceExclusion(nil, in: .english))
+        XCTAssertNil(priceExclusion("tool_call", in: .english))
+        XCTAssertNil(value(facts(Subject(), excludes: "tool_call"), "Not in the price"))
     }
 
     /// The two served types really do satisfy the protocol this screen takes — the conformance,

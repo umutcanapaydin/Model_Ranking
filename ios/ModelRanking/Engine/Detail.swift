@@ -42,6 +42,8 @@ public struct DetailFact: Equatable, Identifiable {
 ///   - anchor: the surface's pinned `score_anchor`, so the out-of-100 line here agrees with the card.
 ///   - closeCallMargin: the engine's own tie margin, stated on the board's own scale.
 ///   - secondaryBenchmark / secondaryAgeDays: the evidence-only second board (REQ-UNC-002, D-139).
+///   - minQuality: the surface's floor, `/v1/categories` `min_quality` (D-152, REQ-FLR-002).
+///   - priceExcludes: what the surface's price leaves out, `price_excludes` (D-153, REQ-PRC-002).
 public func detailFacts(
     model: DetailSubject,
     benchmark: String,
@@ -49,6 +51,8 @@ public func detailFacts(
     closeCallMargin: Double?,
     secondaryBenchmark: String?,
     secondaryAgeDays: Int?,
+    minQuality: Double? = nil,
+    priceExcludes: String? = nil,
     in language: Language
 ) -> [DetailFact] {
     var facts: [DetailFact] = []
@@ -162,6 +166,19 @@ public func detailFacts(
             )
         )
     }
+    // 6b. **What that price leaves out** (D-153, REQ-PRC-002). The engine sends a CODE and this
+    //     build words it; a code this build does not know is left out rather than printed raw.
+    if let excluded = priceExclusion(priceExcludes, in: language) {
+        facts.append(
+            DetailFact(
+                label: language == .turkish ? "Fiyata dahil değil" : "Not in the price",
+                value: excluded,
+                note: language == .turkish
+                    ? "her arama, sağlayıcısı tarafından ayrıca ücretlendirilir"
+                    : "each search the model makes is billed separately by its provider"
+            )
+        )
+    }
     if let input = number(model.inputPerM), let output = number(model.outputPerM) {
         facts.append(
             DetailFact(
@@ -191,7 +208,39 @@ public func detailFacts(
         )
     }
 
+    // 8. **The floor** (D-152, REQ-FLR-002, W-112): the score below which this surface recommends
+    //    nothing. Printed through `scoreText` with the card's anchor, so it is on the same scale as
+    //    the score above it; a rank-only board has no such scale, and gets its own unit instead.
+    if let floor = minQuality {
+        let shown = scoreText(floor, metric: model.metric, language, anchor: anchor)
+            ?? number(floor).map { "\($0) \(scoreUnit(for: model.metric, in: language))" }
+        if let shown {
+            facts.append(
+                DetailFact(
+                    label: language == .turkish ? "Öneri eşiği" : "Recommendation floor",
+                    value: shown,
+                    note: language == .turkish
+                        ? "bu puanın altındaki hiçbir modeli bu alanda önermiyoruz"
+                        : "below this, the product recommends no model for this kind of question"
+                )
+            )
+        }
+    }
+
     return facts
+}
+
+/// The sentence for a `price_excludes` code (D-153), or `nil` for no code or one this build does not
+/// know. Shared by the card and the detail screen, so the two cannot word one fact differently.
+public func priceExclusion(_ code: String?, in language: Language) -> String? {
+    switch code {
+    case "search_call":
+        return language == .turkish
+            ? "Arama çağrıları bu fiyata dahil değil"
+            : "Search calls are not included in this price"
+    default:
+        return nil
+    }
 }
 
 /// What the detail screen needs from a served row. A `Pick` and a `RankedModel` both satisfy it,

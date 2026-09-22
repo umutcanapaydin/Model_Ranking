@@ -171,7 +171,9 @@ struct ContentView: View {
                                     secondaryAgeDays: info?.secondaryAgeDays,
                                     anchor: info?.scoreAnchor,
                                     benchmark: answer.primaryBenchmark,
-                                    closeCallMargin: info?.closeCallMargin
+                                    closeCallMargin: info?.closeCallMargin,
+                                    minQuality: info?.minQuality,
+                                    priceExcludes: info?.priceExcludes
                                 )
                             }
                             rankingPreview(
@@ -437,6 +439,15 @@ struct ContentView: View {
                             Divider().padding(.leading, 12)
                         }
                     }
+                    // D-153 clause 3 (M16-W2 review MAJOR-2): these rows print prices too, so the
+                    // preview says once, under them, what those prices leave out.
+                    if let excluded = priceExclusion(
+                        category(for: answer)?.priceExcludes, in: language
+                    ) {
+                        Text(excluded).font(.caption).foregroundStyle(Design.muted)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 12).padding(.vertical, 8)
+                    }
                     Divider().padding(.leading, 12)
                     NavigationLink {
                         // The model-name filter lives HERE since M13-W3, on the full list where
@@ -448,7 +459,9 @@ struct ContentView: View {
                             anchor: category(for: answer)?.scoreAnchor,
                             closeCallMargin: category(for: answer)?.closeCallMargin,
                             secondaryBenchmark: category(for: answer)?.secondaryBenchmark,
-                            secondaryAgeDays: category(for: answer)?.secondaryAgeDays
+                            secondaryAgeDays: category(for: answer)?.secondaryAgeDays,
+                            minQuality: category(for: answer)?.minQuality,
+                            priceExcludes: category(for: answer)?.priceExcludes
                         )
                     } label: {
                 // The full ranking is NOT budget-filtered — D-125 publishes every ranked model
@@ -733,6 +746,10 @@ struct PickRow: View {
     /// for the detail screen this card opens into.
     var benchmark: String = ""
     var closeCallMargin: Double?
+    /// M16-W2 (D-152, D-153): the surface's floor and what its price leaves out, from
+    /// `/v1/categories`, for the detail screen and the price line below.
+    var minQuality: Double?
+    var priceExcludes: String?
 
     private var whyText: String {
         whySentence(cardFact(pick.whyFactDictionary), in: language) ?? pick.why
@@ -785,7 +802,9 @@ struct PickRow: View {
                 anchor: anchor,
                 closeCallMargin: closeCallMargin,
                 secondaryBenchmark: secondaryBenchmark,
-                secondaryAgeDays: secondaryAgeDays
+                secondaryAgeDays: secondaryAgeDays,
+                minQuality: minQuality,
+                priceExcludes: priceExcludes
             )
         } label: {
             VStack(alignment: .leading, spacing: 14) {
@@ -818,6 +837,8 @@ struct PickRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     if let scale { Text(scale) }
                     Text(priceInPages(pick.blendedPerM, in: language))
+                    // D-153 clause 3: wherever a search surface shows a price, it says what is not in it.
+                    if let excluded = priceExclusion(priceExcludes, in: language) { Text(excluded) }
                 }
                 .font(.caption)
                 .foregroundStyle(prominent ? Color.white.opacity(0.76) : Design.muted)
@@ -902,6 +923,8 @@ struct ModelDetail: View {
     var closeCallMargin: Double?
     var secondaryBenchmark: String?
     var secondaryAgeDays: Int?
+    var minQuality: Double?
+    var priceExcludes: String?
 
     private var facts: [DetailFact] {
         detailFacts(
@@ -911,6 +934,8 @@ struct ModelDetail: View {
             closeCallMargin: closeCallMargin,
             secondaryBenchmark: secondaryBenchmark,
             secondaryAgeDays: secondaryAgeDays,
+            minQuality: minQuality,
+            priceExcludes: priceExcludes,
             in: language
         )
     }
@@ -974,6 +999,8 @@ struct RankingList: View {
     var closeCallMargin: Double?
     var secondaryBenchmark: String?
     var secondaryAgeDays: Int?
+    var minQuality: Double?
+    var priceExcludes: String?
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -988,7 +1015,9 @@ struct RankingList: View {
                                 anchor: anchor,
                                 closeCallMargin: closeCallMargin,
                                 secondaryBenchmark: secondaryBenchmark,
-                                secondaryAgeDays: secondaryAgeDays
+                                secondaryAgeDays: secondaryAgeDays,
+                                minQuality: minQuality,
+                                priceExcludes: priceExcludes
                             )
                         } label: {
                             RankedRow(
@@ -1001,6 +1030,12 @@ struct RankingList: View {
                 } header: {
                     if let leaderNote {
                         Text(leaderNote).textCase(nil)
+                    }
+                } footer: {
+                    // D-153 clause 3: every row prints a price, so the list says once, below them,
+                    // what those prices leave out, rather than repeating it on each row.
+                    if let excluded = priceExclusion(priceExcludes, in: language) {
+                        Text(excluded).textCase(nil)
                     }
                 }
             }

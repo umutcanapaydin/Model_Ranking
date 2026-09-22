@@ -16,6 +16,8 @@ set -u
 REPO="/Users/umutcanapaydin/Desktop/ILGAR/model_ranking"
 DEVICE="${MR_DEVICE:-iPhone 17 Pro}"
 BUNDLE="com.ilgar.modelranking"
+#: The owner-fetched Epoch bundle the refresh builds from (the same path the launchd job used).
+EPOCH_DIR="${MR_EPOCH_DIR:-/Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data}"
 PORT=8080
 BUILD_DIR="$REPO/ios/.build"
 ENGINE_LOG="$BUILD_DIR/engine.log"
@@ -78,8 +80,13 @@ if problems:
     exit 1
   fi
 
-  echo "engine   : starting on :$PORT"
+  echo "engine   : starting on :$PORT (refreshes itself nightly, 23:00-01:00; D-151, D-154)"
+  # The engine owns the refresh now (D-154): once a night inside 23:00-01:00, plus one catch-up at
+  # startup when the last good cycle is over a day old. The launchd job it replaces is retired by
+  # the owner (scripts/retire_refresh.sh, run by the owner); until then the two share refresh.py's lock,
+  # so they cannot overlap.
   APP_ENV=test MODEL_RANKING_DB=advisor.db APP_BUILD="dev-$(git rev-parse --short HEAD)" \
+    MODEL_RANKING_REFRESH=nightly MODEL_RANKING_EPOCH_DIR="$EPOCH_DIR" \
     "$REPO/.venv/bin/python" -m uvicorn app.adapter.main:app \
     --host 127.0.0.1 --port "$PORT" > "$ENGINE_LOG" 2>&1 &
   for _ in $(seq 1 20); do

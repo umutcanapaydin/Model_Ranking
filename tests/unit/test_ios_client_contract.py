@@ -842,14 +842,18 @@ def test_the_detail_screen_is_reachable_and_composes_nothing_itself() -> None:
             r"language:\s*language,\s*anchor:\s*anchor,\s*"
             r"closeCallMargin:\s*closeCallMargin,\s*"
             r"secondaryBenchmark:\s*secondaryBenchmark,\s*"
-            r"secondaryAgeDays:\s*secondaryAgeDays\s*\)"
+            r"secondaryAgeDays:\s*secondaryAgeDays,\s*"
+            # M16-W2 (D-152, D-153): the floor and what the price leaves out, the same way.
+            r"minQuality:\s*minQuality,\s*priceExcludes:\s*priceExcludes\s*\)"
         ),
         "row": (
             r"ModelDetail\(\s*subject:\s*row,\s*benchmark:\s*answer\.primaryBenchmark,\s*"
             r"language:\s*language,\s*anchor:\s*anchor,\s*"
             r"closeCallMargin:\s*closeCallMargin,\s*"
             r"secondaryBenchmark:\s*secondaryBenchmark,\s*"
-            r"secondaryAgeDays:\s*secondaryAgeDays\s*\)"
+            r"secondaryAgeDays:\s*secondaryAgeDays,\s*"
+            # M16-W2 (D-152, D-153): the floor and what the price leaves out, the same way.
+            r"minQuality:\s*minQuality,\s*priceExcludes:\s*priceExcludes\s*\)"
         ),
     }
     for opened, pattern in doors.items():
@@ -867,7 +871,8 @@ def test_the_detail_screen_is_reachable_and_composes_nothing_itself() -> None:
     # every pick a detail screen reading `Measured on:` with nothing after it (review M-6).
     pick_row = re.search(r"PickRow\((.*?)\n\s*\)", view, re.S)
     assert pick_row, "the picks are no longer built here"
-    for argument in ("benchmark: answer.primaryBenchmark", "closeCallMargin: info?.closeCallMargin"):
+    for argument in ("benchmark: answer.primaryBenchmark", "closeCallMargin: info?.closeCallMargin",
+                     "minQuality: info?.minQuality", "priceExcludes: info?.priceExcludes"):
         assert argument in pick_row.group(1), f"the picks are built without `{argument}`"
 
     # The view renders the Engine's facts and NOTHING else. Brace-matched rather than sliced to
@@ -943,5 +948,48 @@ def test_every_screen_string_the_client_calls_exists() -> None:
         f"the screen calls {missing}, which `Language.swift` does not define. The app will not "
         "build, and neither `swift test` (it does not compile the view) nor a grep of the view "
         "alone can see it"
+    )
+
+
+def test_every_place_that_prints_a_search_price_says_what_it_leaves_out() -> None:
+    """REQ-PRC-002, D-153 clause 3: wherever the app shows a price for a search surface, it says the
+    search call is not in it. The M16-W2 review deleted the card's note and the list's footer and
+    every suite stayed green (M18, M19), and found a third place with prices and no note at all.
+
+    Structural, because `swift test` does not compile `ContentView.swift`. The wording itself is
+    `priceExclusion` in the Engine, tested in `DetailTests`; this pins that each price-bearing view
+    asks for it with the surface's own code.
+    """
+    view = "\n".join(
+        line.split("//", 1)[0]
+        for line in (CLIENT / "ContentView.swift").read_text(encoding="utf-8").splitlines()
+    )
+
+    def body_of(marker: str) -> str:
+        start = view.index(marker)
+        depth, seen = 0, False
+        for index in range(start, len(view)):
+            if view[index] == "{":
+                depth, seen = depth + 1, True
+            elif view[index] == "}":
+                depth -= 1
+                if seen and depth == 0:
+                    return view[start:index + 1]
+        raise AssertionError(f"{marker} has no body")
+
+    places = {
+        "the pick card": ("struct PickRow: View", r"priceExclusion\(\s*priceExcludes,"),
+        "the full ranking": ("struct RankingList: View", r"priceExclusion\(\s*priceExcludes,"),
+        "the home preview": (
+            "private func rankingPreview(",
+            r"priceExclusion\(\s*category\(for:\s*answer\)\?\.priceExcludes,",
+        ),
+    }
+    for place, (marker, pattern) in places.items():
+        assert re.search(pattern, body_of(marker)), (
+            f"{place} prints a price and no longer says what a search surface's price leaves out"
+        )
+    assert len(re.findall(r"priceExclusion\(", view)) == len(places), (
+        "a new place words the price exclusion; pin it here, or it can be deleted unnoticed"
     )
 

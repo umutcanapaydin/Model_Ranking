@@ -27,6 +27,7 @@ would re-introduce a ranking the owner did not make.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import datetime as dt
 import logging
@@ -41,6 +42,7 @@ import anyio.to_thread
 from fastapi import FastAPI, Query
 from fastapi.responses import JSONResponse
 
+from app.adapter import nightly
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.coverage import SOURCE_STALE_DAYS, source_health
 from app.workflows.rank import (
@@ -553,6 +555,13 @@ def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
                 "the VM, or narrow what the build ingests"
             )
 
+    # D-154: the engine's own nightly refresh runs only where ingestion may (D-116).
+    refresh_problem = nightly.switch_problem(
+        os.environ.get(nightly.SWITCH), environment, RELAXED_ENVS
+    )
+    if refresh_problem:
+        problems.append(refresh_problem)
+
     if strict and APP_BUILD == "unknown":
         problems.append(
             "APP_BUILD is unset — /health cannot say which code is live, so a deploy cannot be"
@@ -580,7 +589,25 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
     doing nothing — which is the better of the two ways to get it wrong.
     """
     anyio.to_thread.current_default_thread_limiter().total_tokens = MAX_CONCURRENT_REQUESTS
-    yield
+    # D-154: the nightly refresh is a task on this loop that only ever WAITS on a child process, so
+    # a cycle that hangs, raises or is killed cannot hold a request (see `nightly`'s docstring).
+    schedule = nightly.NightlyRefresh.from_environment(RELAXED_ENVS)
+    task = None
+    if schedule is not None:
+        _NIGHTLY["schedule"] = schedule
+        task = asyncio.create_task(schedule.serve(), name="nightly-refresh")
+    try:
+        yield
+    finally:
+        if task is not None:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+        _NIGHTLY.pop("schedule", None)
+
+
+#: The running schedule, for `/health`. Empty when the switch is off.
+_NIGHTLY: dict[str, nightly.NightlyRefresh] = {}
 
 
 app = FastAPI(
@@ -1152,12 +1179,17 @@ def health() -> dict[str, str]:
     """
     path = _db_path()
     problem = "no database configured" if path is None else _database_unusable(path)
-    return {
+    body = {
         "status": "ok",
         "version": APP_VERSION,
         "build": APP_BUILD,
         "evidence": "servable" if problem is None else "unavailable",
     }
+    # D-154, additive: with no button and no screen (D-151), this and the log are the only places a
+    # failed night shows. `refresh_last` is the refresh's OWN record, not this process's memory.
+    schedule = _NIGHTLY.get("schedule")
+    body.update(schedule.report() if schedule is not None else {"refresh": "off"})
+    return body
 
 
 def _secondary_ages() -> dict[str, int | None]:

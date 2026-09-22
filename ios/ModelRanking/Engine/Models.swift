@@ -56,6 +56,10 @@ struct Category: Decodable, Identifiable, Equatable {
     /// D-143 (M14-W4). The pinned reference an Elo score is read out of 100 against. `nil` from an
     /// engine older than W4, and for a scale that is already out of 100 or has no anchor (ECI).
     let scoreAnchor: Double?
+    /// D-152 (M16-W1). The surface's floor on its own scale; `nil` from an engine older than W1.
+    let minQuality: Double?
+    /// D-153 (M16-W1). A code for what the price leaves out, on the search surfaces only.
+    let priceExcludes: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -67,6 +71,8 @@ struct Category: Decodable, Identifiable, Equatable {
         case secondaryBenchmark = "secondary_benchmark"
         case secondaryAgeDays = "secondary_age_days"
         case scoreAnchor = "score_anchor"
+        case minQuality = "min_quality"
+        case priceExcludes = "price_excludes"
     }
 }
 

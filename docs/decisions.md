@@ -2331,3 +2331,66 @@ supports, which trades an honest partial answer for none.
 
 **Revisit when:** a board arrives whose models carry two priced units (per-token and per-call), and
 the engine has to rank on both rather than disclose one.
+
+---
+
+## D-154 — How the engine runs its own refresh: a child process, off by default, never in production
+
+**Status:** **proposed** (M16-W2, lead agent; the owner reviews it at the milestone) · **Date:**
+2026-09-23 · **Implements** D-149 clauses 2 and 4 and D-151; **keeps** D-116 clause 2.
+
+**Context.** D-151 says what the engine does -- one refresh a night inside 23:00-01:00, one catch-up
+at startup on a stale artifact, nothing in the app -- and D-149 names the risk: a refresh now shares
+a process with the server answering the app. Three choices were left to the build, and each one
+decides whether that risk is contained or merely hoped about.
+
+**Decision.**
+
+1. **The refresh runs as a CHILD PROCESS** (`python -m app.workflows.refresh`, the existing entry
+   point), started and awaited by an asyncio task in the engine's lifespan
+   (`src/app/adapter/nightly.py`). Not a thread: a thread cannot be killed, shares the interpreter's
+   memory and holds a pool slot. The child is killed past 30 minutes (a real cycle takes 6-9
+   seconds) and on engine shutdown. The serving process never imports the refresh, the build or the
+   ingest code, so REQ-REF-007's structural half holds from both sides (a test reads the imports).
+2. **Off unless `MODEL_RANKING_REFRESH=nightly`**, which `ios/app.sh` sets on the owner's Mac.
+   **`validate_startup_config` refuses it outside the relaxed environments**, so a production engine
+   with the switch on does not boot: D-116 clause 2 keeps ingestion off a serving host, and
+   D-149's "revisit when the engine moves off the Mac" becomes a startup error rather than a note.
+3. **`/health` gains four string fields** -- `refresh` (`off` / `scheduled` / `running`),
+   `refresh_next`, `refresh_last` (the refresh's own recorded outcome) and `refresh_last_at` --
+   additive, as that route's contract allows. `/v1` gains nothing (D-151 clause 4).
+4. **The launchd job is retired by the owner** with `scripts/retire_refresh.sh`, which refuses to
+   run until the engine reports its own refresh, so there is never a night with no refresher. Until
+   then the two share `refresh.py`'s `flock` and cannot overlap; the second exits `busy`.
+
+**The cost.** A timeout kill leaves the killed cycle's uniquely-named candidate file behind (W-124);
+the live artifact is untouched and the next cycle runs normally. A Mac asleep through the whole
+window skips that night; the next start or the next night catches it up.
+
+**Revisit when:** the engine is deployed anywhere but the owner's Mac -- clause 2 then refuses to
+boot it with the switch on, which is the point at which ingestion needs a home of its own.
+
+*Amendment, 2026-09-23 (M16-W2 security pass, `docs/reviews/m16-wave-2-security.md` MAJOR-1).*
+**Clause 1's last sentence is wrong as first written.** The serving process never imports the
+refresh, the build or the source fetchers -- now measured transitively, in a fresh interpreter --
+but it DOES load the source parsers (`app.workflows.ingest`, `app.clients.*`) and `httpx`, and did
+before this wave, through `subscribe -> plans -> ingest` and `rank -> clients.epoch`. No fetch runs
+in the server; the code that could fetch is present in it. Untangling the chain is W-125. The same
+pass tightened four things now part of this decision: the child inherits an ALLOWLISTED environment
+(no tokens from the owner's shell), its output is kept as a 64 KiB tail rather than buffered whole,
+the switch is checked again when the schedule starts, and `-P` keeps the working directory off the
+child's module path. `scripts/retire_refresh.sh` checks that the process listening on `:8080` runs
+`app.adapter.main:app` before asking it -- a command-line check, which a process named to imitate it
+would pass; the owner runs it on his own machine.
+
+*Amendment, 2026-09-23 (M16-W2 code review, `docs/reviews/m16-wave-2-review.md`).* **"The Cost" said
+a Mac asleep through the window skips that night; the code ran about a minute after waking.** Both
+are now one rule, stated here: a run that comes due after its window has closed happens only if no
+good cycle is on record within a day (D-151 clause 2's catch-up, applied on waking), and is skipped
+otherwise. And "once a night" now holds across restarts too: a nightly run is skipped when a good
+cycle is on record within 4 hours, so a startup catch-up at 23:11 is not followed by a second
+cycle at 00:05 (12 hours at first, which the re-review showed skipped a whole night after a daytime
+catch-up). A cycle that leaves no record of its own -- killed at the timeout, unable to start,
+or crashed before `refresh.py` could write one -- is remembered by the engine and reported on
+`/health` as `killed`, `not started` or `crashed`, instead of the previous cycle's outcome.
+

@@ -160,6 +160,27 @@ final class PayloadDecodingTests: XCTestCase {
         XCTAssertEqual(list.categories.first?.id, "coding")
         XCTAssertNil(list.categories.first?.rankingEffort, "an absent effort must stay absent")
     }
+
+    /// M16-W2 (D-152, D-153): the two W1 fields reach the client. COPIED from `/v1/categories` on
+    /// 2026-09-23 (V3C-44), one surface that carries a price exclusion and one that does not.
+    func testTheFloorAndThePriceExclusionDecode() throws {
+        let payload = Data(#"""
+        {"categories": [{"id": "expert", "title": "Hard science questions",
+          "primary_benchmark": "GPQA Diamond", "metric": "% correct", "ranking_effort": null,
+          "close_call_margin": 5.0, "score_anchor": null, "min_quality": 83.6,
+          "price_excludes": null, "secondary_benchmark": null, "secondary_age_days": null},
+         {"id": "search", "title": "Answering with a web search",
+          "primary_benchmark": "Arena search", "metric": "elo", "ranking_effort": null,
+          "close_call_margin": 6.5, "score_anchor": 1206.9, "min_quality": 1206.9,
+          "price_excludes": "search_call", "secondary_benchmark": null,
+          "secondary_age_days": null}]}
+        """#.utf8)
+
+        let list = try JSONDecoder().decode(CategoryList.self, from: payload)
+
+        XCTAssertEqual(list.categories.map(\.minQuality), [83.6, 1206.9])
+        XCTAssertEqual(list.categories.map(\.priceExcludes), [nil, "search_call"])
+    }
 }
 
 // MARK: - Remediation of the M11-W2 independent review
