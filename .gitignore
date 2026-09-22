@@ -55,3 +55,6 @@ advisor.db.refresh.json
 advisor.db.refresh.lock
 *.candidate
 *.building
+
+# DevFlow v6.0: the JUnit report `pytest` writes for the CI skip budget (scripts/coverage_floor.py)
+.pytest-report.xml

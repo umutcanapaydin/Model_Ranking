@@ -2,12 +2,12 @@
 record_type: brief
 id: project-brief-template
 status: draft
-process_version: v5.0
+process_version: v6.0
 date: 2026-08-12
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
-     filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
-     which is exactly what shipped in v4.3.1. -->
+ filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
+ which is exactly what shipped in v4.3.1. -->
 # Project Brief — `<PROJECT_NAME>`
 
 > Fill this out before handing the agent a fresh project. ~5-10 minutes to complete; saves a 30-40 minute back-and-forth round with the agent during Stage 0.
@@ -30,6 +30,32 @@ date: 2026-08-12
 - **Target runtime environment:** `<e.g., Huawei Cloud CCE / AWS ECS / on-prem K8s / Vercel>`
 - **Repo host:** `<GitHub / GitLab / Bitbucket>`
 - **CI runners:** `<hosted (ubuntu-latest) / self-hosted — and why>`
+
+## 2.1 Repositories — every tree that ships something a customer can reach 
+
+Ratified once, built two cuts later. **A product is not a repository.** The measured
+case: a customer-facing product split across two trees, GP installed in one, and the second ran
+ungoverned — not by anyone's decision, but because nothing ever asked. The first harvest refused
+to guess at the question and handed it back.
+
+List **every** repo that ships an artifact a customer can reach: backends, frontends, mobile
+clients, admin consoles, scheduled jobs, infrastructure that serves traffic. A tree that only
+builds internal tooling is out of scope; say so in a row rather than by leaving it out.
+
+| Repo | What a customer reaches from it | GP installed? | If NO: the owner ruling |
+|---|---|---|---|
+| `<org/repo>` | `<the API / the console / the mobile app>` | yes / no | `<docs/refusals.md entry id, or "—">` |
+| `<org/repo-fe>` | `<...>` | yes / no | `<...>` |
+
+**Each repo is either GP-installed or named in `docs/refusals.md` with an owner ruling.** A repo
+that is neither is not a decision; it is an omission, and the difference is the whole point of
+the row.
+
+**What the gate checks, stated exactly.** `make bootstrap-check` asserts that **this declaration
+exists and is filled** — at least one real row, no placeholders left, and every `no` carrying a
+ruling. **It claims nothing whatsoever about the contents of the other trees**, which it cannot
+see. Ratified with that boundary written in, and it is repeated here because this cut is about
+controls whose declared subject and actual subject had drifted apart.
 
 ## 3. Risk surface (what HIGH-risk paths exist?)
 
@@ -69,27 +95,27 @@ Who provides what BEFORE M1 can ship:
 
 If a dependency isn't delivered by its ETA, the agent must surface it as a milestone risk (per G.9 PM-friendly risk register).
 
-## 6. Pipeline-specific overrides (v2.1 opt-in choices)
+## 6. Pipeline-specific overrides (opt-in choices)
 
-v2.1 ships with these as **opt-in**. Pick before Stage 0 dispatch:
+ ships with these as **opt-in**. Pick before Stage 0 dispatch:
 
-- [ ] **Pre-commit hook** (lint + format at the keyboard): yes / no  *(default: opt-in for Python; reasoning per [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v5.0/general_pipeline_v5.0/pipeline-design.md) §11)*
-- [ ] **Issue-agent Layer 2** (headless Claude in CI on labeled issues): yes / no  *(default: ship in shadow-mode for M1, graduate to draft-PR mode after one successful milestone)*
+- [ ] **Pre-commit hook** (lint + format at the keyboard): yes / no *(default: opt-in for Python; reasoning per [`METHODOLOGY.md`](METHODOLOGY.md) §11)*
+- [ ] **Issue-agent Layer 2** (headless Claude in CI on labeled issues): yes / no *(default: ship in shadow-mode for M1, graduate to draft-PR mode after one successful milestone)*
 - [ ] **MCP servers beyond GitHub default:** `<list any: Linear / Slack / Notion / ...>` *(default: GitHub MCP only; add only if team uses tool daily)*
 - [ ] **Additional subagent profiles beyond mandatory Code-Reviewer + Security-Reviewer:** `<list any candidate, e.g., Architect, Migration-Specialist, Docs-Writer>` *(default: only the mandatory 2; others CANDIDATE per playbook-seeds L'; graduate after ≥2 milestones of PULLED-WEIGHT)*
 - [ ] **Skill source overrides:** `<list any milestone where Code-Reviewer or Security-Reviewer profile source is NOT "A — superpowers baseline">` *(default: A; B/C/D require regeneration before dispatch)*
-- [ ] **CODEOWNERS / DevOps boundary (K.10):** does app + DevOps share this repo? yes / no  *(default: yes -> fill `<DEVOPS_HANDLE>` in `.github/CODEOWNERS` + enable "Require review from Code Owners". If no DevOps team, delete the build/deploy lines rather than leaving a placeholder owner.)*
+- [ ] **CODEOWNERS / DevOps boundary (K.10):** does app + DevOps share this repo? yes / no *(default: yes -> fill `<DEVOPS_HANDLE>` in `.github/CODEOWNERS` + enable "Require review from Code Owners". If no DevOps team, delete the build/deploy lines rather than leaving a placeholder owner.)*
 - [ ] **Version-stamped `/health` (L.7):** Day-1 baseline ON by default *(set `APP_BUILD` in the Dockerfile / deploy env so the deployed build is verifiable via `curl /health | jq .build` at Stage 4.3. Defaults to `"unknown"`; only opt OUT for a service that genuinely never deploys.)*
-- [ ] **Council planning Stage-1 variant (NEW v2.1):** use for this project's contested/MEDIUM+ milestones? yes / no  *(default: off; turn on per-milestone when the milestone SCOPE — not just its code — is in doubt. PULLED-WEIGHT but N=1, so opt-in.)*
+- [ ] **Council planning Stage-1 variant (NEW):** use for this project's contested/MEDIUM+ milestones? yes / no *(default: off; turn on per-milestone when the milestone SCOPE — not just its code — is in doubt. PULLED-WEIGHT but N=1, so opt-in.)*
 
 ## 7. Budget and cadence
 
-- **Token budget cap per milestone:** `<e.g., $5 / 500k tokens / no cap>` *(default per [`pipeline-design.md`](https://github.com/SADCAIVibe/General_Pipeline/blob/v5.0/general_pipeline_v5.0/pipeline-design.md) §13: 50k-500k tokens per milestone)*
+- **Token budget cap per milestone:** `<e.g., $5 / 500k tokens / no cap>` *(default per [`METHODOLOGY.md`](METHODOLOGY.md) §13: 50k-500k tokens per milestone)*
 - **Token budget cap for whole project:** `<...>` *(optional)*
 - **Wall-clock cadence expectation:** `<e.g., 2-week milestones / 1-week milestones / flexible>`
-- **Quarterly handover cadence:** `<v2.0 default is M3/M6/M9/M12; deviate?>`
-- **Retrospective frequency:** `<v2.0 default is M≥3 G.12; deviate?>`
-- **AGENTS.md size cap:** `<v2.0 default is 80 target / 150 hard cap; deviate?>`
+- **Quarterly handover cadence:** `< default is M3/M6/M9/M12; deviate?>`
+- **Retrospective frequency:** `< default is M≥3 G.12; deviate?>`
+- **AGENTS.md size cap:** `< default is 80 target / 150 hard cap; deviate?>`
 
 ## 8. Greenfield vs migration
 
@@ -115,16 +141,15 @@ This is the contract. Agent reads §1-9 above + the PRD, then produces:
 4. **`docs/architecture.md`** §5 conflict table populated (seed A.2)
 5. **`docs/decisions.md`** first project ADRs **D-100..D-NNN** (covering stack, target env, risk-surface acknowledgments, any §6 pipeline overrides). Process ADRs use `P-00x`; if inheriting a project with low D-ids, run the P-001 reconciliation recipe (seed B.6).
 6. **`docs/plans/m1-plan.md`** in writing-plans format — including:
-   - Goal (1 sentence)
-   - REQ-ID acceptance criteria
-   - Wave decomposition (each task ≤5 min subagent scope)
-   - K.8 shared contracts grep-verified (paste `grep -n` output)
-   - **Token budget estimate per wave + total milestone**
-   - **Risk tier (LOW/MEDIUM/HIGH)**
-   - Subagent profile source (default A)
-   - Issue inventory (Layer 2 vs K.4 routing)
-   - Closure tasks
-   - §13 dispatch checklist
+ - Goal (1 sentence)
+ - REQ-ID acceptance criteria
+ - Wave decomposition (each task ≤5 min subagent scope)
+ - K.8 shared contracts grep-verified (paste `grep -n` output)
+ - **Token budget estimate per wave + total milestone**
+ - **Risk tier (LOW/MEDIUM/HIGH)**
+ - Issue inventory (Layer 2 vs K.4 routing)
+ - Closure tasks
+ - §13 dispatch checklist
 7. **Day-1 green baseline confirmed** (`make check` GREEN) **and `make bootstrap-check` GREEN** (FB-1 Stage-0 gate — no placeholders, L.7 `/health`, filled core docs, universal ADRs present)
 8. **`docs/license-review.md`** completed if §3 "wraps/forks an OSS engine" is YES (FB-4)
 9. **Host-side admin TODOs surfaced** (branch protection, ANTHROPIC_API_KEY secret, label creation, 90-day rotation calendar)

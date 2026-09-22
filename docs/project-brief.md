@@ -19,6 +19,15 @@
 - **Repo host:** GitHub (owner will create; private)
 - **CI runners:** hosted (ubuntu-latest)
 
+## 2.1 Repositories — every tree that ships something a customer can reach
+
+Added at the DevFlow v6.0 adoption (2026-09-23). One repository ships everything a reader reaches:
+the engine and the iOS app live in the same tree, and the refresh runs inside the engine (D-154).
+
+| Repo | What a customer reaches from it | GP installed? | If NO: the owner ruling |
+|---|---|---|---|
+| `umutcanapaydin/Model_Ranking` | the `/v1` engine, its nightly refresh, and the iOS app (`ios/`) | yes | — |
+
 ## 3. Risk surface (what HIGH-risk paths exist?)
 
 - [ ] **Authentication / authorization logic** — NO (no users, no mutating routes in M1)

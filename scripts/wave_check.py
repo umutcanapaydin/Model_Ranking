@@ -249,12 +249,40 @@ def main(argv: list[str]) -> int:
     # RECORD gets filled, because a metadata field nobody is asked for is the sediment this release
     # spent a day removing. The question it will eventually answer -- can waves run as parallel
     # subagents -- needs measurement, and measurement needs a collector.
+    # v5.1 (Increment 15, Block D). Three more recorded fields, same shape as the footprint:
+    #  P-1  Mutant set author -- 23/23=100% self-designed read exactly like evidence next to 12/47=25.5%
+    #       independent over the same range. A self-designed set is supporting evidence, never sufficient.
+    #  P-11 Observed RED -- three tests written to close review findings could not fail (fixtures never
+    #       reached what they asserted). "A test exists" and "a test can fail" are different claims;
+    #       the row now records the mutation and which assertion went red.
+    #  Owner instruction -- the measured failure direction was an agent substituting its own better
+    #       idea for the owner's stated requirement, TWICE, while every control stayed green. The
+    #       checklist quotes the instruction verbatim so the diff between asked and built is visible
+    #       in the artefact instead of only in the owner's reaction.
+    # model_ranking, DevFlow v6.0 adoption (D-155). The three v5.1 fields below are required of a
+    # record that declares a process version AFTER v5.0. This project's 41 wave records declare
+    # v5.0 and were written before the fields existed; GPF-001 rules that a tool may not
+    # retroactively invalidate them. A record with no declared version keeps the full rule.
+    declared = re.search(r"^process_version:\s*(\S+)", text, re.M)
+    pre_v51 = declared is not None and declared.group(1) in {"v5.0", "v4.3", "v4.3.1", "v4.2", "v4.1"}
+    later = {"Mutant set author", "Observed RED", "Owner instruction"}
     for field, why in (("Touched", "which paths this wave actually changed"),
+                       ("Mutant set author", "who designed the fault-injection set (self-designed = supporting evidence only, P-1)"),
+                       ("Observed RED", "the mutation and the assertion that failed for the cited reason (P-11)"),
+                       ("Owner instruction", "the owner's words, verbatim, that this wave implements"),
                        ("K.8 contracts", "which shared interfaces it changed, or NONE")):
+        if pre_v51 and field in later:
+            continue
         m = re.search(rf"^\s*{re.escape(field)}:\s*(.*)$", text, re.M)
         if not m:
             bad.append(f"no `{field}:` line -- record {why}, from the diff and not from the plan")
-        elif not m.group(1).strip() or PLACEHOLDER.search(m.group(1)):
+        elif (not m.group(1).strip() or PLACEHOLDER.search(m.group(1))
+              # A template placeholder is anything still wrapped in <angle brackets>, whatever its
+              # punctuation. The narrow PLACEHOLDER class missed `<who designed ...; ... (P-1)>`
+              # because of the semicolon -- an unfilled field passed the first falsification run of
+              # this very change. The check exists BECAUSE fields go unfilled; it cannot be pickier
+              # about placeholder spelling than templates are.
+              or (m.group(1).strip().startswith("<") and m.group(1).strip().endswith(">"))):
             bad.append(f"`{field}:` is still a placeholder -- record {why}. Plan-time paths are a "
                        "prediction; close-time paths are a measurement")
     if not re.search(r"Filled by:.*Date:.*commit range", text, re.I):
@@ -262,11 +290,27 @@ def main(argv: list[str]) -> int:
                    "close names nobody and no commit range, so its evidence cannot be scoped")
 
     rows = evidence_less = 0
+    # v5.1 (harvest 2 B.5 / P-10). Parsing EVERY pipe-line as a checklist row meant any other table in
+    # the record -- a "claimed vs independently measured" comparison, say -- was scored as unevidenced
+    # checklist rows and failed the file. The field cost: authors rewrote legitimate structure as
+    # bullet lists to appease the tool. **A validator that punishes structure teaches people to put
+    # less structure in records.** Rows are now anchored to the checklist's own header table: parsing
+    # starts at the `| # | Check |...` header and stops at the first non-table line. Other tables are
+    # someone else's business.
+    in_checklist = False
     for i, line in enumerate(text.splitlines(), 1):
-        if not line.lstrip().startswith("|"):
+        stripped = line.lstrip()
+        if not stripped.startswith("|"):
+            in_checklist = False
+            continue
+        first_cell = stripped.strip("|").split("|")[0].strip().lower()
+        if first_cell in HEADER_CELLS:
+            in_checklist = True
+            continue
+        if not in_checklist:
             continue
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) < 3 or set("".join(cells)) <= set("-: ") or cells[0].lower() in HEADER_CELLS:
+        if len(cells) < 3 or set("".join(cells)) <= set("-: "):
             continue
         rows += 1
         # Match on the FIRST TOKEN, because Block D requires a skip to be written
@@ -303,8 +347,13 @@ def main(argv: list[str]) -> int:
     # found nothing to look at is this project's most-repeated defect.
     root = next((a for a in p.resolve().parents if (a / "docs").is_dir()), p.resolve().parent)
     milestone_match = re.match(r"m(\d+)-wave-", p.name)
-    bad.extend(review_seat_problems(
-        text, root, int(milestone_match.group(1)) if milestone_match else None))
+    # DevFlow's conformance fixtures (`conformance/wave/`) cite review records that do not exist, on
+    # purpose: a fixture demonstrates a record's SHAPE and names absent artifacts. The review-seat
+    # rule is this project's, about this project's records, so it does not grade the package's
+    # fixtures (the same boundary DevFlow's X4 draws around `conformance/`).
+    if "conformance" not in p.resolve().relative_to(root).parts:
+        bad.extend(review_seat_problems(
+            text, root, int(milestone_match.group(1)) if milestone_match else None))
 
     if rows == 0:
         bad.append("no checklist rows found -- this is not a filled checklist")
@@ -331,6 +380,36 @@ def main(argv: list[str]) -> int:
         else:
             continue
         break
+
+    # v5.1 (P-9 + the skip ledger, merged per PM). V4C-13's three-strikes trigger has existed since
+    # v4.0 and has never once fired by mechanism -- it fired ONCE, because one scrupulous author
+    # hand-wrote "this is the third" into a record, and even that hand count was wrong (two records
+    # both claimed "second"). A counter nobody counts is prose. `docs/control-events.csv` is ONE
+    # machine-readable ledger for skips AND bypasses; three rows naming the same control turn this
+    # gate red -- the control goes under review, not the people.
+    ledger = pathlib.Path("docs/control-events.csv")
+    if ledger.is_file():
+        from collections import Counter
+        counts: Counter = Counter()
+        for ln in ledger.read_text(encoding="utf-8", errors="replace").splitlines():
+            if ln.startswith("#") or ln.lower().startswith("control,") or not ln.strip():
+                continue
+            cells = [c.strip() for c in ln.split(",")]
+            if len(cells) >= 3 and cells[2].lower() in ("skip", "bypass"):
+                counts[cells[0]] += 1
+        for control, n in sorted(counts.items()):
+            if n >= 3:
+                bad.append(f"`{control}` has {n} recorded skip/bypass events in docs/control-events.csv "
+                           "-- V4C-13's threshold. The CONTROL goes under review before this wave "
+                           "closes: fix it, re-scope it, or refuse it in docs/refusals.md. Do not "
+                           "record a fourth")
+    else:
+        # SKIPPED/WAIVED rows demand the ledger exist -- a waiver with no counter is how five skips
+        # went unread in the field until six engine defects surfaced at the owner gate.
+        if re.search(r"\|\s*(SKIPPED|WAIVED)\b", text):
+            bad.append("this checklist carries SKIPPED/WAIVED rows but docs/control-events.csv does "
+                       "not exist -- a skip that is not counted is a skip that becomes permanent. "
+                       "Create the ledger (header: control,wave,kind,reason,date) and record each one")
 
     for b in bad:
         print(f"FAIL [V3C-69]: {b}")

@@ -1,0 +1,6 @@
+# Governance records exempted from check_records.py, one EXACT path per line, each with a reason.
+# DevFlow v6.0 derives the governed set from `record_type:` frontmatter (condition 17-8); this file is
+# the only way out of it, and every line has to say why.
+docs/reviews/m7-wave-1-review.md             # pre-M8 review; `status: proposed` predates the status flow. GPF-001: a tool may not retroactively invalidate records written before it existed. Was outside the M8+ glob in `.governed-records` before the DevFlow adoption
+docs/reviews/m7-wave-1-rereview.md           # same era and same reason as the line above
+docs/reviews/m7-wave-1-security-rereview.md  # same era and same reason as the line above

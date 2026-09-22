@@ -38,6 +38,16 @@ def main() -> int:
     expect("wave_check(positive fixture) must ACCEPT",
            run([py, str(wave), "conformance/wave/m1-wave-2-close.md"]), True)
 
+    # closure-check: the milestone half of the same rule. A pack missing §1b hides the judgment
+    # calls; a pack whose §6 is a heading has skipped the one section a human must write.
+    closure = ROOT / "scripts" / "closure_check.py"
+    expect("closure_check(template) must REJECT",
+           run([py, str(closure), "docs/closure-report.template.md"]), False)
+    expect("closure_check(hollow fixture) must REJECT",
+           run([py, str(closure), "conformance/closure/closure-report-m8.md"]), False)
+    expect("closure_check(filled fixture) must ACCEPT",
+           run([py, str(closure), "conformance/closure/closure-report-m7.md"]), True)
+
     # install-check behaves OPPOSITELY in the two trees, and that is the point of v4.3.2: the
     # distribution must refuse (it legitimately holds every GP-INTERNAL file), an installation must
     # pass. This suite ships to projects, so it has to know which tree it is in -- the first version

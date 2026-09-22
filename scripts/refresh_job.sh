@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # launchd entry point for the 12-hour refresh (REQ-REF-005, D-130; W-096).
 #
 # WHY A WRAPPER. From 2026-08-27 to 2026-09-20 the job exited 78 (EX_CONFIG) on every trigger and

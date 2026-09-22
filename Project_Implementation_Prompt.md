@@ -1,4 +1,4 @@
-# Project Implementation Prompt (v3.3 — the owner's kickoff meta-prompt)
+# Project Implementation Prompt (the owner's kickoff meta-prompt)
 
 > **What this is:** the paste-ready FIRST message from the OWNER to a fresh agent. It teaches
 > nothing — everything lives in the repo files (the harness auto-loads `AGENTS.md`/`CLAUDE.md`
@@ -22,7 +22,7 @@ Task: <one sentence — what we are building>
 PRD / brief: <path or "attached" — docs/prd.md + docs/project-brief.template.md filled>
 
 Do, in order:
-1. Read START_HERE.md, then AGENTS.md, then docs/autonomy-protocol.md (note the ACTIVE mode),
+1. Read README.md, then AGENTS.md, then docs/autonomy-protocol.md (note the ACTIVE mode),
    then permission-matrix.md, then .agents/rules/practices.md.
 2. Run Stage 0: fill the placeholders, then `make bootstrap-check` until green.
    If we wrap/fork any OSS engine: docs/license-review.md FIRST (day-0 gate).
@@ -37,7 +37,7 @@ Do, in order:
      starts HERE, at intake, not at the first wave)
 4. STOP after the echo-back. I review it, then sign the M1 plan. No code before my signature.
 
-Standing rules you must never break: you never run git (I make all commits);
+Standing rules you must never break: you work on a branch and open a DRAFT pull request -- you never push to the default branch, never mark a PR ready, never merge, never force-push, never `--no-verify`, and never touch `.github/workflows/**`. I mark ready and I merge;
 escalate-NOW events (AGENTS.md §3) interrupt me immediately; ⛔-zone globs force HIGH tier.
 ```
 
@@ -49,7 +49,7 @@ with ZERO session memory — continuity lives in FILES, and you are the stranger
 were written for.
 
 Do, in order:
-1. Read note.txt, then START_HERE.md, then AGENTS.md, then docs/autonomy-protocol.md
+1. Read note.txt, then README.md, then AGENTS.md, then docs/autonomy-protocol.md
    (note the ACTIVE mode), then the latest docs/closure-report-m{N}.md, then
    docs/plans/<current milestone plan> and its wave-close checklists, then
    docs/process-log.md (last 3 entries).
@@ -62,7 +62,7 @@ Do, in order:
 3. STOP after the echo-back. I confirm or correct, then you continue.
 
 Task for this session (one task per session): <one sentence>
-Standing rules: you never run git; escalate-NOW events interrupt me immediately;
+Standing rules: branch, draft PR, I merge -- never the default branch, never ready, never merge, never force-push; escalate-NOW events interrupt me immediately;
 revert experimental edits IN PLACE (never git checkout/restore on uncommitted work).
 ```
 

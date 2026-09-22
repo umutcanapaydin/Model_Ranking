@@ -1,10 +1,10 @@
-# model_ranking — LLM Benchmark & Recommendation Engine (Pipeline v4.3.1)
+# model_ranking — LLM Benchmark & Recommendation Engine (DevFlow v6.0)
 
-> model_ranking: aggregates free-and-legal LLM benchmark + pricing data and produces budget-aware, per-use-case model recommendations (engine behind a future iOS advisor app). Process baseline: General Pipeline v4.3.1. Run `make check` (day-1 green) and `make bootstrap-check` (the Stage-0 gate) until both pass.
+> model_ranking: aggregates free-and-legal LLM benchmark + pricing data and produces budget-aware, per-use-case model recommendations, served to its own iOS app. Process: [DevFlow v6.0](https://github.com/SADCAIVibe/DevFlow/tree/v6.0) since 2026-09-23 (D-155); General Pipeline v4.3.1 -> v5.0 before that. `make gate` is everything the pipeline claims to enforce; `make check` is its day-to-day subset.
 >
-> **★ Fresh agent or new team member?** Read [`START_HERE.md`](START_HERE.md) first (5-minute orientation). Then `AGENTS.md`, then the rest.
+> **★ Fresh agent or new team member?** This is a RUNNING project, so the first question DevFlow asks — new or resuming? — is already answered: resuming. Run `/start-session`, which reads `note.txt`, the latest plan and the latest retrospective and establishes what green looks like before anything changes. Then `AGENTS.md` (the rules). `METHODOLOGY.md` is the reference, not a linear read; `pipeline-schema.html` is the same workflow as a picture.
 >
-> **★ Starting a brand-new project?** Fill out [`docs/project-brief.template.md`](docs/project-brief.template.md) (~5-10 minutes) and hand it to the agent alongside the PRD. The brief §10 is the contract for what the agent must deliver (plan + workload estimate) before any wave dispatches.
+> **★ Git, in one line (D-999, D-155):** the agent works on a branch and opens a DRAFT pull request; the owner marks it ready and merges. Nothing is pushed to `main` by an agent.
 
 ---
 
@@ -26,14 +26,14 @@ A starter repo with two layers:
 1. **Layer 1 — Starter Package (~60 files)** — opinionated scaffolding from EF-AI Phase-1 + Claude Code harness.
 2. **Layer 2 — Workflow (5 stages)** — Bootstrap → Plan → Wave → Per-Wave Review (Code + Tester; v3 V3C-68) → Closure (Security review is BLOCKING before deploy). Quarterly handover every 3rd milestone.
 
-See `pipeline-design.md` for the full design and `pipeline-schema.html` (open in browser) for the visual schema.
+See `METHODOLOGY.md` for the full design and `pipeline-schema.html` (open in browser) for the visual schema.
 
-For a plain-language overview to share with managers or non-technical stakeholders, see `docs/executive-overview.pdf` (rendered from `docs/executive-overview.md`). Both are regenerated from one source via `docs/executive-overview.gen.py` — refresh them at each version cut.
+For a plain-language overview to share with managers or non-technical stakeholders, see DevFlow's own [README](https://github.com/SADCAIVibe/DevFlow/tree/v6.0); the executive overview stayed with the methodology and is not shipped into a project.
 
 ## What's new vs v1.1
 
 - **Hooks** — `.claude/settings.json` enforces 2 baseline rules deterministically.
-- **Skills** — 10 starter skills under `.claude/skills/` including `/triage-issue`, `/fix-issue-{prepare,implement}`, `/file-issue`, `/quarterly-handover`, `/log-decision`, `/retrospect`.
+- **Skills** — DevFlow's 14 skills under `.claude/skills/`: `/start-session` to resume, `/work-issue` and `/work-enhancement` for a change, `/pre-merge` and `/post-merge` around the owner's merge, `/cycle-close` at a milestone (retrospective and handover), plus `/triage-issue`, `/file-issue`, `/fix-issue`, `/log-decision`, `/repo-review`, `/going-live`, `/writing-a-control` and `/wiring-an-integration`.
 - **`.agents/rules/`** — canonical rulebook directory; `environment.md` is per-developer gitignored.
 - **MCP** — `.mcp.json` ships with GitHub/GitLab default; tokens in `.env`.
 - **3-layer issue management** — pure CI / CI-triggered agent / scheduled + interactive.
@@ -46,14 +46,14 @@ For a plain-language overview to share with managers or non-technical stakeholde
 1. `AGENTS.md` — house rules (≤80 lines, navigation only).
 2. `permission-matrix.md` — what you may + may not do (default-deny matrix + BLOCKING taxonomy).
 3. `docs/decisions.md` — what is settled (D-001..D-005 universal + project D-006+).
-4. `docs/onboarding.md` — Monday-start / Friday-milestone-done guide.
+4. `/start-session` — resumes from files (note.txt, the latest plan, the latest retrospective); it replaced the onboarding guide at DevFlow v6.0.
 5. `docs/closure-checklist.md` — when you "ship," walk this.
 
 ## Repo layout
 
 ```
 .
-├── pipeline-design.md      # full v3 design document (§0 changelog)
+├── METHODOLOGY.md          # DevFlow's full design (a reference, not a linear read)
 ├── pipeline-schema.html     # visual schema (open in browser)
 ├── AGENTS.md                   # house rules (≤80 lines)
 ├── CLAUDE.md → AGENTS.md       # symlink so Claude Code finds it natively
@@ -66,7 +66,6 @@ For a plain-language overview to share with managers or non-technical stakeholde
 ├── .github/CODEOWNERS          # DevOps build/deploy boundary (K.10, v2.1)
 ├── .github/workflows/          # CI + issue-agent (hardened)
 ├── docs/                       # PRD, decisions, plans, reviews, retrospectives, handovers
-├── docs/executive-overview.*   # manager-facing overview (.md + .pdf; regen via .gen.py)
 ├── subagent-profiles/          # Code-Reviewer + Security-Reviewer (MANDATORY)
 ├── src/<pkg>/                  # adapter + clients (Protocol pattern, K.1)
 ├── tests/                      # unit + integration

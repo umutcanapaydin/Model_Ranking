@@ -30,8 +30,8 @@
 | ID | Artifact | Status | Notes |
 |---|---|---|---|
 | I-A | `handover-to-prod-agent.md` | proposed | Operator runbook for post-build agent (created at M_final-1) |
-| I-B | Quarterly handovers (`handover_q1..q4.txt`) | proposed | Generated via `/quarterly-handover` at every 3rd milestone closure |
-| I-C | G.12 retrospectives (`m{N}-retrospective.md`) | proposed | Generated via `/retrospect` at M≥3 |
+| I-B | Quarterly handovers (`handover_q1..q4.txt`) | proposed | Generated via `/cycle-close` at every 3rd milestone closure (`/quarterly-handover` until DevFlow v6.0) |
+| I-C | G.12 retrospectives (`m{N}-retrospective.md`) | proposed | Generated via `/cycle-close` at M≥3 (`/retrospect` until DevFlow v6.0) |
 
 ## Cadence
 

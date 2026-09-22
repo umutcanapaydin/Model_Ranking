@@ -1,0 +1,6 @@
+# ONE ledger for control skips and bypasses (v5.1, P-9 + skip ledger merged).
+# Appended by the wave harness or by hand at the moment of the skip -- never reconstructed later.
+# Three rows naming the same control turn the next wave-check RED (V4C-13: the CONTROL goes under
+# review, not the people). A row that exists in run N and vanishes in run N+1 is a finding.
+# kind: skip (could not run: no environment, no trigger) | bypass (chose not to run: pressure)
+control,wave,kind,reason,date

@@ -5,7 +5,7 @@
 # production build/deploy (Dockerfile, /deploy/**, CI/CD config) are a cross-TEAM
 # contract surface. A feature branch carrying its own copy of these files will silently
 # overwrite DevOps's customizations on merge, and the next CI build ships the wrong
-# image (the EF-AI S34 "deployed pod still ran the old code" hour). Marking the boundary
+# image (the Project-A S34 "deployed pod still ran the old code" hour). Marking the boundary
 # here means GitHub auto-requests the owning team's review on any PR that touches them,
 # and (with branch protection "Require review from Code Owners") can require their
 # approval before merge.

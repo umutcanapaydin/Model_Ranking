@@ -2,7 +2,7 @@
 
 > Read every file in this directory at the start of every session. These are the rules.
 >
-> Pipeline v2.0 consortium decision: this directory replaces `docs/discipline-*.md` from v1.1. Same content, cleaner hierarchy.
+> Pipeline consortium decision: this directory replaces `docs/discipline-*.md` from v1.1. Same content, cleaner hierarchy.
 
 ---
 

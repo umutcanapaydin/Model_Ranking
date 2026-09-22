@@ -1,13 +1,14 @@
 ---
 name: file-issue
-description: Open a well-formed issue for a problem you discovered (failing check, flaky test, dep CVE, doc drift). Use during sweeps or when you hit a problem outside the current task's scope.
+description: Use the moment you find a problem outside the scope of what you are doing — a failing check, a flaky test, a dependency advisory, drifted documentation, a gate that does not fire, a stale claim. Writes it down instead of fixing it inline or remembering it. A finding nobody filed is a finding nobody has.
 ---
 
-1. Search existing open issues for a duplicate FIRST. Use `gh issue list --search "<topic>"` or the GitHub MCP `issues.search` tool. If a duplicate exists, comment on it instead of opening a new one.
-2. Open an issue with:
-   - **Title:** precise, ≤60 chars, no leading bug/feature prefix (labels handle that).
-   - **Body:** repro steps (numbered), observed/expected, environment (OS / Python version), severity (low / medium / high).
-   - **Code references:** `file:line` for any specific locations.
-3. Apply existing labels matching the problem area (`gh label list` first; do not invent labels).
-4. If the problem is something `/fix-issue-prepare` + `/fix-issue-implement` could safely handle, add the `agent:triage` label and say so in the body. Do NOT start fixing here.
-5. If the problem is auth/PII/payment/migration-related, do NOT label `agent:fix` (must stay human-reviewed per permission-matrix §7).
+1. **Search for a duplicate first.** If one exists, comment on it rather than opening a second.
+ Two issues for one problem is how a fix lands twice and a verification lands never.
+2. Precise title. Exact reproduction steps. Observed and expected. Environment. Severity by
+ measured impact.
+3. **Only labels that already exist** — see `.agents/rules/issues.md`. A label nobody created is
+ a label no skill and no CI rule will ever match.
+4. If `/fix-issue` could safely handle it, say so in the body.
+5. **Do not start fixing it here.** You are in the middle of something else; that is why this
+ skill exists.

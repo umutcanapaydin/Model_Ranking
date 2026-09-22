@@ -2,6 +2,7 @@
 record_type: register
 id: model-ranking-decisions
 status: ratified
+process_version: v6.0
 date: 2026-08-11
 ---
 # Decisions
@@ -2393,4 +2394,74 @@ cycle at 00:05 (12 hours at first, which the re-review showed skipped a whole ni
 catch-up). A cycle that leaves no record of its own -- killed at the timeout, unable to start,
 or crashed before `refresh.py` could write one -- is remembered by the engine and reported on
 `/health` as `killed`, `not started` or `crashed`, instead of the previous cycle's outcome.
+
+---
+
+## D-155 — The project runs on DevFlow v6.0
+
+**Status:** **accepted by the owner 2026-09-23** (in session, choosing each option below) · **Date:**
+2026-09-23 · **Supersedes:** the git clause of the A0.5 operating mode as this project practised it
+(agent commits pushed to `main` on the owner's word), by adopting D-999 below.
+
+**Context.** The owner's own methodology moved from General Pipeline v5.0 to
+[DevFlow v6.0](https://github.com/SADCAIVibe/DevFlow/tree/v6.0) (translated from Turkish: *"a
+flow I developed; we will use it from now on"*). This project installed GP v5.0 at D-113 and had
+since changed the control surface itself -- the review-seat gate, the inline-span language rule,
+the C2b trigger, the per-module coverage floor, `swift-test`, `client-decls`. A copy-over would
+have deleted those; keeping v5.0 would leave the project on a method its owner no longer uses.
+
+**Decision.**
+
+1. **The install is upgraded by a three-way merge**, base = GP v5.0 (the tag this project
+   installed), theirs = DevFlow v6.0, ours = this tree. Files the project never changed take
+   DevFlow's version; files DevFlow never changed keep the project's; files both changed are
+   merged by hand, and the project's own controls survive every conflict.
+2. **Git (D-999):** the agent works on a branch, pushes that branch and opens a DRAFT pull request;
+   the owner marks it ready and merges. No AI attribution in commits, PR bodies or issues; agent
+   identity plus the `GP-Agent`/`GP-Task` trailers stay (V4C-64). Staging is `git add -u`.
+3. **`.github/workflows/**`** is the owner's surface under DevFlow. The adoption PR carries the
+   workflow changes in ONE separately marked commit, a one-time exception the owner chose, so the
+   owner reviews them as workflow changes.
+4. **Where this project deliberately differs from DevFlow v6.0**, each with its reason, so the
+   next harvest can hand them back rather than rediscover them:
+   - `scripts/wave_check.py` keeps `review_seat_problems` (REQ-REV-001, W-056) -- DevFlow has no
+     check that a review is a file by an independent seat -- and requires the three v5.1 footprint
+     fields only of records declaring a version after v5.0 (GPF-001: 41 records predate them).
+   - `scripts/check_records.py` keeps the project's L1 (balanced fences, double-backtick spans, a
+     length bound on exempted spans), the C2b trigger, and `seat:`; adds `retrospective` to the
+     record types -- nine retrospectives were "invalid" once selection moved to frontmatter.
+   - `scripts/bootstrap-check.sh` takes DevFlow's position-aware scan (GPF-003) and also strips
+     inline code spans (W-015), which GPF-003 does not.
+   - `scripts/coverage_floor.py` is DevFlow's skip budget; the project's per-module floor (W-041)
+     moves to `scripts/module_coverage_floor.py` and `make coverage-floor` runs it.
+   - `src/__init__.py` from the package is NOT installed: in this src-layout tree it turns `src`
+     into a package and mypy then reports 113 `import-untyped` errors on `app.*`.
+   - `.governed-records-exempt` names three M7 reviews whose `status: proposed` predates the
+     status flow (GPF-001), which the old glob kept out of scope.
+
+**The cost.** The owner reviews a large one-time diff, and `main` must be protected in GitHub for
+D-999 to be more than an honour system -- that setting is the owner's (`docs/branch-protection.md`).
+Four DevFlow defects found while merging go back to DevFlow rather than being patched quietly here
+(the adoption PR lists them).
+
+**Revisit when:** DevFlow ships a version that absorbs the differences in clause 4.
+
+---
+
+## D-999 — the agent opens drafts; a human merges
+
+**Status:** accepted -- adopted verbatim from DevFlow v6.0 by D-155 (2026-09-23).
+
+**Decision.** The agent works on its own branch, commits there normally, pushes that branch and
+opens a DRAFT pull request. It never pushes the protected branch, never marks a PR ready, never
+merges, never force-pushes, never uses `--no-verify`, and never writes AI attribution anywhere.
+A human marks ready and merges. Branch protection is what makes this real rather than an honour
+system.
+
+**Rationale.** Withholding `push` protected one property: no commit may be mistaken for the
+owner's. That property is now carried by the branch, the draft state, the absence of AI
+attribution and `conformance/test-commit-identity.py`. A review that happens in pull requests
+needs the branch pushed.
+
+**Revisit when:** a forge-less workflow needs supporting, or branch protection is not available.
 

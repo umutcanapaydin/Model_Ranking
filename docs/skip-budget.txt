@@ -1,0 +1,10 @@
+# The number of skipped tests this project accepts on a required CI run.
+#
+# Why a number and not a rule: "a skip is not a pass" was written in a project's practices.md in the
+# same commit that deleted the exit state implementing it, and 214 contract tests then skipped green
+# on every pull request for weeks. A budget is the smallest thing that cannot be written and left
+# unimplemented -- it is either met or it is not.
+#
+# Start at your current count, then lower it. A budget that never moves is a ratchet that ratcheted
+# once. Raising it is legitimate and must happen HERE, in the tree, where a reviewer sees the diff.
+0

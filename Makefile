@@ -43,31 +43,30 @@ _check_python:
 # controls whose discovery produced "a declared control that silently passes is worse than an absent
 # one." They are on `docs/watchlist.md` with their triggers, and they come back the day a project can
 # actually run them. **Unprovable here is not the same as wrong -- but it is not a control either.**
-.PHONY: falsify bootstrap-check check check-records check-records-selftest  clean  conformance deps export-project format gate help install install-check  lint run secrets slopsquat smoke-deps standup test typecheck wave-check swift-test
+.PHONY: closure-check shell-dialect harvest-context harvest-context-check falsify bootstrap-check check check-records check-records-selftest  clean cold-start conformance deps export-project format gate help install install-check  journey lint run secrets slopsquat smoke-deps standup test typecheck wave-check \
+	swift-test client-decls coverage-floor wave-check-all
 
-help:
-	@echo "Commands:"
-	@echo "  make install      Create venv and install dev dependencies"
-	@echo "  make test         Run pytest with coverage"
-	@echo "  make lint         Run ruff"
-	@echo "  make format       Run black + ruff --fix"
-	@echo "  make typecheck    Run mypy"
-	@echo "  make check        lint + typecheck + test (the merge gate)"
-	@echo "  make secrets      Run gitleaks (secret scan)"
-	@echo "  make deps         Run pip-audit (dependency vuln scan)"
-	@echo "  make slopsquat    Verify all imports exist on PyPI"
-	@echo "  make run          Start the API service locally on :8080"
-	@echo "  make standup      Print project state (LLM-free)"
-	@echo "  make bootstrap-check  Stage-0 gate: placeholders/L.7 health/templates/ADRs/license + no default-admin/plaintext creds (FB-1, V3C-11)"
-	@echo "  make smoke-deps   Stage 4.3 go-live: invoke each external dependency once (L.8)"
-	@echo "  make clean        Remove venv and caches"
+help:  ## this list, generated from the ## annotations (a hand-written help drifts on the first cut)
+# v5.1 (harvest 1 §6.8-2 + the v5.0 recurrence). The hand-written echo list omitted SIX governance
+# targets in the v4.2 starter and EIGHT in v5.0 itself -- including `gate`, the canonical command.
+# The package's own front door did not mention its governance surface. Generated now: annotate a
+# target with `##` and it appears; there is nothing to forget.
+	@grep -hE '^[a-zA-Z0-9_.-]+:.*##' $(MAKEFILE_LIST) | sort | awk -F':.*## ' '{printf "  %-26s %s\n", $$1, $$2}'
 
+# (restored: the v5.1 help rewrite accidentally swallowed this rule -- its target starts with `$(`,
+# which the replacement regex did not treat as a target boundary. `make -n gate` said "No rule to make
+# target '.venv/bin/python'" and three conformance checks went red at once, which is how it was caught.)
 $(VENV)/bin/python: _check_python
 	$(PYTHON) -m venv $(VENV)
 	$(PIP) install --upgrade pip
 
 install: $(VENV)/bin/python
 	$(PIP) install -e ".[dev]"
+# v5.2 condition 16-3 (Increment 16), closing GPF-B03. Four harvests in a row had to GUESS which GP
+# version a tree was running, and one of those guesses was measurably wrong. The install step is the
+# only thing that knows; it writes what it did. Fail-closed: a refusal here fails `make install`,
+# because an installation whose version cannot be established is the condition this repairs.
+	@python3 scripts/write_install_marker.py
 
 test: install
 	@# `-n auto`: one worker per core (8 on the owner's Mac). Measured before adopting it: three
@@ -92,23 +91,17 @@ typecheck: install
 # ci.yml. The gate that decides whether a project is correctly INSTALLED was reachable only by
 # someone who already knew its name. Measured in the field: a project closed two milestones with 37
 # declared files missing. The owner, translated from Turkish: "you wrote a verify script -- that one does not fire either."
-# v4.3.2. `pipeline-design.md` described a commit hook running make check + gitleaks + pip-audit +
+# v4.3.2. `METHODOLOGY.md` described a commit hook running make check + gitleaks + pip-audit +
 # slopsquat, and a PreToolUse hook blocking .env writes AND destructive git commands. The hook ran
 # `make check` and blocked .env. `make check` called no security target at all. **Four of six advertised
 # controls did not exist**, in the document every reviewer reads to learn what is enforced.
 #
 # `gate` is now the ONE name that means "everything this pipeline claims to enforce". The hook calls it,
 # CI calls it, and the design doc points at it. If a control is not reachable from here, we do not claim it.
-#: M12-W1. `gate` depended on the RAW `conformance` leg while `check` runs `conformance-gate`,
-#: which applies the per-finding exemptions. So `make gate` exited 2 on a clean tree — measured —
-#: and it is the only thing `.claude/settings.json` runs after an edit. Its own log file had never
-#: been written, and CI never calls it, so a gate that has been red for months went unread by
-#: everybody including the hook that runs it.
-#:
-#: The six findings it failed on are all exempted, all still firing, and all handed back to the
-#: pipeline; four of them are W-013 — historical records naming `make pin-check`, a target v5.0
-#: removed. Exempting them was already the ruling; `gate` simply never got the memo.
-gate: check falsify secrets deps slopsquat  ## THE canonical gate -- everything the docs claim, actually wired
+#: DevFlow v6.0 adoption (D-155). The project's `conformance-gate` (per-finding exemptions, M12-W1)
+#: is retired: the raw suite passes with every exemption declared in `.path-refs-allow` and
+#: `.skill-refs-allow`, one row and one reason each, so `check` and `gate` both run `conformance`.
+gate: check conformance falsify secrets deps slopsquat  ## THE canonical gate -- everything the docs claim, actually wired
 	@echo "gate PASS: lint typecheck test records install secrets deps slopsquat"
 
 falsify:  ## v5: break every control on purpose; one that cannot be broken is not a control
@@ -123,15 +116,10 @@ falsify:  ## v5: break every control on purpose; one that cannot be broken is no
 conformance:  ## v4.3.2: every gate proven against inputs it must reject (V4C-80)
 	@$(PY) conformance/run-all.py 2>/dev/null || python3 conformance/run-all.py
 
-coverage-floor: install
+coverage-floor: install  ## W-041: no module carries materially less test proof than the rest
 	@# W-041. The per-module half of the coverage gate; the global floor lives in pyproject.
 	@# Runs AFTER `test`, which writes coverage.json as part of its normal run.
-	$(PY) -B scripts/coverage_floor.py
-
-conformance-gate: install
-	@# CI had been RED since at least M8 on this suite and `make check` did not run it, so nobody
-	@# looked. Per-FINDING exemptions, never per-leg: one of the five failures turned out to be ours.
-	$(PY) -B scripts/conformance_gate.py
+	$(PY) -B scripts/module_coverage_floor.py
 
 #: D-150 clause 1 as amended (W-111). The floor is no longer typed: it is the number of lines in
 #: the committed test manifest, and the manifest is compared NAME BY NAME with the tests the
@@ -184,7 +172,7 @@ swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING so
 		echo "swift-test SKIPPED NO-ENVIRONMENT: no swift toolchain on PATH"; \
 	fi
 
-check: lint typecheck test coverage-floor check-records check-records-selftest install-check wave-check-all conformance-gate swift-test client-decls
+check: lint typecheck test coverage-floor check-records check-records-selftest install-check harvest-context-check shell-dialect wave-check-all conformance swift-test client-decls
 
 client-decls: install  ## W-122 / D-126: the privacy invariant checked against RESOLVED declarations
 	@# Six rounds of a word list over the client were each bypassed by the next seat -- backticks,
@@ -193,11 +181,23 @@ client-decls: install  ## W-122 / D-126: the privacy invariant checked against R
 	@# reference to, where all of those are the same declaration. SKIPPED, loudly, with no Xcode.
 	$(PY) -B scripts/client_decl_gate.py
 
-wave-check-all: install
+wave-check-all: install  ## every wave-close record validated, not only the one you name
 	@# W-032 / this project's own field finding: a gate that is not in the command people type
 	@# does not run. The wave-record validator failed all four of one milestone's records on the
 	@# same three lines and nobody knew until someone ran it by hand at closure.
 	$(PY) -B scripts/wave_check_all.py
+
+harvest-context:  ## v5.2 (16-2): regenerate the control roster a field harvest grades GP against
+	@python3 scripts/gen_harvest_context.py
+
+shell-dialect:  ## 15-12 (Increment 18): every shipped .sh parses and declares one dialect
+	@bash scripts/shell_dialect_check.sh
+
+harvest-context-check:  ## v5.2 (16-2): fail if HARVEST-CONTEXT.md is stale against the controls
+# Distribution-side, like `falsify`. An installation has no roster to keep current and no
+# `falsifications.py` to derive one from, so it SAYS so rather than failing on a file it never had.
+	@if [ -f .gp-distribution ]; then python3 scripts/gen_harvest_context.py --check; else \
+	  echo "harvest-context SKIPPED: this is an installation, not the distribution package."; fi
 
 # v2.0: security gates as named Make targets
 secrets:
@@ -247,6 +247,40 @@ bootstrap-check:
 # dependency once for real and inspect the RESULT, not the config screen. Replace
 # the body below with one real smoke call per dependency (model / queue / store /
 # callback target). Until filled, this is a no-op reminder so it never blocks CI.
+# RETURNED at Increment 15, bound at Increment 16 (conditions 15-7 / 16-5). Both were deleted at the
+# v5 control screen for being unfalsifiable here, and both came back on field evidence: `journey` with
+# the best catch ratio in the dataset (five root causes reached the CUSTOMER through that gap), and
+# `cold-start` after a readiness probe reported Ready against a dead database.
+#
+# They return FAIL-LOUD, not green. The watch list says "returns fail-loud until wired", and the
+# reason is this package's oldest lesson: the first time `journey` shipped it exited 0 unwired and sat
+# there for five versions while nobody noticed it had never run. **A gate that passes before it is
+# wired teaches the team that the board means nothing.** Condition 15-7 is where the wiring debt lives;
+# until a project writes these two files, this build is red on purpose.
+cold-start:  ## Stage 4.3 (15-7): boot against ZERO persisted state, via the deployment's real mechanism
+	@test -f docs/cold-start.sh || { \
+	  echo "FAIL [cold-start]: docs/cold-start.sh does not exist."; \
+	  echo "  This gate says the artefact boots from nothing -- fresh volume, fresh container, the"; \
+	  echo "  REAL image, not a repo-local approximation. Nothing is wired, so that claim is false."; \
+	  echo "  binds: name the artefact the deployment actually consumes (condition 16-7)."; \
+	  echo "  Refusing the gate is also a legal answer: record it in docs/refusals.md and say why."; \
+	  exit 1; }
+	@bash docs/cold-start.sh
+
+journey:  ## Stage 4.3 (15-7): one recorded walkthrough at human speed against the DEPLOYED url
+	@test -n "$(URL)" || { \
+	  echo "FAIL [journey]: no URL. Usage: make journey URL=https://<deployed>"; \
+	  echo "  This gate binds to the DEPLOYED artefact. A journey against localhost is a different"; \
+	  echo "  claim about a different object -- that is the NOT-BINDING finding, not a pass."; \
+	  exit 1; }
+	@test -f docs/journey.sh || { \
+	  echo "FAIL [journey]: docs/journey.sh does not exist."; \
+	  echo "  Cold entry, credential lifecycle, a paying-customer round trip asserting CONTENT, and"; \
+	  echo "  one cross-wave sequence. ~60 lines and one URL, for the best catch ratio we have."; \
+	  echo "  Refusing the gate is also a legal answer: record it in docs/refusals.md and say why."; \
+	  exit 1; }
+	@URL="$(URL)" bash docs/journey.sh
+
 smoke-deps:  ## Stage 4.3 (L.8): invoke EACH external dependency for real and inspect the RESULT
 # v4.3.2 REPAIR. This target shipped as an explicit no-op that exited 0 -- with a comment saying
 # "until filled, this is a no-op reminder so it never blocks CI." That sentence is the exact inverse of
@@ -261,6 +295,14 @@ smoke-deps:  ## Stage 4.3 (L.8): invoke EACH external dependency for real and in
 	  exit 1; }
 	@bash docs/smoke-deps.sh
 
+closure-check:  ## v6.0 V3C-83: verify a filled closure report (make closure-check FILE=docs/closure-report-mN.md)
+# The asymmetry this closes: a WAVE close has been verified since v3.1 and a MILESTONE close never
+# was, though the milestone is where the owner reviews, where deploy is unblocked, and where the
+# waves under it stop being inspected one by one.
+	@test -n "$(FILE)" || { echo "usage: make closure-check FILE=docs/closure-report-m{N}.md"; exit 2; }
+	@test -f "$(FILE)" || { echo "FAIL [V3C-83]: $(FILE) missing -- copy docs/closure-report.template.md"; exit 1; }
+	@python3 scripts/closure_check.py "$(FILE)"
+
 wave-check:  ## v3.1 V3C-69: verify a filled wave-close checklist (make wave-check FILE=docs/plans/mN-wave-W-close.md)
 # v4.3.2 REPAIR. `make wave-check FILE=README.md` returned PASS, and so did the closure checklist. The
 # gate tested "is this a file with no empty table cells and no three specific placeholders" -- which
@@ -274,7 +316,13 @@ wave-check:  ## v3.1 V3C-69: verify a filled wave-close checklist (make wave-che
 export-project:  ## v4.3.2: produce an INSTALLATION from this distribution package (DEST=/path/to/project)
 	@test -n "$(DEST)" || { echo "usage: make export-project DEST=/path/to/your-project"; exit 2; }
 	@test ! -e "$(DEST)" -o -d "$(DEST)" || { echo "FAIL: $(DEST) exists and is not a directory"; exit 2; }
-	@python3 scripts/export_project.py "$(DEST)"
+# Distribution-side, same shape as `falsify`. `export_project.py` is GP-INTERNAL, so in an
+# installation it is absent -- and the delivered README used to open by telling the reader to run
+# this. It SAYS SO rather than dying on a missing file the user never had, and it does not exit 0
+# silently: a target that quietly does nothing is how a leg leaves a gate unnoticed.
+	@if [ -f scripts/export_project.py ]; then python3 scripts/export_project.py "$(DEST)"; else \
+	  echo "export-project UNAVAILABLE: this is an installation, not the distribution package."; \
+	  echo "  Exporting is how GP PRODUCES a delivery; you are already holding one."; exit 2; fi
 	@echo "  now: cd $(DEST) && make install-check"
 
 install-check:  ## v4.3 V4C-72/76: is this tree a COMPLETE install? (M1/M2/M3 vs INSTALL-MANIFEST.md)

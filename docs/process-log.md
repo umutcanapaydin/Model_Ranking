@@ -436,3 +436,18 @@ Lesson: write the held-out questions before the first change, or the probe measu
 - Wave closes for W1 (late), W3 and W4, independent W3 and W4 seats, closure report, retrospective,
   EXPERIENCE, M16 plan.
 Lesson: when two measurements disagree, run both on the same input before writing an explanation.
+
+## 2026-09-23 — M16-W2 committed; DevFlow v6.0 adopted (D-155)
+
+- M16-W2 pushed to `main` as 5fc3f02 on the owner's word, the last commit made that way.
+- Owner adopted DevFlow v6.0 and ruled three options in session: the adoption itself goes through a
+  draft PR; no AI attribution; the workflow changes ride in one separately marked commit.
+- Installed by three-way merge (GP v5.0 tag as base): 36 files taken, 36 added, 23 merged by hand,
+  15 retired. The project's own controls survived every conflict; D-155 clause 4 lists each place
+  this project now differs from DevFlow, and why.
+- `make gate` PASS: pytest 1015/15, Swift 268, client-decls 4 configurations, conformance 14/14
+  with every exemption a declared row, gitleaks clean, pip-audit clean, slopsquat clean.
+- DevFlow defects found and reproduced on a clean clone before being written down:
+  `docs/research/devflow-v6-field-findings-2026-09-23.md` (11 fresh-install, 4 growth, 5 upgrade).
+Lesson: merge a methodology upgrade three ways against the tag you installed, never copy over it.
+

@@ -38,4 +38,8 @@ docs/EXPERIENCE.md
 # gave that file a bogus `record_type`, a duplicate `id` and a bogus `status`, and the gate still
 # reported PASS. A directory nobody named is W-012's shape, and a research record is cited by a
 # plan the owner rules from.
-docs/research/*.md
+# DevFlow v6.0 (D-155): governance is now derived from `record_type:` frontmatter, so every research
+# record is governed whatever this file says; the glob is narrowed to the record SHAPE the directory
+# uses (`<topic>-<date>.md` and `m<N>-<topic>.md`), which `test-governed-paths.py` requires.
+docs/research/*-20[0-9][0-9]-[0-9][0-9]-[0-9][0-9].md
+docs/research/m[0-9]*-*.md

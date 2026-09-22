@@ -1,22 +1,17 @@
 Project: model_ranking
-RESUME HERE (2026-09-23): M16-W1 CLOSED and pushed (acef579). M16-W2 CLOSED agent-side, UNCOMMITTED
-(docs/plans/m16-wave-2-close.md; review + security + re-review, all fixed). Waiting for the owner's commit word.
-  - Engine: src/app/adapter/nightly.py (D-154, proposed) runs refresh.py as a CHILD PROCESS once a
-    night in 23:00-01:00 and once at startup on a stale record; off unless MODEL_RANKING_REFRESH=
-    nightly (ios/app.sh sets it); refused outside dev envs (D-116). /health gains refresh fields.
-    Proven end to end on a COPY of advisor.db (port 8099): a real nightly cycle published at 00:41.
-  - App: detail screen shows the floor (min_quality, W-112 FIXED); search surfaces say the search
-    call is not in the price (price_excludes, W-119 FIXED). make check green: pytest 1000/15, Swift 268.
-  - W-124 ACCEPTED: a cycle killed at the timeout leaves its .candidate file (fix in refresh.py later).
-  - W-125 (server loads the source parsers), W-126 (a stuck child outlives a hard-killed engine)
-    ACCEPTED to the M16 closure with W-124. Next wave: M16-W3 (floors under D-148; owner rules
-    each surface whose pick changes, plan §0.3).
-  - OWNER, after the commit: ./ios/app.sh restart, check `curl -s localhost:8080/health`, then run
-    scripts/retire_refresh.sh to remove the old launchd job.
+RESUME HERE (2026-09-23): the project now runs on DevFlow v6.0 (D-155). Run `/start-session` first.
+  - M16-W2 is CLOSED and on main (5fc3f02). M16-W3 is next (floors under D-148; plan §0.3).
+  - The DevFlow adoption is on branch `enhancement/devflow-v6` as a DRAFT PR; the OWNER reviews,
+    marks ready and merges. From now on nothing is pushed to main by an agent (D-999); no AI
+    attribution in commits or PRs.
+  - OWNER, once: protect `main` in GitHub (docs/branch-protection.md), or D-999 is an honour system.
+  - OWNER, after the M16-W2 engine is running: ./ios/app.sh restart, check
+    `curl -s localhost:8080/health` shows "refresh": "scheduled", then scripts/retire_refresh.sh.
+  - DevFlow defects for the DevFlow developer: docs/research/devflow-v6-field-findings-2026-09-23.md
 
 State: 2026-09-22 -- M15 is CLOSED and the owner signed off (D-150 clause 2 ratified). make check
 green on the owner's Mac: pytest 962/15, Swift 262 (each named in the manifest), client-decls PASS
-in 4 configurations; check-records / wave-check-all / conformance-gate PASS.
+in 4 configurations; check-records / wave-check-all / conformance PASS.
 
 READ IN THIS ORDER
   1. this file

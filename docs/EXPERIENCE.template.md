@@ -2,13 +2,13 @@
 record_type: experience
 id: experience-template
 status: draft
-process_version: v5.0
+process_version: v6.0
 date: 2026-08-12
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
-     filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
-     which is exactly what shipped in v4.3.1. -->
-# Project Experience — `<PROJECT_NAME>` (living document, v4.1 · V3C-81 + V4C-13)
+ filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
+ which is exactly what shipped in v4.3.1. -->
+# Project Experience — `<PROJECT_NAME>` (living document, ·)
 
 > **This file is a STANDING artifact, not a campaign deliverable.** Copy to `docs/EXPERIENCE.md`
 > at bootstrap; append at EVERY milestone closure (closure-checklist §B.2 line); the quarterly
@@ -38,8 +38,8 @@ date: 2026-08-12
 
 ## Findings (append per milestone; never rewrite old entries — supersede)
 
-### F`<n>` — `<one-line principle title>`  *(added at M`<N>` closure, YYYY-MM-DD)*
-- Category: incident | problem | best-practice | novel-experience | **control-bypass (v4.0, V4C-13: a control skipped under pressure is a finding about the CONTROL — record which, why, cost, and whether the control or the pressure should change)**
+### F`<n>` — `<one-line principle title>` *(added at M`<N>` closure, YYYY-MM-DD)*
+- Category: incident | problem | best-practice | novel-experience | **control-bypass (a control skipped under pressure is a finding about the CONTROL — record which, why, cost, and whether the control or the pressure should change)**
 - Severity / impact: catastrophic | high | medium | low
 - Confidence: N=`<how many independent occurrences>`
 - Principle: `<the reusable rule, one or two sentences>`
