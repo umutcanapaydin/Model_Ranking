@@ -111,13 +111,15 @@ def self_test() -> int:
         for name, build, want in (
             ("a: correct shape (owner on the protected branch, agent on its own branch)", "ok", 0),
             ("b: agent commit ON the protected branch's first-parent chain", "ff", 1),
-            ("c: a branch commit with NO trailer -- correct since v6.0, must stay quiet", "notrailer", 0),
+            # model_ranking (D-155 clause 2): the owner kept the trailer, so this case INVERTS here.
+            ("c: an agent branch commit with NO GP-Agent trailer (D-155 keeps it)", "notrailer", 1),
             ("d: a commit carrying AI attribution, on the branch under review", "ai", 1),
             # A21, and it is the RELAXATION, so it is proven rather than asserted: the same
             # attributed commit, already merged onto the protected branch, must stay quiet. Written
             # with the OWNER's identity on purpose -- with the machine's, the identity half would
             # fire and the case would pass for a reason that has nothing to do with what it tests.
             ("e: AI attribution already on the protected branch -- carried, not re-graded", "aimain", 0),
+            ("f: the local agent identity on main after the D-999 anchor (a push that skipped a PR)", "anchor", 1),
         ):
             repo = pathlib.Path(tmp) / build
             repo.mkdir()
@@ -130,6 +132,13 @@ def self_test() -> int:
                 _git(repo, "add", "f")
                 _git(repo, "commit", "-qm", "agent", "-m", "GP-Agent: checkpoint-lane",
                      env_email=MACHINE, env_name="gp-agent")
+            elif build == "anchor":
+                _, first = sh(["git", "rev-parse", "HEAD"], cwd=repo)
+                (repo / ".owner-identity").write_text(f"owner_email: owner@x\nd999_anchor: {first}\n")
+                (repo / "f").write_text("b")
+                _git(repo, "add", "f", ".owner-identity")
+                _git(repo, "commit", "-qm", "agent", "-m", "GP-Agent: local-lane",
+                     env_email="noreply@anthropic.com", env_name="Claude")
             elif build == "aimain":
                 (repo / "f").write_text("b")
                 _git(repo, "add", "f")
@@ -141,6 +150,8 @@ def self_test() -> int:
                 (repo / "f").write_text("b")
                 _git(repo, "add", "f")
                 msg = ["-qm", "agent"]
+                if build != "notrailer":
+                    msg += ["-m", "GP-Agent: issue-agent"]
                 if build == "ai":
                     msg += ["-m", "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"]
                 _git(repo, "commit", *msg, env_email=MACHINE, env_name="gp-agent")
@@ -158,6 +169,19 @@ def self_test() -> int:
     return 1 if bad else 0
 
 
+def _declared_identity() -> dict:
+    """`key: value` rows from the repository's committed `.owner-identity`, if it has one."""
+    _, top = sh(["git", "rev-parse", "--show-toplevel"])
+    f = pathlib.Path(top or ".") / ".owner-identity"
+    rows: dict = {}
+    if f.is_file():
+        for line in f.read_text(encoding="utf-8").splitlines():
+            if line.strip() and not line.lstrip().startswith("#") and ":" in line:
+                k, _, v = line.partition(":")
+                rows[k.strip()] = v.strip()
+    return rows
+
+
 def main() -> int:
     argv = sys.argv[1:]
     if "--self-test" in argv:
@@ -173,8 +197,14 @@ def main() -> int:
     if rc != 0:
         print("test-commit-identity CANNOT RUN: no commits yet."); return 2
 
+    # model_ranking (D-155): the owner is DECLARED in a committed `.owner-identity`, because this
+    # clone's git config is the agent's own identity. `--owner-email` still overrides.
+    declared = _declared_identity()
+    anchor = declared.get("d999_anchor", "")
     if "--owner-email" in argv:
         owner = argv[argv.index("--owner-email") + 1]
+    elif declared.get("owner_email"):
+        owner = declared["owner_email"]
     else:
         _, owner = sh(["git", "config", "user.email"])
     if not owner:
@@ -201,6 +231,10 @@ def main() -> int:
     # what the ledger names as the wrong way to end this row. On the base itself the set is empty,
     # and that is PRINTED rather than passed quietly: an exemption nobody can see is
     # indistinguishable from a pass.
+    after_anchor: set = set()
+    if anchor:
+        _, later = sh(["git", "rev-list", "--first-parent", f"{anchor}..{base}"])
+        after_anchor = set(later.splitlines())
     _, added = sh(["git", "log", "--format=%H", f"{base}..HEAD"])
     ai_pop = set(added.splitlines())
 
@@ -241,7 +275,11 @@ def main() -> int:
             bad.append(f"{sha[:9]} carries AI attribution -- no `Co-Authored-By` with a model, no "
                        "\"Generated with\", no badges, in commits or anywhere else")
         if sha in first_parent:
-            if email == MACHINE:
+            if email in AGENT_EMAILS and sha in after_anchor:
+                bad.append(f"{sha[:9]} agent identity `{email}` on the protected branch after "
+                           "D-999 -- agent work reaches `main` only as a pull request the owner "
+                           "merges; a rebase-merge or a direct push puts it here")
+            elif email == MACHINE:
                 bad.append(f"{sha[:9]} machine identity on the FIRST-PARENT chain -- agent work "
                            "reached the protected branch as the owner's history. It should have "
                            "arrived as a merged pull request the owner merged")

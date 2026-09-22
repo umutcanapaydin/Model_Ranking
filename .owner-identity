@@ -1,0 +1,8 @@
+# Who the OWNER is, for conformance/test-commit-identity.py (D-155, adoption review MINOR-4).
+# Committed, not read from `git config user.email`: in this clone that is the agent's own identity,
+# which made the check compare the agent with itself. Read from the owner's own merge of PR #1
+# (831fd05): GitHub writes merge commits with this author address.
+owner_email: umutcanapaydin@gmail.com
+# The last commit an agent pushed straight to `main` (M16-W2, on the owner's word, before D-999).
+# From here on, an agent identity on main's first-parent chain means work that skipped a pull request.
+d999_anchor: 5fc3f0228e2d3d96bf92f88da918085085cd70cf

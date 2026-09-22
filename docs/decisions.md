@@ -2485,6 +2485,19 @@ FINDINGS 0/5/7/4, and the first CI runs on PR #1).* Corrections to the text abov
    `--no-verify` or `git push origin refs/heads/main`** (MINOR-5). Until the owner rules on a
    hook change, branch protection on `main` is the only enforcement of those four.
 
+
+*Owner rulings on the three open items, 2026-09-23 (in session, translated from Turkish: "commit
+what DevFlow says, create the PRs, I will merge. You can take my identity from git. If you are
+leaving it to branch protection anyway, is there a need to ask?"):*
+1. The two further workflow commits on PR #1 are accepted with it; the owner reviews and merges.
+2. The owner identity is the address GitHub wrote on the owner's merge of PR #1, committed in `.owner-identity`
+   with the D-999 anchor (`5fc3f02`, the last direct push). `test-commit-identity` reads it, fails
+   an agent commit on the branch without the `GP-Agent:` trailer, and fails the local agent identity
+   on `main`'s first-parent chain after the anchor (a rebase-merge or a push that skipped a PR).
+   Its self-test covers both.
+3. No hook change: `gh pr merge`, `gh pr ready`, `--no-verify` and `refs/heads/main` pushes are
+   left to branch protection on `main`, which the owner sets.
+
 ---
 
 ## D-999 — the agent opens drafts; a human merges
