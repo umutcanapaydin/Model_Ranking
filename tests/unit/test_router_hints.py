@@ -277,23 +277,124 @@ def test_the_gap_register_stays_on_the_device() -> None:
     # shape `SCORE_ARITHMETIC_PERMITTED` uses for D-138.
     #
     # `EngineClient.swift` is the exemption: it IS the network layer, and what it may send is
-    # pinned argument by argument by `test_the_client_sends_only_the_surface_and_budget` above.
-    egress = ("URLSession", "URLRequest", "URL(string:", "NWConnection", "CFStream", "Network.")
-    permitted = {"EngineClient.swift": "D-126: the one sanctioned door; its arguments are pinned"}
-    seen: set[str] = set()
-    for path in sorted(CLIENT.rglob("*.swift")):
-        if path.name in permitted:
-            seen.add(path.name)
+    # pinned argument by argument in `ios/EngineTests/EngineClientTests.swift`
+    # (`testTheSurfaceAndTheBudgetAreBothSentAndNothingElseIs`, `testNothingTheReaderTypedIsEverSent`).
+    #
+    # M15 closure security seat, MAJOR-1: the six-word list above let 10 of 12 privacy mutants
+    # through -- `URL.init(string:)`, `URLComponents` + `UIApplication.open`, a web view, the
+    # pasteboard, iCloud key-value storage, `UserDefaults`, `NSLog`, `Data(contentsOf:)` on a remote
+    # URL -- and cut every line at its first `//`, so a URL literal hid a call after it. Since this
+    # milestone the SCREEN promises "This app never sends what you type anywhere", so the gate is now four
+    # layers: an import ALLOWLIST, a comment stripper that respects string literals, a ban on every
+    # API that can carry text off the device or into shared storage, and no non-Swift sources.
+    _assert_the_client_has_no_way_off_the_device()
+
+
+#: Frameworks the client may import. `Network`, `WebKit`, `CloudKit`, `UIKit`, `os`, `SafariServices`
+#: and the rest are refused by their absence here: a new one is a reviewed edit to this set.
+CLIENT_IMPORTS = {"Foundation", "SwiftUI", "NaturalLanguage", "FoundationModels"}
+
+#: Every spelling that reaches the network, opens a URL, or writes text somewhere other than the
+#: gap register's own backup-excluded file. Matched after comments are stripped.
+EGRESS = (
+    r"\bURLSession\b", r"\bURLRequest\b", r"\bURL\s*\(\s*string\s*:", r"\bURL\.init\b",
+    r"\bURLComponents\b", r"\bNWConnection\b", r"\bCFStream", r"\bNetwork\.", r"\bopenURL\b",
+    r"\bUIApplication\b", r"\bLink\s*\(", r"\bWKWebView\b", r"\bSFSafariViewController\b",
+    r"\bUIPasteboard\b", r"\bNSPasteboard\b", r"\bNSUbiquitousKeyValueStore\b", r"\bCKContainer\b",
+    r"\bUserDefaults\b", r"\bSceneStorage\b", r"\bAppStorage\s*\((?!\s*\"language\"\s*\))",
+    r"\bNSLog\b", r"\bos_log\b", r"\bLogger\s*\(", r"\bprint\s*\(", r"\bdebugPrint\s*\(",
+    r"\bdump\s*\(", r"\bcontentsOf\s*:", r"isExcludedFromBackup\s*=(?!\s*true\b)",
+)
+
+#: The sanctioned exceptions, each one file and one reason. `contentsOf:` in FrontDoor is the
+#: register reading its own local file; the URL and URLComponents in EngineClient are the door.
+EGRESS_PERMITTED = {
+    ("EngineClient.swift", r"\bURL\s*\(\s*string\s*:"): "D-126: the engine's base URL",
+    ("EngineClient.swift", r"\bURLComponents\b"): "D-126: the request; its arguments are pinned",
+    ("EngineClient.swift", r"\bURLSession\b"): "D-126: the one sanctioned door",
+    ("EngineClient.swift", r"\bURLRequest\b"): "D-126: the one sanctioned door",
+    ("FrontDoor.swift", r"\bcontentsOf\s*:"): "REQ-GAP-001: the register reads its own local file",
+}
+
+
+def _strip_comments(source: str) -> str:
+    """Swift source with `//` and `/* */` comments removed, and string literals kept whole.
+
+    Cutting each line at its first `//` (the old gate) treated `"https://..."` as a comment, so a
+    call later on that line was never read. This walks the text and only starts a comment outside a
+    literal; `\"` escapes and `\"\"\"` multi-line literals are honoured.
+    """
+    out: list[str] = []
+    i, n = 0, len(source)
+    string: str | None = None
+    while i < n:
+        if string is not None:
+            if source.startswith("\\", i):
+                out.append(source[i : i + 2])
+                i += 2
+                continue
+            if source.startswith(string, i):
+                out.append(string)
+                i += len(string)
+                string = None
+                continue
+            out.append(source[i])
+            i += 1
             continue
-        code = "\n".join(
-            line.split("//", 1)[0] for line in path.read_text(encoding="utf-8").splitlines()
+        if source.startswith('"""', i):
+            string = '"""'
+            out.append(string)
+            i += 3
+        elif source[i] == '"':
+            string = '"'
+            out.append('"')
+            i += 1
+        elif source.startswith("//", i):
+            end = source.find("\n", i)
+            i = n if end == -1 else end
+        elif source.startswith("/*", i):
+            end = source.find("*/", i + 2)
+            i = n if end == -1 else end + 2
+        else:
+            out.append(source[i])
+            i += 1
+    return "".join(out)
+
+
+def _assert_the_client_has_no_way_off_the_device() -> None:
+    used: set[tuple[str, str]] = set()
+    for path in sorted(p for p in CLIENT.rglob("*") if p.is_file()):
+        if ".xcassets" in path.parts or path.name == ".DS_Store":
+            continue
+        assert path.suffix in {".swift", ".plist", ".json", ".strings"}, (
+            f"{path.relative_to(CLIENT)} is a source this gate cannot read; the Xcode target "
+            "compiles every file in the folder, so a non-Swift file is an unguarded door"
         )
-        for door in egress:
-            assert door not in code, (
-                f"{path.name} opens its own network door (`{door}`); the reader's words reach this "
-                "layer, and the only sanctioned egress is EngineClient with its arguments pinned"
+        if path.suffix != ".swift":
+            continue
+        code = _strip_comments(path.read_text(encoding="utf-8"))
+        for module in re.findall(
+            r"^[ \t]*(?:@\w+[ \t]+)*import[ \t]+"
+            r"(?:(?:struct|class|enum|protocol|typealias|func|var|let)[ \t]+)?(\w+)",
+            code,
+            re.MULTILINE,
+        ):
+            assert module in CLIENT_IMPORTS, (
+                f"{path.name} imports `{module}`, which is not on the client's allowlist; the "
+                "reader's words reach every client file, so a new framework is a reviewed edit"
             )
-    assert seen == set(permitted), (
-        f"{sorted(set(permitted) - seen)} is permitted to reach the network and is no longer "
-        "there; an exemption that outlives its file silently widens the next time one is added"
+        for pattern in EGRESS:
+            if not re.search(pattern, code):
+                continue
+            if (path.name, pattern) in EGRESS_PERMITTED:
+                used.add((path.name, pattern))
+                continue
+            raise AssertionError(
+                f"{path.name} matches `{pattern}`: a way for text to leave the device or reach "
+                "shared storage; the only sanctioned egress is EngineClient with its arguments pinned"
+            )
+    stale = set(EGRESS_PERMITTED) - used
+    assert not stale, (
+        f"{sorted(stale)} is permitted and no longer used; an exemption that outlives its use "
+        "silently widens the next time the same call is added"
     )

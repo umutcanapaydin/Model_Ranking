@@ -313,6 +313,23 @@ def test_the_parser_labels_rows_with_the_board_it_was_given() -> None:
     assert [r.benchmark for r in rows] == ["Arena text"]
 
 
+def test_a_rating_that_is_not_a_finite_number_is_refused_and_counted() -> None:
+    """M15 closure security seat, MINOR-1: an `Infinity` rating reached the artifact and made the
+    surface answer 500. `NaN` and both infinities are refused as rows, and each one is counted."""
+    from app.clients.arena import parse_arena
+
+    good = {"model_name": "claude-opus-5-high", "rating": 1516.26, "category": "overall",
+            "leaderboard_publish_date": "2026-09-13"}
+    bad = [dict(good, model_name=f"m{i}", rating=value)
+           for i, value in enumerate((float("inf"), float("-inf"), float("nan")))]
+    payload = json.dumps({"rows": [{"row": r} for r in (good, *bad)]})
+
+    rows, skipped = parse_arena(payload)
+
+    assert [r.raw_name for r in rows] == ["claude-opus-5-high"]
+    assert skipped == 3
+
+
 def test_every_registered_arena_board_is_attributed_and_floored() -> None:
     """A CC-BY feed with no citation is a licence breach; a floor of 1 catches nothing (W-024)."""
     from app.clients.arena import ARENA_BOARDS

@@ -99,3 +99,22 @@ held-out set. The honest reading is that the example tier is materially better t
 tier on wording neither has seen (18 of 22 against 3 of 17 and 5 of 17), and that it is still the
 second tier. Cost: about 100 short embeddings per question instead of 17; the whole probe, model
 load included, runs in about a second on the owner's Mac. It has not been timed on a phone.
+
+## 6. Correction, 2026-09-22: one example was a copy of a held-out question
+
+The M15 closure security seat (`docs/reviews/m15-closure-security-review.md`, INFO) found that
+the decline example "which model has the lowest latency" was word for word the held-out question
+of the same text. Section 3's statement that "none is copied from a test or from the held-out set"
+was false for that one example, and the held-out set was not fully held out.
+
+**Remedy.** The example was replaced with "compare response times between models", and both sets
+were measured again: **probe 21 of 21, held-out 18 of 22, unchanged.** The latency question
+still declines, at 0.417 against the decline group and 0.269 against the closest surface.
+
+**What else the check showed.** A similarity pass over every example against both question sets
+found no other copy. It found close paraphrases, all written by the same person: "make my selfie
+look better" against the probe's "make my profile photo look better" (0.78), and "which model is
+fastest" against "which model answers fastest" (0.86). So the probe's three declines are weak
+evidence, and the held-out set is best read as "written first, by someone who then wrote the
+examples". A held-out set written by someone else is the only fix for that, and it is owed with
+any further example change (D-147 clause 5).

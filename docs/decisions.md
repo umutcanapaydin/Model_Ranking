@@ -1750,9 +1750,11 @@ is still in the payload, and M14's detail screen is where it can return with its
 
 ## D-141 — A HIGH wave owes its pulled-forward security pass, and its author cannot waive it
 
-**Status:** proposed · **Date:** 2026-09-15 · **Proposed by:** the lead agent at M13 closure, as the
-control review C2b asked for (W-088, W-089, W-090). **Ratifying it is the owner's**, because it
-changes what a wave-close row may say.
+**Status:** **accepted by the owner 2026-09-22** (in session, at M15-W4, choosing "Yes, make it
+mandatory" after five bypasses, W-106) · **Date:** 2026-09-15 · **Proposed by:** the lead agent at
+M13 closure, as the control review C2b asked for (W-088, W-089, W-090). **Ratifying it is the
+owner's**, because it changes what a wave-close row may say. First discharged by M15-W3, whose pass
+is `docs/reviews/m15-closure-security-review.md`.
 
 **Context.** Two texts define when a HIGH wave gets a security read, and they disagree. V3C-78 in
 `AGENTS.md` §4 makes the pulled-forward security pass part of the HIGH tier: Code-Reviewer, Tester,
@@ -2070,6 +2072,9 @@ rewordings only moved the hub. The tier was already weak on unseen wording befor
    is the gate.
 5. A change to any example or decline group owes a run of `scripts/router_probe/` on both question
    sets, and the held-out set is never tuned against.
+   **Amended 2026-09-22:** one decline example had been copied from the held-out set, and was
+   replaced (scores unchanged; `docs/reviews/m15-router-recalibration.md` §6). The next held-out
+   set is written by someone other than the author of the examples.
 
 **The cost.** About 100 embeddings per question instead of 17, not yet timed on a phone. The examples
 are a second hand-maintained table keyed to engine ids, gated as the first one is.
@@ -2077,3 +2082,86 @@ are a second hand-maintained table keyed to engine ids, gated as the first one i
 **Revisit when:** the held-out score drops below the probe's by more than it does now (18 of 22
 against 21 of 21), a phone timing shows the tier is slow, or the on-device model tier covers enough
 of the device base that this tier matters less.
+
+## D-148 — One floor rule for every surface: the top third of the whole board
+
+**Status:** **accepted by the owner 2026-09-22** (in session, at M15-W4, answering W-094) ·
+**AMENDED the same day** by the lead agent after the W1 review (`docs/reviews/m15-wave-1-review.md`
+M-1) showed the first text named the wrong population; **clause 1's population ruled by the owner
+the same day: board ROWS** · **Date:** 2026-09-22 · **Proposed by:** the lead agent, from M15-W1's measurement.
+
+**Context.** `categories.py` said every floor was sized on the RANKED population (reconciled and
+priced). D-145 floored the M14 surfaces on the WHOLE board instead, and W-094 asked which rule the
+product actually follows. M15-W1 computed both rules on all eleven shipped surfaces
+(`docs/research/m15-board-survey-2026-09-21.md`): nine sit closer to the board rule, so the comment
+had been describing the rule the product did not ship since M8.
+
+**Decision.**
+
+1. A surface's `min_quality` is the top third of the WHOLE board's ROWS, one per raw name as the
+   board parser emits them (not the ranked population, and not distinct canonical models), for
+   every surface, current and new. **Ruled by the owner 2026-09-22** ("every row in the list",
+   translated from Turkish), choosing the count the M8 floors already follow. **This supersedes
+   D-145's count:** `document`, `factuality`, `vision`, `search` and `search_factuality` were floored
+   on distinct models and are re-derived under this rule in M16, with `agentic-coding`, which fits
+   neither count.
+2. The window and the tie margin keep M8's sizing by candidate count on the ranked population: they
+   are about the models a reader can buy, and nothing measured them as wrong.
+3. The header comment in `categories.py` states the rule and names the floors that do not yet
+   follow it.
+
+**The cost, stated (as measured by the W1 review, which recomputed every floor).** Under the ROWS
+count, the M8 floors already hold: `abstract`, `computer-use`, `mathematics` and `web-dev` exactly,
+`everyday` and `expert` within 0.3, `coding` within 0.4; only `agentic-coding` (50.0) fits no rule.
+Under the DISTINCT-models count, seven floors move (`abstract` +6.7, `everyday` −5.3,
+`computer-use` +3.9, `mathematics` +2.0, `coding` +1.6, `web-dev` +1.1, `expert` −0.3), some by
+more than the surface's own tie margin. Either way the product has two counts today, and the
+first text of this ADR hid that by calling the M8 floors D-145's. Re-deriving anything changes
+what a surface recommends, so it is a calibration wave with its own review, owned by M16 (W-094).
+
+**Revisit when:** a board's population is too thin for a third to mean anything (the two outliers
+are the two thinnest boards), or M16's re-derivation shows the rule refusing a model a reader would
+reasonably want.
+
+
+## D-149 — One application: the engine refreshes itself, and the app can ask it to
+
+**Status:** **accepted by the owner 2026-09-22** (in session, at M15-W4) · **Date:** 2026-09-22 ·
+**Proposed by:** the lead agent, answering the M13 note the M15 plan carried as "the app / harness
+split" (§1, scoped in W4, not built).
+
+**Context.** Asked what the M13 note meant, the owner first chose "data collection versus the
+application", and the lead agent recorded that as a separation to be proposed in W4. The owner then
+said what they actually want (translated from Turkish): "a single application that is also the
+updater". Today the product is three pieces that run independently: the iOS app, which only reads;
+the engine (`src/app/adapter/main.py`, started by `ios/app.sh up`); and the refresh
+(`src/app/workflows/refresh.py`), run every 12 hours by a separate launchd job
+(`deploy/com.hcs.modelranking.refresh.plist`, `StartInterval` 43200). The app cannot see or start a
+refresh, and the refresh does not depend on the engine running.
+
+**Decision.** The note is answered by merging, not splitting.
+
+1. The engine owns the refresh schedule: while it runs, it starts a refresh cycle on the same 12-hour
+   interval, so one process is started instead of two, and the launchd job is retired once this
+   ships.
+2. The engine calls `refresh.py`'s existing entry point and nothing else. The refresh keeps every
+   property it has today (the lock that stops two cycles overlapping, the build's own safe publish,
+   the refusal to publish a candidate that is not better), so there is still one definition of
+   "safe to serve".
+3. The app gains an "update now" action and shows when the data was last refreshed. Starting a
+   refresh is a new request to the engine, and any new `/v1` route or field needs its own ADR before
+   it ships (M15 plan §3); that ADR is part of the build wave.
+4. Collection stays on the Mac. The collectors are Python and cannot run on the phone, so "one
+   application" means one engine that answers and refreshes, and one app that shows and can ask for
+   a refresh.
+
+**The cost.** A refresh now shares a process with the server answering the app, so a slow or
+failing cycle must not block or crash it; the build wave has to show that, not assume it. A refresh
+button is also a way to make the engine do expensive upstream work on demand, so it needs a
+rate limit and a place in the security review.
+
+**Owning milestone: M16**, a build wave of its own. Nothing is built in M15; this ADR replaces the
+"separation" proposal W4 was going to write.
+
+**Revisit when:** the engine moves off the owner's Mac (the `fly.toml` deployment), where a
+scheduler inside a server that can be scaled to zero or to several copies behaves differently.

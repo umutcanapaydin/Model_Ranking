@@ -23,7 +23,7 @@ dev = [
     "pytest-asyncio>=0.24",
     "pytest-cov>=5.0",
     "pytest-xdist>=3.6",  # `make test` runs the suite across every core (owner, 2026-09-20)
-    "ruff>=0.7",
+    "ruff==0.16.2",              # W-108: pinned; a newer ruff raised findings this one does not
     "black>=24.10",
     "mypy>=1.13",
     "respx>=0.21",

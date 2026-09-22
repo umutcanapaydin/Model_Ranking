@@ -49,6 +49,7 @@ def test_unlimited_publishes_no_cap_rather_than_a_large_one(client: TestClient) 
     assert caps["medium"] == 8.0
 
 
+@pytest.mark.artifact  # W-108
 @pytest.mark.parametrize("budget", ["low", "medium"])
 @pytest.mark.parametrize("task", ["everyday", "assistant", "coding"])
 def test_the_published_cap_reproduces_the_engines_own_eligible_count(
@@ -78,6 +79,7 @@ def test_the_published_cap_reproduces_the_engines_own_eligible_count(
         )
 
 
+@pytest.mark.artifact  # W-108
 def test_the_published_blend_reproduces_each_rows_blended_price(client: TestClient) -> None:
     """The weights are published so the cap can be CHECKED, not merely applied.
 

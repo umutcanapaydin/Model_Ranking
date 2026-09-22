@@ -394,10 +394,13 @@ public enum UIText {
     }
 
     /// Beside the lock icon: D-126, said to the reader rather than only to the repository.
+    /// Worded as what THIS APP does (M15 closure security seat, MINOR-2): "stays on this device"
+    /// promised more than the app controls, since a third-party keyboard with Full Access or system
+    /// dictation sees the text before the app does.
     public static func privateQuestion(_ language: Language) -> String {
         language == .turkish
-            ? "Yazdıkların bu cihazda kalır."
-            : "What you type stays on this device."
+            ? "Bu uygulama yazdıklarını hiçbir yere göndermez."
+            : "This app never sends what you type anywhere."
     }
 
     /// A surface that ranked nothing. The engine's own reason is shown under it.

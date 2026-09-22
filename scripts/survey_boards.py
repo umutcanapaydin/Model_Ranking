@@ -165,6 +165,10 @@ def parse_rate_board(raw: str, *, source: str, benchmark: str) -> tuple[list[Sco
         )
         if name in best:
             skipped += 1
+            # The Elo path keeps each model's BEST score (`parse_arena`); keeping whichever duplicate
+            # came last would make the two paths disagree on the same board (W1 review m-4).
+            if best[name].score >= row.score:
+                continue
         best[name] = row
     return list(best.values()), skipped
 
@@ -303,7 +307,7 @@ def main(argv: list[str] | None = None) -> int:
     configs = args.only or CONFIGS
     records: list[dict[str, Any]] = []
     header = (
-        f"{'config':26s} {'metric':>6s} {'rows':>6s} {'models':>7s} {'ranked':>7s} "
+        f"{'config':30s} {'rows':>6s} {'models':>7s} {'ranked':>7s} "
         f"{'leader':>8s} {'spread':>7s} {'D145':>8s} {'ranked⅓':>8s}"
     )
     print(header)
@@ -332,8 +336,8 @@ def main(argv: list[str] | None = None) -> int:
                 f"{record['board_distinct_models']:7d} {record['ranked_population']:7d} "
                 f"{record['leader'] if record['leader'] is not None else '-':>8} "
                 f"{record['spread'] if record['spread'] is not None else '-':>7} "
-                f"{record['floor_board_third_D145'] if record['floor_board_third_D145'] else '-':>8} "
-                f"{record['floor_ranked_third'] if record['floor_ranked_third'] else '-':>8}"
+                f"{record['floor_board_third_D145'] if record['floor_board_third_D145'] is not None else '-':>8} "
+                f"{record['floor_ranked_third'] if record['floor_ranked_third'] is not None else '-':>8}"
             )
             records.append(record)
 

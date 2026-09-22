@@ -21,6 +21,9 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+#: W-108: reads the built artifact; skipped by name where it is absent (tests/conftest.py).
+pytestmark = pytest.mark.artifact
+
 REASONS = {"highest_score", "cheapest_within_window", "cheapest_above_floor", "nothing_clears_floor"}
 
 

@@ -131,3 +131,29 @@ of 67.2 is not a rounding difference, it is a floor that admits models the rule 
    then bring the direction question back as an ADR. They are the best match to the product's
    stated direction and the worst match to its current engine.
 5. **Nothing for image or video** until the pricing basis is ruled.
+
+## Correction, 2026-09-22 — after the independent W1 review
+
+`docs/reviews/m15-wave-1-review.md` (`seat: independent`) recomputed every number in this record
+from the artifact with its own queries. **Every floor value above is right.** Three statements are
+not, and they stand corrected here rather than edited above:
+
+1. **"The rule the product actually shipped is D-145's" is wrong** (review M-1). The M8 floors are
+   the top third of the board's ROWS, one per raw name, which is what `docs/reviews/m8-category-
+   calibration.md` counted; D-145 counts DISTINCT canonical models. Under the rows count
+   `abstract`, `computer-use`, `mathematics` and `web-dev` reproduce exactly, `everyday` (149.6) and
+   `expert` (83.4) within 0.3, `coding` (65.4 on the `swebench` rows) within 0.4. **Only
+   `agentic-coding` (50.0) fits no rule.** The direction of W-094 stands, and more strongly: ten of
+   eleven surfaces sit on a board rule, none on the ranked one.
+2. **"The two that do not are the two thinnest boards" is withdrawn.** ECI has 295 distinct models
+   and 521 rows. `agentic-coding`'s 67.2 also pools every effort level; on the `high` rows the
+   surface ranks, the board third is 64.4 (review m-2).
+3. **"Nine of eleven"** counts `document` and `factuality`, which hold by construction; the
+   independent evidence is seven of nine (review m-3). The style-control floors are not "within 5
+   Elo" of the base boards: `text` differs by 15.4, `search` by 9.6 and 9.1, `vision` by 7.2 and
+   6.1 (review m-1).
+
+Provenance gap (review M-2): `scripts/survey_boards.py` reproduces the three LMArena rows of the
+W-094 table, not the other eight. The review reproduced them with its own queries; a script mode
+that prints all three candidate floors for every surface is owed with W-094's re-derivation (M16).
+

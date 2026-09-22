@@ -27,6 +27,9 @@ from fastapi.testclient import TestClient
 from app.adapter import main as adapter
 from app.workflows.schema import connect
 
+#: W-108: reads the built artifact; skipped by name where it is absent (tests/conftest.py).
+pytestmark = pytest.mark.artifact
+
 
 @pytest.fixture
 def serving(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, Path]:

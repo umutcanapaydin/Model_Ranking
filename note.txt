@@ -1,7 +1,13 @@
 Project: model_ranking
-State: 2026-09-22 — M15 W1, W2 and W3 are COMMITTED LOCALLY on top of 855b44a, NOT PUSHED, in
-three commits (W1 · W2 + the UI refresh · W3 + D-147), each with a green `make check` on its own
-tree. Agent identity, at the owner's request in session. M15-W4 (closure) is next.
+State: 2026-09-22 — M15 W1, W2, W3 are committed AND pushed (origin/main). M15-W4 (closure) is IN
+PROGRESS: its work so far (D-141 and D-148 accepted, W-108 fixed, W-116 deferred, the Stage 4.0
+security review and the W1 review) is committed as a checkpoint before the owner reset the machine.
+Agent identity, at the owner's request in session.
+
+NEWEST RULING (2026-09-22): D-149 — ONE APPLICATION. The owner wants the engine to also be the
+updater: the engine runs the 12-hour refresh itself (the launchd job retires), and the app gets an
+"update now" action plus "last refreshed" time. Collection stays on the Mac. This REPLACES the
+"separate the app from the harness" proposal W4 was going to write. Built in M16, not M15.
 
 READ IN THIS ORDER
   1. this file
@@ -32,12 +38,13 @@ FIRST THING TO DO IN A LANE THAT HAS SWIFT
   BUILD SUCCEEDED (2026-09-22). Still unmeasured: the router's speed on a phone (D-147's cost).
 
 THEN
-  The owner pushes (nothing is pushed). Then M15-W4 closure, and the four rulings in
-  docs/closure-report-m14.md §0 are still owed.
+  Finish M15-W4: the W4 close, closure-report-m15, retrospective, EXPERIENCE, and the M16 plan.
+  M16 must carry: D-149 (one application, its own build wave + a /v1 ADR for the refresh request),
+  the floor re-derivation under D-148, and D-144's carry-forward (W-116).
 
 THE THING A NEW AGENT MUST NOT UNDO
   - Uncertainty.swift is the ONE file allowed arithmetic on a served score (D-138).
   - Nothing typed leaves the device (D-126). The egress ban covers every file under
     ios/ModelRanking, with EngineClient.swift the one named exemption (W-110).
-  - No commit as the owner (D-117); English-only repository; deploy/ and .github/ are his.
+  - No commit as the owner (D-117); English-only repository; deploy/ and .github/ are the owner's.
   - Before writing a file, RE-READ the copy on disk. W-114 is what happens otherwise.

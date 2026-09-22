@@ -39,12 +39,16 @@ class CategorySpec:
     score_anchor: float | None = None
 
 
-#: **Every threshold below is sized on the RANKED population** -- models that reconcile to the
-#: registry AND carry a price median -- not on the full board. The engine can only recommend a
-#: model somebody can buy, and the two populations differ by an order of magnitude (58 of 521
-#: on ECI). Calibrating against the board has now produced wrong thresholds three times
-#: (W-037); evidence and method: `docs/reviews/m8-category-calibration.md`, including its
-#: 2026-08-19 correction section, which supersedes the table above it.
+#: **The floor rule is the top third of the WHOLE board's ROWS, one per raw name, for every surface
+#: (D-148, owner's ruling 2026-09-22, W-094)** -- not the RANKED population this comment claimed from
+#: M8 to M15, and not D-145's distinct-model count. The M8 floors already follow it
+#: (`docs/reviews/m15-wave-1-review.md` M-1 recomputed all eleven). NOT YET RE-DERIVED under it:
+#: `document`, `factuality`, `vision`, `search`, `search_factuality` (floored on distinct models)
+#: and `agentic-coding` (50.0, which fits neither count). They move in M16, in a calibration wave
+#: with its own review, because a floor change changes what the surface recommends.
+#: The window and tie margin are still sized by candidate count on the ranked population
+#: (`docs/reviews/m8-category-calibration.md`), because a window is about the models a reader
+#: can actually buy.
 # --- M12-W2: the titles are what a reader MEETS, and they were written by people who already knew
 # what a benchmark was ------------------------------------------------------------------------
 #

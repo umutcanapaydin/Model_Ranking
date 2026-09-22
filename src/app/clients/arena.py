@@ -14,6 +14,7 @@ variance, vote_count, rank, category, leaderboard_publish_date``.
 from __future__ import annotations
 
 import json
+import math
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -357,10 +358,14 @@ def parse_arena(
     for entry in working:
         name = entry.get("model_name")
         rating = entry.get("rating")
+        # M15 closure security seat, MINOR-1: `json.loads` accepts `Infinity`, and one such rating
+        # made its surface answer 500 while /health still said servable. Refused like any other
+        # malformed row, and COUNTED as one (M2's rule), never silently stored.
         if (
             not isinstance(name, str)
             or not isinstance(rating, int | float)
             or isinstance(rating, bool)
+            or not math.isfinite(rating)
         ):
             skipped += 1
             continue

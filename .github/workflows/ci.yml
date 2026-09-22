@@ -46,7 +46,7 @@ jobs:
           pip install -e ".[dev]"
       - name: Lint (ruff)
         if: matrix.python-version == '3.12'
-        run: ruff check src tests
+        run: ruff check src tests scripts   # W-108: the scope `make lint` checks
       - name: Type check (mypy strict)
         if: matrix.python-version == '3.12'
         run: mypy src

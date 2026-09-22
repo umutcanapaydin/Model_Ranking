@@ -128,7 +128,7 @@ enum CategoryHints {
          "draw a logo for me", "make my selfie look better", "create an illustration"],
         ["make a video", "generate music", "turn text into speech", "transcribe this audio recording",
          "clone my voice", "edit this sound clip"],
-        ["which model is fastest", "which model has the lowest latency", "how long is the context window",
+        ["which model is fastest", "compare response times between models", "how long is the context window",
          "which model responds quickest", "how many tokens can it read at once", "tokens per second"],
     ]
 

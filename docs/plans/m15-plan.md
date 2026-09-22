@@ -56,7 +56,7 @@ Each of these is a question only he can answer, each has a recommendation, and e
 | Per-source carry-forward, ~30-day drop | `docs/decisions.md` D-144, as the owner amended it | no — build it |
 | `search_factuality` and the retrieval boards | `docs/plans/m14-plan.md` §2 W2, deferred on retrieval-SKU pricing | in W1's measurement |
 | Image pricing basis (per-image vs per-token) | `docs/plans/m14-wave-1-close.md` | comes back with W1's numbers |
-| The app / harness split | the owner's note, M13 | scoped in W4, not built |
+| The app / harness split | the owner's note, M13 | ruled 2026-09-22: merge, not split (D-149); built in M16 |
 
 ---
 
@@ -102,7 +102,8 @@ The milestone's measurement wave. Nothing ships to a reader.
 ### W4 — Closure (risk: **LOW**)
 
 Stage 4.0 seat, closure report, retrospective, EXPERIENCE, the M16 plan — and a scoped proposal for
-the app/harness split, written but not built.
+the app/harness split, written but not built. **Superseded 2026-09-22:** the owner ruled for one
+application that also refreshes (D-149); W4 records it and M16 builds it.
 
 ---
 

@@ -678,4 +678,23 @@ final class GapRegisterHardeningTests: XCTestCase {
         store.save(register)
         XCTAssertEqual(store.load(), register)
     }
+
+    /// M15 closure security seat, MAJOR-1: the exclusion was guarded only by a STRING in the source,
+    /// so `isExcludedFromBackup = false` written after it passed every gate. This reads what the
+    /// file system actually recorded, for the folder (which an atomic write never replaces) and the
+    /// file, after a real save.
+    func testASavedRegisterIsExcludedFromBackupOnDisk() throws {
+        let folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("gap-register.json")
+        var register = GapRegister()
+        register.record("make this photo sharper")
+        GapRegisterStore(url: file).save(register)
+
+        for url in [folder, file] {
+            let values = try url.resourceValues(forKeys: [.isExcludedFromBackupKey])
+            XCTAssertEqual(values.isExcludedFromBackup, true, "\(url.lastPathComponent) would be backed up")
+        }
+    }
 }
