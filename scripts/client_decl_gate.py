@@ -13,14 +13,32 @@ all resolve to `Foundation.(file).URL.init(string:)`, so all three are one entry
 
 1. **Module allowlist.** A client file may reference declarations only from the modules below, plus
    the app's own. `Network`, `WebKit`, `CloudKit`, `Photos`, `Contacts` and everything else are
-   refused by absence, so an API nobody has thought of yet is refused too. `UIKit` reaches the app
-   through SwiftUI's re-export, so it is allowlisted SYMBOL by symbol.
+   refused by absence, so an API nobody has thought of yet is refused too. `UIKit` and
+   `CoreFoundation` are allowlisted SYMBOL by symbol: both arrive through a re-export, and
+   `CoreFoundation` whole carries sockets.
 2. **Capability rules inside the allowed modules.** Foundation and SwiftUI carry the ways text
    leaves a phone, so those are named: the network is EngineClient's alone, the file system is the
    gap register's alone, and sharing, hand-off, shared storage and logging belong to nobody.
 
 The text gate in `tests/unit/test_router_hints.py` stays: it runs in every lane, including the ones
 with no Xcode, and this one runs where the toolchain is. Neither is the whole check.
+
+**What this gate does NOT do** (M16-W1 review, measured):
+
+- It scopes by FILE, never by data. A function declared in `EngineClient.swift` resolves in `main`,
+  and `main` is not capability-checked, so a relay there that any file can call passes (B19); the
+  file system is whole inside `FrontDoor.swift`, so a write to the temporary directory from there
+  passes too (B31). What a file does with a capability it owns is for review and the tests.
+- It does not see arguments, and some of the check lives in the text gate for that reason:
+  `Text("[report](https://…)")` is a `LocalizedStringKey` literal, not an `AttributedString`, so a
+  markdown link written as a literal passes here and dies there (B10); a key built at run time is
+  refused here instead. `try!` on an error that carries the reader's words puts them in the crash
+  report, and has no declaration for either gate to refuse (re-review, X06).
+- `.textSelection(.enabled)` is allowed: the detail screen uses it on model facts, and what it
+  hands the pasteboard is what the reader chose to copy (B22).
+- One known false positive: `URL.appending…` is file-scoped, so building a path to a bundle
+  resource outside the two owning files fails (FP3). `Bundle.main.url(forResource:withExtension:)`
+  builds no path and passes.
 """
 
 from __future__ import annotations
@@ -52,7 +70,6 @@ MODULES = {
     "SwiftUI",
     "SwiftUICore",
     "Foundation",
-    "CoreFoundation",
     "NaturalLanguage",
     "FoundationModels",
     "_Concurrency",
@@ -72,12 +89,21 @@ MODULES = {
 #: are all UIKit, and all refused by not being here.
 UIKIT_ALLOWED = {"UIColor", "UITraitCollection", "UIUserInterfaceStyle", "UIFont", "UIScreen"}
 
+#: CoreFoundation is allowed the same way, and for B-3's reason: allowlisted whole it handed every
+#: client file a TCP socket (`CFSocketCreate` / `CFSocketConnectToAddress` / `CFSocketSendData`,
+#: measured delivering the typed text to a listener), Darwin notifications and `CFShow` (M16-W1
+#: re-review, R-B1, B11, X14). The shipping client resolves nothing there but `CGFloat`.
+COREFOUNDATION_ALLOWED = {"CGFloat"}
+
 #: Declarations that reach the network, or build an address that could. A `URL` MADE FROM A STRING
 #: is the network's first step; a `URL` that names a file on this device is the file system's, and
 #: the two are told apart here by which initialiser the compiler chose.
 NETWORK = ("URLSession", "URLRequest", "URLComponents", "URLQueryItem", "NSURL", "CFURL",
            "NSMutableURLRequest", "NSURLRequest", "NSURLSession", "NSURLConnection",
-           "URL.init(string", "URL.init(dataRepresentation", "URL.lines", "URL.resourceBytes")
+           "URL.init(string", "URL.init(dataRepresentation", "URL.lines", "URL.resourceBytes",
+           # A socket pair to a host. It lived under `Stream` in the file-system list, which gave
+           # it to the register's file (M16-W1 re-review, X02).
+           "Stream.getStreamsToHost")
 NETWORK_FILE = "EngineClient.swift"
 
 #: Declarations that touch the file system, including the local-file half of `URL`. Only the gap
@@ -85,7 +111,13 @@ NETWORK_FILE = "EngineClient.swift"
 FILESYSTEM = ("FileManager", "FileHandle", "Data.init(contentsOf", "Data.write", "String.write",
               "StringProtocol.write(toFile", "String.write(toFile", "write(to:",
               "URL.init(fileURLWithPath", "URL.init(filePath",
-              "URL.deleting", "URL.setResourceValues", "URL.resourceValues", "URLResourceValues")
+              "URL.deleting", "URL.setResourceValues", "URL.resourceValues", "URLResourceValues",
+              # The Objective-C twins and the stream APIs write a file just as well, and the first
+              # version of this list named only the Swift spellings (M16-W1 review, B04/B05/B28).
+              "NSString.write", "NSData.write", "NSArray.write", "NSDictionary.write",
+              "OutputStream", "InputStream.init(fileAtPath", "InputStream.init(url",
+              "NSTemporaryDirectory", "StringProtocol.write(to", "FileWrapper",
+              "URL.init(fileURLWithFileSystemRepresentation")
 FILESYSTEM_FILE = "FrontDoor.swift"
 
 #: Appending a path component builds a route inside a URL that already exists, so it belongs to
@@ -121,12 +153,34 @@ FORBIDDEN = (
     "Link",
     "OpenURLAction",
     "EnvironmentValues.openURL",
-    "View.userActivity",
-    "View.fileExporter",
-    "View.fileMover",
-    "View.draggable",
-    "View.onDrag",
-    "View.shareable",
+    # State restoration writes a scene's storage to disk, so `@SceneStorage` holding what a reader
+    # typed is a second store beside the register (M16-W1 review, B23). The client uses none.
+    "SceneStorage",
+    # An App Group container is shared with other apps and extensions, so not even the register
+    # may write there (B08).
+    "FileManager.containerURL",
+    # iCloud Drive (M16-W1 re-review, X09).
+    "FileManager.url(forUbiquityContainerIdentifier",
+    # A markdown link built at RUN time: the literal form is checked by the text gate, but a key
+    # made from a runtime string is not a literal, and neither gate saw it (re-review, R-M1). The
+    # client builds its keys only by interpolation.
+    "LocalizedStringKey.init(_:",
+    "LocalizedStringKey.init(stringLiteral",
+    # Credentials with `.synchronizable` go to iCloud Keychain, and cookies to a store the system
+    # writes to disk; refused for the reason `SecItemAdd` and `UserDefaults` are (re-review, R-M2).
+    "URLCredentialStorage",
+    "URLCredential",
+    "URLProtectionSpace",
+    "HTTPCookieStorage",
+    "HTTPCookie",
+    # A crash message lands in the crash report, which leaves the phone. This gate sees the call,
+    # not the argument, so it cannot tell `fatalError("\(typed)")` (B09) from a constant one; the
+    # client calls none of these, so all of them are refused. The text gate also refuses
+    # interpolation into them (W-121).
+    "fatalError",
+    "precondition",
+    "assert",
+    "NSException",
     "print",
     "debugPrint",
     "dump",
@@ -200,7 +254,7 @@ def references(ast: str) -> dict[str, set[str]]:
 def _module_problem(name: str, module: str, symbol: str, decl: str) -> str | None:
     """The module allowlist, including `import` lines, and UIKit's per-symbol exception."""
     if symbol == "<imported>":
-        if module not in MODULES | {"UIKit"}:
+        if module not in MODULES | {"UIKit", "CoreFoundation"}:
             return (f"{name}: imports `{module}`, which is not on the client's module allowlist; "
                     "a new framework is a reviewed edit, not an import")
         return None
@@ -208,6 +262,11 @@ def _module_problem(name: str, module: str, symbol: str, decl: str) -> str | Non
         if symbol.split(".")[0] not in UIKIT_ALLOWED:
             return (f"{name}: UIKit.{symbol} is not one of the re-exported types the design layer "
                     f"may use ({', '.join(sorted(UIKIT_ALLOWED))})")
+        return None
+    if module == "CoreFoundation":
+        if symbol.split(".")[0] not in COREFOUNDATION_ALLOWED:
+            return (f"{name}: CoreFoundation.{symbol} is not one the client may use "
+                    f"({', '.join(sorted(COREFOUNDATION_ALLOWED))}); the module carries sockets")
         return None
     if module not in MODULES:
         return (f"{name}: resolves `{decl}` in `{module}`, which is not a module the client may "
@@ -243,7 +302,7 @@ def problems(found: dict[str, set[str]]) -> list[str]:
         for decl in sorted(decls):
             module, _, symbol = decl.partition(".")
             problem = _module_problem(name, module, symbol, decl)
-            if problem is None and symbol != "<imported>" and module not in {"main", "UIKit"}:
+            if problem is None and symbol != "<imported>" and module not in {"main", "UIKit", "CoreFoundation"}:
                 problem = _capability_problem(name, symbol, decl)
             if problem is not None:
                 bad.append(problem)

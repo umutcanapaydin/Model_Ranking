@@ -2185,8 +2185,8 @@ criteria that had no test at all; this one is a test that exists and is not prot
 *Decision.* The floor is computed at check time from the `func test` declarations under
 `ios/EngineTests`, and `swift test` must run at least that many. A deleted test lowers both numbers
 together only if its declaration is deleted too, which is a visible diff, not a silent loss.
-*Owning milestone:* M16-W1. **Built 2026-09-22:** `ios/EngineTests/test-manifest.txt` lists all 258
-tests; `make swift-test` diffs it against `swift test --list-tests` and takes the floor from its line
+*Owning milestone:* M16-W1. **Built 2026-09-22:** `ios/EngineTests/test-manifest.txt` lists every
+test (262 at the M16-W1 close; first written here as 258, which the wave's review measured wrong); `make swift-test` diffs it against `swift test --list-tests` and takes the floor from its line
 count, and `tests/unit/test_swift_test_manifest.py` compares it with the declarations in the source
 for lanes with no Swift toolchain. Verified red four ways: a test deleted from the code, a line
 deleted from the manifest, a renamed test, and the count falling short.

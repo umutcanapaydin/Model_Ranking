@@ -1,60 +1,43 @@
 Project: model_ranking
-RESUME HERE (2026-09-22, checkpoint commit): M16-W1 is BUILT and its independent review came back
-BLOCKING (docs/reviews/m16-wave-1-review.md: 3 BLOCKING, 4 MAJOR, 10 MINOR, 2 NIT). All three
-BLOCKINGs and MAJORs M-1..M-4 are FIXED and re-verified (see "M16-W1 STATE" below). What is LEFT:
-  1. the review's 10 MINORs and 2 NITs -- not yet read one by one
-  2. record corrections the review found: D-150 clause 1 and W-111 say the manifest lists 258 tests
-     (it lists 262 now); m16-router-floor-measurement.md quotes a `vision` example never shipped and
-     names the wrong file as the tuning set, and its held-out off-topic set shares wording shapes
-     with the tuned set (say so); W-122's row credits the declaration gate with killing a markdown
-     link it only kills after the M16-W1 fixes; FP3 (Bundle.main.bundleURL.appendingPathComponent
-     would be refused) is undocumented
-  3. docs/plans/m16-wave-1-close.md row 3 still says REVIEW_VERDICT -- fill it in
-  4. then: re-review the fix round (independent seat), close W1, commit
+RESUME HERE (2026-09-22, after the checkpoint 89b9b3c): M16-W1 has been through THREE review rounds.
+  1. review (docs/reviews/m16-wave-1-review.md): BLOCKING 3/4/10/2. BLOCKINGs + MAJORs fixed in 89b9b3c.
+  2. minors + nits fixed or recorded, record corrections made (uncommitted).
+  3. re-review (docs/reviews/m16-wave-1-rereview.md): BLOCKING 1/3/7/0 -- CoreFoundation allowlisted
+     whole gave every client file a TCP socket (R-B1). All of it fixed; 13 mutants re-run red.
+  4. a second, narrow re-review of round 3 (docs/reviews/m16-wave-1-rereview-2.md): PASS, 2 NIT.
+W1 is CLOSED agent-side (docs/plans/m16-wave-1-close.md). What is LEFT: the commit, ONLY if the
+owner says so (agent identity + GP-Agent/GP-Task trailers, D-117); then M16-W2 (the nightly refresh
+inside the engine, D-151 -- a HIGH wave: pull a security pass forward).
 
-State: 2026-09-22 — M15 is CLOSED agent-side, committed and pushed on the owner's instruction (agent
-identity, D-117); it awaits the owner's sign-off (D-150 clause 2). make check green on
-the owner's Mac (pytest 962/15, Swift 262); Xcode app build of this tree: BUILD SUCCEEDED.
+State: 2026-09-22 -- M15 is CLOSED and the owner signed off (D-150 clause 2 ratified). make check
+green on the owner's Mac: pytest 962/15, Swift 262 (each named in the manifest), client-decls PASS
+in 4 configurations; check-records / wave-check-all / conformance-gate PASS.
 
 READ IN THIS ORDER
   1. this file
-  2. docs/closure-report-m15.md §0          — the owner signed off 2026-09-22 (D-150 clause 2 in)
-  3. docs/plans/m16-plan.md                  — the next milestone, §0 rulings it waits on
-  4. docs/handovers/handover_project-2026-09-21.md — the whole project, for someone who knows nothing
-  5. docs/warnings.ledger.md W-111..W-122    — everything open, newest first
+  2. docs/plans/m16-plan.md                  -- the milestone, W1 closing, W2 next
+  3. docs/plans/m16-wave-1-close.md          -- what W1 delivered and what it deferred
+  4. docs/handovers/handover_project-2026-09-21.md -- the whole project, for someone who knows nothing
+  5. docs/warnings.ledger.md W-111..W-123    -- everything open, newest first
 
-WHAT THE CLOSURE DID
-  - W-113: calibrate_board.py counted board NAMES as models. Fixed; owner ruled two tie margins in
-    (vision 7.8/31.2, search_factuality 4.9/19.5). Test runs main() end to end.
-  - Retroactive W3 review (BLOCKING) — two test gaps fixed (W-117); router floor (W-118) and search
-    price disclosure (W-119) ruled to M16. W3 closed with no review: W-120.
-  - W4 review + re-review: the D-126 privacy gate rebuilt to read RAW source plus a normalized view
-    (W-121); 54 of 54 attempts die. Still a word list: resolved-declaration check is M16-W1 (W-122).
-  - D-150: Swift floor → committed list of test names (clause 1, amended after a false claim);
-    K.8 kept as is (clause 2, ratified 2026-09-22).
-  - Wave closes W1/W3/W4, coverage-by-req §M15, retrospective, EXPERIENCE, M16 plan.
-
-M16-W1 STATE (all in this checkpoint, make check green: pytest 962/15, Swift 262, client-decls 4
-configurations)
-  - D-151 (owner, in session): the refresh runs ONCE A NIGHT between 23:00 and 01:00, in the
-    background, plus a catch-up when the engine starts on an artifact older than a day. NO "update
-    now" button and no refresh state in the app -- this amends D-149 clauses 1 and 3 and shrinks W2.
+M16-W1 IN SHORT
+  - D-151 (owner): the refresh runs ONCE A NIGHT between 23:00 and 01:00, in the background, plus a
+    catch-up when the engine starts on an artifact older than a day. NO "update now" button and no
+    refresh state in the app -- amends D-149 clauses 1 and 3 and shrinks W2.
   - D-152: /v1/categories publishes min_quality. D-153: the two search surfaces publish
-    price_excludes="search_call". Both fields ship; the SCREENS that show them are W2 (REQ-FLR-002,
-    REQ-PRC-002 in docs/prd.md say so).
-  - D-150 clause 2 ratified by the owner; the clause is written into AGENTS.md beside K.8.
-  - W-111 FIXED: ios/EngineTests/test-manifest.txt + `make swift-test` diffs it against
-    `swift test --list-tests`; a skipped test now fails too; tests/unit/test_swift_test_manifest.py
-    holds the static half (comments stripped, no #if around a declaration).
-  - W-118 FIXED: the floor did NOT move (measured: no floor separates), the EXAMPLES did.
-    docs/reviews/m16-router-floor-measurement.md. Held-out off-topic 3/16 -> 8/16.
-  - W-122 FIXED: scripts/client_decl_gate.py (`make check` target `client-decls`) type-checks the
-    client in 4 configurations and reads RESOLVED declarations; Darwin is NOT allowlisted; a
-    non-compiling client or a truncated dump FAILS. 12 of the seat's bypasses re-run and all die.
+    price_excludes="search_call" (null elsewhere). The SCREENS that show them are W2.
+  - W-111 FIXED: ios/EngineTests/test-manifest.txt names every test; deleting, renaming, skipping,
+    commenting out, making private or #if-guarding one turns make check red (the last three also
+    in a lane with no toolchain, tests/unit/test_swift_test_manifest.py).
+  - W-118 FIXED: the router floor did NOT move (no floor separates), the EXAMPLES did.
+    docs/reviews/m16-router-floor-measurement.md. Held-out off-topic 3/16 -> 8/16 (within-distribution).
+  - W-122 FIXED: scripts/client_decl_gate.py reads the declarations the COMPILER resolved, in 4
+    build configurations; Darwin off, UIKit and CoreFoundation allowed symbol by symbol. Its
+    docstring says what it does NOT do (file-scoped, not data-scoped: B19/B31; try!; FP3).
   - W-123 OPEN (M16-W4): ordinary questions still reach a measured surface 5 times in 16.
 
-M16 IN ONE LINE: one application (engine refreshes itself, app has "update now", D-149), floors
-re-derived under D-148, carry-forward (D-144), the router floor re-measured first.
+M16 IN ONE LINE: one application (the engine refreshes itself nightly, D-151; no app button), floors
+re-derived under D-148, carry-forward (D-144), the router floor re-measured first (done, W1).
 
 THE THING A NEW AGENT MUST NOT UNDO
   - Uncertainty.swift is the ONE file allowed arithmetic on a served score (D-138).

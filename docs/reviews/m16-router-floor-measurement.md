@@ -21,27 +21,32 @@ the re-measurement. **Seat: author.** It measures; it does not review itself.
 | `heldout_questions.json` | 22 | M15-W3, before any change | generalisation, never tuned against |
 | `nonsense_questions.json` | 16 | M16-W1, **before this change** | what the floor is for: input that means nothing |
 | `offtopic_questions.json` | 16 | M16-W1, **before this change** | ordinary questions with no measured surface |
-| `offtopic_heldout_questions.json` | 16 | M16-W1, **before this change, and not read until the end** | the honest measure of the off-topic fix |
+| `offtopic_heldout_questions.json` | 16 | M16-W1, **before this change, and not read until the end** | the off-topic fix on questions not tuned against -- within the same distribution, see below |
 
 The two off-topic sets were written at the same time and neither was opened while the examples were
 being changed except the first; the held-out one was measured once, at the end.
 
-**Four labels in the tuning set were corrected before re-measuring, and it is stated here rather
+**Four labels in the off-topic tuning set (`offtopic_questions.json`, not `probe_questions.json`) were corrected before re-measuring, and it is stated here rather
 than buried:** `is it going to rain tomorrow`, `how much does a tesla cost` and
 `recommend a good pizza place` accept `search` (a question about current facts is what that surface
 is for), and `explain quantum entanglement to me` accepts `expert`. Those answers are right; the
-first labels were the author's guess. The held-out set's labels were not touched.
+first labels were the author's guess. The held-out set's labels were not touched. The three M16-W1 sets were untracked when this was
+written, so the relabelling has no before-state in git; the independent seat checked it by
+sensitivity instead (every off-topic tuning label forced to `assistant|everyday~` gives 3/16 → 7/16),
+so the 6/16 → 11/16 below is not its artefact.
 
 ## What was changed
 
 Nothing but example questions — no threshold, no scoring, no code path.
 
-- **`assistant` got three general examples** in place of three that were all "write/rewrite this
-  text for me": a general-knowledge question, a household how-to, and a greeting-shaped opener.
+- **`assistant` got three general examples** (a general-knowledge question, a household how-to,
+  and a greeting-shaped opener) in place of `give me advice on asking for a raise`,
+  `rewrite this paragraph to sound friendlier` and `chat with me about my weekend plans`.
   There was no home for an ordinary question, so ordinary questions went to whatever surface had
   the shortest question-shaped examples.
 - **`vision`'s six examples now name the image** ("what is in this picture **i uploaded**",
-  "describe the photo **i attached**", "explain the diagram **in this image**"). They were
+  "what does this chart **in the image** show", "explain the diagram **in this image**"; four of
+  six changed; `describe this photo` and `read the text in this screenshot` did not). They were
   question-shaped sentences that any short question resembled, which is why `what time is it`
   scored 0.548 there.
 
@@ -79,6 +84,12 @@ independent seat's earlier finding stands — a test must exercise both sides of
 - **Five off-topic questions still land on a measured surface**, e.g. `what does this word mean in
   english` → `vision` 0.452, `is coffee bad for you` → `search` 0.423.
 - Held-out generalisation is unchanged at 18/22, which is where D-147 left it.
+- **The off-topic held-out set is not independent in shape from the one tuned against** (M16-W1
+  review): `how do i remove a coffee stain` sits beside the new example `how do i get red wine out of
+  a carpet`, `good morning`/`thanks` beside `hi can you help me with something`, `who wrote the
+  odyssey` beside `what is the tallest mountain in the world`. 3/16 → 8/16 is a within-distribution
+  measure, not an out-of-sample one. W-123 carries the real test to M16-W4, against public prompt
+  corpora the author did not write.
 
 ## What this does not claim
 

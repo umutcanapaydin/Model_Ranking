@@ -10,6 +10,9 @@ The floor that used to guard this was an integer somebody raised by hand. It was
 (W-091, W-111, and the M14 closure), and it could never have caught a deletion: the count and the
 declaration drop together. The M15-W4 seat is what established that, after the first description of
 this fix was put to the owner and accepted on a false claim.
+
+A list of names cannot see inside a test: one whose body has been emptied still passes here and in
+`make swift-test` (M16-W1 review, N5). That is for the mutation runs, not this file.
 """
 
 from __future__ import annotations
@@ -24,7 +27,10 @@ MANIFEST = TESTS / "test-manifest.txt"
 #: `ModelRankingEngineTests.ClassName/testName`, as `swift test --list-tests` prints it.
 ENTRY = re.compile(r"^(?P<module>[A-Za-z_]\w*)\.(?P<cls>[A-Za-z_]\w*)/(?P<test>test\w*)$")
 CLASS = re.compile(r"^\s*(?:public\s+|final\s+|private\s+)*class\s+(\w+)\s*:\s*XCTestCase", re.M)
-FUNC = re.compile(r"^\s*(?:public\s+|private\s+|final\s+)*func\s+(test\w*)\s*\(\s*\)", re.M)
+#: `private` is deliberately absent: XCTest does not discover a private test, so one made private
+#: must read here as MISSING, which the manifest comparison then fails (M16-W1 re-review, R-M3).
+FUNC = re.compile(r"^\s*(?:public\s+|final\s+)*func\s+(test\w*)\s*\(\s*\)", re.M)
+DIRECTIVE = re.compile(r"^\s*#(if|elseif|else|endif)\b", re.M)
 
 
 #: `//` to end of line and `/* ... */`, removed before the declarations are read (review M-4: a
@@ -70,24 +76,45 @@ def test_the_manifest_lists_exactly_the_tests_the_sources_declare() -> None:
     )
 
 
+def _guarded_tests(source: str) -> list[int]:
+    """Line numbers of test declarations that sit inside any `#if ... #endif` region."""
+    lines: list[int] = []
+    depth = 0
+    cursor = 0
+    for m in [*DIRECTIVE.finditer(source), None]:
+        stop = len(source) if m is None else m.start()
+        if depth > 0:  # an `#if` left open to the end of the file guards everything after it
+            lines += [source[:cursor + f.start()].count("\n") + 1
+                      for f in FUNC.finditer(source[cursor:stop])]
+        if m is None:
+            break
+        if m.group(1) == "if":
+            depth += 1
+        elif m.group(1) == "endif":
+            depth = max(depth - 1, 0)
+        cursor = m.end()
+    return lines
+
+
 def test_no_test_DECLARATION_compiles_conditionally() -> None:
     """`#if false` around a test leaves it declared and never run (review M-4).
 
     A `#if` INSIDE a test body is fine and the suite has two (`#if canImport(FoundationModels)`,
     which is what a test of an optional framework looks like). What cannot be allowed is a
     condition around the declaration itself, where the test stays in the manifest, stays in this
-    file's regex, and never runs. Indentation is the difference, and it is the one signal available
-    without parsing Swift: a directive at file or class level sits in the first four columns.
+    file's regex, and never runs. So the rule is about CONTENT: no `func test...()` may be declared
+    between a `#if` and its `#endif`, at any indentation. The first version judged by indentation
+    (a directive in the first four columns) and missed `#if false` at a class member's own four
+    spaces, the one place it was written for (M16-W1 re-review, R-M3).
     """
     guarded = [
-        f"{path.name}:{source[:m.start()].count(chr(10)) + 1}"
+        f"{path.name}:{line}"
         for path in sorted(TESTS.rglob("*.swift"))
-        for source in [path.read_text(encoding="utf-8")]
-        for m in re.finditer(r"^ {0,3}#(?:if|elseif|else)\b", source, re.M)
+        for line in _guarded_tests(COMMENT.sub("", path.read_text(encoding="utf-8")))
     ]
 
     assert not guarded, (
-        f"{guarded} put a compilation condition around a declaration; a test inside `#if false` "
+        f"{guarded} declares a test inside a compilation condition; a test inside `#if false` "
         "stays in the manifest and never runs. Delete the test, or the condition"
     )
 
