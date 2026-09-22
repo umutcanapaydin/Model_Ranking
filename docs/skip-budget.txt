@@ -7,4 +7,12 @@
 #
 # Start at your current count, then lower it. A budget that never moves is a ratchet that ratcheted
 # once. Raising it is legitimate and must happen HERE, in the tree, where a reviewer sees the diff.
-0
+# model_ranking, set at the DevFlow v6.0 adoption (D-155) to the count the first CI run measured on
+# PR #1 (ubuntu, py3.12). Every one needs something the runner does not have, and none is a test
+# that could run and chose not to:
+#   47  need the BUILT `advisor.db`, which is gitignored and never in a checkout (W-108)
+#    8  contract tests against live upstreams; they run only with RUN_CONTRACT_TESTS=1
+#    7  need the owner-fetched Epoch bundle (EPOCH_DATA_DIR)
+# The owner's Mac skips 15 of these, not 62, because it has the database. Lower this when CI builds
+# an artifact from fixtures (W-108's remedy), not by skipping less honestly.
+62
