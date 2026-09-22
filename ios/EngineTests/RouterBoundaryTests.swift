@@ -43,6 +43,7 @@ private final class SpyRouter: QuestionRouter, @unchecked Sendable {
 private let served = [
     "coding", "agentic-coding", "assistant", "everyday", "expert",
     "mathematics", "computer-use", "abstract", "web-dev", "document", "factuality",
+    "vision", "search", "search_factuality",
 ]
 
 final class RouterBoundaryTests: XCTestCase {

@@ -81,6 +81,20 @@ enum CategoryHints {
             + "pages of text to answer questions from",
         "factuality": "is this true or made up: a fact that must be correct, no invented details, "
             + "citations, names or numbers",
+        // M15-W3. Same discipline as M14-W2: each is worded for the question a reader asks, and
+        // AWAY from its nearest neighbours. `vision` avoids "read" (it belongs to `document`) and
+        // says what is being looked at; the two search hints both say the web, and only the second
+        // one says anything about being right, because that is the whole difference between them.
+        // **These three were written crossed, and the review caught it before a reader did.**
+        // `search`'s first draft opened "look it up on the web", which is the phrasing its own
+        // probe question uses for the OTHER surface, while `search_factuality` opened "search the
+        // web" -- each hint led with its neighbour's question. The discriminating phrase now sits
+        // on the hint whose reader would say it, and only `search_factuality` mentions being
+        // right, because that is the whole difference between the two.
+        "vision": "look at a picture, a photo, a screenshot, a scan, a chart: what is in this image",
+        "search": "search the web right now: current prices, today's news, a live lookup",
+        "search_factuality": "look it up online and quote it correctly: real sources it actually "
+            + "fetched, real numbers, nothing invented from the page",
     ]
 
     /// Where a question the catalogue does not measure goes (REQ-RTR-005, owner's ruling).
@@ -99,10 +113,90 @@ enum CategoryHints {
     ///
     /// Written from the questions that exposed the gap, and held against the M10 calibration probe
     /// so that no surface question falls out (`FrontDoorTests.UnmeasuredQuestionTests`).
-    static let unmeasuredHints: [String] = [
-        "edit a photo or a picture, make an image look better, draw or generate an image",
-        "a video, audio, music, speech, a voice or a sound",
-        "how fast a model responds, its speed and latency, or how long a context window it has",
+    ///
+    /// **NARROWED at M15-W3, because the catalogue changed under it.** The first entry used to
+    /// claim every image question was unmeasured — written when it was true. `vision` now measures
+    /// how well a model READS an image, so a hint saying images are unmeasured and a surface
+    /// measuring them were competing for the same questions, and the decline was winning: a reader
+    /// asking "what is in this screenshot" was told nobody measures it, beside a surface that
+    /// does. What stays unmeasured is MAKING and CHANGING images, which no board here ranks.
+    ///
+    /// **Since M15-W3's re-calibration, each decline is a GROUP of example questions**, read the
+    /// same way as `examples` below: images made or changed, sound and video, speed and context.
+    static let unmeasuredHints: [[String]] = [
+        ["edit this photo", "remove the background from my picture", "generate an image of a cat",
+         "draw a logo for me", "make my selfie look better", "create an illustration"],
+        ["make a video", "generate music", "turn text into speech", "transcribe this audio recording",
+         "clone my voice", "edit this sound clip"],
+        ["which model is fastest", "which model has the lowest latency", "how long is the context window",
+         "which model responds quickest", "how many tokens can it read at once", "tokens per second"],
+    ]
+
+    /// What the WORDING tier compares a question against: six questions a reader might type, per
+    /// surface. `byID` stays for the on-device model, which reads a description; this tier cannot.
+    ///
+    /// **Why examples and not one sentence (M15-W3 re-calibration,
+    /// `docs/reviews/m15-router-recalibration.md`).** With one sentence per surface, adding
+    /// `vision`, `search` and `search_factuality` took the M10 probe from 18 of 18 to 11 of 18:
+    /// the two search sentences became hubs, closest to maths, landing pages and screenshots alike,
+    /// and four rewordings only moved the hub somewhere else. A surface scored by its two closest
+    /// examples out of six has no single sentence to become a hub. Measured: 21 of 21 on the probe
+    /// and 18 of 22 on questions written BEFORE these examples and never tuned against.
+    ///
+    /// Written as plain questions, none of them copied from a test. A new surface needs its six
+    /// here as well as its line in `byID`; `test_router_hints.py` fails on either missing.
+    static let examples: [String: [String]] = [
+        "coding": ["write a python function that parses a csv file",
+                   "why does my javascript code throw a null error",
+                   "refactor this class to be easier to test", "help me debug a crash in my rust program",
+                   "convert this loop into a list comprehension", "review my pull request for bugs"],
+        "agentic-coding": ["let an agent implement this feature across my codebase",
+                           "an autonomous agent that runs the tests and fixes what fails",
+                           "have the ai migrate my project to a new framework on its own",
+                           "a coding agent that works through a github issue end to end",
+                           "automate a multi file change in my repository",
+                           "an ai developer that edits files and runs commands by itself"],
+        "assistant": ["write a thank you note to my colleague", "help me reply to this text message",
+                      "give me advice on asking for a raise", "explain what inflation means in simple words",
+                      "rewrite this paragraph to sound friendlier", "chat with me about my weekend plans"],
+        "everyday": ["which ai is best for everyday tasks", "a good all round model for many different things",
+                     "which model should i use for general daily use",
+                     "the best general purpose ai for a bit of everything", "one model for work, study and home",
+                     "which chatbot is the most useful overall"],
+        "expert": ["explain how a catalyst lowers activation energy",
+                   "what does the heisenberg uncertainty principle say", "how do enzymes fold into their shape",
+                   "a graduate level organic chemistry question", "explain the physics of superconductivity",
+                   "how does the immune system recognise a virus"],
+        "mathematics": ["solve this equation for x", "find the derivative of this function",
+                        "prove this inequality", "calculate the probability of rolling two sixes",
+                        "an olympiad number theory problem", "compute the area of this triangle"],
+        "computer-use": ["fill in this online form for me", "use my browser to order groceries",
+                         "click through the settings and turn on dark mode",
+                         "navigate the website and download the invoice",
+                         "operate my desktop apps to rename files", "log in to the portal and check my orders"],
+        "abstract": ["find the rule behind this pattern of shapes", "what comes next in this sequence",
+                     "solve this riddle", "a grid puzzle where you infer the transformation",
+                     "spot the pattern and complete the grid", "a brain teaser that needs logical deduction"],
+        "web-dev": ["build a website for my bakery", "make a landing page with a signup form",
+                    "write the html and css for a portfolio site", "create a react front end for my web app",
+                    "design a responsive web page", "build an online shop website"],
+        "document": ["summarise this pdf", "answer questions about this long contract",
+                     "pull the key points out of this research paper",
+                     "read this report and tell me the conclusions",
+                     "find the clause about termination in this agreement",
+                     "go through these pages and extract the dates"],
+        "factuality": ["is this claim true", "did the model make up this fact",
+                       "check whether these figures are correct", "is this citation real or invented",
+                       "verify this historical date", "does this answer contain hallucinations"],
+        "vision": ["what is in this picture", "describe this photo", "read the text in this screenshot",
+                   "what does this chart show", "identify the plant in this image", "explain this diagram"],
+        "search": ["search the web for the latest news", "what is the price of bitcoin right now",
+                   "look up today's weather", "find current flight prices", "what happened in the news today",
+                   "search online for the opening hours of a shop"],
+        "search_factuality": ["find a real source online and cite it", "look it up and quote the page exactly",
+                              "give me links to the sources you used",
+                              "search and make sure the facts come from real pages",
+                              "find the original article and quote it", "research this online with accurate citations"],
     ]
 }
 
@@ -190,23 +284,29 @@ struct SimilarityRouter: QuestionRouter {
             return total.map { $0 / Double(count) }
         }
 
-        var hints: [(id: String, vector: [Double])] = []
+        var hints: [(id: String, vectors: [[Double]])] = []
         for id in known {
-            if let hint = CategoryHints.byID[id], let v = vector(hint) { hints.append((id, v)) }
+            let vectors = (CategoryHints.examples[id] ?? []).compactMap(vector)
+            if !vectors.isEmpty { hints.append((id, vectors)) }
         }
         guard hints.count > 1, let query = vector(text) else { return nil }
 
         // CENTRE THE SPACE, and this line is the difference between a router and a decoration.
         // Contextual embeddings are anisotropic: every vector carries a large component they all
         // share, so raw cosines cluster above 0.8 and the nearest hint is whichever one is longest
-        // — measured, every question collapsed onto the same surface. Subtracting the mean hint
+        // — measured, every question collapsed onto the same surface. Subtracting the mean example
         // removes what they have in common and leaves what tells them apart. It took the probe
         // from 3 of 8 to 5 of 8 before the hints were sharpened.
-        let dimension = hints[0].vector.count
+        let dimension = query.count
         var mean = [Double](repeating: 0, count: dimension)
+        var examples = 0.0
         for hint in hints {
-            for index in 0..<dimension { mean[index] += hint.vector[index] / Double(hints.count) }
+            for v in hint.vectors {
+                for index in 0..<dimension { mean[index] += v[index] }
+                examples += 1
+            }
         }
+        mean = mean.map { $0 / examples }
         func centred(_ v: [Double]) -> [Double] { (0..<dimension).map { v[$0] - mean[$0] } }
 
         func cosine(_ a: [Double], _ b: [Double]) -> Double {
@@ -220,17 +320,28 @@ struct SimilarityRouter: QuestionRouter {
         }
 
         let centredQuery = centred(query)
+        // A group of examples scores as the mean of its TWO closest. One closest example let a
+        // single stray sentence win (18 of 21 on the probe); the mean of all six let the examples
+        // a question is unlike drag down the one it matches (18 of 21); the two closest scored 21.
+        func score(_ group: [[Double]]) -> Double {
+            var first = -Double.infinity, second = -Double.infinity
+            for v in group {
+                let s = cosine(centredQuery, centred(v))
+                if s > first { (first, second) = (s, first) } else if s > second { second = s }
+            }
+            return second.isFinite ? (first + second) / 2 : first
+        }
         // The three closest hints, kept by insertion rather than by sorting every score. The client
         // contract bans `sorted` and its relatives from the app target (REQ-APP-002), because
         // ordering ANSWERS or MODELS would undo Ruling A. This orders the router's own HINTS, which
         // the engine never sees, and it is written out so that the ban can stay unconditional.
         var closest: [(id: String, score: Double)] = []
         for hint in hints {
-            let score = cosine(centredQuery, centred(hint.vector))
+            let similarity = score(hint.vectors)
             var slot = closest.count
-            while slot > 0, closest[slot - 1].score < score { slot -= 1 }
+            while slot > 0, closest[slot - 1].score < similarity { slot -= 1 }
             if slot < 3 {
-                closest.insert((hint.id, score), at: slot)
+                closest.insert((hint.id, similarity), at: slot)
                 if closest.count > 3 { closest.removeLast() }
             }
         }
@@ -239,9 +350,8 @@ struct SimilarityRouter: QuestionRouter {
         // BLOCKING-1: a question closer to something the catalogue does NOT measure than to any
         // surface is unmeasured, whatever its score against the surfaces. Measured in the same
         // centred space as the surfaces, so both are read with one ruler.
-        let declines = CategoryHints.unmeasuredHints.compactMap(vector).map {
-            cosine(centredQuery, centred($0))
-        }
+        let declines = CategoryHints.unmeasuredHints.map { $0.compactMap(vector) }
+            .filter { !$0.isEmpty }.map(score)
         if let decline = declines.max(), decline > best.score {
             guard known.contains(CategoryHints.unmeasuredFallback) else { return nil }
             // W3 re-review NEW-1, and the choice of which error to make. Wording cannot tell a

@@ -2043,3 +2043,37 @@ B): the line under each card already says what 50 means.
 **Revisit when:** the owner asks for Elo surfaces to look different from percentage surfaces, or a
 recalibration makes a pinned anchor sit outside its board.
 
+
+## D-147 — The wording tier routes on example questions, not on one sentence per surface
+
+**Status:** **accepted by the owner 2026-09-22** (in session, after the measurement below: "right,
+it was broken, I tested it too — OK, start from there" *(owner, translated from Turkish)*) ·
+**Date:** 2026-09-22 · **Proposed by:** the lead agent, discharging W-115's owed probe run.
+**Amends the M10-W1 router design** (`docs/reviews/m10-router-calibration.md`) for the similarity
+tier only.
+
+**Context.** The similarity tier compared a question with one descriptive sentence per surface.
+M15-W3 added three surfaces, and the re-run probe (`docs/reviews/m15-router-recalibration.md`) fell
+from 18 of 18 to 11 of 18 on the pre-M15 questions. The two search sentences became hubs, and four
+rewordings only moved the hub. The tier was already weak on unseen wording before M15 (5 of 17).
+
+**Decision.**
+
+1. The similarity tier compares a question with **example questions** (`CategoryHints.examples`),
+   six per surface. A surface scores as the mean of its two closest examples. The space is centred
+   on the mean over all examples.
+2. The decline groups (`CategoryHints.unmeasuredHints`) take the same form and the same scoring, so
+   a decline and a surface are still read with one ruler (M13-W3 BLOCKING-1 unchanged).
+3. `CategoryHints.byID` stays, for the on-device model tier, which reads descriptions.
+4. A new surface needs both a description and at least two examples.
+   `test_router_hints.py::test_every_described_surface_has_example_questions_for_the_wording_tier`
+   is the gate.
+5. A change to any example or decline group owes a run of `scripts/router_probe/` on both question
+   sets, and the held-out set is never tuned against.
+
+**The cost.** About 100 embeddings per question instead of 17, not yet timed on a phone. The examples
+are a second hand-maintained table keyed to engine ids, gated as the first one is.
+
+**Revisit when:** the held-out score drops below the probe's by more than it does now (18 of 22
+against 21 of 21), a phone timing shows the tier is slow, or the on-device model tier covers enough
+of the device base that this tier matters less.

@@ -268,6 +268,67 @@ CATEGORIES: dict[str, CategorySpec] = {
         close_call=4.0,
         score_anchor=1450.6,  # pinned 2026-09-20 (D-143); moves only by owner ruling
     ),
+    # ── M15-W3: three surfaces the MEASUREMENT chose ──────────────────────────────────────────
+    #
+    # `docs/research/m15-board-survey-2026-09-21.md` counted the ranked population of all 22 boards
+    # of the dataset already licensed; these three are what the engine can actually recommend from.
+    # Thresholds derived by `scripts/calibrate_board.py` on 2026-09-22 (record:
+    # `docs/reviews/m15-category-calibration.md`), by the rules the product ships:
+    #
+    #   min_quality  = the top third of the WHOLE board over distinct models (D-145, and W-094's
+    #                  measurement: nine of eleven shipped floors sit closer to this rule than to
+    #                  the ranked-population one).
+    #   close_call   = the median rating gap among pairs whose PUBLISHED 95% intervals overlap --
+    #                  the board's own statement of what it cannot tell apart (the M14 rule).
+    #   value_window = four times `close_call`, the ratio `assistant` ships (30 against 8).
+    #
+    # `score_anchor` is the floor as pinned TODAY and does not move with a recalibration (D-146).
+    "vision": CategorySpec(
+        id="vision",
+        title="Reading images and screenshots",
+        primary_benchmark="Arena vision",
+        metric="elo",
+        score_unit="Elo",
+        secondary_benchmark=None,
+        primary_source="arena_vision",
+        # 129 distinct models on the board, 64 ranked; 333 pairs still overlap at their published
+        # intervals, which is why the tie margin is the widest of the three.
+        min_quality=1248.2,
+        value_window=32.3,
+        close_call=8.1,
+        score_anchor=1248.2,  # pinned 2026-09-22 (D-143/D-146)
+    ),
+    "search": CategorySpec(
+        id="search",
+        title="Answering with a web search",
+        primary_benchmark="Arena search",
+        metric="elo",
+        score_unit="Elo",
+        secondary_benchmark=None,
+        primary_source="arena_search",
+        # 33 distinct models, 26 ranked. The board is small because it only holds models that can
+        # search at all -- most rows are retrieval SKUs of models this catalogue already prices.
+        min_quality=1206.9,
+        value_window=25.9,
+        close_call=6.5,
+        score_anchor=1206.9,  # pinned 2026-09-22
+    ),
+    "search_factuality": CategorySpec(
+        id="search_factuality",
+        title="Searching without making things up",
+        primary_benchmark="Arena search factuality",
+        metric="elo",
+        score_unit="Elo",
+        secondary_benchmark=None,
+        primary_source="arena_search_factuality",
+        # The same population as `search`, scored on whether what it brought back was TRUE. Kept as
+        # its own surface rather than folded in: "which model searches well" and "which model
+        # reports what it found honestly" are two questions, and this board answers the second.
+        min_quality=1203.7,
+        value_window=17.0,
+        close_call=4.2,
+        score_anchor=1203.7,  # pinned 2026-09-22
+    ),
 }
 
 

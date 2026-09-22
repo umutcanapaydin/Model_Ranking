@@ -53,12 +53,13 @@ private struct Hanging: QuestionRouter {
     }
 }
 
-// Every surface `/v1/categories` serves, in the engine's order. Eleven since M14-W2: the router
+// Every surface `/v1/categories` serves, in the engine's order. Fourteen since M15-W3: the router
 // centres its similarity scores on the mean over THESE ids, so a list that lags the engine tests a
 // router the app does not ship (M14-W2 review MAJOR-4).
 private let served = [
     "coding", "agentic-coding", "assistant", "everyday", "expert",
     "mathematics", "computer-use", "abstract", "web-dev", "document", "factuality",
+    "vision", "search", "search_factuality",
 ]
 
 // MARK: - REQ-ASK-004
@@ -327,6 +328,10 @@ final class UnmeasuredQuestionTests: XCTestCase {
         let probe: [(String, String)] = [
             ("summarise this 40 page contract pdf for me", "document"),
             ("is this quote real or did it invent the citation", "factuality"),
+            // M15-W3, the same rule as the two above: a surface nobody can reach is not a surface.
+            ("what is in this screenshot i am sending", "vision"),
+            ("search the web for today's gold price", "search"),
+            ("look it up online and give me the real source", "search_factuality"),
         ]
         for (question, surface) in probe {
             let outcome = await SimilarityRouter().route(question, within: served)

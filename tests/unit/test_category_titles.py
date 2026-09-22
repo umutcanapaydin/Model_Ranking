@@ -85,6 +85,10 @@ def test_the_ids_are_unchanged_because_they_are_the_contract() -> None:
         # nothing an existing client depends on. A rename or a removal still fails here.
         "document",
         "factuality",
+        # M15-W3: three more, chosen by the W1 survey's measurement rather than by intuition.
+        "vision",
+        "search",
+        "search_factuality",
     }
 
 

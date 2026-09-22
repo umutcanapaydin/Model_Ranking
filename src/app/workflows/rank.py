@@ -52,6 +52,12 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     # Epoch block below gives: a prefix rule attributes a source nobody reviewed the licence of.
     "arena_document": ARENA_ATTRIBUTION,
     "arena_factuality": ARENA_ATTRIBUTION,
+    # M15-W3. Listed one by one rather than by an `arena` prefix rule, for the reason the M14-W2
+    # review gave: a prefix would attribute a board nobody registered, and attribution is the
+    # licence condition this dataset is served under.
+    "arena_vision": ARENA_ATTRIBUTION,
+    "arena_search": ARENA_ATTRIBUTION,
+    "arena_search_factuality": ARENA_ATTRIBUTION,
     "swebench": SWEBENCH_ATTRIBUTION,
     "aider": SWEBENCH_ATTRIBUTION,
     "epoch_swe_bench_verified": EPOCH_ATTRIBUTION,

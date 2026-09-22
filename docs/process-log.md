@@ -414,3 +414,13 @@ is better than the ruling it replaced.
 - Simulator verified both detail routes, Return/send, Turkish chrome and manual category correction;
   a Turkish coding-question routing mismatch was recorded in the new handover, not claimed fixed.
 Lesson: after an interrupted session, compare the current owner tree before transferring a prepared patch.
+
+## 2026-09-22 — W-115's owed router probe, and D-147
+
+- Took the project over; `make check` was red only in `swift test`, six routing cases.
+- Re-ran the M10 probe with a score-printing replica (`scripts/router_probe/`): 11 of 18 against
+  18 of 18 at 855b44a; the two search hints had become hubs, and four rewordings did not converge.
+- Wrote a 22-question held-out set BEFORE changing anything; the one-sentence tier scored 3 of 17.
+- D-147 (owner-approved): six example questions per surface, scored as the mean of the two closest.
+  Probe 21 of 21, held-out 18 of 22, Swift 257 of 257 with no test edited.
+Lesson: write the held-out questions before the first change, or the probe measures the tuning.

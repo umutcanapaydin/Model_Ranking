@@ -17,16 +17,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sqlite3
 import statistics
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
 from app.clients.arena import ARENA_BOARDS, METRIC, ArenaClient, parse_arena
 from app.workflows.categories import CategorySpec
+from app.workflows.ingest import RunContext, _store_scores
 from app.workflows.rank import ranked_population
-from app.workflows.registry import canonicalize, resolve_effort
+from app.workflows.registry import canonicalize, reconcile, resolve_effort
 
 
 def provisional_spec(client: ArenaClient) -> CategorySpec:
@@ -179,14 +182,27 @@ def main(argv: list[str] | None = None) -> int:
 
     # **The engine's accessor, not a query of my own.** REQ-EVI-002 and the guard in
     # `test_ranked_population.py` exist because this question has been answered from whatever data
-    # was nearest three times, and each answer was a wrong calibration. The rows must be in the
-    # database first, so this is run AFTER a build that ingested the board.
-    conn = sqlite3.connect(args.db)
-    population = ranked_population(conn, provisional_spec(client))
-    ranked_models = {row.model for row in population}
+    # was nearest three times, and each answer was a wrong calibration.
+    #
+    # **M15-W3: the rows are put there by this script, in a THROWAWAY COPY.** Until now the file
+    # said "run this AFTER a build that ingested the board", and the first run on three
+    # newly-registered boards reported `ranked_population: 0` for all three — a true answer to
+    # "how many of this board's rows are in the artifact", which is not the question. A board is
+    # calibrated BEFORE it is ingested, by definition: that is what the number decides. So the
+    # fetched rows are stored and reconciled in a copy of the database, exactly as
+    # `scripts/survey_boards.py` does, and the real artifact is never touched.
+    with tempfile.TemporaryDirectory() as tmp:
+        scratch = Path(tmp) / "calibration.db"
+        shutil.copy(args.db, scratch)
+        conn = sqlite3.connect(str(scratch))
+        _store_scores(conn, client.name, rows, RunContext(observed_at="2026-09-22T00:00:00Z"))
+        reconcile(conn)
+        conn.commit()
+        population = ranked_population(conn, provisional_spec(client))
+        ranked_models = {row.model for row in population}
+        rankable = [n for n in by_name if _display_of(conn, n) in ranked_models]
+        conn.close()
     ratings = [row.score for row in population]
-
-    rankable = [n for n in by_name if _display_of(conn, n) in ranked_models]
     dropped = [n for n in by_name if n not in set(rankable)]
 
     gaps = _overlapping_gaps(rankable, by_name, intervals)

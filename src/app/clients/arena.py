@@ -78,6 +78,21 @@ ARENA_BOARDS: dict[str, ArenaBoard] = {
     # Which model makes things up least. The split is large (3,582 rows across slices) but the
     # overall board is the same order of size as the others.
     "text_factuality": ArenaBoard("arena_factuality", "text_factuality", "Arena factuality", 25),
+    # ── M15-W3: the three boards the W1 survey said the engine can actually rank ───────────────
+    #
+    # Measured, not chosen: `docs/research/m15-board-survey-2026-09-21.md` counted the models on
+    # every one of the dataset's 22 boards that reconcile to the registry AND carry a price, which
+    # is the only population this engine can recommend from. Everything else it found was refused
+    # here — every image and video board ranks ZERO (priced per image), and the `*_style_control`
+    # boards are the same boards with style effects controlled for, which is a second answer to one
+    # question rather than a new one.
+    "vision": ArenaBoard("arena_vision", "vision", "Arena vision", 60),
+    # 152 rows, 41 rankable. 60 is well below any real day for a board this size.
+    "search": ArenaBoard("arena_search", "search", "Arena search", 20),
+    # 34 rows, 25 rankable; the whole board is small, so the floor is too (W-024's lesson both ways).
+    "search_factuality": ArenaBoard(
+        "arena_search_factuality", "search_factuality", "Arena search factuality", 20
+    ),
 }
 _PAGE = 100
 _MAX_PAGES = 50  # safety valve: latest split is a few hundred rows
@@ -368,6 +383,33 @@ def parse_arena(
                 continue
         best[name] = row
     return list(best.values()), skipped
+
+
+class ArenaVisionClient(ArenaClient):
+    """The `vision` board: which model reads a screenshot, a photo or a scanned page best."""
+
+    name = "arena_vision"
+
+    def __init__(self, split: str = "latest") -> None:
+        super().__init__(config="vision", split=split)
+
+
+class ArenaSearchClient(ArenaClient):
+    """The `search` board: which model answers best when it looks things up."""
+
+    name = "arena_search"
+
+    def __init__(self, split: str = "latest") -> None:
+        super().__init__(config="search", split=split)
+
+
+class ArenaSearchFactualityClient(ArenaClient):
+    """The `search_factuality` board: which model gets its facts right when it looks them up."""
+
+    name = "arena_search_factuality"
+
+    def __init__(self, split: str = "latest") -> None:
+        super().__init__(config="search_factuality", split=split)
 
 
 class ArenaDocumentClient(ArenaClient):

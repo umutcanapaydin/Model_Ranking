@@ -491,6 +491,9 @@ public enum UIText {
         case "web-dev": return "Web geliştirme"
         case "document": return "Belgelerle çalışma"
         case "factuality": return "Doğru bilgi verme"
+        case "vision": return "Görsel ve ekran görüntüsü okuma"
+        case "search": return "İnternetten arayıp cevaplama"
+        case "search_factuality": return "Aradığını doğru aktarma"
         default: return engineTitle
         }
     }

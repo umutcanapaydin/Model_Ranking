@@ -29,6 +29,9 @@ from app.clients.arena import (
     ArenaClient,
     ArenaDocumentClient,
     ArenaFactualityClient,
+    ArenaSearchClient,
+    ArenaSearchFactualityClient,
+    ArenaVisionClient,
     parse_arena,
 )
 from app.clients.deepswe import DeepSWEClient
@@ -187,6 +190,34 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         ingest=ingest_arena,
         parse=parse_arena,
         minimum_rows=ARENA_BOARDS["text_factuality"].minimum_rows,
+        required=False,
+    ),
+    # ── M15-W3: three more boards of the same dataset, chosen by measurement (W1's survey) ────
+    #
+    # OPTIONAL for the reason every Arena board is (D-121), and each is the sole evidence for its
+    # own surface: without it that surface says so rather than answering.
+    RemoteSource(
+        name="arena_vision",
+        client=ArenaVisionClient,
+        ingest=ingest_arena,
+        parse=parse_arena,
+        minimum_rows=ARENA_BOARDS["vision"].minimum_rows,
+        required=False,
+    ),
+    RemoteSource(
+        name="arena_search",
+        client=ArenaSearchClient,
+        ingest=ingest_arena,
+        parse=parse_arena,
+        minimum_rows=ARENA_BOARDS["search"].minimum_rows,
+        required=False,
+    ),
+    RemoteSource(
+        name="arena_search_factuality",
+        client=ArenaSearchFactualityClient,
+        ingest=ingest_arena,
+        parse=parse_arena,
+        minimum_rows=ARENA_BOARDS["search_factuality"].minimum_rows,
         required=False,
     ),
 )

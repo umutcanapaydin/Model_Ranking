@@ -294,6 +294,10 @@ PINNED_SCORE_ANCHORS = {
     "web-dev": 1478.9,
     "document": 1467.5,
     "factuality": 1450.6,
+    # M15-W3, pinned 2026-09-22 from `scripts/calibrate_board.py` (D-145's board-third rule).
+    "vision": 1248.2,
+    "search": 1206.9,
+    "search_factuality": 1203.7,
 }
 
 

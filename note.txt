@@ -1,32 +1,43 @@
 Project: model_ranking
-State: 2026-09-21 — M14 W1–W4 committed and pushed (fc7fe5b). The closure wave (W5) is written
-and uncommitted, and needs the owner: one runner pass, four rulings, one commit.
+State: 2026-09-22 — M15 W1, W2 and W3 are COMMITTED LOCALLY on top of 855b44a, NOT PUSHED, in
+three commits (W1 · W2 + the UI refresh · W3 + D-147), each with a green `make check` on its own
+tree. Agent identity, at the owner's request in session. M15-W4 (closure) is next.
 
-WHAT NEEDS THE OWNER  (detail: docs/closure-report-m14.md §0)
-  1. Run runner.sh. One new Swift test may legitimately fail — testTheTwoNewSurfacesAreReachable
-     ByAsking runs the real embedding router; if it is red, the router HINT is wrong, not the test.
-  2. Rule on the detail screen (W-105). M14 took the unit off every card; the screen the plan said
-     would hold it does not exist.
-  3. Rule on D-141 (W-106). The HIGH-wave security pass has now been waived five times.
-  4. Rule on the two gates that only run on his machine (W-108): CI lints less than `make lint`,
-     and 45 tests need a gitignored database.
-  5. Then: bash ~/Desktop/terminal_output/model_ranking/commit_w5.sh, and push.
+READ IN THIS ORDER
+  1. this file
+  2. docs/handovers/handover_project-2026-09-21.md   — the whole project, for someone who knows nothing
+  3. docs/closure-report-m14.md §0                   — the four rulings the owner still owes
+  4. docs/plans/m15-plan.md                          — what M15 is, and §0 what it waits on
+  5. docs/warnings.ledger.md W-105..W-115            — everything open, newest first
 
-WHAT M14 SHIPPED
-  - Two surfaces (document, factuality); 11 answer on the live artifact.
-  - The image/text price defect fixed and live (W-092); the 12-hour refresh running again (W-096)
-    and now installable from the repo (W-100).
-  - The gap register: declined questions kept on the phone, most-asked first, nothing leaves.
-  - One score out of 100 per surface (D-143, D-146). Elo leaders read 57–79, percentages 73–100,
-    accepted knowingly.
+WHAT THE THREE COMMITS CARRY
+  - M15-W1: scripts/survey_boards.py + docs/research/m15-board-survey-2026-09-21.md. All 22 boards
+    of the licensed dataset measured on one footing; W-094 answered (D-145's board-third rule is
+    the one the product actually ships).
+  - M15-W2: the detail screen. ios/ModelRanking/Engine/Detail.swift + DetailTests.swift + the two
+    doors in ContentView. Independent review: docs/reviews/m15-wave-2-review.md (was BLOCKING; all
+    fixed or escalated).
+  - M15-W3: three surfaces — vision, search, search_factuality. Boards, sources, attribution,
+    thresholds (docs/reviews/m15-category-calibration.md), router hints, Turkish titles, tests.
+  - D-147 (owner-accepted 2026-09-22): the router's wording tier routes on six example questions
+    per surface (CategoryHints.examples), because W3's one-sentence hints broke 7 of 18 M10 probe
+    routes. Probe 21/21, held-out 18/22. docs/reviews/m15-router-recalibration.md; the probe is
+    scripts/router_probe/ and a change to any example owes it a run on BOTH question sets.
+  - UI refresh (another agent, 2026-09-22): ContentView.swift, Design.swift,
+    tests/unit/test_ios_visual_contract.py, docs/plans/m15-ui-refresh-plan.md and its review.
+
+FIRST THING TO DO IN A LANE THAT HAS SWIFT
+  `make check` — green at the W3 commit: Python 951 passed / 12 skipped, Swift 257 (floor 257).
+  W-114 and W-115 are fixed. Xcode Debug build of this tree for the iPhone 17 Pro simulator:
+  BUILD SUCCEEDED (2026-09-22). Still unmeasured: the router's speed on a phone (D-147's cost).
+
+THEN
+  The owner pushes (nothing is pushed). Then M15-W4 closure, and the four rulings in
+  docs/closure-report-m14.md §0 are still owed.
 
 THE THING A NEW AGENT MUST NOT UNDO
   - Uncertainty.swift is the ONE file allowed arithmetic on a served score (D-138).
-  - Nothing typed leaves the device (D-126). The egress ban now covers ContentView.swift too —
-    it was a proof with a hole in it for a whole milestone (W-099).
+  - Nothing typed leaves the device (D-126). The egress ban covers every file under
+    ios/ModelRanking, with EngineClient.swift the one named exemption (W-110).
   - No commit as the owner (D-117); English-only repository; deploy/ and .github/ are his.
-
-ANCHOR
-  ADRs D-100..D-146 (D-141 proposed). Reviews docs/reviews/m14-*. Retro m14-retrospective.md.
-  M15 plan is written: docs/plans/m15-plan.md — coverage becomes a measurement, and §0 lists the
-  five rulings it waits on. 15 % 3 == 0: a quarterly handover is due at M15 closure.
+  - Before writing a file, RE-READ the copy on disk. W-114 is what happens otherwise.

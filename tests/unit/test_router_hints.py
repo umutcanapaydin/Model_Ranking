@@ -32,7 +32,11 @@ def _hint_ids() -> set[str]:
     """The category ids the client has a routing hint for, parsed from the Swift."""
     source = ROUTER.read_text(encoding="utf-8")
     block = source[source.index("static let byID:") : source.index("unmeasuredFallback")]
-    return set(re.findall(r'^\s*"([a-z-]+)":', block, re.MULTILINE))
+    # `[a-z-]` missed `search_factuality` when M15-W3 added it -- a surface id may carry an
+    # underscore (the engine's own ids do), and a hint the pattern cannot see reads here as a hint
+    # that does not exist. The test would have failed loudly; a narrower pattern in the OTHER
+    # direction would have passed silently, which is the version of this bug worth fearing.
+    return set(re.findall(r'^\s*"([a-z_-]+)":', block, re.MULTILINE))
 
 
 def test_every_surface_the_engine_advertises_has_a_routing_hint() -> None:
@@ -59,6 +63,35 @@ def test_every_surface_the_engine_advertises_has_a_routing_hint() -> None:
         f"the router describes {stale}, which the engine does not serve; a hint outliving its "
         "surface is how the closed set stops being closed"
     )
+
+
+def _example_counts() -> dict[str, int]:
+    """How many example questions the WORDING tier holds per surface, parsed from the Swift."""
+    source = ROUTER.read_text(encoding="utf-8")
+    start = source.index("static let examples:")
+    block = source[start : source.index("\n    ]\n", start)]
+    return {
+        match.group(1): len(re.findall(r'"[^"]*"', match.group(2)))
+        for match in re.finditer(r'^\s*"([a-z_-]+)":\s*\[(.*?)\]', block, re.MULTILINE | re.DOTALL)
+    }
+
+
+def test_every_described_surface_has_example_questions_for_the_wording_tier() -> None:
+    """M15-W3 re-calibration: the wording tier routes on EXAMPLES, the model tier on `byID`.
+
+    A surface with a description and no examples is one the model tier can choose and the wording
+    tier -- the one most devices run -- silently cannot. Two examples is the floor because a surface
+    scores as the mean of its two closest; the shipped set has six each, as measured.
+    """
+    counts = _example_counts()
+    assert counts, "no example questions could be parsed; the derivation is broken, not clean"
+
+    assert set(counts) == _hint_ids(), (
+        f"examples cover {sorted(counts)} and descriptions cover {sorted(_hint_ids())}; the two "
+        "tiers of one router would be choosing from different lists"
+    )
+    thin = sorted(surface for surface, count in counts.items() if count < 2)
+    assert not thin, f"{thin} have fewer than two examples, so their score is one stray sentence"
 
 
 def test_the_unmeasured_fallback_is_a_surface_the_engine_actually_serves() -> None:

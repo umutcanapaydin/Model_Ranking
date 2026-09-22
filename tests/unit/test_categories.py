@@ -120,6 +120,10 @@ def test_categories_are_data_not_code(monkeypatch: pytest.MonkeyPatch) -> None:
         # names -- the rest of the engine served them without a line changing.
         "document",
         "factuality",
+        # M15-W3: three more, chosen by the W1 survey's measurement rather than by intuition.
+        "vision",
+        "search",
+        "search_factuality",
     }
     for spec in CATEGORIES.values():
         assert spec.primary_benchmark and spec.metric and spec.primary_source
@@ -391,6 +395,9 @@ def test_every_surface_names_the_source_its_board_arrives_on() -> None:
         "assistant": "arena",
         "document": "arena_document",
         "factuality": "arena_factuality",
+        "vision": "arena_vision",
+        "search": "arena_search",
+        "search_factuality": "arena_search_factuality",
         "coding": "swebench",
         "agentic-coding": "epoch_deepswe_external",
         "everyday": "epoch_eci",

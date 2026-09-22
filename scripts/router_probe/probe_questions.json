@@ -1,0 +1,12 @@
+[["fix a bug in my python repo","coding"],["build me a landing page","web-dev"],
+["solve this competition math problem","mathematics"],["an agent that refactors my codebase","agentic-coding"],
+["click through this website and fill form","computer-use"],["a logic puzzle with no examples","abstract"],
+["help me write an email to my landlord","assistant"],
+["summarise this 40 page contract pdf for me","document"],["is this quote real or did it invent the citation","factuality"],
+["what is in this screenshot i am sending","vision"],["search the web for today's gold price","search"],
+["look it up online and give me the real source","search_factuality"],
+["click through a website and upload a photo","computer-use~"],["a web app for streaming video","web-dev~"],
+["solve this geometry problem about a picture frame","mathematics~"],["build a photo gallery website","web-dev~"],
+["write a script that resizes images","coding|agentic-coding~"],["optimise the latency of my web api","coding|web-dev~"],
+["make my profile photo look better","DECLINE"],["which model answers fastest","DECLINE"],
+["which model has the longest context window","DECLINE"]]

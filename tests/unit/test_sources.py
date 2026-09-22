@@ -103,7 +103,18 @@ def test_arena_is_the_only_optional_source() -> None:
     # a failed source keeps serving its last good data for about a month, then its list drops --
     # and that carry-forward is scheduled work, not what this assertion pins. What it pins is the
     # SET: an exception nobody pins becomes the default.
-    assert optional == {"arena", "arena_document", "arena_factuality"}, (
+    # M15-W3 added three more boards of the same dataset, by measurement rather than by choice
+    # (`docs/research/m15-board-survey-2026-09-21.md`). The rule is unchanged and so is its reason:
+    # every OPTIONAL source here is a board of the one dataset D-121/D-144 name, and nothing else
+    # in this registry may be optional.
+    assert optional == {
+        "arena",
+        "arena_document",
+        "arena_factuality",
+        "arena_vision",
+        "arena_search",
+        "arena_search_factuality",
+    }, (
         f"D-121 + D-144 name the LMArena boards and only those as optional; found {optional}"
     )
 
