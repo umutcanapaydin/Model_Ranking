@@ -52,6 +52,23 @@ jobs:
         run: mypy src
       - name: Test (pytest + coverage)
         run: pytest
+      # v5.2 (17-3 / 15-6). A green job is not a run that verified anything. In the field, 214
+      # contract tests skipped on every PR because the job had no `services:` block, and the board
+      # stayed green -- in the same commit whose practices.md said "a skip is not a pass".
+      # This reads the report the run produced. It does NOT close condition 15-8, which is open on
+      # "nothing in GP inspects a real CI run"; six seats made that a condition of adopting it.
+      - name: Skip budget (a skip is not a pass)
+        run: python3 scripts/coverage_floor.py --junit .pytest-report.xml
+      # model_ranking (D-155). The project's own legs of `make check`, which caller-liveness found had
+      # no CI caller. `client_decl_gate.py` needs Xcode and says SKIPPED NO-ENVIRONMENT here, loudly;
+      # `swift-test` is not run on Linux at all (the Engine imports NaturalLanguage) and stays an
+      # owner-machine leg, as W-111 records.
+      - name: Per-module coverage floor (W-041)
+        run: python scripts/module_coverage_floor.py
+      - name: Every wave-close record, not only the one named (V3C-69)
+        run: python scripts/wave_check_all.py
+      - name: Client privacy declarations (D-126, W-122) -- SKIPPED loudly without Xcode
+        run: python scripts/client_decl_gate.py
 
   secret-scan:
     runs-on: ubuntu-latest
@@ -114,4 +131,27 @@ jobs:
         run: python3 conformance/run-all.py
       - name: Falsification -- every control broken on purpose (V4C-84)
         run: python3 conformance/falsify.py
+      # v5.2, found by condition 16-8's caller-liveness check ON ITS FIRST RUN. `slopsquat` is a leg
+      # of `make gate` -- the name this package says means "everything we claim" -- and it appeared
+      # in no workflow and in no pre-commit hook. Its only caller was someone who already knew its
+      # name, which is the founding defect of this lineage, shipped for a fifth time at a fifth
+      # altitude. The check that caught it was written to catch exactly this and caught it immediately.
+      - name: Slopsquat -- declared deps exist on PyPI and are not brand new (F.8)
+        run: python3 scripts/slopsquat_check.py
+      # v5.2, 18-B(iv) (Increment 18). `harvest-context-check` is a leg of `make check` and had no
+      # CI caller anywhere -- the Security seat found it at Increment 17 and caller-liveness could
+      # not see it, because the check passed a leg when ANY ONE of its transitive tokens appeared.
+      # `ruff` was vouching for it. In an installation this step reports SKIPPED and exits 0, which
+      # is correct: a project maintains no control roster. It is here so the leg has a caller.
+      # B8, Increment 19 council (DevOps seat). This step did not exist, and nothing anywhere
+      # ran `shell_dialect_check.sh` -- not CI, not pre-commit, not the hook config. Condition
+      # 15-12's gate was adopted at Increment 18, is a leg of `make check` and therefore of
+      # `make gate`, and had no caller in the template a project receives. `caller-liveness`
+      # could not see it because its token extractor matched `.py` only (TB-101); the moment
+      # that was repaired, the finding appeared -- and a second defect in the same function,
+      # a `make check` mentioned in comment PROSE, swallowed it again.
+      - name: Shell dialect -- every shipped .sh parses and declares one dialect (15-12)
+        run: bash scripts/shell_dialect_check.sh
+      - name: Harvest context is current (16-2)
+        run: make harvest-context-check
 
