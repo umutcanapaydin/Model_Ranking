@@ -279,6 +279,9 @@ reports an unknown agent identity as a "third identity" once an owner is given.
 
 **Fix.** Require `--owner-email` (from a committed config, not the clone's git config), and let a
 project declare its agent identities.
+Also: nothing in an installation runs `test-commit-identity.py --self-test`, so a change that
+breaks its own fixtures goes unnoticed (this project broke two and found it by hand).
+**Workaround here:** a committed `.owner-identity` (owner email + the last direct-push commit).
 
 ### A22. Retired skill names survive in shipped prose no check reads — LOW
 
