@@ -134,7 +134,7 @@ conformance-gate: install
 	$(PY) -B scripts/conformance_gate.py
 
 #: Raise when tests are added; never lower without a ledger row.
-SWIFT_TEST_FLOOR := 242
+SWIFT_TEST_FLOOR := 257
 
 swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING sources
 	@# A test nobody types is a test that does not run -- W-032, this project's own finding, which
@@ -152,7 +152,7 @@ swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING so
 	@# first a pipe swallowing the status, then `runner` calling commands that do not exist, now
 	@# this. Same shape as `coverage-floor`: the floor is raised deliberately, never lowered quietly.
 	@if command -v swift > /dev/null 2>&1; then \
-		out=`cd ios && swift test 2>&1` || { echo "$$out" | tail -40; exit 1; }; \
+		out=`cd ios && swift test 2>&1`; rc=$$?; echo "$$out" > /tmp/mr_swift_test.log; [ $$rc -eq 0 ] || { echo "$$out" | grep -E "error:|failed \(" | head -30; echo "(full swift output: /tmp/mr_swift_test.log)"; exit 1; }; \
 		line=`echo "$$out" | grep -E "Executed [0-9]+ tests, with" | tail -1`; \
 		n=`echo "$$line" | sed -E 's/.*Executed ([0-9]+) tests.*/\1/'`; \
 		if [ -z "$$n" ] || [ "$$n" -lt $(SWIFT_TEST_FLOOR) ]; then \

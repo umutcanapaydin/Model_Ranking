@@ -404,3 +404,13 @@ when text moves teaches people to leave text where it is.
 Lesson: **a ruling is a hypothesis until someone measures it.** Three council rulings were
 overturned by measurement this milestone, the last one by a reviewer; the fix it forced (ranges)
 is better than the ruling it replaced.
+
+## 2026-09-22 — iOS visual refresh after the M15 handover
+
+- Refreshed question, recommendation, ranking and detail presentation with shared adaptive tokens.
+- Detected concurrent detail work after a quota pause; rebuilt the integration on a fresh snapshot,
+  preserving its composer, tests, 257-test floor and governance records.
+- Independent visual review passed; Python 922 passed / 12 skipped, Swift 257 passed, iOS build passed.
+- Simulator verified both detail routes, Return/send, Turkish chrome and manual category correction;
+  a Turkish coding-question routing mismatch was recorded in the new handover, not claimed fixed.
+Lesson: after an interrupted session, compare the current owner tree before transferring a prepared patch.

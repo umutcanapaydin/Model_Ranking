@@ -361,6 +361,87 @@ public enum UIText {
         language == .turkish ? "Temizle" : "Clear"
     }
 
+    // MARK: - The screen's chrome (M15 UI refresh)
+    //
+    // **These eleven were written for the 2026-09-22 refresh and then DELETED by accident**, when
+    // the M15-W3 wave wrote this file from a copy that predated them; `ContentView.swift` went on
+    // calling all eleven and only the Xcode build could see it (`swift test` does not compile the
+    // view). The originals were never committed, so these are replacements rather than a restore:
+    // the same jobs, in this file's voice, and the wording is open to the owner's correction.
+    // `test_ios_client_contract.py::test_every_screen_string_the_client_calls_exists` is the guard
+    // that makes the next deletion fail a gate instead of a build.
+
+    /// The progress label while the first answer is being fetched.
+    public static func loading(_ language: Language) -> String {
+        language == .turkish ? "Yükleniyor…" : "Loading…"
+    }
+
+    /// The opening line of the home screen, above the question field.
+    public static func heroTitle(_ language: Language) -> String {
+        language == .turkish ? "Hangi modeli kullanmalısın?" : "Which model should you use?"
+    }
+
+    /// One line under it, saying what this product is and is not.
+    public static func heroSubtitle(_ language: Language) -> String {
+        language == .turkish
+            ? "Kendi cümlelerinle sor. Buradaki her sayı herkese açık bir ölçümden geliyor."
+            : "Ask in your own words. Every number here comes from a public measurement."
+    }
+
+    /// The small label above the question field.
+    public static func questionEyebrow(_ language: Language) -> String {
+        language == .turkish ? "SORUN" : "YOUR QUESTION"
+    }
+
+    /// Beside the lock icon: D-126, said to the reader rather than only to the repository.
+    public static func privateQuestion(_ language: Language) -> String {
+        language == .turkish
+            ? "Yazdıkların bu cihazda kalır."
+            : "What you type stays on this device."
+    }
+
+    /// A surface that ranked nothing. The engine's own reason is shown under it.
+    public static func noPicks(_ language: Language) -> String {
+        language == .turkish ? "Burada önerebileceğimiz model yok" : "Nothing to recommend here"
+    }
+
+    /// The engine could not be reached, or refused. The error's own sentence follows.
+    public static func noAnswer(_ language: Language) -> String {
+        language == .turkish ? "Şu anda cevap yok" : "No answer right now"
+    }
+
+    public static func retry(_ language: Language) -> String {
+        language == .turkish ? "Tekrar dene" : "Try again"
+    }
+
+    /// The model filter matched nothing, and what to try instead.
+    public static func noMatches(_ language: Language) -> String {
+        language == .turkish ? "Eşleşen model yok" : "No model matches"
+    }
+
+    public static func noMatchesHint(_ language: Language) -> String {
+        language == .turkish
+            ? "Model ya da sağlayıcı adının bir kısmını yazmayı dene."
+            : "Try part of a model or a vendor name."
+    }
+
+    /// The tap target on a card, worded as what the reader gets rather than as "Details".
+    public static func openEvidence(_ language: Language) -> String {
+        language == .turkish ? "Kanıta bak" : "See the evidence"
+    }
+
+    /// The detail screen's title and its one caveat (M15-W2, REQ-DTL-001/002).
+    public static func detailTitle(_ language: Language) -> String {
+        language == .turkish ? "Bu sayı nereden geliyor" : "Where this number comes from"
+    }
+
+    /// Said once, at the bottom, because a reader who opened this screen is comparing something.
+    public static func detailCaveat(_ language: Language) -> String {
+        language == .turkish
+            ? "Her alan kendi listesinden ölçülür. İki alanın puanı birbiriyle kıyaslanamaz."
+            : "Each surface is measured on its own board. Two surfaces' scores do not compare."
+    }
+
     /// The Change sheet's title.
     public static func chooseSurface(_ language: Language) -> String {
         language == .turkish ? "Neyi sıralayalım?" : "What should we rank?"

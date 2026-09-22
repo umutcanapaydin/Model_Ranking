@@ -71,7 +71,7 @@ struct ContentView: View {
             Group {
                 switch state {
                 case .idle, .loading:
-                    ProgressView("Asking the engine…")
+                    ProgressView(UIText.loading(language)).tint(Design.accent)
                 case let .loaded(answers, note):
                     home(answers, orderingNote: note)
                 case let .failed(error):
@@ -98,12 +98,16 @@ struct ContentView: View {
                     .frame(width: 96)
                 }
             }
+            .background(Design.canvas)
+            .toolbarBackground(Design.canvas, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .navigationTitle(UIText.title(language))
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $choosingSurface) { surfaceSheet }
             .sheet(isPresented: $showingGaps) { gapSheet }
             .task { await load() }
         }
+        .tint(Design.accent)
     }
 
     // MARK: - Home
@@ -116,9 +120,19 @@ struct ContentView: View {
             surfaces: answers.map(\.surface), selected: task
         ).compactMap { id in answers.first { $0.surface == id } }
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 24) {
+            LazyVStack(alignment: .leading, spacing: 28) {
                 // THE FRONT DOOR (D-126). The router picks the QUESTION; the engine answers it.
                 // Nothing here says a model is good, and nothing typed leaves the device.
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(UIText.heroTitle(language))
+                        .font(.system(.largeTitle, design: .serif).weight(.medium))
+                        .tracking(-0.7)
+                        .foregroundStyle(Design.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(UIText.heroSubtitle(language))
+                        .font(.subheadline).foregroundStyle(Design.muted)
+                }
+                .padding(.top, 8)
                 questionCard
 
                 // The surface the reader SELECTED speaks first. `task=coding` expands server-side
@@ -155,7 +169,9 @@ struct ContentView: View {
                                     ranges: ranges,
                                     secondaryBenchmark: info?.secondaryBenchmark,
                                     secondaryAgeDays: info?.secondaryAgeDays,
-                                    anchor: info?.scoreAnchor
+                                    anchor: info?.scoreAnchor,
+                                    benchmark: answer.primaryBenchmark,
+                                    closeCallMargin: info?.closeCallMargin
                                 )
                             }
                             rankingPreview(
@@ -197,27 +213,31 @@ struct ContentView: View {
                     }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 20)
+            .padding(.horizontal, 22)
+            .padding(.top, 16)
         }
         // The bottom search field this compensated for (`.padding(.bottom, 88)`, handover §3.2) is
         // gone from this screen, and the safe area is the platform's number rather than ours.
         .safeAreaPadding(.bottom)
         .scrollDismissesKeyboard(.interactively)
-        .background(Color(.systemGroupedBackground))
+        .background(Design.canvas)
         .refreshable { await load() }
     }
 
     // MARK: - The front door (REQ-ASK-001..003)
 
     private var questionCard: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 10) {
-                    Image(systemName: "text.bubble")
-                        .foregroundStyle(.secondary)
-                        .onTapGesture { questionFocused = true }
-                    TextField(UIText.askPlaceholder(language), text: $question)
+        VStack(alignment: .leading, spacing: 12) {
+            Card(padding: 20) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(UIText.questionEyebrow(language))
+                    .font(.caption2.weight(.semibold)).tracking(1.5)
+                    .foregroundStyle(Design.muted)
+                HStack(alignment: .bottom, spacing: 12) {
+                    TextField(UIText.askPlaceholder(language), text: $question, axis: .vertical)
+                        .font(.title3)
+                        .lineLimit(2...4)
+                        .tint(Design.accent)
                         .focused($questionFocused)
                         .submitLabel(.send)
                         .onSubmit(submit)
@@ -229,19 +249,27 @@ struct ContentView: View {
                         if routingInFlight || reloading {
                             ProgressView().controlSize(.small)
                         } else {
-                            Image(systemName: "arrow.up.circle.fill").font(.title2)
+                            Image(systemName: "arrow.up").font(.headline)
                         }
                     }
+                    .frame(width: 46, height: 46)
+                    .background(Design.forest, in: RoundedRectangle(cornerRadius: 16))
+                    .foregroundStyle(Design.lime)
                     .buttonStyle(.plain)
-                    .foregroundStyle(.tint)
                     // No surfaces, nothing to route to: disabled and SAID (below), rather than a
                     // spinner followed by a question silently dropped (review MINOR-7).
                     .disabled(!canSubmit(question, inFlight: routingInFlight) || categories.isEmpty)
                     .accessibilityLabel(UIText.send(language))
                 }
-                Divider()
-                matchedSurfaceRow
+                HStack(spacing: 5) {
+                    Image(systemName: "lock").font(.caption2)
+                    Text(UIText.privateQuestion(language)).font(.caption)
+                }
+                .foregroundStyle(Design.muted)
             }
+            }
+            matchedSurfaceRow
+                .padding(.horizontal, 2)
         }
     }
 
@@ -329,7 +357,7 @@ struct ContentView: View {
                 }
                 .padding(16)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Design.canvas)
             .navigationTitle(UIText.chooseSurface(language))
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -417,7 +445,10 @@ struct ContentView: View {
                         RankingList(
                             answer: answer, filter: "", language: language,
                             ranges: ranges, leaderNote: leaderNote,
-                            anchor: category(for: answer)?.scoreAnchor
+                            anchor: category(for: answer)?.scoreAnchor,
+                            closeCallMargin: category(for: answer)?.closeCallMargin,
+                            secondaryBenchmark: category(for: answer)?.secondaryBenchmark,
+                            secondaryAgeDays: category(for: answer)?.secondaryAgeDays
                         )
                     } label: {
                 // The full ranking is NOT budget-filtered — D-125 publishes every ranked model
@@ -450,7 +481,7 @@ struct ContentView: View {
     @ViewBuilder
     private func emptyAnswer(_ answer: Answer) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("No picks").font(.headline)
+            Text(UIText.noPicks(language)).font(.headline)
             if let reason = answer.unavailableReason {
                 Text(reason).font(.subheadline).foregroundStyle(.secondary)
             }
@@ -501,7 +532,7 @@ struct ContentView: View {
     @ViewBuilder
     private func failure(_ error: EngineError) -> some View {
         ContentUnavailableView {
-            Label("No answer", systemImage: "exclamationmark.triangle")
+            Label(UIText.noAnswer(language), systemImage: "exclamationmark.triangle")
         } description: {
             VStack(spacing: 12) {
                 Text(error.errorDescription ?? "")
@@ -510,7 +541,7 @@ struct ContentView: View {
                 }
             }
         } actions: {
-            Button("Try again") { Task { await load() } }
+            Button(UIText.retry(language)) { Task { await load() } }
         }
     }
 
@@ -628,7 +659,7 @@ struct ContentView: View {
 
 /// A rounded surface with real padding. The one container everything sits in.
 struct Card<Content: View>: View {
-    var padding: CGFloat = 16
+    var padding: CGFloat = 20
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -636,9 +667,10 @@ struct Card<Content: View>: View {
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(.secondarySystemGroupedBackground))
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(Design.paper)
             )
+            .overlay(RoundedRectangle(cornerRadius: 24).stroke(Design.line, lineWidth: 0.7))
     }
 }
 
@@ -669,9 +701,10 @@ struct SectionTitle: View {
 
     var body: some View {
         Text(text)
-            .font(.title3.weight(.semibold))
+            .font(.title2.weight(.semibold))
+            .foregroundStyle(Design.ink)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 4)
+            .padding(.top, 2)
     }
 }
 
@@ -696,6 +729,10 @@ struct PickRow: View {
     var secondaryAgeDays: Int?
     /// D-143: the surface's pinned anchor, so an Elo score reads out of 100. `nil` keeps the scale.
     var anchor: Double?
+    /// M15-W2 (REQ-DTL-001/002): the board this pick was measured on, and the engine's tie margin,
+    /// for the detail screen this card opens into.
+    var benchmark: String = ""
+    var closeCallMargin: Double?
 
     private var whyText: String {
         whySentence(cardFact(pick.whyFactDictionary), in: language) ?? pick.why
@@ -737,47 +774,80 @@ struct PickRow: View {
         )
     }
 
-    private var pickMeaning: String? {
-        var parts: [String] = []
-        if let rank = rankText { parts.append(rank) }
-        if let scale { parts.append(scale) }
-        parts.append(priceInPages(pick.blendedPerM, in: language))
-        return parts.isEmpty ? nil : parts.joined(separator: "  ·  ")
-    }
+    private var prominent: Bool { pick.label == "best_quality" }
 
     var body: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 8) {
-                PickBadge(label: UIText.pickLabel(pick.label, language))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(pick.model).font(.title3.weight(.semibold))
-                    Text(pick.vendor).font(.subheadline).foregroundStyle(.secondary)
+        NavigationLink {
+            ModelDetail(
+                subject: pick,
+                benchmark: benchmark,
+                language: language,
+                anchor: anchor,
+                closeCallMargin: closeCallMargin,
+                secondaryBenchmark: secondaryBenchmark,
+                secondaryAgeDays: secondaryAgeDays
+            )
+        } label: {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Label(UIText.pickLabel(pick.label, language), systemImage:
+                        prominent ? "sparkle" : (pick.label == "best_value" ? "scale.3d" : "leaf"))
+                        .font(.caption2.weight(.bold)).tracking(1)
+                    Spacer(minLength: 8)
+                    Image(systemName: "arrow.up.right").font(.subheadline.weight(.semibold))
                 }
-                // REQ-CMP-004: a score says what it is out of, or only the rank is shown — and
-                // where there is no rank to show, the engine's own number stays (MINOR-8).
+                .foregroundStyle(prominent ? Design.lime : Design.accent)
+                HStack(alignment: .top, spacing: 12) {
+                    ModelMark(vendor: pick.vendor, prominent: prominent)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(pick.model).font(.title2.weight(.semibold))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(pick.vendor).font(.subheadline)
+                            .foregroundStyle(prominent ? Color.white.opacity(0.72) : Design.muted)
+                    }
+                }
                 Text(figuresLine(
                     score: pick.score, metric: pick.metric, blendedPerM: pick.blendedPerM, language,
                     ranked: rankText != nil, anchor: anchor
                 ))
-                    .font(.subheadline.weight(.medium))
-                    .monospacedDigit()
-                // REQ-CMP-001/002, amended for ECI by D-140: a number either says what it is out of
-                // or gives way to the rank below, which anyone can read. The rank is a POSITION in
-                // the engine's own ordering, so nothing is re-sorted (Trap 1).
-                if let meaning = pickMeaning {
-                    Text(meaning)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    .font(.subheadline.weight(.semibold)).monospacedDigit()
+                    .padding(.vertical, 10).padding(.horizontal, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(prominent ? Color.white.opacity(0.09) : Design.canvas,
+                                in: RoundedRectangle(cornerRadius: 12))
+                VStack(alignment: .leading, spacing: 4) {
+                    if let scale { Text(scale) }
+                    Text(priceInPages(pick.blendedPerM, in: language))
                 }
-                Text(whyText).font(.footnote).foregroundStyle(.secondary)
-                if let evidence = evidenceText {
-                    Text(evidence).font(.footnote).foregroundStyle(.secondary)
-                }
+                .font(.caption)
+                .foregroundStyle(prominent ? Color.white.opacity(0.76) : Design.muted)
+                Text(whyText).font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let tradeOff = tradeOffText {
-                    Text(tradeOff).font(.footnote).foregroundStyle(.tertiary)
+                    Text(tradeOff).font(.footnote)
+                        .foregroundStyle(prominent ? Color.white.opacity(0.76) : Design.muted)
                 }
+                if let evidence = evidenceText {
+                    Text(evidence).font(.caption)
+                        .foregroundStyle(prominent ? Color.white.opacity(0.76) : Design.muted)
+                }
+                Rectangle().fill(prominent ? Color.white.opacity(0.16) : Design.line).frame(height: 1)
+                HStack(alignment: .firstTextBaseline) {
+                    if let rankText { Text(rankText).font(.caption.monospacedDigit()) }
+                    Spacer(minLength: 12)
+                    Text(UIText.openEvidence(language)).font(.caption.weight(.semibold))
+                }
+                .foregroundStyle(prominent ? Design.lime : Design.accent)
             }
+            .foregroundStyle(prominent ? Color.white : Design.ink)
+            .padding(22)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(prominent ? Design.forest : Design.paper,
+                        in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 26).stroke(prominent ? Color.clear : Design.line, lineWidth: 0.7))
+            .contentShape(RoundedRectangle(cornerRadius: 26))
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -793,26 +863,94 @@ struct RankedRow: View {
     var anchor: Double?
 
     var body: some View {
-        HStack {
+        HStack(alignment: .top, spacing: 12) {
             if let rank {
                 Text(rank)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(minWidth: 30, alignment: .leading)
+                    .font(.caption.weight(.medium).monospacedDigit())
+                    .foregroundStyle(Design.accent)
+                    .frame(minWidth: 32, minHeight: 32)
+                    .padding(.horizontal, 4)
+                    .background(Design.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(row.model)
-                Text(row.vendor).font(.caption).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(row.model).font(.subheadline.weight(.semibold)).foregroundStyle(Design.ink)
+                Text(row.vendor).font(.caption).foregroundStyle(Design.muted)
+                Text(figuresLine(
+                    score: row.score, metric: row.metric, blendedPerM: row.blendedPerM, language,
+                    ranked: rank != nil, anchor: anchor
+                ))
+                .font(.caption).monospacedDigit().foregroundStyle(Design.muted)
             }
-            Spacer()
-            Text(figuresLine(
-                score: row.score, metric: row.metric, blendedPerM: row.blendedPerM, language,
-                ranked: rank != nil, anchor: anchor
-            ))
-                .font(.caption)
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+}
+
+/// **Where a number comes from.** M15-W2, REQ-DTL-001/002.
+///
+/// Opened from a pick or from any row of the ranking. It renders `detailFacts` and nothing else:
+/// every line is a served value, the composition is in the Engine where `swift test` runs it, and
+/// this view chooses no words of its own. D-143 took the unit off the card; this is where a reader
+/// who wants it finds it, with the board it was measured on and the date beside it.
+struct ModelDetail: View {
+    let subject: DetailSubject
+    let benchmark: String
+    var language: Language = .english
+    var anchor: Double?
+    var closeCallMargin: Double?
+    var secondaryBenchmark: String?
+    var secondaryAgeDays: Int?
+
+    private var facts: [DetailFact] {
+        detailFacts(
+            model: subject,
+            benchmark: benchmark,
+            anchor: anchor,
+            closeCallMargin: closeCallMargin,
+            secondaryBenchmark: secondaryBenchmark,
+            secondaryAgeDays: secondaryAgeDays,
+            in: language
+        )
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: 12) {
+                    ModelMark(vendor: subject.vendor)
+                    Text(subject.model)
+                        .font(.system(.largeTitle, design: .serif).weight(.medium))
+                        .foregroundStyle(Design.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(subject.vendor).font(.subheadline).foregroundStyle(Design.muted)
+                }
+                .padding(.vertical, 8)
+                ForEach(facts) { fact in
+                    Card {
+                        VStack(alignment: .leading, spacing: 9) {
+                            Text(fact.label).font(.caption.weight(.semibold))
+                                .foregroundStyle(Design.accent)
+                            Text(fact.value).font(.title3.weight(.medium)).monospacedDigit()
+                                .foregroundStyle(Design.ink)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .textSelection(.enabled)
+                            if let note = fact.note {
+                                Text(note).font(.subheadline).foregroundStyle(Design.muted)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                }
+                Text(UIText.detailCaveat(language))
+                    .font(.footnote).foregroundStyle(Design.muted)
+            }
+            .padding(22)
+        }
+        .background(Design.canvas)
+        .navigationTitle(UIText.detailTitle(language))
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -831,14 +969,34 @@ struct RankingList: View {
     var leaderNote: String?
     /// D-143: passed from the home screen so both screens print the same score.
     var anchor: Double?
+    /// M15-W2: what the detail screen needs, carried rather than re-fetched, so the row, the card
+    /// and the detail screen cannot disagree about one surface's facts.
+    var closeCallMargin: Double?
+    var secondaryBenchmark: String?
+    var secondaryAgeDays: Int?
 
     var body: some View {
         ScrollViewReader { proxy in
             List {
                 Section {
                     ForEach(rows) { row in
-                        RankedRow(row: row, rank: rank(of: row), language: language, anchor: anchor)
-                            .id(row.id)
+                        NavigationLink {
+                            ModelDetail(
+                                subject: row,
+                                benchmark: answer.primaryBenchmark,
+                                language: language,
+                                anchor: anchor,
+                                closeCallMargin: closeCallMargin,
+                                secondaryBenchmark: secondaryBenchmark,
+                                secondaryAgeDays: secondaryAgeDays
+                            )
+                        } label: {
+                            RankedRow(
+                                row: row, rank: rank(of: row), language: language, anchor: anchor
+                            )
+                        }
+                        .listRowBackground(Design.paper)
+                        .id(row.id)
                     }
                 } header: {
                     if let leaderNote {
@@ -863,6 +1021,14 @@ struct RankingList: View {
         }
         .navigationTitle(UIText.surface(id: answer.surface, engineTitle: answer.title, language))
         .searchable(text: $filter, prompt: UIText.filterPlaceholder(language))
+        .scrollContentBackground(.hidden)
+        .background(Design.canvas)
+        .overlay {
+            if rows.isEmpty {
+                ContentUnavailableView(UIText.noMatches(language), systemImage: "magnifyingglass",
+                                       description: Text(UIText.noMatchesHint(language)))
+            }
+        }
     }
 
     private var rows: [RankedModel] {

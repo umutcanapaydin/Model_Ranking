@@ -292,3 +292,11 @@ enum JSONValue: Decodable {
     }
 }
 
+// MARK: - The detail screen's subject (M15-W2, REQ-DTL-001/002)
+
+/// A pick and a ranking row carry the same measured fields, so one detail screen serves both.
+/// Declared here, beside the types, rather than in `Detail.swift`: these conformances are a
+/// statement about the /v1 payload, and this file is where the payload lives.
+extension Pick: DetailSubject {}
+
+extension RankedModel: DetailSubject {}

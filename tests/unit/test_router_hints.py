@@ -24,6 +24,8 @@ from fastapi.testclient import TestClient
 from app.adapter import main as adapter
 
 ROUTER = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/Engine/Router.swift"
+#: The whole client: the egress ban below is on the INVARIANT, not on a list of paths (W-099).
+CLIENT = ROUTER.parent.parent
 
 
 def _hint_ids() -> set[str]:
@@ -234,12 +236,31 @@ def test_the_gap_register_stays_on_the_device() -> None:
     # to reach the network, `EngineClient`, and `test_the_client_sends_only_the_surface_and_budget`
     # above pins every argument that may go through it. A view that opens its own connection is the
     # D-126 defect whatever it sends -- `URLSession`, `URLRequest`, a socket or a raw URL string.
-    for door in ("URLSession", "URLRequest", "URL(string:", "NWConnection", "CFStream"):
-        assert door not in view_code, (
-            f"the screen opens its own network door (`{door}`); the reader's words are on this "
-            "screen, and the only sanctioned egress is EngineClient with the arguments pinned above"
+    # M15-W2 review, BLOCKING-1. The ban used to name two files, so it did not reach
+    # `Detail.swift` — a new Engine file in the reader's path, written the day after W-099 closed.
+    # The seat's mutant (a `URLSession` POST inside `detailFacts`) survived every gate, which is
+    # W-099's own finding recurring in the next wave: **a ban on two paths is not a ban on the
+    # invariant.** It now covers EVERY client file, with the one sanctioned door named here, the
+    # shape `SCORE_ARITHMETIC_PERMITTED` uses for D-138.
+    #
+    # `EngineClient.swift` is the exemption: it IS the network layer, and what it may send is
+    # pinned argument by argument by `test_the_client_sends_only_the_surface_and_budget` above.
+    egress = ("URLSession", "URLRequest", "URL(string:", "NWConnection", "CFStream", "Network.")
+    permitted = {"EngineClient.swift": "D-126: the one sanctioned door; its arguments are pinned"}
+    seen: set[str] = set()
+    for path in sorted(CLIENT.rglob("*.swift")):
+        if path.name in permitted:
+            seen.add(path.name)
+            continue
+        code = "\n".join(
+            line.split("//", 1)[0] for line in path.read_text(encoding="utf-8").splitlines()
         )
-    for door in ("URLSession", "URLRequest", "NWConnection"):
-        assert door not in "\n".join(
-            line.split("//", 1)[0] for line in front.splitlines()
-        ), f"the front door opens its own network door (`{door}`)"
+        for door in egress:
+            assert door not in code, (
+                f"{path.name} opens its own network door (`{door}`); the reader's words reach this "
+                "layer, and the only sanctioned egress is EngineClient with its arguments pinned"
+            )
+    assert seen == set(permitted), (
+        f"{sorted(set(permitted) - seen)} is permitted to reach the network and is no longer "
+        "there; an exemption that outlives its file silently widens the next time one is added"
+    )

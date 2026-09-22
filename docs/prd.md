@@ -503,3 +503,15 @@ correction they offered survives as a `Change` sheet.
 | REQ-SCR-003 | No surface's anchor is taken from the current board, and a recalibration cannot move it. | **M14-W4.** `CategorySpec.score_anchor` (D-146). Cited by `tests/unit/test_uncertainty_contract.py::test_every_elo_surface_publishes_its_pinned_score_anchor`, `test_a_recalibration_cannot_move_the_anchor`, and the row pins in `test_ios_client_contract.py` (review M-4 mutant). |
 | REQ-SCR-004 | Ties are exactly the engine's: rank ranges use the native margin, and the tie note states that margin on the /100 scale. | **M14-W4.** `Uncertainty.swift::leaderSentence`. Cited by `ScoresTests.swift::testTheLeaderNoteSpeaksPointsWhenAnchored`. Amended by D-146 clause 3 (accepted). |
 
+## M15 — the detail screen (REQ-DTL), added at W2
+
+**REQ-DTL-001/002 were carried from the M13 council's ruling F2 and moved into M14 by the M13
+closure report, where they were not built** — while the M14 plan leaned on them as the mitigation
+for taking the metric name off every card (D-143). The M14 closure seat found the screen did not
+exist (`docs/warnings.ledger.md` W-105). They are written as criteria here, with citing tests, so
+the next milestone cannot inherit them as prose again.
+
+| REQ-ID | Criterion | Status |
+|---|---|---|
+| REQ-DTL-001 | A reader can open one model from a pick OR from any row of the ranking and see, for that model on that surface: the score as the card shows it, the price in both the per-million and the per-pages form, and the surface's tie margin. Nothing on the screen is computed by the client. | **M15-W2.** `ios/ModelRanking/Engine/Detail.swift::detailFacts`, rendered by `ContentView.swift::ModelDetail`. Cited by `ios/EngineTests/DetailTests.swift::DetailFactTests` (price in both forms, the margin on the board's own scale) and `tests/unit/test_ios_client_contract.py::test_the_detail_screen_is_reachable_and_composes_nothing_itself`, shown RED on a mutant that stops the ranking rows opening it. |
+| REQ-DTL-002 | The metric's name and the engine's own number on the board's own scale are available on that screen wherever the card does not show them — the converted Elo surfaces and rank-only ECI — with the board named and its result dated, or named as undated. | **M15-W2.** Same composer. Cited by `DetailTests.swift::testTheUnitTheCardHidesComesBackHere`, `::testARankOnlyMetricStillStatesItsNumberHere`, `::testAPercentageIsNotRestatedAsAMeasuredValue` (it does not repeat a unit the card already prints), `::testAnUndatedBoardSaysItIsUndated`. |

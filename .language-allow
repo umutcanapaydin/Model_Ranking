@@ -40,9 +40,15 @@ docs/reviews/m5-wave-2-review.md # append-only BLOCKING audit quotes the faulty 
 # the exemptions came back with the localisation, and `.swift` was not in `LANG_SUFFIXES` at all,
 # so L1 had never read one line of the client in its life.
 #
-# `.swift` is now scanned, and these four files are exempt BY NAME rather than by a blanket `ios/`
+# `.swift` is now scanned, and the files below are exempt BY NAME rather than by a blanket `ios/`
 # prefix. A prefix would restore exactly the blindness this fixes: the client is ~30 Swift files
-# and four of them hold Turkish. The other twenty-six are now guarded for the first time.
+# and the exempt ones hold Turkish; every other file is guarded.
+#
+# CORRECTED 2026-09-21 (M15-W2 review N-4). This note said "these four files" and "the other
+# twenty-six are now guarded for the first time" — true when it was written at M12-W5, false from
+# M13 onward, and nobody corrected it while the list grew to eleven. A count in a comment is a
+# record of the code, and this one had been stating the opposite of it for two milestones. No
+# count is written here now: the list below is the list.
 
 ios/ModelRanking/Engine/Language.swift  # the localisation layer itself — Turkish product strings are
                                         # its entire subject matter (D-136). English-only here would
@@ -66,3 +72,9 @@ ios/EngineTests/FrontDoorTests.swift    # asserts a Turkish notice by its words,
                                         # LanguageTests.swift is exempt above
 ios/EngineTests/ScoresTests.swift       # M13-W4: asserts the Turkish score, price and pick-label
                                         # strings verbatim, for the same reason
+ios/ModelRanking/Engine/Detail.swift    # M15-W2: the detail screen's lines, composed in both
+                                        # languages from served facts — the Language.swift shape,
+                                        # exempt by name for the same reason; prose and comments
+                                        # are English
+ios/EngineTests/DetailTests.swift       # asserts those exact Turkish lines, so the half-translated
+                                        # screen W-085 caught cannot come back one screen later

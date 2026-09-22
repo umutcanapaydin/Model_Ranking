@@ -81,6 +81,10 @@ The milestone's measurement wave. Nothing ships to a reader.
 
 - The screen a card opens into: the model, its score out of 100, **its unit and what the unit is**,
   the benchmark's name and date, the price in the form a reader can check, and the surface's floor.
+  **AMENDED 2026-09-21 at the W2 review (M-4, W-112): the floor is NOT on the screen**, because
+  `/v1/categories` does not publish `min_quality` and §3 below says a fact `/v1` does not carry is
+  an ADR rather than a quiet addition. Everything else in this line shipped. The floor comes back
+  with the owner's ruling, or the line goes.
 - REQ-DTL-001/002 get real criteria and citing tests, and W-105 closes.
 - `ContentView.swift` grows again, and it is the file with the least proof in the project — so this
   wave extends the source-contract tests as it goes rather than after, and the D-126 egress ban

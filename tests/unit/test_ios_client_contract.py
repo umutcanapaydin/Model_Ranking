@@ -812,3 +812,136 @@ def test_every_score_on_screen_goes_through_the_figures_line() -> None:
             f"ContentView.swift:{line} reads a served score outside a composer's `score:` argument; "
             "a score printed by hand says nothing about what it is out of (D-140)"
         )
+
+
+def test_the_detail_screen_is_reachable_and_composes_nothing_itself() -> None:
+    """REQ-DTL-001/002 (M15-W2): the unit D-143 took off the card has somewhere to be.
+
+    W-105: the M14 plan's mitigation for hiding the metric name was "it stays available on the
+    detail screen", and the closure seat found there was no detail screen at all — so the product
+    removed the unit from every card and row with nowhere for a reader to find it.
+
+    Structural, like every test in this file, because `swift test` does not compile
+    `ContentView.swift`. **Rewritten after the W2 review**, which showed the first version proving
+    much less than its own message claimed: it pinned argument NAMES, so a detail screen opened
+    with `anchor: nil`, with `anchor:` and `closeCallMargin:` swapped, or with `benchmark: ""`
+    passed while showing the reader a different fact from the card that opened it (W-084's shape,
+    one screen later). It now pins each door's whole argument list to the surface's own facts.
+    """
+    view = "\n".join(
+        line.split("//", 1)[0]
+        for line in (CLIENT / "ContentView.swift").read_text(encoding="utf-8").splitlines()
+    )
+
+    assert "struct ModelDetail: View" in view, "the detail screen is gone"
+
+    # Both doors, and each one's arguments as a WHOLE expression: the value, not the label.
+    doors = {
+        "pick": (
+            r"ModelDetail\(\s*subject:\s*pick,\s*benchmark:\s*benchmark,\s*"
+            r"language:\s*language,\s*anchor:\s*anchor,\s*"
+            r"closeCallMargin:\s*closeCallMargin,\s*"
+            r"secondaryBenchmark:\s*secondaryBenchmark,\s*"
+            r"secondaryAgeDays:\s*secondaryAgeDays\s*\)"
+        ),
+        "row": (
+            r"ModelDetail\(\s*subject:\s*row,\s*benchmark:\s*answer\.primaryBenchmark,\s*"
+            r"language:\s*language,\s*anchor:\s*anchor,\s*"
+            r"closeCallMargin:\s*closeCallMargin,\s*"
+            r"secondaryBenchmark:\s*secondaryBenchmark,\s*"
+            r"secondaryAgeDays:\s*secondaryAgeDays\s*\)"
+        ),
+    }
+    for opened, pattern in doors.items():
+        assert re.search(pattern, view), (
+            f"the {opened} does not open the detail screen with this surface's own facts, in "
+            "full: a swapped, dropped or defaulted argument makes the screen contradict the card "
+            "that opened it"
+        )
+    assert len(re.findall(r"ModelDetail\(", view)) == len(doors), (
+        "a third place builds a detail screen; every door must be pinned here or the pinning is "
+        "decorative"
+    )
+
+    # And the card carries what it must pass on: a `PickRow` built without the board name gave
+    # every pick a detail screen reading `Measured on:` with nothing after it (review M-6).
+    pick_row = re.search(r"PickRow\((.*?)\n\s*\)", view, re.S)
+    assert pick_row, "the picks are no longer built here"
+    for argument in ("benchmark: answer.primaryBenchmark", "closeCallMargin: info?.closeCallMargin"):
+        assert argument in pick_row.group(1), f"the picks are built without `{argument}`"
+
+    # The view renders the Engine's facts and NOTHING else. Brace-matched rather than sliced to
+    # the next `struct`: the review's mutant moved its helper below the last one and passed.
+    start = view.index("struct ModelDetail: View")
+    depth, end = 0, start
+    for index in range(start, len(view)):
+        if view[index] == "{":
+            depth += 1
+        elif view[index] == "}":
+            depth -= 1
+            if depth == 0:
+                end = index + 1
+                break
+    body = view[start:end]
+
+    assert re.search(
+        r"private var facts: \[DetailFact\] \{\s*detailFacts\(\s*model:", body
+    ), "the detail screen no longer asks the Engine for its facts"
+    facts_property = body[body.index("private var facts"):]
+    facts_property = facts_property[: facts_property.index("\n    }")]
+    assert "+" not in facts_property and "DetailFact(" not in facts_property, (
+        "the screen adds facts of its own to the Engine's list; a line the engine did not compose "
+        "is a claim nobody measured (the review's `Verdict: Best value overall` mutant)"
+    )
+
+    # Every string this view renders is a served value or a named UIText line. An invented
+    # sentence — "Independently verified", or one contradicting the D-105 caveat — fails here.
+    rendered = re.findall(r"Text\(([^)]*)\)", body)
+    allowed = {
+        "subject.model",
+        "subject.vendor",
+        "fact.label",
+        "fact.value",
+        "note",
+        "UIText.detailCaveat(language",
+    }
+    for text in rendered:
+        assert text.strip() in allowed, (
+            f"the detail screen renders `{text.strip()}`, which is neither a fact the Engine "
+            "composed nor a named UIText line"
+        )
+    assert "UIText.detailCaveat(language" in " ".join(rendered), (
+        "the screen drops D-105's caveat: a reader comparing two surfaces here gets a wrong answer"
+    )
+
+
+def test_every_screen_string_the_client_calls_exists() -> None:
+    """A `UIText.x(...)` the client calls must be a `func x(` in `Language.swift`. M15, W-114.
+
+    **This test exists because eleven of them were deleted and nothing noticed.** The 2026-09-22 UI
+    refresh added eleven screen strings; the next wave wrote `Language.swift` from a copy that
+    predated them and removed all eleven, while `ContentView.swift` went on calling every one. The
+    Python suite stayed green — it greps the CALLER — and `swift test` cannot see it either,
+    because `ios/Package.swift` scopes the test target to `Engine` and never compiles the view. The
+    only thing in the project that could see it was the Xcode build, which runs on one machine.
+
+    So this is the cross-file half `test_ios_visual_contract.py` cannot do: resolve every call.
+    `tests/unit/test_router_hints.py` already does exactly this shape for the router's hint ids.
+    """
+    view = "\n".join(
+        line.split("//", 1)[0]
+        for line in (CLIENT / "ContentView.swift").read_text(encoding="utf-8").splitlines()
+    )
+    language = (CLIENT / "Engine" / "Language.swift").read_text(encoding="utf-8")
+
+    called = set(re.findall(r"\bUIText\.([a-zA-Z]\w*)", view))
+    defined = set(re.findall(r"static\s+(?:func|let|var)\s+([a-zA-Z]\w*)", language))
+    missing = sorted(called - defined)
+
+    assert called, "the client stopped using the string table entirely"
+    assert not missing, (
+        f"the screen calls {missing}, which `Language.swift` does not define. The app will not "
+        "build, and neither `swift test` (it does not compile the view) nor a grep of the view "
+        "alone can see it"
+    )
+
