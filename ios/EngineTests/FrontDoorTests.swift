@@ -341,6 +341,85 @@ final class UnmeasuredQuestionTests: XCTestCase {
         }
     }
 
+    /// M15-W3 review m-3: W-115 narrowed the image decline group to MAKING and CHANGING images,
+    /// because `vision` now ranks READING one -- and nothing tested it. The seat put the reading
+    /// questions back into the decline group and all 257 Swift tests stayed green.
+    func testAQuestionAboutReadingAnImageReachesVisionRatherThanTheImageDecline() async {
+        for question in ["describe this photo", "what is in this picture"] {
+            let outcome = await SimilarityRouter().route(question, within: served)
+
+            XCTAssertEqual(outcome?.categoryID, "vision", question)
+            XCTAssertEqual(outcome?.unmeasured, false, question)
+        }
+        // and the other half of W-115's narrowing: MAKING one is still declined
+        let made = await SimilarityRouter().route("generate an image of a cat", within: served)
+        XCTAssertEqual(made?.unmeasured, true)
+    }
+
+    /// M15-W3 review m-4: the positive routing tests above paraphrase the router's own examples, so
+    /// they prove the examples reach a surface, not that a reader's own words do. These five were
+    /// written for the D-147 held-out set (`scripts/router_probe/heldout_questions.json`), before
+    /// the examples they are routed against existed, and were never tuned on.
+    func testQuestionsNobodyTunedOnStillReachTheSurfaceTheyName() async {
+        let heldOut: [(String, String)] = [
+            ("my unit tests fail after upgrading pandas", "coding"),
+            ("answer questions from this 200 page annual report", "document"),
+            ("read the numbers off this bar chart image", "vision"),
+            ("what is the weather in berlin today", "search"),
+            ("how do i politely decline a meeting", "assistant"),
+        ]
+        for (question, surface) in heldOut {
+            let outcome = await SimilarityRouter().route(question, within: served)
+
+            XCTAssertEqual(outcome?.categoryID, surface, question)
+            XCTAssertEqual(outcome?.unmeasured, false, question)
+        }
+    }
+
+    /// W-118 / M16-W1 review M-1: the examples that fixed ordinary questions have a regression
+    /// test, so reverting them fails here rather than on a reader's phone.
+    ///
+    /// Before M16-W1 these three reached `vision`, `search` and `coding` with `unmeasured` false --
+    /// the app answering a household question with a ranking of models for reading screenshots.
+    /// `assistant` had no general example among its six and `vision`'s were question-shaped
+    /// sentences any short question resembled (`docs/reviews/m16-router-floor-measurement.md`).
+    /// Measured: all three route to `assistant` with the shipped examples and none of them does
+    /// with the previous set.
+    func testAnOrdinaryQuestionLandsOnGeneralHelpRatherThanAMeasuredSurface() async {
+        for question in ["how do i cook rice",
+                         "my back hurts what should i do",
+                         "how do i change a flat tyre"] {
+            let outcome = await SimilarityRouter().route(question, within: served)
+
+            XCTAssertEqual(outcome?.categoryID, "assistant", question)
+        }
+    }
+
+    /// W-118: the floor still decides, and nonsense is declined -- but NOT by the floor, and the
+    /// difference is the finding.
+    ///
+    /// `docs/reviews/m16-router-floor-measurement.md` re-measured 86 questions under D-147's
+    /// scoring: nonsense scores 0.16-0.40 and the lowest CORRECT route scores 0.232, so the ranges
+    /// overlap and nothing below 0.15 was observed at all. What declines `zzz` is the decline
+    /// groups outscoring every surface. So this test asserts both facts separately, rather than
+    /// crediting the floor with work it does not do: the floor is exercised on a question that
+    /// routes confidently (both sides of the threshold, the M13 seat's requirement), and nonsense
+    /// is asserted to be declined however that happens.
+    func testTheFloorDecidesAndNonsenseIsDeclinedByTheGroupsInstead() async {
+        let real = "fix a bug in my python repo"
+
+        let routed = await SimilarityRouter().route(real, within: served)
+        XCTAssertEqual(routed?.unmeasured, false, real)
+
+        let unreachable = await SimilarityRouter(floor: 0.9).route(real, within: served)
+        XCTAssertEqual(unreachable?.unmeasured, true, "the floor no longer decides anything")
+
+        let noise = await SimilarityRouter().route("zzz", within: served)
+        XCTAssertEqual(noise?.unmeasured, true, "nonsense routed as a measured question")
+        let noiseWithoutFloor = await SimilarityRouter(floor: 0.0).route("zzz", within: served)
+        XCTAssertEqual(noiseWithoutFloor?.unmeasured, true, "it is the decline groups, not the floor")
+    }
+
     /// The model tier's decline PATH, labelled as what it is: the sentinel reaches the notice. It
     /// does not read the question, and it is not cited as the wrong-modality or wrong-axis test.
     func testTheModelTiersDeclineIsCarriedThroughToTheNotice() async {

@@ -157,8 +157,8 @@ enum CategoryHints {
                            "automate a multi file change in my repository",
                            "an ai developer that edits files and runs commands by itself"],
         "assistant": ["write a thank you note to my colleague", "help me reply to this text message",
-                      "give me advice on asking for a raise", "explain what inflation means in simple words",
-                      "rewrite this paragraph to sound friendlier", "chat with me about my weekend plans"],
+                      "what is the tallest mountain in the world", "explain what inflation means in simple words",
+                      "how do i get red wine out of a carpet", "hi can you help me with something"],
         "everyday": ["which ai is best for everyday tasks", "a good all round model for many different things",
                      "which model should i use for general daily use",
                      "the best general purpose ai for a bit of everything", "one model for work, study and home",
@@ -188,8 +188,9 @@ enum CategoryHints {
         "factuality": ["is this claim true", "did the model make up this fact",
                        "check whether these figures are correct", "is this citation real or invented",
                        "verify this historical date", "does this answer contain hallucinations"],
-        "vision": ["what is in this picture", "describe this photo", "read the text in this screenshot",
-                   "what does this chart show", "identify the plant in this image", "explain this diagram"],
+        "vision": ["what is in this picture i uploaded", "describe this photo",
+                   "read the text in this screenshot", "what does this chart in the image show",
+                   "identify the plant in this photo", "explain the diagram in this image"],
         "search": ["search the web for the latest news", "what is the price of bitcoin right now",
                    "look up today's weather", "find current flight prices", "what happened in the news today",
                    "search online for the opening hours of a shop"],
@@ -214,10 +215,15 @@ struct SimilarityRouter: QuestionRouter {
     /// Below this the question resembles nothing in particular, and the honest answer is the
     /// general assistant ranking WITH the sentence saying so (REQ-RTR-005).
     ///
-    /// 0.15 on CENTRED cosine. Measured, not chosen: on a probe of nine real questions the correct
-    /// surface scored 0.18–0.51 and a question the catalogue does not measure scored 0.19, so the
-    /// floor separates "nothing like anything" from "a weak but real match" and deliberately does
-    /// not try to separate more than that. Tier 2 matches on WORDING and its outcome says so.
+    /// 0.15 on CENTRED cosine. Measured, not chosen -- and RE-MEASURED at M16-W1 under D-147's
+    /// scoring, which the first measurement predates (nine hints, one sentence each; this scores a
+    /// surface as the mean of its two closest of six examples, centred on the mean of 84).
+    /// `docs/reviews/m16-router-floor-measurement.md`: across 86 questions in five sets, no correct
+    /// route scored below 0.232 and nonsense scored 0.16-0.40, so the two ranges OVERLAP and no
+    /// floor separates them. 0.15 and 0.20 give identical results on every set, question by
+    /// question. The floor stays where it is because moving it buys nothing that can be measured;
+    /// what fixed the real defect (plain questions landing on `vision` at 0.5) was the EXAMPLES.
+    /// Tier 2 matches on WORDING and its outcome says so.
     var floor: Double = SimilarityRouter.defaultFloor
 
     /// The measured default, kept separate from the instance property so a test can MOVE the

@@ -12,11 +12,9 @@ date: 2026-09-22
 
 ## 0. What needs the owner
 
-1. **Rule on D-150 clause 2 (K.8).** K.8 reached its third acceptance and `check_records` passes
-   only because W-112's row names D-150, whose clause 2 is still `proposed` (W4 review MINOR-3).
-   The proposal: the rule held all three times, so keep it, and add a line to the plan template
-   mapping every fact a new screen shows to its `/v1` field. **Recommendation: ratify.** If you
-   refuse it, W-112 loses its marker and K.8 goes back under review.
+1. ~~Rule on D-150 clause 2 (K.8).~~ **Ratified by the owner 2026-09-22.** K.8 stays as it is, and
+   the plan template gains a line mapping every fact a new screen shows to the `/v1` field it comes
+   from (built in M16-W1). W-112's `C2b-reviewed` marker now names an accepted decision.
 2. **One correction you have already ruled on, stated here because it is about what you were told.**
    The first description of the Swift floor fix said a derived floor would catch a deleted test. It
    cannot. You ruled again on the correct description (a committed list of test names); D-150

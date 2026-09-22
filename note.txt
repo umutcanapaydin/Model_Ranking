@@ -1,11 +1,24 @@
 Project: model_ranking
+RESUME HERE (2026-09-22, checkpoint commit): M16-W1 is BUILT and its independent review came back
+BLOCKING (docs/reviews/m16-wave-1-review.md: 3 BLOCKING, 4 MAJOR, 10 MINOR, 2 NIT). All three
+BLOCKINGs and MAJORs M-1..M-4 are FIXED and re-verified (see "M16-W1 STATE" below). What is LEFT:
+  1. the review's 10 MINORs and 2 NITs -- not yet read one by one
+  2. record corrections the review found: D-150 clause 1 and W-111 say the manifest lists 258 tests
+     (it lists 262 now); m16-router-floor-measurement.md quotes a `vision` example never shipped and
+     names the wrong file as the tuning set, and its held-out off-topic set shares wording shapes
+     with the tuned set (say so); W-122's row credits the declaration gate with killing a markdown
+     link it only kills after the M16-W1 fixes; FP3 (Bundle.main.bundleURL.appendingPathComponent
+     would be refused) is undocumented
+  3. docs/plans/m16-wave-1-close.md row 3 still says REVIEW_VERDICT -- fill it in
+  4. then: re-review the fix round (independent seat), close W1, commit
+
 State: 2026-09-22 — M15 is CLOSED agent-side, committed and pushed on the owner's instruction (agent
 identity, D-117); it awaits the owner's sign-off (D-150 clause 2). make check green on
-the owner's Mac (pytest 956/15, Swift 258); Xcode app build of this tree: BUILD SUCCEEDED.
+the owner's Mac (pytest 962/15, Swift 262); Xcode app build of this tree: BUILD SUCCEEDED.
 
 READ IN THIS ORDER
   1. this file
-  2. docs/closure-report-m15.md §0          — what the owner still owes (D-150 clause 2, sign-off)
+  2. docs/closure-report-m15.md §0          — the owner signed off 2026-09-22 (D-150 clause 2 in)
   3. docs/plans/m16-plan.md                  — the next milestone, §0 rulings it waits on
   4. docs/handovers/handover_project-2026-09-21.md — the whole project, for someone who knows nothing
   5. docs/warnings.ledger.md W-111..W-122    — everything open, newest first
@@ -18,8 +31,27 @@ WHAT THE CLOSURE DID
   - W4 review + re-review: the D-126 privacy gate rebuilt to read RAW source plus a normalized view
     (W-121); 54 of 54 attempts die. Still a word list: resolved-declaration check is M16-W1 (W-122).
   - D-150: Swift floor → committed list of test names (clause 1, amended after a false claim);
-    K.8 kept as is (clause 2, PROPOSED — owner ratifies at sign-off).
+    K.8 kept as is (clause 2, ratified 2026-09-22).
   - Wave closes W1/W3/W4, coverage-by-req §M15, retrospective, EXPERIENCE, M16 plan.
+
+M16-W1 STATE (all in this checkpoint, make check green: pytest 962/15, Swift 262, client-decls 4
+configurations)
+  - D-151 (owner, in session): the refresh runs ONCE A NIGHT between 23:00 and 01:00, in the
+    background, plus a catch-up when the engine starts on an artifact older than a day. NO "update
+    now" button and no refresh state in the app -- this amends D-149 clauses 1 and 3 and shrinks W2.
+  - D-152: /v1/categories publishes min_quality. D-153: the two search surfaces publish
+    price_excludes="search_call". Both fields ship; the SCREENS that show them are W2 (REQ-FLR-002,
+    REQ-PRC-002 in docs/prd.md say so).
+  - D-150 clause 2 ratified by the owner; the clause is written into AGENTS.md beside K.8.
+  - W-111 FIXED: ios/EngineTests/test-manifest.txt + `make swift-test` diffs it against
+    `swift test --list-tests`; a skipped test now fails too; tests/unit/test_swift_test_manifest.py
+    holds the static half (comments stripped, no #if around a declaration).
+  - W-118 FIXED: the floor did NOT move (measured: no floor separates), the EXAMPLES did.
+    docs/reviews/m16-router-floor-measurement.md. Held-out off-topic 3/16 -> 8/16.
+  - W-122 FIXED: scripts/client_decl_gate.py (`make check` target `client-decls`) type-checks the
+    client in 4 configurations and reads RESOLVED declarations; Darwin is NOT allowlisted; a
+    non-compiling client or a truncated dump FAILS. 12 of the seat's bypasses re-run and all die.
+  - W-123 OPEN (M16-W4): ordinary questions still reach a measured surface 5 times in 16.
 
 M16 IN ONE LINE: one application (engine refreshes itself, app has "update now", D-149), floors
 re-derived under D-148, carry-forward (D-144), the router floor re-measured first.

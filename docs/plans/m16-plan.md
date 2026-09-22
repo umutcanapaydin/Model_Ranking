@@ -7,8 +7,8 @@ date: 2026-09-22
 ---
 # M16 Plan — one application, and numbers that follow one rule
 
-**One sentence: M16 makes the product one thing the owner starts, with an "update now" button, and
-pays the three data debts M15 closed with.** The engine takes over the 12-hour refresh (D-149); the
+**One sentence: M16 makes the product one thing the owner starts, which keeps itself current
+without being asked, and pays the three data debts M15 closed with.** The engine takes over the 12-hour refresh (D-149); the
 floors move onto the one rule the owner ruled (D-148); one upstream outage stops blanking a whole
 cycle (D-144, W-116); and the detail screen gets the floor it was promised (W-112).
 
@@ -19,14 +19,12 @@ the milestone runs long; it is a measurement and ships nothing.
 
 ## 0. What the owner rules before the wave that needs it
 
-1. **D-150 clause 2 (K.8), before W1.** K.8 reached its third acceptance at the M15 closure. The
-   proposal: keep the rule as it is, and add to the plan template a line that maps every fact a new
-   screen shows to the `/v1` field it comes from. **Recommendation: ratify.** In all three cases the
-   rule held; what repeated was a plan written before anyone checked `/v1`.
-2. **How often a reader may press "update now", before W2.** A refresh fetches from every upstream
-   and takes about a minute, so the button is also a way to make the engine do expensive work on
-   demand. **Recommendation: never while a refresh runs, and at most once per 30 minutes;** a press
-   inside that window says when the last refresh finished and when the next one is allowed.
+1. ~~D-150 clause 2 (K.8).~~ **Ratified 2026-09-22.** K.8 stays; W1 adds the plan-template line
+   mapping every fact a new screen shows to the `/v1` field it comes from.
+2. ~~How often a reader may press "update now".~~ **Ruled 2026-09-22: there is no button.** The
+   boards move on the order of days, so the refresh runs once a night between 23:00 and 01:00, in
+   the background, with nothing in the app waiting on it, plus one catch-up when the engine starts
+   on an artifact more than a day old (D-151, amending D-149).
 3. **Whether re-derived floors ship when they change a recommendation, before W3's second half.**
    Moving a floor can move a model into or out of a surface's Budget Pick. **Recommendation: W3
    prints a before/after table per surface, and you rule each surface that changes a pick,** the way
@@ -42,7 +40,7 @@ the milestone runs long; it is a measurement and ships nothing.
 
 | Debt | Where it came from | Owner ruling needed |
 |---|---|---|
-| One application: the engine refreshes, the app can ask | D-149 (accepted 2026-09-22) | §0.2 |
+| One application: the engine refreshes itself, nightly and quietly | D-149 as amended by D-151 | no — build it |
 | The floors re-derived under the board-ROWS rule | D-148 (accepted, clause 1 ruled 2026-09-22); W-094 | §0.3 |
 | Per-source carry-forward, ~30-day drop | D-144 as amended; W-116 (planned for M15-W3, not built) | no — build it |
 | The detail screen shows the surface's floor | W-112 (ruled 2026-09-22: publish, under its own ADR) | no — ADR in W1 |
@@ -62,10 +60,11 @@ the milestone runs long; it is a measurement and ships nothing.
 
 Nothing a reader sees changes. Everything the later waves need written down first.
 
-- **The two `/v1` ADRs, before any code that uses them.** (a) `/v1/categories` gains each surface's
-  floor (`min_quality`) as its own field, beside `score_anchor` (D-146 is the precedent). (b) The
-  refresh request: the route, what it returns while a refresh runs, the rate limit from §0.2, and
-  the "last refreshed" field. Each ADR names the test that pins it.
+- **The `/v1` ADRs first, then the fields.** D-152: `/v1/categories` gains each surface's floor
+  (`min_quality`) as its own field, beside `score_anchor`. D-153: the two search surfaces publish
+  `price_excludes: "search_call"`, so the app can say what the price leaves out. Both fields ship
+  here with their tests; the screens that render them are W2. D-151 removed the third ADR D-149
+  asked for: with no button there is no request to design.
 - **The Swift test list (D-150 clause 1 as amended).** A committed file lists every Swift test by
   name; `make check` fails when a listed test did not run, and when a test ran that is not listed.
   Verified red by deleting one whole test without touching the list.
@@ -84,17 +83,23 @@ Nothing a reader sees changes. Everything the later waves need written down firs
 
 ### W2 — One application (risk: **HIGH**)
 
-- **The engine owns the schedule.** While it runs, it starts a refresh every 12 hours through
-  `refresh.py`'s existing entry point and nothing else, so the lock, the safe publish and the
-  refusal to publish a worse candidate stay the one definition of "safe to serve" (D-149 clause 2).
+- **The engine owns the schedule (D-151).** One refresh a night, at a time inside 23:00–01:00, and
+  one catch-up at startup when the artifact is more than a day old — both through `refresh.py`'s
+  existing entry point and nothing else, so the lock, the safe publish and the refusal to publish a
+  worse candidate stay the one definition of "safe to serve" (D-149 clause 2).
 - **A failing or slow refresh cannot block or crash the server answering the app.** Shown by fault
-  injection (a refresh that hangs, one that raises, one killed mid-publish), not assumed.
-- **The app gets "update now" and "last refreshed",** in both languages, reading only the fields
-  W1's ADR adds. The D-126 egress gate still passes: the button sends no text the reader typed.
+  injection (a refresh that hangs, one that raises, one killed mid-publish), not assumed. With no
+  button and no screen, a failed night is visible only in the log and `/health`, so this wave says
+  what each of those reports (D-151's stated cost).
+- **The app gets no refresh control and shows no refresh state** (D-151 clause 3). What it does
+  gain, from W1's two fields: the floor on the detail screen ("we would not recommend below this")
+  and, on the two search surfaces, the line saying the search call is not in the price — both in
+  each language, composed in the Engine from facts the server sent.
 - **The launchd job retires.** `deploy/` is the owner's surface, so the wave writes the removal
   steps and the owner runs them; the plist stays in the repository until the owner has.
-- HIGH, so D-141 applies: Code-Reviewer, Tester and a pulled-forward security pass on the slice
-  (the new route is the first way a client can make the engine spend upstream requests).
+- HIGH, so D-141 applies: Code-Reviewer, Tester and a pulled-forward security pass on the slice —
+  a refresh now shares a process with the server answering the app, and a scheduler that wakes at a
+  chosen minute is the kind of thing that is only ever tested once.
 
 ### W3 — Numbers that follow one rule (risk: **MED**)
 

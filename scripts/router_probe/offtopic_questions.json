@@ -1,0 +1,36 @@
+[
+[
+"what time is it",
+"search|assistant|everyday~"], [
+"what is the capital of france",
+"assistant|everyday~"], [
+"recommend a good pizza place",
+"search|assistant|everyday~"], [
+"who won the world cup in 2022",
+"assistant|everyday~"], [
+"my back hurts what should i do",
+"assistant|everyday~"], [
+"how do i cook rice",
+"assistant|everyday~"], [
+"tell me a joke",
+"assistant|everyday~"], [
+"is it going to rain tomorrow",
+"search|assistant|everyday~"], [
+"how much does a tesla cost",
+"search|assistant|everyday~"], [
+"what is the meaning of life",
+"assistant|everyday~"], [
+"my flight is delayed what are my rights",
+"assistant|everyday~"], [
+"how do i change a flat tyre",
+"assistant|everyday~"], [
+"which phone should i buy",
+"assistant|everyday~"], [
+"explain quantum entanglement to me",
+"expert|assistant|everyday~"], [
+"how long does it take to walk 10 km",
+"assistant|everyday~"], [
+"hello",
+"assistant|everyday~"
+]
+]

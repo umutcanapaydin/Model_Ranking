@@ -37,6 +37,11 @@ class CategorySpec:
     # recalibration must not move every card's number without a new measurement. Set on Elo
     # surfaces only; `None` elsewhere (percentages are already out of 100, ECI stays rank-only).
     score_anchor: float | None = None
+    # D-153 (W-119): what this surface's price does NOT include, as a CODE the app words in its own
+    # language (D-129), or None when the price is the whole story. `search_call` says the per-search
+    # fee is not in the blended per-token price, because this catalogue does not carry one: the
+    # registry reconciles a search SKU to its base family. Never a sentence from the server.
+    price_excludes: str | None = None
 
 
 #: **The floor rule is the top third of the WHOLE board's ROWS, one per raw name, for every surface
@@ -322,6 +327,7 @@ CATEGORIES: dict[str, CategorySpec] = {
         value_window=25.9,
         close_call=6.5,
         score_anchor=1206.9,  # pinned 2026-09-22
+        price_excludes="search_call",  # D-153
     ),
     "search_factuality": CategorySpec(
         id="search_factuality",
@@ -340,6 +346,7 @@ CATEGORIES: dict[str, CategorySpec] = {
         value_window=19.5,
         close_call=4.9,
         score_anchor=1203.7,  # pinned 2026-09-22
+        price_excludes="search_call",  # D-153
     ),
 }
 

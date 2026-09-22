@@ -2172,7 +2172,7 @@ scheduler inside a server that can be scaled to zero or to several copies behave
 
 **Status:** clause 1 **accepted by the owner 2026-09-22** (in session, at M15-W4, choosing "derive
 it") and **AMENDED the same day** -- the mechanism it was accepted on cannot do what it claimed, see
-the amendment under clause 1; clause 2 **proposed**, for the owner to ratify or refuse at the M15 sign-off · **Date:**
+the amendment under clause 1; clause 2 **accepted by the owner 2026-09-22** at the M15 sign-off · **Date:**
 2026-09-22 · **Proposed by:** the lead agent, because `check_records` C2b stopped the M15 closure:
 V3C-02 and K.8 each reached their third acceptance (W-043, W-048, W-111; W-009, W-020, W-112).
 
@@ -2185,8 +2185,11 @@ criteria that had no test at all; this one is a test that exists and is not prot
 *Decision.* The floor is computed at check time from the `func test` declarations under
 `ios/EngineTests`, and `swift test` must run at least that many. A deleted test lowers both numbers
 together only if its declaration is deleted too, which is a visible diff, not a silent loss.
-*Owning milestone:* M16, first build wave. Until then the typed floor stays at the count the runner
-prints (258).
+*Owning milestone:* M16-W1. **Built 2026-09-22:** `ios/EngineTests/test-manifest.txt` lists all 258
+tests; `make swift-test` diffs it against `swift test --list-tests` and takes the floor from its line
+count, and `tests/unit/test_swift_test_manifest.py` compares it with the declarations in the source
+for lanes with no Swift toolchain. Verified red four ways: a test deleted from the code, a line
+deleted from the manifest, a renamed test, and the count falling short.
 
 *Amendment, 2026-09-22 (M15-W4 independent review, MAJOR-2).* **The decision above is wrong, and the
 lead agent wrote it and put it to the owner in those words.** A floor derived from the declarations
@@ -2202,11 +2205,129 @@ accepted and why it was withdrawn.
 W-112 is the plan promising a fact on the detail screen that `/v1` does not publish; W2 dropped it
 and recorded the drop instead of adding the field quietly. The owner ruled the field IN, to be
 published under its own ADR in M16.
-*Proposed decision.* K.8 stays as it is. What repeats is not a bypass of the contract but a plan
+*Decision (accepted by the owner 2026-09-22).* K.8 stays as it is. What repeats is not a bypass of the contract but a plan
 line written before anyone checked what `/v1` carries, so the plan template's shared-contracts
 section should list, for every screen a wave builds, which `/v1` field each fact comes from. That
 check belongs in the plan the owner signs, not in a wave.
-*If refused:* W-112's row loses its `C2b-reviewed` marker and K.8 goes back under review.
+*Carried out 2026-09-22 (M16-W1):* the clause is written into `AGENTS.md` §4 beside K.8 itself,
+because this repository has no plan template — a rule in a template nobody instantiates is the
+wallpaper V4C-49 warns about. W-112's `C2b-reviewed` marker now names an accepted decision, which is
+what the M15-W4 re-review's MINOR-3 asked for.
 
 **Revisit when:** the name list misses a deletion (clause 1), or a fourth K.8 acceptance is
 about a field that WAS added without an ADR (clause 2).
+
+---
+
+## D-151 — The refresh runs once a night, quietly, and the app never asks for one
+
+**Status:** **accepted by the owner 2026-09-22** (in session, at M16-W1) · **Date:** 2026-09-22 ·
+**Amends D-149** clauses 1 and 3, which are superseded by this ADR. Clauses 2 and 4 stand.
+
+**Context.** D-149 gave the engine the refresh and gave the app an "update now" action with a
+"last refreshed" time, on the 12-hour interval the launchd job used. Asked how often a reader may
+press that button, the owner answered the question underneath it (translated from Turkish): *"the
+lists do not update that fast. Once at midnight is enough — this is not the stock market."* And
+then: *"no need [for the button]. The app updates when it is installed on the phone; apart from
+that it refreshes once somewhere between 23:00 and 01:00, in the background, without telling the
+reader and without making them wait for anything. What more should it do with the lists?"*
+
+**The measurement behind it.** The boards this product reads publish on the order of days:
+`document` moved by one model and `search` by one between two survey runs a day apart
+(`docs/research/m15-board-survey-2026-09-21.md`). Twice a day was never sized on how fast the data
+changes.
+
+**Decision.**
+
+1. **Once a day, in a window, not on the hour.** The engine starts one refresh cycle per day at a
+   time it picks inside 23:00–01:00 local. The window is spread deliberately: a fixed midnight is
+   the hour every scheduled job on the machine wakes up, and the upstreams see the same minute
+   from everyone who copies this.
+2. **A stale artifact catches up at startup.** If the engine starts and the artifact's last
+   successful refresh is more than a day old, it refreshes then — this is the "it updates when the
+   app is installed" case, since the engine is what the app talks to. One catch-up, not a retry
+   loop.
+3. **No "update now", and no refresh control in the app.** Nothing in the reader's path waits for
+   a refresh, and no screen shows refresh state. The app keeps reading whatever the artifact holds
+   (D-128 still refuses to publish a surface the engine cannot stand behind).
+4. **`/v1` gains nothing for this.** With no button there is no request to make, so the refresh
+   ADR D-149 clause 3 asked for is not needed. `last_refreshed` is not published either; if a
+   reader-facing freshness line is ever wanted, that is its own ADR.
+
+**The cost.** A failure at 23:xx is invisible until someone looks: with no button and no screen,
+the only signals are the refresh log and `/health`. The build wave keeps both honest, and a
+refresh cycle still may not block or crash the engine answering the app (D-149's stated risk).
+Data can also be up to a day old rather than half a day; on boards that move on the order of days
+that is a difference nobody can see.
+
+**Revisit when:** a board starts publishing intraday, or the owner wants to see freshness in the
+app after all.
+
+---
+
+## D-152 — `/v1/categories` publishes each surface's floor, and the detail screen shows it
+
+**Status:** **accepted by the owner 2026-09-22** (in session, at the M15 closure: "send it, show
+it") · **Date:** 2026-09-22 · **Closes W-112** · **Precedent:** D-146, which added
+`score_anchor` the same way.
+
+**Context.** The M15 plan said the detail screen holds "the surface's floor" — the number below
+which this product does not recommend a model. It does not, because `/v1/categories` does not
+publish `min_quality` at all, and plan §3 refuses a quiet addition: a fact `/v1` does not carry is
+an ADR. W2 dropped the line and recorded the drop (W-112).
+
+**Decision.**
+
+1. `/v1/categories` gains one field per surface, `min_quality`, on the surface's own scale, beside
+   `close_call_margin` and `score_anchor`. A field is added; nothing changes shape (K.8).
+2. **It is its own field and never derived from `score_anchor`, which today equals it on every
+   Elo surface.** The two move for different reasons: the anchor is pinned by an owner ruling
+   (D-146 clause 2), the floor is a calibration. A test moves one and not the other, the shape
+   D-146's own regression uses.
+3. The detail screen renders it as the line "we would not recommend below this", in both
+   languages, as a fact the engine sent (`Detail.swift` composes, the view renders — D-138).
+4. It is NOT a filter and changes no ranking: `/v1/recommendations` already applies the floor.
+   Publishing it tells a reader what the engine did, it does not ask the client to do it.
+
+**The cost.** The floor becomes a number readers can quote, so M16-W3's re-derivation under D-148
+will move a number that is now on screen. That is the right order: publish the fact, then change it
+under a ruling with a before/after table, rather than changing it while it is invisible.
+
+**Revisit when:** a surface's floor stops being a single number (a per-effort floor, say), at which
+point the field's shape is a new ADR rather than a new value.
+
+---
+
+## D-153 — The search surfaces say what their price does not include
+
+**Status:** **accepted by the owner 2026-09-22** (in session, at the M15 closure, choosing "state
+it" over withholding the picks) · **Date:** 2026-09-22 · **Closes W-119.**
+
+**Context.** `search` and `search_factuality` rank models on the blended per-token price like every
+other surface. What a search-capable model actually costs also includes a per-search fee, which
+this catalogue does not carry: `registry.py` reconciles `gpt-5-search-api` and
+`o4-mini-deep-research` to their base families, so they are priced at the base model's tokens. The
+image boards were refused for exactly this kind of gap (per-image pricing, M14-W1), and the M15-W1
+survey named it — then W3 shipped the surfaces without a ruling and without saying so. The
+independent seat found it (M15-W3 review MAJOR-2).
+
+**Decision.**
+
+1. The two search surfaces keep their price-based picks. A per-token comparison is still the
+   comparison a reader makes between these models, and withholding Budget Pick and Best Value
+   would leave the surface less useful than the honest alternative.
+2. **Each of them publishes what the price leaves out**, as a code on `/v1/categories`
+   (`price_excludes: "search_call"`, absent on every other surface), never as a sentence from the
+   server: the app owns its two languages (D-129), so the engine sends the fact and the client
+   words it.
+3. The app shows that line wherever it shows a price for those surfaces — the card's price line
+   and the detail screen — not only in one place a reader may never open.
+4. If a per-search price ever becomes available for the models on these boards, this field goes
+   away with the gap it describes, under its own ADR.
+
+**The cost.** A third price-shaped fact on screen, and a reader may still assume the listed price is
+the whole cost. The alternative was to publish no picks at all on two surfaces the measurement
+supports, which trades an honest partial answer for none.
+
+**Revisit when:** a board arrives whose models carry two priced units (per-token and per-call), and
+the engine has to rank on both rather than disclose one.

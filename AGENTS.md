@@ -79,7 +79,11 @@ Non-trivial choices → new ADR in `docs/decisions.md` with status `proposed`. U
   (V4C-13). **The gate does not prove independence and does not claim to** — it makes a self-review
   unable to close a wave green. K.7 was bypassed four times in the open before this existed, and
   every one of them was recorded and closed green anyway (W-055, W-056).
-- **K.8** — Shared contracts grep-verified in plan (paste `grep -n` output)
+- **K.8** — Shared contracts grep-verified in plan (paste `grep -n` output). **D-150 clause 2
+  (2026-09-22):** a plan that builds a SCREEN also lists, fact by fact, which published field
+  each fact comes from. Three K.8 acceptances in this project were the same thing — a plan line
+  written before anyone checked what the API carries (W-009, W-020, W-112) — and the check
+  belongs in the plan the owner signs, not in the wave that discovers it.
 - **v3.2 context hygiene (V3C-85):** one task per session; compact at wave boundaries (state lives in FILES, re-read them); repo exploration goes to the read-only **Explorer** profile (≤2k-token summary), never inline.
 - **v3.2 spike lane (V3C-87):** `spike-*` branch = declared L0 throwaway — exempt from gates EXCEPT secrets scanning; NEVER merged (branch-guard + closure check); productionize = rebuild through the pipeline.
 - **E.4** (new-module + locked contract only) — acceptance tests first, then implement to green

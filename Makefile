@@ -133,8 +133,13 @@ conformance-gate: install
 	@# looked. Per-FINDING exemptions, never per-leg: one of the five failures turned out to be ours.
 	$(PY) -B scripts/conformance_gate.py
 
-#: Raise when tests are added; never lower without a ledger row.
-SWIFT_TEST_FLOOR := 258
+#: D-150 clause 1 as amended (W-111). The floor is no longer typed: it is the number of lines in
+#: the committed test manifest, and the manifest is compared NAME BY NAME with the tests the
+#: toolchain discovers. A typed integer could not see a deleted test -- the count and the
+#: declarations drop together -- and it had been wrong three times. Deleting a test now requires
+#: deleting its line here, which a reviewer sees in the diff.
+SWIFT_TEST_MANIFEST := ios/EngineTests/test-manifest.txt
+SWIFT_TEST_FLOOR := $(shell grep -c . $(SWIFT_TEST_MANIFEST))
 
 swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING sources
 	@# A test nobody types is a test that does not run -- W-032, this project's own finding, which
@@ -154,18 +159,39 @@ swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING so
 	@if command -v swift > /dev/null 2>&1; then \
 		out=`cd ios && swift test 2>&1`; rc=$$?; mkdir -p build; echo "$$out" > build/swift-test.log; [ $$rc -eq 0 ] || { echo "$$out" | grep -E "error:|failed \(" | head -30; echo "(full swift output: build/swift-test.log)"; exit 1; }; \
 		line=`echo "$$out" | grep -E "Executed [0-9]+ tests, with" | tail -1`; \
+		if echo "$$line" | grep -q "skipped"; then \
+			echo "swift-test FAIL: a test was SKIPPED, which counts as executed."; \
+			echo "$$line"; \
+			echo "  M16-W1 review, M-3: a skipped test left the count and the manifest intact."; \
+			exit 1; \
+		fi; \
 		n=`echo "$$line" | sed -E 's/.*Executed ([0-9]+) tests.*/\1/'`; \
 		if [ -z "$$n" ] || [ "$$n" -lt $(SWIFT_TEST_FLOOR) ]; then \
 			echo "swift-test FAIL: ran $${n:-0} test(s), floor is $(SWIFT_TEST_FLOOR)."; \
 			echo "  A suite that stops being discovered exits 0 and reports nothing."; \
 			exit 1; \
 		fi; \
-		echo "swift-test PASS: $$n test(s) (floor $(SWIFT_TEST_FLOOR))"; \
+		( cd ios && swift test --list-tests 2>/dev/null ) | sort > build/swift-tests-discovered.txt; \
+		if ! diff -u $(SWIFT_TEST_MANIFEST) build/swift-tests-discovered.txt > build/swift-manifest.diff 2>&1; then \
+			echo "swift-test FAIL: the discovered tests are not the manifest (D-150)."; \
+			head -20 build/swift-manifest.diff; \
+			echo "  A test deleted from the code but left here, or added and not listed, stops the gate."; \
+			echo "  Regenerate deliberately: cd ios && swift test --list-tests | sort > EngineTests/test-manifest.txt"; \
+			exit 1; \
+		fi; \
+		echo "swift-test PASS: $$n test(s), each one named in $(SWIFT_TEST_MANIFEST)"; \
 	else \
 		echo "swift-test SKIPPED NO-ENVIRONMENT: no swift toolchain on PATH"; \
 	fi
 
-check: lint typecheck test coverage-floor check-records check-records-selftest install-check wave-check-all conformance-gate swift-test
+check: lint typecheck test coverage-floor check-records check-records-selftest install-check wave-check-all conformance-gate swift-test client-decls
+
+client-decls: install  ## W-122 / D-126: the privacy invariant checked against RESOLVED declarations
+	@# Six rounds of a word list over the client were each bypassed by the next seat -- backticks,
+	@# a comment between two tokens, a typealias, `NSMutableURLRequest`, a markdown link, Handoff.
+	@# This type-checks the client against the iOS SDK and reads what the COMPILER bound each
+	@# reference to, where all of those are the same declaration. SKIPPED, loudly, with no Xcode.
+	$(PY) -B scripts/client_decl_gate.py
 
 wave-check-all: install
 	@# W-032 / this project's own field finding: a gate that is not in the command people type

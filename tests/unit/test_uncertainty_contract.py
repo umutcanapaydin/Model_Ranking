@@ -331,3 +331,64 @@ def test_a_recalibration_cannot_move_the_anchor() -> None:
             continue
         moved = replace(spec, min_quality=spec.min_quality + 50)
         assert moved.score_anchor == spec.score_anchor, surface
+
+
+def test_every_surface_publishes_the_floor_it_recommends_from(
+    seeded: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D-152 (W-112): `/v1/categories` carries `min_quality`, and it is not the anchor.
+
+    The detail screen shows the floor as "we would not recommend below this". The two numbers are
+    equal on every Elo surface today, so a served anchor would pass a naive check -- the same
+    coincidence the M14 closure seat exploited in the other direction (D-146 clause 2). Here one
+    surface's FLOOR is moved and its anchor is not: the floor field must follow, the anchor must not.
+    """
+    served = _served_categories()
+    for surface, spec in CATEGORIES.items():
+        assert served[surface]["min_quality"] == spec.min_quality, surface
+
+    surface = "document"
+    spec = CATEGORIES[surface]
+    moved = dataclasses.replace(spec, min_quality=spec.min_quality + 123.0)
+    monkeypatch.setitem(CATEGORIES, surface, moved)
+
+    served = _served_categories()
+
+    assert served[surface]["min_quality"] == spec.min_quality + 123.0
+    assert served[surface]["score_anchor"] == PINNED_SCORE_ANCHORS[surface]
+
+
+def test_only_the_search_surfaces_say_the_search_call_is_not_in_the_price(seeded: Path) -> None:
+    """D-153 (W-119): the engine publishes the GAP as a code; the client words it (D-129).
+
+    `search` and `search_factuality` rank on the blended per-token price, and the per-search fee is
+    not in this catalogue at all. Every other surface's price is the whole story, and saying so
+    there would be noise.
+    """
+    served = _served_categories()
+
+    excluded = {s: e["price_excludes"] for s, e in served.items() if e["price_excludes"]}
+
+    assert excluded == {"search": "search_call", "search_factuality": "search_call"}
+    # a code, not a sentence: nothing the app would have to translate
+    assert all(value.isidentifier() for value in excluded.values())
+    # M16-W1 review, P8: an empty string is not "no exclusion". `null` is, and a client that tests
+    # for presence rather than truth would show an empty note on every other surface.
+    assert all(e["price_excludes"] is None for s, e in served.items() if s not in excluded)
+
+
+#: Every key `/v1/categories` publishes per surface. K.8: `/v1` may GAIN fields under an ADR and
+#: may not change shape, and until M16-W1 nothing checked the shape at all (review M-2) -- which is
+#: the W-112 class, a client written against a field set nobody had written down.
+SERVED_CATEGORY_KEYS = {
+    "id", "title", "primary_benchmark", "metric", "ranking_effort", "close_call_margin",
+    "score_anchor", "min_quality", "price_excludes", "secondary_benchmark", "secondary_age_days",
+}
+
+
+def test_every_surface_publishes_exactly_the_agreed_field_set(seeded: Path) -> None:
+    served = _served_categories()
+
+    assert served, "no surfaces served"
+    for surface, entry in served.items():
+        assert set(entry) == SERVED_CATEGORY_KEYS, surface

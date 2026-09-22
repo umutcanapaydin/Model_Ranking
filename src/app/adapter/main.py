@@ -1250,6 +1250,15 @@ def categories() -> dict[str, Any]:
                 # test_the_served_anchor_does_not_follow_a_moved_floor` moves one floor and not the
                 # other so the coincidence cannot stand in for the decision (D-146 clause 2).
                 "score_anchor": spec.score_anchor,
+                # D-152 (W-112). The floor this surface recommends from, on its own scale -- the
+                # number behind "we would not recommend below this", which the detail screen shows.
+                # ITS OWN FIELD, never read from `score_anchor` and never written into it: the two
+                # hold the same value on every Elo surface today and move for different reasons (a
+                # calibration moves this one, an owner ruling moves that one, D-146 clause 2).
+                "min_quality": spec.min_quality,
+                # D-153 (W-119). What this surface's price leaves out, as a code the client words in
+                # its own language; absent where the price is the whole story.
+                "price_excludes": spec.price_excludes,
                 # REQ-UNC-002. The age is the engine's own (`recommend.secondary_age_days`) against
                 # the artifact's anchor; `null` when the board is undated or unreadable.
                 "secondary_benchmark": spec.secondary_benchmark,
