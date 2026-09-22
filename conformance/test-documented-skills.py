@@ -32,7 +32,7 @@ import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib_record import doc_text, documents                      # noqa: E402
+from lib_record import doc_text, documents, is_record           # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
 PKG = HERE.parent
@@ -110,6 +110,12 @@ def main() -> int:
         except (UnicodeDecodeError, OSError):
             continue
         corpus[rel] = text
+        # model_ranking (D-155; independent review MAJOR-2): a RECORD describes the past and may name
+        # a skill that was retired since, as `test-documented-commands` already allows for make
+        # targets. Without this, the only remedy was a token row valid EVERYWHERE, which let a live
+        # AGENTS.md tell a reader to run a retired skill.
+        if is_record(f, PKG):
+            continue
         for i, line in enumerate(text.splitlines(), 1):
             for m in REF.finditer(line):
                 name = m.group(1)

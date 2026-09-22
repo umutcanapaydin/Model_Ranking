@@ -207,6 +207,97 @@ green locally and red in CI, with no hint why.
 **Fix.** Resolve against `git ls-files` (plus the manifest's PROJECT list) rather than the
 filesystem, so a local run answers the question CI will ask.
 
+### A16. `bootstrap-check.sh` aborts on the first placeholder in a project ADR — HIGH
+
+**What.** In the C1 block, the `docs/decisions.md` scan increments `ph_hits` before the line that
+initialises it, and the script runs under `set -u`. A single placeholder in a project ADR prints the
+FAIL, then `ph_hits: unbound variable`, and the script exits before C2-C10 run. When the scan finds
+nothing, the later `ph_hits=0` simply discards its count.
+
+**Repro (clean clone).** Append `## D-100 — x` with a body line `The owner is <owner name>.` to
+`docs/decisions.md` and run `make bootstrap-check`: the output stops after C1.
+
+**Fix.** Initialise `ph_hits=0` before the decisions scan and delete the later reset. Also strip
+inline code spans in that scan, as the must-fill scan should (a `--db <path>` in an ADR is notation).
+
+### A17. `.gp/installed` is meant to be committed and is rewritten by every `make` target — MEDIUM
+
+**What.** INSTALL-MANIFEST says the project COMMITS its marker. `make install` writes it, including
+`installed_from_commit: <HEAD>`, and `install` is a prerequisite of `lint`, `test`, `typecheck`,
+`check` and `gate` (and the post-edit hook runs `make gate`). So every commit makes the committed
+marker stale, and the next `make check` dirties the tree. Combined with A2, it also runs pip.
+
+**Fix.** Write the marker only from an explicit `make install` that nothing depends on, and omit
+fields that change with every commit -- or gitignore it and say so. **Workaround here:** gitignored.
+
+### A18. Frontmatter makes a TEMPLATE a "record", so templates escape the git and command checks — HIGH
+
+**What.** `conformance/lib_record.py` treats any Markdown file whose head carries `record_type:` as
+a record, and records are skipped by `test-git-authority` and `test-documented-commands`. Every
+shipped `*.template.md` carries frontmatter. A template that tells an agent to
+`git push origin main`, or to run a make target that does not exist, passes -- and a template is
+copied into every new record. The same holds for the plan of the milestone being worked. In this
+project the rule skipped 235 of 302 documents; graded command references fell from 580 to 194.
+
+**Repro (clean clone).** Append ``run `git push origin main` `` to `docs/wave-checklist.template.md`
+and run `python3 conformance/test-git-authority.py`: PASS.
+
+**Fix.** A template is an instruction surface whatever its frontmatter says; so is the current
+milestone plan. Only artefacts that describe the past are records. **Workaround here:** both
+excluded from `is_record`; plans of closed milestones are records with or without frontmatter.
+
+### A19. The shipped `.path-refs-allow` hides every dangling path under `src/`, `tests/` and `docs/plans/` — HIGH
+
+**What.** The allowlist ships rows `src/*`, `tests/*`, `test_*.py`, `docs/plans/*` and
+`docs/research/*`, meant for field evidence in `playbook-seeds.md`. `fnmatch` lets `*` cross `/`, so
+in a real project these rows match every source, test and plan path, and a live instruction naming
+a deleted file passes. It also allowlists `scripts/checkpoint.sh`, the script D-999 removed.
+
+**Repro.** In a project with code, write a backticked path to a missing file under src/app/ into `AGENTS.md` and run
+`python3 conformance/test-documented-paths.py`: PASS. Measured here: 15 of 15 planted paths passed.
+
+**Fix.** Ship exact paths for the seeds' evidence (six here), and scope rows by CITING document as
+well as target (see B1). **Workaround here:** exact rows only.
+
+### A20. DevFlow contradicts itself on the `GP-Agent:` trailer — MEDIUM
+
+**What.** `AGENTS.md` §5 says an agent commit carries the `GP-Agent` / `GP-Task` trailers.
+`conformance/test-git-authority.py` and `test-commit-identity.py` removed every trailer check as
+"AI attribution", and `issue-agent.yml`'s own comment still says the check asserts it. A reader
+cannot tell whether an agent commit must carry the trailer.
+
+**Fix.** Decide. A trailer naming a machine ROLE is attribution to a role, not AI attribution, and
+it is what keeps agent work separable when an agent and the owner share a forge account. This
+project kept it and checks it on branch commits and in `issue-agent.yml`.
+
+### A21. The identity check is vacuous whenever the agent commits under the local git identity — MEDIUM
+
+**What.** `test-commit-identity.py` reads the OWNER from `git config user.email`. In a local lane
+the agent commits under whatever identity the clone is configured with, so owner and agent are the
+same address and the check compares the agent with itself -- green, grading nothing. It also
+reports an unknown agent identity as a "third identity" once an owner is given.
+
+**Fix.** Require `--owner-email` (from a committed config, not the clone's git config), and let a
+project declare its agent identities.
+
+### A22. Retired skill names survive in shipped prose no check reads — LOW
+
+`METHODOLOGY.md:409` and `:550`, `docs/closure-checklist.md:4` and `pipeline-schema.html:322,342,402`
+name quarterly-handover, retrospect and fix-issue-prepare/implement. They are not backticked, so
+`test-documented-skills` never sees them.
+
+### A23. `make harvest-context` is listed in `make help` and fails in every installation — LOW
+
+It runs `scripts/gen_harvest_context.py`, which is distribution-only. `harvest-context-check`
+guards for this; `harvest-context` does not.
+
+### A24. The pre-tool hook covers half of D-999 — MEDIUM
+
+The shipped `.claude/settings.json` hook blocks `git push origin main`, `HEAD:main` and
+`main:main`, but lets `gh pr merge`, `gh pr ready`, `git commit --no-verify` and
+`git push origin refs/heads/main` through (each piped through the hook command: exit 0). Those are
+exactly the actions D-999 reserves for a human.
+
 ---
 
 ## B. Any project hits these as it grows
@@ -272,8 +363,8 @@ sweep" that no longer selects anything on its own). A reader cannot tell which f
 - **C5.** Project controls that DevFlow may want upstream, carried through this merge: a review
   must be a FILE by `seat: independent` (`scripts/wave_check.py` `review_seat_problems`); the L1
   language rule failing closed on an unbalanced fence and handling double-backtick spans
-  (`check_records.py`); inline code spans stripped in the Stage-0 placeholder scan
-  (`bootstrap-check.sh`, which GPF-003 does not do).
+  (`check_records.py`); inline code spans stripped in the Stage-0 placeholder scans, both the
+  must-fill files and the project ADRs (`bootstrap-check.sh`; GPF-003 does neither).
 
 ---
 

@@ -1436,7 +1436,7 @@ def governed_records(root: Path) -> list[Path]:
     # `conformance/` holds the validator's OWN fixtures -- records deliberately broken so the rules
     # can be watched failing (`--self-test`). Governing them would report every fixture as a finding
     # and drown the real ones, which is how a report teaches its reader to skip it.
-    SKIP_DIRS = ("general_pipeline_v", "conformance", ".git", ".venv", "__pycache__", "node_modules")
+    # (the local SKIP_DIRS tuple was replaced by the anchored test below; adoption review MINOR-2)
     FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n", re.S)
     HAS_TYPE = re.compile(r"^record_type:\s*\S", re.M)
 
@@ -1454,7 +1454,10 @@ def governed_records(root: Path) -> list[Path]:
     out: list[Path] = []
     for path in sorted(root.rglob("*.md")):
         rel = path.relative_to(root)
-        if any(part.startswith(SKIP_DIRS) for part in rel.parts):
+        # Adoption review MINOR-2: a prefix match on every segment dropped `docs/reviews/conformance-*.md`
+        # and `.github/`. Fixtures are skipped only as the ROOT-level `conformance/` directory.
+        if (rel.parts[:1] == ("conformance",) or any(part in {".git", ".venv", "__pycache__", "node_modules"}
+                                                     or part.startswith("general_pipeline_v") for part in rel.parts)):
             continue
         # v5.3, TB-090 (Increment 18). This also matched by BASENAME, so the single exemption
         # entry -- written to hide a duplicate -- hid the CANONICAL copy too. Measured: the file

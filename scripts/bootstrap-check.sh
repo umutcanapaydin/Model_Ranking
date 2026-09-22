@@ -47,13 +47,15 @@ MUST_FILL=("README.md" "pyproject.toml" "src/app/adapter/main.py" \
            "docs/prd.md" "docs/architecture.md")
 # docs/decisions.md checked separately: its D-001..D-007 bodies are SHIPPED UNIVERSAL ADRs the
 # project must not edit, and they legitimately contain `<pkg>` notation (GPF-003 finding 3).
+# D-155 (adoption review MAJOR-4): the counter is set BEFORE this scan -- it was set after, so a hit
+# here aborted the script under `set -u` before C2-C10 ran, and a clean run then zeroed the count.
+ph_hits=0
 if [ -f docs/decisions.md ]; then
   proj_adrs=$(awk '/^## D-(00[1-7])[^0-9]/{skip=1} /^## (D-(0(0[89]|[1-9][0-9])|1[0-9][0-9])|P-)/{skip=0} !skip{print}' docs/decisions.md)
-  ph=$(printf '%s' "$proj_adrs" | awk '/^```/{f=!f;next} f{next} /^[[:space:]]*#/{next} /<[A-Za-z][A-Za-z0-9 _\/|.-]{2,}>/{print}' | grep -oE '<[A-Za-z][A-Za-z0-9 _/|.-]{2,}>' | sort -u | tr '\n' ' ')
+  ph=$(printf '%s' "$proj_adrs" | awk '/^```/{f=!f;next} f{next} /^[[:space:]]*#/{next} {gsub(/`[^`]*`/, "")} /<[A-Za-z][A-Za-z0-9 _\/|.-]{2,}>/{print}' | grep -oE '<[A-Za-z][A-Za-z0-9 _/|.-]{2,}>' | sort -u | tr '\n' ' ')
   if [ -n "$ph" ]; then fail "placeholder(s) left in docs/decisions.md (project sections): $ph"; ph_hits=$((ph_hits+1)); fi
 fi
 # AGENTS.md: only the PROJECT-SPECIFIC section (stop at the UNIVERSAL marker).
-ph_hits=0
 for f in "${MUST_FILL[@]}"; do
   [ -f "$f" ] || { warn "missing file: $f"; continue; }
 # v4.3.2 REPAIR. These patterns required UPPERCASE placeholders, so a PRD and an architecture

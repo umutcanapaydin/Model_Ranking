@@ -118,6 +118,11 @@ def main() -> int:
         if any(m in body for m in ("Co-Authored-By: Claude", "Generated with [Claude")):
             bad.append("issue-agent.yml writes AI attribution into its commits -- forbidden "
                        "everywhere since v6.0, in commits, PR bodies, issues and comments")
+        # model_ranking (D-155 clause 2): the owner kept the trailer, so the CI agent owes it too.
+        # A trailer is attribution to a MACHINE ROLE, not AI attribution; the two rules coexist.
+        if "GP-Agent:" not in body:
+            bad.append("issue-agent.yml requires no `GP-Agent:` trailer -- its commits would be "
+                       "unattributable agent work (D-155 clause 2, V4C-64)")
         if "GIT_AUTHOR_NAME" not in body:
             bad.append("issue-agent.yml sets no machine identity -- it would commit as whoever the "
                        "runner's default is")

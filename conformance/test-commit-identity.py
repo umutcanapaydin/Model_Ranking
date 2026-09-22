@@ -78,6 +78,11 @@ AI_EPOCH = "2026-09-22"
 AI_MARKERS = ("Co-Authored-By: Claude", "Co-authored-by: Claude", "Generated with [Claude",
               "\U0001F916 Generated", "Co-Authored-By: GPT", "Co-Authored-By: Cursor")
 MACHINE = "gp-agent@users.noreply.github.com"
+#: model_ranking (D-155 clause 2, independent review MAJOR-3). The identities an AGENT commits under in
+#: this project: DevFlow's CI machine account and the local lane's Claude Code identity. The owner
+#: ruled that agent commits keep the `GP-Agent:` / `GP-Task:` trailers (V4C-64) while carrying no AI
+#: attribution, so a branch commit under one of these identities without the trailer is a finding.
+AGENT_EMAILS = {MACHINE, "noreply@anthropic.com"}
 
 
 def sh(args, cwd=None):
@@ -229,6 +234,9 @@ def main() -> int:
         if ai_attributed and adate[:10] < AI_EPOCH:
             pre_epoch += 1
             ai_attributed = False
+        if sha in ai_pop and email in AGENT_EMAILS and "GP-Agent:" not in body:
+            bad.append(f"{sha[:9]} is an agent commit (`{email}`) with no `GP-Agent:` trailer -- "
+                       "D-155 clause 2 keeps the trailer on every agent commit (V4C-64)")
         if ai_attributed:
             bad.append(f"{sha[:9]} carries AI attribution -- no `Co-Authored-By` with a model, no "
                        "\"Generated with\", no badges, in commits or anywhere else")
@@ -238,7 +246,7 @@ def main() -> int:
                            "reached the protected branch as the owner's history. It should have "
                            "arrived as a merged pull request the owner merged")
         else:
-            if email != MACHINE and email != owner:
+            if email not in AGENT_EMAILS and email != owner:
                 bad.append(f"{sha[:9]} third identity `{email}` -- neither owner nor machine; "
                            "every commit must be one or the other")
 

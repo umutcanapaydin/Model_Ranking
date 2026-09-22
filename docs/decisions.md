@@ -2446,6 +2446,45 @@ Four DevFlow defects found while merging go back to DevFlow rather than being pa
 
 **Revisit when:** DevFlow ships a version that absorbs the differences in clause 4.
 
+
+*Amendment, 2026-09-23 (independent review `docs/reviews/devflow-v6-adoption-review.md`, PASS WITH
+FINDINGS 0/5/7/4, and the first CI runs on PR #1).* Corrections to the text above, and what changed:
+
+- "Four DevFlow defects" is wrong: the field-findings record lists every defect found, and the count
+  grew with each review and CI run. Read the record, not a number here. Clause 4's "113
+  `import-untyped` errors" is 105 `import-untyped` and 8 `no-any-return`.
+- **Instruction surfaces are graded again (review MAJOR-1).** DevFlow's `lib_record.is_record` made
+  every file with `record_type:` frontmatter a record, so templates and the current plan were
+  skipped by the git-authority and documented-command checks. Templates and the CURRENT milestone
+  plan are now instruction surfaces; plans of closed milestones are records with or without
+  frontmatter. The skill check skips records the same way, and the two retired-skill rows are gone.
+- **Allowlist rows are exact (MAJOR-2).** `src/*`, `tests/*`, `test_*.py`, `docs/plans/*`,
+  `docs/research/*`, `workflows/*` and `scratchpad/*` matched every path below them (`*` crosses
+  `/`); each is replaced by the exact paths the records cite.
+- **The `GP-Agent:` trailer is checked again (MAJOR-3)**: DevFlow v6.0 removed the check as "AI
+  attribution"; this project keeps the trailer (clause 2), so `test-git-authority` requires it in
+  `issue-agent.yml` and `test-commit-identity` requires it on every agent commit on the branch.
+  The local lane's identity (`noreply@anthropic.com`) is now recognised as an agent identity.
+- **`bootstrap-check.sh` (MAJOR-4)** sets its placeholder counter before the ADR scan (it aborted
+  under `set -u`) and strips inline code there too, as clause 4 claimed.
+- **CI** installs PyYAML for the workflow check, audits declared dependencies, calls `make falsify`,
+  and the skip budget is 62, the count CI measured. `dep-audit` and `install-and-governance` had
+  been red on `main` since the v5.0 install; all six jobs are green on PR #1.
+- `.gp/installed` is gitignored: `make install` rewrites it on every target (MINOR-3).
+- `scripts/refresh_job.sh` changed only its shebang to `#!/usr/bin/env bash` (the shell-dialect
+  check); launchd runs it through `/bin/bash` explicitly, so behaviour is unchanged (NIT-4).
+
+**Open, and the owner's:**
+1. **Clause 3 said ONE workflow commit; PR #1 carries two more** (9c9845c: PyYAML, `pip-audit --strict .`,
+   `make falsify`), made because the first CI run showed three steps that could not pass. They
+   stand only if the owner accepts them; otherwise they come out before the merge (MAJOR-5).
+2. **The owner identity is vacuous here** (MINOR-4): `git config user.email` in this clone is the
+   agent's, so `test-commit-identity` compares the agent with itself. It needs the owner's own
+   commit email, passed as `--owner-email`, which only the owner can supply.
+3. **The pre-tool hook blocks pushes to `main` but not `gh pr merge`, `gh pr ready`,
+   `--no-verify` or `git push origin refs/heads/main`** (MINOR-5). Until the owner rules on a
+   hook change, branch protection on `main` is the only enforcement of those four.
+
 ---
 
 ## D-999 — the agent opens drafts; a human merges

@@ -33,10 +33,6 @@ filter	Hugging Face datasets-server endpoint, quoted in docs/fixpack-1.md
 review	Claude Code built-in command, named in the universal D-005 body as first shipped
 security-review	Claude Code built-in command, named in the M6 closure report and D-005
 rewind	Claude Code built-in command, named in .claude/RESUME.md
-# Skills retired at DevFlow v6.0 (replaced by /cycle-close), named in records written before it.
-# Live documents were updated; records are append-only (B.2).
-retrospect	retired at v6.0 (now /cycle-close); named in M3/M9 plans and pre-v6.0 records
-quarterly-handover	retired at v6.0 (now /cycle-close); named in pre-v6.0 plans and records
 # Filesystem paths and FastAPI's own routes, quoted in security reviews as attack surface.
 docs	FastAPI's auto-generated docs route, which the security reviews verified is OFF
 redoc	FastAPI's auto-generated ReDoc route, verified OFF in the same reviews

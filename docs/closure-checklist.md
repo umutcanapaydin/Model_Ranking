@@ -1,7 +1,7 @@
 # Closure Checklist (Pipeline)
 
 > Two-tier operational checklist. Walk it explicitly at every closure point.
-> Updated: Quality Gate at milestone closure (§B.1), Quarterly Handover via /quarterly-handover skill.
+> Updated: Quality Gate at milestone closure (§B.1), Quarterly Handover via the /cycle-close skill (was /quarterly-handover before DevFlow v6.0).
 > Updated: §B.3 Deploy verification (Stage 4.3) — "is the new code actually live?" (L.7 + K.10); Handoff is §B.4.
 > Updated: §0 Stage-0 gate (`make bootstrap-check`, FB-1); §B.3 extended to "deploy + go-live readiness" (L.8/L.9/E.6).
 > Updated for (2026-07-27, — the post-prod dataset): §B.3 adds the

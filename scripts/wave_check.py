@@ -264,7 +264,11 @@ def main(argv: list[str]) -> int:
     # v5.0 and were written before the fields existed; GPF-001 rules that a tool may not
     # retroactively invalidate them. A record with no declared version keeps the full rule.
     declared = re.search(r"^process_version:\s*(\S+)", text, re.M)
-    pre_v51 = declared is not None and declared.group(1) in {"v5.0", "v4.3", "v4.3.1", "v4.2", "v4.1"}
+    dated = re.search(r"^date:\s*(\d{4}-\d{2}-\d{2})", text, re.M)
+    # Adoption review MINOR-1: a DECLARED version alone let a record written later claim the old
+    # template. The skip also needs a date on or before the DevFlow adoption.
+    pre_v51 = (declared is not None and declared.group(1) in {"v5.0", "v4.3", "v4.3.1", "v4.2", "v4.1"}
+               and dated is not None and dated.group(1) <= "2026-09-23")
     later = {"Mutant set author", "Observed RED", "Owner instruction"}
     for field, why in (("Touched", "which paths this wave actually changed"),
                        ("Mutant set author", "who designed the fault-injection set (self-designed = supporting evidence only, P-1)"),
@@ -351,7 +355,7 @@ def main(argv: list[str]) -> int:
     # purpose: a fixture demonstrates a record's SHAPE and names absent artifacts. The review-seat
     # rule is this project's, about this project's records, so it does not grade the package's
     # fixtures (the same boundary DevFlow's X4 draws around `conformance/`).
-    if "conformance" not in p.resolve().relative_to(root).parts:
+    if p.resolve().relative_to(root).parts[:1] != ("conformance",):
         bad.extend(review_seat_problems(
             text, root, int(milestone_match.group(1)) if milestone_match else None))
 

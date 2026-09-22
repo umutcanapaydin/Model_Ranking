@@ -25,11 +25,36 @@ RECORD_DIRS = ("docs/reviews", "docs/retrospectives", "docs/handovers")
 _FM = re.compile(r"\A---\s*\n(?:.*\n)*?record_type:\s*\S+", re.M)
 
 
+_PLAN = re.compile(r"(?:^|/)docs/plans/m(\d+)-plan\.md$")
+
+
+def _current_plan_number(p: Path) -> int | None:
+    """The highest milestone number among `docs/plans/m<N>-plan.md` beside `p`."""
+    numbers = [int(m.group(1)) for q in p.parent.glob("m*-plan.md")
+               if (m := _PLAN.search(q.as_posix()))]
+    return max(numbers) if numbers else None
+
+
 def is_record(path: Path, root: Path | None = None) -> bool:
     p = Path(path)
     rel = str(p if root is None else p.relative_to(root)).replace("\\", "/")
     if any(rel.startswith(d + "/") or ("/" + d + "/") in rel for d in RECORD_DIRS):
         return True
+    # model_ranking, DevFlow v6.0 adoption (D-155; independent review MAJOR-1). Frontmatter alone
+    # made every TEMPLATE and the CURRENT milestone plan a "record", so a template or the plan being
+    # worked could tell an agent to `git push origin main` and pass the git-authority and
+    # documented-command checks -- 235 of 302 documents skipped. A template is copied into every new
+    # record and a current plan is being followed: both are instruction surfaces whatever their
+    # frontmatter says. A plan for an EARLIER milestone describes the past and stays a record.
+    if p.name.endswith(".template.md"):
+        return False
+    plan = _PLAN.search(rel)
+    if plan:
+        current = _current_plan_number(p)
+        if int(plan.group(1)) == current:
+            return False
+        if current is not None and int(plan.group(1)) < current:
+            return True   # a closed milestone's plan describes the past, frontmatter or not
     if p.suffix != ".md" or not p.is_file():
         return False
     try:

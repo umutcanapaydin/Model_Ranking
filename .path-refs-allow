@@ -13,7 +13,6 @@ docs/pipeline-readiness-audit.md  # closure artifact at milestone N-2
 docs/handover-to-prod-agent.md    # closure artifact for the operating team
 handover-to-prod-agent.md     # same artifact, named without its directory in the plan template
 external-influences-impact.md # closure artifact when an external dependency moved
-docs/plans/*                  # wave and milestone plans, written per milestone
 docs/pm-status-*.md           # dated PM status snapshots
 docs/claude-harness-config.md # written when the project configures its agent harness
 environment.md                # the project's environment notes (Stage 0 deliverable)
@@ -33,15 +32,12 @@ PROCESS.md                    # a project-side process note named in a seed
 # ── 2. FIELD EVIDENCE. `playbook-seeds.md` cites where a lesson was measured -- paths inside the
 #       harvested projects, under their aliases. They are evidence, and evidence is not ours to
 #       ship. A reader is not told to open them.
-src/*                         # measured-in path from a harvested project
 
 adapter/*                     # measured-in path from a harvested project
 clients/*                     # measured-in path from a harvested project
 mock_callback/*               # measured-in path from a harvested project
 validation/*                  # measured-in path from a harvested project
 schemas/common.py             # measured-in path from a harvested project
-tests/*                       # measured-in test path from a harvested project
-test_*.py                     # measured-in test module from a harvested project
 settings.py                   # measured-in module from a harvested project
 insight.py                    # measured-in module from a harvested project
 obs_compensation.py           # measured-in module from a harvested project
@@ -59,14 +55,12 @@ HEAD.lock                     # a git internal named in the worktree-guard seed
 docs/m*-plan.md               # measured-in plan from a harvested project
 docs/m*-retrospective.md      # measured-in retrospective from a harvested project
 docs/discipline-*.md          # measured-in discipline note from a harvested project
-docs/research/*               # measured-in research note from a harvested project
 
 # ── 3. Scripts a project may add. `scripts/README.md` describes the shape of the directory, not a
 #       set of files GP ships into it.
 smoke.sh                      # example project script named in scripts/README.md
 deploy.sh                     # example project script named in scripts/README.md
 release.sh                    # example project script named in scripts/README.md
-scripts/checkpoint.sh         # example project script named in a decision record
 
 # ── 4. Deliberately absent, by a recorded decision.
 GP-v4.1-presentation-TR.html  # removed at v4.3 under the English-only rule; the manifest says so
@@ -93,11 +87,8 @@ image-edit.json                       # an upstream board payload quoted as fetc
 data/latest.json                      # an upstream payload path quoted in a review
 # 2. The engine's own modules named relative to the package (`src/app/`), which this test does not
 #    resolve: every one of these exists under `src/app/`.
-workflows/*                           # = src/app/workflows/*
-app/workflows/*                       # = src/app/workflows/*
 # 3. Reviewer and author scratch: probes, drivers and run outputs that lived in a session scratchpad
 #    and are quoted as evidence. Never shipped, by design.
-scratchpad/*                          # a review seat's scratch directory
 exp*.py                               # measurement scripts in a research record
 m7w*_lead_faultinject.py              # M7 fault-injection drivers, quoted by the wave records
 apply_w4.py                           # a one-off apply script quoted in a wave record
@@ -140,3 +131,33 @@ advisor.db.refresh.json                        # the refresh's own status record
 advisor.db.refresh.lock                        # the refresh's flock file
 coverage.json                                  # pytest-cov's JSON report, read by the module coverage floor
 RESUME.md                                      # a per-session resume note under .claude/, gitignored
+# 7. Exact rows replacing the broad `src/*`, `tests/*`, `test_*.py`, `docs/plans/*`, `docs/research/*`,
+#    `workflows/*` and `scratchpad/*` patterns (independent review MAJOR-2: `*` crosses `/` in fnmatch,
+#    so those rows hid EVERY dangling path under those directories, live documents included).
+src/ef_ai/adapter/main.py                      # playbook-seeds field evidence from a harvested project
+src/ef_ai/workflows/sms_format.py              # same
+test_sms_workflow.py                           # same
+tests/contracts/test_adapter_routes.py         # same
+tests/integration/test_sms_workflow.py         # same
+docs/research/newapi-legal-note.md             # same
+src/__init__.py                                # DevFlow ships it; this project deliberately does not (D-155 clause 4)
+workflows/refresh.py                           # = src/app/workflows/refresh.py, named relative to the package
+workflows/sources.py                           # = src/app/workflows/sources.py
+workflows/rank.py                              # = src/app/workflows/rank.py
+workflows/recommend.py                         # = src/app/workflows/recommend.py
+app/workflows/refresh.py                       # = src/app/workflows/refresh.py
+docs/plans/m10-wave-1-close.md                 # the M10 closure report cites wave closes never filed; recorded as found here
+docs/plans/m10-wave-2-close.md                 # same
+docs/plans/m11-wave-3-close.md                 # same, M11
+docs/plans/m11-wave-9-close.md                 # a mutant name in the M11 wave-check tests
+docs/plans/self.md                             # the path-escape mutant in the M11 review
+docs/plans/m99-plan.md                         # a planted mutant in the DevFlow adoption review
+src/app/adapter/gone_main.py                   # same
+tests/unit/test_gone.py                        # same
+scratchpad/tester_m7w1_rereview_driver.py      # an M7 review seat's scratch driver
+scratchpad/runner.py                           # same
+workflows/schema.py                            # = src/app/workflows/schema.py, named relative to the package
+workflows/rosters.py                           # = src/app/workflows/rosters.py, named relative to the package
+workflows/subscribe.py                         # = src/app/workflows/subscribe.py, named relative to the package
+workflows/yaml_guard.py                        # = src/app/workflows/yaml_guard.py, named relative to the package
+scripts/checkpoint.sh                          # a planted mutant in the adoption review; DevFlow removed the script at D-999. Rows are keyed by TARGET, so this cannot be scoped to that one record (field finding B1)
