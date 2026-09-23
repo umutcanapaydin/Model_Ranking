@@ -232,7 +232,10 @@ def main() -> int:
     known = {e for e in set(known_raw.splitlines()) | {owner}
              if e and e != MACHINE and e.lower() not in AI_EMAILS}
 
-    _, log = sh(["git", "log", "--format=%H%x00%ae%x00%ce%x00%aI%x00%B%x1e", rng, "-n", "200"])
+    # %(trailers:...) is git's own trailer parser: a `GP-Agent:` in the body's prose is not a
+    # trailer (#17), only one in the message's final trailer block is.
+    _, log = sh(["git", "log", "--format=%H%x00%ae%x00%ce%x00%aI%x00%(trailers:key=GP-Agent,valueonly)"
+                 "%x00%B%x1e", rng, "-n", "200"])
     bad = []
     n = 0
     pre_epoch = 0
@@ -241,7 +244,7 @@ def main() -> int:
         if not entry.strip():
             continue
         n += 1
-        sha, email, cemail, adate, body = (entry.strip("\n").split("\x00") + ["", "", "", ""])[:5]
+        sha, email, cemail, adate, trailer, body = (entry.strip("\n").split("\x00") + [""] * 5)[:6]
         ai_identity = [(role, e) for role, e in (("author", email), ("committer", cemail))
                        if e.lower() in AI_EMAILS]
         ai_attributed = bool(ai_identity) or any(m in body for m in AI_MARKERS)
@@ -263,7 +266,7 @@ def main() -> int:
                 bad.append(f"{sha[:9]} machine identity on the FIRST-PARENT chain -- agent work "
                            "reached the protected branch as a human's history. It should have "
                            "arrived as a pull request a human merged")
-        elif sha in ai_pop and email == MACHINE and AGENT_TRAILER not in body:
+        elif sha in ai_pop and email == MACHINE and not trailer.strip():
             bad.append(f"{sha[:9]} machine identity with no `{AGENT_TRAILER}` trailer -- an agent "
                        "commit must say which agent made it (D-155 clause 2, D-161)")
         elif sha in ai_pop and email != MACHINE and email not in known \

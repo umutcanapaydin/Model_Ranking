@@ -83,9 +83,11 @@ def main() -> int:
         vm = re.fullmatch(r"v?(\d+)\.(\d+)(?:\.\d+)*", version or "")
         if vm and (int(vm.group(1)), int(vm.group(2))) >= (5, 0):
             in_scope.append(record)
-        elif date > MIGRATION_DATE:
+        elif not date or date > MIGRATION_DATE:
+            # #17: a record with no date cannot be assumed written before the migration.
             dodged.append(
-                f"{record.relative_to(ROOT)} is dated {date}, after the v5.0 migration, and "
+                f"{record.relative_to(ROOT)} is "
+                f"{'undated' if not date else 'dated ' + date + ', after the v5.0 migration,'} and "
                 f"declares process_version={version!r}; the stamp is what puts a record in scope, "
                 "so omitting it removes the record from the gate"
             )
