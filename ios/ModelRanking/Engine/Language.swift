@@ -38,6 +38,8 @@ public enum PickReason: String {
     case cheapestWithinWindow = "cheapest_within_window"
     case cheapestAboveFloor = "cheapest_above_floor"
     case nothingClearsFloor = "nothing_clears_floor"
+    /// D-159 (M17-W1): the surface's own board is empty, so there is no floor to clear.
+    case noFloorMeasured = "no_floor_measured"
 }
 
 /// Compose the "why" sentence from the engine's fact.
@@ -87,6 +89,12 @@ public func whySentence(_ fact: [String: Any], in language: Language) -> String?
         guard let floor = number(fact["floor"]) else { return nil }
         return "Dikkat: bu fiyatta hiçbir model kendi barajımız olan \(floor) \(unit) "
             + "seviyesini geçmiyor. Bu en ucuzu ve kaliteden ödün veriyorsunuz."
+    case (.noFloorMeasured, .english):
+        return "Careful: this list's own board is empty today, so we cannot measure our bar. "
+            + "This is the cheapest there is."
+    case (.noFloorMeasured, .turkish):
+        return "Dikkat: bu listenin kendi tablosu bugün boş, bu yüzden barajımızı ölçemiyoruz. "
+            + "Bu en ucuzu."
     }
 }
 

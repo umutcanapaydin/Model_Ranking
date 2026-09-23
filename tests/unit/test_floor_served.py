@@ -163,3 +163,25 @@ def test_every_quoted_floor_is_printed_as_the_engine_applies_it() -> None:
         specs = quoted.findall(source)
         assert specs, f"{module.__name__} prints no floor at all -- this check reads nothing"
         assert set(specs) == {":g"}, (module.__name__, specs)
+
+
+def test_the_refresh_publishes_a_board_that_grew_only_by_unranked_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """BLOCKING-1 through the real `refresh()` and `build.main`: the upstream adds models nobody
+    prices, no ranked row changes, the floor rises -- and the cycle publishes."""
+    import json
+
+    from app.workflows.refresh import EXIT_PUBLISHED, refresh
+
+    from .test_build import SWEBENCH
+    from .test_refresh_carry import _first_cycle, _sources, _use
+
+    live = _first_cycle(tmp_path, monkeypatch)
+    grown = json.loads(SWEBENCH)
+    grown["leaderboards"][0]["results"] += [
+        {"name": f"some-agent + Unpriced Model {i}", "resolved": 90.0 + i, "date": "2026-01-01",
+         "logs": True, "trajs": True} for i in range(9)]
+    _use(monkeypatch, _sources(swebench=json.dumps(grown)))
+    outcome, code = refresh(live)
+    assert code == EXIT_PUBLISHED, outcome.reason

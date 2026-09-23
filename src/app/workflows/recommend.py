@@ -575,11 +575,15 @@ def recommend(
             trade_off=(
                 None if cheap.model == quality.model else trade_off_sentence(cheap_trade_off)
             ),
-            why_fact={
-                "reason": "cheapest_above_floor" if floor_met else "nothing_clears_floor",
-                "floor": floor,
-                "unit": unit,
-            },
+            # `no_floor_measured` is its own reason (M17-W1 review MINOR-1): with no floor there is
+            # nothing to clear, and `nothing_clears_floor` beside a null floor meant two things.
+            why_fact=(
+                {"reason": "no_floor_measured", "unit": unit} if floor is None else {
+                    "reason": "cheapest_above_floor" if floor_met else "nothing_clears_floor",
+                    "floor": floor,
+                    "unit": unit,
+                }
+            ),
             trade_off_fact=None if cheap.model == quality.model else cheap_trade_off,
             secondary_age_days=secondary_age,
         ),

@@ -41,6 +41,7 @@ from pathlib import Path
 from app.clients import epoch_bundle
 from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
+from app.workflows.floors import derived_floor
 from app.workflows.rank import build_price_medians, category_ranking
 from app.workflows.recommend import BUDGETS, eligible_rows, round_optional_score, round_score
 from app.workflows.schema import open_readonly
@@ -383,6 +384,11 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         # nothing.
         rows = category_ranking(conn, spec)
         digest.update(f"surface:{name}:{len(rows)}\n".encode())
+        # D-159 (M17-W1 review BLOCKING-1): the floor counts EVERY row of the board, the ranking only
+        # the rows it can rank. A board that grows by models nobody prices moves the floor and the
+        # Budget Pick with no ranked row changing, so the floor is hashed on its own -- or that
+        # change reads as "nothing a user would notice" and is never published.
+        digest.update(f"floor:{name}:{derived_floor(conn, spec)}\n".encode())
         surfaces[name] = len(rows)
         eligible[name] = {b: len(eligible_rows(rows, b)) for b in sorted(BUDGETS)}
         names[name] = frozenset(row.model for row in rows)

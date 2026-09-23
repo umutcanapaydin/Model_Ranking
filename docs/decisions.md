@@ -2723,6 +2723,19 @@ number from the same rows; nothing stored can disagree with the rows beside it, 
 built before M17 serves a correct floor. A surface whose own board is empty has no floor, and its
 Budget Pick says so.
 
+*Correction, 2026-09-23 (M17-W1 review, `docs/reviews/m17-wave-1-review.md`).*
+- **Clause 3 described a guard that does not exist and should not be built.** The floor is not a
+  filter: the budget caps decide which models a reader can be offered, and the floor only decides
+  which of them the Budget Pick names. A guard refusing "a floor that empties a budget" would refuse
+  every night a board grows past a budget's best model, and so freeze the refresh (D-128's own
+  failure mode) against the owner's ruling that floors follow their boards.
+- **What does exist:** a moved floor is a SERVED change. The refresh's fingerprint hashes every
+  surface's floor, so a board that grows only by models nobody prices, which moves the floor and no
+  ranked row, is published rather than reported as "nothing a user would notice"
+  (`tests/unit/test_floor_served.py`).
+- A surface whose own board is empty answers with its own reason, `no_floor_measured`, which the app
+  words in both languages.
+
 ---
 
 ## D-160 — A combined list is built on the phone, and nothing about the question leaves it
