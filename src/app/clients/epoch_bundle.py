@@ -20,7 +20,6 @@ from __future__ import annotations
 import io
 import stat
 import zipfile
-import zlib
 from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 
@@ -30,8 +29,12 @@ from app.clients.protocols import SourceError, fetch_bounded_bytes
 __all__ = ["EPOCH_BUNDLE_URL", "fetch_bundle", "unpack"]
 
 NAME = "epoch bundle"
-#: The download. The 2026-09-23 bundle is 2.3 MB; thirty times that is a bundle that changed shape.
-MAX_BUNDLE_BYTES = 64 * 1024 * 1024
+#: The download. The 2026-09-23 bundle is 2.3 MB; seven times that is a bundle that changed shape.
+#: Smaller than the text sources' 32 MiB on purpose: a zip's central directory is parsed whole
+#: before its member count can be read, and a 64 MB one cost 600 MB of memory (security pass F3).
+MAX_BUNDLE_BYTES = 16 * 1024 * 1024
+#: The whole download, in seconds. The real one takes about one (security pass F4).
+DEADLINE_SECONDS = 120.0
 #: What it may expand to, counted while writing. The 2026-09-23 bundle unpacks to about 20 MB.
 MAX_UNPACKED_BYTES = 256 * 1024 * 1024
 #: The 2026-09-23 bundle has 88 members.
@@ -83,10 +86,12 @@ def _write(archive: zipfile.ZipFile, info: zipfile.ZipInfo, target: Path, budget
                     msg = f"{NAME}: the bundle expands past {MAX_UNPACKED_BYTES} bytes"
                     raise SourceError(msg)
                 sink.write(chunk)
-    except (zipfile.BadZipFile, zlib.error, EOFError, RuntimeError, NotImplementedError) as exc:
-        # A corrupt, truncated, encrypted or oddly compressed member is a bundle this cannot
-        # read, which is a source failure, not a crash of the cycle.
-        msg = f"{NAME}: member {info.filename!r} is unreadable: {exc}"
+    except SourceError:
+        raise  # the size refusal says what it is (security pass F6)
+    except Exception as exc:
+        # A corrupt, truncated, encrypted or oddly compressed member -- in ANY codec, including one
+        # a later Python adds -- is a bundle this cannot read: a source failure, not a crash.
+        msg = f"{NAME}: member {info.filename!r} is unreadable: {type(exc).__name__}: {exc}"
         raise SourceError(msg) from exc
     return budget
 
@@ -102,16 +107,30 @@ def unpack(payload: bytes, dest: Path) -> int:
     except zipfile.BadZipFile as exc:
         msg = f"{NAME}: the download is not a zip ({len(payload)} bytes)"
         raise SourceError(msg) from exc
+    except Exception as exc:
+        # TOTAL over bad input (security pass F1): an allowlist of exception classes is the shape
+        # that failed -- a name flagged UTF-8 that is not raised UnicodeDecodeError past it.
+        msg = f"{NAME}: unreadable archive: {type(exc).__name__}: {exc}"
+        raise SourceError(msg) from exc
     budget = MAX_UNPACKED_BYTES
     with archive:
-        plan = _plan(archive.infolist(), dest.resolve())
-        for info, target in plan:
-            budget = _write(archive, info, target, budget)
+        try:
+            plan = _plan(archive.infolist(), dest.resolve())
+            for info, target in plan:
+                budget = _write(archive, info, target, budget)
+        except SourceError:
+            raise
+        except Exception as exc:  # a name collision, a name too long: still a refused bundle
+            msg = f"{NAME}: unreadable archive: {type(exc).__name__}: {exc}"
+            raise SourceError(msg) from exc
     return len(plan)
 
 
 def _download(url: str) -> bytes:
-    return fetch_bounded_bytes(url, NAME, TIMEOUT_SECONDS, limit=MAX_BUNDLE_BYTES)
+    # No redirect: the documented URL answers 200 itself, and following one would widen who
+    # supplies the bytes to whoever the redirect names (security pass F5).
+    return fetch_bounded_bytes(url, NAME, TIMEOUT_SECONDS, limit=MAX_BUNDLE_BYTES,
+                               deadline=DEADLINE_SECONDS, follow_redirects=False)
 
 
 def fetch_bundle(dest: Path, *, get: Callable[[str], bytes] | None = None) -> Path:

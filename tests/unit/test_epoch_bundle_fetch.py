@@ -355,3 +355,9 @@ def test_a_download_past_its_deadline_is_a_source_error(monkeypatch: pytest.Monk
     monkeypatch.setattr(protocols.time, "monotonic", lambda: float(next(ticks)))
     with pytest.raises(SourceError, match="deadline"):
         protocols.fetch_bounded_bytes("https://x", "x", 1.0, deadline=100.0)
+
+
+def test_an_unreadable_member_is_named_in_the_refusal(tmp_path: Path) -> None:
+    """The log line is the operator's only clue to WHICH board broke."""
+    with pytest.raises(SourceError, match=r"gpqa_diamond\.csv.*LZMAError"):
+        epoch_bundle.unpack(_corrupt_lzma(), tmp_path)

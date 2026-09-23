@@ -7,6 +7,7 @@ calls (permission-matrix §3).
 
 from __future__ import annotations
 
+import time
 from typing import Protocol
 
 
@@ -43,7 +44,8 @@ MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 
 def fetch_bounded_bytes(
     url: str, name: str, timeout: float, params: dict[str, str] | None = None,
-    *, limit: int = MAX_RESPONSE_BYTES,
+    *, limit: int = MAX_RESPONSE_BYTES, deadline: float | None = None,
+    follow_redirects: bool = True,
 ) -> bytes:
     """GET a source payload, refusing to buffer more than `limit` (`MAX_RESPONSE_BYTES` by default).
 
@@ -52,18 +54,26 @@ def fetch_bounded_bytes(
     ingestion off the serving host — so the realistic consequence of the unbounded version was a
     hung or OOM-killed BUILD, not a serving outage. It still chained into a worse failure: an
     out-of-memory kill mid-build used to leave a half-written artifact behind.
+
+    `timeout` is httpx's, PER operation: a body drip-fed one byte a minute never trips it.
+    `deadline` bounds the whole download in seconds (M16-W4 security pass, F4).
     """
     import httpx
 
+    started = time.monotonic()
+
     try:
         with httpx.stream(
-            "GET", url, timeout=timeout, follow_redirects=True, params=params
+            "GET", url, timeout=timeout, follow_redirects=follow_redirects, params=params
         ) as response:
             response.raise_for_status()
             chunks: list[bytes] = []
             total = 0
             for chunk in response.iter_bytes():
                 total += len(chunk)
+                if deadline is not None and time.monotonic() - started > deadline:
+                    msg = f"{name}: the download passed its {deadline:.0f} s deadline and was cut off"
+                    raise SourceError(msg)
                 if total > limit:
                     msg = (
                         f"{name}: response exceeded {limit} bytes and was cut off; "

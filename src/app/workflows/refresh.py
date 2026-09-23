@@ -39,7 +39,6 @@ from dataclasses import dataclass, fields
 from pathlib import Path
 
 from app.clients import epoch_bundle
-from app.clients.protocols import SourceError
 from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
 from app.workflows.rank import build_price_medians, category_ranking
@@ -703,6 +702,7 @@ def refresh(
                     ),
                     EXIT_BUSY,
                 )
+            _sweep_stale_scratch(target)
             return _cycle(target, build_args, builder, record, fetch_epoch)
     except BaseException as exc:
         # B1, found by an independent review: `record()` was reachable only from the four `return`
@@ -870,11 +870,42 @@ def _fetched_epoch(
     scratch = Path(tempfile.mkdtemp(prefix=f"{target.name}.", suffix=".epoch", dir=target.parent))
     try:
         fetch_epoch(scratch)
-    except (SourceError, OSError) as exc:
+    except Exception as exc:
+        # ANY failure of the fetch is a failed source (security pass F1): one upstream's bytes
+        # must never stop every other source's night. D-158 clause 3.
         shutil.rmtree(scratch, ignore_errors=True)
-        print(f"epoch bundle not fetched, its boards carry: {exc}", file=sys.stderr)
+        print(f"epoch bundle not fetched, its boards carry: {type(exc).__name__}: {exc}",
+              file=sys.stderr)
         return None, []
+    except BaseException:
+        shutil.rmtree(scratch, ignore_errors=True)  # an interrupt still propagates, clean (F2)
+        raise
     return scratch, ["--epoch-dir", str(scratch)]
+
+
+#: A cycle's scratch older than this is from a cycle that died: the engine kills one at 30 minutes.
+STALE_SCRATCH_S = 86400.0
+
+
+def _sweep_stale_scratch(target: Path, *, now: float | None = None) -> list[Path]:
+    """Remove what a KILLED cycle left beside the artifact (W-124, security pass F2): candidates,
+    build reports, arrival records and unpacked bundles, a day old or more. Called under the lock,
+    so no live cycle's scratch is ever this old; a sibling's minutes-old file is never touched."""
+    clock = time.time() if now is None else now
+    swept: list[Path] = []
+    for suffix in ("candidate", "sources", "last-ok", "epoch"):
+        for path in target.parent.glob(f"{target.name}.*.{suffix}"):
+            try:
+                if clock - path.stat().st_mtime < STALE_SCRATCH_S:
+                    continue
+                if path.is_dir() and not path.is_symlink():
+                    shutil.rmtree(path)
+                else:
+                    path.unlink()
+            except OSError:
+                continue
+            swept.append(path)
+    return swept
 
 
 def _discard(scratch: Path | None) -> None:
