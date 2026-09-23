@@ -78,6 +78,7 @@ polyglot_leaderboard.yml              # Aider's leaderboard file, fetched by the
 swe_bench_verified.csv                # Epoch AI bundle file (owner-fetched, outside the repo)
 other.csv                             # a hypothetical bundle file in the M5 security review's probe
 a.csv                                 # a hypothetical bundle member in the M16-W4 security pass's probes
+docs/plans/m*-wave-*-plan.md          # a wave's working plan: it lives on its branch and is deleted before merge (DevFlow /work-enhancement); the reviews written during the wave name it
 epoch_capabilities_index.csv          # Epoch AI bundle file, the pre-2026-09 layout (fetched, outside the repo)
 epoch_capabilities_index/*            # Epoch AI bundle directory, the 2026-09 layout (fetched, outside the repo)
 *_scores.csv                          # Epoch AI bundle files in epoch_capabilities_index/ (eci, edi; fetched, outside the repo)
