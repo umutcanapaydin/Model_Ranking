@@ -2597,3 +2597,34 @@ needs the branch pushed.
 
 **Revisit when:** a forge-less workflow needs supporting, or branch protection is not available.
 
+---
+
+## D-157 — A model on the boards reaches the lists without a code edit: the list wins, the data derives the rest
+
+**Status:** proposed (M16-W4 plan; the principle ruled by the owner 2026-09-23, the mechanism to be
+ratified with the wave) · **Date:** 2026-09-23 · **Supersedes** REQ-CAN-001's clause "unmatched
+names are dropped with a count reported, never guessed".
+
+**Context.** The registry is a hand-kept rule table. On 2026-09-23, 1,450 of 2,834 score rows in a
+fresh build matched no rule, GPT-6 Astra among them, with scores on six boards and prices on
+LiteLLM. Every new model family waits for a code edit, so the lists fall behind the boards they
+are built from. The owner (translated from Turkish): *"'Never guess' was something like v1; we are
+maybe at v3 by now, and the app's main purpose has changed a little. If it is on a list, the list
+wins; but when we cannot give anything, I cannot call it guessing any more -- we will present the
+list we derived from the data as a result of measurements, our own list."*
+
+**Decision.**
+1. **The curated rules win.** A name a curated rule matches keeps that rule's model.
+2. **A name no rule matches is normalised by a fixed grammar** (provider prefixes, dates and effort
+   suffixes removed; every variant token kept), and registered as a DERIVED model when that id has
+   both a price and a score. The grammar is deterministic and tested; it is not fuzzy matching.
+3. **A variant never merges into its parent by construction**: the derived id keeps every token
+   the name carries after its version.
+4. **Disclosure is the engine's** (proposed, W4 plan decision 2): `/health` and the build report
+   name derived models and the top unmatched names.
+
+**The cost.** A derived model's display name is the grammar's, not a curator's, until a rule is
+written. Two spellings the grammar does not unify stay two models until a curated rule joins them.
+
+**Revisit when:** a derived registration is found merging two different models, or splitting one.
+

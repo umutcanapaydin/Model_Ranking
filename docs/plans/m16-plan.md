@@ -122,7 +122,15 @@ Nothing a reader sees changes. Everything the later waves need written down firs
   corrected at the M15 closure, W-113). The wave says which rule each surface's margin follows and
   whether that is the one clause 2 names.
 
-### W4 — What people ask, from outside (risk: **MED**, droppable)
+### W4 — The updater keeps every list current (risk: **HIGH**) — *replaces the W4 below*
+
+**Owner, 2026-09-23 (in session):** this wave replaces "what people ask", which moves to M17 with
+the source expansion and the combined lists. The refresh fetches every board itself (the Epoch
+bundle included), a changed board layout fails loud, and a model on the boards and in the price
+feeds reaches the lists without a code edit (registry derivation, D-157). Working plan:
+`docs/plans/m16-wave-4-plan.md`.
+
+### ~~W4~~ M17 — What people ask, from outside (risk: **MED**, droppable)
 
 - List public collections of real prompts, each with its licence, size and date (§0.4).
 - On the collections the owner allows: classify a sample against the fourteen surfaces and the
