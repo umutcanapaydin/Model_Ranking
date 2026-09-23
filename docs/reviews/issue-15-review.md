@@ -73,7 +73,7 @@ seat: independent
   - `ContentView.swift:161` sets `anchored: info?.scoreAnchor != nil`. Null means the engine's scale, a number means /100 (`:172,186,434,459`).
   - `Uncertainty.swift:185-199` has the 2000 Elo guard (`anchorReach`). The anchor is now drawn from the same board as the scores, so it sits within the board's spread (under 500 Elo on today's boards), and the guard stays a guard against broken data only. Untouched.
   - `anchoredFact` (`Uncertainty.swift:357-381`) converts the answer's floor against the anchor. With anchor == floor this is exactly 50, pinned by `ScoresTests.swift::testTheFloorIsRestatedAsAPosition` ("at the anchor it is exactly 50").
-  - `Language.swift:205-209` ("50 is at the bar" / "50 tam çıtada demek") is now literally true, in EN and TR.
+  - `Language.swift:205-209` (`"50 is at the bar"` / `"50 tam çıtada demek"`) is now literally true, in EN and TR.
   - Swift fixture `ios/EngineTests/EngineClientTests.swift:174` already has `score_anchor == min_quality` (1206.9), consistent with the new rule.
   - The only Swift test still built on pinned numbers is `ScoresTests.swift:209` (M4).
 - Scripts: `scripts/calibrate_board.py` and `scripts/survey_boards.py` say nothing about the anchor being pinned (`git grep -n -i anchor -- scripts`: only `survey_boards.py:123`, "no anchor, no conversion, identity", which is correct).
