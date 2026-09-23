@@ -53,7 +53,9 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     # Effort suffixes (-max/-xhigh/-high/-medium/-low) map to the same priced model,
     # but M5 resolves and stores the suffix BEFORE this table is consulted. They are
     # never allowed to disappear as score dimensions. Preview/date tokens remain aliases.
-    ModelRule("claude-fable-5",    "Claude Fable 5",    "Anthropic", r"claude[-_ ]?fable[-_ ]?5"),
+    # M16-W4: the parent rule had no version guard, so Fable 5.1's prices folded into Fable 5.
+    ModelRule("claude-fable-5.1",  "Claude Fable 5.1",  "Anthropic", r"claude[-_ ]?fable[-_ ]?5[.\-]1(?!\d)"),
+    ModelRule("claude-fable-5",    "Claude Fable 5",    "Anthropic", r"claude[-_ ]?fable[-_ ]?5(?![.\-]?\d)"),
     ModelRule("claude-5-opus",     "Claude Opus 5",     "Anthropic", r"claude[-_ ]?opus[-_ ]?5(?![.\-]?\d)|claude[-_ ]?5[-_ ]?opus"),
     # M4-W2: named by Perplexity's documented plan roster, and live in both pricing
     # (claude-sonnet-5) and Arena (claude-sonnet-5-high).
