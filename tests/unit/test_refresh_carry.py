@@ -407,3 +407,22 @@ def test_an_expiry_night_does_not_admit_a_roster_never_served(
 
     assert code == EXIT_REFUSED, outcome.reason
     assert "never seen" in outcome.reason
+
+
+def test_an_expiry_night_does_not_admit_a_price_jump_either(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same night with the SAME models, every price tripled. The baseline `coding` is blind,
+    so its median falls back to the served one, and D-132 refuses the jump."""
+    live = _first_cycle(tmp_path, monkeypatch)
+    with sqlite3.connect(live) as db:
+        db.execute("UPDATE scores SET source = ?, observed_at = ? WHERE source = 'swebench'",
+                   (EPOCH_CODING, _ago(45)))
+    tripled = json.dumps({name: {**row, "input_cost_per_token": row["input_cost_per_token"] * 3,
+                                 "output_cost_per_token": row["output_cost_per_token"] * 3}
+                          for name, row in json.loads(PRICING).items()})
+    _use(monkeypatch, _sources(pricing=tripled))
+    outcome, code = refresh(live)
+
+    assert code == EXIT_REFUSED, outcome.reason
+    assert "median price" in outcome.reason

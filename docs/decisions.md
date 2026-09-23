@@ -2566,9 +2566,14 @@ supersedes the first amendment's exemption bullet.
   `pricing` rows removed and `px_median` re-derived (`refresh._served_without`), and every guard
   runs against that baseline: the model count, the budget axis and the median price. The median
   price is new: on the whole-surface rule, an expired cheap model moved a median and was refused.
+  **Except the new-names guard** (third review `docs/reviews/m16-wave-3-rereview-2.md`, MINOR-1):
+  removing rows never adds a name, so it is judged against the live artifact. Otherwise a surface
+  the expiry blinds would pass for "a surface returning" and admit a roster never served. Where the
+  baseline surface is blind, its median falls back to the served one.
 - **A future stamp.** An arrival from the future falls back to the rows' own stamp. If the rows are
   ahead of now too, the clock stepped back, and the source carries at age 0 rather than expiring
-  (re-review MINOR-1). `/health` prints `?d`, never a negative age.
+  (re-review MINOR-1) -- if they are less than 30 days ahead. Further ahead they expire (third
+  review MINOR-2). `/health` prints `?d`, never a negative age.
 - **What `expired` means** (re-review NIT-2): the sources whose last good data is past 30 days. A
   cycle that is not served can leave such rows live, for example a required source that fails the
   build; `expired` lists them all the same, because their age, not their presence, is the fact.

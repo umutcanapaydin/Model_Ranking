@@ -134,7 +134,9 @@ MAX_SURFACE_GAIN = 0.25
 MAX_MEDIAN_PRICE_MOVE = 0.25
 
 
-def upward_anomalies(live: ServingSummary, candidate: ServingSummary) -> list[str]:
+def upward_anomalies(
+    live: ServingSummary, candidate: ServingSummary, prices: ServingSummary | None = None
+) -> list[str]:
     """Ways the candidate is implausibly BETTER. Empty means nothing suspicious.
 
     W-049, and it is the failure the refresh CREATED rather than one it exposed. Every other
@@ -146,6 +148,11 @@ def upward_anomalies(live: ServingSummary, candidate: ServingSummary) -> list[st
 
     Under the owner's ruling of 2026-08-22 the outcome is always REFUSE. This function never
     decides that something is fine on balance; it reports what looks wrong and the cycle stops.
+
+    `prices` is the baseline the MEDIAN is judged against on an expiry night (D-156): expired rows
+    leaving can move a median legitimately. The new-names guard always reads `live`: removing rows
+    never adds a name, so an expiry needs no excuse there, and a surface the expiry blinds must not
+    pass for "a surface returning" (M16-W3 third review MINOR-1).
     """
     reasons: list[str] = []
 
@@ -166,7 +173,9 @@ def upward_anomalies(live: ServingSummary, candidate: ServingSummary) -> list[st
                 "adds models one or two at a time"
             )
 
-    for name, before in sorted(live.median_price.items()):
+    for name, before in sorted((prices or live).median_price.items()):
+        if before <= 0:
+            before = live.median_price.get(name, 0.0)  # the baseline is blind: the served median
         after = candidate.median_price.get(name, 0.0)
         if before <= 0 or after <= 0:
             continue
@@ -738,7 +747,7 @@ def _reason_to_refuse(
     if worse:
         return "refused: the candidate is worse than what is being served — " + "; ".join(worse)
 
-    suspicious = upward_anomalies(baseline, fresh)
+    suspicious = upward_anomalies(live, fresh, baseline)
     if suspicious:
         return (
             "refused: the candidate improved in a way ordinary upstream movement does not "

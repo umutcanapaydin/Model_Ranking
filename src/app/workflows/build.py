@@ -199,8 +199,9 @@ class Carry:
     `last_ok` is the refresh's per-source record of when each source last ARRIVED in a cycle whose
     content is what the live artifact serves. It is the age that matters: an unchanged cycle
     publishes nothing, so a row's `observed_at` can be far older than the fetch that confirmed it.
-    Without a record for a source, the live rows' newest `observed_at` stands in -- which can only
-    overstate the age, never hide it.
+    Without a record for a source, the live rows' newest `observed_at` stands in. It can overstate
+    the age; it understates it only for rows stamped ahead of now by less than the carry limit,
+    read as age 0 (a clock that stepped back; M16-W3 re-reviews).
     """
 
     live: Path
@@ -223,7 +224,10 @@ class Carry:
         # A stamp from the future (a clock that stepped back) is not an age at all; carrying on it
         # would carry forever (M16-W3 review MINOR-2). Unless `clamp`: see `age_days`.
         if age < 0:
-            return 0.0 if clamp else None
+            # Only a bounded step back reads as young. Further ahead is not an error the ruling
+            # can absorb: it would carry until real time reached the stamp, and 30 days more
+            # (third review MINOR-2).
+            return 0.0 if clamp and -age < CARRY_MAX_AGE.total_seconds() / 86400 else None
         return age
 
     def age_days(self, live: sqlite3.Connection, source: str) -> tuple[float | None, str | None]:
@@ -237,7 +241,7 @@ class Carry:
             stamp = max((x for x in newest if x), default=None)
             # The rows are the last word. If they are ahead of now too, the clock stepped back and
             # the data is as young as it gets: carry at age 0 rather than expire (re-review
-            # MINOR-1). This is bounded by the clock's error, not by a stamp anyone can write.
+            # MINOR-1) -- within the carry limit; further ahead expires.
             age = self._age(stamp, clamp=True)
         return age, stamp
 
@@ -609,7 +613,7 @@ def _write_sources(path: str | None, sources: dict[str, object] | None) -> None:
 
 def _read_last_ok(path: str | None) -> dict[str, str]:
     """The refresh's per-source arrival record. Unreadable is EMPTY, which makes every carry judged
-    by its rows' own `observed_at` -- the stricter age, never a laxer one."""
+    by its rows' own `observed_at` (see `Carry` for the one case that reads younger)."""
     if not path:
         return {}
     try:
