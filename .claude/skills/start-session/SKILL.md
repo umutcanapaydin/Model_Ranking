@@ -6,21 +6,27 @@ description: Use at the start of any session in an unfamiliar or resumed reposit
 **Continuity is a property of files, not of sessions.** Nothing carries between sessions except
 what is written down. Treat that literally: do not reconstruct state, read it.
 
-1. **Read the most recent handover.** It states which repositories, which heads, what merged, what
- was deliberately left open, and what is running in the background — and the answer to the last
- one should be "nothing". If there is no handover, that is the first thing this session is
- missing.
+1. **Read where the work stands** — the latest `docs/process-log.md` entry, the current
+   `docs/plans/m{N}-plan.md`, and the open draft PRs (`gh pr list --state open`). Nothing else
+   carries between sessions; if the process log is silent about the last session, that is the
+   first thing this session is missing.
 2. **Confirm which tree you are in.** Stale clones of the same remotes exist and their histories
- diverge; one project had two, whose decision log stopped eighteen entries behind the live one.
- Read an archive as an archive; never commit in it.
-3. **Read the rules** — every file in `.agents/rules/`, then the entry document for the stack and
- its traps. From the files, not from what you remember about this project.
+   diverge; one project had two, whose decision log stopped eighteen entries behind the live one.
+   Read an archive as an archive; never commit in it.
+3. **Read the rules** — `.agents/rules/practices.md` and `issues.md`, then the entry document for
+   the stack and its traps. `playbook-seeds.md` is reference: open it when a rule cites a seed. From the files, not from what you remember about this project.
 4. **`git status` and the last ten commits.** The default branch should be clean.
-5. **Run the gates once, before changing anything.** This is the step that gets skipped and it is
- the one that pays: you cannot tell "I broke this" from "this was already red" unless you looked
- first. Run them by name and keep the output.
+5. **Run `make check` once, before changing anything** (`make gate` if you will open a PR today). This is the step that gets skipped and it is
+   the one that pays: you cannot tell "I broke this" from "this was already red" unless you looked
+   first. Run them by name and keep the output. Then `make ci-liveness`, and report its one line
+   as it is. It is advisory and never fails. A `WARN` means the latest CI runs started no step (a
+   billing or runner limit?), so the local gate and pre-push are all that gates a push: tell the
+   owner.
 6. **Look at the live queue** — open issues, and one issue's full history including comments, to
- see the label flow as it is actually practised rather than as it is documented.
+   see the label flow as it is actually practised rather than as it is documented. Name every
+   open issue whose comments carry no `Triage verdict:` line: no lane picks one up, so it is
+   triaged (`/triage-issue`) before new work starts — and every one carrying `qa:failed` or
+   `qa:blocked`, which goes back to triage the same way.
 7. **For anything the code does not explain**, read the decision log, then the archive.
 
 ## When you run a state dump

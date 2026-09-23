@@ -2,15 +2,14 @@
 record_type: license-review
 id: license-review-template
 status: draft
-process_version: v6.0
+process_version: v6.6
 date: 2026-08-12
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
- filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
- which is exactly what shipped in v4.3.1. -->
+     filename. `check_records.py` reads it; a copy without it fails R1 on the first run. -->
 # License & Commercial-Use Review — `<WRAPPED_OR_FORKED_OSS_ENGINE>`
 
-> Stage-0 gate (FB-4 / seed F.10, Pipeline). Complete this BEFORE building on any
+> Stage-0 gate (seed F.10). Complete this BEFORE building on any
 > third-party OSS engine you run, wrap, or fork. Copy this file to `docs/license-review.md`,
 > fill it, and have it reviewed. `make bootstrap-check` (C6) looks for `docs/license-review.md`.
 > **This is a risk flag, not legal advice — confirm with legal counsel before any commercial release.**
@@ -21,7 +20,7 @@ date: 2026-08-12
 
 - **Engine / dependency:** `<name + version + upstream URL>`
 - **How we use it:** `<run unmodified as a service / wrap behind our own API / modify (fork) / embed>`
-- **Consumption posture :** `wrap (call its API only) | fork (patch it) | port (reimplement)` + the trigger conditions for changing it. **Rule: a wrapper never touches the wrapped system's datastore.** Record the posture + triggers as an ADR field.
+- **Consumption posture:** `wrap (call its API only) | fork (patch it) | port (reimplement)` + the trigger conditions for changing it. **Rule: a wrapper never touches the wrapped system's datastore.** Record the posture + triggers as an ADR field.
 - **Is our product delivered over a network (SaaS / API / MaaS)?** `<yes / no>`
 - **Is our product proprietary / closed-source?** `<yes / no>`
 
@@ -57,5 +56,5 @@ source-disclosure on network use, and any required attribution.>`
 
 ---
 
-**Reviewed by:** `<name>` · **Legal sign-off:** `<name / pending>` · **Date:** `<YYYY-MM-DD>`
+**Reviewed by:** `<name>`   ·   **Legal sign-off:** `<name / pending>`   ·   **Date:** `<YYYY-MM-DD>`
 **Verdict:** `<APPROVED — recommended path / BLOCKED — needs commercial license or rebuild>`

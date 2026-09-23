@@ -181,7 +181,7 @@ def test_export_carries_attribution(tmp_path: Path) -> None:
         {"source": "arena", "observed_at": "2026-08-11T00:00:00+00:00"}
     ]
     _, json_path = export_ranking(ranking, tmp_path, meta, category="assistant")
-    payload = json.loads(json_path.read_text())
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
     attributions = " ".join(payload["attribution"])
     assert "CC-BY-4.0" in attributions
     assert "lmarena-ai/leaderboard-dataset" in attributions

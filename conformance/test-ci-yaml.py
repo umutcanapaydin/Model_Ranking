@@ -6,7 +6,15 @@ permissive: the orphan folded into the preceding step. The result was a step nam
 whose command was `python3 scripts/check_records.py`. **The dependency audit did not run for an entire
 release, and the job was green.** Nobody reads a workflow by parsing it; an external reviewer did.
 
-Stdlib-only except PyYAML, which CI already has. Exit 0 clean, 1 findings, 2 usage error.
+DUPLICATE KEYS. That orphan was a second `run:` in one step, and YAML resolves a key written twice
+by keeping the LAST value without a word -- the first is dead config that still reads as live.
+Every mapping in every workflow is checked for a key it holds twice: by PyYAML's loader where
+PyYAML is installed, by a line reader otherwise -- the GP root's gate runs this with a system
+`python3` that has no PyYAML, and a half that is NOT-EVALUABLE there is a half nobody grades. Both
+readers prove themselves on a must-fire and a must-pass sample on every run, and where PyYAML is
+present they must agree on every workflow, so the reader a machine without it uses cannot drift.
+
+Stdlib-only except PyYAML, which CI already has. Exit 0 clean, 1 findings, 2 not evaluable here.
 """
 import sys, pathlib, re
 
@@ -16,11 +24,10 @@ except ImportError:                                    # noqa: F401
     yaml = None
 
 # STDLIB FALLBACK, and the reason is structural rather than convenient. PyYAML is a dev dependency, dev
-# dependencies live in `.venv`, and **the distribution package cannot create one** -- `pyproject.toml`
-# ships `name = "<PROJECT_NAME>"`, which is not a PEP-508 identifier (TB-051). So a governance control
-# that needs PyYAML cannot run in the package that declares it, and `make conformance` reported
-# CANNOT RUN forever. Exiting 0 there would have been the old disease; exiting 2 forever is a gate
-# nobody can pass. **The third option is to not need the dependency.**
+# dependencies live in `.venv`, and **an unnamed starter cannot create one** -- `pyproject.toml`
+# ships `name = "<PROJECT_NAME>"`, which is not a PEP-508 identifier. So a governance control that
+# needs PyYAML could not run in the tree that declares it. Exiting 0 there is a silent pass; exiting
+# 2 forever is a gate nobody can pass. **The third option is to not need the dependency.**
 #
 # This parser handles ONLY the shape GitHub workflows actually use: block mappings, block sequences,
 # `|`/`>` scalars. It REFUSES (exit 2) on anchors, flow collections or multi-document files rather
@@ -104,6 +111,146 @@ def _load(text: str) -> dict:
         return yaml.safe_load(text)
     return _minimal_parse(text)
 
+
+DUPLICATE = "duplicate key `{key}` -- YAML keeps the last one silently, so the first is dead config"
+
+if yaml is not None:
+    class _UniqueKeyLoader(yaml.SafeLoader):
+        """SafeLoader that records (line, key) for every key a mapping holds twice.
+
+        Checked while each mapping is constructed, before PyYAML folds it into a dict and the
+        first value is gone. A merge key (`<<: *anchor`) is how YAML overrides on purpose, so the
+        keys it brings in are not counted -- only the keys written in the mapping itself.
+        """
+
+        def __init__(self, stream: str) -> None:
+            super().__init__(stream)
+            self.duplicates: list[tuple[int, str]] = []
+
+        def construct_mapping(self, node, deep=False):          # noqa: ANN001, ANN201
+            if isinstance(node, yaml.MappingNode):
+                seen: set = set()
+                for key_node, _value in node.value:
+                    if key_node.tag == "tag:yaml.org,2002:merge":
+                        continue
+                    key = self.construct_object(key_node, deep=deep)
+                    try:
+                        if key in seen:
+                            self.duplicates.append((key_node.start_mark.line + 1,
+                                                    str(getattr(key_node, "value", key))))
+                        seen.add(key)
+                    except TypeError:          # an unhashable key: PyYAML refuses it below
+                        pass
+            return super().construct_mapping(node, deep=deep)
+
+
+# The line reader, for where PyYAML is absent. It reads block mappings by indentation: a stack of
+# (indent, keys) for the mappings open at the current line; a key at an indent deeper than the top
+# opens a nested mapping, one at a shallower indent closes every mapping deeper than it, and each
+# `- ` closes the mappings of the item before it, so every sequence item starts a mapping of its own
+# (an indentless sequence -- `- ` at its parent key's indent -- included). Comments, blank lines and
+# block-scalar bodies (after `|` or `>`) are not read as keys.
+# NOT read: the content of flow collections (`{a: 1}`, `[a, b]`; one spanning several lines is
+# skipped until its brackets close), explicit `?` keys, a plain scalar continued over several lines,
+# and keys YAML equates by type (`on` and `true` are one key to PyYAML, two here). The merge key `<<` is not counted, as in the loader.
+_KEY = re.compile(r"""("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[^\s#'"\[\]{},&*!|>%@`-][^#]*?|-[^\s#][^#]*?)"""
+                  r"\s*:(?:\s+|$)(.*)$")
+_QUOTED = re.compile(r""""(?:[^"\\]|\\.)*"|'(?:[^']|'')*'""")
+_BLOCK_SCALAR = re.compile(r"^[|>][0-9+-]*\s*(?:#.*)?$")
+
+
+def _flow_depth(value: str) -> int:
+    """How many flow brackets `value` leaves open, quoted text left out."""
+    bare = _QUOTED.sub("", value.split(" #")[0])
+    return bare.count("[") + bare.count("{") - bare.count("]") - bare.count("}")
+
+
+def duplicate_keys_by_line(text: str) -> list[tuple[int, str]]:
+    """(line, key) for every key written twice in one block mapping of `text`. Stdlib only."""
+    found: list[tuple[int, str]] = []
+    stack: list[tuple[int, set]] = []          # open mappings, innermost last
+    block = None                               # a block scalar's parent column, while in its body
+    flow = 0                                   # open flow brackets carried from earlier lines
+    for n, raw in enumerate(text.splitlines(), 1):
+        ind = len(raw) - len(raw.lstrip(" "))
+        if block is not None:
+            if not raw.strip() or ind > block:
+                continue
+            block = None
+        if flow > 0:
+            flow = max(0, flow + _flow_depth(raw))
+            continue
+        line = raw.strip()
+        if not line:                          # a comment is never a key: `_KEY` refuses `#`
+            continue
+        if line in ("---", "...") or line.startswith("--- ") or line.startswith("%"):
+            stack.clear()
+            continue
+        col, rest, dash = ind, raw[ind:], None
+        while rest == "-" or rest.startswith("- "):   # each `- ` ends the item before it
+            dash = col
+            while stack and stack[-1][0] > col:
+                stack.pop()
+            step = len(rest) - len(rest[1:].lstrip(" ")) if rest != "-" else 1
+            col, rest = col + step, rest[step:]
+        m = _KEY.match(rest)
+        if not m:
+            value = rest
+        else:
+            key, value = m.group(1).strip(), m.group(2).strip()
+            if key[:1] in "\"'":
+                key = key[1:-1]
+            while stack and stack[-1][0] > col:
+                stack.pop()
+            if not stack or stack[-1][0] < col:
+                stack.append((col, set()))
+            if key != "<<":
+                if key in stack[-1][1]:
+                    found.append((n, key))
+                stack[-1][1].add(key)
+        if _BLOCK_SCALAR.match(value):
+            # its body is what is indented past its parent: the key, or the `-` of an item that is
+            # itself a block scalar (`- |`)
+            block = col if m or dash is None else dash
+        elif value[:1] in "[{":
+            flow = max(0, _flow_depth(value))
+    return found
+
+
+def duplicate_keys(text: str) -> list[tuple[int, str]]:
+    """(line, key) for every key written twice in one mapping of `text`: PyYAML where it is
+    installed, the line reader otherwise."""
+    return duplicate_keys_by_yaml(text) if yaml is not None else duplicate_keys_by_line(text)
+
+
+def duplicate_keys_by_yaml(text: str) -> list[tuple[int, str]]:
+    """(line, key) for every key written twice in one mapping of `text`. Needs PyYAML."""
+    loader = _UniqueKeyLoader(text)
+    try:
+        loader.get_single_data()
+    finally:
+        loader.dispose()
+    return sorted(loader.duplicates)          # in line order, whatever order PyYAML builds in
+
+
+# Both readers are proven on every run, both ways, before their silence over the workflows means
+# anything: the founding shape (a second `run:` in one step), a job id written twice and a key
+# repeated in an indentless sequence item must fire; keys shared by sibling mappings and sequence
+# items, merge keys and a merge-key override, `key:` lines inside a block scalar (a `- |` item's
+# too) or a comment, and a flow mapping spanning lines must not.
+MUST_FIRE = ("jobs:\n  audit:\n    runs-on: ubuntu-latest\n    steps:\n"
+             "      - name: Run pip-audit\n        run: pip-audit --strict .\n"
+             "        run: python3 scripts/check_records.py\n"
+             "  audit:\n    runs-on: ubuntu-latest\n    steps:\n    - name: a\n      name: b\n",
+             [(7, "run"), (8, "audit"), (12, "name")])
+MUST_PASS = ("defaults: &d\n  runs-on: ubuntu-latest\n  timeout-minutes: 5\njobs:\n  a:\n"
+             "    <<: *d\n    timeout-minutes: 10\n    steps:\n      - name: one\n        run: |\n"
+             "          name: not a key\n          name: nor this\n\n          echo 1\n"
+             "      - name: two  # name: a comment\n        run: echo 2\n  b:\n    <<: *d\n"
+             "    steps:\n    - name: x\n      with: {a: 1,\n      name: z}\n    - name: y\n"
+             "    # name: a comment\n  c:\n    <<: *d\n    <<: *d\n    args:\n      - |\n"
+             "        name: p\n        name: q\n      - z\n", [])
+
 # name fragment -> command fragment that MUST appear in that step's run block
 # Anchored on the START of the step name, because a substring matcher is how this file first produced
 # a false positive: the fragment "test (" matched "Validator self-test (conformance fixtures...)" and
@@ -125,8 +272,34 @@ def main() -> int:
     wfs = sorted(list((root / ".github" / "workflows").glob("*.yml"))
                  + list((root / ".github" / "workflows").glob("*.yaml")))
     commands = ""
+    readers = [("the line reader", duplicate_keys_by_line)]
+    if yaml is not None:
+        readers.append(("PyYAML", duplicate_keys_by_yaml))
+    for reader, find in readers:
+        for sample, want in (MUST_FIRE, MUST_PASS):
+            got = find(sample)
+            if got != want:
+                bad.append(f"the duplicate-key check ({reader}) found {got} in a sample holding "
+                           f"{want} -- a checker that cannot tell the two apart says nothing about "
+                           "the workflows")
     for wf in wfs:
-        doc = _load(wf.read_text(encoding="utf-8"))
+        # Without PyYAML the fallback parser REFUSES constructs it does not handle -- a test
+        # matrix, the most common thing a project adds. A refusal is not a finding: the check
+        # could not read the file, so it says which file and exits NOT-EVALUABLE (a traceback
+        # would read as "[FAIL] (no output)").
+        try:
+            doc = _load(wf.read_text(encoding="utf-8"))
+        except ValueError as exc:
+            print(f"test-ci-yaml NOT-EVALUABLE: {wf.name} uses a construct the stdlib fallback "
+                  f"parser does not read ({exc}); install PyYAML (`pip install pyyaml`) to grade it")
+            return 2
+        rel = wf.relative_to(root).as_posix()
+        text = wf.read_text(encoding="utf-8")
+        bad += [f"{rel}:{line}: " + DUPLICATE.format(key=key) for line, key in duplicate_keys(text)]
+        if yaml is not None and duplicate_keys_by_line(text) != duplicate_keys_by_yaml(text):
+            bad.append(f"{rel}: the line reader finds {duplicate_keys_by_line(text)} duplicate "
+                       f"key(s) where PyYAML finds {duplicate_keys_by_yaml(text)}. The line reader "
+                       "is what grades this file on a machine without PyYAML")
         for job_name, job in (doc.get("jobs") or {}).items():
             for step in job.get("steps") or []:
                 name, run = str(step.get("name", "")).lower(), step.get("run")
@@ -138,16 +311,16 @@ def main() -> int:
                     if name.startswith(frag) and must not in run:
                         bad.append(f"{wf.name}: job `{job_name}` step \"{step['name']}\" does not run "
                                    f"`{must}` -- it runs `{run.strip().splitlines()[0][:60]}`")
-    # v4.3.2 (audit S7). Name<->command agreement misses the two easiest evasions: DELETE the step,
-    # or RENAME it and change the command. An auditor did both and got PASS. A required-command set
-    # closes that: whatever the steps are called, these must appear somewhere in the workflows.
+    # Name<->command agreement misses the two easiest evasions: DELETE the step, or RENAME it and
+    # change the command. A required-command set closes that: whatever the steps are called, these
+    # must appear somewhere in the workflows.
     REQUIRED = {
         # NOT the bare string "pip-audit" -- that is also present in `pip install pip-audit`, so
         # deleting the step that actually AUDITS still passed. The required fragment has to be the
         # invocation, not the name.
         "pip-audit --strict":        "the dependency CVE audit",
-        "check_records.py --install": "install completeness (M1/M2/M3)",
-        "check_records.py --self-test": "the validator-is-not-a-no-op proof (V4C-32)",
+        "check_records.py --install": "install completeness (M0/M1/M2/M4)",
+        "check_records.py --self-test": "the validator-is-not-a-no-op proof",
         "conformance/run-all.py":    "the conformance suite",
     }
     for frag, why in REQUIRED.items():
@@ -156,7 +329,7 @@ def main() -> int:
                        "Renaming or deleting a step is the easiest way to remove a gate and the "
                        "hardest to notice in a diff")
 
-    # v5.0 (DevOps D-3). Three documents named required checks, no two agreed, and none named
+    # Three documents once named required checks, no two agreed, and none named
     # `install-and-governance` -- so a PR could fail the install and governance gates and merge. One of
     # them required a check called `lint`, which is a STEP inside `test`, not a job: **a required check
     # by a name that never reports blocks nothing while looking like protection.**
@@ -175,7 +348,7 @@ def main() -> int:
             for j in sorted(jobs - named):
                 bad.append(f"job `{j}` runs in ci.yml but is not in docs/branch-protection.md -- an "
                            "unlisted job is one nobody will mark required")
-            for n in sorted(named - jobs - {"governance-contract"}):
+            for n in sorted(named - jobs):
                 bad.append(f"docs/branch-protection.md requires `{n}`, which is not a job in ci.yml. "
                            "A required check that never reports blocks nothing")
 
@@ -200,7 +373,9 @@ def main() -> int:
 
     for line in bad:
         print(f"  FAIL {line}")
-    print(f"test-ci-yaml {'FAIL' if bad else 'PASS'}: {seen} step(s) checked, {len(bad)} mismatch(es)")
+    print(f"test-ci-yaml {'FAIL' if bad else 'PASS'}: {seen} step(s) checked, {len(bad)} finding(s), "
+          f"{len(wfs)} workflow(s) checked for duplicate keys by "
+          + ("PyYAML (the line reader agreeing)" if yaml is not None else "the line reader (no PyYAML)"))
     return 1 if bad else 0
 
 if __name__ == "__main__":

@@ -2,44 +2,47 @@
 record_type: closure
 id: closure-report-m8
 status: ratified
-process_version: v6.0
-date: 2026-09-22
+process_version: v6.3
+date: 2026-09-23
 ---
-# Closure Report — M7
+# Closure Report — M8 (the owner's milestone review pack)
 
-## 1. What shipped (from the signed plan — criteria hash-checked)
+<!-- HOLLOW fixture: §1b is missing and §6 was never written. closure_check must refuse it. -->
 
-| Acceptance criterion (hash-frozen at plan-sign) | Citing test | CI run | Status |
+## 1. What shipped (from the approved plan — criteria hash-checked)
+
+| Acceptance criterion (hash-frozen when the plan was approved) | Citing test | CI run | Status |
 |---|---|---|---|
-| Tenant isolation holds across the gateway | `tests/contracts/test_tenancy.py:41` | 1188342 | ✅ |
-| Callback retries are idempotent | `tests/integration/test_callback.py:88` | 1188342 | ✅ |
+| Quota reads are tenant-scoped | `tests/contracts/test_quota.py:17` | 1190417 | ✅ |
+| Quota writes are audited | `tests/integration/test_quota_audit.py:52` | 1190417 | ✅ |
 
-## 1a. Per-wave table
+**Criteria diffs since plan approval:** NONE
 
-| Wave | Scope | Reviewer | Tester | Close checklist |
-|---|---|---|---|---|
-| W1 | gateway auth | Code-Reviewer | fault-injection RED confirmed | `docs/plans/m7-wave-1-close.md` |
-| W2 | callback path | Code-Reviewer | fault-injection RED confirmed | `docs/plans/m7-wave-2-close.md` |
+## 1a. Per-wave table (one row per wave; each cell links to committed evidence)
+
+| Wave | Risk tier | Reviews (Code-Reviewer + Tester, + security if HIGH) | Findings opened/closed | Test Δ | Escalations | PR |
+|---|---|---|---|---|---|---|
+| W1 | MED | `docs/reviews/m8-wave-1-review.md` + `docs/reviews/m8-wave-1-tester.md` | 2/2 | +9 | none | #52 |
 
 ## 2. Git record (annotated)
 
-Range `a1b2c3d..e4f5a6b`, 34 commits, 2 waves. Diffstat 41 files, +1180 / -260.
+- Commit range: `e4f5a6b..9b8c7d6` · diffstat: `12 files, +410 / -95` · waves: `1`
 
-## 3. Trust telemetry (mechanical — script-computed vs protected refs)
+## 3. Trust telemetry (computed from git against protected refs — never asserted)
 
-| Metric | Value | Referent |
-|---|---|---|
-| criteria with a citing test | 2 of 2 | `make test` run 1188342 |
-| gates skipped | 0 | wave checklists, row 9 |
+| Task type | Post-closure fix rate | Churn (N-day) | Reverts | Findings (sec separately) |
+|---|---|---|---|---|
+| feature | 0 of 1 | 2% (14-day) | 0 | 2 (0 sec) |
 
 ## 4. Security & invariants
 
-Security review PASSED at 4.0 before deploy. Two invariants added, both with negative tests.
+- HIGH waves' security passes on their slices: none this milestone. The release security review runs once, at Stage 5.1.
+- Invariants table current: every row cites its NEGATIVE test — `tests/contracts/test_quota.py:17`
 
 ## 5. Ledgers (nothing silent)
 
-Warnings ledger: 1 raised, 1 decided. Bypass ledger: none this milestone.
+- **Skipped/waived checks:** none — `docs/control-events.csv` has no row for M8
 
-## 6. Architecture delta — PROSE
+## 6. Architecture delta — PROSE (the comprehension-debt countermeasure)
 
 (to be written)

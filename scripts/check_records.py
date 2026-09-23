@@ -1611,18 +1611,18 @@ def self_test(root: Path) -> int:
         probe = Path(td)
         pkg = probe / "general_pipeline_v9.9"
         (pkg / "docs").mkdir(parents=True)
-        (pkg / "pipeline-design.md").write_text("# design\n\nno changelog heading here\n")
+        (pkg / "pipeline-design.md").write_text("# design\n\nno changelog heading here\n", encoding="utf-8")
         cprobe = probe / "probe-conditions.md"
         cprobe.write_text("---\nrecord_type: ratification\nid: probe-cond\nstatus: ratified\n"
                           "process_version: v4.2\n---\n# probe\n\n"
                           "| # | Condition | Owner | Date | Closure artifact |\n"
                           "|---|---|---|---|---|\n"
-                          "| 1 | probe | chair | 2020-01-01 | `docs/never-written.md` |\n")
+                          "| 1 | probe | chair | 2020-01-01 | `docs/never-written.md` |\n", encoding="utf-8")
         _, cfields = validate_record(cprobe, probe)
         (probe / "scripts").mkdir(parents=True, exist_ok=True)
         (pkg / "scripts").mkdir(parents=True, exist_ok=True)
-        (probe / "scripts" / "check_records.py").write_text("# live\n")
-        (pkg / "scripts" / "check_records.py").write_text("# DRIFTED\n")
+        (probe / "scripts" / "check_records.py").write_text("# live\n", encoding="utf-8")
+        (pkg / "scripts" / "check_records.py").write_text("# DRIFTED\n", encoding="utf-8")
         got = {x.rule for x in package_invariants(probe, scope="current")}
         got |= {x.rule for x in duplicate_drift(probe)}                      # D1
         got |= {x.rule for x in condition_closure(probe, [(cprobe, cfields)], scope="all")}  # C1b
@@ -1632,8 +1632,8 @@ def self_test(root: Path) -> int:
         # from --self-test, which is exactly the defect the Quality seat found in P2/P3 at v4.2.
         (pkg / "INSTALL-MANIFEST.md").write_text(
             "# probe\n\n## PROJECT\n```\npipeline-design.md\n```\n\n"
-            "## GP-INTERNAL\n```\nnothing-here.md\n```\n")
-        (pkg / "UNCLASSIFIED.md").write_text("x\n")
+            "## GP-INTERNAL\n```\nnothing-here.md\n```\n", encoding="utf-8")
+        (pkg / "UNCLASSIFIED.md").write_text("x\n", encoding="utf-8")
         got |= {x.rule for x in manifest_rules(probe)}                        # M3
         (probe / "docs").mkdir(exist_ok=True)
         (probe / "docs" / "warnings.ledger.md").write_text(
@@ -1649,9 +1649,9 @@ def self_test(root: Path) -> int:
             # None of them names an ADR, so the trigger is NOT discharged and C2b must fire.
             "| W-3 | contract-suite | m2-w0 | K.7 / V3C-78 | ACCEPTED | no engine; owner runs it — milestone M2 |\n"
             "| W-4 | contract-suite | m2-w1 | K.7 / V3C-78 | ACCEPTED | no engine; owner runs it — milestone M2 |\n"
-            "| W-5 | contract-suite | m2-w2 | K.7 / V3C-78 | ACCEPTED | no engine; owner runs it — milestone M2 |\n")
+            "| W-5 | contract-suite | m2-w2 | K.7 / V3C-78 | ACCEPTED | no engine; owner runs it — milestone M2 |\n", encoding="utf-8")
         got |= {x.rule for x in warning_ledger(probe)}                        # C2a/C2b/C2c
-        (probe / "turkish.md").write_text("bu satir Turkce karakter tasiyor: \u015fey\n")
+        (probe / "turkish.md").write_text("bu satir Turkce karakter tasiyor: \u015fey\n", encoding="utf-8")
         # L1's own failure modes, probed. V4C-32/49: the narrowing shipped at M12-W4 with no test
         # for the way it could fail, and the way it could fail was the one that mattered — an
         # unbalanced fence exempting the rest of a file. The M12 Stage 4.0 seat found it live in a
@@ -1659,22 +1659,22 @@ def self_test(root: Path) -> int:
         #
         # Three probes, because a narrowing needs BOTH directions and its edge:
         (probe / "tr-in-code.md").write_text(
-            "A record quoting product output: `\u015fey` — this must NOT fire.\n")
+            "A record quoting product output: `\u015fey` — this must NOT fire.\n", encoding="utf-8")
         (probe / "tr-unbalanced.md").write_text(
-            "```\n\nbu satir dengesiz bir fence sonrasinda: \u015fey\n")
+            "```\n\nbu satir dengesiz bir fence sonrasinda: \u015fey\n", encoding="utf-8")
         (probe / "tr-fenced.md").write_text(
-            "```\nbir urun ciktisi: \u015fey\n```\n")
+            "```\nbir urun ciktisi: \u015fey\n```\n", encoding="utf-8")
         # MINOR-2's two halves. The double-backtick form is the delimiter CommonMark REQUIRES when
         # the quoted text contains a backtick, and L1 used to scan its contents as prose.
         (probe / "tr-double-tick.md").write_text(
             "A record quoting output that contains a backtick: ``\u015fey `x` \u015fey`` "
-            "— this must NOT fire.\n")
+            "— this must NOT fire.\n", encoding="utf-8")
         # ...and the other direction: a code span long enough to be the record's substance is
         # prose wearing backticks, and the exemption was never meant to cover it.
         (probe / "tr-long-span.md").write_text(
             "`bu cok uzun bir metin ve tamamen Turkce yazilmis olup bir sembol degil bir "
             "paragraftir ve boyle bir sey L1 tarafindan okunmalidir cunku kaydin ozu budur "
-            "\u015fey`\n")
+            "\u015fey`\n", encoding="utf-8")
         l1 = language_rule(probe)
         got |= {x.rule for x in l1}                                           # L1
         # L1's SCOPE, asserted per file — the half a "does the rule fire" probe cannot see.
@@ -1709,9 +1709,9 @@ def self_test(root: Path) -> int:
         (inst / "docs").mkdir(parents=True)
         (inst / MANIFEST_NAME).write_text(
             "# probe\n\n## PROJECT\n```\nAGENTS.md\nMakefile\n```\n\n"
-            "## GP-INTERNAL\n```\ndocs/HANDOVER-v9.9-material.md\n```\n")
-        (inst / "AGENTS.md").write_text("x\n")                       # Makefile MISSING      -> M1
-        (inst / "docs" / "HANDOVER-v9.9-material.md").write_text("x\n")  # leaked GP-INTERNAL -> M2
+            "## GP-INTERNAL\n```\ndocs/HANDOVER-v9.9-material.md\n```\n", encoding="utf-8")
+        (inst / "AGENTS.md").write_text("x\n", encoding="utf-8")                       # Makefile MISSING      -> M1
+        (inst / "docs" / "HANDOVER-v9.9-material.md").write_text("x\n", encoding="utf-8")  # leaked GP-INTERNAL -> M2
         got |= {x.rule for x in manifest_rules(probe, install=inst)}          # M1/M2
 
         # v6.0, 2026-09-22. C1b now rescues a citation into a deleted package directory by reading
@@ -1724,7 +1724,7 @@ def self_test(root: Path) -> int:
                         "status: ratified\nprocess_version: v6.0\ndate: 2020-01-01\n---\n"
                         "# probe\n\n## Conditions\n\n| # | condition | owner | due | artifact |\n"
                         "|---|---|---|---|---|\n"
-                        "| 1 | probe | chair | 2020-01-01 | `general_pipeline_v9.9/scripts/nothing.sh` |\n")
+                        "| 1 | probe | chair | 2020-01-01 | `general_pipeline_v9.9/scripts/nothing.sh` |\n", encoding="utf-8")
         _, tfields = validate_record(ctag, probe)
         tagless = {x.rule for x in condition_closure(probe, [(ctag, tfields)], scope="all")}
         if "C1b" in tagless:
@@ -1738,19 +1738,19 @@ def self_test(root: Path) -> int:
         # v6.0, 2026-09-22. X4 -- a root document routing a reader at a file that resolves nowhere.
         # The probe needs a package directory present, because X4 is the distribution repo's rule
         # and returns early without one; `pkg` above is exactly that.
-        (probe / "ROOT-DOC.md").write_text("Read `docs/a-file-that-was-never-written.md` first.\n")
+        (probe / "ROOT-DOC.md").write_text("Read `docs/a-file-that-was-never-written.md` first.\n", encoding="utf-8")
         got |= {x.rule for x in root_path_refs(probe)}                        # X4
 
         # X5 -- the package cites a rule id the trail has never heard of. The root record below is
         # the whole ground truth for the probe, so the citation in the package cannot resolve.
-        (probe / "TRAIL.md").write_text("The council adopted V4C-01 and TB-001.\n")
+        (probe / "TRAIL.md").write_text("The council adopted V4C-01 and TB-001.\n", encoding="utf-8")
         (pkg / "docs").mkdir(parents=True, exist_ok=True)
         # The id is ASSEMBLED at run time on purpose: written as a literal it would sit in this
         # file, and X5 scans the package's own sources -- the real finding that built this rule was
         # `V4C-77` cited inside `check_records.py` itself. A probe that trips its own control is a
         # false positive nobody can fix without weakening the control.
         fake = "V9C-" + "999"
-        (pkg / "docs" / "cites.md").write_text(f"Enforced per `{fake}`, which nothing ratified.\n")
+        (pkg / "docs" / "cites.md").write_text(f"Enforced per `{fake}`, which nothing ratified.\n", encoding="utf-8")
         got |= {x.rule for x in rule_id_refs(probe)}                          # X5
 
         for rule, why in (("P2", "missing §0 changelog heading"),

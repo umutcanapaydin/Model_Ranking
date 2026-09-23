@@ -211,7 +211,7 @@ def test_only_a_served_cycle_counts_as_an_arrival(tmp_path: Path, code: int, cou
     reset the 30 days; a published (0) or unchanged (1) cycle's do."""
     target = tmp_path / "advisor.db"
     status_path(target).write_text(
-        json.dumps({"sources_last_ok": {"arena": "2026-09-01T00:00:00+00:00"}}))
+        json.dumps({"sources_last_ok": {"arena": "2026-09-01T00:00:00+00:00"}}), encoding="utf-8")
     outcome = RefreshOutcome(published=code == 0, reason="r", live_fingerprint=None,
                              candidate_fingerprint="", surfaces=1, arrived=("arena",))
     write_status(target, outcome, code, at=dt.datetime(2026, 9, 23, tzinfo=dt.UTC).timestamp())

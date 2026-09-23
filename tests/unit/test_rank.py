@@ -235,8 +235,8 @@ def test_export_empty_ranking_does_not_crash(tmp_path: Path) -> None:
     csv_path, json_path = export_ranking([], tmp_path, [])
     assert read_export_csv(csv_path) == []
     # REQ-LIC-002: even an empty export carries its licence header.
-    assert csv_path.read_text().startswith("#")
-    assert json.loads(json_path.read_text())["rows"] == []
+    assert csv_path.read_text(encoding="utf-8").startswith("#")
+    assert json.loads(json_path.read_text(encoding="utf-8"))["rows"] == []
 
 
 def test_export_csv_and_json_identical_rows(tmp_path: Path) -> None:
@@ -250,7 +250,7 @@ def test_export_csv_and_json_identical_rows(tmp_path: Path) -> None:
     csv_path, json_path = export_ranking(ranking, tmp_path, meta)
 
     csv_rows = read_export_csv(csv_path)
-    payload = json.loads(json_path.read_text())
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
     assert payload["note"] == BLEND_NOTE
     assert payload["generated_from"] == meta
     assert len(csv_rows) == len(payload["rows"]) == len(ranking)

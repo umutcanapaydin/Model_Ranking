@@ -88,8 +88,8 @@ def test_the_curated_roster_file_supplies_the_window_it_declares(tmp_path) -> No
     from app.workflows.plans import ingest_plans
     from app.workflows.rosters import ingest_rosters, roster_staleness_days
 
-    plans_raw = Path("data/plans.yaml").read_text()
-    rosters_doc = yaml.safe_load(Path("data/rosters.yaml").read_text())
+    plans_raw = Path("data/plans.yaml").read_text(encoding="utf-8")
+    rosters_doc = yaml.safe_load(Path("data/rosters.yaml").read_text(encoding="utf-8"))
     rosters_doc["staleness_days"] = 7  # deliberately NOT the plan table's 30
     rosters_raw = yaml.safe_dump(rosters_doc)
 
@@ -169,7 +169,7 @@ def test_production_runs_the_migration_entry_point_the_tests_exercise() -> None:
     """
     from pathlib import Path
 
-    source = Path("src/app/workflows/schema.py").read_text()
+    source = Path("src/app/workflows/schema.py").read_text(encoding="utf-8")
     body = source[source.index("def connect(") :]
     assert "_migrate(conn)" not in body, (
         "a production path calls the private _migrate again — the SAVEPOINT the tests prove is "
@@ -275,7 +275,7 @@ def test_a_pre_m6_database_WITH_roster_links_migrates_and_then_serves(tmp_path) 
     db = tmp_path / "with-links.db"
     conn = connect(str(db))
     try:
-        ingest_plans(conn, Path("data/plans.yaml").read_text(), RunContext())
+        ingest_plans(conn, Path("data/plans.yaml").read_text(encoding="utf-8"), RunContext())
         # A roster link, exactly as a pre-M6 database would carry it: link present, policy absent.
         conn.execute(
             "UPDATE plan_models SET link_source = 'roster',"
@@ -301,7 +301,7 @@ def test_a_pre_m6_database_WITH_roster_links_migrates_and_then_serves(tmp_path) 
 
     conn = connect(str(db))
     try:
-        ingest_rosters(conn, Path("data/rosters.yaml").read_text(), RunContext())
+        ingest_rosters(conn, Path("data/rosters.yaml").read_text(encoding="utf-8"), RunContext())
         assert roster_staleness_days(conn) == 30
     finally:
         conn.close()

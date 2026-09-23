@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# pre-push — runs `make gate` before every push. Install once per clone: `make hooks`.
+#
+# WHY. Where GitHub Actions do not run — a private repository on a free plan can have no minutes —
+# nothing else runs the gate before a change reaches the remote, and a red CI mark that means
+# "never started" is easy to read as "failed, retry later". This makes the gate the push's
+# precondition on the developer's own machine.
+#
+# DELETIONS skip the gate: a push that only deletes refs grades nothing (its local SHA is all
+# zeros). No line read — stdin empty or unreadable — runs the gate, never skips it.
+#
+# BYPASS. A human may push with `git push --no-verify` when that is right; an agent never does.
+# A bypass is a row in `docs/control-events.csv` with its reason (the one ledger a gate counts),
+# not a silence.
+#
+# Exit: 0 gate passed (or a deletion-only push) · non-zero push refused.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+# Git exports GIT_DIR (absolute in a worktree) to hooks; the gate's controls run git in throwaway
+# repositories and must not inherit this one.
+unset $(git rev-parse --local-env-vars)
+
+refs=0 grading=0
+while read -r local_ref local_sha _remote_ref _remote_sha || [[ -n "${local_ref:-}" ]]; do
+  refs=$((refs + 1))
+  [[ "$local_sha" =~ ^0+$ ]] || grading=1
+done
+if (( refs > 0 && grading == 0 )); then
+  echo "pre-push: every pushed ref is a deletion — nothing to grade, gate skipped"
+  exit 0
+fi
+
+echo "pre-push: running make gate"
+if make gate; then
+  exit 0
+fi
+cat <<'MSG'
+
+pre-push REFUSED the push: make gate failed above.
+  Fix it. (A human may bypass with --no-verify and must add the row to docs/control-events.csv;
+  an agent never bypasses.)
+MSG
+exit 1

@@ -3,7 +3,7 @@
 #
 # WHY. A tag is mutable by whoever owns the action's repository. `gitleaks/gitleaks-action@v2` is the
 # secret scanner; `anthropics/claude-code-action@v1` sits beside `ANTHROPIC_API_KEY` and
-# `contents: write`. V4C-44 has required pinning since v4.1 and nothing enforced it.
+# `contents: write`. `conformance/test-action-pins.py` fails on any action not pinned to a SHA.
 #
 # TWO BUGS THIS FILE IS THE REPAIR OF, both in its own first version, both found by running it:
 #
@@ -13,8 +13,7 @@
 #
 #   2. **It wrote whatever came back without checking it was a SHA.** `gh` prints the error body to
 #      stdout on failure, so `{"message":"Not Found",...}` went straight into eight `uses:` lines in
-#      two workflows. The script could not tell success from failure -- the defect class this entire
-#      release exists to remove, produced by the tool written to close it.
+#      two workflows. The script could not tell success from failure.
 #
 # So: resolve, then VALIDATE, then write. A value that is not 40 hex characters is never written, the
 # reference is left exactly as it was, and the script says which one it could not resolve.
@@ -24,8 +23,13 @@
 set -uo pipefail
 
 DRY=${1:-}
-command -v gh >/dev/null || { echo "needs the GitHub CLI: brew install gh"; exit 2; }
+command -v gh >/dev/null || { echo "gh not installed: cannot resolve action tags to commit SHAs (INSTALL.md)"; exit 2; }
 gh auth status >/dev/null 2>&1 || { echo "run: gh auth login"; exit 2; }
+# The first interpreter that RUNS: on Windows `python3` can be the Microsoft Store alias, which is
+# on PATH, prints an error and exits non-zero.
+PY=""
+for c in python3 python; do "$c" -c 'import sys' >/dev/null 2>&1 && { PY=$c; break; }; done
+[ -n "$PY" ] || { echo "python not installed: cannot rewrite the workflow files (INSTALL.md)"; exit 2; }
 
 pinned=0; failed=0
 for wf in .github/workflows/*.yml .github/workflows/*.yaml; do
@@ -49,7 +53,7 @@ for wf in .github/workflows/*.yml .github/workflows/*.yaml; do
     echo "  $ref -> $sha"
     [ "$DRY" = "--dry" ] && continue
 
-    REPO="$repo" TAG="$tag" SHA="$sha" WF="$wf" python3 - <<'PY'
+    REPO="$repo" TAG="$tag" SHA="$sha" WF="$wf" "$PY" - <<'PY'
 import os, re, pathlib
 repo, tag, sha, wf = os.environ["REPO"], os.environ["TAG"], os.environ["SHA"], os.environ["WF"]
 p = pathlib.Path(wf); s = p.read_text(encoding="utf-8")
@@ -68,4 +72,4 @@ if [ "$failed" -gt 0 ]; then
   echo "    gh api repos/OWNER/REPO/commits/TAG --jq .sha"
   exit 1
 fi
-echo "Now run: python3 conformance/test-action-pins.py"
+echo "Now run: $PY conformance/test-action-pins.py"

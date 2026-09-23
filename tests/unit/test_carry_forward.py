@@ -163,7 +163,7 @@ def test_the_cli_carries_through_the_same_path_the_refresh_uses(
 
     live = _live(tmp_path)
     record = tmp_path / "last_ok.json"
-    record.write_text(json.dumps({"aider": dt.datetime.now(tz=dt.UTC).isoformat()}))
+    record.write_text(json.dumps({"aider": dt.datetime.now(tz=dt.UTC).isoformat()}), encoding="utf-8")
     monkeypatch.setattr(build_mod, "REMOTE_SOURCES", _sources(aider=None))
     monkeypatch.setattr(build_mod, "MINIMUM_MODELS_REGISTERED", 2)
     out = tmp_path / "cand.db"

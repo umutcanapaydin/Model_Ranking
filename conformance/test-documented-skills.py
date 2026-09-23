@@ -1,24 +1,12 @@
 #!/usr/bin/env python3
 """Every `/skill` a shipped document tells a reader to invoke must exist.
 
-`test-documented-commands` has enforced this for `make` targets since v5, on V4C-80's one-line
-principle: **anything a reader is told to type is an interface.** Skills were never graded, and
-they had drifted further than the targets ever did. Measured at v6.0, in shipped documents:
-
-    /security-review      8 files     never existed here; it was a host built-in
-    /review               6 files     the skill is `repo-review`
-    /retrospect           6 files     folded into `cycle-close` at v6.0
-    /quarterly-handover   6 files     folded into `cycle-close` at v6.0
-    /fix-issue-prepare    4 files     merged into `fix-issue` at v6.0
-    /fix-issue-implement  3 files     merged into `fix-issue` at v6.0
-    /test-and-commit      2 files     never existed under that name
-    /standup              1 file      it is `make standup`, and always was
-    /code-review          1 file      the skill is `repo-review`
-
-Ten names, twenty-odd references. `subagent-profiles/README.md` alone pointed at three skills that
-do not ship, in the file whose job is to say how the profiles are invoked. A reader following it
-types a slash command and gets nothing -- the same dead end `make journey` gave a customer, one
-interface over.
+`test-documented-commands` enforces this for `make` targets, on one principle: **anything a
+reader is told to type is an interface.** Skills drift further than targets do: skills get renamed,
+merged into others or folded away, and the documents that name them keep the old name. When this
+was first measured, ten names that did not ship were named sixty-odd times across the delivered
+documents -- including three in the very file whose job was to say how the reviewer profiles are
+invoked. A reader following one types a slash command and gets nothing.
 
 DERIVED: the shipped set is the directories under `.claude/skills/`. Non-skill `/tokens` -- HTTP
 routes, filesystem paths -- are declared in `.skill-refs-allow`, each with a written reason.
@@ -32,16 +20,20 @@ import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib_record import doc_text, documents, is_record           # noqa: E402
+from lib_record import doc_text, documents, is_record, manifest_internal  # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
 PKG = HERE.parent
 SKILLS = PKG / ".claude" / "skills"
 ALLOW = PKG / ".skill-refs-allow"
 
-# Historical records describe what PAST versions ran; they are not instructions.
-SKIP = re.compile(r"HANDOVER-v[\d.]+-material\.md$|CHANGELOG|practices-cut\.md$")
 REF = re.compile(r"`/([a-z][a-z0-9-]{2,})`")
+# Backticks alone are not enough: the CI issue agent's prompt -- a workflow file, plain text -- once
+# told the agent to "run the /fix-issue-prepare skill", a skill that no longer existed, so every run
+# of that lane asked for nothing. Prose that SAYS "skill" next to the name is a reference however it
+# is typeset.
+REF_PLAIN = re.compile(r"(?<![\w`/.])/([a-z][a-z0-9-]{2,})(?= skill\b)")
+WORKFLOWS = PKG / ".github" / "workflows"
 
 
 def shipped() -> set[str]:
@@ -75,12 +67,10 @@ def allowed() -> set[str]:
 def unreachable(skills: set, docs_text: dict) -> list:
     """The other direction: a skill that SHIPS and that no shipped document ever names.
 
-    This file has always asked *"does the skill this document names exist?"* -- 62 dangling
-    references at v6.0. It never asked the mirror question, and the mirror question had six
-    answers: `going-live`, `start-session`, `wiring-an-integration`, `work-enhancement`,
-    `work-issue` and `writing-a-control` shipped in every install and were named by nothing --
-    not a document, not the Makefile, not a profile. A reader following the package to the end
-    never learned they existed.
+    The first question is *"does the skill this document names exist?"*. The mirror question had
+    six answers when it was first asked: six skills shipped in every install and were named by
+    nothing -- not a document, not the Makefile, not a profile. A reader following the package to
+    the end never learned they existed.
 
     It is `make gate`'s caller-liveness rule applied to the other interface: a control nobody can
     reach is not a control, and a skill nobody can find is not a skill. The fix is a sentence in
@@ -99,11 +89,14 @@ def unreachable(skills: set, docs_text: dict) -> list:
 def main() -> int:
     skills, allow = shipped(), allowed()
     bad, n, corpus = [], 0, {}
-    # v6.0: markdown AND html. `pipeline-schema.html` named two skills that no longer ship and
-    # nothing had ever read it -- every control globbed `*.md`.
-    for f in documents(PKG):
+    # Markdown AND html: `pipeline-schema.html` once named two skills that no longer shipped, and
+    # nothing read it while every control globbed `*.md`.
+    # GP-INTERNAL documents never reach a reader of the product, and may name what a project does
+    # not have; the manifest that decides delivery says which they are.
+    internal = manifest_internal(PKG) or set()
+    for f in documents(PKG) + sorted(WORKFLOWS.glob("*.y*ml")):
         rel = str(f.relative_to(PKG))
-        if SKIP.search(rel) or ".venv" in f.parts or "archive" in f.parts:
+        if ".venv" in f.parts or rel in internal:
             continue
         try:
             text = doc_text(f)
@@ -117,7 +110,7 @@ def main() -> int:
         if is_record(f, PKG):
             continue
         for i, line in enumerate(text.splitlines(), 1):
-            for m in REF.finditer(line):
+            for m in list(REF.finditer(line)) + list(REF_PLAIN.finditer(line)):
                 name = m.group(1)
                 n += 1
                 if name not in skills and name not in allow:

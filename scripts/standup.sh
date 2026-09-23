@@ -10,17 +10,19 @@ echo
 echo "Date: $(date '+%Y-%m-%d %H:%M:%S')"
 echo
 
+# The log is append-only, so the latest entry is the LAST `## S` block, not the first.
 echo "----- Latest process-log entry -----"
 if [ -f docs/process-log.md ]; then
-  awk '/^## S/{c++} c==1' docs/process-log.md | head -25
+  awk '/^## S/{buf=""; on=1} on{buf=buf $0 "\n"} END{printf "%s", buf}' docs/process-log.md | head -25
 else
   echo "(no process-log yet)"
 fi
 echo
 
+# An ADR is `## D-NNN — title`, a blank line, then `**Status:** ...`: print the heading.
 echo "----- Open ADRs (status: proposed) -----"
 if [ -f docs/decisions.md ]; then
-  grep -B1 "Status:.*proposed" docs/decisions.md | head -20 || echo "(none)"
+  awk '/^## /{h=$0} /^\*\*Status:\*\*[[:space:]]*proposed/{print h}' docs/decisions.md | head -20
 fi
 echo
 
@@ -36,18 +38,12 @@ echo "----- Pending review verdicts -----"
 ls -1 docs/reviews/ 2>/dev/null | tail -5 || echo "(no reviews yet)"
 echo
 
-echo "----- Latest retrospective -----"
-ls -1 docs/retrospectives/ 2>/dev/null | sort -r | head -1 || echo "(no retrospectives yet; M3+ trigger)"
-echo
-
-echo "----- Latest quarterly handover -----"
-ls -1 docs/handovers/ 2>/dev/null | grep "^handover_q" | sort -r | head -1 || echo "(no quarterly handovers yet; M%3==0 trigger)"
-echo
-
+# The cap is read from AGENTS.md itself, which states it; a copy here would drift from it.
 echo "----- AGENTS.md size -----"
 if [ -f AGENTS.md ]; then
-  lines=$(wc -l < AGENTS.md)
-  echo "$lines lines (target <=80, hard cap <=150)"
+  lines=$(wc -l < AGENTS.md | tr -d ' ')
+  cap=$(grep -oE '≤ *[0-9]+ *hard cap' AGENTS.md | grep -oE '[0-9]+' | head -1 || true)
+  echo "$lines lines (hard cap: ${cap:-not stated})"
 fi
 echo
 
@@ -63,14 +59,18 @@ fi
 echo
 
 echo "----- Git state -----"
-if [ -d .git ]; then
-  branch=$(git branch --show-current 2>/dev/null || echo "<not git>")
+if ! command -v git >/dev/null 2>&1; then
+  echo "git not installed: cannot read the git state"
+elif git rev-parse --git-dir >/dev/null 2>&1; then
+  branch=$(git branch --show-current 2>/dev/null || echo "<detached>")
   echo "Branch: $branch"
   echo "Status:"
   git status -s 2>/dev/null | head -15 || true
   echo
   echo "Last 3 commits:"
   git log --oneline -3 2>/dev/null || echo "(no commits)"
+else
+  echo "(not a git repository)"
 fi
 echo
 

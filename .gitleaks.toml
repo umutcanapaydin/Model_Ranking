@@ -1,22 +1,21 @@
-# Gitleaks configuration for Pipeline v2.0
+# Gitleaks configuration.
 # Seed F.6: secret scanning is non-optional.
-# Used by `make secrets`, by .github/workflows/ci.yml (CI gate),
-# and by .pre-commit-config.yaml (developer-side hook).
+# Used by `make secrets` (a leg of `make gate`, so the pre-push hook and /pre-merge run it) and by
+# the `secret-scan` job in .github/workflows/ci.yml.
 
-title = "Pipeline v2.0 — Default secret-scan config"
+title = "Default secret-scan config"
 
 # Use the default ruleset bundled with gitleaks. To extend, add `[[rules]]` below.
 [extend]
 useDefault = true
 
 # Allowlist common false-positive patterns (be conservative — false negatives
-# are catastrophic). Adjust per project.
+# are catastrophic). Adjust per project; a path exemption is a waiver, so add one only for a
+# directory that exists, with its reason.
 [allowlist]
 description = "Allowlist false positives"
 paths = [
   '''(?i)^.*\.env\.example$''',   # template files
-  '''(?i)^docs/external-articles/.*''',  # external article digests cite tokens as examples
-  '''(?i)^docs/external-skills/.*''',
 ]
 
 # Common test-fixture API key prefixes that gitleaks would otherwise flag:

@@ -1,33 +1,28 @@
 #!/usr/bin/env python3
-"""A test run that verified nothing must not report success — skips and coverage, together.
+"""The skip budget: a test run that skipped more tests than the project accepts must not report
+success.
 
-Conditions 15-6 (open since 2026-09-03) and 17-3. Two halves of one failure, adopted together at
-Increment 17 because the field instance shows them as one:
+The failure it exists for: 214 contract tests skipped on every pull request and the job stayed
+green -- the CI job had no `services:` block, so the suite that exercised tenancy and authorization
+against a real dependency never ran, in the same commit whose rules said "a skip is not a pass".
+What those tests certified: an authorization capability marked done for months that had never
+worked.
 
-  **214 contract tests skipped on every pull request and the job was green** — the CI job had no
-  `services:` block, so the suite that exercises tenancy and authorization against a real dependency
-  never ran. In the same commit, `practices.md` said *"A skip is not a pass. A control that could
-  not run reports NOT RUNNABLE and fails; it never reports success."* The rule was present, the
-  third exit state that implemented it had been deleted, and nothing replaced it. What those tests
-  certified: a P0 authorization capability marked DONE for months that had never functioned.
+WHY A BUDGET RATHER THAN A `services:` CHECK. Asserting that a workflow declares the services its
+suite needs would mean inferring "this suite needs Postgres" from a repository this package does
+not author -- a heuristic shaped like one project, or a hand-kept suite-to-service map. A skip
+budget needs no knowledge of the suite. It is portable across pytest, jest and go test, and it
+fires on the 214 case whatever the reason for the skips.
 
-WHY A BUDGET RATHER THAN A `services:` CHECK. The council considered asserting that a workflow
-running a services-requiring suite declares those services, and refused it: GP would have to infer
-*"this suite needs Postgres"* from a repository it does not author, which is either a heuristic
-shaped like one project or a hand-kept suite-to-service map — V5C-110 again. A skip budget needs no
-knowledge of the suite's dependencies. It is portable across pytest, jest and go test, and it fires
-on the 214 case regardless of WHY they skipped. Those 214 skipped via a conftest fixture check, not
-an import error; a `services:` grep would not have caught them.
-
-**This does NOT close condition 15-8.** 15-8 is open on *"nothing in GP inspects a real CI run"*,
-and this reads a report a run produced — closer, and not the same thing. Six of the seven seats that
-adopted the check made leaving 15-8 open a condition of their vote.
+The coverage floor is not here: it is pytest's `--cov-fail-under` in `pyproject.toml`. This reads
+the JUnit report the run wrote (`--junitxml=.pytest-report.xml`) and compares the skipped count with
+the number committed in `docs/skip-budget.txt`. Its caller is the CI test job.
 
 Usage:
     python3 scripts/coverage_floor.py --junit <report.xml> [--budget-file docs/skip-budget.txt]
     python3 scripts/coverage_floor.py --self-test
 
-Exit: 0 within budget · 1 over budget or under the coverage floor · 2 cannot evaluate.
+Exit: 0 within budget · 1 over budget, or no budget committed · 2 cannot evaluate.
 """
 import argparse
 import pathlib
@@ -52,14 +47,13 @@ def read_budget(path: pathlib.Path) -> int | None:
     return None
 
 
-def counts(junit: pathlib.Path) -> tuple[int, int, int]:
-    """(tests, skipped, failures+errors) summed across suites — pytest nests, jest does not."""
+def counts(junit: pathlib.Path) -> tuple[int, int]:
+    """(tests, skipped) summed across suites — pytest nests them, jest does not."""
     root = ET.parse(junit).getroot()
     suites = [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
     tests = sum(int(s.get("tests", 0)) for s in suites)
     skipped = sum(int(s.get("skipped", 0)) for s in suites)
-    bad = sum(int(s.get("failures", 0)) + int(s.get("errors", 0)) for s in suites)
-    return tests, skipped, bad
+    return tests, skipped
 
 
 def main() -> int:
@@ -74,10 +68,10 @@ def main() -> int:
         with tempfile.TemporaryDirectory() as d:
             j = pathlib.Path(d) / "j.xml"
             b = pathlib.Path(d) / "b.txt"
-            b.write_text("5\n")
-            j.write_text('<testsuite tests="220" skipped="214" failures="0" errors="0"/>')
+            b.write_text("5\n", encoding="utf-8")
+            j.write_text('<testsuite tests="220" skipped="214" failures="0" errors="0"/>', encoding="utf-8")
             over = counts(j)[1] > read_budget(b)
-            j.write_text('<testsuite tests="220" skipped="2" failures="0" errors="0"/>')
+            j.write_text('<testsuite tests="220" skipped="2" failures="0" errors="0"/>', encoding="utf-8")
             under = counts(j)[1] > read_budget(b)
             ok = over and not under
             print(f"coverage_floor --self-test {'PASS' if ok else 'FAIL'}: "
@@ -98,17 +92,17 @@ def main() -> int:
     budget = read_budget(pathlib.Path(a.budget_file))
     if budget is None:
         print(f"coverage_floor FAIL: no skip budget in {a.budget_file}. **An unset budget is a "
-              f"failure, not an unlimited one** -- the absent third exit state is exactly how 214 "
+              f"failure, not an unlimited one** -- a missing third exit state is exactly how 214 "
               f"tests skipped green for weeks. Commit a number, and lower it over time.")
         return 1
 
-    tests, skipped, bad = counts(junit)
+    tests, skipped = counts(junit)
     if skipped > budget:
         print(f"coverage_floor FAIL: {skipped} test(s) skipped of {tests}, budget is {budget}. "
               f"A skip is not a pass. Either wire what they need (services, fixtures, credentials) "
               f"or raise the budget deliberately, in the tree, where a reviewer sees it.")
         return 1
-    print(f"coverage_floor PASS: {skipped} skipped of {tests} (budget {budget}), {bad} failed")
+    print(f"coverage_floor PASS: {skipped} skipped of {tests} (budget {budget})")
     return 0
 
 

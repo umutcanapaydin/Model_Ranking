@@ -1,25 +1,34 @@
-# Paths a shipped document may name although no such file ships (V4C-80 lineage,
-# `test-documented-paths.py`). GLOB per line, then `#` and the REASON. A row without a reason is
-# not a declaration -- an allowlist that accepts bare lines is how a control gets widened until it
-# grades nothing.
+# Paths a shipped document may name although no such file ships (`conformance/test-documented-paths.py`).
+# GLOB per line, then `#` and the REASON. A row without a reason is not a declaration -- an
+# allowlist that accepts bare lines is how a control gets widened until it grades nothing. A row
+# nothing needs any more is deleted, not kept "in case": it would silently excuse the next
+# dangling reference.
 
+# ── 1. Files the PROJECT creates. The package documents them; they exist once the project writes
+#       them. Naming them is the instruction, not a broken promise.
+docs/project-brief.md         # written by /setup-project from docs/project-brief.template.md (Stage 0)
+docs/license-review.md        # written from license-review.template.md at Stage 0, if the project wraps an OSS engine
+docs/reviews/release-security.md  # the release security verdict, written once at Stage 5.1. An exact row: the D-155 amendment replaced the docs/plans/* and docs/reviews/* wildcards, which excused any dangling plan or review (v6.4 upgrade review MINOR-1)
+docs/EXPERIENCE.md            # the project's own experience log, from EXPERIENCE.template.md, one entry per milestone
+docs/cost-log.md              # the spend ledger, written at a milestone close when the Quality Gate is on
+docs/coverage-by-req.md       # a Quality Gate artefact, written per milestone when the gate is on
+docs/pipeline-readiness-audit.md  # written once, at milestone N-2 from the final one
+docs/retrospective.md         # written once, optionally, when the work is done (/cycle-close, Stage 5.3)
+environment.md                # .agents/rules/environment.md, generated per developer and gitignored
+data-model.md                 # a project rules file named in .agents/rules/README.md as an example
+security.md                   # a project rules file named in .agents/rules/README.md as an example
+deploy.md                     # a project rules file named in .agents/rules/README.md as an example
+
+# ── 2. Field evidence. A seed cites where its lesson was measured; the file is not ours to ship.
+sitecustomize.py              # the interpreter hook seed C.10 and practices.md name as the measured case
 # ── 1. Files the PROJECT creates. The package documents them; they exist once the project fills
 #       them in. Naming them is the instruction, not a broken promise.
-docs/EXPERIENCE.md            # the project's own experience log, created at Stage 0
-docs/license-review.md        # produced from license-review.template.md at closure
-docs/cost-log.md              # the project's spend ledger, opened when autonomy is enabled
-docs/coverage-by-req.md       # closure artifact, generated per milestone
-docs/pipeline-readiness-audit.md  # closure artifact at milestone N-2
 docs/handover-to-prod-agent.md    # closure artifact for the operating team
 handover-to-prod-agent.md     # same artifact, named without its directory in the plan template
 external-influences-impact.md # closure artifact when an external dependency moved
 docs/pm-status-*.md           # dated PM status snapshots
 docs/claude-harness-config.md # written when the project configures its agent harness
-environment.md                # the project's environment notes (Stage 0 deliverable)
 architecture.md               # the project's architecture doc (Stage 0 deliverable)
-data-model.md                 # the project's data model (Stage 0 deliverable)
-security.md                   # the project's security notes (Stage 0 deliverable)
-deploy.md                     # the project's deployment notes (Stage 0 deliverable)
 issues.md                     # the project's issue register
 roadmap.md                    # the project's roadmap
 repo-starter.md               # the starter a project generates for a second repository
@@ -45,7 +54,6 @@ statement_format.py           # measured-in module from a harvested project
 statement.yaml                # measured-in config from a harvested project
 config_doctor.py              # measured-in module from a harvested project
 fake_dify_orchestrator.py     # measured-in test double from a harvested project
-sitecustomize.py              # measured-in interpreter hook from a harvested project
 epic-list.sh                  # measured-in script from a harvested project
 search.sh                     # measured-in script from a harvested project
 status.sh                     # measured-in script from a harvested project

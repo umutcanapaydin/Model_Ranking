@@ -38,7 +38,7 @@ echo of SET/EMPTY and length, never the value itself.
 ## Before you finish
 
 - Does the upstream's error shape reach your caller intact, or does a 200 with `{"success": false}`
- get forwarded as success?
+  get forwarded as success?
 - If it fails, does it fail in the direction the control class demands — auth and safety CLOSED,
- fairness and rate limits OPEN?
+  fairness and rate limits OPEN?
 - Is there exactly one place that knows this integration's endpoints, or two that must agree?

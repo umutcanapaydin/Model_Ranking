@@ -15,7 +15,7 @@ property both versions were protecting is the same one — **no commit may be mi
 owner's** — and it is now carried by the branch, the draft state and the absence of AI
 attribution rather than by withholding `push`.
 
-`conformance/test-commit-identity.py` still verifies the range mechanically. A stale statement of
+`conformance/test-commit-identity.py` still verifies the range mechanically for what it can see: no AI address or attribution, no stranger, and the `GP-Agent:` trailer on every machine-identity commit. Since D-161 session commits carry the owner's identity, so on those the trailer is a convention: nothing can tell an agent's session commit from the owner's own. A stale statement of
 this rule elsewhere in the tree is a finding, not a footnote: the methodology this merges with
 found two of them in its own repository, both still declaring a policy replaced eighteen days
 earlier.

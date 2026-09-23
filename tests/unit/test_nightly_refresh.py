@@ -99,9 +99,9 @@ def test_a_catch_up_runs_only_when_no_good_cycle_is_on_record_within_a_day(
 def test_the_record_is_the_refreshs_own_file(tmp_path: Path) -> None:
     db = tmp_path / "advisor.db"
     assert nightly.read_record(db) is None
-    (tmp_path / "advisor.db.refresh.json").write_text(json.dumps({"at": NOW, "exit_code": 0}))
+    (tmp_path / "advisor.db.refresh.json").write_text(json.dumps({"at": NOW, "exit_code": 0}), encoding="utf-8")
     assert nightly.read_record(db) == {"at": NOW, "exit_code": 0}
-    (tmp_path / "advisor.db.refresh.json").write_text("{torn")
+    (tmp_path / "advisor.db.refresh.json").write_text("{torn", encoding="utf-8")
     assert nightly.read_record(db) is None
 
 
@@ -149,7 +149,7 @@ def test_a_stale_engine_catches_up_once_then_keeps_the_nightly_schedule(tmp_path
 
 
 def test_a_fresh_engine_does_not_catch_up(tmp_path: Path) -> None:
-    (tmp_path / "advisor.db.refresh.json").write_text(json.dumps({"at": NOW - 5 * 3600, "exit_code": 1}))
+    (tmp_path / "advisor.db.refresh.json").write_text(json.dumps({"at": NOW - 5 * 3600, "exit_code": 1}), encoding="utf-8")
     clock, runs = _Clock(D(2026, 9, 23, 12, 0)), []
     with pytest.raises(asyncio.CancelledError):
         asyncio.run(_schedule(tmp_path, clock, runs, stop_after=1).serve())
@@ -157,7 +157,7 @@ def test_a_fresh_engine_does_not_catch_up(tmp_path: Path) -> None:
 
 
 def test_an_error_in_the_schedule_does_not_end_it(tmp_path: Path) -> None:
-    (tmp_path / "advisor.db.refresh.json").write_text(json.dumps({"at": NOW - 5 * 3600, "exit_code": 1}))
+    (tmp_path / "advisor.db.refresh.json").write_text(json.dumps({"at": NOW - 5 * 3600, "exit_code": 1}), encoding="utf-8")
     clock, runs = _Clock(D(2026, 9, 23, 12, 0)), []
     schedule = _schedule(tmp_path, clock, runs, stop_after=2)
     real_run = schedule.run_once
@@ -192,7 +192,7 @@ def test_a_cycle_that_hangs_is_killed_at_the_timeout(tmp_path: Path) -> None:
     started = time.monotonic()
     assert asyncio.run(schedule.run_once("nightly")) is None
     assert time.monotonic() - started < 15
-    pid = int(pid_file.read_text())
+    pid = int(pid_file.read_text(encoding="utf-8"))
     with pytest.raises(ProcessLookupError):
         import os
 
@@ -277,7 +277,7 @@ def test_health_says_off_when_the_switch_is_off() -> None:
 
 def test_health_reports_the_last_recorded_cycle_and_the_next_run(tmp_path: Path) -> None:
     (tmp_path / "advisor.db.refresh.json").write_text(
-        json.dumps({"at": NOW, "at_iso": "2026-09-22T11:41:08+00:00", "exit_code": 3})
+        json.dumps({"at": NOW, "at_iso": "2026-09-22T11:41:08+00:00", "exit_code": 3}), encoding="utf-8"
     )
     schedule = nightly.NightlyRefresh(db=tmp_path / "advisor.db", command=["unused"])
     schedule.next_run = D(2026, 9, 23, 23, 41)
@@ -382,7 +382,7 @@ def test_the_child_inherits_no_secret_from_the_server(
     monkeypatch.setenv("SOME_API_TOKEN", "do-not-pass-me")
     code = f"import json, os; json.dump(sorted(os.environ), open({str(seen)!r}, 'w'))"
     assert asyncio.run(_child(tmp_path, code).run_once("nightly")) == 0
-    names = json.loads(seen.read_text())
+    names = json.loads(seen.read_text(encoding="utf-8"))
     assert "SOME_API_TOKEN" not in names
     assert "PYTHONPATH" in names and "PATH" in names
 
@@ -456,7 +456,7 @@ def test_the_retirement_script_removes_what_the_installer_installed() -> None:
 def test_a_killed_cycle_shows_on_health_instead_of_the_last_good_one(tmp_path: Path) -> None:
     """MAJOR-1: a killed child writes no record, so `/health` kept saying the previous "published"."""
     (tmp_path / "advisor.db.refresh.json").write_text(
-        json.dumps({"at": time.time() - 3600, "at_iso": "an hour ago", "exit_code": 0})
+        json.dumps({"at": time.time() - 3600, "at_iso": "an hour ago", "exit_code": 0}), encoding="utf-8"
     )
     schedule = _child(tmp_path, "import time; time.sleep(20)", timeout=1.0)
     assert asyncio.run(schedule.run_once("nightly")) is None
@@ -489,7 +489,7 @@ def test_a_cycle_that_writes_its_own_record_is_reported_from_it(tmp_path: Path) 
 def _due(tmp_path: Path, now: D, record_age_hours: float | None) -> list[str]:
     if record_age_hours is not None:
         (tmp_path / "advisor.db.refresh.json").write_text(
-            json.dumps({"at": NOW - record_age_hours * 3600, "exit_code": 0})
+            json.dumps({"at": NOW - record_age_hours * 3600, "exit_code": 0}), encoding="utf-8"
         )
     ran: list[str] = []
     schedule = nightly.NightlyRefresh(
@@ -560,7 +560,7 @@ def test_health_names_each_carried_and_expired_source_with_its_age(tmp_path: Pat
         "at": NOW, "at_iso": "x", "exit_code": 0,
         "carried": {"arena_search": _days_ago(3.2), "swebench": _days_ago(0.5)},
         "expired": {"arena_vision": _days_ago(31.0), "epoch_gpqa": None},
-    }))
+    }), encoding="utf-8")
     schedule = nightly.NightlyRefresh(db=tmp_path / "advisor.db", command=["unused"])
     report = schedule.report()
     # computed from the recorded stamps at the moment /health is asked (review MAJOR-2)
@@ -569,7 +569,7 @@ def test_health_names_each_carried_and_expired_source_with_its_age(tmp_path: Pat
 
 
 def test_health_says_nothing_is_carried_when_nothing_is(tmp_path: Path) -> None:
-    (tmp_path / "advisor.db.refresh.json").write_text(json.dumps({"at": NOW, "exit_code": 1}))
+    (tmp_path / "advisor.db.refresh.json").write_text(json.dumps({"at": NOW, "exit_code": 1}), encoding="utf-8")
     report = nightly.NightlyRefresh(db=tmp_path / "advisor.db", command=["unused"]).report()
     assert report["refresh_carried"] == "" and report["refresh_expired"] == ""
 

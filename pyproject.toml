@@ -32,8 +32,7 @@ dev = [
     # v2.0 security gates (Stage 2 internal commit-gate via hooks, F.6/F.7/F.8)
     "pip-audit>=2.7",  # dep CVE scan (F.7)
     # `conformance/test-ci-yaml.py` parses the workflows and exits 2 rather than reporting clean when
-    # PyYAML is absent. That refusal is correct; what was wrong is that PyYAML was never declared, so
-    # `make gate` was unrunnable on a machine with only the system interpreter (TB-061).
+    # PyYAML is absent. Undeclared, `make gate` was unrunnable with only the system interpreter.
     "PyYAML>=6.0",
     # Note: gitleaks installed system-wide via brew/apt (not pip); see Makefile.
 ]

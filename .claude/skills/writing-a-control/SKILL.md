@@ -17,9 +17,9 @@ Measured in five projects, including two that never installed this pipeline.
 ## 2 · Have you watched it fail?
 
 Plant the violation and confirm it goes red. A gate nobody has watched fail is a gate nobody
-knows works — and one shipped here for eight cuts, greping source for hardcoded credentials, was
-never once proven to fire because its falsification asserted only a non-zero exit that the
-unfilled package produced anyway.
+knows works — one that grepped source for hardcoded credentials shipped for eight releases and
+was never once proven to fire, because its only test asserted a non-zero exit that the unfilled
+template produced anyway.
 
 Then ask the other half, which is the one that gets skipped: **does it stay quiet when it
 should?** A control that fires on correct input is not a strict control, it is a control someone
@@ -27,7 +27,7 @@ disables. Write both cases.
 
 ## 3 · Is its subject the tree you think it is?
 
-Three defects in one cut, all this shape: a gate whose docstring said `main` and whose code read
+Three defects in one release, all this shape: a gate whose docstring said `main` and whose code read
 `HEAD`; one that looked for `cwd/.git` and so never ran in the repository it graded; one that
 printed "base ref" while reading the ref the agent rewrites.
 
@@ -40,20 +40,31 @@ If the check's scope is a hand-kept list sitting beside the thing it guards, tha
 finding. Walk the ORM, the route table, the tracked tree, the manifest. An enumeration that must
 stay hand-kept is a **named entry with a written reason**, never an absence.
 
-This has bitten here at least six times, most recently in the register the anonymisation gate
-derives its forbidden names from: the column was right about what it held and silent about what
-it did not.
+This is the most repeated defect in the projects this method was measured on: a forbidden-names
+check that read its names from one hand-kept column was right about what the column held and
+silent about everything it did not.
 
 ## 5 · Does it fail closed?
 
 An empty derived set, an unreadable config, a tool that is not installed, a crash — every one of
-these must be a FAILURE, never a vacuous pass. `exit 2` is "I could not evaluate", and a runner
-that counts it as success is the founding defect of this lineage wearing its final costume.
+these must be a FAILURE, never a vacuous pass. Know what your runner does with each exit code:
+
+- **A Claude Code hook blocks ONLY on exit 2.** Exit 1 — including a crash — is a non-blocking
+  error, and the tool call runs anyway. A guard that exits 1 has never blocked anything, and a test
+  that grades `returncode != 0` will call it green. Test for exactly 2 to block, exactly 0 to allow.
+- **A guard that cannot read its input allows everything.** `c=$(python3 … 2>/dev/null)` against a
+  `python3` that is only a stub yields an empty string, no pattern matches, and every guard exits 0 —
+  measured on Windows, where every guard in a project fell silent at once. "Could not read the call"
+  blocks; "read it, and the field is empty" allows. Test the first with the interpreter broken.
+- **The conformance runner** (`conformance/run-all.py`) reads exit 2 as NOT-EVALUABLE: printed
+  loudly, and not a failure of the suite. Use it only when something else guards what this check
+  cannot see — and say what that is. A "could not evaluate" that nothing else covers is a pass
+  wearing a different word.
 
 ## Before you finish
 
 - Register it where the suite can find it, and make sure the suite DERIVES its list rather than
- being told.
+  being told.
 - Give it a caller. A gate whose only caller already knew its name is not wired.
 - If you removed or relaxed a control, that is a change to the safety floor: say so, and say what
- now catches what it caught.
+  now catches what it caught.

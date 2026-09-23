@@ -2,92 +2,83 @@
 record_type: wave
 id: wave-checklist-template
 status: draft
-process_version: v6.0
-date: 2026-08-12
+process_version: v6.6
+date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
- filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
- which is exactly what shipped in v4.3.1. -->
-# Wave-Close Checklist — M{N} Wave {W} 
+     filename. `check_records.py` reads it; a copy without it fails R1 on the first run. -->
+# Wave-Close Checklist — M{N} Wave {W}
 
-> **Copy to `docs/plans/m{N}-wave-{W}-close.md`, fill, and COMMIT at every wave close.**
-> ** cadence rebind: every OUTWARD deliverable (patch, package, report, tool,
-> answer-doc delivered outside the team) = a wave close → this checklist runs** — cadence binds to
-> artifacts, not phase events (chat messages don't count).
-> **A0.5: NO owner review at wave close:** this checklist + the fresh-eyes agent
-> reviews + green pinned checks ARE the wave gate; the owner reviews per MILESTONE. Escalate-NOW
-> events (AGENTS.md §3) halt to the owner immediately.
-> The wave does not close until every row is ✅ or has an explicit WAIVED entry in the ledger.
+> **Copy to `docs/plans/m{N}-wave-{W}-close.md`, fill, and COMMIT at every wave close** (`/close-wave`
+> does this). **Cadence binds to artifacts:** every OUTWARD deliverable (patch, package, report, tool,
+> answer-doc delivered outside the team) is a wave close, so this checklist runs — chat messages don't
+> count.
+> **The wave gate is agent-side:** this checklist + the two fresh-eyes reviews + green checks pinned to
+> the closing tree. The human who merges the wave's draft PR reviews it there. Escalate-NOW events
+> (AGENTS.md §3) halt to the owner immediately.
+> The wave does not close until every row is ✅ or has an explicit WAIVED entry (row 9).
 > Rows marked *(plan-tag)* are derived from the plan's risk tags — do not hand-copy; if the plan
-> tags a pass, it appears here and blocks (the F15 failure mode: a tagged pulled-forward security
-> pass silently skipped).
+> tags a pass, it appears here and blocks (the failure mode: a tagged pulled-forward security pass
+> silently skipped).
 >
 > **Evidence rule (anti-theater):** every ✅ cites a FRESH, SCOPED referent — a commit in this
 > wave's range, a test-run on this wave's code, a review file for THIS wave. A referent outside
 > the wave's commit range is invalid.
 >
 > **Accretion valve:** adding a row to this template requires naming the incident that triggered
-> it (see the rows below for the pattern); prefer one-in-one-out. ≤12 rows, always.
+> it; prefer one-in-one-out. ≤12 rows, always.
 
 | # | Check | Evidence (fresh referent) | ✅/WAIVED |
 |---|---|---|---|
-| 1 | Risk tier recorded for this wave in the plan (LOW/MED/HIGH; auto-HIGH if the diff touches authz/secrets/crypto/input-parsing/egress) — | plan `file:line` | |
-| 2 | Per-agent dev-test loop ran (implement → test → self-review → fix) — | test-run ref | |
-| 3 | Review per tier: LOW/MED → ONE combined reviewer; HIGH → Code-Reviewer + Tester separately —. **Reviewer countersigns 2 randomly-chosen rows of THIS checklist against the actual artifacts anti self-attestation:** | review file(s) + countersign note | |
-| 4 | *(plan-tag)* HIGH slice: pulled-forward security pass on this slice DONE — /F15 | review file | |
-| 5 | Tester fault-injection on the 1–2 most load-bearing behaviors: break → RED confirmed; restore reproduces pre-injection BYTES (md5), never re-derived; after any FIX round, replay the previous round's mutant set — the independent set's survivors where one exists (P-13) → reverted byte-identical (md5); every stay-GREEN fault got its mandatory new test — /F5. **HIGH only, ADVISORY:** if a mutation runner is wired, mutant kill-rate on changed code recorded beside the verdict — never blocks | tester log + new test refs (kill-rate line at HIGH) | |
-| 6 | Every acceptance criterion touched has a citing test entering through the LIVE entrypoint (not a unit shim) — + /F6 ("built ≠ wired") | test `file:line` | |
-| 7 | New/changed security invariants added to the milestone invariants list with their NEGATIVE test — /F7 | `security-invariants` row | |
-| 8 | No `git checkout`/`restore` was run on uncommitted work this wave (reverts were in-place + hash-verified) — /F17 | tester/reviewer attestation | |
-| 9c | **Invariant hardening (origin FIX-03 cross-wave seam):** if this wave hardens a shared invariant (auth/tenancy/money), the producer list is enumerated FROM CODE (create/rotate/import/…) with a citing test per producer; missing tests recorded as tracked gaps; security sign-off on auth-class | producer list + test refs | |
-| 9b | **Scope & draft PR (was the checkpoint row — origin: F17 uncommitted-loss class + cross-wave honesty):** scope row appended — planned vs delivered vs deferred vs the signed plan (append-only); owner's labeled checkpoint commit exists for this wave (`wip(m{N}-w{W}): checkpoint — NOT reviewed`) | plan ref + commit sha | |
-| 9a | **Economy (origin: DORA −7.2% on large changes; token-budget circuit breaker):** wave diff within ~≤400 changed lines OR variance noted (WARN, not block); projected token spend within the milestone budget line, else pause + variance note | diffstat + cost-log ref | |
-| 9 | **Skipped/waived/BYPASSED ledger + run summary (lite — friction & spend telemetry):** first the RUN LINE — `gates run: <list> · gates SKIPPED: <list> · tokens/cost: <n> · outcome: <shipped or abandoned>` (a wave that burned budget and produced nothing is invisible in git otherwise — survivorship bias). Then: list every check that did NOT run this wave — legitimate skips (tier-down, N/A) AND pressure bypasses — one-line reason + rough cost (minutes) each. Bypasses are first-class EXPERIENCE findings; the SAME control bypassed 3× triggers review of the CONTROL, not just the people (field origin: HIGH/auth fix shipped unreviewed, support-phase psychology) | | |
-
-**Escaped-blocker tripwire :** if a blocker escapes a tiered-down (LOW/MED) wave, the
-project reverts to full per-wave Code+Tester review until the next milestone closes clean.
+| 1 | Risk tier recorded for this wave in the plan (LOW/MED/HIGH; auto-HIGH if the diff touches authz/secrets/crypto/input-parsing/egress) | plan `file:line` | |
+| 2 | Per-agent dev-test loop ran (implement → test → self-review → fix) | test-run ref | |
+| 3 | Code-Reviewer and Tester ran as **two separate subagents** via `/close-wave`, every wave, every tier; neither verdict BLOCKING, and each declares `**Independent:** yes` — its reviewer wrote none of this wave's code (`make wave-check` reads both). An author who reviewed marks this row WAIVED, with a row for this wave in `docs/control-events.csv`. HIGH additionally: row 4. Reviewer countersigns 2 randomly-chosen rows of THIS checklist against the actual artifacts (anti self-attestation) | `docs/reviews/m{N}-wave-{W}-review.md` + `-tester.md` | |
+| 4 | *(plan-tag)* HIGH slice: pulled-forward security pass on this slice DONE | review file | |
+| 5 | Tester fault-injection on the 1–2 most load-bearing behaviors: break → RED confirmed; restore reproduces pre-injection BYTES (md5), never re-derived; after any FIX round, replay the previous round's mutant set — the independent set's survivors where one exists → reverted byte-identical (md5); every stay-GREEN fault got its mandatory new test. **HIGH only, advisory:** if a mutation runner is wired, mutant kill-rate on changed code recorded beside the verdict — never blocks | tester log + new test refs (+ kill-rate line at HIGH) | |
+| 6 | Every acceptance criterion touched has a citing test entering through the LIVE entrypoint (not a unit shim) — "built ≠ wired" | test `file:line` | |
+| 7 | New/changed security invariants added to the release's invariants list with their NEGATIVE test | `security-invariants` row | |
+| 8 | No `git checkout`/`restore` was run on uncommitted work this wave (reverts were in-place + hash-verified) | tester/reviewer attestation | |
+| 9c | **Invariant hardening:** if this wave hardens a shared invariant (auth/tenancy/money), the producer list is enumerated FROM CODE (create/rotate/import/…) with a citing test per producer; missing tests recorded as tracked gaps; security sign-off on auth-class | producer list + test refs | |
+| 9b | **Scope & draft PR:** scope row appended — planned vs delivered vs deferred vs the approved plan (append-only); the wave's work is committed on `wave/m{N}-w{W}` and its DRAFT PR is open | plan ref + PR number | |
+| 9a | **Economy:** wave diff within ~≤400 changed lines OR variance noted (WARN, not block); projected token spend within the milestone budget line, else pause + variance note | diffstat + cost-log ref | |
+| 9 | **Skipped/waived/BYPASSED ledger + run summary:** first the RUN LINE — `gates run: <list> · gates SKIPPED: <list> · tokens/cost: <n> · outcome: <shipped or abandoned>` (a wave that burned budget and produced nothing is invisible in git otherwise). Then list every check that did NOT run this wave — legitimate skips (N/A, no environment) AND pressure bypasses — one-line reason + rough cost (minutes) each, and append each as a row in `docs/control-events.csv` (kind `skip` or `bypass`). A SKIPPED or WAIVED row says PRESSURE or NO-ENVIRONMENT. The SAME control recorded three times turns `make wave-check` red: the CONTROL goes under review, not the people. Bypasses are also EXPERIENCE findings (`control-bypass`) |  |  |
 
 Filled by: `<agent>` · Date: `<YYYY-MM-DD>` · Wave commit range: `<start>..<end>`
 
-## Wave footprint — RECORD ONLY, no rule attached 
+## Review findings — each one fixed here, filed, or refused
+
+One row per id in the two verdicts' MINOR, K.9 and queued-risk sections (`/close-wave` step 6).
+A finding fixed in this wave is not filed; one the wave does not fix leaves it as an issue —
+`bug` with a severity, or `enhancement`. `make wave-check` refuses a close that leaves one out.
+No findings → keep the header and write none below it.
+
+| finding | disposition |
+|---|---|
+| review M1 | fixed `<sha>` |
+| tester M1 | #<issue> |
+| review K1 | refused — <why the finding is wrong, in a sentence> |
+
+## Wave footprint — RECORD ONLY, no rule attached
 
 **Fill these from the actual diff at close, not from the plan.** Plan-time paths are a prediction;
-close-time paths are a measurement, and everything this lineage learned in 2026-08 says the difference
-is where the defects live.
+close-time paths are a measurement, and the difference is where defects live.
 
 ```
 Touched:        <paths this wave actually changed — `git diff --name-only <start>..<end>`>
-Mutant set author: <who designed the fault-injection set; self-designed = supporting evidence only (P-1)>
-Observed RED:   <the mutation + which assertion failed for the cited reason (P-11); N/A-with-reason if no code row>
+Mutant set author: <who designed the fault-injection set; self-designed = supporting evidence only>
+Observed RED:   <the mutation + which assertion failed for the cited reason; N/A-with-reason if no code row>
 Owner instruction: <the owner's words, VERBATIM, that this wave implements — and one line mapping the delivery to those words>
 K.8 contracts:  <shared interfaces this wave changed, or NONE — the symbols other waves depend on>
-Closure rounds: <how many rounds this wave's code needed at milestone closure, filled at closure>
-Hand-kept lists: <NAME the hand-kept enumeration this wave adds — the list that sits beside the thing it guards and must be updated by hand when that thing changes — or NONE (V5C-110)>
+Stopped at three attempts: <#issue per problem this wave gave up on after three failed attempts (`.agents/rules/practices.md`), or NONE>
+Hand-kept lists: <NAME the hand-kept enumeration this wave adds — the list that sits beside the thing it guards and must be updated by hand when that thing changes — or NONE>
 ```
 
-**On the `Hand-kept lists` line .** Name the artefact or write NONE. It is
-deliberately **not** a yes/no box: every field instance of this class was written by someone who
-would have ticked "no" in good faith, because a denylist does not feel like a denylist while you are
-writing it — it feels like being thorough. Naming forces you to look at the thing.
+**On `Hand-kept lists`.** Name the artefact or write NONE — deliberately **not** a yes/no box: a
+denylist does not feel like a denylist while you are writing it, it feels like being thorough.
+Naming forces you to look at the thing. This line is a detection aid, not a gate: when you write a
+rule that bans a specific literal or shape, the check that enforces it ships in the same change.
 
-**This line is a detection aid, not a gate.** Nothing fails if it says NONE, and the Software seat
-insisted the register say so: the gate obligation for this class is per-instance — when
-you write a rule that bans a specific literal or shape, the grep gate ships in the same change.
-Calling a checklist question a gate is how this lineage got four controls whose only caller already
-knew their name.
-
-**Why this exists, and what it is NOT.** The owner asked whether four waves could run as parallel
-subagents. The honest answer needs data nobody has: **do waves actually touch disjoint file sets, and
-do they share contracts?** If they are disjoint, parallel execution is free. If they collide, it is a
-merge-conflict generator that ships four times the code into the one place that was already the
-bottleneck.
-
- measured that bottleneck: **W0–W4 each converged, and closure ran four rounds and never
-passed — rounds 2, 3 and 4 each finding defects in code written by the previous round's fix.** So the
-slow part was never the waves. Parallelising them would speed up what was fast and quadruple the input
-to what was slow.
-
-**There is no gate on these three lines and there will not be one until two milestones have filled
-them.** They are here so that the next time this question is asked, it is answered with a measurement
-instead of an intuition — and `V4.3-6`'s calibration data, which currently has no collector and
-therefore a trigger that can never fire, starts accumulating as a side effect.
+**Why the footprint exists.** Whether waves can run as parallel subagents depends on data nobody has
+yet: do waves touch disjoint file sets, and do they share contracts? These lines answer it with a
+measurement instead of an intuition. `make wave-check` requires them filled; no rule compares them
+across waves.

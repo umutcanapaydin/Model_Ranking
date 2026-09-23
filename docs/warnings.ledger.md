@@ -1,10 +1,18 @@
+---
+record_type: warnings
+id: warnings-ledger
+status: draft
+process_version: v6.6
+date: 2026-09-23
+---
 # Warning ledger (V4C-77)
 
 > **Copy of `warnings.ledger.template.md`, instantiated so a fresh install starts with a report rather
 > than a silence.** Read the template for why `C2b` stops at three.
 
 **The rule in one line: a warning may not survive the close it was raised in.** It is FIXED, ACCEPTED
-with a reason AND an owning milestone, or ESCALATED. `check_records.py` rules `C2a`/`C2b`/`C2c` enforce it.
+with a reason AND an owning milestone, or ESCALATED (this project keeps its own validator, D-161: an issue as the owner is not read here). `check_records.py` rules `C2a`/`C2b`/`C2c` enforce it.
+A skipped or bypassed control is not a warning: it is a row in `docs/control-events.csv`.
 
 | id | rule that warned | first seen | path | status | reason + owning milestone |
 |---|---|---|---|---|---|

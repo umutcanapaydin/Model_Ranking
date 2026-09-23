@@ -101,7 +101,7 @@ def test_every_environment_dependent_leg_has_a_skip_path(leg: str) -> None:
     claim pinned here is the one that was actually violated: each of these four legs must have a
     branch that calls `skip`, which cannot be counted as a pass by construction.
     """
-    text = RUNNER.read_text()
+    text = RUNNER.read_text(encoding="utf-8")
     assert (
         f'skip "{leg}"' in text
     ), f"`runner` has no skip path for `{leg}` — an absent environment would be scored as a pass"
@@ -113,7 +113,7 @@ def test_runner_sources_the_accounting_library() -> None:
     Without this, every test in this file could pass against a `runner` that still kept its own
     copy of the accounting — which is exactly the drift that let the original defect survive.
     """
-    assert "scripts/runner_verdict.sh" in RUNNER.read_text()
+    assert "scripts/runner_verdict.sh" in RUNNER.read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------------------------
@@ -138,7 +138,7 @@ def _runner_harness(legs: str) -> subprocess.CompletedProcess[str]:
     tail is its verdict block. Both are lifted verbatim — a mutant that edits either is a mutant
     this harness executes.
     """
-    text = RUNNER.read_text()
+    text = RUNNER.read_text(encoding="utf-8")
     start = text.index('. "$REPO/scripts/runner_verdict.sh"')
     end = text.index("# --- 0. context", start)
     wrappers = text[start:end]
@@ -184,7 +184,7 @@ def test_runner_actually_sources_the_library() -> None:
     comment above the source line — so commenting the line out left the test green against a
     `runner` that had no accounting at all. Assert the executable statement.
     """
-    assert '. "$REPO/scripts/runner_verdict.sh"' in RUNNER.read_text()
+    assert '. "$REPO/scripts/runner_verdict.sh"' in RUNNER.read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize("leg", ["build", "engine", "swift-tests", "ios-build"])
@@ -196,7 +196,7 @@ def test_a_skip_path_never_also_records_a_pass(leg: str) -> None:
     it. Scoped to the same `else` branch rather than the whole file, because `record "build" 0` has
     a legitimate use elsewhere — exit 3 (a D-128 refusal) is mapped onto a pass on purpose.
     """
-    text = RUNNER.read_text()
+    text = RUNNER.read_text(encoding="utf-8")
     branch_start = text.index(f'skip "{leg}"')
     branch = text[branch_start : text.index("fi", branch_start)]
     assert (

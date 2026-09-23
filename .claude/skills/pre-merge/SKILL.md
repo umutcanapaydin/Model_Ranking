@@ -3,7 +3,8 @@ name: pre-merge
 description: Use before handing a branch or PR to a human to merge, before marking work ready for review, and before saying a slice or milestone is closed. The last thing that runs while the change is still yours. Checks the base, checks the PR cannot close a bug, and checks the evidence a reviewer is owed.
 ---
 
-Runs on a `fix/issue-*` or `enhancement/*` branch that already has a draft PR. The human merging
+Runs on any agent branch — `wave/*`, `plan/*`, `fix/issue-*`, `enhancement/*` — that already has
+a draft PR. The human merging
 cannot read every line; this is what makes that safe, and it is the last moment anyone is looking.
 
 Read `.agents/rules/issues.md` first.
@@ -15,6 +16,7 @@ branch, and comparing against the wrong one reports commits the merge would neve
 
 ```bash
 gh pr view <pr> --json baseRefName
+git fetch origin <base>          # a stale remote-tracking ref understates how far behind you are
 git rev-list --left-right --count origin/<base>...HEAD
 ```
 
@@ -63,10 +65,21 @@ project removed a release-slot path and a tenant check and stayed green on both.
 
 ## 5 · Fresh eyes, and not the author's
 
-Reviewed by something that did not write the code. Two stages — does it do what was asked, and is
-it any good — and the second is strictly stronger dispatched to a subagent than performed by the
-author in the same context. Thirty BLOCKING findings across three rounds in one project, none
-found by the author.
+Reviewed by something that did not write the code — strictly stronger dispatched to a subagent than
+performed by the author in the same context. Thirty BLOCKING findings across three rounds in one
+project, none found by the author. What is owed depends on the branch:
+
+- `wave/*` — both verdicts, Code-Reviewer then Tester, each declaring `**Independent:** yes`;
+  `make wave-check` refuses the close without them.
+- `fix/issue-<n>-*` — the Tester alone: `docs/reviews/fix-issue-<n>-tester.md` exists, its
+  `## Verdict` is PASS or MINOR, it declares `**Independent:** yes`, and the history shows a new
+  Tester after any BLOCKING one. No gate reads this file: you do.
+- `enhancement/*` — the `/repo-review` of the whole branch, each of its findings fixed on the
+  branch or filed. It is the author's review, not fresh eyes: the PR body says so.
+- `plan/*` — no code, so no review is owed. The owner's merge is the plan's approval.
+
+The declaration is not a proof. No file can show which session wrote the code, so a false `yes` is
+found by a reader, not by the gate.
 
 ## 6 · What did NOT run is written down
 
@@ -87,13 +100,15 @@ Every PASS cites `file:line`. **No claim without an artefact behind it** — no 
 
 - **Draft. Always.** You do not mark it ready and you do not merge it.
 - No force-push, no `--amend` on anything pushed, no `--no-verify` — a hook you skipped is a gate
- you removed.
+  you removed.
 - The body is a **live document**: it describes what the change is, not how it got there. When
- the work evolves, rewrite the body in place. Never a history log, no "update: …" notes.
+  the work evolves, rewrite the body in place. Never a history log, no "update: …" notes.
 - No AI attribution anywhere.
 - `.github/workflows/**` untouched. If CI must change, propose the diff and stop.
 - **Apply no lifecycle label here.** At draft-PR time neither `dev:done` nor `qa:ready` is true.
 
 ## 9 · Gates green, by name
 
-Run them and name them. "Checks pass" is not evidence.
+`make gate` — the full gate, including the network legs (`deps`, `slopsquat`) that the post-edit
+`make check-fast` leaves out, with `make check` in order. Run it and name it. "Checks pass" is not
+evidence.

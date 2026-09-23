@@ -2,177 +2,116 @@
 record_type: brief
 id: project-brief-template
 status: draft
-process_version: v6.0
-date: 2026-08-12
+process_version: v6.6
+date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
- filename. `check_records.py` reads it; a copy without it fails R1 on the first run,
- which is exactly what shipped in v4.3.1. -->
+     filename. `check_records.py` reads it; a copy without it fails R1 on the first run. -->
 # Project Brief — `<PROJECT_NAME>`
 
-> Fill this out before handing the agent a fresh project. ~5-10 minutes to complete; saves a 30-40 minute back-and-forth round with the agent during Stage 0.
->
-> Hand this to the agent alongside the PRD when starting. The agent uses it to skip the "who / what / where" questions and go directly to drafting the Stage 1 plan.
+> **`/setup-project` fills this.** It reads what the repository already says, asks the nine questions
+> in §2 in one message, and writes every answer into its field — an unanswered question takes its
+> default, written down as the default. It commits the brief on a branch and opens a draft PR; **the
+> owner merging that PR is the owner signing the choices.** A choice that changes later is updated
+> the same way. This file is the one place the next agent reads them.
 
 ---
 
-## 1. Project identity
+## 1. What the repository already says (read first, not asked)
 
-- **Project name:** `<...>`
+- **Project name:** `<from pyproject.toml>`
+- **Stack recorded so far:** `<from .devflow-stack>`
 - **Customer / owner:** `<who is asking for this software>`
 - **One-line description:** `<what this project does, in plain English>`
-- **Business context (≤3 sentences):** `<what problem does this solve for the customer? what does success look like for them? what are they worried about?>`
+- **Repo host:** `<from git remote -v>`
+- **Owner's commit identity:** `<from git config user.email>`
+- **Already on a DevFlow version?** `<none | the version in .gp/installed, or the one an earlier install's docs/decisions.md declares>`
+- **Code beyond the starter?** `<no | yes: what, and in which language>`
 
-## 2. Stack and environment
+## 2. The setup answers (`/setup-project`, in its order)
 
-- **Primary language / framework:** `<e.g., Python + FastAPI / Node + TypeScript / Go / Rust>`
-- **Test framework:** `<pytest / vitest / jest / go test / cargo test>`
-- **Target runtime environment:** `<e.g., Huawei Cloud CCE / AWS ECS / on-prem K8s / Vercel>`
-- **Repo host:** `<GitHub / GitLab / Bitbucket>`
-- **CI runners:** `<hosted (ubuntu-latest) / self-hosted — and why>`
+1. **Where are we starting:** `<new | upgrade | adopted>` *(default derived from §1: a recorded
+   install version means **upgrade**, follow `UPGRADING.md` and nothing else from this list until it
+   is done; code beyond the starter means **adopted**, and `docs/codex-audit.md` records what exists
+   before any wave changes it; otherwise **new**)*
+2. **Milestone Quality Gate:** `<off (default) | on>` *(on: every milestone close also writes
+   `docs/closure-report-m{N}.md` with the REQ-ID trace, coverage delta and token cost, `make closes`
+   grades it, and the owner runs his own milestone test session; off: a milestone closes on its merged
+   waves, and each wave's Tester already requires a citing test for every criterion it touched)*
+3. **Retrospective when the work is done:** `<no (default) | yes>` *(one short file at the very end,
+   `/cycle-close`, Stage 5.3 — never during the work)*
+4. **HIGH-risk areas this project touches:** *(default: none, until the first one appears; a wave
+   touching one is HIGH: it also gets a security pass, and the senior reviewer in 5 reviews it)*
+   - [ ] Authentication / authorization
+   - [ ] Payments / financial transactions
+   - [ ] Personal data (real customer data, not synthetic fixtures)
+   - [ ] Cryptography
+   - [ ] Irreversible migrations (DROP TABLE class)
+   - [ ] Regulated compliance (PDPL / GDPR / HIPAA / SOC2)
+   - [ ] Production deploy automation
+   - [ ] Wraps / forks an OSS engine *(not a question of its own: a ticked box makes
+         `docs/license-review.md` required, and `make bootstrap-check` reads this line)*
+5. **Senior human reviewer for those areas:** `<name + contact>` *(default: the owner)*
+6. **Does the work end in a deploy, and where:** `<yes: target environment | no>` *(default: decided
+   at the first release; it decides whether Stage 5 — security review, then `/going-live` — applies
+   and what it checks against)*
+7. **What this repository can enforce by itself:** *(default: assume neither until someone checks;
+   replace each placeholder with the bare word `yes` or `no` — `make bootstrap-check` reads these two
+   lines, and unless both say `yes`, a clone without `make hooks` fails Stage 0)*
+   - GitHub Actions run here: `<yes | no>` *(a private repository on a free plan may have no minutes)*
+   - The default branch can be protected: `<yes | no>` *(no: the gate on each developer's machine is
+     the only enforcement)*
+   - `make hooks` installed in every clone (the gate runs before every push): `<yes | no>`
+8. **The CI issue agent:** `<no (default) | yes>` *(a labelled issue triggers a headless agent that
+   comments or opens a draft PR; it needs Actions and an API key in the repository secrets)*
+9. **The product:**
+   - Stack: `<python (default) | the name bound in stack.mk>` *(written to `.devflow-stack`; any stack
+     but `python` binds its four legs in `stack.mk` — `INSTALL.md`, "Binding another stack")*
+   - Language of its user-facing copy: `<English (default) | the language>`
+   - Paths that hold that copy: `<none | the paths>` *(the repository stays English; each path goes
+     into `.language-allow` with its reason — design files, localisation strings)*
 
-## 2.1 Repositories — every tree that ships something a customer can reach 
+## 2.1 Repositories — every tree that ships something a customer can reach
 
-Ratified once, built two cuts later. **A product is not a repository.** The measured
-case: a customer-facing product split across two trees, GP installed in one, and the second ran
-ungoverned — not by anyone's decision, but because nothing ever asked. The first harvest refused
-to guess at the question and handed it back.
+**A product is not a repository.** A customer-facing product split across two trees, with DevFlow
+installed in one, leaves the second ungoverned — not by anyone's decision, but because nothing asked.
 
 List **every** repo that ships an artifact a customer can reach: backends, frontends, mobile
-clients, admin consoles, scheduled jobs, infrastructure that serves traffic. A tree that only
-builds internal tooling is out of scope; say so in a row rather than by leaving it out.
+clients, admin consoles, scheduled jobs, infrastructure that serves traffic. A tree that only builds
+internal tooling is out of scope; say so in a row rather than by leaving it out.
 
-| Repo | What a customer reaches from it | GP installed? | If NO: the owner ruling |
+| Repo | What a customer reaches from it | DevFlow installed? | If NO: the owner ruling |
 |---|---|---|---|
-| `<org/repo>` | `<the API / the console / the mobile app>` | yes / no | `<docs/refusals.md entry id, or "—">` |
+| `<org/repo>` | `<the API / the console / the mobile app>` | yes / no | `<the refusal, as "refusals.md R-n", or "—">` |
 | `<org/repo-fe>` | `<...>` | yes / no | `<...>` |
 
-**Each repo is either GP-installed or named in `docs/refusals.md` with an owner ruling.** A repo
-that is neither is not a decision; it is an omission, and the difference is the whole point of
-the row.
+**Each repo is either DevFlow-installed or named in `docs/refusals.md` with an owner ruling.**
+`make bootstrap-check` asserts that this declaration exists and is filled — at least one real row, no
+placeholders left, and every `no` carrying a ruling. It claims nothing about the contents of the
+other trees, which it cannot see.
 
-**What the gate checks, stated exactly.** `make bootstrap-check` asserts that **this declaration
-exists and is filled** — at least one real row, no placeholders left, and every `no` carrying a
-ruling. **It claims nothing whatsoever about the contents of the other trees**, which it cannot
-see. Ratified with that boundary written in, and it is repeated here because this cut is about
-controls whose declared subject and actual subject had drifted apart.
+## 3. Other choices (defaults unless the owner changes them)
 
-## 3. Risk surface (what HIGH-risk paths exist?)
+- **CODEOWNERS / DevOps boundary (K.10):** does app + DevOps share this repo? `<yes | no>` *(default:
+  yes → fill `<DEVOPS_HANDLE>` in `.github/CODEOWNERS` and enable "Require review from Code Owners";
+  no DevOps team → delete the build/deploy lines rather than leaving a placeholder owner)*
+- **Version-stamped `/health` (L.7):** on by default *(set `APP_BUILD` in the Dockerfile / deploy env so
+  the deployed build is verifiable via `curl /health | jq .build` at Stage 5.2; opt out only for a
+  service that genuinely never deploys)*
+- **Token budget cap per milestone:** `<e.g., $5 / 500k tokens / no cap>`
+- **MCP servers beyond the GitHub default:** `<none (default) | list>` *(add only if the team uses the
+  tool daily)*
+- **AGENTS.md size cap:** 150 hard cap (the template ships at ≤120) *(change only by ADR)*
+- **Subagent profiles beyond the shipped four:** `<none (default) | list>` *(a new profile is a
+  candidate until it meets the graduation rule in `docs/subagents.md`)*
 
-Mark each YES / NO. Any YES triggers `permission-matrix.md` §11 — senior human review mandatory.
+## 4. Notes / unusual context (free text)
 
-- [ ] **Authentication / authorization logic** (login, tokens, RLS, ACLs)
-- [ ] **Cryptography** (any hand-rolled, not just standard library)
-- [ ] **Payment / financial transaction logic**
-- [ ] **PII handling** (real customer data, not synthetic fixtures)
-- [ ] **Irreversible migrations** (DROP TABLE class)
-- [ ] **Regulated compliance** (PDPL / GDPR / HIPAA / SOC2)
-- [ ] **Production deploy automation** (anything that can break prod)
-- [ ] **Wraps / forks an OSS engine** (any third-party engine you run, modify, or build on) — if YES, complete `docs/license-review.md` at Stage 0 (FB-4 / F.10). AGPL/GPL/SSPL on a network service ⇒ **wrap-not-fork** + legal sign-off; an unreviewed copyleft fork is BLOCKING (permission-matrix catastrophe-class).
-
-**If any YES:** name the senior human reviewer in §4 below.
-
-## 4. Senior human reviewer
-
-For BLOCKING items on HIGH-risk paths (§3) per `permission-matrix.md` §7 + §11:
-
-- **Senior reviewer name:** `<...>`
-- **Contact:** `<email / Slack / handle>`
-- **SLA expectation:** `<e.g., 24h response, 48h review>`
-- **Backup reviewer if primary unavailable:** `<...>`
-
-If NO HIGH-risk paths in §3: write "N/A — no HIGH-risk paths in this project."
-
-## 5. External dependencies
-
-Who provides what BEFORE M1 can ship:
-
-| Dependency | Provider | Status | ETA |
-|---|---|---|---|
-| `<e.g., model endpoint URL>` | `<customer / cloud team / us>` | proposed / in-flight / delivered | `<date>` |
-| `<e.g., production database>` | `<...>` | `<...>` | `<...>` |
-| `<e.g., customer test credentials>` | `<...>` | `<...>` | `<...>` |
-
-If a dependency isn't delivered by its ETA, the agent must surface it as a milestone risk (per G.9 PM-friendly risk register).
-
-## 6. Pipeline-specific overrides (opt-in choices)
-
- ships with these as **opt-in**. Pick before Stage 0 dispatch:
-
-- [ ] **Pre-commit hook** (lint + format at the keyboard): yes / no *(default: opt-in for Python; reasoning per [`METHODOLOGY.md`](METHODOLOGY.md) §11)*
-- [ ] **Issue-agent Layer 2** (headless Claude in CI on labeled issues): yes / no *(default: ship in shadow-mode for M1, graduate to draft-PR mode after one successful milestone)*
-- [ ] **MCP servers beyond GitHub default:** `<list any: Linear / Slack / Notion / ...>` *(default: GitHub MCP only; add only if team uses tool daily)*
-- [ ] **Additional subagent profiles beyond mandatory Code-Reviewer + Security-Reviewer:** `<list any candidate, e.g., Architect, Migration-Specialist, Docs-Writer>` *(default: only the mandatory 2; others CANDIDATE per playbook-seeds L'; graduate after ≥2 milestones of PULLED-WEIGHT)*
-- [ ] **Skill source overrides:** `<list any milestone where Code-Reviewer or Security-Reviewer profile source is NOT "A — superpowers baseline">` *(default: A; B/C/D require regeneration before dispatch)*
-- [ ] **CODEOWNERS / DevOps boundary (K.10):** does app + DevOps share this repo? yes / no *(default: yes -> fill `<DEVOPS_HANDLE>` in `.github/CODEOWNERS` + enable "Require review from Code Owners". If no DevOps team, delete the build/deploy lines rather than leaving a placeholder owner.)*
-- [ ] **Version-stamped `/health` (L.7):** Day-1 baseline ON by default *(set `APP_BUILD` in the Dockerfile / deploy env so the deployed build is verifiable via `curl /health | jq .build` at Stage 4.3. Defaults to `"unknown"`; only opt OUT for a service that genuinely never deploys.)*
-- [ ] **Council planning Stage-1 variant (NEW):** use for this project's contested/MEDIUM+ milestones? yes / no *(default: off; turn on per-milestone when the milestone SCOPE — not just its code — is in doubt. PULLED-WEIGHT but N=1, so opt-in.)*
-
-## 7. Budget and cadence
-
-- **Token budget cap per milestone:** `<e.g., $5 / 500k tokens / no cap>` *(default per [`METHODOLOGY.md`](METHODOLOGY.md) §13: 50k-500k tokens per milestone)*
-- **Token budget cap for whole project:** `<...>` *(optional)*
-- **Wall-clock cadence expectation:** `<e.g., 2-week milestones / 1-week milestones / flexible>`
-- **Quarterly handover cadence:** `< default is M3/M6/M9/M12; deviate?>`
-- **Retrospective frequency:** `< default is M≥3 G.12; deviate?>`
-- **AGENTS.md size cap:** `< default is 80 target / 150 hard cap; deviate?>`
-
-## 8. Greenfield vs migration
-
-- [ ] **Greenfield** — no prior code; skip `docs/codex-audit.md`.
-- [ ] **Migration from existing codebase** — see `docs/codex-audit.md` template; agent must complete the audit during Stage 0 before any wave dispatches.
-- [ ] **Hybrid** — some greenfield modules, some migrated from `<source>`. List which: `<...>`
-
-## 9. M1 (first milestone) expectations
-
-- **Risk tier:** `<LOW recommended for new-pipeline shake-out / MEDIUM / HIGH>`
-- **Scope:** `<one-line — e.g., "auth endpoint + DB migration", "health check + first feature">`
-- **Acceptance:** `<which REQ-IDs M1 closes; agent will number these per seed A.1>`
-- **Estimated wave count:** `<typically 1-4 waves per milestone>`
-- **Stretch goals (deferrable):** `<...>`
-
-## 10. What the agent MUST deliver before any wave dispatches
-
-This is the contract. Agent reads §1-9 above + the PRD, then produces:
-
-1. **Filled AGENTS.md** §1-2 (PROJECT section)
-2. **Filled `pyproject.toml`** name + initial deps
-3. **`docs/prd.md`** numbered with REQ-IDs (per seed A.1 + A.3 separate passes)
-4. **`docs/architecture.md`** §5 conflict table populated (seed A.2)
-5. **`docs/decisions.md`** first project ADRs **D-100..D-NNN** (covering stack, target env, risk-surface acknowledgments, any §6 pipeline overrides). Process ADRs use `P-00x`; if inheriting a project with low D-ids, run the P-001 reconciliation recipe (seed B.6).
-6. **`docs/plans/m1-plan.md`** in writing-plans format — including:
- - Goal (1 sentence)
- - REQ-ID acceptance criteria
- - Wave decomposition (each task ≤5 min subagent scope)
- - K.8 shared contracts grep-verified (paste `grep -n` output)
- - **Token budget estimate per wave + total milestone**
- - **Risk tier (LOW/MEDIUM/HIGH)**
- - Issue inventory (Layer 2 vs K.4 routing)
- - Closure tasks
- - §13 dispatch checklist
-7. **Day-1 green baseline confirmed** (`make check` GREEN) **and `make bootstrap-check` GREEN** (FB-1 Stage-0 gate — no placeholders, L.7 `/health`, filled core docs, universal ADRs present)
-8. **`docs/license-review.md`** completed if §3 "wraps/forks an OSS engine" is YES (FB-4)
-9. **Host-side admin TODOs surfaced** (branch protection, ANTHROPIC_API_KEY secret, label creation, 90-day rotation calendar)
-
-After producing all items, the agent presents them to you and **waits for §13 sign-off**. Wave 1 only dispatches after sign-off.
-
-**You will see the plan AND the workload estimate before any token is spent on implementation.**
+`<anything that doesn't fit elsewhere — e.g., "the customer is on holiday until Nov 15", "the senior reviewer is on leave M3-M5">`
 
 ---
 
-## Notes / unusual context (free text)
-
-`<anything that doesn't fit elsewhere — e.g., "the customer is on holiday until Nov 15", "we've tried this with a different vendor and failed because X", "Senior reviewer is on parental leave M3-M5">`
-
----
-
-## Sign-off
-
-**Filled by:** `<name>`
-**Date:** `<YYYY-MM-DD>`
-**Handed to agent:** `<YYYY-MM-DD HH:MM>`
-
-After agent delivers the 8 items in §10, sign here to authorize Wave 1 dispatch:
-
-**User sign-off:** `<pending>`
-**Date:** `<YYYY-MM-DD HH:MM>`
+**Next:** the common steps in `INSTALL.md` — `make install`, `make hooks`, `make labels`, a
+`stack.mk` for a stack other than `python`, then `make bootstrap-check` (walk
+`docs/closure-checklist.md` §0) — then `/plan-milestone`. The owner approves each milestone plan by
+merging its PR; no wave is dispatched before that.

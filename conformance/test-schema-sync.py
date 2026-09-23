@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""The schema's first-ever reader (GPF-002).
+"""The record schema must say what the validator enforces.
 
-For two versions `schemas/record.schema.json` declared 7 record types while the validator enforced 14,
-and nothing noticed because nothing read the schema -- its sole consumer was a byte-compare that
-asserts sameness, never correctness. **A contract document with no reader is not a contract; it is a
-liability that looks like one.** This test IS the reader: drift between the schema's enum and the
-validator's constants fails the build. Exit 0 clean · 1 drift · 2 cannot run.
+`schemas/record.schema.json` once declared 7 record types while the validator enforced 14, and
+nothing noticed because nothing read the schema. **A contract document with no reader is not a
+contract; it is a liability that looks like one.** This test IS the reader: drift between the
+schema's enums and required fields and the validator's constants fails the build -- regenerate with
+`python3 scripts/gen_schema.py`. Exit 0 clean · 1 drift · 2 cannot run.
 """
 import json, pathlib, sys
 

@@ -4,17 +4,53 @@
 # WHY A DECLARATION AND NOT A HEURISTIC. A shipped document writes `/health` and
 # `/repo-review` identically, and no amount of pattern-matching separates an HTTP
 # route from a slash-command reliably. So the exemptions are NAMED, each with a
-# written reason -- the form V5C-110 permits -- rather than guessed at.
+# written reason -- a hand-kept list is allowed only in that form -- rather than guessed at.
 #
 # THE FAIL DIRECTION: forgetting to declare a route here produces a FALSE POSITIVE,
 # which is loud and takes one line to fix. A heuristic that guessed wrong would
-# produce SILENCE, which is how ten dangling skill references shipped for eight cuts.
+# produce SILENCE, which is how ten dangling skill references once shipped unnoticed.
+# The check reads names of three or more characters, so a shorter token needs no row.
 health	the L.7 version-stamped liveness/readiness contract; the single most-cited endpoint in this package
 ready	a readiness probe route, paired with /health in the go-live checks
 version	a build-identity route named beside /health
 deploy	a directory in the repository layout (`/deploy/**`), a DevOps-owned contract surface per K.10
 tmp	a filesystem path in shell examples
-schedule	an example application route in the permission matrix
+# Names a reader types that are not this project's skills: Claude Code's own commands,
+# common HTTP routes, and filesystem roots written as paths.
+review	a Claude Code built-in command, not a skill this project ships
+security-review	a Claude Code built-in command, not a skill this project ships
+rewind	a Claude Code built-in command, not a skill this project ships
+init	a Claude Code built-in command, not a skill this project ships
+compact	a Claude Code built-in command, not a skill this project ships
+clear	a Claude Code built-in command, not a skill this project ships
+help	a Claude Code built-in command, not a skill this project ships
+model	a Claude Code built-in command, not a skill this project ships
+config	a Claude Code built-in command, not a skill this project ships
+agents	a Claude Code built-in command, not a skill this project ships
+mcp	a Claude Code built-in command, not a skill this project ships
+schedule	a Claude Code built-in command, not a skill this project ships
+memory	a Claude Code built-in command, not a skill this project ships
+permissions	a Claude Code built-in command, not a skill this project ships
+hooks	a Claude Code built-in command, not a skill this project ships
+doctor	a Claude Code built-in command, not a skill this project ships
+cost	a Claude Code built-in command, not a skill this project ships
+status	a Claude Code built-in command, not a skill this project ships
+resume	a Claude Code built-in command, not a skill this project ships
+context	a Claude Code built-in command, not a skill this project ships
+export	a Claude Code built-in command, not a skill this project ships
+login	a Claude Code built-in command, not a skill this project ships
+logout	a Claude Code built-in command, not a skill this project ships
+docs	FastAPI's interactive API docs route
+redoc	FastAPI's ReDoc route
+metrics	a conventional metrics endpoint
+etc	a filesystem root written as a path
+usr	a filesystem root written as a path
+var	a filesystem root written as a path
+opt	a filesystem root written as a path
+home	a filesystem root written as a path
+bin	a filesystem root written as a path
+dev	a filesystem root written as a path
+proc	a filesystem root written as a path
 v2	an example public API contract version, used to show what may not change without an ADR
 skill	the literal placeholder in the control roster's own description of `documented-skills` -- "a document telling a reader to type a `/skill` that does not exist". HARVEST-CONTEXT.md is GENERATED from that description, so the control quoting itself tripped itself. Not a route and not an invocation: no skill will ever be named `skill`
 
@@ -30,15 +66,7 @@ is-valid	Hugging Face datasets-server endpoint, quoted as fetched
 filter	Hugging Face datasets-server endpoint, quoted in docs/fixpack-1.md
 # Claude Code's BUILT-IN commands. They are not shipped skills and never will be; a record that says
 # a seat ran `/security-review` or that a session was `/rewind`-ed is naming the harness.
-review	Claude Code built-in command, named in the universal D-005 body as first shipped
-security-review	Claude Code built-in command, named in the M6 closure report and D-005
-rewind	Claude Code built-in command, named in .claude/RESUME.md
 # Filesystem paths and FastAPI's own routes, quoted in security reviews as attack surface.
-docs	FastAPI's auto-generated docs route, which the security reviews verified is OFF
-redoc	FastAPI's auto-generated ReDoc route, verified OFF in the same reviews
 app	a container filesystem path (/app) in the M7 security review's path-traversal probes
 data	a container filesystem path (/data) in the M7 security review
-etc	a filesystem path (/etc) in the M7 security review's path-traversal probes
-home	a filesystem path (/home) in the M7 security review
-usr	a filesystem path (/usr) in the M7 security review
 nonexistent	a deliberately absent path in the M11 security review's negative test

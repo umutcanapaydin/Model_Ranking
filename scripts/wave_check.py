@@ -1,35 +1,92 @@
 #!/usr/bin/env python3
-"""V3C-69 — is this file actually a FILLED wave-close checklist?
+"""Is this file actually a FILLED wave-close checklist?
 
-The version this replaces asked three questions: does the file exist, are there empty table cells, are
-three named placeholders present. `README.md` answers those correctly, so `make wave-check
-FILE=README.md` printed PASS. So did `docs/closure-checklist.md`. **The gate had no idea what a wave
-checklist looks like** -- and it signed off five wave closes in the field, including the five where the
-contract suite was skipped.
+A check that asks only "does the file exist, are there empty cells, are three placeholders gone"
+passes `README.md` -- and a gate that passes a file it was never meant to read signs off hollow
+wave closes. So this reads the artefact `docs/wave-checklist.template.md` produces, and is written
+against that template, not against an idea of one.
 
-Checks now: the filename shape, the frontmatter, the required sections, that every row carries evidence
-and a legal status, and that nothing is left as a placeholder. Exit 0 pass · 1 fail · 2 usage.
+Refuses:
+  * a filename that is not `m{N}-wave-{W}-close.md`, or no `record_type: wave` frontmatter
+  * no `| # | Check | Evidence | ✅/WAIVED |` table, or a row with no evidence or no legal status
+  * a row that FAILED, or a SKIPPED/WAIVED row that does not say PRESSURE or NO-ENVIRONMENT
+  * an unsigned footer (`Filled by: … Date: … Wave commit range: …`) or one still a template
+  * a footprint field (`Touched:`, `Mutant set author:`, `Observed RED:`, `Owner instruction:`,
+    `K.8 contracts:`) missing or still a placeholder
+  * a placeholder left in a cell the filler owns
+  * a control with three skip/bypass rows in `docs/control-events.csv`, or SKIPPED/WAIVED rows
+    with no such ledger
+  * the Code-Reviewer or Tester verdict file missing beside it, or either one BLOCKING
+  * from `v6.5`, either verdict file not declaring `**Independent:** yes`, unless the checklist's
+    Code-Reviewer row is WAIVED and `docs/control-events.csv` has a row for this wave
+  * from `v6.6`, a finding in either verdict's MINOR, K.9 or queued-risk section with no id, or
+    with no row in the checklist's findings table saying what happened to it: fixed in this
+    wave (a commit), filed (an issue number), or refused with a reason
+  * from `v6.6`, no `Stopped at three attempts:` footprint line
+The footprint fields and the review files are graded by the `process_version` the record declares
+(see below). Exit 0 pass · 1 fail · 2 usage.
 """
 import pathlib
 import re
 import sys
 
-# v4.3.2 SECOND REPAIR (audit B5/B6). The first version was written against the fixture instead of
-# against `docs/wave-checklist.template.md` -- the artefact the Makefile tells you to copy. Consequence:
-# it REJECTED 13 of 13 rows of a correctly filled real checklist (the template's verdicts are `✅` and
-# `WAIVED`, not `PASS`/`FAIL`; its header's first cell is `#`, so the header was scored as data), while
-# still ACCEPTING a four-line file that merely contained the words "gates" and "evidence" somewhere.
-# **A gate written to its own fixture proves the fixture, not the gate** -- and a gate that fails 100%
-# of correct work is switched off within a week, which is worse than the one that passed README.md.
 NAME_RE = re.compile(r"^m\d+-wave-\d+-close\.md$")          # anchored: `x-m1-wave-1-close.md` is not one
-# `❌` removed: a close in which a gate FAILED is not a close. It was legal for one round because the
-# check was written as "shape only", and a wave-CLOSE gate that accepts an all-failed checklist is a
-# rubber stamp with extra steps.
+# The template's verdicts are `✅` and `WAIVED`. A FAILED gate is not a close: a wave-close gate that
+# accepts an all-failed checklist is a rubber stamp.
 STATUSES = {"PASS", "SKIPPED", "N/A", "✅", "WAIVED"}
 FAIL_STATUSES = {"FAIL", "BLOCKED", "❌"}
 HEADER_CELLS = {"check", "gate", "item", "#", "no", "step"}
-NEEDED = ("gates", "evidence")
 PLACEHOLDER = re.compile(r"<[A-Za-z][A-Za-z0-9 _/-]{2,}>|\bTBD\b|\bTODO\b|\bFIXME\b")
+LEDGER = pathlib.Path("docs/control-events.csv")
+# The verdict sections whose findings the wave may leave unfixed. BLOCKING is not one: a BLOCKING
+# verdict cannot close a wave at all.
+DEFERRABLE = re.compile(r"MINOR|K\.9|Risks queued", re.I)
+FINDING_ID = re.compile(r"^\s*[-*]\s+\*\*([A-Z]{1,3}\d+)\*\*")
+# fixed `<sha>` · #<n> · refused — <a reason of a sentence>
+DISPOSITION = re.compile(r"^(?:fixed\s+`?[0-9a-f]{7,40}`?|#\d+|refused\b\W+\w.{10,})", re.I)
+
+
+def deferrable_findings(body: str) -> tuple[list[str], int]:
+    """The ids of the findings under a MINOR / K.9 / queued-risk heading, and how many carry none.
+
+    A bullet that says there is nothing (`- none`, `- —`) is not a finding.
+    """
+    ids: list[str] = []
+    unnamed = 0
+    in_section = False
+    for line in body.splitlines():
+        h = re.match(r"^#{2,4}\s+(.*)$", line)
+        if h:
+            in_section = bool(DEFERRABLE.search(h.group(1)))
+            continue
+        if not in_section or not re.match(r"^\s*[-*]\s+\S", line):
+            continue
+        if re.match(r"^\s*[-*]\s+(?:\*\*)?(?:none\b|n/a\b|—\s*$|-\s*$)", line, re.I):
+            continue
+        m = FINDING_ID.match(line)
+        if m:
+            ids.append(m.group(1))
+        else:
+            unnamed += 1
+    return ids, unnamed
+
+
+def findings_table(text: str) -> dict[str, str]:
+    """`review M1` -> `#42`, read from the checklist's findings table (`| finding | disposition |`)."""
+    rows: dict[str, str] = {}
+    in_table = False
+    for line in text.splitlines():
+        s = line.strip()
+        if not s.startswith("|"):
+            in_table = False
+            continue
+        cells = [c.strip() for c in s.strip("|").split("|")]
+        if len(cells) >= 2 and cells[0].lower() == "finding" and cells[1].lower() == "disposition":
+            in_table = True
+            continue
+        if in_table and len(cells) >= 2 and not set("".join(cells)) <= set("-: "):
+            rows[" ".join(cells[0].lower().split())] = cells[1]
+    return rows
 
 
 #: REQ-REV-001 was written at M11. GPF-001 already ruled that a tool may not retroactively
@@ -209,7 +266,17 @@ def review_seat_problems(text: str, root: pathlib.Path, milestone: int | None) -
     return bad
 
 
+#: The day this project adopted DevFlow (D-155) and moved to v6.4/v6.6 (D-161), and the version it
+#: was on at the end of that day: a close written later declares at least this one.
+DEVFLOW_ADOPTED = "2026-09-23"
+CURRENT_AT_ADOPTION = (6, 6)
+
+
 def main(argv: list[str]) -> int:
+    for stream in (sys.stdout, sys.stderr):    # a console that cannot encode a character prints `?`
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(errors="replace")
     if len(argv) != 2:
         print("usage: wave_check.py FILE")
         return 2
@@ -220,72 +287,66 @@ def main(argv: list[str]) -> int:
     if not NAME_RE.match(p.name):
         bad.append(f"`{p.name}` is not a wave-close checklist filename. Expected "
                    "`m{N}-wave-{W}-close.md` -- this gate used to accept README.md")
-    # The error message named `record_type: wave`; the check only asked whether the file began with
-    # `---`. A file whose entire frontmatter was the word "gates" passed both this and the section test.
     if not re.match(r"^---\s*\n(.*?\n)?record_type:\s*wave\b", text, re.S):
         bad.append("no `record_type: wave` frontmatter -- a wave close is a governance record, and "
                    "`check_records.py` cannot see it without one")
-    # THIRD attempt at this check, and the lesson is the same each time: the first demanded the
-    # substring "gates" anywhere (a shopping list passed), the second demanded `## Gates` and
-    # `## Evidence` HEADINGS -- which `docs/wave-checklist.template.md` does not have and never had.
-    # **Both versions were written from an idea of what a checklist looks like instead of from the
-    # template the Makefile tells you to copy.** The template's real shape is: an evidence column and
-    # a signed footer. That is what is required.
+    # The template's real shape is an evidence column and a signed footer; headings are not part
+    # of it, and demanding them rejected every correctly filled close.
     if not re.search(r"^\|\s*#\s*\|\s*check\s*\|.*evidence.*\|.*(?:✅|WAIVED|status)", text, re.I | re.M):
         bad.append("no `| # | Check | Evidence | ✅/WAIVED |` table -- this is not the artefact "
                    "`docs/wave-checklist.template.md` produces")
-    # v4.3.2, SECOND PASS (audit B1). This rewrite ADDED the signed-footer requirement and, in the
-    # same change, narrowed the placeholder scan from "the whole file" (what the old five-line Makefile
-    # recipe did) to "table cells only". Net effect: a close whose signature line still read
-    # `Filled by: <agent> · Date: <YYYY-MM-DD>` PASSED, where v4.3 had failed it.
-    # **The round that made the signature mandatory removed the check that made it real.**
-    # The footer is signed only if it carries no placeholders.
+    # The footer is signed only if it carries no placeholders: requiring a sign-off line while
+    # accepting `Filled by: <agent>` makes the signature decoration.
     footer = re.search(r"^.*Filled by:.*$", text, re.I | re.M)
     if footer and PLACEHOLDER.search(footer.group(0)):
         bad.append(f"the sign-off line is still a template: `{footer.group(0).strip()[:70]}` -- an "
                    "unsigned close names nobody and no commit range, so its evidence cannot be scoped")
-    # v5.0 — the wave footprint. NOT a rule about parallelism: no check here compares one wave's paths
-    # to another's, and none will until two milestones have filled these in. It is a rule that the
-    # RECORD gets filled, because a metadata field nobody is asked for is the sediment this release
-    # spent a day removing. The question it will eventually answer -- can waves run as parallel
-    # subagents -- needs measurement, and measurement needs a collector.
-    # v5.1 (Increment 15, Block D). Three more recorded fields, same shape as the footprint:
-    #  P-1  Mutant set author -- 23/23=100% self-designed read exactly like evidence next to 12/47=25.5%
-    #       independent over the same range. A self-designed set is supporting evidence, never sufficient.
-    #  P-11 Observed RED -- three tests written to close review findings could not fail (fixtures never
-    #       reached what they asserted). "A test exists" and "a test can fail" are different claims;
-    #       the row now records the mutation and which assertion went red.
-    #  Owner instruction -- the measured failure direction was an agent substituting its own better
-    #       idea for the owner's stated requirement, TWICE, while every control stayed green. The
-    #       checklist quotes the instruction verbatim so the diff between asked and built is visible
-    #       in the artefact instead of only in the owner's reaction.
-    # model_ranking, DevFlow v6.0 adoption (D-155). The three v5.1 fields below are required of a
-    # record that declares a process version AFTER v5.0. This project's 41 wave records declare
-    # v5.0 and were written before the fields existed; GPF-001 rules that a tool may not
-    # retroactively invalidate them. A record with no declared version keeps the full rule.
-    declared = re.search(r"^process_version:\s*(\S+)", text, re.M)
+
+    # The wave footprint: recorded from the diff at close, not from the plan. Plan-time paths are a
+    # prediction, close-time paths a measurement. `Mutant set author` keeps a self-designed
+    # fault-injection set from reading like independent evidence; `Observed RED` records that a
+    # test can fail, not only that it exists; `Owner instruction` quotes what was asked, so the
+    # difference between asked and built is visible in the record.
+    #
+    # Graded by the version the RECORD declares, never by today's template: a wave close is
+    # append-only evidence, and grading an earlier close by rules written later turns every one of
+    # them red after an upgrade (UPGRADING.md). A record that declares no version gets today's
+    # rules. What this gives up: a NEW record could declare an old version to skip a rule; the
+    # template and `/close-wave` write the current version, and a backdated one shows in the diff.
+    vm = re.search(r"^process_version:\s*v?(\d+(?:\.\d+)*)\s*$", text, re.M)
+    version = tuple(int(x) for x in vm.group(1).split(".")) if vm else None
+    # model_ranking (D-155 adoption review MINOR-1, D-161; v6.6 upgrade review MAJOR-1/2): the
+    # hole the paragraph above names is closed by REFUSING it, not by regrading. A close with no
+    # date, or dated after the day this project reached DevFlow v6.6, must declare v6.6 or later;
+    # it is then graded by the version it declares, so a DevFlow release adding a field later does
+    # not turn it red. A close dated on or before that day keeps what it declares (GPF-001).
     dated = re.search(r"^date:\s*(\d{4}-\d{2}-\d{2})", text, re.M)
-    # Adoption review MINOR-1: a DECLARED version alone let a record written later claim the old
-    # template. The skip also needs a date on or before the DevFlow adoption.
-    pre_v51 = (declared is not None and declared.group(1) in {"v5.0", "v4.3", "v4.3.1", "v4.2", "v4.1"}
-               and dated is not None and dated.group(1) <= "2026-09-23")
-    later = {"Mutant set author", "Observed RED", "Owner instruction"}
-    for field, why in (("Touched", "which paths this wave actually changed"),
-                       ("Mutant set author", "who designed the fault-injection set (self-designed = supporting evidence only, P-1)"),
-                       ("Observed RED", "the mutation and the assertion that failed for the cited reason (P-11)"),
-                       ("Owner instruction", "the owner's words, verbatim, that this wave implements"),
-                       ("K.8 contracts", "which shared interfaces it changed, or NONE")):
-        if pre_v51 and field in later:
+    if (vm is not None and version is not None and version < CURRENT_AT_ADOPTION
+            and (dated is None or dated.group(1) > DEVFLOW_ADOPTED)):
+        bad.append(f"declares process_version {vm.group(1)} but is "
+                   f"{'undated' if dated is None else 'dated ' + dated.group(1)}: a close written "
+                   f"after {DEVFLOW_ADOPTED} declares v{'.'.join(map(str, CURRENT_AT_ADOPTION))} or "
+                   "later -- an older stamp would skip the rules written since (D-161)")
+
+    def since(*v: int) -> bool:
+        return version is None or version >= v
+
+    for field, why, introduced in (
+            ("Touched", "which paths this wave actually changed", (5, 0)),
+            ("Mutant set author", "who designed the fault-injection set (self-designed = supporting evidence only)", (5, 1)),
+            ("Observed RED", "the mutation and the assertion that failed for the cited reason", (5, 1)),
+            ("Owner instruction", "the owner's words, verbatim, that this wave implements", (5, 1)),
+            ("K.8 contracts", "which shared interfaces it changed, or NONE", (5, 0)),
+            ("Stopped at three attempts", "each problem this wave stopped on after three failed "
+             "attempts, with the bug issue that now carries it, or NONE", (6, 6))):
+        if not since(*introduced):
             continue
         m = re.search(rf"^\s*{re.escape(field)}:\s*(.*)$", text, re.M)
         if not m:
             bad.append(f"no `{field}:` line -- record {why}, from the diff and not from the plan")
         elif (not m.group(1).strip() or PLACEHOLDER.search(m.group(1))
-              # A template placeholder is anything still wrapped in <angle brackets>, whatever its
-              # punctuation. The narrow PLACEHOLDER class missed `<who designed ...; ... (P-1)>`
-              # because of the semicolon -- an unfilled field passed the first falsification run of
-              # this very change. The check exists BECAUSE fields go unfilled; it cannot be pickier
-              # about placeholder spelling than templates are.
+              # Anything still wrapped in <angle brackets> is a template placeholder, whatever its
+              # punctuation: the check cannot be pickier about placeholder spelling than templates.
               or (m.group(1).strip().startswith("<") and m.group(1).strip().endswith(">"))):
             bad.append(f"`{field}:` is still a placeholder -- record {why}. Plan-time paths are a "
                        "prediction; close-time paths are a measurement")
@@ -293,14 +354,11 @@ def main(argv: list[str]) -> int:
         bad.append("no signed footer (`Filled by: … Date: … Wave commit range: …`) -- an unsigned "
                    "close names nobody and no commit range, so its evidence cannot be scoped")
 
+    # Rows are the checklist's own table only: parsing starts at its `| # | Check |` header and
+    # stops at the first non-table line. Scoring every table in the record as checklist rows made
+    # authors rewrite legitimate structure as bullets to appease the tool.
     rows = evidence_less = 0
-    # v5.1 (harvest 2 B.5 / P-10). Parsing EVERY pipe-line as a checklist row meant any other table in
-    # the record -- a "claimed vs independently measured" comparison, say -- was scored as unevidenced
-    # checklist rows and failed the file. The field cost: authors rewrote legitimate structure as
-    # bullet lists to appease the tool. **A validator that punishes structure teaches people to put
-    # less structure in records.** Rows are now anchored to the checklist's own header table: parsing
-    # starts at the `| # | Check |...` header and stops at the first non-table line. Other tables are
-    # someone else's business.
+    review_waived = False            # the Code-Reviewer row is WAIVED: the independence out
     in_checklist = False
     for i, line in enumerate(text.splitlines(), 1):
         stripped = line.lstrip()
@@ -317,28 +375,25 @@ def main(argv: list[str]) -> int:
         if len(cells) < 3 or set("".join(cells)) <= set("-: "):
             continue
         rows += 1
-        # Match on the FIRST TOKEN, because Block D requires a skip to be written
-        # `SKIPPED NO-ENVIRONMENT` -- and an exact-match test rejected the very format the rule above
-        # it demands. Two rules in one file disagreeing about their own syntax is how a control gets
-        # a reputation for being wrong, and a control with that reputation stops being run.
-        # Scanning ALL cells let a row whose DESCRIPTION began with a status word satisfy the check
-        # with an empty verdict cell. The verdict is the last cell; that is the only one that counts.
+        # The verdict is the LAST cell, matched on its first token so `SKIPPED NO-ENVIRONMENT`
+        # is legal. Scanning every cell let a description that began with a status word stand in
+        # for an empty verdict.
         last = cells[-1].upper().split()
         status = last[0] if last and last[0] in STATUSES else None
+        if status == "WAIVED" and "Code-Reviewer" in cells[1]:
+            review_waived = True
         if last and last[0] in FAIL_STATUSES:
             bad.append(f"line {i}: row `{cells[0][:38]}` is {last[0]} -- a wave does not close with a "
                        "failed gate. Fix it, or WAIVE it in the ledger with a reason")
         elif status is None:
             bad.append(f"line {i}: row `{cells[0][:38]}` carries no status in {sorted(STATUSES)}")
         elif status in ("SKIPPED", "WAIVED") and not re.search(r"PRESSURE|NO-ENVIRONMENT|ledger", line, re.I):
-            # v4.3 Block D: a skip must declare which kind it is, or it is invisible to the 3x trigger
+            # an undeclared skip is invisible to the three-strikes count
             bad.append(f"line {i}: SKIPPED without PRESSURE or NO-ENVIRONMENT -- an undeclared skip is "
                        "how the contract suite was skipped five times and nothing counted")
-        # A NO-ENVIRONMENT skip has no command output by definition -- Block D asks it for something
-        # else: who runs it, where, and when it last ran green. A DATE is that evidence. Demanding a
-        # backticked path from a row that could not run is how a correct answer gets marked wrong, and
-        # a gate that fails correct work gets switched off. (Caught by the positive fixture, which is
-        # why the positive fixture exists.)
+        # A NO-ENVIRONMENT skip has no command output by definition; a DATE (when it last ran
+        # green, who runs it) is its evidence. Demanding a path from a row that could not run marks
+        # a correct answer wrong.
         ev = " ".join(cells[1:])
         has_ev = ("`" in ev or "http" in ev or re.search(r"\w+\.\w+:\d+", ev)
                   or (status in {"SKIPPED", "N/A", "WAIVED"} and re.search(r"\d{4}-\d{2}-\d{2}", ev)))
@@ -364,17 +419,11 @@ def main(argv: list[str]) -> int:
     elif evidence_less:
         bad.append(f"{evidence_less} of {rows} row(s) carry no evidence (a backticked path, a "
                    "`file:line`, or a URL). An unevidenced PASS is an opinion")
-    # Placeholders are only meaningful INSIDE TABLE CELLS -- what the filler was supposed to replace.
-    # The template's own guidance prose contains `<list>` as an instruction, and a gate that fails a
-    # correctly filled checklist because the template explained itself is a gate that gets deleted.
-    # (Caught by filling the real template, which is the test that should have been written first.)
+    # Placeholders count only in the cells the filler owns -- evidence and verdict. Column 2 is the
+    # template's own description of the check and legitimately contains guidance like `<list>`.
     for i, line in enumerate(text.splitlines(), 1):
         if not line.lstrip().startswith("|"):
             continue
-        # Only the cells the FILLER owns -- evidence and verdict. Column 2 is the template's own
-        # description of the check and legitimately contains guidance like `<list>`; failing a
-        # correctly filled checklist because the template described itself is how a gate loses its
-        # audience. (Found by filling the real template rather than trusting the fixture.)
         owned = " | ".join([c.strip() for c in line.strip().strip("|").split("|")][2:])
         for m in PLACEHOLDER.finditer(owned):
             if m.group(0).lower() in ("<br>", "<br/>", "<sub>", "<code>", "<details>", "<summary>"):
@@ -385,38 +434,88 @@ def main(argv: list[str]) -> int:
             continue
         break
 
-    # v5.1 (P-9 + the skip ledger, merged per PM). V4C-13's three-strikes trigger has existed since
-    # v4.0 and has never once fired by mechanism -- it fired ONCE, because one scrupulous author
-    # hand-wrote "this is the third" into a record, and even that hand count was wrong (two records
-    # both claimed "second"). A counter nobody counts is prose. `docs/control-events.csv` is ONE
-    # machine-readable ledger for skips AND bypasses; three rows naming the same control turn this
-    # gate red -- the control goes under review, not the people.
-    ledger = pathlib.Path("docs/control-events.csv")
-    if ledger.is_file():
+    # `docs/control-events.csv` is the ONE ledger of skips and bypasses, and the only one a gate
+    # counts; wave-checklist row 9 summarises it. Three rows naming the same control turn this
+    # gate red: the CONTROL goes under review, not the people. A counter nobody counts is prose.
+    ledger_waves: set = set()        # the waves the ledger has a row for
+    if LEDGER.is_file():
         from collections import Counter
         counts: Counter = Counter()
-        for ln in ledger.read_text(encoding="utf-8", errors="replace").splitlines():
+        for ln in LEDGER.read_text(encoding="utf-8", errors="replace").splitlines():
             if ln.startswith("#") or ln.lower().startswith("control,") or not ln.strip():
                 continue
             cells = [c.strip() for c in ln.split(",")]
+            if len(cells) >= 2:
+                ledger_waves.add(cells[1])
             if len(cells) >= 3 and cells[2].lower() in ("skip", "bypass"):
                 counts[cells[0]] += 1
         for control, n in sorted(counts.items()):
             if n >= 3:
-                bad.append(f"`{control}` has {n} recorded skip/bypass events in docs/control-events.csv "
-                           "-- V4C-13's threshold. The CONTROL goes under review before this wave "
+                bad.append(f"`{control}` has {n} recorded skip/bypass events in {LEDGER} -- three "
+                           "is the review threshold. The CONTROL goes under review before this wave "
                            "closes: fix it, re-scope it, or refuse it in docs/refusals.md. Do not "
                            "record a fourth")
-    else:
-        # SKIPPED/WAIVED rows demand the ledger exist -- a waiver with no counter is how five skips
-        # went unread in the field until six engine defects surfaced at the owner gate.
-        if re.search(r"\|\s*(SKIPPED|WAIVED)\b", text):
-            bad.append("this checklist carries SKIPPED/WAIVED rows but docs/control-events.csv does "
-                       "not exist -- a skip that is not counted is a skip that becomes permanent. "
-                       "Create the ledger (header: control,wave,kind,reason,date) and record each one")
+    elif re.search(r"\|\s*(SKIPPED|WAIVED)\b", text):
+        bad.append(f"this checklist carries SKIPPED/WAIVED rows but {LEDGER} does not exist -- a skip "
+                   "that is not counted is a skip that becomes permanent. Create the ledger "
+                   "(header: control,wave,kind,reason,date) and record each one")
+
+    # Every wave closes on TWO fresh-eyes reviews, as separate subagents -- Code-Reviewer, then
+    # Tester (`/close-wave`). Both verdict files must exist beside the checklist
+    # (`<dir>/../reviews/`), each with a `## Verdict`, and neither may be BLOCKING. Required from
+    # process_version v6.0.1, the first template that asked for them.
+    m = NAME_RE.match(p.name)
+    ids = re.match(r"m(\d+)-wave-(\d+)", p.name)
+    wave_id = f"m{ids.group(1)}-w{ids.group(2)}" if ids else ""
+    dispositions = findings_table(text)
+    if m and since(6, 0, 1):
+        reviews = p.resolve().parent.parent / "reviews"
+        stem = p.name[: -len("-close.md")]
+        for kind, who in (("review", "Code-Reviewer"), ("tester", "Tester")):
+            f = reviews / f"{stem}-{kind}.md"
+            if not f.is_file():
+                bad.append(f"no {who} verdict at `{f.parent.name}/{f.name}` -- a wave closes on two "
+                           "separate fresh-eyes reviews; run `/close-wave`")
+                continue
+            body = f.read_text(encoding="utf-8", errors="replace")
+            v = re.search(r"^##\s*Verdict\s*\n+\s*(PASS|MINOR|BLOCKING)\b", body, re.M)
+            if not v:
+                bad.append(f"`{f.name}` carries no `## Verdict` of PASS / MINOR / BLOCKING")
+            elif v.group(1) == "BLOCKING":
+                bad.append(f"`{f.name}` is BLOCKING -- flush the fixes and re-review before the wave closes")
+            # From v6.5 each verdict DECLARES that its reviewer did not write the code under review.
+            # A declaration, not a proof: no file can show which session wrote it. What it buys is
+            # that the claim is made in writing, by the reviewer, where a false one can be found.
+            # The author reviewing is legal only as a waiver the ledger counts.
+            if since(6, 5) and not (review_waived and wave_id in ledger_waves) and not re.search(
+                    r"^\s*\*\*Independent:\*\*[ \t]*yes\b", body, re.M | re.I):
+                bad.append(f"`{f.name}` does not declare `**Independent:** yes` -- a reviewer that "
+                           "wrote the code cannot close the wave; if the author reviewed, mark the "
+                           "row WAIVED with a row in docs/control-events.csv")
+            # From v6.6 a finding the wave does not fix leaves the wave as an issue. Every finding
+            # in a MINOR / K.9 / queued-risk section carries an id (`**M1**`), and the checklist's
+            # findings table says what happened to each: fixed here, filed, or refused with a
+            # reason. Before this, review findings were "queued to next M" inside a file nobody
+            # queried -- one field project wrote 99 review files and filed no issue from them.
+            if since(6, 6):
+                found, unnamed = deferrable_findings(body)
+                if unnamed:
+                    bad.append(f"`{f.name}` has {unnamed} MINOR/K.9/queued finding(s) with no id -- "
+                               "start each with `**M1**` (MINOR), `**K1**` (K.9) or `**R1**` (risk) "
+                               "so the checklist can say what happened to it")
+                for fid in found:
+                    key = f"{kind} {fid.lower()}"
+                    d = dispositions.get(key)
+                    if d is None:
+                        bad.append(f"`{f.name}` finding {fid} has no row in the checklist's findings "
+                                   f"table (`| {kind} {fid} | ... |`) -- fix it in this wave and cite "
+                                   "the commit, or /file-issue it and cite the number")
+                    elif not DISPOSITION.match(d):
+                        bad.append(f"finding `{kind} {fid}` has disposition `{d[:40]}` -- write fixed "
+                                   "`<sha>`, `#<issue>`, or `refused — <why the finding is wrong>`")
 
     for b in bad:
-        print(f"FAIL [V3C-69]: {b}")
+        print(f"FAIL [wave-check]: {b}")
     if bad:
         return 1
     print(f"wave-check PASS: {p} ({rows} row(s), all evidenced and statused)")
