@@ -20,16 +20,23 @@ registration (P4).
   also removed `-vN`, everything after `:` or `@`, and any vendor head. That merged products:
   deepseek-coder-v2's score was priced as `deepseek-coder`, and three Mistral 7B versions were
   priced as one. Now only these are removed:
-  - Bedrock's `-v1`/`-v1:0` tag, after a Bedrock-style prefix;
+  - Bedrock's `-v1:0` tag, after a Bedrock-style prefix;
   - `:batch`, `:free`, `:nitro`, `:floor` and `:exacto`;
   - `@default` and `@latest`;
   - a vendor head, before that vendor's own family word.
 
   Everything else stays a name token, so the remaining failure is a SPLIT.
-- **What the grammar cannot see.** Two sources that spell a name identically are one model to it.
-  Where a vendor reused one name for two releases, the sources themselves do not say which one they
-  mean: `claude-3.5-sonnet` (2024-06 and 2024-10), and `mistral-7b-instruct`, undated on both
-  Arena and OpenRouter. Only a curated rule can split those.
+- **What the grammar cannot see.** Two names that are identical once the route and the listed
+  decorations are removed are one model to it. Where a vendor reused one name for several releases,
+  or keeps an alias that moves to each new release, the sources themselves do not say which one they
+  mean. The re-review (`docs/reviews/m16-wave-4-rereview.md`, MINOR-1) counted about thirteen such
+  registered ids:
+  - `claude-3.5-sonnet` (2024-06 and 2024-10) and `mistral-7b-instruct`, undated on both Arena and
+    OpenRouter;
+  - moving aliases such as `deepseek-chat`, `deepseek-reasoner`, `command-r`, `command-r-plus`,
+    `mistral-medium`, `gpt-4-turbo`, `o1-mini` and `claude-instant`.
+
+  Only a curated rule can split those. They are the first candidates for one.
 - **Claude Fable 5.1.** `assistant`'s top score (1507.6) was credited to Fable 5 by the leak P3
   fixed. It is Fable 5.1's.
 
@@ -74,8 +81,8 @@ registration (P4).
 ## Why the nightly refresh will not publish this by itself
 
 D-132 refuses the candidate on two guards (review MINOR-3), and both are the guard working:
-- **New names:** a surface where more than 25% of the models were never served. `assistant` is 123 of
-  188, `expert` 66%, down to `agentic-coding` 28%.
+- **New names:** a surface where more than 25% of the models were never served. `assistant` is about
+  124 of 189 (it moves a little with the live upstreams), `expert` 66%, down to `agentic-coding` 28%.
 - **The median price:** eight surfaces move more than 25%. `assistant` goes $2.95 → $0.83 (-72%),
   because the derived roster adds many older, cheaper models. Every "cheaper by N%" sentence the app
   composes is relative to that median, so the owner sees this before publishing.

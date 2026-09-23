@@ -332,7 +332,7 @@ def resolve_effort(model_name: str, explicit: str | None = None) -> EffortResolu
 #
 # The grammar removes DECORATION only, from a CLOSED list: the route a price feed puts in front of a
 # model; `:batch`, `:free`, `:nitro`, `:floor`, `:exacto`; `@default`, `@latest`; a region head; a
-# vendor head only before that vendor's own family word; Bedrock's `-v1`/`-v1:0` only after such a
+# vendor head only before that vendor's own family word; Bedrock's `-v1:0` only after such a
 # head; Epoch's underscore effort; and separator spelling. Every other token stays -- `-v2`, `@002`,
 # `:thinking`, `:high`, a date -- so the failure it can have is a SPLIT (the ADR's stated cost).
 # The first version stripped any `-vN` and anything after `:` or `@`, and merged deepseek-coder-v2
@@ -399,7 +399,7 @@ def _decorated(text: str, mark: str, decoration: frozenset[str]) -> str:
 
 def _without_heads(text: str) -> tuple[str, bool]:
     """Region and vendor dotted heads removed (a vendor only before its own family word), and
-    whether any was: Bedrock's `-v1` API tag is decoration only on such a routed name."""
+    whether any was: Bedrock's `-v1:0` API tag is decoration only on such a routed name."""
     routed = False
     while True:
         head, dot, rest = text.partition(".")
@@ -427,7 +427,8 @@ def derive_identity(name: str) -> DerivedIdentity | None:
     text = _decorated(text, "@", _AT_DECORATION)
     text, routed = _without_heads(text)
     if routed:
-        text = re.sub(r"-v1(?::0)?\Z", "", text)     # Bedrock's API tag, and only after its prefix
+        text = re.sub(r"-v1:0\Z", "", text)          # Bedrock's API tag, only after its prefix;
+        # a bare `-v1` there is a model version (`anthropic.claude-v1`, Claude 1: re-review NIT-1)
     text = _decorated(text, ":", _COLON_DECORATION)
     text = re.sub(r"[\s_]+", "-", text).strip("-")
     text = re.sub(r"(?<=\d)-(\d)(?=-|\Z)", r".\1", text)  # `opus-5-5` is 5.5; `3-235b` is not

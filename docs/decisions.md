@@ -2633,11 +2633,13 @@ revisit trigger fired before merge: the first grammar removed any `-vN`, everyth
 and any vendor head, and so merged products (deepseek-coder-v2 priced as `deepseek-coder`; three
 Mistral 7B versions as one). Clause 2's decoration is now a CLOSED list -- the route; `:batch`,
 `:free`, `:nitro`, `:floor`, `:exacto`; `@default`, `@latest`; a region head; a vendor head only before
-its own family word; Bedrock's `-v1`/`-v1:0` only after such a head; Epoch's underscore effort;
+its own family word; Bedrock's `-v1:0` only after such a head; Epoch's underscore effort;
 separator spelling -- and every other token stays, so clause 3 holds by construction again. A fine-tune
 (`ft:`) is never derived. **The residual, stated:** names two sources spell identically are one model
 to the grammar, even where a vendor reused the name for two releases (`claude-3.5-sonnet`,
-`mistral-7b-instruct`); only a curated rule splits those.
+`mistral-7b-instruct`) or keeps a moving alias (`deepseek-chat`, `o1-mini`; about thirteen registered
+ids, `docs/reviews/m16-wave-4-rereview.md` MINOR-1); only a curated rule splits those. Clause 2's
+"dates ... removed" was never true of the code and is withdrawn: no date is removed.
 
 ---
 
