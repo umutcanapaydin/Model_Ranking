@@ -77,7 +77,7 @@ floors in `categories.py`; which rule each tie margin follows (D-148 clause 2).
   reproduces the W1 review's numbers for the M8 surfaces.
 - [x] **P5 — the table and the ruling.** Before/after per surface: floor, and whether Budget Pick or
   Best Value changes at each budget. Put to the owner; nothing changes until ruled.
-- [ ] **P6 — the ruled floors.** `categories.py` floors and header comment; `agentic-coding` states its
+- [x] **P6 — the ruled floors.** `categories.py` floors and header comment; `agentic-coding` states its
   effort population; each tie margin names the rule it follows (D-148 clause 2).
 - [ ] **Close** — `/repo-review` on the branch, independent review (MED: one combined seat),
   the wave-close record (m16-wave-3-close), `/pre-merge`. This plan file is deleted before the merge.

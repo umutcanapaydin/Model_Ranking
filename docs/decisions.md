@@ -2124,6 +2124,11 @@ what a surface recommends, so it is a calibration wave with its own review, owne
 are the two thinnest boards), or M16's re-derivation shows the rule refusing a model a reader would
 reasonably want.
 
+*Applied 2026-09-23 (M16-W3).* Every surface's floor is re-derived under clause 1 from the served
+artifact (`docs/research/m16-w3-floor-table-2026-09-23.md`, `scripts/survey_boards.py --floors`).
+Nine floors move; one pick changes (`agentic-coding`'s Budget Pick at `medium` and `unlimited`), and
+the owner ruled that surface under the same rule, so no surface is an exception.
+
 
 ## D-149 — One application: the engine refreshes itself, and the app can ask it to
 

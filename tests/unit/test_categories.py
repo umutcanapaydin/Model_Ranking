@@ -516,10 +516,13 @@ def test_a_board_only_reaches_its_own_surface_through_the_ranking_query() -> Non
 #: correction (`docs/reviews/m15-category-calibration.md`, correction of 2026-09-22). M15-W3 review
 #: m-1 and W4 review MINOR-2: only the anchors were pinned, so moving a floor or putting a
 #: corrected margin back to its old value passed every test.
+#: The margins and windows are the M15 calibration record's. The FLOORS of `vision` and
+#: `search_factuality` moved in M16-W3 under D-148 (record `docs/research/m16-w3-floor-table-2026-09-23.md`,
+#: pinned by `test_floor_rule.py`); `search`'s did not move.
 PINNED_M15_THRESHOLDS = {
-    "vision": (1248.2, 7.8, 31.2),
+    "vision": (1253.3, 7.8, 31.2),
     "search": (1206.9, 6.5, 25.9),
-    "search_factuality": (1203.7, 4.9, 19.5),
+    "search_factuality": (1202.1, 4.9, 19.5),
 }
 
 
