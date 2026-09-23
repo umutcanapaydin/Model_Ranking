@@ -43,7 +43,7 @@ _check_python:
 # controls whose discovery produced "a declared control that silently passes is worse than an absent
 # one." They are on `docs/watchlist.md` with their triggers, and they come back the day a project can
 # actually run them. **Unprovable here is not the same as wrong -- but it is not a control either.**
-.PHONY: closure-check shell-dialect harvest-context harvest-context-check falsify bootstrap-check check check-records check-records-selftest  clean cold-start conformance deps export-project format gate help install install-check  journey lint run secrets slopsquat smoke-deps standup test typecheck wave-check \
+.PHONY: check-fast swift-test-parallel closure-check shell-dialect harvest-context harvest-context-check falsify bootstrap-check check check-records check-records-selftest  clean cold-start conformance deps export-project format gate help install install-check  journey lint run secrets slopsquat smoke-deps standup test typecheck wave-check \
 	swift-test client-decls coverage-floor wave-check-all
 
 help:  ## this list, generated from the ## annotations (a hand-written help drifts on the first cut)
@@ -173,6 +173,26 @@ swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING so
 	fi
 
 check: lint typecheck test coverage-floor check-records check-records-selftest install-check harvest-context-check shell-dialect wave-check-all conformance swift-test client-decls
+
+check-fast: install  ## the same gates as `check`, side by side (~3x faster); `check` stays the merge gate
+	@# Owner, 2026-09-23, after hcs_maas_full's `check-fast`. The legs are READ from `check:`'s line
+	@# above, so the two cannot drift apart; the reasons and the timings are in scripts/check_fast.py.
+	@$(PY) -B scripts/check_fast.py --make "$(MAKE)"
+
+swift-test-parallel:  ## `swift-test` for `check-fast`: the same suite with --parallel, judged from xUnit
+	@# `swift test --parallel` prints no `Executed N tests` line, and a serial run writes no xUnit
+	@# report, so this leg reads the report: failures, skips, and EXACTLY the manifest's tests
+	@# (scripts/swift_xunit_gate.py). The report is removed first so a stale one cannot pass.
+	@# A skip is read from the SOURCES: measured, `--parallel` reports a skipped test as passed.
+	@if command -v swift > /dev/null 2>&1; then \
+		mkdir -p build; rm -f build/swift-xunit.xml; \
+		out=`cd ios && swift test --parallel --xunit-output ../build/swift-xunit.xml 2>&1`; rc=$$?; \
+		echo "$$out" > build/swift-test-parallel.log; \
+		[ $$rc -eq 0 ] || { echo "$$out" | grep -E "error:|failed|✘" | head -30; echo "(full swift output: build/swift-test-parallel.log)"; exit 1; }; \
+		$(PYTHON) -B scripts/swift_xunit_gate.py build/swift-xunit.xml $(SWIFT_TEST_MANIFEST) $(dir $(SWIFT_TEST_MANIFEST)); \
+	else \
+		echo "swift-test SKIPPED NO-ENVIRONMENT: no swift toolchain on PATH"; \
+	fi
 
 client-decls: install  ## W-122 / D-126: the privacy invariant checked against RESOLVED declarations
 	@# Six rounds of a word list over the client were each bypassed by the next seat -- backticks,
