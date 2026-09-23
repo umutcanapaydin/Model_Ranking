@@ -81,3 +81,25 @@ def test_a_missing_empty_or_unreadable_report_fails_closed(tmp_path: Path, conte
 def test_an_empty_manifest_fails_closed(tmp_path: Path) -> None:
     """A floor of zero passes a suite that ran nothing: the comparison must have something to hold."""
     assert _gate().problems(_report(tmp_path, []), _manifest(tmp_path, []))
+
+
+def test_a_skip_in_the_test_sources_fails(tmp_path: Path) -> None:
+    """Measured 2026-09-23: `swift test --parallel` reports a skipped test as passed -- no marker in
+    the output, none in the xUnit report. So the parallel leg reads the SOURCES for the two calls
+    that let a test end without asserting. A text scan an alias can evade: `make check` (serial)
+    remains the merge gate, and it sees a skip at run time."""
+    sources = tmp_path / "Tests"
+    sources.mkdir()
+    (sources / "ATests.swift").write_text("func testOne() throws { try XCTSkipIf(true) }\n",
+                                          encoding="utf-8")
+    problems = _gate().problems(_report(tmp_path, MANIFEST), _manifest(tmp_path), sources)
+    assert any("XCTSkip" in p for p in problems)
+    (sources / "ATests.swift").write_text("func testOne() { XCTExpectFailure() }\n", encoding="utf-8")
+    assert any("XCTExpectFailure" in p
+               for p in _gate().problems(_report(tmp_path, MANIFEST), _manifest(tmp_path), sources))
+
+
+def test_the_real_test_sources_carry_no_skip() -> None:
+    root = Path(__file__).resolve().parents[2]
+    report_free = _gate().skip_calls(root / "ios" / "EngineTests")
+    assert report_free == []
