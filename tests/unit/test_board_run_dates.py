@@ -86,7 +86,7 @@ def test_the_terminalbench_column_actually_parses(tmp_path: Path) -> None:
     csv.write_text(
         "Model version,Accuracy mean,Release date,Run date\n"
         "Claude Opus 4.7,0.512,2026-01-15,2025-10-31\n"
-        "GPT-5.6 Sol,0.488,2026-02-01,2025-11-02\n"
+        "GPT-5.6 Sol,0.488,2026-02-01,2025-11-02\n", encoding="utf-8"
     )
     board = EpochBoard(
         file="terminalbench_external.csv",
@@ -96,7 +96,7 @@ def test_the_terminalbench_column_actually_parses(tmp_path: Path) -> None:
         score_column="Accuracy mean",
         date_column=BOARDS["epoch_terminalbench"].date_column,
     )
-    rows, _ = parse_board(csv.read_text(), board)
+    rows, _ = parse_board(csv.read_text(encoding="utf-8"), board)
     dates = [row.run_date for row in rows]
     assert dates == [
         "2025-10-31",

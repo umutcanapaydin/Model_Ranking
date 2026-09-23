@@ -25,16 +25,13 @@
 | D-E | Public API + refresh jobs | service | M4 | deploy gate: Stage 4.0 Security PASS |
 | D-F | iOS advisor app | App Store build | M5 | separate plan/brief |
 
-## Internal deliverables (Phase exit / handover)
+## Internal deliverables
 
 | ID | Artifact | Status | Notes |
 |---|---|---|---|
-| I-A | `handover-to-prod-agent.md` | proposed | Operator runbook for post-build agent (created at M_final-1) |
-| I-B | Quarterly handovers (`handover_q1..q4.txt`) | proposed | Generated via `/cycle-close` at every 3rd milestone closure (the quarterly-handover skill until DevFlow v6.0) |
-| I-C | G.12 retrospectives (`m{N}-retrospective.md`) | proposed | Generated via `/cycle-close` at M≥3 (the retrospect skill until DevFlow v6.0) |
+| I-A | `docs/retrospective.md` | optional | One retrospective when the work is done (`/cycle-close`, Stage 5.3) — never during it |
 
 ## Cadence
 
-- Per-milestone closure: process-log + retrospect (M≥3) + Quality Gate output + closure report — **owner's 60-90 min review session happens HERE (A0.5)**
-- Quarterly closure: `handover_q{N}.txt` (M3, M6, M9, M12 …)
-- Phase exit: final roadmap snapshot + handover-to-prod-agent doc
+- Per-milestone closure: process-log + ADRs + EXPERIENCE entry (+ the Quality Gate output, if the owner turned it on)
+- Release (once, when the work is done): security review, deploy + go-live, final roadmap snapshot

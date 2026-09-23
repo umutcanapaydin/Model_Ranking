@@ -366,7 +366,7 @@ def read_export_csv(path: Path) -> list[dict[str, str]]:
 
     Metadata only ever precedes the header, so the skip stops at the first non-comment line.
     """
-    lines = path.read_text().splitlines()
+    lines = path.read_text(encoding="utf-8").splitlines()
     start = 0
     while start < len(lines) and lines[start].startswith(EXPORT_COMMENT_PREFIX):
         start += 1
@@ -404,7 +404,7 @@ def export_ranking(
     attribution = attributions_for({r.evidence_source for r in ranking}, priced=True)
 
     fields = list(RankingRow.__dataclass_fields__)
-    with csv_path.open("w", newline="") as f:
+    with csv_path.open("w", newline="", encoding="utf-8") as f:
         # REQ-LIC-002. M5's security review left this half unattributed: the JSON cited its sources
         # and the CSV of the SAME RUN cited nothing. A CC-BY obligation ships where the data is
         # served, and this is the file an analyst actually opens — "it is in the other file" is not
@@ -423,5 +423,5 @@ def export_ranking(
         "generated_from": generated_from,
         "rows": dicts,
     }
-    json_path.write_text(json.dumps(payload, indent=2))
+    json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return csv_path, json_path

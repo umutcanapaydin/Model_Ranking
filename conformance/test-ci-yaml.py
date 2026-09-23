@@ -16,11 +16,10 @@ except ImportError:                                    # noqa: F401
     yaml = None
 
 # STDLIB FALLBACK, and the reason is structural rather than convenient. PyYAML is a dev dependency, dev
-# dependencies live in `.venv`, and **the distribution package cannot create one** -- `pyproject.toml`
-# ships `name = "<PROJECT_NAME>"`, which is not a PEP-508 identifier (TB-051). So a governance control
-# that needs PyYAML cannot run in the package that declares it, and `make conformance` reported
-# CANNOT RUN forever. Exiting 0 there would have been the old disease; exiting 2 forever is a gate
-# nobody can pass. **The third option is to not need the dependency.**
+# dependencies live in `.venv`, and **an unnamed starter cannot create one** -- `pyproject.toml`
+# ships `name = "<PROJECT_NAME>"`, which is not a PEP-508 identifier. So a governance control that
+# needs PyYAML could not run in the tree that declares it. Exiting 0 there is a silent pass; exiting
+# 2 forever is a gate nobody can pass. **The third option is to not need the dependency.**
 #
 # This parser handles ONLY the shape GitHub workflows actually use: block mappings, block sequences,
 # `|`/`>` scalars. It REFUSES (exit 2) on anchors, flow collections or multi-document files rather
@@ -126,7 +125,16 @@ def main() -> int:
                  + list((root / ".github" / "workflows").glob("*.yaml")))
     commands = ""
     for wf in wfs:
-        doc = _load(wf.read_text(encoding="utf-8"))
+        # Without PyYAML the fallback parser REFUSES constructs it does not handle -- a test
+        # matrix, the most common thing a project adds. A refusal is not a finding: the check
+        # could not read the file, so it says which file and exits NOT-EVALUABLE (a traceback
+        # would read as "[FAIL] (no output)").
+        try:
+            doc = _load(wf.read_text(encoding="utf-8"))
+        except ValueError as exc:
+            print(f"test-ci-yaml NOT-EVALUABLE: {wf.name} uses a construct the stdlib fallback "
+                  f"parser does not read ({exc}); install PyYAML (`pip install pyyaml`) to grade it")
+            return 2
         for job_name, job in (doc.get("jobs") or {}).items():
             for step in job.get("steps") or []:
                 name, run = str(step.get("name", "")).lower(), step.get("run")
@@ -138,16 +146,16 @@ def main() -> int:
                     if name.startswith(frag) and must not in run:
                         bad.append(f"{wf.name}: job `{job_name}` step \"{step['name']}\" does not run "
                                    f"`{must}` -- it runs `{run.strip().splitlines()[0][:60]}`")
-    # v4.3.2 (audit S7). Name<->command agreement misses the two easiest evasions: DELETE the step,
-    # or RENAME it and change the command. An auditor did both and got PASS. A required-command set
-    # closes that: whatever the steps are called, these must appear somewhere in the workflows.
+    # Name<->command agreement misses the two easiest evasions: DELETE the step, or RENAME it and
+    # change the command. A required-command set closes that: whatever the steps are called, these
+    # must appear somewhere in the workflows.
     REQUIRED = {
         # NOT the bare string "pip-audit" -- that is also present in `pip install pip-audit`, so
         # deleting the step that actually AUDITS still passed. The required fragment has to be the
         # invocation, not the name.
         "pip-audit --strict":        "the dependency CVE audit",
-        "check_records.py --install": "install completeness (M1/M2/M3)",
-        "check_records.py --self-test": "the validator-is-not-a-no-op proof (V4C-32)",
+        "check_records.py --install": "install completeness (M0/M1/M2/M4)",
+        "check_records.py --self-test": "the validator-is-not-a-no-op proof",
         "conformance/run-all.py":    "the conformance suite",
     }
     for frag, why in REQUIRED.items():
@@ -156,7 +164,7 @@ def main() -> int:
                        "Renaming or deleting a step is the easiest way to remove a gate and the "
                        "hardest to notice in a diff")
 
-    # v5.0 (DevOps D-3). Three documents named required checks, no two agreed, and none named
+    # Three documents once named required checks, no two agreed, and none named
     # `install-and-governance` -- so a PR could fail the install and governance gates and merge. One of
     # them required a check called `lint`, which is a STEP inside `test`, not a job: **a required check
     # by a name that never reports blocks nothing while looking like protection.**
@@ -175,7 +183,7 @@ def main() -> int:
             for j in sorted(jobs - named):
                 bad.append(f"job `{j}` runs in ci.yml but is not in docs/branch-protection.md -- an "
                            "unlisted job is one nobody will mark required")
-            for n in sorted(named - jobs - {"governance-contract"}):
+            for n in sorted(named - jobs):
                 bad.append(f"docs/branch-protection.md requires `{n}`, which is not a job in ci.yml. "
                            "A required check that never reports blocks nothing")
 

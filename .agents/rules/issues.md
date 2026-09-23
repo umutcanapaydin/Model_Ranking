@@ -15,7 +15,8 @@ doing the merging cannot read every line.
 
 ## The label vocabulary — and it is closed
 
-Five groups. That is the whole set. **Use one that already exists.** If a new one is genuinely
+Five groups. That is the whole set; `make labels` creates the missing ones once per repository.
+**Use one that already exists.** If a new one is genuinely
 needed, ask before a skill relies on it: *a skill keying on a label nobody created fails
 silently* — which is exactly how one repo's gate labels sat documented-but-absent while every
 issue went unpicked by CI.
@@ -56,14 +57,14 @@ behaves as the stub was *told* to answer.
 | `qa:blocked` | could not be tested at all — environment or seed data, not code | the verifier |
 
 - **Nothing is applied when the PR opens.** At draft-PR time neither state is true, and
- `qa:ready` sends someone after a build that does not exist.
+  `qa:ready` sends someone after a build that does not exist.
 - **Never infer a deploy from a merge.** An agent has no signal for it. Wait to be told.
 - **Swap, never accumulate.** Each transition removes the one before it:
- `gh issue edit <n> --remove-label "dev:done" --add-label "qa:ready"`. Two lifecycle labels on
- one issue reads as two states at once, and a label people cannot trust is worse than none.
+  `gh issue edit <n> --remove-label "dev:done" --add-label "qa:ready"`. Two lifecycle labels on
+  one issue reads as two states at once, and a label people cannot trust is worse than none.
 - **The last three are the verifier's**, never the agent's.
 - Enhancements and documentation are **not** in this pipeline. There, the merge closing the issue
- is correct.
+  is correct.
 
 ## A bug's PR carries no closing keyword
 

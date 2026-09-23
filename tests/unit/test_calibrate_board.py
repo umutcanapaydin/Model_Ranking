@@ -102,7 +102,7 @@ def test_main_counts_models_and_pairs_models_on_a_board_with_two_names_for_one(
 
     assert script.main(["--config", "vision", "--db", str(db), "--out", str(out)]) == 0
 
-    record = json.loads(out.read_text())
+    record = json.loads(out.read_text(encoding="utf-8"))
     assert record["ranked_population"] == 3, record
     assert record["rankable_board_names"] == 4, record
     # Only opus (at its best name, 1301) against gpt-5 overlaps; the name-pairing counted three.

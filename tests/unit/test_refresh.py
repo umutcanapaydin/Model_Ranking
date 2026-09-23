@@ -785,15 +785,15 @@ def test_every_cycle_records_what_it_did(tmp_path: Path) -> None:
     record = status_path(live)
 
     refresh(live, builder=_builder(top_score=74.5), clock=lambda: 1_000.0)
-    assert json.loads(record.read_text())["outcome"] == "published"
+    assert json.loads(record.read_text(encoding="utf-8"))["outcome"] == "published"
 
     refresh(live, builder=_builder(top_score=74.5), clock=lambda: 2_000.0)
-    unchanged = json.loads(record.read_text())
+    unchanged = json.loads(record.read_text(encoding="utf-8"))
     assert unchanged["outcome"] == "unchanged"
     assert unchanged["at"] == 2_000.0, "the record did not move; staleness would be unreadable"
 
     refresh(live, builder=lambda argv: 2, clock=lambda: 3_000.0)
-    failed = json.loads(record.read_text())
+    failed = json.loads(record.read_text(encoding="utf-8"))
     assert failed["outcome"] == "failed"
     assert failed["exit_code"] == EXIT_FAILED
     assert "untouched" in failed["reason"]
@@ -813,7 +813,7 @@ def test_the_record_names_the_surface_that_caused_a_refusal(tmp_path: Path) -> N
         return 0
 
     refresh(live, builder=blinding, clock=lambda: 5_000.0)
-    written = json.loads(status_path(live).read_text())
+    written = json.loads(status_path(live).read_text(encoding="utf-8"))
 
     assert written["outcome"] == "refused"
     assert written["exit_code"] == EXIT_REFUSED
@@ -874,7 +874,7 @@ def test_a_crashed_cycle_records_that_it_crashed(tmp_path: Path) -> None:
 
     live = tmp_path / "advisor.db"
     refresh(live, builder=_builder(top_score=74.5), clock=lambda: 1_000.0)
-    assert json.loads(status_path(live).read_text())["outcome"] == "published"
+    assert json.loads(status_path(live).read_text(encoding="utf-8"))["outcome"] == "published"
 
     def crashing(argv: list[str]) -> int:
         raise RuntimeError("upstream parser bug")
@@ -882,7 +882,7 @@ def test_a_crashed_cycle_records_that_it_crashed(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError):
         refresh(live, builder=crashing, clock=lambda: 99_999.0)
 
-    after = json.loads(status_path(live).read_text())
+    after = json.loads(status_path(live).read_text(encoding="utf-8"))
     assert after["outcome"] == "failed", "a crashed cycle left the previous record asserting health"
     assert after["at"] == 99_999.0, "the record kept the OLD timestamp, so staleness reads as fresh"
     assert "crashed" in after["reason"] and "untouched" in after["reason"]
@@ -913,7 +913,7 @@ def test_a_crash_before_the_build_is_recorded_too(tmp_path: Path) -> None:
     finally:
         refresh_mod.fingerprint_of = original  # type: ignore[assignment]
 
-    written = json.loads(status_path(live).read_text())
+    written = json.loads(status_path(live).read_text(encoding="utf-8"))
     assert written["outcome"] == "failed" and written["at"] == 7_000.0
 
 
@@ -1066,7 +1066,7 @@ def test_the_record_carries_the_numbers_it_decided_on(tmp_path: Path) -> None:
     _outcome, code = refresh(live, builder=_wide_builder(models=12), clock=lambda: 1_000.0)
     assert code == EXIT_PUBLISHED
 
-    written = json.loads(status_path(live).read_text())
+    written = json.loads(status_path(live).read_text(encoding="utf-8"))
     served = fingerprint_of(live)
     assert served is not None
 
@@ -1080,7 +1080,7 @@ def test_the_record_carries_the_numbers_it_decided_on(tmp_path: Path) -> None:
     assert written["live_fingerprint"] is None, "there was no live artifact to have a fingerprint"
 
     refresh(live, builder=_wide_builder(models=12, keep=11), clock=lambda: 2_000.0)
-    again = json.loads(status_path(live).read_text())
+    again = json.loads(status_path(live).read_text(encoding="utf-8"))
     assert again["live_fingerprint"] == served.digest, (
         "the record does not say WHAT was replaced; a reader cannot tell which artifact this "
         "cycle was comparing against"
@@ -1101,7 +1101,7 @@ def test_the_human_readable_timestamp_agrees_with_the_machine_one(tmp_path: Path
 
     live = tmp_path / "advisor.db"
     refresh(live, builder=_builder(), clock=lambda: 1_700_000_000.0)
-    written = json.loads(status_path(live).read_text())
+    written = json.loads(status_path(live).read_text(encoding="utf-8"))
 
     expected = dt.datetime.fromtimestamp(written["at"], tz=dt.UTC).isoformat()
     assert written["at_iso"] == expected, (
@@ -1321,7 +1321,7 @@ def test_consecutive_refusals_are_counted_and_reset(tmp_path: Path) -> None:
 
     for expected, clock in ((1, 100.0), (2, 200.0), (3, 300.0)):
         refresh(live, builder=shrinking, clock=lambda c=clock: c)
-        written = json.loads(status_path(live).read_text())
+        written = json.loads(status_path(live).read_text(encoding="utf-8"))
         assert written["consecutive_refusals"] == expected
         assert written["last_published_at"] is None, "nothing was published, so nothing to date"
 
@@ -1337,7 +1337,7 @@ def test_consecutive_refusals_are_counted_and_reset(tmp_path: Path) -> None:
         return 0
 
     refresh(live, builder=improving, clock=lambda: 400.0)
-    written = json.loads(status_path(live).read_text())
+    written = json.loads(status_path(live).read_text(encoding="utf-8"))
     assert written["consecutive_refusals"] == 0, "the counter did not reset on a publish"
     assert written["last_published_at"] == 400.0, (
         "the artifact's own age is unknowable, so a refresh that cycles happily while refusing "

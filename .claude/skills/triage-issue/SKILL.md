@@ -6,20 +6,23 @@ description: Use when an issue arrives, is reopened, comes back failed from veri
 Read `.agents/rules/issues.md` first — the vocabulary and the pipeline live there.
 
 1. **Reproduce it.** If there is no local runtime, reproduce through the stack or in the test
- image; how you run things is a property of your machine and belongs in
- `.agents/rules/environment.md`, not in this skill.
+   image; how you run things is a property of your machine and belongs in
+   `.agents/rules/environment.md`, not in this skill.
 2. **Label by actual root cause, never the reporter's guess.** One `severity:*` on a `bug`, by
- measured impact. Only labels that already exist.
+   measured impact. Only labels that already exist.
 3. **Post a diagnosis comment** — what is actually wrong, where, and what the reporter saw
- instead. If the answer is "wrong component", say which one; there are no area labels.
+   instead. If the answer is "wrong component", say which one; there are no area labels.
 4. **End with the routing decision**, because it is what everything downstream keys on:
- **is this safe to automate?**
- - yes → `/fix-issue`
- - no, because it needs design judgment, touches a sensitive area, or its scope is not pinned
- down → `/work-issue`
- - larger than one fix → `/work-enhancement`
+   **is this safe to automate?**
+   - yes → `/fix-issue`
+   - no, because it needs design judgment, touches a sensitive area, or its scope is not pinned
+     down → `/work-issue`
+   - larger than one fix → `/work-enhancement`
 
- The verdict is a default, not a lock: a human may take the interactive lane anyway.
+   Write it as the diagnosis comment's **last line, exactly**:
+   `Triage verdict: fix-issue` · `Triage verdict: work-issue` · `Triage verdict: work-enhancement`.
+   That line is what `/fix-issue` checks; a verdict in prose is one nobody can find.
+   The verdict is a default, not a lock: a human may take the interactive lane anyway.
 
 ## When the issue carries `qa:failed`
 

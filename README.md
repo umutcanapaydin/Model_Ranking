@@ -1,8 +1,8 @@
-# model_ranking — LLM Benchmark & Recommendation Engine (DevFlow v6.0)
+# model_ranking — LLM Benchmark & Recommendation Engine (DevFlow v6.4)
 
-> model_ranking: aggregates free-and-legal LLM benchmark + pricing data and produces budget-aware, per-use-case model recommendations, served to its own iOS app. Process: [DevFlow v6.0](https://github.com/SADCAIVibe/DevFlow/tree/v6.0) since 2026-09-23 (D-155); General Pipeline v4.3.1 -> v5.0 before that. `make gate` is everything the pipeline claims to enforce; `make check` is its day-to-day subset.
+> model_ranking: aggregates free-and-legal LLM benchmark + pricing data and produces budget-aware, per-use-case model recommendations, served to its own iOS app. Process: [DevFlow v6.4](https://github.com/SADCAIVibe/DevFlow/tree/v6.4) since 2026-09-23 (D-155, D-161); General Pipeline v4.3.1 -> v5.0 before that. `make gate` is everything the pipeline claims to enforce; `make check` is its day-to-day subset.
 >
-> **★ Fresh agent or new team member?** This is a RUNNING project, so the first question DevFlow asks — new or resuming? — is already answered: resuming. Run `/start-session`, which reads `note.txt`, the latest plan and the latest retrospective and establishes what green looks like before anything changes. Then `AGENTS.md` (the rules). `METHODOLOGY.md` is the reference, not a linear read; `pipeline-schema.html` is the same workflow as a picture.
+> **★ Fresh agent or new team member?** This is a RUNNING project, so the first question DevFlow asks — new or resuming? — is already answered: resuming. Run `/start-session`, which reads `docs/process-log.md` and the latest plan and establishes what green looks like before anything changes. Then `AGENTS.md` (the rules). `pipeline-schema.html` is the same workflow as a picture.
 >
 > **★ Git, in one line (D-999, D-155):** the agent works on a branch and opens a DRAFT pull request; the owner marks it ready and merges. Nothing is pushed to `main` by an agent.
 
@@ -12,73 +12,56 @@
 
 ```bash
 make install     # venv + deps
-make check       # lint + typecheck + test (the gate)
+make hooks       # once per clone: make gate before every push
+make check-fast  # the same legs as make check, side by side -- what the post-edit hook runs
+make check       # the offline half of the gate, in order: the merge gate
 make run         # local dev server
 make standup     # LLM-free project-state dump (per seed C.7)
+make help        # every target, with what it does
 ```
 
 `make check` must be **green on day 1**. If it isn't, fix that before writing any feature code (seed C.1).
 
-## What this is
-
-A starter repo with two layers:
-
-1. **Layer 1 — Starter Package (~60 files)** — opinionated scaffolding from EF-AI Phase-1 + Claude Code harness.
-2. **Layer 2 — Workflow (5 stages)** — Bootstrap → Plan → Wave → Per-Wave Review (Code + Tester; v3 V3C-68) → Closure (Security review is BLOCKING before deploy). Quarterly handover every 3rd milestone.
-
-See `METHODOLOGY.md` for the full design and `pipeline-schema.html` (open in browser) for the visual schema.
-
-For a plain-language overview to share with managers or non-technical stakeholders, see DevFlow's own [README](https://github.com/SADCAIVibe/DevFlow/tree/v6.0); the executive overview stayed with the methodology and is not shipped into a project.
-
-## What's new vs v1.1
-
-- **Hooks** — `.claude/settings.json` enforces 2 baseline rules deterministically.
-- **Skills** — DevFlow's 14 skills under `.claude/skills/`: `/start-session` to resume, `/work-issue` and `/work-enhancement` for a change, `/pre-merge` and `/post-merge` around the owner's merge, `/cycle-close` at a milestone (retrospective and handover), plus `/triage-issue`, `/file-issue`, `/fix-issue`, `/log-decision`, `/repo-review`, `/going-live`, `/writing-a-control` and `/wiring-an-integration`.
-- **`.agents/rules/`** — canonical rulebook directory; `environment.md` is per-developer gitignored.
-- **MCP** — `.mcp.json` ships with GitHub/GitLab default; tokens in `.env`.
-- **3-layer issue management** — pure CI / CI-triggered agent / scheduled + interactive.
-- **AGENTS.md canonical**, CLAUDE.md symlink.
-- **BLOCKING taxonomy locked** in `permission-matrix.md` §11.
-- **Gitleaks** for secret scanning (replaces TruffleHog mention).
-
 ## How to read this repo as a new agent (or new human)
 
-1. `AGENTS.md` — house rules (≤80 lines, navigation only).
-2. `permission-matrix.md` — what you may + may not do (default-deny matrix + BLOCKING taxonomy).
-3. `docs/decisions.md` — what is settled (D-001..D-005 universal + project D-006+).
-4. `/start-session` — resumes from files (note.txt, the latest plan, the latest retrospective); it replaced the onboarding guide at DevFlow v6.0.
-5. `docs/closure-checklist.md` — when you "ship," walk this.
+`AGENTS.md` is the canonical rulebook: house rules, the stage model, the default-deny surfaces, and
+the routing index to everything else. `CLAUDE.md` is one line, `@AGENTS.md`, which Claude Code
+reads as an import on every OS, so both names load the same rules. **This README does not restate
+its rules**: a second copy of a rule is a copy that goes stale.
+
+The rest is read on demand, when a rule or a stage points at it:
+
+- the skills in `.claude/skills/` — each stage's steps, from `/setup-project` to `/cycle-close`
+- [`permission-matrix.md`](permission-matrix.md) — what you may and may not do, plus the BLOCKING
+  taxonomy
+- `docs/decisions.md` — what is settled (D-001..D-007 universal, project ADRs from D-100)
+- `docs/closure-checklist.md` — milestone close and release
+- `docs/security-baseline.md` — the release security review
+- `.agents/rules/practices.md` — the engineering rules
+- `UPGRADING.md` — moving this project to a newer DevFlow
 
 ## Repo layout
 
 ```
 .
-├── METHODOLOGY.md          # DevFlow's full design (a reference, not a linear read)
-├── pipeline-schema.html     # visual schema (open in browser)
-├── AGENTS.md                   # house rules (≤80 lines)
-├── CLAUDE.md → AGENTS.md       # symlink so Claude Code finds it natively
+├── pipeline-schema.html        # visual schema (open in browser)
+├── AGENTS.md                   # house rules (≤150 lines, D-003)
+├── CLAUDE.md                   # one line: @AGENTS.md
 ├── Makefile                    # canonical commands
+├── .devflow-stack              # the product's stack: python
 ├── pyproject.toml              # stack lock
 ├── permission-matrix.md        # default-deny + BLOCKING taxonomy
-├── note.txt                    # current-turn handoff (≤30 lines)
-├── .claude/                    # harness config + 10 skills
-├── .agents/rules/              # canonical rulebook (practices, seeds, environment)
-├── .github/CODEOWNERS          # DevOps build/deploy boundary (K.10, v2.1)
+├── .claude/                    # harness config, hooks, skills, subagents (.claude/agents/)
+├── .agents/rules/              # canonical rulebook (practices, seeds, git authority, review seats)
+├── .githooks/pre-push          # make gate before every push (make hooks)
+├── .github/CODEOWNERS          # DevOps build/deploy boundary (K.10)
 ├── .github/workflows/          # CI + issue-agent (hardened)
-├── docs/                       # PRD, decisions, plans, reviews, retrospectives, handovers
-├── subagent-profiles/          # Code-Reviewer + Security-Reviewer (MANDATORY)
-├── src/<pkg>/                  # adapter + clients (Protocol pattern, K.1)
+├── docs/                       # PRD, decisions, plans, reviews, closure reports
+├── src/app/                    # adapter + clients (Protocol pattern, K.1) + workflows
+├── ios/                        # the iOS app and its Engine layer
 ├── tests/                      # unit + integration
-└── scripts/                    # standup.sh + bootstrap-check.sh (Stage-0 gate, FB-1)
+└── scripts/                    # gates, standup.sh, bootstrap-check.sh (Stage-0 gate)
 ```
-
-## After clone — set up symlink
-
-```bash
-ln -s AGENTS.md CLAUDE.md
-```
-
-Both names point to the same file. Industry standard (AGENTS.md, in 60k+ public repos) + Claude Code's native loading (CLAUDE.md). Zero drift.
 
 ## License
 

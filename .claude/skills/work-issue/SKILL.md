@@ -7,12 +7,13 @@ Same branch, same commit discipline, same draft PR, same gates as `/fix-issue`. 
 has no carve-out for interactive work. Three differences:
 
 1. **Plan before coding.** Write the ambiguities, the options with their trade-offs, and what is
- in and out of scope. Get direction before you write code.
+   in and out of scope. Get direction before you write code.
 2. **Pause at every decision triage flagged**, and before anything large or irreversible.
 3. **Name the sensitive areas you are about to touch** and confirm before touching them.
 
 A human may choose this lane for something triage would have let run alone. The triage verdict is
 a default, not a lock.
 
-Everything else — red test as its own commit, smallest fix, gates green, draft PR, no closing
-keyword on a bug, no AI attribution, workflows untouched — is `/fix-issue` unchanged.
+Everything else — red test as its own commit, smallest fix, the Tester's fresh-eyes check, gates
+green, draft PR, no closing keyword on a bug, no AI attribution, workflows untouched — is
+`/fix-issue` unchanged.

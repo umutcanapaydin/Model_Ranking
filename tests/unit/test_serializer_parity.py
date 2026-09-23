@@ -129,8 +129,8 @@ def test_the_csv_export_carries_the_same_attribution_as_the_json(tmp_path: Path)
     file, and this is the export an analyst actually loads.
     """
     csv_path, json_path = _export(tmp_path)
-    payload = json.loads(json_path.read_text())
-    csv_text = csv_path.read_text()
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    csv_text = csv_path.read_text(encoding="utf-8")
 
     for attribution in payload["attribution"]:
         assert attribution in csv_text, f"CSV export omits the attribution: {attribution[:60]}"
@@ -144,7 +144,7 @@ def test_the_csv_metadata_does_not_corrupt_the_table(tmp_path: Path) -> None:
     exactly the rows it got before — and the header is still the first non-comment line.
     """
     csv_path, json_path = _export(tmp_path)
-    rows_json = json.loads(json_path.read_text())["rows"]
+    rows_json = json.loads(json_path.read_text(encoding="utf-8"))["rows"]
 
     parsed = read_export_csv(csv_path)
     assert len(parsed) == len(rows_json)
@@ -155,7 +155,7 @@ def test_the_csv_metadata_does_not_corrupt_the_table(tmp_path: Path) -> None:
 def test_the_two_export_halves_carry_the_same_rows(tmp_path: Path) -> None:
     """Trap 1, at the export boundary: same run, same numbers, both files."""
     csv_path, json_path = _export(tmp_path)
-    rows_json = json.loads(json_path.read_text())["rows"]
+    rows_json = json.loads(json_path.read_text(encoding="utf-8"))["rows"]
     parsed = read_export_csv(csv_path)
 
     for csv_row, json_row in zip(parsed, rows_json, strict=True):
@@ -273,10 +273,10 @@ def test_the_csv_cites_exactly_what_the_json_cites_no_more(tmp_path: Path) -> No
     csv_path, json_path = _export(tmp_path)
     from app.workflows.rank import ATTRIBUTIONS, EXPORT_COMMENT_PREFIX
 
-    payload = json.loads(json_path.read_text())
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
     commented = [
         line.lstrip(EXPORT_COMMENT_PREFIX).strip()
-        for line in csv_path.read_text().splitlines()
+        for line in csv_path.read_text(encoding="utf-8").splitlines()
         if line.startswith(EXPORT_COMMENT_PREFIX)
     ]
     cited = [line for line in commented if line in ATTRIBUTIONS]
@@ -458,7 +458,7 @@ def test_the_serializer_imports_no_engine_module() -> None:
     """
     import ast
 
-    source = Path("src/app/workflows/serialize.py").read_text()
+    source = Path("src/app/workflows/serialize.py").read_text(encoding="utf-8")
     imported = {
         node.module
         for node in ast.walk(ast.parse(source))

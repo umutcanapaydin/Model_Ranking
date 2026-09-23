@@ -152,7 +152,7 @@ def test_the_startup_validator_is_actually_CALLED_at_import() -> None:
     import ast
     from pathlib import Path
 
-    module = ast.parse(Path("src/app/adapter/main.py").read_text())
+    module = ast.parse(Path("src/app/adapter/main.py").read_text(encoding="utf-8"))
     module_level_calls = {
         node.value.func.id
         for node in module.body

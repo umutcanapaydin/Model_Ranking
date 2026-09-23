@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 """Every GitHub Action must be pinned to a commit SHA, not a tag.
 
-WHY. A tag is mutable by whoever owns the action's repository. `gitleaks/gitleaks-action@v2` is the
-secret scanner -- an attacker who can move that tag runs their code against our tree with our token.
-This package ships `anthropics/claude-code-action@v1` a few lines from `ANTHROPIC_API_KEY` and
-`contents: write`.
+WHY. A tag is mutable by whoever owns the action's repository. The gitleaks action is the secret
+scanner -- an attacker who can move its tag runs their code against our tree with our token. The CI
+issue agent's action runs a few lines from `ANTHROPIC_API_KEY` and `contents: write`.
 
-`V4C-44` has required SHA pinning since v4.1. The shipped workflows carried **ten** `# TODO: pin to SHA`
-comments instead, one of them annotated "supply-chain critical", and **nothing ever checked** -- while
-the repo's own `governance-contract.yml` was correctly pinned, so the rule was demonstrably known and
-demonstrably unenforced. Security seat, Increment 14, §10.
+A rule that says "pin to a SHA" is not enough on its own: the workflows once carried ten
+`# TODO: pin to SHA` comments, one annotated "supply-chain critical", while nothing checked.
+`bash scripts/pin-actions.sh` rewrites every reference to its current SHA.
 
 Exit 0 clean, 1 findings.
 """

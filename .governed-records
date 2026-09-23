@@ -1,14 +1,12 @@
-# Which files in THIS project are governance records, one glob per line.
+# Globs ADDED to the governed set, one per line.
 #
-# WHY THIS FILE SHIPS (v4.3, auditor B4). `check_records.py` finds governed records by globbing GP's OWN
-# filenames -- `v*-ratification.md`, `council-telemetry.md`, `increment-*-packet.md`. A customer project
-# has none of those, so every project run printed `scanned 0 record(s)` and **14 of 20 rules could not
-# fire at all**: R1-R3, X1-X3, P1, N1, C1a, C1b. An auditor put a record with no frontmatter, a bad
-# record_type and a bad id into `docs/decisions.md` and got exit 0.
+# `check_records.py` governs every Markdown file that carries `record_type:` frontmatter -- that is
+# the selection. This file only ADDS paths to it: a record you want graded even if its frontmatter
+# goes missing. To take a file OUT, name it in `.governed-records-exempt` with a reason.
 #
-# The escape hatch existed in the code and was **never shipped and never documented**, which is the same
-# as not existing. Name your project's records here and the frontmatter and cross-reference rules start
-# working on them. Delete a line and you are choosing to leave those records ungoverned.
+# A glob written from memory once matched nothing, so the rules it was meant to switch on stayed off
+# while the file looked like a working control. Every glob below is checked against the paths the
+# Makefile and AGENTS.md say the workflow writes, by `conformance/test-governed-paths.py`.
 docs/decisions.md
 docs/closure-report-*.md
 docs/plans/m*-wave-*-close.md

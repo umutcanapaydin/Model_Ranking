@@ -109,6 +109,6 @@ def test_the_floors_mode_reads_the_artifact_and_needs_no_network(
                                 ("c", 50.0, "unspecified")])
     out = tmp_path / "floors.json"
     assert _script().main(["--floors", "--db", str(path), "--out", str(out)]) == 0
-    record = json.loads(out.read_text())
+    record = json.loads(out.read_text(encoding="utf-8"))
     assert {row["surface"] for row in record["floors"]} == set(CATEGORIES)
     assert "expert" in capsys.readouterr().out

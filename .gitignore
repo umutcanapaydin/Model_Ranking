@@ -35,11 +35,11 @@ dist/
 build/
 *.egg
 
-# Pipeline v2.0 — local-only harness config
+# Local-only harness config and the post-edit check log
 .claude/settings.local.json
 .claude/last-check.log
 
-# Pipeline v2.0 — per-developer rules (.agents/rules/environment.md is gitignored)
+# Per-developer machine notes, generated on first session
 .agents/rules/environment.md
 
 # Local override docs (per-developer)

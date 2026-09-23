@@ -1,8 +1,7 @@
 # `.agents/rules/` — Canonical Rulebook
 
-> Read every file in this directory at the start of every session. These are the rules.
->
-> Pipeline consortium decision: this directory replaces `docs/discipline-*.md` from v1.1. Same content, cleaner hierarchy.
+> `practices.md` and `issues.md` are the rules: read them at the start of a session, with `AGENTS.md`.
+> `playbook-seeds.md` is reference: open it when a rule cites a seed, not at session start.
 
 ---
 
@@ -11,7 +10,9 @@
 | File | Status | Purpose |
 |---|---|---|
 | `practices.md` | committed | Portable engineering rules across machines / developers |
-| `playbook-seeds.md` | committed | All 64 + 8 seeds across themes A-K |
+| `issues.md` | committed | Issues, labels and the verification pipeline — the skills implement it |
+| `playbook-seeds.md` | committed | Index of the seeds (A.1, C.9, L.7 …) that rules cite |
+| `environment.md.template` | committed | Template for your own `environment.md` |
 | `environment.md` | **gitignored** | YOUR machine specifics (shell, language runtime, paths) — generate on first session |
 | `README.md` (this file) | committed | This index |
 
@@ -21,7 +22,7 @@
 
 - **Universal to the project** (any developer / machine) → `practices.md` or a new file like `architecture.md`, `data-model.md`, `deploy.md`, `security.md`.
 - **Per-developer machine specifics** (your conda env, shell, ports, container names) → `environment.md` (NEVER commit; never share).
-- **Generalizable principles** discovered while building → `playbook-seeds.md` (Principle / Origin / Reusable artifact / Risk if ignored / Tradeoff).
+- **Generalizable principles** discovered while building → `playbook-seeds.md`: one row, ID · principle · risk if ignored (format in the file's header).
 
 ---
 
@@ -29,16 +30,16 @@
 
 If you just cloned this repo:
 
-1. Generate your own `environment.md` (gitignored). Template at `.agents/rules/environment.md.template` if present, otherwise create from scratch matching the practices.md style.
-2. Read `practices.md` end-to-end.
-3. Scan `playbook-seeds.md` — themes A through K. Don't memorize; know where things live.
-4. Verify `make check` is GREEN.
-5. Read `AGENTS.md` at repo root (≤80 lines, navigation only).
+1. Generate your own `environment.md` (gitignored) from `.agents/rules/environment.md.template`.
+2. Read `AGENTS.md` at the repo root (hard cap 150 lines; the rules, and a routing index to everything else).
+3. Read `practices.md` and `issues.md` end-to-end.
+4. Skim `playbook-seeds.md` so you know where the seeds live. Don't memorize it.
+5. Verify `make check` is GREEN.
 
 ---
 
 ## Promotion rules
 
-- A frequently-applied principle → propose a seed in `playbook-seeds.md` (status: candidate). User approval moves to active.
-- A seed that has been ACTIVE for 3+ milestones AND keeps catching issues → consider promoting its mechanism to a hook (`.claude/settings.json` — see `permission-matrix.md` §11 hook-promotion rule).
-- An active seed that hasn't fired in 90 days → propose retirement at the quarterly handover (PM lens: disciplines-retired count).
+- A frequently-applied principle → add its row to `playbook-seeds.md` once the owner approves it.
+- A seed that has been ACTIVE for 3+ milestones AND keeps catching issues → consider promoting its mechanism to a hook (`.claude/settings.json` — see the hook-promotion rule under "How to add a hook" in `permission-matrix.md`).
+- An active seed that hasn't fired in 90 days → propose retirement in the end-of-work diet (`/cycle-close`).

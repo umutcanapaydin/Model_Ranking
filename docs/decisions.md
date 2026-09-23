@@ -2,7 +2,7 @@
 record_type: register
 id: model-ranking-decisions
 status: ratified
-process_version: v6.0
+process_version: v6.4
 date: 2026-08-11
 ---
 # Decisions
@@ -12,11 +12,12 @@ date: 2026-08-11
 > **ADR-ID convention (v2.2, seed B.6 / FB-2):** to avoid colliding with an inherited project's own ADR history, **process/universal ADRs use the `P-00x` namespace; project ADRs start at `D-100`** (the `D-001..D-099` band is reserved). The existing universal `D-001..D-007` are grandfathered (supersede-don't-edit, B.2) and are equivalently addressable as their `P-00x` mirror (see P-001). **Your project starts at D-100.** For an inherited project that already numbered low D-ids, run the Stage-0 reconciliation recipe in P-001.
 >
 > **Discipline:**
-> - When an assumption ossifies under uncertainty, add a new ADR with status `proposed` via `/log-decision` skill (seed B.1).
-> - To reverse: mark old as `superseded by D-NNN`. Never edit in place (seed B.2).
+> - When an assumption ossifies under uncertainty, add a new ADR with status `proposed` via the
+>   `/log-decision` skill (seed B.1).
+> - To reverse: mark the old one `superseded by D-NNN`. Never edit in place (seed B.2).
 > - IDs are immutable; deletion leaves a gap (seed B.5).
 >
-> **Status legend:**
+> **Status legend** (the `**Status:**` line of an ADR, not the frontmatter above):
 > `proposed` — captured, not yet ratified.
 > `accepted` — locked. Changing requires `superseded by`.
 > `superseded by D-NNN` — old; do not follow.
@@ -29,9 +30,9 @@ date: 2026-08-11
 
 **Decision:** All external cloud / vendor SDK calls (object storage, model endpoints, telemetry, identity providers, payment, etc.) live behind a typed Protocol in `src/<pkg>/clients/`. Production implementations are isolated; a fake implementation lives alongside for tests.
 
-**Rationale:** A future cloud / vendor pivot is a `clients/` swap, not a feature rewrite. Phase-1 lesson: this single discipline saved an entire milestone of rework when the cloud target shifted.
+**Rationale:** A future cloud / vendor pivot is a `clients/` swap, not a feature rewrite. This one discipline has saved a whole milestone of rework when a cloud target shifted.
 
-**Mitigation if violated:** Code calling vendor SDK directly from `workflows/` or `adapter/` is a contract violation; refactor before merge.
+**Mitigation if violated:** Code calling a vendor SDK directly from `workflows/` or `adapter/` is a contract violation; refactor before merge.
 
 **Revisit when:** Customer mandates a specific SDK in a way that breaks the Protocol abstraction.
 
@@ -41,13 +42,13 @@ date: 2026-08-11
 
 **Status:** accepted
 
-**Decision:** All non-trivial design decisions go in this file using this format: ID, Status, Decision, Rationale, Mitigation, Revisit. One-paragraph per field. No full IETF-ADR ceremony. Use `/log-decision` skill for format enforcement.
+**Decision:** All non-trivial design decisions go in this file using this format: ID, Status, Decision, Rationale, Mitigation, Revisit. One paragraph per field. No full IETF-ADR ceremony. Use the `/log-decision` skill for format enforcement.
 
-**Rationale:** Phase-1 captured 40 ADRs cleanly with this format in <2 hours total; heavier ADR formats took ~15 min per decision and got skipped under pressure.
+**Rationale:** An ADR-lite entry takes a few minutes; heavier formats take ~15 minutes per decision and get skipped under pressure, which leaves no record at all.
 
 **Mitigation:** None — this is the format.
 
-**Revisit when:** Project crosses ≥3 teams and needs richer audit format.
+**Revisit when:** Project crosses ≥3 teams and needs a richer audit format.
 
 ---
 
@@ -55,13 +56,13 @@ date: 2026-08-11
 
 **Status:** accepted
 
-**Decision:** `AGENTS.md` is **navigation, not encyclopedia**. Target ≤80 lines; hard cap 150 lines. Anything longer goes to `.agents/rules/practices.md` or related concern files.
+**Decision:** `AGENTS.md` is **navigation, not encyclopedia**. Hard cap 150 lines (seed C.5); the template ships at ≤120 lines so a project has room for its §1–§2. Anything longer goes to `.agents/rules/practices.md` or related concern files. `conformance/test-agents-cap.py` fails the gate when the file is over the cap it states.
 
 **Rationale:** Phase-1 measurement: AGENTS.md trended 250 → 218 → 170 lines across M5-M9. Each diet pass increased agent task success. ETH Zurich AGENTbench (arxiv:2602.11988) corroborates: LLM-generated context files >200 lines LOWER task success by ~3% and raise cost 20%+. v2.0 lowers the target from v1.1's 170-line tolerance to 80.
 
-**Mitigation:** At every milestone closure (§4.2 Capture), check `wc -l AGENTS.md`. If over cap, extract a section to `.agents/rules/`.
+**Mitigation:** At every milestone closure (Stage 4.2 Capture), check `wc -l AGENTS.md`. If it nears the cap, extract a section to `.agents/rules/`.
 
-**Revisit when:** Multi-week milestones consistently need >150 lines of navigation.
+**Revisit when:** Multi-week milestones consistently need more than 150 lines of navigation.
 
 ---
 
@@ -71,25 +72,25 @@ date: 2026-08-11
 
 **Decision:** `permission-matrix.md` defines what coding agents may and may not do. Default for any sensitive action is DENY; allowances require a new ADR. v2.0 extends this with §10 OS-aware patterns + §11 BLOCKING taxonomy.
 
-**Rationale:** Replit DB deletion incident (July 2025) + Lovable RLS CVE-2025-48757 (May 2025) both stemmed from agents acting beyond authority. Standing matrix removes ambiguity.
+**Rationale:** The Replit DB deletion incident (July 2025) and Lovable RLS CVE-2025-48757 (May 2025) both stemmed from agents acting beyond authority. A standing matrix removes the ambiguity.
 
-**Mitigation:** `permission-matrix.md` is editable only via ADR. Commits violating without prior `accepted` ADR are reverted.
+**Mitigation:** `permission-matrix.md` is editable only via ADR. Commits violating it without a prior `accepted` ADR are reverted.
 
 **Revisit when:** Permission categories themselves change.
 
 ---
 
-## D-005 — Subagent-profiles mandatory: Code-Reviewer + Security-Reviewer (UNIVERSAL)
+## D-005 — Mandatory subagent profiles: Code-Reviewer + Tester per wave, Security-Reviewer per release (UNIVERSAL)
 
 **Status:** accepted — **superseded in part by P-004 (v3, V3C-68):** the per-wave pair is now Code-Reviewer + Tester; Security-Reviewer moves to Stage-4 closure (BLOCKING before deploy). Decision body preserved below per B.2 (supersede, don't edit).
 
 **Decision:** Every wave-end fires two subagent profiles in Stage 3: `subagent-profiles/Code-Reviewer.md` (3a) and `subagent-profiles/Security-Reviewer.md` (3b). These are MANDATORY. Other profiles (Architect, Docs, etc.) are project-specific and added per need. Profile content invoked via `/review` and `/security-review` skills.
 
-**Rationale:** Phase-1 K.7 (fresh-eyes review) caught BLOCKING at every milestone. Industry research (Veracode 45%, Lovable RLS, Replit) shows parallel security pass needed.
+**Rationale:** Fresh-eyes review (seed K.7) catches what an author cannot. Testing is needed on every wave; security reads the whole release surface at once, which is more complete. Nothing deploys before the release, so the security review always precedes go-live.
 
-**Mitigation:** Stage 0 ships baseline profile files. Stage 1 plan chooses source (A/B/C/D).
+**Mitigation:** `make wave-check` refuses a wave close without both verdict files in `docs/reviews/`, or with a BLOCKING one. No deploy step in `docs/closure-checklist.md` §E.2 runs before §E.1 passes.
 
-**Revisit when:** A third profile graduates to mandatory (≥2 milestones PULLED-WEIGHT).
+**Revisit when:** A release is harmed by late security feedback — then move a security pass earlier for that risk class.
 
 ---
 
@@ -97,7 +98,7 @@ date: 2026-08-11
 
 **Status:** accepted
 
-**Decision:** Stage 3 Per-Wave Duo verdicts (3a + 3b) and Stage 4.1 Quality Gate verdicts MUST use these categories:
+**Decision:** Per-wave verdicts (Code-Reviewer, Tester), Quality Gate verdicts (Stage 4.1, when on) and the release security review (Stage 5.1) MUST use these categories:
 
 - **BLOCKING:** REQ unmet / test red / secret leak / contract-grep miss / coverage drop / PASS without `file:line` evidence / auth-PII-payment-migration without senior review / permission-matrix region touched without ADR / hook violation.
 - **MINOR:** style / doc drift / cross-wave K.9 candidate / AGENTS.md approaching cap (not over).
@@ -105,11 +106,11 @@ date: 2026-08-11
 
 Full taxonomy in `permission-matrix.md` §11.
 
-**Rationale:** Quality consortium identified "undefined BLOCKING drifts per reviewer" as the highest-leverage quality bug in either of the merged models. Writing it down once eliminates per-reviewer reinterpretation.
+**Rationale:** An undefined BLOCKING drifts from reviewer to reviewer. Writing it down once removes the reinterpretation.
 
-**Mitigation:** PASS verdicts WITHOUT file:line evidence are automatically demoted to BLOCKING (no false-pass surface). All BLOCKING findings need an attached evidence path.
+**Mitigation:** PASS verdicts WITHOUT `file:line` evidence are automatically demoted to BLOCKING (no false-pass surface). All BLOCKING findings need an attached evidence path.
 
-**Revisit when:** First Phase-2 milestone closes with a new BLOCKING class not covered.
+**Revisit when:** A milestone closes with a new BLOCKING class not covered.
 
 ---
 
@@ -117,17 +118,20 @@ Full taxonomy in `permission-matrix.md` §11.
 
 **Status:** accepted
 
-**Decision:** `.claude/settings.json` ships with exactly 2 PreToolUse/PostToolUse hooks at bootstrap:
-1. PreToolUse — block writes to `.env` / `*.env*` (catastrophe-class catch).
-2. PostToolUse — run `make check` after Write/Edit/MultiEdit (Stage 2 commit-gate enforcement).
+**Decision:** `.claude/settings.json` ships these hooks. Claude Code blocks a tool call only on exit 2, so every guard exits 2 to block and 0 to allow (`conformance/test-hook-claims.py` grades that):
+1. PreToolUse on Write/Edit — block writes to `.env` / `*.env*`.
+2. PreToolUse on Bash — block destructive git (`reset --hard`, forced push, `clean -f`), `rm -rf`, worktree-destroying git (`checkout --` / `checkout .`, `restore` without `--staged`) and any push to the default branch.
+3. PostToolUse on Write/Edit — run `make check-fast` (the legs of `make check`, side by side) and exit 2 on failure, or when `make` is not installed.
 
-Additional hooks earn their way in only after a rule in `.agents/rules/practices.md` or `permission-matrix.md` is violated 3+ times in measured sessions. Catastrophe-class items (§11 of permission-matrix) may ship as hooks day-1 without violation prerequisite.
+Both guards fail closed: they read the tool call with the first working `python3` or `python`, and with neither they block it.
 
-**Rationale:** PM consortium lens — every hook is a maintenance liability. Shipping 2 catches the highest-leverage incidents (Lovable secret-commit class + lint-drift) while not pre-defining what doesn't break.
+The full `make gate` runs before every push (`make hooks`) and at `/pre-merge`. Additional hooks earn their way in only after a rule in `.agents/rules/practices.md` or `permission-matrix.md` is violated 3+ times in measured sessions. Catastrophe-class items (`permission-matrix.md` §11) may ship as hooks day 1 without that prerequisite.
 
-**Mitigation:** Promotion rule documented in `permission-matrix.md`. Quarterly handover harness diet retires hooks not fired in 90 days.
+**Rationale:** Every hook is a maintenance liability. These catch the highest-leverage incidents (secret commits, destroyed work, direct pushes, lint drift) without pre-defining what has not broken.
 
-**Revisit when:** First Phase-2 milestone surfaces a recurrent rule violation that would benefit from a 3rd hook.
+**Mitigation:** The promotion rule is in `permission-matrix.md`. The end-of-work harness diet (`/cycle-close`) retires hooks that never fired.
+
+**Revisit when:** A milestone surfaces a recurrent rule violation that would benefit from another hook.
 
 ---
 
@@ -183,9 +187,9 @@ Additional hooks earn their way in only after a rule in `.agents/rules/practices
 
 **Rationale:** owner directive OD-3 names the destination; the owner's readiness call sets the pace. The 9/9-seat finding (agent-generated evidence must not certify agent autonomy) and the METR felt-vs-actual gap survive as the ACTIVE evidence rule.
 
-**Mitigation if violated:** any agent auto-approving or skipping an owner touchpoint "per the protocol" is an integrity violation → catastrophe-class (permission-matrix).
+**Stage-0 reconciliation recipe (inherited project):** (1) keep the project's existing `D-ids` as-is; (2) do NOT renumber them; (3) record the process ADRs under `P-00x` (or in `permission-matrix.md`); (4) write the mapping in `process-log.md` before the first commit; (5) new project ADRs continue from `D-100+`. `make bootstrap-check` C5 warns if project ADRs sit in the reserved `D-008..D-099` band.
 
-**Revisit when:** the owner initiates — expected only after many versions of clean telemetry track record.
+**Rationale:** An inherited project's own `D-006+` decisions, cited across its PRD and feature list, collide with the universal `D-006/D-007`. A namespace split removes the collision class permanently.
 
 ---
 
@@ -2754,3 +2758,61 @@ see that it is the product's own combination; the detail screen says so.
 **Revisit when:** a reader takes a combined list for a published leaderboard, or the standings payload
 outgrows what a phone should download nightly.
 
+
+## D-161 — The project runs on DevFlow v6.4, and session commits carry the owner's identity
+
+**Status:** accepted -- the owner asked for the upgrade (2026-09-23, translated from Turkish: *"I
+moved DevFlow to v6.4, update DevFlow here again"*) and ruled the identity clause in session
+("my identity", chosen over DevFlow's per-developer default) · **Date:** 2026-09-23 · **Amends:**
+D-155 clauses 1, 2 and 4.
+
+**Context.** DevFlow moved from v6.0 to v6.4: no retrospectives, handovers or `note.txt` in the
+package; `METHODOLOGY.md`, the pre-commit configuration and the `governance-contract` workflow gone;
+`.githooks/pre-push`, `docs/control-events.csv`, `.devflow-stack`, `CLAUDE.md` as `@AGENTS.md`, UTF-8
+named on every text read and write, and a commit-identity check that refuses an AI tool's address.
+Until now this project's agent commits were authored by the tool's own address with `GP-Agent` and
+`GP-Task` trailers (D-155 clause 2), which that check refuses.
+
+**Decision.**
+
+1. **The upgrade is `UPGRADING.md`'s method:** `git diff v6.0 v6.4 | git apply -3` on a branch,
+   excluding `.github/workflows/*` (the owner's part), `src/*` and `tests/unit/test_health.py`
+   (DevFlow's template edits there are docstrings; `src/` is the product), and the deletions of
+   `note.txt` and `docs/handovers/*` (this project's own history, which the diff cannot delete
+   cleanly). Seed documents keep the project's content; `docs/decisions.md` and
+   `docs/watchlist.md` declare `process_version: v6.4`, from which `make install` derives the
+   installed version.
+2. **Commit identity (replaces D-155 clause 2's identity half):** a session commit carries the
+   owner's git identity, and an agent's commit adds the `GP-Agent:` and `GP-Task:` trailers, so an
+   agent commit is still told apart from the owner's own by its trailers. The CI issue agent
+   commits as `gp-agent` and owes the trailer too (`conformance/test-git-authority.py`). The rest of
+   D-155 clause 2 stands: drafts only, the owner merges, no AI attribution.
+3. **Where the project still differs from DevFlow v6.4** (continuing D-155 clause 4), each with its
+   reason:
+   - `scripts/check_records.py` and `schemas/record.schema.json` stay the project's: they pass this
+     project's records and v6.4's own self-test fixtures, while v6.4's validator reports 121
+     findings on records written under earlier versions.
+   - `scripts/check_fast.py` stays the project's (a Python chain that keeps `coverage-floor` after
+     `test`, and the Swift suite run as `swift-test-parallel`); it gains `--plan`, which v6.4's
+     `conformance/test-check-fast.py` reads.
+   - **`closes` is not a prerequisite of `check:`.** `scripts/closure_check.py` ignores
+     `process_version` and fails all fifteen closure reports written before DevFlow; the wave
+     closes it also grades are already graded by `wave-check-all`. A closure report is checked at
+     its own closure with `make closure-check`, as before.
+   - P-005's risk tiers (one combined reviewer on a LOW/MED wave) and a security seat at every
+     milestone close stay, beside v6.4's Code-Reviewer-then-Tester and its single Stage 5.1 review.
+   - `make lint` covers `scripts/`, so two DevFlow scripts carry small lint fixes
+     (`slopsquat_check.py`, `create_labels.py`), and the 82 text reads and writes that v6.4's
+     `conformance/test-text-encoding.py` found in `src/`, `scripts/` and `tests/` now name UTF-8.
+4. **The owner's part:** the workflow change (`governance-contract.yml` removed; `ci.yml` and
+   `issue-agent.yml` as v6.4 ships them, keeping the trailer rule of clause 2) is proposed in the
+   upgrade PR, not made; branch protection stops requiring `governance-contract` when it is
+   applied; `make hooks` turns on the pre-push gate once the owner decides about the untracked files
+   in the working tree that `make secrets` would read.
+
+**The cost.** One more large diff to review, and a tree that differs from DevFlow in the places
+clause 3 lists. The defects found on the way go back to DevFlow in
+`docs/research/devflow-v6.4-field-findings-2026-09-23.md`.
+
+**Revisit when:** DevFlow grades closure reports by their declared version, or absorbs a clause-3
+difference.

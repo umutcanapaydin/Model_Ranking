@@ -321,7 +321,7 @@ def test_ranking_export_rounds_every_score_without_rounding_internal_math(tmp_pa
 
     csv_path, json_path = export_ranking(ranking, tmp_path, [], category="agentic-coding")
     json_gpt = next(
-        row for row in json.loads(json_path.read_text())["rows"] if row["model"] == "GPT-5.6 Sol"
+        row for row in json.loads(json_path.read_text(encoding="utf-8"))["rows"] if row["model"] == "GPT-5.6 Sol"
     )
     assert (json_gpt["score"], json_gpt["higher_effort_score"]) == (60.6, 75.6)
     csv_gpt = next(row for row in read_export_csv(csv_path) if row["model"] == "GPT-5.6 Sol")

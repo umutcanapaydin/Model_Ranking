@@ -1,7 +1,7 @@
 # YOUR Machine — Environment Specifics (gitignored)
 
-> Rename this template to `environment.md` (drop the `.template` suffix). The result is gitignored — your file, not committed.
-> Pipeline v2.0: per-developer environment.md replaces "works on my machine" drift. Each new clone generates their own on first session.
+> Copy this template to `environment.md` (keep the template: it is part of the install). The copy is gitignored — your file, not committed.
+> A per-developer `environment.md` replaces "works on my machine" drift. Each new clone generates its own on first session.
 
 ---
 
@@ -42,21 +42,20 @@
 - **Aliases:** `<e.g., alias mc='make check', alias mp='make standup'>`
 - **Personal scripts in `~/bin`:** `<list any that reach into this repo>`
 
-## 6b. Is your working tree behind a file bridge? (Increment 16, condition 16-9)
+## 6b. Is your working tree behind a file bridge?
 
 Answer this before your first commit, because the failure it produces lies about its own cause.
 
 - **Where does this tree actually live:** `<e.g., a real local disk / a Cowork mounted folder / a
   container bind-mount / a network share>`
-- **Unlink probe result:** `<run `bash scripts/checkpoint.sh` once — it probes create+delete under
-  `.git/` before doing anything and refuses by name if the filesystem cannot unlink>`
+- **Unlink probe result:** `<run touch .git/probe.lock && rm .git/probe.lock once — if the rm fails
+  with EPERM, the filesystem cannot unlink and you are behind a bridge>`
 
 **The hazard.** On a mounted file bridge, git can CREATE `.git/index.lock` and cannot DELETE it
 (EPERM). Your first commit looks like it worked and leaves the lock behind. The next one fails with
 *"another git process seems to be running"* — a true sentence about a process that does not exist,
 which sends you hunting for a phantom. Measured cost in the field: three incidents and one lost
-commit, and the rule was broken by the person who wrote it three hours after writing it. That is why
-`checkpoint.sh` probes instead of trusting this page: **a rule with no gate is a rumour.**
+commit. Probe once instead of trusting this page: **a rule with no check is a rumour.**
 
 **If you are behind a bridge:** run git from the host terminal, not through the bridge. Clear any
 leftovers host-side with `rm -f .git/*.lock .git/objects/maintenance.lock`, then retry.

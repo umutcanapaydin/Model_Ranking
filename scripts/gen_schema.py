@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Regenerate schemas/record.schema.json from the validator's own constants (GPF-002).
+"""Regenerate schemas/record.schema.json from the validator's own constants.
 
-The hand-written schema said 7 record types while check_records.py enforced 14, and its only reader
-was a byte-compare that asserts sameness, never correctness. One source of truth now: the constants.
+A hand-written schema once listed half the record types the validator enforced, and its only reader
+was a byte-compare that asserted sameness, never correctness. One source of truth now: the
+constants in scripts/check_records.py. `conformance/test-schema-sync.py` fails on drift.
 """
 import json
 import pathlib
@@ -13,11 +14,10 @@ from check_records import OPTIONAL, RECORD_TYPES, REQUIRED, STATUS_FLOW
 
 schema = {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$comment": ("GENERATED from scripts/check_records.py constants -- do not hand-edit (GPF-002: the "
-               "hand-written version said 7 record types while the validator enforced 14, and nothing "
-               "read it. This file now has a reader: conformance/test-schema-sync.py fails on drift). "
+  "$comment": ("GENERATED from scripts/check_records.py constants -- do not hand-edit. "
+               "conformance/test-schema-sync.py fails on drift. "
                "Regenerate: python3 scripts/gen_schema.py"),
-  "title": "GP governance record frontmatter",
+  "title": "Governance record frontmatter",
   "type": "object",
   "required": list(REQUIRED),
   "properties": {

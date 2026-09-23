@@ -424,7 +424,7 @@ def _assert_the_client_has_no_way_off_the_device() -> None:
     )
     # The Xcode target compiles the synchronized `ModelRanking` folder. A source file referenced
     # from anywhere else would be compiled and never read by this gate (W4 review, N10's note).
-    project = (CLIENT.parent / "ModelRanking.xcodeproj" / "project.pbxproj").read_text()
+    project = (CLIENT.parent / "ModelRanking.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")
     assert "sourcecode." not in project, "the project references a source file outside the folder"
     assert re.findall(r"isa = PBXFileSystemSynchronizedRootGroup;\s*path = (\w+);", project) == [
         "ModelRanking"

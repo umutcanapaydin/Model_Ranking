@@ -1,6 +1,6 @@
 ---
 name: going-live
-description: Use before saying a change is deployed, shipped, live, done, delivered, or ready for the customer — and before a demo. Also when verifying a deploy, cutting a release, or answering "is it out yet". Covers what a green build does not prove: that the running thing is the built thing, that every dependency answers, that config arrived, and that a human path works end to end.
+description: Use before saying a change is deployed, shipped, live, delivered, or ready for the customer — and before a demo. Also when verifying a deploy, cutting a release, or answering "is it out yet". Covers what a green build does not prove: that the running thing is the built thing, that every dependency answers, that config arrived, and that a human path works end to end.
 ---
 
 A green pipeline says the code compiles and the tests pass. It says nothing about the thing

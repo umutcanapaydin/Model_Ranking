@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
-"""Write `.gp/installed` — the marker that records which GP version this tree installed.
+"""Write `.gp/installed` — the marker that records which DevFlow version this tree installed.
 
-Condition 16-3 (Increment 16), closing GPF-B03. Four consecutive field harvests had to GUESS the
-installed version. Three of them read the prose claim in `docs/decisions.md`; the 2026-08-19 harvest
-checked that claim against what the packages actually ship and found a repo asserting v4.2 while
-missing six of v4.2's install artefacts. **A version a tree asserts about itself is a claim. This
-file is a measurement, written by the install step that did the installing.**
+A version a tree asserts about itself is a claim: a repository once asserted one version while
+missing six of that version's install artefacts, and everyone who read the assertion believed it.
+This file is a measurement, written by the install step that did the installing, and the project
+commits it.
 
-Derived, never enumerated (V5C-110): the version is read from the governance records' own
-`process_version` frontmatter, and the manifest hash is computed from the manifest file. Neither
-value is typed into this script, so neither can drift from it.
+Derived, never enumerated: the version is read from the governance records' own `process_version`
+frontmatter, and the manifest hash is computed from the manifest file. Neither value is typed into
+this script, so neither can drift from it.
 
-Fail-closed (Security seat, Increment 16): an absent manifest, an unreadable record, or a tree whose
-records disagree about their version is a FAILURE that refuses to write a marker. A marker nobody
-can trust is worse than no marker, because the next harvest would believe it.
+Fail-closed: an absent manifest, a record with no version, or records that disagree about their
+version is a FAILURE that refuses to write a marker. A marker nobody can trust is worse than no
+marker, because the next reader would believe it.
 
 Exit: 0 written · 1 refused (reason on stderr) · 2 internal error.
 """
@@ -52,6 +51,10 @@ def read_process_version(path: pathlib.Path) -> str | None:
 
 
 def main() -> int:
+    for stream in (sys.stdout, sys.stderr):    # a console that cannot encode a character prints `?`
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(errors="replace")
     if not MANIFEST.is_file():
         print(f"REFUSED: no {MANIFEST.name} — this tree has no declared installation contract, so "
               f"there is no version to record.", file=sys.stderr)
@@ -63,7 +66,8 @@ def main() -> int:
         if version is None:
             print(f"REFUSED: {rel} carries no `process_version` frontmatter. The marker is derived "
                   f"from the records; a record that does not declare its version cannot be the "
-                  f"source of one.", file=sys.stderr)
+                  f"source of one. Upgrading from an earlier version? Add `process_version:` to its "
+                  f"frontmatter -- UPGRADING.md, step 3.", file=sys.stderr)
             return 1
         versions[rel] = version
 
@@ -71,7 +75,7 @@ def main() -> int:
     if len(distinct) != 1:
         detail = " · ".join(f"{k} = {v}" for k, v in versions.items())
         print(f"REFUSED: the records disagree about which version this is ({detail}). A marker "
-              f"written from a disagreement would launder it into the next harvest's telemetry.",
+              f"written from a disagreement would launder it into every later reading of it.",
               file=sys.stderr)
         return 1
     version = distinct.pop()
@@ -81,14 +85,26 @@ def main() -> int:
     # Best effort, and labelled as such: a tree with no git history is a legitimate installation.
     try:
         commit = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"],
-                                capture_output=True, text=True, timeout=10).stdout.strip() or "none"
+                                capture_output=True, encoding="utf-8", errors="replace",
+                                timeout=10).stdout.strip() or "none"
     except (OSError, subprocess.SubprocessError):
         commit = "none"
+
+    # `make install` runs before every `make test`. Rewriting the marker each time would make
+    # `installed_from_commit` "whatever HEAD is now" and leave the tree never clean, destroying the
+    # measurement. It is rewritten only when what it MEASURES -- the version or the manifest --
+    # has changed; otherwise the install it recorded still stands.
+    if MARKER.is_file():
+        old = MARKER.read_text(encoding="utf-8", errors="replace")
+        if (f"gp_version: {version}\n" in old
+                and f"manifest_sha256: {manifest_hash}\n" in old):
+            print(f"install marker: {version} · manifest {manifest_hash[:12]} unchanged -> kept")
+            return 0
 
     MARKER_DIR.mkdir(exist_ok=True)
     MARKER.write_text(
         "# Written by `make install`. Do not edit by hand — it is a measurement, not a claim.\n"
-        "# A harvest reads this instead of believing what a document says about its own version.\n"
+        "# Read this, not what a document says about its own version.\n"
         f"gp_version: {version}\n"
         f"manifest_sha256: {manifest_hash}\n"
         f"manifest_path: {MANIFEST.name}\n"
@@ -97,7 +113,7 @@ def main() -> int:
         f"version_derived_from: {', '.join(VERSION_SOURCES)}\n",
         encoding="utf-8")
 
-    print(f"install marker: {version} · manifest {manifest_hash[:12]} → {MARKER.relative_to(ROOT)}")
+    print(f"install marker: {version} · manifest {manifest_hash[:12]} -> {MARKER.relative_to(ROOT)}")
     return 0
 
 

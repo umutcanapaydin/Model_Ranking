@@ -8,12 +8,12 @@ process_version: v4.2
 
 <!-- expect: C1a -->
 
-Forward-only rule: from v4.2 on, "a spec and a report" is not a closure artifact — it is an
-intention. C1a exists because C1b is impossible without it: you cannot check that an artifact
+Forward-only rule (the `process_version` in the frontmatter says which records it grades): "a spec
+and a report" is not a closure artifact — it is an intention. C1a exists because C1b is impossible without it: you cannot check that an artifact
 arrived if the condition never said which artifact.
 
 ### Binding conditions
 
 | # | Condition | Owner | Date | Closure artifact |
 |---|---|---|---|---|
-| 1 | do the good thing | chair | 2099-01-01 | a written spec plus a first report, filed somewhere |
+| 1 | do the good thing | owner | 2099-01-01 | a written spec plus a first report, filed somewhere |

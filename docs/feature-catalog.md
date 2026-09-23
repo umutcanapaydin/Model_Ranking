@@ -1,6 +1,6 @@
 # Feature Catalog (customer-facing)
 
-> Single canonical source for what the customer sees. Tied to REQ-IDs in `prd.md`; updated only via Customer Iteration track (see `.agents/rules/practices.md`).
+> Single canonical source for what the customer sees. Tied to REQ-IDs in `prd.md`; changes only when a requirement changes — through a PRD edit that names the REQ-ID, never ad hoc.
 
 ## Sections
 

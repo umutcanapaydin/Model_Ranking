@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 """F.8 — slopsquat / dependency-confusion check.
 
-WHAT IT REPLACES. The `slopsquat` target printed the names of the distributions already installed in
-the virtualenv, sorted, and exited 0. It verified nothing. `METHODOLOGY.md` described it as
-"PyPI existence + maintainer-age". **A package that is already installed has by definition survived the
-only question this check was pretending to ask**, and an LLM-hallucinated dependency reaches your lock
-file before it reaches your venv -- so the check ran at the one moment it could not possibly help.
+WHAT IT CHECKS. Every DECLARED dependency (requirements.txt, and pyproject.toml's `dependencies`
+and `optional-dependencies`) must exist on PyPI, and its FIRST release must be at least
+MIN_AGE_DAYS (90) days old. A name that does not exist is a typo or an attack; a name whose first
+release is days old, in a tree where every other dependency is years old, is the shape of a
+slopsquat. It does not grade maintainers or how recently a project last released.
 
-WHAT IT DOES. Reads DECLARED dependencies (requirements.txt / pyproject.toml), asks PyPI whether each
-one exists, and how old its first release is. A name that does not exist is a typo or an attack. A name
-whose first release is days old, in a tree where every other dependency is years old, is the shape of a
-slopsquat.
+WHY DECLARED, NOT INSTALLED. A package that is already installed has survived the only question
+this check asks, and an LLM-hallucinated dependency reaches the manifest before it reaches the
+virtualenv -- so listing the installed set verifies nothing.
 
 OFFLINE IS NOT PASS. If PyPI cannot be reached the check exits non-zero and says so. A supply-chain
-control that reports clean because it could not run is the failure this whole lineage is about.
+control that reports clean because it could not run is a false pass.
 
 Exit: 0 clean · 1 findings · 2 could not run (network, no manifest).
 """
@@ -22,7 +21,6 @@ import json
 import pathlib
 import re
 import sys
-import tomllib
 import urllib.error
 import urllib.request
 
@@ -57,19 +55,23 @@ def declared(root: pathlib.Path) -> list[str]:
 
     pyp = root / "pyproject.toml"
     if pyp.is_file():
-        with pyp.open("rb") as fh:
-            doc = tomllib.load(fh)
-        project = doc.get("project", {})
-        specs: list[str] = list(project.get("dependencies", []) or [])
-        # Optional groups too: `[dev]` is where a typo-squatted test helper would land, and it is
-        # installed by CI on every run.
-        for group in (project.get("optional-dependencies", {}) or {}).values():
-            specs.extend(group or [])
-        for item in specs:
+        # Parsed, not regexed: a regex over `dependencies = [...]` stops at the `]` inside
+        # `uvicorn[standard]`, and grades one dependency of seven.
+        try:
+            import tomllib
+        except ImportError:                  # Python < 3.11: say so, never grade a partial set
+            print("slopsquat CANNOT RUN: needs Python >= 3.11 (tomllib) to read pyproject.toml -- "
+                  "run it through the project venv: `make slopsquat`")
+            raise SystemExit(2) from None
+        data = tomllib.loads(pyp.read_text(encoding="utf-8", errors="replace"))
+        proj = data.get("project", {})
+        items = list(proj.get("dependencies", []))
+        for group in proj.get("optional-dependencies", {}).values():
+            items += list(group)
+        for item in items:
             m = DEP_RE.match(item)
             if m:
                 names.append(m.group(1))
-
     return sorted(set(names))
 
 

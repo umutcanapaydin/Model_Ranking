@@ -8,12 +8,12 @@ process_version: v4.2
 
 <!-- expect: C1b -->
 
-This is the V4C-25 incident, frozen as a regression test. A condition was ratified with an owner,
-a date and a named artifact; the date passed; the artifact was never filed; nothing noticed.
-The date below is deliberately far in the past so this fixture never depends on the clock.
+A condition was ratified with an owner, a date and a named artifact; the date passed; the artifact
+was never filed; nothing noticed. Frozen here as a regression test. The date below is deliberately
+far in the past so this fixture never depends on the clock.
 
 ### Binding conditions
 
 | # | Condition | Owner | Date | Closure artifact |
 |---|---|---|---|---|
-| 1 | the instrument that measures whether our controls are real | chair | 2020-01-01 | `docs/an-artifact-that-was-never-written.md` |
+| 1 | the instrument that measures whether our controls are real | owner | 2020-01-01 | `docs/an-artifact-that-was-never-written.md` |

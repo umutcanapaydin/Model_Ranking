@@ -8,6 +8,5 @@ supersedes: [supersession-cycle]
 
 <!-- expect: X2 -->
 
-X2 shipped in v4.1 with no fixture at all, despite V4C-32's adopted text naming "broken
-supersession" among the classes its corpus was supposed to cover. Found by the Quality seat at
-Increment 12. A self-cycle is the minimal case and needs only one file.
+X2 once shipped with no fixture at all, so nothing showed it firing. A self-cycle is the minimal
+case and needs only one file.

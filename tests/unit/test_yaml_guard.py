@@ -47,7 +47,7 @@ def test_the_real_curated_files_pass_the_guard() -> None:
     from pathlib import Path
 
     for name in ("data/plans.yaml", "data/rosters.yaml"):
-        raw = Path(name).read_text()
+        raw = Path(name).read_text(encoding="utf-8")
         assert safe_load_bounded(raw, what=name) is not None
 
 
@@ -116,7 +116,7 @@ def test_every_yaml_entry_point_goes_through_the_guard() -> None:
     offenders: list[str] = []
 
     for path in files:
-        tree = ast.parse(path.read_text())
+        tree = ast.parse(path.read_text(encoding="utf-8"))
         # Every local name that refers to the yaml module, however it got here.
         aliases = {
             alias.asname or alias.name
@@ -218,7 +218,7 @@ def test_a_refused_document_does_not_poison_the_next_one() -> None:
     """
     from pathlib import Path
 
-    real = Path("data/plans.yaml").read_text()
+    real = Path("data/plans.yaml").read_text(encoding="utf-8")
     for attempt in range(60):
         with pytest.raises(YamlGuardError, match="recursive"):
             safe_load_bounded("a: &a [*a,*a,*a]\n", what="hostile")
@@ -339,7 +339,7 @@ def test_the_savepoint_wrapper_has_a_citing_test() -> None:
     import ast
     from pathlib import Path
 
-    source = Path("src/app/workflows/schema.py").read_text()
+    source = Path("src/app/workflows/schema.py").read_text(encoding="utf-8")
     fn = next(
         node
         for node in ast.walk(ast.parse(source))

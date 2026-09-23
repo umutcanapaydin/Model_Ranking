@@ -13,7 +13,12 @@ not waiting for them one after another, plus `swift test --parallel` (51 s -> 28
 with a reason, below. `install` runs once before the legs and each leg is started with `-o install`,
 because concurrent `pip install -e` runs into one virtualenv race each other.
 
-    python3 scripts/check_fast.py [--make make]
+    python3 scripts/check_fast.py [--make make] [--plan]
+
+`--plan` prints `leg: target target...`, one leg per line, and runs nothing: the `check:`
+prerequisites each leg covers, by their `check:` names (`swift-test` runs as `swift-test-parallel`).
+DevFlow v6.4's `conformance/test-check-fast.py` reads it to prove every prerequisite is in exactly
+one leg.
 """
 
 from __future__ import annotations
@@ -99,12 +104,18 @@ def run_legs(commands: dict[str, list[str]], logs: Path) -> int:
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="check_fast")
     parser.add_argument("--make", default="make")
+    parser.add_argument("--plan", action="store_true", help="print the legs; run nothing")
     args = parser.parse_args(argv)
     try:
         prereqs = check_prerequisites((ROOT / "Makefile").read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         print(f"check-fast FAIL: {exc}")
         return 1
+    if args.plan:
+        covered = {form: target for target, form in PARALLEL_FORM.items()}
+        for name, targets in legs(prereqs).items():
+            print(f"{name}: {' '.join(covered.get(t, t) for t in targets)}")
+        return 0
     commands = {name: [args.make, "--no-print-directory", "-o", "install", *targets]
                 for name, targets in legs(prereqs).items()}
     return run_legs(commands, LOGS)

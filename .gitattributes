@@ -1,0 +1,8 @@
+# Line endings. Bash and make read these files, and a carriage return breaks both: a script dies
+# on `$'\r': command not found`, a recipe line ends in `\r`, and `.devflow-stack` names a stack
+# nobody bound. They check out with LF on every OS, whatever the clone's `core.autocrlf` says.
+*.sh            text eol=lf
+.githooks/*     text eol=lf
+Makefile        text eol=lf
+*.mk            text eol=lf
+.devflow-stack  text eol=lf
