@@ -385,3 +385,41 @@ def test_the_refresh_refuses_a_board_that_shrinks_end_to_end(
     outcome, code = refresh(live)
     assert code == EXIT_REFUSED, outcome.reason
     assert "coding's board" in (outcome.reason or ""), outcome.reason
+
+
+# --- #15: the out-of-100 anchor is the surface's derived floor (owner, 2026-09-23) -------------
+
+
+def test_every_elo_surface_anchors_its_score_at_its_served_floor(seeded: Path) -> None:
+    """#15: `score_anchor` is the floor the surface recommends from, so the app's "50 is at the
+    bar" is true. Off Elo there is no anchor: a percentage is already out of 100, and ECI stays
+    rank-only (D-143)."""
+    for surface in ("document", "assistant"):
+        _raise_the_board(seeded, surface, above=1400.0, rows=30)
+    served = _served()
+    for surface, spec in CATEGORIES.items():
+        if spec.metric == "elo":
+            assert served[surface]["score_anchor"] == served[surface]["min_quality"], surface
+        else:
+            assert served[surface]["score_anchor"] is None, surface
+    assert served["document"]["score_anchor"] is not None, "the fixture proves nothing"
+
+
+def test_the_anchor_moves_with_the_board(seeded: Path) -> None:
+    """#15, the reverse of D-146 clause 2: the board grows, the floor rises, and the anchor goes
+    with it."""
+    surface = "document"
+    _raise_the_board(seeded, surface, above=1400.0, rows=30)
+    before = _served()[surface]["score_anchor"]
+    assert before is not None
+    _raise_the_board(seeded, surface, above=before, rows=200, name="higher")
+    after = _served()[surface]
+    assert after["score_anchor"] > before
+    assert after["score_anchor"] == after["min_quality"]
+
+
+def test_with_no_artifact_no_anchor_is_invented(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without a served board there is no floor, so no anchor: the app keeps the engine's own
+    scale (D-146 clause 1) rather than reading every Elo score against a number nobody measured."""
+    monkeypatch.setenv("MODEL_RANKING_DB", str(tmp_path / "absent.db"))
+    assert {entry["score_anchor"] for entry in _served().values()} == {None}
