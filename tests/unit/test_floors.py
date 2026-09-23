@@ -25,6 +25,8 @@ def test_the_floor_is_the_top_third_of_the_rows() -> None:
     # twelve rows: the fourth from the top (a quarter would be the third)
     assert floors.top_third([float(v) for v in range(12, 0, -1)]) == 9.0
     assert floors.top_third([]) is None
+    # rounded as the output boundary rounds (D-109), so a raw float never reaches /v1
+    assert floors.top_third([70.04, 10.0, 5.0]) == 70.0
 
 
 def test_the_board_is_the_surfaces_own_source_benchmark_and_metric(tmp_path: Path) -> None:

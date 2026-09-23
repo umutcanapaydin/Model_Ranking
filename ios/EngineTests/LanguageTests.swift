@@ -23,11 +23,15 @@ final class LanguageCompositionTests: XCTestCase {
     private let floorMissed: [String: Any] = [
         "reason": "nothing_clears_floor", "floor": 65.0, "unit": "points",
     ]
+    /// M17-W1 (D-159): a surface whose own board is empty has no floor to clear.
+    private let floorUnmeasured: [String: Any] = [
+        "reason": "no_floor_measured", "unit": "points",
+    ]
 
     // MARK: every reason speaks both languages
 
     func testEveryReasonTheEngineCanEmitHasBothSentences() {
-        for fact in [highest, window, floorMet, floorMissed] {
+        for fact in [highest, window, floorMet, floorMissed, floorUnmeasured] {
             for language in Language.allCases {
                 XCTAssertNotNil(whySentence(fact, in: language),
                                 "\(fact["reason"] ?? "?") has no sentence in \(language.rawValue)")
@@ -39,7 +43,7 @@ final class LanguageCompositionTests: XCTestCase {
     /// numbers, because both read them out of the same fact. A translated string table can drift
     /// on a number; this cannot.
     func testBothLanguagesQuoteTheSameNumbers() {
-        for fact in [highest, window, floorMet, floorMissed] {
+        for fact in [highest, window, floorMet, floorMissed, floorUnmeasured] {
             let english = whySentence(fact, in: .english) ?? ""
             let turkish = whySentence(fact, in: .turkish) ?? ""
 
@@ -304,7 +308,7 @@ final class HostileFactValueTests: XCTestCase {
     func testNoFactValueProducesASentenceMissingItsNumber() {
         for value in hostile {
             for reason in ["highest_score", "cheapest_within_window", "cheapest_above_floor",
-                           "nothing_clears_floor"] {
+                           "nothing_clears_floor", "no_floor_measured"] {
                 let fact: [String: Any] = [
                     "reason": reason, "floor": value, "window": value, "score": value,
                     "unit": "points", "benchmark": "X",

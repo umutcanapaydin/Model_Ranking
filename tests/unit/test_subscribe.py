@@ -665,3 +665,12 @@ def test_budget_that_prices_out_everything_still_says_how_many(tmp_path, capsys)
     assert payload["budget_notice"] == (
         "The budget cap excluded 3 scoreable plan(s) from the options."
     )
+
+
+def test_an_empty_own_board_says_so_on_the_plan_axis() -> None:
+    """M17-W1 review MINOR-1 (M16): the plan answer's empty-board branch had no test."""
+    conn = _db()
+    conn.execute("UPDATE scores SET source = 'epoch_swe_bench_verified' WHERE source = 'swebench'")
+    rec = recommend_subscription(conn, "unlimited", "coding")
+    assert rec is not None
+    assert "board is empty" in rec.picks[2].why

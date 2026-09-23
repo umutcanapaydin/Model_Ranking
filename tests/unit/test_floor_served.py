@@ -113,5 +113,53 @@ def test_the_budget_pick_says_when_its_board_is_empty(seeded: Path) -> None:
     rec = recommend(conn, "unlimited", "coding")
     assert rec is not None
     budget = next(p for p in rec.picks if p.label == "budget_pick")
-    assert budget.why_fact["floor"] is None and budget.why_fact["reason"] == "nothing_clears_floor"
+    assert budget.why_fact["reason"] == "no_floor_measured"
     assert "board is empty" in budget.why
+
+
+# --- M17-W1 review (docs/reviews/m17-wave-1-review.md) -------------------------------------------
+
+
+def test_a_floor_moved_by_rows_the_ranking_never_carries_is_a_served_change(seeded: Path) -> None:
+    """BLOCKING-1: the floor counts every row of the board, the ranking only the ones it can rank. A
+    board that grows by models nobody prices moves the floor and the Budget Pick, and the refresh's
+    fingerprint must see it -- or it reports "nothing a user would notice changed" and never publishes."""
+    from app.workflows.refresh import fingerprint_of
+
+    before = fingerprint_of(seeded)
+    _raise_the_board(seeded, "coding", above=74.5, rows=60)
+    after = fingerprint_of(seeded)
+    assert before is not None and after is not None
+    assert after.digest != before.digest
+
+
+def test_an_empty_own_board_has_its_own_reason_code(seeded: Path) -> None:
+    """MINOR-1: `nothing_clears_floor` with a null floor meant two things, and the phone could word
+    neither. No measurable floor is its own reason."""
+    spec = CATEGORIES["coding"]
+    with sqlite3.connect(seeded) as conn:
+        conn.execute("UPDATE scores SET source = 'epoch_swe_bench_verified' WHERE source = ? "
+                     "AND benchmark = ?", (spec.primary_source, spec.primary_benchmark))
+    rec = recommend(sqlite3.connect(seeded), "unlimited", "coding")
+    assert rec is not None
+    budget = next(p for p in rec.picks if p.label == "budget_pick")
+    assert budget.why_fact["reason"] == "no_floor_measured"
+    assert "floor" not in budget.why_fact or budget.why_fact["floor"] is None
+
+
+def test_every_quoted_floor_is_printed_as_the_engine_applies_it() -> None:
+    """MINOR-2 (W-084): the check on printed bars read `{spec.min_quality...}`, which no longer
+    exists, so `{floor:.0f}` -- a bar the engine does not apply -- passed. Every place that prints the
+    derived floor prints it with `:g`."""
+    import inspect
+    import re
+
+    from app.workflows import recommend as recommend_module
+    from app.workflows import subscribe
+
+    quoted = re.compile(r"\{floor(:[^}]+)?\}")
+    for module in (recommend_module, subscribe):
+        source = inspect.getsource(module)
+        specs = quoted.findall(source)
+        assert specs, f"{module.__name__} prints no floor at all -- this check reads nothing"
+        assert set(specs) == {":g"}, (module.__name__, specs)
