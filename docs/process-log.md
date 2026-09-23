@@ -474,3 +474,14 @@ Lesson: put "review pending, do not merge" where the owner decides, not in a che
 - The workflow change is proposed in the PR for the owner, not made.
 Lesson: an upgrade's new gates are the first review of the old tree; run them before resolving
 anything else.
+
+## 2026-09-23 — DevFlow v6.4 -> v6.6 on the same branch (D-161 amendment)
+
+- Applied `git diff v6.4 v6.6` three-way; six conflicts, each resolved by hand. `check_fast.py` is
+  DevFlow's now, with the project's legs in `stack.mk`; the coverage floor runs inside `test`.
+- The v6.4 upgrade review (0/4/5/8) is answered: version scope derived, the date guard and the
+  trailer check restored, wildcard allow rows removed. The owner ruled review depth "fully 6.4".
+- v6.5's duplicate-key check found why the issue agent never ran: `pull-requests` twice in its
+  workflow. The owner deletes the line; until then conformance is red on it.
+Lesson: a new DevFlow gate is worth running against the owner-only files first -- it found a
+workflow that had failed silently for five weeks.

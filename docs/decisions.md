@@ -2,7 +2,7 @@
 record_type: register
 id: model-ranking-decisions
 status: ratified
-process_version: v6.4
+process_version: v6.6
 date: 2026-08-11
 ---
 # Decisions
@@ -2818,3 +2818,45 @@ clause 3 lists. The defects found on the way go back to DevFlow in
 
 **Revisit when:** DevFlow grades closure reports by their declared version, or absorbs a clause-3
 difference.
+
+*Amendment, 2026-09-23 (DevFlow v6.6, the same upgrade PR; the independent review
+`docs/reviews/devflow-v6.4-upgrade-review.md`, PASS WITH FINDINGS 0/4/5/8).* The branch takes
+DevFlow v6.6 as well (`git diff v6.4 v6.6 | git apply -3`, workflows excluded), and the text above
+changes as follows:
+
+- **Review depth: fully DevFlow (owner ruling, 2026-09-23,** asked in Turkish, answered "Tamamen 6.4",
+  translated "fully 6.4"). Every wave gets Code-Reviewer, then Tester, as two separate subagents, at
+  every risk tier; the security review runs once, at Stage 5.1. **P-005's risk tiers and the
+  per-milestone security seat are retired**, and clause 3's bullet keeping them no longer holds.
+  From v6.5 each verdict declares `**Independent:** yes`; this project keeps its own K.7 check too,
+  that the review is a file declaring `seat: independent`.
+- **check-fast is DevFlow's** (`scripts/check_fast.py` byte-identical to v6.6). The project's own
+  legs are in `stack.mk`: `CHECK_FAST_OWN_LEGS = client-decls swift-test` and
+  `CHECK_FAST_FORMS = swift-test=swift-test-parallel`. W-041's per-module coverage floor moved into
+  the `test` recipe, after pytest: as a separate `check:` prerequisite it would run in v6.6's
+  records leg, beside the tests, and read the previous run's `coverage.json`.
+- **`scripts/check_records.py` stays the project's.** It passes this project's records and v6.6's
+  self-test fixtures; v6.6's reports 121 R2 findings on records written under earlier versions (122
+  counting a record type this project added). v6.5's unclosed-fence `L1` and v6.6's issue-owned
+  ACCEPTED ledger rows are therefore not checked here.
+- **Clause 3 was wrong about two controls, and they are restored** (review MAJOR-2 and MAJOR-3):
+  - `scripts/wave_check.py` trusts a declared version only on a close dated on or before
+    2026-09-23, so a close written later cannot declare an old version to skip a rule;
+  - `conformance/test-commit-identity.py` fails a machine-identity commit on the branch with no
+    `GP-Agent:` trailer. On session commits under the owner's identity the trailer is a convention
+    nothing can check, because nothing tells them from the owner's own. `.owner-identity`, which no
+    check read after v6.4, is deleted.
+- **`scripts/wave_check_all.py` derives its scope** (review MAJOR-1): every close declaring v5.0 or
+  later is graded, so a close stamped v6.6 by today's template is in scope.
+- **`.path-refs-allow`** drops v6.4's `docs/plans/*` and `docs/reviews/*` wildcards again, for one
+  exact row, `docs/reviews/release-security.md` (review MINOR-1).
+- **Two things v6.4 changed that clause 3 did not say** (review MINOR-5, MAJOR-4): the post-edit
+  hook runs `make check-fast`, not `make gate`, so secrets, deps and slopsquat run at `/pre-merge`,
+  the pre-push hook and CI, not after every edit; and `make bootstrap-check` fails C11 (nothing gates
+  a push) until `main` is protected and the brief says so (issue #13) or `make hooks` is on.
+- **Numbers corrected** (review NITs): five DevFlow scripts carry lint-only fixes, not two
+  (`ci_liveness.py` is a sixth, from v6.5); `closes` would also fail the 20 pre-migration wave records.
+- **The owner's part grows by one line:** v6.5's duplicate-key check fails
+  `.github/workflows/issue-agent.yml`, which sets `pull-requests: write` twice (lines 31 and 33).
+  GitHub rejects the file, so the issue agent has never started. The proposed workflow diff fixes
+  it; until the owner applies it, `conformance` (and so `make check` and `make gate`) is red on it.
