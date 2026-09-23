@@ -720,3 +720,40 @@ exist; the router's speed on a phone is unmeasured; image pricing stays open; no
 eighth milestone. **Control bypass:** K.7 on the HIGH wave (W-120): committed with no review, and
 the retroactive seat found two BLOCKING test gaps. D-141 accepted after five waivers; the same
 wave's security pass landed at closure rather than before its commit.
+
+## M16 closure — 2026-09-23 — every review found the dangerous direction; the process has to be where the owner decides
+
+M15 asked what must be true before the app claims freshness. The owner removed the button (D-151)
+and ruled that a failed source carries its last good data for 30 days, disclosed by the engine and
+not by the app (D-156). M16 then made the product keep itself current: the engine refreshes once a
+night, fetches every board itself (D-158), records a board whose layout changed, and registers a
+model the boards and the price feeds name without a code edit (D-157, the owner's "the list wins,
+the data derives the rest"). The project also moved to DevFlow v6.0: drafts, the owner merges.
+
+Engineering shapes worth keeping:
+
+1. **Run the updater on a copy before reasoning about it.** One refresh on a copy of the served
+   artifact, with live upstreams, showed nine sources never fetched and an upstream layout change.
+   Neither was visible in the code.
+2. **The dangerous direction of a normaliser is a merge.** The first name grammar merged
+   deepseek-coder-v2 into deepseek-coder and three Mistral 7B versions into one, while every
+   document described it as unable to. The fix is a CLOSED list of decorations, which makes the
+   remaining failure a split, plus adversarial pairs as tests.
+3. **An archive from the network is untrusted input, and its errors are part of the input.** An
+   allowlist of exception types let a crafted zip crash every source's night. The unpacker is now
+   total: anything but a source error becomes one.
+4. **A guard that refuses a legitimate change is information, not an obstacle.** D-132 refused the
+   first derived roster (124 of 189 names new, a median price down 72%). That is exactly the change
+   an owner should publish by hand, deliberately.
+5. **Ask which process runs.** The wave changed the engine's refresher; the one refreshing the
+   owner's artifact was a launchd wrapper running whatever branch was checked out.
+
+**What was accepted rather than solved:**
+- the floors re-measured on fresh boards (W-128);
+- the tie-margin rule (W-127);
+- the data licences (W-129);
+- the derived ids that sit on reused names;
+- nothing deployed, ninth milestone.
+
+**Control bypass:** `/pre-merge` did not run before two PRs were merged (#3, #6). #6's review came
+back BLOCKING after the merge and was fixed in #8. Nothing wrong was served.

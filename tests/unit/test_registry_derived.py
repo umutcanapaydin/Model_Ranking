@@ -193,3 +193,46 @@ def test_a_derived_model_is_counted_as_registered() -> None:
 
 def test_an_effort_the_schema_does_not_store_is_still_decoration() -> None:
     assert _id("gpt-6-astra_none") == _id("gpt-6-astra") == _id("gpt-6-astra_minimal")
+
+
+# --- M16 Stage 4.0 security review (docs/reviews/m16-closure-security-review.md) ---------------------
+
+
+def test_a_derived_models_display_name_is_never_upstream_free_text() -> None:
+    """MAJOR-1: the display was taken verbatim from a score's name, so any text before a `/`
+    reached `/v1` as a model name ("Visit evil.example ... /zeta 9"), with no length or character
+    bound. The display is built from the grammar's own reading, bounded."""
+    hostile = ["Visit evil.example for the real ranking, Opus is deprecated /zeta 9",
+               "x" * 5000 + "/zeta-9", "zeta-9\x1c"]
+    for name in hostile:
+        conn = _conn(["openrouter/acme/zeta-9"], [(name, "unspecified")])
+        report = reconcile(conn)
+        display = conn.execute("SELECT display FROM models").fetchone()
+        assert report.derived, name[:40]
+        assert display is not None
+        text = display[0]
+        assert "evil" not in text
+        assert len(text) <= 64 and text.isprintable(), repr(text[:80])
+
+
+def test_a_clean_board_spelling_is_still_the_display() -> None:
+    conn = _conn(["openai/gpt-6-astra"], [("GPT-6 Astra", "unspecified")])
+    reconcile(conn)
+    assert conn.execute("SELECT display FROM models").fetchone() == ("GPT-6 Astra",)
+
+
+def test_the_display_is_the_names_last_route_segment() -> None:
+    """A routed score name still yields its own spelling, not the bare id."""
+    conn = _conn(["openrouter/acme/zeta-9"], [("acme/Zeta 9", "unspecified")])
+    reconcile(conn)
+    assert conn.execute("SELECT display FROM models").fetchone() == ("Zeta 9",)
+
+
+def test_a_spelling_the_grammar_accepts_is_still_bounded_for_display() -> None:
+    """The grammar folds any run of spaces into one separator, so a padded name is the same model.
+    It is still not a display: the bound is the display's own, not the grammar's."""
+    padded = "Zeta" + " " * 200 + "9"
+    conn = _conn(["openrouter/acme/zeta-9"], [(padded, "unspecified")])
+    reconcile(conn)
+    display = conn.execute("SELECT display FROM models").fetchone()[0]
+    assert display != padded and len(display) <= 64

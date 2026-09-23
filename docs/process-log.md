@@ -451,3 +451,14 @@ Lesson: when two measurements disagree, run both on the same input before writin
   `docs/research/devflow-v6-field-findings-2026-09-23.md` (see the record for the count).
 Lesson: merge a methodology upgrade three ways against the tag you installed, never copy over it.
 
+
+## 2026-09-23 — M16 closed agent-side (W3, W4, check-fast, closure)
+
+- W3 (#3): carry-forward (D-156) and D-148 floors; three independent rounds, the last PASS-WITH-MINORS.
+- Plans re-verified (#4); ChatGPT's table counts as explicit (owner); a GPT-5 Thinking Mini leak fixed.
+- W4 (#5, #6, #8) replaced "what people ask" on the owner's ruling: Epoch fetched by the refresh
+  (D-158), layout drift, derived registry (D-157), Fable 5.1. The security pass and the full review
+  each came back BLOCKING, and both were fixed; #6 merged before its review returned.
+- `make check-fast` (#7), after the owner's hcs_maas_full: 89 s -> 33 s; `check` unchanged.
+- Closure: Stage 4.0 security seat, coverage trace, closure report, retrospective, M17 plan.
+Lesson: put "review pending, do not merge" where the owner decides, not in a checklist below it.

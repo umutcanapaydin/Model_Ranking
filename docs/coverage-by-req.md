@@ -156,3 +156,27 @@ test red, and which seat ran it.
 
 **One row is PARTIAL and it is the seat's finding, not a hedge:** the router test proves the
 examples' wording reaches each surface, not that a stranger's does.
+
+## M16 — traced at the M16 quality gate (Stage 4.1)
+
+**Evidence pinning.** `main` at `eee2faf` plus the M16 closure branch. Each row names the test that
+cites the criterion and the mutant that has turned it red, with the seat that ran the mutant. The
+full gate results are in `docs/closure-report-m16.md` §4.
+
+| # | REQ-ID | Verdict | Implementing code | Citing test shown able to fail |
+|---|---|---|---|---|
+| 1 | **REQ-FLR-001** — `/v1/categories` publishes each surface's floor as its own field | COVERED | `src/app/adapter/main.py::categories` | `tests/unit/test_uncertainty_contract.py::test_every_surface_publishes_the_floor_it_recommends_from`, through `TestClient(adapter.app)`; RED on three mutants: the field dropped, served from `score_anchor`, and the floor moved (`docs/plans/m16-wave-1-close.md`) |
+| 2 | **REQ-FLR-002** — the detail screen shows that floor, in both languages | COVERED | `ios/ModelRanking/Engine/Detail.swift::detailFacts` | `ios/EngineTests/DetailTests.swift` (floor on the card's scale, none invented, rank-only unit, Turkish screen); both doors pinned in `tests/unit/test_ios_client_contract.py`. W-112 FIXED |
+| 3 | **REQ-PRC-001** — a surface whose price leaves something out says so as a code | COVERED | `src/app/workflows/categories.py::CategorySpec.price_excludes` | `tests/unit/test_uncertainty_contract.py::test_only_the_search_surfaces_say_the_search_call_is_not_in_the_price`; RED when every surface carries the code |
+| 4 | **REQ-PRC-002** — every place that prints a search price says what it leaves out | COVERED | `Detail.swift::priceExclusion` | `tests/unit/test_ios_client_contract.py::test_every_place_that_prints_a_search_price_says_what_it_leaves_out`; `DetailTests`; `EngineClientTests` on a live payload. W-119 FIXED |
+| 5 | **REQ-REF-008** — the engine refreshes itself once a night, in a child process, off by default, refused in production | COVERED | `src/app/adapter/nightly.py`, `main._lifespan` | `tests/unit/test_nightly_refresh.py`: window arithmetic, catch-up, a hanging child killed at the timeout, a child killed mid-publish (live artifact byte-identical); `docs/reviews/m16-wave-2-review.md` and `m16-wave-2-security.md` mutants |
+| 6 | **REQ-REF-009** — a failed source carries its last good data for 30 days, then drops | COVERED | `src/app/workflows/build.py::Carry`, `refresh.py::_served_without` | `tests/unit/test_carry_forward.py`, `tests/unit/test_refresh_carry.py` through the real `refresh()` and `build.main`; three seats' mutants, the last round all RED (`docs/reviews/m16-wave-3-rereview-2.md`) |
+| 7 | **REQ-ING-010** (amended by D-158) — the refresh fetches the Epoch bundle itself, as untrusted input | COVERED | `src/app/clients/epoch_bundle.py`, `refresh.py::_fetched_epoch`, `nightly.refresh_command`, `scripts/refresh_job.sh` | `tests/unit/test_epoch_bundle_fetch.py` (cycle through `refresh()`; every refusal; RED on the security seat's F1 archives); `tests/unit/test_epoch_layout.py` (the 2026-09 layout, drift to `/health`); `tests/unit/test_refresh_job_install.py` |
+| 8 | **REQ-CAN-001** (superseded in part by D-157) — a name no curated rule matches is registered when it has a price and a score; two products never share an id | COVERED | `src/app/workflows/registry.py::derive_identity`, `reconcile` | `tests/unit/test_registry_derived.py` (the review's false-merge reproductions, RED on the pre-fix grammar: 13 FAIL replayed by the re-review), `tests/unit/test_registry_disclosure.py` through the real cycle |
+| 9 | **REQ-CAN-002** — a variant's price or score never leaks into its parent | COVERED | `registry.py::MODEL_RULES` | `tests/unit/test_registry.py::test_variant_never_leaks_into_parent` (GPT-5 Thinking Mini, Claude Fable 5.1 added this milestone), `::test_the_fable_5_parent_keeps_its_version_guard` (RED on the review's M21) |
+| 10 | **REQ-GAP-001** (re-traced) — nothing the reader types leaves the device | COVERED **against resolved declarations** (W-122 FIXED) | `scripts/client_decl_gate.py`, `make client-decls` | The gate type-checks the client and reads what the compiler bound; the W1 seats' bypass set dies on it (`docs/reviews/m16-wave-1-rereview-2.md`) |
+| 11 | **REQ-RTR-005** — an unmeasured question routes to `assistant` and says so | **PARTIAL**, carried | `ios/ModelRanking/Engine/Router.swift` | `ios/EngineTests/RouterBoundaryTests.swift` floor tests hold the mechanism; the measurement found 5 of 16 ordinary questions reach a surface without saying so (W-123, now owned by M17: it waits for evidence about what people ask) |
+
+**One row is PARTIAL, and it is a measurement, not a hedge:** row 11. Not traced here: the plan and
+roster data (REQ-SUB-004, REQ-ING-009) were re-verified on 2026-09-23 (PR #4); that is data, gated by
+the CI staleness steps, not a criterion with a test.

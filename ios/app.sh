@@ -16,8 +16,10 @@ set -u
 REPO="/Users/umutcanapaydin/Desktop/ILGAR/model_ranking"
 DEVICE="${MR_DEVICE:-iPhone 17 Pro}"
 BUNDLE="com.ilgar.modelranking"
-#: The owner-fetched Epoch bundle the refresh builds from (the same path the launchd job used).
-EPOCH_DIR="${MR_EPOCH_DIR:-/Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data}"
+# D-158: the engine's nightly refresh fetches the Epoch bundle itself. An owner-supplied bundle is
+# passed only when MR_EPOCH_DIR names one; the hand-kept 2026-08-15 folder is retired.
+EPOCH_DIR="${MR_EPOCH_DIR:-}"
+if [ -n "$EPOCH_DIR" ]; then export MODEL_RANKING_EPOCH_DIR="$EPOCH_DIR"; else unset MODEL_RANKING_EPOCH_DIR; fi
 PORT=8080
 BUILD_DIR="$REPO/ios/.build"
 ENGINE_LOG="$BUILD_DIR/engine.log"
@@ -86,7 +88,7 @@ if problems:
   # the owner (scripts/retire_refresh.sh, run by the owner); until then the two share refresh.py's lock,
   # so they cannot overlap.
   APP_ENV=test MODEL_RANKING_DB=advisor.db APP_BUILD="dev-$(git rev-parse --short HEAD)" \
-    MODEL_RANKING_REFRESH=nightly MODEL_RANKING_EPOCH_DIR="$EPOCH_DIR" \
+    MODEL_RANKING_REFRESH=nightly \
     "$REPO/.venv/bin/python" -m uvicorn app.adapter.main:app \
     --host 127.0.0.1 --port "$PORT" > "$ENGINE_LOG" 2>&1 &
   for _ in $(seq 1 20); do

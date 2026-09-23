@@ -67,3 +67,17 @@ def test_a_cycle_that_is_not_served_keeps_the_served_lists(tmp_path: Path) -> No
 
     assert cycle(0, ("gpt6-astra",))["derived"] == ["gpt6-astra"]
     assert cycle(3, ("gpt6-astra", "kimi-k3"))["derived"] == ["gpt6-astra"]
+
+
+def test_an_unmatched_name_is_bounded_before_it_reaches_health() -> None:
+    """Security review MINOR-1: five unmatched upstream names went to /health with no length bound
+    (a 5 MB response was measured)."""
+    from app.workflows.build import UNMATCHED_NAME_CHARS, _most_unmatched
+    from app.workflows.schema import connect
+
+    conn = connect(":memory:")
+    conn.execute("INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, "
+                 "source_url, observed_at) VALUES (?, 'b', 'm', 1, 'h', 'unspecified', 's', 'u', 'z')",
+                 ("q" * 100_000,))
+    listed = _most_unmatched(conn, set())
+    assert listed and all(len(name) <= UNMATCHED_NAME_CHARS for name in listed)

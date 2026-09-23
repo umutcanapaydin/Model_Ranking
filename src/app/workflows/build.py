@@ -318,6 +318,9 @@ def _fall_back(conn: sqlite3.Connection, carry: Carry | None, source: str) -> st
 
 #: How many unmatched names the report carries: the top of the curation queue, not all of it.
 UNMATCHED_LISTED = 20
+#: And how long each may be. They are upstream text on their way to `/health`; one was measured at
+#: 100 kB, which made a 5 MB response (M16 Stage 4.0 security review, MINOR-1).
+UNMATCHED_NAME_CHARS = 80
 
 
 def _most_unmatched(conn: sqlite3.Connection, refused: set[str]) -> list[str]:
@@ -326,7 +329,7 @@ def _most_unmatched(conn: sqlite3.Connection, refused: set[str]) -> list[str]:
     rows = conn.execute(
         "SELECT raw_name, COUNT(*) AS n FROM scores WHERE model_id IS NULL "
         "GROUP BY raw_name ORDER BY n DESC, raw_name").fetchall()
-    return [name for name, _ in rows if name not in refused][:UNMATCHED_LISTED]
+    return [name[:UNMATCHED_NAME_CHARS] for name, _ in rows if name not in refused][:UNMATCHED_LISTED]
 
 
 def _surfaces_left_without_evidence(missing: Sequence[str]) -> list[str]:

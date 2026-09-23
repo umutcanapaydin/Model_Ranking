@@ -452,11 +452,27 @@ def _derived_vendor(model_id: str, aliases: list[str]) -> str:
     return "Other"
 
 
-def _derived_display(names: list[str]) -> str:
-    """A board's own display spelling when one has it (`GPT-6 Astra`), else the shortest name."""
-    bare = sorted({_UNDERSCORE_EFFORT.sub("", n).strip() for n in names})
-    spaced = [n for n in bare if " " in n]
-    return spaced[0] if spaced else min(bare, key=lambda n: (len(n), n))
+#: What a display name may look like. It reaches `/v1` and the app as a model's name, so it is a
+#: SPELLING of the model and nothing else (M16 Stage 4.0 security review, MAJOR-1).
+_DISPLAY = re.compile(r"[A-Za-z0-9][A-Za-z0-9 .+()\-]{0,63}")
+
+
+def _derived_display(model_id: str, names: list[str]) -> str:
+    """A board's own spelling when one has it (`GPT-6 Astra`), else the shortest, else the id.
+
+    A candidate is only the name's last route segment, bounded to 64 characters of a closed
+    alphabet, and it must READ AS THE SAME MODEL through the grammar. Taken verbatim, a score's
+    name served "Visit evil.example ... /zeta 9" as a model name, with no length bound (MAJOR-1)."""
+    candidates = set()
+    for name in names:
+        bare = _UNDERSCORE_EFFORT.sub("", name.rsplit("/", 1)[-1]).strip()
+        derived = derive_identity(bare)
+        if _DISPLAY.fullmatch(bare) and derived is not None and derived.model_id == model_id:
+            candidates.add(bare)
+    spaced = sorted(n for n in candidates if " " in n)
+    if spaced:
+        return spaced[0]
+    return min(candidates, key=lambda n: (len(n), n)) if candidates else model_id
 
 
 @dataclass(frozen=True)
@@ -551,7 +567,7 @@ def _register_derived(conn: sqlite3.Connection, pending: _Pending, model_id: str
         )
     conn.execute(
         "INSERT OR REPLACE INTO models (id, display, vendor) VALUES (?,?,?)",
-        (model_id, _derived_display([part for *_, part in names]),
+        (model_id, _derived_display(model_id, [part for *_, part in names]),
          _derived_vendor(model_id, aliases)),
     )
     return len(aliases), len(names)
