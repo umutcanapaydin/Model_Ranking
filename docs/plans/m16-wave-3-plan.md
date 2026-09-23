@@ -59,11 +59,11 @@ floors in `categories.py`; which rule each tie margin follows (D-148 clause 2).
 
 ## Phases — one reviewable slice each, gates green after every one
 
-- [ ] **P1 — carry-forward in the build.** `build` takes the live artifact; a source that fails keeps
+- [x] **P1 — carry-forward in the build.** `build` takes the live artifact; a source that fails keeps
   its last good `scores`/`pricing` rows from it when they are at most 30 days old, and reports them
   as carried; older ones are dropped and reported as expired. *Acceptance:* tests (red first) for a
-  failed optional source carried, a failed required source carried instead of failing the build
-  , an expired carry dropped, a fresh fetch replacing carried rows, and no carry when
+  failed optional source carried, a failed required source carried instead of failing the build,
+  an expired carry dropped, a fresh fetch replacing carried rows, and no carry when
   there is no live artifact.
 - [ ] **P2 — the refresh with carried and expired sources.** The refresh hands the live artifact to
   the build; D-128 accepts a surface blinded by an expired carry and still refuses any other
@@ -80,7 +80,7 @@ floors in `categories.py`; which rule each tie margin follows (D-148 clause 2).
 - [ ] **P6 — the ruled floors.** `categories.py` floors and header comment; `agentic-coding` states its
   effort population; each tie margin names the rule it follows (D-148 clause 2).
 - [ ] **Close** — `/repo-review` on the branch, independent review (MED: one combined seat),
-  `docs/plans/m16-wave-3-close.md`, `/pre-merge`. This plan file is deleted before the merge.
+  the wave-close record (m16-wave-3-close), `/pre-merge`. This plan file is deleted before the merge.
 
 ## Risks
 

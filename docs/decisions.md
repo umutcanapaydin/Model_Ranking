@@ -2500,6 +2500,45 @@ leaving it to branch protection anyway, is there a need to ask?"):*
 
 ---
 
+## D-156 — Every source carries its last good data for 30 days, judged from when it last arrived
+
+**Status:** **accepted by the owner 2026-09-23** (in session, M16-W3 plan, both options below) ·
+**Date:** 2026-09-23 · **Implements** D-144 as the owner ruled it on 2026-09-20; closes W-116.
+
+**Context.** The owner's ruling on D-144 (translated from Turkish): *"if its data does not arrive,
+its last data stays valid. If the data is about a month old, the list drops. If the data updates
+within that month, nothing happens and it joins the calculations."* The build did the opposite per
+source: a failed optional source was emptied, a failed required one failed the whole build, and
+D-128 then refused the candidate, throwing away every OTHER source's fresh data (measured
+2026-09-20).
+
+**Decision.**
+
+1. **Every source carries forward**, the four required ones (`swebench`, `aider`, `litellm`,
+   `openrouter`) included, and the Epoch bundle and boards (ruled 2026-09-23). A source that fails
+   a cycle serves its last good `scores` and `pricing` rows from the live artifact.
+2. **The limit is 30 days, measured from when the source last ARRIVED** in a cycle whose content is
+   what the live artifact serves (published or unchanged), kept per source by the refresh. Not
+   from `observed_at`: an unchanged cycle publishes nothing, so a row's stamp can be far older than
+   the fetch that confirmed it. With no record for a source, the rows' own newest `observed_at`
+   stands in, which can only overstate the age.
+3. **Past 30 days the source is not carried**: an optional source's surfaces drop and say so, and a
+   required source fails the build as before. The refresh accepts a surface blinded by an EXPIRED
+   carry -- D-128 would otherwise refuse the candidate and freeze every other source -- and still
+   refuses every other blinding.
+4. **Disclosure is the engine's** (ruled 2026-09-23): the refresh record and `/health` name each
+   carried source and its age. `/v1` and the app do not change (D-151 keeps operations out of the
+   app; the board's own run date, already shown, is what a reader judges by).
+
+**The cost.** A price or a score can serve up to 30 days after its source stopped answering, beside
+fresher data from other sources; `/health` is where that shows. A surface can disappear at day 31
+until its source returns.
+
+**Revisit when:** a source's outages start lasting weeks, or the owner wants the carry visible in the
+app after all.
+
+---
+
 ## D-999 — the agent opens drafts; a human merges
 
 **Status:** accepted -- adopted verbatim from DevFlow v6.0 by D-155 (2026-09-23).

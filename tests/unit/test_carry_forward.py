@@ -49,8 +49,8 @@ def _rows(path_or_conn: Path | sqlite3.Connection, source: str) -> list[tuple]:
 
 
 def _candidate(tmp_path: Path, live: Path | None, *, last_ok: dict[str, str] | None,
-               **sources: object) -> tuple[sqlite3.Connection, object]:
-    conn = connect(str(tmp_path / "candidate.db"))
+               name: str = "candidate.db", **sources: object) -> tuple[sqlite3.Connection, object]:
+    conn = connect(str(tmp_path / name))
     report = build(conn, plans_yaml=PLANS_YAML, rosters_yaml=ROSTERS_YAML,
                    sources=sources.pop("source_list", None) or _sources(**sources),
                    minimum_models=2, carry_from=live, last_ok=last_ok, now=NOW)
@@ -126,7 +126,8 @@ def test_without_a_per_source_record_the_age_falls_back_to_the_live_rows(tmp_pat
                                   (_iso(40),)).connection.commit()
     with pytest.raises(BuildError, match="expired"):
         _candidate(tmp_path, live, last_ok={}, aider=None)
-    conn, report = _candidate(tmp_path, live, last_ok={"aider": _iso(1)}, aider=None)
+    _, report = _candidate(tmp_path, live, last_ok={"aider": _iso(1)}, name="second.db",
+                              aider=None)
     assert report.carried == {"aider": pytest.approx(1.0)}
 
 
@@ -150,3 +151,24 @@ def test_pricing_is_carried_like_evidence(tmp_path: Path) -> None:
     live_count = sqlite3.connect(live).execute(
         "SELECT COUNT(*) FROM pricing WHERE source = 'litellm'").fetchone()[0]
     assert count == live_count > 0
+
+
+def test_the_cli_carries_through_the_same_path_the_refresh_uses(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Through `build.main`, the entry point the refresh calls: `--carry-from` and `--last-ok`."""
+    import json
+
+    from app.workflows import build as build_mod
+
+    live = _live(tmp_path)
+    record = tmp_path / "last_ok.json"
+    record.write_text(json.dumps({"aider": dt.datetime.now(tz=dt.UTC).isoformat()}))
+    monkeypatch.setattr(build_mod, "REMOTE_SOURCES", _sources(aider=None))
+    monkeypatch.setattr(build_mod, "MINIMUM_MODELS_REGISTERED", 2)
+    out = tmp_path / "cand.db"
+    code = build_mod.main(["--db", str(out), "--carry-from", str(live), "--last-ok", str(record)])
+    # 3, not 0: no Epoch bundle is given here, so those surfaces are named as operator actions.
+    # 2 would be the failure -- a required source down with nothing carried.
+    assert code in (0, 3)
+    assert _rows(out, "aider") == _rows(live, "aider")
