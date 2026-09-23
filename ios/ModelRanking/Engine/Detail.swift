@@ -39,7 +39,7 @@ public struct DetailFact: Equatable, Identifiable {
 /// - Parameters:
 ///   - model: the served row — a pick and a ranking row carry the same fields, so both open this.
 ///   - benchmark: the surface's primary board, from the answer (never guessed from the metric).
-///   - anchor: the surface's pinned `score_anchor`, so the out-of-100 line here agrees with the card.
+///   - anchor: the surface's `score_anchor` (its floor, D-162), so the out-of-100 line here agrees with the card.
 ///   - closeCallMargin: the engine's own tie margin, stated on the board's own scale.
 ///   - secondaryBenchmark / secondaryAgeDays: the evidence-only second board (REQ-UNC-002, D-139).
 ///   - minQuality: the surface's floor, `/v1/categories` `min_quality` (D-152, REQ-FLR-002).

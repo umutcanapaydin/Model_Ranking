@@ -576,12 +576,12 @@ def test_the_screen_calls_the_uncertainty_functions_it_depends_on() -> None:
     ranked_row = re.search(r"RankedRow\((.*?)\n\s*\)", view, re.S)
     assert ranked_row, "the preview rows are no longer built here"
     assert "anchor: category(for: answer)?.scoreAnchor" in ranked_row.group(1), (
-        "the preview rows are not anchored on the surface's pinned anchor"
+        "the preview rows are not anchored on the surface's anchor (D-162)"
     )
     ranking_list = re.search(r"RankingList\((.*?)\n\s*\)", view, re.S)
     assert ranking_list, "the full ranking is no longer built here"
     assert "anchor: category(for: answer)?.scoreAnchor" in ranking_list.group(1), (
-        "the full ranking is not anchored on the surface's pinned anchor"
+        "the full ranking is not anchored on the surface's anchor (D-162)"
     )
     assert not re.search(r"anchor:[^\n]*\.(max|min)\s*\(", view), (
         "an anchor is derived from the board itself (REQ-SCR-003)"

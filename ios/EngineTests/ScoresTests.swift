@@ -203,11 +203,12 @@ final class OutOf100Tests: XCTestCase {
         XCTAssertTrue(line.hasPrefix("Score 50 / 100"), line)
     }
 
-    /// Review m-2 (REQ-SCR-002): monotone for EVERY anchor the engine pins today, over the whole
-    /// span a served Elo board occupies (±400 Elo, at the served 0.1 resolution). Kept in step with
-    /// `PINNED_SCORE_ANCHORS` in `test_uncertainty_contract.py`.
-    func testTheConversionNeverReordersOnAnyPinnedAnchor() {
-        for anchor in [1400.0, 1478.9, 1467.5, 1450.6] {
+    /// Review m-2 (REQ-SCR-002): monotone for any anchor the engine can serve, over the whole span a
+    /// served Elo board occupies (±400 Elo, at the served 0.1 resolution). Since D-162 the anchor is
+    /// each surface's floor, derived from its board, so the anchors are a range, not a pinned list:
+    /// every Elo floor served so far lies between 1150 and 1550.
+    func testTheConversionNeverReordersOnAnyAnchor() {
+        for anchor in stride(from: 1100.0, through: 1600.0, by: 12.5) {
             let board = stride(from: anchor + 400, through: anchor - 400, by: -0.1).map { $0 }
             let converted = board.compactMap { scoreOutOf100($0, metric: "elo", anchor: anchor) }
             XCTAssertEqual(converted.count, board.count, "anchor \(anchor)")

@@ -1198,8 +1198,8 @@ def _artifact_facts() -> tuple[dict[str, int | None], dict[str, float | None]]:
     from the served artifact over one connection. The floor is derived from the surface's own board
     by `app.workflows.floors` -- the number the Budget Pick is judged against, never a copy of it.
 
-    The one field on `/v1/categories` that is not a policy constant, and so the one that may be
-    absent. Discovery must keep answering while the artifact is missing or being republished: the
+    The fields on `/v1/categories` that are not policy constants (the floor, and on an Elo surface
+    the anchor that is the floor, D-162), and so the ones that may be absent. Discovery must keep answering while the artifact is missing or being republished: the
     app builds its navigation from this route, and a discovery call that can blank the product is a
     worse dependency than the fact it would add. An unreadable artifact therefore yields no ages,
     never an error.

@@ -394,6 +394,10 @@ def test_every_elo_surface_anchors_its_score_at_its_served_floor(seeded: Path) -
     rank-only (D-143)."""
     for surface in ("document", "assistant"):
         _raise_the_board(seeded, surface, above=1400.3, rows=30)  # a floor with a decimal
+    # Review M3: a floor on every OTHER kind of board too, or "null off Elo" asserts nothing there.
+    _raise_the_board(seeded, "everyday", above=140.0, rows=30)    # ECI
+    _raise_the_board(seeded, "mathematics", above=60.0, rows=30)  # a percentage
+    assert _served()["everyday"]["min_quality"] is not None, "the ECI fixture proves nothing"
     served = _served()
     assert served["document"]["min_quality"] % 1, "a whole-number floor cannot catch a rounded anchor"
     for surface, spec in CATEGORIES.items():

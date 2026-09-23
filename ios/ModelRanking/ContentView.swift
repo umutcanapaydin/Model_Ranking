@@ -740,7 +740,7 @@ struct PickRow: View {
     /// REQ-UNC-002. The surface's second board and its age, from `/v1/categories` (D-138).
     var secondaryBenchmark: String?
     var secondaryAgeDays: Int?
-    /// D-143: the surface's pinned anchor, so an Elo score reads out of 100. `nil` keeps the scale.
+    /// D-143, D-162: the surface's anchor (its floor), so an Elo score reads out of 100. `nil` keeps the scale.
     var anchor: Double?
     /// M15-W2 (REQ-DTL-001/002): the board this pick was measured on, and the engine's tie margin,
     /// for the detail screen this card opens into.
