@@ -46,7 +46,9 @@ Of the nine floors that move, **one changes a pick**:
 | agentic-coding | unlimited | Budget Pick | Grok 4.5 (53.8) | GPT-5.6 Sol (69.4) |
 
 No Best Value or Best Quality changes anywhere; the `low` budget changes nowhere. At `medium`,
-GPT-5.6 Sol is already the Best Value, so under D-148 it would hold both labels there.
+GPT-5.6 Sol is already both Best Quality AND Best Value, so under D-148 it holds all THREE labels
+there. *Correction, same day: the question put to the owner said "both labels"; it is all three.
+The applied change was verified on the artifact after the ruling, which is where this showed.*
 
 **`agentic-coding`'s board carries five effort levels** (low 8 rows, medium 9, high 13, xhigh 10,
 max 9); the surface ranks at `high` (`ranking_effort`). Its floor is 64.4 either way: over all 49
