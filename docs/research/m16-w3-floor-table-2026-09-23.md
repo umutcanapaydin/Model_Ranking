@@ -49,6 +49,8 @@ No Best Value or Best Quality changes anywhere; the `low` budget changes nowhere
 GPT-5.6 Sol is already both Best Quality AND Best Value, so under D-148 it holds all THREE labels
 there. *Correction, same day: the question put to the owner said "both labels"; it is all three.
 The applied change was verified on the artifact after the ruling, which is where this showed.*
+*Put back to the owner with the correction; **confirmed the same day: "the rule stays"** (translated
+from Turkish).*
 
 **`agentic-coding`'s board carries five effort levels** (low 8 rows, medium 9, high 13, xhigh 10,
 max 9); the surface ranks at `high` (`ranking_effort`). Its floor is 64.4 either way: over all 49
