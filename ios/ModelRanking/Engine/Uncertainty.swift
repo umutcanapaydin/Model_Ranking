@@ -166,11 +166,11 @@ func marginUnit(for metric: String, singular: Bool, _ language: Language) -> Str
 /// to this function by name.
 ///
 /// - A share of a fixed whole (`% correct`, `% resolved`) is already out of 100: identity.
-/// - An Elo rating is converted by the Elo expectation against the surface's PINNED anchor,
+/// - An Elo rating is converted by the Elo expectation against the surface's anchor,
 ///   `100 / (1 + 10^((anchor - score) / 400))`: how often people would prefer this model over one
 ///   rated exactly at the anchor. The engine publishes the anchor (`score_anchor`, the surface's own
-///   quality floor), so 50 means "at the bar this product recommends from". Never the board's
-///   maximum: that would move a model's number whenever a different model joined (REQ-SCR-003).
+///   quality floor, derived from its board since D-162), so 50 means "at the bar this product
+///   recommends from". Never the board's maximum (REQ-SCR-003).
 /// - ECI has no readable anchor and stays rank-only (D-143 leaves it undecided on purpose).
 ///
 /// **Strictly monotonic in `score` for a fixed anchor, so it can never reorder a ranking**
