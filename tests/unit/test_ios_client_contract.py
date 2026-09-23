@@ -993,3 +993,21 @@ def test_every_place_that_prints_a_search_price_says_what_it_leaves_out() -> Non
         "a new place words the price exclusion; pin it here, or it can be deleted unnoticed"
     )
 
+
+
+def test_every_reason_the_engine_can_give_is_one_the_app_can_word() -> None:
+    """M17-W1 re-review MINOR-R2/R3: the engine and the app each held the reason codes as literals,
+    and nothing tied them. A code the app does not know falls back to the engine's English on the
+    Turkish screen -- MINOR-1's own symptom. Both sets are READ: the engine's from the `"reason":`
+    entries `recommend.py` builds its facts with, the app's from `PickReason`'s raw values."""
+    engine_source = (pathlib.Path(__file__).resolve().parents[2]
+                     / "src/app/workflows/recommend.py").read_text(encoding="utf-8")
+    engine = {code for expr in re.findall(r'"reason":\s*([^,}\n]+)', engine_source)
+              for code in re.findall(r'"([a-z_]+)"', expr)}
+    language = (CLIENT / "Engine/Language.swift").read_text(encoding="utf-8")
+    body = language[language.index("enum PickReason"):]
+    body = body[:body.index("}")]
+    app = set(re.findall(r'case \w+ = "([a-z_]+)"', body))
+    assert engine, "no reason code read from recommend.py -- this check compares nothing"
+    assert app, "no PickReason case read from Language.swift -- this check compares nothing"
+    assert engine == app, {"engine only": engine - app, "app only": app - engine}

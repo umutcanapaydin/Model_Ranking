@@ -1274,9 +1274,11 @@ def categories() -> dict[str, Any]:
                 # surfaces, which is D-105 and why it is not normalised here.
                 "close_call_margin": spec.close_call,
                 # D-143 / REQ-SCR-003 (M14-W4). The PINNED reference an Elo score is converted
-                # against to read out of 100: the surface's own quality floor, so 50 means "exactly at
-                # the bar this product recommends from". Data, not a board maximum: it moves only
-                # when an owner ruling moves the floor, never because another model joined the board.
+                # against to read out of 100. It was the surface's quality floor when pinned, so 50
+                # meant "at the bar this product recommends from". It moves only by owner ruling. The
+                # floor itself moves with the board since D-159 (M17-W1), so the two now differ as
+                # boards grow: `assistant` reads about 51 at its floor today (M17-W1 review MINOR-5,
+                # put to the owner).
                 # `null` on a scale that is already out of 100 (identity) or that has no readable
                 # anchor at all (ECI, which D-143 leaves rank-only).
                 #

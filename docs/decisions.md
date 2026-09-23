@@ -2723,6 +2723,43 @@ number from the same rows; nothing stored can disagree with the rows beside it, 
 built before M17 serves a correct floor. A surface whose own board is empty has no floor, and its
 Budget Pick says so.
 
+*Correction, 2026-09-23 (M17-W1 review, `docs/reviews/m17-wave-1-review.md`).*
+- **Clause 3 described a guard that does not exist and should not be built.** The floor is not a
+  filter: the budget caps decide which models a reader can be offered, and the floor only decides
+  which of them the Budget Pick names. A guard refusing "a floor that empties a budget" would refuse
+  every night a board grows past a budget's best model, and so freeze the refresh (D-128's own
+  failure mode) against the owner's ruling that floors follow their boards.
+- **What does exist:** a moved floor is a SERVED change. The refresh's fingerprint hashes every
+  surface's floor, so a board that grows only by models nobody prices, which moves the floor and no
+  ranked row, is published rather than reported as "nothing a user would notice"
+  (`tests/unit/test_floor_served.py`).
+- A surface whose own board is empty answers with its own reason, `no_floor_measured`, which the app
+  words in both languages.
+
+*Owner ruling, 2026-09-23 (re-review `docs/reviews/m17-wave-1-rereview.md`, OWNER-R1).*
+- **The correction above withdraws only clause 3's first half**, "a floor that empties a budget".
+  Its second half, "moves a surface's roster past the limits", is D-128 and D-132, which run on every
+  candidate unchanged.
+- **The gap the withdrawal left, put to the owner:** the floor is derived from every row of a board,
+  and D-132's new-names limit reads only ranked models. On a copy of the owner's artifact, 60 rows
+  nobody prices moved `coding`'s floor from 65.4 to 71.3, and neither guard objected. Asked (in
+  Turkish, translated) "should we prevent this?", the owner ruled **"yes, add a simple guard"**.
+- **The guard:** D-132's limit applies to each surface's own board, by raw name. A candidate whose
+  board would be more than a quarter names the served artifact has never seen is refused, like any
+  D-132 refusal, and a legitimate jump is published by hand. A board that was empty and answers
+  again is a source returning, and passes, as a surface returning does
+  (`refresh.upward_anomalies`; `tests/unit/test_floor_served.py`).
+- **And its mirror (re-review 2, MAJOR-1):** a board that would lose a quarter or more of its names
+  is refused as D-128 refuses a surface that loses a quarter of its models. Without it, a board could
+  lose half its rows and move the floor as far as the flood did, and the rows' return would then be
+  refused every night as "new".
+- **What the guard is not (re-review 2, MINOR-1 and MINOR-3):** it limits ONE NIGHT's change to a
+  board, not the floor. 57 unpriced rows (a quarter less a few) still move `coding`'s floor from 65.4
+  to 74.4, and a second night can move it again. It also refuses some legitimate nights, each
+  published by hand like any D-132 refusal: measured on the owner's artifact, an Epoch bundle
+  returning after about two weeks away (28-32% new names), and an upstream that respells its names
+  (ECI's `_` to `-`: 284 of 521). Single ordinary days measured 14-17% at most.
+
 ---
 
 ## D-160 — A combined list is built on the phone, and nothing about the question leaves it

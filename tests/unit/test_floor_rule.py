@@ -20,14 +20,18 @@ from app.workflows.floors import derived_floor
 
 
 def _rule(conn: sqlite3.Connection, source: str, benchmark: str, metric: str) -> float | None:
-    """D-148 clause 1, read literally: every row the parser stored for the surface's board, sorted
-    high to low, and the one a third of the way down."""
-    scores = sorted((row[0] for row in conn.execute(
-        "SELECT score FROM scores WHERE source = ? AND benchmark = ? AND metric = ?",
-        (source, benchmark, metric))), reverse=True)
-    if not scores:
+    """D-148 clause 1, read a SECOND way: SQLite orders the board and picks the row a third of the
+    way down with OFFSET. `floors.py` sorts in Python; the two share no code (M17-W1 review
+    MINOR-4: the first version of this oracle copied the implementation line for line)."""
+    where = "source = ? AND benchmark = ? AND metric = ?"
+    args = (source, benchmark, metric)
+    count = conn.execute(f"SELECT COUNT(*) FROM scores WHERE {where}", args).fetchone()[0]
+    if not count:
         return None
-    return round(scores[max(0, round(len(scores) / 3) - 1)], 1)
+    offset = max(0, round(count / 3) - 1)
+    row = conn.execute(f"SELECT score FROM scores WHERE {where} ORDER BY score DESC "
+                       "LIMIT 1 OFFSET ?", (*args, offset)).fetchone()
+    return round(row[0], 1)
 
 
 @pytest.mark.artifact
