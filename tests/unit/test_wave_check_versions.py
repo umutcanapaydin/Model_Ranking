@@ -100,3 +100,61 @@ def test_the_coverage_floor_failing_fails_make_test() -> None:
     recipe = makefile.split("\ntest: ", 1)[1].split("\n\n", 1)[0]
     floor = next(line for line in recipe.splitlines() if "module_coverage_floor.py" in line)
     assert not floor.lstrip("\t").startswith(("-", "@-")), floor
+
+
+# --- #17 ------------------------------------------------------------------------------------------
+
+
+def test_a_close_with_no_version_and_no_date_is_graded_not_skipped(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """#17 (2): a close with neither `process_version:` nor `date:` was filed as pre-migration
+    and never graded. A record with no date cannot be assumed old."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("wave_check_all", ROOT / "scripts/wave_check_all.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    plans = tmp_path / "docs" / "plans"
+    plans.mkdir(parents=True)
+    (plans / "m99-wave-1-close.md").write_text(
+        "---\nrecord_type: wave\nid: m99-wave-1-close\nstatus: draft\n---\n# no version, no date\n",
+        encoding="utf-8")
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "wave_check.py").write_text(
+        "def main(argv):\n    return 0\n", encoding="utf-8")
+    monkeypatch.setattr(module, "ROOT", tmp_path)
+    code = module.main()
+    out = capsys.readouterr().out
+    assert "0 v5.0-or-later record(s) validated" not in out, out
+    assert "1 pre-migration" not in out, out
+    assert code != 0 or "1 v5.0-or-later record(s) validated" in out, out
+
+
+def test_a_trailer_is_read_as_a_trailer_not_a_substring(tmp_path: Path) -> None:
+    """#17 (1): a machine commit whose BODY merely mentions "GP-Agent:" passed the check."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    env_base = {"GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1", "HOME": str(tmp_path),
+                "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin"}
+
+    def git(*args: str, email: str = "o@x", name: str = "O") -> None:
+        env = {**env_base, "GIT_AUTHOR_EMAIL": email, "GIT_COMMITTER_EMAIL": email,
+               "GIT_AUTHOR_NAME": name, "GIT_COMMITTER_NAME": name}
+        subprocess.run(["git", *args], cwd=repo, env=env, check=True, capture_output=True)
+
+    git("init", "-q", "-b", "main")
+    (repo / "f").write_text("a", encoding="utf-8")
+    git("add", "f")
+    git("commit", "-qm", "owner work")
+    git("switch", "-q", "-c", "work/1")
+    (repo / "f").write_text("b", encoding="utf-8")
+    git("add", "f")
+    git("commit", "-qm", "agent", "-m", "see GP-Agent: notes somewhere in the body.",
+        "-m", "Reviewed-by: nobody", email="gp-agent@users.noreply.github.com", name="gp-agent")
+    result = subprocess.run([sys.executable, str(ROOT / "conformance/test-commit-identity.py"),
+                             "--owner-email", "o@x"], cwd=repo, capture_output=True,
+                            encoding="utf-8", env=env_base, check=False)
+    assert result.returncode == 1, result.stdout
+    assert "no `GP-Agent:` trailer" in result.stdout, result.stdout
