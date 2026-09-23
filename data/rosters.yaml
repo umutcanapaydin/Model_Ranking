@@ -24,6 +24,10 @@
 #   Go/Plus keep only what chatgpt.com/pricing itself names.
 # - Google — one.google.com/about/google-ai-plans already names models on the plan page itself,
 #   so no separate roster is needed.
+#
+# PROBE LOG, 2026-09-23: Perplexity's table changed (Gemini 3.1 Pro -> Gemini 3.7 Flash, GLM 5.2
+# -> GLM 5.3, Grok 4.5 -> Grok 4.6 on both plans; the Max-only rows are still GPT-5.6 Sol and
+# Claude Opus 5). Read through the r.jina.ai reader, since a direct fetch got HTTP 403.
 
 schema: 1
 staleness_days: 30   # same window as the plan table (owner Q3, 2026-08-15)
@@ -32,33 +36,32 @@ rosters:
   - plan_id: perplexity-pro
     provider: Perplexity
     source_url: https://www.perplexity.ai/help-center/en/articles/10354919-what-advanced-ai-models-are-included-in-my-subscription
-    last_verified: 2026-08-15
+    last_verified: 2026-09-23
     scope: search-models
     note: >-
-      Transcribes the "Search Models (Pro and Max Plans)" table, Pro column, and NOTHING
-      ELSE on that page. The page contradicts itself across product surfaces: its
-      "Computer Orchestrator Models" section lists GPT-5.6 Sol, Claude Opus 5 and Claude
-      Fable 5 as available on Pro, while the Search table marks the first two Max-only.
-      We transcribe the SEARCH tier because that is the surface a "which subscription
-      should I buy for everyday questions" answer is about; the Computer surface is a
-      different product. Recorded as `scope` in DATA rather than prose so the choice is
+      Transcribes the "Advanced models available in Search -> Pro and Max plans" table,
+      Pro column, and NOTHING ELSE on that page (a snapshot "as of September 4, 2026").
+      Until 2026-09 the page also had a "Computer Orchestrator Models" section that
+      contradicted the Search table; it is gone, and Computer now points to its own article
+      with its own availability rules. We transcribe the SEARCH tier because that is the
+      surface a "which subscription should I buy for everyday questions" answer is about. Recorded as `scope` in DATA rather than prose so the choice is
       auditable — review MINOR-1. Sonar 2, Nemotron 3 Ultra and Kimi K3 are listed by the
       page but have no registry rule (no price, or no benchmark presence): they drop and
       are counted, like any other name.
     models:
       - Sonar 2
       - GPT-5.6 Terra
-      - Gemini 3.1 Pro
+      - Gemini 3.7 Flash
       - Claude Sonnet 5
       - Kimi K3
-      - GLM 5.2
-      - Grok 4.5
+      - GLM 5.3
+      - Grok 4.6
       - Nemotron 3 Ultra
 
   - plan_id: perplexity-max
     provider: Perplexity
     source_url: https://www.perplexity.ai/help-center/en/articles/10354919-what-advanced-ai-models-are-included-in-my-subscription
-    last_verified: 2026-08-15
+    last_verified: 2026-09-23
     scope: search-models
     note: >-
       Same table, Max column: everything in Pro plus the two Max-only entries
@@ -67,10 +70,10 @@ rosters:
       - Sonar 2
       - GPT-5.6 Terra
       - GPT-5.6 Sol
-      - Gemini 3.1 Pro
+      - Gemini 3.7 Flash
       - Claude Sonnet 5
       - Claude Opus 5
       - Kimi K3
-      - GLM 5.2
-      - Grok 4.5
+      - GLM 5.3
+      - Grok 4.6
       - Nemotron 3 Ultra
