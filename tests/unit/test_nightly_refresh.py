@@ -338,6 +338,13 @@ def test_the_environment_builds_the_refreshs_own_command(
         "--db", str((tmp_path / "advisor.db").resolve()), "--epoch-dir", "/bundles/epoch",
     ]
 
+    # M16-W4 (D-158): with no owner-supplied bundle, the nightly refresh fetches Epoch itself.
+    monkeypatch.delenv(nightly.EPOCH_DIR)
+    schedule = nightly.NightlyRefresh.from_environment(main.RELAXED_ENVS)
+    assert schedule is not None
+    assert list(schedule.command)[-1] == "--fetch-epoch"
+    assert "--epoch-dir" not in schedule.command
+
 
 def test_the_serving_process_never_loads_the_refresh_the_build_or_the_fetchers() -> None:
     """REQ-REF-007's structural half, from the other side (D-116), measured TRANSITIVELY.
