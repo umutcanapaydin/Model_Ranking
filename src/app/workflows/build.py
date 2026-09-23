@@ -212,7 +212,7 @@ class Carry:
     #: so `/health` can say how old the SERVED data is on any later night (M16-W3 review MAJOR-2).
     since: dict[str, str | None] = field(default_factory=dict)
 
-    def _age(self, stamp: str | None) -> float | None:
+    def _age(self, stamp: str | None, *, clamp: bool = False) -> float | None:
         try:
             then = dt.datetime.fromisoformat(stamp or "")
         except ValueError:
@@ -221,8 +221,10 @@ class Carry:
             then = then.replace(tzinfo=dt.UTC)
         age = (self.now - then).total_seconds() / 86400
         # A stamp from the future (a clock that stepped back) is not an age at all; carrying on it
-        # would carry forever (M16-W3 review MINOR-2).
-        return age if age >= 0 else None
+        # would carry forever (M16-W3 review MINOR-2). Unless `clamp`: see `age_days`.
+        if age < 0:
+            return 0.0 if clamp else None
+        return age
 
     def age_days(self, live: sqlite3.Connection, source: str) -> tuple[float | None, str | None]:
         """(age in days, the stamp it was measured from). The refresh's arrival record first; the
@@ -233,7 +235,10 @@ class Carry:
             newest = [live.execute(f"SELECT MAX(observed_at) FROM {t} WHERE source = ?",  # noqa: S608
                                    (source,)).fetchone()[0] for t in ("scores", "pricing")]
             stamp = max((x for x in newest if x), default=None)
-            age = self._age(stamp)
+            # The rows are the last word. If they are ahead of now too, the clock stepped back and
+            # the data is as young as it gets: carry at age 0 rather than expire (re-review
+            # MINOR-1). This is bounded by the clock's error, not by a stamp anyone can write.
+            age = self._age(stamp, clamp=True)
         return age, stamp
 
     def restore(self, conn: sqlite3.Connection, source: str) -> str:
@@ -277,9 +282,11 @@ class Carry:
                             f"VALUES ({', '.join('?' * len(shared))})", rows)
         except sqlite3.Error:
             # A schema the carried rows no longer fit (review NIT-3) degrades to "nothing carried",
-            # never to a failed build.
+            # never to a failed build. The re-reset is not redundant: the rollback also undoes a
+            # reset still pending in the same transaction.
             for table in ("pricing", "scores"):
                 reset_source(conn, table, source)
+            self.since.pop(source, None)
             return "absent"
         # The carry is REPORTED rather than silent: a surface serving month-old data looks exactly
         # like a healthy one from outside, which is what the refresh record and /health are for.

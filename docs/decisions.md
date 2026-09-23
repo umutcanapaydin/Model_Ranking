@@ -2557,6 +2557,22 @@ How clauses 2-4 are carried out, corrected after the review measured the first v
   an expired source stays listed until it arrives in a served cycle, and a required source's expiry
   is recorded even though it fails the build.
 
+*Second amendment, 2026-09-23 (M16-W3 re-review, `docs/reviews/m16-wave-3-rereview.md`).* It
+supersedes the first amendment's exemption bullet.
+- **An expiry excuses the loss its own rows account for, never a whole surface** (re-review
+  MAJOR-1). Excusing each surface an expired source fed also lifted D-128 from the fresh primary
+  source beside it, and it broke clause 3's "still refuses every other blinding". So on an expiry
+  night the candidate is judged against the live artifact with the expired sources' `scores` and
+  `pricing` rows removed and `px_median` re-derived (`refresh._served_without`), and every guard
+  runs against that baseline: the model count, the budget axis and the median price. The median
+  price is new: on the whole-surface rule, an expired cheap model moved a median and was refused.
+- **A future stamp.** An arrival from the future falls back to the rows' own stamp. If the rows are
+  ahead of now too, the clock stepped back, and the source carries at age 0 rather than expiring
+  (re-review MINOR-1). `/health` prints `?d`, never a negative age.
+- **What `expired` means** (re-review NIT-2): the sources whose last good data is past 30 days. A
+  cycle that is not served can leave such rows live, for example a required source that fails the
+  build; `expired` lists them all the same, because their age, not their presence, is the fact.
+
 ---
 
 ## D-999 — the agent opens drafts; a human merges

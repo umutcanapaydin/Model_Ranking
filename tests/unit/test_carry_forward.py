@@ -280,8 +280,9 @@ def test_a_carry_that_cannot_be_inserted_leaves_nothing_behind(tmp_path: Path) -
     conn = connect(str(tmp_path / "candidate.db"))
     conn.execute("INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, "
                  "source_url, observed_at) VALUES ('stale', 'b', 'm', 1, 'h', 'unspecified', "
-                 "'aider', 'u', 'z')")  # a failed fetch's partial row, reset before the fall-back
-    conn.execute("DELETE FROM scores WHERE source = 'aider'")
+                 "'aider', 'u', 'z')")  # a failed fetch's partial row, committed ...
+    conn.commit()
+    conn.execute("DELETE FROM scores WHERE source = 'aider'")  # ... and reset, still pending
     conn.execute("CREATE TRIGGER no_carry BEFORE INSERT ON pricing WHEN NEW.source = 'aider' "
                  "BEGIN SELECT RAISE(ABORT, 'does not fit'); END")
     sqlite3.connect(live).execute(

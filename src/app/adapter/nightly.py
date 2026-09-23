@@ -179,6 +179,8 @@ def _aged(sources: object, now: dt.datetime | None = None) -> str:
                 then = dt.datetime.fromisoformat(value)
                 then = then if then.tzinfo else then.replace(tzinfo=dt.UTC)
                 age = (now - then).total_seconds() / 86400
+        if age is not None and age < 0:
+            age = None  # a clock that stepped back; not an age (re-review MINOR-1)
         parts.append(f"{name} {age:.1f}d" if age is not None else f"{name} ?d")
     return ", ".join(parts)
 

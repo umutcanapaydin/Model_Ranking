@@ -24,7 +24,6 @@ from app.workflows.refresh import (
     EXIT_PUBLISHED,
     EXIT_REFUSED,
     RefreshOutcome,
-    _surfaces_fed_by,
     refresh,
     status_path,
     write_status,
@@ -219,25 +218,6 @@ def test_only_a_served_cycle_counts_as_an_arrival(tmp_path: Path, code: int, cou
     assert (seen == "2026-09-23T00:00:00+00:00") is counts
 
 
-def test_an_expiry_excuses_every_surface_its_rows_fed_not_only_its_primary(tmp_path: Path) -> None:
-    """Review MAJOR-1: `epoch_swe_bench_verified` feeds `coding` (SWE-bench Verified) without being
-    its primary source, and its expiry refused every cycle. The excuse follows the benchmark."""
-    from app.workflows.categories import CATEGORIES
-    from app.workflows.schema import connect
-
-    live = tmp_path / "advisor.db"
-    conn = connect(str(live))
-    conn.execute(
-        "INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, "
-        "source_url, observed_at) VALUES ('m', ?, '% resolved', 70, 'h', 'unspecified', "
-        "'epoch_swe_bench_verified', 'u', '2026-08-01T00:00:00+00:00')",
-        (CATEGORIES["coding"].primary_benchmark,))
-    conn.commit()
-    conn.close()
-    assert "coding" in _surfaces_fed_by(live, {"epoch_swe_bench_verified"})
-    assert _surfaces_fed_by(live, set()) == frozenset()
-
-
 # --- M16-W3 re-review: the exemption is the expired ROWS' loss, never a whole surface -------------
 
 EPOCH_CODING = "epoch_swe_bench_verified"
@@ -348,3 +328,17 @@ def test_a_source_listed_as_expired_is_never_also_listed_as_carried(tmp_path: Pa
     record = _write(target, 2, expired={"swebench": stamp})
     assert "swebench" in record["expired"]
     assert "swebench" not in record["carried"]
+
+
+def test_the_expiry_baseline_drops_the_sources_prices_as_well_as_its_scores(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A price feed past 30 days drops the surfaces it priced, as ruled. (An expired sole price
+    feed never reaches the comparison: the build's registry floor fails it first.)"""
+    from app.workflows.refresh import _served_without, fingerprint_of
+
+    live = _first_cycle(tmp_path, monkeypatch)
+    served = fingerprint_of(live)
+    assert served is not None and served.surfaces["coding"] == 2
+    assert _served_without(live, {"litellm"}).surfaces["coding"] == 0
+    assert _served_without(live, {"aider"}).surfaces["coding"] == 2

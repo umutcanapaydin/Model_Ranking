@@ -39,7 +39,7 @@ from pathlib import Path
 
 from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
-from app.workflows.rank import category_ranking
+from app.workflows.rank import build_price_medians, category_ranking
 from app.workflows.recommend import BUDGETS, eligible_rows, round_optional_score, round_score
 from app.workflows.schema import open_readonly
 
@@ -182,9 +182,7 @@ def upward_anomalies(live: ServingSummary, candidate: ServingSummary) -> list[st
     return reasons
 
 
-def degradations(
-    live: ServingSummary, candidate: ServingSummary, excused: frozenset[str] = frozenset()
-) -> list[str]:
+def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
     """Every way the candidate would be WORSE than what is being served. Empty means it is safe.
 
     Reasons are returned rather than a boolean, because the operator's first question on a refusal
@@ -196,11 +194,7 @@ def degradations(
     the product, and refusing to publish a decline would be worse than publishing it.
     """
     reasons: list[str] = []
-    # D-156: a surface whose primary source's carried data EXPIRED is meant to drop ("if the data
-    # is about a month old, the list drops"). Refusing it would freeze every other source.
     for name, was in sorted(live.surfaces.items()):
-        if name in excused:
-            continue
         now = candidate.surfaces.get(name, 0)
         if was and not now:
             reasons.append(f"{name} answered with {was} models and would now answer nothing")
@@ -216,8 +210,6 @@ def degradations(
     # words — and it is invisible to every row count, because the rows are all still there and
     # merely unaffordable.
     for name, budgets in sorted(live.eligible.items()):
-        if name in excused:
-            continue
         after = candidate.eligible.get(name, {})
         for budget, was_eligible in sorted(budgets.items()):
             if was_eligible and not after.get(budget, 0):
@@ -722,7 +714,7 @@ def refresh(
 
 def _reason_to_refuse(
     target: Path, live: ServingSummary | None, fresh: ServingSummary,
-    excused: frozenset[str] = frozenset(),
+    baseline: ServingSummary | None = None,
 ) -> str | None:
     """Why this candidate must not be published, or None if it may be.
 
@@ -733,15 +725,20 @@ def _reason_to_refuse(
     Both are skipped when there is no live artifact, and that is correct: a first artifact cannot
     be worse than one that does not exist. It is NOT skipped when the live artifact is unreadable —
     that raises before this is called (B2).
+
+    `baseline` is what the candidate is judged against: the live artifact, or -- on a night a
+    source expired -- the live artifact without that source's rows (D-156 clause 3). The re-read
+    below still compares with the LIVE digest; the baseline is a judgement, not a file.
     """
     if live is None:
         return None
+    baseline = live if baseline is None else baseline
 
-    worse = degradations(live, fresh, excused)
+    worse = degradations(baseline, fresh)
     if worse:
         return "refused: the candidate is worse than what is being served — " + "; ".join(worse)
 
-    suspicious = upward_anomalies(live, fresh)
+    suspicious = upward_anomalies(baseline, fresh)
     if suspicious:
         return (
             "refused: the candidate improved in a way ordinary upstream movement does not "
@@ -779,7 +776,7 @@ def _read_build_sources(
 ) -> tuple[tuple[str, ...], dict[str, str | None], dict[str, str | None]]:
     """(arrived, carried, expired) exactly as the build reported them; empty when it said nothing.
 
-    Empty is the safe reading: no arrival moves a clock, and no surface is excused."""
+    Empty is the safe reading: no arrival moves a clock, and no loss is excused."""
     data: object = None
     if path is not None:
         with contextlib.suppress(OSError, ValueError):
@@ -800,24 +797,35 @@ def _read_build_sources(
     return tuple(str(a) for a in arrived), stamped("carried"), stamped("expired")
 
 
-def _surfaces_fed_by(target: Path, sources: set[str]) -> frozenset[str]:
-    """Every surface whose primary board any of `sources` feeds IN THE LIVE ARTIFACT.
+def _served_without(target: Path, sources: set[str]) -> ServingSummary:
+    """What the live artifact would serve with `sources`' rows gone: the baseline on an expiry night.
 
-    Keyed on the benchmark the rows carry, not on `primary_source`: the ranking selects by
-    benchmark, and `epoch_swe_bench_verified` feeds `coding` without being its primary source
-    (review MAJOR-1 -- its expiry refused every cycle while `excused` looked only at primaries).
+    D-156 clause 3: an expired source's surfaces drop, and the refresh publishes the rest instead
+    of refusing -- but it "still refuses every other blinding". Excusing whole SURFACES broke the
+    second half (M16-W3 re-review MAJOR-1): one expired secondary source lifted D-128 from the
+    fresh primary source beside it. Judging the candidate against the live artifact minus the
+    expired rows excuses exactly the loss those rows account for, on every guard -- the count, the
+    budget axis and the median price (the last was refusing a legitimate expiry night).
+
+    Built in memory from a read-only copy: the served file is never written (INV-23).
     """
-    if not sources or not target.is_file():
-        return frozenset()
-    conn = open_readonly(target)
+    live = open_readonly(target)
+    scratch = sqlite3.connect(":memory:")
+    try:
+        live.backup(scratch)
+    finally:
+        live.close()
     try:
         marks = ",".join("?" * len(sources))
-        fed = {row[0] for row in conn.execute(
-            f"SELECT DISTINCT benchmark FROM scores WHERE source IN ({marks})",  # noqa: S608
-            tuple(sources))}
+        for table in ("scores", "pricing"):
+            scratch.execute(
+                f"DELETE FROM {table} WHERE source IN ({marks})", tuple(sources))  # noqa: S608
+        # The ranking reads prices from `px_median`, which the build DERIVES from `pricing`; left
+        # alone, an expired price feed would still price the baseline.
+        build_price_medians(scratch)
+        return serving_summary(scratch)
     finally:
-        conn.close()
-    return frozenset(name for name, spec in CATEGORIES.items() if spec.primary_benchmark in fed)
+        scratch.close()
 
 
 def _cycle(
@@ -907,7 +915,7 @@ def _cycle(
             )
             return record(outcome, EXIT_FAILED)
 
-        excused = _surfaces_fed_by(target, set(expired))
+        baseline = _served_without(target, set(expired)) if expired and live else live
 
         if live is not None and fresh.digest == live.digest:
             return record(
@@ -924,7 +932,7 @@ def _cycle(
                 EXIT_UNCHANGED,
             )
 
-        refusal = _reason_to_refuse(target, live, fresh, excused)
+        refusal = _reason_to_refuse(target, live, fresh, baseline)
         if refusal is not None:
             return record(
                 RefreshOutcome(
