@@ -589,4 +589,5 @@ def test_the_launcher_does_not_pin_a_hand_kept_epoch_bundle() -> None:
     MR_EPOCH_DIR may pass one."""
     text = (Path(__file__).resolve().parents[2] / "ios" / "app.sh").read_text(encoding="utf-8")
     assert "epoch_data" not in text
-    assert 'MODEL_RANKING_EPOCH_DIR="$EPOCH_DIR"' not in text
+    assert 'EPOCH_DIR="${MR_EPOCH_DIR:-}"' in text, "the default is no bundle, so the engine fetches"
+    assert "unset MODEL_RANKING_EPOCH_DIR" in text, "an inherited one must not win over the fetch"
