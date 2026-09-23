@@ -31,6 +31,10 @@ def test_variant_never_leaks_into_parent() -> None:
         "gpt-5.1-nano": "gpt-5-nano",
         "gpt-5-mini-2026-01-01": "gpt-5-mini",
         "gpt-5.1-codex-mini": "gpt-5-mini",
+        # ChatGPT's plan table (2026-09-23) names "GPT-5 Thinking Mini": a word between the
+        # version and "mini" must not let the variant fall through to the parent.
+        "GPT-5 Thinking Mini": "gpt-5-mini",
+        "gpt-5-thinking-nano": "gpt-5-nano",
         "gpt-5-chat-latest": "gpt-5-chat",
         "gpt-5-codex": "gpt-5-codex",
         "gpt-5.2-codex": "gpt-5.2-codex",

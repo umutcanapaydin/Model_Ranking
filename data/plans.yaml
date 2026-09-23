@@ -32,6 +32,33 @@
 #   trackers — an amount may be cross-checked, a model list may not (M1 rule 4).
 # - Perplexity amounts cross-checked (felloai.com/perplexity-pricing, updated 2026-05-03): Pro $20,
 #   Max $200 — unchanged, long-stable.
+#
+# Verification evidence, 2026-09-23 (owner re-verifies out-of-sandbox at the milestone gate):
+# - Fetch path: a direct fetch got HTTP 403 from chatgpt.com, help.openai.com and perplexity.ai,
+#   and one.google.com rendered for Turkey (Turkish text, TRY amounts), which is not US evidence.
+#   The pages were read through the r.jina.ai reader (an English/USD render, no cache). A
+#   third-party render does not prove the region.
+# - chatgpt.com/pricing now RENDERS amounts: Go $8, Plus $20, Pro "From $100", cross-checked by
+#   geotoolbox.ai/blog/chatgpt-pricing (updated 2026-09-07). Its "Compare features across plans ->
+#   Models" table marks each model Yes/No per plan. **Owner ruling 2026-09-23: a row of that
+#   table is an explicit statement** (translated from Turkish: "yes, the table counts"), so
+#   `included_models` for the three ChatGPT plans transcribes it: every model marked Yes,
+#   Expanded or Unlimited for that plan. Go's "GPT-5.6 Terra: Limited access in Work and Codex
+#   on desktop" is a different product surface from the chat a plan answer is about, and is not
+#   transcribed.
+# - help.openai.com/en/articles/9793128: "As of September 10, 2026, we're temporarily pausing new
+#   sign-ups and upgrades to the ChatGPT Pro $200 plan (Pro 20X)". Pro $100 is unaffected.
+# - claude.com/pricing rendered fully: Pro $17 annual ($200 up front) / $20 monthly; Max from $100.
+#   "Claude Cowork is now just Claude", so Cowork is no longer a Pro card item. The compare table
+#   names model FAMILIES only (Fable/Opus/Sonnet/Haiku), not versions, so nothing links.
+# - one.google.com/about/google-ai-plans still renders no amounts; cross-checked by
+#   felloai.com/gemini-pricing (updated 2026-09-22) and suprmind.ai/hub/gemini/pricing (modified
+#   2026-08-11): Plus $4.99, Pro $19.99, Ultra $99.99 (Ultra 20x $199.99). The Ultra card also
+#   states "Higher access to Gemini 3 Pro in AI Mode", which the 2026-08-15 row missed.
+# - Perplexity amounts cross-checked: felloai.com/perplexity-pricing (updated 2026-09-18) and
+#   cloudzero.com/blog/perplexity-pricing (2026-09-21) both give Pro $20, Max $200. perplexity.ai/
+#   did not render, so the Pro/Max `limits` rest on the help centre (article 11680686 for Max) and
+#   the per-plan model table in data/rosters.yaml.
 
 schema: 1
 staleness_days: 30   # owner Q3 (2026-08-15): a row older than this is disclosed as stale
@@ -49,10 +76,12 @@ plans:
     region: US
     limits: >-
       More messages with tools, more uploads, more image creation, more voice chats,
-      longer memory. Does not include the flagship reasoning model.
-    included_models: []
+      longer memory; may include ads. The compare table marks every GPT-6 model "No" for Go.
+    included_models:
+      - GPT-5.6 Luna
+      - GPT-5 Thinking Mini
     source_url: https://chatgpt.com/pricing/
-    last_verified: 2026-08-15
+    last_verified: 2026-09-23
 
   - id: chatgpt-plus
     provider: OpenAI
@@ -61,12 +90,19 @@ plans:
     currency: USD
     region: US
     limits: >-
-      Advanced reasoning models with GPT-5.6; expanded messages and uploads; more complex
-      and accurate image creation. First tier that unlocks the GPT-5.6 flagship model.
+      Advanced reasoning models with GPT-6; expanded messages and uploads; more complex
+      and accurate image creation; expanded deep research; expanded memory and context.
+      First tier that unlocks the GPT-6 models. GPT-5.6 Sol Pro is Pro-only.
     included_models:
-      - GPT-5.6
+      - GPT-6 Astra
+      - GPT-6 Sol
+      - GPT-6 Luna
+      - GPT-5.6 Sol
+      - GPT-5.6 Terra
+      - GPT-5.6 Luna
+      - GPT-5 Thinking Mini
     source_url: https://chatgpt.com/pricing/
-    last_verified: 2026-08-15
+    last_verified: 2026-09-23
 
   - id: chatgpt-pro
     provider: OpenAI
@@ -75,13 +111,21 @@ plans:
     currency: USD
     region: US
     limits: >-
-      From $100/mo; a $200/mo higher-capability tier exists (Pro split 2026-04-09).
-      5x or 20x more usage; GPT-5.6 Sol Pro; unlimited and faster image creation;
-      maximum deep research.
+      From $100/mo: 5x more usage; Pro reasoning powered by GPT-6 Astra; maximum Codex
+      tasks; unlimited and faster image creation; maximum deep research; maximum memory and
+      context. The $200/mo 20x tier is closed to new sign-ups since 2026-09-10
+      (help.openai.com article 9793128).
     included_models:
+      - GPT-6 Astra
+      - GPT-6 Sol
+      - GPT-6 Luna
       - GPT-5.6 Sol Pro
+      - GPT-5.6 Sol
+      - GPT-5.6 Terra
+      - GPT-5.6 Luna
+      - GPT-5 Thinking Mini
     source_url: https://chatgpt.com/pricing/
-    last_verified: 2026-08-15
+    last_verified: 2026-09-23
 
   - id: claude-pro
     provider: Anthropic
@@ -90,11 +134,12 @@ plans:
     currency: USD
     region: US
     limits: >-
-      Everything in Free, plus more usage; includes Claude Code and Claude Cowork.
-      $17/month billed annually, $20 month-to-month. Plan cards name no specific model versions (model names appear elsewhere on the page — owner re-verifies at the gate).
+      Everything in Free, plus more usage; includes Claude Code, Claude Design, Slides and
+      Docs, and Claude in Chrome. $17/month billed annually ($200 up front), $20
+      month-to-month. Plan cards name no specific model versions (model names appear elsewhere on the page — owner re-verifies at the gate).
     included_models: []
     source_url: https://claude.com/pricing
-    last_verified: 2026-08-15
+    last_verified: 2026-09-23
 
   - id: claude-max
     provider: Anthropic
@@ -107,7 +152,7 @@ plans:
       higher output limits for all tasks. Plan cards name no specific model versions (model names appear elsewhere on the page — owner re-verifies at the gate).
     included_models: []
     source_url: https://claude.com/pricing
-    last_verified: 2026-08-15
+    last_verified: 2026-09-23
 
   - id: google-ai-plus
     provider: Google
@@ -122,7 +167,7 @@ plans:
     included_models:
       - Gemini 3.1 Pro
     source_url: https://one.google.com/about/google-ai-plans/
-    last_verified: 2026-08-15
+    last_verified: 2026-09-23
 
   - id: google-ai-pro
     provider: Google
@@ -137,7 +182,7 @@ plans:
       - Gemini 3.1 Pro
       - Gemini 3 Pro
     source_url: https://one.google.com/about/google-ai-plans/
-    last_verified: 2026-08-15
+    last_verified: 2026-09-23
 
   - id: google-ai-ultra
     provider: Google
@@ -147,11 +192,14 @@ plans:
     region: US
     limits: >-
       From $99.99/mo; a $199.99/mo higher-limit tier exists. Up to 20x access to Gemini;
-      Gemini 3.1 Pro, Deep Research, Gemini Agent; Deep Think reasoning mode; 20 TB storage.
+      Gemini 3.1 Pro, Deep Research, Gemini Agent; Deep Think reasoning mode; Gemini 3 Pro
+      in AI Mode for Google Search; from 20 TB storage. The tiers are labelled Ultra 5x and
+      Ultra 20x.
     included_models:
       - Gemini 3.1 Pro
+      - Gemini 3 Pro
     source_url: https://one.google.com/about/google-ai-plans/
-    last_verified: 2026-08-15
+    last_verified: 2026-09-23
 
   - id: perplexity-pro
     provider: Perplexity
@@ -160,11 +208,12 @@ plans:
     currency: USD
     region: US
     limits: >-
-      Premium model picker routing to frontier models from OpenAI, Anthropic and Google
-      (roster not published per-plan); $200/year annual option.
+      Premium model picker routing to frontier models from OpenAI, Anthropic and Google;
+      the per-plan model list is the help centre's table (data/rosters.yaml); $200/year
+      annual option.
     included_models: []
     source_url: https://www.perplexity.ai/
-    last_verified: 2026-08-15
+    last_verified: 2026-09-23
 
   - id: perplexity-max
     provider: Perplexity
@@ -176,4 +225,4 @@ plans:
       Everything in Pro with the highest usage limits; $2,000/year annual option.
     included_models: []
     source_url: https://www.perplexity.ai/
-    last_verified: 2026-08-15
+    last_verified: 2026-09-23

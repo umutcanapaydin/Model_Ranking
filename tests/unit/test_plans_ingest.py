@@ -202,20 +202,31 @@ def test_seed_dataset_ingests_and_reconciles_end_to_end() -> None:
     report = ingest_plans(conn, SEED_PATH.read_text(encoding="utf-8"), run)
     assert report.stored >= 6
     rec = reconcile_plans(conn)
-    # M4-W1: the GPT-5.6 family and the dotted Gemini versions now have rules, so
-    # every name the seed's pages state EXPLICITLY links — zero drops.
-    assert rec.matched == 4  # GPT-5.6, GPT-5.6 Sol Pro, Gemini 3.1 Pro, Gemini 3 Pro
-    assert rec.dropped_names == ()
+    # 2026-09-23: ChatGPT's compare table counts as an explicit statement (owner ruling), so
+    # the three ChatGPT plans name seven distinct models. Four link; the GPT-6 family has no
+    # registry rule yet, and an unmatched name DROPS and is counted, never guessed.
+    assert rec.matched == 7
+    assert rec.dropped_names == ("GPT-6 Astra", "GPT-6 Luna", "GPT-6 Sol")
     linked = conn.execute(
         "SELECT plan_id, raw_name, model_id FROM plan_models WHERE model_id IS NOT NULL"
         " ORDER BY plan_id, raw_name"
     ).fetchall()
     assert linked == [
-        ("chatgpt-plus", "GPT-5.6", "gpt-5.6"),
+        ("chatgpt-go", "GPT-5 Thinking Mini", "gpt-5-mini"),
+        ("chatgpt-go", "GPT-5.6 Luna", "gpt-5.6-luna"),
+        ("chatgpt-plus", "GPT-5 Thinking Mini", "gpt-5-mini"),
+        ("chatgpt-plus", "GPT-5.6 Luna", "gpt-5.6-luna"),
+        ("chatgpt-plus", "GPT-5.6 Sol", "gpt-5.6-sol"),
+        ("chatgpt-plus", "GPT-5.6 Terra", "gpt-5.6-terra"),
+        ("chatgpt-pro", "GPT-5 Thinking Mini", "gpt-5-mini"),
+        ("chatgpt-pro", "GPT-5.6 Luna", "gpt-5.6-luna"),
+        ("chatgpt-pro", "GPT-5.6 Sol", "gpt-5.6-sol"),
         ("chatgpt-pro", "GPT-5.6 Sol Pro", "gpt-5.6-sol"),
+        ("chatgpt-pro", "GPT-5.6 Terra", "gpt-5.6-terra"),
         ("google-ai-plus", "Gemini 3.1 Pro", "gemini-3.1-pro"),
         ("google-ai-pro", "Gemini 3 Pro", "gemini-3-pro"),
         ("google-ai-pro", "Gemini 3.1 Pro", "gemini-3.1-pro"),
+        ("google-ai-ultra", "Gemini 3 Pro", "gemini-3-pro"),
         ("google-ai-ultra", "Gemini 3.1 Pro", "gemini-3.1-pro"),
     ]
 
