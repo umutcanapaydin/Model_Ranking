@@ -165,6 +165,14 @@ def recently_good(record: dict[str, object] | None, now: float) -> bool:
     return isinstance(at, int | float) and now - at < RECENT.total_seconds()
 
 
+def _count(items: object) -> str:
+    return str(len(items)) if isinstance(items, list) else ""
+
+
+def _first(items: object, limit: int) -> str:
+    return ", ".join(str(item) for item in items[:limit]) if isinstance(items, list) else ""
+
+
 def _drifted(lines: object) -> str:
     """The source names in the refresh record's drift lines, each `<source>: <reason>`."""
     if not isinstance(lines, list):
@@ -367,4 +375,8 @@ class NightlyRefresh:
             "refresh_expired": _aged(record.get("expired") if record else None),
             # M16-W4: a board whose layout changed in a bundle that arrived, by source name.
             "refresh_drift": _drifted(record.get("drift") if record else None),
+            # D-157 clause 4: how many models the served artifact derived from the data, and the
+            # names with the most rows that nothing matched -- the top of the curation queue.
+            "refresh_derived": _count(record.get("derived") if record else None),
+            "refresh_unmatched": _first(record.get("unmatched") if record else None, 5),
         }

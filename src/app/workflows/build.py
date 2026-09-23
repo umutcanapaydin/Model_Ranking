@@ -109,6 +109,10 @@ class BuildReport:
     #: M16-W4: declared boards missing or reshaped in a bundle that DID arrive, carried or not. A
     #: changed layout otherwise looks exactly like a quiet night.
     drift: list[str] = field(default_factory=list)
+    #: D-157 clause 4: the models the registry derived from the data, and the names with the most
+    #: rows that nothing matched -- the curation that remains, made visible.
+    derived: list[str] = field(default_factory=list)
+    unmatched: list[str] = field(default_factory=list)
 
     def sources_json(self) -> dict[str, object]:
         """What the refresh needs from this build, and nothing it would have to re-derive (review
@@ -119,6 +123,8 @@ class BuildReport:
             "expired": self.expired,
             "since": self.since,
             "drift": self.drift,
+            "derived": self.derived,
+            "unmatched": self.unmatched,
         }
 
     def as_json(self) -> dict[str, object]:
@@ -143,6 +149,8 @@ class BuildReport:
             "carried": self.carried,
             "expired": self.expired,
             "drift": self.drift,
+            "derived": self.derived,
+            "unmatched": self.unmatched,
         }
 
 
@@ -306,6 +314,19 @@ class Carry:
 def _fall_back(conn: sqlite3.Connection, carry: Carry | None, source: str) -> str:
     """After a failed source's rows are reset: carry its last good data if the ruling allows."""
     return carry.restore(conn, source) if carry is not None else "absent"
+
+
+#: How many unmatched names the report carries: the top of the curation queue, not all of it.
+UNMATCHED_LISTED = 20
+
+
+def _most_unmatched(conn: sqlite3.Connection, refused: set[str]) -> list[str]:
+    """The score names nothing matched, most rows first. A modality refusal is the guard working,
+    not a model we are missing, so it is left out (M14-W1 review MAJOR-2's distinction)."""
+    rows = conn.execute(
+        "SELECT raw_name, COUNT(*) AS n FROM scores WHERE model_id IS NULL "
+        "GROUP BY raw_name ORDER BY n DESC, raw_name").fetchall()
+    return [name for name, _ in rows if name not in refused][:UNMATCHED_LISTED]
 
 
 def _surfaces_left_without_evidence(missing: Sequence[str]) -> list[str]:
@@ -567,6 +588,8 @@ def build(
         )
         raise BuildError(msg)
     report.reconciled = reconciled
+    report.derived = list(reconciled.derived)
+    report.unmatched = _most_unmatched(conn, {name for name, _ in reconciled.modality_drops})
     report.plans_reconciled = reconcile_plans(conn)
 
     # The stage whose absence M6 could not see: without it px_median is empty and every query

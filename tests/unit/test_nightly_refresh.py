@@ -289,6 +289,8 @@ def test_health_reports_the_last_recorded_cycle_and_the_next_run(tmp_path: Path)
         "refresh_carried": "",
         "refresh_expired": "",
         "refresh_drift": "",
+        "refresh_derived": "",
+        "refresh_unmatched": "",
     }
 
 
