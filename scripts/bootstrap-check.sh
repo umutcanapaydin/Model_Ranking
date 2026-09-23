@@ -29,6 +29,9 @@ PH='<[A-Za-z][A-Za-z0-9 _/|.-]{2,}>'
 # Lines of a file that can hold an unfilled field. Code fences and HTML-comment guidance are
 # notation, not fields. In a code or config file a `#` line is a comment and is skipped too -- but
 # in Markdown a `#` line is a HEADING, and a placeholder in a heading is still unfilled.
+# model_ranking (W-015, kept through D-155 and D-161): INLINE code spans are stripped as well --
+# `--db <path>` in an error message an operator is told to run, or `<artifact>.refresh.json` naming
+# a file pattern, is notation, not an unfilled field.
 # Usage: live_lines md|code < file
 live_lines() {
   awk -v md="$([ "$1" = md ] && echo 1 || echo 0)" '
@@ -36,6 +39,7 @@ live_lines() {
     fence { next }
     !md && /^[[:space:]]*#/ { next }
     /<!--/ { next }
+    { gsub(/`[^`]*`/, "") }                  # inline code spans are notation too (W-015)
     { print }
   '
 }
