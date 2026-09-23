@@ -46,6 +46,7 @@ from app.clients.arena import (
     parse_arena,
 )
 from app.workflows.categories import CATEGORIES, CategorySpec
+from app.workflows.floors import derived_floor, top_third
 from app.workflows.ingest import RunContext, _store_scores
 from app.workflows.rank import ranked_population
 from app.workflows.registry import canonicalize, reconcile, resolve_effort
@@ -173,14 +174,6 @@ def parse_rate_board(raw: str, *, source: str, benchmark: str) -> tuple[list[Sco
     return list(best.values()), skipped
 
 
-def top_third(values: list[float]) -> float | None:
-    """The quantile both candidate floor rules use, so only the POPULATION differs between them."""
-    if not values:
-        return None
-    ordered = sorted(values, reverse=True)
-    return round(ordered[max(0, round(len(ordered) / 3) - 1)], 1)
-
-
 def floors(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     """Every surface's floor under D-148's rule, beside the two it did not choose and today's.
 
@@ -202,7 +195,7 @@ def floors(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         for _raw, model, score, _effort in rows:
             best[model] = max(best.get(model, score), score)
         ranked = [r.score for r in ranked_population(conn, spec)]
-        floor_rows = top_third([score for _, _, score, _ in rows])
+        floor_rows = derived_floor(conn, spec)  # D-159: the engine's own function
         table.append({
             "surface": surface,
             "board": f"{spec.primary_source} / {spec.primary_benchmark}",
