@@ -106,6 +106,13 @@ class BuildReport:
     #: `None` when the age could not be read at all -- still expired, never carried.
     expired: dict[str, float | None] = field(default_factory=dict)
     since: dict[str, str | None] = field(default_factory=dict)
+    #: M16-W4: declared boards missing or reshaped in a bundle that DID arrive, carried or not. A
+    #: changed layout otherwise looks exactly like a quiet night.
+    drift: list[str] = field(default_factory=list)
+    #: D-157 clause 4: the models the registry derived from the data, and the names with the most
+    #: rows that nothing matched -- the curation that remains, made visible.
+    derived: list[str] = field(default_factory=list)
+    unmatched: list[str] = field(default_factory=list)
 
     def sources_json(self) -> dict[str, object]:
         """What the refresh needs from this build, and nothing it would have to re-derive (review
@@ -115,6 +122,9 @@ class BuildReport:
             "carried": self.carried,
             "expired": self.expired,
             "since": self.since,
+            "drift": self.drift,
+            "derived": self.derived,
+            "unmatched": self.unmatched,
         }
 
     def as_json(self) -> dict[str, object]:
@@ -138,6 +148,9 @@ class BuildReport:
             "required_operator_actions": self.required_operator_actions,
             "carried": self.carried,
             "expired": self.expired,
+            "drift": self.drift,
+            "derived": self.derived,
+            "unmatched": self.unmatched,
         }
 
 
@@ -303,6 +316,19 @@ def _fall_back(conn: sqlite3.Connection, carry: Carry | None, source: str) -> st
     return carry.restore(conn, source) if carry is not None else "absent"
 
 
+#: How many unmatched names the report carries: the top of the curation queue, not all of it.
+UNMATCHED_LISTED = 20
+
+
+def _most_unmatched(conn: sqlite3.Connection, refused: set[str]) -> list[str]:
+    """The score names nothing matched, most rows first. A modality refusal is the guard working,
+    not a model we are missing, so it is left out (M14-W1 review MAJOR-2's distinction)."""
+    rows = conn.execute(
+        "SELECT raw_name, COUNT(*) AS n FROM scores WHERE model_id IS NULL "
+        "GROUP BY raw_name ORDER BY n DESC, raw_name").fetchall()
+    return [name for name, _ in rows if name not in refused][:UNMATCHED_LISTED]
+
+
 def _surfaces_left_without_evidence(missing: Sequence[str]) -> list[str]:
     """Translate failed optional sources into the SURFACES a user would notice.
 
@@ -335,6 +361,7 @@ def _ingest_boards(
     run: RunContext,
     boards: Sequence[EpochBoard] | None = None,
     carry: Carry | None = None,
+    drift: list[str] | None = None,
 ) -> tuple[list[SourceReport], list[str]]:
     """Read the declared Epoch boards (D-127). Same bundle, same read-only rules as `_ingest_bundles`.
 
@@ -361,6 +388,8 @@ def _ingest_boards(
         except (SourceError, OSError) as exc:
             for table in ("pricing", "scores"):
                 reset_source(conn, table, board.source_name)
+            if drift is not None:
+                drift.append(f"{board.source_name}: {exc}")
             if _fall_back(conn, carry, board.source_name) != "carried":
                 missing.append(f"{board.source_name}: {exc}")
             continue
@@ -384,8 +413,9 @@ def _ingest_bundles(
     run: RunContext,
     bundles: Sequence[LocalBundle] | None = None,
     carry: Carry | None = None,
+    drift: list[str] | None = None,
 ) -> tuple[list[SourceReport], list[str]]:
-    """Read the owner-placed bundle, never fetch it (D-101).
+    """Read the bundle, never fetch it: the refresh fetches (D-158), or the owner supplies one.
 
     Absence is a REPORTED degradation rather than a skipped step. That distinction is the whole
     reason this function exists: the pipeline this module replaced ingested five remote sources and
@@ -417,6 +447,8 @@ def _ingest_bundles(
             # the build reports it as having none.
             for table in ("pricing", "scores"):
                 reset_source(conn, table, bundle.name)
+            if drift is not None:
+                drift.append(f"{bundle.name}: {exc}")
             if _fall_back(conn, carry, bundle.name) != "carried":
                 missing.append(f"{bundle.name}: {exc}")
             continue
@@ -538,8 +570,10 @@ def build(
         # (review MAJOR-2): the build is the one place that knows, so it says so on the way out.
         exc.report = report  # type: ignore[attr-defined]
         raise
-    bundle_reports, bundle_missing = _ingest_bundles(conn, bundle_dir, run, bundles, carry)
-    board_reports, board_missing = _ingest_boards(conn, bundle_dir, run, boards, carry)
+    bundle_reports, bundle_missing = _ingest_bundles(conn, bundle_dir, run, bundles, carry,
+                                                    drift=report.drift)
+    board_reports, board_missing = _ingest_boards(conn, bundle_dir, run, boards, carry,
+                                                  drift=report.drift)
     report.sources.extend(board_reports)
     report.sources.extend(bundle_reports)
     report.required_operator_actions = _surfaces_left_without_evidence(
@@ -554,6 +588,8 @@ def build(
         )
         raise BuildError(msg)
     report.reconciled = reconciled
+    report.derived = list(reconciled.derived)
+    report.unmatched = _most_unmatched(conn, {name for name, _ in reconciled.modality_drops})
     report.plans_reconciled = reconcile_plans(conn)
 
     # The stage whose absence M6 could not see: without it px_median is empty and every query
@@ -633,7 +669,8 @@ def main(argv: list[str] | None = None) -> int:
         "--epoch-dir",
         default=None,
         help=(
-            "unpacked Epoch bundle directory (D-101: acquired out of band, never fetched here). "
+            "unpacked Epoch bundle directory. The build never fetches it: the refresh does, with "
+            "--fetch-epoch (D-158), or the owner supplies one. "
             "Omitting it builds an artifact in which agentic-coding has no primary evidence, "
             "which is reported as a required operator action rather than passed over."
         ),

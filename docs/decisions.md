@@ -2597,3 +2597,67 @@ needs the branch pushed.
 
 **Revisit when:** a forge-less workflow needs supporting, or branch protection is not available.
 
+---
+
+## D-157 — A model on the boards reaches the lists without a code edit: the list wins, the data derives the rest
+
+**Status:** proposed (M16-W4 plan; the principle ruled by the owner 2026-09-23, the mechanism to be
+ratified with the wave) · **Date:** 2026-09-23 · **Supersedes** REQ-CAN-001's clause "unmatched
+names are dropped with a count reported, never guessed".
+
+**Context.** The registry is a hand-kept rule table. On 2026-09-23, 1,450 of 2,834 score rows in a
+fresh build matched no rule, GPT-6 Astra among them, with scores on six boards and prices on
+LiteLLM. Every new model family waits for a code edit, so the lists fall behind the boards they
+are built from. The owner (translated from Turkish): *"'Never guess' was something like v1; we are
+maybe at v3 by now, and the app's main purpose has changed a little. If it is on a list, the list
+wins; but when we cannot give anything, I cannot call it guessing any more -- we will present the
+list we derived from the data as a result of measurements, our own list."*
+
+**Decision.**
+1. **The curated rules win.** A name a curated rule matches keeps that rule's model.
+2. **A name no rule matches is normalised by a fixed grammar** (provider prefixes, dates and effort
+   suffixes removed; every variant token kept), and registered as a DERIVED model when that id has
+   both a price and a score. (Threshold ruled 2026-09-23, W4 plan decision 1.) The grammar is deterministic and tested; it is not fuzzy matching.
+3. **A variant never merges into its parent by construction**: the derived id keeps every token
+   the name carries after its version.
+4. **Disclosure is the engine's** (ruled 2026-09-23, W4 plan decision 2): `/health` and the build report
+   name derived models and the top unmatched names.
+
+**The cost.** A derived model's display name is the grammar's, not a curator's, until a rule is
+written. Two spellings the grammar does not unify stay two models until a curated rule joins them.
+
+**Revisit when:** a derived registration is found merging two different models, or splitting one.
+
+---
+
+## D-158 — The nightly refresh fetches the Epoch bundle itself
+
+**Status:** accepted -- the owner ruled the direction and its clock on 2026-09-23 (M16-W4 plan,
+decision 3) · **Date:** 2026-09-23 · **Amends** REQ-ING-010's owner-fetched acquisition.
+
+**Context.** The Epoch bundle was downloaded by hand because the sandbox the project started in got
+HTTP 403 from epoch.ai. The engine now runs on the owner's machine, which fetches it fine, and a
+directory nobody refreshes meant nine of nineteen sources carried every night until they expired
+(D-156). A fresh bundle measured on 2026-09-23 grows five boards by 18 to 50 percent.
+
+**Decision.**
+1. **The refresh fetches, the build never does.** `refresh --fetch-epoch` downloads
+   `https://epoch.ai/data/benchmark_data.zip` into scratch beside the artifact, unpacks it, hands it
+   to the build as `--epoch-dir`, and removes it after the cycle. The nightly schedule passes the
+   flag; an owner-supplied `MODEL_RANKING_EPOCH_DIR` wins over it. Programmatic callers and tests
+   are off the network unless they pass a fetcher.
+2. **The archive is untrusted input.** A member that names a path outside the directory, is a
+   symbolic link, resolves outside through an existing link, or expands past the limit (counted
+   while writing) refuses the whole bundle; so do too many members and a body that is not a zip.
+3. **A failed or refused fetch is a failed source**: the boards carry under D-156, the reason goes
+   to the cycle's log, and nothing else in the cycle changes.
+4. **The acquisition clock is the refresh record** (owner, decision 3): each Epoch board's arrival is
+   in `sources_last_ok`, like every other source. `data/epoch-source.yaml` keeps the URL. Its
+   `last_verified` stays until the CI step that reads it is removed; that step is a workflow change,
+   proposed to the owner in the M16-W4 pull request.
+
+**The cost.** The refresh now depends on epoch.ai answering; when it does not, the boards carry for
+up to 30 days, which is the D-156 behaviour this replaces for the owner-fetched case too.
+
+**Revisit when:** Epoch publishes a versioned API, or the bundle outgrows its 64 MB limit.
+

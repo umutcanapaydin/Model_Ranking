@@ -266,11 +266,15 @@ EPOCH_BOARD_CLIENT = EpochBoardClient
 
 EPOCH_BOARDS: tuple[EpochBoard, ...] = (
     EpochBoard(
-        file="epoch_capabilities_index.csv",
+        # M16-W4: the 2026-09 bundle moved the index into a directory, one row per model under
+        # its display name (`Model`), and renamed the score column. Undated, as before: its `date`
+        # column is a release date, which never becomes evidence.
+        file="epoch_capabilities_index/eci_scores.csv",
         source_name="epoch_eci",
         benchmark="Epoch Capabilities Index",
         metric="ECI",
-        score_column="ECI Score",
+        score_column="eci",
+        name_column="Model",
         scale="raw",
         maximum=None,
     ),

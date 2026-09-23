@@ -55,6 +55,11 @@ advisor.db.refresh.json
 advisor.db.refresh.lock
 *.candidate
 *.building
+# a refresh cycle's other scratch (M16-W4 security pass F2): build reports, arrival records, and
+# the unpacked Epoch bundle, which carries third-party data (W-129) and must never be committed
+*.sources
+*.last-ok
+*.epoch/
 
 # DevFlow v6.0: the JUnit report `pytest` writes for the CI skip budget (scripts/coverage_floor.py)
 .pytest-report.xml

@@ -72,6 +72,7 @@ model_ranking is the backend/data engine of an "AI advisor" product: it aggregat
 **Acceptance:**
 - The same underlying model arriving under different aliases (e.g. `claude-4-5-opus`, `Claude 4.5 Opus medium`) maps to ONE canonical ID.
 - Unmatched names are dropped with a count reported, never guessed.
+- **Superseded in part by D-157 (M16-W4):** a name no curated rule matches is registered under a derived id when that id has both a price and a score (`registry.derive_identity`); the rest are still dropped and counted. Cited by `tests/unit/test_registry_derived.py`.
 **Customer source:** research B §6 step 1; spike finding (alias mapping is the core IP).
 **Status:** proposed
 
@@ -299,6 +300,7 @@ Research suggests Supabase or Cloudflare Workers for the serving layer. No decis
 
 **Statement:** ingest Epoch AI's documented CSV bundle as a source, provenance mandatory, loud-fail like every other source.
 **Status:** **DEFERRED to M5** (criteria diff, owner-accepted at the M4 gate). epoch.ai is proxy-403 from this container; no parser was written against an unseen shape (the FP-M2-2 rule). Unblock = one out-of-sandbox fetch; the command was delivered to the owner 2026-08-15.
+**M16-W4 (D-158):** the nightly refresh fetches the bundle itself (`src/app/clients/epoch_bundle.py`, `refresh --fetch-epoch`), with the archive handled as untrusted input. Cited by `tests/unit/test_epoch_bundle_fetch.py`.
 
 ### REQ-REC-009 — Equivalent plans are named, not hidden
 

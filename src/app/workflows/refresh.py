@@ -27,6 +27,7 @@ import hashlib
 import json
 import math
 import os
+import shutil
 import sqlite3
 import stat
 import statistics
@@ -37,6 +38,7 @@ from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, fields
 from pathlib import Path
 
+from app.clients import epoch_bundle
 from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
 from app.workflows.rank import build_price_medians, category_ranking
@@ -93,6 +95,11 @@ class RefreshOutcome:
     arrived: tuple[str, ...] = ()
     carried: dict[str, str | None] = dataclasses.field(default_factory=dict)
     expired: dict[str, str | None] = dataclasses.field(default_factory=dict)
+    #: M16-W4: declared boards missing or reshaped in a bundle that arrived, as the build found them.
+    drift: tuple[str, ...] = ()
+    #: D-157 clause 4, from the build: models derived from the data, and the top unmatched names.
+    derived: tuple[str, ...] = ()
+    unmatched: tuple[str, ...] = ()
 
     def as_json(self) -> str:
         return json.dumps(
@@ -515,6 +522,11 @@ def status_path(target: Path) -> Path:
     return target.with_name(target.name + ".refresh.json")
 
 
+def _listed(record: dict[str, object], key: str) -> list[str]:
+    value = record.get(key)
+    return [str(item) for item in value] if isinstance(value, list) else []
+
+
 def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float) -> Path:
     """Record this cycle. REQ-REF-004.
 
@@ -615,6 +627,13 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
         #: what aged out and dropped. `/health` reads these.
         "carried": carried_now,
         "expired": expired_now,
+        #: M16-W4: what THIS cycle found changed in a bundle's layout (not served state: a layout
+        #: is observed, and the next cycle observes it again).
+        "drift": list(outcome.drift),
+        #: D-157 clause 4: what the SERVED artifact derived and could not match. A cycle that is not
+        #: served leaves the previous lists, like `carried`.
+        "derived": list(outcome.derived) if served else _listed(previous, "derived"),
+        "unmatched": list(outcome.unmatched) if served else _listed(previous, "unmatched"),
     }
     # UNIQUE scratch, not a shared name. The artifact's candidate has always used `mkstemp` and
     # this used a fixed `<name>.writing` — the same lesson applied once. An independent review
@@ -638,6 +657,7 @@ def refresh(
     build_args: Sequence[str] = (),
     builder: Callable[[list[str]], int] | None = None,
     clock: Callable[[], float] | None = None,
+    fetch_epoch: Callable[[Path], object] | None = None,
 ) -> tuple[RefreshOutcome, int]:
     """Run one cycle against `target`. Returns the outcome and the process exit code.
 
@@ -694,7 +714,8 @@ def refresh(
                     ),
                     EXIT_BUSY,
                 )
-            return _cycle(target, build_args, builder, record)
+            _sweep_stale_scratch(target)
+            return _cycle(target, build_args, builder, record, fetch_epoch)
     except BaseException as exc:
         # B1, found by an independent review: `record()` was reachable only from the four `return`
         # sites INSIDE the try, so a builder that raised wrote no record at all — and the previous
@@ -806,6 +827,17 @@ def _read_build_sources(
     return tuple(str(a) for a in arrived), stamped("carried"), stamped("expired")
 
 
+def _read_build_list(path: Path | None, key: str) -> tuple[str, ...]:
+    """One of the build report's lists (M16-W4: `drift`, `derived`, `unmatched`); empty when the
+    build said nothing."""
+    data: object = None
+    if path is not None:
+        with contextlib.suppress(OSError, ValueError):
+            data = json.loads(path.read_text(encoding="utf-8"))
+    items = data.get(key) if isinstance(data, dict) else None
+    return tuple(str(item) for item in items) if isinstance(items, list) else ()
+
+
 def _served_without(target: Path, sources: set[str]) -> ServingSummary:
     """What the live artifact would serve with `sources`' rows gone: the baseline on an expiry night.
 
@@ -837,11 +869,69 @@ def _served_without(target: Path, sources: set[str]) -> ServingSummary:
         scratch.close()
 
 
+def _fetched_epoch(
+    target: Path, build_args: Sequence[str], fetch_epoch: Callable[[Path], object] | None
+) -> tuple[Path | None, list[str]]:
+    """D-158: fetch the Epoch bundle into scratch beside the artifact, unless the owner supplied one.
+
+    A fetch that fails, or a bundle `epoch_bundle.unpack` refuses, returns None: the build then has
+    no bundle, and the boards carry (D-156) exactly as they did when nobody downloaded it. The
+    reason goes to stderr, which is the cycle's log. Returns the scratch directory (the caller
+    removes it) and the build arguments that name it."""
+    if fetch_epoch is None or "--epoch-dir" in build_args:
+        return None, []
+    scratch = Path(tempfile.mkdtemp(prefix=f"{target.name}.", suffix=".epoch", dir=target.parent))
+    try:
+        fetch_epoch(scratch)
+    except Exception as exc:
+        # ANY failure of the fetch is a failed source (security pass F1): one upstream's bytes
+        # must never stop every other source's night. D-158 clause 3.
+        shutil.rmtree(scratch, ignore_errors=True)
+        print(f"epoch bundle not fetched, its boards carry: {type(exc).__name__}: {exc}",
+              file=sys.stderr)
+        return None, []
+    except BaseException:
+        shutil.rmtree(scratch, ignore_errors=True)  # an interrupt still propagates, clean (F2)
+        raise
+    return scratch, ["--epoch-dir", str(scratch)]
+
+
+#: A cycle's scratch older than this is from a cycle that died: the engine kills one at 30 minutes.
+STALE_SCRATCH_S = 86400.0
+
+
+def _sweep_stale_scratch(target: Path, *, now: float | None = None) -> list[Path]:
+    """Remove what a KILLED cycle left beside the artifact (W-124, security pass F2): candidates,
+    build reports, arrival records and unpacked bundles, a day old or more. Called under the lock,
+    so no live cycle's scratch is ever this old; a sibling's minutes-old file is never touched."""
+    clock = time.time() if now is None else now
+    swept: list[Path] = []
+    for suffix in ("candidate", "sources", "last-ok", "epoch"):
+        for path in target.parent.glob(f"{target.name}.*.{suffix}"):
+            try:
+                if clock - path.stat().st_mtime < STALE_SCRATCH_S:
+                    continue
+                if path.is_dir() and not path.is_symlink():
+                    shutil.rmtree(path)
+                else:
+                    path.unlink()
+            except OSError:
+                continue
+            swept.append(path)
+    return swept
+
+
+def _discard(scratch: Path | None) -> None:
+    if scratch is not None:
+        shutil.rmtree(scratch, ignore_errors=True)
+
+
 def _cycle(
     target: Path,
     build_args: Sequence[str],
     builder: Callable[[list[str]], int],
     record: Callable[[RefreshOutcome, int], tuple[RefreshOutcome, int]],
+    fetch_epoch: Callable[[Path], object] | None = None,
 ) -> tuple[RefreshOutcome, int]:
     """The cycle itself. Split out so `refresh` can record a crash around ALL of it, including the
     live-artifact read and the workspace creation, both of which used to sit outside the guard."""
@@ -887,7 +977,9 @@ def _cycle(
         record_file = Path(raw_record)
         carry_args += ["--carry-from", str(target), "--last-ok", str(record_file)]
 
+    epoch_dir: Path | None = None
     try:
+        epoch_dir, epoch_args = _fetched_epoch(target, build_args, fetch_epoch)
         # The build prints its own report to stdout, and this function prints ITS outcome there
         # too — so an unattended caller reading stdout got two JSON documents concatenated and
         # could parse neither. Measured, not imagined: the first real CLI run produced
@@ -896,8 +988,11 @@ def _cycle(
         # The build's report is diagnostics and belongs in the log; the refresh outcome is the
         # RESULT and belongs on stdout alone. Redirecting rather than discarding keeps both.
         with contextlib.redirect_stdout(sys.stderr):
-            code = builder(["--db", str(candidate), *build_args, *carry_args])
+            code = builder(["--db", str(candidate), *build_args, *epoch_args, *carry_args])
         arrived, carried, expired = _read_build_sources(report_file)
+        drift = _read_build_list(report_file, "drift")
+        derived = _read_build_list(report_file, "derived")
+        unmatched = _read_build_list(report_file, "unmatched")
         if code not in (0, 3):  # 3 = an optional source is blind and said so (D-121)
             outcome = RefreshOutcome(
                 published=False,
@@ -907,6 +1002,9 @@ def _cycle(
                 candidate_fingerprint="",
                 surfaces=0,
                 expired=expired,  # a REQUIRED source's expiry fails the build; still recorded
+                drift=drift,
+                derived=derived,
+                unmatched=unmatched,
             )
             return record(outcome, EXIT_FAILED)
 
@@ -937,6 +1035,9 @@ def _cycle(
                     arrived=arrived,
                     carried=carried,
                     expired=expired,
+                    drift=drift,
+                    derived=derived,
+                    unmatched=unmatched,
                 ),
                 EXIT_UNCHANGED,
             )
@@ -952,6 +1053,9 @@ def _cycle(
                     surfaces=fresh.answering,
                     carried=carried,
                     expired=expired,
+                    drift=drift,
+                    derived=derived,
+                    unmatched=unmatched,
                 ),
                 EXIT_REFUSED,
             )
@@ -987,6 +1091,9 @@ def _cycle(
                 arrived=arrived,
                 carried=carried,
                 expired=expired,
+                drift=drift,
+                derived=derived,
+                unmatched=unmatched,
             ),
             EXIT_PUBLISHED,
         )
@@ -998,6 +1105,7 @@ def _cycle(
         report_file.unlink(missing_ok=True)
         if record_file is not None:
             record_file.unlink(missing_ok=True)
+        _discard(epoch_dir)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1009,6 +1117,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--plans", help="passed through to the build")
     parser.add_argument("--rosters", help="passed through to the build")
     parser.add_argument("--epoch-dir", help="passed through to the build")
+    parser.add_argument(
+        "--fetch-epoch",
+        action="store_true",
+        help="fetch the Epoch bundle into scratch for this cycle (D-158); --epoch-dir wins",
+    )
     args = parser.parse_args(argv)
 
     passthrough: list[str] = []
@@ -1021,7 +1134,10 @@ def main(argv: list[str] | None = None) -> int:
             passthrough += [flag, value]
 
     try:
-        outcome, code = refresh(Path(args.db), build_args=passthrough)
+        outcome, code = refresh(
+            Path(args.db), build_args=passthrough,
+            fetch_epoch=epoch_bundle.fetch_bundle if args.fetch_epoch else None,
+        )
     except BaseException as exc:
         # The cycle records its own crash and re-raises, so without this the interpreter exits 1 —
         # and 1 is EXIT_UNCHANGED, which this command's own documentation calls "a RESULT, not a

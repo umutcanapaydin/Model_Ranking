@@ -49,7 +49,8 @@ _LOG = logging.getLogger(__name__)
 SWITCH = "MODEL_RANKING_REFRESH"
 ON = "nightly"
 OFF_VALUES = frozenset({"", "off"})
-#: Passed through to the build as `--epoch-dir`, the owner-fetched bundle (REQ-ING-011).
+#: An owner-supplied bundle, passed through as `--epoch-dir`; without it the refresh fetches one
+#: itself (`--fetch-epoch`, D-158).
 EPOCH_DIR = "MODEL_RANKING_EPOCH_DIR"
 
 #: D-151 clause 1. The window opens at 23:00 local and is two hours wide; the run is spread across
@@ -164,6 +165,21 @@ def recently_good(record: dict[str, object] | None, now: float) -> bool:
     return isinstance(at, int | float) and now - at < RECENT.total_seconds()
 
 
+def _count(items: object) -> str:
+    return str(len(items)) if isinstance(items, list) else ""
+
+
+def _first(items: object, limit: int) -> str:
+    return ", ".join(str(item) for item in items[:limit]) if isinstance(items, list) else ""
+
+
+def _drifted(lines: object) -> str:
+    """The source names in the refresh record's drift lines, each `<source>: <reason>`."""
+    if not isinstance(lines, list):
+        return ""
+    return ", ".join(sorted({str(line).split(":", 1)[0] for line in lines}))
+
+
 def _aged(sources: object, now: dt.datetime | None = None) -> str:
     """`{"arena": "<stamp>"}` as `arena 3.2d`, sorted, the age computed NOW from the stamp the
     refresh recorded -- so the line is true on every night, not only the night it was written
@@ -189,8 +205,8 @@ def refresh_command(db: Path, epoch_dir: str | None) -> list[str]:
     # `-P`: no working directory on the module path, so a stray `app/` beside the repository cannot
     # stand in for the refresh (security pass, NIT-1). `app` is found through PYTHONPATH only.
     command = [sys.executable, "-B", "-P", "-m", "app.workflows.refresh", "--db", str(db)]
-    if epoch_dir:
-        command += ["--epoch-dir", epoch_dir]
+    # D-158: the owner's own bundle wins; without one, the refresh fetches Epoch itself.
+    command += ["--epoch-dir", epoch_dir] if epoch_dir else ["--fetch-epoch"]
     return command
 
 
@@ -357,4 +373,10 @@ class NightlyRefresh:
             # data aged out and dropped. The app shows neither (D-151); this is where they show.
             "refresh_carried": _aged(record.get("carried") if record else None),
             "refresh_expired": _aged(record.get("expired") if record else None),
+            # M16-W4: a board whose layout changed in a bundle that arrived, by source name.
+            "refresh_drift": _drifted(record.get("drift") if record else None),
+            # D-157 clause 4: how many models the served artifact derived from the data, and the
+            # names with the most rows that nothing matched -- the top of the curation queue.
+            "refresh_derived": _count(record.get("derived") if record else None),
+            "refresh_unmatched": _first(record.get("unmatched") if record else None, 5),
         }

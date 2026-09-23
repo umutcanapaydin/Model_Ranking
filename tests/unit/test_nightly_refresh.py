@@ -288,6 +288,9 @@ def test_health_reports_the_last_recorded_cycle_and_the_next_run(tmp_path: Path)
         "refresh_last_at": "2026-09-22T11:41:08+00:00",
         "refresh_carried": "",
         "refresh_expired": "",
+        "refresh_drift": "",
+        "refresh_derived": "",
+        "refresh_unmatched": "",
     }
 
 
@@ -337,6 +340,13 @@ def test_the_environment_builds_the_refreshs_own_command(
         sys.executable, "-B", "-P", "-m", "app.workflows.refresh",
         "--db", str((tmp_path / "advisor.db").resolve()), "--epoch-dir", "/bundles/epoch",
     ]
+
+    # M16-W4 (D-158): with no owner-supplied bundle, the nightly refresh fetches Epoch itself.
+    monkeypatch.delenv(nightly.EPOCH_DIR)
+    schedule = nightly.NightlyRefresh.from_environment(main.RELAXED_ENVS)
+    assert schedule is not None
+    assert list(schedule.command)[-1] == "--fetch-epoch"
+    assert "--epoch-dir" not in schedule.command
 
 
 def test_the_serving_process_never_loads_the_refresh_the_build_or_the_fetchers() -> None:

@@ -34,6 +34,12 @@ def test_variant_never_leaks_into_parent() -> None:
         # ChatGPT's plan table (2026-09-23) names "GPT-5 Thinking Mini": a word between the
         # version and "mini" must not let the variant fall through to the parent.
         "GPT-5 Thinking Mini": "gpt-5-mini",
+        # M16-W4 P3: Fable 5.1's prices folded into Fable 5 (the parent rule had no version guard).
+        "claude-fable-5-1": "claude-fable-5.1",
+        "us.anthropic.claude-fable-5-1": "claude-fable-5.1",
+        "Claude Fable 5.1": "claude-fable-5.1",
+        "claude-fable-5": "claude-fable-5",
+        "Claude Fable 5": "claude-fable-5",
         "gpt-5-thinking-nano": "gpt-5-nano",
         "gpt-5-chat-latest": "gpt-5-chat",
         "gpt-5-codex": "gpt-5-codex",
