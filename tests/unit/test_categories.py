@@ -306,36 +306,42 @@ def test_no_threshold_is_on_a_scale_its_own_metric_cannot_reach() -> None:
     and an Elo threshold cannot.
     """
     for name, spec in CATEGORIES.items():
-        assert spec.min_quality > 0, (
-            f"{name} has a floor of {spec.min_quality}; a floor of zero admits the whole board and "
-            "is a Budget Pick with no quality bar at all"
-        )
+        # The floor is not a constant since D-159: its scale checks run on the served artifact's
+        # derived floors, in `test_every_derived_floor_is_on_its_own_scale` below.
         assert spec.close_call > 0, (
             f"{name} has a close-call threshold of {spec.close_call}, so it would never disclose a "
             "near tie — on a board whose measurement error is real, that publishes noise as rank"
         )
         if spec.metric.startswith("%"):
-            assert spec.min_quality <= 100.0, (
-                f"{name} measures {spec.metric!r} and its floor is {spec.min_quality}, which no "
-                "score on that scale can reach"
-            )
             assert spec.value_window <= 100.0, (
                 f"{name}'s value window of {spec.value_window} spans more than the whole scale"
             )
-        # An Elo board has no natural ceiling, so "<= 100" cannot bound its window. This does,
-        # and it holds on all nine: a value window WIDER than the quality floor reaches models the
-        # floor has already rejected, which makes the two controls contradict each other. Added
-        # after CAT-10 (`web-dev`'s window set to 1e9, making every model "best value") survived
-        # the first version of this test.
-        assert spec.value_window < spec.min_quality, (
-            f"{name}'s value window ({spec.value_window}) is wider than its quality floor "
-            f"({spec.min_quality}); Best Value would reach models Budget Pick refuses"
-        )
+
+
+@pytest.mark.artifact
+def test_every_derived_floor_is_on_its_own_scale() -> None:
+    """CAT-01/02/09 and CAT-10, on the floors the engine SERVES (D-159): derived from the artifact's
+    boards, so the scale checks run there. A percentage floor lives in (0, 100]; an Elo floor cannot
+    be a percentage constant; and a value window wider than the floor reaches models the floor has
+    already rejected, which makes the two controls contradict each other."""
+    import sqlite3
+
+    from app.workflows.floors import derived_floor
+
+    conn = sqlite3.connect("advisor.db")
+    measured = 0
+    for name, spec in CATEGORIES.items():
+        floor = derived_floor(conn, spec)
+        if floor is None:
+            continue
+        measured += 1
+        assert floor > 0, name
+        if spec.metric.startswith("%"):
+            assert floor <= 100.0, (name, floor)
         if spec.metric == "elo":
-            assert spec.min_quality >= 1000.0, (
-                f"{name} ranks on Elo and its floor is {spec.min_quality}; that is a percentage "
-                "constant on an Elo board, and every model would clear it"
-            )
+            assert floor >= 1000.0, (name, floor)
+        assert spec.value_window < floor, (name, spec.value_window, floor)
+    assert measured, "fails closed: the served artifact derived no floor at all"
 
 
 def test_no_surface_states_a_bar_the_engine_does_not_apply() -> None:
@@ -359,7 +365,7 @@ def test_no_surface_states_a_bar_the_engine_does_not_apply() -> None:
 
     from app.workflows import recommend, subscribe
 
-    quoted = re.compile(r"\{spec\.(min_quality|value_window)(:[^}]+)?\}")
+    quoted = re.compile(r"\{spec\.(value_window)(:[^}]+)?\}")  # the floor is derived (D-159)
     offenders = []
     for module in (subscribe, recommend):
         source = pathlib.Path(inspect.getsourcefile(module) or "").read_text(encoding="utf-8")
@@ -431,9 +437,8 @@ def test_the_two_board_surfaces_rank_only_their_own_board() -> None:
         assert spec.primary_benchmark == benchmark
         assert spec.metric == "elo"
         assert spec.primary_benchmark != CATEGORIES["assistant"].primary_benchmark
-        # D-145: the floor is on the board's own scale, and below its value window's reach
-        assert spec.min_quality >= 1000.0
-        assert spec.value_window < spec.min_quality
+        # D-145's floor-on-its-own-scale check runs on the DERIVED floors (D-159):
+        # `test_every_derived_floor_is_on_its_own_scale`.
 
 
 def test_a_board_only_reaches_its_own_surface_through_the_ranking_query() -> None:
@@ -516,23 +521,18 @@ def test_a_board_only_reaches_its_own_surface_through_the_ranking_query() -> Non
 #: correction (`docs/reviews/m15-category-calibration.md`, correction of 2026-09-22). M15-W3 review
 #: m-1 and W4 review MINOR-2: only the anchors were pinned, so moving a floor or putting a
 #: corrected margin back to its old value passed every test.
-#: The margins and windows are the M15 calibration record's. The FLOORS of `vision` and
-#: `search_factuality` moved in M16-W3 under D-148 (record `docs/research/m16-w3-floor-table-2026-09-23.md`,
-#: pinned by `test_floor_rule.py`); `search`'s did not move.
+#: The margins and windows are the M15 calibration record's. The floors are no longer pinned: since
+#: D-159 they are derived from the served board (`app.workflows.floors`).
 PINNED_M15_THRESHOLDS = {
-    "vision": (1253.3, 7.8, 31.2),
-    "search": (1206.9, 6.5, 25.9),
-    "search_factuality": (1202.1, 4.9, 19.5),
+    "vision": (7.8, 31.2),
+    "search": (6.5, 25.9),
+    "search_factuality": (4.9, 19.5),
 }
 
 
 def test_the_m15_surfaces_ship_the_thresholds_their_calibration_record_states() -> None:
-    for surface, (floor, close_call, window) in PINNED_M15_THRESHOLDS.items():
+    for surface, (close_call, window) in PINNED_M15_THRESHOLDS.items():
         spec = CATEGORIES[surface]
-        assert (spec.min_quality, spec.close_call, spec.value_window) == (
-            floor,
-            close_call,
-            window,
-        ), surface
+        assert (spec.close_call, spec.value_window) == (close_call, window), surface
         # the M14 rule: the window is four times the unrounded median, so within rounding of 4x
         assert abs(spec.value_window - 4 * spec.close_call) <= 0.2, surface

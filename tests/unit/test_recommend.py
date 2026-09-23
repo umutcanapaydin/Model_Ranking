@@ -10,12 +10,13 @@ import pytest
 
 from app.clients.epoch import EPOCH_ATTRIBUTION
 from app.clients.fakes import FakeRawSource
+from app.workflows.categories import CATEGORIES
+from app.workflows.floors import derived_floor
 from app.workflows.ingest import RunContext, ingest_aider, ingest_litellm, ingest_swebench
 from app.workflows.rank import UnbuiltEvidenceError, build_price_medians
 from app.workflows.recommend import (
     BUDGETS,
     CLOSE_CALL_PTS,
-    MIN_QUALITY_PCT,
     VALUE_WINDOW_PTS,
     eligible_rows,
     pareto_frontier,
@@ -72,6 +73,11 @@ SCORES = json.dumps(
                         "date": "2026-02-17",
                     },
                     {"name": "mini-SWE-agent + GPT-5 nano", "resolved": 40.0, "date": "2025-09-01"},
+                    # D-159 (M17-W1): the floor is derived from the WHOLE board, so the fixture is
+                    # a board of realistic shape -- models nobody prices sit on it too. Twelve rows
+                    # put the top third at the fourth, DeepSeek V3.2's 70.0.
+                    *[{"name": f"some-agent + Unpriced Model {i}", "resolved": 30.0 + 4 * i,
+                       "date": "2025-09-01"} for i in range(7)],
                 ],
             }
         ]
@@ -140,7 +146,11 @@ def test_req_lic_001_epoch_citation_ships_where_epoch_data_is_served() -> None:
     conn = _db()
     # Same benchmark, evidence supplied by the Epoch bundle instead of swebench.com.
     conn.execute(
-        "UPDATE scores SET source = 'epoch_swe_bench_verified' WHERE benchmark = ?",
+        "UPDATE scores SET source = 'epoch_swe_bench_verified' WHERE benchmark = ?"
+        # D-159: only the RANKED rows move; the surface's own board (swebench) keeps the models
+        # nobody prices, so it still has a floor to recommend from. An empty own board has none,
+        # and the Budget Pick then says so (test_the_budget_pick_says_when_its_board_is_empty).
+        " AND model_id IS NOT NULL",
         ("SWE-bench Verified",),
     )
     build_price_medians(conn)  # M7-W2: production builds these in app.workflows.build
@@ -247,15 +257,17 @@ def test_value_pick_rule_within_window_cheapest() -> None:
 
 
 def test_budget_pick_respects_min_quality() -> None:
-    """REQ-REC-001/002: budget pick = cheapest ≥ MIN_QUALITY_PCT (nano at 40% excluded)."""
-    assert MIN_QUALITY_PCT == 65.4  # D-148 (M16-W3): was 65.0
+    """REQ-REC-001/002 under D-159: the Budget Pick is the cheapest model clearing the floor the
+    board itself sets -- the top third of its twelve rows, DeepSeek V3.2's 70.0 -- and nano (40)
+    does not."""
     conn = _db()
     build_price_medians(conn)  # M7-W2: production builds these in app.workflows.build
+    assert derived_floor(conn, CATEGORIES["coding"]) == 70.0
     rec = recommend(conn, "unlimited")
     assert rec is not None
     cheap = rec.picks[2]
-    assert cheap.model == "DeepSeek V3.2"  # cheapest above 65%; nano (40%) ineligible
-    assert cheap.score >= 65.0
+    assert cheap.model == "DeepSeek V3.2"
+    assert cheap.why_fact["floor"] == 70.0
 
 
 def test_confidence_grades_by_source_count() -> None:
@@ -447,7 +459,11 @@ def test_budget_pick_warns_when_quality_floor_unmet() -> None:
             "leaderboards": [
                 {
                     "name": "Verified",
-                    "results": [{"name": "mini-SWE-agent + GPT-5 nano", "resolved": 40.0}],
+                    # The board's top is models this budget cannot buy (nobody prices them), so
+                    # its top third sits above the one model that fits (D-159).
+                    "results": [{"name": "mini-SWE-agent + GPT-5 nano", "resolved": 40.0},
+                                *[{"name": f"some-agent + Frontier {i}", "resolved": 80.0 + i}
+                                  for i in range(3)]],
                 }
             ]
         }
@@ -463,7 +479,7 @@ def test_budget_pick_warns_when_quality_floor_unmet() -> None:
     rec = recommend(conn, "low")
     assert rec is not None
     cheap = rec.picks[2]
-    assert cheap.score < MIN_QUALITY_PCT
+    assert cheap.score < cheap.why_fact["floor"]
     assert "WARNING" in cheap.why  # honest disclosure, not the standard floor text
     assert "minimum-quality bar." not in cheap.why
 
@@ -574,7 +590,11 @@ def test_secondary_benchmark_evidence_is_cited_too() -> None:
 
     conn = _db()
     conn.execute(
-        "UPDATE scores SET source = 'epoch_swe_bench_verified' WHERE benchmark = ?",
+        "UPDATE scores SET source = 'epoch_swe_bench_verified' WHERE benchmark = ?"
+        # D-159: only the RANKED rows move; the surface's own board (swebench) keeps the models
+        # nobody prices, so it still has a floor to recommend from. An empty own board has none,
+        # and the Budget Pick then says so (test_the_budget_pick_says_when_its_board_is_empty).
+        " AND model_id IS NOT NULL",
         ("SWE-bench Verified",),
     )
     build_price_medians(conn)  # M7-W2: production builds these in app.workflows.build

@@ -27,14 +27,15 @@ class CategorySpec:
     # silent rather than answer (D-121). A surface pointed at the wrong source keeps answering from
     # a board nobody fetched, quietly. `tests/unit/test_categories.py` pins every pair.
     primary_source: str
-    # Engine thresholds on the category's NATIVE scale (M2-W4 review: data, not code branches):
-    min_quality: float  # Budget Pick floor
+    # Engine thresholds on the category's NATIVE scale (M2-W4 review: data, not code branches).
+    # The FLOOR is not one of them: since D-159 (M17-W1) it is derived from the served board by
+    # `app.workflows.floors`, under D-148 clause 1, every time it is read.
     value_window: float  # Best Value: within N of the leader
     close_call: float  # near-tie disclosure threshold
     ranking_effort: str | None = None  # named comparable level; None = board has no effort policy
     # D-143 amendment (M14-W4 review M-3): the Elo score a reader sees as 50 / 100. PINNED, and
-    # deliberately NOT `min_quality`: the floor is re-measured at every recalibration, and a
-    # recalibration must not move every card's number without a new measurement. Set on Elo
+    # deliberately NOT the floor: the floor moves with the board (D-159), and a board growing
+    # must not move every card's number without a new measurement. Set on Elo
     # surfaces only; `None` elsewhere (percentages are already out of 100, ECI stays rank-only).
     score_anchor: float | None = None
     # D-153 (W-119): what this surface's price does NOT include, as a CODE the app words in its own
@@ -44,19 +45,17 @@ class CategorySpec:
     price_excludes: str | None = None
 
 
-#: **The floor rule is the top third of the WHOLE board's ROWS, as the parser stores them, for every
-#: surface (D-148, owner's ruling 2026-09-22, W-094)** -- not the ranked population, and not D-145's
-#: distinct-model count. Re-derived on every surface in M16-W3 from the served artifact
-#: (`scripts/survey_boards.py --floors`, record `docs/research/m16-w3-floor-table-2026-09-23.md`,
-#: and `tests/unit/test_floor_rule.py` holds each floor to that record). Nine floors moved; the owner
-#: ruled the one that changed a pick (`agentic-coding`), so no surface is an exception.
+#: **The floor is not here.** It is the top third of the WHOLE board's ROWS, as the parser stores them,
+#: for every surface (D-148 clause 1, owner's ruling 2026-09-22), and since M17-W1 it is DERIVED from
+#: the served board every time it is read (D-159, `app.workflows.floors`), because a floor kept by
+#: hand went stale as the board grew (W-128). The history of each surface's old hand-kept floor is in
+#: `docs/research/m16-w3-floor-table-2026-09-23.md`.
 #:
-#: **The window and tie margin (D-148 clause 2) do NOT all follow one rule, and that is stated
-#: rather than hidden.** Clause 2 keeps M8's sizing by candidate count on the ranked population
-#: (`docs/reviews/m8-category-calibration.md`). The eight M8 surfaces follow it. `assistant` was sized
-#: at M3 by live-interval overlap (`docs/reviews/m3-elo-calibration.md`), and the five M14/M15 Elo
-#: surfaces by the median gap of overlapping PUBLISHED intervals, window four times it -- a rule
-#: clause 2 does not name. Whether clause 2 should name it or those six should be re-sized is W-127.
+#: **The window and tie margin (D-148 clause 2, as amended 2026-09-23) follow two named rules.** M8's
+#: sizing by candidate count on the ranked population (`docs/reviews/m8-category-calibration.md`) for
+#: the eight M8 surfaces; and, on an Elo board that publishes intervals, what the board cannot tell
+#: apart: live-interval overlap for `assistant` (`docs/reviews/m3-elo-calibration.md`), and the median
+#: gap of overlapping PUBLISHED intervals, window four times it, for the five M14/M15 Elo surfaces.
 # --- M12-W2: the titles are what a reader MEETS, and they were written by people who already knew
 # what a benchmark was ------------------------------------------------------------------------
 #
@@ -95,7 +94,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         score_unit="points",
         secondary_benchmark="Aider polyglot",
         primary_source="swebench",
-        min_quality=65.4,  # D-148 (M16-W3): was 65.0
         value_window=6.0,
         close_call=1.5,
     ),
@@ -110,9 +108,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         # RECALIBRATED 2026-08-15 against the live overall board (REQ-CAL-001;
         # n=389, snapshot 2026-08-12; evidence + method: docs/reviews/m3-elo-calibration.md).
         # This is a DATA edit — the engine did not change.
-        # D-148 (M16-W3): was 1400.0, which had replaced 1300 (admitted 57% of the board;
-        # 1400 was the top third of distinct models, leader-108).
-        min_quality=1406.7,
         value_window=30.0,  # kept: ~4x the noise threshold; 13 candidates within reach of the top
         close_call=8.0,  # was 5; live 95% CIs still overlap for 64% of pairs 8-9 Elo apart
         score_anchor=1400.0,  # pinned 2026-09-20 (D-143); moves only by owner ruling
@@ -128,10 +123,8 @@ CATEGORIES: dict[str, CategorySpec] = {
         score_unit="points",
         secondary_benchmark=None,
         primary_source="epoch_deepswe_external",
-        # D-148 (M16-W3): was 50.0, which fit no rule. The board's 49 rows span five effort levels
-        # (low 8, medium 9, high 13, xhigh 10, max 9); the floor is 64.4 over all of them and over the
-        # 13 `high` rows the surface ranks at alike. Owner ruled 2026-09-23: no exception.
-        min_quality=64.4,
+        # The floor is taken over every effort level on the board, like every surface (D-148, D-159;
+        # the owner ruled 2026-09-23: no exception), though the surface ranks at `high`.
         value_window=6.0,
         close_call=1.5,
         ranking_effort="high",
@@ -144,7 +137,7 @@ CATEGORIES: dict[str, CategorySpec] = {
     # different scaffolds: terminalbench is 204 rows and 59 models. Evidence and method:
     # `docs/reviews/m8-category-calibration.md`.
     #
-    # `min_quality` is the top third. `close_call` is measurement -- 2x the board's own stderr where
+    # The floor is the top third of the board's rows (D-159, derived). `close_call` is measurement -- 2x the board's own stderr where
     # it publishes one, else the median gap between adjacent models. `value_window` is sized by how
     # many real alternatives survive it, because a window admitting one candidate turns Best Value
     # into a second copy of Best Quality. **None of the three may be borrowed from another
@@ -159,7 +152,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         primary_source="epoch_eci",
         # Sized on the RANKED population -- reconciled and priced -- not the board: 58 models,
         # not 521. A 3-point window leaves 5 candidates, against coding's 7.
-        min_quality=149.6,  # D-148 (M16-W3): was 149.9
         value_window=3.0,
         close_call=0.5,
     ),
@@ -173,7 +165,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         primary_source="epoch_gpqa",
         # 263 models, leader 94.8. GPQA publishes a stderr: median 2.52 points, so a gap under 5
         # points is not a difference anyone should act on.
-        min_quality=83.4,  # D-148 (M16-W3): was 83.6
         value_window=5.0,
         close_call=5.0,
     ),
@@ -190,7 +181,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         # same gap noise. On the 51 models that actually rank, 10 points admits 28. That is high
         # against coding's 7 and it is the honest number: AIME has three models tied at exactly
         # 100.0, so they are indistinguishable at the board's own precision (W-035).
-        min_quality=84.4,
         value_window=10.0,
         close_call=9.5,
     ),
@@ -205,7 +195,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         # STRUCTURALLY THIN. 59 models on the board, 33 that reconcile and carry a price. Sized on
         # those 33, a 5-point window admits 5 candidates -- the 20 points an earlier draft argued
         # for was measured on the full board and would have admitted every model above the floor.
-        min_quality=53.4,
         value_window=5.0,
         close_call=0.8,
     ),
@@ -219,7 +208,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         primary_source="epoch_arc_agi",
         # 168 on the board, 39 ranked. A 5-point window leaves 8 candidates; the 8-point window an
         # earlier draft proposed was sized on the board and admitted all 20 above the floor.
-        min_quality=72.8,
         value_window=5.0,
         close_call=1.0,
     ),
@@ -235,15 +223,14 @@ CATEGORIES: dict[str, CategorySpec] = {
         # the board, 49 ranked; the leader sits 30 Elo above second. A 100-Elo window admits 3 of
         # those 49. Elo thresholds are NOT comparable to the percentage categories above -- that is
         # what D-105 forbids.
-        min_quality=1478.9,
         value_window=100.0,
         close_call=6.8,
         score_anchor=1478.9,  # pinned 2026-09-20 (D-143); moves only by owner ruling
     ),
     # ── M14-W2: two boards of the dataset `assistant` already reads (D-142, D-145) ─────────────
     #
-    # `min_quality` was the top third of the WHOLE board over DISTINCT models (D-145); since M16-W3
-    # it is the top third of the board's ROWS (D-148), like every surface.
+    # The floor was the top third of the WHOLE board over DISTINCT models (D-145); since M16-W3 it
+    # is the top third of the board's ROWS (D-148), derived from the served board since D-159.
     # Reproduce with `scripts/calibrate_board.py --config <board>`, which prints `board_third`.
     # Record: `docs/reviews/m14-category-calibration.md`.
     #
@@ -262,7 +249,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         primary_source="arena_document",
         # 36 distinct models on the board, 29 ranked. Board third 1467.5 admits 10 of 29 (the
         # ranked-third rule, 1471.0, would also admit 10). A 35-Elo window admits 7.
-        min_quality=1470.7,  # D-148 (M16-W3): was 1467.5
         value_window=35.0,
         close_call=8.7,
         score_anchor=1467.5,  # pinned 2026-09-20 (D-143); moves only by owner ruling
@@ -279,7 +265,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         # neighbour gap 1.4 Elo). Board third 1450.6 admits 32 of 59; the ranked-third rule
         # (1460.7) would admit 20 -- the surface where W-094's open question actually bites. A
         # 20-Elo window admits 6.
-        min_quality=1451.5,  # D-148 (M16-W3): was 1450.6
         value_window=20.0,
         close_call=4.0,
         score_anchor=1450.6,  # pinned 2026-09-20 (D-143); moves only by owner ruling
@@ -291,8 +276,7 @@ CATEGORIES: dict[str, CategorySpec] = {
     # Thresholds derived by `scripts/calibrate_board.py` on 2026-09-22 (record:
     # `docs/reviews/m15-category-calibration.md`), by the rules the product ships:
     #
-    #   min_quality  = the top third of the WHOLE board's rows (D-148, since M16-W3; it was the
-    #                  distinct-model count of D-145 when these shipped).
+    #   the floor    = the top third of the WHOLE board's rows (D-148), derived since D-159.
     #   close_call   = the median rating gap among pairs whose PUBLISHED 95% intervals overlap --
     #                  the board's own statement of what it cannot tell apart (the M14 rule).
     #   value_window = four times `close_call`, the ratio `assistant` ships (30 against 8) -- four
@@ -312,7 +296,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         # W-113: first pinned at 8.1 / 32.3 from a count that paired every NAME on the board, so a
         # model was compared with its own snapshot; re-measured over one name per model, and
         # corrected on the owner's ruling (2026-09-22).
-        min_quality=1253.3,  # D-148 (M16-W3): was 1248.2
         value_window=31.2,
         close_call=7.8,
         score_anchor=1248.2,  # pinned 2026-09-22 (D-143/D-146)
@@ -327,7 +310,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         primary_source="arena_search",
         # 33 distinct models, 25 ranked. The board is small because it only holds models that can
         # search at all -- most rows are retrieval SKUs of models this catalogue already prices.
-        min_quality=1206.9,
         value_window=25.9,
         close_call=6.5,
         score_anchor=1206.9,  # pinned 2026-09-22
@@ -346,7 +328,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         # reports what it found honestly" are two questions, and this board answers the second.
         # W-113: first pinned at 4.2 / 17.0 over every board name; 4.9 / 19.5 over one name per
         # model, corrected on the owner's ruling (2026-09-22).
-        min_quality=1202.1,  # D-148 (M16-W3): was 1203.7
         value_window=19.5,
         close_call=4.9,
         score_anchor=1203.7,  # pinned 2026-09-22

@@ -6,9 +6,11 @@ import json
 import sqlite3
 
 from app.clients.fakes import FakeRawSource
+from app.workflows.categories import CATEGORIES as _CATEGORIES
+from app.workflows.floors import derived_floor
 from app.workflows.ingest import RunContext, ingest_arena, ingest_litellm
 from app.workflows.rank import build_price_medians
-from app.workflows.recommend import MIN_QUALITY_ELO, VALUE_WINDOW_ELO, recommend
+from app.workflows.recommend import VALUE_WINDOW_ELO, recommend
 from app.workflows.registry import reconcile
 from app.workflows.schema import connect
 
@@ -107,13 +109,15 @@ def test_assistant_value_window_uses_elo_threshold() -> None:
 
 
 def test_assistant_budget_floor_uses_elo() -> None:
-    """REQ-REC-005 + REQ-CAL-001: the Elo floor, 1406.7 under D-148 since M16-W3 (1400 before)
-    (kimi 1250 and gemini 1398 are both below it; only the 1415.2 model clears)."""
-    assert MIN_QUALITY_ELO == 1406.7
+    """REQ-REC-005 + REQ-CAL-001, under D-159: the Elo floor is the top third of the Arena board's
+    own rows, on the Elo scale, and the Budget Pick clears it."""
     conn = _arena(ROWS)
+    floor = derived_floor(conn, _CATEGORIES["assistant"])
+    assert floor is not None and floor >= 1000.0
     rec = recommend(conn, "unlimited", "assistant")
     assert rec is not None
-    assert rec.picks[2].score >= MIN_QUALITY_ELO
+    assert rec.picks[2].score >= floor
+    assert rec.picks[2].why_fact["floor"] == floor
 
 
 def test_coding_task_unchanged_regression() -> None:
@@ -188,11 +192,7 @@ def test_close_call_threshold_is_the_calibrated_elo_value() -> None:
     assert "Elo" in rec.close_call
     # The aliases in recommend.py are documentation of the shipped data — drift is a defect.
     spec = CATEGORIES["assistant"]
-    assert (spec.min_quality, spec.value_window, spec.close_call) == (
-        MIN_QUALITY_ELO,
-        VALUE_WINDOW_ELO,
-        CLOSE_CALL_ELO,
-    )
+    assert (spec.value_window, spec.close_call) == (VALUE_WINDOW_ELO, CLOSE_CALL_ELO)
 
 
 def test_assistant_quality_floor_unmet_warns_on_elo_scale() -> None:
@@ -201,7 +201,7 @@ def test_assistant_quality_floor_unmet_warns_on_elo_scale() -> None:
     rec = recommend(_arena(ROWS), "low", "assistant")
     assert rec is not None
     assert "WARNING" in rec.picks[2].why
-    assert rec.picks[2].score < MIN_QUALITY_ELO
+    assert rec.picks[2].score < rec.picks[2].why_fact["floor"]
 
 
 def test_elo_scores_are_rounded_in_the_output(tmp_path, capsys) -> None:

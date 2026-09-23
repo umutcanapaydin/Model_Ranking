@@ -203,18 +203,16 @@ def floors(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             "distinct_models": len(best),
             "ranked_population": len(ranked),
             "efforts": sorted({effort for *_, effort in rows}),
-            "floor_today": spec.min_quality,
             "floor_rows": floor_rows,
             "floor_distinct": top_third(list(best.values())),
             "floor_ranked": top_third(ranked),
-            "move": round(floor_rows - spec.min_quality, 1) if floor_rows is not None else None,
         })
     return table
 
 
 def _print_floors(table: list[dict[str, Any]]) -> None:
-    header = (f"{'surface':18s} {'rows':>5s} {'models':>7s} {'ranked':>7s} {'today':>8s} "
-              f"{'rows⅓':>8s} {'move':>7s} {'models⅓':>8s} {'ranked⅓':>8s}  efforts")
+    header = (f"{'surface':18s} {'rows':>5s} {'models':>7s} {'ranked':>7s} "
+              f"{'rows⅓':>8s} {'models⅓':>8s} {'ranked⅓':>8s}  efforts")
     print(header)
     print("-" * len(header))
 
@@ -223,10 +221,10 @@ def _print_floors(table: list[dict[str, Any]]) -> None:
 
     for r in table:
         print(f"{r['surface']:18s} {r['board_rows']:5d} {r['distinct_models']:7d} "
-              f"{r['ranked_population']:7d} {cell(r['floor_today'], 8)} {cell(r['floor_rows'], 8)} "
-              f"{cell(r['move'], 7)} {cell(r['floor_distinct'], 8)} {cell(r['floor_ranked'], 8)}  "
+              f"{r['ranked_population']:7d} {cell(r['floor_rows'], 8)} "
+              f"{cell(r['floor_distinct'], 8)} {cell(r['floor_ranked'], 8)}  "
               f"{','.join(r['efforts'])}")
-    print("\nrows⅓ is D-148's floor (top third of every row on the board); `move` is what changes.")
+    print("\nrows⅓ is D-148's floor (top third of every row on the board), the one the engine serves (D-159).")
     print("models⅓ (D-145's count) and ranked⅓ are shown for comparison, not for choosing.")
 
 
@@ -261,7 +259,6 @@ def measure(config: str, db: Path, workspace: Path) -> dict[str, Any]:
         score_unit="Elo" if metric == METRIC else "%",
         secondary_benchmark=None,
         primary_source=source,
-        min_quality=0.0,
         value_window=0.0,
         close_call=0.0,
     )

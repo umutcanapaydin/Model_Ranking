@@ -7,7 +7,8 @@ Rule-based and explainable — no LLM anywhere in this path (D-104):
   3. Best Value   = on the quality-cost Pareto frontier, within
      VALUE_WINDOW_PTS of the leader, cheapest — NEVER score/price
      (REQ-REC-003).
-  4. Budget Pick  = cheapest eligible model meeting MIN_QUALITY_PCT.
+  4. Budget Pick  = cheapest eligible model clearing the surface's floor, derived from its
+     board (D-148 clause 1, D-159).
   5. Confidence from independent-source count; near-ties disclosed
      (REQ-REC-004).
 
@@ -25,6 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.workflows.categories import CategorySpec, get_category
+from app.workflows.floors import derived_floor
 from app.workflows.rank import (
     RankingRow,
     UnbuiltEvidenceError,
@@ -40,10 +42,8 @@ from app.workflows.serialize import recommendation_json
 BUDGETS: dict[str, float | None] = {"low": 2.0, "medium": 8.0, "unlimited": None}
 # Per-category thresholds live in CategorySpec (data, not code — M2-W4 review finding 1).
 # These aliases exist for tests/documentation of the shipped values:
-MIN_QUALITY_PCT = 65.4  # coding's floor; D-148 (M16-W3): was 65.0
 VALUE_WINDOW_PTS = 6.0
 CLOSE_CALL_PTS = 1.5
-MIN_QUALITY_ELO = 1406.7  # D-148 (M16-W3): was 1400.0
 VALUE_WINDOW_ELO = 30.0
 CLOSE_CALL_ELO = 8.0
 STALE_NOTICE_DAYS = 90  # REQ-REC-006
@@ -452,6 +452,17 @@ def _stale_notice(conn: sqlite3.Connection, spec: CategorySpec) -> str | None:
     return None
 
 
+def unmet_floor_warning(floor: float | None, unit: str, noun: str) -> str:
+    """The Budget Pick's warning when nothing clears the floor -- or when there is no floor to clear:
+    since D-159 the floor is measured on the surface's own board, and a surface can rank models from
+    another source on the same benchmark while its own board is empty."""
+    if floor is None:
+        return (f"WARNING: this surface's own board is empty today, so no minimum-quality bar can be "
+                f"measured; this is the cheapest {noun} available.")
+    return (f"WARNING: no {noun} in this budget clears the {floor:g} {unit} minimum-quality bar; "
+            "this is the cheapest available and you are trading quality away.")
+
+
 def recommend(
     conn: sqlite3.Connection, budget: str = "unlimited", task: str = "coding"
 ) -> Recommendation | None:
@@ -480,13 +491,13 @@ def recommend(
     quality = frontier[0]
 
     window = spec.value_window
-    floor = spec.min_quality
+    floor = derived_floor(conn, spec)  # D-159: from the board this answer reads
     close_pts = spec.close_call
 
     value_pool = [r for r in frontier if quality.score - r.score <= window]
     value = min(value_pool, key=lambda r: (r.blended_per_m, r.model))
 
-    floor_pool = [r for r in rows if r.score >= floor]
+    floor_pool = [r for r in rows if floor is not None and r.score >= floor]
     floor_met = bool(floor_pool)
     cheap = min(floor_pool or rows, key=lambda r: (r.blended_per_m, r.model))
 
@@ -559,11 +570,7 @@ def recommend(
                 # to stop rounding the claim, not to round the fact.
                 f"Cheapest model that clears the {floor:g} {unit} minimum-quality bar."
                 if floor_met
-                else (
-                    f"WARNING: no model in this budget clears the {floor:g} {unit} "
-                    "minimum-quality bar; this is the cheapest available and you are trading "
-                    "quality away."
-                )
+                else unmet_floor_warning(floor, unit, "model")
             ),
             trade_off=(
                 None if cheap.model == quality.model else trade_off_sentence(cheap_trade_off)
