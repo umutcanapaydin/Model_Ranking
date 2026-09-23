@@ -1,43 +1,34 @@
 Project: model_ranking
-RESUME HERE (2026-09-23): the project now runs on DevFlow v6.0 (D-155). Run `/start-session` first.
-  - M16-W2 is CLOSED and on main (5fc3f02). M16-W3 is next (floors under D-148; plan §0.3).
-  - The DevFlow adoption is on branch `enhancement/devflow-v6` as a DRAFT PR; the OWNER reviews,
-    marks ready and merges. From now on nothing is pushed to main by an agent (D-999); no AI
-    attribution in commits or PRs.
-  - OWNER, once: protect `main` in GitHub (docs/branch-protection.md), or D-999 is an honour system.
-  - OWNER, after the M16-W2 engine is running: ./ios/app.sh restart, check
-    `curl -s localhost:8080/health` shows "refresh": "scheduled", then scripts/retire_refresh.sh.
-  - DevFlow defects for the DevFlow developer: docs/research/devflow-v6-field-findings-2026-09-23.md
+RESUME HERE (2026-09-23, M16 closure): the project runs on DevFlow v6.0 (D-155). Run `/start-session` first.
+  - M16 is CLOSED agent-side on branch `enhancement/m16-closure` (a DRAFT PR): Stage 4.0 security
+    review, coverage trace, closure report docs/closure-report-m16.md, retrospective, EXPERIENCE,
+    roadmap snapshot, AGENTS.md back under 150 lines, and the M17 plan docs/plans/m17-plan.md.
+  - OWNER, in this order:
+      1. retire the launchd refresher: ./ios/app.sh restart, check `curl -s localhost:8080/health`
+         shows "refresh": "scheduled", then scripts/retire_refresh.sh. (Or reinstall it with
+         scripts/install_refresh_wrapper.sh -- the installed copy still passes the retired Epoch
+         bundle, and it runs whatever branch is checked out in this directory.)
+      2. publish the first artifact with derived models BY HAND (D-132 refuses it nightly, by
+         design): the before/after is docs/research/m16-w4-derived-registry-2026-09-23.md.
+      3. remove the CI step that ages data/epoch-source.yaml (the diff is in PR #6's body).
+      4. rule M17 plan §0.1-0.4 (floors on fresh data W-128, the margin rule W-127, how a combined
+         list says it is ours, what leaves the phone).
+  - Open, owned: W-123 (M17-W5), W-125, W-126, W-127, W-128, W-129 (kept and recorded).
 
-State: 2026-09-22 -- M15 is CLOSED and the owner signed off (D-150 clause 2 ratified). make check
-green on the owner's Mac: pytest 962/15, Swift 262 (each named in the manifest), client-decls PASS
-in 4 configurations; check-records / wave-check-all / conformance PASS.
+State: 2026-09-23 -- M16 merged to main through PRs #1-#8 (eee2faf). make check green on the
+owner's Mac: pytest 1165/15, Swift 268, client-decls PASS in 4 configurations, conformance PASS.
+`make check-fast` (33 s) is the working gate; `make check` (89 s) the merge gate.
 
 READ IN THIS ORDER
   1. this file
-  2. docs/plans/m16-plan.md                  -- the milestone, W1 closing, W2 next
-  3. docs/plans/m16-wave-1-close.md          -- what W1 delivered and what it deferred
+  2. docs/closure-report-m16.md               -- what M16 shipped, what needs you
+  3. docs/plans/m17-plan.md                   -- next: lists nobody publishes
   4. docs/handovers/handover_project-2026-09-21.md -- the whole project, for someone who knows nothing
-  5. docs/warnings.ledger.md W-111..W-123    -- everything open, newest first
+  5. docs/warnings.ledger.md W-123..W-129     -- everything open, newest first
 
-M16-W1 IN SHORT
-  - D-151 (owner): the refresh runs ONCE A NIGHT between 23:00 and 01:00, in the background, plus a
-    catch-up when the engine starts on an artifact older than a day. NO "update now" button and no
-    refresh state in the app -- amends D-149 clauses 1 and 3 and shrinks W2.
-  - D-152: /v1/categories publishes min_quality. D-153: the two search surfaces publish
-    price_excludes="search_call" (null elsewhere). The SCREENS that show them are W2.
-  - W-111 FIXED: ios/EngineTests/test-manifest.txt names every test; deleting, renaming, skipping,
-    commenting out, making private or #if-guarding one turns make check red (the last three also
-    in a lane with no toolchain, tests/unit/test_swift_test_manifest.py).
-  - W-118 FIXED: the router floor did NOT move (no floor separates), the EXAMPLES did.
-    docs/reviews/m16-router-floor-measurement.md. Held-out off-topic 3/16 -> 8/16 (within-distribution).
-  - W-122 FIXED: scripts/client_decl_gate.py reads the declarations the COMPILER resolved, in 4
-    build configurations; Darwin off, UIKit and CoreFoundation allowed symbol by symbol. Its
-    docstring says what it does NOT do (file-scoped, not data-scoped: B19/B31; try!; FP3).
-  - W-123 OPEN (M16-W4): ordinary questions still reach a measured surface 5 times in 16.
-
-M16 IN ONE LINE: one application (the engine refreshes itself nightly, D-151; no app button), floors
-re-derived under D-148, carry-forward (D-144), the router floor re-measured first (done, W1).
+M16 IN ONE LINE: the engine keeps itself current -- nightly refresh (D-151, D-154), every board
+fetched by the refresh (D-158), a failed source carried 30 days (D-156), floors on one rule (D-148),
+new models registered from the data under "the list wins" (D-157).
 
 THE THING A NEW AGENT MUST NOT UNDO
   - Uncertainty.swift is the ONE file allowed arithmetic on a served score (D-138).

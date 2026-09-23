@@ -2641,6 +2641,12 @@ to the grammar, even where a vendor reused the name for two releases (`claude-3.
 ids, `docs/reviews/m16-wave-4-rereview.md` MINOR-1); only a curated rule splits those. Clause 2's
 "dates ... removed" was never true of the code and is withdrawn: no date is removed.
 
+*Second amendment, 2026-09-23 (M16 Stage 4.0 security review, MAJOR-1).* A derived model's DISPLAY
+name is a spelling of the model and nothing else: the name's last route segment, at most 64
+characters of a closed alphabet, reading as the same model through the grammar; otherwise the id.
+Taken verbatim, a score's name had served "Visit evil.example ... /zeta 9" as a model name with no
+length bound.
+
 ---
 
 ## D-158 — The nightly refresh fetches the Epoch bundle itself
