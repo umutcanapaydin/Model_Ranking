@@ -310,3 +310,24 @@ def test_rows_stamped_far_in_the_future_expire_rather_than_carry_for_ever(tmp_pa
     _, report = _candidate(tmp_path, live, last_ok={}, source_list=optional)
     assert report.carried == {}
     assert "aider" in report.expired
+
+
+def test_the_carry_opens_the_served_artifact_read_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Security review MINOR-2 (INV-23): a plain `sqlite3.connect(live)` in `Carry.restore` survived
+    every test, because reading works either way. Every connection to the live file must be the
+    derived read-only URI."""
+    live = _live(tmp_path)
+    real = sqlite3.connect
+    opened: list[tuple[str, bool]] = []
+
+    def watch(database: object, *args: object, **kwargs: object) -> sqlite3.Connection:
+        opened.append((str(database), bool(kwargs.get("uri"))))
+        return real(database, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(sqlite3, "connect", watch)
+    _candidate(tmp_path, live, last_ok={"aider": _iso(2)}, aider=None)
+    touching = [(db, uri) for db, uri in opened if str(live.resolve()) in db or str(live) in db]
+    assert touching, "the carry never opened the live artifact"
+    assert all(uri and "mode=ro" in db for db, uri in touching), touching
