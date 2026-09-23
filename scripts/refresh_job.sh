@@ -15,13 +15,14 @@
 set -u
 
 REPO="/Users/umutcanapaydin/Desktop/ILGAR/model_ranking"
-EPOCH="/Users/umutcanapaydin/Desktop/terminal_output/model_ranking/epoch_data"
 
 echo "[refresh_job] $(date '+%Y-%m-%d %H:%M:%S') start"
 cd "$REPO" || { echo "[refresh_job] cannot cd to $REPO"; exit 90; }
 export PYTHONPATH="$REPO/src"
 
-"$REPO/.venv/bin/python" -B -m app.workflows.refresh --db "$REPO/advisor.db" --epoch-dir "$EPOCH"
+# D-158 (M16-W4): the refresh fetches the Epoch bundle itself. The hand-kept bundle directory this
+# used to pass is retired -- it won over the fetch, so this job never fetched (review MAJOR-1).
+"$REPO/.venv/bin/python" -B -m app.workflows.refresh --db "$REPO/advisor.db" --fetch-epoch
 rc=$?
 
 # refresh's own codes: 0 published, 1 unchanged, 2 failed, 3 refused (D-128), 4 busy.

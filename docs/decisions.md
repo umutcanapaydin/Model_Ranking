@@ -2628,6 +2628,17 @@ written. Two spellings the grammar does not unify stay two models until a curate
 
 **Revisit when:** a derived registration is found merging two different models, or splitting one.
 
+*Amendment, 2026-09-23 (M16-W4 review, `docs/reviews/m16-wave-4-review.md`, BLOCKING-1).* The
+revisit trigger fired before merge: the first grammar removed any `-vN`, everything after `:` or `@`,
+and any vendor head, and so merged products (deepseek-coder-v2 priced as `deepseek-coder`; three
+Mistral 7B versions as one). Clause 2's decoration is now a CLOSED list -- the route; `:batch`,
+`:free`, `:nitro`, `:floor`, `:exacto`; `@default`, `@latest`; a region head; a vendor head only before
+its own family word; Bedrock's `-v1`/`-v1:0` only after such a head; Epoch's underscore effort;
+separator spelling -- and every other token stays, so clause 3 holds by construction again. A fine-tune
+(`ft:`) is never derived. **The residual, stated:** names two sources spell identically are one model
+to the grammar, even where a vendor reused the name for two releases (`claude-3.5-sonnet`,
+`mistral-7b-instruct`); only a curated rule splits those.
+
 ---
 
 ## D-158 — The nightly refresh fetches the Epoch bundle itself

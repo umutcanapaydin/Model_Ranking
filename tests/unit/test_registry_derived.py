@@ -5,8 +5,10 @@ cannot give anything, [...] we will present the list we derived from the data." 
 still win, and a name no rule matches is normalised by a FIXED grammar -- route decorations off,
 separators unified, nothing else -- and registered when that id has both a price and a score.
 
-The grammar errs toward SPLITTING: it never removes a date or a variant word, so two spellings of one
-model may stay two models (the ADR's stated cost), and a variant can never merge into its parent.
+The grammar errs toward SPLITTING: it removes only a closed list of decorations and keeps every other
+token (a date, `-v2`, `@002`, `:thinking`), so two spellings of one model may stay two models (the
+ADR's stated cost) and two products never share an id. The M16-W4 review found the first version
+merging products; its reproductions are the `never_derive_one_id` cases below.
 """
 
 from __future__ import annotations
