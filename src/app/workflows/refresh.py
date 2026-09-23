@@ -41,7 +41,7 @@ from pathlib import Path
 from app.clients import epoch_bundle
 from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
-from app.workflows.floors import derived_floor
+from app.workflows.floors import board_names, derived_floor
 from app.workflows.rank import build_price_medians, category_ranking
 from app.workflows.recommend import BUDGETS, eligible_rows, round_optional_score, round_score
 from app.workflows.schema import open_readonly
@@ -142,6 +142,31 @@ MAX_SURFACE_GAIN = 0.25
 MAX_MEDIAN_PRICE_MOVE = 0.25
 
 
+def _mostly_new(
+    live: dict[str, frozenset[str]], candidate: dict[str, frozenset[str]],
+    subject: str, noun: str, why: str,
+) -> list[str]:
+    """D-132's limit: every surface where more than a quarter of what it would show is new."""
+    reasons: list[str] = []
+    for name, was in sorted(live.items()):
+        now = candidate.get(name, frozenset())
+        if not now:
+            continue  # a surface losing everything is `degradations`' business, not this one
+        if not was:
+            # It was blind and now answers. That is a surface RETURNING — exactly what happened
+            # when arena came back and `assistant` went from nothing to 65 models — and refusing it
+            # would freeze the product for the one event everybody wants.
+            continue
+        fresh = now - was
+        if len(fresh) > len(now) * MAX_SURFACE_GAIN:
+            reasons.append(
+                f"{subject.format(name=name)} would be {len(fresh)} of {len(now)} {noun} this "
+                f"artifact has never seen ({len(fresh) / len(now):.0%}, over the "
+                f"{MAX_SURFACE_GAIN:.0%} limit); {why}"
+            )
+    return reasons
+
+
 def upward_anomalies(
     live: ServingSummary, candidate: ServingSummary, prices: ServingSummary | None = None
 ) -> list[str]:
@@ -162,24 +187,17 @@ def upward_anomalies(
     never adds a name, so an expiry needs no excuse there, and a surface the expiry blinds must not
     pass for "a surface returning" (M16-W3 third review MINOR-1).
     """
-    reasons: list[str] = []
-
-    for name, was in sorted(live.models.items()):
-        now = candidate.models.get(name, frozenset())
-        if not now:
-            continue  # a surface losing everything is `degradations`' business, not this one
-        if not was:
-            # It was blind and now answers. That is a surface RETURNING — exactly what happened
-            # when arena came back and `assistant` went from nothing to 65 models — and refusing it
-            # would freeze the product for the one event everybody wants.
-            continue
-        fresh = now - was
-        if len(fresh) > len(now) * MAX_SURFACE_GAIN:
-            reasons.append(
-                f"{name} would be {len(fresh)} of {len(now)} models this artifact has never seen "
-                f"({len(fresh) / len(now):.0%}, over the {MAX_SURFACE_GAIN:.0%} limit); a board "
-                "adds models one or two at a time"
-            )
+    reasons = _mostly_new(
+        live.models, candidate.models, "{name}", "models",
+        "a board adds models one or two at a time",
+    )
+    # The same limit on the surface's OWN BOARD (owner, 2026-09-23; D-159 correction). Its floor is
+    # derived from every row, ranked or not, so rows nobody prices can move the floor and every
+    # Budget Pick while the ranked names above stay exactly the same.
+    reasons += _mostly_new(
+        live.board, candidate.board, "{name}'s board", "names",
+        "its floor is derived from every one of their rows (D-159)",
+    )
 
     for name, before in sorted((prices or live).median_price.items()):
         if before <= 0:
@@ -328,6 +346,11 @@ class ServingSummary:
     #: price is a reported number — true of the score, false of the price, because the price is
     #: also a filter.
     eligible: dict[str, dict[str, int]]
+    #: surface -> every raw name on its own board (D-159: the floor is derived from all of its rows,
+    #: ranked or not). The ranked names above cannot see a board flooded with rows nobody prices, which
+    #: moves the floor and every Budget Pick (owner, 2026-09-23). Defaults empty for a summary built
+    #: by hand, which the board guard then treats as a board returning.
+    board: dict[str, frozenset[str]] = dataclasses.field(default_factory=dict)
 
     @property
     def answering(self) -> int:
@@ -368,6 +391,7 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
     eligible: dict[str, dict[str, int]] = {}
     names: dict[str, frozenset[str]] = {}
     prices: dict[str, float] = {}
+    boards: dict[str, frozenset[str]] = {}
     for name in sorted(CATEGORIES):
         spec = CATEGORIES[name]
         # NO `except sqlite3.DatabaseError: rows = []` HERE, and its absence is the point.
@@ -392,6 +416,7 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         surfaces[name] = len(rows)
         eligible[name] = {b: len(eligible_rows(rows, b)) for b in sorted(BUDGETS)}
         names[name] = frozenset(row.model for row in rows)
+        boards[name] = board_names(conn, spec)
         prices[name] = statistics.median([row.blended_per_m for row in rows]) if rows else 0.0
         for row in rows:
             digest.update(_row_digest(row).encode())
@@ -401,6 +426,7 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         models=names,
         median_price=prices,
         eligible=eligible,
+        board=boards,
     )
 
 

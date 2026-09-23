@@ -39,6 +39,16 @@ def board_scores(conn: sqlite3.Connection, spec: CategorySpec) -> list[float]:
     )]
 
 
+def board_names(conn: sqlite3.Connection, spec: CategorySpec) -> frozenset[str]:
+    """Every raw name on the board `board_scores` reads. The refresh compares these across cycles,
+    because the floor is derived from every row; a name, not a whole row, so an upstream that
+    relabels a harness or an effort on rows it already had is not read as a board of new rows."""
+    return frozenset(raw for (raw,) in conn.execute(
+        "SELECT DISTINCT raw_name FROM scores WHERE source = ? AND benchmark = ? AND metric = ?",
+        (spec.primary_source, spec.primary_benchmark, spec.metric),
+    ))
+
+
 def derived_floor(conn: sqlite3.Connection, spec: CategorySpec) -> float | None:
     """The surface's floor on the artifact behind `conn`; None when its board is empty."""
     return top_third(board_scores(conn, spec))

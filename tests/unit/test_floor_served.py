@@ -299,3 +299,22 @@ def test_the_refresh_refuses_a_flooded_board_end_to_end(
     outcome, code = refresh(live)
     assert code == EXIT_REFUSED, outcome.reason
     assert "coding's board" in (outcome.reason or ""), outcome.reason
+
+
+def test_a_board_that_returns_is_not_refused(seeded: Path, tmp_path: Path) -> None:
+    """A board that was empty and answers again is a source RETURNING (D-132's own exemption), not
+    a flood: every name on it is new, and refusing it would keep the surface without a floor."""
+    import shutil
+
+    from app.workflows.refresh import fingerprint_of, upward_anomalies
+
+    spec = CATEGORIES["coding"]
+    blind = tmp_path / "blind.db"
+    shutil.copy(seeded, blind)
+    with sqlite3.connect(blind) as conn:
+        conn.execute("UPDATE scores SET source = 'epoch_swe_bench_verified' WHERE source = ? "
+                     "AND benchmark = ?", (spec.primary_source, spec.primary_benchmark))
+    live, returned = fingerprint_of(blind), fingerprint_of(seeded)
+    assert live is not None and returned is not None
+    assert not live.board["coding"] and returned.board["coding"], "the fixture proves nothing"
+    assert not [r for r in upward_anomalies(live, returned) if "board" in r]

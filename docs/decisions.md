@@ -2736,6 +2736,20 @@ Budget Pick says so.
 - A surface whose own board is empty answers with its own reason, `no_floor_measured`, which the app
   words in both languages.
 
+*Owner ruling, 2026-09-23 (re-review `docs/reviews/m17-wave-1-rereview.md`, OWNER-R1).*
+- **The correction above withdraws only clause 3's first half**, "a floor that empties a budget".
+  Its second half, "moves a surface's roster past the limits", is D-128 and D-132, which run on every
+  candidate unchanged.
+- **The gap the withdrawal left, put to the owner:** the floor is derived from every row of a board,
+  and D-132's new-names limit reads only ranked models. On a copy of the owner's artifact, 60 rows
+  nobody prices moved `coding`'s floor from 65.4 to 71.3, and neither guard objected. Asked (in
+  Turkish, translated) "should we prevent this?", the owner ruled **"yes, add a simple guard"**.
+- **The guard:** D-132's limit applies to each surface's own board, by raw name. A candidate whose
+  board would be more than a quarter names the served artifact has never seen is refused, like any
+  D-132 refusal, and a legitimate jump is published by hand. A board that was empty and answers
+  again is a source returning, and passes, as a surface returning does
+  (`refresh.upward_anomalies`; `tests/unit/test_floor_served.py`).
+
 ---
 
 ## D-160 — A combined list is built on the phone, and nothing about the question leaves it
