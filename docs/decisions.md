@@ -2130,6 +2130,15 @@ Nine floors move; one pick changes (`agentic-coding`'s Budget Pick at `medium` a
 the owner ruled that surface under the same rule, so no surface is an exception.
 
 
+*Amendment, 2026-09-23 (owner, M17 plan §0.2; closes W-127).* Clause 2 names a second sizing rule
+it had always had in the tree: **on an Elo board that publishes confidence intervals, the tie margin
+and window measure what the board cannot tell apart** -- the live 95%-interval overlap for
+`assistant` (M3), and the median gap of pairs whose published intervals overlap, window four times
+it, for `document`, `factuality`, `vision`, `search` and `search_factuality` (`scripts/calibrate_board.py`).
+The candidate-count sizing stays for the boards without published intervals. No number changes.
+
+---
+
 ## D-149 — One application: the engine refreshes itself, and the app can ask it to
 
 **Status:** **accepted by the owner 2026-09-22** (in session, at M15-W4) · **Date:** 2026-09-22 ·
@@ -2679,4 +2688,62 @@ directory nobody refreshes meant nine of nineteen sources carried every night un
 up to 30 days, which is the D-156 behaviour this replaces for the owner-fetched case too.
 
 **Revisit when:** Epoch publishes a versioned API, or the bundle outgrows its 64 MB limit.
+
+---
+
+## D-159 — Every floor is derived from its board in every build
+
+**Status:** accepted -- ruled by the owner 2026-09-23 (M17 plan §0.1, chosen over re-deriving at each
+deliberate publish) · **Date:** 2026-09-23 · **Amends** D-148's application: clause 1 stays the rule;
+its VALUE is computed by the build instead of kept by hand in `categories.py`. Closes W-128 when built.
+
+**Context.** D-148 clause 1 makes a floor the top third of the board's rows. The rule is relative to
+the board, so a floor measured on one day's boards goes stale as the boards grow: the fresh Epoch
+bundle moved six floors (`abstract` 72.8 → 84.7). Kept by hand, every refresh widens the gap between
+the rule and the number (W-128).
+
+**Decision.**
+1. The build computes each surface's floor from the board it ranks, under D-148 clause 1, and the
+   artifact carries it. `/v1/categories` publishes that floor (D-152); the engine recommends from it.
+2. `categories.py` keeps the RULE's parameters, not a number. The measurement script
+   (`scripts/survey_boards.py --floors`) and the build call one function, so they cannot disagree.
+3. D-128's guards and D-132 still judge every candidate: a floor that empties a budget, or moves a
+   surface's roster past the limits, is refused like any other change.
+
+**The cost, accepted by the owner.** A Budget Pick can change overnight because a board grew, with
+nobody reading a before/after table first. That was the check M16 plan §0.3 kept; the owner chose
+current floors over it.
+
+**Revisit when:** a floor move changes a pick in a way a reader reports as wrong.
+
+---
+
+## D-160 — A combined list is built on the phone, and nothing about the question leaves it
+
+**Status:** accepted -- ruled by the owner 2026-09-23 (M17 plan §0.3 "show it plain", §0.4 "nothing
+leaves the phone", each chosen over the recommendation) · **Date:** 2026-09-23 · **Extends** D-104's
+privacy boundary to the on-device model; **amends** D-138's arithmetic permission.
+
+**Context.** M17 answers a question with a list no leaderboard publishes, by combining boards
+(the owner: "that is the app's biggest feature"). The on-device model (Apple Intelligence) reads the
+typed question into a structured intent. The plan recommended sending the intent's CODES to the
+engine; the owner ruled that nothing leaves the phone.
+
+**Decision.**
+1. **Nothing derived from the question leaves the device**, not the text and not an intent. The
+   engine publishes each board's standings on an additive `/v1` route (board identity, date, each
+   model's position and price), fetched like any other data, and the question never shapes the request.
+2. **The phone builds the combined list**, in the Engine layer, by POSITION on each chosen board,
+   never by averaging raw scores (D-105). One named file does it, and the client-contract gate
+   permits it by this ADR beside `Uncertainty.swift` (D-138).
+3. **The list is shown plain.** The boards it came from and their dates are on the detail screen,
+   not on the list itself.
+4. **The on-device model only maps a question to an intent** (D-104: no model generates, adjusts or
+   explains a score, price or availability). When it is unavailable, the router (D-147) stands in.
+
+**The cost.** The app does more work and carries more data. A reader looking only at the list does not
+see that it is the product's own combination; the detail screen says so.
+
+**Revisit when:** a reader takes a combined list for a published leaderboard, or the standings payload
+outgrows what a phone should download nightly.
 

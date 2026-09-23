@@ -1,8 +1,8 @@
 Project: model_ranking
 RESUME HERE (2026-09-23, M16 closure): the project runs on DevFlow v6.0 (D-155). Run `/start-session` first.
-  - M16 is CLOSED agent-side on branch `enhancement/m16-closure` (a DRAFT PR): Stage 4.0 security
-    review, coverage trace, closure report docs/closure-report-m16.md, retrospective, EXPERIENCE,
-    roadmap snapshot, AGENTS.md back under 150 lines, and the M17 plan docs/plans/m17-plan.md.
+  - M16 is CLOSED and signed (PR #9 merged 2026-09-23). The owner ruled M17 §0 the same day
+    (D-159 floors every build, D-148 margin amendment, D-160 the combined list is built on the phone
+    and nothing leaves it). M17-W1 (floors from the board, every build) is next.
   - OWNER, in this order:
       1. retire the launchd refresher: ./ios/app.sh restart, check `curl -s localhost:8080/health`
          shows "refresh": "scheduled", then scripts/retire_refresh.sh. (Or reinstall it with
@@ -11,9 +11,7 @@ RESUME HERE (2026-09-23, M16 closure): the project runs on DevFlow v6.0 (D-155).
       2. publish the first artifact with derived models BY HAND (D-132 refuses it nightly, by
          design): the before/after is docs/research/m16-w4-derived-registry-2026-09-23.md.
       3. remove the CI step that ages data/epoch-source.yaml (the diff is in PR #6's body).
-      4. rule M17 plan §0.1-0.4 (floors on fresh data W-128, the margin rule W-127, how a combined
-         list says it is ours, what leaves the phone).
-  - Open, owned: W-123 (M17-W5), W-125, W-126, W-127, W-128, W-129 (kept and recorded).
+  - Open, owned: W-123 (M18), W-125, W-126, W-128 (M17-W1), W-129 (kept and recorded), W-130, W-131.
 
 State: 2026-09-23 -- M16 merged to main through PRs #1-#8 (eee2faf). make check green on the
 owner's Mac: pytest 1165/15, Swift 268, client-decls PASS in 4 configurations, conformance PASS.
