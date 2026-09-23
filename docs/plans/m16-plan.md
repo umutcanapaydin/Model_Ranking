@@ -127,8 +127,8 @@ Nothing a reader sees changes. Everything the later waves need written down firs
 **Owner, 2026-09-23 (in session):** this wave replaces "what people ask", which moves to M17 with
 the source expansion and the combined lists. The refresh fetches every board itself (the Epoch
 bundle included), a changed board layout fails loud, and a model on the boards and in the price
-feeds reaches the lists without a code edit (registry derivation, D-157). Working plan:
-`docs/plans/m16-wave-4-plan.md`.
+feeds reaches the lists without a code edit (registry derivation, D-157). Its working plan lived on
+the branch (PR #6) and was removed after merge; the close record is `docs/plans/m16-wave-4-close.md`.
 
 ### ~~W4~~ M17 — What people ask, from outside (risk: **MED**, droppable)
 

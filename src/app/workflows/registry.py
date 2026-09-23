@@ -330,16 +330,33 @@ def resolve_effort(model_name: str, explicit: str | None = None) -> EffortResolu
 # above still wins. A name it does not match is normalised by the fixed grammar below and registered
 # when the derived id has BOTH a price and a score -- what it needs to rank, and nothing it does not.
 #
-# The grammar removes DECORATION only: the route a price feed puts in front of a model, a batch or
-# endpoint suffix, a Bedrock version tag, a region or vendor prefix, Epoch's underscore effort, and
-# separator spelling. It never removes a date or a word, so it errs toward SPLITTING one model into
-# two spellings (the ADR's stated cost) and can never merge a variant into its parent.
+# The grammar removes DECORATION only, from a CLOSED list: the route a price feed puts in front of a
+# model; `:batch`, `:free`, `:nitro`, `:floor`, `:exacto`; `@default`, `@latest`; a region head; a
+# vendor head only before that vendor's own family word; Bedrock's `-v1:0` only after such a
+# head; Epoch's underscore effort; and separator spelling. Every other token stays -- `-v2`, `@002`,
+# `:thinking`, `:high`, a date -- so the failure it can have is a SPLIT (the ADR's stated cost).
+# The first version stripped any `-vN` and anything after `:` or `@`, and merged deepseek-coder-v2
+# into deepseek-coder and three Mistral 7B versions into one (M16-W4 review BLOCKING-1).
+# What it cannot see: two sources spelling a name IDENTICALLY are one model to it, even where a
+# vendor reused the name for two releases; only a curated rule can split those.
 
-#: Dotted prefixes Bedrock and friends put before a model (`us.anthropic.claude-...`).
-_DOTTED_PREFIXES = frozenset({
-    "us", "eu", "au", "jp", "apac", "global", "us-gov", "anthropic", "meta", "amazon", "mistral",
-    "cohere", "ai21", "deepseek", "qwen", "openai", "google", "xai", "writer", "moonshotai", "minimax",
-})
+#: Region heads a price feed puts before a model (`us.`, `global.`): always decoration.
+_REGION_PREFIXES = frozenset({"us", "eu", "au", "jp", "apac", "global", "us-gov", "ca", "sa"})
+#: A VENDOR head (`anthropic.`) is decoration only before that vendor's own family word:
+#: `anthropic.claude-...` is Claude, but `deepseek.r1` is a model called R1 at DeepSeek, and dropping
+#: the head there left a bare `r1` (M16-W4 review BLOCKING-1).
+_VENDOR_FAMILIES: dict[str, tuple[str, ...]] = {
+    "anthropic": ("claude",), "meta": ("llama",), "amazon": ("nova", "titan"),
+    "mistral": ("mistral", "mixtral", "ministral", "pixtral", "codestral", "magistral", "devstral"),
+    "cohere": ("command",), "ai21": ("jamba",), "deepseek": ("deepseek",), "qwen": ("qwen", "qwq"),
+    "openai": ("gpt", "o1", "o3", "o4"), "google": ("gemini", "gemma"), "xai": ("grok",),
+    "writer": ("palmyra",), "moonshotai": ("kimi",), "minimax": ("minimax",),
+}
+#: After `:`, the route decorations price feeds append. Anything else names a variant and STAYS:
+#: `:thinking` is a different product, `:1` is Claude 2.1, `:high` is an effort (review BLOCKING-1).
+_COLON_DECORATION = frozenset({"batch", "free", "nitro", "floor", "exacto"})
+#: After `@`, only these are decoration; `@001` and `@20240620` are releases.
+_AT_DECORATION = frozenset({"default", "latest"})
 #: Epoch writes a run's effort after an underscore (`gpt-6-astra_high`). `none`, `minimal`,
 #: `promax` and `unknown` are not efforts this schema stores; they are removed and read as unspecified.
 _UNDERSCORE_EFFORT = re.compile(r"_(none|minimal|low|medium|high|xhigh|max|promax|unknown)\Z", re.I)
@@ -372,6 +389,27 @@ class DerivedIdentity:
     effort: str | None
 
 
+def _decorated(text: str, mark: str, decoration: frozenset[str]) -> str:
+    """Drop `mark` + a known decoration; keep any other suffix as a name token."""
+    base, sep, suffix = text.partition(mark)
+    if not sep:
+        return text
+    return base if suffix in decoration else f"{base}-{suffix.replace(mark, '-')}"
+
+
+def _without_heads(text: str) -> tuple[str, bool]:
+    """Region and vendor dotted heads removed (a vendor only before its own family word), and
+    whether any was: Bedrock's `-v1:0` API tag is decoration only on such a routed name."""
+    routed = False
+    while True:
+        head, dot, rest = text.partition(".")
+        family = _VENDOR_FAMILIES.get(head, ())
+        if dot and rest and (head in _REGION_PREFIXES or (bool(family) and rest.startswith(family))):
+            text, routed = rest, True
+            continue
+        return text, routed
+
+
 def derive_identity(name: str) -> DerivedIdentity | None:
     """The grammar's id for ``name``; None for a different product (the modality guard)."""
     if any(rx.search(name) for _, rx in _MODALITY_RX):
@@ -383,16 +421,16 @@ def derive_identity(name: str) -> DerivedIdentity | None:
         token = suffix.group(1).lower()
         effort = token if token in EFFORT_LEVELS else None
         text = text[: suffix.start()]
-    text = text.rsplit("/", 1)[-1]                 # the route: `openrouter/openai/...`
-    text = re.split(r"[:@]", text, maxsplit=1)[0]  # `:batch`, `:free`, `@default`, `-v1:0`
-    text = text.lower()
-    while True:                                    # `us.anthropic.`, `meta.`
-        head, dot, rest = text.partition(".")
-        if not (dot and rest and head in _DOTTED_PREFIXES):
-            break
-        text = rest
+    text = text.rsplit("/", 1)[-1].lower()         # the route: `openrouter/openai/...`
+    if text.startswith("ft:"):
+        return None                                # a fine-tune is its owner's model, not the base
+    text = _decorated(text, "@", _AT_DECORATION)
+    text, routed = _without_heads(text)
+    if routed:
+        text = re.sub(r"-v1:0\Z", "", text)          # Bedrock's API tag, only after its prefix;
+        # a bare `-v1` there is a model version (`anthropic.claude-v1`, Claude 1: re-review NIT-1)
+    text = _decorated(text, ":", _COLON_DECORATION)
     text = re.sub(r"[\s_]+", "-", text).strip("-")
-    text = re.sub(r"-v\d+\Z", "", text)             # Bedrock's `-v1`
     text = re.sub(r"(?<=\d)-(\d)(?=-|\Z)", r".\1", text)  # `opus-5-5` is 5.5; `3-235b` is not
     text = re.sub(r"([a-z])-(\d)", r"\1\2", text)     # `gpt-6` and `gpt6` are one spelling
     if not text or not re.fullmatch(r"[a-z0-9][a-z0-9.+\-]*", text):
@@ -548,6 +586,12 @@ def reconcile(conn: sqlite3.Connection) -> ReconcileReport:
     modality_drops: list[tuple[str, str]] = []
     pending = _Pending(prices={}, scores={})
     p_matched = s_matched = 0
+    # Counted BEFORE any row changes: linking a derived model can rewrite a row's effort, which
+    # merges two (name, effort) pairs into one, and a total taken after that went negative (M16-W4
+    # review MINOR-1). Matches are counted over the same pairs, at the same moment.
+    p_total = conn.execute("SELECT COUNT(DISTINCT alias) FROM pricing").fetchone()[0]
+    s_total = conn.execute("SELECT COUNT(*) FROM (SELECT DISTINCT raw_name, effort FROM scores)"
+                           ).fetchone()[0]
 
     with conn:
         for (alias,) in conn.execute("SELECT DISTINCT alias FROM pricing").fetchall():
@@ -595,9 +639,6 @@ def reconcile(conn: sqlite3.Connection) -> ReconcileReport:
         linked = set(derived_ids)
         dropped += [a for mid, aliases in pending.prices.items() if mid not in linked for a in aliases]
         dropped += [n[0] for mid, names in pending.scores.items() if mid not in linked for n in names]
-    p_total = conn.execute("SELECT COUNT(DISTINCT alias) FROM pricing").fetchone()[0]
-    s_total = conn.execute("SELECT COUNT(*) FROM (SELECT DISTINCT raw_name, effort FROM scores)"
-                           ).fetchone()[0]
     return ReconcileReport(
         p_matched,
         p_total - p_matched,

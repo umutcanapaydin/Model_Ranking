@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import sqlite3
 
+import pytest
+
 from app.clients.fakes import FakeRawSource
 from app.workflows.ingest import RunContext, ingest_litellm, ingest_swebench
 from app.workflows.registry import MODEL_RULES, canonicalize, reconcile
@@ -551,3 +553,10 @@ def test_a_refused_modality_alias_is_not_reported_as_an_undeterminable_effort() 
     # the ordinary case is untouched
     ordinary = resolve_effort("gpt-5-low")
     assert ordinary.effort == "low" and not ordinary.unclassified_suffix
+
+
+@pytest.mark.parametrize("name", ["claude-fable-5-2", "claude-fable-5.2", "Claude Fable 5.3"])
+def test_the_fable_5_parent_keeps_its_version_guard(name: str) -> None:
+    """M16-W4 review M21: P3's defect class is a parent rule with no version guard."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id != "claude-fable-5"
