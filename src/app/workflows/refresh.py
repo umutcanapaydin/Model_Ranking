@@ -196,7 +196,8 @@ def upward_anomalies(
     # Budget Pick while the ranked names above stay exactly the same.
     reasons += _mostly_new(
         live.board, candidate.board, "{name}'s board", "names",
-        "its floor is derived from every one of their rows (D-159)",
+        "its floor is derived from every one of their rows (D-159); a renamed or returning set "
+        "reads as new here too, and is published by hand",
     )
 
     for name, before in sorted((prices or live).median_price.items()):
@@ -238,6 +239,19 @@ def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
             reasons.append(
                 f"{name} would lose {lost} of {was} models "
                 f"({lost / was:.0%}, at or over the {MAX_SURFACE_LOSS:.0%} limit)"
+            )
+
+    # The board axis (owner, 2026-09-23; M17-W1 re-review 2 MAJOR-1). The floor is derived from
+    # every row of a surface's own board, so a board that loses a quarter of its names moves the
+    # floor and the Budget Pick as surely as one that gains them -- and unguarded, the names'
+    # return would then be refused every night by the growth limit in `upward_anomalies`.
+    for name, was_board in sorted(live.board.items()):
+        lost_names = len(was_board - candidate.board.get(name, frozenset()))
+        if was_board and lost_names >= len(was_board) * MAX_SURFACE_LOSS:
+            reasons.append(
+                f"{name}'s board would lose {lost_names} of {len(was_board)} names "
+                f"({lost_names / len(was_board):.0%}, at or over the {MAX_SURFACE_LOSS:.0%} limit); "
+                "its floor is derived from every one of their rows (D-159)"
             )
 
     # The budget axis. A surface that answered a reader on some budget and would now answer nothing

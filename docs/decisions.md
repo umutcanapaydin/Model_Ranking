@@ -2749,6 +2749,16 @@ Budget Pick says so.
   D-132 refusal, and a legitimate jump is published by hand. A board that was empty and answers
   again is a source returning, and passes, as a surface returning does
   (`refresh.upward_anomalies`; `tests/unit/test_floor_served.py`).
+- **And its mirror (re-review 2, MAJOR-1):** a board that would lose a quarter or more of its names
+  is refused as D-128 refuses a surface that loses a quarter of its models. Without it, a board could
+  lose half its rows and move the floor as far as the flood did, and the rows' return would then be
+  refused every night as "new".
+- **What the guard is not (re-review 2, MINOR-1 and MINOR-3):** it limits ONE NIGHT's change to a
+  board, not the floor. 57 unpriced rows (a quarter less a few) still move `coding`'s floor from 65.4
+  to 74.4, and a second night can move it again. It also refuses some legitimate nights, each
+  published by hand like any D-132 refusal: measured on the owner's artifact, an Epoch bundle
+  returning after about two weeks away (28-32% new names), and an upstream that respells its names
+  (ECI's `_` to `-`: 284 of 521). Single ordinary days measured 14-17% at most.
 
 ---
 

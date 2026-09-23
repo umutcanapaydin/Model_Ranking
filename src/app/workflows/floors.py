@@ -30,23 +30,27 @@ def top_third(values: list[float]) -> float | None:
     return round(ordered[max(0, round(len(ordered) * FLOOR_FRACTION) - 1)], 1)
 
 
+#: The surface's board: its primary source, benchmark and metric (M16-W3 review MINOR-4: another
+#: source on the same benchmark, or another metric, is not this board). One clause, read by both
+#: functions below, so the floor and the guard on its rows can never read different boards.
+_BOARD = "FROM scores WHERE source = ? AND benchmark = ? AND metric = ?"
+
+
+def _board(spec: CategorySpec) -> tuple[str, str, str]:
+    return spec.primary_source, spec.primary_benchmark, spec.metric
+
+
 def board_scores(conn: sqlite3.Connection, spec: CategorySpec) -> list[float]:
-    """Every row of the surface's board: its primary source, benchmark and metric (M16-W3 review
-    MINOR-4: another source on the same benchmark, or another metric, is not this board)."""
-    return [row[0] for row in conn.execute(
-        "SELECT score FROM scores WHERE source = ? AND benchmark = ? AND metric = ?",
-        (spec.primary_source, spec.primary_benchmark, spec.metric),
-    )]
+    """Every row of the surface's board."""
+    return [row[0] for row in conn.execute(f"SELECT score {_BOARD}", _board(spec))]
 
 
 def board_names(conn: sqlite3.Connection, spec: CategorySpec) -> frozenset[str]:
     """Every raw name on the board `board_scores` reads. The refresh compares these across cycles,
-    because the floor is derived from every row; a name, not a whole row, so an upstream that
-    relabels a harness or an effort on rows it already had is not read as a board of new rows."""
-    return frozenset(raw for (raw,) in conn.execute(
-        "SELECT DISTINCT raw_name FROM scores WHERE source = ? AND benchmark = ? AND metric = ?",
-        (spec.primary_source, spec.primary_benchmark, spec.metric),
-    ))
+    because the floor is derived from every row. Where a board's raw name carries its harness or
+    effort (SWE-bench's "agent + model", Epoch's `_xhigh`), a relabel of either reads as a new name;
+    where it does not, a relabel on rows it already had changes nothing here."""
+    return frozenset(raw for (raw,) in conn.execute(f"SELECT DISTINCT raw_name {_BOARD}", _board(spec)))
 
 
 def derived_floor(conn: sqlite3.Connection, spec: CategorySpec) -> float | None:
