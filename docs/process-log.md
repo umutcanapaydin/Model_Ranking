@@ -484,4 +484,4 @@ anything else.
 - v6.5's duplicate-key check found why the issue agent never ran: `pull-requests` twice in its
   workflow. The owner deletes the line; until then conformance is red on it.
 Lesson: a new DevFlow gate is worth running against the owner-only files first -- it found a
-workflow that had failed silently for five weeks.
+workflow that had failed silently for six weeks.

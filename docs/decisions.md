@@ -2836,16 +2836,24 @@ changes as follows:
   the `test` recipe, after pytest: as a separate `check:` prerequisite it would run in v6.6's
   records leg, beside the tests, and read the previous run's `coverage.json`.
 - **`scripts/check_records.py` stays the project's.** It passes this project's records and v6.6's
-  self-test fixtures; v6.6's reports 121 R2 findings on records written under earlier versions (122
-  counting a record type this project added). v6.5's unclosed-fence `L1` and v6.6's issue-owned
-  ACCEPTED ledger rows are therefore not checked here.
+  self-test fixtures; v6.6's reports 121 findings on `main` (120 R2 on records written under
+  earlier versions, 1 C2b) and 124 on this branch. v6.5's unclosed-fence `L1`, v6.6's C2b wording
+  and v6.6's issue-owned ACCEPTED ledger rows are therefore not checked here: in this project an
+  ACCEPTED row names a milestone.
 - **Clause 3 was wrong about two controls, and they are restored** (review MAJOR-2 and MAJOR-3):
-  - `scripts/wave_check.py` trusts a declared version only on a close dated on or before
-    2026-09-23, so a close written later cannot declare an old version to skip a rule;
+  - `scripts/wave_check.py` refuses a close that is undated, or dated after 2026-09-23, and
+    declares a version older than v6.6; every close is then graded by the version it declares, so
+    a later DevFlow field does not turn it red (the v6.6 upgrade review's MAJOR-1 and MAJOR-2 on the
+    first version of this fix, which regraded later closes by every future rule and missed an
+    undated one). A close dated 2026-09-23 itself can still declare an older version: that day
+    holds this project's real v6.0 closes;
   - `conformance/test-commit-identity.py` fails a machine-identity commit on the branch with no
     `GP-Agent:` trailer. On session commits under the owner's identity the trailer is a convention
     nothing can check, because nothing tells them from the owner's own. `.owner-identity`, which no
-    check read after v6.4, is deleted.
+    check read after v6.4, is deleted. The check's self-test runs inside `make test`
+    (`tests/unit/test_wave_check_versions.py`), so a DevFlow re-take that drops it goes red.
+  - Clause 2's "the CI issue agent commits as `gp-agent`" is true once the owner applies the
+    proposed workflow change; until then `issue-agent.yml` sets `gp-issue-agent`.
 - **`scripts/wave_check_all.py` derives its scope** (review MAJOR-1): every close declaring v5.0 or
   later is graded, so a close stamped v6.6 by today's template is in scope.
 - **`.path-refs-allow`** drops v6.4's `docs/plans/*` and `docs/reviews/*` wildcards again, for one
@@ -2854,8 +2862,9 @@ changes as follows:
   hook runs `make check-fast`, not `make gate`, so secrets, deps and slopsquat run at `/pre-merge`,
   the pre-push hook and CI, not after every edit; and `make bootstrap-check` fails C11 (nothing gates
   a push) until `main` is protected and the brief says so (issue #13) or `make hooks` is on.
-- **Numbers corrected** (review NITs): five DevFlow scripts carry lint-only fixes, not two
-  (`ci_liveness.py` is a sixth, from v6.5); `closes` would also fail the 20 pre-migration wave records.
+- **Numbers corrected** (review NITs): five DevFlow scripts differ from DevFlow, not two, four by
+  lint fixes and `slopsquat_check.py` also by a docstring (`ci_liveness.py` is a sixth, from v6.5,
+  lint only); `closes` would also fail the 20 pre-migration wave records.
 - **The owner's part grows by one line:** v6.5's duplicate-key check fails
   `.github/workflows/issue-agent.yml`, which sets `pull-requests: write` twice (lines 31 and 33).
   GitHub rejects the file, so the issue agent has never started. The proposed workflow diff fixes

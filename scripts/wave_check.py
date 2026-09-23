@@ -266,8 +266,10 @@ def review_seat_problems(text: str, root: pathlib.Path, milestone: int | None) -
     return bad
 
 
-#: The day this project adopted DevFlow (D-155) and moved to v6.4/v6.6 (D-161).
+#: The day this project adopted DevFlow (D-155) and moved to v6.4/v6.6 (D-161), and the version it
+#: was on at the end of that day: a close written later declares at least this one.
 DEVFLOW_ADOPTED = "2026-09-23"
+CURRENT_AT_ADOPTION = (6, 6)
 
 
 def main(argv: list[str]) -> int:
@@ -313,12 +315,18 @@ def main(argv: list[str]) -> int:
     # template and `/close-wave` write the current version, and a backdated one shows in the diff.
     vm = re.search(r"^process_version:\s*v?(\d+(?:\.\d+)*)\s*$", text, re.M)
     version = tuple(int(x) for x in vm.group(1).split(".")) if vm else None
-    # model_ranking (D-155 adoption review MINOR-1, D-161): the declared version is trusted only for
-    # records written by the day this project adopted DevFlow. A close dated later that declares an
-    # older version is graded by today's rules -- the hole the paragraph above names, closed here.
+    # model_ranking (D-155 adoption review MINOR-1, D-161; v6.6 upgrade review MAJOR-1/2): the
+    # hole the paragraph above names is closed by REFUSING it, not by regrading. A close with no
+    # date, or dated after the day this project reached DevFlow v6.6, must declare v6.6 or later;
+    # it is then graded by the version it declares, so a DevFlow release adding a field later does
+    # not turn it red. A close dated on or before that day keeps what it declares (GPF-001).
     dated = re.search(r"^date:\s*(\d{4}-\d{2}-\d{2})", text, re.M)
-    if dated is not None and dated.group(1) > DEVFLOW_ADOPTED:
-        version = None
+    if (vm is not None and version is not None and version < CURRENT_AT_ADOPTION
+            and (dated is None or dated.group(1) > DEVFLOW_ADOPTED)):
+        bad.append(f"declares process_version {vm.group(1)} but is "
+                   f"{'undated' if dated is None else 'dated ' + dated.group(1)}: a close written "
+                   f"after {DEVFLOW_ADOPTED} declares v{'.'.join(map(str, CURRENT_AT_ADOPTION))} or "
+                   "later -- an older stamp would skip the rules written since (D-161)")
 
     def since(*v: int) -> bool:
         return version is None or version >= v
