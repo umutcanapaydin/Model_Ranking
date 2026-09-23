@@ -22,6 +22,8 @@ from .test_survey_floors import _artifact, _script
 def test_the_floor_is_the_top_third_of_the_rows() -> None:
     assert floors.top_third([90.0, 88.0, 80.0, 70.0, 60.0, 50.0]) == 88.0
     assert floors.top_third([70.0]) == 70.0
+    # twelve rows: the fourth from the top (a quarter would be the third)
+    assert floors.top_third([float(v) for v in range(12, 0, -1)]) == 9.0
     assert floors.top_third([]) is None
 
 
