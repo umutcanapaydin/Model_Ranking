@@ -248,7 +248,7 @@ def test_value_pick_rule_within_window_cheapest() -> None:
 
 def test_budget_pick_respects_min_quality() -> None:
     """REQ-REC-001/002: budget pick = cheapest ≥ MIN_QUALITY_PCT (nano at 40% excluded)."""
-    assert MIN_QUALITY_PCT == 65.0
+    assert MIN_QUALITY_PCT == 65.4  # D-148 (M16-W3): was 65.0
     conn = _db()
     build_price_medians(conn)  # M7-W2: production builds these in app.workflows.build
     rec = recommend(conn, "unlimited")

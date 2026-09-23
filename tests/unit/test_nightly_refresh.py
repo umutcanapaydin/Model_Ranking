@@ -286,6 +286,8 @@ def test_health_reports_the_last_recorded_cycle_and_the_next_run(tmp_path: Path)
         "refresh_next": "2026-09-23T23:41",
         "refresh_last": "refused",
         "refresh_last_at": "2026-09-22T11:41:08+00:00",
+        "refresh_carried": "",
+        "refresh_expired": "",
     }
 
 
@@ -536,3 +538,36 @@ def test_a_busy_cycle_is_not_a_crash(tmp_path: Path) -> None:
     schedule = _child(tmp_path, "raise SystemExit(4)")
     assert asyncio.run(schedule.run_once("nightly")) == 4
     assert schedule.last_failure is None
+
+
+def _days_ago(days: float) -> str:
+    return (dt.datetime.now(tz=dt.UTC) - dt.timedelta(days=days)).isoformat()
+
+
+def test_health_names_each_carried_and_expired_source_with_its_age(tmp_path: Path) -> None:
+    """REQ-REF-009, D-156 clause 4: with no screen in the app, `/health` is where a carry shows."""
+    (tmp_path / "advisor.db.refresh.json").write_text(json.dumps({
+        "at": NOW, "at_iso": "x", "exit_code": 0,
+        "carried": {"arena_search": _days_ago(3.2), "swebench": _days_ago(0.5)},
+        "expired": {"arena_vision": _days_ago(31.0), "epoch_gpqa": None},
+    }))
+    schedule = nightly.NightlyRefresh(db=tmp_path / "advisor.db", command=["unused"])
+    report = schedule.report()
+    # computed from the recorded stamps at the moment /health is asked (review MAJOR-2)
+    assert report["refresh_carried"] == "arena_search 3.2d, swebench 0.5d"
+    assert report["refresh_expired"] == "arena_vision 31.0d, epoch_gpqa ?d"
+
+
+def test_health_says_nothing_is_carried_when_nothing_is(tmp_path: Path) -> None:
+    (tmp_path / "advisor.db.refresh.json").write_text(json.dumps({"at": NOW, "exit_code": 1}))
+    report = nightly.NightlyRefresh(db=tmp_path / "advisor.db", command=["unused"]).report()
+    assert report["refresh_carried"] == "" and report["refresh_expired"] == ""
+
+
+def test_a_stamp_from_the_future_prints_no_negative_age() -> None:
+    """Re-review MINOR-1 (S9): a clock that stepped back is not an age of minus two days."""
+    from app.adapter.nightly import _aged
+
+    now = dt.datetime(2026, 9, 23, tzinfo=dt.UTC)
+    ahead = (now + dt.timedelta(days=2)).isoformat()
+    assert _aged({"a": ahead}, now) == "a ?d"

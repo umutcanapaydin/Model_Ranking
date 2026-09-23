@@ -2124,6 +2124,11 @@ what a surface recommends, so it is a calibration wave with its own review, owne
 are the two thinnest boards), or M16's re-derivation shows the rule refusing a model a reader would
 reasonably want.
 
+*Applied 2026-09-23 (M16-W3).* Every surface's floor is re-derived under clause 1 from the served
+artifact (`docs/research/m16-w3-floor-table-2026-09-23.md`, `scripts/survey_boards.py --floors`).
+Nine floors move; one pick changes (`agentic-coding`'s Budget Pick at `medium` and `unlimited`), and
+the owner ruled that surface under the same rule, so no surface is an exception.
+
 
 ## D-149 — One application: the engine refreshes itself, and the app can ask it to
 
@@ -2497,6 +2502,81 @@ leaving it to branch protection anyway, is there a need to ask?"):*
    Its self-test covers both.
 3. No hook change: `gh pr merge`, `gh pr ready`, `--no-verify` and `refs/heads/main` pushes are
    left to branch protection on `main`, which the owner sets.
+
+---
+
+## D-156 — Every source carries its last good data for 30 days, judged from when it last arrived
+
+**Status:** **accepted by the owner 2026-09-23** (in session, M16-W3 plan, both options below) ·
+**Date:** 2026-09-23 · **Implements** D-144 as the owner ruled it on 2026-09-20; closes W-116.
+
+**Context.** The owner's ruling on D-144 (translated from Turkish): *"if its data does not arrive,
+its last data stays valid. If the data is about a month old, the list drops. If the data updates
+within that month, nothing happens and it joins the calculations."* The build did the opposite per
+source: a failed optional source was emptied, a failed required one failed the whole build, and
+D-128 then refused the candidate, throwing away every OTHER source's fresh data (measured
+2026-09-20).
+
+**Decision.**
+
+1. **Every source carries forward**, the four required ones (`swebench`, `aider`, `litellm`,
+   `openrouter`) included, and the Epoch bundle and boards (ruled 2026-09-23). A source that fails
+   a cycle serves its last good `scores` and `pricing` rows from the live artifact.
+2. **The limit is 30 days, measured from when the source last ARRIVED** in a cycle whose content is
+   what the live artifact serves (published or unchanged), kept per source by the refresh. Not
+   from `observed_at`: an unchanged cycle publishes nothing, so a row's stamp can be far older than
+   the fetch that confirmed it. With no record for a source, the rows' own newest `observed_at`
+   stands in, which can only overstate the age.
+3. **Past 30 days the source is not carried**: an optional source's surfaces drop and say so, and a
+   required source fails the build as before. The refresh accepts a surface blinded by an EXPIRED
+   carry -- D-128 would otherwise refuse the candidate and freeze every other source -- and still
+   refuses every other blinding.
+4. **Disclosure is the engine's** (ruled 2026-09-23): the refresh record (`carried`, `expired`,
+   `sources_last_ok`) and `/health` (`refresh_carried`, `refresh_expired`, additive to D-154's four)
+   name each carried or expired source and its age. `/v1` and the app do not change (D-151 keeps operations out of the
+   app; the board's own run date, already shown, is what a reader judges by).
+
+**The cost.** A price or a score can serve up to 30 days after its source stopped answering, beside
+fresher data from other sources; `/health` is where that shows. A surface can disappear at day 31
+until its source returns.
+
+**Revisit when:** a source's outages start lasting weeks, or the owner wants the carry visible in the
+app after all.
+
+*Amendment, 2026-09-23 (M16-W3 independent review, `docs/reviews/m16-wave-3-review.md`, BLOCKING).*
+How clauses 2-4 are carried out, corrected after the review measured the first version:
+- **One source of truth.** The build writes which sources arrived, were carried or expired, and the
+  stamp each age is measured from (`--report-out`), on success and on failure; the refresh reads it
+  and no longer re-infers it from row stamps (review MINOR-1, MINOR-2). A stamp from the future is
+  not an age; the rows' own stamp stands in.
+- **The exemption follows the benchmark, not `primary_source`** (review MAJOR-1): an expired source
+  excuses every surface whose primary board its rows fed in the live artifact. `epoch_swe_bench_verified`
+  feeds `coding` without being its primary source, and its expiry used to refuse every cycle.
+- **The record describes what is served** (review MAJOR-2): `carried` and `expired` hold stamps, and
+  `/health` computes the age when asked. A cycle that is not served leaves the carried set as it was;
+  an expired source stays listed until it arrives in a served cycle, and a required source's expiry
+  is recorded even though it fails the build.
+
+*Second amendment, 2026-09-23 (M16-W3 re-review, `docs/reviews/m16-wave-3-rereview.md`).* It
+supersedes the first amendment's exemption bullet.
+- **An expiry excuses the loss its own rows account for, never a whole surface** (re-review
+  MAJOR-1). Excusing each surface an expired source fed also lifted D-128 from the fresh primary
+  source beside it, and it broke clause 3's "still refuses every other blinding". So on an expiry
+  night the candidate is judged against the live artifact with the expired sources' `scores` and
+  `pricing` rows removed and `px_median` re-derived (`refresh._served_without`), and every guard
+  runs against that baseline: the model count, the budget axis and the median price. The median
+  price is new: on the whole-surface rule, an expired cheap model moved a median and was refused.
+  **Except the new-names guard** (third review `docs/reviews/m16-wave-3-rereview-2.md`, MINOR-1):
+  removing rows never adds a name, so it is judged against the live artifact. Otherwise a surface
+  the expiry blinds would pass for "a surface returning" and admit a roster never served. Where the
+  baseline surface is blind, its median falls back to the served one.
+- **A future stamp.** An arrival from the future falls back to the rows' own stamp. If the rows are
+  ahead of now too, the clock stepped back, and the source carries at age 0 rather than expiring
+  (re-review MINOR-1) -- if they are less than 30 days ahead. Further ahead they expire (third
+  review MINOR-2). `/health` prints `?d`, never a negative age.
+- **What `expired` means** (re-review NIT-2): the sources whose last good data is past 30 days. A
+  cycle that is not served can leave such rows live, for example a required source that fails the
+  build; `expired` lists them all the same, because their age, not their presence, is the fact.
 
 ---
 

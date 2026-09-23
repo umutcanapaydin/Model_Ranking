@@ -45,11 +45,11 @@ from app.clients.arena import (
     arena_source_url,
     parse_arena,
 )
-from app.workflows.categories import CategorySpec
+from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.ingest import RunContext, _store_scores
 from app.workflows.rank import ranked_population
 from app.workflows.registry import canonicalize, reconcile, resolve_effort
-from app.workflows.schema import ScoreRow
+from app.workflows.schema import ScoreRow, open_readonly
 
 #: Every config of the dataset, from its own config list (2026-09-18 research record). The three
 #: the product reads are marked in the output rather than skipped: a survey that cannot reproduce
@@ -181,6 +181,62 @@ def top_third(values: list[float]) -> float | None:
     return round(ordered[max(0, round(len(ordered) / 3) - 1)], 1)
 
 
+def floors(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """Every surface's floor under D-148's rule, beside the two it did not choose and today's.
+
+    M16-W3 (M15-W1 review M-2): reproducible, offline, from the artifact the product serves. The
+    BOARD is the surface's primary source and benchmark as stored -- one row per raw name, harness
+    and effort, exactly as the parser emitted it. That is D-148 clause 1's population ("every row in
+    the list", owner, translated from Turkish). The distinct-model column is D-145's count and the
+    ranked column is the population `categories.py` once said it sized on; both are printed so the
+    owner rules with the alternatives in view, never to be chosen here.
+    """
+    table: list[dict[str, Any]] = []
+    for surface, spec in CATEGORIES.items():
+        rows = conn.execute(
+            "SELECT raw_name, COALESCE(model_id, raw_name), score, effort FROM scores "
+            "WHERE source = ? AND benchmark = ? AND metric = ?",
+            (spec.primary_source, spec.primary_benchmark, spec.metric),
+        ).fetchall()
+        best: dict[str, float] = {}
+        for _raw, model, score, _effort in rows:
+            best[model] = max(best.get(model, score), score)
+        ranked = [r.score for r in ranked_population(conn, spec)]
+        floor_rows = top_third([score for _, _, score, _ in rows])
+        table.append({
+            "surface": surface,
+            "board": f"{spec.primary_source} / {spec.primary_benchmark}",
+            "board_rows": len(rows),
+            "distinct_models": len(best),
+            "ranked_population": len(ranked),
+            "efforts": sorted({effort for *_, effort in rows}),
+            "floor_today": spec.min_quality,
+            "floor_rows": floor_rows,
+            "floor_distinct": top_third(list(best.values())),
+            "floor_ranked": top_third(ranked),
+            "move": round(floor_rows - spec.min_quality, 1) if floor_rows is not None else None,
+        })
+    return table
+
+
+def _print_floors(table: list[dict[str, Any]]) -> None:
+    header = (f"{'surface':18s} {'rows':>5s} {'models':>7s} {'ranked':>7s} {'today':>8s} "
+              f"{'rows⅓':>8s} {'move':>7s} {'models⅓':>8s} {'ranked⅓':>8s}  efforts")
+    print(header)
+    print("-" * len(header))
+
+    def cell(value: object, width: int) -> str:
+        return f"{'-' if value is None else value:>{width}}"
+
+    for r in table:
+        print(f"{r['surface']:18s} {r['board_rows']:5d} {r['distinct_models']:7d} "
+              f"{r['ranked_population']:7d} {cell(r['floor_today'], 8)} {cell(r['floor_rows'], 8)} "
+              f"{cell(r['move'], 7)} {cell(r['floor_distinct'], 8)} {cell(r['floor_ranked'], 8)}  "
+              f"{','.join(r['efforts'])}")
+    print("\nrows⅓ is D-148's floor (top third of every row on the board); `move` is what changes.")
+    print("models⅓ (D-145's count) and ranked⅓ are shown for comparison, not for choosing.")
+
+
 def measure(config: str, db: Path, workspace: Path) -> dict[str, Any]:
     client = survey_client(config)
     source, benchmark = client.name, client.benchmark
@@ -297,12 +353,27 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--db", default="advisor.db", help="read-only; every write goes to a copy")
     parser.add_argument("--out", default=None, help="write the JSON record here")
     parser.add_argument("--only", nargs="*", default=None, help="measure just these configs")
+    parser.add_argument(
+        "--floors", action="store_true",
+        help="D-148: every surface's floor from the artifact itself (no network), beside today's",
+    )
     args = parser.parse_args(argv)
 
     db = Path(args.db)
     if not db.is_file():
         print(f"{db} is not there; run a build first", file=sys.stderr)
         return 2
+
+    if args.floors:
+        conn = open_readonly(db)  # INV-23: never a hand-built read-only URI
+        try:
+            table = floors(conn)
+        finally:
+            conn.close()
+        _print_floors(table)
+        if args.out:
+            Path(args.out).write_text(json.dumps({"floors": table}, indent=2), encoding="utf-8")
+        return 0
 
     configs = args.only or CONFIGS
     records: list[dict[str, Any]] = []

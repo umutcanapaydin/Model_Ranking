@@ -37,6 +37,7 @@ least one test through the real entry point). The defaults are the real clients.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import os
 import re
@@ -44,7 +45,7 @@ import sqlite3
 import sys
 import tempfile
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -61,7 +62,7 @@ from app.workflows.registry import (
     reconcile_plans,
 )
 from app.workflows.rosters import ingest_rosters
-from app.workflows.schema import connect, reset_source
+from app.workflows.schema import connect, open_readonly, reset_source
 from app.workflows.sources import (
     EPOCH_BOARD_CLIENT,
     EPOCH_BOARDS,
@@ -99,6 +100,22 @@ class BuildReport:
     price_models: int = 0
     verified: dict[str, int] = field(default_factory=dict)
     required_operator_actions: list[str] = field(default_factory=list)
+    #: D-156. Sources that failed this cycle and serve their last good data instead, with its age in
+    #: days, and sources whose last good data was too old to carry (their lists drop).
+    carried: dict[str, float] = field(default_factory=dict)
+    #: `None` when the age could not be read at all -- still expired, never carried.
+    expired: dict[str, float | None] = field(default_factory=dict)
+    since: dict[str, str | None] = field(default_factory=dict)
+
+    def sources_json(self) -> dict[str, object]:
+        """What the refresh needs from this build, and nothing it would have to re-derive (review
+        MINOR-1: the refresh used to infer these from row stamps, with different arithmetic)."""
+        return {
+            "arrived": sorted({r.source for r in self.sources}),
+            "carried": self.carried,
+            "expired": self.expired,
+            "since": self.since,
+        }
 
     def as_json(self) -> dict[str, object]:
         return {
@@ -119,6 +136,8 @@ class BuildReport:
             "price_models": self.price_models,
             "verified_from_artifact": self.verified,
             "required_operator_actions": self.required_operator_actions,
+            "carried": self.carried,
+            "expired": self.expired,
         }
 
 
@@ -169,6 +188,121 @@ def _ingest_curated(
 
 
 
+#: D-144 as ruled by the owner, D-156. "If the data is about a month old, the list drops."
+CARRY_MAX_AGE = dt.timedelta(days=30)
+
+
+@dataclass
+class Carry:
+    """What a failed source may fall back to: the live artifact's rows, if they are young enough.
+
+    `last_ok` is the refresh's per-source record of when each source last ARRIVED in a cycle whose
+    content is what the live artifact serves. It is the age that matters: an unchanged cycle
+    publishes nothing, so a row's `observed_at` can be far older than the fetch that confirmed it.
+    Without a record for a source, the live rows' newest `observed_at` stands in. It can overstate
+    the age; it understates it only for rows stamped ahead of now by less than the carry limit,
+    read as age 0 (a clock that stepped back; M16-W3 re-reviews).
+    """
+
+    live: Path
+    last_ok: Mapping[str, str]
+    now: dt.datetime
+    carried: dict[str, float] = field(default_factory=dict)
+    expired: dict[str, float | None] = field(default_factory=dict)
+    #: The stamp each carried or expired source's age was measured from -- what the refresh records,
+    #: so `/health` can say how old the SERVED data is on any later night (M16-W3 review MAJOR-2).
+    since: dict[str, str | None] = field(default_factory=dict)
+
+    def _age(self, stamp: str | None, *, clamp: bool = False) -> float | None:
+        try:
+            then = dt.datetime.fromisoformat(stamp or "")
+        except ValueError:
+            return None
+        if then.tzinfo is None:
+            then = then.replace(tzinfo=dt.UTC)
+        age = (self.now - then).total_seconds() / 86400
+        # A stamp from the future (a clock that stepped back) is not an age at all; carrying on it
+        # would carry forever (M16-W3 review MINOR-2). Unless `clamp`: see `age_days`.
+        if age < 0:
+            # Only a bounded step back reads as young. Further ahead is not an error the ruling
+            # can absorb: it would carry until real time reached the stamp, and 30 days more
+            # (third review MINOR-2).
+            return 0.0 if clamp and -age < CARRY_MAX_AGE.total_seconds() / 86400 else None
+        return age
+
+    def age_days(self, live: sqlite3.Connection, source: str) -> tuple[float | None, str | None]:
+        """(age in days, the stamp it was measured from). The refresh's arrival record first; the
+        live rows' own newest `observed_at` when there is none, or when it is unusable."""
+        stamp = self.last_ok.get(source)
+        age = self._age(stamp)
+        if age is None:
+            newest = [live.execute(f"SELECT MAX(observed_at) FROM {t} WHERE source = ?",  # noqa: S608
+                                   (source,)).fetchone()[0] for t in ("scores", "pricing")]
+            stamp = max((x for x in newest if x), default=None)
+            # The rows are the last word. If they are ahead of now too, the clock stepped back and
+            # the data is as young as it gets: carry at age 0 rather than expire (re-review
+            # MINOR-1) -- within the carry limit; further ahead expires.
+            age = self._age(stamp, clamp=True)
+        return age, stamp
+
+    def restore(self, conn: sqlite3.Connection, source: str) -> str:
+        """Copy `source`'s rows from the live artifact. Returns "carried", "expired" or "absent"."""
+        try:
+            # INV-23: never a hand-built `file:...?mode=ro`, which a path carrying `?` or `#` turns
+            # into a WRITABLE connection -- against the artifact the reader is serving.
+            live = open_readonly(self.live)
+        except sqlite3.Error:
+            return "absent"
+        try:
+            copied = 0
+            rows_by_table = {}
+            for table in ("scores", "pricing"):
+                cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
+                live_cols = {r[1] for r in live.execute(f"PRAGMA table_info({table})")}
+                shared = [c for c in cols if c in live_cols]
+                select = ", ".join("NULL" if c == "model_id" else c for c in shared)
+                rows_by_table[table] = (shared, live.execute(
+                    f"SELECT {select} FROM {table} WHERE source = ?", (source,)).fetchall())  # noqa: S608
+                copied += len(rows_by_table[table][1])
+            if not copied:
+                return "absent"
+            age, stamp = self.age_days(live, source)
+        except sqlite3.Error:
+            return "absent"
+        finally:
+            live.close()
+        self.since[source] = stamp
+        if age is None or age > CARRY_MAX_AGE.total_seconds() / 86400:
+            # `None`, not infinity: the report is printed with `json.dumps`, which would write the
+            # non-JSON token `Infinity` and break the refresh that reads it.
+            self.expired[source] = round(age, 1) if age is not None else None
+            return "expired"
+        try:
+            with conn:
+                for table, (shared, rows) in rows_by_table.items():
+                    if rows:
+                        conn.executemany(
+                            f"INSERT INTO {table} ({', '.join(shared)}) "  # noqa: S608
+                            f"VALUES ({', '.join('?' * len(shared))})", rows)
+        except sqlite3.Error:
+            # A schema the carried rows no longer fit (review NIT-3) degrades to "nothing carried",
+            # never to a failed build. The re-reset is not redundant: the rollback also undoes a
+            # reset still pending in the same transaction.
+            for table in ("pricing", "scores"):
+                reset_source(conn, table, source)
+            self.since.pop(source, None)
+            return "absent"
+        # The carry is REPORTED rather than silent: a surface serving month-old data looks exactly
+        # like a healthy one from outside, which is what the refresh record and /health are for.
+        self.carried[source] = round(age, 1)
+        return "carried"
+
+
+def _fall_back(conn: sqlite3.Connection, carry: Carry | None, source: str) -> str:
+    """After a failed source's rows are reset: carry its last good data if the ruling allows."""
+    return carry.restore(conn, source) if carry is not None else "absent"
+
+
 def _surfaces_left_without_evidence(missing: Sequence[str]) -> list[str]:
     """Translate failed optional sources into the SURFACES a user would notice.
 
@@ -200,6 +334,7 @@ def _ingest_boards(
     bundle_dir: Path | None,
     run: RunContext,
     boards: Sequence[EpochBoard] | None = None,
+    carry: Carry | None = None,
 ) -> tuple[list[SourceReport], list[str]]:
     """Read the declared Epoch boards (D-127). Same bundle, same read-only rules as `_ingest_bundles`.
 
@@ -209,7 +344,8 @@ def _ingest_boards(
     """
     boards = EPOCH_BOARDS if boards is None else boards
     if bundle_dir is None:
-        return [], [f"{b.source_name}: no local bundle directory supplied" for b in boards]
+        return [], [f"{b.source_name}: no local bundle directory supplied" for b in boards
+                    if _fall_back(conn, carry, b.source_name) != "carried"]
 
     results: list[SourceReport] = []
     missing: list[str] = []
@@ -225,7 +361,8 @@ def _ingest_boards(
         except (SourceError, OSError) as exc:
             for table in ("pricing", "scores"):
                 reset_source(conn, table, board.source_name)
-            missing.append(f"{board.source_name}: {exc}")
+            if _fall_back(conn, carry, board.source_name) != "carried":
+                missing.append(f"{board.source_name}: {exc}")
             continue
         report = SourceReport(
             source=board.source_name,
@@ -246,6 +383,7 @@ def _ingest_bundles(
     bundle_dir: Path | None,
     run: RunContext,
     bundles: Sequence[LocalBundle] | None = None,
+    carry: Carry | None = None,
 ) -> tuple[list[SourceReport], list[str]]:
     """Read the owner-placed bundle, never fetch it (D-101).
 
@@ -259,7 +397,8 @@ def _ingest_bundles(
     # bound at definition time, so the injection point silently ignores the module attribute.
     bundles = LOCAL_BUNDLES if bundles is None else bundles
     if bundle_dir is None:
-        return [], [f"{b.name}: no local bundle directory supplied" for b in bundles]
+        return [], [f"{b.name}: no local bundle directory supplied" for b in bundles
+                    if _fall_back(conn, carry, b.name) != "carried"]
 
     results: list[SourceReport] = []
     missing: list[str] = []
@@ -278,14 +417,16 @@ def _ingest_bundles(
             # the build reports it as having none.
             for table in ("pricing", "scores"):
                 reset_source(conn, table, bundle.name)
-            missing.append(f"{bundle.name}: {exc}")
+            if _fall_back(conn, carry, bundle.name) != "carried":
+                missing.append(f"{bundle.name}: {exc}")
             continue
         results.append(result)
     return results, missing
 
 
 def _ingest_sources(
-    conn: sqlite3.Connection, sources: Sequence[RemoteSource], run: RunContext
+    conn: sqlite3.Connection, sources: Sequence[RemoteSource], run: RunContext,
+    carry: Carry | None = None,
 ) -> tuple[list[SourceReport], list[str]]:
     """Ingest every declared source, failing loud on an unusable or hollow one.
 
@@ -322,13 +463,23 @@ def _ingest_sources(
             # rollback is expressed in the same terms as the write.
             for table in ("pricing", "scores"):
                 reset_source(conn, table, source.name)
+            # D-156: every source carries forward its last good data for up to CARRY_MAX_AGE, the
+            # required ones included (ruled 2026-09-23). Only when there is nothing young enough to
+            # carry does the old rule apply: a required source fails the build.
+            fallback = _fall_back(conn, carry, source.name)
+            if fallback == "carried":
+                continue
             if source.required:
-                msg = f"{source.name}: dependency unusable: {exc}"
+                why = (f"its last good data is older than {CARRY_MAX_AGE.days} days (expired)"
+                       if fallback == "expired" else "")
+                msg = f"{source.name}: dependency unusable: {exc}" + (f"; {why}" if why else "")
                 raise BuildError(msg) from exc
             # An OPTIONAL source that fails does not stop the build, and it does not disappear
             # either. It is named here, surfaces as exit 3, and the categories it was the sole
             # evidence for will disclose that they have none.
-            missing.append(f"{source.name}: {exc}")
+            missing.append(f"{source.name}: {exc}" + (
+                f" (last good data expired: older than {CARRY_MAX_AGE.days} days)"
+                if fallback == "expired" else ""))
             continue
         results.append(result)
     return results, missing
@@ -345,6 +496,9 @@ def build(
     boards: Sequence[EpochBoard] | None = None,
     run: RunContext | None = None,
     minimum_models: int | None = None,
+    carry_from: Path | None = None,
+    last_ok: Mapping[str, str] | None = None,
+    now: dt.datetime | None = None,
 ) -> BuildReport:
     """Run every stage, failing loud on any empty result (REQ-ING-013).
 
@@ -371,9 +525,21 @@ def build(
     report.rosters_stored = _ingest_curated(
         "roster", lambda: ingest_rosters(conn, rosters_yaml, run)
     )
-    report.sources, degraded = _ingest_sources(conn, sources, run)
-    bundle_reports, bundle_missing = _ingest_bundles(conn, bundle_dir, run, bundles)
-    board_reports, board_missing = _ingest_boards(conn, bundle_dir, run, boards)
+    # D-156: with a live artifact to fall back on, a failed source serves its last good data.
+    carry = (Carry(live=carry_from, last_ok=last_ok or {}, now=now or dt.datetime.now(tz=dt.UTC))
+             if carry_from is not None and Path(carry_from).is_file() else None)
+    if carry is not None:
+        report.carried, report.expired = carry.carried, carry.expired
+        report.since = carry.since
+    try:
+        report.sources, degraded = _ingest_sources(conn, sources, run, carry)
+    except BuildError as exc:
+        # The refresh records what expired even when a REQUIRED source's expiry fails the build
+        # (review MAJOR-2): the build is the one place that knows, so it says so on the way out.
+        exc.report = report  # type: ignore[attr-defined]
+        raise
+    bundle_reports, bundle_missing = _ingest_bundles(conn, bundle_dir, run, bundles, carry)
+    board_reports, board_missing = _ingest_boards(conn, bundle_dir, run, boards, carry)
     report.sources.extend(board_reports)
     report.sources.extend(bundle_reports)
     report.required_operator_actions = _surfaces_left_without_evidence(
@@ -439,6 +605,24 @@ def _sweep_abandoned_workspaces(target: Path, *, now: float | None = None) -> li
     return swept
 
 
+def _write_sources(path: str | None, sources: dict[str, object] | None) -> None:
+    if path:
+        Path(path).write_text(json.dumps(sources or {"arrived": [], "carried": {}, "expired": {},
+                                                    "since": {}}), encoding="utf-8")
+
+
+def _read_last_ok(path: str | None) -> dict[str, str]:
+    """The refresh's per-source arrival record. Unreadable is EMPTY, which makes every carry judged
+    by its rows' own `observed_at` (see `Carry` for the one case that reads younger)."""
+    if not path:
+        return {}
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {str(k): str(v) for k, v in data.items()} if isinstance(data, dict) else {}
+
+
 def main(argv: list[str] | None = None) -> int:
     """Operator entry point (REQ-ING-012). See the module docstring for the exit codes."""
     parser = argparse.ArgumentParser(prog="build", description="Build the evidence database.")
@@ -458,6 +642,18 @@ def main(argv: list[str] | None = None) -> int:
         "--force",
         action="store_true",
         help="overwrite an existing --db (destructive defaults stay OFF, V3C-06/53)",
+    )
+    parser.add_argument(
+        "--carry-from",
+        help="the live artifact: a source that fails serves its last good rows from it (D-156)",
+    )
+    parser.add_argument(
+        "--last-ok",
+        help="JSON file mapping each source to when it last arrived; the age a carry is judged by",
+    )
+    parser.add_argument(
+        "--report-out",
+        help="write which sources arrived, were carried or expired here, on success and on failure",
     )
     args = parser.parse_args(argv)
 
@@ -512,6 +708,8 @@ def main(argv: list[str] | None = None) -> int:
             plans_yaml=Path(args.plans).read_text(encoding="utf-8"),
             rosters_yaml=Path(args.rosters).read_text(encoding="utf-8"),
             bundle_dir=Path(args.epoch_dir) if args.epoch_dir else None,
+            carry_from=Path(args.carry_from) if args.carry_from else None,
+            last_ok=_read_last_ok(args.last_ok),
         )
     except BaseException as exc:
         if conn is not None:
@@ -522,6 +720,8 @@ def main(argv: list[str] | None = None) -> int:
         # explicit: WIDENING this catch is the dangerous move, because every class added
         # here turns a builder bug into a tidy exit 2 that reads like a bad input.
         if isinstance(exc, (BuildError, SourceError, sqlite3.Error, OSError)):
+            failed = getattr(exc, "report", None)
+            _write_sources(args.report_out, failed.sources_json() if failed else None)
             print(json.dumps({"error": str(exc), "built": False}))
             return 2
         # Anything else is a bug in this builder rather than a bad input. The artifact is already
@@ -542,6 +742,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"error": f"could not publish to {target}: {exc}", "built": False}))
         return 2
 
+    _write_sources(args.report_out, report.sources_json())
     payload = report.as_json()
     payload["built"] = True
     payload["path"] = str(target)

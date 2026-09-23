@@ -40,10 +40,10 @@ from app.workflows.serialize import recommendation_json
 BUDGETS: dict[str, float | None] = {"low": 2.0, "medium": 8.0, "unlimited": None}
 # Per-category thresholds live in CategorySpec (data, not code — M2-W4 review finding 1).
 # These aliases exist for tests/documentation of the shipped values:
-MIN_QUALITY_PCT = 65.0
+MIN_QUALITY_PCT = 65.4  # coding's floor; D-148 (M16-W3): was 65.0
 VALUE_WINDOW_PTS = 6.0
 CLOSE_CALL_PTS = 1.5
-MIN_QUALITY_ELO = 1400.0  # recalibrated M3 (REQ-CAL-001) — see categories.py
+MIN_QUALITY_ELO = 1406.7  # D-148 (M16-W3): was 1400.0
 VALUE_WINDOW_ELO = 30.0
 CLOSE_CALL_ELO = 8.0
 STALE_NOTICE_DAYS = 90  # REQ-REC-006

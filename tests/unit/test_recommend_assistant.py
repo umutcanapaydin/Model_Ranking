@@ -107,9 +107,9 @@ def test_assistant_value_window_uses_elo_threshold() -> None:
 
 
 def test_assistant_budget_floor_uses_elo() -> None:
-    """REQ-REC-005 + REQ-CAL-001: Elo floor, recalibrated to 1400 against the live board
+    """REQ-REC-005 + REQ-CAL-001: the Elo floor, 1406.7 under D-148 since M16-W3 (1400 before)
     (kimi 1250 and gemini 1398 are both below it; only the 1415.2 model clears)."""
-    assert MIN_QUALITY_ELO == 1400.0
+    assert MIN_QUALITY_ELO == 1406.7
     conn = _arena(ROWS)
     rec = recommend(conn, "unlimited", "assistant")
     assert rec is not None

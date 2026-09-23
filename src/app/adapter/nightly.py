@@ -164,6 +164,27 @@ def recently_good(record: dict[str, object] | None, now: float) -> bool:
     return isinstance(at, int | float) and now - at < RECENT.total_seconds()
 
 
+def _aged(sources: object, now: dt.datetime | None = None) -> str:
+    """`{"arena": "<stamp>"}` as `arena 3.2d`, sorted, the age computed NOW from the stamp the
+    refresh recorded -- so the line is true on every night, not only the night it was written
+    (review MAJOR-2). A bare number is a legacy age; anything unreadable is `?d`."""
+    if not isinstance(sources, dict):
+        return ""
+    now = now or dt.datetime.now(tz=dt.UTC)
+    parts = []
+    for name, value in sorted(sources.items()):
+        age: float | None = float(value) if isinstance(value, int | float) else None
+        if isinstance(value, str):
+            with contextlib.suppress(ValueError):
+                then = dt.datetime.fromisoformat(value)
+                then = then if then.tzinfo else then.replace(tzinfo=dt.UTC)
+                age = (now - then).total_seconds() / 86400
+        if age is not None and age < 0:
+            age = None  # a clock that stepped back; not an age (re-review MINOR-1)
+        parts.append(f"{name} {age:.1f}d" if age is not None else f"{name} ?d")
+    return ", ".join(parts)
+
+
 def refresh_command(db: Path, epoch_dir: str | None) -> list[str]:
     # `-P`: no working directory on the module path, so a stray `app/` beside the repository cannot
     # stand in for the refresh (security pass, NIT-1). `app` is found through PYTHONPATH only.
@@ -332,4 +353,8 @@ class NightlyRefresh:
             "refresh_next": self.next_run.isoformat(timespec="minutes") if self.next_run else "",
             "refresh_last": last,
             "refresh_last_at": last_at,
+            # D-156 clause 4: a source serving its last good data because it failed, and one whose
+            # data aged out and dropped. The app shows neither (D-151); this is where they show.
+            "refresh_carried": _aged(record.get("carried") if record else None),
+            "refresh_expired": _aged(record.get("expired") if record else None),
         }
