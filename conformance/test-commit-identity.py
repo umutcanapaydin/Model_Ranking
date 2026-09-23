@@ -49,6 +49,11 @@ MACHINE = "gp-agent@users.noreply.github.com"
 # a project's history with no trailer at all. Named here because the address IS the rule; add the
 # one any other tool that commits in your project uses.
 AI_EMAILS = ("noreply@anthropic.com",)
+# model_ranking (D-155 clause 2, D-161; v6.4 upgrade review MAJOR-3): the owner kept the `GP-Agent:`
+# trailer on agent commits (V4C-64). The machine account is always an agent, so a commit it adds
+# without the trailer is unattributable agent work. Session commits under the owner's identity carry
+# it too, but nothing can tell them from the owner's own, so there it is a convention, not a check.
+AGENT_TRAILER = "GP-Agent:"
 
 
 def sh(args, cwd=None):
@@ -101,6 +106,8 @@ def self_test() -> int:
              1, "1 known human identity"),
             ("j: an AI address already on the protected branch -- carried, not re-graded", "aibase", 0,
              "already on `main`"),
+            ("k: a machine commit on the branch with no GP-Agent trailer (D-161)", "notrailer", 1,
+             "no `GP-Agent:` trailer"),
         ):
             repo = pathlib.Path(tmp) / build
             repo.mkdir()
@@ -150,6 +157,8 @@ def self_test() -> int:
                 (repo / "f").write_text("b", encoding="utf-8")
                 _git(repo, "add", "f")
                 msg = ["-qm", "agent"]
+                if build != "notrailer":
+                    msg += ["-m", "GP-Agent: issue-agent"]
                 if build == "ai":
                     msg += ["-m", "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"]
                 _git(repo, "commit", *msg, env_email=MACHINE, env_name="gp-agent")
@@ -254,6 +263,9 @@ def main() -> int:
                 bad.append(f"{sha[:9]} machine identity on the FIRST-PARENT chain -- agent work "
                            "reached the protected branch as a human's history. It should have "
                            "arrived as a pull request a human merged")
+        elif sha in ai_pop and email == MACHINE and AGENT_TRAILER not in body:
+            bad.append(f"{sha[:9]} machine identity with no `{AGENT_TRAILER}` trailer -- an agent "
+                       "commit must say which agent made it (D-155 clause 2, D-161)")
         elif sha in ai_pop and email != MACHINE and email not in known \
                 and email.lower() not in AI_EMAILS:
             bad.append(f"{sha[:9]} unknown identity `{email}` on the work under review -- not the "

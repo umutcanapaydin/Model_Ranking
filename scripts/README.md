@@ -5,10 +5,12 @@ target — rather than by hand.
 
 | Script | Run by | Purpose |
 |---|---|---|
-| `bootstrap-check.sh` | `make bootstrap-check` | the Stage-0 gate: placeholders, `/health`, core docs, universal ADRs, brief, security baseline, something gating a push |
-| `check_fast.py` | `make check-fast` (the post-edit hook) | the legs of `make check`, read from its `check:` line, run side by side; `--plan` prints them |
+| `bootstrap-check.sh` | `make bootstrap-check` | the Stage-0 gate: placeholders, `/health`, core docs, universal ADRs, brief, security baseline, something gating a push; CI still starting a step (C12, a `[warn]` at most) |
+| `check_fast.py` | `make check-fast` (the post-edit hook) | the legs of `make check`, read from its `check:` line, run side by side; `--plan` prints them. A project's own legs and forms: `CHECK_FAST_OWN_LEGS`, `CHECK_FAST_FORMS` in `stack.mk` (`make check-fast-config` prints both) |
+| `ci_liveness.py` | `make ci-liveness`, `/start-session`, bootstrap-check C12 | ADVISORY, never a gate leg: whether the latest CI runs started any step (a billing or runner limit stops every job before its first); one line, always exit 0 |
 | `check_records.py` | `make check-records`, `make install-check` | the governance-record validator and the install-completeness check |
-| `wave_check.py` | `make wave-check`, `make closes` | refuses a wave close that is not a filled checklist with both review verdicts |
+| `runner_verdict.sh` | sourced by `runner` | this project's: how a leg is recorded, skipped, and what the run is allowed to claim. Separate from `runner` so it can be tested without running `make check` (REQ-FIX-004) |
+| `wave_check.py` | `make wave-check`, `make closes` | refuses a wave close that is not a filled checklist with both review verdicts, each declaring `**Independent:** yes` |
 | `closure_check.py` | `make closure-check`, `make closes` | refuses a milestone closure report that is not filled (Quality Gate on) |
 | `coverage_floor.py` | CI `test` job | the skip budget: a run that skipped more tests than accepted is not green |
 | `slopsquat_check.py` | `make slopsquat` | seed F.8: declared dependencies exist on PyPI and are not brand new |

@@ -17,6 +17,12 @@ Refuses:
   * a control with three skip/bypass rows in `docs/control-events.csv`, or SKIPPED/WAIVED rows
     with no such ledger
   * the Code-Reviewer or Tester verdict file missing beside it, or either one BLOCKING
+  * from `v6.5`, either verdict file not declaring `**Independent:** yes`, unless the checklist's
+    Code-Reviewer row is WAIVED and `docs/control-events.csv` has a row for this wave
+  * from `v6.6`, a finding in either verdict's MINOR, K.9 or queued-risk section with no id, or
+    with no row in the checklist's findings table saying what happened to it: fixed in this
+    wave (a commit), filed (an issue number), or refused with a reason
+  * from `v6.6`, no `Stopped at three attempts:` footprint line
 The footprint fields and the review files are graded by the `process_version` the record declares
 (see below). Exit 0 pass · 1 fail · 2 usage.
 """
@@ -32,6 +38,55 @@ FAIL_STATUSES = {"FAIL", "BLOCKED", "❌"}
 HEADER_CELLS = {"check", "gate", "item", "#", "no", "step"}
 PLACEHOLDER = re.compile(r"<[A-Za-z][A-Za-z0-9 _/-]{2,}>|\bTBD\b|\bTODO\b|\bFIXME\b")
 LEDGER = pathlib.Path("docs/control-events.csv")
+# The verdict sections whose findings the wave may leave unfixed. BLOCKING is not one: a BLOCKING
+# verdict cannot close a wave at all.
+DEFERRABLE = re.compile(r"MINOR|K\.9|Risks queued", re.I)
+FINDING_ID = re.compile(r"^\s*[-*]\s+\*\*([A-Z]{1,3}\d+)\*\*")
+# fixed `<sha>` · #<n> · refused — <a reason of a sentence>
+DISPOSITION = re.compile(r"^(?:fixed\s+`?[0-9a-f]{7,40}`?|#\d+|refused\b\W+\w.{10,})", re.I)
+
+
+def deferrable_findings(body: str) -> tuple[list[str], int]:
+    """The ids of the findings under a MINOR / K.9 / queued-risk heading, and how many carry none.
+
+    A bullet that says there is nothing (`- none`, `- —`) is not a finding.
+    """
+    ids: list[str] = []
+    unnamed = 0
+    in_section = False
+    for line in body.splitlines():
+        h = re.match(r"^#{2,4}\s+(.*)$", line)
+        if h:
+            in_section = bool(DEFERRABLE.search(h.group(1)))
+            continue
+        if not in_section or not re.match(r"^\s*[-*]\s+\S", line):
+            continue
+        if re.match(r"^\s*[-*]\s+(?:\*\*)?(?:none\b|n/a\b|—\s*$|-\s*$)", line, re.I):
+            continue
+        m = FINDING_ID.match(line)
+        if m:
+            ids.append(m.group(1))
+        else:
+            unnamed += 1
+    return ids, unnamed
+
+
+def findings_table(text: str) -> dict[str, str]:
+    """`review M1` -> `#42`, read from the checklist's findings table (`| finding | disposition |`)."""
+    rows: dict[str, str] = {}
+    in_table = False
+    for line in text.splitlines():
+        s = line.strip()
+        if not s.startswith("|"):
+            in_table = False
+            continue
+        cells = [c.strip() for c in s.strip("|").split("|")]
+        if len(cells) >= 2 and cells[0].lower() == "finding" and cells[1].lower() == "disposition":
+            in_table = True
+            continue
+        if in_table and len(cells) >= 2 and not set("".join(cells)) <= set("-: "):
+            rows[" ".join(cells[0].lower().split())] = cells[1]
+    return rows
 
 
 #: REQ-REV-001 was written at M11. GPF-001 already ruled that a tool may not retroactively
@@ -211,6 +266,10 @@ def review_seat_problems(text: str, root: pathlib.Path, milestone: int | None) -
     return bad
 
 
+#: The day this project adopted DevFlow (D-155) and moved to v6.4/v6.6 (D-161).
+DEVFLOW_ADOPTED = "2026-09-23"
+
+
 def main(argv: list[str]) -> int:
     for stream in (sys.stdout, sys.stderr):    # a console that cannot encode a character prints `?`
         reconfigure = getattr(stream, "reconfigure", None)
@@ -254,6 +313,12 @@ def main(argv: list[str]) -> int:
     # template and `/close-wave` write the current version, and a backdated one shows in the diff.
     vm = re.search(r"^process_version:\s*v?(\d+(?:\.\d+)*)\s*$", text, re.M)
     version = tuple(int(x) for x in vm.group(1).split(".")) if vm else None
+    # model_ranking (D-155 adoption review MINOR-1, D-161): the declared version is trusted only for
+    # records written by the day this project adopted DevFlow. A close dated later that declares an
+    # older version is graded by today's rules -- the hole the paragraph above names, closed here.
+    dated = re.search(r"^date:\s*(\d{4}-\d{2}-\d{2})", text, re.M)
+    if dated is not None and dated.group(1) > DEVFLOW_ADOPTED:
+        version = None
 
     def since(*v: int) -> bool:
         return version is None or version >= v
@@ -263,7 +328,9 @@ def main(argv: list[str]) -> int:
             ("Mutant set author", "who designed the fault-injection set (self-designed = supporting evidence only)", (5, 1)),
             ("Observed RED", "the mutation and the assertion that failed for the cited reason", (5, 1)),
             ("Owner instruction", "the owner's words, verbatim, that this wave implements", (5, 1)),
-            ("K.8 contracts", "which shared interfaces it changed, or NONE", (5, 0))):
+            ("K.8 contracts", "which shared interfaces it changed, or NONE", (5, 0)),
+            ("Stopped at three attempts", "each problem this wave stopped on after three failed "
+             "attempts, with the bug issue that now carries it, or NONE", (6, 6))):
         if not since(*introduced):
             continue
         m = re.search(rf"^\s*{re.escape(field)}:\s*(.*)$", text, re.M)
@@ -283,6 +350,7 @@ def main(argv: list[str]) -> int:
     # stops at the first non-table line. Scoring every table in the record as checklist rows made
     # authors rewrite legitimate structure as bullets to appease the tool.
     rows = evidence_less = 0
+    review_waived = False            # the Code-Reviewer row is WAIVED: the independence out
     in_checklist = False
     for i, line in enumerate(text.splitlines(), 1):
         stripped = line.lstrip()
@@ -304,6 +372,8 @@ def main(argv: list[str]) -> int:
         # for an empty verdict.
         last = cells[-1].upper().split()
         status = last[0] if last and last[0] in STATUSES else None
+        if status == "WAIVED" and "Code-Reviewer" in cells[1]:
+            review_waived = True
         if last and last[0] in FAIL_STATUSES:
             bad.append(f"line {i}: row `{cells[0][:38]}` is {last[0]} -- a wave does not close with a "
                        "failed gate. Fix it, or WAIVE it in the ledger with a reason")
@@ -359,6 +429,7 @@ def main(argv: list[str]) -> int:
     # `docs/control-events.csv` is the ONE ledger of skips and bypasses, and the only one a gate
     # counts; wave-checklist row 9 summarises it. Three rows naming the same control turn this
     # gate red: the CONTROL goes under review, not the people. A counter nobody counts is prose.
+    ledger_waves: set = set()        # the waves the ledger has a row for
     if LEDGER.is_file():
         from collections import Counter
         counts: Counter = Counter()
@@ -366,6 +437,8 @@ def main(argv: list[str]) -> int:
             if ln.startswith("#") or ln.lower().startswith("control,") or not ln.strip():
                 continue
             cells = [c.strip() for c in ln.split(",")]
+            if len(cells) >= 2:
+                ledger_waves.add(cells[1])
             if len(cells) >= 3 and cells[2].lower() in ("skip", "bypass"):
                 counts[cells[0]] += 1
         for control, n in sorted(counts.items()):
@@ -384,6 +457,9 @@ def main(argv: list[str]) -> int:
     # (`<dir>/../reviews/`), each with a `## Verdict`, and neither may be BLOCKING. Required from
     # process_version v6.0.1, the first template that asked for them.
     m = NAME_RE.match(p.name)
+    ids = re.match(r"m(\d+)-wave-(\d+)", p.name)
+    wave_id = f"m{ids.group(1)}-w{ids.group(2)}" if ids else ""
+    dispositions = findings_table(text)
     if m and since(6, 0, 1):
         reviews = p.resolve().parent.parent / "reviews"
         stem = p.name[: -len("-close.md")]
@@ -393,12 +469,42 @@ def main(argv: list[str]) -> int:
                 bad.append(f"no {who} verdict at `{f.parent.name}/{f.name}` -- a wave closes on two "
                            "separate fresh-eyes reviews; run `/close-wave`")
                 continue
-            v = re.search(r"^##\s*Verdict\s*\n+\s*(PASS|MINOR|BLOCKING)\b", f.read_text(encoding="utf-8",
-                          errors="replace"), re.M)
+            body = f.read_text(encoding="utf-8", errors="replace")
+            v = re.search(r"^##\s*Verdict\s*\n+\s*(PASS|MINOR|BLOCKING)\b", body, re.M)
             if not v:
                 bad.append(f"`{f.name}` carries no `## Verdict` of PASS / MINOR / BLOCKING")
             elif v.group(1) == "BLOCKING":
                 bad.append(f"`{f.name}` is BLOCKING -- flush the fixes and re-review before the wave closes")
+            # From v6.5 each verdict DECLARES that its reviewer did not write the code under review.
+            # A declaration, not a proof: no file can show which session wrote it. What it buys is
+            # that the claim is made in writing, by the reviewer, where a false one can be found.
+            # The author reviewing is legal only as a waiver the ledger counts.
+            if since(6, 5) and not (review_waived and wave_id in ledger_waves) and not re.search(
+                    r"^\s*\*\*Independent:\*\*[ \t]*yes\b", body, re.M | re.I):
+                bad.append(f"`{f.name}` does not declare `**Independent:** yes` -- a reviewer that "
+                           "wrote the code cannot close the wave; if the author reviewed, mark the "
+                           "row WAIVED with a row in docs/control-events.csv")
+            # From v6.6 a finding the wave does not fix leaves the wave as an issue. Every finding
+            # in a MINOR / K.9 / queued-risk section carries an id (`**M1**`), and the checklist's
+            # findings table says what happened to each: fixed here, filed, or refused with a
+            # reason. Before this, review findings were "queued to next M" inside a file nobody
+            # queried -- one field project wrote 99 review files and filed no issue from them.
+            if since(6, 6):
+                found, unnamed = deferrable_findings(body)
+                if unnamed:
+                    bad.append(f"`{f.name}` has {unnamed} MINOR/K.9/queued finding(s) with no id -- "
+                               "start each with `**M1**` (MINOR), `**K1**` (K.9) or `**R1**` (risk) "
+                               "so the checklist can say what happened to it")
+                for fid in found:
+                    key = f"{kind} {fid.lower()}"
+                    d = dispositions.get(key)
+                    if d is None:
+                        bad.append(f"`{f.name}` finding {fid} has no row in the checklist's findings "
+                                   f"table (`| {kind} {fid} | ... |`) -- fix it in this wave and cite "
+                                   "the commit, or /file-issue it and cite the number")
+                    elif not DISPOSITION.match(d):
+                        bad.append(f"finding `{kind} {fid}` has disposition `{d[:40]}` -- write fixed "
+                                   "`<sha>`, `#<issue>`, or `refused — <why the finding is wrong>`")
 
     for b in bad:
         print(f"FAIL [wave-check]: {b}")
