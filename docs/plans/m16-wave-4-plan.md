@@ -71,15 +71,15 @@ the code, and every board the product reads is fetched by the nightly refresh it
 **Out.** New boards and new surfaces (M17). Arena category slices (M17 P1). The Apple Intelligence
 routing taxonomy (M17). Anything the app shows (`/v1` is unchanged unless decision 2 says so).
 
-## Open decisions (proposed; ruled before the phase that needs them)
+## Decisions — ruled by the owner 2026-09-23, before any code (all three as proposed)
 
-1. **The derivation threshold.** Proposed: a derived model needs at least one price row and at
+1. **The derivation threshold.** Ruled: a derived model needs at least one price row and at
    least one score row under the same derived id, which is exactly what it needs to rank. Nothing
    that cannot rank is registered.
-2. **Whether a derived model says so to a reader.** Proposed: engine-side only, like D-156's
+2. **Whether a derived model says so to a reader.** Ruled: engine-side only, like D-156's
    carry: `/health` and the build report name derived models; `/v1` and the app do not change.
    The list IS the product's own derived list (ruling 2), so marking each row adds noise.
-3. **The Epoch acquisition clock.** Proposed: the refresh record's `sources_last_ok` for
+3. **The Epoch acquisition clock.** Ruled: the refresh record's `sources_last_ok` for
    `epoch-benchmark-data` becomes the acquisition clock, and `data/epoch-source.yaml` keeps only
    the URL. The CI staleness step for it then reads nothing hand-kept.
 

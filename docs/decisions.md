@@ -2617,10 +2617,10 @@ list we derived from the data as a result of measurements, our own list."*
 1. **The curated rules win.** A name a curated rule matches keeps that rule's model.
 2. **A name no rule matches is normalised by a fixed grammar** (provider prefixes, dates and effort
    suffixes removed; every variant token kept), and registered as a DERIVED model when that id has
-   both a price and a score. The grammar is deterministic and tested; it is not fuzzy matching.
+   both a price and a score. (Threshold ruled 2026-09-23, W4 plan decision 1.) The grammar is deterministic and tested; it is not fuzzy matching.
 3. **A variant never merges into its parent by construction**: the derived id keeps every token
    the name carries after its version.
-4. **Disclosure is the engine's** (proposed, W4 plan decision 2): `/health` and the build report
+4. **Disclosure is the engine's** (ruled 2026-09-23, W4 plan decision 2): `/health` and the build report
    name derived models and the top unmatched names.
 
 **The cost.** A derived model's display name is the grammar's, not a curator's, until a rule is
