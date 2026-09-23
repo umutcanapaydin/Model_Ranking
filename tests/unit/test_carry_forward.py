@@ -293,3 +293,20 @@ def test_a_carry_that_cannot_be_inserted_leaves_nothing_behind(tmp_path: Path) -
     assert carry.restore(conn, "aider") == "absent"
     assert _rows(conn, "aider") == []
     assert carry.carried == {} and "aider" not in carry.since
+
+
+def test_rows_stamped_far_in_the_future_expire_rather_than_carry_for_ever(tmp_path: Path) -> None:
+    """Third review MINOR-2: the age-0 reading is for a clock that stepped back, which is bounded.
+    Rows more than the carry limit ahead are not a clock error the ruling can absorb: carrying them
+    at age 0 would serve them until real time reached the stamp, and 30 days more."""
+    live = _live(tmp_path)
+    sqlite3.connect(live).execute("UPDATE scores SET observed_at = ? WHERE source = 'aider'",
+                                  (_iso(-400),)).connection.commit()
+    optional = tuple(
+        RemoteSource(name=s.name, client=s.client, ingest=s.ingest, parse=s.parse,
+                     minimum_rows=s.minimum_rows, required=s.name != "aider")
+        for s in _sources(aider=None)
+    )
+    _, report = _candidate(tmp_path, live, last_ok={}, source_list=optional)
+    assert report.carried == {}
+    assert "aider" in report.expired

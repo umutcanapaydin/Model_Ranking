@@ -23,6 +23,7 @@ from app.workflows.refresh import (
     EXIT_FAILED,
     EXIT_PUBLISHED,
     EXIT_REFUSED,
+    EXIT_UNCHANGED,
     RefreshOutcome,
     refresh,
     status_path,
@@ -280,27 +281,55 @@ def test_an_expiry_does_not_excuse_the_fresh_source_beside_it(
     assert code == EXIT_REFUSED, outcome.reason
     assert "coding answered with 2 models" in outcome.reason
     assert live.read_bytes() == before
+    # D-156 second amendment: `expired` is about age, so a refused cycle still records it.
+    assert EPOCH_CODING in _record(live)["expired"]
 
 
-def test_a_cycle_whose_report_is_lost_moves_no_clock_and_excuses_nothing(
+def test_a_cycle_whose_report_is_lost_excuses_nothing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Re-review MINOR-2 (N18): an unreadable build report is read as "nothing arrived, nothing
-    expired" -- the safe reading -- never as "everything arrived"."""
+    """Re-review MINOR-2 (N18): an unreadable build report is read as "nothing expired", so the
+    expired rows' loss is not excused unreported."""
     live = _first_cycle(tmp_path, monkeypatch)
     _expired_secondary_rows(live)
-    seeded = _record(live)["sources_last_ok"]
-
-    def lose_the_report(argv: list[str]) -> int:
-        code = build_mod.main(argv)
-        Path(argv[argv.index("--report-out") + 1]).write_text("{torn", encoding="utf-8")
-        return code
 
     _use(monkeypatch, _sources(pricing=MOVED_PRICING))
-    outcome, code = refresh(live, builder=lose_the_report)
+    outcome, code = refresh(live, builder=_losing_the_report)
+    assert code == EXIT_REFUSED, outcome.reason
 
-    assert code == EXIT_REFUSED, outcome.reason  # the expired rows' loss is NOT excused unreported
-    assert _record(live)["sources_last_ok"] == seeded
+
+def _losing_the_report(argv: list[str]) -> int:
+    code = build_mod.main(argv)
+    Path(argv[argv.index("--report-out") + 1]).write_text("{torn", encoding="utf-8")
+    return code
+
+
+def test_a_served_cycle_whose_report_is_lost_moves_no_clock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Third review MINOR-3 (R11): the same torn report on a cycle that PUBLISHES. Read as
+    "everything arrived", it would restart the failed source's 30 days."""
+    live = _first_cycle(tmp_path, monkeypatch)
+    seeded = _record(live)["sources_last_ok"]["swebench"]
+    _use(monkeypatch, _sources(pricing=MOVED_PRICING, swebench=None))
+    outcome, code = refresh(live, builder=_losing_the_report)
+
+    assert code == EXIT_PUBLISHED, outcome.reason
+    assert _record(live)["sources_last_ok"]["swebench"] == seeded
+
+
+def test_an_unchanged_cycle_through_refresh_keeps_the_carry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Third review MINOR-3 (R9): the cycle must HAND the carry to the record on an unchanged
+    night, the ordinary state during an outage."""
+    live = _first_cycle(tmp_path, monkeypatch)
+    _use(monkeypatch, _sources(pricing=MOVED_PRICING, swebench=None))
+    assert refresh(live)[1] == EXIT_PUBLISHED
+    carried = _record(live)["carried"]
+    assert carried
+    assert refresh(live)[1] == EXIT_UNCHANGED
+    assert _record(live)["carried"] == carried
 
 
 def _write(target: Path, code: int, **kw: object) -> dict:
@@ -342,3 +371,39 @@ def test_the_expiry_baseline_drops_the_sources_prices_as_well_as_its_scores(
     assert served is not None and served.surfaces["coding"] == 2
     assert _served_without(live, {"litellm"}).surfaces["coding"] == 0
     assert _served_without(live, {"aider"}).surfaces["coding"] == 2
+
+
+# --- Third review MINOR-1: an expiry never excuses a roster the artifact has never served -------
+
+ROSTER_PRICING = json.dumps({
+    name: {"mode": "chat", "input_cost_per_token": i, "output_cost_per_token": o}
+    for name, i, o in [
+        ("gpt-5", 1.25e-06, 1e-05), ("gpt-5-nano", 5e-08, 4e-07),
+        ("claude-4-5-opus", 5e-06, 2.5e-05), ("claude-4-5-haiku", 1e-06, 5e-06),
+        ("claude-4-5-sonnet", 3e-06, 1.5e-05), ("gpt-5-pro", 1.5e-05, 1.2e-04),
+        ("gpt-5-mini", 2.5e-07, 2e-06)]})
+NEW_ROSTER = json.dumps({"leaderboards": [{"name": "Verified", "results": [
+    {"name": f"live-SWE-agent + {m}", "resolved": s, "date": "2026-09-01", "logs": True,
+     "trajs": True}
+    for m, s in [("Claude 4.5 Haiku", 70.0), ("Claude 4.5 Sonnet", 75.0), ("GPT-5 Pro", 80.0),
+                 ("GPT-5 mini", 65.0)]]}]})
+
+
+def test_an_expiry_night_does_not_admit_a_roster_never_served(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Third review MINOR-1 (A1). Live `coding` is served only by rows that expire tonight, and the
+    fresh source arrives with four names this artifact has never served. Removing rows never ADDS
+    names, so the expiry needs no excuse on the new-names guard: it is judged against the live
+    artifact, and D-132 refuses as it does on any other night."""
+    live = tmp_path / "advisor.db"
+    _use(monkeypatch, _sources(pricing=ROSTER_PRICING))
+    assert refresh(live)[1] == EXIT_PUBLISHED
+    with sqlite3.connect(live) as db:
+        db.execute("UPDATE scores SET source = ?, observed_at = ? WHERE source = 'swebench'",
+                   (EPOCH_CODING, _ago(45)))
+    _use(monkeypatch, _sources(pricing=ROSTER_PRICING, swebench=NEW_ROSTER))
+    outcome, code = refresh(live)
+
+    assert code == EXIT_REFUSED, outcome.reason
+    assert "never seen" in outcome.reason
