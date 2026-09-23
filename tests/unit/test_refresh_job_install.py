@@ -57,3 +57,13 @@ def test_the_logs_are_not_under_desktop_either() -> None:
         job = plistlib.load(handle)
     for key in ("StandardOutPath", "StandardErrorPath"):
         assert "Desktop" not in job[key], f"{key} is back under ~/Desktop (W-096)"
+
+
+def test_the_launchd_wrapper_fetches_epoch_instead_of_passing_a_hand_kept_bundle() -> None:
+    """M16-W4 review MAJOR-1, D-158: the wrapper passed the owner's 2026-08-15 bundle, which wins
+    over the fetch, so the refresher actually running never fetched -- and after the deliberate
+    publish it would be refused every cycle (the stale bundle lacks the rows the fresh one added)."""
+    text = WRAPPER.read_text(encoding="utf-8")
+    assert "--fetch-epoch" in text
+    assert "--epoch-dir" not in text
+    assert "epoch_data" not in text, "the hand-kept bundle directory is retired; nothing names it"
