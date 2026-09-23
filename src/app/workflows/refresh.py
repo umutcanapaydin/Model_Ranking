@@ -96,6 +96,8 @@ class RefreshOutcome:
     arrived: tuple[str, ...] = ()
     carried: dict[str, str | None] = dataclasses.field(default_factory=dict)
     expired: dict[str, str | None] = dataclasses.field(default_factory=dict)
+    #: M16-W4: declared boards missing or reshaped in a bundle that arrived, as the build found them.
+    drift: tuple[str, ...] = ()
 
     def as_json(self) -> str:
         return json.dumps(
@@ -618,6 +620,9 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
         #: what aged out and dropped. `/health` reads these.
         "carried": carried_now,
         "expired": expired_now,
+        #: M16-W4: what THIS cycle found changed in a bundle's layout (not served state: a layout
+        #: is observed, and the next cycle observes it again).
+        "drift": list(outcome.drift),
     }
     # UNIQUE scratch, not a shared name. The artifact's candidate has always used `mkstemp` and
     # this used a fixed `<name>.writing` — the same lesson applied once. An independent review
@@ -810,6 +815,16 @@ def _read_build_sources(
     return tuple(str(a) for a in arrived), stamped("carried"), stamped("expired")
 
 
+def _read_build_drift(path: Path | None) -> tuple[str, ...]:
+    """The build's layout-drift lines (M16-W4); empty when it said nothing."""
+    data: object = None
+    if path is not None:
+        with contextlib.suppress(OSError, ValueError):
+            data = json.loads(path.read_text(encoding="utf-8"))
+    drift = data.get("drift") if isinstance(data, dict) else None
+    return tuple(str(line) for line in drift) if isinstance(drift, list) else ()
+
+
 def _served_without(target: Path, sources: set[str]) -> ServingSummary:
     """What the live artifact would serve with `sources`' rows gone: the baseline on an expiry night.
 
@@ -931,6 +946,7 @@ def _cycle(
         with contextlib.redirect_stdout(sys.stderr):
             code = builder(["--db", str(candidate), *build_args, *epoch_args, *carry_args])
         arrived, carried, expired = _read_build_sources(report_file)
+        drift = _read_build_drift(report_file)
         if code not in (0, 3):  # 3 = an optional source is blind and said so (D-121)
             outcome = RefreshOutcome(
                 published=False,
@@ -940,6 +956,7 @@ def _cycle(
                 candidate_fingerprint="",
                 surfaces=0,
                 expired=expired,  # a REQUIRED source's expiry fails the build; still recorded
+                drift=drift,
             )
             return record(outcome, EXIT_FAILED)
 
@@ -970,6 +987,7 @@ def _cycle(
                     arrived=arrived,
                     carried=carried,
                     expired=expired,
+                    drift=drift,
                 ),
                 EXIT_UNCHANGED,
             )
@@ -985,6 +1003,7 @@ def _cycle(
                     surfaces=fresh.answering,
                     carried=carried,
                     expired=expired,
+                    drift=drift,
                 ),
                 EXIT_REFUSED,
             )
@@ -1020,6 +1039,7 @@ def _cycle(
                 arrived=arrived,
                 carried=carried,
                 expired=expired,
+                drift=drift,
             ),
             EXIT_PUBLISHED,
         )

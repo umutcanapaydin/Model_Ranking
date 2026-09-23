@@ -106,6 +106,9 @@ class BuildReport:
     #: `None` when the age could not be read at all -- still expired, never carried.
     expired: dict[str, float | None] = field(default_factory=dict)
     since: dict[str, str | None] = field(default_factory=dict)
+    #: M16-W4: declared boards missing or reshaped in a bundle that DID arrive, carried or not. A
+    #: changed layout otherwise looks exactly like a quiet night.
+    drift: list[str] = field(default_factory=list)
 
     def sources_json(self) -> dict[str, object]:
         """What the refresh needs from this build, and nothing it would have to re-derive (review
@@ -115,6 +118,7 @@ class BuildReport:
             "carried": self.carried,
             "expired": self.expired,
             "since": self.since,
+            "drift": self.drift,
         }
 
     def as_json(self) -> dict[str, object]:
@@ -138,6 +142,7 @@ class BuildReport:
             "required_operator_actions": self.required_operator_actions,
             "carried": self.carried,
             "expired": self.expired,
+            "drift": self.drift,
         }
 
 
@@ -335,6 +340,7 @@ def _ingest_boards(
     run: RunContext,
     boards: Sequence[EpochBoard] | None = None,
     carry: Carry | None = None,
+    drift: list[str] | None = None,
 ) -> tuple[list[SourceReport], list[str]]:
     """Read the declared Epoch boards (D-127). Same bundle, same read-only rules as `_ingest_bundles`.
 
@@ -361,6 +367,8 @@ def _ingest_boards(
         except (SourceError, OSError) as exc:
             for table in ("pricing", "scores"):
                 reset_source(conn, table, board.source_name)
+            if drift is not None:
+                drift.append(f"{board.source_name}: {exc}")
             if _fall_back(conn, carry, board.source_name) != "carried":
                 missing.append(f"{board.source_name}: {exc}")
             continue
@@ -384,8 +392,9 @@ def _ingest_bundles(
     run: RunContext,
     bundles: Sequence[LocalBundle] | None = None,
     carry: Carry | None = None,
+    drift: list[str] | None = None,
 ) -> tuple[list[SourceReport], list[str]]:
-    """Read the owner-placed bundle, never fetch it (D-101).
+    """Read the bundle, never fetch it: the refresh fetches (D-158), or the owner supplies one.
 
     Absence is a REPORTED degradation rather than a skipped step. That distinction is the whole
     reason this function exists: the pipeline this module replaced ingested five remote sources and
@@ -417,6 +426,8 @@ def _ingest_bundles(
             # the build reports it as having none.
             for table in ("pricing", "scores"):
                 reset_source(conn, table, bundle.name)
+            if drift is not None:
+                drift.append(f"{bundle.name}: {exc}")
             if _fall_back(conn, carry, bundle.name) != "carried":
                 missing.append(f"{bundle.name}: {exc}")
             continue
@@ -538,8 +549,10 @@ def build(
         # (review MAJOR-2): the build is the one place that knows, so it says so on the way out.
         exc.report = report  # type: ignore[attr-defined]
         raise
-    bundle_reports, bundle_missing = _ingest_bundles(conn, bundle_dir, run, bundles, carry)
-    board_reports, board_missing = _ingest_boards(conn, bundle_dir, run, boards, carry)
+    bundle_reports, bundle_missing = _ingest_bundles(conn, bundle_dir, run, bundles, carry,
+                                                    drift=report.drift)
+    board_reports, board_missing = _ingest_boards(conn, bundle_dir, run, boards, carry,
+                                                  drift=report.drift)
     report.sources.extend(board_reports)
     report.sources.extend(bundle_reports)
     report.required_operator_actions = _surfaces_left_without_evidence(

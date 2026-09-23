@@ -53,6 +53,9 @@ class EpochBoard:
     #: The upper bound a parsed score may not exceed, on the board's OWN scale before conversion.
     #: Elo boards have no natural ceiling, so ``None`` disables the check rather than inventing one.
     maximum: float | None = 1.0
+    #: The column naming the model. Every board used ``Model version`` until Epoch's 2026-09
+    #: capabilities index, which lists one row per model under ``Model`` (M16-W4).
+    name_column: str = "Model version"
 
 
 class EpochBoardClient:
@@ -129,8 +132,8 @@ def _check_header(reader: csv.DictReader[str], board: EpochBoard) -> None:
     if not fieldnames:
         msg = f"{board.source_name}: CSV has no header"
         raise SourceError(msg)
-    if "Model version" not in fieldnames:
-        msg = f"{board.source_name}: CSV has no 'Model version' column"
+    if board.name_column not in fieldnames:
+        msg = f"{board.source_name}: CSV has no {board.name_column!r} column"
         raise SourceError(msg)
     if board.score_column not in fieldnames:
         # Loud rather than empty: a renamed upstream column would otherwise ingest zero rows and
@@ -173,7 +176,7 @@ def parse_board(
     skipped = 0
 
     for entry in entries:
-        name = (entry.get("Model version") or "").strip()
+        name = (entry.get(board.name_column) or "").strip()
         score = _number(entry.get(board.score_column), maximum=board.maximum)
         if not name or score is None:
             skipped += 1

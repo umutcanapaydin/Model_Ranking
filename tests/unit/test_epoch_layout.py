@@ -57,6 +57,7 @@ def test_a_board_missing_from_a_bundle_that_arrived_is_drift(tmp_path: Path) -> 
     report = _build_with_bundle(tmp_path, bundle)
     drifted = {line.split(":")[0] for line in report.drift}  # type: ignore[attr-defined]
     assert "epoch_eci" in drifted
+    assert "epoch_deepswe_external" in drifted, "the two bundle clients report drift like the boards"
     assert "epoch_gpqa" not in drifted
     assert report.sources_json()["drift"] == report.drift  # type: ignore[attr-defined]
 
@@ -76,3 +77,19 @@ def test_drift_reaches_the_refresh_record_and_health(tmp_path: Path) -> None:
     assert record["drift"] == ["epoch_eci: missing CSV in local unpacked bundle"]
     report = nightly.NightlyRefresh(db=target, command=["unused"]).report()
     assert report["refresh_drift"] == "epoch_eci"
+
+
+def test_a_cycle_records_the_drift_its_build_found(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """Through the real `refresh()` and `build.main`: a fetched bundle without the index."""
+    from app.workflows.refresh import refresh
+
+    from .test_refresh_carry import _first_cycle
+
+    live = _first_cycle(tmp_path, monkeypatch)
+
+    def fetch(dest: Path) -> None:
+        (dest / "gpqa_diamond.csv").write_text(GPQA, encoding="utf-8")
+
+    refresh(live, fetch_epoch=fetch)
+    record = json.loads(status_path(live).read_text(encoding="utf-8"))
+    assert any(line.startswith("epoch_eci:") for line in record["drift"])

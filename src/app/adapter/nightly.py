@@ -165,6 +165,13 @@ def recently_good(record: dict[str, object] | None, now: float) -> bool:
     return isinstance(at, int | float) and now - at < RECENT.total_seconds()
 
 
+def _drifted(lines: object) -> str:
+    """The source names in the refresh record's drift lines, each `<source>: <reason>`."""
+    if not isinstance(lines, list):
+        return ""
+    return ", ".join(sorted({str(line).split(":", 1)[0] for line in lines}))
+
+
 def _aged(sources: object, now: dt.datetime | None = None) -> str:
     """`{"arena": "<stamp>"}` as `arena 3.2d`, sorted, the age computed NOW from the stamp the
     refresh recorded -- so the line is true on every night, not only the night it was written
@@ -358,4 +365,6 @@ class NightlyRefresh:
             # data aged out and dropped. The app shows neither (D-151); this is where they show.
             "refresh_carried": _aged(record.get("carried") if record else None),
             "refresh_expired": _aged(record.get("expired") if record else None),
+            # M16-W4: a board whose layout changed in a bundle that arrived, by source name.
+            "refresh_drift": _drifted(record.get("drift") if record else None),
         }
