@@ -46,7 +46,7 @@ date: 2026-09-23
 | **Contracts** | `/v1` publishes each surface's floor and what a search price leaves out, and the app shows both (W1-W2: W-112, W-119). The privacy gate reads the declarations the compiler resolved (W-122). Every Swift test is on a committed list (W-111). |
 | **The process** | DevFlow v6.0 (D-155): drafts, you merge, no AI attribution, CI on every PR. `make check-fast` runs the same gates side by side, in 33 s against `make check`'s 89 s. |
 
-## 1a. Per-wave table
+## 1a. Per-wave table (close records: `docs/plans/m16-wave-{1,2,3,4}-close.md`)
 
 | Wave | Risk | Review depth applied | Seats (verdict at first → last) | Merged |
 |---|---|---|---|---|
@@ -55,8 +55,6 @@ date: 2026-09-23
 | W3 | MED | combined + two re-reviews | BLOCKING → PASS-WITH-MINORS (`m16-wave-3-*.md`) | #3 |
 | W4 | HIGH | security on P1 + Code+Tester + re-review | BLOCKING → PASS-WITH-MINORS (`m16-wave-4-*.md`) | #5, #6, #8 |
 | W5 | LOW | Stage 4.0 security seat | PASS WITH FINDINGS, 0/1/6 (`m16-closure-security-review.md`); the MAJOR and three minors fixed in the closure | the closure PR |
-
-Every wave has a committed close record: `docs/plans/m16-wave-{1,2,3,4}-close.md`.
 
 ## 1b. Decisions made on your behalf
 
