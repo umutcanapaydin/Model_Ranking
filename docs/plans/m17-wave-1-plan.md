@@ -42,7 +42,7 @@ this PR.
 
 ## Scope
 
-**In:** `app/workflows/floors.py` (the rule, and the board query); `recommend()`, `subscribe`,
+**In:** `src/app/workflows/floors.py` (the rule, and the board query); `recommend()`, `subscribe`,
 `/v1/categories` and `survey_boards.py` read it; `CategorySpec.min_quality` and the two constants go;
 the tests that pinned numbers state the rule instead; `test_floor_rule.py` becomes a test of the
 derivation; W-128 FIXED.
