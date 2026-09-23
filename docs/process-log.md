@@ -2,7 +2,7 @@
 
 > Append-only. One entry per session (typically per work-day or per slice). 3-10 lines each. Never edit historical entries; correct via a new entry.
 >
-> Each entry ends with a `Lesson:` tag — slide titles for training decks and seed candidates for `.agents/rules/playbook-seeds.md`.
+> Each entry ends with a `Lesson:` tag — the seed candidates for `.agents/rules/playbook-seeds.md`. `/start-session` reads the latest entry first.
 >
 > Seed G.1: open this file BEFORE the work starts.
 
@@ -462,3 +462,15 @@ Lesson: merge a methodology upgrade three ways against the tag you installed, ne
 - `make check-fast` (#7), after the owner's hcs_maas_full: 89 s -> 33 s; `check` unchanged.
 - Closure: Stage 4.0 security seat, coverage trace, closure report, retrospective, M17 plan.
 Lesson: put "review pending, do not merge" where the owner decides, not in a checklist below it.
+
+## 2026-09-23 — DevFlow v6.0 -> v6.4 (D-161)
+
+- Applied `git diff v6.0 v6.4` three-way, as `UPGRADING.md` says; `src/`, `note.txt` and the
+  handovers excluded. The conflicts in AGENTS.md, the Makefile, README.md and the ADR log were
+  resolved by hand, keeping the project's own controls.
+- Session commits now carry the owner's identity with `GP-Agent`/`GP-Task` trailers (owner ruling).
+- v6.4's new gates found 82 text reads and writes with no encoding, and a `check-fast` without
+  `--plan`; both fixed. `closes` stays out of `check:` (DevFlow finding 1).
+- The workflow change is proposed in the PR for the owner, not made.
+Lesson: an upgrade's new gates are the first review of the old tree; run them before resolving
+anything else.
