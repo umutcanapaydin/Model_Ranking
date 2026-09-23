@@ -175,7 +175,8 @@ def parse_rate_board(raw: str, *, source: str, benchmark: str) -> tuple[list[Sco
 
 
 def floors(conn: sqlite3.Connection) -> list[dict[str, Any]]:
-    """Every surface's floor under D-148's rule, beside the two it did not choose and today's.
+    """Every surface's floor under D-148's rule (the one the engine serves, D-159), beside the two
+    populations the rule did not choose.
 
     M16-W3 (M15-W1 review M-2): reproducible, offline, from the artifact the product serves. The
     BOARD is the surface's primary source and benchmark as stored -- one row per raw name, harness

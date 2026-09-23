@@ -328,7 +328,7 @@ def test_every_derived_floor_is_on_its_own_scale() -> None:
 
     from app.workflows.floors import derived_floor
 
-    conn = sqlite3.connect("advisor.db")
+    conn = sqlite3.connect("file:advisor.db?mode=ro", uri=True)  # INV-23: the served artifact is read-only
     measured = 0
     for name, spec in CATEGORIES.items():
         floor = derived_floor(conn, spec)

@@ -147,6 +147,45 @@ def test_an_empty_own_board_has_its_own_reason_code(seeded: Path) -> None:
     assert "floor" not in budget.why_fact or budget.why_fact["floor"] is None
 
 
+def test_the_no_floor_fact_carries_the_unit_the_app_words_it_with(seeded: Path) -> None:
+    """Re-review MINOR-R2 (mutant E3): the app's sentence needs the unit, and without it the Turkish
+    screen shows the engine's English. The fact's whole shape is pinned here, on the engine side."""
+    spec = CATEGORIES["coding"]
+    with sqlite3.connect(seeded) as conn:
+        conn.execute("UPDATE scores SET source = 'epoch_swe_bench_verified' WHERE source = ? "
+                     "AND benchmark = ?", (spec.primary_source, spec.primary_benchmark))
+    rec = recommend(sqlite3.connect(seeded), "unlimited", "coding")
+    assert rec is not None
+    budget = next(p for p in rec.picks if p.label == "budget_pick")
+    assert budget.why_fact == {"reason": "no_floor_measured", "unit": spec.score_unit}
+
+
+@pytest.mark.parametrize("surface", sorted(CATEGORIES))
+def test_every_surfaces_floor_is_hashed_to_its_published_precision(
+    seeded: Path, monkeypatch: pytest.MonkeyPatch, surface: str
+) -> None:
+    """Re-review MINOR-R1 (mutants R4, R5): a fingerprint that hashed only one surface's floor, or
+    hashed it to whole points, passed every test that moved `coding`. Each surface's floor, moved by
+    the 0.1 `/v1/categories` publishes and nothing else, must change the digest."""
+    from app.workflows import refresh as refresh_module
+
+    real = refresh_module.derived_floor
+
+    def floor_at(value: float) -> object:
+        def floor(conn: sqlite3.Connection, spec: object) -> float | None:
+            return value if spec is CATEGORIES[surface] else real(conn, spec)  # type: ignore[arg-type]
+        return floor
+
+    # 50.2 -> 50.3: the published one-decimal step, inside one whole point.
+    monkeypatch.setattr(refresh_module, "derived_floor", floor_at(50.2))
+    before = refresh_module.fingerprint_of(seeded)
+    monkeypatch.setattr(refresh_module, "derived_floor", floor_at(50.3))
+    after = refresh_module.fingerprint_of(seeded)
+    assert before is not None and after is not None
+    assert after.surfaces == before.surfaces, "the ranked rows moved -- the test would prove nothing"
+    assert after.digest != before.digest, surface
+
+
 def test_every_quoted_floor_is_printed_as_the_engine_applies_it() -> None:
     """MINOR-2 (W-084): the check on printed bars read `{spec.min_quality...}`, which no longer
     exists, so `{floor:.0f}` -- a bar the engine does not apply -- passed. Every place that prints the
@@ -165,23 +204,42 @@ def test_every_quoted_floor_is_printed_as_the_engine_applies_it() -> None:
         assert set(specs) == {":g"}, (module.__name__, specs)
 
 
+def _swebench_with(unpriced: int, high: int = 0) -> str:
+    """The SWE-bench fixture plus `unpriced` low rows nobody prices and `high` high ones."""
+    import json
+
+    from .test_build import SWEBENCH
+
+    board = json.loads(SWEBENCH)
+    board["leaderboards"][0]["results"] += [
+        {"name": f"some-agent + Unpriced Model {i}", "resolved": 10.0 + i, "date": "2026-01-01",
+         "logs": True, "trajs": True} for i in range(unpriced)] + [
+        {"name": f"some-agent + Unpriced Leader {i}", "resolved": 90.0 + i, "date": "2026-01-01",
+         "logs": True, "trajs": True} for i in range(high)]
+    return json.dumps(board)
+
+
 def test_the_refresh_publishes_a_board_that_grew_only_by_unranked_rows(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """BLOCKING-1 through the real `refresh()` and `build.main`: the upstream adds models nobody
     prices, no ranked row changes, the floor rises -- and the cycle publishes."""
-    import json
+    from app.workflows.refresh import EXIT_PUBLISHED, fingerprint_of, refresh
 
-    from app.workflows.refresh import EXIT_PUBLISHED, refresh
+    from .test_build import _sources
+    from .test_refresh_carry import _first_cycle, _use
 
-    from .test_build import SWEBENCH
-    from .test_refresh_carry import _first_cycle, _sources, _use
-
-    live = _first_cycle(tmp_path, monkeypatch)
-    grown = json.loads(SWEBENCH)
-    grown["leaderboards"][0]["results"] += [
-        {"name": f"some-agent + Unpriced Model {i}", "resolved": 90.0 + i, "date": "2026-01-01",
-         "logs": True, "trajs": True} for i in range(9)]
-    _use(monkeypatch, _sources(swebench=json.dumps(grown)))
+    # A board of 18 rows grows by 2 (11%): a real board's pace, under the owner's flood guard below.
+    live = _first_cycle(tmp_path, monkeypatch, swebench=_swebench_with(16))
+    before = fingerprint_of(live)
+    floor_before = derived_floor(sqlite3.connect(live), CATEGORIES["coding"])
+    _use(monkeypatch, _sources(swebench=_swebench_with(16, high=2)))
     outcome, code = refresh(live)
     assert code == EXIT_PUBLISHED, outcome.reason
+    # Re-review NIT-R2: the precondition, asserted -- no ranked row moved, and the floor did.
+    after = fingerprint_of(live)
+    assert before is not None and after is not None
+    assert after.surfaces == before.surfaces and after.models == before.models
+    floor_after = derived_floor(sqlite3.connect(live), CATEGORIES["coding"])
+    assert floor_before is not None and floor_after is not None and floor_after > floor_before
+

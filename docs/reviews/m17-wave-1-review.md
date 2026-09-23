@@ -50,8 +50,8 @@ change. I read them only as copies.
 
 **How I worked:**
 - **The copy.** I made an `rsync` copy of the tree in a NEW subdirectory of the session scratch
-  directory. It left out `.venv`, `ios/.build` and the two untracked root files (`epb.html`,
-  `or.md`).
+  directory. It left out `.venv`, `ios/.build` and the owner's two untracked files at the repository
+  root.
 - **A fresh venv in the copy** (`make install`). Its editable `.pth` points at the copy's own `src`.
 - **Bytecode caches purged.** They had been copied with the repository's paths inside them. After
   purging, `app.workflows.floors.__file__` resolves inside the copy.
@@ -450,8 +450,8 @@ that decides publishing.
 - **MINOR-5** ("50 is at the bar" in the app) needs an owner ruling. It belongs to whichever wave
   next touches `Language.swift`.
 - **`test-documented-paths` passes only on the owner's disk.** It resolves
-  `docs/reviews/m16-closure-security-review.md:15`'s mentions of `epb.html` and `or.md` against two
-  UNTRACKED files. My copy left them out, and the records leg failed on exactly those two paths
+  two file names in `docs/reviews/m16-closure-security-review.md:15` against two UNTRACKED files
+  at the repository root. My copy left them out, and the records leg failed on exactly those two paths
   (details under Gates). A clean checkout, such as CI, would fail the same way. Add them to
   `.path-refs-allow` or reword the record. This predates the wave (the record is on `main` since
   `5a8b685`).
@@ -469,7 +469,7 @@ that decides publishing.
 - **client leg PASS:** client-decls.
 - **swift leg PASS:** "PASS: 268 test(s), exactly the ones named in the manifest".
 - **records leg FAIL, 1 of 14 conformance tests.** The failure is `test-documented-paths`, with 2
-  dangling paths: `epb.html` and `or.md`, the untracked files I was told to leave out (see K.9).
+  dangling paths: the owner's two untracked root files, which I was told to leave out (see K.9).
   With two empty placeholders present, `make conformance` passes, "14 test(s) ... 0 failing".
   **Nothing else failed.**
 

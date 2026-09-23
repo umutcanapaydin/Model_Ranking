@@ -63,12 +63,12 @@ def _optional(sources: tuple[RemoteSource, ...], name: str) -> tuple[RemoteSourc
     )
 
 
-def _first_cycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def _first_cycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, **upstream: str | None) -> Path:
     """Publish a first artifact, then age it by ten days: its rows and every recorded arrival. Real
     cycles are a night apart; a test whose cycles share a second cannot tell a clock that moved from
-    one that did not (review BLOCKING-1)."""
+    one that did not (review BLOCKING-1). `upstream` replaces a source's fixture for the first cycle."""
     live = tmp_path / "advisor.db"
-    _use(monkeypatch, _sources())
+    _use(monkeypatch, _sources(**upstream))
     _, code = refresh(live)
     assert code == EXIT_PUBLISHED
     earlier = _ago(10)

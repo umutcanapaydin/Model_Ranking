@@ -24,7 +24,8 @@ from fastapi.testclient import TestClient
 #: W-108: reads the built artifact; skipped by name where it is absent (tests/conftest.py).
 pytestmark = pytest.mark.artifact
 
-REASONS = {"highest_score", "cheapest_within_window", "cheapest_above_floor", "nothing_clears_floor"}
+REASONS = {"highest_score", "cheapest_within_window", "cheapest_above_floor", "nothing_clears_floor",
+           "no_floor_measured"}
 
 
 @pytest.fixture
@@ -102,7 +103,8 @@ def test_the_reason_distinguishes_the_two_budget_pick_cases(client: TestClient) 
                 if pick["label"] == "budget_pick":
                     reasons.add(pick["why_fact"]["reason"])
 
-    assert reasons <= {"cheapest_above_floor", "nothing_clears_floor"}, reasons
+    # `no_floor_measured` (M17-W1): a surface whose own board is empty -- D-156 can publish one.
+    assert reasons <= {"cheapest_above_floor", "nothing_clears_floor", "no_floor_measured"}, reasons
     assert reasons, "no budget pick was produced at all — the fixture proves nothing"
 
 
