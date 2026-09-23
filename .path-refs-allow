@@ -77,6 +77,15 @@ polyglot_leaderboard.yml              # Aider's leaderboard file, fetched by the
 *_external.csv                        # Epoch AI bundle files (owner-fetched, outside the repo)
 swe_bench_verified.csv                # Epoch AI bundle file (owner-fetched, outside the repo)
 other.csv                             # a hypothetical bundle file in the M5 security review's probe
+epoch_capabilities_index.csv          # Epoch AI bundle file, the pre-2026-09 layout (fetched, outside the repo)
+epoch_capabilities_index/*            # Epoch AI bundle directory, the 2026-09 layout (fetched, outside the repo)
+*_scores.csv                          # Epoch AI bundle files in epoch_capabilities_index/ (eci, edi; fetched, outside the repo)
+processed_data_for_eci.csv            # Epoch AI bundle file in epoch_capabilities_index/ (fetched, outside the repo)
+eci_bootstraps.json                   # Epoch AI bundle file inside that directory (fetched, outside the repo)
+additional_eci_data/*                 # Epoch AI bundle directory (fetched, outside the repo)
+model_metadata.csv                    # Epoch AI bundle file (fetched, outside the repo)
+benchmark_metadata.csv                # Epoch AI bundle file (fetched, outside the repo)
+all_ai_models.csv                     # Epoch AI dataset file, a separate download (outside the repo)
 coding_ranking.*                      # an output format the M1 PRD specified; ranking is served by /v1 now
 survey.json                           # an upstream board payload quoted as fetched in a research or review record
 vision.json                           # an upstream board payload quoted as fetched in a research or review record
