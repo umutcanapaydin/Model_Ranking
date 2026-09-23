@@ -323,6 +323,104 @@ def resolve_effort(model_name: str, explicit: str | None = None) -> EffortResolu
     )
 
 
+# ── D-157: identities DERIVED from the data, for names no curated rule matches ─────────────────────
+#
+# The owner (2026-09-23, translated from Turkish): "if it is on a list, the list wins; but when we
+# cannot give anything, [...] we will present the list we derived from the data." The curated table
+# above still wins. A name it does not match is normalised by the fixed grammar below and registered
+# when the derived id has BOTH a price and a score -- what it needs to rank, and nothing it does not.
+#
+# The grammar removes DECORATION only: the route a price feed puts in front of a model, a batch or
+# endpoint suffix, a Bedrock version tag, a region or vendor prefix, Epoch's underscore effort, and
+# separator spelling. It never removes a date or a word, so it errs toward SPLITTING one model into
+# two spellings (the ADR's stated cost) and can never merge a variant into its parent.
+
+#: Dotted prefixes Bedrock and friends put before a model (`us.anthropic.claude-...`).
+_DOTTED_PREFIXES = frozenset({
+    "us", "eu", "au", "jp", "apac", "global", "us-gov", "anthropic", "meta", "amazon", "mistral",
+    "cohere", "ai21", "deepseek", "qwen", "openai", "google", "xai", "writer", "moonshotai", "minimax",
+})
+#: Epoch writes a run's effort after an underscore (`gpt-6-astra_high`). `none`, `minimal`,
+#: `promax` and `unknown` are not efforts this schema stores; they are removed and read as unspecified.
+_UNDERSCORE_EFFORT = re.compile(r"_(none|minimal|low|medium|high|xhigh|max|promax|unknown)\Z", re.I)
+#: The route segment before a model name, as price feeds write it, to the vendor it names.
+_VENDOR_SLUGS: dict[str, str] = {
+    "openai": "OpenAI", "anthropic": "Anthropic", "google": "Google", "gemini": "Google",
+    "meta-llama": "Meta", "meta": "Meta", "mistralai": "Mistral", "mistral": "Mistral",
+    "qwen": "Alibaba", "alibaba": "Alibaba", "deepseek": "DeepSeek", "deepseek-ai": "DeepSeek",
+    "x-ai": "xAI", "xai": "xAI", "moonshotai": "Moonshot", "z-ai": "Zhipu", "zai-org": "Zhipu",
+    "amazon": "Amazon", "microsoft": "Microsoft", "nvidia": "NVIDIA", "minimax": "MiniMax",
+    "cohere": "Cohere", "ai21": "AI21", "xiaomi": "Xiaomi", "baidu": "Baidu", "tencent": "Tencent",
+}
+#: When no route names a vendor, the family word a derived id starts with.
+_FAMILY_VENDORS: tuple[tuple[str, str], ...] = (
+    ("gpt", "OpenAI"), ("o1", "OpenAI"), ("o3", "OpenAI"), ("o4", "OpenAI"), ("claude", "Anthropic"),
+    ("gemini", "Google"), ("gemma", "Google"), ("llama", "Meta"), ("qwen", "Alibaba"),
+    ("qwq", "Alibaba"), ("grok", "xAI"), ("mistral", "Mistral"), ("ministral", "Mistral"),
+    ("magistral", "Mistral"), ("codestral", "Mistral"), ("devstral", "Mistral"),
+    ("deepseek", "DeepSeek"), ("kimi", "Moonshot"), ("glm", "Zhipu"), ("nova", "Amazon"),
+    ("phi", "Microsoft"), ("nemotron", "NVIDIA"), ("nvidia", "NVIDIA"), ("minimax", "MiniMax"),
+    ("mimo", "Xiaomi"), ("command", "Cohere"), ("jamba", "AI21"),
+)
+
+
+@dataclass(frozen=True)
+class DerivedIdentity:
+    """A derived model id, and the effort Epoch's underscore suffix stated, if any."""
+
+    model_id: str
+    effort: str | None
+
+
+def derive_identity(name: str) -> DerivedIdentity | None:
+    """The grammar's id for ``name``; None for a different product (the modality guard)."""
+    if any(rx.search(name) for _, rx in _MODALITY_RX):
+        return None
+    text = name.strip()
+    effort: str | None = None
+    suffix = _UNDERSCORE_EFFORT.search(text)
+    if suffix:
+        token = suffix.group(1).lower()
+        effort = token if token in EFFORT_LEVELS else None
+        text = text[: suffix.start()]
+    text = text.rsplit("/", 1)[-1]                 # the route: `openrouter/openai/...`
+    text = re.split(r"[:@]", text, maxsplit=1)[0]  # `:batch`, `:free`, `@default`, `-v1:0`
+    text = text.lower()
+    while True:                                    # `us.anthropic.`, `meta.`
+        head, dot, rest = text.partition(".")
+        if not (dot and rest and head in _DOTTED_PREFIXES):
+            break
+        text = rest
+    text = re.sub(r"[\s_]+", "-", text).strip("-")
+    text = re.sub(r"-v\d+\Z", "", text)             # Bedrock's `-v1`
+    text = re.sub(r"(?<=\d)-(\d)(?=-|\Z)", r".\1", text)  # `opus-5-5` is 5.5; `3-235b` is not
+    text = re.sub(r"([a-z])-(\d)", r"\1\2", text)     # `gpt-6` and `gpt6` are one spelling
+    if not text or not re.fullmatch(r"[a-z0-9][a-z0-9.+\-]*", text):
+        return None
+    return DerivedIdentity(model_id=text, effort=effort)
+
+
+def _derived_vendor(model_id: str, aliases: list[str]) -> str:
+    for alias in sorted(aliases):
+        parts = alias.lower().split("/")
+        candidates = [parts[-2]] if len(parts) > 1 else []
+        candidates += parts[-1].split(".")[:-1]
+        for slug in candidates:
+            if slug in _VENDOR_SLUGS:
+                return _VENDOR_SLUGS[slug]
+    for prefix, vendor in _FAMILY_VENDORS:
+        if model_id.startswith(prefix):
+            return vendor
+    return "Other"
+
+
+def _derived_display(names: list[str]) -> str:
+    """A board's own display spelling when one has it (`GPT-6 Astra`), else the shortest name."""
+    bare = sorted({_UNDERSCORE_EFFORT.sub("", n).strip() for n in names})
+    spaced = [n for n in bare if " " in n]
+    return spaced[0] if spaced else min(bare, key=lambda n: (len(n), n))
+
+
 @dataclass(frozen=True)
 class ReconcileReport:
     """Reconciliation outcome (REQ-CAN-001: drops are counted, never guessed)."""
@@ -337,6 +435,8 @@ class ReconcileReport:
     #: refused it. These are NOT registry drift and must be subtracted before the drop list is
     #: read as a list of models we are missing (M14-W1 review, MAJOR-2).
     modality_drops: tuple[tuple[str, str], ...] = ()
+    #: D-157: the models registered from the data by the grammar, not by a curated rule.
+    derived: tuple[str, ...] = ()
 
     @property
     def drift_dropped(self) -> int:
@@ -381,26 +481,81 @@ def reconcile_plans(conn: sqlite3.Connection) -> PlanReconcileReport:
     return PlanReconcileReport(matched, dropped, tuple(sorted(dropped_names)))
 
 
+@dataclass
+class _Pending:
+    """Names no curated rule matched, grouped by derived id until both halves are known."""
+
+    prices: dict[str, list[str]]
+    scores: dict[str, list[tuple[str, str, str | None, str]]]
+
+    def ready(self, curated: set[str]) -> list[str]:
+        """D-157's threshold: a price AND a score, and never an id a curated rule owns."""
+        return sorted(set(self.prices) & set(self.scores) - curated)
+
+
+def _register_derived(conn: sqlite3.Connection, pending: _Pending, model_id: str) -> tuple[int, int]:
+    """Link one derived model's rows and register it. Returns (aliases, score names) linked."""
+    aliases = pending.prices[model_id]
+    names = pending.scores[model_id]
+    for alias in aliases:
+        conn.execute("UPDATE pricing SET model_id = ? WHERE alias = ?", (model_id, alias))
+    for raw_name, effort, stated, _ in names:
+        if effort == EFFORT_UNSPECIFIED and stated:
+            # The effort the name states becomes the row's, so an effort-ranked surface can see it.
+            # OR IGNORE: a row already stored at that effort under the same name keeps its own.
+            conn.execute(
+                "UPDATE OR IGNORE scores SET model_id = ?, effort = ? WHERE raw_name = ? AND effort = ?",
+                (model_id, stated, raw_name, effort),
+            )
+        conn.execute(
+            "UPDATE scores SET model_id = ? WHERE raw_name = ? AND effort = ? AND model_id IS NULL",
+            (model_id, raw_name, effort),
+        )
+    conn.execute(
+        "INSERT OR REPLACE INTO models (id, display, vendor) VALUES (?,?,?)",
+        (model_id, _derived_display([part for *_, part in names]),
+         _derived_vendor(model_id, aliases)),
+    )
+    return len(aliases), len(names)
+
+
+def _unmatched(
+    name: str, grammar_name: str, refused_for: str | None,
+    dropped: list[str], modality_drops: list[tuple[str, str]],
+) -> DerivedIdentity | None:
+    """A name no curated rule took: the modality guard's refusal is dropped for its reason; anything
+    else is derived, or dropped when the grammar cannot read it."""
+    if refused_for:
+        modality_drops.append((name, refused_for))
+        dropped.append(name)
+        return None
+    derived = derive_identity(grammar_name)
+    if derived is None:
+        dropped.append(name)
+    return derived
+
+
 def reconcile(conn: sqlite3.Connection) -> ReconcileReport:
     """Map pricing aliases + score raw_names to canonical models.
 
     Score names embed the harness ("agent + model") — the model-ish remainder
     from split_harness is what gets canonicalized (W2 review carry-over).
-    Unmatched rows keep model_id NULL and are counted as dropped.
+    A name no curated rule matches is staged under its derived id (D-157) and linked only when that
+    id has both a price and a score; every other unmatched row keeps model_id NULL and is counted.
     """
     seen: dict[str, ModelRule] = {}
     dropped: list[str] = []
     modality_drops: list[tuple[str, str]] = []
-    p_matched = p_dropped = s_matched = s_dropped = 0
+    pending = _Pending(prices={}, scores={})
+    p_matched = s_matched = 0
 
     with conn:
         for (alias,) in conn.execute("SELECT DISTINCT alias FROM pricing").fetchall():
             rule, refused_for = canonicalize_with_reason(alias)
             if rule is None:
-                p_dropped += 1
-                dropped.append(alias)
-                if refused_for:
-                    modality_drops.append((alias, refused_for))
+                derived = _unmatched(alias, alias, refused_for, dropped, modality_drops)
+                if derived is not None:
+                    pending.prices.setdefault(derived.model_id, []).append(alias)
                 continue
             p_matched += 1
             seen[rule.canonical_id] = rule
@@ -415,10 +570,11 @@ def reconcile(conn: sqlite3.Connection) -> ReconcileReport:
             identity = resolve_effort(model_part, explicit)
             rule, refused_for = canonicalize_with_reason(identity.model_name)
             if rule is None:
-                s_dropped += 1
-                dropped.append(raw_name)
-                if refused_for:
-                    modality_drops.append((raw_name, refused_for))
+                derived = _unmatched(raw_name, identity.model_name, refused_for, dropped,
+                                     modality_drops)
+                if derived is not None:
+                    pending.scores.setdefault(derived.model_id, []).append(
+                        (raw_name, effort, derived.effort, identity.model_name))
                 continue
             s_matched += 1
             seen[rule.canonical_id] = rule
@@ -431,12 +587,24 @@ def reconcile(conn: sqlite3.Connection) -> ReconcileReport:
                 "INSERT OR REPLACE INTO models (id, display, vendor) VALUES (?,?,?)",
                 (rule.canonical_id, rule.display, rule.vendor),
             )
+        derived_ids = pending.ready({rule.canonical_id for rule in MODEL_RULES})
+        for model_id in derived_ids:
+            prices, scores = _register_derived(conn, pending, model_id)
+            p_matched += prices
+            s_matched += scores
+        linked = set(derived_ids)
+        dropped += [a for mid, aliases in pending.prices.items() if mid not in linked for a in aliases]
+        dropped += [n[0] for mid, names in pending.scores.items() if mid not in linked for n in names]
+    p_total = conn.execute("SELECT COUNT(DISTINCT alias) FROM pricing").fetchone()[0]
+    s_total = conn.execute("SELECT COUNT(*) FROM (SELECT DISTINCT raw_name, effort FROM scores)"
+                           ).fetchone()[0]
     return ReconcileReport(
         p_matched,
-        p_dropped,
+        p_total - p_matched,
         s_matched,
-        s_dropped,
-        len(seen),
+        s_total - s_matched,
+        len(seen) + len(derived_ids),
         tuple(sorted(dropped)),
         tuple(sorted(modality_drops)),
+        tuple(derived_ids),
     )

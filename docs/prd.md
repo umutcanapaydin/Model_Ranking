@@ -72,6 +72,7 @@ model_ranking is the backend/data engine of an "AI advisor" product: it aggregat
 **Acceptance:**
 - The same underlying model arriving under different aliases (e.g. `claude-4-5-opus`, `Claude 4.5 Opus medium`) maps to ONE canonical ID.
 - Unmatched names are dropped with a count reported, never guessed.
+- **Superseded in part by D-157 (M16-W4):** a name no curated rule matches is registered under a derived id when that id has both a price and a score (`registry.derive_identity`); the rest are still dropped and counted. Cited by `tests/unit/test_registry_derived.py`.
 **Customer source:** research B §6 step 1; spike finding (alias mapping is the core IP).
 **Status:** proposed
 
