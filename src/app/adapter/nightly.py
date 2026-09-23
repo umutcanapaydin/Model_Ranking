@@ -164,6 +164,16 @@ def recently_good(record: dict[str, object] | None, now: float) -> bool:
     return isinstance(at, int | float) and now - at < RECENT.total_seconds()
 
 
+def _aged(sources: object) -> str:
+    """`{"arena": 3.2}` as `arena 3.2d`, sorted; empty when there is nothing to say."""
+    if not isinstance(sources, dict):
+        return ""
+    parts = []
+    for name, age in sorted(sources.items()):
+        parts.append(f"{name} {age:.1f}d" if isinstance(age, int | float) else f"{name} ?d")
+    return ", ".join(parts)
+
+
 def refresh_command(db: Path, epoch_dir: str | None) -> list[str]:
     # `-P`: no working directory on the module path, so a stray `app/` beside the repository cannot
     # stand in for the refresh (security pass, NIT-1). `app` is found through PYTHONPATH only.
@@ -332,4 +342,8 @@ class NightlyRefresh:
             "refresh_next": self.next_run.isoformat(timespec="minutes") if self.next_run else "",
             "refresh_last": last,
             "refresh_last_at": last_at,
+            # D-156 clause 4: a source serving its last good data because it failed, and one whose
+            # data aged out and dropped. The app shows neither (D-151); this is where they show.
+            "refresh_carried": _aged(record.get("carried") if record else None),
+            "refresh_expired": _aged(record.get("expired") if record else None),
         }

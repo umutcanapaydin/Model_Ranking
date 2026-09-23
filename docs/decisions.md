@@ -2526,8 +2526,9 @@ D-128 then refused the candidate, throwing away every OTHER source's fresh data 
    required source fails the build as before. The refresh accepts a surface blinded by an EXPIRED
    carry -- D-128 would otherwise refuse the candidate and freeze every other source -- and still
    refuses every other blinding.
-4. **Disclosure is the engine's** (ruled 2026-09-23): the refresh record and `/health` name each
-   carried source and its age. `/v1` and the app do not change (D-151 keeps operations out of the
+4. **Disclosure is the engine's** (ruled 2026-09-23): the refresh record (`carried`, `expired`,
+   `sources_last_ok`) and `/health` (`refresh_carried`, `refresh_expired`, additive to D-154's four)
+   name each carried or expired source and its age. `/v1` and the app do not change (D-151 keeps operations out of the
    app; the board's own run date, already shown, is what a reader judges by).
 
 **The cost.** A price or a score can serve up to 30 days after its source stopped answering, beside

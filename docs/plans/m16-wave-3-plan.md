@@ -65,12 +65,12 @@ floors in `categories.py`; which rule each tie margin follows (D-148 clause 2).
   failed optional source carried, a failed required source carried instead of failing the build,
   an expired carry dropped, a fresh fetch replacing carried rows, and no carry when
   there is no live artifact.
-- [ ] **P2 — the refresh with carried and expired sources.** The refresh hands the live artifact to
+- [x] **P2 — the refresh with carried and expired sources.** The refresh hands the live artifact to
   the build; D-128 accepts a surface blinded by an expired carry and still refuses any other
   blinding; the refresh record names carried and expired sources with their age. *Acceptance:*
   the 2026-09-20 incident replayed as a test — Arena fails, the other sources' fresh data is
   published, Arena's rows are carried.
-- [ ] **P3 — disclosure** as ruled in decision 2: the refresh record and `/health` name each carried
+- [x] **P3 — disclosure** as ruled in decision 2: the refresh record and `/health` name each carried
   source and its age; `/v1` and the app do not change. ADR D-156 records decisions 1-3.
 - [ ] **P4 — the survey mode.** `scripts/survey_boards.py --floors` prints every surface's floor under
   D-148 (board rows, top third) beside today's; `parse_rate_board` keep-best tested. *Acceptance:*

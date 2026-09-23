@@ -286,6 +286,8 @@ def test_health_reports_the_last_recorded_cycle_and_the_next_run(tmp_path: Path)
         "refresh_next": "2026-09-23T23:41",
         "refresh_last": "refused",
         "refresh_last_at": "2026-09-22T11:41:08+00:00",
+        "refresh_carried": "",
+        "refresh_expired": "",
     }
 
 
