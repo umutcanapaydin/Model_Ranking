@@ -110,3 +110,78 @@ def test_the_curated_rules_win() -> None:
     report = reconcile(conn)
     assert report.derived == ()
     assert conn.execute("SELECT DISTINCT model_id FROM scores").fetchall() == [("gpt-5",)]
+
+
+# --- M16-W4 review BLOCKING-1: the grammar must never MERGE two products (docs/reviews/m16-wave-4-review.md)
+
+
+@pytest.mark.parametrize("names", [
+    ("DeepSeek-V2", "DeepSeek-V3", "deepseek/deepseek-v5"),
+    ("claude-v1", "anthropic.claude-v2", "anthropic.claude-v2:1"),
+    ("mistral-7b-instruct-v0:1", "mistral.mistral-7b-instruct-v0:2", "mistral-7b-instruct-v3"),
+    ("vertex_ai/gemini-1.5-pro@001", "vertex_ai/gemini-1.5-pro@002"),
+    ("vertex_ai/claude-3-5-sonnet@20240620", "claude-3.5-sonnet"),
+    ("anthropic/claude-3.7-sonnet:thinking", "anthropic/claude-3.7-sonnet"),
+    ("gpt-5:high", "gpt-5"),
+    ("deepseek-coder-v2", "deepseek/deepseek-coder"),
+    ("us.deepseek.r1-v1:0", "deepseek.v3-v1:0"),
+])
+def test_different_products_never_derive_one_id(names: tuple[str, ...]) -> None:
+    ids = [_id(n) for n in names]
+    assert len(set(ids)) == len(ids), dict(zip(names, ids, strict=True))
+
+
+def test_a_vendor_prefix_is_dropped_only_before_its_own_family() -> None:
+    assert _id("deepseek.r1") not in {"r1", None}
+    assert _id("anthropic.claude-opus-5-5") == _id("claude-opus-5.5")
+
+
+def test_bedrocks_api_tag_is_decoration_but_a_model_version_is_not() -> None:
+    assert _id("anthropic.claude-opus-5-5-v1:0") == _id("claude-opus-5.5")
+    assert _id("mistral.mistral-7b-instruct-v0:2") == _id("mistral-7b-instruct-v0.2")
+
+
+def test_a_fine_tune_is_never_derived() -> None:
+    assert derive_identity("ft:gpt-4o-mini:acme::abc123") is None
+
+
+def test_the_next_release_does_not_inherit_a_staged_score() -> None:
+    """Review BLOCKING-1: a `deepseek-v5` price met Epoch's staged `DeepSeek-V2` score."""
+    conn = _conn(["deepseek/deepseek-v5"], [("DeepSeek-V2", "unspecified")])
+    assert reconcile(conn).derived == ()
+
+
+# --- M16-W4 review MINOR-1 and MINOR-2 --------------------------------------------------------------
+
+
+def test_the_counts_never_go_negative() -> None:
+    conn = connect(":memory:")
+    conn.execute("INSERT INTO pricing (alias, input_per_m, output_per_m, source, source_url, "
+                 "observed_at) VALUES ('openai/gpt-6-astra', 1, 2, 'litellm', 'u', 'z')")
+    conn.executemany(
+        "INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, "
+        "source_url, observed_at) VALUES ('gpt-6-astra_high', ?, 'm', 70, 'none', ?, 'x', 'u', 'z')",
+        [("A", "high"), ("B", "unspecified")])
+    report = reconcile(conn)
+    assert report.scores_dropped >= 0 and report.pricing_dropped >= 0
+
+
+def test_a_curated_id_is_never_taken_by_a_derived_one() -> None:
+    """Review M23: `o3_none` matches no curated rule but derives to `o3`, which a curated rule owns."""
+    conn = _conn(["o3_none"], [("o3_minimal", "unspecified")])
+    assert reconcile(conn).derived == ()
+
+
+def test_the_vendor_comes_from_the_route_when_it_names_one() -> None:
+    conn = _conn(["openrouter/meta-llama/zeta-9"], [("zeta-9", "unspecified")])
+    reconcile(conn)
+    assert conn.execute("SELECT vendor FROM models").fetchone() == ("Meta",)
+
+
+def test_a_derived_model_is_counted_as_registered() -> None:
+    conn = _conn(["openai/gpt-6-astra"], [("GPT-6 Astra", "unspecified")])
+    assert reconcile(conn).models_registered == 1
+
+
+def test_an_effort_the_schema_does_not_store_is_still_decoration() -> None:
+    assert _id("gpt-6-astra_none") == _id("gpt-6-astra") == _id("gpt-6-astra_minimal")
