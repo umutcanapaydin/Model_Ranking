@@ -20,7 +20,6 @@ from app.workflows import build as build_mod
 from app.workflows.refresh import (
     EXIT_FAILED,
     EXIT_PUBLISHED,
-    EXIT_REFUSED,
     refresh,
     status_path,
 )
@@ -49,10 +48,16 @@ def _optional(sources: tuple[RemoteSource, ...], name: str) -> tuple[RemoteSourc
 
 
 def _first_cycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Publish a first artifact, then age its rows by an hour: real cycles are a night apart, and a
+    carried row is told from an arrived one by its stamp, which has one-second resolution."""
     live = tmp_path / "advisor.db"
     _use(monkeypatch, _sources())
     _, code = refresh(live)
     assert code == EXIT_PUBLISHED
+    earlier = (dt.datetime.now(tz=dt.UTC) - dt.timedelta(hours=1)).isoformat(timespec="seconds")
+    with sqlite3.connect(live) as db:
+        for table in ("scores", "pricing"):
+            db.execute(f"UPDATE {table} SET observed_at = ?", (earlier,))
     return live
 
 
@@ -116,7 +121,7 @@ def test_an_expired_source_drops_its_surface_instead_of_freezing_the_artifact(
     assert set(_record(live)["expired"]) == {"swebench"}
 
 
-def test_any_other_blinding_is_still_refused(
+def test_the_exemption_reaches_only_a_source_that_aged_out(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The exemption is for an EXPIRED carry only. The same optional source failing with nothing
@@ -126,8 +131,9 @@ def test_any_other_blinding_is_still_refused(
     with sqlite3.connect(live) as db:  # the live artifact loses swebench without aging it out
         db.execute("DELETE FROM scores WHERE source = 'swebench'")
     _use(monkeypatch, _optional(_sources(swebench=None), "swebench"))
-    _, code = refresh(live)
-    assert code in (EXIT_REFUSED, EXIT_PUBLISHED, EXIT_FAILED)
+    refresh(live)
+    # The refusal itself for a blinded surface is D-128's own test (test_refresh.py); what this
+    # pins is that the EXEMPTION does not reach a source that did not age out.
     assert not _record(live).get("expired"), "a source that was never aged out was called expired"
 
 
@@ -145,3 +151,18 @@ def test_a_required_source_past_its_age_fails_the_cycle_and_nothing_is_published
     _, code = refresh(live)
     assert code == EXIT_FAILED
     assert sqlite3.connect(live).execute("SELECT COUNT(*) FROM scores").fetchone()[0] == digest
+
+
+@pytest.mark.parametrize(("code", "counts"), [(0, True), (1, True), (2, False), (3, False)])
+def test_only_a_served_cycle_counts_as_an_arrival(tmp_path: Path, code: int, counts: bool) -> None:
+    """A refused (3) or failed (2) cycle's data is not what is served, so its arrivals do not
+    reset the 30 days; a published (0) or unchanged (1) cycle's do."""
+    from app.workflows.refresh import RefreshOutcome, write_status
+
+    target = tmp_path / "advisor.db"
+    status_path(target).write_text(json.dumps({"sources_last_ok": {"arena": "2026-09-01T00:00:00+00:00"}}))
+    outcome = RefreshOutcome(published=code == 0, reason="r", live_fingerprint=None,
+                             candidate_fingerprint="", surfaces=1, arrived=("arena",))
+    write_status(target, outcome, code, at=dt.datetime(2026, 9, 23, tzinfo=dt.UTC).timestamp())
+    seen = _record(target)["sources_last_ok"]["arena"]
+    assert (seen == "2026-09-23T00:00:00+00:00") is counts

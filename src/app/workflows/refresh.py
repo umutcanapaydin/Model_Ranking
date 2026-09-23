@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import dataclasses
 import datetime as dt
 import fcntl
 import hashlib
@@ -36,6 +37,7 @@ from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, fields
 from pathlib import Path
 
+from app.workflows.build import CARRY_MAX_AGE
 from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
 from app.workflows.rank import category_ranking
@@ -86,6 +88,11 @@ class RefreshOutcome:
     live_fingerprint: str | None
     candidate_fingerprint: str
     surfaces: int
+    #: D-156. Sources that arrived fresh in this cycle's candidate; sources serving carried rows,
+    #: with their age in days; sources whose last good data aged out, with that age.
+    arrived: tuple[str, ...] = ()
+    carried: dict[str, float] = dataclasses.field(default_factory=dict)
+    expired: dict[str, float] = dataclasses.field(default_factory=dict)
 
     def as_json(self) -> str:
         return json.dumps(
@@ -175,7 +182,9 @@ def upward_anomalies(live: ServingSummary, candidate: ServingSummary) -> list[st
     return reasons
 
 
-def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
+def degradations(
+    live: ServingSummary, candidate: ServingSummary, excused: frozenset[str] = frozenset()
+) -> list[str]:
     """Every way the candidate would be WORSE than what is being served. Empty means it is safe.
 
     Reasons are returned rather than a boolean, because the operator's first question on a refusal
@@ -187,7 +196,11 @@ def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
     the product, and refusing to publish a decline would be worse than publishing it.
     """
     reasons: list[str] = []
+    # D-156: a surface whose primary source's carried data EXPIRED is meant to drop ("if the data
+    # is about a month old, the list drops"). Refusing it would freeze every other source.
     for name, was in sorted(live.surfaces.items()):
+        if name in excused:
+            continue
         now = candidate.surfaces.get(name, 0)
         if was and not now:
             reasons.append(f"{name} answered with {was} models and would now answer nothing")
@@ -203,6 +216,8 @@ def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
     # words — and it is invisible to every row count, because the rows are all still there and
     # merely unaffordable.
     for name, budgets in sorted(live.eligible.items()):
+        if name in excused:
+            continue
         after = candidate.eligible.get(name, {})
         for budget, was_eligible in sorted(budgets.items()):
             if was_eligible and not after.get(budget, 0):
@@ -545,6 +560,16 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
     if code == EXIT_PUBLISHED:
         last_published = at
 
+    # D-156. When each source last ARRIVED in a cycle whose content is what is served -- published,
+    # or unchanged because it matched what is served. A refused or failed cycle's arrivals are not
+    # served, so they do not count, and a CARRIED source never counts as arriving: its clock keeps
+    # running from the last real arrival, or the 30 days would restart every night.
+    seen = previous.get("sources_last_ok")
+    last_ok = {str(k): str(v) for k, v in seen.items()} if isinstance(seen, dict) else {}
+    if code in (EXIT_PUBLISHED, EXIT_UNCHANGED):
+        stamp = dt.datetime.fromtimestamp(at, tz=dt.UTC).isoformat(timespec="seconds")
+        last_ok.update({name: stamp for name in outcome.arrived})
+
     payload = {
         "at": at,
         "at_iso": dt.datetime.fromtimestamp(at, tz=dt.UTC).isoformat(),
@@ -568,6 +593,11 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
         #: running"; this answers "is what people are reading current", and they diverge exactly
         #: when it matters — a refresh cycling happily and refusing every time.
         "last_published_at": last_published,
+        "sources_last_ok": last_ok,
+        #: D-156: what this cycle served from the live artifact because its source failed, and
+        #: what aged out and dropped. `/health` reads these.
+        "carried": outcome.carried,
+        "expired": outcome.expired,
     }
     # UNIQUE scratch, not a shared name. The artifact's candidate has always used `mkstemp` and
     # this used a fixed `<name>.writing` — the same lesson applied once. An independent review
@@ -675,7 +705,8 @@ def refresh(
 
 
 def _reason_to_refuse(
-    target: Path, live: ServingSummary | None, fresh: ServingSummary
+    target: Path, live: ServingSummary | None, fresh: ServingSummary,
+    excused: frozenset[str] = frozenset(),
 ) -> str | None:
     """Why this candidate must not be published, or None if it may be.
 
@@ -690,7 +721,7 @@ def _reason_to_refuse(
     if live is None:
         return None
 
-    worse = degradations(live, fresh)
+    worse = degradations(live, fresh, excused)
     if worse:
         return "refused: the candidate is worse than what is being served — " + "; ".join(worse)
 
@@ -716,6 +747,69 @@ def _reason_to_refuse(
             "publishing over a decision made against an artifact that is gone"
         )
     return None
+
+
+def _read_last_ok(target: Path) -> dict[str, str]:
+    """The per-source arrival record from this artifact's previous cycle (D-156)."""
+    with contextlib.suppress(OSError, ValueError, AttributeError):
+        seen = json.loads(status_path(target).read_text(encoding="utf-8")).get("sources_last_ok")
+        if isinstance(seen, dict):
+            return {str(k): str(v) for k, v in seen.items()}
+    return {}
+
+
+def _stamps(path: Path) -> dict[str, str]:
+    """Each source's newest `observed_at` in an artifact, across evidence and pricing."""
+    out: dict[str, str] = {}
+    conn = open_readonly(path)
+    try:
+        for table in ("scores", "pricing"):
+            for source, newest in conn.execute(
+                f"SELECT source, MAX(observed_at) FROM {table} GROUP BY source"  # noqa: S608
+            ):
+                if newest and newest > out.get(source, ""):
+                    out[source] = newest
+    finally:
+        conn.close()
+    return out
+
+
+def _age_days(stamp: str | None, now: dt.datetime) -> float | None:
+    try:
+        then = dt.datetime.fromisoformat(stamp or "")
+    except ValueError:
+        return None
+    if then.tzinfo is None:
+        then = then.replace(tzinfo=dt.UTC)
+    return round((now - then).total_seconds() / 86400, 1)
+
+
+def _sources_after_build(
+    target: Path, candidate: Path, last_ok: dict[str, str], now: dt.datetime
+) -> tuple[tuple[str, ...], dict[str, float], dict[str, float]]:
+    """(arrived, carried, expired) for this cycle, read from the two artifacts themselves.
+
+    The candidate's newest stamp is this build's own; a source carrying it ARRIVED. A source in the
+    candidate with an older stamp was CARRIED from the live artifact. A source the live artifact
+    holds and the candidate does not, whose last arrival is past the limit, EXPIRED -- and only
+    that, so a source that vanished for any other reason is still a blinding D-128 refuses.
+    """
+    fresh = _stamps(candidate)
+    this_run = max(fresh.values(), default="")
+    arrived = tuple(sorted(s for s, stamp in fresh.items() if stamp == this_run))
+    live_stamps = _stamps(target) if target.is_file() else {}
+    carried: dict[str, float] = {}
+    for source, stamp in fresh.items():
+        if stamp != this_run:
+            carried[source] = _age_days(last_ok.get(source) or stamp, now) or 0.0
+    expired: dict[str, float] = {}
+    for source, stamp in live_stamps.items():
+        if source in fresh:
+            continue
+        age = _age_days(last_ok.get(source) or stamp, now)
+        if age is not None and age > CARRY_MAX_AGE.days:
+            expired[source] = age
+    return arrived, carried, expired
 
 
 def _cycle(
@@ -750,6 +844,19 @@ def _cycle(
     candidate = Path(raw)
     candidate.unlink(missing_ok=True)  # sqlite creates it; mkstemp only reserved the name
 
+    # D-156: the build falls back on the live artifact for any source that fails, judged by the
+    # per-source arrival record. Handed over as a file because the build is a separate entry point.
+    last_ok = _read_last_ok(target)
+    carry_args: list[str] = []
+    record_file: Path | None = None
+    if target.is_file():
+        handle, raw_record = tempfile.mkstemp(prefix=f"{target.name}.", suffix=".last-ok",
+                                              dir=target.parent)
+        with os.fdopen(handle, "w", encoding="utf-8") as stream:
+            json.dump(last_ok, stream)
+        record_file = Path(raw_record)
+        carry_args = ["--carry-from", str(target), "--last-ok", str(record_file)]
+
     try:
         # The build prints its own report to stdout, and this function prints ITS outcome there
         # too — so an unattended caller reading stdout got two JSON documents concatenated and
@@ -759,7 +866,7 @@ def _cycle(
         # The build's report is diagnostics and belongs in the log; the refresh outcome is the
         # RESULT and belongs on stdout alone. Redirecting rather than discarding keeps both.
         with contextlib.redirect_stdout(sys.stderr):
-            code = builder(["--db", str(candidate), *build_args])
+            code = builder(["--db", str(candidate), *build_args, *carry_args])
         if code not in (0, 3):  # 3 = an optional source is blind and said so (D-121)
             outcome = RefreshOutcome(
                 published=False,
@@ -785,6 +892,11 @@ def _cycle(
             )
             return record(outcome, EXIT_FAILED)
 
+        arrived, carried, expired = _sources_after_build(
+            target, candidate, last_ok, dt.datetime.now(tz=dt.UTC))
+        excused = frozenset(
+            name for name, spec in CATEGORIES.items() if spec.primary_source in expired)
+
         if live is not None and fresh.digest == live.digest:
             return record(
                 RefreshOutcome(
@@ -793,11 +905,14 @@ def _cycle(
                     live_fingerprint=live.digest,
                     candidate_fingerprint=fresh.digest,
                     surfaces=fresh.answering,
+                    arrived=arrived,
+                    carried=carried,
+                    expired=expired,
                 ),
                 EXIT_UNCHANGED,
             )
 
-        refusal = _reason_to_refuse(target, live, fresh)
+        refusal = _reason_to_refuse(target, live, fresh, excused)
         if refusal is not None:
             return record(
                 RefreshOutcome(
@@ -806,6 +921,8 @@ def _cycle(
                     live_fingerprint=live.digest if live else None,
                     candidate_fingerprint=fresh.digest,
                     surfaces=fresh.answering,
+                    carried=carried,
+                    expired=expired,
                 ),
                 EXIT_REFUSED,
             )
@@ -838,6 +955,9 @@ def _cycle(
                 live_fingerprint=live.digest if live else None,
                 candidate_fingerprint=fresh.digest,
                 surfaces=fresh.answering,
+                arrived=arrived,
+                carried=carried,
+                expired=expired,
             ),
             EXIT_PUBLISHED,
         )
@@ -846,6 +966,8 @@ def _cycle(
         # artifact now or it is gone; a `.candidate` file left on disk is litter that the next
         # cycle cannot tell from a live sibling's work.
         candidate.unlink(missing_ok=True)
+        if record_file is not None:
+            record_file.unlink(missing_ok=True)
 
 
 def main(argv: list[str] | None = None) -> int:
