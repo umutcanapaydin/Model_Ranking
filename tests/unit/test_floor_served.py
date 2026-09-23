@@ -318,3 +318,70 @@ def test_a_board_that_returns_is_not_refused(seeded: Path, tmp_path: Path) -> No
     assert live is not None and returned is not None
     assert not live.board["coding"] and returned.board["coding"], "the fixture proves nothing"
     assert not [r for r in upward_anomalies(live, returned) if "board" in r]
+
+
+def _board_changed(seeded: Path, tmp_path: Path, base: int, added: int = 0, removed: int = 0) -> tuple:
+    """Fingerprints of `coding`'s board with `base` extra rows, then `added` more and `removed` of
+    the extra ones, all rows nobody prices -- so the ranked rows never move."""
+    import shutil
+
+    from app.workflows.refresh import fingerprint_of
+
+    _raise_the_board(seeded, "coding", above=10.0, rows=base, name="base")
+    live = fingerprint_of(seeded)
+    changed = tmp_path / "changed.db"
+    shutil.copy(seeded, changed)
+    _raise_the_board(changed, "coding", above=74.5, rows=added)
+    with sqlite3.connect(changed) as conn:
+        conn.execute("DELETE FROM scores WHERE rowid IN (SELECT rowid FROM scores "
+                     "WHERE raw_name LIKE 'base-%' ORDER BY raw_name LIMIT ?)", (removed,))
+    candidate = fingerprint_of(changed)
+    assert live is not None and candidate is not None
+    assert candidate.surfaces == live.surfaces, "a ranked row moved -- the test would prove nothing"
+    return live, candidate
+
+
+@pytest.mark.parametrize(("added", "refused"), [(10, False), (11, True)])
+def test_the_board_growth_limit_is_a_quarter_exactly(
+    seeded: Path, tmp_path: Path, added: int, refused: bool
+) -> None:
+    """Re-review 2 MINOR-2: the quarter is pinned at its edge. 30 names gaining 10 is 10 of 40, AT a
+    quarter, which passes (D-132: "more than"); 11 of 41 is over it."""
+    from app.workflows.refresh import upward_anomalies
+
+    live, grown = _board_changed(seeded, tmp_path, base=27, added=added)
+    assert len(live.board["coding"]) == 30
+    flagged = any(r.startswith("coding's board") for r in upward_anomalies(live, grown))
+    assert flagged is refused
+
+
+@pytest.mark.parametrize(("removed", "refused"), [(9, False), (10, True)])
+def test_a_board_that_loses_a_quarter_of_its_names_is_refused(
+    seeded: Path, tmp_path: Path, removed: int, refused: bool
+) -> None:
+    """Re-review 2 MAJOR-1: the guard counted only names ADDED. A board that lost 85 of its 173
+    unpriced rows moved `coding`'s floor from 65.4 to 71.4 and published; when they came back, the
+    guard refused them every night as "never seen". The loss is now held to D-128's limit: 10 of 40
+    names is AT a quarter, which D-128 refuses ("at or over"); 9 is under it."""
+    from app.workflows.refresh import degradations
+
+    live, shrunk = _board_changed(seeded, tmp_path, base=37, removed=removed)
+    assert len(live.board["coding"]) == 40
+    flagged = any(r.startswith("coding's board") for r in degradations(live, shrunk))
+    assert flagged is refused
+
+
+def test_the_refresh_refuses_a_board_that_shrinks_end_to_end(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MAJOR-1 through the real `refresh()`: 16 of 18 names leave the board, and the cycle refuses."""
+    from app.workflows.refresh import EXIT_REFUSED, refresh
+
+    from .test_build import _sources
+    from .test_refresh_carry import _first_cycle, _use
+
+    live = _first_cycle(tmp_path, monkeypatch, swebench=_swebench_with(16))
+    _use(monkeypatch, _sources(swebench=_swebench_with(0)))
+    outcome, code = refresh(live)
+    assert code == EXIT_REFUSED, outcome.reason
+    assert "coding's board" in (outcome.reason or ""), outcome.reason
