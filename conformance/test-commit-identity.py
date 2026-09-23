@@ -32,7 +32,7 @@ Usage: test-commit-identity.py [--range A..B] [--base REF] [--owner-email EMAIL]
             owner email = git config user.email.
 Exit: 0 clean - 1 violations - 2 cannot run.
 """
-import subprocess, sys, pathlib, tempfile
+import re, subprocess, sys, pathlib, tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from lib_record import missing_tool, scrubbed_env                    # noqa: E402
@@ -54,6 +54,11 @@ AI_EMAILS = ("noreply@anthropic.com",)
 # without the trailer is unattributable agent work. Session commits under the owner's identity carry
 # it too, but nothing can tell them from the owner's own, so there it is a convention, not a check.
 AGENT_TRAILER = "GP-Agent:"
+# #17: a `GP-Agent:` LINE with a value -- at the start of any line of the message, not a mention inside
+# a sentence. Not git's own trailer parser: git reads trailers only from the message's last
+# paragraph, and this project's commits have long carried `GP-Agent` in its own paragraph, above
+# `GP-Task` or `Co-Authored-By` (the #17 Tester seat counted 113 of 220).
+AGENT_LINE = re.compile(r"^GP-Agent:[ \t]*\S", re.M)
 
 
 def sh(args, cwd=None):
@@ -232,10 +237,7 @@ def main() -> int:
     known = {e for e in set(known_raw.splitlines()) | {owner}
              if e and e != MACHINE and e.lower() not in AI_EMAILS}
 
-    # %(trailers:...) is git's own trailer parser: a `GP-Agent:` in the body's prose is not a
-    # trailer (#17), only one in the message's final trailer block is.
-    _, log = sh(["git", "log", "--format=%H%x00%ae%x00%ce%x00%aI%x00%(trailers:key=GP-Agent,valueonly)"
-                 "%x00%B%x1e", rng, "-n", "200"])
+    _, log = sh(["git", "log", "--format=%H%x00%ae%x00%ce%x00%aI%x00%B%x1e", rng, "-n", "200"])
     bad = []
     n = 0
     pre_epoch = 0
@@ -244,7 +246,7 @@ def main() -> int:
         if not entry.strip():
             continue
         n += 1
-        sha, email, cemail, adate, trailer, body = (entry.strip("\n").split("\x00") + [""] * 5)[:6]
+        sha, email, cemail, adate, body = (entry.strip("\n").split("\x00") + ["", "", "", ""])[:5]
         ai_identity = [(role, e) for role, e in (("author", email), ("committer", cemail))
                        if e.lower() in AI_EMAILS]
         ai_attributed = bool(ai_identity) or any(m in body for m in AI_MARKERS)
@@ -266,7 +268,7 @@ def main() -> int:
                 bad.append(f"{sha[:9]} machine identity on the FIRST-PARENT chain -- agent work "
                            "reached the protected branch as a human's history. It should have "
                            "arrived as a pull request a human merged")
-        elif sha in ai_pop and email == MACHINE and not trailer.strip():
+        elif sha in ai_pop and email == MACHINE and not AGENT_LINE.search(body):
             bad.append(f"{sha[:9]} machine identity with no `{AGENT_TRAILER}` trailer -- an agent "
                        "commit must say which agent made it (D-155 clause 2, D-161)")
         elif sha in ai_pop and email != MACHINE and email not in known \

@@ -12,6 +12,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -127,13 +128,12 @@ def test_a_close_with_no_version_and_no_date_is_graded_not_skipped(
     monkeypatch.setattr(module, "ROOT", tmp_path)
     code = module.main()
     out = capsys.readouterr().out
-    assert "0 v5.0-or-later record(s) validated" not in out, out
-    assert "1 pre-migration" not in out, out
-    assert code != 0 or "1 v5.0-or-later record(s) validated" in out, out
+    assert code == 1, out
+    assert "is undated" in out and "1 without the stamp" in out, out
 
 
-def test_a_trailer_is_read_as_a_trailer_not_a_substring(tmp_path: Path) -> None:
-    """#17 (1): a machine commit whose BODY merely mentions "GP-Agent:" passed the check."""
+def _machine_commit_verdict(tmp_path: Path, *paragraphs: str) -> subprocess.CompletedProcess[str]:
+    """test-commit-identity on a branch holding one machine-identity commit with this message."""
     repo = tmp_path / "repo"
     repo.mkdir()
     env_base = {"GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1", "HOME": str(tmp_path),
@@ -151,10 +151,66 @@ def test_a_trailer_is_read_as_a_trailer_not_a_substring(tmp_path: Path) -> None:
     git("switch", "-q", "-c", "work/1")
     (repo / "f").write_text("b", encoding="utf-8")
     git("add", "f")
-    git("commit", "-qm", "agent", "-m", "see GP-Agent: notes somewhere in the body.",
-        "-m", "Reviewed-by: nobody", email="gp-agent@users.noreply.github.com", name="gp-agent")
-    result = subprocess.run([sys.executable, str(ROOT / "conformance/test-commit-identity.py"),
-                             "--owner-email", "o@x"], cwd=repo, capture_output=True,
-                            encoding="utf-8", env=env_base, check=False)
-    assert result.returncode == 1, result.stdout
-    assert "no `GP-Agent:` trailer" in result.stdout, result.stdout
+    message = [arg for p in paragraphs for arg in ("-m", p)]
+    git("commit", "-q", *message, email="gp-agent@users.noreply.github.com", name="gp-agent")
+    return subprocess.run([sys.executable, str(ROOT / "conformance/test-commit-identity.py"),
+                           "--owner-email", "o@x"], cwd=repo, capture_output=True,
+                          encoding="utf-8", env=env_base, check=False)
+
+
+@pytest.mark.parametrize(("paragraphs", "refused"), [
+    # #17 (1): a mention inside a sentence is not the trailer.
+    (("agent", "see GP-Agent: notes somewhere in the body.", "Reviewed-by: nobody"), True),
+    # Tester M1: a trailer with no value names no agent.
+    (("agent", "GP-Agent:"), True),
+    # Tester MAJOR-1: this project's own shape, GP-Agent in its own paragraph above another.
+    (("agent", "GP-Agent: issue-agent", "GP-Task: #17"), False),
+    (("agent", "GP-Agent: issue-agent\nGP-Task: #17"), False),
+])
+def test_a_trailer_is_read_as_a_line_not_a_substring(
+    tmp_path: Path, paragraphs: tuple[str, ...], refused: bool
+) -> None:
+    result = _machine_commit_verdict(tmp_path, *paragraphs)
+    assert (result.returncode == 1) is refused, result.stdout
+    assert ("no `GP-Agent:` trailer" in result.stdout) is refused, result.stdout
+
+
+@pytest.mark.parametrize("front", [
+    'date: ""\n',          # Tester M3: quoted empty
+    "date:\n",             # Tester M2: an empty date as the LAST field must not read `---`
+])
+def test_an_empty_date_is_undated_wherever_it_sits(
+    front: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    module = _wave_check_all_in(tmp_path, monkeypatch,
+                                "---\nrecord_type: wave\nid: m99-wave-1-close\nstatus: draft\n"
+                                f"{front}---\n# undated\n")
+    assert module.main() == 1
+    assert "is undated" in capsys.readouterr().out
+
+
+def test_a_quoted_date_is_a_date(monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+                                 capsys: pytest.CaptureFixture[str]) -> None:
+    """Tester M3: `date: "2026-10-01"` was filed as pre-migration."""
+    module = _wave_check_all_in(tmp_path, monkeypatch,
+                                "---\nrecord_type: wave\nid: m99-wave-1-close\nstatus: draft\n"
+                                'date: "2026-10-01"\n---\n# quoted\n')
+    assert module.main() == 1
+    assert "dated 2026-10-01" in capsys.readouterr().out
+
+
+def _wave_check_all_in(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, record: str) -> ModuleType:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("wave_check_all", ROOT / "scripts/wave_check_all.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    plans = tmp_path / "docs" / "plans"
+    plans.mkdir(parents=True)
+    (plans / "m99-wave-1-close.md").write_text(record, encoding="utf-8")
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "wave_check.py").write_text("def main(argv):\n    return 0\n",
+                                                         encoding="utf-8")
+    monkeypatch.setattr(module, "ROOT", tmp_path)
+    return module

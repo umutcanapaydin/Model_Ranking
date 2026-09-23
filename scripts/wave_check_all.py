@@ -49,7 +49,9 @@ PATTERN = "docs/plans/m*-wave-*-close.md"
 
 
 def _front(text: str, field: str) -> str | None:
-    match = re.search(rf"^{field}:\s*(\S+)\s*$", text, re.MULTILINE)
+    # `[ \t]*`, never `\s*`: `\s` crosses the newline, and an empty `date:` read the next line
+    # (`---`) as its value (#17 Tester M2). A quoted value is the value (M3).
+    match = re.search(rf"^{field}:[ \t]*['\"]?([^\s'\"]+)['\"]?[ \t]*$", text, re.MULTILINE)
     return match.group(1) if match else None
 
 
