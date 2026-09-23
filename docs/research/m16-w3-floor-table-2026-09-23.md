@@ -69,7 +69,8 @@ ruling, and not in the table the owner ruled from:
 | agentic-coding | unlimited | Budget Pick | Perplexity Pro ($20, 53.8) | ChatGPT Pro ($100, 69.4) |
 
 At `medium` no plan clears 64.4, so the subscription answer falls back to the cheapest plan with a
-warning. Put to the owner at this wave's close.
+warning. **Put to the owner and accepted 2026-09-23** (translated from Turkish: "accepted, we will
+look at it later, no problem"): the CLI-only subscription answer follows the same rule.
 
 ## The ruling
 
