@@ -2801,6 +2801,8 @@ Until now this project's agent commits were authored by the tool's own address w
      its own closure with `make closure-check`, as before.
    - P-005's risk tiers (one combined reviewer on a LOW/MED wave) and a security seat at every
      milestone close stay, beside v6.4's Code-Reviewer-then-Tester and its single Stage 5.1 review.
+   - `scripts/bootstrap-check.sh` is v6.4's, plus W-015's strip of inline code spans, which v6.4's
+     position-aware scan still lacks.
    - `make lint` covers `scripts/`, so two DevFlow scripts carry small lint fixes
      (`slopsquat_check.py`, `create_labels.py`), and the 82 text reads and writes that v6.4's
      `conformance/test-text-encoding.py` found in `src/`, `scripts/` and `tests/` now name UTF-8.
