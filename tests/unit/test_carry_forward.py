@@ -257,3 +257,38 @@ def test_a_carried_row_takes_its_model_id_from_this_build_not_the_live_one(tmp_p
     assert conn.execute("SELECT COUNT(*) FROM scores WHERE raw_name = 'a-model-nobody-knows'"
                         ).fetchone()[0] == 1, "the row was not carried at all"
     assert conn.execute("SELECT COUNT(*) FROM scores WHERE model_id = 'stale-id'").fetchone()[0] == 0
+
+
+def test_rows_stamped_in_the_future_are_young_not_expired(tmp_path: Path) -> None:
+    """Re-review MINOR-1: after a clock steps back, the arrival AND the rows are ahead of now. That
+    is the clock's fault, not the data's age: the source carries at age 0 instead of expiring and
+    failing the cycle. An arrival alone in the future still falls back to the rows (above)."""
+    live = _live(tmp_path)
+    sqlite3.connect(live).execute("UPDATE scores SET observed_at = ? WHERE source = 'aider'",
+                                  (_iso(-1 / 24),)).connection.commit()
+    _, report = _candidate(tmp_path, live, last_ok={"aider": _iso(-1 / 24)}, aider=None)
+    assert report.carried == {"aider": 0.0}
+    assert report.expired == {}
+
+
+def test_a_carry_that_cannot_be_inserted_leaves_nothing_behind(tmp_path: Path) -> None:
+    """Re-review NIT-1: the guard on the carried insert. A schema the carried rows no longer fit
+    degrades to "nothing carried": no rows of the source, not in `carried`, and no stray `since`."""
+    from app.workflows.build import Carry
+
+    live = _live(tmp_path)
+    conn = connect(str(tmp_path / "candidate.db"))
+    conn.execute("INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, "
+                 "source_url, observed_at) VALUES ('stale', 'b', 'm', 1, 'h', 'unspecified', "
+                 "'aider', 'u', 'z')")  # a failed fetch's partial row, reset before the fall-back
+    conn.execute("DELETE FROM scores WHERE source = 'aider'")
+    conn.execute("CREATE TRIGGER no_carry BEFORE INSERT ON pricing WHEN NEW.source = 'aider' "
+                 "BEGIN SELECT RAISE(ABORT, 'does not fit'); END")
+    sqlite3.connect(live).execute(
+        "INSERT INTO pricing (alias, input_per_m, output_per_m, source, source_url, observed_at) "
+        "VALUES ('x', 1, 1, 'aider', 'u', ?)", (_iso(1),)).connection.commit()
+    carry = Carry(live=live, last_ok={"aider": _iso(1)}, now=NOW)
+
+    assert carry.restore(conn, "aider") == "absent"
+    assert _rows(conn, "aider") == []
+    assert carry.carried == {} and "aider" not in carry.since

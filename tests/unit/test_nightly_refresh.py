@@ -562,3 +562,12 @@ def test_health_says_nothing_is_carried_when_nothing_is(tmp_path: Path) -> None:
     (tmp_path / "advisor.db.refresh.json").write_text(json.dumps({"at": NOW, "exit_code": 1}))
     report = nightly.NightlyRefresh(db=tmp_path / "advisor.db", command=["unused"]).report()
     assert report["refresh_carried"] == "" and report["refresh_expired"] == ""
+
+
+def test_a_stamp_from_the_future_prints_no_negative_age() -> None:
+    """Re-review MINOR-1 (S9): a clock that stepped back is not an age of minus two days."""
+    from app.adapter.nightly import _aged
+
+    now = dt.datetime(2026, 9, 23, tzinfo=dt.UTC)
+    ahead = (now + dt.timedelta(days=2)).isoformat()
+    assert _aged({"a": ahead}, now) == "a ?d"
