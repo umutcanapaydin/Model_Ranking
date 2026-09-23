@@ -243,3 +243,59 @@ def test_the_refresh_publishes_a_board_that_grew_only_by_unranked_rows(
     floor_after = derived_floor(sqlite3.connect(live), CATEGORIES["coding"])
     assert floor_before is not None and floor_after is not None and floor_after > floor_before
 
+
+# --- The owner's flood guard (2026-09-23, D-159 correction) --------------------------------------
+
+
+def _board_grown(seeded: Path, tmp_path: Path, base: int, added: int) -> tuple[object, object]:
+    """Fingerprints of `coding`'s board at `base` extra rows, and after `added` more nobody prices."""
+    import shutil
+
+    from app.workflows.refresh import fingerprint_of
+
+    _raise_the_board(seeded, "coding", above=10.0, rows=base, name="base")
+    live = fingerprint_of(seeded)
+    grown = tmp_path / "grown.db"
+    shutil.copy(seeded, grown)
+    _raise_the_board(grown, "coding", above=74.5, rows=added)
+    candidate = fingerprint_of(grown)
+    assert live is not None and candidate is not None
+    assert candidate.surfaces == live.surfaces, "a ranked row moved -- the test would prove nothing"
+    return live, candidate
+
+
+def test_a_board_flooded_with_rows_it_has_never_seen_is_refused(seeded: Path, tmp_path: Path) -> None:
+    """Owner, 2026-09-23 (translated from Turkish: "yes, add a simple guard"): the floor is derived
+    from EVERY row of the board, and D-132's new-names guard reads only ranked models. So a burst of
+    rows nobody prices moved `coding`'s floor from 65.4 to 71.3 on a copy of the owner's artifact
+    with nothing to object. The same limit as D-132 now applies to the board's own rows."""
+    from app.workflows.refresh import upward_anomalies
+
+    live, flooded = _board_grown(seeded, tmp_path, base=20, added=60)
+    reasons = upward_anomalies(live, flooded)  # type: ignore[arg-type]
+    assert any(r.startswith("coding's board") for r in reasons), reasons
+
+
+def test_a_board_that_grows_at_a_boards_pace_is_not_refused(seeded: Path, tmp_path: Path) -> None:
+    """The other direction: a real board adds a row or two a night. Refusing that would freeze
+    the refresh, which D-128 names as the failure to fear."""
+    from app.workflows.refresh import upward_anomalies
+
+    live, grown = _board_grown(seeded, tmp_path, base=20, added=2)
+    assert upward_anomalies(live, grown) == []  # type: ignore[arg-type]
+
+
+def test_the_refresh_refuses_a_flooded_board_end_to_end(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The flood guard through the real `refresh()` and `build.main`."""
+    from app.workflows.refresh import EXIT_REFUSED, refresh
+
+    from .test_build import _sources
+    from .test_refresh_carry import _first_cycle, _use
+
+    live = _first_cycle(tmp_path, monkeypatch, swebench=_swebench_with(16))
+    _use(monkeypatch, _sources(swebench=_swebench_with(16, high=30)))
+    outcome, code = refresh(live)
+    assert code == EXIT_REFUSED, outcome.reason
+    assert "coding's board" in (outcome.reason or ""), outcome.reason
