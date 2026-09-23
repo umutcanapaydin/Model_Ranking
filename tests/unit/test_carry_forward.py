@@ -172,3 +172,36 @@ def test_the_cli_carries_through_the_same_path_the_refresh_uses(
     # 2 would be the failure -- a required source down with nothing carried.
     assert code in (0, 3)
     assert _rows(out, "aider") == _rows(live, "aider")
+
+
+def test_an_epoch_board_or_bundle_is_carried_when_its_directory_is_missing(tmp_path: Path) -> None:
+    """The Epoch bundle and boards carry too (ruled: every source). With no bundle directory given,
+    each Epoch source the live artifact holds serves its rows; the ones it does not hold are still
+    reported missing."""
+    live = _live(tmp_path)
+    with sqlite3.connect(live) as db:
+        db.execute(
+            "INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, "
+            "source_url, observed_at) VALUES ('gpt-5', 'GPQA diamond', '% correct', 80.1, "
+            "'epoch-harness', 'unspecified', 'epoch_gpqa', 'https://epoch.ai', ?)", (_iso(3),))
+    _, report = _candidate(tmp_path, live, last_ok={"epoch_gpqa": _iso(3)})
+
+    assert report.carried == {"epoch_gpqa": pytest.approx(3.0)}
+    assert not any(a.startswith("epoch_gpqa") for a in report.required_operator_actions)
+    assert any(a.startswith("epoch_aime") for a in report.required_operator_actions), (
+        "an Epoch board with nothing to carry vanished instead of being reported missing"
+    )
+
+
+def test_an_unreadable_age_is_expired_and_the_report_stays_json(tmp_path: Path) -> None:
+    import json
+
+    live = _live(tmp_path)
+    optional = tuple(
+        RemoteSource(name=s.name, client=s.client, ingest=s.ingest, parse=s.parse,
+                     minimum_rows=s.minimum_rows, required=s.name != "aider")
+        for s in _sources(aider=None)
+    )
+    _, report = _candidate(tmp_path, live, last_ok={"aider": "last tuesday"}, source_list=optional)
+    assert report.expired == {"aider": None}
+    json.loads(json.dumps(report.as_json(), allow_nan=False))

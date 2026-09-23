@@ -103,7 +103,8 @@ class BuildReport:
     #: D-156. Sources that failed this cycle and serve their last good data instead, with its age in
     #: days, and sources whose last good data was too old to carry (their lists drop).
     carried: dict[str, float] = field(default_factory=dict)
-    expired: dict[str, float] = field(default_factory=dict)
+    #: `None` when the age could not be read at all -- still expired, never carried.
+    expired: dict[str, float | None] = field(default_factory=dict)
 
     def as_json(self) -> dict[str, object]:
         return {
@@ -195,7 +196,7 @@ class Carry:
     last_ok: Mapping[str, str]
     now: dt.datetime
     carried: dict[str, float] = field(default_factory=dict)
-    expired: dict[str, float] = field(default_factory=dict)
+    expired: dict[str, float | None] = field(default_factory=dict)
 
     def age_days(self, live: sqlite3.Connection, source: str) -> float | None:
         stamp = self.last_ok.get(source)
@@ -240,7 +241,9 @@ class Carry:
         finally:
             live.close()
         if age is None or age > CARRY_MAX_AGE.total_seconds() / 86400:
-            self.expired[source] = round(age, 1) if age is not None else float("inf")
+            # `None`, not infinity: the report is printed with `json.dumps`, which would write the
+            # non-JSON token `Infinity` and break the refresh that reads it.
+            self.expired[source] = round(age, 1) if age is not None else None
             return "expired"
         with conn:
             for table, (shared, rows) in rows_by_table.items():
