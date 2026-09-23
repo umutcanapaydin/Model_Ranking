@@ -2543,6 +2543,20 @@ until its source returns.
 **Revisit when:** a source's outages start lasting weeks, or the owner wants the carry visible in the
 app after all.
 
+*Amendment, 2026-09-23 (M16-W3 independent review, `docs/reviews/m16-wave-3-review.md`, BLOCKING).*
+How clauses 2-4 are carried out, corrected after the review measured the first version:
+- **One source of truth.** The build writes which sources arrived, were carried or expired, and the
+  stamp each age is measured from (`--report-out`), on success and on failure; the refresh reads it
+  and no longer re-infers it from row stamps (review MINOR-1, MINOR-2). A stamp from the future is
+  not an age; the rows' own stamp stands in.
+- **The exemption follows the benchmark, not `primary_source`** (review MAJOR-1): an expired source
+  excuses every surface whose primary board its rows fed in the live artifact. `epoch_swe_bench_verified`
+  feeds `coding` without being its primary source, and its expiry used to refuse every cycle.
+- **The record describes what is served** (review MAJOR-2): `carried` and `expired` hold stamps, and
+  `/health` computes the age when asked. A cycle that is not served leaves the carried set as it was;
+  an expired source stays listed until it arrives in a served cycle, and a required source's expiry
+  is recorded even though it fails the build.
+
 ---
 
 ## D-999 — the agent opens drafts; a human merges

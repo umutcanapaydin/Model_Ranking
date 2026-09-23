@@ -37,7 +37,6 @@ from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, fields
 from pathlib import Path
 
-from app.workflows.build import CARRY_MAX_AGE
 from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
 from app.workflows.rank import category_ranking
@@ -88,11 +87,12 @@ class RefreshOutcome:
     live_fingerprint: str | None
     candidate_fingerprint: str
     surfaces: int
-    #: D-156. Sources that arrived fresh in this cycle's candidate; sources serving carried rows,
-    #: with their age in days; sources whose last good data aged out, with that age.
+    #: D-156, as the BUILD reported them (never re-derived here: review MINOR-1). Sources that arrived
+    #: fresh; sources serving carried rows and sources whose data aged out, each with the stamp its
+    #: age is measured from, so `/health` can state the age on any later night.
     arrived: tuple[str, ...] = ()
-    carried: dict[str, float] = dataclasses.field(default_factory=dict)
-    expired: dict[str, float] = dataclasses.field(default_factory=dict)
+    carried: dict[str, str | None] = dataclasses.field(default_factory=dict)
+    expired: dict[str, str | None] = dataclasses.field(default_factory=dict)
 
     def as_json(self) -> str:
         return json.dumps(
@@ -566,9 +566,25 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
     # running from the last real arrival, or the 30 days would restart every night.
     seen = previous.get("sources_last_ok")
     last_ok = {str(k): str(v) for k, v in seen.items()} if isinstance(seen, dict) else {}
-    if code in (EXIT_PUBLISHED, EXIT_UNCHANGED):
+    served = code in (EXIT_PUBLISHED, EXIT_UNCHANGED)
+    if served:
         stamp = dt.datetime.fromtimestamp(at, tz=dt.UTC).isoformat(timespec="seconds")
         last_ok.update({name: stamp for name in outcome.arrived})
+
+    # D-156 clause 4, and review MAJOR-2: the record describes what is SERVED, not what this cycle
+    # tried. A cycle that is not served leaves the carried set as it was (those rows are still
+    # live); an expired source stays listed until it arrives in a served cycle.
+    def _stamps_of(key: str) -> dict[str, str | None]:
+        value = previous.get(key)
+        return {str(k): (v if isinstance(v, str) else None) for k, v in value.items()} \
+            if isinstance(value, dict) else {}
+
+    carried_now = dict(outcome.carried) if served else _stamps_of("carried")
+    expired_now = {**_stamps_of("expired"), **outcome.expired}
+    if served:
+        for name in outcome.arrived:
+            expired_now.pop(name, None)
+    carried_now = {k: v for k, v in carried_now.items() if k not in expired_now}
 
     payload = {
         "at": at,
@@ -596,8 +612,8 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
         "sources_last_ok": last_ok,
         #: D-156: what this cycle served from the live artifact because its source failed, and
         #: what aged out and dropped. `/health` reads these.
-        "carried": outcome.carried,
-        "expired": outcome.expired,
+        "carried": carried_now,
+        "expired": expired_now,
     }
     # UNIQUE scratch, not a shared name. The artifact's candidate has always used `mkstemp` and
     # this used a fixed `<name>.writing` — the same lesson applied once. An independent review
@@ -758,58 +774,50 @@ def _read_last_ok(target: Path) -> dict[str, str]:
     return {}
 
 
-def _stamps(path: Path) -> dict[str, str]:
-    """Each source's newest `observed_at` in an artifact, across evidence and pricing."""
-    out: dict[str, str] = {}
-    conn = open_readonly(path)
+def _read_build_sources(
+    path: Path | None,
+) -> tuple[tuple[str, ...], dict[str, str | None], dict[str, str | None]]:
+    """(arrived, carried, expired) exactly as the build reported them; empty when it said nothing.
+
+    Empty is the safe reading: no arrival moves a clock, and no surface is excused."""
+    data: object = None
+    if path is not None:
+        with contextlib.suppress(OSError, ValueError):
+            data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        return (), {}, {}
+    raw_since = data.get("since")
+    since: dict[str, object] = raw_since if isinstance(raw_since, dict) else {}
+
+    def stamped(key: str) -> dict[str, str | None]:
+        names = data.get(key)
+        if not isinstance(names, dict):
+            return {}
+        return {str(n): (v if isinstance(v := since.get(n), str) else None) for n in names}
+
+    raw_arrived = data.get("arrived")
+    arrived = raw_arrived if isinstance(raw_arrived, list) else []
+    return tuple(str(a) for a in arrived), stamped("carried"), stamped("expired")
+
+
+def _surfaces_fed_by(target: Path, sources: set[str]) -> frozenset[str]:
+    """Every surface whose primary board any of `sources` feeds IN THE LIVE ARTIFACT.
+
+    Keyed on the benchmark the rows carry, not on `primary_source`: the ranking selects by
+    benchmark, and `epoch_swe_bench_verified` feeds `coding` without being its primary source
+    (review MAJOR-1 -- its expiry refused every cycle while `excused` looked only at primaries).
+    """
+    if not sources or not target.is_file():
+        return frozenset()
+    conn = open_readonly(target)
     try:
-        for table in ("scores", "pricing"):
-            for source, newest in conn.execute(
-                f"SELECT source, MAX(observed_at) FROM {table} GROUP BY source"  # noqa: S608
-            ):
-                if newest and newest > out.get(source, ""):
-                    out[source] = newest
+        marks = ",".join("?" * len(sources))
+        fed = {row[0] for row in conn.execute(
+            f"SELECT DISTINCT benchmark FROM scores WHERE source IN ({marks})",  # noqa: S608
+            tuple(sources))}
     finally:
         conn.close()
-    return out
-
-
-def _age_days(stamp: str | None, now: dt.datetime) -> float | None:
-    try:
-        then = dt.datetime.fromisoformat(stamp or "")
-    except ValueError:
-        return None
-    if then.tzinfo is None:
-        then = then.replace(tzinfo=dt.UTC)
-    return round((now - then).total_seconds() / 86400, 1)
-
-
-def _sources_after_build(
-    target: Path, candidate: Path, last_ok: dict[str, str], now: dt.datetime
-) -> tuple[tuple[str, ...], dict[str, float], dict[str, float]]:
-    """(arrived, carried, expired) for this cycle, read from the two artifacts themselves.
-
-    The candidate's newest stamp is this build's own; a source carrying it ARRIVED. A source in the
-    candidate with an older stamp was CARRIED from the live artifact. A source the live artifact
-    holds and the candidate does not, whose last arrival is past the limit, EXPIRED -- and only
-    that, so a source that vanished for any other reason is still a blinding D-128 refuses.
-    """
-    fresh = _stamps(candidate)
-    this_run = max(fresh.values(), default="")
-    arrived = tuple(sorted(s for s, stamp in fresh.items() if stamp == this_run))
-    live_stamps = _stamps(target) if target.is_file() else {}
-    carried: dict[str, float] = {}
-    for source, stamp in fresh.items():
-        if stamp != this_run:
-            carried[source] = _age_days(last_ok.get(source) or stamp, now) or 0.0
-    expired: dict[str, float] = {}
-    for source, stamp in live_stamps.items():
-        if source in fresh:
-            continue
-        age = _age_days(last_ok.get(source) or stamp, now)
-        if age is not None and age > CARRY_MAX_AGE.days:
-            expired[source] = age
-    return arrived, carried, expired
+    return frozenset(name for name, spec in CATEGORIES.items() if spec.primary_benchmark in fed)
 
 
 def _cycle(
@@ -849,13 +857,18 @@ def _cycle(
     last_ok = _read_last_ok(target)
     carry_args: list[str] = []
     record_file: Path | None = None
+    handle, raw_report = tempfile.mkstemp(prefix=f"{target.name}.", suffix=".sources",
+                                          dir=target.parent)
+    os.close(handle)
+    report_file = Path(raw_report)
+    carry_args = ["--report-out", str(report_file)]
     if target.is_file():
         handle, raw_record = tempfile.mkstemp(prefix=f"{target.name}.", suffix=".last-ok",
                                               dir=target.parent)
         with os.fdopen(handle, "w", encoding="utf-8") as stream:
             json.dump(last_ok, stream)
         record_file = Path(raw_record)
-        carry_args = ["--carry-from", str(target), "--last-ok", str(record_file)]
+        carry_args += ["--carry-from", str(target), "--last-ok", str(record_file)]
 
     try:
         # The build prints its own report to stdout, and this function prints ITS outcome there
@@ -867,6 +880,7 @@ def _cycle(
         # RESULT and belongs on stdout alone. Redirecting rather than discarding keeps both.
         with contextlib.redirect_stdout(sys.stderr):
             code = builder(["--db", str(candidate), *build_args, *carry_args])
+        arrived, carried, expired = _read_build_sources(report_file)
         if code not in (0, 3):  # 3 = an optional source is blind and said so (D-121)
             outcome = RefreshOutcome(
                 published=False,
@@ -875,6 +889,7 @@ def _cycle(
                 live_fingerprint=live.digest if live else None,
                 candidate_fingerprint="",
                 surfaces=0,
+                expired=expired,  # a REQUIRED source's expiry fails the build; still recorded
             )
             return record(outcome, EXIT_FAILED)
 
@@ -892,10 +907,7 @@ def _cycle(
             )
             return record(outcome, EXIT_FAILED)
 
-        arrived, carried, expired = _sources_after_build(
-            target, candidate, last_ok, dt.datetime.now(tz=dt.UTC))
-        excused = frozenset(
-            name for name, spec in CATEGORIES.items() if spec.primary_source in expired)
+        excused = _surfaces_fed_by(target, set(expired))
 
         if live is not None and fresh.digest == live.digest:
             return record(
@@ -966,6 +978,7 @@ def _cycle(
         # artifact now or it is gone; a `.candidate` file left on disk is litter that the next
         # cycle cannot tell from a live sibling's work.
         candidate.unlink(missing_ok=True)
+        report_file.unlink(missing_ok=True)
         if record_file is not None:
             record_file.unlink(missing_ok=True)
 

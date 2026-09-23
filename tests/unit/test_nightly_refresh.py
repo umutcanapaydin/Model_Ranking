@@ -540,17 +540,22 @@ def test_a_busy_cycle_is_not_a_crash(tmp_path: Path) -> None:
     assert schedule.last_failure is None
 
 
+def _days_ago(days: float) -> str:
+    return (dt.datetime.now(tz=dt.UTC) - dt.timedelta(days=days)).isoformat()
+
+
 def test_health_names_each_carried_and_expired_source_with_its_age(tmp_path: Path) -> None:
-    """D-156 clause 4: with no screen in the app, `/health` is where a carry shows."""
+    """REQ-REF-009, D-156 clause 4: with no screen in the app, `/health` is where a carry shows."""
     (tmp_path / "advisor.db.refresh.json").write_text(json.dumps({
         "at": NOW, "at_iso": "x", "exit_code": 0,
-        "carried": {"arena_search": 3.2, "swebench": 0.5},
-        "expired": {"arena_vision": 31.0},
+        "carried": {"arena_search": _days_ago(3.2), "swebench": _days_ago(0.5)},
+        "expired": {"arena_vision": _days_ago(31.0), "epoch_gpqa": None},
     }))
     schedule = nightly.NightlyRefresh(db=tmp_path / "advisor.db", command=["unused"])
     report = schedule.report()
+    # computed from the recorded stamps at the moment /health is asked (review MAJOR-2)
     assert report["refresh_carried"] == "arena_search 3.2d, swebench 0.5d"
-    assert report["refresh_expired"] == "arena_vision 31.0d"
+    assert report["refresh_expired"] == "arena_vision 31.0d, epoch_gpqa ?d"
 
 
 def test_health_says_nothing_is_carried_when_nothing_is(tmp_path: Path) -> None:

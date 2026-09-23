@@ -1,10 +1,12 @@
-"""D-156 through the refresh -- the 2026-09-20 incident, replayed.
+"""REQ-REF-009, D-156 through the refresh -- the 2026-09-20 incident, replayed.
 
 That night an Arena timeout made the candidate "worse", D-128 refused it, and fresh LiteLLM,
 OpenRouter and SWE-bench data was thrown away with it. Under D-156 the failed source carries its
-last good rows, the others publish, and the record says which was carried and how old it is.
+last good rows, the others publish, and the record says what is carried and since when.
 
-Every test runs the real cycle (`refresh`) with the real build (`build.main`), with fake upstreams.
+Every cycle test runs the real `refresh()` with the real `build.main`, with fake upstreams. Rewritten
+after the M16-W3 review: two tests could not fail (BLOCKING-1, -2); each is now shown red on the
+mutant the review used.
 """
 
 from __future__ import annotations
@@ -20,14 +22,22 @@ from app.workflows import build as build_mod
 from app.workflows.refresh import (
     EXIT_FAILED,
     EXIT_PUBLISHED,
+    EXIT_REFUSED,
+    RefreshOutcome,
+    _surfaces_fed_by,
     refresh,
     status_path,
+    write_status,
 )
 from app.workflows.sources import RemoteSource
 
 from .test_build import PRICING, _sources
 
 MOVED_PRICING = PRICING.replace("1.25e-06", "1.5e-06")  # one real price move: the digest changes
+
+
+def _ago(days: float) -> str:
+    return (dt.datetime.now(tz=dt.UTC) - dt.timedelta(days=days)).isoformat(timespec="seconds")
 
 
 def _use(monkeypatch: pytest.MonkeyPatch, sources: tuple[RemoteSource, ...]) -> None:
@@ -39,6 +49,12 @@ def _record(live: Path) -> dict:
     return json.loads(status_path(live).read_text(encoding="utf-8"))
 
 
+def _seed(live: Path, **arrivals: str) -> None:
+    record = _record(live)
+    record["sources_last_ok"].update(arrivals)
+    status_path(live).write_text(json.dumps(record), encoding="utf-8")
+
+
 def _optional(sources: tuple[RemoteSource, ...], name: str) -> tuple[RemoteSource, ...]:
     return tuple(
         RemoteSource(name=s.name, client=s.client, ingest=s.ingest, parse=s.parse,
@@ -48,26 +64,26 @@ def _optional(sources: tuple[RemoteSource, ...], name: str) -> tuple[RemoteSourc
 
 
 def _first_cycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Publish a first artifact, then age its rows by an hour: real cycles are a night apart, and a
-    carried row is told from an arrived one by its stamp, which has one-second resolution."""
+    """Publish a first artifact, then age it by ten days: its rows and every recorded arrival. Real
+    cycles are a night apart; a test whose cycles share a second cannot tell a clock that moved from
+    one that did not (review BLOCKING-1)."""
     live = tmp_path / "advisor.db"
     _use(monkeypatch, _sources())
     _, code = refresh(live)
     assert code == EXIT_PUBLISHED
-    earlier = (dt.datetime.now(tz=dt.UTC) - dt.timedelta(hours=1)).isoformat(timespec="seconds")
+    earlier = _ago(10)
     with sqlite3.connect(live) as db:
         for table in ("scores", "pricing"):
             db.execute(f"UPDATE {table} SET observed_at = ?", (earlier,))
+    _seed(live, **{name: earlier for name in _record(live)["sources_last_ok"]})
     return live
 
 
 def test_a_source_that_arrives_is_recorded_as_arrived(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The age a carry is judged by comes from here, so it has to be written on a good cycle."""
     live = _first_cycle(tmp_path, monkeypatch)
-    arrived = _record(live)["sources_last_ok"]
-    assert {"litellm", "swebench", "aider"} <= set(arrived)
+    assert {"litellm", "swebench", "aider"} <= set(_record(live)["sources_last_ok"])
 
 
 def test_the_2026_09_20_incident_publishes_the_fresh_data_and_carries_the_failed_source(
@@ -86,19 +102,23 @@ def test_the_2026_09_20_incident_publishes_the_fresh_data_and_carries_the_failed
     assert after == before, "the failed source's last good rows were not carried"
     record = _record(live)
     assert set(record["carried"]) == {"swebench"}
-    assert record["carried"]["swebench"] < 1, "a carry from minutes ago reported as old"
+    assert record["carried"]["swebench"] == record["sources_last_ok"]["swebench"], (
+        "the carry is dated from the source's last arrival")
 
 
-def test_a_carried_source_does_not_refresh_its_arrival_time(
+def test_a_carry_keeps_its_clock_and_an_arrival_moves_it(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Carrying is not arriving: the clock keeps running from the last real arrival, or the 30 days
-    would restart every night and the list would never drop."""
+    """Carrying is not arriving: the failed source's 30 days keep running from its last real
+    arrival, or they would restart every night and the list would never drop. The sources that DID
+    arrive move to now. Red on the review's M10 and M26."""
     live = _first_cycle(tmp_path, monkeypatch)
-    first = _record(live)["sources_last_ok"]["swebench"]
+    seeded = _record(live)["sources_last_ok"]["swebench"]
     _use(monkeypatch, _sources(pricing=MOVED_PRICING, swebench=None))
     refresh(live)
-    assert _record(live)["sources_last_ok"]["swebench"] == first
+    arrivals = _record(live)["sources_last_ok"]
+    assert arrivals["swebench"] == seeded
+    assert arrivals["litellm"] > seeded and arrivals["aider"] > seeded
 
 
 def test_an_expired_source_drops_its_surface_instead_of_freezing_the_artifact(
@@ -107,11 +127,7 @@ def test_an_expired_source_drops_its_surface_instead_of_freezing_the_artifact(
     """Past 30 days the list drops (ruled). D-128 would refuse a candidate that blinds `coding`,
     which would freeze every other source; an EXPIRED carry is the one blinding it accepts."""
     live = _first_cycle(tmp_path, monkeypatch)
-    record = _record(live)
-    old = (dt.datetime.now(tz=dt.UTC) - dt.timedelta(days=45)).isoformat(timespec="seconds")
-    record["sources_last_ok"]["swebench"] = old
-    status_path(live).write_text(json.dumps(record), encoding="utf-8")
-
+    _seed(live, swebench=_ago(45))
     _use(monkeypatch, _optional(_sources(pricing=MOVED_PRICING, swebench=None), "swebench"))
     outcome, code = refresh(live)
 
@@ -121,48 +137,102 @@ def test_an_expired_source_drops_its_surface_instead_of_freezing_the_artifact(
     assert set(_record(live)["expired"]) == {"swebench"}
 
 
-def test_the_exemption_reaches_only_a_source_that_aged_out(
+def test_a_blinding_that_is_not_an_expiry_is_still_refused(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The exemption is for an EXPIRED carry only. The same optional source failing with nothing
-    in the live artifact to carry -- because its rows vanished, not because they aged out -- is
-    still a surface going blind, and D-128 still refuses it."""
+    """The safety half of the exemption. The source is young and in the live artifact, but its rows
+    cannot be carried this time (the live copy is unreadable to the carry), so `coding` goes blind
+    for a reason that is NOT an expiry -- and D-128 refuses it. Red on the review's M11."""
     live = _first_cycle(tmp_path, monkeypatch)
-    with sqlite3.connect(live) as db:  # the live artifact loses swebench without aging it out
-        db.execute("DELETE FROM scores WHERE source = 'swebench'")
-    _use(monkeypatch, _optional(_sources(swebench=None), "swebench"))
-    refresh(live)
-    # The refusal itself for a blinded surface is D-128's own test (test_refresh.py); what this
-    # pins is that the EXEMPTION does not reach a source that did not age out.
-    assert not _record(live).get("expired"), "a source that was never aged out was called expired"
+    before = live.read_bytes()
+    monkeypatch.setattr(build_mod.Carry, "restore", lambda self, conn, source: "absent")
+    _use(monkeypatch, _optional(_sources(pricing=MOVED_PRICING, swebench=None), "swebench"))
+    outcome, code = refresh(live)
+
+    assert code == EXIT_REFUSED, outcome.reason
+    assert "coding" in outcome.reason
+    assert live.read_bytes() == before
+    assert not _record(live).get("expired")
 
 
-def test_a_required_source_past_its_age_fails_the_cycle_and_nothing_is_published(
+def test_a_required_source_past_its_age_fails_the_cycle_and_says_it_expired(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Nothing is published, and the expiry the build found is still recorded (review MAJOR-2 E8):
+    it used to appear only on the build's stderr."""
     live = _first_cycle(tmp_path, monkeypatch)
-    digest = sqlite3.connect(live).execute("SELECT COUNT(*) FROM scores").fetchone()[0]
-    record = _record(live)
-    record["sources_last_ok"]["swebench"] = (
-        dt.datetime.now(tz=dt.UTC) - dt.timedelta(days=45)).isoformat(timespec="seconds")
-    status_path(live).write_text(json.dumps(record), encoding="utf-8")
-
+    before = live.read_bytes()
+    _seed(live, swebench=_ago(45))
     _use(monkeypatch, _sources(pricing=MOVED_PRICING, swebench=None))
     _, code = refresh(live)
     assert code == EXIT_FAILED
-    assert sqlite3.connect(live).execute("SELECT COUNT(*) FROM scores").fetchone()[0] == digest
+    assert live.read_bytes() == before
+    assert "swebench" in _record(live)["expired"]
+
+
+def test_a_failed_cycle_still_reports_what_is_served_as_carried(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review MAJOR-2 E2: the carried rows are still live after a later cycle fails, so the record
+    must still say so."""
+    live = _first_cycle(tmp_path, monkeypatch)
+    _use(monkeypatch, _sources(pricing=MOVED_PRICING, swebench=None))
+    refresh(live)
+    carried = _record(live)["carried"]
+    assert set(carried) == {"swebench"}
+
+    monkeypatch.setattr(build_mod.Carry, "restore", lambda self, conn, source: "absent")
+    _use(monkeypatch, _sources(pricing=MOVED_PRICING, swebench=None))  # required, nothing to carry
+    _, code = refresh(live)
+    assert code == EXIT_FAILED
+    assert _record(live)["carried"] == carried
+
+
+def test_an_expired_source_stays_listed_until_it_arrives(tmp_path: Path) -> None:
+    """Review MAJOR-2 E9: an expired source was listed for one night. It stays until a served cycle
+    brings it back."""
+    target = tmp_path / "advisor.db"
+    at = dt.datetime(2026, 9, 23, tzinfo=dt.UTC).timestamp()
+
+    def cycle(code: int, **kw: object) -> dict:
+        write_status(target, RefreshOutcome(published=code == 0, reason="r", live_fingerprint=None,
+                                            candidate_fingerprint="", surfaces=1, **kw), code, at=at)
+        return _record(target)
+
+    assert cycle(0, expired={"arena_vision": "2026-08-01T00:00:00+00:00"})["expired"]
+    assert "arena_vision" in cycle(1, arrived=("litellm",))["expired"]
+    assert "arena_vision" in cycle(3, arrived=("arena_vision",))["expired"], "a refused arrival"
+    assert "arena_vision" not in cycle(0, arrived=("arena_vision",))["expired"]
 
 
 @pytest.mark.parametrize(("code", "counts"), [(0, True), (1, True), (2, False), (3, False)])
 def test_only_a_served_cycle_counts_as_an_arrival(tmp_path: Path, code: int, counts: bool) -> None:
     """A refused (3) or failed (2) cycle's data is not what is served, so its arrivals do not
     reset the 30 days; a published (0) or unchanged (1) cycle's do."""
-    from app.workflows.refresh import RefreshOutcome, write_status
-
     target = tmp_path / "advisor.db"
-    status_path(target).write_text(json.dumps({"sources_last_ok": {"arena": "2026-09-01T00:00:00+00:00"}}))
+    status_path(target).write_text(
+        json.dumps({"sources_last_ok": {"arena": "2026-09-01T00:00:00+00:00"}}))
     outcome = RefreshOutcome(published=code == 0, reason="r", live_fingerprint=None,
                              candidate_fingerprint="", surfaces=1, arrived=("arena",))
     write_status(target, outcome, code, at=dt.datetime(2026, 9, 23, tzinfo=dt.UTC).timestamp())
     seen = _record(target)["sources_last_ok"]["arena"]
     assert (seen == "2026-09-23T00:00:00+00:00") is counts
+
+
+def test_an_expiry_excuses_every_surface_its_rows_fed_not_only_its_primary(tmp_path: Path) -> None:
+    """Review MAJOR-1: `epoch_swe_bench_verified` feeds `coding` (SWE-bench Verified) without being
+    its primary source, and its expiry refused every cycle. The excuse follows the benchmark."""
+    from app.workflows.categories import CATEGORIES
+    from app.workflows.schema import connect
+
+    live = tmp_path / "advisor.db"
+    conn = connect(str(live))
+    conn.execute(
+        "INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, "
+        "source_url, observed_at) VALUES ('m', ?, '% resolved', 70, 'h', 'unspecified', "
+        "'epoch_swe_bench_verified', 'u', '2026-08-01T00:00:00+00:00')",
+        (CATEGORIES["coding"].primary_benchmark,))
+    conn.commit()
+    conn.close()
+    assert "coding" in _surfaces_fed_by(live, {"epoch_swe_bench_verified"})
+    assert _surfaces_fed_by(live, set()) == frozenset()

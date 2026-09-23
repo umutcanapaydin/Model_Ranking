@@ -240,8 +240,9 @@ def ranked_population(conn: sqlite3.Connection, spec: CategorySpec) -> list[Rank
     """**The models this engine can actually recommend on one surface.** REQ-EVI-002, W-037.
 
     Reconciled to the registry AND carrying a price median. Nothing else can be offered to a
-    reader, because a model nobody can buy is not an answer — so this, and not the board, is the
-    population every threshold in `categories.py` describes.
+    reader, because a model nobody can buy is not an answer. It sizes the WINDOW and the tie margin
+    on the M8 surfaces (D-148 clause 2); the FLOORS are the top third of the whole board's rows since
+    M16-W3 (D-148 clause 1), not of this population.
 
     **It has a name because not having one cost three wrong calibrations.** Thresholds were derived
     from raw CSV rows (204 rows for 59 models on one board), then from parsed board rows, then from

@@ -56,6 +56,21 @@ from Turkish).*
 max 9); the surface ranks at `high` (`ranking_effort`). Its floor is 64.4 either way: over all 49
 rows, and over the 13 `high` rows alone.
 
+**Which rows count** (review NIT-4): each row as stored, one per raw name, harness and effort. On
+every one of the 14 boards raw names are unique per row, so "one per raw name" and "one per row"
+give the same count today; if a board ever lists a raw name twice, this record counts both.
+
+**Subscription plans (the CLI, not `/v1` or the app)** -- found by the independent review after the
+ruling, and not in the table the owner ruled from:
+
+| surface | budget | plan Budget Pick | today | under D-148 |
+|---|---|---|---|---|
+| agentic-coding | medium | Budget Pick | Perplexity Pro ($20, 53.8) | Google AI Plus ($4.99, 11.8), with "no plan in this budget clears the 64.4 bar" |
+| agentic-coding | unlimited | Budget Pick | Perplexity Pro ($20, 53.8) | ChatGPT Pro ($100, 69.4) |
+
+At `medium` no plan clears 64.4, so the subscription answer falls back to the cheapest plan with a
+warning. Put to the owner at this wave's close.
+
 ## The ruling
 
 **Ruled by the owner 2026-09-23 (in session): the rule applies to `agentic-coding` too.** Its floor

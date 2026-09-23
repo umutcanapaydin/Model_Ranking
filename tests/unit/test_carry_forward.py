@@ -1,4 +1,4 @@
-"""D-144 as ruled, D-156 -- a source that fails a cycle keeps serving its last good data for ~30 days.
+"""REQ-REF-009, D-144 as ruled, D-156 -- a failed source keeps serving its last good data for 30 days.
 
 The owner's ruling, translated from Turkish: "if its data does not arrive, its last data stays valid.
 If the data is about a month old, the list drops. If the data updates within that month, nothing
@@ -193,10 +193,23 @@ def test_an_epoch_board_or_bundle_is_carried_when_its_directory_is_missing(tmp_p
     )
 
 
-def test_an_unreadable_age_is_expired_and_the_report_stays_json(tmp_path: Path) -> None:
+def test_an_unreadable_arrival_falls_back_to_the_rows_own_stamp(tmp_path: Path) -> None:
+    """A torn or future arrival record is not an age; the rows' `observed_at` is (review MINOR-2)."""
+    live = _live(tmp_path)
+    sqlite3.connect(live).execute("UPDATE scores SET observed_at = ? WHERE source = 'aider'",
+                                  (_iso(4),)).connection.commit()
+    for bad in ("last tuesday", _iso(-400)):  # unparseable, and 400 days in the future
+        _, report = _candidate(tmp_path, live, last_ok={"aider": bad}, name=f"c{len(bad)}.db",
+                               aider=None)
+        assert report.carried == {"aider": pytest.approx(4.0)}, bad
+
+
+def test_an_age_nothing_can_read_is_expired_and_the_report_stays_json(tmp_path: Path) -> None:
     import json
 
     live = _live(tmp_path)
+    sqlite3.connect(live).execute("UPDATE scores SET observed_at = 'garbage' WHERE source = 'aider'"
+                                  ).connection.commit()
     optional = tuple(
         RemoteSource(name=s.name, client=s.client, ingest=s.ingest, parse=s.parse,
                      minimum_rows=s.minimum_rows, required=s.name != "aider")
@@ -205,3 +218,42 @@ def test_an_unreadable_age_is_expired_and_the_report_stays_json(tmp_path: Path) 
     _, report = _candidate(tmp_path, live, last_ok={"aider": "last tuesday"}, source_list=optional)
     assert report.expired == {"aider": None}
     json.loads(json.dumps(report.as_json(), allow_nan=False))
+
+
+@pytest.mark.parametrize("source", ["epoch_gpqa", "epoch_deepswe_external"])
+def test_a_board_or_bundle_that_fails_with_its_directory_present_is_carried(
+    tmp_path: Path, source: str
+) -> None:
+    """Review MAJOR-3: the realistic Epoch outage is a directory that is there with a file missing
+    or broken, which takes the `except` path, not the no-directory one. A board (`epoch_gpqa`) and a
+    bundle (`epoch_deepswe_external`) each carry there too. Red on the review's M18 and M19."""
+    live = _live(tmp_path)
+    with sqlite3.connect(live) as db:
+        db.execute(
+            "INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, "
+            "source_url, observed_at) VALUES ('gpt-5', 'b', 'm', 50.0, 'h', 'unspecified', ?, 'u', ?)",
+            (source, _iso(3)))
+    empty = tmp_path / "bundle"
+    empty.mkdir()  # present, and holds none of the allowlisted files
+    conn = connect(str(tmp_path / "cand.db"))
+    report = build(conn, plans_yaml=PLANS_YAML, rosters_yaml=ROSTERS_YAML, sources=_sources(),
+                   minimum_models=2, bundle_dir=empty, carry_from=live,
+                   last_ok={source: _iso(3)}, now=NOW)
+    assert report.carried == {source: pytest.approx(3.0)}
+    assert not any(a.startswith(source) for a in report.required_operator_actions)
+
+
+def test_a_carried_row_takes_its_model_id_from_this_build_not_the_live_one(tmp_path: Path) -> None:
+    """Review MINOR-4 (M4): a carried row must be reconciled against the CURRENT registry; a stale id
+    copied from the live artifact would survive `reconcile`, which only updates rows it matches."""
+    live = _live(tmp_path)
+    with sqlite3.connect(live) as db:  # a row today's registry no longer resolves, with an old id
+        db.execute(
+            "INSERT INTO scores (model_id, raw_name, benchmark, metric, score, harness, effort, "
+            "source, source_url, observed_at) VALUES ('stale-id', 'a-model-nobody-knows', "
+            "'Aider Polyglot', 'pass_rate_2', 10.0, 'diff', 'unspecified', 'aider', 'u', ?)",
+            (_iso(2),))
+    conn, _ = _candidate(tmp_path, live, last_ok={"aider": _iso(2)}, aider=None)
+    assert conn.execute("SELECT COUNT(*) FROM scores WHERE raw_name = 'a-model-nobody-knows'"
+                        ).fetchone()[0] == 1, "the row was not carried at all"
+    assert conn.execute("SELECT COUNT(*) FROM scores WHERE model_id = 'stale-id'").fetchone()[0] == 0

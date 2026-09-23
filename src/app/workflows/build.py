@@ -105,6 +105,17 @@ class BuildReport:
     carried: dict[str, float] = field(default_factory=dict)
     #: `None` when the age could not be read at all -- still expired, never carried.
     expired: dict[str, float | None] = field(default_factory=dict)
+    since: dict[str, str | None] = field(default_factory=dict)
+
+    def sources_json(self) -> dict[str, object]:
+        """What the refresh needs from this build, and nothing it would have to re-derive (review
+        MINOR-1: the refresh used to infer these from row stamps, with different arithmetic)."""
+        return {
+            "arrived": sorted({r.source for r in self.sources}),
+            "carried": self.carried,
+            "expired": self.expired,
+            "since": self.since,
+        }
 
     def as_json(self) -> dict[str, object]:
         return {
@@ -197,22 +208,33 @@ class Carry:
     now: dt.datetime
     carried: dict[str, float] = field(default_factory=dict)
     expired: dict[str, float | None] = field(default_factory=dict)
+    #: The stamp each carried or expired source's age was measured from -- what the refresh records,
+    #: so `/health` can say how old the SERVED data is on any later night (M16-W3 review MAJOR-2).
+    since: dict[str, str | None] = field(default_factory=dict)
 
-    def age_days(self, live: sqlite3.Connection, source: str) -> float | None:
-        stamp = self.last_ok.get(source)
-        if not stamp:
-            newest = [live.execute(f"SELECT MAX(observed_at) FROM {t} WHERE source = ?",  # noqa: S608
-                                   (source,)).fetchone()[0] for t in ("scores", "pricing")]
-            stamp = max((x for x in newest if x), default=None)
-        if not stamp:
-            return None
+    def _age(self, stamp: str | None) -> float | None:
         try:
-            then = dt.datetime.fromisoformat(stamp)
+            then = dt.datetime.fromisoformat(stamp or "")
         except ValueError:
             return None
         if then.tzinfo is None:
             then = then.replace(tzinfo=dt.UTC)
-        return (self.now - then).total_seconds() / 86400
+        age = (self.now - then).total_seconds() / 86400
+        # A stamp from the future (a clock that stepped back) is not an age at all; carrying on it
+        # would carry forever (M16-W3 review MINOR-2).
+        return age if age >= 0 else None
+
+    def age_days(self, live: sqlite3.Connection, source: str) -> tuple[float | None, str | None]:
+        """(age in days, the stamp it was measured from). The refresh's arrival record first; the
+        live rows' own newest `observed_at` when there is none, or when it is unusable."""
+        stamp = self.last_ok.get(source)
+        age = self._age(stamp)
+        if age is None:
+            newest = [live.execute(f"SELECT MAX(observed_at) FROM {t} WHERE source = ?",  # noqa: S608
+                                   (source,)).fetchone()[0] for t in ("scores", "pricing")]
+            stamp = max((x for x in newest if x), default=None)
+            age = self._age(stamp)
+        return age, stamp
 
     def restore(self, conn: sqlite3.Connection, source: str) -> str:
         """Copy `source`'s rows from the live artifact. Returns "carried", "expired" or "absent"."""
@@ -235,22 +257,30 @@ class Carry:
                 copied += len(rows_by_table[table][1])
             if not copied:
                 return "absent"
-            age = self.age_days(live, source)
+            age, stamp = self.age_days(live, source)
         except sqlite3.Error:
             return "absent"
         finally:
             live.close()
+        self.since[source] = stamp
         if age is None or age > CARRY_MAX_AGE.total_seconds() / 86400:
             # `None`, not infinity: the report is printed with `json.dumps`, which would write the
             # non-JSON token `Infinity` and break the refresh that reads it.
             self.expired[source] = round(age, 1) if age is not None else None
             return "expired"
-        with conn:
-            for table, (shared, rows) in rows_by_table.items():
-                if rows:
-                    conn.executemany(
-                        f"INSERT INTO {table} ({', '.join(shared)}) "  # noqa: S608
-                        f"VALUES ({', '.join('?' * len(shared))})", rows)
+        try:
+            with conn:
+                for table, (shared, rows) in rows_by_table.items():
+                    if rows:
+                        conn.executemany(
+                            f"INSERT INTO {table} ({', '.join(shared)}) "  # noqa: S608
+                            f"VALUES ({', '.join('?' * len(shared))})", rows)
+        except sqlite3.Error:
+            # A schema the carried rows no longer fit (review NIT-3) degrades to "nothing carried",
+            # never to a failed build.
+            for table in ("pricing", "scores"):
+                reset_source(conn, table, source)
+            return "absent"
         # The carry is REPORTED rather than silent: a surface serving month-old data looks exactly
         # like a healthy one from outside, which is what the refresh record and /health are for.
         self.carried[source] = round(age, 1)
@@ -487,11 +517,18 @@ def build(
     # D-156: with a live artifact to fall back on, a failed source serves its last good data.
     carry = (Carry(live=carry_from, last_ok=last_ok or {}, now=now or dt.datetime.now(tz=dt.UTC))
              if carry_from is not None and Path(carry_from).is_file() else None)
-    report.sources, degraded = _ingest_sources(conn, sources, run, carry)
-    bundle_reports, bundle_missing = _ingest_bundles(conn, bundle_dir, run, bundles, carry)
-    board_reports, board_missing = _ingest_boards(conn, bundle_dir, run, boards, carry)
     if carry is not None:
         report.carried, report.expired = carry.carried, carry.expired
+        report.since = carry.since
+    try:
+        report.sources, degraded = _ingest_sources(conn, sources, run, carry)
+    except BuildError as exc:
+        # The refresh records what expired even when a REQUIRED source's expiry fails the build
+        # (review MAJOR-2): the build is the one place that knows, so it says so on the way out.
+        exc.report = report  # type: ignore[attr-defined]
+        raise
+    bundle_reports, bundle_missing = _ingest_bundles(conn, bundle_dir, run, bundles, carry)
+    board_reports, board_missing = _ingest_boards(conn, bundle_dir, run, boards, carry)
     report.sources.extend(board_reports)
     report.sources.extend(bundle_reports)
     report.required_operator_actions = _surfaces_left_without_evidence(
@@ -557,6 +594,12 @@ def _sweep_abandoned_workspaces(target: Path, *, now: float | None = None) -> li
     return swept
 
 
+def _write_sources(path: str | None, sources: dict[str, object] | None) -> None:
+    if path:
+        Path(path).write_text(json.dumps(sources or {"arrived": [], "carried": {}, "expired": {},
+                                                    "since": {}}), encoding="utf-8")
+
+
 def _read_last_ok(path: str | None) -> dict[str, str]:
     """The refresh's per-source arrival record. Unreadable is EMPTY, which makes every carry judged
     by its rows' own `observed_at` -- the stricter age, never a laxer one."""
@@ -596,6 +639,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--last-ok",
         help="JSON file mapping each source to when it last arrived; the age a carry is judged by",
+    )
+    parser.add_argument(
+        "--report-out",
+        help="write which sources arrived, were carried or expired here, on success and on failure",
     )
     args = parser.parse_args(argv)
 
@@ -662,6 +709,8 @@ def main(argv: list[str] | None = None) -> int:
         # explicit: WIDENING this catch is the dangerous move, because every class added
         # here turns a builder bug into a tidy exit 2 that reads like a bad input.
         if isinstance(exc, (BuildError, SourceError, sqlite3.Error, OSError)):
+            failed = getattr(exc, "report", None)
+            _write_sources(args.report_out, failed.sources_json() if failed else None)
             print(json.dumps({"error": str(exc), "built": False}))
             return 2
         # Anything else is a bug in this builder rather than a bad input. The artifact is already
@@ -682,6 +731,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"error": f"could not publish to {target}: {exc}", "built": False}))
         return 2
 
+    _write_sources(args.report_out, report.sources_json())
     payload = report.as_json()
     payload["built"] = True
     payload["path"] = str(target)

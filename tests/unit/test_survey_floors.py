@@ -76,6 +76,25 @@ def test_the_rows_rule_takes_the_top_third_of_every_row_on_the_board(tmp_path: P
     assert expert["efforts"] == ["high", "low", "unspecified"]
 
 
+def test_only_the_surfaces_own_source_and_metric_count(tmp_path: Path) -> None:
+    """Review MINOR-4 (M24, M25): `epoch_swe_bench_verified` shares `coding`'s benchmark, so a
+    count without the source predicate is 206 rows, not 173. An off-metric row must not count
+    either."""
+    path = _artifact(tmp_path, [("a", 90.0, "unspecified"), ("b", 80.0, "unspecified"),
+                                ("c", 70.0, "unspecified")])
+    spec = CATEGORIES["expert"]
+    with sqlite3.connect(path) as db:
+        db.execute("INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, "
+                   "source_url, observed_at) VALUES ('x', ?, ?, 99, 'h', 'unspecified', 'other_src', "
+                   "'u', 'z')", (spec.primary_benchmark, spec.metric))
+        db.execute("INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, "
+                   "source_url, observed_at) VALUES ('y', ?, 'another metric', 98, 'h', "
+                   "'unspecified', ?, 'u', 'z')", (spec.primary_benchmark, spec.primary_source))
+    expert = {r["surface"]: r for r in _script().floors(sqlite3.connect(path))}["expert"]
+    assert expert["board_rows"] == 3
+    assert expert["floor_rows"] == 90.0
+
+
 def test_every_surface_is_in_the_table_even_with_an_empty_board(tmp_path: Path) -> None:
     """A surface missing from the table is a surface nobody rules on; an empty board says so."""
     path = _artifact(tmp_path, [("a", 90.0, "unspecified")])
