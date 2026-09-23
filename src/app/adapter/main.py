@@ -45,6 +45,7 @@ from fastapi.responses import JSONResponse
 from app.adapter import nightly
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.coverage import SOURCE_STALE_DAYS, source_health
+from app.workflows.floors import derived_floor
 from app.workflows.rank import (
     BLEND_INPUT_WEIGHT,
     BLEND_NOTE,
@@ -1192,8 +1193,10 @@ def health() -> dict[str, str]:
     return body
 
 
-def _secondary_ages() -> dict[str, int | None]:
-    """Each surface's SECONDARY board age, read from the served artifact. D-138, REQ-UNC-002.
+def _artifact_facts() -> tuple[dict[str, int | None], dict[str, float | None]]:
+    """Each surface's SECONDARY board age (D-138, REQ-UNC-002) and its FLOOR (D-152, D-159), read
+    from the served artifact over one connection. The floor is derived from the surface's own board
+    by `app.workflows.floors` -- the number the Budget Pick is judged against, never a copy of it.
 
     The one field on `/v1/categories` that is not a policy constant, and so the one that may be
     absent. Discovery must keep answering while the artifact is missing or being republished: the
@@ -1203,23 +1206,24 @@ def _secondary_ages() -> dict[str, int | None]:
     """
     path = _db_path()
     if path is None or not path.is_file():
-        return {}
+        return {}, {}
     try:
         conn = open_readonly(path)
     except sqlite3.Error as exc:
         # Logged, not raised and not silent: the route answers, and an operator can still find out
         # why every age read null (M13-W2 review NIT-3).
         _warn_once(path, "/v1/categories could not open the artifact for ages: %s", exc)
-        return {}
+        return {}, {}
     try:
-        return {
+        ages = {
             spec.id: secondary_age_days(conn, spec)
             for spec in CATEGORIES.values()
             if spec.secondary_benchmark
         }
+        return ages, {spec.id: derived_floor(conn, spec) for spec in CATEGORIES.values()}
     except sqlite3.Error as exc:
         _warn_once(path, "/v1/categories could not read ages from the artifact: %s", exc)
-        return {}
+        return {}, {}
     finally:
         with contextlib.suppress(sqlite3.Error):
             conn.close()
@@ -1256,7 +1260,7 @@ def categories() -> dict[str, Any]:
     frozen thing is the answer payload a consumer already parses, and its field sets do not move.
     One VALUE does: `evidence_dating_note` now names its benchmark (REQ-UNC-003).
     """
-    ages = _secondary_ages()
+    ages, floors = _artifact_facts()
     return {
         "categories": [
             {
@@ -1287,7 +1291,8 @@ def categories() -> dict[str, Any]:
                 # ITS OWN FIELD, never read from `score_anchor` and never written into it: the two
                 # hold the same value on every Elo surface today and move for different reasons (a
                 # calibration moves this one, an owner ruling moves that one, D-146 clause 2).
-                "min_quality": spec.min_quality,
+                # D-159 (M17-W1): derived from the served board, `null` without an artifact.
+                "min_quality": floors.get(spec.id),
                 # D-153 (W-119). What this surface's price leaves out, as a code the client words in
                 # its own language; absent where the price is the whole story.
                 "price_excludes": spec.price_excludes,

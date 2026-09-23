@@ -49,7 +49,6 @@ def provisional_spec(client: ArenaClient) -> CategorySpec:
         score_unit="Elo",
         secondary_benchmark=None,
         primary_source=client.name,
-        min_quality=0.0,
         value_window=0.0,
         close_call=0.0,
     )
@@ -147,19 +146,18 @@ def _overlapping_gaps(
 def _self_check(db: str) -> int:
     """Hold the method against the surfaces already in the product, and print the disagreement."""
     from app.workflows.categories import CATEGORIES
+    from app.workflows.floors import derived_floor
 
     conn = sqlite3.connect(db)
     print(f"{'surface':16s} {'n':>4s} {'shipped':>10s} {'this method':>12s} {'diff':>8s}")
     for cid, spec in CATEGORIES.items():
         rows = ranked_population(conn, spec)
-        if not rows:
-            print(f"{cid:16s} {'-':>4s} {spec.min_quality:10.1f} {'no data':>12s}")
+        served = derived_floor(conn, spec)  # D-159: the floor the engine serves from this artifact
+        if not rows or served is None:
+            print(f"{cid:16s} {'-':>4s} {'-':>10s} {'no data':>12s}")
             continue
         mine = threshold_candidates([r.score for r in rows], [1.0])["min_quality"]
-        print(
-            f"{cid:16s} {len(rows):4d} {spec.min_quality:10.1f} {mine:12.1f} "
-            f"{mine - spec.min_quality:+8.1f}"
-        )
+        print(f"{cid:16s} {len(rows):4d} {served:10.1f} {mine:12.1f} {mine - served:+8.1f}")
     print(
         "\nA non-zero diff column means this method is NOT the one that set the shipped numbers.\n"
         "Read `docs/reviews/m8-category-calibration.md` and its 2026-08-19 correction before\n"

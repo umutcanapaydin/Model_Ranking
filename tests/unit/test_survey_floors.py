@@ -72,7 +72,6 @@ def test_the_rows_rule_takes_the_top_third_of_every_row_on_the_board(tmp_path: P
     expert = table["expert"]
     assert expert["board_rows"] == 6
     assert expert["floor_rows"] == 88.0
-    assert expert["floor_today"] == CATEGORIES["expert"].min_quality
     assert expert["efforts"] == ["high", "low", "unspecified"]
 
 

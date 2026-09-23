@@ -12,8 +12,8 @@ date: 2026-09-23
 > `git show origin/main:subagent-profiles/Security-Reviewer.md`, `origin/main:docs/security-baseline.md`,
 > `origin/main:permission-matrix.md`, `origin/main:AGENTS.md`, and `origin/main:docs/closure-checklist.md`
 > §B.2a. The surface is `git diff 059b519 eee2faf` (71 commits, 62 non-merge; 197 files,
-> +17726/-3465). `origin/main` = `eee2faf`. The owner's untracked `epb.html` and `or.md` were not
-> read. The only repository file this seat creates is this one.
+> +17726/-3465). `origin/main` = `eee2faf`. The owner's two untracked files in the repository root were
+> not read. The only repository file this seat creates is this one.
 
 ## Verdict
 

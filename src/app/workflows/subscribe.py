@@ -22,6 +22,7 @@ import sqlite3
 from dataclasses import dataclass
 
 from app.workflows.categories import CategorySpec, get_category
+from app.workflows.floors import derived_floor
 from app.workflows.plans import stale_plans
 from app.workflows.rank import attributions_for, higher_effort_evidence
 from app.workflows.recommend import (
@@ -31,6 +32,7 @@ from app.workflows.recommend import (
     round_optional_score,
     round_score,
     shown_gap,
+    unmet_floor_warning,
 )
 
 
@@ -434,7 +436,8 @@ def recommend_subscription(
     value_pool = [r for r in frontier if quality.score - r.score <= spec.value_window]
     value = min(value_pool, key=lambda r: (r.monthly_usd, r.plan))
 
-    floor_pool = [r for r in rows if r.score >= spec.min_quality]
+    floor = derived_floor(conn, spec)  # D-159: from the served board
+    floor_pool = [r for r in rows if floor is not None and r.score >= floor]
     floor_met = bool(floor_pool)
     cheap = min(floor_pool or rows, key=lambda r: (r.monthly_usd, r.plan))
 
@@ -572,13 +575,9 @@ def recommend_subscription(
             cheap,
             spec,
             why=(
-                f"Cheapest plan clearing the {spec.min_quality:g} {unit} minimum-quality bar."
+                f"Cheapest plan clearing the {floor:g} {unit} minimum-quality bar."
                 if floor_met
-                else (
-                    f"WARNING: no plan in this budget clears the {spec.min_quality:g} {unit} "
-                    "minimum-quality bar; this is the cheapest available and you are trading "
-                    "quality away."
-                )
+                else unmet_floor_warning(floor, unit, "plan")
             ),
             trade_off=(
                 None

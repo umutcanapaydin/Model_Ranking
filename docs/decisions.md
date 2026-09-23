@@ -2716,6 +2716,13 @@ current floors over it.
 
 **Revisit when:** a floor move changes a pick in a way a reader reports as wrong.
 
+*Clarification, 2026-09-23 (M17-W1).* Clause 1's "the artifact carries it" is met by the artifact's
+own rows: the floor is derived WHERE IT IS READ, from the served artifact, by one function
+(`src/app/workflows/floors.py`), rather than computed at build time into a table. It is the same
+number from the same rows; nothing stored can disagree with the rows beside it, and an artifact
+built before M17 serves a correct floor. A surface whose own board is empty has no floor, and its
+Budget Pick says so.
+
 ---
 
 ## D-160 — A combined list is built on the phone, and nothing about the question leaves it

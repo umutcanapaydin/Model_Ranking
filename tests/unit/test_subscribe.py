@@ -103,13 +103,16 @@ SCORES = (
     ("gemini-3.1-pro", "agent + Gemini 3.1 Pro", 77.4),
     ("claude-4.5-opus", "agent + Claude 4.5 Opus", 79.2),
 )
+#: D-159 (M17-W1): the floor is derived from the WHOLE board, so the fixture's board also carries
+#: models no plan includes (no model id). Nine rows put its top third at the third, GPT-5's 70.0.
+BOARD_FILLER = tuple((None, f"agent + Unlisted Model {i}", 30.0 + 5 * i) for i in range(6))
 
 
 def _db(doc: str = DOC) -> sqlite3.Connection:
     conn = connect()
     ingest_plans(conn, doc, RunContext())
     reconcile_plans(conn)
-    for model_id, raw, score in SCORES:
+    for model_id, raw, score in (*SCORES, *BOARD_FILLER):
         conn.execute(
             "INSERT INTO scores (model_id, raw_name, benchmark, metric, score, harness,"
             " run_date, source, source_url, observed_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
@@ -139,9 +142,10 @@ def test_three_labeled_plan_picks_unlimited_budget() -> None:
     # Value: Pareto frontier, within 6.0 of 79.2 → Mid Plan (77.4 @ $20)
     assert rec.picks[1].plan == "Mid Plan"
     assert rec.picks[1].trade_off is not None
-    # Budget pick: cheapest meeting floor 65.0 → Cheap Plan (70.0 @ $8)
+    # Budget pick: cheapest clearing the board's floor (70.0, D-159) → Cheap Plan (70.0 @ $8)
     assert rec.picks[2].plan == "Cheap Plan"
     assert "minimum-quality bar" in rec.picks[2].why
+    assert "clearing the 70 points" in rec.picks[2].why  # the board's own floor, not a constant
     # W4 review BLOCKING-2: this fixture's evidence is swebench, so that is what the
     # payload cites — and it must NOT claim Epoch or the per-token pricing feeds the
     # plan engine never reads. REQ-LIC-001's Epoch half is proven on Epoch evidence in
@@ -191,7 +195,8 @@ def test_no_rankable_plan_returns_none() -> None:
 def test_quality_floor_unmet_warns_instead_of_pretending() -> None:
     """The M1-W4 honesty lesson, on the plan axis."""
     conn = _db()
-    conn.execute("UPDATE scores SET score = 40.0")  # everyone below the 65.0 floor
+    # every plan's model below the board's own top third, which the unlisted rows now set
+    conn.execute("UPDATE scores SET score = 40.0 WHERE model_id IS NOT NULL")
     rec = recommend_subscription(conn, "unlimited", "coding")
     assert rec is not None
     assert "WARNING" in rec.picks[2].why

@@ -312,25 +312,29 @@ def test_the_served_anchor_does_not_follow_a_moved_floor(
     endpoint reading the floor now serves a number no ruling produced, which is precisely the
     regression -- a recalibration moving every card's number with no new measurement of any model.
     """
-    surface = "document"
-    spec = CATEGORIES[surface]
-    moved = dataclasses.replace(spec, min_quality=spec.min_quality + 123.0)
-    monkeypatch.setitem(CATEGORIES, surface, moved)
+    # Since D-159 the floor moves only with its board, so the board is what moves here.
+    from .test_floor_served import _raise_the_board
 
+    surface = "document"
+    _raise_the_board(seeded, surface, above=1400.0, rows=30)
+    _raise_the_board(seeded, surface, above=1600.0, rows=200, name="higher")
     served = _served_categories()
+    assert served[surface]["min_quality"] > PINNED_SCORE_ANCHORS[surface]
     assert served[surface]["score_anchor"] == PINNED_SCORE_ANCHORS[surface]
-    assert served[surface]["score_anchor"] != moved.min_quality
 
 
 def test_a_recalibration_cannot_move_the_anchor() -> None:
     """Review M-3: the anchor is its own field, so moving the floor leaves every /100 number alone."""
     from dataclasses import replace
 
+    # D-159: the floor is not a field of the surface at all -- it is derived from the board -- so a
+    # recalibration of the surface cannot reach it, and the anchor is the surface's own pinned field.
+    assert not hasattr(CATEGORIES["assistant"], "min_quality")
     for surface, spec in CATEGORIES.items():
         if spec.metric != "elo":
             continue
-        moved = replace(spec, min_quality=spec.min_quality + 50)
-        assert moved.score_anchor == spec.score_anchor, surface
+        moved = replace(spec, value_window=spec.value_window + 50)
+        assert moved.score_anchor == spec.score_anchor == PINNED_SCORE_ANCHORS[surface], surface
 
 
 def test_every_surface_publishes_the_floor_it_recommends_from(
@@ -343,19 +347,14 @@ def test_every_surface_publishes_the_floor_it_recommends_from(
     coincidence the M14 closure seat exploited in the other direction (D-146 clause 2). Here one
     surface's FLOOR is moved and its anchor is not: the floor field must follow, the anchor must not.
     """
+    # Since D-159 the floor is derived from the served board (`app.workflows.floors`); the moved-board
+    # half of this test is `test_floor_served.py`, and the anchor half is the test above.
+    from app.workflows.floors import derived_floor
+
     served = _served_categories()
+    conn = sqlite3.connect(seeded)
     for surface, spec in CATEGORIES.items():
-        assert served[surface]["min_quality"] == spec.min_quality, surface
-
-    surface = "document"
-    spec = CATEGORIES[surface]
-    moved = dataclasses.replace(spec, min_quality=spec.min_quality + 123.0)
-    monkeypatch.setitem(CATEGORIES, surface, moved)
-
-    served = _served_categories()
-
-    assert served[surface]["min_quality"] == spec.min_quality + 123.0
-    assert served[surface]["score_anchor"] == PINNED_SCORE_ANCHORS[surface]
+        assert served[surface]["min_quality"] == derived_floor(conn, spec), surface
 
 
 def test_only_the_search_surfaces_say_the_search_call_is_not_in_the_price(seeded: Path) -> None:

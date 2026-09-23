@@ -1,42 +1,43 @@
-"""D-148 -- every shipped floor is the one the measurement record derived under the ROWS rule.
+"""D-148 clause 1 and D-159 -- the floor the engine serves is the rule, on the board it serves.
 
-One fact in two artefacts: the floor in `categories.py` and the measured D-148 column in
-`docs/research/m16-w3-floor-table-2026-09-23.md`. DevFlow AGENTS.md §3.5: generate one from the other
-or gate the comparison. The record is the measurement (reproduced by
-`scripts/survey_boards.py --floors`), so this compares the code with it, surface by surface, and fails
-closed if the record's table cannot be read.
+Until M17-W1 this compared a hand-kept floor in `categories.py` with a research record of one day's
+measurement (`docs/research/m16-w3-floor-table-2026-09-23.md`), which is exactly the shape that went
+stale (W-128). The floor is now derived where it is read (`app.workflows.floors`), so this test holds
+the DERIVATION to the rule, on the artifact the owner serves, against a second, independent reading
+of the rule written here -- a derivation that drifted from the ruling would disagree with it.
 """
 
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
+import pytest
+
+from app.adapter import main as adapter
 from app.workflows.categories import CATEGORIES
-
-RECORD = Path(__file__).resolve().parents[2] / "docs" / "research" / "m16-w3-floor-table-2026-09-23.md"
-
-
-def _d148_column() -> dict[str, float]:
-    lines = RECORD.read_text(encoding="utf-8").splitlines()
-    header = next(i for i, line in enumerate(lines) if line.startswith("| surface | board rows"))
-    columns = [c.strip() for c in lines[header].strip("|").split("|")]
-    at = columns.index("D-148 (rows)")
-    out: dict[str, float] = {}
-    for line in lines[header + 2:]:
-        if not line.startswith("|"):
-            break
-        cells = [c.strip() for c in line.strip("|").split("|")]
-        out[cells[0]] = float(cells[at])
-    return out
+from app.workflows.floors import derived_floor
 
 
-def test_the_record_covers_every_surface() -> None:
-    """Fails closed: a surface missing from the record is a floor nobody measured."""
-    assert set(_d148_column()) == set(CATEGORIES)
+def _rule(conn: sqlite3.Connection, source: str, benchmark: str, metric: str) -> float | None:
+    """D-148 clause 1, read literally: every row the parser stored for the surface's board, sorted
+    high to low, and the one a third of the way down."""
+    scores = sorted((row[0] for row in conn.execute(
+        "SELECT score FROM scores WHERE source = ? AND benchmark = ? AND metric = ?",
+        (source, benchmark, metric))), reverse=True)
+    if not scores:
+        return None
+    return round(scores[max(0, round(len(scores) / 3) - 1)], 1)
 
 
-def test_every_floor_follows_d148() -> None:
-    measured = _d148_column()
-    wrong = {s: (spec.min_quality, measured[s]) for s, spec in CATEGORIES.items()
-             if spec.min_quality != measured[s]}
-    assert not wrong, f"floor in code != D-148 measurement (code, record): {wrong}"
+@pytest.mark.artifact
+def test_every_served_floor_is_the_rule_on_its_board() -> None:
+    conn = adapter.open_readonly(Path("advisor.db"))
+    try:
+        derived = {s: derived_floor(conn, spec) for s, spec in CATEGORIES.items()}
+        literal = {s: _rule(conn, spec.primary_source, spec.primary_benchmark, spec.metric)
+                   for s, spec in CATEGORIES.items()}
+    finally:
+        conn.close()
+    assert any(v is not None for v in derived.values()), "fails closed: no board had a floor"
+    assert derived == literal
