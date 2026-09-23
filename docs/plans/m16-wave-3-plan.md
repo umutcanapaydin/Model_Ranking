@@ -75,7 +75,7 @@ floors in `categories.py`; which rule each tie margin follows (D-148 clause 2).
 - [x] **P4 — the survey mode.** `scripts/survey_boards.py --floors` prints every surface's floor under
   D-148 (board rows, top third) beside today's; `parse_rate_board` keep-best tested. *Acceptance:*
   reproduces the W1 review's numbers for the M8 surfaces.
-- [ ] **P5 — the table and the ruling.** Before/after per surface: floor, and whether Budget Pick or
+- [x] **P5 — the table and the ruling.** Before/after per surface: floor, and whether Budget Pick or
   Best Value changes at each budget. Put to the owner; nothing changes until ruled.
 - [ ] **P6 — the ruled floors.** `categories.py` floors and header comment; `agentic-coding` states its
   effort population; each tie margin names the rule it follows (D-148 clause 2).
