@@ -2,7 +2,7 @@
 record_type: wave
 id: wave-checklist-template
 status: draft
-process_version: v6.4
+process_version: v6.6
 date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
@@ -32,7 +32,7 @@ date: 2026-09-23
 |---|---|---|---|
 | 1 | Risk tier recorded for this wave in the plan (LOW/MED/HIGH; auto-HIGH if the diff touches authz/secrets/crypto/input-parsing/egress) | plan `file:line` | |
 | 2 | Per-agent dev-test loop ran (implement → test → self-review → fix) | test-run ref | |
-| 3 | Code-Reviewer and Tester ran as **two separate subagents** via `/close-wave`, every wave, every tier; neither verdict BLOCKING (`make wave-check` reads both). HIGH additionally: row 4. Reviewer countersigns 2 randomly-chosen rows of THIS checklist against the actual artifacts (anti self-attestation) | `docs/reviews/m{N}-wave-{W}-review.md` + `-tester.md` | |
+| 3 | Code-Reviewer and Tester ran as **two separate subagents** via `/close-wave`, every wave, every tier; neither verdict BLOCKING, and each declares `**Independent:** yes` — its reviewer wrote none of this wave's code (`make wave-check` reads both). An author who reviewed marks this row WAIVED, with a row for this wave in `docs/control-events.csv`. HIGH additionally: row 4. Reviewer countersigns 2 randomly-chosen rows of THIS checklist against the actual artifacts (anti self-attestation) | `docs/reviews/m{N}-wave-{W}-review.md` + `-tester.md` | |
 | 4 | *(plan-tag)* HIGH slice: pulled-forward security pass on this slice DONE | review file | |
 | 5 | Tester fault-injection on the 1–2 most load-bearing behaviors: break → RED confirmed; restore reproduces pre-injection BYTES (md5), never re-derived; after any FIX round, replay the previous round's mutant set — the independent set's survivors where one exists → reverted byte-identical (md5); every stay-GREEN fault got its mandatory new test. **HIGH only, advisory:** if a mutation runner is wired, mutant kill-rate on changed code recorded beside the verdict — never blocks | tester log + new test refs (+ kill-rate line at HIGH) | |
 | 6 | Every acceptance criterion touched has a citing test entering through the LIVE entrypoint (not a unit shim) — "built ≠ wired" | test `file:line` | |
@@ -45,6 +45,19 @@ date: 2026-09-23
 
 Filled by: `<agent>` · Date: `<YYYY-MM-DD>` · Wave commit range: `<start>..<end>`
 
+## Review findings — each one fixed here, filed, or refused
+
+One row per id in the two verdicts' MINOR, K.9 and queued-risk sections (`/close-wave` step 6).
+A finding fixed in this wave is not filed; one the wave does not fix leaves it as an issue —
+`bug` with a severity, or `enhancement`. `make wave-check` refuses a close that leaves one out.
+No findings → keep the header and write none below it.
+
+| finding | disposition |
+|---|---|
+| review M1 | fixed `<sha>` |
+| tester M1 | #<issue> |
+| review K1 | refused — <why the finding is wrong, in a sentence> |
+
 ## Wave footprint — RECORD ONLY, no rule attached
 
 **Fill these from the actual diff at close, not from the plan.** Plan-time paths are a prediction;
@@ -56,6 +69,7 @@ Mutant set author: <who designed the fault-injection set; self-designed = suppor
 Observed RED:   <the mutation + which assertion failed for the cited reason; N/A-with-reason if no code row>
 Owner instruction: <the owner's words, VERBATIM, that this wave implements — and one line mapping the delivery to those words>
 K.8 contracts:  <shared interfaces this wave changed, or NONE — the symbols other waves depend on>
+Stopped at three attempts: <#issue per problem this wave gave up on after three failed attempts (`.agents/rules/practices.md`), or NONE>
 Hand-kept lists: <NAME the hand-kept enumeration this wave adds — the list that sits beside the thing it guards and must be updated by hand when that thing changes — or NONE>
 ```
 

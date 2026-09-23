@@ -354,6 +354,27 @@ else
   fail "$hooks, and $server -- nothing gates a push. Run make hooks (an unanswered field counts as no)"
 fi
 
+# --- C12: CI still starts (ADVISORY: a [warn] at most, never a fail) -------------------------------
+# C11 reads what the brief SAYS about CI; this asks GitHub whether its runs start at all. A billing
+# or runner limit fails every job before its first step, and a red check nobody reads looks like
+# every other red check. Advisory because it reads a server this tree does not control, and cannot
+# stop a push -- `make gate` at pre-push can (scripts/ci_liveness.py; also `make ci-liveness`).
+say "[C12] CI still starts a step (advisory)"
+LPY=""
+for c in python3 python; do "$c" -c 'import sys' >/dev/null 2>&1 && { LPY=$c; break; }; done
+if [ ! -f scripts/ci_liveness.py ]; then
+  say "  [info] scripts/ci_liveness.py is not in this tree -- nothing asked GitHub"
+elif [ -z "$LPY" ]; then
+  say "  [info] ci-liveness: CANNOT CHECK -- no working python3 or python on PATH"
+else
+  live=$("$LPY" scripts/ci_liveness.py 2>&1 | tail -n 1)
+  case "$live" in
+    "ci-liveness: WARN"*) warn "$live" ;;
+    "ci-liveness: ok"*)   ok "$live" ;;
+    *)                    say "  [info] ${live:-ci-liveness: printed nothing}" ;;
+  esac
+fi
+
 # --- verdict -----------------------------------------------------------------------------------
 say ""
 say "bootstrap-check: $FAIL fail / $WARN warn"

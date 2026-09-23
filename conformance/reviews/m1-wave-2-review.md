@@ -1,6 +1,7 @@
 # Wave 2 Code Review (m1)
 
 **Reviewer:** Code-Reviewer subagent (fresh eyes — did not author wave)
+**Independent:** yes
 **Date:** 2026-09-23
 **Commit range:** a1b2c3d..f4e5d6c
 **Risk tier:** MEDIUM (from plan)

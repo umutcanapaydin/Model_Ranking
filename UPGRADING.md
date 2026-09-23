@@ -66,6 +66,37 @@ records decide how the new version runs.
 Read every entry newer than the version you had. Older than `v6.0.1`: compare the old and the new
 `AGENTS.md` side by side after the upgrade.
 
+**`v6.6`**
+- Review findings carry ids. The Code-Reviewer and Tester write every MINOR, K.9 and queued-risk
+  finding as `**M1**` / `**K1**` / `**R1**`, and the wave-close checklist gains a findings table:
+  each id fixed in the wave (`fixed <sha>`), filed (`#<n>`), or `refused — <why>`. It also gains the
+  footprint line `Stopped at three attempts:` (`NONE`, or the bug issues). `make wave-check`
+  requires both on a close declaring `v6.6`; closes written earlier are graded by their version.
+- The `work-issue` skill is removed: `/fix-issue` has its "with a human in the loop" section, and the
+  triage verdict `work-issue` still selects it. The upgrade deletes `.claude/skills/work-issue/`.
+- A warnings-ledger row ACCEPTED may name its issue (`#42`) as its owner instead of a milestone.
+- Nothing in `.github/workflows/` changed.
+
+**`v6.5`**
+- Every review verdict declares its independence: the wave's Code-Reviewer and Tester files, and
+  the `/fix-issue` Tester file, carry `**Independent:** yes`, meaning the reviewer wrote none of the
+  code. `make wave-check` refuses a wave close declaring `v6.5` or later whose verdict lacks the line
+  or says `no`. An author review passes only as a waiver: the checklist's Code-Reviewer row WAIVED,
+  with a row for the wave in `docs/control-events.csv`. It is a declaration, not a proof. Closes
+  written earlier are graded by the version they declare, so nothing is rewritten.
+- The Bash guard refuses every command when `grep` is not on PATH. Before, nothing matched and every
+  command was allowed.
+- A key written twice in one mapping of a workflow fails `conformance/test-ci-yaml.py`: YAML keeps
+  the last one silently. It reads the file with PyYAML where that is installed, and with a line
+  reader over block mappings where it is not, so it grades on every machine.
+- In Markdown, a code fence that is never closed is an `L1` finding, where before the rest of the
+  file went unread. Close the fence. Code spans of any backtick length are now read correctly.
+- `make check-fast` takes a project's own legs: `CHECK_FAST_OWN_LEGS`, and `CHECK_FAST_FORMS` for a
+  gate that runs in another form (a parallel test run). Both go in `stack.mk` (`INSTALL.md`).
+- `make ci-liveness` says in one line whether CI's latest runs started any step, which catches a
+  billing or runner limit that makes every run "fail". It is advisory: it exits 0 and no gate runs
+  it. `/start-session` reports it, and `make bootstrap-check` turns a warning into a `[warn]`.
+
 **`v6.4`**
 - `CLAUDE.md` is a one-line file, `@AGENTS.md`, not a symlink: on Windows the symlink checked out as
   a 9-byte text file and Claude Code loaded no house rules. `conformance/test-claude-md.py` accepts

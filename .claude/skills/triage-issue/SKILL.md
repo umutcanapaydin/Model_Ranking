@@ -1,6 +1,6 @@
 ---
 name: triage-issue
-description: Use when an issue arrives, is reopened, comes back failed from verification, or needs re-reading before anyone works it. Reads one issue, reproduces it, labels by ACTUAL root cause, posts a diagnosis, and ends with the routing decision the rest of the flow keys on. Writes no code, opens no PR, closes nothing.
+description: Use when an issue arrives or is filed — /file-issue and /close-wave hand every new issue here — is reopened, comes back failed from verification, or needs re-reading before anyone works it. Reads one issue, reproduces it, labels by ACTUAL root cause, posts a diagnosis, and ends with the routing decision the rest of the flow keys on. Writes no code, opens no PR, closes nothing.
 ---
 
 Read `.agents/rules/issues.md` first — the vocabulary and the pipeline live there.
@@ -16,13 +16,28 @@ Read `.agents/rules/issues.md` first — the vocabulary and the pipeline live th
    **is this safe to automate?**
    - yes → `/fix-issue`
    - no, because it needs design judgment, touches a sensitive area, or its scope is not pinned
-     down → `/work-issue`
+     down → `/fix-issue` with a human in the loop (verdict `work-issue`)
    - larger than one fix → `/work-enhancement`
 
    Write it as the diagnosis comment's **last line, exactly**:
    `Triage verdict: fix-issue` · `Triage verdict: work-issue` · `Triage verdict: work-enhancement`.
    That line is what `/fix-issue` checks; a verdict in prose is one nobody can find.
    The verdict is a default, not a lock: a human may take the interactive lane anyway.
+
+## When the issue is an `enhancement`
+
+There is nothing to reproduce. Step 1 becomes **pin the scope**: what changes, what stays as it
+is, and how anyone would know it is done — in the diagnosis comment, three lines. Then the same
+routing: one small change → `fix-issue`; several slices → `work-enhancement`; an owner decision
+first → `work-issue`. An enhancement nobody takes up now stays open: `/plan-milestone` reads the
+open queue and either plans it or names it as left out.
+
+## When the issue records three failed attempts
+
+It was filed by the rule in `.agents/rules/practices.md` ("Three attempts, then stop"). Read the
+three attempts before diagnosing: they are what did not work, and why. **Never `fix-issue`**: the
+autonomous lane is what already failed three times. The verdict is `work-issue` unless the
+diagnosis shows the scope is larger than one fix.
 
 ## When the issue carries `qa:failed`
 

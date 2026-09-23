@@ -1,15 +1,16 @@
-"""`make check-fast` -- the same gates as `make check`, run side by side.
+"""`make check-fast` -- DevFlow v6.6's `scripts/check_fast.py`, with this project's own legs.
 
-Modelled on the owner's `check-fast` in hcs_maas_full. `check` stays what a merge is judged by. The
-legs are DERIVED from `check`'s own prerequisite line (AGENTS.md §3.5): a gate added to `check`
-joins `check-fast` without anyone editing this, and one removed leaves it. The only names kept
-here are the ones with a reason: the Python chain runs in order (`coverage-floor` reads the
-`coverage.json` that `test` writes), and the Swift leg runs its parallel form.
+The script is DevFlow's, unchanged. What this project adds lives in `stack.mk`: the iOS client check
+and the Swift suite each get a leg of their own, and the Swift suite runs in its parallel form. These
+tests hold that configuration against the real Makefile, so a setting that silently matches nothing,
+or a gate that falls out of every leg, is red here and not only in the conformance run.
 """
 
 from __future__ import annotations
 
 import importlib.util
+import subprocess
+import sys
 from pathlib import Path
 from types import ModuleType
 
@@ -27,45 +28,43 @@ def _mod() -> ModuleType:
     return module
 
 
-def _flat(legs: dict[str, list[str]]) -> list[str]:
-    return [t for targets in legs.values() for t in targets]
+def _plan() -> dict[str, list[str]]:
+    result = subprocess.run([sys.executable, str(SCRIPT), "--plan"], cwd=ROOT, capture_output=True,
+                            encoding="utf-8", check=False)
+    assert result.returncode == 0, result.stdout + result.stderr
+    plan = {}
+    for line in result.stdout.splitlines():
+        name, sep, targets = line.partition(":")
+        if sep and not name.startswith("check-fast"):
+            plan[name.strip()] = targets.split()
+    assert plan, "fails closed: the plan printed no leg"
+    return plan
 
 
-def test_the_legs_run_every_gate_check_runs_exactly_once() -> None:
-    """Read from the real Makefile: nothing dropped, nothing doubled."""
-    mod = _mod()
-    prereqs = mod.check_prerequisites((ROOT / "Makefile").read_text(encoding="utf-8"))
-    assert prereqs, "fails closed: an empty `check` would make an empty check-fast"
-    flat = _flat(mod.legs(prereqs))
-    swapped = [mod.PARALLEL_FORM.get(t, t) for t in prereqs]
-    assert sorted(flat) == sorted(swapped)
-    assert len(flat) == len(set(flat))
+def test_the_project_legs_are_seen_and_every_gate_runs_once() -> None:
+    plan = _plan()
+    assert plan["client-decls"] == ["client-decls"]
+    assert plan["swift-test"] == ["swift-test=swift-test-parallel"]
+    shown = [t.split("=")[0] for targets in plan.values() for t in targets]
+    prereqs = _mod().check_prerequisites((ROOT / "Makefile").read_text(encoding="utf-8"))
+    assert sorted(shown) == sorted(prereqs)
 
 
-def test_the_python_chain_keeps_its_order() -> None:
-    legs = _mod().legs(["coverage-floor", "lint", "test", "typecheck", "conformance"])
-    assert legs["python"] == ["lint", "typecheck", "test", "coverage-floor"]
+def test_the_coverage_floor_runs_after_the_tests_it_reads() -> None:
+    """W-041's floor reads the coverage.json pytest writes. Under v6.6 a separate `check:`
+    prerequisite would land in the records leg, beside the tests, and read the previous run's file;
+    so it runs inside the `test` recipe, after pytest, and is no leg of its own."""
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    recipe = makefile.split("\ntest: ", 1)[1].split("\n\n", 1)[0]
+    assert recipe.index("pytest") < recipe.index("module_coverage_floor.py")
+    assert "coverage-floor" not in _mod().check_prerequisites(makefile)
 
 
-def test_a_new_gate_in_check_joins_a_leg_without_an_edit() -> None:
-    legs = _mod().legs(["lint", "test", "a-gate-added-tomorrow", "swift-test"])
-    assert "a-gate-added-tomorrow" in _flat(legs)
-    assert "swift-test-parallel" in _flat(legs) and "swift-test" not in _flat(legs)
+def test_a_setting_that_names_no_check_prerequisite_fails() -> None:
+    _, _, problems = _mod().settings(["lint", "test"], ["client-decls"], ["swift-test=swift-test-parallel"])
+    assert len(problems) == 2
 
 
 def test_an_empty_check_line_fails_closed() -> None:
     with pytest.raises(ValueError):
         _mod().check_prerequisites("gate: check\n")
-
-
-def test_any_failing_leg_fails_the_run(tmp_path: Path) -> None:
-    mod = _mod()
-    ok = {"a": ["true"], "b": ["sh", "-c", "exit 0"]}
-    assert mod.run_legs(ok, tmp_path) == 0
-    bad = {"a": ["true"], "b": ["sh", "-c", "echo broken; exit 3"]}
-    assert mod.run_legs(bad, tmp_path) != 0
-    assert "broken" in (tmp_path / "b.log").read_text(encoding="utf-8")
-
-
-def test_a_leg_that_cannot_start_fails_the_run(tmp_path: Path) -> None:
-    assert _mod().run_legs({"a": ["/nonexistent/binary"]}, tmp_path) != 0

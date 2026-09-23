@@ -45,6 +45,12 @@ PIP := $(PY) -m pip
 STACK := $(firstword $(shell cat .devflow-stack 2>/dev/null | tr -d '\r') python)
 ON_PYTHON := $(filter python,$(STACK))
 -include stack.mk
+# `make check-fast` only (scripts/check_fast.py), both empty unless `stack.mk` or this file sets them:
+# CHECK_FAST_OWN_LEGS -- `check:` prerequisites that each get a leg of their own, beside the code legs;
+# CHECK_FAST_FORMS -- `target=form` pairs: check-fast runs `form` in place of `target`
+# (`swift-test=swift-test-parallel`). `make check` never uses a form. INSTALL.md has the example.
+CHECK_FAST_OWN_LEGS ?=
+CHECK_FAST_FORMS ?=
 # $(call bound,VAR): the project's command for VAR, or a failure naming what to bind, and where.
 bound = $(if $(strip $($(1))),$($(1)),@echo "BIND ME: $(1) is not set for stack '$(STACK)' -- define it in stack.mk (INSTALL.md: binding another stack)" >&2; exit 1)
 # $(call need,TOOL,WHAT): stop with exit 2 -- cannot run, not a finding -- when TOOL is not on PATH.
@@ -54,7 +60,7 @@ need = @command -v $(1) >/dev/null 2>&1 || { echo "$(1) not installed: cannot $(
 
 # Every target is declared phony. `conformance` is also a directory: undeclared, make called the
 # target "up to date" and never ran it, so `make gate` skipped the whole conformance suite.
-.PHONY: help install test lint format typecheck check check-fast gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check
+.PHONY: help install test lint format typecheck check check-fast check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check
 
 help:  ## this list, generated from the annotation on each target (a hand-written list drifts)
 	@grep -hE '^[a-zA-Z0-9_.-]+:[^#]*## ' $(MAKEFILE_LIST) | sort \
@@ -84,6 +90,10 @@ test: install  ## pytest in parallel, with the served artifact required (another
 	@# coverage data would have turned the floor into a false alarm. CI stays serial: `.github/`
 	@# is a DevOps-owned surface (AGENTS.md section 5). A single test by hand: plain `pytest path`.
 	$(if $(ON_PYTHON),MODEL_RANKING_REQUIRE_ARTIFACT=1 $(PY) -m pytest -n auto,$(call bound,STACK_TEST))
+	@# W-041's per-module floor reads the coverage.json this run just wrote, so it runs HERE, in the
+	@# same recipe: under DevFlow v6.6's check-fast a separate `coverage-floor` prerequisite would run
+	@# in another leg, beside the tests, and read the previous run's file (D-161).
+	$(if $(ON_PYTHON),$(PY) -B scripts/module_coverage_floor.py)
 
 lint: install  ## ruff over src, tests and scripts (another stack: STACK_LINT)
 	$(if $(ON_PYTHON),$(PY) -m ruff check src tests scripts,$(call bound,STACK_LINT))
@@ -95,11 +105,11 @@ format: install  ## black, then ruff --fix, over src and tests
 typecheck: install  ## mypy (strict) over src (another stack: STACK_TYPECHECK)
 	$(if $(ON_PYTHON),$(PY) -m mypy src,$(call bound,STACK_TYPECHECK))
 
-check: lint typecheck test coverage-floor check-records check-records-selftest install-check harvest-context-check shell-dialect wave-check-all conformance swift-test client-decls  ## the offline half of the gate, one leg after another (the post-edit hook runs check-fast)
+check: lint typecheck test check-records check-records-selftest install-check harvest-context-check shell-dialect wave-check-all conformance swift-test client-decls  ## the offline half of the gate, one leg after another (the post-edit hook runs check-fast)
 
 coverage-floor: install  ## W-041: no module carries materially less test proof than the rest
 	@# W-041. The per-module half of the coverage gate; the global floor lives in pyproject.
-	@# Runs AFTER `test`, which writes coverage.json as part of its normal run.
+	@# `make test` runs it after pytest; this target is for running it by hand on the last run.
 	$(PY) -B scripts/module_coverage_floor.py
 
 #: D-150 clause 1 as amended (W-111). The floor is no longer typed: it is the number of lines in
@@ -154,10 +164,8 @@ swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING so
 	fi
 
 
-check-fast: install  ## the same gates as `check`, side by side (~3x faster); `check` stays the merge gate
-	@# Owner, 2026-09-23, after hcs_maas_full's `check-fast`. The legs are READ from `check:`'s line
-	@# above, so the two cannot drift apart; the reasons and the timings are in scripts/check_fast.py.
-	@$(PY) -B scripts/check_fast.py --make "$(MAKE)"
+check-fast: install  ## `make check`'s legs side by side -- what the post-edit hook runs; `make check` stays the merge gate
+	@$(PY) scripts/check_fast.py --make "$(MAKE)"
 
 swift-test-parallel:  ## `swift-test` for `check-fast`: the same suite with --parallel, judged from xUnit
 	@# `swift test --parallel` prints no `Executed N tests` line, and a serial run writes no xUnit
@@ -189,6 +197,18 @@ wave-check-all: install  ## every wave-close record validated, not only the one 
 
 harvest-context:  ## v5.2 (16-2): regenerate the control roster a field harvest grades GP against
 	@$(SYS_PY) scripts/gen_harvest_context.py
+
+# What check_fast.py reads: exactly these two lines. Asking make, not parsing stack.mk, reads a value
+# wherever it was set -- stack.mk, this file, the command line.
+check-fast-config:  ## the two check-fast settings, CHECK_FAST_OWN_LEGS and CHECK_FAST_FORMS, as make sees them
+	@echo "own: $(strip $(CHECK_FAST_OWN_LEGS))"
+	@echo "forms: $(strip $(CHECK_FAST_FORMS))"
+
+# ADVISORY, and deliberately not reachable from `gate`: it asks GitHub about runs that already
+# happened, so it can say CI has stopped starting (a billing or runner limit) but cannot stop a push.
+# It always exits 0. `/start-session` and bootstrap-check C12 run it and report its one line.
+ci-liveness:  ## ADVISORY, never a gate leg: did the latest CI runs start any step? (gh; always exits 0)
+	@$(SYS_PY) scripts/ci_liveness.py
 
 # `gate` is the ONE name that means "everything this pipeline claims to enforce". The pre-push hook
 # and `/pre-merge` run it, the post-edit hook runs its offline half (`make check-fast`), and CI runs
@@ -254,7 +274,7 @@ standup:  ## where are we, in five seconds: latest process-log entry, open ADRs,
 	$(call need,bash,print the standup)
 	@bash scripts/standup.sh
 
-bootstrap-check:  ## the Stage-0 gate: placeholders, /health, core docs, universal ADRs, brief, what gates a push
+bootstrap-check:  ## the Stage-0 gate: placeholders, /health, core docs, universal ADRs, brief, what gates a push, CI liveness (advisory)
 	$(call need,bash,run the Stage-0 gate)
 	@bash scripts/bootstrap-check.sh
 
@@ -296,8 +316,9 @@ smoke-deps:  ## Stage 5.2 (seed L.8): invoke EACH external dependency for real a
 	@bash docs/smoke-deps.sh
 
 closes:  ## every filled wave-close checklist and closure report in the tree, checked -- none is optional
-# Part of `make check`, so the post-edit hook, /pre-merge and CI grade every close record that
-# exists. None existing is a new project, and it says so.
+# In DevFlow this is part of `make check`. In model_ranking it is NOT (D-161): closure_check.py grades
+# every closure report by today's template, so M1-M15's fail; `wave-check-all` grades the wave closes,
+# and a closure report is checked at its own closure with `make closure-check FILE=...`.
 	@n=0; rc=0; for f in docs/plans/m*-wave-*-close.md; do [ -f "$$f" ] || continue; n=$$((n+1)); \
 	  $(SYS_PY) scripts/wave_check.py "$$f" || rc=1; done; \
 	for f in docs/closure-report-m*.md; do [ -f "$$f" ] || continue; n=$$((n+1)); \

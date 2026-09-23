@@ -15,7 +15,11 @@ description: Use at the start of every milestone (Stage 1), when designs or requ
 3. **The GitHub milestone.** `gh api repos/{owner}/{repo}/milestones --jq '.[].title'`. If
    `M<N>` is not there, create it:
    `gh api -X POST repos/{owner}/{repo}/milestones -f title='M<N>: <goal>'`.
-4. **One issue per unit of work, never two.** For each row of the issue inventory, search first,
+4. **Read the open queue first**: `gh issue list --state open --json number,title,labels,milestone`.
+   Every open issue with no milestone — what earlier waves filed, what triage routed — either
+   joins this plan's issue inventory or is named in the plan as left out, with the reason. A
+   queue the plan never reads grows until nobody reads it.
+5. **One issue per unit of work, never two.** For each row of the issue inventory, search first,
    open and closed:
    `gh issue list --state all --search '<key words> in:title' --json number,title,state,milestone`
    - **A match exists** → write its number into the inventory and **leave the issue exactly as it
@@ -26,10 +30,10 @@ description: Use at the start of every milestone (Stage 1), when designs or requ
      (a `bug` gets `--label bug` and exactly one `severity:*`). Only labels from
      `.agents/rules/issues.md` — `make labels` creates them once per repository.
    - Unsure whether two titles are the same work → ask. A duplicate costs more than a question.
-5. Write every issue number into the plan. The plan is the map from wave to issue; `/close-wave`
+6. Write every issue number into the plan. The plan is the map from wave to issue; `/close-wave`
    reads it to list the issues each wave's PR resolves.
-6. Branch `plan/m<N>`, commit the plan (`git add` the plan file by path), push the branch, open a
+7. Branch `plan/m<N>`, commit the plan (`git add` the plan file by path), push the branch, open a
    **draft** PR. **The owner approves the plan by merging it** — no wave is dispatched before
    that. No AI attribution.
-7. After the merge: each wave runs on its own `wave/m<N>-w<W>` branch from the default branch and
+8. After the merge: each wave runs on its own `wave/m<N>-w<W>` branch from the default branch and
    ends with `/close-wave`.

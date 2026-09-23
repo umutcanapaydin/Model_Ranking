@@ -67,6 +67,7 @@ document.
 Makefile
 .devflow-stack
 scripts/check_fast.py
+scripts/ci_liveness.py
 scripts/bootstrap-check.sh
 scripts/check_records.py
 scripts/standup.sh

@@ -1,6 +1,6 @@
-# model_ranking — LLM Benchmark & Recommendation Engine (DevFlow v6.4)
+# model_ranking — LLM Benchmark & Recommendation Engine (DevFlow v6.6)
 
-> model_ranking: aggregates free-and-legal LLM benchmark + pricing data and produces budget-aware, per-use-case model recommendations, served to its own iOS app. Process: [DevFlow v6.4](https://github.com/SADCAIVibe/DevFlow/tree/v6.4) since 2026-09-23 (D-155, D-161); General Pipeline v4.3.1 -> v5.0 before that. `make gate` is everything the pipeline claims to enforce; `make check` is its day-to-day subset.
+> model_ranking: aggregates free-and-legal LLM benchmark + pricing data and produces budget-aware, per-use-case model recommendations, served to its own iOS app. Process: [DevFlow v6.6](https://github.com/SADCAIVibe/DevFlow/tree/v6.6) since 2026-09-23 (D-155, D-161); General Pipeline v4.3.1 -> v5.0 before that. `make gate` is everything the pipeline claims to enforce; `make check` is its day-to-day subset.
 >
 > **★ Fresh agent or new team member?** This is a RUNNING project, so the first question DevFlow asks — new or resuming? — is already answered: resuming. Run `/start-session`, which reads `docs/process-log.md` and the latest plan and establishes what green looks like before anything changes. Then `AGENTS.md` (the rules). `pipeline-schema.html` is the same workflow as a picture.
 >
@@ -12,7 +12,8 @@
 
 ```bash
 make install     # venv + deps
-make hooks       # once per clone: make gate before every push
+make hooks       # once per clone: make gate before every push (see D-161 before turning it on here)
+make ci-liveness # advisory, never a gate: did CI's latest runs start any step?
 make check-fast  # the same legs as make check, side by side -- what the post-edit hook runs
 make check       # the offline half of the gate, in order: the merge gate
 make run         # local dev server
@@ -49,6 +50,7 @@ The rest is read on demand, when a rule or a stage points at it:
 ├── CLAUDE.md                   # one line: @AGENTS.md
 ├── Makefile                    # canonical commands
 ├── .devflow-stack              # the product's stack: python
+├── stack.mk                    # the project's own check-fast legs (CHECK_FAST_OWN_LEGS, CHECK_FAST_FORMS)
 ├── pyproject.toml              # stack lock
 ├── permission-matrix.md        # default-deny + BLOCKING taxonomy
 ├── .claude/                    # harness config, hooks, skills, subagents (.claude/agents/)

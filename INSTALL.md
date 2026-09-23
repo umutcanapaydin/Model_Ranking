@@ -7,10 +7,10 @@ run once per project, except the ones marked *every clone*.
 
 | Tool | Why DevFlow needs it |
 |---|---|
-| git and bash | every script and the pre-push gate are bash; on Windows that is Git Bash |
+| git, bash and grep | every script and the pre-push gate are bash; on Windows that is Git Bash, which ships grep. The Bash guard matches each command with grep: without it every command is refused, `BLOCKED: this guard cannot run -- grep is not on PATH (see INSTALL.md).` |
 | Python ≥3.11 | DevFlow's own tooling — the records validator, the conformance suite, the guards that read each tool call — is Python on every stack, whatever the product is written in |
 | GNU make | every command is a make target, and the post-edit hook runs `make check-fast` |
-| gh, the GitHub CLI | `make labels` and the draft pull requests the skills open. Without it, the common steps say what to do instead |
+| gh, the GitHub CLI | `make labels`, `make ci-liveness` and the draft pull requests the skills open. Without it, the common steps say what to do instead |
 | gitleaks | `make secrets`, a leg of `make gate`, which runs before every push |
 
 ## Windows
@@ -134,7 +134,8 @@ In Git Bash (Windows) or a terminal (macOS, Linux), at the repository root.
 7. A stack other than `python`: bind its legs in `stack.mk`
    ([Binding another stack](#binding-another-stack), below).
 8. Branch protection on the default branch (`docs/branch-protection.md`), if the brief says the
-   repository can have it.
+   repository can have it. Once CI has run, `make ci-liveness` says in one line whether its latest
+   runs started any step. It is advisory: it always exits 0, and no gate runs it.
 9. `make check-fast`, then `make check` — both green. `check-fast` runs the legs of `check` side by
    side and names every one that fails; `check` runs them in order and is the merge gate.
 10. `make bootstrap-check` until it is green, then `/plan-milestone`.
@@ -252,3 +253,51 @@ edit, `make check`, and `make gate` before every push. There are two ways out, a
   ```
 
   If nothing runs the leg before a merge, this is not a skip, it is a removed gate: do not bind it.
+
+### A project's own legs in `make check-fast`
+
+`make check-fast` runs lint, typecheck and test each in a leg of its own, and every other `check:`
+prerequisite one after another in a `records` leg. Two variables, empty unless `stack.mk` sets them,
+change that for `check-fast` only. `make check` stays serial, runs every target by its own name, and
+is the merge gate:
+
+| Variable | What it does in `make check-fast` |
+|---|---|
+| `CHECK_FAST_OWN_LEGS` | each `check:` prerequisite named here gets a leg of its own |
+| `CHECK_FAST_FORMS` | `target=form` pairs: runs make target `form` in place of `target` |
+
+A name in either one that is not a `check:` prerequisite, or a pair that is not `target=form`, fails
+`make check-fast` with the name. `make check-fast-config` prints both, as make reads them.
+
+**Example — a Python product with a Swift package beside it.** All of it goes in `stack.mk`: the
+project's two gates joined to `check:` (make merges every `check:` line it reads, and `make
+check-fast` derives its legs from the same lines), their recipes, and the two settings:
+
+```make
+check: client-decls swift-test
+
+client-decls:          # the Swift client's declarations still match the API
+	swift run client-decls-check
+swift-test:            # serial, for `make check`
+	swift test
+swift-test-parallel:   # the same tests in parallel, for `make check-fast`
+	swift test --parallel
+
+CHECK_FAST_OWN_LEGS = client-decls
+CHECK_FAST_FORMS = swift-test=swift-test-parallel
+```
+
+`python3 scripts/check_fast.py --plan` then shows every `check:` prerequisite by its own name, a
+replaced one as `target=form`:
+
+```
+lint: lint
+typecheck: typecheck
+test: test
+client-decls: client-decls
+records: check-records check-records-selftest install-check shell-dialect closes swift-test=swift-test-parallel
+```
+
+A form must fail wherever its target fails. `swift test --parallel` reports a skipped test as
+passed, so check it against the serial run before you rely on it. The serial `make check` is what a
+merge is judged by.

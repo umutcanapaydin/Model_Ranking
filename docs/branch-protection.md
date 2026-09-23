@@ -2,7 +2,7 @@
 record_type: design
 id: branch-protection
 status: ratified
-process_version: v6.4
+process_version: v6.6
 date: 2026-09-23
 ---
 # Required status checks — the one list
@@ -33,7 +33,10 @@ deadline.
 required checks never report. Protection still blocks direct pushes and unreviewed merges; the checks
 themselves run on each developer's machine through the pre-push gate (`make hooks` → `make gate`).
 Record that in `docs/project-brief.md` (§2, question 7): `make bootstrap-check` reads it, and
-unless both answers are yes, a clone without `make hooks` fails Stage 0.
+unless both answers are yes, a clone without `make hooks` fails Stage 0. When Actions stop starting
+later (a billing or runner limit), every run still reports `failure` and reads as noise:
+`make ci-liveness` says so in one line (`/start-session` runs it). It is advisory: it exits 0 and no
+gate runs it.
 
 ## What this file does not do
 

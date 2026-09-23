@@ -72,7 +72,9 @@ While reading, did you notice issues OUTSIDE this wave's scope that shouldn't be
 - Missing factory paths in another module
 - Missing validate gates someone else should add
 - Test gaps in unrelated code
-**Flag them; do not fix them.** Queue them under the verdict's "Risks queued to next M".
+**Flag them; do not fix them.** List them under the verdict's K.9 section, each with an id. The
+author fixes each one in this wave or files it as an issue (`/close-wave` step 6) — a finding
+written only into this file is a finding nobody will query.
 
 ### 4. Anti-patterns to flag as MINOR
 - New `import X` without matching `X>=N` in `pyproject.toml` (seed C.6)
@@ -99,6 +101,7 @@ Write to `docs/reviews/m{N}-wave-{W}-review.md`:
 # Wave {W} Code Review (m{N})
 
 **Reviewer:** Code-Reviewer subagent (fresh eyes — did not author wave)
+**Independent:** yes
 **Date:** YYYY-MM-DD
 **Commit range:** <hash..hash>
 **Risk tier:** LOW | MEDIUM | HIGH (from plan)
@@ -112,8 +115,8 @@ PASS | MINOR | BLOCKING
 - file:line — issue — why blocking
   Evidence: <quoted lines or test output>
 
-### MINOR (queue for K.9 gap-fill or next-M)
-- file:line — issue — why minor
+### MINOR (the author fixes each in this wave or files it as an issue)
+- **M1** file:line — issue — why minor
 
 ### PASS (what looks good)
 - positive observations
@@ -131,16 +134,20 @@ PASS | MINOR | BLOCKING
 - Verdict: OK / drifted
 
 ## K.9 candidates spotted outside this wave's scope
-- file:line — issue — suggested wave/milestone to fix
+- **K1** file:line — issue — bug or enhancement, and why
 
 ## Risks queued to next M
-- <bullet>
+- **R1** <the risk, and what would show it is real>
+
+Every bullet in these three sections starts with its id (`**M1**`, `**K1**`, `**R1**`); `make
+wave-check` refuses a close that does not account for each one. Nothing to report → `- none`.
 ```
 
 ---
 
 ## When you finish
 
+- `**Independent:** yes` is your declaration that you wrote none of the code in the range. `make wave-check` refuses a verdict without it. It is a declaration, not a proof: no file can show which session wrote the code. So write it only if it is true. If you wrote any of it, write `no`. The wave then closes only if the checklist's Code-Reviewer row is WAIVED, with a row for the wave in `docs/control-events.csv`.
 - Save verdict to `docs/reviews/m{N}-wave-{W}-review.md`. The verdict file is the only channel: the author reads it to fix, and you do not argue it with them.
 - If BLOCKING → STOP. The author fixes on the same branch and `/close-wave` dispatches a NEW Code-Reviewer on the new range; the wave does not close until a review is not BLOCKING.
 - If PASS or MINOR → control returns to the controller; the **Tester** (Stage 3b, fresh-eyes) dispatches next. Security review is Stage 5.1, once on the whole release, not per wave.

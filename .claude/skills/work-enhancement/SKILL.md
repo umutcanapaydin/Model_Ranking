@@ -14,7 +14,9 @@ description: Use for enhancement-labelled work that is larger than one fix — a
    - gates green after each phase, never push red
    - one conventional commit per phase
    - `/repo-review` after each phase, then tick that phase's box in the PR body
-5. After the last phase: `/repo-review` across the whole branch diff, then `/pre-merge`.
+5. After the last phase: `/repo-review` across the whole branch diff, then `/pre-merge`. A review
+   finding this PR does not fix is filed with `/file-issue`, and a phase still red after three
+   attempts stops the same way (`.agents/rules/practices.md`).
 6. Ask for approval before finalising. Only then delete the plan document — **an enhancement's
    plan never lands on the default branch** (a milestone plan does; that is `/plan-milestone`'s).
-   The PR stays a draft; the human marks it ready.
+   The PR stays a draft; the human marks it ready. After the merge, `/post-merge`.

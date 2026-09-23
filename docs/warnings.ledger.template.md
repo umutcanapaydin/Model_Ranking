@@ -2,7 +2,7 @@
 record_type: warnings
 id: warnings-ledger-template
 status: draft
-process_version: v6.4
+process_version: v6.6
 date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
@@ -21,7 +21,9 @@ date: 2026-09-23
 ## The rule in one line
 
 **A warning may not survive the close it was raised in.** It is FIXED, ACCEPTED with a reason and an
-owning milestone, or ESCALATED. There is no fourth option and no silence.
+owner, or ESCALATED. There is no fourth option and no silence. The owner is best the issue that
+carries the work (`#42`): this ledger records why, the issue list is where work waits
+(`.agents/rules/issues.md`, "Where a finding goes").
 
 A skipped or bypassed control is not a warning: it is a row in `docs/control-events.csv`, the one
 ledger `make wave-check` counts.
@@ -38,7 +40,7 @@ ledger `make wave-check` counts.
 |---|---|---|
 | **OPEN** | raised, not yet dispositioned | legal only in the current wave |
 | **FIXED** | the cause is gone | the commit or artifact that removed it |
-| **ACCEPTED** | shipping with it, deliberately | **a reason AND an owning milestone.** `C2c` fails without both — *"accepted"* with no owner is how a warning becomes permanent |
+| **ACCEPTED** | shipping with it, deliberately | **a reason AND an owner** — the issue that carries it (`#42`) or an owning milestone. `C2c` fails without both — *"accepted"* with no owner is how a warning becomes permanent |
 | **ESCALATED** | the owner decides | the escalation record |
 
 ## The counter
@@ -57,14 +59,14 @@ project; its emptiness must be a claim, not an absence.
 
 ## Ledger
 
-| id | rule that warned | first seen | path | status | reason + owning milestone |
+| id | rule that warned | first seen | path | status | reason + owner (milestone or issue) |
 |---|---|---|---|---|---|
 | — | — | — | — | — | *No warning observed as of `<YYYY-MM-DD>`. This line is the report; delete it when the first real row lands.* |
 
 <!-- Example rows — delete these when you file your first real warning.
 
 | W-001 | slopsquat | m1-wave-2 | pyproject.toml | FIXED | the new dependency was a typo of a real package (commit abc1234) |
-| W-002 | contract-suite | m2-wave-0 | tests/contract/ | ACCEPTED | no engine in the sandbox; owner runs it at the M2 gate — owning milestone M2 |
+| W-002 | contract-suite | m2-wave-0 | tests/contract/ | ACCEPTED | no engine in the sandbox; owner runs it at the M2 gate — #14 |
 | W-003 | coverage-floor | m2-wave-1 | scripts/ | ESCALATED | needs an infrastructure decision; owner ruling requested |
 
 -->

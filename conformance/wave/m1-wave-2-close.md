@@ -2,7 +2,7 @@
 record_type: wave
 id: m1-wave-2-close
 status: ratified
-process_version: v6.3
+process_version: v6.6
 date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
@@ -32,7 +32,7 @@ date: 2026-09-23
 |---|---|---|---|
 | 1 | Risk tier recorded for this wave in the plan (LOW/MED/HIGH; auto-HIGH if the diff touches authz/secrets/crypto/input-parsing/egress) | `docs/plans/m1-plan.md:31` — MED | ✅ |
 | 2 | Per-agent dev-test loop ran (implement → test → self-review → fix) | `tests/unit/test_quota_read.py:14` run in this wave (commit a1b2c3d) | ✅ |
-| 3 | Code-Reviewer and Tester ran as **two separate subagents** via `/close-wave`, every wave, every tier; neither verdict BLOCKING (`make wave-check` reads both). HIGH additionally: row 4. Reviewer countersigns 2 randomly-chosen rows of THIS checklist against the actual artifacts (anti self-attestation) | `conformance/reviews/m1-wave-2-review.md` + `conformance/reviews/m1-wave-2-tester.md` | ✅ |
+| 3 | Code-Reviewer and Tester ran as **two separate subagents** via `/close-wave`, every wave, every tier; neither verdict BLOCKING, and each declares `**Independent:** yes` — its reviewer wrote none of this wave's code (`make wave-check` reads both). An author who reviewed marks this row WAIVED, with a row for this wave in `docs/control-events.csv`. HIGH additionally: row 4. Reviewer countersigns 2 randomly-chosen rows of THIS checklist against the actual artifacts (anti self-attestation) | `conformance/reviews/m1-wave-2-review.md` + `conformance/reviews/m1-wave-2-tester.md` | ✅ |
 | 4 | *(plan-tag)* HIGH slice: pulled-forward security pass on this slice DONE | N/A — MED wave, no HIGH slice (`docs/plans/m1-plan.md:31`) | ✅ |
 | 5 | Tester fault-injection on the 1–2 most load-bearing behaviors: break → RED confirmed; restore reproduces pre-injection BYTES (md5), never re-derived; after any FIX round, replay the previous round's mutant set — the independent set's survivors where one exists → reverted byte-identical (md5); every stay-GREEN fault got its mandatory new test. **HIGH only, advisory:** if a mutation runner is wired, mutant kill-rate on changed code recorded beside the verdict — never blocks | `tests/unit/test_quota_read.py:14` went RED on the `>=` → `>` mutant; restored md5 matches | ✅ |
 | 6 | Every acceptance criterion touched has a citing test entering through the LIVE entrypoint (not a unit shim) — "built ≠ wired" | `tests/unit/test_quota_read.py:14` through `GET /quota` | ✅ |
@@ -45,6 +45,16 @@ date: 2026-09-23
 
 Filled by: `lead agent` · Date: `2026-09-23` · Wave commit range: `a1b2c3d..f4e5d6c`
 
+## Review findings — each one fixed here, filed, or refused
+
+One row per id in the two verdicts' MINOR, K.9 and queued-risk sections (`/close-wave` step 6).
+A finding fixed in this wave is not filed; one the wave does not fix leaves it as an issue —
+`bug` with a severity, or `enhancement`. `make wave-check` refuses a close that leaves one out.
+No findings → keep the header and write none below it.
+
+| finding | disposition |
+|---|---|
+
 ## Wave footprint — RECORD ONLY, no rule attached
 
 **Fill these from the actual diff at close, not from the plan.** Plan-time paths are a prediction;
@@ -56,6 +66,7 @@ Mutant set author: Tester subagent (independent — authored no line of the diff
 Observed RED:   flipped `>=` to `>` in read.py:88 → `test_quota_boundary` failed on the boundary assertion
 Owner instruction: "the tenant admin sees their own quota" (translated) → delivered: GET /quota returns caller-tenant rows only
 K.8 contracts:  NONE — read path only
+Stopped at three attempts: NONE
 Hand-kept lists: NONE
 ```
 

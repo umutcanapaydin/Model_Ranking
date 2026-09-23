@@ -80,6 +80,7 @@ Write to `docs/reviews/m{N}-wave-{W}-tester.md` — or, for a fix, `docs/reviews
 # Wave {W} Tester Review (m{N})
 
 **Reviewer:** Tester subagent (fresh eyes — did not author wave)
+**Independent:** yes
 **Date:** YYYY-MM-DD
 **Commit range:** <hash..hash>
 **Risk tier:** LOW | MEDIUM | HIGH (from plan)
@@ -104,8 +105,8 @@ PASS | MINOR | BLOCKING
 ## BLOCKING
 - file:line — what is unproven — why blocking
 
-## MINOR (queue to next-M)
-- file:line — note
+## MINOR (the author fixes each in this wave or files it as an issue)
+- **M1** file:line — note (`- none` if there is nothing; `make wave-check` accounts for every id)
 
 ## Tests added/extended this review
 - <path:line> — which criterion it now proves
@@ -115,6 +116,7 @@ PASS | MINOR | BLOCKING
 
 ## When you finish
 
+- `**Independent:** yes` is your declaration that you wrote none of the code in the range, the fix included. `make wave-check` refuses a wave verdict without it, and `/pre-merge` reads it on a fix. It is a declaration, not a proof: no file can show which session wrote the code. So write it only if it is true. If you wrote any of it, write `no`. A wave then closes only if the checklist's Code-Reviewer row is WAIVED, with a row for the wave in `docs/control-events.csv`.
 - Save the verdict to `docs/reviews/m{N}-wave-{W}-tester.md` (a fix: `docs/reviews/fix-issue-<n>-tester.md`).
 - BLOCKING → STOP. The wave does not close until every acceptance criterion has a passing citing test.
 - PASS or MINOR → control returns to the controller: `/close-wave` fills the wave-close checklist, runs `make wave-check` and `make gate`, and opens the wave's draft PR for a human to merge; `/fix-issue` runs `make gate` and opens the fix's draft PR.

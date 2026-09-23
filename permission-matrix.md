@@ -159,7 +159,7 @@ For the Stage 3 per-wave verdicts (Code-Reviewer, then Tester), the Stage 5.1 re
 - **Acceptance criterion without a citing test** (GATE) — every acceptance criterion needs a citing test; a reported symptom must be reproduced with a failing test before its fix (red→green). Enforced by the per-wave Tester (Stage 3) and, when it is on, the Quality Gate (Stage 4.1)
 - **Control-class fail direction misapplied** — auth/safety failing OPEN, or no tested disable switch; fairness/rate-limit failing CLOSED
 
-### MINOR (queue to next-M, but ship this wave/milestone)
+### MINOR (ships; fixed in this wave or filed as an issue — `.agents/rules/issues.md`)
 - Style / doc drift / non-critical lint
 - Cross-wave K.9 candidates (gap-fill outside scope)
 - AGENTS.md size approaching 150 cap (warning, not BLOCKING until > cap)
@@ -213,6 +213,6 @@ Shipped guards (`.claude/settings.json`):
 - PreToolUse: a push to the default branch (§5)
 - PostToolUse: `make check-fast` after every edit (§9) — exit 2 while it is red, and exit 2 saying so when `make` is not installed
 
-**The guards fail closed.** Each reads the tool call with the first of `python3`, `python` that works. When neither does, or the call cannot be parsed, it blocks — exit 2, `BLOCKED: this guard cannot read the tool call -- no working python3 or python on PATH (see INSTALL.md).` — because a guard that cannot read the call and lets it through guards nothing. A call that parses and simply has no command or path is allowed.
+**The guards fail closed.** Each reads the tool call with the first of `python3`, `python` that works. When neither does, or the call cannot be parsed, it blocks — exit 2, `BLOCKED: this guard cannot read the tool call -- no working python3 or python on PATH (see INSTALL.md).` — because a guard that cannot read the call and lets it through guards nothing. The Bash guard then matches the command with `grep`; when `grep` is not on PATH it blocks every command — exit 2, `BLOCKED: this guard cannot run -- grep is not on PATH (see INSTALL.md).` — because a pattern that cannot run matches nothing. A call that parses and simply has no command or path is allowed.
 
 A new guard is recorded as an ADR in `docs/decisions.md` and ships with a case in `conformance/test-hook-claims.py` proving it exits 2 on what it must block and 0 on what it must allow.

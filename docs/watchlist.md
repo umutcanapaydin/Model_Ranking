@@ -2,7 +2,7 @@
 record_type: register
 id: watchlist
 status: ratified
-process_version: v6.4
+process_version: v6.6
 date: 2026-09-23
 ---
 # Watch list — controls removed, and what brings each one back

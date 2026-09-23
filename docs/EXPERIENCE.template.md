@@ -2,7 +2,7 @@
 record_type: experience
 id: experience-template
 status: draft
-process_version: v6.4
+process_version: v6.6
 date: 2026-08-12
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your

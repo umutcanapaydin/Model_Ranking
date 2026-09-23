@@ -2,7 +2,7 @@
 record_type: brief
 id: project-brief-template
 status: draft
-process_version: v6.4
+process_version: v6.6
 date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your

@@ -21,8 +21,9 @@ What this compares, exactly:
      (exit 2) and allow the rest (exit 0) -- with a real interpreter, and with a `python3` that
      fails in front of a real `python` (the Windows Store alias). With NO working interpreter, or a
      payload that does not parse, they must block, never allow: a guard that cannot read the call
-     once exited 0 on everything, silently. The PostToolUse hook must run `make check-fast`, fail
-     with exit 2, and say so plainly when `make` is not installed.
+     once exited 0 on everything, silently. The Bash guard matches with `grep`, so with no `grep`
+     on PATH it must block too. The PostToolUse hook must run `make check-fast`, fail with exit 2,
+     and say so plainly when `make` is not installed.
 
 FAILS CLOSED: finding zero `enforced-by:` declarations is a FAILURE, not a pass. A parser that
 silently matches nothing is the defect this rule exists to name, one level up.
@@ -45,6 +46,8 @@ from lib_record import missing_tool, runnable_bash                     # noqa: E
 # The first stderr line of a PreToolUse guard that has no interpreter to read the call with.
 NO_INTERPRETER = ("BLOCKED: this guard cannot read the tool call -- no working python3 or python "
                   "on PATH (see INSTALL.md).")
+# The first stderr line of the Bash guard when it has an interpreter and no `grep` to match with.
+NO_GREP = "BLOCKED: this guard cannot run -- grep is not on PATH (see INSTALL.md)."
 UNREADABLE = "BLOCKED: this guard cannot read the tool call"
 POST_GREEN = "POST-EDIT CHECK: make check-fast GREEN"
 POST_FAILED = "POST-EDIT CHECK: make check-fast FAILED (exit 7) -- fix before the next edit"
@@ -96,10 +99,12 @@ def _script(path: pathlib.Path, body: str) -> None:
 def hook_paths(tmp: pathlib.Path) -> dict[str, str]:
     """PATHs to run the hooks under, each built in `tmp` and holding only what it names.
 
-    Every one carries the non-Python tools a hook calls (`grep`, `tee`, `cat`) and no `make`:
+    Every one but `no-grep` carries the non-Python tools a hook calls (`grep`, `tee`, `cat`), and
+    none carries `make`:
       broken-python3   a `python3` that fails, then a real `python` -- the guard must still work
       no-interpreter   `python3` and `python` both failing -- the guard must block everything
       no-python        neither on PATH at all -- the same
+      no-grep          a real `python3` and nothing else -- the Bash guard must block everything
       make-0, make-7   a `make` that exits 0 / 7 and prints its arguments
       no-make          the tools alone
     """
@@ -117,6 +122,10 @@ def hook_paths(tmp: pathlib.Path) -> dict[str, str]:
         _script(d / "python3", py3)
         _script(d / "python", py)
         out[name] = os.pathsep.join((str(d), str(tools)))
+    d = tmp / "no-grep"
+    d.mkdir()
+    _script(d / "python3", f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
+    out["no-grep"] = str(d)
     for rc in (0, 7):
         d = tmp / f"make-{rc}"
         d.mkdir()
@@ -354,6 +363,15 @@ def main() -> int:
                                    f"exit {r.returncode}, first stderr line `{_err(r)[:90]}` -- it "
                                    f"must exit 2 with `{NO_INTERPRETER}`. A guard that cannot read "
                                    "the call and allows it has switched itself off")
+            # The Bash guard reads the call and then matches it with `grep`. Without one, every
+            # pattern test fails, nothing matches, and the guard allowed everything -- so it must
+            # refuse, even `git status`, with the line INSTALL.md points at.
+            if bash_hook is not None:
+                r = run_hook(bash, bash_hook, cmd("git status"), paths["no-grep"])
+                if r.returncode != 2 or _err(r) != NO_GREP:
+                    bad.append(f"PreToolUse Bash guard with no grep on PATH: exit {r.returncode}, "
+                               f"first stderr line `{_err(r)[:90]}` -- it must exit 2 with "
+                               f"`{NO_GREP}`. A guard that cannot match allows every command")
 
             # Per edit: `make check-fast` -- the offline `make check` legs side by side, seconds.
             # The full `make gate` (network: pip-audit, slopsquat) runs at pre-push and `/pre-merge`.

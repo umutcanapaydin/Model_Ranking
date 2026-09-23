@@ -37,12 +37,23 @@ Read its state and labels, then:
   leaves the hole open for the next one.
 - **non-`bug`** → the merge closing it is correct. Leave it closed.
 
-## 4 · Swap labels, never accumulate
+## 4 · Later, when you are told
+
+- **"It is deployed"** → each `bug` with `dev:done` from that deploy swaps to `qa:ready`.
+- **`qa:passed`** (the verifier's) → close the issue with one comment naming the verification.
+- **`qa:failed`** → `/triage-issue` it now: it is a bug coming back, and triage has a section for
+  exactly that.
+- **`qa:blocked`** → `/triage-issue` too: the thing to fix is the blocker, not the bug.
+
+`/start-session` lists open issues carrying `qa:failed` or `qa:blocked`, so one that arrives
+between sessions is not missed.
+
+## 5 · Swap labels, never accumulate
 
 `gh issue edit <n> --remove-label "<old>" --add-label "<new>"`. Two lifecycle labels on one issue
 reads as two states at once, and a label people cannot trust is worse than no label.
 
-## 5 · Say what was left
+## 6 · Say what was left
 
 Anything uncovered, queued or knowingly skipped goes on the issue now. This is the last moment
 the context is still in anyone's head.

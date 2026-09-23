@@ -2,7 +2,7 @@
 # `M1` reads this. A directory with fewer files than it shipped with is an incomplete
 # install, and unlike a byte threshold a count cannot be satisfied by a placeholder.
 .claude/agents	4
-.claude/skills	17
+.claude/skills	16
 conformance	42
 docs/plans	0
 docs/reviews	0

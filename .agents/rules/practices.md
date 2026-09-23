@@ -8,21 +8,22 @@ that prevents it."* The full table — every rule, its count, the projects and t
 methodology's own repository, because a rule removed without a record is a rule someone re-derives next
 quarter.
 
-**48 rules stand below.** The arithmetic, since it does not add up on its own:
+**49 rules stand below.** The arithmetic, since it does not add up on its own:
 
 | | |
 |---|---|
 | cleared the bar (2+ projects) | 47 |
 | dropped anyway, as stale or superseded | −5 |
 | kept below the bar, because a gate in this package refuses the change | +6 |
+| added by owner ruling, with the gate that reads it | +1 |
 
 The five dropped despite clearing the bar were not dropped for lack of evidence. Two described a git
 cadence that was later replaced, one pointed at a `make` target that no longer exists, one was a
 candidate block that never got its second ecosystem, and one restated the go-live rules three lines
 below where they already appear. Each is named with its reason in that register.
 
-The six kept below the bar say so on their own line. Deleting the prose while the gate still runs
-leaves an error message nobody can explain.
+The six kept below the bar, and the one added by ruling, say so on their own line. Deleting the
+prose while the gate still runs leaves an error message nobody can explain.
 
 **This file holds rules that live nowhere else.** Where another file is the authority — the security
 baseline, the permission matrix, the issue rules — this one points and stops. Of the rules dropped, most
@@ -64,6 +65,20 @@ projects.
 - **Hermetic gate (C.6):** trust a verdict only from a reproducible environment — clean venv
   built solely from the manifest, dev tools pinned (not `>=`-floored), stale bytecode cleared, ONE
   designated authoritative gate host. A permissive dev sandbox passes code the real gate fails. *(2)*
+
+## When a fix will not come
+
+- **Three attempts, then stop.** An attempt is one change you expected to turn a failing check
+  green, followed by running that check. When the third attempt at the same failure has not turned
+  it green, do not make a fourth. Leave the tree as it was before the first attempt (revert in
+  place or with `git revert`; never `git checkout` over uncommitted work), `/file-issue` it as a
+  `bug` whose body lists the three attempts — what each changed and what the check said — and move
+  on to the next task. In a wave the slice leaves the wave (row 9b records it as deferred) and the
+  footprint's `Stopped at three attempts:` names the issue; a reviewer's third BLOCKING verdict on
+  the same finding counts the same way (`/close-wave` step 3). On a `/fix-issue` branch the three
+  attempts go on the issue as a comment, and the issue goes back to `/triage-issue`. A fourth try
+  at the same idea is how an afternoon disappears into one test. *(owner ruling — below the
+  bar; `make wave-check` requires the footprint line)*
 
 ## Security
 

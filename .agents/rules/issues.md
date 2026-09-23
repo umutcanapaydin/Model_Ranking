@@ -13,6 +13,24 @@ Everything below is downstream of it: the skills stop where they stop because of
 pipeline exists because a merge is not a verification, and the gates exist because the human
 doing the merging cannot read every line.
 
+## Where a finding goes — one queue, the issue list
+
+An issue is where work waits. A review file, a ledger row or a process log records *why*; none of
+them is a queue, because no lane reads them.
+
+| Found | Goes | Skill |
+|---|---|---|
+| in the wave's own code, fixed before the wave closes | nowhere else — the wave fixes it | `/close-wave` |
+| in a review, not fixed in the wave (MINOR, K.9, a queued risk) | an issue: `bug` + severity, or `enhancement` | `/close-wave` step 6 → `/file-issue` |
+| outside what you are doing, any time | an issue | `/file-issue` |
+| a failure still red after three attempts | a `bug` listing the three attempts | `.agents/rules/practices.md` → `/file-issue` |
+| across the whole milestone, at its close | an issue, or a fix PR | `/repo-review` |
+
+**Every filed issue is triaged** before anyone works it: `/file-issue` hands it to
+`/triage-issue`, whose last line — `Triage verdict: …` — is the routing every lane checks.
+`/plan-milestone` reads the open queue, so an enhancement nobody takes now reaches the next plan.
+A bug the wave fixed before it merged gets no issue: an issue for code that never shipped is noise.
+
 ## The label vocabulary — and it is closed
 
 Five groups. That is the whole set; `make labels` creates the missing ones once per repository.
@@ -53,7 +71,7 @@ behaves as the stub was *told* to answer.
 | `dev:done` | the fix is merged. **Not verified.** | `/post-merge`, at merge |
 | `qa:ready` | waiting for a person to verify on a deployed build | us, once a human says it is deployed |
 | `qa:passed` | verified — now it may be closed | the verifier |
-| `qa:failed` | still broken; back to triage | the verifier |
+| `qa:failed` | still broken; back to `/triage-issue` | the verifier |
 | `qa:blocked` | could not be tested at all — environment or seed data, not code | the verifier |
 
 - **Nothing is applied when the PR opens.** At draft-PR time neither state is true, and

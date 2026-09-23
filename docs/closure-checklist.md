@@ -58,9 +58,10 @@ Tick each box. Skipped on purpose: leave `[ ]` with a one-line reason in the sam
 ### B.0 — Every wave was closed (Stage 3)
 
 - [ ] Each implementing agent ran a per-agent **dev-test loop** on its slice (implement → write/run tests → self-review → fix)
-- [ ] Every wave was closed by `/close-wave`: **Code-Reviewer** (`docs/reviews/m{N}-wave-{W}-review.md`) **then Tester** (`docs/reviews/m{N}-wave-{W}-tester.md`), two separate fresh-eyes subagents that never wrote the wave's code; every acceptance criterion the wave touched has a passing citing test
+- [ ] Every wave was closed by `/close-wave`: **Code-Reviewer** (`docs/reviews/m{N}-wave-{W}-review.md`) **then Tester** (`docs/reviews/m{N}-wave-{W}-tester.md`), two separate fresh-eyes subagents that never wrote the wave's code, each verdict declaring `**Independent:** yes`; every acceptance criterion the wave touched has a passing citing test
 - [ ] Every wave has its committed wave-close checklist (`docs/plans/m{N}-wave-{W}-close.md` from `docs/wave-checklist.template.md`) and `make wave-check` is green on it; skips and bypasses are rows in `docs/control-events.csv`
-- [ ] All wave-level BLOCKING/MINOR fixes flushed before the wave closed; each wave's risk tier recorded in the plan (HIGH waves also had a security pass on the slice)
+- [ ] Every wave's BLOCKING findings were fixed before it closed, and every MINOR/K.9/risk finding is in its checklist's findings table — fixed, filed as an issue, or refused with a reason; each wave's risk tier recorded in the plan (HIGH waves also had a security pass on the slice)
+- [ ] `/repo-review` ran across the **whole milestone** (`git diff <base of the first wave>...<default branch>`) and wrote `docs/reviews/m{N}-repo-review.md`: what no single wave could see — one fact changed in one wave and not in another, documentation drift, a rule applied in one wave and not the next. Each finding fixed (a PR) or filed with `/file-issue`, none left in the file alone
 - [ ] Every wave's draft PR was reviewed and merged by a human
 
 ### B.1 — Quality Gate (Stage 4.1) — OPTIONAL, off by default

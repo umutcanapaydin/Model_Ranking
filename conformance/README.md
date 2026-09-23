@@ -37,7 +37,8 @@ change.
 ## Close-record fixtures
 
 - `wave/m1-wave-2-close.md` is a filled copy of `docs/wave-checklist.template.md` and must pass.
-  `wave_check.py` reads its two verdict files from `../reviews/`.
+  `wave_check.py` reads its two verdict files from `../reviews/`, and each declares
+  `**Independent:** yes`.
 - `wave/m1-wave-3-close.md` is hollow and must fail, and it must fail for the two reasons it declares.
 - `closure/closure-report-m7.md` is a filled copy of `docs/closure-report.template.md` and must pass.
 - `closure/closure-report-m8.md` is missing §1b and its §6 prose, and must fail.

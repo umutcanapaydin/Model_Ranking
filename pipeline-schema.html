@@ -192,7 +192,7 @@
           <li>Fill the wave checklist (<code>docs/wave-checklist.template.md</code>), open the wave's draft PR, run <code>/pre-merge</code>.</li>
         </ul>
         <div class="signals">
-          <div class="sig block"><i></i><span><code>make wave-check</code> — refuses unless both verdicts exist and neither is BLOCKING</span></div>
+          <div class="sig block"><i></i><span><code>make wave-check</code> — refuses unless both verdicts exist, neither is BLOCKING, and each declares <code>**Independent:** yes</code></span></div>
           <div class="sig block"><i></i><span><code>/pre-merge</code> runs <code>make gate</code> — the full gate, network legs included</span></div>
           <div class="sig block"><i></i><span>A human merges, then <code>/post-merge</code></span></div>
         </div>
@@ -260,11 +260,12 @@
       <li><code>/plan-milestone</code> gives each unit one issue</li>
       <li>waves resolve them; each wave's PR lists its issues</li></ul></div>
     <div class="lane"><h3>Found along the way</h3><ul>
-      <li><code>/file-issue</code> — search first; comment on a duplicate, never edit it</li>
+      <li><code>/close-wave</code> — every review finding the wave does not fix becomes an issue: <code>bug</code> or <code>enhancement</code></li>
+      <li>three failed attempts at one failure → stop, file it as a <code>bug</code>, move on</li>
+      <li><code>/file-issue</code> — search first; comment on a duplicate, never edit it; then hand it to triage</li>
       <li><code>/triage-issue</code> ends with one line: <code>Triage verdict: fix-issue</code>, <code>work-issue</code> or <code>work-enhancement</code></li></ul></div>
     <div class="lane"><h3>Worked</h3><ul>
-      <li><code>/fix-issue</code> — safe to automate: red test, fix, the Tester alone (fresh eyes), draft PR</li>
-      <li><code>/work-issue</code> — a human in the loop</li>
+      <li><code>/fix-issue</code> — red test, fix, the Tester alone (fresh eyes), draft PR; alone on <code>fix-issue</code>, with a human in the loop on <code>work-issue</code></li>
       <li><code>/work-enhancement</code> — several phases, one PR</li>
       <li>after merge: <code>/post-merge</code> — a bug stays open with <code>dev:done</code> until QA</li></ul></div>
   </div>
@@ -276,12 +277,13 @@
   <div class="table-wrap"><table>
     <thead><tr><th>When</th><th>What runs</th><th>What it refuses</th></tr></thead>
     <tbody>
-      <tr><td class="when">every tool call</td><td>guards in <code>.claude/settings.json</code></td><td><span class="pill b">blocks</span> <code>.env</code> writes, destructive git, <code>rm -rf</code>, discarding uncommitted work, pushing the default branch. They fail closed: with no working <code>python3</code> or <code>python</code>, every call they guard is refused</td></tr>
+      <tr><td class="when">every tool call</td><td>guards in <code>.claude/settings.json</code></td><td><span class="pill b">blocks</span> <code>.env</code> writes, destructive git, <code>rm -rf</code>, discarding uncommitted work, pushing the default branch. They fail closed: with no working <code>python3</code> or <code>python</code>, every call they guard is refused, and without <code>grep</code> every command</td></tr>
       <tr><td class="when">every edit</td><td><code>make check-fast</code></td><td><span class="pill w">reports to the agent</span> the legs of <code>make check</code> side by side — lint, types, tests, records, install, shell dialect, close records — every failing leg named; without <code>make</code> it says so</td></tr>
-      <tr><td class="when">wave close</td><td><code>make wave-check</code></td><td><span class="pill b">blocks</span> a close without both reviewer verdicts, or with a BLOCKING one</td></tr>
+      <tr><td class="when">wave close</td><td><code>make wave-check</code></td><td><span class="pill b">blocks</span> a close without both reviewer verdicts, with a BLOCKING one, or with one not declaring <code>**Independent:** yes</code></td></tr>
       <tr><td class="when">every push</td><td><code>.githooks/pre-push</code> → <code>make gate</code>, which runs <code>make check</code> in order (once per clone: <code>make hooks</code>)</td><td><span class="pill b">blocks</span> the push while the gate is red — the enforcement where CI does not run</td></tr>
       <tr><td class="when">before a PR is handed over</td><td><code>/pre-merge</code> → <code>make gate</code></td><td><span class="pill b">blocks</span> + secret scan, dependency CVEs, slopsquat, a PR that could close a bug</td></tr>
       <tr><td class="when">every pull request</td><td>CI — <code>.github/workflows/ci.yml</code></td><td><span class="pill b">blocks the merge</span> the jobs <code>docs/branch-protection.md</code> lists, when branch protection requires them</td></tr>
+      <tr><td class="when">session start</td><td><code>make ci-liveness</code> — from <code>/start-session</code> and <code>make bootstrap-check</code> (C12)</td><td><span class="pill w">advisory, never blocks</span> CI whose latest runs started no step (a billing or runner limit): one line, always exit 0, not reachable from <code>make gate</code></td></tr>
       <tr><td class="when">milestone close</td><td><code>make closes</code> — if the Quality Gate is on</td><td><span class="pill b">blocks</span> a criterion without a citing test, or not ✅</td></tr>
       <tr><td class="when">release</td><td>security review</td><td><span class="pill b">blocks</span> any deploy until it passes</td></tr>
       <tr><td class="when">go-live</td><td><code>/going-live</code> · <code>make cold-start</code> · <code>make smoke-deps</code> · <code>make journey</code></td><td><span class="pill b">blocks</span> "the build passed" standing in for "the thing running is right"</td></tr>
@@ -302,7 +304,7 @@
 ├── .claude/
 │   ├── settings.json   <span class="d">guards (fail closed) + post-edit make check-fast</span>
 │   ├── agents/         <span class="d">code-reviewer · tester · security-reviewer · explorer</span>
-│   └── skills/         <span class="d">17 skills, from /setup-project to /cycle-close</span>
+│   └── skills/         <span class="d">16 skills, from /setup-project to /cycle-close</span>
 ├── .agents/rules/      <span class="d">practices · issues · playbook seeds (reference)</span>
 ├── .github/workflows/  <span class="d">ci · issue-agent</span>
 ├── docs/               <span class="d">prd · decisions · plans/ · reviews/ · templates</span>

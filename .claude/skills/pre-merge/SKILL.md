@@ -69,9 +69,17 @@ Reviewed by something that did not write the code — strictly stronger dispatch
 performed by the author in the same context. Thirty BLOCKING findings across three rounds in one
 project, none found by the author. What is owed depends on the branch:
 
-- `wave/*` — both verdicts, Code-Reviewer then Tester; `make wave-check` refuses the close without them.
+- `wave/*` — both verdicts, Code-Reviewer then Tester, each declaring `**Independent:** yes`;
+  `make wave-check` refuses the close without them.
 - `fix/issue-<n>-*` — the Tester alone: `docs/reviews/fix-issue-<n>-tester.md` exists, its
-  `## Verdict` is PASS or MINOR, and the history shows a new Tester after any BLOCKING one.
+  `## Verdict` is PASS or MINOR, it declares `**Independent:** yes`, and the history shows a new
+  Tester after any BLOCKING one. No gate reads this file: you do.
+- `enhancement/*` — the `/repo-review` of the whole branch, each of its findings fixed on the
+  branch or filed. It is the author's review, not fresh eyes: the PR body says so.
+- `plan/*` — no code, so no review is owed. The owner's merge is the plan's approval.
+
+The declaration is not a proof. No file can show which session wrote the code, so a false `yes` is
+found by a reader, not by the gate.
 
 ## 6 · What did NOT run is written down
 

@@ -2,7 +2,7 @@
 record_type: wave
 id: m1-wave-3-close
 status: draft
-process_version: v6.3
+process_version: v6.6
 date: 2026-09-23
 ---
 # Milestone 1 — Wave 3 close
