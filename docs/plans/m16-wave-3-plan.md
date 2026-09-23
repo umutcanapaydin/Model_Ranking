@@ -72,7 +72,7 @@ floors in `categories.py`; which rule each tie margin follows (D-148 clause 2).
   published, Arena's rows are carried.
 - [x] **P3 — disclosure** as ruled in decision 2: the refresh record and `/health` name each carried
   source and its age; `/v1` and the app do not change. ADR D-156 records decisions 1-3.
-- [ ] **P4 — the survey mode.** `scripts/survey_boards.py --floors` prints every surface's floor under
+- [x] **P4 — the survey mode.** `scripts/survey_boards.py --floors` prints every surface's floor under
   D-148 (board rows, top third) beside today's; `parse_rate_board` keep-best tested. *Acceptance:*
   reproduces the W1 review's numbers for the M8 surfaces.
 - [ ] **P5 — the table and the ruling.** Before/after per surface: floor, and whether Budget Pick or
