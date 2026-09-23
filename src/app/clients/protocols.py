@@ -41,10 +41,11 @@ class SourceError(RuntimeError):
 MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 
 
-def fetch_bounded(
-    url: str, name: str, timeout: float, params: dict[str, str] | None = None
-) -> str:
-    """GET a source payload, refusing to buffer more than `MAX_RESPONSE_BYTES`.
+def fetch_bounded_bytes(
+    url: str, name: str, timeout: float, params: dict[str, str] | None = None,
+    *, limit: int = MAX_RESPONSE_BYTES,
+) -> bytes:
+    """GET a source payload, refusing to buffer more than `limit` (`MAX_RESPONSE_BYTES` by default).
 
     Streams and counts as it reads, so a hostile or broken upstream is stopped at the socket
     rather than after the process has already paid for the body. Build-time only — D-116 keeps
@@ -63,9 +64,9 @@ def fetch_bounded(
             total = 0
             for chunk in response.iter_bytes():
                 total += len(chunk)
-                if total > MAX_RESPONSE_BYTES:
+                if total > limit:
                     msg = (
-                        f"{name}: response exceeded {MAX_RESPONSE_BYTES} bytes and was cut off; "
+                        f"{name}: response exceeded {limit} bytes and was cut off; "
                         "a source that returns more than this has changed shape"
                     )
                     raise SourceError(msg)
@@ -73,4 +74,11 @@ def fetch_bounded(
     except httpx.HTTPError as exc:
         msg = f"{name} fetch failed: {exc}"
         raise SourceError(msg) from exc
-    return b"".join(chunks).decode("utf-8", "replace")
+    return b"".join(chunks)
+
+
+def fetch_bounded(
+    url: str, name: str, timeout: float, params: dict[str, str] | None = None
+) -> str:
+    """`fetch_bounded_bytes`, decoded: every text source reads through this."""
+    return fetch_bounded_bytes(url, name, timeout, params).decode("utf-8", "replace")

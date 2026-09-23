@@ -15,6 +15,7 @@ import io
 import stat
 import zipfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -160,9 +161,25 @@ def test_the_cli_flag_turns_the_fetch_on(monkeypatch: pytest.MonkeyPatch, tmp_pa
 
     def fake_refresh(target: Path, **kw: object) -> tuple[object, int]:
         seen.update(kw)
-        raise SystemExit(0)
+        return SimpleNamespace(as_json=lambda: "{}"), 0
 
     monkeypatch.setattr(refresh_mod, "refresh", fake_refresh)
-    with pytest.raises(SystemExit):
-        refresh_mod.main(["--db", str(tmp_path / "a.db"), "--fetch-epoch"])
+    refresh_mod.main(["--db", str(tmp_path / "a.db"), "--fetch-epoch"])
     assert seen["fetch_epoch"] is epoch_bundle.fetch_bundle
+    refresh_mod.main(["--db", str(tmp_path / "a.db")])
+    assert seen["fetch_epoch"] is None, "off unless asked: tests and hand runs stay off the network"
+
+
+def test_a_member_whose_resolved_path_escapes_is_refused_even_when_its_name_is_clean(
+    tmp_path: Path,
+) -> None:
+    """The second layer. A clean NAME can still land outside if the directory already holds a link
+    (the scratch is fresh in the refresh, so this is defence in depth, and it is tested as such)."""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    dest = tmp_path / "bundle"
+    dest.mkdir()
+    (dest / "boards").symlink_to(outside, target_is_directory=True)
+    with pytest.raises(SourceError, match="resolves outside"):
+        epoch_bundle.unpack(_zip({"boards/gpqa_diamond.csv": b"1"}), dest)
+    assert not list(outside.iterdir())

@@ -49,7 +49,8 @@ _LOG = logging.getLogger(__name__)
 SWITCH = "MODEL_RANKING_REFRESH"
 ON = "nightly"
 OFF_VALUES = frozenset({"", "off"})
-#: Passed through to the build as `--epoch-dir`, the owner-fetched bundle (REQ-ING-011).
+#: An owner-supplied bundle, passed through as `--epoch-dir`; without it the refresh fetches one
+#: itself (`--fetch-epoch`, D-158).
 EPOCH_DIR = "MODEL_RANKING_EPOCH_DIR"
 
 #: D-151 clause 1. The window opens at 23:00 local and is two hours wide; the run is spread across
@@ -189,8 +190,8 @@ def refresh_command(db: Path, epoch_dir: str | None) -> list[str]:
     # `-P`: no working directory on the module path, so a stray `app/` beside the repository cannot
     # stand in for the refresh (security pass, NIT-1). `app` is found through PYTHONPATH only.
     command = [sys.executable, "-B", "-P", "-m", "app.workflows.refresh", "--db", str(db)]
-    if epoch_dir:
-        command += ["--epoch-dir", epoch_dir]
+    # D-158: the owner's own bundle wins; without one, the refresh fetches Epoch itself.
+    command += ["--epoch-dir", epoch_dir] if epoch_dir else ["--fetch-epoch"]
     return command
 
 

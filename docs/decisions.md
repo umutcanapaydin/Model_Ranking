@@ -2628,3 +2628,36 @@ written. Two spellings the grammar does not unify stay two models until a curate
 
 **Revisit when:** a derived registration is found merging two different models, or splitting one.
 
+---
+
+## D-158 — The nightly refresh fetches the Epoch bundle itself
+
+**Status:** accepted -- the owner ruled the direction and its clock on 2026-09-23 (M16-W4 plan,
+decision 3) · **Date:** 2026-09-23 · **Amends** REQ-ING-010's owner-fetched acquisition.
+
+**Context.** The Epoch bundle was downloaded by hand because the sandbox the project started in got
+HTTP 403 from epoch.ai. The engine now runs on the owner's machine, which fetches it fine, and a
+directory nobody refreshes meant nine of nineteen sources carried every night until they expired
+(D-156). A fresh bundle measured on 2026-09-23 grows five boards by 18 to 50 percent.
+
+**Decision.**
+1. **The refresh fetches, the build never does.** `refresh --fetch-epoch` downloads
+   `https://epoch.ai/data/benchmark_data.zip` into scratch beside the artifact, unpacks it, hands it
+   to the build as `--epoch-dir`, and removes it after the cycle. The nightly schedule passes the
+   flag; an owner-supplied `MODEL_RANKING_EPOCH_DIR` wins over it. Programmatic callers and tests
+   are off the network unless they pass a fetcher.
+2. **The archive is untrusted input.** A member that names a path outside the directory, is a
+   symbolic link, resolves outside through an existing link, or expands past the limit (counted
+   while writing) refuses the whole bundle; so do too many members and a body that is not a zip.
+3. **A failed or refused fetch is a failed source**: the boards carry under D-156, the reason goes
+   to the cycle's log, and nothing else in the cycle changes.
+4. **The acquisition clock is the refresh record** (owner, decision 3): each Epoch board's arrival is
+   in `sources_last_ok`, like every other source. `data/epoch-source.yaml` keeps the URL. Its
+   `last_verified` stays until the CI step that reads it is removed; that step is a workflow change,
+   proposed to the owner in the M16-W4 pull request.
+
+**The cost.** The refresh now depends on epoch.ai answering; when it does not, the boards carry for
+up to 30 days, which is the D-156 behaviour this replaces for the owner-fetched case too.
+
+**Revisit when:** Epoch publishes a versioned API, or the bundle outgrows its 64 MB limit.
+

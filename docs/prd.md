@@ -299,6 +299,7 @@ Research suggests Supabase or Cloudflare Workers for the serving layer. No decis
 
 **Statement:** ingest Epoch AI's documented CSV bundle as a source, provenance mandatory, loud-fail like every other source.
 **Status:** **DEFERRED to M5** (criteria diff, owner-accepted at the M4 gate). epoch.ai is proxy-403 from this container; no parser was written against an unseen shape (the FP-M2-2 rule). Unblock = one out-of-sandbox fetch; the command was delivered to the owner 2026-08-15.
+**M16-W4 (D-158):** the nightly refresh fetches the bundle itself (`src/app/clients/epoch_bundle.py`, `refresh --fetch-epoch`), with the archive handled as untrusted input. Cited by `tests/unit/test_epoch_bundle_fetch.py`.
 
 ### REQ-REC-009 — Equivalent plans are named, not hidden
 

@@ -27,6 +27,7 @@ import hashlib
 import json
 import math
 import os
+import shutil
 import sqlite3
 import stat
 import statistics
@@ -37,6 +38,8 @@ from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, fields
 from pathlib import Path
 
+from app.clients import epoch_bundle
+from app.clients.protocols import SourceError
 from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
 from app.workflows.rank import build_price_medians, category_ranking
@@ -638,6 +641,7 @@ def refresh(
     build_args: Sequence[str] = (),
     builder: Callable[[list[str]], int] | None = None,
     clock: Callable[[], float] | None = None,
+    fetch_epoch: Callable[[Path], object] | None = None,
 ) -> tuple[RefreshOutcome, int]:
     """Run one cycle against `target`. Returns the outcome and the process exit code.
 
@@ -694,7 +698,7 @@ def refresh(
                     ),
                     EXIT_BUSY,
                 )
-            return _cycle(target, build_args, builder, record)
+            return _cycle(target, build_args, builder, record, fetch_epoch)
     except BaseException as exc:
         # B1, found by an independent review: `record()` was reachable only from the four `return`
         # sites INSIDE the try, so a builder that raised wrote no record at all — and the previous
@@ -837,11 +841,38 @@ def _served_without(target: Path, sources: set[str]) -> ServingSummary:
         scratch.close()
 
 
+def _fetched_epoch(
+    target: Path, build_args: Sequence[str], fetch_epoch: Callable[[Path], object] | None
+) -> tuple[Path | None, list[str]]:
+    """D-158: fetch the Epoch bundle into scratch beside the artifact, unless the owner supplied one.
+
+    A fetch that fails, or a bundle `epoch_bundle.unpack` refuses, returns None: the build then has
+    no bundle, and the boards carry (D-156) exactly as they did when nobody downloaded it. The
+    reason goes to stderr, which is the cycle's log. Returns the scratch directory (the caller
+    removes it) and the build arguments that name it."""
+    if fetch_epoch is None or "--epoch-dir" in build_args:
+        return None, []
+    scratch = Path(tempfile.mkdtemp(prefix=f"{target.name}.", suffix=".epoch", dir=target.parent))
+    try:
+        fetch_epoch(scratch)
+    except (SourceError, OSError) as exc:
+        shutil.rmtree(scratch, ignore_errors=True)
+        print(f"epoch bundle not fetched, its boards carry: {exc}", file=sys.stderr)
+        return None, []
+    return scratch, ["--epoch-dir", str(scratch)]
+
+
+def _discard(scratch: Path | None) -> None:
+    if scratch is not None:
+        shutil.rmtree(scratch, ignore_errors=True)
+
+
 def _cycle(
     target: Path,
     build_args: Sequence[str],
     builder: Callable[[list[str]], int],
     record: Callable[[RefreshOutcome, int], tuple[RefreshOutcome, int]],
+    fetch_epoch: Callable[[Path], object] | None = None,
 ) -> tuple[RefreshOutcome, int]:
     """The cycle itself. Split out so `refresh` can record a crash around ALL of it, including the
     live-artifact read and the workspace creation, both of which used to sit outside the guard."""
@@ -887,7 +918,9 @@ def _cycle(
         record_file = Path(raw_record)
         carry_args += ["--carry-from", str(target), "--last-ok", str(record_file)]
 
+    epoch_dir: Path | None = None
     try:
+        epoch_dir, epoch_args = _fetched_epoch(target, build_args, fetch_epoch)
         # The build prints its own report to stdout, and this function prints ITS outcome there
         # too — so an unattended caller reading stdout got two JSON documents concatenated and
         # could parse neither. Measured, not imagined: the first real CLI run produced
@@ -896,7 +929,7 @@ def _cycle(
         # The build's report is diagnostics and belongs in the log; the refresh outcome is the
         # RESULT and belongs on stdout alone. Redirecting rather than discarding keeps both.
         with contextlib.redirect_stdout(sys.stderr):
-            code = builder(["--db", str(candidate), *build_args, *carry_args])
+            code = builder(["--db", str(candidate), *build_args, *epoch_args, *carry_args])
         arrived, carried, expired = _read_build_sources(report_file)
         if code not in (0, 3):  # 3 = an optional source is blind and said so (D-121)
             outcome = RefreshOutcome(
@@ -998,6 +1031,7 @@ def _cycle(
         report_file.unlink(missing_ok=True)
         if record_file is not None:
             record_file.unlink(missing_ok=True)
+        _discard(epoch_dir)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1009,6 +1043,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--plans", help="passed through to the build")
     parser.add_argument("--rosters", help="passed through to the build")
     parser.add_argument("--epoch-dir", help="passed through to the build")
+    parser.add_argument(
+        "--fetch-epoch",
+        action="store_true",
+        help="fetch the Epoch bundle into scratch for this cycle (D-158); --epoch-dir wins",
+    )
     args = parser.parse_args(argv)
 
     passthrough: list[str] = []
@@ -1021,7 +1060,10 @@ def main(argv: list[str] | None = None) -> int:
             passthrough += [flag, value]
 
     try:
-        outcome, code = refresh(Path(args.db), build_args=passthrough)
+        outcome, code = refresh(
+            Path(args.db), build_args=passthrough,
+            fetch_epoch=epoch_bundle.fetch_bundle if args.fetch_epoch else None,
+        )
     except BaseException as exc:
         # The cycle records its own crash and re-raises, so without this the interpreter exits 1 —
         # and 1 is EXIT_UNCHANGED, which this command's own documentation calls "a RESULT, not a

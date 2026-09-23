@@ -633,7 +633,8 @@ def main(argv: list[str] | None = None) -> int:
         "--epoch-dir",
         default=None,
         help=(
-            "unpacked Epoch bundle directory (D-101: acquired out of band, never fetched here). "
+            "unpacked Epoch bundle directory. The build never fetches it: the refresh does, with "
+            "--fetch-epoch (D-158), or the owner supplies one. "
             "Omitting it builds an artifact in which agentic-coding has no primary evidence, "
             "which is reported as a required operator action rather than passed over."
         ),
