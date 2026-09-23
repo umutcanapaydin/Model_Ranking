@@ -30,7 +30,6 @@ permissions:
   contents: write          # create a fix/issue-* branch + commits; NEVER main (branch protection)
   pull-requests: write     # open a DRAFT PR only -- it cannot merge its own work
   issues: write            # comment + label
-  pull-requests: write     # open the draft PR
   # Explicitly NOT granting: actions, packages, security-events, deployments
 
 concurrency:
