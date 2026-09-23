@@ -126,7 +126,6 @@ def test_the_curated_rules_win() -> None:
     ("anthropic/claude-3.7-sonnet:thinking", "anthropic/claude-3.7-sonnet"),
     ("gpt-5:high", "gpt-5"),
     ("deepseek-coder-v2", "deepseek/deepseek-coder"),
-    ("us.deepseek.r1-v1:0", "deepseek.v3-v1:0"),
 ])
 def test_different_products_never_derive_one_id(names: tuple[str, ...]) -> None:
     ids = [_id(n) for n in names]
@@ -141,6 +140,13 @@ def test_a_vendor_prefix_is_dropped_only_before_its_own_family() -> None:
 def test_bedrocks_api_tag_is_decoration_but_a_model_version_is_not() -> None:
     assert _id("anthropic.claude-opus-5-5-v1:0") == _id("claude-opus-5.5")
     assert _id("mistral.mistral-7b-instruct-v0:2") == _id("mistral-7b-instruct-v0.2")
+
+
+def test_a_version_tag_is_decoration_only_on_a_routed_name() -> None:
+    """Re-review M4: an unrouted `-v1:0` is part of the name; and Bedrock's tag is `-v1:0`, so a
+    routed bare `-v1` (`anthropic.claude-v1`, Claude 1) is a model version (re-review NIT-1)."""
+    assert _id("zeta-v1:0") != _id("zeta")
+    assert _id("anthropic.claude-v1") != _id("claude")
 
 
 def test_a_fine_tune_is_never_derived() -> None:

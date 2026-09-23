@@ -64,6 +64,9 @@ def test_the_launchd_wrapper_fetches_epoch_instead_of_passing_a_hand_kept_bundle
     over the fetch, so the refresher actually running never fetched -- and after the deliberate
     publish it would be refused every cycle (the stale bundle lacks the rows the fresh one added)."""
     text = WRAPPER.read_text(encoding="utf-8")
+    code = [line for line in text.splitlines() if not line.lstrip().startswith("#")]
+    runs = [line for line in code if "app.workflows.refresh" in line]
+    assert runs and all("--fetch-epoch" in line for line in runs), "a commented-out flag is no flag"
     assert "--fetch-epoch" in text
     assert "--epoch-dir" not in text
     assert "epoch_data" not in text, "the hand-kept bundle directory is retired; nothing names it"
