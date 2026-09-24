@@ -20,7 +20,6 @@ from app.workflows.floors import derived_floor
 from app.workflows.recommend import recommend
 
 from .test_api_v1 import _seeded_db
-from .test_uncertainty_contract import PINNED_SCORE_ANCHORS
 
 
 @pytest.fixture
@@ -55,9 +54,9 @@ def test_every_surface_publishes_the_floor_derived_from_its_served_board(seeded:
         assert served[surface]["min_quality"] == derived_floor(conn, spec), surface
 
 
-def test_the_published_floor_moves_with_the_board_and_the_anchor_does_not(seeded: Path) -> None:
-    """D-152 and D-146 clause 2 together: the floor follows the board; the anchor is an owner's
-    ruling and follows nothing."""
+def test_the_published_floor_moves_with_the_board(seeded: Path) -> None:
+    """D-152 and D-159: the floor follows the board (and since D-162 the anchor follows the floor,
+    `test_the_anchor_moves_with_the_board`)."""
     surface = "document"
     _raise_the_board(seeded, surface, above=1400.0, rows=30)  # the fixture has no Elo board
     before = _served()[surface]["min_quality"]
@@ -65,7 +64,6 @@ def test_the_published_floor_moves_with_the_board_and_the_anchor_does_not(seeded
     _raise_the_board(seeded, surface, above=before, rows=200)
     after = _served()[surface]
     assert after["min_quality"] > before
-    assert after["score_anchor"] == PINNED_SCORE_ANCHORS[surface]
 
 
 def test_with_no_artifact_no_floor_is_invented(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -385,3 +383,46 @@ def test_the_refresh_refuses_a_board_that_shrinks_end_to_end(
     outcome, code = refresh(live)
     assert code == EXIT_REFUSED, outcome.reason
     assert "coding's board" in (outcome.reason or ""), outcome.reason
+
+
+# --- #15: the out-of-100 anchor is the surface's derived floor (owner, 2026-09-23) -------------
+
+
+def test_every_elo_surface_anchors_its_score_at_its_served_floor(seeded: Path) -> None:
+    """#15: `score_anchor` is the floor the surface recommends from, so the app's "50 is at the
+    bar" is true. Off Elo there is no anchor: a percentage is already out of 100, and ECI stays
+    rank-only (D-143)."""
+    for surface in ("document", "assistant"):
+        _raise_the_board(seeded, surface, above=1400.3, rows=30)  # a floor with a decimal
+    # Review M3: a floor on every OTHER kind of board too, or "null off Elo" asserts nothing there.
+    _raise_the_board(seeded, "everyday", above=140.0, rows=30)    # ECI
+    _raise_the_board(seeded, "mathematics", above=60.0, rows=30)  # a percentage
+    assert _served()["everyday"]["min_quality"] is not None, "the ECI fixture proves nothing"
+    served = _served()
+    assert served["document"]["min_quality"] % 1, "a whole-number floor cannot catch a rounded anchor"
+    for surface, spec in CATEGORIES.items():
+        if spec.metric == "elo":
+            assert served[surface]["score_anchor"] == served[surface]["min_quality"], surface
+        else:
+            assert served[surface]["score_anchor"] is None, surface
+    assert served["document"]["score_anchor"] is not None, "the fixture proves nothing"
+
+
+def test_the_anchor_moves_with_the_board(seeded: Path) -> None:
+    """#15, the reverse of D-146 clause 2: the board grows, the floor rises, and the anchor goes
+    with it."""
+    surface = "document"
+    _raise_the_board(seeded, surface, above=1400.0, rows=30)
+    before = _served()[surface]["score_anchor"]
+    assert before is not None
+    _raise_the_board(seeded, surface, above=before, rows=200, name="higher")
+    after = _served()[surface]
+    assert after["score_anchor"] > before
+    assert after["score_anchor"] == after["min_quality"]
+
+
+def test_with_no_artifact_no_anchor_is_invented(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without a served board there is no floor, so no anchor: the app keeps the engine's own
+    scale (D-146 clause 1) rather than reading every Elo score against a number nobody measured."""
+    monkeypatch.setenv("MODEL_RANKING_DB", str(tmp_path / "absent.db"))
+    assert {entry["score_anchor"] for entry in _served().values()} == {None}

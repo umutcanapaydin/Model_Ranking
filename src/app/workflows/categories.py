@@ -33,11 +33,6 @@ class CategorySpec:
     value_window: float  # Best Value: within N of the leader
     close_call: float  # near-tie disclosure threshold
     ranking_effort: str | None = None  # named comparable level; None = board has no effort policy
-    # D-143 amendment (M14-W4 review M-3): the Elo score a reader sees as 50 / 100. PINNED, and
-    # deliberately NOT the floor: the floor moves with the board (D-159), and a board growing
-    # must not move every card's number without a new measurement. Set on Elo
-    # surfaces only; `None` elsewhere (percentages are already out of 100, ECI stays rank-only).
-    score_anchor: float | None = None
     # D-153 (W-119): what this surface's price does NOT include, as a CODE the app words in its own
     # language (D-129), or None when the price is the whole story. `search_call` says the per-search
     # fee is not in the blended per-token price, because this catalogue does not carry one: the
@@ -110,7 +105,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         # This is a DATA edit — the engine did not change.
         value_window=30.0,  # kept: ~4x the noise threshold; 13 candidates within reach of the top
         close_call=8.0,  # was 5; live 95% CIs still overlap for 64% of pairs 8-9 Elo apart
-        score_anchor=1400.0,  # pinned 2026-09-20 (D-143); moves only by owner ruling
     ),
     # M5 owner-delegated board decision: DeepSWE is a separate surface because its
     # release dates are not evaluation dates and its harness materially disagrees
@@ -225,7 +219,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         # what D-105 forbids.
         value_window=100.0,
         close_call=6.8,
-        score_anchor=1478.9,  # pinned 2026-09-20 (D-143); moves only by owner ruling
     ),
     # ── M14-W2: two boards of the dataset `assistant` already reads (D-142, D-145) ─────────────
     #
@@ -251,7 +244,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         # ranked-third rule, 1471.0, would also admit 10). A 35-Elo window admits 7.
         value_window=35.0,
         close_call=8.7,
-        score_anchor=1467.5,  # pinned 2026-09-20 (D-143); moves only by owner ruling
     ),
     "factuality": CategorySpec(
         id="factuality",
@@ -267,7 +259,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         # 20-Elo window admits 6.
         value_window=20.0,
         close_call=4.0,
-        score_anchor=1450.6,  # pinned 2026-09-20 (D-143); moves only by owner ruling
     ),
     # ── M15-W3: three surfaces the MEASUREMENT chose ──────────────────────────────────────────
     #
@@ -281,8 +272,6 @@ CATEGORIES: dict[str, CategorySpec] = {
     #                  the board's own statement of what it cannot tell apart (the M14 rule).
     #   value_window = four times `close_call`, the ratio `assistant` ships (30 against 8) -- four
     #                  times the UNROUNDED median, so 4.9 ships beside 19.5 and 6.5 beside 25.9.
-    #
-    # `score_anchor` is the floor as pinned TODAY and does not move with a recalibration (D-146).
     "vision": CategorySpec(
         id="vision",
         title="Reading images and screenshots",
@@ -298,7 +287,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         # corrected on the owner's ruling (2026-09-22).
         value_window=31.2,
         close_call=7.8,
-        score_anchor=1248.2,  # pinned 2026-09-22 (D-143/D-146)
     ),
     "search": CategorySpec(
         id="search",
@@ -312,7 +300,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         # search at all -- most rows are retrieval SKUs of models this catalogue already prices.
         value_window=25.9,
         close_call=6.5,
-        score_anchor=1206.9,  # pinned 2026-09-22
         price_excludes="search_call",  # D-153
     ),
     "search_factuality": CategorySpec(
@@ -330,7 +317,6 @@ CATEGORIES: dict[str, CategorySpec] = {
         # model, corrected on the owner's ruling (2026-09-22).
         value_window=19.5,
         close_call=4.9,
-        score_anchor=1203.7,  # pinned 2026-09-22
         price_excludes="search_call",  # D-153
     ),
 }

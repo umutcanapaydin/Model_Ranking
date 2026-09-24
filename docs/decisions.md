@@ -1857,7 +1857,8 @@ The second outcome would say the gap is real and structural rather than a backlo
 
 ## D-143 — One score, out of 100, and the unit stops being the reader's problem
 
-**Status:** accepted · **Date:** 2026-09-18 · **Decided by:** **the owner, in session**, answering
+**Status:** accepted; **"pinned in `CategorySpec`" amended by D-162** (the Elo anchor is the
+surface's derived floor) · **Date:** 2026-09-18 · **Decided by:** **the owner, in session**, answering
 the M14 plan §5 question about the ranking rows and ruling further than it asked. · **Amends D-140
 and REQ-CMP-004.** · **Does not amend D-105.**
 
@@ -2008,7 +2009,8 @@ in W-094 rather than hidden.
 ## D-146 — The out-of-100 anchor is its own pinned field, and `/v1/categories` publishes it
 
 **Status:** **accepted by the owner 2026-09-20** (in session: "1. evet" to the field, "2. A" to
-keeping the anchors and their cost as written) · **Date:** 2026-09-20 · **Proposed by:** the lead
+keeping the anchors and their cost as written); **clause 2 superseded by D-162** (2026-09-24, #15:
+the anchor is the surface's floor) · **Date:** 2026-09-20 · **Proposed by:** the lead
 agent, because the M14-W3/W4 review (`docs/reviews/m14-wave-3-4-review.md` B-1) found that W4 widened
 `/v1` against the owner's ruling "No K.8 change in M14" (`docs/plans/m14-plan.md` §0 ruling 2).
 **Amends D-143 and that ruling, for `/v1/categories` only.**
@@ -2906,6 +2908,45 @@ changes as follows:
   `.github/workflows/issue-agent.yml`, which sets `pull-requests: write` twice (lines 31 and 33).
   GitHub rejects the file, so the issue agent has never started. The proposed workflow diff fixes
   it; until the owner applies it, `conformance` (and so `make check` and `make gate`) is red on it.
+
+## D-162 — The out-of-100 anchor is the surface's floor, and moves with it
+
+**Status:** accepted -- **ruled by the owner 2026-09-23** (asked in Turkish whether the reference
+should stay pinned or move with the floor, the owner chose, translated, "move the reference with the
+floor"); built in #15 · **Date:** 2026-09-24 · **Supersedes:** D-146 clause 2 · **Amends:** D-143
+("pinned in `CategorySpec`") and REQ-SCR-003.
+
+**Context.** D-146 clause 2 kept each Elo surface's out-of-100 anchor as its own pinned number, apart
+from the floor, so a recalibration could not move every card. D-159 then made the floor derived from
+the served board every build. The two drifted apart, and the app's sentence "50 is at the bar we
+recommend from" stopped being true: `assistant`'s floor read about 51, not 50 (M17-W1 review
+MINOR-5, W-133).
+
+**Decision.**
+1. On every Elo surface `/v1/categories` serves `score_anchor` = `min_quality`, the floor D-159 derives
+   from the served board. `CategorySpec.score_anchor` and the pinned table are removed.
+2. Where there is no floor (no artifact, or an empty board) there is no anchor: `score_anchor` is
+   `null`, and the app keeps the engine's own scale (D-146 clause 1). Off Elo nothing changes:
+   percentages are already out of 100, and ECI stays rank-only (D-143).
+3. D-146 clauses 1, 3 and 4 stand: the field is optional and additive, ties stay on the engine's
+   scale, and an anchor more than 2000 Elo from a score is refused on the phone.
+4. The app's sentences are unchanged: they already say "50 is at the bar", which is now true.
+5. An artifact that cannot be read, or is caught mid-republish, serves no floor and so no anchor for
+   that request: a card may show the engine's own scale for one load rather than a number out of 100
+   against a guess. `/v1/categories` and `/v1/recommendations` read the artifact separately, so
+   across a publish that moves a floor, one load can pair the new anchor with the old answer (the
+   floor restated as, say, 50.3 instead of 50). Both are accepted: the next load is consistent.
+
+**The cost, accepted by the owner.** A model's number out of 100 can now move without a new
+measurement of that model: when its board grows and the floor moves, every card on that surface moves
+with it. D-143 forbade exactly that for an anchor taken from the board's MAXIMUM; the floor is the top
+third of the board's rows (D-148), which moves far less, and D-159's guards limit how fast a board
+may change in one night. Measured on the owner's artifact the day it was built, the leaders move by
+at most 0.9 points: `assistant` 65.0 -> 64.1, `vision` 61.0 -> 60.3, `document` 57.0 -> 56.5,
+`factuality` 57.2 -> 57.0, `search_factuality` 56.3 -> 56.5, `web-dev` and `search` unchanged.
+
+**Revisit when:** a reader reports a card's number moving with nothing new measured, or a board's
+floor moves by more than a few points in one publish.
 
 ## D-163 — A criterion about the served data is tested against the served data, not a fixture
 
