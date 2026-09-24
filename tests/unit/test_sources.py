@@ -14,9 +14,9 @@ from __future__ import annotations
 import ast
 import pathlib
 
+from app.clients.arena_slices import ARENA_SLICES
 from app.workflows.sources import (
     ARENA_SLICE_CLIENT,
-    DECLARED_SLICES,
     EPOCH_BOARD_CLIENT,
     EPOCH_BOARDS,
     LOCAL_BUNDLES,
@@ -57,7 +57,7 @@ def test_every_client_is_either_ingested_or_declared_a_local_bundle() -> None:
     # appeared and before it could be used, which is what it was written for.
     declared_boards = {EPOCH_BOARD_CLIENT.__name__} if EPOCH_BOARDS else set()
     # M17-W2: the fourth kind, Arena's category slices, in the same shape as the Epoch boards.
-    declared_slices = {ARENA_SLICE_CLIENT.__name__} if DECLARED_SLICES else set()
+    declared_slices = {ARENA_SLICE_CLIENT.__name__} if ARENA_SLICES else set()
     declared = declared_remote | declared_local | declared_boards | declared_slices
 
     undeclared = {

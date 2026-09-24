@@ -8,9 +8,11 @@ requests a night for `text` alone, the pattern that rate-limited this client bef
 2026-09-24). The dataset publishes each split as ONE parquet file (`text`: 588,920 bytes), so the
 owner ruled (2026-09-24) that the slices are read from it, through `pyarrow`: one request per config.
 
-**Same dataset, same licence, same rules.** The file is the one the datasets-server itself serves,
-under the same CC-BY-4.0 grant, and every row goes through `arena.score_rows`, the rules the
-`overall` boards already obey.
+**Same dataset, same licence, same rules.** The file is the dataset's own, on its `main` revision
+(`<config>/latest-00000-of-00001.parquet`), under the same CC-BY-4.0 grant as the rows `ArenaClient`
+reads, and every row goes through `arena.score_rows`, the rules the `overall` boards already obey.
+A file that is resharded (`-00000-of-00002`) is a 404 and so a failed source: loud, and carried
+(D-156), never half read.
 
 **`pyarrow` is imported inside `parse_arena_slices` and nowhere else.** The serving process imports
 `app.clients.*` (W-125), and a native library parsing a downloaded file belongs in the refresh child
@@ -19,6 +21,7 @@ under the same CC-BY-4.0 grant, and every row goes through `arena.score_rows`, t
 
 from __future__ import annotations
 
+import datetime as dt
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -183,6 +186,9 @@ def _read_table(raw: bytes) -> list[dict[str, Any]]:
 
 
 def _date(value: object) -> str | None:
+    """A publish date as `YYYY-MM-DD`: a string today, a typed column if the file ever changes."""
+    if isinstance(value, dt.date):  # `datetime` is a `date` too
+        return value.isoformat()[:10]
     return value[:10] if isinstance(value, str) and value else None
 
 
@@ -198,6 +204,12 @@ def parse_arena_slices(
     """
     records = _read_table(raw)
     dates = [d for d in (_date(r.get("leaderboard_publish_date")) for r in records) if d]
+    if records and not dates:
+        # Review M1: `parse_arena` keeps every row when no date is present, and for one `overall`
+        # prefix that is survivable. Here it is not: with no date the newest snapshot cannot be
+        # chosen, and a file of two snapshots would serve a stale-but-higher rating as current.
+        msg = "arena slices: no row carries a readable leaderboard_publish_date"
+        raise SourceError(msg)
     newest = max(dates) if dates else None
 
     by_category: dict[str, list[dict[str, Any]]] = {}
@@ -210,7 +222,12 @@ def parse_arena_slices(
     refused: dict[str, int] = {}
     for board in slices:
         entries = by_category.get(board.category, [])
-        current = [e for e in entries if _date(e.get("leaderboard_publish_date")) == newest]
+        # The date is handed on as the string `score_rows` reads, whatever type the column had.
+        current = [
+            {**e, "leaderboard_publish_date": newest}
+            for e in entries
+            if _date(e.get("leaderboard_publish_date")) == newest
+        ]
         parsed, bad = score_rows(
             current, source=board.source_name, source_url=source_url, benchmark=board.benchmark
         )

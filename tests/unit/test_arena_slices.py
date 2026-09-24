@@ -36,7 +36,11 @@ OLDER = "2026-08-30"
 
 
 def _parquet(rows: list[dict[str, Any]], *, drop: str | None = None) -> bytes:
-    """A parquet file with the dataset's own columns, as `pyarrow` writes it."""
+    """A parquet file with the dataset's own eleven columns, as `pyarrow` writes it.
+
+    The columns and their types are the live file's, read from `text/latest` on 2026-09-24 (the
+    publish date is a string there), and match the column list `arena.py` verified in 2026-08.
+    """
     columns: dict[str, list[Any]] = {
         "model_name": [r["model_name"] for r in rows],
         "organization": ["org" for _ in rows],
@@ -265,11 +269,21 @@ def test_every_floor_is_below_its_measured_count_and_above_zero() -> None:
 # --- the serving process -------------------------------------------------------------------------
 
 
-def test_the_serving_process_never_loads_pyarrow() -> None:
-    """D-154: the server imports `app.clients.*` (W-125), so the import must stay inside the parse."""
-    probe = "import sys, app.adapter.main\nprint('pyarrow' in sys.modules)"
-    loaded = subprocess.run(
+def _loads_pyarrow(module: str) -> bool:
+    probe = f"import sys, {module}\nprint('pyarrow' in sys.modules)"
+    return subprocess.run(
         [sys.executable, "-c", probe], capture_output=True, text=True, check=True,
         env={**os.environ, "APP_ENV": "test", "PYTHONPATH": "src"},
-    ).stdout.strip()
-    assert loaded == "False"
+    ).stdout.strip() == "True"
+
+
+@pytest.mark.parametrize("module", ["app.adapter.main", "app.clients.arena_slices"])
+def test_neither_the_server_nor_the_slice_module_loads_pyarrow(module: str) -> None:
+    """D-154: the server imports `app.clients.*` (W-125), so the import stays inside the parse.
+
+    P1 review M2: the server alone made this vacuous, because today it never imports
+    `arena_slices` and so could not fail if the import moved to the top of the module. Importing
+    the module itself is the half that fails on that mutation; the server half fails the day a
+    path from the server to the module appears with it.
+    """
+    assert not _loads_pyarrow(module)

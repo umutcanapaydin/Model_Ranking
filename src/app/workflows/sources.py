@@ -34,7 +34,7 @@ from app.clients.arena import (
     ArenaVisionClient,
     parse_arena,
 )
-from app.clients.arena_slices import ARENA_SLICES, ArenaSlice, ArenaSliceClient
+from app.clients.arena_slices import ArenaSliceClient
 from app.clients.deepswe import DeepSWEClient
 from app.clients.epoch import EpochClient
 from app.clients.epoch_board import EpochBoard, EpochBoardClient
@@ -243,9 +243,9 @@ LOCAL_BUNDLES: tuple[LocalBundle, ...] = (
 
 #: M17-W2 (#22, D-164): Arena's category slices, a FOURTH kind of registry entry and the Epoch
 #: boards' shape again: many boards declared as data (`ARENA_SLICES`), read through one client,
-#: named once here. One download per config carries every slice of it.
+#: named once here; the boards are `app.clients.arena_slices.ARENA_SLICES`. One download per
+#: config carries every slice of it.
 ARENA_SLICE_CLIENT = ArenaSliceClient
-DECLARED_SLICES: tuple[ArenaSlice, ...] = ARENA_SLICES
 
 
 #: The Epoch boards D-127's categories rank on, declared as DATA rather than as one client per

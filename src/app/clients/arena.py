@@ -41,7 +41,7 @@ BENCHMARK = "Arena text"
 METRIC = "elo"
 HARNESS = "arena-crowd"
 ATTRIBUTION = "Arena leaderboard data © LMArena — lmarena-ai/leaderboard-dataset (CC-BY-4.0)"
-PREFERRED_CATEGORY = OVERALL_CATEGORY  # the overall board; 20+ other slices exist
+PREFERRED_CATEGORY = OVERALL_CATEGORY  # the overall board; the other slices: arena_slices.py
 
 
 @dataclass(frozen=True)
