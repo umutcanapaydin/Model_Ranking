@@ -280,10 +280,11 @@ def test_a_reason_is_quoted_short_and_printable(monkeypatch: pytest.MonkeyPatch)
 def test_the_reader_gets_no_secret_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     """Security re-look 2, S-R2-4: the reader inherited the whole environment, tokens included."""
     monkeypatch.setenv("HF_TOKEN", "hf_secret")
-    program = "import json, os; print(json.dumps({'error': ','.join(sorted(os.environ))}))"
-    with pytest.raises(SourceError) as caught:
+    # Asked directly, not by listing the environment: a reason is cut at 200 characters, and a
+    # listing cut before `HF_TOKEN` made this test pass with the allowlist gone.
+    program = "import json, os; print(json.dumps({'error': 'leaked' if 'HF_TOKEN' in os.environ else 'clean'}))"
+    with pytest.raises(SourceError, match="clean"):
         _run_reader(monkeypatch, program)
-    assert "HF_TOKEN" not in str(caught.value)
 
 
 def test_a_module_planted_in_the_working_directory_is_not_imported(

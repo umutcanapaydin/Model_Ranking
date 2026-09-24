@@ -23,18 +23,21 @@ the decoding process bounds it. This module never imports pyarrow: the serving p
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import json
 import os
 import subprocess
 import sys
+import tempfile
+import threading
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from app.clients.arena import DATASET, score_rows
-from app.clients.parquet_reader import EXIT_OVER_CEILING
+from app.clients.parquet_reader import EXIT_OVER_CEILING, printable
 from app.clients.protocols import SourceError, fetch_bounded_bytes
 from app.workflows.schema import ScoreRow
 
@@ -58,11 +61,18 @@ MAX_DECODED_BYTES = 32 * 1024 * 1024
 #: The longest model name, category or date string read. Real ones are under 100 characters.
 MAX_VALUE_CHARS = 256
 _BATCH_ROWS = 2_048
-#: THE bound: the reader's peak resident size, watched from inside it. It reads the live `text`
-#: file at 44 MB (measured 2026-09-24); a file built to decode 1 GB was stopped at 225 MB.
+#: THE bound: the reader's peak resident size, watched from inside it. The live `text` file reads
+#: at about 60 MB (measured 2026-09-24); files built to decode gigabytes stop at the ceiling.
 MAX_READER_RSS = 512 * 1024 * 1024
-#: How long the reader may take. The live `text` file takes under a second.
+#: How long the reader may take. The live `text` file takes under a second. The reader's own alarm
+#: is a little later, so the parent's clean refusal comes first and the alarm only ends an orphan.
 READER_TIMEOUT_S = 60.0
+#: The largest answer the parent reads (security re-look 2, S-R2-1). The live `text` answer is
+#: about 1.6 MB of JSON lines.
+MAX_ANSWER_BYTES = 16 * 1024 * 1024
+#: The variables the reader may see: none of the owner's tokens (S-R2-4), the same shape as the
+#: nightly child's allowlist (`nightly.CHILD_ENV`).
+READER_ENV = ("PATH", "LANG", "LC_ALL", "LC_CTYPE", "TMPDIR", "TZ")
 #: How much of a failed reader's stderr the reason quotes: an operator's clue, never a dump.
 _STDERR_QUOTED = 200
 
@@ -76,11 +86,21 @@ def reader_limits() -> dict[str, int]:
         "max_value_chars": MAX_VALUE_CHARS,
         "batch_rows": _BATCH_ROWS,
         "max_rss_bytes": MAX_READER_RSS,
+        "timeout_s": int(READER_TIMEOUT_S) + 5,
     }
 
 
 def _reader_command() -> list[str]:
-    return [sys.executable, "-B", "-m", "app.clients.parquet_reader"]
+    # `-P`: the working directory stays off the import path, so a planted `pyarrow.py` is never
+    # imported (S-R2-4); the package comes from PYTHONPATH (`_reader_env`).
+    return [sys.executable, "-B", "-P", "-m", "app.clients.parquet_reader"]
+
+
+def _reader_env() -> dict[str, str]:
+    env = {name: os.environ[name] for name in READER_ENV if name in os.environ}
+    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[2])
+    env["PYTHONIOENCODING"] = "utf-8"
+    return env
 
 
 def parquet_url(config: str, split: str = "latest") -> str:
@@ -193,48 +213,86 @@ def fetch_slices(
 
 
 def _read_table(raw: bytes) -> list[dict[str, Any]]:
-    """The file's rows, read by `app.clients.parquet_reader` in a process of its own.
+    """The file's rows, read by `app.clients.parquet_reader` in a process of its own (D-165).
 
     **Every way the reader can fail is a `SourceError`** (wave review B1, security S1): it passed its
-    memory ceiling, ran out of time, crashed, or answered something that is not the protocol. A
-    failure that is not a `SourceError` is re-raised by the build on purpose and would end the
-    whole unattended cycle over one bad file.
+    memory ceiling, ran out of time, crashed, answered past `MAX_ANSWER_BYTES`, or answered
+    something that is not its protocol. A failure that is not a `SourceError` is re-raised by the
+    build on purpose and would end the whole unattended cycle over one bad file. Nothing the reader
+    says is held whole: the answer is read against its bound, stderr goes to a file and only its
+    tail is quoted, and every quoted reason is short and printable (security re-look 2, S-R2-1/-2).
     """
-    package_root = str(Path(__file__).resolve().parents[2])
-    env = {**os.environ,
-           "PYTHONPATH": os.pathsep.join(p for p in (package_root, os.environ.get("PYTHONPATH")) if p)}
-    try:
-        done = subprocess.run(  # noqa: S603 -- our own interpreter and module, no shell, no input in argv
-            [*_reader_command(), json.dumps(reader_limits())],
-            input=raw, capture_output=True, timeout=READER_TIMEOUT_S, env=env, check=False,
-        )
-    except subprocess.TimeoutExpired as exc:
+    stopped = threading.Event()
+    with tempfile.TemporaryFile() as stderr:
+        try:
+            reader = subprocess.Popen(  # noqa: S603 -- our own interpreter and module, no shell
+                [*_reader_command(), json.dumps(reader_limits())], stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE, stderr=stderr, env=_reader_env())
+        except OSError as exc:
+            msg = f"arena slices: the reader could not be started: {exc}"
+            raise SourceError(msg) from exc
+
+        def stop() -> None:
+            stopped.set()
+            reader.kill()
+
+        timer = threading.Timer(READER_TIMEOUT_S, stop)
+        timer.start()
+        try:
+            assert reader.stdin is not None and reader.stdout is not None
+            with contextlib.suppress(BrokenPipeError):
+                reader.stdin.write(raw)
+                reader.stdin.close()
+            answer = reader.stdout.read(MAX_ANSWER_BYTES + 1)
+            if len(answer) > MAX_ANSWER_BYTES:
+                reader.kill()
+                msg = f"arena slices: the reader's answer passed {MAX_ANSWER_BYTES} bytes and was cut off"
+                raise SourceError(msg)
+            code = reader.wait()
+        finally:
+            timer.cancel()
+            if reader.poll() is None:
+                reader.kill()
+                reader.wait()
+        stderr.seek(max(0, stderr.seek(0, os.SEEK_END) - _STDERR_QUOTED))
+        tail = printable(stderr.read().decode("utf-8", "replace").strip())
+
+    if stopped.is_set():
         msg = f"arena slices: the reader took more than {READER_TIMEOUT_S:g} seconds and was stopped"
-        raise SourceError(msg) from exc
-    except OSError as exc:
-        msg = f"arena slices: the reader could not be started: {exc}"
-        raise SourceError(msg) from exc
-    if done.returncode == EXIT_OVER_CEILING:
+        raise SourceError(msg)
+    if code == EXIT_OVER_CEILING:
         msg = (f"arena slices: the reader passed its memory ceiling of {MAX_READER_RSS} bytes and "
                "was stopped; the file has changed shape")
         raise SourceError(msg)
-    stderr = done.stderr.decode("utf-8", "replace")[-_STDERR_QUOTED:].strip()
-    if done.returncode != 0:
-        msg = f"arena slices: the reader exited {done.returncode}: {stderr}"
+    if code != 0:
+        msg = f"arena slices: the reader exited {code}: {tail}"
         raise SourceError(msg)
+    return _answered_rows(answer)
+
+
+def _answered_rows(answer: bytes) -> list[dict[str, Any]]:
+    """The reader's JSON lines, held to the protocol: rows then an end line counting them, or one
+    error line."""
     try:
-        answer = json.loads(done.stdout)
+        lines = [json.loads(line) for line in answer.decode("utf-8").splitlines() if line]
     except ValueError as exc:
-        msg = f"arena slices: the reader answered something that is not its protocol: {stderr}"
+        msg = "arena slices: the reader answered something that is not its protocol"
         raise SourceError(msg) from exc
-    if isinstance(answer, dict) and isinstance(answer.get("error"), str):
-        msg = f"arena slices: {answer['error']}"
+    if len(lines) == 1 and isinstance(lines[0], dict) and isinstance(lines[0].get("error"), str):
+        msg = f"arena slices: {printable(lines[0]['error'])}"
         raise SourceError(msg)
-    rows = answer.get("rows") if isinstance(answer, dict) else None
-    if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+    *body, last = lines or [None]
+    rows = [line.get("row") if isinstance(line, dict) else None for line in body]
+    if not all(isinstance(row, dict) for row in rows):
         msg = "arena slices: the reader answered something that is not its protocol"
         raise SourceError(msg)
-    return rows
+    if not (isinstance(last, dict) and isinstance(last.get("end"), int)):
+        msg = "arena slices: the reader's answer has no end line; it was cut short"
+        raise SourceError(msg)
+    if last["end"] != len(rows):
+        msg = f"arena slices: the reader's end line counts {last['end']} rows, and it sent {len(rows)}"
+        raise SourceError(msg)
+    return [row for row in rows if isinstance(row, dict)]
 
 
 def _date(value: object) -> str | None:

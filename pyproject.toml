@@ -116,8 +116,9 @@ no_implicit_reexport = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-# M17-W2: pyarrow ships no type information. It is imported in one place, the isolated reader
-# `app.clients.parquet_reader`, which annotates what it returns; the tests cover every path through it.
+# M17-W2: pyarrow ships no type information. Production imports it in one place, the isolated
+# reader `app.clients.parquet_reader`; the tests' canonical fake (`app.clients.fakes.slice_parquet`)
+# imports it to write fixture files. Both annotate what they return.
 module = ["pyarrow", "pyarrow.*"]
 ignore_missing_imports = true
 

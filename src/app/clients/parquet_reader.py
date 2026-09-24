@@ -10,8 +10,13 @@ releases the interpreter lock), leaving with `EXIT_OVER_CEILING` the moment it p
 The owner chose this over accepting the risk (2026-09-24). A native crash in the library ends this
 child too, never the refresh.
 
-The protocol: argv[1] is the limits as JSON, stdin is the file, stdout is one JSON object, either
-`{"rows": [...]}` or `{"error": "..."}`. Every failure inside is an `error`, whatever its class.
+The protocol: argv[1] is the limits as JSON, stdin is the file, and stdout is JSON lines: one
+`{"row": {...}}` per row and a last `{"end": <rows>}`, or a single `{"error": "..."}`. Every failure
+inside is an `error`, whatever its class, and its reason is short and printable. One line per row,
+not one document: a single `json.dumps` of every row holds the interpreter lock long enough to
+starve the watchdog (security re-look 2, S-R2-3), and the parent reads the answer against a bound
+(S-R2-1). The reader also stops itself at its own time limit, so a reader orphaned by a killed
+refresh does not run on (re-review 2, NIT-R2-2).
 """
 
 from __future__ import annotations
@@ -19,13 +24,19 @@ from __future__ import annotations
 import json
 import os
 import resource
+import signal
 import sys
 import threading
 import time
+from pathlib import Path
 from typing import Any
 
 #: The exit status of a reader that passed its memory ceiling.
 EXIT_OVER_CEILING = 3
+#: The longest reason the reader gives: an operator's clue, never a copy of the file's contents.
+REASON_CHARS = 200
+#: Where Linux keeps this process's own peak resident size (`VmHWM`).
+_PROC_STATUS = Path("/proc/self/status")
 _TEXT_COLUMNS = ("model_name", "category", "leaderboard_publish_date")
 _COLUMNS = ("model_name", "rating", "category", "leaderboard_publish_date")
 
@@ -35,8 +46,17 @@ class _Refused(Exception):
 
 
 def _peak_rss() -> int:
-    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    return int(peak) if sys.platform == "darwin" else int(peak) * 1024  # bytes on macOS, KiB on Linux
+    """This process's own peak resident size, in bytes.
+
+    On Linux from `VmHWM`, not `ru_maxrss`: a child's `ru_maxrss` starts from its parent's peak, so
+    a reader started by a large refresh process passed its ceiling before reading a byte (re-review
+    2, BLOCKING-R2-1). On macOS `ru_maxrss` is the process's own, in bytes.
+    """
+    if sys.platform.startswith("linux"):
+        for line in _PROC_STATUS.read_text(encoding="utf-8").splitlines():
+            if line.startswith("VmHWM:"):
+                return int(line.split()[1]) * 1024
+    return int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
 
 
 def _watch(ceiling: int) -> None:
@@ -123,11 +143,27 @@ def read_rows(raw: bytes, limits: dict[str, int]) -> dict[str, Any]:
         return {"error": f"the parquet file could not be read: {type(exc).__name__}: {exc}"}
 
 
+def printable(reason: str) -> str:
+    """A reason short enough to log and free of control characters (security re-look 2, S-R2-2)."""
+    return "".join(c if c.isprintable() else "?" for c in reason[:REASON_CHARS])
+
+
+def _guard(limits: dict[str, int]) -> None:
+    """The memory ceiling and the reader's own time limit (SIGALRM ends the process)."""
+    threading.Thread(target=_watch, args=(limits["max_rss_bytes"],), daemon=True).start()
+    signal.alarm(limits["timeout_s"])
+
+
 def main() -> None:
     limits = json.loads(sys.argv[1])
-    threading.Thread(target=_watch, args=(limits["max_rss_bytes"],), daemon=True).start()
+    _guard(limits)
     answer = read_rows(sys.stdin.buffer.read(), limits)
-    sys.stdout.write(json.dumps(answer))
+    if "error" in answer:
+        sys.stdout.write(json.dumps({"error": printable(answer["error"])}) + "\n")
+        return
+    for row in answer["rows"]:
+        sys.stdout.write(json.dumps({"row": row}, ensure_ascii=False) + "\n")
+    sys.stdout.write(json.dumps({"end": len(answer["rows"])}) + "\n")
 
 
 if __name__ == "__main__":

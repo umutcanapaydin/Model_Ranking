@@ -3032,6 +3032,11 @@ checks (the footer, then a counted decode budget) did not bound it.
    the slices (D-156) and never fails the cycle over one file.
 3. The in-process checks stay as cheap first refusals of a changed file (types, footer, rows as
    read, value length, decode budget); the ceiling is the bound.
+4. **Nothing the reader says is held whole by the parent** (the second security re-look, S-R2-1):
+   the answer is JSON lines read against `MAX_ANSWER_BYTES` (16 MiB), stderr goes to a file and
+   only its tail is quoted, and every quoted reason is at most 200 printable characters. The reader
+   sees an allowlisted environment, starts with `-P`, reads its peak from `/proc` on Linux, and
+   stops itself at its own time limit if its parent is gone.
 
 **The cost.** One more process start per config per night (about 0.3 s), and a limit tuned to a
 machine: a legitimate file that grows past it fails until the limit is raised.
