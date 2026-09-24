@@ -33,6 +33,9 @@ from typing import Any
 
 #: The exit status of a reader that passed its memory ceiling.
 EXIT_OVER_CEILING = 3
+#: The exit status of a reader whose watchdog could not measure its memory (final review NIT-2):
+#: stopped all the same, and reported as the machine's problem rather than the file's.
+EXIT_UNMEASURED = 4
 #: The longest reason the reader gives: an operator's clue, never a copy of the file's contents.
 REASON_CHARS = 200
 #: Where Linux keeps this process's own peak resident size (`VmHWM`).
@@ -72,8 +75,8 @@ def _watch(ceiling: int) -> None:
     try:
         while _peak_rss() <= ceiling:
             time.sleep(0.002)
-    except BaseException:  # noqa: S110 -- any failure to measure is a stop, by design
-        pass
+    except BaseException:  # any failure to measure is a stop, by design
+        os._exit(EXIT_UNMEASURED)
     os._exit(EXIT_OVER_CEILING)
 
 

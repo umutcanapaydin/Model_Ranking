@@ -83,9 +83,10 @@ def _slice_probe(config: str) -> Callable[[], str]:
 
         boards = [board for board in ARENA_SLICES if board.config == config]
         rows, _ = fetch_slices(config, boards)
-        short = [b.source_name for b in boards if len(rows[b.source_name]) < b.minimum_rows]
-        if short:
-            msg = f"below their declared floors: {', '.join(short)}"
+        problems = [f"{b.source_name}: {p}" for b in boards
+                    if (p := b.bounds_problem(len(rows[b.source_name]))) is not None]
+        if problems:
+            msg = "; ".join(problems)
             raise ValueError(msg)
         return f"{len(boards)} slices, {sum(len(r) for r in rows.values())} rows"
 

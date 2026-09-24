@@ -3032,9 +3032,12 @@ checks (the footer, then a counted decode budget) did not bound it.
    the slices (D-156) and never fails the cycle over one file.
 3. The in-process checks stay as cheap first refusals of a changed file (types, footer, rows as
    read, value length, decode budget); the ceiling is the bound.
-4. **Nothing the reader says is held whole by the parent** (the second security re-look, S-R2-1):
-   the answer is JSON lines read against `MAX_ANSWER_BYTES` (16 MiB), stderr goes to a file and
-   only its tail is quoted, and every quoted reason is at most 200 printable characters. The reader
+4. **What the reader says is bounded before the parent holds it** (the second security re-look,
+   S-R2-1): the answer is JSON lines read against `MAX_ANSWER_BYTES` (8 MiB; the live `text`
+   answer is 1.6 MB), stderr goes to a file and only its tail is quoted, and every quoted reason is
+   at most 200 printable characters. A slice's rows must also sit between its floor and its
+   ceiling (four times its measured count), one rule the build, the smoke probe and the contract
+   test share. The reader
    sees an allowlisted environment, starts with `-P`, reads its peak from `/proc` on Linux, and
    stops itself at its own time limit if its parent is gone.
 

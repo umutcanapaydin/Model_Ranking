@@ -37,7 +37,7 @@ from pathlib import Path
 from typing import Any
 
 from app.clients.arena import DATASET, score_rows
-from app.clients.parquet_reader import EXIT_OVER_CEILING, printable
+from app.clients.parquet_reader import EXIT_OVER_CEILING, EXIT_UNMEASURED, printable
 from app.clients.protocols import SourceError, fetch_bounded_bytes
 from app.workflows.schema import ScoreRow
 
@@ -138,6 +138,15 @@ class ArenaSlice:
         """Four times the measured count: far above a board that grew, far below a file built to
         fill the artifact (security re-look 3, S-R3-5: 100,000 rows where 402 were declared)."""
         return self.measured_rows * 4
+
+    def bounds_problem(self, rows: int) -> str | None:
+        """Why `rows` parsed rows are not this slice, or None. The ONE rule the build, the smoke
+        probe and the contract test hold a slice to (final review M1)."""
+        if rows < self.minimum_rows:
+            return f"parsed {rows} rows, below its floor of {self.minimum_rows}"
+        if rows > self.maximum_rows:
+            return f"parsed {rows} rows, over its ceiling of {self.maximum_rows}"
+        return None
 
 
 def _slices(config: str, measured: dict[str, int]) -> tuple[ArenaSlice, ...]:
@@ -273,6 +282,10 @@ def _read_table(raw: bytes) -> list[dict[str, Any]]:
 
     if stopped.is_set():
         msg = f"arena slices: the reader took more than {READER_TIMEOUT_S:g} seconds and was stopped"
+        raise SourceError(msg)
+    if code == EXIT_UNMEASURED:
+        msg = ("arena slices: the reader could not measure its memory and stopped itself; the "
+               "reading machine, not the file, needs a look")
         raise SourceError(msg)
     if code == EXIT_OVER_CEILING:
         msg = (f"arena slices: the reader passed its memory ceiling of {MAX_READER_RSS} bytes and "

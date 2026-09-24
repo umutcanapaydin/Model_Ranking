@@ -60,6 +60,6 @@ def test_every_declared_slice_satisfies_the_parser_contract(config: str) -> None
     rows, refused = fetch_slices(config, boards)
     for board in boards:
         parsed = rows[board.source_name]
-        assert len(parsed) >= board.minimum_rows, (
-            f"{board.source_name}: {len(parsed)} rows (refused={refused[board.source_name]})")
+        problem = board.bounds_problem(len(parsed))
+        assert problem is None, f"{board.source_name}: {problem} (refused={refused[board.source_name]})"
         assert {r.benchmark for r in parsed} == {board.benchmark}

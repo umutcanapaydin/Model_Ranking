@@ -432,6 +432,8 @@ def test_a_reader_whose_parent_is_gone_stops_itself() -> None:
     finally:
         reader.kill()
         reader.wait()
+        assert reader.stdin is not None
+        reader.stdin.close()  # final review NIT-1: the last ResourceWarning in this file
 
 
 def test_a_reader_that_hangs_is_stopped(monkeypatch: pytest.MonkeyPatch) -> None:
