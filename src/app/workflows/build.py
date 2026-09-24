@@ -48,7 +48,9 @@ import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
+from app.clients.arena_slices import ARENA_SLICES, ArenaSlice, parse_arena_slices
 from app.clients.epoch_board import EpochBoard, parse_board
 from app.clients.protocols import SourceError
 from app.workflows.epoch import committed_last_verified
@@ -64,6 +66,7 @@ from app.workflows.registry import (
 from app.workflows.rosters import ingest_rosters
 from app.workflows.schema import connect, open_readonly, reset_source
 from app.workflows.sources import (
+    ARENA_SLICE_CLIENT,
     EPOCH_BOARD_CLIENT,
     EPOCH_BOARDS,
     LOCAL_BUNDLES,
@@ -410,6 +413,72 @@ def _ingest_boards(
     return results, missing
 
 
+def _slice_failed(
+    conn: sqlite3.Connection, carry: Carry | None, source: str, why: str,
+    drift: list[str] | None, missing: list[str],
+) -> None:
+    """One slice rejected: its rows go, and its last good data comes back if young enough (D-156)."""
+    for table in ("pricing", "scores"):
+        reset_source(conn, table, source)
+    if drift is not None:
+        drift.append(f"{source}: {why}")
+    if _fall_back(conn, carry, source) != "carried":
+        missing.append(f"{source}: {why}")
+
+
+def _ingest_slices(
+    conn: sqlite3.Connection,
+    run: RunContext,
+    slices: Sequence[ArenaSlice],
+    carry: Carry | None = None,
+    drift: list[str] | None = None,
+    *,
+    client: Callable[[str], Any] | None = None,
+) -> tuple[list[SourceReport], list[str]]:
+    """Arena's category slices (M17-W2, #22): one download per config, one board per slice.
+
+    The Epoch boards' shape, with one difference that decides the failure rules. A config's slices
+    all come out of ONE file, so a failed download fails every slice of that config, and each then
+    carries on its own clock (D-156). A file that downloads but holds too few rows for one slice
+    fails that slice alone. A slice is optional, like every board of this dataset (D-121, D-144):
+    it never fails the build, and no surface names it, so a failure is an operator line only.
+    """
+    client_type = ARENA_SLICE_CLIENT if client is None else client
+    results: list[SourceReport] = []
+    missing: list[str] = []
+    for config in dict.fromkeys(board.config for board in slices):
+        boards = [board for board in slices if board.config == config]
+        try:
+            download = client_type(config)
+            rows, refused = parse_arena_slices(
+                download.fetch_bytes(), boards, source_url=download.url
+            )
+        except SourceError as exc:
+            for board in boards:
+                _slice_failed(conn, carry, board.source_name, str(exc), drift, missing)
+            continue
+        for board in boards:
+            parsed = rows[board.source_name]
+            try:
+                if len(parsed) < board.minimum_rows:
+                    msg = (f"parsed {len(parsed)} rows, below its floor of {board.minimum_rows}; "
+                           "the file answered but this slice's shape has changed")
+                    raise SourceError(msg)
+                stored = _store_scores(conn, board.source_name, parsed, run)
+            except SourceError as exc:
+                _slice_failed(conn, carry, board.source_name, str(exc), drift, missing)
+                continue
+            report = SourceReport(
+                source=board.source_name,
+                stored=len(parsed),
+                skipped=refused[board.source_name],
+                effort_unknown=stored,
+            )
+            run.reports.append(report)
+            results.append(report)
+    return results, missing
+
+
 def _ingest_bundles(
     conn: sqlite3.Connection,
     bundle_dir: Path | None,
@@ -529,6 +598,7 @@ def build(
     bundle_dir: Path | None = None,
     bundles: Sequence[LocalBundle] | None = None,
     boards: Sequence[EpochBoard] | None = None,
+    slices: Sequence[ArenaSlice] | None = None,
     run: RunContext | None = None,
     minimum_models: int | None = None,
     carry_from: Path | None = None,
@@ -550,6 +620,7 @@ def build(
     # controlled the source set silently ran the real board list against a bundle directory that
     # did not exist. A seam is only a seam if it reaches the caller.
     sources = REMOTE_SOURCES if sources is None else sources
+    slices = ARENA_SLICES if slices is None else slices
     minimum_models = MINIMUM_MODELS_REGISTERED if minimum_models is None else minimum_models
     run = run or RunContext()
     report = BuildReport()
@@ -577,10 +648,12 @@ def build(
                                                     drift=report.drift)
     board_reports, board_missing = _ingest_boards(conn, bundle_dir, run, boards, carry,
                                                   drift=report.drift)
+    slice_reports, slice_missing = _ingest_slices(conn, run, slices, carry, drift=report.drift)
     report.sources.extend(board_reports)
     report.sources.extend(bundle_reports)
+    report.sources.extend(slice_reports)
     report.required_operator_actions = _surfaces_left_without_evidence(
-        [*degraded, *bundle_missing, *board_missing]
+        [*degraded, *bundle_missing, *board_missing, *slice_missing]
     )
 
     reconciled = reconcile(conn)

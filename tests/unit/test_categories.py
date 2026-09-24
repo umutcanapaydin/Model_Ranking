@@ -234,8 +234,8 @@ def test_every_source_the_build_ingests_can_be_attributed() -> None:
     primary source; it is served as EVIDENCE, which is precisely the population the control
     covers and the test did not. A test narrower than the rule it cites is not a gate.
     """
-    from app.workflows.rank import SOURCE_ATTRIBUTION
     from app.clients.arena_slices import ARENA_SLICES
+    from app.workflows.rank import SOURCE_ATTRIBUTION
     from app.workflows.sources import EPOCH_BOARDS, LOCAL_BUNDLES, REMOTE_SOURCES
 
     ingested = (

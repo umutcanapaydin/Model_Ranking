@@ -42,6 +42,24 @@ def pytest_configure(config: pytest.Config) -> None:
     )
 
 
+# --- M17-W2: the build's category slices stay off the network ------------------------------------
+#
+# `build()` reads `ARENA_SLICES` at call time, like every other source table, and downloads each
+# config's file from the internet. Tests never reach the network (permission-matrix §3), and nine
+# test files build an artifact while patching only the source tables that existed before the
+# slices. So every test builds with NO slices unless it is marked `slices`, and a marked test
+# injects its own client. A declaration of what the suite does, not a suppression:
+# `tests/unit/test_build_slices.py` builds with the real table and a fake download, and asserts
+# that an unmarked test sees none.
+@pytest.fixture(autouse=True)
+def _slices_stay_off_the_network(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    if request.node.get_closest_marker("slices") is not None:
+        return
+    from app.workflows import build as build_mod
+
+    monkeypatch.setattr(build_mod, "ARENA_SLICES", ())
+
+
 def pytest_sessionstart(session: pytest.Session) -> None:
     # In the controlling process, before any worker collects: raised inside an xdist worker the
     # same refusal surfaces as an INTERNALERROR traceback that does not say what is missing.
