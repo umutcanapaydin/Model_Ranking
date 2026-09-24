@@ -133,10 +133,9 @@ any surface, `/v1` or app change.
 
 ## Risks
 
-- **A native parser of a downloaded file.** Bounded by the download cap, the footer checks, the column
-  types, a counted decode budget and a value-length cap (the fix round of the security look: the
-  footer's sizes alone are the writer's claims), and by pyarrow being loaded only in the refresh
-  child (D-154). One page is still decoded at the size its header declares (issue filed).
+- **A native parser of a downloaded file.** Parsed in a child process under a 512 MiB memory
+  ceiling and a time limit (D-165, the owner's ruling on the re-reviews), after the download cap;
+  the column types, footer, rows as read, value length and decode budget are first refusals only.
 - **Thin slices.** A slice has fewer votes than `overall` and so wider intervals. This wave stores
   standings only, and W4 decides how a combination treats them.
 - **About 12,000 more score rows** in the artifact (35 boards × about 350). Measured on the build in

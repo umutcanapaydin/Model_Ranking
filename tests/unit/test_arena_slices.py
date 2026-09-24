@@ -169,6 +169,36 @@ def test_any_failure_inside_the_reader_is_reported_as_an_error(monkeypatch: pyte
     assert "OverflowError" in answer["error"]
 
 
+def test_the_reader_answers_rows_or_an_error_in_process(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The reader's protocol, driven in this process so its paths are measured: rows for a good
+    file, an error for a changed one, and `main` writing one JSON object from stdin and argv."""
+    import json
+
+    from app.clients import parquet_reader
+
+    good = _parquet([_row("a", 1390.0, "multi_turn"), _row("b", 1380.0, "multi_turn")])
+    assert [r["model_name"] for r in parquet_reader.read_rows(good, _limits())["rows"]] == ["a", "b"]
+    assert "type" in parquet_reader.read_rows(_typed(rating=pa.array(["x", "y"])), _limits())["error"]
+    assert "parquet" in parquet_reader.read_rows(b"not parquet", _limits())["error"]
+    assert "declares" in parquet_reader.read_rows(good, {**_limits(), "max_rows": 1})["error"]
+    assert "longer" in parquet_reader.read_rows(
+        _parquet([_row("x" * 300, 1390.0, "multi_turn")]), _limits())["error"]
+    assert "decoded" in parquet_reader.read_rows(good, {**_limits(), "max_decoded_bytes": 1})["error"]
+
+    class _Stdin:
+        buffer = io.BytesIO(good)
+
+    monkeypatch.setattr(sys, "stdin", _Stdin)
+    monkeypatch.setattr(sys, "argv", ["reader", json.dumps(_limits())])
+    # The watchdog belongs to the reader's own process. Started here it would live on in this test
+    # worker and end it later, the first time another test pushed the worker past the ceiling.
+    monkeypatch.setattr(parquet_reader, "_watch", lambda _ceiling: None)
+    parquet_reader.main()
+    assert len(json.loads(capsys.readouterr().out)["rows"]) == 2
+
+
 def _limits() -> dict[str, int]:
     import app.clients.arena_slices as module
 
@@ -178,7 +208,9 @@ def _limits() -> dict[str, int]:
 @pytest.mark.parametrize(
     ("program", "match"),
     [
-        ("import os; os.abort()", "reader"),               # a native crash, as a segfault would be
+        # A native crash, as a segfault would be. SIGKILL rather than `os.abort()`: an abort writes a
+        # macOS crash report and pops a dialog on the owner's screen on every test run.
+        ("import os, signal; os.kill(os.getpid(), signal.SIGKILL)", "reader"),
         ("print('not json')", "reader"),                    # an answer that is not the protocol
         ("import sys; sys.exit(7)", "reader"),
     ],
@@ -207,17 +239,19 @@ def test_a_file_that_would_exhaust_memory_is_stopped_at_the_ceiling(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Re-review BLOCKING-R1 / S-R1: pyarrow decodes a whole column chunk before any check in
-    Python runs, so 256 distinct 1 MiB names decode to 256 MiB whatever the batch size. The
-    footer's claim is taken away (as a forged footer would) and the ceiling is what stops it."""
+    Python runs, so 96 distinct 1 MiB names decode to 96 MiB whatever the batch size. The footer's
+    claim is taken away (as a forged footer would) and the ceiling is what stops it. The ceiling
+    here sits just above the reader's own size after its imports (about 55 MB); in production it
+    is `MAX_READER_RSS`, 512 MiB. Kept small: this test runs beside the whole suite in parallel."""
     import app.clients.arena_slices as module
 
     monkeypatch.setattr(module, "MAX_UNCOMPRESSED_BYTES", 2**40)
-    monkeypatch.setattr(module, "MAX_READER_RSS", 160 * 2**20)
-    names = [f"{i:08d}" + "a" * (2**20 - 8) for i in range(256)]
+    monkeypatch.setattr(module, "MAX_READER_RSS", 100 * 2**20)
+    body = "a" * (2**20 - 8)
     sink = io.BytesIO()
     pq.write_table(pa.table({
-        "model_name": pa.array(names), "rating": [1200.0] * 256,
-        "category": ["multi_turn"] * 256, "leaderboard_publish_date": [NEWEST] * 256,
+        "model_name": pa.array([f"{i:08d}{body}" for i in range(96)]), "rating": [1200.0] * 96,
+        "category": ["multi_turn"] * 96, "leaderboard_publish_date": [NEWEST] * 96,
     }), sink, compression="zstd", use_dictionary=False)
     with pytest.raises(SourceError, match="memory"):
         parse_arena_slices(sink.getvalue(), [MULTI], source_url="u")

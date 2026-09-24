@@ -14,19 +14,27 @@ reads, and every row goes through `arena.score_rows`, the rules the `overall` bo
 A file that is resharded (`-00000-of-00002`) is a 404 and so a failed source: loud, and carried
 (D-156), never half read.
 
-**`pyarrow` is imported inside the read (`_bounded_rows`) and nowhere else.** The serving process imports
-`app.clients.*` (W-125), and a native library parsing a downloaded file belongs in the refresh child
-(D-154). `tests/unit/test_arena_slices.py` fails if the server ever loads it.
+**The file is read in a process of its own, under a memory ceiling** (`app.clients.parquet_reader`;
+the owner's ruling of 2026-09-24 on the wave's re-reviews). pyarrow decodes a whole column chunk
+before any check in Python can run, and a file's sizes are its writer's claims, so no check inside
+the decoding process bounds it. This module never imports pyarrow: the serving process imports
+`app.clients.*` (W-125), and `tests/unit/test_arena_slices.py` fails if the server ever loads it.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import json
+import os
+import subprocess
+import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from app.clients.arena import DATASET, score_rows
+from app.clients.parquet_reader import EXIT_OVER_CEILING
 from app.clients.protocols import SourceError, fetch_bounded_bytes
 from app.workflows.schema import ScoreRow
 
@@ -39,20 +47,40 @@ PARQUET_URL = "https://huggingface.co/datasets/{dataset}/resolve/main/{config}/{
 MAX_PARQUET_BYTES = 8 * 1024 * 1024
 _TIMEOUT_S = 30.0
 _DEADLINE_S = 120.0
-#: A parquet file is compressed, and its footer DECLARES how big the table is. Both are checked
-#: against the footer before a single column is materialised: a small file can declare a table that
-#: would fill this machine, and reading it first is paying for it first. `text` declares 10,606
-#: rows; the uncompressed bound is generous for eleven columns of that.
+#: The reader's limits, handed to it as JSON (`reader_limits`). The footer's two are a cheap first
+#: refusal of an honest file that grew, not a bound: a forged footer passes them by construction.
+#: `text` declares 10,606 rows on 2026-09-24; rows are also counted as they are read.
 MAX_PARQUET_ROWS = 50_000
 MAX_UNCOMPRESSED_BYTES = 64 * 1024 * 1024
-#: What is actually decoded, counted batch by batch, since the footer's sizes are only claimed. The
-#: four columns of `text` decode to well under 2 MB on 2026-09-24.
+#: What is actually decoded, counted batch by batch after pyarrow has decoded it. The four columns
+#: of `text` decode to well under 2 MB on 2026-09-24.
 MAX_DECODED_BYTES = 32 * 1024 * 1024
 #: The longest model name, category or date string read. Real ones are under 100 characters.
 MAX_VALUE_CHARS = 256
 _BATCH_ROWS = 2_048
-_COLUMNS = ("model_name", "rating", "category", "leaderboard_publish_date")
-_TEXT_COLUMNS = ("model_name", "category", "leaderboard_publish_date")
+#: THE bound: the reader's peak resident size, watched from inside it. It reads the live `text`
+#: file at 44 MB (measured 2026-09-24); a file built to decode 1 GB was stopped at 225 MB.
+MAX_READER_RSS = 512 * 1024 * 1024
+#: How long the reader may take. The live `text` file takes under a second.
+READER_TIMEOUT_S = 60.0
+#: How much of a failed reader's stderr the reason quotes: an operator's clue, never a dump.
+_STDERR_QUOTED = 200
+
+
+def reader_limits() -> dict[str, int]:
+    """The limits handed to the reader, read from this module when it runs (tests change them)."""
+    return {
+        "max_rows": MAX_PARQUET_ROWS,
+        "max_uncompressed_bytes": MAX_UNCOMPRESSED_BYTES,
+        "max_decoded_bytes": MAX_DECODED_BYTES,
+        "max_value_chars": MAX_VALUE_CHARS,
+        "batch_rows": _BATCH_ROWS,
+        "max_rss_bytes": MAX_READER_RSS,
+    }
+
+
+def _reader_command() -> list[str]:
+    return [sys.executable, "-B", "-m", "app.clients.parquet_reader"]
 
 
 def parquet_url(config: str, split: str = "latest") -> str:
@@ -165,95 +193,59 @@ def fetch_slices(
 
 
 def _read_table(raw: bytes) -> list[dict[str, Any]]:
-    """The file's rows, as plain Python values, read under the bounds above.
+    """The file's rows, read by `app.clients.parquet_reader` in a process of its own.
 
-    **Every failure inside is a `SourceError`, whatever its class** (wave review B1, security S1).
-    The first version caught three exception classes, and a 1.3 KB file with a `date32` at its
-    maximum raised `OverflowError` out of the conversion: not a `SourceError`, so the build
-    re-raised it, as it does on purpose for a defect, and one hostile file ended the whole nightly
-    cycle. A list of the exceptions a native library may raise is a list nobody can finish.
+    **Every way the reader can fail is a `SourceError`** (wave review B1, security S1): it passed its
+    memory ceiling, ran out of time, crashed, or answered something that is not the protocol. A
+    failure that is not a `SourceError` is re-raised by the build on purpose and would end the
+    whole unattended cycle over one bad file.
     """
+    package_root = str(Path(__file__).resolve().parents[2])
+    env = {**os.environ,
+           "PYTHONPATH": os.pathsep.join(p for p in (package_root, os.environ.get("PYTHONPATH")) if p)}
     try:
-        return _bounded_rows(raw)
-    except SourceError:
-        raise
-    except Exception as exc:
-        msg = f"arena slices: the parquet file could not be read: {type(exc).__name__}: {exc}"
+        done = subprocess.run(  # noqa: S603 -- our own interpreter and module, no shell, no input in argv
+            [*_reader_command(), json.dumps(reader_limits())],
+            input=raw, capture_output=True, timeout=READER_TIMEOUT_S, env=env, check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        msg = f"arena slices: the reader took more than {READER_TIMEOUT_S:g} seconds and was stopped"
         raise SourceError(msg) from exc
-
-
-def _bounded_rows(raw: bytes) -> list[dict[str, Any]]:
-    """Footer, then types, then the rows batch by batch, counting what is actually decoded.
-
-    **The footer's sizes are the writer's claims** (security S2): a 1 KB file of stock dictionary
-    encoding passed every footer check and reached 5.2 GB, and a forged `total_byte_size` passes by
-    construction. So the footer checks stay as a first, cheap refusal, and the bound that holds is
-    counted: the string columns stay dictionary-encoded while they are read, every batch's decoded
-    size is added to a budget, and a value longer than any real one is refused before rows are made
-    of it. What remains is one page decoded at the size its own header declares, which no reader
-    of this file format can refuse before decoding it (issue filed with the wave close).
-    """
-    import pyarrow as pa
-    import pyarrow.compute as pc
-    import pyarrow.parquet as pq
-
+    except OSError as exc:
+        msg = f"arena slices: the reader could not be started: {exc}"
+        raise SourceError(msg) from exc
+    if done.returncode == EXIT_OVER_CEILING:
+        msg = (f"arena slices: the reader passed its memory ceiling of {MAX_READER_RSS} bytes and "
+               "was stopped; the file has changed shape")
+        raise SourceError(msg)
+    stderr = done.stderr.decode("utf-8", "replace")[-_STDERR_QUOTED:].strip()
+    if done.returncode != 0:
+        msg = f"arena slices: the reader exited {done.returncode}: {stderr}"
+        raise SourceError(msg)
     try:
-        parquet = pq.ParquetFile(pa.BufferReader(raw), read_dictionary=list(_TEXT_COLUMNS))
-    except Exception as exc:
-        msg = f"arena slices: the download is not a readable parquet file: {exc}"
+        answer = json.loads(done.stdout)
+    except ValueError as exc:
+        msg = f"arena slices: the reader answered something that is not its protocol: {stderr}"
         raise SourceError(msg) from exc
-
-    meta = parquet.metadata
-    if meta.num_rows > MAX_PARQUET_ROWS:
-        msg = f"arena slices: the file declares {meta.num_rows} rows, over {MAX_PARQUET_ROWS}"
+    if isinstance(answer, dict) and isinstance(answer.get("error"), str):
+        msg = f"arena slices: {answer['error']}"
         raise SourceError(msg)
-    declared = sum(meta.row_group(i).total_byte_size for i in range(meta.num_row_groups))
-    if declared > MAX_UNCOMPRESSED_BYTES:
-        msg = f"arena slices: the file declares {declared} bytes, over {MAX_UNCOMPRESSED_BYTES}"
+    rows = answer.get("rows") if isinstance(answer, dict) else None
+    if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+        msg = "arena slices: the reader answered something that is not its protocol"
         raise SourceError(msg)
-    _check_columns(parquet.schema_arrow, pa)
-
-    rows: list[dict[str, Any]] = []
-    decoded = 0
-    for batch in parquet.iter_batches(batch_size=_BATCH_ROWS, columns=list(_COLUMNS)):
-        decoded += batch.nbytes
-        if decoded > MAX_DECODED_BYTES:
-            msg = f"arena slices: over {MAX_DECODED_BYTES} bytes decoded; the file has changed shape"
-            raise SourceError(msg)
-        for column in _TEXT_COLUMNS:
-            values = batch.column(column)
-            longest = pc.max(pc.utf8_length(values.dictionary)).as_py() if len(values) else None
-            if longest is not None and longest > MAX_VALUE_CHARS:
-                msg = f"arena slices: a {column} value is longer than {MAX_VALUE_CHARS} characters"
-                raise SourceError(msg)
-        rows.extend(batch.to_pylist())
     return rows
 
 
-def _check_columns(schema: Any, pa: Any) -> None:
-    """The four columns read, each of the type the live file has (security S1): anything else is a
-    changed file, refused before a single value is converted."""
-    present = set(schema.names)
-    missing = [column for column in _COLUMNS if column not in present]
-    if missing:
-        msg = f"arena slices: the file has no column {', '.join(missing)}"
-        raise SourceError(msg)
-    for column in _COLUMNS:
-        kind = schema.field(column).type
-        if pa.types.is_dictionary(kind):
-            kind = kind.value_type
-        expected = (
-            pa.types.is_floating(kind) or pa.types.is_integer(kind)
-            if column == "rating"
-            else pa.types.is_string(kind) or pa.types.is_large_string(kind)
-        )
-        if not expected:
-            msg = f"arena slices: column {column} has type {kind}, not the type the live file has"
-            raise SourceError(msg)
-
-
 def _date(value: object) -> str | None:
-    return value[:10] if isinstance(value, str) and value else None
+    """A publish date, only if it IS one (security re-look S-R4): as text, `2026-09-1~` sorts above
+    every real date and would have become the newest."""
+    if not isinstance(value, str):
+        return None
+    try:
+        return dt.date.fromisoformat(value[:10]).isoformat()
+    except ValueError:
+        return None
 
 
 def parse_arena_slices(

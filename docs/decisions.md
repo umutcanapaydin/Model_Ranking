@@ -3009,3 +3009,32 @@ bad data until someone looks.
 
 **Revisit when:** boards held back a publish on more than one night in a month, or W4 serves boards on
 a route whose own checks make this one redundant.
+
+## D-165 — A downloaded file a native library parses is read in a process of its own, under a memory ceiling
+
+**Status:** accepted -- **ruled by the owner 2026-09-24** (asked in Turkish whether to read the Arena
+slice file in a separate process with a memory ceiling or to accept the risk and record it; the
+owner chose the first) · **Date:** 2026-09-24 · from #22, M17-W2's re-reviews
+(`docs/reviews/m17-wave-2-rereview.md` BLOCKING-R1, `m17-wave-2-security-rereview.md` S-R1).
+
+**Context.** pyarrow decodes a whole column chunk before any check written in Python can run, and a
+parquet file's sizes are its writer's claims. Two independent re-reviews made a 57 KB file take more
+than 1 GB in the refresh process, growing linearly up to the download cap; two rounds of in-process
+checks (the footer, then a counted decode budget) did not bound it.
+
+**Decision.**
+1. **The file is parsed by `app.clients.parquet_reader` in a child process**, which watches its own
+   peak resident size from a thread and leaves with `EXIT_OVER_CEILING` past `MAX_READER_RSS`
+   (512 MiB; the live `text` file reads at about 60 MB). The parent also stops it after
+   `READER_TIMEOUT_S`.
+2. **Every way the reader fails is a `SourceError`** for that config's slices: the ceiling, the time
+   limit, a crash (a native one included), or an answer outside its protocol. The build carries
+   the slices (D-156) and never fails the cycle over one file.
+3. The in-process checks stay as cheap first refusals of a changed file (types, footer, rows as
+   read, value length, decode budget); the ceiling is the bound.
+
+**The cost.** One more process start per config per night (about 0.3 s), and a limit tuned to a
+machine: a legitimate file that grows past it fails until the limit is raised.
+
+**Revisit when:** a live file approaches the ceiling, or another source starts parsing a downloaded
+file with a native library (it should go through the same reader shape).

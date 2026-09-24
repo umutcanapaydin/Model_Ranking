@@ -116,8 +116,8 @@ no_implicit_reexport = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-# M17-W2: pyarrow ships no type information. Its two call sites are in `arena_slices._read_table`,
-# which annotates what it returns, and the tests cover every path through them.
+# M17-W2: pyarrow ships no type information. It is imported in one place, the isolated reader
+# `app.clients.parquet_reader`, which annotates what it returns; the tests cover every path through it.
 module = ["pyarrow", "pyarrow.*"]
 ignore_missing_imports = true
 
