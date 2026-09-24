@@ -71,6 +71,28 @@ def _probe_for(source: RemoteSource) -> Callable[[], str]:
     return probe
 
 
+def _slice_probe(config: str) -> Callable[[], str]:
+    """M17-W2: one probe per config's parquet file, every declared slice held to its own floor.
+
+    Derived from `ARENA_SLICES` like the probes above are from `REMOTE_SOURCES`: a slice declared
+    there is probed here without this file being edited.
+    """
+
+    def probe() -> str:
+        from app.clients.arena_slices import ARENA_SLICES, ArenaSliceClient, parse_arena_slices
+
+        boards = [board for board in ARENA_SLICES if board.config == config]
+        client = ArenaSliceClient(config)
+        rows, _ = parse_arena_slices(client.fetch_bytes(), boards, source_url=client.url)
+        short = [b.source_name for b in boards if len(rows[b.source_name]) < b.minimum_rows]
+        if short:
+            msg = f"below their declared floors: {', '.join(short)}"
+            raise ValueError(msg)
+        return f"{len(boards)} slices, {sum(len(r) for r in rows.values())} rows"
+
+    return probe
+
+
 # W-007 is why the arena probe matters beyond reachability: a 500 on the filter endpoint used to
 # drop the client into full pagination and rate-limit itself. An unusable filter endpoint is a
 # FAILED dependency even though the data exists behind the slower route.
@@ -89,6 +111,9 @@ def main() -> int:
 
     print("[smoke-deps] L.8 — every dependency invoked through its own client, RESULT parsed")
     results = [_probe(source.name, _probe_for(source)) for source in REMOTE_SOURCES]
+    from app.clients.arena_slices import SLICE_CONFIGS
+
+    results += [_probe(f"arena_slices_{c}", _slice_probe(c)) for c in SLICE_CONFIGS]
 
     # Local bundles are deliberately NOT fetched, and the list of them is read from the registry
     # rather than typed here — a bundle added there is reported here without editing this file.
