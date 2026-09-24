@@ -271,12 +271,18 @@ def test_the_parent_stops_reading_at_the_bound_rather_than_after_it(
 ) -> None:
     """Re-review 3, MINOR-R3-1: a reader that never stops writing is cut off at the bound. An
     unbounded read would wait for the end of an answer that has none, until the time limit."""
+    import time
+
     import app.clients.arena_slices as module
 
     monkeypatch.setattr(module, "MAX_ANSWER_BYTES", 10_000)
-    monkeypatch.setattr(module, "READER_TIMEOUT_S", 20.0)
+    monkeypatch.setattr(module, "READER_TIMEOUT_S", 8.0)
+    started = time.monotonic()
     with pytest.raises(SourceError, match="answer passed 10000 bytes"):
         _run_reader(monkeypatch, f"while True: print({_ROW!r}, flush=True)")
+    # Tester T1: without the capped read the same message still came, from the check after the
+    # time limit, with the whole answer held. The cut-off has to come well before the limit.
+    assert time.monotonic() - started < 4.0
 
 
 def test_only_the_tail_of_the_readers_stderr_is_quoted_and_it_is_printable(
@@ -658,3 +664,35 @@ def test_neither_the_server_nor_the_slice_module_loads_pyarrow(module: str) -> N
     server's path to the module goes away (P1 review M2).
     """
     assert not _loads_pyarrow(module)
+
+
+def test_the_smoke_probe_holds_every_slice_of_a_config_to_its_floor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Tester T2: `smoke_deps`' one probe per config (P4), driven with the canonical fake."""
+    import importlib.util
+
+    import app.clients.arena_slices as module
+    from app.clients.fakes import fake_slice_client
+
+    spec = importlib.util.spec_from_file_location(
+        "smoke_deps", Path(__file__).resolve().parents[2] / "scripts" / "smoke_deps.py")
+    assert spec is not None and spec.loader is not None
+    smoke = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(smoke)
+
+    vision = [board for board in ARENA_SLICES if board.config == "vision"]
+
+    def file_with(short: str | None) -> bytes:
+        rows = []
+        for board in vision:
+            count = board.minimum_rows - 1 if board.category == short else board.minimum_rows
+            rows += [(f"m{i}", 1300.0 - i, board.category, NEWEST) for i in range(count)]
+        return slice_parquet(rows)
+
+    monkeypatch.setattr(module, "ArenaSliceClient", fake_slice_client({"vision": file_with(None)}))
+    assert smoke._slice_probe("vision")().startswith(f"{len(vision)} slices")
+    monkeypatch.setattr(module, "ArenaSliceClient", fake_slice_client({"vision": file_with("ocr")}))
+    with pytest.raises(ValueError, match="arena_vision_ocr"):
+        smoke._slice_probe("vision")()
+
