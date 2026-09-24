@@ -149,5 +149,5 @@ def test_the_slice_survey_counts_rows_and_the_models_the_engine_can_rank(tmp_pat
     assert by_board["arena_text_multi_turn"]["ranked_population"] == 2
     assert by_board["arena_vision_ocr"]["ranked_population"] == 1
     assert survey["models_after"] == survey["models_before"]
-    assert survey["bytes_after"] > survey["bytes_before"]
+    assert survey["bytes_after"] >= survey["bytes_before"] > 0  # four rows may fit free pages
     assert artifact.read_bytes() == before, "the survey wrote to the served artifact"

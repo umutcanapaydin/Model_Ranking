@@ -45,6 +45,12 @@ from app.clients.arena import (
     arena_source_url,
     parse_arena,
 )
+from app.clients.arena_slices import (
+    ARENA_SLICES,
+    ArenaSlice,
+    ArenaSliceClient,
+    parse_arena_slices,
+)
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.floors import derived_floor, top_third
 from app.workflows.ingest import RunContext, _store_scores
@@ -339,6 +345,102 @@ def measure(config: str, db: Path, workspace: Path) -> dict[str, Any]:
     }
 
 
+def _bytes(conn: sqlite3.Connection) -> int:
+    return int(conn.execute("PRAGMA page_count").fetchone()[0]) * int(
+        conn.execute("PRAGMA page_size").fetchone()[0])
+
+
+def measure_slices(
+    db: Path, workspace: Path, *, client: Any = ArenaSliceClient,
+    slices: tuple[ArenaSlice, ...] = ARENA_SLICES,
+) -> dict[str, Any]:
+    """M17-W2 P4: every declared category slice, written into a COPY of `db` and reconciled.
+
+    Per board: its rows, its row floor, and its ranked population -- the models the engine can
+    actually rank (reconciled to the registry AND priced), the only population a later combination
+    can use. Also what the slices cost the artifact: the models registered before and after
+    (a slice's models are a subset of its `overall` board, so none should be new, D-157) and the
+    database's size.
+    """
+    scratch = workspace / "slices.db"
+    shutil.copy(db, scratch)
+    conn = sqlite3.connect(str(scratch))
+    try:
+        bytes_before = _bytes(conn)
+        models_before = int(conn.execute("SELECT COUNT(*) FROM models").fetchone()[0])
+        run = RunContext(observed_at="2026-09-24T00:00:00Z")
+        parsed: dict[str, int] = {}
+        for config in dict.fromkeys(board.config for board in slices):
+            boards = [board for board in slices if board.config == config]
+            download = client(config)
+            rows, _ = parse_arena_slices(download.fetch_bytes(), boards, source_url=download.url)
+            for board in boards:
+                parsed[board.source_name] = len(rows[board.source_name])
+                _store_scores(conn, board.source_name, rows[board.source_name], run)
+        reconcile(conn)  # what the build does next; without it nothing joins to a priced model
+        conn.commit()
+        records: list[dict[str, Any]] = []
+        for board in slices:
+            spec = CategorySpec(
+                id=f"survey-{board.source_name}",
+                title=board.benchmark,
+                primary_benchmark=board.benchmark,
+                metric=METRIC,
+                score_unit="Elo",
+                secondary_benchmark=None,
+                primary_source=board.source_name,
+                value_window=0.0,
+                close_call=0.0,
+            )
+            ratings = [row.score for row in ranked_population(conn, spec)]
+            records.append({
+                "board": board.source_name,
+                "rows": parsed[board.source_name],
+                "floor": board.minimum_rows,
+                "ranked_population": len(ratings),
+                "leader": round(max(ratings), 1) if ratings else None,
+            })
+        return {
+            "boards": records,
+            "models_before": models_before,
+            "models_after": int(conn.execute("SELECT COUNT(*) FROM models").fetchone()[0]),
+            "bytes_before": bytes_before,
+            "bytes_after": _bytes(conn),
+        }
+    finally:
+        conn.close()
+
+
+def _print_slices(survey: dict[str, Any]) -> None:
+    print(f"{'board':62s} {'rows':>5s} {'floor':>5s} {'ranked':>6s} {'leader':>7s}")
+    for record in survey["boards"]:
+        leader = record["leader"] if record["leader"] is not None else "-"
+        print(f"{record['board']:62s} {record['rows']:5d} {record['floor']:5d} "
+              f"{record['ranked_population']:6d} {leader:>7}")
+    print(f"\nmodels registered: {survey['models_before']} -> {survey['models_after']}; "
+          f"artifact: {survey['bytes_before']:,} -> {survey['bytes_after']:,} bytes")
+
+
+def _side_survey(args: argparse.Namespace, db: Path) -> int:
+    """`--floors` (no network) or `--slices` (downloads), each printed and optionally written."""
+    record: dict[str, Any]
+    if args.floors:
+        conn = open_readonly(db)  # INV-23: never a hand-built read-only URI
+        try:
+            table = floors(conn)
+        finally:
+            conn.close()
+        _print_floors(table)
+        record = {"floors": table}
+    else:
+        with tempfile.TemporaryDirectory() as tmp:
+            record = measure_slices(db, Path(tmp))
+        _print_slices(record)
+    if args.out:
+        Path(args.out).write_text(json.dumps(record, indent=2), encoding="utf-8")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="survey_boards")
     parser.add_argument("--db", default="advisor.db", help="read-only; every write goes to a copy")
@@ -348,6 +450,10 @@ def main(argv: list[str] | None = None) -> int:
         "--floors", action="store_true",
         help="D-148: every surface's floor from the artifact itself (no network), beside today's",
     )
+    parser.add_argument(
+        "--slices", action="store_true",
+        help="M17-W2: every category slice's rankable models, measured on a copy (downloads)",
+    )
     args = parser.parse_args(argv)
 
     db = Path(args.db)
@@ -355,16 +461,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{db} is not there; run a build first", file=sys.stderr)
         return 2
 
-    if args.floors:
-        conn = open_readonly(db)  # INV-23: never a hand-built read-only URI
-        try:
-            table = floors(conn)
-        finally:
-            conn.close()
-        _print_floors(table)
-        if args.out:
-            Path(args.out).write_text(json.dumps({"floors": table}, indent=2), encoding="utf-8")
-        return 0
+    if args.floors or args.slices:
+        return _side_survey(args, db)
 
     configs = args.only or CONFIGS
     records: list[dict[str, Any]] = []
