@@ -39,6 +39,7 @@ from dataclasses import dataclass, fields
 from pathlib import Path
 
 from app.clients import epoch_bundle
+from app.clients.arena_slices import ARENA_SLICES
 from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
 from app.workflows.floors import board_names, derived_floor
@@ -167,6 +168,21 @@ def _mostly_new(
     return reasons
 
 
+def _mostly_lost(
+    live: dict[str, frozenset[str]], candidate: dict[str, frozenset[str]], subject: str, why: str,
+) -> list[str]:
+    """D-128's limit on a board's names: every board that would lose a quarter or more of them."""
+    reasons: list[str] = []
+    for name, was in sorted(live.items()):
+        lost = len(was - candidate.get(name, frozenset()))
+        if was and lost >= len(was) * MAX_SURFACE_LOSS:
+            reasons.append(
+                f"{subject.format(name=name)} would lose {lost} of {len(was)} names "
+                f"({lost / len(was):.0%}, at or over the {MAX_SURFACE_LOSS:.0%} limit); {why}"
+            )
+    return reasons
+
+
 def upward_anomalies(
     live: ServingSummary, candidate: ServingSummary, prices: ServingSummary | None = None
 ) -> list[str]:
@@ -198,6 +214,14 @@ def upward_anomalies(
         live.board, candidate.board, "{name}'s board", "names",
         "its floor is derived from every one of their rows (D-159); a renamed or returning set "
         "reads as new here too, and is published by hand",
+    )
+
+    # D-164 clause 2: the same limit on every declared board. A board appearing for the first time
+    # passes as returning (`_mostly_new`'s empty-set rule), so the night the boards arrive publishes.
+    reasons += _mostly_new(
+        live.slices, candidate.slices, "board {name}", "names",
+        "a board is published content and is guarded as one (D-164); a board that is mostly new "
+        "names overnight is published by hand",
     )
 
     for name, before in sorted((prices or live).median_price.items()):
@@ -245,14 +269,13 @@ def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
     # every row of a surface's own board, so a board that loses a quarter of its names moves the
     # floor and the Budget Pick as surely as one that gains them -- and unguarded, the names'
     # return would then be refused every night by the growth limit in `upward_anomalies`.
-    for name, was_board in sorted(live.board.items()):
-        lost_names = len(was_board - candidate.board.get(name, frozenset()))
-        if was_board and lost_names >= len(was_board) * MAX_SURFACE_LOSS:
-            reasons.append(
-                f"{name}'s board would lose {lost_names} of {len(was_board)} names "
-                f"({lost_names / len(was_board):.0%}, at or over the {MAX_SURFACE_LOSS:.0%} limit); "
-                "its floor is derived from every one of their rows (D-159)"
-            )
+    reasons += _mostly_lost(live.board, candidate.board, "{name}'s board",
+                            "its floor is derived from every one of their rows (D-159)")
+
+    # D-164 clause 2: every declared board, by the same limit. An expired board's rows are already
+    # gone from `live` on an expiry night (`_served_without`), so its drop is excused exactly.
+    reasons += _mostly_lost(live.slices, candidate.slices, "board {name}",
+                            "a board is published content and is guarded as one (D-164)")
 
     # The budget axis. A surface that answered a reader on some budget and would now answer nothing
     # is "fewer surfaces answering" in the only sense a reader experiences — REQ-REF-003's own
@@ -365,6 +388,9 @@ class ServingSummary:
     #: moves the floor and every Budget Pick (owner, 2026-09-23). Defaults empty for a summary built
     #: by hand, which the board guard then treats as a board returning.
     board: dict[str, frozenset[str]] = dataclasses.field(default_factory=dict)
+    #: D-164: each declared board no surface ranks on (Arena's category slices, M17-W2) -> its raw
+    #: names. Guarded exactly as a surface's own board is: a quarter lost, or a quarter new.
+    slices: dict[str, frozenset[str]] = dataclasses.field(default_factory=dict)
 
     @property
     def answering(self) -> int:
@@ -434,6 +460,18 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         prices[name] = statistics.median([row.blended_per_m for row in rows]) if rows else 0.0
         for row in rows:
             digest.update(_row_digest(row).encode())
+    # D-164: a board is published content (W4 serves the standings, D-160). Every row's name, the
+    # model it reconciled to and its score, rounded as the output boundary rounds it (D-109), so a
+    # board that moves publishes and one that only re-stamps its rows does not.
+    slices: dict[str, frozenset[str]] = {}
+    for board in sorted(ARENA_SLICES, key=lambda b: b.source_name):
+        standings = conn.execute(
+            "SELECT raw_name, model_id, score FROM scores WHERE source = ? AND benchmark = ? "
+            "ORDER BY raw_name, model_id, score", (board.source_name, board.benchmark)).fetchall()
+        digest.update(f"slice:{board.source_name}:{len(standings)}\n".encode())
+        for raw_name, model_id, score in standings:
+            digest.update(f"{raw_name}|{model_id}|{round_score(score)}\n".encode())
+        slices[board.source_name] = frozenset(raw_name for raw_name, _, _ in standings)
     return ServingSummary(
         digest=digest.hexdigest(),
         surfaces=surfaces,
@@ -441,6 +479,7 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         median_price=prices,
         eligible=eligible,
         board=boards,
+        slices=slices,
     )
 
 

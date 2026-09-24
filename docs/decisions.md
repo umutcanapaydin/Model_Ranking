@@ -2993,9 +2993,10 @@ would notice changed" and was discarded, while the refresh record listed the sou
 D-128/D-132 guards iterate surfaces too, so a board no surface names was unguarded.
 
 **Decision.**
-1. **Each declared board's standings are part of the fingerprint**: every row's name and score,
-   rounded as the output boundary rounds them (D-109). A candidate that changes only a board
-   publishes.
+1. **Each declared board's standings are part of the fingerprint**: every row's name, the model it
+   reconciled to (what W4 serves as the model's identity), and its score, rounded as the output
+   boundary rounds it (D-109). A candidate that changes only a board publishes; one that only
+   re-stamps its rows does not.
 2. **The board guards apply to each board**: refused when a quarter or more of its raw names are lost
    (D-128) or new (D-132), exactly as for a surface's own board (D-159).
 3. **A board seen for the first time is returning, not new** (the existing empty-set rule), so the
