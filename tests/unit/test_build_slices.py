@@ -169,3 +169,55 @@ def test_every_slice_is_attributed() -> None:
 
     for board in ARENA_SLICES:
         assert SOURCE_ATTRIBUTION.get(board.source_name) == ATTRIBUTION, board.source_name
+
+
+@pytest.mark.slices
+def test_a_hostile_file_fails_its_slices_and_never_the_build() -> None:
+    """Wave review B1 / security S1, through the build: the review's 1.3 KB file, a date32 at its
+    maximum, ends as a missing slice, never as an exception out of the ingest."""
+    import io
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    sink = io.BytesIO()
+    pq.write_table(pa.table({
+        "model_name": ["a", "b"], "rating": [1390.0, 1380.0],
+        "category": [LEGAL.category, MULTI.category],
+        "leaderboard_publish_date": pa.array([2**31 - 1] * 2, type=pa.date32()),
+    }), sink)
+    conn = connect(":memory:")
+    try:
+        reports, missing, _, _ = _ingest(conn, {"text": sink.getvalue(), "vision": _file({"ocr": 2})})
+        assert [r.source for r in reports] == [OCR.source_name]
+        assert sorted(m.split(":", 1)[0] for m in missing) == sorted(
+            [LEGAL.source_name, MULTI.source_name])
+    finally:
+        conn.close()
+
+
+@pytest.mark.slices
+def test_a_marked_test_that_injects_no_client_cannot_reach_the_network() -> None:
+    """Wave review B2: a marked test that forgot to inject a fake downloaded both live files on
+    every `make test`. The marked default is a client that refuses."""
+    from app.clients.protocols import SourceError
+
+    with pytest.raises(SourceError, match="network"):
+        build_mod.ARENA_SLICE_CLIENT("text").fetch_bytes()
+
+
+@pytest.mark.slices
+def test_slice_rows_do_not_crowd_the_unmatched_names_queue() -> None:
+    """Wave review K2: the queue ranks names by row count, and a slice repeats its `overall`
+    board's names up to 26 times. Slice rows add no name `overall` lacks, so they are not counted."""
+    conn = connect(":memory:")
+    try:
+        conn.executemany(
+            "INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, "
+            "source_url, observed_at) VALUES (?, ?, 'elo', 1, 'h', 'unspecified', ?, 'u', 'z')",
+            [("only-in-slices", b.benchmark, b.source_name) for b in BOARDS]
+            + [("in-overall", "Arena text", "arena")])
+        assert build_mod._most_unmatched(conn, set()) == ["in-overall"]
+    finally:
+        conn.close()
+

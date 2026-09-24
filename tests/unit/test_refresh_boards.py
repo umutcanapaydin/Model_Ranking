@@ -90,6 +90,10 @@ def test_the_fingerprint_moves_with_a_board_and_only_with_it() -> None:
         conn.execute("UPDATE scores SET score = 1200.01, observed_at = 'y'")
         assert serving_summary(conn).digest == added.digest, (
             "a move below the output boundary's rounding (D-109), or a new timestamp, is not news")
+        # Wave review M2: the model a name reconciles to is what W4 serves as its identity.
+        conn.execute("INSERT INTO models (id, display, vendor) VALUES ('m-zero', 'M zero', 'v')")
+        conn.execute("UPDATE scores SET model_id = 'm-zero'")
+        assert serving_summary(conn).digest != added.digest
     finally:
         conn.close()
 

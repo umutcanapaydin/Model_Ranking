@@ -131,7 +131,7 @@ def test_the_slice_survey_counts_rows_and_the_models_the_engine_can_rank(tmp_pat
     artifact = tmp_path / "advisor.db"
     conn = connect(str(artifact))
     build(conn, plans_yaml=PLANS_YAML, rosters_yaml=ROSTERS_YAML, sources=_sources(),
-          minimum_models=2)
+          slices=(), minimum_models=2)
     conn.close()
     before = artifact.read_bytes()
 

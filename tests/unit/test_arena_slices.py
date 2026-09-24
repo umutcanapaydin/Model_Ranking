@@ -120,21 +120,85 @@ def test_a_file_with_no_readable_date_is_refused_rather_than_served_undated() ->
         parse_arena_slices(raw, [LEGAL], source_url="u")
 
 
-def test_a_date_column_typed_as_a_timestamp_is_read_as_its_date() -> None:
-    """P1 review M1: the live column is a string today; a typed column must not read as undated."""
-    import datetime as dt
-
-    columns = {
-        "model_name": ["a", "b"],
-        "rating": [1390.0, 1380.0],
-        "category": ["multi_turn", "multi_turn"],
-        "leaderboard_publish_date": [dt.datetime(2026, 9, 13), dt.datetime(2026, 8, 30)],
+def _typed(**overrides: Any) -> bytes:
+    """A two-row file whose columns can be given any arrow type (the review's hostile files)."""
+    columns: dict[str, Any] = {
+        "model_name": pa.array(["a", "b"]),
+        "rating": pa.array([1390.0, 1380.0]),
+        "category": pa.array(["multi_turn", "multi_turn"]),
+        "leaderboard_publish_date": pa.array([NEWEST, NEWEST]),
     }
+    columns.update(overrides)
     sink = io.BytesIO()
     pq.write_table(pa.table(columns), sink)
-    rows, skipped = parse_arena_slices(sink.getvalue(), [MULTI], source_url="u")
-    assert [(r.raw_name, r.run_date) for r in rows[MULTI.source_name]] == [("a", NEWEST)]
-    assert skipped[MULTI.source_name] == 1
+    return sink.getvalue()
+
+
+@pytest.mark.parametrize(
+    ("column", "values"),
+    [
+        # Wave review B1 / security S1: a date32 at its maximum made `to_pylist` raise OverflowError,
+        # which is not a SourceError, so the build re-raised it and the whole nightly cycle failed.
+        ("leaderboard_publish_date", pa.array([2**31 - 1] * 2, type=pa.date32())),
+        ("leaderboard_publish_date", pa.array([2**62] * 2, type=pa.date64())),
+        ("leaderboard_publish_date", pa.array([0, 1], type=pa.timestamp("s"))),
+        ("rating", pa.array(["1390", "1380"])),
+        ("model_name", pa.array([1, 2])),
+        ("category", pa.array([1.0, 2.0])),
+    ],
+)
+def test_a_column_of_an_unexpected_type_is_refused_before_it_is_read(
+    column: str, values: Any
+) -> None:
+    """The live file's types (string, double, string, string) are the only ones read: anything else
+    is a changed file, refused as one before a value is converted."""
+    with pytest.raises(SourceError, match=column):
+        parse_arena_slices(_typed(**{column: values}), [MULTI], source_url="u")
+
+
+def test_any_failure_inside_the_read_is_a_source_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Security S1: an allowlist of exception classes is how OverflowError escaped. Whatever the
+    library raises while reading ends THIS source, never the cycle."""
+
+    def explode(*_: object, **__: object) -> None:
+        raise OverflowError("date out of range")
+
+    monkeypatch.setattr(pq.ParquetFile, "iter_batches", explode)
+    with pytest.raises(SourceError, match="OverflowError"):
+        parse_arena_slices(_parquet([_row("a", 1390.0, "multi_turn")]), [MULTI], source_url="u")
+
+
+def test_a_value_longer_than_any_real_one_is_refused() -> None:
+    """Security S2: one long value, repeated by dictionary encoding, grows by rows x length when
+    the rows become Python strings. A real model name is well under the bound."""
+    raw = _parquet([_row("x" * 1000, 1390.0, "multi_turn")])
+    with pytest.raises(SourceError, match="longer"):
+        parse_arena_slices(raw, [MULTI], source_url="u")
+
+
+def test_decoding_past_the_budget_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Security S2: the footer's sizes are the writer's claims. What is actually decoded is counted
+    batch by batch, and the read stops at the budget."""
+    import app.clients.arena_slices as module
+
+    monkeypatch.setattr(module, "MAX_DECODED_BYTES", 64)
+    raw = _parquet([_row(f"m{i}", 1300.0 + i, "multi_turn") for i in range(50)])
+    with pytest.raises(SourceError, match="decoded"):
+        parse_arena_slices(raw, [MULTI], source_url="u")
+
+
+def test_a_row_dated_in_the_future_is_refused_and_does_not_move_the_newest_date() -> None:
+    """Security S4: the newest date was an unchecked maximum, so one stray `9999-12-31` row would
+    have darkened every slice of the config."""
+    raw = _parquet([
+        _row("a", 1390.0, "multi_turn"),
+        _row("b", 1380.0, "multi_turn"),
+        _row("z", 1500.0, "industry_legal_and_government", "9999-12-31"),
+    ])
+    rows, skipped = parse_arena_slices(raw, [MULTI, LEGAL], source_url="u")
+    assert [r.raw_name for r in rows[MULTI.source_name]] == ["a", "b"]
+    assert rows[LEGAL.source_name] == []
+    assert skipped[LEGAL.source_name] == 1
 
 
 def test_a_file_that_is_not_parquet_is_a_source_error() -> None:
@@ -262,11 +326,10 @@ def _loads_pyarrow(module: str) -> bool:
 
 @pytest.mark.parametrize("module", ["app.adapter.main", "app.clients.arena_slices"])
 def test_neither_the_server_nor_the_slice_module_loads_pyarrow(module: str) -> None:
-    """D-154: the server imports `app.clients.*` (W-125), so the import stays inside the parse.
+    """D-154: the server imports `app.clients.*` (W-125), so pyarrow is imported inside the read.
 
-    P1 review M2: the server alone made this vacuous, because today it never imports
-    `arena_slices` and so could not fail if the import moved to the top of the module. Importing
-    the module itself is the half that fails on that mutation; the server half fails the day a
-    path from the server to the module appears with it.
+    The server imports `arena_slices` itself (through `rank.SOURCE_ATTRIBUTION`), so both halves
+    fail on a top-level `import pyarrow`. The module half stays: it holds the rule even if the
+    server's path to the module goes away (P1 review M2).
     """
     assert not _loads_pyarrow(module)
