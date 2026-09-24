@@ -2979,3 +2979,32 @@ D-159) are what run every night.
 
 **Revisit when:** the engine runs somewhere other than the owner's machine, where a nightly check
 against the served artifact could run.
+
+## D-164 — A board is published content, and the refresh guards it as a board
+
+**Status:** accepted -- **ruled by the owner 2026-09-24** (M17-W2 plan, decision 5, put to the owner in
+Turkish in session and in PR #23; the owner answered, translated, "okay, continue") · **Date:**
+2026-09-24 · **Extends** REQ-REF-002's "changed", D-128 and D-132 from surfaces to boards · from #22.
+
+**Context.** M17-W2 stores Arena's category slices as boards that no surface ranks on; W4 serves them
+(D-160). The refresh decides "changed" on what the artifact would serve, and `serving_summary`
+fingerprinted surfaces only. A candidate that adds or moves boards therefore read as "nothing a user
+would notice changed" and was discarded, while the refresh record listed the source as served. The
+D-128/D-132 guards iterate surfaces too, so a board no surface names was unguarded.
+
+**Decision.**
+1. **Each declared board's standings are part of the fingerprint**: every row's name and score,
+   rounded as the output boundary rounds them (D-109). A candidate that changes only a board
+   publishes.
+2. **The board guards apply to each board**: refused when a quarter or more of its raw names are lost
+   (D-128) or new (D-132), exactly as for a surface's own board (D-159).
+3. **A board seen for the first time is returning, not new** (the existing empty-set rule), so the
+   night that first carries the boards is not refused.
+4. A board that fails to fetch carries on its own clock (D-156), as every source does.
+
+**The cost.** A glitch on one thin board can now hold back a night's publish that would otherwise have
+gone out. That is the guard doing its job: a board that loses a quarter of its names in one night is
+bad data until someone looks.
+
+**Revisit when:** boards held back a publish on more than one night in a month, or W4 serves boards on
+a route whose own checks make this one redundant.
