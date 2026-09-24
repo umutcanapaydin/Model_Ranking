@@ -321,13 +321,15 @@ def test_a_missing_temporary_directory_is_a_source_error(monkeypatch: pytest.Mon
         parse_arena_slices(_parquet([_row("a", 1390.0, "multi_turn")]), [MULTI], source_url="u")
 
 
-def test_the_watchdog_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("failure", [OSError("/proc is gone"), ValueError("bad VmHWM"),
+                                     LookupError("no VmHWM line"), MemoryError()])
+def test_the_watchdog_fails_closed(monkeypatch: pytest.MonkeyPatch, failure: BaseException) -> None:
     """Re-review 3, MINOR-R3-3 / S-R3-3: a watchdog that cannot read the peak must end the reader
-    as over its ceiling, never die quietly and leave it unbounded."""
+    as over its ceiling, never die quietly and leave it unbounded, whatever the failure is."""
     from app.clients import parquet_reader
 
     def unreadable() -> int:
-        raise OSError("/proc is gone")
+        raise failure
 
     exits: list[int] = []
 

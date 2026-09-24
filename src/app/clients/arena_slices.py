@@ -68,8 +68,9 @@ MAX_READER_RSS = 512 * 1024 * 1024
 #: is a little later, so the parent's clean refusal comes first and the alarm only ends an orphan.
 READER_TIMEOUT_S = 60.0
 #: The largest answer the parent reads (security re-look 2, S-R2-1). The live `text` answer is
-#: about 1.6 MB of JSON lines.
-MAX_ANSWER_BYTES = 16 * 1024 * 1024
+#: 1,616,244 bytes of JSON lines (measured 2026-09-24), so 8 MiB is a five-fold margin; at 16 MiB a
+#: crafted answer took the refresh process to 245 MiB (security re-look 3, S-R3-1).
+MAX_ANSWER_BYTES = 8 * 1024 * 1024
 #: The variables the reader may see: none of the owner's tokens (S-R2-4), the same shape as the
 #: nightly child's allowlist (`nightly.CHILD_ENV`).
 READER_ENV = ("PATH", "LANG", "LC_ALL", "LC_CTYPE", "TMPDIR", "TZ")
@@ -131,6 +132,12 @@ class ArenaSlice:
     def minimum_rows(self) -> int:
         """Half the measured count: below any real day, far above a truncated file (W-024)."""
         return self.measured_rows // 2
+
+    @property
+    def maximum_rows(self) -> int:
+        """Four times the measured count: far above a board that grew, far below a file built to
+        fill the artifact (security re-look 3, S-R3-5: 100,000 rows where 402 were declared)."""
+        return self.measured_rows * 4
 
 
 def _slices(config: str, measured: dict[str, int]) -> tuple[ArenaSlice, ...]:
@@ -223,7 +230,12 @@ def _read_table(raw: bytes) -> list[dict[str, Any]]:
     tail is quoted, and every quoted reason is short and printable (security re-look 2, S-R2-1/-2).
     """
     stopped = threading.Event()
-    with tempfile.TemporaryFile() as stderr:
+    try:
+        stderr_file = tempfile.TemporaryFile()  # noqa: SIM115 -- entered by the `with` just below
+    except OSError as exc:  # security re-look 3, S-R3-4: a missing TMPDIR ended the cycle
+        msg = f"arena slices: no temporary file for the reader's stderr: {exc}"
+        raise SourceError(msg) from exc
+    with stderr_file as stderr:
         try:
             reader = subprocess.Popen(  # noqa: S603 -- our own interpreter and module, no shell
                 [*_reader_command(), json.dumps(reader_limits())], stdin=subprocess.PIPE,
@@ -238,22 +250,24 @@ def _read_table(raw: bytes) -> list[dict[str, Any]]:
 
         timer = threading.Timer(READER_TIMEOUT_S, stop)
         timer.start()
-        try:
-            assert reader.stdin is not None and reader.stdout is not None
-            with contextlib.suppress(BrokenPipeError):
-                reader.stdin.write(raw)
-                reader.stdin.close()
-            answer = reader.stdout.read(MAX_ANSWER_BYTES + 1)
-            if len(answer) > MAX_ANSWER_BYTES:
-                reader.kill()
-                msg = f"arena slices: the reader's answer passed {MAX_ANSWER_BYTES} bytes and was cut off"
-                raise SourceError(msg)
-            code = reader.wait()
-        finally:
-            timer.cancel()
-            if reader.poll() is None:
-                reader.kill()
-                reader.wait()
+        with reader:  # closes the reader's pipes on the way out (re-review 3, NIT-R3-2)
+            try:
+                assert reader.stdin is not None and reader.stdout is not None
+                with contextlib.suppress(BrokenPipeError):
+                    reader.stdin.write(raw)
+                    reader.stdin.close()
+                answer = reader.stdout.read(MAX_ANSWER_BYTES + 1)
+                if len(answer) > MAX_ANSWER_BYTES:
+                    reader.kill()
+                    msg = (f"arena slices: the reader's answer passed {MAX_ANSWER_BYTES} bytes "
+                           "and was cut off")
+                    raise SourceError(msg)
+                code = reader.wait()
+            finally:
+                timer.cancel()
+                if reader.poll() is None:
+                    reader.kill()
+                    reader.wait()
         stderr.seek(max(0, stderr.seek(0, os.SEEK_END) - _STDERR_QUOTED))
         tail = printable(stderr.read().decode("utf-8", "replace").strip())
 
@@ -273,8 +287,11 @@ def _read_table(raw: bytes) -> list[dict[str, Any]]:
 def _answered_rows(answer: bytes) -> list[dict[str, Any]]:
     """The reader's JSON lines, held to the protocol: rows then an end line counting them, or one
     error line."""
+    # Split as bytes on `\n` only: `str.splitlines()` also splits on U+2028, U+2029 and U+0085,
+    # which a model name may carry and the reader writes raw (re-review 3, MINOR-R3-2), and bytes
+    # are held once rather than again as a decoded copy (security re-look 3, S-R3-1).
     try:
-        lines = [json.loads(line) for line in answer.decode("utf-8").splitlines() if line]
+        lines = [json.loads(line.decode("utf-8")) for line in answer.split(b"\n") if line]
     except ValueError as exc:
         msg = "arena slices: the reader answered something that is not its protocol"
         raise SourceError(msg) from exc

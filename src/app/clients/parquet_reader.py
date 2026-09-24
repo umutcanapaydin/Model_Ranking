@@ -56,14 +56,22 @@ def _peak_rss() -> int:
         for line in _PROC_STATUS.read_text(encoding="utf-8").splitlines():
             if line.startswith("VmHWM:"):
                 return int(line.split()[1]) * 1024
+        # Never `ru_maxrss` here: Linux reports it in KiB, which made the ceiling 1,024 times too
+        # large (re-review 3, MINOR-R3-3). The watchdog turns this into a stop.
+        msg = f"no VmHWM line in {_PROC_STATUS}"
+        raise LookupError(msg)
     return int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
 
 
 def _watch(ceiling: int) -> None:
-    while True:
-        if _peak_rss() > ceiling:
-            os._exit(EXIT_OVER_CEILING)
-        time.sleep(0.002)
+    """Stops the reader past `ceiling`. **Fails closed** (re-review 3, MINOR-R3-3): a watchdog that
+    cannot read the peak stops the reader as over its ceiling, never dies and leaves it unbounded."""
+    try:
+        while _peak_rss() <= ceiling:
+            time.sleep(0.002)
+    except BaseException:  # noqa: S110 -- any failure to measure is a stop, by design
+        pass
+    os._exit(EXIT_OVER_CEILING)
 
 
 def _check_footer(parquet: Any, limits: dict[str, int]) -> None:

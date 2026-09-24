@@ -462,6 +462,10 @@ def _ingest_slices(
                     msg = (f"parsed {len(parsed)} rows, below its floor of {board.minimum_rows}; "
                            "the file answered but this slice's shape has changed")
                     raise SourceError(msg)
+                if len(parsed) > board.maximum_rows:
+                    msg = (f"parsed {len(parsed)} rows, over its ceiling of {board.maximum_rows}; "
+                           "the file answered but this slice's shape has changed")
+                    raise SourceError(msg)
                 stored = _store_scores(conn, board.source_name, parsed, run)
             except SourceError as exc:
                 _board_failed(conn, carry, board.source_name, str(exc), drift, missing)
