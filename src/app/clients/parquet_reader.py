@@ -52,7 +52,10 @@ def _peak_rss() -> int:
     a reader started by a large refresh process passed its ceiling before reading a byte (re-review
     2, BLOCKING-R2-1). On macOS `ru_maxrss` is the process's own, in bytes.
     """
-    if sys.platform.startswith("linux"):
+    # Read into a plain `str`: mypy narrows `sys.platform` to the platform it runs on, and on Linux
+    # CI then called the macOS return below unreachable.
+    platform: str = sys.platform
+    if platform.startswith("linux"):
         for line in _PROC_STATUS.read_text(encoding="utf-8").splitlines():
             if line.startswith("VmHWM:"):
                 return int(line.split()[1]) * 1024
