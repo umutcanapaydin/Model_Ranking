@@ -51,12 +51,27 @@ def pytest_configure(config: pytest.Config) -> None:
 # injects its own client. A declaration of what the suite does, not a suppression:
 # `tests/unit/test_build_slices.py` builds with the real table and a fake download, and asserts
 # that an unmarked test sees none.
+#
+# A MARKED test gets the real table and a client that refuses to download (wave review B2: a marked
+# test that injected nothing fetched both live files on every run). It injects its own fake.
+class _NoNetworkSliceClient:
+    def __init__(self, config: str) -> None:
+        self.url = f"refused://{config}"
+
+    def fetch_bytes(self) -> bytes:
+        from app.clients.protocols import SourceError
+
+        msg = "tests never reach the network: inject a fake slice client (app.clients.fakes)"
+        raise SourceError(msg)
+
+
 @pytest.fixture(autouse=True)
 def _slices_stay_off_the_network(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
-    if request.node.get_closest_marker("slices") is not None:
-        return
     from app.workflows import build as build_mod
 
+    if request.node.get_closest_marker("slices") is not None:
+        monkeypatch.setattr(build_mod, "ARENA_SLICE_CLIENT", _NoNetworkSliceClient)
+        return
     monkeypatch.setattr(build_mod, "ARENA_SLICES", ())
 
 

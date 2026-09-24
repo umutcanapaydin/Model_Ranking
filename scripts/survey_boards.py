@@ -49,7 +49,7 @@ from app.clients.arena_slices import (
     ARENA_SLICES,
     ArenaSlice,
     ArenaSliceClient,
-    parse_arena_slices,
+    fetch_slices,
 )
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.floors import derived_floor, top_third
@@ -372,8 +372,7 @@ def measure_slices(
         parsed: dict[str, int] = {}
         for config in dict.fromkeys(board.config for board in slices):
             boards = [board for board in slices if board.config == config]
-            download = client(config)
-            rows, _ = parse_arena_slices(download.fetch_bytes(), boards, source_url=download.url)
+            rows, _ = fetch_slices(config, boards, client=client)
             for board in boards:
                 parsed[board.source_name] = len(rows[board.source_name])
                 _store_scores(conn, board.source_name, rows[board.source_name], run)

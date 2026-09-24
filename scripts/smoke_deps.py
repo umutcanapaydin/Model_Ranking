@@ -79,11 +79,10 @@ def _slice_probe(config: str) -> Callable[[], str]:
     """
 
     def probe() -> str:
-        from app.clients.arena_slices import ARENA_SLICES, ArenaSliceClient, parse_arena_slices
+        from app.clients.arena_slices import ARENA_SLICES, fetch_slices
 
         boards = [board for board in ARENA_SLICES if board.config == config]
-        client = ArenaSliceClient(config)
-        rows, _ = parse_arena_slices(client.fetch_bytes(), boards, source_url=client.url)
+        rows, _ = fetch_slices(config, boards)
         short = [b.source_name for b in boards if len(rows[b.source_name]) < b.minimum_rows]
         if short:
             msg = f"below their declared floors: {', '.join(short)}"

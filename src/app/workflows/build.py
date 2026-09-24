@@ -50,7 +50,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from app.clients.arena_slices import ARENA_SLICES, ArenaSlice, parse_arena_slices
+from app.clients.arena_slices import ARENA_SLICES, ArenaSlice, fetch_slices
 from app.clients.epoch_board import EpochBoard, parse_board
 from app.clients.protocols import SourceError
 from app.workflows.epoch import committed_last_verified
@@ -329,9 +329,14 @@ UNMATCHED_NAME_CHARS = 80
 def _most_unmatched(conn: sqlite3.Connection, refused: set[str]) -> list[str]:
     """The score names nothing matched, most rows first. A modality refusal is the guard working,
     not a model we are missing, so it is left out (M14-W1 review MAJOR-2's distinction)."""
+    # A category slice repeats its `overall` board's names, up to 26 times, and adds none it lacks
+    # (measured 2026-09-24); counted, they would rank Arena names above every other source's (wave
+    # review K2). So the queue counts every source except the declared slices.
+    slices = [board.source_name for board in ARENA_SLICES]
     rows = conn.execute(
-        "SELECT raw_name, COUNT(*) AS n FROM scores WHERE model_id IS NULL "
-        "GROUP BY raw_name ORDER BY n DESC, raw_name").fetchall()
+        "SELECT raw_name, COUNT(*) AS n FROM scores WHERE model_id IS NULL "  # noqa: S608
+        f"AND source NOT IN ({','.join('?' * len(slices))}) "
+        "GROUP BY raw_name ORDER BY n DESC, raw_name", slices).fetchall()
     return [name[:UNMATCHED_NAME_CHARS] for name, _ in rows if name not in refused][:UNMATCHED_LISTED]
 
 
@@ -359,6 +364,20 @@ def _surfaces_left_without_evidence(missing: Sequence[str]) -> list[str]:
         else:
             actions.append(f"{source} is unavailable (no surface names it as primary): {entry}")
     return actions
+
+
+def _board_failed(
+    conn: sqlite3.Connection, carry: Carry | None, source: str, why: str,
+    drift: list[str] | None, missing: list[str],
+) -> None:
+    """One board rejected (an Epoch board or a slice): its rows go, the drift is recorded, and its
+    last good data comes back if young enough (D-156); otherwise it is missing."""
+    for table in ("pricing", "scores"):
+        reset_source(conn, table, source)
+    if drift is not None:
+        drift.append(f"{source}: {why}")
+    if _fall_back(conn, carry, source) != "carried":
+        missing.append(f"{source}: {why}")
 
 
 def _ingest_boards(
@@ -392,12 +411,7 @@ def _ingest_boards(
                 raise SourceError(msg)
             stored = _store_scores(conn, board.source_name, rows, run)
         except (SourceError, OSError) as exc:
-            for table in ("pricing", "scores"):
-                reset_source(conn, table, board.source_name)
-            if drift is not None:
-                drift.append(f"{board.source_name}: {exc}")
-            if _fall_back(conn, carry, board.source_name) != "carried":
-                missing.append(f"{board.source_name}: {exc}")
+            _board_failed(conn, carry, board.source_name, str(exc), drift, missing)
             continue
         report = SourceReport(
             source=board.source_name,
@@ -411,19 +425,6 @@ def _ingest_boards(
         run.reports.append(report)
         results.append(report)
     return results, missing
-
-
-def _slice_failed(
-    conn: sqlite3.Connection, carry: Carry | None, source: str, why: str,
-    drift: list[str] | None, missing: list[str],
-) -> None:
-    """One slice rejected: its rows go, and its last good data comes back if young enough (D-156)."""
-    for table in ("pricing", "scores"):
-        reset_source(conn, table, source)
-    if drift is not None:
-        drift.append(f"{source}: {why}")
-    if _fall_back(conn, carry, source) != "carried":
-        missing.append(f"{source}: {why}")
 
 
 def _ingest_slices(
@@ -449,13 +450,10 @@ def _ingest_slices(
     for config in dict.fromkeys(board.config for board in slices):
         boards = [board for board in slices if board.config == config]
         try:
-            download = client_type(config)
-            rows, refused = parse_arena_slices(
-                download.fetch_bytes(), boards, source_url=download.url
-            )
+            rows, refused = fetch_slices(config, boards, client=client_type)
         except SourceError as exc:
             for board in boards:
-                _slice_failed(conn, carry, board.source_name, str(exc), drift, missing)
+                _board_failed(conn, carry, board.source_name, str(exc), drift, missing)
             continue
         for board in boards:
             parsed = rows[board.source_name]
@@ -466,7 +464,7 @@ def _ingest_slices(
                     raise SourceError(msg)
                 stored = _store_scores(conn, board.source_name, parsed, run)
             except SourceError as exc:
-                _slice_failed(conn, carry, board.source_name, str(exc), drift, missing)
+                _board_failed(conn, carry, board.source_name, str(exc), drift, missing)
                 continue
             report = SourceReport(
                 source=board.source_name,

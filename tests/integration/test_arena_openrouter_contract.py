@@ -53,11 +53,10 @@ def test_every_m15_arena_board_satisfies_the_parser_contract(config: str) -> Non
 def test_every_declared_slice_satisfies_the_parser_contract(config: str) -> None:
     """V3C-44 for M17-W2's canonical fake (`app.clients.fakes.slice_parquet`): the live parquet file
     parses, and every declared slice of the config clears its own floor under its own benchmark."""
-    from app.clients.arena_slices import ARENA_SLICES, ArenaSliceClient, parse_arena_slices
+    from app.clients.arena_slices import ARENA_SLICES, fetch_slices
 
     boards = [board for board in ARENA_SLICES if board.config == config]
-    client = ArenaSliceClient(config)
-    rows, refused = parse_arena_slices(client.fetch_bytes(), boards, source_url=client.url)
+    rows, refused = fetch_slices(config, boards)
     for board in boards:
         parsed = rows[board.source_name]
         assert len(parsed) >= board.minimum_rows, (

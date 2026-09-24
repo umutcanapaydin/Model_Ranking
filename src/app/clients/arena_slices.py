@@ -14,7 +14,7 @@ reads, and every row goes through `arena.score_rows`, the rules the `overall` bo
 A file that is resharded (`-00000-of-00002`) is a 404 and so a failed source: loud, and carried
 (D-156), never half read.
 
-**`pyarrow` is imported inside `parse_arena_slices` and nowhere else.** The serving process imports
+**`pyarrow` is imported inside the read (`_bounded_rows`) and nowhere else.** The serving process imports
 `app.clients.*` (W-125), and a native library parsing a downloaded file belongs in the refresh child
 (D-154). `tests/unit/test_arena_slices.py` fails if the server ever loads it.
 """
@@ -45,7 +45,14 @@ _DEADLINE_S = 120.0
 #: rows; the uncompressed bound is generous for eleven columns of that.
 MAX_PARQUET_ROWS = 50_000
 MAX_UNCOMPRESSED_BYTES = 64 * 1024 * 1024
+#: What is actually decoded, counted batch by batch, since the footer's sizes are only claimed. The
+#: four columns of `text` decode to well under 2 MB on 2026-09-24.
+MAX_DECODED_BYTES = 32 * 1024 * 1024
+#: The longest model name, category or date string read. Real ones are under 100 characters.
+MAX_VALUE_CHARS = 256
+_BATCH_ROWS = 2_048
 _COLUMNS = ("model_name", "rating", "category", "leaderboard_publish_date")
+_TEXT_COLUMNS = ("model_name", "category", "leaderboard_publish_date")
 
 
 def parquet_url(config: str, split: str = "latest") -> str:
@@ -147,18 +154,52 @@ class ArenaSliceClient:
         )
 
 
+def fetch_slices(
+    config: str, slices: Sequence[ArenaSlice], *, client: Any = None
+) -> tuple[dict[str, list[ScoreRow]], dict[str, int]]:
+    """Download one config's file and parse its declared slices: the one path every reader takes
+    (the build, the survey, the smoke probe, the contract test; wave review N2)."""
+    download = (client or ArenaSliceClient)(config)
+    boards = [board for board in slices if board.config == config]
+    return parse_arena_slices(download.fetch_bytes(), boards, source_url=download.url)
+
+
 def _read_table(raw: bytes) -> list[dict[str, Any]]:
-    """The file's rows, as plain Python values, after its footer has been checked."""
+    """The file's rows, as plain Python values, read under the bounds above.
+
+    **Every failure inside is a `SourceError`, whatever its class** (wave review B1, security S1).
+    The first version caught three exception classes, and a 1.3 KB file with a `date32` at its
+    maximum raised `OverflowError` out of the conversion: not a `SourceError`, so the build
+    re-raised it, as it does on purpose for a defect, and one hostile file ended the whole nightly
+    cycle. A list of the exceptions a native library may raise is a list nobody can finish.
+    """
     try:
-        import pyarrow as pa
-        import pyarrow.parquet as pq
-    except ImportError as exc:  # pragma: no cover - a broken install, not a data path
-        msg = "arena slices: pyarrow is not installed (pyproject.toml declares it)"
+        return _bounded_rows(raw)
+    except SourceError:
+        raise
+    except Exception as exc:
+        msg = f"arena slices: the parquet file could not be read: {type(exc).__name__}: {exc}"
         raise SourceError(msg) from exc
 
+
+def _bounded_rows(raw: bytes) -> list[dict[str, Any]]:
+    """Footer, then types, then the rows batch by batch, counting what is actually decoded.
+
+    **The footer's sizes are the writer's claims** (security S2): a 1 KB file of stock dictionary
+    encoding passed every footer check and reached 5.2 GB, and a forged `total_byte_size` passes by
+    construction. So the footer checks stay as a first, cheap refusal, and the bound that holds is
+    counted: the string columns stay dictionary-encoded while they are read, every batch's decoded
+    size is added to a budget, and a value longer than any real one is refused before rows are made
+    of it. What remains is one page decoded at the size its own header declares, which no reader
+    of this file format can refuse before decoding it (issue filed with the wave close).
+    """
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+
     try:
-        parquet = pq.ParquetFile(pa.BufferReader(raw))
-    except (pa.ArrowException, OSError, ValueError) as exc:
+        parquet = pq.ParquetFile(pa.BufferReader(raw), read_dictionary=list(_TEXT_COLUMNS))
+    except Exception as exc:
         msg = f"arena slices: the download is not a readable parquet file: {exc}"
         raise SourceError(msg) from exc
 
@@ -170,31 +211,53 @@ def _read_table(raw: bytes) -> list[dict[str, Any]]:
     if declared > MAX_UNCOMPRESSED_BYTES:
         msg = f"arena slices: the file declares {declared} bytes, over {MAX_UNCOMPRESSED_BYTES}"
         raise SourceError(msg)
-    present = set(parquet.schema_arrow.names)
+    _check_columns(parquet.schema_arrow, pa)
+
+    rows: list[dict[str, Any]] = []
+    decoded = 0
+    for batch in parquet.iter_batches(batch_size=_BATCH_ROWS, columns=list(_COLUMNS)):
+        decoded += batch.nbytes
+        if decoded > MAX_DECODED_BYTES:
+            msg = f"arena slices: over {MAX_DECODED_BYTES} bytes decoded; the file has changed shape"
+            raise SourceError(msg)
+        for column in _TEXT_COLUMNS:
+            values = batch.column(column)
+            longest = pc.max(pc.utf8_length(values.dictionary)).as_py() if len(values) else None
+            if longest is not None and longest > MAX_VALUE_CHARS:
+                msg = f"arena slices: a {column} value is longer than {MAX_VALUE_CHARS} characters"
+                raise SourceError(msg)
+        rows.extend(batch.to_pylist())
+    return rows
+
+
+def _check_columns(schema: Any, pa: Any) -> None:
+    """The four columns read, each of the type the live file has (security S1): anything else is a
+    changed file, refused before a single value is converted."""
+    present = set(schema.names)
     missing = [column for column in _COLUMNS if column not in present]
     if missing:
         msg = f"arena slices: the file has no column {', '.join(missing)}"
         raise SourceError(msg)
-
-    # The conversion is inside the guard too: an exception that is not a `SourceError` is re-raised
-    # by the build on purpose, and would end the whole unattended cycle over one bad file.
-    try:
-        rows: list[dict[str, Any]] = parquet.read(columns=list(_COLUMNS)).to_pylist()
-    except (pa.ArrowException, OSError, ValueError) as exc:
-        msg = f"arena slices: the parquet file could not be read: {exc}"
-        raise SourceError(msg) from exc
-    return rows
+    for column in _COLUMNS:
+        kind = schema.field(column).type
+        if pa.types.is_dictionary(kind):
+            kind = kind.value_type
+        expected = (
+            pa.types.is_floating(kind) or pa.types.is_integer(kind)
+            if column == "rating"
+            else pa.types.is_string(kind) or pa.types.is_large_string(kind)
+        )
+        if not expected:
+            msg = f"arena slices: column {column} has type {kind}, not the type the live file has"
+            raise SourceError(msg)
 
 
 def _date(value: object) -> str | None:
-    """A publish date as `YYYY-MM-DD`: a string today, a typed column if the file ever changes."""
-    if isinstance(value, dt.date):  # `datetime` is a `date` too
-        return value.isoformat()[:10]
     return value[:10] if isinstance(value, str) and value else None
 
 
 def parse_arena_slices(
-    raw: bytes, slices: Sequence[ArenaSlice], *, source_url: str
+    raw: bytes, slices: Sequence[ArenaSlice], *, source_url: str, today: dt.date | None = None
 ) -> tuple[dict[str, list[ScoreRow]], dict[str, int]]:
     """Every declared slice's rows, keyed by its source id; returns (rows, refused per slice).
 
@@ -204,7 +267,11 @@ def parse_arena_slices(
     no rows, which its own row floor then turns into a failure of that slice alone.
     """
     records = _read_table(raw)
-    dates = [d for d in (_date(r.get("leaderboard_publish_date")) for r in records) if d]
+    # Security S4: a date past tomorrow is not a snapshot, it is a stray row. Taken as the newest,
+    # one such row would have darkened every slice of the config; so it is refused and counted.
+    horizon = ((today or dt.datetime.now(tz=dt.UTC).date()) + dt.timedelta(days=1)).isoformat()
+    dates = [d for d in (_date(r.get("leaderboard_publish_date")) for r in records)
+             if d and d <= horizon]
     if records and not dates:
         # Review M1: `parse_arena` keeps every row when no date is present, and for one `overall`
         # prefix that is survivable. Here it is not: with no date the newest snapshot cannot be

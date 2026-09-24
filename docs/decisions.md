@@ -2998,7 +2998,7 @@ D-128/D-132 guards iterate surfaces too, so a board no surface names was unguard
    boundary rounds it (D-109). A candidate that changes only a board publishes; one that only
    re-stamps its rows does not.
 2. **The board guards apply to each board**: refused when a quarter or more of its raw names are lost
-   (D-128) or new (D-132), exactly as for a surface's own board (D-159).
+   (D-128), or more than a quarter are new (D-132), exactly as for a surface's own board (D-159).
 3. **A board seen for the first time is returning, not new** (the existing empty-set rule), so the
    night that first carries the boards is not refused.
 4. A board that fails to fetch carries on its own clock (D-156), as every source does.
