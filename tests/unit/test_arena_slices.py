@@ -122,6 +122,34 @@ def test_a_rating_outside_the_elo_band_is_refused_and_counted(rating: float) -> 
     assert skipped[LEGAL.source_name] == 1
 
 
+def test_a_file_with_no_readable_date_is_refused_rather_than_served_undated() -> None:
+    """P1 review M1: with no date, "the newest snapshot" cannot be chosen, and a file carrying two
+    snapshots would serve a stale-but-higher rating as current. So the file fails closed."""
+    raw = _parquet([
+        _row("a", 1390.0, "industry_legal_and_government", ""),
+        _row("b", 1380.0, "industry_legal_and_government", ""),
+    ])
+    with pytest.raises(SourceError, match="date"):
+        parse_arena_slices(raw, [LEGAL], source_url="u")
+
+
+def test_a_date_column_typed_as_a_timestamp_is_read_as_its_date() -> None:
+    """P1 review M1: the live column is a string today; a typed column must not read as undated."""
+    import datetime as dt
+
+    columns = {
+        "model_name": ["a", "b"],
+        "rating": [1390.0, 1380.0],
+        "category": ["multi_turn", "multi_turn"],
+        "leaderboard_publish_date": [dt.datetime(2026, 9, 13), dt.datetime(2026, 8, 30)],
+    }
+    sink = io.BytesIO()
+    pq.write_table(pa.table(columns), sink)
+    rows, skipped = parse_arena_slices(sink.getvalue(), [MULTI], source_url="u")
+    assert [(r.raw_name, r.run_date) for r in rows[MULTI.source_name]] == [("a", NEWEST)]
+    assert skipped[MULTI.source_name] == 1
+
+
 def test_a_file_that_is_not_parquet_is_a_source_error() -> None:
     with pytest.raises(SourceError, match="parquet"):
         parse_arena_slices(b"<html>rate limited</html>", [LEGAL], source_url="u")
