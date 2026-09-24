@@ -347,7 +347,15 @@ def test_the_watchdog_fails_closed(monkeypatch: pytest.MonkeyPatch, failure: Bas
     monkeypatch.setattr(parquet_reader.os, "_exit", fake_exit)
     with pytest.raises(SystemExit):
         parquet_reader._watch(2**40)
-    assert exits == [parquet_reader.EXIT_OVER_CEILING]
+    # Final review NIT-2: its own exit, so the operator is not sent to look at the file.
+    assert exits == [parquet_reader.EXIT_UNMEASURED]
+
+
+def test_a_reader_that_cannot_measure_itself_says_so(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.clients import parquet_reader
+
+    with pytest.raises(SourceError, match="could not measure its memory"):
+        _run_reader(monkeypatch, f"import os; os._exit({parquet_reader.EXIT_UNMEASURED})")
 
 
 def test_linux_without_a_peak_line_is_an_error_not_a_ceiling_1024_times_too_large(
@@ -451,6 +459,18 @@ def test_a_file_that_would_exhaust_memory_is_stopped_at_the_ceiling(
     monkeypatch.setattr(module, "MAX_READER_RSS", 100 * 2**20)
     with pytest.raises(SourceError, match="memory ceiling"):
         parse_arena_slices(CEILING_FILE.read_bytes(), [MULTI], source_url="u")
+
+
+def test_an_ordinary_file_reads_under_the_same_ceiling(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Final review M2: the positive control for the ceiling test above. The same 100 MiB ceiling
+    that stops `ceiling.parquet` lets an ordinary file through, so the stop is the file's doing and
+    not a reader that measures itself too high."""
+    import app.clients.arena_slices as module
+
+    monkeypatch.setattr(module, "MAX_READER_RSS", 100 * 2**20)
+    raw = _parquet([_row("a", 1390.0, "multi_turn"), _row("b", 1380.0, "multi_turn")])
+    rows, _ = parse_arena_slices(raw, [MULTI], source_url="u")
+    assert [r.raw_name for r in rows[MULTI.source_name]] == ["a", "b"]
 
 
 def test_rows_are_counted_as_they_are_read_not_as_the_footer_declares(
@@ -695,4 +715,21 @@ def test_the_smoke_probe_holds_every_slice_of_a_config_to_its_floor(
     monkeypatch.setattr(module, "ArenaSliceClient", fake_slice_client({"vision": file_with("ocr")}))
     with pytest.raises(ValueError, match="arena_vision_ocr"):
         smoke._slice_probe("vision")()
+    # Final review M1: the probe holds the ceiling the build holds, or it calls usable a slice the
+    # nightly build refuses.
+    ocr = next(board for board in vision if board.category == "ocr")
+    over = slice_parquet([(f"m{i}", 1300.0 - i, "ocr", NEWEST) for i in range(ocr.maximum_rows + 1)]
+                         + [(f"m{i}", 1300.0 - i, b.category, NEWEST) for b in vision
+                            if b is not ocr for i in range(b.minimum_rows)])
+    monkeypatch.setattr(module, "ArenaSliceClient", fake_slice_client({"vision": over}))
+    with pytest.raises(ValueError, match=r"arena_vision_ocr.*ceiling"):
+        smoke._slice_probe("vision")()
+
+
+def test_one_bounds_rule_serves_the_build_the_probe_and_the_contract_test() -> None:
+    """Final review M1: the floor and the ceiling are one method, not three copies."""
+    board = ArenaSlice("text", "multi_turn", measured_rows=10)
+    assert board.bounds_problem(5) is None and board.bounds_problem(40) is None
+    assert "floor of 5" in (board.bounds_problem(4) or "")
+    assert "ceiling of 40" in (board.bounds_problem(41) or "")
 
