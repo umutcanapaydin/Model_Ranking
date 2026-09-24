@@ -2947,3 +2947,35 @@ at most 0.9 points: `assistant` 65.0 -> 64.1, `vision` 61.0 -> 60.3, `document` 
 
 **Revisit when:** a reader reports a card's number moving with nothing new measured, or a board's
 floor moves by more than a few points in one publish.
+
+## D-163 — A criterion about the served data is tested against the served data, not a fixture
+
+**Status:** accepted -- **ruled by the owner 2026-09-24** (asked in Turkish whether the check should
+stay on the owner's machine or get a small pinned artifact in CI, the owner chose the first) ·
+**Date:** 2026-09-24 · **Reviews control V3C-02 at its third acceptance** (`check_records` C2b; W-043,
+W-048, W-132), from issue #14.
+(D-162, the out-of-100 anchor, is decided in issue #15 and lands with its own pull request; the
+two were written the same day on separate branches.)
+
+**Context.** V3C-02 says a criterion whose only citing test cannot run in CI is half a gate. Three
+rows have now accepted it. The third, W-132, is CAT-10 (`tests/unit/test_categories.py`: every
+surface's value window stays below its floor). Since D-159 the floor is derived from the served
+board, so the rule is about the served data itself. CI has no served artifact: a fixture would test
+the fixture, and a pinned copy in the repository would test last month's boards.
+
+**Decision.**
+1. **A criterion that is a property of the served data is tested against the served data.** Its test
+   is marked `artifact` (skipped by name where the artifact is absent, W-108), and it runs in the
+   owner's `make test` (`MODEL_RANKING_REQUIRE_ARTIFACT=1`) and before every publish the owner makes.
+   CI is not where such a rule is proven, and no pinned artifact is added for it.
+2. **The rule's LOGIC still gets a fixture test where it has logic of its own** (a function that
+   computes the floor, the window, the comparison). Only the data half stays artifact-only.
+3. V3C-02 stands for everything else: a criterion about code, a contract or a process is not excused
+   by this ADR.
+
+**The cost.** A served board that breaks CAT-10 is caught on the owner's machine, not on a pull
+request, and only when the owner runs the tests or publishes. The refresh's own guards (D-128, D-132,
+D-159) are what run every night.
+
+**Revisit when:** the engine runs somewhere other than the owner's machine, where a nightly check
+against the served artifact could run.
