@@ -32,7 +32,7 @@ Usage: test-commit-identity.py [--range A..B] [--base REF] [--owner-email EMAIL]
             owner email = git config user.email.
 Exit: 0 clean - 1 violations - 2 cannot run.
 """
-import subprocess, sys, pathlib, tempfile
+import re, subprocess, sys, pathlib, tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from lib_record import missing_tool, scrubbed_env                    # noqa: E402
@@ -54,6 +54,11 @@ AI_EMAILS = ("noreply@anthropic.com",)
 # without the trailer is unattributable agent work. Session commits under the owner's identity carry
 # it too, but nothing can tell them from the owner's own, so there it is a convention, not a check.
 AGENT_TRAILER = "GP-Agent:"
+# #17: a `GP-Agent:` LINE with a value -- at the start of any line of the message, not a mention inside
+# a sentence. Not git's own trailer parser: git reads trailers only from the message's last
+# paragraph, and this project's commits have long carried `GP-Agent` in its own paragraph, above
+# `GP-Task` or `Co-Authored-By` (the #17 Tester seat counted 113 of 220).
+AGENT_LINE = re.compile(r"^GP-Agent:[ \t]*\S", re.M)
 
 
 def sh(args, cwd=None):
@@ -263,7 +268,7 @@ def main() -> int:
                 bad.append(f"{sha[:9]} machine identity on the FIRST-PARENT chain -- agent work "
                            "reached the protected branch as a human's history. It should have "
                            "arrived as a pull request a human merged")
-        elif sha in ai_pop and email == MACHINE and AGENT_TRAILER not in body:
+        elif sha in ai_pop and email == MACHINE and not AGENT_LINE.search(body):
             bad.append(f"{sha[:9]} machine identity with no `{AGENT_TRAILER}` trailer -- an agent "
                        "commit must say which agent made it (D-155 clause 2, D-161)")
         elif sha in ai_pop and email != MACHINE and email not in known \
