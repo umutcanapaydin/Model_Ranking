@@ -95,6 +95,24 @@ def test_a_slice_under_its_floor_fails_alone() -> None:
 
 
 @pytest.mark.slices
+def test_a_slice_far_over_its_measured_size_fails_alone() -> None:
+    """Security re-look 3, S-R3-5: a slice had a floor and no ceiling, and a 230 KB file stored
+    100,000 rows where 402 were declared (a 76 MB artifact, a 21 s build). LEGAL is declared at 4
+    rows, so its ceiling is 16."""
+    conn = connect(":memory:")
+    try:
+        reports, missing, _, _ = _ingest(conn, {
+            "text": _file({LEGAL.category: 17, MULTI.category: 3}),
+            "vision": _file({"ocr": 2}),
+        })
+        assert {r.source for r in reports} == {MULTI.source_name, OCR.source_name}
+        assert len(missing) == 1 and missing[0].startswith(LEGAL.source_name)
+        assert "ceiling" in missing[0]
+    finally:
+        conn.close()
+
+
+@pytest.mark.slices
 def test_a_failed_download_fails_every_slice_of_that_config_and_no_other() -> None:
     conn = connect(":memory:")
     try:

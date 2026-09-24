@@ -266,6 +266,107 @@ def test_an_answer_over_its_bound_is_cut_off(monkeypatch: pytest.MonkeyPatch) ->
         _run_reader(monkeypatch, f"for _ in range(1000): print({_ROW!r})")
 
 
+def test_the_parent_stops_reading_at_the_bound_rather_than_after_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Re-review 3, MINOR-R3-1: a reader that never stops writing is cut off at the bound. An
+    unbounded read would wait for the end of an answer that has none, until the time limit."""
+    import app.clients.arena_slices as module
+
+    monkeypatch.setattr(module, "MAX_ANSWER_BYTES", 10_000)
+    monkeypatch.setattr(module, "READER_TIMEOUT_S", 20.0)
+    with pytest.raises(SourceError, match="answer passed 10000 bytes"):
+        _run_reader(monkeypatch, f"while True: print({_ROW!r}, flush=True)")
+
+
+def test_only_the_tail_of_the_readers_stderr_is_quoted_and_it_is_printable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """MINOR-R3-1: a megabyte of stderr, then the part an operator needs."""
+    program = ("import sys; sys.stderr.write('A' * 1_000_000 + '\\x1b[31m' + 'TAILMARK');"
+               " sys.exit(7)")
+    with pytest.raises(SourceError, match="exited 7") as caught:
+        _run_reader(monkeypatch, program)
+    message = str(caught.value)
+    assert "TAILMARK" in message and len(message) < 400 and "\x1b" not in message
+
+
+def test_a_name_with_a_unicode_line_separator_is_read_whole() -> None:
+    """Re-review 3, MINOR-R3-2 / security S-R3-2: `str.splitlines()` also splits on U+2028, U+2029
+    and U+0085, which the reader writes raw, so one such name failed every slice of the config."""
+    names = ["a\u2028b", "c\u2029d", "e\x85f", "g"]
+    raw = _parquet([_row(name, 1390.0 - i, "multi_turn") for i, name in enumerate(names)])
+    rows, _ = parse_arena_slices(raw, [MULTI], source_url="u")
+    assert sorted(r.raw_name for r in rows[MULTI.source_name]) == sorted(names)
+
+
+def test_a_reader_that_cannot_be_started_is_a_source_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.clients.arena_slices as module
+
+    monkeypatch.setattr(module, "_reader_command", lambda: ["/nonexistent/python", "-c", "pass"])
+    with pytest.raises(SourceError, match="could not be started"):
+        parse_arena_slices(_parquet([_row("a", 1390.0, "multi_turn")]), [MULTI], source_url="u")
+
+
+def test_a_missing_temporary_directory_is_a_source_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Security re-look 3, S-R3-4: the temporary file for stderr was made outside the guard, so a
+    missing TMPDIR ended the cycle rather than the source."""
+    import app.clients.arena_slices as module
+
+    def gone(*_: object, **__: object) -> None:
+        raise FileNotFoundError("no temporary directory")
+
+    monkeypatch.setattr(module.tempfile, "TemporaryFile", gone)
+    with pytest.raises(SourceError, match="temporary"):
+        parse_arena_slices(_parquet([_row("a", 1390.0, "multi_turn")]), [MULTI], source_url="u")
+
+
+def test_the_watchdog_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Re-review 3, MINOR-R3-3 / S-R3-3: a watchdog that cannot read the peak must end the reader
+    as over its ceiling, never die quietly and leave it unbounded."""
+    from app.clients import parquet_reader
+
+    def unreadable() -> int:
+        raise OSError("/proc is gone")
+
+    exits: list[int] = []
+
+    def fake_exit(code: int) -> None:
+        exits.append(code)
+        raise SystemExit(code)
+
+    monkeypatch.setattr(parquet_reader, "_peak_rss", unreadable)
+    monkeypatch.setattr(parquet_reader.os, "_exit", fake_exit)
+    with pytest.raises(SystemExit):
+        parquet_reader._watch(2**40)
+    assert exits == [parquet_reader.EXIT_OVER_CEILING]
+
+
+def test_linux_without_a_peak_line_is_an_error_not_a_ceiling_1024_times_too_large(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """MINOR-R3-3: the fallback read `ru_maxrss`, which Linux reports in KiB."""
+    from app.clients import parquet_reader
+
+    status = tmp_path / "status"
+    status.write_text("Name:\tpython\n", encoding="utf-8")
+    monkeypatch.setattr(parquet_reader.sys, "platform", "linux")
+    monkeypatch.setattr(parquet_reader, "_PROC_STATUS", status)
+    with pytest.raises(LookupError):
+        parquet_reader._peak_rss()
+
+
+def test_the_live_contract_tests_step_past_the_network_guard() -> None:
+    """Re-review 3, MINOR-R3-4: without the marker the live slice contract test can never pass, and
+    the local suite (which skips it) would not notice."""
+    import importlib
+
+    contract = importlib.import_module("tests.integration.test_arena_openrouter_contract")
+    marks = {m.name for m in getattr(contract.test_every_declared_slice_satisfies_the_parser_contract,
+                                     "pytestmark", [])}
+    assert "slice_download" in marks
+
+
 def test_a_reason_is_quoted_short_and_printable(monkeypatch: pytest.MonkeyPatch) -> None:
     """S-R2-1/S-R2-2: a 3.9 MB reason was copied 35 times into the refresh record and parsed on every
     `/health`. A quoted reason is bounded and carries no control characters."""
@@ -435,7 +536,7 @@ def test_a_file_declaring_more_uncompressed_bytes_than_the_bound_is_refused(
 
     monkeypatch.setattr(module, "MAX_UNCOMPRESSED_BYTES", 10)
     raw = _parquet([_row("a", 1390.0, "multi_turn")])
-    with pytest.raises(SourceError, match="bytes"):
+    with pytest.raises(SourceError, match=r"the file declares .* bytes, over 10"):
         parse_arena_slices(raw, [MULTI], source_url="u")
 
 

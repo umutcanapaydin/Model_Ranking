@@ -41,7 +41,7 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers", "slices: builds with Arena's category slices, through an injected fake client."
     )
     config.addinivalue_line(
-        "markers", "slice_download: reaches ArenaSliceClient.fetch_bytes, with respx mocking httpx."
+        "markers", "slice_download: reaches ArenaSliceClient.fetch_bytes: respx-mocked in unit tests, the live file in the env-gated contract test."
     )
 
 
@@ -57,7 +57,8 @@ def pytest_configure(config: pytest.Config) -> None:
 #
 # Below the table, the client itself refuses to download in every test (re-review MINOR-R2: a guard
 # on the build's default missed `fetch_slices` and `measure_slices`). Only a test marked
-# `slice_download`, which mocks the transport with respx, reaches the real method.
+# `slice_download` reaches the real method: unit tests that mock the transport with respx, and the
+# env-gated live contract test (RUN_CONTRACT_TESTS=1).
 def _tests_never_reach_the_network(self: object) -> bytes:
     from app.clients.protocols import SourceError
 
