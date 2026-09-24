@@ -176,12 +176,13 @@ def _read_table(raw: bytes) -> list[dict[str, Any]]:
         msg = f"arena slices: the file has no column {', '.join(missing)}"
         raise SourceError(msg)
 
+    # The conversion is inside the guard too: an exception that is not a `SourceError` is re-raised
+    # by the build on purpose, and would end the whole unattended cycle over one bad file.
     try:
-        table = parquet.read(columns=list(_COLUMNS))
+        rows: list[dict[str, Any]] = parquet.read(columns=list(_COLUMNS)).to_pylist()
     except (pa.ArrowException, OSError, ValueError) as exc:
         msg = f"arena slices: the parquet file could not be read: {exc}"
         raise SourceError(msg) from exc
-    rows: list[dict[str, Any]] = table.to_pylist()
     return rows
 
 
