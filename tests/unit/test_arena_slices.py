@@ -1,8 +1,8 @@
 """M17-W2 P1 -- Arena's category slices, read from the dataset's own parquet file (#22, D-164).
 
-Network-free: every parquet here is built in the test with `pyarrow`, and the one download test
-goes through respx. The live shape (29 `text` slices, 11 `vision`, one publish date) is recorded
-in `docs/plans/m17-wave-2-plan.md`.
+Network-free: every parquet here is written by the canonical fake (`app.clients.fakes`) or read from
+`tests/fixtures/arena_slices/`, and the download tests go through respx. The live shape (29 `text` slices, 11 `vision`, one publish date) is recorded
+in issue #22 and `docs/research/m17-w2-slice-survey-2026-09-24.md`.
 """
 
 from __future__ import annotations

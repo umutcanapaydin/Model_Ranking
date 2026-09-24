@@ -154,7 +154,7 @@ def _slices(config: str, measured: dict[str, int]) -> tuple[ArenaSlice, ...]:
 
 
 #: The 35 boards the owner ruled on 2026-09-24: every meaningful slice. Left out, each for its
-#: reason (`docs/plans/m17-wave-2-plan.md`): `overall` (read by `ArenaClient`), `exclude_ties` (a
+#: reason (issue #22): `overall` (read by `ArenaClient`), `exclude_ties` (a
 #: method variant), `hard_prompts_english` (the intersection of two slices taken here) and
 #: `vision/creative_writing` (no rows on the newest date).
 ARENA_SLICES: tuple[ArenaSlice, ...] = (

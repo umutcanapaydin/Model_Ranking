@@ -485,3 +485,21 @@ anything else.
   workflow. The owner deletes the line; until then conformance is red on it.
 Lesson: a new DevFlow gate is worth running against the owner-only files first -- it found a
 workflow that had failed silently for six weeks.
+
+## 2026-09-24/25 — #14, #15, #17 merged; M17-W2 (Arena's category slices) closed agent-side
+
+- #19 (D-163), #20 and #21 (D-162) merged. #21's conflict with #19 in the ADR log and the ledger was
+  resolved on its branch. Session commits carry the owner's identity (D-161, confirmed in session).
+- M17-W2 (#22, draft PR #23) was built in a separate worktree, because the launchd refresher runs
+  whatever branch the repository has checked out. It adds 35 boards from one parquet file per
+  config (owner rulings: pyarrow; every meaningful slice). D-164: boards are fingerprinted and
+  guarded.
+- The untrusted parquet read took four security rounds and four code rounds. In-process checks
+  could not bound pyarrow, which decodes whole column chunks. The owner ruled D-165 (a child
+  process under a memory ceiling) and waived the three-attempts stop for one round.
+- Mistakes found by others: CI was red on Linux while the Mac was green (`ru_maxrss`, mypy's
+  platform narrowing); a crash test opened macOS crash dialogs on the owner's screen; the PR
+  carried code before review; re-reviews were written beside the gated path, not to it.
+Lesson: a limit on untrusted input is proven by the process that pays for it, on the platform
+that runs it. Measure the parent as well as the child, and read CI before calling a round green.
+
