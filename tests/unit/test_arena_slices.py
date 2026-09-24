@@ -11,6 +11,7 @@ import io
 import os
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -169,11 +170,14 @@ def test_any_failure_inside_the_reader_is_reported_as_an_error(monkeypatch: pyte
     assert "OverflowError" in answer["error"]
 
 
+CEILING_FILE = Path(__file__).resolve().parents[1] / "fixtures" / "arena_slices" / "ceiling.parquet"
+
+
 def test_the_reader_answers_rows_or_an_error_in_process(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """The reader's protocol, driven in this process so its paths are measured: rows for a good
-    file, an error for a changed one, and `main` writing one JSON object from stdin and argv."""
+    file, an error for a changed one, and `main` writing one JSON line per row and an end line."""
     import json
 
     from app.clients import parquet_reader
@@ -192,11 +196,27 @@ def test_the_reader_answers_rows_or_an_error_in_process(
 
     monkeypatch.setattr(sys, "stdin", _Stdin)
     monkeypatch.setattr(sys, "argv", ["reader", json.dumps(_limits())])
-    # The watchdog belongs to the reader's own process. Started here it would live on in this test
-    # worker and end it later, the first time another test pushed the worker past the ceiling.
-    monkeypatch.setattr(parquet_reader, "_watch", lambda _ceiling: None)
+    # The watchdog and the alarm belong to the reader's own process. Started here they would live
+    # on in this test worker and end it later (a watchdog did exactly that under xdist).
+    monkeypatch.setattr(parquet_reader, "_guard", lambda _limits: None)
     parquet_reader.main()
-    assert len(json.loads(capsys.readouterr().out)["rows"]) == 2
+    lines = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert [line["row"]["model_name"] for line in lines[:-1]] == ["a", "b"]
+    assert lines[-1] == {"end": 2}
+
+
+def test_the_reader_reads_its_peak_from_proc_on_linux(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Re-review 2, BLOCKING-R2-1: on Linux a child's `ru_maxrss` starts from its parent's peak, so a
+    reader started by a large parent passed its ceiling at once. `VmHWM` is this process's own."""
+    from app.clients import parquet_reader
+
+    status = tmp_path / "status"
+    status.write_text("Name:\tpython\nVmPeak:\t 999999 kB\nVmHWM:\t   12345 kB\n", encoding="utf-8")
+    monkeypatch.setattr(parquet_reader.sys, "platform", "linux")
+    monkeypatch.setattr(parquet_reader, "_PROC_STATUS", status)
+    assert parquet_reader._peak_rss() == 12345 * 1024
 
 
 def _limits() -> dict[str, int]:
@@ -205,24 +225,95 @@ def _limits() -> dict[str, int]:
     return module.reader_limits()
 
 
+def _run_reader(monkeypatch: pytest.MonkeyPatch, program: str) -> None:
+    import app.clients.arena_slices as module
+
+    monkeypatch.setattr(module, "_reader_command", lambda: [sys.executable, "-c", program])
+    parse_arena_slices(_parquet([_row("a", 1390.0, "multi_turn")]), [MULTI], source_url="u")
+
+
+_ROW = '{"row": {"model_name": "a", "rating": 1390.0, "category": "multi_turn", "leaderboard_publish_date": "2026-09-13"}}'
+
+
 @pytest.mark.parametrize(
     ("program", "match"),
     [
         # A native crash, as a segfault would be. SIGKILL rather than `os.abort()`: an abort writes a
         # macOS crash report and pops a dialog on the owner's screen on every test run.
-        ("import os, signal; os.kill(os.getpid(), signal.SIGKILL)", "reader"),
-        ("print('not json')", "reader"),                    # an answer that is not the protocol
-        ("import sys; sys.exit(7)", "reader"),
+        ("import os, signal; os.kill(os.getpid(), signal.SIGKILL)", "exited -9"),
+        ("import sys; sys.exit(7)", "exited 7"),
+        ("print('not json')", "not its protocol"),
+        # Re-review 2, MINOR-R2-2: the row-shape and end-line checks, each on its own.
+        ("print('{\"row\": 5}'); print('{\"end\": 1}')", "not its protocol"),
+        (f"print({_ROW!r})", "no end line"),
+        (f"print({_ROW!r}); print('{{\"end\": 2}}')", "end line counts 2"),
     ],
 )
 def test_a_reader_that_fails_is_a_source_error(
     monkeypatch: pytest.MonkeyPatch, program: str, match: str
 ) -> None:
+    with pytest.raises(SourceError, match=match):
+        _run_reader(monkeypatch, program)
+
+
+def test_an_answer_over_its_bound_is_cut_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Security re-look 2, S-R2-1: the parent buffered the reader's whole answer, and an 8 KB file
+    whose values JSON escapes six-fold took the refresh process to 797 MiB."""
     import app.clients.arena_slices as module
 
-    monkeypatch.setattr(module, "_reader_command", lambda: [sys.executable, "-c", program])
-    with pytest.raises(SourceError, match=match):
-        parse_arena_slices(_parquet([_row("a", 1390.0, "multi_turn")]), [MULTI], source_url="u")
+    monkeypatch.setattr(module, "MAX_ANSWER_BYTES", 10_000)
+    with pytest.raises(SourceError, match=r"answer.*10000 bytes"):
+        _run_reader(monkeypatch, f"for _ in range(1000): print({_ROW!r})")
+
+
+def test_a_reason_is_quoted_short_and_printable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """S-R2-1/S-R2-2: a 3.9 MB reason was copied 35 times into the refresh record and parsed on every
+    `/health`. A quoted reason is bounded and carries no control characters."""
+    program = "import json; print(json.dumps({'error': '\\x1b[31m\\n' + 'x' * 5000}))"
+    with pytest.raises(SourceError) as caught:
+        _run_reader(monkeypatch, program)
+    message = str(caught.value)
+    assert len(message) < 400
+    assert "\x1b" not in message and "\n" not in message
+
+
+def test_the_reader_gets_no_secret_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Security re-look 2, S-R2-4: the reader inherited the whole environment, tokens included."""
+    monkeypatch.setenv("HF_TOKEN", "hf_secret")
+    program = "import json, os; print(json.dumps({'error': ','.join(sorted(os.environ))}))"
+    with pytest.raises(SourceError) as caught:
+        _run_reader(monkeypatch, program)
+    assert "HF_TOKEN" not in str(caught.value)
+
+
+def test_a_module_planted_in_the_working_directory_is_not_imported(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """S-R2-4 / NIT-R2-3: `python -m` put the working directory first on the import path, and a
+    planted `pyarrow.py` replaced the reader's answer. `-P` leaves it off."""
+    (tmp_path / "pyarrow.py").write_text("raise SystemExit('planted module imported')\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    rows, _ = parse_arena_slices(_parquet([_row("a", 1390.0, "multi_turn")]), [MULTI], source_url="u")
+    assert [r.raw_name for r in rows[MULTI.source_name]] == ["a"]
+
+
+def test_a_reader_whose_parent_is_gone_stops_itself() -> None:
+    """Re-review 2, NIT-R2-2: a reader orphaned mid-read (the nightly killed its refresh) ends at its
+    own time limit rather than running on."""
+    import json
+    import signal
+
+    import app.clients.arena_slices as module
+
+    limits = {**module.reader_limits(), "timeout_s": 1}
+    reader = subprocess.Popen(  # stdin left open: the reader waits for a file that never comes
+        [*module._reader_command(), json.dumps(limits)], stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=module._reader_env())
+    try:
+        assert reader.wait(timeout=10) == -signal.SIGALRM
+    finally:
+        reader.kill()
+        reader.wait()
 
 
 def test_a_reader_that_hangs_is_stopped(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -239,22 +330,17 @@ def test_a_file_that_would_exhaust_memory_is_stopped_at_the_ceiling(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Re-review BLOCKING-R1 / S-R1: pyarrow decodes a whole column chunk before any check in
-    Python runs, so 96 distinct 1 MiB names decode to 96 MiB whatever the batch size. The footer's
-    claim is taken away (as a forged footer would) and the ceiling is what stops it. The ceiling
-    here sits just above the reader's own size after its imports (about 55 MB); in production it
-    is `MAX_READER_RSS`, 512 MiB. Kept small: this test runs beside the whole suite in parallel."""
+    Python runs, so `ceiling.parquet` (96 distinct 1 MiB names, 6 KB on disk) decodes to 96 MiB
+    whatever the batch size. The footer's claim is taken away (as a forged footer would) and the
+    ceiling is what stops it. The ceiling here sits just above the reader's own size after its
+    imports (about 55 MB); in production it is `MAX_READER_RSS`, 512 MiB. The file is committed,
+    not built here: building it took this process past 600 MB (re-review 2, BLOCKING-R2-1)."""
     import app.clients.arena_slices as module
 
     monkeypatch.setattr(module, "MAX_UNCOMPRESSED_BYTES", 2**40)
     monkeypatch.setattr(module, "MAX_READER_RSS", 100 * 2**20)
-    body = "a" * (2**20 - 8)
-    sink = io.BytesIO()
-    pq.write_table(pa.table({
-        "model_name": pa.array([f"{i:08d}{body}" for i in range(96)]), "rating": [1200.0] * 96,
-        "category": ["multi_turn"] * 96, "leaderboard_publish_date": [NEWEST] * 96,
-    }), sink, compression="zstd", use_dictionary=False)
-    with pytest.raises(SourceError, match="memory"):
-        parse_arena_slices(sink.getvalue(), [MULTI], source_url="u")
+    with pytest.raises(SourceError, match="memory ceiling"):
+        parse_arena_slices(CEILING_FILE.read_bytes(), [MULTI], source_url="u")
 
 
 def test_rows_are_counted_as_they_are_read_not_as_the_footer_declares(

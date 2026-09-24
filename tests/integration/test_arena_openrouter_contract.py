@@ -49,6 +49,7 @@ def test_every_m15_arena_board_satisfies_the_parser_contract(config: str) -> Non
     assert {r.benchmark for r in rows} == {board.benchmark}
 
 
+@pytest.mark.slice_download  # the live file: the suite's network guard steps aside (re-review 2, BLOCKING-R2-2)
 @pytest.mark.parametrize("config", ["text", "vision"])
 def test_every_declared_slice_satisfies_the_parser_contract(config: str) -> None:
     """V3C-44 for M17-W2's canonical fake (`app.clients.fakes.slice_parquet`): the live parquet file
