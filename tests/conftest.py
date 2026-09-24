@@ -37,6 +37,9 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers", "artifact: reads the built advisor.db (gitignored; W-108). Skipped where absent."
     )
+    config.addinivalue_line(
+        "markers", "slices: builds with Arena's category slices, through an injected fake client."
+    )
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:

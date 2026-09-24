@@ -29,6 +29,7 @@ from app.clients.arena_slices import (
     parquet_url,
     parse_arena_slices,
 )
+from app.clients.fakes import slice_parquet
 from app.clients.protocols import SourceError
 
 NEWEST = "2026-09-13"
@@ -36,29 +37,11 @@ OLDER = "2026-08-30"
 
 
 def _parquet(rows: list[dict[str, Any]], *, drop: str | None = None) -> bytes:
-    """A parquet file with the dataset's own eleven columns, as `pyarrow` writes it.
-
-    The columns and their types are the live file's, read from `text/latest` on 2026-09-24 (the
-    publish date is a string there), and match the column list `arena.py` verified in 2026-08.
-    """
-    columns: dict[str, list[Any]] = {
-        "model_name": [r["model_name"] for r in rows],
-        "organization": ["org" for _ in rows],
-        "license": ["proprietary" for _ in rows],
-        "rating": [r["rating"] for r in rows],
-        "rating_lower": [r["rating"] - 5 for r in rows],
-        "rating_upper": [r["rating"] + 5 for r in rows],
-        "variance": [1.0 for _ in rows],
-        "vote_count": [1000 for _ in rows],
-        "rank": [1 for _ in rows],
-        "category": [r["category"] for r in rows],
-        "leaderboard_publish_date": [r.get("date", NEWEST) for r in rows],
-    }
-    if drop is not None:
-        del columns[drop]
-    sink = io.BytesIO()
-    pq.write_table(pa.table(columns), sink)
-    return sink.getvalue()
+    """The canonical fake's file (`app.clients.fakes.slice_parquet`), from this file's row dicts."""
+    return slice_parquet(
+        [(r["model_name"], r["rating"], r["category"], r.get("date", NEWEST)) for r in rows],
+        drop=drop,
+    )
 
 
 def _row(name: str, rating: float, category: str, date: str = NEWEST) -> dict[str, Any]:
