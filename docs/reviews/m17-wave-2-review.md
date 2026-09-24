@@ -4,351 +4,309 @@ id: m17-wave-2-review
 status: ratified
 seat: independent
 process_version: v6.6
-date: 2026-09-24
+date: 2026-09-25
 ---
-# M17-W2 Code Review -- Arena's category slices become boards (commits 04e2630..78db5e0)
+# M17-W2 Code Review, final: Arena's category slices become boards (fix rounds effdb04..cf141ae, whole wave 04e2630..cf141ae)
 
-**Reviewer:** Code-Reviewer subagent. I did not write any code in this wave.
+**Reviewer:** Code-Reviewer seat, new and fresh-eyed. I wrote none of this wave's code, none of its
+fix rounds, and none of the earlier reviews or the Tester's verdict.
 **Independent:** yes
-**Date:** 2026-09-24
-**Commit range:** `04e263025df29d3266e1be29d21c8be09042dc56..78db5e03c48fdd4e6fd71cb21d7759ab2b9dee0a`
-(15 commits on `wave/m17-w2`, draft PR #23)
-**Risk tier:** MEDIUM (from `docs/plans/m17-wave-2-plan.md`)
+**Date:** 2026-09-25
+**Commit range:** in full depth, `effdb04..cf141ae`:
+- `156d2f4`: the red tests;
+- `a73c079`: the fix;
+- `8a6a260`: the mypy fix;
+- `186ba17`: the Tester's file;
+- `cf141ae`: the Tester's T1 and T2.
 
-**What I read.** I read the plan before the code:
-- `docs/plans/m17-wave-2-plan.md`, and `docs/plans/m17-plan.md` §2 W2 and §3 (K.8);
-- D-164, plus D-128, D-132, D-154 and D-156, in `docs/decisions.md`;
-- `docs/research/m17-w2-slice-survey-2026-09-24.md`;
-- issue #22 and issue #24 (the `agent_*` follow-up the plan asked for).
+At a lighter depth, the whole wave `04e2630..cf141ae`.
+**Risk tier:** MEDIUM (`docs/plans/m17-wave-2-plan.md:11`)
 
-Then I read all 22 changed files in the diff, and the unchanged code each one calls. That includes
-`Carry.restore`, `_fall_back`, `_surfaces_left_without_evidence`, `_most_unmatched`, build `main()`,
-`refresh()`, `_served_without`, `_mostly_new`, `fetch_bounded_bytes`, `source_health` and every
-reader of the `scores` table in `src/`.
+**Supersedes as the verdict of record:** the round-1 BLOCKING verdict that stood at this path
+(commit `b4e41f2`), and the later rounds `m17-wave-2-rereview.md`, `m17-wave-2-rereview-2.md` and
+`m17-wave-2-rereview-3.md`. The owner ruled in session (2026-09-25) that a fresh, independent final
+review of HEAD is written here. It is not a copy of an earlier verdict. The earlier files stay in
+the tree and in git history as the record of their rounds.
 
-**Policy.** My policy came from `.claude/agents/Code-Reviewer.md`, `.agents/rules/practices.md`,
-`.agents/rules/review-seats.md` and `permission-matrix.md` §3 and §11. `git diff --stat
-04e2630..78db5e0 -- .claude .agents AGENTS.md permission-matrix.md subagent-profiles` is empty, so
-the policy I read is the base's. Nothing in the diff addresses a reviewer, so there is no
-injection-class finding.
+**What I read first.**
+- The policy: `.claude/agents/Code-Reviewer.md`, `.agents/rules/practices.md`,
+  `.agents/rules/review-seats.md`, `permission-matrix.md` §11 and `.claude/skills/close-wave/SKILL.md`
+  step 3.
+- The plan, and D-164 and D-165 (`docs/decisions.md:2983-3045`).
+- The findings this range claims to fix:
+  - `m17-wave-2-rereview-3.md`: MINOR-R3-1..4 and NIT-R3-1..2;
+  - `m17-wave-2-security-rereview-3.md`: S-R3-1..5;
+  - `m17-wave-2-tester.md`: T1 and T2.
 
-**Families.** The commits carry `GP-Agent: claude-code/local-lane`, and this seat is also Claude.
-No second family was available. The tier is MEDIUM, so the cross-model rule is advisory only. My
-context was fresh: I did not see the author's session.
+`git diff --stat 04e2630..HEAD -- .claude .agents AGENTS.md permission-matrix.md subagent-profiles`
+is empty, so the policy I read is the base's. Nothing in the diff addresses a reviewer.
 
-**No state changes.** I changed no git state. The only file I wrote in the repository is this one.
-I built my probes, mutants and red replays in scratch copies (`git archive` into my scratchpad),
-never in the worktree. An untracked security review file for this wave appeared in the worktree
-while I worked. Another seat wrote it. I did not read it or touch it.
+**Families.** The commits carry `GP-Agent: claude-code/local-lane`. This seat is also Claude. At
+MEDIUM tier the cross-model rule is advisory only. My context was fresh.
+
+**How I worked.**
+- **Mutants.** I ran 20 mutants in place from `scratchpad/cr4/mutate.py`. For each one, the script
+  saved the file's bytes, applied the mutant, ran the tests, wrote the bytes back and compared
+  SHA-256. I ran two more by hand the same way. **All 22 came back byte-identical.** I used no
+  `git checkout` or `git restore`, and `git status` is clean apart from this file.
+- **Network.** Every pytest run and probe of mine loaded `scratchpad/cr4/netblock_cr4.py`, which
+  refuses and logs every non-loopback connect and every non-local DNS lookup. The log was never
+  created: **0 outbound attempts**. `RUN_CONTRACT_TESTS` was never set.
+- **No crash signal.** I raised none, and nothing called `os.abort()`.
+- **Red replay.** I replayed `156d2f4` from a `git archive` in my scratchpad.
 
 ## Verdict
 
-**BLOCKING -- 2 BLOCKING, 2 MINOR, 3 NIT; 2 K.9 candidates; 2 risks.**
+PASS-WITH-MINORS: 0 BLOCKING, 3 MINOR, 0 K.9, 1 risk queued, 3 NIT.
 
-Both BLOCKING items are small to fix: an exception class plus one test for B1, and one argument for
-B2. Everything else in the wave is sound, and most of it is well built.
+**Every fix this range claims is in the code.** Each claimed fix has a test that fails without it
+(22 mutants, table below), with two exceptions:
+- a changed constant (the 8 MiB cap);
+- a resource-hygiene change (`with reader:`).
+
+The red commit fails exactly the five tests its message says it should. **The branch is green:**
+- CI on `cf141ae` passes every check. `test (py3.12)` has 1270 passed and 66 skipped; the skip
+  budget reports `66 skipped of 1336 (budget 66)`.
+- `live-contracts` passed 19, including both
+  `test_every_declared_slice_satisfies_the_parser_contract` cases.
+- Locally: `make check-fast` PASS, 6 of 6 legs. The full suite gave 1319 passed and 17 skipped,
+  twice, under the network block.
+
+**What remains is small.** None of it reopens a bound.
+- The new per-slice row ceiling is checked by the build but not by the two other readers that
+  check the floor (M1).
+- One part of an earlier remedy is still not done: a positive control for the ceiling test (M2).
+- D-165 still states the old 16 MiB answer cap (M3).
+
+## Disposition of the fix rounds' findings
+
+| Finding | Claimed fix | Verified? | Evidence (every mutant run in place, restored byte-identical) |
+|---|---|---|---|
+| MINOR-R3-1 (answer bound untested) + Tester T1 | `test_arena_slices.py:269-285`: an endless reader, with an elapsed-time assertion `< 4.0` s against an 8 s limit | **yes** | Mutant A: `read(MAX_ANSWER_BYTES + 1)` → `read()` (`arena_slices.py:259`) fails `:269` in 9.7 s. This is the mutant the Tester's F13 showed staying green before `cf141ae` |
+| MINOR-R3-1 (stderr tail untested) | `:288`: 1 MB of stderr, then ESC and `TAILMARK`, exit 7 | **yes** | Mutant B: `stderr.seek(0)`, reading all of it, fails `:288`. Mutant C: `printable` removed from the tail (`:272`) fails `:288` |
+| MINOR-R3-2 / S-R3-2 (U+2028/U+2029/U+0085) | split the bytes on `b"\n"`, then decode each line (`arena_slices.py:294`) | **yes** | Mutant D (the old `decode().splitlines()`) fails `:300`. At `156d2f4`, `:300` is red |
+| MINOR-R3-3 (a) / S-R3-3 (the watchdog fails open) | `_watch` wraps the loop, and any exception ends the reader with `EXIT_OVER_CEILING` (`parquet_reader.py:69-77`) | **yes** | Mutant E (the old loop with no `try`) fails `:330[failure0]`. The test covers `OSError`, `ValueError`, `LookupError` and `MemoryError` |
+| MINOR-R3-3 (b) (Linux fallback in KiB) | no `VmHWM` line raises `LookupError` (`parquet_reader.py:62-65`) | **yes** | Mutant F (the `ru_maxrss` fallback) fails `:353` |
+| MINOR-R3-3 (c) (no positive control for the ceiling test) | not claimed | **no, still open (M2)** | Mutant Q adds 150 MiB to the reader's measured peak. It **survives the whole unit suite** (1310 passed, `-n auto`) |
+| MINOR-R3-4 (a) (contract marker unpinned) | `:367` asserts the marker on the live test | **yes** | Mutant P (marker removed at `test_arena_openrouter_contract.py:52`) fails `:367` |
+| MINOR-R3-4 (b) (start `OSError` untested) | `:309`: a missing executable | **yes** | Mutant G (`except OSError` → `ValueError` at `arena_slices.py:243`) fails `:309`. CI coverage no longer lists `231-233` |
+| MINOR-R3-4 (c) (`:438` matched `"bytes"`) | `:547` matches `the file declares .* bytes, over 10` | **yes** | Mutant H (footer bytes check off, `parquet_reader.py:87`) fails `:540` |
+| NIT-R3-1 (stale marker sentences) | `tests/conftest.py:44, 59-61` rewritten | **yes** | Both sentences now name the respx unit tests and the env-gated live test |
+| NIT-R3-2 (`reader.stdout` never closed) | `with reader:` (`arena_slices.py:253`) | **yes, for the parent** | Under `-W default::ResourceWarning`, `test_arena_slices.py` gives 1 warning, where re-review 3 counted 11. The one left is the orphan test's own stdin, which re-review 3 also named (NIT-1). Mutant L (`with` removed) survives, as a hygiene change is expected to |
+| S-R3-1 (16 MiB costs the parent 190-245 MiB) | cap 8 MiB (`arena_slices.py:73`), plus the bytes split (no whole decoded str) | **yes in code** | The bytes split is pinned by `:300` (mutant D). Mutant K (cap back to 16 MiB) survives, since no test pins a constant, which is acceptable. D-165 still says 16 MiB (M3) |
+| S-R3-4 (TemporaryFile outside the guard) | in its own `try`, `OSError` → `SourceError` (`arena_slices.py:233-237`) | **yes** | Mutant I (`except ValueError`) fails `:317`. At `156d2f4`, `:317` is red |
+| S-R3-5 (no row ceiling per slice) | `ArenaSlice.maximum_rows = 4 × measured` (`arena_slices.py:136-140`); build refusal (`build.py:465-468`) | **yes, in the build** | Mutant J (check off) and mutant O (400× instead of 4×) both fail `test_build_slices.py:98`. The smoke probe and the live contract test do not apply it (M1) |
+| Tester T2 (smoke probe untested) | `:669` drives `_slice_probe("vision")` with the canonical fake: a full file, then one slice one row short | **yes** | Mutant N (the probe's floor check off, `smoke_deps.py:87`) fails `:669` |
+| `8a6a260` (mypy on Linux) | `platform: str = sys.platform` (`parquet_reader.py:57`) | **yes** | Reverted in place: `mypy --platform linux src` gives `parquet_reader.py:65: error: Statement is unreachable`, and `--platform darwin` passes. At HEAD both pass |
+
+**Red to green.** At `156d2f4`, `test_arena_slices.py` and `test_build_slices.py` give 5 failed and
+71 passed. The five that fail:
+- the Unicode separator;
+- the missing tempdir;
+- the fail-closed watchdog;
+- Linux without `VmHWM`;
+- the slice ceiling.
+
+The MINOR-R3-1 and -4 tests are green there. The commit says so ("untested, not wrong"), and
+mutants A, B, C, G, H and P show that each of them can fail.
+
+**The new `with reader:` exit path.** `Popen.__exit__` closes stdin again and may re-raise a flush
+error, which is a new way for a non-`SourceError` to leave `_read_table`. I probed it
+(`scratchpad/cr4/pipeprobe.py`) with five stub readers:
+- exit 0 or exit 1 without reading;
+- read 10 bytes, then exit;
+- read 9,000 bytes, then answer;
+- close fd 0, then answer.
+
+Each ran against ten input sizes, from 1 byte to 8 MB, across the 8,192-byte buffer edge, three
+times each: 150 runs in all. **All 150 ended in rows or a `SourceError`. Nothing escaped.**
 
 ## Findings
 
 ### BLOCKING (must fix before this wave closes)
 
-- **B1** src/app/clients/arena_slices.py:181-185 -- **the fix for the P2 review's finding is
-  incomplete and untested.** A valid 1.3 KB parquet file still takes down the whole nightly cycle.
-  - **The claim.** Commit `84165dd` moved `to_pylist()` inside the guard, with the comment "an
-    exception that is not a `SourceError` is re-raised by the build on purpose, and would end the
-    whole unattended cycle over one bad file". The commit says "No new test: no valid parquet
-    file was found that makes the conversion itself fail."
-  - **The counterexample.** A valid file does exist. The guard catches only
-    `(pa.ArrowException, OSError, ValueError)` (line 183). If `leaderboard_publish_date` is a
-    typed `date32` or `timestamp` column holding a value outside Python's date range, `to_pylist()`
-    raises `OverflowError: date value out of range`.
-  - **How I reproduced it.** On a scratch copy of HEAD, I wrote such a file with `pq.write_table`
-    (1,316 bytes, date32 value `-1_000_000`). I ran it through `parse_arena_slices`, and also
-    through `build._ingest_slices` with `fake_slice_client`. The traceback ends at
-    `_read_table` line 182, and the output was `ESCAPED OverflowError date value out of range`.
-    `timestamp('us')` and `timestamp('ms')` values past year 9999 escape the same way.
-  - **Why it blocks.** `_ingest_slices` catches only `SourceError`
-    (src/app/workflows/build.py:456 and :468). Build `main()` re-raises anything else
-    (build.py:840-842). `refresh.main` then records a crash and exits `EXIT_FAILED`
-    (src/app/workflows/refresh.py:1226-1231).
-    - So one optional board's file stops every source from publishing, every night, until the
-      upstream file changes.
-    - That contradicts the ingest's own contract at build.py:443-444: "A slice is optional ... it
-      never fails the build".
-    - Under permission-matrix §11, "a reported symptom must be reproduced with a failing test
-      before its fix (red→green)" is a GATE item. The symptom was reported, and the fix shipped
-      without a red test.
-    - Coverage confirms the new branch never runs: `arena_slices.py` misses lines 183-185.
-  - **Fix.** Add `OverflowError` to the tuple at line 183. `ArithmeticError` would also do, and
-    keeps the catch narrow, as build.py:831-835 warns it should stay. Add a red test with the
-    out-of-range `date32` file in tests/unit/test_arena_slices.py.
-  - **Not affected.** Today's live column is a string, so the trigger needs an upstream type
-    change plus an absurd value. That is why the product is not broken tonight. The plan's own
-    risk line calls this surface "a native parser of a downloaded file", though, and the claim the
-    wave makes about it is false.
-
-- **B2** tests/unit/test_survey_floors.py:131-132 -- **a unit test makes real outbound HTTP to
-  huggingface.co on every `make test`.** `permission-matrix.md` §3 says "Outbound HTTP from test:
-  DENY", and the wave's own conftest says tests stay off the network.
-  - **The cause.**
-    `test_the_slice_survey_counts_rows_and_the_models_the_engine_can_rank` is marked `slices`, so
-    the autouse fixture in tests/conftest.py:54-60 does not empty `build_mod.ARENA_SLICES`. The
-    test then builds its fixture artifact with
-    `build(conn, ..., sources=_sources(), minimum_models=2)`. It passes no `slices=()` and injects
-    no client, so the build downloads both real parquet files through the real
-    `ArenaSliceClient`.
-  - **Evidence.** I ran the suite with a spy on `httpx.stream`. This test called
-    `.../resolve/main/text/latest-00000-of-00001.parquet` and
-    `.../vision/latest-00000-of-00001.parquet`. No other slice-marked test did: the respx tests
-    were false positives of the spy, and the other slice tests were clean. The test still passes
-    either way, because a failed download only becomes an operator line. That is why nobody saw
-    it.
-    - Online, the test downloads about 645 KB and writes live rows into its fixture.
-    - Offline or on a slow network, it waits on a 30 s timeout per file, with a 120 s deadline.
-  - **Why the control could not catch it.** The conftest control only covers unmarked tests. The
-    test that guards the control (tests/unit/test_build_slices.py:152) checks only the unmarked
-    half. Nothing makes a marked test inject a client.
-  - **Fix.** Pass `slices=()` at test_survey_floors.py:131. Better still, have the conftest point
-    `ARENA_SLICE_CLIENT` at a fake that raises for a marked test that did not inject its own. Then
-    the next marked test that forgets fails instead of silently reaching the network.
+- none
 
 ### MINOR (the author fixes each in this wave or files it as an issue)
 
-- **M1** docs/prd.md:400-401 -- **REQ-REF-002 and REQ-REF-003 no longer describe what the
-  refresh does.**
-  - REQ-REF-002's status says "changed" is "Derived through `category_ranking`, the same function
-    that serves". The fingerprint now also hashes the raw rows of 35 boards that no function
-    serves yet (src/app/workflows/refresh.py:463-474).
-  - REQ-REF-003 says the refresh refuses "a loss of more than a quarter of any surface". It now
-    also refuses a board (refresh.py:219-225 and :276-279).
-  - D-164 says it "Extends REQ-REF-002's 'changed', D-128 and D-132". The requirement rows the
-    owner reads were not updated. This is doc drift, which §11 classes as MINOR.
+- **M1** `src/app/workflows/build.py:461-468`, `scripts/smoke_deps.py:86`,
+  `tests/integration/test_arena_openrouter_contract.py:63`. **The per-slice bounds live in three
+  places, and the new ceiling reached one of them.** The build now refuses a slice above
+  `maximum_rows` (S-R3-5). The owner's deploy gate (`smoke_deps._slice_probe`) and CI's live
+  contract test still check only `minimum_rows`. So on a night when a slice grows past four times
+  its declared count, both say "usable" while the nightly build refuses that board. That is the
+  "configured is not working" gap the smoke gate exists to close, and it is the
+  one-fact-in-several-places drift (`.agents/rules/practices.md`, K.5). It is unlikely soon (4× is
+  a wide margin), which is why this is MINOR. **Fix:** one method on `ArenaSlice` that names what
+  is wrong with a count, or returns `None`. The build, the probe and the contract test all call it.
+  Extend `test_arena_slices.py:669` with an over-ceiling case.
 
-- **M2** src/app/workflows/refresh.py:473 -- **the `model_id` part of D-164 clause 1 has no test
-  that fails without it.**
-  - D-164 names three things in the fingerprint: the name, "the model it reconciled to (what W4
-    serves as the model's identity)", and the score.
-  - I built a mutant that drops `{model_id}` from the digest line. It survives all 147 tests in
-    `test_refresh_boards.py`, `test_refresh.py`, `test_nightly_refresh.py` and
-    `test_refresh_carry.py`.
-  - tests/unit/test_refresh_boards.py:79 moves the score and `observed_at`, never the
-    reconciliation.
-  - The fix is one assertion: `UPDATE scores SET model_id = ...` moves the digest.
+- **M2** `tests/unit/test_arena_slices.py:439-453`. **MINOR-R3-3's part (c), BLOCKING-R2-1's remedy
+  3, is still not done. So the ceiling test cannot tell "decoding took the reader over" from "the
+  reader was over before it read a byte".** Mutant Q adds 150 MiB to the reader's measured peak
+  (`parquet_reader.py:66`). That is the shape of the BLOCKING-R2-1 regression: a reader over its
+  ceiling at birth. It survives `tests/unit` (1310 passed), because every other parse runs at the
+  512 MiB ceiling. Since `a73c079`, `_watch` also turns any failure to measure into
+  `EXIT_OVER_CEILING`, so this one test now passes for a third wrong reason too. **Fix, verified
+  from `scratchpad/cr4/posctl.py`:** under the same `MAX_READER_RSS = 100 MiB` and the same patched
+  footer bound, a two-row `slice_parquet` file parses at HEAD, and fails with "memory ceiling"
+  under mutant Q. Add it next to `:439`.
+
+- **M3** `docs/decisions.md:3036`; `src/app/clients/arena_slices.py:73, 136-140`. **D-165 clause 4
+  still says `MAX_ANSWER_BYTES` (16 MiB). The code is 8 MiB since `a73c079`.** The clause's
+  opening, "Nothing the reader says is held whole by the parent", overstates it: the answer, up to
+  the cap, is held whole as bytes. S-R3-1 made the same point. The new per-slice row ceiling (four
+  times the measured count) is written only in code and tests; the plan's decision 4 names the
+  floor alone. Clause 4 was itself added in place while the ADR is not yet on main, so correcting
+  its number before merge follows the same path. After merge it needs a superseding note.
 
 ### NIT
 
-- **N1** tests/unit/test_arena_slices.py:267-270 -- the docstring says "today it [the server]
-  never imports `arena_slices`". Since `ebf0981` it does: `rank.py:19` imports
-  `app.clients.arena_slices`, and the server loads `rank`.
-  - I checked in a fresh interpreter. `import app.adapter.main` puts `app.clients.arena_slices` in
-    `sys.modules`, and `pyarrow` is not there.
-  - The test is stronger than its docstring says. Only the docstring is stale.
-- **N2** src/app/workflows/build.py:416-426 -- `_slice_failed` repeats the failure block in
-  `_ingest_boards` (build.py:396-402) line for line. The "group by config, download, parse" loop is
-  also written four times:
-  - build.py:447-455;
-  - scripts/survey_boards.py:373-379;
-  - scripts/smoke_deps.py:82-86;
-  - tests/integration/test_arena_openrouter_contract.py:57-60.
-
-  One helper in `arena_slices.py` that returns rows per config would make the four callers one.
-- **N3** docs/decisions.md (D-164 clause 2) -- the ADR says a board is refused when "a quarter or
-  more of its raw names are ... new (D-132)".
-  - D-132 says "more than a quarter", and the code does exactly that:
-    `len(fresh) > len(now) * MAX_SURFACE_GAIN` (refresh.py:161), measured against the candidate's
-    names.
-  - The code is right, and the ADR misquotes it.
-  - Don't edit the accepted text. Add a clarification line, the way D-159 got one.
+- **NIT-1** `tests/unit/test_arena_slices.py:419`. The orphan test leaves its own `stdin` pipe open.
+  This is the second half of NIT-R3-2, and it is the one `ResourceWarning` left in the file. Fix:
+  `reader.stdin.close()` in its `finally`.
+- **NIT-2** `src/app/clients/parquet_reader.py:75-77`, `src/app/clients/arena_slices.py:277-280`.
+  The fail-closed watchdog reports an unmeasurable peak the same way as a real one: "passed its
+  memory ceiling … the file has changed shape". On a host without a readable `/proc`, every night's
+  slices would fail, and the reason would send the operator to the file. S-R3-3 offered a distinct
+  exit code for this. Fails closed, loud and carried, so a NIT.
+- **NIT-3** `tests/unit/test_arena_slices.py:285`. The T1 assertion is wall-clock (`< 4.0` s against
+  an 8 s limit). The stub reader imports nothing, and the test ran green in both `-n auto` runs and
+  on CI, so the margin is ample. It is the one timing assertion this range adds.
 
 ## Acceptance criteria evidence
 
-The plan names no REQ-IDs. Its acceptance criteria are the red-first lists of P1-P4, plus D-164.
+The plan names no REQ-IDs. Its criteria are the red-first bullets of §Phases, plus D-164 and D-165.
 
-**P1 -- the read**
-| Criterion | Evidence |
+| Criterion | Evidence (test file:line) |
 |---|---|
-| A small parquet yields each declared slice's rows | tests/unit/test_arena_slices.py:59 |
-| The newest-date rule, per slice | test_arena_slices.py:79. Also :112 (an undated file fails closed) and :123 (a typed date column is read) |
-| A file over the cap | test_arena_slices.py:198 |
-| Not parquet | :140 |
-| A missing column | :145 |
-| An `Infinity` rating | :101 (with NaN, over the band, and negative) |
-| Footer row and byte bounds | :152 and :165 |
-| The server does not import `pyarrow` | test_arena_slices.py:263. I checked that it really runs, see N1 |
-| `ARENA_SLICES` and `ARENA_SLICE_CLIENT` in the registry | src/app/workflows/sources.py:248 and tests/unit/test_sources.py:60 |
-| The `score_rows` extraction is behaviour-preserving | src/app/clients/arena.py:358-398 against base. The loop is identical, and the skipped count is preserved |
+| P1: each declared slice gets its rows from a parquet file | `tests/unit/test_arena_slices.py:60` |
+| P1: newest date per slice | `:80`, `:489`, `:501` |
+| P1: over the cap, not parquet, missing column, `Infinity` rating | `:575`, `:515`, `:521`, `:102` |
+| P1: the server does not import `pyarrow` (D-154 extended) | `:658-659` |
+| P2: no slice row reaches `assistant` or `vision` | `tests/unit/test_build_slices.py:56` (benchmarks disjoint from every surface's) |
+| P2: one slice under its floor fails alone; a failed download fails its config only | `test_build_slices.py:80`, `:116`, `:128` |
+| P2: distinct benchmark labels; `floor < measured` | `test_arena_slices.py:630`, `:642` |
+| P3 (D-164.1): a board-only change publishes; the fingerprint moves with a board only | `tests/unit/test_refresh_boards.py:68`, `:79`. Mutant D164-1 (board rows left out of the digest, `refresh.py:473`) fails `:68` |
+| P3 (D-164.2): a quarter lost / a quarter new is refused | `test_refresh_boards.py:114`, `:126`. Mutants D164-2 (`refresh.py:221`, `:277`) fail each |
+| P3 (D-164.3): a board seen first publishes | `test_refresh_boards.py:101` |
+| P4: the survey measures slices; the record | `tests/unit/test_survey_floors.py:121`; `docs/research/m17-w2-slice-survey-2026-09-24.md` |
+| P4: `smoke_deps` has one probe per config | `test_arena_slices.py:669` (T2) |
+| P4: the `agent_*` issue | #24 (open, `enhancement`, `out-of-scope`) |
+| D-165.1-2: a child process, a ceiling, a time limit; every failure a `SourceError` | `test_arena_slices.py:252`, `:429`, `:439`, `:309`, `:317`; `test_build_slices.py:193` |
+| D-165.4: bounded answer, stderr tail only, short printable reason, allowlisted env, `-P`, own alarm | `test_arena_slices.py:259`, `:269`, `:288`, `:378`, `:389`, `:399`, `:410` |
+| This range: Unicode separators; fail-closed watchdog; no `VmHWM`; contract marker; slice ceiling | `test_arena_slices.py:300`, `:330`, `:353`, `:367`; `test_build_slices.py:98` |
 
-**P2 -- the boards**
-| Criterion | Evidence |
-|---|---|
-| No slice's rows reach a served benchmark | tests/unit/test_build_slices.py:69-74 |
-| One slice under its floor fails alone | :80 |
-| A failed download fails only its config | :98 |
-| A failed download carries each slice (D-156) | :110 |
-| `build()` reads the table at call time | :136 |
-| Distinct benchmark labels | test_arena_slices.py:235 |
-| `floor < measured` for every board | :247 |
-| Every slice attributed | test_build_slices.py:164 and tests/unit/test_categories.py:245 |
+**Producers of the hardened invariant** ("only `SourceError` leaves the slice read"). This is not
+required at MEDIUM tier, and is given for the seam D-165 clause 2 names.
 
-**P3 -- published and guarded (D-164)**
-| Criterion | Evidence |
-|---|---|
-| A board-only change publishes | tests/unit/test_refresh_boards.py:68 |
-| The fingerprint moves with a board and ignores restamps | :79 (but see M2) |
-| A board losing a quarter is refused | :110 |
-| A board a quarter new is refused | :122 |
-| A board seen for the first time is not refused | :97 |
-| An expired board drops | :143 |
-| Movement below both limits publishes | :133 |
+| Producer | Where | Citing test |
+|---|---|---|
+| tempfile creation | `arena_slices.py:233-237` | `:317` |
+| process start | `:239-245` | `:309` |
+| answer bound | `:259-264` | `:259`, `:269` |
+| timeout | `:274-276` | `:429` |
+| ceiling exit | `:277-280` | `:439` |
+| non-zero exit | `:281-283` | `:252`, `:288` |
+| protocol violations | `:293-311` | `:252`, `:300` |
+| the stdin close on `Popen.__exit__` | `:253` | none in the suite; probed (150 runs, 0 escapes, above) |
 
-**P4 -- measured and recorded**
-| Criterion | Evidence |
-|---|---|
-| The survey | scripts/survey_boards.py:353-411 and tests/unit/test_survey_floors.py:121 (see B2) |
-| The research record | `docs/research/m17-w2-slice-survey-2026-09-24.md` |
-| `smoke_deps` gains one probe per config | scripts/smoke_deps.py:74-93 and :114-116 |
-| The live contract | tests/integration/test_arena_openrouter_contract.py:52-65 |
-| The `agent_*` issue | #24 |
-| D-164 | docs/decisions.md, end of file, marked "ruled by the owner 2026-09-24" |
-
-**Red to green.** I extracted red commit `9b92171` with `git archive` and ran
-`test_refresh_boards.py` on it: **7 failed**. The P3 tests were therefore red before `ab98437`.
-
-**Mutants.**
-- Dropping the slice loss guard (refresh.py:277) is killed by test_refresh_boards.py:110.
-- Dropping the slice new-name guard (refresh.py:221) is killed by :122.
-- Dropping `model_id` from the digest survives (M2).
-
-## Plan compliance
-
-The wave delivers each item of `docs/plans/m17-wave-2-plan.md` §Phases P1-P4 and the seven
-"Decisions made on the owner's behalf":
-- 1: one fetch per config (build.py:447-457);
-- 2: newest date per config (arena_slices.py:207-236);
-- 3: ids and labels from one table (arena_slices.py:65-78);
-- 4: half-measured floors (arena_slices.py:75-78);
-- 5: D-164 (refresh.py:219-225, :276-279 and :463-474);
-- 6: the lazy import (arena_slices.py:152-157);
-- 7: the 8 MB cap (arena_slices.py:39 and :143-147).
-
-Decision 6 said "extending the D-154 guard to name it". What was built is a new subprocess test
-(test_arena_slices.py:263) rather than an edit of
-tests/unit/test_nightly_refresh.py:352. It asserts the same property, so this is not a deviation
-worth a finding.
-
-Nothing was added or dropped without the plan. There are no drive-by edits. `note.txt` is the
-session's resume pointer, and the plan and ADR are the wave's own.
+Gaps: the last row. It is untestable without a race, and the probe shows it holds.
 
 ## K.8 contract drift check
 
-`docs/plans/m17-plan.md` §3 declares four contracts: D-104/D-105/D-126, `/v1` additive only, where
-arithmetic may happen, and the combined-list disclosure. This wave touches none of them. `git diff
---stat 04e2630..78db5e0 -- src/app/adapter ios schemas` is empty, so there is no `/v1`, app or
-schema change.
-
-The wave's own shared names are consistent:
 ```
-src/app/workflows/build.py:53:from app.clients.arena_slices import ARENA_SLICES, ArenaSlice, parse_arena_slices
-src/app/workflows/build.py:623:    slices = ARENA_SLICES if slices is None else slices
-src/app/workflows/refresh.py:42:from app.clients.arena_slices import ARENA_SLICES
-src/app/workflows/refresh.py:467:    for board in sorted(ARENA_SLICES, key=lambda b: b.source_name):
-src/app/workflows/rank.py:19:from app.clients.arena_slices import ARENA_SLICES
-src/app/workflows/rank.py:65:    **{board.source_name: ARENA_ATTRIBUTION for board in ARENA_SLICES},
+$ grep -rn "fetch_slices(\|def parse_arena_slices\|ARENA_SLICE_CLIENT\b\|maximum_rows\|MAX_ANSWER_BYTES\|from app.clients.parquet_reader import" src scripts tests/integration
+src/app/clients/arena_slices.py:40:from app.clients.parquet_reader import EXIT_OVER_CEILING, printable
+src/app/clients/arena_slices.py:73:MAX_ANSWER_BYTES = 8 * 1024 * 1024
+src/app/clients/arena_slices.py:137:    def maximum_rows(self) -> int:
+src/app/clients/arena_slices.py:212:def fetch_slices(
+src/app/clients/arena_slices.py:259:                answer = reader.stdout.read(MAX_ANSWER_BYTES + 1)
+src/app/clients/arena_slices.py:326:def parse_arena_slices(
+src/app/workflows/build.py:69:    ARENA_SLICE_CLIENT,
+src/app/workflows/build.py:447:    client_type = ARENA_SLICE_CLIENT if client is None else client
+src/app/workflows/build.py:453:            rows, refused = fetch_slices(config, boards, client=client_type)
+src/app/workflows/build.py:465:                if len(parsed) > board.maximum_rows:
 src/app/workflows/sources.py:248:ARENA_SLICE_CLIENT = ArenaSliceClient
-src/app/workflows/build.py:446:    client_type = ARENA_SLICE_CLIENT if client is None else client
-src/app/clients/arena.py:358:    rows, refused = score_rows(working, source=source, source_url=source_url, benchmark=benchmark)
-src/app/clients/arena_slices.py:232:        parsed, bad = score_rows(
+scripts/smoke_deps.py:85:        rows, _ = fetch_slices(config, boards)
+scripts/survey_boards.py:375:            rows, _ = fetch_slices(config, boards, client=client)
+tests/integration/test_arena_openrouter_contract.py:60:    rows, refused = fetch_slices(config, boards)
 ```
-`DECLARED_SLICES` (P1-review M4) is gone everywhere. `parse_arena`'s public signature is unchanged.
 
-**Boundary (D-001/K.1).** `arena_slices.py` imports only `app.clients.*` and
-`app.workflows.schema.ScoreRow`, the same as `arena.py:25` and `epoch_board.py:32`. Network access
-goes only through `fetch_bounded_bytes`.
+- The signatures of `fetch_slices` and `parse_arena_slices` are unchanged in this range.
+- `maximum_rows` is new, public on `ArenaSlice`, and read by the build only (M1).
+- `arena_slices` still imports only two stdlib-only names from the reader. The
+  server-never-loads-pyarrow test passes.
 
-**Verdict:** OK, nothing drifted.
+**Verdict: OK, nothing drifted.** M1 is a missing use of the new name, not a broken contract.
 
-## Hardened-invariant producers (D-164: a board is fingerprinted and guarded)
+## Whole wave, 04e2630..cf141ae (lighter depth)
 
-Only HIGH waves require this section, but it helps here, so I include it.
-
-Rows reach `scores` under a slice `source` from three producers:
-- `_ingest_slices` (build.py:429). Tests: test_build_slices.py:56, :80, :98 and :136.
-- `Carry.restore` for a carried slice (build.py:264). Test: test_build_slices.py:110.
-- `measure_slices`, which writes only to a scratch copy (scripts/survey_boards.py:353). Test:
-  test_survey_floors.py:121.
-
-There is one consumer, `serving_summary` (refresh.py:463-474), and both guards read it.
-
-**Gaps:** the `model_id` component (M2).
-
-## Integration checks with no finding
-
-- **Readers of `scores` in `src/`.** I checked every one:
-  - `rank.py` and `adapter/main.py:773` select by a surface's benchmark;
-  - `/health`'s source list is keyed on the benchmark (main.py:771-777);
-  - `adapter/main.py:252` counts distinct models, and slices are subsets of `overall`;
-  - `recommend.py:226` takes a MAX date, which slices share.
-
-  None of them lets slice rows reach a surface.
-- **`ci_coverage_gate.py`.** A failed slice produces an "(no surface names it as primary)"
-  operator line. It carries no "must disclose" marker, so the CI coverage gate does not read it as
-  a blinded surface.
-- **First night.** The live summary reports each of the 35 boards as an empty set, so
-  `_mostly_new` passes them as returning (D-164 clause 3). test_refresh_boards.py:97 covers it.
+- **Plan compliance.**
+  - §Scope "In" is delivered: `pyarrow>=21.0` (`pyproject.toml:19`), the client and parse, the
+    35-row table (`arena_slices.py:151-191`, pinned by `test_arena_slices.py:609`), the ingest and
+    per-slice carry, derived attribution, D-164, the survey record and the smoke probe.
+  - §Scope "Out" holds: no surface, `/v1` or app file is touched.
+  - The row ceiling is a scope addition answering a security finding (S-R3-5). It is in the spirit
+    of plan decision 7 ("a `SourceError` or a counted skip"), but it is recorded nowhere but code
+    (M3).
+- **Boundaries.**
+  - `clients/` holds the read.
+  - `workflows/` holds the ingest and the guards.
+  - `scripts/` reach the one `fetch_slices` path.
+- **Drive-bys.** None found. `note.txt`, `docs/prd.md` and `docs/skip-budget.txt` are
+  resume-state, PRD and budget upkeep for this wave.
+- **Swallowed exceptions.**
+  - `_watch`'s `except BaseException: pass` is followed unconditionally by `os._exit`, so it
+    converts rather than swallows (NIT-2 is about the message).
+  - `contextlib.suppress(BrokenPipeError)` around the stdin write is safe, per the probe above.
+- **Dependencies.** No new import in this range. `pyarrow` was declared in the wave's P1.
+- **Suppressions.** `# noqa: SIM115` (`arena_slices.py:234`) is justified in its own comment: the
+  file is entered by the `with` on the next line. `# noqa: S110` (`parquet_reader.py:75`) is by
+  design.
+- **Open items from earlier rounds, already dispositioned elsewhere:** #24 (`agent_*`), #25
+  (`fetch_bounded_bytes`), #26 (pyarrow off the serving image), #27 (page decoded at declared size,
+  bounded by D-165). Not re-litigated.
+- **The ledger.** `docs/control-events.csv`'s last row is the owner's waiver of the three-attempts
+  stop for one more fix of the parquet memory bound. This range is that fix's follow-up of minors,
+  not a fourth attempt at a BLOCKING finding.
 
 ## K.9 candidates spotted outside this wave's scope
 
-- **K1** Dockerfile:13 -- `pip install .` puts every runtime dependency into the serving image,
-  so `pyarrow` (126 MB in `.venv`) now ships to a host where D-116 and D-154 clause 2 forbid the
-  refresh from ever running.
-  - The server never imports it (N1 checked this), so the cost is image size and a scanner
-    surface, not behaviour.
-  - An `ingest` optional extra would keep it off the serving image. That changes the Dockerfile,
-    CI install lines and the refresh wrapper, which is beyond W2's scope.
-  - Enhancement.
-- **K2** src/app/workflows/build.py:331-335 -- `_most_unmatched` ranks the curation queue that
-  `/health` and the refresh record show by ROW count.
-  - An unmatched Arena text name can now count up to 27 rows (`overall` plus 26 slices), against 1
-    to 5 for a name on other boards.
-  - I measured the upper bound on a scratch copy of the worktree's `advisor.db`, copying every
-    `arena` or `arena_vision` row into each slice. Arena names in the top 20 went from 15 to 20.
-  - The queue was already mostly Arena, so the harm is small. It will still hide the non-Arena
-    names the queue exists to surface.
-  - Counting distinct benchmark families, or leaving slice sources out of the count, fixes it.
-  - Enhancement.
+- none
 
 ## Risks queued to next M
 
-- **R1** **Partial upstream publishes.** A slice is served only on its config's newest date
-  (arena_slices.py:214-236), and slices already lag: `vision/creative_writing` has no rows on the
-  newest date. If upstream publishes a new date for `overall` before the slices, every lagging
-  slice falls under its floor. It then carries, and after 30 days it expires. **It is real if**
-  refresh records show `arena_*_*` sources in `carried` on nights when `arena` arrived.
-- **R2** **Thin vision boards can hold back a whole night.** `arena_vision_captioning` has 34
-  rows, so D-128's quarter is 9 names. One noisy upstream day on a thin board refuses the entire
-  publish, including every surface's fresh data. This is D-164's stated cost. **It is real if** a
-  refusal naming `board arena_vision_*` happens more than once in a month, which is D-164's own
-  revisit trigger.
+- **R1** `src/app/clients/parquet_reader.py:162-165` (`_guard`). **The security re-look's two NITs,
+  S-R3-N1 and S-R3-N2, have no disposition in any record I found.** S-R3-N1: the reader's own
+  alarm is void when its parent ignores or blocks SIGALRM. S-R3-N2: stderr to a file bounds memory,
+  not disk, and a process holding the reader's stdout outlives the parent's timer. Neither is
+  reachable from a file today: nothing in `src/` touches SIGALRM, and the reader starts no process.
+  **What would show the risk is real:** a signal handler or mask added to the nightly or refresh
+  process, or a reader that starts a helper process. Then orphaned readers would outlive a killed
+  refresh. Cheap hardening: `signal.signal(SIGALRM, SIG_DFL)` plus `pthread_sigmask(SIG_UNBLOCK,
+  …)` in `_guard`, and `start_new_session=True` with `os.killpg` in `stop()`.
 
 ## Gates
 
-`make check-fast` on the worktree at HEAD `78db5e0`: **PASS, 6/6 legs, 59.7 s.**
-- lint, typecheck, records (including `wave-check-all` and `conformance`), client-decls and
-  swift-test all passed.
-- test: **1273 passed, 17 skipped**, total coverage 91%.
-- Touched modules:
-  - `arena_slices.py`: 97%, missing lines 183-185 (see B1);
-  - `build.py`: 94%;
-  - `refresh.py`: 96%.
-- coverage-floor: PASS, 37 modules.
+- `make check-fast` at `cf141ae` (macOS): **PASS, 6 of 6 legs** (72.7 s).
+- Full suite, `-n auto`, under the socket and DNS block, run twice: **1319 passed, 17 skipped, 0
+  outbound attempts**.
+- `mypy --platform linux src` and `mypy --platform darwin src`: both clean.
+- CI on `cf141ae` (`gh pr checks 23`): every check passes:
+  - `test (py3.12)` and `test (py3.14)`;
+  - `live-contracts`, with both slice cases PASSED;
+  - `dep-audit`, `secret-scan`, `install-and-governance`, `governance-contract` and
+    `plan-staleness`.
+
+  PR #23 is a draft, and its head is `cf141ae`.
+- Commit trailers `04e2630..HEAD`: no `Co-Authored-By` and no "Generated with".
 
 ## What I did not check
 
-- **The live contract test and `smoke_deps` against the network.** I did not run
-  tests/integration/test_arena_openrouter_contract.py:52 or scripts/smoke_deps.py. The research
-  record reports the live measurement.
-- **A real nightly cycle with the slices, or the research record's numbers.** Those would need the
-  live download.
-- **Supply-chain questions about `pyarrow>=21.0`** (slopsquat, pip-audit, native-parser hardening).
-  That is the security seat's work, and the plan names a security look at P1.
-- **Test adequacy beyond the mutants above.** That is the Tester's seat, which runs next.
+- **Linux locally.** The Linux claims rest on CI's green run on `cf141ae` (the coverage report shows
+  the `/proc` path ran) and on the mypy platform check.
+- **The live download.** No test or probe of mine reached the network.
+- **Memory figures.** I did not re-measure the parent's peak. S-R3-1's cap and bytes-split fix is
+  verified as code and by mutant D, not by a new memory measurement.
+- **Test adequacy beyond the mutants listed.** That is the Tester's seat.
