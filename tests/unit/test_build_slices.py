@@ -197,16 +197,6 @@ def test_a_hostile_file_fails_its_slices_and_never_the_build() -> None:
 
 
 @pytest.mark.slices
-def test_a_marked_test_that_injects_no_client_cannot_reach_the_network() -> None:
-    """Wave review B2: a marked test that forgot to inject a fake downloaded both live files on
-    every `make test`. The marked default is a client that refuses."""
-    from app.clients.protocols import SourceError
-
-    with pytest.raises(SourceError, match="network"):
-        build_mod.ARENA_SLICE_CLIENT("text").fetch_bytes()
-
-
-@pytest.mark.slices
 def test_slice_rows_do_not_crowd_the_unmatched_names_queue() -> None:
     """Wave review K2: the queue ranks names by row count, and a slice repeats its `overall`
     board's names up to 26 times. Slice rows add no name `overall` lacks, so they are not counted."""

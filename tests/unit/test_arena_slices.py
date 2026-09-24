@@ -152,20 +152,89 @@ def test_a_column_of_an_unexpected_type_is_refused_before_it_is_read(
 ) -> None:
     """The live file's types (string, double, string, string) are the only ones read: anything else
     is a changed file, refused as one before a value is converted."""
-    with pytest.raises(SourceError, match=column):
+    with pytest.raises(SourceError, match=f"column {column} has type"):
         parse_arena_slices(_typed(**{column: values}), [MULTI], source_url="u")
 
 
-def test_any_failure_inside_the_read_is_a_source_error(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_any_failure_inside_the_reader_is_reported_as_an_error(monkeypatch: pytest.MonkeyPatch) -> None:
     """Security S1: an allowlist of exception classes is how OverflowError escaped. Whatever the
-    library raises while reading ends THIS source, never the cycle."""
+    library raises inside the reader becomes an error the parent turns into a SourceError."""
+    from app.clients import parquet_reader
 
     def explode(*_: object, **__: object) -> None:
         raise OverflowError("date out of range")
 
     monkeypatch.setattr(pq.ParquetFile, "iter_batches", explode)
-    with pytest.raises(SourceError, match="OverflowError"):
+    answer = parquet_reader.read_rows(_parquet([_row("a", 1390.0, "multi_turn")]), _limits())
+    assert "OverflowError" in answer["error"]
+
+
+def _limits() -> dict[str, int]:
+    import app.clients.arena_slices as module
+
+    return module.reader_limits()
+
+
+@pytest.mark.parametrize(
+    ("program", "match"),
+    [
+        ("import os; os.abort()", "reader"),               # a native crash, as a segfault would be
+        ("print('not json')", "reader"),                    # an answer that is not the protocol
+        ("import sys; sys.exit(7)", "reader"),
+    ],
+)
+def test_a_reader_that_fails_is_a_source_error(
+    monkeypatch: pytest.MonkeyPatch, program: str, match: str
+) -> None:
+    import app.clients.arena_slices as module
+
+    monkeypatch.setattr(module, "_reader_command", lambda: [sys.executable, "-c", program])
+    with pytest.raises(SourceError, match=match):
         parse_arena_slices(_parquet([_row("a", 1390.0, "multi_turn")]), [MULTI], source_url="u")
+
+
+def test_a_reader_that_hangs_is_stopped(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.clients.arena_slices as module
+
+    monkeypatch.setattr(module, "_reader_command",
+                        lambda: [sys.executable, "-c", "import time; time.sleep(30)"])
+    monkeypatch.setattr(module, "READER_TIMEOUT_S", 0.5)
+    with pytest.raises(SourceError, match="seconds"):
+        parse_arena_slices(_parquet([_row("a", 1390.0, "multi_turn")]), [MULTI], source_url="u")
+
+
+def test_a_file_that_would_exhaust_memory_is_stopped_at_the_ceiling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Re-review BLOCKING-R1 / S-R1: pyarrow decodes a whole column chunk before any check in
+    Python runs, so 256 distinct 1 MiB names decode to 256 MiB whatever the batch size. The
+    footer's claim is taken away (as a forged footer would) and the ceiling is what stops it."""
+    import app.clients.arena_slices as module
+
+    monkeypatch.setattr(module, "MAX_UNCOMPRESSED_BYTES", 2**40)
+    monkeypatch.setattr(module, "MAX_READER_RSS", 160 * 2**20)
+    names = [f"{i:08d}" + "a" * (2**20 - 8) for i in range(256)]
+    sink = io.BytesIO()
+    pq.write_table(pa.table({
+        "model_name": pa.array(names), "rating": [1200.0] * 256,
+        "category": ["multi_turn"] * 256, "leaderboard_publish_date": [NEWEST] * 256,
+    }), sink, compression="zstd", use_dictionary=False)
+    with pytest.raises(SourceError, match="memory"):
+        parse_arena_slices(sink.getvalue(), [MULTI], source_url="u")
+
+
+def test_rows_are_counted_as_they_are_read_not_as_the_footer_declares(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Security re-look S-R2: the footer's row count can be forged. With the footer's own check
+    taken out, the count kept while reading still stops the read."""
+    from app.clients import parquet_reader
+
+    monkeypatch.setattr(parquet_reader, "_check_footer", lambda *_: None)
+    limits = {**_limits(), "max_rows": 2}
+    answer = parquet_reader.read_rows(
+        _parquet([_row(f"m{i}", 1300.0, "multi_turn") for i in range(3)]), limits)
+    assert "rows" in answer["error"]
 
 
 def test_a_value_longer_than_any_real_one_is_refused() -> None:
@@ -185,6 +254,18 @@ def test_decoding_past_the_budget_is_refused(monkeypatch: pytest.MonkeyPatch) ->
     raw = _parquet([_row(f"m{i}", 1300.0 + i, "multi_turn") for i in range(50)])
     with pytest.raises(SourceError, match="decoded"):
         parse_arena_slices(raw, [MULTI], source_url="u")
+
+
+@pytest.mark.parametrize("stray", ["2026-09-1~", "2026-09-2 ", "not a date", "2026-13-40"])
+def test_a_date_that_is_not_a_date_never_becomes_the_newest(stray: str) -> None:
+    """Security re-look S-R4: compared as text, `2026-09-1~` sorts above every real date."""
+    raw = _parquet([
+        _row("a", 1390.0, "multi_turn"),
+        _row("z", 1500.0, "industry_legal_and_government", stray),
+    ])
+    rows, skipped = parse_arena_slices(raw, [MULTI, LEGAL], source_url="u")
+    assert [r.raw_name for r in rows[MULTI.source_name]] == ["a"]
+    assert rows[LEGAL.source_name] == [] and skipped[LEGAL.source_name] == 1
 
 
 def test_a_row_dated_in_the_future_is_refused_and_does_not_move_the_newest_date() -> None:
@@ -247,6 +328,7 @@ def test_a_duplicate_name_on_one_slice_keeps_the_best_rating_and_counts_the_othe
 # --- the download --------------------------------------------------------------------------------
 
 
+@pytest.mark.slice_download
 @respx.mock
 def test_the_client_downloads_its_configs_own_parquet_file() -> None:
     body = _parquet([_row("a", 1390.0, "industry_legal_and_government")])
@@ -258,6 +340,7 @@ def test_the_client_downloads_its_configs_own_parquet_file() -> None:
     assert "lmarena-ai/leaderboard-dataset" in client.url
 
 
+@pytest.mark.slice_download
 @respx.mock
 def test_a_download_over_the_cap_is_cut_off() -> None:
     respx.get(parquet_url("vision")).mock(
@@ -265,6 +348,24 @@ def test_a_download_over_the_cap_is_cut_off() -> None:
     )
     with pytest.raises(SourceError, match="exceeded"):
         ArenaSliceClient("vision").fetch_bytes()
+
+
+@pytest.mark.slice_download
+@respx.mock
+def test_a_redirect_to_a_malformed_host_is_a_source_error() -> None:
+    """Security re-look S-R3: `Location: http://xn--/x` raised IDNAError out of the shared download
+    helper, which ended the build and lost the other config's valid slices."""
+    respx.get(parquet_url("text")).mock(
+        return_value=httpx.Response(302, headers={"Location": "http://xn--/x"}))
+    with pytest.raises(SourceError, match="arena_slices_text"):
+        ArenaSliceClient("text").fetch_bytes()
+
+
+def test_no_test_downloads_a_slice_file() -> None:
+    """Re-review MINOR-R2: the suite's guard sits on the client itself, so every path to a download
+    (the build's default client, `fetch_slices`, `measure_slices`) meets it. Checked by identity,
+    so this test never downloads anything even when the guard is gone."""
+    assert ArenaSliceClient.fetch_bytes.__name__ == "_tests_never_reach_the_network"
 
 
 def test_an_unknown_config_is_refused() -> None:
