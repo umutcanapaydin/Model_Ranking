@@ -355,9 +355,23 @@ def parse_arena(
     else:
         dropped_snapshots = 0
 
-    best: dict[str, ScoreRow] = {}
+    rows, refused = score_rows(working, source=source, source_url=source_url, benchmark=benchmark)
     skipped = dropped_wrappers + dropped_snapshots + len(rows_raw) - len(preferred or rows_raw)
-    for entry in working:
+    return rows, skipped + refused
+
+
+def score_rows(
+    entries: list[dict[str, Any]], *, source: str, source_url: str, benchmark: str
+) -> tuple[list[ScoreRow], int]:
+    """One board's records as Elo score rows; returns (rows, refused).
+
+    Shared by `parse_arena` and the category slices (`arena_slices.py`, M17-W2), so a slice is held
+    to exactly the rules the `overall` board is: a malformed or out-of-band rating is refused and
+    counted, and a duplicate name keeps its best rating and counts the other.
+    """
+    best: dict[str, ScoreRow] = {}
+    skipped = 0
+    for entry in entries:
         name = entry.get("model_name")
         rating = entry.get("rating")
         # M15 closure security seat, MINOR-1: `json.loads` accepts `Infinity`, and one such rating

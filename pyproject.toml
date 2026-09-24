@@ -116,6 +116,12 @@ no_implicit_reexport = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
+# M17-W2: pyarrow ships no type information. Its two call sites are in `arena_slices._read_table`,
+# which annotates what it returns, and the tests cover every path through them.
+module = ["pyarrow", "pyarrow.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = ["tests.*"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false

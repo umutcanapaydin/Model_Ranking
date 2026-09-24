@@ -75,7 +75,7 @@ configs, not slices, and not in this wave's scope).
    (today, `vision/creative_writing`) is refused and counted, never served old (FP-M2-2's rule, per
    slice).
 3. **Each board has its own source id and benchmark label**: source `arena_<config>_<slice>`,
-   benchmark `Arena <config> · <slice>`, both derived from one table (`ARENA_SLICES`), as is its
+   benchmark `Arena <config> (<slice>)`, both derived from one table (`ARENA_SLICES`), as is its
    attribution in `SOURCE_ATTRIBUTION`. A test fails when two boards share a benchmark label.
 4. **Row floors are half the measured count, stated per board with its date.** The table carries the
    measured count; the floor is derived from it, and a test holds `floor < measured`.
@@ -112,7 +112,9 @@ any surface, `/v1` or app change.
   - the newest-date rule per slice;
   - a file over the cap, a file that is not parquet, a missing column, and an `Infinity` rating;
   - the serving process does not import `pyarrow`.
-- **P2 — the boards.** `ARENA_SLICES`, the build's ingest of each config and each slice, per-slice
+  - `ARENA_SLICES` and the client's registry entry (`ARENA_SLICE_CLIENT`) land here, not in P2: the
+    registry mirror test refuses a client nobody declares.
+- **P2 — the boards.** The build's ingest of each config and each slice, per-slice
   carry, derived attribution. Red first:
   - no slice's rows reach `assistant` or `vision`;
   - one slice under its floor fails alone, while a failed download fails its config's slices;
