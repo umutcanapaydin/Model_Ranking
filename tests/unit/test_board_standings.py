@@ -283,3 +283,65 @@ def test_a_payload_the_route_would_refuse_refuses_the_boot_instead(
     monkeypatch.delenv("MODEL_RANKING_CORS_ORIGINS", raising=False)
     with pytest.raises(adapter.ConfigError, match=match):
         adapter.validate_startup_config(env="production")
+
+
+def test_equal_best_scores_disclose_the_newest_runs_effort() -> None:
+    """Second review M8: the tie-break decides which effort a standing discloses. Among equal best
+    scores the newest run wins, as `rank.category_ranking` breaks the same tie."""
+    conn = _conn()
+    _score(conn, "epoch_chess", "Chess puzzles", "% correct", "a_low", "a", 60.0, effort="low",
+           run_date="2026-08-01")
+    _score(conn, "epoch_chess", "Chess puzzles", "% correct", "a_max", "a", 60.0, effort="max",
+           run_date="2026-09-01")
+    board = _board(_payload(conn), "epoch_chess")
+    assert [(s["model"], s["effort"]) for s in board["standings"]] == [("a", "max")]
+
+
+def test_every_board_of_a_benchmark_a_surface_ranks_at_one_effort_stands_at_it() -> None:
+    """Second review R5: a surface ranks its BENCHMARK across every source (D-112), so the policy
+    follows the benchmark, not only the surface's primary source."""
+    conn = _conn()
+    for source in ("epoch_deepswe_external", "swebench"):
+        _score(conn, source, "DeepSWE", "% resolved", f"{source}_a_max", "a", 70.0, effort="max")
+        _score(conn, source, "DeepSWE", "% resolved", f"{source}_a_high", "a", 50.0, effort="high")
+    payload = _payload(conn)
+    for source in ("epoch_deepswe_external", "swebench"):
+        board = _board(payload, source)
+        assert board["ranking_effort"] == "high"
+        assert [s["effort"] for s in board["standings"]] == ["high"]
+
+
+def test_two_surfaces_ranking_one_benchmark_at_different_efforts_are_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Second review R5: two policies for one benchmark cannot both hold; the later must not
+    silently overwrite the earlier."""
+    import dataclasses
+
+    from app.workflows.categories import CATEGORIES
+
+    spec = next(s for s in CATEGORIES.values() if s.ranking_effort)
+    monkeypatch.setitem(CATEGORIES, "probe", dataclasses.replace(spec, id="probe", ranking_effort="max"))
+    conn = _conn()
+    _chess(conn)
+    with pytest.raises(ValueError, match="two efforts"):
+        _payload(conn)
+
+
+def test_a_payload_refused_after_boot_is_unavailable_and_logged_with_its_reason(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Second review M7: a nightly refresh can publish, under a running process, an artifact the
+    boot check would refuse. The reader gets the closed 503; the operator gets the reason."""
+    from app.adapter import main as adapter
+
+    def refuse(_conn: object) -> dict:  # type: ignore[type-arg]
+        raise ValueError("epoch_chess: metric '% faster' has no declared direction")
+
+    monkeypatch.setattr(adapter, "board_standings", refuse)
+    with caplog.at_level("WARNING"):
+        response = client.get("/v1/boards")
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "evidence_unavailable"
+    assert "% faster" not in response.text
+    assert "'% faster' has no declared direction" in caplog.text
