@@ -294,6 +294,50 @@ EPOCH_BOARDS: tuple[EpochBoard, ...] = (
         score_column="mean_score",
         date_column="Started at",
     ),
+    # M17-W3 (#37, owner ruling 2026-09-25): Epoch-run boards of classes A and B
+    # (docs/research/source-expansion-2026-09-23.md §2.1). Each has GPQA Diamond's shape, measured
+    # on the 2026-09 bundle: `mean_score` on 0-1, dated by `Started at`. No surface ranks on them
+    # yet; they are boards for W4 to combine, published and guarded as boards (D-164).
+    EpochBoard(
+        file="simpleqa_verified.csv",
+        source_name="epoch_simpleqa",
+        benchmark="SimpleQA Verified",
+        metric="% correct",
+        score_column="mean_score",
+        date_column="Started at",
+    ),
+    EpochBoard(
+        file="frontiermath_tiers_1_3_v2.csv",
+        source_name="epoch_frontiermath",
+        benchmark="FrontierMath Tiers 1-3",
+        metric="% correct",
+        score_column="mean_score",
+        date_column="Started at",
+    ),
+    EpochBoard(
+        file="frontiermath_tier_4_v2.csv",
+        source_name="epoch_frontiermath_t4",
+        benchmark="FrontierMath Tier 4",
+        metric="% correct",
+        score_column="mean_score",
+        date_column="Started at",
+    ),
+    EpochBoard(
+        file="chess_puzzles.csv",
+        source_name="epoch_chess",
+        benchmark="Chess puzzles",
+        metric="% correct",
+        score_column="mean_score",
+        date_column="Started at",
+    ),
+    EpochBoard(
+        file="mystery_game_puzzles.csv",
+        source_name="epoch_mystery",
+        benchmark="Mystery game puzzles",
+        metric="% correct",
+        score_column="mean_score",
+        date_column="Started at",
+    ),
     EpochBoard(
         file="otis_mock_aime_2024_2025.csv",
         source_name="epoch_aime",

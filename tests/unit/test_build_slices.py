@@ -175,7 +175,7 @@ def test_an_unmarked_test_builds_with_no_slices_so_it_never_reaches_the_network(
 @pytest.mark.slices
 def test_the_production_table_is_the_one_the_build_reads() -> None:
     assert build_mod.ARENA_SLICES == ARENA_SLICES
-    assert len(ARENA_SLICES) == 35
+    assert len(ARENA_SLICES) == 41  # 35 slices (M17-W2) and six Agent Arena boards (M17-W3)
 
 
 @pytest.mark.slices

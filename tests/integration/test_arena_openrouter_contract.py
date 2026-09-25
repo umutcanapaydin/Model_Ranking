@@ -10,6 +10,8 @@ import os
 
 import pytest
 
+from app.clients.arena_slices import SLICE_CONFIGS
+
 pytestmark = pytest.mark.skipif(
     os.environ.get("RUN_CONTRACT_TESTS") != "1",
     reason="contract test needs network; set RUN_CONTRACT_TESTS=1",
@@ -50,10 +52,11 @@ def test_every_m15_arena_board_satisfies_the_parser_contract(config: str) -> Non
 
 
 @pytest.mark.slice_download  # the live file: the suite's network guard steps aside (re-review 2, BLOCKING-R2-2)
-@pytest.mark.parametrize("config", ["text", "vision"])
+@pytest.mark.parametrize("config", SLICE_CONFIGS)
 def test_every_declared_slice_satisfies_the_parser_contract(config: str) -> None:
     """V3C-44 for M17-W2's canonical fake (`app.clients.fakes.slice_parquet`): the live parquet file
-    parses, and every declared slice of the config clears its own floor under its own benchmark."""
+    parses, and every declared slice of the config clears its own floor under its own benchmark.
+    Every declared config, the six Agent Arena files included (M17-W3 wave review M1)."""
     from app.clients.arena_slices import ARENA_SLICES, fetch_slices
 
     boards = [board for board in ARENA_SLICES if board.config == config]

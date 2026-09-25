@@ -78,6 +78,12 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "epoch_arc_agi": EPOCH_ATTRIBUTION,
     "epoch_webdev": EPOCH_ATTRIBUTION,
     "epoch_mmlu": EPOCH_ATTRIBUTION,
+    # M17-W3 (#37): five more Epoch-run boards, CC-BY like GPQA, listed one by one as above.
+    "epoch_simpleqa": EPOCH_ATTRIBUTION,
+    "epoch_frontiermath": EPOCH_ATTRIBUTION,
+    "epoch_frontiermath_t4": EPOCH_ATTRIBUTION,
+    "epoch_chess": EPOCH_ATTRIBUTION,
+    "epoch_mystery": EPOCH_ATTRIBUTION,
 }
 
 

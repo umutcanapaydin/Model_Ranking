@@ -98,6 +98,11 @@ ARENA_BOARDS: dict[str, ArenaBoard] = {
 _PAGE = 100
 #: The ratings an Arena Elo board can plausibly carry; anything outside is refused and counted.
 ELO_BAND = (0.0, 5000.0)
+#: Agent Arena boards (M17-W3, #37) publish IPS scores (τ̂), not Bradley-Terry Elo: measured from
+#: -0.25 to 0.35 on 2026-09-25, so negative values are real. Their own metric, harness and band.
+IPS_METRIC = "ips"
+AGENT_HARNESS = "arena-agent"
+IPS_BAND = (-1.0, 1.0)
 _MAX_PAGES = 50  # safety valve: latest split is a few hundred rows
 _TIMEOUT_S = 30.0
 #: REQ-GRD-002 / W-050. Each PAGE is capped at `MAX_RESPONSE_BYTES`, and until now nothing capped
@@ -354,19 +359,23 @@ def parse_arena(
 
 
 def score_rows(
-    entries: list[dict[str, Any]], *, source: str, source_url: str, benchmark: str
+    entries: list[dict[str, Any]], *, source: str, source_url: str, benchmark: str,
+    value_key: str = "rating", metric: str = METRIC, harness: str = HARNESS,
+    band: tuple[float, float] = ELO_BAND,
 ) -> tuple[list[ScoreRow], int]:
-    """One board's records as Elo score rows; returns (rows, refused).
+    """One board's records as score rows; returns (rows, refused).
 
-    Shared by `parse_arena` and the category slices (`arena_slices.py`, M17-W2), so a slice is held
-    to exactly the rules the `overall` board is: a malformed or out-of-band rating is refused and
-    counted, and a duplicate name keeps its best rating and counts the other.
+    Shared by `parse_arena`, the category slices (`arena_slices.py`, M17-W2) and the Agent Arena
+    boards (M17-W3), so every board of this dataset is held to the same rules: a malformed or
+    out-of-band value is refused and counted, and a duplicate name keeps its best value and counts
+    the other. The value's column, metric, harness and band are the board's: an Elo board reads
+    `rating` in `ELO_BAND`, an Agent Arena board reads `score` (IPS) in `IPS_BAND`.
     """
     best: dict[str, ScoreRow] = {}
     skipped = 0
     for entry in entries:
         name = entry.get("model_name")
-        rating = entry.get("rating")
+        rating = entry.get(value_key)
         # M15 closure security seat, MINOR-1: `json.loads` accepts `Infinity`, and one such rating
         # made its surface answer 500 while /health still said servable. Refused like any other
         # malformed row, and COUNTED as one (M2's rule), never silently stored.
@@ -377,7 +386,7 @@ def score_rows(
             or not math.isfinite(rating)
             # W4 review MINOR-4: a finite 1e308 would be served as the leader. Every Arena board
             # is an Elo board, and a real rating sits in the low thousands.
-            or not ELO_BAND[0] < rating < ELO_BAND[1]
+            or not band[0] < rating < band[1]
         ):
             skipped += 1
             continue
@@ -385,9 +394,9 @@ def score_rows(
         row = ScoreRow(
             raw_name=name,
             benchmark=benchmark,
-            metric=METRIC,
+            metric=metric,
             score=float(rating),
-            harness=HARNESS,
+            harness=harness,
             run_date=str(pub)[:10] if isinstance(pub, str) and pub else None,
             cost_total=None,
             source=source,

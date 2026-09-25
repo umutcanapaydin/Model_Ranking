@@ -39,7 +39,8 @@ from dataclasses import dataclass, fields
 from pathlib import Path
 
 from app.clients import epoch_bundle
-from app.clients.arena_slices import ARENA_SLICES
+from app.workflows import access
+from app.workflows import boards as declared_boards
 from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
 from app.workflows.floors import board_names, derived_floor
@@ -219,7 +220,7 @@ def upward_anomalies(
     # D-164 clause 2: the same limit on every declared board. A board appearing for the first time
     # passes as returning (`_mostly_new`'s empty-set rule), so the night the boards arrive publishes.
     reasons += _mostly_new(
-        live.slices, candidate.slices, "board {name}", "names",
+        live.boards, candidate.boards, "board {name}", "names",
         "a board is published content and is guarded as one (D-164); a board that is mostly new "
         "names overnight is published by hand",
     )
@@ -274,7 +275,7 @@ def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
 
     # D-164 clause 2: every declared board, by the same limit. An expired board's rows are already
     # gone from `live` on an expiry night (`_served_without`), so its drop is excused exactly.
-    reasons += _mostly_lost(live.slices, candidate.slices, "board {name}",
+    reasons += _mostly_lost(live.boards, candidate.boards, "board {name}",
                             "a board is published content and is guarded as one (D-164)")
 
     # The budget axis. A surface that answered a reader on some budget and would now answer nothing
@@ -388,9 +389,10 @@ class ServingSummary:
     #: moves the floor and every Budget Pick (owner, 2026-09-23). Defaults empty for a summary built
     #: by hand, which the board guard then treats as a board returning.
     board: dict[str, frozenset[str]] = dataclasses.field(default_factory=dict)
-    #: D-164: each declared board no surface ranks on (Arena's category slices, M17-W2) -> its raw
-    #: names. Guarded exactly as a surface's own board is: a quarter lost, or a quarter new.
-    slices: dict[str, frozenset[str]] = dataclasses.field(default_factory=dict)
+    #: D-164: each declared board no surface ranks on (`app.workflows.boards.uncovered`: Arena's
+    #: category slices, the Epoch boards no surface uses) -> its raw names. Guarded exactly as a
+    #: surface's own board is: a quarter lost, or a quarter new.
+    boards: dict[str, frozenset[str]] = dataclasses.field(default_factory=dict)
 
     @property
     def answering(self) -> int:
@@ -463,15 +465,18 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
     # D-164: a board is published content (W4 serves the standings, D-160). Every row's name, the
     # model it reconciled to and its score, rounded as the output boundary rounds it (D-109), so a
     # board that moves publishes and one that only re-stamps its rows does not.
-    slices: dict[str, frozenset[str]] = {}
-    for board in sorted(ARENA_SLICES, key=lambda b: b.source_name):
+    other_boards: dict[str, frozenset[str]] = {}
+    for board in declared_boards.uncovered():
         standings = conn.execute(
             "SELECT raw_name, model_id, score FROM scores WHERE source = ? AND benchmark = ? "
-            "ORDER BY raw_name, model_id, score", (board.source_name, board.benchmark)).fetchall()
-        digest.update(f"slice:{board.source_name}:{len(standings)}\n".encode())
+            "ORDER BY raw_name, model_id, score", (board.source, board.benchmark)).fetchall()
+        digest.update(f"slice:{board.source}:{len(standings)}\n".encode())
         for raw_name, model_id, score in standings:
             digest.update(f"{raw_name}|{model_id}|{round_score(score)}\n".encode())
-        slices[board.source_name] = frozenset(raw_name for raw_name, _, _ in standings)
+        other_boards[board.source] = frozenset(raw_name for raw_name, _, _ in standings)
+    # M17-W3: each model's accessibility is served to the phone (W4), so a change publishes.
+    for model_id, accessibility in access.served(conn).items():
+        digest.update(f"access:{model_id}:{accessibility}\n".encode())
     return ServingSummary(
         digest=digest.hexdigest(),
         surfaces=surfaces,
@@ -479,7 +484,7 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         median_price=prices,
         eligible=eligible,
         board=boards,
-        slices=slices,
+        boards=other_boards,
     )
 
 

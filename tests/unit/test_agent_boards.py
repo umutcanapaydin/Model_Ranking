@@ -1,0 +1,157 @@
+"""M17-W3 P2 (#37, #24) -- the six Agent Arena configs become boards, on their own metric.
+
+Measured 2026-09-25: each `agent*` config's `latest` file has 43 rows, one category (`overall`), and
+IPS scores (τ̂) in a `score` column -- not Bradley-Terry Elo in `rating`, per the dataset card. The
+scores run from -0.25 to 0.35, so an Elo board's band (0 to 5000) would refuse half of them. They
+are stored under the metric `ips`, each board with its own label, and can never meet an Elo board
+in one ranking (D-105).
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from app.clients.arena import ELO_BAND, IPS_BAND, score_rows
+from app.clients.arena_slices import ARENA_SLICES, SLICE_CONFIGS, parse_arena_slices
+from app.clients.fakes import slice_parquet
+from app.clients.protocols import SourceError
+from app.workflows.categories import CATEGORIES
+
+AGENT_CONFIGS = ("agent", "agent_bash_recovery_steps", "agent_praise_complaint",
+                 "agent_steerability", "agent_task_outcome_explicit", "agent_tool_hallucination")
+AGENT = [board for board in ARENA_SLICES if board.metric == "ips"]
+NEWEST = "2026-09-24"
+
+
+def test_the_six_agent_boards_are_declared_on_their_own_metric() -> None:
+    assert sorted(board.config for board in AGENT) == sorted(AGENT_CONFIGS)
+    assert set(AGENT_CONFIGS) <= set(SLICE_CONFIGS)
+    for board in AGENT:
+        assert (board.category, board.value_column, board.measured_rows) == ("overall", "score", 43)
+        assert board.source_name == f"arena_{board.config}"
+        assert board.benchmark.startswith("Agent Arena")
+        assert (board.minimum_rows, board.maximum_rows) == (21, 172)
+
+
+def test_an_ips_board_never_shares_a_label_with_an_elo_board_or_a_surface() -> None:
+    """D-105: rankings join on benchmark and metric. An IPS label that an Elo board or a surface
+    also used would put two scales into one ranking."""
+    ips = {board.benchmark for board in AGENT}
+    elo = {board.benchmark for board in ARENA_SLICES if board.metric == "elo"}
+    served = {b for spec in CATEGORIES.values() for b in (spec.primary_benchmark, spec.secondary_benchmark) if b}
+    assert len(ips) == len(AGENT) and not ips & elo and not ips & served
+    assert all(spec.metric != "ips" for spec in CATEGORIES.values())
+
+
+
+def _agent_file(values: list[object], dates: list[str] | None = None, *, column: str = "score") -> bytes:
+    """The canonical fake in its Agent Arena shape (Tester T6: one fake, not a builder per file)."""
+    dates = dates or [NEWEST] * len(values)
+    rows = [(f"m{i}", v, "overall", d) for i, (v, d) in enumerate(zip(values, dates, strict=True))]
+    return slice_parquet(rows, value_column=column)
+
+
+def test_an_agent_file_is_read_from_its_score_column_negative_values_kept() -> None:
+    board = next(b for b in AGENT if b.config == "agent")
+    rows, refused = parse_arena_slices(_agent_file([0.13, -0.16, 0.0]), [board], source_url="u")
+    parsed = rows[board.source_name]
+    assert sorted(r.score for r in parsed) == [-0.16, 0.0, 0.13]
+    assert {(r.metric, r.harness, r.benchmark) for r in parsed} == {("ips", "arena-agent", board.benchmark)}
+    assert refused[board.source_name] == 0
+
+
+def test_an_agent_file_without_its_score_column_is_refused() -> None:
+    board = next(b for b in AGENT if b.config == "agent")
+    with pytest.raises(SourceError, match="score"):
+        parse_arena_slices(_agent_file([1300.0], column="rating"), [board], source_url="u")
+
+
+def test_each_metric_keeps_its_own_band() -> None:
+    """An IPS value outside (-1, 1) is refused; an Elo board still refuses a negative rating."""
+    entries = [{"model_name": "a", "score": 1.5}, {"model_name": "b", "score": -0.3},
+               {"model_name": "c", "rating": -5.0}]
+    ips, ips_refused = score_rows(entries[:2], source="s", source_url="u", benchmark="b",
+                                  value_key="score", metric="ips", harness="arena-agent", band=IPS_BAND)
+    assert [r.raw_name for r in ips] == ["b"] and ips_refused == 1
+    elo, elo_refused = score_rows(entries[2:], source="s", source_url="u", benchmark="b")
+    assert elo == [] and elo_refused == 1
+    assert ELO_BAND[0] >= 0 and IPS_BAND == (-1.0, 1.0)
+
+
+def test_the_arena_slices_still_read_their_rating() -> None:
+    """The column map is per config: the Elo slices are unchanged."""
+    board = next(b for b in ARENA_SLICES if b.config == "text" and b.category == "multi_turn")
+    raw = slice_parquet([("a", 1300.0, "multi_turn", "2026-09-13")])
+    rows, _ = parse_arena_slices(raw, [board], source_url="u")
+    assert [(r.score, r.metric) for r in rows[board.source_name]] == [(1300.0, "elo")]
+
+
+@pytest.mark.slices
+def test_an_agent_boards_unmatched_names_reach_the_curation_queue() -> None:
+    """Wave review M5. A category slice repeats its `overall` board's names, so the queue leaves the
+    slices out; an agent board is nobody's slice, and its display spellings appear nowhere else."""
+    from app.workflows.build import _most_unmatched
+    from app.workflows.schema import connect
+
+    conn = connect(":memory:")
+    try:
+        for source, name in (("arena_agent", "Agent Only 9 (Max)"), ("arena_text_coding", "slice-only-9")):
+            conn.execute("INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, "
+                         "source_url, observed_at) VALUES (?, 'b', 'm', 1, 'h', 'unspecified', ?, 'u', 'z')",
+                         (name, source))
+        assert _most_unmatched(conn, set()) == ["Agent Only 9 (Max)"]
+    finally:
+        conn.close()
+
+
+def test_one_file_read_for_boards_with_two_value_columns_is_refused() -> None:
+    """Wave review M1. The reader takes one value column per file; boards that disagree on it could
+    only be served one column read as the other's scale."""
+    agent = next(b for b in AGENT if b.config == "agent")
+    elo = next(b for b in ARENA_SLICES if b.metric == "elo")
+    with pytest.raises(SourceError, match="different value columns"):
+        parse_arena_slices(_agent_file([0.1]), [agent, elo], source_url="u")
+
+
+
+def test_an_agent_file_with_a_text_score_column_is_refused_by_the_reader() -> None:
+    """Tester T4, plan P2's hostile-file rule: D-165's type check covers the `score` column."""
+    board = next(b for b in AGENT if b.config == "agent")
+    with pytest.raises(SourceError, match="score"):
+        parse_arena_slices(_agent_file(["0.1", "0.2"]), [board], source_url="u")
+
+
+def test_an_agent_board_serves_only_its_newest_date_and_refuses_a_future_row() -> None:
+    """Tester T4, plan P2's stale-date rule (FP-M2-2, security S4) on an agent file."""
+    import datetime as dt
+
+    board = next(b for b in AGENT if b.config == "agent")
+    raw = _agent_file([0.1, -0.2, 0.3, 0.05], [NEWEST, NEWEST, "2026-09-10", "2099-01-01"])
+    rows, refused = parse_arena_slices(raw, [board], source_url="u", today=dt.date(2026, 9, 25))
+    assert sorted(r.raw_name for r in rows[board.source_name]) == ["m0", "m1"]
+    assert refused[board.source_name] == 2
+
+
+@pytest.mark.slices
+def test_an_agent_board_is_stored_through_the_build_under_its_own_metric() -> None:
+    """Tester T6: an agent file through `_ingest_slices`, the path the build takes, from the
+    canonical fake: stored under its own source, metric and harness, negative scores kept."""
+    from app.clients.fakes import fake_slice_client
+    from app.workflows import build as build_mod
+    from app.workflows.schema import connect
+
+    board = next(b for b in AGENT if b.config == "agent")
+    conn = connect(":memory:")
+    try:
+        run = build_mod.RunContext()
+        reports, missing = build_mod._ingest_slices(
+            conn, run, (board,), None, [],
+            client=fake_slice_client({"agent": _agent_file([(i - 12) / 20 for i in range(24)])}))
+        assert missing == [] and [r.source for r in reports] == [board.source_name]
+        stored = conn.execute("SELECT DISTINCT metric, harness, benchmark FROM scores WHERE source = ?",
+                              (board.source_name,)).fetchall()
+        assert stored == [("ips", "arena-agent", board.benchmark)]
+        assert conn.execute("SELECT MIN(score) FROM scores WHERE source = ?",
+                            (board.source_name,)).fetchone()[0] < 0
+    finally:
+        conn.close()

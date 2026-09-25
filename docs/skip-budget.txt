@@ -14,10 +14,11 @@
 #       added at M17-W1 (D-159) and exist to read the SERVED floors: `test_floor_rule.py` holds each
 #       one to an independent reading of D-148, and `test_categories.py` checks each one's scale.
 #       Their fixture-board halves run in CI (`test_floors.py`, `test_floor_served.py`).
-#   10  contract tests against live upstreams; they run only with RUN_CONTRACT_TESTS=1. Two were
+#   16  contract tests against live upstreams; they run only with RUN_CONTRACT_TESTS=1. Two were
 #       added at M17-W2: the live parquet file of each slice config (`text`, `vision`) against its
-#       declared slices (`test_arena_openrouter_contract.py`).
+#       declared slices (`test_arena_openrouter_contract.py`). Six more at M17-W3: the same test now
+#       runs over every declared config, the six Agent Arena files included (wave review M1).
 #    7  need the owner-fetched Epoch bundle (EPOCH_DATA_DIR)
-# The owner's Mac skips 17 of these, not 66, because it has the database. Lower this when CI builds
+# The owner's Mac skips 23 of these, not 72, because it has the database. Lower this when CI builds
 # an artifact from fixtures (W-108's remedy), not by skipping less honestly.
-66
+72

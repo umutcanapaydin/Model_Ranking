@@ -38,6 +38,12 @@ DATED_BOARDS = {
     "epoch_gpqa": "Started at",
     "epoch_aime": "Started at",
     "epoch_terminalbench": "Run date",
+    # M17-W3 (#37): Epoch-run boards, dated by their own evaluation, as GPQA is.
+    "epoch_simpleqa": "Started at",
+    "epoch_frontiermath": "Started at",
+    "epoch_frontiermath_t4": "Started at",
+    "epoch_chess": "Started at",
+    "epoch_mystery": "Started at",
 }
 
 #: Boards whose upstream publishes only a model RELEASE date. Undated is the honest state, and the

@@ -41,7 +41,9 @@ REASON_CHARS = 200
 #: Where Linux keeps this process's own peak resident size (`VmHWM`).
 _PROC_STATUS = Path("/proc/self/status")
 _TEXT_COLUMNS = ("model_name", "category", "leaderboard_publish_date")
-_COLUMNS = ("model_name", "rating", "category", "leaderboard_publish_date")
+def _columns(limits: dict[str, Any]) -> tuple[str, ...]:
+    """The four columns read: the value column is the board's (`rating`, or `score`, M17-W3)."""
+    return ("model_name", str(limits.get("value_column", "rating")), "category", "leaderboard_publish_date")
 
 
 class _Refused(Exception):
@@ -80,7 +82,7 @@ def _watch(ceiling: int) -> None:
     os._exit(EXIT_OVER_CEILING)
 
 
-def _check_footer(parquet: Any, limits: dict[str, int]) -> None:
+def _check_footer(parquet: Any, limits: dict[str, Any]) -> None:
     """The footer's claims: a cheap first refusal, never the bound (the ceiling is)."""
     meta = parquet.metadata
     if meta.num_rows > limits["max_rows"]:
@@ -92,20 +94,21 @@ def _check_footer(parquet: Any, limits: dict[str, int]) -> None:
         raise _Refused(msg)
 
 
-def _check_columns(schema: Any, pa: Any) -> None:
-    """The four columns read, each of the type the live file has (security S1)."""
+def _check_columns(schema: Any, pa: Any, columns: tuple[str, ...]) -> None:
+    """The four columns read, each of the type the live file has (security S1): the value column
+    (the second) numeric, the others text."""
     present = set(schema.names)
-    missing = [column for column in _COLUMNS if column not in present]
+    missing = [column for column in columns if column not in present]
     if missing:
         msg = f"the file has no column {', '.join(missing)}"
         raise _Refused(msg)
-    for column in _COLUMNS:
+    for column in columns:
         kind = schema.field(column).type
         if pa.types.is_dictionary(kind):
             kind = kind.value_type
         expected = (
             pa.types.is_floating(kind) or pa.types.is_integer(kind)
-            if column == "rating"
+            if column == columns[1]
             else pa.types.is_string(kind) or pa.types.is_large_string(kind)
         )
         if not expected:
@@ -113,7 +116,7 @@ def _check_columns(schema: Any, pa: Any) -> None:
             raise _Refused(msg)
 
 
-def _rows(raw: bytes, limits: dict[str, int]) -> list[dict[str, Any]]:
+def _rows(raw: bytes, limits: dict[str, Any]) -> list[dict[str, Any]]:
     import pyarrow as pa
     import pyarrow.compute as pc
     import pyarrow.parquet as pq
@@ -124,11 +127,12 @@ def _rows(raw: bytes, limits: dict[str, int]) -> list[dict[str, Any]]:
         msg = f"the download is not a readable parquet file: {exc}"
         raise _Refused(msg) from exc
     _check_footer(parquet, limits)
-    _check_columns(parquet.schema_arrow, pa)
+    columns = _columns(limits)
+    _check_columns(parquet.schema_arrow, pa, columns)
 
     rows: list[dict[str, Any]] = []
     decoded = 0
-    for batch in parquet.iter_batches(batch_size=limits["batch_rows"], columns=list(_COLUMNS)):
+    for batch in parquet.iter_batches(batch_size=limits["batch_rows"], columns=list(columns)):
         # Counted as read (security re-look S-R2): the footer's row count is the writer's claim.
         if len(rows) + batch.num_rows > limits["max_rows"]:
             msg = f"more than {limits['max_rows']} rows read"
@@ -147,7 +151,7 @@ def _rows(raw: bytes, limits: dict[str, int]) -> list[dict[str, Any]]:
     return rows
 
 
-def read_rows(raw: bytes, limits: dict[str, int]) -> dict[str, Any]:
+def read_rows(raw: bytes, limits: dict[str, Any]) -> dict[str, Any]:
     """The protocol's answer for one file: its rows, or an error. Never raises."""
     try:
         return {"rows": _rows(raw, limits)}
@@ -162,7 +166,7 @@ def printable(reason: str) -> str:
     return "".join(c if c.isprintable() else "?" for c in reason[:REASON_CHARS])
 
 
-def _guard(limits: dict[str, int]) -> None:
+def _guard(limits: dict[str, Any]) -> None:
     """The memory ceiling and the reader's own time limit (SIGALRM ends the process)."""
     threading.Thread(target=_watch, args=(limits["max_rss_bytes"],), daemon=True).start()
     signal.alarm(limits["timeout_s"])

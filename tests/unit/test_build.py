@@ -287,6 +287,7 @@ def test_cli_reports_zero_when_nothing_is_missing(
     monkeypatch.setattr(build_mod, "REMOTE_SOURCES", _sources())
     monkeypatch.setattr(build_mod, "LOCAL_BUNDLES", ())
     monkeypatch.setattr(build_mod, "EPOCH_BOARDS", ())
+    monkeypatch.setattr(build_mod, "ACCESS_FILES", ())  # M17-W3: the bundle's attribute file
     monkeypatch.setattr(build_mod, "MINIMUM_MODELS_REGISTERED", 2)
     target = tmp_path / "clean.db"
 
@@ -337,6 +338,7 @@ def test_cli_exit_three_fires_on_a_single_missing_action(
     monkeypatch.setattr(build_mod, "REMOTE_SOURCES", _sources())
     monkeypatch.setattr(build_mod, "LOCAL_BUNDLES", build_mod.LOCAL_BUNDLES[:1])
     monkeypatch.setattr(build_mod, "EPOCH_BOARDS", ())
+    monkeypatch.setattr(build_mod, "ACCESS_FILES", ())  # M17-W3: the bundle's attribute file
     monkeypatch.setattr(build_mod, "MINIMUM_MODELS_REGISTERED", 2)
 
     assert main(["--db", str(tmp_path / "one.db")]) == 3
@@ -474,7 +476,7 @@ def test_the_bundle_and_board_parameters_are_honoured_over_the_module_registry(
         reason="fixture",
     )
     conn = connect(":memory:")
-    report = _build(conn, bundle_dir=tmp_path, bundles=(injected,), boards=())
+    report = _build(conn, bundle_dir=tmp_path, bundles=(injected,), boards=(), access_files=())
 
     assert report.required_operator_actions == [], (
         "the module registry was used instead of the injected bundles"

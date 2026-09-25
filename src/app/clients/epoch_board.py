@@ -85,21 +85,31 @@ class EpochBoardClient:
         a check exists where there is none. `tests/unit/test_epoch_board.py` now executes the real
         one against a planted symlink.
         """
-        path = self.bundle_dir / self.board.file
-        try:
-            resolved = path.resolve(strict=True)
-            root = self.bundle_dir.resolve(strict=True)
-        except OSError as exc:
-            msg = f"{self.name}: missing CSV in local unpacked bundle: {path}"
-            raise SourceError(msg) from exc
-        if not resolved.is_relative_to(root):
-            msg = f"{self.name}: refused a CSV that resolves outside the bundle: {path}"
-            raise SourceError(msg)
-        try:
-            return resolved.read_text(encoding="utf-8", errors="replace")
-        except OSError as exc:
-            msg = f"{self.name}: CSV is unreadable: {path}: {exc}"
-            raise SourceError(msg) from exc
+        return read_bundle_file(self.bundle_dir, self.board.file, self.name)
+
+
+def read_bundle_file(bundle_dir: Path, file: str, name: str) -> str:
+    """One allowlisted file of the unpacked bundle, refusing anything that resolves outside it.
+
+    Shared by every declared board and by `model_metadata.csv` (M17-W3), so there is one path
+    guard: `is_relative_to(root)` on the RESOLVED path catches a planted symlink and a `../` alike
+    (M5's finding, reproduced against /etc/shadow).
+    """
+    path = bundle_dir / file
+    try:
+        resolved = path.resolve(strict=True)
+        root = bundle_dir.resolve(strict=True)
+    except OSError as exc:
+        msg = f"{name}: missing CSV in local unpacked bundle: {path}"
+        raise SourceError(msg) from exc
+    if not resolved.is_relative_to(root):
+        msg = f"{name}: refused a CSV that resolves outside the bundle: {path}"
+        raise SourceError(msg)
+    try:
+        return resolved.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        msg = f"{name}: CSV is unreadable: {path}: {exc}"
+        raise SourceError(msg) from exc
 
 
 def _number(value: object, *, maximum: float | None) -> float | None:

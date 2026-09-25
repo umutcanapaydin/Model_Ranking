@@ -27,6 +27,19 @@ CREATE TABLE IF NOT EXISTS models (
     display TEXT NOT NULL,
     vendor  TEXT NOT NULL
 );
+-- M17-W3 (#37): each model's accessibility, from Epoch's model_metadata.csv. Keyed by the source's
+-- own name and linked to a model as scores are; a new table, so no served table changes shape.
+CREATE TABLE IF NOT EXISTS access (
+    raw_name      TEXT NOT NULL,
+    model_id      TEXT,
+    accessibility TEXT NOT NULL,
+    source        TEXT NOT NULL,
+    source_url    TEXT NOT NULL,
+    observed_at   TEXT NOT NULL,
+    -- The value is part of the key (wave review M3): one name listed twice with two values keeps
+    -- both rows, so `access.link` counts the disagreement instead of the last row winning.
+    UNIQUE (raw_name, accessibility, source)
+);
 CREATE TABLE IF NOT EXISTS pricing (
     alias        TEXT NOT NULL,
     model_id     TEXT,                -- canonical id; NULL until W3 reconciliation
@@ -433,7 +446,7 @@ def reset_source(conn: sqlite3.Connection, table: str, source: str) -> None:
     ``table`` is validated against the schema's own table list — never
     interpolated from user input.
     """
-    if table not in ("pricing", "scores"):
+    if table not in ("pricing", "scores", "access"):
         msg = f"reset_source: unknown table {table!r}"
         raise ValueError(msg)
     conn.execute(f"DELETE FROM {table} WHERE source = ?", (source,))  # noqa: S608

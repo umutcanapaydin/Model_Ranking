@@ -86,7 +86,7 @@ def test_the_fingerprint_moves_with_a_board_and_only_with_it() -> None:
             "'unspecified', ?, 'u', 'z')", (BOARD.benchmark, BOARD.source_name))
         added = serving_summary(conn)
         assert added.digest != before
-        assert added.slices[BOARD.source_name] == frozenset({"m0"})
+        assert added.boards[BOARD.source_name] == frozenset({"m0"})
         conn.execute("UPDATE scores SET score = 1200.01, observed_at = 'y'")
         assert serving_summary(conn).digest == added.digest, (
             "a move below the output boundary's rounding (D-109), or a new timestamp, is not news")
