@@ -23,6 +23,13 @@ from app.workflows.schema import ScoreRow, connect
     ("Grok 4.7 (xHigh)", "grok4.7", "xhigh"),
     ("Gemini 3.8 Flash (High)", "gemini3.8-flash", "high"),
     ("Kimi K3 (max)", "kimi-k3", "max"),
+    # The other five spellings measured on the agent boards (Tester T1), and no space (T2).
+    ("Deepseek V4.1 Flash (Max)", "deepseek-v4.1-flash", "max"),
+    ("Muse Spark 1.3 (Max)", "muse-spark1.3", "max"),
+    ("GLM 5.3 (Max)", "glm5.3", "max"),
+    ("Gemini 3.7 Flash (High)", "gemini3.7-flash", "high"),
+    ("Muse Spark 1.2 (xHigh)", "muse-spark1.2", "xhigh"),
+    ("GPT 6 Astra(High)", "gpt6-astra", "high"),
 ])
 def test_a_derived_name_reads_its_parenthesised_effort(name: str, model_id: str, effort: str) -> None:
     identity = derive_identity(name)
@@ -44,6 +51,9 @@ def test_a_curated_name_reads_its_parenthesised_effort(name: str, model_name: st
     "claude-sonnet-4-20250514 (no thinking)", "gemini-2.5-flash-preview-04-17 (default)",
     "GPT-4o (May 2024)", "Claude 4.5 Sonnet (20250929)", "DeepSeek V4 Pro (High) (0813)",
     "mimo-v2-flash (thinking)",
+    # Not efforts this schema stores (Tester T3): admitted, `(none)` failed the effort check and
+    # aborted its whole source. The underscore form removes them; a parenthesis keeps them as name.
+    "Claude Opus 5 (none)", "Kimi K3 (minimal)",
 ])
 def test_a_parenthesis_that_is_not_a_trailing_effort_stays_part_of_the_name(name: str) -> None:
     assert resolve_effort(name).effort is None
