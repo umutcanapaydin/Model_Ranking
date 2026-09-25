@@ -99,7 +99,14 @@ def link(conn: sqlite3.Connection) -> AccessReport:
 
 
 def served(conn: sqlite3.Connection) -> dict[str, str]:
-    """model id -> accessibility, for the models whose names agree."""
+    """model id -> accessibility, for the models whose names agree.
+
+    An artifact built before this table existed (every one before M17-W3) serves none: the refresh
+    fingerprints the LIVE artifact too, and one that raised would read as unreadable and fail every
+    night (measured, before merge, on the served artifact).
+    """
+    if not conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'access'").fetchone():
+        return {}
     return dict(conn.execute(
         "SELECT model_id, MIN(accessibility) FROM access WHERE model_id IS NOT NULL "
         "GROUP BY model_id HAVING COUNT(DISTINCT accessibility) = 1 ORDER BY model_id").fetchall())
