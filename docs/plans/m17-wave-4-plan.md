@@ -65,7 +65,7 @@ average two scales (D-105), whatever a later change tries. A board's position us
 row on that board, the same "best score per model" `ranked_population` uses.
 
 **Bounds**, checked when the process boots, as `MAX_PUBLISHED_RANKING_ROWS` is: a ceiling on the
-number of boards and on the standings rows. The phone also refuses a response larger than a fixed
+standings rows. Every published board has at least one row, so it also bounds the number of boards. The phone also refuses a response larger than a fixed
 byte ceiling before decoding it.
 
 **On the phone:**

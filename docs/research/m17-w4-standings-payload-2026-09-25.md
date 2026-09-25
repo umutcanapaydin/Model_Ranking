@@ -27,9 +27,9 @@ checked by hand against the boards' own positions. The Swift file itself is cove
 - **Raw size.** About 350 KB. The engine does not compress its responses today, so this is what a
   phone downloads once a day. D-167 stated about 250 KB. The difference is each board's repeated
   attribution sentence and the JSON keys; compressed, the payload is 32 KB.
-- **Bounds.** The phone's ceiling is 4 MiB (`EngineClient.maxStandingsBytes`) and the engine's is
-  25,000 positions (`MAX_PUBLISHED_STANDINGS_ROWS`), both about ten times over what is measured
-  here.
+- **Bounds.** The phone's ceiling is 4 MiB (`EngineClient.maxStandingsBytes`), about twelve times
+  what is measured here. The engine's is 25,000 positions (`MAX_PUBLISHED_STANDINGS_ROWS`), about
+  3.6 times.
 - **Board sizes.** The smallest boards rank 25 models (`epoch_deepswe_external`), 27
   (`arena_search_factuality`) and 28 (`aider`); the largest rank 185.
 

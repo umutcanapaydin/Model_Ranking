@@ -195,16 +195,14 @@ struct EngineClient {
     }
 
     /// Every board's standings (D-167). Asked with no query at all and the same way every time, so
-    /// the request can say nothing about what the reader asked (D-160 clause 1). The bytes are
-    /// returned beside the decoded value, because the store keeps what the engine sent.
+    /// the request can say nothing about what the reader asked (D-160 clause 1). The size ceiling is
+    /// `FetchedStandings`'s own, checked before anything is decoded.
     func boards() async throws -> FetchedStandings {
         let data = try await fetch("v1/boards", query: [])
-        guard data.count <= EngineClient.maxStandingsBytes else {
-            throw EngineError.undecodable(
-                "the standings payload is \(data.count) bytes, larger than the \(EngineClient.maxStandingsBytes) this app accepts")
-        }
         do {
             return try FetchedStandings(payload: data)
+        } catch let error as EngineError {
+            throw error
         } catch {
             throw EngineError.undecodable(String(describing: error))
         }

@@ -90,14 +90,16 @@ final class StandingsStoreTests: XCTestCase {
         XCTAssertEqual(store().load()?.standings, try fetched().standings)
     }
 
-    func testAStorePointedAnywhereButAFileReadsAndWritesNothing() throws {
-        // Security S1: `Data(contentsOf:)` fetches an https URL as happily as a file, so a store
-        // built on one would be a way off the device. It refuses before touching it.
-        let remote = StandingsStore(url: try XCTUnwrap(URL(string: "https://example.com/standings.json")))
+    func testAStorePointedAnywhereButAFileReadsNothing() throws {
+        // Security S1: the store's read fetches any address it is given, an https one included, so
+        // a store built on one would be a way off the device. Proven without the network: a `data:`
+        // address holding a perfectly good stored file, which that read would happily return.
+        store().save(try fetched(), at: arrived)
+        let stored = try Data(contentsOf: folder.appendingPathComponent("standings.json"))
+        let elsewhere = try XCTUnwrap(URL(string: "data:application/json;base64,\(stored.base64EncodedString())"))
 
-        XCTAssertNil(remote.load())
-        remote.save(try fetched(), at: arrived)
-        XCTAssertNil(remote.load())
+        XCTAssertNotNil(store().load(), "the file store itself must still load")
+        XCTAssertNil(StandingsStore(url: elsewhere).load(), "a store read something that is not a file")
     }
 
     func testOnlyTheFieldsTheAppDecodesAreStored() throws {

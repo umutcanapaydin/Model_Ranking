@@ -176,6 +176,24 @@ SCORE_ARITHMETIC_PERMITTED = {"Uncertainty.swift": "D-138"}
 #: other file renders it and computes nothing with it.
 POSITION_ARITHMETIC_PERMITTED = {"Combine.swift": "D-160, D-167"}
 
+#: Arithmetic next to a position or a rank, on either side: `rank + 1`, `sums[m] + rank`, and --
+#: since security S4 -- a compound assignment (`total += x.position`) and a member after the
+#: operator (`$0 + $1.position`). Comparisons are not arithmetic and pass.
+POSITION_ARITHMETIC = re.compile(
+    r"\b(?:positions?|ranks?)\b\s*[-+*/]=?\s*[\w(.\[$]"
+    r"|[\w)\]$]\s*[-+*/]=?\s*[\w$.]*\b(?:positions?|ranks?)\b"
+)
+
+#: Exact expressions that name a position without being a served one, each with its reason, removed
+#: before the scan -- the route `EGRESS_EXACT` takes, never a rename that walks past the tripwire
+#: (M17-W4 review M2).
+POSITION_ARITHMETIC_EXACT = {
+    ("ContentView.swift", "at: position - 1,"): (
+        "REQ-UNC-001: `rankOf` returns an index into the served ranking plus one; this turns it "
+        "back into the index. It is not a served position and nothing is ranked here."
+    ),
+}
+
 
 @pytest.mark.parametrize(("line", "arithmetic"), [
     ("let rank = standing.position + 1", True),
@@ -193,14 +211,17 @@ def test_the_position_tripwire_sees_each_spelling(line: str, arithmetic: bool) -
 def test_position_arithmetic_happens_only_where_an_adr_permits_it() -> None:
     """The same shape as the score tripwire below, for positions and ranks. A second file ranking
     boards on its own would be a second combination with no ADR."""
-    pattern = re.compile(
-        r"\b(?:positions?|ranks?)\b\s*[-+*/]=?\s*[\w(.\[]|[\w)\]]\s*[-+*/]=?\s*\b(?:positions?|ranks?)\b"
-    )
     offenders: list[str] = []
     used: set[str] = set()
+    exempt: set[tuple[str, str]] = set()
     for name, text in _swift_sources().items():
+        for key in POSITION_ARITHMETIC_EXACT:
+            if key[0] == name:
+                assert text.count(key[1]) == 1, f"{name} must contain `{key[1]}` exactly once"
+                text = text.replace(key[1], " ")
+                exempt.add(key)
         for lineno, line in enumerate(text.splitlines(), start=1):
-            if not pattern.search(line.split("//", 1)[0]):
+            if not POSITION_ARITHMETIC.search(line.split("//", 1)[0]):
                 continue
             if name in POSITION_ARITHMETIC_PERMITTED:
                 used.add(name)
@@ -211,6 +232,7 @@ def test_position_arithmetic_happens_only_where_an_adr_permits_it() -> None:
     )
     stale = sorted(set(POSITION_ARITHMETIC_PERMITTED) - used)
     assert not stale, f"{stale} is permitted position arithmetic and does none; remove the permission"
+    assert exempt == set(POSITION_ARITHMETIC_EXACT), "an exact exemption names a file that is gone"
 
 
 def test_score_arithmetic_happens_only_where_an_adr_permits_it() -> None:

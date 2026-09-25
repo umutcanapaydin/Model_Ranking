@@ -2,8 +2,8 @@
 //
 //  The phone fetches every board's standings whatever the question is (D-160 clause 1) and keeps
 //  them, so a question asked offline is still answered. This file holds exactly what the engine
-//  sent, byte for byte, with the time it arrived. Nothing the reader typed ever reaches it: its
-//  only input is a `FetchedStandings`, which only `EngineClient.boards()` and a decode produce.
+//  sent, as this app decoded it, with the time it arrived. Nothing the reader typed ever reaches it:
+//  its only input is a `FetchedStandings`, which stores only the fields the app decodes.
 //
 //  It is the second file the client-declaration gate lets touch the file system, beside the gap
 //  register in `FrontDoor.swift`, and each file-system call below is permitted as that exact
@@ -49,7 +49,10 @@ public struct StandingsStore {
     /// The stored standings, or nil when nothing usable is stored: an absent, unreadable or
     /// undecodable file is nothing stored, never a crash.
     func load() -> LoadedStandings? {
-        guard let data = try? Data(contentsOf: url),
+        // Security S1: the read below fetches an https address as happily as a file. A store is
+        // only ever a file on this device, so anything else is refused before it is touched.
+        guard url.isFileURL,
+              let data = try? Data(contentsOf: url),
               let stored = try? JSONDecoder().decode(StoredStandings.self, from: data),
               let fetched = try? FetchedStandings(payload: stored.payload)
         else { return nil }
@@ -61,7 +64,7 @@ public struct StandingsStore {
     /// Best effort, like the gap register: a store that cannot be written costs a download, never
     /// the reader's answer.
     func save(_ fetched: FetchedStandings, at date: Date) {
-        guard let data = try? JSONEncoder().encode(
+        guard url.isFileURL, let data = try? JSONEncoder().encode(
             StoredStandings(fetchedAt: date, payload: fetched.payload)
         ) else { return }
         try? FileManager.default.createDirectory(

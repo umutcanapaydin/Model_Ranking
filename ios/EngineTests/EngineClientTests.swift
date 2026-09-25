@@ -477,11 +477,13 @@ final class BoardsRequestTests: XCTestCase {
         XCTAssertNil(url.query, "the standings request carried a query; D-167 says it carries nothing")
     }
 
-    func testAWellFormedPayloadDecodesAndKeepsTheBytesTheEngineSent() async throws {
+    func testAWellFormedPayloadDecodesAndKeepsWhatItDecoded() async throws {
+        // Since security S2 the phone keeps the standings encoded again from what it decoded, not
+        // the engine's bytes verbatim: the kept payload decodes to exactly the same standings.
         StubProtocol.outcome = .success((200, payload))
         let fetched = try await client().boards()
 
-        XCTAssertEqual(fetched.payload, payload)
+        XCTAssertEqual(try FetchedStandings(payload: fetched.payload).standings, fetched.standings)
         XCTAssertEqual(fetched.standings.boards.first?.standings.map(\.position), [1, 1])
         XCTAssertEqual(fetched.standings.models.map(\.accessibility), [nil, "API access"])
     }

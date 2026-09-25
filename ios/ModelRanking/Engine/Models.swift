@@ -313,7 +313,7 @@ extension RankedModel: DetailSubject {}
 ///
 /// It carries POSITIONS and no score (D-167 clause 2), so nothing on the phone can average two
 /// scales (D-105). The combination is built from it in `Combine.swift`, and nowhere else.
-struct Standings: Decodable, Equatable {
+struct Standings: Codable, Equatable {
     let apiVersion: String
     let attributions: [String]
     let boards: [BoardStandings]
@@ -328,10 +328,13 @@ struct Standings: Decodable, Equatable {
 }
 
 /// One board: its identity, dates and attribution, and its rankable models in order.
-struct BoardStandings: Decodable, Equatable, Identifiable {
+struct BoardStandings: Codable, Equatable, Identifiable {
     let id: String
     let benchmark: String
     let metric: String
+    /// The effort a surface ranks this board at (D-112), or `nil` where each model stands on its
+    /// best evidence and says which effort that was.
+    let rankingEffort: String?
     /// The newest evaluation date on the board; `nil` for a board that publishes none.
     let evidenceDate: String?
     let observedAt: String?
@@ -342,6 +345,7 @@ struct BoardStandings: Decodable, Equatable, Identifiable {
         case id
         case benchmark
         case metric
+        case rankingEffort = "ranking_effort"
         case evidenceDate = "evidence_date"
         case observedAt = "observed_at"
         case attribution
@@ -350,18 +354,21 @@ struct BoardStandings: Decodable, Equatable, Identifiable {
 }
 
 /// A model's place on one board. Tied models share a position.
-struct Standing: Decodable, Equatable {
+struct Standing: Codable, Equatable {
     let model: String
     let position: Int
+    /// The effort its evidence was run at (D-112): what an unequal comparison is disclosed with.
+    let effort: String
 
     enum CodingKeys: String, CodingKey {
         case model
         case position
+        case effort
     }
 }
 
 /// Each model once, with the price every surface ranks it at and its accessibility (M17-W3).
-struct StandingModel: Decodable, Equatable, Identifiable {
+struct StandingModel: Codable, Equatable, Identifiable {
     let id: String
     let display: String
     let vendor: String
@@ -377,13 +384,22 @@ struct StandingModel: Decodable, Equatable, Identifiable {
     }
 }
 
-/// The standings as decoded, beside the exact bytes the engine sent, which is what the phone keeps.
+/// The standings as decoded, and what the phone keeps of them: the same standings encoded again,
+/// so only the fields this app decodes are ever stored, never whatever else a payload carried
+/// (M17-W4 security S2). The size ceiling holds wherever standings are made, not only on the
+/// network path.
 struct FetchedStandings: Equatable {
     let standings: Standings
     let payload: Data
 
-    init(payload: Data) throws {
-        standings = try JSONDecoder().decode(Standings.self, from: payload)
-        self.payload = payload
+    init(payload data: Data) throws {
+        guard data.count <= EngineClient.maxStandingsBytes else {
+            throw EngineError.undecodable(
+                "the standings payload is \(data.count) bytes, larger than the \(EngineClient.maxStandingsBytes) this app accepts")
+        }
+        standings = try JSONDecoder().decode(Standings.self, from: data)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        payload = try encoder.encode(standings)
     }
 }

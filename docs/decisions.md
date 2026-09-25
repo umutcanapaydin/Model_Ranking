@@ -3118,3 +3118,16 @@ phone cannot show how far apart two models are on a board, only their order.
 
 **Revisit when:** the payload outgrows a daily download (D-160's trigger), or the owner wants the
 distance between models shown, which would need scores and a new ADR under D-105.
+
+**Amended by the M17-W4 review round (2026-09-25), before merge.**
+- **Clause 2 follows D-112, as every surface does.** A board a surface ranks at one effort
+  (`ranking_effort`: today DeepSWE at `high`) stands at that effort. Any other board stands on each
+  model's best evidence. Every standing carries the effort its evidence was run at, and every board
+  carries its `ranking_effort`, so the phone can disclose an unequal comparison as the surfaces do.
+  Taking the best row at any effort, as first written, departed from D-112 without the owner's
+  ruling (code review B1).
+- **The phone keeps what it decoded, not the engine's bytes verbatim.** The standings are encoded
+  again, so no field this app does not decode is ever stored (security S2). The store refuses any
+  address that is not a file on the device (security S1).
+- **The cost, as measured:** about 350 KB raw and 32 KB compressed on 2026-09-25, not the 250 KB
+  and 60 KB first estimated (`docs/research/m17-w4-standings-payload-2026-09-25.md`).

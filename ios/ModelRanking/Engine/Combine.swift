@@ -60,7 +60,9 @@ func combine(_ standings: Standings, boards chosen: [String]) throws -> Combined
     var sums: [String: Int] = [:]
     var positions: [String: [BoardPosition]] = [:]
     for board in boards {
-        let shared = board.standings.filter { common.contains($0.model) }
+        // A model listed twice on one board (only a bad payload could) counts once (security S7).
+        var listed = Set<String>()
+        let shared = board.standings.filter { common.contains($0.model) && listed.insert($0.model).inserted }
         for standing in shared {
             // Competition ranking among the shared models: one more than those placed above it.
             let rank = 1 + shared.filter { $0.position < standing.position }.count

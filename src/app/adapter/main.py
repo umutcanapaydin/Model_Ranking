@@ -215,24 +215,38 @@ MAX_RANKED_ROWS = int(os.environ.get("MODEL_RANKING_MAX_RANKED_ROWS", "5000"))
 MAX_PUBLISHED_RANKING_ROWS = int(os.environ.get("MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS", "500"))
 
 #: The largest `/v1/boards` payload, in (board, model) positions: the same egress bound, checked at
-#: boot for the same reason (D-167). About 8,500 on the 2026-09-25 artifact, about 250 KB; this is a
-#: runaway guard near three times that, not a product limit.
+#: boot for the same reason (D-167). Measured on 2026-09-25: 6,962 positions, 346 KB (32 KB gzipped);
+#: this runaway guard sits about 3.6 times above that, not a product limit.
 MAX_PUBLISHED_STANDINGS_ROWS = int(os.environ.get("MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS", "25000"))
 
 
-def _standings_row_count(db: Path) -> int | None:
-    """How many positions `/v1/boards` would publish, or None if the artifact cannot be asked."""
+def _standings_problem(db: Path) -> str | None:
+    """Why `/v1/boards` could not be served from `db`, found at boot rather than on every request
+    (M17-W4 review M1): the payload's own refusals, and its egress bound. None when it can be, or
+    when the artifact cannot be asked at all (`_database_unusable` reports that)."""
     try:
         conn = open_readonly(db)
     except sqlite3.Error:
         return None
     try:
-        return standings_row_count(conn)
+        positions = standings_row_count(board_standings(conn))
+    except ValueError as exc:
+        return f"MODEL_RANKING_DB cannot publish /{API_VERSION}/boards: {exc}"
     except sqlite3.Error:
         return None
     finally:
         with contextlib.suppress(sqlite3.Error):
             conn.close()
+    if positions > MAX_PUBLISHED_STANDINGS_ROWS:
+        return (
+            f"MODEL_RANKING_DB would publish {positions} standings positions on "
+            f"/{API_VERSION}/boards; this process refuses past {MAX_PUBLISHED_STANDINGS_ROWS}. "
+            "The payload is not truncated to fit -- the phone combines what it receives, and a "
+            "short board would change every list it joins. Raise "
+            "MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS knowing it raises what every phone "
+            "downloads each day"
+        )
+    return None
 
 
 def _largest_surface_row_count(db: Path) -> tuple[str, int] | None:
@@ -513,16 +527,9 @@ def _egress_problems(db: Path) -> list[str]:
             "one unauthenticated request costs to serve"
         )
 
-    standings = _standings_row_count(db)
-    if standings is not None and standings > MAX_PUBLISHED_STANDINGS_ROWS:
-        out.append(
-            f"MODEL_RANKING_DB would publish {standings} standings positions on "
-            f"/{API_VERSION}/boards; this process refuses past {MAX_PUBLISHED_STANDINGS_ROWS}. "
-            "The payload is not truncated to fit -- the phone combines what it receives, and a "
-            "short board would change every list it joins. Raise "
-            "MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS knowing it raises what every phone "
-            "downloads each day"
-        )
+    standings = _standings_problem(db)
+    if standings is not None:
+        out.append(standings)
 
     ranked = _ranked_row_count(db)
     if ranked is not None and ranked > MAX_RANKED_ROWS:
@@ -1399,8 +1406,13 @@ def boards() -> Any:
         return _error(503, "evidence_unavailable", "The evidence database is not available.")
     try:
         require_price_medians(conn)
-        return board_standings(conn)
-    except (UnbuiltEvidenceError, sqlite3.Error):
+        return {"api_version": API_VERSION, **board_standings(conn)}
+    except (UnbuiltEvidenceError, sqlite3.Error, ValueError) as exc:
+        # A ValueError is a payload the boot check refuses (`_standings_problem`); it reaches a
+        # request only when the nightly refresh publishes such an artifact under a running process.
+        # Logged for the operator, and closed with the one error shape for the reader.
+        if isinstance(exc, ValueError):
+            _warn_once(path, "/v1/boards cannot publish the artifact: %s", exc)
         return _error(503, "evidence_unavailable", "The evidence database is not available.")
     finally:
         conn.close()

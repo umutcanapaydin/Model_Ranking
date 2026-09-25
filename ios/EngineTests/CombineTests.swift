@@ -12,7 +12,7 @@ import XCTest
 final class CombineTests: XCTestCase {
     private func board(_ id: String, _ standings: [(String, Int)]) -> BoardStandings {
         BoardStandings(
-            id: id, benchmark: "B \(id)", metric: "elo", evidenceDate: "2026-09-18",
+            id: id, benchmark: "B \(id)", metric: "elo", rankingEffort: nil, evidenceDate: "2026-09-18",
             observedAt: "2026-09-25", attribution: "cite \(id)",
             standings: standings.map { Standing(model: $0.0, position: $0.1, effort: "unspecified") }
         )
