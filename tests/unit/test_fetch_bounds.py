@@ -78,6 +78,7 @@ def test_more_redirects_than_the_bound_is_a_source_error() -> None:
         fetch_bounded_bytes("https://source.example/0", "probe", 5.0)
 
 
+@respx.mock
 def test_a_first_url_that_is_not_https_is_refused() -> None:
     with pytest.raises(SourceError, match=r"refused a hop to http://source.example"):
         fetch_bounded_bytes("http://source.example/data.json", "probe", 5.0)
@@ -131,7 +132,8 @@ def _serve(send: object) -> Iterator[int]:
 
 @pytest.fixture
 def loopback_http(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Plain http, for 127.0.0.1 only: the timing tests need a server that misbehaves on purpose."""
+    """Plain http allowed as a scheme: the timing tests need a server that misbehaves on purpose.
+    Each test still passes `hosts=("127.0.0.1",)`, which is what keeps it on the loopback."""
     monkeypatch.setattr(protocols, "ALLOWED_SCHEMES", frozenset({"https", "http"}))
 
 
@@ -188,3 +190,89 @@ def test_the_deadline_bounds_the_whole_fetch(behaviour: object) -> None:
             fetch_bounded_bytes(f"http://127.0.0.1:{port}/", "probe", 5.0,
                                 deadline=1.0, hosts=("127.0.0.1",))
         assert time.monotonic() - started < 2.5
+
+
+# --- the Tester's pins (T1-T7) -------------------------------------------------------------------
+
+
+@respx.mock
+def test_a_look_alike_of_the_sources_own_host_is_refused() -> None:
+    """T1: an exact entry is exact. The default `source.example` must not admit `evilsource.example`."""
+    respx.get(URL).mock(
+        return_value=httpx.Response(302, headers={"Location": "https://evilsource.example/x"}))
+    with pytest.raises(SourceError, match=r"refused a hop to https://evilsource\.example"):
+        fetch_bounded_bytes(URL, "probe", 5.0)
+
+
+@respx.mock
+def test_a_429_is_never_returned_as_data() -> None:
+    """T2: `bounded_get` hands a 429 back as an answer for the Arena client's retry; every other
+    source must see it as a failure, not as a body."""
+    respx.get(URL).mock(return_value=httpx.Response(429, content=b'{"error": "slow down"}'))
+    with pytest.raises(SourceError, match="429"):
+        fetch_bounded_bytes(URL, "probe", 5.0)
+
+
+@respx.mock
+def test_the_arena_client_gives_up_after_its_retries_even_with_a_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T2: the exhaustion branch, with a 429 that carries JSON a parser would happily read."""
+    from app.clients import arena
+    from app.clients.arena import ROWS_API, ArenaClient
+
+    monkeypatch.setattr(arena.time, "sleep", lambda _s: None)
+    route = respx.get(ROWS_API).mock(
+        return_value=httpx.Response(429, content=b'{"rows": [], "num_rows_total": 0}'))
+    with pytest.raises(SourceError, match="429"):
+        ArenaClient().fetch_raw()
+    assert route.call_count == arena._RETRIES_429 + 1
+
+
+@pytest.mark.usefixtures("loopback_http")
+def test_without_a_deadline_of_its_own_a_fetch_takes_four_timeouts_at_most() -> None:
+    """T3: litellm, openrouter, swebench, aider and the Arena rows client pass no deadline and rely
+    on the default: `DEADLINE_FACTOR` x `timeout`."""
+    assert protocols.DEADLINE_FACTOR == 4.0
+    for port in _serve(_header_drip):
+        started = time.monotonic()
+        with pytest.raises(SourceError, match="deadline"):
+            fetch_bounded_bytes(f"http://127.0.0.1:{port}/", "probe", 0.3, hosts=("127.0.0.1",))
+        assert time.monotonic() - started < 2.5
+
+
+@respx.mock
+def test_five_redirects_are_followed_and_a_sixth_is_refused() -> None:
+    """T4: the bound is five, as the owner approved (2026-09-25), not merely `MAX_REDIRECTS`."""
+    assert protocols.MAX_REDIRECTS == 5
+    for i in range(5):
+        respx.get(f"https://source.example/ok{i}").mock(
+            return_value=httpx.Response(302, headers={"Location": f"https://source.example/ok{i + 1}"}))
+    respx.get("https://source.example/ok5").mock(return_value=httpx.Response(200, content=b"done"))
+    assert fetch_bounded_bytes("https://source.example/ok0", "probe", 5.0) == b"done"
+
+
+@pytest.mark.slice_download
+@respx.mock
+def test_the_slice_client_follows_its_file_to_the_hugging_face_cdn() -> None:
+    """T5: the slice client passes its hosts; without them the CDN hop would be refused."""
+    from app.clients.arena_slices import ArenaSliceClient, parquet_url
+
+    respx.get(parquet_url("text")).mock(
+        return_value=httpx.Response(302, headers={"Location": "https://us.aws.cdn.hf.co/xet/f"}))
+    respx.get("https://us.aws.cdn.hf.co/xet/f").mock(return_value=httpx.Response(200, content=b"PAR1"))
+    assert ArenaSliceClient("text").fetch_bytes() == b"PAR1"
+
+
+@respx.mock
+def test_follow_redirects_false_is_honoured() -> None:
+    """T7: the Epoch bundle passes `follow_redirects=False`; a redirect is then a failure and its
+    target is never requested."""
+    respx.get(URL).mock(
+        return_value=httpx.Response(302, headers={"Location": "https://source.example/elsewhere"}))
+    target = respx.get("https://source.example/elsewhere").mock(
+        return_value=httpx.Response(200, content=b"x"))
+    with pytest.raises(SourceError):
+        fetch_bounded_bytes(URL, "probe", 5.0, follow_redirects=False)
+    assert not target.called
+
