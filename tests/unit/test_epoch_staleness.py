@@ -59,28 +59,25 @@ def test_epoch_clock_rejects_wrong_schema_threshold_or_provenance(mutation: str)
         parse_epoch_source_doc(raw.replace(originals[mutation], mutation))
 
 
-def test_weekly_workflow_wires_the_epoch_clock_without_a_conditional() -> None:
-    """V4C-49: the signed cadence rule ships with one unconditional CI consumer.
+def test_ci_no_longer_ages_the_epoch_bundle() -> None:
+    """D-158 clause 4 (#16): the Epoch acquisition clock is the refresh record now.
 
-    **Parsed as YAML, not matched as text (M6 Stage-4.0 re-review).** The first version searched
-    the file's raw contents, so COMMENTING THE STEP OUT left this guard passing — the control was
-    disabled and its citing test said nothing. Measured by the security seat, and it is the same
-    shape as the config test that matched `hard_limit` inside a comment: a guard that reads prose
-    reports on documentation rather than on behaviour.
+    Since M16-W4 the nightly refresh fetches the bundle itself, and each board's arrival is in
+    `sources_last_ok`. The CI step that aged `data/epoch-source.yaml` measured a manual acquisition
+    that no longer happens, so it would turn CI red for no reason. The owner had it removed on
+    2026-09-25 (a one-time workflow change by the agent). This test replaces the one that pinned
+    the step, so the step cannot quietly return. Parsed as YAML, as before: a guard that reads
+    prose reports on documentation, not behaviour.
     """
     import yaml as _yaml
 
     doc = _yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
-    command = "python -m app.workflows.epoch --check-staleness data/epoch-source.yaml"
-
-    job = doc["jobs"]["plan-staleness"]
-    steps = [s for s in job["steps"] if command in str(s.get("run", ""))]
-    assert len(steps) == 1, (
-        "the epoch staleness step is not present exactly once in the plan-staleness job — "
-        "commenting it out must fail here, which is what the text-matching version allowed"
+    runs = [str(step.get("run", "")) for job in doc["jobs"].values() for step in job["steps"]]
+    assert runs, "no steps read: the workflow did not parse as expected"
+    assert not [r for r in runs if "app.workflows.epoch --check-staleness" in r], (
+        "a CI step ages data/epoch-source.yaml again; D-158 clause 4 moved that clock into the "
+        "refresh record"
     )
-    assert "if" not in steps[0], "the cadence step is conditional, so it can report success unrun"
-    assert "if" not in job, "the whole job is conditional; a skipped required job reports SUCCESS"
 
 
 def test_ingest_stamp_and_committed_clock_are_one_value() -> None:
