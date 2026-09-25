@@ -232,7 +232,7 @@ def test_pruning_keeps_the_new_release_and_the_one_it_replaced(tmp_path: Path) -
         assert len(kept) <= 3
 
 
-# A stand-in launchd, curl and lsof: they record what the installer asks and answer as told.
+# A stand-in launchd, curl, lsof and plutil: they record what the installer asks and answer as told.
 _STUBS = {
     "launchctl": """#!/bin/bash
 echo "$*" >> "$STUB_LOG"
@@ -248,6 +248,9 @@ esac
 echo "$STUB_HEALTH"
 """,
     "lsof": "#!/bin/bash\nexit 1\n",
+    # macOS-only; CI runs on Linux, where the installer's lint step would otherwise fail first.
+    # The real `plutil` lints the generated plist in the owner's install run.
+    "plutil": "#!/bin/bash\nexit 0\n",
 }
 
 
