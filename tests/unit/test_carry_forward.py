@@ -331,3 +331,36 @@ def test_the_carry_opens_the_served_artifact_read_only(
     touching = [(db, uri) for db, uri in opened if str(live.resolve()) in db or str(live) in db]
     assert touching, "the carry never opened the live artifact"
     assert all(uri and "mode=ro" in db for db, uri in touching), touching
+
+
+def test_a_live_artifact_from_before_the_access_table_still_carries(tmp_path: Path) -> None:
+    """M17-W3 wave review M1: the first night after the merge. The served artifact predates the
+    `access` table, and a failed source must still carry from it rather than read as absent. No
+    arrival record, so the age comes from the live rows, across every carried table that exists."""
+    live = _live(tmp_path)
+    with sqlite3.connect(live) as old:
+        old.execute("DROP TABLE access")
+    conn, report = _candidate(tmp_path, live, last_ok={}, aider=None)
+
+    assert "aider" in report.carried
+    assert _rows(conn, "aider") == _rows(live, "aider") != []
+
+
+def test_the_attribute_itself_carries_with_its_rows(tmp_path: Path) -> None:
+    """M17-W3 wave review M1: `access` is a carried table, so a night the metadata file fails
+    serves the last good values instead of dropping every filter."""
+    from app.workflows import access
+    from app.workflows.build import Carry
+
+    live = tmp_path / "live.db"
+    with connect(str(live)) as old:
+        access.store(old, [access.AccessRow("claude-opus-4-1-20250805", "API access")],
+                     source=access.SOURCE, source_url="u", observed_at=_iso(3))
+    conn = connect(":memory:")
+    try:
+        carry = Carry(live=live, last_ok={}, now=NOW)
+        assert carry.restore(conn, access.SOURCE) == "carried"
+        assert conn.execute("SELECT raw_name, accessibility FROM access").fetchall() == [
+            ("claude-opus-4-1-20250805", "API access")]
+    finally:
+        conn.close()

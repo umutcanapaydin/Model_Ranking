@@ -3072,3 +3072,9 @@ re-review counted thirteen such ids registered on 2026-09-23.
 curated rule brings them back, and a surface that ranked one of them loses it.
 
 **Revisit when:** a source starts dating its aliases, or the list grows past what a review can keep.
+
+**Correction to clause 1 (M17-W3 wave review M6, 2026-09-25).** A listed alias's rows stay unmatched
+and are counted among the reconcile's dropped names. `/health`'s `refresh_unmatched` lists only the
+twenty names with the most rows, so an alias appears there only when it ranks among them: on the
+candidate measured before merge, `deepseek-chat` did and the other eleven did not. Clause 1's "named
+in the unmatched report" is true of the drop count, not of that list.

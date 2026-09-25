@@ -110,3 +110,12 @@ def test_an_agent_boards_unmatched_names_reach_the_curation_queue() -> None:
         assert _most_unmatched(conn, set()) == ["Agent Only 9 (Max)"]
     finally:
         conn.close()
+
+
+def test_one_file_read_for_boards_with_two_value_columns_is_refused() -> None:
+    """Wave review M1. The reader takes one value column per file; boards that disagree on it could
+    only be served one column read as the other's scale."""
+    agent = next(b for b in AGENT if b.config == "agent")
+    elo = next(b for b in ARENA_SLICES if b.metric == "elo")
+    with pytest.raises(SourceError, match="different value columns"):
+        parse_arena_slices(_agent_file([0.1]), [agent, elo], source_url="u")
