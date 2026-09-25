@@ -16,6 +16,7 @@ from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from app.clients.arena_slices import ARENA_SLICES
 from app.clients.epoch import EPOCH_ATTRIBUTION
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.schema import EFFORT_LEVELS
@@ -58,6 +59,10 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "arena_vision": ARENA_ATTRIBUTION,
     "arena_search": ARENA_ATTRIBUTION,
     "arena_search_factuality": ARENA_ATTRIBUTION,
+    # M17-W2: the 35 category slices, the same dataset and grant. Derived from the DECLARED table,
+    # which is the reviewed list, and still not from an `arena_` prefix: a slice nobody declared
+    # stays unattributed and raises.
+    **{board.source_name: ARENA_ATTRIBUTION for board in ARENA_SLICES},
     "swebench": SWEBENCH_ATTRIBUTION,
     "aider": SWEBENCH_ATTRIBUTION,
     "epoch_swe_bench_verified": EPOCH_ATTRIBUTION,

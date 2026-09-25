@@ -81,8 +81,16 @@ def fetch_bounded_bytes(
                     )
                     raise SourceError(msg)
                 chunks.append(chunk)
+    except SourceError:
+        raise
     except httpx.HTTPError as exc:
         msg = f"{name} fetch failed: {exc}"
+        raise SourceError(msg) from exc
+    except Exception as exc:
+        # M17-W2 security re-look S-R3: a redirect to a malformed host (`Location: http://xn--/x`)
+        # raised `IDNAError` from inside httpx, which is not an `httpx.HTTPError`. It escaped, the
+        # build re-raised it, and one upstream's bad redirect ended the cycle for every source.
+        msg = f"{name} fetch failed: {type(exc).__name__}: {exc}"
         raise SourceError(msg) from exc
     return b"".join(chunks)
 

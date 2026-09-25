@@ -2979,3 +2979,70 @@ D-159) are what run every night.
 
 **Revisit when:** the engine runs somewhere other than the owner's machine, where a nightly check
 against the served artifact could run.
+
+## D-164 — A board is published content, and the refresh guards it as a board
+
+**Status:** accepted -- **ruled by the owner 2026-09-24** (M17-W2 plan, decision 5, put to the owner in
+Turkish in session and in PR #23; the owner answered, translated, "okay, continue") · **Date:**
+2026-09-24 · **Extends** REQ-REF-002's "changed", D-128 and D-132 from surfaces to boards · from #22.
+
+**Context.** M17-W2 stores Arena's category slices as boards that no surface ranks on; W4 serves them
+(D-160). The refresh decides "changed" on what the artifact would serve, and `serving_summary`
+fingerprinted surfaces only. A candidate that adds or moves boards therefore read as "nothing a user
+would notice changed" and was discarded, while the refresh record listed the source as served. The
+D-128/D-132 guards iterate surfaces too, so a board no surface names was unguarded.
+
+**Decision.**
+1. **Each declared board's standings are part of the fingerprint**: every row's name, the model it
+   reconciled to (what W4 serves as the model's identity), and its score, rounded as the output
+   boundary rounds it (D-109). A candidate that changes only a board publishes; one that only
+   re-stamps its rows does not.
+2. **The board guards apply to each board**: refused when a quarter or more of its raw names are lost
+   (D-128), or more than a quarter are new (D-132), exactly as for a surface's own board (D-159).
+3. **A board seen for the first time is returning, not new** (the existing empty-set rule), so the
+   night that first carries the boards is not refused.
+4. A board that fails to fetch carries on its own clock (D-156), as every source does.
+
+**The cost.** A glitch on one thin board can now hold back a night's publish that would otherwise have
+gone out. That is the guard doing its job: a board that loses a quarter of its names in one night is
+bad data until someone looks.
+
+**Revisit when:** boards held back a publish on more than one night in a month, or W4 serves boards on
+a route whose own checks make this one redundant.
+
+## D-165 — A downloaded file a native library parses is read in a process of its own, under a memory ceiling
+
+**Status:** accepted -- **ruled by the owner 2026-09-24** (asked in Turkish whether to read the Arena
+slice file in a separate process with a memory ceiling or to accept the risk and record it; the
+owner chose the first) · **Date:** 2026-09-24 · from #22, M17-W2's re-reviews
+(`docs/reviews/m17-wave-2-rereview.md` BLOCKING-R1, `m17-wave-2-security-rereview.md` S-R1).
+
+**Context.** pyarrow decodes a whole column chunk before any check written in Python can run, and a
+parquet file's sizes are its writer's claims. Two independent re-reviews made a 57 KB file take more
+than 1 GB in the refresh process, growing linearly up to the download cap; two rounds of in-process
+checks (the footer, then a counted decode budget) did not bound it.
+
+**Decision.**
+1. **The file is parsed by `app.clients.parquet_reader` in a child process**, which watches its own
+   peak resident size from a thread and leaves with `EXIT_OVER_CEILING` past `MAX_READER_RSS`
+   (512 MiB; the live `text` file reads at about 60 MB). The parent also stops it after
+   `READER_TIMEOUT_S`.
+2. **Every way the reader fails is a `SourceError`** for that config's slices: the ceiling, the time
+   limit, a crash (a native one included), or an answer outside its protocol. The build carries
+   the slices (D-156) and never fails the cycle over one file.
+3. The in-process checks stay as cheap first refusals of a changed file (types, footer, rows as
+   read, value length, decode budget); the ceiling is the bound.
+4. **What the reader says is bounded before the parent holds it** (the second security re-look,
+   S-R2-1): the answer is JSON lines read against `MAX_ANSWER_BYTES` (8 MiB; the live `text`
+   answer is 1.6 MB), stderr goes to a file and only its tail is quoted, and every quoted reason is
+   at most 200 printable characters. A slice's rows must also sit between its floor and its
+   ceiling (four times its measured count), one rule the build, the smoke probe and the contract
+   test share. The reader
+   sees an allowlisted environment, starts with `-P`, reads its peak from `/proc` on Linux, and
+   stops itself at its own time limit if its parent is gone.
+
+**The cost.** One more process start per config per night (about 0.3 s), and a limit tuned to a
+machine: a legitimate file that grows past it fails until the limit is raised.
+
+**Revisit when:** a live file approaches the ceiling, or another source starts parsing a downloaded
+file with a native library (it should go through the same reader shape).

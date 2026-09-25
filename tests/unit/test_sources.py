@@ -14,7 +14,9 @@ from __future__ import annotations
 import ast
 import pathlib
 
+from app.clients.arena_slices import ARENA_SLICES
 from app.workflows.sources import (
+    ARENA_SLICE_CLIENT,
     EPOCH_BOARD_CLIENT,
     EPOCH_BOARDS,
     LOCAL_BUNDLES,
@@ -54,7 +56,9 @@ def test_every_client_is_either_ingested_or_declared_a_local_bundle() -> None:
     # which is the whole point of that table. This guard caught the new client the moment it
     # appeared and before it could be used, which is what it was written for.
     declared_boards = {EPOCH_BOARD_CLIENT.__name__} if EPOCH_BOARDS else set()
-    declared = declared_remote | declared_local | declared_boards
+    # M17-W2: the fourth kind, Arena's category slices, in the same shape as the Epoch boards.
+    declared_slices = {ARENA_SLICE_CLIENT.__name__} if ARENA_SLICES else set()
+    declared = declared_remote | declared_local | declared_boards | declared_slices
 
     undeclared = {
         name: module for name, module in _client_classes().items() if name not in declared

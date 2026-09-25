@@ -112,3 +112,42 @@ def test_the_floors_mode_reads_the_artifact_and_needs_no_network(
     record = json.loads(out.read_text(encoding="utf-8"))
     assert {row["surface"] for row in record["floors"]} == set(CATEGORIES)
     assert "expert" in capsys.readouterr().out
+
+
+# --- M17-W2 P4: how many models each category slice can rank (#22) ------------------------------
+
+
+@pytest.mark.slices
+def test_the_slice_survey_counts_rows_and_the_models_the_engine_can_rank(tmp_path: Path) -> None:
+    """`--slices` writes every declared slice into a COPY of the artifact, reconciles, and reports per
+    board: rows, the floor, and the ranked population (reconciled and priced). The served file is
+    never written, and a slice adds no model its `overall` board lacks."""
+    from app.clients.arena_slices import ArenaSlice
+    from app.clients.fakes import fake_slice_client, slice_parquet
+    from app.workflows.build import build
+
+    from .test_build import PLANS_YAML, ROSTERS_YAML, _sources
+
+    artifact = tmp_path / "advisor.db"
+    conn = connect(str(artifact))
+    build(conn, plans_yaml=PLANS_YAML, rosters_yaml=ROSTERS_YAML, sources=_sources(),
+          slices=(), minimum_models=2)
+    conn.close()
+    before = artifact.read_bytes()
+
+    boards = (ArenaSlice("text", "multi_turn", measured_rows=4),
+              ArenaSlice("vision", "ocr", measured_rows=2))
+    text = slice_parquet([(name, 1300.0 - i, "multi_turn", "2026-09-13")
+                          for i, name in enumerate(["gpt-5", "claude-4-5-opus", "unknown-x"])])
+    vision = slice_parquet([("gpt-5", 1200.0, "ocr", "2026-09-13")])
+    survey = _script().measure_slices(
+        artifact, tmp_path, client=fake_slice_client({"text": text, "vision": vision}), slices=boards)
+
+    by_board = {record["board"]: record for record in survey["boards"]}
+    assert by_board["arena_text_multi_turn"]["rows"] == 3
+    assert by_board["arena_text_multi_turn"]["floor"] == 2
+    assert by_board["arena_text_multi_turn"]["ranked_population"] == 2
+    assert by_board["arena_vision_ocr"]["ranked_population"] == 1
+    assert survey["models_after"] == survey["models_before"]
+    assert survey["bytes_after"] >= survey["bytes_before"] > 0  # four rows may fit free pages
+    assert artifact.read_bytes() == before, "the survey wrote to the served artifact"

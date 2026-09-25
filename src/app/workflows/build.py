@@ -48,7 +48,9 @@ import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
+from app.clients.arena_slices import ARENA_SLICES, ArenaSlice, fetch_slices
 from app.clients.epoch_board import EpochBoard, parse_board
 from app.clients.protocols import SourceError
 from app.workflows.epoch import committed_last_verified
@@ -64,6 +66,7 @@ from app.workflows.registry import (
 from app.workflows.rosters import ingest_rosters
 from app.workflows.schema import connect, open_readonly, reset_source
 from app.workflows.sources import (
+    ARENA_SLICE_CLIENT,
     EPOCH_BOARD_CLIENT,
     EPOCH_BOARDS,
     LOCAL_BUNDLES,
@@ -326,9 +329,14 @@ UNMATCHED_NAME_CHARS = 80
 def _most_unmatched(conn: sqlite3.Connection, refused: set[str]) -> list[str]:
     """The score names nothing matched, most rows first. A modality refusal is the guard working,
     not a model we are missing, so it is left out (M14-W1 review MAJOR-2's distinction)."""
+    # A category slice repeats its `overall` board's names, up to 26 times, and adds none it lacks
+    # (measured 2026-09-24); counted, they would rank Arena names above every other source's (wave
+    # review K2). So the queue counts every source except the declared slices.
+    slices = [board.source_name for board in ARENA_SLICES]
     rows = conn.execute(
-        "SELECT raw_name, COUNT(*) AS n FROM scores WHERE model_id IS NULL "
-        "GROUP BY raw_name ORDER BY n DESC, raw_name").fetchall()
+        "SELECT raw_name, COUNT(*) AS n FROM scores WHERE model_id IS NULL "  # noqa: S608
+        f"AND source NOT IN ({','.join('?' * len(slices))}) "
+        "GROUP BY raw_name ORDER BY n DESC, raw_name", slices).fetchall()
     return [name[:UNMATCHED_NAME_CHARS] for name, _ in rows if name not in refused][:UNMATCHED_LISTED]
 
 
@@ -356,6 +364,20 @@ def _surfaces_left_without_evidence(missing: Sequence[str]) -> list[str]:
         else:
             actions.append(f"{source} is unavailable (no surface names it as primary): {entry}")
     return actions
+
+
+def _board_failed(
+    conn: sqlite3.Connection, carry: Carry | None, source: str, why: str,
+    drift: list[str] | None, missing: list[str],
+) -> None:
+    """One board rejected (an Epoch board or a slice): its rows go, the drift is recorded, and its
+    last good data comes back if young enough (D-156); otherwise it is missing."""
+    for table in ("pricing", "scores"):
+        reset_source(conn, table, source)
+    if drift is not None:
+        drift.append(f"{source}: {why}")
+    if _fall_back(conn, carry, source) != "carried":
+        missing.append(f"{source}: {why}")
 
 
 def _ingest_boards(
@@ -389,12 +411,7 @@ def _ingest_boards(
                 raise SourceError(msg)
             stored = _store_scores(conn, board.source_name, rows, run)
         except (SourceError, OSError) as exc:
-            for table in ("pricing", "scores"):
-                reset_source(conn, table, board.source_name)
-            if drift is not None:
-                drift.append(f"{board.source_name}: {exc}")
-            if _fall_back(conn, carry, board.source_name) != "carried":
-                missing.append(f"{board.source_name}: {exc}")
+            _board_failed(conn, carry, board.source_name, str(exc), drift, missing)
             continue
         report = SourceReport(
             source=board.source_name,
@@ -407,6 +424,56 @@ def _ingest_boards(
         # the kind of inconsistency that becomes a bug the day something does.
         run.reports.append(report)
         results.append(report)
+    return results, missing
+
+
+def _ingest_slices(
+    conn: sqlite3.Connection,
+    run: RunContext,
+    slices: Sequence[ArenaSlice],
+    carry: Carry | None = None,
+    drift: list[str] | None = None,
+    *,
+    client: Callable[[str], Any] | None = None,
+) -> tuple[list[SourceReport], list[str]]:
+    """Arena's category slices (M17-W2, #22): one download per config, one board per slice.
+
+    The Epoch boards' shape, with one difference that decides the failure rules. A config's slices
+    all come out of ONE file, so a failed download fails every slice of that config, and each then
+    carries on its own clock (D-156). A file that downloads but holds too few rows for one slice
+    fails that slice alone. A slice is optional, like every board of this dataset (D-121, D-144):
+    it never fails the build, and no surface names it, so a failure is an operator line only.
+    """
+    client_type = ARENA_SLICE_CLIENT if client is None else client
+    results: list[SourceReport] = []
+    missing: list[str] = []
+    for config in dict.fromkeys(board.config for board in slices):
+        boards = [board for board in slices if board.config == config]
+        try:
+            rows, refused = fetch_slices(config, boards, client=client_type)
+        except SourceError as exc:
+            for board in boards:
+                _board_failed(conn, carry, board.source_name, str(exc), drift, missing)
+            continue
+        for board in boards:
+            parsed = rows[board.source_name]
+            try:
+                problem = board.bounds_problem(len(parsed))
+                if problem is not None:
+                    msg = f"{problem}; the file answered but this slice's shape has changed"
+                    raise SourceError(msg)
+                stored = _store_scores(conn, board.source_name, parsed, run)
+            except SourceError as exc:
+                _board_failed(conn, carry, board.source_name, str(exc), drift, missing)
+                continue
+            report = SourceReport(
+                source=board.source_name,
+                stored=len(parsed),
+                skipped=refused[board.source_name],
+                effort_unknown=stored,
+            )
+            run.reports.append(report)
+            results.append(report)
     return results, missing
 
 
@@ -529,6 +596,7 @@ def build(
     bundle_dir: Path | None = None,
     bundles: Sequence[LocalBundle] | None = None,
     boards: Sequence[EpochBoard] | None = None,
+    slices: Sequence[ArenaSlice] | None = None,
     run: RunContext | None = None,
     minimum_models: int | None = None,
     carry_from: Path | None = None,
@@ -550,6 +618,7 @@ def build(
     # controlled the source set silently ran the real board list against a bundle directory that
     # did not exist. A seam is only a seam if it reaches the caller.
     sources = REMOTE_SOURCES if sources is None else sources
+    slices = ARENA_SLICES if slices is None else slices
     minimum_models = MINIMUM_MODELS_REGISTERED if minimum_models is None else minimum_models
     run = run or RunContext()
     report = BuildReport()
@@ -577,10 +646,12 @@ def build(
                                                     drift=report.drift)
     board_reports, board_missing = _ingest_boards(conn, bundle_dir, run, boards, carry,
                                                   drift=report.drift)
+    slice_reports, slice_missing = _ingest_slices(conn, run, slices, carry, drift=report.drift)
     report.sources.extend(board_reports)
     report.sources.extend(bundle_reports)
+    report.sources.extend(slice_reports)
     report.required_operator_actions = _surfaces_left_without_evidence(
-        [*degraded, *bundle_missing, *board_missing]
+        [*degraded, *bundle_missing, *board_missing, *slice_missing]
     )
 
     reconciled = reconcile(conn)

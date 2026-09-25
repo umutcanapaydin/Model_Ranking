@@ -234,6 +234,7 @@ def test_every_source_the_build_ingests_can_be_attributed() -> None:
     primary source; it is served as EVIDENCE, which is precisely the population the control
     covers and the test did not. A test narrower than the rule it cites is not a gate.
     """
+    from app.clients.arena_slices import ARENA_SLICES
     from app.workflows.rank import SOURCE_ATTRIBUTION
     from app.workflows.sources import EPOCH_BOARDS, LOCAL_BUNDLES, REMOTE_SOURCES
 
@@ -241,6 +242,7 @@ def test_every_source_the_build_ingests_can_be_attributed() -> None:
         {s.name for s in REMOTE_SOURCES if s.writes_scores}
         | {b.name for b in LOCAL_BUNDLES}
         | {b.source_name for b in EPOCH_BOARDS}
+        | {b.source_name for b in ARENA_SLICES}  # M17-W2: served as evidence from W4 (D-160)
     )
     unattributed = sorted(ingested - set(SOURCE_ATTRIBUTION))
     assert not unattributed, (

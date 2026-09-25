@@ -37,6 +37,44 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers", "artifact: reads the built advisor.db (gitignored; W-108). Skipped where absent."
     )
+    config.addinivalue_line(
+        "markers", "slices: builds with Arena's category slices, through an injected fake client."
+    )
+    config.addinivalue_line(
+        "markers", "slice_download: reaches ArenaSliceClient.fetch_bytes: respx-mocked in unit tests, the live file in the env-gated contract test."
+    )
+
+
+# --- M17-W2: the build's category slices stay off the network ------------------------------------
+#
+# `build()` reads `ARENA_SLICES` at call time, like every other source table, and downloads each
+# config's file from the internet. Tests never reach the network (permission-matrix §3), and nine
+# test files build an artifact while patching only the source tables that existed before the
+# slices. So every test builds with NO slices unless it is marked `slices`, and a marked test
+# injects its own client. A declaration of what the suite does, not a suppression:
+# `tests/unit/test_build_slices.py` builds with the real table and a fake download, and asserts
+# that an unmarked test sees none.
+#
+# Below the table, the client itself refuses to download in every test (re-review MINOR-R2: a guard
+# on the build's default missed `fetch_slices` and `measure_slices`). Only a test marked
+# `slice_download` reaches the real method: unit tests that mock the transport with respx, and the
+# env-gated live contract test (RUN_CONTRACT_TESTS=1).
+def _tests_never_reach_the_network(self: object) -> bytes:
+    from app.clients.protocols import SourceError
+
+    msg = "tests never reach the network: inject a fake slice client (app.clients.fakes)"
+    raise SourceError(msg)
+
+
+@pytest.fixture(autouse=True)
+def _slices_stay_off_the_network(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.clients.arena_slices import ArenaSliceClient
+    from app.workflows import build as build_mod
+
+    if request.node.get_closest_marker("slice_download") is None:
+        monkeypatch.setattr(ArenaSliceClient, "fetch_bytes", _tests_never_reach_the_network)
+    if request.node.get_closest_marker("slices") is None:
+        monkeypatch.setattr(build_mod, "ARENA_SLICES", ())
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:

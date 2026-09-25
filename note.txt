@@ -1,26 +1,36 @@
 Project: model_ranking
-RESUME HERE (2026-09-23, M16 closure): the project runs on DevFlow v6.0 (D-155). Run `/start-session` first.
-  - M16 is CLOSED and signed (PR #9 merged 2026-09-23). The owner ruled M17 §0 the same day
-    (D-159 floors every build, D-148 margin amendment, D-160 the combined list is built on the phone
-    and nothing leaves it). M17-W1 (floors from the board, every build) is next.
-  - OWNER, in this order:
+RESUME HERE (2026-09-25, M17-W2 closed agent-side): the project runs on DevFlow v6.6 (D-161). Run `/start-session` first.
+  - M17-W1 (floors from the board, every build) merged (#11, #12). Since then merged: #18 (DevFlow
+    v6.6), #19 (D-163, #14), #20 (identity and undated wave closes, #17 -- left open to verify),
+    #21 (the out-of-100 anchor follows the floor, D-162, #15).
+  - M17-W2 (Arena's category slices as 35 boards, #22) is CLOSED agent-side: draft PR #23 on
+    `wave/m17-w2`, worked in a separate worktree while launchd is not retired. D-164 (boards are
+    fingerprinted and guarded) and D-165 (the parquet file is parsed in a child process under a
+    512 MiB ceiling) are the owner's rulings. Close record: docs/plans/m17-wave-2-close.md.
+  - After #23 merges: the first nightly publishes the 35 boards (D-164 clause 3: a board's first
+    night is a publish). Verify #27 then. Next wave: M17-W3 (Epoch's own boards and curation).
+  - Filed by W2, all `work-issue` (owner decisions): #24 agent_* configs, #25 download deadline and
+    host allowlist, #26 pyarrow off the serving image, #27 verify the ceiling after merge.
+  - OWNER, still open (#16), in this order:
       1. retire the launchd refresher: ./ios/app.sh restart, check `curl -s localhost:8080/health`
          shows "refresh": "scheduled", then scripts/retire_refresh.sh. (Or reinstall it with
          scripts/install_refresh_wrapper.sh -- the installed copy still passes the retired Epoch
-         bundle, and it runs whatever branch is checked out in this directory.)
+         bundle, and it runs whatever branch is checked out in this directory, so wave branches
+         are worked in a separate worktree until it is retired.)
       2. publish the first artifact with derived models BY HAND (D-132 refuses it nightly, by
          design): the before/after is docs/research/m16-w4-derived-registry-2026-09-23.md.
       3. remove the CI step that ages data/epoch-source.yaml (the diff is in PR #6's body).
-  - Open, owned: W-123 (M18), W-125, W-126, W-128 (M17-W1), W-129 (kept and recorded), W-130, W-131.
+  - Open issues: #13 (no branch protection), #16 (the owner's M16 steps), #17 (verify), #22 (W2,
+    closes with #23), #24-#27 (above).
+  - Open, owned: W-123 (M18), W-125, W-126, W-129 (kept and recorded), W-130, W-131.
 
-State: 2026-09-23 -- M16 merged to main through PRs #1-#8 (eee2faf). make check green on the
-owner's Mac: pytest 1165/15, Swift 268, client-decls PASS in 4 configurations, conformance PASS.
-`make check-fast` (33 s) is the working gate; `make check` (89 s) the merge gate.
+State: 2026-09-24 -- main at 04e2630 (#21 merged); `make check-fast` PASS on the owner's Mac,
+6/6 legs in 36 s. `make check-fast` is the working gate; `make check` the merge gate.
 
 READ IN THIS ORDER
   1. this file
   2. docs/closure-report-m16.md               -- what M16 shipped, what needs you
-  3. docs/plans/m17-plan.md                   -- next: lists nobody publishes
+  3. docs/plans/m17-plan.md                   -- M17: lists nobody publishes (W1 done, W2 next)
   4. docs/handovers/handover_project-2026-09-21.md -- the whole project, for someone who knows nothing
   5. docs/warnings.ledger.md W-123..W-129     -- everything open, newest first
 

@@ -13,6 +13,10 @@ dependencies = [
     "pydantic>=2.9",
     "httpx>=0.27",
     "pyyaml>=6.0",
+    # M17-W2 (#22, owner ruling 2026-09-24): Arena's category slices are read from the dataset's
+    # own parquet file, one request per config. Imported only inside the parse, so the serving
+    # process never loads it (D-154; tests/unit/test_arena_slices.py).
+    "pyarrow>=21.0",
     # planned (add on first import — security review M1 MINOR-1):
     # pydantic-settings (K.2 config), structlog (JSON logging), orjson (API serving)
 ]
@@ -110,6 +114,13 @@ warn_unused_ignores = true     # seed C.8: unused type:ignore is a signal
 warn_unreachable = true
 no_implicit_reexport = true
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# M17-W2: pyarrow ships no type information. Production imports it in one place, the isolated
+# reader `app.clients.parquet_reader`; the tests' canonical fake (`app.clients.fakes.slice_parquet`)
+# imports it to write fixture files. Both annotate what they return.
+module = ["pyarrow", "pyarrow.*"]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["tests.*"]
