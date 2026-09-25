@@ -36,13 +36,23 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from app.clients.arena import DATASET, score_rows
+from app.clients.arena import (
+    AGENT_HARNESS,
+    DATASET,
+    ELO_BAND,
+    HARNESS,
+    IPS_BAND,
+    IPS_METRIC,
+    METRIC,
+    score_rows,
+)
 from app.clients.parquet_reader import EXIT_OVER_CEILING, EXIT_UNMEASURED, printable
 from app.clients.protocols import SourceError, fetch_bounded_bytes
 from app.workflows.schema import ScoreRow
 
 #: The configs whose slices are read. Adding one is a decision (the plan names each exclusion).
-SLICE_CONFIGS = ("text", "vision")
+SLICE_CONFIGS = ("text", "vision", "agent", "agent_bash_recovery_steps", "agent_praise_complaint",
+                 "agent_steerability", "agent_task_outcome_explicit", "agent_tool_hallucination")
 PARQUET_URL = "https://huggingface.co/datasets/{dataset}/resolve/main/{config}/{split}-00000-of-00001.parquet"
 
 #: The download is capped while it is read (`fetch_bounded_bytes`). `text` is 0.6 MB on 2026-09-24,
@@ -78,9 +88,11 @@ READER_ENV = ("PATH", "LANG", "LC_ALL", "LC_CTYPE", "TMPDIR", "TZ")
 _STDERR_QUOTED = 200
 
 
-def reader_limits() -> dict[str, int]:
-    """The limits handed to the reader, read from this module when it runs (tests change them)."""
+def reader_limits(value_column: str = "rating") -> dict[str, Any]:
+    """The limits handed to the reader, read from this module when it runs (tests change them),
+    with the column that carries a board's value (`rating`, or `score` on the Agent Arena)."""
     return {
+        "value_column": value_column,
         "max_rows": MAX_PARQUET_ROWS,
         "max_uncompressed_bytes": MAX_UNCOMPRESSED_BYTES,
         "max_decoded_bytes": MAX_DECODED_BYTES,
@@ -117,16 +129,31 @@ class ArenaSlice:
     category: str
     #: Rows on the slice's publish date when it was declared (2026-09-13, measured 2026-09-24).
     measured_rows: int
+    #: The value column and its metric. Arena's text and vision boards publish Bradley-Terry Elo in
+    #: `rating`; the Agent Arena boards (M17-W3) publish IPS scores in `score` (D-105: never mixed).
+    value_column: str = "rating"
+    metric: str = METRIC
+    #: A board that is a whole config (the Agent Arena ones) names itself; a slice's name is derived.
+    source_id: str | None = None
+    label: str | None = None
 
     @property
     def source_name(self) -> str:
         """The `scores.source` id. Distinct from every `overall` board's id (`arena_<config>`)."""
-        return f"arena_{self.config}_{self.category}"
+        return self.source_id or f"arena_{self.config}_{self.category}"
 
     @property
     def benchmark(self) -> str:
         """The label rankings join on: shared with no other board, or two boards merge (M14-W2)."""
-        return f"Arena {self.config} ({self.category})"
+        return self.label or f"Arena {self.config} ({self.category})"
+
+    @property
+    def harness(self) -> str:
+        return AGENT_HARNESS if self.metric == IPS_METRIC else HARNESS
+
+    @property
+    def band(self) -> tuple[float, float]:
+        return IPS_BAND if self.metric == IPS_METRIC else ELO_BAND
 
     @property
     def minimum_rows(self) -> int:
@@ -197,6 +224,19 @@ ARENA_SLICES: tuple[ArenaSlice, ...] = (
         "entity_recognition": 48,
         "captioning": 34,
     }),
+    # M17-W3 (#37, #24; owner ruling 2026-09-25): the six Agent Arena configs, each a board of
+    # its own `overall` category, 43 rows on 2026-09-24. IPS scores in `score`, higher is better
+    # (the dataset's own `rank`), negative values real.
+    *(ArenaSlice(config, "overall", 43, value_column="score", metric=IPS_METRIC,
+                 source_id=f"arena_{config}", label=label)
+      for config, label in (
+          ("agent", "Agent Arena"),
+          ("agent_bash_recovery_steps", "Agent Arena (bash recovery steps)"),
+          ("agent_praise_complaint", "Agent Arena (praise and complaint)"),
+          ("agent_steerability", "Agent Arena (steerability)"),
+          ("agent_task_outcome_explicit", "Agent Arena (explicit task outcome)"),
+          ("agent_tool_hallucination", "Agent Arena (tool hallucination)"),
+      )),
 )
 
 
@@ -232,7 +272,7 @@ def fetch_slices(
     return parse_arena_slices(download.fetch_bytes(), boards, source_url=download.url)
 
 
-def _read_table(raw: bytes) -> list[dict[str, Any]]:
+def _read_table(raw: bytes, value_column: str = "rating") -> list[dict[str, Any]]:
     """The file's rows, read by `app.clients.parquet_reader` in a process of its own (D-165).
 
     **Every way the reader can fail is a `SourceError`** (wave review B1, security S1): it passed its
@@ -251,7 +291,7 @@ def _read_table(raw: bytes) -> list[dict[str, Any]]:
     with stderr_file as stderr:
         try:
             reader = subprocess.Popen(  # noqa: S603 -- our own interpreter and module, no shell
-                [*_reader_command(), json.dumps(reader_limits())], stdin=subprocess.PIPE,
+                [*_reader_command(), json.dumps(reader_limits(value_column))], stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE, stderr=stderr, env=_reader_env())
         except OSError as exc:
             msg = f"arena slices: the reader could not be started: {exc}"
@@ -350,7 +390,11 @@ def parse_arena_slices(
     refused and its rows counted, never served old. A declared slice absent from the file parses to
     no rows, which its own row floor then turns into a failure of that slice alone.
     """
-    records = _read_table(raw)
+    columns = {board.value_column for board in slices}
+    if len(columns) > 1:
+        msg = f"arena slices: one file read for boards with different value columns {sorted(columns)}"
+        raise SourceError(msg)
+    records = _read_table(raw, columns.pop() if columns else "rating")
     # Security S4: a date past tomorrow is not a snapshot, it is a stray row. Taken as the newest,
     # one such row would have darkened every slice of the config; so it is refused and counted.
     horizon = ((today or dt.datetime.now(tz=dt.UTC).date()) + dt.timedelta(days=1)).isoformat()
@@ -381,7 +425,8 @@ def parse_arena_slices(
             if _date(e.get("leaderboard_publish_date")) == newest
         ]
         parsed, bad = score_rows(
-            current, source=board.source_name, source_url=source_url, benchmark=board.benchmark
+            current, source=board.source_name, source_url=source_url, benchmark=board.benchmark,
+            value_key=board.value_column, metric=board.metric, harness=board.harness, band=board.band,
         )
         rows[board.source_name] = parsed
         refused[board.source_name] = bad + len(entries) - len(current)
