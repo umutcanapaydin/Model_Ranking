@@ -345,3 +345,105 @@ def test_a_payload_refused_after_boot_is_unavailable_and_logged_with_its_reason(
     assert response.json()["error"]["code"] == "evidence_unavailable"
     assert "% faster" not in response.text
     assert "'% faster' has no declared direction" in caplog.text
+
+
+def test_a_board_is_dated_by_its_newest_rows() -> None:
+    """Tester M2: the newest evaluation and observation, not the oldest."""
+    conn = _conn()
+    for raw, run, seen in (("old", "2026-01-02", "2026-01-03T00:00:00+00:00"),
+                           ("new", "2026-09-18", "2026-09-25T00:00:00+00:00")):
+        conn.execute(
+            "INSERT INTO scores (raw_name, model_id, benchmark, metric, score, harness, effort, run_date, "
+            "source, source_url, observed_at) VALUES (?, 'a', 'Chess puzzles', '% correct', 1, ?, "
+            "'unspecified', ?, 'epoch_chess', 'u', ?)", (raw, raw, run, seen))
+    board = _board(_payload(conn), "epoch_chess")
+    assert (board["evidence_date"], board["observed_at"]) == ("2026-09-18", "2026-09-25")
+
+
+def test_models_lists_only_the_models_that_stand_somewhere() -> None:
+    """Tester M3: a priced model on no board is not sent."""
+    conn = _conn()
+    _chess(conn)
+    conn.execute("INSERT INTO models (id, display, vendor) VALUES ('e', 'E', 'V')")
+    conn.execute("INSERT INTO px_median (model_id, in_m, out_m) VALUES ('e', 1, 1)")
+    assert "e" not in {m["id"] for m in _payload(conn)["models"]}
+
+
+def _positions(db: Path) -> int:
+    """Counted here, independently: the bound's own counter is what the test is about."""
+    from app.workflows.schema import open_readonly
+    from app.workflows.standings import board_standings
+
+    positions = sum(len(board["standings"]) for board in board_standings(open_readonly(db))["boards"])
+    assert positions > 1, "the fixture must publish more positions than boards, or the test cannot tell them apart"
+    return positions
+
+
+def test_the_bound_counts_positions_and_admits_exactly_its_ceiling(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Tester M1: a ceiling equal to the positions boots, one below refuses -- positions, not boards,
+    and `>` rather than `>=`."""
+    from app.adapter import main as adapter
+
+    db = tmp_path / "pipeline.db"
+    _seeded_db(db)
+    positions = _positions(db)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    monkeypatch.setattr(adapter, "APP_BUILD", "deadbee")
+    monkeypatch.delenv("MODEL_RANKING_CORS_ORIGINS", raising=False)
+    monkeypatch.setattr(adapter, "MAX_PUBLISHED_STANDINGS_ROWS", positions)
+    assert adapter.validate_startup_config(env="production") == ()
+    monkeypatch.setattr(adapter, "MAX_PUBLISHED_STANDINGS_ROWS", positions - 1)
+    with pytest.raises(adapter.ConfigError, match=f"{positions} standings positions"):
+        adapter.validate_startup_config(env="production")
+
+
+@pytest.mark.parametrize("damage", ["no_medians", "not_a_database"])
+def test_an_artifact_the_route_cannot_read_is_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, damage: str
+) -> None:
+    """Tester B3: the route's other closed paths -- an unbuilt artifact, and a file that is not a
+    database -- each answer the one 503, never an empty payload."""
+    from app.adapter import main as adapter
+
+    db = tmp_path / "pipeline.db"
+    if damage == "no_medians":
+        _seeded_db(db)
+        with sqlite3.connect(db) as conn:
+            conn.execute("DROP TABLE px_median")
+    else:
+        db.write_bytes(b"not a database at all" * 100)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    response = TestClient(adapter.app).get("/v1/boards")
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "evidence_unavailable"
+
+
+def test_the_boot_check_leaves_an_unopenable_artifact_to_the_database_check(tmp_path: Path) -> None:
+    """Tester B3: when the artifact cannot be opened at all, `_database_unusable` names the problem;
+    this check adds nothing rather than a second, vaguer line."""
+    from app.adapter import main as adapter
+
+    assert adapter._standings_problem(tmp_path) is None  # a directory, not a database
+    garbage = tmp_path / "garbage.db"
+    garbage.write_bytes(b"not a database at all" * 100)
+    assert adapter._standings_problem(garbage) is None
+
+
+def test_an_artifact_the_process_may_not_open_is_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Tester B3: a file that exists and cannot be opened (its permissions) answers the one 503."""
+    from app.adapter import main as adapter
+
+    db = tmp_path / "pipeline.db"
+    _seeded_db(db)
+    db.chmod(0o000)
+    try:
+        monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+        response = TestClient(adapter.app).get("/v1/boards")
+    finally:
+        db.chmod(0o600)
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "evidence_unavailable"

@@ -66,6 +66,27 @@ final class CombineTests: XCTestCase {
         XCTAssertEqual(try combine(data, boards: ["x", "y"]).entries.map(\.model.id), ["a", "b", "c"])
     }
 
+    func testTheOrderIsTheSumOfRanksNotEachModelsBestRank() throws {
+        // Tester B1: x ranks a, b, c and y ranks b, c, a. Sums: a 1+3=4, b 2+1=3, c 3+2=5, so
+        // b, a, c. Ordering by each model's best rank would give a and b a 1 each and read a, b, c.
+        let data = standings([board("x", [("a", 1), ("b", 2), ("c", 3)]),
+                              board("y", [("b", 1), ("c", 2), ("a", 3)])])
+
+        XCTAssertEqual(try combine(data, boards: ["x", "y"]).entries.map(\.model.id), ["b", "a", "c"])
+    }
+
+    func testAnEqualSumIsBrokenByIdEvenWhenTheNamesSortTheOtherWay() throws {
+        // Tester B2: `a` is shown as "Zeta" and `b` as "Alpha"; mirrored boards give them equal
+        // sums. The id decides (a before b), never the display name (Alpha before Zeta).
+        let named = Standings(
+            apiVersion: "v1", attributions: [],
+            boards: [board("x", [("a", 1), ("b", 2)]), board("y", [("b", 1), ("a", 2)])],
+            models: [StandingModel(id: "a", display: "Zeta", vendor: "V", blendedPerM: 1, accessibility: nil),
+                     StandingModel(id: "b", display: "Alpha", vendor: "V", blendedPerM: 1, accessibility: nil)])
+
+        XCTAssertEqual(try combine(named, boards: ["x", "y"]).entries.map(\.model.id), ["a", "b"])
+    }
+
     func testOneBoardChosenIsThatBoardsOwnOrder() throws {
         let data = standings([board("x", [("c", 1), ("a", 2), ("b", 2), ("d", 4)])])
 

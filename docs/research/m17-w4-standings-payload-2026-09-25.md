@@ -24,7 +24,7 @@ checked by hand against the boards' own positions. The Swift file itself is cove
 | served (before W3) | 52 | 314 | 6,563 | 324,613 | 30,352 |
 | candidate (main, with W3) | 63 | 303 | 6,962 | 346,112 | 31,769 |
 | the same candidate, after the review round (effort per standing, D-112) | 63 | 303 | 6,955 | 499,633 | 36,407 |
-| served on 2026-09-26 (the first night with W3) | 63 | 303 | 6,955 | 499,633 | 36,408 |
+| served after the first nightly refresh with W3 (2026-09-25 23:05 local) | 63 | 303 | 6,955 | 499,633 | 36,408 |
 
 - **Raw size.** About 500 KB since each standing carries its evidence's effort (the review round's
   B1). The engine does not compress its responses today, so this is what a phone downloads once a

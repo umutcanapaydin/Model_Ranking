@@ -121,6 +121,23 @@ final class StandingsStoreTests: XCTestCase {
         XCTAssertThrowsError(try FetchedStandings(payload: Data(count: EngineClient.maxStandingsBytes + 1)))
     }
 
+    func testAFreshFetchIsStampedWithTheTimeItWasAskedFor() async throws {
+        // Tester M5: the stamp is the `now` the caller passed, so freshness is judged on one clock.
+        _ = await store().current(now: arrived) { try FetchedStandings(payload: standingsPayload) }
+
+        XCTAssertEqual(store().load()?.fetchedAt, arrived)
+    }
+
+    func testTheCeilingIsFourMebibytesAndAPayloadAtItIsNotRefusedForSize() {
+        // Tester M6: pinned both ways -- the number D-167 names, and "at" the ceiling is inside it.
+        XCTAssertEqual(EngineClient.maxStandingsBytes, 4 * 1024 * 1024)
+        XCTAssertThrowsError(try FetchedStandings(payload: Data(count: EngineClient.maxStandingsBytes))) { error in
+            if case let EngineError.undecodable(detail) = error {
+                XCTAssertFalse(detail.contains("larger than"), "a payload at the ceiling was refused for its size")
+            }
+        }
+    }
+
     func testAnUnreadableFileIsNothingStoredNotACrash() throws {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try Data("not json".utf8).write(to: folder.appendingPathComponent("standings.json"))
