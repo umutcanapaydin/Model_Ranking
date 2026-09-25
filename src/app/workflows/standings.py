@@ -56,10 +56,19 @@ class _Row:
     raw_name: str
 
 
-def _policies() -> dict[tuple[str, str], str]:
-    """(source, benchmark) -> the effort a surface ranks that board at (D-112)."""
-    return {(spec.primary_source, spec.primary_benchmark): spec.ranking_effort
-            for spec in CATEGORIES.values() if spec.ranking_effort}
+def _policies() -> dict[str, str]:
+    """benchmark -> the effort a surface ranks it at (D-112). A surface ranks its benchmark across
+    every source, so every board of that benchmark stands at that effort (second review R5); two
+    surfaces asking two efforts of one benchmark is refused, never settled by which came last."""
+    policies: dict[str, str] = {}
+    for spec in CATEGORIES.values():
+        if not spec.ranking_effort:
+            continue
+        held = policies.setdefault(spec.primary_benchmark, spec.ranking_effort)
+        if held != spec.ranking_effort:
+            msg = f"{spec.primary_benchmark}: surfaces rank it at two efforts ({held!r}, {spec.ranking_effort!r})"
+            raise ValueError(msg)
+    return policies
 
 
 def _evidence(rows: list[_Row]) -> _Row:
@@ -86,7 +95,7 @@ def board_standings(conn: sqlite3.Connection) -> dict[str, Any]:
         if shape.setdefault(row.source, (row.benchmark, row.metric)) != (row.benchmark, row.metric):
             msg = f"{row.source}: holds more than one board ({shape[row.source][0]!r}, {row.benchmark!r})"
             raise ValueError(msg)
-        policy = policies.get((row.source, row.benchmark))
+        policy = policies.get(row.benchmark)
         if policy is not None and row.effort != policy:
             continue
         grouped.setdefault(row.source, {}).setdefault(row.model, []).append(row)
@@ -107,7 +116,7 @@ def board_standings(conn: sqlite3.Connection) -> dict[str, Any]:
         benchmark, metric = shape[source]
         boards.append({
             "id": source, "benchmark": benchmark, "metric": metric,
-            "ranking_effort": policies.get((source, benchmark)),
+            "ranking_effort": policies.get(benchmark),
             "evidence_date": max(dated) if dated else None,
             "observed_at": max(r.observed_at for r in kept)[:10],
             "attribution": SOURCE_ATTRIBUTION[source],

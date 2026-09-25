@@ -1,7 +1,7 @@
 //  M17-W4 (D-167) -- the phone keeps the last standings the engine sent, and asks again once a day.
 //
-//  The store holds only what the engine sent, byte for byte, with the time it arrived. A question
-//  asked while the phone is offline is answered from it; a failed fetch never replaces it.
+//  The store holds only what the engine sent, as the app decoded it, with the time it arrived. A
+//  question asked while the phone is offline is answered from it; a failed fetch never replaces it.
 
 import XCTest
 

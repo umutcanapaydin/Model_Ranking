@@ -23,15 +23,18 @@ checked by hand against the boards' own positions. The Swift file itself is cove
 |---|---:|---:|---:|---:|---:|
 | served (before W3) | 52 | 314 | 6,563 | 324,613 | 30,352 |
 | candidate (main, with W3) | 63 | 303 | 6,962 | 346,112 | 31,769 |
+| the same candidate, after the review round (effort per standing, D-112) | 63 | 303 | 6,955 | 499,633 | 36,407 |
+| served on 2026-09-26 (the first night with W3) | 63 | 303 | 6,955 | 499,633 | 36,408 |
 
-- **Raw size.** About 350 KB. The engine does not compress its responses today, so this is what a
-  phone downloads once a day. D-167 stated about 250 KB. The difference is each board's repeated
-  attribution sentence and the JSON keys; compressed, the payload is 32 KB.
-- **Bounds.** The phone's ceiling is 4 MiB (`EngineClient.maxStandingsBytes`), about twelve times
+- **Raw size.** About 500 KB since each standing carries its evidence's effort (the review round's
+  B1). The engine does not compress its responses today, so this is what a phone downloads once a
+  day (#55). D-167 first stated about 250 KB; the difference is each board's repeated attribution
+  sentence, the JSON keys and the effort strings. Compressed, the payload is 36 KB.
+- **Bounds.** The phone's ceiling is 4 MiB (`EngineClient.maxStandingsBytes`), about eight times
   what is measured here. The engine's is 25,000 positions (`MAX_PUBLISHED_STANDINGS_ROWS`), about
   3.6 times.
-- **Board sizes.** The smallest boards rank 25 models (`epoch_deepswe_external`), 27
-  (`arena_search_factuality`) and 28 (`aider`); the largest rank 185.
+- **Board sizes.** The smallest boards rank 18 models (`epoch_deepswe_external`, at `high` since the
+  review round), 27 (`arena_search_factuality`) and 28 (`aider`); the largest rank 185.
 
 ## 2. The rule on real boards
 

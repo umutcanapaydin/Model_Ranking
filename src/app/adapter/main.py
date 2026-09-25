@@ -215,7 +215,7 @@ MAX_RANKED_ROWS = int(os.environ.get("MODEL_RANKING_MAX_RANKED_ROWS", "5000"))
 MAX_PUBLISHED_RANKING_ROWS = int(os.environ.get("MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS", "500"))
 
 #: The largest `/v1/boards` payload, in (board, model) positions: the same egress bound, checked at
-#: boot for the same reason (D-167). Measured on 2026-09-25: 6,962 positions, 346 KB (32 KB gzipped);
+#: boot for the same reason (D-167). Measured on 2026-09-25: 6,955 positions, 500 KB (36 KB gzipped);
 #: this runaway guard sits about 3.6 times above that, not a product limit.
 MAX_PUBLISHED_STANDINGS_ROWS = int(os.environ.get("MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS", "25000"))
 
@@ -1412,7 +1412,9 @@ def boards() -> Any:
         # request only when the nightly refresh publishes such an artifact under a running process.
         # Logged for the operator, and closed with the one error shape for the reader.
         if isinstance(exc, ValueError):
-            _warn_once(path, "/v1/boards cannot publish the artifact: %s", exc)
+            # The reason itself, for the operator (second review M7); a metric name carries `%`.
+            reason = str(exc).replace("%", "%%")
+            _warn_once(path, f"/v1/boards cannot publish the artifact ({reason}): %s", exc)
         return _error(503, "evidence_unavailable", "The evidence database is not available.")
     finally:
         conn.close()

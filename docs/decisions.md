@@ -3131,3 +3131,7 @@ distance between models shown, which would need scores and a new ADR under D-105
   address that is not a file on the device (security S1).
 - **The cost, as measured:** about 350 KB raw and 32 KB compressed on 2026-09-25, not the 250 KB
   and 60 KB first estimated (`docs/research/m17-w4-standings-payload-2026-09-25.md`).
+- **Measured again after that round (2026-09-25):** the effort on every standing brings the payload
+  to about 500 KB raw and 36 KB compressed. Since the second review (R5), the effort policy follows
+  the benchmark: every board of a benchmark a surface ranks at one effort stands at it, and two
+  surfaces asking two efforts of one benchmark are refused.

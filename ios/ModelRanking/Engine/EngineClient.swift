@@ -150,8 +150,8 @@ struct EngineClient {
     /// artifact read and short enough to still be an app.
     static let requestTimeout = 10
 
-    /// The largest standings payload the phone will decode (D-167). About 350 KB was measured on
-    /// 2026-09-25; the ceiling is ten times that, so growth fails loudly instead of silently
+    /// The largest standings payload the phone will decode (D-167). About 500 KB was measured on
+    /// 2026-09-25; the ceiling is about eight times that, so growth fails loudly instead of silently
     /// costing every phone a bigger download each day.
     static let maxStandingsBytes = 4 * 1024 * 1024
 
