@@ -171,10 +171,11 @@ def test_the_client_performs_no_arithmetic_on_a_number_the_engine_sent() -> None
 SCORE_ARITHMETIC_PERMITTED = {"Uncertainty.swift": "D-138"}
 
 
-#: M17-W4 (D-160 clause 2, D-167 clause 4): the one file that may do arithmetic on POSITIONS -- the
-#: combination re-ranks boards on the device. A position is a served number like a score: every
-#: other file renders it and computes nothing with it.
-POSITION_ARITHMETIC_PERMITTED = {"Combine.swift": "D-160, D-167"}
+#: Files that may do arithmetic on POSITIONS, each with its ADR. A position is a served number like a
+#: score: every file renders it and computes nothing with it. D-160 clause 2 provides for one file,
+#: the combination; it left M17-W4 at the three-attempts stop and returns with #61, which names it
+#: here. Until then no file may.
+POSITION_ARITHMETIC_PERMITTED: dict[str, str] = {}
 
 #: Arithmetic next to a position or a rank, on either side: `rank + 1`, `sums[m] + rank`, and --
 #: since security S4 -- a compound assignment (`total += x.position`) and a member after the
@@ -285,11 +286,6 @@ SORTING_PERMITTED = {
     ),
     ("FrontDoor.swift", "entries.indices"): (
         "M14-W3, REQ-GAP-001: when the register is full, the least-asked entry makes room."
-    ),
-    ("Combine.swift", "common"): (
-        "M17-W4, D-160 clause 2, D-167 clause 3: the combined list IS the product's own ordering, "
-        "built from positions on the boards the reader chose and labelled as such on the detail "
-        "screen. It never reorders the engine's answers or a surface's ranking, which Ruling A is about."
     ),
 }
 

@@ -112,7 +112,8 @@ impossible, and costs no information the combination rule uses.
   - an oversized or undecodable response is refused and the last good payload is kept;
   - the client-declaration gate allows the file system in `StandingsStore.swift` and nowhere new;
   - the D-126 text gate still passes.
-- **P3: the combination.** Red first:
+- **P3: the combination.** *Taken out of the wave at the three-attempts stop (owner ruling
+  2026-09-26); filed as #61.* Red first:
   - a model missing from one chosen board is absent;
   - the order comes from positions, never from scores (the input has none);
   - ties are broken by id; the result is deterministic;

@@ -312,7 +312,7 @@ extension RankedModel: DetailSubject {}
 /// The `/v1/boards` payload: every board the engine ranks, fetched whatever the question is.
 ///
 /// It carries POSITIONS and no score (D-167 clause 2), so nothing on the phone can average two
-/// scales (D-105). The combination is built from it in `Combine.swift`, and nowhere else.
+/// scales (D-105). The combination built from it (D-160 clause 2) returns with #61.
 struct Standings: Codable, Equatable {
     let apiVersion: String
     let attributions: [String]

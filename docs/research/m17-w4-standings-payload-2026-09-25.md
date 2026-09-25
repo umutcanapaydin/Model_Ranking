@@ -12,10 +12,10 @@ on two read-only artifacts:
 - the artifact the engine service served that day, built before M17-W3;
 - a candidate built from live sources with `main` at 7d7a9ac, which holds M17-W3's boards.
 
-The combination rule (D-167 clause 3) was replayed in Python on the candidate's payload. The
-replay follows `ios/ModelRanking/Engine/Combine.swift` rule for rule, so each result can be
-checked by hand against the boards' own positions. The Swift file itself is covered by
-`ios/EngineTests/CombineTests.swift`. Issue #50.
+The combination rule (D-167 clause 3) was replayed in Python on the candidate's payload, so each
+result can be checked by hand against the boards' own positions. The Swift implementation of the rule
+left M17-W4 at the three-attempts stop and returns with #61; the replay records what the rule does,
+not what shipped. Issue #50.
 
 ## 1. The payload
 

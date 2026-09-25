@@ -3135,3 +3135,9 @@ distance between models shown, which would need scores and a new ADR under D-105
   to about 500 KB raw and 36 KB compressed. Since the second review (R5), the effort policy follows
   the benchmark: every board of a benchmark a surface ranks at one effort stands at it, and two
   surfaces asking two efforts of one benchmark are refused.
+- **Clause 3 and the arithmetic permission of clause 4 leave M17-W4 (owner ruling, 2026-09-26).**
+  The combination (`Combine.swift`) met the three-attempts stop: three Tester verdicts were BLOCKING
+  on the proof of its ordering rule, though the code agreed with an independent implementation on
+  every board set tried. It is filed as #61, with its code in the branch history, and returns with a
+  property test. Clauses 1, 2 and the file-system half of clause 4 ship in M17-W4. The rule in
+  clause 3 stands as ruled.
