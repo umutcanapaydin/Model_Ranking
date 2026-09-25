@@ -174,3 +174,79 @@ def test_the_build_reports_the_attribute_as_arrived(tmp_path) -> None:  # type: 
         assert access.SOURCE in report.sources_json()["arrived"]  # type: ignore[operator]
     finally:
         conn.close()
+
+
+def _build_with(conn: sqlite3.Connection, bundle, **kw):  # type: ignore[no-untyped-def]
+    from app.workflows.build import build
+
+    from .test_build import PLANS_YAML, ROSTERS_YAML, _sources
+
+    return build(conn, plans_yaml=PLANS_YAML, rosters_yaml=ROSTERS_YAML, sources=_sources(),
+                 minimum_models=2, bundle_dir=bundle, bundles=(), boards=(), slices=(),
+                 access_files=(access.FILE,), **kw)
+
+
+def test_the_build_links_what_it_stores(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Tester T1: the build's own `access.link` after reconcile is what serves a value; without it
+    every row stays unlinked and the phone gets none."""
+    (tmp_path / access.FILE).write_text(_csv(("claude-opus-4-5-20251101", "API access")), encoding="utf-8")
+    conn = connect(":memory:")
+    try:
+        report = _build_with(conn, tmp_path)
+        assert access.served(conn) == {"claude-4.5-opus": "API access"}
+        assert report.access["linked"] == 1
+    finally:
+        conn.close()
+
+
+def test_a_night_the_file_is_missing_serves_the_last_good_values_through_the_build(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Tester T2: D-156 through `build()`, not only through `Carry.restore`."""
+    import datetime as dt
+
+    now = dt.datetime(2026, 9, 23, 22, 0, tzinfo=dt.UTC)
+    live = tmp_path / "live.db"
+    old = connect(str(live))
+    _build_with(old, tmp_path / "none")
+    access.store(old, [access.AccessRow("claude-opus-4-5-20251101", "API access")], source=access.SOURCE,
+                 source_url="u", observed_at=(now - dt.timedelta(days=2)).isoformat())
+    old.close()
+    empty = tmp_path / "bundle"
+    empty.mkdir()
+    conn = connect(str(tmp_path / "cand.db"))
+    try:
+        report = _build_with(conn, empty, carry_from=live, last_ok={}, now=now)
+        assert access.SOURCE in report.carried
+        assert access.served(conn) == {"claude-4.5-opus": "API access"}
+    finally:
+        conn.close()
+
+
+def test_a_metadata_file_that_resolves_outside_the_bundle_is_refused(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Tester T3: the file is read through the bundle's path guard, which a planted symlink meets."""
+    from app.workflows import build as build_mod
+
+    outside = tmp_path / "outside.csv"
+    outside.write_text(_csv(("claude-opus-4-5-20251101", "API access")), encoding="utf-8")
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    (bundle / access.FILE).symlink_to(outside)
+    conn = connect(":memory:")
+    try:
+        reports, missing = build_mod._ingest_access(conn, bundle, build_mod.RunContext())
+        assert reports == [] and missing and "outside the bundle" in missing[0]
+        assert conn.execute("SELECT COUNT(*) FROM access").fetchone()[0] == 0
+    finally:
+        conn.close()
+
+
+def test_a_metadata_file_with_no_valid_row_is_a_missing_line(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Tester B2: a file that parses to nothing is a failed source, never an empty attribute."""
+    from app.workflows import build as build_mod
+
+    (tmp_path / access.FILE).write_text(_csv(("x", "Free for all"), ("", "API access")), encoding="utf-8")
+    conn = connect(":memory:")
+    try:
+        reports, missing = build_mod._ingest_access(conn, tmp_path, build_mod.RunContext())
+        assert reports == [] and missing == [f"{access.SOURCE}: parsed 0 rows from {access.FILE}"]
+    finally:
+        conn.close()

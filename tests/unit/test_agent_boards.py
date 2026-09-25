@@ -119,3 +119,35 @@ def test_one_file_read_for_boards_with_two_value_columns_is_refused() -> None:
     elo = next(b for b in ARENA_SLICES if b.metric == "elo")
     with pytest.raises(SourceError, match="different value columns"):
         parse_arena_slices(_agent_file([0.1]), [agent, elo], source_url="u")
+
+
+def _dated_file(values: list[object], dates: list[str]) -> bytes:
+    import io
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    n = len(values)
+    table = pa.table({"model_name": [f"m{i}" for i in range(n)], "score": values,
+                      "category": ["overall"] * n, "leaderboard_publish_date": dates})
+    sink = io.BytesIO()
+    pq.write_table(table, sink)
+    return sink.getvalue()
+
+
+def test_an_agent_file_with_a_text_score_column_is_refused_by_the_reader() -> None:
+    """Tester T4, plan P2's hostile-file rule: D-165's type check covers the `score` column."""
+    board = next(b for b in AGENT if b.config == "agent")
+    with pytest.raises(SourceError, match="score"):
+        parse_arena_slices(_dated_file(["0.1", "0.2"], [NEWEST] * 2), [board], source_url="u")
+
+
+def test_an_agent_board_serves_only_its_newest_date_and_refuses_a_future_row() -> None:
+    """Tester T4, plan P2's stale-date rule (FP-M2-2, security S4) on an agent file."""
+    import datetime as dt
+
+    board = next(b for b in AGENT if b.config == "agent")
+    raw = _dated_file([0.1, -0.2, 0.3, 0.05], [NEWEST, NEWEST, "2026-09-10", "2099-01-01"])
+    rows, refused = parse_arena_slices(raw, [board], source_url="u", today=dt.date(2026, 9, 25))
+    assert sorted(r.raw_name for r in rows[board.source_name]) == ["m0", "m1"]
+    assert refused[board.source_name] == 2
