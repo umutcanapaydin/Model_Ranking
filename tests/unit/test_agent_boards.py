@@ -43,20 +43,12 @@ def test_an_ips_board_never_shares_a_label_with_an_elo_board_or_a_surface() -> N
     assert all(spec.metric != "ips" for spec in CATEGORIES.values())
 
 
-def _agent_file(scores: list[float], *, column: str = "score") -> bytes:
-    import io
 
-    import pyarrow as pa
-    import pyarrow.parquet as pq
-
-    n = len(scores)
-    table = pa.table({
-        "model_name": [f"m{i}" for i in range(n)], column: scores,
-        "category": ["overall"] * n, "leaderboard_publish_date": [NEWEST] * n,
-    })
-    sink = io.BytesIO()
-    pq.write_table(table, sink)
-    return sink.getvalue()
+def _agent_file(values: list[object], dates: list[str] | None = None, *, column: str = "score") -> bytes:
+    """The canonical fake in its Agent Arena shape (Tester T6: one fake, not a builder per file)."""
+    dates = dates or [NEWEST] * len(values)
+    rows = [(f"m{i}", v, "overall", d) for i, (v, d) in enumerate(zip(values, dates, strict=True))]
+    return slice_parquet(rows, value_column=column)
 
 
 def test_an_agent_file_is_read_from_its_score_column_negative_values_kept() -> None:
@@ -71,7 +63,7 @@ def test_an_agent_file_is_read_from_its_score_column_negative_values_kept() -> N
 def test_an_agent_file_without_its_score_column_is_refused() -> None:
     board = next(b for b in AGENT if b.config == "agent")
     with pytest.raises(SourceError, match="score"):
-        parse_arena_slices(_agent_file([0.1], column="rating"), [board], source_url="u")
+        parse_arena_slices(_agent_file([1300.0], column="rating"), [board], source_url="u")
 
 
 def test_each_metric_keeps_its_own_band() -> None:
@@ -121,25 +113,12 @@ def test_one_file_read_for_boards_with_two_value_columns_is_refused() -> None:
         parse_arena_slices(_agent_file([0.1]), [agent, elo], source_url="u")
 
 
-def _dated_file(values: list[object], dates: list[str]) -> bytes:
-    import io
-
-    import pyarrow as pa
-    import pyarrow.parquet as pq
-
-    n = len(values)
-    table = pa.table({"model_name": [f"m{i}" for i in range(n)], "score": values,
-                      "category": ["overall"] * n, "leaderboard_publish_date": dates})
-    sink = io.BytesIO()
-    pq.write_table(table, sink)
-    return sink.getvalue()
-
 
 def test_an_agent_file_with_a_text_score_column_is_refused_by_the_reader() -> None:
     """Tester T4, plan P2's hostile-file rule: D-165's type check covers the `score` column."""
     board = next(b for b in AGENT if b.config == "agent")
     with pytest.raises(SourceError, match="score"):
-        parse_arena_slices(_dated_file(["0.1", "0.2"], [NEWEST] * 2), [board], source_url="u")
+        parse_arena_slices(_agent_file(["0.1", "0.2"]), [board], source_url="u")
 
 
 def test_an_agent_board_serves_only_its_newest_date_and_refuses_a_future_row() -> None:
@@ -147,7 +126,32 @@ def test_an_agent_board_serves_only_its_newest_date_and_refuses_a_future_row() -
     import datetime as dt
 
     board = next(b for b in AGENT if b.config == "agent")
-    raw = _dated_file([0.1, -0.2, 0.3, 0.05], [NEWEST, NEWEST, "2026-09-10", "2099-01-01"])
+    raw = _agent_file([0.1, -0.2, 0.3, 0.05], [NEWEST, NEWEST, "2026-09-10", "2099-01-01"])
     rows, refused = parse_arena_slices(raw, [board], source_url="u", today=dt.date(2026, 9, 25))
     assert sorted(r.raw_name for r in rows[board.source_name]) == ["m0", "m1"]
     assert refused[board.source_name] == 2
+
+
+@pytest.mark.slices
+def test_an_agent_board_is_stored_through_the_build_under_its_own_metric() -> None:
+    """Tester T6: an agent file through `_ingest_slices`, the path the build takes, from the
+    canonical fake: stored under its own source, metric and harness, negative scores kept."""
+    from app.clients.fakes import fake_slice_client
+    from app.workflows import build as build_mod
+    from app.workflows.schema import connect
+
+    board = next(b for b in AGENT if b.config == "agent")
+    conn = connect(":memory:")
+    try:
+        run = build_mod.RunContext()
+        reports, missing = build_mod._ingest_slices(
+            conn, run, (board,), None, [],
+            client=fake_slice_client({"agent": _agent_file([(i - 12) / 20 for i in range(24)])}))
+        assert missing == [] and [r.source for r in reports] == [board.source_name]
+        stored = conn.execute("SELECT DISTINCT metric, harness, benchmark FROM scores WHERE source = ?",
+                              (board.source_name,)).fetchall()
+        assert stored == [("ips", "arena-agent", board.benchmark)]
+        assert conn.execute("SELECT MIN(score) FROM scores WHERE source = ?",
+                            (board.source_name,)).fetchone()[0] < 0
+    finally:
+        conn.close()

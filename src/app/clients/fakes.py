@@ -41,8 +41,14 @@ SLICE_COLUMNS = (
 )
 
 
-def slice_parquet(rows: list[tuple[str, float, str, str]], *, drop: str | None = None) -> bytes:
-    """A parquet file shaped like the dataset's, from `(model, rating, category, date)` rows.
+def slice_parquet(
+    rows: list[tuple[str, object, str, str]], *, drop: str | None = None, value_column: str = "rating"
+) -> bytes:
+    """A parquet file shaped like the dataset's, from `(model, value, category, date)` rows.
+
+    `value_column="score"` writes an Agent Arena file (M17-W3): IPS scores in `score`, with the
+    columns the six `agent*` configs carry (measured 2026-09-25) in place of the Elo ones. A value is
+    written as given, so a test can hand it text to meet the reader's type check.
 
     `pyarrow` is imported here, not at module level: this module is imported by tests that run the
     server, and the server must never load it (D-154).
@@ -52,15 +58,28 @@ def slice_parquet(rows: list[tuple[str, float, str, str]], *, drop: str | None =
     import pyarrow as pa
     import pyarrow.parquet as pq
 
+    measured: dict[str, list[object]] = (
+        {
+            "rating": [r[1] for r in rows],
+            "rating_lower": [r[1] - 5 for r in rows],  # type: ignore[operator]
+            "rating_upper": [r[1] + 5 for r in rows],  # type: ignore[operator]
+            "variance": [1.0 for _ in rows],
+            "vote_count": [1000 for _ in rows],
+        }
+        if value_column == "rating"
+        else {
+            value_column: [r[1] for r in rows],
+            f"{value_column}_ci_lower": [r[1] for r in rows],
+            f"{value_column}_ci_upper": [r[1] for r in rows],
+            "observation_count": [100 for _ in rows],
+            "session_count": [10 for _ in rows],
+        }
+    )
     values: dict[str, list[object]] = {
         "model_name": [r[0] for r in rows],
         "organization": ["org" for _ in rows],
         "license": ["proprietary" for _ in rows],
-        "rating": [r[1] for r in rows],
-        "rating_lower": [r[1] - 5 for r in rows],
-        "rating_upper": [r[1] + 5 for r in rows],
-        "variance": [1.0 for _ in rows],
-        "vote_count": [1000 for _ in rows],
+        **measured,
         "rank": [1 for _ in rows],
         "category": [r[2] for r in rows],
         "leaderboard_publish_date": [r[3] for r in rows],

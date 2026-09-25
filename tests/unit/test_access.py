@@ -250,3 +250,31 @@ def test_a_metadata_file_with_no_valid_row_is_a_missing_line(tmp_path) -> None: 
         assert reports == [] and missing == [f"{access.SOURCE}: parsed 0 rows from {access.FILE}"]
     finally:
         conn.close()
+
+
+def test_a_bundle_without_the_metadata_file_says_so_in_the_build_report(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Tester T5: a bundle that arrived without `model_metadata.csv` is an operator line and a drift
+    line (`/health`'s `refresh_drift`), not only a value `_ingest_access` returned."""
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    conn = connect(":memory:")
+    try:
+        report = _build_with(conn, bundle)
+        assert any(line.startswith(f"{access.SOURCE} is unavailable") for line in report.required_operator_actions)
+        assert any(entry.startswith(f"{access.SOURCE}:") for entry in report.drift)
+    finally:
+        conn.close()
+
+
+def test_the_build_report_names_the_models_whose_names_disagree(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Tester T5: the research record reads the models left without a value from the build report."""
+    (tmp_path / access.FILE).write_text(_csv(("claude-opus-4-5-20251101", "API access"),
+                                             ("claude-opus-4-5-20251101", "Open weights (unrestricted)")),
+                                        encoding="utf-8")
+    conn = connect(":memory:")
+    try:
+        report = _build_with(conn, tmp_path)
+        assert report.access["conflicting"] == ["claude-4.5-opus"]
+        assert access.served(conn) == {}
+    finally:
+        conn.close()
