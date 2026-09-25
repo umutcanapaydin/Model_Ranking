@@ -106,3 +106,24 @@ def test_reconcile_registers_no_model_from_a_latest_alias() -> None:
         assert "gemini-flash-latest" in report.dropped_names
     finally:
         conn.close()
+
+
+@pytest.mark.parametrize("name", ["gpt-5-chat-latest_high", "gpt-4o-latest:free", "oci/cohere.command-latest",
+                                  "us.anthropic.claude-3-5-sonnet-latest-v1:0"])
+def test_a_decorated_latest_alias_derives_no_model(name: str) -> None:
+    """Tester T1 of #40: the rule reads the name as the grammar spells it, after the effort, the
+    colon decoration and a dotted vendor head are gone -- all spellings price feeds use."""
+    assert derive_identity(name) is None
+
+
+def test_a_curated_rule_still_takes_a_latest_name() -> None:
+    """Tester T2 of #40, D-166 clause 2 through reconcile: `mistral-large-latest` is the curated
+    `mistral-large`'s, and the `-latest` rule only stops derivation."""
+    conn = connect(":memory:")
+    try:
+        _row(conn, "mistral-large-latest")
+        report = reconcile(conn)
+        assert conn.execute("SELECT model_id FROM scores").fetchone() == ("mistral-large",)
+        assert "mistral-large-latest" not in report.dropped_names
+    finally:
+        conn.close()
