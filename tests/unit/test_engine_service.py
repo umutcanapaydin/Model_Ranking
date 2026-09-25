@@ -1,14 +1,19 @@
-"""#32 -- the engine keeps running: a launchd service for the engine itself.
+"""#32 -- the engine keeps running: a launchd service that runs its own DEPLOYED copy of `main`.
 
 Since D-154 the engine refreshes itself nightly, and since #16 nothing else does. The engine was
 started only by hand (`./ios/app.sh up`), so after a restart nothing refreshed, and nothing said
-so (2026-09-24 to 2026-09-25). The owner ruled (2026-09-25) that a service keeps the engine up.
+so (2026-09-24 to 2026-09-25). The owner ruled (2026-09-25) that a service keeps the engine up,
+and, after the independent review (`docs/reviews/issue-32-review.md`, BLOCKING), that it runs a
+deployed copy of `main` outside `~/Desktop`:
 
-Nothing here installs a launchd job: that is the owner's action on his machine. These tests hold
-the pieces to each other and to the W-096 lessons (launchd cannot open a program or a log under
-`~/Desktop`, where the repository lives), and they run `scripts/engine_service.sh` against a
-scratch git repository to prove the branch gate: a service must never run a branch checkout as
-the engine, the trap the old launchd refresher had.
+- B1: under launchd, bash cannot read a script under `~/Desktop` and git cannot `getcwd()` there
+  (W-096), so nothing launchd touches may live there;
+- B2: the nightly refresh child runs the code on disk where the engine was imported from. Run from
+  the development checkout, it ran whatever branch was checked out that night. Run from a release
+  directory, it runs the release.
+
+Nothing here installs a launchd job: that is the owner's action on his machine. The deploy step is
+exercised against a scratch git repository into a temporary directory, without a venv.
 """
 
 from __future__ import annotations
@@ -24,15 +29,20 @@ INSTALLER = REPO / "scripts" / "install_engine_service.sh"
 REMOVER = REPO / "scripts" / "remove_engine_service.sh"
 APP_SH = REPO / "ios" / "app.sh"
 LABEL = "com.ilgar.modelranking.engine"
+HOME = "/Users/probe"
+DEPLOY = f"{HOME}/Library/Application Support/model-ranking/engine"
+
+#: Review M1: git inherits GIT_DIR and friends from a hook; a scratch repository must not.
+_CLEAN_GIT_ENV = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
 
 
-def _installer(flag: str) -> str:
-    return subprocess.run(["/bin/bash", str(INSTALLER), flag], capture_output=True, text=True,
-                          check=True, env={**os.environ, "HOME": "/Users/probe"}).stdout
+def _installer(*flags: str, home: str = HOME) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["/bin/bash", str(INSTALLER), *flags], capture_output=True, text=True,
+                          timeout=120, env={**_CLEAN_GIT_ENV, "HOME": home})
 
 
 def _plist() -> dict[str, object]:
-    return plistlib.loads(_installer("--print-plist").encode())
+    return plistlib.loads(_installer("--print-plist").stdout.encode())
 
 
 def test_the_service_keeps_the_engine_up_and_starts_at_login() -> None:
@@ -40,87 +50,144 @@ def test_the_service_keeps_the_engine_up_and_starts_at_login() -> None:
     assert job["Label"] == LABEL
     assert job["RunAtLoad"] is True
     assert job["KeepAlive"] is True
-    # A crash loop must not spin: launchd waits this long between starts.
     assert isinstance(job["ThrottleInterval"], int) and job["ThrottleInterval"] >= 30
 
 
-def test_launchd_is_never_asked_to_open_anything_under_desktop() -> None:
-    """W-096: from 2026-08-27 to 2026-09-20 a job whose program lived under ~/Desktop exited 78 on
-    every trigger and wrote nothing. The program is /bin/bash on a wrapper in Application Support,
-    and the logs are under ~/Library/Logs."""
+def test_launchd_touches_nothing_under_desktop() -> None:
+    """B1 / W-096: the program, the wrapper it runs, the release it hands over to and every log
+    live under ~/Library."""
     job = _plist()
     arguments = job["ProgramArguments"]
-    assert isinstance(arguments, list) and arguments[0] == "/bin/bash"
-    assert arguments[1] == "/Users/probe/Library/Application Support/model-ranking/engine_service.sh"
+    assert arguments == ["/bin/bash", f"{HOME}/Library/Application Support/model-ranking/engine_service.sh"]
     for key in ("StandardOutPath", "StandardErrorPath"):
-        assert str(job[key]).startswith("/Users/probe/Library/Logs/"), key
-    assert "Desktop" not in " ".join(str(a) for a in arguments)
+        assert str(job[key]).startswith(f"{HOME}/Library/Logs/"), key
+    wrapper = _installer("--print-wrapper").stdout
+    assert "Desktop" not in wrapper and "Desktop" not in str(job)
 
 
-def test_the_wrapper_runs_the_repositorys_launcher_in_service_mode() -> None:
-    """One launcher, in the tree: the installed wrapper only hands over to it, so a change to the
-    launcher needs no reinstall (the refresher's installed copy once drifted from the tree)."""
-    wrapper = _installer("--print-wrapper")
-    code = [line for line in wrapper.splitlines() if line.strip() and not line.lstrip().startswith("#")]
-    assert any(f'"{LAUNCHER}"' in line and "--service" in line and line.lstrip().startswith("exec")
-               for line in code), wrapper
+def test_the_wrapper_runs_the_deployed_release_with_its_own_artifact() -> None:
+    """B2: the engine and its nightly child run the deployed release, never the development
+    checkout, and serve the artifact kept beside the releases."""
+    wrapper = _installer("--print-wrapper").stdout
+    code = [line.strip() for line in wrapper.splitlines() if line.strip() and not line.lstrip().startswith("#")]
+    handover = [line for line in code if line.startswith("exec ")]
+    assert handover == [f'exec /bin/bash "{DEPLOY}/current/scripts/engine_service.sh" --service'], wrapper
+    assert f'MODEL_RANKING_DB="{DEPLOY}/data/advisor.db"' in wrapper
+    assert f'ENGINE_LOG_FILE="{HOME}/Library/Logs/model-ranking-engine.log"' in wrapper
 
 
-def _scratch_repo(tmp_path: Path, branch: str) -> Path:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    git = ["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid"]
-    subprocess.run([*git, "init", "-q", "-b", "main", str(repo)], check=True)
-    (repo / "README").write_text("scratch\n", encoding="utf-8")
-    subprocess.run([*git, "-C", str(repo), "add", "README"], check=True)
-    subprocess.run([*git, "-C", str(repo), "commit", "-qm", "scratch"], check=True)
-    if branch != "main":
-        subprocess.run([*git, "-C", str(repo), "checkout", "-qb", branch], check=True)
+def _git(*args: str) -> None:
+    subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", *args],
+                   check=True, capture_output=True, env=_CLEAN_GIT_ENV)
+
+
+def _scratch_repo(tmp_path: Path) -> Path:
+    """A repository with a `main` published to an `origin`, plus an unmerged branch checked out."""
+    origin, repo = tmp_path / "origin.git", tmp_path / "repo"
+    _git("init", "-q", "--bare", "-b", "main", str(origin))
+    _git("clone", "-q", str(origin), str(repo))
+    (repo / "scripts").mkdir()
+    (repo / "scripts" / "engine_service.sh").write_text("echo main's launcher\n", encoding="utf-8")
+    (repo / "README").write_text("main\n", encoding="utf-8")
+    _git("-C", str(repo), "add", ".")
+    _git("-C", str(repo), "commit", "-qm", "main")
+    _git("-C", str(repo), "push", "-q", "origin", "main")
+    _git("-C", str(repo), "checkout", "-qb", "wave/m99-w1")
+    (repo / "README").write_text("an unreviewed branch\n", encoding="utf-8")
+    _git("-C", str(repo), "commit", "-qam", "branch")
+    (repo / "advisor.db").write_bytes(b"artifact")
     return repo
 
 
-def _launch(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+def _deploy(repo: Path, target: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["/bin/bash", str(INSTALLER), "--deploy-only", str(target), "--no-venv"],
+                          capture_output=True, text=True, timeout=120,
+                          env={**_CLEAN_GIT_ENV, "MODEL_RANKING_REPO": str(repo)})
+
+
+def test_a_deploy_takes_origin_main_whatever_is_checked_out(tmp_path: Path) -> None:
+    """B2 at the source: the release is `origin/main`, exported without `.git`; the branch the
+    developer has checked out never reaches it."""
+    repo, target = _scratch_repo(tmp_path), tmp_path / "engine"
+    done = _deploy(repo, target)
+    assert done.returncode == 0, done.stdout + done.stderr
+    current = target / "current"
+    assert current.is_symlink() and (current / "README").read_text(encoding="utf-8") == "main\n"
+    assert not (current / ".git").exists()
+    sha = subprocess.run(["git", "-C", str(repo), "rev-parse", "--short", "origin/main"],
+                         capture_output=True, text=True, check=True, env=_CLEAN_GIT_ENV).stdout.strip()
+    assert (current / "RELEASE").read_text(encoding="utf-8").strip() == sha
+
+
+def test_the_first_deploy_brings_the_artifact_and_later_ones_keep_the_served_one(tmp_path: Path) -> None:
+    repo, target = _scratch_repo(tmp_path), tmp_path / "engine"
+    assert _deploy(repo, target).returncode == 0
+    served = target / "data" / "advisor.db"
+    assert served.read_bytes() == b"artifact"
+    served.write_bytes(b"refreshed by the service")
+    assert _deploy(repo, target).returncode == 0
+    assert served.read_bytes() == b"refreshed by the service", "a redeploy overwrote the served artifact"
+
+
+def _launch(tree: Path, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["/bin/bash", str(LAUNCHER), *args], capture_output=True, text=True,
-                          timeout=30, env={**os.environ, "MODEL_RANKING_REPO": str(repo),
-                                           "ENGINE_SERVICE_WAIT_S": "0"})
+                          timeout=30, env={**_CLEAN_GIT_ENV, "MODEL_RANKING_REPO": str(tree),
+                                           "ENGINE_SERVICE_WAIT_S": "0", **env})
 
 
-def test_the_service_never_runs_a_branch_checkout_as_the_engine(tmp_path: Path) -> None:
-    done = _launch(_scratch_repo(tmp_path, "wave/m99-w1"), "--service")
-    assert done.returncode == 0, done.stdout + done.stderr  # waits and exits; launchd asks again
-    assert "not main" in done.stdout and "not starting" in done.stdout
-    assert "uvicorn" not in done.stdout
+def test_the_service_runs_only_a_deployed_release(tmp_path: Path) -> None:
+    """A tree with no RELEASE stamp is a development checkout: the service does not start it."""
+    tree = tmp_path / "checkout"
+    tree.mkdir()
+    done = _launch(tree, "--service")
+    assert done.returncode == 0 and "not a deployed release" in done.stdout
+    assert "starting" not in done.stdout
 
 
-def test_on_main_the_service_goes_on_to_start_the_engine(tmp_path: Path) -> None:
-    """The positive control: past the branch gate, the next thing checked is the artifact."""
-    done = _launch(_scratch_repo(tmp_path, "main"), "--service")
+def test_on_a_release_the_service_goes_on_to_the_artifact(tmp_path: Path) -> None:
+    """The positive control: past the release check, the next thing checked is the artifact."""
+    tree = tmp_path / "release"
+    tree.mkdir()
+    (tree / "RELEASE").write_text("abc1234\n", encoding="utf-8")
+    done = _launch(tree, "--service", MODEL_RANKING_DB=str(tmp_path / "data" / "advisor.db"))
     assert done.returncode != 0
-    assert "advisor.db" in done.stdout and "not main" not in done.stdout
+    assert "advisor.db" in done.stdout and "not a deployed release" not in done.stdout
 
 
-def test_by_hand_the_launcher_runs_any_branch(tmp_path: Path) -> None:
+def test_by_hand_the_launcher_runs_a_development_checkout(tmp_path: Path) -> None:
     """`ios/app.sh` uses the same launcher without `--service`: a developer runs branches."""
-    done = _launch(_scratch_repo(tmp_path, "wave/m99-w1"))
-    assert "not main" not in done.stdout and "advisor.db" in done.stdout
+    tree = tmp_path / "checkout"
+    tree.mkdir()
+    done = _launch(tree)
+    assert "not a deployed release" not in done.stdout and "advisor.db" in done.stdout
+
+
+def test_the_service_log_is_rotated_before_it_grows_without_bound(tmp_path: Path) -> None:
+    """Review M6: the log only grew. Past `ENGINE_LOG_MAX_BYTES` it is moved aside at start."""
+    tree, log = tmp_path / "release", tmp_path / "engine.log"
+    tree.mkdir()
+    (tree / "RELEASE").write_text("abc1234\n", encoding="utf-8")
+    log.write_bytes(b"x" * 2048)
+    _launch(tree, "--service", ENGINE_LOG_FILE=str(log), ENGINE_LOG_MAX_BYTES="1024",
+            MODEL_RANKING_DB=str(tmp_path / "missing.db"))
+    assert (tmp_path / "engine.log.1").read_bytes() == b"x" * 2048
+    assert "advisor.db" in log.read_text(encoding="utf-8") or "missing.db" in log.read_text(encoding="utf-8")
 
 
 def test_the_launcher_starts_the_engine_the_way_the_app_script_did() -> None:
-    """The engine's environment: the relaxed lane with its preflight, the served artifact, and the
-    nightly refresh (D-154)."""
     text = LAUNCHER.read_text(encoding="utf-8")
-    for needle in ("APP_ENV=test", "MODEL_RANKING_DB=advisor.db", "MODEL_RANKING_REFRESH=nightly",
-                   "validate_startup_config", "uvicorn app.adapter.main:app", "--host 127.0.0.1"):
+    for needle in ("APP_ENV=test", "MODEL_RANKING_REFRESH=nightly", "validate_startup_config",
+                   "uvicorn app.adapter.main:app", "--host 127.0.0.1"):
         assert needle in text, needle
 
 
-def test_the_app_script_starts_the_engine_through_the_one_launcher_and_knows_the_service() -> None:
+def test_the_app_script_starts_through_the_launcher_and_restarts_the_service_in_place() -> None:
+    """Review M2: bootout followed at once by bootstrap races launchd; a restart is `kickstart -k`."""
     text = APP_SH.read_text(encoding="utf-8")
     code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
-    assert "scripts/engine_service.sh" in code, "ios/app.sh starts the engine some other way"
-    assert "-m uvicorn" not in code, "ios/app.sh has its own copy of the engine's start command"
-    assert LABEL in code, "ios/app.sh does not know the service, so `down` would fight KeepAlive"
-    assert "launchctl bootout" in code and "launchctl bootstrap" in code
+    assert "scripts/engine_service.sh" in code and "-m uvicorn" not in code
+    assert LABEL in code
+    assert "kickstart -k" in code, "a restart through the service must not unload it"
 
 
 def test_the_remover_takes_off_what_the_installer_puts_on() -> None:
