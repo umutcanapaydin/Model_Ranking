@@ -127,3 +127,15 @@ def test_the_build_reads_the_bundles_metadata_and_a_missing_file_is_a_missing_li
         assert stored == 0 and missing and missing[0].startswith("epoch_access")
     finally:
         conn.close()
+
+
+def test_an_artifact_from_before_the_table_still_fingerprints() -> None:
+    """Found by P5's measurement on the served artifact: it predates `access`, and the fingerprint
+    raised `no such table`. The refresh reads a live artifact that raises as UNREADABLE, so every
+    night after the merge would have failed. An artifact without the table serves no values."""
+    conn = sqlite3.connect(":memory:")
+    try:
+        conn.executescript("CREATE TABLE models (id TEXT PRIMARY KEY, display TEXT, vendor TEXT);")
+        assert access.served(conn) == {}
+    finally:
+        conn.close()
