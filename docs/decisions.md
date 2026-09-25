@@ -3078,3 +3078,43 @@ and are counted among the reconcile's dropped names. `/health`'s `refresh_unmatc
 twenty names with the most rows, so an alias appears there only when it ranks among them: on the
 candidate measured before merge, `deepseek-chat` did and the other eleven did not. Clause 1's "named
 in the unmatched report" is true of the drop count, not of that list.
+
+## D-167 — The phone holds every board's standings as positions, and combines only what every chosen board ranks
+
+**Status:** accepted -- **ruled by the owner 2026-09-25** (asked in Turkish, with explanations: the
+owner chose one payload of every board fetched once a day; combining only the models present on
+every chosen board; and W4 as infrastructure with no screen) · **Date:** 2026-09-25 · **Implements**
+D-160 clauses 1-2 · from #50.
+
+**Context.** D-160 moves the combined list onto the phone and forbids anything derived from the
+question to leave it. A phone that fetched only the boards a question needs would reveal the
+question through which boards it asked for. And the phone needs a rule for a model that one chosen
+board does not rank: the agent boards rank 30 models, Arena text ranks 190.
+
+**Decision.**
+1. **One route, every board, no parameters.** `GET /v1/boards` publishes every board with at least
+   one rankable model. For each board: its identity, metric, date and attribution, and its rankable
+   models in order with their positions. For each model: its name, vendor, blended price and, where
+   known, its accessibility. A query string changes nothing. The phone fetches it whatever the
+   question is, keeps it, and fetches again when it is a day old.
+2. **Positions, never scores.** No score is on this route. A board's position for a model comes from
+   that model's best row on the board. Tied models share a position, so a tie's order carries no
+   meaning.
+3. **Only what every chosen board ranks.** The combination keeps the models present on every chosen
+   board. It re-ranks them on each board among themselves by position, and orders them by the mean
+   of those ranks. Ties are broken by model id, never by a display name. Nothing is guessed for a
+   missing model. The list is at most as long as the smallest chosen board.
+4. **Two named permissions, each for one file.**
+   - `StandingsStore.swift` may touch the file system, to keep the payload the engine sent; the
+     client-declaration gate names it beside `FrontDoor.swift`.
+   - `Combine.swift` may do arithmetic on positions; the arithmetic gate names it beside
+     `Uncertainty.swift` (D-138), as D-160 clause 2 provides.
+
+   No other file gains either.
+
+**The cost.** The phone downloads every board every day, about 250 KB (about 60 KB compressed),
+measured on the served artifact on 2026-09-25. A list that includes a small board is short. The
+phone cannot show how far apart two models are on a board, only their order.
+
+**Revisit when:** the payload outgrows a daily download (D-160's trigger), or the owner wants the
+distance between models shown, which would need scores and a new ADR under D-105.
