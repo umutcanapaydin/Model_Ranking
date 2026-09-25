@@ -949,7 +949,7 @@ def _served_without(target: Path, sources: set[str]) -> ServingSummary:
         live.close()
     try:
         marks = ",".join("?" * len(sources))
-        # Every table a source's rows live in (#41: this was a second copy of the list, and missed
+        # Every table a source's rows live in (#41: this was a third copy of the list, and missed
         # `access`); one the live artifact predates has nothing to drop.
         present = {row[0] for row in scratch.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
         for table in (t for t in CARRY_TABLES if t in present):
