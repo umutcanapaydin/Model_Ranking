@@ -27,9 +27,9 @@ def _csv(*rows: tuple[str, str]) -> str:
 
 
 def test_the_vocabulary_is_the_one_the_file_uses() -> None:
-    assert access.ACCESSIBILITY == frozenset({
+    assert frozenset({
         "API access", "Open weights (unrestricted)", "Open weights (restricted use)",
-        "Open weights (non-commercial)", "Hosted access (no API)", "Unreleased", "Limited access"})
+        "Open weights (non-commercial)", "Hosted access (no API)", "Unreleased", "Limited access"}) == access.ACCESSIBILITY
 
 
 def test_rows_with_no_name_or_no_value_are_skipped_and_counted() -> None:
@@ -81,7 +81,7 @@ def test_no_existing_table_changes_shape() -> None:
     """Additive only: the new table is new; the columns every served table had stay as they were."""
     conn = connect(":memory:")
     try:
-        cols = {t: [r[1] for r in conn.execute(f"PRAGMA table_info({t})")]  # noqa: S608
+        cols = {t: [r[1] for r in conn.execute(f"PRAGMA table_info({t})")]
                 for t in ("models", "scores", "pricing")}
         assert cols["models"] == ["id", "display", "vendor"]
         assert "accessibility" not in cols["scores"] + cols["pricing"]

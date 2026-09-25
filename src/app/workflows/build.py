@@ -51,8 +51,9 @@ from pathlib import Path
 from typing import Any
 
 from app.clients.arena_slices import ARENA_SLICES, ArenaSlice, fetch_slices
-from app.clients.epoch_board import EpochBoard, parse_board
+from app.clients.epoch_board import EpochBoard, parse_board, read_bundle_file
 from app.clients.protocols import SourceError
+from app.workflows import access
 from app.workflows.epoch import committed_last_verified
 from app.workflows.ingest import RunContext, SourceReport, _store_scores
 from app.workflows.plans import ingest_plans
@@ -116,6 +117,9 @@ class BuildReport:
     #: rows that nothing matched -- the curation that remains, made visible.
     derived: list[str] = field(default_factory=list)
     unmatched: list[str] = field(default_factory=list)
+    #: M17-W3: how Epoch's accessibility names linked to models, and the models left without a
+    #: value because their names disagree.
+    access: dict[str, object] = field(default_factory=dict)
 
     def sources_json(self) -> dict[str, object]:
         """What the refresh needs from this build, and nothing it would have to re-derive (review
@@ -154,6 +158,7 @@ class BuildReport:
             "drift": self.drift,
             "derived": self.derived,
             "unmatched": self.unmatched,
+            "access": self.access,
         }
 
 
@@ -206,6 +211,8 @@ def _ingest_curated(
 
 #: D-144 as ruled by the owner, D-156. "If the data is about a month old, the list drops."
 CARRY_MAX_AGE = dt.timedelta(days=30)
+#: The tables a source's rows live in, all carried alike (D-156). `access` joined at M17-W3.
+CARRY_TABLES = ("scores", "pricing", "access")
 
 
 @dataclass
@@ -252,8 +259,10 @@ class Carry:
         stamp = self.last_ok.get(source)
         age = self._age(stamp)
         if age is None:
+            tables = [t for t in CARRY_TABLES
+                      if live.execute("SELECT 1 FROM sqlite_master WHERE name = ?", (t,)).fetchone()]
             newest = [live.execute(f"SELECT MAX(observed_at) FROM {t} WHERE source = ?",  # noqa: S608
-                                   (source,)).fetchone()[0] for t in ("scores", "pricing")]
+                                   (source,)).fetchone()[0] for t in tables]
             stamp = max((x for x in newest if x), default=None)
             # The rows are the last word. If they are ahead of now too, the clock stepped back and
             # the data is as young as it gets: carry at age 0 rather than expire (re-review
@@ -270,17 +279,8 @@ class Carry:
         except sqlite3.Error:
             return "absent"
         try:
-            copied = 0
-            rows_by_table = {}
-            for table in ("scores", "pricing"):
-                cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
-                live_cols = {r[1] for r in live.execute(f"PRAGMA table_info({table})")}
-                shared = [c for c in cols if c in live_cols]
-                select = ", ".join("NULL" if c == "model_id" else c for c in shared)
-                rows_by_table[table] = (shared, live.execute(
-                    f"SELECT {select} FROM {table} WHERE source = ?", (source,)).fetchall())  # noqa: S608
-                copied += len(rows_by_table[table][1])
-            if not copied:
+            rows_by_table = _live_rows(conn, live, source)
+            if not any(rows for _, rows in rows_by_table.values()):
                 return "absent"
             age, stamp = self.age_days(live, source)
         except sqlite3.Error:
@@ -312,6 +312,23 @@ class Carry:
         # like a healthy one from outside, which is what the refresh record and /health are for.
         self.carried[source] = round(age, 1)
         return "carried"
+
+
+def _live_rows(conn: sqlite3.Connection, live: sqlite3.Connection,
+               source: str) -> dict[str, tuple[list[str], list[tuple[object, ...]]]]:
+    """`source`'s rows in the live artifact, per carried table, in the columns both artifacts have.
+    A table the live artifact predates (`access`, M17-W3) contributes nothing."""
+    rows_by_table: dict[str, tuple[list[str], list[tuple[object, ...]]]] = {}
+    for table in CARRY_TABLES:
+        cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
+        live_cols = {r[1] for r in live.execute(f"PRAGMA table_info({table})")}
+        if not live_cols:
+            continue
+        shared = [c for c in cols if c in live_cols]
+        select = ", ".join("NULL" if c == "model_id" else c for c in shared)
+        rows_by_table[table] = (shared, live.execute(
+            f"SELECT {select} FROM {table} WHERE source = ?", (source,)).fetchall())  # noqa: S608
+    return rows_by_table
 
 
 def _fall_back(conn: sqlite3.Connection, carry: Carry | None, source: str) -> str:
@@ -425,6 +442,45 @@ def _ingest_boards(
         run.reports.append(report)
         results.append(report)
     return results, missing
+
+
+#: The bundle files read as attributes rather than boards (M17-W3). Read at call time, like every
+#: source table here, so a test that switches the bundle off can switch this off too.
+ACCESS_FILES: tuple[str, ...] = (access.FILE,)
+
+
+def _ingest_access(
+    conn: sqlite3.Connection, bundle_dir: Path | None, run: RunContext,
+    carry: Carry | None = None, drift: list[str] | None = None,
+    files: Sequence[str] | None = None,
+) -> tuple[int, list[str]]:
+    """Epoch's `model_metadata.csv` into `access` (M17-W3, #37): the attribute, not a board.
+
+    Read from the same unpacked bundle as the Epoch boards, through the same path guard. A failure
+    resets the rows and carries the last good ones (D-156); it never fails the build: an attribute
+    missing for a night hides a filter, it does not blind a surface.
+    """
+    source = access.SOURCE
+    if not (ACCESS_FILES if files is None else files):
+        return 0, []
+    try:
+        if bundle_dir is None:
+            msg = "no local bundle directory supplied"
+            raise SourceError(msg)
+        rows, _skipped = access.parse_metadata(read_bundle_file(bundle_dir, access.FILE, source))
+        if not rows:
+            msg = f"parsed 0 rows from {access.FILE}"
+            raise SourceError(msg)
+        stored = access.store(conn, rows, source=source, source_url=f"epoch-bundle#{access.FILE}",
+                              observed_at=run.observed_at)
+    except (SourceError, OSError) as exc:
+        reset_source(conn, "access", source)
+        if drift is not None and bundle_dir is not None:
+            drift.append(f"{source}: {exc}")
+        missing = [] if _fall_back(conn, carry, source) == "carried" else [f"{source}: {exc}"]
+        return 0, missing
+    run.reports.append(SourceReport(source=source, stored=stored, skipped=_skipped, effort_unknown=0))
+    return stored, []
 
 
 def _ingest_slices(
@@ -597,6 +653,7 @@ def build(
     bundles: Sequence[LocalBundle] | None = None,
     boards: Sequence[EpochBoard] | None = None,
     slices: Sequence[ArenaSlice] | None = None,
+    access_files: Sequence[str] | None = None,
     run: RunContext | None = None,
     minimum_models: int | None = None,
     carry_from: Path | None = None,
@@ -647,11 +704,13 @@ def build(
     board_reports, board_missing = _ingest_boards(conn, bundle_dir, run, boards, carry,
                                                   drift=report.drift)
     slice_reports, slice_missing = _ingest_slices(conn, run, slices, carry, drift=report.drift)
+    _access_stored, access_missing = _ingest_access(conn, bundle_dir, run, carry, drift=report.drift,
+                                                    files=access_files)
     report.sources.extend(board_reports)
     report.sources.extend(bundle_reports)
     report.sources.extend(slice_reports)
     report.required_operator_actions = _surfaces_left_without_evidence(
-        [*degraded, *bundle_missing, *board_missing, *slice_missing]
+        [*degraded, *bundle_missing, *board_missing, *slice_missing, *access_missing]
     )
 
     reconciled = reconcile(conn)
@@ -663,6 +722,9 @@ def build(
         raise BuildError(msg)
     report.reconciled = reconciled
     report.derived = list(reconciled.derived)
+    linked = access.link(conn)
+    report.access = {"linked": linked.linked, "unlinked": linked.unlinked,
+                     "conflicting": list(linked.conflicting)}
     report.unmatched = _most_unmatched(conn, {name for name, _ in reconciled.modality_drops})
     report.plans_reconciled = reconcile_plans(conn)
 

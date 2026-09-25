@@ -39,6 +39,7 @@ from dataclasses import dataclass, fields
 from pathlib import Path
 
 from app.clients import epoch_bundle
+from app.workflows import access
 from app.workflows import boards as declared_boards
 from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
@@ -473,6 +474,9 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         for raw_name, model_id, score in standings:
             digest.update(f"{raw_name}|{model_id}|{round_score(score)}\n".encode())
         other_boards[board.source] = frozenset(raw_name for raw_name, _, _ in standings)
+    # M17-W3: each model's accessibility is served to the phone (W4), so a change publishes.
+    for model_id, accessibility in access.served(conn).items():
+        digest.update(f"access:{model_id}:{accessibility}\n".encode())
     return ServingSummary(
         digest=digest.hexdigest(),
         surfaces=surfaces,
