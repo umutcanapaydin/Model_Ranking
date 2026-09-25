@@ -23,6 +23,13 @@ if [ -n "$EPOCH_DIR" ]; then export MODEL_RANKING_EPOCH_DIR="$EPOCH_DIR"; else u
 PORT=8080
 BUILD_DIR="$REPO/ios/.build"
 ENGINE_LOG="$BUILD_DIR/engine.log"
+# #32: the launchd service that keeps the engine up (scripts/install_engine_service.sh). When it is
+# installed, the engine is started and stopped THROUGH launchd: a `pkill` would only be undone by
+# its KeepAlive a minute later.
+SERVICE_LABEL="com.ilgar.modelranking.engine"
+SERVICE_PLIST="$HOME/Library/LaunchAgents/$SERVICE_LABEL.plist"
+SERVICE_LOG="$HOME/Library/Logs/model-ranking-engine.log"
+service_installed() { [ -f "$SERVICE_PLIST" ]; }
 
 cd "$REPO" || exit 1
 mkdir -p "$BUILD_DIR"
@@ -37,7 +44,12 @@ engine_up() { curl -sf -m 2 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; }
 # confirming it is the defect this whole project keeps finding, and it took about ninety seconds to
 # reproduce in the script written to avoid it.
 stop_engine() {
-  pkill -f "uvicorn app.adapter.main:app" 2>/dev/null
+  if service_installed; then
+    # Unloaded until the next `up` or login; the plist stays, so the service comes back then.
+    launchctl bootout "gui/$(id -u)/$SERVICE_LABEL" 2>/dev/null
+  else
+    pkill -f "uvicorn app.adapter.main:app" 2>/dev/null
+  fi
   for _ in $(seq 1 20); do
     engine_up || { echo "engine   : stopped"; return 0; }
     sleep 0.25
@@ -58,45 +70,22 @@ start_engine() {
     echo "           .venv/bin/python -m app.workflows.build --db advisor.db --epoch-dir <bundle>"
     exit 1
   fi
-  # PREFLIGHT, added to close W-042. The engine serves in the RELAXED lane (`APP_ENV=test`) so a
-  # developer is not made to supply production config on a laptop -- but in that lane
-  # `validate_startup_config` RETURNS its problems as warnings instead of raising, so the
-  # fail-closed startup control was never exercised on the one command anybody actually runs. A
-  # security review's phrasing: it is how a command gets copied into a deploy script.
-  #
-  # So the checks still run in the relaxed lane, and this refuses to start on any problem they
-  # report. Same evidence, same messages, strict CONSEQUENCE, without relabelling a laptop as
-  # production.
-  PREFLIGHT=$(APP_ENV=test MODEL_RANKING_DB=advisor.db \
-    APP_BUILD="dev-$(git rev-parse --short HEAD)" \
-    "$REPO/.venv/bin/python" -B -c \
-    'from app.adapter.main import validate_startup_config
-import sys
-problems = validate_startup_config()
-if problems:
-    print("\n".join(problems))
-    sys.exit(1)' 2>&1)
-  if [ -n "$PREFLIGHT" ]; then
-    echo "engine   : REFUSED to start — the startup checks reported:"
-    echo "$PREFLIGHT" | sed 's/^/           /'
-    exit 1
+  # One launcher (#32): scripts/engine_service.sh runs the W-042 preflight and starts the engine
+  # with the nightly refresh (D-151, D-154), exactly as the launchd service does.
+  if service_installed; then
+    echo "engine   : starting through the launchd service $SERVICE_LABEL (runs from main only)"
+    launchctl bootstrap "gui/$(id -u)" "$SERVICE_PLIST" 2>/dev/null \
+      || launchctl kickstart "gui/$(id -u)/$SERVICE_LABEL"
+  else
+    echo "engine   : starting on :$PORT (refreshes itself nightly, 23:00-01:00; D-151, D-154)"
+    "$REPO/scripts/engine_service.sh" > "$ENGINE_LOG" 2>&1 &
   fi
-
-  echo "engine   : starting on :$PORT (refreshes itself nightly, 23:00-01:00; D-151, D-154)"
-  # The engine owns the refresh now (D-154): once a night inside 23:00-01:00, plus one catch-up at
-  # startup when the last good cycle is over a day old. The launchd job it replaces is retired by
-  # the owner (scripts/retire_refresh.sh, run by the owner); until then the two share refresh.py's lock,
-  # so they cannot overlap.
-  APP_ENV=test MODEL_RANKING_DB=advisor.db APP_BUILD="dev-$(git rev-parse --short HEAD)" \
-    MODEL_RANKING_REFRESH=nightly \
-    "$REPO/.venv/bin/python" -m uvicorn app.adapter.main:app \
-    --host 127.0.0.1 --port "$PORT" > "$ENGINE_LOG" 2>&1 &
   for _ in $(seq 1 20); do
     sleep 0.5
     engine_up && { echo "engine   : up  $(curl -s http://127.0.0.1:$PORT/health)"; return; }
   done
   echo "engine   : FAILED to start. Last lines:"
-  tail -5 "$ENGINE_LOG"
+  if service_installed; then tail -5 "$SERVICE_LOG"; else tail -5 "$ENGINE_LOG"; fi
   exit 1
 }
 
@@ -163,12 +152,20 @@ case "${1:-up}" in
     echo "simulator: left open on purpose — 'xcrun simctl shutdown all' closes it"
     ;;
   logs)
-    echo "following $ENGINE_LOG (ctrl-C to stop)"
-    tail -f "$ENGINE_LOG"
+    LOG="$ENGINE_LOG"; service_installed && LOG="$SERVICE_LOG"
+    echo "following $LOG (ctrl-C to stop)"
+    tail -f "$LOG"
     ;;
   status)
     engine_up && echo "engine   : UP    $(curl -s http://127.0.0.1:$PORT/health)" \
                || echo "engine   : down"
+    if service_installed; then
+      launchctl print "gui/$(id -u)/$SERVICE_LABEL" >/dev/null 2>&1 \
+        && echo "service  : $SERVICE_LABEL installed and loaded" \
+        || echo "service  : $SERVICE_LABEL installed, not loaded (./ios/app.sh up loads it)"
+    else
+      echo "service  : not installed (scripts/install_engine_service.sh keeps the engine up)"
+    fi
     xcrun simctl list devices | grep "$DEVICE (" | head -1 | sed 's/^ */simulator: /'
     xcrun simctl spawn booted launchctl list 2>/dev/null | grep -q "$BUNDLE" \
       && echo "app      : running" || echo "app      : not running"
