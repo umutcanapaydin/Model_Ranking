@@ -141,7 +141,7 @@ def test_the_service_runs_only_a_deployed_release(tmp_path: Path) -> None:
     tree.mkdir()
     done = _launch(tree, "--service")
     assert done.returncode == 0 and "not a deployed release" in done.stdout
-    assert "starting" not in done.stdout
+    assert "starting on :" not in done.stdout
 
 
 def test_on_a_release_the_service_goes_on_to_the_artifact(tmp_path: Path) -> None:

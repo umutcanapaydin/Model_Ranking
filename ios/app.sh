@@ -73,10 +73,12 @@ start_engine() {
   # One launcher (#32): scripts/engine_service.sh runs the W-042 preflight and starts the engine
   # with the nightly refresh (D-151, D-154), exactly as the launchd service does.
   if service_installed; then
-    echo "engine   : starting through the launchd service $SERVICE_LABEL (runs from main only)"
+    echo "engine   : starting through the launchd service $SERVICE_LABEL (the deployed main)"
     launchctl bootstrap "gui/$(id -u)" "$SERVICE_PLIST" 2>/dev/null \
       || launchctl kickstart "gui/$(id -u)/$SERVICE_LABEL"
   else
+    # By hand, from this checkout. Its nightly refresh child runs whatever is checked out here
+    # that night (review K1 of #32); the service, which runs a deployed release, does not.
     echo "engine   : starting on :$PORT (refreshes itself nightly, 23:00-01:00; D-151, D-154)"
     "$REPO/scripts/engine_service.sh" > "$ENGINE_LOG" 2>&1 &
   fi
@@ -140,8 +142,16 @@ case "${1:-up}" in
     # old file's inode and `/health` goes on answering 200. That is L.7 exactly: restart is not
     # rebuild, and the build stamp is the only thing that tells you which you got. It cost one
     # debugging round here: nine categories in the artifact, three on the wire, everything green.
-    if engine_up; then stop_engine; fi
-    start_engine
+    if service_installed && launchctl print "gui/$(id -u)/$SERVICE_LABEL" >/dev/null 2>&1; then
+      # The service runs the DEPLOYED main (#32): restarted in place with `kickstart -k` (an unload
+      # followed at once by a load races launchd, review M2). A code change reaches it only
+      # through scripts/install_engine_service.sh, which deploys the new origin/main.
+      launchctl kickstart -k "gui/$(id -u)/$SERVICE_LABEL"
+      for _ in $(seq 1 60); do engine_up && break; sleep 0.5; done
+    else
+      if engine_up; then stop_engine; fi
+      start_engine
+    fi
     start_simulator
     build_and_launch
     echo "engine   : $(curl -sf -m 2 "http://127.0.0.1:$PORT/health" || echo unreachable)"

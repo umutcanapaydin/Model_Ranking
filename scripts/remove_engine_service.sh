@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Take off the service `scripts/install_engine_service.sh` put on (#32). The owner runs this; it
 # changes his machine. The engine stops, and nothing restarts it until `./ios/app.sh up` or the
-# installer. Nothing in the repository is deleted.
+# installer. The deployed releases and the served artifact in
+# ~/Library/Application Support/model-ranking/engine are kept; delete that folder by hand if wanted.
 set -u
+[ -n "${HOME:-}" ] || { echo "FAIL: HOME is empty, so the paths below would be wrong"; exit 1; }
 LABEL="com.ilgar.modelranking.engine"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 WRAPPER="$HOME/Library/Application Support/model-ranking/engine_service.sh"
@@ -15,3 +17,4 @@ else
 fi
 rm -f "$PLIST" && echo "removed: $PLIST"
 rm -f "$WRAPPER" && echo "removed: $WRAPPER"
+echo "kept: $HOME/Library/Application Support/model-ranking/engine (releases and the served artifact)"
