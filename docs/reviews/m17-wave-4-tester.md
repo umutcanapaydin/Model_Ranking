@@ -4,290 +4,284 @@ id: m17-wave-4-tester
 status: ratified
 seat: independent
 process_version: v6.6
-date: 2026-09-25
+date: 2026-09-26
 ---
 # Wave 4 Tester Review (m17)
 
-**Reviewer:** Tester subagent (fresh eyes — did not author wave, and is neither of its Code-Reviewers nor its security seat)
+**Reviewer:** Tester subagent, second seat (fresh eyes). This seat did not write any of the wave's code. It is not one of the wave's Code-Reviewers, not its security seat, and not the previous Tester.
 **Independent:** yes
-**Date:** 2026-09-25
-**Commit range:** `7d7a9ac..ebde1d6` (15 commits, 21 files)
+**Date:** 2026-09-26
+**Commit range:** `7d7a9ac..4203673` (the whole wave)
 **Risk tier:** HIGH (`docs/plans/m17-wave-4-plan.md:11`)
-**Model routing (HIGH, advisory):** author family Claude (`GP-Agent: claude-code/local-lane` trailers) / reviewer family Claude (Opus 5.5). Fallback reason: no second model family is available to this seat. Fresh context: this seat started from the role file, the plan, D-167 and the diff, with no memory of the authoring sessions.
-**Base-pinned policy:** `.claude/agents/Tester.md`, `.agents/rules/practices.md` and `permission-matrix.md` §11 are unchanged in the range (`git diff --stat 7d7a9ac..ebde1d6` lists none of them).
+**Supersedes:** the BLOCKING Tester verdict committed at `b35eb3e`. It stays in git history.
+**Model routing (HIGH, advisory):** the author is from the Claude family (`GP-Agent: claude-code/local-lane`). This reviewer is also Claude (Opus 5.5). Fallback reason: no second model family is available to this seat. Fresh context: this seat started from the role file, the plan, D-167, the three committed reviews and the diff. It has no memory of the authoring or reviewing sessions.
+**Base-pinned policy:** `.claude/agents/Tester.md`, `.agents/rules/practices.md` and `permission-matrix.md` §11 do not change in the range.
 
 ## Verdict
 BLOCKING
 
-The wave's behaviour is correct everywhere I measured it. On the real `advisor.db`, all 12 single-source surfaces match their board exactly: the same models, in the same order, at the same effort. The suite is green. 16 of the 17 gate mutants were refused, and every route and store criterion has a citing test that catches a mutant.
+The previous verdict's findings, re-run:
+- **B2 is resolved.** Its mutant is now killed.
+- **B3 is resolved.** `main.py` is back to 97.06 %, and it leaves uncovered exactly the lines the base left uncovered.
+- **M1, M2, M3, M5, M6 and M8 are resolved.** Each mutant is killed.
+- **M4's refusal is sound.** I measured it (see "Judgments").
 
-Three things stop the wave from closing under this profile's rules:
-- **The combination's ordering rule is not proven.** A best-rank aggregation survives all 295 Swift tests (**B1**).
-- **"Never by a display name" is not proven.** A tie broken by display name survives all 295 Swift tests (**B2**).
-- **Coverage dropped on a touched module** (`permission-matrix.md` §11), in `main.py` (**B3**).
+The wave's behaviour is right wherever I measured it:
+- On the real `advisor.db`, the Swift `combine` and my own Python implementation of D-167 clause 3 agree on all 2,316 board sets (0 disagreements).
+- `make check-fast` passes.
 
-Each fix is a few lines, and I verified each proposed test against its mutant in scratch. I may modify only this file, so the tests are the author's to add. None of the three is a defect in shipped behaviour.
+Three load-bearing behaviours still have a fault that stays green across the whole suite. At HIGH tier, the fault-injection protocol makes the missing test mandatory in this wave. I checked each fix below against its mutant in scratch. I may edit only this file, so the tests are the author's to write.
+- **B1:** `/v1/boards` fails closed on an unbuilt artifact, but nothing tests that. Drop the guard and the route answers **200 with no boards**, and every test still passes. A phone would store that answer for a day.
+- **B2:** the previous B1 is only half resolved. The tests now tell the mean from the best and the worst rank, but a **geometric mean** or a **quadratic mean** of the ranks still passes all 299 Swift tests. On real data either one changes the list in 96 % of multi-board choices.
+- **B3:** the plan says "each result names the boards it came from" (P3). Its test cannot tell the chosen boards from every board in the payload.
 
 ## Acceptance-criterion coverage (REQUIRED)
 
-Each criterion lists its citing tests, what they assert, and the mutant ids that prove each test can fail. The ids are listed under "Fault injection" below. All tests are green at `ebde1d6`.
+Every test named here is GREEN at `4203673`. The mutant ids are defined under "Fault injection".
 
 **P1: the route** (`tests/unit/test_board_standings.py`, header cites D-160 and D-167)
 - **Declared and additive.**
-  - Test: `tests/unit/test_api_v1.py:541`. The expected route set gained only `/v1/boards`, and no existing key-set test changed in the range.
-  - GREEN. PY30 (route undeclared) is killed.
-- **Positions only, no score anywhere.**
-  - Tests: `test_board_standings.py:119` (walks every key; positions are ints) and `:140` (frozen key sets).
-  - GREEN. PY13 (a `score` field added) is killed by both.
-- **D-112 effort, per board and per standing.**
-  - Tests: `:74`, `:85`, `:288` (the M8 tie-break), `:300` (the R5 benchmark policy) and `:314` (two efforts refused).
-  - GREEN. PY01, PY02, PY03, PY06, PY07 and PY19 are killed.
-  - On `advisor.db`, every standing on `epoch_deepswe_external` is at `high`. The effort of every standing equals what the surface picks on all 12 single-source surfaces.
-- **Tied positions (competition ranking).**
+  - Test: `tests/unit/test_api_v1.py:541`.
+  - GREEN. R-PY30 is killed.
+- **Positions only, no score.**
+  - Tests: `test_board_standings.py:119` and `:140`.
+  - GREEN. R-PY13 is killed.
+  - On `advisor.db`, the payload's key set is exactly the frozen one. The word "score" appears only in attribution prose ("Coding scores: swebench.com …"), never as a key or a number.
+- **D-112 effort.**
+  - Tests: `:74`, `:85`, `:288`, `:300` and `:314`.
+  - GREEN. R-PY01, 02, 03, 06, 07 and 19 are killed.
+  - The evidence tie-break's harness and name order is unpinned (**M2**).
+- **Competition ties.**
   - Test: `:67`.
-  - GREEN. PY04 (no ties) and PY05 (dense ranking) are killed.
-  - On `advisor.db`: 0 competition-ranking violations across 63 boards and 6,955 positions.
-- **Only rankable models stand.**
-  - Test: `:107`.
-  - GREEN. PY16 (unpriced models joined) is killed.
-  - PY17 (LEFT JOIN on `models`) survives, but it is equivalent: the inner join on `px_median` still drops a NULL `model_id`.
-  - The model list is not pinned to the models that stand (**M3**).
-- **Attribution.**
-  - Tests: `:154`, `:169`, and the boot-time case `:267`.
-  - GREEN. PY11 is killed by both.
-- **The boot refusals.**
-  - Test: `:267`, parametrised over an unattributed source and an undeclared metric direction.
-  - Test: `:98`, a source holding two boards.
-  - GREEN. PY09, PY10, PY23 and PY24 are killed.
-- **The egress bound.**
-  - Test: `:245`.
-  - GREEN, but it cannot tell positions from boards, or `>` from `>=` (**M1**).
-- **The post-boot 503.**
-  - Test: `:331`. It asserts the closed 503, no reason in the body, and the reason in the log.
-  - GREEN. PY25, PY26, PY27 and PY32 are killed. PY32 is the second review's surviving mutant, "ValueError dropped from the route's except", and it is now killed.
-- **The query string is ignored.**
-  - Test: `:227`.
-  - GREEN. PY28 (a `boards=` query that filters) is killed.
-  - Measured on `advisor.db`: the same 499,117 bytes with and without a query.
+  - GREEN. R-PY04 and R-PY05 are killed.
+  - `advisor.db`: 0 violations across 63 boards and 6,955 positions.
+- **Only rankable models.**
+  - Tests: `:107`, and `:363` (previous M3).
+  - GREEN. R-PY16 and R-PY12 are killed.
+  - `advisor.db`: `models` is exactly the set of models that stand.
+- **Dates and attribution.**
+  - Tests: `:154` and `:169`, and `:350` (previous M2).
+  - GREEN. R-PY11, R-PY14, R-PY15, N02 and N03 are killed.
+  - An undated board's `evidence_date: null` is unpinned (**M1**).
+- **Models: blend, display, vendor, accessibility.**
+  - Test: `:185`.
+  - GREEN. R-PY20, N04, N05 and N09 are killed.
+- **Boot refusals and the egress bound.**
+  - Tests: `:245`, `:267` and `:98`, and `:382` (previous M1).
+  - GREEN. R-PY21, 22, 23 and 24, and N18, are killed.
+  - The bound's 25,000 default is unpinned (**M3**).
+- **Closed 503 paths.**
+  - Tests: `:236`, `:331`, `:403` (parametrised), `:423` and `:434`.
+  - GREEN. R-PY25, 26, 27 and 32, and N11, N13 and N14, are killed.
+  - **The unbuilt-artifact guard is NOT proven. R-PY31 survives (B1).**
+- **A query string is ignored.**
+  - Tests: `:227`.
+  - GREEN. R-PY28 is killed.
+  - `advisor.db`: 499,117 identical bytes with and without `?boards=epoch_chess&task=coding`.
 - **The payload contract against the Swift structs.**
   - Test: `tests/unit/test_ios_payload_contract.py:264`.
-  - GREEN. G11 (a required field the route does not serve), G12 and G15 (CodingKey drift) are killed.
+  - GREEN. R-G11, R-G12 and R-G15 are killed.
 
-**P2: the fetch and the store**
+**P2: fetch and store**
 - **Nothing sent.**
-  - Tests: `ios/EngineTests/EngineClientTests.swift:470` (path and no query) and `:491` (no header of its own, GET, no body).
-  - GREEN. EC01 (a query item), EC02 (an `X-Task` header) and EC04 (an extra path segment) are killed.
-- **The ceiling, and an unreadable response refused.**
-  - Tests: `EngineClientTests.swift:518` and `:505`, and `StandingsStoreTests.swift:119`.
-  - GREEN. FS03 and EC03 are killed.
-  - The ceiling's boundary and its size are unpinned (**M6**).
-- **Freshness.**
-  - Test: `StandingsStoreTests.swift:51`.
-  - GREEN. ST01 (fresh at exactly a day), ST08 and ST09 are killed.
-- **Clock skew.**
-  - Test: `StandingsStoreTests.swift:65`.
-  - GREEN. ST02 is killed.
-- **Keeping the last good payload.**
-  - Tests: `StandingsStoreTests.swift:76` and `:86`.
-  - GREEN. ST03 and ST04 are killed.
-  - The time stamped on a fresh fetch is unpinned (**M5**).
+  - Tests: `ios/EngineTests/EngineClientTests.swift:470` and `:491`.
+  - GREEN. R-EC01, R-EC02 and R-EC04 are killed.
+- **The ceiling.**
+  - Tests: `EngineClientTests.swift:518`, and `StandingsStoreTests.swift:119` and `:131` (previous M6).
+  - GREEN. R-FS02, R-FS03 and R-FS04 are killed.
+  - The comment at `:132` cites D-167 for a number D-167 does not contain (**M4**).
+- **An unreadable response is refused.**
+  - Test: `EngineClientTests.swift:505`.
+  - GREEN. R-EC03 is killed.
+- **Freshness and clock skew.**
+  - Tests: `StandingsStoreTests.swift:51` and `:65`.
+  - GREEN. R-ST01, R-ST02, R-ST08, R-ST09, A-ST10 and A-ST13 are killed.
+- **The last good payload is kept, and a fresh fetch is stamped.**
+  - Tests: `:76` and `:86`, and `:124` (previous M5).
+  - GREEN. R-ST03, R-ST04, R-ST05, A-ST12 and A-ST14 are killed.
 - **Non-file addresses refused.**
-  - Test: `StandingsStoreTests.swift:93`, which pins `load()` offline with a `data:` URL.
-  - GREEN. ST06 is killed.
-  - The guard in `save()` is unpinned (**M4**).
-- **Only decoded fields stored.**
-  - Test: `StandingsStoreTests.swift:105`.
-  - GREEN. FS01 (raw bytes kept) is killed.
+  - Test: `:93` (`load`).
+  - GREEN. R-ST06 is killed.
+  - R-ST07 (`save`) is equivalent: I measured it (see "Judgments").
+- **Only decoded fields are stored.**
+  - Test: `:105`.
+  - GREEN. R-FS01 is killed.
 
 **P3: the combination** (`ios/EngineTests/CombineTests.swift`, header cites D-160 clause 2 and D-167 clause 3)
-- **The all-present rule.**
+- **All present.**
   - Test: `:30`.
-  - GREEN. SW01 (union instead of intersection) is killed.
-- **Re-ranking among the common models.**
+  - GREEN. R-SW01 is killed.
+- **Re-ranked among the common models.**
   - Test: `:38`.
-  - GREEN. SW05 (raw positions) is killed.
-  - **The ordering by the mean of the ranks is NOT proven: SW11 survives (B1).**
-- **Competition ties.**
+  - GREEN. R-SW05 is killed.
+- **Ordered by the mean of the ranks.**
+  - Tests: `:38` and `:69` (previous B1).
+  - GREEN. R-SW11 (best rank) and A-SW02 (worst rank) are killed.
+  - **A-SW01 (geometric mean) and A-SW03 (quadratic mean) survive (B2).**
+- **Competition ties when re-ranking.**
   - Test: `:59`.
-  - GREEN. SW02 is killed.
-- **The id tie-break.**
-  - Test: `:48`.
-  - GREEN. SW03 (id reversed) is killed.
-  - **"Never by a display name" is NOT proven: SW04 survives (B2).**
-- **Duplicates.**
-  - Tests: `:109` (a board chosen twice) and `:115` (a model listed twice).
-  - GREEN. SW06 and SW07 are killed.
-- **Refusals.**
-  - Tests: `:95` (an unknown board), `:103` (no board) and `:124` (an undescribed model).
-  - GREEN. SW08, SW09 and SW10 are killed.
-- **One board chosen, board order irrelevant, the boards named.**
-  - Tests: `:69`, `:75` and `:84`.
-  - GREEN. SW12 (positions dropped) is killed.
+  - GREEN. R-SW02 and A-SW04 (dense) are killed.
+- **Ties broken by id, never by display name.**
+  - Tests: `:48`, and `:78` (previous B2).
+  - GREEN. R-SW03 and R-SW04 are killed.
+- **One board, board order, positions per board.**
+  - Tests: `:90`, `:96` and `:105`.
+  - GREEN. R-SW12 and A-SW05 are killed.
+- **Each result names the boards it came from.**
+  - Test: `:105-110`.
+  - **NOT proven. A-SW06 survives (B3).**
+- **Refusals and duplicates.**
+  - Tests: `:116`, `:124`, `:130`, `:136` and `:145`.
+  - GREEN. R-SW06, 07, 08, 09 and 10 are killed.
 
 **The gates**
 - **The D-126 text gate.**
-  - Tests: `tests/unit/test_router_hints.py:233` (`test_the_gap_register_stays_on_the_device`), with `StandingsStore.swift` allowed by exact expressions only (`:359-365`).
-  - GREEN. These mutants are killed:
-    - G01, a second FileManager call in the store;
-    - G02, a second `Data(contentsOf:)`;
-    - G07, Combine touching the file system;
-    - G14, the store building a URL.
+  - Test: `tests/unit/test_router_hints.py:233`.
+  - GREEN. R-G01, R-G02, R-G07, R-G14 and A-G18 are killed. A-G18 moves the store to the Documents folder, and the exact `.cachesDirectory` expression catches it.
 - **client-decls.**
-  - Gate: `scripts/client_decl_gate.py:123-126`, which names `StandingsStore.swift` and `FrontDoor.swift` and nothing else.
-  - PASS in all 4 configurations. Two mutants were run through the real compiler gate, and both FAIL in all 4 configurations:
-    - G16, `FileManager` in `Combine.swift`;
-    - G17, `URLSession` in `StandingsStore.swift`.
-  - A direct probe of `problems()` also refuses the file system in Combine, ContentView and EngineClient.
-- **The position tripwire.**
-  - Tests: `tests/unit/test_ios_client_contract.py:207` (7 spellings) and `:211`.
-  - GREEN. G03 (position arithmetic in the store), G08 (new arithmetic in ContentView) and G13 (Combine's arithmetic renamed away, so its permission goes stale) are killed.
-- **The sort tripwire.**
-  - Test: `test_ios_client_contract.py:308`, with the permission at `:289`.
-  - GREEN. G04 (a sort in the store) and G05 (a second sort in Combine on another receiver) are killed.
-  - G06 survives: a second `common.sorted()` in Combine (**M7**).
-- **The exact ContentView exemption.**
-  - Test: `test_ios_client_contract.py:211`, with the exemption at `:190-195`.
-  - GREEN. G09 (the variable renamed, so the exemption is stale) and G10 (the exempt expression appears twice) are killed.
+  - PASS in 4 configurations. R-G16 and R-G17 FAIL in all 4.
+  - A-G19 survives: it lets `Combine.swift` write files by editing the gate's own list. This is the known K1 (`docs/reviews/m17-wave-4-review.md:313`), not a new finding.
+- **The arithmetic and sort tripwires.**
+  - Tests: `tests/unit/test_ios_client_contract.py:207`, `:211` and `:308`.
+  - GREEN. R-G03, R-G04, R-G05, R-G08, R-G09, R-G10 and R-G13 are killed.
+  - R-G06 survives. It is filed as #60, which is OPEN.
 
-**P4: measured and recorded** (`docs/research/m17-w4-standings-payload-2026-09-25.md`)
-- Reproduced on the worktree's `advisor.db` through `TestClient` at `ebde1d6`:
-  - 63 boards, 303 models and 6,955 positions;
-  - 499,117 bytes raw and 36,407 gzip. The record says 499,633 raw, from `json.dumps`, which escapes non-ASCII characters; the gzip size is identical;
-  - the ceiling is 8.4 times that;
-  - the boot's `_egress_problems` finds no problem.
-- One row of the record is dated after its own commit (**M8**).
+**P4: measured and recorded**
+- Reproduced at `4203673` through `TestClient` on the worktree's `advisor.db`:
+  - 63 boards, 303 models, 6,955 positions;
+  - 499,117 bytes raw and 36,407 gzip;
+  - `_egress_problems` returns `[]`.
+- The previous M8 row is now labelled "served after the first nightly refresh with W3 (2026-09-25 23:05 local)". That is before its commit, `ebde1d6`, at 23:37 +0300.
+- **"A combination on real boards compared by hand"**, done independently. `tester2-w4/real_combine.py` re-implements D-167 clause 3 from its text: exact rational means, competition ranks among the common models, the id tie-break. It compares that against the Swift `combine` run in a probe package over HEAD's Engine sources. Across the 2,316 sets (every single board, every pair and 300 random sets of 3 to 6 boards; 2,176 of them multi-board with 2 or more models), there are **0 disagreements**. Each single board equals its own order.
 
-## Red→green on reported symptoms (and phase order)
-Each red commit's tree was run through `git archive` in scratch, at the red commit and at its green commit.
-- **P1.** `b62f451` is red: 14 Python tests fail, `ModuleNotFoundError: app.workflows.standings`, and the route set is off by one. `ed6c954` is green: 72 passed.
-- **P2.**
-  - `60cf310` is red: the payload contract test fails, and the Swift test target does not compile (`FetchedStandings`, `StandingsStore` and `boards()` are missing).
-  - `73fe0e8` is green: BoardsRequest 3/3 and StandingsStore 7/7.
-  - The only test edits in the green commit are raw-string `\#` line continuations, with the JSON content unchanged.
-- **P3.**
-  - `a1b0c87` is red: the tripwire fails because the permission is stale, and the Swift build fails (`combine` and `CombineError` are missing).
-  - `d020a96` is green: Combine 11/11.
-  - It adds 2 tests after mutation testing (the tie test, and the "ghost" model fixture made meaningful). Neither was red first, both strengthen the suite, and both catch a mutant (SW02, SW09).
-- **Review round 1.**
-  - `ee312f8` is red: 13 Python tests fail, and the Swift build fails (`extra argument 'effort'`).
-  - `abf284b` is green: 86 Python tests; Combine 12, BoardsRequest 5, StandingsStore 10.
-  - The green commit rewrote the S1 test from `https://example.com` to a `data:` URL. The first version would have reached the network, and it never ran, because the red target did not compile. The rewrite dropped the `save()` half (**M4**). That is not a weakening to force green: on the pre-fix code, that half could not fail either.
-- **Review round 2.**
-  - `c9ec11b` is red: 3 tests fail (R5 twice, M7).
-  - The M8 test was green at its red commit. The commit says so ("M8 is pinned by the previous commit"): the code was already right, and the test is a pin. It does catch PY07.
-  - `ebde1d6` is green: 90 passed.
-- **Weakened or deleted tests:** none. Every test edit in the range is an addition, a rename that follows the S2 behaviour change, or the S1 rewrite above.
+## Red→green on reported symptoms
+- **`4203673` is tests only.** Its production files are byte-identical to `ebde1d6`: the sha256 values for `standings.py`, `main.py`, `Combine.swift`, `StandingsStore.swift`, `Models.swift` and `EngineClient.swift` all equal the previous verdict's.
+- **Each added test's red is its mutant.** I re-applied each one here: SW11, SW04, ST05, FS02, FS04, PY12, PY14, PY15, PY21 and PY22. Each goes RED on its mutant and GREEN on HEAD.
+- **Weakened or deleted tests:** none. `4203673` adds 145 lines and deletes 1, a line in the research record. The previous seat covered the rest of the range, and I re-checked it.
 
 ## Suite result
-- `make check-fast` at `ebde1d6`, clean tree: **PASS**.
+- **`make check-fast` at `4203673`, clean tree: PASS.**
   - lint, typecheck and records pass;
-  - test: **1448 passed, 23 skipped**, and coverage-floor PASS (41 modules);
-  - client-decls PASS: 13 files in 4 configurations;
-  - swift-test PASS: **295 tests, exactly the manifest**.
-- `git status` was clean before and after. Every mutated file's sha256 equals `git show HEAD:<file>` after the run:
-  - `standings.py` 1c616456…
-  - `main.py` a7786919…
-  - `Combine.swift` 762693db…
-  - `StandingsStore.swift` 556c0c66…
-  - `Models.swift` 57df1eca…
-  - `EngineClient.swift` b1b6847b…
-  - `ContentView.swift` c549c36c…
-- **Coverage on touched code**, from the same command (`pytest tests/unit -n auto --cov-branch`) on `7d7a9ac` and on `ebde1d6`:
-  - `src/app/workflows/standings.py` is new, at **100 %**;
-  - `src/app/adapter/main.py` went **96.73 % → 96.08 %** (**B3**);
-  - the total went 91.15 % → 91.31 %.
+  - test: **1455 passed, 23 skipped**, and coverage-floor PASS (41 modules);
+  - client-decls: PASS in 4 configurations;
+  - swift-test: **299 tests, exactly the manifest**.
+- **Coverage on touched code**, from `pytest tests/unit -n auto --cov=src --cov-branch`. The base is a `git archive` of `7d7a9ac` in scratch; HEAD is the worktree.
+  - **`src/app/adapter/main.py`: 96.73 % → 97.06 %.**
+    - At HEAD, 12 lines and 3 branches are missing. That is the same set as at the base, shifted by the wave's insertions. No wave line is uncovered.
+    - `:520-521` is the old ranking-rows refusal, which `_egress_problems` moved from the base's `:540-541`.
+  - `src/app/workflows/standings.py`: new, at **100 %**.
+  - No module dropped. Total: 91.15 % → 91.44 %.
+- **Clean-up after the runs.**
+  - `git status` is clean. Every mutated file's sha256 equals `git show HEAD:<file>`.
+  - Two `.pyc` files, `adapter/main` and `workflows/standings`, were rewritten during the runs, despite `PYTHONDONTWRITEBYTECODE=1`. Their headers matched the restored sources. I deleted both anyway.
+
+## Judgments on the refused and filed findings
+- **M4 (the `isFileURL` guard in `save()`): the refusal is sound.**
+  - In a probe package (`tester2-w4/probe`, no network), I ran `save()` with the guard removed against five kinds of non-file URL:
+    - a `data:` URL;
+    - a custom scheme, with and without a host, whose path points into scratch;
+    - a scheme-less absolute path;
+    - a scheme-less relative path.
+  - The guard-less `save()` created **no file and no folder** in all five cases, and so did the guarded one.
+  - Neither `createDirectory(at:)` nor `Data.write(to:)` acts on a non-file URL, so no offline test can tell the two apart. R-ST07 survives the full 299-test suite, and it is equivalent.
+  - The guard stays as defence in depth. `load()`'s guard is pinned (R-ST06 killed).
+- **M7 → #60** is OPEN, and R-G06 still survives. Accepted as filed.
 
 ## Fault injection (HIGH: mandatory)
-Each mutant was applied in place and restored in place by the scratch harness `tester-w4/mut.py`, with the sha256 checked after every restore and `PYTHONDONTWRITEBYTECODE=1` set. One stale `main.cpython-314.pyc` was compiled from mutant PY32 by an xdist worker. Its header's size and mtime did not match the restored source, so Python would have recompiled it. I deleted it anyway.
+- **Harness.** Each mutant was applied in place as a byte replacement by `tester2-w4/mut2.py`, then restored in place, with the sha256 checked after every restore and `PYTHONDONTWRITEBYTECODE=1` set.
+- **Commands.**
+  - Every Python mutant ran against the whole unit suite (`-n auto`).
+  - Swift mutants ran against `CombineTests|StandingsStoreTests|BoardsRequestTests`. Every Swift survivor was then re-run against the full `swift test` (299 tests), and each still survived.
+  - Gate mutants ran through their gate.
+- **What counts as killed.** For every Swift kill, the output shows an XCTest `error: -[…]` assertion. None was a compile error.
+- **Ids.**
+  - `R-` means one of the previous seat's mutants, re-run.
+  - `N-` and `A-` mean new mutants from this seat.
 
-A mutant counts as killed only when an assertion failed. For every Swift mutant, the output shows `error: -[… test…]` from XCTest, not a compile error.
+**Python (52 mutants): 39 killed, 13 survived; 6 of the survivors are equivalent or outside any stated rule.**
+- **Killed:**
+  - R-PY01 to R-PY16, R-PY19 to R-PY30, and R-PY32 (the previous survivors PY12, 14, 15, 21 and 22 are now killed);
+  - N02, N03, N04, N05, N09, N11, N13, N14, N17 and N18.
+- **Equivalent, or outside any rule:**
+  - R-PY17: LEFT JOIN on `models`. The `px_median` inner join still drops a NULL id;
+  - R-PY18: a standing's effort taken from the policy. The filter makes the two equal;
+  - N06: boards in reverse order. No order is specified;
+  - N07: tied models in some other order. D-167 clause 2 says a tie's order means nothing (#44);
+  - N12: the `is_file()` check dropped. A directory still gets the 503 from `open_readonly`;
+  - N20: the empty-effort skip in `_policies` dropped. No conflict arises in today's `CATEGORIES`.
+- **Non-equivalent survivors:**
+  - **R-PY31** (`require_price_medians` dropped from the route): **B1**;
+  - **N01** (the evidence tie broken by harness in reverse): **M2**;
+  - **N08** (an undated board given its observation date as `evidence_date`): **M1**;
+  - **N15** and **N16** (the default bound at 2,500,000, or at 5,000, below the measured 6,955): **M3**;
+  - **N10** (a board dated from its evidence rows only, not every row it keeps). Not a finding: "the newest `run_date`" does not say which rows.
+  - **N19** (`elo` removed from `HIGHER_IS_BETTER`). Not a finding: it fails closed, since the boot refuses on real data.
+- **Kill rate:** 39 of 46 non-equivalent mutants, **85 %**. The previous seat's rate was 83 %.
 
-**Python (32 mutants): 24 killed, 8 survived, 3 of them equivalent.**
-- **Killed:** PY01-PY11, PY13, PY16, PY19, PY20, PY23-PY30 and PY32.
-- **Survived.** Each was re-run against the whole unit suite (`-n auto`) and still survived:
-  - **PY12:** `models` not filtered to the standing models (**M3**);
-  - **PY14:** `evidence_date = min` (**M2**);
-  - **PY15:** `observed_at = min` (**M2**);
-  - **PY17:** LEFT JOIN on `models`. Equivalent;
-  - **PY18:** a standing's effort taken from the policy. Equivalent: the filter makes the two equal;
-  - **PY21:** the bound counts boards, not positions (**M1**);
-  - **PY22:** the bound refuses at `>=` (**M1**);
-  - **PY31:** `require_price_medians` dropped from the route. Equivalent in what a reader sees: the `sqlite3.Error` path gives the same 503. The route's non-ValueError branch is uncovered (**B3**).
-- **Kill rate:** 24/29 non-equivalent, **83 %**.
+**Swift (43 mutants): 35 killed, 8 survived; 4 of the survivors are equivalent.**
+- **Killed:**
+  - R-SW01 to R-SW12, R-ST01 to R-ST06, R-ST08, R-ST09, R-FS01 to R-FS04, and R-EC01 to R-EC04 (the previous survivors SW04, SW11, ST05, FS02 and FS04 are now killed);
+  - A-SW02, A-SW04, A-SW05, A-ST10, A-ST12, A-ST13 and A-ST14.
+- **Equivalent:**
+  - R-ST07: measured, see M4 above;
+  - A-SW07 (the last duplicate model description wins) and A-SW08 (rank counted on the whole board): these differ only on a malformed payload that lists one model twice, and no rule covers that case;
+  - A-EC05 (an `EngineError` wrapped again as `.undecodable`): the same case, and its detail still says "larger than".
+- **Non-equivalent survivors:**
+  - **A-SW01** (sum → product of the ranks, a geometric mean): **B2**;
+  - **A-SW03** (sum → sum of squared ranks, a quadratic mean): **B2**;
+  - **A-SW06** (`CombinedList.boards` = every board in the payload): **B3**;
+  - **A-ST11** (a store stamped at exactly `now` is fetched again). Not a finding: it differs only at zero elapsed time and costs one extra download.
+- **Kill rate:** 35 of 39 non-equivalent mutants, **90 %**.
 
-**Swift (29 mutants): 23 killed, 6 survived.** Each survivor was re-run against the full `swift test` (295 tests) and still survived.
-- **Killed:** SW01-03, SW05-10, SW12, ST01-04, ST06, ST08, ST09, FS01, FS03 and EC01-04.
-- **Survived:**
-  - **SW11:** the order is a model's best rank, not the sum (**B1**);
-  - **SW04:** a tie is broken by display name (**B2**);
-  - **ST05:** a fresh fetch is stamped with `Date()` instead of `now` (**M5**);
-  - **ST07:** the `isFileURL` guard is removed from `save()` (**M4**; equivalent as far as egress goes);
-  - **FS02:** the ceiling refuses at `<` instead of `<=` (**M6**);
-  - **FS04:** the ceiling is raised to 1 GiB (**M6**).
-- **Kill rate:** 23/28 non-equivalent, **82 %**.
-
-**Gates (17 mutants): 16 killed.**
-- **Killed:** G01-G05 and G07-G17. G16 and G17 ran through the real `scripts/client_decl_gate.py`.
-- **Survived:** G06 (**M7**).
-
-**Probes that close each survivor** were written in scratch only, since I may not edit tests.
-- **Swift.** `tester-w4/probe/` is a SwiftPM package over a copy of the HEAD Engine sources; it uses no network. Its 3 tests pass on HEAD. Each one fails on its mutant:
-  - `testTheOrderIsTheMeanRankNotTheBestRank` fails on SW11;
-  - `testAnEqualSumIsBrokenByIdEvenWhenTheNamesDisagree` fails on SW04;
-  - `testAFreshFetchIsStampedWithNow` fails on ST05.
-- **Python.** `tester-w4/probe_py.py` passes on HEAD, and fails on each of PY12, PY14, PY21 and PY22.
-
-**Independent real-data check.** On the worktree's `advisor.db`, each of the 12 single-source surfaces was compared with its board, using `rank.category_ranking`:
-- the set of models is the same;
-- there are 0 order violations: a higher score always means a smaller position, and equal scores share a position;
-- the efforts differ 0 times.
-
-`coding` is excluded: it ranks SWE-bench Verified across two sources by design.
+**Gates (19 mutants): 17 killed.** R-G01 to R-G05, R-G07 to R-G17, and A-G18. The survivors are R-G06 (#60) and A-G19 (K1).
 
 ## Mocks / contract tests
-- **The engine route, seen by the phone.** The canonical stub is the existing `StubProtocol` (`ios/EngineTests/EngineClientTests.swift`), extended with `lastRequest`. No parallel stub was added. The contract is `tests/unit/test_ios_payload_contract.py:264`: it drives the real route through `TestClient` and checks the result against the Swift structs. OK.
+- **The engine route, seen by the phone.** The one canonical stub is `StubProtocol` in `ios/EngineTests/EngineClientTests.swift`; no parallel stub was added. The contract is `tests/unit/test_ios_payload_contract.py:264`, which drives the real route through `TestClient` into the Swift structs. OK.
 - **External integrations:** none new in this wave.
 
 ## BLOCKING
-- **B1** `ios/ModelRanking/Engine/Combine.swift:69,76-79`; `ios/EngineTests/CombineTests.swift:38-46,59-67`. **The combination's ordering rule, "orders them by the mean of those ranks" (D-167 clause 3), has no test that can fail.**
-  - Replace the sum with a model's best rank (SW11: `sums[m] = min(sums[m], rank)`). All 295 Swift tests still pass.
-  - Every fixture that orders 2 or more models gives the same order under both rules. In `:38`, a (1,2), b (2,3) and c (3,1) order a, c, b either way, and so do the tie fixtures.
-  - The criterion's test does not assert its claimed behaviour. For the milestone's own product ordering, that is BLOCKING here (fault that stays green, HIGH tier).
-  - **Fix**, verified in scratch against SW11: boards x = a, b, c and y = b, c, a. The sums give **b, a, c**; the best rank would give a, b, c.
-- **B2** `ios/EngineTests/CombineTests.swift:25,53-56`; `Combine.swift:78`. **"Ties are broken by model id, never by a display name" (plan P3; D-167 clause 3) is not proven.**
-  - The fixture helper sets `display: $0.uppercased()`, so display order equals id order for every model in the file. The test comment says "the id decides, whatever the names say", and the names never disagree.
-  - Breaking the tie by `models[id].display` (SW04) passes all 295 Swift tests.
-  - **Fix**, verified in scratch against SW04: model `a` displayed "Zeta" and model `b` displayed "Alpha", on mirrored boards. Assert `["a", "b"]`.
-- **B3** `src/app/adapter/main.py:229-230, 1405-1406`, and the branch `1414->1418`. **Coverage dropped on a touched module: 96.73 % → 96.08 %**, from the same command at `7d7a9ac` and at `ebde1d6`. `permission-matrix.md` §11 lists "Coverage drop on touched module" as BLOCKING.
-  - Everything the wave left uncovered is new code:
-    - `_standings_problem` returns None when `open_readonly` raises (`:229-230`);
-    - `/v1/boards` answers 503 when `open_readonly` raises (`:1405-1406`);
-    - the route's 503 for `UnbuiltEvidenceError` or `sqlite3.Error` (the non-ValueError side of `:1414`).
-  - The last of these is also why PY31 cannot be told apart.
-  - **Fix:** two route tests: a database without `px_median` gives a closed 503, and an unreadable file gives a closed 503. A boot test with an unopenable artifact would also cover `:229-230`.
-  - `make coverage-floor` passes. Its 60 % per-module floor is not the rule this item cites.
+- **B1** `src/app/adapter/main.py:1408`; `tests/unit/test_board_standings.py:402-420`. **The route's fail-closed guard on an unbuilt artifact (REQ-API-008) has no test that fails when it is removed.**
+  - With `require_price_medians(conn)` deleted (R-PY31), all 1,455 unit tests pass.
+  - The B3 test's `no_medians` case runs `DROP TABLE px_median`. That also breaks `board_standings`' own join, so the route answers 503 with or without the guard.
+  - The case the guard exists for is W-023's: an **empty** `px_median` (`rank.py:214-222`). On an empty `px_median`, the mutant answers **200** `{"boards":[],"models":[]}`. A phone would decode that, store it (`StandingsStore.current`) and refuse every combination for a day.
+  - The previous seat called PY31 "equivalent in what a reader sees". It is not.
+  - **Fix**, verified in scratch: add an `empty_medians` case (`DELETE FROM px_median` on `_seeded_db`) and assert the closed 503. It passes on HEAD and fails on R-PY31 (`tester2-w4/probe_py.py PY31`).
+- **B2** `ios/ModelRanking/Engine/Combine.swift:69`; `ios/EngineTests/CombineTests.swift:38-46,69-76`. **"Ordered by the mean of those ranks" (D-167 clause 3) still admits two other means. The previous B1 is only half resolved.**
+  - With the sum replaced by a product of the ranks (A-SW01, a geometric mean) or by a sum of squared ranks (A-SW03, a quadratic mean), all 299 Swift tests pass.
+  - The two ordering fixtures give the same order under the arithmetic, geometric and quadratic means. The previous B1's own fix targeted only the best rank.
+  - On `advisor.db`, the geometric mean gives a different list from the arithmetic mean in 2,081 of 2,176 multi-board choices, and the quadratic mean in 2,082.
+  - **Fix**, verified in scratch against A-SW01, A-SW03, A-SW02 and R-SW11 (`tester2-w4/probe/Tests/ProbeTests/CombineProbe.swift`):
+    - board x ranks a 1, p 2, b 3, m 4, e 5;
+    - board y ranks m 1, p 2, e 3, b 4, a 5;
+    - assert the order **p, m, a, b, e**;
+    - the geometric mean reads m, p, a, b, e; the quadratic mean reads p, m, b, a, e.
+- **B3** `ios/EngineTests/CombineTests.swift:105-110`; `Combine.swift:84`. **"Each result names the boards it came from" (plan P3) is not proven.**
+  - The test's payload holds only boards x and y, and both are chosen. `CombinedList(boards: standings.boards, …)`, which names every board in the payload, passes all 299 tests (A-SW06).
+  - W5's detail screen shows these boards' dates and attributions (`Combine.swift:29-30`), so the mutant would attribute a list to boards the reader never chose.
+  - **Fix**, verified in scratch against A-SW06: put a third, unchosen board z in the payload, choose `["y", "x"]`, and assert `list.boards.map(\.id) == ["y", "x"]`.
 
 ## MINOR (the author fixes each in this wave or files it as an issue)
-- **M1** `src/app/workflows/standings.py:144-146`, `src/app/adapter/main.py:240`; `tests/unit/test_board_standings.py:256`. **The egress bound's unit and edge are unpinned.**
-  - The boot test sets the ceiling to 1 on an artifact with 2 boards and 6 positions. So a count of boards (PY21) still trips it, and so does `>=` (PY22).
-  - Counting boards would make the bound about 110 times weaker on real data: 63 boards against a ceiling of 25,000.
-  - Probe: a ceiling of 6 is accepted and a ceiling of 5 is refused. It kills both mutants.
-- **M2** `standings.py:120-121`; `test_board_standings.py:154-163`. **A board's date, "the newest `run_date`, else the newest `observed_at`" (plan, Design), is unpinned.** Every row in every fixture has the same date, so `min` survives for both (PY14, PY15). Probe: two rows dated 2026-08-01 and 2026-09-18, and assert the later one.
-- **M3** `standings.py:135`. **`models` holding only models that stand is unpinned (PY12).** No fixture has a priced model that stands on no board. Probe: a priced model with no score row must be absent.
-- **M4** `ios/ModelRanking/Engine/StandingsStore.swift:67`. **The second review's M9, first half, is still open.**
-  - The `isFileURL` guard in `save()` is unpinned (ST07). `ebde1d6` fixed only M9's header wording.
-  - No egress follows today, because `Data.write(to:)` refuses a non-file URL. But the guard security S1 asked for is half pinned.
-  - The review's own fix still applies: `save` to the `data:` URL, then assert that nothing was created.
-- **M5** `StandingsStore.swift:86`. **The time stamped on a fresh fetch is unpinned (ST05).** Stamping `Date()` instead of `now` passes every test. Probe: `current(now:)` with a successful fetch, then `load()?.fetchedAt == now`.
-- **M6** `ios/ModelRanking/Engine/Models.swift:396`, `EngineClient.swift:156`. **Only "one byte over" is tested for the phone's ceiling.**
-  - Refusing at exactly the ceiling (FS02) survives.
-  - So does raising it to 1 GiB (FS04). Nothing ties the constant to the measured 500 KB that its comment and D-167 cite.
-- **M7** `tests/unit/test_ios_client_contract.py:289`. **The sort permission for Combine is keyed by receiver name.** A second `common.sorted()` in `Combine.swift` passes (G06). This is the same class as the second review's R4, which is carried as a risk. File it, or accept it on the record.
-- **M8** `docs/research/m17-w4-standings-payload-2026-09-25.md:27`. **The row "served on 2026-09-26 (the first night with W3)" was committed in `ebde1d6` at 2026-09-25 23:37 +0300 (20:37 UTC).** A measurement cannot be dated after the commit that records it. Either the date or the label is wrong. Correct it, or say what was actually measured.
+- **M1** `src/app/workflows/standings.py:120`; `ios/ModelRanking/Engine/Models.swift:338-339`. **A board with no `run_date` publishing `evidence_date: null` is unpinned.**
+  - Filling in the observation date (N08) passes every test, although the Swift model documents `nil` "for a board that publishes none".
+  - 5 of the 63 real boards are undated.
+  - Probe: `tester2-w4/probe_py.py N08`.
+- **M2** `standings.py:77`. **The evidence row's last tie-break, harness then raw name, is unpinned.**
+  - Reversing it (N01) passes every test. The second review's M8 claimed that this tie-break mirrors `rank.category_ranking`, and only the `run_date` step is pinned (R-PY07).
+  - It decides which effort a standing discloses.
+  - Probe: two rows with an equal score and an equal date, harness `h1` at `low` and `h2` at `max`; the standing must say `low` (`probe_py.py N01`).
+- **M3** `src/app/adapter/main.py:220`. **The engine's default bound of 25,000 positions is unpinned. It is the Python half of the previous M6.**
+  - Raising it 100 times (N15) passes every test. So does lowering it below the measured 6,955 (N16), which would refuse to boot on today's artifact.
+  - The Swift ceiling is now pinned at 4 MiB. Its engine-side twin is not.
+- **M4** `ios/EngineTests/StandingsStoreTests.swift:132`. **The test comment says the ceiling is "the number D-167 names". D-167 names no byte ceiling** (`docs/decisions.md:3082-3137`). The 4 MiB is stated in `docs/research/m17-w4-standings-payload-2026-09-25.md:33` and in `EngineClient.swift:153-156`. Cite the record, or add the number to D-167.
 
 ## Tests added/extended this review
 - None in the repository. This seat may modify only this file.
-- Scratch probes that prove the missing tests can fail (not committed):
-  - `/private/tmp/claude-501/-Users-umutcanapaydin/a67ca254-76b9-4a88-94bb-cec8e0afaa95/scratchpad/tester-w4/probe/Tests/ProbeTests/ProbeTests.swift`, for B1, B2 and M5;
-  - `…/tester-w4/probe_py.py`, for M1, M2 and M3.
-- Mutant specs and outputs: `…/tester-w4/{py,sw,gate}_mutants.json`, `…/tester-w4/outputs/`, `…/tester-w4/mutants.log`.
+- Scratch probes, not committed. Each passes on HEAD and fails on its mutant:
+  - `/private/tmp/claude-501/-Users-umutcanapaydin/a67ca254-76b9-4a88-94bb-cec8e0afaa95/scratchpad/tester2-w4/probe_py.py`: B1 (R-PY31), M1 (N08) and M2 (N01);
+  - `…/tester2-w4/probe/Tests/ProbeTests/CombineProbe.swift`: B2 (A-SW01, A-SW03, A-SW02, R-SW11) and B3 (A-SW06);
+  - `…/tester2-w4/probe/Tests/ProbeTests/M4Probe.swift`: the M4 judgment;
+  - `…/tester2-w4/probe/Tests/ProbeTests/RealDataProbe.swift` and `…/tester2-w4/real_combine.py`: the real-data comparison.
+- Mutant specs and outputs:
+  - `…/tester2-w4/{py_specs,py_probe_specs,sw_specs,sw_full_specs,gate_specs,g12}.json`;
+  - `…/tester2-w4/outputs/`;
+  - `…/tester2-w4/mutants.log`.
