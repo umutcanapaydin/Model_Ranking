@@ -482,6 +482,12 @@ def test_the_engines_standings_bound_is_the_one_the_record_measures_against() ->
 
     default = re.search(r'"MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS",\s*"(\d+)"', inspect.getsource(adapter))
     assert default is not None and default.group(1) == "25000"
+    # ...and the bound in force is that default, or exactly what the environment set (fourth Tester
+    # M2: a multiplier on the default passed the source check).
+    import os
+
+    assert int(
+        os.environ.get("MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS", "25000")) == adapter.MAX_PUBLISHED_STANDINGS_ROWS
 
 
 def test_the_evidence_tie_break_is_harness_before_name() -> None:
@@ -502,3 +508,13 @@ def test_only_exactly_equal_scores_share_a_position() -> None:
     _score(conn, "epoch_chess", "Chess puzzles", "% correct", "b", "b", 55.2)
     assert [(s["model"], s["position"]) for s in _board(_payload(conn), "epoch_chess")["standings"]] == [
         ("a", 1), ("b", 2)]
+
+
+def test_a_boards_date_ignores_rows_its_effort_policy_excludes() -> None:
+    """Fourth Tester M1: DeepSWE stands at `high`, so a newer `max` run does not date the board."""
+    conn = _conn()
+    _score(conn, "epoch_deepswe_external", "DeepSWE", "% resolved", "a_high", "a", 50.0, effort="high",
+           run_date="2026-08-01")
+    _score(conn, "epoch_deepswe_external", "DeepSWE", "% resolved", "a_max", "a", 70.0, effort="max",
+           run_date="2026-09-20")
+    assert _board(_payload(conn), "epoch_deepswe_external")["evidence_date"] == "2026-08-01"

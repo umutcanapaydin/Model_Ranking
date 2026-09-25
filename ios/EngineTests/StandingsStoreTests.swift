@@ -86,6 +86,23 @@ final class StandingsStoreTests: XCTestCase {
         XCTAssertEqual(fetches, 1, "standings refetched an hour ago were fetched again")
     }
 
+    func testAnUnchangedRefetchAfterAGapRestartsTheDay() async throws {
+        // Fourth Tester B2: the same standings fetched three days later are stored with their own
+        // time, so the next day starts now -- not only when the standings happen to differ.
+        store().save(try fetched(), at: arrived)
+        let later = arrived.addingTimeInterval(3 * 86_400)
+        var fetches = 0
+        let fetch: () async throws -> FetchedStandings = {
+            fetches += 1
+            return try FetchedStandings(payload: standingsPayload)
+        }
+
+        _ = await store().current(now: later, fetch: fetch)
+        XCTAssertEqual(store().load()?.fetchedAt, later, "an unchanged refetch was not stamped with its own time")
+        _ = await store().current(now: later.addingTimeInterval(3600), fetch: fetch)
+        XCTAssertEqual(fetches, 1, "standings refetched an hour ago were fetched again")
+    }
+
     func testAPayloadStampedInTheFutureIsFetchedAgain() async throws {
         // A clock that stepped back would otherwise keep yesterday's standings until it caught up.
         store().save(try fetched(), at: arrived)
