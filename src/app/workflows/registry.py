@@ -429,7 +429,13 @@ MOVING_ALIASES: dict[str, str] = {
     "o1-mini": "an undated OpenAI alias, pinned only by its dated snapshot",
     "yi-large": "01.AI's alias, served by hosts from different dates",
     "claude-instant": "Anthropic served 1.0 and 1.2 under the undated name",
+    # #40 (M17-W3 Tester K1): two more spellings of listed aliases, as the grammar derives them.
+    "command-r+": "Cohere's `Command R+`, the alias `command-r-plus` spelled with its plus sign",
+    "claude-instant-v1": "Bedrock's name for the undated Claude Instant alias",
 }
+#: #40: an undated name ending in `-latest` moves by definition, whichever family it names. A date
+#: after it (`chatgpt-4o-latest-20250326`) names one release and still derives.
+_LATEST_SUFFIX = "-latest"
 
 
 def derive_identity(name: str) -> DerivedIdentity | None:
@@ -457,7 +463,7 @@ def derive_identity(name: str) -> DerivedIdentity | None:
     text = re.sub(r"([a-z])-(\d)", r"\1\2", text)     # `gpt-6` and `gpt6` are one spelling
     if not text or not re.fullmatch(r"[a-z0-9][a-z0-9.+\-]*", text):
         return None
-    if text in MOVING_ALIASES:
+    if text in MOVING_ALIASES or text.endswith(_LATEST_SUFFIX):
         return None                                # D-166: a moving alias names no one release
     return DerivedIdentity(model_id=text, effort=effort)
 

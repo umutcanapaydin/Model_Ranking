@@ -15,7 +15,7 @@ from app.workflows.schema import connect
 
 LISTED = ("claude3.5-sonnet", "mistral7b-instruct", "deepseek-chat", "deepseek-reasoner", "command-r",
           "command-r-plus", "mistral-medium", "gpt4-turbo", "gpt4o-mini", "o1", "o1-mini", "yi-large",
-          "claude-instant")
+          "claude-instant", "command-r+", "claude-instant-v1")
 
 
 def test_the_list_is_the_one_the_review_found_each_with_a_reason() -> None:
@@ -96,11 +96,13 @@ def test_a_dated_release_of_a_latest_alias_still_derives(name: str) -> None:
 
 
 def test_reconcile_registers_no_model_from_a_latest_alias() -> None:
+    """A name no curated rule takes: `mistral-large-latest` would be the curated `mistral-large`'s,
+    and a curated rule still wins over the list (D-166 clause 2)."""
     conn = connect(":memory:")
     try:
-        _row(conn, "mistral-large-latest")
+        _row(conn, "gemini-flash-latest")
         report = reconcile(conn)
         assert conn.execute("SELECT COUNT(*) FROM models").fetchone()[0] == 0
-        assert "mistral-large-latest" in report.dropped_names
+        assert "gemini-flash-latest" in report.dropped_names
     finally:
         conn.close()
