@@ -41,6 +41,7 @@ from pathlib import Path
 from app.clients import epoch_bundle
 from app.workflows import access
 from app.workflows import boards as declared_boards
+from app.workflows.build import CARRY_TABLES
 from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
 from app.workflows.floors import board_names, derived_floor
@@ -948,7 +949,10 @@ def _served_without(target: Path, sources: set[str]) -> ServingSummary:
         live.close()
     try:
         marks = ",".join("?" * len(sources))
-        for table in ("scores", "pricing"):
+        # Every table a source's rows live in (#41: this was a second copy of the list, and missed
+        # `access`); one the live artifact predates has nothing to drop.
+        present = {row[0] for row in scratch.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        for table in (t for t in CARRY_TABLES if t in present):
             scratch.execute(
                 f"DELETE FROM {table} WHERE source IN ({marks})", tuple(sources))  # noqa: S608
         # The ranking reads prices from `px_median`, which the build DERIVES from `pricing`; left
