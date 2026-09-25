@@ -74,3 +74,33 @@ def test_a_curated_rule_still_wins_over_the_list(monkeypatch: pytest.MonkeyPatch
         assert "deepseek-chat" not in report.dropped_names
     finally:
         conn.close()
+
+
+# --- #40: spellings the exact list missed, and the `-latest` suffix as a rule -------------------
+
+
+@pytest.mark.parametrize("name", ["Command R+", "anthropic.claude-instant-v1", "claude-instant-v1",
+                                  "chatgpt-4o-latest", "claude-3-5-sonnet-latest", "mistral-large-latest",
+                                  "openrouter/openai/gpt-5-chat-latest", "Gemini-Flash-Latest"])
+def test_a_moving_spelling_the_list_missed_derives_no_model(name: str) -> None:
+    """#40 (Tester K1 of M17-W3): a `-latest` alias moves by definition, so the suffix is a rule,
+    not list entries; `Command R+` and `claude-instant-v1` are two more spellings of listed aliases."""
+    assert derive_identity(name) is None
+
+
+@pytest.mark.parametrize("name", ["chatgpt-4o-latest-20250326", "gpt-5.2-chat-latest-20260210",
+                                  "claude-instant-1.2"])
+def test_a_dated_release_of_a_latest_alias_still_derives(name: str) -> None:
+    """A date or version after the alias names one release, which is exactly what D-166 keeps."""
+    assert derive_identity(name) is not None
+
+
+def test_reconcile_registers_no_model_from_a_latest_alias() -> None:
+    conn = connect(":memory:")
+    try:
+        _row(conn, "mistral-large-latest")
+        report = reconcile(conn)
+        assert conn.execute("SELECT COUNT(*) FROM models").fetchone()[0] == 0
+        assert "mistral-large-latest" in report.dropped_names
+    finally:
+        conn.close()
