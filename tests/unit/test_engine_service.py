@@ -195,3 +195,114 @@ def test_the_remover_takes_off_what_the_installer_puts_on() -> None:
     for piece in (LABEL, "Library/LaunchAgents", "Application Support/model-ranking/engine_service.sh"):
         assert piece in installer and piece in remover, piece
     assert "launchctl bootout" in remover
+
+
+# --- the re-review's findings (docs/reviews/issue-32-rereview.md) ---------------------------------
+
+
+def _push_new_main(repo: Path, text: str) -> None:
+    """A new commit on origin/main, as a merged pull request would make."""
+    _git("-C", str(repo), "checkout", "-q", "main")
+    (repo / "README").write_text(text, encoding="utf-8")
+    _git("-C", str(repo), "commit", "-qam", text)
+    _git("-C", str(repo), "push", "-q", "origin", "main")
+
+
+def test_a_redeploy_of_the_same_commit_leaves_the_live_release_alone(tmp_path: Path) -> None:
+    """M4: the live release is never deleted and rebuilt under a running engine."""
+    repo, target = _scratch_repo(tmp_path), tmp_path / "engine"
+    assert _deploy(repo, target).returncode == 0
+    marker = target / "current" / "in-use"
+    marker.write_text("an engine runs from here", encoding="utf-8")
+    assert _deploy(repo, target).returncode == 0
+    assert marker.read_text(encoding="utf-8") == "an engine runs from here"
+
+
+def test_pruning_keeps_the_new_release_and_the_one_it_replaced(tmp_path: Path) -> None:
+    """N5 / M4: after many deploys, at most KEEP releases remain, and the previous live one is kept
+    so a failed upgrade can fall back to it."""
+    repo, target = _scratch_repo(tmp_path), tmp_path / "engine"
+    assert _deploy(repo, target).returncode == 0
+    for n in range(5):
+        before = (target / "current").readlink()
+        _push_new_main(repo, f"main {n}\n")
+        assert _deploy(repo, target).returncode == 0
+        kept = {p.name for p in (target / "releases").iterdir()}
+        assert before.name in kept and (target / "current").readlink().name in kept
+        assert len(kept) <= 3
+
+
+# A stand-in launchd, curl and lsof: they record what the installer asks and answer as told.
+_STUBS = {
+    "launchctl": """#!/bin/bash
+echo "$*" >> "$STUB_LOG"
+case "$1" in
+  print) [ -f "$STUB_STATE/loaded" ] ;;
+  bootstrap) touch "$STUB_STATE/loaded" ;;
+  bootout) rm -f "$STUB_STATE/loaded" ;;
+  kickstart) true ;;
+esac
+""",
+    "curl": """#!/bin/bash
+[ -n "${STUB_HEALTH:-}" ] || exit 7
+echo "$STUB_HEALTH"
+""",
+    "lsof": "#!/bin/bash\nexit 1\n",
+}
+
+
+def _install(tmp_path: Path, repo: Path, health: str | None) -> subprocess.CompletedProcess[str]:
+    stubs, state, home = tmp_path / "stubs", tmp_path / "state", tmp_path / "home"
+    for folder in (stubs, state, home):
+        folder.mkdir(exist_ok=True)
+    for name, body in _STUBS.items():
+        (stubs / name).write_text(body, encoding="utf-8")
+        (stubs / name).chmod(0o755)
+    (repo / ".venv" / "bin").mkdir(parents=True, exist_ok=True)
+    (repo / ".venv" / "bin" / "python").write_text("#!/bin/bash\n", encoding="utf-8")
+    (repo / ".venv" / "bin" / "python").chmod(0o755)
+    env = {**_CLEAN_GIT_ENV, "HOME": str(home), "MODEL_RANKING_REPO": str(repo),
+           "PATH": f"{stubs}:{os.environ['PATH']}", "STUB_LOG": str(tmp_path / "calls.log"),
+           "STUB_STATE": str(state), "ENGINE_DEPLOY_NO_VENV": "1", "ENGINE_INSTALL_WAIT_S": "1"}
+    if health is not None:
+        env["STUB_HEALTH"] = health
+    return subprocess.run(["/bin/bash", str(INSTALLER)], capture_output=True, text=True,
+                          timeout=120, env=env)
+
+
+def _sha(repo: Path) -> str:
+    return subprocess.run(["git", "-C", str(repo), "rev-parse", "--short", "origin/main"],
+                          capture_output=True, text=True, check=True, env=_CLEAN_GIT_ENV).stdout.strip()
+
+
+def test_an_install_succeeds_only_when_the_new_release_answers(tmp_path: Path) -> None:
+    """M3: any 200 was taken as success; the engine must report the release just deployed."""
+    repo = _scratch_repo(tmp_path)
+    done = _install(tmp_path, repo, f'{{"status":"ok","build":"release-{_sha(repo)}"}}')
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert (tmp_path / "state" / "loaded").exists()
+
+
+def test_a_first_install_that_never_answers_leaves_nothing_behind(tmp_path: Path) -> None:
+    """M1: a failed first install left the plist and wrapper, so the broken service started again at
+    every login and `app.sh up` went through it."""
+    repo = _scratch_repo(tmp_path)
+    done = _install(tmp_path, repo, None)
+    assert done.returncode != 0
+    home = tmp_path / "home"
+    assert not (home / "Library" / "LaunchAgents" / f"{LABEL}.plist").exists()
+    assert not (home / "Library" / "Application Support" / "model-ranking" / "engine_service.sh").exists()
+    assert not (tmp_path / "state" / "loaded").exists()
+
+
+def test_an_upgrade_that_serves_the_old_build_falls_back_to_the_previous_release(tmp_path: Path) -> None:
+    """M1 / M3: the new release does not come up (the engine still reports the old build), so the
+    installer points `current` back at the release that worked and restarts it."""
+    repo = _scratch_repo(tmp_path)
+    first = _sha(repo)
+    assert _install(tmp_path, repo, f'{{"status":"ok","build":"release-{first}"}}').returncode == 0
+    _push_new_main(repo, "a release that will not start\n")
+    done = _install(tmp_path, repo, f'{{"status":"ok","build":"release-{first}"}}')
+    assert done.returncode != 0 and "back" in done.stdout
+    deploy = tmp_path / "home" / "Library" / "Application Support" / "model-ranking" / "engine"
+    assert (deploy / "current").readlink().name == first
