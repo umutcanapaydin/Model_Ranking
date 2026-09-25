@@ -355,6 +355,14 @@ EGRESS_EXACT = {
     ("FrontDoor.swift", "data.write(to: url, options: writeOptions)"): "REQ-GAP-001: the register writes its own file",
     ("FrontDoor.swift", "public let url: URL"): "REQ-GAP-001: the register's own file",
     ("FrontDoor.swift", "public init(url: URL,"): "REQ-GAP-001: the register's own file",
+    # M17-W4, D-167 clause 4: the standings the engine sent, kept for a day in the caches folder.
+    ("StandingsStore.swift", "FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)"): "D-167: where the standings live",
+    ("StandingsStore.swift", "FileManager.default.temporaryDirectory"): "D-167: the fallback folder",
+    ("StandingsStore.swift", "try? FileManager.default.createDirectory(\n            at: url.deletingLastPathComponent(), withIntermediateDirectories: true\n        )"): "D-167: the standings' folder",
+    ("StandingsStore.swift", "Data(contentsOf: url)"): "D-167: the store reads its own file",
+    ("StandingsStore.swift", "data.write(to: url, options: .atomic)"): "D-167: the store writes its own file",
+    ("StandingsStore.swift", "public let url: URL"): "D-167: the store's own file",
+    ("StandingsStore.swift", "public init(url: URL)"): "D-167: the store's own file",
 }
 
 #: The one piece of app storage the client keeps: the language choice, typed as `Language`, so it

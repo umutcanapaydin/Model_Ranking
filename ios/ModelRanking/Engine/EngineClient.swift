@@ -150,6 +150,11 @@ struct EngineClient {
     /// artifact read and short enough to still be an app.
     static let requestTimeout = 10
 
+    /// The largest standings payload the phone will decode (D-167). About 350 KB was measured on
+    /// 2026-09-25; the ceiling is ten times that, so growth fails loudly instead of silently
+    /// costing every phone a bigger download each day.
+    static let maxStandingsBytes = 4 * 1024 * 1024
+
     init(baseURL: URL = EngineClient.localDefault, session: URLSession? = nil) {
         self.baseURL = baseURL
         if let session {
@@ -189,8 +194,34 @@ struct EngineClient {
         return list.categories
     }
 
+    /// Every board's standings (D-167). Asked with no query at all and the same way every time, so
+    /// the request can say nothing about what the reader asked (D-160 clause 1). The bytes are
+    /// returned beside the decoded value, because the store keeps what the engine sent.
+    func boards() async throws -> FetchedStandings {
+        let data = try await fetch("v1/boards", query: [])
+        guard data.count <= EngineClient.maxStandingsBytes else {
+            throw EngineError.undecodable(
+                "the standings payload is \(data.count) bytes, larger than the \(EngineClient.maxStandingsBytes) this app accepts")
+        }
+        do {
+            return try FetchedStandings(payload: data)
+        } catch {
+            throw EngineError.undecodable(String(describing: error))
+        }
+    }
+
     /// One request shape for every endpoint, so the error vocabulary cannot diverge between them.
     private func get<T: Decodable>(_ path: String, query: [URLQueryItem]) async throws -> T {
+        let data = try await fetch(path, query: query)
+        do {
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            throw EngineError.undecodable(String(describing: error))
+        }
+    }
+
+    /// The transport half of `get`: the request, its failure vocabulary and the refusal body.
+    private func fetch(_ path: String, query: [URLQueryItem]) async throws -> Data {
         var components = URLComponents(
             url: baseURL.appendingPathComponent(path),
             resolvingAgainstBaseURL: false
@@ -236,10 +267,6 @@ struct EngineClient {
             )
         }
 
-        do {
-            return try JSONDecoder().decode(T.self, from: data)
-        } catch {
-            throw EngineError.undecodable(String(describing: error))
-        }
+        return data
     }
 }

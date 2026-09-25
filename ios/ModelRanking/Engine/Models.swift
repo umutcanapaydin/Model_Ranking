@@ -306,3 +306,84 @@ enum JSONValue: Decodable {
 extension Pick: DetailSubject {}
 
 extension RankedModel: DetailSubject {}
+
+// MARK: - M17-W4 (D-167): every board's standings, as positions
+
+/// The `/v1/boards` payload: every board the engine ranks, fetched whatever the question is.
+///
+/// It carries POSITIONS and no score (D-167 clause 2), so nothing on the phone can average two
+/// scales (D-105). The combination is built from it in `Combine.swift`, and nowhere else.
+struct Standings: Decodable, Equatable {
+    let apiVersion: String
+    let attributions: [String]
+    let boards: [BoardStandings]
+    let models: [StandingModel]
+
+    enum CodingKeys: String, CodingKey {
+        case apiVersion = "api_version"
+        case attributions
+        case boards
+        case models
+    }
+}
+
+/// One board: its identity, dates and attribution, and its rankable models in order.
+struct BoardStandings: Decodable, Equatable, Identifiable {
+    let id: String
+    let benchmark: String
+    let metric: String
+    /// The newest evaluation date on the board; `nil` for a board that publishes none.
+    let evidenceDate: String?
+    let observedAt: String?
+    let attribution: String
+    let standings: [Standing]
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case benchmark
+        case metric
+        case evidenceDate = "evidence_date"
+        case observedAt = "observed_at"
+        case attribution
+        case standings
+    }
+}
+
+/// A model's place on one board. Tied models share a position.
+struct Standing: Decodable, Equatable {
+    let model: String
+    let position: Int
+
+    enum CodingKeys: String, CodingKey {
+        case model
+        case position
+    }
+}
+
+/// Each model once, with the price every surface ranks it at and its accessibility (M17-W3).
+struct StandingModel: Decodable, Equatable, Identifiable {
+    let id: String
+    let display: String
+    let vendor: String
+    let blendedPerM: Double
+    let accessibility: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case display
+        case vendor
+        case blendedPerM = "blended_per_m"
+        case accessibility
+    }
+}
+
+/// The standings as decoded, beside the exact bytes the engine sent, which is what the phone keeps.
+struct FetchedStandings: Equatable {
+    let standings: Standings
+    let payload: Data
+
+    init(payload: Data) throws {
+        standings = try JSONDecoder().decode(Standings.self, from: payload)
+        self.payload = payload
+    }
+}

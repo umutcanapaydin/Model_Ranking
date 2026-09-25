@@ -8,9 +8,9 @@ import XCTest
 @testable import ModelRankingEngine
 
 private let standingsPayload = Data(#"""
-    {"api_version":"v1","attributions":["a"],"boards":[{"id":"epoch_chess","benchmark":"Chess puzzles",\
-    "metric":"% correct","evidence_date":null,"observed_at":"2026-09-25","attribution":"a",\
-    "standings":[{"model":"a","position":1}]}],"models":[{"id":"a","display":"A","vendor":"V",\
+    {"api_version":"v1","attributions":["a"],"boards":[{"id":"epoch_chess","benchmark":"Chess puzzles",\#
+    "metric":"% correct","evidence_date":null,"observed_at":"2026-09-25","attribution":"a",\#
+    "standings":[{"model":"a","position":1}]}],"models":[{"id":"a","display":"A","vendor":"V",\#
     "blended_per_m":1.25,"accessibility":null}]}
     """#.utf8)
 
