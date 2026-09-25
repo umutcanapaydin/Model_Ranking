@@ -472,10 +472,33 @@ def test_equal_scores_on_one_date_disclose_the_first_harness_then_name() -> None
 
 
 def test_the_engines_standings_bound_is_the_one_the_record_measures_against() -> None:
-    """Second Tester M3: the engine-side half of the ceiling pin (the phone's is 4 MiB)."""
-    import os
+    """Second Tester M3: the engine-side half of the ceiling pin (the phone's is 4 MiB). Read from
+    the source rather than the live value, which an environment variable may override (third
+    Tester M4: the first version checked nothing when the variable was set)."""
+    import inspect
+    import re
 
     from app.adapter import main as adapter
 
-    if "MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS" not in os.environ:
-        assert adapter.MAX_PUBLISHED_STANDINGS_ROWS == 25000
+    default = re.search(r'"MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS",\s*"(\d+)"', inspect.getsource(adapter))
+    assert default is not None and default.group(1) == "25000"
+
+
+def test_the_evidence_tie_break_is_harness_before_name() -> None:
+    """Third Tester M2: a-harness wins although its name sorts last."""
+    conn = _conn()
+    for raw, harness, effort in (("a-name", "b-harness", "low"), ("z-name", "a-harness", "max")):
+        conn.execute(
+            "INSERT INTO scores (raw_name, model_id, benchmark, metric, score, harness, effort, run_date, "
+            "source, source_url, observed_at) VALUES (?, 'a', 'Chess puzzles', '% correct', 5, ?, ?, "
+            "'2026-09-18', 'epoch_chess', 'u', '2026-09-25T00:00:00+00:00')", (raw, harness, effort))
+    assert [s["effort"] for s in _board(_payload(conn), "epoch_chess")["standings"]] == ["max"]
+
+
+def test_only_exactly_equal_scores_share_a_position() -> None:
+    """Third Tester M3: 55.4 and 55.2 round alike at the output boundary but are not tied."""
+    conn = _conn()
+    _score(conn, "epoch_chess", "Chess puzzles", "% correct", "a", "a", 55.4)
+    _score(conn, "epoch_chess", "Chess puzzles", "% correct", "b", "b", 55.2)
+    assert [(s["model"], s["position"]) for s in _board(_payload(conn), "epoch_chess")["standings"]] == [
+        ("a", 1), ("b", 2)]

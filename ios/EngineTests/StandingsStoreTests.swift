@@ -62,6 +62,30 @@ final class StandingsStoreTests: XCTestCase {
         XCTAssertEqual(fetches, 1, "a payload a day old was not fetched again")
     }
 
+    func testTheSecondDayServesAndStoresTheRefetchAndWaitsADayAgain() async throws {
+        // Third Tester B1: past the first day. A day-old store is replaced by what was fetched, the
+        // fetched standings are what is served, and the new stamp starts the next day.
+        func named(_ board: String) throws -> FetchedStandings {
+            let text = String(decoding: standingsPayload, as: UTF8.self)
+                .replacingOccurrences(of: "epoch_chess", with: board)
+            return try FetchedStandings(payload: Data(text.utf8))
+        }
+        store().save(try named("yesterday"), at: arrived)
+        let nextDay = arrived.addingTimeInterval(86_400)
+        var fetches = 0
+        let fetch: () async throws -> FetchedStandings = {
+            fetches += 1
+            return try named("today")
+        }
+
+        let served = await store().current(now: nextDay, fetch: fetch)
+        XCTAssertEqual(served?.boards.map(\.id), ["today"], "yesterday's standings were served after a refetch")
+        XCTAssertEqual(store().load()?.fetchedAt, nextDay, "the refetch was not stored with its time")
+        XCTAssertEqual(store().load()?.standings.boards.map(\.id), ["today"], "the refetch was not stored")
+        _ = await store().current(now: nextDay.addingTimeInterval(3600), fetch: fetch)
+        XCTAssertEqual(fetches, 1, "standings refetched an hour ago were fetched again")
+    }
+
     func testAPayloadStampedInTheFutureIsFetchedAgain() async throws {
         // A clock that stepped back would otherwise keep yesterday's standings until it caught up.
         store().save(try fetched(), at: arrived)

@@ -124,6 +124,17 @@ final class CombineTests: XCTestCase {
                                      BoardPosition(board: "y", position: 4)])
     }
 
+    func testTheBoardsAndEachEntrysPositionsFollowTheChosenOrderNotThePayloads() throws {
+        // Third Tester M1: chosen y, x against the payload's x, y, z.
+        let data = standings([board("x", [("a", 1), ("b", 7)]), board("y", [("b", 1), ("a", 4)]),
+                              board("z", [("a", 1), ("b", 2)])])
+        let list = try combine(data, boards: ["y", "x"])
+
+        XCTAssertEqual(list.boards.map(\.id), ["y", "x"])
+        XCTAssertEqual(list.entries.first { $0.model.id == "a" }?.positions,
+                       [BoardPosition(board: "y", position: 4), BoardPosition(board: "x", position: 1)])
+    }
+
     func testAnUnknownBoardIsRefusedNeverSkipped() {
         let data = standings([board("x", [("a", 1)])])
 
