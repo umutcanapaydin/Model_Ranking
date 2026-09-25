@@ -3046,3 +3046,29 @@ machine: a legitimate file that grows past it fails until the limit is raised.
 
 **Revisit when:** a live file approaches the ceiling, or another source starts parsing a downloaded
 file with a native library (it should go through the same reader shape).
+
+## D-166 — A moving, undated API alias never creates a derived model
+
+**Status:** accepted -- **ruled by the owner 2026-09-25** (asked in Turkish whether to stop derivation
+for moving aliases or map each to a dated release by hand, the owner chose the first) · **Date:**
+2026-09-25 · **Amends** D-157 (the derived registry) · from #37, the residual the M16-W4 re-review
+named (`docs/reviews/m16-wave-4-rereview.md` MINOR-1).
+
+**Context.** D-157 registers a model derived from the data when no curated rule names it but a price
+and a score agree on a name. For an undated API alias whose meaning moves (`deepseek-chat`, `o1`,
+`gpt4o-mini`, `claude-3.5-sonnet`, ...), those two do not describe one model: the score was measured
+on whatever release the alias meant on its run date, and the price is what it means today. The
+re-review counted thirteen such ids registered on 2026-09-23.
+
+**Decision.**
+1. **A declared list of moving aliases** (`registry.MOVING_ALIASES`, each with its reason) is never
+   the basis of a derived id: `derive_identity` returns None for it, so its rows stay unmatched and
+   are named in the unmatched report (`/health`'s `refresh_unmatched`), not served.
+2. **The list only stops derivation.** A curated rule that names such an alias still takes it (the
+   list wins, D-157); a vendor's dated name (`deepseek-v3.2`, `o1-2024-12-17`) is unaffected.
+3. The list grows by review: an alias a vendor has repointed is added with its reason.
+
+**The cost.** Models reachable only through a moving alias leave the lists until a dated name or a
+curated rule brings them back, and a surface that ranked one of them loses it.
+
+**Revisit when:** a source starts dating its aliases, or the list grows past what a review can keep.
