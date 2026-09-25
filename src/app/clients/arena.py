@@ -21,7 +21,7 @@ from typing import Any
 
 import httpx
 
-from app.clients.protocols import MAX_RESPONSE_BYTES, SourceError
+from app.clients.protocols import SourceError, bounded_get
 from app.workflows.schema import ScoreRow
 
 DATASET = "lmarena-ai/leaderboard-dataset"
@@ -132,6 +132,8 @@ class ArenaClient:
     """
 
     name = "arena"
+    #: Where a page fetch may go (#25): the datasets-server's own host, no other.
+    hosts: tuple[str, ...] = ("datasets-server.huggingface.co",)
 
     def __init__(self, config: str = "text", split: str = "latest") -> None:
         # M2-closure carried debt, cleaned in M3-W3: the old `url=` parameter was
@@ -170,40 +172,31 @@ class ArenaClient:
         }
         last_exc: Exception | None = None
         for attempt in range(_RETRIES_429 + 1):
+            # Through the one bounded fetch (#25): the body capped while it is read (M7 Stage-4.0
+            # MINOR-4), every hop `https` to the datasets-server only, and a deadline over the
+            # whole page. A 429 comes back as an answer rather than an error, so the retry below
+            # decides on its status and headers.
             try:
-                # Streamed rather than fetched whole (M7 Stage-4.0 MINOR-4). Two reasons, and the
-                # second is why this reads better than the version it replaces: the body is capped
-                # WHILE it is read, so a hostile or broken upstream cannot make this process buffer
-                # gigabytes; and the status and headers arrive BEFORE the body, so the 429 retry
-                # below decides without paying for a response it is about to discard.
-                with httpx.stream(
-                    "GET",
-                    endpoint,
-                    params=params,
-                    timeout=_TIMEOUT_S,
-                    follow_redirects=True,
-                ) as resp:
-                    if resp.status_code == 429 and attempt < _RETRIES_429:
-                        retry_after = resp.headers.get("Retry-After")
-                        delay = (
-                            float(retry_after)
-                            if retry_after and retry_after.replace(".", "", 1).isdigit()
-                            else float(2 ** (attempt + 1))
-                        )
-                        time.sleep(min(delay, 30.0))
-                        continue
-                    resp.raise_for_status()
-                    body = bytearray()
-                    for chunk in resp.iter_bytes():
-                        body += chunk
-                        if len(body) > MAX_RESPONSE_BYTES:
-                            msg = (
-                                f"arena: page {page} exceeded {MAX_RESPONSE_BYTES} bytes "
-                                "and was cut off; the filter endpoint has changed shape"
-                            )
-                            raise SourceError(msg)
-                payload = json.loads(bytes(body).decode("utf-8", "replace"))
-            except (httpx.HTTPError, ValueError) as exc:
+                answer = bounded_get(endpoint, self.name, _TIMEOUT_S,
+                                     {k: str(v) for k, v in params.items()}, hosts=self.hosts)
+            except SourceError as exc:
+                last_exc = exc
+                break
+            if answer.status == 429 and attempt < _RETRIES_429:
+                retry_after = answer.headers.get("retry-after")
+                delay = (
+                    float(retry_after)
+                    if retry_after and retry_after.replace(".", "", 1).isdigit()
+                    else float(2 ** (attempt + 1))
+                )
+                time.sleep(min(delay, 30.0))
+                continue
+            if answer.status == 429:
+                last_exc = SourceError("429 Too Many Requests, after every retry")
+                break
+            try:
+                payload = json.loads(answer.body.decode("utf-8", "replace"))
+            except ValueError as exc:
                 last_exc = exc
                 break
             if not isinstance(payload, dict):

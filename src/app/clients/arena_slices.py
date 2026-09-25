@@ -210,11 +210,15 @@ class ArenaSliceClient:
         self.config = config
         self.name = f"arena_slices_{config}"
         self.url = parquet_url(config, split)
+        #: Hugging Face sends the file on to its CDN (`us.aws.cdn.hf.co`, measured 2026-09-25);
+        #: every other hop is refused (#25).
+        self.hosts: tuple[str, ...] = ("huggingface.co", ".hf.co")
 
     def fetch_bytes(self) -> bytes:
         """The whole file, capped while it is read and bounded in time."""
         return fetch_bounded_bytes(
-            self.url, self.name, _TIMEOUT_S, limit=MAX_PARQUET_BYTES, deadline=_DEADLINE_S
+            self.url, self.name, _TIMEOUT_S, limit=MAX_PARQUET_BYTES, deadline=_DEADLINE_S,
+            hosts=self.hosts,
         )
 
 
