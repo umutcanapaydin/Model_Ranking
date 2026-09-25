@@ -628,12 +628,14 @@ def test_an_unknown_config_is_refused() -> None:
 # --- the declared table --------------------------------------------------------------------------
 
 
-def test_the_table_is_the_35_boards_the_owner_ruled() -> None:
-    """Owner ruling 2026-09-24: every meaningful slice (26 `text`, 9 `vision`)."""
+def test_the_table_is_the_boards_the_owner_ruled() -> None:
+    """Owner rulings: every meaningful slice (2026-09-24: 26 `text`, 9 `vision`) and the six Agent
+    Arena configs (2026-09-25, #37), one board each."""
     by_config = {c: {s.category for s in ARENA_SLICES if s.config == c} for c in SLICE_CONFIGS}
     assert len(by_config["text"]) == 26
     assert len(by_config["vision"]) == 9
-    assert len(ARENA_SLICES) == 35
+    assert sum(1 for s in ARENA_SLICES if s.config.startswith("agent")) == 6
+    assert len(ARENA_SLICES) == 41
 
 
 def test_the_left_out_slices_stay_out() -> None:
