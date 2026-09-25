@@ -503,3 +503,19 @@ workflow that had failed silently for six weeks.
 Lesson: a limit on untrusted input is proven by the process that pays for it, on the platform
 that runs it. Measure the parent as well as the child, and read CI before calling a round green.
 
+
+## 2026-09-25 — #29-#36 merged, the engine runs as a service; M17-W3 closed agent-side
+
+- #29, #30, #31, #34 and #36 merged. Branch protection is on (#13, applied with gh as the owner
+  ruled). The engine now runs as a launchd service from a deployed copy (#32). Its first startup
+  refresh published the 35 W2 boards.
+- M17-W3 (#37, #24) adds eleven boards and the accessibility attribute, and ends derived models from
+  moving aliases (D-166, owner ruling). It went red-first per phase.
+- Measuring the first night against the served artifact found a real crash before merge: the
+  refresh fingerprints the LIVE artifact, which predates the new table, so every night after the
+  merge would have failed. Fixed red-first.
+- The Code-Reviewer found six minors, the first Tester two BLOCKING items (the CI skip budget,
+  and coverage of one module) and a second Tester two more minors. All were fixed on the branch;
+  five issues were filed and triaged (#38-#42).
+Lesson: a schema change is also a change to what the refresh reads from yesterday's artifact.
+Measure the new code against the artifact actually being served, not only a fresh build.
