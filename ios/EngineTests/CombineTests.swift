@@ -56,6 +56,16 @@ final class CombineTests: XCTestCase {
         XCTAssertEqual(try combine(even, boards: ["x", "y"]).entries.map(\.model.id), ["alpha", "zeta"])
     }
 
+    func testATieTakesTheHigherRankAndTheNextModelSkipsPastIt() throws {
+        // Competition ranking: x ties a and b at 1, so c is 3, not 2. y ranks c, a, b.
+        // Sums: a 1+2=3, b 1+3=4, c 3+1=4 -> a, then b before c by id. Counting a tie as
+        // "one more than every model at or above it" would give a 4, b 5, c 4 -> a, c, b.
+        let data = standings([board("x", [("a", 1), ("b", 1), ("c", 3)]),
+                              board("y", [("c", 1), ("a", 2), ("b", 3)])])
+
+        XCTAssertEqual(try combine(data, boards: ["x", "y"]).entries.map(\.model.id), ["a", "b", "c"])
+    }
+
     func testOneBoardChosenIsThatBoardsOwnOrder() throws {
         let data = standings([board("x", [("c", 1), ("a", 2), ("b", 2), ("d", 4)])])
 
@@ -103,8 +113,11 @@ final class CombineTests: XCTestCase {
     }
 
     func testAModelTheStandingsDoNotDescribeIsRefused() {
+        // Another model is described, so a lookup that fell back to "any model" would serve it.
         let data = Standings(apiVersion: "v1", attributions: [],
-                             boards: [board("x", [("ghost", 1)])], models: [])
+                             boards: [board("x", [("ghost", 1)])],
+                             models: [StandingModel(id: "a", display: "A", vendor: "V",
+                                                    blendedPerM: 1, accessibility: nil)])
 
         XCTAssertThrowsError(try combine(data, boards: ["x"])) { error in
             XCTAssertEqual(error as? CombineError, .unknownModel("ghost"))

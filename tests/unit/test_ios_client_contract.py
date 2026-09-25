@@ -179,7 +179,7 @@ def test_position_arithmetic_happens_only_where_an_adr_permits_it() -> None:
     """The same shape as the score tripwire below, for positions and ranks. A second file ranking
     boards on its own would be a second combination with no ADR."""
     pattern = re.compile(
-        r"\b(?:positions?|ranks?)\b\s*[-+*/]=?\s*[\w(.]|[\w)]\s*[-+*/]=?\s*\b(?:positions?|ranks?)\b"
+        r"\b(?:positions?|ranks?)\b\s*[-+*/]=?\s*[\w(.\[]|[\w)\]]\s*[-+*/]=?\s*\b(?:positions?|ranks?)\b"
     )
     offenders: list[str] = []
     used: set[str] = set()
@@ -248,6 +248,11 @@ SORTING_PERMITTED = {
     ),
     ("FrontDoor.swift", "entries.indices"): (
         "M14-W3, REQ-GAP-001: when the register is full, the least-asked entry makes room."
+    ),
+    ("Combine.swift", "common"): (
+        "M17-W4, D-160 clause 2, D-167 clause 3: the combined list IS the product's own ordering, "
+        "built from positions on the boards the reader chose and labelled as such on the detail "
+        "screen. It never reorders the engine's answers or a surface's ranking, which Ruling A is about."
     ),
 }
 
