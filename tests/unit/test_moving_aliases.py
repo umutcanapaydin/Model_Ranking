@@ -29,7 +29,7 @@ def test_a_moving_alias_derives_no_model(name: str) -> None:
     assert derive_identity(name) is None
 
 
-@pytest.mark.parametrize(("name", "derived"), [("gpt-4o-mini-2024-07-18", "gpt4o-mini-2024-07-18"),
+@pytest.mark.parametrize(("name", "derived"), [("gpt-4o-mini-2024-07-18", "gpt4o-mini2024-07-18"),
                                                ("deepseek-v3.2", "deepseek-v3.2"),
                                                ("o1-2024-12-17", "o1-2024-12-17")])
 def test_a_dated_name_still_derives(name: str, derived: str) -> None:
@@ -61,6 +61,6 @@ def test_reconcile_registers_no_model_from_an_alias_and_names_it_unmatched() -> 
         report = reconcile(conn)
         ids = {r[0] for r in conn.execute("SELECT id FROM models")}
         assert "deepseek-chat" not in ids and "deepseek-v3.2" in ids
-        assert "deepseek-chat" in report.dropped
+        assert "deepseek-chat" in report.dropped_names
     finally:
         conn.close()

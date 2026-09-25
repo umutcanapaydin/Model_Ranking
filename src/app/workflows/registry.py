@@ -410,6 +410,28 @@ def _without_heads(text: str) -> tuple[str, bool]:
         return text, routed
 
 
+#: D-166 (owner ruling 2026-09-25): undated API aliases whose meaning MOVES, as the grammar spells
+#: them. A score under one was measured on whatever release the alias meant on its run date; the
+#: price is what it means today; so they never create a derived model. The list only stops
+#: derivation: a curated rule that names one still takes it (the list wins, D-157). The thirteen
+#: are the M16-W4 re-review's (MINOR-1); an alias a vendor repoints is added here with its reason.
+MOVING_ALIASES: dict[str, str] = {
+    "claude3.5-sonnet": "Anthropic moved the undated name from 2024-06-20 to 2024-10-22",
+    "mistral7b-instruct": "hosts serve v0.1, v0.2 or v0.3 under the undated name",
+    "deepseek-chat": "DeepSeek repoints its API alias at each V3.x release",
+    "deepseek-reasoner": "DeepSeek repoints its API alias at each R1 / V3.x reasoning release",
+    "command-r": "Cohere repointed the alias (2024-03 to 2024-08)",
+    "command-r-plus": "Cohere repointed the alias (2024-04 to 2024-08)",
+    "mistral-medium": "Mistral reused the name for a different generation",
+    "gpt4-turbo": "OpenAI moved the alias across the preview and 2024-04-09 releases",
+    "gpt4o-mini": "an undated OpenAI alias, pinned only by its dated snapshot",
+    "o1": "OpenAI moved the alias from the preview to 2024-12-17",
+    "o1-mini": "an undated OpenAI alias, pinned only by its dated snapshot",
+    "yi-large": "01.AI's alias, served by hosts from different dates",
+    "claude-instant": "Anthropic served 1.0 and 1.2 under the undated name",
+}
+
+
 def derive_identity(name: str) -> DerivedIdentity | None:
     """The grammar's id for ``name``; None for a different product (the modality guard)."""
     if any(rx.search(name) for _, rx in _MODALITY_RX):
@@ -435,6 +457,8 @@ def derive_identity(name: str) -> DerivedIdentity | None:
     text = re.sub(r"([a-z])-(\d)", r"\1\2", text)     # `gpt-6` and `gpt6` are one spelling
     if not text or not re.fullmatch(r"[a-z0-9][a-z0-9.+\-]*", text):
         return None
+    if text in MOVING_ALIASES:
+        return None                                # D-166: a moving alias names no one release
     return DerivedIdentity(model_id=text, effort=effort)
 
 
