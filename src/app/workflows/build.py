@@ -50,6 +50,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from app.clients.arena import METRIC as ARENA_ELO
 from app.clients.arena_slices import ARENA_SLICES, ArenaSlice, fetch_slices
 from app.clients.epoch_board import EpochBoard, parse_board, read_bundle_file
 from app.clients.protocols import SourceError
@@ -304,7 +305,7 @@ class Carry:
             # A schema the carried rows no longer fit (review NIT-3) degrades to "nothing carried",
             # never to a failed build. The re-reset is not redundant: the rollback also undoes a
             # reset still pending in the same transaction.
-            for table in ("pricing", "scores"):
+            for table in CARRY_TABLES:
                 reset_source(conn, table, source)
             self.since.pop(source, None)
             return "absent"
@@ -348,8 +349,9 @@ def _most_unmatched(conn: sqlite3.Connection, refused: set[str]) -> list[str]:
     not a model we are missing, so it is left out (M14-W1 review MAJOR-2's distinction)."""
     # A category slice repeats its `overall` board's names, up to 26 times, and adds none it lacks
     # (measured 2026-09-24); counted, they would rank Arena names above every other source's (wave
-    # review K2). So the queue counts every source except the declared slices.
-    slices = [board.source_name for board in ARENA_SLICES]
+    # review K2). So the queue counts every source except the declared slices. An Agent Arena board
+    # (M17-W3) is nobody's slice: its own spellings appear nowhere else, so it stays (review M5).
+    slices = [board.source_name for board in ARENA_SLICES if board.metric == ARENA_ELO]
     rows = conn.execute(
         "SELECT raw_name, COUNT(*) AS n FROM scores WHERE model_id IS NULL "  # noqa: S608
         f"AND source NOT IN ({','.join('?' * len(slices))}) "
@@ -453,16 +455,17 @@ def _ingest_access(
     conn: sqlite3.Connection, bundle_dir: Path | None, run: RunContext,
     carry: Carry | None = None, drift: list[str] | None = None,
     files: Sequence[str] | None = None,
-) -> tuple[int, list[str]]:
+) -> tuple[list[SourceReport], list[str]]:
     """Epoch's `model_metadata.csv` into `access` (M17-W3, #37): the attribute, not a board.
 
     Read from the same unpacked bundle as the Epoch boards, through the same path guard. A failure
     resets the rows and carries the last good ones (D-156); it never fails the build: an attribute
-    missing for a night hides a filter, it does not blind a surface.
+    missing for a night hides a filter, it does not blind a surface. Its report joins the build's
+    sources like a board's, so the refresh records when it last arrived (wave review M4).
     """
     source = access.SOURCE
     if not (ACCESS_FILES if files is None else files):
-        return 0, []
+        return [], []
     try:
         if bundle_dir is None:
             msg = "no local bundle directory supplied"
@@ -478,9 +481,10 @@ def _ingest_access(
         if drift is not None and bundle_dir is not None:
             drift.append(f"{source}: {exc}")
         missing = [] if _fall_back(conn, carry, source) == "carried" else [f"{source}: {exc}"]
-        return 0, missing
-    run.reports.append(SourceReport(source=source, stored=stored, skipped=_skipped, effort_unknown=0))
-    return stored, []
+        return [], missing
+    report = SourceReport(source=source, stored=stored, skipped=_skipped, effort_unknown=0)
+    run.reports.append(report)
+    return [report], []
 
 
 def _ingest_slices(
@@ -704,11 +708,12 @@ def build(
     board_reports, board_missing = _ingest_boards(conn, bundle_dir, run, boards, carry,
                                                   drift=report.drift)
     slice_reports, slice_missing = _ingest_slices(conn, run, slices, carry, drift=report.drift)
-    _access_stored, access_missing = _ingest_access(conn, bundle_dir, run, carry, drift=report.drift,
+    access_reports, access_missing = _ingest_access(conn, bundle_dir, run, carry, drift=report.drift,
                                                     files=access_files)
     report.sources.extend(board_reports)
     report.sources.extend(bundle_reports)
     report.sources.extend(slice_reports)
+    report.sources.extend(access_reports)
     report.required_operator_actions = _surfaces_left_without_evidence(
         [*degraded, *bundle_missing, *board_missing, *slice_missing, *access_missing]
     )

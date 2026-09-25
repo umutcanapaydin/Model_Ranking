@@ -118,13 +118,13 @@ def test_the_build_reads_the_bundles_metadata_and_a_missing_file_is_a_missing_li
     conn = connect(":memory:")
     try:
         _models(conn, "claude-4.1-opus")
-        stored, missing = build_mod._ingest_access(conn, bundle, build_mod.RunContext())
-        assert stored == 1 and missing == []
+        reports, missing = build_mod._ingest_access(conn, bundle, build_mod.RunContext())
+        assert [r.stored for r in reports] == [1] and missing == []
         access.link(conn)
         assert access.served(conn) == {"claude-4.1-opus": "API access"}
         (bundle / "model_metadata.csv").unlink()
-        stored, missing = build_mod._ingest_access(conn, bundle, build_mod.RunContext())
-        assert stored == 0 and missing and missing[0].startswith("epoch_access")
+        reports, missing = build_mod._ingest_access(conn, bundle, build_mod.RunContext())
+        assert reports == [] and missing and missing[0].startswith("epoch_access")
     finally:
         conn.close()
 

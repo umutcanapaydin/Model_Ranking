@@ -36,7 +36,9 @@ CREATE TABLE IF NOT EXISTS access (
     source        TEXT NOT NULL,
     source_url    TEXT NOT NULL,
     observed_at   TEXT NOT NULL,
-    UNIQUE (raw_name, source)
+    -- The value is part of the key (wave review M3): one name listed twice with two values keeps
+    -- both rows, so `access.link` counts the disagreement instead of the last row winning.
+    UNIQUE (raw_name, accessibility, source)
 );
 CREATE TABLE IF NOT EXISTS pricing (
     alias        TEXT NOT NULL,
