@@ -92,3 +92,21 @@ def test_the_arena_slices_still_read_their_rating() -> None:
     raw = slice_parquet([("a", 1300.0, "multi_turn", "2026-09-13")])
     rows, _ = parse_arena_slices(raw, [board], source_url="u")
     assert [(r.score, r.metric) for r in rows[board.source_name]] == [(1300.0, "elo")]
+
+
+@pytest.mark.slices
+def test_an_agent_boards_unmatched_names_reach_the_curation_queue() -> None:
+    """Wave review M5. A category slice repeats its `overall` board's names, so the queue leaves the
+    slices out; an agent board is nobody's slice, and its display spellings appear nowhere else."""
+    from app.workflows.build import _most_unmatched
+    from app.workflows.schema import connect
+
+    conn = connect(":memory:")
+    try:
+        for source, name in (("arena_agent", "Agent Only 9 (Max)"), ("arena_text_coding", "slice-only-9")):
+            conn.execute("INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, "
+                         "source_url, observed_at) VALUES (?, 'b', 'm', 1, 'h', 'unspecified', ?, 'u', 'z')",
+                         (name, source))
+        assert _most_unmatched(conn, set()) == ["Agent Only 9 (Max)"]
+    finally:
+        conn.close()

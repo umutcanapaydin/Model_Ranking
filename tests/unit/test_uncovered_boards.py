@@ -87,3 +87,11 @@ def test_an_uncovered_epoch_board_losing_a_quarter_is_refused_and_a_new_one_is_n
     assert any("epoch_chess" in reason for reason in degradations(live, shrunk))
     empty = ServingSummary(digest="c", surfaces={}, models={}, median_price={}, eligible={})
     assert not upward_anomalies(empty, live), "a board's first night is a publish (D-164 clause 3)"
+
+
+def test_a_board_a_surface_shows_only_as_secondary_evidence_is_still_a_board() -> None:
+    """Wave review M2. A secondary benchmark never orders a ranking and reaches the ranked rows only
+    for models that rank, so its board's losses and changes are nobody's unless they are here.
+    `epoch_mmlu` is `everyday`'s secondary evidence."""
+    uncovered = {board.source for board in boards.uncovered()}
+    assert "epoch_mmlu" in uncovered

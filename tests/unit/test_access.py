@@ -139,3 +139,38 @@ def test_an_artifact_from_before_the_table_still_fingerprints() -> None:
         assert access.served(conn) == {}
     finally:
         conn.close()
+
+
+@pytest.mark.parametrize("order", [("API access", "Open weights (unrestricted)"),
+                                   ("Open weights (unrestricted)", "API access")])
+def test_one_name_listed_twice_with_two_values_is_a_disagreement_not_the_last_row(order) -> None:  # type: ignore[no-untyped-def]
+    """Wave review M3: a second row under the same name replaced the first, so file order chose the
+    value. It is counted as a disagreement instead, and the model gets none."""
+    conn = connect(":memory:")
+    try:
+        _models(conn, "claude-4.1-opus")
+        rows, _ = access.parse_metadata(_csv(*(("claude-opus-4-1-20250805", v) for v in order)))
+        access.store(conn, rows, source="epoch_access", source_url="u", observed_at="z")
+        report = access.link(conn)
+        assert access.served(conn) == {}
+        assert report.conflicting == ("claude-4.1-opus",)
+    finally:
+        conn.close()
+
+
+def test_the_build_reports_the_attribute_as_arrived(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Wave review M4: the refresh learns what arrived from the build's sources, so an attribute
+    missing from them never gets a last-arrived record and `/health` cannot say when it came."""
+    from app.workflows.build import build
+
+    from .test_build import PLANS_YAML, ROSTERS_YAML, _sources
+
+    (tmp_path / access.FILE).write_text(_csv(("claude-opus-4-1-20250805", "API access")), encoding="utf-8")
+    conn = connect(":memory:")
+    try:
+        report = build(conn, plans_yaml=PLANS_YAML, rosters_yaml=ROSTERS_YAML, sources=_sources(),
+                       minimum_models=2, bundle_dir=tmp_path, bundles=(), boards=(),
+                       access_files=(access.FILE,))
+        assert access.SOURCE in report.sources_json()["arrived"]  # type: ignore[operator]
+    finally:
+        conn.close()
