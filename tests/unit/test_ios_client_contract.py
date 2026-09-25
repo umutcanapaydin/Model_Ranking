@@ -169,6 +169,35 @@ def test_the_client_performs_no_arithmetic_on_a_number_the_engine_sent() -> None
 SCORE_ARITHMETIC_PERMITTED = {"Uncertainty.swift": "D-138"}
 
 
+#: M17-W4 (D-160 clause 2, D-167 clause 4): the one file that may do arithmetic on POSITIONS -- the
+#: combination re-ranks boards on the device. A position is a served number like a score: every
+#: other file renders it and computes nothing with it.
+POSITION_ARITHMETIC_PERMITTED = {"Combine.swift": "D-160, D-167"}
+
+
+def test_position_arithmetic_happens_only_where_an_adr_permits_it() -> None:
+    """The same shape as the score tripwire below, for positions and ranks. A second file ranking
+    boards on its own would be a second combination with no ADR."""
+    pattern = re.compile(
+        r"\b(?:positions?|ranks?)\b\s*[-+*/]=?\s*[\w(.]|[\w)]\s*[-+*/]=?\s*\b(?:positions?|ranks?)\b"
+    )
+    offenders: list[str] = []
+    used: set[str] = set()
+    for name, text in _swift_sources().items():
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            if not pattern.search(line.split("//", 1)[0]):
+                continue
+            if name in POSITION_ARITHMETIC_PERMITTED:
+                used.add(name)
+            else:
+                offenders.append(f"{name}:{lineno}: {line.strip()}")
+    assert not offenders, (
+        "arithmetic on a served position outside the files an ADR permits:\n  " + "\n  ".join(offenders)
+    )
+    stale = sorted(set(POSITION_ARITHMETIC_PERMITTED) - used)
+    assert not stale, f"{stale} is permitted position arithmetic and does none; remove the permission"
+
+
 def test_score_arithmetic_happens_only_where_an_adr_permits_it() -> None:
     """M13-W2 re-review NEW-1: the tripwire above could not see the one crossing that shipped.
 
