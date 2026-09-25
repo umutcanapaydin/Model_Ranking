@@ -205,9 +205,12 @@ private final class StubProtocol: URLProtocol, @unchecked Sendable {
     /// CHOICE reaches the engine, and a picker that changes a `@State` and sends the old value
     /// would look identical on screen until somebody compared two answers.
     nonisolated(unsafe) static var lastRequestedURL: URL?
+    /// The whole last request, for the headers (M17-W4 review M4).
+    nonisolated(unsafe) static var lastRequest: URLRequest?
 
     override func startLoading() {
         Self.lastRequestedURL = request.url
+        Self.lastRequest = request
         switch Self.outcome {
         case let .failure(error):
             client?.urlProtocol(self, didFailWithError: error)
@@ -458,8 +461,8 @@ final class BoardsRequestTests: XCTestCase {
 
     private let payload = Data(#"""
         {"api_version":"v1","attributions":["a"],"boards":[{"id":"epoch_chess","benchmark":"Chess puzzles",\#
-        "metric":"% correct","evidence_date":"2026-09-18","observed_at":"2026-09-25","attribution":"a",\#
-        "standings":[{"model":"a","position":1},{"model":"b","position":1}]}],"models":[{"id":"a",\#
+        "metric":"% correct","ranking_effort":null,"evidence_date":"2026-09-18","observed_at":"2026-09-25","attribution":"a",\#
+        "standings":[{"model":"a","position":1,"effort":"max"},{"model":"b","position":1,"effort":"unspecified"}]}],"models":[{"id":"a",\#
         "display":"A","vendor":"V","blended_per_m":1.25,"accessibility":null},{"id":"b","display":"B",\#
         "vendor":"V","blended_per_m":3.25,"accessibility":"API access"}]}
         """#.utf8)
@@ -481,6 +484,33 @@ final class BoardsRequestTests: XCTestCase {
         XCTAssertEqual(fetched.payload, payload)
         XCTAssertEqual(fetched.standings.boards.first?.standings.map(\.position), [1, 1])
         XCTAssertEqual(fetched.standings.models.map(\.accessibility), [nil, "API access"])
+    }
+
+    func testTheBoardsRequestSetsNoHeaderOfItsOwn() async throws {
+        // Review M4: nothing about the reader can ride in a header either. The app sets none; what
+        // URLSession adds by itself is the same on every request.
+        StubProtocol.lastRequest = nil
+        StubProtocol.outcome = .success((200, payload))
+        _ = try await client().boards()
+        let request = try XCTUnwrap(StubProtocol.lastRequest)
+        let own = (request.allHTTPHeaderFields ?? [:]).keys.filter { !["Accept", "Accept-Encoding", "Accept-Language", "User-Agent"].contains($0) }
+
+        XCTAssertEqual(own, [], "the standings request carried headers of its own")
+        XCTAssertEqual(request.httpMethod ?? "GET", "GET")
+        XCTAssertNil(request.httpBody)
+    }
+
+    func testAnUnreadableResponseIsRefusedRatherThanStored() async {
+        // Review M4.
+        StubProtocol.outcome = .success((200, Data(#"{"boards": "not a list"}"#.utf8)))
+        do {
+            _ = try await client().boards()
+            XCTFail("an unreadable standings payload was accepted")
+        } catch let EngineError.undecodable(detail) {
+            XCTAssertFalse(detail.isEmpty)
+        } catch {
+            XCTFail("an unreadable payload failed as \(error), not as a refused payload")
+        }
     }
 
     func testAnOversizedPayloadIsRefusedBeforeItIsDecoded() async {

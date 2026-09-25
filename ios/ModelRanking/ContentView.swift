@@ -782,9 +782,9 @@ struct PickRow: View {
     /// REQ-UNC-001: `#1–27 of 50` where the engine's margin cannot narrow the position, and a single
     /// number only where it can. `nil` when the pick is not in the ranking it came with.
     private var rankText: String? {
-        guard let place = rankOf(pick.model, in: ranking, name: \.model) else { return nil }
+        guard let position = rankOf(pick.model, in: ranking, name: \.model) else { return nil }
         return rankLabel(
-            at: place - 1,
+            at: position - 1,
             in: ranges ?? rankRanges(ranking.map(\.score), margin: nil),
             of: ranking.count,
             language

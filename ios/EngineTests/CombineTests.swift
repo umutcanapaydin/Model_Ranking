@@ -14,7 +14,7 @@ final class CombineTests: XCTestCase {
         BoardStandings(
             id: id, benchmark: "B \(id)", metric: "elo", evidenceDate: "2026-09-18",
             observedAt: "2026-09-25", attribution: "cite \(id)",
-            standings: standings.map { Standing(model: $0.0, position: $0.1) }
+            standings: standings.map { Standing(model: $0.0, position: $0.1, effort: "unspecified") }
         )
     }
 
@@ -110,6 +110,15 @@ final class CombineTests: XCTestCase {
         let data = standings([board("x", [("a", 1), ("b", 2)]), board("y", [("b", 1), ("a", 2)])])
 
         XCTAssertEqual(try combine(data, boards: ["x", "x", "y"]).boards.map(\.id), ["x", "y"])
+    }
+
+    func testAModelListedTwiceOnOneBoardCountsOnce() throws {
+        // Security S7: only a bad payload could list a model twice; it must not count twice.
+        let data = standings([board("x", [("a", 1), ("b", 2), ("a", 3)]), board("y", [("b", 1), ("a", 2)])])
+        let list = try combine(data, boards: ["x", "y"])
+
+        XCTAssertEqual(list.entries.map(\.model.id), ["a", "b"])
+        XCTAssertEqual(list.entries.first?.positions.count, 2)
     }
 
     func testAModelTheStandingsDoNotDescribeIsRefused() {

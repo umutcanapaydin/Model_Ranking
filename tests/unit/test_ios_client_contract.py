@@ -23,6 +23,8 @@ from __future__ import annotations
 import pathlib
 import re
 
+import pytest
+
 CLIENT = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking"
 MODELS = CLIENT / "Engine/Models.swift"
 
@@ -173,6 +175,19 @@ SCORE_ARITHMETIC_PERMITTED = {"Uncertainty.swift": "D-138"}
 #: combination re-ranks boards on the device. A position is a served number like a score: every
 #: other file renders it and computes nothing with it.
 POSITION_ARITHMETIC_PERMITTED = {"Combine.swift": "D-160, D-167"}
+
+
+@pytest.mark.parametrize(("line", "arithmetic"), [
+    ("let rank = standing.position + 1", True),
+    ("sums[m] = sums[m] + rank", True),
+    ("total += x.position", True),       # security S4: a compound assignment
+    ("xs.reduce(0) { $0 + $1.position }", True),  # security S4: a member after the operator
+    ("let r = rank * 2", True),
+    ("if a.position < b.position {", False),
+    ("positions.append(p)", False),
+])
+def test_the_position_tripwire_sees_each_spelling(line: str, arithmetic: bool) -> None:
+    assert bool(POSITION_ARITHMETIC.search(line)) is arithmetic, line
 
 
 def test_position_arithmetic_happens_only_where_an_adr_permits_it() -> None:

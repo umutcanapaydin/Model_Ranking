@@ -19,8 +19,10 @@ from app.workflows.schema import connect
 from .test_api_v1 import _seeded_db
 
 ENVELOPE_KEYS = {"api_version", "attributions", "boards", "models"}
-BOARD_KEYS = {"id", "benchmark", "metric", "evidence_date", "observed_at", "attribution", "standings"}
-STANDING_KEYS = {"model", "position"}
+PAYLOAD_KEYS = ENVELOPE_KEYS - {"api_version"}  # the route adds the version (review M5)
+BOARD_KEYS = {"id", "benchmark", "metric", "ranking_effort", "evidence_date", "observed_at",
+              "attribution", "standings"}
+STANDING_KEYS = {"model", "position", "effort"}
 MODEL_KEYS = {"id", "display", "vendor", "blended_per_m", "accessibility"}
 
 
@@ -66,8 +68,40 @@ def test_positions_follow_each_models_best_row_and_ties_share_one() -> None:
     conn = _conn()
     _chess(conn)
     board = _board(_payload(conn), "epoch_chess")
-    assert board["standings"] == [{"model": "a", "position": 1}, {"model": "b", "position": 2},
-                                  {"model": "c", "position": 2}, {"model": "d", "position": 4}]
+    assert [(s["model"], s["position"]) for s in board["standings"]] == [("a", 1), ("b", 2), ("c", 2), ("d", 4)]
+
+
+def test_each_standing_carries_the_effort_of_its_own_evidence() -> None:
+    """D-112: a board with no effort policy ranks on the best evidence each model has, and says which
+    effort that evidence was run at, so the phone can disclose an unequal comparison."""
+    conn = _conn()
+    _chess(conn)
+    board = _board(_payload(conn), "epoch_chess")
+    assert board["ranking_effort"] is None
+    assert {s["model"]: s["effort"] for s in board["standings"]} == {
+        "a": "max", "b": "unspecified", "c": "unspecified", "d": "unspecified"}
+
+
+def test_a_board_a_surface_ranks_at_one_effort_stands_at_that_effort() -> None:
+    """Code review B1, D-112: `agentic-coding` ranks DeepSWE at `high`, so the board the phone gets
+    is the board that surface ranks -- not each model's best row at any effort."""
+    conn = _conn()
+    for raw, model, score, effort in (("a_max", "a", 70.0, "max"), ("a_high", "a", 50.0, "high"),
+                                      ("b_high", "b", 60.0, "high"), ("c_low", "c", 90.0, "low")):
+        _score(conn, "epoch_deepswe_external", "DeepSWE", "% resolved", raw, model, score, effort=effort)
+    board = _board(_payload(conn), "epoch_deepswe_external")
+    assert board["ranking_effort"] == "high"
+    assert [(s["model"], s["position"], s["effort"]) for s in board["standings"]] == [
+        ("b", 1, "high"), ("a", 2, "high")]
+
+
+def test_a_source_holding_two_boards_is_refused() -> None:
+    """Code review M1: the refusal existed and nothing pinned it."""
+    conn = _conn()
+    _chess(conn)
+    _score(conn, "epoch_chess", "Chess endgames", "% correct", "a", "a", 1.0)
+    with pytest.raises(ValueError, match="more than one board"):
+        _payload(conn)
 
 
 def test_only_rankable_models_stand_and_a_board_with_none_is_absent() -> None:
@@ -108,7 +142,7 @@ def test_the_key_sets_are_frozen() -> None:
     conn = _conn()
     _chess(conn)
     payload = _payload(conn)
-    assert set(payload) == ENVELOPE_KEYS
+    assert set(payload) == PAYLOAD_KEYS
     for board in payload["boards"]:
         assert set(board) == BOARD_KEYS
         for standing in board["standings"]:
@@ -184,7 +218,9 @@ def test_the_route_publishes_the_standings(client: TestClient) -> None:
     response = client.get("/v1/boards")
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == ENVELOPE_KEYS and body["api_version"] == "v1"
+    from app.adapter.main import API_VERSION
+
+    assert set(body) == ENVELOPE_KEYS and body["api_version"] == API_VERSION
     assert {b["id"] for b in body["boards"]} >= {"swebench"}
 
 
@@ -222,3 +258,28 @@ def test_an_artifact_that_would_publish_too_many_standings_refuses_to_boot(
         adapter.validate_startup_config(env="production")
     monkeypatch.setattr(adapter, "MAX_PUBLISHED_STANDINGS_ROWS", 25000)
     assert adapter.validate_startup_config(env="production") == ()
+
+
+@pytest.mark.parametrize(("source", "metric", "match"), [
+    ("nobody_reviewed_this", "% correct", "unattributed"),
+    ("epoch_chess", "seconds to solve", "direction"),
+])
+def test_a_payload_the_route_would_refuse_refuses_the_boot_instead(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: str, metric: str, match: str
+) -> None:
+    """Code review M1: an artifact every `/v1/boards` request would answer with a 500 must not boot
+    healthy. The refusal happens where the other artifact problems are found."""
+    from app.adapter import main as adapter
+
+    db = tmp_path / "pipeline.db"
+    _seeded_db(db)
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            "INSERT INTO scores (raw_name, model_id, benchmark, metric, score, harness, effort, source, "
+            "source_url, observed_at) SELECT 'x', id, 'B', ?, 1, 'h', 'unspecified', ?, 'u', 'z' "
+            "FROM models LIMIT 1", (metric, source))
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    monkeypatch.setattr(adapter, "APP_BUILD", "deadbee")
+    monkeypatch.delenv("MODEL_RANKING_CORS_ORIGINS", raising=False)
+    with pytest.raises(adapter.ConfigError, match=match):
+        adapter.validate_startup_config(env="production")

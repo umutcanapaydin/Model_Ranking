@@ -9,8 +9,8 @@ import XCTest
 
 private let standingsPayload = Data(#"""
     {"api_version":"v1","attributions":["a"],"boards":[{"id":"epoch_chess","benchmark":"Chess puzzles",\#
-    "metric":"% correct","evidence_date":null,"observed_at":"2026-09-25","attribution":"a",\#
-    "standings":[{"model":"a","position":1}]}],"models":[{"id":"a","display":"A","vendor":"V",\#
+    "metric":"% correct","ranking_effort":null,"evidence_date":null,"observed_at":"2026-09-25","attribution":"a",\#
+    "standings":[{"model":"a","position":1,"effort":"unspecified"}]}],"models":[{"id":"a","display":"A","vendor":"V",\#
     "blended_per_m":1.25,"accessibility":null}]}
     """#.utf8)
 
@@ -39,12 +39,12 @@ final class StandingsStoreTests: XCTestCase {
         XCTAssertNil(store().load())
     }
 
-    func testAPayloadIsKeptWithTheTimeItArrivedAndTheBytesTheEngineSent() throws {
+    func testAPayloadIsKeptWithTheTimeItArrived() throws {
         store().save(try fetched(), at: arrived)
         let loaded = try XCTUnwrap(store().load())
 
         XCTAssertEqual(loaded.fetchedAt, arrived)
-        XCTAssertEqual(loaded.payload, standingsPayload)
+        XCTAssertEqual(loaded.standings, try fetched().standings)
         XCTAssertEqual(loaded.standings.boards.map(\.id), ["epoch_chess"])
     }
 
@@ -87,7 +87,36 @@ final class StandingsStoreTests: XCTestCase {
         let served = await store().current(now: arrived) { try FetchedStandings(payload: standingsPayload) }
 
         XCTAssertEqual(served?.models.map(\.id), ["a"])
-        XCTAssertEqual(store().load()?.payload, standingsPayload)
+        XCTAssertEqual(store().load()?.standings, try fetched().standings)
+    }
+
+    func testAStorePointedAnywhereButAFileReadsAndWritesNothing() throws {
+        // Security S1: `Data(contentsOf:)` fetches an https URL as happily as a file, so a store
+        // built on one would be a way off the device. It refuses before touching it.
+        let remote = StandingsStore(url: try XCTUnwrap(URL(string: "https://example.com/standings.json")))
+
+        XCTAssertNil(remote.load())
+        remote.save(try fetched(), at: arrived)
+        XCTAssertNil(remote.load())
+    }
+
+    func testOnlyTheFieldsTheAppDecodesAreStored() throws {
+        // Security S2: the store keeps the standings, re-encoded from what was decoded, so a payload
+        // carrying anything else -- a field the engine never serves -- is not written as it came.
+        var smuggled = try XCTUnwrap(String(data: standingsPayload, encoding: .utf8))
+        smuggled.removeLast()
+        smuggled += #","typed":"help me write a poem"}"#
+        let fetched = try FetchedStandings(payload: Data(smuggled.utf8))
+        store().save(fetched, at: arrived)
+        let stored = try XCTUnwrap(store().load())
+
+        XCTAssertFalse(String(decoding: stored.payload, as: UTF8.self).contains("typed"))
+        XCTAssertEqual(stored.standings, fetched.standings)
+    }
+
+    func testAPayloadOverTheCeilingIsNeverAccepted() {
+        // Security S2: the ceiling holds wherever standings are made, not only on the network path.
+        XCTAssertThrowsError(try FetchedStandings(payload: Data(count: EngineClient.maxStandingsBytes + 1)))
     }
 
     func testAnUnreadableFileIsNothingStoredNotACrash() throws {
