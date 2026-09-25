@@ -340,6 +340,9 @@ def test_a_download_past_its_deadline_is_a_source_error(monkeypatch: pytest.Monk
     ticks = iter(range(0, 1000, 10))
 
     class Drip:
+        status_code = 200
+        headers: dict[str, str] = {}  # noqa: RUF012
+
         def raise_for_status(self) -> None:
             return None
 
@@ -351,7 +354,8 @@ def test_a_download_past_its_deadline_is_a_source_error(monkeypatch: pytest.Monk
     def stream(*args: object, **kwargs: object):  # type: ignore[no-untyped-def]
         yield Drip()
 
-    monkeypatch.setattr(httpx, "stream", stream)
+    # #25: the fetch streams through an `httpx.Client`, so the client's `stream` is the seam.
+    monkeypatch.setattr(httpx.Client, "stream", lambda self, *a, **k: stream(*a, **k))
     monkeypatch.setattr(protocols.time, "monotonic", lambda: float(next(ticks)))
     with pytest.raises(SourceError, match="deadline"):
         protocols.fetch_bounded_bytes("https://x", "x", 1.0, deadline=100.0)

@@ -135,15 +135,22 @@ def loopback_http(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(protocols, "ALLOWED_SCHEMES", frozenset({"https", "http"}))
 
 
+#: How long a misbehaving server keeps it up. Past this it hangs up, so a fetch with no deadline
+#: of its own FAILS the test's time assertion instead of hanging the suite.
+_MISBEHAVE_S = 4.0
+
+
 def _header_drip(conn: socket.socket, stop: threading.Event) -> None:
     conn.recv(65536)
     conn.sendall(b"HTTP/1.1 200 OK\r\n")
-    while not stop.is_set():
+    until = time.monotonic() + _MISBEHAVE_S
+    while not stop.is_set() and time.monotonic() < until:
         try:
             conn.sendall(b"X-Drip: 1\r\n")
         except OSError:
             return
         time.sleep(0.2)
+    conn.close()
 
 
 def _slow_redirect(conn: socket.socket, stop: threading.Event) -> None:
@@ -160,12 +167,14 @@ def _slow_redirect(conn: socket.socket, stop: threading.Event) -> None:
 def _body_drip(conn: socket.socket, stop: threading.Event) -> None:
     conn.recv(65536)
     conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 100000\r\n\r\n")
-    while not stop.is_set():
+    until = time.monotonic() + _MISBEHAVE_S
+    while not stop.is_set() and time.monotonic() < until:
         try:
             conn.sendall(b"x")
         except OSError:
             return
         time.sleep(0.05)
+    conn.close()
 
 
 @pytest.mark.parametrize("behaviour", [_header_drip, _slow_redirect, _body_drip])
