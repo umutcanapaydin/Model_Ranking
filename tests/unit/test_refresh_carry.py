@@ -426,3 +426,48 @@ def test_an_expiry_night_does_not_admit_a_price_jump_either(
 
     assert code == EXIT_REFUSED, outcome.reason
     assert "median price" in outcome.reason
+
+
+# --- #41: the expiry baseline drops every carried table's rows, `access` included ---------------
+
+
+def _artifact_with_access(tmp_path: Path) -> Path:
+    from app.workflows import access
+    from app.workflows.schema import connect
+
+    path = tmp_path / "live.db"
+    conn = connect(str(path))
+    conn.execute("INSERT INTO models (id, display, vendor) VALUES ('claude-4.1-opus', 'Claude Opus 4.1', 'Anthropic')")
+    access.store(conn, [access.AccessRow("claude-opus-4-1-20250805", "API access")], source=access.SOURCE,
+                 source_url="u", observed_at="2026-09-25T00:00:00+00:00")
+    access.link(conn)
+    conn.commit()
+    conn.close()
+    return path
+
+
+def test_the_expiry_baseline_drops_an_expired_attributes_values(tmp_path: Path) -> None:
+    """#41: `_served_without` kept a copy of the carried tables hard-coded to scores and pricing,
+    so an expired `epoch_access` still served its values in the baseline the guards compare with."""
+    from app.workflows import access
+    from app.workflows.refresh import _served_without, serving_summary
+    from app.workflows.schema import open_readonly
+
+    live = _artifact_with_access(tmp_path)
+    without = tmp_path / "without.db"
+    with sqlite3.connect(live) as src, sqlite3.connect(without) as dst:
+        src.backup(dst)
+        dst.execute("DELETE FROM access WHERE source = ?", (access.SOURCE,))
+    expected = serving_summary(open_readonly(without)).digest
+    assert serving_summary(open_readonly(live)).digest != expected
+    assert _served_without(live, {access.SOURCE}).digest == expected
+
+
+def test_the_expiry_baseline_of_an_artifact_from_before_the_access_table(tmp_path: Path) -> None:
+    """A carried table the live artifact predates contributes nothing; it never raises."""
+    from app.workflows.refresh import _served_without
+
+    live = _artifact_with_access(tmp_path)
+    with sqlite3.connect(live) as conn:
+        conn.execute("DROP TABLE access")
+    assert _served_without(live, {"aider"}).surfaces is not None
