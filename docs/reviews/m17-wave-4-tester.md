@@ -167,31 +167,31 @@ Every test named here is GREEN at `aaafb5c`. Mutant ids are defined under "Fault
 
 ## MINOR (the author fixes each in this wave or files it as an issue)
 - **M1** `src/app/workflows/standings.py:114-120`; `tests/unit/test_board_standings.py:350-360`. **What a board's date is taken from is unpinned. It could be the newest row standing on the board, or only each model's evidence row.**
-  - **The mutant, T5-PY11.** `kept = list(evidence)` dates a board from each model's evidence row alone. All 1,453 unit tests pass. At `:350` both rows have the same score, so the newest run is also the evidence row.
-  - **Effect on `advisor.db`.** Three of 63 boards change date:
-    - `swebench`: 2026-02-26 → 2026-02-19;
-    - `epoch_frontiermath`: 2026-09-18 → 2026-09-16;
-    - `epoch_terminalbench`: 2026-05-14 → 2026-04-23.
-  - **Why MINOR.** The plan (`m17-wave-4-plan.md:56`, "its date: the newest `run_date`") matches the code, but no ADR clause fixes which rows count. It is a disclosure date and does not change any position.
-  - **Probe, verified in scratch** (`tester5-w4/probe_m1.py`). It passes on HEAD's `src` and fails on T5-PY11:
-    - model `a` has a best score of 90, run on 2026-01-01, and a lower score of 50, run on 2026-09-01;
-    - assert `evidence_date == "2026-09-01"`.
+  1. **The mutant, T5-PY11.** `kept = list(evidence)` dates a board from each model's evidence row alone. All 1,453 unit tests pass. At `:350` both rows have the same score, so the newest run is also the evidence row.
+  2. **Effect on `advisor.db`.** Three of 63 boards change date:
+     1. `swebench`: 2026-02-26 → 2026-02-19;
+     2. `epoch_frontiermath`: 2026-09-18 → 2026-09-16;
+     3. `epoch_terminalbench`: 2026-05-14 → 2026-04-23.
+  3. **Why MINOR.** The plan (`m17-wave-4-plan.md:56`, "its date: the newest `run_date`") matches the code, but no ADR clause fixes which rows count. It is a disclosure date and does not change any position.
+  4. **Probe, verified in scratch** (`tester5-w4/probe_m1.py`). It passes on HEAD's `src` and fails on T5-PY11:
+     1. model `a` has a best score of 90, run on 2026-01-01, and a lower score of 50, run on 2026-09-01;
+     2. assert `evidence_date == "2026-09-01"`.
 - **M2** Prose that still says the phone combines the boards, although the combination left the wave (#61):
-  - **Code and tests:**
-    - `src/app/workflows/standings.py:1`: "what the phone combines on the device";
-    - `src/app/adapter/main.py:120-121` ("combines on the device") and `:1394` ("for the phone to combine on the device");
-    - `src/app/adapter/main.py:244`, the boot refusal the operator reads: "the phone combines what it receives, and a short board would change every list it joins";
-    - `ios/ModelRanking/Engine/StandingsStore.swift:76`: "The standings to combine now";
-    - `tests/unit/test_board_standings.py:3`: "The phone combines boards on the device";
-    - `tests/unit/test_ios_client_contract.py:214`: "a second combination".
-  - **The plan, which is deleted before merge:** `docs/plans/m17-wave-4-plan.md`
-    - `:8` and `:13-14`: the title and Goal;
-    - `:78-86`: the Design's `Combine.swift`;
-    - `:124`: "The arithmetic gate permits `Combine.swift`";
-    - `:126`: P4's "A combination on real boards";
-    - `:132`: "Two gate permissions widen (… arithmetic)".
-  - **Why MINOR.** It changes no behaviour and no gate. But a reader of the route, the store or the boot refusal is told a consumer exists that does not ship.
-  - **Fix.** Say "for the combination D-160 provides (#61)", or use the future tense. Mark the plan's stale lines the way `:115` already is.
+  1. **Code and tests:**
+     1. `src/app/workflows/standings.py:1`: "what the phone combines on the device";
+     2. `src/app/adapter/main.py:120-121` ("combines on the device") and `:1394` ("for the phone to combine on the device");
+     3. `src/app/adapter/main.py:244`, the boot refusal the operator reads: "the phone combines what it receives, and a short board would change every list it joins";
+     4. `ios/ModelRanking/Engine/StandingsStore.swift:76`: "The standings to combine now";
+     5. `tests/unit/test_board_standings.py:3`: "The phone combines boards on the device";
+     6. `tests/unit/test_ios_client_contract.py:214`: "a second combination".
+  2. **The plan, which is deleted before merge:** `docs/plans/m17-wave-4-plan.md`
+     1. `:8` and `:13-14`: the title and Goal;
+     2. `:78-86`: the Design's `Combine.swift`;
+     3. `:124`: "The arithmetic gate permits `Combine.swift`";
+     4. `:126`: P4's "A combination on real boards";
+     5. `:132`: "Two gate permissions widen (… arithmetic)".
+  3. **Why MINOR.** It changes no behaviour and no gate. But a reader of the route, the store or the boot refusal is told a consumer exists that does not ship.
+  4. **Fix.** Say "for the combination D-160 provides (#61)", or use the future tense. Mark the plan's stale lines the way `:115` already is.
 
 ## Tests added/extended this review
 - None in the repository. This seat may modify only this file.
