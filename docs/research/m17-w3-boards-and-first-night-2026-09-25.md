@@ -30,7 +30,7 @@ is absent. The red test, `test_an_artifact_from_before_the_table_still_fingerpri
 | `degradations(live, candidate)` | `[]` |
 | `upward_anomalies(live, candidate)` | `[]` |
 | digests equal | no, so the night publishes |
-| boards fingerprinted (D-164) | 46 on both sides: 35 Arena slices, 6 agent boards, 5 Epoch boards |
+| boards fingerprinted (D-164) | 47 on both sides: 35 Arena slices, 6 agent boards, 5 new Epoch boards, and `epoch_mmlu` (136 rows on both), which wave review M2 brought in; re-measured after that fix with the same result |
 | new boards on the live side | 0 rows each. D-164 counts a board's first night as returning, not as a quarter new |
 
 The candidate registers 306 models, against 317 on the served artifact. Twelve derived ids are gone,
