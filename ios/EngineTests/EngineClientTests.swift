@@ -443,3 +443,55 @@ final class BudgetIsSentTests: XCTestCase {
     }
 }
 
+
+/// M17-W4 (D-167): the standings are fetched whatever the question is, so the request carries
+/// nothing -- no query, no path beyond the route -- and the bytes the engine sent are kept whole.
+final class BoardsRequestTests: XCTestCase {
+    private func client() -> EngineClient {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubProtocol.self]
+        return EngineClient(
+            baseURL: URL(string: "http://127.0.0.1:8080")!,
+            session: URLSession(configuration: configuration)
+        )
+    }
+
+    private let payload = Data(#"""
+        {"api_version":"v1","attributions":["a"],"boards":[{"id":"epoch_chess","benchmark":"Chess puzzles",\
+        "metric":"% correct","evidence_date":"2026-09-18","observed_at":"2026-09-25","attribution":"a",\
+        "standings":[{"model":"a","position":1},{"model":"b","position":1}]}],"models":[{"id":"a",\
+        "display":"A","vendor":"V","blended_per_m":1.25,"accessibility":null},{"id":"b","display":"B",\
+        "vendor":"V","blended_per_m":3.25,"accessibility":"API access"}]}
+        """#.utf8)
+
+    func testTheBoardsRequestCarriesNothing() async throws {
+        StubProtocol.lastRequestedURL = nil
+        StubProtocol.outcome = .success((200, payload))
+        _ = try await client().boards()
+        let url = try XCTUnwrap(StubProtocol.lastRequestedURL)
+
+        XCTAssertEqual(url.path, "/v1/boards")
+        XCTAssertNil(url.query, "the standings request carried a query; D-167 says it carries nothing")
+    }
+
+    func testAWellFormedPayloadDecodesAndKeepsTheBytesTheEngineSent() async throws {
+        StubProtocol.outcome = .success((200, payload))
+        let fetched = try await client().boards()
+
+        XCTAssertEqual(fetched.payload, payload)
+        XCTAssertEqual(fetched.standings.boards.first?.standings.map(\.position), [1, 1])
+        XCTAssertEqual(fetched.standings.models.map(\.accessibility), [nil, "API access"])
+    }
+
+    func testAnOversizedPayloadIsRefusedBeforeItIsDecoded() async {
+        StubProtocol.outcome = .success((200, Data(count: EngineClient.maxStandingsBytes + 1)))
+        do {
+            _ = try await client().boards()
+            XCTFail("an oversized standings payload was accepted")
+        } catch let EngineError.undecodable(detail) {
+            XCTAssertTrue(detail.contains("larger than"), detail)
+        } catch {
+            XCTFail("an oversized payload failed as \(error), not as a refused payload")
+        }
+    }
+}
