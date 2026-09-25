@@ -18,7 +18,7 @@
 #   Support, which hands over to the release's launcher; the logs are in ~/Library/Logs (W-096,
 #   review B1).
 # `scripts/remove_engine_service.sh` takes the service off.
-set -u
+set -u -o pipefail  # re-review N4: a failed `git archive` must fail the export
 REPO="${MODEL_RANKING_REPO:-$(cd "$(dirname "$0")/.." && pwd)}"
 LABEL="com.ilgar.modelranking.engine"
 BASE="$HOME/Library/Application Support/model-ranking"
@@ -64,6 +64,9 @@ PLIST
 }
 
 # deploy TARGET WITH_VENV: origin/main into TARGET/releases/<sha>, then TARGET/current -> it.
+# Sets DEPLOYED_SHA and PREVIOUS_RELEASE (what `current` pointed at before, or empty).
+DEPLOYED_SHA=""
+PREVIOUS_RELEASE=""
 deploy() {
   local target="$1" with_venv="$2" sha rel python
   git -C "$REPO" fetch -q origin main || { echo "FAIL: git fetch origin main"; return 1; }
@@ -83,14 +86,21 @@ deploy() {
   fi
   mkdir -p "$target/data"
   if [ ! -f "$target/data/advisor.db" ] && [ -f "$REPO/advisor.db" ]; then
-    cp "$REPO/advisor.db" "$target/data/advisor.db" && echo "artifact: copied from $REPO"
+    # The record first, then the database (re-review N3): an interrupted copy leaves no artifact
+    # without its record.
     [ -f "$REPO/advisor.db.refresh.json" ] && cp "$REPO/advisor.db.refresh.json" "$target/data/"
+    cp "$REPO/advisor.db" "$target/data/advisor.db" && echo "artifact: copied from $REPO"
   fi
+  PREVIOUS_RELEASE="$(readlink "$target/current" 2>/dev/null || true)"
+  PREVIOUS_RELEASE="${PREVIOUS_RELEASE#releases/}"
+  [ "$PREVIOUS_RELEASE" = "$sha" ] && PREVIOUS_RELEASE=""
   ln -sfn "releases/$sha" "$target/current"
-  # Older releases go, keeping the live one and the ones just before it.
+  # Older releases go. Never the new one, and never the one it replaced: a failed upgrade falls
+  # back to it (re-review M1, N5).
   ls -1t "$target/releases" | tail -n +$((KEEP_RELEASES + 1)) | while read -r old; do
-    [ "$old" = "$sha" ] || rm -rf "$target/releases/$old"
+    [ "$old" = "$sha" ] || [ "$old" = "$PREVIOUS_RELEASE" ] || rm -rf "$target/releases/$old"
   done
+  DEPLOYED_SHA="$sha"
   echo "deployed: $sha -> $target/current"
 }
 
@@ -107,7 +117,8 @@ esac
 
 [ -n "${HOME:-}" ] || { echo "FAIL: HOME is empty"; exit 1; }
 [ -x "$REPO/.venv/bin/python" ] || { echo "FAIL: $REPO/.venv is missing; run make install first"; exit 1; }
-deploy "$DEPLOY" yes || exit 1
+WITH_VENV=yes; [ "${ENGINE_DEPLOY_NO_VENV:-}" = 1 ] && WITH_VENV=no   # tests only
+deploy "$DEPLOY" "$WITH_VENV" || exit 1
 [ -f "$DEPLOY/data/advisor.db" ] || { echo "FAIL: no artifact to serve in $DEPLOY/data"; exit 1; }
 
 # An engine started by hand holds the port, and the service's would then fail and retry. Stop it,
@@ -122,27 +133,48 @@ if [ -n "$LISTENER" ] && ! launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1
 fi
 
 mkdir -p "$(dirname "$WRAPPER")" "$(dirname "$PLIST")" "$(dirname "$LOG")"
+FIRST_INSTALL=yes; [ -f "$PLIST" ] && FIRST_INSTALL=no
 wrapper > "$WRAPPER" && chmod 700 "$WRAPPER" && echo "written: $WRAPPER"
+OLD_PLIST="$(cat "$PLIST" 2>/dev/null || true)"
 plist > "$PLIST" && plutil -lint -s "$PLIST" && echo "written: $PLIST" \
   || { echo "FAIL: the plist did not lint"; exit 1; }
 
-if launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1; then
-  launchctl kickstart -k "gui/$(id -u)/$LABEL" && echo "restarted: $LABEL"
+DOMAIN="gui/$(id -u)"
+if launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1 && [ "$(cat "$PLIST")" = "$OLD_PLIST" ]; then
+  launchctl kickstart -k "$DOMAIN/$LABEL" && echo "restarted: $LABEL"
 else
-  launchctl bootstrap "gui/$(id -u)" "$PLIST" || { echo "FAIL: launchd refused the service"; exit 1; }
+  # A changed plist is only read on a load (re-review N6), so unload first when it is loaded.
+  launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null && sleep 1
+  launchctl bootstrap "$DOMAIN" "$PLIST" || { echo "FAIL: launchd refused the service"; exit 1; }
   echo "loaded: $LABEL"
 fi
 
-for _ in $(seq 1 120); do
-  if curl -sf -m 2 "http://127.0.0.1:$PORT/health" >/dev/null; then
-    echo "engine: UP  $(curl -s "http://127.0.0.1:$PORT/health")"
+# Success is the engine reporting THIS release (re-review M3), not any answer on the port.
+WANT="release-$DEPLOYED_SHA"
+WAIT_S="${ENGINE_INSTALL_WAIT_S:-60}"
+for _ in $(seq 1 $((WAIT_S * 2))); do
+  HEALTH="$(curl -sf -m 2 "http://127.0.0.1:$PORT/health" 2>/dev/null || true)"
+  if printf '%s' "$HEALTH" | grep -q "\"build\": *\"$WANT\""; then
+    echo "engine: UP  $HEALTH"
     echo "log:    $LOG"
     exit 0
   fi
   sleep 0.5
 done
-# Review M4: a service that cannot start is not left retrying every minute unnoticed.
-launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null
-echo "FAIL: the engine did not answer within 60 s; the service is unloaded again. Last lines:"
+
+# Re-review M1: a release that does not come up is never left as the one launchd starts.
+echo "FAIL: the engine did not report $WANT within $WAIT_S s. Last lines:"
 tail -8 "$LOG" 2>/dev/null; tail -3 "$LAUNCHD_LOG" 2>/dev/null
+if [ -n "$PREVIOUS_RELEASE" ] && [ -f "$DEPLOY/releases/$PREVIOUS_RELEASE/RELEASE" ]; then
+  ln -sfn "releases/$PREVIOUS_RELEASE" "$DEPLOY/current"
+  launchctl kickstart -k "$DOMAIN/$LABEL"
+  echo "rolled back: $DEPLOY/current -> $PREVIOUS_RELEASE, restarted"
+elif [ "$FIRST_INSTALL" = yes ]; then
+  launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null
+  rm -f "$PLIST" "$WRAPPER"
+  echo "removed: the service, so it does not start again at login"
+else
+  launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null
+  echo "unloaded: $LABEL (no earlier release to go back to)"
+fi
 exit 1

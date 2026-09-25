@@ -65,7 +65,8 @@ start_engine() {
     echo "engine   : already up  $(curl -s http://127.0.0.1:$PORT/health)"
     return
   fi
-  if [ ! -f "$REPO/advisor.db" ]; then
+  # The service serves its own artifact (#32 re-review N1); the checkout's matters only by hand.
+  if ! service_installed && [ ! -f "$REPO/advisor.db" ]; then
     echo "engine   : FAILED — advisor.db is missing. Build it first:"
     echo "           .venv/bin/python -m app.workflows.build --db advisor.db --epoch-dir <bundle>"
     exit 1
@@ -158,7 +159,9 @@ case "${1:-up}" in
     ;;
   down)
     xcrun simctl terminate booted "$BUNDLE" 2>/dev/null && echo "app      : stopped"
-    if engine_up; then stop_engine; else echo "engine   : was not running"; fi
+    # With the service, unload it even when the engine is between restarts, or launchd brings it
+    # back (#32 re-review N2).
+    if engine_up || service_installed; then stop_engine; else echo "engine   : was not running"; fi
     echo "simulator: left open on purpose — 'xcrun simctl shutdown all' closes it"
     ;;
   logs)

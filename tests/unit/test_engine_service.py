@@ -306,3 +306,20 @@ def test_an_upgrade_that_serves_the_old_build_falls_back_to_the_previous_release
     assert done.returncode != 0 and "back" in done.stdout
     deploy = tmp_path / "home" / "Library" / "Application Support" / "model-ranking" / "engine"
     assert (deploy / "current").readlink().name == first
+
+
+def test_a_release_rolled_back_to_survives_later_prunes(tmp_path: Path) -> None:
+    """N5: after failed upgrades roll back, `current` points at a release that grows OLDER with
+    every attempt. Pruning by age alone would delete the very release the engine runs from."""
+    import time
+
+    repo, target = _scratch_repo(tmp_path), tmp_path / "engine"
+    assert _deploy(repo, target).returncode == 0
+    live = (target / "current").readlink()
+    for n in range(4):
+        time.sleep(1.1)  # distinct modification times, so "oldest" is unambiguous
+        _push_new_main(repo, f"an upgrade that fails {n}\n")
+        assert _deploy(repo, target).returncode == 0
+        (target / "current").unlink()
+        (target / "current").symlink_to(live)  # the installer's rollback leaves it so
+    assert (target / live).is_dir(), "the release the engine runs from was pruned"
