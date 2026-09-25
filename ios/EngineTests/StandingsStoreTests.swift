@@ -129,7 +129,8 @@ final class StandingsStoreTests: XCTestCase {
     }
 
     func testTheCeilingIsFourMebibytesAndAPayloadAtItIsNotRefusedForSize() {
-        // Tester M6: pinned both ways -- the number D-167 names, and "at" the ceiling is inside it.
+        // Tester M6: pinned both ways -- the ceiling the research record measures against (about
+        // eight times the 2026-09-25 payload), and "at" the ceiling is inside it.
         XCTAssertEqual(EngineClient.maxStandingsBytes, 4 * 1024 * 1024)
         XCTAssertThrowsError(try FetchedStandings(payload: Data(count: EngineClient.maxStandingsBytes))) { error in
             if case let EngineError.undecodable(detail) = error {

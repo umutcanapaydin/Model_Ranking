@@ -399,7 +399,7 @@ def test_the_bound_counts_positions_and_admits_exactly_its_ceiling(
         adapter.validate_startup_config(env="production")
 
 
-@pytest.mark.parametrize("damage", ["no_medians", "not_a_database"])
+@pytest.mark.parametrize("damage", ["no_medians", "empty_medians", "not_a_database"])
 def test_an_artifact_the_route_cannot_read_is_unavailable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, damage: str
 ) -> None:
@@ -408,10 +408,12 @@ def test_an_artifact_the_route_cannot_read_is_unavailable(
     from app.adapter import main as adapter
 
     db = tmp_path / "pipeline.db"
-    if damage == "no_medians":
+    if damage in ("no_medians", "empty_medians"):
+        # Second Tester B1: an EMPTY `px_median` is the case REQ-API-008's guard exists for; with
+        # the table dropped the query fails anyway and cannot tell the guard from its absence.
         _seeded_db(db)
         with sqlite3.connect(db) as conn:
-            conn.execute("DROP TABLE px_median")
+            conn.execute("DROP TABLE px_median" if damage == "no_medians" else "DELETE FROM px_median")
     else:
         db.write_bytes(b"not a database at all" * 100)
     monkeypatch.setenv("MODEL_RANKING_DB", str(db))
@@ -447,3 +449,33 @@ def test_an_artifact_the_process_may_not_open_is_unavailable(
         db.chmod(0o600)
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "evidence_unavailable"
+
+
+def test_a_board_with_no_evaluation_date_says_so() -> None:
+    """Second Tester M1: five of the 63 boards publish no run date; theirs is null, never invented."""
+    conn = _conn()
+    _score(conn, "epoch_chess", "Chess puzzles", "% correct", "a", "a", 1.0)
+    assert _board(_payload(conn), "epoch_chess")["evidence_date"] is None
+
+
+def test_equal_scores_on_one_date_disclose_the_first_harness_then_name() -> None:
+    """Second Tester M2: the last tie-breaks for a model's evidence row, as `category_ranking`."""
+    conn = _conn()
+    for raw, harness, effort in (("z-name", "b-harness", "low"), ("y-name", "a-harness", "max"),
+                                 ("x-name", "a-harness", "high")):
+        conn.execute(
+            "INSERT INTO scores (raw_name, model_id, benchmark, metric, score, harness, effort, run_date, "
+            "source, source_url, observed_at) VALUES (?, 'a', 'Chess puzzles', '% correct', 5, ?, ?, "
+            "'2026-09-18', 'epoch_chess', 'u', '2026-09-25T00:00:00+00:00')", (raw, harness, effort))
+    board = _board(_payload(conn), "epoch_chess")
+    assert [s["effort"] for s in board["standings"]] == ["high"]  # a-harness, then x-name
+
+
+def test_the_engines_standings_bound_is_the_one_the_record_measures_against() -> None:
+    """Second Tester M3: the engine-side half of the ceiling pin (the phone's is 4 MiB)."""
+    import os
+
+    from app.adapter import main as adapter
+
+    if "MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS" not in os.environ:
+        assert adapter.MAX_PUBLISHED_STANDINGS_ROWS == 25000

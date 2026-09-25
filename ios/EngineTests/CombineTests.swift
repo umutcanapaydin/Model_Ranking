@@ -102,8 +102,19 @@ final class CombineTests: XCTestCase {
                        try combine(data, boards: ["z", "x", "y"]).entries.map(\.model.id))
     }
 
+    func testTheOrderIsTheArithmeticSumNotAnotherKindOfMean() throws {
+        // Second Tester B2: x ranks a, p, b, m, e and y ranks m, p, e, b, a. Sums: p 4, m 5, a 6,
+        // b 7, e 8. A geometric mean would read m, p, a, b, e; a quadratic one p, m, b, a, e.
+        let data = standings([board("x", [("a", 1), ("p", 2), ("b", 3), ("m", 4), ("e", 5)]),
+                              board("y", [("m", 1), ("p", 2), ("e", 3), ("b", 4), ("a", 5)])])
+
+        XCTAssertEqual(try combine(data, boards: ["x", "y"]).entries.map(\.model.id), ["p", "m", "a", "b", "e"])
+    }
+
     func testEachEntryCarriesItsPositionOnEveryChosenBoardAndTheListNamesTheBoards() throws {
-        let data = standings([board("x", [("a", 1), ("b", 7)]), board("y", [("b", 1), ("a", 4)])])
+        // Second Tester B3: an unchosen board z sits in the payload and is named nowhere.
+        let data = standings([board("x", [("a", 1), ("b", 7)]), board("y", [("b", 1), ("a", 4)]),
+                              board("z", [("a", 1), ("b", 2)])])
         let list = try combine(data, boards: ["x", "y"])
 
         XCTAssertEqual(list.boards.map(\.id), ["x", "y"])
