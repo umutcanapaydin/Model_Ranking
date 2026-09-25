@@ -1,4 +1,5 @@
-"""Every board's standings, as positions: what the phone combines on the device (D-160, D-167).
+"""Every board's standings, as positions: what the phone will combine on the device (D-160, D-167;
+the combination itself arrives with #61).
 
 The phone fetches this whole payload whatever the question is, so the request reveals nothing about
 the question (D-167 clause 1). It carries POSITIONS and no score, so no code on the phone can

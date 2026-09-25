@@ -210,8 +210,8 @@ def test_the_position_tripwire_sees_each_spelling(line: str, arithmetic: bool) -
 
 
 def test_position_arithmetic_happens_only_where_an_adr_permits_it() -> None:
-    """The same shape as the score tripwire below, for positions and ranks. A second file ranking
-    boards on its own would be a second combination with no ADR."""
+    """The same shape as the score tripwire below, for positions and ranks. A file ranking boards on
+    its own would be a combination with no ADR; the one D-160 provides for returns with #61."""
     offenders: list[str] = []
     used: set[str] = set()
     exempt: set[tuple[str, str]] = set()

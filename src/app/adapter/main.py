@@ -118,7 +118,7 @@ DECLARED_ROUTES: frozenset[str] = frozenset(
         # caps. It does not change the recommendations payload, which is what D-115 froze.
         f"/{API_VERSION}/budgets",
         # FIFTH, at M17-W4 under D-167: every board's standings as positions, which the phone
-        # fetches whatever the question is and combines on the device (D-160).
+        # fetches whatever the question is and keeps, to combine on the device (D-160, #61).
         f"/{API_VERSION}/boards",
     }
 )
@@ -241,8 +241,8 @@ def _standings_problem(db: Path) -> str | None:
         return (
             f"MODEL_RANKING_DB would publish {positions} standings positions on "
             f"/{API_VERSION}/boards; this process refuses past {MAX_PUBLISHED_STANDINGS_ROWS}. "
-            "The payload is not truncated to fit -- the phone combines what it receives, and a "
-            "short board would change every list it joins. Raise "
+            "The payload is not truncated to fit -- the phone keeps what it receives, and a "
+            "short board would be served as the whole board. Raise "
             "MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS knowing it raises what every phone "
             "downloads each day"
         )
@@ -1391,7 +1391,8 @@ def budgets() -> dict[str, Any]:
 
 @app.get(f"/{API_VERSION}/boards")
 def boards() -> Any:
-    """Every board's standings as positions, for the phone to combine on the device (D-167).
+    """Every board's standings as positions, for the phone to keep and combine on the device (D-167;
+    the combination arrives with #61).
 
     It takes no parameters: the phone fetches it whatever the question is, so the request can say
     nothing about the question (D-160 clause 1). FastAPI ignores a query string here, and the test

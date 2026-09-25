@@ -73,7 +73,7 @@ public struct StandingsStore {
         try? data.write(to: url, options: .atomic)
     }
 
-    /// The standings to combine now: the stored ones while younger than a day, otherwise a fresh
+    /// The standings to use now: the stored ones while younger than a day, otherwise a fresh
     /// fetch, which is stored. A failed fetch serves the last good standings and keeps their time.
     /// A stored time ahead of `now` (a clock that stepped back) is fetched again.
     func current(now: Date, fetch: () async throws -> FetchedStandings) async -> Standings? {

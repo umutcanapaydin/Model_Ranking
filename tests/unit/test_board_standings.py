@@ -1,8 +1,9 @@
 """M17-W4 P1 (#50) -- every board's standings on one route, as positions (D-160, D-167).
 
-The phone combines boards on the device (D-160). It downloads every board every day, whatever the
-question, so the request says nothing about the question (D-167 clause 1). It receives POSITIONS,
-never scores, so no later change on the phone can average two scales (D-105, D-167 clause 2).
+The phone is to combine boards on the device (D-160; the combination returns with #61). It
+downloads every board every day, whatever the question, so the request says nothing about the
+question (D-167 clause 1). It receives POSITIONS, never scores, so no later change on the phone can
+average two scales (D-105, D-167 clause 2).
 """
 
 from __future__ import annotations
@@ -518,3 +519,12 @@ def test_a_boards_date_ignores_rows_its_effort_policy_excludes() -> None:
     _score(conn, "epoch_deepswe_external", "DeepSWE", "% resolved", "a_max", "a", 70.0, effort="max",
            run_date="2026-09-20")
     assert _board(_payload(conn), "epoch_deepswe_external")["evidence_date"] == "2026-08-01"
+
+
+def test_a_boards_date_is_its_newest_kept_row_not_its_best_one() -> None:
+    """Fifth Tester M1: a model's lower, newer run dates the board too -- the board was evaluated
+    then, whichever row a standing uses."""
+    conn = _conn()
+    _score(conn, "epoch_chess", "Chess puzzles", "% correct", "a_best", "a", 70.0, run_date="2026-08-01")
+    _score(conn, "epoch_chess", "Chess puzzles", "% correct", "a_later", "a", 50.0, run_date="2026-09-10")
+    assert _board(_payload(conn), "epoch_chess")["evidence_date"] == "2026-09-10"
