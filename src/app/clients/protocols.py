@@ -7,8 +7,15 @@ calls (permission-matrix §3).
 
 from __future__ import annotations
 
+import contextlib
+import threading
 import time
-from typing import Protocol
+from collections.abc import Callable, Collection
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    import httpx
 
 
 class RawSource(Protocol):
@@ -42,61 +49,150 @@ class SourceError(RuntimeError):
 MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 
 
-def fetch_bounded_bytes(
+#: The schemes a fetch may use, on its first URL and on every redirect hop (#25).
+ALLOWED_SCHEMES = frozenset({"https"})
+#: Redirect hops a fetch follows at most (#25; httpx's own default is 20). Hugging Face uses one.
+MAX_REDIRECTS = 5
+#: With no deadline of its own, a fetch may take this many of its per-operation timeouts in all:
+#: connection, headers, every redirect hop and the body (#25).
+DEADLINE_FACTOR = 4.0
+
+
+@dataclass(frozen=True)
+class Fetched:
+    """One bounded fetch's answer: its final status, its headers and its body."""
+
+    status: int
+    headers: dict[str, str]
+    body: bytes
+
+
+def host_allowed(url: httpx.URL, hosts: Collection[str]) -> bool:
+    """Whether `url` may be requested: an allowed scheme, and a host named exactly in `hosts` or
+    under one of its `.domain` entries (`.hf.co` admits `cdn.hf.co`, never `evilhf.co`)."""
+    host = url.host.lower()
+    return url.scheme in ALLOWED_SCHEMES and any(
+        host == entry or (entry.startswith(".") and host.endswith(entry)) for entry in hosts
+    )
+
+
+def bounded_get(
     url: str, name: str, timeout: float, params: dict[str, str] | None = None,
     *, limit: int = MAX_RESPONSE_BYTES, deadline: float | None = None,
-    follow_redirects: bool = True,
-) -> bytes:
-    """GET a source payload, refusing to buffer more than `limit` (`MAX_RESPONSE_BYTES` by default).
+    follow_redirects: bool = True, hosts: Collection[str] | None = None,
+) -> Fetched:
+    """GET a source payload inside every bound this project keeps on a download.
 
-    Streams and counts as it reads, so a hostile or broken upstream is stopped at the socket
-    rather than after the process has already paid for the body. Build-time only — D-116 keeps
-    ingestion off the serving host — so the realistic consequence of the unbounded version was a
-    hung or OOM-killed BUILD, not a serving outage. It still chained into a worse failure: an
-    out-of-memory kill mid-build used to leave a half-written artifact behind.
+    - **Bytes:** at most `limit`, counted while the body is read, so a hostile or broken upstream is
+      stopped at the socket rather than after the process has paid for the body (M7 Stage 4.0).
+    - **Where:** the first URL and every redirect hop must be `https` to a host in `hosts` (by
+      default the first URL's own), at most `MAX_REDIRECTS` hops. A refused hop is never requested
+      (#25: redirects used to go to any host and scheme, twenty deep).
+    - **How long:** `deadline` (by default `DEADLINE_FACTOR` x `timeout`) bounds the WHOLE fetch:
+      the connection, the headers, every redirect hop and the body. httpx's `timeout` is per
+      operation, so a header drip or a chain of slow redirects never trips it (#25), and the
+      deadline used to start only at the body (M16-W4 security pass, F4). The fetch runs in a
+      worker thread; past the deadline the caller gets a `SourceError` at once, and the client is
+      closed under the worker, which then ends at its next read.
 
-    `timeout` is httpx's, PER operation: a body drip-fed one byte a minute never trips it.
-    `deadline` bounds the whole download in seconds (M16-W4 security pass, F4).
+    Build-time only (D-116): the realistic cost of an unbounded fetch is a night lost, not an outage.
+    Every failure is a `SourceError`, whatever its class: an `IDNAError` from a malformed redirect
+    once escaped and ended the whole build (M17-W2 security re-look, S-R3).
     """
     import httpx
 
+    allowed = tuple(hosts) if hosts else (httpx.URL(url).host,)
+    total = deadline if deadline is not None else timeout * DEADLINE_FACTOR
     started = time.monotonic()
 
-    try:
-        with httpx.stream(
-            "GET", url, timeout=timeout, follow_redirects=follow_redirects, params=params
-        ) as response:
+    def hop(request: httpx.Request) -> None:
+        if not host_allowed(request.url, allowed):
+            msg = f"{name}: refused a hop to {request.url.scheme}://{request.url.host}"
+            raise SourceError(msg)
+
+    if not host_allowed(httpx.URL(url), allowed):
+        hop(httpx.Request("GET", url))
+    client = httpx.Client(timeout=timeout, follow_redirects=follow_redirects,
+                          max_redirects=MAX_REDIRECTS, event_hooks={"request": [hop]})
+    outcome: dict[str, Fetched | BaseException] = {}
+
+    def fetch() -> None:
+        try:
+            answer = _read(client, url, params, name, limit, lambda: time.monotonic() - started > total)
+            if answer is not None:
+                outcome["answer"] = answer
+        except BaseException as exc:  # handed to the caller, which turns it into a SourceError
+            outcome["error"] = exc
+
+    worker = threading.Thread(target=fetch, name=f"fetch-{name}", daemon=True)
+    worker.start()
+    worker.join(total)
+    with contextlib.suppress(Exception):
+        client.close()  # past the deadline this ends the worker at its next read
+    late = f"{name}: the download passed its {total:.0f} s deadline and was cut off"
+    if worker.is_alive():
+        raise SourceError(late)
+    error = outcome.get("error")
+    if isinstance(error, BaseException):
+        raise _source_error(error, name) from error
+    answer = outcome.get("answer")
+    if not isinstance(answer, Fetched):  # the worker saw the deadline pass mid-body
+        raise SourceError(late)
+    return answer
+
+
+def _read(
+    client: httpx.Client, url: str, params: dict[str, str] | None, name: str, limit: int,
+    expired: Callable[[], bool],
+) -> Fetched | None:
+    """One streamed GET, its body capped while it is read; None once the deadline has passed."""
+    with client.stream("GET", url, params=params) as response:
+        if response.status_code != 429:  # a 429 is an answer: its caller decides on the retry
             response.raise_for_status()
-            chunks: list[bytes] = []
-            total = 0
-            for chunk in response.iter_bytes():
-                total += len(chunk)
-                if deadline is not None and time.monotonic() - started > deadline:
-                    msg = f"{name}: the download passed its {deadline:.0f} s deadline and was cut off"
-                    raise SourceError(msg)
-                if total > limit:
-                    msg = (
-                        f"{name}: response exceeded {limit} bytes and was cut off; "
-                        "a source that returns more than this has changed shape"
-                    )
-                    raise SourceError(msg)
-                chunks.append(chunk)
-    except SourceError:
-        raise
-    except httpx.HTTPError as exc:
-        msg = f"{name} fetch failed: {exc}"
-        raise SourceError(msg) from exc
-    except Exception as exc:
-        # M17-W2 security re-look S-R3: a redirect to a malformed host (`Location: http://xn--/x`)
-        # raised `IDNAError` from inside httpx, which is not an `httpx.HTTPError`. It escaped, the
-        # build re-raised it, and one upstream's bad redirect ended the cycle for every source.
-        msg = f"{name} fetch failed: {type(exc).__name__}: {exc}"
-        raise SourceError(msg) from exc
-    return b"".join(chunks)
+        chunks: list[bytes] = []
+        size = 0
+        for chunk in response.iter_bytes():
+            if expired():
+                return None
+            size += len(chunk)
+            if size > limit:
+                msg = (f"{name}: response exceeded {limit} bytes and was cut off; "
+                       "a source that returns more than this has changed shape")
+                raise SourceError(msg)
+            chunks.append(chunk)
+        return Fetched(response.status_code, dict(response.headers), b"".join(chunks))
+
+
+def _source_error(error: BaseException, name: str) -> SourceError:
+    """Any failure of a fetch, as the `SourceError` that ends this source and no other."""
+    import httpx
+
+    if isinstance(error, SourceError):
+        return error
+    if isinstance(error, httpx.TooManyRedirects):
+        return SourceError(f"{name}: more than {MAX_REDIRECTS} redirects")
+    if isinstance(error, httpx.HTTPError):
+        return SourceError(f"{name} fetch failed: {error}")
+    return SourceError(f"{name} fetch failed: {type(error).__name__}: {error}")
+
+
+def fetch_bounded_bytes(
+    url: str, name: str, timeout: float, params: dict[str, str] | None = None,
+    *, limit: int = MAX_RESPONSE_BYTES, deadline: float | None = None,
+    follow_redirects: bool = True, hosts: Collection[str] | None = None,
+) -> bytes:
+    """`bounded_get`'s body, for a source that treats every non-2xx answer as a failure."""
+    answer = bounded_get(url, name, timeout, params, limit=limit, deadline=deadline,
+                         follow_redirects=follow_redirects, hosts=hosts)
+    if answer.status == 429:
+        msg = f"{name} fetch failed: 429 Too Many Requests"
+        raise SourceError(msg)
+    return answer.body
 
 
 def fetch_bounded(
-    url: str, name: str, timeout: float, params: dict[str, str] | None = None
+    url: str, name: str, timeout: float, params: dict[str, str] | None = None,
+    *, hosts: Collection[str] | None = None,
 ) -> str:
     """`fetch_bounded_bytes`, decoded: every text source reads through this."""
-    return fetch_bounded_bytes(url, name, timeout, params).decode("utf-8", "replace")
+    return fetch_bounded_bytes(url, name, timeout, params, hosts=hosts).decode("utf-8", "replace")

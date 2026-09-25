@@ -38,6 +38,29 @@ later (a billing or runner limit), every run still reports `failure` and reads a
 `make ci-liveness` says so in one line (`/start-session` runs it). It is advisory: it exits 0 and no
 gate runs it.
 
+## As applied to `main` (2026-09-25, #13)
+
+The owner had the agent apply this with `gh api` on 2026-09-25 (ruled in session). Read back from
+`GET /repos/umutcanapaydin/Model_Ranking/branches/main/protection` the same day:
+
+| setting | value |
+|---|---|
+| required status checks | `test (py3.12)`, `test (py3.14)`, `secret-scan`, `dep-audit`, `install-and-governance`, `governance-contract (aggregate, unconditional)` |
+| branches up to date before merging (`strict`) | on |
+| include administrators (`enforce_admins`) | on |
+| pull request required | on, with **0** required approvals |
+| force-push, deletion | off |
+
+**Two differences from the list above, each with its reason:**
+- **The check names are the names GitHub reports, not the job ids.** `test` runs as a matrix, so it
+  reports as `test (py3.12)` and `test (py3.14)`. A required check named `test` would never report,
+  and it would block nothing, which is this file's own warning. `governance-contract` is the
+  aggregate check that `.github/workflows/governance-contract.yml` asks to be required.
+- **No approval count.** This repository has one human, and pull requests are opened under that
+  same account. GitHub does not let an author approve their own pull request, so "at least one
+  approval" would block every merge. The rule that remains is "a pull request, and the owner
+  merges it".
+
 ## What this file does not do
 
 It cannot enforce itself. Branch protection is configured in GitHub's UI or API and lives outside every

@@ -266,6 +266,7 @@ def test_the_remote_fetch_bounds_the_body_before_the_parser_sees_it() -> None:
             self._total = total
 
         status_code = 200
+        headers: dict[str, str] = {}  # noqa: RUF012
 
         def raise_for_status(self) -> None:
             return None
@@ -283,21 +284,23 @@ def test_the_remote_fetch_bounds_the_body_before_the_parser_sees_it() -> None:
         def __exit__(self, *_exc: object) -> None:
             return None
 
-    original = httpx.stream
+    # #25: the fetch streams through an `httpx.Client` (it bounds every redirect hop), so the
+    # client's `stream` is the seam; patching `httpx.stream` would let this test reach the network.
+    original = httpx.Client.stream
     client = AiderClient()
     try:
         # OUTER bound: the socket is stopped mid-read, so the process never holds the whole body.
-        httpx.stream = lambda *a, **k: _Stream(MAX_RESPONSE_BYTES + 65536)  # type: ignore[assignment]
+        httpx.Client.stream = lambda *a, **k: _Stream(MAX_RESPONSE_BYTES + 65536)  # type: ignore[assignment,method-assign]
         with pytest.raises(SourceError, match="exceeded"):
             client.fetch_raw()
 
         # INNER bound: a body small enough for the socket but too large for a curated leaderboard.
         assert MAX_YAML_BYTES < MAX_RESPONSE_BYTES, "the inner cap must be the stricter one"
-        httpx.stream = lambda *a, **k: _Stream(MAX_YAML_BYTES + 1024)  # type: ignore[assignment]
+        httpx.Client.stream = lambda *a, **k: _Stream(MAX_YAML_BYTES + 1024)  # type: ignore[assignment,method-assign]
         with pytest.raises(SourceError, match="past the"):
             client.fetch_raw()
     finally:
-        httpx.stream = original
+        httpx.Client.stream = original  # type: ignore[method-assign]
 
 
 def test_every_remote_client_reads_through_the_bounded_fetcher() -> None:
