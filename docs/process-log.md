@@ -544,3 +544,14 @@ Measure the new code against the artifact actually being served, not only a fres
 Lesson: one hand-picked fixture pins one wrong rule. For a rule whose mistakes can hide behind the
 same output, write the property test against an independent implementation first, not after the
 third reviewer finds the next coincidence.
+
+## 2026-09-26 — issue 61, independent ordering proof before W5
+
+- Owner approved restoring #61 separately and making tests green before the next stage.
+- A temporary test-target-only whole-board mutant reproduced the proof gap with 130 assertion
+  failures; it was committed red, then removed when the historical shipping implementation returned.
+- The grouped-rank reference checks 1,200 seeded cases plus 300 metamorphic cases, including ties,
+  duplicates and missing models. All ten injected wrong rules failed the new property tests.
+- No UI, network, cache or served-score permission changed; the only position/sort permissions name
+  Combine.swift under D-167. Final gate and independent Tester evidence live in the issue review.
+Lesson: prove the oracle distinguishes competing rules before using its green result as evidence.

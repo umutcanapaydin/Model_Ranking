@@ -1,5 +1,3 @@
-// TEST-ONLY RED REPRODUCTION, #61 fourth Tester whole-board mutant.
-// Derived from 1398820, never a shipping implementation; removed in the fix commit.
 //  Combine.swift — the product's own list: chosen boards combined by position (D-160, D-167).
 //
 //  The one file D-160 clause 2 lets do arithmetic on positions, beside `Uncertainty.swift` for
@@ -14,7 +12,6 @@
 //  - an equal sum is broken by model id, never by a display name (#44).
 
 import Foundation
-@testable import ModelRankingEngine
 
 /// A model's position on one chosen board, as that board published it.
 struct BoardPosition: Equatable {
@@ -68,7 +65,7 @@ func combine(_ standings: Standings, boards chosen: [String]) throws -> Combined
         let shared = board.standings.filter { common.contains($0.model) && listed.insert($0.model).inserted }
         for standing in shared {
             // Competition ranking among the shared models: one more than those placed above it.
-            let rank = 1 + board.standings.filter { $0.position < standing.position }.count
+            let rank = 1 + shared.filter { $0.position < standing.position }.count
             sums[standing.model, default: 0] = sums[standing.model, default: 0] + rank
             positions[standing.model, default: []].append(
                 BoardPosition(board: board.id, position: standing.position)
