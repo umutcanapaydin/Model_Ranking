@@ -536,7 +536,9 @@ def test_the_shipped_surface_is_exactly_the_declared_surface(client: TestClient)
     # `budget=low` query with no way to tell which 25 fit (W-044). Written out here rather than
     # read from the module for the reason the comment below gives, and that reason is exactly why
     # adding a route costs two edits instead of one.
-    expected = {"/health", "/v1/categories", "/v1/recommendations", "/v1/budgets"}
+    # FIVE since M17-W4 (D-167): `/v1/boards`, every board's standings as positions, fetched by the
+    # phone whatever the question is (D-160).
+    expected = {"/health", "/v1/categories", "/v1/recommendations", "/v1/budgets", "/v1/boards"}
     shipped = {path for path, _ in _all_routes(adapter.app)}
     assert (
         shipped == expected

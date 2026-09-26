@@ -106,8 +106,8 @@ NETWORK = ("URLSession", "URLRequest", "URLComponents", "URLQueryItem", "NSURL",
            "Stream.getStreamsToHost")
 NETWORK_FILE = "EngineClient.swift"
 
-#: Declarations that touch the file system, including the local-file half of `URL`. Only the gap
-#: register's store may name them: it is the one thing this app writes.
+#: Declarations that touch the file system, including the local-file half of `URL`. Only the files in
+#: `FILESYSTEM_FILES` may name them: the two things this app writes.
 FILESYSTEM = ("FileManager", "FileHandle", "Data.init(contentsOf", "Data.write", "String.write",
               "StringProtocol.write(toFile", "String.write(toFile", "write(to:",
               "URL.init(fileURLWithPath", "URL.init(filePath",
@@ -118,7 +118,12 @@ FILESYSTEM = ("FileManager", "FileHandle", "Data.init(contentsOf", "Data.write",
               "OutputStream", "InputStream.init(fileAtPath", "InputStream.init(url",
               "NSTemporaryDirectory", "StringProtocol.write(to", "FileWrapper",
               "URL.init(fileURLWithFileSystemRepresentation")
-FILESYSTEM_FILE = "FrontDoor.swift"
+#: Each file allowed the file system, with what it keeps and the ruling that allows it. The gap
+#: register (REQ-GAP-001) and, since M17-W4, the standings the engine sent (D-167 clause 4).
+FILESYSTEM_FILES = {
+    "FrontDoor.swift": "the gap register (REQ-GAP-001)",
+    "StandingsStore.swift": "the standings the engine sent (D-167)",
+}
 
 #: Appending a path component builds a route inside a URL that already exists, so it belongs to
 #: whoever owns that URL: the register's folder in one file, the engine's request path in the other.
@@ -280,13 +285,13 @@ def _capability_problem(name: str, symbol: str, decl: str) -> str | None:
     if any(symbol.startswith(p) or head == p for p in FORBIDDEN):
         return f"{name}: `{decl}` carries text off the device or into shared storage"
     if any(symbol.startswith(p) for p in PATH_BUILDING):
-        if name in {FILESYSTEM_FILE, NETWORK_FILE}:
+        if name in {*FILESYSTEM_FILES, NETWORK_FILE}:
             return None
-        return (f"{name}: `{decl}` builds a path, and the only paths here are the register's "
-                "folder and the engine's request")
-    if any(symbol.startswith(p) for p in FILESYSTEM) and name != FILESYSTEM_FILE:
-        return (f"{name}: `{decl}` reaches the file system, and only {FILESYSTEM_FILE}'s register "
-                "writes a file (REQ-GAP-001)")
+        return (f"{name}: `{decl}` builds a path, and the only paths here are the two stores' "
+                "folders and the engine's request")
+    if any(symbol.startswith(p) for p in FILESYSTEM) and name not in FILESYSTEM_FILES:
+        allowed = "; ".join(f"{file}: {what}" for file, what in FILESYSTEM_FILES.items())
+        return (f"{name}: `{decl}` reaches the file system, and only these files write one: {allowed}")
     if any(symbol.startswith(p) or head == p for p in NETWORK) and name != NETWORK_FILE:
         return (f"{name}: `{decl}` is the network, and {NETWORK_FILE} is the one door (D-126); "
                 "its arguments are pinned in EngineClientTests.swift")

@@ -205,9 +205,12 @@ private final class StubProtocol: URLProtocol, @unchecked Sendable {
     /// CHOICE reaches the engine, and a picker that changes a `@State` and sends the old value
     /// would look identical on screen until somebody compared two answers.
     nonisolated(unsafe) static var lastRequestedURL: URL?
+    /// The whole last request, for the headers (M17-W4 review M4).
+    nonisolated(unsafe) static var lastRequest: URLRequest?
 
     override func startLoading() {
         Self.lastRequestedURL = request.url
+        Self.lastRequest = request
         switch Self.outcome {
         case let .failure(error):
             client?.urlProtocol(self, didFailWithError: error)
@@ -443,3 +446,84 @@ final class BudgetIsSentTests: XCTestCase {
     }
 }
 
+
+/// M17-W4 (D-167): the standings are fetched whatever the question is, so the request carries
+/// nothing -- no query, no path beyond the route -- and the bytes the engine sent are kept whole.
+final class BoardsRequestTests: XCTestCase {
+    private func client() -> EngineClient {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubProtocol.self]
+        return EngineClient(
+            baseURL: URL(string: "http://127.0.0.1:8080")!,
+            session: URLSession(configuration: configuration)
+        )
+    }
+
+    private let payload = Data(#"""
+        {"api_version":"v1","attributions":["a"],"boards":[{"id":"epoch_chess","benchmark":"Chess puzzles",\#
+        "metric":"% correct","ranking_effort":null,"evidence_date":"2026-09-18","observed_at":"2026-09-25","attribution":"a",\#
+        "standings":[{"model":"a","position":1,"effort":"max"},{"model":"b","position":1,"effort":"unspecified"}]}],"models":[{"id":"a",\#
+        "display":"A","vendor":"V","blended_per_m":1.25,"accessibility":null},{"id":"b","display":"B",\#
+        "vendor":"V","blended_per_m":3.25,"accessibility":"API access"}]}
+        """#.utf8)
+
+    func testTheBoardsRequestCarriesNothing() async throws {
+        StubProtocol.lastRequestedURL = nil
+        StubProtocol.outcome = .success((200, payload))
+        _ = try await client().boards()
+        let url = try XCTUnwrap(StubProtocol.lastRequestedURL)
+
+        XCTAssertEqual(url.path, "/v1/boards")
+        XCTAssertNil(url.query, "the standings request carried a query; D-167 says it carries nothing")
+    }
+
+    func testAWellFormedPayloadDecodesAndKeepsWhatItDecoded() async throws {
+        // Since security S2 the phone keeps the standings encoded again from what it decoded, not
+        // the engine's bytes verbatim: the kept payload decodes to exactly the same standings.
+        StubProtocol.outcome = .success((200, payload))
+        let fetched = try await client().boards()
+
+        XCTAssertEqual(try FetchedStandings(payload: fetched.payload).standings, fetched.standings)
+        XCTAssertEqual(fetched.standings.boards.first?.standings.map(\.position), [1, 1])
+        XCTAssertEqual(fetched.standings.models.map(\.accessibility), [nil, "API access"])
+    }
+
+    func testTheBoardsRequestSetsNoHeaderOfItsOwn() async throws {
+        // Review M4: nothing about the reader can ride in a header either. The app sets none; what
+        // URLSession adds by itself is the same on every request.
+        StubProtocol.lastRequest = nil
+        StubProtocol.outcome = .success((200, payload))
+        _ = try await client().boards()
+        let request = try XCTUnwrap(StubProtocol.lastRequest)
+        let own = (request.allHTTPHeaderFields ?? [:]).keys.filter { !["Accept", "Accept-Encoding", "Accept-Language", "User-Agent"].contains($0) }
+
+        XCTAssertEqual(own, [], "the standings request carried headers of its own")
+        XCTAssertEqual(request.httpMethod ?? "GET", "GET")
+        XCTAssertNil(request.httpBody)
+    }
+
+    func testAnUnreadableResponseIsRefusedRatherThanStored() async {
+        // Review M4.
+        StubProtocol.outcome = .success((200, Data(#"{"boards": "not a list"}"#.utf8)))
+        do {
+            _ = try await client().boards()
+            XCTFail("an unreadable standings payload was accepted")
+        } catch let EngineError.undecodable(detail) {
+            XCTAssertFalse(detail.isEmpty)
+        } catch {
+            XCTFail("an unreadable payload failed as \(error), not as a refused payload")
+        }
+    }
+
+    func testAnOversizedPayloadIsRefusedBeforeItIsDecoded() async {
+        StubProtocol.outcome = .success((200, Data(count: EngineClient.maxStandingsBytes + 1)))
+        do {
+            _ = try await client().boards()
+            XCTFail("an oversized standings payload was accepted")
+        } catch let EngineError.undecodable(detail) {
+            XCTAssertTrue(detail.contains("larger than"), detail)
+        } catch {
+            XCTFail("an oversized payload failed as \(error), not as a refused payload")
+        }
+    }
+}

@@ -306,3 +306,100 @@ enum JSONValue: Decodable {
 extension Pick: DetailSubject {}
 
 extension RankedModel: DetailSubject {}
+
+// MARK: - M17-W4 (D-167): every board's standings, as positions
+
+/// The `/v1/boards` payload: every board the engine ranks, fetched whatever the question is.
+///
+/// It carries POSITIONS and no score (D-167 clause 2), so nothing on the phone can average two
+/// scales (D-105). The combination built from it (D-160 clause 2) returns with #61.
+struct Standings: Codable, Equatable {
+    let apiVersion: String
+    let attributions: [String]
+    let boards: [BoardStandings]
+    let models: [StandingModel]
+
+    enum CodingKeys: String, CodingKey {
+        case apiVersion = "api_version"
+        case attributions
+        case boards
+        case models
+    }
+}
+
+/// One board: its identity, dates and attribution, and its rankable models in order.
+struct BoardStandings: Codable, Equatable, Identifiable {
+    let id: String
+    let benchmark: String
+    let metric: String
+    /// The effort a surface ranks this board at (D-112), or `nil` where each model stands on its
+    /// best evidence and says which effort that was.
+    let rankingEffort: String?
+    /// The newest evaluation date on the board; `nil` for a board that publishes none.
+    let evidenceDate: String?
+    let observedAt: String?
+    let attribution: String
+    let standings: [Standing]
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case benchmark
+        case metric
+        case rankingEffort = "ranking_effort"
+        case evidenceDate = "evidence_date"
+        case observedAt = "observed_at"
+        case attribution
+        case standings
+    }
+}
+
+/// A model's place on one board. Tied models share a position.
+struct Standing: Codable, Equatable {
+    let model: String
+    let position: Int
+    /// The effort its evidence was run at (D-112): what an unequal comparison is disclosed with.
+    let effort: String
+
+    enum CodingKeys: String, CodingKey {
+        case model
+        case position
+        case effort
+    }
+}
+
+/// Each model once, with the price every surface ranks it at and its accessibility (M17-W3).
+struct StandingModel: Codable, Equatable, Identifiable {
+    let id: String
+    let display: String
+    let vendor: String
+    let blendedPerM: Double
+    let accessibility: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case display
+        case vendor
+        case blendedPerM = "blended_per_m"
+        case accessibility
+    }
+}
+
+/// The standings as decoded, and what the phone keeps of them: the same standings encoded again,
+/// so only the fields this app decodes are ever stored, never whatever else a payload carried
+/// (M17-W4 security S2). The size ceiling holds wherever standings are made, not only on the
+/// network path.
+struct FetchedStandings: Equatable {
+    let standings: Standings
+    let payload: Data
+
+    init(payload data: Data) throws {
+        guard data.count <= EngineClient.maxStandingsBytes else {
+            throw EngineError.undecodable(
+                "the standings payload is \(data.count) bytes, larger than the \(EngineClient.maxStandingsBytes) this app accepts")
+        }
+        standings = try JSONDecoder().decode(Standings.self, from: data)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        payload = try encoder.encode(standings)
+    }
+}

@@ -3084,3 +3084,66 @@ and `claude-instant-v1`. It also gains one rule instead of entries: an undated n
 derives no model, whichever family it names. A date after it (`chatgpt-4o-latest-20250326`) names one
 release and still derives. A curated rule still takes a `-latest` name it matches (clause 2). The
 `@latest` route decoration is unchanged: it stays decoration, as the M16-W4 grammar ruled.
+
+## D-167 — The phone holds every board's standings as positions, and combines only what every chosen board ranks
+
+**Status:** accepted -- **ruled by the owner 2026-09-25** (asked in Turkish, with explanations: the
+owner chose one payload of every board fetched once a day; combining only the models present on
+every chosen board; and W4 as infrastructure with no screen) · **Date:** 2026-09-25 · **Implements**
+D-160 clauses 1-2 · from #50.
+
+**Context.** D-160 moves the combined list onto the phone and forbids anything derived from the
+question to leave it. A phone that fetched only the boards a question needs would reveal the
+question through which boards it asked for. And the phone needs a rule for a model that one chosen
+board does not rank: the agent boards rank 30 models, Arena text ranks 190.
+
+**Decision.**
+1. **One route, every board, no parameters.** `GET /v1/boards` publishes every board with at least
+   one rankable model. For each board: its identity, metric, date and attribution, and its rankable
+   models in order with their positions. For each model: its name, vendor, blended price and, where
+   known, its accessibility. A query string changes nothing. The phone fetches it whatever the
+   question is, keeps it, and fetches again when it is a day old.
+2. **Positions, never scores.** No score is on this route. A board's position for a model comes from
+   that model's best row on the board. Tied models share a position, so a tie's order carries no
+   meaning.
+3. **Only what every chosen board ranks.** The combination keeps the models present on every chosen
+   board. It re-ranks them on each board among themselves by position, and orders them by the mean
+   of those ranks. Ties are broken by model id, never by a display name. Nothing is guessed for a
+   missing model. The list is at most as long as the smallest chosen board.
+4. **Two named permissions, each for one file.**
+   - `StandingsStore.swift` may touch the file system, to keep the payload the engine sent; the
+     client-declaration gate names it beside `FrontDoor.swift`.
+   - `Combine.swift` may do arithmetic on positions; the arithmetic gate names it beside
+     `Uncertainty.swift` (D-138), as D-160 clause 2 provides.
+
+   No other file gains either.
+
+**The cost.** The phone downloads every board every day, about 250 KB (about 60 KB compressed),
+measured on the served artifact on 2026-09-25. A list that includes a small board is short. The
+phone cannot show how far apart two models are on a board, only their order.
+
+**Revisit when:** the payload outgrows a daily download (D-160's trigger), or the owner wants the
+distance between models shown, which would need scores and a new ADR under D-105.
+
+**Amended by the M17-W4 review round (2026-09-25), before merge.**
+- **Clause 2 follows D-112, as every surface does.** A board a surface ranks at one effort
+  (`ranking_effort`: today DeepSWE at `high`) stands at that effort. Any other board stands on each
+  model's best evidence. Every standing carries the effort its evidence was run at, and every board
+  carries its `ranking_effort`, so the phone can disclose an unequal comparison as the surfaces do.
+  Taking the best row at any effort, as first written, departed from D-112 without the owner's
+  ruling (code review B1).
+- **The phone keeps what it decoded, not the engine's bytes verbatim.** The standings are encoded
+  again, so no field this app does not decode is ever stored (security S2). The store refuses any
+  address that is not a file on the device (security S1).
+- **The cost, as measured:** about 350 KB raw and 32 KB compressed on 2026-09-25, not the 250 KB
+  and 60 KB first estimated (`docs/research/m17-w4-standings-payload-2026-09-25.md`).
+- **Measured again after that round (2026-09-25):** the effort on every standing brings the payload
+  to about 500 KB raw and 36 KB compressed. Since the second review (R5), the effort policy follows
+  the benchmark: every board of a benchmark a surface ranks at one effort stands at it, and two
+  surfaces asking two efforts of one benchmark are refused.
+- **Clause 3 and the arithmetic permission of clause 4 leave M17-W4 (owner ruling, 2026-09-26).**
+  The combination (`Combine.swift`) met the three-attempts stop: three Tester verdicts were BLOCKING
+  on the proof of its ordering rule, though the code agreed with an independent implementation on
+  every board set tried. It is filed as #61, with its code in the branch history, and returns with a
+  property test. Clauses 1, 2 and the file-system half of clause 4 ship in M17-W4. The rule in
+  clause 3 stands as ruled.

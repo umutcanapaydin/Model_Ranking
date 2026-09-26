@@ -23,6 +23,8 @@ from __future__ import annotations
 import pathlib
 import re
 
+import pytest
+
 CLIENT = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking"
 MODELS = CLIENT / "Engine/Models.swift"
 
@@ -167,6 +169,71 @@ def test_the_client_performs_no_arithmetic_on_a_number_the_engine_sent() -> None
 #: a rank range compares two served scores against the engine's own published margin and prints
 #: no new number. Every other file is still held to REQ-APP-005.
 SCORE_ARITHMETIC_PERMITTED = {"Uncertainty.swift": "D-138"}
+
+
+#: Files that may do arithmetic on POSITIONS, each with its ADR. A position is a served number like a
+#: score: every file renders it and computes nothing with it. D-160 clause 2 provides for one file,
+#: the combination; it left M17-W4 at the three-attempts stop and returns with #61, which names it
+#: here. Until then no file may.
+POSITION_ARITHMETIC_PERMITTED: dict[str, str] = {}
+
+#: Arithmetic next to a position or a rank, on either side: `rank + 1`, `sums[m] + rank`, and --
+#: since security S4 -- a compound assignment (`total += x.position`) and a member after the
+#: operator (`$0 + $1.position`). Comparisons are not arithmetic and pass.
+POSITION_ARITHMETIC = re.compile(
+    r"\b(?:positions?|ranks?)\b\s*[-+*/]=?\s*[\w(.\[$]"
+    r"|[\w)\]$]\s*[-+*/]=?\s*[\w$.]*\b(?:positions?|ranks?)\b"
+)
+
+#: Exact expressions that name a position without being a served one, each with its reason, removed
+#: before the scan -- the route `EGRESS_EXACT` takes, never a rename that walks past the tripwire
+#: (M17-W4 review M2).
+POSITION_ARITHMETIC_EXACT = {
+    ("ContentView.swift", "at: position - 1,"): (
+        "REQ-UNC-001: `rankOf` returns an index into the served ranking plus one; this turns it "
+        "back into the index. It is not a served position and nothing is ranked here."
+    ),
+}
+
+
+@pytest.mark.parametrize(("line", "arithmetic"), [
+    ("let rank = standing.position + 1", True),
+    ("sums[m] = sums[m] + rank", True),
+    ("total += x.position", True),       # security S4: a compound assignment
+    ("xs.reduce(0) { $0 + $1.position }", True),  # security S4: a member after the operator
+    ("let r = rank * 2", True),
+    ("if a.position < b.position {", False),
+    ("positions.append(p)", False),
+])
+def test_the_position_tripwire_sees_each_spelling(line: str, arithmetic: bool) -> None:
+    assert bool(POSITION_ARITHMETIC.search(line)) is arithmetic, line
+
+
+def test_position_arithmetic_happens_only_where_an_adr_permits_it() -> None:
+    """The same shape as the score tripwire below, for positions and ranks. A file ranking boards on
+    its own would be a combination with no ADR; the one D-160 provides for returns with #61."""
+    offenders: list[str] = []
+    used: set[str] = set()
+    exempt: set[tuple[str, str]] = set()
+    for name, text in _swift_sources().items():
+        for key in POSITION_ARITHMETIC_EXACT:
+            if key[0] == name:
+                assert text.count(key[1]) == 1, f"{name} must contain `{key[1]}` exactly once"
+                text = text.replace(key[1], " ")
+                exempt.add(key)
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            if not POSITION_ARITHMETIC.search(line.split("//", 1)[0]):
+                continue
+            if name in POSITION_ARITHMETIC_PERMITTED:
+                used.add(name)
+            else:
+                offenders.append(f"{name}:{lineno}: {line.strip()}")
+    assert not offenders, (
+        "arithmetic on a served position outside the files an ADR permits:\n  " + "\n  ".join(offenders)
+    )
+    stale = sorted(set(POSITION_ARITHMETIC_PERMITTED) - used)
+    assert not stale, f"{stale} is permitted position arithmetic and does none; remove the permission"
+    assert exempt == set(POSITION_ARITHMETIC_EXACT), "an exact exemption names a file that is gone"
 
 
 def test_score_arithmetic_happens_only_where_an_adr_permits_it() -> None:

@@ -53,6 +53,7 @@ from app.workflows.rank import (
     RankingRow,
     UnbuiltEvidenceError,
     category_ranking,
+    require_price_medians,
 )
 from app.workflows.recommend import (
     BUDGETS,
@@ -65,6 +66,7 @@ from app.workflows.recommend import (
 )
 from app.workflows.schema import open_readonly as schema_open_readonly
 from app.workflows.serialize import recommendation_json
+from app.workflows.standings import board_standings, standings_row_count
 
 APP_VERSION = "0.1.0"
 # CI/build sets APP_BUILD to the image tag or git SHA; defaults to "unknown".
@@ -115,6 +117,9 @@ DECLARED_ROUTES: frozenset[str] = frozenset(
         # `budget=low` could not even work out which 25 fit (W-044). This resource publishes the
         # caps. It does not change the recommendations payload, which is what D-115 froze.
         f"/{API_VERSION}/budgets",
+        # FIFTH, at M17-W4 under D-167: every board's standings as positions, which the phone
+        # fetches whatever the question is and keeps, to combine on the device (D-160, #61).
+        f"/{API_VERSION}/boards",
     }
 )
 
@@ -208,6 +213,40 @@ MAX_RANKED_ROWS = int(os.environ.get("MODEL_RANKING_MAX_RANKED_ROWS", "5000"))
 #: one answer near ~100 KB. Raising it is a deliberate egress decision, which is why it is an
 #: environment variable with a name that says what it costs.
 MAX_PUBLISHED_RANKING_ROWS = int(os.environ.get("MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS", "500"))
+
+#: The largest `/v1/boards` payload, in (board, model) positions: the same egress bound, checked at
+#: boot for the same reason (D-167). Measured on 2026-09-25: 6,955 positions, 500 KB (36 KB gzipped);
+#: this runaway guard sits about 3.6 times above that, not a product limit.
+MAX_PUBLISHED_STANDINGS_ROWS = int(os.environ.get("MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS", "25000"))
+
+
+def _standings_problem(db: Path) -> str | None:
+    """Why `/v1/boards` could not be served from `db`, found at boot rather than on every request
+    (M17-W4 review M1): the payload's own refusals, and its egress bound. None when it can be, or
+    when the artifact cannot be asked at all (`_database_unusable` reports that)."""
+    try:
+        conn = open_readonly(db)
+    except sqlite3.Error:
+        return None
+    try:
+        positions = standings_row_count(board_standings(conn))
+    except ValueError as exc:
+        return f"MODEL_RANKING_DB cannot publish /{API_VERSION}/boards: {exc}"
+    except sqlite3.Error:
+        return None
+    finally:
+        with contextlib.suppress(sqlite3.Error):
+            conn.close()
+    if positions > MAX_PUBLISHED_STANDINGS_ROWS:
+        return (
+            f"MODEL_RANKING_DB would publish {positions} standings positions on "
+            f"/{API_VERSION}/boards; this process refuses past {MAX_PUBLISHED_STANDINGS_ROWS}. "
+            "The payload is not truncated to fit -- the phone keeps what it receives, and a "
+            "short board would be served as the whole board. Raise "
+            "MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS knowing it raises what every phone "
+            "downloads each day"
+        )
+    return None
 
 
 def _largest_surface_row_count(db: Path) -> tuple[str, int] | None:
@@ -473,6 +512,36 @@ def _probe_database(db: Path) -> str | None:
     return None
 
 
+def _egress_problems(db: Path) -> list[str]:
+    """The artifact-size bounds, each checked at boot and never trimmed at serve time: the largest
+    single answer, the `/v1/boards` payload (D-167) and the ranked-model count."""
+    out: list[str] = []
+    largest = _largest_surface_row_count(db)
+    if largest is not None and largest[1] > MAX_PUBLISHED_RANKING_ROWS:
+        out.append(
+            f"MODEL_RANKING_DB would publish {largest[1]} ranking rows in a single answer on "
+            f"the {largest[0]!r} surface; this process refuses past "
+            f"{MAX_PUBLISHED_RANKING_ROWS}. The response is not truncated to fit — a silently "
+            "shortened ranking is one the reader believes is complete. Narrow what the build "
+            "ingests, or raise MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS knowing it raises what "
+            "one unauthenticated request costs to serve"
+        )
+
+    standings = _standings_problem(db)
+    if standings is not None:
+        out.append(standings)
+
+    ranked = _ranked_row_count(db)
+    if ranked is not None and ranked > MAX_RANKED_ROWS:
+        out.append(
+            f"MODEL_RANKING_DB ranks {ranked} models; this process refuses past "
+            f"{MAX_RANKED_ROWS}. Measured at Stage 4.0: ~10,000 ranked models reach 58% of a "
+            "256 MiB VM and ~50,000 are OOM-killed. Raise MODEL_RANKING_MAX_RANKED_ROWS with "
+            "the VM, or narrow what the build ingests"
+        )
+    return out
+
+
 def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
     """Check the security-relevant configuration once, at import, and FAIL CLOSED unless told not to.
 
@@ -536,25 +605,7 @@ def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
         # reachable — `task` and `budget` are closed enums and the artifact is operator-built — but
         # a data refresh that outgrows the machine should still fail at DEPLOY rather than under
         # the first burst of traffic, which is what W-017's condition (a) was always about.
-        largest = _largest_surface_row_count(db)
-        if largest is not None and largest[1] > MAX_PUBLISHED_RANKING_ROWS:
-            problems.append(
-                f"MODEL_RANKING_DB would publish {largest[1]} ranking rows in a single answer on "
-                f"the {largest[0]!r} surface; this process refuses past "
-                f"{MAX_PUBLISHED_RANKING_ROWS}. The response is not truncated to fit — a silently "
-                "shortened ranking is one the reader believes is complete. Narrow what the build "
-                "ingests, or raise MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS knowing it raises what "
-                "one unauthenticated request costs to serve"
-            )
-
-        ranked = _ranked_row_count(db)
-        if ranked is not None and ranked > MAX_RANKED_ROWS:
-            problems.append(
-                f"MODEL_RANKING_DB ranks {ranked} models; this process refuses past "
-                f"{MAX_RANKED_ROWS}. Measured at Stage 4.0: ~10,000 ranked models reach 58% of a "
-                "256 MiB VM and ~50,000 are OOM-killed. Raise MODEL_RANKING_MAX_RANKED_ROWS with "
-                "the VM, or narrow what the build ingests"
-            )
+        problems.extend(_egress_problems(db))
 
     # D-154: the engine's own nightly refresh runs only where ingestion may (D-116).
     refresh_problem = nightly.switch_problem(
@@ -1336,6 +1387,38 @@ def budgets() -> dict[str, Any]:
             for name, cap in BUDGETS.items()
         ],
     }
+
+
+@app.get(f"/{API_VERSION}/boards")
+def boards() -> Any:
+    """Every board's standings as positions, for the phone to keep and combine on the device (D-167;
+    the combination arrives with #61).
+
+    It takes no parameters: the phone fetches it whatever the question is, so the request can say
+    nothing about the question (D-160 clause 1). FastAPI ignores a query string here, and the test
+    suite pins that it gets the same bytes back.
+    """
+    path = _db_path()
+    if path is None or not path.is_file():
+        return _error(503, "evidence_unavailable", "The evidence database is not available.")
+    try:
+        conn = open_readonly(path)
+    except sqlite3.Error:
+        return _error(503, "evidence_unavailable", "The evidence database is not available.")
+    try:
+        require_price_medians(conn)
+        return {"api_version": API_VERSION, **board_standings(conn)}
+    except (UnbuiltEvidenceError, sqlite3.Error, ValueError) as exc:
+        # A ValueError is a payload the boot check refuses (`_standings_problem`); it reaches a
+        # request only when the nightly refresh publishes such an artifact under a running process.
+        # Logged for the operator, and closed with the one error shape for the reader.
+        if isinstance(exc, ValueError):
+            # The reason itself, for the operator (second review M7); a metric name carries `%`.
+            reason = str(exc).replace("%", "%%")
+            _warn_once(path, f"/v1/boards cannot publish the artifact ({reason}): %s", exc)
+        return _error(503, "evidence_unavailable", "The evidence database is not available.")
+    finally:
+        conn.close()
 
 
 @app.get(f"/{API_VERSION}/recommendations")

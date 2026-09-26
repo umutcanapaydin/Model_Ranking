@@ -519,3 +519,28 @@ that runs it. Measure the parent as well as the child, and read CI before callin
   five issues were filed and triaged (#38-#42).
 Lesson: a schema change is also a change to what the refresh reads from yesterday's artifact.
 Measure the new code against the artifact actually being served, not only a fresh build.
+
+## 2026-09-25/26 — M17-W3 merged and verified; three fixes; M17-W4 closed agent-side
+
+- M17-W3 (#43) merged and deployed. Its first nightly refresh published and matched the pre-merge
+  measurement exactly.
+- On the owner's ruling, #38, #40 and #41 were fixed before W4 (draft PRs #46, #49, #47). Each fix
+  was red first and had its own independent Tester.
+- M17-W4 (#50, D-167, HIGH) adds `/v1/boards` (every board's standings as positions) and the
+  phone's daily fetch and store.
+  - The first Code-Reviewer was BLOCKING on effort: the standings departed from D-112 without an
+    owner ruling. Fixed.
+  - The security slice found nothing exploitable.
+  - Four Tester verdicts in a row were BLOCKING on unproven behaviour, never on a defect. The code
+    matched an independent implementation on 6,241 real board sets.
+  - Three of those four were about the combination's ordering rule, so the owner applied the
+    three-attempts stop. The combination left the wave (#61); a fifth Tester passed the rest.
+- Mistakes found by others:
+  - a red test read an https URL and reached the network (#59);
+  - two review seats edited one worktree at once (#52);
+  - a `make … | tail` hid a failing exit code before a commit;
+  - a rename walked past a tripwire instead of going through it.
+
+Lesson: one hand-picked fixture pins one wrong rule. For a rule whose mistakes can hide behind the
+same output, write the property test against an independent implementation first, not after the
+third reviewer finds the next coincidence.

@@ -21,6 +21,7 @@ from __future__ import annotations
 import pathlib
 import re
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.adapter import main as adapter
@@ -258,3 +259,25 @@ def test_ruling_a_holds_on_the_discovery_surface_too() -> None:
         "the discovery surface claims its categories are ranked; Ruling A says the order carries "
         "no meaning and the engine publishes no ordering between surfaces"
     )
+
+
+def test_the_boards_payload_satisfies_every_struct_the_app_decodes(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """M17-W4 (D-167): `/v1/boards` against `Standings`, `BoardStandings`, `Standing` and
+    `StandingModel`, the structs the phone decodes and stores."""
+    from .test_api_v1 import _seeded_db
+
+    db = tmp_path / "pipeline.db"
+    _seeded_db(db)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    body = TestClient(adapter.app).get("/v1/boards").json()
+
+    _assert_struct_is_satisfied("Standings", body, "/v1/boards")
+    assert body["boards"] and body["models"]
+    for board in body["boards"]:
+        _assert_struct_is_satisfied("BoardStandings", board, f"board {board.get('id')!r}")
+        for standing in board["standings"]:
+            _assert_struct_is_satisfied("Standing", standing, f"a standing on {board.get('id')!r}")
+    for model in body["models"]:
+        _assert_struct_is_satisfied("StandingModel", model, f"model {model.get('id')!r}")

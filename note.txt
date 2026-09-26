@@ -1,24 +1,22 @@
 Project: model_ranking
-RESUME HERE (2026-09-25, M17-W3 closed agent-side): the project runs on DevFlow v6.6 (D-161). Run `/start-session` first.
-  - Merged since M17-W2 (#23): #29 (#25 download bounds), #30 (#16 CI step), #31 (#13 branch
-    protection, applied), #34 (#28 PRD statuses), #36 (#32 the engine as a launchd service running a
-    DEPLOYED copy in ~/Library/Application Support/model-ranking/engine). The owner installed it;
-    the served artifact lives there now, not in this directory.
-  - M17-W3 (#37, and #24) is CLOSED agent-side: draft PR on `wave/m17-w3`. Eleven boards (five
-    Epoch-run, six Agent Arena on their own IPS metric), each model's accessibility from Epoch's
-    model_metadata.csv, D-164 over every board no surface ranks on, and D-166 (no derived model from
-    a moving alias). Close record: docs/plans/m17-wave-3-close.md. The first night was measured
-    against the served artifact and publishes: docs/research/m17-w3-boards-and-first-night-2026-09-25.md.
-  - OWNER after the W3 PR merges: rerun scripts/install_engine_service.sh, so the service deploys
-    the merged code. Twelve moving-alias models then leave five surfaces, as D-166 intends.
-  - Filed by W3 and triaged: #38 effort in parentheses (fix-issue), #39 guards compare display
-    names (work-issue), #40 moving-alias spellings (fix-issue), #41 a third copy of the carried
-    tables (fix-issue), #42 no loss guard on accessibility (work-issue, with W4).
-  - Open: #26 (go-live), #33 (docs drift), #35 (no lock file), #38-#42. Next wave: M17-W4.
+RESUME HERE (2026-09-26, M17-W4 closed agent-side): the project runs on DevFlow v6.6 (D-161). Run `/start-session` first.
+  - M17-W3 merged (#43, 7d7a9ac) and deployed as engine release-7d7a9ac; its first nightly refresh
+    (2026-09-25 23:05) published and matched the pre-merge measurement (checked on #37).
+  - Fix PRs waiting for the owner, each with an independent Tester and green CI: #46 (#38 effort in
+    parentheses), #47 (#41 the expiry baseline), #49 (#40 moving-alias spellings).
+  - M17-W4 (#50) is CLOSED agent-side: draft PR on `wave/m17-w4`. GET /v1/boards publishes every
+    board's standings as positions (no scores; effort per D-112); the phone fetches them once a day
+    and keeps them (StandingsStore.swift, the second file allowed the file system). D-167 is the ADR.
+    Close record: docs/plans/m17-wave-4-close.md; measurements in
+    docs/research/m17-w4-standings-payload-2026-09-25.md (500 KB raw, 36 KB gzipped).
+  - The combination on the phone (Combine.swift, D-167 clause 3) left W4 at the three-attempts stop
+    (owner ruling 2026-09-26): #61, code at 1398820 on the wave branch, back with a property test.
+  - Filed during W4 and triaged: #44, #45, #48 (from the fix PRs), #51-#61.
+  - Next: M17-W5 (the question read on the device, the screen, and #61), after the owner merges.
   - Open, owned: W-123 (M18), W-125, W-126, W-129 (kept and recorded), W-130, W-131.
 
-State: 2026-09-25 -- main at c04ec4f (#36 merged); `make check-fast` PASS on the owner's Mac,
-6/6 legs in 46 s. `make check-fast` is the working gate; `make check` the merge gate.
+State: 2026-09-26 -- main at 7d7a9ac (#43 merged); `make check-fast` PASS on the owner's Mac,
+6/6 legs in 44 s. `make check-fast` is the working gate; `make check` the merge gate.
 
 READ IN THIS ORDER
   1. this file
