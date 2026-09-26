@@ -259,6 +259,10 @@ def canonicalize(name: str) -> ModelRule | None:
 
 
 _EFFORT_SUFFIX = re.compile(r"(?P<separator>[-_])(?P<effort>max|xhigh|high|medium|low)\Z", re.I)
+#: #38: the Agent Arena boards, Aider and SWE-bench write a run's effort in a TRAILING parenthesis
+#: (`GPT 6 Astra (Max)`, `gpt-5 (high)`), where Epoch writes `_max`. Only a schema effort level counts:
+#: `(no thinking)`, `(default)`, `(May 2024)` and a parenthesis before another one stay name text.
+_PAREN_EFFORT = re.compile(r"\s*\((?P<effort>max|xhigh|high|medium|low)\)\Z", re.I)
 
 
 @dataclass(frozen=True)
@@ -291,7 +295,7 @@ def resolve_effort(model_name: str, explicit: str | None = None) -> EffortResolu
     suffix_effort: str | None = None
     full_refused_for: str | None = None
     base_name = model_name
-    match = _EFFORT_SUFFIX.search(model_name.strip())
+    match = _EFFORT_SUFFIX.search(model_name.strip()) or _PAREN_EFFORT.search(model_name.strip())
     if match:
         candidate_base = model_name.strip()[: match.start()]
         full_rule, full_refused_for = canonicalize_with_reason(model_name)
@@ -438,7 +442,7 @@ def derive_identity(name: str) -> DerivedIdentity | None:
         return None
     text = name.strip()
     effort: str | None = None
-    suffix = _UNDERSCORE_EFFORT.search(text)
+    suffix = _UNDERSCORE_EFFORT.search(text) or _PAREN_EFFORT.search(text)
     if suffix:
         token = suffix.group(1).lower()
         effort = token if token in EFFORT_LEVELS else None
@@ -489,7 +493,7 @@ def _derived_display(model_id: str, names: list[str]) -> str:
     name served "Visit evil.example ... /zeta 9" as a model name, with no length bound (MAJOR-1)."""
     candidates = set()
     for name in names:
-        bare = _UNDERSCORE_EFFORT.sub("", name.rsplit("/", 1)[-1]).strip()
+        bare = _PAREN_EFFORT.sub("", _UNDERSCORE_EFFORT.sub("", name.rsplit("/", 1)[-1])).strip()
         derived = derive_identity(bare)
         if _DISPLAY.fullmatch(bare) and derived is not None and derived.model_id == model_id:
             candidates.add(bare)
