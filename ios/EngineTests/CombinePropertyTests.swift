@@ -66,8 +66,8 @@ final class CombinePropertyTests: XCTestCase {
 
     func testWholeBoardRankingIsNotSharedPopulationRanking() throws {
         // Ref #61 fourth Tester: correct shared sums tie; a wins by id. Whole-board sums pick b.
-        let data = payload([board("x", [("a", 1), ("u", 2), ("v", 3), ("b", 4)]),
-                            board("y", [("b", 1), ("a", 2)])])
+        let data = payload([board("x", [("a", 1), ("b", 2)]),
+                            board("y", [("b", 1), ("u", 2), ("v", 3), ("a", 4)])])
         XCTAssertEqual(try combine(data, boards: ["x", "y"]).entries.map(\.model.id), ["a", "b"])
     }
 
