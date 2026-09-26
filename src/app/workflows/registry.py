@@ -259,6 +259,10 @@ def canonicalize(name: str) -> ModelRule | None:
 
 
 _EFFORT_SUFFIX = re.compile(r"(?P<separator>[-_])(?P<effort>max|xhigh|high|medium|low)\Z", re.I)
+#: #38: the Agent Arena boards, Aider and SWE-bench write a run's effort in a TRAILING parenthesis
+#: (`GPT 6 Astra (Max)`, `gpt-5 (high)`), where Epoch writes `_max`. Only a schema effort level counts:
+#: `(no thinking)`, `(default)`, `(May 2024)` and a parenthesis before another one stay name text.
+_PAREN_EFFORT = re.compile(r"\s*\((?P<effort>max|xhigh|high|medium|low)\)\Z", re.I)
 
 
 @dataclass(frozen=True)
@@ -291,7 +295,7 @@ def resolve_effort(model_name: str, explicit: str | None = None) -> EffortResolu
     suffix_effort: str | None = None
     full_refused_for: str | None = None
     base_name = model_name
-    match = _EFFORT_SUFFIX.search(model_name.strip())
+    match = _EFFORT_SUFFIX.search(model_name.strip()) or _PAREN_EFFORT.search(model_name.strip())
     if match:
         candidate_base = model_name.strip()[: match.start()]
         full_rule, full_refused_for = canonicalize_with_reason(model_name)
@@ -429,7 +433,13 @@ MOVING_ALIASES: dict[str, str] = {
     "o1-mini": "an undated OpenAI alias, pinned only by its dated snapshot",
     "yi-large": "01.AI's alias, served by hosts from different dates",
     "claude-instant": "Anthropic served 1.0 and 1.2 under the undated name",
+    # #40 (M17-W3 Tester K1): two more spellings of listed aliases, as the grammar derives them.
+    "command-r+": "Cohere's `Command R+`, the alias `command-r-plus` spelled with its plus sign",
+    "claude-instant-v1": "Bedrock's name for the undated Claude Instant alias",
 }
+#: #40: an undated name ending in `-latest` moves by definition, whichever family it names. A date
+#: after it (`chatgpt-4o-latest-20250326`) names one release and still derives.
+_LATEST_SUFFIX = "-latest"
 
 
 def derive_identity(name: str) -> DerivedIdentity | None:
@@ -438,7 +448,7 @@ def derive_identity(name: str) -> DerivedIdentity | None:
         return None
     text = name.strip()
     effort: str | None = None
-    suffix = _UNDERSCORE_EFFORT.search(text)
+    suffix = _UNDERSCORE_EFFORT.search(text) or _PAREN_EFFORT.search(text)
     if suffix:
         token = suffix.group(1).lower()
         effort = token if token in EFFORT_LEVELS else None
@@ -457,7 +467,7 @@ def derive_identity(name: str) -> DerivedIdentity | None:
     text = re.sub(r"([a-z])-(\d)", r"\1\2", text)     # `gpt-6` and `gpt6` are one spelling
     if not text or not re.fullmatch(r"[a-z0-9][a-z0-9.+\-]*", text):
         return None
-    if text in MOVING_ALIASES:
+    if text in MOVING_ALIASES or text.endswith(_LATEST_SUFFIX):
         return None                                # D-166: a moving alias names no one release
     return DerivedIdentity(model_id=text, effort=effort)
 
@@ -489,7 +499,7 @@ def _derived_display(model_id: str, names: list[str]) -> str:
     name served "Visit evil.example ... /zeta 9" as a model name, with no length bound (MAJOR-1)."""
     candidates = set()
     for name in names:
-        bare = _UNDERSCORE_EFFORT.sub("", name.rsplit("/", 1)[-1]).strip()
+        bare = _PAREN_EFFORT.sub("", _UNDERSCORE_EFFORT.sub("", name.rsplit("/", 1)[-1])).strip()
         derived = derive_identity(bare)
         if _DISPLAY.fullmatch(bare) and derived is not None and derived.model_id == model_id:
             candidates.add(bare)

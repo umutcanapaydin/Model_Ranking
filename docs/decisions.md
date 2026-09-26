@@ -3079,6 +3079,12 @@ twenty names with the most rows, so an alias appears there only when it ranks am
 candidate measured before merge, `deepseek-chat` did and the other eleven did not. Clause 1's "named
 in the unmatched report" is true of the drop count, not of that list.
 
+**Clause 3 applied (#40, 2026-09-25).** The list gains two spellings of listed aliases, `command-r+`
+and `claude-instant-v1`. It also gains one rule instead of entries: an undated name ending in `-latest`
+derives no model, whichever family it names. A date after it (`chatgpt-4o-latest-20250326`) names one
+release and still derives. A curated rule still takes a `-latest` name it matches (clause 2). The
+`@latest` route decoration is unchanged: it stays decoration, as the M16-W4 grammar ruled.
+
 ## D-167 — The phone holds every board's standings as positions, and combines only what every chosen board ranks
 
 **Status:** accepted -- **ruled by the owner 2026-09-25** (asked in Turkish, with explanations: the

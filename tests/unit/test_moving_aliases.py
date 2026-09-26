@@ -15,7 +15,7 @@ from app.workflows.schema import connect
 
 LISTED = ("claude3.5-sonnet", "mistral7b-instruct", "deepseek-chat", "deepseek-reasoner", "command-r",
           "command-r-plus", "mistral-medium", "gpt4-turbo", "gpt4o-mini", "o1", "o1-mini", "yi-large",
-          "claude-instant")
+          "claude-instant", "command-r+", "claude-instant-v1")
 
 
 def test_the_list_is_the_one_the_review_found_each_with_a_reason() -> None:
@@ -72,5 +72,58 @@ def test_a_curated_rule_still_wins_over_the_list(monkeypatch: pytest.MonkeyPatch
         linked = conn.execute("SELECT model_id FROM scores WHERE raw_name = 'deepseek-chat'").fetchone()
         assert linked == ("deepseek-v3.2",)
         assert "deepseek-chat" not in report.dropped_names
+    finally:
+        conn.close()
+
+
+# --- #40: spellings the exact list missed, and the `-latest` suffix as a rule -------------------
+
+
+@pytest.mark.parametrize("name", ["Command R+", "anthropic.claude-instant-v1", "claude-instant-v1",
+                                  "chatgpt-4o-latest", "claude-3-5-sonnet-latest", "mistral-large-latest",
+                                  "openrouter/openai/gpt-5-chat-latest", "Gemini-Flash-Latest"])
+def test_a_moving_spelling_the_list_missed_derives_no_model(name: str) -> None:
+    """#40 (Tester K1 of M17-W3): a `-latest` alias moves by definition, so the suffix is a rule,
+    not list entries; `Command R+` and `claude-instant-v1` are two more spellings of listed aliases."""
+    assert derive_identity(name) is None
+
+
+@pytest.mark.parametrize("name", ["chatgpt-4o-latest-20250326", "gpt-5.2-chat-latest-20260210",
+                                  "claude-instant-1.2"])
+def test_a_dated_release_of_a_latest_alias_still_derives(name: str) -> None:
+    """A date or version after the alias names one release, which is exactly what D-166 keeps."""
+    assert derive_identity(name) is not None
+
+
+def test_reconcile_registers_no_model_from_a_latest_alias() -> None:
+    """A name no curated rule takes: `mistral-large-latest` would be the curated `mistral-large`'s,
+    and a curated rule still wins over the list (D-166 clause 2)."""
+    conn = connect(":memory:")
+    try:
+        _row(conn, "gemini-flash-latest")
+        report = reconcile(conn)
+        assert conn.execute("SELECT COUNT(*) FROM models").fetchone()[0] == 0
+        assert "gemini-flash-latest" in report.dropped_names
+    finally:
+        conn.close()
+
+
+@pytest.mark.parametrize("name", ["gpt-5-chat-latest_high", "gpt-4o-latest:free", "oci/cohere.command-latest",
+                                  "us.anthropic.claude-3-5-sonnet-latest-v1:0"])
+def test_a_decorated_latest_alias_derives_no_model(name: str) -> None:
+    """Tester T1 of #40: the rule reads the name as the grammar spells it, after the effort, the
+    colon decoration and a dotted vendor head are gone -- all spellings price feeds use."""
+    assert derive_identity(name) is None
+
+
+def test_a_curated_rule_still_takes_a_latest_name() -> None:
+    """Tester T2 of #40, D-166 clause 2 through reconcile: `mistral-large-latest` is the curated
+    `mistral-large`'s, and the `-latest` rule only stops derivation."""
+    conn = connect(":memory:")
+    try:
+        _row(conn, "mistral-large-latest")
+        report = reconcile(conn)
+        assert conn.execute("SELECT model_id FROM scores").fetchone() == ("mistral-large",)
+        assert "mistral-large-latest" not in report.dropped_names
     finally:
         conn.close()

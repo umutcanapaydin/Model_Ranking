@@ -426,3 +426,100 @@ def test_an_expiry_night_does_not_admit_a_price_jump_either(
 
     assert code == EXIT_REFUSED, outcome.reason
     assert "median price" in outcome.reason
+
+
+# --- #41: the expiry baseline drops every carried table's rows, `access` included ---------------
+
+
+def _artifact_with_access(tmp_path: Path) -> Path:
+    from app.workflows import access
+    from app.workflows.schema import connect
+
+    path = tmp_path / "live.db"
+    conn = connect(str(path))
+    conn.execute("INSERT INTO models (id, display, vendor) VALUES ('claude-4.1-opus', 'Claude Opus 4.1', 'Anthropic')")
+    access.store(conn, [access.AccessRow("claude-opus-4-1-20250805", "API access")], source=access.SOURCE,
+                 source_url="u", observed_at="2026-09-25T00:00:00+00:00")
+    access.link(conn)
+    conn.commit()
+    conn.close()
+    return path
+
+
+def test_the_expiry_baseline_drops_an_expired_attributes_values(tmp_path: Path) -> None:
+    """#41: `_served_without` kept a copy of the carried tables hard-coded to scores and pricing,
+    so an expired `epoch_access` still served its values in the baseline the guards compare with."""
+    from app.workflows import access
+    from app.workflows.refresh import _served_without, serving_summary
+    from app.workflows.schema import open_readonly
+
+    live = _artifact_with_access(tmp_path)
+    without = tmp_path / "without.db"
+    with sqlite3.connect(live) as src, sqlite3.connect(without) as dst:
+        src.backup(dst)
+        dst.execute("DELETE FROM access WHERE source = ?", (access.SOURCE,))
+    expected = serving_summary(open_readonly(without)).digest
+    assert serving_summary(open_readonly(live)).digest != expected
+    assert _served_without(live, {access.SOURCE}).digest == expected
+
+
+def _with_scores(path: Path, *sources: str) -> None:
+    """One uncovered-board row per source, so each source's rows show in the fingerprint (D-164)."""
+    with sqlite3.connect(path) as conn:
+        for source in sources:
+            conn.execute("INSERT INTO scores (raw_name, model_id, benchmark, metric, score, harness, effort, "
+                         "source, source_url, observed_at) SELECT 'm', NULL, benchmark, 'x', 1, 'h', "
+                         "'unspecified', source, 'u', 'z' FROM (SELECT ? AS source, ? AS benchmark)",
+                         (source, _BOARD[source]))
+
+
+def _expected_without(live: Path, tmp_path: Path, sources: set[str], tables: tuple[str, ...]) -> str:
+    from app.workflows.refresh import serving_summary
+    from app.workflows.schema import open_readonly
+
+    without = tmp_path / "expected.db"
+    without.unlink(missing_ok=True)
+    with sqlite3.connect(live) as src, sqlite3.connect(without) as dst:
+        src.backup(dst)
+        for table in tables:
+            dst.executemany(f"DELETE FROM {table} WHERE source = ?", [(s,) for s in sources])
+    return serving_summary(open_readonly(without)).digest
+
+
+def _uncovered_pair() -> dict[str, str]:
+    from app.workflows import boards
+
+    chosen = {b.source: b.benchmark for b in boards.uncovered() if b.source.startswith("epoch_")}
+    return dict(sorted(chosen.items())[:2])
+
+
+_BOARD = _uncovered_pair()
+
+
+def test_the_expiry_baseline_of_an_artifact_from_before_the_access_table(tmp_path: Path) -> None:
+    """The first expiry night after the upgrade reads an artifact without `access`: the table is
+    skipped and the expired source's rows are still dropped (Tester T2 of #41: this test only proved
+    that nothing raised, and a baseline equal to the live artifact refuses a legitimate expiry)."""
+    from app.workflows.refresh import _served_without
+
+    live = _artifact_with_access(tmp_path)
+    with sqlite3.connect(live) as conn:
+        conn.execute("DROP TABLE access")
+    first = next(iter(_BOARD))
+    _with_scores(live, first)
+    expected = _expected_without(live, tmp_path, {first}, ("scores", "pricing"))
+    assert _served_without(live, {first}).digest == expected
+
+
+def test_the_expiry_baseline_drops_every_expired_source_at_once(tmp_path: Path) -> None:
+    """Tester T1 of #41: the normal case -- every `epoch_*` source reads one bundle, so a stale
+    bundle expires them together; each one's rows leave the baseline, the attribute's included."""
+    from app.workflows import access
+    from app.workflows.refresh import _served_without
+
+    live = _artifact_with_access(tmp_path)
+    _with_scores(live, *_BOARD)
+    expired = {*_BOARD, access.SOURCE}
+    expected = _expected_without(live, tmp_path, expired, ("scores", "pricing", "access"))
+    assert _served_without(live, expired).digest == expected
+    assert _served_without(live, {next(iter(_BOARD))}).digest != expected
