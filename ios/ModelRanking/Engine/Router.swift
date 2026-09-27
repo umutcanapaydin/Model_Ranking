@@ -450,7 +450,7 @@ struct ModelRouter: QuestionRouter {
             \(known.compactMap { id in CategoryHints.byID[id].map { "- \(id): \($0)" } }
                 .joined(separator: "\n"))
 
-            Then fill language, domain and kind. Each is \
+            Then fill language and domain. Each is \
             `\(ModelOutputBoundary.noRefinement)` unless the question clearly concerns it. The \
             language is the language the TASK is in, such as a text to translate into French or a \
             reply wanted in Japanese, never the language the question itself is written in.
@@ -523,7 +523,6 @@ enum ModelOutputBoundary {
         switch kind {
         case .language: return "The language the task itself is in, if the question names one"
         case .domain: return "The field the question is about, if it clearly is about one"
-        case .kind: return "The kind of conversation or image task, if the question says"
         }
     }
 

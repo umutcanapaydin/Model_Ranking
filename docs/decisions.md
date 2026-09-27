@@ -3191,3 +3191,14 @@ serving must fail a test rather than vanish.
 
 **Revisit when:** readers ask for combinations the table cannot express, or the router probe shows
 refinements chosen wrongly more often than the surface itself.
+
+**A refinement is a language or a domain (owner ruling 2026-09-28, on the probe).** Measured with the
+on-device model on a held-out set of 40 questions written independently:
+- The task's language was right on 38 of 40 questions; the domain on 36 to 37.
+- A "kind" of conversation or image task was right on only 21 to 23. The model added "creative
+  writing" to most message-writing requests and "writing about an image" to most image questions.
+- Leaving kinds out, all refinements were right on 34 to 35 of 40 questions, and 15 to 16 of the 17
+  questions needing none stayed clean.
+
+Clause 1's third kind is withdrawn; English is not a task language either, since the model read it
+from the question's own language (`docs/research/m17-w5-refinement-probe-2026-09-28.md`).

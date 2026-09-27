@@ -1,8 +1,7 @@
 //  Refinements.swift — the boards a question may add to its surface's own (D-168, M17-W5).
 //
 //  A question selects a surface, as it always has, and so the surface's primary board. When the
-//  question concerns a language, a domain or a kind of conversation, a refinement adds one Arena
-//  slice, at most two refinements in all. Every refinement is declared here, with the surfaces it
+//  question concerns a language or a domain, a refinement adds one Arena slice, at most two in all. Every refinement is declared here, with the surfaces it
 //  may refine and the reason; the on-device model may only choose among these values (D-104,
 //  D-126), and `tests/unit/test_refinements.py` holds every entry against the boards the engine
 //  serves.
@@ -11,18 +10,18 @@
 //  a question written in Turkish about Python adds no language board (D-168 clause 3).
 //
 //  Measured before merge (docs/research/m17-w5-refinement-probe-2026-09-28.md): English as a task
-//  language, and the kinds "long conversation", "long prompt", "instruction following" and "hard
-//  prompts", were added by the on-device model to most questions they do not describe, each a board
-//  that shortens the list (D-167 clause 3). They are left out; every value here is one a question
-//  either clearly names or does not.
+//  language, and every "kind" of conversation or image task, were added by the on-device model to
+//  most questions they do not describe, each a board that shortens the list (D-167 clause 3). They
+//  are left out; every value here is one a question either clearly names or does not.
 
 import Foundation
 
-/// The kinds of refinement, in the order their boards are added (D-168 clause 1).
+/// The kinds of refinement, in the order their boards are added (D-168 clause 1). A "kind" of
+/// conversation or image task was a third, until the probe showed the on-device model adding one to
+/// most questions it does not describe (owner ruling 2026-09-28, D-168 note).
 enum RefinementKind: String, CaseIterable {
     case language
     case domain
-    case kind
 }
 
 struct Refinement: Equatable, Hashable {
@@ -89,39 +88,6 @@ enum Refinements {
         Refinement(value: "mathematical", kind: .domain, board: "arena_text_industry_mathematical",
                    surfaces: ["assistant", "everyday", "expert", "mathematics"],
                    reason: "Arena prompts about mathematical questions asked in conversation"),
-        Refinement(value: "creative_writing", kind: .kind, board: "arena_text_creative_writing",
-                   surfaces: ["assistant", "everyday"],
-                   reason: "Arena prompts that are creative writing"),
-        Refinement(value: "coding", kind: .kind, board: "arena_text_coding",
-                   surfaces: ["coding", "web-dev", "agentic-coding"],
-                   reason: "Arena prompts that are coding asked in conversation"),
-        Refinement(value: "math", kind: .kind, board: "arena_text_math",
-                   surfaces: ["mathematics"],
-                   reason: "Arena prompts that are maths asked in conversation"),
-        Refinement(value: "expert", kind: .kind, board: "arena_text_expert",
-                   surfaces: ["expert"],
-                   reason: "Arena prompts that are expert-level prompts"),
-        Refinement(value: "ocr", kind: .kind, board: "arena_vision_ocr",
-                   surfaces: ["vision"],
-                   reason: "Arena vision prompts about reading text in an image"),
-        Refinement(value: "diagram", kind: .kind, board: "arena_vision_diagram",
-                   surfaces: ["vision"],
-                   reason: "Arena vision prompts about understanding diagrams"),
-        Refinement(value: "homework", kind: .kind, board: "arena_vision_homework",
-                   surfaces: ["vision"],
-                   reason: "Arena vision prompts about homework photographed or scanned"),
-        Refinement(value: "captioning", kind: .kind, board: "arena_vision_captioning",
-                   surfaces: ["vision"],
-                   reason: "Arena vision prompts about describing an image"),
-        Refinement(value: "entity_recognition", kind: .kind, board: "arena_vision_entity_recognition",
-                   surfaces: ["vision"],
-                   reason: "Arena vision prompts about recognising people, places and things in an image"),
-        Refinement(value: "humor", kind: .kind, board: "arena_vision_humor",
-                   surfaces: ["vision"],
-                   reason: "Arena vision prompts about explaining humour in an image"),
-        Refinement(value: "creative_writing_vision", kind: .kind, board: "arena_vision_creative_writing_vision",
-                   surfaces: ["vision"],
-                   reason: "Arena vision prompts about creative writing about an image"),
     ]
 
     /// The refinements a surface may take, in table order.
@@ -130,7 +96,7 @@ enum Refinements {
     }
 
     /// The boards a question selects: the surface's primary board, then at most `maxAdded`
-    /// refinements the surface allows, language before domain before kind, none chosen twice.
+    /// refinements the surface allows, language before domain, none chosen twice.
     static func boards(primary: String, surface: String, chosen: [Refinement]) -> [String] {
         var boards = [primary]
         var added = 0

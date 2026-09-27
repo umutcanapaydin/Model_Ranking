@@ -50,6 +50,9 @@ tests/unit/test_ios_client_contract.py:178:POSITION_ARITHMETIC_PERMITTED: dict[s
 
 ## Design
 
+*Amended by the P4 probe and the owner's ruling of 2026-09-28: a refinement is a language (not
+English) or a domain; the kinds below were withdrawn (D-168 note).*
+
 **Refinements are declared, not generated.** A table in the Engine layer (`Refinements.swift`)
 names each refinement and the board it adds:
 - **Language** of the TASK: the Arena text slices chinese, french, german, japanese, korean, polish,

@@ -533,17 +533,6 @@ extension UIText {
         "entertainment": ("Entertainment and media", "Eğlence ve medya"),
         "science": ("Science", "Bilim"),
         "mathematical": ("Mathematics as a field", "Matematik alanı"),
-        "creative_writing": ("Creative writing", "Yaratıcı yazı"),
-        "coding": ("Coding in conversation", "Sohbette kod"),
-        "math": ("Maths in conversation", "Sohbette matematik soruları"),
-        "expert": ("Expert questions", "Uzman soruları"),
-        "ocr": ("Reading text in images", "Görseldeki yazıyı okuma"),
-        "diagram": ("Diagrams", "Diyagramlar"),
-        "homework": ("Homework photos", "Ödev fotoğrafları"),
-        "captioning": ("Describing images", "Görseli betimleme"),
-        "entity_recognition": ("Recognising things in images", "Görseldeki şeyleri tanıma"),
-        "humor": ("Humour in images", "Görseldeki mizah"),
-        "creative_writing_vision": ("Writing about images", "Görsel üzerine yazı"),
     ]
 
     static func refinementName(_ refinement: Refinement, _ language: Language) -> String {
