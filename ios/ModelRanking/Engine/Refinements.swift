@@ -9,6 +9,12 @@
 //
 //  The language is the language the TASK concerns, not the language the question is written in:
 //  a question written in Turkish about Python adds no language board (D-168 clause 3).
+//
+//  Measured before merge (docs/research/m17-w5-refinement-probe-2026-09-28.md): English as a task
+//  language, and the kinds "long conversation", "long prompt", "instruction following" and "hard
+//  prompts", were added by the on-device model to most questions they do not describe, each a board
+//  that shortens the list (D-167 clause 3). They are left out; every value here is one a question
+//  either clearly names or does not.
 
 import Foundation
 
@@ -35,9 +41,6 @@ enum Refinements {
     static let maxAdded = 2
 
     static let table: [Refinement] = [
-        Refinement(value: "english", kind: .language, board: "arena_text_english",
-                   surfaces: ["assistant", "everyday", "document", "factuality", "expert"],
-                   reason: "Arena prompts written in English: how people rate answers in that language"),
         Refinement(value: "chinese", kind: .language, board: "arena_text_chinese",
                    surfaces: ["assistant", "everyday", "document", "factuality", "expert"],
                    reason: "Arena prompts written in Chinese: how people rate answers in that language"),
@@ -86,21 +89,9 @@ enum Refinements {
         Refinement(value: "mathematical", kind: .domain, board: "arena_text_industry_mathematical",
                    surfaces: ["assistant", "everyday", "expert", "mathematics"],
                    reason: "Arena prompts about mathematical questions asked in conversation"),
-        Refinement(value: "multi_turn", kind: .kind, board: "arena_text_multi_turn",
-                   surfaces: ["assistant", "everyday"],
-                   reason: "Arena prompts that are conversations of several turns"),
-        Refinement(value: "longer_query", kind: .kind, board: "arena_text_longer_query",
-                   surfaces: ["assistant", "everyday", "document"],
-                   reason: "Arena prompts that are long prompts"),
         Refinement(value: "creative_writing", kind: .kind, board: "arena_text_creative_writing",
                    surfaces: ["assistant", "everyday"],
                    reason: "Arena prompts that are creative writing"),
-        Refinement(value: "hard_prompts", kind: .kind, board: "arena_text_hard_prompts",
-                   surfaces: ["assistant", "everyday", "expert"],
-                   reason: "Arena prompts that are prompts people judged hard"),
-        Refinement(value: "instruction_following", kind: .kind, board: "arena_text_instruction_following",
-                   surfaces: ["assistant", "everyday", "document"],
-                   reason: "Arena prompts that are prompts with explicit instructions to follow"),
         Refinement(value: "coding", kind: .kind, board: "arena_text_coding",
                    surfaces: ["coding", "web-dev", "agentic-coding"],
                    reason: "Arena prompts that are coding asked in conversation"),

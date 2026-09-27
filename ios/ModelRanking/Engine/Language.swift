@@ -517,7 +517,6 @@ extension UIText {
     /// Each refinement's name, keyed by its table value: (English, Turkish). A test holds every
     /// table entry to a name in both languages.
     static let refinementNames: [String: (String, String)] = [
-        "english": ("English", "İngilizce"),
         "chinese": ("Chinese", "Çince"),
         "french": ("French", "Fransızca"),
         "german": ("German", "Almanca"),
@@ -534,11 +533,7 @@ extension UIText {
         "entertainment": ("Entertainment and media", "Eğlence ve medya"),
         "science": ("Science", "Bilim"),
         "mathematical": ("Mathematics as a field", "Matematik alanı"),
-        "multi_turn": ("Long conversations", "Uzun sohbetler"),
-        "longer_query": ("Long prompts", "Uzun istekler"),
         "creative_writing": ("Creative writing", "Yaratıcı yazı"),
-        "hard_prompts": ("Hard prompts", "Zor istekler"),
-        "instruction_following": ("Following instructions", "Talimata uyma"),
         "coding": ("Coding in conversation", "Sohbette kod"),
         "math": ("Maths in conversation", "Sohbette matematik soruları"),
         "expert": ("Expert questions", "Uzman soruları"),

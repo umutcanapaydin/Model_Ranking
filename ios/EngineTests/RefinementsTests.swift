@@ -24,11 +24,11 @@ final class RefinementsTests: XCTestCase {
 
     func testAtMostTwoRefinementsAreAdded() throws {
         let chosen = [try refinement(.language, "french"), try refinement(.domain, "legal"),
-                      try refinement(.kind, "multi_turn")]
+                      try refinement(.kind, "creative_writing")]
         let boards = Refinements.boards(primary: "arena", surface: "assistant", chosen: chosen)
 
         XCTAssertEqual(boards.count, 3)
-        XCTAssertFalse(boards.contains(try refinement(.kind, "multi_turn").board))
+        XCTAssertFalse(boards.contains(try refinement(.kind, "creative_writing").board))
     }
 
     func testARefinementTheSurfaceDoesNotAllowIsDropped() throws {
