@@ -149,6 +149,13 @@ struct ContentView: View {
                 if case let .combined(view) = plan {
                     combinedSection(view)
                 } else {
+                if case let .restorable(removed) = plan {
+                    // Every refinement removed: the chips stay, so one tap puts a board back.
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(UIText.removedRefinements(language)).font(.footnote).foregroundStyle(Design.muted)
+                        refinementChips(removed, removed: Set(removed))
+                    }
+                }
                 // The surface the reader SELECTED speaks first. `task=coding` expands server-side
                 // to two answers and `/v1` says in its own payload that their order carries no
                 // meaning — so it always arrived alphabetically, and "Agentic coding" answered
@@ -247,33 +254,9 @@ struct ContentView: View {
     private func combinedSection(_ view: CombinedView) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionTitle(text: UIText.combinedTitle(language))
-            // Why each board beyond the surface's own was added, and a tap that removes it here on
-            // the device and nowhere else (D-168 clause 7). A removed one stays, to be restored.
+            // Why each board beyond the surface's own was added.
             Text(UIText.alsoCounting(language)).font(.footnote).foregroundStyle(Design.muted)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(view.refinements, id: \.self) { refinement in
-                        let off = view.removed.contains(refinement)
-                        Button {
-                            if off {
-                                removedRefinements.remove(refinement)
-                            } else {
-                                removedRefinements.insert(refinement)
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(UIText.refinementName(refinement, language))
-                                Image(systemName: off ? "plus" : "xmark").font(.caption2)
-                            }
-                            .font(.subheadline)
-                            .padding(.horizontal, 12).padding(.vertical, 6)
-                            .background(off ? Design.canvas : Design.paper, in: Capsule())
-                            .foregroundStyle(off ? Design.muted : Design.ink)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
+            refinementChips(view.refinements, removed: view.removed)
             Card {
                 VStack(alignment: .leading, spacing: 0) {
                     if view.list.entries.isEmpty {
@@ -308,12 +291,46 @@ struct ContentView: View {
                         }
                         .font(.subheadline.weight(.semibold))
                         .padding(12)
+                        // The whole row answers a tap, not only its text: with the plain style the
+                        // space between took none (found on the simulator).
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
             }
             Text(UIText.combinedNote(models: view.sharedCount, boards: view.list.boards.count, language))
                 .font(.footnote).foregroundStyle(.secondary)
+        }
+    }
+
+    /// One chip per refinement: a tap removes its board here on the device and nowhere else, and a
+    /// removed one stays, to be restored (D-168 clause 7).
+    private func refinementChips(_ refinements: [Refinement], removed: Set<Refinement>) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(refinements, id: \.self) { refinement in
+                    let off = removed.contains(refinement)
+                    Button {
+                        if off {
+                            removedRefinements.remove(refinement)
+                        } else {
+                            removedRefinements.insert(refinement)
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(UIText.refinementName(refinement, language))
+                            Image(systemName: off ? "plus" : "xmark").font(.caption2)
+                        }
+                        .font(.subheadline)
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .background(off ? Design.canvas : Design.paper, in: Capsule())
+                        // A removed chip sits on the page's own colour: the outline says it is a button.
+                        .overlay(Capsule().strokeBorder(Design.muted.opacity(off ? 0.5 : 0), lineWidth: 1))
+                        .foregroundStyle(off ? Design.muted : Design.ink)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
     }
 

@@ -563,6 +563,11 @@ extension UIText {
         language == .turkish ? "Şunlar da hesaba katıldı" : "Also counted"
     }
 
+    /// Above the cards when the reader removed every refinement (D-168 clause 7).
+    static func removedRefinements(_ language: Language) -> String {
+        language == .turkish ? "Çıkardıkların; geri eklemek için dokun" : "Removed; tap one to count it again"
+    }
+
     static func seeTheBoards(_ language: Language) -> String {
         language == .turkish ? "Panolara bak" : "See the boards"
     }
