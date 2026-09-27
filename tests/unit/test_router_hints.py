@@ -147,14 +147,25 @@ def test_the_router_never_produces_anything_but_a_category_id() -> None:
     fields = set(
         re.findall(r"^\s*(?:public\s+)?(?:let|var)\s+(\w+)\s*:[^{\n]*$", block, re.MULTILINE)
     )
-    assert fields == {"categoryID", "tier", "unmeasured", "alternatives"}, (
+    assert fields == {"categoryID", "tier", "unmeasured", "alternatives", "refinements"}, (
         f"RoutingOutcome carries {sorted(fields)}; anything beyond a surface id, how it was chosen, "
-        "whether it is measured and the other surface ids it came close to is a channel for an "
-        "opinion the router may not have"
+        "whether it is measured, the other surface ids it came close to and the declared "
+        "refinements it chose is a channel for an opinion the router may not have"
     )
     assert re.search(r"var alternatives:\s*\[String\]", block), (
         "`alternatives` must stay a list of surface ids; any other type can carry a sentence"
     )
+    # D-168 (M17-W5): `refinements` holds only entries of the declared table. Its type is exactly
+    # `[Refinement]`, and a `Refinement` is constructed nowhere but the table itself, so nothing the
+    # model generates -- only which declared entry it named -- can reach it.
+    assert re.search(r"var refinements:\s*\[Refinement\]\s*=\s*\[\]", block), (
+        "`refinements` must stay a list of declared table entries"
+    )
+    for swift in sorted(CLIENT.rglob("*.swift")):
+        if swift.name != "Refinements.swift":
+            assert not re.search(r"\bRefinement\s*\(", swift.read_text(encoding="utf-8")), (
+                f"{swift.name} constructs a Refinement; only the declared table may (D-168)"
+            )
 
 
 def test_nothing_typed_by_the_reader_reaches_the_engine() -> None:
