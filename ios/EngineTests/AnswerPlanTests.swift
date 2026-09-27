@@ -75,9 +75,27 @@ final class AnswerPlanTests: XCTestCase {
         XCTAssertEqual(view.removed, [french])
     }
 
-    func testRemovingEveryRefinementReturnsToTheCards() {
-        XCTAssertEqual(answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: data,
+    func testRemovingEveryRefinementReturnsToTheCardsAndKeepsThemToRestore() {
+        // Found on the simulator: removing the only refinement took its chip away with the list,
+        // so it could not be put back without asking again.
+        XCTAssertEqual(answerPlan(outcome: routed([french, legal]), primaryBoard: "arena", standings: data,
+                                  removed: [french, legal]), .restorable([french, legal]))
+    }
+
+    func testARefinementWhoseBoardTheStandingsLackIsNotOfferedToRestore() {
+        let missing = Standings(apiVersion: "v1", attributions: [], boards: [data.boards[0], data.boards[2]],
+                                models: data.models)
+        XCTAssertEqual(answerPlan(outcome: routed([french, legal]), primaryBoard: "arena", standings: missing,
+                                  removed: [legal]), .restorable([legal]))
+        XCTAssertEqual(answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: missing,
                                   removed: [french]), .cards)
+    }
+
+    func testNothingIsOfferedToRestoreWhenRestoringCouldNotCombine() {
+        XCTAssertEqual(answerPlan(outcome: routed([french]), primaryBoard: "nowhere", standings: data,
+                                  removed: [french]), .cards)
+        XCTAssertEqual(answerPlan(outcome: routed([french], unmeasured: true), primaryBoard: "arena",
+                                  standings: data, removed: [french]), .cards)
     }
 
     func testABoardTheStandingsLackIsLeftOutNotFailed() {
@@ -87,6 +105,7 @@ final class AnswerPlanTests: XCTestCase {
         guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
 
         XCTAssertEqual(view.list.boards.map(\.id), ["arena", legal.board])
+        XCTAssertEqual(view.refinements, [legal], "a chip for a board not counted would say it was")
     }
 
     func testAPrimaryBoardTheStandingsLackShowsTheCards() {
