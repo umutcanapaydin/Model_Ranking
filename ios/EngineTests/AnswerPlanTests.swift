@@ -1,0 +1,117 @@
+//  M17-W5 P3 (#64, D-168 clause 7) -- what the screen shows for a routed question: today's cards
+//  when one board is chosen, the product's combined list when more than one is.
+
+import XCTest
+
+@testable import ModelRankingEngine
+
+final class AnswerPlanTests: XCTestCase {
+    private func board(_ id: String, _ rows: [(String, Int)]) -> BoardStandings {
+        BoardStandings(
+            id: id, benchmark: "B \(id)", metric: "elo", rankingEffort: nil, evidenceDate: "2026-09-18",
+            observedAt: "2026-09-25", attribution: "cite \(id)",
+            standings: rows.map { Standing(model: $0.0, position: $0.1, effort: "unspecified") }
+        )
+    }
+
+    private func refinement(_ kind: RefinementKind, _ value: String) -> Refinement {
+        Refinements.table.first { $0.kind == kind && $0.value == value }!
+    }
+
+    private var french: Refinement { refinement(.language, "french") }
+    private var legal: Refinement { refinement(.domain, "legal") }
+
+    private var data: Standings {
+        let boards = [board("arena", [("a", 1), ("b", 2), ("c", 3)]),
+                      board(french.board, [("b", 1), ("a", 2)]),
+                      board(legal.board, [("a", 1), ("b", 2), ("c", 3)])]
+        return Standings(apiVersion: "v1", attributions: [], boards: boards,
+                         models: ["a", "b", "c"].map { StandingModel(id: $0, display: $0, vendor: "V",
+                                                                    blendedPerM: 1, accessibility: nil) })
+    }
+
+    private func routed(_ refinements: [Refinement], unmeasured: Bool = false) -> RoutingOutcome {
+        RoutingOutcome(categoryID: "assistant", tier: .model, unmeasured: unmeasured, refinements: refinements)
+    }
+
+    func testNoQuestionShowsTheCards() {
+        XCTAssertEqual(answerPlan(outcome: nil, primaryBoard: "arena", standings: data, removed: []), .cards)
+    }
+
+    func testOneBoardShowsTheCards() {
+        XCTAssertEqual(answerPlan(outcome: routed([]), primaryBoard: "arena", standings: data, removed: []), .cards)
+    }
+
+    func testSeveralBoardsShowTheCombinedList() throws {
+        let plan = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: data, removed: [])
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+
+        XCTAssertEqual(view.list.boards.map(\.id), ["arena", french.board])
+        XCTAssertEqual(view.list.entries.map(\.model.id), ["a", "b"])
+        XCTAssertEqual(view.sharedCount, 2, "the shared count is what the detail screen states (#54)")
+        XCTAssertEqual(view.refinements, [french])
+    }
+
+    func testAnUnmeasuredQuestionShowsTheCards() {
+        XCTAssertEqual(answerPlan(outcome: routed([french], unmeasured: true), primaryBoard: "arena",
+                                  standings: data, removed: []), .cards)
+    }
+
+    func testAnEngineThatNamesNoPrimaryBoardShowsTheCards() {
+        XCTAssertEqual(answerPlan(outcome: routed([french]), primaryBoard: nil, standings: data, removed: []), .cards)
+    }
+
+    func testStandingsNotYetKeptShowTheCards() {
+        XCTAssertEqual(answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: nil, removed: []), .cards)
+    }
+
+    func testARefinementTheReaderRemovedIsNotCombined() {
+        let plan = answerPlan(outcome: routed([french, legal]), primaryBoard: "arena", standings: data,
+                              removed: [french])
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+
+        XCTAssertEqual(view.list.boards.map(\.id), ["arena", legal.board])
+        XCTAssertEqual(view.refinements, [french, legal], "a removed refinement stays on screen to restore")
+        XCTAssertEqual(view.removed, [french])
+    }
+
+    func testRemovingEveryRefinementReturnsToTheCards() {
+        XCTAssertEqual(answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: data,
+                                  removed: [french]), .cards)
+    }
+
+    func testABoardTheStandingsLackIsLeftOutNotFailed() {
+        let missing = Standings(apiVersion: "v1", attributions: [], boards: [data.boards[0], data.boards[2]],
+                                models: data.models)
+        let plan = answerPlan(outcome: routed([french, legal]), primaryBoard: "arena", standings: missing, removed: [])
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+
+        XCTAssertEqual(view.list.boards.map(\.id), ["arena", legal.board])
+    }
+
+    func testAPrimaryBoardTheStandingsLackShowsTheCards() {
+        XCTAssertEqual(answerPlan(outcome: routed([french]), primaryBoard: "nowhere", standings: data,
+                                  removed: []), .cards)
+    }
+
+    func testBoardsThatShareNoModelStillShowTheCombinedListEmpty() {
+        // D-167 clause 3 exactly (#54): nothing is guessed, so an empty list is said, not filled.
+        let apart = Standings(apiVersion: "v1", attributions: [],
+                              boards: [board("arena", [("a", 1)]), board(french.board, [("b", 1)])],
+                              models: data.models)
+        let plan = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: apart, removed: [])
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+
+        XCTAssertEqual(view.sharedCount, 0)
+    }
+
+    func testEveryRefinementHasANameInBothLanguages() {
+        for refinement in Refinements.table {
+            for language in Language.allCases {
+                XCTAssertFalse(UIText.refinementName(refinement, language).isEmpty, "\(refinement.value) \(language)")
+            }
+            XCTAssertNotEqual(UIText.refinementName(refinement, .turkish), refinement.value,
+                              "\(refinement.value) has no Turkish name")
+        }
+    }
+}
