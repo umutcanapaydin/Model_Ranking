@@ -92,7 +92,7 @@ numbers on set 2 in §4, that a refinement is **a language or a domain** (D-168 
 
 **The task-language rule holds on the device.**
 - Turkish questions about a task in no listed language got no language board in all but two cases.
-- Turkish questions naming one ("Lehçe e-posta", "Rusça konuş") got it.
+- Turkish questions naming one (a Polish email, a request to converse in Russian) got it.
 
 **The residual spurious additions come from tricky wording.**
 - "my german shepherd barks all night" added German.
