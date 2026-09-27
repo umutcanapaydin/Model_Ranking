@@ -23,19 +23,19 @@ final class RefinementsTests: XCTestCase {
     }
 
     func testAtMostTwoRefinementsAreAdded() throws {
-        let chosen = [try refinement(.language, "french"), try refinement(.domain, "legal"),
-                      try refinement(.kind, "creative_writing")]
+        let chosen = [try refinement(.language, "french"), try refinement(.language, "german"),
+                      try refinement(.domain, "legal")]
         let boards = Refinements.boards(primary: "arena", surface: "assistant", chosen: chosen)
 
         XCTAssertEqual(boards.count, 3)
-        XCTAssertFalse(boards.contains(try refinement(.kind, "creative_writing").board))
+        XCTAssertFalse(boards.contains(try refinement(.domain, "legal").board))
     }
 
     func testARefinementTheSurfaceDoesNotAllowIsDropped() throws {
-        let ocr = try refinement(.kind, "ocr")
-        XCTAssertFalse(ocr.surfaces.contains("assistant"))
+        let french = try refinement(.language, "french")
+        XCTAssertFalse(french.surfaces.contains("coding"))
 
-        XCTAssertEqual(Refinements.boards(primary: "arena", surface: "assistant", chosen: [ocr]), ["arena"])
+        XCTAssertEqual(Refinements.boards(primary: "swebench", surface: "coding", chosen: [french]), ["swebench"])
     }
 
     func testABoardAlreadyChosenIsNotChosenTwice() throws {
@@ -46,10 +46,16 @@ final class RefinementsTests: XCTestCase {
     }
 
     func testWhatASurfaceAllowsIsWhatTheTableSays() {
-        let vision = Refinements.allowed(for: "vision")
+        let assistant = Refinements.allowed(for: "assistant")
 
-        XCTAssertFalse(vision.isEmpty)
-        XCTAssertTrue(vision.allSatisfy { $0.surfaces.contains("vision") })
+        XCTAssertFalse(assistant.isEmpty)
+        XCTAssertTrue(assistant.allSatisfy { $0.surfaces.contains("assistant") })
         XCTAssertTrue(Refinements.allowed(for: "no-such-surface").isEmpty)
+    }
+
+    func testARefinementIsALanguageOrADomainAndNothingElse() {
+        // Owner ruling 2026-09-28 on the probe: the on-device model added a "kind" to most questions
+        // it does not describe, so kinds are not refinements (D-168, note of 2026-09-28).
+        XCTAssertEqual(RefinementKind.allCases, [.language, .domain])
     }
 }

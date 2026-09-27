@@ -35,8 +35,12 @@ def _entries() -> list[dict[str, object]]:
     return entries
 
 
-def test_the_table_exists_and_is_not_empty() -> None:
-    assert len(_entries()) >= 20
+def test_the_table_holds_languages_and_domains_only() -> None:
+    """Owner ruling 2026-09-28: a refinement is a language or a domain. Measured on the on-device
+    model, "kinds" were added to most questions they do not describe (D-168, note of 2026-09-28)."""
+    entries = _entries()
+    assert len(entries) >= 16
+    assert {str(e["kind"]) for e in entries} == {"language", "domain"}
 
 
 def test_every_refinement_names_a_board_the_engine_serves() -> None:

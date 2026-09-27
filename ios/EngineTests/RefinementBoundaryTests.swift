@@ -37,20 +37,20 @@ final class RefinementBoundaryTests: XCTestCase {
     }
 
     func testAValueTheSurfaceDoesNotAllowIsDropped() {
-        // `ocr` refines only the vision surface.
+        // A language refines the chat surfaces, not coding.
         let outcome = ModelOutputBoundary.outcome(
-            for: "assistant", within: served, refinements: [.kind: "ocr"])
+            for: "coding", within: served, refinements: [.language: "french"])
 
-        XCTAssertEqual(outcome?.categoryID, "assistant")
+        XCTAssertEqual(outcome?.categoryID, "coding")
         XCTAssertEqual(values(outcome), [])
     }
 
     func testNoneAddsNothing() {
         let outcome = ModelOutputBoundary.outcome(
-            for: "vision", within: served,
-            refinements: [.language: ModelOutputBoundary.noRefinement, .kind: "ocr"])
+            for: "assistant", within: served,
+            refinements: [.language: ModelOutputBoundary.noRefinement, .domain: "legal"])
 
-        XCTAssertEqual(values(outcome), ["ocr"])
+        XCTAssertEqual(values(outcome), ["legal"])
     }
 
     func testADeclinedQuestionCarriesNoRefinement() {
