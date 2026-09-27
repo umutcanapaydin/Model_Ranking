@@ -60,6 +60,9 @@ struct Category: Decodable, Identifiable, Equatable {
     let minQuality: Double?
     /// D-153 (M16-W1). A code for what the price leaves out, on the search surfaces only.
     let priceExcludes: String?
+    /// D-168 (M17-W5). The board this surface ranks on, by id: the first board a question selecting
+    /// this surface combines. `nil` from an engine older than W5, which then combines nothing.
+    let primaryBoard: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -73,6 +76,7 @@ struct Category: Decodable, Identifiable, Equatable {
         case scoreAnchor = "score_anchor"
         case minQuality = "min_quality"
         case priceExcludes = "price_excludes"
+        case primaryBoard = "primary_board"
     }
 }
 

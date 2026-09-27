@@ -313,6 +313,8 @@ def test_only_the_search_surfaces_say_the_search_call_is_not_in_the_price(seeded
 SERVED_CATEGORY_KEYS = {
     "id", "title", "primary_benchmark", "metric", "ranking_effort", "close_call_margin",
     "score_anchor", "min_quality", "price_excludes", "secondary_benchmark", "secondary_age_days",
+    # M17-W5, D-168: the surface's primary board by id, the first board a question combines.
+    "primary_board",
 }
 
 
