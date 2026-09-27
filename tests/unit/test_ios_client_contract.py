@@ -171,11 +171,9 @@ def test_the_client_performs_no_arithmetic_on_a_number_the_engine_sent() -> None
 SCORE_ARITHMETIC_PERMITTED = {"Uncertainty.swift": "D-138"}
 
 
-#: Files that may do arithmetic on POSITIONS, each with its ADR. A position is a served number like a
-#: score: every file renders it and computes nothing with it. D-160 clause 2 provides for one file,
-#: the combination; it left M17-W4 at the three-attempts stop and returns with #61, which names it
-#: here. Until then no file may.
-POSITION_ARITHMETIC_PERMITTED: dict[str, str] = {}
+#: D-160 clause 2 and D-167 clause 3: only the combination ranks served positions.
+#: Ref #61 restores this narrowly named permission with independent ordering proof.
+POSITION_ARITHMETIC_PERMITTED: dict[str, str] = {"Combine.swift": "D-167"}
 
 #: Arithmetic next to a position or a rank, on either side: `rank + 1`, `sums[m] + rank`, and --
 #: since security S4 -- a compound assignment (`total += x.position`) and a member after the
@@ -279,6 +277,7 @@ def test_score_arithmetic_happens_only_where_an_adr_permits_it() -> None:
 #: ranking. Now every sort call on a line is checked on its own, and each must be applied directly
 #: to a permitted receiver (`entries`, not `x.entries` or `answer.ranking`).
 SORTING_PERMITTED = {
+    ("Combine.swift", "common"): "D-167 clause 3: shared models ordered by their combined ranks.",
     ("FrontDoor.swift", "entries"): (
         "M14-W3, REQ-GAP-002: the gap register orders the OWNER'S unanswered questions by how often "
         "they were asked. It is never an answer, a ranking or a model -- Ruling A is about the "
