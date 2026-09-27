@@ -510,3 +510,91 @@ public enum UIText {
     }
 }
 
+
+// MARK: - M17-W5 (D-168): refinements and the combined list
+
+extension UIText {
+    /// Each refinement's name, keyed by its table value: (English, Turkish). A test holds every
+    /// table entry to a name in both languages.
+    static let refinementNames: [String: (String, String)] = [
+        "english": ("English", "İngilizce"),
+        "chinese": ("Chinese", "Çince"),
+        "french": ("French", "Fransızca"),
+        "german": ("German", "Almanca"),
+        "japanese": ("Japanese", "Japonca"),
+        "korean": ("Korean", "Korece"),
+        "polish": ("Polish", "Lehçe"),
+        "russian": ("Russian", "Rusça"),
+        "spanish": ("Spanish", "İspanyolca"),
+        "legal": ("Law and government", "Hukuk ve kamu"),
+        "medicine": ("Medicine and health", "Tıp ve sağlık"),
+        "business": ("Business and finance", "İş ve finans"),
+        "software": ("Software and IT", "Yazılım ve BT"),
+        "writing": ("Writing and language", "Yazı ve dil"),
+        "entertainment": ("Entertainment and media", "Eğlence ve medya"),
+        "science": ("Science", "Bilim"),
+        "mathematical": ("Mathematics as a field", "Matematik alanı"),
+        "multi_turn": ("Long conversations", "Uzun sohbetler"),
+        "longer_query": ("Long prompts", "Uzun istekler"),
+        "creative_writing": ("Creative writing", "Yaratıcı yazı"),
+        "hard_prompts": ("Hard prompts", "Zor istekler"),
+        "instruction_following": ("Following instructions", "Talimata uyma"),
+        "coding": ("Coding in conversation", "Sohbette kod"),
+        "math": ("Maths in conversation", "Sohbette matematik soruları"),
+        "expert": ("Expert questions", "Uzman soruları"),
+        "ocr": ("Reading text in images", "Görseldeki yazıyı okuma"),
+        "diagram": ("Diagrams", "Diyagramlar"),
+        "homework": ("Homework photos", "Ödev fotoğrafları"),
+        "captioning": ("Describing images", "Görseli betimleme"),
+        "entity_recognition": ("Recognising things in images", "Görseldeki şeyleri tanıma"),
+        "humor": ("Humour in images", "Görseldeki mizah"),
+        "creative_writing_vision": ("Writing about images", "Görsel üzerine yazı"),
+    ]
+
+    static func refinementName(_ refinement: Refinement, _ language: Language) -> String {
+        guard let names = refinementNames[refinement.value] else { return refinement.value }
+        return language == .turkish ? names.1 : names.0
+    }
+
+    static func combinedTitle(_ language: Language) -> String {
+        language == .turkish ? "Bu soruya göre birleşik sıralama" : "Combined for this question"
+    }
+
+    /// D-160 clause 3: the list is the product's own, and says so.
+    static func combinedNote(models: Int, boards: Int, _ language: Language) -> String {
+        language == .turkish
+            ? "Uygulamanın kendi listesi: \(boards) panonun hepsinde yer alan \(models) model, her panodaki "
+                + "sıralarına göre dizildi. Bu sırayı hiçbir liste yayımlamıyor."
+            : "The app's own list: \(models) models ranked on all \(boards) boards, ordered by their places "
+                + "on each. No leaderboard publishes this order."
+    }
+
+    static func combinedEmpty(_ language: Language) -> String {
+        language == .turkish
+            ? "Bu panoların hepsinde yer alan bir model yok. Liste için yukarıdan bir panoyu çıkar."
+            : "No model is ranked on every one of these boards. Remove a board above to see a list."
+    }
+
+    static func alsoCounting(_ language: Language) -> String {
+        language == .turkish ? "Şunlar da hesaba katıldı" : "Also counted"
+    }
+
+    static func seeTheBoards(_ language: Language) -> String {
+        language == .turkish ? "Panolara bak" : "See the boards"
+    }
+
+    static func boardsBehind(_ language: Language) -> String {
+        language == .turkish ? "Bu listenin dayandığı panolar" : "The boards behind this list"
+    }
+
+    /// #54: how many models the chosen boards share.
+    static func sharedCount(_ count: Int, _ language: Language) -> String {
+        language == .turkish
+            ? "Seçilen panoların hepsinde \(count) model yer alıyor."
+            : "\(count) models are ranked on every board chosen."
+    }
+
+    static func placeOn(_ benchmark: String, place: Int, _ language: Language) -> String {
+        language == .turkish ? "\(benchmark) listesinde #\(place)" : "#\(place) on \(benchmark)"
+    }
+}

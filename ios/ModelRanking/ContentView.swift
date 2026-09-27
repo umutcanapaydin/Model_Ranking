@@ -48,6 +48,10 @@ struct ContentView: View {
     /// REQ-GAP-001/002 (M14-W3). What people asked that nothing here measures, kept on this device.
     @State private var gaps = GapRegisterStore.onDevice.load()
     @State private var showingGaps = false
+    /// D-167/D-168 (M17-W5). Every board's standings, kept on this device for a day and fetched the
+    /// same way whatever the reader asks, and the refinements the reader removed from this question.
+    @State private var standings: Standings?
+    @State private var removedRefinements: Set<Refinement> = []
     /// The reader's language. `@AppStorage` so the choice survives a relaunch — a flag switch that
     /// forgets is a flag switch nobody uses twice.
     @AppStorage("language") private var language: Language = .english
@@ -135,6 +139,16 @@ struct ContentView: View {
                 .padding(.top, 8)
                 questionCard
 
+                // D-168 clause 7 (M17-W5): several boards chosen, the product's combined list is the
+                // answer; one board, today's cards below.
+                let plan = answerPlan(
+                    outcome: routing,
+                    primaryBoard: categories.first { $0.id == routing?.categoryID }?.primaryBoard,
+                    standings: standings, removed: removedRefinements
+                )
+                if case let .combined(view) = plan {
+                    combinedSection(view)
+                } else {
                 // The surface the reader SELECTED speaks first. `task=coding` expands server-side
                 // to two answers and `/v1` says in its own payload that their order carries no
                 // meaning — so it always arrived alphabetically, and "Agentic coding" answered
@@ -214,6 +228,7 @@ struct ContentView: View {
                         }
                     }
                 }
+                }
             }
             .padding(.horizontal, 22)
             .padding(.top, 16)
@@ -224,6 +239,82 @@ struct ContentView: View {
         .scrollDismissesKeyboard(.interactively)
         .background(Design.canvas)
         .refreshable { await load() }
+    }
+
+    // MARK: - The combined list (D-168 clause 7, M17-W5)
+
+    @ViewBuilder
+    private func combinedSection(_ view: CombinedView) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionTitle(text: UIText.combinedTitle(language))
+            // Why each board beyond the surface's own was added, and a tap that removes it here on
+            // the device and nowhere else (D-168 clause 7). A removed one stays, to be restored.
+            Text(UIText.alsoCounting(language)).font(.footnote).foregroundStyle(Design.muted)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(view.refinements, id: \.self) { refinement in
+                        let off = view.removed.contains(refinement)
+                        Button {
+                            if off {
+                                removedRefinements.remove(refinement)
+                            } else {
+                                removedRefinements.insert(refinement)
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(UIText.refinementName(refinement, language))
+                                Image(systemName: off ? "plus" : "xmark").font(.caption2)
+                            }
+                            .font(.subheadline)
+                            .padding(.horizontal, 12).padding(.vertical, 6)
+                            .background(off ? Design.canvas : Design.paper, in: Capsule())
+                            .foregroundStyle(off ? Design.muted : Design.ink)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            Card {
+                VStack(alignment: .leading, spacing: 0) {
+                    if view.list.entries.isEmpty {
+                        Text(UIText.combinedEmpty(language)).font(.subheadline)
+                            .padding(12)
+                    }
+                    ForEach(Array(view.list.entries.enumerated()), id: \.element.model.id) { item in
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            Text("\(item.offset + 1)").font(.subheadline.weight(.semibold)).monospacedDigit()
+                                .frame(width: 28, alignment: .leading)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.element.model.display).font(.body.weight(.semibold))
+                                Text(item.element.model.vendor).font(.caption).foregroundStyle(Design.muted)
+                            }
+                            Spacer(minLength: 8)
+                            Text(priceTag(item.element.model.blendedPerM)).font(.caption).monospacedDigit()
+                                .foregroundStyle(Design.muted)
+                        }
+                        .padding(.vertical, 10).padding(.horizontal, 12)
+                        if item.element.model.id != view.list.entries.last?.model.id {
+                            Divider().padding(.leading, 12)
+                        }
+                    }
+                    Divider().padding(.leading, 12)
+                    NavigationLink {
+                        CombinedDetail(view: view, language: language)
+                    } label: {
+                        HStack {
+                            Text(UIText.seeTheBoards(language))
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.caption)
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .padding(12)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            Text(UIText.combinedNote(models: view.sharedCount, boards: view.list.boards.count, language))
+                .font(.footnote).foregroundStyle(.secondary)
+        }
     }
 
     // MARK: - The front door (REQ-ASK-001..003)
@@ -598,6 +689,7 @@ struct ContentView: View {
         }
         asked = typed
         routing = outcome
+        removedRefinements = []
         // REQ-GAP-001. A question nothing here measures is recorded on THIS device and nowhere
         // else. It goes to the register, never to `client` (REQ-RTR-004).
         if recordsGap(outcome) {
@@ -636,6 +728,12 @@ struct ContentView: View {
         // facts it adds.
         if let fresh = try? await client.categories(), !fresh.isEmpty, gate.isCurrent(ticket) {
             categories = fresh
+        }
+        // D-167 clause 1: every board's standings, fetched the same way whatever the reader asks,
+        // at most once a day; the kept copy answers when this fails or the phone is offline.
+        if let kept = await StandingsStore.onDevice.current(now: Date(), fetch: { try await client.boards() }),
+           gate.isCurrent(ticket) {
+            standings = kept
         }
         do {
             // One request carries every surface for the coding intent (Ruling A), so the home
@@ -1081,3 +1179,49 @@ struct RankingList: View {
 // `Format` moved to the Engine at M13-W4 as `figuresLine` / `priceTag` (`Scores.swift`), where
 // `swift test` runs it. The rule it carried is unchanged: numbers are printed in POSIX form,
 // never in the reader's locale, because `$2,06` reads as two thousand and six.
+
+/// The combined list's detail (D-160 clause 3, D-168 clause 7): the boards it came from with their
+/// dates and attribution, how many models they share (#54), and where each model stands on each.
+struct CombinedDetail: View {
+    let view: CombinedView
+    let language: Language
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(UIText.combinedNote(models: view.sharedCount, boards: view.list.boards.count, language))
+                    .font(.subheadline)
+                Text(UIText.sharedCount(view.sharedCount, language)).font(.subheadline.weight(.semibold))
+                SectionTitle(text: UIText.boardsBehind(language))
+                ForEach(view.list.boards) { board in
+                    Card {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(board.benchmark).font(.headline)
+                            if let date = board.evidenceDate ?? board.observedAt {
+                                Text(date).font(.caption).foregroundStyle(Design.muted)
+                            }
+                            Text(board.attribution).font(.caption2).foregroundStyle(Design.muted)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                ForEach(view.list.entries, id: \.model.id) { entry in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.model.display).font(.subheadline.weight(.semibold))
+                        ForEach(entry.positions, id: \.board) { spot in
+                            Text(UIText.placeOn(
+                                view.list.boards.first { $0.id == spot.board }?.benchmark ?? spot.board,
+                                place: spot.position, language
+                            ))
+                            .font(.caption).foregroundStyle(Design.muted)
+                        }
+                    }
+                }
+            }
+            .padding(22)
+        }
+        .background(Design.canvas)
+        .navigationTitle(UIText.seeTheBoards(language))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
