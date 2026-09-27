@@ -3147,3 +3147,47 @@ distance between models shown, which would need scores and a new ADR under D-105
   every board set tried. It is filed as #61, with its code in the branch history, and returns with a
   property test. Clauses 1, 2 and the file-system half of clause 4 ship in M17-W4. The rule in
   clause 3 stands as ruled.
+
+## D-168 — The question selects its boards as a surface plus declared refinements
+
+**Status:** accepted -- **ruled by the owner 2026-09-28** (asked in Turkish, with explanations, four
+questions: board selection, #54, #53 and the screen) · **Date:** 2026-09-28 · **Amends** D-160's
+"intent" wording; **applies** D-167 · from #64.
+
+**Context.** D-160 has the on-device model read the question into an intent that selects the boards
+the phone combines (D-167). The milestone plan first described a free intent schema: task, domain,
+language, input size and constraints. Each value selects boards, and under D-167 clause 3 every
+added board can only shorten the list; #54 measured 3 models for three boards. The phone already
+routes a question to one of 14 surfaces, under a schema that makes any other answer inexpressible
+(D-126, D-147).
+
+**Decision.**
+1. **Surface plus refinement.** The question selects a surface as today; its primary board is the
+   first board. A refinement adds one Arena slice: the language the task concerns, a domain, or a
+   kind of conversation, or for the vision surface a kind of image task. At most two refinements are
+   added, in a declared order (language, then domain, then kind).
+2. **Declared, not generated.** Every refinement and the surfaces it may refine are a table in the
+   Engine layer, each entry with its reason. The on-device model's schema gains one enumerated field
+   per refinement kind, each `anyOf` the declared values plus `none`, restricted to those the chosen
+   surface allows. `ModelOutputBoundary` drops any value outside the table, as it drops a surface
+   outside `/v1/categories`.
+3. **The task's language, not the question's.** A language refinement is the language the task is
+   about. A question written in Turkish about Python adds no language board.
+4. **Without the on-device model,** the similarity and manual tiers select the surface alone: one
+   board, today's cards.
+5. **Two boards of one benchmark each count** when both are chosen (#53, owner ruling). They are
+   two independent measurements, and the detail screen names both.
+6. **D-167 clause 3 stays exactly** (#54, owner ruling): only the models every chosen board ranks,
+   no threshold. The detail screen states how many models the chosen boards share.
+7. **The screen.** More than one board: the main answer is the combined list, a plain order with each
+   model's price. One board: today's cards. The combined list's detail screen names each board with
+   its date and attribution, the shared count, and that the list is the product's own combination,
+   not a published leaderboard (D-160 clause 3). A shown refinement can be removed with one tap, on
+   the device.
+
+**The cost.** A question outside the 14 surfaces is not rescued by refinements; it is still
+declined or routed to chat as unmeasured. The table is hand-kept, so a slice the engine stops
+serving must fail a test rather than vanish.
+
+**Revisit when:** readers ask for combinations the table cannot express, or the router probe shows
+refinements chosen wrongly more often than the surface itself.
