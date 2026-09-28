@@ -83,3 +83,7 @@ scripts/router_probe/refinement_questions.json  # M17-W5 (D-168): the probe's qu
                                   # in Turkish about other languages; translating them removes the evidence
 scripts/router_probe/refinement_heldout_questions.json  # the held-out set (D-147 clause 5), 17 Turkish
                                   # questions, kept verbatim for the same reason
+scripts/router_probe/coding_tuning_questions.json  # #73: coding questions as Turkish readers type them;
+                                  # the routing is measured on the typed words, so a translation is not the evidence
+scripts/router_probe/coding_heldout_questions.json  # #73's held-out set, written independently, half of its
+                                  # 80 questions in Turkish, kept verbatim for the same reason
