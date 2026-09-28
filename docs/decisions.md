@@ -3214,9 +3214,11 @@ owner rulings of the same day, asked in Turkish.
    `CODING_INTENT`.
 3. **Tied models share a place** (review M1, owner ruling). The order still breaks an equal sum by
    id (D-167 clause 3); the place on screen does not: 1, 1, 3. `Combine.swift` computes it.
-4. **The combined list discloses what the cards disclose** (review B1). D-112's effort notice names
-   the efforts the listed models stand at on each board that ranks at no one effort. A board's date
-   is labelled as its newest evaluation, or as the day the engine read a board that publishes none.
+4. **The combined list discloses the effort mix and what each date means** (review B1). D-112's
+   effort notice names the efforts the listed models stand at on each board that ranks at no one
+   effort. A board's date is labelled as its newest evaluation, or as the day the engine read a board
+   that publishes none. The cards' staleness warning (D-135) is not carried to it yet. That is latent,
+   since every board a refinement can join is recent, and is filed as #72.
 5. **Medical and legal questions are answered** (owner ruling). The on-device model's instructions
    no longer list them among what is declined, since the table's `medicine` and `legal` domains
    measure them. The app interprets published measurements and gives no medical or legal advice.

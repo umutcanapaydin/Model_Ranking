@@ -12,7 +12,8 @@
 //  heldout_questions.json) or `[{q, surface, language, domain, kind}]` (refinement_questions.json,
 //  refinement_heldout_questions.json). The output is one row per question: the surface, whether it
 //  was declined, and each refinement kind's value or `none`. The model is not deterministic: run
-//  every set at least twice. Scoring is described in the research record.
+//  every set at least twice. Scoring is described in the research record. Where the model is not
+//  available the test fails, so no file of empty rows is ever scored.
 import XCTest
 @testable import ModelRankingEngine
 
@@ -22,10 +23,15 @@ final class RefinementProbe: XCTestCase {
                   "abstract", "web-dev", "document", "factuality", "vision", "search", "search_factuality"]
 
     func testProbe() async throws {
-        guard #available(macOS 26.0, iOS 26.0, *) else { throw XCTSkip("no FoundationModels here") }
+        // A failure, not a skip: without the model every row would read `nil`, and a file of `nil`
+        // rows scored as a run is a measurement of nothing (second review M7).
+        guard #available(macOS 26.0, iOS 26.0, *) else { return XCTFail("no FoundationModels here") }
+        guard ModelRouter.state == .available else {
+            return XCTFail("the on-device model is not available here: \(ModelRouter.state)")
+        }
         let env = ProcessInfo.processInfo.environment
         guard let input = env["PROBE_QUESTIONS"], let output = env["PROBE_OUT"] else {
-            throw XCTSkip("set PROBE_QUESTIONS and PROBE_OUT")
+            return XCTFail("set PROBE_QUESTIONS and PROBE_OUT")
         }
         let json = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: input)))
         let questions = (json as? [[String]])?.map { $0[0] }

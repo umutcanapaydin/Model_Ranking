@@ -462,4 +462,15 @@ final class CombinedListLanguageTests: XCTestCase {
         XCTAssertEqual(UIText.chipAction(french, removed: false, .turkish), "Fransızca panosunu çıkar")
         XCTAssertEqual(UIText.chipAction(french, removed: true, .turkish), "Fransızca panosunu geri ekle")
     }
+
+    func testTheCombinedListSaysItIsTheProductsOwnInBothLanguages() {
+        // D-160 clause 3 (plan P3, second review M8): the list is the product's combination, not a
+        // published leaderboard, and says how many models and boards it holds.
+        XCTAssertEqual(UIText.combinedNote(models: 34, boards: 2, .english),
+                       "The app's own list: 34 models ranked on all 2 boards, ordered by their places on each. "
+                           + "No leaderboard publishes this order.")
+        XCTAssertEqual(UIText.combinedNote(models: 34, boards: 2, .turkish),
+                       "Uygulamanın kendi listesi: 2 panonun hepsinde yer alan 34 model, her panodaki sıralarına "
+                           + "göre dizildi. Bu sırayı hiçbir liste yayımlamıyor.")
+    }
 }

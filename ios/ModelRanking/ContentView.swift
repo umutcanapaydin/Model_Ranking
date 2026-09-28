@@ -51,6 +51,7 @@ struct ContentView: View {
     /// D-167/D-168 (M17-W5). Every board's standings, kept on this device for a day and fetched the
     /// same way whatever the reader asks, and the refinements the reader removed from this question.
     @State private var standings: Standings?
+    @State private var standingsInFlight = false
     @State private var removedRefinements: Set<Refinement> = []
     /// The reader's language. `@AppStorage` so the choice survives a relaunch — a flag switch that
     /// forgets is a flag switch nobody uses twice.
@@ -766,14 +767,22 @@ struct ContentView: View {
             guard gate.isCurrent(ticket) else { return }
             state = .failed(.undecodable(String(describing: error)))
         }
-        // D-167 clause 1: every board's standings, fetched the same way whatever the reader asks,
-        // at most once a day; the kept copy answers when this fails or the phone is offline. After
-        // the answer, never before it: the day's first download must not hold the answer back
-        // (code review R3).
-        if gate.isCurrent(ticket),
-           let kept = await StandingsStore.onDevice.current(now: Date(), fetch: { try await client.boards() }),
-           gate.isCurrent(ticket) {
-            standings = kept
+        // Started, not awaited: neither the answer nor the echo `ask()` sets after this returns
+        // waits for the day's first download (code review R3, second review R5).
+        if gate.isCurrent(ticket) { refreshStandings() }
+    }
+
+    /// D-167 clause 1: every board's standings, fetched the same way whatever the reader asks, at
+    /// most once a day. When only this fetch fails, the kept copy still combines; with no
+    /// connection at all the answer itself fails first, and the screen says so.
+    private func refreshStandings() {
+        guard !standingsInFlight else { return }
+        standingsInFlight = true
+        Task {
+            defer { standingsInFlight = false }
+            if let kept = await StandingsStore.onDevice.current(now: Date(), fetch: { try await client.boards() }) {
+                standings = kept
+            }
         }
     }
 }

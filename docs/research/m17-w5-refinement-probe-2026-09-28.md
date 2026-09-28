@@ -15,7 +15,8 @@ on the same questions:
 - this branch: the surface plus one enumerated field per refinement kind (D-168).
 
 **The model is not deterministic.** Two runs of the same questions agree on 35 of 43 surfaces, so
-every figure here is from at least two runs and is given as a range. Issue #64.
+every figure for this branch is from at least two runs and is given as a range. `main`'s figure is
+from one run; two identical runs of the shipped branch differ by 5 (25 and 30). Issue #64.
 
 ## 1. The question sets
 
@@ -42,8 +43,10 @@ Both sets are committed as `scripts/router_probe/refinement_questions.json` and
 | as shipped: the same, with the reworded decline instructions (§4) | 25-30 |
 
 `main`'s on-device tier sent most questions to `assistant` or `agentic-coding`. The branch's object
-schema, whose field descriptions say what each field is, chooses the surface correctly more often
-on both the tuning and the held-out questions.
+schema, whose field descriptions say what each field is, chooses the surface correctly more often.
+As shipped, the gain is on the held-out questions: 12 and 16 of 22, against `main`'s 7. On the 21
+tuning questions it scores 13 and 14, against `main`'s 13. With the kind field still in the
+schema, the gain showed on both sets.
 
 **Regressions to know about.** Three questions that should be declined as unmeasured went to
 `vision` in some runs:
@@ -109,7 +112,9 @@ wording scored 25 and 30 of 43, against 27 and 29 before it.
 
 **The task-language rule holds on the device.**
 - Turkish questions about a task in no listed language got no language board in all but two cases.
-- Turkish questions naming one (a Polish email, a request to converse in Russian) got it.
+- Turkish questions naming one (a Polish email, a request to converse in Russian) got it, except a
+  Spanish birthday poem, which got no language in either run. It is one of the two misses in the
+  15 of 17.
 
 **The residual spurious additions come from tricky wording.**
 - "my german shepherd barks all night" added German.
@@ -133,7 +138,8 @@ board ranks (D-167 clause 3, #54 as ruled).
 - **Harness.** `scripts/router_probe/RefinementProbe.swift`, an XCTest run in a scratch copy of
   `ios/`: it calls `ModelRouter().route(q, within: served)` for each question and writes the surface
   and each refinement value. Its header says how to run it.
-- **Where it runs.** Only on a Mac with Apple Intelligence enabled; elsewhere it skips.
+- **Where it runs.** Only on a Mac with Apple Intelligence enabled. Elsewhere it fails and says the
+  model is unavailable, rather than writing rows of `nil`.
 - **Scoring.**
   - An expected value `a|b` accepts either. `DECLINE` expects `unmeasured`.
   - "Both refinements right" means the language and the domain both match.

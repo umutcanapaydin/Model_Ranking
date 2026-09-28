@@ -60,10 +60,12 @@ ios/ModelRanking/Engine/Models.swift:65:    let primaryBoard: String?
 | fact on the screen | published field |
 |---|---|
 | the surface's own board | `/v1/categories` `primary_board` |
-| a refinement's board and the chip's name | the declared table (`Refinements.swift`), each board a `/v1/boards` `boards[].id` |
+| a refinement's board | the declared table (`Refinements.swift`), each board a `/v1/boards` `boards[].id` |
+| a chip's name | `UIText.refinementNames` (`Language.swift`), keyed by the table's value |
 | a model's name, vendor and price | `/v1/boards` `models[].display`, `.vendor`, `.blended_per_m` |
 | a model's place in the combined list | computed in `Combine.swift` from `boards[].standings[].position` (D-167 clause 3) |
-| a board's name, date and attribution | `boards[].benchmark`, `.evidence_date` (else `.observed_at`, labelled as the day read), `.attribution` |
+| a board's name | the surface's own board: `boards[].benchmark`; a board a refinement added: the benchmark's text before `(`, then the chip's name (`boardTitle`, `AnswerPlan.swift`) |
+| a board's date and attribution | `.evidence_date` (else `.observed_at`, labelled as the day read), `.attribution` |
 | the effort notice | `boards[].ranking_effort` and `boards[].standings[].effort` (D-112) |
 | a model's place on each board, in the detail | `boards[].standings[].position` |
 | the shared count | the combined list's length |
@@ -110,8 +112,9 @@ order (language, then domain, then kind). #53 is ruled: two boards of one benchm
   product's own combination, not a published leaderboard (D-160 clause 3).
 - **Refinements are shown**, so the reader can see why a board was added and remove it with one tap.
   Removing one is a local choice and sends nothing.
-- **The standings** come from `StandingsStore.current(now:fetch:)` (D-167), fetched once a day; the
-  combined list works offline from the kept standings.
+- **The standings** come from `StandingsStore.current(now:fetch:)` (D-167), fetched once a day. When
+  only that fetch fails, the kept standings still combine; with no connection at all the answer
+  itself fails first (corrected at the second code review, M7).
 
 **A new ADR, D-168**, is written before the code. It records the refinement table and its
 compatibility rule, the schema fields, the task-language rule, the fallback, #53's ruling and the
