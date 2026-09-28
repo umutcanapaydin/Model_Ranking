@@ -166,6 +166,28 @@ def test_only_the_model_output_boundary_builds_an_outcome_with_refinements() -> 
     assert not re.search(r"\.refinements\s*(=|\.append|\+=)", source), "an outcome's refinements assigned after it is built"
 
 
+def test_only_the_wording_tier_builds_an_outcome_with_alternatives() -> None:
+    """Security pass S1 (M17-W5): an alternative is a surface the reader taps, and the tap sends it
+    to the engine as `task`. Only the wording tier ranks alternatives, from the ids the engine
+    serves; the model tier must never put its own output there, before or after the boundary."""
+    source = _code(ROUTER.read_text(encoding="utf-8"))
+    owners: list[str] = []
+    for match in re.finditer(r"RoutingOutcome\(", source):
+        depth, end = 0, match.end() - 1
+        for end in range(match.end() - 1, len(source)):
+            depth += {"(": 1, ")": -1}.get(source[end], 0)
+            if depth == 0:
+                break
+        if "alternatives:" in source[match.end():end]:
+            owner = re.findall(r"^(?:struct|enum|final class|class)\s+(\w+)", source[: match.start()], re.M)
+            owners.append(owner[-1] if owner else "<top level>")
+    assert owners, "no outcome carries alternatives at all: the wording tier this test holds has moved"
+    assert set(owners) == {"SimilarityRouter"}, f"an outcome built with alternatives outside the wording tier: {owners}"
+    assert not re.search(r"\.alternatives\s*(=|\.append|\+=|\.insert)", source), (
+        "an outcome's alternatives assigned after it is built"
+    )
+
+
 def test_the_router_never_produces_anything_but_a_category_id() -> None:
     """D-126's absolute boundary, asserted on the TYPE the router can return.
 

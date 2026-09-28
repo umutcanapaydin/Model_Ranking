@@ -161,6 +161,17 @@ final class AnswerPlanTests: XCTestCase {
         XCTAssertEqual(view.efforts, ["unspecified", "high", "max"])
     }
 
+    func testAModelListedTwiceOnABoardCountsItsFirstRowAsTheCombinationDoes() {
+        // Security pass S4: only a malformed payload lists a model twice on one board. `combine`
+        // counts its first row; the effort notice must not name an effort no counted row has.
+        let doubled = held([boardAt("arena", [("a", 1, "high"), ("b", 2, "high"), ("a", 3, "max")]),
+                            boardAt(french.board, [("b", 1, "high"), ("a", 2, "high")])])
+        let plan = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: doubled, removed: [])
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+
+        XCTAssertEqual(view.mixedEfforts, [])
+    }
+
     func testABoardRankedAtOneEffortIsNeverAMix() {
         let fixed = held([boardAt("arena", [("a", 1, "high"), ("b", 2, "medium")], rankingEffort: "high"),
                           boardAt(french.board, [("b", 1, "high"), ("a", 2, "high")])])

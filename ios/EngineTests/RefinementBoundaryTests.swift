@@ -102,6 +102,48 @@ final class RefinementBoundaryTests: XCTestCase {
         #endif
     }
 
+    func testTheModelsSchemaOffersExactlyTheDeclaredChoicesAndNothingElse() throws {
+        // Security pass S1: the text pins held that the closed sets were PRESENT, not that the
+        // schema holds nothing else. Read from the schema itself, as the model receives it, so an
+        // added free-text field, an appended filter or a lost way out each fail here.
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, macOS 26.0, *) {
+            let data = try JSONEncoder().encode(try ModelRouter.schema(for: served))
+            let root = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+            let fields = Set(["surface"] + RefinementKind.allCases.map(\.rawValue))
+
+            XCTAssertEqual(root["additionalProperties"] as? Bool, false)
+            XCTAssertEqual(Set(root["required"] as? [String] ?? []), fields)
+            XCTAssertEqual(Set((root["properties"] as? [String: Any] ?? [:]).keys), fields)
+            let definitions = try XCTUnwrap(root["$defs"] as? [String: [String: Any]])
+            XCTAssertEqual(Set(definitions.keys), fields)
+
+            func offered(_ field: String) throws -> [String] {
+                let options = try XCTUnwrap(definitions[field]?["anyOf"] as? [[String: Any]], field)
+                return try options.flatMap { option -> [String] in
+                    // Every option is a fixed string: a bare `"type": "string"` would admit anything.
+                    XCTAssertEqual(option["type"] as? String, "string", field)
+                    return try XCTUnwrap(option["enum"] as? [String], "\(field) offers a free value")
+                }
+            }
+            XCTAssertEqual(try offered("surface"), served + [ModelOutputBoundary.declineSentinel])
+            for kind in RefinementKind.allCases {
+                XCTAssertEqual(try offered(kind.rawValue),
+                               Refinements.table.filter { $0.kind == kind }.map(\.value) + ["none"])
+            }
+        }
+        #endif
+    }
+
+    func testTheModelTierOffersNoAlternatives() {
+        // Security pass S1: an alternative is a surface the reader can tap, and a tap sends it to
+        // the engine as `task`. Only the wording tier ranks them, from the ids the engine serves.
+        let outcome = ModelOutputBoundary.outcome(
+            for: "assistant", within: served, refinements: [.language: "french", .domain: "legal"])
+
+        XCTAssertEqual(outcome?.alternatives, [])
+    }
+
     func testTheManualTierNeverRefines() async {
         // Review M5: the last tier, when neither the model nor the wording answers.
         struct Silent: QuestionRouter {
