@@ -149,6 +149,16 @@ final class AnswerPlanTests: XCTestCase {
 
         XCTAssertEqual(view.mixedEfforts, [BoardEfforts(board: "arena", efforts: ["high", "unspecified"])],
                        "only the listed models' efforts count: c, at max, is not in the list")
+        XCTAssertEqual(view.efforts, ["high", "unspecified"])
+    }
+
+    func testEveryEffortIsNamedOnceInTheBoardsOwnOrder() {
+        let mixed = held([boardAt("arena", [("a", 1, "unspecified"), ("b", 2, "high")]),
+                          boardAt(french.board, [("b", 1, "max"), ("a", 2, "high")])])
+        let plan = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: mixed, removed: [])
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+
+        XCTAssertEqual(view.efforts, ["unspecified", "high", "max"])
     }
 
     func testABoardRankedAtOneEffortIsNeverAMix() {

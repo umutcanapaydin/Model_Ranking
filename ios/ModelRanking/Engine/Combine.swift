@@ -9,7 +9,9 @@
 //  - on each board those models are re-ranked among themselves, tied models sharing a rank;
 //  - the list is ordered by the sum of a model's ranks, which orders exactly as their mean does,
 //    because every model has one rank per chosen board -- and stays in whole numbers;
-//  - an equal sum is broken by model id, never by a display name (#44).
+//  - an equal sum is broken by model id, never by a display name (#44);
+//  - a model's PLACE is one more than the models with a lower sum, so tied models share one: the
+//    order breaks a tie, the place on screen does not (code review M1, owner ruling 2026-09-28).
 
 import Foundation
 
@@ -24,6 +26,8 @@ struct CombinedEntry: Equatable {
     let model: StandingModel
     /// In the order the boards were chosen, one per board.
     let positions: [BoardPosition]
+    /// Its place in the combined list; tied models share one (1, 1, 3).
+    let place: Int
 }
 
 /// A combined list and the boards it came from, with their dates and attributions for the detail
@@ -77,9 +81,12 @@ func combine(_ standings: Standings, boards chosen: [String]) throws -> Combined
         let (left, right) = (sums[lhs, default: 0], sums[rhs, default: 0])
         return left == right ? lhs < rhs : left < right
     }
-    let entries = try order.map { id -> CombinedEntry in
+    var entries: [CombinedEntry] = []
+    for (index, id) in order.enumerated() {
         guard let model = models[id] else { throw CombineError.unknownModel(id) }
-        return CombinedEntry(model: model, positions: positions[id, default: []])
+        let tied = index > 0 && sums[order[index - 1], default: 0] == sums[id, default: 0]
+        let place = tied ? entries[index - 1].place : index + 1
+        entries.append(CombinedEntry(model: model, positions: positions[id, default: []], place: place))
     }
     return CombinedList(boards: boards, entries: entries)
 }

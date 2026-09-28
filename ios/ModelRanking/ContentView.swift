@@ -263,20 +263,21 @@ struct ContentView: View {
                         Text(UIText.combinedEmpty(language)).font(.subheadline)
                             .padding(12)
                     }
-                    ForEach(Array(view.list.entries.enumerated()), id: \.element.model.id) { item in
+                    ForEach(view.list.entries, id: \.model.id) { entry in
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
-                            Text("\(item.offset + 1)").font(.subheadline.weight(.semibold)).monospacedDigit()
+                            // The combination's own place: tied models share it (review M1).
+                            Text("\(entry.place)").font(.subheadline.weight(.semibold)).monospacedDigit()
                                 .frame(width: 28, alignment: .leading)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(item.element.model.display).font(.body.weight(.semibold))
-                                Text(item.element.model.vendor).font(.caption).foregroundStyle(Design.muted)
+                                Text(entry.model.display).font(.body.weight(.semibold))
+                                Text(entry.model.vendor).font(.caption).foregroundStyle(Design.muted)
                             }
                             Spacer(minLength: 8)
-                            Text(priceTag(item.element.model.blendedPerM)).font(.caption).monospacedDigit()
+                            Text(priceTag(entry.model.blendedPerM)).font(.caption).monospacedDigit()
                                 .foregroundStyle(Design.muted)
                         }
                         .padding(.vertical, 10).padding(.horizontal, 12)
-                        if item.element.model.id != view.list.entries.last?.model.id {
+                        if entry.model.id != view.list.entries.last?.model.id {
                             Divider().padding(.leading, 12)
                         }
                     }
@@ -300,6 +301,11 @@ struct ContentView: View {
             }
             Text(UIText.combinedNote(models: view.sharedCount, boards: view.list.boards.count, language))
                 .font(.footnote).foregroundStyle(.secondary)
+            if !view.efforts.isEmpty {
+                // D-112: the notice the cards carry, which this list replaces (review B1).
+                Text(UIText.combinedEffortNote(efforts: view.efforts, language))
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -329,6 +335,7 @@ struct ContentView: View {
                         .foregroundStyle(off ? Design.muted : Design.ink)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(UIText.chipAction(refinement, removed: off, language))
                 }
             }
         }
@@ -746,12 +753,6 @@ struct ContentView: View {
         if let fresh = try? await client.categories(), !fresh.isEmpty, gate.isCurrent(ticket) {
             categories = fresh
         }
-        // D-167 clause 1: every board's standings, fetched the same way whatever the reader asks,
-        // at most once a day; the kept copy answers when this fails or the phone is offline.
-        if let kept = await StandingsStore.onDevice.current(now: Date(), fetch: { try await client.boards() }),
-           gate.isCurrent(ticket) {
-            standings = kept
-        }
         do {
             // One request carries every surface for the coding intent (Ruling A), so the home
             // screen cannot show one answer while another is still loading.
@@ -764,6 +765,15 @@ struct ContentView: View {
         } catch {
             guard gate.isCurrent(ticket) else { return }
             state = .failed(.undecodable(String(describing: error)))
+        }
+        // D-167 clause 1: every board's standings, fetched the same way whatever the reader asks,
+        // at most once a day; the kept copy answers when this fails or the phone is offline. After
+        // the answer, never before it: the day's first download must not hold the answer back
+        // (code review R3).
+        if gate.isCurrent(ticket),
+           let kept = await StandingsStore.onDevice.current(now: Date(), fetch: { try await client.boards() }),
+           gate.isCurrent(ticket) {
+            standings = kept
         }
     }
 }
@@ -1208,14 +1218,16 @@ struct CombinedDetail: View {
             VStack(alignment: .leading, spacing: 16) {
                 Text(UIText.combinedNote(models: view.sharedCount, boards: view.list.boards.count, language))
                     .font(.subheadline)
-                Text(UIText.sharedCount(view.sharedCount, language)).font(.subheadline.weight(.semibold))
                 SectionTitle(text: UIText.boardsBehind(language))
                 ForEach(view.list.boards) { board in
                     Card {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(board.benchmark).font(.headline)
-                            if let date = board.evidenceDate ?? board.observedAt {
-                                Text(date).font(.caption).foregroundStyle(Design.muted)
+                            Text(boardTitle(board, refinements: view.refinements, language)).font(.headline)
+                            Text(UIText.boardDate(boardDate(board), language))
+                                .font(.caption).foregroundStyle(Design.muted)
+                            if let mixed = view.mixedEfforts.first(where: { $0.board == board.id }) {
+                                Text(UIText.boardEfforts(mixed.efforts, language))
+                                    .font(.caption).foregroundStyle(Design.muted)
                             }
                             Text(board.attribution).font(.caption2).foregroundStyle(Design.muted)
                         }
@@ -1227,7 +1239,8 @@ struct CombinedDetail: View {
                         Text(entry.model.display).font(.subheadline.weight(.semibold))
                         ForEach(entry.positions, id: \.board) { spot in
                             Text(UIText.placeOn(
-                                view.list.boards.first { $0.id == spot.board }?.benchmark ?? spot.board,
+                                view.list.boards.first { $0.id == spot.board }
+                                    .map { boardTitle($0, refinements: view.refinements, language) } ?? spot.board,
                                 place: spot.position, language
                             ))
                             .font(.caption).foregroundStyle(Design.muted)

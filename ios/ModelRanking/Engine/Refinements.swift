@@ -73,8 +73,10 @@ enum Refinements {
         Refinement(value: "business", kind: .domain, board: "arena_text_industry_business_and_management_and_financial_operations",
                    surfaces: ["assistant", "everyday", "document", "factuality", "expert"],
                    reason: "Arena prompts about business, management and finance questions"),
+        // Not `coding`: a coding request answers on two surfaces, neither the winner (Ruling A,
+        // D-115), and a combined list would replace both (review B2, owner ruling 2026-09-28).
         Refinement(value: "software", kind: .domain, board: "arena_text_industry_software_and_it_services",
-                   surfaces: ["assistant", "everyday", "document", "coding", "web-dev"],
+                   surfaces: ["assistant", "everyday", "document", "web-dev"],
                    reason: "Arena prompts about software and IT questions"),
         Refinement(value: "writing", kind: .domain, board: "arena_text_industry_writing_and_literature_and_language",
                    surfaces: ["assistant", "everyday", "document", "factuality", "expert"],

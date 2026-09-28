@@ -568,19 +568,56 @@ extension UIText {
         language == .turkish ? "Çıkardıkların; geri eklemek için dokun" : "Removed; tap one to count it again"
     }
 
+    /// D-112 on the combined list (review B1): the cards' `effort_mix_notice`, said of the list.
+    static func combinedEffortNote(efforts: [String], _ language: Language) -> String {
+        let named = efforts.joined(separator: ", ")
+        return language == .turkish
+            ? "Not: Bu panolar modelleri tek bir çaba düzeyinde karşılaştırmıyor ve bu listedeki modeller "
+                + "farklı düzeylerde ölçüldü (\(named)). Daha yüksek çabayla çalıştırılan bir model, daha düşük "
+                + "çabayla çalıştırılandan iyi görünebilir."
+            : "Note: these boards do not compare at one effort level, and the models in this list were "
+                + "measured at different levels (\(named)). A model run at a higher effort can look better "
+                + "than one run at a lower effort."
+    }
+
+    /// The efforts the listed models stand at on one board, in the detail.
+    static func boardEfforts(_ efforts: [String], _ language: Language) -> String {
+        let named = efforts.joined(separator: ", ")
+        return language == .turkish ? "Bu listedeki modellerin çaba düzeyleri: \(named)"
+            : "Effort levels of the models in this list: \(named)"
+    }
+
+    /// A board's date, saying whether anything was measured on it (review B1).
+    static func boardDate(_ date: BoardDate, _ language: Language) -> String {
+        switch date {
+        case let .measured(day):
+            return language == .turkish ? "En yeni ölçüm: \(day)" : "Newest evaluation: \(day)"
+        case let .readOn(day):
+            return language == .turkish
+                ? "Ölçüm tarihi yayımlamıyor; motor \(day) tarihinde okudu"
+                : "Publishes no evaluation date; read by the engine on \(day)"
+        case .unknown:
+            return language == .turkish ? "Tarih yok" : "No date"
+        }
+    }
+
+    /// What a tap on a refinement's chip does, for VoiceOver (review M4).
+    static func chipAction(_ refinement: Refinement, removed: Bool, _ language: Language) -> String {
+        let name = refinementName(refinement, language)
+        switch (language, removed) {
+        case (.turkish, false): return "\(name) panosunu çıkar"
+        case (.turkish, true): return "\(name) panosunu geri ekle"
+        case (_, false): return "Remove the \(name) board"
+        case (_, true): return "Add the \(name) board back"
+        }
+    }
+
     static func seeTheBoards(_ language: Language) -> String {
         language == .turkish ? "Panolara bak" : "See the boards"
     }
 
     static func boardsBehind(_ language: Language) -> String {
         language == .turkish ? "Bu listenin dayandığı panolar" : "The boards behind this list"
-    }
-
-    /// #54: how many models the chosen boards share.
-    static func sharedCount(_ count: Int, _ language: Language) -> String {
-        language == .turkish
-            ? "Seçilen panoların hepsinde \(count) model yer alıyor."
-            : "\(count) models are ranked on every board chosen."
     }
 
     static func placeOn(_ benchmark: String, place: Int, _ language: Language) -> String {

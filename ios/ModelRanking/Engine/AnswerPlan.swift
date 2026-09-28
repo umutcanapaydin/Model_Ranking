@@ -14,8 +14,60 @@ struct CombinedView: Equatable {
     let refinements: [Refinement]
     /// The refinements the reader removed on this device. Removing one sends nothing.
     let removed: Set<Refinement>
+    /// Per chosen board that ranks at no one effort, the efforts the listed models stand at on it,
+    /// when they differ (D-112): the notice the cards carry, which this list replaces (review B1).
+    let mixedEfforts: [BoardEfforts]
+    /// Every effort named in `mixedEfforts`, once each, in the order the boards name them.
+    var efforts: [String] { firstSeen(mixedEfforts.flatMap(\.efforts)) }
     /// How many models every chosen board ranks (#54): the length of the list, stated on screen.
     var sharedCount: Int { list.entries.count }
+}
+
+/// The efforts a board's listed models stand at, when there are two or more (D-112).
+struct BoardEfforts: Equatable {
+    let board: String
+    let efforts: [String]
+}
+
+/// What a board's date means. `observed_at` is the day the engine read the board, not a day
+/// anything was measured, and the screen says which it shows (review B1).
+enum BoardDate: Equatable {
+    case measured(String)
+    case readOn(String)
+    case unknown
+}
+
+func boardDate(_ board: BoardStandings) -> BoardDate {
+    if let date = board.evidenceDate { return .measured(date) }
+    if let read = board.observedAt { return .readOn(String(read.prefix(10))) }
+    return .unknown
+}
+
+/// A board as the reader knows it: a board a refinement added is named as its chip is, so the two
+/// can be matched (review M4); the surface's own board keeps its benchmark's name.
+func boardTitle(_ board: BoardStandings, refinements: [Refinement], _ language: Language) -> String {
+    guard let refinement = refinements.first(where: { $0.board == board.id }) else { return board.benchmark }
+    let family = board.benchmark.split(separator: "(").first
+        .map { $0.trimmingCharacters(in: .whitespaces) } ?? board.benchmark
+    return "\(family) · \(UIText.refinementName(refinement, language))"
+}
+
+/// D-112 as the engine applies it to the cards (`effort_mix_notice`): a board a surface ranks at
+/// one named effort compares at it; any other says so when its listed models' efforts differ.
+private func mixedEfforts(_ list: CombinedList) -> [BoardEfforts] {
+    let listed = Set(list.entries.map(\.model.id))
+    return list.boards.compactMap { board in
+        guard board.rankingEffort == nil else { return nil }
+        // In the board's own order, so the client orders nothing of its own (Ruling A's tripwire).
+        let efforts = firstSeen(board.standings.filter { listed.contains($0.model) }.map(\.effort))
+            .filter { !$0.isEmpty }
+        return efforts.count > 1 ? BoardEfforts(board: board.id, efforts: efforts) : nil
+    }
+}
+
+private func firstSeen(_ values: [String]) -> [String] {
+    var seen = Set<String>()
+    return values.filter { seen.insert($0).inserted }
 }
 
 enum AnswerPlan: Equatable {
@@ -51,6 +103,7 @@ func answerPlan(
     }
     guard let list = try? combine(standings, boards: boards) else { return .cards }
     return .combined(CombinedView(
-        list: list, refinements: offered, removed: removed.intersection(offered)
+        list: list, refinements: offered, removed: removed.intersection(offered),
+        mixedEfforts: mixedEfforts(list)
     ))
 }
