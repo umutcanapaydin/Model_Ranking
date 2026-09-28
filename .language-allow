@@ -78,3 +78,8 @@ ios/ModelRanking/Engine/Detail.swift    # M15-W2: the detail screen's lines, com
                                         # are English
 ios/EngineTests/DetailTests.swift       # asserts those exact Turkish lines, so the half-translated
                                         # screen W-085 caught cannot come back one screen later
+scripts/router_probe/refinement_questions.json  # M17-W5 (D-168): the probe's questions, 12 of them in
+                                  # Turkish, because the task-language rule is measured on questions WRITTEN
+                                  # in Turkish about other languages; translating them removes the evidence
+scripts/router_probe/refinement_heldout_questions.json  # the held-out set (D-147 clause 5), 17 Turkish
+                                  # questions, kept verbatim for the same reason

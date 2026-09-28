@@ -48,6 +48,26 @@ tests/unit/test_ios_client_contract.py:178:POSITION_ARITHMETIC_PERMITTED: dict[s
 
 `Combine.swift`, `combine(_:boards:)` and its permissions arrive with #61.
 
+**Added at the code review (B3):** `/v1/categories` gains one additive field, named in D-168's
+review note:
+```
+src/app/adapter/main.py:1346:                "primary_board": spec.primary_source,
+ios/ModelRanking/Engine/Models.swift:65:    let primaryBoard: String?
+```
+
+**Each fact on the screen and the published field it comes from (D-150 clause 2, review M2):**
+
+| fact on the screen | published field |
+|---|---|
+| the surface's own board | `/v1/categories` `primary_board` |
+| a refinement's board and the chip's name | the declared table (`Refinements.swift`), each board a `/v1/boards` `boards[].id` |
+| a model's name, vendor and price | `/v1/boards` `models[].display`, `.vendor`, `.blended_per_m` |
+| a model's place in the combined list | computed in `Combine.swift` from `boards[].standings[].position` (D-167 clause 3) |
+| a board's name, date and attribution | `boards[].benchmark`, `.evidence_date` (else `.observed_at`, labelled as the day read), `.attribution` |
+| the effort notice | `boards[].ranking_effort` and `boards[].standings[].effort` (D-112) |
+| a model's place on each board, in the detail | `boards[].standings[].position` |
+| the shared count | the combined list's length |
+
 ## Design
 
 *Amended by the P4 probe and the owner's ruling of 2026-09-28: a refinement is a language (not

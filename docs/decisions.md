@@ -3202,3 +3202,36 @@ on-device model on a held-out set of 40 questions written independently:
 
 Clause 1's third kind is withdrawn; English is not a task language either, since the model read it
 from the question's own language (`docs/research/m17-w5-refinement-probe-2026-09-28.md`).
+
+**Notes from the wave's code review (2026-09-28).** `docs/reviews/m17-wave-5-review.md`, with three
+owner rulings of the same day, asked in Turkish.
+1. **`/v1/categories` gains `primary_board`** (review B3). It is additive on a discovery resource,
+   as D-138's three fields were: the surface's `primary_source`, a `/v1/boards` id. The benchmark's
+   name cannot serve, because two boards publish SWE-bench Verified (#53).
+2. **A coding request takes no refinement** (review B2, owner ruling). Ruling A (D-115) answers it on
+   two surfaces and presents neither as the winner, and a combined list would replace both.
+   `software` refines the chat surfaces and `web-dev` only; a test derives the rule from the route's
+   `CODING_INTENT`.
+3. **Tied models share a place** (review M1, owner ruling). The order still breaks an equal sum by
+   id (D-167 clause 3); the place on screen does not: 1, 1, 3. `Combine.swift` computes it.
+4. **The combined list discloses what the cards disclose** (review B1). D-112's effort notice names
+   the efforts the listed models stand at on each board that ranks at no one effort. A board's date
+   is labelled as its newest evaluation, or as the day the engine read a board that publishes none.
+5. **Medical and legal questions are answered** (owner ruling). The on-device model's instructions
+   no longer list them among what is declined, since the table's `medicine` and `legal` domains
+   measure them. The app interprets published measurements and gives no medical or legal advice.
+   Re-measured, the change is within the model's run-to-run spread.
+6. **Clause 2, corrected** (review M3). The schema offers every declared value of a kind on every
+   surface. The restriction to what the chosen surface allows is applied after generation, by
+   `ModelOutputBoundary`. A test pins the schema's closed sets.
+7. **The figures in the note above, corrected** (review M2). They came from runs whose schema still
+   had the kind field. As shipped, on the 40 held-out questions:
+   - the language was right on 37, the domain on 34 to 35, and both on 31 to 32;
+   - 4 to 6 refinements were added where none was expected;
+   - 16 to 18 of the 21 questions needing none stayed clean;
+   - the task language was right on 15 of the 17 Turkish questions.
+
+   "As shipped" means languages and domains only, the reworded instructions, and no refinement on
+   coding.
+8. **A question that is not a model search** is to get a guiding note instead of a ranking (owner
+   ruling). Filed as #66, for after this wave.

@@ -24,8 +24,13 @@ every figure here is from at least two runs and is given as a range. Issue #64.
 - **Refinement set 1:** 45 questions, 12 in Turkish, written by an independent agent that saw only
   a description of the surfaces and refinement values, never the table or its reasons (D-147
   clause 5). **It was used to decide the change in §3, so it is not the final measure.**
-- **Refinement set 2:** 40 NEW questions, 17 in Turkish, 17 needing no refinement at all, written by a
-  second independent agent after that decision. §4 is measured on it alone.
+- **Refinement set 2:** 40 NEW questions, 17 in Turkish, written by a second independent agent after
+  that decision. §4 is measured on it alone. 19 of them need neither a language nor a domain; under
+  the ruling that coding takes no refinement (§4), 21 do.
+
+Both sets are committed as `scripts/router_probe/refinement_questions.json` and
+`refinement_heldout_questions.json`, verbatim, so a later change knows what it must not tune against
+(D-147 clause 5).
 
 ## 2. Surfaces: the richer schema routes better
 
@@ -33,7 +38,8 @@ every figure here is from at least two runs and is given as a range. Issue #64.
 |---|---:|
 | `main`, one field | 20 |
 | branch with surface, language, domain and kind | 30-34 |
-| branch as merged: surface, language and domain | 27-29 |
+| branch with surface, language and domain | 27-29 |
+| as shipped: the same, with the reworded decline instructions (§4) | 25-30 |
 
 `main`'s on-device tier sent most questions to `assistant` or `agentic-coding`. The branch's object
 schema, whose field descriptions say what each field is, chooses the surface correctly more often
@@ -77,18 +83,29 @@ numbers on set 2 in §4, that a refinement is **a language or a domain** (D-168 
 - 14-15 spurious additions;
 - 10-11 of the 17 questions needing none stayed clean.
 
-**As merged, with languages and domains only (16 entries):**
+**As shipped** (corrected at the code review, M2):
+- languages and domains only (16 entries);
+- the instructions no longer decline medical or legal questions (owner ruling 2026-09-28, D-168
+  review note 5);
+- `software` no longer refines `coding` (review B2, owner ruling). The set's two coding questions
+  expected `software`, and are scored as expecting none.
 
 | | run 1 | run 2 |
 |---|---:|---:|
-| surface right | 28 | 28 |
+| surface right | 26 | 28 |
 | language right | 37 | 37 |
 | domain right | 34 | 35 |
-| both refinements right | 31 | 33 |
-| spurious additions | 4 | 5 |
-| missed refinements | 5 | 3 |
-| questions needing none that stayed clean (of 19) | 15 | 16 |
-| Turkish questions with the right task language (of 18) | 16 | 16 |
+| both refinements right | 31 | 32 |
+| spurious additions | 6 | 4 |
+| missed refinements | 3 | 4 |
+| questions needing none that stayed clean (of 21) | 16 | 18 |
+| Turkish questions with the right task language (of 17) | 15 | 15 |
+
+**The decline wording changed nothing measurable.** The same two runs before it (with the coding
+ruling applied) scored 28 and 28 on surfaces, 33 and 33 on both refinements, 4 and 6 spurious
+additions, and 17 of 21 clean. The medical and legal questions were answered with their domain both
+before and after: the model had not followed the decline sentence. On the surface probe the new
+wording scored 25 and 30 of 43, against 27 and 29 before it.
 
 **The task-language rule holds on the device.**
 - Turkish questions about a task in no listed language got no language board in all but two cases.
@@ -100,11 +117,12 @@ numbers on set 2 in §4, that a refinement is **a language or a domain** (D-168 
 
 ## 5. What the combined lists would hold
 
-Run 1's choices were applied to the live `/v1/boards` payload (release `cce2ced`, 2026-09-28): the
-surface's primary board plus its refinements, keeping only the models every chosen board ranks
-(D-167 clause 3, #54 as ruled).
-- **Combined lists:** 14 of the 40 questions select more than one board.
-- **Their sizes:** from **32 to 188 models**, median **107**.
+Each shipped run's choices were applied to the live `/v1/boards` payload (release `cce2ced`,
+2026-09-28): the surface's primary board plus its refinements, keeping only the models every chosen
+board ranks (D-167 clause 3, #54 as ruled).
+- **Combined lists:** 15 and 12 of the 40 questions select more than one board.
+- **Their sizes:** from **32 to 189 models**, median **98** in both runs. (The first version of this
+  record gave a median of 107 for 14 lists; the code review recomputed 102.5 from those lists, M2.)
 - **Why they stay large:** the language and domain slices are Arena text slices ranking 136 or more
   models, so the 3-model lists #54 measured for three small boards do not arise with this table.
 - **The smallest lists:** 32 to 34 models, when a question routes to `document`, whose own board
@@ -112,11 +130,16 @@ surface's primary board plus its refinements, keeping only the models every chos
 
 ## Method, re-runnable
 
-- **Harness.** An XCTest in a copy of `ios/Package.swift` and `ios/ModelRanking/` calls
-  `ModelRouter().route(q, within: served)` for each question and writes the surface and each
-  refinement value.
-- **Where it runs.** Only on a Mac with Apple Intelligence enabled; elsewhere the availability check
-  returns before any call.
-- **Scoring.** An expected value `a|b` accepts either. `DECLINE` expects `unmeasured`.
+- **Harness.** `scripts/router_probe/RefinementProbe.swift`, an XCTest run in a scratch copy of
+  `ios/`: it calls `ModelRouter().route(q, within: served)` for each question and writes the surface
+  and each refinement value. Its header says how to run it.
+- **Where it runs.** Only on a Mac with Apple Intelligence enabled; elsewhere it skips.
+- **Scoring.**
+  - An expected value `a|b` accepts either. `DECLINE` expects `unmeasured`.
+  - "Both refinements right" means the language and the domain both match.
+  - A spurious addition is a value where none of the expected values was chosen, and a missed one is
+    `none` where a value was expected.
+  - A Turkish question is one written in Turkish, not one naming a Turkish place.
+  - The sets' `kind` column is ignored since kinds were withdrawn.
 - **List sizes.** Computed from `GET /v1/boards` with `CATEGORIES[surface].primary_source` and the
   table's boards.
