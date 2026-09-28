@@ -44,6 +44,10 @@ struct RoutingOutcome: Equatable {
     /// D-168: the declared refinements the on-device model chose and `ModelOutputBoundary` kept,
     /// each allowed for this surface. The other tiers never refine, so theirs is always empty.
     var refinements: [Refinement] = []
+    /// D-169: the on-device model read the input as no search for a model at all (an attempt to
+    /// instruct it, a knowledge question, chit-chat, a request to do the task). Only
+    /// `ModelOutputBoundary` sets it, and such an outcome selects no board and sends nothing.
+    var notASearch: Bool = false
 
     /// The sentence the screen shows, in English. `routingNotice` is the one source of it; this
     /// stays so the English reading is testable where it always was.
@@ -508,10 +512,14 @@ enum ModelOutputBoundary {
     /// real surface would turn a refusal into a recommendation.
     static let declineSentinel = "__none__"
 
-    /// What the model is allowed to emit: the ids the engine serves, plus the way out.
+    /// What the model is allowed to emit: the ids the engine serves, plus the two ways out.
     static func schemaChoices(for known: [String]) -> [String] {
-        known + [declineSentinel]
+        known + [declineSentinel, notASearchSentinel]
     }
+
+    /// D-169: the way out for input that is not a search for a model. Not a surface id, and not the
+    /// decline: a real need nothing here measures still gets a ranking and says so (REQ-ASK-003).
+    static let notASearchSentinel = "__not_a_model_search__"
 
     /// D-168: the value for "the question does not concern this". Not a value any refinement uses,
     /// and a test asserts it never becomes one.
@@ -544,6 +552,15 @@ enum ModelOutputBoundary {
         for id: String?, within known: [String], refinements raw: [RefinementKind: String] = [:]
     ) -> RoutingOutcome? {
         guard let id else { return nil }
+        if id == notASearchSentinel {
+            // D-169: no board, no alternative, nothing sent. The fallback id keeps every invariant
+            // on `categoryID`; `notASearch` is what the screen reads.
+            guard known.contains(CategoryHints.unmeasuredFallback) else { return nil }
+            return RoutingOutcome(
+                categoryID: CategoryHints.unmeasuredFallback, tier: .model, unmeasured: true,
+                notASearch: true
+            )
+        }
         if id == declineSentinel {
             // The same refusal the similarity tier makes below its floor, and the same disclosure.
             guard known.contains(CategoryHints.unmeasuredFallback) else { return nil }
