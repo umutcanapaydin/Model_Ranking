@@ -777,3 +777,60 @@ final class GapRegisterHardeningTests: XCTestCase {
         }
     }
 }
+
+/// #66, D-169: what the screen does with input the on-device model read as no model search at all.
+/// Each decision is made here, in the Engine layer, so the view only follows it (#69).
+final class NotASearchScreenTests: XCTestCase {
+    private let served = ["coding", "assistant", "vision"]
+
+    private var notASearch: RoutingOutcome {
+        ModelOutputBoundary.outcome(for: ModelOutputBoundary.notASearchSentinel, within: served)!
+    }
+
+    private var declined: RoutingOutcome {
+        ModelOutputBoundary.outcome(for: ModelOutputBoundary.declineSentinel, within: served)!
+    }
+
+    func testTheScreenShowsNoAnswerForInputThatIsNotASearch() {
+        XCTAssertFalse(showsAnswer(notASearch))
+        XCTAssertTrue(showsAnswer(nil), "before any question, the screen shows today's answer")
+        XCTAssertTrue(showsAnswer(declined), "a real need nothing here measures still gets a ranking (REQ-ASK-003)")
+        XCTAssertTrue(showsAnswer(ModelOutputBoundary.outcome(for: "coding", within: served)))
+    }
+
+    func testInputThatIsNotASearchLoadsNothing() {
+        // D-169 clause 4: no request is sent for it.
+        XCTAssertNil(surfaceToLoad(notASearch, current: "coding"))
+        XCTAssertEqual(surfaceToLoad(ModelOutputBoundary.outcome(for: "vision", within: served)!, current: "coding"),
+                       "vision")
+        XCTAssertNil(surfaceToLoad(ModelOutputBoundary.outcome(for: "coding", within: served)!, current: "coding"),
+                     "the surface already shown needs no second request")
+        XCTAssertEqual(surfaceToLoad(declined, current: "coding"), CategoryHints.unmeasuredFallback)
+    }
+
+    func testTheNoteGuidesWithAnExampleInBothLanguages() {
+        // The owner's wording, 2026-09-28.
+        XCTAssertEqual(routingNotice(notASearch, .turkish),
+                       "Bu bir model araması gibi görünmüyor. Modeli ne için kullanacağını anlat; örneğin: "
+                           + "“Fransızca bir e-postayı çevirmek istiyorum.”")
+        XCTAssertEqual(routingNotice(notASearch, .english),
+                       "This does not look like a model search. Tell me what you will use the model for; for "
+                           + "example: “I want to translate an email into French.”")
+        XCTAssertNotEqual(routingNotice(declined, .english), routingNotice(notASearch, .english))
+    }
+
+    func testInputThatIsNotASearchIsNotRecordedAsAGap() {
+        // D-169 clause 5: not an unmet model need, and an injection attempt's text is not kept.
+        XCTAssertFalse(recordsGap(notASearch))
+        XCTAssertTrue(recordsGap(declined), "a real need nothing here measures is still recorded")
+    }
+
+    func testTheEchoQuotesTheInputWithoutASurface() {
+        XCTAssertEqual(echoLine(question: "  what is the capital of France  "), "“what is the capital of France”")
+        XCTAssertNil(echoLine(question: "   "))
+        XCTAssertEqual(echoLine(question: String(repeating: "a", count: 61)),
+                       "“" + String(repeating: "a", count: 60) + "…”")
+        XCTAssertEqual(echoLine(question: "prove a theorem", surfaceTitle: "Mathematics"),
+                       "“prove a theorem” → Mathematics")
+    }
+}
