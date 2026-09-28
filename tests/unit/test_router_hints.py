@@ -28,6 +28,12 @@ ROUTER = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/Engine/
 CLIENT = ROUTER.parent.parent
 
 
+def _code(swift: str) -> str:
+    """The source with its `//` comments removed, so a pin holds the code and not a comment quoting
+    it. A `//` inside a string literal is cut too, which no pin here reads."""
+    return "\n".join(line.split("//", 1)[0] for line in swift.splitlines())
+
+
 def _hint_ids() -> set[str]:
     """The category ids the client has a routing hint for, parsed from the Swift."""
     source = ROUTER.read_text(encoding="utf-8")
@@ -119,11 +125,19 @@ def test_the_router_validates_against_the_ids_the_engine_serves() -> None:
     the ids come from `/v1/categories` at runtime. A router that validated against its own hint
     table would be checking itself.
     """
-    source = ROUTER.read_text(encoding="utf-8")
+    source = _code(ROUTER.read_text(encoding="utf-8"))
     assert "within known: [String]" in source, "the router no longer takes the engine's id list"
-    assert re.search(r"anyOf:\s*known", source), (
+    # Read with the comments removed: until M17-W5 this pin matched a doc comment quoting
+    # `GenerationSchema(anyOf: known)`, and held nothing about the code (found at the W5 review).
+    assert re.search(r'name:\s*"surface",\s*anyOf:\s*ModelOutputBoundary\.schemaChoices\(for:\s*known\)', source), (
         "the on-device model's closed set is no longer built from the ids the engine serves"
     )
+    # D-168 clause 2's first layer (review M3): each refinement field is a closed set, the table's
+    # declared values plus the way out. A free string there would still be dropped by the boundary,
+    # but the schema half of the boundary would be gone without a sound.
+    assert re.search(
+        r"name:\s*kind\.rawValue,\s*anyOf:\s*ModelOutputBoundary\.refinementChoices\(for:\s*kind\)", source
+    ), "the on-device model's refinement fields are no longer the table's closed set"
     assert re.search(r"known\.contains\(id\)", source), (
         "the model's answer is no longer checked against the engine's list; the schema should make "
         "that unreachable and an unreachable guard on a model's output is worth its two lines"

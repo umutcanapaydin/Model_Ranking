@@ -57,10 +57,15 @@ final class CombinePropertyTests: XCTestCase {
             let left = av.reduce(0, +) * bv.count, right = bv.reduce(0, +) * av.count
             return left == right ? a.id < b.id : left < right
         }
+        // A place is one more than the models whose average is strictly lower (review M1).
+        func below(_ a: StandingModel, _ b: StandingModel) -> Bool {
+            let av = vectors[a.id]!, bv = vectors[b.id]!
+            return av.reduce(0, +) * bv.count < bv.reduce(0, +) * av.count
+        }
         return CombinedList(boards: boards, entries: ordered.map { m in
             CombinedEntry(model: m, positions: boards.enumerated().map { i, b in
                 BoardPosition(board: b.id, position: tables[i][m.id]!)
-            })
+            }, place: 1 + ordered.filter { below($0, m) }.count)
         })
     }
 

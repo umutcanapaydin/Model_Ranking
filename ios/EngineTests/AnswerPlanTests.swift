@@ -124,6 +124,59 @@ final class AnswerPlanTests: XCTestCase {
         XCTAssertEqual(view.sharedCount, 0)
     }
 
+    // MARK: - What the combined list discloses (review B1, M4; D-112)
+
+    private func boardAt(_ id: String, _ rows: [(String, Int, String)], rankingEffort: String? = nil,
+                         evidenceDate: String? = "2026-09-18", observedAt: String? = "2026-09-25",
+                         benchmark: String? = nil) -> BoardStandings {
+        BoardStandings(
+            id: id, benchmark: benchmark ?? "B \(id)", metric: "elo", rankingEffort: rankingEffort,
+            evidenceDate: evidenceDate, observedAt: observedAt, attribution: "cite \(id)",
+            standings: rows.map { Standing(model: $0.0, position: $0.1, effort: $0.2) }
+        )
+    }
+
+    private func held(_ boards: [BoardStandings]) -> Standings {
+        Standings(apiVersion: "v1", attributions: [], boards: boards, models: data.models)
+    }
+
+    func testTheCombinedListSaysWhichEffortsItsModelsStandAt() {
+        // The cards disclose an unequal comparison (D-112); the list that replaces them must too.
+        let mixed = held([boardAt("arena", [("a", 1, "high"), ("b", 2, "unspecified"), ("c", 3, "max")]),
+                          boardAt(french.board, [("b", 1, "high"), ("a", 2, "high")])])
+        let plan = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: mixed, removed: [])
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+
+        XCTAssertEqual(view.mixedEfforts, [BoardEfforts(board: "arena", efforts: ["high", "unspecified"])],
+                       "only the listed models' efforts count: c, at max, is not in the list")
+    }
+
+    func testABoardRankedAtOneEffortIsNeverAMix() {
+        let fixed = held([boardAt("arena", [("a", 1, "high"), ("b", 2, "medium")], rankingEffort: "high"),
+                          boardAt(french.board, [("b", 1, "high"), ("a", 2, "high")])])
+        let plan = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: fixed, removed: [])
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+
+        XCTAssertEqual(view.mixedEfforts, [], "a surface that ranks at one named effort compares at it")
+    }
+
+    func testTheEffortNoteNamesEveryEffortInBothLanguages() {
+        for language in Language.allCases {
+            let note = UIText.combinedEffortNote(efforts: ["high", "unspecified"], language)
+            XCTAssertTrue(note.contains("high") && note.contains("unspecified"), "\(language): \(note)")
+        }
+    }
+
+    func testABoardThatPublishesNoEvaluationDateIsDatedByTheDayItWasRead() {
+        // `observed_at` is when the engine read the board, not when anything was measured.
+        XCTAssertEqual(boardDate(boardAt("x", [], evidenceDate: "2026-09-18")), .measured("2026-09-18"))
+        XCTAssertEqual(boardDate(boardAt("x", [], evidenceDate: nil)), .readOn("2026-09-25"))
+        XCTAssertEqual(boardDate(boardAt("x", [], evidenceDate: nil, observedAt: nil)), .unknown)
+        XCTAssertNotEqual(UIText.boardDate(.readOn("2026-09-25"), .english),
+                          UIText.boardDate(.measured("2026-09-25"), .english))
+        XCTAssertTrue(UIText.boardDate(.readOn("2026-09-25"), .turkish).contains("2026-09-25"))
+    }
+
     func testEveryRefinementHasANameInBothLanguages() {
         for refinement in Refinements.table {
             for language in Language.allCases {

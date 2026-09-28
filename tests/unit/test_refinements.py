@@ -57,7 +57,41 @@ def test_every_refinement_refines_surfaces_that_exist_and_says_why() -> None:
         assert str(entry["reason"]).strip(), f"{entry['value']} has no reason"
 
 
+def test_no_refinement_refines_a_surface_a_coding_request_answers_on() -> None:
+    """Ruling A (D-115, REQ-APP-002): a coding request answers on both coding surfaces, and neither
+    is presented as the winner. A refinement on either would replace both answers with one combined
+    list (review B2; owner ruling 2026-09-28: the software domain does not refine coding)."""
+    from app.adapter.main import CODING_INTENT
+
+    assert CODING_INTENT, "the coding surfaces must be read from the route, not assumed"
+    for entry in _entries():
+        refined = sorted(set(entry["surfaces"]) & set(CODING_INTENT))
+        assert not refined, f"{entry['value']} refines {refined}, which Ruling A answers with two surfaces"
+
+
+@pytest.mark.artifact
+def test_every_board_a_question_can_select_is_served() -> None:
+    """D-163: held against the served payload, not the declared slices (review M5). A refinement or
+    a primary board the artifact does not publish would fall back to the cards without a word."""
+    import sqlite3
+
+    from app.workflows.standings import board_standings
+
+    conn = sqlite3.connect("file:advisor.db?mode=ro", uri=True)  # INV-23: the served artifact is read-only
+    served = {board["id"] for board in board_standings(conn)["boards"]}
+    assert served, "the artifact publishes no board at all"
+    entries = _entries()
+    missing = sorted(str(e["board"]) for e in entries if e["board"] not in served)
+    assert not missing, f"refinement boards the artifact does not publish: {missing}"
+    refinable = {surface for e in entries for surface in e["surfaces"]}  # type: ignore[attr-defined]
+    primaries = sorted(CATEGORIES[s].primary_source for s in refinable if CATEGORIES[s].primary_source not in served)
+    assert not primaries, f"primary boards of refinable surfaces the artifact does not publish: {primaries}"
+
+
 def test_a_vision_slice_refines_only_the_vision_surface() -> None:
+    """A guard for the future: the table holds no vision slice since the kinds were withdrawn
+    (D-168, note of 2026-09-28), so today this checks nothing. A vision slice added back must refine
+    the vision surface alone."""
     for entry in _entries():
         if str(entry["board"]).startswith("arena_vision_"):
             assert entry["surfaces"] == ["vision"], entry["value"]

@@ -436,3 +436,30 @@ final class RouterLanguageTests: XCTestCase {
         }
     }
 }
+
+/// M17-W5 review M4: a board added by a refinement is named as its chip is, and a chip says what a
+/// tap on it does, in both languages.
+final class CombinedListLanguageTests: XCTestCase {
+
+    private func board(_ id: String, benchmark: String) -> BoardStandings {
+        BoardStandings(id: id, benchmark: benchmark, metric: "elo", rankingEffort: nil, evidenceDate: nil,
+                       observedAt: nil, attribution: "cite", standings: [])
+    }
+
+    func testARefinementBoardIsNamedAsItsChipIs() {
+        let french = Refinements.table.first { $0.value == "french" }!
+        let slice = board(french.board, benchmark: "Arena text (french)")
+        XCTAssertEqual(boardTitle(slice, refinements: [french], .turkish), "Arena text · Fransızca")
+        XCTAssertEqual(boardTitle(slice, refinements: [french], .english), "Arena text · French")
+        let primary = board("arena_document", benchmark: "Arena document")
+        XCTAssertEqual(boardTitle(primary, refinements: [french], .turkish), "Arena document")
+    }
+
+    func testAChipSaysWhatATapDoes() {
+        let french = Refinements.table.first { $0.value == "french" }!
+        XCTAssertEqual(UIText.chipAction(french, removed: false, .english), "Remove the French board")
+        XCTAssertEqual(UIText.chipAction(french, removed: true, .english), "Add the French board back")
+        XCTAssertEqual(UIText.chipAction(french, removed: false, .turkish), "Fransızca panosunu çıkar")
+        XCTAssertEqual(UIText.chipAction(french, removed: true, .turkish), "Fransızca panosunu geri ekle")
+    }
+}
