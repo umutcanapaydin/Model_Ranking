@@ -3237,3 +3237,8 @@ owner rulings of the same day, asked in Turkish.
    coding.
 8. **A question that is not a model search** is to get a guiding note instead of a ranking (owner
    ruling). Filed as #66, for after this wave.
+9. **What leaves the device, stated as the code does it** (security pass S3; owner ruling
+   2026-09-28: correct the record, change no code). D-160 clause 1 reads "nothing derived from the
+   question leaves the device". Since D-126 the surface the question routes to is sent as `task` of
+   `/v1/recommendations`: the same request a reader's own tap on that surface makes. The question's
+   text, its refinements and the reader's removals never leave the device.
