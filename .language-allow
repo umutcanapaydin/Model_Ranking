@@ -83,3 +83,7 @@ scripts/router_probe/refinement_questions.json  # M17-W5 (D-168): the probe's qu
                                   # in Turkish about other languages; translating them removes the evidence
 scripts/router_probe/refinement_heldout_questions.json  # the held-out set (D-147 clause 5), 17 Turkish
                                   # questions, kept verbatim for the same reason
+scripts/router_probe/notasearch_tuning_questions.json  # #66 (D-169): Turkish injections, greetings and pasted
+                                  # content, measured as the reader types them; a translation is not the evidence
+scripts/router_probe/notasearch_heldout_questions.json  # #66's held-out set, written independently, 40 of
+                                  # its 80 questions in Turkish, kept verbatim for M18 (never run)

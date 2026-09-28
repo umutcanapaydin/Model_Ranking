@@ -11,7 +11,8 @@
 //  A question set is either `[[question, expected surface]]` (probe_questions.json,
 //  heldout_questions.json) or `[{q, surface, language, domain, kind}]` (refinement_questions.json,
 //  refinement_heldout_questions.json). The output is one row per question: the surface, whether it
-//  was declined, and each refinement kind's value or `none`. The model is not deterministic: run
+//  was declined, whether it was read as no model search at all (D-169), and each refinement kind's
+//  value or `none`. The model is not deterministic: run
 //  every set at least twice. Scoring is described in the research record. Where the model is not
 //  available the test fails, so no file of empty rows is ever scored.
 import XCTest
@@ -42,7 +43,8 @@ final class RefinementProbe: XCTestCase {
         for question in questions {
             let outcome = await ModelRouter().route(question, within: served)
             var row = ["q": question, "surface": outcome?.categoryID ?? "nil",
-                       "unmeasured": "\(outcome?.unmeasured ?? false)"]
+                       "unmeasured": "\(outcome?.unmeasured ?? false)",
+                       "notASearch": "\(outcome?.notASearch ?? false)"]
             for kind in RefinementKind.allCases {
                 row[kind.rawValue] = outcome?.refinements.first { $0.kind == kind }?.value ?? "none"
             }

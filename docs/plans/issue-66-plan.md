@@ -7,6 +7,10 @@ date: 2026-09-28
 ---
 # Issue #66 plan — a question that is not a model search gets a guiding note, not a ranking
 
+**Stopped 2026-09-28 by the owner's ruling, moved to M18.** Five variants were measured, and none met
+the acceptance measure on the tuning set. See `docs/research/issue-66-not-a-model-search-probe-2026-09-28.md`.
+This branch is not merged; it is the record and the starting point.
+
 **Working plan for the `enhancement/issue-66-not-a-model-search` pull request**, deleted before merge
 (an enhancement's plan never lands on the default branch). Issue #66. Risk: **HIGH**: the change
 widens what the on-device model may answer and what `RoutingOutcome` carries (D-126), and the screen
