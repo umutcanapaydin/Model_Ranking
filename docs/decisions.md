@@ -3147,3 +3147,98 @@ distance between models shown, which would need scores and a new ADR under D-105
   every board set tried. It is filed as #61, with its code in the branch history, and returns with a
   property test. Clauses 1, 2 and the file-system half of clause 4 ship in M17-W4. The rule in
   clause 3 stands as ruled.
+
+## D-168 — The question selects its boards as a surface plus declared refinements
+
+**Status:** accepted -- **ruled by the owner 2026-09-28** (asked in Turkish, with explanations, four
+questions: board selection, #54, #53 and the screen) · **Date:** 2026-09-28 · **Amends** D-160's
+"intent" wording; **applies** D-167 · from #64.
+
+**Context.** D-160 has the on-device model read the question into an intent that selects the boards
+the phone combines (D-167). The milestone plan first described a free intent schema: task, domain,
+language, input size and constraints. Each value selects boards, and under D-167 clause 3 every
+added board can only shorten the list; #54 measured 3 models for three boards. The phone already
+routes a question to one of 14 surfaces, under a schema that makes any other answer inexpressible
+(D-126, D-147).
+
+**Decision.**
+1. **Surface plus refinement.** The question selects a surface as today; its primary board is the
+   first board. A refinement adds one Arena slice: the language the task concerns, a domain, or a
+   kind of conversation, or for the vision surface a kind of image task. At most two refinements are
+   added, in a declared order (language, then domain, then kind).
+2. **Declared, not generated.** Every refinement and the surfaces it may refine are a table in the
+   Engine layer, each entry with its reason. The on-device model's schema gains one enumerated field
+   per refinement kind, each `anyOf` the declared values plus `none`, restricted to those the chosen
+   surface allows. `ModelOutputBoundary` drops any value outside the table, as it drops a surface
+   outside `/v1/categories`.
+3. **The task's language, not the question's.** A language refinement is the language the task is
+   about. A question written in Turkish about Python adds no language board.
+4. **Without the on-device model,** the similarity and manual tiers select the surface alone: one
+   board, today's cards.
+5. **Two boards of one benchmark each count** when both are chosen (#53, owner ruling). They are
+   two independent measurements, and the detail screen names both.
+6. **D-167 clause 3 stays exactly** (#54, owner ruling): only the models every chosen board ranks,
+   no threshold. The detail screen states how many models the chosen boards share.
+7. **The screen.** More than one board: the main answer is the combined list, a plain order with each
+   model's price. One board: today's cards. The combined list's detail screen names each board with
+   its date and attribution, the shared count, and that the list is the product's own combination,
+   not a published leaderboard (D-160 clause 3). A shown refinement can be removed with one tap, on
+   the device.
+
+**The cost.** A question outside the 14 surfaces is not rescued by refinements; it is still
+declined or routed to chat as unmeasured. The table is hand-kept, so a slice the engine stops
+serving must fail a test rather than vanish.
+
+**Revisit when:** readers ask for combinations the table cannot express, or the router probe shows
+refinements chosen wrongly more often than the surface itself.
+
+**A refinement is a language or a domain (owner ruling 2026-09-28, on the probe).** Measured with the
+on-device model on a held-out set of 40 questions written independently:
+- The task's language was right on 38 of 40 questions; the domain on 36 to 37.
+- A "kind" of conversation or image task was right on only 21 to 23. The model added "creative
+  writing" to most message-writing requests and "writing about an image" to most image questions.
+- Leaving kinds out, all refinements were right on 34 to 35 of 40 questions, and 15 to 16 of the 17
+  questions needing none stayed clean.
+
+Clause 1's third kind is withdrawn; English is not a task language either, since the model read it
+from the question's own language (`docs/research/m17-w5-refinement-probe-2026-09-28.md`).
+
+**Notes from the wave's code review (2026-09-28).** `docs/reviews/m17-wave-5-review.md`, with three
+owner rulings of the same day, asked in Turkish.
+1. **`/v1/categories` gains `primary_board`** (review B3). It is additive on a discovery resource,
+   as D-138's three fields were: the surface's `primary_source`, a `/v1/boards` id. The benchmark's
+   name cannot serve, because two boards publish SWE-bench Verified (#53).
+2. **A coding request takes no refinement** (review B2, owner ruling). Ruling A (D-115) answers it on
+   two surfaces and presents neither as the winner, and a combined list would replace both.
+   `software` refines the chat surfaces and `web-dev` only; a test derives the rule from the route's
+   `CODING_INTENT`.
+3. **Tied models share a place** (review M1, owner ruling). The order still breaks an equal sum by
+   id (D-167 clause 3); the place on screen does not: 1, 1, 3. `Combine.swift` computes it.
+4. **The combined list discloses the effort mix and what each date means** (review B1). D-112's
+   effort notice names the efforts the listed models stand at on each board that ranks at no one
+   effort. A board's date is labelled as its newest evaluation, or as the day the engine read a board
+   that publishes none. The cards' staleness warning (D-135) is not carried to it yet. That is latent,
+   since every board a refinement can join is recent, and is filed as #72.
+5. **Medical and legal questions are answered** (owner ruling). The on-device model's instructions
+   no longer list them among what is declined, since the table's `medicine` and `legal` domains
+   measure them. The app interprets published measurements and gives no medical or legal advice.
+   Re-measured, the change is within the model's run-to-run spread.
+6. **Clause 2, corrected** (review M3). The schema offers every declared value of a kind on every
+   surface. The restriction to what the chosen surface allows is applied after generation, by
+   `ModelOutputBoundary`. A test pins the schema's closed sets.
+7. **The figures in the note above, corrected** (review M2). They came from runs whose schema still
+   had the kind field. As shipped, on the 40 held-out questions:
+   - the language was right on 37, the domain on 34 to 35, and both on 31 to 32;
+   - 4 to 6 refinements were added where none was expected;
+   - 16 to 18 of the 21 questions needing none stayed clean;
+   - the task language was right on 15 of the 17 Turkish questions.
+
+   "As shipped" means languages and domains only, the reworded instructions, and no refinement on
+   coding.
+8. **A question that is not a model search** is to get a guiding note instead of a ranking (owner
+   ruling). Filed as #66, for after this wave.
+9. **What leaves the device, stated as the code does it** (security pass S3; owner ruling
+   2026-09-28: correct the record, change no code). D-160 clause 1 reads "nothing derived from the
+   question leaves the device". Since D-126 the surface the question routes to is sent as `task` of
+   `/v1/recommendations`: the same request a reader's own tap on that surface makes. The question's
+   text, its refinements and the reader's removals never leave the device.

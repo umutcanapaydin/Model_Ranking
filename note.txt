@@ -1,22 +1,22 @@
 Project: model_ranking
-RESUME HERE (2026-09-26, M17-W4 closed agent-side): the project runs on DevFlow v6.6 (D-161). Run `/start-session` first.
-  - M17-W3 merged (#43, 7d7a9ac) and deployed as engine release-7d7a9ac; its first nightly refresh
-    (2026-09-25 23:05) published and matched the pre-merge measurement (checked on #37).
-  - Fix PRs waiting for the owner, each with an independent Tester and green CI: #46 (#38 effort in
-    parentheses), #47 (#41 the expiry baseline), #49 (#40 moving-alias spellings).
-  - M17-W4 (#50) is CLOSED agent-side: draft PR on `wave/m17-w4`. GET /v1/boards publishes every
-    board's standings as positions (no scores; effort per D-112); the phone fetches them once a day
-    and keeps them (StandingsStore.swift, the second file allowed the file system). D-167 is the ADR.
-    Close record: docs/plans/m17-wave-4-close.md; measurements in
-    docs/research/m17-w4-standings-payload-2026-09-25.md (500 KB raw, 36 KB gzipped).
-  - The combination on the phone (Combine.swift, D-167 clause 3) left W4 at the three-attempts stop
-    (owner ruling 2026-09-26): #61, code at 1398820 on the wave branch, back with a property test.
-  - Filed during W4 and triaged: #44, #45, #48 (from the fix PRs), #51-#61.
-  - Next: M17-W5 (the question read on the device, the screen, and #61), after the owner merges.
+RESUME HERE (2026-09-28, M17-W5 closed agent-side): the project runs on DevFlow v6.6 (D-161). Run `/start-session` first.
+  - Merged since W4 closed: M17-W4 (#62), the fix PRs #46, #47, #49, and #65 (the combination with
+    an independent ordering proof, for #61). Branch protection no longer requires up-to-date
+    branches (owner request).
+  - M17-W5 (#64) is CLOSED agent-side: draft PR on `wave/m17-w5`. A question selects a surface plus
+    declared refinements (a language or a domain, Refinements.swift); with more than one board, the
+    phone shows its own combined list (AnswerPlan.swift, Combine.swift) with shared places, D-112's
+    effort notice and a detail. D-168 and its notes are the ADR (eleven owner rulings). Close record:
+    docs/plans/m17-wave-5-close.md. Probe: docs/research/m17-w5-refinement-probe-2026-09-28.md.
+  - OWNER after the W5 PR merges: rerun scripts/install_engine_service.sh (/v1/categories gains
+    primary_board), then verify #61 and the combined list on a built app.
+  - Next, owner-ruled for after W5 and before M17 closes: #66 (a question that is not a model search
+    gets a guiding note), #73 (route coding questions better). Then M17's closure.
+  - Filed by W5 and triaged: #66-#74. The UI findings from before W5 wait in #63.
   - Open, owned: W-123 (M18), W-125, W-126, W-129 (kept and recorded), W-130, W-131.
 
-State: 2026-09-26 -- main at 7d7a9ac (#43 merged); `make check-fast` PASS on the owner's Mac,
-6/6 legs in 44 s. `make check-fast` is the working gate; `make check` the merge gate.
+State: 2026-09-28 -- main at c02fe0d (#65 merged); `make check-fast` PASS on the owner's Mac,
+6/6 legs in about 60 s. `make check-fast` is the working gate; `make check` the merge gate.
 
 READ IN THIS ORDER
   1. this file

@@ -436,3 +436,56 @@ final class RouterLanguageTests: XCTestCase {
         }
     }
 }
+
+/// M17-W5 review M4: a board added by a refinement is named as its chip is, and a chip says what a
+/// tap on it does, in both languages.
+final class CombinedListLanguageTests: XCTestCase {
+
+    private func board(_ id: String, benchmark: String) -> BoardStandings {
+        BoardStandings(id: id, benchmark: benchmark, metric: "elo", rankingEffort: nil, evidenceDate: nil,
+                       observedAt: nil, attribution: "cite", standings: [])
+    }
+
+    func testARefinementBoardIsNamedAsItsChipIs() {
+        let french = Refinements.table.first { $0.value == "french" }!
+        let slice = board(french.board, benchmark: "Arena text (french)")
+        XCTAssertEqual(boardTitle(slice, refinements: [french], .turkish), "Arena text · Fransızca")
+        XCTAssertEqual(boardTitle(slice, refinements: [french], .english), "Arena text · French")
+        let primary = board("arena_document", benchmark: "Arena document")
+        XCTAssertEqual(boardTitle(primary, refinements: [french], .turkish), "Arena document")
+    }
+
+    func testAChipSaysWhatATapDoes() {
+        let french = Refinements.table.first { $0.value == "french" }!
+        XCTAssertEqual(UIText.chipAction(french, removed: false, .english), "Remove the French board")
+        XCTAssertEqual(UIText.chipAction(french, removed: true, .english), "Add the French board back")
+        XCTAssertEqual(UIText.chipAction(french, removed: false, .turkish), "Fransızca panosunu çıkar")
+        XCTAssertEqual(UIText.chipAction(french, removed: true, .turkish), "Fransızca panosunu geri ekle")
+    }
+
+    func testTheCombinedListSaysItIsTheProductsOwnInBothLanguages() {
+        // D-160 clause 3 (plan P3, second review M8): the list is the product's combination, not a
+        // published leaderboard, and says how many models and boards it holds.
+        XCTAssertEqual(UIText.combinedNote(models: 34, boards: 2, .english),
+                       "The app's own list: 34 models ranked on all 2 boards, ordered by their places on each. "
+                           + "No leaderboard publishes this order.")
+        XCTAssertEqual(UIText.combinedNote(models: 34, boards: 2, .turkish),
+                       "Uygulamanın kendi listesi: 2 panonun hepsinde yer alan 34 model, her panodaki sıralarına "
+                           + "göre dizildi. Bu sırayı hiçbir liste yayımlamıyor.")
+    }
+
+    func testTheDetailsSentencesSayTheirFactsInBothLanguages() {
+        // Tester M2: the per-board efforts, a model's place on a board, and the empty list.
+        XCTAssertEqual(UIText.boardEfforts(["high", "unspecified"], .english),
+                       "Effort levels of the models in this list: high, unspecified")
+        XCTAssertEqual(UIText.boardEfforts(["high", "unspecified"], .turkish),
+                       "Bu listedeki modellerin çaba düzeyleri: high, unspecified")
+        XCTAssertEqual(UIText.placeOn("Arena text · French", place: 3, .english), "#3 on Arena text · French")
+        XCTAssertEqual(UIText.placeOn("Arena text · Fransızca", place: 3, .turkish),
+                       "Arena text · Fransızca listesinde #3")
+        XCTAssertEqual(UIText.combinedEmpty(.english),
+                       "No model is ranked on every one of these boards. Remove a board above to see a list.")
+        XCTAssertEqual(UIText.combinedEmpty(.turkish),
+                       "Bu panoların hepsinde yer alan bir model yok. Liste için yukarıdan bir panoyu çıkar.")
+    }
+}

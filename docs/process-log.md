@@ -555,3 +555,28 @@ third reviewer finds the next coincidence.
 - No UI, network, cache or served-score permission changed; the only position/sort permissions name
   Combine.swift under D-167. Final gate and independent Tester evidence live in the issue review.
 Lesson: prove the oracle distinguishes competing rules before using its green result as evidence.
+
+## 2026-09-27/28 — M17-W4 and #61 merged; a UI review parked as #63; M17-W5 closed agent-side
+
+- M17-W4 (#62) and the combination with its independent proof (#65, for #61) merged. At the
+  owner's request, "require branches to be up to date" came off branch protection.
+- A UI review of the shipped screen found 14 findings. The owner parked them as one issue (#63),
+  to reproduce once W5's screen settles.
+- M17-W5 (#64, D-168, HIGH): the question selects a surface plus declared refinements, and the
+  phone shows its own combined list when more than one board is chosen.
+  - The owner ruled eleven questions, in Turkish. Two came from the on-device probe: a refinement
+    is a language or a domain, never a "kind", because the model added kinds to most questions.
+  - Driving the simulator with the real on-device model found two screen defects no gate could see:
+    a removed chip that could not be restored, and a link that took no tap across most of its row.
+  - The first Code-Reviewer was BLOCKING on three departures from settled rulings: D-112's effort
+    notice lost, Ruling A lost on coding, and a `/v1` field with no ADR. All three were fixed.
+  - A second Code-Reviewer, the Tester and the security pass each returned PASS-WITH-MINORS. Their
+    findings were fixed or filed: #66-#74, each triaged.
+- Mistakes found by others or by the gates:
+  - the existing surface-schema pin had matched a doc comment since before this wave;
+  - the probe record's figures mixed two schemas;
+  - a flaky fetch test turned out to be a race in `bounded_get` (#71).
+- My own mistake: a scripted edit broke `Router.swift`. It was reversed in place and checked
+  byte-identical against `HEAD` before the edit was redone by hand.
+Lesson: a text pin proves a spelling is present, not that the thing is closed. Where the value
+itself can be read, as an encoded schema can, assert the value.

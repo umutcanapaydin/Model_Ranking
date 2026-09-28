@@ -48,6 +48,11 @@ struct ContentView: View {
     /// REQ-GAP-001/002 (M14-W3). What people asked that nothing here measures, kept on this device.
     @State private var gaps = GapRegisterStore.onDevice.load()
     @State private var showingGaps = false
+    /// D-167/D-168 (M17-W5). Every board's standings, kept on this device for a day and fetched the
+    /// same way whatever the reader asks, and the refinements the reader removed from this question.
+    @State private var standings: Standings?
+    @State private var standingsInFlight = false
+    @State private var removedRefinements: Set<Refinement> = []
     /// The reader's language. `@AppStorage` so the choice survives a relaunch — a flag switch that
     /// forgets is a flag switch nobody uses twice.
     @AppStorage("language") private var language: Language = .english
@@ -135,6 +140,23 @@ struct ContentView: View {
                 .padding(.top, 8)
                 questionCard
 
+                // D-168 clause 7 (M17-W5): several boards chosen, the product's combined list is the
+                // answer; one board, today's cards below.
+                let plan = answerPlan(
+                    outcome: routing,
+                    primaryBoard: categories.first { $0.id == routing?.categoryID }?.primaryBoard,
+                    standings: standings, removed: removedRefinements
+                )
+                if case let .combined(view) = plan {
+                    combinedSection(view)
+                } else {
+                if case let .restorable(removed) = plan {
+                    // Every refinement removed: the chips stay, so one tap puts a board back.
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(UIText.removedRefinements(language)).font(.footnote).foregroundStyle(Design.muted)
+                        refinementChips(removed, removed: Set(removed))
+                    }
+                }
                 // The surface the reader SELECTED speaks first. `task=coding` expands server-side
                 // to two answers and `/v1` says in its own payload that their order carries no
                 // meaning — so it always arrived alphabetically, and "Agentic coding" answered
@@ -214,6 +236,7 @@ struct ContentView: View {
                         }
                     }
                 }
+                }
             }
             .padding(.horizontal, 22)
             .padding(.top, 16)
@@ -224,6 +247,99 @@ struct ContentView: View {
         .scrollDismissesKeyboard(.interactively)
         .background(Design.canvas)
         .refreshable { await load() }
+    }
+
+    // MARK: - The combined list (D-168 clause 7, M17-W5)
+
+    @ViewBuilder
+    private func combinedSection(_ view: CombinedView) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionTitle(text: UIText.combinedTitle(language))
+            // Why each board beyond the surface's own was added.
+            Text(UIText.alsoCounting(language)).font(.footnote).foregroundStyle(Design.muted)
+            refinementChips(view.refinements, removed: view.removed)
+            Card {
+                VStack(alignment: .leading, spacing: 0) {
+                    if view.list.entries.isEmpty {
+                        Text(UIText.combinedEmpty(language)).font(.subheadline)
+                            .padding(12)
+                    }
+                    ForEach(view.list.entries, id: \.model.id) { entry in
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            // The combination's own place: tied models share it (review M1).
+                            Text("\(entry.place)").font(.subheadline.weight(.semibold)).monospacedDigit()
+                                .frame(width: 28, alignment: .leading)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(entry.model.display).font(.body.weight(.semibold))
+                                Text(entry.model.vendor).font(.caption).foregroundStyle(Design.muted)
+                            }
+                            Spacer(minLength: 8)
+                            Text(priceTag(entry.model.blendedPerM)).font(.caption).monospacedDigit()
+                                .foregroundStyle(Design.muted)
+                        }
+                        .padding(.vertical, 10).padding(.horizontal, 12)
+                        if entry.model.id != view.list.entries.last?.model.id {
+                            Divider().padding(.leading, 12)
+                        }
+                    }
+                    Divider().padding(.leading, 12)
+                    NavigationLink {
+                        CombinedDetail(view: view, language: language)
+                    } label: {
+                        HStack {
+                            Text(UIText.seeTheBoards(language))
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.caption)
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .padding(12)
+                        // The whole row answers a tap, not only its text: with the plain style the
+                        // space between took none (found on the simulator).
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            Text(UIText.combinedNote(models: view.sharedCount, boards: view.list.boards.count, language))
+                .font(.footnote).foregroundStyle(.secondary)
+            if !view.efforts.isEmpty {
+                // D-112: the notice the cards carry, which this list replaces (review B1).
+                Text(UIText.combinedEffortNote(efforts: view.efforts, language))
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    /// One chip per refinement: a tap removes its board here on the device and nowhere else, and a
+    /// removed one stays, to be restored (D-168 clause 7).
+    private func refinementChips(_ refinements: [Refinement], removed: Set<Refinement>) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(refinements, id: \.self) { refinement in
+                    let off = removed.contains(refinement)
+                    Button {
+                        if off {
+                            removedRefinements.remove(refinement)
+                        } else {
+                            removedRefinements.insert(refinement)
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(UIText.refinementName(refinement, language))
+                            Image(systemName: off ? "plus" : "xmark").font(.caption2)
+                        }
+                        .font(.subheadline)
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .background(off ? Design.canvas : Design.paper, in: Capsule())
+                        // A removed chip sits on the page's own colour: the outline says it is a button.
+                        .overlay(Capsule().strokeBorder(Design.muted.opacity(off ? 0.5 : 0), lineWidth: 1))
+                        .foregroundStyle(off ? Design.muted : Design.ink)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(UIText.chipAction(refinement, removed: off, language))
+                }
+            }
+        }
     }
 
     // MARK: - The front door (REQ-ASK-001..003)
@@ -598,6 +714,7 @@ struct ContentView: View {
         }
         asked = typed
         routing = outcome
+        removedRefinements = []
         // REQ-GAP-001. A question nothing here measures is recorded on THIS device and nowhere
         // else. It goes to the register, never to `client` (REQ-RTR-004).
         if recordsGap(outcome) {
@@ -611,6 +728,9 @@ struct ContentView: View {
     /// question still routing is retired with it.
     private func select(_ id: String) {
         choosingSurface = false
+        // Only a surface the engine lists becomes `task` (security pass S1): the sheet lists them,
+        // and the alternatives come from them, so this refuses only what nothing should offer.
+        guard categories.contains(where: { $0.id == id }) else { return }
         routingGate.invalidate()
         routing = nil
         guard id != task else { return }
@@ -649,6 +769,23 @@ struct ContentView: View {
         } catch {
             guard gate.isCurrent(ticket) else { return }
             state = .failed(.undecodable(String(describing: error)))
+        }
+        // Started, not awaited: neither the answer nor the echo `ask()` sets after this returns
+        // waits for the day's first download (code review R3, second review R5).
+        if gate.isCurrent(ticket) { refreshStandings() }
+    }
+
+    /// D-167 clause 1: every board's standings, fetched the same way whatever the reader asks, at
+    /// most once a day. When only this fetch fails, the kept copy still combines; with no
+    /// connection at all the answer itself fails first, and the screen says so.
+    private func refreshStandings() {
+        guard !standingsInFlight else { return }
+        standingsInFlight = true
+        Task {
+            defer { standingsInFlight = false }
+            if let kept = await StandingsStore.onDevice.current(now: Date(), fetch: { try await client.boards() }) {
+                standings = kept
+            }
         }
     }
 }
@@ -1081,3 +1218,52 @@ struct RankingList: View {
 // `Format` moved to the Engine at M13-W4 as `figuresLine` / `priceTag` (`Scores.swift`), where
 // `swift test` runs it. The rule it carried is unchanged: numbers are printed in POSIX form,
 // never in the reader's locale, because `$2,06` reads as two thousand and six.
+
+/// The combined list's detail (D-160 clause 3, D-168 clause 7): the boards it came from with their
+/// dates and attribution, how many models they share (#54), and where each model stands on each.
+struct CombinedDetail: View {
+    let view: CombinedView
+    let language: Language
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(UIText.combinedNote(models: view.sharedCount, boards: view.list.boards.count, language))
+                    .font(.subheadline)
+                SectionTitle(text: UIText.boardsBehind(language))
+                ForEach(view.list.boards) { board in
+                    Card {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(boardTitle(board, refinements: view.refinements, language)).font(.headline)
+                            Text(UIText.boardDate(boardDate(board), language))
+                                .font(.caption).foregroundStyle(Design.muted)
+                            if let mixed = view.mixedEfforts.first(where: { $0.board == board.id }) {
+                                Text(UIText.boardEfforts(mixed.efforts, language))
+                                    .font(.caption).foregroundStyle(Design.muted)
+                            }
+                            Text(board.attribution).font(.caption2).foregroundStyle(Design.muted)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                ForEach(view.list.entries, id: \.model.id) { entry in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.model.display).font(.subheadline.weight(.semibold))
+                        ForEach(entry.positions, id: \.board) { spot in
+                            Text(UIText.placeOn(
+                                view.list.boards.first { $0.id == spot.board }
+                                    .map { boardTitle($0, refinements: view.refinements, language) } ?? spot.board,
+                                place: spot.position, language
+                            ))
+                            .font(.caption).foregroundStyle(Design.muted)
+                        }
+                    }
+                }
+            }
+            .padding(22)
+        }
+        .background(Design.canvas)
+        .navigationTitle(UIText.seeTheBoards(language))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}

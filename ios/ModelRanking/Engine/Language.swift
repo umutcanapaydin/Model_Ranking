@@ -510,3 +510,117 @@ public enum UIText {
     }
 }
 
+
+// MARK: - M17-W5 (D-168): refinements and the combined list
+
+extension UIText {
+    /// Each refinement's name, keyed by its table value: (English, Turkish). A test holds every
+    /// table entry to a name in both languages.
+    static let refinementNames: [String: (String, String)] = [
+        "chinese": ("Chinese", "Çince"),
+        "french": ("French", "Fransızca"),
+        "german": ("German", "Almanca"),
+        "japanese": ("Japanese", "Japonca"),
+        "korean": ("Korean", "Korece"),
+        "polish": ("Polish", "Lehçe"),
+        "russian": ("Russian", "Rusça"),
+        "spanish": ("Spanish", "İspanyolca"),
+        "legal": ("Law and government", "Hukuk ve kamu"),
+        "medicine": ("Medicine and health", "Tıp ve sağlık"),
+        "business": ("Business and finance", "İş ve finans"),
+        "software": ("Software and IT", "Yazılım ve BT"),
+        "writing": ("Writing and language", "Yazı ve dil"),
+        "entertainment": ("Entertainment and media", "Eğlence ve medya"),
+        "science": ("Science", "Bilim"),
+        "mathematical": ("Mathematics as a field", "Matematik alanı"),
+    ]
+
+    static func refinementName(_ refinement: Refinement, _ language: Language) -> String {
+        guard let names = refinementNames[refinement.value] else { return refinement.value }
+        return language == .turkish ? names.1 : names.0
+    }
+
+    static func combinedTitle(_ language: Language) -> String {
+        language == .turkish ? "Bu soruya göre birleşik sıralama" : "Combined for this question"
+    }
+
+    /// D-160 clause 3: the list is the product's own, and says so.
+    static func combinedNote(models: Int, boards: Int, _ language: Language) -> String {
+        language == .turkish
+            ? "Uygulamanın kendi listesi: \(boards) panonun hepsinde yer alan \(models) model, her panodaki "
+                + "sıralarına göre dizildi. Bu sırayı hiçbir liste yayımlamıyor."
+            : "The app's own list: \(models) models ranked on all \(boards) boards, ordered by their places "
+                + "on each. No leaderboard publishes this order."
+    }
+
+    static func combinedEmpty(_ language: Language) -> String {
+        language == .turkish
+            ? "Bu panoların hepsinde yer alan bir model yok. Liste için yukarıdan bir panoyu çıkar."
+            : "No model is ranked on every one of these boards. Remove a board above to see a list."
+    }
+
+    static func alsoCounting(_ language: Language) -> String {
+        language == .turkish ? "Şunlar da hesaba katıldı" : "Also counted"
+    }
+
+    /// Above the cards when the reader removed every refinement (D-168 clause 7).
+    static func removedRefinements(_ language: Language) -> String {
+        language == .turkish ? "Çıkardıkların; geri eklemek için dokun" : "Removed; tap one to count it again"
+    }
+
+    /// D-112 on the combined list (review B1): the cards' `effort_mix_notice`, said of the list.
+    static func combinedEffortNote(efforts: [String], _ language: Language) -> String {
+        let named = efforts.joined(separator: ", ")
+        return language == .turkish
+            ? "Not: Bu panolar modelleri tek bir çaba düzeyinde karşılaştırmıyor ve bu listedeki modeller "
+                + "farklı düzeylerde ölçüldü (\(named)). Daha yüksek çabayla çalıştırılan bir model, daha düşük "
+                + "çabayla çalıştırılandan iyi görünebilir."
+            : "Note: these boards do not compare at one effort level, and the models in this list were "
+                + "measured at different levels (\(named)). A model run at a higher effort can look better "
+                + "than one run at a lower effort."
+    }
+
+    /// The efforts the listed models stand at on one board, in the detail.
+    static func boardEfforts(_ efforts: [String], _ language: Language) -> String {
+        let named = efforts.joined(separator: ", ")
+        return language == .turkish ? "Bu listedeki modellerin çaba düzeyleri: \(named)"
+            : "Effort levels of the models in this list: \(named)"
+    }
+
+    /// A board's date, saying whether anything was measured on it (review B1).
+    static func boardDate(_ date: BoardDate, _ language: Language) -> String {
+        switch date {
+        case let .measured(day):
+            return language == .turkish ? "En yeni ölçüm: \(day)" : "Newest evaluation: \(day)"
+        case let .readOn(day):
+            return language == .turkish
+                ? "Ölçüm tarihi yayımlamıyor; motor \(day) tarihinde okudu"
+                : "Publishes no evaluation date; read by the engine on \(day)"
+        case .unknown:
+            return language == .turkish ? "Tarih yok" : "No date"
+        }
+    }
+
+    /// What a tap on a refinement's chip does, for VoiceOver (review M4).
+    static func chipAction(_ refinement: Refinement, removed: Bool, _ language: Language) -> String {
+        let name = refinementName(refinement, language)
+        switch (language, removed) {
+        case (.turkish, false): return "\(name) panosunu çıkar"
+        case (.turkish, true): return "\(name) panosunu geri ekle"
+        case (_, false): return "Remove the \(name) board"
+        case (_, true): return "Add the \(name) board back"
+        }
+    }
+
+    static func seeTheBoards(_ language: Language) -> String {
+        language == .turkish ? "Panolara bak" : "See the boards"
+    }
+
+    static func boardsBehind(_ language: Language) -> String {
+        language == .turkish ? "Bu listenin dayandığı panolar" : "The boards behind this list"
+    }
+
+    static func placeOn(_ benchmark: String, place: Int, _ language: Language) -> String {
+        language == .turkish ? "\(benchmark) listesinde #\(place)" : "#\(place) on \(benchmark)"
+    }
+}

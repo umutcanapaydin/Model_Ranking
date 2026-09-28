@@ -27,6 +27,34 @@ final class CombineTests: XCTestCase {
         )
     }
 
+    func testTwoBoardsOfOneBenchmarkBothCount() throws {
+        // D-168 clause 5 (#53, owner ruling 2026-09-28; Tester M1): two boards publishing one
+        // benchmark are two measurements, and both are combined.
+        func verified(_ id: String, _ rows: [(String, Int)]) -> BoardStandings {
+            BoardStandings(
+                id: id, benchmark: "SWE-bench Verified", metric: "% resolved", rankingEffort: nil,
+                evidenceDate: "2026-09-18", observedAt: "2026-09-25", attribution: "cite \(id)",
+                standings: rows.map { Standing(model: $0.0, position: $0.1, effort: "unspecified") })
+        }
+        let data = standings([verified("swebench", [("a", 1), ("b", 2), ("c", 3)]),
+                              verified("swebench_bash", [("c", 1), ("b", 2), ("a", 3)])])
+        let list = try combine(data, boards: ["swebench", "swebench_bash"])
+
+        XCTAssertEqual(list.boards.map(\.id), ["swebench", "swebench_bash"])
+        XCTAssertEqual(list.entries.map(\.place), [1, 1, 1], "each model's two places count")
+    }
+
+    func testTiedModelsShareAPlace() throws {
+        // Review M1 (owner ruling 2026-09-28): an equal sum is ORDERED by id (D-167 clause 3), but
+        // the place on screen says the models are level. Sums: a 1+2=3, b 2+1=3, c 3+3=6.
+        let data = standings([board("x", [("a", 1), ("b", 2), ("c", 3)]),
+                              board("y", [("b", 1), ("a", 2), ("c", 3)])])
+        let list = try combine(data, boards: ["x", "y"])
+
+        XCTAssertEqual(list.entries.map(\.model.id), ["a", "b", "c"])
+        XCTAssertEqual(list.entries.map(\.place), [1, 1, 3])
+    }
+
     func testAModelMissingFromOneChosenBoardIsLeftOut() throws {
         let data = standings([board("x", [("a", 1), ("b", 2), ("c", 3)]),
                               board("y", [("a", 1), ("c", 2)])])

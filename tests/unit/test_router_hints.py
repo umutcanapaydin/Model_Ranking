@@ -28,6 +28,12 @@ ROUTER = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/Engine/
 CLIENT = ROUTER.parent.parent
 
 
+def _code(swift: str) -> str:
+    """The source with its `//` comments removed, so a pin holds the code and not a comment quoting
+    it. A `//` inside a string literal is cut too, which no pin here reads."""
+    return "\n".join(line.split("//", 1)[0] for line in swift.splitlines())
+
+
 def _hint_ids() -> set[str]:
     """The category ids the client has a routing hint for, parsed from the Swift."""
     source = ROUTER.read_text(encoding="utf-8")
@@ -119,14 +125,66 @@ def test_the_router_validates_against_the_ids_the_engine_serves() -> None:
     the ids come from `/v1/categories` at runtime. A router that validated against its own hint
     table would be checking itself.
     """
-    source = ROUTER.read_text(encoding="utf-8")
+    source = _code(ROUTER.read_text(encoding="utf-8"))
     assert "within known: [String]" in source, "the router no longer takes the engine's id list"
-    assert re.search(r"anyOf:\s*known", source), (
+    # Read with the comments removed: until M17-W5 this pin matched a doc comment quoting
+    # `GenerationSchema(anyOf: known)`, and held nothing about the code (found at the W5 review).
+    assert re.search(r'name:\s*"surface",\s*anyOf:\s*ModelOutputBoundary\.schemaChoices\(for:\s*known\)', source), (
         "the on-device model's closed set is no longer built from the ids the engine serves"
     )
+    # D-168 clause 2's first layer (review M3): each refinement field is a closed set, the table's
+    # declared values plus the way out. A free string there would still be dropped by the boundary,
+    # but the schema half of the boundary would be gone without a sound.
+    assert re.search(
+        r"name:\s*kind\.rawValue,\s*anyOf:\s*ModelOutputBoundary\.refinementChoices\(for:\s*kind\)", source
+    ), "the on-device model's refinement fields are no longer the table's closed set"
     assert re.search(r"known\.contains\(id\)", source), (
         "the model's answer is no longer checked against the engine's list; the schema should make "
         "that unreachable and an unreachable guard on a model's output is worth its two lines"
+    )
+
+
+def test_only_the_model_output_boundary_builds_an_outcome_with_refinements() -> None:
+    """D-168 clause 4: the wording and manual tiers select a surface alone. Held from the source
+    because the wording tier answers only where the embedding assets load, so its Swift test asserts
+    nothing elsewhere (W5 review M5). Every `RoutingOutcome(` that names `refinements:` must sit in
+    `ModelOutputBoundary`, the one place a refinement is checked against the table; nothing may
+    assign an outcome's refinements after it is built."""
+    source = _code(ROUTER.read_text(encoding="utf-8"))
+    owners: list[str] = []
+    for match in re.finditer(r"RoutingOutcome\(", source):
+        depth, end = 0, match.end() - 1
+        for end in range(match.end() - 1, len(source)):
+            depth += {"(": 1, ")": -1}.get(source[end], 0)
+            if depth == 0:
+                break
+        if "refinements:" in source[match.end():end]:
+            owner = re.findall(r"^(?:struct|enum|final class|class)\s+(\w+)", source[: match.start()], re.M)
+            owners.append(owner[-1] if owner else "<top level>")
+    assert owners, "no outcome carries refinements at all: the boundary this test holds has moved"
+    assert set(owners) == {"ModelOutputBoundary"}, f"an outcome built with refinements outside the boundary: {owners}"
+    assert not re.search(r"\.refinements\s*(=|\.append|\+=)", source), "an outcome's refinements assigned after it is built"
+
+
+def test_only_the_wording_tier_builds_an_outcome_with_alternatives() -> None:
+    """Security pass S1 (M17-W5): an alternative is a surface the reader taps, and the tap sends it
+    to the engine as `task`. Only the wording tier ranks alternatives, from the ids the engine
+    serves; the model tier must never put its own output there, before or after the boundary."""
+    source = _code(ROUTER.read_text(encoding="utf-8"))
+    owners: list[str] = []
+    for match in re.finditer(r"RoutingOutcome\(", source):
+        depth, end = 0, match.end() - 1
+        for end in range(match.end() - 1, len(source)):
+            depth += {"(": 1, ")": -1}.get(source[end], 0)
+            if depth == 0:
+                break
+        if "alternatives:" in source[match.end():end]:
+            owner = re.findall(r"^(?:struct|enum|final class|class)\s+(\w+)", source[: match.start()], re.M)
+            owners.append(owner[-1] if owner else "<top level>")
+    assert owners, "no outcome carries alternatives at all: the wording tier this test holds has moved"
+    assert set(owners) == {"SimilarityRouter"}, f"an outcome built with alternatives outside the wording tier: {owners}"
+    assert not re.search(r"\.alternatives\s*(=|\.append|\+=|\.insert)", source), (
+        "an outcome's alternatives assigned after it is built"
     )
 
 
@@ -147,14 +205,25 @@ def test_the_router_never_produces_anything_but_a_category_id() -> None:
     fields = set(
         re.findall(r"^\s*(?:public\s+)?(?:let|var)\s+(\w+)\s*:[^{\n]*$", block, re.MULTILINE)
     )
-    assert fields == {"categoryID", "tier", "unmeasured", "alternatives"}, (
+    assert fields == {"categoryID", "tier", "unmeasured", "alternatives", "refinements"}, (
         f"RoutingOutcome carries {sorted(fields)}; anything beyond a surface id, how it was chosen, "
-        "whether it is measured and the other surface ids it came close to is a channel for an "
-        "opinion the router may not have"
+        "whether it is measured, the other surface ids it came close to and the declared "
+        "refinements it chose is a channel for an opinion the router may not have"
     )
     assert re.search(r"var alternatives:\s*\[String\]", block), (
         "`alternatives` must stay a list of surface ids; any other type can carry a sentence"
     )
+    # D-168 (M17-W5): `refinements` holds only entries of the declared table. Its type is exactly
+    # `[Refinement]`, and a `Refinement` is constructed nowhere but the table itself, so nothing the
+    # model generates -- only which declared entry it named -- can reach it.
+    assert re.search(r"var refinements:\s*\[Refinement\]\s*=\s*\[\]", block), (
+        "`refinements` must stay a list of declared table entries"
+    )
+    for swift in sorted(CLIENT.rglob("*.swift")):
+        if swift.name != "Refinements.swift":
+            assert not re.search(r"\bRefinement\s*\(", swift.read_text(encoding="utf-8")), (
+                f"{swift.name} constructs a Refinement; only the declared table may (D-168)"
+            )
 
 
 def test_nothing_typed_by_the_reader_reaches_the_engine() -> None:

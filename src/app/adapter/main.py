@@ -1340,6 +1340,10 @@ def categories() -> dict[str, Any]:
                 # D-153 (W-119). What this surface's price leaves out, as a code the client words in
                 # its own language; absent where the price is the whole story.
                 "price_excludes": spec.price_excludes,
+                # M17-W5 (D-168): the board the surface ranks on, by id. The phone's first board
+                # when a question selects this surface; the benchmark's name cannot say which,
+                # since two boards publish SWE-bench Verified (#53).
+                "primary_board": spec.primary_source,
                 # REQ-UNC-002. The age is the engine's own (`recommend.secondary_age_days`) against
                 # the artifact's anchor; `null` when the board is undated or unreadable.
                 "secondary_benchmark": spec.secondary_benchmark,
