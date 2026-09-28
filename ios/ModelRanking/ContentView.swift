@@ -728,6 +728,9 @@ struct ContentView: View {
     /// question still routing is retired with it.
     private func select(_ id: String) {
         choosingSurface = false
+        // Only a surface the engine lists becomes `task` (security pass S1): the sheet lists them,
+        // and the alternatives come from them, so this refuses only what nothing should offer.
+        guard categories.contains(where: { $0.id == id }) else { return }
         routingGate.invalidate()
         routing = nil
         guard id != task else { return }

@@ -34,8 +34,10 @@ final class RefinementProbe: XCTestCase {
             return XCTFail("set PROBE_QUESTIONS and PROBE_OUT")
         }
         let json = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: input)))
-        let questions = (json as? [[String]])?.map { $0[0] }
+        // A malformed set fails the test, never the process (security pass S5).
+        let questions = (json as? [[String]])?.compactMap(\.first)
             ?? (json as? [[String: String]])?.compactMap { $0["q"] } ?? []
+        guard !questions.isEmpty else { return XCTFail("\(input) holds no questions this harness can read") }
         var rows: [[String: String]] = []
         for question in questions {
             let outcome = await ModelRouter().route(question, within: served)

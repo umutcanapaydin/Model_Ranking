@@ -58,9 +58,11 @@ private func mixedEfforts(_ list: CombinedList) -> [BoardEfforts] {
     let listed = Set(list.entries.map(\.model.id))
     return list.boards.compactMap { board in
         guard board.rankingEffort == nil else { return nil }
-        // In the board's own order, so the client orders nothing of its own (Ruling A's tripwire).
-        let efforts = firstSeen(board.standings.filter { listed.contains($0.model) }.map(\.effort))
-            .filter { !$0.isEmpty }
+        // In the board's own order, so the client orders nothing of its own (Ruling A's tripwire),
+        // and a model's first row only, as `combine` counts it (security pass S4).
+        var counted = Set<String>()
+        let rows = board.standings.filter { listed.contains($0.model) && counted.insert($0.model).inserted }
+        let efforts = firstSeen(rows.map(\.effort)).filter { !$0.isEmpty }
         return efforts.count > 1 ? BoardEfforts(board: board.id, efforts: efforts) : nil
     }
 }
