@@ -51,8 +51,10 @@ final class UnmeasurableThroughTheModelTierTests: XCTestCase {
 
         XCTAssertTrue(choices.contains(ModelOutputBoundary.declineSentinel),
                       "the model is still forced to choose a measured surface")
-        XCTAssertEqual(Set(choices).subtracting([ModelOutputBoundary.declineSentinel]), Set(served),
-                       "the choice list drifted from the ids the engine actually serves")
+        // D-169 adds a second way out beside the decline; the rest is exactly the served ids.
+        XCTAssertEqual(
+            Set(choices).subtracting([ModelOutputBoundary.declineSentinel, ModelOutputBoundary.notASearchSentinel]),
+            Set(served), "the choice list drifted from the ids the engine actually serves")
     }
 
     func testTheSentinelIsNotAValidSurfaceId() {

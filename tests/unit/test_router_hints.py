@@ -144,48 +144,57 @@ def test_the_router_validates_against_the_ids_the_engine_serves() -> None:
     )
 
 
+def _builders(field: str) -> list[str]:
+    """The type declaring each `RoutingOutcome(` in the router that names `field:`."""
+    source = _code(ROUTER.read_text(encoding="utf-8"))
+    owners: list[str] = []
+    for match in re.finditer(r"RoutingOutcome\(", source):
+        depth, end = 0, match.end() - 1
+        for end in range(match.end() - 1, len(source)):
+            depth += {"(": 1, ")": -1}.get(source[end], 0)
+            if depth == 0:
+                break
+        if f"{field}:" in source[match.end():end]:
+            owner = re.findall(r"^(?:struct|enum|final class|class)\s+(\w+)", source[: match.start()], re.M)
+            owners.append(owner[-1] if owner else "<top level>")
+    return owners
+
+
+def _assigned_later(field: str) -> bool:
+    source = _code(ROUTER.read_text(encoding="utf-8"))
+    return bool(re.search(rf"\.{field}\s*(=|\.append|\+=|\.insert|\.toggle)", source))
+
+
 def test_only_the_model_output_boundary_builds_an_outcome_with_refinements() -> None:
     """D-168 clause 4: the wording and manual tiers select a surface alone. Held from the source
     because the wording tier answers only where the embedding assets load, so its Swift test asserts
     nothing elsewhere (W5 review M5). Every `RoutingOutcome(` that names `refinements:` must sit in
     `ModelOutputBoundary`, the one place a refinement is checked against the table; nothing may
     assign an outcome's refinements after it is built."""
-    source = _code(ROUTER.read_text(encoding="utf-8"))
-    owners: list[str] = []
-    for match in re.finditer(r"RoutingOutcome\(", source):
-        depth, end = 0, match.end() - 1
-        for end in range(match.end() - 1, len(source)):
-            depth += {"(": 1, ")": -1}.get(source[end], 0)
-            if depth == 0:
-                break
-        if "refinements:" in source[match.end():end]:
-            owner = re.findall(r"^(?:struct|enum|final class|class)\s+(\w+)", source[: match.start()], re.M)
-            owners.append(owner[-1] if owner else "<top level>")
+    owners = _builders("refinements")
     assert owners, "no outcome carries refinements at all: the boundary this test holds has moved"
     assert set(owners) == {"ModelOutputBoundary"}, f"an outcome built with refinements outside the boundary: {owners}"
-    assert not re.search(r"\.refinements\s*(=|\.append|\+=)", source), "an outcome's refinements assigned after it is built"
+    assert not _assigned_later("refinements"), "an outcome's refinements assigned after it is built"
 
 
 def test_only_the_wording_tier_builds_an_outcome_with_alternatives() -> None:
     """Security pass S1 (M17-W5): an alternative is a surface the reader taps, and the tap sends it
     to the engine as `task`. Only the wording tier ranks alternatives, from the ids the engine
     serves; the model tier must never put its own output there, before or after the boundary."""
-    source = _code(ROUTER.read_text(encoding="utf-8"))
-    owners: list[str] = []
-    for match in re.finditer(r"RoutingOutcome\(", source):
-        depth, end = 0, match.end() - 1
-        for end in range(match.end() - 1, len(source)):
-            depth += {"(": 1, ")": -1}.get(source[end], 0)
-            if depth == 0:
-                break
-        if "alternatives:" in source[match.end():end]:
-            owner = re.findall(r"^(?:struct|enum|final class|class)\s+(\w+)", source[: match.start()], re.M)
-            owners.append(owner[-1] if owner else "<top level>")
+    owners = _builders("alternatives")
     assert owners, "no outcome carries alternatives at all: the wording tier this test holds has moved"
     assert set(owners) == {"SimilarityRouter"}, f"an outcome built with alternatives outside the wording tier: {owners}"
-    assert not re.search(r"\.alternatives\s*(=|\.append|\+=|\.insert)", source), (
-        "an outcome's alternatives assigned after it is built"
-    )
+    assert not _assigned_later("alternatives"), "an outcome's alternatives assigned after it is built"
+
+
+def test_only_the_model_output_boundary_says_an_input_is_not_a_search() -> None:
+    """D-169 clause 3 (#66): only the on-device model decides that input is not a model search, and
+    only `ModelOutputBoundary` turns its closed value into that outcome. The wording and manual tiers
+    never do; nothing flips it after the outcome is built."""
+    owners = _builders("notASearch")
+    assert owners, "no outcome says it is not a search: the boundary this test holds has moved"
+    assert set(owners) == {"ModelOutputBoundary"}, f"an outcome built as not-a-search outside the boundary: {owners}"
+    assert not _assigned_later("notASearch"), "an outcome's notASearch assigned after it is built"
 
 
 def test_the_router_never_produces_anything_but_a_category_id() -> None:
@@ -205,10 +214,14 @@ def test_the_router_never_produces_anything_but_a_category_id() -> None:
     fields = set(
         re.findall(r"^\s*(?:public\s+)?(?:let|var)\s+(\w+)\s*:[^{\n]*$", block, re.MULTILINE)
     )
-    assert fields == {"categoryID", "tier", "unmeasured", "alternatives", "refinements"}, (
+    assert fields == {"categoryID", "tier", "unmeasured", "alternatives", "refinements", "notASearch"}, (
         f"RoutingOutcome carries {sorted(fields)}; anything beyond a surface id, how it was chosen, "
-        "whether it is measured, the other surface ids it came close to and the declared "
-        "refinements it chose is a channel for an opinion the router may not have"
+        "whether it is measured, the other surface ids it came close to, the declared refinements it "
+        "chose and whether the input was a model search at all is a channel for an opinion the router "
+        "may not have"
+    )
+    assert re.search(r"var notASearch:\s*Bool\s*=\s*false", block), (
+        "`notASearch` must stay a Bool that defaults to false; any other type can carry a sentence (D-169)"
     )
     assert re.search(r"var alternatives:\s*\[String\]", block), (
         "`alternatives` must stay a list of surface ids; any other type can carry a sentence"

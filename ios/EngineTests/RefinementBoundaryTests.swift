@@ -126,7 +126,8 @@ final class RefinementBoundaryTests: XCTestCase {
                     return try XCTUnwrap(option["enum"] as? [String], "\(field) offers a free value")
                 }
             }
-            XCTAssertEqual(try offered("surface"), served + [ModelOutputBoundary.declineSentinel])
+            XCTAssertEqual(try offered("surface"),
+                           served + [ModelOutputBoundary.declineSentinel, ModelOutputBoundary.notASearchSentinel])
             for kind in RefinementKind.allCases {
                 XCTAssertEqual(try offered(kind.rawValue),
                                Refinements.table.filter { $0.kind == kind }.map(\.value) + ["none"])
