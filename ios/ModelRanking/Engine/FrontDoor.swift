@@ -66,13 +66,19 @@ let echoLimit = 60
 /// match. `nil` for an empty question: there is nothing to echo, and `“” → Coding` would read as a
 /// question the reader never asked.
 public func echoLine(question: String, surfaceTitle: String) -> String? {
+    echoLine(question: question).map { "\($0) → \(surfaceTitle)" }
+}
+
+/// `“what is the capital of France”`: the reader's words alone, for input that is not a model search
+/// (D-169), where no surface was chosen.
+public func echoLine(question: String) -> String? {
     let typed = question
         .components(separatedBy: .newlines)
         .joined(separator: " ")
         .trimmingCharacters(in: .whitespaces)
     guard !typed.isEmpty else { return nil }
     let shown = typed.count > echoLimit ? String(typed.prefix(echoLimit)) + "…" : typed
-    return "“\(shown)” → \(surfaceTitle)"
+    return "“\(shown)”"
 }
 
 /// One surface the reader can correct to.
@@ -114,6 +120,15 @@ func surfaceChoices(_ categories: [Category], selected: String, _ language: Lang
 /// words, the state and the action disagreed (second-opinion P1). It is now an unmeasured fallback
 /// and says so, and it names the control that corrects it.
 func routingNotice(_ outcome: RoutingOutcome, _ language: Language) -> String {
+    // D-169: input that is not a model search gets guidance with an example, and no ranking below it.
+    // The owner's wording, 2026-09-28, in the app's informal register.
+    if outcome.notASearch {
+        return language == .turkish
+            ? "Bu bir model araması gibi görünmüyor. Modeli ne için kullanacağını anlat; örneğin: "
+                + "“Fransızca bir e-postayı çevirmek istiyorum.”"
+            : "This does not look like a model search. Tell me what you will use the model for; for "
+                + "example: “I want to translate an email into French.”"
+    }
     switch (outcome.tier, outcome.unmeasured, language) {
     case (.manual, _, .english):
         return "We could not match this question to anything we measure. Below is the general "
@@ -330,5 +345,22 @@ public struct GapRegisterStore {
 /// router failed; those are the router's misses, not questions the catalogue cannot answer, and
 /// counting them would tell the owner to build surfaces for failures.
 func recordsGap(_ outcome: RoutingOutcome) -> Bool {
-    outcome.unmeasured && outcome.tier != .manual
+    // D-169 clause 5: input that is not a model search is no unmet need, and is not kept.
+    outcome.unmeasured && outcome.tier != .manual && !outcome.notASearch
+}
+
+// MARK: - D-169: input that is not a model search
+
+/// Whether the screen shows an answer under the echo. Not for input the on-device model read as no
+/// model search: a ranking there would answer a question nobody asked, and the previous question's
+/// ranking would read as the answer to this one.
+func showsAnswer(_ outcome: RoutingOutcome?) -> Bool {
+    !(outcome?.notASearch ?? false)
+}
+
+/// The surface a routed question makes the screen load, or nil when nothing is to be requested:
+/// the surface already shown, or input that is not a model search (D-169 clause 4).
+func surfaceToLoad(_ outcome: RoutingOutcome, current: String) -> String? {
+    guard !outcome.notASearch, outcome.categoryID != current else { return nil }
+    return outcome.categoryID
 }

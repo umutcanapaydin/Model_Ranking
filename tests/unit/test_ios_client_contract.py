@@ -722,8 +722,11 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     ask = re.search(r"private func ask\(\) async \{(.*?)\n    \}", home, re.S)
     assert ask, "the question path is gone"
     body = ask.group(1)
+    # D-169 (#66): the condition is `surfaceToLoad`, which returns the routed surface when it differs
+    # from the one shown and nil for input that is not a model search (NotASearchScreenTests).
     assert re.search(
-        r"if outcome\.categoryID != task \{\s*task = outcome\.categoryID\s*await load\(\)", body
+        r"if surfaceToLoad\(outcome, current: task\) != nil \{\s*task = outcome\.categoryID\s*await load\(\)",
+        body,
     ), "a routed question no longer loads the surface it was routed to"
     assert body.index("routing = outcome") > body.rindex(
         "await load()"

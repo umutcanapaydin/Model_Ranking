@@ -140,6 +140,9 @@ struct ContentView: View {
                 .padding(.top, 8)
                 questionCard
 
+                // D-169 (#66): input the on-device model read as no model search gets the note above and
+                // no answer; the previous question's ranking goes too, so it cannot read as this one's.
+                if showsAnswer(routing) {
                 // D-168 clause 7 (M17-W5): several boards chosen, the product's combined list is the
                 // answer; one board, today's cards below.
                 let plan = answerPlan(
@@ -235,6 +238,7 @@ struct ContentView: View {
                             .foregroundStyle(.secondary)
                         }
                     }
+                }
                 }
                 }
             }
@@ -397,7 +401,9 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Group {
-                    if let outcome = routing,
+                    if let outcome = routing, outcome.notASearch, let echo = echoLine(question: asked) {
+                        Text(echo)
+                    } else if let outcome = routing,
                        let echo = echoLine(question: asked, surfaceTitle: surfaceTitle(outcome.categoryID))
                     {
                         Text(echo)
@@ -419,9 +425,16 @@ struct ContentView: View {
             if let outcome = routing {
                 // REQ-ASK-003: for an unmeasured question this is the sentence ABOVE the ranking
                 // saying what that ranking cannot tell the reader.
+                if outcome.notASearch {
+                    // D-169: the guidance is the whole answer for input that is not a model search,
+                    // so it reads as body text rather than as a footnote under a ranking.
+                    Text(routingNotice(outcome, language))
+                        .font(.subheadline)
+                } else {
                 Text(routingNotice(outcome, language))
                     .font(.footnote)
                     .foregroundStyle(outcome.unmeasured ? .orange : .secondary)
+                }
                 if !outcome.alternatives.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
@@ -707,7 +720,8 @@ struct ContentView: View {
         // The engine is asked for a SURFACE and nothing else. What the reader typed never reaches
         // it, and the only thing the router contributes to the request is which of nine ids it is
         // (REQ-RTR-004 — the scoring path is untouched, D-104).
-        if outcome.categoryID != task {
+        // D-169: input that is not a model search loads nothing; the note replaces the answer.
+        if surfaceToLoad(outcome, current: task) != nil {
             task = outcome.categoryID
             await load()
             guard routingGate.isCurrent(ticket) else { return }
