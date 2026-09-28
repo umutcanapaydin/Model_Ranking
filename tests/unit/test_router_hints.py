@@ -144,6 +144,28 @@ def test_the_router_validates_against_the_ids_the_engine_serves() -> None:
     )
 
 
+def test_only_the_model_output_boundary_builds_an_outcome_with_refinements() -> None:
+    """D-168 clause 4: the wording and manual tiers select a surface alone. Held from the source
+    because the wording tier answers only where the embedding assets load, so its Swift test asserts
+    nothing elsewhere (W5 review M5). Every `RoutingOutcome(` that names `refinements:` must sit in
+    `ModelOutputBoundary`, the one place a refinement is checked against the table; nothing may
+    assign an outcome's refinements after it is built."""
+    source = _code(ROUTER.read_text(encoding="utf-8"))
+    owners: list[str] = []
+    for match in re.finditer(r"RoutingOutcome\(", source):
+        depth, end = 0, match.end() - 1
+        for end in range(match.end() - 1, len(source)):
+            depth += {"(": 1, ")": -1}.get(source[end], 0)
+            if depth == 0:
+                break
+        if "refinements:" in source[match.end():end]:
+            owner = re.findall(r"^(?:struct|enum|final class|class)\s+(\w+)", source[: match.start()], re.M)
+            owners.append(owner[-1] if owner else "<top level>")
+    assert owners, "no outcome carries refinements at all: the boundary this test holds has moved"
+    assert set(owners) == {"ModelOutputBoundary"}, f"an outcome built with refinements outside the boundary: {owners}"
+    assert not re.search(r"\.refinements\s*(=|\.append|\+=)", source), "an outcome's refinements assigned after it is built"
+
+
 def test_the_router_never_produces_anything_but_a_category_id() -> None:
     """D-126's absolute boundary, asserted on the TYPE the router can return.
 

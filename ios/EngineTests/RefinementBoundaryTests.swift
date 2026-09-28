@@ -81,10 +81,25 @@ final class RefinementBoundaryTests: XCTestCase {
     }
 
     func testTheWordingTierNeverRefines() async {
+        // Asserts only where the embedding assets load; elsewhere the tier answers nothing (review
+        // M5). `test_only_the_model_output_boundary_builds_an_outcome_with_refinements` holds the
+        // rule on every machine, from the source.
         let outcome = await SimilarityRouter().route(
             "I want to write a contract in French for a legal case", within: served)
 
         XCTAssertEqual(outcome?.refinements ?? [], [])
+    }
+
+    func testTheManualTierNeverRefines() async {
+        // Review M5: the last tier, when neither the model nor the wording answers.
+        struct Silent: QuestionRouter {
+            func route(_ question: String, within known: [String]) async -> RoutingOutcome? { nil }
+        }
+        let outcome = await TieredRouter(model: nil, similarity: Silent())
+            .route("I want to write a contract in French for a legal case", within: served)
+
+        XCTAssertEqual(outcome.tier, .manual)
+        XCTAssertEqual(outcome.refinements, [])
     }
 
     func testTheOutcomeNamesTheBoardsItSelects() {

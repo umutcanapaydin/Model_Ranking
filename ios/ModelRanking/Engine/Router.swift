@@ -441,8 +441,8 @@ struct ModelRouter: QuestionRouter {
             recommend a model, never say anything is good or best, and never write prose. \
             Choose the surface whose description best matches the question.
 
-            If NOTHING here measures what was asked — image editing, cooking, travel, medical or \
-            legal questions, anything outside these descriptions — answer exactly \
+            If NOTHING here measures what was asked — image editing, cooking, travel, anything \
+            outside these descriptions — answer exactly \
             `\(ModelOutputBoundary.declineSentinel)`. Answering with a surface that does not \
             measure the question tells the reader we measured something we did not.
 
