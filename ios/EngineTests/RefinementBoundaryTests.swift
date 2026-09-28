@@ -90,6 +90,18 @@ final class RefinementBoundaryTests: XCTestCase {
         XCTAssertEqual(outcome?.refinements ?? [], [])
     }
 
+    func testTheModelsSchemaBuildsForTheServedSurfaces() throws {
+        // Tester R1: `route` falls back to the next tier when the schema cannot be built, with no
+        // other sign. The schema needs the framework, not an enabled model, so this runs wherever
+        // FoundationModels exists.
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, macOS 26.0, *) {
+            XCTAssertNoThrow(try ModelRouter.schema(for: served))
+            XCTAssertNoThrow(try ModelRouter.schema(for: ["assistant"]))
+        }
+        #endif
+    }
+
     func testTheManualTierNeverRefines() async {
         // Review M5: the last tier, when neither the model nor the wording answers.
         struct Silent: QuestionRouter {

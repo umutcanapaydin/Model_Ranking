@@ -473,4 +473,19 @@ final class CombinedListLanguageTests: XCTestCase {
                        "Uygulamanın kendi listesi: 2 panonun hepsinde yer alan 34 model, her panodaki sıralarına "
                            + "göre dizildi. Bu sırayı hiçbir liste yayımlamıyor.")
     }
+
+    func testTheDetailsSentencesSayTheirFactsInBothLanguages() {
+        // Tester M2: the per-board efforts, a model's place on a board, and the empty list.
+        XCTAssertEqual(UIText.boardEfforts(["high", "unspecified"], .english),
+                       "Effort levels of the models in this list: high, unspecified")
+        XCTAssertEqual(UIText.boardEfforts(["high", "unspecified"], .turkish),
+                       "Bu listedeki modellerin çaba düzeyleri: high, unspecified")
+        XCTAssertEqual(UIText.placeOn("Arena text · French", place: 3, .english), "#3 on Arena text · French")
+        XCTAssertEqual(UIText.placeOn("Arena text · Fransızca", place: 3, .turkish),
+                       "Arena text · Fransızca listesinde #3")
+        XCTAssertEqual(UIText.combinedEmpty(.english),
+                       "No model is ranked on every one of these boards. Remove a board above to see a list.")
+        XCTAssertEqual(UIText.combinedEmpty(.turkish),
+                       "Bu panoların hepsinde yer alan bir model yok. Liste için yukarıdan bir panoyu çıkar.")
+    }
 }
