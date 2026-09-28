@@ -3242,3 +3242,60 @@ owner rulings of the same day, asked in Turkish.
    question leaves the device". Since D-126 the surface the question routes to is sent as `task` of
    `/v1/recommendations`: the same request a reader's own tap on that surface makes. The question's
    text, its refinements and the reader's removals never leave the device.
+
+## D-169 — A question that is not a model search gets a guiding note, not a ranking
+
+**Status:** accepted -- **ruled by the owner 2026-09-28** (asked in Turkish, with explanations, seven
+questions) · **Date:** 2026-09-28 · **Amends** REQ-ASK-003 and REQ-GAP-001 for this class of input,
+and D-126's closed set and `RoutingOutcome` · from #66.
+
+**Context.** The on-device model now reads every question behind the text box (D-126, D-168). Some
+input is not a search for a model at all:
+- an attempt to instruct the model;
+- a knowledge question;
+- chit-chat or nonsense;
+- a request that the app do the task itself.
+
+Today such input is routed to a surface, often `assistant`, and the reader gets a ranking that
+answers a question nobody asked. REQ-ASK-003 answers an UNMEASURED need with the chat ranking and a
+sentence saying what it cannot tell. That rule is right for a real need this product does not
+measure, such as editing a photo; it is not right for input that states no need. The schema already
+makes free text inexpressible (D-126), so this ADR is about what the screen shows, not about text the
+model could emit.
+
+**Decision.**
+1. **Four classes get the note:** attempts to instruct the model, knowledge questions, chit-chat or
+   nonsense, and requests that the app do the task itself. A task described as a need, even one with
+   its content pasted in, is still a model search.
+2. **A second closed value.** The surface field's closed set gains
+   `ModelOutputBoundary.notASearchSentinel` beside the decline sentinel. Only `ModelOutputBoundary`
+   maps it, to an outcome with `notASearch == true`:
+   - `categoryID` is the unmeasured fallback;
+   - `unmeasured` is true;
+   - it carries no refinement and no alternative.
+3. **Only the on-device model decides.** Without Apple Intelligence the wording tier behaves as
+   before: its similarity scores for nonsense and for correct routes overlap
+   (`docs/reviews/m16-router-floor-measurement.md`), so no threshold separates them.
+4. **The screen shows the note and "Change" only.** There is no ranking, and the previous question's
+   ranking goes too. The note is example-based guidance in the app's register: "this does not look
+   like a model search; say what you will use the model for", with one example. No request is
+   sent.
+5. **Not recorded** in the on-device register of asked-but-unmeasured questions (REQ-GAP-001). These
+   inputs are not unmet model needs, and an injection attempt's text is not kept.
+6. **Accepted when measured.** On the on-device model, twice, on a set written independently of the
+   instructions (D-147 clause 5):
+   - at most 2 genuine model searches per run get the note;
+   - at least 80 % of not-a-search inputs get it.
+
+   Three failed attempts stop the work, and it goes back to the owner.
+
+**The alternative not taken.** A separate "request kind" field beside the surface. It lets the model
+answer a surface and "not a search" at once, a contradiction something would have to resolve. One
+exclusive value in one field cannot contradict itself, as the decline sentinel already showed.
+
+**The cost.** On a device without Apple Intelligence, off-topic input still gets a ranking with its
+notice. A genuine search the model misreads gets no ranking at all; "Change" is always on screen to
+correct it.
+
+**Revisit when:** a probe shows false positives above the bound, or devices without Apple
+Intelligence become the common case.

@@ -98,7 +98,7 @@ run covers it.
 - The encoded-schema test holds the surface field's exact choices, the new sentinel included.
 - The D-126 field-set gate names the new field.
 
-**A new ADR** is written before the code. It records the rulings and amends:
+**D-169** (written in P0, before the code). It records the rulings and amends:
 - REQ-ASK-003: this class gets a note, not a ranking;
 - REQ-GAP-001: not recorded;
 - D-126: one more outcome field and one more closed value.
@@ -115,7 +115,7 @@ precedent (D-126).
 
 ## Phases
 
-- **P0 — the ADR and this plan.** The new ADR and the prd row. No code.
+- **P0 — the ADR and this plan.** D-169 and the prd row (REQ-ASK-005). No code.
 - **P1 — the boundary.** Red first:
   - the new sentinel maps to a not-a-search outcome with no refinement and no alternative;
   - the wording and manual tiers never produce one (source pin);
