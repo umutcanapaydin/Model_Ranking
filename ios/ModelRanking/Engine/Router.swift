@@ -65,7 +65,9 @@ enum CategoryHints {
     /// because several hints described the same thing in different words; this set scores 7 of 8
     /// against the same probe. `docs/reviews/m10-router-calibration.md` records the runs.
     static let byID: [String: String] = [
-        "coding": "write code, fix a bug, refactor a function, work in a git repository, programming",
+        "coding": "anything about code: an error message, a failing test, a bug, a library or a framework "
+            + "such as React, Django or pandas, a programming language, SQL, a script, an API; writing, "
+            + "fixing or reviewing code",
         "agentic-coding": "an autonomous coding agent that plans and edits many files by itself, "
             + "running tools and tests",
         "assistant": "chat, write an email or a message, explain something, give advice, answer a "
@@ -73,7 +75,8 @@ enum CategoryHints {
         "everyday": "broad everyday usefulness across many different ordinary tasks at once",
         "expert": "graduate level science: physics, chemistry, biology, a specialist technical question",
         "mathematics": "a maths problem: algebra, geometry, a proof, a competition question, calculation",
-        "computer-use": "control a computer or a browser: click buttons, fill in forms, navigate an interface",
+        "computer-use": "operate a computer or a browser for me: click buttons, fill in forms, navigate "
+            + "an app's or a website's screens",
         "abstract": "abstract reasoning and puzzles: patterns, sequences, logic with no worked example",
         "web-dev": "build a website or a web page: front end, HTML, CSS, a landing page, a web app",
         // M14-W2. Written for the question a reader asks, not for the board's name.
@@ -450,6 +453,9 @@ struct ModelRouter: QuestionRouter {
             outside these descriptions — answer exactly \
             `\(ModelOutputBoundary.declineSentinel)`. Answering with a surface that does not \
             measure the question tells the reader we measured something we did not.
+
+            A question about code, such as an error, a failing test, a library, a language or a \
+            script, is coding, even when it mentions a website, a file, a log or a PDF.
 
             Surfaces:
             \(known.compactMap { id in CategoryHints.byID[id].map { "- \(id): \($0)" } }
