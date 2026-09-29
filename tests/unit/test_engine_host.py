@@ -1,0 +1,68 @@
+"""M18-W1 (#87, D-171) -- the engine checks the Host, and serves beyond loopback only with a list.
+
+The owner's phone reaches the engine on his home network, by opt-in. Two things keep that narrow:
+a request whose Host is not on the service's list is refused (a browser page cannot rebind a name to
+the engine, the M17 closure security seat's INFO I-4), and a bind beyond loopback with no list does
+not start. Without a list, as in tests and by-hand development, every Host is served as before.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.adapter import main as adapter
+
+from .test_api_v1 import _seeded_db
+
+HOSTS = "MODEL_RANKING_ALLOWED_HOSTS"
+BIND = "MODEL_RANKING_BIND"
+LIST = "127.0.0.1,localhost,umut-macbook-pro-2.local,192.168.0.26"
+
+
+@pytest.fixture()
+def db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    path = tmp_path / "pipeline.db"
+    _seeded_db(path)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(path))
+    monkeypatch.delenv(HOSTS, raising=False)
+    monkeypatch.delenv(BIND, raising=False)
+    return path
+
+
+@pytest.mark.parametrize("base", ["http://127.0.0.1:8080", "http://localhost:8080",
+                                  "http://Umut-MacBook-Pro-2.local:8080", "http://192.168.0.26:8080"])
+def test_a_host_on_the_list_is_served(db: Path, monkeypatch: pytest.MonkeyPatch, base: str) -> None:
+    monkeypatch.setenv(HOSTS, LIST)
+    assert TestClient(adapter.app, base_url=base).get("/v1/categories").status_code == 200
+
+
+@pytest.mark.parametrize("base", ["http://evil.example", "http://127.0.0.1.evil.example:8080",
+                                  "http://192.168.0.27:8080", "http://umut-macbook-pro-2.local.evil.example"])
+def test_a_host_not_on_the_list_is_refused(db: Path, monkeypatch: pytest.MonkeyPatch, base: str) -> None:
+    monkeypatch.setenv(HOSTS, LIST)
+    response = TestClient(adapter.app, base_url=base).get("/v1/categories")
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "unknown_host"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+
+
+def test_without_a_list_every_host_is_served(db: Path) -> None:
+    """Tests and by-hand development set no list; nothing changes for them."""
+    assert TestClient(adapter.app, base_url="http://evil.example").get("/v1/categories").status_code == 200
+
+
+def test_a_bind_beyond_loopback_needs_a_list_of_hosts(db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def complains() -> bool:
+        return any(HOSTS in problem for problem in adapter.validate_startup_config("test"))
+
+    monkeypatch.setenv(BIND, "0.0.0.0")
+    assert complains(), "a bind beyond loopback with no list must refuse to start (the service's preflight)"
+    monkeypatch.setenv(HOSTS, LIST)
+    assert not complains()
+    monkeypatch.delenv(HOSTS)
+    for loopback in ("127.0.0.1", "localhost", "::1"):
+        monkeypatch.setenv(BIND, loopback)
+        assert not complains(), loopback

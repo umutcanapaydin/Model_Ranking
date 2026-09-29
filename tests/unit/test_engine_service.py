@@ -341,3 +341,54 @@ def test_the_app_script_addresses_the_simulator_it_boots_by_name() -> None:
     assert all(target == '"$DEVICE"' for target in acting), (
         f"an app command targets something other than the booted-by-name device: {acting}"
     )
+
+
+# --- M18-W1 (#87, D-171; #86): loopback by default, the home network by opt-in, tested by running --
+
+
+def test_the_wrapper_binds_loopback_and_names_its_hosts_by_default() -> None:
+    wrapper = _installer("--print-wrapper").stdout
+    assert 'export MODEL_RANKING_BIND="127.0.0.1"' in wrapper
+    assert 'export MODEL_RANKING_ALLOWED_HOSTS="127.0.0.1,localhost"' in wrapper
+
+
+def test_the_home_network_is_opt_in_and_names_the_macs_own_names() -> None:
+    done = subprocess.run(["/bin/bash", str(INSTALLER), "--lan", "--print-wrapper"], capture_output=True,
+                          text=True, timeout=60, env={**_CLEAN_GIT_ENV, "HOME": HOME,
+                                                      "ENGINE_LAN_NAME": "probe-mac", "ENGINE_LAN_IP": "192.168.9.9"})
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert 'export MODEL_RANKING_BIND="0.0.0.0"' in done.stdout
+    assert 'export MODEL_RANKING_ALLOWED_HOSTS="127.0.0.1,localhost,probe-mac.local,192.168.9.9"' in done.stdout
+
+
+def test_the_launcher_binds_exactly_one_host_and_reads_it_from_the_bind_variable() -> None:
+    """#86: appending `--host 0.0.0.0` passed the whole suite; uvicorn takes the last one."""
+    code = "\n".join(line.split("#", 1)[0] for line in LAUNCHER.read_text(encoding="utf-8").splitlines())
+    starts = [line for line in code.splitlines() if "uvicorn" in line]
+    assert len(starts) == 1, starts
+    assert starts[0].count("--host") == 1, starts[0]
+    assert '--host "${MODEL_RANKING_BIND:-127.0.0.1}"' in starts[0]
+
+
+def test_the_launchers_preflight_refuses_a_bind_beyond_loopback_without_hosts(tmp_path: Path) -> None:
+    """#86: disabling the preflight passed the whole suite. Run for real, from this checkout."""
+    from .test_api_v1 import _seeded_db
+
+    db = tmp_path / "advisor.db"
+    _seeded_db(db)
+    done = _launch(REPO, MODEL_RANKING_DB=str(db), MODEL_RANKING_BIND="0.0.0.0")
+    assert done.returncode == 1, done.stdout + done.stderr
+    assert "REFUSED" in done.stdout and "MODEL_RANKING_ALLOWED_HOSTS" in done.stdout
+    assert "starting on" not in done.stdout
+
+
+def test_the_installed_wrapper_is_the_owners_alone(tmp_path: Path) -> None:
+    """#86: a `chmod 777` on the wrapper passed the whole suite."""
+    import stat
+
+    repo = _scratch_repo(tmp_path)
+    done = _install(tmp_path, repo, f'{{"status":"ok","build":"release-{_sha(repo)}"}}')
+    assert done.returncode == 0, done.stdout + done.stderr
+    wrapper = tmp_path / "home" / "Library" / "Application Support" / "model-ranking" / "engine_service.sh"
+    assert stat.S_IMODE(wrapper.stat().st_mode) == 0o700
+
