@@ -527,3 +527,21 @@ final class BoardsRequestTests: XCTestCase {
         }
     }
 }
+
+/// M18-W1 (#87, D-171): the engine the app talks to is set per build, and loopback when it is not.
+final class EngineAddressTests: XCTestCase {
+    func testABuildsEngineAddressIsUsedWhenItIsAnHttpUrlWithAHost() {
+        XCTAssertEqual(EngineClient.engineURL(from: "http://Umut-MacBook-Pro-2.local:8080"),
+                       URL(string: "http://Umut-MacBook-Pro-2.local:8080"))
+        XCTAssertEqual(EngineClient.engineURL(from: "https://engine.example"), URL(string: "https://engine.example"))
+        XCTAssertEqual(EngineClient.engineURL(from: "http://192.168.0.26:8080"), URL(string: "http://192.168.0.26:8080"))
+    }
+
+    func testAnythingElseFallsBackToLoopback() {
+        let loopback = URL(string: "http://127.0.0.1:8080")
+        for raw: String? in [nil, "", "not a url", "ftp://engine.example", "file:///etc/passwd", "http://",
+                             "$(ENGINE_URL)", "javascript:alert(1)"] {
+            XCTAssertEqual(EngineClient.engineURL(from: raw), loopback, raw ?? "nil")
+        }
+    }
+}
