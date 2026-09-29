@@ -3340,3 +3340,36 @@ decision describing a smaller exposure than the code made; these notes correct i
    check the name if the phone stops reaching the engine.
 
 REQ-DEV-001 (`docs/prd.md`) states the criterion this ADR serves.
+
+
+## D-172 — The security review runs once per milestone, at its closure; a wave closes on its Code-Reviewer and Tester
+
+**Status:** accepted -- the owner's ruling of 2026-09-29: "a security review at the end of the
+milestone is enough now; at a wave's close, testing is enough" (owner, translated from Turkish) ·
+**Date:** 2026-09-29 ·
+**Amends** D-161 (its v6.6 note on review depth) and `docs/plans/m18-plan.md` · from #84.
+
+**Context.** Three texts disagreed on when a wave gets a security pass (#84): `AGENTS.md` §4 said
+both "never per wave" and "a HIGH wave also gets a security pass on its slice", and D-161's note
+retired the per-milestone seat that M17 then ran anyway. M17's two HIGH-wave passes found MINORs
+only, after the wave's Code-Reviewer and Tester had run; the milestone's closure seat found the
+cross-wave findings (MINOR-1 to MINOR-5).
+
+**Decision.**
+1. **No security pass per wave**, at any risk tier. `/close-wave` step 5 and checklist row 4 are
+   N/A in this project, citing this ADR. The risk tier still sets the Tester's fault injection.
+2. **A wave closes on its Code-Reviewer, then its Tester**, two separate independent subagents, as
+   D-161 has it.
+3. **One security seat per milestone, at its closure**: a fresh-eyes subagent from
+   `.claude/agents/Security-Reviewer.md` on the milestone's whole diff, before the closure pull
+   request opens. Each finding is fixed there, red first, or filed.
+4. **The Stage 5.1 release review is unchanged**: once, before anything deploys beyond the owner's
+   Mac.
+
+**The cost.** A security defect in a wave's slice can sit on `main` until the milestone closes. It
+reaches only the owner's Mac meanwhile, since nothing deploys elsewhere (D-170), with one exception:
+M18-W1's `--lan`, which the owner turns on. W1 had no pass on its slice; its Code-Reviewer read the
+network surface (B1, M1) and the closure seat reads it again.
+
+**Revisit when:** a wave's defect that a slice pass would have caught reaches the owner, or anything
+deploys beyond the owner's Mac.

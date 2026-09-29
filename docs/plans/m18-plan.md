@@ -196,3 +196,8 @@ budget.
   diet.
 - The closure report, if the Quality Gate is kept on.
 - The Stage 5.1 release security review only if the owner calls a release.
+
+**Amendment (2026-09-29, the owner's ruling, D-172).** No wave gets a security pass on its slice,
+whatever its risk tier; §0's "each HIGH wave has a security pass" and §3's "HIGH waves" no longer
+add one. A wave closes on its Code-Reviewer and its Tester. The closure adds one security seat on the
+milestone's whole diff, before the closure pull request opens.
