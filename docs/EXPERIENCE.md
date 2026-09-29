@@ -757,3 +757,44 @@ Engineering shapes worth keeping:
 
 **Control bypass:** `/pre-merge` did not run before two PRs were merged (#3, #6). #6's review came
 back BLOCKING after the merge and was fixed in #8. Nothing wrong was served.
+
+## M17 closure — 2026-09-29 — a list nobody publishes has to say so, and the model that reads the question is the weak link
+
+M16 asked what a reader must see for a list no leaderboard publishes to be honest, and what would
+tell us a combination is wrong. M17 built the answer.
+- **What the reader sees.** The phone combines the boards a question selects, by position only
+  (D-167). One sentence says the list is the app's own. The detail names every board with its
+  labelled date, attribution and effort mix, states how many models the boards share, and shows each
+  model's place on each board. Tied models share a place.
+- **What would tell us it is wrong.** An independent implementation, not a fixture:
+  `CombinePropertyTests` checks `combine` against a grouped-rank reference on 1,200 generated and
+  300 metamorphic cases (#61).
+- **What no test can say** is whether a combined list is good. There is no published combination to
+  compare against.
+
+Engineering shapes worth keeping:
+
+1. **A property test against an independent oracle comes first** for a rule whose mistakes hide
+   behind the same output. W4 spent three BLOCKING Tester rounds on a combination that was right,
+   because the proof arrived last.
+2. **Measure the baseline before setting the bar.** #66's acceptance numbers were set before anyone
+   knew what the on-device model could tell apart. Five variants later it could not. #73's bar
+   came after a baseline and fell short by a known distance. Both stayed unmerged.
+3. **A text pin must read code, not comments; better, read the value.** The surface-schema pin had
+   matched a doc comment since before W5. The encoded schema is now asserted field by field.
+4. **Drive the real screen before closing a UI wave.** A chip that could not be restored, a link that
+   took no tap, and a simulator the install script mistook were each found by using the app.
+   None was found by a gate.
+5. **Validate where every client meets.** Two sibling parsers kept upstream text as a date after
+   their neighbours had been fixed one by one. The rule now lives in the one store step.
+
+**What was accepted rather than solved:**
+- the on-device model's reading of a question (#66, #73, M18);
+- the owner's earlier UI findings (#63);
+- W-123, W-125, W-126, W-129, W-130 and W-131 (M18);
+- nothing deployed, tenth milestone.
+
+**Control bypass:**
+- W1 was merged while its review was pending, and its BLOCKING finding was fixed in #12.
+- `strict` branch protection was turned off at the owner's request.
+- W2's three-attempts stop was waived once.

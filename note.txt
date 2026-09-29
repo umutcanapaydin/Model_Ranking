@@ -1,33 +1,31 @@
 Project: model_ranking
-RESUME HERE (2026-09-28, M17-W5 closed agent-side): the project runs on DevFlow v6.6 (D-161). Run `/start-session` first.
-  - Merged since W4 closed: M17-W4 (#62), the fix PRs #46, #47, #49, and #65 (the combination with
-    an independent ordering proof, for #61). Branch protection no longer requires up-to-date
-    branches (owner request).
-  - M17-W5 (#64) is CLOSED agent-side: draft PR on `wave/m17-w5`. A question selects a surface plus
-    declared refinements (a language or a domain, Refinements.swift); with more than one board, the
-    phone shows its own combined list (AnswerPlan.swift, Combine.swift) with shared places, D-112's
-    effort notice and a detail. D-168 and its notes are the ADR (eleven owner rulings). Close record:
-    docs/plans/m17-wave-5-close.md. Probe: docs/research/m17-w5-refinement-probe-2026-09-28.md.
-  - OWNER after the W5 PR merges: rerun scripts/install_engine_service.sh (/v1/categories gains
-    primary_board), then verify #61 and the combined list on a built app.
-  - Next, owner-ruled for after W5 and before M17 closes: #66 (a question that is not a model search
-    gets a guiding note), #73 (route coding questions better). Then M17's closure.
-  - Filed by W5 and triaged: #66-#74. The UI findings from before W5 wait in #63.
-  - Open, owned: W-123 (M18), W-125, W-126, W-129 (kept and recorded), W-130, W-131.
+RESUME HERE (2026-09-29, M17 closed agent-side): the project runs on DevFlow v6.6 (D-161). Run `/start-session` first.
+  - FROM 2026-09-29 the owner's standing instruction: proceed on your own recommendations, do not
+    ask him; get the app in his hands first. Talk to him in Turkish.
+  - M17 is merged through W5 (#75, 3f2e91d) and deployed to the engine service (release-3f2e91d,
+    D-170). The app runs on the iPhone 17 Pro simulator (`./ios/app.sh up`).
+  - M17 closure: draft PR on `enhancement/m17-closure`. It carries the security fixes (dates and
+    finite scores where every client stores; every reader read-only), D-170, the record fixes, the
+    closure report `docs/closure-report-m17.md`, EXPERIENCE, the roadmap snapshot and the M18 plan.
+  - #66 (not a model search) and #73 (coding routing) were measured and fell short; the owner moved
+    both to M18. Their unmerged branches hold the records: `enhancement/issue-66-not-a-model-search`
+    (it holds D-169) and `fix/issue-73-coding-routing`.
+  - #61 waits for the owner to verify on a built app (then qa:ready).
+  - Next: M18 (`docs/plans/m18-plan.md`), after the owner merges the closure PR.
+  - Open, owned by M18: W-123, W-125, W-126, W-129, W-130, W-131, and the issues the plan lists.
 
-State: 2026-09-28 -- main at c02fe0d (#65 merged); `make check-fast` PASS on the owner's Mac,
-6/6 legs in about 60 s. `make check-fast` is the working gate; `make check` the merge gate.
+State: 2026-09-29 -- main at 3f2e91d (#75 merged); `make gate` PASS on the closure branch
+(pytest 1531/23 skipped, Swift 354). `make check-fast` is the working gate; `make check` the merge gate.
 
 READ IN THIS ORDER
   1. this file
-  2. docs/closure-report-m16.md               -- what M16 shipped, what needs you
-  3. docs/plans/m17-plan.md                   -- M17: lists nobody publishes (W1 done, W2 next)
-  4. docs/handovers/handover_project-2026-09-21.md -- the whole project, for someone who knows nothing
-  5. docs/warnings.ledger.md W-123..W-129     -- everything open, newest first
+  2. docs/closure-report-m17.md              -- what M17 shipped, what needs you; then docs/plans/m18-plan.md
+  3. docs/handovers/handover_project-2026-09-21.md -- the whole project, for someone who knows nothing
+  4. docs/warnings.ledger.md W-123..W-133     -- everything open, newest first
 
-M16 IN ONE LINE: the engine keeps itself current -- nightly refresh (D-151, D-154), every board
-fetched by the refresh (D-158), a failed source carried 30 days (D-156), floors on one rule (D-148),
-new models registered from the data under "the list wins" (D-157).
+M17 IN ONE LINE: lists nobody publishes -- every board's standings to the phone as positions (D-167),
+the question read on the device into a surface plus a language or a domain (D-168), and the
+phone's own combined list with a detail that says so; the engine runs as a service (D-170).
 
 THE THING A NEW AGENT MUST NOT UNDO
   - Uncertainty.swift is the ONE file allowed arithmetic on a served score (D-138).

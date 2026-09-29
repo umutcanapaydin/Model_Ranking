@@ -1,11 +1,20 @@
 ---
 record_type: plan
 id: m17-plan
-status: draft
+status: ratified
 process_version: v6.0
 date: 2026-09-23
 ---
 # M17 Plan — lists nobody publishes
+
+**Closed 2026-09-29** (`docs/closure-report-m17.md`). What shipped against this plan is in the
+report's §1; the M17 milestone review (M15) found it unreconciled, so the differences are named
+there, not edited here:
+- W5's intent schema became "surface plus a language or a domain" (D-168).
+- The combination returned as #65, after W4's three-attempts stop.
+- The per-milestone security seat and retrospective listed in W5 were retired by the D-161
+  amendment. The seat ran anyway; the retrospective's content is in `docs/EXPERIENCE.md`.
+- Product code came to about +3,200/−330 against the ~2k-line cap, and W3 was kept.
 
 **One sentence: M17 widens what the engine measures and lets a question, read on the device, reach
 a combination of boards, so the product can answer with a list that no single leaderboard
