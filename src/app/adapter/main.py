@@ -565,6 +565,19 @@ def _host_name(header: str) -> str:
     return host.rsplit(":", 1)[0] if host.count(":") == 1 else host
 
 
+def _arrived_off_loopback(server: Any) -> bool:
+    """Whether a request came in on a network address rather than loopback: uvicorn reports the
+    local address each connection arrived on, whatever the bind. A name, as tests use, is not one."""
+    import ipaddress
+
+    if not server:
+        return False
+    try:
+        return not ipaddress.ip_address(str(server[0])).is_loopback
+    except ValueError:
+        return False
+
+
 def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
     """Check the security-relevant configuration once, at import, and FAIL CLOSED unless told not to.
 
@@ -736,9 +749,13 @@ if _ALLOWED_ORIGINS:
 
 @app.middleware("http")
 async def _known_host(request: Any, call_next: Any) -> Any:
-    """D-171: with a list set, a request to a Host not on it is refused before any route runs."""
+    """D-171: with a list set, a request to a Host not on it is refused before any route runs. With
+    no list, only what arrives on loopback is served, whatever the bind: `make run` and a hand-typed
+    uvicorn bound 0.0.0.0 with no list, and this is what holds them (W1 review B1)."""
     allowed = allowed_hosts()
-    if allowed and _host_name(request.headers.get("host", "")) not in allowed:
+    refused = (_host_name(request.headers.get("host", "")) not in allowed if allowed
+               else _arrived_off_loopback(request.scope.get("server")))
+    if refused:
         response = _error(400, "unknown_host", "This engine does not answer to that host.")
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response

@@ -1,4 +1,4 @@
-"""M18-W1 (#87, D-171) -- the app's engine address is set per build, and the app may reach the home network.
+"""M18-W1 (#87, D-171, REQ-DEV-001) -- the app's engine address is set per build, and the app may reach the home network.
 
 The address comes from the build setting `ENGINE_URL` (loopback in `ios/Config/Engine.xcconfig`; the
 owner's Mac in a git-ignored `Engine.local.xcconfig`), through the Info plist key `EngineURL`, to

@@ -254,10 +254,10 @@ struct EngineClient {
             case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed:
                 throw EngineError.offline
             default:
-                throw EngineError.unreachable(error.localizedDescription)
+                throw EngineError.unreachable("\(baseURL.absoluteString): \(error.localizedDescription)")
             }
         } catch {
-            throw EngineError.unreachable(error.localizedDescription)
+            throw EngineError.unreachable("\(baseURL.absoluteString): \(error.localizedDescription)")
         }
 
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0

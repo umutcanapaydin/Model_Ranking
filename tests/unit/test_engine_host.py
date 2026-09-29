@@ -1,9 +1,10 @@
-"""M18-W1 (#87, D-171) -- the engine checks the Host, and serves beyond loopback only with a list.
+"""M18-W1 (#87, D-171, REQ-DEV-001) -- the engine checks the Host, and serves beyond loopback only with a list.
 
 The owner's phone reaches the engine on his home network, by opt-in. Two things keep that narrow:
 a request whose Host is not on the service's list is refused (a browser page cannot rebind a name to
 the engine, the M17 closure security seat's INFO I-4), and a bind beyond loopback with no list does
-not start. Without a list, as in tests and by-hand development, every Host is served as before.
+not start. Without a list, as in tests and by-hand development, every Host is served, but only on
+loopback: a request that arrived on a network address is refused, whatever the bind (review B1).
 """
 
 from __future__ import annotations

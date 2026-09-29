@@ -3315,3 +3315,28 @@ the opt-in are the controls.
 
 **Revisit when:** the app leaves the home network (a hosted engine, Stage 5), or the engine serves
 anything that is not public.
+
+**Notes from the wave's code review (2026-09-29).** `docs/reviews/m18-wave-1-review.md` found the
+decision describing a smaller exposure than the code made; these notes correct it.
+1. **Clause 2 is held where the bind is known (B1).** The variable was checked, not the bind, so
+   `make run` and a hand-typed `uvicorn --host 0.0.0.0` served every Host on every interface. Now,
+   with no list, the engine refuses any request that arrived on a network address rather than
+   loopback, whatever started it; and `make run` binds 127.0.0.1. The startup refusal stays for the
+   service.
+2. **Every network, not only the home one (M1).** `--lan` binds every interface, on every network
+   the MacBook joins, and the Mac announces its `.local` name on each, until the installer runs with
+   `--no-lan`. A reinstall keeps the mode it finds and says so (M2), so a routine redeploy after a
+   merge does not close it by accident, nor open it.
+3. **The Mac's firewall is off** (measured 2026-09-29), so it is not a control today; the opt-in is.
+   The owner's page says how to close the engine or turn the firewall on.
+4. **The phone's requests cross Wi-Fi in cleartext.** `/v1/recommendations` carries `task` (the
+   surface the question routed to, D-168 note 9) and `budget`; clause 4's "parameterless" was wrong.
+   Anyone who can see the network's traffic can read them. The question's text still never leaves
+   the phone.
+5. **The engine address is baked into the build,** an exception to AGENTS.md §5 ("runtime config
+   never build-baked"): a phone app has no process environment. `ios/app.sh` pins its own simulator
+   build to loopback, and the client's "not answering" message names the address it tried (M4).
+6. **The `.local` name can change** (R1): macOS renames a Mac on a Bonjour conflict. The page says to
+   check the name if the phone stops reaching the engine.
+
+REQ-DEV-001 (`docs/prd.md`) states the criterion this ADR serves.

@@ -34,10 +34,22 @@ PORT=8080
 # owner's home network (the Mac's own .local name and LAN address). Tests pass ENGINE_LAN_NAME and
 # ENGINE_LAN_IP instead of asking this Mac.
 LAN=no
+NO_LAN=no
 ARGS=()
 for arg in "$@"; do
-  if [ "$arg" = "--lan" ]; then LAN=yes; else ARGS+=("$arg"); fi
+  case "$arg" in
+    --lan) LAN=yes ;;
+    --no-lan) NO_LAN=yes ;;
+    *) ARGS+=("$arg") ;;
+  esac
 done
+# A reinstall keeps the mode it finds: D-170 reruns this after every merge, and without it a plain
+# rerun put the phone's engine back on loopback without a word (W1 review M2). --no-lan closes it.
+if [ "$LAN" = no ] && [ "$NO_LAN" = no ] && grep -q 'MODEL_RANKING_BIND="0.0.0.0"' "$WRAPPER" 2>/dev/null; then
+  LAN=yes
+  echo "home network: kept, as installed (scripts/install_engine_service.sh --no-lan closes it)" >&2
+fi
+[ "$NO_LAN" = yes ] && LAN=no
 set -- ${ARGS[@]+"${ARGS[@]}"}
 BIND="127.0.0.1"
 ALLOWED="127.0.0.1,localhost"
@@ -133,7 +145,7 @@ case "${1:-}" in
     WITH_VENV=yes; [ "${3:-}" = "--no-venv" ] && WITH_VENV=no
     deploy "$2" "$WITH_VENV"; exit $? ;;
   "") ;;
-  *) echo "usage: scripts/install_engine_service.sh [--lan] [--print-plist|--print-wrapper|--deploy-only DIR]"; exit 2 ;;
+  *) echo "usage: scripts/install_engine_service.sh [--lan|--no-lan] [--print-plist|--print-wrapper|--deploy-only DIR]"; exit 2 ;;
 esac
 
 [ -n "${HOME:-}" ] || { echo "FAIL: HOME is empty"; exit 1; }
@@ -178,6 +190,8 @@ for _ in $(seq 1 $((WAIT_S * 2))); do
   if printf '%s' "$HEALTH" | grep -q "\"build\": *\"$WANT\""; then
     echo "engine: UP  $HEALTH"
     echo "log:    $LOG"
+    if [ "$LAN" = yes ]; then echo "home network: on, answering $ALLOWED (--no-lan closes it)"
+    else echo "home network: off, loopback only (--lan opens it)"; fi
     exit 0
   fi
   sleep 0.5
