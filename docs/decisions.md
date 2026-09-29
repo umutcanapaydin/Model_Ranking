@@ -3283,3 +3283,35 @@ The installer installs from PyPI without a lock (#35).
 installer's safety properties need more than the substring tests the M17 closure security seat found
 (MINOR-4).
 
+
+## D-171 — The engine can serve the owner's phone on his home network, by opt-in, checking every Host
+
+**Status:** accepted -- the owner asked on 2026-09-29 to see the app ("I want to see it, it's been two
+weeks", translated from Turkish) and to proceed on the agent's recommendations; M18-W1 · **Date:**
+2026-09-29 · **Amends** D-170 · from #87, #86.
+
+**Context.** The engine service (D-170) binds 127.0.0.1, so only the Mac and its simulator reach it.
+The owner's phone is on the same home network. A hosted engine needs the data licences ruled (#88) and
+the Stage 5.1 review first.
+
+**Decision.**
+1. **The engine checks the Host.** With `MODEL_RANKING_ALLOWED_HOSTS` set (a comma list), a request
+   whose Host, port stripped, is not on it gets 400. The service always sets it, loopback included, so
+   a page the owner's browser loads cannot rebind a name to the engine (closure security seat INFO
+   I-4). Unset, as in tests and by-hand development, every Host is served.
+2. **Loopback by default, fail closed.** `MODEL_RANKING_BIND` feeds uvicorn's one `--host`, and defaults
+   to 127.0.0.1. A bind that is not loopback with no allowed Hosts refuses to start.
+3. **The home network by opt-in only.** `scripts/install_engine_service.sh --lan` binds 0.0.0.0 and
+   allows `127.0.0.1`, `localhost`, the Mac's `<LocalHostName>.local` and its LAN address. Without
+   `--lan` nothing changes but the Host check.
+4. **The app's engine address is per build** (`ENGINE_URL` → the Info plist's `EngineURL`), with
+   loopback the fallback. The app declares local networking. The requests are the same parameterless
+   ones (D-126; D-160 as amended by D-168 note 9).
+
+**The cost.** On the home network, anyone who can reach the Mac can read what the engine serves:
+public benchmark data, read-only GETs, no account. A device on that network can also send an allowed
+Host by hand. The Host check stops a browser page, not a person on the network. The Mac's firewall and
+the opt-in are the controls.
+
+**Revisit when:** the app leaves the home network (a hosted engine, Stage 5), or the engine serves
+anything that is not public.
