@@ -7,6 +7,9 @@ date: 2026-09-28
 ---
 # Issue #73 plan — coding questions reach the coding surface
 
+**Stopped 2026-09-29 by the owner's ruling, not merged, moved to M18.** Variant 3 reached 22–23 of
+40 on the held-out set (target 28). See `docs/research/issue-73-coding-routing-probe-2026-09-28.md`.
+
 **Working plan for `fix/issue-73-coding-routing`**, deleted before merge. Triage verdict: `work-issue`,
 so the owner rules each decision. Risk: **MED**. The change is wording the on-device model reads: the
 surface descriptions in `CategoryHints.byID` and one sentence of its instructions. The schema,
