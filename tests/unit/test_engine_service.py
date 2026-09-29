@@ -18,10 +18,9 @@ exercised against a scratch git repository into a temporary directory, without a
 
 from __future__ import annotations
 
-import re
-
 import os
 import plistlib
+import re
 import subprocess
 from pathlib import Path
 
