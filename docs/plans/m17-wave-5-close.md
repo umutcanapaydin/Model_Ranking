@@ -20,7 +20,8 @@ surface allows it.
 - **Refinements** show as chips. A tap removes one on the device, and a removed one stays, to be
   restored.
 
-**Nothing about the question leaves the phone** (D-160 clause 1). The only new request is the
+**Nothing about the question leaves the phone beyond the routed surface id, as since D-126**
+(D-160 clause 1 as amended by D-168 note 9). The only new request is the
 parameterless `/v1/boards`, fetched at most once a day beside the answer and never awaited by it.
 
 **The owner ruled eleven questions on 2026-09-28**, asked in Turkish:

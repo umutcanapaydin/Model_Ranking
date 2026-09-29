@@ -9,3 +9,4 @@
 # wave: m<N>-w<W>, or `release` for a Stage 5 gate
 control,wave,kind,reason,date
 three-attempts,m17-w2,bypass,"owner waived the three-attempts stop for one more fix of the parquet read memory bound (third BLOCKING: m17-wave-2-security-rereview-2 S-R2-1; ruled in session, translated from Turkish: one last small fix)",2026-09-24
+branch-protection-strict,m17-w4,bypass,"owner asked to turn off branches-up-to-date-before-merging (translated from Turkish: re-updating every PR is tiresome); a merge can land on a moved base; CI on main after merge catches it; recorded late at the M17 closure (milestone review M13)",2026-09-27

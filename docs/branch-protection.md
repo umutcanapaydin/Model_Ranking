@@ -46,7 +46,7 @@ The owner had the agent apply this with `gh api` on 2026-09-25 (ruled in session
 | setting | value |
 |---|---|
 | required status checks | `test (py3.12)`, `test (py3.14)`, `secret-scan`, `dep-audit`, `install-and-governance`, `governance-contract (aggregate, unconditional)` |
-| branches up to date before merging (`strict`) | on |
+| branches up to date before merging (`strict`) | **off** since 2026-09-27, at the owner's request (translated from Turkish: "re-updating every PR is tiresome, turn it off"); a merge can now land on a base that moved, and CI on `main` after the merge is what catches it (`docs/control-events.csv`) |
 | include administrators (`enforce_admins`) | on |
 | pull request required | on, with **0** required approvals |
 | force-push, deletion | off |

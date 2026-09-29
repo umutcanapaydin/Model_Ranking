@@ -94,8 +94,8 @@ fits once W4 and W5 moved onto the phone.
 
 ## 3. Shared contracts (K.8)
 
-- **D-104, D-105, D-126 untouched, D-160 added.** Nothing typed, and nothing derived from it, leaves
-  the device; a score is never blended across scales; the on-device model maps a question to an
+- **D-104, D-105, D-126 untouched, D-160 added.** Nothing typed leaves the device, and of what is
+  derived from it only the routed surface id, as since D-126 (D-160 as amended by D-168 note 9); a score is never blended across scales; the on-device model maps a question to an
   intent and never states a score, a price or availability; the router may not say a model is good.
 - **`/v1` may gain routes and fields, not change them**, each under its ADR written before the wave
   that serves it.
