@@ -139,9 +139,19 @@ struct EngineClient {
     let baseURL: URL
     private let session: URLSession
 
-    /// Where the engine lives during development. `make run` binds 8080 on the developer's Mac,
-    /// and the iOS Simulator shares that host's loopback.
-    static let localDefault = URL(string: "http://127.0.0.1:8080")!
+    /// Where the engine lives: this build's `EngineURL` (the `ENGINE_URL` build setting, D-171),
+    /// or loopback, where the engine runs on the Mac and the iOS Simulator shares its loopback.
+    static let localDefault = engineURL(from: Bundle.main.object(forInfoDictionaryKey: "EngineURL") as? String)
+
+    /// An http(s) URL with a host, or loopback. A build without the setting, or with a value that
+    /// is not an engine address, talks to the Mac it was built on, as every build did before M18.
+    static func engineURL(from raw: String?) -> URL {
+        let loopback = URL(string: "http://127.0.0.1:8080")!
+        guard let raw, let url = URL(string: raw), let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https", let host = url.host, !host.isEmpty
+        else { return loopback }
+        return url
+    }
 
     /// How long a person will stare at a spinner before the app owes them a sentence.
     ///

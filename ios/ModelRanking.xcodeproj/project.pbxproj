@@ -16,6 +16,7 @@
 
 /* Begin PBXFileReference section */
 		F228D308650B4B37A802531B /* ModelRanking.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ModelRanking.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3E18A1D0C4F24B6B9A7D0E11 /* Engine.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Engine.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -33,6 +34,7 @@
 			isa = PBXGroup;
 			children = (
 				CD2A272403D643969A102F94 /* ModelRanking */,
+				3E18A1D0C4F24B6B9A7D0E11 /* Engine.xcconfig */,
 				7C9017A509764A88AF832FDE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -154,12 +156,14 @@
 		};
 		8D23965CDCA8465FBD178630 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3E18A1D0C4F24B6B9A7D0E11 /* Engine.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -174,12 +178,14 @@
 		};
 		B79F06EF06DA484EBE65A901 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3E18A1D0C4F24B6B9A7D0E11 /* Engine.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
