@@ -35,7 +35,7 @@ from app.workflows.rank import (
     require_price_medians,
     secondary_evidence_sources,
 )
-from app.workflows.schema import EFFORT_UNSPECIFIED
+from app.workflows.schema import EFFORT_UNSPECIFIED, open_readonly
 from app.workflows.serialize import recommendation_json
 
 # Budget thresholds on blended $/1M (documented constants — REQ-REC-002)
@@ -639,7 +639,8 @@ def main(argv: list[str] | None = None) -> int:
             recommend_subscription,
         )
 
-        conn = sqlite3.connect(args.db)
+        # INV-23: the operator CLI reads the artifact as the engine does (M17 closure MINOR-1).
+        conn = open_readonly(args.db)
         rec: Recommendation | SubscriptionRecommendation | None
         shutout: BudgetShutout | None = None
         if args.subscription:

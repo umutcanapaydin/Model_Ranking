@@ -7,9 +7,10 @@ replaces its working set deterministically (REQ-ING-004).
 
 from __future__ import annotations
 
+import math
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from app.clients.aider import parse_polyglot, staleness_flag
 from app.clients.arena import ARENA_BOARDS, parse_arena
@@ -101,6 +102,18 @@ def ingest_openrouter(conn: sqlite3.Connection, source: RawSource, run: RunConte
     return report
 
 
+def _calendar_date(value: str | None) -> str | None:
+    """A run date only if it IS one (M17 closure security seat MINOR-2). Every client meets here, so
+    upstream text can no longer become an `evidence_date` by truncation: `<script>alert(1)</script>`
+    had become `<script>al`. The rule `epoch_board.py` and `arena_slices.py` each carried on their own."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        return date.fromisoformat(value.strip()[:10]).isoformat()
+    except ValueError:
+        return None
+
+
 def _store_scores(
     conn: sqlite3.Connection, source_name: str, rows: list[ScoreRow], run: RunContext
 ) -> int:
@@ -114,6 +127,12 @@ def _store_scores(
         stored_rows = []
         unclassified = 0
         for row in rows:
+            # M17 closure security seat MINOR-2: an infinite score made coding's floor `null` and a
+            # recommendation answer 500. Refused loudly, so the source carries its last good data
+            # (D-156), rather than dropped where nobody would see it.
+            if not math.isfinite(row.score):
+                msg = f"{source_name}: a score that is not finite ({row.raw_name!r}: {row.score}); refused"
+                raise SourceError(msg)
             if row.effort is not None and row.effort not in EFFORT_LEVELS:
                 msg = f"{source_name}: invalid score effort {row.effort!r}"
                 raise SourceError(msg)
@@ -137,7 +156,7 @@ def _store_scores(
                         r.score,
                         r.harness,
                         effort,
-                        r.run_date,
+                        _calendar_date(r.run_date),
                         r.cost_total,
                         r.source,
                         r.source_url,

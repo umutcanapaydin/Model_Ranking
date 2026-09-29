@@ -30,6 +30,7 @@ from app.workflows.categories import CategorySpec
 from app.workflows.ingest import RunContext, _store_scores
 from app.workflows.rank import ranked_population
 from app.workflows.registry import canonicalize, reconcile, resolve_effort
+from app.workflows.schema import open_readonly
 
 
 def provisional_spec(client: ArenaClient) -> CategorySpec:
@@ -148,7 +149,7 @@ def _self_check(db: str) -> int:
     from app.workflows.categories import CATEGORIES
     from app.workflows.floors import derived_floor
 
-    conn = sqlite3.connect(db)
+    conn = open_readonly(db)  # INV-23: the served artifact is read, never opened for writing
     print(f"{'surface':16s} {'n':>4s} {'shipped':>10s} {'this method':>12s} {'diff':>8s}")
     for cid, spec in CATEGORIES.items():
         rows = ranked_population(conn, spec)
