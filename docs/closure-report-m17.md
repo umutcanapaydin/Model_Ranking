@@ -91,9 +91,10 @@ date: 2026-09-29
   named in the manifest; conformance 16; gitleaks, pip-audit and slopsquat clean.
 - **HIGH waves' passes:** `m17-wave-4-security.md` and `m17-wave-5-security.md`, both PASS-WITH-MINORS.
 - **The closure seat** (`docs/reviews/m17-closure-security-review.md`): PASS WITH FINDINGS, 0/0/5/10.
-  - Fixed here, each red first: MINOR-1 (INV-23 gate on every reader, `cc28d63` → `de2fc38`) and
-    MINOR-2 (dates and finite scores where every client stores).
+  - Fixed here, each red first: MINOR-1 by a source gate (`cc28d63` → `de2fc38`; its spelling and count
+    holes and the seat's runtime watcher are #92) and MINOR-2 (dates and finite scores where every client stores).
   - Filed: MINOR-3 (#85), MINOR-4 (#86); MINOR-5 moved W-125, W-126, W-130 and W-131 to M18.
+- **Closure Tester** (`docs/reviews/m17-closure-tester.md`): PASS-WITH-MINORS; T1–T4, N1–N3 are #92.
 - **Invariants list.** W-131: there is still no single list; the seat's §3 is the current one.
   **The Stage 5.1 release review is owed before any deploy.**
 - ⛔-glob touches: none by the agent. `.github/workflows/**` edits are proposed in #81.
