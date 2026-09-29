@@ -580,3 +580,16 @@ Lesson: prove the oracle distinguishes competing rules before using its green re
   byte-identical against `HEAD` before the edit was redone by hand.
 Lesson: a text pin proves a spelling is present, not that the thing is closed. Where the value
 itself can be read, as an encoded schema can, assert the value.
+
+## 2026-09-28/29 — M17-W5 merged; #66 and #73 measured and moved to M18; M17 closed agent-side
+
+- W5 (#75) merged and was deployed to the engine service (`release-3f2e91d`). The owner saw the app
+  on the simulator after the install script's wrong-simulator bug was found and fixed.
+- #66 (a note for input that is not a model search) was tried in five variants, and #73 (routing of
+  coding questions) in three. Both were measured on independent held-out sets. Both fell short of
+  the owner's bar, and the owner moved them to M18; the branches are kept as the record.
+- M17 closure: the milestone security seat returned 0/0/5/10 and the repo review 16+5 findings.
+  MINOR-1, MINOR-2 and review M1 were fixed red first, the records were corrected, and the rest were
+  filed (#76-#86).
+- From 2026-09-29 the owner asked the agent to proceed on its own recommendations.
+Lesson: set a behaviour's bar after one baseline run, and verify on the real screen what no gate reads.

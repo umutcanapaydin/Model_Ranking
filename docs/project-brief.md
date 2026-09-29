@@ -18,6 +18,8 @@
 - **Target runtime environment:** local dev / CI in M1; serving target open (OQ-3: Supabase vs Cloudflare candidates)
 - **Repo host:** GitHub (owner will create; private)
 - **CI runners:** hosted (ubuntu-latest)
+- **GitHub Actions run here:** yes (every pull request, since D-155)
+- **The default branch can be protected:** yes, and it is (#31, 2026-09-25; `docs/branch-protection.md`)
 
 ## 2.1 Repositories — every tree that ships something a customer can reach
 
@@ -50,7 +52,7 @@ N/A — no HIGH-risk paths in this project (M1). Owner is the sole reviewer per 
 | LiteLLM pricing JSON (GitHub raw) | BerriAI/litellm (open source) | delivered (verified 2026-08-06) | — |
 | SWE-bench leaderboard JSON (GitHub raw) | swe-bench/swe-bench.github.io | delivered (verified 2026-08-06) | — |
 | Aider polyglot YAML (GitHub raw) | Aider-AI/aider (Apache-2.0) | delivered (verified 2026-08-06; source stale since ~Nov 2025 — flagged) | — |
-| GitHub repo + branch protection | owner | proposed | before M1 closure commits |
+| GitHub repo + branch protection | owner | delivered (#31, 2026-09-25; `strict` off 2026-09-27 at the owner's request) | — |
 
 ## 6. Pipeline-specific overrides (opt-in choices)
 

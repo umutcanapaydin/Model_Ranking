@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 import plistlib
+import re
 import subprocess
 from pathlib import Path
 
@@ -326,3 +327,17 @@ def test_a_release_rolled_back_to_survives_later_prunes(tmp_path: Path) -> None:
         (target / "current").unlink()
         (target / "current").symlink_to(live)  # the installer's rollback leaves it so
     assert (target / live).is_dir(), "the release the engine runs from was pruned"
+
+
+def test_the_app_script_addresses_the_simulator_it_boots_by_name() -> None:
+    """M17 closure, found by the owner's first look at the W5 app: with a second simulator booted,
+    `simctl install booted` put the fresh build on the other device, and the owner's screen ran a
+    day-old test build that asked port 8081 ("the engine is not answering"). Every simctl call that
+    acts on the app names `$DEVICE`, the device `app.sh` boots."""
+    script = (Path(__file__).resolve().parents[2] / "ios" / "app.sh").read_text(encoding="utf-8")
+    code = "\n".join(line.split("#", 1)[0] for line in script.splitlines())
+    acting = re.findall(r"xcrun simctl (?:install|launch|terminate|spawn)\s+(\S+)", code)
+    assert len(acting) >= 4, f"the script's app commands were not found: {acting}"
+    assert all(target == '"$DEVICE"' for target in acting), (
+        f"an app command targets something other than the booted-by-name device: {acting}"
+    )

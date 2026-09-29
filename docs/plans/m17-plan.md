@@ -1,11 +1,20 @@
 ---
 record_type: plan
 id: m17-plan
-status: draft
+status: ratified
 process_version: v6.0
 date: 2026-09-23
 ---
 # M17 Plan — lists nobody publishes
+
+**Closed 2026-09-29** (`docs/closure-report-m17.md`). What shipped against this plan is in the
+report's §1; the M17 milestone review (M15) found it unreconciled, so the differences are named
+there, not edited here:
+- W5's intent schema became "surface plus a language or a domain" (D-168).
+- The combination returned as #65, after W4's three-attempts stop.
+- The per-milestone security seat and retrospective listed in W5 were retired by the D-161
+  amendment. The seat ran anyway; the retrospective's content is in `docs/EXPERIENCE.md`.
+- Product code came to about +3,200/−330 against the ~2k-line cap, and W3 was kept.
 
 **One sentence: M17 widens what the engine measures and lets a question, read on the device, reach
 a combination of boards, so the product can answer with a list that no single leaderboard
@@ -94,8 +103,8 @@ fits once W4 and W5 moved onto the phone.
 
 ## 3. Shared contracts (K.8)
 
-- **D-104, D-105, D-126 untouched, D-160 added.** Nothing typed, and nothing derived from it, leaves
-  the device; a score is never blended across scales; the on-device model maps a question to an
+- **D-104, D-105, D-126 untouched, D-160 added.** Nothing typed leaves the device, and of what is
+  derived from it only the routed surface id, as since D-126 (D-160 as amended by D-168 note 9); a score is never blended across scales; the on-device model maps a question to an
   intent and never states a score, a price or availability; the router may not say a model is good.
 - **`/v1` may gain routes and fields, not change them**, each under its ADR written before the wave
   that serves it.

@@ -121,9 +121,9 @@ build_and_launch() {
 
   local app
   app=$(find "$BUILD_DIR/dd" -name "ModelRanking.app" -type d | head -1)
-  xcrun simctl terminate booted "$BUNDLE" 2>/dev/null
-  xcrun simctl install booted "$app" || exit 1
-  xcrun simctl launch booted "$BUNDLE" >/dev/null && echo "app      : launched"
+  xcrun simctl terminate "$DEVICE" "$BUNDLE" 2>/dev/null
+  xcrun simctl install "$DEVICE" "$app" || exit 1
+  xcrun simctl launch "$DEVICE" "$BUNDLE" >/dev/null && echo "app      : launched"
 }
 
 case "${1:-up}" in
@@ -158,7 +158,7 @@ case "${1:-up}" in
     echo "engine   : $(curl -sf -m 2 "http://127.0.0.1:$PORT/health" || echo unreachable)"
     ;;
   down)
-    xcrun simctl terminate booted "$BUNDLE" 2>/dev/null && echo "app      : stopped"
+    xcrun simctl terminate "$DEVICE" "$BUNDLE" 2>/dev/null && echo "app      : stopped"
     # With the service, unload it even when the engine is between restarts, or launchd brings it
     # back (#32 re-review N2).
     if engine_up || service_installed; then stop_engine; else echo "engine   : was not running"; fi
@@ -180,7 +180,7 @@ case "${1:-up}" in
       echo "service  : not installed (scripts/install_engine_service.sh keeps the engine up)"
     fi
     xcrun simctl list devices | grep "$DEVICE (" | head -1 | sed 's/^ */simulator: /'
-    xcrun simctl spawn booted launchctl list 2>/dev/null | grep -q "$BUNDLE" \
+    xcrun simctl spawn "$DEVICE" launchctl list 2>/dev/null | grep -q "$BUNDLE" \
       && echo "app      : running" || echo "app      : not running"
     ;;
   *)

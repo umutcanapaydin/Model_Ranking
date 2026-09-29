@@ -2415,6 +2415,9 @@ catch-up). A cycle that leaves no record of its own -- killed at the timeout, un
 or crashed before `refresh.py` could write one -- is remembered by the engine and reported on
 `/health` as `killed`, `not started` or `crashed`, instead of the previous cycle's outcome.
 
+*Amended 2026-09-29 (M17 closure, milestone review M6).* Clause 2's switch is set by the engine
+service's wrapper (`scripts/engine_service.sh`, D-170), not by `ios/app.sh`.
+
 ---
 
 ## D-155 — The project runs on DevFlow v6.0
@@ -2796,6 +2799,11 @@ see that it is the product's own combination; the detail screen says so.
 
 **Revisit when:** a reader takes a combined list for a published leaderboard, or the standings payload
 outgrows what a phone should download nightly.
+
+*Amended 2026-09-29 (M17 closure, milestone review M3).* **Clause 1, as the code does it, is D-168
+note 9:** the surface a question routes to is sent as `task` of `/v1/recommendations`, as since
+D-126, the same request a reader's own tap on that surface makes. The question's text, its
+refinements and the reader's removals never leave the device.
 
 
 ## D-161 — The project runs on DevFlow v6.4, and session commits carry the owner's identity
@@ -3242,3 +3250,36 @@ owner rulings of the same day, asked in Turkish.
    question leaves the device". Since D-126 the surface the question routes to is sent as `task` of
    `/v1/recommendations`: the same request a reader's own tap on that surface makes. The question's
    text, its refinements and the reader's removals never leave the device.
+
+## D-170 — The engine runs as a launchd service, from a deployed release of `main`
+
+**Status:** accepted -- **ruled by the owner on the review of #32** (2026-09-25), recorded as an ADR
+at the M17 closure (milestone review M6) · **Date:** 2026-09-29 · **Amends** D-154 clause 2 · from #32.
+
+*Numbering.* D-169 is held by #66 on the unmerged branch `enhancement/issue-66-not-a-model-search`
+(a question that is not a model search; moved to M18 by the owner), so this decision takes D-170.
+
+**Context.** The engine refreshes itself nightly (D-151, D-154), which needs it running. It was
+started by hand with `ios/app.sh`, and the M16 refresher ran whatever branch was checked out on the
+Desktop (M16 closure, retired under #16).
+
+**Decision.**
+1. **A launchd job keeps the engine up** (`com.ilgar.modelranking.engine`, `KeepAlive`), bound to
+   127.0.0.1:8080, with `APP_ENV=test` and the strict startup preflight.
+2. **It runs a DEPLOYED copy of `origin/main`,** never the development checkout:
+   `~/Library/Application Support/model-ranking/engine/releases/<sha>`, exported with `git archive`,
+   with its own venv, and `current` pointing at the live one. The served artifact and its refresh
+   record live in `engine/data/` and survive every redeploy. Nothing launchd touches is under
+   `~/Desktop`.
+3. **The owner deploys.** `scripts/install_engine_service.sh` deploys and restarts, and is rerun after
+   each merge; `scripts/remove_engine_service.sh` takes the service off. It changes the owner's
+   machine, so it is his to run (AGENTS.md §5), or the agent's on his standing instruction
+   (2026-09-29: "proceed with what you recommend").
+
+**The cost.** A merge is not live until the installer runs again, so a merged change can wait for it.
+The installer installs from PyPI without a lock (#35).
+
+**Revisit when:** the engine is deployed anywhere but the owner's Mac (D-154's revisit), or the
+installer's safety properties need more than the substring tests the M17 closure security seat found
+(MINOR-4).
+

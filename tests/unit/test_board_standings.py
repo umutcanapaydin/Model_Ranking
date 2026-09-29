@@ -528,3 +528,35 @@ def test_a_boards_date_is_its_newest_kept_row_not_its_best_one() -> None:
     _score(conn, "epoch_chess", "Chess puzzles", "% correct", "a_best", "a", 70.0, run_date="2026-08-01")
     _score(conn, "epoch_chess", "Chess puzzles", "% correct", "a_later", "a", 50.0, run_date="2026-09-10")
     assert _board(_payload(conn), "epoch_chess")["evidence_date"] == "2026-09-10"
+
+
+def _declared_metrics() -> set[str]:
+    """Every metric a client or a board registry in `src/app` declares, read from the source: a
+    `*METRIC` constant, or a `metric=` string argument."""
+    import ast
+
+    root = Path(__file__).resolve().parents[2] / "src" / "app"
+    metrics: set[str] = set()
+    for path in sorted(root.rglob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if (isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant)
+                    and isinstance(node.value.value, str)
+                    and any(isinstance(t, ast.Name) and t.id.endswith("METRIC") for t in node.targets)):
+                metrics.add(node.value.value)
+            if (isinstance(node, ast.keyword) and node.arg == "metric" and isinstance(node.value, ast.Constant)
+                    and isinstance(node.value.value, str)):
+                metrics.add(node.value.value)
+    return metrics
+
+
+def test_every_metric_a_source_declares_has_a_direction() -> None:
+    """M17 milestone review M1: a metric missing from `HIGHER_IS_BETTER` makes `/v1/boards` answer 503
+    for EVERY board, and nothing compared the metrics the clients declare with that set. Derived from
+    the source, so a new board's metric fails here, in CI, before any artifact carries it."""
+    from app.workflows.standings import HIGHER_IS_BETTER
+
+    declared = _declared_metrics()
+    assert len(declared) >= 4, f"too few metrics found; this reads the wrong tree: {declared}"
+    missing = sorted(declared - HIGHER_IS_BETTER)
+    assert not missing, f"metrics with no declared direction: {missing}"
+

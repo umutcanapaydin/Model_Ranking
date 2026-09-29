@@ -31,6 +31,7 @@ from typing import Literal
 
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.recommend import round_score
+from app.workflows.schema import open_readonly
 from app.workflows.subscribe import plan_ranking
 
 # A source whose newest evidence is older than this is reported stale. Same
@@ -286,7 +287,7 @@ def main(argv: list[str] | None = None) -> int:
         # path terminate the URI, so the mode parameter was dropped AND the connection
         # fell back to creating a database. `as_uri()` percent-encodes it, the way the
         # migrate command already does (schema.py).
-        conn = sqlite3.connect(f"{Path(args.db).resolve().as_uri()}?mode=ro", uri=True)
+        conn = open_readonly(args.db)
         cov = plan_coverage(conn)
         health = source_health(conn, today)
         plan_health = tuple(plan_evidence_health(conn, spec, today) for spec in CATEGORIES.values())
