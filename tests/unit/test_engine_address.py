@@ -36,9 +36,33 @@ def test_the_partial_plist_carries_the_address_and_only_the_local_network_except
 def test_the_app_target_reads_the_xcconfig_and_the_partial_plist_in_every_configuration() -> None:
     project = PROJECT.read_text(encoding="utf-8")
     app_configs = [block for block in project.split("isa = XCBuildConfiguration;")
-                   if "PRODUCT_BUNDLE_IDENTIFIER = com.ilgar.modelranking;" in block]
+                   if "INFOPLIST_FILE = Config/Info.plist;" in block]
     assert len(app_configs) == 2, "the app target's Debug and Release"
-    for block in app_configs:
-        assert "INFOPLIST_FILE = Config/Info.plist;" in block
     assert project.count("baseConfigurationReference") >= 2
     assert "path = Config/Engine.xcconfig;" in project
+
+
+def test_the_client_asks_for_the_key_the_plist_carries() -> None:
+    """W1 review M4: the key is one fact in two files. Reading nothing, or a misspelt key, passed every
+    gate; the phone would then talk to its own loopback."""
+    import re
+
+    info = plistlib.loads((IOS / "Config" / "Info.plist").read_bytes())
+    client = (IOS / "ModelRanking" / "Engine" / "EngineClient.swift").read_text(encoding="utf-8")
+    found = re.search(
+        r'static let localDefault = engineURL\(from: Bundle\.main\.object\(forInfoDictionaryKey: "(\w+)"\) as\? String\)',
+        client,
+    )
+    assert found, "localDefault no longer reads the Info plist"
+    assert found.group(1) in info and info[found.group(1)] == "$(ENGINE_URL)"
+
+
+def test_the_bundle_id_is_set_where_the_owner_can_override_it() -> None:
+    """W1 review M3: Xcode's Signing screen writes into the tracked project; the owner's team and a
+    bundle id his Apple ID accepts belong in the git-ignored override, which a project-level value
+    would beat."""
+    project = PROJECT.read_text(encoding="utf-8")
+    assert "PRODUCT_BUNDLE_IDENTIFIER" not in project
+    xcconfig = (IOS / "Config" / "Engine.xcconfig").read_text(encoding="utf-8")
+    assert "PRODUCT_BUNDLE_IDENTIFIER = com.ilgar.modelranking" in xcconfig.splitlines()
+

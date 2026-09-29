@@ -355,7 +355,7 @@ def test_the_wrapper_binds_loopback_and_names_its_hosts_by_default() -> None:
 def test_the_home_network_is_opt_in_and_names_the_macs_own_names() -> None:
     done = subprocess.run(["/bin/bash", str(INSTALLER), "--lan", "--print-wrapper"], capture_output=True,
                           text=True, timeout=60, env={**_CLEAN_GIT_ENV, "HOME": HOME,
-                                                      "ENGINE_LAN_NAME": "probe-mac", "ENGINE_LAN_IP": "192.168.9.9"})
+                                                      "ENGINE_LAN_NAME": "Probe-Mac", "ENGINE_LAN_IP": "192.168.9.9"})
     assert done.returncode == 0, done.stdout + done.stderr
     assert 'export MODEL_RANKING_BIND="0.0.0.0"' in done.stdout
     assert 'export MODEL_RANKING_ALLOWED_HOSTS="127.0.0.1,localhost,probe-mac.local,192.168.9.9"' in done.stdout
@@ -376,7 +376,9 @@ def test_the_launchers_preflight_refuses_a_bind_beyond_loopback_without_hosts(tm
 
     db = tmp_path / "advisor.db"
     _seeded_db(db)
-    done = _launch(REPO, MODEL_RANKING_DB=str(db), MODEL_RANKING_BIND="0.0.0.0")
+    # TEST-NET-1: an address this Mac cannot bind, so a regressed preflight fails to start rather
+    # than serving the developer's Mac on every interface for the test's timeout (W1 review M5).
+    done = _launch(REPO, MODEL_RANKING_DB=str(db), MODEL_RANKING_BIND="192.0.2.1")
     assert done.returncode == 1, done.stdout + done.stderr
     assert "REFUSED" in done.stdout and "MODEL_RANKING_ALLOWED_HOSTS" in done.stdout
     assert "starting on" not in done.stdout
@@ -391,4 +393,39 @@ def test_the_installed_wrapper_is_the_owners_alone(tmp_path: Path) -> None:
     assert done.returncode == 0, done.stdout + done.stderr
     wrapper = tmp_path / "home" / "Library" / "Application Support" / "model-ranking" / "engine_service.sh"
     assert stat.S_IMODE(wrapper.stat().st_mode) == 0o700
+
+
+def test_a_reinstall_keeps_the_home_network_unless_told_to_close_it(tmp_path: Path) -> None:
+    """W1 review M2: D-170 reruns the installer after every merge, and without --lan it silently put
+    the phone's engine back on loopback."""
+    home = tmp_path / "home"
+    installed = home / "Library" / "Application Support" / "model-ranking" / "engine_service.sh"
+    installed.parent.mkdir(parents=True)
+    installed.write_text('export MODEL_RANKING_BIND="0.0.0.0"\n', encoding="utf-8")
+    env = {**_CLEAN_GIT_ENV, "HOME": str(home), "ENGINE_LAN_NAME": "probe-mac", "ENGINE_LAN_IP": "192.168.9.9"}
+    kept = subprocess.run(["/bin/bash", str(INSTALLER), "--print-wrapper"], capture_output=True, text=True,
+                          timeout=60, env=env)
+    assert 'export MODEL_RANKING_BIND="0.0.0.0"' in kept.stdout, kept.stdout + kept.stderr
+    closed = subprocess.run(["/bin/bash", str(INSTALLER), "--no-lan", "--print-wrapper"], capture_output=True,
+                            text=True, timeout=60, env=env)
+    assert 'export MODEL_RANKING_BIND="127.0.0.1"' in closed.stdout, closed.stdout + closed.stderr
+
+
+def test_make_run_binds_loopback() -> None:
+    """W1 review B1: `make run` bound 0.0.0.0, with no Host list, on a Mac whose firewall is off."""
+    makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+    recipe = makefile[makefile.index("\nrun:"):]
+    recipe = recipe[: recipe.index("\n\n")]
+    assert "--host 127.0.0.1" in recipe and "0.0.0.0" not in recipe, recipe
+
+
+def test_the_app_script_builds_for_the_simulators_loopback_whatever_the_owners_override() -> None:
+    """W1 review M2: the owner's Engine.local.xcconfig reached app.sh's simulator builds. A setting on
+    the command line beats the xcconfig, so the simulator build talks to loopback, under the bundle id
+    the script launches."""
+    script = APP_SH.read_text(encoding="utf-8")
+    build = script[script.index("xcodebuild -project"):]
+    build = build[: build.index("then")]
+    assert "ENGINE_URL=http://127.0.0.1:8080" in build, build
+    assert 'PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE"' in build, build
 

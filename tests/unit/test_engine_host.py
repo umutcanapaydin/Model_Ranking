@@ -66,3 +66,28 @@ def test_a_bind_beyond_loopback_needs_a_list_of_hosts(db: Path, monkeypatch: pyt
     for loopback in ("127.0.0.1", "localhost", "::1"):
         monkeypatch.setenv(BIND, loopback)
         assert not complains(), loopback
+
+
+def test_without_a_list_a_request_arriving_on_a_network_address_is_refused(db: Path) -> None:
+    """W1 review B1: `make run` and a hand-typed uvicorn bound 0.0.0.0 with no list, and a foreign
+    Host was served. With no list, only what arrives on loopback is served, whatever the bind."""
+    response = TestClient(adapter.app, base_url="http://192.168.0.26:8080").get("/v1/categories")
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "unknown_host"
+    assert TestClient(adapter.app, base_url="http://127.0.0.1:8080").get("/v1/categories").status_code == 200
+
+
+def test_the_host_is_compared_without_case_on_both_sides(db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """W1 review M5: httpx and URLSession lower-case the host, so only a raw header tests the header
+    side, and only a mixed-case entry tests the list side."""
+    monkeypatch.setenv(HOSTS, "127.0.0.1,Umut-MacBook-Pro-2.local")
+    client = TestClient(adapter.app, base_url="http://127.0.0.1:8080")
+    assert client.get("/v1/categories", headers={"host": "UMUT-MACBOOK-PRO-2.LOCAL:8080"}).status_code == 200
+    assert client.get("/v1/categories", headers={"host": "umut-macbook-pro-2.local"}).status_code == 200
+
+
+def test_an_empty_host_is_refused_when_a_list_is_set(db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(HOSTS, LIST)
+    response = TestClient(adapter.app, base_url="http://127.0.0.1:8080").get("/v1/categories", headers={"host": ""})
+    assert response.status_code == 400
+

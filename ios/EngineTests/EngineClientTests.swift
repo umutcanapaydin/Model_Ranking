@@ -279,6 +279,17 @@ final class EngineClientDecisionTests: XCTestCase {
         }
     }
 
+    func testAnUnreachableEngineNamesTheAddressItTried() async {
+        // W1 review M4: a mistyped override falls back to loopback, and on a phone the only sign of it
+        // would be this detail.
+        StubProtocol.outcome = .failure(URLError(.cannotConnectToHost))
+
+        guard case let .unreachable(detail) = await categoriesError() else {
+            return XCTFail("an ordinary connection failure stopped being `unreachable`")
+        }
+        XCTAssertTrue(detail.contains("http://127.0.0.1:8080"), detail)
+    }
+
     func testTheEnginesOwnRefusalBodyIsCarriedThroughRatherThanReplaced() async {
         // D-121: the engine distinguishes an unbuilt artifact from an unknown task. Flattening
         // that here discards the distinction it was built to make.
