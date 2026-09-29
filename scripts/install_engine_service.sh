@@ -30,12 +30,33 @@ LAUNCHD_LOG="$HOME/Library/Logs/model-ranking-engine-launchd.log"
 KEEP_RELEASES=3
 PORT=8080
 
+# D-171 (M18-W1): loopback by default, with the Host list the engine checks; `--lan` opts into the
+# owner's home network (the Mac's own .local name and LAN address). Tests pass ENGINE_LAN_NAME and
+# ENGINE_LAN_IP instead of asking this Mac.
+LAN=no
+ARGS=()
+for arg in "$@"; do
+  if [ "$arg" = "--lan" ]; then LAN=yes; else ARGS+=("$arg"); fi
+done
+set -- ${ARGS[@]+"${ARGS[@]}"}
+BIND="127.0.0.1"
+ALLOWED="127.0.0.1,localhost"
+if [ "$LAN" = yes ]; then
+  LAN_NAME="${ENGINE_LAN_NAME:-$(scutil --get LocalHostName 2>/dev/null)}"
+  LAN_IP="${ENGINE_LAN_IP:-$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)}"
+  [ -n "$LAN_NAME" ] || { echo "FAIL: --lan needs this Mac's LocalHostName (scutil --get LocalHostName)"; exit 1; }
+  BIND="0.0.0.0"
+  ALLOWED="$ALLOWED,$(printf '%s' "$LAN_NAME" | tr '[:upper:]' '[:lower:]').local${LAN_IP:+,$LAN_IP}"
+fi
+
 wrapper() {
   cat <<WRAP
 #!/bin/bash
 # Written by scripts/install_engine_service.sh (#32). launchd runs this; it hands over to the
 # deployed release, which serves the artifact kept beside the releases.
 export MODEL_RANKING_DB="$DEPLOY/data/advisor.db"
+export MODEL_RANKING_BIND="$BIND"
+export MODEL_RANKING_ALLOWED_HOSTS="$ALLOWED"
 export ENGINE_LOG_FILE="$LOG"
 exec /bin/bash "$DEPLOY/current/scripts/engine_service.sh" --service
 WRAP
@@ -112,7 +133,7 @@ case "${1:-}" in
     WITH_VENV=yes; [ "${3:-}" = "--no-venv" ] && WITH_VENV=no
     deploy "$2" "$WITH_VENV"; exit $? ;;
   "") ;;
-  *) echo "usage: scripts/install_engine_service.sh [--print-plist|--print-wrapper|--deploy-only DIR]"; exit 2 ;;
+  *) echo "usage: scripts/install_engine_service.sh [--lan] [--print-plist|--print-wrapper|--deploy-only DIR]"; exit 2 ;;
 esac
 
 [ -n "${HOME:-}" ] || { echo "FAIL: HOME is empty"; exit 1; }

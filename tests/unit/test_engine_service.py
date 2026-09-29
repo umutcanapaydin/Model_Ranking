@@ -178,7 +178,7 @@ def test_the_service_log_is_rotated_before_it_grows_without_bound(tmp_path: Path
 def test_the_launcher_starts_the_engine_the_way_the_app_script_did() -> None:
     text = LAUNCHER.read_text(encoding="utf-8")
     for needle in ("APP_ENV=test", "MODEL_RANKING_REFRESH=nightly", "validate_startup_config",
-                   "uvicorn app.adapter.main:app", "--host 127.0.0.1"):
+                   "uvicorn app.adapter.main:app", '--host "${MODEL_RANKING_BIND:-127.0.0.1}"'):  # D-171
         assert needle in text, needle
 
 

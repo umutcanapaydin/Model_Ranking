@@ -69,5 +69,7 @@ fi
 # D-154: the engine owns the refresh: once a night inside 23:00-01:00, plus one catch-up at start
 # when the last good cycle is over a day old. Its child runs from this same tree (nightly._REPO).
 export MODEL_RANKING_REFRESH=nightly
-echo "[engine] $(stamp) starting on :$PORT, $APP_BUILD, serving $DB"
-exec "$REPO/.venv/bin/python" -m uvicorn app.adapter.main:app --host 127.0.0.1 --port "$PORT"
+# D-171: loopback unless the service's wrapper opts into the home network; the preflight above
+# refused a bind beyond loopback that names no Hosts. ONE --host: uvicorn takes the last (#86).
+echo "[engine] $(stamp) starting on ${MODEL_RANKING_BIND:-127.0.0.1}:$PORT, $APP_BUILD, serving $DB"
+exec "$REPO/.venv/bin/python" -m uvicorn app.adapter.main:app --host "${MODEL_RANKING_BIND:-127.0.0.1}" --port "$PORT"
