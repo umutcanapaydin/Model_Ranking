@@ -27,6 +27,7 @@ from typing import Any
 
 from app.clients.arena import ARENA_BOARDS, METRIC, ArenaClient, parse_arena
 from app.workflows.categories import CategorySpec
+from app.workflows.floors import top_third
 from app.workflows.ingest import RunContext, _store_scores
 from app.workflows.rank import ranked_population
 from app.workflows.registry import canonicalize, reconcile, resolve_effort
@@ -72,19 +73,19 @@ def threshold_candidates(ratings: list[float], overlap_gaps: list[float]) -> dic
     same breath. A calibration method that cannot reproduce the calibrations already in the product
     has not earned the right to set a new one.
 
-    * `min_quality` — the Budget Pick floor, at the top third of the RANKED population. The
-      `assistant` surface's 1400 is exactly this quantile on its own board.
+    * `min_quality` — a Budget Pick floor candidate, at the top third of the RANKED population, by
+      `app.workflows.floors.top_third` (the one function, D-159 clause 2). What the product SHIPS is
+      the same quantile over EVERY row of the board (D-148, D-159), printed as `floor_shipped`.
     * `close_call` — the gap below which two models are not distinguishable. Taken from the board's
       OWN published 95% intervals: the median gap among pairs whose intervals still overlap. A
       threshold derived from the measurement's own uncertainty, rather than chosen.
     * `value_window` — Best Value's reach below the leader, at four times `close_call`, which is
       the ratio the shipped `assistant` surface uses (30 against 8).
     """
-    ordered = sorted(ratings, reverse=True)
-    third = ordered[min(len(ordered) - 1, max(0, round(len(ordered) / 3) - 1))]
+    third = top_third(list(ratings))
     close = statistics.median(overlap_gaps) if overlap_gaps else 0.0
     return {
-        "min_quality": round(third, 1),
+        "min_quality": third if third is not None else 0.0,
         "close_call": round(close, 1),
         "value_window": round(close * 4, 1),
     }
@@ -223,9 +224,9 @@ def main(argv: list[str] | None = None) -> int:
 
     gaps = _overlapping_gaps(list(best_name.values()), by_name, intervals)
 
-    # D-145: the floor the product SHIPS is the top third of the WHOLE board over distinct models
-    # (each model's best rating), not of the ranked population. Printed so the shipped number is
-    # reproduced by this script rather than asserted beside it (M14-W2 review M3).
+    # The floor the product SHIPS is the top third of EVERY row of the board (D-148, D-159), by the
+    # one function the engine uses. `board_third_D145` is the retired D-145 rule (distinct models,
+    # each at its best), kept because the M14 records cite it (M17 milestone review M16).
     board_best: dict[str, float] = {}
     for row in rows:
         key = row.raw_name
@@ -233,14 +234,10 @@ def main(argv: list[str] | None = None) -> int:
         if rule is not None:
             key = rule.canonical_id
         board_best[key] = max(board_best.get(key, row.score), row.score)
-    board_ordered = sorted(board_best.values(), reverse=True)
-    board_third = (
-        board_ordered[max(0, round(len(board_ordered) / 3) - 1)] if board_ordered else None
-    )
-
     record: dict[str, Any] = {
-        "board_distinct_models": len(board_ordered),
-        "board_third_D145": round(board_third, 1) if board_third is not None else None,
+        "board_distinct_models": len(board_best),
+        "floor_shipped": top_third([row.score for row in rows]),
+        "board_third_D145": top_third(list(board_best.values())),
         "config": args.config,
         "source": client.name,
         "benchmark": client.benchmark,
