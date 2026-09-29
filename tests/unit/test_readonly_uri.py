@@ -92,3 +92,56 @@ def test_nothing_in_the_repository_builds_a_read_only_uri_by_hand() -> None:
         "these build a sqlite `file:` URI by string interpolation, which does not open read-only "
         f"for four measured path shapes — call `app.workflows.schema.open_readonly`: {offenders}"
     )
+
+
+#: The only places a database may be opened without `open_readonly`, each with its reason. An
+#: argument of `":memory:"` needs no entry. M16's closure proposed this gate and adopted one reader's
+#: test instead; M17 then added three readers and changed three more, and a `/v1/boards` that wrote
+#: the served artifact on every GET passed all 1515 tests (M17 closure security seat MINOR-1).
+WRITABLE_OPENS: dict[tuple[str, str], str] = {
+    ("src/app/workflows/schema.py", "open_readonly"): "the read-only opener itself (INV-23)",
+    ("src/app/workflows/schema.py", "connect"): "creates and migrates a database its caller owns: the "
+    "build's workspace and the tests",
+    ("src/app/workflows/schema.py", "main"): "the explicit operator migration command (W-004), read-write "
+    "by design",
+    ("scripts/calibrate_board.py", "main"): "a scratch copy the script makes, never the artifact",
+    ("scripts/survey_boards.py", "measure"): "a scratch copy the script makes, never the artifact",
+    ("scripts/survey_boards.py", "measure_slices"): "a scratch copy the script makes, never the artifact",
+}
+
+
+def _connect_calls() -> dict[tuple[str, str], int]:
+    root = Path(__file__).resolve().parents[2]
+    found: dict[tuple[str, str], int] = {}
+    for path in sorted([*(root / "src").rglob("*.py"), *(root / "scripts").rglob("*.py")]):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        parents = {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "connect" and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "sqlite3"):
+                continue
+            first = node.args[0] if node.args else None
+            if isinstance(first, ast.Constant) and first.value == ":memory:":
+                continue
+            owner: ast.AST = node
+            while owner in parents and not isinstance(owner, ast.FunctionDef | ast.AsyncFunctionDef):
+                owner = parents[owner]
+            name = owner.name if isinstance(owner, ast.FunctionDef | ast.AsyncFunctionDef) else "<module>"
+            key = (path.relative_to(root).as_posix(), name)
+            found[key] = found.get(key, 0) + 1
+    return found
+
+
+def test_nothing_opens_a_database_but_the_named_writers_and_the_read_only_opener() -> None:
+    """INV-23 held from the source: every reader opens through `open_readonly`."""
+    found = _connect_calls()
+    assert found, "no sqlite3.connect call found at all: this gate reads the wrong tree"
+    unnamed = sorted(set(found) - set(WRITABLE_OPENS))
+    assert not unnamed, (
+        "these open a database with a plain sqlite3.connect; a reader must call "
+        f"`app.workflows.schema.open_readonly`, a writer needs a named entry with its reason: {unnamed}"
+    )
+    stale = sorted(set(WRITABLE_OPENS) - set(found))
+    assert not stale, f"entries that no longer open anything; remove them: {stale}"
+

@@ -740,6 +740,20 @@ def test_the_api_never_writes_to_the_database(client: TestClient, tmp_path: Path
     assert not list(tmp_path.glob("pipeline.db-*")), "a GET left a journal/WAL sidecar behind"
 
 
+@pytest.mark.parametrize("path", ["/v1/boards", "/v1/categories"])
+def test_the_routes_m17_added_or_changed_never_write_the_database(
+    client: TestClient, tmp_path: Path, path: str
+) -> None:
+    """M17 closure security seat MINOR-1: the seat made `/v1/boards` open the artifact read-write and
+    write to it on every GET, and all 1515 tests passed. Same shape as the recommendation check above."""
+    before = (tmp_path / "pipeline.db").read_bytes()
+    response = client.get(path)
+    after = (tmp_path / "pipeline.db").read_bytes()
+    assert response.status_code == 200, "the request must have actually served, or this proves nothing"
+    assert before == after, f"a GET {path} changed the database file"
+    assert not list(tmp_path.glob("pipeline.db-*")), "a GET left a journal/WAL sidecar behind"
+
+
 def test_read_only_handle_refuses_a_write() -> None:
     """The seam itself is proven, not assumed: the handle rejects SQL that writes."""
     import tempfile
