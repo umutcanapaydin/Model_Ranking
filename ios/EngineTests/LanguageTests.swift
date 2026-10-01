@@ -437,9 +437,8 @@ final class RouterLanguageTests: XCTestCase {
     }
 }
 
-/// M17-W5 review M4: a board added by a refinement is named as its chip is, and a chip says what a
-/// tap on it does, in both languages.
-/// M18-W1 second review B2: the address under a failure to reach the engine, in both languages.
+/// M18-W1 second review B2 (REQ-DEV-001): the address under a failure to reach the engine, in both
+/// languages.
 final class EngineAddressLanguageTests: XCTestCase {
     func testTheEngineAddressLineSpeaksBothLanguages() {
         let address = "http://umut-macbook-pro-2.local:8080"
@@ -448,6 +447,8 @@ final class EngineAddressLanguageTests: XCTestCase {
     }
 }
 
+/// M17-W5 review M4: a board added by a refinement is named as its chip is, and a chip says what a
+/// tap on it does, in both languages.
 final class CombinedListLanguageTests: XCTestCase {
 
     private func board(_ id: String, benchmark: String) -> BoardStandings {

@@ -45,7 +45,10 @@ for arg in "$@"; do
 done
 # A reinstall keeps the mode it finds: D-170 reruns this after every merge, and without it a plain
 # rerun put the phone's engine back on loopback without a word (W1 review M2). --no-lan closes it.
-if [ "$LAN" = no ] && [ "$NO_LAN" = no ] && grep -q 'MODEL_RANKING_BIND="0.0.0.0"' "$WRAPPER" 2>/dev/null; then
+# Only what writes the wrapper reads it (W1 third review M12): a deploy or a printed plist does not.
+MODE="${ARGS[0]:-}"
+if { [ -z "$MODE" ] || [ "$MODE" = "--print-wrapper" ]; } \
+   && [ "$LAN" = no ] && [ "$NO_LAN" = no ] && grep -q 'MODEL_RANKING_BIND="0.0.0.0"' "$WRAPPER" 2>/dev/null; then
   LAN=yes
   echo "home network: kept, as installed (scripts/install_engine_service.sh --no-lan closes it)" >&2
 fi

@@ -343,7 +343,7 @@ def test_the_app_script_addresses_the_simulator_it_boots_by_name() -> None:
     )
 
 
-# --- M18-W1 (#87, D-171; #86): loopback by default, the home network by opt-in, tested by running --
+# --- M18-W1 (#87, D-171, REQ-DEV-001; #86): loopback by default, the home network by opt-in, tested by running --
 
 
 def test_the_wrapper_binds_loopback_and_names_its_hosts_by_default() -> None:

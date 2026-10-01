@@ -8,9 +8,11 @@ date: 2026-09-29
 # Running the app on your iPhone (M18-W1, D-171)
 
 The engine stays on your Mac. The phone reaches it over the network the Mac is on, by opt-in. Do these
-once, **after the M18-W1 pull request is merged** (step 1 deploys `main`; before the merge the deployed
-engine does not have the change).
+once, **after the M18-W1 pull request is merged**.
 
+0. **Update your checkout.** In the repository: `git checkout main && git pull`. The installer you run
+   and the Xcode project you build are your checkout's; before the pull, the installer refuses `--lan`
+   and nothing reads step 2's file.
 1. **Open the engine to the network.** On the Mac, from the repository:
    `scripts/install_engine_service.sh --lan`
    It binds the engine to every network the Mac is on, and answers only to your Mac's own names
@@ -27,6 +29,7 @@ engine does not have the change).
    - If Xcode says the bundle id is taken, add `PRODUCT_BUNDLE_IDENTIFIER = com.ilgar.modelranking.umut`.
    - The file is git-ignored; it never leaves your Mac. Do not set the team or the bundle id in
      Xcode's Signing screen: that edits the tracked project.
+   - Xcode must know your Apple ID: Xcode → Settings → Accounts. Add it with `+` if it is not listed.
 3. **Connect the iPhone.** Use a cable the first time. On the phone, turn on Developer Mode
    (Settings → Privacy & Security → Developer Mode) when iOS asks.
 4. **Run.** Open `ios/ModelRanking.xcodeproj`, choose the iPhone as the destination and press Run. On
@@ -39,8 +42,8 @@ engine does not have the change).
    engine address it asked.
    - It shows `127.0.0.1`: the app did not read step 2's file. Check the `http:/$()/` spelling, then
      run again from Xcode.
-   - It shows your Mac's name: check that the Mac is awake, on the same Wi-Fi, and that step 1 printed
-     `home network: on`.
+   - It shows your Mac's name: check that the Mac is awake, on the same Wi-Fi, that step 1 printed
+     `home network: on`, and that the local-network switch is on (step 5).
    - It says the device has no network connection while Wi-Fi works: the local-network switch is off
      (step 5).
 
@@ -56,6 +59,6 @@ engine does not have the change).
 - The Mac's firewall cannot let the phone in and keep others out: it allows or blocks an app, not a
   device. Closing it (`--no-lan`) is the only way to shut others out.
 - **If the phone stops reaching the engine** after it worked, check the Mac's name (System Settings →
-  General → Sharing → Local hostname). macOS can rename it; put the new name in step 2's file and run
-  the app from Xcode again.
+  General → Sharing → Local hostname). macOS can rename it. Then run step 1 again, so the engine
+  answers to the new name, put the new name in step 2's file, and run the app from Xcode again.
 - The simulator build from `ios/app.sh` always talks to `127.0.0.1`, whatever step 2's file says.

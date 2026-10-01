@@ -9,7 +9,7 @@ date: 2026-09-29
 
 **Working plan for `wave/m18-w1`**, deleted before merge. Issues #87 and #86. Milestone plan:
 `docs/plans/m18-plan.md` §2 W1. Risk: **HIGH**. The engine listens beyond loopback for the first
-time, so a security pass runs before merge. The pull request opens only after the reviews and
+time. (No security pass of its own: D-172, the owner's ruling of 2026-09-29.) The pull request opens only after the reviews and
 `/pre-merge`.
 
 ## The spike (done, 2026-09-29, never committed)

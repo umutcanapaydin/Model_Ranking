@@ -140,13 +140,16 @@ extension EngineError {
     ///
     /// On a phone, a mistyped `ENGINE_URL` falls back to loopback, which the phone can never reach,
     /// and a refused local-network permission can read as no connection at all. The address the app
-    /// asked is what tells those apart from an engine that is down. An answer the engine gave, or a
-    /// refusal by the platform, carries none: the address is not what went wrong there.
+    /// asked is what tells those apart from an engine that is down. So does the engine's own refusal
+    /// of a name not on its list (D-171), and the platform's refusal of a cleartext name (W1 third
+    /// review M10): there the address IS the cause. Any other answer the engine gave carries none.
     func addressNote(_ address: URL, _ language: Language) -> String? {
         switch self {
-        case .unreachable, .timedOut, .offline:
+        case .unreachable, .timedOut, .offline, .insecureTransport:
             return UIText.engineAddress(language, address.absoluteString)
-        case .insecureTransport, .refused, .undecodable:
+        case let .refused(_, code, _):
+            return code == "unknown_host" ? UIText.engineAddress(language, address.absoluteString) : nil
+        case .undecodable:
             return nil
         }
     }

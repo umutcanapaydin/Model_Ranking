@@ -3353,6 +3353,11 @@ and note 3's pointer to the firewall.
    address, so a reverse proxy, `ssh -L` or a tunnel in front of an engine with no list exposes it with
    every Host served. A hosted engine sets its list whatever its bind (#94).
 
+**Note from the wave's third code review (2026-10-01).** It completes note 6.
+10. **A renamed Mac needs the installer again**, not only a new address in the app: the engine's list
+    holds the name it was installed with, and refuses the new one (`unknown_host`, whose address the
+    failure screen now shows).
+
 
 ## D-172 — The security review runs once per milestone, at its closure; a wave closes on its Code-Reviewer and Tester
 
