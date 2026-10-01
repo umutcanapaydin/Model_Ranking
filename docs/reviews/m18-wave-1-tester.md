@@ -189,71 +189,72 @@ The first Tester verified all five pairs. This seat sampled three of them.
 
 - **T8** `src/app/adapter/main.py:750-762`; `tests/unit/test_engine_host.py:38-106`. **The Host check is
   proven on one path.**
-  - Every Host test asks `/v1/categories`.
-  - H16 makes the refusal apply only when the path starts with `/v1`. Under it, `/health` and any
-    other path serve every Host, and the no-list network rule no longer covers them. **H16 passes the
-    whole suite** (1563 passed).
-  - The code is right today: the live probe refuses `/health` with Host `evil.example`. But D-171
-    clause 1 says "a request", and exempting `/health` for monitoring is the regression this would
-    let through in silence.
-  - **Why only MINOR:** the data (`/v1`) is proven on both rules. `/health` serves public build and
-    freshness facts.
-  - **The fix:** one parametrized test, below (`test_every_path_is_behind_the_host_check`). It
-    kills H16.
+   1. Every Host test asks `/v1/categories`.
+   2. H16 makes the refusal apply only when the path starts with `/v1`. Under it, `/health` and any
+      other path serve every Host, and the no-list network rule no longer covers them. H16 passes the
+      whole suite (1563 passed).
+   3. The code is right today: the live probe refuses `/health` with Host `evil.example`. But D-171
+      clause 1 says "a request", and exempting `/health` for monitoring is the regression this would
+      let through in silence.
+   4. **Why only MINOR:** the data (`/v1`) is proven on both rules. `/health` serves public build and
+      freshness facts.
+   5. **The fix:** one parametrized test, below (`test_every_path_is_behind_the_host_check`). It
+      kills H16.
 - **T9** `scripts/install_engine_service.sh:46-55`, `:196-197`; `tests/unit/test_engine_service.py:399`;
   `docs/owner-iphone.md:57`. **`--no-lan` is never run as the install the owner runs, and "home
   network: off" is asserted nowhere.**
-  - D-171 note 7 makes `--no-lan` the one control while the network is open, and the owner's page
-    says to run `scripts/install_engine_service.sh --no-lan`. That is a full install.
-  - The citing test, `:399`, runs `--no-lan --print-wrapper`. `_install` cannot pass a flag.
-  - **I16** removes the closing "home network: off, loopback only" line, the "says so" of a closed or
-    loopback reinstall. It passes the whole suite.
-  - **I17** makes the close apply only when a mode argument is given, by two coordinated edits. A real
-    `--no-lan` install then keeps `0.0.0.0` and prints "kept". It passes the whole suite.
-  - **Why this is not T1 again (BLOCKING there):**
-    - T1 was an existing branch that depended on the mode, which `--print-wrapper` never took.
-    - The close decision (`:51`, `:55`) does not depend on the mode at all, so `:399` runs every line
-      of it.
-    - The write itself is proven by `:454` (the LAN case) and `:388` (the loopback case).
-    - I17 has to add a mode dependence to survive. Every single-edit fault on this path is killed or
-      equivalent (I3, N7).
-  - **The fix:** one test, below (`test_no_lan_closes_the_home_network_on_the_install_the_owner_runs`),
-    plus `*flags` on `_install`. It kills I16 and I17.
+   1. D-171 note 7 makes `--no-lan` the one control while the network is open, and the owner's page
+      says to run `scripts/install_engine_service.sh --no-lan`. That is a full install.
+   2. The citing test, `:399`, runs `--no-lan --print-wrapper`. `_install` cannot pass a flag.
+   3. The fault I16 removes the closing "home network: off, loopback only" line, the "says so" of a
+      closed or loopback reinstall. It passes the whole suite.
+   4. The fault I17 makes the close apply only when a mode argument is given, by two coordinated
+      edits. A real `--no-lan` install then keeps `0.0.0.0` and prints "kept". It passes the whole
+      suite.
+   5. **Why this is not T1 again (BLOCKING there):**
+      1. T1 was an existing branch that depended on the mode, which `--print-wrapper` never took.
+      2. The close decision (`:51`, `:55`) does not depend on the mode at all, so `:399` runs every
+         line of it.
+      3. The write itself is proven by `:454` (the LAN case) and `:388` (the loopback case).
+      4. I17 has to add a mode dependence to survive. Every single-edit fault on this path is killed
+         or equivalent (I3, N7).
+   6. **The fix:** one test, below (`test_no_lan_closes_the_home_network_on_the_install_the_owner_runs`),
+      plus `*flags` on `_install`. It kills I16 and I17.
 - **T10** `ios/ModelRanking/Engine/EngineClient.swift:151`; `src/app/adapter/main.py:759`;
   `tests/unit/test_engine_host.py:49`, `:77`; `ios/EngineTests/EngineClientTests.swift:573`, `:582`.
   **The code the app matches is not tied to the code the engine sends.**
-  - The failure screen shows the address under the engine's own refusal (D-171 note 10) because Swift
-    compares `code == "unknown_host"`.
-  - The engine's tests hold their literal, and the Swift tests hold theirs. Nothing reads one against
-    the other.
-  - **U1** renames the engine's code to `host_not_allowed`, and the engine's own two assertions
-    follow. It passes all 1563 Python tests and all 363 Swift tests. The renamed-host case D-171
-    note 10 describes would then show no address.
-  - This is the first time the app branches on an engine error code.
-  - **The fix:** one test, below (`test_the_app_matches_the_code_the_engine_sends_for_an_unknown_host`).
-    It reads the code from the live ASGI app and pins the Swift comparison to it. It kills U1.
+   1. The failure screen shows the address under the engine's own refusal (D-171 note 10) because
+      Swift compares `code == "unknown_host"`.
+   2. The engine's tests hold their literal, and the Swift tests hold theirs. Nothing reads one
+      against the other.
+   3. The fault U1 renames the engine's code to `host_not_allowed`, and the engine's own two
+      assertions follow. It passes all 1563 Python tests and all 363 Swift tests. The renamed-host
+      case D-171 note 10 describes would then show no address.
+   4. This is the first time the app branches on an engine error code.
+   5. **The fix:** one test, below (`test_the_app_matches_the_code_the_engine_sends_for_an_unknown_host`).
+      It reads the code from the live ASGI app and pins the Swift comparison to it. It kills U1.
 - **T11** `ios/ModelRanking/Engine/EngineClient.swift:172`; `ios/EngineTests/EngineClientTests.swift:594-600`.
   **The empty-host guard never runs.**
-  - Measured with `swift` on this Mac:
-    - `URL(string: "http://")`, `"http:///v1"` and `"http:"` have a nil host;
-    - `"http://:8080"`, `"http://@:8080"` and `"https://:443/x"` have an empty one.
-  - The fallback test's only http value is `"http://"`, so `!host.isEmpty` is never reached. **S2b**
-    drops it and passes `swift test` (363) and the Python suite.
-  - Under S2b, an override that lost its name (`ENGINE_URL = http:/$()/:8080`) is used as-is instead of
-    falling back. The plan (`m18-wave-1-plan.md`, "Design") promises the fallback for "an http(s) URL
-    with a host".
-  - **The fix:** add `"http://:8080"` to the list at `:596`, below. It kills S2b.
+   1. Measured with `swift` on this Mac:
+      1. `URL(string: "http://")`, `"http:///v1"` and `"http:"` have a nil host;
+      2. `"http://:8080"`, `"http://@:8080"` and `"https://:443/x"` have an empty one.
+   2. The fallback test's only http value is `"http://"`, so `!host.isEmpty` is never reached. The
+      fault S2b drops it and passes `swift test` (363) and the Python suite.
+   3. Under S2b, an override that lost its name (`ENGINE_URL = http:/$()/:8080`) is used as-is instead
+      of falling back. The plan (`m18-wave-1-plan.md`, "Design") promises the fallback for "an
+      http(s) URL with a host".
+   4. **The fix:** add `"http://:8080"` to the list at `:596`, below. It kills S2b.
 - **T12** `ios/ModelRanking/ContentView.swift:671-674`; `tests/unit/test_engine_address.py:73-85`. **A
   second shape of T4: the pin cannot see a surrounding condition.**
-  - C9 wraps the address block in `if error.recovery == nil { … }`.
-  - The four failures that carry an address (`unreachable`, `timedOut`, `offline`,
-    `insecureTransport`) all have a recovery line (`EngineClient.swift:68-87`), so the address would
-    never show for them.
-  - It typechecks (`make client-decls`: PASS under the mutant), and it passes the pin and the whole
-    suite.
-  - Same cause as T4 (C5, `.hidden()`, still surviving): no test runs `ContentView`.
-  - **The fix:** fold it into #69 beside T4. A view test that renders `failure(_:)` kills both. I wrote
-    no pin for it, for the first Tester's reason: each pin names one more shape to guess.
+   1. The fault C9 wraps the address block in `if error.recovery == nil { … }`.
+   2. The four failures that carry an address (`unreachable`, `timedOut`, `offline`,
+      `insecureTransport`) all have a recovery line (`EngineClient.swift:68-87`), so the address would
+      never show for them.
+   3. It typechecks (`make client-decls`: PASS under the mutant), and it passes the pin and the whole
+      suite.
+   4. Same cause as T4 (C5, `.hidden()`, still surviving): no test runs `ContentView`.
+   5. **The fix:** fold it into #69 beside T4. A view test that renders `failure(_:)` kills both. I
+      wrote no pin for it, for the first Tester's reason: each pin names one more shape to guess.
 
 ## Notes (no change required by this verdict)
 
@@ -285,7 +286,7 @@ The first Tester verified all five pairs. This seat sampled three of them.
     closure seat reads it on purpose.
 
 ## K.9 candidates spotted outside this wave's scope
-- The first Tester's **K1** (`tests/unit/test_router_hints.py:31-34`: `_code` keeps `/* */`) is
+- **K6** The first Tester's K1 (`tests/unit/test_router_hints.py:31-34`: `_code` keeps `/* */`) is
   unchanged. `test_engine_address.py:81` now works around it locally.
 
 ## Fault injection (HIGH: mandatory)
