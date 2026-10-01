@@ -255,7 +255,7 @@ echo "$STUB_HEALTH"
 }
 
 
-def _install(tmp_path: Path, repo: Path, health: str | None, **extra: str) -> subprocess.CompletedProcess[str]:
+def _install(tmp_path: Path, repo: Path, health: str | None, *flags: str, **extra: str) -> subprocess.CompletedProcess[str]:
     stubs, state, home = tmp_path / "stubs", tmp_path / "state", tmp_path / "home"
     for folder in (stubs, state, home):
         folder.mkdir(exist_ok=True)
@@ -271,7 +271,7 @@ def _install(tmp_path: Path, repo: Path, health: str | None, **extra: str) -> su
     if health is not None:
         env["STUB_HEALTH"] = health
     env.update(extra)
-    return subprocess.run(["/bin/bash", str(INSTALLER)], capture_output=True, text=True,
+    return subprocess.run(["/bin/bash", str(INSTALLER), *flags], capture_output=True, text=True,
                           timeout=120, env=env)
 
 
@@ -478,3 +478,21 @@ def test_a_deploy_reads_no_live_wrapper(tmp_path: Path) -> None:
     done = _deploy(repo, target)
     assert done.returncode == 0, done.stdout + done.stderr
     assert "home network" not in done.stdout + done.stderr, done.stdout + done.stderr
+
+
+def test_no_lan_closes_the_home_network_on_the_install_the_owner_runs(tmp_path: Path) -> None:
+    """W1 second Tester T9 (D-171 note 7): while the network is open, `--no-lan` is the one control, and
+    the owner runs it as an install, not `--print-wrapper`. It writes loopback and says so. launchctl,
+    curl and plutil are the module's stubs; HOME is scratch."""
+    repo = _scratch_repo(tmp_path)
+    wrapper = tmp_path / "home" / "Library" / "Application Support" / "model-ranking" / "engine_service.sh"
+    wrapper.parent.mkdir(parents=True)
+    wrapper.write_text('export MODEL_RANKING_BIND="0.0.0.0"\n', encoding="utf-8")
+    done = _install(tmp_path, repo, f'{{"status":"ok","build":"release-{_sha(repo)}"}}', "--no-lan",
+                    ENGINE_LAN_NAME="probe-mac", ENGINE_LAN_IP="192.168.9.9")
+    assert done.returncode == 0, done.stdout + done.stderr
+    written = wrapper.read_text(encoding="utf-8")
+    assert 'export MODEL_RANKING_BIND="127.0.0.1"' in written, written
+    assert 'export MODEL_RANKING_ALLOWED_HOSTS="127.0.0.1,localhost"' in written, written
+    assert "home network: kept" not in done.stderr, done.stderr
+    assert "home network: off" in done.stdout, done.stdout

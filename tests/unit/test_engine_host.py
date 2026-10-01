@@ -110,3 +110,31 @@ def test_without_a_list_a_connection_with_no_local_address_is_not_called_a_netwo
     assert adapter._arrived_off_loopback(("/tmp/engine.sock", None)) is False
     assert adapter._arrived_off_loopback(("192.168.0.26", 8080)) is True
     assert adapter._arrived_off_loopback(("::1", 8080)) is False
+
+
+@pytest.mark.parametrize("path", ["/health", "/v1/categories", "/no-such-route"])
+def test_every_path_is_behind_the_host_check(db: Path, monkeypatch: pytest.MonkeyPatch, path: str) -> None:
+    """W1 second Tester T8 (D-171 clause 1): the check runs before any route. Every test above asks
+    /v1/categories, so a check scoped to /v1 passed them all and left /health open."""
+    monkeypatch.setenv(HOSTS, LIST)
+    refused = TestClient(adapter.app, base_url="http://evil.example").get(path)
+    assert refused.status_code == 400 and refused.json()["error"]["code"] == "unknown_host", path
+    monkeypatch.delenv(HOSTS)
+    arrived = TestClient(adapter.app, base_url="http://192.168.0.26:8080").get(path)
+    assert arrived.status_code == 400 and arrived.json()["error"]["code"] == "unknown_host", path
+
+
+def test_an_unset_bind_is_loopback(db: Path) -> None:
+    """W1 second Tester N8: `make run` and `ios/app.sh`'s launcher set no MODEL_RANKING_BIND; unset is
+    loopback, so the startup check has nothing to say about it."""
+    assert not any(HOSTS in problem for problem in adapter.validate_startup_config("test"))
+
+
+def test_the_app_matches_the_code_the_engine_sends_for_an_unknown_host(db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """W1 second Tester T10 (D-171 note 10): the failure screen shows the address under the engine's own
+    refusal by matching its code in Swift; each side held only its own literal."""
+    monkeypatch.setenv(HOSTS, LIST)
+    code = TestClient(adapter.app, base_url="http://evil.example").get("/v1/categories").json()["error"]["code"]
+    client = (Path(__file__).resolve().parents[2] / "ios" / "ModelRanking" / "Engine" / "EngineClient.swift").read_text(
+        encoding="utf-8")
+    assert f'code == "{code}"' in client, code

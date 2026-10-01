@@ -593,8 +593,10 @@ final class EngineAddressTests: XCTestCase {
 
     func testAnythingElseFallsBackToLoopback() {
         let loopback = URL(string: "http://127.0.0.1:8080")
+        // W1 second Tester T11: `http://:8080` parses with an EMPTY host (not nil), as an override that
+        // lost its name does; only the `!host.isEmpty` guard sends it to loopback.
         for raw: String? in [nil, "", "not a url", "ftp://engine.example", "file:///etc/passwd", "http://",
-                             "$(ENGINE_URL)", "javascript:alert(1)"] {
+                             "http://:8080", "$(ENGINE_URL)", "javascript:alert(1)"] {
             XCTAssertEqual(EngineClient.engineURL(from: raw), loopback, raw ?? "nil")
         }
     }
