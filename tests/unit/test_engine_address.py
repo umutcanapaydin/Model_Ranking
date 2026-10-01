@@ -12,6 +12,8 @@ import plistlib
 import re
 from pathlib import Path
 
+from .test_router_hints import _code
+
 IOS = Path(__file__).resolve().parents[2] / "ios"
 PROJECT = IOS / "ModelRanking.xcodeproj" / "project.pbxproj"
 
@@ -67,12 +69,6 @@ def test_the_bundle_id_is_set_where_the_owner_can_override_it() -> None:
 
 
 
-def _code(swift: str) -> str:
-    """Swift source with its comments removed, so a pin reads code, not a sentence about it."""
-    swift = re.sub(r"/\*.*?\*/", "", swift, flags=re.S)
-    return "\n".join(line.split("//", 1)[0] if "//" in line and '"' not in line.split("//", 1)[0] else line
-                     for line in swift.splitlines())
-
 
 def test_the_failure_screen_shows_the_address_the_app_asked() -> None:
     """W1 second review B2: the address lived only in a diagnostic no view showed, so a mistyped
@@ -82,4 +78,7 @@ def test_the_failure_screen_shows_the_address_the_app_asked() -> None:
     view = (IOS / "ModelRanking" / "ContentView.swift").read_text(encoding="utf-8")
     start = view.index("private func failure(")
     failure = _code(view[start : view.index("// MARK:", start)])
-    assert re.search(r"error\.addressNote\(client\.baseURL, language\)", failure), "the failure view shows no address"
+    # W1 third review M11: the line is shown, not only computed -- `let _ = error.addressNote(...)`
+    # compiled and passed when the pin asked only for the call.
+    shown = re.search(r"if let (\w+) = error\.addressNote\(client\.baseURL, language\) \{\s*Text\(\1\)", failure)
+    assert shown, "the failure view does not show the address line"

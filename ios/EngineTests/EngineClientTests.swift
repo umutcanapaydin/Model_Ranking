@@ -566,9 +566,18 @@ final class EngineAddressTests: XCTestCase {
         }
     }
 
+    func testAFailureWhoseCauseIsTheAddressShowsIt() {
+        // W1 third review M10: the engine's own refusal of a Host not on its list (D-171), and ATS
+        // refusing a cleartext name, are the two failures where the address is the cause.
+        let address = URL(string: "http://umut-macbook-pro-2.local:8080")!
+        for error: EngineError in [.refused(status: 400, code: "unknown_host", message: "m"), .insecureTransport] {
+            XCTAssertEqual(error.addressNote(address, .english), "Engine address: http://umut-macbook-pro-2.local:8080", "\(error)")
+        }
+    }
+
     func testAnAnswerTheEngineGaveCarriesNoAddress() {
         let address = URL(string: "http://127.0.0.1:8080")!
-        for error: EngineError in [.refused(status: 503, code: "c", message: "m"), .undecodable("x"), .insecureTransport] {
+        for error: EngineError in [.refused(status: 503, code: "c", message: "m"), .undecodable("x")] {
             XCTAssertNil(error.addressNote(address, .english), "\(error)")
         }
     }

@@ -103,7 +103,7 @@ def _scratch_repo(tmp_path: Path) -> Path:
 def _deploy(repo: Path, target: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["/bin/bash", str(INSTALLER), "--deploy-only", str(target), "--no-venv"],
                           capture_output=True, text=True, timeout=120,
-                          env={**_CLEAN_GIT_ENV, "MODEL_RANKING_REPO": str(repo)})
+                          env={**_CLEAN_GIT_ENV, "MODEL_RANKING_REPO": str(repo), "HOME": str(target.parent / "home")})
 
 
 def test_a_deploy_takes_origin_main_whatever_is_checked_out(tmp_path: Path) -> None:
@@ -415,6 +415,20 @@ def test_a_reinstall_keeps_the_home_network_unless_told_to_close_it(tmp_path: Pa
     stayed = subprocess.run(["/bin/bash", str(INSTALLER), "--print-wrapper"], capture_output=True, text=True,
                             timeout=60, env=env)
     assert 'export MODEL_RANKING_BIND="127.0.0.1"' in stayed.stdout, stayed.stdout + stayed.stderr
+
+
+def test_only_writing_the_wrapper_reads_the_mode_it_finds(tmp_path: Path) -> None:
+    """W1 third review M12: the keep-the-mode check ran before the mode dispatch, so `--print-plist`
+    and `--deploy-only` read the owner's live wrapper and asked this Mac for its name and address."""
+    home = tmp_path / "home"
+    installed = home / "Library" / "Application Support" / "model-ranking" / "engine_service.sh"
+    installed.parent.mkdir(parents=True)
+    installed.write_text('export MODEL_RANKING_BIND="0.0.0.0"\n', encoding="utf-8")
+    env = {**_CLEAN_GIT_ENV, "HOME": str(home), "ENGINE_LAN_NAME": "probe-mac", "ENGINE_LAN_IP": "192.168.9.9"}
+    printed = subprocess.run(["/bin/bash", str(INSTALLER), "--print-plist"], capture_output=True, text=True,
+                             timeout=60, env=env)
+    assert printed.returncode == 0, printed.stdout + printed.stderr
+    assert "home network" not in printed.stderr, printed.stderr
 
 
 def test_make_run_binds_loopback() -> None:
