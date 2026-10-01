@@ -50,6 +50,14 @@ final class SameHostOnlyTests: XCTestCase {
         XCTAssertNotNil(followed, "a same-host redirect was refused; a deploy would break for nothing")
     }
 
+    func testTheHostIsComparedWithoutCase() async {
+        // W1 second review K3: DNS names are not case-sensitive, the owner's address is written
+        // mixed-case, and URLSession sends the host lower-cased.
+        let followed = await redirect(from: "Umut-MacBook-Pro-2.local", to: "http://umut-macbook-pro-2.local/v1/categories/")
+
+        XCTAssertNotNil(followed, "a same-host redirect was refused for the case of its letters")
+    }
+
     func testALookalikeHostIsNotTreatedAsTheSameHost() async {
         let followed = await redirect(from: "127.0.0.1", to: "http://127.0.0.1.evil.example.com/v1")
 
@@ -546,6 +554,23 @@ final class EngineAddressTests: XCTestCase {
                        URL(string: "http://Umut-MacBook-Pro-2.local:8080"))
         XCTAssertEqual(EngineClient.engineURL(from: "https://engine.example"), URL(string: "https://engine.example"))
         XCTAssertEqual(EngineClient.engineURL(from: "http://192.168.0.26:8080"), URL(string: "http://192.168.0.26:8080"))
+    }
+
+    func testAFailureToReachTheEngineShowsTheAddressItAsked() {
+        // W1 second review B2: on a phone, a mistyped ENGINE_URL falls back to loopback, which the
+        // phone can never reach; the address under the error is how the owner sees it.
+        let address = URL(string: "http://umut-macbook-pro-2.local:8080")!
+        for error: EngineError in [.unreachable("x"), .timedOut(seconds: 5), .offline] {
+            let note = error.addressNote(address, .english)
+            XCTAssertEqual(note, "Engine address: http://umut-macbook-pro-2.local:8080", "\(error)")
+        }
+    }
+
+    func testAnAnswerTheEngineGaveCarriesNoAddress() {
+        let address = URL(string: "http://127.0.0.1:8080")!
+        for error: EngineError in [.refused(status: 503, code: "c", message: "m"), .undecodable("x"), .insecureTransport] {
+            XCTAssertNil(error.addressNote(address, .english), "\(error)")
+        }
     }
 
     func testAnythingElseFallsBackToLoopback() {

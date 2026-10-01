@@ -421,6 +421,11 @@ public enum UIText {
         language == .turkish ? "Şu anda cevap yok" : "No answer right now"
     }
 
+    /// The engine address the app asked, under a failure to reach it (M18-W1 review B2).
+    public static func engineAddress(_ language: Language, _ address: String) -> String {
+        ""
+    }
+
     public static func retry(_ language: Language) -> String {
         language == .turkish ? "Tekrar dene" : "Try again"
     }

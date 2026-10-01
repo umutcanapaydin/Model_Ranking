@@ -134,6 +134,13 @@ final class SameHostOnly: NSObject, URLSessionTaskDelegate {
     }
 }
 
+extension EngineError {
+    /// The line the failure screen shows under a failure to reach the engine (M18-W1 review B2).
+    func addressNote(_ address: URL, _ language: Language) -> String? {
+        nil
+    }
+}
+
 /// Reads answers from the engine. Holds no state and computes nothing.
 struct EngineClient {
     let baseURL: URL

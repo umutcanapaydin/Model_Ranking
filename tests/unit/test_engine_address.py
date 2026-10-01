@@ -9,6 +9,7 @@ iOS shows when it asks for local-network access.
 from __future__ import annotations
 
 import plistlib
+import re
 from pathlib import Path
 
 IOS = Path(__file__).resolve().parents[2] / "ios"
@@ -45,8 +46,6 @@ def test_the_app_target_reads_the_xcconfig_and_the_partial_plist_in_every_config
 def test_the_client_asks_for_the_key_the_plist_carries() -> None:
     """W1 review M4: the key is one fact in two files. Reading nothing, or a misspelt key, passed every
     gate; the phone would then talk to its own loopback."""
-    import re
-
     info = plistlib.loads((IOS / "Config" / "Info.plist").read_bytes())
     client = (IOS / "ModelRanking" / "Engine" / "EngineClient.swift").read_text(encoding="utf-8")
     found = re.search(
@@ -66,3 +65,21 @@ def test_the_bundle_id_is_set_where_the_owner_can_override_it() -> None:
     xcconfig = (IOS / "Config" / "Engine.xcconfig").read_text(encoding="utf-8")
     assert "PRODUCT_BUNDLE_IDENTIFIER = com.ilgar.modelranking" in xcconfig.splitlines()
 
+
+
+def _code(swift: str) -> str:
+    """Swift source with its comments removed, so a pin reads code, not a sentence about it."""
+    swift = re.sub(r"/\*.*?\*/", "", swift, flags=re.S)
+    return "\n".join(line.split("//", 1)[0] if "//" in line and '"' not in line.split("//", 1)[0] else line
+                     for line in swift.splitlines())
+
+
+def test_the_failure_screen_shows_the_address_the_app_asked() -> None:
+    """W1 second review B2: the address lived only in a diagnostic no view showed, so a mistyped
+    ENGINE_URL on the phone looked like an engine that was down. ContentView is not executed by any
+    test (ios/Package.swift), so the view's use of the composed line is pinned here; the line itself is
+    tested in EngineClientTests and LanguageTests."""
+    view = (IOS / "ModelRanking" / "ContentView.swift").read_text(encoding="utf-8")
+    start = view.index("private func failure(")
+    failure = _code(view[start : view.index("// MARK:", start)])
+    assert re.search(r"error\.addressNote\(client\.baseURL, language\)", failure), "the failure view shows no address"

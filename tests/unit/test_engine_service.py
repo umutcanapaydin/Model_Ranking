@@ -142,7 +142,7 @@ def test_the_service_runs_only_a_deployed_release(tmp_path: Path) -> None:
     tree.mkdir()
     done = _launch(tree, "--service")
     assert done.returncode == 0 and "not a deployed release" in done.stdout
-    assert "starting on :" not in done.stdout
+    assert "starting on" not in done.stdout
 
 
 def test_on_a_release_the_service_goes_on_to_the_artifact(tmp_path: Path) -> None:
@@ -409,6 +409,12 @@ def test_a_reinstall_keeps_the_home_network_unless_told_to_close_it(tmp_path: Pa
     closed = subprocess.run(["/bin/bash", str(INSTALLER), "--no-lan", "--print-wrapper"], capture_output=True,
                             text=True, timeout=60, env=env)
     assert 'export MODEL_RANKING_BIND="127.0.0.1"' in closed.stdout, closed.stdout + closed.stderr
+    # W1 second review M7: and the other direction -- a reinstall over a loopback wrapper stays on
+    # loopback; an existing wrapper is not a reason to open the network.
+    installed.write_text('export MODEL_RANKING_BIND="127.0.0.1"\n', encoding="utf-8")
+    stayed = subprocess.run(["/bin/bash", str(INSTALLER), "--print-wrapper"], capture_output=True, text=True,
+                            timeout=60, env=env)
+    assert 'export MODEL_RANKING_BIND="127.0.0.1"' in stayed.stdout, stayed.stdout + stayed.stderr
 
 
 def test_make_run_binds_loopback() -> None:
