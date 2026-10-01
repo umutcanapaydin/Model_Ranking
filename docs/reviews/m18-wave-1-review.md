@@ -4,299 +4,397 @@ id: m18-wave-1-review
 status: ratified
 seat: independent
 process_version: v6.6
-date: 2026-09-29
+date: 2026-10-01
 ---
-# M18-W1 Code Review, round 2: the app on the owner's iPhone
+# M18-W1 Code Review, round 3: the app on the owner's iPhone
 
-**Reviewer:** Code-Reviewer seat, fresh eyes. This is the second round. I wrote none of this wave's
-code, tests or records, and I did not write the first round's verdict.
+**Reviewer:** Code-Reviewer seat, fresh eyes. This is the third round. I wrote none of this wave's
+code, tests or records, and I wrote neither earlier verdict.
 **Independent:** yes
-**Date:** 2026-09-29
-**Commit range:** `e82011b..8e54068`: 9 commits, 20 files, +1082 / -12. The base is the head of the
-unmerged M17 closure branch (PR #93). The first verdict is `e05ae15`. The red tests for it are
-`b718f70` and the fix is `8e54068`. I reviewed the whole range, not only the fix.
+**Date:** 2026-10-01
+**Commit range:** `e82011b..a04fdd5`: 13 commits, 26 files, +1112 / -17. `e82011b` is the merge-base
+with `origin/main`; the M17 closure PR #93 merged it as `159ec9e`. Round 1 is `e05ae15` (reds
+`b718f70`, fix `8e54068`). D-172 is `cc78cb7`. Round 2 is `78aa6d1` (reds `a7f4b3b`, fix `a04fdd5`).
+I reviewed the whole range, not only the last fix.
 **Risk tier:** HIGH (`docs/plans/m18-plan.md:39`, `:137`; `docs/plans/m18-wave-1-plan.md:11`)
-**Model routing (HIGH, advisory):** author-family: claude-opus / reviewer-family: claude-opus
-(fallback: no second family available). Fresh context: this seat started with none of the authoring
-context or the first seat's context. I read the code before the commit messages and before the first
-verdict.
+**Model routing (HIGH, advisory):** author-family: claude-opus / reviewer-family: claude-opus (fallback: no second family available)
+**Fresh context:** this seat started with none of the authoring context and none of the first two
+seats' context. I read the plans, then the code and tests, and only then the commit messages and the
+earlier verdicts.
 
-**Incident during this review.** One of my installer probes ran
-`scripts/install_engine_service.sh --lan` for real. I had meant to pass `--print-wrapper`, and I had
-set `HOME` to a scratch folder. The owner's own files were not touched:
-`~/Library/LaunchAgents/com.ilgar.modelranking.engine.plist`, the wrapper and `engine/current`
-(`releases/3f2e91d`) are all unchanged. But the installer did two things to launchd:
-- it booted out the owner's loaded `com.ilgar.modelranking.engine`;
-- it bootstrapped the same label from a plist in my scratch folder
-  (`…/scratchpad/cr2-probe/h1/Library/LaunchAgents/…`).
+**Summary.** Nothing blocks. Every finding from rounds 1 and 2 is fixed, and each code fix is held
+by a test that goes red when I break it. The engine's network surface is right: with no list only
+loopback is served, with a list a foreign Host gets 400, and the installer keeps the mode it finds.
+What is left is on the owner's side of the wave. The page's "if the phone stops reaching the engine"
+fix is only half a fix (**M9**). The one refusal this wave adds, the Host check, is the one failure
+the screen shows no address for (**M10**). The view's source pin holds the call, not the line on
+screen (**M11**). Three smaller items are in M12 to M14.
 
-That job now serves `release-159ec9e` (today's `origin/main`) from a scratch deploy. It listens on
-**127.0.0.1:8080 only**: that release's launcher still hard-codes `--host 127.0.0.1` (measured with
-`lsof` and `/health`). So nothing is exposed. The rules for this seat forbid any launchd action, so I
-did not restore the job. The fix is in the hand-back, and the scratch folder must stay until then.
-
-**Policy.** `git diff --stat e82011b..8e54068 -- .claude .agents AGENTS.md permission-matrix.md .github
-Dockerfile fly.toml` is empty. The profile, `practices.md` and `permission-matrix.md` §11 were read
-from `e82011b`.
+**Policy.** The profile (`.claude/agents/Code-Reviewer.md`), `.agents/rules/practices.md` and the
+permission matrix were read from `e82011b`. At that ref the matrix is `permission-matrix.md` at the
+repository root; `docs/permission-matrix.md` does not exist. `git diff --stat e82011b..a04fdd5 --
+.claude .agents permission-matrix.md .github Dockerfile fly.toml epb.html or.md` is empty.
 
 **How I worked.**
-- **Gate.** `make check-fast` at `8e54068`: **PASS** in 83.9 s.
-  - test: 1557 passed, 23 skipped.
-  - swift-test: 357 tests, exactly the manifest.
+- **Gate.** `make check-fast` at `a04fdd5`, with `PYTHONDONTWRITEBYTECODE=1`: **PASS** in 52.0 s.
+  - test: 1558 passed, 23 skipped.
+  - swift-test: 361 tests, exactly the manifest.
   - lint, typecheck, records and client-decls: PASS.
-  - The first run failed only because this checkout had no `advisor.db` (W-108). I copied the
-    artifact from the author's worktree; it is git-ignored and untracked.
-  - That run's install step pointed the shared venv's editable install at this worktree. I pointed it
-    back at `w18-1` with `pip install --no-deps -e`.
-- **A real engine, on loopback only.** uvicorn 0.54.0 on 127.0.0.1:8123 and [::1]:8124 with no list,
-  and on 127.0.0.1:8125 with a list. I sent raw requests and killed each server afterwards.
-- **The arrival check, called directly** with IPv4, IPv6, IPv4-mapped, link-local, `testserver` and
-  `None` server values, under Python 3.14.0.
-- **The installer's parse** under `/bin/bash` 3.2.57 with `set -u`, through `--print-wrapper` and
-  `--print-plist`:
-  - with a scratch `HOME` holding no wrapper, a LAN wrapper, or a loopback wrapper;
-  - with flags in each order;
-  - its parse block alone, with no arguments.
-- **Xcode:** `xcodebuild -showBuildSettings` only, no build. I checked the worktree, and a scratch copy
-  with three versions of `Engine.local.xcconfig`, with and without `app.sh`'s command-line settings.
-- **Mutants: 21.** Each was applied in place and restored from a byte copy. I checked each restore with
-  `git hash-object` and `git diff --quiet` (`main.py` 35171db…, installer b020300…, launcher 522a1b5…,
-  `EngineClient.swift` 50857b5…, `project.pbxproj` 9710da6…, `Engine.xcconfig` 81ee48b…).
-  - **20 killed.** They are listed per finding below.
-  - **1 survived:** a reinstall that opens the LAN over a loopback wrapper (**M7**).
-- **Red first.** At `b718f70`, the five new tests for B1, M2 and M3 fail, and pass at `8e54068`. I ran
-  them on a `git archive` copy.
+- **The app compiles.** No gate compiles `ContentView.swift`: `ios/Package.swift` builds only
+  `ModelRanking/Engine`. So I typechecked all 15 app sources with `swiftc -typecheck` against the
+  iPhoneOS SDK (`arm64-apple-ios18.0`). Exit 0, no errors, two warnings that predate the wave. This
+  is a compile only: no build, no xcodebuild, no simulator.
+- **A real engine, on loopback only.** uvicorn 0.54.0 on 127.0.0.1:8137 with no list, and on
+  127.0.0.1:8138 with a list, the nightly switch unset. Each was stopped with SIGTERM, then SIGKILL,
+  and no listener was left.
+  - With no list, every Host got 200: `127.0.0.1`, `evil.example`, mixed case, empty.
+  - With the list: `evil.example` and an empty Host got 400; `UMUT-MACBOOK-PRO-2.LOCAL:8080`
+    against a mixed-case entry got 200.
+- **Mutants: 29.** Each was applied in place, run against its named tests, and restored from the
+  original bytes. After each one I checked `git hash-object` against `HEAD:<file>` and
+  `git diff --quiet`.
+  - **23 on the Python side.** 21 were killed. Two survived:
+    - `B2a-view-computed-not-shown` (**M11**);
+    - `M2-no-lan-ignored`, which drops the `NO_LAN = no` test from the keep block. It is equivalent,
+      because `install_engine_service.sh:52` closes the mode anyway.
+  - **6 on the Swift side, through macOS `swift test --filter`.** All were killed.
+  - The installer mutants ran only through `tests/unit/test_engine_service.py`, with its temporary
+    HOME and its stubs. I did not run the preflight-off mutant against the real launcher test. With
+    the preflight off, the launcher would start uvicorn's lifespan, and with it the nightly refresh,
+    before the bind fails.
+- **Red first.** On a `git archive` of `a7f4b3b`, the view pin fails and the rest pass. The commit's
+  Swift stubs (`addressNote` returns nil, `engineAddress` returns "") are what make the Swift tests
+  red there. I read them; I did not run them.
+- **Host case under Unicode.** A macOS Swift probe: Foundation's `URL` maps a Kelvin-sign `K` in a
+  host to ASCII `k` by IDNA before `.host` returns. Cyrillic lookalikes become punycode. So the
+  case-free compare cannot be fooled into a host that resolves elsewhere.
+- **Read only:** GitHub issues #94, #95 and #89 and their comments.
+- **Not done, by this seat's rules:**
+  - no run of either installer script outside the pytest file;
+  - no `launchctl`, `xcodebuild`, `xcrun` or `simctl`;
+  - nothing on the simulator;
+  - nothing read in `~/Library`, the keychain included.
+- **Tree.** Clean apart from this file. My harness and logs are in the scratchpad.
 
 ## Verdict
-BLOCKING
+PASS-WITH-MINORS
 
-**One finding blocks.**
-- **B2.** The owner's page, and D-171's review notes, tell the owner two things that are not so:
-  - that the app's error message names the address it tried (no screen shows it);
-  - that turning the Mac's firewall on and allowing Python keeps other devices out (it lets every
-    device in).
+**Nothing blocks.** Every earlier finding is fixed. Every code fix has a test that a mutant turns
+red. The engine, the installer, the build settings and the D-126 gates hold.
 
-  The code under the page holds. The engine, the installer and the build settings are right, and
-  every first-round code finding is fixed and tested. This is a text fix of a few lines, unless the
-  author chooses to show the address.
+**Six are MINOR.** I recommend fixing M9 to M11 in this wave rather than filing them. They are a few
+lines each, and the page is what the owner acts on next.
+- **M9.** The owner's page has two steps that do not work as written:
+  - After the Mac is renamed, the page says to change only the app's address. The engine's Host
+    list still names the old name until the installer runs again, so the phone is refused.
+  - Steps 1, 2 and 4 assume the local checkout already holds the merged `main`, and the page never
+    says to pull it.
+- **M10.** `addressNote` leaves out the two failures where the address is the cause: the engine's
+  own `unknown_host` refusal, which is new in this wave, and `insecureTransport`.
+- **M11.** The source pin on the failure view holds the call to `addressNote`, not the line on
+  screen. A mutant that computes the line and drops it compiles and passes the whole gate.
+- **M12.** The installer's keep-the-mode block runs in every mode, and the deploy tests run it with
+  the real HOME. On the owner's Mac in LAN mode they read his live wrapper and query `scutil` and
+  `ipconfig`.
+- **M13.** Records drift:
+  - a doc comment is misplaced;
+  - two evidence files do not cite REQ-DEV-001;
+  - the wave plan still promises a security pass;
+  - the PRD overstates what is pinned to loopback.
+- **M14.** Five commits in the range carry no `GP-Agent:` / `GP-Task:` trailers.
 
-**Two are MINOR:**
-- **M7.** One direction of the reinstall rule is untested, and one old assertion can no longer fail.
-- **M8.** Step 2 sends the owner to a place for his team id that I could not confirm exists.
+**K.9:** K4 (failure sentences English only) and K5 (no gate compiles the app target).
+**Risks:** R4 (step 2 assumes Xcode is signed in to the Apple ID) and R5 (which error a refused
+local-network permission gives for a `.local` name is unmeasured).
 
-**What holds.**
-- With no list, an engine refuses whatever arrives off loopback, whatever started it.
-- The installer keeps the mode it finds.
-- The simulator build is pinned to loopback and to the checked-in bundle id.
-- The bundle id resolves from the xcconfig, and the owner's file overrides it.
-- REQ-DEV-001 is written and cited.
+## The earlier rounds' findings, one by one
 
-## The first round's findings, one by one
-
-| id | fixed? | tested? (mutant → the test that goes red) |
+| id | fixed? | held by a test? (mutant → the test that goes red) |
 |---|---|---|
-| B1 | **Yes.** With no list, `_known_host` refuses a request whose socket address is not loopback (`main.py:568-578`, `:751-762`). `make run` binds 127.0.0.1 (`Makefile:267`). | **Yes.** Arrival check off, and the middleware ignoring it → `test_engine_host.py:72`. A name counted as a network → `:53`. Bind check off → `:58`. `make run` back on `0.0.0.0` → `test_engine_service.py:414`. |
-| M1 | **In part.** Notes 2-4 (`decisions.md:3326-3335`) and the page (`owner-iphone.md:43-48`) now state every-network, firewall-off and cleartext `task`. The firewall line added for it claims a control that does not exist (**B2**). | n/a (text) |
-| M2 | **Yes.** The mode is kept (`install_engine_service.sh:46-52`) and printed (`:193-194`). `app.sh` passes `ENGINE_URL` and `PRODUCT_BUNDLE_IDENTIFIER` (`ios/app.sh:115`). | **Yes, one half.** Keep-mode off and `--no-lan` ignored → `test_engine_service.py:398`. Each `app.sh` setting dropped → `:422`. A loopback wrapper turned into LAN survives (**M7**). |
-| M3 | **Yes.** The page says "after the merge" (`:11-12`) and how to undo "Don't Allow" (`:35-36`). The bundle id moved into `Engine.xcconfig:9`, and the project no longer sets it. | **Yes.** The id back in the project, or dropped from the xcconfig → `test_engine_address.py:60`. The `#include?` dropped → `:18`. Measured: the owner's file sets the team and the id, and `app.sh`'s command line beats it. |
-| M4 | **In part.** The key link is held. The address was added to `.unreachable`'s detail (`EngineClient.swift:257`, `:260`), but no view shows that detail (**B2**). | **Yes, for what changed.** `localDefault` reading nil, or the key misspelt → `test_engine_address.py:45`. The address dropped from the detail → `EngineClientTests.swift:290`. Nothing tests the screen. |
-| M5 | **Yes.** The launcher test binds TEST-NET-1 (`test_engine_service.py:379-381`), so a regressed preflight cannot serve this Mac. | **Yes.** Header or list case kept → `test_engine_host.py:81`. Empty Host served → `:90`. The installer not lower-casing the name → `test_engine_service.py:355`. |
-| M6 | **Yes.** `prd.md:551`. It is cited at `test_engine_host.py:1`, `test_engine_address.py:1` and `EngineClientTests.swift:542`, and the row's evidence line numbers are right. | n/a |
-| K1 | Filed as **#94**. I read it: it states the consequence below (green HEALTHCHECK, outside requests 400). | n/a |
-| K2 | Filed as **#95**. | n/a |
-| R1 | Written: page `:51-53`, note 6 (`decisions.md:3339-3340`). | n/a |
-| R2 | Written: a comment on **#89** (read). | n/a |
+| B1 | **Yes.** With no list, `_known_host` refuses whatever arrives on a non-loopback socket address (`main.py:568-578`, `:751-762`). `make run` binds 127.0.0.1 (`Makefile:267`). | **Yes.** Arrival check off → `test_engine_host.py:72`. A name counted as a network → `:53`. Startup check off → `:58`. `make run` back on `0.0.0.0` → `test_engine_service.py:420`. |
+| M1 | **Yes (text).** Notes 2-4 and 7 (`decisions.md:3326-3335`, `:3346-3348`); page `:50-57`. | n/a |
+| M2 | **Yes.** The mode is kept (`install_engine_service.sh:46-52`) and printed (`:193-194`). `app.sh` pins the address and the bundle id (`ios/app.sh:115`). | **Yes.** Keep block off → `test_engine_service.py:398`. Either `app.sh` setting dropped → `:428`. |
+| M3 | **Yes.** The bundle id lives in `Engine.xcconfig:9`. The page says "after the merge" (`:11-12`) and how to undo "Don't Allow" (`:36-37`). It still does not say to pull the merge (**M9**). | **Yes.** The id out of the xcconfig → `test_engine_address.py:59`. The `#include?` dropped → `:19`. |
+| M4 | **Yes.** The plist key is held. The address is in `.unreachable`'s detail (`EngineClient.swift:275`, `:278`), and since round 2 it is on screen (B2). | **Yes.** Key misspelt, or nil read → `test_engine_address.py:46`. Detail without the address → `EngineClientTests.swift:290`. |
+| M5 | **Yes.** | **Yes.** Header case → `test_engine_host.py:81`. List case → `:81`. Empty Host served → `:90`. Installer not lower-casing the name → `test_engine_service.py:355`. The launcher test binds TEST-NET-1 (`:378-381`, read). |
+| M6 | **Yes.** `prd.md:551`. All 20 evidence line numbers point at the right test definitions (checked one by one). Two evidence files do not cite the id (**M13**). | n/a |
+| K1 | Filed as **#94** (open; read). | n/a |
+| K2 | Filed as **#95** (open; read). | n/a |
+| R1 | **In part.** Note 6 (`decisions.md:3339-3340`) and page `:58-60` cover the app's address and not the engine's list, though R1 named both (**M9**). | n/a |
+| R2 | A comment on **#89** (read). | n/a |
+| B2 (a) | **Yes.** `addressNote` (`EngineClient.swift:138-153`), `UIText.engineAddress` (`Language.swift:424-427`), the view (`ContentView.swift:671-674`). Step 6 (`owner-iphone.md:38-45`) and note 8 (`decisions.md:3349-3351`) describe what the code does. | **Yes, with one gap.** Only `.unreachable` keeps the line → `EngineClientTests.swift:559`. Turkish line changed → `LanguageTests.swift:444`. View line removed or commented out → `test_engine_address.py:77`. Line computed and not shown: survives (**M11**). |
+| B2 (b) | **Yes (text).** Page `:56-57`; note 7 (`decisions.md:3346-3348`) supersedes the cost's last sentence and note 3's pointer, and the body stays append-only. It is correct: the macOS application firewall filters by application, not by device. | n/a |
+| M7 | **Yes.** | **Yes.** `[ -f "$WRAPPER" ]` in place of the `grep` → `test_engine_service.py:398`. `:145` now asserts `"starting on" not in`, and the launcher's echo (`engine_service.sh:74`) contains that text, so the assertion can fail again (read). |
+| M8 | **Yes (text).** Step 2 gives `security find-certificate -c "Apple Development" -p \| openssl x509 -noout -subject` (`owner-iphone.md:25-26`). The author says it was measured on this Mac. I did not read the keychain (**R4**). | n/a |
+| K3 | **Yes.** `EngineClient.swift:134` compares lower-cased hosts. The Unicode probe above shows it cannot be fooled. | **Yes.** Case-sensitive again → `EngineClientTests.swift:53` and the source pin `test_ios_client_contract.py:504`. |
+| R3 | Note 9 (`decisions.md:3352-3354`) and a comment on **#94** (read). | n/a |
 
 ## Findings
 
 ### BLOCKING (must fix before this wave closes)
-
-- **B2** `docs/owner-iphone.md:37-38`, `:49-50`; `docs/decisions.md:3313-3314`, `:3330-3331`,
-  `:3336-3338`; `ios/ModelRanking/ContentView.swift:662-672`;
-  `ios/ModelRanking/Engine/EngineClient.swift:92-96`.
-  **The owner's page and D-171's notes describe an error message and a firewall that do not behave as
-  written.**
-
-  **(a) No screen shows the address.** Step 6 says: "If the app says the engine is not answering, the
-  message names the address it tried". Note 5 says the same.
-  - The failure screen (`ContentView.swift:662-672`) renders `errorDescription` ("The engine is not
-    answering.") and `recovery` ("…not reachable right now. Try again in a moment.") only.
-  - The address is in `.unreachable`'s detail. Only `diagnostic` (`EngineClient.swift:94-96`) reads
-    that detail, and nothing in `ios/ModelRanking` renders or logs `diagnostic`. I grepped for it.
-  - The new test (`EngineClientTests.swift:282-291`) holds the string, not what the phone shows.
-  - So the round-one M4 symptom stands on the phone. A mistyped `ENGINE_URL` falls back to loopback,
-    and the owner sees no address. Step 6 is the only diagnosis the page gives him.
-  - One more point, not measured (there is no device here): on iOS, a refused local-network permission
-    is commonly reported as "not connected to the internet". This client maps that to `.offline`
-    (`EngineClient.swift:254`), so the phone would say "This device has no network connection", which
-    step 6 does not mention.
-
-  **(b) The firewall keeps no one out.** The page (`:49-50`) says: "To keep other devices out while it
-  is on, turn the firewall on … and allow Python." Note 3 points the owner to this as the alternative
-  control, and the cost (`decisions.md:3313-3314`) still names the firewall as one.
-  - The macOS application firewall allows or blocks per application. It does not filter by device or
-    by network.
-  - Allowing Python admits every device on every network the Mac joins, a café's included. Blocking
-    Python shuts the phone out too.
-  - No setting on that screen lets the phone in and keeps others out. While `--lan` is on, the only
-    control is `--no-lan`.
-
-  **Why it blocks, and is not a MINOR.**
-  - This is a HIGH wave, and this page is the thing the owner acts on next.
-  - (b) is a safety claim about the very exposure this wave opens. An owner at a café would believe he
-    is covered.
-  - The record now says the code does what it does not. That is the defect this project has recorded
-    most often.
-  - Both halves come from round-one fixes (M1, M4) that the notes record as done.
-  - `permission-matrix.md` §12 triage: "MINOR but could ship and pass review → BLOCKING". A MINOR here
-    could be deferred to an issue while the page ships.
-
-  **The fix.**
-  - For (a), either:
-    - show the address on the failure screen for `.unreachable`, for example `diagnostic` in a
-      footnote, with a test on the text the view is given; or
-    - reword step 6 and note 5 to what the phone shows. Step 6 would then say what to check: step 2's
-      file, the Mac awake and on the same Wi-Fi, the local-network switch.
-  - For (b), reword the firewall line: it cannot keep other devices out while the phone is let in, and
-    `--no-lan` is how to close. Add a line to D-171's notes. The body's cost sentence stays, since it
-    is append-only, and the new note supersedes it.
+- none
 
 ### MINOR (the author fixes each in this wave or files it as an issue)
 
-- **M7** `tests/unit/test_engine_service.py:398-411`, `:145`; `scripts/install_engine_service.sh:48`;
-  `scripts/engine_service.sh:74`.
-  **One direction of the reinstall rule is untested, and one old assertion can no longer fail.**
+- **M9** `docs/owner-iphone.md:58-60`, `:10-15`; `docs/decisions.md:3339-3340`; `scripts/install_engine_service.sh:57`, `:61`, `:70-71`; `src/app/adapter/main.py:757-759`. **Two of the owner's steps do not work as written.**
 
-  D-171 note 2 says a routine redeploy "does not close it by accident, nor open it". The test covers
-  only "does not close it". A mutant that treats any existing wrapper as LAN survives all 27 tests in
-  the file: `[ -f "$WRAPPER" ]` in place of the `grep`. With it, a plain reinstall over a loopback
-  wrapper would open the engine to the network without being asked. The code is right today: my probe
-  with a loopback wrapper stayed on loopback.
+  **(a) The rename recovery fixes the app and not the engine.** The page says: "macOS can rename it;
+  put the new name in step 2's file and run the app from Xcode again". Note 6 says the same.
 
-  Separately, `:145` asserts `"starting on :" not in done.stdout`. The launcher now prints
-  `starting on ${MODEL_RANKING_BIND:-127.0.0.1}:`, which never contains `on :`, so that line can no
-  longer fail.
+  The engine's Host list is written into the wrapper when the installer runs. It reads
+  `scutil --get LocalHostName` at `:57`, lower-cases it at `:61` and exports it at `:70-71`. Nothing
+  rewrites it until the installer runs again.
 
-  **The fix:** in `test_a_reinstall_keeps_…`, add a wrapper with `MODEL_RANKING_BIND="127.0.0.1"` and
-  assert that the reinstall stays on loopback. Change `:145` to `"starting on" not in`.
+  So, after a rename, the owner follows the page. The phone now asks `<new-name>.local`, which
+  resolves to the Mac. The engine refuses it with 400 `unknown_host` (`main.py:757-759`), because the
+  list still says `<old-name>.local`. The screen says "This engine does not answer to that host.",
+  with no address line (**M10**), and step 6 has no case for it.
 
-- **M8** `docs/owner-iphone.md:25`.
-  **I could not confirm where step 2 sends the owner for his team id.** It says: Xcode → Settings →
-  Accounts → your Apple ID → the team (10 characters). As far as I know, that pane lists a free
-  Personal Team by name and role, not by id. This seat has no Apple ID session, so this is unverified.
-  If the owner cannot find the id there, the page gives him no other way.
+  Round 1's R1 named both halves: "the app's baked address and the installer's list both miss". The
+  name is already `-2`, so a rename has happened on this Mac once.
 
-  **The fix:** confirm it on this Mac, or add a fallback that works for a Personal Team. One is the
-  `OU` field of the Apple Development certificate. Another is Build Settings → `DEVELOPMENT_TEAM`,
-  after choosing the team once, with the project change then undone. Pick whichever the author can
-  measure.
+  **The fix:** one more clause on the page and in a note. After a rename, also run
+  `scripts/install_engine_service.sh`. A plain rerun keeps the LAN mode (`:46-52`) and reads the new
+  name (`:57`).
+
+  **(b) The page assumes the merged `main` is in the local checkout.** It says "after the M18-W1 pull
+  request is merged" (`:10-12`) and then "On the Mac, from the repository". The installer deploys
+  `origin/main` by `git fetch`, but the script that runs is the one on disk. In a checkout that has
+  not pulled the merge:
+  1. `--lan` gets the old script's usage line and exit 2 (`e82011b:scripts/install_engine_service.sh:115`);
+  2. step 2's file is read by nothing, because the old project has no `Engine.xcconfig`;
+  3. step 4 builds an app with no address line.
+
+  It fails loudly, so nothing is harmed. **The fix:** one line, "with `main` checked out and pulled".
+
+  **Why MINOR.** `permission-matrix.md` §11 classes doc drift as MINOR. Neither statement is a safety
+  claim, and each fails with a message rather than silently.
+
+- **M10** `ios/ModelRanking/Engine/EngineClient.swift:138-153`, `:270-271`; `ios/EngineTests/EngineClientTests.swift:569-574`. **The address is left off the two failures where it is the cause.**
+
+  `addressNote` returns nil for `.insecureTransport`, `.refused` and `.undecodable`, on the premise
+  that "the address is not what went wrong there" (`:142-144`). That premise is false for two cases
+  this setup can produce.
+
+  1. **`.refused` with code `unknown_host`.** This is the refusal this wave adds. The engine got the
+     request and refused the Host, which is the address's own name. It is what the owner sees in
+     M9(a), and whenever the address the app asks is not on the engine's list. Two examples: a
+     hand-typed IP after the Mac's address changed, or another spelling of the name.
+  2. **`.insecureTransport`.** On this setup it fires only because of the address. Either the URL is
+     `http` to a name that is neither `.local` nor unqualified, which ATS refuses despite
+     `NSAllowsLocalNetworking`. Or it is `https` against the plain-HTTP engine, which fails as
+     `.secureConnectionFailed`. That maps here (`:270-271`), and the recovery sentence then tells
+     the owner the connection "is not encrypted", which is the opposite of what happened.
+
+  `testAnAnswerTheEngineGaveCarriesNoAddress` (`EngineClientTests.swift:569-574`) pins today's
+  choice, so the fix changes that test too. The address is not secret, so showing it under every
+  failure is the simplest correct rule. The narrower rule is to add `.refused` where
+  `code == "unknown_host"`, and `.insecureTransport`. Either way, step 6 gains a case: "It says the
+  engine does not answer to that host: rerun the installer (M9)."
+
+- **M11** `tests/unit/test_engine_address.py:77-85`, `:70-74`; `ios/Package.swift`. **The pin on the failure view holds the call, not the line on screen.**
+
+  `ContentView.swift` is compiled by no gate: the Swift package's target path is
+  `ModelRanking/Engine`. So this regex is the only guard on the B2 fix's last step. It asks only that
+  `error.addressNote(client.baseURL, language)` appears in `failure(_:)`.
+
+  The mutant `let _ = error.addressNote(client.baseURL, language)` replaces the `if let … { Text(…) }`
+  block. It typechecks for iOS (I ran `swiftc -typecheck` on it) and passes the whole Python suite,
+  so the owner would see no address while every gate is green.
+
+  Separately, `_code` keeps a `//` comment on any line where a `"` comes before it (`:73`). So a
+  call commented out after a string on the same line still counts as code.
+
+  **The fix:** pin the shape that shows it, for example
+  `if let (\w+) = error\.addressNote\(client\.baseURL, language\) \{\s*Text\(\1\)`. A view test would
+  be better; it belongs to #69.
+
+- **M12** `scripts/install_engine_service.sh:33-35`, `:46-62`, `:140`; `tests/unit/test_engine_service.py:103-106`. **The deploy tests run the keep-the-mode logic against the owner's real HOME.**
+
+  The keep-and-LAN block runs before the mode dispatch at `:140`, so it runs for `--deploy-only` and
+  `--print-plist` too, where it has no use. The `_deploy` helper passes the real environment and
+  overrides no HOME.
+
+  On the owner's Mac with `--lan` on, every deploy test therefore:
+  1. reads his live wrapper in `~/Library/Application Support`;
+  2. takes the LAN branch;
+  3. calls `scutil --get LocalHostName` and `ipconfig getifaddr` for real;
+  4. prints "home network: kept".
+
+  The installer's own comment says the opposite (`:34-35`: "Tests pass ENGINE_LAN_NAME and
+  ENGINE_LAN_IP instead of asking this Mac").
+
+  All of it is read-only, so nothing is harmed today. But a test's path now depends on the state of
+  the owner's service. Where `scutil` is missing or denied, the deploy tests exit 1 at `:59` for a
+  reason outside the code. I established this by reading. Running it would have meant running the
+  installer outside the pytest file, or reading `~/Library`.
+
+  **The fix:** `_deploy` sets HOME to a temporary folder (one line). Better still, the block runs
+  only when installing.
+
+- **M13** `ios/EngineTests/LanguageTests.swift:440-443`; `tests/unit/test_engine_service.py:346`; `docs/plans/m18-wave-1-plan.md:11-12`, `:67`; `docs/prd.md:551`. **Records drift, four small items.**
+
+  (a) `EngineAddressLanguageTests` was inserted between the M17-W5 doc comment and the class it
+  describes. That comment ("a board added by a refinement is named as its chip is…") now heads the
+  new class, and `CombinedListLanguageTests` has lost it.
+
+  (b) REQ-DEV-001's evidence cites `test_engine_service.py:349-428` and `LanguageTests.swift:444`,
+  but neither file cites the id (seed E.2). The section header at `test_engine_service.py:346` names
+  `#87, D-171; #86`, and the Swift class comment names the review.
+
+  (c) The wave plan still says "so a security pass runs before merge" (`:11-12`) and "the security
+  pass" (`:67`). D-172 removed per-wave passes and amended `m18-plan.md` (`:200-203`), but not this
+  file.
+
+  (d) The PRD row says "the simulator build is always loopback". That is true of `ios/app.sh`'s build
+  (`test_engine_service.py:428`). It is not true of a simulator chosen in Xcode, which reads the
+  owner's override. The page says it precisely (`owner-iphone.md:61`).
+
+  **The fix:** move the comment back, cite the id in the two files, align the wave plan with D-172,
+  and say "the simulator build from `ios/app.sh`" in the PRD.
+
+- **M14** `git log e82011b..a04fdd5`; `AGENTS.md:42`. **Five commits carry no agent trailers.**
+
+  `8e54068`, `cc78cb7`, `78aa6d1`, `a7f4b3b` and `a04fdd5` have neither `GP-Agent:` nor `GP-Task:`.
+  The eight commits before them have both. Under D-161, a session commit carries the owner's
+  identity, and the trailers are the only mark of an agent's commit. `AGENTS.md:42` calls them a
+  convention that nothing can check on the owner's identity.
+
+  If these five were agent sessions, the range now holds commits that cannot be told from the
+  owner's own. That is the property the convention exists for.
+
+  History is not rewritten for this. **The fix:** the trailers resume on the next commit. The
+  checklist row can say "refused — history is not rewritten; trailers resume from <sha>".
 
 ### PASS (what looks good)
 
-- **With no list, only loopback is served, on every launch path.**
-  - uvicorn fills `scope["server"]` from the accepted socket's own address
-    (`uvicorn/protocols/utils.py:30-44`, used at `h11_impl.py:99` and `httptools_impl.py:108`). So the
-    rule reads the real bind, not a variable.
-  - **Measured on a real engine.** On 127.0.0.1 and on [::1] with no list, every Host gets 200, a
-    missing Host included. With a list: a foreign Host gets 400, `UMUT-MACBOOK-PRO-2.LOCAL:8080` gets
-    200 against a mixed-case entry, and `[::1]` and a missing Host get 400.
-  - **Called directly.**
-    - `192.168.0.26`, `::ffff:192.168.0.26`, `fe80::1%en0` and `0.0.0.0` are refused.
-    - `127.0.0.1`, `::1` and `::ffff:127.0.0.1` (Python 3.14) are served.
-    - `testserver`, a Unix socket path and `None` are served, which is what keeps `TestClient` tests
-      working (`test_engine_host.py:53`).
-    - On Python 3.11 and 3.12, `::ffff:127.0.0.1` is not loopback. So a hand-typed dual-stack
-      `--host ::` there would refuse its own loopback. That fails closed, and nothing starts that way.
-  - **`Dockerfile:46` now fails closed.** Its HEALTHCHECK on 127.0.0.1 stays green while every outside
-    request gets 400. #94 says exactly this, and nothing deploys the image.
-- **The installer is right under bash 3.2.57 with `set -u`.**
-  - No arguments, and a wrapper that does not exist yet, give loopback.
-  - A LAN wrapper is kept, and the script says so on stderr.
-  - `--no-lan` closes, in either order and when both flags are given.
-  - `--lan` can come anywhere, more than once.
-  - `--deploy-only` keeps a spaced path and `--no-venv`.
-  - A bad flag gives the usage line and exit 2.
-  - An empty `LocalHostName` stops with `FAIL`.
-  - The mixed-case name is lower-cased (`umut-macbook-pro-2.local`).
-- **The bundle id and the build settings agree** (`-showBuildSettings`, measured).
-  - Debug and Release resolve `PRODUCT_BUNDLE_IDENTIFIER = com.ilgar.modelranking`,
-    `ENGINE_URL = http://127.0.0.1:8080` and `INFOPLIST_FILE = Config/Info.plist`.
-  - The xcconfig is the base of the app target's own configurations (`project.pbxproj:159`, `:180`,
-    list `194A6D5B…`), and it is the only target.
-  - The owner's file overrides the address, the team and the id.
-  - `app.sh`'s command line then puts the address and the id back to loopback and `$BUNDLE`
-    (`ios/app.sh:18`, `:115`, `:126-127`), so `simctl launch` finds what it built.
-  - The plain `//` mistake resolves to `ENGINE_URL = http:`, which the client turns into loopback, as
-    the page warns.
-  - `swift test` has no bundle id, and its `Bundle.main` has no key, so it keeps loopback.
-- **#86 stays resolved.**
-  - A second `--host` → `test_engine_service.py:364`.
-  - The wrapper is mode 700 (`:387-395`).
-  - The preflight is run for real on an address the Mac cannot bind (`:373-384`).
-- **D-126 and D-160 as amended: nothing new leaves the phone.**
-  - The Swift diff changes where requests go, and the text of a local error. It adds no query item or
-    header.
-  - `test_router_hints.py:229` passes in the gate.
-  - The redirect guard follows the configured host (`EngineClient.swift:243`).
+- **The engine's network surface is right.**
+  - The no-list rule reads the socket's local address, which uvicorn fills from the accepted
+    connection. `make run`, a hand-typed uvicorn and the service are all held, and the real-engine
+    probe agrees.
+  - A non-IP `server` (TestClient's `testserver`, a Unix socket) is served (`main.py:577-578`). That
+    is the only way the rule fails open, and note 9 and #94 record the forwarder case that follows
+    from it.
+  - With a list: the port is stripped, case is ignored on both sides, an empty or missing Host is
+    refused, and the refusal comes before CORS, with `nosniff`.
+  - The startup check refuses a bind beyond loopback with no list, and the launcher's preflight turns
+    that into a refused start (`engine_service.sh:57-67`).
+- **The installer's keep-the-mode logic holds, through its tests.**
+  - A LAN wrapper is kept; `--no-lan` closes it; a loopback wrapper stays on loopback.
+  - The name is lower-cased, and the wrapper is mode 700.
+  - Each was shown by a mutant going red. The plist does not carry the mode, so a mode change is
+    picked up by `kickstart -k` (`:176-177`), which reads the new wrapper.
+- **#86 stays resolved.** A second `--host` → `test_engine_service.py:364`. Wrapper `755` →
+  `:387`. The preflight is run for real on an address the Mac cannot bind (`:373`).
+- **The failure screen's address line is right where it shows.**
+  - It shows for `.unreachable`, `.timedOut` and `.offline`, in both languages. It is selectable, and
+    it is the URL the requests used (`client.baseURL`).
+  - Step 6's three cases each match a code path:
+    - a loopback fallback from a missing or misspelt `ENGINE_URL` gives `127.0.0.1` (`EngineClient.swift:166-172`);
+    - the Mac's name, with the engine unreachable or timed out;
+    - "no network connection", from `.notConnectedToInternet` mapped to `.offline` (`:272-273`).
+- **D-126 and D-160 as amended: showing a URL opens no way off the device.**
+  - `addressNote` is a pure function, and the line is a `Text`.
+  - `.textSelection(.enabled)` was already used on the detail facts at base (`ContentView.swift:1104`).
+  - The egress gate (`test_router_hints.py:302`, scanning every client file raw) passes. The new
+    `: URL` parameter sits in `EngineClient.swift`, the one permitted door.
+  - The data-flow gate on `client.` arguments (`test_router_hints.py:229`) is untouched:
+    `client.baseURL` is not a call.
+  - No query item or header is added.
+- **`SameHostOnly`, case-free, is sound.** Both sides are lower-cased, and nil still matches only nil
+  (unchanged, held by `testARedirectWithNoHostAtAllIsRefused`). The IDNA probe shows that Unicode
+  lower-casing cannot turn a foreign host into the engine's. The source pin moved with the code
+  (`test_ios_client_contract.py:525-526`).
+- **D-171's notes match the code, apart from note 6's missing half (M9).**
+  - Note 7's firewall wording is correct.
+  - Note 8 lists exactly the three cases the code shows.
+  - Note 9 is the R3 forwarder case.
+  - The body is append-only: `docs/decisions.md` only gains lines across the range.
+- **The app compiles for a device target**, the B2 view change included.
 - **Discipline.**
-  - The red tests (`b718f70`) came before the fix (`8e54068`).
-  - The fix touched the tests only in their headers (REQ-DEV-001, and one docstring). No assertion was weakened.
-  - `docs/decisions.md` only gains lines.
-  - No commit carries AI attribution.
-  - No drive-by edits: every file maps to the plan's P0-P4 or to a round-one finding.
+  - Each fix was red first (`b718f70` → `8e54068`; `a7f4b3b` → `a04fdd5`, the view pin measured).
+  - The fixes changed no assertion to make it pass. M7 tightened one.
+  - No AI attribution appears in commits.
+  - No drive-by edits: every file maps to the plan's P0-P4, a review finding, or D-172.
+  - AGENTS.md is 127 lines and changed only under D-172.
 
 ## Producers of hardened invariant(s)
 
-The wave hardens four invariants:
-1. The engine is reachable beyond loopback only by opt-in. With no list, whatever arrives off loopback
-   is refused, and a bind beyond loopback with no list does not start (D-171 clause 2, note 1).
+The wave hardens five invariants:
+1. The engine is reachable beyond loopback only by opt-in (D-171 clause 2, note 1).
 2. With a list, a foreign Host gets 400 (clause 1).
-3. The app's engine address is set per build, with loopback as the fallback. The simulator build is
-   always loopback (clause 4, note 5).
-4. Nothing new leaves the phone (D-126; D-160 as amended by D-168 note 9).
+3. The app's address is set per build, with loopback as the fallback, and the `app.sh` simulator
+   build is pinned to loopback (clause 4, note 5).
+4. Under a failure to reach the engine, the screen shows the address the app asked (note 8).
+5. Nothing new leaves the phone (D-126; D-160 as amended by D-168 note 9).
 
 | producer | invariant | citing test | gap |
 |---|---|---|---|
-| `main.py:568-578`, `:751-762` (arrival rule, middleware) | 1 | `test_engine_host.py:53`, `:72` | none |
-| `main.py:646-653` (startup check), `scripts/engine_service.sh:57-67`, `:75` | 1 | `test_engine_host.py:58`; `test_engine_service.py:364`, `:373` | none |
-| `Makefile:267` (`make run`) | 1 | `test_engine_service.py:414` | none |
-| `scripts/install_engine_service.sh:36-62` (wrapper, keep-mode) | 1, 2 | `test_engine_service.py:349`, `:355`, `:398`, `:387` | loopback-stays-loopback (**M7**) |
-| `Dockerfile:46`, a hand-typed uvicorn | 1 | covered by the arrival rule (`test_engine_host.py:72`) | a list for a hosted engine: #94 |
-| `main.py:554-565` (list, Host parse) | 2 | `test_engine_host.py:36-50`, `:81`, `:90` | none |
-| `Engine.xcconfig`, `Info.plist`, `project.pbxproj` | 3 | `test_engine_address.py:18`, `:27`, `:36`, `:60` | none |
-| `EngineClient.localDefault`, `engineURL` (`EngineClient.swift:144-154`) | 3 | `test_engine_address.py:45`; `EngineClientTests.swift:544`, `:551` | none |
-| `ios/app.sh:112-116` (simulator build) | 3 | `test_engine_service.py:422` | none |
-| `EngineClient`'s requests (`EngineClient.swift:184-215`) | 4 | `test_router_hints.py:229`; client-decls | none (unchanged) |
+| `main.py:568-578`, `:751-762` (arrival rule, middleware) | 1 | `test_engine_host.py:53`, `:72` | none (forwarders: note 9, #94) |
+| `main.py:646-653` (startup check), `engine_service.sh:57-67`, `:75` | 1 | `test_engine_host.py:58`; `test_engine_service.py:364`, `:373` | none |
+| `Makefile:267` (`make run`) | 1 | `test_engine_service.py:420` | none |
+| `install_engine_service.sh:36-62`, `:70-71`, `:170` (wrapper, keep mode) | 1, 2 | `test_engine_service.py:349`, `:355`, `:387`, `:398` | tests read the real HOME (**M12**) |
+| `main.py:554-565` (list, Host parse) | 2 | `test_engine_host.py:38`, `:45`, `:81`, `:90` | none |
+| `Engine.xcconfig`, `Info.plist`, `project.pbxproj` | 3 | `test_engine_address.py:19`, `:28`, `:37`, `:59` | none |
+| `EngineClient.swift:162-172` (`localDefault`, `engineURL`) | 3 | `test_engine_address.py:46`; `EngineClientTests.swift:552`, `:576` | none |
+| `ios/app.sh:112-116` | 3 | `test_engine_service.py:428` | none |
+| `EngineClient.swift:138-153`, `Language.swift:424-427` | 4 | `EngineClientTests.swift:559`, `:569`; `LanguageTests.swift:444` | `unknown_host`, `insecureTransport` (**M10**) |
+| `ContentView.swift:671-674` | 4 | `test_engine_address.py:77` | holds the call, not the line (**M11**) |
+| `EngineClient.swift:119-136` (`SameHostOnly`) | 5 | `EngineClientTests.swift:53`; `test_ios_client_contract.py:504` | none |
+| `EngineClient.swift:202-297` (requests) | 5 | `test_router_hints.py:229`, `:302` | none (unchanged but for the error detail) |
 
 ## Acceptance criteria evidence
 
-REQ-DEV-001 (`docs/prd.md:551`), which comes from `m18-plan.md:30`:
-- **Opt-in, loopback the default** → `test_engine_service.py:349`, `:355`; `install_engine_service.sh:54-62`.
-- **A reinstall keeps the mode it finds** → `test_engine_service.py:398`, for LAN kept and closed.
-  Loopback kept is untested (**M7**).
-- **With no list, a request arriving on a network address is refused** → `test_engine_host.py:72`, and
-  the real-engine probes above.
-- **An exposed engine refuses a Host not on its list** → `test_engine_host.py:45`, `:81`, `:90`.
+REQ-DEV-001 (`docs/prd.md:551`, from `m18-plan.md:30`), clause by clause:
+- **The engine binds loopback unless the installer is told otherwise** → `test_engine_service.py:349`,
+  `:355`; `install_engine_service.sh:54-62`.
+- **A reinstall keeps the mode it finds** → `test_engine_service.py:398` (kept, closed, stays
+  loopback).
+- **With no Host list, a request arriving on a network address is refused** →
+  `test_engine_host.py:72`, `:53`; the real-engine probe.
+- **An exposed engine refuses a Host not on its list** → `test_engine_host.py:45`, `:81`, `:90`; the
+  real-engine probe.
 - **A bind beyond loopback with no list does not start** → `test_engine_host.py:58`;
   `test_engine_service.py:373`.
-- **The address per build, loopback when unset** → `test_engine_address.py:18`, `:45`;
-  `EngineClientTests.swift:544`, `:551`.
-- **The simulator build is always loopback** → `test_engine_service.py:422`, and `-showBuildSettings`.
-- **The app declares local networking** → `test_engine_address.py:27`.
-- **Nothing new leaves the phone** → `test_router_hints.py:229`.
-- **The app runs on the owner's iPhone** → the owner's own run, which the row honestly marks
-  **PARTIAL**. The page that guides it has two false statements (**B2**).
+- **The address is set per build, loopback when unset** → `test_engine_address.py:19`, `:46`;
+  `EngineClientTests.swift:552`, `:576`.
+- **It is shown under a failure to reach it** → `EngineClientTests.swift:559`; `LanguageTests.swift:444`;
+  `test_engine_address.py:77` (weak, **M11**).
+- **The simulator build is always loopback** → `test_engine_service.py:428`, for `ios/app.sh`'s build
+  (**M13**(d)).
+- **Nothing new leaves the phone** → `test_router_hints.py:229`, `:302`.
+- **The app runs on the owner's iPhone** → the owner's own run, honestly marked **PARTIAL**. The page
+  that guides it is right for the first run; its rename recovery is not (**M9**).
+
+## ADR trace
+
+- **D-171.**
+  - Clause 1 → `main.py:751-762`.
+  - Clause 2 → `main.py:646-653`, `engine_service.sh:75`, and note 1's no-list rule.
+  - Clause 3 → `install_engine_service.sh:56-62`.
+  - Clause 4 → `Engine.xcconfig:6`, `Info.plist:5-13`, `EngineClient.swift:162-172`.
+  - Notes 1-5 and 7-9 match the code. Note 6 is half of what R1 asked (**M9**).
+  - The cost's last sentence and note 3's firewall pointer are superseded by note 7, in place, and
+    the body stays append-only.
+- **D-172** → `AGENTS.md` §4, `m18-plan.md:200-203`. No security seat ran on this wave, as ruled.
+  The wave plan was not updated (**M13**(c)).
+- **D-170** → amended by D-171, as its header says. The installer stays the owner's (or his
+  standing instruction's) to run; this seat ran it only through its tests.
+- **D-126 / D-160 / D-168 note 9** → the requests are unchanged, and the egress gates pass. Showing the
+  address is local (PASS above). Clause 4's "parameterless" is corrected by note 4.
 
 ## K.8 contract drift check
 
-`grep -n` at `8e54068`:
+`git grep -n` at `a04fdd5`:
 ```
-ios/ModelRanking/Engine/EngineClient.swift:144:    static let localDefault = engineURL(from: Bundle.main.object(forInfoDictionaryKey: "EngineURL") as? String)
-ios/ModelRanking/Engine/EngineClient.swift:148:    static func engineURL(from raw: String?) -> URL {
-ios/ModelRanking/Engine/EngineClient.swift:168:    init(baseURL: URL = EngineClient.localDefault, session: URLSession? = nil) {
+ios/ModelRanking/Engine/EngineClient.swift:145:    func addressNote(_ address: URL, _ language: Language) -> String? {
+ios/ModelRanking/Engine/EngineClient.swift:162:    static let localDefault = engineURL(from: Bundle.main.object(forInfoDictionaryKey: "EngineURL") as? String)
+ios/ModelRanking/Engine/EngineClient.swift:166:    static func engineURL(from raw: String?) -> URL {
+ios/ModelRanking/Engine/EngineClient.swift:186:    init(baseURL: URL = EngineClient.localDefault, session: URLSession? = nil) {
+ios/ModelRanking/Engine/Language.swift:425:    public static func engineAddress(_ language: Language, _ address: String) -> String {
 ios/Config/Info.plist:5:	<key>EngineURL</key>
-scripts/engine_service.sh:75:exec "$REPO/.venv/bin/python" -m uvicorn app.adapter.main:app --host "${MODEL_RANKING_BIND:-127.0.0.1}" --port "$PORT"
 Makefile:267:	$(PY) -m uvicorn app.adapter.main:app --host 127.0.0.1 --port 8080 --reload
+scripts/engine_service.sh:75:exec "$REPO/.venv/bin/python" -m uvicorn app.adapter.main:app --host "${MODEL_RANKING_BIND:-127.0.0.1}" --port "$PORT"
 scripts/install_engine_service.sh:70:export MODEL_RANKING_BIND="$BIND"
 scripts/install_engine_service.sh:71:export MODEL_RANKING_ALLOWED_HOSTS="$ALLOWED"
 src/app/adapter/main.py:548:ALLOWED_HOSTS_VAR = "MODEL_RANKING_ALLOWED_HOSTS"
@@ -307,31 +405,23 @@ src/app/adapter/main.py:751:async def _known_host(request: Any, call_next: Any) 
 src/app/adapter/main.py:759:        response = _error(400, "unknown_host", "This engine does not answer to that host.")
 ```
 - The plan's three symbols (`m18-wave-1-plan.md:54-58`) are present.
-  - `localDefault` keeps its name and type.
+  - `localDefault` keeps its name and type, `URL`.
   - `validate_startup_config` keeps its signature.
-  - The launcher's `exec` line changes only as the plan says.
-- The two variable names match across the engine, the installer and the launcher.
+  - The launcher's `exec` line changed only as the plan says.
+- The two variable names agree across the engine, the installer and the launcher.
 - `/v1` gains one error code, `unknown_host`, in the one error shape, under D-171. No route changes
   shape.
+- The two new Swift symbols are internal (`addressNote`) or a `UIText` entry (`engineAddress`). No
+  shared contract changes.
 
 **Verdict: OK.**
 
 ## K.9 candidates spotted outside this wave's scope
 
-- **K3** `ios/ModelRanking/Engine/EngineClient.swift:133` (`SameHostOnly`). The redirect guard compares
-  hosts case-sensitively (`request.url?.host == host`), but DNS names are not case-sensitive. The page's
-  own example address is mixed-case (`Umut-MacBook-Pro-2.local`). URLSession sends the Host
-  lower-cased (round one measured it), so a same-host redirect built from that Host would be refused
-  as off-host. It is latent: the client asks no path with a trailing slash, and the engine sends no
-  redirect today. The fix would compare lower-cased hosts, with a test. Enhancement (robustness).
+- **K4** `ios/ModelRanking/Engine/EngineClient.swift:39-87`; `ios/ModelRanking/ContentView.swift:664-674`. **The failure screen is half translated.** Its title and the new address line speak Turkish, but `errorDescription` and `recovery` are English only. On the phone, the `.offline` recovery ("This device has no internet connection") is also what a refused local-network switch produces, and it points the reader the wrong way. The strings predate this wave. It is an enhancement: check for an existing issue before filing (#95 is the plist prompt only).
+- **K5** `ios/Package.swift`; `Makefile` (`swift-test`). **No gate compiles the app target.** `swift test` builds only `ModelRanking/Engine`. `ContentView.swift` and the app entry point are checked only by a simulator build, which the owner has paused, and by source regexes. `swiftc -typecheck` against the iPhoneOS SDK took about 4 seconds and starts no simulator. As a `check-fast` leg, it would have made M11's mutant a question of display, not of compiling. It may fold into #69.
 
 ## Risks queued to next M
 
-- **R3** `src/app/adapter/main.py:568-578`. The no-list rule reads the socket's local address. So
-  anything that forwards to the engine's loopback re-exposes an engine with no list, with every Host
-  served: a reverse proxy on the same machine, `ssh -L`, `tailscale serve` or a tunnel.
-
-  A listed engine behind a forwarder is exposed only as far as its list. D-171 note 1's "whatever
-  started it" is true of the bind, not of what sits in front of it. What would show it: the owner
-  reaching the engine from outside the house by a tunnel with no list set. The hosted-engine work
-  (#94, Stage 5.1) should require a list whatever the bind.
+- **R4** `docs/owner-iphone.md:18-29`. **Step 2 assumes Xcode is signed in to the owner's Apple ID.** The team-id command needs an Apple Development certificate in the login keychain. Automatic signing with `DEVELOPMENT_TEAM` set needs the account in Xcode → Settings → Accounts, and the page has no step for it. The author measured the command on this Mac, so a certificate exists today; I did not read the keychain. What would show it: the command printing "could not be found", or Xcode saying "No Account for Team".
+- **R5** `ios/ModelRanking/Engine/EngineClient.swift:267-279`; `docs/owner-iphone.md:42-45`. **Which error a refused local-network permission gives is unmeasured.** Step 6's third case relies on iOS reporting it as no connection (`.offline`). For a `.local` name, the mDNS lookup may fail first, as `cannotFindHost` → `.unreachable`. The screen would then show the Mac's name, and the second case, which does not mention the switch. What would show it: the owner's first run after tapping "Don't Allow". If it reads as `.unreachable`, step 6's second case should name the switch too.
