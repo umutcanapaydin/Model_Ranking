@@ -51,7 +51,7 @@ final class SameHostOnlyTests: XCTestCase {
     }
 
     func testTheHostIsComparedWithoutCase() async {
-        // W1 second review K3: DNS names are not case-sensitive, the owner's address is written
+        // W1 second review K3 (REQ-DEV-001): DNS names are not case-sensitive, the owner's address is written
         // mixed-case, and URLSession sends the host lower-cased.
         let followed = await redirect(from: "Umut-MacBook-Pro-2.local", to: "http://umut-macbook-pro-2.local/v1/categories/")
 
@@ -288,7 +288,7 @@ final class EngineClientDecisionTests: XCTestCase {
     }
 
     func testAnUnreachableEngineNamesTheAddressItTried() async {
-        // W1 review M4: a mistyped override falls back to loopback, and on a phone the only sign of it
+        // W1 review M4 (REQ-DEV-001): a mistyped override falls back to loopback, and on a phone the only sign of it
         // would be this detail.
         StubProtocol.outcome = .failure(URLError(.cannotConnectToHost))
 
@@ -572,6 +572,15 @@ final class EngineAddressTests: XCTestCase {
         let address = URL(string: "http://umut-macbook-pro-2.local:8080")!
         for error: EngineError in [.refused(status: 400, code: "unknown_host", message: "m"), .insecureTransport] {
             XCTAssertEqual(error.addressNote(address, .english), "Engine address: http://umut-macbook-pro-2.local:8080", "\(error)")
+        }
+    }
+
+    func testTheAddressLineIsInTheReadersLanguage() {
+        // W1 Tester T5 (REQ-DEV-001): the failure view passes the reader's language; the line follows it.
+        let address = URL(string: "http://umut-macbook-pro-2.local:8080")!
+        for error: EngineError in [.unreachable("x"), .timedOut(seconds: 5), .offline, .insecureTransport,
+                                   .refused(status: 400, code: "unknown_host", message: "m")] {
+            XCTAssertEqual(error.addressNote(address, .turkish), "Motor adresi: http://umut-macbook-pro-2.local:8080", "\(error)")
         }
     }
 

@@ -77,7 +77,8 @@ def test_the_failure_screen_shows_the_address_the_app_asked() -> None:
     tested in EngineClientTests and LanguageTests."""
     view = (IOS / "ModelRanking" / "ContentView.swift").read_text(encoding="utf-8")
     start = view.index("private func failure(")
-    failure = _code(view[start : view.index("// MARK:", start)])
+    # W1 Tester T3: block comments too, so `/* ... */` around the line cannot satisfy the pin.
+    failure = _code(re.sub(r"/\*.*?\*/", "", view[start : view.index("// MARK:", start)], flags=re.S))
     # W1 third review M11: the line is shown, not only computed -- `let _ = error.addressNote(...)`
     # compiled and passed when the pin asked only for the call.
     shown = re.search(r"if let (\w+) = error\.addressNote\(client\.baseURL, language\) \{\s*Text\(\1\)", failure)

@@ -255,7 +255,7 @@ echo "$STUB_HEALTH"
 }
 
 
-def _install(tmp_path: Path, repo: Path, health: str | None) -> subprocess.CompletedProcess[str]:
+def _install(tmp_path: Path, repo: Path, health: str | None, **extra: str) -> subprocess.CompletedProcess[str]:
     stubs, state, home = tmp_path / "stubs", tmp_path / "state", tmp_path / "home"
     for folder in (stubs, state, home):
         folder.mkdir(exist_ok=True)
@@ -270,6 +270,7 @@ def _install(tmp_path: Path, repo: Path, health: str | None) -> subprocess.Compl
            "STUB_STATE": str(state), "ENGINE_DEPLOY_NO_VENV": "1", "ENGINE_INSTALL_WAIT_S": "1"}
     if health is not None:
         env["STUB_HEALTH"] = health
+    env.update(extra)
     return subprocess.run(["/bin/bash", str(INSTALLER)], capture_output=True, text=True,
                           timeout=120, env=env)
 
@@ -449,3 +450,31 @@ def test_the_app_script_builds_for_the_simulators_loopback_whatever_the_owners_o
     assert "ENGINE_URL=http://127.0.0.1:8080" in build, build
     assert 'PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE"' in build, build
 
+
+def test_a_plain_reinstall_writes_the_mode_it_found_and_says_so(tmp_path: Path) -> None:
+    """W1 Tester T1, T6 (REQ-DEV-001, D-171 note 2): the redeploy after a merge is a plain install, not
+    `--print-wrapper`. It writes the home-network wrapper it found, and says so on both lines the owner
+    reads. launchctl, curl and plutil are the module's stubs; HOME is scratch."""
+    repo = _scratch_repo(tmp_path)
+    wrapper = tmp_path / "home" / "Library" / "Application Support" / "model-ranking" / "engine_service.sh"
+    wrapper.parent.mkdir(parents=True)
+    wrapper.write_text('export MODEL_RANKING_BIND="0.0.0.0"\n', encoding="utf-8")
+    done = _install(tmp_path, repo, f'{{"status":"ok","build":"release-{_sha(repo)}"}}',
+                    ENGINE_LAN_NAME="probe-mac", ENGINE_LAN_IP="192.168.9.9")
+    assert done.returncode == 0, done.stdout + done.stderr
+    written = wrapper.read_text(encoding="utf-8")
+    assert 'export MODEL_RANKING_BIND="0.0.0.0"' in written, written
+    assert 'export MODEL_RANKING_ALLOWED_HOSTS="127.0.0.1,localhost,probe-mac.local,192.168.9.9"' in written
+    assert "home network: kept" in done.stderr, done.stderr
+    assert "home network: on" in done.stdout, done.stdout
+
+
+def test_a_deploy_reads_no_live_wrapper(tmp_path: Path) -> None:
+    """W1 Tester T7: the other half of the third review's M12 -- `--deploy-only` reads no wrapper."""
+    repo, target = _scratch_repo(tmp_path), tmp_path / "engine"
+    wrapper = tmp_path / "home" / "Library" / "Application Support" / "model-ranking" / "engine_service.sh"
+    wrapper.parent.mkdir(parents=True)
+    wrapper.write_text('export MODEL_RANKING_BIND="0.0.0.0"\n', encoding="utf-8")
+    done = _deploy(repo, target)
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "home network" not in done.stdout + done.stderr, done.stdout + done.stderr

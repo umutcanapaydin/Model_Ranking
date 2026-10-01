@@ -92,3 +92,21 @@ def test_an_empty_host_is_refused_when_a_list_is_set(db: Path, monkeypatch: pyte
     response = TestClient(adapter.app, base_url="http://127.0.0.1:8080").get("/v1/categories", headers={"host": ""})
     assert response.status_code == 400
 
+
+def test_an_ipv6_host_is_compared_without_its_brackets_or_port(db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """W1 Tester T2: `_host_name`'s bracket branch never ran; `[::1]:8080` is `::1` on the list."""
+    monkeypatch.setenv(HOSTS, "127.0.0.1,::1")
+    client = TestClient(adapter.app, base_url="http://127.0.0.1:8080")
+    assert client.get("/v1/categories", headers={"host": "[::1]:8080"}).status_code == 200
+    assert client.get("/v1/categories", headers={"host": "[::1]"}).status_code == 200
+    assert client.get("/v1/categories", headers={"host": "[::2]:8080"}).status_code == 400
+    assert client.get("/v1/categories", headers={"host": "[::1"}).status_code == 400
+
+
+def test_without_a_list_a_connection_with_no_local_address_is_not_called_a_network_one() -> None:
+    """W1 Tester T2: `_arrived_off_loopback`'s first branch never ran. uvicorn reports no address, or a
+    path, for a Unix socket; neither is a network address."""
+    assert adapter._arrived_off_loopback(None) is False
+    assert adapter._arrived_off_loopback(("/tmp/engine.sock", None)) is False
+    assert adapter._arrived_off_loopback(("192.168.0.26", 8080)) is True
+    assert adapter._arrived_off_loopback(("::1", 8080)) is False
