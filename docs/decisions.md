@@ -3341,6 +3341,18 @@ decision describing a smaller exposure than the code made; these notes correct i
 
 REQ-DEV-001 (`docs/prd.md`) states the criterion this ADR serves.
 
+**Notes from the wave's second code review (2026-10-01).** They supersede the cost's last sentence
+and note 3's pointer to the firewall.
+7. **The firewall is not a control for this.** The macOS application firewall allows or blocks an
+   application, not a device or a network: allowing Python lets every device on every network in, and
+   blocking it shuts the phone out too. While `--lan` is on, the one control is `--no-lan`.
+8. **The address is on the screen** (note 5 said so before it was true). Under a failure to reach the
+   engine (unreachable, timed out, or no connection, which is how a refused local-network permission
+   can read), the failure view shows the address the app asked (`EngineError.addressNote`).
+9. **What forwards to loopback is not loopback** (R3). The no-list rule reads the socket's local
+   address, so a reverse proxy, `ssh -L` or a tunnel in front of an engine with no list exposes it with
+   every Host served. A hosted engine sets its list whatever its bind (#94).
+
 
 ## D-172 — The security review runs once per milestone, at its closure; a wave closes on its Code-Reviewer and Tester
 

@@ -130,14 +130,25 @@ final class SameHostOnly: NSObject, URLSessionTaskDelegate {
         newRequest request: URLRequest,
         completionHandler: @escaping (URLRequest?) -> Void
     ) {
-        completionHandler(request.url?.host == host ? request : nil)
+        // W1 second review K3: DNS names are not case-sensitive, and URLSession lower-cases the host.
+        completionHandler(request.url?.host?.lowercased() == host?.lowercased() ? request : nil)
     }
 }
 
 extension EngineError {
     /// The line the failure screen shows under a failure to reach the engine (M18-W1 review B2).
+    ///
+    /// On a phone, a mistyped `ENGINE_URL` falls back to loopback, which the phone can never reach,
+    /// and a refused local-network permission can read as no connection at all. The address the app
+    /// asked is what tells those apart from an engine that is down. An answer the engine gave, or a
+    /// refusal by the platform, carries none: the address is not what went wrong there.
     func addressNote(_ address: URL, _ language: Language) -> String? {
-        nil
+        switch self {
+        case .unreachable, .timedOut, .offline:
+            return UIText.engineAddress(language, address.absoluteString)
+        case .insecureTransport, .refused, .undecodable:
+            return nil
+        }
     }
 }
 

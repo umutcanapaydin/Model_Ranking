@@ -22,7 +22,8 @@ engine does not have the change).
    ```
    - Write `http:/$()/` exactly: a plain `//` starts a comment in this file, and the app would then
      look for the engine on the phone itself.
-   - Your team id is in Xcode → Settings → Accounts → your Apple ID → the team (10 characters).
+   - Your team id is the `OU=` value this prints (10 characters):
+     `security find-certificate -c "Apple Development" -p | openssl x509 -noout -subject`
    - If Xcode says the bundle id is taken, add `PRODUCT_BUNDLE_IDENTIFIER = com.ilgar.modelranking.umut`.
    - The file is git-ignored; it never leaves your Mac. Do not set the team or the bundle id in
      Xcode's Signing screen: that edits the tracked project.
@@ -34,8 +35,14 @@ engine does not have the change).
 5. **Allow local network.** On the first launch the app asks to find devices on your local network.
    Allow it: that is how it reaches the engine. If you tapped "Don't Allow", turn it on in Settings →
    Privacy & Security → Local Network → ModelRanking.
-6. **Check.** Ask a question. If the app says the engine is not answering, the message names the
-   address it tried: it should be your Mac's name.
+6. **Check.** Ask a question. If the app cannot reach the engine, the line under the error shows the
+   engine address it asked.
+   - It shows `127.0.0.1`: the app did not read step 2's file. Check the `http:/$()/` spelling, then
+     run again from Xcode.
+   - It shows your Mac's name: check that the Mac is awake, on the same Wi-Fi, and that step 1 printed
+     `home network: on`.
+   - It says the device has no network connection while Wi-Fi works: the local-network switch is off
+     (step 5).
 
 **Keep in mind:**
 - The phone must be on the same Wi-Fi as the Mac.
@@ -46,8 +53,8 @@ engine does not have the change).
   question's text) crosses Wi-Fi unencrypted.
 - **To close it:** `scripts/install_engine_service.sh --no-lan`. A plain reinstall keeps whichever mode
   it finds, so updating the engine after a merge does not close it, and does not open it.
-- To keep other devices out while it is on, turn the firewall on (System Settings → Network →
-  Firewall) and allow Python when macOS asks.
+- The Mac's firewall cannot let the phone in and keep others out: it allows or blocks an app, not a
+  device. Closing it (`--no-lan`) is the only way to shut others out.
 - **If the phone stops reaching the engine** after it worked, check the Mac's name (System Settings →
   General → Sharing → Local hostname). macOS can rename it; put the new name in step 2's file and run
   the app from Xcode again.
