@@ -1,0 +1,10 @@
+// M18-W1 (D-171): the engine the app talks to, read into the Info plist's `EngineURL`.
+// Loopback serves the Mac and its simulator. To run on your iPhone, create Engine.local.xcconfig
+// beside this file (git-ignored) with your Mac's name, and install the service with --lan:
+//   ENGINE_URL = http:/$()/Umut-MacBook-Pro-2.local:8080
+// (`/$()/` keeps `//` from starting a comment in an xcconfig.)
+ENGINE_URL = http:/$()/127.0.0.1:8080
+// The bundle id lives here, not in the project, so a personal team can override it (and set
+// DEVELOPMENT_TEAM) in Engine.local.xcconfig without touching a tracked file.
+PRODUCT_BUNDLE_IDENTIFIER = com.ilgar.modelranking
+#include? "Engine.local.xcconfig"

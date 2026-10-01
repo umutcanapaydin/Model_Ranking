@@ -103,7 +103,7 @@ def _scratch_repo(tmp_path: Path) -> Path:
 def _deploy(repo: Path, target: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["/bin/bash", str(INSTALLER), "--deploy-only", str(target), "--no-venv"],
                           capture_output=True, text=True, timeout=120,
-                          env={**_CLEAN_GIT_ENV, "MODEL_RANKING_REPO": str(repo)})
+                          env={**_CLEAN_GIT_ENV, "MODEL_RANKING_REPO": str(repo), "HOME": str(target.parent / "home")})
 
 
 def test_a_deploy_takes_origin_main_whatever_is_checked_out(tmp_path: Path) -> None:
@@ -142,7 +142,7 @@ def test_the_service_runs_only_a_deployed_release(tmp_path: Path) -> None:
     tree.mkdir()
     done = _launch(tree, "--service")
     assert done.returncode == 0 and "not a deployed release" in done.stdout
-    assert "starting on :" not in done.stdout
+    assert "starting on" not in done.stdout
 
 
 def test_on_a_release_the_service_goes_on_to_the_artifact(tmp_path: Path) -> None:
@@ -178,7 +178,7 @@ def test_the_service_log_is_rotated_before_it_grows_without_bound(tmp_path: Path
 def test_the_launcher_starts_the_engine_the_way_the_app_script_did() -> None:
     text = LAUNCHER.read_text(encoding="utf-8")
     for needle in ("APP_ENV=test", "MODEL_RANKING_REFRESH=nightly", "validate_startup_config",
-                   "uvicorn app.adapter.main:app", "--host 127.0.0.1"):
+                   "uvicorn app.adapter.main:app", '--host "${MODEL_RANKING_BIND:-127.0.0.1}"'):  # D-171
         assert needle in text, needle
 
 
@@ -255,7 +255,7 @@ echo "$STUB_HEALTH"
 }
 
 
-def _install(tmp_path: Path, repo: Path, health: str | None) -> subprocess.CompletedProcess[str]:
+def _install(tmp_path: Path, repo: Path, health: str | None, *flags: str, **extra: str) -> subprocess.CompletedProcess[str]:
     stubs, state, home = tmp_path / "stubs", tmp_path / "state", tmp_path / "home"
     for folder in (stubs, state, home):
         folder.mkdir(exist_ok=True)
@@ -270,7 +270,8 @@ def _install(tmp_path: Path, repo: Path, health: str | None) -> subprocess.Compl
            "STUB_STATE": str(state), "ENGINE_DEPLOY_NO_VENV": "1", "ENGINE_INSTALL_WAIT_S": "1"}
     if health is not None:
         env["STUB_HEALTH"] = health
-    return subprocess.run(["/bin/bash", str(INSTALLER)], capture_output=True, text=True,
+    env.update(extra)
+    return subprocess.run(["/bin/bash", str(INSTALLER), *flags], capture_output=True, text=True,
                           timeout=120, env=env)
 
 
@@ -341,3 +342,165 @@ def test_the_app_script_addresses_the_simulator_it_boots_by_name() -> None:
     assert all(target == '"$DEVICE"' for target in acting), (
         f"an app command targets something other than the booted-by-name device: {acting}"
     )
+
+
+# --- M18-W1 (#87, D-171, REQ-DEV-001; #86): loopback by default, the home network by opt-in, tested by running --
+
+
+def test_the_wrapper_binds_loopback_and_names_its_hosts_by_default() -> None:
+    wrapper = _installer("--print-wrapper").stdout
+    assert 'export MODEL_RANKING_BIND="127.0.0.1"' in wrapper
+    assert 'export MODEL_RANKING_ALLOWED_HOSTS="127.0.0.1,localhost"' in wrapper
+
+
+def test_the_home_network_is_opt_in_and_names_the_macs_own_names() -> None:
+    done = subprocess.run(["/bin/bash", str(INSTALLER), "--lan", "--print-wrapper"], capture_output=True,
+                          text=True, timeout=60, env={**_CLEAN_GIT_ENV, "HOME": HOME,
+                                                      "ENGINE_LAN_NAME": "Probe-Mac", "ENGINE_LAN_IP": "192.168.9.9"})
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert 'export MODEL_RANKING_BIND="0.0.0.0"' in done.stdout
+    assert 'export MODEL_RANKING_ALLOWED_HOSTS="127.0.0.1,localhost,probe-mac.local,192.168.9.9"' in done.stdout
+
+
+def test_the_launcher_binds_exactly_one_host_and_reads_it_from_the_bind_variable() -> None:
+    """#86: appending `--host 0.0.0.0` passed the whole suite; uvicorn takes the last one."""
+    code = "\n".join(line.split("#", 1)[0] for line in LAUNCHER.read_text(encoding="utf-8").splitlines())
+    starts = [line for line in code.splitlines() if "uvicorn" in line]
+    assert len(starts) == 1, starts
+    assert starts[0].count("--host") == 1, starts[0]
+    assert '--host "${MODEL_RANKING_BIND:-127.0.0.1}"' in starts[0]
+
+
+def test_the_launchers_preflight_refuses_a_bind_beyond_loopback_without_hosts(tmp_path: Path) -> None:
+    """#86: disabling the preflight passed the whole suite. This checkout's launcher, run for real."""
+    import sys
+
+    from .test_api_v1 import _seeded_db
+
+    db = tmp_path / "advisor.db"
+    _seeded_db(db)
+    # The launcher runs `$REPO/.venv/bin/python`. CI installs into its own interpreter and has no
+    # `.venv` (PR #99's first CI run), so the tree's `.venv` hands over to the one running this test.
+    tree = tmp_path / "tree"
+    (tree / ".venv" / "bin").mkdir(parents=True)
+    (tree / ".venv" / "bin" / "python").write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n', encoding="utf-8")
+    (tree / ".venv" / "bin" / "python").chmod(0o755)
+    # TEST-NET-1: an address this Mac cannot bind, so a regressed preflight fails to start rather
+    # than serving the developer's Mac on every interface for the test's timeout (W1 review M5).
+    done = _launch(tree, MODEL_RANKING_DB=str(db), MODEL_RANKING_BIND="192.0.2.1")
+    assert done.returncode == 1, done.stdout + done.stderr
+    assert "REFUSED" in done.stdout and "MODEL_RANKING_ALLOWED_HOSTS" in done.stdout
+    assert "starting on" not in done.stdout
+
+
+def test_the_installed_wrapper_is_the_owners_alone(tmp_path: Path) -> None:
+    """#86: a `chmod 777` on the wrapper passed the whole suite."""
+    import stat
+
+    repo = _scratch_repo(tmp_path)
+    done = _install(tmp_path, repo, f'{{"status":"ok","build":"release-{_sha(repo)}"}}')
+    assert done.returncode == 0, done.stdout + done.stderr
+    wrapper = tmp_path / "home" / "Library" / "Application Support" / "model-ranking" / "engine_service.sh"
+    assert stat.S_IMODE(wrapper.stat().st_mode) == 0o700
+
+
+def test_a_reinstall_keeps_the_home_network_unless_told_to_close_it(tmp_path: Path) -> None:
+    """W1 review M2: D-170 reruns the installer after every merge, and without --lan it silently put
+    the phone's engine back on loopback."""
+    home = tmp_path / "home"
+    installed = home / "Library" / "Application Support" / "model-ranking" / "engine_service.sh"
+    installed.parent.mkdir(parents=True)
+    installed.write_text('export MODEL_RANKING_BIND="0.0.0.0"\n', encoding="utf-8")
+    env = {**_CLEAN_GIT_ENV, "HOME": str(home), "ENGINE_LAN_NAME": "probe-mac", "ENGINE_LAN_IP": "192.168.9.9"}
+    kept = subprocess.run(["/bin/bash", str(INSTALLER), "--print-wrapper"], capture_output=True, text=True,
+                          timeout=60, env=env)
+    assert 'export MODEL_RANKING_BIND="0.0.0.0"' in kept.stdout, kept.stdout + kept.stderr
+    closed = subprocess.run(["/bin/bash", str(INSTALLER), "--no-lan", "--print-wrapper"], capture_output=True,
+                            text=True, timeout=60, env=env)
+    assert 'export MODEL_RANKING_BIND="127.0.0.1"' in closed.stdout, closed.stdout + closed.stderr
+    # W1 second review M7: and the other direction -- a reinstall over a loopback wrapper stays on
+    # loopback; an existing wrapper is not a reason to open the network.
+    installed.write_text('export MODEL_RANKING_BIND="127.0.0.1"\n', encoding="utf-8")
+    stayed = subprocess.run(["/bin/bash", str(INSTALLER), "--print-wrapper"], capture_output=True, text=True,
+                            timeout=60, env=env)
+    assert 'export MODEL_RANKING_BIND="127.0.0.1"' in stayed.stdout, stayed.stdout + stayed.stderr
+
+
+def test_only_writing_the_wrapper_reads_the_mode_it_finds(tmp_path: Path) -> None:
+    """W1 third review M12: the keep-the-mode check ran before the mode dispatch, so `--print-plist`
+    and `--deploy-only` read the owner's live wrapper and asked this Mac for its name and address."""
+    home = tmp_path / "home"
+    installed = home / "Library" / "Application Support" / "model-ranking" / "engine_service.sh"
+    installed.parent.mkdir(parents=True)
+    installed.write_text('export MODEL_RANKING_BIND="0.0.0.0"\n', encoding="utf-8")
+    env = {**_CLEAN_GIT_ENV, "HOME": str(home), "ENGINE_LAN_NAME": "probe-mac", "ENGINE_LAN_IP": "192.168.9.9"}
+    printed = subprocess.run(["/bin/bash", str(INSTALLER), "--print-plist"], capture_output=True, text=True,
+                             timeout=60, env=env)
+    assert printed.returncode == 0, printed.stdout + printed.stderr
+    assert "home network" not in printed.stderr, printed.stderr
+
+
+def test_make_run_binds_loopback() -> None:
+    """W1 review B1: `make run` bound 0.0.0.0, with no Host list, on a Mac whose firewall is off."""
+    makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+    recipe = makefile[makefile.index("\nrun:"):]
+    recipe = recipe[: recipe.index("\n\n")]
+    assert "--host 127.0.0.1" in recipe and "0.0.0.0" not in recipe, recipe
+
+
+def test_the_app_script_builds_for_the_simulators_loopback_whatever_the_owners_override() -> None:
+    """W1 review M2: the owner's Engine.local.xcconfig reached app.sh's simulator builds. A setting on
+    the command line beats the xcconfig, so the simulator build talks to loopback, under the bundle id
+    the script launches."""
+    script = APP_SH.read_text(encoding="utf-8")
+    build = script[script.index("xcodebuild -project"):]
+    build = build[: build.index("then")]
+    assert "ENGINE_URL=http://127.0.0.1:8080" in build, build
+    assert 'PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE"' in build, build
+
+
+def test_a_plain_reinstall_writes_the_mode_it_found_and_says_so(tmp_path: Path) -> None:
+    """W1 Tester T1, T6 (REQ-DEV-001, D-171 note 2): the redeploy after a merge is a plain install, not
+    `--print-wrapper`. It writes the home-network wrapper it found, and says so on both lines the owner
+    reads. launchctl, curl and plutil are the module's stubs; HOME is scratch."""
+    repo = _scratch_repo(tmp_path)
+    wrapper = tmp_path / "home" / "Library" / "Application Support" / "model-ranking" / "engine_service.sh"
+    wrapper.parent.mkdir(parents=True)
+    wrapper.write_text('export MODEL_RANKING_BIND="0.0.0.0"\n', encoding="utf-8")
+    done = _install(tmp_path, repo, f'{{"status":"ok","build":"release-{_sha(repo)}"}}',
+                    ENGINE_LAN_NAME="probe-mac", ENGINE_LAN_IP="192.168.9.9")
+    assert done.returncode == 0, done.stdout + done.stderr
+    written = wrapper.read_text(encoding="utf-8")
+    assert 'export MODEL_RANKING_BIND="0.0.0.0"' in written, written
+    assert 'export MODEL_RANKING_ALLOWED_HOSTS="127.0.0.1,localhost,probe-mac.local,192.168.9.9"' in written
+    assert "home network: kept" in done.stderr, done.stderr
+    assert "home network: on" in done.stdout, done.stdout
+
+
+def test_a_deploy_reads_no_live_wrapper(tmp_path: Path) -> None:
+    """W1 Tester T7: the other half of the third review's M12 -- `--deploy-only` reads no wrapper."""
+    repo, target = _scratch_repo(tmp_path), tmp_path / "engine"
+    wrapper = tmp_path / "home" / "Library" / "Application Support" / "model-ranking" / "engine_service.sh"
+    wrapper.parent.mkdir(parents=True)
+    wrapper.write_text('export MODEL_RANKING_BIND="0.0.0.0"\n', encoding="utf-8")
+    done = _deploy(repo, target)
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "home network" not in done.stdout + done.stderr, done.stdout + done.stderr
+
+
+def test_no_lan_closes_the_home_network_on_the_install_the_owner_runs(tmp_path: Path) -> None:
+    """W1 second Tester T9 (D-171 note 7): while the network is open, `--no-lan` is the one control, and
+    the owner runs it as an install, not `--print-wrapper`. It writes loopback and says so. launchctl,
+    curl and plutil are the module's stubs; HOME is scratch."""
+    repo = _scratch_repo(tmp_path)
+    wrapper = tmp_path / "home" / "Library" / "Application Support" / "model-ranking" / "engine_service.sh"
+    wrapper.parent.mkdir(parents=True)
+    wrapper.write_text('export MODEL_RANKING_BIND="0.0.0.0"\n', encoding="utf-8")
+    done = _install(tmp_path, repo, f'{{"status":"ok","build":"release-{_sha(repo)}"}}', "--no-lan",
+                    ENGINE_LAN_NAME="probe-mac", ENGINE_LAN_IP="192.168.9.9")
+    assert done.returncode == 0, done.stdout + done.stderr
+    written = wrapper.read_text(encoding="utf-8")
+    assert 'export MODEL_RANKING_BIND="127.0.0.1"' in written, written
+    assert 'export MODEL_RANKING_ALLOWED_HOSTS="127.0.0.1,localhost"' in written, written
+    assert "home network: kept" not in done.stderr, done.stderr
+    assert "home network: off" in done.stdout, done.stdout

@@ -668,6 +668,10 @@ struct ContentView: View {
                 if let recovery = error.recovery {
                     Text(recovery).font(.footnote).foregroundStyle(.secondary)
                 }
+                // M18-W1 review B2: the address the app asked, so a wrong one is visible.
+                if let address = error.addressNote(client.baseURL, language) {
+                    Text(address).font(.footnote).foregroundStyle(.secondary).textSelection(.enabled)
+                }
             }
         } actions: {
             Button(UIText.retry(language)) { Task { await load() } }
