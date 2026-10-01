@@ -372,14 +372,22 @@ def test_the_launcher_binds_exactly_one_host_and_reads_it_from_the_bind_variable
 
 
 def test_the_launchers_preflight_refuses_a_bind_beyond_loopback_without_hosts(tmp_path: Path) -> None:
-    """#86: disabling the preflight passed the whole suite. Run for real, from this checkout."""
+    """#86: disabling the preflight passed the whole suite. This checkout's launcher, run for real."""
+    import sys
+
     from .test_api_v1 import _seeded_db
 
     db = tmp_path / "advisor.db"
     _seeded_db(db)
+    # The launcher runs `$REPO/.venv/bin/python`. CI installs into its own interpreter and has no
+    # `.venv` (PR #99's first CI run), so the tree's `.venv` hands over to the one running this test.
+    tree = tmp_path / "tree"
+    (tree / ".venv" / "bin").mkdir(parents=True)
+    (tree / ".venv" / "bin" / "python").write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n', encoding="utf-8")
+    (tree / ".venv" / "bin" / "python").chmod(0o755)
     # TEST-NET-1: an address this Mac cannot bind, so a regressed preflight fails to start rather
     # than serving the developer's Mac on every interface for the test's timeout (W1 review M5).
-    done = _launch(REPO, MODEL_RANKING_DB=str(db), MODEL_RANKING_BIND="192.0.2.1")
+    done = _launch(tree, MODEL_RANKING_DB=str(db), MODEL_RANKING_BIND="192.0.2.1")
     assert done.returncode == 1, done.stdout + done.stderr
     assert "REFUSED" in done.stdout and "MODEL_RANKING_ALLOWED_HOSTS" in done.stdout
     assert "starting on" not in done.stdout
