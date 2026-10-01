@@ -6,518 +6,492 @@ seat: independent
 process_version: v6.6
 date: 2026-10-01
 ---
-# Wave 1 Tester Review (m18)
+# Wave 1 Tester Review (m18), second seat
 
-**Reviewer:** Tester subagent (fresh eyes). This seat wrote none of the wave's code, tests or records.
-It is not one of the wave's three Code-Reviewers.
+**Reviewer:** Tester subagent (fresh eyes). This is the second Tester seat on this wave. It wrote none
+of the wave's code, tests or records. It is not one of the wave's three Code-Reviewers, and it is not
+the first Tester, whose BLOCKING verdict (`90109a7`) this file replaces. Nothing below is taken from
+that verdict without being run again here.
 **Independent:** yes
 **Date:** 2026-10-01
-**Commit range:** `e82011b..8cfdd98`: 16 commits, 26 files. `e82011b` is the merge-base with
-`origin/main`. The range holds the three Code-Reviewer verdicts (`e05ae15`, `78aa6d1`, `8e6232a`), D-172
-(`cc78cb7`), and three red-then-fix pairs (`b718f70`→`8e54068`, `a7f4b3b`→`a04fdd5`,
-`456eac2`→`8cfdd98`). **The last pair came after the third review, so no Code-Reviewer has read it.**
-This seat is the first to see `456eac2` and `8cfdd98`.
+**Commit range:** `e82011b..ed8b7e7`: 18 commits, 27 files. `e82011b` is the merge-base with
+`origin/main`. The range holds the three Code-Reviewer verdicts (`e05ae15`, `78aa6d1`, `8e6232a`),
+D-172 (`cc78cb7`), five red-then-fix pairs, the first Tester's verdict (`90109a7`) and the author's
+answer to it (`ed8b7e7`). `ed8b7e7` changes tests and `docs/prd.md` only: no product code moved
+after `8cfdd98`.
 **Risk tier:** HIGH (`docs/plans/m18-plan.md:39`, `:137`; `docs/plans/m18-wave-1-plan.md:11`)
-**Code-Reviewer verdict:** PASS-WITH-MINORS (`docs/reviews/m18-wave-1-review.md`, round 3, `8e6232a`),
-so this seat runs. D-172 removes the per-wave security pass; the fault injection below is still owed.
+**Code-Reviewer verdict:** PASS-WITH-MINORS (`docs/reviews/m18-wave-1-review.md`, round 3, `8e6232a`).
+D-172 removes the per-wave security pass; the fault injection below is still owed, and was run.
 **Model routing (HIGH, advisory):**
-- Author family: Claude (the commits carry `GP-Agent: claude-code/local-lane`; five do not, which the
-  third review already raised as its M14).
+- Author family: Claude (the commits carry `GP-Agent: claude-code/local-lane`).
 - Reviewer family: Claude (Opus 5.5).
 - Fallback reason: no second model family is available to this seat.
-- Fresh context: this seat started from the role file, `practices.md` and `permission-matrix.md` §11,
-  all read from `e82011b`. It then read the plans, D-171 and D-172, REQ-DEV-001, the owner's page, the
-  three verdicts and the diff. It has no memory of any authoring or reviewing session.
-**Base-pinned policy:** `git diff --stat e82011b..8cfdd98 -- .claude .agents permission-matrix.md
-.github epb.html or.md` is empty. `docs/permission-matrix.md` does not exist at the base; the matrix is
-`permission-matrix.md` at the repository root. `AGENTS.md` changes only under D-172.
+- Fresh context: this seat started from `.claude/agents/Tester.md`, `.agents/rules/practices.md` and
+  `permission-matrix.md` §11, all read from `e82011b` with `git show`. (`docs/permission-matrix.md`
+  does not exist at the base; the matrix is `permission-matrix.md` at the root.) It then read the
+  plans, D-171 with notes 1-10, D-172, REQ-DEV-001, the owner's page, the three review rounds, the
+  first Tester's verdict and the diff. It has no memory of any authoring or reviewing session.
+**Base-pinned policy:** `git diff --stat e82011b..ed8b7e7 -- .claude .agents permission-matrix.md
+.github epb.html or.md` is empty. `AGENTS.md` changes only under D-172.
 
 ## Verdict
-BLOCKING
+PASS-WITH-MINORS
 
-**Two things block. Both are test gaps, not defects: the code at `8cfdd98` does the right thing in
-each case. The fix for each is a test, and both tests are written below and proven in a scratch copy.**
+**Nothing blocks.** Every clause of REQ-DEV-001 that code can prove has a citing test that passes,
+every red commit sampled fails where it should, coverage on the touched module went up, and both
+gates pass. The first Tester's two blockers are closed, and each of its eight surviving faults is
+now killed by one of the tests `ed8b7e7` added.
 
-- **T1. The claim "a reinstall keeps the mode it finds" is not proven on the path a reinstall takes.**
-  - This is a REQ-DEV-001 clause. Its citing test, `test_engine_service.py:398`, runs the installer
-    with `--print-wrapper`.
-  - The redeploy after every merge (D-170) runs the installer with no argument. Since `8cfdd98`,
-    those are two separate branches of one condition (`install_engine_service.sh:50`).
-  - Mutant I15 drops the no-argument branch. The owner's next redeploy would then put the phone's
-    engine back on loopback without a word: the first review's M2, back again. **I15 passes the whole
-    unit suite.**
-- **T2. Coverage dropped on a touched module.** `src/app/adapter/main.py` falls from **97.06 % to
-  96.54 %**. `permission-matrix.md` §11 classes that as BLOCKING.
-  - Two new branches of the Host check never run: the bracketed IPv6 Host at `main.py:564`, and a
-    connection with no local address at `:574`.
-  - Mutants H13 and H14 change each branch and pass the whole unit suite.
+**Five MINORs, each a fault that stayed green.** Four come with a test, proven in a scratch copy;
+the fifth belongs to #69.
+- **T8.** The Host check is proven only on `/v1/categories`. A check scoped to `/v1` passes the whole
+  suite, which would leave `/health` and every other path open to any Host.
+- **T9.** `--no-lan`, the only control while the network is open (D-171 note 7), is tested only through
+  `--print-wrapper`. The install the owner runs to close it is never run, and its closing line
+  "home network: off" is asserted nowhere.
+- **T10.** The app shows the address under the engine's refusal by matching the code `unknown_host`.
+  That code is two literals, one in Python and one in Swift, and no test ties them together.
+- **T11.** `engineURL`'s empty-host guard never runs. `http://:8080` parses with an empty host, not a
+  missing one, and no test value reaches the guard.
+- **T12.** A second shape of T4 (#69): wrapping the address line in a condition that is never true for
+  the four failures it serves passes the source pin.
 
-**Everything else holds.**
-- `make check-fast` passes (rc 0), and so does `make wave-check-all`.
-- Every red commit's new tests fail on that commit and pass on its fix.
-- A real engine on 127.0.0.1 behaves as D-171 says, with no list, with the service's list and with
-  the LAN list.
-- **68 mutants: 58 killed, 1 equivalent, 9 survived.** Of the 9 survivors:
-  - three are the two blockers (I15; H13 and H14);
-  - six are the MINORs T3 to T7.
-- **The third Code-Reviewer's 29 mutants were replayed: 28 killed, 1 equivalent.** That includes
-  M11's survivor, which is now killed.
-
-**What this verdict needs to turn PASS:** add the two tests in "Tests added/extended this review"
-(T1, T2) and rerun the gate. The same section has the four MINOR tests; three are a few lines each.
+**What was run.**
+- `make check-fast`: rc 0. `make wave-check-all`: rc 0.
+- The red-first order was spot-checked on three pairs of five, with Swift on one.
+- A real engine on 127.0.0.1 was probed with raw Host headers.
+- **63 faults were injected: 54 killed, 2 equivalent, 7 survived.** Of the 7, C5 is the first Tester's
+  T4, already on #69. The other six are T8 to T12.
 
 ## Acceptance-criterion coverage (REQUIRED)
 
-Every test named here is GREEN at `8cfdd98`. Mutant ids are defined under "Fault injection".
+Every test named here is GREEN at `ed8b7e7`. The fault ids are defined under "Fault injection".
 
-REQ-DEV-001 (`docs/prd.md:551`) and D-171, clause by clause. "Entry" says whether the test goes in
-through the live entry point, a stand-in for it, or a source pin.
+REQ-DEV-001 (`docs/prd.md:551`) and D-171, clause by clause. "Entry" says how the test reaches the
+behaviour:
+- live: through the real entry point;
+- executed: the function itself, called directly;
+- a stand-in for the entry point;
+- a source pin.
 
-| clause | citing test | entry | mutants killed by it | status |
+| clause | citing test (file:line) | entry | faults it kills | status |
 |---|---|---|---|---|
-| The engine binds loopback unless the installer is told otherwise | `test_engine_service.py:349` (default wrapper), `:355` (`--lan`), `:364` (one `--host`, read from the variable), `:178` | the real installer, `--print-wrapper`; the launcher's exec line as text | I8, I10, I11, I12, I7, I9, L2, L3 | GREEN |
-| `make run` binds loopback (D-171 note 1) | `test_engine_service.py:434` | source pin on the Makefile | X1 | GREEN |
-| A bind beyond loopback with no list refuses to start (clause 2) | `test_engine_host.py:58` (the startup check); `test_engine_service.py:373` (the real launcher, run to its refusal) | live: the launcher, its preflight and `validate_startup_config` | V1, V2, V3, L1 | GREEN |
-| **A reinstall keeps the mode it finds** (note 2) | `test_engine_service.py:398` (kept, closed with `--no-lan`, loopback stays loopback) | **a stand-in: `--print-wrapper`**. A plain install over a LAN wrapper is never run. | I1, I2, I3c | **GREEN, but I15 survives: T1** |
-| …and says so (note 2) | none | none | none | **I13, I14 survive: T6** |
-| Only writing the wrapper reads it (third review M12) | `test_engine_service.py:420` | the real installer, `--print-plist` only | I4 | GREEN; I5 (`--deploy-only`) survives: **T7** |
-| The written wrapper is the owner's alone (#86) | `test_engine_service.py:387` | live: a full install against stubs | I6 | GREEN |
-| With no Host list, a request arriving on a network address is refused (note 1) | `test_engine_host.py:72`, `:53` | the real ASGI app through `TestClient`. The local address there is `TestClient`'s synthetic `scope["server"]`. | H1, H2, H9, H10 | GREEN; a connection with no address (`main.py:574`) is never run: **T2** |
-| An exposed engine refuses a Host not on its list (clause 1) | `test_engine_host.py:45`, `:38`, `:81`, `:90` | the real ASGI app with its middleware | H3, H4, H5, H6, H7, H8, H11, H12 | GREEN; a bracketed IPv6 Host (`main.py:564`) is never run: **T2** |
-| The app's engine address is set per build, loopback when unset (clause 4) | `test_engine_address.py:21`, `:30`, `:39`, `:48`, `:61`; `EngineClientTests.swift:552`, `:585` | `engineURL` is executed. The build chain (`ENGINE_URL` → plist → `Bundle.main`) is held by source pins. | X4–X11, P1, P2, S1, S2, S3 | GREEN (the build itself: **N4**) |
-| …and shown under a failure to reach it (notes 8, 10) | `EngineClientTests.swift:559`, `:569`, `:578`, `:290`; `LanguageTests.swift:443`; `test_engine_address.py:73` (view pin) | `addressNote` is executed. The view is held only by a source pin, since no test runs `ContentView`. | S4, S5, S6, S7, S9, S10, S13, C1, C2, C3 | GREEN; C4 and C5 survive (**T3**, **T4**); S8 survives (**T5**) |
-| `ios/app.sh`'s simulator build is always loopback (note 5) | `test_engine_service.py:442` | source pin on the build line | X2, X3 | GREEN |
-| The redirect guard compares hosts without case (second review K3) | `EngineClientTests.swift:53`; `test_ios_client_contract.py:504` | executed (`SameHostOnly` through a stub session) | S11, S12, P3 | GREEN |
-| Nothing new leaves the phone (D-126, D-160 as amended) | `test_router_hints.py:229`, `:302`; `client-decls` | the client's sources, raw, and the compiler's resolved declarations | not mutated (the wave adds no request) | GREEN |
+| The engine binds loopback unless the installer is told otherwise | `test_engine_service.py:350` (default wrapper), `:356` (`--lan`), `:365` (one `--host`, from the variable), `:178` | the real installer, `--print-wrapper`; the launcher's exec line as a source pin | I8, I11, I7, I9, L2, L3, L4 | GREEN |
+| `make run` binds loopback (note 1) | `test_engine_service.py:435` | source pin on the Makefile | X1 | GREEN |
+| A bind beyond loopback with no list refuses to start (clause 2) | `test_engine_host.py:58`; `test_engine_service.py:374` (the real launcher, run to its refusal) | live: the launcher, its preflight and `validate_startup_config` | V1, V2, V3, L1, L5 (V4: see N8) | GREEN |
+| A reinstall keeps the mode it finds, and says so (note 2) | `test_engine_service.py:454` (a plain install over a LAN wrapper, written and announced); `:399` (kept, closed, loopback stays loopback) | live: the full install, against the module's `_install` stubs and a scratch HOME | I15, I13, I14, I1, I2 | GREEN |
+| `--no-lan` closes it (note 2, note 7) | `test_engine_service.py:399` | **a stand-in: `--no-lan --print-wrapper`**. A real `--no-lan` install is never run. | none singly (I3 is equivalent) | GREEN, but I16 and I17 survive: **T9** |
+| Only writing the wrapper reads it (third review M12) | `test_engine_service.py:421` (`--print-plist`), `:472` (`--deploy-only`) | the real installer, scratch HOME | I5 | GREEN |
+| The written wrapper is the owner's alone (#86) | `test_engine_service.py:388` | live: a full install against the stubs | I6 | GREEN |
+| With no Host list, a request arriving on a network address is refused (note 1) | `test_engine_host.py:72`, `:53`, `:106` | the real ASGI app through `TestClient` (its `scope["server"]` is synthetic); `_arrived_off_loopback` executed | H1, H9, H10, H14, H15 | GREEN (a real non-loopback socket: N10) |
+| An exposed engine refuses a Host not on its list (clause 1) | `test_engine_host.py:45`, `:38`, `:81`, `:90`, `:96` | the real ASGI app with its middleware | H3, H4, H5, H13, H13b | GREEN, **on `/v1/categories` only**: H16 survives, **T8** |
+| The app's engine address is set per build, loopback when unset (clause 4) | `EngineClientTests.swift:552`, `:594`; `test_engine_address.py:21`, `:30`, `:39`, `:48`, `:61` | `engineURL` executed; the build chain (`ENGINE_URL` → plist → `Bundle.main`) held by source pins | S1, S2, S3, S15, S14, P1, X5, X6, X7 | GREEN; the empty-host guard never runs: S2b survives, **T11** |
+| …and shown under a failure to reach it (notes 8, 10) | `EngineClientTests.swift:559`, `:569`, `:578`, `:587`, `:290`; `LanguageTests.swift:443`; `test_engine_address.py:73` (view pin) | `addressNote` executed; the view held by a source pin (no test runs `ContentView`) | S4–S10, S8b, S13, C4, C10 | GREEN; C5 (T4, #69) and C9 (**T12**) survive; the `unknown_host` link is untied: U1, **T10** |
+| `ios/app.sh`'s simulator build is always loopback (note 5) | `test_engine_service.py:443` | source pin on the build line | X2 | GREEN |
+| The redirect guard compares hosts without case (second review K3) | `EngineClientTests.swift:53`, `:61`; `test_ios_client_contract.py:504` | `SameHostOnly` executed through its delegate method | S11, S12 | GREEN |
+| Nothing new leaves the phone (D-126; D-160 as amended) | `test_router_hints.py:229`, `:302`; `client-decls` | the client's sources, and the compiler's resolved declarations | not mutated (the wave adds no request) | GREEN |
 | The app runs on the owner's iPhone | the owner's own run (`docs/owner-iphone.md`) | none possible in this seat | n/a | PARTIAL, as the PRD row says |
 
-**The live engine, run by this seat.** uvicorn 0.54.0 ran from a scratch copy of `8cfdd98` on
-127.0.0.1 only, on ports 8141, 8142 and 8143, with the nightly switch unset. Each server was stopped
-with SIGTERM, and no listener was left. The requests were raw HTTP/1.1, so the Host header was exactly
-what was sent (`tester-w18/logs/probe.json`).
+Every test file above cites REQ-DEV-001: in its module docstring (`test_engine_host.py:1`,
+`test_engine_address.py:1`), its section header (`test_engine_service.py:347`), or a comment on the
+class or test (`EngineClientTests.swift:54`, `:291`, `:550`, `:579`; `LanguageTests.swift:440`). The
+PRD row's 28 evidence line numbers each point at the test they name (checked one by one at
+`ed8b7e7`).
+
+**The live engine, run by this seat.**
+- uvicorn 0.54.0 ran from the worktree on 127.0.0.1 only, on ports 8161, 8162 and 8163. A copy of
+  `advisor.db` was served, with the nightly switch unset.
+- Each server was stopped with SIGTERM, and a connect afterwards found no listener.
+- The requests were raw HTTP/1.1, so the Host header was exactly what was sent (scratch
+  `t2work/logs/probe.json`).
 
 | Host header sent | no list | `127.0.0.1,localhost` | LAN list (four names) |
 |---|---|---|---|
-| `127.0.0.1:<port>`, `localhost:<port>` | 200 | 200 | 200 |
+| `127.0.0.1:<port>`, `localhost:<port>`, `127.0.0.1` | 200 | 200 | 200 |
 | `evil.example`, `127.0.0.1.evil.example:<port>` | 200 | 400 `unknown_host` | 400 |
-| `UMUT-MACBOOK-PRO-2.LOCAL:8080` | 200 | 400 | 200 |
-| empty, or no Host header at all | 200 | 400 | 400 |
-| `/health`, Host `127.0.0.1` | 200 | 200 | 200 |
+| `UMUT-MACBOOK-PRO-2.LOCAL:8080`, `192.168.0.26:8080` | 200 | 400 | 200 |
+| `[::1]:8080` | 200 | 400 | 400 |
+| empty, or no Host header | 200 | 400 | 400 |
+| `/health`, Host `127.0.0.1` / Host `evil.example` | 200 / 200 | 200 / 400 | 200 / 400 |
 
-uvicorn fills `scope["server"]` from `getsockname()` of the accepted socket
-(`uvicorn/protocols/utils.py:30-44`, `http/h11_impl.py:99`, `httptools_impl.py:108`). So the no-list
-rule reads the address a connection arrived on, as D-171 note 1 says. This seat cannot show the
-refusal through a real non-loopback socket without binding a LAN address, which it may not do (**N3**).
+- Every response, refusals included, carried `X-Content-Type-Options: nosniff`.
+- A fourth start used the strict lane: `APP_ENV=production`, `MODEL_RANKING_BIND=0.0.0.0` and no list.
+  It never listened, exited 1, and its log names `MODEL_RANKING_ALLOWED_HOSTS`. The import-time
+  check fails closed.
+- uvicorn fills `scope["server"]` from `getsockname()` (`uvicorn/protocols/utils.py:30-44`), so the
+  no-list rule reads the address the connection arrived on.
 
 ## Red→green on reported symptoms
 
-Each red commit and its fix were extracted with `git archive` into scratch trees. Every run used a
-scratch HOME and the uvicorn guard (see "Safety").
+The first Tester verified all five pairs. This seat sampled three of them.
+- Each commit was extracted with `git archive` into a scratch tree, with the venv linked and
+  `PYTHONPATH` pointed at that tree's `src`, so the launcher's own Python imported that commit's code.
+- HOME was a scratch folder.
+- A `sitecustomize` guard refused any `python -m uvicorn` not on 127.0.0.1 above port 8100.
+- "Added" means the `def test_` lines the red commit adds.
 
-| pair | red commit: the new tests that FAIL | fix: all PASS |
+| pair | added tests: red / fix | notes |
 |---|---|---|
-| `41be53a` → `eccd5b1` | The Host refusal (`test_engine_host.py`, four foreign Hosts) and the startup check. In `test_engine_service.py`: the default wrapper, the `--lan` opt-in (usage error, exit 2), one `--host` from the variable, and the preflight. **At this red commit the launcher test tried to start a real engine on 127.0.0.1:8080, the owner's port; the guard refused it.** | yes |
-| `e94cd7c` → `fee46fd` | The three `test_engine_address.py` tests (the files are missing). The Swift `EngineAddressTests` are red by compilation: `EngineClient` has no member `engineURL`. | yes (Swift: 14 tests, 0 failures) |
-| `b718f70` → `8e54068` | B1: a network arrival is served (200, expected 400). M2: the reinstall keep, and `app.sh`'s loopback pin. B1: `make run` binds loopback. M3: the bundle id. Swift `testAnUnreachableEngineNamesTheAddressItTried` fails by assertion. | yes |
-| `a7f4b3b` → `a04fdd5` | B2: the view pin. In Swift, 6 assertion failures: `addressNote` is stubbed to nil (3 cases), `engineAddress` to `""` (2), and the case-free redirect (1). | yes |
-| `456eac2` → `8cfdd98` | M12: `--print-plist` printed "home network: kept". M10: `testAFailureWhoseCauseIsTheAddressShowsIt` fails twice (`unknown_host`, `insecureTransport`). | yes |
+| `41be53a` → `eccd5b1` | 7 of 9 FAIL / all 9 PASS | The two that pass on red are correct guards: the positive control `test_a_host_on_the_list_is_served`, and `test_the_installed_wrapper_is_the_owners_alone`, whose `chmod 700` predates the wave. **At this red commit the launcher test asked for an engine on 127.0.0.1:8080; the guard refused it** (exit 3), so the test failed without starting anything. |
+| `b718f70` → `8e54068` | 5 of 8 FAIL / all 8 PASS | The network-arrival rule (B1), the reinstall keep (M2), `make run`, `app.sh` and the bundle id all fail on red. The plist key pin and the M5 case and empty-Host guards pass on red, as guards should. |
+| `456eac2` → `8cfdd98` | 1 of 1 FAIL / PASS (Python); Swift `testAFailureWhoseCauseIsTheAddressShowsIt`: 2 assertion failures on red (`unknown_host`, `insecureTransport`), 0 on the fix | Every Swift failure is an XCTest assertion, not a compile error. |
 
-- **Tests that pass on their red commit, correctly.** These are guards for a hole a reviewer found by
-  mutant, not repros of a defect:
-  - round 1's M4 (the plist key) and M5 (Host case, empty Host);
-  - round 2's M7 (`starting on`);
-  - round 3's M11 (the view pin);
-  - the positive controls and `test_the_installed_wrapper_is_the_owners_alone` (#86's `chmod`).
-  - Each is shown to bite by its mutant in the fault table: P1, P2, H6, H7, H8, C3 and I6.
-- **Weakened or deleted tests.** I read every line the range removes under `tests` and
-  `ios/EngineTests`.
-  - `_deploy` gains a scratch HOME.
-  - `"starting on :"` becomes `"starting on"`. That is stricter: the old text no longer appeared once
-    the echo named the bind.
-  - The `--host 127.0.0.1` needle follows the launcher.
-  - The `SameHostOnly` pin follows the lower-casing.
-  - `.insecureTransport` leaves the "no address" list, as M10 ruled.
-  - The plist test's filter moved with the bundle id.
-  - **One change is a weakening, by accident (T3).** `456eac2` deleted `test_engine_address.py`'s own
-    `_code`, which also removed `/* */` comments, and imported `test_router_hints._code`, which does not.
-  - No test was skipped or deleted. The Swift manifest gains 8 names and loses none.
+**Weakened or deleted tests.** I read every line the range removes under `tests/` and
+`ios/EngineTests/`.
+- `_deploy` gains a scratch HOME. `"starting on :"` becomes the stricter `"starting on"`.
+- The launcher and `SameHostOnly` pins follow their code.
+- `_install` gains `**extra`.
+- The view pin's `_code` call now also strips `/* */`. That is stricter, and it closes the first
+  Tester's T3.
+- Two comments are reworded to cite REQ-DEV-001.
+- No test was skipped, weakened or deleted. The Swift manifest gains 9 names and loses none.
 
 ## Suite result
-- **`make check-fast` at `8cfdd98`: PASS, rc 0, in 52.5 s** (`tester-w18/logs/check-fast.log`). Run
-  with `PYTHONDONTWRITEBYTECODE=1`, the uvicorn guard on, and an `xcrun` filter in front.
+- **`make check-fast` at `ed8b7e7`: PASS, rc 0, in 54 s.** It was run with this seat's guards in
+  front: `launchctl`, `xcrun simctl`, `curl` and `lsof` refused, and `git` refused to reach any
+  network remote. No guard fired.
   - lint, typecheck and records: PASS.
-  - test: **1559 passed, 23 skipped**. Total coverage 91.51 %. coverage-floor passes: 41 modules,
-    floor 60 %.
-  - swift-test: **362 tests, exactly the manifest**.
+  - test: **1563 passed, 23 skipped**. Total coverage 91.57 %.
+  - swift-test: **363 tests, exactly the manifest**.
   - client-decls: PASS, 15 files in 4 configurations.
-- **`make wave-check-all`: PASS, rc 0.** 47 records validated. No M18 wave-close record exists yet.
+- **`make wave-check-all`: PASS, rc 0.** 47 records validated.
 - **Python coverage on touched code** (permission-matrix §11).
   - Method: `pytest tests/unit -n auto --cov=src/app --cov-branch`, with
-    `MODEL_RANKING_REQUIRE_ARTIFACT=1`, on `git archive` copies of `e82011b` and `8cfdd98`, each with
-    the same `advisor.db`.
-  - **`src/app/adapter/main.py`: 97.06 % → 96.54 %. That is a drop: T2.**
+    `MODEL_RANKING_REQUIRE_ARTIFACT=1` and a scratch HOME, on `git archive` copies of `e82011b` and
+    `ed8b7e7`, each with the same `advisor.db` (sha256 `5c6977a9c67c…`).
+  - **`src/app/adapter/main.py`: 97.06 % → 97.27 %, up.**
     - Base: 402 statements, 12 missing; 108 branches, 3 missing.
-    - Head: 433 statements, 14 missing; 116 branches, 5 missing.
-    - The new misses are `:564` and `:574`, and the branches `563→564` and `573→574`.
-  - With this seat's two proposed host tests in a scratch copy, it is **97.27 %**, above the base.
-  - No other module under `src/app` dropped. The total stays 92 %.
-- **Swift coverage** was not measured. §11 reads Python modules.
+    - Head: 433 statements, 12 missing; 116 branches, 3 missing.
+    - Every line the wave added (`main.py:545-578`, `:646-653`, `:750-762`) runs. The misses are the
+      same twelve pre-wave lines, moved by the insertions.
+  - No other module under `src/app` dropped. It is the only touched Python module under `src/`.
+- **Swift coverage** was not measured. §11 reads Python modules. Every new Swift function
+  (`engineURL`, `addressNote`, `UIText.engineAddress`) is executed by a named test above.
 
 ## Mocks / contract tests
-- **The engine over HTTP, as the app sees it.** The wave adds one error code, `unknown_host`, in the
-  existing error shape, and no route changes.
-  - `test_ios_payload_contract.py` and `test_ios_client_contract.py` pass.
-  - The one Swift stub, `StubProtocol` (`EngineClientTests.swift`), is reused. No parallel stub was
-    added.
-- **launchd, curl, lsof and plutil.**
-  - The installer tests use the one stub set, `_STUBS` (`test_engine_service.py:237-255`).
-  - The proposed T1 test reuses it through a helper that only adds environment.
-  - The real `launchctl` stays the owner's to run (D-170).
+- **launchd, curl, lsof and plutil.** One stub set, `_STUBS` (`test_engine_service.py:237-255`),
+  reached through one helper, `_install` (`:258`).
+  - `ed8b7e7`'s new install test reuses `_install` through its new `**extra`.
+  - This seat's proposed T9 test extends the same helper with `*flags`.
+  - No parallel stub exists.
+- **The engine over HTTP, as the app sees it.** `StubProtocol` (`EngineClientTests.swift`) is the
+  one Swift stub.
+  - The wave adds one error code, `unknown_host`, and the app now branches on it
+    (`EngineClient.swift:151`). That is a first.
+  - No contract test ties the app's literal to the engine's: **T10**.
 - **macOS `scutil` and `ipconfig`.** Tests pass `ENGINE_LAN_NAME` and `ENGINE_LAN_IP` instead.
-  - Since `8cfdd98`, no deploy or plist test reaches them: `_deploy` has a scratch HOME (`:103-106`).
-  - That half of the guard is unheld (**T7**).
-- No new external integration, so no new contract test is owed.
+- No new external integration.
 
 ## BLOCKING
-
-- **T1** `scripts/install_engine_service.sh:50`; `tests/unit/test_engine_service.py:398`; `docs/prd.md:551`.
-  **The reinstall that keeps the mode is tested only through `--print-wrapper`.**
-  1. **What the code does.** Since `8cfdd98` (third review M12), the keep check runs when
-     `MODE` is empty **or** `--print-wrapper`:
-     `if { [ -z "$MODE" ] || [ "$MODE" = "--print-wrapper" ]; }`.
-     - The empty branch is the install. D-170 reruns it after every merge, and the owner's page
-       relies on it (`docs/owner-iphone.md:57-58`).
-     - The `--print-wrapper` branch only prints.
-  2. **What the test does.** `:398` runs only `--print-wrapper`. The full-install tests (`:282`,
-     `:290`, `:302`, `:387`) never start from a LAN wrapper.
-  3. **The mutant, I15.** Drop `[ -z "$MODE" ] ||` from the condition. The installer then rewrites
-     the owner's wrapper to `127.0.0.1` on the next redeploy and restarts the engine with
-     `kickstart -k`, so the phone silently stops reaching the engine. This is exactly the first
-     review's M2. **It passes the whole unit suite** (1550 passed).
-  4. **Why BLOCKING.** The profile counts a criterion whose test does not assert the claimed
-     behaviour as unproven. The claimed behaviour is a reinstall, and the test asserts a print. The
-     branch is new in a commit no Code-Reviewer read, on a HIGH wave.
-  5. **The fix.** One test, below (`test_a_plain_reinstall_writes_the_mode_it_found_and_says_so`). It
-     runs the real installer with no argument, against the existing stubs, over a LAN wrapper. It
-     asserts that the WRITTEN wrapper keeps `0.0.0.0` and its LAN list.
-     - In a scratch copy it is GREEN on `8cfdd98`.
-     - It kills I15, and also I13 and I14 (T6).
-- **T2** `src/app/adapter/main.py:563-564`, `:573-574`. **Coverage on `main.py` dropped from 97.06 % to
-  96.54 %. Two branches of the Host check that this wave added never run.**
-  1. **The bracketed IPv6 Host, `:564`.** `_host_name("[::1]:8080")` is never called with a bracket.
-     - H13 keeps the brackets (`return host`) and survives.
-     - Today that fails closed: the service's lists name no IPv6 address. But it is the only
-       IPv6 parse the check has, and its docstring promises it.
-  2. **A connection with no local address, `:574`.** uvicorn reports none, or a path, for a Unix
-     socket. `_arrived_off_loopback(None)` is never called.
-     - H14 makes it `True`, so the no-list engine would refuse such a request. It survives.
-  3. **Why BLOCKING.** `permission-matrix.md` §11: "Coverage drop on touched module". The Tester
-     profile §3 says the same. The M17-W5 seat applied the same bar ("No touched Python module loses
-     coverage").
-  4. **The fix.** Two tests, below:
-     - `test_an_ipv6_host_is_compared_without_its_brackets_or_port`;
-     - `test_without_a_list_a_connection_with_no_local_address_is_not_called_a_network_one`.
-     - They kill H13 and H14, and bring `main.py` to **97.27 %**.
+- none
 
 ## MINOR (the author fixes each in this wave or files it as an issue)
 
-- **T3** `tests/unit/test_engine_address.py:79-80`; `tests/unit/test_router_hints.py:31-34`. **The
-  view pin is fooled by a block comment, a regression from `456eac2`.**
-  - The pin now strips comments with `test_router_hints._code`, which removes `//` comments and keeps
-    `/* … */`.
-  - C4 wraps the whole address block in `/* … */`. The address is then never shown, and the pin and
-    the whole unit suite pass. The ContentView source still typechecks.
-  - The `_code` this file had until `a04fdd5` removed block comments, so the M11 fix lost that.
-  - **The fix:** one line, below. It kills C4.
-- **T4** `ios/ModelRanking/ContentView.swift:672-674`; `tests/unit/test_engine_address.py:73`. **A
-  source pin cannot see that the line is drawn.**
-  - C5 appends `.hidden()` to the `Text`, and it passes. So would `.opacity(0)`, or a zero frame.
-  - The pin matches only what it can name, and no test runs `ContentView`. This is the residue of
-    M11 that the third reviewer predicted: "a view test would be better; it belongs to #69".
-  - **The fix:** fold it into #69, or file it. I wrote no pin for it, because every modifier pin is
-    one more name to guess.
-- **T5** `ios/ModelRanking/Engine/EngineClient.swift:138-156`; `ios/EngineTests/EngineClientTests.swift:559-583`.
-  **`addressNote` ignores its language, and no test sees it.**
-  - S8 passes `.english` in place of `language`. A Turkish reader then reads "Engine address:" under
-    a Turkish failure title.
-  - It passes all of `swift test` and the Python pins. Every `addressNote` test asks in `.english`.
-    `LanguageTests.swift:443` tests `UIText.engineAddress` directly, never through `addressNote`.
-  - **The fix:** one Swift test, below (`testTheAddressLineIsInTheReadersLanguage`), plus its manifest
-    line. It kills S8.
-- **T6** `scripts/install_engine_service.sh:53`, `:196-197`; `docs/decisions.md` D-171 note 2. **"…and
-  says so" has no test.**
-  - D-171 note 2 says a reinstall keeps the mode "and says so". The owner's page step 1 says the
-    installer "prints `home network: on`". Neither line is asserted anywhere:
-    - I13 removes the "home network: kept" line;
-    - I14 removes the closing "home network: on / off" line.
-  - Both pass the whole unit suite.
-  - **The fix:** T1's test asserts both, and kills both.
-- **T7** `scripts/install_engine_service.sh:50`; `tests/unit/test_engine_service.py:420`. **Half of M12
-  is held.**
-  - The third review named two modes that must not read the live wrapper: `--print-plist` and
-    `--deploy-only`. `:420` tests `--print-plist` only.
-  - I5 changes the condition to `!= --print-plist`, so `--deploy-only` reads the wrapper again. It
-    passes the whole unit suite.
-  - The harm is small, since the deploy itself ignores the mode. But it is the exact regression M12
-    was about: a test path that depends on the owner's live service.
-  - **The fix:** one test, below (`test_a_deploy_reads_no_live_wrapper`). It kills I5.
+- **T8** `src/app/adapter/main.py:750-762`; `tests/unit/test_engine_host.py:38-106`. **The Host check is
+  proven on one path.**
+  - Every Host test asks `/v1/categories`.
+  - H16 makes the refusal apply only when the path starts with `/v1`. Under it, `/health` and any
+    other path serve every Host, and the no-list network rule no longer covers them. **H16 passes the
+    whole suite** (1563 passed).
+  - The code is right today: the live probe refuses `/health` with Host `evil.example`. But D-171
+    clause 1 says "a request", and exempting `/health` for monitoring is the regression this would
+    let through in silence.
+  - **Why only MINOR:** the data (`/v1`) is proven on both rules. `/health` serves public build and
+    freshness facts.
+  - **The fix:** one parametrized test, below (`test_every_path_is_behind_the_host_check`). It
+    kills H16.
+- **T9** `scripts/install_engine_service.sh:46-55`, `:196-197`; `tests/unit/test_engine_service.py:399`;
+  `docs/owner-iphone.md:57`. **`--no-lan` is never run as the install the owner runs, and "home
+  network: off" is asserted nowhere.**
+  - D-171 note 7 makes `--no-lan` the one control while the network is open, and the owner's page
+    says to run `scripts/install_engine_service.sh --no-lan`. That is a full install.
+  - The citing test, `:399`, runs `--no-lan --print-wrapper`. `_install` cannot pass a flag.
+  - **I16** removes the closing "home network: off, loopback only" line, the "says so" of a closed or
+    loopback reinstall. It passes the whole suite.
+  - **I17** makes the close apply only when a mode argument is given, by two coordinated edits. A real
+    `--no-lan` install then keeps `0.0.0.0` and prints "kept". It passes the whole suite.
+  - **Why this is not T1 again (BLOCKING there):**
+    - T1 was an existing branch that depended on the mode, which `--print-wrapper` never took.
+    - The close decision (`:51`, `:55`) does not depend on the mode at all, so `:399` runs every line
+      of it.
+    - The write itself is proven by `:454` (the LAN case) and `:388` (the loopback case).
+    - I17 has to add a mode dependence to survive. Every single-edit fault on this path is killed or
+      equivalent (I3, N7).
+  - **The fix:** one test, below (`test_no_lan_closes_the_home_network_on_the_install_the_owner_runs`),
+    plus `*flags` on `_install`. It kills I16 and I17.
+- **T10** `ios/ModelRanking/Engine/EngineClient.swift:151`; `src/app/adapter/main.py:759`;
+  `tests/unit/test_engine_host.py:49`, `:77`; `ios/EngineTests/EngineClientTests.swift:573`, `:582`.
+  **The code the app matches is not tied to the code the engine sends.**
+  - The failure screen shows the address under the engine's own refusal (D-171 note 10) because Swift
+    compares `code == "unknown_host"`.
+  - The engine's tests hold their literal, and the Swift tests hold theirs. Nothing reads one against
+    the other.
+  - **U1** renames the engine's code to `host_not_allowed`, and the engine's own two assertions
+    follow. It passes all 1563 Python tests and all 363 Swift tests. The renamed-host case D-171
+    note 10 describes would then show no address.
+  - This is the first time the app branches on an engine error code.
+  - **The fix:** one test, below (`test_the_app_matches_the_code_the_engine_sends_for_an_unknown_host`).
+    It reads the code from the live ASGI app and pins the Swift comparison to it. It kills U1.
+- **T11** `ios/ModelRanking/Engine/EngineClient.swift:172`; `ios/EngineTests/EngineClientTests.swift:594-600`.
+  **The empty-host guard never runs.**
+  - Measured with `swift` on this Mac:
+    - `URL(string: "http://")`, `"http:///v1"` and `"http:"` have a nil host;
+    - `"http://:8080"`, `"http://@:8080"` and `"https://:443/x"` have an empty one.
+  - The fallback test's only http value is `"http://"`, so `!host.isEmpty` is never reached. **S2b**
+    drops it and passes `swift test` (363) and the Python suite.
+  - Under S2b, an override that lost its name (`ENGINE_URL = http:/$()/:8080`) is used as-is instead of
+    falling back. The plan (`m18-wave-1-plan.md`, "Design") promises the fallback for "an http(s) URL
+    with a host".
+  - **The fix:** add `"http://:8080"` to the list at `:596`, below. It kills S2b.
+- **T12** `ios/ModelRanking/ContentView.swift:671-674`; `tests/unit/test_engine_address.py:73-85`. **A
+  second shape of T4: the pin cannot see a surrounding condition.**
+  - C9 wraps the address block in `if error.recovery == nil { … }`.
+  - The four failures that carry an address (`unreachable`, `timedOut`, `offline`,
+    `insecureTransport`) all have a recovery line (`EngineClient.swift:68-87`), so the address would
+    never show for them.
+  - It typechecks (`make client-decls`: PASS under the mutant), and it passes the pin and the whole
+    suite.
+  - Same cause as T4 (C5, `.hidden()`, still surviving): no test runs `ContentView`.
+  - **The fix:** fold it into #69 beside T4. A view test that renders `failure(_:)` kills both. I wrote
+    no pin for it, for the first Tester's reason: each pin names one more shape to guess.
 
 ## Notes (no change required by this verdict)
 
-- **N1. Equivalent mutant: I3**, the third reviewer's `M2-no-lan-ignored`. It drops `NO_LAN = no` from
-  the keep check, and `install_engine_service.sh:55` closes the mode anyway. Dropping both (I3c) is
-  killed by `:398`. Not a finding.
-- **N2. Two evidence lines do not cite the id.** The PRD's REQ-DEV-001 evidence cites
-  `EngineClientTests.swift:53` and `:290`. Both sit in classes whose comments name the review rounds
-  (K3, M4), not REQ-DEV-001 or D-171 (seed E.2). The third review's M13(b) fixed the other two files.
-  It is records drift, small enough to fold into the T1/T2 commit.
-- **N3. The no-list rule is shown on a real socket only for loopback.**
-  - `test_engine_host.py:72` uses `TestClient`'s synthetic `server`. Arrival on a LAN address through
-    a real socket needs a LAN bind, which this seat may not make.
-  - What stands in for it: uvicorn's own source (`getsockname`) and the loopback probe above.
-  - Note 9 and #94 already record the forwarder case.
-- **N4. No build was run.** `xcodebuild` is barred in this seat, and the simulator is paused.
-  - The chain `ENGINE_URL` → `Info.plist` `$(ENGINE_URL)` → `Bundle.main` → `EngineClient()`
-    (`ContentView.swift:72`) is held by source pins (X4–X11, P1, P2), plus `client-decls` typechecking
-    the client.
-  - The plan's spike (`m18-wave-1-plan.md:15-21`) and the owner's first run are its only end-to-end
-    proof. REQ-DEV-001 is honestly PARTIAL.
-- **N5. A regressed preflight does not reach the network.** With the preflight off (L1, V1), the
-  launcher test execs uvicorn on 192.0.2.1:8080. The guard log shows these arguments. Real uvicorn
-  would start the lifespan, then fail to bind. The nightly catch-up waits `STARTUP_GRACE_SECONDS = 60`
-  (`nightly.py:68`) before any refresh, so the failed bind ends it first. Read, not run.
+- **N6. Equivalent: H17.** Dropping the refusal's own `X-Content-Type-Options` line changes nothing.
+  - `_no_sniff` is registered after `_known_host` (`main.py:765`), so Starlette makes it the outer
+    middleware, and it sets the header on every response, the refusal included.
+  - Measured: `test_engine_host.py:50` still sees the header under H17, and the live probe shows it on
+    every refusal. The line is redundant, not wrong.
+- **N7. Equivalent: I3** (the first Tester's N1), confirmed again. `install_engine_service.sh:55`
+  closes the mode whatever `:51` decides.
+- **N8. V4 is killed, but only by accident.** V4 reads an unset `MODEL_RANKING_BIND` as `0.0.0.0`.
+  - Four older tests catch it because they assert the whole startup-problem tuple
+    (`test_api_config.py`, `test_board_standings.py`, `test_stage40_minors.py`). None cites D-171.
+  - Under V4, `ios/app.sh`'s by-hand launcher would refuse to start.
+  - A direct test is offered below (`test_an_unset_bind_is_loopback`). It is optional.
+- **N9. C5 still survives, as T4 said.** The caller reports T4 is on #69. This seat did not read
+  GitHub.
+- **N10. The first Tester's N3 and N4 still stand.**
+  - The no-list refusal is shown through a real socket only for loopback. A non-loopback socket needs
+    a LAN bind, which this seat may not make. uvicorn's `getsockname` path was read again
+    (`uvicorn/protocols/utils.py:30-44`), and the loopback probe repeated.
+  - No Xcode build was run. The plist chain is held by pins (X5, X6, X7, P1, S14), and by the plan's
+    spike and the owner's first run.
+- **N11. For the milestone's closure security seat (D-172), not a test gap.**
+  - With no list, loopback serves every Host. The probe's first column shows it.
+  - So `make run` and `ios/app.sh`'s launcher are not shielded from a page that rebinds a name to
+    127.0.0.1. Only the service, which always sets a list, is.
+  - D-171 clause 1 says exactly this ("unset … every Host is served"). It is recorded here so the
+    closure seat reads it on purpose.
 
 ## K.9 candidates spotted outside this wave's scope
-
-- **K1** `tests/unit/test_router_hints.py:31-34`. **`_code` keeps `/* */` comments.**
-  - Any pin built on it that requires code to be PRESENT is satisfied by commented-out code. T3 is
-    one instance.
-  - Pins that require code to be ABSENT fail safe.
-  - Worth one look at the other presence pins that use it, or one line in `_code` itself.
-
-## Risks queued to next M
-
-- **R1** `docs/owner-iphone.md:41-48`. Step 6 explains three screens. It does not explain the fourth
-  one this wave now shows: "This engine does not answer to that host", with the address under it.
-  "Keep in mind" covers the rename that causes it (lines 61-63), but a reader at step 6 will not find
-  it there. This is a page line, not a test; it goes to the owner's next look at the page.
+- The first Tester's **K1** (`tests/unit/test_router_hints.py:31-34`: `_code` keeps `/* */`) is
+  unchanged. `test_engine_address.py:81` now works around it locally.
 
 ## Fault injection (HIGH: mandatory)
 
-**Harness:** `tester-w18/mut.py`. For each mutant it:
-1. checks the file against `HEAD` with `git hash-object`;
-2. records the file's sha256;
-3. makes exact byte edits, each of which must match once;
-4. runs the named tests;
-5. writes the original bytes back in place;
-6. asserts the sha256 equals the pre-edit hash, `git hash-object` equals HEAD's blob, and
+**Harness:** scratch `t2work/mut.py`. For each fault it:
+1. checks every file it touches against `HEAD` (`git hash-object` = `git rev-parse HEAD:<file>`);
+2. records each file's sha256 and saves its bytes;
+3. makes exact edits, each of which must match a stated number of times (once, unless noted);
+4. runs the named tests (Python), or the Python pins plus `swift test --filter` on the four affected
+   classes (Swift). If nothing fails, it runs the whole of `tests/` with `-n auto`, plus the whole of
+   `swift test` for Swift faults, and `make client-decls` for view faults, to show they typecheck;
+5. writes the original bytes back **in place**, never with `git checkout` or `restore`;
+6. asserts that sha256 equals the pre-edit hash, that `git hash-object` equals HEAD's blob, and that
    `git diff --quiet` holds.
 
-No `git checkout` or `git restore` was used. A survivor of its named tests was re-run against the
-whole of `tests/unit` (Python mutants), or against the whole of `swift test` plus the three Python pin
-files (Swift mutants). Every Swift kill is an XCTest assertion, never a compile error. The log is
-`tester-w18/logs/mutants.jsonl`, one row per mutant, and **all 68 rows say `restored: true`**.
+All 63 rows of the log (`t2work/logs/mutants.jsonl`) say `restored: true`. Every Swift kill is an
+XCTest assertion, never a compile error. Afterwards, all 671 tracked files match the pre-run sha256
+baseline, `git status --porcelain` is empty, and `git diff --quiet` holds.
 
-**Restore hashes** (sha256 prefix before = after, and the HEAD blob `git hash-object` matched):
+**Restore hashes** (sha256 prefix, pre = post, and the HEAD blob that `git hash-object` matched):
 
-| file | sha256 (pre = post) | HEAD blob |
-|---|---|---|
-| `src/app/adapter/main.py` | `8de4876503d4` | `35171db171` |
-| `scripts/engine_service.sh` | `cc17145abc38` | `522a1b539a` |
-| `scripts/install_engine_service.sh` | `1e95ef214a6b` | `7541de9c4d` |
-| `Makefile` | `8678e690d706` | `4d9d0b876c` |
-| `ios/app.sh` | `87fbebb2c27b` | `a78263dc44` |
-| `ios/Config/Engine.xcconfig` | `ac803fa1b130` | `81ee48b12e` |
-| `ios/Config/Info.plist` | `d7ead6196aaa` | `3e7b7b968f` |
-| `ios/ModelRanking.xcodeproj/project.pbxproj` | `f26ba10d947e` | `9710da6cc2` |
-| `.gitignore` | `4381e99bee55` | `41a99a4126` |
-| `ios/ModelRanking/ContentView.swift` | `c2f4a3ff1d11` | `705a1170a5` |
-| `ios/ModelRanking/Engine/EngineClient.swift` | `8db356862dc9` | `e5f3c54157` |
-| `ios/ModelRanking/Engine/Language.swift` | `837d756a40ee` | `84d144583a` |
+| file | faults | sha256 (pre = post) | HEAD blob |
+|---|---|---|---|
+| `src/app/adapter/main.py` | 17 | `8de4876503d4` | `35171db171` |
+| `scripts/engine_service.sh` | 5 | `cc17145abc38` | `522a1b539a` |
+| `scripts/install_engine_service.sh` | 14 | `1e95ef214a6b` | `7541de9c4d` |
+| `ios/ModelRanking/Engine/EngineClient.swift` | 16 | `8db356862dc9` | `e5f3c54157` |
+| `ios/ModelRanking/Engine/Language.swift` | 1 | `837d756a40ee` | `84d144583a` |
+| `ios/ModelRanking/ContentView.swift` | 4 | `c2f4a3ff1d11` | `705a1170a5` |
+| `ios/Config/Info.plist` | 2 | `d7ead6196aaa` | `3e7b7b968f` |
+| `ios/Config/Engine.xcconfig` | 2 | `ac803fa1b130` | `81ee48b12e` |
+| `ios/app.sh` | 1 | `87fbebb2c27b` | `a78263dc44` |
+| `Makefile` | 1 | `8678e690d706` | `4d9d0b876c` |
+| `tests/unit/test_engine_host.py` (U1 only) | 1 | `7eca801a563e` | `18cd5c8148` |
 
-After the run, all 670 tracked files match the pre-run sha256 baseline (`sha-baseline.txt` =
-`sha-after.txt`), and `git status --porcelain` is empty.
-
-**The mutants.** "cr3:" marks a replay of the third Code-Reviewer's set, rebuilt from
-`docs/reviews/m18-wave-1-review.md` and adapted where `8cfdd98` moved the code.
+**The faults.**
+- "t1:" marks a replay of a fault the first Tester named. It was rebuilt from that verdict's
+  description and edited here, not taken from its harness.
+- "t2" marks a fault new to this seat.
+- **The first Tester's eight survivors (I15, H13, H14, C4, S8, I13, I14, I5) are all KILLED now**, each
+  by a test `ed8b7e7` added. C5 is its T4, which is not a test this wave owes.
 
 | id | origin | the fault | result | killed by |
 |---|---|---|---|---|
-| H1 | cr3:B1a-arrival-off | no-list arrival rule off | KILLED | `test_engine_host.py:72` |
-| H2 | cr3:B1a-name-is-network | a name counts as a network address | KILLED | `:53` |
-| H3 | tester | list check off | KILLED | `:45` (4 Hosts) |
-| H4 | tester | prefix match instead of exact | KILLED | `:45` (`127.0.0.1.evil.example`, `…local.evil.example`) |
-| H5 | tester | port not stripped | KILLED | `:38` |
-| H6 | cr3:M5-header-case | header not lower-cased | KILLED | `:81` |
-| H7 | cr3:M5-list-case | list not lower-cased | KILLED | `:81` |
-| H8 | cr3:M5-empty-host-served | empty Host served | KILLED | `:90` |
-| H9 | tester | the peer's address in place of the local one | KILLED | `:72` |
-| H10 | tester | `is_private` in place of `is_loopback` | KILLED | `:72` |
-| H11 | tester | the list checked only off loopback (rebinding on loopback) | KILLED | `:45`, `:90` |
-| H12 | tester | the Host middleware unregistered | KILLED | `:45`, `:72`, `:90` |
-| **H13** | tester | bracketed IPv6 Host kept whole (`main.py:564`) | **SURVIVED** | **T2** |
-| **H14** | tester | no local address counted as a network (`main.py:574`) | **SURVIVED** | **T2** |
-| V1 | cr3:B1-startup-check-off | the startup check off | KILLED | `:58`; `test_engine_service.py:373` (guard refused the exec) |
-| V2 | tester | `and` → `or` in the startup check | KILLED | `:58` |
-| V3 | tester | `0.0.0.0` counted as loopback | KILLED | `:58` |
-| L1 | tester (cr3 did not run it) | the preflight's result ignored | KILLED | `test_engine_service.py:373` (guard refused the exec) |
-| L2 | cr3:86-second-host | a second `--host 0.0.0.0` | KILLED | `:364` |
-| L3 | tester | the launcher's default bind `0.0.0.0` | KILLED | `:178`, `:364` |
-| I1 | cr3:M2-keep-mode-off | the keep check off | KILLED | `:398` |
-| I2 | cr3:M7-any-wrapper-opens | any wrapper opens the network | KILLED | `:398` |
-| I3 | cr3:M2-no-lan-ignored | `NO_LAN = no` dropped from the keep check | SURVIVED, equivalent | **N1** |
-| I3c | tester | both `--no-lan` guards dropped | KILLED | `:398` |
-| I4 | tester | every mode reads the wrapper (M12 undone) | KILLED | `:420` |
-| **I5** | tester | `--deploy-only` reads the wrapper | **SURVIVED** | **T7** |
-| I6 | cr3:86-wrapper-755 | wrapper `chmod 755` | KILLED | `:387` |
-| I7 | cr3:M5-installer-name-case | the `.local` name not lower-cased | KILLED | `:355` |
-| I8 | tester | the default bind `0.0.0.0` | KILLED | `:349`, `:398` |
-| I9 | tester | the LAN address left off the list | KILLED | `:355` |
-| I10 | tester | `--lan` keeps a loopback bind | KILLED | `:355`, `:398` |
-| I11 | tester | no Host list by default | KILLED | `:349`, `:355` |
-| I12 | tester | the wrapper drops the list export | KILLED | `:349`, `:355` |
-| **I13** | tester | the "kept" line removed | **SURVIVED** | **T6** |
-| **I14** | tester | the closing "home network" line removed | **SURVIVED** | **T6** |
-| **I15** | tester | **the install forgets the mode (keep only for `--print-wrapper`)** | **SURVIVED** | **T1** |
-| X1 | cr3:B1b-make-run-0000 | `make run` binds `0.0.0.0` | KILLED | `:434` |
-| X2 | cr3:M2-appsh-url-dropped | `app.sh` drops `ENGINE_URL` | KILLED | `:442` |
-| X3 | cr3:M2-appsh-bundle-dropped | `app.sh` drops the bundle id | KILLED | `:442` |
-| X4 | cr3:M3-bundle-id-out-of-xcconfig | the bundle id commented out | KILLED | `test_engine_address.py:61` |
-| X5 | cr3:M3-include-dropped | the `#include?` dropped | KILLED | `:21` |
-| X6 | tester | the default `ENGINE_URL` is the owner's Mac | KILLED | `:21` |
-| X7 | tester | `NSAllowsArbitraryLoads` added | KILLED | `:30` |
-| X8 | tester | the local-network usage text dropped | KILLED | `:30` |
-| X9 | tester | Release config loses `INFOPLIST_FILE` | KILLED | `:39` |
-| X10 | tester | Release config loses the xcconfig | KILLED | `:39` |
-| X11 | tester | the override not git-ignored | KILLED | `:21` |
-| C1 | cr3:B2a-view-line-removed | the view's address block removed | KILLED | `:73` |
-| C2 | cr3:B2a-view-line-commented | the block `//`-commented | KILLED | `:73` |
-| C3 | cr3:B2a-view-computed-not-shown | `let _ = error.addressNote(…)` (M11) | KILLED | `:73` |
-| **C4** | tester | the block `/* */`-commented | **SURVIVED** | **T3** |
-| **C5** | tester | `.hidden()` on the line | **SURVIVED** | **T4** |
-| P1 | cr3:M4-key-misspelt | plist key `EngineUrl` | KILLED | `:48` |
-| P2 | cr3:M4-reads-nil | `localDefault` reads nil | KILLED | `:48` |
-| P3 | cr3:K3-case-sensitive-again | redirect compare with case (pin) | KILLED | `test_ios_client_contract.py:504` |
-| S1 | cr3:W4-any-scheme | any URL scheme accepted | KILLED | `EngineClientTests.swift:585` |
-| S2 | tester | the host check dropped | KILLED | `:585` |
-| S3 | tester | always loopback | KILLED | `:552` |
-| S4 | tester | `unknown_host` shows no address | KILLED | `:569` |
-| S5 | cr3:B2a-refused-shows-address (adapted) | every refusal shows the address | KILLED | `:578` |
-| S6 | cr3:B2a-only-unreachable (adapted) | only `.unreachable` shows it | KILLED | `:559` |
-| S7 | tester | `insecureTransport` shows no address (M10) | KILLED | `:569` |
-| **S8** | tester | `addressNote` always English | **SURVIVED** (swift test + pins) | **T5** |
-| S9 | tester | the host only, not the URL | KILLED | `:559`, `:569` |
-| S10 | cr3:B2a-turkish-line | the Turkish line in English | KILLED | `LanguageTests.swift:443` |
-| S11 | cr3:K3-case-sensitive | redirect compare with case | KILLED | `EngineClientTests.swift:53` |
-| S12 | tester | every redirect followed | KILLED | `:39`, `:61`, `:67`, `:78` |
-| S13 | cr3:M4-detail-without-address | the unreachable detail drops the address | KILLED | `:290` |
+| H1 | t1:H1 | no-list arrival rule off | KILLED | `test_engine_host.py:72` |
+| H3 | t1:H3 | list check off | KILLED | `:45` (4 Hosts) |
+| H4 | t1:H4 | prefix match instead of exact | KILLED | `:45` |
+| H5 | t1:H5 | port not stripped | KILLED | `:38` |
+| H9 | t1:H9 | the peer's address in place of the local one | KILLED | `:72` |
+| H10 | t1:H10 | `is_private` in place of `is_loopback` | KILLED | `:72`, `:106` |
+| H13 | t1:H13 | bracketed IPv6 Host kept whole | KILLED | `:96` |
+| H13b | t2 | an unclosed bracket stripped and served | KILLED | `:96` |
+| H14 | t1:H14 | no local address counted as a network | KILLED | `:106` |
+| H15 | t2 | a name as the local address counted as a network | KILLED | `:53`, `:106` |
+| **H16** | t2 | **the Host check applies only to `/v1` paths** | **SURVIVED** (1563 passed) | **T8** |
+| H17 | t2 | the refusal's own nosniff line dropped | SURVIVED, equivalent | **N6** |
+| V1 | t1:V1 | the startup bind check off | KILLED | `:58`; `test_engine_service.py:374` (guard refused the exec) |
+| V2 | t1:V2 | `and` → `or` in the startup check | KILLED | `test_engine_host.py:58` |
+| V3 | t1:V3 | `0.0.0.0` counted as loopback | KILLED | `:58` |
+| V4 | t2 | an unset bind read as `0.0.0.0` | KILLED, by unrelated tests only | `test_api_config.py`, `test_board_standings.py`, `test_stage40_minors.py` (**N8**) |
+| L1 | t1:L1 | the preflight's result ignored | KILLED | `test_engine_service.py:374` (guard refused the exec) |
+| L2 | t1:L2 | a second `--host 0.0.0.0` | KILLED | `:365` |
+| L3 | t1:L3 | the exec's default bind `0.0.0.0` | KILLED | `:178`, `:365` |
+| L4 | t2 | the exec ignores the bind (`--host 127.0.0.1`) | KILLED | `:178`, `:365` |
+| L5 | t2 | the preflight runs without the bind variable | KILLED | `:374` (guard refused the exec) |
+| I15 | t1:I15 | the install forgets the mode | KILLED | `:454` |
+| I13 | t1:I13 | the "kept" line removed | KILLED | `:454` |
+| I14 | t1:I14 | the closing "home network: on" line removed | KILLED | `:454` |
+| I5 | t1:I5 | `--deploy-only` reads the live wrapper | KILLED | `:472` |
+| I1 | t1:I1 | the keep check off | KILLED | `:399`, `:454` |
+| I2 | t1:I2 | any wrapper opens the network | KILLED | `:399` |
+| I3 | t1:I3 | `NO_LAN = no` dropped from the keep check | SURVIVED, equivalent | **N7** |
+| **I16** | t2 | **the closing "home network: off" line removed** | **SURVIVED** (1563 passed) | **T9** |
+| **I17** | t2 | **`--no-lan` closes only when a mode is given (two edits)** | **SURVIVED** (1563 passed) | **T9** |
+| I6 | t1:I6 | wrapper `chmod 755` | KILLED | `:388` |
+| I7 | t1:I7 | the `.local` name not lower-cased | KILLED | `:356` |
+| I8 | t1:I8 | the default bind `0.0.0.0` | KILLED | `:350`, `:399` |
+| I9 | t1:I9 | the LAN address left off the list | KILLED | `:356`, `:454` |
+| I11 | t1:I11 | no Host list by default | KILLED | `:350`, `:356`, `:454` |
+| S1 | t1:S1 | any URL scheme accepted | KILLED | `EngineClientTests.swift:594` |
+| S2 | t1:S2 | the host check dropped | KILLED | `:594` |
+| **S2b** | t2 | **only the empty-host check dropped** | **SURVIVED** (363 Swift, 1563 Python) | **T11** |
+| S3 | t1:S3 | always loopback | KILLED | `:552` |
+| S15 | t2 | https refused | KILLED | `:552` |
+| S14 | t1:P2 | `localDefault` reads nothing | KILLED | `test_engine_address.py:48` |
+| S8 | t1:S8 | `addressNote` always English | KILLED | `EngineClientTests.swift:578` |
+| S8b | t2 | English only for the `unknown_host` refusal | KILLED | `:578` |
+| S4 | t1:S4 | `unknown_host` shows no address | KILLED | `:569`, `:578` |
+| S5 | t1:S5 | every refusal shows the address | KILLED | `:587` |
+| S6 | t1:S6 | only `.unreachable` shows it | KILLED | `:559`, `:569`, `:578` |
+| S7 | t1:S7 | `insecureTransport` shows no address | KILLED | `:569`, `:578` |
+| S9 | t1:S9 | the host only, not the URL | KILLED | `:559`, `:569`, `:578` |
+| S10 | t1:S10 | the Turkish line in English | KILLED | `LanguageTests.swift:443`; `EngineClientTests.swift:578` |
+| S11 | t1:S11 | redirect compared with case | KILLED | `EngineClientTests.swift:53`; `test_ios_client_contract.py:504` |
+| S12 | t2 | redirect host compared by prefix | KILLED | `EngineClientTests.swift:61`; `test_ios_client_contract.py:504` |
+| S13 | t1:S13 | the unreachable detail drops the address | KILLED | `EngineClientTests.swift:290` |
+| C4 | t1:C4 | the view block `/* */`-commented | KILLED | `test_engine_address.py:73` |
+| C5 | t1:C5 | `.hidden()` on the line | SURVIVED (typechecks) | the first Tester's T4, #69 (**N9**) |
+| **C9** | t2 | **the line shown only when there is no recovery line** | **SURVIVED** (typechecks) | **T12** |
+| C10 | t2 | the view shows loopback's address, not the client's | KILLED | `:73` |
+| P1 | t1:P1 | plist key `EngineUrl` | KILLED | `:30`, `:48` |
+| X7 | t1:X7 | `NSAllowsArbitraryLoads` added | KILLED | `:30` |
+| X5 | t1:X5 | the optional include dropped | KILLED | `:21` |
+| X6 | t1:X6 | the default `ENGINE_URL` is the owner's Mac | KILLED | `:21` |
+| X2 | t1:X2 | `app.sh` drops `ENGINE_URL` | KILLED | `test_engine_service.py:443` |
+| X1 | t1:X1 | `make run` binds `0.0.0.0` | KILLED | `:435` |
+| **U1** | t2 | **the engine renames `unknown_host`, and its own tests follow** | **SURVIVED** (1563 Python, 363 Swift) | **T10** |
 
-**Kill rate:** 58 of 67 non-equivalent mutants, **87 %**.
-- **The third Code-Reviewer's set:** 29 replayed, 28 killed, 1 equivalent (I3). Its one real
-  survivor, M11's C3, is now killed.
-- **This seat's own mutants:** 39, of which 9 survive. Those are this verdict's T1 to T7.
+**Kill rate (advisory, HIGH): 54 of 61 non-equivalent faults, 88.5 %.** No mutation runner is wired
+for this stack, so this hand-built set stands in for one.
 
 ## Tests added/extended this review
 
 **None in the repository.** This seat may change only this file. Each test below was written into a
-scratch copy of `8cfdd98` (`tester-w18/trees/prop`; the whole diff is `tester-w18/proposed-tests.diff`):
-- each is GREEN there;
-- each kills its survivors (`tester-w18/logs/propcheck.txt`);
-- with them, `main.py` coverage is 97.27 %;
-- the manifest test passes once the Swift name is added.
+scratch copy of `ed8b7e7` (scratch `t2work/trees/prop`; the whole diff is
+`t2work/proposed-tests.diff`).
+- Each is GREEN there, and the copy's whole suite passes: 1569 passed, 23 skipped.
+- Each was run against its fault in that copy, and each goes red (`t2work/logs/propcheck.txt`).
+- The installer test uses the module's `_install` stubs and a scratch HOME.
 
-The two BLOCKING tests (T1, T2) are given in full.
-
-**T1, T6.** In `tests/unit/test_engine_service.py`: a helper beside `_install` that adds environment,
-then the test. Proven: kills I15, I13 and I14.
+**T8** (kills H16). In `tests/unit/test_engine_host.py`:
 ```python
-def _install_with(tmp_path: Path, repo: Path, health: str, **extra: str) -> subprocess.CompletedProcess[str]:
-    """`_install`, with this Mac's name and address given instead of asked (scutil, ipconfig)."""
-    stubs, state, home = tmp_path / "stubs", tmp_path / "state", tmp_path / "home"
-    for folder in (stubs, state, home):
-        folder.mkdir(exist_ok=True)
-    for name, body in _STUBS.items():
-        (stubs / name).write_text(body, encoding="utf-8")
-        (stubs / name).chmod(0o755)
-    (repo / ".venv" / "bin").mkdir(parents=True, exist_ok=True)
-    (repo / ".venv" / "bin" / "python").write_text("#!/bin/bash\n", encoding="utf-8")
-    (repo / ".venv" / "bin" / "python").chmod(0o755)
-    env = {**_CLEAN_GIT_ENV, "HOME": str(home), "MODEL_RANKING_REPO": str(repo),
-           "PATH": f"{stubs}:{os.environ['PATH']}", "STUB_LOG": str(tmp_path / "calls.log"),
-           "STUB_STATE": str(state), "ENGINE_DEPLOY_NO_VENV": "1", "ENGINE_INSTALL_WAIT_S": "1",
-           "STUB_HEALTH": health, **extra}
-    return subprocess.run(["/bin/bash", str(INSTALLER)], capture_output=True, text=True, timeout=120, env=env)
+@pytest.mark.parametrize("path", ["/health", "/v1/categories", "/no-such-route"])
+def test_every_path_is_behind_the_host_check(db: Path, monkeypatch: pytest.MonkeyPatch, path: str) -> None:
+    """W1 second Tester T8 (REQ-DEV-001, D-171 clause 1): the check runs before any route."""
+    monkeypatch.setenv(HOSTS, LIST)
+    refused = TestClient(adapter.app, base_url="http://evil.example").get(path)
+    assert refused.status_code == 400 and refused.json()["error"]["code"] == "unknown_host", path
+    monkeypatch.delenv(HOSTS)
+    arrived = TestClient(adapter.app, base_url="http://192.168.0.26:8080").get(path)
+    assert arrived.status_code == 400 and arrived.json()["error"]["code"] == "unknown_host", path
+```
 
-
-def test_a_plain_reinstall_writes_the_mode_it_found_and_says_so(tmp_path: Path) -> None:
-    """REQ-DEV-001 / D-171 note 2: the redeploy after a merge is a plain install, not `--print-wrapper`.
-    It must WRITE the home-network wrapper it found, and say so on both lines the owner reads."""
+**T9** (kills I16 and I17). In `tests/unit/test_engine_service.py`, `_install` gains `*flags`. Its
+signature becomes `(tmp_path, repo, health, *flags, **extra)`, and it runs
+`["/bin/bash", str(INSTALLER), *flags]`. Then:
+```python
+def test_no_lan_closes_the_home_network_on_the_install_the_owner_runs(tmp_path: Path) -> None:
+    """W1 second Tester T9 (REQ-DEV-001, D-171 note 7): `--no-lan` is the one control while the network
+    is open, and the owner runs it as an install. launchctl, curl and plutil are stubs; HOME is scratch."""
     repo = _scratch_repo(tmp_path)
     wrapper = tmp_path / "home" / "Library" / "Application Support" / "model-ranking" / "engine_service.sh"
     wrapper.parent.mkdir(parents=True)
     wrapper.write_text('export MODEL_RANKING_BIND="0.0.0.0"\n', encoding="utf-8")
-    done = _install_with(tmp_path, repo, f'{{"status":"ok","build":"release-{_sha(repo)}"}}',
-                         ENGINE_LAN_NAME="probe-mac", ENGINE_LAN_IP="192.168.9.9")
+    done = _install(tmp_path, repo, f'{{"status":"ok","build":"release-{_sha(repo)}"}}', "--no-lan",
+                    ENGINE_LAN_NAME="probe-mac", ENGINE_LAN_IP="192.168.9.9")
     assert done.returncode == 0, done.stdout + done.stderr
     written = wrapper.read_text(encoding="utf-8")
-    assert 'export MODEL_RANKING_BIND="0.0.0.0"' in written, written
-    assert 'export MODEL_RANKING_ALLOWED_HOSTS="127.0.0.1,localhost,probe-mac.local,192.168.9.9"' in written
-    assert "home network: kept" in done.stderr, done.stderr
-    assert "home network: on" in done.stdout, done.stdout
+    assert 'export MODEL_RANKING_BIND="127.0.0.1"' in written, written
+    assert 'export MODEL_RANKING_ALLOWED_HOSTS="127.0.0.1,localhost"' in written, written
+    assert "home network: kept" not in done.stderr, done.stderr
+    assert "home network: off" in done.stdout, done.stdout
 ```
 
-**T2.** In `tests/unit/test_engine_host.py`. Proven: kills H13 and H14.
+**T10** (kills U1). In `tests/unit/test_engine_host.py`:
 ```python
-def test_an_ipv6_host_is_compared_without_its_brackets_or_port(db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """`_host_name`'s bracket branch (main.py:564) never ran: `[::1]:8080` is `::1` on the list."""
-    monkeypatch.setenv(HOSTS, "127.0.0.1,::1")
-    client = TestClient(adapter.app, base_url="http://127.0.0.1:8080")
-    assert client.get("/v1/categories", headers={"host": "[::1]:8080"}).status_code == 200
-    assert client.get("/v1/categories", headers={"host": "[::1]"}).status_code == 200
-    assert client.get("/v1/categories", headers={"host": "[::2]:8080"}).status_code == 400
-    assert client.get("/v1/categories", headers={"host": "[::1"}).status_code == 400
-
-
-def test_without_a_list_a_connection_with_no_local_address_is_not_called_a_network_one() -> None:
-    """`_arrived_off_loopback`'s first branch (main.py:574) never ran. uvicorn reports no address, or
-    a path, for a Unix socket; neither is a network address."""
-    assert adapter._arrived_off_loopback(None) is False
-    assert adapter._arrived_off_loopback(("/tmp/engine.sock", None)) is False
-    assert adapter._arrived_off_loopback(("192.168.0.26", 8080)) is True
-    assert adapter._arrived_off_loopback(("::1", 8080)) is False
+def test_the_app_matches_the_code_the_engine_sends_for_an_unknown_host(db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """W1 second Tester T10 (REQ-DEV-001, D-171 note 10): the app shows the address under this refusal
+    by matching its code in Swift; the code is read from the engine, not typed twice."""
+    monkeypatch.setenv(HOSTS, LIST)
+    code = TestClient(adapter.app, base_url="http://evil.example").get("/v1/categories").json()["error"]["code"]
+    client = (Path(__file__).resolve().parents[2] / "ios" / "ModelRanking" / "Engine" / "EngineClient.swift").read_text(
+        encoding="utf-8")
+    assert f'code == "{code}"' in client, code
 ```
 
-**The MINOR tests, each proven in the scratch copy.**
-- **T3** (kills C4). In `test_engine_address.py:80`, strip block comments before `_code`:
-  `_code(re.sub(r"/\*.*?\*/", "", view[start : view.index("// MARK:", start)], flags=re.S))`.
-- **T5** (kills S8). Add `testTheAddressLineIsInTheReadersLanguage` to `EngineAddressTests`. It
-  asserts `"Motor adresi: …"` from `addressNote(address, .turkish)` for `.unreachable`, `.timedOut`,
-  `.offline`, `.insecureTransport` and the `unknown_host` refusal. Add its line to
-  `test-manifest.txt`.
-- **T7** (kills I5). Add `test_a_deploy_reads_no_live_wrapper`. It writes a LAN wrapper into the
-  scratch HOME that `_deploy` uses, then asserts that no "home network" text is printed.
+**T11** (kills S2b). In `ios/EngineTests/EngineClientTests.swift:596`, add `"http://:8080"` to the
+fallback list. It names no new test, so the manifest is unchanged.
+
+**N8** (optional; kills V4 directly). In `tests/unit/test_engine_host.py`:
+```python
+def test_an_unset_bind_is_loopback(db: Path) -> None:
+    assert not any(HOSTS in problem for problem in adapter.validate_startup_config("test"))
+```
+
+**T12:** no test here; it goes to #69 with T4.
 
 ## Safety (this seat's rules)
 
 - **Neither installer script was executed by this seat.** `scripts/install_engine_service.sh` and
-  `scripts/remove_engine_service.sh` ran only inside `tests/unit/test_engine_service.py`, with a scratch
-  HOME (`HOME` set to a scratch folder for every pytest run, the gate excepted) and the file's own
-  stubs. Installer mutants were edited in place, run through that file, and restored byte-identical.
+  `scripts/remove_engine_service.sh` ran only inside `tests/unit/test_engine_service.py`, in the
+  gate, the red replays, the fault runs and the scratch copy.
+  - The pytest runs had a scratch HOME, except the gate.
+  - Every full install went through `_install`, with its own `launchctl`, `curl`, `plutil` and
+    `lsof` stubs first on PATH.
+  - Before the fault runs I confirmed that no installer fault touches the `--print-*` early exits, so
+    `_installer(...)` (HOME `/Users/probe`) still printed and exited.
+  - Behind that, this seat's own PATH refused `launchctl`, `curl` and `lsof`, and refused any `git`
+    fetch or push to a network remote.
 - **No `launchctl`, `xcodebuild` or `simctl` ran, and nothing ran on the simulator.**
-  - `xcrun` ran only inside `make check-fast`'s `client-decls` leg, through a filter that passes
-    only SDK-path queries and `swiftc`. The leg made two kinds of call:
-    - `xcrun --sdk iphoneos|iphonesimulator --show-sdk-path`;
-    - `xcrun swiftc -typecheck -dump-ast` against those SDKs.
-    Both are compile-only.
-  - To prove the filter refuses everything else, I sent it one `xcrun simctl list`. The filter
-    stopped it ("BLOCKED in this review seat", exit 97), and the real `xcrun` never saw it. That is
-    the only time the message appeared.
-- **Nothing bound beyond loopback.**
-  - The probe engines bound 127.0.0.1:8141-8143, were stopped with SIGTERM, and left no listener.
-  - During the red runs and the mutants, `python -m uvicorn` was refused at start by a
-    `sitecustomize` guard (`os._exit(3)`, never `abort`). It fired three times, each before any
-    engine code ran:
-    - `41be53a`'s red launcher, asking for 127.0.0.1:8080;
-    - V1 and L1, asking for 192.0.2.1:8080.
-- **Changes.** No commit, no push, no GitHub. The only tracked change is this file. The bytecode
-  caches the run created were removed.
+  - `xcrun` was filtered: `simctl`, `xcodebuild` and `devicectl` are refused. It was used only by
+    `client-decls`, for `--show-sdk-path` and `swiftc -typecheck`.
+  - `swift test` and one `swift` script ran on macOS only.
+  - **"BLOCKED in this review seat" appeared exactly once, caused on purpose:** one `launchctl print`
+    to prove the provided guard refuses (exit 97).
+  - This seat's own guard refused one `git fetch` and one `xcrun simctl list`, both sent on purpose
+    to test it. It refused nothing else.
+- **Nothing bound beyond loopback, and nothing bound 8080.**
+  - The probe engines bound 127.0.0.1:8161-8164 and were stopped with SIGTERM. A connect afterwards
+    found no listener.
+  - A `sitecustomize` guard refused every `python -m uvicorn` not on 127.0.0.1 above port 8100, with
+    `os._exit(3)`, never `abort`. It fired twice on purpose, to test it (0.0.0.0:8150 and
+    127.0.0.1:8080). Otherwise it fired four times, each before any engine code ran:
+    - `41be53a`'s red launcher test, asking for 127.0.0.1:8080;
+    - V1, L1 and L5, each asking for 192.0.2.1:8080.
+  - No test reached the network.
+- **Changes.** No commit, no push, no GitHub. The only tracked change in the worktree is this file.
+  Every fault was reverted in place and checked byte-identical (table above). Scratch work lives
+  outside the worktree, under the session's scratchpad folder `t2work/`.
