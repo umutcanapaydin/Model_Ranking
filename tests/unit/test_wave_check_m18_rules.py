@@ -91,7 +91,7 @@ def _wave_check(record: Path) -> subprocess.CompletedProcess[str]:
 def test_a_wave_touching_input_parsing_must_be_high(tmp_path: Path) -> None:
     """#83: a close whose footprint names `src/app/clients/` and whose tier row is not HIGH."""
     done = _wave_check(_record(tmp_path, tier="MED", touched="src/app/clients/epoch.py · tests/unit/x.py"))
-    assert done.returncode != 0 and "src/app/clients/" in done.stdout, done.stdout
+    assert done.returncode != 0 and "src/app/clients" in done.stdout, done.stdout
 
 
 def test_a_high_wave_touching_input_parsing_and_a_med_wave_not_touching_it_pass(tmp_path: Path) -> None:

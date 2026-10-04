@@ -326,7 +326,7 @@ the plan's; where the rule has moved since, the row says so.
 ### REQ-ING-010 — Epoch AI ingestion
 
 **Statement:** ingest Epoch AI's documented CSV bundle as a source, provenance mandatory, loud-fail like every other source.
-**Status:** **MET.** Evidence: test_epoch_workflow.py:39; test_epoch_ingest.py:99; test_epoch_bundle_fetch.py:38. D-158 amends acquisition: the refresh now fetches the bundle itself. **Duplicate:** this ID appears again at line 332 with a different status.
+**Status:** **MET.** Evidence: test_epoch_workflow.py:39; test_epoch_ingest.py:99; test_epoch_bundle_fetch.py:38; test_epoch_workflow.py:120; test_epoch_staleness.py:19. D-158 amends acquisition: the refresh now fetches the bundle itself. Its second row, in the M6 table, was folded in here at M18-W5 (#33).
 **M16-W4 (D-158):** the nightly refresh fetches the bundle itself (`src/app/clients/epoch_bundle.py`, `refresh --fetch-epoch`), with the archive handled as untrusted input. Cited by `tests/unit/test_epoch_bundle_fetch.py`.
 
 ### REQ-REC-009 — Equivalent plans are named, not hidden
@@ -356,7 +356,6 @@ the plan's; where the rule has moved since, the row says so.
 
 | REQ-ID | Implemented behavior and evidence | Current status |
 |---|---|---|
-| REQ-ING-010 | Local allowlisted Epoch CSV ingestion with required provenance and an independent acquisition clock. Citing tests: `test_epoch_ingest.py`, `test_epoch_workflow.py`, `test_deepswe_workflow.py`, `test_epoch_staleness.py`. | **MET.** Evidence: test_epoch_workflow.py:39, :120; test_epoch_staleness.py:19. Duplicate of line 299, which carries a different status. |
 | REQ-ING-011b | Selected-row evidence partitions coding as 2 fresh / 3 stale / 5 unscored and agentic-coding as 6 undated / 4 unscored; source-global dates remain telemetry. Citing tests: `test_coverage.py`, `test_deepswe_workflow.py`. | **MET.** Evidence: test_coverage.py:230, :251; test_epoch_workflow.py:128. |
 | REQ-CAN-005 | Effort is parsed, validated, stored, and reconciled; unknown/conflicting rows are counted. Citing tests: `test_schema.py`, `test_effort.py`, `test_deepswe_workflow.py`. | **MET.** Evidence: test_effort.py:31, :49; test_serializer_parity.py:213 (W-010). |
 | REQ-REC-011 | Model and plan output name ranked effort and compare only same-harness/same-source higher effort. Citing test: `test_effort.py`. | **MET.** Evidence: test_effort.py:252, :279. |
@@ -397,9 +396,9 @@ not copied until #33. M7's other criteria are REQ-ING-012/013 (§11) and REQ-CAN
 
 | REQ-ID | Criterion | Status |
 |---|---|---|
-| REQ-API-007 | The serving path performs no write to the evidence database and holds no full-database copy. `serving_snapshot` is deleted, not merely unused. | **MET.** Evidence: test_api_v1.py:727, :744; test_api_config.py:525; test_readonly_uri.py:136. |
+| REQ-API-007 | The serving path performs no write to the evidence database and holds no full-database copy. `serving_snapshot` is deleted, not merely unused. | **MET.** Evidence: test_api_v1.py:727, :744; test_api_config.py:525; test_readonly_uri.py:137. |
 | REQ-API-008 | A serving process whose evidence database has an unbuilt or empty `px_median` refuses to answer, with the operator-facing remedy named. It never returns 200 with zero picks. | **MET.** Evidence: test_unbuilt_evidence.py:106; test_api_v1.py:657; test_board_standings.py:488; test_recommend.py:202; tests/integration/test_cli_e2e.py:234. The remedy is named to the operator, at startup and by the CLI, and kept out of the public 503 body (test_api_v1.py:657). |
-| REQ-API-009 | The deployed service answers a real query with correct CONTENT — both coding surfaces, neither leading (D-115, Ruling A) — from a host, over the network, unauthenticated. | **PARTIAL.** Missing: any run over a network. Nothing is deployed (D-123 is undischarged; W-030 is escalated). Evidence so far: `scripts/journey.py` passed 4/4 against a local container at M7-W4 (`docs/plans/m7-plan.md:166-169`; `docs/coverage-by-req.md:33`). No gate runs it. |
+| REQ-API-009 | The deployed service answers a real query with correct CONTENT — both coding surfaces, neither leading (D-115, Ruling A) — from a host, over the network, unauthenticated. | **PARTIAL.** Missing: any run over a network. Nothing is deployed (D-123 is undischarged; W-030 is escalated). Evidence so far: `scripts/journey.py` passed 4/4 against a local container at M7-W4 (`docs/plans/m7-plan.md:166-169`; `docs/coverage-by-req.md:39`). No gate runs it. |
 
 ## M8 — the iOS client (REQ-APP), added at the wave rather than at closure
 
@@ -578,7 +577,7 @@ the next milestone cannot inherit them as prose again.
 | REQ-PRC-001 | A surface whose price leaves something out says so on `/v1/categories` as a CODE (`price_excludes`), not as a sentence, and only the surfaces it applies to carry it (D-153, D-129: the app owns its languages). | **MET.** Evidence: test_uncertainty_contract.py:291. |
 | REQ-PRC-002 | Wherever the app shows a price for `search` or `search_factuality`, it also says that a search call is not in it. | **MET.** Evidence: test_ios_client_contract.py:954; DetailTests.swift:282, :292; EngineClientTests.swift:166. |
 | REQ-REF-008 | The engine refreshes its own artifact once a night inside 23:00-01:00 local and once at startup when no good cycle is on record within a day, through `refresh.py`'s entry point only, in a child process a hang, crash or kill of which cannot block or end the server; it is off by default and refused outside a development environment (D-151, D-154, D-116). | **MET.** Evidence: test_nightly_refresh.py:53, :186, :238, :320. |
-| REQ-REF-009 | A source that fails a cycle keeps serving its last good data -- every source, the required ones included -- for 30 days from when it last arrived in a served cycle; past that, an optional source's surfaces drop and the refresh publishes the rest rather than refusing, and a required source fails the cycle and says it expired (D-156 clause 3). What is carried or expired, and how old, is on `/health` and in the refresh record; `/v1` and the app do not change (D-144 as ruled, D-156). | **MET.** Evidence: test_carry_forward.py:60, :84; test_refresh_carry.py:89, :158; test_nightly_refresh.py:556. |
+| REQ-REF-009 | A source that fails a cycle keeps serving its last good data -- every source, the required ones included -- for 30 days from when it last arrived in a served cycle; past that, an optional source's surfaces drop and the refresh publishes the rest rather than refusing, and a required source fails the cycle and says it expired (D-156 clause 3). Carried rows meet the store's rules: a date is a calendar date, and a source whose live rows hold a score that is not finite is not carried (M18-W5, #92). What is carried or expired, and how old, is on `/health` and in the refresh record; `/v1` and the app do not change (D-144 as ruled, D-156). | **MET.** Evidence: test_carry_forward.py:60, :84; test_refresh_carry.py:89, :158; test_nightly_refresh.py:556. |
 
 
 ## M18 — the app on the owner's iPhone (REQ-DEV), added at W1

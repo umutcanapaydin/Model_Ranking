@@ -58,20 +58,24 @@ def _front(text: str, field: str) -> str | None:
 #: #82: the first milestone whose planned waves must each have a close record (GPF-001: a control
 #: does not grade what was written before it existed; M17-W1's missing close is in its report).
 EXPECTED_CLOSES_FROM = 18
-WAVE_HEADING = re.compile(r"^#{2,4}\s*W(\d+)\b(.*)$", re.M)
+#: `### W1 — ...`, `## Wave 1 — ...` and `### M19-W1 — ...` (W5 review M3: a shape it did not read
+#: counted no waves, and so found none missing).
+WAVE_HEADING = re.compile(r"^#{2,4}\s*(?:M\d+-)?W(?:ave\s*)?(\d+)\b(.*)$", re.M)
+
+
+def _excused_waves(ledger: pathlib.Path) -> set[str]:
+    """The waves the ledger records as closed without a record (`wave-close,m18-w2,...`)."""
+    if not ledger.is_file():
+        return set()
+    rows = (line.split(",") for line in ledger.read_text(encoding="utf-8").splitlines())
+    return {cells[1].strip().lower() for cells in rows if len(cells) >= 2 and cells[0].strip() == "wave-close"}
 
 
 def missing_closes(root: pathlib.Path) -> list[str]:
     """Each wave a CLOSED milestone's plan names that has no close record, is not marked dropped in
     the plan, and has no `wave-close` row in `docs/control-events.csv` (#82). A milestone is closed
     when its closure report exists; an open one still has waves in flight."""
-    ledger = root / "docs" / "control-events.csv"
-    excused = set()
-    if ledger.is_file():
-        for line in ledger.read_text(encoding="utf-8").splitlines():
-            cells = [c.strip() for c in line.split(",")]
-            if len(cells) >= 2 and cells[0] == "wave-close":
-                excused.add(cells[1].lower())
+    excused = _excused_waves(root / "docs" / "control-events.csv")
     missing: list[str] = []
     for report in sorted((root / "docs").glob("closure-report-m*.md")):
         found = re.fullmatch(r"closure-report-m(\d+)\.md", report.name)
@@ -82,7 +86,11 @@ def missing_closes(root: pathlib.Path) -> list[str]:
         if not plan.is_file():
             missing.append(f"m{milestone} closed with no plan at {plan.relative_to(root)}; its waves cannot be counted")
             continue
-        for wave, rest in WAVE_HEADING.findall(plan.read_text(encoding="utf-8")):
+        waves = WAVE_HEADING.findall(plan.read_text(encoding="utf-8"))
+        if not waves:
+            missing.append(f"m{milestone} closed and its plan names no wave this check can read; it "
+                           "fails closed rather than finding nothing missing")
+        for wave, rest in waves:
             if "dropped" in rest.lower() or f"m{milestone}-w{wave}" in excused:
                 continue
             if not (root / "docs" / "plans" / f"m{milestone}-wave-{wave}-close.md").is_file():

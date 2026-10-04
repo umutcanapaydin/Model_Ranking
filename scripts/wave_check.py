@@ -355,12 +355,16 @@ def main(argv: list[str]) -> int:
     # #83: the template escalates to HIGH a wave whose diff touches input parsing, and M17-W2 and W3
     # were not. From the day this check exists, a close whose footprint names `src/app/clients/`
     # must carry HIGH on its risk-tier row (row 1).
-    if dated is not None and dated.group(1) >= INPUT_PARSING_HIGH_FROM:
-        touched = re.search(r"^\s*Touched:(.*?)^\s*Mutant set author:", text, re.M | re.S)
+    # An undated close is held to it too, and the footprint is read up to the next footprint field
+    # or the end of its block, in whatever order the fields come (W5 review M4).
+    if dated is None or dated.group(1) >= INPUT_PARSING_HIGH_FROM:
+        touched = re.search(r"^\s*Touched:(.*?)(?=^\s*(?:Mutant set author|Observed RED|Owner instruction|"
+                            r"K\.8 contracts|Stopped at three attempts|Hand-kept lists):|^```|\Z)",
+                            text, re.M | re.S)
         tier_row = re.search(r"^\|\s*1\s*\|.*$", text, re.M)
-        if (touched and "src/app/clients/" in touched.group(1)
+        if (touched and re.search(r"src/app/clients\b", touched.group(1))
                 and not (tier_row and re.search(r"\bHIGH\b", tier_row.group(0)))):
-            bad.append("the footprint touches `src/app/clients/` (input parsing) and row 1 does not "
+            bad.append("the footprint touches `src/app/clients` (input parsing) and row 1 does not "
                        "record the wave as HIGH -- a diff touching input parsing is HIGH (#83)")
     if not re.search(r"Filled by:.*Date:.*commit range", text, re.I):
         bad.append("no signed footer (`Filled by: … Date: … Wave commit range: …`) -- an unsigned "

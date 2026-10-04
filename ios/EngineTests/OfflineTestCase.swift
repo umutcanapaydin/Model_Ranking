@@ -9,7 +9,10 @@
 //  - `URLProtocol.registerClass` reaches `URLSession.shared` and `Data(contentsOf:)`, but not a
 //    session built on its own configuration, which is what `EngineClient` builds without a stub.
 //  - So `URLSessionConfiguration.default` and `.ephemeral` are exchanged for versions that put the
-//    tripwire first. A test's stub session sets its own `protocolClasses` and never reaches it.
+//    tripwire first.
+//  - And the `protocolClasses` setter is exchanged for one that appends the tripwire LAST, so a stub
+//    session still answers through its stub, and a request the stub declines is caught instead of
+//    falling through to the real stack (W5 review M1).
 //  The tripwire answers every request it sees with "not connected" and records it; the base's
 //  tearDown fails the test that made it. Nothing leaves the machine, and nothing crashes.
 
@@ -52,14 +55,16 @@ enum OfflineGuard {
     /// Once per process: a parallel run starts several, and each installs it from its first class.
     static let installed: Void = {
         URLProtocol.registerClass(Tripwire.self)
-        exchange("defaultSessionConfiguration", "offlineDefault")
-        exchange("ephemeralSessionConfiguration", "offlineEphemeral")
+        exchange("defaultSessionConfiguration", "offlineDefault", classMethod: true)
+        exchange("ephemeralSessionConfiguration", "offlineEphemeral", classMethod: true)
+        exchange("setProtocolClasses:", "offlineSetProtocolClasses:", classMethod: false)
     }()
 
-    private static func exchange(_ original: String, _ replacement: String) {
+    private static func exchange(_ original: String, _ replacement: String, classMethod: Bool) {
         let type: AnyClass = URLSessionConfiguration.self
-        guard let from = class_getClassMethod(type, NSSelectorFromString(original)),
-              let to = class_getClassMethod(type, NSSelectorFromString(replacement)) else {
+        let lookup = classMethod ? class_getClassMethod : class_getInstanceMethod
+        guard let from = lookup(type, NSSelectorFromString(original)),
+              let to = lookup(type, NSSelectorFromString(replacement)) else {
             notInstalled = "URLSessionConfiguration.\(original) is gone; #59's tripwire cannot see sessions"
             return
         }
@@ -80,6 +85,15 @@ extension URLSessionConfiguration {
         configuration.protocolClasses = [OfflineGuard.Tripwire.self] + (configuration.protocolClasses ?? [])
         return configuration
     }
+
+    // After the exchange this calls the ORIGINAL setter, with the tripwire after whatever was set.
+    @objc func offlineSetProtocolClasses(_ classes: [AnyClass]?) {
+        var list = classes ?? []
+        if !list.contains(where: { $0 == OfflineGuard.Tripwire.self }) {
+            list.append(OfflineGuard.Tripwire.self)
+        }
+        offlineSetProtocolClasses(list)
+    }
 }
 
 /// The base of every test class in this target.
@@ -89,9 +103,18 @@ class OfflineTestCase: XCTestCase {
         OfflineGuard.installed
     }
 
+    // Per test too: a subclass whose `class func setUp()` skipped super would otherwise run unguarded
+    // (W5 review M1). Once per process either way.
+    override func setUp() {
+        super.setUp()
+        OfflineGuard.installed
+    }
+
     override func tearDown() {
         let attempts = OfflineGuard.drain()
         XCTAssertNil(OfflineGuard.notInstalled)
+        XCTAssertTrue(URLSessionConfiguration.ephemeral.protocolClasses?.first == OfflineGuard.Tripwire.self,
+                      "the tripwire was never installed in this process (#59)")
         XCTAssertEqual(attempts, [], "this test reached for the network; route it to a stub (#59)")
         super.tearDown()
     }

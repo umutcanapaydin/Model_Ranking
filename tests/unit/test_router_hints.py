@@ -30,10 +30,42 @@ CLIENT = ROUTER.parent.parent
 
 def _code(swift: str) -> str:
     """The source with its comments removed, so a pin holds the code and not a comment quoting it.
-    Block comments first, across lines (#98: a line wrapped in `/* */` satisfied a pin), then each
-    line is cut at its first `//`. A `//` inside a string literal is cut too, which no pin here reads."""
-    swift = re.sub(r"/\*.*?\*/", "", swift, flags=re.S)
-    return "\n".join(line.split("//", 1)[0] for line in swift.splitlines())
+
+    A scanner, not a pattern (#98, W5 review M2): Swift block comments NEST, a `/*` inside a `//`
+    comment opens nothing, and comment markers inside a string literal are text. Newlines inside a
+    block comment are kept, so the code after it keeps its line.
+    """
+    out: list[str] = []
+    i, depth, n = 0, 0, len(swift)
+    while i < n:
+        two = swift[i:i + 2]
+        if depth:
+            if two == "/*":
+                depth, i = depth + 1, i + 2
+            elif two == "*/":
+                depth, i = depth - 1, i + 2
+            else:
+                out.append("\n" if swift[i] == "\n" else "")
+                i += 1
+        elif two == "/*":
+            depth, i = 1, i + 2
+        elif two == "//":
+            end = swift.find("\n", i)
+            i = n if end < 0 else end
+        elif swift[i] == '"':
+            close = swift.find('"""', i + 3) + 3 if swift.startswith('"""', i) else None
+            if close is None:
+                j = i + 1
+                while j < n and swift[j] not in '"\n':
+                    j += 2 if swift[j] == "\\" else 1
+                close = j + 1
+            close = n if close <= i else close
+            out.append(swift[i:close])
+            i = close
+        else:
+            out.append(swift[i])
+            i += 1
+    return "".join(out)
 
 
 def _hint_ids() -> set[str]:
@@ -380,6 +412,9 @@ EGRESS = (
     r"\bNW[A-Z]\w*", r"\bCFStream", r"\bNetwork\.", r"\bNetService", r"\bsocket\s*\(", r"\bsockaddr",
     # building a URL, any spelling; and a URL-typed value, which a decoder can fill from anywhere
     r"\bURL\s*\(", r"\bURL\s*\.", r":\s*\[?\s*URL\b", r"(?<!self)(?<!super)\.init\s*\(",
+    # W5 review B1 (#58): a URL as a type argument (`Optional<URL>`, `[URL].self`, a tuple), which is
+    # what decoding one from text needs
+    r"[<\[,(]\s*URL\b",
     r"\binit\s*\(\s*string\s*:", r"(?i)\b(?:https?|ftp|wss?)://", r"(?i)\bmailto:",
     r"\bresourceBytes\b", r"\.lines\b",
     # opening, sharing, handing off -- every system surface that carries text somewhere else

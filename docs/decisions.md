@@ -2604,6 +2604,8 @@ supersedes the first amendment's exemption bullet.
   cycle that is not served can leave such rows live, for example a required source that fails the
   build; `expired` lists them all the same, because their age, not their presence, is the fact.
 
+**Amended (2026-10-04, M18-W5, #92 N2)**: carried rows meet the store's rules. A carried date is stored as a calendar date, and a source whose live rows hold a score that is not finite is not carried: it fails as an unreachable source would.
+
 ---
 
 ## D-999 — the agent opens drafts; a human merges
@@ -3462,3 +3464,25 @@ owner asked the agent to take its recommendation rather than ask.
 - the phone shows ties as shared places on the cards (the alternative to (1)); or
 - the payload matters again (an ETag); or
 - a board is carried that no source still publishes.
+
+
+## D-174 — Review seats run one after another, each in its own worktree
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29; M18-W5
+· **Date:** 2026-10-04 · from #52 · **Amends** nothing; the DevFlow skills it touches stay DevFlow's.
+
+**Context.** At M17-W4 the Code-Reviewer and the Security-Reviewer ran at once in one worktree, and each
+saw the other's in-place mutants (#52). At M18-W1 a seat's probe ran the engine installer for real and
+replaced the owner's launchd service with a scratch copy.
+
+**Decision.**
+1. A wave's seats run one after another, never at once on one tree.
+2. Each seat works in its own `git worktree`, detached at the commit under review, with its own venv
+   and its own copy of the artifact.
+3. A seat runs behind command stubs that refuse `launchctl`, `simctl` and `xcodebuild`, and is told
+   in writing never to run the engine installer or remover by hand.
+
+**Mitigation if violated.** A verdict skewed by a mutant it did not make, or a review probe that changes
+the owner's machine.
+
+**Revisit when:** DevFlow's `/close-wave` says this itself (the finding is handed back on #52).

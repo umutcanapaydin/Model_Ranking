@@ -213,13 +213,13 @@ IMPORT = re.compile(r'\(import_decl[^)]*module="([^"]+)"')
 #: #58: a `decode` whose generic substitution produces a `URL` (`JSONDecoder.decode([URL].self, ...)`,
 #: or a container's `decode(URL.self, forKey:)` inside a synthesised `Decodable`). The substitution
 #: is printed after the declaration's path, which `DECL` stops before.
-DECODES_URL = re.compile(r'decl="[^"]*\.decode\([^"]*\[with \(substitution_map[^"]*->[^"]*\bURL\b')
+DECODES_URL = re.compile(r'decl="[^"]*\.decode(?:IfPresent)?\([^"]*\[with \(substitution_map[^"]*->[^"]*\bURL\b')
 #: The fixture `self_test` compiles: files the gate must refuse and files it must allow (#51).
 FIXTURES = ROOT / "scripts" / "client_decl_fixtures"
 #: What the fixture must produce, as (file, a phrase the refusal carries).
 FIXTURE_REFUSALS = {
     ("ContentView.swift", "URLSession"), ("ContentView.swift", "URL.decoded"),
-    ("Detail.swift", "FileManager"),
+    ("Detail.swift", "FileManager"), ("Detail.swift", "URL.decoded"),
 }
 SOURCE = re.compile(r'^\(source_file "([^"]+)"', re.MULTILINE)
 

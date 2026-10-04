@@ -201,6 +201,10 @@ budget.
 which the owner keeps off for now. #74 and #56, the app's code, move from W4 to W2: #74 lands with #70
 there, as its triage asks. W4's decisions are recorded as D-173.
 
+**Amendment (2026-10-04, W5's own valve).** #60 and #85, W5's compiler-level tripwires (its P4), move
+to W6, beside the invariants list (#89): each is an invariant that list must cite a negative test for,
+and each needs a design of its own. W5 closes on the rest of its scope.
+
 **Amendment (2026-09-29, the owner's ruling, D-172).** No wave gets a security pass on its slice,
 whatever its risk tier; §0's "each HIGH wave has a security pass" and §3's "HIGH waves" no longer
 add one. A wave closes on its Code-Reviewer and its Tester. The closure adds one security seat on the
