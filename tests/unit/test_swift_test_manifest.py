@@ -26,7 +26,8 @@ MANIFEST = TESTS / "test-manifest.txt"
 
 #: `ModelRankingEngineTests.ClassName/testName`, as `swift test --list-tests` prints it.
 ENTRY = re.compile(r"^(?P<module>[A-Za-z_]\w*)\.(?P<cls>[A-Za-z_]\w*)/(?P<test>test\w*)$")
-CLASS = re.compile(r"^\s*(?:public\s+|final\s+|private\s+)*class\s+(\w+)\s*:\s*XCTestCase", re.M)
+# #59: every test class derives from `OfflineTestCase` (itself an `XCTestCase`).
+CLASS = re.compile(r"^\s*(?:public\s+|final\s+|private\s+)*class\s+(\w+)\s*:\s*(?:XCTestCase|OfflineTestCase)\b", re.M)
 #: `private` is deliberately absent: XCTest does not discover a private test, so one made private
 #: must read here as MISSING, which the manifest comparison then fails (M16-W1 re-review, R-M3).
 FUNC = re.compile(r"^\s*(?:public\s+|final\s+)*func\s+(test\w*)\s*\(\s*\)", re.M)
