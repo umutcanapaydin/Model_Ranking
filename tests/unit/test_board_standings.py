@@ -560,15 +560,12 @@ def test_the_engines_standings_bound_is_the_one_the_record_measures_against() ->
     """Second Tester M3: the engine-side half of the ceiling pin (the phone's is 4 MiB). Read from
     the source rather than the live value, which an environment variable may override (third
     Tester M4: the first version checked nothing when the variable was set)."""
-    import inspect
-    import re
-
     from app.adapter import main as adapter
     from app.workflows import serving_bounds
 
-    # The default is defined once, where the refresh reads it too (D-173 clause 4, #57).
-    default = re.search(r'"MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS",\s*"(\d+)"', inspect.getsource(serving_bounds))
-    assert default is not None and default.group(1) == "25000"
+    # The default is defined once, where the refresh reads it too (D-173 clause 4, #57); the table's
+    # value, not the live one, which an environment variable may override.
+    assert serving_bounds._DEFAULTS["MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS"] == "25000"
     # ...and the bound in force is that default, or exactly what the environment set (fourth Tester
     # M2: a multiplier on the default passed the source check).
     import os

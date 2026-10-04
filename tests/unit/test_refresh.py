@@ -12,6 +12,7 @@ reached its caller — so these tests genuinely control the build rather than be
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from pathlib import Path
 
@@ -299,8 +300,10 @@ def test_nothing_the_refresh_loads_imports_the_serving_adapter() -> None:
 
     probe = ("import sys, app.workflows.refresh; "
              "print(sorted(m for m in sys.modules if m == 'app.adapter' or m.startswith('app.adapter.')))")
+    root = Path(__file__).resolve().parents[2]
+    # W4 second review M9: this tree's `src`, not whatever `app` the venv installed.
     done = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, timeout=60,
-                          cwd=Path(__file__).resolve().parents[2], check=False)
+                          cwd=root, env={**os.environ, "PYTHONPATH": str(root / "src")}, check=False)
     assert done.returncode == 0, done.stderr
     assert done.stdout.strip() == "[]", done.stdout
 
@@ -1733,7 +1736,7 @@ def _accessible(path: Path, *, values: int) -> Path:
 def test_accessibility_values_falling_by_a_quarter_refuse_the_night(
     tmp_path: Path, served: int, candidate: int, refused: bool
 ) -> None:
-    """#42 (D-173 clause 3, REQ-REF-009's guards): a truncated model_metadata.csv with one valid row published, and the
+    """#42 (D-173 clause 3): a truncated model_metadata.csv with one valid row published, and the
     phone's accessibility filter emptied with no refusal. A quarter lost refuses, as D-128's boards."""
     from app.workflows.refresh import degradations
 
@@ -1791,3 +1794,18 @@ def test_a_first_artifact_past_a_bound_is_refused_too(tmp_path: Path, monkeypatc
     outcome, code = refresh(target, builder=first)
     assert code == EXIT_REFUSED, outcome.reason
     assert not target.exists()
+
+
+def test_an_expired_accessibility_source_is_excused_by_the_baseline(tmp_path: Path) -> None:
+    """W4 second review M8 (#42, D-156 clause 3, REQ-REF-009): on a night `model_metadata.csv`'s
+    source has aged out, its values leave on purpose. The guard judges the candidate against the
+    live artifact WITHOUT that source's rows, so the night is not refused for it."""
+    from app.workflows.refresh import _served_without, degradations
+
+    live = _accessible(tmp_path / "live.db", values=8)
+    fresh = fingerprint_of(_accessible(tmp_path / "candidate.db", values=0))
+    served = fingerprint_of(live)
+    assert served is not None and fresh is not None
+    assert any("accessibility" in r for r in degradations(served, fresh))  # without the excuse: refused
+    baseline = _served_without(live, {"epoch_access"})
+    assert not any("accessibility" in r for r in degradations(baseline, fresh))
