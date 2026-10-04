@@ -128,3 +128,27 @@ def test_the_shipped_artifact_is_what_was_measured(client: TestClient) -> None:
     If it is missing, every parametrised case above passes vacuously on an empty picks list."""
     assert Path("advisor.db").is_file()
     assert _picks(client, "coding", "unlimited"), "no picks: the assertions above tested nothing"
+
+
+def test_every_close_call_on_the_artifact_carries_the_values_it_quotes(client: TestClient) -> None:
+    """D-176 (M18-W2), REQ-LOC-001: the close call was the one notice under a pick a Turkish reader
+    met in English (#63 finding 2). On the served artifact, every answer's fact names the runner-up
+    and the gap its sentence quotes, and is present exactly when the sentence is. One test over
+    every surface, so CI's skip budget counts one artifact read, not fourteen; the fixture half runs
+    in CI (`test_recommend.py::test_the_served_close_call_carries_its_fact`)."""
+    tasks = [c["id"] for c in client.get("/v1/categories").json()["categories"]]
+    said = 0
+    for task in tasks:
+        for answer in client.get("/v1/recommendations", params={"task": task}).json()["answers"]:
+            prose, fact = answer.get("close_call"), answer.get("close_call_fact")
+            assert (prose is None) == (fact is None), f"{answer['surface']}: {prose!r} beside {fact!r}"
+            if prose is None:
+                continue
+            said += 1
+            assert prose.startswith(fact["model"]), (prose, fact)
+            assert set(fact) == {"model", "behind_by", "unit"}, fact
+            if fact["behind_by"]:
+                assert f"{fact['behind_by']:.1f} {fact['unit']} behind" in prose, (prose, fact)
+            else:
+                assert "is level" in prose, (prose, fact)
+    assert said, "no surface has a close call on this artifact: the loop above compared nothing"

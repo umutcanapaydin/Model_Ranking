@@ -121,6 +121,70 @@ def test_the_disclosure_view_is_actually_reached_from_the_rendered_screen() -> N
     )
 
 
+def test_the_combined_list_renders_the_disclosures_its_plan_carries() -> None:
+    """#67 (M17-W5 review K1): the disclosure gate could not see a view branch, and the combined list
+    dropped the effort notice with every gate green. Since M18-W2 the combined list's disclosures are
+    fields of its plan (`CombinedView.disclosures`), held by `AnswerPlanTests`; this holds that the
+    view renders them whole and says none of them by hand, where a branch could skip it."""
+    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
+    start = code.index("private func combinedSection(")
+    section = code[start:code.index("private func refinementChips(", start)]
+    assert re.search(
+        r"disclosureList\(view\.disclosures\.compactMap\s*\{\s*combinedDisclosure\(\$0,\s*language\)\s*\}\)",
+        section,
+    ), "the combined list no longer renders the disclosures its plan carries"
+    for direct in ("UIText.combinedNote(", "UIText.tiedPlaces(", "UIText.combinedEffortNote("):
+        assert direct not in section, f"{direct} is said by hand on the combined list, outside its plan"
+    # Review M4: the call must sit where the list's title sits, not under a condition of its own
+    # (a branch that skips it is #67's defect class). Measured by brace depth from the section start.
+    def depth(at: int) -> int:
+        return section[:at].count("{") - section[:at].count("}")
+
+    call = section.index("disclosureList(view.disclosures")
+    title = section.index("SectionTitle(text: UIText.combinedTitle(language))")
+    assert depth(call) == depth(title), "the combined list's disclosures are rendered under a condition"
+    # ...and the plan is told the values, not merely given the labels (review M4): the routed
+    # surface's own health (`routedSurfaceHealth`, AnswerPlanTests) and the kept copy's age (M3).
+    assert re.search(r"primaryHealth: routedSurfaceHealth\(answers, routing\),", code), (
+        "the plan is not told whether the surface's board is stale (#72)"
+    )
+    assert re.search(r"phoneCopyDays: staleCopyDays\(fetchedAt: standingsFetchedAt, now: Date\(\)\)", code), (
+        "the plan is not told how old the phone's copy of the standings is (#72, review M3)"
+    )
+    assert re.search(r"standings = kept\.standings\s*standingsFetchedAt = kept\.fetchedAt", code), (
+        "the kept copy's time is not recorded beside the standings"
+    )
+    # #70: planned through the memo, never in `body` directly, and the memo learns of new standings.
+    assert "answerPlan(" not in code, "the screen plans in `body` again, on every render (#70)"
+    assert re.search(r"standingsFetchedAt = kept\.fetchedAt\s*standingsStamp \+= 1", code), (
+        "new standings do not bump the stamp, so the memo would keep planning on the old ones"
+    )
+
+
+def test_the_apps_copy_of_the_ordering_note_is_the_engines() -> None:
+    """D-176 (M18-W2): the app says Ruling A's ordering note in both languages from its own copy of
+    the engine's sentence, because the note carries no values to compose from. The copy must be the
+    sentence the engine sends, or the Turkish beside it translates a sentence nobody serves."""
+    from app.adapter.main import ORDERING_NOTE
+
+    source = (CLIENT / "Engine/Notices.swift").read_text(encoding="utf-8")
+    match = re.search(r"let orderingNoteEnglish = ((?:\s*\+?\s*\"[^\"]*\")+)", source)
+    assert match, "Notices.swift no longer holds its copy of the ordering note"
+    copy = "".join(re.findall(r'"([^"]*)"', match.group(1)))
+    assert copy == ORDERING_NOTE
+
+
+def test_the_blend_the_detail_screen_states_is_the_engines() -> None:
+    """#63 finding 8 (M18-W2): the detail screen states how the card's price blends input and
+    output. `/v1` does not publish the weights, so the app holds a copy, held equal here."""
+    from app.workflows.rank import BLEND_INPUT_WEIGHT, BLEND_OUTPUT_WEIGHT
+
+    source = (CLIENT / "Engine/Detail.swift").read_text(encoding="utf-8")
+    shares = dict(re.findall(r"let blend(Input|Output)Percent = (\d+)", source))
+    assert shares == {"Input": str(round(BLEND_INPUT_WEIGHT * 100)), "Output": str(round(BLEND_OUTPUT_WEIGHT * 100))}
+
+
 # --- REQ-APP-005: the client computes no ranking value of its own -------------------------------
 
 
@@ -278,6 +342,10 @@ def test_score_arithmetic_happens_only_where_an_adr_permits_it() -> None:
 #: to a permitted receiver (`entries`, not `x.entries` or `answer.ranking`).
 SORTING_PERMITTED = {
     ("Combine.swift", "common"): "D-167 clause 3: shared models ordered by their combined ranks.",
+    ("Combine.swift", "placed"): (
+        "#74: one board's shared positions, sorted once so each model's rank is a binary search "
+        "rather than a scan (O(n log n), the same ranks)."
+    ),
     ("FrontDoor.swift", "entries"): (
         "M14-W3, REQ-GAP-002: the gap register orders the OWNER'S unanswered questions by how often "
         "they were asked. It is never an answer, a ranking or a model -- Ruling A is about the "
@@ -285,6 +353,14 @@ SORTING_PERMITTED = {
     ),
     ("FrontDoor.swift", "entries.indices"): (
         "M14-W3, REQ-GAP-001: when the register is full, the least-asked entry makes room."
+    ),
+    ("Notices.swift", "ages"): (
+        "D-176: the ages in days of a board's stale sources, smallest first, so the notice can say "
+        "how old the freshest evidence is. Never a model, a score or an answer."
+    ),
+    ("Notices.swift", "distinct"): (
+        "D-176: the effort levels the notice names, in the order the engine names them "
+        "(`sorted(distinct)` in recommend.effort_mix_notice)."
     ),
 }
 
@@ -501,6 +577,19 @@ def test_every_failure_the_client_names_reaches_the_screen_with_a_sentence() -> 
     )
 
 
+def test_every_response_is_read_through_its_routes_ceiling() -> None:
+    """#56 (M17-W4 security S3): a whole response was buffered before any size check. The one
+    request is streamed and read through `read(_:declared:upTo:)` with the route's ceiling; a second
+    request, or a read that skips the ceiling, is what this refuses. ResponseCeilingTests holds the
+    behaviour."""
+    client = (CLIENT / "Engine/EngineClient.swift").read_text(encoding="utf-8")
+    code = "\n".join(line.split("//", 1)[0] for line in client.splitlines())
+    assert len(re.findall(r"session\.\w+\(", code)) == 1, "a second request path, outside the ceiling"
+    assert re.search(r"try await EngineClient\.read\(bytes,[^)]*upTo: EngineClient\.byteCeiling\(for: path\)\)",
+                     code, re.S), "the response is not read through the route's ceiling"
+    assert "session.data(" not in code, "a response is read whole again"
+
+
 def test_the_client_refuses_a_redirect_that_leaves_its_configured_host() -> None:
     """M8 security review, M-4: the client followed server-controlled redirects.
 
@@ -510,15 +599,15 @@ def test_the_client_refuses_a_redirect_that_leaves_its_configured_host() -> None
     where a served value becomes a URL, so nothing in a response can redirect the app at another
     host."* The `Location` header is that path, and it was unmitigated.
 
-    Dies to: dropping the delegate from the `data(from:delegate:)` call, or widening the delegate
-    to accept a different host.
+    Dies to: dropping the delegate from the `bytes(from:delegate:)` call (`data(from:)` until #56
+    streamed it), or widening the delegate to accept a different host.
     """
     client = (CLIENT / "Engine/EngineClient.swift").read_text(encoding="utf-8")
 
     assert "willPerformHTTPRedirection" in client, (
         "no redirect delegate; the engine's Location header decides where this app goes next"
     )
-    assert re.search(r"data\(\s*from:[^)]*delegate:", client, re.S), (
+    assert re.search(r"session\.bytes\(\s*from:[^)]*delegate:\s*SameHostOnly\(", client, re.S), (
         "the delegate exists and is not passed to the request that needs it — an injection point "
         "that cannot inject, which is this project's most-repeated defect"
     )
@@ -1078,3 +1167,22 @@ def test_every_reason_the_engine_can_give_is_one_the_app_can_word() -> None:
     assert engine, "no reason code read from recommend.py -- this check compares nothing"
     assert app, "no PickReason case read from Language.swift -- this check compares nothing"
     assert engine == app, {"engine only": engine - app, "app only": app - engine}
+
+
+def test_the_screen_composes_the_empty_reason_and_the_notices_from_their_facts() -> None:
+    """W2 Tester (D-176, review M2 at the view, M4's class): the composers are held by the Swift
+    tests, and the view's calls to them by nothing. With the empty answer's code replaced by
+    `"no_evidence"`, the card notices composed in English, or the close call composed with no
+    anchor (D-143), every gate passed. The first is review M2 again: an unreadable answer said as an
+    evidence gap, in both languages."""
+    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
+    assert re.search(
+        r"unavailableSentence\(\s*code: answer\.unavailableReasonCode,\s*benchmark: answer\.primaryBenchmark,"
+        r"\s*language\s*\)\s*\?\?\s*reason\)",
+        code,
+    ), "the empty answer is not said by its own reason code (D-176 clause 7)"
+    assert re.search(
+        r"disclosureList\(answerDisclosures\(answer, anchor: category\(for: answer\)\?\.scoreAnchor, language\)\)",
+        code,
+    ), "the card notices are not composed in the reader's language on the surface's own scale"

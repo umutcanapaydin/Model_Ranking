@@ -209,3 +209,10 @@ and each needs a design of its own. W5 closes on the rest of its scope.
 whatever its risk tier; §0's "each HIGH wave has a security pass" and §3's "HIGH waves" no longer
 add one. A wave closes on its Code-Reviewer and its Tester. The closure adds one security seat on the
 milestone's whole diff, before the closure pull request opens.
+
+**Amendment (2026-10-04, W2's close).** W2 ran HIGH, not MED: it changed
+`ios/ModelRanking/Engine/EngineClient.swift` (#56), a security glob, and added a Debug-only test
+hook. It delivered its whole scope, #74 and #56 included, and #95 and #96 from W1's triage. #78
+became the filter "Only models with an API or open weights" (D-175). It filed #112 (raw model names,
+the engine's data), #113 (a drawing request read as image reading, for W3), #114 (a test-order
+defect on `main`) and #115 (the Turkish permission prompt seen on a phone, for W6).

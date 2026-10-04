@@ -67,9 +67,14 @@ func combine(_ standings: Standings, boards chosen: [String]) throws -> Combined
         // A model listed twice on one board (only a bad payload could) counts once (security S7).
         var listed = Set<String>()
         let shared = board.standings.filter { common.contains($0.model) && listed.insert($0.model).inserted }
+        // #74 (M17-W5 security S2): counting the models above each one was O(n²) per board, and a
+        // payload at the size cap froze the screen. The shared positions are sorted once, and each
+        // count is a binary search: O(n log n), the same ranks (CombinePropertyTests' oracle).
+        let placed = shared.map(\.position)
+        let ascending = placed.sorted()
         for standing in shared {
             // Competition ranking among the shared models: one more than those placed above it.
-            let rank = 1 + shared.filter { $0.position < standing.position }.count
+            let rank = 1 + countBelow(standing.position, in: ascending)
             sums[standing.model, default: 0] = sums[standing.model, default: 0] + rank
             positions[standing.model, default: []].append(
                 BoardPosition(board: board.id, position: standing.position)
@@ -89,4 +94,19 @@ func combine(_ standings: Standings, boards chosen: [String]) throws -> Combined
         entries.append(CombinedEntry(model: model, positions: positions[id, default: []], place: place))
     }
     return CombinedList(boards: boards, entries: entries)
+}
+
+/// How many of `ascending` are below `position`: the index of its first element not below it.
+private func countBelow(_ position: Int, in ascending: [Int]) -> Int {
+    var low = 0
+    var high = ascending.count
+    while low < high {
+        let middle = low + (high - low) / 2
+        if ascending[middle] < position {
+            low = middle + 1
+        } else {
+            high = middle
+        }
+    }
+    return low
 }

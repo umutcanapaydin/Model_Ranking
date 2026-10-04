@@ -83,3 +83,14 @@ scripts/router_probe/refinement_questions.json  # M17-W5 (D-168): the probe's qu
                                   # in Turkish about other languages; translating them removes the evidence
 scripts/router_probe/refinement_heldout_questions.json  # the held-out set (D-147 clause 5), 17 Turkish
                                   # questions, kept verbatim for the same reason
+ios/UITests/ScreenAuditTests.swift      # M18-W2 (#63): the audit finds Turkish buttons by their words and
+                                        # asks Turkish questions, because the Turkish screen is what it
+                                        # audits; its prose and comments are English
+ios/ModelRanking/Engine/Notices.swift   # M18-W2 (D-176): the answer's notices, composed in both
+                                        # languages from served facts, the Language.swift shape; its
+                                        # prose and comments are English
+ios/EngineTests/NoticesTests.swift      # asserts those exact Turkish sentences, for the reason
+                                        # LanguageTests.swift is exempt above
+ios/UITests/FailureScreenTests.swift    # M18-W2 (#96): asserts the Turkish failure screen by its words,
+                                        # for the reason LanguageTests.swift is exempt above
+ios/ModelRanking/tr.lproj/              # #95: the Turkish Info plist strings; Turkish is their subject

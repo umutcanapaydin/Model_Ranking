@@ -70,3 +70,4 @@ advisor.db.refresh.lock
 
 # M18-W1 (D-171): the owner's engine address, set on his Mac only
 ios/Config/Engine.local.xcconfig
+ios/Config/UITests.local.xcconfig

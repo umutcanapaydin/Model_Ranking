@@ -275,3 +275,35 @@ final class ModelOutputBoundaryTests: OfflineTestCase {
     }
 }
 
+
+/// D-175 clause 3: the UI tests' scripted model tier answers only through the model's boundary.
+final class ScriptedRoutingTests: OfflineTestCase {
+    private let known = ["coding", "assistant", "vision"]
+
+    func testAScriptedAnswerIsTheBoundarysOutcome() async {
+        let router = ScriptedModelRouter(answers: ["translate this": ["surface": "assistant", "language": "french"]])
+        let outcome = await router.route("translate this", within: known)
+        XCTAssertEqual(outcome?.categoryID, "assistant")
+        XCTAssertEqual(outcome?.tier, .model)
+        XCTAssertEqual(outcome?.refinements.map(\.value), ["french"])
+    }
+
+    func testAScriptedSurfaceTheEngineDoesNotServeIsRefused() async {
+        let router = ScriptedModelRouter(answers: ["q": ["surface": "not-a-surface"]])
+        let outcome = await router.route("q", within: known)
+        XCTAssertNil(outcome)
+    }
+
+    func testAQuestionTheScriptDoesNotNameFallsToTheNextTier() async {
+        let router = ScriptedModelRouter(answers: [:])
+        let outcome = await router.route("anything", within: known)
+        XCTAssertNil(outcome)
+    }
+
+    func testTheTableIsReadFromTheLaunchArguments() {
+        let arguments = ["app", "-UITestRouting", #"{"q": {"surface": "coding"}}"#]
+        XCTAssertEqual(ScriptedModelRouter.from(arguments: arguments)?.answers["q"]?["surface"], "coding")
+        XCTAssertNil(ScriptedModelRouter.from(arguments: ["app"]))
+        XCTAssertNil(ScriptedModelRouter.from(arguments: ["app", "-UITestRouting", "not json"]))
+    }
+}

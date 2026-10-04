@@ -105,7 +105,7 @@ CODING_INTENT: tuple[str, ...] = ("agentic-coding", "coding")
 #:
 #: "plans" also became "models" here. The engine ranks MODELS on these surfaces; plans are the
 #: subscription CLI's subject, and the word had been copied across (council finding, M11).
-ORDERING_NOTE = (
+ORDERING_NOTE = (  # D-176: Notices.swift holds a copy, held equal by a test
     "No position here means anything: neither coding surface leads the other, and the one you "
     "chose is shown first only because you chose it. They rank different sets of models on "
     "different evidence, and each states its own weakness."
@@ -857,6 +857,7 @@ def _source_health_json(
                 f"No evidence source for {spec.primary_benchmark} is present in the served "
                 "database, so freshness cannot be established."
             ),
+            "reason": "no_source",  # D-176 clause 7: why `sources` is empty
         }
 
     stale_entries = [e for e in entries if e["stale"]]
@@ -881,6 +882,7 @@ def _source_health_json(
         "sources": entries,
         "stale": bool(stale_entries),
         "notice": notice,
+        "reason": None,
     }
 
 
@@ -930,6 +932,7 @@ PUBLIC_ANSWER_FIELDS = frozenset(
         "eligible_count",
         "frontier_size",
         "close_call",
+        "close_call_fact",  # D-176
         "effort_mix_notice",
         "stale_notice",
         "picks",
@@ -1037,6 +1040,7 @@ def _answer_json(
     rec: Recommendation | None,
     unavailable_reason: str | None,
     source_health_json: dict[str, Any],
+    unavailable_reason_code: str | None = None,
 ) -> dict[str, Any]:
     """One answer: the engine's own serialization, plus the fields only the API knows.
 
@@ -1101,6 +1105,9 @@ def _answer_json(
         "evidence_dating": dating,
         "evidence_dating_note": dating_note,
         "unavailable_reason": unavailable_reason,
+        # D-176 clause 7 (M18-W2 review M2): which of the three reasons, so a client composing the
+        # sentence in another language says the right one: `no_evidence`, `over_budget`, `unreadable`.
+        "unavailable_reason_code": unavailable_reason_code,
     }
 
 
@@ -1134,6 +1141,7 @@ def _answer_for(
             "sources": [],
             "stale": True,
             "notice": "This surface's evidence could not be read; freshness is unknown.",
+            "reason": "unreadable",
         }
     try:
         rec = recommend(conn, budget=budget, task=task)
@@ -1145,7 +1153,9 @@ def _answer_for(
         # because both are "the server cannot answer", not "the answer is empty".
         raise
     except sqlite3.DatabaseError:
-        return _answer_json(spec, [], None, "This surface's evidence could not be read.", health)
+        return _answer_json(
+            spec, [], None, "This surface's evidence could not be read.", health, "unreadable"
+        )
 
     # Computed HERE, and `recommend()` computes it again at `recommend.py:298`. An earlier version
     # of this comment claimed it was "computed ONCE and reused" and that asking twice "is how the
@@ -1189,6 +1199,7 @@ def _answer_for(
                 "reached the ranking in the served database, so no budget was applied. "
                 "This is a gap in the evidence, not a result.",
                 health,
+                "no_evidence",
             )
         return _answer_json(
             spec,
@@ -1197,6 +1208,7 @@ def _answer_for(
             "No model on this surface's benchmark fits the requested budget, so this answer "
             "ranks nothing. It is shown rather than hidden.",
             health,
+            "over_budget",
         )
     return _answer_json(spec, ranking, rec, None, health)
 

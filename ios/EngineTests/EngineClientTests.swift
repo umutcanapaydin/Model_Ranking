@@ -547,6 +547,173 @@ final class BoardsRequestTests: OfflineTestCase {
     }
 }
 
+/// A stub that sends its body in chunks, from a queue of its own, and records whether the loading
+/// system stopped it before the last one: the observable difference between a read that stops at
+/// its ceiling and one that takes everything and checks the size after (review M1).
+private final class ChunkedStub: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static var chunkSize = 64 * 1024
+    nonisolated(unsafe) static var chunks = 64
+    /// The `Content-Length` the response declares, or none.
+    nonisolated(unsafe) static var declared: Int?
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var sent = 0
+    nonisolated(unsafe) private static var stoppedEarly = false
+    private var cancelled = false
+
+    static func reset() {
+        lock.lock(); defer { lock.unlock() }
+        sent = 0
+        stoppedEarly = false
+    }
+
+    static var observed: (sent: Int, stopped: Bool) {
+        lock.lock(); defer { lock.unlock() }
+        return (sent, stoppedEarly)
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        let headers = Self.declared.map { ["Content-Length": String($0)] } ?? [:]
+        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: headers)!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        let (size, count) = (Self.chunkSize, Self.chunks)
+        DispatchQueue(label: "chunked-stub").async { [self] in
+            for _ in 0..<count {
+                if isCancelled { return }
+                client?.urlProtocol(self, didLoad: Data(repeating: 0x20, count: size))
+                Self.lock.lock(); Self.sent += 1; Self.lock.unlock()
+                Thread.sleep(forTimeInterval: 0.005)
+            }
+            if !isCancelled { client?.urlProtocolDidFinishLoading(self) }
+        }
+    }
+
+    private var isCancelled: Bool {
+        Self.lock.lock(); defer { Self.lock.unlock() }
+        return cancelled
+    }
+
+    override func stopLoading() {
+        Self.lock.lock(); defer { Self.lock.unlock() }
+        cancelled = true
+        if Self.sent < Self.chunks { Self.stoppedEarly = true }
+    }
+}
+
+/// #56 (M17-W4 security S3): the phone read a whole response into memory before any size check, and
+/// only `/v1/boards` had a ceiling. Every route has one now, and the read stops at it.
+final class ResponseCeilingTests: OfflineTestCase {
+    private func chunkedClient() -> EngineClient {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ChunkedStub.self]
+        return EngineClient(baseURL: URL(string: "http://127.0.0.1:8080")!, session: URLSession(configuration: configuration))
+    }
+
+    private func settle() async {
+        for _ in 0..<200 where !ChunkedStub.observed.stopped {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+    }
+
+    /// Review M1, the property itself: 4 MiB offered in 64 KiB chunks against the categories' 256 KiB
+    /// ceiling. The transfer is stopped long before its last chunk; a read that took everything and
+    /// checked the size afterwards would have let all 64 arrive.
+    func testTheReadStopsAtTheCeilingWhileTheResponseStreams() async {
+        ChunkedStub.reset()
+        ChunkedStub.declared = nil
+        ChunkedStub.chunks = 64
+        do {
+            _ = try await chunkedClient().categories()
+            XCTFail("a 4 MiB answer was accepted under a 256 KiB ceiling")
+        } catch let EngineError.undecodable(detail) {
+            XCTAssertTrue(detail.contains("larger than"), detail)
+        } catch {
+            XCTFail("refused as \(error)")
+        }
+        await settle()
+        let observed = ChunkedStub.observed
+        XCTAssertTrue(observed.stopped, "the transfer was not stopped: the whole response was read")
+        XCTAssertLessThan(observed.sent, 32, "\(observed.sent) of 64 chunks were sent before the read stopped")
+    }
+
+    /// A declared length over the ceiling is refused before a byte is read: here the body that follows
+    /// is small, and only the declaration can refuse it.
+    func testADeclaredLengthOverTheCeilingIsRefusedBeforeTheBody() async {
+        ChunkedStub.reset()
+        ChunkedStub.declared = 10 * 1024 * 1024
+        ChunkedStub.chunks = 1
+        ChunkedStub.chunkSize = 16
+        defer {
+            ChunkedStub.declared = nil
+            ChunkedStub.chunkSize = 64 * 1024
+            ChunkedStub.chunks = 64
+        }
+        do {
+            _ = try await chunkedClient().categories()
+            XCTFail("a response declaring 10 MiB was read")
+        } catch let EngineError.undecodable(detail) {
+            XCTAssertTrue(detail.contains("larger than"), "refused for its body, not its declaration: \(detail)")
+        } catch {
+            XCTFail("refused as \(error)")
+        }
+    }
+
+    private func client() -> EngineClient {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubProtocol.self]
+        return EngineClient(
+            baseURL: URL(string: "http://127.0.0.1:8080")!,
+            session: URLSession(configuration: configuration)
+        )
+    }
+
+    private func refusal(_ call: (EngineClient) async throws -> Void) async -> String? {
+        do {
+            try await call(client())
+            return nil
+        } catch let EngineError.undecodable(detail) {
+            return detail
+        } catch {
+            return "\(error)"
+        }
+    }
+
+    func testEveryRouteHasACeilingAboveWhatTheEngineSendsToday() {
+        // Measured on the 2026-10-04 artifact: categories 4,300 bytes, the largest recommendation
+        // 47,920, the boards 513,532. Each ceiling leaves room to grow and none is unbounded.
+        XCTAssertEqual(EngineClient.byteCeiling(for: "v1/categories"), 256 * 1024)
+        XCTAssertEqual(EngineClient.byteCeiling(for: "v1/recommendations"), 1024 * 1024)
+        XCTAssertEqual(EngineClient.byteCeiling(for: "v1/boards"), EngineClient.maxStandingsBytes)
+        XCTAssertEqual(EngineClient.byteCeiling(for: "v1/anything-new"), 256 * 1024,
+                       "a route nobody sized gets the smallest ceiling, not none")
+    }
+
+    func testAnOversizedAnswerIsRefusedOnTheRoutesThatHadNoCeiling() async {
+        StubProtocol.outcome = .success((200, Data(repeating: 0x20, count: 1024 * 1024 + 1)))
+        let recommendation = await refusal { _ = try await $0.recommendation(task: "coding", budget: "unlimited") }
+        XCTAssertTrue(recommendation?.contains("larger than") == true, recommendation ?? "accepted")
+
+        StubProtocol.outcome = .success((200, Data(repeating: 0x20, count: 256 * 1024 + 1)))
+        let categories = await refusal { _ = try await $0.categories() }
+        XCTAssertTrue(categories?.contains("larger than") == true, categories ?? "accepted")
+    }
+
+    func testAnAnswerAtTheCeilingIsReadWhole() async {
+        // At the ceiling exactly, the read completes and the payload reaches the decoder.
+        StubProtocol.outcome = .success((200, Data(repeating: 0x20, count: 256 * 1024)))
+        let categories = await refusal { _ = try await $0.categories() }
+        XCTAssertFalse(categories?.contains("larger than") == true, categories ?? "")
+    }
+
+    func testAnOversizedRefusalIsCappedToo() async {
+        StubProtocol.outcome = .success((503, Data(repeating: 0x20, count: 256 * 1024 + 1)))
+        let categories = await refusal { _ = try await $0.categories() }
+        XCTAssertTrue(categories?.contains("larger than") == true, categories ?? "accepted")
+    }
+}
+
 /// M18-W1 (#87, D-171, REQ-DEV-001): the engine the app talks to is set per build, and loopback when it is not.
 final class EngineAddressTests: OfflineTestCase {
     func testABuildsEngineAddressIsUsedWhenItIsAnHttpUrlWithAHost() {
@@ -598,6 +765,62 @@ final class EngineAddressTests: OfflineTestCase {
         for raw: String? in [nil, "", "not a url", "ftp://engine.example", "file:///etc/passwd", "http://",
                              "http://:8080", "$(ENGINE_URL)", "javascript:alert(1)"] {
             XCTAssertEqual(EngineClient.engineURL(from: raw), loopback, raw ?? "nil")
+        }
+    }
+}
+
+/// A stub that answers 200, hands over the first bytes of a body, and then the transfer fails.
+private final class MidStreamFailureStub: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static var failure = URLError(.timedOut)
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func stopLoading() {}
+
+    override func startLoading() {
+        guard let url = request.url,
+              let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil,
+                                             headerFields: ["Content-Type": "application/json"])
+        else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        // A typed response and more than the 512 bytes URLSession sniffs, so the response is handed
+        // over now; the failure comes later, from a queue of its own. Sent at once, it is thrown by the
+        // request itself, before any body is read, which is the case the other stubs hold.
+        client?.urlProtocol(self, didLoad: Data((#"{"categories": ["# + String(repeating: " ", count: 2048)).utf8))
+        let failure = Self.failure
+        DispatchQueue(label: "mid-stream-failure").asyncAfter(deadline: .now() + 0.2) { [self] in
+            client?.urlProtocol(self, didFailWithError: failure)
+        }
+    }
+}
+
+/// W2 Tester (#56): the body is read inside the same `do` as the request, so a transfer that dies
+/// after its first bytes is mapped like one that never started. With the read moved below the
+/// `catch`, a timeout mid-body escaped as a raw URLError, the screen said the app needs an update,
+/// and every test passed: every other stub here fails before it answers.
+final class MidStreamFailureTests: OfflineTestCase {
+    func testATransferThatDiesMidBodyIsMappedLikeOneThatNeverStarted() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [MidStreamFailureStub.self]
+        let base = try XCTUnwrap(URL(string: "http://127.0.0.1:8080"))
+        let client = EngineClient(baseURL: base, session: URLSession(configuration: configuration))
+        let cases: [(URLError.Code, EngineError)] = [
+            (.timedOut, .timedOut(seconds: EngineClient.requestTimeout)),
+            (.networkConnectionLost, .offline),
+        ]
+        for (code, expected) in cases {
+            MidStreamFailureStub.failure = URLError(code)
+            do {
+                _ = try await client.categories()
+                XCTFail("a transfer that died mid-body was read")
+            } catch let error as EngineError {
+                XCTAssertEqual(error, expected, "\(code)")
+            } catch {
+                XCTFail("a \(code) thrown mid-body escaped unmapped: \(error)")
+            }
         }
     }
 }

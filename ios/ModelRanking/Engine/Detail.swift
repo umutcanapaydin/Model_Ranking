@@ -60,7 +60,7 @@ public func detailFacts(
     // 1. The number the card showed, with what it means underneath. Same call as the card's, so
     //    the two screens cannot disagree about a score (the M13 defect class: two accounts of one
     //    number, computed in two places).
-    if let shown = scoreText(model.score, metric: model.metric, language, anchor: anchor) {
+    if let shown = scoreText(model.score, metric: model.metric, language, anchor: anchor, named: false) {
         facts.append(
             DetailFact(
                 label: language == .turkish ? "Puan" : "Score",
@@ -107,7 +107,7 @@ public func detailFacts(
             // fall through to the undated notice rather than be printed. `evidence_date: "unknown"`
             // rendered "result published unknown" and took the dated branch: the `number(_:)`
             // lesson (`Language.swift`), applied to dates.
-            note: isoDate(model.evidenceDate).map {
+            note: readableDate(model.evidenceDate, language).map {
                 language == .turkish ? "\($0) tarihinde çalıştı" : "run on \($0)"
             } ?? (language == .turkish
                 ? "bu liste sonuçlarını tarihlendirmiyor"
@@ -118,20 +118,31 @@ public func detailFacts(
 
     // 4. How this board was run, when the engine says so. `effort` is the comparability axis M5
     //    was spent on: two scores from different effort levels are not the same measurement.
-    if !model.harness.isEmpty {
+    //
+    //    #63 finding 8 (M18-W2): the effort is the value, because it is what a reader compares. The
+    //    harness id ("inspect_ai") is evaluation jargon; it stays, in the note.
+    if let effort = model.effort {
+        let tool = model.harness.isEmpty ? "" : (language == .turkish
+            ? " · değerlendirme aracı: \(model.harness)" : " · evaluation tool: \(model.harness)")
+        facts.append(
+            DetailFact(
+                label: language == .turkish ? "Çaba düzeyi" : "Effort level",
+                value: effortName(effort, language),
+                note: (language == .turkish
+                    ? "aynı listede farklı seviyeler karşılaştırılabilir değildir"
+                    : "levels on one board are not comparable with each other") + tool
+            )
+        )
+    } else if !model.harness.isEmpty {
         // Review N-2: the harness alone is still a fact. Dropping it because the engine sent no
         // effort showed the reader neither, and the harness is half of what M5 was spent on.
         facts.append(
             DetailFact(
-                label: language == .turkish ? "Çalıştırma" : "Run at",
-                value: model.effort.map { "\(model.harness) · \($0)" } ?? model.harness,
-                note: model.effort == nil
-                    ? (language == .turkish
-                        ? "bu liste tek bir seviyede çalışır"
-                        : "this board runs at one level")
-                    : (language == .turkish
-                        ? "aynı listede farklı seviyeler karşılaştırılabilir değildir"
-                        : "levels on one board are not comparable with each other")
+                label: language == .turkish ? "Değerlendirme aracı" : "Evaluation tool",
+                value: model.harness,
+                note: language == .turkish
+                    ? "bu liste tek bir seviyede çalışır"
+                    : "this board runs at one level"
             )
         )
     }
@@ -183,12 +194,13 @@ public func detailFacts(
         facts.append(
             DetailFact(
                 label: language == .turkish ? "Giriş / çıkış" : "Input / output",
+                // #63 finding 8: "jeton" mistranslated "token", and the blend went unstated.
                 value: language == .turkish
-                    ? "$\(input) / $\(output) · 1M jeton"
+                    ? "$\(input) / $\(output) · 1M token başına"
                     : "$\(input) / $\(output) per 1M",
                 note: language == .turkish
-                    ? "kartın fiyatı bu ikisinin karışımı"
-                    : "the card's price is a blend of these two"
+                    ? "kartın fiyatı ikisinin karışımı: %\(blendInputPercent) giriş, %\(blendOutputPercent) çıkış"
+                    : "the card's price blends the two: \(blendInputPercent)% input, \(blendOutputPercent)% output"
             )
         )
     }
@@ -212,7 +224,7 @@ public func detailFacts(
     //    nothing. Printed through `scoreText` with the card's anchor, so it is on the same scale as
     //    the score above it; a rank-only board has no such scale, and gets its own unit instead.
     if let floor = minQuality {
-        let shown = scoreText(floor, metric: model.metric, language, anchor: anchor)
+        let shown = scoreText(floor, metric: model.metric, language, anchor: anchor, named: false)
             ?? number(floor).map { "\($0) \(scoreUnit(for: model.metric, in: language))" }
         if let shown {
             facts.append(
@@ -229,6 +241,12 @@ public func detailFacts(
 
     return facts
 }
+
+/// How the engine blends a model's input and output prices into the card's one price, in percent:
+/// `rank.BLEND_INPUT_WEIGHT` and `BLEND_OUTPUT_WEIGHT`, which `/v1` does not publish.
+/// `test_ios_client_contract.py` holds these equal to the engine's.
+let blendInputPercent = 75
+let blendOutputPercent = 25
 
 /// The sentence for a `price_excludes` code (D-153), or `nil` for no code or one this build does not
 /// know. Shared by the card and the detail screen, so the two cannot word one fact differently.

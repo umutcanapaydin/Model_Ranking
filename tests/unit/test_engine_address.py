@@ -25,6 +25,8 @@ def test_the_default_engine_is_loopback_and_the_owners_address_stays_on_his_mac(
     assert '#include? "Engine.local.xcconfig"' in settings, "the owner's override is an optional include"
     ignored = (IOS.parent / ".gitignore").read_text(encoding="utf-8").splitlines()
     assert "ios/Config/Engine.local.xcconfig" in ignored, "the owner's address must not be committed"
+    # M18-W2 review M6: the UI target's local override names a team, which the project never carries (#93).
+    assert "ios/Config/UITests.local.xcconfig" in ignored, "the UI target's local override must not be committed"
 
 
 def test_the_partial_plist_carries_the_address_and_only_the_local_network_exception() -> None:
@@ -82,3 +84,19 @@ def test_the_failure_screen_shows_the_address_the_app_asked() -> None:
     # compiled and passed when the pin asked only for the call.
     shown = re.search(r"if let (\w+) = error\.addressNote\(client\.baseURL, language\) \{\s*Text\(\1\)", failure)
     assert shown, "the failure view does not show the address line"
+
+
+def test_the_local_network_prompt_speaks_turkish_too() -> None:
+    """#95 (M18-W1 review K2): the one system prompt the app triggers was English only, under an app
+    that speaks Turkish and English (D-129). iOS picks the prompt's language from the device's, from
+    the app's localised Info plist strings."""
+    strings = IOS / "ModelRanking" / "tr.lproj" / "InfoPlist.strings"
+    assert strings.is_file(), "no Turkish Info plist strings"
+    text = strings.read_text(encoding="utf-8")
+    found = re.search(r'^"NSLocalNetworkUsageDescription"\s*=\s*"([^"]+)";\s*$', text, re.MULTILINE)
+    assert found, "the Turkish strings do not carry the local-network text"
+    english = plistlib.loads((IOS / "Config" / "Info.plist").read_bytes())["NSLocalNetworkUsageDescription"]
+    turkish_letter = "[\u00e7\u011f\u0131\u00f6\u015f\u00fc]"
+    assert found.group(1) != english and re.search(turkish_letter, found.group(1)), "not Turkish"
+    regions = re.search(r"knownRegions = \(([^)]*)\);", PROJECT.read_text(encoding="utf-8"))
+    assert regions and re.search(r"\btr\b", regions.group(1)), "the project does not know the Turkish region"

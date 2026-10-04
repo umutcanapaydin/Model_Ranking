@@ -583,13 +583,23 @@ def _assert_the_client_has_no_way_off_the_device() -> None:
         f"{sorted(stale)} is permitted and no longer used; an exemption that outlives its use "
         "silently widens the next time the same call is added"
     )
-    # The Xcode target compiles the synchronized `ModelRanking` folder. A source file referenced
+    # The app target compiles the synchronized `ModelRanking` folder. A source file referenced
     # from anywhere else would be compiled and never read by this gate (W4 review, N10's note).
+    # Another target may sync its own folder only if it is a test bundle, which never ships (D-175).
     project = (CLIENT.parent / "ModelRanking.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")
     assert "sourcecode." not in project, "the project references a source file outside the folder"
-    assert re.findall(r"isa = PBXFileSystemSynchronizedRootGroup;\s*path = (\w+);", project) == [
-        "ModelRanking"
-    ], "the target compiles a folder this gate does not read"
+    folders = dict(re.findall(r"(\w+) /\* \w+ \*/ = \{\s*isa = PBXFileSystemSynchronizedRootGroup;\s*path = (\w+);", project))
+    targets = re.findall(r"isa = PBXNativeTarget;.*?fileSystemSynchronizedGroups = \((.*?)\);.*?productType = \"([\w.-]+)\";",
+                         project, re.DOTALL)
+    synced = {kind: [folders.get(ref) for ref in re.findall(r"(\w+) /\*", groups)] for groups, kind in targets}
+    assert synced.get("com.apple.product-type.application") == ["ModelRanking"], (
+        "the app target compiles a folder this gate does not read"
+    )
+    assert len(targets) == project.count("isa = PBXNativeTarget;") == len(synced), "a target this gate did not read"
+    assert all(kind.startswith("com.apple.product-type.bundle.") and "-test" in kind
+               for kind in synced if kind != "com.apple.product-type.application"), (
+        "a target that is not a test bundle compiles a folder of its own"
+    )
 
 
 def test_the_comment_stripper_removes_block_comments_too() -> None:

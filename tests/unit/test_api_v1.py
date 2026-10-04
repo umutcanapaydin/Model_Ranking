@@ -53,9 +53,15 @@ ANSWER_KEYS = {
     "eligible_count",
     "frontier_size",
     "close_call",
+    # ADDED at M18-W2 by D-176: the close call's values, so the app composes it in either language
+    # (D-136's remainder). Additive; the English sentence stays.
+    "close_call_fact",
     "effort_mix_notice",
     "stale_notice",
     "unavailable_reason",
+    # ADDED at M18-W2 by D-176 clause 7: which of the engine's three reasons, as a code, so the app
+    # says the right one in either language (review M2).
+    "unavailable_reason_code",
     "picks",
     # ADDED at M8-W2 by D-125 — the ONE contract revision D-124 permitted, and the only one this
     # milestone gets. The client could not open a category it could not see: the engine ranks 44
@@ -97,7 +103,8 @@ RANKING_ROW_KEYS = {
     "blended_per_m", "input_per_m", "output_per_m", "evidence_date", "harness", "effort",
 }
 
-SOURCE_HEALTH_KEYS = {"benchmark", "sources", "stale", "notice"}
+# `reason` (D-176 clause 7, M18-W2 review M2): why there are no sources, when there are none.
+SOURCE_HEALTH_KEYS = {"benchmark", "sources", "stale", "notice", "reason"}
 SOURCE_ENTRY_KEYS = {"source", "rows", "newest_run_date", "age_days", "stale"}
 
 PRICING = json.dumps(

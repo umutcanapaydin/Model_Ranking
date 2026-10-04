@@ -21,6 +21,37 @@ struct CombinedView: Equatable {
     var efforts: [String] { firstSeen(mixedEfforts.flatMap(\.efforts)) }
     /// How many models every chosen board ranks (#54): the length of the list, stated on screen.
     var sharedCount: Int { list.entries.count }
+    /// #72 (M18-W2): the surface's own board's health, from its answer's `source_health`.
+    var staleness: SourceHealth? = nil
+    /// #72's other half (review M3): whole days the phone's copy of the standings is past its day.
+    var phoneCopyDays: Int? = nil
+
+    /// Everything this list must say, as data (#67, M18-W2 P4): the view renders exactly these, and
+    /// a test on the plan holds them, so a branch of the view cannot quietly skip one. Loudest first.
+    var disclosures: [CombinedDisclosure] {
+        var out: [CombinedDisclosure] = []
+        if let staleness, staleness.stale { out.append(.staleBoard(staleness)) }
+        if let phoneCopyDays { out.append(.stalePhoneCopy(days: phoneCopyDays)) }
+        out.append(.productsOwnOrder(models: sharedCount, boards: list.boards.count))
+        if Set(list.entries.map(\.place)).count < list.entries.count { out.append(.tiedPlaces) }
+        if !efforts.isEmpty { out.append(.mixedEfforts(efforts)) }
+        return out
+    }
+}
+
+/// One fact the combined list owes its reader (REQ-APP-003 on the combined path).
+enum CombinedDisclosure: Equatable {
+    /// #72: the surface's own board is stale, as its cards would have said.
+    case staleBoard(SourceHealth)
+    /// #72, review M3: the standings this list combines were kept on the phone past their day,
+    /// because a newer copy could not be fetched.
+    case stalePhoneCopy(days: Int)
+    /// D-160 clause 3: the order is the product's own; how many models, on how many boards (#54).
+    case productsOwnOrder(models: Int, boards: Int)
+    /// Some places are shared (1, 1, 3).
+    case tiedPlaces
+    /// D-112: the listed models were measured at different efforts (review B1).
+    case mixedEfforts([String])
 }
 
 /// The efforts a board's listed models stand at, when there are two or more (D-112).
@@ -84,7 +115,8 @@ enum AnswerPlan: Equatable {
 /// names no primary board, standings not yet kept, a primary board they lack -- is today's cards.
 /// A refinement whose board the standings lack is left out rather than failing the list.
 func answerPlan(
-    outcome: RoutingOutcome?, primaryBoard: String?, standings: Standings?, removed: Set<Refinement>
+    outcome: RoutingOutcome?, primaryBoard: String?, standings: Standings?, removed: Set<Refinement>,
+    primaryHealth: SourceHealth? = nil, phoneCopyDays: Int? = nil
 ) -> AnswerPlan {
     // A primary board the standings lack needs no check of its own: `combine` refuses an unknown
     // board, and a refusal is today's cards below.
@@ -106,6 +138,115 @@ func answerPlan(
     guard let list = try? combine(standings, boards: boards) else { return .cards }
     return .combined(CombinedView(
         list: list, refinements: offered, removed: removed.intersection(offered),
-        mixedEfforts: mixedEfforts(list)
+        mixedEfforts: mixedEfforts(list), staleness: primaryHealth, phoneCopyDays: phoneCopyDays
     ))
+}
+
+// MARK: - One card per model (#63 finding 1, M18-W2)
+
+/// The picks one model holds, shown as one card.
+struct PickCard: Identifiable {
+    /// In the engine's order; the first decides the card's look and opens its detail.
+    let picks: [Pick]
+
+    var lead: Pick { picks[0] }
+    var id: String { lead.label }
+    /// Every label the model earned: `best_quality`, `best_value`, `budget_pick`.
+    var labels: [String] { picks.map(\.label) }
+
+    /// The picks whose reason the card says. All of them, but one: the value-window sentence ("the
+    /// cheapest model within 6 points of the best") on a card that IS the best, where it contradicts
+    /// itself. A warning (`nothing_clears_floor`) is never dropped.
+    var reasons: [Pick] {
+        let isBest = labels.contains("best_quality")
+        return picks.filter { pick in
+            !(isBest && pick.label != "best_quality"
+              && (pick.whyFactDictionary["reason"] as? String) == PickReason.cheapestWithinWindow.rawValue)
+        }
+    }
+}
+
+/// The engine's picks as cards: one per model, in the engine's order.
+///
+/// A model is the same row only if name, vendor, score and price all agree. Names alone are not
+/// unique (#102), and two rows that agree on all four are one model to any reader.
+func pickCards(_ picks: [Pick]) -> [PickCard] {
+    var groups: [[Pick]] = []
+    for pick in picks {
+        if let index = groups.firstIndex(where: { sameRow($0[0], pick) }) {
+            groups[index].append(pick)
+        } else {
+            groups.append([pick])
+        }
+    }
+    return groups.map(PickCard.init)
+}
+
+private func sameRow(_ left: Pick, _ right: Pick) -> Bool {
+    left.model == right.model && left.vendor == right.vendor && left.score == right.score
+        && left.blendedPerM == right.blendedPerM
+}
+
+// MARK: - The combined list's length (M18-W2, #63 new finding A)
+
+/// How many rows of the combined list show before the reader asks for the rest. Ten: the answer is
+/// at the top, and 160 rows put everything below the list, "See the boards" included, out of reach.
+let combinedVisibleRows = 10
+
+func visibleCount(total: Int, expanded: Bool) -> Int {
+    expanded ? total : min(total, combinedVisibleRows)
+}
+
+// MARK: - The plan, computed when its inputs change (#70, M18-W2)
+
+/// `answerPlan`, and with it `combine`, ran in the screen's `body`, so every render paid for it,
+/// every keystroke in the question field included. The memo plans once per change of what the plan
+/// reads; a render with the same inputs gets the plan it already has.
+final class PlanMemo {
+    /// What a plan reads. The standings are named by a stamp the screen bumps when it replaces them,
+    /// so comparing inputs never compares a 4 MiB payload.
+    struct Inputs: Equatable {
+        let outcome: RoutingOutcome?
+        let primaryBoard: String?
+        let standingsStamp: Int
+        let removed: Set<Refinement>
+        let primaryHealth: SourceHealth?
+        var phoneCopyDays: Int? = nil
+    }
+
+    private var last: (inputs: Inputs, plan: AnswerPlan)?
+    /// How many plans were computed: what the tests count.
+    private(set) var computed = 0
+
+    func plan(_ inputs: Inputs, standings: Standings?) -> AnswerPlan {
+        if let last, last.inputs == inputs { return last.plan }
+        computed += 1
+        let plan = answerPlan(outcome: inputs.outcome, primaryBoard: inputs.primaryBoard, standings: standings,
+                              removed: inputs.removed, primaryHealth: inputs.primaryHealth,
+                              phoneCopyDays: inputs.phoneCopyDays)
+        last = (inputs, plan)
+        return plan
+    }
+}
+
+// MARK: - The reader's access filter (#78, M18-W2)
+
+/// Whether a model's served accessibility (Epoch's `model_metadata.csv`, M17-W3) says it has an API
+/// or open weights. An unpublished value, or one this build does not know, is not claimed.
+func hasAPIOrOpenWeights(_ accessibility: String?) -> Bool {
+    guard let accessibility else { return false }
+    return accessibility == "API access" || accessibility.hasPrefix("Open weights")
+}
+
+/// The combined list's rows with the filter applied. Each keeps its place among all the shared
+/// models: the filter hides rows, it does not re-rank them (D-167).
+func filteredEntries(_ entries: [CombinedEntry], onlyAPIOrOpenWeights: Bool) -> [CombinedEntry] {
+    onlyAPIOrOpenWeights ? entries.filter { hasAPIOrOpenWeights($0.model.accessibility) } : entries
+}
+
+/// The routed surface's own health, from the answers on screen: what the plan's stale-board
+/// disclosure reads (#72). A function, so a test drives the lookup the view makes (review M4).
+func routedSurfaceHealth(_ answers: [Answer], _ outcome: RoutingOutcome?) -> SourceHealth? {
+    guard let outcome else { return nil }
+    return answers.first { $0.surface == outcome.categoryID }?.sourceHealth
 }

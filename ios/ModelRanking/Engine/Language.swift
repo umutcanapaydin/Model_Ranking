@@ -9,10 +9,9 @@
 //  of a `why_fact` or a `trade_off_fact`, which is what makes the two languages two renderings of
 //  one truth rather than two translations that drift.
 //
-//  **What is NOT here, stated so the gap is not mistaken for completeness (D-136 scope):** the
-//  notices — staleness, effort mix, undated evidence, near-ties, unavailable surfaces — keep
-//  English prose from the engine. They are disclosures, they are longer, and doing them badly is
-//  worse than doing them later.
+//  The notices — staleness, effort mix, undated evidence, near-ties, unavailable surfaces — were
+//  D-136's recorded remainder and kept the engine's English until M18-W2. They are composed in
+//  `Notices.swift` now, from facts, the same way (D-176).
 
 import Foundation
 
@@ -88,7 +87,7 @@ public func whySentence(_ fact: [String: Any], in language: Language) -> String?
     case (.nothingClearsFloor, .turkish):
         guard let floor = number(fact["floor"]) else { return nil }
         return "Dikkat: bu fiyatta hiçbir model kendi barajımız olan \(floor) \(unit) "
-            + "seviyesini geçmiyor. Bu en ucuzu ve kaliteden ödün veriyorsunuz."
+            + "seviyesini geçmiyor. Bu en ucuzu ve kaliteden ödün veriyorsun."
     case (.noFloorMeasured, .english):
         return "Careful: this list's own board is empty today, so we cannot measure our bar. "
             + "This is the cheapest there is."
@@ -185,10 +184,11 @@ public func scaleExplanation(for metric: String, in language: Language) -> Strin
         return "insanların cevapları yan yana kıyaslamasından çıkan bir puan"
     case "eci":
         return "genel yetenek endeksi — sabit bir üst sınırı yok"
+    // #63 finding 8: "gerçek işlerin ne kadarını bitirdiği" had no subject and read as a fragment.
     case "% resolved":
-        return "gerçek işlerin ne kadarını bitirdiği"
+        return "modelin çözdüğü gerçek görevlerin yüzdesi"
     case "% correct":
-        return "soruların ne kadarını doğru yanıtladığı"
+        return "modelin doğru yanıtladığı soruların yüzdesi"
     default:
         return nil
     }
@@ -205,8 +205,9 @@ public func anchoredScaleExplanation(for metric: String, anchored: Bool, in lang
         return "out of 100: how often people prefer it over a model at the bar we recommend from — "
             + "50 is at the bar"
     case .turkish:
-        return "100 üzerinden: insanların onu, önerdiğimiz çıtadaki bir modele ne sıklıkla tercih "
-            + "ettiği — 50 tam çıtada demek"
+        // #63 finding 8: the first wording was hard to follow. Same facts, said plainly.
+        return "100 üzerinden: insanlar iki cevabı yan yana görünce bu modelinkini ne sıklıkla seçiyor. "
+            + "50, önerdiğimiz alt sınırdaki bir modelle eşit demek"
     }
 }
 
@@ -217,9 +218,9 @@ public func priceInPages(_ blendedPerM: Double, in language: Language) -> String
     let perPage = blendedPerM / Double(pagesPerMillionTokens)
     if perPage < 0.01 {
         guard let amount = money(blendedPerM) else {
-            return "\(groupedPages) sayfa metin için $0.01'den az"
+            return "\(groupedPages(.turkish)) sayfa metin için $0.01'den az"
         }
-        return "\(groupedPages) sayfa metin için yaklaşık $\(amount)"
+        return "\(groupedPages(.turkish)) sayfa metin için yaklaşık $\(amount)"
     }
     return "sayfa başına yaklaşık $\(String(format: "%.2f", perPage))"
 }
@@ -316,7 +317,7 @@ public enum UIText {
             return language == .turkish ? "\(total) modelin tamamı" : "See all \(total)"
         }
         return language == .turkish
-            ? "\(total) modelin tamamı — \(eligible) tanesi bütçenize uyuyor"
+            ? "\(total) modelin tamamı — \(eligible) tanesi bütçene uyuyor"
             : "See all \(total) — \(eligible) fit your budget"
     }
 
@@ -398,7 +399,7 @@ public enum UIText {
 
     /// The small label above the question field.
     public static func questionEyebrow(_ language: Language) -> String {
-        language == .turkish ? "SORUN" : "YOUR QUESTION"
+        language == .turkish ? "SORU" : "YOUR QUESTION"
     }
 
     /// Beside the lock icon: D-126, said to the reader rather than only to the repository.
@@ -480,8 +481,50 @@ public enum UIText {
     /// than offering a send button that silently does nothing.
     public static func surfacesUnavailable(_ language: Language) -> String {
         language == .turkish
-            ? "Alan listesi yüklenemedi; yeniden denemek için aşağı çekin."
+            ? "Alan listesi yüklenemedi; yeniden denemek için aşağı çek."
             : "The list of surfaces could not be loaded; pull down to try again."
+    }
+
+    /// What a surface is for, in one line under its name in the chooser (#63 finding 13, M18-W2):
+    /// three names blurred together with nothing between them. Keyed on the engine's id, like
+    /// `surface`; `nil` for an id this build does not know, which then shows its name alone.
+    public static func surfaceBlurb(_ id: String, _ language: Language) -> String? {
+        let lines: [String: (String, String)] = [
+            "coding": ("Fixing real bugs in real code", "Gerçek koddaki gerçek hataları düzeltmek"),
+            "agentic-coding": ("An agent that plans and edits many files on its own",
+                               "Planlayıp birçok dosyayı kendi başına düzenleyen bir ajan"),
+            "assistant": ("Everyday chat: emails, advice, explanations", "Gündelik sohbet: e-posta, tavsiye, açıklama"),
+            "everyday": ("Useful across many ordinary tasks at once", "Birçok sıradan işte birden faydalı olmak"),
+            "expert": ("Graduate-level science questions", "Lisansüstü düzeyde fen soruları"),
+            "mathematics": ("Maths problems, proofs, competition questions",
+                            "Matematik problemleri, ispatlar, yarışma soruları"),
+            "computer-use": ("Operating a computer: clicking, typing, using apps",
+                             "Bilgisayarı kullanmak: tıklamak, yazmak, uygulama kullanmak"),
+            "abstract": ("Puzzles and patterns it has never seen", "Daha önce görmediği bulmacalar ve örüntüler"),
+            "web-dev": ("Building websites and web apps", "Web siteleri ve web uygulamaları yapmak"),
+            "document": ("Reading and working with long documents", "Uzun belgeleri okumak ve onlarla çalışmak"),
+            "factuality": ("Getting facts right in its own answers", "Kendi cevaplarında bilgiyi doğru vermek"),
+            "vision": ("Reading images and screenshots", "Görselleri ve ekran görüntülerini okumak"),
+            "search": ("How well it answers by searching the web", "İnternette arayarak ne kadar iyi cevap verdiği"),
+            "search_factuality": ("Reporting what a search found without making things up",
+                                  "Aramada bulduğunu uydurmadan aktarmak"),
+        ]
+        guard let line = lines[id] else { return nil }
+        return language == .turkish ? line.1 : line.0
+    }
+
+    /// What the gap register is for (#63 finding 14), at the top of its sheet.
+    public static func gapsPurpose(_ language: Language) -> String {
+        language == .turkish
+            ? "Ölçmediğimiz bir şey sorduğunda soru burada, yalnızca bu cihazda tutulur. Neyin ölçülmesi "
+                + "gerektiğini gösterir."
+            : "When you ask about something we do not measure, the question is kept here, on this device "
+                + "only. It shows what is worth measuring next."
+    }
+
+    /// The visible label beside the register's icon (#63 finding 14).
+    public static func gapsButton(_ language: Language) -> String {
+        language == .turkish ? "Ölçülmeyenler" : "Not measured"
     }
 
     /// A surface's name.
@@ -575,7 +618,7 @@ extension UIText {
 
     /// D-112 on the combined list (review B1): the cards' `effort_mix_notice`, said of the list.
     static func combinedEffortNote(efforts: [String], _ language: Language) -> String {
-        let named = efforts.joined(separator: ", ")
+        let named = efforts.map { effortName($0, language) }.joined(separator: ", ")
         return language == .turkish
             ? "Not: Bu panolar modelleri tek bir çaba düzeyinde karşılaştırmıyor ve bu listedeki modeller "
                 + "farklı düzeylerde ölçüldü (\(named)). Daha yüksek çabayla çalıştırılan bir model, daha düşük "
@@ -587,7 +630,7 @@ extension UIText {
 
     /// The efforts the listed models stand at on one board, in the detail.
     static func boardEfforts(_ efforts: [String], _ language: Language) -> String {
-        let named = efforts.joined(separator: ", ")
+        let named = efforts.map { effortName($0, language) }.joined(separator: ", ")
         return language == .turkish ? "Bu listedeki modellerin çaba düzeyleri: \(named)"
             : "Effort levels of the models in this list: \(named)"
     }
@@ -595,9 +638,11 @@ extension UIText {
     /// A board's date, saying whether anything was measured on it (review B1).
     static func boardDate(_ date: BoardDate, _ language: Language) -> String {
         switch date {
-        case let .measured(day):
+        case let .measured(served):
+            let day = readableDate(served, language) ?? served
             return language == .turkish ? "En yeni ölçüm: \(day)" : "Newest evaluation: \(day)"
-        case let .readOn(day):
+        case let .readOn(served):
+            let day = readableDate(served, language) ?? served
             return language == .turkish
                 ? "Ölçüm tarihi yayımlamıyor; motor \(day) tarihinde okudu"
                 : "Publishes no evaluation date; read by the engine on \(day)"
@@ -617,6 +662,41 @@ extension UIText {
         }
     }
 
+    /// Under a combined list with tied places (1, 1, 3): what a shared place means.
+    static func tiedPlaces(_ language: Language) -> String {
+        language == .turkish
+            ? "Aynı sırayı paylaşan modeller berabere: panolardaki yerleri birbirini dengeliyor."
+            : "Models sharing a place are tied: their places on the boards balance out."
+    }
+
+    /// #78: the combined list's reader filter, and how many rows it leaves.
+    static func accessFilter(_ language: Language) -> String {
+        language == .turkish ? "Yalnızca API'si ya da açık ağırlıkları olan modeller"
+            : "Only models with an API or open weights"
+    }
+
+    static func accessFilterCount(shown: Int, of total: Int, _ language: Language) -> String {
+        language == .turkish
+            ? "\(total) modelin \(shown) tanesi gösteriliyor; sıralar \(total) modelin tamamı içinde"
+            : "\(shown) of \(total) shown; places are among all \(total)"
+    }
+
+    /// Review M3 (#72): the combined list's standings are an old copy kept on this phone.
+    static func stalePhoneCopy(days: Int, _ language: Language) -> String {
+        language == .turkish
+            ? "Bu listenin dayandığı sıralamalar bu telefona \(days) gün önce indirildi; daha yenisi alınamadı."
+            : "The standings behind this list reached this phone \(days) days ago; a newer copy could not be fetched."
+    }
+
+    /// The control under a shortened combined list.
+    static func showAll(_ total: Int, _ language: Language) -> String {
+        language == .turkish ? "\(total) modelin hepsini göster" : "Show all \(total)"
+    }
+
+    static func showFewer(_ language: Language) -> String {
+        language == .turkish ? "Daha az göster" : "Show fewer"
+    }
+
     static func seeTheBoards(_ language: Language) -> String {
         language == .turkish ? "Panolara bak" : "See the boards"
     }
@@ -627,5 +707,59 @@ extension UIText {
 
     static func placeOn(_ benchmark: String, place: Int, _ language: Language) -> String {
         language == .turkish ? "\(benchmark) listesinde #\(place)" : "#\(place) on \(benchmark)"
+    }
+}
+
+// MARK: - M18-W2 (#96): the failure screen's sentences
+
+extension EngineError {
+    /// What happened, in the reader's language. English is `errorDescription` itself, so the two
+    /// cannot drift; the engine's own refusal is shown as it sent it, in either language.
+    func errorDescription(_ language: Language) -> String? {
+        guard language == .turkish else { return errorDescription }
+        switch self {
+        case .unreachable: return "Motor yanıt vermiyor."
+        case let .timedOut(seconds): return "Motor \(seconds) saniye içinde yanıt vermedi."
+        case .insecureTransport: return "Bağlantı şifreli olmadığı için reddedildi."
+        case .offline: return "Bu cihazın ağ bağlantısı yok."
+        case let .refused(_, _, message): return message
+        case .undecodable: return "Motorun cevabı bu uygulamanın okuyabildiği biçimde değildi."
+        }
+    }
+
+    /// What the person holding the phone can do, in their language. `nil` exactly where `recovery` is.
+    func recovery(_ language: Language) -> String? {
+        guard language == .turkish else { return recovery }
+        switch self {
+        case .unreachable:
+            return "Bu soruları cevaplayan servise şu anda ulaşılamıyor. Biraz sonra tekrar dene."
+        case .timedOut:
+            return "Çok yavaş cevap verdi. Tekrar denemek genellikle işe yarar."
+        case .insecureTransport:
+            return "Bu bağlantı şifreli olmadığı için reddedildi. Bu, telefonun seni koruması; buradan "
+                + "düzeltebileceğin bir hata değil."
+        case .offline:
+            return "Bu cihazın internet bağlantısı yok. Yeniden bağlan ve tekrar dene."
+        case .refused:
+            return nil
+        case .undecodable:
+            return "Uygulamanın bu sürümü gönderilen cevabı okuyamadı. Çözüm, uygulamayı güncellemek."
+        }
+    }
+}
+
+/// An effort level as the reader's language names it (M18-W2 review K2). English keeps the engine's
+/// word; a level this build does not know keeps its name in both.
+func effortName(_ effort: String, _ language: Language) -> String {
+    guard language == .turkish else { return effort }
+    switch effort {
+    case "minimal": return "en düşük"
+    case "low": return "düşük"
+    case "medium": return "orta"
+    case "high": return "yüksek"
+    case "xhigh": return "çok yüksek"
+    case "max": return "en yüksek"
+    case "unspecified": return "belirtilmemiş"
+    default: return effort
     }
 }

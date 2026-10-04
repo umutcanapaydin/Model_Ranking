@@ -152,6 +152,116 @@ final class AnswerPlanTests: OfflineTestCase {
         XCTAssertEqual(view.efforts, ["high", "unspecified"])
     }
 
+    // MARK: the combined list's disclosures, as data (#67, #72, M18-W2 P4)
+
+    private func stale(_ days: Int) -> SourceHealth {
+        SourceHealth(benchmark: "B arena", stale: true, notice: "old",
+                     sources: [SourceRow(source: "s", rows: 3, newestRunDate: nil, ageDays: days, stale: true)],
+                     reason: nil)
+    }
+
+    /// #67: the gate could not see a view branch, so the combined list's disclosures are fields of
+    /// its plan, and this test holds every one of them on the plan rather than on the view's text.
+    func testTheCombinedListCarriesEveryDisclosureItOwes() {
+        let mixed = held([boardAt("arena", [("a", 1, "high"), ("b", 2, "unspecified")]),
+                          boardAt(french.board, [("b", 1, "high"), ("a", 2, "high")])])
+        let plan = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: mixed, removed: [],
+                              primaryHealth: stale(120))
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+
+        XCTAssertEqual(view.disclosures, [
+            .staleBoard(stale(120)),
+            .productsOwnOrder(models: 2, boards: 2),
+            .tiedPlaces,
+            .mixedEfforts(["high", "unspecified"]),
+        ])
+    }
+
+    /// #72: the cards warned that the surface's board was stale and the combined list that replaced
+    /// them did not. A fresh board says nothing; a stale one is said first and loudly.
+    func testAStaleBoardIsSaidOnTheCombinedListAsLoudlyAsOnTheCards() {
+        let fresh = SourceHealth(benchmark: "B arena", stale: false, notice: nil, sources: [], reason: nil)
+        let quiet = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: data, removed: [],
+                               primaryHealth: fresh)
+        guard case let .combined(calm) = quiet else { return XCTFail("\(quiet)") }
+        XCTAssertFalse(calm.disclosures.contains { if case .staleBoard = $0 { return true }; return false })
+
+        let loud = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: data, removed: [],
+                              primaryHealth: stale(200))
+        guard case let .combined(warned) = loud else { return XCTFail("\(loud)") }
+        let said = warned.disclosures.compactMap { combinedDisclosure($0, .turkish) }
+        XCTAssertEqual(said.first?.weight, .state, "the stale board is not the loud warning the cards give")
+        XCTAssertTrue(said.first?.text.contains("200") == true, said.first?.text ?? "nil")
+    }
+
+    /// Review M3 (#72's other half): standings kept on the phone past a day, because a newer copy
+    /// could not be fetched, are said on the list, loudly.
+    func testAnOldPhoneCopyIsSaidOnTheCombinedList() {
+        let plan = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: data, removed: [],
+                              phoneCopyDays: 3)
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+        XCTAssertEqual(view.disclosures.first, .stalePhoneCopy(days: 3))
+        XCTAssertEqual(combinedDisclosure(.stalePhoneCopy(days: 3), .english)?.weight, .state)
+        let fresh = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: data, removed: [])
+        guard case let .combined(calm) = fresh else { return XCTFail("\(fresh)") }
+        XCTAssertFalse(calm.disclosures.contains(.stalePhoneCopy(days: 3)))
+    }
+
+    /// Review M4: the view handed the plan whatever health it liked, and a `nil` passed every gate. The
+    /// lookup is this function, driven here, and the view's call to it is pinned.
+    func testThePlanIsGivenTheRoutedSurfacesOwnHealth() throws {
+        func answer(_ surface: String, stale: Bool) throws -> Answer {
+            try JSONDecoder().decode(Answer.self, from: Data("""
+            {"surface": "\(surface)", "title": "T", "primary_benchmark": "B \(surface)", "metric": "elo",
+             "eligible_count": 0, "frontier_size": 0, "sources": [], "picks": [], "ranking": [],
+             "source_health": {"benchmark": "B \(surface)", "stale": \(stale), "notice": null, "sources": []}}
+            """.utf8))
+        }
+        let answers = [try answer("coding", stale: false), try answer("assistant", stale: true)]
+        XCTAssertEqual(routedSurfaceHealth(answers, routed([french]))?.benchmark, "B assistant")
+        XCTAssertEqual(routedSurfaceHealth(answers, routed([french]))?.stale, true)
+        XCTAssertNil(routedSurfaceHealth(answers, nil), "no question, no routed surface")
+    }
+
+    /// Every disclosure says itself in both languages, and none is dropped on the way.
+    func testEveryCombinedDisclosureIsSaidInBothLanguages() {
+        let all: [CombinedDisclosure] = [.staleBoard(stale(120)), .stalePhoneCopy(days: 3),
+                                         .productsOwnOrder(models: 2, boards: 2),
+                                         .tiedPlaces, .mixedEfforts(["high", "max"])]
+        for disclosure in all {
+            let english = combinedDisclosure(disclosure, .english)
+            let turkish = combinedDisclosure(disclosure, .turkish)
+            XCTAssertNotNil(english, "\(disclosure)")
+            XCTAssertNotEqual(english?.text, turkish?.text, "\(disclosure)")
+        }
+    }
+
+    // MARK: the plan is computed when its inputs change (#70, M18-W2 P5)
+
+    private func inputs(_ removed: Set<Refinement> = [], stamp: Int = 1) -> PlanMemo.Inputs {
+        PlanMemo.Inputs(outcome: routed([french]), primaryBoard: "arena", standingsStamp: stamp,
+                        removed: removed, primaryHealth: nil)
+    }
+
+    /// `answerPlan`, and with it `combine`, ran in `body` on every render, every keystroke included.
+    func testTheSameInputsAreNotPlannedTwice() {
+        let memo = PlanMemo()
+        let first = memo.plan(inputs(), standings: data)
+        for _ in 0..<50 { XCTAssertEqual(memo.plan(inputs(), standings: data), first) }
+        XCTAssertEqual(memo.computed, 1, "typing in the field re-planned an unchanged question")
+    }
+
+    func testAChangedInputIsPlannedAgain() {
+        let memo = PlanMemo()
+        let combined = memo.plan(inputs(), standings: data)
+        XCTAssertEqual(memo.plan(inputs([french]), standings: data),
+                       answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: data, removed: [french]))
+        XCTAssertEqual(memo.plan(inputs([french], stamp: 2), standings: data),
+                       memo.plan(inputs([french]), standings: data), "new standings, same plan, planned again")
+        XCTAssertEqual(memo.computed, 4)
+        XCTAssertNotEqual(combined, memo.plan(inputs([french]), standings: data))
+    }
+
     func testEveryEffortIsNamedOnceInTheBoardsOwnOrder() {
         let mixed = held([boardAt("arena", [("a", 1, "unspecified"), ("b", 2, "high")]),
                           boardAt(french.board, [("b", 1, "max"), ("a", 2, "high")])])
@@ -184,7 +294,8 @@ final class AnswerPlanTests: OfflineTestCase {
     func testTheEffortNoteNamesEveryEffortInBothLanguages() {
         for language in Language.allCases {
             let note = UIText.combinedEffortNote(efforts: ["high", "unspecified"], language)
-            XCTAssertTrue(note.contains("high") && note.contains("unspecified"), "\(language): \(note)")
+            XCTAssertTrue(note.contains(effortName("high", language)) && note.contains(effortName("unspecified", language)),
+                          "\(language): \(note)")
         }
     }
 
@@ -195,7 +306,7 @@ final class AnswerPlanTests: OfflineTestCase {
         XCTAssertEqual(boardDate(boardAt("x", [], evidenceDate: nil, observedAt: nil)), .unknown)
         XCTAssertNotEqual(UIText.boardDate(.readOn("2026-09-25"), .english),
                           UIText.boardDate(.measured("2026-09-25"), .english))
-        XCTAssertTrue(UIText.boardDate(.readOn("2026-09-25"), .turkish).contains("2026-09-25"))
+        XCTAssertTrue(UIText.boardDate(.readOn("2026-09-25"), .turkish).contains(readableDate("2026-09-25", .turkish) ?? "?"))
     }
 
     func testEveryRefinementHasANameInBothLanguages() {
@@ -206,5 +317,113 @@ final class AnswerPlanTests: OfflineTestCase {
             XCTAssertNotEqual(UIText.refinementName(refinement, .turkish), refinement.value,
                               "\(refinement.value) has no Turkish name")
         }
+    }
+
+    /// W2 Tester (review M3, M4): the screen plans only through the memo, so what the screen tells
+    /// the memo must reach the plan. With the surface's health or the copy's age dropped between the
+    /// two, every test passed: the memo's own tests give it neither.
+    func testTheMemoHandsThePlanTheHealthAndTheCopysAge() {
+        let told = PlanMemo.Inputs(outcome: routed([french]), primaryBoard: "arena", standingsStamp: 1,
+                                   removed: [], primaryHealth: stale(120), phoneCopyDays: 3)
+        let plan = PlanMemo().plan(told, standings: data)
+        XCTAssertEqual(plan, answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: data,
+                                        removed: [], primaryHealth: stale(120), phoneCopyDays: 3))
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+        XCTAssertEqual(Array(view.disclosures.prefix(2)), [.staleBoard(stale(120)), .stalePhoneCopy(days: 3)])
+    }
+}
+
+/// #63 finding 1 (M18-W2): one model as three full cards, the Best value one describing the best as
+/// "the cheapest model within 6 points of the best".
+final class PickCardTests: OfflineTestCase {
+    private func pick(_ label: String, _ model: String, reason: String, score: Double = 73.8,
+                      price: Double = 1.31) throws -> Pick
+    {
+        let json = """
+        {"label": "\(label)", "model": "\(model)", "vendor": "Google", "score": \(score), "metric": "% resolved",
+         "blended_per_m": \(price), "input_per_m": 1, "output_per_m": 2, "harness": "h",
+         "confidence": "Medium", "confidence_basis": "b", "why": "why \(label)",
+         "why_fact": {"reason": "\(reason)", "unit": "points", "window": 6.0, "floor": 67.0,
+                      "benchmark": "DeepSWE"}}
+        """
+        return try JSONDecoder().decode(Pick.self, from: Data(json.utf8))
+    }
+
+    func testOneModelHoldingThreeLabelsIsOneCardWithThreeLabels() throws {
+        let picks = [try pick("best_quality", "Gemini 3.8 Flash", reason: "highest_score"),
+                     try pick("best_value", "Gemini 3.8 Flash", reason: "cheapest_within_window"),
+                     try pick("budget_pick", "Gemini 3.8 Flash", reason: "cheapest_above_floor")]
+        let cards = pickCards(picks)
+
+        XCTAssertEqual(cards.count, 1)
+        XCTAssertEqual(cards.first?.labels, ["best_quality", "best_value", "budget_pick"])
+        // The value-window sentence describes a model BEHIND the best; said of the best it contradicts
+        // itself. The floor sentence is a fact about this model, and stays.
+        XCTAssertEqual(cards.first?.reasons.map(\.label), ["best_quality", "budget_pick"])
+    }
+
+    func testDifferentModelsKeepTheirOwnCardsInTheEnginesOrder() throws {
+        let picks = [try pick("best_quality", "A", reason: "highest_score", score: 80),
+                     try pick("best_value", "B", reason: "cheapest_within_window", score: 76, price: 0.5),
+                     try pick("budget_pick", "B", reason: "cheapest_above_floor", score: 76, price: 0.5)]
+        let cards = pickCards(picks)
+
+        XCTAssertEqual(cards.map(\.lead.model), ["A", "B"])
+        XCTAssertEqual(cards.map(\.labels), [["best_quality"], ["best_value", "budget_pick"]])
+        XCTAssertEqual(cards[1].reasons.map(\.label), ["best_value", "budget_pick"],
+                       "without the best on the card, the value sentence is true and stays")
+    }
+
+    /// A warning is never merged away: "nothing at this price clears the bar" stays on the card.
+    func testAFloorWarningSurvivesTheMerge() throws {
+        let picks = [try pick("best_quality", "A", reason: "highest_score"),
+                     try pick("budget_pick", "A", reason: "nothing_clears_floor")]
+        XCTAssertEqual(pickCards(picks).first?.reasons.map(\.label), ["best_quality", "budget_pick"])
+    }
+
+    /// Display names are not unique (#102). Two rows that differ in vendor, score or price are two
+    /// models, even under one name.
+    func testOneNameOnTwoDifferentRowsIsTwoCards() throws {
+        let picks = [try pick("best_quality", "Same", reason: "highest_score", score: 80),
+                     try pick("budget_pick", "Same", reason: "cheapest_above_floor", score: 70, price: 0.2)]
+        XCTAssertEqual(pickCards(picks).count, 2)
+    }
+}
+
+/// New finding A (M18-W2): the combined list was every shared model, about 160 rows and 10,900
+/// points tall, with "See the boards" at its end.
+final class CombinedLengthTests: OfflineTestCase {
+    func testTheListShowsItsTopTenUntilAskedForTheRest() {
+        XCTAssertEqual(visibleCount(total: 160, expanded: false), 10)
+        XCTAssertEqual(visibleCount(total: 160, expanded: true), 160)
+        XCTAssertEqual(visibleCount(total: 7, expanded: false), 7)
+        XCTAssertEqual(visibleCount(total: 0, expanded: false), 0)
+    }
+}
+
+/// #78 (M18-W2 P6): the served accessibility was decoded and used by nothing. It is a reader filter on
+/// the combined list now: only models with an API or open weights.
+final class AccessFilterTests: OfflineTestCase {
+    private func entry(_ id: String, _ access: String?, place: Int) -> CombinedEntry {
+        CombinedEntry(model: StandingModel(id: id, display: id, vendor: "V", blendedPerM: 1, accessibility: access),
+                      positions: [], place: place)
+    }
+
+    func testTheFilterKeepsModelsWithAnAPIOrOpenWeights() {
+        XCTAssertTrue(hasAPIOrOpenWeights("API access"))
+        XCTAssertTrue(hasAPIOrOpenWeights("Open weights (unrestricted)"))
+        XCTAssertTrue(hasAPIOrOpenWeights("Open weights (restricted use)"))
+        XCTAssertTrue(hasAPIOrOpenWeights("Open weights (non-commercial)"))
+        XCTAssertFalse(hasAPIOrOpenWeights("Hosted access (no API)"))
+        XCTAssertFalse(hasAPIOrOpenWeights(nil), "an unpublished access is not claimed")
+        XCTAssertFalse(hasAPIOrOpenWeights("Something new"), "a value this build does not know is not claimed")
+    }
+
+    /// Places stay the combination's own: the filter hides rows, it does not re-rank (D-167).
+    func testFilteringKeepsEachModelsPlace() {
+        let entries = [entry("a", "API access", place: 1), entry("b", nil, place: 2),
+                       entry("c", "Open weights (unrestricted)", place: 3)]
+        XCTAssertEqual(filteredEntries(entries, onlyAPIOrOpenWeights: true).map(\.place), [1, 3])
+        XCTAssertEqual(filteredEntries(entries, onlyAPIOrOpenWeights: false).count, 3)
     }
 }

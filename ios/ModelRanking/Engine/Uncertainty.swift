@@ -136,7 +136,7 @@ public func leaderSentence(
             + "to separate — its margin is \(amount) \(unit) — so read them as tied, not as ordered."
     case .turkish:
         return "\(ranges.count) modelin ilk \(tied) tanesi lidere bu benchmark'ın ayırt "
-            + "edemeyeceği kadar yakın — payı \(amount) \(unit) — yani sıralı değil berabere okuyun."
+            + "edemeyeceği kadar yakın — payı \(amount) \(unit) — yani sıralı değil berabere oku."
     }
 }
 
@@ -269,7 +269,7 @@ public func evidenceBreadth(
     case (_, .english): sentence = "Measured on 2 independent benchmarks"
     case (_, .turkish): sentence = "2 bağımsız benchmark ile ölçüldü"
     }
-    if let date = isoDate(evidenceDate) {
+    if let date = readableDate(evidenceDate, language) {
         sentence += language == .english ? " (run \(date))" : " (\(date) tarihli)"
     }
     sentence += "."
@@ -330,6 +330,21 @@ func isoDate(_ value: String?) -> String? {
     return day
 }
 
+/// `20 April 2026` / `20 Nisan 2026`, or `nil` where `isoDate` is (#63 finding 6, M18-W2). The
+/// month names are written here rather than taken from the device's locale, for the reason every
+/// number in this app is pinned: one served date must read the same on every phone.
+func readableDate(_ value: String?, _ language: Language) -> String? {
+    guard let day = isoDate(value), let month = Int(day.dropFirst(5).prefix(2)),
+          let date = Int(day.suffix(2))
+    else { return nil }
+    let english = ["January", "February", "March", "April", "May", "June", "July", "August",
+                   "September", "October", "November", "December"]
+    let turkish = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos",
+                   "Eylül", "Ekim", "Kasım", "Aralık"]
+    let name = (language == .turkish ? turkish : english)[month - 1]
+    return "\(date) \(name) \(day.prefix(4))"
+}
+
 /// A distance on an Elo board, restated as the distance it covers on the /100 scale just below the
 /// leader: `s100(leader) − s100(leader − distance)`. `nil` wherever `scoreOutOf100` is `nil` (no
 /// anchor, a bounded or rank-only scale, an unreasonable anchor), so the caller keeps the native
@@ -378,4 +393,15 @@ public func anchoredFact(
     }
     restated["unit"] = "points"
     return restated
+}
+
+/// What a range means, said once under the picks that show one (#63 finding 9, M18-W2). `shown` are
+/// the ranking positions (0-based) on screen; `nil` when none of them is a range.
+func rangeNote(ranges: [RankRange], shown: [Int], _ language: Language) -> String? {
+    guard let index = shown.first(where: { ranges.indices.contains($0) && !ranges[$0].isExact }),
+          let span = shortRankLabel(at: index, in: ranges)
+    else { return nil }
+    return language == .turkish
+        ? "#\(span) gibi bir aralık, ölçümün bu modeli o sıralardaki diğerlerinden ayırt edemediği anlamına gelir."
+        : "A range such as #\(span) means the benchmark cannot tell this model apart from the others in those places."
 }

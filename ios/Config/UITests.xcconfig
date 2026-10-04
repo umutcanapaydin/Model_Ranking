@@ -1,0 +1,4 @@
+// D-175: the UI test target's settings that the project file does not carry (#93's rule: the project
+// names no bundle id, so a personal team can override them in a git-ignored file).
+PRODUCT_BUNDLE_IDENTIFIER = com.ilgar.modelranking.uitests
+#include? "UITests.local.xcconfig"

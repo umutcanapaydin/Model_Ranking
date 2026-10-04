@@ -11,8 +11,10 @@ def test_pick_cards_keep_scale_familiar_price_and_evidence() -> None:
     pick = view.split("struct PickRow: View", 1)[1].split("struct RankedRow: View", 1)[0]
     assert re.search(r"if let scale\s*\{\s*Text\(scale\)", pick)
     assert "Text(priceInPages(pick.blendedPerM, in: language))" in pick
-    for rendered in ("Text(whyText)", "Text(evidence)", "Text(tradeOff)"):
+    for rendered in ("Text(evidence)", "Text(tradeOff)"):
         assert rendered in pick
+    # #63 finding 1 (M18-W2): a card holding several labels says each kept reason.
+    assert re.search(r"ForEach\(whyTexts, id: \\\.self\) \{ why in\s*Text\(why\)", pick)
 
 
 def test_the_model_card_is_the_detail_navigation_label() -> None:

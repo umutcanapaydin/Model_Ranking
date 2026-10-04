@@ -121,8 +121,8 @@ func routingNotice(_ outcome: RoutingOutcome, _ language: Language) -> String {
             + "to pick a surface."
     case (.manual, _, .turkish):
         return "Bu soruyu ölçtüğümüz hiçbir şeyle eşleştiremedik. Aşağıdaki genel sohbet "
-            + "sıralaması; sorduğunuz işte hangi modelin en iyi olduğunu söyleyemez. Bir alan "
-            + "seçmek için Değiştir'e dokunun."
+            + "sıralaması; sorduğun işte hangi modelin en iyi olduğunu söyleyemez. Bir alan "
+            + "seçmek için Değiştir'e dokun."
     // M13-W3 review MINOR-5, two corrections. The wording tier cannot KNOW the catalogue does not
     // measure a question, only that its words point there, so it says "going by its wording". And
     // the chat ranking is Arena's record of which answers people preferred in blind comparisons,
@@ -133,20 +133,20 @@ func routingNotice(_ outcome: RoutingOutcome, _ language: Language) -> String {
             + "which models people preferred in conversation."
     case (.similarity, true, .turkish):
         return "Kelimelerine bakılırsa bunu doğrudan ölçmüyoruz. Aşağıdaki genel sohbet "
-            + "sıralaması; sorduğunuz işte hangi modelin en iyi olduğunu söyleyemez, yalnızca "
+            + "sıralaması; sorduğun işte hangi modelin en iyi olduğunu söyleyemez, yalnızca "
             + "insanların sohbette hangi modelleri tercih ettiğini söyler."
     case (_, true, .english):
         return "This is not something we measure directly. Below is the general chat ranking: it "
             + "cannot tell you which model is best at what you asked, only which models people "
             + "preferred in conversation."
     case (_, true, .turkish):
-        return "Bunu doğrudan ölçmüyoruz. Aşağıdaki genel sohbet sıralaması; sorduğunuz işte hangi "
+        return "Bunu doğrudan ölçmüyoruz. Aşağıdaki genel sohbet sıralaması; sorduğun işte hangi "
             + "modelin en iyi olduğunu söyleyemez, yalnızca insanların sohbette hangi modelleri "
             + "tercih ettiğini söyler."
     case (.similarity, false, .english):
         return "Matched on wording, not on meaning — check this is the right surface."
     case (.similarity, false, .turkish):
-        return "Anlama göre değil kelimelere göre eşleşti — doğru alan olduğunu kontrol edin."
+        return "Anlama göre değil kelimelere göre eşleşti — doğru alan olduğunu kontrol et."
     case (.model, false, .english):
         return "Matched by meaning, on this device."
     case (.model, false, .turkish):

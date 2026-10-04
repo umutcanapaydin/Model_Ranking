@@ -52,11 +52,21 @@ struct ContentView: View {
     /// same way whatever the reader asks, and the refinements the reader removed from this question.
     @State private var standings: Standings?
     @State private var standingsInFlight = false
+    /// #70: bumped whenever `standings` is replaced, so the plan's memo knows without comparing them.
+    @State private var standingsStamp = 0
+    /// When the standings on screen reached this phone (review M3, #72).
+    @State private var standingsFetchedAt: Date?
+    @State private var planMemo = PlanMemo()
     @State private var removedRefinements: Set<Refinement> = []
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// New finding A (M18-W2): whether the combined list shows every row or its top ten.
+    @State private var showingAllCombined = false
+    /// #78: the reader's filter on the combined list. Kept across questions: it is a preference.
+    @State private var onlyAPIOrOpenWeights = false
     /// The reader's language. `@AppStorage` so the choice survives a relaunch — a flag switch that
     /// forgets is a flag switch nobody uses twice.
     @AppStorage("language") private var language: Language = .english
-    private let router = TieredRouter()
+    private let router = TieredRouter.forThisLaunch()
     /// Whether the on-device tier can run here, said as quiet help when it cannot.
     private let onDevice = TieredRouter.onDeviceState()
     /// Every question is asked at `unlimited` since the budget strip went (M13-W3). The engine still
@@ -86,10 +96,18 @@ struct ContentView: View {
             .toolbar {
                 // REQ-GAP-002: the owner reads the register here, most-asked first.
                 ToolbarItem(placement: .topBarLeading) {
+                    // #63 finding 14: the icon alone said nothing; it carries a visible label now.
+                    // A `Label` shows its icon alone in the bar, so the two are laid out by hand.
                     Button { showingGaps = true } label: {
-                        Image(systemName: "tray.full")
+                        HStack(spacing: 5) {
+                            Image(systemName: "tray.full")
+                            Text(UIText.gapsButton(language))
+                        }
+                        .font(.footnote)
+                        .padding(.horizontal, 4)
                     }
                     .accessibilityLabel(UIText.gapsTitle(language))
+                    .accessibilityIdentifier("gaps")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     // D-136. Two flags, because a flag is the one label that needs no language to
@@ -108,6 +126,9 @@ struct ContentView: View {
             .toolbarBackground(.visible, for: .navigationBar)
             .navigationTitle(UIText.title(language))
             .navigationBarTitleDisplayMode(.inline)
+            // #63 finding 4: the bar repeated the headline under it. The title stays for the back
+            // button and VoiceOver; the bar shows nothing in its place.
+            .toolbar { ToolbarItem(placement: .principal) { Text("").accessibilityHidden(true) } }
             .sheet(isPresented: $choosingSurface) { surfaceSheet }
             .sheet(isPresented: $showingGaps) { gapSheet }
             .task { await load() }
@@ -134,19 +155,30 @@ struct ContentView: View {
                         .tracking(-0.7)
                         .foregroundStyle(Design.ink)
                         .fixedSize(horizontal: false, vertical: true)
+                        // #63 finding 12: at the largest sizes the headline's last word broke from
+                        // its question mark.
+                        .minimumScaleFactor(0.6)
                     Text(UIText.heroSubtitle(language))
                         .font(.subheadline).foregroundStyle(Design.muted)
                 }
                 .padding(.top, 8)
+                // ...and the question field started below the first screen. The headline is the one
+                // text here that need not keep growing: the field and the answers still do.
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 questionCard
 
                 // D-168 clause 7 (M17-W5): several boards chosen, the product's combined list is the
                 // answer; one board, today's cards below.
-                let plan = answerPlan(
+                // #70: planned when what it reads changes, not on every render (a keystroke is one).
+                let plan = planMemo.plan(PlanMemo.Inputs(
                     outcome: routing,
                     primaryBoard: categories.first { $0.id == routing?.categoryID }?.primaryBoard,
-                    standings: standings, removed: removedRefinements
-                )
+                    standingsStamp: standingsStamp, removed: removedRefinements,
+                    // #72: the surface's own answer says whether its board is stale, and the kept
+                    // copy's age whether the phone's standings are (review M3).
+                    primaryHealth: routedSurfaceHealth(answers, routing),
+                    phoneCopyDays: staleCopyDays(fetchedAt: standingsFetchedAt, now: Date())
+                ), standings: standings)
                 if case let .combined(view) = plan {
                     combinedSection(view)
                 } else {
@@ -165,7 +197,11 @@ struct ContentView: View {
                 // engine's answer.
                 ForEach(ordered) { answer in
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionTitle(text: UIText.surface(id: answer.surface, engineTitle: answer.title, language))
+                        // #63 finding 4: the row above already names the first surface ("Showing:
+                        // Coding", or the question's echo), so its heading said it twice.
+                        if answer.id != ordered.first?.id || answer.surface != (routing?.categoryID ?? task) {
+                            SectionTitle(text: UIText.surface(id: answer.surface, engineTitle: answer.title, language))
+                        }
 
                         if answer.picks.isEmpty && answer.ranking.isEmpty {
                             Card { emptyAnswer(answer) }
@@ -182,9 +218,12 @@ struct ContentView: View {
                             let scale = anchoredScaleExplanation(
                                 for: answer.metric, anchored: info?.scoreAnchor != nil, in: language
                             ) ?? scaleExplanation(for: answer.metric, in: language)
-                            ForEach(answer.picks) { pick in
+                            // #63 finding 1: one card per model, carrying every label it earned.
+                            ForEach(pickCards(answer.picks)) { card in
                                 PickRow(
-                                    pick: pick,
+                                    pick: card.lead,
+                                    labels: card.labels,
+                                    reasons: card.reasons,
                                     ranking: answer.ranking,
                                     scale: scale,
                                     language: language,
@@ -197,6 +236,17 @@ struct ContentView: View {
                                     minQuality: info?.minQuality,
                                     priceExcludes: info?.priceExcludes
                                 )
+                            }
+                            // #63 finding 9: a range said once, under the cards that show one.
+                            if let note = rangeNote(
+                                ranges: ranges,
+                                shown: pickCards(answer.picks).compactMap {
+                                    rankOf($0.lead.model, in: answer.ranking, name: \.model).map { $0 - 1 }
+                                },
+                                language
+                            ) {
+                                Text(note).font(.footnote).foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                             rankingPreview(
                                 answer,
@@ -211,26 +261,28 @@ struct ContentView: View {
                         }
                         disclosures(answer)
 
-                        if answer.id == ordered.first?.id {
+                        // Review K1: the engine sends the note with every answer, and it is about how
+                        // TWO answers are ordered, so it is said only where there are two.
+                        if answer.id == ordered.first?.id, ordered.count > 1 {
                             // Ruling A's disclosure. It used to open the screen; the question
                             // field took that place, so it moved to where the answers START rather
                             // than being dropped — it is about how the ANSWERS are ordered, and
                             // that is where a reader needs it (REQ-APP-003).
-                            Text(orderingNote)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+                            // D-176: the engine still decides whether the note is said.
+                            if !orderingNote.isEmpty {
+                                Text(orderingSentence(language))
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         if !answer.ranking.isEmpty {
                             // `ranking_effort` is part of what the number MEANS: agentic-coding
                             // ranks at a named comparable level, and a score shown without it
                             // invites the reader to compare it against one measured elsewhere.
-                            Text(
-                                answer.rankingEffort.map {
-                                    "\(answer.ranking.count) models ranked on "
-                                        + "\(answer.primaryBenchmark), at \($0) effort"
-                                } ?? "\(answer.ranking.count) models ranked on "
-                                    + "\(answer.primaryBenchmark)"
-                            )
+                            Text(rankedOnSentence(
+                                count: answer.ranking.count, benchmark: answer.primaryBenchmark,
+                                effort: answer.rankingEffort, language
+                            ))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                         }
@@ -255,16 +307,32 @@ struct ContentView: View {
     private func combinedSection(_ view: CombinedView) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionTitle(text: UIText.combinedTitle(language))
+                .accessibilityIdentifier("combinedList")
             // Why each board beyond the surface's own was added.
             Text(UIText.alsoCounting(language)).font(.footnote).foregroundStyle(Design.muted)
             refinementChips(view.refinements, removed: view.removed)
+            // #78 (M18-W2 P6): the served accessibility, as a reader filter. It hides rows; every
+            // row keeps its place among all the shared models.
+            Toggle(isOn: $onlyAPIOrOpenWeights) {
+                Text(UIText.accessFilter(language)).font(.footnote)
+            }
+            .tint(Design.accent)
+            .accessibilityIdentifier("accessFilter")
+            let rows = filteredEntries(view.list.entries, onlyAPIOrOpenWeights: onlyAPIOrOpenWeights)
+            if onlyAPIOrOpenWeights {
+                Text(UIText.accessFilterCount(shown: rows.count, of: view.list.entries.count, language))
+                    .font(.footnote).foregroundStyle(.secondary)
+                    .accessibilityIdentifier("accessFilterCount")
+            }
             Card {
                 VStack(alignment: .leading, spacing: 0) {
                     if view.list.entries.isEmpty {
                         Text(UIText.combinedEmpty(language)).font(.subheadline)
                             .padding(12)
                     }
-                    ForEach(view.list.entries, id: \.model.id) { entry in
+                    // New finding A (M18-W2): the top ten, and the rest on request.
+                    let shown = Array(rows.prefix(visibleCount(total: rows.count, expanded: showingAllCombined)))
+                    ForEach(shown, id: \.model.id) { entry in
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
                             // The combination's own place: tied models share it (review M1).
                             Text("\(entry.place)").font(.subheadline.weight(.semibold)).monospacedDigit()
@@ -278,9 +346,25 @@ struct ContentView: View {
                                 .foregroundStyle(Design.muted)
                         }
                         .padding(.vertical, 10).padding(.horizontal, 12)
-                        if entry.model.id != view.list.entries.last?.model.id {
+                        if entry.model.id != shown.last?.model.id {
                             Divider().padding(.leading, 12)
                         }
+                    }
+                    if rows.count > combinedVisibleRows {
+                        Divider().padding(.leading, 12)
+                        Button {
+                            showingAllCombined.toggle()
+                        } label: {
+                            Text(showingAllCombined ? UIText.showFewer(language)
+                                 : UIText.showAll(rows.count, language))
+                                .font(.subheadline)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(12)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Design.accent)
+                        .accessibilityIdentifier("showAllCombined")
                     }
                     Divider().padding(.leading, 12)
                     NavigationLink {
@@ -298,15 +382,13 @@ struct ContentView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("seeTheBoards")
                 }
             }
-            Text(UIText.combinedNote(models: view.sharedCount, boards: view.list.boards.count, language))
-                .font(.footnote).foregroundStyle(.secondary)
-            if !view.efforts.isEmpty {
-                // D-112: the notice the cards carry, which this list replaces (review B1).
-                Text(UIText.combinedEffortNote(efforts: view.efforts, language))
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
+            // #67, #72 (M18-W2 P4): what this list must say is a field of its plan, held by a test on
+            // the plan: the board's staleness, the product's own order, tied places, the efforts
+            // (D-112, review B1). Rendered whole, so no branch can skip one.
+            disclosureList(view.disclosures.compactMap { combinedDisclosure($0, language) })
         }
     }
 
@@ -337,6 +419,7 @@ struct ContentView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(UIText.chipAction(refinement, removed: off, language))
+                    .accessibilityIdentifier("chip.\(refinement.value)")
                 }
             }
         }
@@ -361,6 +444,7 @@ struct ContentView: View {
                         .onSubmit(submit)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .contentShape(Rectangle())
+                        .accessibilityIdentifier("question")  // D-175: the UI tests find it by this
                     // A visible way to send. With a hardware keyboard attached and focus lost,
                     // `.onSubmit` was the ONLY way, which meant no way (handover §3.2).
                     Button(action: submit) {
@@ -371,13 +455,17 @@ struct ContentView: View {
                         }
                     }
                     .frame(width: 46, height: 46)
-                    .background(Design.forest, in: RoundedRectangle(cornerRadius: 16))
-                    .foregroundStyle(Design.lime)
+                    // #63 finding 11: an empty field's button looked enabled in light mode and barely
+                    // visible in dark. Disabled now reads as disabled in both.
+                    .background(sendEnabled ? AnyShapeStyle(Design.forest) : AnyShapeStyle(Color.secondary.opacity(0.18)),
+                                in: RoundedRectangle(cornerRadius: 16))
+                    .foregroundStyle(sendEnabled ? AnyShapeStyle(Design.lime) : AnyShapeStyle(Color.secondary))
                     .buttonStyle(.plain)
                     // No surfaces, nothing to route to: disabled and SAID (below), rather than a
                     // spinner followed by a question silently dropped (review MINOR-7).
                     .disabled(!canSubmit(question, inFlight: routingInFlight) || categories.isEmpty)
                     .accessibilityLabel(UIText.send(language))
+                    .accessibilityIdentifier("send")
                 }
                 HStack(spacing: 5) {
                     Image(systemName: "lock").font(.caption2)
@@ -391,11 +479,21 @@ struct ContentView: View {
         }
     }
 
+    /// The send button's look follows the same rule as its `.disabled` (#63 finding 11).
+    private var sendEnabled: Bool {
+        canSubmit(question, inFlight: routingInFlight) && !categories.isEmpty
+    }
+
     /// What the screen understood, and the one tap that corrects it (REQ-ASK-002).
     @ViewBuilder
     private var matchedSurfaceRow: some View {
+        // #63 finding 12: at the accessibility sizes "Change" beside the line squeezed it into a
+        // hyphenated column; there it goes underneath.
+        let stacked = typeSize.isAccessibilitySize
+        let row = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            row {
                 Group {
                     if let outcome = routing,
                        let echo = echoLine(question: asked, surfaceTitle: surfaceTitle(outcome.categoryID))
@@ -406,10 +504,11 @@ struct ContentView: View {
                     }
                 }
                 .font(.subheadline.weight(.medium))
-                Spacer(minLength: 8)
+                if !stacked { Spacer(minLength: 8) }
                 Button(UIText.change(language)) { choosingSurface = true }
                     .font(.subheadline)
                     .disabled(categories.isEmpty)
+                    .accessibilityIdentifier("change")
             }
             if categories.isEmpty {
                 Text(UIText.surfacesUnavailable(language))
@@ -458,8 +557,14 @@ struct ContentView: View {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                     ForEach(surfaceChoices(categories, selected: task, language)) { choice in
                         Button { select(choice.id) } label: {
-                            Text(choice.title)
-                                .font(.subheadline.weight(choice.isSelected ? .semibold : .regular))
+                            // #63 finding 13: a line under each name says what the surface is for.
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(choice.title)
+                                    .font(.subheadline.weight(choice.isSelected ? .semibold : .regular))
+                                if let blurb = UIText.surfaceBlurb(choice.id, language) {
+                                    Text(blurb).font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
                                 .multilineTextAlignment(.leading)
                                 .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
                                 .padding(12)
@@ -471,6 +576,7 @@ struct ContentView: View {
                                 )
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("surface.\(choice.id)")  // M18-W2 review M7
                     }
                 }
                 .padding(16)
@@ -486,6 +592,8 @@ struct ContentView: View {
     private var gapSheet: some View {
         NavigationStack {
             List {
+                // #63 finding 14: the sheet said what it held and not what it was for.
+                Text(UIText.gapsPurpose(language)).font(.footnote).foregroundStyle(.secondary)
                 if gaps.entries.isEmpty {
                     Text(UIText.noGaps(language)).foregroundStyle(.secondary)
                 } else {
@@ -612,7 +720,12 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(UIText.noPicks(language)).font(.headline)
             if let reason = answer.unavailableReason {
-                Text(reason).font(.subheadline).foregroundStyle(.secondary)
+                // D-176 clause 7: which of the engine's three reasons, by its code, in the reader's
+                // language; the engine's own sentence where the code is missing or unknown.
+                Text(unavailableSentence(
+                    code: answer.unavailableReasonCode, benchmark: answer.primaryBenchmark, language
+                ) ?? reason)
+                .font(.subheadline).foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 4)
@@ -630,14 +743,14 @@ struct ContentView: View {
         // `source_health.notice` and `evidence_dating_note` both saying the benchmark publishes no
         // evaluation dates — and the one notice that was real and actionable, SWE-bench at 179
         // days, wore exactly the same triangle as the five that can never clear.
-        let items = classifyDisclosures(
-            stalenessNotice: answer.sourceHealth?.notice ?? answer.staleNotice,
-            ageDays: (answer.sourceHealth?.sources ?? []).map(\.ageDays),
-            datingNote: answer.evidenceDatingNote,
-            effortMixNotice: answer.effortMixNotice,
-            closeCall: answer.closeCall
-        )
-        return VStack(alignment: .leading, spacing: 8) {
+        //
+        // D-176 (M18-W2): and each in the reader's language, composed from the served facts.
+        disclosureList(answerDisclosures(answer, anchor: category(for: answer)?.scoreAnchor, language))
+    }
+
+    /// Disclosures as D-135 weighs them, for the cards and the combined list alike (#67).
+    private func disclosureList(_ items: [Disclosure]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
             ForEach(items, id: \.text) { item in
                 switch item.weight {
                 case .state:
@@ -664,8 +777,8 @@ struct ContentView: View {
             Label(UIText.noAnswer(language), systemImage: "exclamationmark.triangle")
         } description: {
             VStack(spacing: 12) {
-                Text(error.errorDescription ?? "")
-                if let recovery = error.recovery {
+                Text(error.errorDescription(language) ?? "")
+                if let recovery = error.recovery(language) {
                     Text(recovery).font(.footnote).foregroundStyle(.secondary)
                 }
                 // M18-W1 review B2: the address the app asked, so a wrong one is visible.
@@ -719,6 +832,7 @@ struct ContentView: View {
         asked = typed
         routing = outcome
         removedRefinements = []
+        showingAllCombined = false
         // REQ-GAP-001. A question nothing here measures is recorded on THIS device and nowhere
         // else. It goes to the register, never to `client` (REQ-RTR-004).
         if recordsGap(outcome) {
@@ -787,8 +901,10 @@ struct ContentView: View {
         standingsInFlight = true
         Task {
             defer { standingsInFlight = false }
-            if let kept = await StandingsStore.onDevice.current(now: Date(), fetch: { try await client.boards() }) {
-                standings = kept
+            if let kept = await StandingsStore.onDevice.currentKept(now: Date(), fetch: { try await client.boards() }) {
+                standings = kept.standings
+                standingsFetchedAt = kept.fetchedAt
+                standingsStamp += 1
             }
         }
     }
@@ -864,6 +980,10 @@ struct SectionTitle: View {
 
 struct PickRow: View {
     let pick: Pick
+    /// #63 finding 1 (M18-W2): every label this model earned, and the picks whose reasons the card
+    /// says (`PickCard`). Empty means this pick alone.
+    var labels: [String] = []
+    var reasons: [Pick] = []
     /// The surface's full ranking, so this row can say WHERE the model sits. Optional because a
     /// surface can serve picks with nothing ranked behind them.
     var ranking: [RankedModel] = []
@@ -892,8 +1012,10 @@ struct PickRow: View {
     var minQuality: Double?
     var priceExcludes: String?
 
-    private var whyText: String {
-        whySentence(cardFact(pick.whyFactDictionary), in: language) ?? pick.why
+    private var whyTexts: [String] {
+        (reasons.isEmpty ? [pick] : reasons).map {
+            whySentence(cardFact($0.whyFactDictionary), in: language) ?? $0.why
+        }
     }
 
     /// REQ-UNC-002: a count a reader can check, and never the word "confidence".
@@ -950,9 +1072,11 @@ struct PickRow: View {
         } label: {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Label(UIText.pickLabel(pick.label, language), systemImage:
-                        prominent ? "sparkle" : (pick.label == "best_value" ? "scale.3d" : "leaf"))
+                    Label((labels.isEmpty ? [pick.label] : labels)
+                            .map { UIText.pickLabel($0, language) }.joined(separator: " · "),
+                          systemImage: prominent ? "sparkle" : (pick.label == "best_value" ? "scale.3d" : "leaf"))
                         .font(.caption2.weight(.bold)).tracking(1)
+                        .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
                     Image(systemName: "arrow.up.right").font(.subheadline.weight(.semibold))
                 }
@@ -976,15 +1100,18 @@ struct PickRow: View {
                     .background(prominent ? Color.white.opacity(0.09) : Design.canvas,
                                 in: RoundedRectangle(cornerRadius: 12))
                 VStack(alignment: .leading, spacing: 4) {
-                    if let scale { Text(scale) }
+                    // #63 finding 8: the chat gloss was cut with "…" on the second card.
+                    if let scale { Text(scale).fixedSize(horizontal: false, vertical: true) }
                     Text(priceInPages(pick.blendedPerM, in: language))
                     // D-153 clause 3: wherever a search surface shows a price, it says what is not in it.
                     if let excluded = priceExclusion(priceExcludes, in: language) { Text(excluded) }
                 }
                 .font(.caption)
                 .foregroundStyle(prominent ? Color.white.opacity(0.76) : Design.muted)
-                Text(whyText).font(.subheadline)
-                    .fixedSize(horizontal: false, vertical: true)
+                ForEach(whyTexts, id: \.self) { why in
+                    Text(why).font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if let tradeOff = tradeOffText {
                     Text(tradeOff).font(.footnote)
                         .foregroundStyle(prominent ? Color.white.opacity(0.76) : Design.muted)

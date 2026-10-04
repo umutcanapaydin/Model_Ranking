@@ -177,8 +177,10 @@ final class LocalisedUnitTests: OfflineTestCase {
     func testTheTurkishPriceStillCarriesTheSameNumberAsTheEnglish() {
         // Both are renderings of one value; a language must not change what something costs.
         for price in [1.03, 10.0, 36.09] {
-            let english = priceInPages(price, in: .english)
-            let turkish = priceInPages(price, in: .turkish)
+            // The page count is grouped as each language reads it (#63 finding 6), so it is compared
+            // as the one number it is, and the amounts are compared digit for digit.
+            let english = priceInPages(price, in: .english).replacingOccurrences(of: groupedPages(.english), with: "1500")
+            let turkish = priceInPages(price, in: .turkish).replacingOccurrences(of: groupedPages(.turkish), with: "1500")
             let digits = { (text: String) in
                 text.split(whereSeparator: { !$0.isNumber && $0 != "." }).map(String.init)
             }
@@ -489,7 +491,7 @@ final class CombinedListLanguageTests: OfflineTestCase {
         XCTAssertEqual(UIText.boardEfforts(["high", "unspecified"], .english),
                        "Effort levels of the models in this list: high, unspecified")
         XCTAssertEqual(UIText.boardEfforts(["high", "unspecified"], .turkish),
-                       "Bu listedeki modellerin çaba düzeyleri: high, unspecified")
+                       "Bu listedeki modellerin çaba düzeyleri: yüksek, belirtilmemiş")
         XCTAssertEqual(UIText.placeOn("Arena text · French", place: 3, .english), "#3 on Arena text · French")
         XCTAssertEqual(UIText.placeOn("Arena text · Fransızca", place: 3, .turkish),
                        "Arena text · Fransızca listesinde #3")
@@ -497,5 +499,149 @@ final class CombinedListLanguageTests: OfflineTestCase {
                        "No model is ranked on every one of these boards. Remove a board above to see a list.")
         XCTAssertEqual(UIText.combinedEmpty(.turkish),
                        "Bu panoların hepsinde yer alan bir model yok. Liste için yukarıdan bir panoyu çıkar.")
+    }
+}
+
+/// #96 (M18-W1 review K4): the failure screen's title and address line spoke the reader's language and
+/// the sentences under them did not.
+final class FailureLanguageTests: OfflineTestCase {
+    private let every: [EngineError] = [
+        .unreachable("refused"), .timedOut(seconds: 15), .insecureTransport, .offline,
+        .refused(status: 503, code: "unavailable", message: "The evidence database is unavailable."),
+        .undecodable("x"),
+    ]
+
+    func testEveryFailureSaysWhatHappenedInBothLanguages() {
+        XCTAssertEqual(EngineError.unreachable("x").errorDescription(.turkish), "Motor yanıt vermiyor.")
+        XCTAssertEqual(EngineError.timedOut(seconds: 15).errorDescription(.turkish),
+                       "Motor 15 saniye içinde yanıt vermedi.")
+        for error in every {
+            XCTAssertEqual(error.errorDescription(.english), error.errorDescription,
+                           "the English sentence moved: \(error)")
+            XCTAssertNotNil(error.errorDescription(.turkish))
+        }
+    }
+
+    func testEveryRemedyIsInBothLanguagesAndTheEnginesRefusalIsNotRepeated() {
+        XCTAssertEqual(EngineError.offline.recovery(.turkish),
+                       "Bu cihazın internet bağlantısı yok. Yeniden bağlan ve tekrar dene.")
+        for error in every {
+            XCTAssertEqual(error.recovery(.english), error.recovery, "the English remedy moved: \(error)")
+            XCTAssertEqual(error.recovery(.turkish) == nil, error.recovery == nil,
+                           "a remedy exists in one language only: \(error)")
+        }
+    }
+
+    /// The engine's own refusal is shown as the engine sent it (#96): it is the engine's sentence,
+    /// and this app has no fact to compose it from.
+    func testTheEnginesRefusalIsShownAsSent() {
+        let refusal = EngineError.refused(status: 503, code: "unavailable", message: "Down for a rebuild.")
+        XCTAssertEqual(refusal.errorDescription(.turkish), "Down for a rebuild.")
+    }
+}
+
+/// #63 findings 5, 6 and 7 (M18-W2).
+final class TurkishWordingTests: OfflineTestCase {
+    /// "SORUN" reads as "problem"; the label means "your question".
+    func testTheQuestionLabelSaysQuestion() {
+        XCTAssertEqual(UIText.questionEyebrow(.turkish), "SORU")
+    }
+
+    /// "1,500 sayfa" reads as one and a half pages in Turkish, where the comma is the decimal mark.
+    func testThePageCountIsGroupedTheWayEachLanguageReadsIt() {
+        XCTAssertEqual(groupedPages(.turkish), "1.500")
+        XCTAssertEqual(groupedPages(.english), "1,500")
+    }
+
+    func testADateIsSaidInWordsInBothLanguages() {
+        XCTAssertEqual(readableDate("2026-04-20", .turkish), "20 Nisan 2026")
+        XCTAssertEqual(readableDate("2026-04-20", .english), "20 April 2026")
+        XCTAssertEqual(readableDate("2026-01-05T00:00:00Z", .turkish), "5 Ocak 2026")
+        XCTAssertNil(readableDate("2026-02-30", .english), "a day February cannot have")
+        XCTAssertNil(readableDate("unknown", .turkish))
+    }
+
+    /// The app says "sen" everywhere; the formal "siz" crept into five sentences.
+    func testTheRegisterIsSenInEverySentenceThatHadSiz() {
+        let manual = RoutingOutcome(categoryID: "assistant", tier: .manual, unmeasured: true, alternatives: [])
+        let sentences = [
+            routingNotice(manual, .turkish),
+            routingNotice(RoutingOutcome(categoryID: "assistant", tier: .similarity, unmeasured: false,
+                                         alternatives: []), .turkish),
+            UIText.seeAll(44, eligible: 40, .turkish),
+            UIText.surfacesUnavailable(.turkish),
+            whySentence(["reason": "nothing_clears_floor", "floor": 65.0, "unit": "points"], in: .turkish) ?? "",
+        ]
+        for sentence in sentences {
+            XCTAssertNil(sentence.range(of: #"(nuz|nüz|nız|niz|unun|edin|dokunun|çekin)\b"#, options: .regularExpression),
+                         "formal register: \(sentence)")
+        }
+    }
+}
+
+/// #63 findings 9, 13, 14 and new finding A (M18-W2): what the screen says about itself.
+final class ScreenExplanationTests: OfflineTestCase {
+    /// Finding 9: "#4–13" with nothing saying why a position is a range.
+    func testARangeIsExplainedOnceWhereOneIsShown() {
+        let ranges = [RankRange(best: 1, worst: 1), RankRange(best: 2, worst: 4), RankRange(best: 2, worst: 4)]
+        XCTAssertEqual(rangeNote(ranges: ranges, shown: [0, 1], .english),
+                       "A range such as #2–4 means the benchmark cannot tell this model apart from the "
+                       + "others in those places.")
+        XCTAssertEqual(rangeNote(ranges: ranges, shown: [0, 1], .turkish),
+                       "#2–4 gibi bir aralık, ölçümün bu modeli o sıralardaki diğerlerinden ayırt "
+                       + "edemediği anlamına gelir.")
+        XCTAssertNil(rangeNote(ranges: ranges, shown: [0], .english), "no range on screen, nothing to explain")
+    }
+
+    /// The combined list's tied places ("1, 1, 3") say why, once.
+    func testTiedPlacesOnTheCombinedListAreExplained() {
+        XCTAssertNotNil(UIText.tiedPlaces(.turkish))
+        XCTAssertNotEqual(UIText.tiedPlaces(.turkish), UIText.tiedPlaces(.english))
+    }
+
+    /// Finding 13: three surfaces whose names blur. Each surface the engine serves has one line saying
+    /// what it is for, in both languages.
+    func testEverySurfaceHasALineSayingWhatItIsFor() {
+        for id in ["coding", "agentic-coding", "assistant", "everyday", "expert", "mathematics", "computer-use",
+                   "abstract", "web-dev", "document", "factuality", "vision", "search", "search_factuality"] {
+            let english = UIText.surfaceBlurb(id, .english)
+            let turkish = UIText.surfaceBlurb(id, .turkish)
+            XCTAssertNotNil(english, id)
+            XCTAssertNotNil(turkish, id)
+            XCTAssertNotEqual(english, turkish, id)
+        }
+        let blurred = ["factuality", "search", "search_factuality"].compactMap { UIText.surfaceBlurb($0, .turkish) }
+        XCTAssertEqual(Set(blurred).count, 3)
+        XCTAssertNil(UIText.surfaceBlurb("a-surface-this-build-does-not-know", .english))
+    }
+
+    /// Finding 14: the register's sheet says what it is for.
+    func testTheGapRegisterSaysWhatItIsFor() {
+        XCTAssertNotEqual(UIText.gapsPurpose(.turkish), UIText.gapsPurpose(.english))
+        XCTAssertTrue(UIText.gapsPurpose(.english).contains("this device"))
+    }
+}
+
+/// #78 (M18-W2 P6): the combined list's access filter says what it does.
+final class AccessFilterLanguageTests: OfflineTestCase {
+    func testTheFilterSaysWhatItDoesInBothLanguages() {
+        XCTAssertEqual(UIText.accessFilter(.english), "Only models with an API or open weights")
+        XCTAssertEqual(UIText.accessFilter(.turkish), "Yalnızca API'si ya da açık ağırlıkları olan modeller")
+        XCTAssertEqual(UIText.accessFilterCount(shown: 2, of: 3, .english), "2 of 3 shown; places are among all 3")
+        XCTAssertEqual(UIText.accessFilterCount(shown: 2, of: 3, .turkish),
+                       "3 modelin 2 tanesi gösteriliyor; sıralar 3 modelin tamamı içinde")
+    }
+}
+
+/// Review K2 (M18-W2): effort names (high, max, xhigh, unspecified) sat untranslated in Turkish sentences.
+final class EffortNameTests: OfflineTestCase {
+    func testEveryEffortTheEngineServesHasATurkishName() {
+        let turkish = ["minimal": "en düşük", "low": "düşük", "medium": "orta", "high": "yüksek",
+                       "xhigh": "çok yüksek", "max": "en yüksek", "unspecified": "belirtilmemiş"]
+        for (effort, name) in turkish {
+            XCTAssertEqual(effortName(effort, .turkish), name)
+            XCTAssertEqual(effortName(effort, .english), effort, "English keeps the engine's word")
+        }
+        XCTAssertEqual(effortName("ultra", .turkish), "ultra", "a level this build does not know keeps its name")
     }
 }
