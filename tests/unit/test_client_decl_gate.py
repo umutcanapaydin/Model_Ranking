@@ -80,3 +80,11 @@ def test_make_client_decls_fails_when_its_self_test_does(monkeypatch: pytest.Mon
     where there is no Xcode too."""
     monkeypatch.setattr(gate, "self_test", lambda: ["ContentView.swift: URL.decoded was not refused"])
     assert gate.main() == 1
+
+
+def test_a_release_build_carries_no_ui_test_hook() -> None:
+    """D-175 clause 3: the launch arguments the scripted router is handed are read in Debug only."""
+    found = {"LaunchRouting.swift": {"Foundation.ProcessInfo.arguments", "Swift.CommandLine.arguments"}}
+    assert len(gate.release_problems(found)) == 2
+    inert = {"LaunchRouting.swift": {"Foundation.ProcessInfo.processInfo", "main.ScriptedModelRouter"}}
+    assert gate.release_problems(inert) == []

@@ -317,6 +317,19 @@ def _capability_problem(name: str, symbol: str, decl: str) -> str | None:
     return None
 
 
+#: D-175 clause 3: the UI tests' hook exists in Debug builds only. A Release build that reads its
+#: launch arguments ships a way to steer the app from outside it. (The scripted router itself is in
+#: the Engine, which is never compiled on DEBUG, and is inert unless handed the arguments.)
+DEBUG_ONLY = ("ProcessInfo.arguments", "CommandLine.arguments", "CommandLine.unsafeArgv")
+
+
+def release_problems(found: dict[str, set[str]]) -> list[str]:
+    """What a RELEASE configuration must not contain: the Debug-only UI test hooks (D-175)."""
+    return [f"{name}: `{decl}` is a Debug-only UI test hook (D-175), compiled into a Release build"
+            for name, decls in sorted(found.items()) for decl in sorted(decls)
+            if any(hook in decl for hook in DEBUG_ONLY)]
+
+
 def problems(found: dict[str, set[str]]) -> list[str]:
     bad: list[str] = []
     for name, decls in sorted(found.items()):
@@ -376,6 +389,8 @@ def main() -> int:
                   "stops early leaves files unchecked while everything else still passes")
             return 1
         bad += [f"({label}) {line}" for line in problems(found)]
+        if "release" in label:
+            bad += [f"({label}) {line}" for line in release_problems(found)]
         totals.append(f"{label}: {sum(len(v) for v in found.values())}")
     for line in bad:
         print(f"client-decls FAIL: {line}")

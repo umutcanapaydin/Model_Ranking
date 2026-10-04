@@ -12,15 +12,29 @@
 			path = ModelRanking;
 			sourceTree = "<group>";
 		};
+		A1D75E0B2C4F4E8B9E6A0001 /* UITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = UITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFileReference section */
 		F228D308650B4B37A802531B /* ModelRanking.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ModelRanking.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3E18A1D0C4F24B6B9A7D0E11 /* Engine.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Engine.xcconfig; sourceTree = "<group>"; };
+		A1D75E0B2C4F4E8B9E6A0002 /* ModelRankingUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ModelRankingUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1D75E0B2C4F4E8B9E6A0003 /* UITests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/UITests.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		595CD75A245C4171BCBD9B22 = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1D75E0B2C4F4E8B9E6A0005 = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -34,7 +48,9 @@
 			isa = PBXGroup;
 			children = (
 				CD2A272403D643969A102F94 /* ModelRanking */,
+				A1D75E0B2C4F4E8B9E6A0001 /* UITests */,
 				3E18A1D0C4F24B6B9A7D0E11 /* Engine.xcconfig */,
+				A1D75E0B2C4F4E8B9E6A0003 /* UITests.xcconfig */,
 				7C9017A509764A88AF832FDE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -43,6 +59,7 @@
 			isa = PBXGroup;
 			children = (
 				F228D308650B4B37A802531B /* ModelRanking.app */,
+				A1D75E0B2C4F4E8B9E6A0002 /* ModelRankingUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -70,7 +87,46 @@
 			productReference = F228D308650B4B37A802531B /* ModelRanking.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A1D75E0B2C4F4E8B9E6A0009 /* ModelRankingUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1D75E0B2C4F4E8B9E6A000C;
+			buildPhases = (
+				A1D75E0B2C4F4E8B9E6A0004,
+				A1D75E0B2C4F4E8B9E6A0005,
+				A1D75E0B2C4F4E8B9E6A0006,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A1D75E0B2C4F4E8B9E6A0008,
+			);
+			fileSystemSynchronizedGroups = (
+				A1D75E0B2C4F4E8B9E6A0001 /* UITests */,
+			);
+			name = ModelRankingUITests;
+			productName = ModelRankingUITests;
+			productReference = A1D75E0B2C4F4E8B9E6A0002 /* ModelRankingUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
+
+/* Begin PBXContainerItemProxy section */
+		A1D75E0B2C4F4E8B9E6A0007 = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C0F8FB56C9DD4A27BCA43EE0;
+			proxyType = 1;
+			remoteGlobalIDString = 1F76B6CB1C90463EAF103C11;
+			remoteInfo = ModelRanking;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		A1D75E0B2C4F4E8B9E6A0008 = {
+			isa = PBXTargetDependency;
+			target = 1F76B6CB1C90463EAF103C11 /* ModelRanking */;
+			targetProxy = A1D75E0B2C4F4E8B9E6A0007;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
 		C0F8FB56C9DD4A27BCA43EE0 = {
@@ -82,6 +138,10 @@
 				TargetAttributes = {
 					1F76B6CB1C90463EAF103C11 = {
 						CreatedOnToolsVersion = 26.6;
+					};
+					A1D75E0B2C4F4E8B9E6A0009 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 1F76B6CB1C90463EAF103C11;
 					};
 				};
 			};
@@ -100,6 +160,7 @@
 			projectRoot = "";
 			targets = (
 				1F76B6CB1C90463EAF103C11 /* ModelRanking */,
+				A1D75E0B2C4F4E8B9E6A0009 /* ModelRankingUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -112,10 +173,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1D75E0B2C4F4E8B9E6A0006 = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		384E0346CE084AEA861D1731 = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1D75E0B2C4F4E8B9E6A0004 = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -196,6 +271,38 @@
 			};
 			name = Release;
 		};
+		A1D75E0B2C4F4E8B9E6A000A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A1D75E0B2C4F4E8B9E6A0003 /* UITests.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = ModelRanking;
+			};
+			name = Debug;
+		};
+		A1D75E0B2C4F4E8B9E6A000B /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A1D75E0B2C4F4E8B9E6A0003 /* UITests.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = ModelRanking;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -213,6 +320,15 @@
 			buildConfigurations = (
 				8D23965CDCA8465FBD178630 /* Debug */,
 				B79F06EF06DA484EBE65A901 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1D75E0B2C4F4E8B9E6A000C = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1D75E0B2C4F4E8B9E6A000A /* Debug */,
+				A1D75E0B2C4F4E8B9E6A000B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

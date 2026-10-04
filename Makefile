@@ -60,7 +60,7 @@ need = @command -v $(1) >/dev/null 2>&1 || { echo "$(1) not installed: cannot $(
 
 # Every target is declared phony. `conformance` is also a directory: undeclared, make called the
 # target "up to date" and never ran it, so `make gate` skipped the whole conformance suite.
-.PHONY: help install test lint format typecheck check check-fast check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check
+.PHONY: help ui-test install test lint format typecheck check check-fast check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check
 
 help:  ## this list, generated from the annotation on each target (a hand-written list drifts)
 	@grep -hE '^[a-zA-Z0-9_.-]+:[^#]*## ' $(MAKEFILE_LIST) | sort \
@@ -250,6 +250,10 @@ deps: install  ## the DECLARED dependencies against known advisories -- the same
 
 slopsquat:  ## seed F.8: DECLARED deps exist on PyPI and are not brand new (offline = non-zero, never clean)
 	@$(SYS_PY) scripts/slopsquat_check.py
+
+
+ui-test: install  ## D-175: the iOS UI tests on the simulator, against a local engine (not in check, gate or CI)
+	@bash scripts/ui_test.sh
 
 run: install  ## the engine on :8080, serving the repo's own artifact
 	@# W-061, found by running it: `make run` is the command `note.txt` tells a developer to use to

@@ -56,7 +56,7 @@ struct ContentView: View {
     /// The reader's language. `@AppStorage` so the choice survives a relaunch — a flag switch that
     /// forgets is a flag switch nobody uses twice.
     @AppStorage("language") private var language: Language = .english
-    private let router = TieredRouter()
+    private let router = TieredRouter.forThisLaunch()
     /// Whether the on-device tier can run here, said as quiet help when it cannot.
     private let onDevice = TieredRouter.onDeviceState()
     /// Every question is asked at `unlimited` since the budget strip went (M13-W3). The engine still
@@ -255,6 +255,7 @@ struct ContentView: View {
     private func combinedSection(_ view: CombinedView) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionTitle(text: UIText.combinedTitle(language))
+                .accessibilityIdentifier("combinedList")
             // Why each board beyond the surface's own was added.
             Text(UIText.alsoCounting(language)).font(.footnote).foregroundStyle(Design.muted)
             refinementChips(view.refinements, removed: view.removed)
@@ -298,6 +299,7 @@ struct ContentView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("seeTheBoards")
                 }
             }
             Text(UIText.combinedNote(models: view.sharedCount, boards: view.list.boards.count, language))
@@ -337,6 +339,7 @@ struct ContentView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(UIText.chipAction(refinement, removed: off, language))
+                    .accessibilityIdentifier("chip.\(refinement.value)")
                 }
             }
         }
@@ -361,6 +364,7 @@ struct ContentView: View {
                         .onSubmit(submit)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .contentShape(Rectangle())
+                        .accessibilityIdentifier("question")  // D-175: the UI tests find it by this
                     // A visible way to send. With a hardware keyboard attached and focus lost,
                     // `.onSubmit` was the ONLY way, which meant no way (handover §3.2).
                     Button(action: submit) {
@@ -378,6 +382,7 @@ struct ContentView: View {
                     // spinner followed by a question silently dropped (review MINOR-7).
                     .disabled(!canSubmit(question, inFlight: routingInFlight) || categories.isEmpty)
                     .accessibilityLabel(UIText.send(language))
+                    .accessibilityIdentifier("send")
                 }
                 HStack(spacing: 5) {
                     Image(systemName: "lock").font(.caption2)
@@ -410,6 +415,7 @@ struct ContentView: View {
                 Button(UIText.change(language)) { choosingSurface = true }
                     .font(.subheadline)
                     .disabled(categories.isEmpty)
+                    .accessibilityIdentifier("change")
             }
             if categories.isEmpty {
                 Text(UIText.surfacesUnavailable(language))
