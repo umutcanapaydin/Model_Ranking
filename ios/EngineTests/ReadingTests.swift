@@ -483,3 +483,32 @@ private struct Answering: QuestionRouter {
         RoutingOutcome(categoryID: surface, tier: .similarity, unmeasured: false)
     }
 }
+
+/// The M18-W3 second Tester (`docs/reviews/m18-wave-3-tester-2.md`), REQ-ASK-005 and REQ-GAP-001:
+/// faults in the boundary's verdict that every test passed. Each test names the faults it kills.
+final class ReadingVerdictFaultTests: OfflineTestCase {
+    private let known = ["coding", "assistant", "vision"]
+
+    /// T10 (X2, X3): only the model's "something else" is a doubt, on either branch. A verdict of
+    /// "a model search", or none at all (`try?` on a field the model left out), reads as a search.
+    /// So a question the model declines as a search is the unmeasured answer it was before D-169,
+    /// and the gap register keeps it (REQ-GAP-001).
+    func testOnlySomethingElseIsADoubtOnEitherBranch() async {
+        for request in [nil, ModelOutputBoundary.searchValue] as [String?] {
+            for surface in [ModelOutputBoundary.declineSentinel, "coding"] {
+                XCTAssertEqual(ModelOutputBoundary.outcome(for: surface, within: known, request: request)?.reading,
+                               .search, "\(surface), verdict \(request ?? "none")")
+            }
+        }
+        let question = "a recipe for lentil soup with what is in my fridge"
+        for answer in [["surface": ModelOutputBoundary.declineSentinel, "request": ModelOutputBoundary.searchValue],
+                       ["surface": ModelOutputBoundary.declineSentinel]] {
+            let outcome = await TieredRouter(model: ScriptedModelRouter(answers: [question: answer]),
+                                             similarity: NoSimilarity()).route(question, within: known)
+            XCTAssertEqual(outcome.tier, .model)
+            XCTAssertTrue(outcome.unmeasured)
+            XCTAssertEqual(outcome.reading, .search, "a question the model declined as a search is asked back: \(answer)")
+            XCTAssertTrue(recordsGap(outcome), "a question the model declined as a search is not kept as a need: \(answer)")
+        }
+    }
+}

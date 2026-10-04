@@ -1283,3 +1283,37 @@ def test_the_held_card_stands_alone_and_shows_the_face_its_reading_asks_for() ->
         card.group(1),
         re.S,
     ), "the held card does not ask exactly when the reading is unsure, and show the note otherwise"
+
+
+def test_a_held_question_clears_the_old_answer_and_its_two_taps_do_what_they_say() -> None:
+    """M18-W3 second Tester T11 and T12 (faults X13, X16 to X21), REQ-ASK-005, D-169 clause 4 ("the
+    previous question's ranking goes too") and its amendment ("while it waits, no surface is shown").
+    Each fault passed every gate. No UI test sees X13, X16, X17 or X21: each asks one question on a
+    fresh launch, taps once, and reads the screen in English.
+    - The held branch clears `routing`. The routing notice and the alternatives under the echo read
+      `routing` alone, so without it the previous question's surface stays named over a held one (X13).
+    - "Find a model" calls `confirm`, and "No" calls `decline`, each said in the reader's language
+      (X18 to X21).
+    - `confirm` holds the field while it answers, as `submit` does, and gives it back after (X16, X17).
+    """
+    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
+    ask = re.search(r"private func ask\(\) async \{(.*?)\n    \}", code, re.S)
+    assert ask, "the question path is gone"
+    held = re.search(r"guard outcome\.reading == \.search else \{(.*?)\n        \}", ask.group(1), re.S)
+    assert held, "the branch for input that is not a search is gone"
+    assert re.search(r"^\s*routing = nil\s*$", held.group(1), re.M), (
+        "the previous question's surface and its notice stay on screen over a held one"
+    )
+    card = re.search(r"private func readingCard\(_ held: HeldReading\) -> some View \{(.*?)\n    \}", code, re.S)
+    assert card, "the held card is gone"
+    taps = re.findall(r"Button\((UIText\.\w+\(\w+\))\) \{\s*(.*?)\s*\}", card.group(1))
+    assert taps == [("UIText.askBackFind(language)", "confirm(held)"), ("UIText.askBackNo(language)", "decline(held)")], (
+        f"the question back's taps are {taps}: Find a model must answer, No must show the note, each in the "
+        "reader's language"
+    )
+    confirm = re.search(r"private func confirm\(_ held: HeldReading\) \{(.*?)\n    \}", code, re.S)
+    assert confirm, "the path for Find a model is gone"
+    assert re.search(
+        r"routingInFlight = true\s*Task \{\s*defer \{ routingInFlight = false \}\s*await apply\(", confirm.group(1)
+    ), "Find a model does not hold the field while it answers, or never gives it back"

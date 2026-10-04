@@ -685,3 +685,19 @@ def test_the_model_tier_hands_the_boundary_the_verdict_it_asked_for() -> None:
         r"\s*within: known,\s*refinements: refinements,\s*request: try\? content\.value\(String\.self, forProperty: \"request\"\)\)",
         code,
     ), "the model tier does not hand the boundary the verdict its schema asked for"
+
+
+def test_the_model_is_told_what_each_of_its_two_verdicts_means() -> None:
+    """M18-W3 second Tester T13 (fault X9), REQ-ASK-005, D-169 as amended: the instructions' last
+    paragraph tells the model when its verdict is "a model search" and when it is "something else",
+    with genuine searches written as tasks that must stay searches. With the paragraph deleted, every
+    test passed: the model keeps only the field's one-line guidance, and the probe that measures its
+    reading runs on the owner's Mac alone. This pins that the instructions name both closed values,
+    from the boundary's own constants, so what the model is told and what the boundary maps cannot
+    part."""
+    code = ROUTER.read_text(encoding="utf-8")
+    session = re.search(r'LanguageModelSession\(\s*instructions: """(.*?)"""', code, re.S)
+    assert session, "the model tier's instructions are gone"
+    told = session.group(1)
+    for value in ("searchValue", "notASearchValue"):
+        assert f"\\(ModelOutputBoundary.{value})" in told, f"the model is not told what `{value}` means"
