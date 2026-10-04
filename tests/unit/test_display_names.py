@@ -9,8 +9,14 @@ version 4 on, so that is the rule. `/v1` changes no field; only `models.display`
 from __future__ import annotations
 
 import re
+import sqlite3
+from pathlib import Path
+
+import pytest
 
 from app.workflows import registry
+
+ARTIFACT = Path("advisor.db")
 
 #: The ids served under their raw id on the 2026-10-04 artifact (`select id from models where
 #: display = id`, plus the six dated Claude ids served under a board's raw spelling).
@@ -66,3 +72,34 @@ def test_each_name_in_the_table_is_a_bounded_spelling_and_wins_for_its_model() -
         assert name != model_id, model_id
         assert registry._DISPLAY.fullmatch(name), name
         assert registry._derived_display(model_id, [model_id]) == name, model_id
+
+
+def test_a_board_spelling_in_the_other_order_is_turned_round() -> None:
+    """The W7 review's M4: the rule held the curated names only; a derived Claude kept whatever word
+    order its board wrote."""
+    assert registry._derived_display("claude4.9-opus", ["Claude 4.9 Opus"]) == "Claude Opus 4.9"
+    assert registry.claude_word_order("Claude Sonnet 3.5") == "Claude 3.5 Sonnet"
+    assert registry.claude_word_order("Claude Fable 5") == "Claude Fable 5"
+    assert registry.claude_word_order("Claude Opus 4.5 (20251101)") == "Claude Opus 4.5 (20251101)"
+
+
+@pytest.mark.artifact
+def test_every_model_the_artifact_serves_is_named_by_this_code_as_a_product() -> None:
+    """The plan's check for #112, over the served names: every model in the artifact, named the way
+    this code would name it on the next build, from the names its own rows carry. None reads as its
+    raw id, but OpenAI's, and every Claude is in Anthropic's order (the review's M4, and its R1: a new
+    model served under its raw id shows here)."""
+    conn = sqlite3.connect(f"file:{ARTIFACT}?mode=ro", uri=True)
+    curated = {rule.canonical_id: rule.display for rule in registry.MODEL_RULES}
+    raw_ids, misordered = [], []
+    for (model_id,) in conn.execute("SELECT id FROM models"):
+        names = [n for (n,) in conn.execute(
+            "SELECT raw_name FROM scores WHERE model_id = ? UNION SELECT alias FROM pricing WHERE model_id = ?",
+            (model_id, model_id))]
+        name = curated.get(model_id) or registry._derived_display(model_id, names)
+        if name == model_id and model_id not in SPELLED_AS_THEIR_ID:
+            raw_ids.append(model_id)
+        if problem := _claude_order_problem(name):
+            misordered.append(problem)
+    assert not raw_ids, f"served under their raw id: {sorted(raw_ids)}"
+    assert not misordered, misordered

@@ -19,6 +19,7 @@ PRD = ROOT / "docs" / "prd.md"
 CITATION = re.compile(r"\b([\w-]+\.(?:py|swift))((?::\d+)(?:,\s*:\d+)*)")
 #: A test's declaration, or a module's `pytestmark`, which governs every test in its file (REQ-CI-001
 #: cites one: the live contract tests skip without `RUN_CONTRACT_TESTS`).
+MAKEFILE = re.compile(r"\bMakefile:(\d+)")
 TEST_DECLARATION = re.compile(r"^\s*(?:async\s+)?def test_\w*\(|^\s*func test\w*\(|^pytestmark\s*="
                               r"|^(?:final )?class \w+Tests?\b|^class Test\w*")  # a class of tests, as a whole
 
@@ -44,22 +45,28 @@ def problems(text: str, by_name: dict[str, list[str]], read: object = None) -> l
         return (ROOT / path).read_text(encoding="utf-8").splitlines() if read is None else read(path)  # type: ignore[operator]
 
     found = []
-    for row in text.splitlines():
-        rid = re.match(r"\| (REQ-[A-Z]+-\d+) ", row)
-        if not rid:
-            continue
+    for number, row in enumerate(text.splitlines(), start=1):
+        # Every line, not only the requirement rows (the W7 review's M2: the `**Status:**` lines held
+        # a third of the pointers); each is named by its requirement where the line has one.
+        rid = re.search(r"\b(REQ-[A-Z]+-\d+)\b", row)
+        where = rid.group(1) if rid else f"line {number}"
+        for match in MAKEFILE.finditer(row):
+            makefile = lines_of("Makefile")
+            n = int(match.group(1))
+            if not (1 <= n <= len(makefile) and re.match(r"^[\w.-]+:", makefile[n - 1])):
+                found.append(f"{where}: Makefile:{n} is not a target's line")
         for match in CITATION.finditer(row):
             name, numbers = match.group(1), [int(n) for n in re.findall(r":(\d+)", match.group(2))]
             paths = by_name.get(name, [])
             if len(paths) != 1:
-                found.append(f"{rid.group(1)}: {name} is {'not tracked' if not paths else 'ambiguous: ' + str(paths)}")
+                found.append(f"{where}: {name} is {'not tracked' if not paths else 'ambiguous: ' + str(paths)}")
                 continue
             lines = lines_of(paths[0])
             for n in numbers:
                 if not 1 <= n <= len(lines):
-                    found.append(f"{rid.group(1)}: {name}:{n} is past the end of the file")
+                    found.append(f"{where}: {name}:{n} is past the end of the file")
                 elif is_test_file(paths[0]) and not TEST_DECLARATION.match(lines[n - 1]):
-                    found.append(f"{rid.group(1)}: {name}:{n} is not a test's declaration: {lines[n - 1].strip()[:60]!r}")
+                    found.append(f"{where}: {name}:{n} is not a test's declaration: {lines[n - 1].strip()[:60]!r}")
     return found
 
 
@@ -77,3 +84,8 @@ def test_the_citation_check_fails_on_a_moved_pointer() -> None:
     assert problems("| REQ-XX-001 | c | MET. Evidence: test_x.py:4 |", by_name, read)
     assert problems("| REQ-XX-001 | c | MET. Evidence: test_x.py:9 |", by_name, read)
     assert problems("| REQ-XX-001 | c | MET. Evidence: test_gone.py:3 |", by_name, read)
+    # The W7 review's M2: a pointer on a `**Status:**` line, outside the table, is read too.
+    assert problems("**Status:** **MET.** Evidence: test_x.py:4", by_name, read)
+    files["Makefile"] = ["# a comment", "check: lint test", "\t$(PY) -m pytest"]
+    assert not problems("is a leg of `make check` (Makefile:2)", by_name, read)
+    assert problems("is a leg of `make check` (Makefile:3)", by_name, read)

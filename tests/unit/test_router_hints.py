@@ -671,3 +671,25 @@ def test_the_comment_stripper_fails_closed_on_a_comment_that_never_closes() -> N
     assignment, and the D-168 pin passed."""
     with pytest.raises(ValueError, match="never closes"):
         _code("let pattern = #/a/*b/#\ncopy.refinements = extra\n")
+
+
+def test_only_tests_hand_the_gap_register_a_writer_of_their_own() -> None:
+    """#121 made the register's writer a parameter, so a test can see each write a save tries. The
+    W7 review's R3: any file could then pass a writer that sends the typed question elsewhere. The
+    app builds its store only as `GapRegisterStore.onDevice`, with the default writer."""
+    root = pathlib.Path(__file__).resolve().parents[2]
+    app = root / "ios" / "ModelRanking"
+    passed = []
+    for path in sorted(app.rglob("*.swift")):
+        code = _code(path.read_text(encoding="utf-8"))
+        for match in re.finditer(r"GapRegisterStore\s*\(", code):
+            depth, end = 1, match.end()
+            while depth and end < len(code):  # the whole call, nested parentheses and all
+                depth += {"(": 1, ")": -1}.get(code[end], 0)
+                end += 1
+            call = code[match.end():end]
+            if "write:" in call:
+                passed.append(f"{path.relative_to(root)}: {call[:60]}")
+    assert not passed, f"the app hands the gap register a writer of its own: {passed}"
+    assert "write:" in (root / "ios/EngineTests/FrontDoorTests.swift").read_text(encoding="utf-8"), (
+        "the test that needs the parameter is gone; then the parameter can go too")

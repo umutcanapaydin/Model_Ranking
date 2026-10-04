@@ -52,7 +52,11 @@ func agg(_ s: [Double]) -> Double {
 }
 let floor = Double(ProcessInfo.processInfo.environment["FLOOR"] ?? "0.15")!
 var pass = 0
+var unscored = 0
 for (q, want) in cases {
+  // D-169 (#118): a row expected NOT_A_SEARCH is read in code (`InputSignals`), not by this tier's
+  // embeddings, so this probe does not score it; ReadingProbe.swift does.
+  if want == "NOT_A_SEARCH" { unscored += 1; continue }
   let qv = c(vector(q))
   let scored = exC.map { ($0.0, agg($0.1.map { cos(qv, $0) })) }.sorted { $0.1 > $1.1 }
   let dec = decC.map { agg($0.map { cos(qv, $0) }) }.max()!
@@ -71,4 +75,4 @@ for (q, want) in cases {
       "| want \(want) | top3", scored.prefix(3).map { "\($0.0) \(String(format: "%.3f", $0.1))" }.joined(separator: ", "), declined ? "| alts \(alts)" : "")
   }
 }
-print("\(pass)/\(cases.count)")
+print("\(pass)/\(cases.count - unscored)" + (unscored > 0 ? " (\(unscored) not-a-search rows not scored here)" : ""))

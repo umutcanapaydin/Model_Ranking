@@ -523,6 +523,13 @@ DISPLAY_NAMES: dict[str, str] = {
     "claude3.5-sonnet20240620": "Claude 3.5 Sonnet (2024-06-20)",
     "claude3.5-sonnet20241022": "Claude 3.5 Sonnet (2024-10-22)",
     "dbrx-instruct": "DBRX Instruct",
+    # The W7 review's M4 test: served under a lower-case spelling of the id, not the id itself.
+    "gemma2-9b-it": "Gemma 2 9B IT",
+    "llama3-8b-instruct": "Llama 3 8B Instruct",
+    "llama3.1-405b-instruct-fp8": "Llama 3.1 405B Instruct (FP8)",
+    "llama3.1-8b-instruct": "Llama 3.1 8B Instruct",
+    "llama3.2-3b-instruct": "Llama 3.2 3B Instruct",
+    "llama3.3-70b-instruct": "Llama 3.3 70B Instruct",
     "mimo-v2-flash": "MiMo V2 Flash",
     "mimo-v2-omni": "MiMo V2 Omni",
     "mimo-v2-pro": "MiMo V2 Pro",
@@ -547,6 +554,21 @@ DISPLAY_NAMES: dict[str, str] = {
 }
 
 
+_CLAUDE_OLD_ORDER = re.compile(r"^Claude (\d+(?:\.\d+)?) (Opus|Sonnet|Haiku)\b")
+_CLAUDE_NEW_ORDER = re.compile(r"^Claude (Opus|Sonnet|Haiku) (\d+(?:\.\d+)?)\b")
+
+
+def claude_word_order(name: str) -> str:
+    """Anthropic's own order: the version first up to Claude 3.7 ("Claude 3.5 Sonnet"), the tier first
+    from Claude 4 on ("Claude Opus 4.5"). A board's spelling in the other order is turned round
+    (#112, the W7 review's M4); any other name is returned as it is."""
+    if (old := _CLAUDE_OLD_ORDER.match(name)) and float(old.group(1)) >= 4:
+        return f"Claude {old.group(2)} {old.group(1)}{name[old.end():]}"
+    if (new := _CLAUDE_NEW_ORDER.match(name)) and float(new.group(2)) < 4:
+        return f"Claude {new.group(2)} {new.group(1)}{name[new.end():]}"
+    return name
+
+
 def _derived_display(model_id: str, names: list[str]) -> str:
     """The table's name when it has one (#112); else a board's own spelling when one has it
     (`GPT-6 Astra`), else the shortest, else the id.
@@ -564,7 +586,7 @@ def _derived_display(model_id: str, names: list[str]) -> str:
             candidates.add(bare)
     spaced = sorted(n for n in candidates if " " in n)
     if spaced:
-        return spaced[0]
+        return claude_word_order(spaced[0])
     return min(candidates, key=lambda n: (len(n), n)) if candidates else model_id
 
 

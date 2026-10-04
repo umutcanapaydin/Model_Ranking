@@ -731,11 +731,17 @@ def test_the_repositorys_own_artifact_is_checked_not_assumed() -> None:
 def test_no_test_reloads_a_module_other_tests_import_names_from() -> None:
     """#114: a reload of `app.adapter.main` made a second `ConfigError` class, so this file's
     `pytest.raises(ConfigError)` checks failed whenever the reloading file ran first. Test results
-    must not depend on file order (`-k`, xdist, random order)."""
-    import re
+    must not depend on file order (`-k`, xdist, random order). Any reload, of any module and however
+    it is spelled, is refused (the W7 review's M5: `importlib.reload(engine)` passed a name match)."""
+    import ast
     from pathlib import Path
 
     tests = Path(__file__).resolve().parents[1]
-    reloads = sorted(str(path.relative_to(tests)) for path in tests.rglob("*.py")
-                     if re.search(r"\breload\(\s*(?:app\b|main_mod|adapter)", path.read_text(encoding="utf-8")))
-    assert not reloads, f"these tests reload a module others import names from: {reloads}"
+    reloads = []
+    for path in sorted(tests.rglob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            func = node.func if isinstance(node, ast.Call) else None
+            name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
+            if name == "reload":
+                reloads.append(f"{path.relative_to(tests)}:{node.lineno}")
+    assert not reloads, f"these tests reload a module: {reloads}"

@@ -208,10 +208,12 @@ def _json_strings(value: object) -> list[str]:
 def _held_out_leaks(held: set[str], texts: dict[str, str], tuning: dict[str, list[str]]) -> list[tuple[str, int]]:
     """(file, length) for each held-out question found. A question of 25 characters or more counts
     anywhere; a shorter one only whole. The question itself is never printed."""
-    in_code = {(name, len(q)) for name, text in texts.items() for q in held
+    # Case-folded, so a question copied in capitals is found too (the W7 review's K4).
+    folded_texts = {name: text.casefold() for name, text in texts.items()}
+    in_code = {(name, len(q)) for name, text in folded_texts.items() for q in (h.casefold() for h in held)
                if (len(q) >= 25 and q in text) or f'"{q}"' in text}
-    in_sets = {(name, len(q)) for name, strings in tuning.items() for q in held
-               if any(q == s or (len(q) >= 25 and q in s) for s in strings)}
+    in_sets = {(name, len(q)) for name, strings in tuning.items() for q in (h.casefold() for h in held)
+               if any(q == s.casefold() or (len(q) >= 25 and q in s.casefold()) for s in strings)}
     return sorted(in_code | in_sets)
 
 
@@ -222,6 +224,7 @@ def test_a_held_out_question_copied_into_a_tuning_set_is_found() -> None:
     assert _held_out_leaks({planted}, {}, {"tuning.json": ["other", planted]}) == [("tuning.json", len(planted))]
     assert _held_out_leaks({planted}, {}, {"tuning.json": [f"prefix: {planted}"]})
     assert not _held_out_leaks({"short one here"}, {}, {"tuning.json": ["a short one here, inside"]})
+    assert _held_out_leaks({planted}, {}, {"tuning.json": [planted.upper()]}), "a question in capitals passed"
 
 
 def test_the_apps_copy_of_the_ordering_note_is_the_engines() -> None:

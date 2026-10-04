@@ -16,6 +16,7 @@ from __future__ import annotations
 import ipaddress
 import os
 import socket
+import threading
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -27,16 +28,21 @@ os.environ.setdefault("APP_ENV", "test")
 # --- #122 (M18-W7): no unit test reaches the network ----------------------------------------------
 #
 # The Swift suite holds this by construction (#59). The Python suite held it by convention: each
-# client is mocked with `respx`, and only Arena's slice downloads were blocked. Now a connection to
-# anything but this machine, or a name lookup of anything but `localhost`, raises in every test.
-# The live contract tests (`RUN_CONTRACT_TESTS=1`) are the one way out, and they say so by running
-# with that variable set.
+# client is mocked with `respx`, and only Arena's slice downloads were blocked. Now, from the moment
+# pytest is configured (so fixtures of every scope, and code run at import, are covered), a
+# connection, a datagram or a name lookup that reaches anything but this machine raises. The one way
+# out is a live contract test (`tests/integration`, with `RUN_CONTRACT_TESTS=1`), test by test. A child
+# process a test starts is NOT covered: no in-process guard reaches it (the W7 review's M1, #122).
 LOCAL_NAMES = frozenset({"localhost", "127.0.0.1", "::1", ""})
 
 
 def _is_local(host: object) -> bool:
-    if not isinstance(host, str) or host in LOCAL_NAMES:
-        return isinstance(host, str)
+    if isinstance(host, bytes):
+        host = host.decode(errors="replace")
+    if not isinstance(host, str):
+        return False
+    if host in LOCAL_NAMES:
+        return True
     try:
         return ipaddress.ip_address(host.split("%", 1)[0]).is_loopback
     except ValueError:
@@ -47,36 +53,76 @@ class NetworkReachedError(RuntimeError):
     """A unit test tried to reach a machine other than this one (#122)."""
 
 
-@pytest.fixture(autouse=True)
-def _no_network(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    if os.environ.get("RUN_CONTRACT_TESTS") == "1":
-        yield
-        return
-    real_connect, real_connect_ex, real_lookup = socket.socket.connect, socket.socket.connect_ex, socket.getaddrinfo
+_REAL: dict[str, object] = {}
+_LIFTED = threading.local()
 
-    def refuse(address: object) -> None:
-        if not (isinstance(address, tuple) and _is_local(address[0])):
-            raise NetworkReachedError(f"a unit test reached the network: {address!r} (#122)")
+
+def _refuse_unless_local(host: object, what: str) -> None:
+    if not getattr(_LIFTED, "on", False) and not _is_local(host):
+        raise NetworkReachedError(f"a unit test {what} {host!r} (#122)")
+
+
+def _install_network_guard() -> None:
+    sock, real = socket.socket, _REAL
+    real.update(connect=sock.connect, connect_ex=sock.connect_ex, sendto=sock.sendto,
+                getaddrinfo=socket.getaddrinfo, gethostbyname=socket.gethostbyname,
+                gethostbyname_ex=socket.gethostbyname_ex, gethostbyaddr=socket.gethostbyaddr,
+                getnameinfo=socket.getnameinfo)
+
+    def address_host(address: object) -> object:
+        return address[0] if isinstance(address, tuple) and address else address
 
     def connect(self: socket.socket, address: object) -> None:
         if self.family != socket.AF_UNIX:
-            refuse(address)
-        real_connect(self, address)  # type: ignore[arg-type]
+            _refuse_unless_local(address_host(address), "reached")
+        real["connect"](self, address)  # type: ignore[operator]
 
     def connect_ex(self: socket.socket, address: object) -> int:
         if self.family != socket.AF_UNIX:
-            refuse(address)
-        return real_connect_ex(self, address)  # type: ignore[arg-type]
+            _refuse_unless_local(address_host(address), "reached")
+        return real["connect_ex"](self, address)  # type: ignore[operator, no-any-return]
 
-    def getaddrinfo(host: object, *args: object, **kwargs: object) -> object:
-        if not _is_local(host.decode() if isinstance(host, bytes) else host):
-            raise NetworkReachedError(f"a unit test looked up {host!r} (#122)")
-        return real_lookup(host, *args, **kwargs)  # type: ignore[arg-type]
+    def sendto(self: socket.socket, data: bytes, *args: object) -> int:
+        if self.family != socket.AF_UNIX:
+            _refuse_unless_local(address_host(args[-1]), "sent a datagram to")
+        return real["sendto"](self, data, *args)  # type: ignore[operator, no-any-return]
 
-    monkeypatch.setattr(socket.socket, "connect", connect)
-    monkeypatch.setattr(socket.socket, "connect_ex", connect_ex)
-    monkeypatch.setattr(socket, "getaddrinfo", getaddrinfo)
-    yield
+    def lookup(name: str, position: int = 0) -> object:
+        def guarded(*args: object, **kwargs: object) -> object:
+            _refuse_unless_local(args[position] if len(args) > position else None, "looked up")
+            return real[name](*args, **kwargs)  # type: ignore[operator]
+        return guarded
+
+    def getnameinfo(sockaddr: object, flags: int) -> object:
+        _refuse_unless_local(address_host(sockaddr), "looked up")
+        return real["getnameinfo"](sockaddr, flags)  # type: ignore[operator]
+
+    sock.connect, sock.connect_ex, sock.sendto = connect, connect_ex, sendto  # type: ignore[method-assign, assignment]
+    socket.getaddrinfo = lookup("getaddrinfo")  # type: ignore[assignment]
+    socket.gethostbyname = lookup("gethostbyname")  # type: ignore[assignment]
+    socket.gethostbyname_ex = lookup("gethostbyname_ex")  # type: ignore[assignment]
+    socket.gethostbyaddr = lookup("gethostbyaddr")  # type: ignore[assignment]
+    socket.getnameinfo = getnameinfo  # type: ignore[assignment]
+
+
+def _remove_network_guard() -> None:
+    for name in ("connect", "connect_ex", "sendto"):
+        if name in _REAL:
+            setattr(socket.socket, name, _REAL[name])
+    for name in ("getaddrinfo", "gethostbyname", "gethostbyname_ex", "gethostbyaddr", "getnameinfo"):
+        if name in _REAL:
+            setattr(socket, name, _REAL[name])
+    _REAL.clear()
+
+
+@pytest.fixture(autouse=True)
+def _live_contract_tests_may_reach_out(request: pytest.FixtureRequest) -> Iterator[None]:
+    live = os.environ.get("RUN_CONTRACT_TESTS") == "1" and "integration" in Path(str(request.node.path)).parts
+    _LIFTED.on = live
+    try:
+        yield
+    finally:
+        _LIFTED.on = False
 
 
 # --- W-108: the tests that read the real artifact ------------------------------------------------
@@ -92,6 +138,7 @@ ARTIFACT = Path("advisor.db")
 
 
 def pytest_configure(config: pytest.Config) -> None:
+    _install_network_guard()  # #122: before collection, so imports and every fixture are covered
     config.addinivalue_line(
         "markers", "artifact: reads the built advisor.db (gitignored; W-108). Skipped where absent."
     )
@@ -153,3 +200,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     skip = pytest.mark.skip(reason=f"W-108: needs the built {ARTIFACT}, which is not in the repo")
     for item in needing:
         item.add_marker(skip)
+
+
+def pytest_unconfigure(config: pytest.Config) -> None:
+    _remove_network_guard()

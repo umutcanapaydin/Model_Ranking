@@ -659,3 +659,31 @@ def test_epochs_citation_carries_its_current_title() -> None:
     prescribes, so the payload and the README say the current one."""
     assert "\u2018Capabilities & benchmarking\u2019" in EPOCH_ATTRIBUTION
     assert "Benchmarking Hub" not in EPOCH_ATTRIBUTION
+
+
+def test_the_budget_pick_is_the_leader_only_when_it_is_the_same_model_too() -> None:
+    """The W7 review's M3: #102's test held the value pick only; the old rule on the budget line
+    alone passed the suite. Renamed to the leader's name, a different budget pick keeps its trade-off."""
+    conn = _db()
+    before = recommend(conn, "unlimited")
+    assert before is not None
+    quality, _, budget = before.picks
+    assert budget.model != quality.model and budget.trade_off, "the fixture's budget pick is the leader"
+    conn.execute("UPDATE models SET display = ? WHERE display = ?", (quality.model, budget.model))
+    after = recommend(conn, "unlimited")
+    assert after is not None
+    *_, shared = after.picks
+    assert shared.model == quality.model and shared.trade_off and shared.trade_off_fact
+
+
+def test_a_pick_that_is_the_leader_carries_no_trade_off() -> None:
+    """The other half: both flags forced to False passed the suite. When the leader is also the
+    cheapest model, the value and budget picks are the leader, and say nothing against it."""
+    conn = _db()
+    conn.execute("UPDATE px_median SET in_m = 0.000001, out_m = 0.000001 WHERE model_id = 'claude-4.5-opus'")
+    rec = recommend(conn, "unlimited")
+    assert rec is not None
+    quality, value, budget = rec.picks
+    assert value.model == quality.model == budget.model, [p.model for p in rec.picks]
+    for pick in (value, budget):
+        assert pick.trade_off is None and pick.trade_off_fact is None, pick.label

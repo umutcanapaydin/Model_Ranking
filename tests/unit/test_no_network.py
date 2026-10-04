@@ -31,3 +31,15 @@ def test_this_machine_is_still_reachable() -> None:
         pass
     accepted.join(2)
     server.close()
+
+
+def test_the_other_socket_doors_are_closed_too() -> None:
+    """The W7 review's M1: name lookups other than `getaddrinfo`, and a UDP datagram, passed."""
+    with pytest.raises(NetworkReachedError):
+        socket.gethostbyname("example.com")
+    with pytest.raises(NetworkReachedError):
+        socket.gethostbyaddr("192.0.2.1")
+    with pytest.raises(NetworkReachedError):
+        socket.getnameinfo(("192.0.2.1", 80), 0)
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp, pytest.raises(NetworkReachedError):
+        udp.sendto(b"x", ("192.0.2.1", 9))
