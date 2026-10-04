@@ -544,3 +544,23 @@ def test_every_suffix_the_reconcile_resolves_leaves_the_count() -> None:
     assert stored == {"gpt-6-astra_high": "high", "gpt-6-astra_low": "low"}
     (aider_report,) = [r for r in report.sources if r.source == "aider"]
     assert aider_report.effort_unknown == 1  # zorblax-9_high, and only it
+
+
+def test_the_run_reports_give_the_same_account_of_unknown_efforts() -> None:
+    """#103: #45 discounted the resolved suffixes from the build report, and `run.reports` kept the
+    count from before the reconcile. Two accounts of one number: the run's now matches."""
+    from app.workflows.ingest import RunContext
+
+    pricing = json.loads(PRICING)
+    pricing["openai/gpt-6-astra"] = {"mode": "chat", "input_cost_per_token": 1e-06, "output_cost_per_token": 4e-06}
+    aider = json.dumps([
+        {"model": "gpt-5 (high)", "pass_rate_2": 61.0, "edit_format": "diff"},
+        {"model": "claude-4-5-opus", "pass_rate_2": 70.5, "edit_format": "diff"},
+        {"model": "gpt-6-astra_high", "pass_rate_2": 55.0, "edit_format": "diff"},
+        {"model": "zorblax-9_high", "pass_rate_2": 30.0, "edit_format": "diff"},
+    ])
+    run = RunContext(observed_at="2026-08-10T00:00:00+00:00")
+    report = _build(connect(":memory:"), sources=_sources(pricing=json.dumps(pricing), aider=aider), run=run)
+    (built,) = [r for r in report.sources if r.source == "aider"]
+    (ran,) = [r for r in run.reports if r.source == "aider"]
+    assert built.effort_unknown == ran.effort_unknown == 1  # zorblax-9_high, and only it

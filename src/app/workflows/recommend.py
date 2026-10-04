@@ -526,6 +526,11 @@ def recommend(
             )
             close_call_fact = {"model": frontier[1].model, "behind_by": shown, "unit": spec.score_unit}
 
+    # #102: the same MODEL, not the same name. Each ranked model is one row, and the filters, the
+    # frontier and `first_cheapest` hand rows on without copying them, so the leader's own row is
+    # the only one that is the leader. A display name is not unique (`models.display`).
+    value_is_quality = value is quality
+    cheap_is_quality = cheap is quality
     unit = spec.score_unit
     # Computed ONCE, before either sentence, because D-136's claim is that the prose is DERIVED.
     # Two parallel computations that agree today are two sources of truth, and the derivation test
@@ -563,14 +568,14 @@ def recommend(
                 f"On the Pareto frontier, the cheapest model within {window:g} {unit} of the leader."
             ),
             trade_off=(
-                None if value.model == quality.model else trade_off_sentence(value_trade_off)
+                None if value_is_quality else trade_off_sentence(value_trade_off)
             ),
             why_fact={
                 "reason": "cheapest_within_window",
                 "window": window,
                 "unit": unit,
             },
-            trade_off_fact=None if value.model == quality.model else value_trade_off,
+            trade_off_fact=None if value_is_quality else value_trade_off,
             secondary_age_days=secondary_age,
         ),
         _pick(
@@ -587,7 +592,7 @@ def recommend(
                 else unmet_floor_warning(floor, unit, "model")
             ),
             trade_off=(
-                None if cheap.model == quality.model else trade_off_sentence(cheap_trade_off)
+                None if cheap_is_quality else trade_off_sentence(cheap_trade_off)
             ),
             # `no_floor_measured` is its own reason (M17-W1 review MINOR-1): with no floor there is
             # nothing to clear, and `nothing_clears_floor` beside a null floor meant two things.
@@ -598,7 +603,7 @@ def recommend(
                     "unit": unit,
                 }
             ),
-            trade_off_fact=None if cheap.model == quality.model else cheap_trade_off,
+            trade_off_fact=None if cheap_is_quality else cheap_trade_off,
             secondary_age_days=secondary_age,
         ),
     )

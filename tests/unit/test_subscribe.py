@@ -138,7 +138,7 @@ def test_three_labeled_plan_picks_unlimited_budget() -> None:
     labels = [p.label for p in rec.picks]
     assert labels == ["best_quality", "best_value", "budget_pick"]
     assert rec.picks[0].plan == "Top Plan"  # 79.2 via Claude 4.5 Opus
-    assert rec.picks[0].scored_by_model == "Claude 4.5 Opus"
+    assert rec.picks[0].scored_by_model == "Claude Opus 4.5"
     # Value: Pareto frontier, within 6.0 of 79.2 → Mid Plan (77.4 @ $20)
     assert rec.picks[1].plan == "Mid Plan"
     assert rec.picks[1].trade_off is not None

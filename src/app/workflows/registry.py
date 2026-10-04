@@ -79,12 +79,12 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("claude-4.8-opus",   "Claude Opus 4.8",   "Anthropic", r"claude[-_ ]?4[.\-]8[-_ ]?opus|claude[-_ ]?opus[-_ ]?4[.\-]8"),
     ModelRule("claude-4.7-opus",   "Claude Opus 4.7",   "Anthropic", r"claude[-_ ]?4[.\-]7[-_ ]?opus|claude[-_ ]?opus[-_ ]?4[.\-]7"),
     ModelRule("claude-4.6-opus",   "Claude Opus 4.6",   "Anthropic", r"claude[-_ ]?4[.\-]6[-_ ]?opus|claude[-_ ]?opus[-_ ]?4[.\-]6"),
-    ModelRule("claude-4.5-opus",   "Claude 4.5 Opus",   "Anthropic", r"claude[-_ ]?4[.\-]?5[-_ ]?opus|claude[-_ ]?opus[-_ ]?4[.\-]?5"),
-    ModelRule("claude-4.5-sonnet", "Claude 4.5 Sonnet", "Anthropic", r"claude[-_ ]?4[.\-]?5[-_ ]?sonnet|claude[-_ ]?sonnet[-_ ]?4[.\-]?5"),
-    ModelRule("claude-4.5-haiku",  "Claude 4.5 Haiku",  "Anthropic", r"claude[-_ ]?4[.\-]?5[-_ ]?haiku|claude[-_ ]?haiku[-_ ]?4[.\-]?5"),
+    ModelRule("claude-4.5-opus",   "Claude Opus 4.5",   "Anthropic", r"claude[-_ ]?4[.\-]?5[-_ ]?opus|claude[-_ ]?opus[-_ ]?4[.\-]?5"),
+    ModelRule("claude-4.5-sonnet", "Claude Sonnet 4.5", "Anthropic", r"claude[-_ ]?4[.\-]?5[-_ ]?sonnet|claude[-_ ]?sonnet[-_ ]?4[.\-]?5"),
+    ModelRule("claude-4.5-haiku",  "Claude Haiku 4.5",  "Anthropic", r"claude[-_ ]?4[.\-]?5[-_ ]?haiku|claude[-_ ]?haiku[-_ ]?4[.\-]?5"),
     ModelRule("claude-4.1-opus",   "Claude Opus 4.1",   "Anthropic", r"claude[-_ ]?4[.\-]1[-_ ]?opus|claude[-_ ]?opus[-_ ]?4[.\-]1"),
-    ModelRule("claude-4-opus",     "Claude 4 Opus",     "Anthropic", r"claude[-_ ]?4[-_ ]?opus|claude[-_ ]?opus[-_ ]?4(?![.\-]?[15])"),
-    ModelRule("claude-4-sonnet",   "Claude 4 Sonnet",   "Anthropic", r"claude[-_ ]?4[-_ ]?sonnet|claude[-_ ]?sonnet[-_ ]?4(?![.\-]?5)"),
+    ModelRule("claude-4-opus",     "Claude Opus 4",     "Anthropic", r"claude[-_ ]?4[-_ ]?opus|claude[-_ ]?opus[-_ ]?4(?![.\-]?[15])"),
+    ModelRule("claude-4-sonnet",   "Claude Sonnet 4",   "Anthropic", r"claude[-_ ]?4[-_ ]?sonnet|claude[-_ ]?sonnet[-_ ]?4(?![.\-]?5)"),
     ModelRule("claude-3.7-sonnet", "Claude 3.7 Sonnet", "Anthropic", r"claude[-_ ]?3[.\-]?7[-_ ]?sonnet"),
     # ── OpenAI: variant rules BEFORE parent-family rules (REQ-CAN-002) ──
     ModelRule("gpt-5-pro",         "GPT-5 Pro",         "OpenAI",    r"gpt[-_ ]?5[-_ ]?pro"),
@@ -511,12 +511,51 @@ def _derived_vendor(model_id: str, aliases: list[str]) -> str:
 _DISPLAY = re.compile(r"[A-Za-z0-9][A-Za-z0-9 .+()\-]{0,63}")
 
 
+#: #112 (M18-W7): the product name of a derived model whose sources give only its id, so a reader
+#: is never shown `mimo-v2.6-flash` or `o3-2025-04-16`. Each is its maker's own spelling, in the
+#: word order the curated rules use; Claude in Anthropic's (`test_display_names.py`). OpenAI's
+#: reasoning models are named as their ids (`o3`, `o4-mini`) and need no entry.
+DISPLAY_NAMES: dict[str, str] = {
+    "claude3-haiku20240307": "Claude 3 Haiku (2024-03-07)",
+    "claude3-opus20240229": "Claude 3 Opus (2024-02-29)",
+    "claude3-sonnet20240229": "Claude 3 Sonnet (2024-02-29)",
+    "claude3.5-haiku20241022": "Claude 3.5 Haiku (2024-10-22)",
+    "claude3.5-sonnet20240620": "Claude 3.5 Sonnet (2024-06-20)",
+    "claude3.5-sonnet20241022": "Claude 3.5 Sonnet (2024-10-22)",
+    "dbrx-instruct": "DBRX Instruct",
+    "mimo-v2-flash": "MiMo V2 Flash",
+    "mimo-v2-omni": "MiMo V2 Omni",
+    "mimo-v2-pro": "MiMo V2 Pro",
+    "mimo-v2.5": "MiMo V2.5",
+    "mimo-v2.6-flash": "MiMo V2.6 Flash",
+    "mimo-v2.6-pro": "MiMo V2.6 Pro",
+    "minimax-m1": "MiniMax M1",
+    "nova-lite": "Nova Lite",
+    "nova-micro": "Nova Micro",
+    "nova-pro": "Nova Pro",
+    "o1-2024-12-17": "o1 (2024-12-17)",
+    "o3-2025-04-16": "o3 (2025-04-16)",
+    "qwen2-72b-instruct": "Qwen2 72B Instruct",
+    "qwen2.5-14b-instruct": "Qwen2.5 14B Instruct",
+    "qwen2.5-32b-instruct": "Qwen2.5 32B Instruct",
+    "qwen2.5-72b-instruct": "Qwen2.5 72B Instruct",
+    "qwen2.5-7b-instruct": "Qwen2.5 7B Instruct",
+    "qwen3-4b": "Qwen3 4B",
+    "qwen3.5-122b-a10b": "Qwen3.5 122B A10B",
+    "qwq-plus": "QwQ Plus",
+    "trinity-large-thinking": "Trinity Large Thinking",
+}
+
+
 def _derived_display(model_id: str, names: list[str]) -> str:
-    """A board's own spelling when one has it (`GPT-6 Astra`), else the shortest, else the id.
+    """The table's name when it has one (#112); else a board's own spelling when one has it
+    (`GPT-6 Astra`), else the shortest, else the id.
 
     A candidate is only the name's last route segment, bounded to 64 characters of a closed
     alphabet, and it must READ AS THE SAME MODEL through the grammar. Taken verbatim, a score's
     name served "Visit evil.example ... /zeta 9" as a model name, with no length bound (MAJOR-1)."""
+    if model_id in DISPLAY_NAMES:
+        return DISPLAY_NAMES[model_id]
     candidates = set()
     for name in names:
         bare = _PAREN_EFFORT.sub("", _UNDERSCORE_EFFORT.sub("", name.rsplit("/", 1)[-1])).strip()

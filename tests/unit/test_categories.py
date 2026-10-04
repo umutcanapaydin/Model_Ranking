@@ -136,7 +136,7 @@ def test_assistant_ranking_orders_by_elo() -> None:
     """REQ-CAT-002: assistant category ranks on Arena Elo."""
     conn = _db()
     ranking = category_ranking(conn, CATEGORIES["assistant"])
-    assert [r.model for r in ranking] == ["GPT-5 chat", "Claude 4.5 Opus", "Gemini 3 Flash"]
+    assert [r.model for r in ranking] == ["GPT-5 chat", "Claude Opus 4.5", "Gemini 3 Flash"]
     assert ranking[0].score == 1420.5
     assert ranking[0].harness == "arena-crowd"
 
@@ -149,7 +149,7 @@ def test_no_cross_scale_averaging_structural() -> None:
     """
     conn = _db()
     ranking = category_ranking(conn, CATEGORIES["assistant"])
-    claude = next(r for r in ranking if r.model == "Claude 4.5 Opus")
+    claude = next(r for r in ranking if r.model == "Claude Opus 4.5")
     assert claude.score == 1415.2  # raw Elo, not blended with 79.2
     coding = coding_ranking(conn)
     assert coding[0].score == 79.2  # raw %, not blended with Elo

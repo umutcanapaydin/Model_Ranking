@@ -130,7 +130,7 @@ def test_three_labeled_deterministic_picks() -> None:
     for p in rec1.picks:
         assert p.model and p.vendor and p.why and p.confidence in ("High", "Medium")
         assert p.harness
-    assert rec1.picks[0].model == "Claude 4.5 Opus"
+    assert rec1.picks[0].model == "Claude Opus 4.5"
 
 
 def test_req_lic_001_epoch_citation_ships_where_epoch_data_is_served() -> None:
@@ -196,7 +196,7 @@ def test_budget_filter_is_hard_constraint() -> None:
     for p in rec.picks:
         assert p.blended_per_m <= 2.0, f"{p.model} exceeds the low-budget cap"
     # the expensive leader must be gone
-    assert all(p.model != "Claude 4.5 Opus" for p in rec.picks)
+    assert all(p.model != "Claude Opus 4.5" for p in rec.picks)
 
 
 def test_an_unbuilt_database_is_refused_rather_than_answered_empty() -> None:
@@ -582,7 +582,7 @@ def test_secondary_score_rounds_and_absence_stays_absent(tmp_path, capsys) -> No
     assert main(["--db", str(db), "--budget", "unlimited"]) == 0
     picks = {p["model"]: p for p in json.loads(capsys.readouterr().out)["picks"]}
     assert picks["DeepSeek V3.2"]["secondary_score"] == 74.2  # rounded, not raw
-    assert picks["Claude 4.5 Opus"]["secondary_score"] is None  # absent, not 0.0
+    assert picks["Claude Opus 4.5"]["secondary_score"] is None  # absent, not 0.0
 
 
 def test_model_engine_trade_off_never_claims_a_gap_the_fields_deny() -> None:
@@ -633,3 +633,20 @@ def test_secondary_benchmark_evidence_is_cited_too() -> None:
     assert graded_on_two, "fixture must serve a secondary score for this to mean anything"
     assert all(p.confidence == "High" for p in graded_on_two)
     assert SWEBENCH_ATTRIBUTION in rec.sources  # Aider's citation lives in this string
+
+
+def test_a_pick_is_the_same_as_the_quality_pick_only_when_it_is_the_same_model() -> None:
+    """#102: whether the value and budget picks repeat the quality pick was decided by display name,
+    and display names are not unique (`models.display` has no UNIQUE). A different model that shared
+    the leader's name lost its trade-off sentence, as if it were the leader."""
+    conn = _db()
+    before = recommend(conn, "unlimited")
+    assert before is not None
+    quality, value, _budget = before.picks
+    assert value.model != quality.model and value.trade_off, "the fixture's value pick is the leader"
+    conn.execute("UPDATE models SET display = ? WHERE display = ?", (quality.model, value.model))
+    after = recommend(conn, "unlimited")
+    assert after is not None
+    _, shared, _ = after.picks
+    assert shared.model == quality.model, "the rename did not reach the pick"
+    assert shared.trade_off and shared.trade_off_fact, "a different model was taken for the leader"

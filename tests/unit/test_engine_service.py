@@ -530,3 +530,28 @@ def test_every_simctl_call_in_the_app_script_names_its_device() -> None:
     assert calls, "found no simctl call; this reads the wrong file"
     booted = [line for line in calls if re.search(r"\bbooted\b", line)]
     assert booted == [], booted
+
+
+def test_every_command_a_script_tells_the_operator_to_run_exists() -> None:
+    """#104: the launcher told the operator to run `build --fetch-epoch`, a flag `build.py` does not
+    have, so the command it printed exited 2 with a usage line. Every `-m app...` command a script
+    prints must take every flag it is printed with: its `--help` is read for each one."""
+    import re
+    import subprocess
+    import sys
+
+    hints = []
+    for script in sorted((REPO / "scripts").glob("*.sh")):
+        for line in script.read_text(encoding="utf-8").splitlines():
+            found = re.search(r"-m (app\.[\w.]+)([^\"']*)", line)
+            if line.lstrip().startswith("echo") and found:
+                hints.append((script.name, found.group(1), re.findall(r"--[\w-]+", found.group(2))))
+    assert hints, "no script prints a command any more; the test reads nothing"
+    for name, module, flags in hints:
+        helped = subprocess.run([sys.executable, "-m", module, "--help"], capture_output=True, text=True,
+                                timeout=60, env={**os.environ, "PYTHONPATH": str(REPO / "src")}, check=False)
+        assert helped.returncode == 0, f"{name} prints `-m {module}`, which does not run: {helped.stderr[-300:]}"
+        # The options argparse declares, one per line; not a flag the help merely mentions in prose.
+        declared = set(re.findall(r"^\s{2}(?:-\w, )?(--[\w-]+)", helped.stdout, re.M))
+        missing = [flag for flag in flags if flag not in declared]
+        assert not missing, f"{name} prints `-m {module}` with {missing}, which it does not take"
