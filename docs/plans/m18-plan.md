@@ -221,3 +221,8 @@ defect on `main`) and #115 (the Turkish permission prompt seen on a phone, for W
 #85), moves to M19. Each needs a design of its own, and none blocks a first release on the owner's
 devices. The security-invariants list (#89) names each as a gap, with its issue, for the closure's
 security seat.
+
+**Amendment (2026-10-04, W6's close).** W6 delivered #89 (the security-invariants list), #90 (W-125,
+W-126, W-130 fixed), #35 and #26 (the locks, D-177), #88's table (the ruling is the owner's, asked in
+the pull request) and #91's protocol. P5 moved to M19 by its valve. #81's workflow patch is on the
+issue for the owner. It filed #119 to #125.
