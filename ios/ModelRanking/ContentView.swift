@@ -53,6 +53,9 @@ struct ContentView: View {
     @State private var standings: Standings?
     @State private var standingsInFlight = false
     @State private var removedRefinements: Set<Refinement> = []
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// New finding A (M18-W2): whether the combined list shows every row or its top ten.
+    @State private var showingAllCombined = false
     /// The reader's language. `@AppStorage` so the choice survives a relaunch — a flag switch that
     /// forgets is a flag switch nobody uses twice.
     @AppStorage("language") private var language: Language = .english
@@ -86,10 +89,18 @@ struct ContentView: View {
             .toolbar {
                 // REQ-GAP-002: the owner reads the register here, most-asked first.
                 ToolbarItem(placement: .topBarLeading) {
+                    // #63 finding 14: the icon alone said nothing; it carries a visible label now.
+                    // A `Label` shows its icon alone in the bar, so the two are laid out by hand.
                     Button { showingGaps = true } label: {
-                        Image(systemName: "tray.full")
+                        HStack(spacing: 5) {
+                            Image(systemName: "tray.full")
+                            Text(UIText.gapsButton(language))
+                        }
+                        .font(.footnote)
+                        .padding(.horizontal, 4)
                     }
                     .accessibilityLabel(UIText.gapsTitle(language))
+                    .accessibilityIdentifier("gaps")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     // D-136. Two flags, because a flag is the one label that needs no language to
@@ -108,6 +119,9 @@ struct ContentView: View {
             .toolbarBackground(.visible, for: .navigationBar)
             .navigationTitle(UIText.title(language))
             .navigationBarTitleDisplayMode(.inline)
+            // #63 finding 4: the bar repeated the headline under it. The title stays for the back
+            // button and VoiceOver; the bar shows nothing in its place.
+            .toolbar { ToolbarItem(placement: .principal) { Text("").accessibilityHidden(true) } }
             .sheet(isPresented: $choosingSurface) { surfaceSheet }
             .sheet(isPresented: $showingGaps) { gapSheet }
             .task { await load() }
@@ -134,10 +148,16 @@ struct ContentView: View {
                         .tracking(-0.7)
                         .foregroundStyle(Design.ink)
                         .fixedSize(horizontal: false, vertical: true)
+                        // #63 finding 12: at the largest sizes the headline's last word broke from
+                        // its question mark.
+                        .minimumScaleFactor(0.6)
                     Text(UIText.heroSubtitle(language))
                         .font(.subheadline).foregroundStyle(Design.muted)
                 }
                 .padding(.top, 8)
+                // ...and the question field started below the first screen. The headline is the one
+                // text here that need not keep growing: the field and the answers still do.
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 questionCard
 
                 // D-168 clause 7 (M17-W5): several boards chosen, the product's combined list is the
@@ -165,7 +185,11 @@ struct ContentView: View {
                 // engine's answer.
                 ForEach(ordered) { answer in
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionTitle(text: UIText.surface(id: answer.surface, engineTitle: answer.title, language))
+                        // #63 finding 4: the row above already names the first surface ("Showing:
+                        // Coding", or the question's echo), so its heading said it twice.
+                        if answer.id != ordered.first?.id || answer.surface != (routing?.categoryID ?? task) {
+                            SectionTitle(text: UIText.surface(id: answer.surface, engineTitle: answer.title, language))
+                        }
 
                         if answer.picks.isEmpty && answer.ranking.isEmpty {
                             Card { emptyAnswer(answer) }
@@ -200,6 +224,17 @@ struct ContentView: View {
                                     minQuality: info?.minQuality,
                                     priceExcludes: info?.priceExcludes
                                 )
+                            }
+                            // #63 finding 9: a range said once, under the cards that show one.
+                            if let note = rangeNote(
+                                ranges: ranges,
+                                shown: pickCards(answer.picks).compactMap {
+                                    rankOf($0.lead.model, in: answer.ranking, name: \.model).map { $0 - 1 }
+                                },
+                                language
+                            ) {
+                                Text(note).font(.footnote).foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                             rankingPreview(
                                 answer,
@@ -268,7 +303,11 @@ struct ContentView: View {
                         Text(UIText.combinedEmpty(language)).font(.subheadline)
                             .padding(12)
                     }
-                    ForEach(view.list.entries, id: \.model.id) { entry in
+                    // New finding A (M18-W2): the top ten, and the rest on request.
+                    let shown = Array(view.list.entries.prefix(
+                        visibleCount(total: view.list.entries.count, expanded: showingAllCombined)
+                    ))
+                    ForEach(shown, id: \.model.id) { entry in
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
                             // The combination's own place: tied models share it (review M1).
                             Text("\(entry.place)").font(.subheadline.weight(.semibold)).monospacedDigit()
@@ -282,9 +321,25 @@ struct ContentView: View {
                                 .foregroundStyle(Design.muted)
                         }
                         .padding(.vertical, 10).padding(.horizontal, 12)
-                        if entry.model.id != view.list.entries.last?.model.id {
+                        if entry.model.id != shown.last?.model.id {
                             Divider().padding(.leading, 12)
                         }
+                    }
+                    if view.list.entries.count > combinedVisibleRows {
+                        Divider().padding(.leading, 12)
+                        Button {
+                            showingAllCombined.toggle()
+                        } label: {
+                            Text(showingAllCombined ? UIText.showFewer(language)
+                                 : UIText.showAll(view.list.entries.count, language))
+                                .font(.subheadline)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(12)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Design.accent)
+                        .accessibilityIdentifier("showAllCombined")
                     }
                     Divider().padding(.leading, 12)
                     NavigationLink {
@@ -307,6 +362,9 @@ struct ContentView: View {
             }
             Text(UIText.combinedNote(models: view.sharedCount, boards: view.list.boards.count, language))
                 .font(.footnote).foregroundStyle(.secondary)
+            if Set(view.list.entries.map(\.place)).count < view.list.entries.count {
+                Text(UIText.tiedPlaces(language)).font(.footnote).foregroundStyle(.secondary)
+            }
             if !view.efforts.isEmpty {
                 // D-112: the notice the cards carry, which this list replaces (review B1).
                 Text(UIText.combinedEffortNote(efforts: view.efforts, language))
@@ -378,8 +436,11 @@ struct ContentView: View {
                         }
                     }
                     .frame(width: 46, height: 46)
-                    .background(Design.forest, in: RoundedRectangle(cornerRadius: 16))
-                    .foregroundStyle(Design.lime)
+                    // #63 finding 11: an empty field's button looked enabled in light mode and barely
+                    // visible in dark. Disabled now reads as disabled in both.
+                    .background(sendEnabled ? AnyShapeStyle(Design.forest) : AnyShapeStyle(Color.secondary.opacity(0.18)),
+                                in: RoundedRectangle(cornerRadius: 16))
+                    .foregroundStyle(sendEnabled ? AnyShapeStyle(Design.lime) : AnyShapeStyle(Color.secondary))
                     .buttonStyle(.plain)
                     // No surfaces, nothing to route to: disabled and SAID (below), rather than a
                     // spinner followed by a question silently dropped (review MINOR-7).
@@ -399,11 +460,21 @@ struct ContentView: View {
         }
     }
 
+    /// The send button's look follows the same rule as its `.disabled` (#63 finding 11).
+    private var sendEnabled: Bool {
+        canSubmit(question, inFlight: routingInFlight) && !categories.isEmpty
+    }
+
     /// What the screen understood, and the one tap that corrects it (REQ-ASK-002).
     @ViewBuilder
     private var matchedSurfaceRow: some View {
+        // #63 finding 12: at the accessibility sizes "Change" beside the line squeezed it into a
+        // hyphenated column; there it goes underneath.
+        let stacked = typeSize.isAccessibilitySize
+        let row = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            row {
                 Group {
                     if let outcome = routing,
                        let echo = echoLine(question: asked, surfaceTitle: surfaceTitle(outcome.categoryID))
@@ -414,7 +485,7 @@ struct ContentView: View {
                     }
                 }
                 .font(.subheadline.weight(.medium))
-                Spacer(minLength: 8)
+                if !stacked { Spacer(minLength: 8) }
                 Button(UIText.change(language)) { choosingSurface = true }
                     .font(.subheadline)
                     .disabled(categories.isEmpty)
@@ -467,8 +538,14 @@ struct ContentView: View {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                     ForEach(surfaceChoices(categories, selected: task, language)) { choice in
                         Button { select(choice.id) } label: {
-                            Text(choice.title)
-                                .font(.subheadline.weight(choice.isSelected ? .semibold : .regular))
+                            // #63 finding 13: a line under each name says what the surface is for.
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(choice.title)
+                                    .font(.subheadline.weight(choice.isSelected ? .semibold : .regular))
+                                if let blurb = UIText.surfaceBlurb(choice.id, language) {
+                                    Text(blurb).font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
                                 .multilineTextAlignment(.leading)
                                 .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
                                 .padding(12)
@@ -495,6 +572,8 @@ struct ContentView: View {
     private var gapSheet: some View {
         NavigationStack {
             List {
+                // #63 finding 14: the sheet said what it held and not what it was for.
+                Text(UIText.gapsPurpose(language)).font(.footnote).foregroundStyle(.secondary)
                 if gaps.entries.isEmpty {
                     Text(UIText.noGaps(language)).foregroundStyle(.secondary)
                 } else {
@@ -728,6 +807,7 @@ struct ContentView: View {
         asked = typed
         routing = outcome
         removedRefinements = []
+        showingAllCombined = false
         // REQ-GAP-001. A question nothing here measures is recorded on THIS device and nowhere
         // else. It goes to the register, never to `client` (REQ-RTR-004).
         if recordsGap(outcome) {

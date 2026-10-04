@@ -578,3 +578,46 @@ final class TurkishWordingTests: OfflineTestCase {
         }
     }
 }
+
+/// #63 findings 9, 13, 14 and new finding A (M18-W2): what the screen says about itself.
+final class ScreenExplanationTests: OfflineTestCase {
+    /// Finding 9: "#4–13" with nothing saying why a position is a range.
+    func testARangeIsExplainedOnceWhereOneIsShown() {
+        let ranges = [RankRange(best: 1, worst: 1), RankRange(best: 2, worst: 4), RankRange(best: 2, worst: 4)]
+        XCTAssertEqual(rangeNote(ranges: ranges, shown: [0, 1], .english),
+                       "A range such as #2–4 means the benchmark cannot tell this model apart from the "
+                       + "others in those places.")
+        XCTAssertEqual(rangeNote(ranges: ranges, shown: [0, 1], .turkish),
+                       "#2–4 gibi bir aralık, ölçümün bu modeli o sıralardaki diğerlerinden ayırt "
+                       + "edemediği anlamına gelir.")
+        XCTAssertNil(rangeNote(ranges: ranges, shown: [0], .english), "no range on screen, nothing to explain")
+    }
+
+    /// The combined list's tied places ("1, 1, 3") say why, once.
+    func testTiedPlacesOnTheCombinedListAreExplained() {
+        XCTAssertNotNil(UIText.tiedPlaces(.turkish))
+        XCTAssertNotEqual(UIText.tiedPlaces(.turkish), UIText.tiedPlaces(.english))
+    }
+
+    /// Finding 13: three surfaces whose names blur. Each surface the engine serves has one line saying
+    /// what it is for, in both languages.
+    func testEverySurfaceHasALineSayingWhatItIsFor() {
+        for id in ["coding", "agentic-coding", "assistant", "everyday", "expert", "mathematics", "computer-use",
+                   "abstract", "web-dev", "document", "factuality", "vision", "search", "search_factuality"] {
+            let english = UIText.surfaceBlurb(id, .english)
+            let turkish = UIText.surfaceBlurb(id, .turkish)
+            XCTAssertNotNil(english, id)
+            XCTAssertNotNil(turkish, id)
+            XCTAssertNotEqual(english, turkish, id)
+        }
+        let blurred = ["factuality", "search", "search_factuality"].compactMap { UIText.surfaceBlurb($0, .turkish) }
+        XCTAssertEqual(Set(blurred).count, 3)
+        XCTAssertNil(UIText.surfaceBlurb("a-surface-this-build-does-not-know", .english))
+    }
+
+    /// Finding 14: the register's sheet says what it is for.
+    func testTheGapRegisterSaysWhatItIsFor() {
+        XCTAssertNotEqual(UIText.gapsPurpose(.turkish), UIText.gapsPurpose(.english))
+        XCTAssertTrue(UIText.gapsPurpose(.english).contains("this device"))
+    }
+}

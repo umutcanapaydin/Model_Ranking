@@ -485,6 +485,48 @@ public enum UIText {
             : "The list of surfaces could not be loaded; pull down to try again."
     }
 
+    /// What a surface is for, in one line under its name in the chooser (#63 finding 13, M18-W2):
+    /// three names blurred together with nothing between them. Keyed on the engine's id, like
+    /// `surface`; `nil` for an id this build does not know, which then shows its name alone.
+    public static func surfaceBlurb(_ id: String, _ language: Language) -> String? {
+        let lines: [String: (String, String)] = [
+            "coding": ("Fixing real bugs in real code", "Gerçek koddaki gerçek hataları düzeltmek"),
+            "agentic-coding": ("An agent that plans and edits many files on its own",
+                               "Planlayıp birçok dosyayı kendi başına düzenleyen bir ajan"),
+            "assistant": ("Everyday chat: emails, advice, explanations", "Gündelik sohbet: e-posta, tavsiye, açıklama"),
+            "everyday": ("Useful across many ordinary tasks at once", "Birçok sıradan işte birden faydalı olmak"),
+            "expert": ("Graduate-level science questions", "Lisansüstü düzeyde fen soruları"),
+            "mathematics": ("Maths problems, proofs, competition questions",
+                            "Matematik problemleri, ispatlar, yarışma soruları"),
+            "computer-use": ("Operating a computer: clicking, typing, using apps",
+                             "Bilgisayarı kullanmak: tıklamak, yazmak, uygulama kullanmak"),
+            "abstract": ("Puzzles and patterns it has never seen", "Daha önce görmediği bulmacalar ve örüntüler"),
+            "web-dev": ("Building websites and web apps", "Web siteleri ve web uygulamaları yapmak"),
+            "document": ("Reading and working with long documents", "Uzun belgeleri okumak ve onlarla çalışmak"),
+            "factuality": ("Getting facts right in its own answers", "Kendi cevaplarında bilgiyi doğru vermek"),
+            "vision": ("Reading images and screenshots", "Görselleri ve ekran görüntülerini okumak"),
+            "search": ("How well it answers by searching the web", "İnternette arayarak ne kadar iyi cevap verdiği"),
+            "search_factuality": ("Reporting what a search found without making things up",
+                                  "Aramada bulduğunu uydurmadan aktarmak"),
+        ]
+        guard let line = lines[id] else { return nil }
+        return language == .turkish ? line.1 : line.0
+    }
+
+    /// What the gap register is for (#63 finding 14), at the top of its sheet.
+    public static func gapsPurpose(_ language: Language) -> String {
+        language == .turkish
+            ? "Ölçmediğimiz bir şey sorduğunda soru burada, yalnızca bu cihazda tutulur. Neyin ölçülmesi "
+                + "gerektiğini gösterir."
+            : "When you ask about something we do not measure, the question is kept here, on this device "
+                + "only. It shows what is worth measuring next."
+    }
+
+    /// The visible label beside the register's icon (#63 finding 14).
+    public static func gapsButton(_ language: Language) -> String {
+        language == .turkish ? "Ölçülmeyenler" : "Not measured"
+    }
+
     /// A surface's name.
     ///
     /// Keyed on the engine's ID, never on its English title: the id is the contract (D-127) and
@@ -618,6 +660,22 @@ extension UIText {
         case (_, false): return "Remove the \(name) board"
         case (_, true): return "Add the \(name) board back"
         }
+    }
+
+    /// Under a combined list with tied places (1, 1, 3): what a shared place means.
+    static func tiedPlaces(_ language: Language) -> String {
+        language == .turkish
+            ? "Aynı sırayı paylaşan modeller berabere: panolardaki yerleri birbirini dengeliyor."
+            : "Models sharing a place are tied: their places on the boards balance out."
+    }
+
+    /// The control under a shortened combined list.
+    static func showAll(_ total: Int, _ language: Language) -> String {
+        language == .turkish ? "\(total) modelin hepsini göster" : "Show all \(total)"
+    }
+
+    static func showFewer(_ language: Language) -> String {
+        language == .turkish ? "Daha az göster" : "Show fewer"
     }
 
     static func seeTheBoards(_ language: Language) -> String {

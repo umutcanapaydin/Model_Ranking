@@ -3523,6 +3523,38 @@ lifted the simulator restriction on 2026-10-04.
 
 **Revisit when:** CI gains a macOS runner with a simulator, or a second screen needs the same harness.
 
+**Clause 3, as built (M18-W2 P1).** The scripted router (`ScriptedModelRouter`) is in the Engine,
+which is never compiled on `DEBUG` (`test_ios_platform_drift`), and reads nothing itself. The one
+launch-argument read is `LaunchRouting.swift`, in Debug only; `make client-decls` refuses a Release
+build that reads launch arguments.
+
+**Decisions on #63's findings (clause 4, M18-W2 P3).** Reproduced on 2026-10-04; the list is in
+#63's thread.
+- **1, one model as three cards:** one card per model, carrying every label it earned. The
+  value-window reason is not said on a card that is the best; a floor warning is never merged away.
+- **2, English in Turkish mode:** D-176.
+- **3, no sign the question was understood:** gone before this wave (the echo line, M17-W5).
+- **4, length and repeated titles:** the bar title and the first surface's heading are gone. The
+  cards stay as tall as they are; merging (1) and the ten-row combined list (A) are the length work
+  of this wave.
+- **5, "SORUN":** "SORU".
+- **6, formats:** the page count is grouped per language and dates are said in words. Scores and
+  prices keep one decimal form in both languages, as `Scores.swift` and `Language.swift` record:
+  one served number reads the same to two readers.
+- **7, register:** "sen" throughout.
+- **8, wording:** fixed as listed in the P3 commits; the price blend is stated (75/25), held equal
+  to the engine's weights by a test.
+- **9, rank ranges:** one sentence under the cards that show a range; tied places on the combined
+  list say what a shared place means.
+- **10, raw model names:** the engine's data, filed as #112.
+- **11, the send button:** disabled reads as disabled in both appearances.
+- **12, the largest text:** the headline shrinks to fit and stops growing at the first
+  accessibility size, so the question field is on the first screen; "Change" goes under its line.
+- **13, surface names:** each has a line saying what it is for in the chooser.
+- **14, the gap register:** it says what it is for, and its button carries a visible label.
+- **A, the combined list's length:** ten rows, and the rest on request.
+- **B, a drawing request ranked as image reading:** question reading, filed as #113 for W3.
+
 ## D-176 — The notices are composed by the app from facts; the close call gains its fact
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29; M18-W2

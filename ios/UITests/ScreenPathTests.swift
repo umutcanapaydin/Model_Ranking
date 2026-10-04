@@ -92,6 +92,21 @@ final class ScreenPathTests: XCTestCase {
         keep("the boards behind a combined list")
     }
 
+    /// #63 new finding A: about 160 rows put everything under the list out of reach. Ten show, and
+    /// the rest on request.
+    func testTheCombinedListShowsTenRowsAndTheRestOnRequest() {
+        ask("Translate my letter into French")
+        let more = app.buttons["showAllCombined"]
+        XCTAssertTrue(more.waitForExistence(timeout: 30), "a long combined list offers no way to the rest")
+        XCTAssertTrue(more.label.hasPrefix("Show all"), more.label)
+        XCTAssertTrue(app.buttons["seeTheBoards"].exists)
+        keep("the combined list, shortened")
+        bringIntoView(more)
+        more.tap()
+        XCTAssertTrue(app.buttons["showAllCombined"].waitForExistence(timeout: 10))
+        XCTAssertEqual(app.buttons["showAllCombined"].label, "Show fewer")
+    }
+
     func testChangeOpensTheChooserAndAChoiceIsShown() {
         app.buttons["change"].tap()
         XCTAssertTrue(app.navigationBars["What should we rank?"].waitForExistence(timeout: 10))

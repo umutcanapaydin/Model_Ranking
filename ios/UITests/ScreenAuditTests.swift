@@ -92,7 +92,7 @@ final class ScreenAuditTests: XCTestCase {
 
     func test05Gaps() {
         launch("tr")
-        app.buttons["Sorulan ama ölçmediklerimiz"].firstMatch.tap()
+        app.buttons["gaps"].firstMatch.tap()
         sleep(1)
         capture("gaps")
     }

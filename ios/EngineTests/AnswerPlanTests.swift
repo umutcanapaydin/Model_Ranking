@@ -265,3 +265,14 @@ final class PickCardTests: OfflineTestCase {
         XCTAssertEqual(pickCards(picks).count, 2)
     }
 }
+
+/// New finding A (M18-W2): the combined list was every shared model, about 160 rows and 10,900
+/// points tall, with "See the boards" at its end.
+final class CombinedLengthTests: OfflineTestCase {
+    func testTheListShowsItsTopTenUntilAskedForTheRest() {
+        XCTAssertEqual(visibleCount(total: 160, expanded: false), 10)
+        XCTAssertEqual(visibleCount(total: 160, expanded: true), 160)
+        XCTAssertEqual(visibleCount(total: 7, expanded: false), 7)
+        XCTAssertEqual(visibleCount(total: 0, expanded: false), 0)
+    }
+}

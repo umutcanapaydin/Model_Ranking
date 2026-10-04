@@ -394,3 +394,14 @@ public func anchoredFact(
     restated["unit"] = "points"
     return restated
 }
+
+/// What a range means, said once under the picks that show one (#63 finding 9, M18-W2). `shown` are
+/// the ranking positions (0-based) on screen; `nil` when none of them is a range.
+func rangeNote(ranges: [RankRange], shown: [Int], _ language: Language) -> String? {
+    guard let index = shown.first(where: { ranges.indices.contains($0) && !ranges[$0].isExact }),
+          let span = shortRankLabel(at: index, in: ranges)
+    else { return nil }
+    return language == .turkish
+        ? "#\(span) gibi bir aralık, ölçümün bu modeli o sıralardaki diğerlerinden ayırt edemediği anlamına gelir."
+        : "A range such as #\(span) means the benchmark cannot tell this model apart from the others in those places."
+}

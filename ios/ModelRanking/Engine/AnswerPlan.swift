@@ -154,3 +154,13 @@ private func sameRow(_ left: Pick, _ right: Pick) -> Bool {
     left.model == right.model && left.vendor == right.vendor && left.score == right.score
         && left.blendedPerM == right.blendedPerM
 }
+
+// MARK: - The combined list's length (M18-W2, #63 new finding A)
+
+/// How many rows of the combined list show before the reader asks for the rest. Ten: the answer is
+/// at the top, and 160 rows put everything below the list, "See the boards" included, out of reach.
+let combinedVisibleRows = 10
+
+func visibleCount(total: Int, expanded: Bool) -> Int {
+    expanded ? total : min(total, combinedVisibleRows)
+}
