@@ -398,6 +398,32 @@ def test_close_call_is_disclosed() -> None:
     assert rec.close_call_fact == {"model": "Gemini 3 Flash", "behind_by": 0.9, "unit": "points"}
 
 
+def test_the_served_close_call_carries_its_fact() -> None:
+    """D-176 (M18-W2), REQ-LOC-001, through the answer `/v1` serves (`_answer_for`, the public
+    filter included), on a fixture, so it runs in CI where the artifact does not exist."""
+    from app.adapter.main import _answer_for
+
+    conn = connect()
+    pricing = json.dumps({
+        "gpt-5": {"mode": "chat", "input_cost_per_token": 1e-06, "output_cost_per_token": 4e-06},
+        "gemini-3-flash": {"mode": "chat", "input_cost_per_token": 5e-07, "output_cost_per_token": 3e-06},
+    })
+    scores = json.dumps({"leaderboards": [{"name": "Verified", "results": [
+        {"name": "a + GPT-5", "resolved": 75.8, "date": "2025-09-01"},
+        {"name": "b + Gemini 3 Flash", "resolved": 74.9, "date": "2026-02-17"},
+    ]}]})
+    run = RunContext(observed_at="2026-08-10T00:00:00+00:00")
+    ingest_litellm(conn, FakeRawSource("litellm", pricing), run)
+    ingest_swebench(conn, FakeRawSource("swebench", scores), run)
+    reconcile(conn)
+    build_price_medians(conn)
+    answer = _answer_for(conn, "coding", "unlimited")
+
+    assert answer["close_call"].startswith("Gemini 3 Flash is only 0.9 points behind")
+    assert answer["close_call_fact"] == {"model": "Gemini 3 Flash", "behind_by": 0.9, "unit": "points"}
+    assert answer["unavailable_reason_code"] is None
+
+
 def test_an_equal_score_at_a_higher_price_is_not_a_close_call() -> None:
     """REQ-FIX-001: a dearer twin is dominated, so there is no trade-off to disclose.
 

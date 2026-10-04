@@ -10,12 +10,15 @@
 # model_ranking, set at the DevFlow v6.0 adoption (D-155) to the count the first CI run measured on
 # PR #1 (ubuntu, py3.12). Every one needs something the runner does not have, and none is a test
 # that could run and chose not to:
-#   50  need the BUILT `advisor.db`, which is gitignored and never in a checkout (W-108). Two were
+#   51  need the BUILT `advisor.db`, which is gitignored and never in a checkout (W-108). Two were
 #       added at M17-W1 (D-159) and exist to read the SERVED floors: `test_floor_rule.py` holds each
 #       one to an independent reading of D-148, and `test_categories.py` checks each one's scale.
 #       Their fixture-board halves run in CI (`test_floors.py`, `test_floor_served.py`). One more at
 #       M17-W5 (D-168, D-163): every board a question can select is one the artifact publishes
-#       (`test_refinements.py`, review M5); its declared-slice half runs in CI.
+#       (`test_refinements.py`, review M5); its declared-slice half runs in CI. One more at M18-W2
+#       (D-176): every close call on the served artifact carries the values it quotes
+#       (`test_why_facts.py`, one test over every surface); its fixture half runs in CI
+#       (`test_recommend.py::test_the_served_close_call_carries_its_fact`).
 #   18  contract tests against live upstreams; they run only with RUN_CONTRACT_TESTS=1. Two were
 #       added at M17-W2: the live parquet file of each slice config (`text`, `vision`) against its
 #       declared slices (`test_arena_openrouter_contract.py`). Six more at M17-W3: the same test now
@@ -25,6 +28,6 @@
 #    7  need the owner-fetched Epoch bundle (EPOCH_DATA_DIR)
 #    1  needs Xcode's compiler: the declaration gate on its compiled fixture (`test_client_decl_gate.py`,
 #       M18-W5, #51). `make client-decls` runs the same fixture wherever Xcode is.
-# The owner's Mac skips 25 of these, not 76, because it has the database. Lower this when CI builds
+# The owner's Mac skips 25 of these, not 77, because it has the database. Lower this when CI builds
 # an artifact from fixtures (W-108's remedy), not by skipping less honestly.
-76
+77
