@@ -46,7 +46,7 @@ fi
 DB="${MODEL_RANKING_DB:-advisor.db}"
 if [ ! -f "$DB" ]; then
   echo "[engine] $(stamp) the artifact is missing: $DB (MODEL_RANKING_DB, or advisor.db in $REPO)"
-  echo "         build it: .venv/bin/python -m app.workflows.refresh --db $DB --fetch-epoch"
+  echo "         build it: .venv/bin/python -m app.workflows.refresh --db $(printf '%q' "$DB") --fetch-epoch"
   exit 1
 fi
 

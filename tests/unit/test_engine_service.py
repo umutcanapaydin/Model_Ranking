@@ -569,7 +569,7 @@ def test_every_command_a_script_tells_the_operator_to_run_exists() -> None:
     hints = []
     for script in sorted((REPO / "scripts").glob("*.sh")):
         for line in script.read_text(encoding="utf-8").splitlines():
-            found = re.search(r"-m (app\.[\w.]+)([^\"']*)", line)
+            found = re.search(r"-m (app\.[\w.]+)(.*)", line)  # the rest of the printed line
             if line.lstrip().startswith("echo") and found:
                 hints.append((script.name, found.group(1), re.findall(r"--[\w-]+", found.group(2))))
     assert hints, "no script prints a command any more; the test reads nothing"
@@ -583,7 +583,8 @@ def test_every_command_a_script_tells_the_operator_to_run_exists() -> None:
         assert not missing, f"{name} prints `-m {module}` with {missing}, which it does not take"
 
 
-def test_the_launchers_hint_builds_the_artifact_it_looked_for(tmp_path: Path) -> None:
+@pytest.mark.parametrize("folder", ["data", "Application Support"])  # the service's own (the Tester's T2)
+def test_the_launchers_hint_builds_the_artifact_it_looked_for(tmp_path: Path, folder: str) -> None:
     """Tester (M18-W7), the W7 review's M6: the hint printed `--db advisor.db`, a file in the release
     folder, while the service reads `$DEPLOY/data/advisor.db`; run as printed, it built a file the
     next start would not read. The printed command must name the path that was missing."""
@@ -591,7 +592,7 @@ def test_the_launchers_hint_builds_the_artifact_it_looked_for(tmp_path: Path) ->
 
     tree = tmp_path / "release"
     tree.mkdir()
-    missing = tmp_path / "data" / "advisor.db"
+    missing = tmp_path / folder / "advisor.db"
     done = _launch(tree, MODEL_RANKING_DB=str(missing))
     assert done.returncode == 1, done.stdout + done.stderr
     hints = [line.split("build it:", 1)[1] for line in done.stdout.splitlines() if "build it:" in line]

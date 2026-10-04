@@ -64,7 +64,7 @@ def _refuse_unless_local(host: object, what: str) -> None:
 
 def _install_network_guard() -> None:
     sock, real = socket.socket, _REAL
-    real.update(connect=sock.connect, connect_ex=sock.connect_ex, sendto=sock.sendto,
+    real.update(connect=sock.connect, connect_ex=sock.connect_ex, sendto=sock.sendto, sendmsg=sock.sendmsg,
                 getaddrinfo=socket.getaddrinfo, gethostbyname=socket.gethostbyname,
                 gethostbyname_ex=socket.gethostbyname_ex, gethostbyaddr=socket.gethostbyaddr,
                 getnameinfo=socket.getnameinfo)
@@ -87,6 +87,12 @@ def _install_network_guard() -> None:
             _refuse_unless_local(address_host(args[-1]), "sent a datagram to")
         return real["sendto"](self, data, *args)  # type: ignore[operator, no-any-return]
 
+    def sendmsg(self: socket.socket, buffers: object, *args: object, **kwargs: object) -> int:
+        address = kwargs.get("address", args[2] if len(args) > 2 else None)
+        if self.family != socket.AF_UNIX and address is not None:  # the W7 Tester's T3
+            _refuse_unless_local(address_host(address), "sent a datagram to")
+        return real["sendmsg"](self, buffers, *args, **kwargs)  # type: ignore[operator, no-any-return]
+
     def lookup(name: str, position: int = 0) -> object:
         def guarded(*args: object, **kwargs: object) -> object:
             _refuse_unless_local(args[position] if len(args) > position else None, "looked up")
@@ -97,7 +103,7 @@ def _install_network_guard() -> None:
         _refuse_unless_local(address_host(sockaddr), "looked up")
         return real["getnameinfo"](sockaddr, flags)  # type: ignore[operator]
 
-    sock.connect, sock.connect_ex, sock.sendto = connect, connect_ex, sendto  # type: ignore[method-assign, assignment]
+    sock.connect, sock.connect_ex, sock.sendto, sock.sendmsg = connect, connect_ex, sendto, sendmsg  # type: ignore[method-assign, assignment]
     socket.getaddrinfo = lookup("getaddrinfo")  # type: ignore[assignment]
     socket.gethostbyname = lookup("gethostbyname")  # type: ignore[assignment]
     socket.gethostbyname_ex = lookup("gethostbyname_ex")  # type: ignore[assignment]
@@ -106,7 +112,7 @@ def _install_network_guard() -> None:
 
 
 def _remove_network_guard() -> None:
-    for name in ("connect", "connect_ex", "sendto"):
+    for name in ("connect", "connect_ex", "sendto", "sendmsg"):
         if name in _REAL:
             setattr(socket.socket, name, _REAL[name])
     for name in ("getaddrinfo", "gethostbyname", "gethostbyname_ex", "gethostbyaddr", "getnameinfo"):

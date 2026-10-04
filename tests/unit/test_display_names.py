@@ -86,7 +86,9 @@ def test_a_board_spelling_in_the_other_order_is_turned_round() -> None:
 @pytest.mark.artifact
 def test_every_model_the_artifact_serves_is_named_by_this_code_as_a_product() -> None:
     """The plan's check for #112, over the served names: every model in the artifact, named the way
-    this code would name it on the next build, from the names its own rows carry. None reads as its
+    this code would name it, from the names its own rows carry. An approximation of the build, which
+    names a derived model from each score's PARSED name (the W7 Tester's T4: 20 of 200 derived names
+    differ); its two checks, no raw id and Anthropic's order, hold on either input. None reads as its
     raw id, but OpenAI's, and every Claude is in Anthropic's order (the review's M4, and its R1: a new
     model served under its raw id shows here)."""
     conn = sqlite3.connect(f"file:{ARTIFACT}?mode=ro", uri=True)

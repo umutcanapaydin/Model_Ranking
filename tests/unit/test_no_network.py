@@ -44,6 +44,9 @@ def test_the_other_socket_doors_are_closed_too() -> None:
         socket.getnameinfo(("192.0.2.1", 80), 0)
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp, pytest.raises(NetworkReachedError):
         udp.sendto(b"x", ("192.0.2.1", 9))
+    # The W7 Tester's T3: the other way to send a datagram.
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp, pytest.raises(NetworkReachedError):
+        udp.sendmsg([b"x"], [], 0, ("192.0.2.1", 9))
 
 
 # --- The M18-W7 Tester's additions. Each door is tried with a call that sends nothing even if the
