@@ -1647,3 +1647,102 @@ def test_a_clock_that_cannot_be_reasoned_about_stops_the_cycle(
 
     assert code == EXIT_FAILED, f"a clock of {bad_clock} was accepted: {outcome.reason}"
     assert "clock" in outcome.reason
+
+
+# --- M18-W4 (D-173): guards by id, an accessibility loss guard, the serving bounds at refresh --------
+
+
+def _renamed(path: Path) -> Path:
+    """A `_wide` artifact whose every probe model only re-spells its display name."""
+    _wide(path, models=12)
+    conn = sqlite3.connect(path)
+    try:
+        conn.execute("UPDATE models SET display = 'Renamed ' || id WHERE id LIKE 'probe-%'")
+        conn.commit()
+    finally:
+        conn.close()
+    return path
+
+
+def test_a_candidate_that_only_re_spells_names_moves_no_guard(tmp_path: Path) -> None:
+    """#39 (D-173 clause 2): the roster guards compared display names, so a board that only
+    re-spelled its models read as every model lost and an injected set gained. They compare ids;
+    the re-spellings are recorded as information."""
+    from app.workflows.refresh import degradations, display_changes, upward_anomalies
+
+    live = fingerprint_of(_wide(tmp_path / "live.db", models=12))
+    candidate = fingerprint_of(_renamed(tmp_path / "candidate.db"))
+    assert live is not None and candidate is not None
+    assert degradations(live, candidate) == []
+    assert upward_anomalies(live, candidate) == []
+    changes = display_changes(live, candidate)
+    assert len(changes) == 12 and "Probe 00 -> Renamed probe-00" in changes
+
+
+def test_a_re_spelled_night_publishes_and_records_the_re_spellings(tmp_path: Path) -> None:
+    """#39 through the cycle: the night publishes, and its record names what was re-spelled."""
+    import json
+
+    live = _wide(tmp_path / "advisor.db", models=12)
+
+    def renaming(argv: list[str]) -> int:
+        _renamed(Path(argv[argv.index("--db") + 1]))
+        return 0
+
+    outcome, code = refresh(live, builder=renaming)
+    assert code == EXIT_PUBLISHED, outcome.reason
+    assert "Probe 00 -> Renamed probe-00" in outcome.renamed
+    record = json.loads((tmp_path / "advisor.db.refresh.json").read_text(encoding="utf-8"))
+    assert "Probe 00 -> Renamed probe-00" in record["renamed"]
+
+
+def _accessible(path: Path, *, values: int) -> Path:
+    """A `_wide` artifact in which `values` of its twelve probe models carry an accessibility value."""
+    _wide(path, models=12)
+    conn = sqlite3.connect(path)
+    try:
+        conn.execute("DELETE FROM access")
+        for index in range(values):
+            conn.execute(
+                "INSERT INTO access (raw_name, model_id, accessibility, source, source_url, observed_at)"
+                " VALUES (?, ?, 'API access', 'epoch_access', 'fixture://x', 't')",
+                (f"Probe {index:02d}", f"probe-{index:02d}"),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+    return path
+
+
+@pytest.mark.parametrize(("served", "candidate", "refused"), [(8, 1, True), (8, 6, True), (8, 7, False)])
+def test_accessibility_values_falling_by_a_quarter_refuse_the_night(
+    tmp_path: Path, served: int, candidate: int, refused: bool
+) -> None:
+    """#42 (D-173 clause 3): a truncated model_metadata.csv with one valid row published, and the
+    phone's accessibility filter emptied with no refusal. A quarter lost refuses, as D-128's boards."""
+    from app.workflows.refresh import degradations
+
+    live = fingerprint_of(_accessible(tmp_path / "live.db", values=served))
+    fresh = fingerprint_of(_accessible(tmp_path / "candidate.db", values=candidate))
+    assert live is not None and fresh is not None
+    reasons = degradations(live, fresh)
+    assert bool(reasons) is refused, reasons
+    if refused:
+        assert any("accessibility" in reason for reason in reasons), reasons
+
+
+def test_a_candidate_past_a_serving_bound_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#57 (D-173 clause 4): the size bounds were checked only when the engine started, so a nightly
+    refresh published what a restart would refuse. The candidate is checked before it is published."""
+    live = _wide(tmp_path / "advisor.db", models=12)
+    before = live.read_bytes()
+    monkeypatch.setenv("MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS", "12")
+
+    def growing(argv: list[str]) -> int:
+        _wide(Path(argv[argv.index("--db") + 1]), models=13)
+        return 0
+
+    outcome, code = refresh(live, builder=growing)
+    assert code == EXIT_REFUSED, outcome.reason
+    assert "MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS" in outcome.reason
+    assert live.read_bytes() == before
