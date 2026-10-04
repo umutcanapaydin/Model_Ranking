@@ -6,525 +6,486 @@ seat: independent
 process_version: v6.6
 date: 2026-10-04
 ---
-# M18-W5 Code Review: the gates and records backlog
+# M18-W5 Code Review, round 2: the gates and records backlog
 
-**Reviewer:** Code-Reviewer seat, fresh eyes. I wrote none of this wave's code, tests or records.
+**Reviewer:** a second Code-Reviewer seat, fresh eyes. I wrote none of this wave's code, tests or
+records, and I am not the round-1 seat.
 **Independent:** yes
 **Date:** 2026-10-04
-**Commit range:** `77d3b2f..f21f658`: 13 commits plus the merge `10d9e50`, 47 files, +1304 / -160.
-`77d3b2f` is the head of `wave/m18-w4`, which this wave is stacked on. `10d9e50` brought W4 in.
-`git diff 5623f4b 1d2a455` and `git diff 77d3b2f 10d9e50` carry the same lines (md5 of the sorted
-`+`/`-` lines is equal), so the merge adds no change of its own. Only W5's commits are reviewed.
-**Risk tier:** HIGH (`docs/plans/m18-wave-5-plan.md:12`). `m18-plan.md:106` says MED. The diff
-touches `src/app/adapter/main.py` (a docstring), which is a §3 security glob, and the D-126 gates. The
-wave plan predicted `EngineClient.swift` (#58); the diff touched `FrontDoor.swift` instead.
-**Model routing (HIGH, advisory):** author-family: claude-opus / reviewer-family: claude-opus (fallback: no second family available)
-**Fresh context:** this seat started with none of the authoring context. I read the plans and the
-issues first, then the code and the tests. The one-line commit subjects were visible in `git log`
-from the start. I read the full commit messages only after the code, when I matched the red commits
-to their fixes.
+**Commit range:** `77d3b2f..a140265`. W5's own change is `git diff 4d07e50 a140265`: 49 files,
++2056 / -163. `4d07e50` is the head of `origin/wave/m18-w4`, and the two merges (`10d9e50`,
+`9cc26a2`) bring it in whole, so that diff is W5's commits and nothing of W4's. Round 1 read
+`77d3b2f..f21f658`; this round adds `be2434f` (round 1's verdict), `e08bb20` (PRD citations after
+the second merge), `3c584a5` (red) and `a140265` (fix).
+**Risk tier:** HIGH (`docs/plans/m18-wave-5-plan.md:11-13`; `m18-plan.md:106` says MED). The diff
+touches `src/app/adapter/main.py` (a docstring) and the D-126 gates. D-172: no security seat on the
+wave; this seat checked the gates' fail direction instead.
+**Model routing (HIGH, advisory):** author-family: claude-opus / reviewer-family: claude-opus (fallback: no second family available to this seat)
+**Fresh context:** this seat started with none of the authoring context and none of round 1's. I
+read the base-ref policy, then both plans and the ADRs, then W5's code diff, and only then round 1's
+verdict and the red and fix commits' messages. The one-line commit subjects were visible in
+`git log` from the start.
 
-**Summary.** One finding blocks. #58's gate half is not closed. A `URL` decoded from the reader's
-text in `ContentView.swift` passes **both** D-126 gates at `f21f658`. I measured it with an in-place
-mutant, a `Decodable` struct with an `Optional<URL>` field decoded from a string:
-1. the text gates: 44 passed;
-2. `client_decl_gate.py`: PASS in all four configurations.
+**Summary.** Round 1's one BLOCKING finding is fixed. A `URL` decoded outside `EngineClient.swift`
+is now refused by the compiler gate in every spelling I tried, and the gate's self-test pins the
+`decodeIfPresent` form. Every round-1 MINOR is fixed or narrowed. Each code fix is held by a test I
+turned red with a mutant; M6's record fixes are checked by `check_records.py` and by reading them.
+Nothing blocks.
 
-The compiler gate's new rule matches only `decode(`. `decodeIfPresent(` is what Swift synthesises for
-every optional property, and the compiler prints `T -> URL` for it. The text gate has no rule for a
-decoded URL at all. The fix is a regex and two fixture lines (**B1**).
+Five new MINORs remain, all in controls this wave owns:
+1. **M7.** The text gate, the only D-126 check CI runs, still passes a decoded URL spelled
+   `Foundation.URL?` or reached through `type(of:)`.
+2. **M8.** The new `_code` scanner erases live code after a raw string or an interpolation that
+   holds `/*`.
+3. **M9.** `missing_closes` still excuses any heading that contains the word "dropped", and counts
+   only the headings it can parse.
+4. **M10.** The input-parsing HIGH rule reads "HIGH" anywhere in row 1, and the template's own row 1
+   says "LOW/MED/HIGH; auto-HIGH".
+5. **M11.** The Swift tripwire still has two ways around it: a background session, and a base
+   reached through a `typealias`.
 
-The rest holds up:
-1. The register is file-only, and the standings store already was.
-2. The offline tripwire works on every path the suite uses today.
-3. Every red commit fails on its own tree and passes on its fix, including `90ead9d`'s accidental
-   red, which `1d2a455` fixes.
-4. The records are accurate in the sample I traced.
-
-Six findings are MINOR:
-1. **M1.** The Swift tripwire has four ways around it.
-2. **M2.** #98's stripper misses nested comments. It also now erases live code from the negative
-   pins' view.
-3. **M3.** `missing_closes` passes vacuously on a plan whose waves it cannot parse.
-4. **M4.** The input-parsing HIGH rule fails open on three inputs.
-5. **M5.** #92's T1 watcher skips `/v1/recommendations`, and N1 misses a split line.
-6. **M6.** Records: P4's move to W6 is unrecorded in the milestone plan, two citations are wrong, and
-   the #52 rule has no ADR.
-
-**Policy.** The profile (`.claude/agents/Code-Reviewer.md`) and `.agents/rules/practices.md` were
-read from `77d3b2f`. At that ref the matrix is `permission-matrix.md` at the repository root, and
-`docs/permission-matrix.md` does not exist. `git diff --stat 77d3b2f f21f658 -- .claude .agents
+**Policy.** `.claude/agents/Code-Reviewer.md` and `.agents/rules/practices.md` were read from
+`77d3b2f`. At that ref the matrix is `permission-matrix.md` at the repository root;
+`docs/permission-matrix.md` does not exist there. `git diff --stat 77d3b2f a140265 -- .claude .agents
 permission-matrix.md .github Dockerfile fly.toml epb.html or.md` is empty. `docs/decisions.md` only
-gains lines (+4, -0).
+gains lines (0 removed in `4d07e50..a140265`).
 
-**How I worked.**
-1. **Gate**, at `f21f658` with the worktree's own `.venv`. `make` was not used, so that `install`
-   writes nothing.
-   1. pytest `-n auto` with `MODEL_RANKING_REQUIRE_ARTIFACT=1`: **1609 passed, 25 skipped**. The
-      Mac's 25 matches `docs/skip-budget.txt:28`; the budget is 76, because CI also skips the
-      compiled fixture.
-   2. ruff, mypy (strict), the module coverage floor, `check_records.py` and `wave_check_all.py`:
-      PASS.
-   3. `client_decl_gate.py`, self-test first: PASS, 15 files in 4 configurations.
-   4. `swift test`: 366 tests, 0 failures. `swift test --parallel`: xUnit 366 tests, 0 failures.
-      `--list-tests` equals `ios/EngineTests/test-manifest.txt`.
-2. **Red first.** I ran each red commit's tests on a `git archive` of its tree in the scratchpad,
-   not in a git worktree, with this worktree's venv and `PYTHONPATH=<tree>/src`. Swift was run with
-   `swift test --filter` in the archive.
-   1. `5a3b1be`: 2 Python failed, and Swift's `testEverySessionConfigurationAsksTheTripwireFirst`
-      failed. Fix `6efede4`: 5 passed.
-   2. `93de739`: 2 of 3 gate tests failed, and the register's Swift test failed: the tripwire
-      recorded `https://example.invalid/gap-register.json`, so nothing left the machine.
-   3. `90ead9d`: the gate tests and the Swift test pass, but `test_the_gap_register_stays_on_the_device`
-      fails, as `1d2a455`'s message says. `1d2a455`: 12 passed.
-   4. `678a830`: 1 failed. Fix `6894083`: 16 passed.
-   5. `ca8b785`: 6 failed (N2, N3, #82 ×3, #83), and 25 passed (T1–T4, N1, N3's IntegrityError
-      half), as its message states. Fix `f21f658`: 31 passed.
-3. **Probes**, none of which bound a socket. Every request went to `127.0.0.1:8199`, with nothing
-   listening, or to the tripwire.
-   1. The tripwire, in a scratch SwiftPM package holding a copy of `OfflineTestCase.swift`
-      (`cr5-swiftprobe`): eight cases.
-   2. The declaration gate's `dump_ast`, `references` and `problems` on scratch fixtures
-      (`cr5-declprobe`): eleven cases.
-   3. `missing_closes` and `wave_check.py` on scratch trees (`cr5-ctl`, `cr5-ctl83`).
-4. **Mutants: 11 in-place edits**, each restored from a byte copy. After each I checked
-   `git hash-object` and `git diff --quiet`.
-   1. **2 were killed:**
-      1. `URL.decoded` dropped from `NETWORK`;
-      2. a schema-migrating opener on `/v1/recommendations`, which died only incidentally (**M5**).
-   2. **6 survived the gate they target:**
-      1. a URL decoded in `ContentView.swift`, in two spellings (**B1**);
-      2. a nested comment (**M2**);
-      3. a class `setUp` override (**M1**);
-      4. an aliased writable open on `/v1/recommendations` (**M5**);
-      5. a split `simctl … booted` line (**M5**).
-   3. **3 were attempts toward B1's spellings** that the text gate refused for an unrelated pattern:
-      a URL literal, `.init(`, and `typealias`. The last also did not type-check.
-5. **One probe trapped.** `URLSession(configuration: URLSessionConfiguration())` stopped the scratch
-   package's `xctest` process with signal 5. It was a command-line process in the scratchpad, not
-   the project's suite. I did not run it again, to avoid crash dialogs on the owner's Mac (**R1**).
-6. **Read only:** GitHub issues #33, #51, #58, #59, #82, #83, #92 and #98.
-7. **Not done, by this seat's rules:**
+**How I worked.** Everything ran in this seat's detached worktree at `a140265`, with its own
+`.venv` and `advisor.db`.
+1. **Gate at `a140265`.**
+   1. pytest `-n auto` with `MODEL_RANKING_REQUIRE_ARTIFACT=1`: **1619 passed, 25 skipped**, rc 0.
+   2. ruff: all checks passed. mypy (strict, `src`): no issues in 42 files.
+   3. `module_coverage_floor.py`: PASS, 42 modules. `check_records.py`: PASS, no findings.
+   4. `make wave-check-all`: **PASS**, 48 v5.0-or-later records validated and 20 pre-migration
+      records out of scope. It wrote only the git-ignored `.gp/installed`.
+   5. `client_decl_gate.py`: self-test first, then PASS, 15 files in 4 configurations.
+   6. `swift test`: **367 tests, 0 failures**. `swift test --parallel` judged by
+      `swift_xunit_gate.py`: PASS, 367. `--list-tests` equals `ios/EngineTests/test-manifest.txt`
+      (367 lines).
+2. **Red first, re-run.** Each red commit's Python tests ran on a `git archive` of that commit, then
+   of its fix, in the scratchpad, with this worktree's venv and `PYTHONPATH=<tree>/src`. Where a
+   pair touched no test file, the whole suite ran.
+
+   | red → fix | red | fix |
+   |---|---|---|
+   | `5a3b1be` → `6efede4` | 2 failed, 3 passed | 5 passed |
+   | `93de739` → `90ead9d` | 2 failed, 1 passed | 3 passed |
+   | `90ead9d` → `1d2a455` (whole suite) | 1 failed, 1588 passed | 1589 passed |
+   | `678a830` → `6894083` | 1 failed, 9 passed | 10 passed |
+   | `ca8b785` → `f21f658` | 6 failed, 124 passed | 130 passed |
+   | `3c584a5` → `a140265` | 6 failed, 64 passed | 70 passed |
+
+   The six red at `3c584a5` are B1 ×2, M2, M3 ×2 and M4. M1's and M5's tests were added green by
+   design ("held from now on"); the mutants below show they can fail.
+3. **Mutants: 29 in-place edits.** Each file was restored from a byte copy, and each restore was
+   checked with `git hash-object` against `HEAD:<path>` and `git diff --quiet` (all OK).
+   1. **20 broke a round-1 fix or a W5 guard, and a test or gate went red.** They are listed per id
+      in the table below, plus the register's load guard (**M7**(3)).
+   2. **5 survived, and they are new findings:**
+      1. `Foundation.URL?` decoded in `ContentView.swift` (**M7**);
+      2. a URL decoded through `type(of:)` (**M7**);
+      3. `GapRegisterStore.save` without its `isFileURL` guard (**M7**);
+      4. a raw string holding `/*` above a live `copy.refinements = extra` in `Router.swift` (**M8**);
+      5. an interpolation holding `/*` in the same place (**M8**).
+
+      Both Router mutants build (`swift build` rc 0).
+   3. **4 were probes:**
+      1. the failure view's address line under `#if false` passes every pin and the compiler gate
+         (**K3**);
+      2. a test class deriving through `typealias PlainCase = XCTestCase` passes the Python check
+         and runs (**M11**);
+      3. `XCTest.XCTestCase` as a base does not compile, so that spelling is no bypass;
+      4. a URL decoded through `type(of:)` and handed to a second `EngineClient(baseURL:)` is
+         refused by `test_nothing_typed_by_the_reader_reaches_the_engine` and by the compiler gate.
+         Without the second client it passes the text gate (**M7**).
+4. **Probes on scratch trees**, never on the repository's records:
+   1. `missing_closes` on five shapes, and the real M18 plan as if M18 had closed today (**M9**);
+   2. `wave_check.py` on a copy of the M18-W1 close with the template's row-1 wording (**M10**);
+   3. both comment strippers, base and W5, on three erasure shapes (**M8**);
+   4. `advisor.db` read-only: `scores.score` is `REAL NOT NULL`; all 13,994 rows are finite reals.
+5. **Read only:** GitHub issues #107, #108, #60 and #85.
+6. **Not done, by this seat's rules:**
    1. no run of `install_engine_service.sh` or `remove_engine_service.sh`, except inside
       `tests/unit/test_engine_service.py` (stubs, scratch HOME);
-   2. no `launchctl`, `xcodebuild`, `simctl`, nothing on the simulator, nothing in `~/Library`;
-   3. no server; no commit, push or GitHub write.
-8. **Tree.** Clean apart from this file.
+   2. no `launchctl`, `xcodebuild`, `simctl`, simulator or `~/Library`;
+   3. no Swift probe that builds a bare `URLSessionConfiguration()` (#108), and no trap of any kind;
+   4. no socket bound. The one request that left the tripwire went to `127.0.0.1:9`, inside the
+      M1 mutant;
+   5. no commit, push or GitHub write.
+7. **Tree:** clean apart from this file.
 
 ## Verdict
-BLOCKING
+PASS-WITH-MINORS
 
-**One BLOCKING, six MINOR.** **B1** must be fixed before the wave closes; a new Code-Reviewer then
-reads the new range. I recommend fixing M1 to M5 in the same round. Each is a few lines, and M2 is a
-regression this wave introduced into a control.
-- **B1.** A URL decoded from text outside `EngineClient.swift` passes both D-126 gates. The
-  compiler rule misses `decodeIfPresent`, and the text gate has no decoded-URL rule.
-- **M1.** The Swift tripwire has four ways around it:
-  1. a class `setUp` override;
-  2. a stub that declines a request;
-  3. a background configuration;
-  4. Swift Testing.
-- **M2.** #98's `_code` misses Swift's nested block comments, and a `/*` inside a `//` comment now
-  hides live code from the negative pins.
-- **M3.** `missing_closes` passes vacuously on a closed milestone whose wave headings it cannot parse.
-- **M4.** The HIGH rule passes three inputs:
-  1. an undated close;
-  2. a footprint whose `Mutant set author:` line comes before `Touched:`;
-  3. `src/app/clients` without its slash.
-- **M5.** The T1 watcher does not run `/v1/recommendations`, and N1's check misses a `simctl` call
-  split over two lines.
-- **M6.** Records:
-  1. P4's move to W6 is not in `m18-plan.md`;
-  2. two PRD citations are wrong;
-  3. the #52 rule has no ADR.
+**No BLOCKING, five MINOR (M7–M11), one K.9 (K3), one risk (R4).** Round 1's B1 is fixed and held
+on both D-126 gates for the forms #58 named. I recommend fixing M7, M8 and M10 in this wave. Each is
+a few lines, and each is a control this wave added or claimed to close.
+1. M7: the text gate still passes a decoded URL spelled `Foundation.URL?` or reached through
+   `type(of:)`, and the register's save guard is held by nothing.
+2. M8: the `_code` scanner erases live code after a raw string or interpolation holding `/*`. The
+   base stripper saw both shapes.
+3. M9: `missing_closes` excuses any heading containing "dropped", and silently skips a heading it
+   cannot parse when another one parses.
+4. M10: the #83 rule passes a MED close that keeps the template's row-1 wording.
+5. M11: the tripwire's header still says "every way", while a background session and a
+   `typealias`-derived class each go around it.
 
-**K.9:** K1 (other ways to make a URL from text pass the compiler gate), K2 (REQ-ING-010's
-duplicate rows).
-**Risks:** R1 (a deprecated configuration initialiser trapped `xctest`), R2 (a process-wide audit
-hook in every pytest worker), R3 (N2 narrows D-156 without saying so in D-156).
+## Round 1's findings, re-checked
+
+Each round-1 id, whether it is fixed, the test that holds it, and the mutant I used to show that
+test can fail:
+
+| id | status | held by | my mutant → result |
+|---|---|---|---|
+| B1 | **Fixed.** `DECODES_URL` takes `decode(?:IfPresent)?` (`client_decl_gate.py:216`); the fixture decodes a `URL?` (`client_decl_fixtures/Detail.swift:9-15`), and `FIXTURE_REFUSALS` expects it (`:220-223`); the text gate refuses `URL` as a type argument (`test_router_hints.py:417`) | `test_client_decl_gate.py:70` (canned), `:57` (compiled self-test); `test_router_hints.py:557` | (1) regex back to `decode\(` → 2 failed, and `client_decl_gate.py` prints `self-test … Detail.swift: URL.decoded was not refused`, rc 1. (2) pattern removed → `:557` failed. (3) round 1's own mutant (`struct CrBox: Decodable { let u: Optional<URL> }` in `ContentView.swift`) → text gate 1 failed, compiler gate FAIL in each configuration. Residue: **M7** |
+| M1 | **Fixed for (1), (2), (4); (3) open.** (1) the base also installs per test (`OfflineTestCase.swift:108-111`), tearDown fails a test in a process where it never installed (`:116-117`), and the Python check sees a class hook that skips super (`test_swift_tests_offline.py:27-34`). (2) the `protocolClasses` setter is exchanged and appends the tripwire last (`OfflineTestCase.swift:60`, `:89-96`). (4) `import Testing` is refused (`test_swift_tests_offline.py:53`). (3) a background configuration: no change | `OfflineTestCase.swift:132` (`testARequestAStubDeclinesIsCaughtToo`); `test_swift_tests_offline.py:37`, `:44`, `:53` | (1) setter exchange removed → `testARequestAStubDeclinesIsCaughtToo` failed: `("[]") is not equal to ("["http://127.0.0.1:9/declined"]")`. (2) `override class func setUp() {}` in `RefinementsTests` → `:44` failed; Swift still 7/7 green, because the per-test install covers it. (3) the same plus the base's instance `setUp` removed → 7 of 7 failed: "the tripwire was never installed in this process (#59)". (4) `import Testing` → `:53` failed. Residue: **M11** |
+| M2 | **Fixed for nested comments, `/*` inside `//`, and plain strings** (`test_router_hints.py:31-68`) | `test_router_hints.py:565`; `test_engine_address.py:80` | (1) the regex stripper put back → `:565` failed. (2) round 1's nested comment around the failure view's address line → `test_the_failure_screen_shows_the_address_the_app_asked` failed. (3) `// see /* the old note` above a live `copy.refinements = extra` → the Router refinements pin failed. Residue: **M8** |
+| M3 | **Half fixed.** A closed milestone whose plan yields no wave heading is a finding (`wave_check_all.py:90-92`), and `## Wave N` and `### M19-WN` are read (`:63`). The "dropped" substring is unchanged (`:94`) | `test_wave_check_m18_rules.py:102`, `:113` | (1) the fail-closed branch removed → `:102` failed. (2) the heading regex narrowed back → `:113` failed. Residue: **M9** |
+| M4 | **Fixed, all three.** An undated close is graded, the footprint is read up to the next field in any order, and `src/app/clients\b` is matched (`wave_check.py:360-367`) | `test_wave_check_m18_rules.py:125` | each of the three reverted alone → `:125` failed each time. New fail-open beside it: **M10** |
+| M5 | **Fixed.** T1 drives `/v1/recommendations` (`test_readonly_uri.py:200`); N1 joins `\`-continued lines (`test_engine_service.py:527`) | `test_readonly_uri.py:177`; `test_engine_service.py:522` | (1) `__import__("sqlite3").connect(str(path))` at `main.py:1471` → T1 failed: "opened the served artifact writable". (2) the same at `refresh.py:986` → T1 failed. (3) the same at `build.py:309` → `test_carry_forward.py:315` failed. (4) `xcrun simctl \` / `uninstall booted "$BUNDLE"` added to `ios/app.sh` → N1 failed |
+| M6 | **Fixed.** (1) `m18-plan.md:204-206` records #60/#85's move to W6. Like W4's amendment (`:200-202`), it leaves §2 and the §7 inventory as they were. (2) REQ-API-007 cites `test_readonly_uri.py:137`, the test's `def`; REQ-API-009 cites `coverage-by-req.md:39`, row 6. (3) D-174 (`decisions.md:3469`), cited from `AGENTS.md` §4 (`:77`) | records; `check_records.py` PASS | — (records) |
+| K1 | **Filed** #107, open, M18 milestone | — | not re-probed |
+| K2 | **Fixed.** REQ-ING-010's duplicate table row is gone; one section remains (`prd.md:326`) | `check_records.py` PASS | — |
+| R1 | **Filed** #108, open | — | not probed (this seat's rule 3). The fix round widened its surface: **R4** |
+| R2 | Unchanged: `sys.addaudithook` at import (`test_readonly_uri.py:174`). Still a queued risk; I saw no interference in 1619 tests under `-n auto` | — | — |
+| R3 | **Fixed in the records.** The D-156 note (`decisions.md:2607`) and REQ-REF-009 (`prd.md:580`) say a non-finite score is not carried | `test_carry_forward.py:369` | none needed. The artifact holds 0 NULL and 0 non-finite scores (`score REAL NOT NULL`), so N2 changes nothing served today |
 
 ## Findings
 
 ### BLOCKING (must fix before this wave closes)
-
-- **B1** `scripts/client_decl_gate.py:213-216`, `:264-265`; `scripts/client_decl_fixtures/ContentView.swift:9-12`; `tests/unit/test_router_hints.py:382`. **A URL decoded from the reader's text outside `EngineClient.swift` passes both D-126 gates.**
-
-  #58's "Expected" reads: "the gates refuse a `URL` made by decoding outside `EngineClient.swift`".
-  The milestone's W5 criterion is "Every gate gap filed is closed with a gate shown red"
-  (`m18-plan.md:34`). The wave closed the register half; the gate half is open.
-
-  **The mutant, in place in `ios/ModelRanking/ContentView.swift`, then restored byte-identical:**
-  ```swift
-  struct CrBox: Decodable { let u: Optional<URL> }
-  func crProbeDecodes(_ blob: String) -> Optional<URL> {
-      (try? JSONDecoder().decode(CrBox.self, from: Data(blob.utf8)))?.u
-  }
-  ```
-  1. `test_router_hints.py`, `test_ios_client_contract.py`, `test_engine_address.py`: **44 passed.**
-  2. `client_decl_gate.py`: **`client-decls PASS: 15 client file(s) in 4 configuration(s)`.**
-
-  **Why the compiler gate misses it.** `DECODES_URL` requires `\.decode\(` in the declaration path.
-  Swift synthesises `KeyedDecodingContainer.decodeIfPresent(_:forKey:)` for every optional property,
-  and the dump prints its substitution as clearly as `decode`'s. From the probe's AST:
-  `decl="Swift.(file).KeyedDecodingContainer.decodeIfPresent(_:forKey:) [with (substitution_map
-  generic_signature=<K, T where K : CodingKey, T : Decodable> K -> OptBox.CodingKeys T -> URL)]"`.
-
-  Eleven compiled probe files (`cr5-declprobe/fx2`) show where the rule stops:
-  1. **Refused.** `JSONDecoder.decode([URL].self)`, `decode(URL.self)`,
-     `PropertyListDecoder.decode([String: URL].self)`, and a synthesised `Decodable` with a
-     non-optional `URL` field. So the comment's "a container's `decode(URL.self, forKey:)` inside a
-     synthesised `Decodable`" holds.
-  2. **Passed.** A hand-written `decodeIfPresent(URL.self, forKey:)`, and a synthesised `Decodable`
-     with a `URL?` field.
-
-  **Why the text gate misses it.** `test_router_hints.py:382` refuses `URL(`, `URL.` and
-  `: [URL` / `: URL`, the last with the note "a URL-typed value, which a decoder can fill from
-  anywhere". It does not refuse `Optional<URL>`, `[URL].self` or `-> [URL]`. A second mutant,
-  `JSONDecoder().decode([URL].self, from: blob.data(using: .utf8) ?? [])` in `ContentView.swift`,
-  also passed the text gates (44 passed). The compiler gate refuses that one. The text gate is the
-  only D-126 check CI runs, because CI has no Xcode and skips the compiled fixture.
-
-  **What it reaches today.** Both file stores now refuse a non-file address (`FrontDoor.swift:308`,
-  `:318`; `StandingsStore.swift:54`, `:67`), so the path #58 named through the register is closed at
-  the sink. A decoded URL outside `EngineClient.swift` is still the network's first step, by this
-  gate's own rule (`client_decl_gate.py:98-100`). The obvious next consumer is
-  `EngineClient(baseURL:)`, which the gate scopes by file, not by data (its docstring, B19). I did not
-  build that chain.
-
-  **Why BLOCKING.**
-  1. #58's acceptance, "the gates refuse a URL made by decoding", is unmet on the form Swift
-     generates for every optional URL property. This is "REQ-ID unmet (acceptance criteria not
-     green)" in permission matrix §11, with this wave's own criterion standing in for the REQ.
-  2. It is D-126, the boundary this project treats as absolute. The compiler gate exists because six
-     rounds of word lists each missed a form (`client_decl_gate.py:3-6`). This is that history again,
-     on the rule this wave added.
-
-  **The fix.**
-  1. `DECODES_URL`: `\.decode(?:IfPresent)?\(`, or any `\.decode\w*\(`.
-  2. Add a `struct … { let u: Optional<URL> }` decoded in the fixture's `ContentView.swift`, so the
-     self-test pins the synthesised `decodeIfPresent` form, and its canned twin in
-     `test_client_decl_gate.py`.
-  3. Then either give the text gate a decoded-URL pattern (`[<\[,]\s*URL\b` would catch
-     `Optional<URL>`, `[URL]` and `[String: URL]`), or state in `client_decl_gate.py`'s docstring
-     and the close record that the text gate does not see decoding and CI therefore does not either.
+- none
 
 ### MINOR (the author fixes each in this wave or files it as an issue)
 
-- **M1** `ios/EngineTests/OfflineTestCase.swift:53-57`, `:86-98`; `tests/unit/test_swift_tests_offline.py:22`, `:34`. **The Swift tripwire has four ways around it, and its tearDown cannot tell when it was never installed.**
+- **M7** `tests/unit/test_router_hints.py:413-417`, `:557-562`; `ios/ModelRanking/Engine/FrontDoor.swift:318`; `ios/EngineTests/FrontDoorTests.swift:749-760`. **#58's text-gate half covers the type-argument spellings and nothing past them, and the register's save guard is held by no test.**
 
-  The header claims "How it catches every way a test could fetch". Probes in a scratch package with a
-  copy of the base, every request to `127.0.0.1:8199`, nothing listening:
-  1. **A class `setUp` that skips `super`.** The install happens only in the base's
-     `override class func setUp()`. A subclass `override class func setUp() {}` running first in its
-     process skips it. That happens under `swift test --filter`, and in a parallel worker. Probe P5:
-     the request reached the real stack (`-1004`, cannot connect) and the test **passed**. The base's
-     tearDown checks `notInstalled == nil`, which stays nil when the install never ran. The source
-     check reads only instance hooks (`test_swift_tests_offline.py:34`). The same override added to
-     `StandingsStoreTests.swift` passed both Python checks (5 passed).
-  2. **A stub that declines.** A stub session replaces `protocolClasses`, as all three in
-     `EngineClientTests.swift` do. A request the stub does not `canInit` falls through to the real
-     stack, and nothing is recorded (probe P4: `-1004`, attempts `[]`). Today `StubProtocol.canInit`
-     returns `true` (`EngineClientTests.swift:208`), so nothing escapes now.
-  3. **A background configuration.** `URLSessionConfiguration.background(withIdentifier:)` is not
-     exchanged: its first protocol class is `_NSURLAppSSOProtocol` (probe P2).
-  4. **Swift Testing.** An `import Testing` / `@Test` function derives from nothing, and none of the
-     checks reads it. The tripwire is installed only by an XCTest class's `setUp`. The target has 0
-     such tests today.
+  B1's fix gave the text gate `[<\[,(]\s*URL\b`. Its test says "a URL decoded from text needs `URL`
+  as a type argument". Two mutants in `ContentView.swift`, each decoding a URL from the reader's
+  text, show that claim is false:
+  1. `struct CrBox: Decodable { let u: Foundation.URL? }`, decoded, returned as `Foundation.URL?`:
+     text gates **46 passed**. A module-qualified `URL` meets neither `:\s*\[?\s*URL\b` nor the new
+     pattern.
+  2. `func crProbeInfers(_ blob: String) -> URL? { try? JSONDecoder().decode(type(of:
+     EngineClient.localDefault), from: Data(blob.utf8)) }`: text gates **46 passed**. `-> URL` is
+     not a pattern, and `type(of:)` names no type.
 
-  What holds: `URLSession.shared` (P3), `Data(contentsOf:)` (P6), a copied `.default` (P7) and an
-  undrained request failing the test (P9) are all caught. The exchange is confined to the test
-  process, and the app does not compile `ios/EngineTests/` (`project.pbxproj` syncs only
-  `ModelRanking`). Both the serial and the parallel run are covered for every class in the target
-  today.
+  The compiler gate fails on both, rc 1 (`ContentView.swift: Foundation.URL.decoded is the
+  network`). So the defence holds where Xcode is, which is `make check` on the owner's Mac. CI runs
+  only the text gate, and there the decode is invisible. Round 1 offered this choice: a pattern, or a
+  stated limit. The fix took the pattern and states no limit.
 
-  **The fix.**
-  1. Also install from the base's instance `setUp()`, which the Python check already forces
-     subclasses to call through.
-  2. In tearDown, assert that `URLSessionConfiguration.default.protocolClasses?.first` is the
-     tripwire.
-  3. Have the Python check refuse an `override class func setUp` that does not call `super`, and
-     `import Testing` in `EngineTests`.
-  4. Either require every `URLProtocol` subclass in the target to `canInit` everything, or append
-     the tripwire after a stub's classes.
+  Two more points on the same issue:
+  3. **The register's save guard is held by nothing.** I removed `url.isFileURL` from
+     `GapRegisterStore.save` (`FrontDoor.swift:318`). `GapRegisterHardeningTests` passed (7 of 7),
+     and so did the text gates. `Data.write(to:)` never goes through URL loading, so the tripwire
+     cannot see it. The test's comment says "Neither a load nor a save may touch an address that is
+     not a file; the offline tripwire would record either" (`FrontDoorTests.swift:751-753`); for the
+     save it would not. The load guard is held: removed, the test fails with the tripwire recording
+     `https://example.invalid/gap-register.json`. The new test was also inserted under the doc
+     comment of the test after it: `/// And a save into a fresh folder round-trips, folder created
+     on the way.` (`:749`) now documents `testTheRegisterIsOnlyEverAFileOnThisDevice`.
+  4. **What the new pattern refuses that the app needs.** Nothing in the app today: no client file
+     matches it. But it has no `EngineClient.swift` entry in `EGRESS_PERMITTED`. So the compiler
+     gate's own fixture, which says `EngineClient.swift` may decode `[URL]`
+     (`client_decl_fixtures/EngineClient.swift:8-10`), would fail the text gate as real code. The
+     two D-126 gates now disagree about the one door. That is stricter, not looser, but whoever
+     first needs a decoded URL in `EngineClient.swift` will meet a refusal that the compiler gate's
+     fixture says is wrong.
 
-- **M2** `tests/unit/test_router_hints.py:31-37`; `tests/unit/test_engine_address.py:80`. **#98's stripper misses Swift's nested block comments, and it now hides live code from the negative pins.**
+  **The fix:**
+  1. Add `\.\s*URL\b` (any qualified `URL`) and `->\s*\(?\s*URL\b` to `EGRESS`, with
+     `EngineClient.swift` entries where the door needs them.
+  2. Write in `client_decl_gate.py`'s docstring and the close record that the text gate cannot see
+     a type it never names (`type(of:)`), so CI's D-126 check does not see decoding in general.
+  3. Pin the save guard where it can be observed, or drop "or a save" from the test's comment, and
+     move the stray doc comment back to its test.
 
-  1. **Nested comments: the #98 class itself.** Swift block comments nest. The mutant
-     `/* /* the address line, off for now */` above the failure view's `if let address =
-     error.addressNote(client.baseURL, language) { Text(address)… }` and `*/` below it:
-     1. it type-checks with 0 errors (`swiftc -typecheck`, simulator SDK), so the line is gone from
-        the build;
-     2. `test_the_failure_screen_shows_the_address_the_app_asked` still **passes**.
+- **M8** `tests/unit/test_router_hints.py:31-68`. **The `_code` scanner still erases live code: a raw string or a string interpolation holding `/*` opens a "comment" that Swift never sees.**
 
-     The non-greedy `/\*.*?\*/` stops at the inner `*/` and leaves the code visible. This is the W1
-     Tester's mutant C4 with one more `/*`.
-  2. **A regression in the other direction.** The new `re.sub` runs before the `//` cut. A `/*`
-     inside a line comment now opens a "comment" that the regex closes at a later `*/`, and erases
-     the live code between them. Checked on `_code` directly:
-     `// see /* the old note` / `outcome.refinements = picked` / `// */ end` → the negative pin
-     `\.refinements\s*(=|\.append|\+=)` (`test_router_hints.py:168`) **does not see the assignment**.
-     The old stripper, which cut each line at `//`, did. The three Router pins at `:130`, `:155` and
-     `:175` all assert absences through `_code`.
+  The docstring says "comment markers inside a string literal are text". That holds for `"…"` and
+  `"""…"""`, and fails for two other literal forms. Each mutant below was appended to `Router.swift`
+  above a live `copy.refinements = extra`, and each builds (`swift build` rc 0):
+  1. `let note = #"a"/*"#`. The scanner ends the string at the inner `"`, so `/*` opens a comment.
+     Swift reads one raw string whose content is `a"/*`.
+  2. `let note = "\(tags["/*"] ?? "")"`. The scanner ends the string at the quote inside the
+     interpolation, so `/*` again opens a comment.
 
-  **The fix:** one left-to-right scanner that tracks depth for `/*` … `*/`, honours `//` to the end
-  of the line, and skips string literals. Pin it with both shapes above.
+  Nothing after the mutant closes the "comment", so `_code` returns nothing from there to the end of
+  the file. Placed higher in a file, it would erase up to the next `*/` anywhere, including one in a
+  `//` line. `test_only_the_model_output_boundary_builds_an_outcome_with_refinements` **passes (12
+  passed)**. That pin holds D-168 clause 4, and its own docstring says it is the only holder where
+  the embedding assets do not load.
 
-- **M3** `scripts/wave_check_all.py:61`, `:85-86`. **`missing_closes` passes vacuously on a plan whose wave headings it cannot parse.**
+  Base vs. W5, on `_code` directly:
 
-  Probe: a closed M19 with no close records at all.
-  1. `### W1 — one`: 2 missing, as designed.
-  2. `## Wave 1 — one`: **0 missing.**
-  3. `### M19-W1 — one`: **0 missing.**
+  | shape | base `77d3b2f` sees the assignment | `a140265` sees it |
+  |---|---|---|
+  | `let s = "//"; copy.refinements = extra` | no | yes |
+  | raw string with `/*`, then the assignment | yes | **no** |
+  | interpolation with `/*`, then the assignment | yes | **no** |
 
-  AGENTS.md §3.5: "the comparing gate **fails CLOSED** (an empty or errored derived set is a
-  FAILURE, never a vacuous pass)", and #82 asks for "fail closed on a missing one
-  (`/writing-a-control`)". Also, any heading that contains the substring "dropped" is excused.
+  So the wave traded one bypass for two, and the two new ones erase to the end of the file, not only
+  to the end of a line.
+
+  **The fix:**
+  1. Scan `#…"…"#` raw strings by their `#` count.
+  2. Track `\(`…`)` depth, with nested strings, inside a string.
+  3. **Fail closed.** If the scan ends inside a block comment, raise. Swift cannot compile an
+     unclosed `/*`, so ending inside one means the scanner misread the file.
+
+  Pin all three with the two shapes above.
+
+- **M9** `scripts/wave_check_all.py:89-95`. **`missing_closes` still excuses any heading containing "dropped", and counts only the headings it can parse.**
+
+  Round 1's M3 asked for two things. This round did the first (a plan with no parseable heading is a
+  finding) and not the second. Probes on scratch trees, each a closed M19:
+  1. `### W1 — one` (closed) and `### W2 — the dropped-frames fix` (not closed) → **0 missing**. The
+     excuse is the substring `"dropped" in rest.lower()` (`:94`).
+  2. `### W1 — one` (closed) and `### Wave two — the second` (not closed) → **0 missing**. One
+     heading parses, so the new no-wave check does not fire, and the second wave is never counted.
+  3. `### **W1** — one` and `### **W2** — two`, nothing closed → fails closed, as designed.
+  4. `### W1: one` (closed) and `### W2: two` → W2 missing, as designed.
 
   What holds:
-  1. On the real M18 plan, as if M18 closed today, it lists W2–W6 correctly.
+  1. On the real M18 plan, as if M18 had closed today, it lists W2–W6 correctly.
   2. Nothing before M18 is graded (`EXPECTED_CLOSES_FROM = 18`, GPF-001).
-  3. `wave_check_all.py` passes on the tree.
-
-  **The fix:** a closed milestone whose plan yields no wave heading is itself a finding, and
-  "dropped" is matched as a marked token, for example `(dropped`.
-
-- **M4** `scripts/wave_check.py:274`, `:355-364`. **The input-parsing HIGH rule fails open on three inputs.**
-
-  I ran `wave_check.py` on the M18-W1 close with tier MED, `Touched: src/app/clients/epoch.py` and
-  date 2026-10-04: rc 1, the rule fires. Each variant below returns **rc 0**:
-  1. **No `date:` line.** The rule needs `dated is not None`. An undated v6.6 close otherwise passes
-     `wave_check.py`, and an undated record has no claim to be grandfathered.
-  2. **`Mutant set author:` above `Touched:`.** `Touched:(.*?)^\s*Mutant set author:` then finds
-     nothing.
-  3. **`Touched: src/app/clients (epoch.py)`.** The rule looks for the substring with the slash.
-
-  GPF-001 holds: every existing close is dated before 2026-10-04 and is not graded.
+  3. `make wave-check-all` passes on the repository: no closure report from M18 on exists yet.
 
   **The fix:**
-  1. Grade an undated close, so the rule reads `dated is None or … >= INPUT_PARSING_HIGH_FROM`.
-  2. Read the `Touched:` field on its own, up to the next `Field:` line.
-  3. Match `src/app/clients\b`.
+  1. Match "dropped" as a marked token, for example `\(dropped\b` or `— dropped`.
+  2. Count a heading that names a wave in any spelling (`W\d|Wave\b`). One that does not parse is a
+     finding, even when its neighbours parse.
 
-- **M5** `tests/unit/test_readonly_uri.py:177-208`; `tests/unit/test_engine_service.py:522-529`. **#92's T1 watcher does not run the product's main route, and N1's check misses a split line.**
+- **M10** `scripts/wave_check.py:364-366`; `docs/wave-checklist.template.md:33`. **The #83 rule passes a MED close that keeps the template's row-1 wording, because that wording contains "HIGH".**
 
-  1. **T1.** The runtime watcher drives `/v1/boards`, `/v1/categories`, the boot check,
-     `fingerprint_of` and `_served_without`. That is exactly the list #92 gave. It does not drive
-     `/v1/recommendations`, the route every question uses (`main.py:1471`), the refresh cycle's live
-     read (`refresh.py:986`) or `Carry.restore` (`build.py:309`).
-     1. **Mutant:** `conn = __import__("sqlite3").connect(str(path))` at `main.py:1471`, a writable
-        handle under no name the AST gate reads.
-     2. **Result:** 1 failed, 1608 passed. The one failure is `test_api_v1.py:549`, which
-        monkeypatches `open_readonly` to provoke a 500 and so noticed that the route no longer
-        calls it. No read-only guard fired.
-     3. **Overclaim:** the test's name, `test_every_reader_opens_the_artifact_read_only_at_run_time`,
-        says more than it runs.
-  2. **N1.** The check keeps lines containing `"simctl "` and looks for `booted` on the same line.
-     The mutant `xcrun simctl \` / `    uninstall booted "$BUNDLE"` added to `ios/app.sh` passed
-     (33 passed in `test_engine_service.py`).
+  The rule takes row 1 whole and asks for `\bHIGH\b` anywhere in it. The template's row 1 reads "Risk
+  tier recorded for this wave in the plan (LOW/MED/HIGH; auto-HIGH if the diff touches
+  authz/secrets/crypto/input-parsing/egress)". Probe: the M18-W1 close, built the way the test's
+  `_record` builds it (dated 2026-10-04, tier MED, `Touched: src/app/clients/epoch.py`):
+  1. with the close's own row-1 wording: **rc 1**, the rule fires;
+  2. with the template's row-1 wording: **rc 0**, the rule is silent.
+
+  The M15–M18 closes happened to shorten that cell, which is why nothing fails today. Evidence that
+  says "MED; the HIGH globs were not touched" would pass the same way, by the same regex. It fails open, beside the three
+  inputs round 1's M4 closed. GPF-001 holds: no close is dated on or after 2026-10-04, and none
+  in scope is undated, so nothing existing is graded.
+
+  **The fix:** read the tier from the evidence cell's `risk: **X**` token, the shape every close and
+  the test already use, and refuse a row-1 evidence cell that has none.
+
+- **M11** `ios/EngineTests/OfflineTestCase.swift:8-17`; `tests/unit/test_swift_tests_offline.py:18-24`. **The tripwire still has two ways around it, and its header still says it catches "every way a test could fetch".**
+
+  1. **A background configuration** (round 1's M1(3)). Nothing changed. Background sessions run
+     out of process and ignore custom protocol classes, so no exchange can catch them. Only a source
+     check can: refuse `background(withIdentifier` in `ios/EngineTests/` and the Engine sources.
+     Today 0 uses.
+  2. **A base reached through a `typealias`.** I added `typealias PlainCase = XCTestCase` and made
+     `RefinementsTests` derive from `PlainCase`:
+     1. `test_swift_tests_offline.py`: **4 passed**;
+     2. `swift test --filter RefinementsTests`: 7 passed, with none of the base's tearDown checks.
+
+     The check matches `: XCTestCase` as spelled. The same `typealias` in a client file is refused
+     by the text gate; in the test target nothing refuses it.
 
   **The fix:**
-  1. Drive every route in `DECLARED_ROUTES`, including `task=coding` and one single surface, plus
-     the two refresh reads, or rename the test to what it covers.
-  2. Join `\`-continued lines before matching.
+  1. Refuse `background(withIdentifier` and `typealias … = XCTestCase` in the Python check.
+  2. Better, if it proves workable: check from the Swift side, once per process, that every test
+     class in the bundle inherits `OfflineTestCase`, for example by walking `XCTestSuite.default`.
+     I did not build this.
+  3. Narrow the header to what it catches.
 
-- **M6** `docs/plans/m18-plan.md:110-116`, `:185`, `:200-202`; `docs/plans/m18-wave-5-plan.md:28`, `:53`; `docs/prd.md:400`, `:402`; `AGENTS.md` §4. **Records.**
-
-  1. **P4's move to W6 is not recorded where the plan says changes go.** `m18-plan.md` freezes its
-     criteria and says "A later change is a plan amendment". W4 moved #74 and #56 that way
-     (`:200-202`). Here:
-     1. §2 W5 still lists #60 and #85 (`:112`, `:115`), and so does the inventory (`:185`);
-     2. §2 W6 does not name them;
-     3. the wave plan's P4 row still reads as planned (`:28`).
-
-     Cutting P4 is within the wave plan's own valve, "P4 is the part to cut if it runs long" (`:53`),
-     and the close record will say so. That makes the move honest, but recorded only in the close.
-     **Nothing P4 needed slipped into P1–P3 half-done:**
-     1. no change touches `test_ios_client_contract.py`'s arithmetic tripwires or a `/v1/boards`
-        relay;
-     2. the new REQ-APP-005 row names #60 as what is missing.
-
-     Add an amendment line to `m18-plan.md` and move the two issues in the inventory.
-  2. **Two PRD citations are wrong.**
-     1. REQ-API-007 cites `test_readonly_uri.py:136`. That was right at `0a36775`; `ca8b785` then
-        inserted `import sys`, and the test is now at `:137`.
-     2. REQ-API-009 cites `docs/coverage-by-req.md:33`, a table separator; the row is at `:39`.
-
-     The other 95 test and source citations I resolved hold (below).
-  3. **The #52 rule has no ADR.** `AGENTS.md` §4 gains a process rule, one seat after another, each
-     in its own worktree and venv, with no ADR. The profile lists "AGENTS.md … edited without ADR"
-     as MINOR. D-172, its stated model, is an ADR. Either log one, or cite #52 as the rule's record
-     on the line.
+  **The setter exchange itself is sound**, and I checked the three things the brief asked about:
+  1. **No test relies on the old list.** Every stub session in the suite sets
+     `protocolClasses = [StubProtocol.self]` (`EngineClientTests.swift:238`, `:421`, `:474`), and
+     `StubProtocol.canInit` is `true` (`:208`). So the list becomes `[StubProtocol, Tripwire]`, and
+     the stub answers first. All 367 tests pass serially and in parallel.
+  2. **A stub can lose its request only one way:** a test that appends its stub after
+     `.ephemeral`'s list, which already starts with the tripwire. No test does, and the same
+     ordering was true before this round.
+  3. **The exchange cannot recurse.** The class getters set a list that already contains the
+     tripwire, so the exchanged setter appends nothing. If any exchange fails, `notInstalled` fails
+     every test rather than trapping.
 
 ### PASS (what looks good)
 
-- **The register is file-only, and the gate tests itself first.** `GapRegisterStore.load` and `save`
-  refuse a non-file address (`FrontDoor.swift:308`, `:318`). The on-device store is built from
-  `FileManager` file URLs, so production is unchanged. `main()` runs `self_test()` before any app
-  check and returns 1 if it is broken (`client_decl_gate.py:351-358`).
-  1. The self-test fails closed. An unparseable dump leaves all three expected refusals missing, and
-     a fixture that does not type-check fails.
-  2. With no Xcode it is skipped, and the gate reports `SKIPPED NO-ENVIRONMENT` as before.
-  3. CI runs the two canned-output tests, and the skip budget moves 75 → 76 for the compiled one.
-  4. The `\bURL\b` boundary does not match `URLRequest`. The canned string in
-     `test_client_decl_gate.py:25-30` matches what Xcode 26 printed in my probe.
-- **The tripwire is sound where the suite uses it.** The exchange swaps `+defaultSessionConfiguration`
-  and `+ephemeralSessionConfiguration` once per process (`static let`). It fails every test, rather
-  than crashing, if a selector is missing. All 52 test classes derive from the base;
-  `StandingsStoreTests` now calls `super` in both hooks. Serial and parallel: 366 each.
-- **#92's N2 and N3 are right and narrow.**
-  1. N3: `isinstance(score, (int, float))` before `isfinite`. Every parser yields Python floats
-     (`aider.py:100`, `arena.py:398`, `swebench.py:102`, …, and `to_pylist` in the parquet reader),
-     so no valid score is newly refused.
-  2. N2: `_as_stored` reuses `_calendar_date`. The two-line finite check now lives in two places
-     (`ingest.py:135`, `build.py:382`); a shared helper would keep them from drifting. The served
-     artifact has 0 non-finite scores and 0 malformed `run_date`s, so N2 changes nothing today.
-- **The audit hook does not interfere under xdist.** It records only while `_WATCHING[0]` is set,
-  only the `sqlite3.connect` event, and the test filters by its own `tmp_path`. 1609 passed under
-  `-n auto`. Its cost and permanence are **R2**.
-- **D-154 and D-157 follow append-only.** Each keeps its original `**Status:**` line and body, and
-  gains one dated line. The cited merges exist:
-  1. `829e02d` is PR #9 on 2026-09-23, `5f6ab30` is PR #6 and `eee2faf` is PR #8;
-  2. `5fc3f02` is a direct push.
-
-  `closure-report-m16.md:15`, `:40` and `:150` carry D-154 and "the owner signs by merging". D-170
-  and D-166 amend them as stated. `check_records.py`: no findings.
-- **The PRD rows are honest.** Every REQ id cited in `tests/` or `ios/EngineTests/` (112) has a row.
-  #33's five items are each addressed:
-  1. REQ-API-010 is now one requirement, and the other is renumbered REQ-API-011, with its two code
-     docstrings updated;
-  2. the M2 and M7 ids, REQ-IMG-001..003, REQ-SRC-010 and REQ-ANM-001 have rows;
-  3. REQ-BGT-001 says no ADR records its retirement;
-  4. the three stale MET rows are restated.
-
-  REQ-APP-003 and REQ-APP-005 went MET → PARTIAL with the missing piece named.
-
-  I resolved all 96 test and source `file:line`s the new rows cite. Each lands on a test definition,
-  or once on the source line cited (`ContentView.swift:64`), whose name matches its row. The
-  exception is M6(2)'s `test_readonly_uri.py:136`. The document citations I checked by hand hold,
-  except `coverage-by-req.md:33`: `m10-wave-4-close.md:37`, `m14-wave-1-close.md:46` and
-  `m7-plan.md:166-169`. A sample read in full:
-  1. `test_arena_openrouter_contract.py:21` and `:30` hold the ≥100 and ≥20 floors;
-  2. `FrontDoorTests.swift:347` asserts the image-generation decline;
-  3. `.github/workflows/ci.yml:7-10`, `:54` and `contract-tests.yml:15-17`, `:110` read as cited.
-- **`docs/architecture.md` matches the code where I checked it.**
-  1. **Refresh:** the 23:00 window and two-hour span, 60 s grace, 4 h recent-skip, 30 min kill,
-     64 KiB tail, `--fetch-epoch`/`--epoch-dir`, the group/other-writable check, the quarter
-     thresholds and the "changed while building" refusal.
-  2. **Phone:** the 8 s model tier, two refinements, the ephemeral 10 s session, the 4 MiB cap, the
-     caches folder and `SameHostOnly`'s case-insensitive compare.
-  3. **Trust boundaries:** 32 MiB, five redirects, 512 MiB and 8 MiB for the parquet child (declared
-     in `arena_slices.py`), 2000 zip members, the 120-character harness cut at the API boundary
-     (`main.py:897`), 40-character echo, `NSAllowsLocalNetworking`, the loopback rule with no Host
-     list, the `127.0.0.1,localhost` list and the launchd label.
-  4. **Startup:** five declared routes, and `validate_startup_config` at import (`main.py:653`).
+- **B1 is closed on the authority gate, and the gate tests itself first.**
+  1. `make client-decls` runs `self_test()` before the app (`client_decl_gate.py:351-358`), and the
+     fixture now refuses `URLSession`, `FileManager` and two decoded-URL shapes.
+  2. Reverting the rule fails both the canned test and the compiled self-test.
+  3. Round 1's exact mutant is refused by both gates.
+  4. The skip budget's +1 (`docs/skip-budget.txt`, 75 → 76) is the compiled fixture CI cannot run,
+     and the Mac's 25 skips match.
+- **Every round-1 fix was red first**, six for six at `3c584a5`. No fix weakened an assertion to
+  pass. `a140265` edits two test files:
+  1. `test_router_hints.py`, for gate code that lives there (the scanner and the `EGRESS` pattern);
+  2. one assertion in `test_wave_check_m18_rules.py:94`, which drops the slash from
+     `"src/app/clients/"` to match the widened message. The assertion is no weaker for it.
+- **The fail-closed changes respect GPF-001.**
+  1. `missing_closes` grades only milestones from M18 that have a closure report. None exists, so
+     today it grades nothing.
+  2. The HIGH rule grades closes dated from 2026-10-04, or undated. No in-scope close is either, and
+     `wave_check.py:325-331` already holds an undated close to today's version.
+  3. `make wave-check-all` is PASS on the tree.
+- **N2 and N3 are narrow and correct.**
+  1. `_as_stored` reuses `_calendar_date` and refuses a non-finite or non-numeric score.
+  2. The artifact holds 13,994 finite `REAL NOT NULL` scores and only NULL or 10-character
+     `run_date`s, so nothing served changes.
+  3. N3's `isinstance` guard turns `isfinite(None)`'s `TypeError` into a `SourceError`, which a
+     caller treats as a failed source (`test_stored_scores_are_bounded.py:94`).
+- **T1 now drives the product's route** and the refresh's expiry-night read. The one artifact
+  reader it does not drive, `Carry.restore`, has its own read-only test
+  (`test_carry_forward.py:315`), which killed my mutant there.
+- **The records hold where I traced them.**
+  1. All 108 `file:line` citations the new PRD rows add resolve. 106 land on a test or definition
+     line. The other two are deliberate source citations: the contract test's `pytestmark` skip
+     (`test_arena_openrouter_contract.py:15`) and `ContentView.swift:64`'s `budget = "unlimited"`.
+  2. In `docs/architecture.md` I checked 32 MiB and five redirects (`protocols.py:49`, `:55`), 120
+     characters (`main.py:897`), 40 (`main.py:738`), 64 (`registry.py:501`), 4 MiB (`maxStandingsBytes`)
+     and the 60 s release wait (`install_engine_service.sh:190`). All match.
+  3. D-154 and D-157 gain a dated status line each, with bodies untouched. D-174 follows D-173's
+     status form ("decided by the agent on the owner's standing instruction").
 - **Discipline.**
-  1. Every gate change was red first (verified above), and no fix changed an assertion to pass.
-  2. `90ead9d` was red, and `1d2a455` says so.
-  3. No drive-by edits: each file maps to P1–P3. The `main.py` and `test_budgets_endpoint.py` edits
-     are the REQ-API-011 rename, and `test_recommend_assistant.py`'s is #33's stale 1400.
-  4. No new `noqa`, `type: ignore` or hard-coded path.
-  5. All 13 commits carry `GP-Task: M18-W5` and no AI attribution.
-  6. `AGENTS.md` is 127 lines.
+  1. All 17 non-merge W5 commits carry `GP-Task: M18-W5`. None carries `Co-Authored-By` or
+     "Generated with".
+  2. `AGENTS.md` is 127 lines.
+  3. No new `noqa`. One new `# type: ignore[union-attr]` sits in a test (`test_wave_check_m18_rules.py`);
+     `make typecheck` reads `src` only, so it is inert, not wrong.
+  4. Nothing outside P1–P3 changed. P4 (#60, #85) is moved by amendment, not half-done.
 
 ## Producers of hardened invariant(s)
 
-Producers of hardened invariant(s), from the code, with the citing test for each producer and the
-gaps:
+Producers, from the code, with the citing test per producer, and the gaps:
 
 | producer | invariant | citing test | gap |
 |---|---|---|---|
-| `JSONDecoder`/`PropertyListDecoder.decode(…URL…)` outside `EngineClient.swift` | a decoded URL is the network (#58, D-126) | `test_client_decl_gate.py:47`, `:57` (fixture) | text gate: none (**B1**) |
-| `KeyedDecodingContainer.decodeIfPresent(URL.self…)`, synthesised for `URL?` | the same | none | **B1** |
-| `URL(_:strategy:)`, `NSTextCheckingResult.url`, a generic `decode(T.self)` wrapper | a URL made from text is the network | text gate catches `URL(` only | **K1** |
-| `GapRegisterStore.load`/`save` (`FrontDoor.swift:308`, `:318`) | the register is only a file (#58) | `FrontDoorTests.swift:750` | none |
-| `StandingsStore.load`/`save` (`StandingsStore.swift:54`, `:67`) | the standings are only a file | `StandingsStoreTests.swift:136` | none |
-| `URLSession.shared`, `Data(contentsOf:)` | no Swift test reaches the network (#59) | `OfflineTestCase.swift:109` | none |
-| `.default`/`.ephemeral` sessions (`OfflineTestCase.swift:53-57`) | the same | `OfflineTestCase.swift:101`, `:109` | the install can be skipped (**M1**(1)) |
-| stub sessions (`EngineClientTests.swift:237`, `:420`, `:473`) | the same | `StubProtocol.canInit` is `true` (`:208`) | a declining stub (**M1**(2)) |
-| `.background(…)` sessions; Swift Testing tests | the same | none | **M1**(3), (4) |
-| `main.py:370`, `:1255`, `:1415`; `refresh.py:551`; `_served_without` | readers are read-only at run time (INV-23, T1) | `test_readonly_uri.py:177` | none |
-| `main.py:1471` (`/v1/recommendations`); `refresh.py:986`; `build.py:309` | the same | AST gate only (`:137`) | an aliased opener survives (**M5**(1)) |
-| `WRITABLE_OPENS` entries | each writer opens once (T2) | `test_readonly_uri.py:158` | none |
-| `ARENA_METRIC`, `ARENA_SLICES`, `EPOCH_BOARDS` | every board metric has a direction (T3) | `test_board_standings.py:651` | none |
-| `calibrate_board.py` `floor_shipped` | the label is the shipped rule (T4) | `test_calibrate_board.py:112` | none |
-| `ios/app.sh` simctl calls | every call names its device (N1) | `test_engine_service.py:522` | a split line (**M5**(2)) |
-| `ingest._store_scores` (`ingest.py:133-137`) | a missing score is a SourceError (N3) | `test_stored_scores_are_bounded.py:94`, `:101` | none |
-| `Carry.restore` via `_as_stored` (`build.py:316-321`, `:371-389`) | carried rows meet the store's rules (N2) | `test_carry_forward.py:369` | not in D-156 (**R3**) |
-| `main()` → `self_test()` (`client_decl_gate.py:351-358`) | the gate cannot pass the app while it has stopped refusing (#51) | `test_client_decl_gate.py:57` | none |
-| `_code` (`test_router_hints.py:31-37`) | a pin never reads a comment (#98) | `test_router_hints.py:513` | nested comments; `/*` in `//` (**M2**) |
-| `missing_closes` (`wave_check_all.py:64-92`) | a planned wave has a close (#82) | `test_wave_check_m18_rules.py:48`, `:54`, `:62` | unparsed headings (**M3**) |
-| `wave_check.py:355-364` | input parsing is HIGH (#83) | `test_wave_check_m18_rules.py:91`, `:97` | three inputs (**M4**) |
+| `JSONDecoder`/`PropertyListDecoder.decode(…URL…)` outside `EngineClient.swift` | a decoded URL is the network (#58, D-126) | compiler: `test_client_decl_gate.py:47`, `:57`; text: `test_router_hints.py:557` | text gate: `Foundation.URL`, `type(of:)`, `-> URL` (**M7**) |
+| `KeyedDecodingContainer.decodeIfPresent(…URL…)`, synthesised for `URL?` | the same | `test_client_decl_gate.py:70`, `:57` (fixture `Detail.swift:9-15`) | none on the compiler gate |
+| `URL(_:strategy:)`, `NSDataDetector`, a generic decode wrapper | a URL made from text is the network | text gate catches `URL(` only | #107 (K1) |
+| `GapRegisterStore.load` (`FrontDoor.swift:308`) | the register is only a file (#58) | `FrontDoorTests.swift:750` | none |
+| `GapRegisterStore.save` (`FrontDoor.swift:318`) | the same | none observable | **M7**(3) |
+| `URLSession.shared`, `Data(contentsOf:)` | no Swift test reaches the network (#59) | `OfflineTestCase.swift:142` | none |
+| `.default`/`.ephemeral` sessions (`OfflineTestCase.swift:77-87`) | the same | `OfflineTestCase.swift:124`, `:142` | none |
+| stub sessions (`EngineClientTests.swift:238`, `:421`, `:474`), via the setter (`OfflineTestCase.swift:89-96`) | the same | `OfflineTestCase.swift:132` | none |
+| the install itself (`OfflineTestCase.swift:101-111`) | every test runs guarded | tearDown `:116-117`; `test_swift_tests_offline.py:44` | a `typealias` base (**M11**) |
+| `.background(…)` sessions | the same | none | **M11** |
+| `main.py:370`, `:1255`, `:1415`, `:1471`; `refresh.py:551`, `:986` | readers are read-only at run time (INV-23, T1) | `test_readonly_uri.py:177` | none |
+| `Carry.restore` (`build.py:309`) | the same | `test_carry_forward.py:315` | none |
+| `_store_scores` (`ingest.py:133-137`) | a missing score is a SourceError (N3) | `test_stored_scores_are_bounded.py:94`, `:101` | none |
+| `Carry.restore` via `_as_stored` (`build.py:316-321`, `:371-389`) | carried rows meet the store's rules (N2) | `test_carry_forward.py:369` | none |
+| `ios/app.sh` simctl calls | every call names its device (N1) | `test_engine_service.py:522` | none |
+| `_code` (`test_router_hints.py:31-68`) | a pin never reads a comment (#98) | `test_router_hints.py:548`, `:565` | raw strings, interpolation (**M8**); `#if false` (K3) |
+| `missing_closes` (`wave_check_all.py:74-103`) | a planned wave has a close (#82) | `test_wave_check_m18_rules.py:48`, `:54`, `:62`, `:102`, `:113` | "dropped" substring; partial parse (**M9**) |
+| `wave_check.py:360-367` | input parsing is HIGH (#83) | `test_wave_check_m18_rules.py:91`, `:97`, `:125` | the template's row-1 wording (**M10**) |
 
 ## Acceptance criteria evidence
 
 W5 adds no REQ-ID. Its criterion is "Every gate gap filed is closed with a gate shown red, and the
-records drift is fixed" (`m18-plan.md:34`). Here it is per issue, against `m18-wave-5-plan.md:22-28`:
-- **#68** → `docs/prd.md:418-421` (REQ-APP-002/003/005) → `test_refinements.py:60`,
-  `AnswerPlanTests.swift:45`, `:143`, `CombineTests.swift:47`, `CombinePropertyTests.swift:79`.
-  Records; met.
-- **#33** → `docs/prd.md:210-228` (M2), `:393-402` (M7), `:422`, `:463`, `:471`, `:480`,
-  `:538-542`; `docs/decisions.md:2367`, `:2634`. Records; met, except the two citations in
-  **M6**(2).
-- **#80** → `docs/architecture.md` (all eight sections) and `AGENTS.md` §1. Met; spot-checked
-  against the code above.
-- **#52, #84** → `AGENTS.md` §4. Met; no ADR (**M6**(3)).
-- **#59** → `OfflineTestCase.swift:19-98` → `OfflineTestCase.swift:101`, `:109`;
-  `test_swift_tests_offline.py:18`, `:27`. Red `5a3b1be`, fix `6efede4`. Met for the suite as it
-  is; four bypasses (**M1**).
+records drift is fixed" (`m18-plan.md:34`). Here it is per issue, against
+`m18-wave-5-plan.md:22-28`:
+- **#68** → `docs/prd.md` REQ-APP-002/003/005 → `test_refinements.py:60`, `AnswerPlanTests.swift:45`,
+  `:143`, `CombineTests.swift:47`, `CombinePropertyTests.swift:79`. Records; met.
+- **#33** → the M2 and M7 rows, REQ-API-010/011, `decisions.md:2367`, `:2636`. Met, including
+  round 1's two citations.
+- **#80** → `docs/architecture.md`, `AGENTS.md` §1. Met; spot-checked above.
+- **#52, #84** → `AGENTS.md:77`, D-174 (`decisions.md:3469`). Met.
+- **#59** → `OfflineTestCase.swift:22-121` → `OfflineTestCase.swift:124`, `:132`, `:142`;
+  `test_swift_tests_offline.py:18`, `:37`, `:44`, `:53`. Red `5a3b1be` and `3c584a5`, fixes
+  `6efede4` and `a140265`. Met; **M11**.
 - **#51** → `client_decl_gate.py:333-358`, `scripts/client_decl_fixtures/` →
-  `test_client_decl_gate.py:33`, `:57`. Red `93de739`, fix `90ead9d` and `1d2a455`. Met.
-- **#58** → `FrontDoor.swift:308`, `:318` → `FrontDoorTests.swift:750`: **met**.
-  `client_decl_gate.py:213-216`, `:264-265` → `test_client_decl_gate.py:47`: **not met**. A decoded
-  `URL?` passes both gates (**B1**).
-- **#98** → `test_router_hints.py:31-37` → `:513`. Red `678a830`, fix `6894083`. Met for flat
-  comments; nested comments and the new erase (**M2**).
-- **#92** → T1 `test_readonly_uri.py:177`; T2 `:158`; T3 `test_board_standings.py:651`; T4
-  `test_calibrate_board.py:112`; N1 `test_engine_service.py:522`; N2 `test_carry_forward.py:369`;
-  N3 `test_stored_scores_are_bounded.py:94`, `:101`. Red `ca8b785`, fix `f21f658`. Met as #92
-  scoped it; T1 and N1 have gaps (**M5**).
-- **#82** → `wave_check_all.py:64-92`, `:150-159` → `test_wave_check_m18_rules.py:48`, `:54`, `:62`.
-  Met; vacuous on unparsed headings (**M3**).
-- **#83** → `wave_check.py:274`, `:355-364` → `test_wave_check_m18_rules.py:91`, `:97`. Met; three
-  fail-open inputs (**M4**).
-- **#60, #85** → not done. Cut by the wave plan's valve (`m18-wave-5-plan.md:53`); the move is
-  unrecorded in the milestone plan (**M6**(1)).
+  `test_client_decl_gate.py:33`, `:57`. Met.
+- **#58** → `FrontDoor.swift:308` → `FrontDoorTests.swift:750`; `client_decl_gate.py:216` →
+  `test_client_decl_gate.py:47`, `:70`, `:57`; `test_router_hints.py:417` → `:557`. Met on the
+  compiler gate; the text gate and the save guard are **M7**.
+- **#98** → `test_router_hints.py:31-68` → `:548`, `:565`; `test_engine_address.py:80`. Met for
+  comments; **M8**.
+- **#92** → T1 `test_readonly_uri.py:177`; T2 `:158`; T3 `test_board_standings.py:648`; T4
+  `test_calibrate_board.py:112`; N1 `test_engine_service.py:522`; N2 `test_carry_forward.py:369`; N3
+  `test_stored_scores_are_bounded.py:94`, `:101`. Red `ca8b785`, fix `f21f658`. Met.
+- **#82** → `wave_check_all.py:74-103` → `test_wave_check_m18_rules.py:48`, `:54`, `:62`, `:102`,
+  `:113`. Met; **M9**.
+- **#83** → `wave_check.py:273-274`, `:360-367` → `test_wave_check_m18_rules.py:91`, `:97`, `:125`.
+  Met; **M10**.
+- **#60, #85** → not in W5. They moved to W6 by amendment (`m18-plan.md:204-206`). Both are open with
+  no milestone set on GitHub.
+
+## Every file in the diff
+
+`git diff --stat 4d07e50 a140265`, 49 files. I read every file's diff in full, except
+`docs/architecture.md` and `docs/prd.md`, which I checked as described under PASS:
+1. **Records (8).**
+   1. `AGENTS.md`: §1 restated (#80); §4's seat rule (#52, D-174).
+   2. `docs/architecture.md`: rewritten for the product after M18-W4 (#80).
+   3. `docs/decisions.md`: D-154 and D-157 status lines (#33); the D-156 note (#92 N2); D-174.
+   4. `docs/plans/m18-plan.md`: the W5 amendment.
+   5. `docs/plans/m18-wave-5-plan.md`: new.
+   6. `docs/prd.md`: #68, #33 and REQ-REF-009.
+   7. `docs/reviews/m18-wave-5-review.md`: this file.
+   8. `docs/skip-budget.txt`: 75 → 76.
+2. **The phone (17).**
+   1. `OfflineTestCase.swift`: new, the tripwire.
+   2. Fourteen test files move each class onto `OfflineTestCase`, with no other change, except two:
+      1. `FrontDoorTests.swift` adds the register test;
+      2. `StandingsStoreTests.swift` calls super in both hooks.
+
+      The fourteen are `AnswerPlan`, `CombineProperty`, `Combine`, `Detail`, `EngineClient`,
+      `FrontDoor`, `Language`, `OwnerSessionDefect`, `RefinementBoundary`, `Refinements`,
+      `RouterBoundary`, `Scores`, `StandingsStore` and `Uncertainty`.
+   3. `EngineClientTests.swift` also restates one doc comment on the retired budget picker.
+   4. `test-manifest.txt`: +4 tests.
+   5. `FrontDoor.swift`: the register is file-only.
+3. **Gates (7).**
+   1. `client_decl_gate.py`: `URL.decoded`, `self_test`, the fixture folder.
+   2. Four fixtures in `scripts/client_decl_fixtures/`.
+   3. `wave_check.py`: #83.
+   4. `wave_check_all.py`: #82.
+4. **Engine (3).**
+   1. `main.py`: a docstring id, REQ-API-011.
+   2. `build.py`: N2.
+   3. `ingest.py`: N3.
+5. **Tests (14).** `test_board_standings` (T3), `test_budgets_endpoint` (the REQ-API-011 rename),
+   `test_calibrate_board` (T4), `test_carry_forward` (N2), `test_client_decl_gate` (#51, #58),
+   `test_engine_address` (`_code` alone), `test_engine_service` (N1), `test_readonly_uri` (T1, T2),
+   `test_recommend_assistant` (#33's stale 1400), `test_router_hints` (`_code`, `EGRESS`, #58),
+   `test_stored_scores_are_bounded` (N3), `test_swift_test_manifest` (the base class in its
+   pattern), `test_swift_tests_offline` (#59) and `test_wave_check_m18_rules` (#82, #83).
 
 ## K.8 contract drift check
 
-`git grep -n` at `f21f658`, for the plan's symbols (`m18-wave-5-plan.md:41-47`) and the new ones:
+`git grep -n` at `a140265`, for the plan's three symbols (`m18-wave-5-plan.md:41-47`) and the ones
+this wave added:
 ```
 scripts/client_decl_gate.py:110:NETWORK_FILE = "EngineClient.swift"
-scripts/client_decl_gate.py:216:DECODES_URL = re.compile(r'decl="[^"]*\.decode\([^"]*\[with \(substitution_map[^"]*->[^"]*\bURL\b')
+scripts/client_decl_gate.py:216:DECODES_URL = re.compile(r'decl="[^"]*\.decode(?:IfPresent)?\([^"]*\[with \(substitution_map[^"]*->[^"]*\bURL\b')
 scripts/client_decl_gate.py:333:def self_test() -> list[str] | None:
+scripts/wave_check.py:274:INPUT_PARSING_HIGH_FROM = "2026-10-04"
 scripts/wave_check_all.py:48:PATTERN = "docs/plans/m*-wave-*-close.md"
 scripts/wave_check_all.py:60:EXPECTED_CLOSES_FROM = 18
-scripts/wave_check_all.py:64:def missing_closes(root: pathlib.Path) -> list[str]:
-scripts/wave_check.py:274:INPUT_PARSING_HIGH_FROM = "2026-10-04"
+scripts/wave_check_all.py:63:WAVE_HEADING = re.compile(r"^#{2,4}\s*(?:M\d+-)?W(?:ave\s*)?(\d+)\b(.*)$", re.M)
+scripts/wave_check_all.py:66:def _excused_waves(ledger: pathlib.Path) -> set[str]:
+scripts/wave_check_all.py:74:def missing_closes(root: pathlib.Path) -> list[str]:
 tests/unit/test_router_hints.py:31:def _code(swift: str) -> str:
 tests/unit/test_engine_address.py:15:from .test_router_hints import _code
-ios/EngineTests/OfflineTestCase.swift:86:class OfflineTestCase: XCTestCase {
+ios/EngineTests/OfflineTestCase.swift:60:        exchange("setProtocolClasses:", "offlineSetProtocolClasses:", classMethod: false)
+ios/EngineTests/OfflineTestCase.swift:90:    @objc func offlineSetProtocolClasses(_ classes: [AnyClass]?) {
+ios/EngineTests/OfflineTestCase.swift:100:class OfflineTestCase: XCTestCase {
 src/app/workflows/build.py:60:from app.workflows.ingest import RunContext, SourceReport, _calendar_date, _store_scores
 src/app/workflows/build.py:371:def _as_stored(
 ```
-1. `NETWORK_FILE` and `PATTERN` keep their values; their line numbers moved.
+1. `NETWORK_FILE`, `PATTERN` and `_code`'s signature are unchanged. `_code` now strips more, and its
+   only consumers are the three Router pins (`test_router_hints.py:162`, `:187`, `:207`) and
+   `test_engine_address.py:80`.
 2. `dump_ast` gains an optional `folder` that defaults to `CLIENT`, so existing callers are
    unchanged.
-3. `_code` keeps its signature and widens what it strips; its two consumers are the three Router
-   pins and `test_engine_address.py:80` (**M2**).
-4. `/v1` is unchanged: the only `src/app/adapter/main.py` edit is a docstring.
-5. `build.py` takes a second private name from `ingest`, beside `_store_scores`.
+3. `/v1` is unchanged: the only `main.py` edit is a docstring.
 
-**Verdict: OK** for symbol drift. B1 is a behaviour finding, not a renamed contract.
+**Verdict: OK.** No symbol drifted. M7–M11 are behaviour findings.
 
 ## K.9 candidates spotted outside this wave's scope
 
-- **K1** `scripts/client_decl_gate.py:101-109`. **Other ways to make a URL from text pass the compiler gate.** Compiled probes in a non-network file, each passed `problems()`: `try? URL(s, strategy: .url)` (iOS 16's parse strategy; `URL.init(_:strategy:` is not in `NETWORK`); `NSDataDetector(types: .link)` → `NSTextCheckingResult.url`; a generic `func load<T: Decodable>(_: T.Type, _: Data) -> T?` in one file, called as `load(URL.self, d)` from another (the substitution lands on `main.load`, which is not capability-checked: the file-scoped limit the docstring names). The text gate catches the first by its `URL(` spelling. Neither gate names `NSDataDetector`. Bug: one more line in `NETWORK` for the first two; the third is the #85 data-flow work.
-- **K2** `docs/prd.md:326`, `:359`. **REQ-ING-010 still has two rows**, and the table row's own note, "Duplicate of line 299, which carries a different status", points at a line that has moved. #33 fixed the REQ-API-010 collision only. Docs.
+- **K3** `tests/unit/test_router_hints.py:31-68`; `tests/unit/test_engine_address.py:73-88`. **A pin is satisfied by code the compiler never builds: code under `#if false`, or text inside a string literal.** `_code` removes comments only, which is all #98 asked. Probe: the failure view's `if let address = error.addressNote(client.baseURL, language) { Text(address)… }` wrapped in `#if false` / `#endif`. Results: `test_the_failure_screen_shows_the_address_the_app_asked` and every other text gate pass (46 passed); `client_decl_gate.py` passes too. The compiler's own count shows the line left the build: 1925 → 1923 declarations per configuration. The scanner also keeps string literals in its output, so a positive pin can be met by a string quoting the code. Bug, same class as #98: drop `#if false`/`#if never` blocks and string contents from `_code`'s output, or hold the address line from `swift test` once the view is testable.
 
 ## Risks queued to next M
 
-- **R1** `ios/EngineTests/OfflineTestCase.swift:53-67`. **`URLSessionConfiguration()` trapped `xctest`.** In my scratch package, with the exchange installed, `URLSession(configuration: URLSessionConfiguration())` stopped the process with signal 5 before the probe printed anything. I did not run it again, so I do not know whether the exchange or Foundation's deprecated initialiser is the cause. If it is the exchange, a test or Engine change that builds a configuration that way would crash the suite (a crash report, possibly a dialog) rather than fail one test. What would show it: the same line in a scratch package with no `OfflineTestCase`. If it traps there too, the cause is Foundation, not the exchange.
-- **R2** `tests/unit/test_readonly_uri.py:169-174`. **A process-wide, permanent audit hook in every pytest worker.** `sys.addaudithook` runs at import, so every xdist worker installs it at collection, whether or not it runs the test, and it cannot be removed. It is cheap and guarded, and I saw no interference. What would show it: a slowdown in event-heavy tests, or a second hook that vetoes `sys.addaudithook`. Installing it on first use inside the test would scope it.
-- **R3** `src/app/workflows/build.py:316-321`. **N2 narrows D-156 without saying so in D-156 or REQ-REF-009.** A source whose live rows hold a non-finite score is now not carried. On a failed night, a required source then fails the build instead of serving its last rows. The artifact holds none today. What would show it: a failed night for a source whose live rows predate the M17 closure's finite check.
+- **R4** `ios/EngineTests/OfflineTestCase.swift:60`, `:89-96`. **The setter exchange widens #108's surface.** Since `a140265`, every `protocolClasses` assignment in the test process runs the swizzled setter. That includes any assignment Foundation makes on a configuration it builds itself. #108 (a bare `URLSessionConfiguration()` trapped `xctest` with signal 5, cause unmeasured) was filed before this exchange existed, and it is still open. I did not probe it, by this seat's rules. The suite is green and nothing in the target builds a bare configuration. What would show it is real: #108's own measurement, first without the exchange and then with it, made somewhere a trap cannot raise a dialog on the owner's Mac. If the trap appears only with the exchange, a future test or Engine change that builds a configuration that way would crash the suite rather than fail one test.
 
-*Filled by: Code-Reviewer seat (independent) · Date: 2026-10-04 · Commit range: `77d3b2f..f21f658`*
+*Filled by: Code-Reviewer seat, round 2 (independent) · Date: 2026-10-04 · Commit range: `77d3b2f..a140265`*
