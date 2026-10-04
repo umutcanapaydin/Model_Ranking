@@ -3403,8 +3403,9 @@ owner asked the agent to take its recommendation rather than ask.
 
 **Decision.**
 1. **Ties are ordered by model id** (#44). A ranking's tie-break was the display name, a served
-   spelling, so a re-spelled name moved a model inside a tie. The order of tied rows changes once,
-   and D-164's fingerprint moves with it that night.
+   spelling, so a re-spelled name moved a model inside a tie. The value and cheapest picks broke a
+   price tie the same way; they now take the first row in the ranking's order (score, then id). The
+   order of tied rows changes once, and D-164's fingerprint moves with it that night.
 2. **The night-to-night roster guards compare model ids** (#39; D-128, D-132). A display change is
    recorded in the refresh record as information. It is never read as one model lost and another
    gained. An attacker-controlled display name therefore moves no guard, which it could not do before

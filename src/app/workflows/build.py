@@ -46,7 +46,7 @@ import sys
 import tempfile
 import time
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -64,9 +64,10 @@ from app.workflows.registry import (
     ReconcileReport,
     reconcile,
     reconcile_plans,
+    resolve_effort,
 )
 from app.workflows.rosters import ingest_rosters
-from app.workflows.schema import connect, open_readonly, reset_source
+from app.workflows.schema import EFFORT_UNSPECIFIED, connect, open_readonly, reset_source
 from app.workflows.sources import (
     ARENA_SLICE_CLIENT,
     EPOCH_BOARD_CLIENT,
@@ -161,6 +162,34 @@ class BuildReport:
             "unmatched": self.unmatched,
             "access": self.access,
         }
+
+
+def _unconfirmed_suffix_rows(conn: sqlite3.Connection) -> dict[int, str]:
+    """The score rows, by rowid, that the ingest counted as `effort_unknown`: stored `unspecified`
+    under a name whose effort-looking suffix no curated rule confirmed (`ingest._store_scores`)."""
+    return {
+        rowid: source
+        for rowid, source, raw_name in conn.execute(
+            "SELECT rowid, source, raw_name FROM scores WHERE effort = ?", (EFFORT_UNSPECIFIED,)
+        )
+        if resolve_effort(raw_name).unclassified_suffix
+    }
+
+
+def _discount_resolved_efforts(
+    conn: sqlite3.Connection, reports: list[SourceReport], counted: dict[int, str]
+) -> list[SourceReport]:
+    """#45 (REQ-CAN-005, W-010): the ingest counts an unconfirmed suffix as unknown before the
+    reconcile runs, and the reconcile then stores a derived model's suffix as its effort
+    (`registry._register_derived`). A row it resolved is not unknown, so it leaves the count."""
+    resolved: dict[str, int] = {}
+    for rowid, effort in conn.execute("SELECT rowid, effort FROM scores"):
+        if rowid in counted and effort != EFFORT_UNSPECIFIED:
+            resolved[counted[rowid]] = resolved.get(counted[rowid], 0) + 1
+    return [
+        replace(r, effort_unknown=max(0, r.effort_unknown - resolved[r.source])) if r.source in resolved else r
+        for r in reports
+    ]
 
 
 def _read_back(conn: sqlite3.Connection) -> dict[str, int]:
@@ -718,7 +747,9 @@ def build(
         [*degraded, *bundle_missing, *board_missing, *slice_missing, *access_missing]
     )
 
+    counted = _unconfirmed_suffix_rows(conn)
     reconciled = reconcile(conn)
+    report.sources = _discount_resolved_efforts(conn, report.sources, counted)
     if reconciled.models_registered < minimum_models:
         msg = (
             f"reconciliation registered {reconciled.models_registered} models, below "

@@ -440,6 +440,10 @@ MOVING_ALIASES: dict[str, str] = {
 #: #40: an undated name ending in `-latest` moves by definition, whichever family it names. A date
 #: after it (`chatgpt-4o-latest-20250326`) names one release and still derives.
 _LATEST_SUFFIX = "-latest"
+#: #48: a `-latest` TOKEN followed by a word (`grok-4.20-beta-latest-reasoning`) moves just as much.
+#: By here a dated release reads `latest20250326`: the normalisation above joins a letter to the
+#: digit after a dash, so only a word or the end can follow `-latest-`.
+_LATEST_TOKEN = re.compile(re.escape(_LATEST_SUFFIX) + r"(?:-|\Z)")
 
 
 def derive_identity(name: str) -> DerivedIdentity | None:
@@ -467,7 +471,7 @@ def derive_identity(name: str) -> DerivedIdentity | None:
     text = re.sub(r"([a-z])-(\d)", r"\1\2", text)     # `gpt-6` and `gpt6` are one spelling
     if not text or not re.fullmatch(r"[a-z0-9][a-z0-9.+\-]*", text):
         return None
-    if text in MOVING_ALIASES or text.endswith(_LATEST_SUFFIX):
+    if text in MOVING_ALIASES or _LATEST_TOKEN.search(text):
         return None                                # D-166: a moving alias names no one release
     return DerivedIdentity(model_id=text, effort=effort)
 

@@ -320,7 +320,7 @@ def category_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[Ranki
         JOIN best_primary b ON b.model_id = m.id
         JOIN px_median p ON p.model_id = m.id
         LEFT JOIN best_secondary a ON a.model_id = m.id
-        ORDER BY b.best DESC, m.display
+        ORDER BY b.best DESC, m.id  -- #44 (D-173): a tie is ordered by id, never by a spelling
         """,
         {
             "primary": spec.primary_benchmark,
