@@ -102,3 +102,7 @@ scripts/router_probe/coding_heldout_m18_questions.json  # M18-W3 (#73): held-out
 scripts/router_probe/coding_heldout_m17_questions.json  # M17's held-out set (run once), now a tuning set
 scripts/router_probe/coding_tuning_questions.json  # M17's tuning set (#73), Turkish kept verbatim
 scripts/router_probe/image_heldout_questions.json  # M18-W3 (#113): held-out, half Turkish, independent seat
+ios/ModelRanking/Engine/Reading.swift   # M18-W3 (D-169): the Turkish verbs the pasted-content signal
+                                        # reads; its prose and comments are English
+ios/EngineTests/ReadingTests.swift      # asserts Turkish inputs by their words, for the reason
+                                        # LanguageTests.swift is exempt above

@@ -23,7 +23,8 @@ struct ScriptedModelRouter: QuestionRouter {
         for kind in RefinementKind.allCases {
             refinements[kind] = answer[kind.rawValue]
         }
-        return ModelOutputBoundary.outcome(for: answer["surface"], within: known, refinements: refinements)
+        return ModelOutputBoundary.outcome(for: answer["surface"], within: known, refinements: refinements,
+                                           request: answer["request"])
     }
 
     /// The table in `arguments` as `-UITestRouting <json>`, or nil when there is none.

@@ -61,6 +61,9 @@ struct ContentView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     /// New finding A (M18-W2): whether the combined list shows every row or its top ten.
     @State private var showingAllCombined = false
+    /// D-169 (M18-W3): a question read as not a search, or one the app is not sure about, held
+    /// for the reader instead of answered.
+    @State private var held: HeldReading?
     /// #78: the reader's filter on the combined list. Kept across questions: it is a preference.
     @State private var onlyAPIOrOpenWeights = false
     /// The reader's language. `@AppStorage` so the choice survives a relaunch — a flag switch that
@@ -167,6 +170,11 @@ struct ContentView: View {
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 questionCard
 
+                // D-169 (M18-W3): input read as not a search, or held for the reader to say, shows its
+                // card and no ranking at all: the previous answer must not read as this one's.
+                if let held {
+                    readingCard(held)
+                } else {
                 // D-168 clause 7 (M17-W5): several boards chosen, the product's combined list is the
                 // answer; one board, today's cards below.
                 // #70: planned when what it reads changes, not on every render (a keystroke is one).
@@ -287,6 +295,7 @@ struct ContentView: View {
                             .foregroundStyle(.secondary)
                         }
                     }
+                }
                 }
                 }
             }
@@ -821,6 +830,21 @@ struct ContentView: View {
         let ticket = routingGate.begin()
         let outcome = await router.route(typed, within: known)
         guard routingGate.isCurrent(ticket) else { return }
+        // D-169 (M18-W3): input that is not a search, or that the app is not sure is one, sends no
+        // request: it is held, and the reader sees the note or is asked.
+        guard outcome.reading == .search else {
+            held = HeldReading(typed: typed, outcome: outcome)
+            asked = typed
+            routing = nil
+            return
+        }
+        await apply(outcome, typed: typed, ticket: ticket)
+    }
+
+    /// A question read as a search: its surface loaded, its echo shown, and, where nothing measures
+    /// it, kept in the gap register.
+    private func apply(_ outcome: RoutingOutcome, typed: String, ticket: Int) async {
+        held = nil
         // The engine is asked for a SURFACE and nothing else. What the reader typed never reaches
         // it, and the only thing the router contributes to the request is which of nine ids it is
         // (REQ-RTR-004 — the scoring path is untouched, D-104).
@@ -841,6 +865,51 @@ struct ContentView: View {
         }
     }
 
+    /// D-169 (M18-W3): the reader said it is a model search; it is answered as one, routed as read.
+    private func confirm(_ held: HeldReading) {
+        var outcome = held.outcome
+        outcome.reading = .search
+        routingInFlight = true
+        Task {
+            defer { routingInFlight = false }
+            await apply(outcome, typed: held.typed, ticket: routingGate.begin())
+        }
+    }
+
+    /// The reader said it is not: the note.
+    private func decline(_ held: HeldReading) {
+        var outcome = held.outcome
+        outcome.reading = .notASearch
+        self.held = HeldReading(typed: held.typed, outcome: outcome)
+    }
+
+    /// The note (no ranking, no request) or the question back (two taps, nothing sent until one).
+    @ViewBuilder
+    private func readingCard(_ held: HeldReading) -> some View {
+        Card {
+            VStack(alignment: .leading, spacing: 12) {
+                if held.outcome.reading == .unsure {
+                    Text(UIText.askBack(language)).font(.headline)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("askBack")
+                    HStack(spacing: 12) {
+                        Button(UIText.askBackFind(language)) { confirm(held) }
+                            .buttonStyle(.borderedProminent).tint(Design.forest)
+                            .accessibilityIdentifier("askBack.find")
+                        Button(UIText.askBackNo(language)) { decline(held) }
+                            .buttonStyle(.bordered)
+                            .accessibilityIdentifier("askBack.no")
+                    }
+                } else {
+                    Text(UIText.notASearchNote(language)).font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("notASearch")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
     /// The reader corrected the surface: from the sheet, or from an alternative under the echo.
     /// The echo describes the ROUTER's choice, so it goes once the reader has overruled it, and a
     /// question still routing is retired with it.
@@ -851,6 +920,7 @@ struct ContentView: View {
         guard categories.contains(where: { $0.id == id }) else { return }
         routingGate.invalidate()
         routing = nil
+        held = nil
         guard id != task else { return }
         task = id
         Task { await load() }
@@ -1397,4 +1467,10 @@ struct CombinedDetail: View {
         .navigationTitle(UIText.seeTheBoards(language))
         .navigationBarTitleDisplayMode(.inline)
     }
+}
+
+/// D-169 (M18-W3): what was typed, and how it was read, while the screen shows the note or asks.
+struct HeldReading: Equatable {
+    let typed: String
+    let outcome: RoutingOutcome
 }

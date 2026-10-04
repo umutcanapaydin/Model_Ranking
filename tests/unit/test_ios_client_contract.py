@@ -354,6 +354,10 @@ SORTING_PERMITTED = {
     ("FrontDoor.swift", "entries.indices"): (
         "M14-W3, REQ-GAP-001: when the register is full, the least-asked entry makes room."
     ),
+    ("Reading.swift", "row"): (
+        "D-169 (M18-W3): a keyboard row's letters reversed, to read a run typed right to left as no "
+        "word. Letters of a fixed string, never a model, a score or an answer."
+    ),
     ("Notices.swift", "ages"): (
         "D-176: the ages in days of a board's stale sources, smallest first, so the notice can say "
         "how old the freshest evidence is. Never a model, a score or an answer."
@@ -809,9 +813,15 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
 
     # REQ-ASK-002/003: a routed question LOADS the surface it was routed to — "returns a ranking"
     # (W3 review MAJOR-3, mutant M5) — and its echo appears only once that answer has loaded.
+    # D-169 (M18-W3): a question read as a search goes on to `apply`, which loads its surface.
     ask = re.search(r"private func ask\(\) async \{(.*?)\n    \}", home, re.S)
     assert ask, "the question path is gone"
-    body = ask.group(1)
+    assert re.search(r"guard outcome\.reading == \.search else \{.*?return\s*\}\s*await apply\(outcome,", ask.group(1), re.S), (
+        "a question read as a search is no longer answered, or one that is not is"
+    )
+    applied = re.search(r"private func apply\(_ outcome: RoutingOutcome, typed: String, ticket: Int\) async \{(.*?)\n    \}", home, re.S)
+    assert applied, "the path that answers a search is gone"
+    body = applied.group(1)
     assert re.search(
         r"if outcome\.categoryID != task \{\s*task = outcome\.categoryID\s*await load\(\)", body
     ), "a routed question no longer loads the surface it was routed to"
@@ -821,13 +831,15 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
 
     # REQ-ASK-004 for the QUESTION (W3 review BLOCKING-2): a ticket before the router is awaited,
     # checked after it, and retired by a `Change` selection.
+    asked = ask.group(1)
     assert re.search(
-        r"let ticket = routingGate\.begin\(\)\s*let outcome = await router\.route", body
+        r"let ticket = routingGate\.begin\(\)\s*let outcome = await router\.route", asked
     ), "routing takes no ticket before it suspends"
     assert re.search(
         r"await router\.route\([^)]*\)\s*guard routingGate\.isCurrent\(ticket\) else \{ return \}",
-        body,
+        asked,
     ), "a late routing result is applied whatever the reader chose meanwhile"
+
     select = re.search(r"private func select\(_ id: String\) \{(.*?)\n    \}", home, re.S)
     assert select and "routingGate.invalidate()" in select.group(
         1
@@ -884,7 +896,7 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     # The field unlocks after every question however it ends (WF12), and a selection clears the
     # echo of the choice it overruled (WF9).
     assert re.search(
-        r"defer \{ routingInFlight = false \}", body
+        r"defer \{ routingInFlight = false \}", asked
     ), "the field stays locked after the first question"
     assert "routing = nil" in select.group(1), "a selection keeps the echo it overruled"
 
@@ -907,7 +919,7 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     assert re.search(
         r"if categories\.isEmpty \{\s*Text\(UIText\.surfacesUnavailable\(language\)\)", home
     ), "with no surfaces the controls go dead and nothing says why"
-    assert re.search(r"if categories\.isEmpty \{ await load\(\) \}", body), (
+    assert re.search(r"if categories\.isEmpty \{ await load\(\) \}", asked), (
         "a question asked before the surface list arrived is dropped instead of retried"
     )
 

@@ -286,7 +286,8 @@ def test_the_router_never_produces_anything_but_a_category_id() -> None:
     fields = set(
         re.findall(r"^\s*(?:public\s+)?(?:let|var)\s+(\w+)\s*:[^{\n]*$", block, re.MULTILINE)
     )
-    assert fields == {"categoryID", "tier", "unmeasured", "alternatives", "refinements"}, (
+    # `reading` (D-169, M18-W3) is a closed enum (search, not a search, unsure): no text.
+    assert fields == {"categoryID", "tier", "unmeasured", "alternatives", "refinements", "reading"}, (
         f"RoutingOutcome carries {sorted(fields)}; anything beyond a surface id, how it was chosen, "
         "whether it is measured, the other surface ids it came close to and the declared "
         "refinements it chose is a channel for an opinion the router may not have"

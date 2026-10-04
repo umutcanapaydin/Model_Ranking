@@ -332,6 +332,9 @@ public struct GapRegisterStore {
 /// `unmeasured` alone also covers the manual tier, where the reader picked no question at all or the
 /// router failed; those are the router's misses, not questions the catalogue cannot answer, and
 /// counting them would tell the owner to build surfaces for failures.
+///
+/// D-169 clause 5: input that is not a search is not a model need, and an injection's text is not
+/// kept; a doubt is kept only once the reader has said it is a search.
 func recordsGap(_ outcome: RoutingOutcome) -> Bool {
-    outcome.unmeasured && outcome.tier != .manual
+    outcome.reading == .search && outcome.unmeasured && outcome.tier != .manual
 }

@@ -669,6 +669,29 @@ extension UIText {
             : "Models sharing a place are tied: their places on the boards balance out."
     }
 
+    /// D-169 (M18-W3): the note for input that is not a model search, in the owner's wording
+    /// (2026-09-28): example-based guidance, in the app's register.
+    static func notASearchNote(_ language: Language) -> String {
+        language == .turkish
+            ? "Bu bir model araması gibi görünmüyor. Modeli ne için kullanacağını yaz; örneğin: "
+                + "\"Bir e-postayı Fransızcaya çevirmek istiyorum.\""
+            : "This does not look like a model search. Say what you will use the model for; for example: "
+                + "\"I want to translate an email into French.\""
+    }
+
+    /// D-169 (M18-W3): the question back, when one sign says it is not a search and the other does not.
+    static func askBack(_ language: Language) -> String {
+        language == .turkish ? "Bunun için bir model mi arıyorsun?" : "Did you mean to find a model for this?"
+    }
+
+    static func askBackFind(_ language: Language) -> String {
+        language == .turkish ? "Model bul" : "Find a model"
+    }
+
+    static func askBackNo(_ language: Language) -> String {
+        language == .turkish ? "Hayır" : "No"
+    }
+
     /// #78: the combined list's reader filter, and how many rows it leaves.
     static func accessFilter(_ language: Language) -> String {
         language == .turkish ? "Yalnızca API'si ya da açık ağırlıkları olan modeller"
