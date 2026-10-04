@@ -726,3 +726,16 @@ def test_the_repositorys_own_artifact_is_checked_not_assumed() -> None:
         f"advisor.db is not servable: {problem}. Rebuild it with "
         "`python -m app.workflows.build --db advisor.db --force --epoch-dir <bundle>` (W-023)."
     )
+
+
+def test_no_test_reloads_a_module_other_tests_import_names_from() -> None:
+    """#114: a reload of `app.adapter.main` made a second `ConfigError` class, so this file's
+    `pytest.raises(ConfigError)` checks failed whenever the reloading file ran first. Test results
+    must not depend on file order (`-k`, xdist, random order)."""
+    import re
+    from pathlib import Path
+
+    tests = Path(__file__).resolve().parents[1]
+    reloads = sorted(str(path.relative_to(tests)) for path in tests.rglob("*.py")
+                     if re.search(r"\breload\(\s*(?:app\b|main_mod|adapter)", path.read_text(encoding="utf-8")))
+    assert not reloads, f"these tests reload a module others import names from: {reloads}"

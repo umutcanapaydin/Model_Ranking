@@ -13,12 +13,70 @@ only the accident of collection order deciding whether the app can be imported a
 
 from __future__ import annotations
 
+import ipaddress
 import os
+import socket
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
 os.environ.setdefault("APP_ENV", "test")
+
+
+# --- #122 (M18-W7): no unit test reaches the network ----------------------------------------------
+#
+# The Swift suite holds this by construction (#59). The Python suite held it by convention: each
+# client is mocked with `respx`, and only Arena's slice downloads were blocked. Now a connection to
+# anything but this machine, or a name lookup of anything but `localhost`, raises in every test.
+# The live contract tests (`RUN_CONTRACT_TESTS=1`) are the one way out, and they say so by running
+# with that variable set.
+LOCAL_NAMES = frozenset({"localhost", "127.0.0.1", "::1", ""})
+
+
+def _is_local(host: object) -> bool:
+    if not isinstance(host, str) or host in LOCAL_NAMES:
+        return isinstance(host, str)
+    try:
+        return ipaddress.ip_address(host.split("%", 1)[0]).is_loopback
+    except ValueError:
+        return False
+
+
+class NetworkReachedError(RuntimeError):
+    """A unit test tried to reach a machine other than this one (#122)."""
+
+
+@pytest.fixture(autouse=True)
+def _no_network(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    if os.environ.get("RUN_CONTRACT_TESTS") == "1":
+        yield
+        return
+    real_connect, real_connect_ex, real_lookup = socket.socket.connect, socket.socket.connect_ex, socket.getaddrinfo
+
+    def refuse(address: object) -> None:
+        if not (isinstance(address, tuple) and _is_local(address[0])):
+            raise NetworkReachedError(f"a unit test reached the network: {address!r} (#122)")
+
+    def connect(self: socket.socket, address: object) -> None:
+        if self.family != socket.AF_UNIX:
+            refuse(address)
+        real_connect(self, address)  # type: ignore[arg-type]
+
+    def connect_ex(self: socket.socket, address: object) -> int:
+        if self.family != socket.AF_UNIX:
+            refuse(address)
+        return real_connect_ex(self, address)  # type: ignore[arg-type]
+
+    def getaddrinfo(host: object, *args: object, **kwargs: object) -> object:
+        if not _is_local(host.decode() if isinstance(host, bytes) else host):
+            raise NetworkReachedError(f"a unit test looked up {host!r} (#122)")
+        return real_lookup(host, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(socket.socket, "connect", connect)
+    monkeypatch.setattr(socket.socket, "connect_ex", connect_ex)
+    monkeypatch.setattr(socket, "getaddrinfo", getaddrinfo)
+    yield
 
 
 # --- W-108: the tests that read the real artifact ------------------------------------------------

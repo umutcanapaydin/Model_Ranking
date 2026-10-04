@@ -24,6 +24,8 @@ import re
 import subprocess
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[2]
 LAUNCHER = REPO / "scripts" / "engine_service.sh"
 INSTALLER = REPO / "scripts" / "install_engine_service.sh"
@@ -390,6 +392,30 @@ def test_the_launchers_preflight_refuses_a_bind_beyond_loopback_without_hosts(tm
     done = _launch(tree, MODEL_RANKING_DB=str(db), MODEL_RANKING_BIND="192.0.2.1")
     assert done.returncode == 1, done.stdout + done.stderr
     assert "REFUSED" in done.stdout and "MODEL_RANKING_ALLOWED_HOSTS" in done.stdout
+    assert "starting on" not in done.stdout
+
+
+@pytest.mark.parametrize("bound", ["MODEL_RANKING_MAX_RANKED_ROWS", "MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS"])
+def test_the_launcher_refuses_an_artifact_past_a_serving_bound(tmp_path: Path, bound: str) -> None:
+    """#123: the preflight's other refusal, run as a script. M17's seat lowered the standings bound by
+    hand and saw `REFUSED`; no test did. Bound to one row, the seeded artifact is past it."""
+    import sys
+
+    from .test_api_v1 import _seeded_db
+
+    db = tmp_path / "advisor.db"
+    _seeded_db(db)
+    tree = tmp_path / "tree"
+    (tree / ".venv" / "bin").mkdir(parents=True)
+    (tree / ".venv" / "bin" / "python").write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n', encoding="utf-8")
+    (tree / ".venv" / "bin" / "python").chmod(0o755)
+    # TEST-NET-1 with a Host list: the bind itself is allowed, so the bound is the only problem, and
+    # a regressed preflight fails to bind rather than serving this Mac for the test's timeout.
+    done = _launch(tree, MODEL_RANKING_DB=str(db), MODEL_RANKING_BIND="192.0.2.1",
+                   MODEL_RANKING_ALLOWED_HOSTS="probe.example", **{bound: "1"})
+    assert done.returncode == 1, done.stdout + done.stderr
+    assert "REFUSED" in done.stdout and bound in done.stdout, done.stdout
+    assert "MODEL_RANKING_ALLOWED_HOSTS" not in done.stdout, "the bind, not the bound, was refused"
     assert "starting on" not in done.stdout
 
 

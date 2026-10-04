@@ -189,9 +189,39 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
     # too); a shorter one only as a whole quoted string, since a tuning question may hold a short
     # phrase by chance. The question's text is not printed, so a failure does not spoil its set.
     texts = {p.name: p.read_text(encoding="utf-8", errors="ignore") for p in sources}
-    found = sorted({(name, len(q)) for name, text in texts.items() for q in held
-                    if (len(q) >= 25 and q in text) or f'"{q}"' in text})
-    assert not found, f"held-out questions written into code or tests (file, length): {found}"
+    # #119 (M18-W7): the probe's other sets too, which the tests and the tuning read; each live set
+    # is left out of its own comparison. Their strings are compared as strings, after JSON decoding.
+    tuning = {p.name: _json_strings(json.loads(p.read_text(encoding="utf-8")))
+              for p in sorted((root / "scripts/router_probe").glob("*.json")) if p not in live}
+    found = _held_out_leaks(held, texts, tuning)
+    assert not found, f"held-out questions written into code, tests or tuning sets (file, length): {found}"
+
+
+def _json_strings(value: object) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        value = list(value.values())
+    return [s for item in value for s in _json_strings(item)] if isinstance(value, list) else []
+
+
+def _held_out_leaks(held: set[str], texts: dict[str, str], tuning: dict[str, list[str]]) -> list[tuple[str, int]]:
+    """(file, length) for each held-out question found. A question of 25 characters or more counts
+    anywhere; a shorter one only whole. The question itself is never printed."""
+    in_code = {(name, len(q)) for name, text in texts.items() for q in held
+               if (len(q) >= 25 and q in text) or f'"{q}"' in text}
+    in_sets = {(name, len(q)) for name, strings in tuning.items() for q in held
+               if any(q == s or (len(q) >= 25 and q in s) for s in strings)}
+    return sorted(in_code | in_sets)
+
+
+def test_a_held_out_question_copied_into_a_tuning_set_is_found() -> None:
+    """#119: the gate read `.swift` and `.py` only, so a live question pasted into a tuning `.json`
+    set passed it. Planted here with a made-up question, never a real one."""
+    planted = "which model would best plan a three day hike in the alps"
+    assert _held_out_leaks({planted}, {}, {"tuning.json": ["other", planted]}) == [("tuning.json", len(planted))]
+    assert _held_out_leaks({planted}, {}, {"tuning.json": [f"prefix: {planted}"]})
+    assert not _held_out_leaks({"short one here"}, {}, {"tuning.json": ["a short one here, inside"]})
 
 
 def test_the_apps_copy_of_the_ordering_note_is_the_engines() -> None:
