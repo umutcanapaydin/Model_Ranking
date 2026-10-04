@@ -65,6 +65,13 @@ Each must hold in **both** runs on its held-out set, run once at the end:
 
 The M17 rule holds: three variants per problem, then stop and file it.
 
+**Measured at `4373dae` (variant E), held out, twice** (the research record):
+- #73: 34 and 30 of 40; web-dev 16, 16; document 14, 14; other 5, 7. **Met.**
+- #113: 14 and 14 of 15 told "not measured"; 10 and 10 of 10 reading reach `vision`. **Met.**
+- #66: 0 genuine searches noted and 0 asked, in both runs; 26 and 29 of 40 caught. **The catch bar is
+  not met**; knowledge questions are the gap. After three variants the work on it stops, and #66 stays
+  open for them.
+
 ## Design (D-169, amended in this wave)
 
 1. **Signals decided in code, and tested** (`Reading.swift`). These do not depend on the model and

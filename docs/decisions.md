@@ -3344,6 +3344,16 @@ branch). The M18 plan changes how the line is held:
   - at most 2 genuine searches get the note unasked;
   - at most 4 are asked;
   - at least 80 % of the not-a-search inputs get the note or the question.
+- **As built and measured** (`docs/research/m18-w3-question-reading-probe-2026-10-04.md`, variant E
+  at `4373dae`):
+  - Four signals are read in code: no word, pasted content, an instruction to the app, and small
+    talk. The first, third and fourth are the note alone. The model's verdict is generated last.
+  - On the held-out set, no genuine search was given the note or asked, in either run.
+  - 26 and 29 of 40 not-a-search inputs got the note or the question: below the 80 % bar. Knowledge
+    questions are the gap (1 and 2 of 9).
+  - Clause 6's catch bar is not met after three variants. The wave ships what holds, with the
+    shortfall stated in its pull request; the owner's merge is the acceptance this clause asks for.
+    #66 stays open for knowledge questions.
 
 ## D-170 — The engine runs as a launchd service, from a deployed release of `main`
 
