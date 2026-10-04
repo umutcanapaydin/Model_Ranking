@@ -442,8 +442,8 @@ MOVING_ALIASES: dict[str, str] = {
 _LATEST_SUFFIX = "-latest"
 #: #48: a `-latest` TOKEN followed by a word (`grok-4.20-beta-latest-reasoning`) moves just as much.
 #: By here a dated release reads `latest20250326`: the normalisation above joins a letter to the
-#: digit after a dash, so only a word or the end can follow `-latest-`.
-_LATEST_TOKEN = re.compile(re.escape(_LATEST_SUFFIX) + r"(?:-|\Z)")
+#: digit after a dash. A version (`-latest-v2`) names one release too, as a date does (W4 review R3).
+_LATEST_TOKEN = re.compile(re.escape(_LATEST_SUFFIX) + r"(?:-(?!v\d)|\Z)")
 
 
 def derive_identity(name: str) -> DerivedIdentity | None:

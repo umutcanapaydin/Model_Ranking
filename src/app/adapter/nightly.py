@@ -43,6 +43,8 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.workflows.serving_bounds import BOUND_VARIABLES
+
 _LOG = logging.getLogger(__name__)
 
 #: The switch, spelled exactly. Unset or `off` is off; anything else is a startup problem.
@@ -80,13 +82,14 @@ CODE_NAMES = {0: "published", 1: "unchanged", 2: "failed", 3: "refused", 4: "bus
 _SRC = Path(__file__).resolve().parents[2]
 _REPO = _SRC.parent
 
-#: What the child may inherit (security pass, MINOR-4). The refresh reads no environment variable
-#: of its own; its HTTP client honours the proxy and certificate settings, and the interpreter needs
-#: a locale, a home and a temp directory. Anything else in the owner's shell -- tokens included --
-#: stays with the server.
+#: What the child may inherit (security pass, MINOR-4). Its HTTP client honours the proxy and
+#: certificate settings, and the interpreter needs a locale, a home and a temp directory. The refresh
+#: reads one set of variables of its own: the serving bounds, which it checks its candidate against
+#: (D-173 clause 4), so it must see the values the engine serves under (W4 review B1). Anything else
+#: in the owner's shell -- tokens included -- stays with the server.
 CHILD_ENV = ("PATH", "HOME", "LANG", "LC_ALL", "LC_CTYPE", "TMPDIR", "TZ", "SSL_CERT_FILE",
              "SSL_CERT_DIR", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy",
-             "no_proxy")
+             "no_proxy", *BOUND_VARIABLES)
 #: The child's output kept for the log (security pass, MINOR-1): the tail, never the whole stream.
 #: 200 MB of output took the server to 974 MB when it was buffered whole.
 OUTPUT_TAIL_BYTES = 64 * 1024

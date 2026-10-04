@@ -235,7 +235,7 @@ def test_a_query_string_changes_nothing(client: TestClient) -> None:
 
 
 def test_a_second_request_does_not_rebuild_the_standings(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    """#55 (D-173 clause 5): the payload was rebuilt from the artifact on every request (about 30-60 ms,
+    """#55 (D-173 clause 5, REQ-API-001): the payload was rebuilt from the artifact on every request (about 30-60 ms,
     ~200 ms near its bound). It is built once per artifact, keyed on the artifact's identity."""
     from app.adapter import main as adapter
 
@@ -304,7 +304,7 @@ def test_a_publish_during_a_build_is_not_filed_under_the_new_artifact(
 
 
 def test_a_client_that_accepts_gzip_gets_the_boards_compressed(client: TestClient) -> None:
-    """#55 (D-173 clause 5): about 500 KB a day uncompressed. Compressed for a client that asks, with
+    """#55 (D-173 clause 5, REQ-API-001): about 500 KB a day uncompressed. Compressed for a client that asks, with
     the security header kept; unchanged for one that does not."""
     import gzip
 

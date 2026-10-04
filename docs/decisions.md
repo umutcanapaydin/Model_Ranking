@@ -1203,6 +1203,8 @@ is more axes, not more stringency.**
 
 ---
 
+**Amended by D-173 (2026-10-04)**: the ranked roster is compared by model id (clause 2), accessibility values have the same quarter as a loss guard (clause 3), and the candidate is checked against the serving bounds (clause 4).
+
 ## D-129 — The refresh's record is a file, and `runner` is what makes it visible
 
 **Status:** accepted · **Date:** 2026-08-21 · **Decided by:** the lead agent, under the owner's
@@ -1329,6 +1331,8 @@ moving is news, not damage.**
 **It refuses; it never judges.** Under the owner's ruling of 2026-08-22 the refresh may prepare,
 compare and refuse, and may not acquire new judgement. This rule reports what looks wrong and the
 cycle stops — it never decides something is acceptable on balance and publishes anyway.
+
+**Amended by D-173 (2026-10-04)**: the roster's growth limit compares model ids, not display names (clause 2).
 
 ## D-133 — In a single-agent lane, K.7 means a separate SESSION, and the review is a FILE
 
@@ -2420,6 +2424,8 @@ service's wrapper (`scripts/engine_service.sh`, D-170), not by `ios/app.sh`.
 
 ---
 
+**Amended by D-173 (2026-10-04)**: clause 4's `scripts/retire_refresh.sh` is removed with the retired refresher (clause 7), and the child inherits the serving-bound variables (clause 4).
+
 ## D-155 — The project runs on DevFlow v6.0
 
 **Status:** **accepted by the owner 2026-09-23** (in session, choosing each option below) · **Date:**
@@ -3018,6 +3024,8 @@ bad data until someone looks.
 **Revisit when:** boards held back a publish on more than one night in a month, or W4 serves boards on
 a route whose own checks make this one redundant.
 
+**Amended by D-173 (2026-10-04)**: the order of tied rows is by model id (clause 1); the board guards still compare raw names (clause 2).
+
 ## D-165 — A downloaded file a native library parses is read in a process of its own, under a memory ceiling
 
 **Status:** accepted -- **ruled by the owner 2026-09-24** (asked in Turkish whether to read the Arena
@@ -3155,6 +3163,8 @@ distance between models shown, which would need scores and a new ADR under D-105
   every board set tried. It is filed as #61, with its code in the branch history, and returns with a
   property test. Clauses 1, 2 and the file-system half of clause 4 ship in M17-W4. The rule in
   clause 3 stands as ruled.
+
+**Amended by D-173 (2026-10-04)**: `/v1/boards` is built once per artifact and compressed on request (clause 5), and boards no question selects stay published (clause 6).
 
 ## D-168 — The question selects its boards as a surface plus declared refinements
 
@@ -3396,7 +3406,7 @@ deploys beyond the owner's Mac.
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
 ("proceed with what you recommend, don't ask", owner, translated from Turkish); M18-W4 · **Date:**
-2026-10-04 · **Amends** D-128, D-132, D-164 and D-167 as below · from #44, #39, #42, #57, #55, #77, #76.
+2026-10-04 · **Amends** D-128, D-132, D-154, D-164 and D-167 as below · from #44, #39, #42, #57, #55, #77, #76.
 
 **Context.** M17's seats filed these as needing a decision. Each has a small, reversible answer, and the
 owner asked the agent to take its recommendation rather than ask.
@@ -3405,11 +3415,14 @@ owner asked the agent to take its recommendation rather than ask.
 1. **Ties are ordered by model id** (#44). A ranking's tie-break was the display name, a served
    spelling, so a re-spelled name moved a model inside a tie. The value and cheapest picks broke a
    price tie the same way; they now take the first row in the ranking's order (score, then id). The
-   order of tied rows changes once, and D-164's fingerprint moves with it that night.
+   served order of tied rows changes when the engine runs this code. The refresh fingerprints the live
+   artifact and the candidate with the same code, so no night publishes for this change alone.
 2. **The night-to-night roster guards compare model ids** (#39; D-128, D-132). A display change is
    recorded in the refresh record as information. It is never read as one model lost and another
    gained. An attacker-controlled display name therefore moves no guard, which it could not do before
-   either without also changing the id.
+   either without also changing the id. This covers each surface's ranked roster. The board guards
+   (D-159, D-164) still compare a board's raw names, the rows as they arrive, before any model id: an
+   upstream re-spelling of a board's names still reads as names lost and gained there (#100).
 3. **Accessibility has a loss guard** (#42). A night on which the number of models with an
    accessibility value falls by a quarter or more against the served artifact is refused, and the
    count is in the refresh record. The quarter is D-128's own.
@@ -3427,7 +3440,8 @@ owner asked the agent to take its recommendation rather than ask.
    question selects it.
 7. **The retired refresher's installer is removed** (#76). The engine service runs the nightly refresh
    (D-170, D-154). A second launchd refresher running a development checkout is no longer
-   installable.
+   installable. D-154 clause 4's `scripts/retire_refresh.sh` goes with it: no such job is installed on
+   the owner's Mac (measured 2026-10-04).
 
 **Mitigation if violated.**
 - If tie order follows a spelling again, positions move on nights when nothing was measured.

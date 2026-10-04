@@ -1680,7 +1680,7 @@ def _renamed(path: Path) -> Path:
 
 
 def test_a_candidate_that_only_re_spells_names_moves_no_guard(tmp_path: Path) -> None:
-    """#39 (D-173 clause 2): the roster guards compared display names, so a board that only
+    """#39 (D-173 clause 2, REQ-CAN-001: a model is its id): the roster guards compared display names, so a board that only
     re-spelled its models read as every model lost and an injected set gained. They compare ids;
     the re-spellings are recorded as information."""
     from app.workflows.refresh import degradations, display_changes, upward_anomalies
@@ -1733,7 +1733,7 @@ def _accessible(path: Path, *, values: int) -> Path:
 def test_accessibility_values_falling_by_a_quarter_refuse_the_night(
     tmp_path: Path, served: int, candidate: int, refused: bool
 ) -> None:
-    """#42 (D-173 clause 3): a truncated model_metadata.csv with one valid row published, and the
+    """#42 (D-173 clause 3, REQ-REF-009's guards): a truncated model_metadata.csv with one valid row published, and the
     phone's accessibility filter emptied with no refusal. A quarter lost refuses, as D-128's boards."""
     from app.workflows.refresh import degradations
 

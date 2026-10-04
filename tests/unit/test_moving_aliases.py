@@ -91,7 +91,8 @@ def test_a_moving_spelling_the_list_missed_derives_no_model(name: str) -> None:
 @pytest.mark.parametrize("name", ["xai/grok-4.20-beta-latest-reasoning", "xai/grok-4.20-reasoning-latest",
                                   "openai/gpt-5-latest-mini", "gemini-latest-pro"])
 def test_a_latest_token_followed_by_a_word_derives_no_model(name: str) -> None:
-    """#48 (D-166): a `-latest` token followed by a word, not a date, still names no one release."""
+    """#48 (D-166, REQ-CAN-001): a `-latest` token followed by a word, not a date, still names no one
+    release."""
     assert derive_identity(name) is None
 
 

@@ -34,5 +34,5 @@ the owner runs it, or the agent on his standing instruction:
 | `engine_service.sh` | launchd, through the installed wrapper; `ios/app.sh` | the launcher: refuses a development checkout as a service, checks the artifact and the startup config, then runs uvicorn on its one `--host`. The engine's nightly refresh (D-154) runs inside it |
 | `simulator_session.sh` | by hand | REQ-RUN-001's first one-command session: engine, build, simulator, until Ctrl-C. Nothing calls it; `ios/app.sh` is the path the owner's steps use |
 
-The retired launchd refresher (`com.hcs.modelranking.refresh`) and its installers were removed at
-M18-W4 (D-173 clause 7, #76): the engine service runs the nightly refresh.
+The nightly refresh runs inside the engine service (D-154, D-170); this repository installs no other
+refresher (D-173 clause 7).

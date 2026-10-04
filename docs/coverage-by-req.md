@@ -6,6 +6,12 @@ date: 2026-08-18
 ---
 # REQ-ID coverage trace — M9 Quality Gate (Stage 4.1)
 
+> **Read as of M9.** Rows naming the launchd refresher (`deploy/com.hcs.modelranking.refresh.plist`,
+> `scripts/refresh_job.sh`, `scripts/enable_refresh.sh`, `scripts/install_refresh_wrapper.sh`,
+> `tests/unit/test_refresh_job_install.py`) describe M9-M16. Those files were removed at M18-W4
+> (D-173 clause 7); the engine service runs the refresh (D-154, D-170). The PRD holds the current
+> status of each requirement.
+
 **Scope:** every acceptance criterion in M7's signed scope (`docs/plans/m7-plan.md` §1), traced to
 its implementing code and to the test(s) that would FAIL if the criterion were violated (V3C-02,
 BLOCKING).

@@ -29,6 +29,16 @@ from app.workflows.standings import board_standings, standings_row_count
 BOARDS_ROUTE = "/v1/boards"
 
 
+#: The environment variables the bounds are read from. The engine's nightly refresh runs in a child
+#: process with an allowlisted environment (`app.adapter.nightly.CHILD_ENV`), which includes these,
+#: so the child checks its candidate against the bounds the engine serves under (W4 review B1).
+BOUND_VARIABLES = (
+    "MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS",
+    "MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS",
+    "MODEL_RANKING_MAX_RANKED_ROWS",
+)
+
+
 @dataclass(frozen=True)
 class ServingBounds:
     """The three bounds. Each is a runaway guard, not a product limit; see `bounds_from_env`."""
