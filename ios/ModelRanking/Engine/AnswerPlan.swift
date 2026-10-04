@@ -109,3 +109,48 @@ func answerPlan(
         mixedEfforts: mixedEfforts(list)
     ))
 }
+
+// MARK: - One card per model (#63 finding 1, M18-W2)
+
+/// The picks one model holds, shown as one card.
+struct PickCard: Identifiable {
+    /// In the engine's order; the first decides the card's look and opens its detail.
+    let picks: [Pick]
+
+    var lead: Pick { picks[0] }
+    var id: String { lead.label }
+    /// Every label the model earned: `best_quality`, `best_value`, `budget_pick`.
+    var labels: [String] { picks.map(\.label) }
+
+    /// The picks whose reason the card says. All of them, but one: the value-window sentence ("the
+    /// cheapest model within 6 points of the best") on a card that IS the best, where it contradicts
+    /// itself. A warning (`nothing_clears_floor`) is never dropped.
+    var reasons: [Pick] {
+        let isBest = labels.contains("best_quality")
+        return picks.filter { pick in
+            !(isBest && pick.label != "best_quality"
+              && (pick.whyFactDictionary["reason"] as? String) == PickReason.cheapestWithinWindow.rawValue)
+        }
+    }
+}
+
+/// The engine's picks as cards: one per model, in the engine's order.
+///
+/// A model is the same row only if name, vendor, score and price all agree. Names alone are not
+/// unique (#102), and two rows that agree on all four are one model to any reader.
+func pickCards(_ picks: [Pick]) -> [PickCard] {
+    var groups: [[Pick]] = []
+    for pick in picks {
+        if let index = groups.firstIndex(where: { sameRow($0[0], pick) }) {
+            groups[index].append(pick)
+        } else {
+            groups.append([pick])
+        }
+    }
+    return groups.map(PickCard.init)
+}
+
+private func sameRow(_ left: Pick, _ right: Pick) -> Bool {
+    left.model == right.model && left.vendor == right.vendor && left.score == right.score
+        && left.blendedPerM == right.blendedPerM
+}

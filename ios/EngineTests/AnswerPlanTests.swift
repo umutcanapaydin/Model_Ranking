@@ -208,3 +208,60 @@ final class AnswerPlanTests: OfflineTestCase {
         }
     }
 }
+
+/// #63 finding 1 (M18-W2): one model as three full cards, the Best value one describing the best as
+/// "the cheapest model within 6 points of the best".
+final class PickCardTests: OfflineTestCase {
+    private func pick(_ label: String, _ model: String, reason: String, score: Double = 73.8,
+                      price: Double = 1.31) throws -> Pick
+    {
+        let json = """
+        {"label": "\(label)", "model": "\(model)", "vendor": "Google", "score": \(score), "metric": "% resolved",
+         "blended_per_m": \(price), "input_per_m": 1, "output_per_m": 2, "harness": "h",
+         "confidence": "Medium", "confidence_basis": "b", "why": "why \(label)",
+         "why_fact": {"reason": "\(reason)", "unit": "points", "window": 6.0, "floor": 67.0,
+                      "benchmark": "DeepSWE"}}
+        """
+        return try JSONDecoder().decode(Pick.self, from: Data(json.utf8))
+    }
+
+    func testOneModelHoldingThreeLabelsIsOneCardWithThreeLabels() throws {
+        let picks = [try pick("best_quality", "Gemini 3.8 Flash", reason: "highest_score"),
+                     try pick("best_value", "Gemini 3.8 Flash", reason: "cheapest_within_window"),
+                     try pick("budget_pick", "Gemini 3.8 Flash", reason: "cheapest_above_floor")]
+        let cards = pickCards(picks)
+
+        XCTAssertEqual(cards.count, 1)
+        XCTAssertEqual(cards.first?.labels, ["best_quality", "best_value", "budget_pick"])
+        // The value-window sentence describes a model BEHIND the best; said of the best it contradicts
+        // itself. The floor sentence is a fact about this model, and stays.
+        XCTAssertEqual(cards.first?.reasons.map(\.label), ["best_quality", "budget_pick"])
+    }
+
+    func testDifferentModelsKeepTheirOwnCardsInTheEnginesOrder() throws {
+        let picks = [try pick("best_quality", "A", reason: "highest_score", score: 80),
+                     try pick("best_value", "B", reason: "cheapest_within_window", score: 76, price: 0.5),
+                     try pick("budget_pick", "B", reason: "cheapest_above_floor", score: 76, price: 0.5)]
+        let cards = pickCards(picks)
+
+        XCTAssertEqual(cards.map(\.lead.model), ["A", "B"])
+        XCTAssertEqual(cards.map(\.labels), [["best_quality"], ["best_value", "budget_pick"]])
+        XCTAssertEqual(cards[1].reasons.map(\.label), ["best_value", "budget_pick"],
+                       "without the best on the card, the value sentence is true and stays")
+    }
+
+    /// A warning is never merged away: "nothing at this price clears the bar" stays on the card.
+    func testAFloorWarningSurvivesTheMerge() throws {
+        let picks = [try pick("best_quality", "A", reason: "highest_score"),
+                     try pick("budget_pick", "A", reason: "nothing_clears_floor")]
+        XCTAssertEqual(pickCards(picks).first?.reasons.map(\.label), ["best_quality", "budget_pick"])
+    }
+
+    /// Display names are not unique (#102). Two rows that differ in vendor, score or price are two
+    /// models, even under one name.
+    func testOneNameOnTwoDifferentRowsIsTwoCards() throws {
+        let picks = [try pick("best_quality", "Same", reason: "highest_score", score: 80),
+                     try pick("budget_pick", "Same", reason: "cheapest_above_floor", score: 70, price: 0.2)]
+        XCTAssertEqual(pickCards(picks).count, 2)
+    }
+}

@@ -182,9 +182,12 @@ struct ContentView: View {
                             let scale = anchoredScaleExplanation(
                                 for: answer.metric, anchored: info?.scoreAnchor != nil, in: language
                             ) ?? scaleExplanation(for: answer.metric, in: language)
-                            ForEach(answer.picks) { pick in
+                            // #63 finding 1: one card per model, carrying every label it earned.
+                            ForEach(pickCards(answer.picks)) { card in
                                 PickRow(
-                                    pick: pick,
+                                    pick: card.lead,
+                                    labels: card.labels,
+                                    reasons: card.reasons,
                                     ranking: answer.ranking,
                                     scale: scale,
                                     language: language,
@@ -870,6 +873,10 @@ struct SectionTitle: View {
 
 struct PickRow: View {
     let pick: Pick
+    /// #63 finding 1 (M18-W2): every label this model earned, and the picks whose reasons the card
+    /// says (`PickCard`). Empty means this pick alone.
+    var labels: [String] = []
+    var reasons: [Pick] = []
     /// The surface's full ranking, so this row can say WHERE the model sits. Optional because a
     /// surface can serve picks with nothing ranked behind them.
     var ranking: [RankedModel] = []
@@ -898,8 +905,10 @@ struct PickRow: View {
     var minQuality: Double?
     var priceExcludes: String?
 
-    private var whyText: String {
-        whySentence(cardFact(pick.whyFactDictionary), in: language) ?? pick.why
+    private var whyTexts: [String] {
+        (reasons.isEmpty ? [pick] : reasons).map {
+            whySentence(cardFact($0.whyFactDictionary), in: language) ?? $0.why
+        }
     }
 
     /// REQ-UNC-002: a count a reader can check, and never the word "confidence".
@@ -956,9 +965,11 @@ struct PickRow: View {
         } label: {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Label(UIText.pickLabel(pick.label, language), systemImage:
-                        prominent ? "sparkle" : (pick.label == "best_value" ? "scale.3d" : "leaf"))
+                    Label((labels.isEmpty ? [pick.label] : labels)
+                            .map { UIText.pickLabel($0, language) }.joined(separator: " · "),
+                          systemImage: prominent ? "sparkle" : (pick.label == "best_value" ? "scale.3d" : "leaf"))
                         .font(.caption2.weight(.bold)).tracking(1)
+                        .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
                     Image(systemName: "arrow.up.right").font(.subheadline.weight(.semibold))
                 }
@@ -982,15 +993,18 @@ struct PickRow: View {
                     .background(prominent ? Color.white.opacity(0.09) : Design.canvas,
                                 in: RoundedRectangle(cornerRadius: 12))
                 VStack(alignment: .leading, spacing: 4) {
-                    if let scale { Text(scale) }
+                    // #63 finding 8: the chat gloss was cut with "…" on the second card.
+                    if let scale { Text(scale).fixedSize(horizontal: false, vertical: true) }
                     Text(priceInPages(pick.blendedPerM, in: language))
                     // D-153 clause 3: wherever a search surface shows a price, it says what is not in it.
                     if let excluded = priceExclusion(priceExcludes, in: language) { Text(excluded) }
                 }
                 .font(.caption)
                 .foregroundStyle(prominent ? Color.white.opacity(0.76) : Design.muted)
-                Text(whyText).font(.subheadline)
-                    .fixedSize(horizontal: false, vertical: true)
+                ForEach(whyTexts, id: \.self) { why in
+                    Text(why).font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if let tradeOff = tradeOffText {
                     Text(tradeOff).font(.footnote)
                         .foregroundStyle(prominent ? Color.white.opacity(0.76) : Design.muted)
