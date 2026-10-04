@@ -73,6 +73,13 @@ The M17 rule holds: three variants per problem, then stop and file it.
   (`notasearch_heldout_m18_questions.json`, `image_heldout_m18_questions.json`), which are the measure,
   run once, after the review's fixes. The bars stay as set.
 
+**Measured on the fresh sets at `da48707`, twice** (the research record §5; baseline at `93040ac`):
+- #113: 10 and 10 of 15 told "not measured" (baseline 0, 0; bar 11, **missed by one**); reading 8 and
+  8 of 10 (baseline 8, 8; bar 9, unchanged from the baseline).
+- #66: 0 genuine searches noted, 1 and 2 asked (bounds 2 and 4, **held**); 21 and 20 of 40 caught
+  (bar 32, **missed**).
+- Three variants per problem were spent. The pull request asks the owner whether to ship what holds.
+
 ## Design (D-169, amended in this wave)
 
 1. **Signals decided in code, and tested** (`Reading.swift`). These do not depend on the model and

@@ -112,3 +112,5 @@ scripts/router_probe/image_tuning_questions.json  # M18-W3 (#113): the author's 
 scripts/router_probe/notasearch_heldout_m18_questions.json  # M18-W3 (#66): the fresh held-out set (review B2),
                                   # half Turkish, written by an independent seat
 scripts/router_probe/image_heldout_m18_questions.json  # M18-W3 (#113): the fresh held-out set, half Turkish
+docs/research/m18-w3-runs/              # M18-W3 (review K3): every probe run's per-question output, so
+                                        # a run can be re-scored; the questions are half Turkish

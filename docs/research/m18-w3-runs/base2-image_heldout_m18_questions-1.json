@@ -1,0 +1,282 @@
+[
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "draw a cat in a space helmet floating past saturn",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "generate an image of a cozy cabin in the snow at nite",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "design a logo for my coffee shop, its called Bean There",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "make me an app icon for a budgeting app, flat style, green",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "remove the background from my product photo so its just white",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "COLORIZE MY GRANDPARENTS OLD BLACK AND WHITE WEDDING PHOTO",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "turn my selfie into a pixar style cartoon",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "illustrate a kids book page: a dragon reading under an oak tree",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "uzayda yüzen bir balina resmi çiz",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "kafem için logo tasarla adı Köşe Kahve, minimalist olsun",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "fotografimin arka planini degistir, deniz kenari olsun",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "düğün fotoğraflarıma rötuş yap, yüzdeki sivilceleri sil",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "eski siyah beyaz aile fotoğrafını renklendir",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "bana gün batımında istanbul boğazı görseli oluştur",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "entertainment",
+    "language" : "none",
+    "q" : "fotomu cizgi film karakterine cevir",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "whats in this photo?",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "read the text off this screenshot pls",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "describe this picture in detail",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "what does this bar chart show? which month had the most sales",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "read the items and prices from this receipt pic",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "bu fotoğrafta ne var",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "ekran görüntüsündeki yazıyı metne çevir",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "bu grafiği yorumla, satışlar hangi ayda düştü",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "fisteki urunleri ve fiyatlari tek tek yaz",
+    "surface" : "factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "resimdeki bitki ne, tanıyabilir misin",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "write a python script that resizes every jpg in a folder to 800px wide",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "business",
+    "language" : "none",
+    "q" : "help me draw conclusions from a 40 page market research report",
+    "surface" : "factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "how do i get rid of background noise in my podcast recordings",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "write alt text for the images on my blog",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "plot monthly revenue as a bar chart using matplotlib",
+    "surface" : "mathematics",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "which ai is good at drawing up a business plan for a small bakery",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "build a photography portfolio website with a full-screen image gallery",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "klasördeki tüm jpg dosyalarını küçülten python kodu yaz",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "yapay zeka ile ilgili bu haftaki son haberler neler",
+    "surface" : "search_factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "legal",
+    "language" : "none",
+    "q" : "belediyeye şikayet için resmi bir dilekçe yazmama yardım et",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "writing",
+    "language" : "none",
+    "q" : "sinavlar icin haftalik calisma cizelgesi hazirla",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "business",
+    "language" : "none",
+    "q" : "iş arkadaşlarıma nasıl sınır çizerim",
+    "surface" : "everyday",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "ses kaydındaki arka plan gürültüsünü nasıl temizlerim",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "javascript ile canvas üzerinde satış grafiği çizen kod yaz",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "yazılımda tasarım kalıpları nelerdir, singleton örneğiyle anlat",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  }
+]

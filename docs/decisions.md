@@ -3356,6 +3356,10 @@ branch). M18 holds it as follows; the measure is `docs/research/m18-w3-question-
 - **The first held-out measure was spoiled** (the wave's code review, B2): the author had read part of
   the not-a-search held-out set, and its phrases reached the signals. That set and the first image set
   are tuning sets now, and fresh sets written by a new independent seat are the measure.
+- **Measured** (`docs/research/m18-w3-question-reading-probe-2026-10-04.md` §5, at `da48707`, twice):
+  no genuine search given the note, and one and two asked: the false-positive bound holds. 21 and 20
+  of 40 not-a-search inputs caught, against 32: the catch bar is missed; knowledge questions are the
+  gap (1 of 10). Requests to make an image: 10 of 15 told "not measured" (from 0), against 11.
 
 ## D-170 — The engine runs as a launchd service, from a deployed release of `main`
 

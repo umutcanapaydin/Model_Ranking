@@ -1,0 +1,562 @@
+[
+  {
+    "model" : "search",
+    "q" : "why does my list comprehension give me a list of None?? [print(x) for x in items]",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "TypeError: 'NoneType' object is not subscriptable  -- happens on result['id'], how do i fix",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "which model is best for writing rust? i keep fighting the borrow checker every single day",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "can someone explain what this regex does ^(?=.*\\d)(?=.*[a-z]).{8,}$",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "need a bash script that rsyncs ~\/projects to my external drive every night, and logs if it fails",
+    "reading" : "search",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "pytest keeps saying fixture 'db' not found even tho its defined in conftest.py, what am i doing wrong",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "postgres query to get the top 3 customers by total order amount in each country",
+    "reading" : "search",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "free(): double free detected in tcache 2 -- my C program crashes, how do i find where with valgrind",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "how do I turn this blocking java call into a kotlin suspend function without freezing the main thread",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "refactor this 200 line java method into smaller functions pls, its a mess of nested ifs",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "pythonda dict'i value'ya göre nasıl sıralarım ya",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "IndexError: list index out of range alıyorum for döngüsünde neden olabilir",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "swiftte 'Unexpectedly found nil while unwrapping an Optional value' hatası veriyo nasıl çözerim",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "c# da .Result kullaninca deadlock oluyormus, async await mantığını açıklar mısın",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "kod yazmak için en iyi model hangisi? özellikle java spring boot projesi için soruyorum",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "şu fonksiyonu daha okunabilir hale getirir misin çok uzun oldu, değişken isimleri de berbat",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "mysql de iki tabloyu joinleyip tekrar eden kayıtları silmem lazım, sorguyu yazabilir misin",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "hiç unit test yazmadım, şu indirim hesaplayan fonksiyon için jest ile örnek test gösterir misin",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "merge conflict çıktı dosyada <<<<<<< HEAD falan yazıyor ne yapacağımı bilmiyorum",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "recursive fibonacci çok yavaş çalışıyo, memoization ile nasıl hızlandırırım python",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "django ORM gives me duplicate rows when i filter on a ManyToMany field, and .distinct() breaks with my order_by",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "my express route returns 404 in the supertest test but works fine from postman?? test file attached",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Access to fetch at 'http:\/\/localhost:8000\/api' from origin 'http:\/\/localhost:3000' has been blocked by CORS policy. backend is flask, what do i change",
+    "reading" : "search",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "React Hook useEffect has a missing dependency: 'fetchData'. should i just disable the eslint rule or is there a proper fix",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "next.js hydration error 'Text content does not match server-rendered HTML' i think its from a Date.now() in my component",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "vue 3 computed property doesnt update when i push into an array that lives inside a reactive object, why",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "laravel eloquent'te n+1 problemi var, with() ekledim yine de debugbar'da yüzlerce sorgu görünüyor",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "node api'm jwt doğrularken 'invalid signature' diyor, secret iki tarafta da aynı halbuki",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "react'ta state değişiyor ama component tekrar render olmuyor, array'e direkt push yapıyorum sorun bu mu",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "fastapi endpointine post atınca 422 Unprocessable Entity dönüyor, pydantic modeli doğru gibi duruyor",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "angular serviste HttpClient subscribe'ın dışında veriyi console.log yapınca undefined çıkıyor neden",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Uncaught TypeError: Cannot read properties of undefined (reading 'map') apiden gelen listeyi map'lerken patlıyor",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "how to read a 2GB csv in pandas without running out of ram, chunksize? dtypes?",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "awk one-liner to count 500 responses per hour in my nginx access.log",
+    "reading" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "PyPDF2 throws PdfReadError: EOF marker not found on some of the files, how do i catch that and skip them in my loop",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "write a python script that goes through a messy jsonl log line by line and pulls out request_id and latency_ms",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "pandas ile excel okuyunca tarih sütunu 45123 gibi sayı olarak geliyo, nasıl tarihe çeviririm",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "log dosyasından grep ile sadece ERROR satırlarını alıp güne göre saydırmak istiyorum komutu ne",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "java'da pdfbox ile pdften metin çekerken türkçe karakterler bozuk çıkıyor ş ğ falan",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "csv okurken UnicodeDecodeError: 'utf-8' codec can't decode byte 0xfe in position 0 hatası alıyorum",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "build me a landing page for my dog walking business: hero, pricing cards, contact form",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "i want a simple portfolio site for my photography, dark theme with a grid gallery",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "make a responsive navbar that turns into a hamburger menu on mobile, tailwind if you can",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "which ai is best at making websites? want a small one for my bakery",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "create a little single page habit tracker web app with a monthly calendar view",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "my blog homepage looks like it's from 2012, can you redesign it so it feels modern and clean",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "set up a wedding website with an rsvp page, the day's schedule and a map to the venue",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "need a pricing page with 3 tiers, monthly\/yearly toggle and a FAQ accordion at the bottom",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "küçük kafem için web sitesi yapmak istiyorum menü ve iletişim sayfası olsun yeter",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "kendime portfolyo sitesi lazım, yazılımcıyım projelerimi sergileyeceğim modern bir şey olsun",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "yeni ürünümüz için tek sayfalık tanıtım sayfası tasarlar mısın, telefonda da düzgün görünsün",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "site yapmak için hangi yapay zeka daha iyi",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "e-ticaret için ürün listeleme sayfası yapalım, solda filtreler sağda kartlar ve sepete ekle butonu",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "restoran sitemin header kısmı telefonda üst üste biniyor, düzenleyip yeniden yapar mısın",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "nişanımız için geri sayım sayacı olan şık bir davetiye sayfası yapmak istiyorum",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "dernek için haberler, etkinlikler ve bağış bölümü olan bir site kurmamız lazım nereden başlayalım",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "summarize this 60 page lease and flag anything weird about early termination",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "compare these two vendor contracts and list where the liability and indemnity clauses differ",
+    "reading" : "search",
+    "surface" : "factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "pull every date and dollar amount out of this annual report pdf into a table",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "here's our 40 page API spec as a PDF, give the new hire a one page overview of the endpoints and auth flow",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "i have a huge incident log report from last week, boil it down to 5 bullets my manager will actually read",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "best model for reading really long pdfs? i get 200+ page analyst reports from clients",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "go through this employee handbook and tell me what it says about parental leave and working from home",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "what are the key findings and the methodology in this 30 page white paper, short version pls",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "bu kira sözleşmesini özetler misin 45 sayfa okumaya üşendim",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "not",
+    "q" : "iki tedarikçi teklif dosyasını karşılaştır, fiyat ve teslim süresi farklarını tablo yap",
+    "reading" : "unsure",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "şirketin faaliyet raporundaki tüm finansal rakamları çıkarıp liste halinde verebilir misin",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "elimde uzun bir teknik şartname pdf'i var, yöneticiye sunmak için 1 sayfalık özet lazım",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "tezimin literatür taraması bölümünü okuyup ana argümanları madde madde yazar mısın",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "ihale şartnamesinde cezai şartların geçtiği yerleri bulup sayfa numaralarıyla listele",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "uzun pdf okumada hangi model iyi, 300 sayfalık mevzuat metni var",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "sunucu loglarından hazırlanmış 80 sayfalık hata raporunu müdürüm için teknik olmayan dille özetle",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "prove that sqrt(2) is irrational, step by step please",
+    "reading" : "search",
+    "surface" : "mathematics",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "open the expense portal in my browser and fill in last week's taxi receipts for me",
+    "reading" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "i want something that takes my whole python 2 repo, ports it to python 3 on its own, runs the test suite and opens a PR when it's green",
+    "reading" : "search",
+    "surface" : "agentic-coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "write a cover letter for a junior backend developer job, i know python and docker",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "1+2+...+n = n(n+1)\/2 olduğunu tümevarımla ispatlar mısın",
+    "reading" : "search",
+    "surface" : "mathematics",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "tarayıcıdan github'a girip benim yerime yeni repo aç, ayarlardan main branch korumasını da aktif et",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "tüm kod tabanını kendi kendine tarayıp eski api çağrılarını yenisine çeviren, testleri koşup kırılanları düzelten bir ajan arıyorum",
+    "reading" : "search",
+    "surface" : "agentic-coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "ekipteki yazılımcı arkadaşa sprint teslimi geciktiği için kırıcı olmayan bir mesaj yazar mısın",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  }
+]

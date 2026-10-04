@@ -1,0 +1,86 @@
+[
+  {
+    "model" : "search",
+    "q" : "generate a picture of a cat wearing sunglasses",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "make me a logo for my bakery",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "remove the background from my product photo",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "bana bir kedi resmi çiz",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "düğün davetiyesi için bir illüstrasyon oluştur",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "fotoğrafımdaki kırmızı gözleri düzelt",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "what does this chart in my screenshot say",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "describe what is in this photo",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "read the receipt in this picture and total it up",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "bu ekran görüntüsündeki hata mesajını oku",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "bu fotoğrafta hangi bitki var",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "bu grafikteki eğilimi açıkla",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  }
+]
