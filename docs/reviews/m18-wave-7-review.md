@@ -58,15 +58,15 @@ MINOR
   is narrower than INV-6 and the G-5 closure say.**
   The guard patches `socket.socket.connect`, `connect_ex` and `socket.getaddrinfo`, inside a
   function-scoped fixture. I probed it from a scratch test (removed after):
-  - A child process is not guarded. In a child started by a test, `socket.getaddrinfo.__qualname__`
+  1. A child process is not guarded. In a child started by a test, `socket.getaddrinfo.__qualname__`
     is `getaddrinfo` and `socket.socket.connect` is `socket.connect`, the real ones. Many tests start
     Python children (`test_cli_e2e.py`, `test_engine_service.py`, `test_nightly_refresh.py`, the new
     `--help` test).
-  - `socket.gethostbyname`, `gethostbyname_ex`, `gethostbyaddr`, `getnameinfo` and
+  2. `socket.gethostbyname`, `gethostbyname_ex`, `gethostbyaddr`, `getnameinfo` and
     `socket.socket.sendto` are the unpatched originals. Each is a name lookup or a packet that
     leaves the machine.
-  - Module- and session-scoped fixtures, and code that runs at import, run before the fixture.
-  - `RUN_CONTRACT_TESTS=1` lifts the guard for every test in the process, not only the contract
+  3. Module- and session-scoped fixtures, and code that runs at import, run before the fixture.
+  4. `RUN_CONTRACT_TESTS=1` lifts the guard for every test in the process, not only the contract
     tests. #122's triage asked for an opt-out "by marker". CI's contract job runs all of
     `tests/integration` that way (`.github/workflows/contract-tests.yml`).
 
@@ -94,8 +94,8 @@ MINOR
 - **M3** `src/app/workflows/recommend.py:532-533`; `tests/unit/test_recommend.py:638-652`.
   **Half of #102 is held by no test.** The new test checks the value pick only. I ran two mutants
   against the whole suite (`pytest -n auto`, 1743 tests):
-  - `cheap_is_quality = cheap.model == quality.model` (the old rule, budget pick only): all pass.
-  - `value_is_quality = False` and `cheap_is_quality = False` (what any step that copies a row would
+  1. `cheap_is_quality = cheap.model == quality.model` (the old rule, budget pick only): all pass.
+  2. `value_is_quality = False` and `cheap_is_quality = False` (what any step that copies a row would
     cause, since the rule is now identity): all pass. So no test says that a pick which IS the leader
     carries no trade-off.
 
@@ -109,8 +109,8 @@ MINOR
   `docs/plans/m18-wave-7-plan.md:42`. **#112's tests do not read the served names, as the plan's
   check says.** The plan: "each held by a test over the served artifact's names". The tests read
   `MODEL_RULES`, `DISPLAY_NAMES` and a frozen set of 34 ids from 2026-10-04. So:
-  - a new model the next refresh serves under its raw id passes;
-  - a derived Claude name a board spells in the old order ("Claude 5.5 Opus") is served as is, and
+  1. a new model the next refresh serves under its raw id passes;
+  2. a derived Claude name a board spells in the old order ("Claude 5.5 Opus") is served as is, and
     passes. #112's triage asked for "one rule for Claude's word order, applied where
     `models.display` is filled"; the wave changed constants instead.
 
