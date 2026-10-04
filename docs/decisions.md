@@ -3339,7 +3339,10 @@ branch). M18 holds it as follows; the measure is `docs/research/m18-w3-question-
   - *an instruction to the app*: phrases specific enough that a search about instructions or roles
     does not use them.
 
-  Each list is matched on whole words, under both the default and the Turkish case folding.
+  Each list is matched on whole words, under both the default and the Turkish case folding. A
+  Turkish verb counts only in the forms a request takes, and an English order only where it opens
+  its sentence: "which model won't ignore my instructions" orders nothing (the third code review,
+  M17).
 - **Clause 4 gains a third outcome.** The decision is:
   - *no word* or *small talk* → the note, alone: nothing in them can be routed;
   - pasted content or an instruction to the app, together with the model's "not a search" → the note;

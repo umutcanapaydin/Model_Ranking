@@ -9,9 +9,9 @@
 //      PROBE_QUESTIONS=/abs/path/set.json PROBE_OUT=/abs/path/out.json swift test --filter ReadingProbe
 //
 //  A set is `[[question, expected]]` or `[{q, expected, ...}]`. The output is one row per question:
-//  the surface, whether it was declined, the model's own verdict and the app's reading. The model is
-//  not deterministic: run every set at least twice. Where the model is not available the test
-//  fails, so no file of empty rows is ever scored.
+//  the surface, the model's own surface before the image rule, whether it was declined, the model's
+//  own verdict and the app's reading. The model is not deterministic: run every set at least twice.
+//  Where the model is not available the test fails, so no file of empty rows is ever scored.
 import XCTest
 @testable import ModelRankingEngine
 
@@ -38,7 +38,9 @@ final class ReadingProbe: XCTestCase {
             // The tiers as the app runs them: the wording tier and the manual fallback are not this
             // probe's subject, so a model that answers nothing is recorded as such.
             let read = model.map { TieredRouter.read(question, $0) }
-            rows.append(["q": question, "surface": read?.categoryID ?? "nil",
+            // `routed` is the model's own surface, before the image rule (the reviews' B4): a run can
+            // count each override.
+            rows.append(["q": question, "surface": read?.categoryID ?? "nil", "routed": model?.categoryID ?? "nil",
                          "unmeasured": "\(read?.unmeasured ?? false)",
                          "model": model.map { $0.reading == .search ? "search" : "not" } ?? "nil",
                          "reading": read.map { "\($0.reading)" } ?? "nil"])

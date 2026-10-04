@@ -877,10 +877,18 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     assert confirm and re.search(
         r"guard !routingInFlight else \{ return \}.*outcome\.reading = \.search.*await apply\(outcome, typed: held\.typed",
         confirm.group(1), re.S), "Find a model does not answer the held question as routed, once"
+    # The third review's M19: "No" is exactly the note. Anything more, a gap kept or `confirm` called,
+    # answers or records what the reader said is not a search.
     decline = re.search(r"private func decline\(_ held: HeldReading\) \{(.*?)\n    \}", home, re.S)
-    assert decline and "outcome.reading = .notASearch" in decline.group(1) and "apply(" not in decline.group(1), (
-        "No does not show the note, or answers anyway"
-    )
+    assert decline, "the path for No is gone"
+    decline_code = [line.split("//", 1)[0].strip() for line in decline.group(1).splitlines()]
+    assert [line for line in decline_code if line] == [
+        "var outcome = held.outcome",
+        "outcome.reading = .notASearch",
+        "self.held = HeldReading(typed: held.typed, outcome: outcome)",
+    ], "No does not show the note, or does more than show it"
+    # The held card goes when a search is answered, first, before anything loads behind it.
+    assert re.match(r"\s*held = nil\n", body), "an answered search leaves the held card over its ranking"
     assert re.search(
         r"let ticket = routingGate\.begin\(\)\s*let outcome = await router\.route", asked
     ), "routing takes no ticket before it suspends"
@@ -893,6 +901,11 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     assert select and "routingGate.invalidate()" in select.group(
         1
     ), "a Change selection does not retire the question still routing"
+    # The third review's M19: "Change" from the note or the question back shows the chosen surface,
+    # even the one already loaded behind the card.
+    assert re.search(r"held = nil\s*guard id != task else \{ return \}", select.group(1)), (
+        "a surface chosen from the note loads behind it and never shows"
+    )
 
     # REQ-ASK-003: the sentence above an unmeasured answer, in the colour that marks it (M6), and
     # the on-device reason whenever the model did not route (M4).

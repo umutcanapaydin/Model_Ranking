@@ -177,6 +177,21 @@ final class ScreenPathTests: XCTestCase {
         XCTAssertTrue(field("notASearch").waitForExistence(timeout: 20), "nonsense got a ranking")
     }
 
+    /// REQ-ASK-005 (the third review's M19): "Change" from the note answers with the surface chosen,
+    /// and the note goes.
+    func testChangeFromTheNoteShowsTheChosenRanking() {
+        ask("asdf qwer zxcv")
+        XCTAssertTrue(field("notASearch").waitForExistence(timeout: 20), "nonsense got a ranking")
+        app.buttons["change"].tap()
+        let chooser = app.navigationBars["What should we rank?"]
+        XCTAssertTrue(chooser.waitForExistence(timeout: 10))
+        app.buttons["surface.vision"].tap()
+        XCTAssertTrue(chooser.waitForNonExistence(timeout: 10), "the chooser did not close")
+        XCTAssertTrue(field("notASearch").waitForNonExistence(timeout: 10), "the note stays over the chosen surface")
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'See the evidence'")).firstMatch
+            .waitForExistence(timeout: 20), "the chosen surface shows no ranking")
+    }
+
     /// Review M7: the first version tapped whatever the second button in the tree was, and asserted
     /// nothing about what was chosen.
     func testChangeOpensTheChooserAndAChoiceIsShown() {
