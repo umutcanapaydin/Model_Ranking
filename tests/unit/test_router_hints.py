@@ -521,7 +521,9 @@ EGRESS_EXACT = {
     ("FrontDoor.swift", "FileManager.default.temporaryDirectory"): "REQ-GAP-001: the fallback folder",
     ("FrontDoor.swift", "FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)"): "REQ-GAP-001: the register's folder",
     ("FrontDoor.swift", "Data(contentsOf: url)"): "REQ-GAP-001: the register reads its own file",
-    ("FrontDoor.swift", "data.write(to: url, options: writeOptions)"): "REQ-GAP-001: the register writes its own file",
+    # #121 (M18-W7): the write is the store's default writer, a parameter so a test sees each attempt.
+    ("FrontDoor.swift", "try data.write(to: store.url, options: store.writeOptions)"): "REQ-GAP-001: the register writes its own file",
+    ("FrontDoor.swift", "try? write(data, self)"): "REQ-GAP-001: `save` hands its file to that writer, after `url.isFileURL`",
     ("FrontDoor.swift", "public let url: URL"): "REQ-GAP-001: the register's own file",
     ("FrontDoor.swift", "public init(url: URL,"): "REQ-GAP-001: the register's own file",
     # M17-W4, D-167 clause 4: the standings the engine sent, kept for a day in the caches folder.

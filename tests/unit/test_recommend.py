@@ -650,3 +650,12 @@ def test_a_pick_is_the_same_as_the_quality_pick_only_when_it_is_the_same_model()
     _, shared, _ = after.picks
     assert shared.model == quality.model, "the rename did not reach the pick"
     assert shared.trade_off and shared.trade_off_fact, "a different model was taken for the leader"
+
+
+def test_epochs_citation_carries_its_current_title() -> None:
+    """#124 (M18-W7): Epoch renamed its prescribed citation from 'AI Benchmarking Hub' to
+    'Capabilities & benchmarking' (its bundle README and its web page, read 2026-10-04,
+    `docs/research/data-licences-2026-10-04.md` note 2). CC BY asks for the credit the licensor
+    prescribes, so the payload and the README say the current one."""
+    assert "\u2018Capabilities & benchmarking\u2019" in EPOCH_ATTRIBUTION
+    assert "Benchmarking Hub" not in EPOCH_ATTRIBUTION
