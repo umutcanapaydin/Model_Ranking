@@ -106,6 +106,16 @@ final class OfflineGuardTests: OfflineTestCase {
         }
     }
 
+    func testARequestAStubDeclinesIsCaughtToo() async {
+        // W5 review M1: a stub session sets its own protocols, and a request its stub declines fell
+        // through to the real stack. Loopback's discard port, so nothing leaves the machine either way.
+        let address = URL(string: "http://127.0.0.1:9/declined")!
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [DecliningStub.self]
+        _ = try? await URLSession(configuration: configuration).data(from: address)
+        XCTAssertEqual(OfflineGuard.drain(), [address.absoluteString])
+    }
+
     func testARequestNoStubAnswersIsCaughtWithoutLeavingTheMachine() async {
         // The shape of the test #59 was raised for: a read of an https address inside a test.
         let address = URL(string: "https://example.invalid/standings.json")!
@@ -119,4 +129,9 @@ final class OfflineGuardTests: OfflineTestCase {
         _ = try? Data(contentsOf: address)
         XCTAssertEqual(OfflineGuard.drain(), [address.absoluteString, address.absoluteString])
     }
+}
+
+/// A stub that answers nothing: every request falls past it.
+final class DecliningStub: URLProtocol {
+    override class func canInit(with request: URLRequest) -> Bool { false }
 }

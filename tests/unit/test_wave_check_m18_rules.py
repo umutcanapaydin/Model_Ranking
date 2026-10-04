@@ -97,3 +97,43 @@ def test_a_wave_touching_input_parsing_must_be_high(tmp_path: Path) -> None:
 def test_a_high_wave_touching_input_parsing_and_a_med_wave_not_touching_it_pass(tmp_path: Path) -> None:
     assert _wave_check(_record(tmp_path / "a", tier="HIGH", touched="src/app/clients/epoch.py")).returncode == 0
     assert _wave_check(_record(tmp_path / "b", tier="MED", touched="src/app/workflows/rank.py")).returncode == 0
+
+
+def test_a_plan_whose_waves_cannot_be_counted_fails_closed(tmp_path: Path) -> None:
+    """W5 review M3: a closed milestone whose plan names its waves in a shape the parser did not read
+    reported nothing missing (AGENTS.md §3.5: fail closed)."""
+    check = _module("wave_check_all")
+    plans = tmp_path / "docs" / "plans"
+    plans.mkdir(parents=True)
+    (plans / "m19-plan.md").write_text("# M19\n\nNo waves named here.\n", encoding="utf-8")
+    (tmp_path / "docs" / "closure-report-m19.md").write_text("closed\n", encoding="utf-8")
+    assert check.missing_closes(tmp_path) != []
+
+
+def test_other_spellings_of_a_wave_heading_are_counted(tmp_path: Path) -> None:
+    check = _module("wave_check_all")
+    for heading in ("## Wave 2 — two", "### M19-W2 — two"):
+        root = tmp_path / heading[:6].strip("# ").replace(" ", "")
+        plans = root / "docs" / "plans"
+        plans.mkdir(parents=True)
+        (plans / "m19-plan.md").write_text(f"# M19\n\n### W1 — one\n\n{heading}\n", encoding="utf-8")
+        (plans / "m19-wave-1-close.md").write_text("a close\n", encoding="utf-8")
+        (root / "docs" / "closure-report-m19.md").write_text("closed\n", encoding="utf-8")
+        assert any("W2" in line for line in check.missing_closes(root)), heading
+
+
+def test_the_input_parsing_rule_has_no_way_around_it(tmp_path: Path) -> None:
+    """W5 review M4: an undated close, a footprint whose fields come in another order, and
+    `src/app/clients` without its slash each passed."""
+    undated = _record(tmp_path / "a", tier="MED", touched="src/app/clients/epoch.py")
+    undated.write_text(re.sub(r"^date: .*\n", "", undated.read_text(encoding="utf-8"), count=1, flags=re.M),
+                       encoding="utf-8")
+    assert "src/app/clients" in _wave_check(undated).stdout
+    slashless = _record(tmp_path / "b", tier="MED", touched="src/app/clients (the epoch parser)")
+    assert "src/app/clients" in _wave_check(slashless).stdout
+    reordered = _record(tmp_path / "c", tier="MED", touched="src/app/clients/epoch.py")
+    text = reordered.read_text(encoding="utf-8")
+    touched = re.search(r"^Touched:.*$", text, re.M).group(0)  # type: ignore[union-attr]
+    text = text.replace(touched + "\n", "").replace("Hand-kept lists:", touched + "\nHand-kept lists:")
+    reordered.write_text(text, encoding="utf-8")
+    assert "src/app/clients" in _wave_check(reordered).stdout

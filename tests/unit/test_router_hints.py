@@ -517,3 +517,22 @@ def test_the_comment_stripper_removes_block_comments_too() -> None:
     stripped = _code(swift)
     assert "Text(x)" not in stripped and "if let" not in stripped
     assert "let a = 1" in stripped and "let b =" in stripped
+
+
+def test_the_text_gate_refuses_a_url_in_a_type_argument() -> None:
+    """W5 review B1 (#58): a URL decoded from text needs `URL` as a type argument (`Optional<URL>`,
+    `[URL].self`, a tuple), which no pattern named. This gate is the D-126 gate CI runs (no Xcode)."""
+    for line in ("struct B: Decodable { let u: Optional<URL> }", "try d.decode([URL].self, from: x)",
+                 "let pair: (Int, URL)", "Dictionary<String, URL>"):
+        assert any(re.search(p, line) for p in EGRESS), line
+
+
+def test_the_comment_stripper_handles_nesting_and_comment_markers_in_comments() -> None:
+    """W5 review M2 (#98): Swift block comments nest, so `/* /* */ code */` hid the code from the
+    build while the pin still saw it; and a `/*` inside a `//` comment ate live code after it."""
+    nested = "/* outer /* inner */ if let address = f() { Text(address) } */\nlet kept = 1\n"
+    assert "Text(address)" not in _code(nested) and "let kept = 1" in _code(nested)
+    marker = "// see /* the note\nlet live = 2\n// end */\n"
+    assert "let live = 2" in _code(marker)
+    quoted = 'let s = "/* not a comment */"\nlet after = 3\n'
+    assert "let after = 3" in _code(quoted)

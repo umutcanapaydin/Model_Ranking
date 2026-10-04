@@ -523,7 +523,9 @@ def test_every_simctl_call_in_the_app_script_names_its_device() -> None:
     """M17 closure Tester N1 (#92): the test above lists four simctl verbs, and an added
     `simctl uninstall booted` passed. Every simctl call addresses the simulator the script boots."""
     script = (REPO / "ios" / "app.sh").read_text(encoding="utf-8")
-    calls = [line.strip() for line in script.splitlines() if "simctl " in line and not line.strip().startswith("#")]
+    # W5 review M5: a call continued over lines with `\` is one call.
+    joined = re.sub(r"\\\n\s*", " ", script)
+    calls = [line.strip() for line in joined.splitlines() if "simctl " in line and not line.strip().startswith("#")]
     assert calls, "found no simctl call; this reads the wrong file"
     booted = [line for line in calls if re.search(r"\bbooted\b", line)]
     assert booted == [], booted

@@ -24,14 +24,34 @@ def test_every_swift_test_class_derives_from_the_offline_base() -> None:
     assert direct == [], "test classes that skip the network tripwire: " + ", ".join(direct)
 
 
+def _hooks_skipping_super(text: str) -> list[str]:
+    """Each `setUp`/`tearDown` override, instance or class, whose body never calls its super."""
+    return [
+        f"{kind or ''}{hook}"
+        for kind, hook, body in re.findall(
+            r"override\s+(class\s+)?func\s+(setUp|tearDown)\(\)\s*(?:throws\s*)?\{(.*?)\n\s{4}\}", text, re.S)
+        if f"super.{hook}()" not in body
+    ]
+
+
+def test_the_check_sees_a_class_setup_that_skips_super() -> None:
+    """W5 review M1: a subclass's `class func setUp()` without super skipped the install, and the
+    instance-only pattern above did not see it."""
+    sample = "final class X: OfflineTestCase {\n    override class func setUp() {\n        prepare()\n    }\n}\n"
+    assert _hooks_skipping_super(sample) == ["class setUp"]
+
+
 def test_the_base_checks_every_test_and_calls_through() -> None:
     """The check is in the base's tearDown, and a subclass that overrides setUp or tearDown calls super."""
     base = (TESTS / BASE).read_text(encoding="utf-8")
     assert re.search(r"override func tearDown\(\)[^}]*OfflineGuard", base, re.S), "the base checks nothing"
-    skipping = [
-        f"{path.name}: {hook}"
-        for path in sorted(TESTS.glob("*.swift")) if path.name != BASE
-        for hook, body in re.findall(r"override func (setUp|tearDown)\(\)\s*\{(.*?)\n    \}", path.read_text(encoding="utf-8"), re.S)
-        if f"super.{hook}()" not in body
-    ]
+    skipping = [f"{path.name}: {hook}" for path in sorted(TESTS.glob("*.swift")) if path.name != BASE
+                for hook in _hooks_skipping_super(path.read_text(encoding="utf-8"))]
     assert skipping == [], "overrides that skip the base: " + ", ".join(skipping)
+
+
+def test_no_swift_test_runs_outside_the_tripwire() -> None:
+    """W5 review M1: Swift Testing's `@Test` functions are not `XCTestCase` methods and get no tearDown."""
+    users = [p.name for p in sorted(TESTS.glob("*.swift")) if re.search(r"^\s*import\s+Testing\b",
+                                                                           p.read_text(encoding="utf-8"), re.M)]
+    assert users == [], users

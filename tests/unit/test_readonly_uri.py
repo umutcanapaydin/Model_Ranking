@@ -196,6 +196,8 @@ def test_every_reader_opens_the_artifact_read_only_at_run_time(
         client = TestClient(adapter.app)
         assert client.get("/v1/boards").status_code == 200
         assert client.get("/v1/categories").status_code == 200
+        # W5 review M5: the answer itself, the route an aliased writable open got past.
+        assert client.get("/v1/recommendations?task=coding").status_code == 200
         adapter.validate_startup_config(env="test")
         assert refresh.fingerprint_of(db) is not None
         refresh._served_without(db, {"swebench"})

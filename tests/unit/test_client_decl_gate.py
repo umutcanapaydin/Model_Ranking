@@ -57,3 +57,17 @@ def test_a_url_decoded_outside_the_engine_client_is_the_network() -> None:
 def test_the_gate_refuses_its_compiled_fixture() -> None:
     """#51: the whole gate, compiled, on files that must be refused and files that must be allowed."""
     assert gate.self_test() == []
+
+
+#: What `swiftc -dump-ast` prints for a synthesised `Decodable` with an `Optional<URL>` property.
+DECODED_OPTIONAL_URL = (
+    '(source_file "/x/ContentView.swift"\n'
+    '  (declref_expr decl="Swift.(file).KeyedDecodingContainer.decodeIfPresent(_:forKey:) [with '
+    '(substitution_map generic_signature=<T where T : Decodable> T -> URL)]" function_ref=single apply)\n'
+)
+
+
+def test_a_url_decoded_if_present_is_the_network_too() -> None:
+    """W5 review B1 (#58): `decodeIfPresent`, which Swift generates for every optional property, was
+    not matched; `struct B: Decodable { let u: URL? }` passed the gate in all four configurations."""
+    assert "Foundation.URL.decoded" in gate.references(DECODED_OPTIONAL_URL)["ContentView.swift"]
