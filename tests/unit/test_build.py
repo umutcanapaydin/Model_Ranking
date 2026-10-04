@@ -493,3 +493,34 @@ def test_an_unknown_failed_source_still_reports_rather_than_vanishing() -> None:
     actions = build_mod._surfaces_left_without_evidence(["not-a-real-source: down"])
     assert len(actions) == 1
     assert "not-a-real-source" in actions[0]
+
+
+def test_a_suffix_the_reconcile_resolves_is_not_counted_unknown() -> None:
+    """#45 (REQ-CAN-005, W-010): `effort_unknown` was counted before reconcile, so a derived model's
+    `_high`, which the reconcile stores as `high`, was still reported as unknown."""
+    pricing = json.loads(PRICING)
+    pricing["openai/gpt-6-astra"] = {"mode": "chat", "input_cost_per_token": 1e-06, "output_cost_per_token": 4e-06}
+    aider = json.dumps([
+        {"model": "gpt-5 (high)", "pass_rate_2": 61.0, "edit_format": "diff"},
+        {"model": "claude-4-5-opus", "pass_rate_2": 70.5, "edit_format": "diff"},
+        {"model": "gpt-6-astra_high", "pass_rate_2": 55.0, "edit_format": "diff"},
+    ])
+    conn = connect(":memory:")
+    report = _build(conn, sources=_sources(pricing=json.dumps(pricing), aider=aider))
+    stored = conn.execute("SELECT effort FROM scores WHERE raw_name = 'gpt-6-astra_high'").fetchone()
+    assert stored == ("high",)
+    (aider_report,) = [r for r in report.sources if r.source == "aider"]
+    assert aider_report.effort_unknown == 0
+
+
+def test_a_suffix_nobody_resolves_is_still_counted_unknown() -> None:
+    """#45's other half: a suffix no rule and no derivation confirms stays unknown, and is counted."""
+    aider = json.dumps([
+        {"model": "gpt-5 (high)", "pass_rate_2": 61.0, "edit_format": "diff"},
+        {"model": "claude-4-5-opus", "pass_rate_2": 70.5, "edit_format": "diff"},
+        {"model": "zorblax-9_high", "pass_rate_2": 55.0, "edit_format": "diff"},
+    ])
+    conn = connect(":memory:")
+    report = _build(conn, sources=_sources(aider=aider))
+    (aider_report,) = [r for r in report.sources if r.source == "aider"]
+    assert aider_report.effort_unknown == 1

@@ -201,3 +201,10 @@ def test_the_subscription_frontier_orders_the_same_way() -> None:
     """The second engine's key is `(-score, monthly_usd, plan)` and had the same untested tail."""
     rows = [_plan_rank("b", 80.0, 5.0), _plan_rank("a", 80.0, 5.0)]
     assert [r.plan for r in _pareto(rows)] == ["a", "b"]
+
+
+def test_a_full_tie_on_the_frontier_keeps_the_rankings_order() -> None:
+    """#44 (D-173 clause 1): rows tied on score AND price were ordered by display name. The frontier
+    keeps the order the ranking gave them (by model id), so a re-spelling moves nothing."""
+    rows = [_ranking_row("Zed", 80.0, 1.0), _ranking_row("Alpha", 80.0, 1.0)]
+    assert [r.model for r in pareto_frontier(rows)] == ["Zed", "Alpha"]

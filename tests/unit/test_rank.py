@@ -257,3 +257,30 @@ def test_export_csv_and_json_identical_rows(tmp_path: Path) -> None:
     for c, j in zip(csv_rows, payload["rows"], strict=True):
         assert c["model"] == j["model"]
         assert float(c["blended_per_m"]) == j["blended_per_m"]
+
+
+def test_a_tie_keeps_its_order_when_display_names_are_re_spelled() -> None:
+    """#44 (D-173 clause 1): a tie was ordered by display name, so a re-spelled name moved a model
+    inside the tie on a night no score moved. Two tied models whose displays swap alphabetical
+    order keep their positions."""
+    conn = connect()
+    scores = json.dumps({"leaderboards": [{"name": "Verified", "results": [
+        {"name": "live-SWE-agent + Claude 4.5 Opus", "resolved": 74.4, "date": "2025-09-01"},
+        {"name": "mini-SWE-agent + GPT-5", "resolved": 74.4, "date": "2025-09-01"},
+    ]}]})
+    run = RunContext(observed_at="t")
+    ingest_litellm(conn, FakeRawSource("litellm", PRICING), run)
+    ingest_swebench(conn, FakeRawSource("swebench", scores), run)
+    reconcile(conn)
+    build_price_medians(conn)
+    def order() -> list[str]:
+        ids_by_display = dict(conn.execute("SELECT display, id FROM models").fetchall())
+        return [ids_by_display[row.model] for row in coding_ranking(conn)]
+
+    before = order()
+    assert len(before) == 2
+    # Re-spell both, so their alphabetical order swaps; nothing measured changed.
+    first, second = before
+    conn.execute("UPDATE models SET display = ? WHERE id = ?", ("Zz " + first, first))
+    conn.execute("UPDATE models SET display = ? WHERE id = ?", ("Aa " + second, second))
+    assert order() == before
