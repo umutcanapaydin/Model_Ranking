@@ -63,10 +63,13 @@ def unreadable(text: str) -> list[str]:
     """Lines that look like a row of the list, a gap or a retired id, and that the parser cannot
     read. Each is a finding: a row the gate cannot read is one it never checks (the W6 review's M5)."""
     found = []
-    for title, pattern, prefix in (("The list", ROW, "| INV-"), ("Gaps", GAP, "| G-"),
-                                   ("Retired ids", RETIRED, "| INV-")):
+    for title, pattern in (("The list", ROW), ("Gaps", GAP), ("Retired ids", RETIRED)):
         for line in section(text, title).splitlines():
-            if line.startswith(prefix) and not pattern.match(line.rstrip()):
+            # Any table line but a header (`| INV |`, `| Gap |`) or a rule (`|---`): the W6
+            # Tester's T2 wrote `|INV-n |`, which a test for `| INV-` never looked at.
+            first = line.strip("|").split("|", 1)[0].strip() if line.startswith("|") else ""
+            row = line.startswith("|") and not line.startswith("|-") and first not in {"INV", "Gap"}
+            if row and not pattern.match(line.rstrip()):
                 found.append(f"{title}: a row the gate cannot read: {line[:80]!r}")
     return found
 
@@ -79,6 +82,8 @@ def parse(text: str) -> tuple[list[Row], dict[str, str], set[int]]:
         if match:
             cell = match.group(4)
             unread = tuple(c for c in CITED.findall(cell) if not TEST.fullmatch(f"`{c}`") and not MAKE.fullmatch(f"`{c}`"))
+            # A citation outside backticks is one the gate would never read (the W6 Tester's T2).
+            unread += tuple(re.findall(r"(?:tests|ios)/\S+::\w+", re.sub(r"`[^`]*`", "", cell)))
             rows.append(Row(int(match.group(1)), tuple(TEST.findall(cell)), tuple(MAKE.findall(cell)),
                             tuple(GAP_REF.findall(cell)), "**none**" in cell, unread))
     gaps = {m.group(1): m.group(4) for line in section(text, "Gaps").splitlines() if (m := GAP.match(line.rstrip()))}
@@ -125,7 +130,9 @@ def problems(text: str, root: Path = ROOT) -> list[str]:
             if not file.is_file():
                 found.append(f"INV-{row.number} cites {path}, which does not exist")
                 continue
-            if name not in declared_names(file):
+            if not name.startswith("test"):  # a helper pytest or XCTest never runs (the Tester's T2)
+                found.append(f"INV-{row.number} cites {path}::{name}, which is not a test")
+            elif name not in declared_names(file):
                 found.append(f"INV-{row.number} cites {path}::{name}, which is not declared there")
         for target in row.targets:
             if not re.search(rf"^{re.escape(target)}:", makefile, re.M):
@@ -219,3 +226,39 @@ def test_a_row_or_a_citation_the_gate_cannot_read_is_refused() -> None:
     assert any("cannot read" in p for p in problems(broken))
     classy = text.replace(last, last[:-2] + "<br>`tests/unit/test_nope.py::TestX::test_gone` |", 1)
     assert any("cannot read as a test" in p for p in problems(classy))
+
+
+def test_a_retired_row_a_wrong_count_a_short_list_and_a_broken_gap_are_refused() -> None:
+    """The M18-W6 Tester's survivors: four of the gate's refusals were never watched failing, and
+    each could be removed with every test green: a number that is both a row and retired, a count
+    that disagrees with the rows, a list read as almost empty, and a gap or retired row the gate
+    cannot read (a broken gap row was reported only as the gap being missing)."""
+    text = LIST.read_text(encoding="utf-8")
+    rows, _, retired = parse(text)
+    both = problems(_planted(f"| INV-{min(retired)} | x | y | `make lint` |"))
+    assert any("is a row and retired" in p for p in both), both
+    miscounted = re.sub(r"\*\*Count\.\*\* \d+ rows", f"**Count.** {len(rows) + 1} rows", text, count=1)
+    assert any("the list states" in p for p in problems(miscounted))
+    emptied = "\n".join(line for line in text.splitlines() if not ROW.match(line.rstrip()))
+    assert any("rows were read from the list" in p for p in problems(emptied))
+    gap = next(line for line in section(text, "Gaps").splitlines() if GAP.match(line))
+    assert any(p.startswith("Gaps: a row the gate cannot read") for p in problems(text.replace(gap, gap[:-2], 1)))
+    old = next(line for line in section(text, "Retired ids").splitlines() if RETIRED.match(line))
+    broken = old.replace(" |", "|", 1)
+    assert any(p.startswith("Retired ids: a row the gate cannot read")
+               for p in problems(text.replace(old, broken, 1)))
+
+
+def test_the_testers_three_spellings_are_refused() -> None:
+    """The W6 Tester's T2: a row without a space after its first `|`, a citation of a helper pytest
+    never runs, and a bare citation outside backticks, each passed the gate."""
+    text = LIST.read_text(encoding="utf-8")
+    rows, _, retired = parse(text)
+    last = next(line for line in reversed(section(text, "The list").splitlines()) if ROW.match(line))
+    new = max({row.number for row in rows} | retired) + 1
+    tight = text.replace(last, last + f"\n|INV-{new} | x | y | `tests/unit/test_no_such_file.py::test_nothing` |", 1)
+    assert any("cannot read" in p for p in problems(tight)), "a row without a space was not read"
+    helper = text.replace(last, last[:-2] + "<br>`tests/unit/test_refresh.py::_builder` |", 1)
+    assert any("not a test" in p for p in problems(helper)), "a helper was accepted as a test"
+    bare = text.replace(last, last[:-2] + "<br>tests/unit/test_nope.py::test_gone |", 1)
+    assert any("cannot read as a test" in p for p in problems(bare)), "a bare citation was skipped"

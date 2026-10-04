@@ -105,8 +105,11 @@ So:
 
 - At least **40 questions from at least 3 people**, with at least 10 in each language, are kept with
   consent and written as the set above.
-- The session notes, without names, are attached to #91 by the owner. The questions themselves are
-  not attached, since the issue is public.
+- A summary goes on #91, and no typed text does: per person, how many questions, in which language,
+  and what the screen did with them (how many got a surface, "not measured", the note or the
+  question back). The session notes themselves hold every question as typed, struck ones too, so
+  they stay with the owner, and are destroyed once the independent seat has written the set (the
+  W6 Tester's T5).
 
 ## 8. What this protocol does not do
 

@@ -118,7 +118,22 @@ def test_the_dev_extra_holds_the_ingest_extra() -> None:
 
 #: A pip command, however it is spelled: `pip`, `pip3`, `$(PIP)`, `python -m pip`, `uv pip`, with
 #: options before or after `install` (the W6 review's M7).
-PIP_INSTALL = re.compile(r"(?:\bpip3?\b|\$\(PIP\))[^&;\n]*?\binstall\b[^&;\n]*")
+PIP_INSTALL = re.compile(r"(?:\bpip3?\b|\$\(PIP\)|\$\{?PIP\}?)[^&;|\n]*?\binstall\b[^&;|\n]*", re.IGNORECASE)
+#: What a project install may name: the project, and nothing beside it (the W6 Tester's T3).
+PROJECT = {".", '"$rel"', "$rel"}
+
+
+def install_targets(command: str) -> list[str]:
+    """What a pip install names besides its options and the files its `-r` reads."""
+    words, targets, skip = command.split("install", 1)[1].split(), [], False
+    for word in words:
+        if skip:
+            skip = False
+        elif word in {"-r", "--requirement", "-c", "--constraint"}:
+            skip = True
+        elif not word.startswith("-") and word != "\\":
+            targets.append(word)
+    return targets
 
 
 def install_commands(text: str) -> list[str]:
@@ -139,8 +154,11 @@ def install_problems(path: str, text: str, lock: str) -> list[str]:
             problems.append(f"{path} does not install {wanted} with --require-hashes")
     for command in installs:
         if "--require-hashes" in command:
+            if install_targets(command):
+                problems.append(f"{path} names a package beside its locks: {command.strip()}")
             continue
-        if "--no-deps" not in command or "--no-build-isolation" not in command:
+        if ("--no-deps" not in command or "--no-build-isolation" not in command
+                or len(targets := install_targets(command)) != 1 or targets[0] not in PROJECT):
             problems.append(f"{path} resolves or fetches outside its locks: {command.strip()}")
     return problems
 
@@ -163,3 +181,41 @@ def test_every_install_reads_its_lock_and_resolves_nothing_else(path: str, lock:
 def test_the_install_check_reads_every_spelling(planted: str) -> None:
     text = (ROOT / "Dockerfile").read_text(encoding="utf-8") + f"\n{planted}\n"
     assert install_problems("Dockerfile", text, "requirements/serve.lock")
+
+
+def test_a_lock_resolved_from_another_pyproject_is_reported_and_fails_the_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The M18-W6 Tester's survivor: `stale` could answer None for every lock and every test stayed
+    green, since the planted test reads `tables_hash` and the real one sees current locks. Here a
+    copied lock records another hash, and then goes missing: `stale` says so, and `--check` fails."""
+    import shutil
+
+    (tmp_path / "requirements").mkdir()
+    for name in locks.LOCKS:
+        shutil.copy(locks.lock_path(name), tmp_path / "requirements" / f"{name}.lock")
+    monkeypatch.setattr(locks, "ROOT", tmp_path)
+    monkeypatch.setattr(locks, "LOCK_DIR", tmp_path / "requirements")
+    assert [locks.stale(name) for name in locks.LOCKS] == [None] * len(locks.LOCKS)
+    serve = locks.lock_path("serve")
+    recorded = locks.recorded_hash(serve)
+    assert recorded
+    serve.write_text(serve.read_text(encoding="utf-8").replace(recorded, "0" * 64, 1), encoding="utf-8")
+    assert "make lock" in (locks.stale("serve") or ""), "a lock with another hash was called current"
+    assert locks.main(["--check"]) == 1
+    assert "FAIL [lock]: requirements/serve.lock" in capsys.readouterr().out
+    serve.unlink()
+    assert "missing" in (locks.stale("serve") or ""), "a missing lock was called current"
+
+
+@pytest.mark.parametrize(("path", "planted"), [
+    # The W6 Tester's T3: a project install that also names a package, and pip spelled in capitals.
+    ("Dockerfile", "RUN pip install --no-cache-dir --prefix=/install --no-deps --no-build-isolation . requests"),
+    ("scripts/install_engine_service.sh", '"${PIP}" install requests'),
+    ("scripts/install_engine_service.sh", "$PIP install requests"),
+])
+def test_an_install_beside_the_project_or_a_capital_pip_is_read(path: str, planted: str) -> None:
+    lock = {"Dockerfile": "requirements/serve.lock",
+            "scripts/install_engine_service.sh": "requirements/ingest.lock"}[path]
+    text = (ROOT / path).read_text(encoding="utf-8") + f"\n{planted}\n"
+    assert install_problems(path, text, lock), planted

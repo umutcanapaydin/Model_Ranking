@@ -79,7 +79,8 @@ def test_the_workflow_check_fails_on_a_planted_writer_and_a_secret_in_a_run() ->
 #: server's own trust accepts any certificate (the W6 review's M6; `.performDefaultHandling` is the
 #: safe default, not a bypass).
 TLS_OFF = re.compile(r"verify\s*=\s*False|_create_unverified_context|CERT_NONE|check_hostname\s*=\s*False"
-                     r"|allowsExpiredCertificates|URLCredential\(\s*trust:|\.useCredential")
+                     r"|allowsExpiredCertificates|URLCredential\(\s*trust:|\.useCredential"
+                     r"""|["']verify["']\s*:\s*False""")  # keyword unpacking (the W6 Tester's T4)
 
 
 def tls_off(text: str) -> list[str]:
@@ -117,7 +118,9 @@ def model_imports(source: str) -> list[str]:
     found = []
     for node in ast.walk(ast.parse(source)):
         names = ([alias.name for alias in node.names] if isinstance(node, ast.Import)
-                 else [node.module or ""] if isinstance(node, ast.ImportFrom) and node.level == 0 else [])
+                 # `from google import generativeai` imports `google.generativeai` (the Tester's T4)
+                 else [node.module or "", *(f"{node.module}.{a.name}" for a in node.names)]
+                 if isinstance(node, ast.ImportFrom) and node.level == 0 else [])
         if isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant):
             called = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", "")
             if called in {"import_module", "__import__"} and isinstance(node.args[0].value, str):
@@ -150,3 +153,41 @@ def test_the_engine_imports_no_model_and_declares_none() -> None:
 def test_the_model_check_fails_on_a_planted_import(planted: str) -> None:
     assert model_imports(planted)
     assert not model_imports("from app.clients.litellm import parse_pricing")
+
+
+# --- the Tester's pins (M18-W6) --------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("planted", [
+    "ctx.verify_mode = ssl.CERT_NONE",
+    "ctx.check_hostname = False",
+    "configuration.allowsExpiredCertificates = true",
+    "let credential = URLCredential(trust: serverTrust)",
+    "completionHandler(.useCredential, credential)",
+])
+def test_each_way_of_turning_tls_off_is_refused_on_its_own(planted: str) -> None:
+    """The M18-W6 Tester's survivors: five of the seven TLS patterns could each be deleted with every
+    test green, since the planted lines held two at once or none. Each is planted alone here."""
+    assert tls_off(planted)
+
+
+def test_the_workflow_check_reads_a_jobs_scope_and_write_all() -> None:
+    """The M18-W6 Tester's survivors: the check of a job's own `permissions:` and of `write-all`
+    could each be deleted with every test green, since the planted writer was workflow-wide."""
+    job_writer = ("on: push\npermissions:\n  contents: read\njobs:\n  build:\n    runs-on: x\n"
+                  "    permissions:\n      contents: write\n    steps: []\n")
+    assert any("job build can write" in p for p in workflow_problems("planted.yml", job_writer))
+    everything = "on: push\npermissions: write-all\njobs: {}\n"
+    assert any("the workflow can write" in p for p in workflow_problems("planted.yml", everything))
+    job_everything = ("on: push\npermissions:\n  contents: read\njobs:\n  build:\n"
+                      "    permissions: write-all\n    steps: []\n")
+    assert any("job build can write" in p for p in workflow_problems("planted.yml", job_everything))
+    assert not workflow_problems("issue-agent.yml", job_writer), "the one allowed writer was refused"
+
+
+def test_the_testers_two_spellings_are_refused() -> None:
+    """The W6 Tester's T4: keyword unpacking turns TLS off as surely as `verify=False`, and
+    `from google import generativeai` imports the package the list names."""
+    assert tls_off('client = httpx.Client(**{"verify": False})')
+    assert model_imports("from google import generativeai")
+    assert not model_imports("from google import protobuf")

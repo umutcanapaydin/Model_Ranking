@@ -710,3 +710,71 @@ def test_the_child_reads_every_bound_from_its_own_variable(tmp_path: Path, monke
             f"json.dump(dataclasses.asdict(bounds_from_env()), open({str(seen)!r}, 'w'))")
     assert asyncio.run(_child(tmp_path, code).run_once("nightly")) == 0
     assert sorted(json.loads(seen.read_text(encoding="utf-8")).values()) == sorted(overrides.values())
+
+
+# --- the Tester's pins (M18-W6): the engine's side of the limits -----------------------------------
+
+
+def test_the_engine_names_itself_to_the_cycle(tmp_path: Path) -> None:
+    """The M18-W6 Tester's survivor: the engine's `MODEL_RANKING_ENGINE_PID` line could go and every
+    test stayed green, since the parent-watch test starts its own engine. Without it a cycle whose
+    engine died before the cycle got going watches launchd, and never ends itself (D-154 as
+    amended). The name is read from `refresh`, so the two sides cannot drift apart."""
+    import os
+
+    from app.workflows import refresh as cycle
+
+    seen = tmp_path / "engine"
+    code = f"import os; open({str(seen)!r}, 'w').write(os.environ.get({cycle.ENGINE_PID!r}, ''))"
+    assert asyncio.run(_child(tmp_path, code).run_once("nightly")) == 0
+    assert seen.read_text(encoding="utf-8") == str(os.getpid())
+
+
+def test_a_cancelled_cycle_takes_its_group_with_it(tmp_path: Path) -> None:
+    """The M18-W6 Tester's survivor: the group kill in `run_once`'s `finally` could go and every test
+    stayed green, since the timeout path kills the group itself. The `finally` is the graceful
+    stop's path (the lifespan cancels the schedule): without it a grandchild holding the output
+    kept the stop waiting on the pipe, and outlived the engine (W-130 on the cancel path)."""
+    import contextlib
+    import os
+    import signal
+
+    pid_file = tmp_path / "grandchild"
+    code = (
+        "import subprocess, sys, time\n"
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+        f"open({str(pid_file)!r}, 'w').write(str(child.pid))\n"
+        "time.sleep(30)\n"
+    )
+
+    async def cancel_once_started() -> float:
+        task = asyncio.create_task(_child(tmp_path, code).run_once("nightly"))
+        for _ in range(300):  # 15 s at most
+            if pid_file.exists():
+                break
+            await asyncio.sleep(0.05)
+        assert pid_file.exists(), "the cycle never started its grandchild"
+        await asyncio.sleep(0.2)
+        task.cancel()
+        stopped = time.monotonic()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        return time.monotonic() - stopped
+
+    try:
+        took = asyncio.run(cancel_once_started())
+        assert took < 10, f"the stop waited {took:.0f} s on a grandchild holding the pipe"
+        grandchild = int(pid_file.read_text(encoding="utf-8"))
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                os.kill(grandchild, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.1)
+        else:
+            pytest.fail("the grandchild outlived the stop")
+    finally:
+        if pid_file.exists():
+            with contextlib.suppress(ProcessLookupError, ValueError):
+                os.kill(int(pid_file.read_text(encoding="utf-8")), signal.SIGKILL)

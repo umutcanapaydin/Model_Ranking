@@ -116,7 +116,12 @@ class _Limits:
         self._previous = signal.signal(signal.SIGALRM, signal.SIG_DFL)
         signal.setitimer(signal.ITIMER_REAL, seconds)
         named = os.environ.get(ENGINE_PID, "")
-        self._parent = int(named) if named.isdigit() else os.getppid()
+        self._parent = os.getppid()
+        if named.isdigit() and self._parent == 1 and int(named) != 1:
+            # Already orphaned: the engine that named itself died before this cycle got going. In any
+            # other case the cycle watches its real parent, so a variable copied into a shell does
+            # not end a cycle run by hand (the W6 Tester's R2).
+            self._parent = int(named)
         self._done = threading.Event()
         threading.Thread(target=self._watch, args=(poll,), name="parent-watch", daemon=True).start()
 

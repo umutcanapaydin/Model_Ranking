@@ -294,8 +294,8 @@ class NightlyRefresh:
                 # holding the pipe is what keeps the drain waiting (the W6 review's M1). A group id
                 # is not reused while any member of the group lives.
                 _kill_group(proc.pid)
-                self._log_tail(tail)
                 if not exited:
+                    self._log_tail(tail)
                     self._failed(started, "killed")
                     _LOG.error("nightly refresh: no exit after %.0fs; killing it. The live artifact "
                                "is whatever the last safe publish left (REQ-REF-001)", self.timeout)
