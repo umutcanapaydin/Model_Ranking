@@ -60,7 +60,7 @@ need = @command -v $(1) >/dev/null 2>&1 || { echo "$(1) not installed: cannot $(
 
 # Every target is declared phony. `conformance` is also a directory: undeclared, make called the
 # target "up to date" and never ran it, so `make gate` skipped the whole conformance suite.
-.PHONY: help ui-test install test lint format typecheck check check-fast check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check
+.PHONY: help ui-test install lock test lint format typecheck check check-fast check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check
 
 help:  ## this list, generated from the annotation on each target (a hand-written list drifts)
 	@grep -hE '^[a-zA-Z0-9_.-]+:[^#]*## ' $(MAKEFILE_LIST) | sort \
@@ -74,9 +74,15 @@ $(VENV)/pyvenv.cfg:
 	@echo "Using Python: $$($(SYS_PY) --version) at $$(command -v $(SYS_PY))"
 	$(SYS_PY) -m venv --upgrade-deps $(VENV)
 
-$(VENV)/.installed: pyproject.toml | $(VENV)/pyvenv.cfg
-	$(PIP) install -e ".[dev]"
+# M18-W6 (#35): from the lock, so a working tree runs the versions the suite was run on; then the
+# project itself, with nothing more resolved. `make lock` rewrites the locks after a pyproject change.
+$(VENV)/.installed: pyproject.toml requirements/dev.lock | $(VENV)/pyvenv.cfg
+	$(PIP) install --require-hashes -r requirements/dev.lock
+	$(PIP) install --no-deps -e .
 	@touch $@
+
+lock: install  ## rewrite requirements/*.lock from pyproject.toml (needs the network; #35)
+	$(PY) scripts/lock_dependencies.py
 
 install: $(VENV)/.installed  ## Stage 0: create the venv, install the project, write .gp/installed
 # The marker records the version this tree installed, derived from the records' own
