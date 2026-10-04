@@ -87,7 +87,7 @@ public func whySentence(_ fact: [String: Any], in language: Language) -> String?
     case (.nothingClearsFloor, .turkish):
         guard let floor = number(fact["floor"]) else { return nil }
         return "Dikkat: bu fiyatta hiçbir model kendi barajımız olan \(floor) \(unit) "
-            + "seviyesini geçmiyor. Bu en ucuzu ve kaliteden ödün veriyorsunuz."
+            + "seviyesini geçmiyor. Bu en ucuzu ve kaliteden ödün veriyorsun."
     case (.noFloorMeasured, .english):
         return "Careful: this list's own board is empty today, so we cannot measure our bar. "
             + "This is the cheapest there is."
@@ -184,10 +184,11 @@ public func scaleExplanation(for metric: String, in language: Language) -> Strin
         return "insanların cevapları yan yana kıyaslamasından çıkan bir puan"
     case "eci":
         return "genel yetenek endeksi — sabit bir üst sınırı yok"
+    // #63 finding 8: "gerçek işlerin ne kadarını bitirdiği" had no subject and read as a fragment.
     case "% resolved":
-        return "gerçek işlerin ne kadarını bitirdiği"
+        return "modelin çözdüğü gerçek görevlerin yüzdesi"
     case "% correct":
-        return "soruların ne kadarını doğru yanıtladığı"
+        return "modelin doğru yanıtladığı soruların yüzdesi"
     default:
         return nil
     }
@@ -204,8 +205,9 @@ public func anchoredScaleExplanation(for metric: String, anchored: Bool, in lang
         return "out of 100: how often people prefer it over a model at the bar we recommend from — "
             + "50 is at the bar"
     case .turkish:
-        return "100 üzerinden: insanların onu, önerdiğimiz çıtadaki bir modele ne sıklıkla tercih "
-            + "ettiği — 50 tam çıtada demek"
+        // #63 finding 8: the first wording was hard to follow. Same facts, said plainly.
+        return "100 üzerinden: insanlar iki cevabı yan yana görünce bu modelinkini ne sıklıkla seçiyor. "
+            + "50, önerdiğimiz alt sınırdaki bir modelle eşit demek"
     }
 }
 
@@ -216,9 +218,9 @@ public func priceInPages(_ blendedPerM: Double, in language: Language) -> String
     let perPage = blendedPerM / Double(pagesPerMillionTokens)
     if perPage < 0.01 {
         guard let amount = money(blendedPerM) else {
-            return "\(groupedPages) sayfa metin için $0.01'den az"
+            return "\(groupedPages(.turkish)) sayfa metin için $0.01'den az"
         }
-        return "\(groupedPages) sayfa metin için yaklaşık $\(amount)"
+        return "\(groupedPages(.turkish)) sayfa metin için yaklaşık $\(amount)"
     }
     return "sayfa başına yaklaşık $\(String(format: "%.2f", perPage))"
 }
@@ -315,7 +317,7 @@ public enum UIText {
             return language == .turkish ? "\(total) modelin tamamı" : "See all \(total)"
         }
         return language == .turkish
-            ? "\(total) modelin tamamı — \(eligible) tanesi bütçenize uyuyor"
+            ? "\(total) modelin tamamı — \(eligible) tanesi bütçene uyuyor"
             : "See all \(total) — \(eligible) fit your budget"
     }
 
@@ -397,7 +399,7 @@ public enum UIText {
 
     /// The small label above the question field.
     public static func questionEyebrow(_ language: Language) -> String {
-        language == .turkish ? "SORUN" : "YOUR QUESTION"
+        language == .turkish ? "SORU" : "YOUR QUESTION"
     }
 
     /// Beside the lock icon: D-126, said to the reader rather than only to the repository.
@@ -479,7 +481,7 @@ public enum UIText {
     /// than offering a send button that silently does nothing.
     public static func surfacesUnavailable(_ language: Language) -> String {
         language == .turkish
-            ? "Alan listesi yüklenemedi; yeniden denemek için aşağı çekin."
+            ? "Alan listesi yüklenemedi; yeniden denemek için aşağı çek."
             : "The list of surfaces could not be loaded; pull down to try again."
     }
 
@@ -594,9 +596,11 @@ extension UIText {
     /// A board's date, saying whether anything was measured on it (review B1).
     static func boardDate(_ date: BoardDate, _ language: Language) -> String {
         switch date {
-        case let .measured(day):
+        case let .measured(served):
+            let day = readableDate(served, language) ?? served
             return language == .turkish ? "En yeni ölçüm: \(day)" : "Newest evaluation: \(day)"
-        case let .readOn(day):
+        case let .readOn(served):
+            let day = readableDate(served, language) ?? served
             return language == .turkish
                 ? "Ölçüm tarihi yayımlamıyor; motor \(day) tarihinde okudu"
                 : "Publishes no evaluation date; read by the engine on \(day)"

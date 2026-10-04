@@ -816,7 +816,10 @@ public let pagesPerMillionTokens = 1_500
 /// round approximation the sentence itself calls "about", and a number that changes shape between
 /// devices reads as data rather than as the rough figure it is. Seen on the first screenshot of
 /// this wave, in a change whose entire subject is readability.
-var groupedPages: String {
+///
+/// The separator is the LANGUAGE's, not the device's (#63 finding 6, M18-W2): in Turkish the comma
+/// is the decimal mark, so "1,500 sayfa" read as one and a half pages.
+func groupedPages(_ language: Language) -> String {
     let formatter = NumberFormatter()
     formatter.locale = Locale(identifier: "en_US_POSIX")
     formatter.numberStyle = .decimal
@@ -824,7 +827,7 @@ var groupedPages: String {
     // on the first screenshot of this wave. Setting it explicitly keeps the locale pinned (the
     // number must not change shape between devices) while still grouping.
     formatter.usesGroupingSeparator = true
-    formatter.groupingSeparator = ","
+    formatter.groupingSeparator = language == .turkish ? "." : ","
     formatter.groupingSize = 3
     return formatter.string(from: NSNumber(value: pagesPerMillionTokens)) ?? "\(pagesPerMillionTokens)"
 }
@@ -865,9 +868,9 @@ public func priceInPages(_ blendedPerM: Double) -> String {
         // Below a cent a page, "per page" stops being informative and the round number does the
         // work: what a whole book costs, not what a page does.
         guard let amount = money(blendedPerM) else {
-            return "under $0.01 per \(groupedPages) pages of text"
+            return "under $0.01 per \(groupedPages(.english)) pages of text"
         }
-        return "about $\(amount) per \(groupedPages) pages of text"
+        return "about $\(amount) per \(groupedPages(.english)) pages of text"
     }
     return "about $\(String(format: "%.2f", perPage)) per page of text"
 }

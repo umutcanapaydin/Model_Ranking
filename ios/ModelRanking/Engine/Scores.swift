@@ -37,27 +37,30 @@ public func scoreForm(for metric: String) -> ScoreForm {
 
 /// The score as a card or a row prints it, or `nil` where only the rank may be shown.
 ///
+/// `named: false` leaves out the leading word, for a line whose label already says "Score" (#63
+/// finding 8: the detail screen read "Puan" over "Puan 83.5 / 100").
+///
 /// `nil` also for a number the form cannot hold: a "percentage" above 100 has no honest rendering
 /// against a ceiling of 100, and a number that does not fit the scale did not come from a working
 /// engine. The rank beside it still says where the model sits.
 public func scoreText(
-    _ score: Double, metric: String, _ language: Language, anchor: Double? = nil
+    _ score: Double, metric: String, _ language: Language, anchor: Double? = nil, named: Bool = true
 ) -> String? {
     guard let value = number(score) else { return nil }
-    let word = language == .turkish ? "Puan" : "Score"
+    let word = named ? (language == .turkish ? "Puan " : "Score ") : ""
     switch scoreForm(for: metric) {
     case .bounded:
         guard score <= 100 else { return nil }
-        return "\(word) \(value) / 100"
+        return "\(word)\(value) / 100"
     case let .namedScale(name):
         // D-143 (M14-W4): one scale for the reader, out of 100, when the engine publishes the
         // surface's anchor. An engine older than W4 sends none, and the named scale stays.
         if let converted = scoreOutOf100(score, metric: metric, anchor: anchor),
            let shown = number(converted)
         {
-            return "\(word) \(shown) / 100"
+            return "\(word)\(shown) / 100"
         }
-        return "\(word) \(value) \(name)"
+        return "\(word)\(value) \(name)"
     case .rankOnly:
         return nil
     case .unknown:

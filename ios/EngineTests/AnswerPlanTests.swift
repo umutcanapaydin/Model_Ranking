@@ -195,7 +195,7 @@ final class AnswerPlanTests: OfflineTestCase {
         XCTAssertEqual(boardDate(boardAt("x", [], evidenceDate: nil, observedAt: nil)), .unknown)
         XCTAssertNotEqual(UIText.boardDate(.readOn("2026-09-25"), .english),
                           UIText.boardDate(.measured("2026-09-25"), .english))
-        XCTAssertTrue(UIText.boardDate(.readOn("2026-09-25"), .turkish).contains("2026-09-25"))
+        XCTAssertTrue(UIText.boardDate(.readOn("2026-09-25"), .turkish).contains(readableDate("2026-09-25", .turkish) ?? "?"))
     }
 
     func testEveryRefinementHasANameInBothLanguages() {

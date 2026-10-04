@@ -134,6 +134,16 @@ def test_the_apps_copy_of_the_ordering_note_is_the_engines() -> None:
     assert copy == ORDERING_NOTE
 
 
+def test_the_blend_the_detail_screen_states_is_the_engines() -> None:
+    """#63 finding 8 (M18-W2): the detail screen states how the card's price blends input and
+    output. `/v1` does not publish the weights, so the app holds a copy, held equal here."""
+    from app.workflows.rank import BLEND_INPUT_WEIGHT, BLEND_OUTPUT_WEIGHT
+
+    source = (CLIENT / "Engine/Detail.swift").read_text(encoding="utf-8")
+    shares = dict(re.findall(r"let blend(Input|Output)Percent = (\d+)", source))
+    assert shares == {"Input": str(round(BLEND_INPUT_WEIGHT * 100)), "Output": str(round(BLEND_OUTPUT_WEIGHT * 100))}
+
+
 # --- REQ-APP-005: the client computes no ranking value of its own -------------------------------
 
 

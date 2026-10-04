@@ -177,8 +177,10 @@ final class LocalisedUnitTests: OfflineTestCase {
     func testTheTurkishPriceStillCarriesTheSameNumberAsTheEnglish() {
         // Both are renderings of one value; a language must not change what something costs.
         for price in [1.03, 10.0, 36.09] {
-            let english = priceInPages(price, in: .english)
-            let turkish = priceInPages(price, in: .turkish)
+            // The page count is grouped as each language reads it (#63 finding 6), so it is compared
+            // as the one number it is, and the amounts are compared digit for digit.
+            let english = priceInPages(price, in: .english).replacingOccurrences(of: groupedPages(.english), with: "1500")
+            let turkish = priceInPages(price, in: .turkish).replacingOccurrences(of: groupedPages(.turkish), with: "1500")
             let digits = { (text: String) in
                 text.split(whereSeparator: { !$0.isNumber && $0 != "." }).map(String.init)
             }
@@ -535,5 +537,44 @@ final class FailureLanguageTests: OfflineTestCase {
     func testTheEnginesRefusalIsShownAsSent() {
         let refusal = EngineError.refused(status: 503, code: "unavailable", message: "Down for a rebuild.")
         XCTAssertEqual(refusal.errorDescription(.turkish), "Down for a rebuild.")
+    }
+}
+
+/// #63 findings 5, 6 and 7 (M18-W2).
+final class TurkishWordingTests: OfflineTestCase {
+    /// "SORUN" reads as "problem"; the label means "your question".
+    func testTheQuestionLabelSaysQuestion() {
+        XCTAssertEqual(UIText.questionEyebrow(.turkish), "SORU")
+    }
+
+    /// "1,500 sayfa" reads as one and a half pages in Turkish, where the comma is the decimal mark.
+    func testThePageCountIsGroupedTheWayEachLanguageReadsIt() {
+        XCTAssertEqual(groupedPages(.turkish), "1.500")
+        XCTAssertEqual(groupedPages(.english), "1,500")
+    }
+
+    func testADateIsSaidInWordsInBothLanguages() {
+        XCTAssertEqual(readableDate("2026-04-20", .turkish), "20 Nisan 2026")
+        XCTAssertEqual(readableDate("2026-04-20", .english), "20 April 2026")
+        XCTAssertEqual(readableDate("2026-01-05T00:00:00Z", .turkish), "5 Ocak 2026")
+        XCTAssertNil(readableDate("2026-02-30", .english), "a day February cannot have")
+        XCTAssertNil(readableDate("unknown", .turkish))
+    }
+
+    /// The app says "sen" everywhere; the formal "siz" crept into five sentences.
+    func testTheRegisterIsSenInEverySentenceThatHadSiz() {
+        let manual = RoutingOutcome(categoryID: "assistant", tier: .manual, unmeasured: true, alternatives: [])
+        let sentences = [
+            routingNotice(manual, .turkish),
+            routingNotice(RoutingOutcome(categoryID: "assistant", tier: .similarity, unmeasured: false,
+                                         alternatives: []), .turkish),
+            UIText.seeAll(44, eligible: 40, .turkish),
+            UIText.surfacesUnavailable(.turkish),
+            whySentence(["reason": "nothing_clears_floor", "floor": 65.0, "unit": "points"], in: .turkish) ?? "",
+        ]
+        for sentence in sentences {
+            XCTAssertNil(sentence.range(of: #"(nuz|nüz|nız|niz|unun|edin|dokunun|çekin)\b"#, options: .regularExpression),
+                         "formal register: \(sentence)")
+        }
     }
 }

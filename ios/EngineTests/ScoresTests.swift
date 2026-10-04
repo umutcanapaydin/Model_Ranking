@@ -104,16 +104,16 @@ final class CheapPriceTests: OfflineTestCase {
     /// 1,500 pages of text". Rounding to whole dollars made a model that is not free look free.
     func testAPriceBelowADollarKeepsItsCents() {
         XCTAssertEqual(priceInPages(0.13), "about $0.13 per 1,500 pages of text")
-        XCTAssertEqual(priceInPages(0.13, in: .turkish), "1,500 sayfa metin için yaklaşık $0.13")
+        XCTAssertEqual(priceInPages(0.13, in: .turkish), "1.500 sayfa metin için yaklaşık $0.13")
         XCTAssertEqual(priceInPages(0.75), "about $0.75 per 1,500 pages of text")
-        XCTAssertEqual(priceInPages(0.75, in: .turkish), "1,500 sayfa metin için yaklaşık $0.75")
+        XCTAssertEqual(priceInPages(0.75, in: .turkish), "1.500 sayfa metin için yaklaşık $0.75")
     }
 
     /// Exact in both languages (W4 review MINOR-2): "about $0.01" would tell a reader that a
     /// $0.004 model costs a cent, and a substring check let that through in Turkish.
     func testAPriceBelowACentSaysSoInsteadOfPrintingZero() {
         XCTAssertEqual(priceInPages(0.004), "under $0.01 per 1,500 pages of text")
-        XCTAssertEqual(priceInPages(0.004, in: .turkish), "1,500 sayfa metin için $0.01'den az")
+        XCTAssertEqual(priceInPages(0.004, in: .turkish), "1.500 sayfa metin için $0.01'den az")
     }
 
     /// W4 review MINOR-3: the dollar boundary. $0.99 keeps its cents, and an amount that rounds to

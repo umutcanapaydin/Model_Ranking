@@ -60,7 +60,7 @@ final class DetailFactTests: OfflineTestCase {
         // "65" in the first draft and red on the owner's run: **the test was wrong, not the
         // product** — a test that rounds differently from the screen is a second account of the
         // number, which is the defect class this file exists to prevent.
-        XCTAssertEqual(value(lines, "Score"), "Score 65.0 / 100")
+        XCTAssertEqual(value(lines, "Score"), "65.0 / 100")
         XCTAssertEqual(value(lines, "Measured value"), "1507.6 Elo")
         XCTAssertTrue(
             lines.contains { $0.note?.contains("Arena text") == true },
@@ -75,7 +75,7 @@ final class DetailFactTests: OfflineTestCase {
         subject.score = 83.5
         subject.metric = "% resolved"
 
-        XCTAssertEqual(value(facts(subject, anchor: nil), "Score"), "Score 83.5 / 100")
+        XCTAssertEqual(value(facts(subject, anchor: nil), "Score"), "83.5 / 100")
         XCTAssertNil(value(facts(subject, anchor: nil), "Measured value"))
     }
 
@@ -109,7 +109,7 @@ final class DetailFactTests: OfflineTestCase {
     func testTheDateIsTheRunDateAndNothingStronger() {
         let measured = facts(Subject()).first { $0.label == "Measured on" }
 
-        XCTAssertEqual(measured?.note, "run on 2026-09-13")
+        XCTAssertEqual(measured?.note, "run on 13 September 2026")
         XCTAssertFalse(measured?.note?.contains("publish") == true)
     }
 
@@ -184,15 +184,21 @@ final class DetailFactTests: OfflineTestCase {
 
     /// Nothing here is invented when the engine sent nothing — and nothing served is dropped
     /// either. Review N-2: the harness alone is still a fact, so an absent effort hides neither.
+    ///
+    /// #63 finding 8 (M18-W2): the effort is the line's value, because it is what a reader compares;
+    /// the harness id ("inspect_ai") is evaluation jargon and moves to the note, still shown.
     func testTheHarnessIsShownWithOrWithoutAnEffort() {
-        XCTAssertEqual(value(facts(Subject()), "Run at"), "arena-crowd")
+        XCTAssertEqual(value(facts(Subject()), "Evaluation tool"), "arena-crowd")
         XCTAssertEqual(
-            facts(Subject()).first { $0.label == "Run at" }?.note, "this board runs at one level"
+            facts(Subject()).first { $0.label == "Evaluation tool" }?.note, "this board runs at one level"
         )
 
         var subject = Subject()
         subject.effort = "high"
-        XCTAssertEqual(value(facts(subject), "Run at"), "arena-crowd · high")
+        XCTAssertEqual(value(facts(subject), "Effort level"), "high")
+        XCTAssertEqual(facts(subject).first { $0.label == "Effort level" }?.note,
+                       "levels on one board are not comparable with each other · evaluation tool: arena-crowd")
+        XCTAssertEqual(value(facts(subject, .turkish), "Çaba düzeyi"), "high")
         XCTAssertFalse(facts(subject).contains { $0.value.isEmpty || $0.value == "—" })
     }
 
@@ -240,7 +246,15 @@ final class DetailFactTests: OfflineTestCase {
                 XCTAssertNotNil(right.note)
             }
         }
-        XCTAssertEqual(value(turkish, "Puan"), "Puan 65.0 / 100")
+        // #63 finding 8: "Puan" over "Puan 65.0 / 100" said the word twice.
+        XCTAssertEqual(value(turkish, "Puan"), "65.0 / 100")
+        XCTAssertEqual(value(english, "Score"), "65.0 / 100")
+        // ...and "1M jeton" was "token" mistranslated; the blend is stated rather than gestured at.
+        XCTAssertEqual(value(turkish, "Giriş / çıkış"), "$5 / $25 · 1M token başına")
+        XCTAssertEqual(turkish.first { $0.label == "Giriş / çıkış" }?.note,
+                       "kartın fiyatı ikisinin karışımı: %75 giriş, %25 çıkış")
+        XCTAssertEqual(english.first { $0.label == "Input / output" }?.note,
+                       "the card's price blends the two: 75% input, 25% output")
         XCTAssertEqual(value(turkish, "Ölçülen değer"), "1507.6 Elo")
         XCTAssertTrue(UIText.detailCaveat(.turkish).contains("kıyaslanamaz"))
 
@@ -255,12 +269,12 @@ final class DetailFactTests: OfflineTestCase {
     /// the surface's anchor of 1400 is the anchor itself, which the card's conversion reads as 50.
     func testTheFloorIsShownOnTheCardsScale() {
         let lines = facts(Subject(), floor: 1400)
-        XCTAssertEqual(value(lines, "Recommendation floor"), "Score 50 / 100")
+        XCTAssertEqual(value(lines, "Recommendation floor"), "50 / 100")
         XCTAssertEqual(value(lines, "Recommendation floor"),
-                       scoreText(1400, metric: "elo", .english, anchor: 1400),
+                       scoreText(1400, metric: "elo", .english, anchor: 1400, named: false),
                        "the floor is printed by a different call from the card's score")
         XCTAssertEqual(value(facts(Subject(), anchor: nil, floor: 1300), "Recommendation floor"),
-                       "Score 1300 Elo", "without an anchor the floor keeps the board's own scale")
+                       "1300 Elo", "without an anchor the floor keeps the board's own scale")
     }
 
     /// An engine older than W1 sends no floor, and this build invents none.

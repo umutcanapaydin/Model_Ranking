@@ -183,7 +183,7 @@ final class LeaderSentenceTests: OfflineTestCase {
         XCTAssertEqual(
             leaderSentence(ranges: ranges, margin: 5.0, metric: "% correct", .turkish),
             "4 modelin ilk 3 tanesi lidere bu benchmark'ın ayırt edemeyeceği kadar yakın — payı "
-                + "5 puan — yani sıralı değil berabere okuyun."
+                + "5 puan — yani sıralı değil berabere oku."
         )
     }
 }
@@ -196,7 +196,7 @@ final class EvidenceBreadthTests: OfflineTestCase {
             evidenceBreadth(verdict: "Medium", secondaryScore: 74.2,
                             secondaryBenchmark: "Aider polyglot", secondaryAgeDays: 332,
                             evidenceDate: "2026-02-17", .english),
-            "Measured on 1 benchmark (run 2026-02-17). Aider polyglot also scored it, but last "
+            "Measured on 1 benchmark (run 17 February 2026). Aider polyglot also scored it, but last "
                 + "ran 332 days ago, so it is not counted."
         )
     }
@@ -206,7 +206,7 @@ final class EvidenceBreadthTests: OfflineTestCase {
                                    secondaryBenchmark: "Aider polyglot", secondaryAgeDays: 332,
                                    evidenceDate: "2026-02-17", .turkish)
 
-        XCTAssertEqual(text, "1 benchmark ile ölçüldü (2026-02-17 tarihli). Ayrıca Aider polyglot "
+        XCTAssertEqual(text, "1 benchmark ile ölçüldü (17 Şubat 2026 tarihli). Ayrıca Aider polyglot "
                        + "sonucu var, ama en son 332 gün önce çalıştırılmış; bu yüzden sayılmıyor.")
     }
 
@@ -217,7 +217,7 @@ final class EvidenceBreadthTests: OfflineTestCase {
             evidenceBreadth(verdict: "Medium", secondaryScore: nil,
                             secondaryBenchmark: "Aider polyglot", secondaryAgeDays: 332,
                             evidenceDate: "2026-02-17", .english),
-            "Measured on 1 benchmark (run 2026-02-17)."
+            "Measured on 1 benchmark (run 17 February 2026)."
         )
     }
 
@@ -237,7 +237,7 @@ final class EvidenceBreadthTests: OfflineTestCase {
             evidenceBreadth(verdict: "High", secondaryScore: 80.0,
                             secondaryBenchmark: "Aider polyglot", secondaryAgeDays: 17,
                             evidenceDate: "2026-08-01", .english),
-            "Measured on 2 independent benchmarks (run 2026-08-01). Aider polyglot last ran 17 "
+            "Measured on 2 independent benchmarks (run 1 August 2026). Aider polyglot last ran 17 "
                 + "days ago."
         )
     }
@@ -246,7 +246,7 @@ final class EvidenceBreadthTests: OfflineTestCase {
         XCTAssertEqual(
             evidenceBreadth(verdict: "Medium", secondaryScore: nil, secondaryBenchmark: nil,
                             secondaryAgeDays: nil, evidenceDate: "2026-04-20", .english),
-            "Measured on 1 benchmark (run 2026-04-20)."
+            "Measured on 1 benchmark (run 20 April 2026)."
         )
     }
 
