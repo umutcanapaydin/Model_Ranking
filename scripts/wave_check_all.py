@@ -63,7 +63,7 @@ EXPECTED_CLOSES_FROM = 18
 WAVE_HEADING = re.compile(r"^#{2,4}\s*(?:M\d+-)?W(?:ave\s*)?(\d+)\b(.*)$", re.M)
 #: What looks like a wave heading at all; one this reads and `WAVE_HEADING` does not is reported
 #: rather than skipped (W5 second review M9).
-LOOKS_LIKE_A_WAVE = re.compile(r"^#{2,4}\s*(?:M\d+-)?(?:W\d|Wave\b).*$", re.M)
+LOOKS_LIKE_A_WAVE = re.compile(r"^#{2,6}\s*[*_]*\s*(?:M\d+-)?(?:W\d|Wave\b).*$", re.M)
 #: The plan marks a wave dropped with `(dropped` in its heading, not any use of the word.
 DROPPED = re.compile(r"\(dropped\b", re.I)
 

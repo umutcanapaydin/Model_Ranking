@@ -6,8 +6,9 @@
 //  (`tests/unit/test_swift_tests_offline.py` holds that).
 //
 //  The ways a test can make a request that it catches (measured on macOS 26 before it was written).
-//  Not caught: a session built from a bare `URLSessionConfiguration()` (#108), and a test class that
-//  is not an `OfflineTestCase` (held by `tests/unit/test_swift_tests_offline.py`, aliases included):
+//  Not caught: a session built from a bare `URLSessionConfiguration()` (#108); a background session,
+//  which never asks custom protocols (the SDK says so; the source check refuses one); and a test class
+//  that is not an `OfflineTestCase` (held by `tests/unit/test_swift_tests_offline.py`, aliases included):
 //  - `URLProtocol.registerClass` reaches `URLSession.shared` and `Data(contentsOf:)`, but not a
 //    session built on its own configuration, which is what `EngineClient` builds without a stub.
 //  - So `URLSessionConfiguration.default` and `.ephemeral` are exchanged for versions that put the
@@ -59,7 +60,6 @@ enum OfflineGuard {
         URLProtocol.registerClass(Tripwire.self)
         exchange("defaultSessionConfiguration", "offlineDefault", classMethod: true)
         exchange("ephemeralSessionConfiguration", "offlineEphemeral", classMethod: true)
-        exchange("backgroundSessionConfigurationWithIdentifier:", "offlineBackground:", classMethod: true)
         exchange("setProtocolClasses:", "offlineSetProtocolClasses:", classMethod: false)
     }()
 
@@ -85,13 +85,6 @@ extension URLSessionConfiguration {
 
     @objc class func offlineEphemeral() -> URLSessionConfiguration {
         let configuration = offlineEphemeral()
-        configuration.protocolClasses = [OfflineGuard.Tripwire.self] + (configuration.protocolClasses ?? [])
-        return configuration
-    }
-
-    // W5 second review M11: a background configuration, too.
-    @objc class func offlineBackground(_ identifier: String) -> URLSessionConfiguration {
-        let configuration = offlineBackground(identifier)
         configuration.protocolClasses = [OfflineGuard.Tripwire.self] + (configuration.protocolClasses ?? [])
         return configuration
     }
@@ -133,8 +126,7 @@ class OfflineTestCase: XCTestCase {
 final class OfflineGuardTests: OfflineTestCase {
     func testEverySessionConfigurationAsksTheTripwireFirst() {
         // A session a test builds for itself, as `EngineClient` does without a stub, is caught too.
-        for configuration in [URLSessionConfiguration.default, URLSessionConfiguration.ephemeral,
-                              URLSessionConfiguration.background(withIdentifier: "offline-guard-test")] {
+        for configuration in [URLSessionConfiguration.default, URLSessionConfiguration.ephemeral] {
             XCTAssertTrue(configuration.protocolClasses?.first == OfflineGuard.Tripwire.self,
                           "\(configuration.protocolClasses ?? [])")
         }

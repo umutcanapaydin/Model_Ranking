@@ -19,6 +19,7 @@ from __future__ import annotations
 import pathlib
 import re
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.adapter import main as adapter
@@ -108,6 +109,9 @@ def _code(swift: str) -> str:
         else:
             out.append(swift[i])
             i += 1
+    if depth:  # W5 Tester: a comment Swift would refuse to build means the scan misread the file
+        msg = "a block comment never closes: `_code` misread a literal, and would erase live code"
+        raise ValueError(msg)
     return "".join(out)
 
 
@@ -623,3 +627,19 @@ def test_the_comment_stripper_reads_raw_strings_and_interpolation() -> None:
     assert "let live = 1" in _code(raw)
     interpolated = 'let s = "\\(t["/*"])"\nlet live = 2\n'
     assert "let live = 2" in _code(interpolated)
+
+
+def test_the_comment_stripper_reads_a_triple_quoted_string() -> None:
+    """W5 Tester: `_string_end` reads a `\"\"\"` string to its closing `\"\"\"`, and nothing held it. Read
+    as three single quotes, a `/*` on a later line of the string opened a comment and erased the code
+    after it, to the end of the file."""
+    assert "let live = 1" in _code('let s = """\nsee /* the note\n"""\nlet live = 1\n')
+
+
+def test_the_comment_stripper_fails_closed_on_a_comment_that_never_closes() -> None:
+    """W5 Tester (round 2's M8, fix 3): Swift cannot build an unclosed `/*`, so a scan that ends inside
+    one has misread the file. An extended regex literal holding `/*` (`#/a/*b/#`, which builds) is
+    such a misreading: above a live `copy.refinements = extra` in Router.swift it erased the
+    assignment, and the D-168 pin passed."""
+    with pytest.raises(ValueError, match="never closes"):
+        _code("let pattern = #/a/*b/#\ncopy.refinements = extra\n")

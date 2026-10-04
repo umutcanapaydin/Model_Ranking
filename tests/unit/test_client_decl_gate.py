@@ -71,3 +71,12 @@ def test_a_url_decoded_if_present_is_the_network_too() -> None:
     """W5 review B1 (#58): `decodeIfPresent`, which Swift generates for every optional property, was
     not matched; `struct B: Decodable { let u: URL? }` passed the gate in all four configurations."""
     assert "Foundation.URL.decoded" in gate.references(DECODED_OPTIONAL_URL)["ContentView.swift"]
+
+
+def test_make_client_decls_fails_when_its_self_test_does(monkeypatch: pytest.MonkeyPatch) -> None:
+    """W5 Tester: `main()` runs the self-test before it checks the app, so the gate cannot pass the app
+    while it has stopped refusing (#51). Nothing held that: with the call unwired, every test here and
+    `make client-decls` passed. A failed self-test returns before anything compiles, so this runs
+    where there is no Xcode too."""
+    monkeypatch.setattr(gate, "self_test", lambda: ["ContentView.swift: URL.decoded was not refused"])
+    assert gate.main() == 1

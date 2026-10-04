@@ -18,6 +18,8 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE = ROOT / "docs" / "plans" / "m18-wave-1-close.md"
 
@@ -163,3 +165,42 @@ def test_the_tier_is_read_from_the_evidence_not_the_template_wording(tmp_path: P
                   "if the diff touches input-parsing) |", text, count=1, flags=re.M)
     record.write_text(text, encoding="utf-8")
     assert "src/app/clients" in _wave_check(record).stdout
+
+
+def test_wave_check_all_itself_fails_on_a_planned_wave_with_no_close(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """W5 Tester: the plan's check is that `wave-check-all` FAILS on a planned wave with no close. Every
+    test above calls `missing_closes`; with its result dropped from `main()`'s exit, all of them, and
+    `make wave-check-all`, passed."""
+    check = _module("wave_check_all")
+    root = _tree(tmp_path, closes=(1,))
+    (root / "docs" / "plans" / "m18-wave-1-close.md").write_text(
+        "---\nprocess_version: v6.6\ndate: 2026-10-04\n---\n# W1\n", encoding="utf-8")
+    (root / "scripts").mkdir()
+    (root / "scripts" / "wave_check.py").write_text("def main(argv):\n    return 0\n", encoding="utf-8")
+    monkeypatch.setattr(check, "ROOT", root)
+    assert check.main() == 1
+    assert "m18 W2 is in the plan and has no close record" in capsys.readouterr().out
+
+
+def test_the_whole_footprint_is_read_not_its_first_line(tmp_path: Path) -> None:
+    """W5 Tester: a real footprint runs over several lines (the M18-W4 close's does). Read up to its
+    first newline only, a `src/app/clients` path on the second line passed as MED."""
+    record = _record(tmp_path, tier="MED", touched="src/app/workflows/rank.py ·\n                src/app/clients/epoch.py")
+    assert "src/app/clients" in _wave_check(record).stdout
+
+
+def test_a_bold_or_deep_wave_heading_is_reported_when_another_one_parses(tmp_path: Path) -> None:
+    """W5 Tester (round 2's M9, second half): `LOOKS_LIKE_A_WAVE` reads `### W2` and `## Wave Three`, but
+    not `### **W2** — two` or `##### W2 — two`. With `### W1` parsing beside either, the second wave
+    was never counted and nothing was missing."""
+    check = _module("wave_check_all")
+    for name, heading in (("bold", "### **W2** — two"), ("deep", "##### W2 — two")):
+        root = tmp_path / name
+        plans = root / "docs" / "plans"
+        plans.mkdir(parents=True)
+        (plans / "m19-plan.md").write_text(f"# M19\n\n### W1 — one\n\n{heading}\n", encoding="utf-8")
+        (plans / "m19-wave-1-close.md").write_text("a close\n", encoding="utf-8")
+        (root / "docs" / "closure-report-m19.md").write_text("closed\n", encoding="utf-8")
+        assert any("W2" in line for line in check.missing_closes(root)), heading

@@ -63,3 +63,30 @@ def test_no_test_class_reaches_xctestcase_through_an_alias() -> None:
     aliases = [p.name for p in sorted(TESTS.glob("*.swift"))
                if re.search(r"typealias\s+\w+\s*=\s*(?:XCTest\.)?XCTestCase\b", p.read_text(encoding="utf-8"))]
     assert aliases == [], aliases
+
+
+def test_no_swift_source_builds_a_background_session() -> None:
+    """W5 Tester (round 2's M11): a background session never asks custom protocol classes. The SDK's
+    own header says so (`NSURLSession.h`, on `protocolClasses`: "Custom NSURLProtocol subclasses are
+    not available to background sessions"). So the tripwire listed in a background configuration
+    catches nothing, and only the source can refuse one. The base's own check of the list is exempt."""
+    engine = TESTS.parent / "ModelRanking"
+    users = [p.name for p in sorted([*TESTS.glob("*.swift"), *engine.rglob("*.swift")]) if p.name != BASE
+             and re.search(r"\bbackground\s*\(\s*withIdentifier|backgroundSessionConfiguration",
+                           p.read_text(encoding="utf-8"))]
+    assert users == [], users
+
+
+def test_the_base_fails_a_test_whose_requests_it_recorded() -> None:
+    """W5 Tester (#59): with its assertion on the drained requests removed, the base's tearDown failed
+    nothing and every test passed (the check above matches `OfflineGuard` in the body, which the drain
+    alone satisfies). Swift cannot hold this here: the way to expect a failure is `XCTExpectFailure`,
+    which `scripts/swift_xunit_gate.py` refuses because the parallel run reports it as a pass."""
+    base = (TESTS / BASE).read_text(encoding="utf-8")
+    tear_down = re.search(r"override func tearDown\(\) \{(.*?)\n    \}", base, re.S)
+    assert tear_down, "the base has no tearDown"
+    body = tear_down.group(1)
+    drained = re.search(r"let (\w+) = OfflineGuard\.drain\(\)", body)
+    assert drained, "the base no longer reads what the tripwire saw"
+    assert re.search(rf"XCTAssertEqual\(\s*{drained.group(1)}\s*,\s*\[\]", body), (
+        "the base no longer fails a test that reached for the network")

@@ -386,3 +386,23 @@ def test_carried_rows_meet_the_rules_every_client_row_meets(tmp_path: Path) -> N
     assert {d for (d,) in conn.execute("SELECT DISTINCT run_date FROM scores WHERE source = 'aider'")} == {"2026-09-01"}
     assert carry.restore(conn, "swebench") == "absent"
     assert _rows(conn, "swebench") == []
+
+
+def test_a_carried_date_is_validated_not_cut_and_no_infinity_is_carried(tmp_path: Path) -> None:
+    """W5 Tester (#92 N2): the test above carries a timestamp, which cutting to ten characters also
+    makes a date, so the rule MINOR-2 retired (`<script>alert(1)</script>` became `<script>al`) passed
+    it. And it carries +inf only; -inf is as unservable."""
+    from app.workflows.build import Carry
+
+    live = _live(tmp_path)
+    raw = sqlite3.connect(live)
+    raw.execute("UPDATE scores SET run_date = '<script>alert(1)</script>' WHERE source = 'aider'")
+    raw.execute("UPDATE scores SET score = -9e999 WHERE source = 'swebench'")
+    raw.commit()
+    raw.close()
+    conn = connect(str(tmp_path / "candidate.db"))
+    carry = Carry(live=live, last_ok={"aider": _iso(1), "swebench": _iso(1)}, now=NOW)
+
+    assert carry.restore(conn, "aider") == "carried"
+    assert {d for (d,) in conn.execute("SELECT DISTINCT run_date FROM scores WHERE source = 'aider'")} == {None}
+    assert carry.restore(conn, "swebench") == "absent"
