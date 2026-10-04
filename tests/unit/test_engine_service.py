@@ -517,3 +517,13 @@ def test_nothing_in_the_repository_installs_the_retired_refresher() -> None:
         and "com.hcs.modelranking.refresh" in path.read_text(encoding="utf-8", errors="replace")
     ]
     assert offenders == []
+
+
+def test_every_simctl_call_in_the_app_script_names_its_device() -> None:
+    """M17 closure Tester N1 (#92): the test above lists four simctl verbs, and an added
+    `simctl uninstall booted` passed. Every simctl call addresses the simulator the script boots."""
+    script = (REPO / "ios" / "app.sh").read_text(encoding="utf-8")
+    calls = [line.strip() for line in script.splitlines() if "simctl " in line and not line.strip().startswith("#")]
+    assert calls, "found no simctl call; this reads the wrong file"
+    booted = [line for line in calls if re.search(r"\bbooted\b", line)]
+    assert booted == [], booted

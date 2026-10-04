@@ -646,3 +646,17 @@ def test_every_metric_a_source_declares_has_a_direction() -> None:
     missing = sorted(declared - HIGHER_IS_BETTER)
     assert not missing, f"metrics with no declared direction: {missing}"
 
+
+
+def test_every_registered_board_metric_has_a_direction() -> None:
+    """M17 closure Tester T3 (#92): the walker above reads `*METRIC` constants and `metric=` keywords,
+    and missed a dataclass field's default (`ArenaSlice`'s shape). The registries every board comes
+    from are walked here, whatever spelling put the metric there."""
+    from app.clients.arena import METRIC as ARENA_METRIC
+    from app.clients.arena_slices import ARENA_SLICES
+    from app.workflows.sources import EPOCH_BOARDS
+    from app.workflows.standings import HIGHER_IS_BETTER
+
+    registered = {ARENA_METRIC} | {s.metric for s in ARENA_SLICES} | {b.metric for b in EPOCH_BOARDS}
+    assert len(registered) >= 3, registered
+    assert sorted(registered - HIGHER_IS_BETTER) == []

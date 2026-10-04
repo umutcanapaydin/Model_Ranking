@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import ast
 import sqlite3
+import sys
 from pathlib import Path
 
 import pytest
@@ -145,3 +146,63 @@ def test_nothing_opens_a_database_but_the_named_writers_and_the_read_only_opener
     stale = sorted(set(WRITABLE_OPENS) - set(found))
     assert not stale, f"entries that no longer open anything; remove them: {stale}"
 
+
+
+# --- #92 (the M17 closure Tester's T1, T2): what the gate above cannot see ---------------------------
+
+#: T2: each named writer opens exactly this many times. The gate above keys by file and function,
+#: so a second writable open inside an allowed function passed.
+WRITABLE_OPEN_COUNTS = {key: 1 for key in WRITABLE_OPENS}
+
+
+def test_each_named_writer_opens_as_many_times_as_it_is_allowed() -> None:
+    assert _connect_calls() == WRITABLE_OPEN_COUNTS
+
+
+#: T1: every `sqlite3.connect` the process makes while `_WATCHING` is on, by the audit event the
+#: interpreter raises for it. An aliased import, or a writable opener under another name
+#: (`schema.connect` on the serving path passed every test), still raises the same event.
+_SEEN: list[str] = []
+_WATCHING: list[bool] = [False]
+
+
+def _audit(event: str, args: tuple[object, ...]) -> None:
+    if _WATCHING[0] and event == "sqlite3.connect":
+        _SEEN.append(str(args[0]))
+
+
+sys.addaudithook(_audit)
+
+
+def test_every_reader_opens_the_artifact_read_only_at_run_time(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """T1: the paths that read the served artifact, run for real, with every connection they make to
+    it recorded: `/v1/boards`, `/v1/categories`, the boot check, the refresh's fingerprint and its
+    expiry-night baseline. Each must be the read-only URI form (INV-23)."""
+    from fastapi.testclient import TestClient
+
+    from app.adapter import main as adapter
+    from app.workflows import refresh
+
+    from .test_api_v1 import _seeded_db
+
+    db = tmp_path / "advisor.db"
+    _seeded_db(db)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    _SEEN.clear()
+    _WATCHING[0] = True
+    try:
+        client = TestClient(adapter.app)
+        assert client.get("/v1/boards").status_code == 200
+        assert client.get("/v1/categories").status_code == 200
+        adapter.validate_startup_config(env="test")
+        assert refresh.fingerprint_of(db) is not None
+        refresh._served_without(db, {"swebench"})
+    finally:
+        _WATCHING[0] = False
+    on_artifact = [seen for seen in _SEEN if Path(seen.removeprefix("file:").split("?", 1)[0]).name == db.name
+                   and str(tmp_path) in seen]
+    assert on_artifact, "the watcher saw no connection to the artifact; it is watching nothing"
+    writable = [seen for seen in on_artifact if not (seen.startswith("file:") and "mode=ro" in seen)]
+    assert writable == [], f"opened the served artifact writable: {writable}"

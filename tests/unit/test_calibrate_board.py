@@ -107,3 +107,40 @@ def test_main_counts_models_and_pairs_models_on_a_board_with_two_names_for_one(
     assert record["rankable_board_names"] == 4, record
     # Only opus (at its best name, 1301) against gpt-5 overlaps; the name-pairing counted three.
     assert record["overlapping_pairs"] == 1, record
+
+
+def test_the_floor_the_script_labels_shipped_is_the_rule_the_product_ships(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """M17 closure Tester T4 (#92): `floor_shipped` had no test, so the retired D-145 rule (distinct
+    models, each at its best) could sit under that label. On a board where one model has three rows,
+    the two rules differ, and the shipped one is the top third of EVERY row (D-148, D-159)."""
+    from app.clients.fakes import FakeRawSource
+    from app.workflows.floors import top_third
+    from app.workflows.ingest import RunContext, ingest_litellm
+    from app.workflows.rank import build_price_medians
+    from app.workflows.registry import reconcile
+    from app.workflows.schema import connect
+
+    from .test_api_v1 import PRICING
+
+    db = tmp_path / "advisor.db"
+    conn = connect(str(db))
+    ingest_litellm(conn, FakeRawSource("litellm", PRICING), RunContext(observed_at="2026-09-22T00:00:00Z"))
+    reconcile(conn)
+    build_price_medians(conn)
+    conn.commit()
+    conn.close()
+    ratings = {"gpt-5": 1320.0, "gpt-5-high": 1319.0, "gpt-5-low": 1318.0,
+               "claude-opus-4-5": 1300.0, "deepseek-v3.2": 1250.0}
+    board = json.dumps({"rows": [
+        {"row": {"model_name": name, "rating": r, "rating_lower": r - 10, "rating_upper": r + 10,
+                 "category": "overall", "leaderboard_publish_date": "2026-09-13"}}
+        for name, r in ratings.items()]})
+    script = _script()
+    monkeypatch.setattr(script.ArenaClient, "fetch_raw", lambda self: board)
+    out = tmp_path / "record.json"
+    assert script.main(["--config", "vision", "--db", str(db), "--out", str(out)]) == 0
+    record = json.loads(out.read_text(encoding="utf-8"))
+    assert record["floor_shipped"] == top_third(list(ratings.values())) == 1319.0, record
+    assert record["board_third_D145"] == 1320.0, record
