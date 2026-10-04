@@ -597,3 +597,19 @@ def test_the_child_checks_the_bounds_the_engine_serves_under(
     import dataclasses
 
     assert json.loads(seen.read_text(encoding="utf-8")) == dataclasses.asdict(serving_bounds.bounds_from_env())
+
+
+def test_the_child_reads_every_bound_from_its_own_variable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """W4 Tester T7 (#57, D-173 clause 4): the B1 test compares the child with the parent's own
+    reading, so a bound that ignores its variable in both passes it. Each bound the child checks
+    must be the value its variable set."""
+    from app.workflows import serving_bounds
+
+    overrides = {name: 1000 + index for index, name in enumerate(serving_bounds.BOUND_VARIABLES)}
+    for name, value in overrides.items():
+        monkeypatch.setenv(name, str(value))
+    seen = tmp_path / "bounds.json"
+    code = ("import dataclasses, json; from app.workflows.serving_bounds import bounds_from_env; "
+            f"json.dump(dataclasses.asdict(bounds_from_env()), open({str(seen)!r}, 'w'))")
+    assert asyncio.run(_child(tmp_path, code).run_once("nightly")) == 0
+    assert sorted(json.loads(seen.read_text(encoding="utf-8")).values()) == sorted(overrides.values())
