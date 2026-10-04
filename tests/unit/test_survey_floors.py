@@ -151,3 +151,41 @@ def test_the_slice_survey_counts_rows_and_the_models_the_engine_can_rank(tmp_pat
     assert survey["models_after"] == survey["models_before"]
     assert survey["bytes_after"] >= survey["bytes_before"] > 0  # four rows may fit free pages
     assert artifact.read_bytes() == before, "the survey wrote to the served artifact"
+
+
+def test_measure_stores_into_its_copy_never_the_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """W5 Tester (#92 T2's second half): `measure` is allowed a writable open because it opens "a scratch
+    copy the script makes, never the artifact", and no test ran it: `measure` storing into `db` itself
+    passed every test. Its sibling `measure_slices` is held by the test above."""
+    from app.clients.fakes import FakeRawSource
+    from app.workflows.ingest import RunContext, ingest_litellm
+    from app.workflows.rank import build_price_medians
+    from app.workflows.registry import reconcile
+
+    from .test_api_v1 import PRICING
+
+    artifact = tmp_path / "advisor.db"
+    conn = connect(str(artifact))
+    ingest_litellm(conn, FakeRawSource("litellm", PRICING), RunContext(observed_at="2026-09-22T00:00:00Z"))
+    reconcile(conn)
+    build_price_medians(conn)
+    conn.commit()
+    conn.close()
+    before = artifact.read_bytes()
+    board = json.dumps({"rows": [
+        {"row": {"model_name": name, "rating": r, "rating_lower": r - 10, "rating_upper": r + 10,
+                 "category": "overall", "leaderboard_publish_date": "2026-09-13"}}
+        for name, r in (("gpt-5", 1320.0), ("claude-opus-4-5", 1300.0))]})
+
+    class _Board:
+        name, benchmark, url = "arena_vision", "Arena vision", "https://example.invalid/board"
+
+        def fetch_raw(self) -> str:
+            return board
+
+    script = _script()
+    monkeypatch.setattr(script, "survey_client", lambda config: _Board())
+    workspace = tmp_path / "work"
+    workspace.mkdir()
+    script.measure("vision", artifact, workspace)
+    assert artifact.read_bytes() == before, "measure() wrote into the artifact it was given"

@@ -2364,6 +2364,8 @@ the engine has to rank on both rather than disclose one.
 **Status:** **proposed** (M16-W2, lead agent; the owner reviews it at the milestone) · **Date:**
 2026-09-23 · **Implements** D-149 clauses 2 and 4 and D-151; **keeps** D-116 clause 2.
 
+**Status (2026-10-04, #33):** accepted -- the owner signed M16, the milestone this ADR named for his review, by merging its closure PR #9 on 2026-09-23 (`829e02d`); `docs/closure-report-m16.md` put D-154 before him in §0 item 1 and §1 and made that merge the sign-off. He ruled D-170 on 2026-09-25, which amends clause 2. The wave itself had no PR: `5fc3f02` was pushed to `main` under D-117, before the project's first PR.
+
 **Context.** D-151 says what the engine does -- one refresh a night inside 23:00-01:00, one catch-up
 at startup on a stale artifact, nothing in the app -- and D-149 names the risk: a refresh now shares
 a process with the server answering the app. Three choices were left to the build, and each one
@@ -2602,6 +2604,8 @@ supersedes the first amendment's exemption bullet.
   cycle that is not served can leave such rows live, for example a required source that fails the
   build; `expired` lists them all the same, because their age, not their presence, is the fact.
 
+**Amended (2026-10-04, M18-W5, #92 N2)**: carried rows meet the store's rules. A carried date is stored as a calendar date, and a source whose live rows hold a score that is not finite is not carried: it fails as an unreachable source would.
+
 ---
 
 ## D-999 — the agent opens drafts; a human merges
@@ -2628,6 +2632,8 @@ needs the branch pushed.
 **Status:** proposed (M16-W4 plan; the principle ruled by the owner 2026-09-23, the mechanism to be
 ratified with the wave) · **Date:** 2026-09-23 · **Supersedes** REQ-CAN-001's clause "unmatched
 names are dropped with a count reported, never guessed".
+
+**Status (2026-10-04, #33):** accepted -- the owner ruled the principle on 2026-09-23 (quoted under Context) and clauses 2 and 4 the same day (W4 plan decisions 1 and 2), and merged the wave that built it: PR #6 on 2026-09-23 (`5f6ab30`, the derived registry), its fix round PR #8 the same day (`eee2faf`, the first amendment), and the M16 closure PR #9 (`829e02d`, the second amendment). He ruled D-166 on 2026-09-25 as an amendment of it.
 
 **Context.** The registry is a hand-kept rule table. On 2026-09-23, 1,450 of 2,834 score rows in a
 fresh build matched no rule, GPT-6 Astra among them, with scores on six boards and prices on
@@ -3458,3 +3464,25 @@ owner asked the agent to take its recommendation rather than ask.
 - the phone shows ties as shared places on the cards (the alternative to (1)); or
 - the payload matters again (an ETag); or
 - a board is carried that no source still publishes.
+
+
+## D-174 — Review seats run one after another, each in its own worktree
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29; M18-W5
+· **Date:** 2026-10-04 · from #52 · **Amends** nothing; the DevFlow skills it touches stay DevFlow's.
+
+**Context.** At M17-W4 the Code-Reviewer and the Security-Reviewer ran at once in one worktree, and each
+saw the other's in-place mutants (#52). At M18-W1 a seat's probe ran the engine installer for real and
+replaced the owner's launchd service with a scratch copy.
+
+**Decision.**
+1. A wave's seats run one after another, never at once on one tree.
+2. Each seat works in its own `git worktree`, detached at the commit under review, with its own venv
+   and its own copy of the artifact.
+3. A seat runs behind command stubs that refuse `launchctl`, `simctl` and `xcodebuild`, and is told
+   in writing never to run the engine installer or remover by hand.
+
+**Mitigation if violated.** A verdict skewed by a mutant it did not make, or a review probe that changes
+the owner's machine.
+
+**Revisit when:** DevFlow's `/close-wave` says this itself (the finding is handed back on #52).

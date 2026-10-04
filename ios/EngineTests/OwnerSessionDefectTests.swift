@@ -22,7 +22,7 @@ private let served = [
 
 // MARK: - Defect 1 — the on-device tier cannot say "I do not measure this"
 
-final class UnmeasurableThroughTheModelTierTests: XCTestCase {
+final class UnmeasurableThroughTheModelTierTests: OfflineTestCase {
 
     /// **The owner typed "Profile picture polishing" and got Agentic coding, with the sentence
     /// "Matched your question to this surface on this device."**
@@ -78,7 +78,7 @@ final class UnmeasurableThroughTheModelTierTests: XCTestCase {
 
 // MARK: - Defect 2 — the surface the router chose is not the one shown first
 
-final class AnswerOrderingTests: XCTestCase {
+final class AnswerOrderingTests: OfflineTestCase {
 
     /// **The owner typed "Coding", the app selected Coding, and the first block on screen read
     /// "Agentic coding".** He read that as the router ignoring him, and repeated it three times.
@@ -119,7 +119,7 @@ final class AnswerOrderingTests: XCTestCase {
 
 // MARK: - Defect 3 — the list repeats what the picks already showed
 
-final class RankingPreviewTests: XCTestCase {
+final class RankingPreviewTests: OfflineTestCase {
 
     /// **"Claude Opus 5" appeared as Best Quality in large type and again, immediately below, in
     /// the small list.** The owner's words: there is no point showing, further down the list, the
@@ -173,7 +173,7 @@ private struct Row: Equatable {
     let vendor: String
 }
 
-final class RankingFilterTests: XCTestCase {
+final class RankingFilterTests: OfflineTestCase {
 
     private let rows = [
         Row(model: "Claude Opus 4.7", vendor: "Anthropic"),
@@ -220,7 +220,7 @@ final class RankingFilterTests: XCTestCase {
 
 // MARK: - M12-W1 — the filter must mean the same thing in every language
 
-final class FilterLocaleTests: XCTestCase {
+final class FilterLocaleTests: OfflineTestCase {
 
     /// **The defect the M11 council's mobile seat found, pinned by a test that SETS the locale.**
     ///
@@ -298,7 +298,7 @@ private struct Ranked: Equatable {
     let model: String
 }
 
-final class ComprehensionTests: XCTestCase {
+final class ComprehensionTests: OfflineTestCase {
 
     // MARK: rank
 
@@ -380,7 +380,7 @@ final class ComprehensionTests: XCTestCase {
 
 // MARK: - M12-W2 — disclosures under D-135
 
-final class DisclosureClassificationTests: XCTestCase {
+final class DisclosureClassificationTests: OfflineTestCase {
 
     private let staleness = "Evidence behind SWE-bench Verified may be out of date past the 90-day window."
     private let dating = "This answer's benchmark publishes no evaluation dates, only model release dates."

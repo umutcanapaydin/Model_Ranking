@@ -16,7 +16,7 @@ import XCTest
 /// The margins the shipping engine publishes, one per surface (`categories.py`).
 private let shippingMargins: [Double] = [1.5, 8.0, 1.5, 0.5, 5.0, 9.5, 0.8, 1.0, 6.8]
 
-final class RankRangeTests: XCTestCase {
+final class RankRangeTests: OfflineTestCase {
     /// The `expert` shape: leader 94.4, margin 5.0 points.
     private let expert: [Double] = [94.4, 94.1, 91.0, 89.0, 80.0, 79.9, 70.0]
 
@@ -144,7 +144,7 @@ final class RankRangeTests: XCTestCase {
     }
 }
 
-final class LeaderSentenceTests: XCTestCase {
+final class LeaderSentenceTests: OfflineTestCase {
     func testHowManyTheBenchmarkCannotSeparateFromTheLeaderIsStatedOnce() {
         let ranges = rankRanges([94.4, 94.1, 91.0, 80.0], margin: 5.0)
 
@@ -188,7 +188,7 @@ final class LeaderSentenceTests: XCTestCase {
     }
 }
 
-final class EvidenceBreadthTests: XCTestCase {
+final class EvidenceBreadthTests: OfflineTestCase {
     func testASecondScoreFromAStaleBoardCarriesItsAge() {
         // REQ-UNC-002's citing case: a secondary more than 180 days old carries that age. This is
         // the shipping coding budget pick, verbatim.
@@ -324,7 +324,7 @@ final class EvidenceBreadthTests: XCTestCase {
     }
 }
 
-final class D138CategoryDecodingTests: XCTestCase {
+final class D138CategoryDecodingTests: OfflineTestCase {
     // Module-qualified: XCTest brings the Objective-C runtime's `Category` into scope as well.
     private func decode(_ json: String) throws -> ModelRankingEngine.Category {
         try JSONDecoder().decode(ModelRankingEngine.Category.self, from: Data(json.utf8))

@@ -5,7 +5,7 @@ import XCTest
 
 @testable import ModelRankingEngine
 
-final class RefinementsTests: XCTestCase {
+final class RefinementsTests: OfflineTestCase {
     private func refinement(_ kind: RefinementKind, _ value: String) throws -> Refinement {
         try XCTUnwrap(Refinements.table.first { $0.kind == kind && $0.value == value })
     }

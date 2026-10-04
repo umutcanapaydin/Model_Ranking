@@ -103,7 +103,10 @@ NETWORK = ("URLSession", "URLRequest", "URLComponents", "URLQueryItem", "NSURL",
            "URL.init(string", "URL.init(dataRepresentation", "URL.lines", "URL.resourceBytes",
            # A socket pair to a host. It lived under `Stream` in the file-system list, which gave
            # it to the register's file (M16-W1 re-review, X02).
-           "Stream.getStreamsToHost")
+           "Stream.getStreamsToHost",
+           # #58: a URL made by DECODING is neither a spelling nor an initialiser; `references`
+           # records it under this name, from the decode's own type substitution.
+           "URL.decoded")
 NETWORK_FILE = "EngineClient.swift"
 
 #: Declarations that touch the file system, including the local-file half of `URL`. Only the files in
@@ -207,10 +210,21 @@ APPSTORAGE_FILE = "ContentView.swift"
 #: `String.write(toFile:)` from the first version of this gate: the space ended the match.
 DECL = re.compile(r'decl="?([A-Za-z_][\w]*)\.\(file\)\.((?:[\w.]+ extension\.)?[^ )"@]*)')
 IMPORT = re.compile(r'\(import_decl[^)]*module="([^"]+)"')
+#: #58: a `decode` whose generic substitution produces a `URL` (`JSONDecoder.decode([URL].self, ...)`,
+#: or a container's `decode(URL.self, forKey:)` inside a synthesised `Decodable`). The substitution
+#: is printed after the declaration's path, which `DECL` stops before.
+DECODES_URL = re.compile(r'decl="[^"]*\.decode(?:IfPresent)?\([^"]*\[with \(substitution_map[^"]*->[^"]*\bURL\b')
+#: The fixture `self_test` compiles: files the gate must refuse and files it must allow (#51).
+FIXTURES = ROOT / "scripts" / "client_decl_fixtures"
+#: What the fixture must produce, as (file, a phrase the refusal carries).
+FIXTURE_REFUSALS = {
+    ("ContentView.swift", "URLSession"), ("ContentView.swift", "URL.decoded"),
+    ("Detail.swift", "FileManager"), ("Detail.swift", "URL.decoded"),
+}
 SOURCE = re.compile(r'^\(source_file "([^"]+)"', re.MULTILINE)
 
 
-def dump_ast(sdk_name: str, flags: list[str]) -> tuple[str, int] | None:
+def dump_ast(sdk_name: str, flags: list[str], folder: pathlib.Path = CLIENT) -> tuple[str, int] | None:
     """`(AST, exit code)` for one configuration, or None where there is no toolchain."""
     xcrun = shutil.which("xcrun")
     if xcrun is None:
@@ -224,7 +238,7 @@ def dump_ast(sdk_name: str, flags: list[str]) -> tuple[str, int] | None:
         ).stdout.strip()
     except (OSError, subprocess.CalledProcessError):
         return None
-    sources = sorted(str(path) for path in CLIENT.rglob("*.swift"))
+    sources = sorted(str(path) for path in folder.rglob("*.swift"))
     result = subprocess.run(  # noqa: S603
         [xcrun, "swiftc", "-typecheck", "-dump-ast", *flags, "-sdk", sdk, *sources],
         capture_output=True, text=True, cwd=ROOT,
@@ -247,6 +261,8 @@ def references(ast: str) -> dict[str, set[str]]:
         # point of the allowlist is that reaching the framework at all is a reviewed change.
         for module in IMPORT.findall(ast[start:end]):
             found[name].add(f"{module}.<imported>")
+        if DECODES_URL.search(ast[start:end]):
+            found[name].add("Foundation.URL.decoded")
         for module, symbol in DECL.findall(ast[start:end]):
             # A member added in an extension prints as `Module.(file).extension.name`, which hid
             # `.draggable` and `String.write(toFile:)` from the first version of this gate.
@@ -314,8 +330,32 @@ def problems(found: dict[str, set[str]]) -> list[str]:
     return bad
 
 
+def self_test() -> list[str] | None:
+    """#51: the gate on its compiled fixture. What it failed to refuse, or allowed wrongly; empty
+    when it behaves; None where there is no toolchain."""
+    _, sdk_name, flags = CONFIGURATIONS[0]
+    dumped = dump_ast(sdk_name, flags, FIXTURES)
+    if dumped is None:
+        return None
+    ast, code = dumped
+    if code != 0:
+        return [f"the fixture does not type-check: {ast[-500:]}"]
+    refused = problems(references(ast))
+    missed = [f"{file}: {phrase} was not refused" for file, phrase in sorted(FIXTURE_REFUSALS)
+              if not any(line.startswith(f"{file}:") and phrase in line for line in refused)]
+    wrong = [line for line in refused
+             if not any(line.startswith(f"{file}:") and phrase in line for file, phrase in FIXTURE_REFUSALS)]
+    return missed + [f"refused what it must allow: {line}" for line in wrong]
+
+
 def main() -> int:
     expected = {path.name for path in CLIENT.rglob("*.swift")}
+    broken = self_test()
+    if broken:
+        for line in broken:
+            print(f"client-decls FAIL (self-test, scripts/client_decl_fixtures): {line}")
+        print("  The gate no longer refuses what it exists to refuse (#51); its PASS below would mean nothing.")
+        return 1
     bad: list[str] = []
     totals: list[str] = []
     for label, sdk_name, flags in CONFIGURATIONS:

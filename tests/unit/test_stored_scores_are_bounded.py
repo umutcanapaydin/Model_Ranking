@@ -89,3 +89,18 @@ def test_the_swebench_parsers_date_and_infinity_are_bounded_where_they_are_store
     assert rows
     with pytest.raises(SourceError, match="finite"):
         _store_scores(connect(":memory:"), "swebench", rows, RUN)
+
+
+def test_a_missing_score_is_refused_as_a_source_error_not_a_type_error() -> None:
+    """M17 closure Tester N3 (#92): `math.isfinite(None)` raised `TypeError`, which no caller turns
+    into a failed SOURCE, so a parser that yielded no score ended the whole build."""
+    with pytest.raises(SourceError, match="probe"):
+        _store_scores(connect(), "probe", [_row(score=None)], RunContext(observed_at="t"))
+
+
+def test_a_row_the_schema_refuses_is_a_source_error() -> None:
+    """N3's other half: the `IntegrityError` path, which no test reached, aborts the SOURCE."""
+    conn = connect()
+    conn.execute("CREATE TRIGGER refuse BEFORE INSERT ON scores BEGIN SELECT RAISE(ABORT, 'no'); END")
+    with pytest.raises(SourceError):
+        _store_scores(conn, "probe", [_row()], RunContext(observed_at="t"))

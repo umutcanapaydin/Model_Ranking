@@ -1351,7 +1351,7 @@ def categories() -> dict[str, Any]:
 
 @app.get(f"/{API_VERSION}/budgets")
 def budgets() -> dict[str, Any]:
-    """The budget caps, so a consumer can tell which ranked rows fit. REQ-API-010, W-044, D-134.
+    """The budget caps, so a consumer can tell which ranked rows fit. REQ-API-011, W-044, D-134.
 
     **The defect this closes, measured before it was written.** `/v1/recommendations` answers a
     `budget=low` query with `eligible_count: 25` and a `ranking` array of **58** rows whose most

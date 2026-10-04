@@ -130,7 +130,9 @@ def _store_scores(
             # M17 closure security seat MINOR-2: an infinite score made coding's floor `null` and a
             # recommendation answer 500. Refused loudly, so the source carries its last good data
             # (D-156), rather than dropped where nobody would see it.
-            if not math.isfinite(row.score):
+            # #92 (N3): a missing score is refused the same way, as a SourceError: `isfinite(None)`
+            # raised TypeError, which no caller turns into a failed source.
+            if not isinstance(row.score, (int, float)) or not math.isfinite(row.score):
                 msg = f"{source_name}: a score that is not finite ({row.raw_name!r}: {row.score}); refused"
                 raise SourceError(msg)
             if row.effort is not None and row.effort not in EFFORT_LEVELS:

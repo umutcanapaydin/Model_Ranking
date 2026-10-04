@@ -364,3 +364,45 @@ def test_the_attribute_itself_carries_with_its_rows(tmp_path: Path) -> None:
             ("claude-opus-4-1-20250805", "API access")]
     finally:
         conn.close()
+
+
+def test_carried_rows_meet_the_rules_every_client_row_meets(tmp_path: Path) -> None:
+    """M17 closure Tester N2 (#92): the closure made a stored date a date and a score finite where every
+    client stores (security MINOR-2), and `Carry.restore` copied the live artifact's rows past both. A
+    carried date is a calendar date, and a source whose live rows hold a score that is not finite is
+    not carried at all: it fails as an unreachable source would, rather than serving it."""
+    from app.workflows.build import Carry
+
+    live = _live(tmp_path)
+    raw = sqlite3.connect(live)
+    raw.execute("UPDATE scores SET run_date = '2026-09-01T12:00:00Z' WHERE source = 'aider'")
+    raw.execute("UPDATE scores SET score = 9e999 WHERE source = 'swebench'")
+    raw.commit()
+    raw.close()
+    conn = connect(str(tmp_path / "candidate.db"))
+    carry = Carry(live=live, last_ok={"aider": _iso(1), "swebench": _iso(1)}, now=NOW)
+
+    assert carry.restore(conn, "aider") == "carried"
+    assert {d for (d,) in conn.execute("SELECT DISTINCT run_date FROM scores WHERE source = 'aider'")} == {"2026-09-01"}
+    assert carry.restore(conn, "swebench") == "absent"
+    assert _rows(conn, "swebench") == []
+
+
+def test_a_carried_date_is_validated_not_cut_and_no_infinity_is_carried(tmp_path: Path) -> None:
+    """W5 Tester (#92 N2): the test above carries a timestamp, which cutting to ten characters also
+    makes a date, so the rule MINOR-2 retired (`<script>alert(1)</script>` became `<script>al`) passed
+    it. And it carries +inf only; -inf is as unservable."""
+    from app.workflows.build import Carry
+
+    live = _live(tmp_path)
+    raw = sqlite3.connect(live)
+    raw.execute("UPDATE scores SET run_date = '<script>alert(1)</script>' WHERE source = 'aider'")
+    raw.execute("UPDATE scores SET score = -9e999 WHERE source = 'swebench'")
+    raw.commit()
+    raw.close()
+    conn = connect(str(tmp_path / "candidate.db"))
+    carry = Carry(live=live, last_ok={"aider": _iso(1), "swebench": _iso(1)}, now=NOW)
+
+    assert carry.restore(conn, "aider") == "carried"
+    assert {d for (d,) in conn.execute("SELECT DISTINCT run_date FROM scores WHERE source = 'aider'")} == {None}
+    assert carry.restore(conn, "swebench") == "absent"

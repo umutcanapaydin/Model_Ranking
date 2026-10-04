@@ -196,8 +196,8 @@ def test_close_call_threshold_is_the_calibrated_elo_value() -> None:
 
 
 def test_assistant_quality_floor_unmet_warns_on_elo_scale() -> None:
-    """REQ-CAL-001 side effect (closure review NOTE-7): the recalibrated 1400 floor
-    makes the honesty branch reachable on the Elo scale — it must SAY so."""
+    """REQ-CAL-001 side effect (closure review NOTE-7): a floor on the Elo scale makes the honesty
+    branch reachable there -- a Budget Pick below the derived floor must SAY so."""
     rec = recommend(_arena(ROWS), "low", "assistant")
     assert rec is not None
     assert "WARNING" in rec.picks[2].why

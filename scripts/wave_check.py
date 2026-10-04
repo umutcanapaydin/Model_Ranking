@@ -270,6 +270,8 @@ def review_seat_problems(text: str, root: pathlib.Path, milestone: int | None) -
 #: was on at the end of that day: a close written later declares at least this one.
 DEVFLOW_ADOPTED = "2026-09-23"
 CURRENT_AT_ADOPTION = (6, 6)
+#: #83: closes dated from this day on are held to "a diff touching input parsing is HIGH".
+INPUT_PARSING_HIGH_FROM = "2026-10-04"
 
 
 def main(argv: list[str]) -> int:
@@ -350,6 +352,24 @@ def main(argv: list[str]) -> int:
               or (m.group(1).strip().startswith("<") and m.group(1).strip().endswith(">"))):
             bad.append(f"`{field}:` is still a placeholder -- record {why}. Plan-time paths are a "
                        "prediction; close-time paths are a measurement")
+    # #83: the template escalates to HIGH a wave whose diff touches input parsing, and M17-W2 and W3
+    # were not. From the day this check exists, a close whose footprint names `src/app/clients/`
+    # must carry HIGH on its risk-tier row (row 1).
+    # An undated close is held to it too, and the footprint is read up to the next footprint field
+    # or the end of its block, in whatever order the fields come (W5 review M4).
+    if dated is None or dated.group(1) >= INPUT_PARSING_HIGH_FROM:
+        touched = re.search(r"^\s*Touched:(.*?)(?=^\s*(?:Mutant set author|Observed RED|Owner instruction|"
+                            r"K\.8 contracts|Stopped at three attempts|Hand-kept lists):|^```|\Z)",
+                            text, re.M | re.S)
+        tier_row = re.search(r"^\|\s*1\s*\|.*$", text, re.M)
+        # The EVIDENCE cell: the check column of the template itself says "LOW/MED/HIGH; auto-HIGH"
+        # (W5 second review M10).
+        cells = [c.strip() for c in tier_row.group(0).strip().strip("|").split("|")] if tier_row else []
+        evidence = cells[2] if len(cells) > 2 else ""
+        if (touched and re.search(r"src/app/clients\b", touched.group(1))
+                and not re.search(r"\bHIGH\b", evidence)):
+            bad.append("the footprint touches `src/app/clients` (input parsing) and row 1 does not "
+                       "record the wave as HIGH -- a diff touching input parsing is HIGH (#83)")
     if not re.search(r"Filled by:.*Date:.*commit range", text, re.I):
         bad.append("no signed footer (`Filled by: … Date: … Wave commit range: …`) -- an unsigned "
                    "close names nobody and no commit range, so its evidence cannot be scoped")

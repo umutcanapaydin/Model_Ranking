@@ -645,6 +645,20 @@ def test_every_metric_a_source_declares_has_a_direction() -> None:
 
 
 
+def test_every_registered_board_metric_has_a_direction() -> None:
+    """M17 closure Tester T3 (#92): the walker above reads `*METRIC` constants and `metric=` keywords,
+    and missed a dataclass field's default (`ArenaSlice`'s shape). The registries every board comes
+    from are walked here, whatever spelling put the metric there."""
+    from app.clients.arena import METRIC as ARENA_METRIC
+    from app.clients.arena_slices import ARENA_SLICES
+    from app.workflows.sources import EPOCH_BOARDS
+    from app.workflows.standings import HIGHER_IS_BETTER
+
+    registered = {ARENA_METRIC} | {s.metric for s in ARENA_SLICES} | {b.metric for b in EPOCH_BOARDS}
+    assert len(registered) >= 3, registered
+    assert sorted(registered - HIGHER_IS_BETTER) == []
+
+
 def test_the_boards_memo_keeps_no_more_than_a_few_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """W4 Tester T8 (#55, D-173 clause 5): every nightly publish is a new artifact identity, and one
     payload holds about 2.3 MB on today's artifact. Without its clear the memo keeps one per night

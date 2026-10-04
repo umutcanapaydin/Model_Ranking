@@ -23,6 +23,8 @@
 #       Two more at M18-W4 (#79): the live Epoch bundle's declared boards and its
 #       `model_metadata.csv` (`test_epoch_bundle_contract.py`).
 #    7  need the owner-fetched Epoch bundle (EPOCH_DATA_DIR)
-# The owner's Mac skips 25 of these, not 75, because it has the database. Lower this when CI builds
+#    1  needs Xcode's compiler: the declaration gate on its compiled fixture (`test_client_decl_gate.py`,
+#       M18-W5, #51). `make client-decls` runs the same fixture wherever Xcode is.
+# The owner's Mac skips 25 of these, not 76, because it has the database. Lower this when CI builds
 # an artifact from fixtures (W-108's remedy), not by skipping less honestly.
-75
+76

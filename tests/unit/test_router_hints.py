@@ -19,6 +19,7 @@ from __future__ import annotations
 import pathlib
 import re
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.adapter import main as adapter
@@ -28,10 +29,90 @@ ROUTER = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/Engine/
 CLIENT = ROUTER.parent.parent
 
 
+def _string_end(swift: str, i: int) -> int:
+    r"""Index just past the string literal that starts at `swift[i]`: a quote, a triple quote, or a
+    raw `#"`.
+
+    Escapes, and interpolations (`\(...)`, `\#(...)` in a raw string) holding strings of their own,
+    are read rather than matched (W5 second review M8): a `/*` inside one is text, not a comment.
+    """
+    n, hashes = len(swift), 0
+    while i < n and swift[i] == "#":
+        hashes, i = hashes + 1, i + 1
+    multi = swift.startswith('"""', i)
+    quote = '"""' if multi else '"'
+    i += len(quote)
+    close, escape = quote + "#" * hashes, "\\" + "#" * hashes
+    while i < n:
+        if swift.startswith(close, i):
+            return i + len(close)
+        if swift.startswith(escape, i):
+            i += len(escape)
+            if i < n and swift[i] == "(":
+                i = _interpolation_end(swift, i)
+            else:
+                i += 1
+            continue
+        if not multi and swift[i] == "\n":
+            return i  # an unterminated literal ends at its line
+        i += 1
+    return n
+
+
+def _interpolation_end(swift: str, i: int) -> int:
+    """Index just past the `( ... )` of an interpolation starting at `swift[i] == "("`."""
+    depth, n = 0, len(swift)
+    while i < n:
+        c = swift[i]
+        if c == "(":
+            depth, i = depth + 1, i + 1
+        elif c == ")":
+            depth, i = depth - 1, i + 1
+            if depth == 0:
+                return i
+        elif c == '"' or (c == "#" and re.match(r'#+"', swift[i:i + 8])):
+            i = _string_end(swift, i)
+        else:
+            i += 1
+    return n
+
+
 def _code(swift: str) -> str:
-    """The source with its `//` comments removed, so a pin holds the code and not a comment quoting
-    it. A `//` inside a string literal is cut too, which no pin here reads."""
-    return "\n".join(line.split("//", 1)[0] for line in swift.splitlines())
+    """The source with its comments removed, so a pin holds the code and not a comment quoting it.
+
+    A scanner, not a pattern (#98, W5 reviews M2 and M8): Swift block comments NEST, a `/*` inside a
+    `//` comment opens nothing, and comment markers inside a string literal -- a raw one, or one inside
+    an interpolation -- are text. Newlines inside a block comment are kept, so the code after it keeps
+    its line. Code under `#if false` is not removed (#110).
+    """
+    out: list[str] = []
+    i, depth, n = 0, 0, len(swift)
+    while i < n:
+        two = swift[i:i + 2]
+        if depth:
+            if two == "/*":
+                depth, i = depth + 1, i + 2
+            elif two == "*/":
+                depth, i = depth - 1, i + 2
+            else:
+                out.append("\n" if swift[i] == "\n" else "")
+                i += 1
+        elif two == "/*":
+            depth, i = 1, i + 2
+        elif two == "//":
+            end = swift.find("\n", i)
+            i = n if end < 0 else end
+        elif swift[i] == '"' or (swift[i] == "#" and re.match(r'#+"', swift[i:i + 8])):
+            close = _string_end(swift, i)
+            out.append(swift[i:close])
+            i = close
+        else:
+            out.append(swift[i])
+            i += 1
+    if depth:  # W5 Tester: a comment Swift would refuse to build means the scan misread the file
+        msg = "a block comment never closes: `_code` misread a literal, and would erase live code"
+        raise ValueError(msg)
+    return "".join(out)
 
 
 def _hint_ids() -> set[str]:
@@ -378,6 +459,9 @@ EGRESS = (
     r"\bNW[A-Z]\w*", r"\bCFStream", r"\bNetwork\.", r"\bNetService", r"\bsocket\s*\(", r"\bsockaddr",
     # building a URL, any spelling; and a URL-typed value, which a decoder can fill from anywhere
     r"\bURL\s*\(", r"\bURL\s*\.", r":\s*\[?\s*URL\b", r"(?<!self)(?<!super)\.init\s*\(",
+    # W5 review B1 (#58): a URL as a type argument (`Optional<URL>`, `[URL].self`, a tuple), which is
+    # what decoding one from text needs
+    r"[<\[,(]\s*URL\b",
     r"\binit\s*\(\s*string\s*:", r"(?i)\b(?:https?|ftp|wss?)://", r"(?i)\bmailto:",
     r"\bresourceBytes\b", r"\.lines\b",
     # opening, sharing, handing off -- every system surface that carries text somewhere else
@@ -506,3 +590,56 @@ def _assert_the_client_has_no_way_off_the_device() -> None:
     assert re.findall(r"isa = PBXFileSystemSynchronizedRootGroup;\s*path = (\w+);", project) == [
         "ModelRanking"
     ], "the target compiles a folder this gate does not read"
+
+
+def test_the_comment_stripper_removes_block_comments_too() -> None:
+    """#98: `_code` cut each line at its first `//` and kept `/* ... */`, so a line wrapped in a block
+    comment could satisfy any pin that reads Swift through it (the W1 Tester's mutant C4)."""
+    swift = 'let a = 1\n/* if let x = f() {\n    Text(x)\n} */\nlet b = "http://kept" // gone\n'
+    stripped = _code(swift)
+    assert "Text(x)" not in stripped and "if let" not in stripped
+    assert "let a = 1" in stripped and "let b =" in stripped
+
+
+def test_the_text_gate_refuses_a_url_in_a_type_argument() -> None:
+    """W5 review B1 (#58): a URL decoded from text needs `URL` as a type argument (`Optional<URL>`,
+    `[URL].self`, a tuple), which no pattern named. This gate is the D-126 gate CI runs (no Xcode)."""
+    for line in ("struct B: Decodable { let u: Optional<URL> }", "try d.decode([URL].self, from: x)",
+                 "let pair: (Int, URL)", "Dictionary<String, URL>"):
+        assert any(re.search(p, line) for p in EGRESS), line
+
+
+def test_the_comment_stripper_handles_nesting_and_comment_markers_in_comments() -> None:
+    """W5 review M2 (#98): Swift block comments nest, so `/* /* */ code */` hid the code from the
+    build while the pin still saw it; and a `/*` inside a `//` comment ate live code after it."""
+    nested = "/* outer /* inner */ if let address = f() { Text(address) } */\nlet kept = 1\n"
+    assert "Text(address)" not in _code(nested) and "let kept = 1" in _code(nested)
+    marker = "// see /* the note\nlet live = 2\n// end */\n"
+    assert "let live = 2" in _code(marker)
+    quoted = 'let s = "/* not a comment */"\nlet after = 3\n'
+    assert "let after = 3" in _code(quoted)
+
+
+def test_the_comment_stripper_reads_raw_strings_and_interpolation() -> None:
+    """W5 second review M8: a raw string holding `/*`, and an interpolation holding a string with `/*`,
+    made the scanner open a comment and erase the live code after it."""
+    raw = 'let r = #"a"/*"#\nlet live = 1\n'
+    assert "let live = 1" in _code(raw)
+    interpolated = 'let s = "\\(t["/*"])"\nlet live = 2\n'
+    assert "let live = 2" in _code(interpolated)
+
+
+def test_the_comment_stripper_reads_a_triple_quoted_string() -> None:
+    """W5 Tester: `_string_end` reads a `\"\"\"` string to its closing `\"\"\"`, and nothing held it. Read
+    as three single quotes, a `/*` on a later line of the string opened a comment and erased the code
+    after it, to the end of the file."""
+    assert "let live = 1" in _code('let s = """\nsee /* the note\n"""\nlet live = 1\n')
+
+
+def test_the_comment_stripper_fails_closed_on_a_comment_that_never_closes() -> None:
+    """W5 Tester (round 2's M8, fix 3): Swift cannot build an unclosed `/*`, so a scan that ends inside
+    one has misread the file. An extended regex literal holding `/*` (`#/a/*b/#`, which builds) is
+    such a misreading: above a live `copy.refinements = extra` in Router.swift it erased the
+    assignment, and the D-168 pin passed."""
+    with pytest.raises(ValueError, match="never closes"):
+        _code("let pattern = #/a/*b/#\ncopy.refinements = extra\n")

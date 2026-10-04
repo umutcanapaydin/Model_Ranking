@@ -2,7 +2,7 @@
 import XCTest
 @testable import ModelRankingEngine
 
-final class CombinePropertyTests: XCTestCase {
+final class CombinePropertyTests: OfflineTestCase {
     private struct Generator {
         var state: UInt64
         mutating func next(_ bound: Int) -> Int {

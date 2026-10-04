@@ -55,6 +55,59 @@ def _front(text: str, field: str) -> str | None:
     return match.group(1) if match else None
 
 
+#: #82: the first milestone whose planned waves must each have a close record (GPF-001: a control
+#: does not grade what was written before it existed; M17-W1's missing close is in its report).
+EXPECTED_CLOSES_FROM = 18
+#: `### W1 — ...`, `## Wave 1 — ...` and `### M19-W1 — ...` (W5 review M3: a shape it did not read
+#: counted no waves, and so found none missing).
+WAVE_HEADING = re.compile(r"^#{2,4}\s*(?:M\d+-)?W(?:ave\s*)?(\d+)\b(.*)$", re.M)
+#: What looks like a wave heading at all; one this reads and `WAVE_HEADING` does not is reported
+#: rather than skipped (W5 second review M9).
+LOOKS_LIKE_A_WAVE = re.compile(r"^#{2,6}\s*[*_]*\s*(?:M\d+-)?(?:W\d|Wave\b).*$", re.M)
+#: The plan marks a wave dropped with `(dropped` in its heading, not any use of the word.
+DROPPED = re.compile(r"\(dropped\b", re.I)
+
+
+def _excused_waves(ledger: pathlib.Path) -> set[str]:
+    """The waves the ledger records as closed without a record (`wave-close,m18-w2,...`)."""
+    if not ledger.is_file():
+        return set()
+    rows = (line.split(",") for line in ledger.read_text(encoding="utf-8").splitlines())
+    return {cells[1].strip().lower() for cells in rows if len(cells) >= 2 and cells[0].strip() == "wave-close"}
+
+
+def missing_closes(root: pathlib.Path) -> list[str]:
+    """Each wave a CLOSED milestone's plan names that has no close record, is not marked dropped in
+    the plan, and has no `wave-close` row in `docs/control-events.csv` (#82). A milestone is closed
+    when its closure report exists; an open one still has waves in flight."""
+    excused = _excused_waves(root / "docs" / "control-events.csv")
+    missing: list[str] = []
+    for report in sorted((root / "docs").glob("closure-report-m*.md")):
+        found = re.fullmatch(r"closure-report-m(\d+)\.md", report.name)
+        if found is None or int(found.group(1)) < EXPECTED_CLOSES_FROM:
+            continue
+        milestone = int(found.group(1))
+        plan = root / "docs" / "plans" / f"m{milestone}-plan.md"
+        if not plan.is_file():
+            missing.append(f"m{milestone} closed with no plan at {plan.relative_to(root)}; its waves cannot be counted")
+            continue
+        text = plan.read_text(encoding="utf-8")
+        waves = WAVE_HEADING.findall(text)
+        if not waves:
+            missing.append(f"m{milestone} closed and its plan names no wave this check can read; it "
+                           "fails closed rather than finding nothing missing")
+        missing += [f"m{milestone}'s plan has a wave heading this check cannot read: `{line.strip()}`"
+                    for line in LOOKS_LIKE_A_WAVE.findall(text) if not WAVE_HEADING.match(line)]
+        for wave, rest in waves:
+            if DROPPED.search(rest) or f"m{milestone}-w{wave}" in excused:
+                continue
+            if not (root / "docs" / "plans" / f"m{milestone}-wave-{wave}-close.md").is_file():
+                missing.append(f"m{milestone} W{wave} is in the plan and has no close record "
+                               f"(docs/plans/m{milestone}-wave-{wave}-close.md); close it, mark it "
+                               "dropped in the plan, or record a `wave-close` row in the ledger")
+    return missing
+
+
 def _load_wave_check():
     """Import the sibling validator by path; `scripts/` is not a package."""
     spec = importlib.util.spec_from_file_location("wave_check", ROOT / "scripts/wave_check.py")
@@ -110,14 +163,16 @@ def main() -> int:
         if code != 0:
             failed.append(f"{record.relative_to(ROOT)}\n{captured.getvalue()}".rstrip())
 
+    unclosed = missing_closes(ROOT)
     for message in failed:
         print(message)
-    for message in dodged:
+    for message in [*dodged, *unclosed]:
         print(f"wave-check-all: {message}")
 
-    if failed or dodged:
+    if failed or dodged or unclosed:
         print(
-            f"wave-check-all FAIL: {len(failed)} record(s) failed, {len(dodged)} without the stamp"
+            f"wave-check-all FAIL: {len(failed)} record(s) failed, {len(dodged)} without the stamp, "
+            f"{len(unclosed)} planned wave(s) with no close"
         )
         return 1
 

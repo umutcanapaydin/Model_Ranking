@@ -11,10 +11,10 @@
 
 - **Project name:** model_ranking
 - **Customer / owner:** Umut Can Apaydın (ILGAR)
-- **One-line description:** Aggregates free-and-legal LLM benchmark + pricing data into a canonical registry and serves deterministic, budget-aware model recommendations (engine behind a future iOS AI-advisor app).
-- **Tech stack:** `python` in `.devflow-stack`: Python 3.11, FastAPI (health-only until M6), SQLite, pytest, ruff/black/mypy (must match `pyproject.toml` — seed C.4)
-- **Target environment:** local dev / CI; serving target closed by M6's deploy ADR (was OQ-3)
-- **REQ-ID prefix scheme:** REQ-ING / REQ-CAN / REQ-RANK / REQ-REC / REQ-SUB / REQ-API (see docs/prd.md)
+- **One-line description:** A dashboard over published measurements of AI tools (D-126): an engine that aggregates free-and-legal benchmark and pricing data into a canonical registry and serves deterministic, budget-aware rankings on a read-only `/v1`, and an iOS app that routes a typed question to a surface on the device and shows the engine's answer or its own combination of boards (D-160, D-167, D-168).
+- **Tech stack:** `python` in `.devflow-stack`: Python 3.11+, FastAPI + uvicorn, SQLite, httpx, pyarrow, pytest, ruff/black/mypy (must match `pyproject.toml` — seed C.4); the app is Swift/SwiftUI (iOS 18; the on-device model needs iOS 26), its Engine layer tested by `swift test` through `ios/Package.swift`
+- **Target environment:** the owner's Mac: the engine is a launchd service running a deployed release of `main` (D-170), on loopback by default and the home network by opt-in (D-171); the app on the simulator or the owner's iPhone. Nothing is hosted yet: Fly.io stays the target (D-116, D-123), after the Stage 5.1 review
+- **REQ-ID prefix scheme:** one prefix per area, for example REQ-ING, REQ-API, REQ-REF, REQ-RTR, REQ-APP; the full set is in docs/prd.md
 
 For full requirements see `docs/prd.md`. For deployment topology see `docs/architecture.md`. For open decisions see `docs/decisions.md`.
 
@@ -74,7 +74,7 @@ Where one fact appears in two or more artefacts, generate one from the other (or
 ## 4. Subagent dispatch (K.4 + K.6 + K.7 + K.8)
 - **K.4** — parallel waves of independent scope · **K.6** — bar explicit, ≤5 min scope, discretion ok within bounds
 - **Dev-test loop** — Stage 2: each agent runs a loop on its slice (implement→test→self-review→fix). **Three failed attempts at one failure, then stop:** file it as a `bug` and move on (`.agents/rules/practices.md`). A wave fixes the findings it can and files the rest (`/close-wave` step 6). Security review: one seat per milestone, at its closure, and Stage 5.1 once on the whole release (BLOCKING before deploy); never per wave (D-172).
-- **Every wave, every risk tier:** `/close-wave` dispatches **Code-Reviewer, then Tester, as two separate subagents** (`.claude/agents/`). A HIGH wave (auth/payment/crypto/migration/distributed-correctness — auto-escalated) gets the Tester's fault injection, and no security pass of its own (D-172). A `/fix-issue` fix gets the Tester alone.
+- **Every wave, every risk tier:** `/close-wave` dispatches **Code-Reviewer, then Tester, as two separate subagents** (`.claude/agents/`). A HIGH wave (auth/payment/crypto/migration/distributed-correctness — auto-escalated) gets the Tester's fault injection, and no security pass of its own (D-172). A `/fix-issue` fix gets the Tester alone. **Seats run one after another, each in its own `git worktree` at the commit under review, with its own venv** (D-174, #52): two seats in one tree each saw the other's mutants, and one seat's probe once reached the owner's launchd service.
 - **Wave close:** fill + commit the wave-close checklist (`docs/wave-checklist.template.md`, `make wave-check`) — every ✅ cites fresh wave-scoped evidence. Tester runs the fault-injection protocol on HIGH waves (revert IN PLACE, never `git checkout` on uncommitted work).
 - **K.7** — fresh eyes: the reviewer/tester never authored the wave's code, and each verdict declares `**Independent:** yes`; in this project the review is also a FILE declaring `seat: independent` (`scripts/wave_check.py::review_seat_problems`; why: `.agents/rules/review-seats.md`) · **K.8** — shared contracts grep-verified in the plan (paste `grep -n` output); a plan that builds a SCREEN maps each fact to the published field it comes from (D-150 clause 2)
 - **Context hygiene:** one task per session; compact at wave boundaries (state lives in FILES, re-read them); repo exploration goes to the read-only **Explorer** profile (≤2k-token summary), never inline.

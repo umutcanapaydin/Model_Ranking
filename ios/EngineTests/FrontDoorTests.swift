@@ -64,7 +64,7 @@ private let served = [
 
 // MARK: - REQ-ASK-004
 
-final class RequestGateTests: XCTestCase {
+final class RequestGateTests: OfflineTestCase {
     /// The citing test: two loads resolve out of order, and the newer selection survives.
     func testASlowerResponseForAnOlderSelectionCannotOverwriteTheNewerOne() {
         var gate = RequestGate()
@@ -115,7 +115,7 @@ final class RequestGateTests: XCTestCase {
 
 // MARK: - REQ-ASK-001
 
-final class SubmissionTests: XCTestCase {
+final class SubmissionTests: OfflineTestCase {
     func testAQuestionCanBeSentWhenNothingIsRouting() {
         XCTAssertTrue(canSubmit("prove a theorem", inFlight: false))
     }
@@ -133,7 +133,7 @@ final class SubmissionTests: XCTestCase {
 
 // MARK: - REQ-ASK-002
 
-final class EchoTests: XCTestCase {
+final class EchoTests: OfflineTestCase {
     func testTheReadersOwnWordsAreShownBesideWhatTheyWereMatchedTo() {
         XCTAssertEqual(echoLine(question: "prove a theorem", surfaceTitle: "Mathematics"),
                        "“prove a theorem” → Mathematics")
@@ -198,7 +198,7 @@ final class EchoTests: XCTestCase {
 
 // MARK: - REQ-ASK-003
 
-final class UnmeasuredQuestionTests: XCTestCase {
+final class UnmeasuredQuestionTests: OfflineTestCase {
     /// The tier that IS the product for most of the device base (plan §0): no model, the real
     /// wording tier. M13-W3 review BLOCKING-1 — the first version of these tests stubbed a model
     /// tier that declined whatever it was asked, so the question strings were never read, and on
@@ -497,7 +497,7 @@ final class UnmeasuredQuestionTests: XCTestCase {
 
 // MARK: - Alternatives: correcting in one tap
 
-final class AlternativeSurfaceTests: XCTestCase {
+final class AlternativeSurfaceTests: OfflineTestCase {
     func testTheWordingTierOffersTheNextClosestSurfacesAsAlternatives() async {
         let outcome = await SimilarityRouter(floor: -2.0)
             .route("fix the failing unit test in my python project", within: served)
@@ -533,7 +533,7 @@ final class AlternativeSurfaceTests: XCTestCase {
 
 // MARK: - A slow tier is a failing tier (REQ-RTR-003, M13-W3 review MINOR-6)
 
-final class SlowTierTests: XCTestCase {
+final class SlowTierTests: OfflineTestCase {
     private let wording = RoutingOutcome(categoryID: "coding", tier: .similarity, unmeasured: false)
 
     func testAModelTierThatNeverAnswersHandsTheQuestionToTheWordingTier() async {
@@ -607,7 +607,7 @@ final class SlowTierTests: XCTestCase {
 
 // MARK: - The on-device tier, as help
 
-final class OnDeviceHelpTests: XCTestCase {
+final class OnDeviceHelpTests: OfflineTestCase {
     func testNothingIsSaidWhenTheModelIsAvailable() {
         XCTAssertNil(OnDeviceState.available.help(.english))
     }
@@ -640,7 +640,7 @@ final class OnDeviceHelpTests: XCTestCase {
 
 // MARK: - REQ-GAP-001/002 (M14-W3): the gap register
 
-final class GapRegisterTests: XCTestCase {
+final class GapRegisterTests: OfflineTestCase {
     private let t0 = Date(timeIntervalSince1970: 1_800_000_000)
 
     /// REQ-GAP-001: an unmeasured question is recorded with a count.
@@ -716,7 +716,7 @@ final class GapRegisterTests: XCTestCase {
 }
 
 /// The M14-W3/W4 review's fixes to the gap register (m-1, S-2, S-3).
-final class GapRegisterHardeningTests: XCTestCase {
+final class GapRegisterHardeningTests: OfflineTestCase {
     /// m-1: a router failure is not a gap in the catalogue.
     func testOnlyARoutedUnmeasuredQuestionIsAGap() {
         XCTAssertTrue(recordsGap(RoutingOutcome(categoryID: "assistant", tier: .similarity, unmeasured: true)))
@@ -744,6 +744,19 @@ final class GapRegisterHardeningTests: XCTestCase {
     /// S-1: the phone's store writes with complete file protection.
     func testThePhonesStoreIsProtectedWhileLocked() {
         XCTAssertTrue(GapRegisterStore.onDevice.writeOptions.contains(.completeFileProtection))
+    }
+
+    func testTheRegisterIsOnlyEverAFileOnThisDevice() {
+        // #58: the register read whatever address it was given, and its read fetches an https one. A
+        // URL decoded from text was the path off the device. The tripwire records a load that reaches
+        // out; a save to an address that is not a file writes nothing either way, so this holds the
+        // load (W5 second review M7).
+        let store = GapRegisterStore(url: URL(string: "https://example.invalid/gap-register.json")!)
+        var register = GapRegister()
+        register.record("remove the background from my photo")
+        store.save(register)
+        XCTAssertEqual(store.load(), GapRegister())
+        XCTAssertEqual(OfflineGuard.drain(), [], "the register reached for a remote address")
     }
 
     /// And a save into a fresh folder round-trips, folder created on the way.

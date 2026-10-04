@@ -9,7 +9,7 @@ import XCTest
 
 @testable import ModelRankingEngine
 
-final class CombineTests: XCTestCase {
+final class CombineTests: OfflineTestCase {
     private func board(_ id: String, _ standings: [(String, Int)]) -> BoardStandings {
         BoardStandings(
             id: id, benchmark: "B \(id)", metric: "elo", rankingEffort: nil, evidenceDate: "2026-09-18",
