@@ -45,9 +45,10 @@ from app.workflows.build import CARRY_TABLES
 from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
 from app.workflows.floors import board_names, derived_floor
-from app.workflows.rank import build_price_medians, category_ranking
+from app.workflows.rank import build_price_medians, ranked_with_ids
 from app.workflows.recommend import BUDGETS, eligible_rows, round_optional_score, round_score
 from app.workflows.schema import open_readonly
+from app.workflows.serving_bounds import bounds_from_env, egress_problems
 
 # NOTHING IS IMPORTED FROM `app.adapter`, and that is REQ-REF-007 rather than tidiness. D-116 keeps
 # ingestion off the serving host; a refresh that imports the adapter to borrow a helper has reached
@@ -104,6 +105,9 @@ class RefreshOutcome:
     #: D-157 clause 4, from the build: models derived from the data, and the top unmatched names.
     derived: tuple[str, ...] = ()
     unmatched: tuple[str, ...] = ()
+    #: #39 (D-173 clause 2): models whose served name changed while their id did not, `old -> new`.
+    #: Information, never a reason to refuse.
+    renamed: tuple[str, ...] = ()
 
     def as_json(self) -> str:
         return json.dumps(
@@ -244,6 +248,16 @@ def upward_anomalies(
     return reasons
 
 
+def display_changes(live: ServingSummary, candidate: ServingSummary) -> list[str]:
+    """Models served under a new name while their id is unchanged, as `old -> new` (#39, D-173
+    clause 2). Recorded with the night, never a reason to refuse: nobody's identity changed."""
+    return [
+        f"{live.displays[model_id]} -> {candidate.displays[model_id]}"
+        for model_id in sorted(live.displays.keys() & candidate.displays.keys())
+        if live.displays[model_id] != candidate.displays[model_id]
+    ]
+
+
 def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
     """Every way the candidate would be WORSE than what is being served. Empty means it is safe.
 
@@ -278,6 +292,16 @@ def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
     # gone from `live` on an expiry night (`_served_without`), so its drop is excused exactly.
     reasons += _mostly_lost(live.boards, candidate.boards, "board {name}",
                             "a board is published content and is guarded as one (D-164)")
+
+    # #42 (D-173 clause 3): the phone filters on accessibility, so a truncated model_metadata.csv
+    # empties the filter on a night that still publishes. A quarter lost refuses, as D-128's boards.
+    if live.accessible and candidate.accessible <= live.accessible * (1 - MAX_SURFACE_LOSS):
+        lost = live.accessible - candidate.accessible
+        reasons.append(
+            f"accessibility values would fall from {live.accessible} to {candidate.accessible} "
+            f"models ({lost / live.accessible:.0%}, at or over the {MAX_SURFACE_LOSS:.0%} limit); "
+            "the phone filters on them, and a truncated file would empty the filter"
+        )
 
     # The budget axis. A surface that answered a reader on some budget and would now answer nothing
     # is "fewer surfaces answering" in the only sense a reader experiences — REQ-REF-003's own
@@ -368,9 +392,10 @@ class ServingSummary:
 
     digest: str
     surfaces: dict[str, int]
-    #: surface -> the NAMES it ranks. Counts cannot see a roster that was replaced rather than
-    #: resized, and names are what tells a new model from a fabricated one: a real board adds one
-    #: or two at a time, and an injected set arrives together.
+    #: surface -> the model IDS it ranks. Counts cannot see a roster that was replaced rather than
+    #: resized, and the set is what tells a new model from a fabricated one: a real board adds one
+    #: or two at a time, and an injected set arrives together. Ids, not display names (#39, D-173
+    #: clause 2): a board that only re-spells its models changed nobody's identity.
     models: dict[str, frozenset[str]]
     #: surface -> the median published price. One provider cutting a price is news; a whole
     #: surface's median moving is a feed, and a feed is what an attacker or a bug controls.
@@ -394,6 +419,10 @@ class ServingSummary:
     #: category slices, the Epoch boards no surface uses) -> its raw names. Guarded exactly as a
     #: surface's own board is: a quarter lost, or a quarter new.
     boards: dict[str, frozenset[str]] = dataclasses.field(default_factory=dict)
+    #: model id -> the name it is served under, for `display_changes` (#39).
+    displays: dict[str, str] = dataclasses.field(default_factory=dict)
+    #: How many models carry an accessibility value the phone filters on (#42, D-173 clause 3).
+    accessible: int = 0
 
     @property
     def answering(self) -> int:
@@ -435,6 +464,7 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
     names: dict[str, frozenset[str]] = {}
     prices: dict[str, float] = {}
     boards: dict[str, frozenset[str]] = {}
+    displays: dict[str, str] = {}
     for name in sorted(CATEGORIES):
         spec = CATEGORIES[name]
         # NO `except sqlite3.DatabaseError: rows = []` HERE, and its absence is the point.
@@ -449,7 +479,8 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         # be determined. `fingerprint_of` turns that into None, and None means do not publish. An
         # unbuilt-but-valid artifact still fingerprints fine — it simply has no rows, which raises
         # nothing.
-        rows = category_ranking(conn, spec)
+        ranked = ranked_with_ids(conn, spec)
+        rows = [row for _, row in ranked]
         digest.update(f"surface:{name}:{len(rows)}\n".encode())
         # D-159 (M17-W1 review BLOCKING-1): the floor counts EVERY row of the board, the ranking only
         # the rows it can rank. A board that grows by models nobody prices moves the floor and the
@@ -458,7 +489,8 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         digest.update(f"floor:{name}:{derived_floor(conn, spec)}\n".encode())
         surfaces[name] = len(rows)
         eligible[name] = {b: len(eligible_rows(rows, b)) for b in sorted(BUDGETS)}
-        names[name] = frozenset(row.model for row in rows)
+        names[name] = frozenset(model_id for model_id, _ in ranked)
+        displays.update((model_id, row.model) for model_id, row in ranked)
         boards[name] = board_names(conn, spec)
         prices[name] = statistics.median([row.blended_per_m for row in rows]) if rows else 0.0
         for row in rows:
@@ -476,7 +508,8 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
             digest.update(f"{raw_name}|{model_id}|{round_score(score)}\n".encode())
         other_boards[board.source] = frozenset(raw_name for raw_name, _, _ in standings)
     # M17-W3: each model's accessibility is served to the phone (W4), so a change publishes.
-    for model_id, accessibility in access.served(conn).items():
+    accessibility_of = access.served(conn)
+    for model_id, accessibility in accessibility_of.items():
         digest.update(f"access:{model_id}:{accessibility}\n".encode())
     return ServingSummary(
         digest=digest.hexdigest(),
@@ -486,6 +519,8 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         eligible=eligible,
         board=boards,
         boards=other_boards,
+        displays=displays,
+        accessible=len(accessibility_of),
     )
 
 
@@ -725,6 +760,8 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
         #: served leaves the previous lists, like `carried`.
         "derived": list(outcome.derived) if served else _listed(previous, "derived"),
         "unmatched": list(outcome.unmatched) if served else _listed(previous, "unmatched"),
+        #: #39: what this cycle found re-spelled (information; a refused night lists it too).
+        "renamed": list(outcome.renamed),
     }
     # UNIQUE scratch, not a shared name. The artifact's candidate has always used `mkstemp` and
     # this used a fixed `<name>.writing` — the same lesson applied once. An independent review
@@ -835,7 +872,7 @@ def refresh(
 
 def _reason_to_refuse(
     target: Path, live: ServingSummary | None, fresh: ServingSummary,
-    baseline: ServingSummary | None = None,
+    baseline: ServingSummary | None = None, candidate: Path | None = None,
 ) -> str | None:
     """Why this candidate must not be published, or None if it may be.
 
@@ -851,6 +888,11 @@ def _reason_to_refuse(
     source expired -- the live artifact without that source's rows (D-156 clause 3). The re-read
     below still compares with the LIVE digest; the baseline is a judgement, not a file.
     """
+    # #57 (D-173 clause 4): the bounds the engine checks when it starts, on the candidate, before
+    # anything else and on a first artifact too -- one past a bound would stop the next restart.
+    past = egress_problems(candidate, bounds_from_env()) if candidate is not None else []
+    if past:
+        return "refused: the candidate is past a bound the engine serves under — " + "; ".join(past)
     if live is None:
         return None
     baseline = live if baseline is None else baseline
@@ -1117,6 +1159,7 @@ def _cycle(
             return record(outcome, EXIT_FAILED)
 
         baseline = _served_without(target, set(expired)) if expired and live else live
+        renamed = tuple(display_changes(live, fresh)) if live is not None else ()
 
         if live is not None and fresh.digest == live.digest:
             return record(
@@ -1136,7 +1179,7 @@ def _cycle(
                 EXIT_UNCHANGED,
             )
 
-        refusal = _reason_to_refuse(target, live, fresh, baseline)
+        refusal = _reason_to_refuse(target, live, fresh, baseline, candidate)
         if refusal is not None:
             return record(
                 RefreshOutcome(
@@ -1150,6 +1193,7 @@ def _cycle(
                     drift=drift,
                     derived=derived,
                     unmatched=unmatched,
+                    renamed=renamed,
                 ),
                 EXIT_REFUSED,
             )
@@ -1188,6 +1232,7 @@ def _cycle(
                 drift=drift,
                 derived=derived,
                 unmatched=unmatched,
+                renamed=renamed,
             ),
             EXIT_PUBLISHED,
         )

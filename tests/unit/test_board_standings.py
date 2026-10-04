@@ -480,8 +480,10 @@ def test_the_engines_standings_bound_is_the_one_the_record_measures_against() ->
     import re
 
     from app.adapter import main as adapter
+    from app.workflows import serving_bounds
 
-    default = re.search(r'"MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS",\s*"(\d+)"', inspect.getsource(adapter))
+    # The default is defined once, where the refresh reads it too (D-173 clause 4, #57).
+    default = re.search(r'"MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS",\s*"(\d+)"', inspect.getsource(serving_bounds))
     assert default is not None and default.group(1) == "25000"
     # ...and the bound in force is that default, or exactly what the environment set (fourth Tester
     # M2: a multiplier on the default passed the source check).
