@@ -561,6 +561,19 @@ def test_every_failure_the_client_names_reaches_the_screen_with_a_sentence() -> 
     )
 
 
+def test_every_response_is_read_through_its_routes_ceiling() -> None:
+    """#56 (M17-W4 security S3): a whole response was buffered before any size check. The one
+    request is streamed and read through `read(_:declared:upTo:)` with the route's ceiling; a second
+    request, or a read that skips the ceiling, is what this refuses. ResponseCeilingTests holds the
+    behaviour."""
+    client = (CLIENT / "Engine/EngineClient.swift").read_text(encoding="utf-8")
+    code = "\n".join(line.split("//", 1)[0] for line in client.splitlines())
+    assert len(re.findall(r"session\.\w+\(", code)) == 1, "a second request path, outside the ceiling"
+    assert re.search(r"try await EngineClient\.read\(bytes,[^)]*upTo: EngineClient\.byteCeiling\(for: path\)\)",
+                     code, re.S), "the response is not read through the route's ceiling"
+    assert "session.data(" not in code, "a response is read whole again"
+
+
 def test_the_client_refuses_a_redirect_that_leaves_its_configured_host() -> None:
     """M8 security review, M-4: the client followed server-controlled redirects.
 
@@ -570,15 +583,15 @@ def test_the_client_refuses_a_redirect_that_leaves_its_configured_host() -> None
     where a served value becomes a URL, so nothing in a response can redirect the app at another
     host."* The `Location` header is that path, and it was unmitigated.
 
-    Dies to: dropping the delegate from the `data(from:delegate:)` call, or widening the delegate
-    to accept a different host.
+    Dies to: dropping the delegate from the `bytes(from:delegate:)` call (`data(from:)` until #56
+    streamed it), or widening the delegate to accept a different host.
     """
     client = (CLIENT / "Engine/EngineClient.swift").read_text(encoding="utf-8")
 
     assert "willPerformHTTPRedirection" in client, (
         "no redirect delegate; the engine's Location header decides where this app goes next"
     )
-    assert re.search(r"data\(\s*from:[^)]*delegate:", client, re.S), (
+    assert re.search(r"session\.bytes\(\s*from:[^)]*delegate:\s*SameHostOnly\(", client, re.S), (
         "the delegate exists and is not passed to the request that needs it — an injection point "
         "that cannot inject, which is this project's most-repeated defect"
     )

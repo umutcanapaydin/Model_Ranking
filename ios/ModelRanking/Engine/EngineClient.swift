@@ -186,6 +186,17 @@ struct EngineClient {
     /// costing every phone a bigger download each day.
     static let maxStandingsBytes = 4 * 1024 * 1024
 
+    /// The most this app reads from one route (#56, M17-W4 security S3). Measured on 2026-10-04: the
+    /// categories 4,300 bytes, the largest recommendation 47,920, the boards 513,532. A route nobody
+    /// sized gets the smallest ceiling, never none.
+    static func byteCeiling(for path: String) -> Int {
+        switch path {
+        case "v1/boards": return maxStandingsBytes
+        case "v1/recommendations": return 1024 * 1024
+        default: return 256 * 1024
+        }
+    }
+
     init(baseURL: URL = EngineClient.localDefault, session: URLSession? = nil) {
         self.baseURL = baseURL
         if let session {
@@ -260,9 +271,15 @@ struct EngineClient {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await session.data(
+            // #56: streamed, and stopped at the route's ceiling, rather than read whole first.
+            let (bytes, answered) = try await session.bytes(
                 from: components.url!, delegate: SameHostOnly(host: baseURL.host)
             )
+            response = answered
+            data = try await EngineClient.read(bytes, declared: answered.expectedContentLength,
+                                               upTo: EngineClient.byteCeiling(for: path))
+        } catch let error as EngineError {
+            throw error
         } catch let error as URLError {
             // Mapped rather than flattened. All three arrive here as one thrown URLError, and all
             // three deserve different advice — the M8 plan's Trap 2 is the client replacing the
@@ -296,6 +313,28 @@ struct EngineClient {
             )
         }
 
+        return data
+    }
+
+    /// At most `ceiling` bytes of a response (#56). A declared length over the ceiling is refused
+    /// before a byte is read, and the transfer is cancelled at the first byte beyond it, so no
+    /// response sits in memory whole before its size is known. Refused as `undecodable`, the case a
+    /// payload this app will not read already is (`FetchedStandings`).
+    private static func read(_ bytes: URLSession.AsyncBytes, declared: Int64, upTo ceiling: Int) async throws -> Data {
+        let tooLarge = EngineError.undecodable("the response is larger than the \(ceiling) bytes this app accepts")
+        guard declared <= Int64(ceiling) else {
+            bytes.task.cancel()
+            throw tooLarge
+        }
+        var data = Data()
+        data.reserveCapacity(min(ceiling, 64 * 1024))
+        for try await byte in bytes {
+            guard data.count < ceiling else {
+                bytes.task.cancel()
+                throw tooLarge
+            }
+            data.append(byte)
+        }
         return data
     }
 }

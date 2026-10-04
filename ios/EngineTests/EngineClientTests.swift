@@ -547,6 +547,63 @@ final class BoardsRequestTests: OfflineTestCase {
     }
 }
 
+/// #56 (M17-W4 security S3): the phone read a whole response into memory before any size check, and
+/// only `/v1/boards` had a ceiling. Every route has one now, and the read stops at it.
+final class ResponseCeilingTests: OfflineTestCase {
+    private func client() -> EngineClient {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubProtocol.self]
+        return EngineClient(
+            baseURL: URL(string: "http://127.0.0.1:8080")!,
+            session: URLSession(configuration: configuration)
+        )
+    }
+
+    private func refusal(_ call: (EngineClient) async throws -> Void) async -> String? {
+        do {
+            try await call(client())
+            return nil
+        } catch let EngineError.undecodable(detail) {
+            return detail
+        } catch {
+            return "\(error)"
+        }
+    }
+
+    func testEveryRouteHasACeilingAboveWhatTheEngineSendsToday() {
+        // Measured on the 2026-10-04 artifact: categories 4,300 bytes, the largest recommendation
+        // 47,920, the boards 513,532. Each ceiling leaves room to grow and none is unbounded.
+        XCTAssertEqual(EngineClient.byteCeiling(for: "v1/categories"), 256 * 1024)
+        XCTAssertEqual(EngineClient.byteCeiling(for: "v1/recommendations"), 1024 * 1024)
+        XCTAssertEqual(EngineClient.byteCeiling(for: "v1/boards"), EngineClient.maxStandingsBytes)
+        XCTAssertEqual(EngineClient.byteCeiling(for: "v1/anything-new"), 256 * 1024,
+                       "a route nobody sized gets the smallest ceiling, not none")
+    }
+
+    func testAnOversizedAnswerIsRefusedOnTheRoutesThatHadNoCeiling() async {
+        StubProtocol.outcome = .success((200, Data(repeating: 0x20, count: 1024 * 1024 + 1)))
+        let recommendation = await refusal { _ = try await $0.recommendation(task: "coding", budget: "unlimited") }
+        XCTAssertTrue(recommendation?.contains("larger than") == true, recommendation ?? "accepted")
+
+        StubProtocol.outcome = .success((200, Data(repeating: 0x20, count: 256 * 1024 + 1)))
+        let categories = await refusal { _ = try await $0.categories() }
+        XCTAssertTrue(categories?.contains("larger than") == true, categories ?? "accepted")
+    }
+
+    func testAnAnswerAtTheCeilingIsReadWhole() async {
+        // At the ceiling exactly, the read completes and the payload reaches the decoder.
+        StubProtocol.outcome = .success((200, Data(repeating: 0x20, count: 256 * 1024)))
+        let categories = await refusal { _ = try await $0.categories() }
+        XCTAssertFalse(categories?.contains("larger than") == true, categories ?? "")
+    }
+
+    func testAnOversizedRefusalIsCappedToo() async {
+        StubProtocol.outcome = .success((503, Data(repeating: 0x20, count: 256 * 1024 + 1)))
+        let categories = await refusal { _ = try await $0.categories() }
+        XCTAssertTrue(categories?.contains("larger than") == true, categories ?? "accepted")
+    }
+}
+
 /// M18-W1 (#87, D-171, REQ-DEV-001): the engine the app talks to is set per build, and loopback when it is not.
 final class EngineAddressTests: OfflineTestCase {
     func testABuildsEngineAddressIsUsedWhenItIsAnHttpUrlWithAHost() {
