@@ -152,6 +152,59 @@ final class AnswerPlanTests: OfflineTestCase {
         XCTAssertEqual(view.efforts, ["high", "unspecified"])
     }
 
+    // MARK: the combined list's disclosures, as data (#67, #72, M18-W2 P4)
+
+    private func stale(_ days: Int) -> SourceHealth {
+        SourceHealth(benchmark: "B arena", stale: true, notice: "old",
+                     sources: [SourceRow(source: "s", rows: 3, newestRunDate: nil, ageDays: days, stale: true)])
+    }
+
+    /// #67: the gate could not see a view branch, so the combined list's disclosures are fields of
+    /// its plan, and this test holds every one of them on the plan rather than on the view's text.
+    func testTheCombinedListCarriesEveryDisclosureItOwes() {
+        let mixed = held([boardAt("arena", [("a", 1, "high"), ("b", 2, "unspecified")]),
+                          boardAt(french.board, [("b", 1, "high"), ("a", 2, "high")])])
+        let plan = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: mixed, removed: [],
+                              primaryHealth: stale(120))
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+
+        XCTAssertEqual(view.disclosures, [
+            .staleBoard(stale(120)),
+            .productsOwnOrder(models: 2, boards: 2),
+            .tiedPlaces,
+            .mixedEfforts(["high", "unspecified"]),
+        ])
+    }
+
+    /// #72: the cards warned that the surface's board was stale and the combined list that replaced
+    /// them did not. A fresh board says nothing; a stale one is said first and loudly.
+    func testAStaleBoardIsSaidOnTheCombinedListAsLoudlyAsOnTheCards() {
+        let fresh = SourceHealth(benchmark: "B arena", stale: false, notice: nil, sources: [])
+        let quiet = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: data, removed: [],
+                               primaryHealth: fresh)
+        guard case let .combined(calm) = quiet else { return XCTFail("\(quiet)") }
+        XCTAssertFalse(calm.disclosures.contains { if case .staleBoard = $0 { return true }; return false })
+
+        let loud = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: data, removed: [],
+                              primaryHealth: stale(200))
+        guard case let .combined(warned) = loud else { return XCTFail("\(loud)") }
+        let said = warned.disclosures.compactMap { combinedDisclosure($0, .turkish) }
+        XCTAssertEqual(said.first?.weight, .state, "the stale board is not the loud warning the cards give")
+        XCTAssertTrue(said.first?.text.contains("200") == true, said.first?.text ?? "nil")
+    }
+
+    /// Every disclosure says itself in both languages, and none is dropped on the way.
+    func testEveryCombinedDisclosureIsSaidInBothLanguages() {
+        let all: [CombinedDisclosure] = [.staleBoard(stale(120)), .productsOwnOrder(models: 2, boards: 2),
+                                         .tiedPlaces, .mixedEfforts(["high", "max"])]
+        for disclosure in all {
+            let english = combinedDisclosure(disclosure, .english)
+            let turkish = combinedDisclosure(disclosure, .turkish)
+            XCTAssertNotNil(english, "\(disclosure)")
+            XCTAssertNotEqual(english?.text, turkish?.text, "\(disclosure)")
+        }
+    }
+
     func testEveryEffortIsNamedOnceInTheBoardsOwnOrder() {
         let mixed = held([boardAt("arena", [("a", 1, "unspecified"), ("b", 2, "high")]),
                           boardAt(french.board, [("b", 1, "max"), ("a", 2, "high")])])

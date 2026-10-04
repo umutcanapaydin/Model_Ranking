@@ -100,6 +100,9 @@ final class ScreenPathTests: XCTestCase {
         XCTAssertTrue(more.waitForExistence(timeout: 30), "a long combined list offers no way to the rest")
         XCTAssertTrue(more.label.hasPrefix("Show all"), more.label)
         XCTAssertTrue(app.buttons["seeTheBoards"].exists)
+        // #67: the plan's disclosures reach the screen on this branch too.
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH \"The app's own list\""))
+            .firstMatch.exists, "the combined list does not say its order is the product's own")
         keep("the combined list, shortened")
         bringIntoView(more)
         more.tap()

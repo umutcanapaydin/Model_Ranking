@@ -21,6 +21,31 @@ struct CombinedView: Equatable {
     var efforts: [String] { firstSeen(mixedEfforts.flatMap(\.efforts)) }
     /// How many models every chosen board ranks (#54): the length of the list, stated on screen.
     var sharedCount: Int { list.entries.count }
+    /// #72 (M18-W2): the surface's own board's health, from its answer's `source_health`.
+    var staleness: SourceHealth? = nil
+
+    /// Everything this list must say, as data (#67, M18-W2 P4): the view renders exactly these, and
+    /// a test on the plan holds them, so a branch of the view cannot quietly skip one. Loudest first.
+    var disclosures: [CombinedDisclosure] {
+        var out: [CombinedDisclosure] = []
+        if let staleness, staleness.stale { out.append(.staleBoard(staleness)) }
+        out.append(.productsOwnOrder(models: sharedCount, boards: list.boards.count))
+        if Set(list.entries.map(\.place)).count < list.entries.count { out.append(.tiedPlaces) }
+        if !efforts.isEmpty { out.append(.mixedEfforts(efforts)) }
+        return out
+    }
+}
+
+/// One fact the combined list owes its reader (REQ-APP-003 on the combined path).
+enum CombinedDisclosure: Equatable {
+    /// #72: the surface's own board is stale, as its cards would have said.
+    case staleBoard(SourceHealth)
+    /// D-160 clause 3: the order is the product's own; how many models, on how many boards (#54).
+    case productsOwnOrder(models: Int, boards: Int)
+    /// Some places are shared (1, 1, 3).
+    case tiedPlaces
+    /// D-112: the listed models were measured at different efforts (review B1).
+    case mixedEfforts([String])
 }
 
 /// The efforts a board's listed models stand at, when there are two or more (D-112).
@@ -84,7 +109,8 @@ enum AnswerPlan: Equatable {
 /// names no primary board, standings not yet kept, a primary board they lack -- is today's cards.
 /// A refinement whose board the standings lack is left out rather than failing the list.
 func answerPlan(
-    outcome: RoutingOutcome?, primaryBoard: String?, standings: Standings?, removed: Set<Refinement>
+    outcome: RoutingOutcome?, primaryBoard: String?, standings: Standings?, removed: Set<Refinement>,
+    primaryHealth: SourceHealth? = nil
 ) -> AnswerPlan {
     // A primary board the standings lack needs no check of its own: `combine` refuses an unknown
     // board, and a refusal is today's cards below.
@@ -106,7 +132,7 @@ func answerPlan(
     guard let list = try? combine(standings, boards: boards) else { return .cards }
     return .combined(CombinedView(
         list: list, refinements: offered, removed: removed.intersection(offered),
-        mixedEfforts: mixedEfforts(list)
+        mixedEfforts: mixedEfforts(list), staleness: primaryHealth
     ))
 }
 

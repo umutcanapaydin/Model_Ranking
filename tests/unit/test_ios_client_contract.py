@@ -121,6 +121,26 @@ def test_the_disclosure_view_is_actually_reached_from_the_rendered_screen() -> N
     )
 
 
+def test_the_combined_list_renders_the_disclosures_its_plan_carries() -> None:
+    """#67 (M17-W5 review K1): the disclosure gate could not see a view branch, and the combined list
+    dropped the effort notice with every gate green. Since M18-W2 the combined list's disclosures are
+    fields of its plan (`CombinedView.disclosures`), held by `AnswerPlanTests`; this holds that the
+    view renders them whole and says none of them by hand, where a branch could skip it."""
+    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
+    start = code.index("private func combinedSection(")
+    section = code[start:code.index("private func refinementChips(", start)]
+    assert re.search(
+        r"disclosureList\(view\.disclosures\.compactMap\s*\{\s*combinedDisclosure\(\$0,\s*language\)\s*\}\)",
+        section,
+    ), "the combined list no longer renders the disclosures its plan carries"
+    for direct in ("UIText.combinedNote(", "UIText.tiedPlaces(", "UIText.combinedEffortNote("):
+        assert direct not in section, f"{direct} is said by hand on the combined list, outside its plan"
+    assert re.search(r"answerPlan\([^)]*primaryHealth:", code, re.DOTALL), (
+        "the plan is not told whether the surface's board is stale (#72)"
+    )
+
+
 def test_the_apps_copy_of_the_ordering_note_is_the_engines() -> None:
     """D-176 (M18-W2): the app says Ruling A's ordering note in both languages from its own copy of
     the engine's sentence, because the note carries no values to compose from. The copy must be the

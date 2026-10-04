@@ -220,3 +220,22 @@ func answerDisclosures(_ answer: Answer, anchor: Double?, _ language: Language) 
         closeCall: tie
     )
 }
+
+// MARK: - The combined list's disclosures (#67, #72, M18-W2 P4)
+
+/// A combined-list disclosure as the screen says it, with D-135's weight: a stale board is a state,
+/// loud, unless none of its sources carries a date at all (then it is a property of the board).
+func combinedDisclosure(_ disclosure: CombinedDisclosure, _ language: Language) -> Disclosure? {
+    switch disclosure {
+    case let .staleBoard(health):
+        guard let text = staleSentence(health, language) ?? health.notice else { return nil }
+        let dated = health.sources.contains { $0.ageDays != nil }
+        return Disclosure(text: text, weight: dated ? .state : .property)
+    case let .productsOwnOrder(models, boards):
+        return Disclosure(text: UIText.combinedNote(models: models, boards: boards, language), weight: .property)
+    case .tiedPlaces:
+        return Disclosure(text: UIText.tiedPlaces(language), weight: .property)
+    case let .mixedEfforts(efforts):
+        return Disclosure(text: UIText.combinedEffortNote(efforts: efforts, language), weight: .property)
+    }
+}

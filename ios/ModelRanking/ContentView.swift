@@ -165,7 +165,9 @@ struct ContentView: View {
                 let plan = answerPlan(
                     outcome: routing,
                     primaryBoard: categories.first { $0.id == routing?.categoryID }?.primaryBoard,
-                    standings: standings, removed: removedRefinements
+                    standings: standings, removed: removedRefinements,
+                    // #72: the surface's own answer says whether its board is stale.
+                    primaryHealth: answers.first { $0.surface == routing?.categoryID }?.sourceHealth
                 )
                 if case let .combined(view) = plan {
                     combinedSection(view)
@@ -360,16 +362,10 @@ struct ContentView: View {
                     .accessibilityIdentifier("seeTheBoards")
                 }
             }
-            Text(UIText.combinedNote(models: view.sharedCount, boards: view.list.boards.count, language))
-                .font(.footnote).foregroundStyle(.secondary)
-            if Set(view.list.entries.map(\.place)).count < view.list.entries.count {
-                Text(UIText.tiedPlaces(language)).font(.footnote).foregroundStyle(.secondary)
-            }
-            if !view.efforts.isEmpty {
-                // D-112: the notice the cards carry, which this list replaces (review B1).
-                Text(UIText.combinedEffortNote(efforts: view.efforts, language))
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
+            // #67, #72 (M18-W2 P4): what this list must say is a field of its plan, held by a test on
+            // the plan: the board's staleness, the product's own order, tied places, the efforts
+            // (D-112, review B1). Rendered whole, so no branch can skip one.
+            disclosureList(view.disclosures.compactMap { combinedDisclosure($0, language) })
         }
     }
 
@@ -724,8 +720,12 @@ struct ContentView: View {
         // days, wore exactly the same triangle as the five that can never clear.
         //
         // D-176 (M18-W2): and each in the reader's language, composed from the served facts.
-        let items = answerDisclosures(answer, anchor: category(for: answer)?.scoreAnchor, language)
-        return VStack(alignment: .leading, spacing: 8) {
+        disclosureList(answerDisclosures(answer, anchor: category(for: answer)?.scoreAnchor, language))
+    }
+
+    /// Disclosures as D-135 weighs them, for the cards and the combined list alike (#67).
+    private func disclosureList(_ items: [Disclosure]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
             ForEach(items, id: \.text) { item in
                 switch item.weight {
                 case .state:

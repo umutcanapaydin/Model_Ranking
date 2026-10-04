@@ -170,14 +170,14 @@ struct RankedModel: Decodable, Identifiable, Equatable {
 }
 
 /// How fresh this surface's evidence is, on a wall clock. `notice` is the sentence a user reads.
-struct SourceHealth: Decodable {
+struct SourceHealth: Decodable, Equatable {
     let benchmark: String
     let stale: Bool
     let notice: String?
     let sources: [SourceRow]
 }
 
-struct SourceRow: Decodable, Identifiable {
+struct SourceRow: Decodable, Identifiable, Equatable {
     let source: String
     let rows: Int
     let newestRunDate: String?
