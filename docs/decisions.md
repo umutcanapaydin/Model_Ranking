@@ -3370,8 +3370,10 @@ branch). M18 holds it as follows; the measure is `docs/research/m18-w3-question-
     3 and 2 of them only after the question back.
   - The question back costs genuine searches: 5 and 10 times in 145 across the three held-out sets,
     every time on the model's "something else" alone, most of them questions about reading an image.
-  - After the second code review narrowed the image rule (B4), a run on the spent sets, informational
-    only (§6): 7 of 15 requests to make an image told "not measured"; #66 unchanged.
+  - The code that ships, after the second and third code reviews narrowed the rules, run on the spent
+    sets, informational only (§6): 7 of 15 requests to make an image told "not measured", and 3 ranked
+    on `web-dev` as if measured; #66 unchanged (21 and 20 caught, 1 and 2 genuine searches asked);
+    coding 33 and 32 of 40. The question back reached genuine searches 8 and 10 times in 145.
 
 ## D-170 — The engine runs as a launchd service, from a deployed release of `main`
 

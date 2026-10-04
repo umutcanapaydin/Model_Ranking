@@ -81,8 +81,9 @@ The M17 rule holds: three variants per problem, then stop and file it.
   (bar 32, **missed**).
 - The question back reached genuine searches 5 and 10 times in 145 across the three sets, always on
   the model's "something else" alone.
-- After the second review narrowed the image rule (B4), a run on the spent sets, informational only
-  (research record §6): 7 of 15 requests to make an image told "not measured"; #66 unchanged.
+- The code that ships (`b6ab027`), after the second and third reviews narrowed the rules, on the spent
+  sets, informational only (research record §6): 7 of 15 requests to make an image told "not
+  measured", 3 ranked on `web-dev`; #66 unchanged; coding 33 and 32 of 40.
 - Three variants per problem were spent. The pull request asks the owner whether to ship what holds.
 
 ## Design (D-169, amended in this wave)

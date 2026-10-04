@@ -119,34 +119,50 @@ Every row of every run had a reading (no `nil`: the model answered each question
 went to `vision` in each run, and one to `assistant` or `document`; of the requests to read one, two went
 to `document` or `factuality` in each run, as at the baseline.
 
-## 6. After the second code review (informational, on spent sets)
+## 6. After the second and third code reviews (informational, on spent sets)
 
 The second code review (B4) found the image rule still overriding questions about code and websites
 that mention an image. It now overrides only a question routed to `vision`, with a narrower
-vocabulary (`2d5f86a`). Both fresh sets were spent by §5, so this run measures nothing held out; it
-shows what the safety fix cost, on the same questions:
+vocabulary (`2d5f86a`). The third review (M16 to M18) narrowed the signals again: a photo turned
+"into" text or a summary is read, an English order must open its sentence, and an acronym keeps its
+plural (`b6ab027`, the code that ships). Every set here was spent before these runs, so they measure
+nothing held out; they show what each fix cost, on the same questions. From `b6ab027` on, each run row
+records the model's own surface (`routed`) beside the one shown.
 
-| set | measure | §5 run 1, 2 | after the fix, run 1, 2 |
-|---|---|---:|---:|
-| image | requests to make an image told "not measured" (15) | 10, 10 | 7, 7 |
-| | requests to read one reaching `vision` (10); asked first | 8 (3), 8 (2) | 8 (6), 8 (2) |
-| not a search | caught (40) | 21, 20 | 21, 19 |
-| | genuine searches noted / asked (40) | 0 / 1, 0 / 2 | 0 / 3, 0 / 2 |
+| set | measure | §5, `da48707` | after B4, `2d5f86a` | as shipped, `b6ab027` |
+|---|---|---:|---:|---:|
+| image | requests to make an image told "not measured" (15) | 10, 10 | 7, 7 | 7, 7 |
+| | of the 15, ranked on `web-dev` as if measured | 0, 0 | 3, 3 | 3, 3 |
+| | requests to read one reaching `vision` (10); reached only after the question back | 8 (3), 8 (2) | 8 (6), 8 (2) | 8 (4), 8 (2) |
+| | questions overridden by the image rule that are not requests to make one | — | — | 0, 0 |
+| not a search | caught (40) | 21, 20 | 21, 19 | 21, 20 |
+| | genuine searches noted / asked (40) | 0 / 1, 0 / 2 | 0 / 3, 0 / 2 | 0 / 1, 0 / 2 |
+| coding | coding questions reaching `coding` (40) | 34, 30 at `4373dae` (§4) | — | 33, 32 |
+| | web-dev (16) / document (16) / other (8) | 16, 16 / 14, 14 / 5, 7 | — | 16, 16 / 15, 13 / 7, 7 |
+| | questions asked first (80) | 1, 5 | — | 2, 4 |
 
-**Who asks.** Each run file records the model's own verdict (`model`) beside the reading. In these
-runs the model's "something else" alone asked 8 and 6 not-a-search inputs; it also asked 3 and 2
-genuine searches on the not-a-search set, 7 and 4 questions about reading or mentioning an image, and
-1 request to make one (run 1). The code's doubts alone asked 9 and 7 not-a-search inputs and no
-genuine search.
+As shipped, not a search by class (noted / asked): an instruction to the app 1 / 6 and 0 / 6;
+chit-chat or nonsense 3 / 5 and 3 / 5; content pasted to act on 1 / 4 and 1 / 4; a knowledge question
+0 / 1 and 0 / 1.
+
+**Who asks.** Each run file records the model's own verdict (`model`) beside the reading. As shipped,
+the model's "something else" alone asked 8 and 7 not-a-search inputs, and the code's doubts alone 8
+and 9; 5 and 4 got the note. Across the three sets the question back reached genuine searches 8 and 10
+times in 145, every time on the model's word alone: 1 and 2 on the not-a-search set, 5 and 4 questions
+about reading or mentioning an image, and 2 and 4 on the coding set. The code's doubts asked no genuine
+search in any run after §4.
 
 ## 7. What it says
 
 - **#73 meets its bar** (§4). Coding questions reach `coding` four to five times as often, with
   documents and web development held. On that set the question back reached 1 and 5 of the 80
-  questions (variant E); 1 and 2 of them reached their surface after it.
+  questions (variant E); 1 and 2 of them reached their surface after it. The shipped code reads the
+  same set alike (§6: 33 and 32 of 40).
 - **#113 misses both of its bars.** Requests to make an image go from 0 to 10 of 15 told "not
-  measured" at §5, and 7 of 15 after the review's safety fix (§6). Requests to read an image reach
-  `vision` as often as at the baseline (8 of 10), but some of them only after the question back.
+  measured" at §5, and 7 of 15 in the code that ships, after the reviews narrowed the rule to `vision`
+  (§6). Of the rest, 3 are ranked on `web-dev` as if measured, where the rule does not reach. Requests
+  to read an image reach `vision` as often as at the baseline (8 of 10), up to 6 of them only after the
+  question back. No other question is overridden.
 - **#66 holds its false-positive bound and misses its catch bar.** No genuine search was given the
   note. One and two of 40 on its own set were asked, inside the bound of 4; across all three sets (the
   coding set at `4373dae`, the other two at `da48707`) the question back reached genuine searches 5
@@ -155,8 +171,9 @@ genuine search.
   capital of Australia" a model search, as it did in M17.
 - **The cost of the question back is real, and it is the model's.** At §5, of the 21 and 20 caught,
   the model's "something else" alone asked 9 and 8, the code's doubts alone 8 and 8, and 4 and 4 got
-  the note. Every genuine search asked, on every set, was asked on the model's word alone, most of
-  them questions about reading an image.
+  the note. Every genuine search asked, on every set, was asked on the model's word alone: 8 and 10
+  times in 145 as shipped, most of them questions about reading an image. If the model's word alone
+  did not ask, no genuine search would be asked, and 8 and 7 of the 21 and 20 catches would be lost.
 - **Three variants were run per problem.** By the plan and D-169 clause 6, the work stops, and the
   pull request asks the owner whether to ship what holds.
 
