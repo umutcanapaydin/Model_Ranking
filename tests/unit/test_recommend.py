@@ -312,6 +312,7 @@ def test_a_gap_wider_than_the_threshold_is_not_disclosed_as_a_close_call() -> No
     # both are on the frontier -- the branch is REACHED, and must decline to fire.
     assert rec.frontier_size > 1
     assert rec.close_call is None
+    assert rec.close_call_fact is None, "a fact with no sentence: the app would say a tie the engine did not"
 
 
 def test_a_stale_secondary_does_not_grade_up() -> None:
@@ -393,6 +394,8 @@ def test_close_call_is_disclosed() -> None:
     assert rec is not None
     assert rec.close_call is not None
     assert "is only 0.9 points behind" in rec.close_call
+    # D-176 (M18-W2): the sentence's values, so the app can say it in the reader's language.
+    assert rec.close_call_fact == {"model": "Gemini 3 Flash", "behind_by": 0.9, "unit": "points"}
 
 
 def test_an_equal_score_at_a_higher_price_is_not_a_close_call() -> None:

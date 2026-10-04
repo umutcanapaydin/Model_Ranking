@@ -499,3 +499,41 @@ final class CombinedListLanguageTests: OfflineTestCase {
                        "Bu panoların hepsinde yer alan bir model yok. Liste için yukarıdan bir panoyu çıkar.")
     }
 }
+
+/// #96 (M18-W1 review K4): the failure screen's title and address line spoke the reader's language and
+/// the sentences under them did not.
+final class FailureLanguageTests: OfflineTestCase {
+    private let every: [EngineError] = [
+        .unreachable("refused"), .timedOut(seconds: 15), .insecureTransport, .offline,
+        .refused(status: 503, code: "unavailable", message: "The evidence database is unavailable."),
+        .undecodable("x"),
+    ]
+
+    func testEveryFailureSaysWhatHappenedInBothLanguages() {
+        XCTAssertEqual(EngineError.unreachable("x").errorDescription(.turkish), "Motor yanıt vermiyor.")
+        XCTAssertEqual(EngineError.timedOut(seconds: 15).errorDescription(.turkish),
+                       "Motor 15 saniye içinde yanıt vermedi.")
+        for error in every {
+            XCTAssertEqual(error.errorDescription(.english), error.errorDescription,
+                           "the English sentence moved: \(error)")
+            XCTAssertNotNil(error.errorDescription(.turkish))
+        }
+    }
+
+    func testEveryRemedyIsInBothLanguagesAndTheEnginesRefusalIsNotRepeated() {
+        XCTAssertEqual(EngineError.offline.recovery(.turkish),
+                       "Bu cihazın internet bağlantısı yok. Yeniden bağlan ve tekrar dene.")
+        for error in every {
+            XCTAssertEqual(error.recovery(.english), error.recovery, "the English remedy moved: \(error)")
+            XCTAssertEqual(error.recovery(.turkish) == nil, error.recovery == nil,
+                           "a remedy exists in one language only: \(error)")
+        }
+    }
+
+    /// The engine's own refusal is shown as the engine sent it (#96): it is the engine's sentence,
+    /// and this app has no fact to compose it from.
+    func testTheEnginesRefusalIsShownAsSent() {
+        let refusal = EngineError.refused(status: 503, code: "unavailable", message: "Down for a rebuild.")
+        XCTAssertEqual(refusal.errorDescription(.turkish), "Down for a rebuild.")
+    }
+}

@@ -9,10 +9,9 @@
 //  of a `why_fact` or a `trade_off_fact`, which is what makes the two languages two renderings of
 //  one truth rather than two translations that drift.
 //
-//  **What is NOT here, stated so the gap is not mistaken for completeness (D-136 scope):** the
-//  notices — staleness, effort mix, undated evidence, near-ties, unavailable surfaces — keep
-//  English prose from the engine. They are disclosures, they are longer, and doing them badly is
-//  worse than doing them later.
+//  The notices — staleness, effort mix, undated evidence, near-ties, unavailable surfaces — were
+//  D-136's recorded remainder and kept the engine's English until M18-W2. They are composed in
+//  `Notices.swift` now, from facts, the same way (D-176).
 
 import Foundation
 
@@ -627,5 +626,43 @@ extension UIText {
 
     static func placeOn(_ benchmark: String, place: Int, _ language: Language) -> String {
         language == .turkish ? "\(benchmark) listesinde #\(place)" : "#\(place) on \(benchmark)"
+    }
+}
+
+// MARK: - M18-W2 (#96): the failure screen's sentences
+
+extension EngineError {
+    /// What happened, in the reader's language. English is `errorDescription` itself, so the two
+    /// cannot drift; the engine's own refusal is shown as it sent it, in either language.
+    func errorDescription(_ language: Language) -> String? {
+        guard language == .turkish else { return errorDescription }
+        switch self {
+        case .unreachable: return "Motor yanıt vermiyor."
+        case let .timedOut(seconds): return "Motor \(seconds) saniye içinde yanıt vermedi."
+        case .insecureTransport: return "Bağlantı şifreli olmadığı için reddedildi."
+        case .offline: return "Bu cihazın ağ bağlantısı yok."
+        case let .refused(_, _, message): return message
+        case .undecodable: return "Motorun cevabı bu uygulamanın okuyabildiği biçimde değildi."
+        }
+    }
+
+    /// What the person holding the phone can do, in their language. `nil` exactly where `recovery` is.
+    func recovery(_ language: Language) -> String? {
+        guard language == .turkish else { return recovery }
+        switch self {
+        case .unreachable:
+            return "Bu soruları cevaplayan servise şu anda ulaşılamıyor. Biraz sonra tekrar dene."
+        case .timedOut:
+            return "Çok yavaş cevap verdi. Tekrar denemek genellikle işe yarar."
+        case .insecureTransport:
+            return "Bu bağlantı şifreli olmadığı için reddedildi. Bu, telefonun seni koruması; buradan "
+                + "düzeltebileceğin bir hata değil."
+        case .offline:
+            return "Bu cihazın internet bağlantısı yok. Yeniden bağlan ve tekrar dene."
+        case .refused:
+            return nil
+        case .undecodable:
+            return "Uygulamanın bu sürümü gönderilen cevabı okuyamadı. Çözüm, uygulamayı güncellemek."
+        }
     }
 }

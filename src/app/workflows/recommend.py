@@ -199,6 +199,9 @@ class Recommendation:
     eligible_count: int
     frontier_size: int
     close_call: str | None
+    # D-176 (M18-W2): the values `close_call` quotes, so a client says it in the reader's language
+    # (D-136's remainder). Present exactly when `close_call` is.
+    close_call_fact: dict[str, object] | None
     effort_mix_notice: str | None  # M5: comparisons across unequal effort are DISCLOSED
     stale_notice: str | None  # REQ-REC-006: primary source health, never hidden
     picks: tuple[Pick, ...]
@@ -511,6 +514,7 @@ def recommend(
     cheap = first_cheapest(floor_pool or rows)
 
     close_call: str | None = None
+    close_call_fact: dict[str, object] | None = None
     if len(frontier) > 1:
         gap = quality.score - frontier[1].score  # RAW: the threshold decision
         shown = shown_gap(quality.score, frontier[1].score)
@@ -520,6 +524,7 @@ def recommend(
                 f"{frontier[1].model} {tie} — the gap is within the margin of error and either "
                 "choice is defensible."
             )
+            close_call_fact = {"model": frontier[1].model, "behind_by": shown, "unit": spec.score_unit}
 
     unit = spec.score_unit
     # Computed ONCE, before either sentence, because D-136's claim is that the prose is DERIVED.
@@ -614,6 +619,7 @@ def recommend(
         eligible_count=len(rows),
         frontier_size=len(frontier),
         close_call=close_call,
+        close_call_fact=close_call_fact,
         effort_mix_notice=effort_mix_notice([p.effort for p in picks], spec),
         stale_notice=_stale_notice(conn, spec),
         picks=picks,

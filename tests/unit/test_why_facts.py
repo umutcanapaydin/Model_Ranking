@@ -128,3 +128,32 @@ def test_the_shipped_artifact_is_what_was_measured(client: TestClient) -> None:
     If it is missing, every parametrised case above passes vacuously on an empty picks list."""
     assert Path("advisor.db").is_file()
     assert _picks(client, "coding", "unlimited"), "no picks: the assertions above tested nothing"
+
+
+@pytest.mark.parametrize("task", ["coding", "agentic-coding", "assistant", "everyday", "expert",
+                                  "mathematics", "abstract", "vision", "search"])
+def test_a_close_call_carries_the_values_it_quotes(client: TestClient, task: str) -> None:
+    """D-176 (M18-W2): the close call was the one notice under a pick a Turkish reader met in English
+    (#63 finding 2). Its fact names the runner-up and the gap, and the sentence quotes exactly those."""
+    answers = client.get("/v1/recommendations", params={"task": task}).json()["answers"]
+    for answer in answers:
+        prose, fact = answer.get("close_call"), answer.get("close_call_fact")
+        assert (prose is None) == (fact is None), f"{answer['surface']}: {prose!r} beside {fact!r}"
+        if prose is None:
+            continue
+        assert prose.startswith(fact["model"]), (prose, fact)
+        assert set(fact) == {"model", "behind_by", "unit"}, fact
+        if fact["behind_by"]:
+            assert f"{fact['behind_by']:.1f} {fact['unit']} behind" in prose, (prose, fact)
+        else:
+            assert "is level" in prose, (prose, fact)
+
+
+def test_some_surface_has_a_close_call_today(client: TestClient) -> None:
+    """Fixture blindness guard for the test above: on an artifact with no close call at all, every
+    parametrised case passes having compared nothing."""
+    found = [answer for task in ("coding", "agentic-coding", "assistant", "everyday", "expert",
+                                 "mathematics", "abstract", "vision", "search")
+             for answer in client.get("/v1/recommendations", params={"task": task}).json()["answers"]
+             if answer.get("close_call")]
+    assert found, "no surface has a close call on this artifact"

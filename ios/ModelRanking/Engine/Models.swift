@@ -105,6 +105,8 @@ struct Answer: Decodable, Identifiable {
     let unavailableReason: String?
 
     let closeCall: String?
+    /// D-176 (M18-W2): the values `closeCall` quotes, so `Notices.swift` says it in either language.
+    let closeCallFact: CloseCallFact?
     let staleNotice: String?
     let effortMixNotice: String?
     let rankingEffort: String?
@@ -129,6 +131,7 @@ struct Answer: Decodable, Identifiable {
         case frontierSize = "frontier_size"
         case unavailableReason = "unavailable_reason"
         case closeCall = "close_call"
+        case closeCallFact = "close_call_fact"
         case staleNotice = "stale_notice"
         case effortMixNotice = "effort_mix_notice"
         case rankingEffort = "ranking_effort"

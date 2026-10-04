@@ -105,7 +105,7 @@ CODING_INTENT: tuple[str, ...] = ("agentic-coding", "coding")
 #:
 #: "plans" also became "models" here. The engine ranks MODELS on these surfaces; plans are the
 #: subscription CLI's subject, and the word had been copied across (council finding, M11).
-ORDERING_NOTE = (
+ORDERING_NOTE = (  # D-176: Notices.swift holds a copy, held equal by a test
     "No position here means anything: neither coding surface leads the other, and the one you "
     "chose is shown first only because you chose it. They rank different sets of models on "
     "different evidence, and each states its own weakness."
@@ -930,6 +930,7 @@ PUBLIC_ANSWER_FIELDS = frozenset(
         "eligible_count",
         "frontier_size",
         "close_call",
+        "close_call_fact",  # D-176
         "effort_mix_notice",
         "stale_notice",
         "picks",

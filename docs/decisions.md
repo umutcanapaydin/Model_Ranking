@@ -3522,3 +3522,40 @@ lifted the simulator restriction on 2026-10-04.
 - Or a UI suite that fails on the model's mood, and is then ignored.
 
 **Revisit when:** CI gains a macOS runner with a simulator, or a second screen needs the same harness.
+
+## D-176 — The notices are composed by the app from facts; the close call gains its fact
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29; M18-W2
+· **Date:** 2026-10-04 · from #63 (finding 2). **Moves the `/v1` answer payload, additively.**
+
+**Context.** D-136 had the app compose the two sentences under a pick from `/v1`'s facts, and left the
+notices in the engine's English as a recorded remainder. M18-W2 reproduced #63 on the Turkish screen:
+the coding answer shows five English sentences (stale evidence, effort mix, close call, undated
+evidence, the ordering note) and the "N models ranked on X" line, and the stale one names internal
+source ids (`epoch_swe_bench_verified`, `swebench`).
+
+**Decision.**
+1. **The app composes every notice, in both languages, in `Notices.swift`.** It uses served facts
+   only: `source_health`'s rows, the `evidence_dating` kind, the picks' efforts, the answer's ranking,
+   and `close_call_fact` (clause 2). The engine still decides WHETHER a notice is said; the app
+   decides how. D-135's classification and deduplication are unchanged.
+2. **`close_call_fact` is added to each answer:** `{"model", "behind_by", "unit"}`, the values the
+   `close_call` sentence quotes. It is present exactly when `close_call` is. The English sentence
+   stays.
+3. **The ordering note carries no values.** The app keeps a copy of the engine's English sentence, a
+   test holds the copy equal to `ORDERING_NOTE`, and the Turkish is its translation.
+4. **The fallback is D-136's.** A missing fact, an unknown kind, or a close-call model that the
+   answer's own ranking does not list shows the engine's English. Nothing is dropped.
+5. **Source ids are not said.** The stale notice says how old the evidence is and how many sources
+   are old, not what the engine calls its feeds.
+6. **On an anchored Elo surface, the close call's gap is said out of 100,** the rule
+   `leaderSentence` follows (D-143, review M-2).
+
+**The rejected alternative.** `?lang=tr` on the engine. D-136 refused it for the sentences under a
+pick; the same reasons hold here.
+
+**Mitigation if violated.** A Turkish reader meets English warnings: the loudest sentences on the
+screen are the ones they cannot read.
+
+**Revisit when:** a third language is added, or the engine adds a notice. A new notice needs its
+fact, as clause 2 did.

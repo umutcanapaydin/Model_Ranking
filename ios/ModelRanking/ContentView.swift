@@ -216,21 +216,21 @@ struct ContentView: View {
                             // field took that place, so it moved to where the answers START rather
                             // than being dropped — it is about how the ANSWERS are ordered, and
                             // that is where a reader needs it (REQ-APP-003).
-                            Text(orderingNote)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+                            // D-176: the engine still decides whether the note is said.
+                            if !orderingNote.isEmpty {
+                                Text(orderingSentence(language))
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         if !answer.ranking.isEmpty {
                             // `ranking_effort` is part of what the number MEANS: agentic-coding
                             // ranks at a named comparable level, and a score shown without it
                             // invites the reader to compare it against one measured elsewhere.
-                            Text(
-                                answer.rankingEffort.map {
-                                    "\(answer.ranking.count) models ranked on "
-                                        + "\(answer.primaryBenchmark), at \($0) effort"
-                                } ?? "\(answer.ranking.count) models ranked on "
-                                    + "\(answer.primaryBenchmark)"
-                            )
+                            Text(rankedOnSentence(
+                                count: answer.ranking.count, benchmark: answer.primaryBenchmark,
+                                effort: answer.rankingEffort, language
+                            ))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                         }
@@ -617,8 +617,12 @@ struct ContentView: View {
     private func emptyAnswer(_ answer: Answer) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(UIText.noPicks(language)).font(.headline)
-            if let reason = answer.unavailableReason {
-                Text(reason).font(.subheadline).foregroundStyle(.secondary)
+            if answer.unavailableReason != nil {
+                // D-176: which of the engine's two reasons, said in the reader's language.
+                Text(unavailableSentence(
+                    rankedNothing: answer.ranking.isEmpty, benchmark: answer.primaryBenchmark, language
+                ))
+                .font(.subheadline).foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 4)
@@ -636,13 +640,9 @@ struct ContentView: View {
         // `source_health.notice` and `evidence_dating_note` both saying the benchmark publishes no
         // evaluation dates — and the one notice that was real and actionable, SWE-bench at 179
         // days, wore exactly the same triangle as the five that can never clear.
-        let items = classifyDisclosures(
-            stalenessNotice: answer.sourceHealth?.notice ?? answer.staleNotice,
-            ageDays: (answer.sourceHealth?.sources ?? []).map(\.ageDays),
-            datingNote: answer.evidenceDatingNote,
-            effortMixNotice: answer.effortMixNotice,
-            closeCall: answer.closeCall
-        )
+        //
+        // D-176 (M18-W2): and each in the reader's language, composed from the served facts.
+        let items = answerDisclosures(answer, anchor: category(for: answer)?.scoreAnchor, language)
         return VStack(alignment: .leading, spacing: 8) {
             ForEach(items, id: \.text) { item in
                 switch item.weight {
@@ -670,8 +670,8 @@ struct ContentView: View {
             Label(UIText.noAnswer(language), systemImage: "exclamationmark.triangle")
         } description: {
             VStack(spacing: 12) {
-                Text(error.errorDescription ?? "")
-                if let recovery = error.recovery {
+                Text(error.errorDescription(language) ?? "")
+                if let recovery = error.recovery(language) {
                     Text(recovery).font(.footnote).foregroundStyle(.secondary)
                 }
                 // M18-W1 review B2: the address the app asked, so a wrong one is visible.

@@ -53,6 +53,9 @@ ANSWER_KEYS = {
     "eligible_count",
     "frontier_size",
     "close_call",
+    # ADDED at M18-W2 by D-176: the close call's values, so the app composes it in either language
+    # (D-136's remainder). Additive; the English sentence stays.
+    "close_call_fact",
     "effort_mix_notice",
     "stale_notice",
     "unavailable_reason",

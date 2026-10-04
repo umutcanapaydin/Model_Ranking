@@ -1,0 +1,2 @@
+/* #95: the text iOS shows when it asks for local-network access, in Turkish. The English is in Config/Info.plist. */
+"NSLocalNetworkUsageDescription" = "Model Ranking, model sıralamalarını ev ağın üzerinden Mac’indeki motordan okur. Yazdığın hiçbir şey gönderilmez.";

@@ -121,6 +121,19 @@ def test_the_disclosure_view_is_actually_reached_from_the_rendered_screen() -> N
     )
 
 
+def test_the_apps_copy_of_the_ordering_note_is_the_engines() -> None:
+    """D-176 (M18-W2): the app says Ruling A's ordering note in both languages from its own copy of
+    the engine's sentence, because the note carries no values to compose from. The copy must be the
+    sentence the engine sends, or the Turkish beside it translates a sentence nobody serves."""
+    from app.adapter.main import ORDERING_NOTE
+
+    source = (CLIENT / "Engine/Notices.swift").read_text(encoding="utf-8")
+    match = re.search(r"let orderingNoteEnglish = ((?:\s*\+?\s*\"[^\"]*\")+)", source)
+    assert match, "Notices.swift no longer holds its copy of the ordering note"
+    copy = "".join(re.findall(r'"([^"]*)"', match.group(1)))
+    assert copy == ORDERING_NOTE
+
+
 # --- REQ-APP-005: the client computes no ranking value of its own -------------------------------
 
 
@@ -285,6 +298,14 @@ SORTING_PERMITTED = {
     ),
     ("FrontDoor.swift", "entries.indices"): (
         "M14-W3, REQ-GAP-001: when the register is full, the least-asked entry makes room."
+    ),
+    ("Notices.swift", "ages"): (
+        "D-176: the ages in days of a board's stale sources, smallest first, so the notice can say "
+        "how old the freshest evidence is. Never a model, a score or an answer."
+    ),
+    ("Notices.swift", "distinct"): (
+        "D-176: the effort levels the notice names, in the order the engine names them "
+        "(`sorted(distinct)` in recommend.effort_mix_notice)."
     ),
 }
 
