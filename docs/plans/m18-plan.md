@@ -216,3 +216,8 @@ hook. It delivered its whole scope, #74 and #56 included, and #95 and #96 from W
 became the filter "Only models with an API or open weights" (D-175). It filed #112 (raw model names,
 the engine's data), #113 (a drawing request read as image reading, for W3), #114 (a test-order
 defect on `main`) and #115 (the Turkish permission prompt seen on a phone, for W6).
+
+**Amendment (2026-10-04, W6's own valve).** W6's P5, the compiler-level gates (#110, #107, #60,
+#85), moves to M19. Each needs a design of its own, and none blocks a first release on the owner's
+devices. The security-invariants list (#89) names each as a gap, with its issue, for the closure's
+security seat.

@@ -60,6 +60,10 @@ security pass runs on the slice; the milestone closure's security seat reads it.
 design, and none blocks a first release on the owner's own devices. If it is cut, its issues move to
 M19, and the milestone plan records the move.
 
+**The valve was used (2026-10-04).** P5 moves to M19. P1 to P4 already make the wave the
+milestone's largest, and each P5 issue needs a compiler-level design of its own. The invariants
+list names each one as a gap (G-1 to G-3), so the closure's security seat sees them.
+
 **Not in this wave.**
 - The owner's workflow edits (#81): proposed as a diff only, since `.github/workflows/**` is the
   owner's.
