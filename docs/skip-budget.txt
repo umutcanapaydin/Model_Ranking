@@ -28,6 +28,9 @@
 #    7  need the owner-fetched Epoch bundle (EPOCH_DATA_DIR)
 #    1  needs Xcode's compiler: the declaration gate on its compiled fixture (`test_client_decl_gate.py`,
 #       M18-W5, #51). `make client-decls` runs the same fixture wherever Xcode is.
-# The owner's Mac skips 25 of these, not 77, because it has the database. Lower this when CI builds
+#    1  more at M18-W7 (#112, the W7 review's M4): every model the served artifact names, named as
+#       this code would (`test_display_names.py`). The rules it applies are held where CI runs too:
+#       the same file's tests over the name table and Anthropic's word order.
+# The owner's Mac skips 25 of these, not 78, because it has the database. Lower this when CI builds
 # an artifact from fixtures (W-108's remedy), not by skipping less honestly.
-77
+78

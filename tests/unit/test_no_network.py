@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import socket
 import threading
 from pathlib import Path
@@ -86,24 +87,46 @@ def test_only_a_live_contract_test_steps_out_of_the_guard(monkeypatch: pytest.Mo
 
     from tests import conftest
 
-    step_out = conftest._live_contract_tests_may_reach_out.__wrapped__
-
     def lifted(path: str, value: str | None) -> bool:
         if value is None:
             monkeypatch.delenv("RUN_CONTRACT_TESTS", raising=False)
         else:
             monkeypatch.setenv("RUN_CONTRACT_TESTS", value)
-        steps = step_out(SimpleNamespace(node=SimpleNamespace(path=Path(path))))
-        try:
-            next(steps)
-            return bool(conftest._LIFTED.on)
-        finally:
-            steps.close()
-            left_lifted = bool(getattr(conftest._LIFTED, "on", False))
-            conftest._LIFTED.on = False
-            assert not left_lifted, "the guard was left lifted after the test"
+        item = SimpleNamespace(path=Path(path))
+        setup = conftest.pytest_runtest_setup(item)  # the hookwrappers, driven as pytest drives them
+        next(setup)
+        on = bool(conftest._LIFTED["on"])
+        setup.close()
+        teardown = conftest.pytest_runtest_teardown(item, None)
+        next(teardown)
+        with contextlib.suppress(StopIteration):
+            next(teardown)
+        left_lifted = bool(conftest._LIFTED["on"])
+        conftest._LIFTED["on"] = False
+        assert not left_lifted, "the guard was left lifted after the test"
+        return on
 
     assert lifted("tests/integration/test_x_contract.py", "1")
     assert not lifted("tests/unit/test_x.py", "1")
     assert not lifted("tests/integration/test_x_contract.py", None)
     assert not lifted("tests/integration/test_x_contract.py", "0")
+
+
+def test_a_live_contract_test_may_reach_out_from_any_thread(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The M18 repo review's M1: the step-out was per thread, and a contract test's downloads run on
+    a worker thread, so every live contract test failed in CI. The rule is read here directly; no
+    real request is made."""
+    from tests import conftest
+
+    monkeypatch.setenv("RUN_CONTRACT_TESTS", "1")
+    assert conftest.is_live_contract_test("tests/integration/test_x.py")
+    assert not conftest.is_live_contract_test("tests/unit/test_x.py")
+    monkeypatch.setitem(conftest._LIFTED, "on", True)
+    outcome: list[object] = []
+    worker = threading.Thread(target=lambda: outcome.append(conftest._refuse_unless_local("example.com", "x")))
+    worker.start()
+    worker.join(5)
+    assert outcome == [None], "a worker thread was refused while the step-out was on"
+    monkeypatch.setitem(conftest._LIFTED, "on", False)
+    with pytest.raises(NetworkReachedError):
+        conftest._refuse_unless_local("example.com", "looked up")
