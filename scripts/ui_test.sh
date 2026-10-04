@@ -4,6 +4,7 @@
 # Builds the app for 127.0.0.1:$UI_TEST_PORT, starts an engine there from a COPY of the artifact
 # (MODEL_RANKING_DB, or advisor.db in the repo), and runs the target in two passes: every class but
 # FailureScreenTests with the engine up, then FailureScreenTests after the engine is stopped.
+# ScreenAuditTests (#63) captures and asserts nothing, so it runs only when named in UI_TEST_ONLY.
 # Not a leg of check-fast, gate or CI: none of them has a simulator and a built artifact. A wave that
 # changes a screen cites a run of this in its close record. UI_TEST_ONLY=Class[/test] runs one pass.
 set -u
@@ -62,7 +63,8 @@ if [ -n "$ONLY" ]; then
   case "$ONLY" in "$OFFLINE"*) stop_engine ;; esac
   xcode test-without-building only -only-testing:"ModelRankingUITests/$ONLY"; online=$?
 else
-  xcode test-without-building online -skip-testing:"ModelRankingUITests/$OFFLINE"; online=$?
+  xcode test-without-building online -skip-testing:"ModelRankingUITests/$OFFLINE" \
+    -skip-testing:ModelRankingUITests/ScreenAuditTests; online=$?
   stop_engine
   xcode test-without-building offline -only-testing:"ModelRankingUITests/$OFFLINE"; offline=$?
 fi
