@@ -39,6 +39,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import math
 import os
 import re
 import sqlite3
@@ -56,7 +57,7 @@ from app.clients.epoch_board import EpochBoard, parse_board, read_bundle_file
 from app.clients.protocols import SourceError
 from app.workflows import access
 from app.workflows.epoch import committed_last_verified
-from app.workflows.ingest import RunContext, SourceReport, _store_scores
+from app.workflows.ingest import RunContext, SourceReport, _calendar_date, _store_scores
 from app.workflows.plans import ingest_plans
 from app.workflows.rank import build_price_medians
 from app.workflows.registry import (
@@ -312,6 +313,12 @@ class Carry:
             rows_by_table = _live_rows(conn, live, source)
             if not any(rows for _, rows in rows_by_table.values()):
                 return "absent"
+            # #92 (N2): carried rows meet the rules every client's rows meet since the M17 closure.
+            # A date is a calendar date, and a source whose live rows hold a score that is not finite
+            # is not carried: it fails as an unreachable source would.
+            rows_by_table, sound = _as_stored(rows_by_table)
+            if not sound:
+                return "absent"
             age, stamp = self.age_days(live, source)
         except sqlite3.Error:
             return "absent"
@@ -359,6 +366,27 @@ def _live_rows(conn: sqlite3.Connection, live: sqlite3.Connection,
         rows_by_table[table] = (shared, live.execute(
             f"SELECT {select} FROM {table} WHERE source = ?", (source,)).fetchall())  # noqa: S608
     return rows_by_table
+
+
+def _as_stored(
+    rows_by_table: dict[str, tuple[list[str], list[tuple[object, ...]]]],
+) -> tuple[dict[str, tuple[list[str], list[tuple[object, ...]]]], bool]:
+    """`rows_by_table` with each score's `run_date` a calendar date, and whether every score is finite."""
+    shared, rows = rows_by_table.get("scores", ([], []))
+    if not rows:
+        return rows_by_table, True
+    score_at, date_at = shared.index("score"), shared.index("run_date") if "run_date" in shared else -1
+    fixed: list[tuple[object, ...]] = []
+    for row in rows:
+        score = row[score_at]
+        if not isinstance(score, (int, float)) or not math.isfinite(score):
+            return rows_by_table, False
+        values = list(row)
+        stamp = values[date_at] if date_at >= 0 else None
+        if isinstance(stamp, str):
+            values[date_at] = _calendar_date(stamp)
+        fixed.append(tuple(values))
+    return {**rows_by_table, "scores": (shared, fixed)}, True
 
 
 def _fall_back(conn: sqlite3.Connection, carry: Carry | None, source: str) -> str:

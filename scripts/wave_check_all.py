@@ -55,6 +55,43 @@ def _front(text: str, field: str) -> str | None:
     return match.group(1) if match else None
 
 
+#: #82: the first milestone whose planned waves must each have a close record (GPF-001: a control
+#: does not grade what was written before it existed; M17-W1's missing close is in its report).
+EXPECTED_CLOSES_FROM = 18
+WAVE_HEADING = re.compile(r"^#{2,4}\s*W(\d+)\b(.*)$", re.M)
+
+
+def missing_closes(root: pathlib.Path) -> list[str]:
+    """Each wave a CLOSED milestone's plan names that has no close record, is not marked dropped in
+    the plan, and has no `wave-close` row in `docs/control-events.csv` (#82). A milestone is closed
+    when its closure report exists; an open one still has waves in flight."""
+    ledger = root / "docs" / "control-events.csv"
+    excused = set()
+    if ledger.is_file():
+        for line in ledger.read_text(encoding="utf-8").splitlines():
+            cells = [c.strip() for c in line.split(",")]
+            if len(cells) >= 2 and cells[0] == "wave-close":
+                excused.add(cells[1].lower())
+    missing: list[str] = []
+    for report in sorted((root / "docs").glob("closure-report-m*.md")):
+        found = re.fullmatch(r"closure-report-m(\d+)\.md", report.name)
+        if found is None or int(found.group(1)) < EXPECTED_CLOSES_FROM:
+            continue
+        milestone = int(found.group(1))
+        plan = root / "docs" / "plans" / f"m{milestone}-plan.md"
+        if not plan.is_file():
+            missing.append(f"m{milestone} closed with no plan at {plan.relative_to(root)}; its waves cannot be counted")
+            continue
+        for wave, rest in WAVE_HEADING.findall(plan.read_text(encoding="utf-8")):
+            if "dropped" in rest.lower() or f"m{milestone}-w{wave}" in excused:
+                continue
+            if not (root / "docs" / "plans" / f"m{milestone}-wave-{wave}-close.md").is_file():
+                missing.append(f"m{milestone} W{wave} is in the plan and has no close record "
+                               f"(docs/plans/m{milestone}-wave-{wave}-close.md); close it, mark it "
+                               "dropped in the plan, or record a `wave-close` row in the ledger")
+    return missing
+
+
 def _load_wave_check():
     """Import the sibling validator by path; `scripts/` is not a package."""
     spec = importlib.util.spec_from_file_location("wave_check", ROOT / "scripts/wave_check.py")
@@ -110,14 +147,16 @@ def main() -> int:
         if code != 0:
             failed.append(f"{record.relative_to(ROOT)}\n{captured.getvalue()}".rstrip())
 
+    unclosed = missing_closes(ROOT)
     for message in failed:
         print(message)
-    for message in dodged:
+    for message in [*dodged, *unclosed]:
         print(f"wave-check-all: {message}")
 
-    if failed or dodged:
+    if failed or dodged or unclosed:
         print(
-            f"wave-check-all FAIL: {len(failed)} record(s) failed, {len(dodged)} without the stamp"
+            f"wave-check-all FAIL: {len(failed)} record(s) failed, {len(dodged)} without the stamp, "
+            f"{len(unclosed)} planned wave(s) with no close"
         )
         return 1
 
