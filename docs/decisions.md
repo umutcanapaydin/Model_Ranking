@@ -3486,3 +3486,39 @@ replaced the owner's launchd service with a scratch copy.
 the owner's machine.
 
 **Revisit when:** DevFlow's `/close-wave` says this itself (the finding is handed back on #52).
+
+
+## D-175 — The screen is tested by a committed UI target, run locally, with scripted routing
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29; M18-W2
+· **Date:** 2026-10-04 · from #69, #63.
+
+**Context.** No committed test drives the iOS screen (#69). M17-W5 found two defects only by driving
+the simulator through a scratch XCUITest target: a chip that could not be restored, and a row that
+took no tap. M17's UI review of `cce2ced` (#63) was made the same way and never committed. The owner
+lifted the simulator restriction on 2026-10-04.
+
+**Decision.**
+1. **A UI test target, `ModelRankingUITests` (`ios/UITests/`),** drives the screen's paths in the
+   simulator. Its bundle id lives in `ios/Config/UITests.xcconfig`; the project carries none.
+2. **It runs locally, through `make ui-test`.**
+   - It starts an engine on 127.0.0.1:8090, from a copy of the served artifact.
+   - It builds the app for that address (`ENGINE_URL` on the command line), runs the target on the
+     iPhone 17 Pro simulator, and stops the engine.
+   - It is not part of `check-fast`, `gate` or CI, which have no simulator, no artifact, or both.
+   - A wave that changes a screen cites a `make ui-test` run in its close record.
+3. **Routing in a UI test is scripted.**
+   - A Debug-only launch argument (`-UITestRouting`) replaces the on-device model tier with a fixed
+     table: question text to the model's answer (surface, language, domain).
+   - That answer goes through `ModelOutputBoundary` exactly as the model's does, so a UI test cannot
+     reach a choice the boundary refuses.
+   - Release builds compile no such hook, and a test holds that.
+   - The real model's reading is measured by the router probe, not by UI tests.
+4. **Screenshots are evidence, not baselines.** The target saves what it sees for the record (#63). It
+   asserts on the accessibility tree, never on pixels.
+
+**Mitigation if violated.**
+- A screen change ships unseen: the M17-W5 defects found only by hand.
+- Or a UI suite that fails on the model's mood, and is then ignored.
+
+**Revisit when:** CI gains a macOS runner with a simulator, or a second screen needs the same harness.
