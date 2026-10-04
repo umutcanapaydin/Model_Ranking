@@ -513,6 +513,7 @@ def test_nothing_in_the_repository_installs_the_retired_refresher() -> None:
     offenders = [
         str(path) for folder in (REPO / "scripts", REPO / "deploy") if folder.is_dir()
         for path in sorted(folder.iterdir())
-        if path.is_file() and "com.hcs.modelranking.refresh" in path.read_text(encoding="utf-8", errors="replace")
+        if path.is_file() and path.suffix != ".md"  # what runs or installs, not what describes it
+        and "com.hcs.modelranking.refresh" in path.read_text(encoding="utf-8", errors="replace")
     ]
     assert offenders == []

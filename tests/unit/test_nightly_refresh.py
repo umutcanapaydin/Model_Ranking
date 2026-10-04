@@ -436,21 +436,6 @@ def test_the_schedule_rechecks_the_switch_when_it_starts(monkeypatch: pytest.Mon
     assert nightly.NightlyRefresh.from_environment(main.RELAXED_ENVS) is not None
 
 
-def test_the_retirement_script_removes_what_the_installer_installed() -> None:
-    """The owner retires launchd with `scripts/retire_refresh.sh` (D-154). Two paths in two scripts
-    are two accounts of one fact, pinned together the way the installer's are (W-096)."""
-    import plistlib
-
-    retire = Path("scripts/retire_refresh.sh").read_text(encoding="utf-8")
-    with Path("deploy/com.hcs.modelranking.refresh.plist").open("rb") as handle:
-        job = plistlib.load(handle)
-    wrapper_tail = job["ProgramArguments"][1].split("/Library/", 1)[1]
-    assert f'LABEL="{job["Label"]}"' in retire
-    assert f'WRAPPER="$HOME/Library/{wrapper_tail}"' in retire
-    # It refuses to leave a night with no refresher: the engine must say it refreshes first.
-    assert retire.index('"refresh"') < retire.index("launchctl bootout")
-
-
 # --- the M16-W2 review ---------------------------------------------------------------------------------
 
 def test_a_killed_cycle_shows_on_health_instead_of_the_last_good_one(tmp_path: Path) -> None:

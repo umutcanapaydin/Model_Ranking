@@ -16,11 +16,13 @@
 #       Their fixture-board halves run in CI (`test_floors.py`, `test_floor_served.py`). One more at
 #       M17-W5 (D-168, D-163): every board a question can select is one the artifact publishes
 #       (`test_refinements.py`, review M5); its declared-slice half runs in CI.
-#   16  contract tests against live upstreams; they run only with RUN_CONTRACT_TESTS=1. Two were
+#   18  contract tests against live upstreams; they run only with RUN_CONTRACT_TESTS=1. Two were
 #       added at M17-W2: the live parquet file of each slice config (`text`, `vision`) against its
 #       declared slices (`test_arena_openrouter_contract.py`). Six more at M17-W3: the same test now
 #       runs over every declared config, the six Agent Arena files included (wave review M1).
+#       Two more at M18-W4 (#79): the live Epoch bundle's declared boards and its
+#       `model_metadata.csv` (`test_epoch_bundle_contract.py`).
 #    7  need the owner-fetched Epoch bundle (EPOCH_DATA_DIR)
-# The owner's Mac skips 23 of these, not 73, because it has the database. Lower this when CI builds
+# The owner's Mac skips 25 of these, not 75, because it has the database. Lower this when CI builds
 # an artifact from fixtures (W-108's remedy), not by skipping less honestly.
-73
+75
