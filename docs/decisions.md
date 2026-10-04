@@ -3346,8 +3346,10 @@ branch). M18 holds it as follows; the measure is `docs/research/m18-w3-question-
   - any one of those three alone → a one-tap question back, "Did you mean to find a model for this?",
     which sends nothing until the reader taps "find a model" (the ranking, as routed) or "no" (the
     note). While it waits, no surface is shown.
-- **#113, in the same place.** A request to make or change an image is routed as unmeasured on every
-  tier, whatever surface was chosen: the model sent it to `vision`, which measures reading an image.
+- **#113, in the same place.** A request to make or change an image that a tier routed to `vision`,
+  which measures reading an image, is routed as unmeasured instead. A question routed to any other
+  surface is left alone: a question about code or a website that mentions an image is not overridden
+  (the wave's second code review, B4).
 - **Clause 6, restated for the question back.** On a held-out set, twice: at most 2 genuine searches
   get the note unasked, at most 4 are asked, and at least 80 % of the not-a-search inputs get the note
   or the question. Clause 6's "three failed attempts stop the work, and it goes back to the owner"
@@ -3357,9 +3359,16 @@ branch). M18 holds it as follows; the measure is `docs/research/m18-w3-question-
   the not-a-search held-out set, and its phrases reached the signals. That set and the first image set
   are tuning sets now, and fresh sets written by a new independent seat are the measure.
 - **Measured** (`docs/research/m18-w3-question-reading-probe-2026-10-04.md` §5, at `da48707`, twice):
-  no genuine search given the note, and one and two asked: the false-positive bound holds. 21 and 20
-  of 40 not-a-search inputs caught, against 32: the catch bar is missed; knowledge questions are the
-  gap (1 of 10). Requests to make an image: 10 of 15 told "not measured" (from 0), against 11.
+  - #66: no genuine search given the note, and one and two of 40 asked: the false-positive bound
+    holds. 21 and 20 of 40 not-a-search inputs caught, against 32: the catch bar is missed; knowledge
+    questions are the gap (1 of 10).
+  - #113 misses both bars. Requests to make an image: 10 and 10 of 15 told "not measured" (from 0),
+    against 11. Requests to read one reaching `vision`: 8 and 8 of 10, as at the baseline, against 9;
+    3 and 2 of them only after the question back.
+  - The question back costs genuine searches: 5 and 10 times in 145 across the three held-out sets,
+    every time on the model's "something else" alone, most of them questions about reading an image.
+  - After the second code review narrowed the image rule (B4), a run on the spent sets, informational
+    only (§6): 7 of 15 requests to make an image told "not measured"; #66 unchanged.
 
 ## D-170 — The engine runs as a launchd service, from a deployed release of `main`
 

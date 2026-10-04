@@ -16,14 +16,15 @@ configuration ran twice, because the model is not deterministic. Plan: `docs/pla
 
 ## 1. The sets (D-147 clause 5)
 
-**Held out, run once at the end:**
-- `coding_heldout_m18_questions.json`: 80 questions, half in Turkish;
-- `image_heldout_questions.json`: 30 questions, half in Turkish;
-- `notasearch_heldout_questions.json`: 80 questions (40 not a search, 36 genuine, 4 either way).
+**Held out, each run once:**
+- `coding_heldout_m18_questions.json`: 80 questions, half in Turkish, written by an independent seat
+  that read none of the router's wording. Measured in §4; it stands.
+- `notasearch_heldout_m18_questions.json` (90) and `image_heldout_m18_questions.json` (40): written by
+  a second independent seat after the first code review. Measured in §5.
 
-An independent seat wrote the first two from the surface list and the problem statements; it read
-none of the router's wording. The third was written by an independent seat for #66 in M17 and never
-run.
+**Retired to tuning** (the first code review's B2, §4): `notasearch_m17_heldout_questions.json` (80,
+written for #66 in M17; the author had read part of it) and `image_heldout_first_questions.json` (30,
+run once in §4).
 
 **Tuning:**
 - the M17 coding sets (`coding_heldout_m17_questions.json`, now tuning, and `coding_tuning_questions.json`);
@@ -50,6 +51,14 @@ run.
 | C | B, and the issue-73 coding wording and an image sentence | 20, 21 | 0 / 4, 0 / 2 | 28, 33 | 10, 10 | 0, 0 / 5, 5 |
 | D | C with the verdict generated last; making an image read in code | 26, 22 | 0 / 6, 0 / 7 | 33, 31 | 12, 11 | 5, 5 / 4, 4 |
 | E | D, and a sentence each for documents and for reading an image | 25, 27 | 0 / 7, 0 / 8 | 31, 29 | 16, 16 | 6, 6 / 4, 4 |
+| F | E with the first code review's fixes: narrower signals, an instruction a doubt (`55a1aef`) | 22, 23 | 0 / 7, 0 / 7 | — | — | 6, 6 / 4, 4 |
+
+F was run on the retired sets too: the first image set 12, 12 of 15 made and 10, 10 of 10 read; the
+M17 not-a-search set 27 and 24 of 40 caught, with 1 and 0 genuine searches asked. F is the review's
+correction for false positives, not a fourth tuning variant; it was not tuned toward a score.
+
+In every tuning run one genuine question routed to `assistant` came back with no answer from the model
+(`nil` in the run file), and was scored as a search; variant C has one ambiguous `nil` as well.
 
 What each step showed:
 - **The model alone flags little** (A): it calls injections, trivia and greetings "a model search",
@@ -88,12 +97,13 @@ Every row of every run had a reading (no `nil`: the model answered each question
 | set | measure | bar | run 1 | run 2 | baseline | met |
 |---|---|---|---:|---:|---:|---|
 | image (40) | requests to make an image told "not measured" (15) | 11 | 10 | 10 | 0, 0 | **no** |
-| | requests to read one reaching `vision` (10) | 9 | 8 | 8 | 8, 8 | **no** (unchanged) |
+| | requests to read one reaching `vision` (10) | 9 | 8 | 8 | 8, 8 | **no** |
+| | of those, reached only after the question back | — | 3 | 2 | 0, 0 | — |
 | | questions that only mention images, on their surface (15) | — | 5 | 6 | 4, 4 | — |
 | not a search (90) | genuine searches given the note unasked (40) | at most 2 | 0 | 0 | — | yes |
 | | genuine searches asked (40) | at most 4 | 1 | 2 | — | yes |
 | | genuine searches on their expected surface (40) | — | 28 | 29 | 24, 26 | — |
-| | not-a-search inputs given the note or asked (40) | 32 | 21 | 20 | 0, 0 | **no** |
+| | not-a-search inputs given the note or asked (40) | 32 | 21 | 20 | 0, 0 (5, 7 declined) | **no** |
 | | ambiguous inputs (10): read as a search / asked | — | 10 / 0 | 8 / 2 | — | — |
 
 **Not a search, by class (noted / asked):**
@@ -109,29 +119,54 @@ Every row of every run had a reading (no `nil`: the model answered each question
 went to `vision` in each run, and one to `assistant` or `document`; of the requests to read one, two went
 to `document` or `factuality` in each run, as at the baseline.
 
-## 6. What it says
+## 6. After the second code review (informational, on spent sets)
+
+The second code review (B4) found the image rule still overriding questions about code and websites
+that mention an image. It now overrides only a question routed to `vision`, with a narrower
+vocabulary (`2d5f86a`). Both fresh sets were spent by §5, so this run measures nothing held out; it
+shows what the safety fix cost, on the same questions:
+
+| set | measure | §5 run 1, 2 | after the fix, run 1, 2 |
+|---|---|---:|---:|
+| image | requests to make an image told "not measured" (15) | 10, 10 | 7, 7 |
+| | requests to read one reaching `vision` (10); asked first | 8 (3), 8 (2) | 8 (6), 8 (2) |
+| not a search | caught (40) | 21, 20 | 21, 19 |
+| | genuine searches noted / asked (40) | 0 / 1, 0 / 2 | 0 / 3, 0 / 2 |
+
+**Who asks.** Each run file records the model's own verdict (`model`) beside the reading. In these
+runs the model's "something else" alone asked 8 and 6 not-a-search inputs; it also asked 3 and 2
+genuine searches on the not-a-search set, 7 and 4 questions about reading or mentioning an image, and
+1 request to make one (run 1). The code's doubts alone asked 9 and 7 not-a-search inputs and no
+genuine search.
+
+## 7. What it says
 
 - **#73 meets its bar** (§4). Coding questions reach `coding` four to five times as often, with
-  documents and web development held.
-- **#113 improves and misses its bar by one.** Requests to make an image go from 0 to 10 of 15 told
-  "not measured"; requests to read one are where they were (8 of 10, as at the baseline). The bar of 9
-  was set against the first set's baseline of 10.
+  documents and web development held. On that set the question back reached 1 and 5 of the 80
+  questions (variant E); 1 and 2 of them reached their surface after it.
+- **#113 misses both of its bars.** Requests to make an image go from 0 to 10 of 15 told "not
+  measured" at §5, and 7 of 15 after the review's safety fix (§6). Requests to read an image reach
+  `vision` as often as at the baseline (8 of 10), but some of them only after the question back.
 - **#66 holds its false-positive bound and misses its catch bar.** No genuine search was given the
-  note; one and two were asked. Instructions, chit-chat and pasted content are mostly caught, as
-  questions back; knowledge questions are not (1 of 10). The model calls "what is the capital of
-  Australia" a model search, as it did in M17, and code cannot read trivia without also reading
-  genuine questions written as questions.
-- **The review's fixes cost catch.** Narrowed to stop false positives (B3, B4), the signals catch less
-  than variant E did on the tuning sets. That was the right trade by D-169: a genuine search that gets
-  the note gets no ranking.
+  note. One and two of 40 on its own set were asked, inside the bound of 4; across all three sets (the
+  coding set at `4373dae`, the other two at `da48707`) the question back reached genuine searches 5
+  and 10 times in 145. Instructions, chit-chat and
+  pasted content are mostly caught; knowledge questions are not (1 of 10). The model calls "what is the
+  capital of Australia" a model search, as it did in M17.
+- **The cost of the question back is real, and it is the model's.** At §5, of the 21 and 20 caught,
+  the model's "something else" alone asked 9 and 8, the code's doubts alone 8 and 8, and 4 and 4 got
+  the note. Every genuine search asked, on every set, was asked on the model's word alone, most of
+  them questions about reading an image.
 - **Three variants were run per problem.** By the plan and D-169 clause 6, the work stops, and the
   pull request asks the owner whether to ship what holds.
 
-## 7. State
+## 8. State
 
-- The wave ships what holds. Nothing measured got worse than the baseline: the genuine-surface rows
-  rose (24, 26 to 28, 29), and reading an image held. The bars missed are stated in the pull request,
-  with one question to the owner.
-- #66 stays open for knowledge questions, and #113 for the requests to make an image the model still
-  sends to `vision`. A stronger model is the direction the record keeps, as in M17.
-- The per-question outputs of every run are in `docs/research/m18-w3-runs/` (the code review's K3).
+- What holds: no genuine search is denied its ranking; injections, chit-chat, pasted content and
+  some requests to make an image are no longer answered with a ranking as if measured; coding
+  questions reach the two coding answers. What it costs: a question back on a few genuine searches,
+  most about reading an image. The bars missed are stated in the pull request, with one question to
+  the owner.
+- #66 stays open for knowledge questions, and #113 for requests to make an image the rule does not
+  catch. A stronger model is the direction the record keeps, as in M17.
+- The per-question output of every run, and the two scorers, are in `docs/research/m18-w3-runs/`.

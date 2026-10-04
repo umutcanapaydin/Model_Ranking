@@ -25,9 +25,10 @@ slice; the Tester's fault injection is owed.
 ## Starting points
 
 - `enhancement/issue-66-not-a-model-search`: D-169, ruled by the owner on 2026-09-28. Its held-out set
-  (`notasearch_heldout_questions.json`, written by an independent seat) was **never run**, so it is a
-  clean held-out set here. Its five variants are in its research record: one closed value among the
-  surfaces is almost never chosen, and every variant that caught more also cut genuine searches.
+  (`notasearch_heldout_questions.json`, written by an independent seat) had never been run; it was
+  retired to tuning at the code review (now `notasearch_m17_heldout_questions.json`, below). Its five
+  variants are in its research record: one closed value among the surfaces is almost never chosen,
+  and every variant that caught more also cut genuine searches.
 - `fix/issue-73-coding-routing`: variant 3's wording (coding and computer-use descriptions, and one
   instruction sentence). Its held-out set was run once, so it becomes a tuning set
   (`coding_heldout_m17_questions.json`).
@@ -74,10 +75,14 @@ The M17 rule holds: three variants per problem, then stop and file it.
   run once, after the review's fixes. The bars stay as set.
 
 **Measured on the fresh sets at `da48707`, twice** (the research record §5; baseline at `93040ac`):
-- #113: 10 and 10 of 15 told "not measured" (baseline 0, 0; bar 11, **missed by one**); reading 8 and
-  8 of 10 (baseline 8, 8; bar 9, unchanged from the baseline).
+- #113 misses both bars: 10 and 10 of 15 told "not measured" (baseline 0, 0; bar 11); reading 8 and
+  8 of 10 (baseline 8, 8; bar 9), 3 and 2 of them only after the question back.
 - #66: 0 genuine searches noted, 1 and 2 asked (bounds 2 and 4, **held**); 21 and 20 of 40 caught
   (bar 32, **missed**).
+- The question back reached genuine searches 5 and 10 times in 145 across the three sets, always on
+  the model's "something else" alone.
+- After the second review narrowed the image rule (B4), a run on the spent sets, informational only
+  (research record §6): 7 of 15 requests to make an image told "not measured"; #66 unchanged.
 - Three variants per problem were spent. The pull request asks the owner whether to ship what holds.
 
 ## Design (D-169, amended in this wave)
@@ -102,7 +107,8 @@ The M17 rule holds: three variants per problem, then stop and file it.
    - the question back shows the two taps and sends nothing until one is tapped.
 5. **#73** is wording in the model tier's descriptions and instructions, measured. **#113** is wording
    and a rule in code: the model would not decline a request to make an image (tuning: 0 of 6), so a
-   request to make or change one is routed as unmeasured on every tier (`makesAnImage`).
+   request to make or change one that a tier routed to `vision` is routed as unmeasured
+   (`makesAnImage`, narrowed to `vision` by the second review's B4).
 
 ## Phases
 
