@@ -571,3 +571,12 @@ def test_the_comment_stripper_handles_nesting_and_comment_markers_in_comments() 
     assert "let live = 2" in _code(marker)
     quoted = 'let s = "/* not a comment */"\nlet after = 3\n'
     assert "let after = 3" in _code(quoted)
+
+
+def test_the_comment_stripper_reads_raw_strings_and_interpolation() -> None:
+    """W5 second review M8: a raw string holding `/*`, and an interpolation holding a string with `/*`,
+    made the scanner open a comment and erase the live code after it."""
+    raw = 'let r = #"a"/*"#\nlet live = 1\n'
+    assert "let live = 1" in _code(raw)
+    interpolated = 'let s = "\\(t["/*"])"\nlet live = 2\n'
+    assert "let live = 2" in _code(interpolated)

@@ -137,3 +137,29 @@ def test_the_input_parsing_rule_has_no_way_around_it(tmp_path: Path) -> None:
     text = text.replace(touched + "\n", "").replace("Hand-kept lists:", touched + "\nHand-kept lists:")
     reordered.write_text(text, encoding="utf-8")
     assert "src/app/clients" in _wave_check(reordered).stdout
+
+
+def test_only_a_dropped_mark_excuses_a_wave_and_an_unread_heading_is_reported(tmp_path: Path) -> None:
+    """W5 second review M9: any heading containing "dropped" was excused ("the dropped-frames fix"),
+    and when one heading parsed, a heading it could not read was skipped."""
+    check = _module("wave_check_all")
+    plans = tmp_path / "docs" / "plans"
+    plans.mkdir(parents=True)
+    (plans / "m19-plan.md").write_text(
+        "# M19\n\n### W1 — one\n\n### W2 — the dropped-frames fix\n\n## Wave Three — three\n", encoding="utf-8")
+    (plans / "m19-wave-1-close.md").write_text("a close\n", encoding="utf-8")
+    (tmp_path / "docs" / "closure-report-m19.md").write_text("closed\n", encoding="utf-8")
+    missing = check.missing_closes(tmp_path)
+    assert any("W2" in line for line in missing), missing
+    assert any("Wave Three" in line for line in missing), missing
+
+
+def test_the_tier_is_read_from_the_evidence_not_the_template_wording(tmp_path: Path) -> None:
+    """W5 second review M10: row 1's check column says "LOW/MED/HIGH; auto-HIGH", so a MED close that
+    kept the template's wording passed the input-parsing rule."""
+    record = _record(tmp_path, tier="MED", touched="src/app/clients/epoch.py")
+    text = record.read_text(encoding="utf-8")
+    text = re.sub(r"^\| 1 \| [^|]*\|", "| 1 | Risk tier recorded for this wave in the plan (LOW/MED/HIGH; auto-HIGH "
+                  "if the diff touches input-parsing) |", text, count=1, flags=re.M)
+    record.write_text(text, encoding="utf-8")
+    assert "src/app/clients" in _wave_check(record).stdout

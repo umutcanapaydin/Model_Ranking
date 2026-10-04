@@ -55,3 +55,11 @@ def test_no_swift_test_runs_outside_the_tripwire() -> None:
     users = [p.name for p in sorted(TESTS.glob("*.swift")) if re.search(r"^\s*import\s+Testing\b",
                                                                            p.read_text(encoding="utf-8"), re.M)]
     assert users == [], users
+
+
+def test_no_test_class_reaches_xctestcase_through_an_alias() -> None:
+    """W5 second review M11: `typealias PlainCase = XCTestCase` let a class derive from XCTestCase under
+    another name, past the check that every class derives from the offline base."""
+    aliases = [p.name for p in sorted(TESTS.glob("*.swift"))
+               if re.search(r"typealias\s+\w+\s*=\s*(?:XCTest\.)?XCTestCase\b", p.read_text(encoding="utf-8"))]
+    assert aliases == [], aliases

@@ -746,11 +746,11 @@ final class GapRegisterHardeningTests: OfflineTestCase {
         XCTAssertTrue(GapRegisterStore.onDevice.writeOptions.contains(.completeFileProtection))
     }
 
-    /// And a save into a fresh folder round-trips, folder created on the way.
     func testTheRegisterIsOnlyEverAFileOnThisDevice() {
-        // #58: the register read whatever address it was given, and `Data(contentsOf:)` fetches an
-        // https one. A URL decoded from text was the path off the device. Neither a load nor a save
-        // may touch an address that is not a file; the offline tripwire would record either.
+        // #58: the register read whatever address it was given, and its read fetches an https one. A
+        // URL decoded from text was the path off the device. The tripwire records a load that reaches
+        // out; a save to an address that is not a file writes nothing either way, so this holds the
+        // load (W5 second review M7).
         let store = GapRegisterStore(url: URL(string: "https://example.invalid/gap-register.json")!)
         var register = GapRegister()
         register.record("remove the background from my photo")
@@ -759,6 +759,7 @@ final class GapRegisterHardeningTests: OfflineTestCase {
         XCTAssertEqual(OfflineGuard.drain(), [], "the register reached for a remote address")
     }
 
+    /// And a save into a fresh folder round-trips, folder created on the way.
     func testASaveCreatesItsFolderAndRoundTrips() throws {
         let folder = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
