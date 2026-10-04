@@ -190,3 +190,33 @@ let combinedVisibleRows = 10
 func visibleCount(total: Int, expanded: Bool) -> Int {
     expanded ? total : min(total, combinedVisibleRows)
 }
+
+// MARK: - The plan, computed when its inputs change (#70, M18-W2)
+
+/// `answerPlan`, and with it `combine`, ran in the screen's `body`, so every render paid for it,
+/// every keystroke in the question field included. The memo plans once per change of what the plan
+/// reads; a render with the same inputs gets the plan it already has.
+final class PlanMemo {
+    /// What a plan reads. The standings are named by a stamp the screen bumps when it replaces them,
+    /// so comparing inputs never compares a 4 MiB payload.
+    struct Inputs: Equatable {
+        let outcome: RoutingOutcome?
+        let primaryBoard: String?
+        let standingsStamp: Int
+        let removed: Set<Refinement>
+        let primaryHealth: SourceHealth?
+    }
+
+    private var last: (inputs: Inputs, plan: AnswerPlan)?
+    /// How many plans were computed: what the tests count.
+    private(set) var computed = 0
+
+    func plan(_ inputs: Inputs, standings: Standings?) -> AnswerPlan {
+        if let last, last.inputs == inputs { return last.plan }
+        computed += 1
+        let plan = answerPlan(outcome: inputs.outcome, primaryBoard: inputs.primaryBoard, standings: standings,
+                              removed: inputs.removed, primaryHealth: inputs.primaryHealth)
+        last = (inputs, plan)
+        return plan
+    }
+}

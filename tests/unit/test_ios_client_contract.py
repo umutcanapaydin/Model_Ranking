@@ -136,8 +136,13 @@ def test_the_combined_list_renders_the_disclosures_its_plan_carries() -> None:
     ), "the combined list no longer renders the disclosures its plan carries"
     for direct in ("UIText.combinedNote(", "UIText.tiedPlaces(", "UIText.combinedEffortNote("):
         assert direct not in section, f"{direct} is said by hand on the combined list, outside its plan"
-    assert re.search(r"answerPlan\([^)]*primaryHealth:", code, re.DOTALL), (
+    assert re.search(r"PlanMemo\.Inputs\([^)]*primaryHealth:", code, re.DOTALL), (
         "the plan is not told whether the surface's board is stale (#72)"
+    )
+    # #70: planned through the memo, never in `body` directly, and the memo learns of new standings.
+    assert "answerPlan(" not in code, "the screen plans in `body` again, on every render (#70)"
+    assert re.search(r"standings = kept\s*standingsStamp \+= 1", code), (
+        "new standings do not bump the stamp, so the memo would keep planning on the old ones"
     )
 
 
@@ -321,6 +326,10 @@ def test_score_arithmetic_happens_only_where_an_adr_permits_it() -> None:
 #: to a permitted receiver (`entries`, not `x.entries` or `answer.ranking`).
 SORTING_PERMITTED = {
     ("Combine.swift", "common"): "D-167 clause 3: shared models ordered by their combined ranks.",
+    ("Combine.swift", "placed"): (
+        "#74: one board's shared positions, sorted once so each model's rank is a binary search "
+        "rather than a scan (O(n log n), the same ranks)."
+    ),
     ("FrontDoor.swift", "entries"): (
         "M14-W3, REQ-GAP-002: the gap register orders the OWNER'S unanswered questions by how often "
         "they were asked. It is never an answer, a ranking or a model -- Ruling A is about the "

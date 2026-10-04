@@ -52,6 +52,9 @@ struct ContentView: View {
     /// same way whatever the reader asks, and the refinements the reader removed from this question.
     @State private var standings: Standings?
     @State private var standingsInFlight = false
+    /// #70: bumped whenever `standings` is replaced, so the plan's memo knows without comparing them.
+    @State private var standingsStamp = 0
+    @State private var planMemo = PlanMemo()
     @State private var removedRefinements: Set<Refinement> = []
     @Environment(\.dynamicTypeSize) private var typeSize
     /// New finding A (M18-W2): whether the combined list shows every row or its top ten.
@@ -162,13 +165,14 @@ struct ContentView: View {
 
                 // D-168 clause 7 (M17-W5): several boards chosen, the product's combined list is the
                 // answer; one board, today's cards below.
-                let plan = answerPlan(
+                // #70: planned when what it reads changes, not on every render (a keystroke is one).
+                let plan = planMemo.plan(PlanMemo.Inputs(
                     outcome: routing,
                     primaryBoard: categories.first { $0.id == routing?.categoryID }?.primaryBoard,
-                    standings: standings, removed: removedRefinements,
+                    standingsStamp: standingsStamp, removed: removedRefinements,
                     // #72: the surface's own answer says whether its board is stale.
                     primaryHealth: answers.first { $0.surface == routing?.categoryID }?.sourceHealth
-                )
+                ), standings: standings)
                 if case let .combined(view) = plan {
                     combinedSection(view)
                 } else {
@@ -878,6 +882,7 @@ struct ContentView: View {
             defer { standingsInFlight = false }
             if let kept = await StandingsStore.onDevice.current(now: Date(), fetch: { try await client.boards() }) {
                 standings = kept
+                standingsStamp += 1
             }
         }
     }

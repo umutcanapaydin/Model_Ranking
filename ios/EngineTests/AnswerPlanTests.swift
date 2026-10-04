@@ -205,6 +205,32 @@ final class AnswerPlanTests: OfflineTestCase {
         }
     }
 
+    // MARK: the plan is computed when its inputs change (#70, M18-W2 P5)
+
+    private func inputs(_ removed: Set<Refinement> = [], stamp: Int = 1) -> PlanMemo.Inputs {
+        PlanMemo.Inputs(outcome: routed([french]), primaryBoard: "arena", standingsStamp: stamp,
+                        removed: removed, primaryHealth: nil)
+    }
+
+    /// `answerPlan`, and with it `combine`, ran in `body` on every render, every keystroke included.
+    func testTheSameInputsAreNotPlannedTwice() {
+        let memo = PlanMemo()
+        let first = memo.plan(inputs(), standings: data)
+        for _ in 0..<50 { XCTAssertEqual(memo.plan(inputs(), standings: data), first) }
+        XCTAssertEqual(memo.computed, 1, "typing in the field re-planned an unchanged question")
+    }
+
+    func testAChangedInputIsPlannedAgain() {
+        let memo = PlanMemo()
+        let combined = memo.plan(inputs(), standings: data)
+        XCTAssertEqual(memo.plan(inputs([french]), standings: data),
+                       answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: data, removed: [french]))
+        XCTAssertEqual(memo.plan(inputs([french], stamp: 2), standings: data),
+                       memo.plan(inputs([french]), standings: data), "new standings, same plan, planned again")
+        XCTAssertEqual(memo.computed, 4)
+        XCTAssertNotEqual(combined, memo.plan(inputs([french]), standings: data))
+    }
+
     func testEveryEffortIsNamedOnceInTheBoardsOwnOrder() {
         let mixed = held([boardAt("arena", [("a", 1, "unspecified"), ("b", 2, "high")]),
                           boardAt(french.board, [("b", 1, "max"), ("a", 2, "high")])])

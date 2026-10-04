@@ -132,3 +132,30 @@ final class CombinePropertyTests: OfflineTestCase {
         }
     }
 }
+
+/// #74 (M17-W5 security S2): `combine` re-ranked each board in O(n²), and a payload at the 4 MiB cap
+/// (28,905 shared models) froze a release build for 6.42 s per call. At 20,000 shared models on two
+/// boards the quadratic rank is 800 million comparisons; O(n log n) is well under a second.
+final class CombineCostTests: OfflineTestCase {
+    func testALargeListCombinesWithoutFreezing() throws {
+        let count = 20_000
+        let ids = (0..<count).map { String(format: "m%05d", $0) }
+        let first = BoardStandings(id: "one", benchmark: "One", metric: "elo", rankingEffort: nil,
+                                   evidenceDate: nil, observedAt: nil, attribution: "a",
+                                   standings: ids.enumerated().map { Standing(model: $1, position: $0 + 1, effort: "") })
+        let second = BoardStandings(id: "two", benchmark: "Two", metric: "elo", rankingEffort: nil,
+                                    evidenceDate: nil, observedAt: nil, attribution: "b",
+                                    standings: ids.reversed().enumerated().map {
+                                        Standing(model: $1, position: $0 / 3 + 1, effort: "")
+                                    })
+        let data = Standings(apiVersion: "v1", attributions: [], boards: [first, second],
+                             models: ids.map { StandingModel(id: $0, display: $0, vendor: "V", blendedPerM: 1,
+                                                             accessibility: nil) })
+        let started = Date()
+        let list = try combine(data, boards: ["one", "two"])
+        let seconds = Date().timeIntervalSince(started)
+
+        XCTAssertEqual(list.entries.count, count)
+        XCTAssertLessThan(seconds, 5, "combine took \(seconds) s for \(count) shared models")
+    }
+}
