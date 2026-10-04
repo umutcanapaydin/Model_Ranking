@@ -94,3 +94,11 @@ ios/EngineTests/NoticesTests.swift      # asserts those exact Turkish sentences,
 ios/UITests/FailureScreenTests.swift    # M18-W2 (#96): asserts the Turkish failure screen by its words,
                                         # for the reason LanguageTests.swift is exempt above
 ios/ModelRanking/tr.lproj/              # #95: the Turkish Info plist strings; Turkish is their subject
+scripts/router_probe/notasearch_heldout_questions.json  # M18-W3 (#66, D-169): held-out questions, half
+                                  # Turkish, written by an independent seat; the Turkish IS the evidence
+scripts/router_probe/notasearch_tuning_questions.json  # the tuning set's Turkish questions, kept verbatim
+scripts/router_probe/coding_heldout_m18_questions.json  # M18-W3 (#73): held-out, half Turkish, written by an
+                                  # independent seat; translating them removes the evidence
+scripts/router_probe/coding_heldout_m17_questions.json  # M17's held-out set (run once), now a tuning set
+scripts/router_probe/coding_tuning_questions.json  # M17's tuning set (#73), Turkish kept verbatim
+scripts/router_probe/image_heldout_questions.json  # M18-W3 (#113): held-out, half Turkish, independent seat
