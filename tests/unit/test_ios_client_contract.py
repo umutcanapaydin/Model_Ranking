@@ -173,7 +173,8 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
     sets = sorted((root / "scripts/router_probe").glob("*heldout*_questions.json"))
     # Sets already run, and so tuning now: M16's and M17's, and M18-W3's first two (review B2).
     retired = {"heldout_questions.json", "refinement_heldout_questions.json", "coding_heldout_m17_questions.json",
-               "notasearch_m17_heldout_questions.json", "image_heldout_first_questions.json"}
+               "notasearch_m17_heldout_questions.json", "image_heldout_first_questions.json",
+               "offtopic_heldout_questions.json"}  # run in M13 and M16 (the second review's K4)
     live = [path for path in sets if path.name not in retired]
     assert live, "no live held-out set found; this check compares nothing"
     held = set()
@@ -184,10 +185,12 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
                 held.add(text)
     sources = [p for folder in ("ios", "src", "scripts", "tests") for p in (root / folder).rglob("*")
                if p.is_file() and p.suffix in {".swift", ".py"} and ".build" not in p.parts and "build" not in p.parts]
-    # Whole quoted strings: a tuning question may contain a short held-out one by chance, and the
-    # question's text is not printed, so a failure does not spoil the set it guards.
+    # A question of 25 characters or more anywhere (the second review's M13: inside a longer string
+    # too); a shorter one only as a whole quoted string, since a tuning question may hold a short
+    # phrase by chance. The question's text is not printed, so a failure does not spoil its set.
     texts = {p.name: p.read_text(encoding="utf-8", errors="ignore") for p in sources}
-    found = sorted({(name, len(q)) for name, text in texts.items() for q in held if f'"{q}"' in text})
+    found = sorted({(name, len(q)) for name, text in texts.items() for q in held
+                    if (len(q) >= 25 and q in text) or f'"{q}"' in text})
     assert not found, f"held-out questions written into code or tests (file, length): {found}"
 
 
@@ -866,9 +869,18 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     held_branch = re.search(r"guard outcome\.reading == \.search else \{(.*?)\n        \}", asked, re.S)
     assert held_branch, "the branch for input that is not a search is gone"
     held_code = "\n".join(line.split("//", 1)[0] for line in held_branch.group(1).splitlines())
-    for forbidden in ("load(", "client.", "gaps.", "recordsGap", "task =", "apply("):
+    for forbidden in ("load(", "client.", "gaps.", "recordsGap", "task =", "apply(", "routing = outcome", "Task {"):
         assert forbidden not in held_code, f"a held reading reaches `{forbidden}`"
     assert re.search(r"held = HeldReading\(typed: typed, outcome: outcome\)", held_code), "the reading is not held"
+    # The second review's M9: "Find a model" answers as routed, once, and "No" shows the note.
+    confirm = re.search(r"private func confirm\(_ held: HeldReading\) \{(.*?)\n    \}", home, re.S)
+    assert confirm and re.search(
+        r"guard !routingInFlight else \{ return \}.*outcome\.reading = \.search.*await apply\(outcome, typed: held\.typed",
+        confirm.group(1), re.S), "Find a model does not answer the held question as routed, once"
+    decline = re.search(r"private func decline\(_ held: HeldReading\) \{(.*?)\n    \}", home, re.S)
+    assert decline and "outcome.reading = .notASearch" in decline.group(1) and "apply(" not in decline.group(1), (
+        "No does not show the note, or answers anyway"
+    )
     assert re.search(
         r"let ticket = routingGate\.begin\(\)\s*let outcome = await router\.route", asked
     ), "routing takes no ticket before it suspends"

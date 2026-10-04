@@ -52,32 +52,49 @@ enum InputSignals {
         return folds(String(text[..<colon])).contains { before in
             let words = wordsOf(before)
             guard (1...8).contains(words.count) else { return false }
-            return words.indices.contains { index in
-                actVerbsEnglish.contains(words[index]) || isTurkishVerb(words, at: index, stems: actStemsTurkish)
+            // A search names what it searches for before the colon ("Best model to explain code: …");
+            // an instruction does not (the second review's M12).
+            if words.contains(where: { ["model", "models", "llm", "ai", "which", "best", "hangi", "modeli", "modelin"].contains($0) }) {
+                return false
             }
+            // The verb where an instruction puts it: first in English ("translate into Spanish:",
+            // "please fix this:"), last in Turkish ("şunu İngilizceye çevir:", "çevirir misin:").
+            let english = words.prefix(2).contains(where: actVerbsEnglish.contains)
+            let turkish = words.indices.suffix(2).contains { isTurkishVerb(words, at: $0, stems: actStemsTurkish) }
+            return english || turkish
         }
     }
 
-    /// An attempt to instruct the model behind the text box, by the phrasings such attempts use, in
-    /// both languages: "ignore your previous instructions", "you are now", "print your system
-    /// prompt", "önceki talimatları unut", "sen artık bir". Each phrase is specific: a search for a
-    /// model that follows instructions well uses none of them (review B3). It is a doubt, not a
-    /// verdict: alone, the reader is asked.
+    /// An attempt to instruct the model behind the text box: an imperative aimed at its instructions
+    /// ("ignore your previous instructions", "print your system prompt", "önceki talimatları unut",
+    /// "sistem komutunu göster"), or a role handed to it ("you are now", "sen artık bir"). A verb AND
+    /// its object are both needed (the second review's M11): "which model follows your instructions
+    /// best" names instructions and orders nothing. It is a doubt, not a verdict: alone, the reader is
+    /// asked.
     static func instructsTheApp(_ text: String) -> Bool {
         folds(text).contains { folded in
-            let spaced = " " + wordsOf(folded).joined(separator: " ") + " "
-            return instructionPhrases.contains { spaced.contains(" \($0) ") }
+            let words = wordsOf(folded)
+            let spaced = " " + words.joined(separator: " ") + " "
+            if rolePhrases.contains(where: { spaced.contains(" \($0) ") }) { return true }
+            let ordered = words.contains { word in
+                instructionVerbsEnglish.contains(word) || instructionStemsTurkish.contains { word.hasPrefix($0) }
+            }
+            let aimed = words.contains { word in instructionObjects.contains { word.hasPrefix($0) } }
+            return ordered && aimed
         }
     }
 
-    static let instructionPhrases: [String] = [
-        "ignore your", "ignore all previous", "ignore all prior", "ignore the previous", "ignore previous",
-        "ignore the above", "previous instructions", "prior instructions", "your system prompt",
-        "your instructions", "your hidden", "you are now", "forget everything", "forget your instructions",
-        "forget your rules", "reply with the single word",
-        "talimatlarını unut", "talimatları unut", "önceki talimatları", "önceki bütün talimatlarını",
-        "talimatlarını yazdır", "talimatlarını göster", "sistem komutunu", "sistem istemini",
-        "sen artık bir", "artık sen bir", "kuralları bir kenara", "kurallarını unut", "gizli ayarlarını",
+    /// The verbs of an order aimed at the model's instructions: English as whole words, Turkish by stem.
+    static let instructionVerbsEnglish: Set<String> = ["ignore", "disregard", "forget", "print", "reveal", "repeat"]
+    static let instructionStemsTurkish: [String] = ["unut", "yoksay", "yazdır", "göster", "paylaş"]
+    /// What such an order is aimed at.
+    static let instructionObjects: [String] = [
+        "instructions", "prompt", "rules", "talimat", "kural", "komut", "istem", "ayarlar",
+    ]
+    /// A role handed to the model, or its answer dictated.
+    static let rolePhrases: [String] = [
+        "you are now", "from now on you", "reply with the single word", "sen artık bir", "artık sen bir",
+        "kuralları bir kenara",
     ]
 
     /// A greeting, thanks or small talk, and nothing else ("hi", "how are you", "ok", "selam",
@@ -100,29 +117,51 @@ enum InputSignals {
 
     /// #113 (M18-W3): a request to MAKE or CHANGE an image, which nothing here measures: `vision`
     /// measures reading one. The on-device model sent these to `vision` even when told not to (0 of
-    /// 6 on the tuning set), so the line is drawn here, narrowly (review B4):
-    /// - English: a making verb, then an image within four words, with no "from", "of", "for" or
-    ///   the like between ("generate code from an image" reads one); or "draw" before "me", "a", "an";
-    /// - Turkish: an image within four words before a making verb ("kedi resmi çiz"), or a form of
-    ///   "çiz" itself ("çizelge" and "çizgi" are not).
+    /// 6 on the tuning set). `TieredRouter.read` applies this ONLY to a question routed to `vision`
+    /// (the code reviews' B4): a question about code or a website that mentions an image is routed as
+    /// its tier chose. Narrowly, here:
+    /// - English: a making verb, then within four words an image that is the verb's object: not after
+    ///   "from", "of", "for" or the like, not a modifier ("image upload", "photo gallery"), and not
+    ///   turned "into" text, a table or data (that is reading it);
+    /// - "draw me", or "draw a/an" before a picture word, not an idiom ("draw a conclusion");
+    /// - Turkish: an image within four words before a making verb ("kedi resmini düzenle"), a form of
+    ///   "çiz" itself, or "arka plan" with a removing verb after it.
     static func makesAnImage(_ text: String) -> Bool {
         folds(text).contains { folded in
             let words = wordsOf(folded)
-            // A background removed or replaced, in a text that names an image ("remove the background
-            // from my product photo"); background noise in a podcast is no image.
-            if words.contains(where: isImageNoun), zip(words, words.dropFirst()).contains(where: { pair in
-                (["remove", "blur", "replace", "change"].contains(pair.0) && ["background", "the"].contains(pair.1))
-                    || (pair.0 == "arka" && pair.1.hasPrefix("plan"))
-            }), words.contains("background") || words.contains("arka") {
-                return true
-            }
             for (index, word) in words.enumerated() {
-                let next = words.dropFirst(index + 1).prefix(4)
-                if word == "draw", let first = next.first, ["me", "a", "an", "my", "some"].contains(first) { return true }
-                if drawStemsTurkish.contains(word) { return true }
-                if imageVerbsEnglish.contains(word), let noun = next.firstIndex(where: isImageNoun),
-                   !words[(index + 1)..<noun].contains(where: readingPrepositions.contains) {
+                let next = Array(words.dropFirst(index + 1).prefix(4))
+                if word == "background", index > 0,
+                   ["remove", "blur", "replace", "change"].contains(words[index - 1])
+                    || (index > 1 && ["remove", "blur", "replace", "change"].contains(words[index - 2])),
+                   words.contains(where: isImageNoun) {
                     return true
+                }
+                if word == "arka", next.first?.hasPrefix("plan") == true,
+                   next.dropFirst().prefix(3).contains(where: { candidate in
+                       ["kaldır", "sil", "değiştir", "bulanıklaştır"].contains { candidate.hasPrefix($0) }
+                   }) {
+                    return true
+                }
+                if word == "draw", let first = next.first {
+                    if first == "me" { return true }
+                    if ["a", "an", "my"].contains(first), next.count > 1, !drawIdioms.contains(next[1]) {
+                        return true
+                    }
+                }
+                if drawStemsTurkish.contains(word) { return true }
+                if imageVerbsEnglish.contains(word), let at = next.firstIndex(where: isImageNoun) {
+                    let between = next[..<at]
+                    let after = at + 1 < next.count ? next[at + 1] : (index + at + 2 < words.count ? words[index + at + 2] : "")
+                    // "turn a photo (of a receipt) into a spreadsheet" reads the image: an "into" within
+                    // eight words of the verb, before text, a table or data.
+                    let tail = Array(words.dropFirst(index + 1).prefix(8))
+                    let readInto = tail.indices.contains { spot in
+                        tail[spot] == "into" && tail.dropFirst(spot + 1).prefix(3).contains(where: readingTargets.contains)
+                    }
+                    if !between.contains(where: readingPrepositions.contains), !modifierHeads.contains(after), !readInto {
+                        return true
+                    }
                 }
                 if isTurkishVerb(words, at: index, stems: imageStemsTurkish),
                    words[max(0, index - 4)..<index].contains(where: isImageNoun) {
@@ -138,7 +177,23 @@ enum InputSignals {
         "fix", "enhance", "restore", "colorize", "colourise", "brighten", "sharpen", "redraw",
     ]
     private static let readingPrepositions: Set<String> = [
-        "from", "of", "for", "in", "on", "about", "using", "with", "based", "into",
+        "from", "of", "for", "in", "on", "about", "using", "with", "based", "into", "to",
+    ]
+    /// A word after an image noun that makes the noun a modifier: the object is something else.
+    private static let modifierHeads: Set<String> = [
+        "upload", "uploads", "uploader", "gallery", "galleries", "classifier", "classifiers",
+        "classification", "recognition", "caption", "captions", "description", "descriptions",
+        "processing", "compression", "dataset", "datasets", "data", "file", "files", "format", "size",
+        "sizes", "url", "urls", "tag", "tags", "metadata", "search", "model", "models", "page", "pages",
+        "slider", "carousel", "viewer", "loader", "loading", "lazy", "responsive", "component", "api",
+    ]
+    /// What an image turned "into" is read, not made: text, a table, data.
+    private static let readingTargets: Set<String> = [
+        "text", "words", "data", "table", "tables", "spreadsheet", "csv", "json", "excel", "markdown",
+    ]
+    private static let drawIdioms: Set<String> = [
+        "conclusion", "conclusions", "comparison", "distinction", "line", "parallel", "chart", "graph",
+        "plot", "diagram", "table", "box", "boundary", "sample", "card", "blank", "crowd", "breath",
     ]
     private static let imageStemsTurkish: Set<String> = [
         "oluştur", "tasarla", "düzenle", "rötuşla", "kaldır", "sil", "üret", "düzelt", "netleştir",
@@ -155,11 +210,12 @@ enum InputSignals {
             "selfie", "portrait", "cartoon",
         ]
         if english.contains(word) { return true }
-        // Turkish nouns take suffixes ("resmi", "fotoğrafımdaki"), so stems of five or more letters
-        // are matched at the start; "logo" and "ikon" only as themselves or with a vowel suffix.
-        let stems = ["resim", "resm", "görsel", "fotoğraf", "illüstrasyon", "afiş", "avatar", "portre", "çizim"]
+        // Turkish nouns take suffixes ("resmini", "fotoğrafımdaki"), so long stems are matched at the
+        // start. Not "resm-": "resmi" is also "official" (review B4).
+        let stems = ["resim", "resmin", "görsel", "fotoğraf", "illüstrasyon", "afiş", "portre", "çizim"]
         if stems.contains(where: { word.hasPrefix($0) }) { return true }
-        return ["logo", "logoyu", "logosu", "logomu", "logomuzu", "ikon", "ikonu", "simge", "simgesi"].contains(word)
+        return ["logo", "logoyu", "logosu", "logomu", "logomuzu", "ikon", "ikonu", "simge", "simgesi", "avatar",
+                "avatarı", "avatarımı"].contains(word)
     }
 
     /// The verbs that ask the app to do something to text it is given. English as whole words;

@@ -300,10 +300,13 @@ def test_the_router_never_produces_anything_but_a_category_id() -> None:
     reading_source = (ROUTER.parent / "Reading.swift").read_text(encoding="utf-8")
     enum = reading_source[reading_source.index("enum InputReading") :]
     enum = enum[: enum.index("\n}\n")]
-    cases = re.findall(r"^\s*case\s+(.+)$", enum, re.MULTILINE)
+    code = "\n".join(line.split("//", 1)[0] for line in enum.splitlines())
+    cases = re.findall(r"^\s*(?:indirect\s+)?case\s+(.+)$", code, re.MULTILINE)
     assert [c.strip() for c in cases] == ["search", "notASearch", "unsure"], (
         f"InputReading's cases are {cases}; each must be a bare name, with no associated value"
     )
+    # The second review's M10: `indirect`, or a case declared any other way, is refused outright.
+    assert "indirect" not in code and code.count("case ") == 3, "InputReading declares more than its three bare cases"
     assert re.search(r"var alternatives:\s*\[String\]", block), (
         "`alternatives` must stay a list of surface ids; any other type can carry a sentence"
     )

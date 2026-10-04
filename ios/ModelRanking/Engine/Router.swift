@@ -703,9 +703,11 @@ struct TieredRouter {
     /// model read the question, its verdict. The signals run on every tier.
     static func read(_ question: String, _ outcome: RoutingOutcome) -> RoutingOutcome {
         var read = outcome
-        // #113 (M18-W3): making or changing an image is not measured, whatever the tier chose; the
-        // same outcome the model's decline gives, with the same disclosure.
-        if InputSignals.makesAnImage(question) {
+        // #113 (M18-W3): making or changing an image is not measured; the same outcome the model's
+        // decline gives, with the same disclosure. Only where the tier chose `vision`, which measures
+        // READING an image (the code reviews' B4): a question about code or a website that mentions
+        // an image is routed as its tier chose.
+        if outcome.categoryID == "vision", !outcome.unmeasured, InputSignals.makesAnImage(question) {
             read = RoutingOutcome(categoryID: CategoryHints.unmeasuredFallback, tier: outcome.tier, unmeasured: true)
             read.reading = outcome.reading
         }
