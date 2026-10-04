@@ -28,12 +28,61 @@ ROUTER = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/Engine/
 CLIENT = ROUTER.parent.parent
 
 
+def _string_end(swift: str, i: int) -> int:
+    r"""Index just past the string literal that starts at `swift[i]`: a quote, a triple quote, or a
+    raw `#"`.
+
+    Escapes, and interpolations (`\(...)`, `\#(...)` in a raw string) holding strings of their own,
+    are read rather than matched (W5 second review M8): a `/*` inside one is text, not a comment.
+    """
+    n, hashes = len(swift), 0
+    while i < n and swift[i] == "#":
+        hashes, i = hashes + 1, i + 1
+    multi = swift.startswith('"""', i)
+    quote = '"""' if multi else '"'
+    i += len(quote)
+    close, escape = quote + "#" * hashes, "\\" + "#" * hashes
+    while i < n:
+        if swift.startswith(close, i):
+            return i + len(close)
+        if swift.startswith(escape, i):
+            i += len(escape)
+            if i < n and swift[i] == "(":
+                i = _interpolation_end(swift, i)
+            else:
+                i += 1
+            continue
+        if not multi and swift[i] == "\n":
+            return i  # an unterminated literal ends at its line
+        i += 1
+    return n
+
+
+def _interpolation_end(swift: str, i: int) -> int:
+    """Index just past the `( ... )` of an interpolation starting at `swift[i] == "("`."""
+    depth, n = 0, len(swift)
+    while i < n:
+        c = swift[i]
+        if c == "(":
+            depth, i = depth + 1, i + 1
+        elif c == ")":
+            depth, i = depth - 1, i + 1
+            if depth == 0:
+                return i
+        elif c == '"' or (c == "#" and re.match(r'#+"', swift[i:i + 8])):
+            i = _string_end(swift, i)
+        else:
+            i += 1
+    return n
+
+
 def _code(swift: str) -> str:
     """The source with its comments removed, so a pin holds the code and not a comment quoting it.
 
-    A scanner, not a pattern (#98, W5 review M2): Swift block comments NEST, a `/*` inside a `//`
-    comment opens nothing, and comment markers inside a string literal are text. Newlines inside a
-    block comment are kept, so the code after it keeps its line.
+    A scanner, not a pattern (#98, W5 reviews M2 and M8): Swift block comments NEST, a `/*` inside a
+    `//` comment opens nothing, and comment markers inside a string literal -- a raw one, or one inside
+    an interpolation -- are text. Newlines inside a block comment are kept, so the code after it keeps
+    its line. Code under `#if false` is not removed (#110).
     """
     out: list[str] = []
     i, depth, n = 0, 0, len(swift)
@@ -52,14 +101,8 @@ def _code(swift: str) -> str:
         elif two == "//":
             end = swift.find("\n", i)
             i = n if end < 0 else end
-        elif swift[i] == '"':
-            close = swift.find('"""', i + 3) + 3 if swift.startswith('"""', i) else None
-            if close is None:
-                j = i + 1
-                while j < n and swift[j] not in '"\n':
-                    j += 2 if swift[j] == "\\" else 1
-                close = j + 1
-            close = n if close <= i else close
+        elif swift[i] == '"' or (swift[i] == "#" and re.match(r'#+"', swift[i:i + 8])):
+            close = _string_end(swift, i)
             out.append(swift[i:close])
             i = close
         else:

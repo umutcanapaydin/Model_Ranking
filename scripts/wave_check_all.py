@@ -61,6 +61,11 @@ EXPECTED_CLOSES_FROM = 18
 #: `### W1 — ...`, `## Wave 1 — ...` and `### M19-W1 — ...` (W5 review M3: a shape it did not read
 #: counted no waves, and so found none missing).
 WAVE_HEADING = re.compile(r"^#{2,4}\s*(?:M\d+-)?W(?:ave\s*)?(\d+)\b(.*)$", re.M)
+#: What looks like a wave heading at all; one this reads and `WAVE_HEADING` does not is reported
+#: rather than skipped (W5 second review M9).
+LOOKS_LIKE_A_WAVE = re.compile(r"^#{2,4}\s*(?:M\d+-)?(?:W\d|Wave\b).*$", re.M)
+#: The plan marks a wave dropped with `(dropped` in its heading, not any use of the word.
+DROPPED = re.compile(r"\(dropped\b", re.I)
 
 
 def _excused_waves(ledger: pathlib.Path) -> set[str]:
@@ -86,12 +91,15 @@ def missing_closes(root: pathlib.Path) -> list[str]:
         if not plan.is_file():
             missing.append(f"m{milestone} closed with no plan at {plan.relative_to(root)}; its waves cannot be counted")
             continue
-        waves = WAVE_HEADING.findall(plan.read_text(encoding="utf-8"))
+        text = plan.read_text(encoding="utf-8")
+        waves = WAVE_HEADING.findall(text)
         if not waves:
             missing.append(f"m{milestone} closed and its plan names no wave this check can read; it "
                            "fails closed rather than finding nothing missing")
+        missing += [f"m{milestone}'s plan has a wave heading this check cannot read: `{line.strip()}`"
+                    for line in LOOKS_LIKE_A_WAVE.findall(text) if not WAVE_HEADING.match(line)]
         for wave, rest in waves:
-            if "dropped" in rest.lower() or f"m{milestone}-w{wave}" in excused:
+            if DROPPED.search(rest) or f"m{milestone}-w{wave}" in excused:
                 continue
             if not (root / "docs" / "plans" / f"m{milestone}-wave-{wave}-close.md").is_file():
                 missing.append(f"m{milestone} W{wave} is in the plan and has no close record "

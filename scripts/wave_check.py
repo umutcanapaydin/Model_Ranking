@@ -362,8 +362,12 @@ def main(argv: list[str]) -> int:
                             r"K\.8 contracts|Stopped at three attempts|Hand-kept lists):|^```|\Z)",
                             text, re.M | re.S)
         tier_row = re.search(r"^\|\s*1\s*\|.*$", text, re.M)
+        # The EVIDENCE cell: the check column of the template itself says "LOW/MED/HIGH; auto-HIGH"
+        # (W5 second review M10).
+        cells = [c.strip() for c in tier_row.group(0).strip().strip("|").split("|")] if tier_row else []
+        evidence = cells[2] if len(cells) > 2 else ""
         if (touched and re.search(r"src/app/clients\b", touched.group(1))
-                and not (tier_row and re.search(r"\bHIGH\b", tier_row.group(0)))):
+                and not re.search(r"\bHIGH\b", evidence)):
             bad.append("the footprint touches `src/app/clients` (input parsing) and row 1 does not "
                        "record the wave as HIGH -- a diff touching input parsing is HIGH (#83)")
     if not re.search(r"Filled by:.*Date:.*commit range", text, re.I):
