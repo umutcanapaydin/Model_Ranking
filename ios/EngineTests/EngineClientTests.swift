@@ -768,3 +768,59 @@ final class EngineAddressTests: OfflineTestCase {
         }
     }
 }
+
+/// A stub that answers 200, hands over the first bytes of a body, and then the transfer fails.
+private final class MidStreamFailureStub: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static var failure = URLError(.timedOut)
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func stopLoading() {}
+
+    override func startLoading() {
+        guard let url = request.url,
+              let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil,
+                                             headerFields: ["Content-Type": "application/json"])
+        else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        // A typed response and more than the 512 bytes URLSession sniffs, so the response is handed
+        // over now; the failure comes later, from a queue of its own. Sent at once, it is thrown by the
+        // request itself, before any body is read, which is the case the other stubs hold.
+        client?.urlProtocol(self, didLoad: Data((#"{"categories": ["# + String(repeating: " ", count: 2048)).utf8))
+        let failure = Self.failure
+        DispatchQueue(label: "mid-stream-failure").asyncAfter(deadline: .now() + 0.2) { [self] in
+            client?.urlProtocol(self, didFailWithError: failure)
+        }
+    }
+}
+
+/// W2 Tester (#56): the body is read inside the same `do` as the request, so a transfer that dies
+/// after its first bytes is mapped like one that never started. With the read moved below the
+/// `catch`, a timeout mid-body escaped as a raw URLError, the screen said the app needs an update,
+/// and every test passed: every other stub here fails before it answers.
+final class MidStreamFailureTests: OfflineTestCase {
+    func testATransferThatDiesMidBodyIsMappedLikeOneThatNeverStarted() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [MidStreamFailureStub.self]
+        let base = try XCTUnwrap(URL(string: "http://127.0.0.1:8080"))
+        let client = EngineClient(baseURL: base, session: URLSession(configuration: configuration))
+        let cases: [(URLError.Code, EngineError)] = [
+            (.timedOut, .timedOut(seconds: EngineClient.requestTimeout)),
+            (.networkConnectionLost, .offline),
+        ]
+        for (code, expected) in cases {
+            MidStreamFailureStub.failure = URLError(code)
+            do {
+                _ = try await client.categories()
+                XCTFail("a transfer that died mid-body was read")
+            } catch let error as EngineError {
+                XCTAssertEqual(error, expected, "\(code)")
+            } catch {
+                XCTFail("a \(code) thrown mid-body escaped unmapped: \(error)")
+            }
+        }
+    }
+}

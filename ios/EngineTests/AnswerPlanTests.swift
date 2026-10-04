@@ -318,6 +318,19 @@ final class AnswerPlanTests: OfflineTestCase {
                               "\(refinement.value) has no Turkish name")
         }
     }
+
+    /// W2 Tester (review M3, M4): the screen plans only through the memo, so what the screen tells
+    /// the memo must reach the plan. With the surface's health or the copy's age dropped between the
+    /// two, every test passed: the memo's own tests give it neither.
+    func testTheMemoHandsThePlanTheHealthAndTheCopysAge() {
+        let told = PlanMemo.Inputs(outcome: routed([french]), primaryBoard: "arena", standingsStamp: 1,
+                                   removed: [], primaryHealth: stale(120), phoneCopyDays: 3)
+        let plan = PlanMemo().plan(told, standings: data)
+        XCTAssertEqual(plan, answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: data,
+                                        removed: [], primaryHealth: stale(120), phoneCopyDays: 3))
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+        XCTAssertEqual(Array(view.disclosures.prefix(2)), [.staleBoard(stale(120)), .stalePhoneCopy(days: 3)])
+    }
 }
 
 /// #63 finding 1 (M18-W2): one model as three full cards, the Best value one describing the best as

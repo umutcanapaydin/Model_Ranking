@@ -1167,3 +1167,22 @@ def test_every_reason_the_engine_can_give_is_one_the_app_can_word() -> None:
     assert engine, "no reason code read from recommend.py -- this check compares nothing"
     assert app, "no PickReason case read from Language.swift -- this check compares nothing"
     assert engine == app, {"engine only": engine - app, "app only": app - engine}
+
+
+def test_the_screen_composes_the_empty_reason_and_the_notices_from_their_facts() -> None:
+    """W2 Tester (D-176, review M2 at the view, M4's class): the composers are held by the Swift
+    tests, and the view's calls to them by nothing. With the empty answer's code replaced by
+    `"no_evidence"`, the card notices composed in English, or the close call composed with no
+    anchor (D-143), every gate passed. The first is review M2 again: an unreadable answer said as an
+    evidence gap, in both languages."""
+    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
+    assert re.search(
+        r"unavailableSentence\(\s*code: answer\.unavailableReasonCode,\s*benchmark: answer\.primaryBenchmark,"
+        r"\s*language\s*\)\s*\?\?\s*reason\)",
+        code,
+    ), "the empty answer is not said by its own reason code (D-176 clause 7)"
+    assert re.search(
+        r"disclosureList\(answerDisclosures\(answer, anchor: category\(for: answer\)\?\.scoreAnchor, language\)\)",
+        code,
+    ), "the card notices are not composed in the reader's language on the surface's own scale"

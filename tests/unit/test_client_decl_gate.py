@@ -90,3 +90,23 @@ def test_a_release_build_carries_no_ui_test_hook() -> None:
     assert len(gate.release_problems({"LaunchRouting.swift": {"Foundation.ProcessInfo.environment"}})) == 1
     inert = {"LaunchRouting.swift": {"Foundation.ProcessInfo.processInfo", "main.ScriptedModelRouter"}}
     assert gate.release_problems(inert) == []
+
+
+def test_main_refuses_a_release_dump_that_carries_a_ui_test_hook(monkeypatch: pytest.MonkeyPatch) -> None:
+    """W2 Tester (D-175 clause 3, review M5): the test above holds `release_problems`; nothing held
+    that `main()` calls it, or calls it on the Release configurations. With the call removed, every
+    test and `make client-decls` passed. Canned dumps stand in for the compiler, so this runs on CI."""
+    names = {path.name for path in gate.CLIENT.rglob("*.swift")}
+
+    def dumps(hooked: str, decl: str) -> None:
+        monkeypatch.setattr(gate, "dump_ast", lambda sdk_name, flags, folder=gate.CLIENT: (
+            "debug" if "DEBUG" in flags else "release", 0))
+        monkeypatch.setattr(gate, "references", lambda ast: {
+            name: ({decl} if name == "LaunchRouting.swift" and ast == hooked else set()) for name in names})
+
+    monkeypatch.setattr(gate, "self_test", lambda: [])
+    monkeypatch.setattr(gate, "problems", lambda found: [])
+    dumps("release", "Foundation.ProcessInfo.environment")
+    assert gate.main() == 1, "a Release build that reads its launch environment passed"
+    dumps("debug", "Foundation.ProcessInfo.arguments")
+    assert gate.main() == 0, "the Debug-only hook was refused in a Debug build"

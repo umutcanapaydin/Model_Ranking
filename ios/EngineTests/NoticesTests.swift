@@ -272,4 +272,76 @@ final class NoticesTests: OfflineTestCase {
         XCTAssertEqual(answerDisclosures(served, anchor: nil, .turkish).map(\.text),
                        ["GPT-5.5 is only 1.2 points behind."])
     }
+
+    /// W2 Tester (D-176 clause 4, D-135): a notice whose fact is missing, or is one this build does
+    /// not know, is the engine's own English, never dropped. Only the close call's fallback was
+    /// held: with the staleness, dating or effort fallback removed, every test passed.
+    func testEveryNoticeWithoutAComposableFactIsTheEnginesEnglish() throws {
+        func served(_ extra: String) throws -> Answer {
+            try JSONDecoder().decode(Answer.self, from: Data("""
+            {"surface": "coding", "title": "Coding", "primary_benchmark": "SWE-bench Verified",
+             "metric": "% resolved", "eligible_count": 2, "frontier_size": 2, "sources": [],
+             "picks": [
+               {"label": "best_quality", "model": "A", "vendor": "V", "score": 80, "metric": "% resolved",
+                "blended_per_m": 2, "input_per_m": 1, "output_per_m": 5, "harness": "h", "effort": "high",
+                "confidence": "High", "confidence_basis": "b", "why": "w"},
+               {"label": "best_value", "model": "B", "vendor": "V", "score": 79, "metric": "% resolved",
+                "blended_per_m": 1, "input_per_m": 1, "output_per_m": 1, "harness": "h", "effort": "high",
+                "confidence": "High", "confidence_basis": "b", "why": "w"}
+             ],
+             "ranking": [], \(extra)}
+            """.utf8))
+        }
+        // A stale health this build cannot compose (no sources and no reason: an older engine), an
+        // effort notice over picks at one level, and a close call with no fact.
+        let older = try served("""
+        "source_health": {"benchmark": "SWE-bench Verified", "stale": true, "notice": "engine staleness",
+                          "sources": []},
+        "effort_mix_notice": "engine effort mix", "close_call": "engine close call"
+        """)
+        XCTAssertEqual(Set(answerDisclosures(older, anchor: nil, .turkish).map(\.text)),
+                       ["engine staleness", "engine effort mix", "engine close call"])
+        // A dating kind this build does not know.
+        let unknown = try served(#""evidence_dating": "some_future_kind", "evidence_dating_note": "engine dating note""#)
+        XCTAssertEqual(answerDisclosures(unknown, anchor: nil, .turkish).map(\.text), ["engine dating note"])
+    }
+
+    /// W2 Tester (D-135 on the combined list, #72): a stale board none of whose sources carries a date
+    /// is a property of the board and is said calmly; a dated one is loud. One this build cannot
+    /// compose is the engine's English there too, as on the cards.
+    func testTheCombinedListWeighsAndFallsBackAsTheCardsDo() {
+        XCTAssertEqual(combinedDisclosure(.staleBoard(health([nil, nil])), .english)?.weight, .property)
+        XCTAssertEqual(combinedDisclosure(.staleBoard(health([120, nil])), .english)?.weight, .state)
+        let older = SourceHealth(benchmark: "B", stale: true, notice: "engine text", sources: [], reason: nil)
+        XCTAssertEqual(combinedDisclosure(.staleBoard(older), .turkish)?.text, "engine text")
+    }
+
+    /// W2 Tester (D-176, #63 finding 2): every composed notice is Turkish in Turkish. Several were
+    /// held in Turkish only as not nil, or as distinct from each other: the English mixed-dating
+    /// note in the Turkish branch passed every test.
+    func testEveryComposedNoticeDiffersFromItsEnglish() {
+        let fact = CloseCallFact(model: "GPT-5.5", behindBy: 1.2, unit: "points")
+        let composers: [(String, (Language) -> String?)] = [
+            ("undated", { datingSentence("undated", benchmark: "B", $0) }),
+            ("mixed", { datingSentence("mixed", benchmark: "B", $0) }),
+            ("no_evidence", { unavailableSentence(code: "no_evidence", benchmark: "B", $0) }),
+            ("over_budget", { unavailableSentence(code: "over_budget", benchmark: "B", $0) }),
+            ("unreadable", { unavailableSentence(code: "unreadable", benchmark: "B", $0) }),
+            ("stale", { staleSentence(self.health([101, nil, -3]), $0) }),
+            ("no_source", { staleSentence(SourceHealth(benchmark: "B", stale: true, notice: "n", sources: [],
+                                                       reason: "no_source"), $0) }),
+            ("unreadable health", { staleSentence(SourceHealth(benchmark: "B", stale: true, notice: "n",
+                                                               sources: [], reason: "unreadable"), $0) }),
+            ("effort", { effortMixSentence(efforts: ["high", "max"], $0) }),
+            ("close call", { closeCallSentence(fact, ranked: self.ranked, leader: 83.5, metric: "% resolved",
+                                               anchor: nil, $0) }),
+            ("ordering", { orderingSentence($0) }),
+        ]
+        for (name, compose) in composers {
+            let english = compose(.english)
+            let turkish = compose(.turkish)
+            XCTAssertNotNil(turkish, name)
+            XCTAssertNotEqual(turkish, english, "\(name): the Turkish reader is given the English")
+        }
+    }
 }
