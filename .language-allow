@@ -106,3 +106,4 @@ ios/ModelRanking/Engine/Reading.swift   # M18-W3 (D-169): the Turkish verbs the 
                                         # reads; its prose and comments are English
 ios/EngineTests/ReadingTests.swift      # asserts Turkish inputs by their words, for the reason
                                         # LanguageTests.swift is exempt above
+scripts/router_probe/image_tuning_questions.json  # M18-W3 (#113): the author's tuning set, half Turkish

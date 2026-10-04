@@ -48,6 +48,66 @@ enum InputSignals {
         return words.contains { word in actVerbs.contains { word == $0 || (word.hasPrefix($0) && $0.count >= 4) } }
     }
 
+    /// An attempt to instruct the model behind the text box, by the phrasings such attempts use, in
+    /// both languages: "ignore your previous instructions", "you are now", "print your system
+    /// prompt", "önceki talimatları unut", "sen artık". Each phrase is specific enough that a model
+    /// search does not use it. Held by `ReadingTests`; a phrase added here is a reviewed edit.
+    static func instructsTheApp(_ text: String) -> Bool {
+        let folded = text.lowercased()
+        return instructionPhrases.contains { folded.contains($0) }
+    }
+
+    static let instructionPhrases: [String] = [
+        "ignore your", "ignore all", "ignore the previous", "ignore previous", "previous instructions",
+        "system prompt", "your instructions", "your hidden", "you are now", "forget everything",
+        "forget your", "stay in character", "reply with the single", "respond only with",
+        "and nothing else", "new rule:", "talimat", "sistem komut", "sistem istem", "sen artık",
+        "artık sen", "bundan sonra sadece", "kuralları bir kenara", "kuralları unut", "gizli ayar",
+        "başka bir şey yazma", "yeni kural",
+    ]
+
+    /// A greeting, thanks or small talk, and nothing else ("hi", "how are you", "ok", "selam",
+    /// "nasılsın", "test test 123"): every word is one of these, and there are at most six.
+    static func smallTalk(_ text: String) -> Bool {
+        let words = text.lowercased().split { !$0.isLetter }.map(String.init)
+        guard (1...6).contains(words.count) else { return false }
+        return words.allSatisfy(smallTalkWords.contains)
+    }
+
+    static let smallTalkWords: Set<String> = [
+        "hi", "hello", "hey", "hiya", "yo", "sup", "thanks", "thank", "you", "thx", "ok", "okay", "cool",
+        "nice", "great", "lol", "haha", "bye", "good", "morning", "evening", "night", "how", "are",
+        "doing", "today", "test", "testing", "selam", "merhaba", "mrb", "slm", "nasılsın", "naber",
+        "teşekkürler", "teşekkür", "ederim", "sağol", "sağ", "ol", "tamam", "peki", "günaydın", "iyi",
+        "geceler", "akşamlar", "görüşürüz",
+    ]
+
+    /// #113 (M18-W3): a request to MAKE or CHANGE an image, which nothing here measures: `vision`
+    /// measures reading one. The on-device model sent these to `vision` even when told not to (0 of
+    /// 6 on the tuning set), so the line is drawn here: a verb that makes or changes followed,
+    /// within three words, by an image, or "draw"/"çiz" alone. Held by `ReadingTests`.
+    static func makesAnImage(_ text: String) -> Bool {
+        let words = text.lowercased().split { !$0.isLetter }.map(String.init)
+        if words.contains(where: { $0 == "draw" || $0.hasPrefix("çiz") || $0 == "sketch" }) { return true }
+        for (index, word) in words.enumerated() where imageVerbs.contains(where: { word.hasPrefix($0) }) {
+            let near = words.dropFirst(index + 1).prefix(3) + words.prefix(index).suffix(3)
+            if near.contains(where: { candidate in imageNouns.contains { candidate.hasPrefix($0) } }) { return true }
+        }
+        return false
+    }
+
+    private static let imageVerbs = [
+        "generate", "create", "make", "design", "edit", "retouch", "remove", "turn", "paint", "illustrate",
+        "fix", "enhance", "restore", "colorize", "colourise", "brighten", "sharpen",
+        "oluştur", "yap", "tasarla", "düzenle", "rötuş", "kaldır", "sil", "üret", "düzelt",
+        "netleştir", "renklendir",
+    ]
+    private static let imageNouns = [
+        "image", "picture", "photo", "logo", "illustration", "avatar", "drawing", "poster", "icon",
+        "wallpaper", "selfie", "background", "resim", "görsel", "fotoğraf", "logo", "illüstrasyon",
+        "afiş", "ikon", "simge", "arka", "avatar", "portre", "portrait",
+    ]
+
     /// The verbs that ask the app to do something to text it is given, in both languages. A Turkish
     /// verb is matched by its stem, so "çevir", "çevirir misin" and "düzeltir misin" all count.
     /// Held by `ReadingTests`; a verb added here is a reviewed edit.
@@ -80,14 +140,15 @@ enum InputSignals {
     }()
 }
 
-/// D-169 as amended at M18-W3: the reading, from the two code signals and the model's verdict.
+/// D-169 as amended at M18-W3: the reading, from the signals in code and the model's verdict.
 ///
-/// - `noWord` decides alone: there is nothing to route.
+/// - `noWord` decides alone: there is nothing to route. So do an instruction to the app and small
+///   talk, read in code (`certain`).
 /// - The model's "not a search" and pasted content together decide it is not a search.
 /// - Either one alone is a doubt, and the reader is asked.
 /// - `modelSaysNotASearch` is `nil` where no model read the question (another tier answered).
-func inputReading(noWord: Bool, pasted: Bool, modelSaysNotASearch: Bool?) -> InputReading {
-    if noWord { return .notASearch }
+func inputReading(noWord: Bool, pasted: Bool, modelSaysNotASearch: Bool?, certain: Bool = false) -> InputReading {
+    if noWord || certain { return .notASearch }
     switch (modelSaysNotASearch ?? false, pasted) {
     case (true, true): return .notASearch
     case (true, false), (false, true): return .unsure
