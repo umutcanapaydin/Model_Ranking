@@ -276,3 +276,41 @@ def test_follow_redirects_false_is_honoured() -> None:
         fetch_bounded_bytes(URL, "probe", 5.0, follow_redirects=False)
     assert not target.called
 
+
+
+# --- #71: the deadline is decided before the client is closed under the worker -------------------
+
+
+class _ClosingRaces:
+    """An `httpx.Client` stand-in that forces #71's interleaving every time: the worker blocks in its
+    read until `close()`, then fails with EBADF, and `close()` returns only after the worker has
+    recorded that error and ended. Under load that window opened by chance (the EBADF flake)."""
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        self.closed = threading.Event()
+        self.worker_done = threading.Event()
+
+    def stream(self, *args: object, **kwargs: object) -> _ClosingRaces:
+        return self
+
+    def __enter__(self) -> None:
+        self.closed.wait(5)
+        self.worker_done.set()  # the worker records the error and exits right after this raise
+        raise OSError(9, "Bad file descriptor")
+
+    def __exit__(self, *exc: object) -> None:
+        return None
+
+    def close(self) -> None:
+        self.closed.set()
+        self.worker_done.wait(5)
+        time.sleep(0.05)  # the worker's `except` and return run before `close` returns
+
+
+def test_a_read_failing_after_the_deadline_is_reported_as_the_deadline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#71: `bounded_get` closed the client and only then asked whether the worker was still alive.
+    A worker that woke on the closed socket and exited in between turned a late fetch into
+    `probe fetch failed: [Errno 9] Bad file descriptor`. Late is decided at the deadline."""
+    monkeypatch.setattr(httpx, "Client", _ClosingRaces)
+    with pytest.raises(SourceError, match="deadline"):
+        fetch_bounded_bytes("https://source.example/", "probe", 5.0, deadline=0.2)

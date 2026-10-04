@@ -504,3 +504,15 @@ def test_no_lan_closes_the_home_network_on_the_install_the_owner_runs(tmp_path: 
     assert 'export MODEL_RANKING_ALLOWED_HOSTS="127.0.0.1,localhost"' in written, written
     assert "home network: kept" not in done.stderr, done.stderr
     assert "home network: off" in done.stdout, done.stdout
+
+
+def test_nothing_in_the_repository_installs_the_retired_refresher() -> None:
+    """#76 (D-173 clause 7): the engine service runs the nightly refresh (D-170, D-154). The retired
+    launchd refresher's installer still shipped, and it ran the development checkout: a second
+    nightly refresher the shared lock alone kept apart from the first."""
+    offenders = [
+        str(path) for folder in (REPO / "scripts", REPO / "deploy") if folder.is_dir()
+        for path in sorted(folder.iterdir())
+        if path.is_file() and "com.hcs.modelranking.refresh" in path.read_text(encoding="utf-8", errors="replace")
+    ]
+    assert offenders == []
