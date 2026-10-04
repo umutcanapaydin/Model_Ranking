@@ -234,6 +234,58 @@ def test_a_query_string_changes_nothing(client: TestClient) -> None:
     assert (asked.status_code, asked.content) == (200, plain.content)
 
 
+def test_a_second_request_does_not_rebuild_the_standings(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#55 (D-173 clause 5): the payload was rebuilt from the artifact on every request (about 30-60 ms,
+    ~200 ms near its bound). It is built once per artifact, keyed on the artifact's identity."""
+    from app.adapter import main as adapter
+
+    calls: list[int] = []
+    real = adapter.board_standings
+    monkeypatch.setattr(adapter, "board_standings", lambda conn: calls.append(1) or real(conn))
+    first, second = client.get("/v1/boards"), client.get("/v1/boards")
+    assert (first.status_code, second.status_code) == (200, 200)
+    assert second.content == first.content
+    assert len(calls) == 1
+
+
+def test_a_replaced_artifact_is_built_again(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#55: the key is the artifact's identity, not its path: the refresh publishes by replacing the
+    file (D-129), and a memo keyed on the path would answer for the retired artifact."""
+    import sqlite3
+
+    from app.adapter import main as adapter
+
+    db = tmp_path / "pipeline.db"
+    _seeded_db(db)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    client = TestClient(adapter.app)
+    before = client.get("/v1/boards").json()
+    replacement = tmp_path / "next.db"
+    _seeded_db(replacement)
+    conn = sqlite3.connect(replacement)
+    conn.execute("DELETE FROM scores WHERE source = 'swebench'")
+    conn.commit()
+    conn.close()
+    replacement.replace(db)
+    after = client.get("/v1/boards").json()
+    assert {b["id"] for b in before["boards"]} - {b["id"] for b in after["boards"]} == {"swebench"}
+
+
+def test_a_client_that_accepts_gzip_gets_the_boards_compressed(client: TestClient) -> None:
+    """#55 (D-173 clause 5): about 500 KB a day uncompressed. Compressed for a client that asks, with
+    the security header kept; unchanged for one that does not."""
+    import gzip
+
+    plain = client.get("/v1/boards", headers={"Accept-Encoding": "identity"})
+    assert "content-encoding" not in plain.headers
+    raw = client.get("/v1/boards", headers={"Accept-Encoding": "gzip"})
+    assert raw.headers.get("content-encoding") == "gzip"
+    assert raw.headers["x-content-type-options"] == "nosniff"
+    assert raw.headers["content-type"].startswith("application/json")
+    assert raw.content == plain.content  # httpx decodes; the body is the same document
+    assert len(gzip.compress(plain.content)) < len(plain.content)
+
+
 def test_a_missing_artifact_is_unavailable_not_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MODEL_RANKING_DB", str(tmp_path / "absent.db"))
     from app.adapter import main as adapter
