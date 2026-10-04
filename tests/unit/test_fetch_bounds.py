@@ -192,6 +192,32 @@ def test_the_deadline_bounds_the_whole_fetch(behaviour: object) -> None:
         assert time.monotonic() - started < 2.5
 
 
+# --- W-126 (M18-W6, #90): the cycle's fetches share one time budget ------------------------------
+
+
+@respx.mock
+def test_no_fetch_starts_once_the_cycle_budget_is_spent() -> None:
+    """Past the budget the source fails at once, and carries its last good data (D-156), instead of
+    one more 120 s download running the night into the engine's kill."""
+    route = respx.get(URL).mock(return_value=httpx.Response(200, content=b"{}"))
+    with protocols.cycle_budget(0.0), pytest.raises(SourceError, match="time budget is spent"):
+        fetch_bounded_bytes(URL, "probe", 5.0)
+    assert not route.called, "a fetch started after the budget was spent"
+    assert fetch_bounded_bytes(URL, "probe", 5.0) == b"{}", "the budget outlived its cycle"
+
+
+@pytest.mark.parametrize("behaviour", [_body_drip])
+@pytest.mark.usefixtures("loopback_http")
+def test_an_open_fetch_is_cut_at_the_end_of_the_cycle_budget(behaviour: object) -> None:
+    """A download whose own deadline is far off still ends with the cycle's budget."""
+    for port in _serve(behaviour):
+        started = time.monotonic()
+        with protocols.cycle_budget(1.0), pytest.raises(SourceError, match="deadline"):
+            fetch_bounded_bytes(f"http://127.0.0.1:{port}/", "probe", 5.0, deadline=60.0,
+                                hosts=("127.0.0.1",))
+        assert time.monotonic() - started < 2.5
+
+
 # --- the Tester's pins (T1-T7) -------------------------------------------------------------------
 
 

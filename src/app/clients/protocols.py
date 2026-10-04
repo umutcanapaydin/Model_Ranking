@@ -10,7 +10,7 @@ from __future__ import annotations
 import contextlib
 import threading
 import time
-from collections.abc import Callable, Collection
+from collections.abc import Callable, Collection, Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
@@ -52,6 +52,45 @@ MAX_REDIRECTS = 5
 #: With no deadline of its own, a fetch may take this many of its per-operation timeouts in all:
 #: connection, headers, every redirect hop and the body (#25).
 DEADLINE_FACTOR = 4.0
+
+
+class _Cycle:
+    """W-126 (M18-W6, #90): the monotonic time by which a refresh cycle's fetches must end, or None
+    outside a cycle. Set only through `cycle_budget`."""
+
+    ends: float | None = None
+
+
+@contextlib.contextmanager
+def cycle_budget(seconds: float) -> Iterator[None]:
+    """Every fetch inside the block ends within `seconds` of the block's start, together.
+
+    Past the budget no fetch starts, and an open one is cut at it: that source fails and carries
+    its last good data (D-156). Without it, a uniformly slow Hugging Face night (14 downloads of up
+    to 120 s each) ran into the engine's 30-minute kill and lost every source's night (W-126).
+    """
+    previous = _Cycle.ends
+    _Cycle.ends = time.monotonic() + seconds
+    try:
+        yield
+    finally:
+        _Cycle.ends = previous
+
+
+def cycle_ends() -> float | None:
+    """When the current cycle's fetches must end, or None outside a cycle."""
+    return _Cycle.ends
+
+
+def _within_the_cycle(total: float, started: float, name: str) -> float:
+    """A download's deadline, cut to what is left of the cycle's budget; none left refuses it."""
+    if _Cycle.ends is None:
+        return total
+    left = _Cycle.ends - started
+    if left <= 0:
+        msg = f"{name}: the refresh cycle's time budget is spent, so it was not fetched"
+        raise SourceError(msg)
+    return min(total, left)
 
 
 @dataclass(frozen=True)
@@ -100,6 +139,7 @@ def bounded_get(
     allowed = tuple(hosts) if hosts else (httpx.URL(url).host,)
     total = deadline if deadline is not None else timeout * DEADLINE_FACTOR
     started = time.monotonic()
+    total = _within_the_cycle(total, started, name)
 
     def hop(request: httpx.Request) -> None:
         if not host_allowed(request.url, allowed):

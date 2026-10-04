@@ -37,6 +37,7 @@ import logging
 import math
 import os
 import random
+import signal
 import sys
 import time
 from collections.abc import Awaitable, Callable, Sequence
@@ -77,7 +78,8 @@ POLL_SECONDS = 60.0
 
 #: `refresh.py`'s exit codes, restated rather than imported (see the module docstring).
 GOOD_CYCLES = frozenset({0, 1})  # published, unchanged
-CODE_NAMES = {0: "published", 1: "unchanged", 2: "failed", 3: "refused", 4: "busy"}
+#: `refresh.py`'s exit codes. 5 is `EXIT_TIMED_OUT` (W-126): the cycle stopped itself at its limit.
+CODE_NAMES = {0: "published", 1: "unchanged", 2: "failed", 3: "refused", 4: "busy", 5: "timed out"}
 
 _SRC = Path(__file__).resolve().parents[2]
 _REPO = _SRC.parent
@@ -263,6 +265,9 @@ class NightlyRefresh:
             proc = await asyncio.create_subprocess_exec(
                 *self.command, cwd=_REPO, env=env, stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+                # W-130 (M18-W6): a group of its own, so the kill takes the reader it starts (D-165)
+                # and anything else that holds the pipe this process reads.
+                start_new_session=True,
             )
             tail = bytearray()
 
@@ -285,7 +290,9 @@ class NightlyRefresh:
             record = read_record(self.db)
             recorded_at = record.get("at") if record else None
             wrote = isinstance(recorded_at, int | float) and recorded_at >= started
-            if not wrote and code != 4:  # a busy cycle writes nothing, by design (refresh.py M1)
+            if code == 5:  # it stopped itself at its limit and wrote nothing (W-126)
+                self._failed(started, "timed out")
+            elif not wrote and code != 4:  # a busy cycle writes nothing, by design (refresh.py M1)
                 # Exit 1 is "unchanged" only from a cycle that ran; an import error exits 1 too.
                 name = "crashed"
                 self._failed(started, "crashed")
@@ -297,6 +304,9 @@ class NightlyRefresh:
             return None
         finally:
             if proc is not None and proc.returncode is None:
+                # W-130: the whole group, or a grandchild holding the pipe keeps `wait` waiting.
+                with contextlib.suppress(ProcessLookupError, PermissionError):
+                    os.killpg(proc.pid, signal.SIGKILL)
                 with contextlib.suppress(ProcessLookupError):
                     proc.kill()
                 with contextlib.suppress(Exception):

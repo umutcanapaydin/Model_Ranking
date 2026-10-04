@@ -200,6 +200,60 @@ def test_a_cycle_that_hangs_is_killed_at_the_timeout(tmp_path: Path) -> None:
     assert schedule.running_since is None
 
 
+def test_the_timeout_kill_takes_a_grandchild_that_holds_the_output(tmp_path: Path) -> None:
+    """W-130 (M18-W6, #90): the cycle starts a reader of its own (D-165), and a grandchild that
+    inherits the cycle's output kept the kill waiting on the pipe (30.1 s against a 2 s timeout,
+    M16 closure). The cycle runs in its own process group, and the kill takes the whole group."""
+    import os
+    import signal
+
+    pid_file = tmp_path / "grandchild"
+    code = (
+        "import subprocess, sys, time\n"
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+        f"open({str(pid_file)!r}, 'w').write(str(child.pid))\n"
+        "time.sleep(30)\n"
+    )
+    try:
+        started = time.monotonic()
+        assert asyncio.run(_child(tmp_path, code, timeout=2.0).run_once("nightly")) is None
+        assert time.monotonic() - started < 10, "the kill waited on a grandchild holding the pipe"
+        grandchild = int(pid_file.read_text(encoding="utf-8"))
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                os.kill(grandchild, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.1)
+        else:
+            pytest.fail("the grandchild outlived the kill")
+    finally:
+        if pid_file.exists():
+            with __import__("contextlib").suppress(ProcessLookupError, ValueError):
+                os.kill(int(pid_file.read_text(encoding="utf-8")), signal.SIGKILL)
+
+
+def test_a_cycle_that_stops_itself_at_its_limit_is_reported_as_timed_out(tmp_path: Path) -> None:
+    """W-126 (M18-W6): the cycle's own limit ends it before the engine's kill, with its own code;
+    `/health` says so rather than "crashed"."""
+    from app.workflows.refresh import EXIT_TIMED_OUT
+
+    assert nightly.CODE_NAMES[EXIT_TIMED_OUT] == "timed out"
+    schedule = _child(tmp_path, f"raise SystemExit({EXIT_TIMED_OUT})")
+    assert asyncio.run(schedule.run_once("nightly")) == EXIT_TIMED_OUT
+    assert schedule.report()["refresh_last"] == "timed out"
+
+
+def test_the_cycle_ends_its_fetches_then_itself_before_the_engine_kills_it() -> None:
+    """W-126: a slow night spends the fetch budget, and the sources left carry (D-156); the cycle's
+    own limit comes next, and the engine's kill last, with room between each."""
+    from app.workflows import refresh as cycle
+
+    assert cycle.FETCH_BUDGET_SECONDS + 5 * 60 <= cycle.CYCLE_LIMIT_SECONDS
+    assert cycle.CYCLE_LIMIT_SECONDS + 2 * 60 <= nightly.TIMEOUT_SECONDS
+
+
 def test_a_cycle_that_raises_or_fails_reports_its_code_and_does_not_raise(tmp_path: Path) -> None:
     assert asyncio.run(_child(tmp_path, "raise SystemExit(2)").run_once("nightly")) == 2
     assert asyncio.run(_child(tmp_path, "raise RuntimeError('boom')").run_once("nightly")) == 1

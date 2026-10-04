@@ -2428,6 +2428,18 @@ service's wrapper (`scripts/engine_service.sh`, D-170), not by `ios/app.sh`.
 
 ---
 
+**AMENDED 2026-10-04 (M18-W6, #90; W-126, W-130; decided by the agent on the owner's standing
+instruction of 2026-09-29).** Clause 1's kill is now the last of three limits:
+- the cycle's downloads share a budget of 20 minutes; past it, the sources left carry their last good
+  data (D-156);
+- the cycle stops itself at 27 minutes, with exit code 5 ("timed out");
+- the engine kills it at 30 minutes, as before.
+
+The engine starts the cycle in its own process group and kills the whole group, so a grandchild such
+as the parquet reader (D-165) is killed too and cannot hold the output pipe. "A real cycle takes 6-9
+seconds" was true when written; with M17's boards a slow night is bounded by the budget, not by the
+kill.
+
 ## D-155 — The project runs on DevFlow v6.0
 
 **Status:** **accepted by the owner 2026-09-23** (in session, choosing each option below) · **Date:**

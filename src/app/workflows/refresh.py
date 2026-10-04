@@ -33,12 +33,14 @@ import stat
 import statistics
 import sys
 import tempfile
+import threading
 import time
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, fields
 from pathlib import Path
 
 from app.clients import epoch_bundle
+from app.clients.protocols import cycle_budget
 from app.workflows import access
 from app.workflows import boards as declared_boards
 from app.workflows.build import CARRY_TABLES
@@ -83,6 +85,32 @@ EXIT_BUSY = 4
 #: A first-class outcome and not an error: nothing is broken, and the right response is to look at
 #: the upstream rather than at this process.
 EXIT_REFUSED = 3
+#: The cycle passed its own limit and stopped itself (W-126). The live artifact is untouched: a
+#: publish is one rename, and the lock goes with the process.
+EXIT_TIMED_OUT = 5
+
+#: W-126 (M18-W6, #90). Every fetch of a cycle ends within this, together; a source not yet fetched
+#: then fails and carries its last good data (D-156), instead of a slow night running into the
+#: engine's kill and losing every source's night.
+FETCH_BUDGET_SECONDS = 20 * 60.0
+#: The cycle then stops itself here, whatever it is doing, before the engine's kill
+#: (`nightly.TIMEOUT_SECONDS`, 30 minutes). An engine killed hard can no longer leave it running and
+#: holding the lock. The reader it may have started ends on its own watchdog (D-165).
+CYCLE_LIMIT_SECONDS = 27 * 60.0
+
+
+def _stop_at_the_limit(seconds: float) -> threading.Timer:
+    """A timer that ends this process at `seconds`, saying why on stdout as the cycle's outcome."""
+
+    def stop() -> None:
+        reason = f"timed out: the cycle passed its {seconds:.0f} s limit and stopped itself"
+        print(json.dumps({"published": False, "reason": reason}), flush=True)
+        os._exit(EXIT_TIMED_OUT)
+
+    timer = threading.Timer(seconds, stop)
+    timer.daemon = True
+    timer.start()
+    return timer
 
 
 @dataclass(frozen=True)
@@ -1272,17 +1300,21 @@ def main(argv: list[str] | None = None) -> int:
         if value:
             passthrough += [flag, value]
 
+    limit = _stop_at_the_limit(CYCLE_LIMIT_SECONDS)
     try:
-        outcome, code = refresh(
-            Path(args.db), build_args=passthrough,
-            fetch_epoch=epoch_bundle.fetch_bundle if args.fetch_epoch else None,
-        )
+        with cycle_budget(FETCH_BUDGET_SECONDS):
+            outcome, code = refresh(
+                Path(args.db), build_args=passthrough,
+                fetch_epoch=epoch_bundle.fetch_bundle if args.fetch_epoch else None,
+            )
     except BaseException as exc:
         # The cycle records its own crash and re-raises, so without this the interpreter exits 1 —
         # and 1 is EXIT_UNCHANGED, which this command's own documentation calls "a RESULT, not a
         # failure". A scheduler reading exit codes would have been told nothing happened.
         print(json.dumps({"published": False, "reason": f"crashed: {type(exc).__name__}: {exc}"}))
         return EXIT_FAILED
+    finally:
+        limit.cancel()
     print(outcome.as_json())
     return code
 

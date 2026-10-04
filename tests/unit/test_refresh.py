@@ -1845,3 +1845,51 @@ def test_an_accessibility_expiry_night_publishes_through_the_cycle(tmp_path: Pat
 
     outcome, code = refresh(live, builder=expiring)
     assert code == EXIT_PUBLISHED, outcome.reason
+
+
+# --- W-126 (M18-W6, #90): the cycle stops itself ---------------------------------------------------
+
+
+def test_the_cycle_stops_itself_at_its_limit() -> None:
+    """A cycle stuck anywhere ends itself at its limit with its own code, so an engine killed hard
+    no longer leaves it holding the lock (W-126); the lock goes with the process (flock)."""
+    import subprocess
+    import sys
+    import time
+
+    code = (
+        "import time\nfrom app.workflows import refresh as cycle\n"
+        "cycle.CYCLE_LIMIT_SECONDS = 1.0\n"
+        "cycle.refresh = lambda *args, **kwargs: time.sleep(30)\n"
+        "raise SystemExit(cycle.main(['--db', 'unused.db']))\n"
+    )
+    started = time.monotonic()
+    done = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=20,
+                          env={**os.environ, "PYTHONPATH": "src"}, check=False)
+    assert time.monotonic() - started < 10
+    from app.workflows.refresh import EXIT_TIMED_OUT
+
+    assert done.returncode == EXIT_TIMED_OUT, done.stderr[-500:]
+    assert "timed out" in done.stdout
+
+
+def test_the_cycle_runs_inside_its_fetch_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`main` is the entry point the engine calls (D-149 clause 2), so the budget is set there, and
+    every fetch of the cycle sees it."""
+    from app.clients import protocols
+    from app.workflows import refresh as cycle
+
+    seen: list[float | None] = []
+
+    class Outcome:
+        def as_json(self) -> str:
+            return "{}"
+
+    def fake(*_args: object, **_kwargs: object) -> tuple[Outcome, int]:
+        seen.append(protocols.cycle_ends())
+        return Outcome(), 0
+
+    monkeypatch.setattr(cycle, "refresh", fake)
+    assert cycle.main(["--db", "unused.db"]) == 0
+    assert seen and seen[0] is not None, "the cycle ran with no fetch budget"
+    assert protocols.cycle_ends() is None, "the budget outlived the cycle"
