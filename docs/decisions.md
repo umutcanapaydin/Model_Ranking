@@ -1201,6 +1201,8 @@ landed passes at any value of it, because none changes a row count — so tighte
 of them while moving the product closer to the freeze. **The answer to a guard that misses things
 is more axes, not more stringency.**
 
+**Amended by D-173 (2026-10-04)**: the ranked roster is compared by model id (clause 2), accessibility values have the same quarter as a loss guard (clause 3), and the candidate is checked against the serving bounds (clause 4).
+
 ---
 
 ## D-129 — The refresh's record is a file, and `runner` is what makes it visible
@@ -1329,6 +1331,8 @@ moving is news, not damage.**
 **It refuses; it never judges.** Under the owner's ruling of 2026-08-22 the refresh may prepare,
 compare and refuse, and may not acquire new judgement. This rule reports what looks wrong and the
 cycle stops — it never decides something is acceptable on balance and publishes anyway.
+
+**Amended by D-173 (2026-10-04)**: the roster's growth limit compares model ids, not display names (clause 2).
 
 ## D-133 — In a single-agent lane, K.7 means a separate SESSION, and the review is a FILE
 
@@ -2418,6 +2422,8 @@ or crashed before `refresh.py` could write one -- is remembered by the engine an
 *Amended 2026-09-29 (M17 closure, milestone review M6).* Clause 2's switch is set by the engine
 service's wrapper (`scripts/engine_service.sh`, D-170), not by `ios/app.sh`.
 
+**Amended by D-173 (2026-10-04)**: clause 4's `scripts/retire_refresh.sh` is removed with the retired refresher (clause 7), and the child inherits the serving-bound variables (clause 4).
+
 ---
 
 ## D-155 — The project runs on DevFlow v6.0
@@ -3093,6 +3099,8 @@ derives no model, whichever family it names. A date after it (`chatgpt-4o-latest
 release and still derives. A curated rule still takes a `-latest` name it matches (clause 2). The
 `@latest` route decoration is unchanged: it stays decoration, as the M16-W4 grammar ruled.
 
+**Amended by D-173 (2026-10-04)**: clause 8 -- a `-latest` token followed by a word names no release; followed by a date or a version (`v2`) it does (#48).
+
 ## D-167 — The phone holds every board's standings as positions, and combines only what every chosen board ranks
 
 **Status:** accepted -- **ruled by the owner 2026-09-25** (asked in Turkish, with explanations: the
@@ -3155,6 +3163,8 @@ distance between models shown, which would need scores and a new ADR under D-105
   every board set tried. It is filed as #61, with its code in the branch history, and returns with a
   property test. Clauses 1, 2 and the file-system half of clause 4 ship in M17-W4. The rule in
   clause 3 stands as ruled.
+
+**Amended by D-173 (2026-10-04)**: `/v1/boards` is built once per artifact and compressed on request (clause 5), and boards no question selects stay published (clause 6).
 
 ## D-168 — The question selects its boards as a surface plus declared refinements
 
@@ -3390,3 +3400,61 @@ network surface (B1, M1) and the closure seat reads it again.
 
 **Revisit when:** a wave's defect that a slice pass would have caught reaches the owner, or anything
 deploys beyond the owner's Mac.
+
+
+## D-173 — The engine's backlog decisions: stable ties, guards by id, an accessibility loss guard, bounds at refresh, a compressed boards route
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
+("proceed with what you recommend, don't ask", owner, translated from Turkish); M18-W4 · **Date:**
+2026-10-04 · **Amends** D-128, D-132, D-154, D-166 and D-167 as below · from #44, #48, #39, #42, #57, #55, #77, #76.
+
+**Context.** M17's seats filed these as needing a decision. Each has a small, reversible answer, and the
+owner asked the agent to take its recommendation rather than ask.
+
+**Decision.**
+1. **Ties are ordered by model id** (#44). A ranking's tie-break was the display name, a served
+   spelling, so a re-spelled name moved a model inside a tie. The value and cheapest picks broke a
+   price tie the same way; they now take the first row in the ranking's order (score, then id). The
+   served order of tied rows changes when the engine runs this code. The refresh fingerprints the live
+   artifact and the candidate with the same code, so no night publishes for this change alone.
+2. **The night-to-night roster guards compare model ids** (#39; D-128, D-132). A display change is
+   recorded in the refresh record as information. It is never read as one model lost and another
+   gained. An attacker-controlled display name therefore moves no guard, which it could not do before
+   either without also changing the id. This covers each surface's ranked roster. The board guards
+   (D-159, D-164) still compare a board's raw names, the rows as they arrive, before any model id: an
+   upstream re-spelling of a board's names still reads as names lost and gained there (#100).
+3. **Accessibility has a loss guard** (#42). A night on which the number of models with an
+   accessibility value falls by a quarter or more against the served artifact is refused, and the
+   refusal's reason names both counts. The quarter is D-128's own.
+4. **The refresh checks the serving bounds on the candidate** (#57). The startup check's bounds
+   (`_egress_problems`) run on the candidate before it is published. A candidate past one is refused,
+   and the live artifact keeps serving.
+5. **`/v1/boards` is built once per artifact and compressed** (#55).
+   - It is memoised on the artifact's identity.
+   - Every route's response of 1 KB or more is gzip-compressed for a client that accepts it, with
+     every security header kept. The data is public.
+   - No ETag for now.
+6. **Boards no question can select stay published** (#77; D-167). The phone picks boards by id from
+   its own table, so a new refinement needs no engine release. With (5), the daily payload costs
+   about a tenth of what it did. A board stops being published when its source does, not when no
+   question selects it.
+7. **The retired refresher's installer is removed** (#76). The engine service runs the nightly refresh
+   (D-170, D-154). A second launchd refresher running a development checkout is no longer
+   installable. D-154 clause 4's `scripts/retire_refresh.sh` goes with it: no such job is installed on
+   the owner's Mac (measured 2026-10-04).
+8. **A `-latest` token names no one release unless a date or a version follows it** (#48; amends D-166
+   clause 3). `grok-4.20-beta-latest-reasoning` derives nothing, as `...-latest` alone did not;
+   `chatgpt-4o-latest-20250326` and `gpt-4o-latest-v2` derive. The version form is `v` and a digit,
+   so a word that starts with `v` (`-latest-vibe`) still derives nothing.
+
+**Mitigation if violated.**
+- If tie order follows a spelling again, positions move on nights when nothing was measured.
+- If the roster guards compare names again, a cosmetic re-spelling can refuse a night (the board
+  guards still can, #100).
+- Without the accessibility guard, a truncated file empties the phone's filter with no refusal.
+- Without the bounds at refresh, a refresh can publish what a restart would refuse.
+
+**Revisit when:**
+- the phone shows ties as shared places on the cards (the alternative to (1)); or
+- the payload matters again (an ETag); or
+- a board is carried that no source still publishes.

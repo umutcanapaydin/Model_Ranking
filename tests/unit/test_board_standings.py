@@ -234,6 +234,90 @@ def test_a_query_string_changes_nothing(client: TestClient) -> None:
     assert (asked.status_code, asked.content) == (200, plain.content)
 
 
+def test_a_second_request_does_not_rebuild_the_standings(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#55 (D-173 clause 5, REQ-API-001): the payload was rebuilt from the artifact on every request (about 30-60 ms,
+    ~200 ms near its bound). It is built once per artifact, keyed on the artifact's identity."""
+    from app.adapter import main as adapter
+
+    calls: list[int] = []
+    real = adapter.board_standings
+    monkeypatch.setattr(adapter, "board_standings", lambda conn: calls.append(1) or real(conn))
+    first, second = client.get("/v1/boards"), client.get("/v1/boards")
+    assert (first.status_code, second.status_code) == (200, 200)
+    assert second.content == first.content
+    assert len(calls) == 1
+
+
+def test_a_replaced_artifact_is_built_again(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#55: the key is the artifact's identity, not its path: the refresh publishes by replacing the
+    file (D-129), and a memo keyed on the path would answer for the retired artifact."""
+    import sqlite3
+
+    from app.adapter import main as adapter
+
+    db = tmp_path / "pipeline.db"
+    _seeded_db(db)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    client = TestClient(adapter.app)
+    before = client.get("/v1/boards").json()
+    replacement = tmp_path / "next.db"
+    _seeded_db(replacement)
+    conn = sqlite3.connect(replacement)
+    conn.execute("DELETE FROM scores WHERE source = 'swebench'")
+    conn.commit()
+    conn.close()
+    replacement.replace(db)
+    after = client.get("/v1/boards").json()
+    assert {b["id"] for b in before["boards"]} - {b["id"] for b in after["boards"]} == {"swebench"}
+
+
+def test_a_publish_during_a_build_is_not_filed_under_the_new_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """W4 review M1 (#55): the route opened the artifact, then read its identity. A publish landing
+    in between filed the OLD payload under the NEW artifact's key, and served it until the next one."""
+    import sqlite3
+
+    from app.adapter import main as adapter
+
+    db = tmp_path / "pipeline.db"
+    _seeded_db(db)
+    replacement = tmp_path / "next.db"
+    _seeded_db(replacement)
+    conn = sqlite3.connect(replacement)
+    conn.execute("DELETE FROM scores WHERE source = 'swebench'")
+    conn.commit()
+    conn.close()
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    real_open = adapter.open_readonly
+
+    def open_then_publish(path: Path) -> sqlite3.Connection:
+        opened = real_open(path)
+        if replacement.exists():
+            replacement.replace(db)  # the refresh publishes while this request holds the old file
+        return opened
+
+    monkeypatch.setattr(adapter, "open_readonly", open_then_publish)
+    client = TestClient(adapter.app)
+    assert "swebench" in {b["id"] for b in client.get("/v1/boards").json()["boards"]}
+    assert "swebench" not in {b["id"] for b in client.get("/v1/boards").json()["boards"]}
+
+
+def test_a_client_that_accepts_gzip_gets_the_boards_compressed(client: TestClient) -> None:
+    """#55 (D-173 clause 5, REQ-API-001): about 500 KB a day uncompressed. Compressed for a client that asks, with
+    the security header kept; unchanged for one that does not."""
+    import gzip
+
+    plain = client.get("/v1/boards", headers={"Accept-Encoding": "identity"})
+    assert "content-encoding" not in plain.headers
+    raw = client.get("/v1/boards", headers={"Accept-Encoding": "gzip"})
+    assert raw.headers.get("content-encoding") == "gzip"
+    assert raw.headers["x-content-type-options"] == "nosniff"
+    assert raw.headers["content-type"].startswith("application/json")
+    assert raw.content == plain.content  # httpx decodes; the body is the same document
+    assert len(gzip.compress(plain.content)) < len(plain.content)
+
+
 def test_a_missing_artifact_is_unavailable_not_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MODEL_RANKING_DB", str(tmp_path / "absent.db"))
     from app.adapter import main as adapter
@@ -476,13 +560,12 @@ def test_the_engines_standings_bound_is_the_one_the_record_measures_against() ->
     """Second Tester M3: the engine-side half of the ceiling pin (the phone's is 4 MiB). Read from
     the source rather than the live value, which an environment variable may override (third
     Tester M4: the first version checked nothing when the variable was set)."""
-    import inspect
-    import re
-
     from app.adapter import main as adapter
+    from app.workflows import serving_bounds
 
-    default = re.search(r'"MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS",\s*"(\d+)"', inspect.getsource(adapter))
-    assert default is not None and default.group(1) == "25000"
+    # The default is defined once, where the refresh reads it too (D-173 clause 4, #57); the table's
+    # value, not the live one, which an environment variable may override.
+    assert serving_bounds._DEFAULTS["MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS"] == "25000"
     # ...and the bound in force is that default, or exactly what the environment set (fourth Tester
     # M2: a multiplier on the default passed the source check).
     import os
@@ -560,3 +643,21 @@ def test_every_metric_a_source_declares_has_a_direction() -> None:
     missing = sorted(declared - HIGHER_IS_BETTER)
     assert not missing, f"metrics with no declared direction: {missing}"
 
+
+
+def test_the_boards_memo_keeps_no_more_than_a_few_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """W4 Tester T8 (#55, D-173 clause 5): every nightly publish is a new artifact identity, and one
+    payload holds about 2.3 MB on today's artifact. Without its clear the memo keeps one per night
+    for the life of the engine; nothing held the clear."""
+    from app.adapter import main as adapter
+
+    db = tmp_path / "pipeline.db"
+    _seeded_db(db)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    client = TestClient(adapter.app)
+    for night in range(6):
+        published = tmp_path / f"night-{night}.db"
+        _seeded_db(published)
+        published.replace(db)
+        assert client.get("/v1/boards").status_code == 200
+    assert len(adapter._BOARDS_MEMO) <= 3

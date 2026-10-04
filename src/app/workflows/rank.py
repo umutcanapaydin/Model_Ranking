@@ -273,6 +273,15 @@ def category_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[Ranki
     Ordering uses ONLY the primary benchmark (REQ-CAT-003); the category's
     secondary benchmark (if any) joins as display evidence.
     """
+    return [row for _, row in ranked_with_ids(conn, spec)]
+
+
+def ranked_with_ids(conn: sqlite3.Connection, spec: CategorySpec) -> list[tuple[str, RankingRow]]:
+    """`category_ranking`, each row with the model id it ranks, from the one query that serves.
+
+    The refresh's guards compare models by id (#39, D-173 clause 2). `RankingRow` carries no id
+    because it is serialized whole onto `/v1`, so the id travels beside it rather than in it.
+    """
     secondary = spec.secondary_benchmark or "__none__"
     rows = conn.execute(
         """
@@ -320,7 +329,7 @@ def category_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[Ranki
         JOIN best_primary b ON b.model_id = m.id
         JOIN px_median p ON p.model_id = m.id
         LEFT JOIN best_secondary a ON a.model_id = m.id
-        ORDER BY b.best DESC, m.display
+        ORDER BY b.best DESC, m.id  -- #44 (D-173): a tie is ordered by id, never by a spelling
         """,
         {
             "primary": spec.primary_benchmark,
@@ -329,13 +338,12 @@ def category_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[Ranki
             "effort": spec.ranking_effort,
         },
     ).fetchall()
-    ranking: list[RankingRow] = []
+    ranking: list[tuple[str, RankingRow]] = []
     for r in rows:
         higher_effort, higher_score = higher_effort_evidence(
             conn, r[0], spec, harness=r[4], source=r[5]
         )
-        ranking.append(
-            RankingRow(
+        ranking.append((r[0], RankingRow(
                 model=r[1],
                 vendor=r[2],
                 score=r[3],
@@ -350,8 +358,7 @@ def category_ranking(conn: sqlite3.Connection, spec: CategorySpec) -> list[Ranki
                 input_per_m=r[10],
                 output_per_m=r[11],
                 blended_per_m=round(r[10] * BLEND_INPUT_WEIGHT + r[11] * BLEND_OUTPUT_WEIGHT, 2),
-            )
-        )
+            )))
     return ranking
 
 

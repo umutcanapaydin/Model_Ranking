@@ -12,6 +12,7 @@ reached its caller — so these tests genuinely control the build rather than be
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from pathlib import Path
 
@@ -288,6 +289,23 @@ def test_the_engine_serves_a_replaced_artifact_without_a_restart(
         "the engine kept serving the replaced artifact's data; a refresh would publish into a "
         "process that never reads it"
     )
+
+
+def test_nothing_the_refresh_loads_imports_the_serving_adapter() -> None:
+    """W4 review M3: the test below reads `refresh.py`'s own imports, and a module it imports could
+    import the adapter for it: `from app.adapter import nightly` in `serving_bounds.py` passed. What
+    a fresh interpreter has loaded after importing the refresh is the whole answer."""
+    import subprocess
+    import sys
+
+    probe = ("import sys, app.workflows.refresh; "
+             "print(sorted(m for m in sys.modules if m == 'app.adapter' or m.startswith('app.adapter.')))")
+    root = Path(__file__).resolve().parents[2]
+    # W4 second review M9: this tree's `src`, not whatever `app` the venv installed.
+    done = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, timeout=60,
+                          cwd=root, env={**os.environ, "PYTHONPATH": str(root / "src")}, check=False)
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip() == "[]", done.stdout
 
 
 def test_the_refresh_never_imports_the_serving_adapter() -> None:
@@ -1647,3 +1665,183 @@ def test_a_clock_that_cannot_be_reasoned_about_stops_the_cycle(
 
     assert code == EXIT_FAILED, f"a clock of {bad_clock} was accepted: {outcome.reason}"
     assert "clock" in outcome.reason
+
+
+# --- M18-W4 (D-173): guards by id, an accessibility loss guard, the serving bounds at refresh --------
+
+
+def _renamed(path: Path) -> Path:
+    """A `_wide` artifact whose every probe model only re-spells its display name."""
+    _wide(path, models=12)
+    conn = sqlite3.connect(path)
+    try:
+        conn.execute("UPDATE models SET display = 'Renamed ' || id WHERE id LIKE 'probe-%'")
+        conn.commit()
+    finally:
+        conn.close()
+    return path
+
+
+def test_a_candidate_that_only_re_spells_names_moves_no_guard(tmp_path: Path) -> None:
+    """#39 (D-173 clause 2, REQ-CAN-001: a model is its id): the roster guards compared display names, so a board that only
+    re-spelled its models read as every model lost and an injected set gained. They compare ids;
+    the re-spellings are recorded as information."""
+    from app.workflows.refresh import degradations, display_changes, upward_anomalies
+
+    live = fingerprint_of(_wide(tmp_path / "live.db", models=12))
+    candidate = fingerprint_of(_renamed(tmp_path / "candidate.db"))
+    assert live is not None and candidate is not None
+    assert degradations(live, candidate) == []
+    assert upward_anomalies(live, candidate) == []
+    changes = display_changes(live, candidate)
+    assert len(changes) == 12 and "Probe 00 -> Renamed probe-00" in changes
+
+
+def test_a_re_spelled_night_publishes_and_records_the_re_spellings(tmp_path: Path) -> None:
+    """#39 through the cycle: the night publishes, and its record names what was re-spelled."""
+    import json
+
+    live = _wide(tmp_path / "advisor.db", models=12)
+
+    def renaming(argv: list[str]) -> int:
+        _renamed(Path(argv[argv.index("--db") + 1]))
+        return 0
+
+    outcome, code = refresh(live, builder=renaming)
+    assert code == EXIT_PUBLISHED, outcome.reason
+    assert "Probe 00 -> Renamed probe-00" in outcome.renamed
+    record = json.loads((tmp_path / "advisor.db.refresh.json").read_text(encoding="utf-8"))
+    assert "Probe 00 -> Renamed probe-00" in record["renamed"]
+
+
+def _accessible(path: Path, *, values: int) -> Path:
+    """A `_wide` artifact in which `values` of its twelve probe models carry an accessibility value."""
+    _wide(path, models=12)
+    conn = sqlite3.connect(path)
+    try:
+        conn.execute("DELETE FROM access")
+        for index in range(values):
+            conn.execute(
+                "INSERT INTO access (raw_name, model_id, accessibility, source, source_url, observed_at)"
+                " VALUES (?, ?, 'API access', 'epoch_access', 'fixture://x', 't')",
+                (f"Probe {index:02d}", f"probe-{index:02d}"),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+    return path
+
+
+@pytest.mark.parametrize(("served", "candidate", "refused"), [(8, 1, True), (8, 6, True), (8, 7, False)])
+def test_accessibility_values_falling_by_a_quarter_refuse_the_night(
+    tmp_path: Path, served: int, candidate: int, refused: bool
+) -> None:
+    """#42 (D-173 clause 3): a truncated model_metadata.csv with one valid row published, and the
+    phone's accessibility filter emptied with no refusal. A quarter lost refuses, as D-128's boards."""
+    from app.workflows.refresh import degradations
+
+    live = fingerprint_of(_accessible(tmp_path / "live.db", values=served))
+    fresh = fingerprint_of(_accessible(tmp_path / "candidate.db", values=candidate))
+    assert live is not None and fresh is not None
+    reasons = degradations(live, fresh)
+    assert bool(reasons) is refused, reasons
+    if refused:
+        assert any("accessibility" in reason for reason in reasons), reasons
+
+
+def test_a_candidate_past_a_serving_bound_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#57 (D-173 clause 4): the size bounds were checked only when the engine started, so a nightly
+    refresh published what a restart would refuse. The candidate is checked before it is published."""
+    live = _wide(tmp_path / "advisor.db", models=12)
+    before = live.read_bytes()
+    monkeypatch.setenv("MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS", "12")
+
+    def growing(argv: list[str]) -> int:
+        _wide(Path(argv[argv.index("--db") + 1]), models=13)
+        return 0
+
+    outcome, code = refresh(live, builder=growing)
+    assert code == EXIT_REFUSED, outcome.reason
+    assert "MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS" in outcome.reason
+    assert live.read_bytes() == before
+
+
+def test_a_candidate_past_the_standings_bound_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """W4 review M4: the plan's case for #57 is the `/v1/boards` payload, the bound a refresh grows
+    most easily; the test above drives the ranking rows."""
+    live = _wide(tmp_path / "advisor.db", models=12)
+    monkeypatch.setenv("MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS", "5")
+
+    def same(argv: list[str]) -> int:
+        _wide(Path(argv[argv.index("--db") + 1]), models=13)
+        return 0
+
+    outcome, code = refresh(live, builder=same)
+    assert code == EXIT_REFUSED, outcome.reason
+    assert "MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS" in outcome.reason
+
+
+def test_a_first_artifact_past_a_bound_is_refused_too(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """W4 review M4 (D-173 clause 4): with nothing served there is nothing to be worse than, but a
+    first artifact past a bound would still stop the engine's next start."""
+    target = tmp_path / "advisor.db"
+    monkeypatch.setenv("MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS", "5")
+
+    def first(argv: list[str]) -> int:
+        _wide(Path(argv[argv.index("--db") + 1]), models=12)
+        return 0
+
+    outcome, code = refresh(target, builder=first)
+    assert code == EXIT_REFUSED, outcome.reason
+    assert not target.exists()
+
+
+def test_an_expired_accessibility_source_is_excused_by_the_baseline(tmp_path: Path) -> None:
+    """W4 second review M8 (#42, D-156 clause 3, REQ-REF-009): on a night `model_metadata.csv`'s
+    source has aged out, its values leave on purpose. The guard judges the candidate against the
+    live artifact WITHOUT that source's rows, so the night is not refused for it."""
+    from app.workflows.refresh import _served_without, degradations
+
+    live = _accessible(tmp_path / "live.db", values=8)
+    fresh = fingerprint_of(_accessible(tmp_path / "candidate.db", values=0))
+    served = fingerprint_of(live)
+    assert served is not None and fresh is not None
+    assert any("accessibility" in r for r in degradations(served, fresh))  # without the excuse: refused
+    baseline = _served_without(live, {"epoch_access"})
+    assert not any("accessibility" in r for r in degradations(baseline, fresh))
+
+
+def test_a_refused_night_still_records_its_re_spellings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """W4 Tester T5 (#39, D-173 clause 2): `write_status` says a refused night lists them too, and the
+    cycle passes them on its refusal. Nothing held either."""
+    import json
+
+    live = _wide(tmp_path / "advisor.db", models=12)
+    monkeypatch.setenv("MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS", "11")
+
+    def renaming(argv: list[str]) -> int:
+        _renamed(Path(argv[argv.index("--db") + 1]))
+        return 0
+
+    outcome, code = refresh(live, builder=renaming)
+    assert code == EXIT_REFUSED, outcome.reason
+    record = json.loads((tmp_path / "advisor.db.refresh.json").read_text(encoding="utf-8"))
+    assert "Probe 00 -> Renamed probe-00" in record["renamed"]
+
+
+def test_an_accessibility_expiry_night_publishes_through_the_cycle(tmp_path: Path) -> None:
+    """W4 Tester T6 (#42, D-156 clause 3, REQ-REF-009): the test above calls `degradations` with the
+    baseline by hand. This runs the night: `epoch_access` has aged out, its values leave on purpose,
+    and the cycle publishes rather than refusing."""
+    import json
+
+    live = _accessible(tmp_path / "advisor.db", values=8)
+
+    def expiring(argv: list[str]) -> int:
+        _accessible(Path(argv[argv.index("--db") + 1]), values=0)
+        Path(argv[argv.index("--report-out") + 1]).write_text(json.dumps(
+            {"arrived": [], "carried": {}, "expired": {"epoch_access": None}, "since": {}}), encoding="utf-8")
+        return 0
+
+    outcome, code = refresh(live, builder=expiring)
+    assert code == EXIT_PUBLISHED, outcome.reason

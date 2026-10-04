@@ -257,3 +257,75 @@ def test_export_csv_and_json_identical_rows(tmp_path: Path) -> None:
     for c, j in zip(csv_rows, payload["rows"], strict=True):
         assert c["model"] == j["model"]
         assert float(c["blended_per_m"]) == j["blended_per_m"]
+
+
+def test_a_tie_keeps_its_order_when_display_names_are_re_spelled() -> None:
+    """#44 (D-173 clause 1): a tie was ordered by display name, so a re-spelled name moved a model
+    inside the tie on a night no score moved. Two tied models whose displays swap alphabetical
+    order keep their positions."""
+    conn = connect()
+    scores = json.dumps({"leaderboards": [{"name": "Verified", "results": [
+        {"name": "live-SWE-agent + Claude 4.5 Opus", "resolved": 74.4, "date": "2025-09-01"},
+        {"name": "mini-SWE-agent + GPT-5", "resolved": 74.4, "date": "2025-09-01"},
+    ]}]})
+    run = RunContext(observed_at="t")
+    ingest_litellm(conn, FakeRawSource("litellm", PRICING), run)
+    ingest_swebench(conn, FakeRawSource("swebench", scores), run)
+    reconcile(conn)
+    build_price_medians(conn)
+    def order() -> list[str]:
+        ids_by_display = dict(conn.execute("SELECT display, id FROM models").fetchall())
+        return [ids_by_display[row.model] for row in coding_ranking(conn)]
+
+    before = order()
+    assert len(before) == 2
+    # Re-spell both, so their alphabetical order swaps; nothing measured changed.
+    first, second = before
+    conn.execute("UPDATE models SET display = ? WHERE id = ?", ("Zz " + first, first))
+    conn.execute("UPDATE models SET display = ? WHERE id = ?", ("Aa " + second, second))
+    assert order() == before
+
+
+def _tied_pair(pricing: str = PRICING) -> sqlite3.Connection:
+    """Claude 4.5 Opus and GPT-5 tied on SWE-bench Verified, through the real ingest and reconcile."""
+    conn = connect()
+    scores = json.dumps({"leaderboards": [{"name": "Verified", "results": [
+        {"name": "live-SWE-agent + Claude 4.5 Opus", "resolved": 74.4, "date": "2025-09-01"},
+        {"name": "mini-SWE-agent + GPT-5", "resolved": 74.4, "date": "2025-09-01"},
+    ]}]})
+    run = RunContext(observed_at="t")
+    ingest_litellm(conn, FakeRawSource("litellm", pricing), run)
+    ingest_swebench(conn, FakeRawSource("swebench", scores), run)
+    reconcile(conn)
+    build_price_medians(conn)
+    return conn
+
+
+def test_a_tie_is_ordered_by_id_whatever_order_the_models_were_registered_in() -> None:
+    """W4 Tester T1 (#44, D-173 clause 1): the test above proves a re-spelling moves nothing; this
+    proves the order IS the id's. A key that is stable but is not the id -- the order the models were
+    registered in, or the id descending -- passed every test."""
+    conn = _tied_pair()
+    ids = [model_id for (model_id,) in conn.execute("SELECT id FROM models ORDER BY id").fetchall()]
+    for index, model_id in enumerate(ids):  # the table's own order becomes the reverse of the ids'
+        conn.execute("UPDATE models SET rowid = ? WHERE id = ?", (10_000 - index, model_id))
+    ids_by_display = dict(conn.execute("SELECT display, id FROM models").fetchall())
+    order = [ids_by_display[row.model] for row in coding_ranking(conn)]
+    assert len(order) == 2
+    assert order == sorted(order)
+
+
+def test_the_value_and_budget_picks_take_a_price_tie_in_the_rankings_order() -> None:
+    """W4 Tester T2 (#44, D-173 clause 1): `first_cheapest` is tested alone; this holds the two picks
+    that call it. Two models tied on score AND price, re-spelled so that their names sort against
+    their ids: every pick names the first by id."""
+    from app.workflows.recommend import recommend
+
+    price = {"mode": "chat", "input_cost_per_token": 1.25e-06, "output_cost_per_token": 1e-05}
+    conn = _tied_pair(json.dumps({"gpt-5": price, "claude-4-5-opus": price}))
+    conn.execute("UPDATE models SET display = 'Zz ' || display WHERE id = (SELECT min(id) FROM models)")
+    conn.execute("UPDATE models SET display = 'Aa ' || display WHERE id = (SELECT max(id) FROM models)")
+    (first,) = conn.execute("SELECT display FROM models ORDER BY id LIMIT 1").fetchone()
+    answer = recommend(conn, "unlimited", "coding")
+    assert answer is not None and answer.frontier_size == 2
+    assert [pick.model for pick in answer.picks] == [first, first, first]

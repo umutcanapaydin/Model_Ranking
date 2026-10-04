@@ -317,11 +317,20 @@ def _dominates(o: RankingRow, r: RankingRow) -> bool:
     return at_least_as_good and strictly_better
 
 
+def first_cheapest(rows: list[RankingRow]) -> RankingRow:
+    """The cheapest row, a price tie going to the first in the ranking's order (score, then model
+    id): `min` keeps the first of equal keys, and the display name is not one (#44, D-173)."""
+    return min(rows, key=lambda r: r.blended_per_m)
+
+
 def pareto_frontier(rows: list[RankingRow]) -> list[RankingRow]:
-    """REQ-REC-003 / REQ-FIX-001: models not dominated on (quality, cost)."""
+    """REQ-REC-003 / REQ-FIX-001: models not dominated on (quality, cost).
+
+    A full tie keeps the order the ranking gave it, which is by model id (#44, D-173): the sort is
+    stable, and the display name is not a key, so a re-spelling moves nothing."""
     return sorted(
         (r for r in rows if not any(_dominates(o, r) for o in rows)),
-        key=lambda r: (-r.score, r.blended_per_m, r.model),
+        key=lambda r: (-r.score, r.blended_per_m),
     )
 
 
@@ -495,11 +504,11 @@ def recommend(
     close_pts = spec.close_call
 
     value_pool = [r for r in frontier if quality.score - r.score <= window]
-    value = min(value_pool, key=lambda r: (r.blended_per_m, r.model))
+    value = first_cheapest(value_pool)
 
     floor_pool = [r for r in rows if floor is not None and r.score >= floor]
     floor_met = bool(floor_pool)
-    cheap = min(floor_pool or rows, key=lambda r: (r.blended_per_m, r.model))
+    cheap = first_cheapest(floor_pool or rows)
 
     close_call: str | None = None
     if len(frontier) > 1:

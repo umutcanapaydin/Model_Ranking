@@ -436,21 +436,6 @@ def test_the_schedule_rechecks_the_switch_when_it_starts(monkeypatch: pytest.Mon
     assert nightly.NightlyRefresh.from_environment(main.RELAXED_ENVS) is not None
 
 
-def test_the_retirement_script_removes_what_the_installer_installed() -> None:
-    """The owner retires launchd with `scripts/retire_refresh.sh` (D-154). Two paths in two scripts
-    are two accounts of one fact, pinned together the way the installer's are (W-096)."""
-    import plistlib
-
-    retire = Path("scripts/retire_refresh.sh").read_text(encoding="utf-8")
-    with Path("deploy/com.hcs.modelranking.refresh.plist").open("rb") as handle:
-        job = plistlib.load(handle)
-    wrapper_tail = job["ProgramArguments"][1].split("/Library/", 1)[1]
-    assert f'LABEL="{job["Label"]}"' in retire
-    assert f'WRAPPER="$HOME/Library/{wrapper_tail}"' in retire
-    # It refuses to leave a night with no refresher: the engine must say it refreshes first.
-    assert retire.index('"refresh"') < retire.index("launchctl bootout")
-
-
 # --- the M16-W2 review ---------------------------------------------------------------------------------
 
 def test_a_killed_cycle_shows_on_health_instead_of_the_last_good_one(tmp_path: Path) -> None:
@@ -591,3 +576,40 @@ def test_the_launcher_does_not_pin_a_hand_kept_epoch_bundle() -> None:
     assert "epoch_data" not in text
     assert 'EPOCH_DIR="${MR_EPOCH_DIR:-}"' in text, "the default is no bundle, so the engine fetches"
     assert "unset MODEL_RANKING_EPOCH_DIR" in text, "an inherited one must not win over the fetch"
+
+
+def test_the_child_checks_the_bounds_the_engine_serves_under(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """W4 review B1 (#57, D-173 clause 4): the child's allowlist left out the bound variables, so a
+    refresh checked its candidate against the defaults while the engine served under the owner's
+    override. Raised, every night was refused; lowered, a night published what a restart refuses."""
+    from app.workflows import serving_bounds
+
+    # Every bound the module declares, whatever their number (W4 second review M6).
+    overrides = {name: str(1000 + index) for index, name in enumerate(serving_bounds.BOUND_VARIABLES)}
+    for name, value in overrides.items():
+        monkeypatch.setenv(name, value)
+    seen = tmp_path / "bounds.json"
+    code = ("import dataclasses, json; from app.workflows.serving_bounds import bounds_from_env; "
+            f"json.dump(dataclasses.asdict(bounds_from_env()), open({str(seen)!r}, 'w'))")
+    assert asyncio.run(_child(tmp_path, code).run_once("nightly")) == 0
+    import dataclasses
+
+    assert json.loads(seen.read_text(encoding="utf-8")) == dataclasses.asdict(serving_bounds.bounds_from_env())
+
+
+def test_the_child_reads_every_bound_from_its_own_variable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """W4 Tester T7 (#57, D-173 clause 4): the B1 test compares the child with the parent's own
+    reading, so a bound that ignores its variable in both passes it. Each bound the child checks
+    must be the value its variable set."""
+    from app.workflows import serving_bounds
+
+    overrides = {name: 1000 + index for index, name in enumerate(serving_bounds.BOUND_VARIABLES)}
+    for name, value in overrides.items():
+        monkeypatch.setenv(name, str(value))
+    seen = tmp_path / "bounds.json"
+    code = ("import dataclasses, json; from app.workflows.serving_bounds import bounds_from_env; "
+            f"json.dump(dataclasses.asdict(bounds_from_env()), open({str(seen)!r}, 'w'))")
+    assert asyncio.run(_child(tmp_path, code).run_once("nightly")) == 0
+    assert sorted(json.loads(seen.read_text(encoding="utf-8")).values()) == sorted(overrides.values())

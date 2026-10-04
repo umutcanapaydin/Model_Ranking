@@ -23,3 +23,16 @@ target — rather than by hand.
 
 A project adds its own scripts here under the same rule: no model calls, runnable in seconds, and
 reached through a `make` target.
+
+**This project's own** (the engine service, D-170 and D-171). Each changes the owner's machine, so
+the owner runs it, or the agent on his standing instruction:
+
+| Script | Run by | Purpose |
+|---|---|---|
+| `install_engine_service.sh` | the owner, after each merge | deploys `origin/main` as a release and (re)starts the launchd service `com.ilgar.modelranking.engine`; `--lan` opens it to the home network, `--no-lan` closes it, and a reinstall keeps the mode it finds |
+| `remove_engine_service.sh` | the owner | takes the service off, so it does not start again at login |
+| `engine_service.sh` | launchd, through the installed wrapper; `ios/app.sh` | the launcher: refuses a development checkout as a service, checks the artifact and the startup config, then runs uvicorn on its one `--host`. The engine's nightly refresh (D-154) runs inside it |
+| `simulator_session.sh` | by hand | REQ-RUN-001's first one-command session: engine, build, simulator, until Ctrl-C. Nothing calls it; `ios/app.sh` is the path the owner's steps use |
+
+The nightly refresh runs inside the engine service (D-154, D-170); this repository installs no other
+refresher (D-173 clause 7).

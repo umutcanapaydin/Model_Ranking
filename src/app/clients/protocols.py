@@ -127,10 +127,13 @@ def bounded_get(
     worker = threading.Thread(target=fetch, name=f"fetch-{name}", daemon=True)
     worker.start()
     worker.join(total)
+    # #71: decided BEFORE the close. Closing the client under a late worker can wake it on the dead
+    # socket, record an EBADF and exit, and asked after the close, "alive?" then read no.
+    timed_out = worker.is_alive()
     with contextlib.suppress(Exception):
         client.close()  # past the deadline this ends the worker at its next read
     late = f"{name}: the download passed its {total:.0f} s deadline and was cut off"
-    if worker.is_alive():
+    if timed_out:
         raise SourceError(late)
     error = outcome.get("error")
     if isinstance(error, BaseException):
