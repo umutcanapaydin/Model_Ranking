@@ -40,6 +40,7 @@ from typing import Any
 
 import anyio.to_thread
 from fastapi import FastAPI, Query
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from app.adapter import nightly
@@ -658,6 +659,11 @@ if STARTUP_WARNINGS:
     logging.getLogger(__name__).warning(
         "model_ranking starting with unmet configuration: %s", "; ".join(STARTUP_WARNINGS)
     )
+
+#: #55 (D-173 clause 5): responses of 1 KB or more are gzip-compressed for a client that accepts it.
+#: The data is public, so compression leaks nothing; `/v1/boards` goes from about 500 KB to about
+#: 36 KB. The phone's URLSession asks for it and decompresses before any size check.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 _ALLOWED_ORIGINS = cors_origins()
 if _ALLOWED_ORIGINS:
@@ -1380,6 +1386,12 @@ def budgets() -> dict[str, Any]:
     }
 
 
+#: #55 (D-173 clause 5): `/v1/boards`' payload, built once per artifact. Keyed on the artifact's
+#: identity (`_artifact_key`), as `_database_unusable`'s memo is, because the refresh publishes by
+#: replacing the file. Only a payload that was served is kept; a refusal is decided again each time.
+_BOARDS_MEMO: dict[tuple[str | int, ...], dict[str, Any]] = {}
+
+
 @app.get(f"/{API_VERSION}/boards")
 def boards() -> Any:
     """Every board's standings as positions, for the phone to keep and combine on the device (D-167;
@@ -1396,9 +1408,18 @@ def boards() -> Any:
         conn = open_readonly(path)
     except sqlite3.Error:
         return _error(503, "evidence_unavailable", "The evidence database is not available.")
+    key = _artifact_key(path)
+    if key is not None and key in _BOARDS_MEMO:
+        conn.close()
+        return _BOARDS_MEMO[key]
     try:
         require_price_medians(conn)
-        return {"api_version": API_VERSION, **board_standings(conn)}
+        payload = {"api_version": API_VERSION, **board_standings(conn)}
+        if key is not None:
+            if len(_BOARDS_MEMO) > 2:
+                _BOARDS_MEMO.clear()
+            _BOARDS_MEMO[key] = payload
+        return payload
     except (UnbuiltEvidenceError, sqlite3.Error, ValueError) as exc:
         # A ValueError is a payload the boot check refuses (`_standings_problem`); it reaches a
         # request only when the nightly refresh publishes such an artifact under a running process.
