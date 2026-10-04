@@ -434,7 +434,7 @@ files by script.
    - The research record (**B5**, **M14**).
    - `.language-allow`: each new path with its reason.
    - `.gitignore` (B1 fixed).
-2. **Reviews (1).** `docs/reviews/m18-wave-3-review.md`, round 1, read last.
+2. **Reviews (1).** `docs/reviews/m18-wave-3-review-round-1.md` (then at `m18-wave-3-review.md`), round 1, read last.
 3. **The app (6).**
    - `Reading.swift` (**B4**, **M11**, **M12**).
    - `Router.swift`: hints, instructions, schema, boundary and `read` (**B4**). `:710` is a dead

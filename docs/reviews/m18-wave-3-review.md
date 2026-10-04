@@ -6,636 +6,472 @@ seat: independent
 process_version: v6.6
 date: 2026-10-04
 ---
-# M18-W3 Code Review: reading the question
+# M18-W3 Code Review, round 3: reading the question
 
-**Reviewer:** Code-Reviewer seat, fresh eyes. I wrote none of this wave's code, tests or records.
+**Reviewer:** a third Code-Reviewer seat, fresh eyes. I wrote none of this wave's code, tests or
+records, and I am neither the first nor the second reviewer.
 **Independent:** yes
 **Date:** 2026-10-04
-**Commit range:** `93040ac..6a8038e`, 4 commits, 25 files, +1421 / -22. `wave/m18-w3` is stacked on
-`wave/m18-w2` (#116, head `93040ac`), so this range is W3's own change. It holds no merge.
-**Risk tier:** HIGH (`docs/plans/m18-wave-3-plan.md:13-15`; `m18-plan.md` §3). The wave changes what
-the on-device model may answer, `RoutingOutcome` (D-126) and the screen, and it touches
-`ios/ModelRanking/Engine/Router.swift`, a security glob. D-172: no security seat on the wave; this
-seat checked the fail direction of every gate the wave touched instead.
+**Commit range:** `93040ac..5f0937b`, 11 commits, 89 files. 58 of them are under
+`docs/research/m18-w3-runs/`: 56 run files and two scorers. The new round is `a5c0875..5f0937b`: the
+fixes `2d5f86a` and the records `5f0937b`. `wave/m18-w3` is stacked on `wave/m18-w2` (#116, head
+`93040ac`), so the range is W3's own change. It holds no merge.
+**Risk tier:** HIGH (`docs/plans/m18-wave-3-plan.md:13-15`; `m18-plan.md` §3). The diff touches
+`ios/ModelRanking/Engine/Router.swift`, a security glob. D-172: no security seat on the wave.
 **Model routing (HIGH, advisory):** author-family: claude (`GP-Agent: claude-code/local-lane`) /
-reviewer-family: claude-opus (fallback: no second family available to this seat)
-**Fresh context:** I started with none of the authoring context. I read the base-ref policy first,
-then both plans and D-169 with its amendment, then the code diff, then the research record. Only after
-that did I read the issues and the last commit's message. The one-line commit subjects were visible in
-`git log` from the start.
+reviewer-family: claude-opus (fallback: no second family available to this seat).
+**Fresh context:** I started with none of the authoring context. I read the base-ref profile, the
+milestone plan §2 W3, the wave plan, D-169 with its amendment, D-126, D-147, D-172, D-174 and D-175.
+Then I read the code diff and probed it with my own inputs. Then I re-scored the research record.
+Only after that did I read the two earlier reviews and the fix commits.
 
-**Summary.** The plumbing is sound:
-- the model's verdict is one closed field, mapped only by the boundary, and anything outside it counts
-  as no verdict;
-- the held reading's guard and the gap rule are pinned;
-- #73's gain is measured on a clean held-out set.
+**Summary.** Round 2's two blockers are fixed in what they asked for:
+- the image rule now overrides only a question routed to `vision`, and every probe line of both
+  earlier reviews keeps its surface (B4);
+- the records state both missed #113 bars and the cost of the question back, and every number
+  re-scores exactly from the run files (B5).
 
-Four things block:
-1. **B1.** The range commits `.venv`, a link into the author's worktree. Merging it silently deletes
-   the owner's virtual environment and breaks the engine deploy.
-2. **B2.** The held-out measures for #66 and #113 are not held out.
-   - `ReadingTests.swift` asserts three held-out questions word for word.
-   - 11 of the 27 instruction phrases occur only in the held-out set.
-   - Without the stems found only in the held-out set, the image rule catches 5 or 6 of 15 held-out
-     requests. The bar is 11; the record reports 14.
-3. **B3.** Two code signals give the note alone, with no question back, and both fire on genuine
-   searches:
-   - an instruction phrase anywhere, such as "talimat", "system prompt" or "stay in character";
-   - any input whose words have no vowel, such as "HTML", "HTML CSS" or "GPT-4 vs GPT-5".
+The post-fix run files agree with the head's code row by row. The gates pass. Every one of my eight
+Swift mutants on the reading is caught.
 
-   The test lists the Turkish example `talimatları iyi takip eden bir model` and then skips it with
-   `where !text.contains("talimat")`.
-4. **B4.** The image override replaces whatever the tier chose, and its prefixes reach far:
-   - "yap" matches "yapay", as in "yapay zeka";
-   - "arka" matches every "arka-" word;
-   - `çiz` matches `çizelge`.
+What is left is MINOR:
+- the image rule still overrides some requests to READ a photo, in one English construction (M16);
+- two code signals still fire on some genuine searches (M17, M18);
+- part of the screen's held path is pinned by no gate (M19);
+- one PRD number and 15 PRD citations are wrong (M20).
 
-   All 19 of my probes of genuine searches (reading an image, coding, web development) were told "not
-   measured" and kept as gaps. Two examples: `fotoğraftaki yazıyı okuyan yapay zeka` and "how to make
-   a background image responsive in CSS". The held-out set's own "image-other" group shows one such
-   case, and the record leaves that group out.
+None of them shows a ranking as if it were measured. M16 shows the wrong ranking, but under a "not
+measured" line, with "Change" on screen. M17 costs a tap. M18 shows the note, with "Change" on screen.
+I judge each one MINOR on its merits, and say why under each.
 
-There are also eight MINORs (M1–M8), three K.9 candidates (K1–K3) and three risks (R1–R3).
+**Policy.** I read `.claude/agents/Code-Reviewer.md` from `93040ac`; it is identical at the head.
+`git diff --stat 93040ac 5f0937b -- src .claude .agents .github AGENTS.md CLAUDE.md Makefile
+ios/ModelRanking/Engine/EngineClient.swift ios/ModelRanking/Engine/StandingsStore.swift` is empty.
+`docs/decisions.md` only gains lines (0 removed). No commit carries an attribution line. No text in
+the diff tries to change review policy.
 
-**Policy.** I read `.claude/agents/Code-Reviewer.md` and `.agents/rules/practices.md` from `93040ac`,
-and D-147 from `93040ac:docs/decisions.md`. `git diff --stat 93040ac 6a8038e -- src .claude .agents
-.github permission-matrix.md Dockerfile fly.toml AGENTS.md ios/ModelRanking/Engine/EngineClient.swift`
-is empty. `docs/decisions.md` only gains lines (88 added, 0 removed). D-169 is the issue-66 branch's
-text, verbatim (I diffed the two), with an amendment appended.
+**How I worked.** Everything ran in this seat's own worktree, detached at `5f0937b`, with its own
+`.venv` (a real directory, built by `make install`). The guard directory was first on PATH.
+1. **Gates.** `make check-fast`, output to a file, exit code read:
+   - first run: the `test` leg exited at W-108, because the worktree had no `advisor.db`;
+   - second run, with a copy of the owner checkout's `advisor.db` (2026-09-24): one failure,
+     `test_every_board_a_question_can_select_is_served`; that artifact predates the refinement
+     boards, and the wave touches neither `src/` nor that test (**K8**);
+   - third run, with a copy of the served engine's artifact (2026-10-01): **PASS, rc 0**, six legs.
+     pytest 1657 passed, 25 skipped (network and `EPOCH_DATA_DIR` only). `swift test --parallel`:
+     **450 tests**, exactly the manifest. lint, typecheck, records and `client-decls`: PASS.
+2. **Re-scoring.** I ran `score_reading.py` and `score_surfaces.py` on the baseline, `final`,
+   `final2` and `postfix` runs against their sets, and broke the rows down by class, reading and the
+   `model` field with a few lines of Python.
+3. **Probes.** Five throwaway Swift tests (`ZZProbeCR3*`, each deleted after its run):
+   - about 100 inputs of mine through the five signals;
+   - 30 lines through `TieredRouter` with a scripted model;
+   - every genuine row of seven sets through the signals;
+   - each `postfix` and `final2` row recomputed with the head's code from its `model` field.
+4. **Mutants: 17**, each restored with `git checkout`; `git status` was clean after each batch.
+5. **Not done, by this seat's rules:** no simulator, so no `make ui-test` (**R1**). The on-device
+   model was not run. No installer, `launchctl`, commit, push or GitHub write.
 
-**How I worked.** Everything ran in this seat's detached worktree at `6a8038e`. Python ran with
-`PYTHONPATH` set to this tree's `src`, and the guard directory was first on PATH.
-1. **Gates at `6a8038e`.** `make check-fast`: **PASS, rc 0**, six legs.
-   - pytest: 1654 passed, 25 skipped; coverage floor PASS.
-   - lint, typecheck and records: PASS.
-   - `client_decl_gate.py`: PASS, 19 files in 4 configurations.
-   - `swift test --parallel`, judged by the xunit gate: **444 tests**, exactly the manifest.
-2. **Probes.** I wrote a temporary Swift test, `ios/EngineTests/CRProbeTests.swift`, and deleted it
-   afterwards. It did three things:
-   - it ran 49 inputs of my own through `TieredRouter`, with a scripted model that says "a model
-     search" and names the expected surface;
-   - it ran every question in `scripts/router_probe/*.json` through the five code signals;
-   - it checked what the image override keeps.
-
-   Results are under B3, B4 and M7. I reimplemented `makesAnImage` in Python (it gives the same 14 of
-   15) to count what the rule catches without the held-out-only stems (B2).
-3. **Mutants: 7 in-place edits in 5 runs,** reverted in place and checked against the md5 sums I
-   took before.
-   - **3 were caught.** `recordsGap` without `reading == .search` and the boundary mapping "something
-     else" to `.search` fail five `ReadingThroughTheTiersTests`. `ask`'s guard as
-     `!= .notASearch` fails the contract pin.
-   - **4 survived, and they are findings:**
-     - `InputReading` gaining `case said(String)` passes every gate (**M1**);
-     - the held path calling `load()` and `gaps.record(typed)` passes every gate (**M2**);
-     - the image override removed from `TieredRouter.read` and `certain:` forced to `false` there,
-       run together: all 444 Swift tests pass (**M2**).
-4. **The `.venv` link.** I reproduced it in a throwaway repository under the scratchpad, since
-   deleted (**B1**).
-5. **Read only:** issues #66, #73 and #113, and the branches `enhancement/issue-66-not-a-model-search`
-   and `fix/issue-73-coding-routing`.
-6. **Not done, by this seat's rules:** no `xcodebuild`, `simctl` or simulator, so no `make ui-test`
-   (**R1**). The on-device model was not run. There was no installer, `launchctl`, commit, push or
-   GitHub write.
-7. **Tree:** clean apart from this file. `git status --short` shows only this file, and
-   `git diff --quiet` passes.
+| mutant | gate | result |
+|---|---|---|
+| image rule on any surface (`vision` condition dropped) | Swift | **caught**, 4 failures |
+| `recordsGap` without `reading == .search` | Swift | **caught** |
+| model's doubt alone → the note | Swift | **caught** |
+| boundary ignores `request` | Swift | **caught**, 4 tests |
+| instruction removed from `doubt` (round 2's M9.1) | Swift | **caught** |
+| model's verdict never read (`modelSaysNotASearch: nil`) | Swift | **caught** |
+| `request` field dropped from the schema | Swift | **caught** |
+| the "into" exception removed | Swift | **caught** |
+| `indirect case said(String)` (round 2's M10) | `test_router_hints` | **caught** |
+| a held-out question inside a longer string (round 2's M13) | held-out gate | **caught** |
+| `routing = outcome` in the held branch (round 2's M9.2) | client contract | **caught** |
+| `decline` records a gap | client contract | survives (**M19**) |
+| `decline` calls `confirm(held)`: "No" answers anyway | client contract | survives (**M19**) |
+| `apply` keeps the held card | client contract | survives; UI test only (**M19**) |
+| `select` keeps the held card | client contract | survives; no test at all (**M19**) |
+| a ranking under the held card | client contract | survives; UI test only (**M19**) |
+| a control comment only | all | passes, as it should |
 
 ## Verdict
-BLOCKING
+PASS WITH MINOR
 
-**Four BLOCKING (B1–B4), eight MINOR (M1–M8), three K.9 (K1–K3), three risks (R1–R3).** B1 is one
-line to remove. B3 and B4 are word-list and rule fixes, each with a test. B2 is a record correction
-plus a fresh held-out run, or the owner's explicit ruling to ship without one. After those, I would
-expect a re-review to pass with findings.
+**No BLOCKING; five MINOR (M16–M20); three K.9 (K6–K8); two new risks (R5, R6) and four carried
+(R1–R4).** Round 2's B4 and B5 are fixed. The wave may go to the Tester.
+
+**The owner's question (D-169 clause 6, as amended).** I was asked to judge whether it is honest and
+sufficient.
+- **Honest: yes, in the records.** D-169 (`docs/decisions.md:3361-3371`), the plan
+  (`m18-wave-3-plan.md:77-86`) and the record (§5 to §7) say that #66's catch bar and both #113 bars are
+  missed. They say what the question back costs and on whose word it asks. I re-scored every number.
+- **Sufficient: only if the pull request's question carries the numbers for the code that ships.**
+  "Whether to ship what holds" is one yes/no over three separate things. The question is not in the
+  range yet, so I list what it must say (**R5**).
+
+## Round 2, re-checked
+
+| id | round 2 asked | at `5f0937b` | evidence |
+|---|---|---|---|
+| B4 | override only `vision`; fix `arka plan`, `resm-`, modifiers, "draw a"; must-not-fire lines; image and not-a-search sets in the genuine test; record the tier's own surface | **fixed** for the classes named; residual class (**M16**); two small items not done | `Router.swift:710`; `Reading.swift:134-151`, `:183-197`, `:213-216`; `ReadingTests.swift:119-132`, `:283-303`; my mutant of the `vision` condition fails 4. All 9 of round 1's `vision` lines and all of round 2's lines keep their surface (my probe). Not done: `ReadingProbe.swift:41-45` still records only the overridden surface; the not-a-search sets are not in `ReadingTests.swift:157-160` (my count: no genuine row of them trips a signal, so nothing is hidden) |
+| B5 | both #113 bars in D-169; asked rows; "nothing got worse" replaced; scorer counts asks; the PR names the cost | **fixed** in the records; the PR item is open (**R5**) | `decisions.md:3365-3369`; record `:99-102`, `:129-140`, `:147-159`; `score_surfaces.py` prints asked and noted per class. One new slip (**M20**) |
+| M9 | instruction through the tiers; forbid `routing =` in the held branch; pin `decline` and `confirm` | **partly** (**M19**) | `ReadingTests.swift:252-258`, caught; `test_ios_client_contract.py:872`, caught; `confirm` pinned at `:876-879`; `decline` only half pinned at `:880-882` |
+| M10 | refuse `indirect` | **fixed** | `test_router_hints.py:304`, `:309`; my mutant is caught |
+| M11 | an instruction needs its verb and its object | **mostly** (**M17**) | `Reading.swift:74-85`. 7 of round 2's 8 lines I re-ran now read as a search. `uzun sohbetlerde önceki talimatları unutmayan bir model` still asks, and it is not in the test |
+| M12 | the verb where an instruction puts it; a named model is a search | **fixed** | `Reading.swift:55-64`; `ReadingTests.swift:99-101`; each of round 2's four lines is excluded by `:57` or tested |
+| M13 | substring match again; the phrase gate built or filed | **half** | substring: `test_ios_client_contract.py:182-193`, my mutant is caught. The phrase gate is neither built nor filed in any record in the range |
+| M14 | stale names; variant F; `nil` rows; baseline declines | **fixed** | record `:19-32`, `:54-61`, `:106` |
+| M15 | REQ-IMG-003, REQ-RTR-005, the UI tests cite REQ-ASK-005 | **fixed**, with a wrong number (**M20**) | `prd.md:460`, `:542`; `ScreenPathTests.swift:131`, `:145`, `:152`, `:168`, `:174` |
+| K4 | relabel the off-topic sets; retire the held-out one | **half** | retired in the gate (`test_ios_client_contract.py:178`). Labels unchanged: `hello`, `good morning`, `thanks` are still `assistant|everyday~`, and my probe shows all three now get the note. Not filed in the range |
+| K5 | each seat its own venv | **done** for this seat | `.venv` here is a directory built by `make install` |
+| R1–R4 | risks | carried, below | — |
 
 ## Findings
 
 ### BLOCKING (must fix before this wave closes)
-
-- **B1** `.venv` (added in `71ffe5f`, mode `120000`, target `../w18-2/.venv`); `.gitignore:2`;
-  `scripts/install_engine_service.sh:114-118`. **The wave commits the author's virtual-environment
-  link, and merging it destroys the owner's.**
-
-  `.gitignore` says `.venv/`. The trailing slash matches only a directory, so a link is not ignored
-  (`git check-ignore .venv` returns 1), and the P0 commit picked it up. It is not at `93040ac`.
-  Two things break once it reaches `main`:
-  1. **The owner's checkout.** I reproduced this in a scratch repository: an ignored `.venv/`
-     directory holding `bin/python`, then a merge of a branch that adds this link. The result:
-     ```
-     merge rc=0
-     after:  .venv -> ../w18-2/.venv
-     ls: .venv/bin: No such file or directory
-     ```
-     Git treats ignored files as expendable, so the merge deletes the owner's environment without a
-     word and leaves a dangling link. Every `make` target, `scripts/engine_service.sh:57`, `:75` and
-     `scripts/ui_test.sh:21` then fail.
-  2. **The deploy.** `deploy()` extracts `git archive origin/main` into the release folder, so the
-     dangling link comes with it. It then runs `python -m venv "$rel/.venv"`. On an archive that
-     holds the link:
-     ```
-     venv failed: FileExistsError [Errno 17] File exists: '.../rel/.venv'
-     ```
-     So the installer stops at "FAIL: the release's venv".
-
-  It is also a drive-by outside the plan's P0 list (`m18-wave-3-plan.md:98`).
-
-  **The fix:**
-  1. `git rm --cached .venv`.
-  2. Change the ignore line to `.venv` (no slash), so a link is ignored too.
-  3. K1 covers a gate for this.
-
-- **B2** `ios/EngineTests/ReadingTests.swift:3-4`, `:71`, `:74`; `ios/ModelRanking/Engine/Reading.swift:60-67`,
-  `:99-109`; `docs/research/m18-w3-question-reading-probe-2026-10-04.md:19-26`, `:62-74`;
-  `docs/decisions.md` (D-169 "As built and measured"). **The #66 and #113 held-out measures are not
-  held out (D-147 clause 5).**
-
-  D-147 clause 5 reads "the held-out set is never tuned against". Its 2026-09-22 amendment records
-  the last breach: one example copied from a held-out set. The plan (`m18-wave-3-plan.md:35-41`,
-  `:55`) and the record (`:19-26`) both say the three sets were held out and run once, at the end.
-  The code and the tests show otherwise.
-
-  1. **The not-a-search set, direct evidence.**
-     - The test file's header says "The examples are the TUNING sets', never the held-out sets'".
-       Yet `ReadingTests.swift:71` and `:74` assert three questions that occur in
-       `notasearch_heldout_questions.json` and in no tuning set: "hey, how are you doing today?",
-       "test test 123" and "thanks, that was really helpful!".
-     - Of the 27 instruction phrases, 11 occur in the held-out set and in no tuning set or test.
-       I checked every `.json` in `scripts/router_probe` except the three held-out sets. Each of
-       the 11 matches one held-out injection row:
-
-       | phrase | held-out | tuning |
-       |---|---:|---:|
-       | `your instructions`, `your hidden`, `forget everything`, `stay in character` | 1 each | 0 |
-       | `reply with the single`, `and nothing else` | 1 each | 0 |
-       | `sistem komut`, `artık sen`, `kuralları bir kenara`, `gizli ayar`, `yeni kural` | 1 each | 0 |
-
-     - The injection catch the record reports (10 of 12 noted, both runs, `:82`) is the code alone.
-       I ran the held-out set through the signals: exactly 10 injection rows fire `instructsTheApp`.
-       The 7 chit-chat notes are likewise the code's (5 small talk, 2 no word). `smallTalkWords` holds
-       "naber", which occurs in no tuning set and in the held-out row "selam naber".
-  2. **The image set, strong indication.**
-     - `imageVerbs` and `imageNouns` hold stems that occur in `image_heldout_questions.json` and in
-       no tuning set: `selfie`, `avatar`, `retouch`, `portrait`, `renklendir`, `sil`, `üret`,
-       `görsel`, `illustration`, `resim`, and `draw`.
-     - The author's own tuning set has 12 rows.
-     - With only the stems some tuning set contains, the rule catches **5 or 6 of the 15** held-out
-       requests to make an image (6 with `draw` kept, 5 without). The bar is 11. The 14 reported
-       (`:70`) are all the code's: the record says the model declines none (`:59`).
-  3. **#73 is clean.** The coding wording is the issue-73 branch's (`fix/issue-73-coding-routing`,
-     M17), which predates `coding_heldout_m18_questions.json`. The new document sentence's words
-     occur in the tuning sets too.
-
-  Why this blocks: three records state as held-out evidence numbers that are tuning numbers.
-  - D-169's amendment says "On the held-out set, no genuine search was given the note or asked".
-  - The plan marks #113 **Met** (`m18-wave-3-plan.md:70`).
-  - The pull request will ask the owner to accept on them.
-
-  #66's false-positive bound is the issue's "main risk", and B3 shows what an untuned input does.
-
-  **The fix:**
-  1. Restate the #66 and #113 held-out rows as tuning rows, in the record, the plan and D-169's "as
-     built" bullet.
-  2. Remove the held-out questions from `ReadingTests.swift`.
-  3. Then do one of two things:
-     - an independent seat writes fresh not-a-search and image sets from the issues alone (not from
-       `Reading.swift` or the router's wording), and they are run once;
-     - or the pull request asks the owner, in plain words, to rule on shipping #66's and #113's code
-       signals without a held-out measure.
-  4. K2 covers a gate for this.
-
-- **B3** `ios/ModelRanking/Engine/Reading.swift:26-32`, `:55-67`, `:125-131`, `:151`;
-  `ios/ModelRanking/Engine/Router.swift:712-715`; `ios/EngineTests/ReadingTests.swift:64-67`.
-  **Two signals give the note alone, and both read genuine searches as not a search. The test skips
-  its own counter-example.**
-
-  `inputReading` returns `.notASearch` for `noWord || certain` (`:151`), and `certain` is
-  `instructsTheApp || smallTalk` (`Router.swift:715`). The reader gets the note, no ranking, and no
-  "Find a model" button. Only "Change" or rewording gets an answer.
-
-  My probe ran these through `TieredRouter` with the model saying "a model search". Every one came
-  back `reading=notASearch`:
-  ```
-  talimatları iyi takip eden bir model            (instruction following; "talimat")
-  talimat takibi en iyi olan model hangisi
-  kullanım talimatlarını özetleyen model          (summarise user manuals; document)
-  hangi model sistem komutuna en iyi uyar         ("sistem komut")
-  which model best follows your instructions
-  which model follows the system prompt best
-  a model that can respond only with JSON
-  best model for a roleplay chatbot that can stay in character
-  ignore all the hype, which model is best for coding
-  which model remembers previous instructions in a long chat
-  yeni kural motoru yazmak için model             (a rule engine; "yeni kural")
-  HTML      HTML CSS      html css js      PHP SQL      SQL LLM      C# SQL
-  GLM vs GPT      GPT-4 vs GPT-5                  (noWord: no token has a vowel)
-  ```
-  Two causes:
-  1. **Phrase matching is a bare substring.** "talimat" is the Turkish word for "instruction". Any
-     Turkish search about instruction following, a manual or instructions in general gets the note.
-  2. **`noWord` takes "no vowel" as "no word"** (`:129`). Acronyms, and the model names "GPT" and
-     "GLM", are words. D-169's amendment defines the signal as "text with no word in any language".
-
-  `ReadingTests.swift:64-67` lists `talimatları iyi takip eden bir model` as a genuine search that
-  must not fire, and then filters it out of its own loop:
-  ```swift
-  for text in ["a model that follows instructions well", "which model is best at writing system design docs",
-               "talimatları iyi takip eden bir model"] where !text.contains("talimat") {
-  ```
-  The test knows the false positive and asserts nothing about it. #66 names the risk: "False
-  positives on real model searches are the main risk."
-
-  The decide-alone path for instructions and small talk is also not in the plan. Design §1 lists two
-  code signals, and §3's decision gives the note only for *no word*, or for the model's doubt
-  together with pasted content. It appears only as D-169's "as built" bullet (**M5**).
-
-  **The fix:**
-  1. Make a single instruction phrase a doubt (`.unsure`, the question back), not the note. Give the
-     note only when the phrase and the model's "something else" agree, the way pasted content works.
-  2. Or narrow the list:
-     - drop the bare "talimat" and keep `talimatlarını unut` / `önceki talimat`;
-     - drop "system prompt", "your instructions", "previous instructions", "respond only with",
-       "ignore all", "stay in character" and "yeni kural" from the decide-alone set.
-  3. In `noWord`, do not let a missing vowel alone decide for a token typed in capitals or of five
-     letters or fewer. Keyboard runs and repeated letters keep deciding.
-  4. Remove the `where` clause, and add the probe lines above as must-not-fire cases.
-
-- **B4** `ios/ModelRanking/Engine/Reading.swift:89-109` (`:91`, `:92`, `:94`, `:102`, `:108`);
-  `ios/ModelRanking/Engine/Router.swift:706-711`; `docs/research/m18-w3-question-reading-probe-2026-10-04.md:70-71`.
-  **The image override turns genuine reading, coding and web-dev searches into "not measured" and
-  gap entries.**
-
-  `TieredRouter.read` replaces the outcome with `assistant`, `unmeasured: true`, whenever
-  `makesAnImage` fires. It does so whatever the tier chose, including `vision`. Both lists are
-  matched by `hasPrefix`, within three words either side, and "draw", "sketch" and any `çiz…` decide
-  alone. My probe, with the model routing each question to its right surface:
-  ```
-  resimdeki metni yapay zeka ile okumak                    vision   -> assistant, unmeasured
-  fotoğraftaki yazıyı okuyan yapay zeka                    vision   -> assistant, unmeasured
-  görseli okuyan yapay zeka hangisi                        vision   -> assistant, unmeasured
-  fotoğraftan tablo oluşturan model                        vision   -> assistant, unmeasured
-  resimden yapılandırılmış veri çıkaran model              vision   -> assistant, unmeasured
-  çizelgeleri okuyabilen model                             vision   -> assistant, unmeasured
-  which model can turn a photo of a receipt into a spreadsheet   vision -> assistant, unmeasured
-  generate captions for images                             vision   -> assistant, unmeasured
-  extract the numbers from a photo and make a csv          vision   -> assistant, unmeasured
-  arka uç için yapay zeka modeli                           coding   -> assistant, unmeasured
-  build a photo editing app in Swift                       coding   -> assistant, unmeasured
-  fix image upload in django                               coding   -> assistant, unmeasured
-  remove duplicate photos with a python script             coding   -> assistant, unmeasured
-  fotoğraf düzenleme uygulaması kodlamak için model        coding   -> assistant, unmeasured
-  how to make a background image responsive in CSS         web-dev  -> assistant, unmeasured
-  fix my CSS background colour                             web-dev  -> assistant, unmeasured
-  turn my UI sketch into HTML                              web-dev  -> assistant, unmeasured
-  Excel çizelgesi için en iyi model                        assistant -> unmeasured
-  draw conclusions from a sales dataset                    assistant -> unmeasured
-  ```
-  The causes, in order of reach:
-  1. `"yap"` (`:102`) prefix-matches "yapay" ("artificial"), so "yapay zeka" (AI), which most
-     Turkish questions about AI contain, counts as a verb that makes an image. It also matches
-     `yapılandırılmış` ("structured").
-  2. `"arka"` (`:108`) matches `arka uç` (backend), `arkadaş` (friend) and every other "arka-" word.
-  3. `hasPrefix("çiz")` (`:91`) matches `çizelge` (chart, table) and `çizgi` (line).
-  4. "draw" and "sketch" decide alone.
-
-  Each fires on the wording tier too, so it reaches every device.
-
-  Before this wave the model sent these questions to their surfaces. Now the reader is told the
-  question is not measured, which is false, and `recordsGap` keeps each one in the owner's register
-  of things to build (`FrontDoor.swift:338`). The held-out set already shows one such case. Its
-  "image-other" group (5 genuine questions about images) includes "how do i make images lazy load
-  on my site so the page loads faster" (web-dev). The rule fires on it deterministically. The record
-  reports only the make (15) and read (10) groups (`:70-71`), and the plan's #113 bars cover only
-  those.
-
-  **The fix:**
-  1. Match Turkish verbs by their inflections, not a bare stem: "yap" must not match "yapay" or
-     `yapı`. Drop "arka" or require "arka plan". Let `çiz` match only verb forms (`çiz`, `çizer`,
-     `çizebilir`, `çizsene`…).
-  2. Override only when the tier chose `vision`, the misroute #113 names, or when it already declined.
-     Never override `coding` or `web-dev`.
-  3. Add a `TieredRouter.read` test: an override keeps the tier, drops refinements and alternatives,
-     and still reads the model's verdict. Add a must-not-fire list holding the probe lines above (**M2**).
-  4. Report the "image-other" group in the record.
+- none
 
 ### MINOR (the author fixes each in this wave or files it as an issue)
 
-- **M1** `tests/unit/test_router_hints.py:286-298`; `ios/ModelRanking/Engine/Router.swift:49`;
-  `ios/ModelRanking/Engine/Reading.swift:12-19`. **The D-126 field gate pins `reading`'s name, not
-  its type.**
+- **M16** `ios/ModelRanking/Engine/Reading.swift:155-163`, `:191-193`. **The image rule still overrides
+  some requests to read a photo.** Through `TieredRouter`, with the model choosing `vision` and "a
+  model search":
+  ```
+  Which model can turn a photo of my grandmother's handwritten recipe into text?   -> assistant, unmeasured, gap
+  turn a photo of my handwritten shopping list into text                           -> assistant, unmeasured, gap
+  which model can turn a photo of a whiteboard into a summary                      -> assistant, unmeasured, gap
+  which model can turn a photo of a math problem into LaTeX                        -> assistant, unmeasured, gap
+  which model can turn a picture of a chart into numbers                           -> assistant, unmeasured, gap
+  turn a photo of a page into an editable document                                 -> assistant, unmeasured, gap
+  turn this photo of a menu into a shopping list                                   -> assistant, unmeasured, gap
+  ```
+  `which model can turn a photo of a receipt into a spreadsheet` and `turn a photo of a table into a
+  spreadsheet` keep `vision`. There are two causes:
+  1. **The target list is short.** "into" counts as reading only before ten words (`:191-193`). LaTeX,
+     numbers, a summary, a document or a list read as making an image.
+  2. **The window is too short.** `tail` holds the eight words after the verb (`:158`), and the target
+     must sit inside it (`:160`). With a longer description, "into text" falls outside the window.
 
-  The comment says `reading` "is a closed enum … no text", and the gate pins the types of
-  `alternatives` and `refinements`. M13 Stage 4.0 MINOR-2 was exactly this class: a field that can
-  carry a sentence. Mutant: `case said(String)` added to `InputReading`. It compiles, and passes
-  `test_router_hints.py` and `test_ios_client_contract.py` (48 passed), plus the Swift reading,
-  refinement and boundary tests (41, 0 failures).
+  Each one tells the reader something false ("not measured here"), shows the chat ranking, and adds a
+  need to the owner's gap register (R4). This is the same kind of defect as B4.
 
-  **The fix:**
-  1. Assert `var reading:\s*InputReading\s*=`.
-  2. Assert that `enum InputReading` holds exactly `case search`, `case notASearch` and
-     `case unsure`, with no associated value.
-
-- **M2** `tests/unit/test_ios_client_contract.py:819`; `ios/ModelRanking/ContentView.swift:835-840`;
-  `ios/ModelRanking/Engine/Router.swift:708-715`. **Three of the wave's guarantees are held by no
-  gate.**
-  1. **No request and no gap for a held reading** (D-169 clauses 4 and 5). The pin's
-     `guard … else \{.*?return\s*\}\s*await apply` lets anything sit before the `return`. Mutant:
-     `task = outcome.categoryID; await load(); gaps.record(typed)` inside the guard. It passes all
-     three client text gates (50 passed). The UI tests cannot see a request or the register.
-  2. **#113's override.** With the `if InputSignals.makesAnImage` block disabled (in the same run as
-     3), all 444 Swift tests pass. Only the signal function is tested (`ReadingTests.swift:80`), not the router's use of it.
-  3. **The decide-alone path.** With `certain: false` in `TieredRouter.read`, all 444 pass.
-     `testAnInstructionToTheAppIsRead` tests the phrase function only. The tier is held by
-     `ScreenPathTests.swift:163` alone, which no gate runs.
-
-  **The fix:**
-  1. Pin the guard's body to the three assignments and `return`, or move the held path into an
-     Engine function a Swift test drives with a recording client and register.
-  2. Add `ReadingThroughTheTiersTests` cases for an image request (tier kept, refinements dropped)
-     and for an instruction the model calls a search.
-
-- **M3** `ios/ModelRanking/ContentView.swift:869-877`, `:888-913`, `:512`; `ios/UITests/ScreenPathTests.swift:153-161`.
-  **"Find a model" is not guarded, and its UI test cannot fail.**
-  1. **`confirm` ignores `routingInFlight`, and the held card stays live while a new question
-     routes.** A tap on "Find a model" during that time calls `routingGate.begin()`. That retires the
-     newer question's ticket, so its answer is dropped, and `confirm`'s `defer` unlocks the field
-     while the newer routing is still running. A double tap runs `apply` twice and can record the
-     gap twice.
-  2. **`testFindAModelAnswersTheQuestionAsRouted` passes when "Find a model" only hides the card.**
-     The app launches on `coding` (`ContentView.swift:28`), and the scripted route is `coding`. So
-     clearing `held` shows the launch answer's "See the evidence", and every assertion holds.
-     Nothing checks the echo (`routing`), which only `apply` sets. I read this; I could not run it
-     (**R1**).
-  3. **Small:** while the note is up, the row above it still reads "Showing: Coding" (`:512`), though
-     nothing is shown.
+  **Why MINOR on its merits:**
+  - The rule now reaches only `vision`.
+  - On the independent set, no request to read an image was overridden: 8 of 10 reach `vision`
+    after the fix, as at the baseline (`postfix-image_*`).
+  - It is one English construction, the answer carries its disclosure, and "Change" corrects it.
+  - The fix is a few lines.
 
   **The fix:**
-  1. Disable both buttons while `routingInFlight`, or clear `held` in `submit`.
-  2. Script the confirmed route to a surface other than `coding`, and assert its echo.
-  3. Hide or reword the "Showing" line while a reading is held.
+  - Turn the test around. After an image noun, "into" means reading, unless a picture or style word
+    follows (cartoon, painting, sketch, anime, watercolour, drawing, sticker). Look to the end of the
+    text, not eight words.
+  - Add the lines above as must-not-fire, through the tiers.
+  - Let `ReadingProbe.swift` record the tier's own surface, so a run can count the overrides (round
+    2's B4, fix 1).
+  - If this is not fixed in this wave, file it on #113 with these lines.
 
-- **M4** `docs/prd.md:523` (REQ-ASK-003); `docs/plans/m18-plan.md:32`; D-169 status line. **REQ-ASK-005
-  was never brought in, and REQ-ASK-003 and REQ-GAP-001 were not amended.**
+- **M17** `ios/ModelRanking/Engine/Reading.swift:79-82`, `:89-93`. **Round 2's M11, residual: the
+  instruction signal still asks some genuine searches.** Each of these asks the reader, even when the
+  model says "a model search":
+  ```
+  which model won't ignore my instructions
+  a model that does not forget my instructions in long chats
+  which model is least likely to ignore the system prompt
+  how do I make eslint ignore some rules
+  uzun sohbetlerde önceki talimatları unutmayan bir model      (round 2's own line)
+  kuralları unutmayan bir model
+  verilerimi paylaşmak istemiyorum, yerelde çalışan model hangisi
+  kodumu paylaşmak istemiyorum, hangi model yerelde çalışır
+  komut satırı çıktısını gösteren bir script yazan model
+  istemci tarafı kodunu gösteren model
+  ```
+  The Turkish verbs and objects are matched as bare prefixes (`:80`, `:82`):
+  - `unut` matches the negative `unutmayan` ("that does not forget");
+  - `paylaş` matches `paylaşmak`, and `göster` matches `gösteren`;
+  - the object `istem` ("prompt") matches `istemiyorum` ("I don't want") and `istemci` ("client");
+  - `komut` matches `komut satırı` ("command line").
 
-  The milestone plan's W3 row names "REQ-ASK-005 from the ADR on #66's branch". That branch's
-  `docs/prd.md:493` holds REQ-ASK-005, and its REQ-ASK-003 carve-out is "Input that is not a model
-  search at all is REQ-ASK-005's instead". This wave brought in D-169, which says it "Amends
-  REQ-ASK-003 and REQ-GAP-001", but not the PRD rows. `docs/prd.md` is not in the diff, and
-  `git grep REQ-ASK-005 -- ios tests docs/prd.md` is empty. No new test cites a REQ-ID (seed E.2).
-  The reading tests cite D-169 and #66.
+  The English verbs do not see a negation. The doc comment (`:68-73`) and D-169's amendment
+  (`decisions.md:3339-3340`) say the phrases are specific enough that a search about instructions
+  does not use them. The amendment also says "each list is matched on whole words"
+  (`decisions.md:3342`). These two lists are matched by prefix.
+  - **Why MINOR:** each costs one tap, and on the held-out sets the code's doubts asked no genuine
+    search. My count is 0 of the genuine rows of all three fresh sets.
+  - **The fix:** read the Turkish verbs through `isTurkishVerb` (`:236`), which already accepts only
+    request forms, so `unutmayan` and `gösteren` drop out. Match the objects by their forms
+    (`talimat…`, `istemi`, `istemini`), not `istem…`. Skip a verb after "not", "n't" or "won't". Add
+    the lines as must-not-fire.
 
-  **The fix:**
-  1. Bring in REQ-ASK-005, restated for the question back, with its status after B2 and B3.
-  2. Add the carve-out to REQ-ASK-003 and REQ-GAP-001.
-  3. Cite REQ-ASK-005 in `ReadingTests.swift` and `ScreenPathTests.swift`.
+- **M18** `ios/ModelRanking/Engine/Reading.swift:269-276`. **A plural acronym is "no word", which gives
+  the note unasked.**
+  - `CRDTs` reads as no word: it is mixed case, so it is not taken as an acronym (`:271`), and it is five
+    letters with no vowel (`:276`). Through the tiers, with the model saying "a model search" and
+    `coding`, the reading is the note. That is D-169's costliest class, bounded at 2 per run.
+  - The code's own rule is "an acronym is a word" (`:29-30`).
+  - The reverse also holds: `ASDF QWER`, `AAAAAAAA` and `SDFGHJ` read as acronyms, so nonsense typed in
+    capitals escapes. That only costs catches.
+  - **Why MINOR:** a whole search made of one such token is rare.
+  - **The fix:** drop one trailing `s` before the capitals test, and run the repeated-letter and
+    keyboard checks before it.
 
-- **M5** `docs/decisions.md` (D-169 amendment, last bullet); `docs/plans/m18-wave-3-plan.md:77-90`,
-  `:99`; `ios/EngineTests/ReadingTests.swift:133-139`. **Three departures from the plan and the ADR are
-  recorded only as "as built".**
-  1. **D-169 clause 6 (the owner's ruling):** "Three failed attempts stop the work, and it goes back
-     to the owner." The amendment turns that into "the owner's merge is the acceptance this clause
-     asks for", and the wave ships the feature with its catch bar missed. That may be the right call,
-     but it is the owner's to make. A merge is not a ruling on a question nobody put to him.
-  2. **The decide-alone path** for instructions and small talk is not in the plan's design
-     (§1, §3) or in the amended clause 4's decision. B3 shows its cost.
-  3. **P1's acceptance** is "neither fires on any genuine question in the tuning and held-out sets".
-     `pastedContent` fires on one genuine tuning question
-     (`bu fonksiyonun zaman karmaşıklığını hesapla: …`), and the test exempts it by prefix.
-
-  **The fix:**
-  1. Amend the plan for 2 and 3.
-  2. In the pull request, ask the owner in one plain question whether to ship #66's reading with its
-     measured shortfall (and B2's caveat), rather than letting the merge stand for the answer.
-
-- **M6** `ios/ModelRanking/Engine/Router.swift:549`; `docs/decisions.md` (D-169 amendment, first
-  bullet); `docs/plans/m18-wave-3-plan.md:81`; `.language-allow:105`;
-  `docs/research/m18-w3-question-reading-probe-2026-10-04.md:62-74`. **Record slips.**
-  1. **The verdict's position.** The doc comment says the verdict is "a closed yes/no generated
-     before the surface". The schema puts it last (`:429-444`), and the record says the order
-     matters (C to D, `:57-58`). The amendment's clause 2 bullet and the plan's Design §2 still say
-     "before the surface". No test pins the order: `RefinementBoundaryTests.swift:114` compares a
-     `Set`.
-  2. **The language exemption.** `.language-allow` names "the Turkish verbs the pasted-content
-     signal reads" as the reason. The file also holds Turkish instruction phrases, small-talk words
-     and image words.
-  3. **The record's final table** drops two rows the sets were built to show: the image set's
-     "image-other" group (B4), and the not-a-search set's "genuine searches on their expected
-     surface", which the baseline reports (28, 26) and variant E does not.
-  4. **The probe** records a model that answered nothing as `nil`. The record does not say how
-     those rows were scored.
-
-- **M7** `ios/ModelRanking/Engine/Reading.swift:30`, `:56`, `:72`, `:90`. **Upper-case Turkish is
-  not read.**
-
-  `lowercased()` is not Turkish-aware: `İ` becomes "i̇" (with a combining dot), and "I" becomes "i",
-  not `ı`. My probe read all four of these as a search:
-  - `ÖNCEKİ TALİMATLARI UNUT`
-  - `SEN ARTIK BİR AŞÇISIN`
-  - `BANA BİR KEDİ ÇİZ`
-  - `İYİ GECELER`
-
-  This fails toward a ranking, the safer direction, but it is a hole in both languages' lists.
-
-  **The fix:** fold each input two ways: `lowercased()` for the English lists, and
-  `lowercased(with: Locale(identifier: "tr"))` for the Turkish ones. Add upper-case cases in both
-  languages to the tests.
-
-- **M8** `ios/ModelRanking/Engine/Reading.swift:48`, `:114-120`. **`pastedContent`'s stem rule asks
-  back genuine searches that start with a topic and a colon.**
-
-  `word.hasPrefix(verb)` for verbs of four letters or more makes these words count as instructions
-  to act:
-  - "computer" (from "compute");
-  - `çeviri` (translation, from `çevir`);
-  - `özetleme`, `açıklama`, "hesaplama" and `düzeltme`;
-  - "editor" and "debugging".
-
-  My probe, with the model saying "a model search", asked back all of these:
-  - "Computer use: which model is best?" (the app's own surface name)
-  - "Computer vision: best model for reading receipts"
-  - `Çeviri: hangi model Türkçe-İngilizce için en iyi?`
-  - `Kod düzeltme: hangi model daha iyi?`
-  - `Özetleme için model: uzun PDF raporları`
-  - "Best model to explain code: Claude or GPT?"
-
-  This is the question back, not the note, so it is a tap rather than a lost answer. Still, the plan
-  bounds it at 4 per run.
+- **M19** `ios/ModelRanking/ContentView.swift:851`, `:887-891`, `:930`;
+  `tests/unit/test_ios_client_contract.py:880-882`. **Round 2's M9.3, residual: part of the held path
+  is pinned by no gate that runs without a simulator.**
+  1. **`decline`** is checked only for `outcome.reading = .notASearch` and for no `apply(`. A `decline`
+     that records the gap passes. So does one that calls `confirm(held)` and answers anyway. The
+     gate's own message names that defect ("or answers anyway") and does not catch it.
+  2. **`held = nil` in `select`** (`:930`) is pinned by nothing. No UI test drives "Change" from the
+     note or the question back. Without that line, a surface chosen from the note loads behind the
+     note and never shows. D-169's cost statement rests on "Change is always on screen to correct
+     it" (`decisions.md:3321-3322`).
+  3. **`held = nil` in `apply`** (`:851`) and **no ranking under the held card** (`:175-177`) are held
+     only by UI tests (`ScreenPathTests.swift:153`, `:132-136`), which no gate runs (R1).
 
   **The fix:**
-  1. Count a word before the colon as a verb only in an imperative form: the bare English verb, or
-     the Turkish stem plus an imperative or question suffix.
-  2. Or require the colon's left side to start with the verb.
-  3. Add the six lines above as must-not-fire cases.
+  - Pin `decline`'s body to its two statements.
+  - Pin `held = nil` in `select` and in `apply`.
+  - Add one UI path: the note, then "Change", then a surface, then its ranking shows.
+
+- **M20** `docs/prd.md:542`, `:524`, `:544` and eight older rows;
+  `docs/research/m18-w3-question-reading-probe-2026-10-04.md:131`, `:147-149`. **Records: one number
+  is the old code's, and 15 citations point at the wrong lines.**
+  1. **REQ-IMG-003** says the rule "on a held-out set … caught 10 of 15". That was the rule before
+     B4's narrowing (`final2`). The code that ships caught 7 of 15 on the same set (record §6;
+     `postfix`, 7 and 7). D-169 and the record give both numbers. The PRD gives only the higher one.
+  2. **The record** says that some image-reading requests reach `vision` only after the question back
+     (`:148-149`). After the fix, that was 6 of 8 in run 1 and 2 of 8 in run 2. §6 does not say that 3
+     of the 15 requests to make an image now get the `web-dev` ranking as if it were measured
+     (`postfix`, 3 and 3). Before the narrowing the rule caught them (`final2`, 0 on `web-dev`).
+  3. **Citations.** Lines this wave inserted into two test files moved citations that were right at
+     `93040ac`:
+     - REQ-ASK-005: `ReadingTests.swift:103`, `:123`, `:230` (now `:110`, `:138`, `:261`);
+     - REQ-GAP-001: `ReadingTests.swift:252` (the gap test is `:307`), `test_ios_client_contract.py:803`
+       (now `:806`; the held-branch pin is `:869`), `test_router_hints.py:383` (now `:399`);
+     - older rows that cite `test_ios_client_contract.py:204`, `:379`, `:446`, `:511`, `:770` (twice),
+       `:973` and `:1110` (now `:236`, `:415`, `:482`, `:547`, `:806`, `:1034`, `:1171`): REQ-APP-001,
+       REQ-APP-002, REQ-APP-004, REQ-APP-005, REQ-ASK-001, REQ-ASK-004, REQ-DTL-001 and REQ-PRC-002;
+     - REQ-RTR-004's `test_router_hints.py:310` (now `:326`).
+
+     Each now points into another test or into a test's body.
+
+  **The fix:**
+  - Give REQ-IMG-003 the shipped number, 7 of 15, on a spent set.
+  - In the record, give 6 and 2 of 8, and the 3 requests on `web-dev`.
+  - Re-point the 15 citations. **K7** is the gate that would stop this happening again.
 
 ### PASS (what looks good)
 
-- **The model's verdict is closed and mapped in one place.**
-  - `request` is an `anyOf` of two values, generated after the refinements
-    (`Router.swift:432-444`). `RefinementBoundaryTests.swift:131` asserts the offered values and
-    runs on this Mac (macOS 26).
-  - `ModelOutputBoundary.outcome` maps only "something else" to a doubt. Any other string, or none,
-    is a search (`:590`), which fails toward the ranking (`ReadingTests.swift:153-161`). The scripted
-    router goes through the same boundary (`ScriptedRouting.swift:26-27`).
-- **The override is shaped right.** It keeps the tier and drops refinements and alternatives. The
-  probe printed `tier: model, unmeasured: true, refinements: [], alternatives: []` for an image
-  request the model sent to `vision` with `language: french`. It then recomputes the reading from the
-  model's own verdict, so a doubt stays a doubt (`reading: unsure`).
-- **The decision table is complete,** and every row is asserted (`ReadingTests.swift:95-106`). The
-  gap rule excludes every non-search outcome (`FrontDoor.swift:338`; caught by mutant).
-- **The screen does what D-169 clause 4 asks** on the paths I could read.
-  - `ask` holds a non-search before `apply`, so no `load` and no `gaps.record` run
-    (`ContentView.swift:835-840`).
-  - The held card replaces every answer section (`:175`). "Change" stays (`:517`) and clears the
-    held card (`:923`).
-  - `decline` sends nothing.
-  - REQ-ASK-004's ticket is taken before routing and checked after it (`:830-832`). `confirm`
-    takes a fresh one (`:875`).
-- **The measure's bones are right where they are clean.**
-  - The bars were committed with the baseline at P0 (`71ffe5f`, 16:27), before any code (`2bd9154`,
-    16:40).
-  - The held-out sets are unchanged after P0.
-  - The record's §4 table matches the plan's bars one by one.
-  - The numbers agree with the code where the code decides: the not-a-search class table sums to
-    26 and 29.
-  - Each problem had at most three variants of its own: #66 A, B, D; #73 C, D, E; #113 C, D, E.
-  - #73's gain (34 and 30 of 40, against 7 and 6) is on a set the router's coding wording predates.
-- **D-126 is held at the boundary.**
-  - No free text from the model reaches the screen; the note and the question are the app's own
-    sentences, in both languages (`Language.swift:672-693`).
-  - Nothing typed reaches the engine: `test_nothing_typed_by_the_reader_reaches_the_engine` passes.
-  - `/v1` is unchanged: `git diff --stat 93040ac 6a8038e -- src` is empty.
-- **Discipline.**
-  - All 4 commits carry `GP-Task: M18-W3`, and none carries an attribution line.
-  - No `noqa` or `type: ignore` was added.
-  - The new sort permit names one reversed keyboard row (`test_ios_client_contract.py:357`).
-  - The manifest gains exactly the 16 new tests.
+- **B4's core is fixed.** The rule overrides only `vision` (`Router.swift:710`). My mutant that drops
+  the condition fails four tests. All of round 1's `vision` lines, and every line round 2 named, keep
+  their surface through the tiers. The Turkish `resmi`, `arka plan` and `çizelge` cases no longer fire.
+- **The records are true, and the post-fix runs are the shipped code.**
+  - Every number I checked in §2, §4, §5 and §6 re-scores exactly. Examples: coding 34 and 30 against
+    7 and 6; not-a-search 21 and 20 caught (4 noted, then 9 and 8 asked on the model's word, 8 and 8
+    on the code's); after the fix 21 and 19, with genuine 0 noted, 3 and 2 asked; image 7 and 7 made,
+    8 (6) and 8 (2) read.
+  - The "5 and 10 in 145" sum is right.
+  - Each `postfix` and `final2` run holds every question of its set once, with no `nil`.
+  - Recomputed with the head's code from each row's `model` field, all 260 `postfix` readings match.
+    No `vision` row is one the head would override. The §6 run was made with the code that ships.
+- **No genuine row trips a code signal:** 0 of 199 genuine rows across the not-a-search tuning, M17,
+  fresh not-a-search, fresh image (image rule on `vision` rows) and coding sets. Every genuine search
+  that was asked was asked on the model's word alone, as the record says.
+- **The held-out discipline holds.** The gate catches a held-out question inside a longer string
+  again. The one 20-character overlap in the code (`bana bir fıkra anlat`) is an "ambiguous" row,
+  which no bar scores, and its text is a common phrase.
+- **D-126 holds.** The verdict is one closed field, mapped only at `Router.swift:590`. `reading` is a
+  closed enum with three bare cases, pinned. The note and the question are the app's own sentences
+  (`Language.swift:672-693`). The held branch sends nothing, and `/v1` is unchanged.
+- **The screen's core path is sound.** A held reading sends no request (`ContentView.swift:839-844`).
+  `confirm` waits for a question in flight (`:876`) and answers as routed. A gap is kept only for a
+  search (`FrontDoor.swift:338-340`). Round 2's `routing = outcome` mutant is now caught.
+- **#73 is met** on a set nobody tuned on. The model's wording did not change after that measure
+  (`git diff 4373dae 5f0937b -- Router.swift` touches one comment and `read`).
+- **Small and clean.** No `noqa`, no `type: ignore`, no drive-by edit outside the review fixes. The
+  manifest grew by exactly the new Swift tests.
 
 ## Producers of hardened invariant(s)
 
 | producer | invariant | citing test | gap |
 |---|---|---|---|
-| `ModelOutputBoundary.outcome(…, request:)` (`Router.swift:583-605`) | the model's verdict is one of two closed values; anything else is no verdict (D-126, D-169 amended) | `ReadingTests.swift:153`; `RefinementBoundaryTests.swift:114`, `:131` | none |
-| `RoutingOutcome.reading` (`Router.swift:49`) | the outcome carries no text (D-126) | `test_router_hints.py:290` (name only) | the type (**M1**) |
-| `TieredRouter.read` (`Router.swift:704-717`), every tier (`:688`, `:691`, `:697`) | code signals decide on every tier | `ReadingTests.swift:167`, `:174`, `:181`, `:189`, `:195` | the decide-alone path (**M2**); false positives (**B3**) |
-| `TieredRouter.read`, image override (`:708-711`) | a request to make an image is unmeasured (#113) | `ReadingTests.swift:80` (signal only) | the override itself (**M2**); false positives (**B4**) |
-| `ContentView.ask` guard (`ContentView.swift:835-840`) | a held reading sends no request and keeps no gap (D-169 cl. 4, 5) | `test_ios_client_contract.py:819`; `ScreenPathTests.swift:132`, `:146`, `:163`, `:169` (local only) | anything before `return` (**M2**) |
-| `confirm` → `apply` (`:869`, `:846`) | "Find a model" answers as routed, under a ticket | `ScreenPathTests.swift:153` (local only) | cannot fail; in-flight (**M3**) |
-| `recordsGap` (`FrontDoor.swift:338`) | only a search is kept in the register | `ReadingTests.swift:205` | none |
-| `InputSignals.*` (`Reading.swift:26-109`) | no genuine search trips a signal | `ReadingTests.swift:110` (tuning sets) | held-out leakage (**B2**); untuned inputs (**B3**, **B4**, **M8**) |
+| `ModelOutputBoundary.outcome(…, request:)` (`Router.swift:583-606`, `:590`) | the verdict is one of two closed values; anything else is no verdict (D-126, D-169) | `ReadingTests.swift:200`; `RefinementBoundaryTests.swift:131`, `:134` | none (two mutants caught) |
+| `RoutingOutcome.reading`, `InputReading` (`Router.swift:49`; `Reading.swift:12-19`) | the outcome carries no text | `test_router_hints.py:297-309` | none (`indirect` caught) |
+| `TieredRouter.read`, the decision (`Router.swift:714-716`), on every tier (`:688`, `:691`, `:697`) | code signals decide on every tier; the model's doubt alone asks | `ReadingTests.swift:214`, `:221`, `:228`, `:236`, `:252`, `:261` | none (three mutants caught) |
+| `TieredRouter.read`, the image rule (`Router.swift:710-713`) | a request to make an image routed to `vision` is unmeasured, and nothing else is overridden | `ReadingTests.swift:269`, `:283`; signal `:110` | reading questions with "into …" (**M16**) |
+| `ContentView.ask`, held branch (`ContentView.swift:839-844`) | a held reading sends no request and keeps no gap (D-169 cl. 4, 5) | `test_ios_client_contract.py:869-874`; `ScreenPathTests.swift:132`, `:146`, `:169`, `:175` (local) | none in Python |
+| `confirm` (`:873-884`) | "Find a model" answers once, as routed | `test_ios_client_contract.py:876-879`; `ScreenPathTests.swift:153` (local) | none |
+| `decline` (`:887-891`) | "No" gives the note and nothing else | `test_ios_client_contract.py:880-882`; `ScreenPathTests.swift:132` (local) | gap and answer mutants survive (**M19**) |
+| `apply`, `select` clear the held card (`:851`, `:930`) | an answer, or a chosen surface, replaces the card | `ScreenPathTests.swift:153` for `apply` (local) | `select`: no test (**M19**) |
+| `recordsGap` (`FrontDoor.swift:338-340`) | only a search is kept | `ReadingTests.swift:307`, `:278` | none |
+| `InputSignals.*` (`Reading.swift:26-287`) | no genuine search trips a signal | `ReadingTests.swift:12-191` | residual classes (**M16**, **M17**, **M18**) |
+| held-out gate (`test_ios_client_contract.py:165-195`) | no live held-out question in code or tests | itself; my mutant is caught | `.json` sets not scanned (**K6**) |
 
 ## Acceptance criteria evidence
 
-Per phase, against `m18-wave-3-plan.md:94-102`:
-- **P0** → the plan; D-169 (`docs/decisions.md`, after D-168); the five new sets and two tuning sets
-  (`71ffe5f`); the baseline table (`m18-wave-3-plan.md:44-51`). Met, apart from **B1**, which was
-  committed here.
-- **P1 (#66)** → `noWord` and `pastedContent` (`Reading.swift:26`, `:38`), tested alone at
-  `ReadingTests.swift:11`, `:19`, `:27`, `:41`, `:110`. **Not met as written:** one genuine tuning
-  question fires `pastedContent` (**M5**), and noWord fires on genuine searches outside the sets
-  (**B3**).
-- **P2 (#66)** → the reading (`Router.swift:49`), the boundary (`:583-605`), the decision table
-  (`ReadingTests.swift:95`), and the screen (`ContentView.swift:175`, `:835`, `:869-913`), held by
-  `ScreenPathTests.swift:132-172`. Met in code, with **M2** and **M3**. The UI half rests on
-  `make ui-test` (**R1**).
-- **P3 (#73, #113)** → `Router.swift:70-85` (hints), `:462-494` (instructions), `Reading.swift:89`
-  (images). Three variants per problem; record §3.
-- **P4** → record §4.
-  - #73: met, on a clean set.
-  - #113: "met" rests on a contaminated set (**B2**) and leaves out its false-positive group (**B4**).
-  - #66: its catch bar is not met, as the wave says; its false-positive claim rests on a
-    contaminated set (**B2**).
-- **Milestone W3 criterion** (`m18-plan.md:32`): REQ-RTR-005 and REQ-ASK-003 have no new citation,
-  and REQ-ASK-005 does not exist (**M4**). "Measured twice on a set written independently" holds for
-  #73 only (**B2**).
+**Milestone W3** (`m18-plan.md:32`: REQ-RTR-005, REQ-ASK-003, REQ-ASK-005):
+- **REQ-ASK-005** → `docs/prd.md:524` (PARTIAL, honest). Evidence:
+  - code: `Reading.swift:296-303`, `Router.swift:704-716`, `ContentView.swift:839-918`;
+  - tests: `ReadingTests.swift:12`, `:57`, `:95`, `:110`, `:138`, `:214-:265`, all citing REQ-ASK-005
+    at `:1`; `ScreenPathTests.swift:132-179`, each citing REQ-ASK-005;
+  - gates: `test_ios_client_contract.py:869-882`.
+- **REQ-RTR-005** → `prd.md:460` (PARTIAL). The image rule is at `Router.swift:710`, tested at
+  `ReadingTests.swift:269` and `:283`.
+- **REQ-ASK-003** → `prd.md:523`: the carve-out to REQ-ASK-005. The gap rule is at
+  `FrontDoor.swift:338` and tested at `ReadingTests.swift:307`.
+- **REQ-GAP-001**, D-169 clause → `FrontDoor.swift:338`; `ReadingTests.swift:307`;
+  `test_ios_client_contract.py:872`. The PRD cites the wrong lines (**M20**).
+- **REQ-IMG-003** → `prd.md:542` (OPEN). The number is wrong (**M20**).
+- **"Read better than the baseline, by the bar set after it":**
+  - #73 is met: 34 and 30 of 40, against a bar of 22 and a baseline of 7 and 6 (record §4, re-scored).
+  - #66 is better than the baseline (0 noted before, 21 and 20 caught now) but misses its bar of 32.
+    Its false-positive bounds hold: 0 noted, and 1 and 2 asked.
+  - #113 misses both bars: 10 and 10 at the measure, 7 and 7 after the fix, against 11; reading 8 and
+    8 against 9.
+
+  D-169 clause 6 sends the misses to the owner (**R5**).
+- **"Measured twice on a set written independently":** true for all three problems (§4 and §5; the
+  sets are in `da48707`, after the code they measure).
+
+**Wave plan phases** (`m18-wave-3-plan.md:115-121`):
+- **P0:** met. The plan, D-169 (`decisions.md:3270`), the sets, and the baseline (§2).
+- **P1:** met as written. Each signal is tested on its own (`ReadingTests.swift:12-107`). The one named
+  colon doubt is at `:183-185`. The test covers eight genuine sets (`:157-160`), and my count adds the
+  rest: 0 of 199 genuine rows of the not-a-search sets and the fresh sets trip a signal. Residuals
+  outside the sets: **M16** to **M18**.
+- **P2:** met in code. The reading is at `Router.swift:49`, the boundary at `:590`, the table at
+  `ReadingTests.swift:138` and the screen at `ContentView.swift:175`, `:839`, `:873-918`. Its UI half
+  rests on R1; **M19** covers what the gates miss.
+- **P3:** met. Three variants per problem (record §3). F and the B4 narrowing are review fixes for
+  false positives, and both lowered the scores.
+- **P4:** #73 met; #66 and #113 missed and recorded. They go to the owner.
 
 ## Every file in the diff
 
-`git diff --stat 93040ac 6a8038e`, 25 files. I read every file's diff in full. I read the sets by
-script and by eye.
-1. **Records (4).**
-   - `docs/decisions.md`: D-169 and its amendment (**M5**, **M6**).
-   - `docs/plans/m18-wave-3-plan.md`.
-   - The research record (**B2**, **M6**).
-   - `.language-allow`: eight paths, each with its reason (**M6**).
-2. **Stray (1).** `.venv` (**B1**).
+`git diff --stat 93040ac 5f0937b`: 89 files. I read every non-run file's diff in full, and the run
+files by script.
+1. **Records (6).**
+   - `docs/decisions.md`: D-169 as on the issue branch, plus its amendment. Only additions. The
+     amendment reverses D-169's "alternative not taken" and clause 3, in an AMENDED block that names
+     each clause. The owner-approved milestone plan (§2 W3, items 2 and 3) authorizes the direction.
+   - `docs/plans/m18-wave-3-plan.md`: matches the code and the record.
+   - `docs/prd.md` (**M20**).
+   - The research record (**M20**; otherwise re-scored and true).
+   - `.language-allow`: each new path has a reason.
+   - `.gitignore`: `.venv` (round 1's B1).
+2. **Reviews (2).** Rounds 1 and 2, read last.
 3. **The app (6).**
-   - `Reading.swift`: new (**B3**, **B4**, **M7**, **M8**).
-   - `Router.swift`: field, schema, instructions, hints, boundary and `read` (**M1**, **M6**).
-   - `ContentView.swift`: held, ask, apply, confirm, decline and the card (**M3**).
+   - `Reading.swift` (**M16**, **M17**, **M18**).
+   - `Router.swift`: descriptions, instructions, schema, boundary and `read`. `:712` is a dead store,
+     overwritten at `:714`; it is harmless.
+   - `ContentView.swift`: held state, `ask`, `apply`, `confirm`, `decline`, the card and `select`
+     (**M19**).
    - `FrontDoor.swift`: `recordsGap`.
-   - `Language.swift`: four sentences in both languages.
-   - `ScriptedRouting.swift`: the request value.
+   - `Language.swift`: the four strings. They use "sen", as D-175 finding 7 asks.
+   - `ScriptedRouting.swift`: passes `request` through the boundary, as D-175 clause 3 asks.
 4. **Swift tests (4).**
-   - `ReadingTests.swift`: new (**B2**, **B3**).
-   - `RefinementBoundaryTests.swift`: the new field and its values; nothing was weakened.
-   - `ScreenPathTests.swift`: five new paths (**M3**).
-   - `test-manifest.txt`: +16 tests.
-5. **Probe (8).**
-   - `ReadingProbe.swift`.
-   - Seven sets: three held out, four tuning. The not-a-search sets are identical to the issue-66
-     branch's.
-6. **Python gates (2).** `test_router_hints.py` (**M1**) and `test_ios_client_contract.py` (**M2**).
+   - `ReadingTests.swift`: 22 tests in two classes.
+   - `RefinementBoundaryTests.swift`: the field, its values and `x-order`.
+   - `ScreenPathTests.swift`: five held paths; `5f0937b` changed only doc comments.
+   - `test-manifest.txt`: +22.
+5. **Python gates (3).**
+   - `test_ios_client_contract.py` (**M19**, **K6**).
+   - `test_router_hints.py`.
+   - `test_no_tracked_links.py`: still catches a tracked link.
+6. **Probe and sets (10).**
+   - `ReadingProbe.swift` (**M16**: the tier's own surface).
+   - Nine sets: three fresh held-out, two retired held-out, four tuning.
+7. **Runs (58).**
+   - 56 run files: baseline, variants A to F, `final`, `final2`, `postfix`, and two tuning copies.
+   - The two scorers. Each prints no question unless asked.
 
 ## K.8 contract drift check
 
-`git grep -n` at `6a8038e`, for the plan's four symbols (`m18-wave-3-plan.md:104-111`) and the ones this
-wave added:
+`git grep -n` at `5f0937b`, for the plan's symbols (`m18-wave-3-plan.md:123-130`) and the wave's
+own:
 ```
 ios/ModelRanking/Engine/Router.swift:34:struct RoutingOutcome: Equatable {
+ios/ModelRanking/Engine/Router.swift:49:    var reading: InputReading = .search
 ios/ModelRanking/Engine/Router.swift:429:    static func schema(for known: [String]) throws -> GenerationSchema {
 ios/ModelRanking/Engine/Router.swift:583:    static func outcome(
 ios/ModelRanking/Engine/Router.swift:684:    func route(_ question: String, within known: [String]) async -> RoutingOutcome {
 ios/ModelRanking/Engine/Router.swift:704:    static func read(_ question: String, _ outcome: RoutingOutcome) -> RoutingOutcome {
 ios/ModelRanking/Engine/Reading.swift:12:enum InputReading: Equatable {
-ios/ModelRanking/Engine/Reading.swift:22:enum InputSignals {
-ios/ModelRanking/Engine/Reading.swift:150:func inputReading(noWord: Bool, pasted: Bool, modelSaysNotASearch: Bool?, certain: Bool = false) -> InputReading {
+ios/ModelRanking/Engine/Reading.swift:26:enum InputSignals {
+ios/ModelRanking/Engine/Reading.swift:296:func inputReading(noWord: Bool, smallTalk: Bool, doubt: Bool, modelSaysNotASearch: Bool?) -> InputReading {
 ios/ModelRanking/Engine/FrontDoor.swift:338:func recordsGap(_ outcome: RoutingOutcome) -> Bool {
-ios/ModelRanking/ContentView.swift:846:    private func apply(_ outcome: RoutingOutcome, typed: String, ticket: Int) async {
-ios/ModelRanking/ContentView.swift:869:    private func confirm(_ held: HeldReading) {
-ios/ModelRanking/ContentView.swift:880:    private func decline(_ held: HeldReading) {
-ios/ModelRanking/ContentView.swift:1473:struct HeldReading: Equatable {
+ios/ModelRanking/ContentView.swift:850:    private func apply(_ outcome: RoutingOutcome, typed: String, ticket: Int) async {
+ios/ModelRanking/ContentView.swift:873:    private func confirm(_ held: HeldReading) {
+ios/ModelRanking/ContentView.swift:887:    private func decline(_ held: HeldReading) {
+ios/ModelRanking/ContentView.swift:1480:struct HeldReading: Equatable {
 ```
-1. `RoutingOutcome` gains one stored field, `reading`. D-169 amends "D-126's closed set and
-   `RoutingOutcome`", and the field gate lists it (**M1**).
-2. `schema` moved from `:421` to `:429`, and gained one property.
-3. `outcome` moved from `:543` to `:583`, and gained a defaulted `request:`. Every caller still
-   compiles.
-4. `route` moved from `:636` to `:684`. Its three returns now pass through `read`.
-5. No `/v1` change, as the plan says.
+Callers of `ModelOutputBoundary.outcome(` outside the tests:
+```
+ios/ModelRanking/Engine/Router.swift:506:        return ModelOutputBoundary.outcome(
+ios/ModelRanking/Engine/ScriptedRouting.swift:26:        return ModelOutputBoundary.outcome(for: answer["surface"], within: known, refinements: refinements,
+```
+- `outcome` gained `request: String? = nil`, an additive default.
+- `RoutingOutcome` gained one stored field, the closed `reading`, as D-169's amendment allows.
+- No symbol changed between `53937c4` and the head.
+- No `/v1` change.
 
-**Verdict: OK.** Nothing drifted silently.
+**Verdict: OK.**
 
 ## K.9 candidates spotted outside this wave's scope
 
-- **K1** `.gitignore:2`; the hygiene legs of `make check`. **No gate refuses a committed link, or a
-  path the ignore file means to cover.** `.venv/` misses a link, and this project's seat worktrees
-  link `.venv` by design. So any `git add -A` in such a worktree commits it, as B1 did. This is a
-  bug: add `.venv` without the slash, and a records-leg check that refuses any tracked mode-`120000`
-  entry whose target leaves the repository.
-- **K2** `scripts/router_probe/*_heldout_*.json`; D-147 clause 5. **Keeping held-out sets out of
-  tuning rests on trust.** B2 is the second breach recorded against clause 5 (the first is its own
-  2026-09-22 amendment). This is an enhancement: a gate that refuses any Swift or Python source, test
-  or word list holding a held-out question verbatim, or a phrase that occurs only in a held-out set.
-- **K3** `scripts/router_probe/ReadingProbe.swift`, `RefinementProbe.swift`; `docs/research/`.
-  **The probes' per-question outputs are not kept,** so no later seat can re-score a run: the
-  omitted groups in M6, the `nil` rows, or a class split. This is an enhancement: commit each run's
-  JSON (a few kilobytes) beside its record, and score it with a committed script.
+- **K6** `tests/unit/test_ios_client_contract.py:186-187`. **The held-out gate scans only `.swift` and
+  `.py` files.** A held-out question copied into a tuning `.json` set passes it. The tests read those
+  sets (`ReadingTests.swift:157-160`), and the probe tunes on them. This is an enhancement: scan
+  `scripts/router_probe/*.json` too, leaving out each live set itself.
+- **K7** `docs/prd.md`. **No gate checks the PRD's `file:line` evidence.** One wave moved 15 citations
+  without anyone seeing it (**M20**). This is an enhancement: a records check that each cited line is a
+  test's declaration, or lies inside one.
+- **K8** D-174 clause 2; `/close-wave` seat setup. **"Its own copy of the artifact" does not say which
+  copy.** This seat had none at first (W-108). The owner checkout's `advisor.db` (2026-09-24) then
+  failed `test_every_board_a_question_can_select_is_served`, because it predates the refinement boards.
+  The served engine's copy (2026-10-01) passed. A seat that copies the stale file sees a red gate the
+  wave did not cause. This is an enhancement to the seat setup: copy the served artifact, and say so in
+  D-174.
 
 ## Risks queued to next M
 
-- **R1** `ios/UITests/ScreenPathTests.swift:132-172`; `6a8038e` ("`make ui-test` passed (16 tests)").
-  **The five new screen paths rest on a UI run that no gate repeats and this seat could not make.**
-  What would show it is real: the Tester runs `make ui-test` at the fixed head, then once with
-  `confirm` reduced to `held = nil` (**M3**), and once with the held path calling `load()`
-  (**M2**).
-- **R2** `ios/ModelRanking/Engine/Reading.swift`; `Router.swift:704`. **On a phone without Apple
-  Intelligence the code signals are the whole reading, and nothing measured them there.** The record
-  measures the model tier only. B3 and B4 are deterministic, so they apply on every tier. What would
-  show it is real: the genuine sets run through `TieredRouter(model: nil, …)`, with notes, questions
-  back and overrides counted.
-- **R3** `docs/research/m18-w3-question-reading-probe-2026-10-04.md:46-52`. **The model's own verdict
-  is unstable and small.** On tuning, 2 to 8 genuine searches per run were asked back, by variant
-  (some by pasted content). On held-out, the model alone caught 3 and 6 of the 40. With B2, no
-  independent number exists for either. What would show it is real: W6's stranger protocol (#91),
-  whose questions the milestone plan already makes the next held-out set, run once on the fixed
-  head.
+- **R1** (carried) `ios/UITests/ScreenPathTests.swift:132-179`. **No seat has seen the held paths run,
+  and no gate repeats them.** `2d5f86a` changed `Reading.swift` and `Router.swift`, which the scripted
+  UI routes pass through, after the last UI run reported (`53937c4`). Three of my **M19** mutants are
+  held only by UI tests, and one by nothing. What would show it is real: the Tester runs
+  `make ui-test` at `5f0937b`.
+- **R2** (carried, narrowed) `Reading.swift`; `Router.swift:704`. **On a phone without Apple
+  Intelligence, the code signals are the whole reading.** The image rule now reaches only `vision`
+  there too, but **M16** to **M18** reach it unchanged. What would show it is real: the genuine sets
+  run through `TieredRouter(model: nil, …)`, counting notes, questions back and overrides.
+- **R3** (carried, sharpened) `Router.swift:485-494`. **The model's "something else" alone asks genuine
+  searches.** After the fix it asked 8 of the 40 image-set questions in run 1, 6 of them requests to
+  read an image, and 3 and 2 of the 40 genuine not-a-search-set questions. The code asked none. What
+  would show it is real: W6's stranger protocol (#91), with asks counted by class and by whose word.
+- **R4** (carried, narrowed) `FrontDoor.swift:338`; `Router.swift:710`. **A false image override is
+  kept in the owner's gap register as a need to build.** Only **M16**'s class remains. What would show
+  it is real: the register on the owner's phone after a week, with its image entries read one by one.
+- **R5** `docs/plans/m18-wave-3-plan.md:86`; D-169 clause 6 (`decisions.md:3353-3357`). **The owner's
+  one question may be asked on the wrong numbers.** The plan and the ADR say only "whether to ship what
+  holds". For the owner to decide, the pull request should say, in plain words:
+  - #73 is met.
+  - #66: no genuine search got the note, and 1 to 3 of 40 were asked. 19 to 21 of 40 non-searches
+    were caught, against 32. Knowledge questions are the gap.
+  - #113, for the code that ships: 7 of 15 requests to make an image are told "not measured", and 3
+    get the `web-dev` ranking as if measured. 8 of 10 requests to read one reach `vision`, as before,
+    but up to 6 of them only after a question.
+  - Every genuine search that was asked was asked on the model's "something else" alone. That is one
+    lever the owner can pull: if the model's verdict alone did not ask, no genuine search would be
+    asked, and about 8 or 9 of the 20 catches would be lost (record §5).
 
-*Filled by: Code-Reviewer seat (independent) · Date: 2026-10-04 · Commit range: `93040ac..6a8038e`*
+  What would show it is real: a pull request whose question omits these numbers, or gives 10 of 15.
+- **R6** `Reading.swift:129-173`; #113. **The image rule reads orders, not searches.** It catches "draw
+  me a cat" and "generate a picture of …". It misses the way a model search is usually written:
+  - "which model is best at generating images";
+  - "which AI creates the best logos";
+  - `resim üreten model hangisi`;
+  - `görsel oluşturan yapay zeka`.
+
+  The model also now sends 3 of 15 requests to make an image to `web-dev`, where the rule does not
+  reach. This is what keeps #113 open. What would show it is real: #91's questions, with requests to
+  make an image counted by the surface they reach.
+
+*Filled by: Code-Reviewer seat, round 3 (independent) · Date: 2026-10-04 · Commit range: `93040ac..5f0937b`*
