@@ -435,9 +435,9 @@ final class BudgetIsSentTests: OfflineTestCase {
         return Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value ?? "") })
     }
 
-    /// **REQ-BGT-001's other half.** The picker was added because the product called itself
-    /// budget-aware while `ContentView` hardcoded `unlimited`. A picker that updates state and
-    /// sends the old value would reproduce that defect while looking fixed.
+    /// The budget the caller passes is the one the engine is asked for. Written for REQ-BGT-001's
+    /// picker (M12-W3), which the signed m13-plan §2 W3 retired: the app now asks at `unlimited`,
+    /// but `EngineClient` still takes a budget, and must never send a different one.
     func testTheBudgetTheReaderChoseIsWhatTheEngineIsAsked() async {
         for budget in ["low", "medium", "unlimited"] {
             let sent = await query(task: "coding", budget: budget)

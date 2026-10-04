@@ -1,4 +1,4 @@
-"""REQ-API-010 / W-044 / D-134 — `/v1` gives ONE account of a query.
+"""REQ-API-011 / W-044 / D-134 — `/v1` gives ONE account of a query.
 
 Measured before this existed: `budget=low` on `everyday` answers `eligible_count: 25` beside a
 `ranking` array of 58 rows whose most expensive model is $36.09/1M. The array is unfiltered by

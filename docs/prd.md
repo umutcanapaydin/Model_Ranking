@@ -74,13 +74,14 @@ model_ranking is the backend/data engine of an "AI advisor" product: it aggregat
 
 ### REQ-CAN-001 — Alias reconciliation to canonical models
 
-**Statement:** Model names from all sources are mapped to a canonical model ID via an ordered first-match rule table (vendor, display name, regex).
+**Statement:** Model names from all sources are mapped to a canonical model ID. A curated, ordered first-match rule table (vendor, display name, regex) is applied first and always wins; a name no rule matches is normalised by a closed grammar and registered as a DERIVED model when that id has both a price and a score (D-157).
 **Acceptance:**
 - The same underlying model arriving under different aliases (e.g. `claude-4-5-opus`, `Claude 4.5 Opus medium`) maps to ONE canonical ID.
-- Unmatched names are dropped with a count reported, never guessed.
-- **Superseded in part by D-157 (M16-W4):** a name no curated rule matches is registered under a derived id when that id has both a price and a score (`registry.derive_identity`); the rest are still dropped and counted. Cited by `tests/unit/test_registry_derived.py`.
+- A name a curated rule matches keeps that rule's model, and a derived id never takes a curated one.
+- The grammar removes only a closed list of decorations, so a variant never merges into its parent and two different products never derive one id; a fine-tune and a moving, undated alias never derive (D-157, D-166).
+- A name with only a price or only a score, and a name the grammar refuses, is dropped and counted; the refresh record and `/health` name the derived models and the most frequent unmatched names.
 **Customer source:** research B §6 step 1; spike finding (alias mapping is the core IP).
-**Status:** **MET.** Evidence: test_registry.py:16, :24; test_registry_derived.py:86, :101, :109. D-157 supersedes the "never guessed" clause. An unmatched name with both a price and a score now gets a derived id. D-157's status is still **proposed**.
+**Status:** **MET.** Evidence: test_registry.py:16, :152; test_registry_derived.py:86, :101, :109, :130, :152, :177; test_moving_aliases.py:28, :47; test_registry_disclosure.py:30, :45.
 
 ### REQ-CAN-002 — Variant-before-parent rule ordering
 
@@ -206,12 +207,32 @@ Research suggests Supabase or Cloudflare Workers for the serving layer. No decis
 
 ---
 
+## M2 — a second category and two more sources (REQ-ING / REQ-CAT / REQ-REC / REQ-CI), written at M18-W5
+
+Specified in the signed `docs/plans/m2-plan.md` §2 and never copied here until #33. The criteria are
+the plan's; where the rule has moved since, the row says so.
+
+| REQ-ID | Criterion | Status |
+|---|---|---|
+| REQ-ING-005 | OpenRouter's `/api/v1/models` catalogue is ingested as a second pricing source: no auth, input and output $/1M, provenance on every row, and an unpriced or free model is skipped rather than stored as zero. | **MET.** Evidence: test_openrouter_ingest.py:40, :51, :57; tests/integration/test_arena_openrouter_contract.py:21 (at least 100 priced models on the live catalogue, `RUN_CONTRACT_TESTS=1`). |
+| REQ-ING-006 | A model's reference price is the median of its per-source medians, so a source with many cheap aliases cannot outweigh another source. | **MET.** Evidence: test_rank.py:183. |
+| REQ-ING-007 | The Arena leaderboard dataset is ingested: the text board's overall slice becomes Elo score rows with harness `arena-crowd`, and the snapshot they came from is recorded. | **MET.** Evidence: test_arena_ingest.py:56, :64, :75; test_arena_client.py:175; tests/integration/test_arena_openrouter_contract.py:30 (live). The dataset publishes no version number: the snapshot is each row's publish date, and the dataset, config and split fetched are stored as provenance. |
+| REQ-ING-008 | Every export names the sources whose data it carries, Arena under CC-BY-4.0 among them, each with its `observed_at` (D-101). | **MET.** Evidence: test_categories.py:176, :223; test_arena_ingest.py:131. The plan said "all sources"; since the M5-W4 review an export names only the sources it carries, so it makes no false provenance claim (test_categories.py:176). |
+| REQ-CAT-001 | Which benchmark each use case ranks on is a map held as data, not code branches: adding a category is adding an entry (D-105). | **MET.** Evidence: test_categories.py:107. The plan named two categories; the map now holds fourteen, each added as an entry. |
+| REQ-CAT-002 | The `assistant` surface ranks on Arena Elo, and the live board yields at least 20 rows. | **MET.** Evidence: test_categories.py:135; tests/integration/test_arena_openrouter_contract.py:30 (live). |
+| REQ-CAT-003 | No cross-scale averaging: a category ranks only on its primary benchmark's scale (D-105). | **MET.** Evidence: test_categories.py:144, :264. |
+| REQ-REC-005 | `recommend --task assistant\|coding` returns three labelled answers per category, worded on that category's own scale; coding's behaviour is unchanged. | **MET.** Evidence: test_recommend_assistant.py:88, :101, :123; test_categories.py:158; tests/integration/test_cli_e2e.py:136. |
+| REQ-REC-006 | If a category's primary source is stale, the output says so (`stale_notice`). | **MET.** Evidence: test_recommend_assistant.py:154. |
+| REQ-CI-001 | A GitHub Actions job runs the unit suite on every push; the contract tests run as a manual or scheduled job with `RUN_CONTRACT_TESTS=1`. | **MET.** Evidence: `.github/workflows/ci.yml:7-10`, `:54` (`pytest` on every pull request and every push to `main`); `.github/workflows/contract-tests.yml:15-17` (on demand and a Monday cron), `:39-60` (pushes and pull requests that touch a parser), `:110` (`RUN_CONTRACT_TESTS: "1"`); the live tests skip without it (tests/integration/test_arena_openrouter_contract.py:15). A branch pushed with no pull request does not run CI. No test reads the triggers; test_ci_argument_drift.py:56 checks only the arguments CI passes. |
+
+---
+
 ## 10. M3 — Subscription-plan table (REQ-SUB / REQ-REC / REQ-GP / REQ-CAL)
 
 > Added 2026-08-15 from the signed m3-plan.md §2 (Q1-Q4 locked by the owner the same day).
 > Note (doc drift, recorded): M2's REQ-ING-005..008 / REQ-CAT-001..003 / REQ-REC-005..006 /
-> REQ-CI-001 were specified in the signed m2-plan.md §2 and never copied here; their canonical
-> statements remain in that signed plan. New REQs land in BOTH from M3 on.
+> REQ-CI-001 were specified in the signed m2-plan.md §2 and copied here only at M18-W5 (#33),
+> in the M2 section above. New REQs land in BOTH from M3 on.
 
 ### REQ-SUB-001 — Plan schema with mandatory provenance
 
@@ -252,10 +273,10 @@ Research suggests Supabase or Cloudflare Workers for the serving layer. No decis
 
 ### REQ-CAL-001 — Elo threshold recalibration
 
-**Statement:** assistant-category thresholds recalibrated against live data as a data edit in categories.py, rationale recorded.
-**Acceptance:** thresholds derived from the live board's distribution, not assumed; method + evidence committed.
-**Citing test:** tests/unit/test_recommend_assistant.py::test_assistant_budget_floor_uses_elo (asserts the shipped floor).
-**Status:** **MET.** Evidence: test_recommend_assistant.py:169, :111. D-148/D-159 supersede the hand-set `min_quality` 1400 clause: the floor is now derived from the board. `close_call` 8 and `value_window` 30 still stand (categories.py:103-107).
+**Statement:** the `assistant` surface's thresholds come from its live board, never assumed. Its tie margin (`close_call`, 8 Elo) and value window (`value_window`, 30 Elo) are a data edit in `categories.py`, with method and evidence in `docs/reviews/m3-elo-calibration.md`. Its floor is not a number kept by hand: like every surface's, it is the top third of its board's rows, derived from the served artifact wherever it is read (D-148 clause 1, D-159).
+**Acceptance:** the shipped margin and window are the calibrated values, and moving either fails a test; the Budget Pick clears the floor derived from the board, on the Elo scale.
+**Citing tests:** tests/unit/test_recommend_assistant.py::test_close_call_threshold_is_the_calibrated_elo_value and ::test_assistant_budget_floor_uses_elo.
+**Status:** **MET.** Evidence: test_recommend_assistant.py:169, :101, :111, :198; test_floors.py:22; test_floor_served.py:57, :76.
 
 ## 11. M4 — Make the plan answers real (REQ-CAN / REQ-ING / REQ-SUB / REQ-REC)
 
@@ -291,10 +312,10 @@ Research suggests Supabase or Cloudflare Workers for the serving layer. No decis
 
 ### REQ-ING-013 — A partial build is a failed build
 
-**Statement:** the builder exits non-zero and names the operator action on any hollow stage — an unreachable source, a source below its declared row floor, a collapsed reconciliation, empty price medians — and leaves no artifact behind.
-**Acceptance:** each failure mode forced by fault injection; each exits non-zero; no partially-populated database survives a failed run.
+**Statement:** the builder exits non-zero and names the operator action on any hollow stage — a collapsed reconciliation, empty price medians, an empty curated stage, or a source it cannot stand in for — and leaves no artifact behind. A source that is unreachable, or stores fewer rows than its declared floor, keeps its last good rows from the live artifact when they arrived in a served cycle less than 30 days ago (D-144, D-156; REQ-REF-009). With nothing to carry — no live artifact, or last good data older than 30 days — a required source fails the build, and an optional one is named with the surfaces it leaves without evidence (exit 3).
+**Acceptance:** each failure mode forced by fault injection; each exits non-zero; no partially-populated database survives a failed run; carried rows are the live artifact's own, and expired data is never carried.
 **Why the floor matters:** `rank.py` JOINs `px_median`. An empty table yields zero rows and `/v1` answers 200 with no picks — a confident wrong answer that passes every existence check, including `/health`.
-**Status:** **MET.** Evidence: test_build.py:154, :160, :167; test_build_artifact_safety.py:116, :133. D-144/D-156 amend the "unreachable source fails" clause. A source with last-good data under 30 days old is carried (REQ-REF-009). It fails only when there is nothing to carry.
+**Status:** **MET.** Evidence: test_build.py:154, :160, :167, :200, :230; test_build_artifact_safety.py:117, :134; test_carry_forward.py:60, :84, :93, :115.
 
 ### REQ-ING-011 — Source health is computed, not noticed
 
@@ -369,6 +390,17 @@ REQ-CAN-005 (the effort counter under-reports suffix-bearing rows it cannot clas
 (YAML alias-expansion guard) and W-009 (two migration entry points) as hardening the API boundary
 creates. Each is reproduced with a failing test before it is fixed.
 
+## M7 — the artifact is built, and serving never writes it (REQ-API-007..009), written at M18-W5
+
+Specified in the signed `docs/plans/m7-plan.md` §1, which said to copy them here at W1; they were
+not copied until #33. M7's other criteria are REQ-ING-012/013 (§11) and REQ-CAN-003 (§4).
+
+| REQ-ID | Criterion | Status |
+|---|---|---|
+| REQ-API-007 | The serving path performs no write to the evidence database and holds no full-database copy. `serving_snapshot` is deleted, not merely unused. | **MET.** Evidence: test_api_v1.py:727, :744; test_api_config.py:525; test_readonly_uri.py:136. |
+| REQ-API-008 | A serving process whose evidence database has an unbuilt or empty `px_median` refuses to answer, with the operator-facing remedy named. It never returns 200 with zero picks. | **MET.** Evidence: test_unbuilt_evidence.py:106; test_api_v1.py:657; test_board_standings.py:488; test_recommend.py:202; tests/integration/test_cli_e2e.py:234. The remedy is named to the operator, at startup and by the CLI, and kept out of the public 503 body (test_api_v1.py:657). |
+| REQ-API-009 | The deployed service answers a real query with correct CONTENT — both coding surfaces, neither leading (D-115, Ruling A) — from a host, over the network, unauthenticated. | **PARTIAL.** Missing: any run over a network. Nothing is deployed (D-123 is undischarged; W-030 is escalated). Evidence so far: `scripts/journey.py` passed 4/4 against a local container at M7-W4 (`docs/plans/m7-plan.md:166-169`; `docs/coverage-by-req.md:33`). No gate runs it. |
+
 ## M8 — the iOS client (REQ-APP), added at the wave rather than at closure
 
 The engine's first consumer that is not a test. These were proposed in `docs/plans/m8-plan.md` §1
@@ -387,7 +419,7 @@ any gate, and a row whose only reachable evidence is a screenshot says so.
 | REQ-APP-003 | Every disclosure the API sends is visible: `unavailable_reason`, `source_health` notices, `stale_notice`, `evidence_dating_note`, `effort_mix_notice`, `close_call`, `ranking_effort` and the ordering note. On the combined list (D-168) the same duty holds for what the phone composes: the efforts its models stand at (D-112), each board's date and attribution, how many models the boards share, and the sentence that no leaderboard publishes this order. | **PARTIAL.** Missing: the composed facts are tested in the Engine layer, and the view's use of them only by source pins, which cannot see the combined branch (#67, #69). Evidence so far: test_ios_client_contract.py:60, :94; AnswerPlanTests.swift:45, :143, :184, :191; LanguageTests.swift:476, :487. |
 | REQ-APP-004 | The app degrades honestly: engine unreachable, 503, an empty answer and a slow response each produce a stated condition — never a blank screen and never an endless spinner. | **MET.** Evidence: test_ios_client_contract.py:369, :411; EngineClientTests.swift:245; test_unavailable_after_boot.py:69. The "unreachable 503" caveat is closed by REQ-IOS-003 (W-039 FIXED). Timeouts are checked in source and against a stubbed URLSession, not on a device. |
 | REQ-APP-005 | The app computes no ranking value of its own, with the one exception D-160, D-167 and D-168 permit: `Combine.swift` orders the models every chosen board ranks by the sum of their positions, ties sharing a place, and the screen says the order is the product's own. Scores and prices are rendered as received (Trap 1; protects D-104, D-105, D-109). | **PARTIAL.** Missing: arithmetic laundered through a local binding, and a second same-named sort, pass the tripwires (#60); formatter rounding is invisible to them; the Engine-layer Swift tests do not cover views. Evidence so far: CombinePropertyTests.swift:79; CombineTests.swift:47, :106; test_ios_client_contract.py:140, :210, :303. |
-| REQ-API-010 | Any contract gap the client finds is recorded as a finding against `/v1` before any client-side workaround. **Declared class: PROCESS** — its obligation is about the record trail, not about running code. | **MET.** Evidence: test_contract_change_provenance.py:38, :60, :79. **ID collision:** line 432 uses the same ID for a different requirement. |
+| REQ-API-010 | Any contract gap the client finds is recorded as a finding against `/v1` before any client-side workaround. **Declared class: PROCESS** — its obligation is about the record trail, not about running code. | **MET.** Evidence: test_contract_change_provenance.py:38, :60, :79. |
 
 ## M9 — the refresh (REQ-REF), added at W1
 
@@ -406,7 +438,7 @@ started on. REQ-REF-006 therefore PINS existing behaviour rather than requiring 
 | REQ-REF-002 | "Changed" is decided on the CONTENT THAT WOULD BE SERVED — not file bytes, not timestamps. An unchanged upstream produces no publish and says so. | **MET.** Evidence: test_refresh.py:88; test_refresh_boards.py:79. |
 | REQ-REF-003 | A refresh REFUSES to publish an artifact that is worse than the live one: fewer surfaces answering, or materially less evidence behind any surface. The refusal is a first-class outcome with its own exit code, not an error. | **MET.** Evidence: test_refresh.py:660; test_floor_served.py:357. |
 | REQ-REF-004 | Every cycle leaves a durable record of what it did and why — published, unchanged, refused or failed — carrying the numbers it decided on. | **MET.** Evidence: test_refresh.py:802; test_nightly_refresh.py:278. |
-| REQ-REF-005 | A refresh runs every 12 hours without a human, and a human can find out that it stopped running at all. **Silence must not be indistinguishable from success.** | **SUPERSEDED** by D-151 (once a night, 23:00-01:00) and D-154 (the engine runs it as a child process; the launchd job and its installers are removed, D-173 clause 7). Replaced by REQ-REF-008. The "find out it stopped" half is now `/health` (test_nightly_refresh.py:278). D-154's status is still **proposed**. |
+| REQ-REF-005 | A refresh runs every 12 hours without a human, and a human can find out that it stopped running at all. **Silence must not be indistinguishable from success.** | **SUPERSEDED** by D-151 (once a night, 23:00-01:00) and D-154 (the engine runs it as a child process; the launchd job and its installers are removed, D-173 clause 7). Replaced by REQ-REF-008. The "find out it stopped" half is now `/health` (test_nightly_refresh.py:278). |
 | REQ-REF-006 | The running engine serves a replaced artifact without a restart, and a request in flight during the swap completes on consistent data. | **MET.** Evidence: test_refresh.py:253, :1400. |
 | REQ-REF-007 | Ingestion never runs on the serving host (D-116). The refresh produces an artifact and hands it over; it does not reach into a serving process. | **PARTIAL.** Missing: Still true: the physical half is unmet because nothing is deployed. Since D-154 the refresh even runs as a child of the serving engine on the same Mac; production refuses the switch (test_nightly_refresh.py:320). W-125 (accepted): the serving process still loads the parsers and `httpx`. Evidence so far: test_refresh.py:293; test_nightly_refresh.py:352. |
 
@@ -428,6 +460,7 @@ needs iOS 13 and covers every device this app targets (deployment target 18.0).
 | REQ-RTR-004 | Nothing typed reaches the ENGINE, and nothing the engine serves is influenced by the router beyond which surface is opened. The scoring path is untouched (D-104). | **MET.** Evidence: test_router_hints.py:160; EngineClientTests.swift:435. |
 | REQ-RTR-005 | *(verified against the real on-device model by the owner on 2026-08-23 — it warned.)* A question the catalogue does not measure routes to `assistant` **and says so** — that it is not measured here and is being answered with the general chat ranking. | **PARTIAL.** Missing: W-123 (accepted, owned by M18): 5 of 16 ordinary questions still reach a measured surface with `unmeasured = false`. Evidence so far: RouterBoundaryTests.swift:131, :170; test_router_hints.py:97; FrontDoorTests.swift:388. |
 | REQ-GRD-001 | A refresh REFUSES a candidate whose evidence moved upward in a way ordinary upstream movement does not produce. It refuses; it never judges and publishes. | **MET.** Evidence: test_refresh.py:1509; test_floor_served.py:265, :357. |
+| REQ-ANM-001 | No such requirement was written. `docs/plans/m10-wave-4-close.md:37` lists it among the M10 ids added here, in the place of the upward-anomaly refusal, which the M10 plan (§2, row 5) and this file name REQ-GRD-001. | **SUPERSEDED.** By REQ-GRD-001, the row above: the id is a misnaming of it. No version of this file ever carried REQ-ANM-001 (`git log -S 'REQ-ANM'` finds only the close record's commit). |
 | REQ-GRD-002 | No refresh can be made to allocate without bound by an upstream: every paginating client caps total accumulated rows and bytes. | **MET.** Evidence: test_arena_client.py:198. |
 | REQ-GRD-003 | The refresh states its environment assumptions as CHECKS, not assumptions. | **MET.** Evidence: test_refresh.py:1636. |
 | REQ-EVI-002 | The population the engine actually ranks — reconciled AND priced — has a NAME in the code, and calibration must call it. | **MET.** Evidence: test_ranked_population.py:179. |
@@ -435,7 +468,7 @@ needs iOS 13 and covers every device this app targets (deployment target 18.0).
 | REQ-IOS-001 | The Engine layer is executed by a gate: `Router`, `EngineClient` and their boundaries have tests that run from the command line and are wired into `make check` and `runner`. | **MET.** Evidence: `swift-test` is a leg of `make check` (Makefile:108); ios/EngineTests (268 tests); test_swift_test_manifest.py:57. The row says "18 tests". There are now 268. |
 | REQ-IOS-002 | The router's boundary is proven IN SWIFT: no path yields an id outside the nine, every tier can be absent without blocking the screen, and an unmeasured question reaches the surface flagged as unmeasured. | **MET.** Evidence: RouterBoundaryTests.swift:106, :170, :185. |
 | REQ-IOS-003 | The 503 the client is required to render honestly can be PRODUCED on demand, so the branch that renders it is reachable by a test. | **MET.** Evidence: test_unavailable_after_boot.py:69. |
-| REQ-API-010 | `/v1` gives ONE account of a query: the `ranking` array and the `picks` array cannot disagree about what was ranked. | **MET.** Evidence: test_budgets_endpoint.py:55. **ID collision** with line 384 (a different requirement under the same ID). |
+| REQ-API-011 | `/v1` gives ONE account of a query: the `ranking` array and the `picks` array cannot disagree about what was ranked. | **MET.** Evidence: test_budgets_endpoint.py:55. Numbered REQ-API-010 until #33; M11's plan and closure report use that number. |
 | REQ-RUN-001 | The product has been operated by a person against a running engine, and what was asked and what came back is written down — including anything that looked wrong. | **MET.** Evidence: OwnerSessionDefectTests.swift:39, :93, :131 (the W-063/064/065 tests). A process criterion, met by the 2026-08-22 owner session. |
 | REQ-RUN-002 | The 12-hour refresh has completed at least two unattended cycles on the schedule, and the status file it left is read back and reported. | **SUPERSEDED** by D-151, D-154 (the 12-hour launchd schedule is retired). The intent is still unobserved for the replacement: no record shows two unattended nightly engine cycles. `advisor.db.refresh.json` holds one cycle, at 2026-09-23T22:16Z: outcome `refused`, `consecutive_refusals` 2. If the owner still wants that observation, it is open work. |
 | REQ-GOV-001 | Every ADR cited anywhere in this repository exists; `C2b` counts something it can actually reach. | **MET.** Evidence: test_adr_citations.py:80; test_c2b_counter.py:57. |
@@ -444,7 +477,7 @@ needs iOS 13 and covers every device this app targets (deployment target 18.0).
 | REQ-CMP-002 | Price is expressed in a unit a person outside this industry uses, without removing the exact figure. | **MET.** Evidence: OwnerSessionDefectTests.swift:352, :374; LanguageTests.swift:168. |
 | REQ-CMP-003 | Every surface name says what the surface measures, in words a non-specialist would choose. No two surfaces begin with the same word. | **MET.** Evidence: test_category_titles.py:37, :57. |
 | REQ-DSC-001 | A limitation that is a property of a SOURCE is stated once per source; a limitation that is a STATE of the data keeps its warning treatment (D-135). Every fact remains reachable. | **MET.** Evidence: OwnerSessionDefectTests.swift:393, :407. |
-| REQ-BGT-001 | A reader can choose a budget in the app, and the answer changes when they do. | **SUPERSEDED** by **No ADR.** Retired by the signed m13-plan §2 W3 (council ballot E). D-134 keeps `/v1/budgets` for other consumers. The PRD says the picker's tests were deleted, yet EngineClientTests.swift:419 still claims to be "REQ-BGT-001's other half". The test is still valid for EngineClient, but the label is stale. |
+| REQ-BGT-001 | A reader can choose a budget in the app, and the answer changes when they do. | **SUPERSEDED** by the signed m13-plan §2 W3 ("Remove both top strips"), on the owner's directive and the council's unanimous vote (`docs/second-opinion.md` Q4). The M13 closure report the owner ratified on 2026-09-20 records the budget client code deleted with its tests. No ADR records the retirement. The app asks every question at `unlimited` (`ios/ModelRanking/ContentView.swift:64`); D-134 keeps `/v1/budgets` for other consumers. |
 | REQ-LOC-001 | `/v1` returns the FACTS behind each sentence; the client composes the sentence, in English or Turkish, from those facts alone. | **PARTIAL.** Missing: Still true: three engine notices reach the screen as English prose, not composed from facts: `stale_notice`/`source_health.notice`, `evidence_dating_note` and `effort_mix_notice` (ContentView.swift:518-521; Language.swift:12-15; D-136 scope). Reason codes and the tie sentence are now localised. Evidence so far: test_why_facts.py:52, :64; LanguageTests.swift:33, :45. |
 
 ## M13 — the instrument (REQ-FIX), added at W1 before any code
@@ -502,7 +535,11 @@ correction they offered survives as a `Change` sheet.
 
 | REQ-ID | Criterion | Status |
 |---|---|---|
+| REQ-SRC-010 | *(amended at M14, m14-plan §4)* An LMArena board's licence is on record, and its source registration cites it, before any of its data is served. For the LMArena boards that is the dataset-level CC-BY-4.0 grant reviewed at D-101; no per-board review is owed. | **MET.** Evidence: test_arena_client.py:344. The M14-W1 record found the image-editing board is a config of the dataset already read under that grant (`docs/plans/m14-wave-1-close.md:32`). No image-editing data is served (REQ-IMG-002). |
 | REQ-SRC-011 | Each LMArena board is stored under its own source id AND its own benchmark label, taken from the registered board table and never defaulted; an unregistered source id is refused. No two boards share either identifier. | **MET.** Evidence: test_arena_client.py:377, :423, :223. |
+| REQ-IMG-001 | The ranked population of the image-editing surface is COUNTED and published in the wave record before any threshold is chosen. | **MET.** Evidence: `docs/plans/m14-wave-1-close.md:46`: 0 of the board's 55 models reconcile to the registry or carry a price, and the plan's stop condition fired. A process criterion with no citing test; the counting script is pinned by test_calibrate_board.py:63. |
+| REQ-IMG-002 | A tenth surface, image editing, ranks on its own native scale; no score is blended across boards (D-105). | **OPEN.** Never built. It stopped when REQ-IMG-001 counted a ranked population of zero (an image model is priced per image, which `px_median` cannot hold), and it is carried with the image-pricing question (W-105; `docs/plans/m16-plan.md:53`). |
+| REQ-IMG-003 | The router routes an image-editing question to that surface, and still refuses image GENERATION. | **OPEN.** Never built: there is no image-editing surface to route to (REQ-IMG-002). The refusal half holds on its own: a request to make an image is answered as unmeasured (FrontDoorTests.swift:347). |
 | REQ-SUR-001 | Two surfaces, `document` and `factuality`, rank only their own board, each on its own Elo scale (D-105), with floors set by the rule the product ships (D-145). | **MET.** Evidence: test_categories.py:431, :446. D-148/D-159 supersede "floors set by D-145": the floor is derived from the board. |
 | REQ-GAP-001 | A question the router declines is recorded on the device with its text and a count; a router failure (manual tier) is not a gap; nothing recorded leaves the device; the stored entry is bounded in characters and in bytes. | **MET.** Evidence: FrontDoorTests.swift:643, :719; test_router_hints.py:233. The "nothing leaves the device" clause is enforced by a gate over spellings (the limit W-122 records). |
 | REQ-GAP-002 | The owner can read the register in the app, most-asked first, and clear it. | **MET.** Evidence: FrontDoorTests.swift:677, :688 (`clear()` exercised at :693). The PRD still lists the owner reading the register on a running app as "pending". |
@@ -540,8 +577,8 @@ the next milestone cannot inherit them as prose again.
 | REQ-FLR-002 | The detail screen shows that floor as the line below which the product does not recommend, in both languages, composed in the Engine from the served fact. | **MET.** Evidence: DetailTests.swift:256, :267, :272. |
 | REQ-PRC-001 | A surface whose price leaves something out says so on `/v1/categories` as a CODE (`price_excludes`), not as a sentence, and only the surfaces it applies to carry it (D-153, D-129: the app owns its languages). | **MET.** Evidence: test_uncertainty_contract.py:291. |
 | REQ-PRC-002 | Wherever the app shows a price for `search` or `search_factuality`, it also says that a search call is not in it. | **MET.** Evidence: test_ios_client_contract.py:954; DetailTests.swift:282, :292; EngineClientTests.swift:166. |
-| REQ-REF-008 | The engine refreshes its own artifact once a night inside 23:00-01:00 local and once at startup when no good cycle is on record within a day, through `refresh.py`'s entry point only, in a child process a hang, crash or kill of which cannot block or end the server; it is off by default and refused outside a development environment (D-151, D-154, D-116). | **MET.** Evidence: test_nightly_refresh.py:53, :186, :238, :320. D-154, which defines the mechanism, is still **proposed**. |
-| REQ-REF-009 | A source that fails a cycle keeps serving its last good data -- every source, the required ones included -- for 30 days from when it last arrived in a served cycle; past that its surfaces drop and the refresh publishes the rest rather than refusing. What is carried or expired, and how old, is on `/health` and in the refresh record; `/v1` and the app do not change (D-144 as ruled, D-156). | **MET.** Evidence: test_carry_forward.py:60, :84; test_refresh_carry.py:89; test_nightly_refresh.py:557. |
+| REQ-REF-008 | The engine refreshes its own artifact once a night inside 23:00-01:00 local and once at startup when no good cycle is on record within a day, through `refresh.py`'s entry point only, in a child process a hang, crash or kill of which cannot block or end the server; it is off by default and refused outside a development environment (D-151, D-154, D-116). | **MET.** Evidence: test_nightly_refresh.py:53, :186, :238, :320. |
+| REQ-REF-009 | A source that fails a cycle keeps serving its last good data -- every source, the required ones included -- for 30 days from when it last arrived in a served cycle; past that, an optional source's surfaces drop and the refresh publishes the rest rather than refusing, and a required source fails the cycle and says it expired (D-156 clause 3). What is carried or expired, and how old, is on `/health` and in the refresh record; `/v1` and the app do not change (D-144 as ruled, D-156). | **MET.** Evidence: test_carry_forward.py:60, :84; test_refresh_carry.py:89, :158; test_nightly_refresh.py:556. |
 
 
 ## M18 — the app on the owner's iPhone (REQ-DEV), added at W1
