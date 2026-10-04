@@ -1404,18 +1404,21 @@ def boards() -> Any:
     path = _db_path()
     if path is None or not path.is_file():
         return _error(503, "evidence_unavailable", "The evidence database is not available.")
+    # The identity is read BEFORE the open and again after the build, and the payload is kept only
+    # when the two agree: a publish landing in between filed the old payload under the new
+    # artifact's key (W4 review M1). `.get`, because another worker may clear the memo meanwhile.
+    key = _artifact_key(path)
+    cached = _BOARDS_MEMO.get(key) if key is not None else None
+    if cached is not None:
+        return cached
     try:
         conn = open_readonly(path)
     except sqlite3.Error:
         return _error(503, "evidence_unavailable", "The evidence database is not available.")
-    key = _artifact_key(path)
-    if key is not None and key in _BOARDS_MEMO:
-        conn.close()
-        return _BOARDS_MEMO[key]
     try:
         require_price_medians(conn)
         payload = {"api_version": API_VERSION, **board_standings(conn)}
-        if key is not None:
+        if key is not None and _artifact_key(path) == key:
             if len(_BOARDS_MEMO) > 2:
                 _BOARDS_MEMO.clear()
             _BOARDS_MEMO[key] = payload

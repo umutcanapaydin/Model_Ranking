@@ -290,6 +290,21 @@ def test_the_engine_serves_a_replaced_artifact_without_a_restart(
     )
 
 
+def test_nothing_the_refresh_loads_imports_the_serving_adapter() -> None:
+    """W4 review M3: the test below reads `refresh.py`'s own imports, and a module it imports could
+    import the adapter for it: `from app.adapter import nightly` in `serving_bounds.py` passed. What
+    a fresh interpreter has loaded after importing the refresh is the whole answer."""
+    import subprocess
+    import sys
+
+    probe = ("import sys, app.workflows.refresh; "
+             "print(sorted(m for m in sys.modules if m == 'app.adapter' or m.startswith('app.adapter.')))")
+    done = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, timeout=60,
+                          cwd=Path(__file__).resolve().parents[2], check=False)
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip() == "[]", done.stdout
+
+
 def test_the_refresh_never_imports_the_serving_adapter() -> None:
     """REQ-REF-007's structural half, asserted at W1 because the boundary is easiest to hold now.
 
@@ -1665,7 +1680,7 @@ def _renamed(path: Path) -> Path:
 
 
 def test_a_candidate_that_only_re_spells_names_moves_no_guard(tmp_path: Path) -> None:
-    """#39 (D-173 clause 2): the roster guards compared display names, so a board that only
+    """#39 (D-173 clause 2, REQ-CAN-001: a model is its id): the roster guards compared display names, so a board that only
     re-spelled its models read as every model lost and an injected set gained. They compare ids;
     the re-spellings are recorded as information."""
     from app.workflows.refresh import degradations, display_changes, upward_anomalies
@@ -1718,7 +1733,7 @@ def _accessible(path: Path, *, values: int) -> Path:
 def test_accessibility_values_falling_by_a_quarter_refuse_the_night(
     tmp_path: Path, served: int, candidate: int, refused: bool
 ) -> None:
-    """#42 (D-173 clause 3): a truncated model_metadata.csv with one valid row published, and the
+    """#42 (D-173 clause 3, REQ-REF-009's guards): a truncated model_metadata.csv with one valid row published, and the
     phone's accessibility filter emptied with no refusal. A quarter lost refuses, as D-128's boards."""
     from app.workflows.refresh import degradations
 
@@ -1746,3 +1761,33 @@ def test_a_candidate_past_a_serving_bound_is_refused(tmp_path: Path, monkeypatch
     assert code == EXIT_REFUSED, outcome.reason
     assert "MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS" in outcome.reason
     assert live.read_bytes() == before
+
+
+def test_a_candidate_past_the_standings_bound_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """W4 review M4: the plan's case for #57 is the `/v1/boards` payload, the bound a refresh grows
+    most easily; the test above drives the ranking rows."""
+    live = _wide(tmp_path / "advisor.db", models=12)
+    monkeypatch.setenv("MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS", "5")
+
+    def same(argv: list[str]) -> int:
+        _wide(Path(argv[argv.index("--db") + 1]), models=13)
+        return 0
+
+    outcome, code = refresh(live, builder=same)
+    assert code == EXIT_REFUSED, outcome.reason
+    assert "MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS" in outcome.reason
+
+
+def test_a_first_artifact_past_a_bound_is_refused_too(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """W4 review M4 (D-173 clause 4): with nothing served there is nothing to be worse than, but a
+    first artifact past a bound would still stop the engine's next start."""
+    target = tmp_path / "advisor.db"
+    monkeypatch.setenv("MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS", "5")
+
+    def first(argv: list[str]) -> int:
+        _wide(Path(argv[argv.index("--db") + 1]), models=12)
+        return 0
+
+    outcome, code = refresh(target, builder=first)
+    assert code == EXIT_REFUSED, outcome.reason
+    assert not target.exists()

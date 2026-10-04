@@ -91,12 +91,14 @@ def test_a_moving_spelling_the_list_missed_derives_no_model(name: str) -> None:
 @pytest.mark.parametrize("name", ["xai/grok-4.20-beta-latest-reasoning", "xai/grok-4.20-reasoning-latest",
                                   "openai/gpt-5-latest-mini", "gemini-latest-pro"])
 def test_a_latest_token_followed_by_a_word_derives_no_model(name: str) -> None:
-    """#48 (D-166): a `-latest` token followed by a word, not a date, still names no one release."""
+    """#48 (D-166, REQ-CAN-001): a `-latest` token followed by a word, not a date, still names no one
+    release."""
     assert derive_identity(name) is None
 
 
 @pytest.mark.parametrize("name", ["chatgpt-4o-latest-20250326", "gpt-5.2-chat-latest-20260210",
-                                  "openai/chatgpt-4o-latest-2025-03-26", "claude-instant-1.2"])
+                                  "openai/chatgpt-4o-latest-2025-03-26", "claude-instant-1.2",
+                                  "gpt-4o-latest-v2"])  # W4 review R3: a version after it, too
 def test_a_dated_release_of_a_latest_alias_still_derives(name: str) -> None:
     """A date or version after the alias names one release, which is exactly what D-166 keeps."""
     assert derive_identity(name) is not None

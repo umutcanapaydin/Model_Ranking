@@ -288,14 +288,12 @@ class _ClosingRaces:
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         self.closed = threading.Event()
-        self.worker_done = threading.Event()
 
     def stream(self, *args: object, **kwargs: object) -> _ClosingRaces:
         return self
 
     def __enter__(self) -> None:
         self.closed.wait(5)
-        self.worker_done.set()  # the worker records the error and exits right after this raise
         raise OSError(9, "Bad file descriptor")
 
     def __exit__(self, *exc: object) -> None:
@@ -303,8 +301,10 @@ class _ClosingRaces:
 
     def close(self) -> None:
         self.closed.set()
-        self.worker_done.wait(5)
-        time.sleep(0.05)  # the worker's `except` and return run before `close` returns
+        # The worker records its error and ENDS before `close` returns (W4 review R2: a sleep here
+        # made the old code fail only when the timing allowed it).
+        for worker in [t for t in threading.enumerate() if t.name == "fetch-probe"]:
+            worker.join(5)
 
 
 def test_a_read_failing_after_the_deadline_is_reported_as_the_deadline(monkeypatch: pytest.MonkeyPatch) -> None:

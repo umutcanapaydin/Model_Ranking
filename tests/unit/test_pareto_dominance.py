@@ -179,23 +179,15 @@ def test_the_frontier_stays_sorted_by_quality_then_price() -> None:
 
 
 def test_equal_scores_and_equal_prices_keep_the_rankings_order() -> None:
-    """The last term of the sort key, and the only tiebreak still reachable after the fix.
+    """A full tie on the frontier keeps the order the ranking gave it, which is by model id.
 
-    **Writing this test found something the reviewer's mutant report implied and nobody stated:
-    the PRICE term of `(-score, blended_per_m, model)` is now dead code.** Two frontier rows can
-    only tie on score if they also tie on price — otherwise the cheaper one dominates the dearer
-    one and never reaches the sort. So `blended_per_m` can never break a tie that `-score` left
-    open. The first attempt at this test asserted an ordering of three equal-score rows at
-    different prices and failed, because the correct frontier is one row.
+    The key is `(-score, blended_per_m)` and the sort is stable (#44, D-173 clause 1). It used to end
+    in the display name, a spelling, so a re-spelled model moved inside a full tie.
 
-    That is not a defect and the term is deliberately left in place: it costs nothing, it states
-    the intended ordering, and removing it would make the key disagree with `min(value_pool,
-    key=(blended_per_m, model))` two functions away. It is recorded so a future reader does not
-    spend an hour writing the test that cannot exist.
-
-    **#44 (D-173 clause 1) changed the last term.** It was the display name, a spelling, so a
-    re-spelled model moved inside a full tie. The sort is stable and keeps the order the ranking
-    gave, which is by model id.
+    **The PRICE term is dead code, deliberately kept.** Two frontier rows can only tie on score if
+    they also tie on price -- otherwise the cheaper one dominates the dearer one and never reaches
+    the sort. It states the intended ordering and agrees with `first_cheapest`, which the value and
+    cheapest picks use. It is recorded so a future reader does not write the test that cannot exist.
     """
     rows = [_ranking_row("b", 80.0, 5.0), _ranking_row("a", 80.0, 5.0)]
     assert [r.model for r in pareto_frontier(rows)] == ["b", "a"]
