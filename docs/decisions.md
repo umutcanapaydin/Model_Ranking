@@ -3390,3 +3390,51 @@ network surface (B1, M1) and the closure seat reads it again.
 
 **Revisit when:** a wave's defect that a slice pass would have caught reaches the owner, or anything
 deploys beyond the owner's Mac.
+
+
+## D-173 — The engine's backlog decisions: stable ties, guards by id, an accessibility loss guard, bounds at refresh, a compressed boards route
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
+("proceed with what you recommend, don't ask", owner, translated from Turkish); M18-W4 · **Date:**
+2026-10-04 · **Amends** D-128, D-132, D-164 and D-167 as below · from #44, #39, #42, #57, #55, #77, #76.
+
+**Context.** M17's seats filed these as needing a decision. Each has a small, reversible answer, and the
+owner asked the agent to take its recommendation rather than ask.
+
+**Decision.**
+1. **Ties are ordered by model id** (#44). A ranking's tie-break was the display name, a served
+   spelling, so a re-spelled name moved a model inside a tie. The order of tied rows changes once,
+   and D-164's fingerprint moves with it that night.
+2. **The night-to-night roster guards compare model ids** (#39; D-128, D-132). A display change is
+   recorded in the refresh record as information. It is never read as one model lost and another
+   gained. An attacker-controlled display name therefore moves no guard, which it could not do before
+   either without also changing the id.
+3. **Accessibility has a loss guard** (#42). A night on which the number of models with an
+   accessibility value falls by a quarter or more against the served artifact is refused, and the
+   count is in the refresh record. The quarter is D-128's own.
+4. **The refresh checks the serving bounds on the candidate** (#57). The startup check's bounds
+   (`_egress_problems`) run on the candidate before it is published. A candidate past one is refused,
+   and the live artifact keeps serving.
+5. **`/v1/boards` is built once per artifact and compressed** (#55).
+   - It is memoised on the artifact's identity.
+   - Every route's response of 1 KB or more is gzip-compressed for a client that accepts it, with
+     every security header kept. The data is public.
+   - No ETag for now.
+6. **Boards no question can select stay published** (#77; D-167). The phone picks boards by id from
+   its own table, so a new refinement needs no engine release. With (5), the daily payload costs
+   about a tenth of what it did. A board stops being published when its source does, not when no
+   question selects it.
+7. **The retired refresher's installer is removed** (#76). The engine service runs the nightly refresh
+   (D-170, D-154). A second launchd refresher running a development checkout is no longer
+   installable.
+
+**Mitigation if violated.**
+- If tie order follows a spelling again, positions move on nights when nothing was measured.
+- If a guard compares names again, a cosmetic re-spelling can refuse a night.
+- Without the accessibility guard, a truncated file empties the phone's filter with no refusal.
+- Without the bounds at refresh, a refresh can publish what a restart would refuse.
+
+**Revisit when:**
+- the phone shows ties as shared places on the cards (the alternative to (1)); or
+- the payload matters again (an ETag); or
+- a board is carried that no source still publishes.

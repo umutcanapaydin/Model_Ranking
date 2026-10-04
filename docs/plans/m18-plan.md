@@ -197,6 +197,10 @@ budget.
 - The closure report, if the Quality Gate is kept on.
 - The Stage 5.1 release security review only if the owner calls a release.
 
+**Amendment (2026-10-04, the owner's choice).** W4 runs before W2, because W2 needs the simulator,
+which the owner keeps off for now. #74 and #56, the app's code, move from W4 to W2: #74 lands with #70
+there, as its triage asks. W4's decisions are recorded as D-173.
+
 **Amendment (2026-09-29, the owner's ruling, D-172).** No wave gets a security pass on its slice,
 whatever its risk tier; §0's "each HIGH wave has a security pass" and §3's "HIGH waves" no longer
 add one. A wave closes on its Code-Reviewer and its Tester. The closure adds one security seat on the
