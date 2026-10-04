@@ -1809,3 +1809,39 @@ def test_an_expired_accessibility_source_is_excused_by_the_baseline(tmp_path: Pa
     assert any("accessibility" in r for r in degradations(served, fresh))  # without the excuse: refused
     baseline = _served_without(live, {"epoch_access"})
     assert not any("accessibility" in r for r in degradations(baseline, fresh))
+
+
+def test_a_refused_night_still_records_its_re_spellings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """W4 Tester T5 (#39, D-173 clause 2): `write_status` says a refused night lists them too, and the
+    cycle passes them on its refusal. Nothing held either."""
+    import json
+
+    live = _wide(tmp_path / "advisor.db", models=12)
+    monkeypatch.setenv("MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS", "11")
+
+    def renaming(argv: list[str]) -> int:
+        _renamed(Path(argv[argv.index("--db") + 1]))
+        return 0
+
+    outcome, code = refresh(live, builder=renaming)
+    assert code == EXIT_REFUSED, outcome.reason
+    record = json.loads((tmp_path / "advisor.db.refresh.json").read_text(encoding="utf-8"))
+    assert "Probe 00 -> Renamed probe-00" in record["renamed"]
+
+
+def test_an_accessibility_expiry_night_publishes_through_the_cycle(tmp_path: Path) -> None:
+    """W4 Tester T6 (#42, D-156 clause 3, REQ-REF-009): the test above calls `degradations` with the
+    baseline by hand. This runs the night: `epoch_access` has aged out, its values leave on purpose,
+    and the cycle publishes rather than refusing."""
+    import json
+
+    live = _accessible(tmp_path / "advisor.db", values=8)
+
+    def expiring(argv: list[str]) -> int:
+        _accessible(Path(argv[argv.index("--db") + 1]), values=0)
+        Path(argv[argv.index("--report-out") + 1]).write_text(json.dumps(
+            {"arrived": [], "carried": {}, "expired": {"epoch_access": None}, "since": {}}), encoding="utf-8")
+        return 0
+
+    outcome, code = refresh(live, builder=expiring)
+    assert code == EXIT_PUBLISHED, outcome.reason

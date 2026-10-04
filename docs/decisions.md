@@ -3445,7 +3445,7 @@ owner asked the agent to take its recommendation rather than ask.
 8. **A `-latest` token names no one release unless a date or a version follows it** (#48; amends D-166
    clause 3). `grok-4.20-beta-latest-reasoning` derives nothing, as `...-latest` alone did not;
    `chatgpt-4o-latest-20250326` and `gpt-4o-latest-v2` derive. The version form is `v` and a digit,
-   so a word that starts with `v` (`-latest-video`) still derives nothing.
+   so a word that starts with `v` (`-latest-vibe`) still derives nothing.
 
 **Mitigation if violated.**
 - If tie order follows a spelling again, positions move on nights when nothing was measured.

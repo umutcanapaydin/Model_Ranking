@@ -643,3 +643,21 @@ def test_every_metric_a_source_declares_has_a_direction() -> None:
     missing = sorted(declared - HIGHER_IS_BETTER)
     assert not missing, f"metrics with no declared direction: {missing}"
 
+
+
+def test_the_boards_memo_keeps_no_more_than_a_few_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """W4 Tester T8 (#55, D-173 clause 5): every nightly publish is a new artifact identity, and one
+    payload holds about 2.3 MB on today's artifact. Without its clear the memo keeps one per night
+    for the life of the engine; nothing held the clear."""
+    from app.adapter import main as adapter
+
+    db = tmp_path / "pipeline.db"
+    _seeded_db(db)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    client = TestClient(adapter.app)
+    for night in range(6):
+        published = tmp_path / f"night-{night}.db"
+        _seeded_db(published)
+        published.replace(db)
+        assert client.get("/v1/boards").status_code == 200
+    assert len(adapter._BOARDS_MEMO) <= 3

@@ -512,8 +512,9 @@ def test_nothing_in_the_repository_installs_the_retired_refresher() -> None:
     nightly refresher the shared lock alone kept apart from the first."""
     offenders = [
         str(path) for folder in (REPO / "scripts", REPO / "deploy") if folder.is_dir()
-        for path in sorted(folder.iterdir())
+        for path in sorted(folder.rglob("*"))  # W4 Tester T9: every folder below, not the top only
         if path.is_file() and path.suffix != ".md"  # what runs or installs, not what describes it
+        and "__pycache__" not in path.parts
         and "com.hcs.modelranking.refresh" in path.read_text(encoding="utf-8", errors="replace")
     ]
     assert offenders == []

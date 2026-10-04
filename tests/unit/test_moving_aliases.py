@@ -89,8 +89,7 @@ def test_a_moving_spelling_the_list_missed_derives_no_model(name: str) -> None:
 
 
 @pytest.mark.parametrize("name", ["xai/grok-4.20-beta-latest-reasoning", "xai/grok-4.20-reasoning-latest",
-                                  "openai/gpt-5-latest-mini", "gemini-latest-pro",
-                                  "gpt-4o-latest-video"])  # W4 second review M12: a word that starts with v
+                                  "openai/gpt-5-latest-mini", "gemini-latest-pro"])
 def test_a_latest_token_followed_by_a_word_derives_no_model(name: str) -> None:
     """#48 (D-166, REQ-CAN-001): a `-latest` token followed by a word, not a date, still names no one
     release."""
@@ -137,3 +136,12 @@ def test_a_curated_rule_still_takes_a_latest_name() -> None:
         assert "mistral-large-latest" not in report.dropped_names
     finally:
         conn.close()
+
+
+@pytest.mark.parametrize("name", ["openai/gpt-4o-latest-vibe", "gpt-5-latest-venus"])
+def test_a_latest_token_followed_by_a_v_word_is_refused_by_the_token(name: str) -> None:
+    """W4 Tester T4 (#48, D-173 clause 8): `gpt-4o-latest-video` derives nothing because `video` is a
+    modality word (`registry._MODALITY_TOKENS`), not because of the token, so it cannot hold the
+    `v`-word edge. The same name without `-latest` derives, so the None here is the token's."""
+    assert derive_identity(name.replace("-latest", "", 1)) is not None, "the case would test another rule"
+    assert derive_identity(name) is None
