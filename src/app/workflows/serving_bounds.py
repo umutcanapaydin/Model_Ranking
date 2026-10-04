@@ -37,6 +37,8 @@ BOUND_VARIABLES = (
     "MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS",
     "MODEL_RANKING_MAX_RANKED_ROWS",
 )
+#: Each bound's default, by its variable, in `ServingBounds`' field order.
+_DEFAULTS = dict(zip(BOUND_VARIABLES, ("500", "25000", "5000"), strict=True))
 
 
 @dataclass(frozen=True)
@@ -61,11 +63,10 @@ def bounds_from_env() -> ServingBounds:
     - **Ranked models, 5,000.** The Stage-4.0 pass found ~10,000 ranked models using 58% of the VM
       `fly.toml` declares and ~50,000 OOM-killed, against 73 in the shipped artifact.
     """
-    return ServingBounds(
-        answer_rows=int(os.environ.get("MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS", "500")),
-        standings_rows=int(os.environ.get("MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS", "25000")),
-        ranked_rows=int(os.environ.get("MODEL_RANKING_MAX_RANKED_ROWS", "5000")),
-    )
+    # W4 second review M6: each name is spelled once, in `BOUND_VARIABLES`, which the refresh child's
+    # allowlist reads too; a bound added here and not there would bring B1 back.
+    answer, standings, ranked = (os.environ.get(name, _DEFAULTS[name]) for name in BOUND_VARIABLES)
+    return ServingBounds(answer_rows=int(answer), standings_rows=int(standings), ranked_rows=int(ranked))
 
 
 def standings_problem(db: Path, limit: int) -> str | None:

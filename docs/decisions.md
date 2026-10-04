@@ -1201,9 +1201,9 @@ landed passes at any value of it, because none changes a row count — so tighte
 of them while moving the product closer to the freeze. **The answer to a guard that misses things
 is more axes, not more stringency.**
 
----
-
 **Amended by D-173 (2026-10-04)**: the ranked roster is compared by model id (clause 2), accessibility values have the same quarter as a loss guard (clause 3), and the candidate is checked against the serving bounds (clause 4).
+
+---
 
 ## D-129 — The refresh's record is a file, and `runner` is what makes it visible
 
@@ -2424,9 +2424,9 @@ or crashed before `refresh.py` could write one -- is remembered by the engine an
 *Amended 2026-09-29 (M17 closure, milestone review M6).* Clause 2's switch is set by the engine
 service's wrapper (`scripts/engine_service.sh`, D-170), not by `ios/app.sh`.
 
----
-
 **Amended by D-173 (2026-10-04)**: clause 4's `scripts/retire_refresh.sh` is removed with the retired refresher (clause 7), and the child inherits the serving-bound variables (clause 4).
+
+---
 
 ## D-155 — The project runs on DevFlow v6.0
 
@@ -3028,8 +3028,6 @@ bad data until someone looks.
 **Revisit when:** boards held back a publish on more than one night in a month, or W4 serves boards on
 a route whose own checks make this one redundant.
 
-**Amended by D-173 (2026-10-04)**: the order of tied rows is by model id (clause 1); the board guards still compare raw names (clause 2).
-
 ## D-165 — A downloaded file a native library parses is read in a process of its own, under a memory ceiling
 
 **Status:** accepted -- **ruled by the owner 2026-09-24** (asked in Turkish whether to read the Arena
@@ -3104,6 +3102,8 @@ and `claude-instant-v1`. It also gains one rule instead of entries: an undated n
 derives no model, whichever family it names. A date after it (`chatgpt-4o-latest-20250326`) names one
 release and still derives. A curated rule still takes a `-latest` name it matches (clause 2). The
 `@latest` route decoration is unchanged: it stays decoration, as the M16-W4 grammar ruled.
+
+**Amended by D-173 (2026-10-04)**: clause 8 -- a `-latest` token followed by a word names no release; followed by a date or a version (`v2`) it does (#48).
 
 ## D-167 — The phone holds every board's standings as positions, and combines only what every chosen board ranks
 
@@ -3410,7 +3410,7 @@ deploys beyond the owner's Mac.
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
 ("proceed with what you recommend, don't ask", owner, translated from Turkish); M18-W4 · **Date:**
-2026-10-04 · **Amends** D-128, D-132, D-154, D-164 and D-167 as below · from #44, #39, #42, #57, #55, #77, #76.
+2026-10-04 · **Amends** D-128, D-132, D-154, D-166 and D-167 as below · from #44, #48, #39, #42, #57, #55, #77, #76.
 
 **Context.** M17's seats filed these as needing a decision. Each has a small, reversible answer, and the
 owner asked the agent to take its recommendation rather than ask.
@@ -3429,7 +3429,7 @@ owner asked the agent to take its recommendation rather than ask.
    upstream re-spelling of a board's names still reads as names lost and gained there (#100).
 3. **Accessibility has a loss guard** (#42). A night on which the number of models with an
    accessibility value falls by a quarter or more against the served artifact is refused, and the
-   count is in the refresh record. The quarter is D-128's own.
+   refusal's reason names both counts. The quarter is D-128's own.
 4. **The refresh checks the serving bounds on the candidate** (#57). The startup check's bounds
    (`_egress_problems`) run on the candidate before it is published. A candidate past one is refused,
    and the live artifact keeps serving.
@@ -3446,10 +3446,15 @@ owner asked the agent to take its recommendation rather than ask.
    (D-170, D-154). A second launchd refresher running a development checkout is no longer
    installable. D-154 clause 4's `scripts/retire_refresh.sh` goes with it: no such job is installed on
    the owner's Mac (measured 2026-10-04).
+8. **A `-latest` token names no one release unless a date or a version follows it** (#48; amends D-166
+   clause 3). `grok-4.20-beta-latest-reasoning` derives nothing, as `...-latest` alone did not;
+   `chatgpt-4o-latest-20250326` and `gpt-4o-latest-v2` derive. The version form is `v` and a digit,
+   so a word that starts with `v` (`-latest-video`) still derives nothing.
 
 **Mitigation if violated.**
 - If tie order follows a spelling again, positions move on nights when nothing was measured.
-- If a guard compares names again, a cosmetic re-spelling can refuse a night.
+- If the roster guards compare names again, a cosmetic re-spelling can refuse a night (the board
+  guards still can, #100).
 - Without the accessibility guard, a truncated file empties the phone's filter with no refusal.
 - Without the bounds at refresh, a refresh can publish what a restart would refuse.
 

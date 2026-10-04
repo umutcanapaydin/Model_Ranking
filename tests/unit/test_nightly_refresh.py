@@ -586,9 +586,8 @@ def test_the_child_checks_the_bounds_the_engine_serves_under(
     override. Raised, every night was refused; lowered, a night published what a restart refuses."""
     from app.workflows import serving_bounds
 
-    overrides = {"MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS": "1000",
-                 "MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS": "30000",
-                 "MODEL_RANKING_MAX_RANKED_ROWS": "10"}
+    # Every bound the module declares, whatever their number (W4 second review M6).
+    overrides = {name: str(1000 + index) for index, name in enumerate(serving_bounds.BOUND_VARIABLES)}
     for name, value in overrides.items():
         monkeypatch.setenv(name, value)
     seen = tmp_path / "bounds.json"
