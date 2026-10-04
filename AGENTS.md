@@ -11,10 +11,10 @@
 
 - **Project name:** model_ranking
 - **Customer / owner:** Umut Can Apaydın (ILGAR)
-- **One-line description:** Aggregates free-and-legal LLM benchmark + pricing data into a canonical registry and serves deterministic, budget-aware model recommendations (engine behind a future iOS AI-advisor app).
-- **Tech stack:** `python` in `.devflow-stack`: Python 3.11, FastAPI (health-only until M6), SQLite, pytest, ruff/black/mypy (must match `pyproject.toml` — seed C.4)
-- **Target environment:** local dev / CI; serving target closed by M6's deploy ADR (was OQ-3)
-- **REQ-ID prefix scheme:** REQ-ING / REQ-CAN / REQ-RANK / REQ-REC / REQ-SUB / REQ-API (see docs/prd.md)
+- **One-line description:** A dashboard over published measurements of AI tools (D-126): an engine that aggregates free-and-legal benchmark and pricing data into a canonical registry and serves deterministic, budget-aware rankings on a read-only `/v1`, and an iOS app that routes a typed question to a surface on the device and shows the engine's answer or its own combination of boards (D-160, D-167, D-168).
+- **Tech stack:** `python` in `.devflow-stack`: Python 3.11+, FastAPI + uvicorn, SQLite, httpx, pyarrow, pytest, ruff/black/mypy (must match `pyproject.toml` — seed C.4); the app is Swift/SwiftUI (iOS 18; the on-device model needs iOS 26), its Engine layer tested by `swift test` through `ios/Package.swift`
+- **Target environment:** the owner's Mac: the engine is a launchd service running a deployed release of `main` (D-170), on loopback by default and the home network by opt-in (D-171); the app on the simulator or the owner's iPhone. Nothing is hosted yet: Fly.io stays the target (D-116, D-123), after the Stage 5.1 review
+- **REQ-ID prefix scheme:** one prefix per area, for example REQ-ING, REQ-API, REQ-REF, REQ-RTR, REQ-APP; the full set is in docs/prd.md
 
 For full requirements see `docs/prd.md`. For deployment topology see `docs/architecture.md`. For open decisions see `docs/decisions.md`.
 
