@@ -1950,3 +1950,119 @@ def test_the_cycle_runs_inside_its_fetch_budget(monkeypatch: pytest.MonkeyPatch)
     assert cycle.main(["--db", "unused.db"]) == 0
     assert seen and seen[0] is not None, "the cycle ran with no fetch budget"
     assert protocols.cycle_ends() is None, "the budget outlived the cycle"
+
+
+# --- the Tester's pins (M18-W6): the limits' survivors ---------------------------------------------
+
+
+def test_main_gives_the_declared_budget_and_leaves_nothing_armed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The M18-W6 Tester's survivors: `main` passed any budget at all (20 minutes times 60 passed),
+    and left its 27-minute timer armed, SIG_DFL on SIGALRM, or its parent watch running, and every
+    test stayed green. Called in process (the tests do), an armed timer ends the caller 27 minutes
+    later. The budget is the declared one, the limit is armed with the kernel's action while the
+    cycle runs, and `main` gives back what it found."""
+    import signal
+    import threading
+    import time
+
+    from app.clients import protocols
+    from app.workflows import refresh as cycle
+
+    seen: dict[str, object] = {}
+
+    class Outcome:
+        def as_json(self) -> str:
+            return "{}"
+
+    def fake(*_args: object, **_kwargs: object) -> tuple[Outcome, int]:
+        ends = protocols.cycle_ends()
+        seen["budget"] = None if ends is None else ends - time.monotonic()
+        seen["armed"] = signal.getitimer(signal.ITIMER_REAL)[0]
+        seen["action"] = signal.getsignal(signal.SIGALRM)
+        return Outcome(), 0
+
+    def callers_own(_signum: int, _frame: object) -> None:  # the caller's handler, given back
+        return None
+
+    before = set(threading.enumerate())
+    previous = signal.signal(signal.SIGALRM, callers_own)
+    try:
+        monkeypatch.setattr(cycle, "refresh", fake)
+        assert cycle.main(["--db", "unused.db"]) == 0
+        assert signal.getitimer(signal.ITIMER_REAL) == (0.0, 0.0), "main left its limit armed"
+        assert signal.getsignal(signal.SIGALRM) is callers_own, "main kept SIGALRM's action"
+        watches = [t for t in threading.enumerate() if t.name == "parent-watch" and t not in before]
+        for watch in watches:
+            watch.join(timeout=2.0)
+        assert not [t for t in watches if t.is_alive()], "the parent watch outlived main"
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous)
+    budget = seen["budget"]
+    assert isinstance(budget, float), "the cycle ran with no fetch budget"
+    assert cycle.FETCH_BUDGET_SECONDS - 5 <= budget <= cycle.FETCH_BUDGET_SECONDS, budget
+    armed = seen["armed"]
+    assert isinstance(armed, float) and 0 < armed <= cycle.CYCLE_LIMIT_SECONDS, armed
+    assert seen["action"] == signal.SIG_DFL, "the limit runs Python code, which a held GIL delays"
+
+
+def test_an_orphaned_cycle_ends_within_seconds_at_the_shipped_poll(tmp_path: Path) -> None:
+    """The M18-W6 Tester's survivor: D-154 as amended says a cycle whose engine is gone ends itself
+    "within seconds"; a poll of ten minutes passed every test, since the one test sets its own. Here
+    the engine starts the cycle, naming itself, and dies at once, and the cycle keeps the poll it
+    ships with."""
+    import signal
+    import subprocess
+    import sys
+    import time
+
+    pid_file = tmp_path / "cycle"
+    cycle_code = (
+        "import time\nfrom app.workflows import refresh as cycle\n"
+        "cycle.refresh = lambda *args, **kwargs: time.sleep(60)\n"
+        "raise SystemExit(cycle.main(['--db', 'unused.db']))\n"
+    )
+    engine_code = (
+        "import os, subprocess, sys\n"
+        f"cycle = subprocess.Popen([sys.executable, '-c', {cycle_code!r}], start_new_session=True,\n"
+        "                         env={**os.environ, 'MODEL_RANKING_ENGINE_PID': str(os.getpid())})\n"
+        f"open({str(pid_file)!r}, 'w').write(str(cycle.pid))\n"
+    )
+    try:
+        started = time.monotonic()
+        subprocess.run([sys.executable, "-c", engine_code], check=True, timeout=20,
+                       env={**os.environ, "PYTHONPATH": "src"})
+        cycle = int(pid_file.read_text(encoding="utf-8"))
+        while time.monotonic() - started < 20:
+            try:
+                os.kill(cycle, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.2)
+        else:
+            pytest.fail("the orphaned cycle outlived its engine by 20 s")
+        assert time.monotonic() - started < 15
+    finally:
+        if pid_file.exists():
+            with __import__("contextlib").suppress(ProcessLookupError, ValueError):
+                os.kill(int(pid_file.read_text(encoding="utf-8")), signal.SIGKILL)
+
+
+def test_a_cycle_run_by_hand_with_a_copied_engine_pid_runs_to_its_end() -> None:
+    """The W6 Tester's R2: a variable copied into a shell named a process that was not the cycle's
+    parent, and the cycle ended itself in seconds. Only an orphaned cycle trusts the name now."""
+    import subprocess
+    import sys
+
+    from app.workflows import refresh as cycle
+
+    code = (
+        "import time\nfrom app.workflows import refresh as cycle\n"
+        "cycle.PARENT_POLL_SECONDS = 0.1\n"
+        "class Outcome:\n    def as_json(self):\n        return '{}'\n"
+        "cycle.refresh = lambda *args, **kwargs: (time.sleep(1.5), (Outcome(), 0))[1]\n"
+        "raise SystemExit(cycle.main(['--db', 'unused.db']))\n"
+    )
+    done = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=30,
+                          env={**os.environ, "PYTHONPATH": "src", cycle.ENGINE_PID: "1"}, check=False)
+    assert done.returncode == 0, (done.returncode, done.stderr[-500:])
