@@ -29,8 +29,10 @@ CLIENT = ROUTER.parent.parent
 
 
 def _code(swift: str) -> str:
-    """The source with its `//` comments removed, so a pin holds the code and not a comment quoting
-    it. A `//` inside a string literal is cut too, which no pin here reads."""
+    """The source with its comments removed, so a pin holds the code and not a comment quoting it.
+    Block comments first, across lines (#98: a line wrapped in `/* */` satisfied a pin), then each
+    line is cut at its first `//`. A `//` inside a string literal is cut too, which no pin here reads."""
+    swift = re.sub(r"/\*.*?\*/", "", swift, flags=re.S)
     return "\n".join(line.split("//", 1)[0] for line in swift.splitlines())
 
 
