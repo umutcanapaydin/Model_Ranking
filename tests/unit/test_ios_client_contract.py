@@ -1260,3 +1260,26 @@ def test_the_screen_composes_the_empty_reason_and_the_notices_from_their_facts()
         r"disclosureList\(answerDisclosures\(answer, anchor: category\(for: answer\)\?\.scoreAnchor, language\)\)",
         code,
     ), "the card notices are not composed in the reader's language on the surface's own scale"
+
+
+def test_the_held_card_stands_alone_and_shows_the_face_its_reading_asks_for() -> None:
+    """M18-W3 Tester T8 (faults U4b, U5, U6), REQ-ASK-005, D-169 clause 4: three faults on the held
+    card failed only `make ui-test`, which no gate runs (D-175): a ranking rendered under the held
+    card, a "Showing:" line above it, and the card's two faces swapped (a doubt shown the note, the
+    note shown the question back). This pins each where the gates can see it."""
+    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
+    assert re.search(r"if let held \{\s*readingCard\(held\)\s*\} else \{", code), (
+        "the answer can render under the held card: the previous ranking reads as this question's"
+    )
+    assert re.search(r"if held != nil \{\s*EmptyView\(\)\s*\} else if let outcome = routing,", code), (
+        "a surface is named above a question that was not answered"
+    )
+    card = re.search(r"private func readingCard\(_ held: HeldReading\) -> some View \{(.*?)\n    \}", code, re.S)
+    assert card, "the held card is gone"
+    assert re.search(
+        r"if held\.outcome\.reading == \.unsure \{\s*Text\(UIText\.askBack\(language\)\).*?"
+        r"\} else \{\s*Text\(UIText\.notASearchNote\(language\)\)",
+        card.group(1),
+        re.S,
+    ), "the held card does not ask exactly when the reading is unsure, and show the note otherwise"
