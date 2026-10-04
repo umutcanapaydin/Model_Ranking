@@ -13,10 +13,10 @@ this module only waits on it, asynchronously, and kills it past `TIMEOUT_SECONDS
 
 **What that does and does not keep out of the server** (M16-W2 security pass, MAJOR-1). The
 refresh, the build and the source fetchers are never imported here, directly or through anything
-else, and a test imports the server in a fresh interpreter and checks `sys.modules` to prove it. The
-serving process DOES load the source PARSERS and their HTTP client library -- it did before this
-wave, through `subscribe -> plans -> ingest` and `rank -> clients.epoch` -- but nothing in it calls
-them, so no fetch runs in the server. Untangling that chain is W-125.
+else, and a test imports the server in a fresh interpreter and checks `sys.modules` to prove it.
+Since M18-W6 (W-125) the same test also refuses the source parsers, every `app.clients` module,
+`httpx` and `pyarrow`: the record types and declared tables the server needs live in modules that
+import no client.
 
 **Off unless asked for, and never in production.** `MODEL_RANKING_REFRESH=nightly` turns it on;
 `ios/app.sh up` sets it on the owner's Mac. `validate_startup_config` refuses it outside the relaxed
@@ -69,8 +69,9 @@ CATCH_UP_AFTER = dt.timedelta(days=1)
 RECENT = dt.timedelta(hours=4)
 #: The catch-up waits this long after boot, so the engine is answering before any refresh starts.
 STARTUP_GRACE_SECONDS = 60.0
-#: A real cycle takes 6-9 seconds (the launchd log, 2026-09-20..22). Thirty minutes is not a
-#: prediction of a slow night, it is the point past which a cycle is stuck rather than slow.
+#: The last of three limits (D-154 as amended at M18-W6): the cycle's downloads share a 20-minute
+#: budget and the kernel ends the cycle at 27 (`refresh.FETCH_BUDGET_SECONDS`,
+#: `CYCLE_LIMIT_SECONDS`), so a slow night ends well inside this; past it a cycle is stuck.
 TIMEOUT_SECONDS = 30 * 60.0
 #: The longest single sleep. The wall clock is re-read after each one, so a Mac that slept through
 #: the window, or a clock that moved, is noticed within a minute rather than trusted blindly.
@@ -78,8 +79,10 @@ POLL_SECONDS = 60.0
 
 #: `refresh.py`'s exit codes, restated rather than imported (see the module docstring).
 GOOD_CYCLES = frozenset({0, 1})  # published, unchanged
-#: `refresh.py`'s exit codes. 5 is `EXIT_TIMED_OUT` (W-126): the cycle stopped itself at its limit.
-CODE_NAMES = {0: "published", 1: "unchanged", 2: "failed", 3: "refused", 4: "busy", 5: "timed out"}
+#: `refresh.py`'s exit codes, and the one signal it ends on: SIGALRM, at its own limit or when this
+#: engine is gone (W-126; `refresh.CYCLE_LIMIT_SECONDS`).
+CODE_NAMES = {0: "published", 1: "unchanged", 2: "failed", 3: "refused", 4: "busy",
+              -signal.SIGALRM: "timed out"}
 
 _SRC = Path(__file__).resolve().parents[2]
 _REPO = _SRC.parent
@@ -215,6 +218,12 @@ def refresh_command(db: Path, epoch_dir: str | None) -> list[str]:
     return command
 
 
+def _kill_group(pid: int) -> None:
+    """SIGKILL to the cycle's process group, which it leads (it starts a session of its own)."""
+    with contextlib.suppress(ProcessLookupError, PermissionError):
+        os.killpg(pid, signal.SIGKILL)
+
+
 @dataclass
 class NightlyRefresh:
     """The schedule and the child it starts. Everything it touches from outside is injectable."""
@@ -262,6 +271,7 @@ class NightlyRefresh:
         try:
             env = {name: os.environ[name] for name in CHILD_ENV if name in os.environ}
             env["PYTHONPATH"] = str(_SRC)
+            env["MODEL_RANKING_ENGINE_PID"] = str(os.getpid())  # `refresh.ENGINE_PID`: it watches us
             proc = await asyncio.create_subprocess_exec(
                 *self.command, cwd=_REPO, env=env, stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
@@ -279,18 +289,24 @@ class NightlyRefresh:
             try:
                 await asyncio.wait_for(drain(), timeout=self.timeout)
             except TimeoutError:
+                exited = proc.returncode is not None
+                # W-130: the whole group, whether or not the cycle itself has exited: a grandchild
+                # holding the pipe is what keeps the drain waiting (the W6 review's M1). A group id
+                # is not reused while any member of the group lives.
+                _kill_group(proc.pid)
                 self._log_tail(tail)
-                self._failed(started, "killed")
-                _LOG.error("nightly refresh: no exit after %.0fs; killing it. The live artifact "
-                           "is whatever the last safe publish left (REQ-REF-001)", self.timeout)
-                return None
+                if not exited:
+                    self._failed(started, "killed")
+                    _LOG.error("nightly refresh: no exit after %.0fs; killing it. The live artifact "
+                               "is whatever the last safe publish left (REQ-REF-001)", self.timeout)
+                    return None
             self._log_tail(tail)
             code = proc.returncode
             name = CODE_NAMES.get(code, "?") if code is not None else "?"
             record = read_record(self.db)
             recorded_at = record.get("at") if record else None
             wrote = isinstance(recorded_at, int | float) and recorded_at >= started
-            if code == 5:  # it stopped itself at its limit and wrote nothing (W-126)
+            if code == -signal.SIGALRM:  # it ended at its own limit and wrote nothing (W-126)
                 self._failed(started, "timed out")
             elif not wrote and code != 4:  # a busy cycle writes nothing, by design (refresh.py M1)
                 # Exit 1 is "unchanged" only from a cycle that ran; an import error exits 1 too.
@@ -304,9 +320,7 @@ class NightlyRefresh:
             return None
         finally:
             if proc is not None and proc.returncode is None:
-                # W-130: the whole group, or a grandchild holding the pipe keeps `wait` waiting.
-                with contextlib.suppress(ProcessLookupError, PermissionError):
-                    os.killpg(proc.pid, signal.SIGKILL)
+                _kill_group(proc.pid)  # W-130: or a grandchild holding the pipe keeps `wait` waiting
                 with contextlib.suppress(ProcessLookupError):
                     proc.kill()
                 with contextlib.suppress(Exception):

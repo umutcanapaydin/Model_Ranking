@@ -681,11 +681,11 @@ def _loads_pyarrow(module: str) -> bool:
 
 @pytest.mark.parametrize("module", ["app.adapter.main", "app.clients.arena_slices"])
 def test_neither_the_server_nor_the_slice_module_loads_pyarrow(module: str) -> None:
-    """D-154: the server imports `app.clients.*` (W-125), so pyarrow is imported inside the read.
+    """D-154: pyarrow is imported inside the read, never at a module's top.
 
-    The server imports `arena_slices` itself (through `rank.SOURCE_ATTRIBUTION`), so both halves
-    fail on a top-level `import pyarrow`. The module half stays: it holds the rule even if the
-    server's path to the module goes away (P1 review M2).
+    Since M18-W6 (W-125) the server no longer imports `arena_slices` at all, so the server half
+    holds by two tests (this one and the server-import test). The module half holds the rule for
+    the refresh, which does import the module (P1 review M2).
     """
     assert not _loads_pyarrow(module)
 

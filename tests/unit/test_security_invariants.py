@@ -35,6 +35,9 @@ ROW = re.compile(r"^\| INV-(\d+) \| (.+?) \| (.+?) \| (.+) \|$")
 GAP = re.compile(r"^\| (G-\d+) \| (.+?) \| (.+?) \| (.+) \|$")
 TEST = re.compile(r"`((?:tests|ios)/[\w./-]+\.(?:py|swift))::(\w+)`")
 MAKE = re.compile(r"`make ([\w-]+)`")
+#: Anything in a cell that looks like a citation. Each must be read as a test or a target, or the
+#: gate fails: a citation it cannot read is one it would never check (the W6 review's M5).
+CITED = re.compile(r"`((?:tests|ios)/[^`]*|make\b[^`]*)`")
 GAP_REF = re.compile(r"\bG-\d+\b")
 MENTION = re.compile(r"\bINV-(\d+)\b")
 RETIRED = re.compile(r"^\| INV-(\d+) \|")
@@ -47,6 +50,7 @@ class Row:
     targets: tuple[str, ...]
     gaps: tuple[str, ...]
     none: bool
+    unread: tuple[str, ...]  # citations in the cell that are neither a test nor a target
 
 
 def section(text: str, title: str) -> str:
@@ -55,17 +59,31 @@ def section(text: str, title: str) -> str:
     return text[start:following if following >= 0 else len(text)]
 
 
+def unreadable(text: str) -> list[str]:
+    """Lines that look like a row of the list, a gap or a retired id, and that the parser cannot
+    read. Each is a finding: a row the gate cannot read is one it never checks (the W6 review's M5)."""
+    found = []
+    for title, pattern, prefix in (("The list", ROW, "| INV-"), ("Gaps", GAP, "| G-"),
+                                   ("Retired ids", RETIRED, "| INV-")):
+        for line in section(text, title).splitlines():
+            if line.startswith(prefix) and not pattern.match(line.rstrip()):
+                found.append(f"{title}: a row the gate cannot read: {line[:80]!r}")
+    return found
+
+
 def parse(text: str) -> tuple[list[Row], dict[str, str], set[int]]:
     """The rows, the gaps (id -> issue cell) and the retired numbers."""
     rows = []
     for line in section(text, "The list").splitlines():
-        match = ROW.match(line)
+        match = ROW.match(line.rstrip())
         if match:
             cell = match.group(4)
+            unread = tuple(c for c in CITED.findall(cell) if not TEST.fullmatch(f"`{c}`") and not MAKE.fullmatch(f"`{c}`"))
             rows.append(Row(int(match.group(1)), tuple(TEST.findall(cell)), tuple(MAKE.findall(cell)),
-                            tuple(GAP_REF.findall(cell)), "**none**" in cell))
-    gaps = {m.group(1): m.group(4) for line in section(text, "Gaps").splitlines() if (m := GAP.match(line))}
-    retired = {int(m.group(1)) for line in section(text, "Retired ids").splitlines() if (m := RETIRED.match(line))}
+                            tuple(GAP_REF.findall(cell)), "**none**" in cell, unread))
+    gaps = {m.group(1): m.group(4) for line in section(text, "Gaps").splitlines() if (m := GAP.match(line.rstrip()))}
+    retired = {int(m.group(1)) for line in section(text, "Retired ids").splitlines()
+               if (m := RETIRED.match(line.rstrip()))}
     return rows, gaps, retired
 
 
@@ -78,7 +96,7 @@ def declared_names(path: Path) -> frozenset[str]:
 
 def problems(text: str, root: Path = ROOT) -> list[str]:
     rows, gaps, retired = parse(text)
-    found: list[str] = []
+    found: list[str] = unreadable(text)
     if len(rows) < 50:
         found.append(f"only {len(rows)} rows were read from the list")
     numbers = [row.number for row in rows]
@@ -95,6 +113,8 @@ def problems(text: str, root: Path = ROOT) -> list[str]:
         found.append(f"the list states {count.group(1) if count else 'no'} rows and has {len(rows)}")
     makefile = (root / "Makefile").read_text(encoding="utf-8")
     for row in rows:
+        for citation in row.unread:
+            found.append(f"INV-{row.number} cites `{citation}`, which the gate cannot read as a test")
         if not (row.tests or row.targets) and not (row.none and row.gaps):
             found.append(f"INV-{row.number} cites no test and names no gap")
         for gap in row.gaps:
@@ -184,3 +204,18 @@ def test_an_invariant_named_in_code_but_not_on_the_list_is_refused() -> None:
     unknown = max({row.number for row in rows} | retired) + 1
     assert dangling({"src/x.py": "# holds INV-" + str(unknown)}, text)
     assert not dangling({"src/x.py": f"# holds INV-{rows[0].number}"}, text)
+
+
+def test_a_row_or_a_citation_the_gate_cannot_read_is_refused() -> None:
+    """The W6 review's M5: a new last row with a trailing space, and a class path in a cell, were
+    both skipped without a word, and the gate passed."""
+    text = LIST.read_text(encoding="utf-8")
+    rows, _, retired = parse(text)
+    last = next(line for line in reversed(section(text, "The list").splitlines()) if ROW.match(line))
+    new = max({row.number for row in rows} | retired) + 1
+    spaced = text.replace(last, last + f"\n| INV-{new} | x | y | `tests/unit/test_no_such_file.py::test_nothing` | ", 1)
+    assert any("does not exist" in p for p in problems(spaced)), "a row with a trailing space was not read"
+    broken = text.replace(last, last + f"\n| INV-{new} | a row with a cell missing |", 1)
+    assert any("cannot read" in p for p in problems(broken))
+    classy = text.replace(last, last[:-2] + "<br>`tests/unit/test_nope.py::TestX::test_gone` |", 1)
+    assert any("cannot read as a test" in p for p in problems(classy))

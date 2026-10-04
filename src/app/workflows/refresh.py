@@ -28,6 +28,7 @@ import json
 import math
 import os
 import shutil
+import signal
 import sqlite3
 import stat
 import statistics
@@ -85,32 +86,50 @@ EXIT_BUSY = 4
 #: A first-class outcome and not an error: nothing is broken, and the right response is to look at
 #: the upstream rather than at this process.
 EXIT_REFUSED = 3
-#: The cycle passed its own limit and stopped itself (W-126). The live artifact is untouched: a
-#: publish is one rename, and the lock goes with the process.
-EXIT_TIMED_OUT = 5
 
 #: W-126 (M18-W6, #90). Every fetch of a cycle ends within this, together; a source not yet fetched
 #: then fails and carries its last good data (D-156), instead of a slow night running into the
 #: engine's kill and losing every source's night.
 FETCH_BUDGET_SECONDS = 20 * 60.0
-#: The cycle then stops itself here, whatever it is doing, before the engine's kill
-#: (`nightly.TIMEOUT_SECONDS`, 30 minutes). An engine killed hard can no longer leave it running and
-#: holding the lock. The reader it may have started ends on its own watchdog (D-165).
+#: The cycle then ends here, whatever it is doing, before the engine's kill
+#: (`nightly.TIMEOUT_SECONDS`, 30 minutes). The kernel ends it: SIGALRM with its default action,
+#: so no Python code runs, a call that holds the interpreter cannot delay it, and no shutdown can
+#: race it (the W6 review's M1: a timer thread fired 4.8 s late behind one regex, and once aborted
+#: Python). The engine reads the signal as "timed out". The live artifact is untouched, since a
+#: publish is one rename; the lock goes with the process; the reader it may have started ends on its
+#: own watchdog (D-165).
 CYCLE_LIMIT_SECONDS = 27 * 60.0
+#: How often the cycle checks that the engine that started it is still there. The engine starts it
+#: in a session of its own, so its kill takes the cycle's whole group (W-130), and launchd's cleanup
+#: of a dead engine's group no longer reaches it. A cycle whose engine is gone ends itself, the same
+#: way as at its limit (the W6 review's M1).
+PARENT_POLL_SECONDS = 5.0
+#: The engine names itself here, so a cycle whose engine died before the cycle got going still
+#: knows it (its parent is already launchd by then). A cycle run by hand watches the shell instead.
+ENGINE_PID = "MODEL_RANKING_ENGINE_PID"
 
 
-def _stop_at_the_limit(seconds: float) -> threading.Timer:
-    """A timer that ends this process at `seconds`, saying why on stdout as the cycle's outcome."""
+class _Limits:
+    """The cycle's wall-clock limit and its watch on its parent, for the length of one `main`."""
 
-    def stop() -> None:
-        reason = f"timed out: the cycle passed its {seconds:.0f} s limit and stopped itself"
-        print(json.dumps({"published": False, "reason": reason}), flush=True)
-        os._exit(EXIT_TIMED_OUT)
+    def __init__(self, seconds: float, poll: float) -> None:
+        self._previous = signal.signal(signal.SIGALRM, signal.SIG_DFL)
+        signal.setitimer(signal.ITIMER_REAL, seconds)
+        named = os.environ.get(ENGINE_PID, "")
+        self._parent = int(named) if named.isdigit() else os.getppid()
+        self._done = threading.Event()
+        threading.Thread(target=self._watch, args=(poll,), name="parent-watch", daemon=True).start()
 
-    timer = threading.Timer(seconds, stop)
-    timer.daemon = True
-    timer.start()
-    return timer
+    def _watch(self, poll: float) -> None:
+        while not self._done.wait(poll):
+            if os.getppid() != self._parent:  # the engine is gone; this cycle was its child
+                os.kill(os.getpid(), signal.SIGALRM)
+
+    def close(self) -> None:
+        self._done.set()
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        if self._previous is not None:
+            signal.signal(signal.SIGALRM, self._previous)
 
 
 @dataclass(frozen=True)
@@ -1300,7 +1319,7 @@ def main(argv: list[str] | None = None) -> int:
         if value:
             passthrough += [flag, value]
 
-    limit = _stop_at_the_limit(CYCLE_LIMIT_SECONDS)
+    limits = _Limits(CYCLE_LIMIT_SECONDS, PARENT_POLL_SECONDS)
     try:
         with cycle_budget(FETCH_BUDGET_SECONDS):
             outcome, code = refresh(
@@ -1314,7 +1333,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"published": False, "reason": f"crashed: {type(exc).__name__}: {exc}"}))
         return EXIT_FAILED
     finally:
-        limit.cancel()
+        limits.close()
     print(outcome.as_json())
     return code
 

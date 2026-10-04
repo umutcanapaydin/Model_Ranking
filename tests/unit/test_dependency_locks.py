@@ -45,13 +45,16 @@ def _pinned(name: str) -> dict[str, list[tuple[str, int]]]:
     return pins
 
 
-def _wanted(extras: tuple[str, ...]) -> list[Requirement]:
+def _wanted(name: str) -> list[Requirement]:
+    if name == locks.BUILD:
+        return [Requirement(text) for text in locks.build_requires()]
+    extras = locks.LOCKS[name]
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     optional = project["optional-dependencies"]
     return [Requirement(text) for text in project["dependencies"] + [d for e in extras for d in optional[e]]]
 
 
-def test_the_locks_are_the_declared_three() -> None:
+def test_the_locks_are_the_declared_ones() -> None:
     """A lock nobody declared is one nothing installs or checks; a missing one fails closed."""
     assert sorted(path.stem for path in (ROOT / "requirements").glob("*.lock")) == sorted(locks.LOCKS)
 
@@ -66,19 +69,25 @@ def test_a_changed_dependency_makes_a_lock_stale(tmp_path: Path) -> None:
     edited = tmp_path / "pyproject.toml"
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     edited.write_text(text.replace('"pyyaml>=6.0",', '"pyyaml>=6.0",\n    "requests>=2",', 1), encoding="utf-8")
-    for extras in locks.LOCKS.values():
-        assert locks.tables_hash(extras, edited) != locks.tables_hash(extras)
-    # ...and a change outside the dependency tables moves none.
+    for name in locks.LOCKS:
+        if name != locks.BUILD:
+            assert locks.tables_hash(locks.resolved_from(name), edited) != locks.tables_hash(locks.resolved_from(name))
+    # ...a new build backend moves the build lock's...
+    edited.write_text(text.replace('requires = ["setuptools>=75"]', 'requires = ["setuptools>=76"]', 1),
+                      encoding="utf-8")
+    build = locks.resolved_from(locks.BUILD)
+    assert locks.tables_hash(build, edited) != locks.tables_hash(build)
+    # ...and a change outside those tables moves none.
     edited.write_text(text.replace('version = "0.1.0"', 'version = "0.1.1"', 1), encoding="utf-8")
-    for extras in locks.LOCKS.values():
-        assert locks.tables_hash(extras, edited) == locks.tables_hash(extras)
+    for name in locks.LOCKS:
+        assert locks.tables_hash(locks.resolved_from(name), edited) == locks.tables_hash(locks.resolved_from(name))
 
 
 @pytest.mark.parametrize("name", sorted(locks.LOCKS))
 def test_every_package_is_pinned_with_its_hashes(name: str) -> None:
     """`pip install --require-hashes` refuses a lock with an unhashed line; this says which, first."""
     pins = _pinned(name)
-    assert len(pins) >= 10, f"{name}.lock pins almost nothing; was it read?"
+    assert len(pins) >= (1 if name == locks.BUILD else 10), f"{name}.lock pins almost nothing; was it read?"
     unhashed = [package for package, variants in pins.items() if any(h == 0 for _, h in variants)]
     assert not unhashed, f"{name}.lock pins without a hash: {unhashed}"
 
@@ -86,7 +95,7 @@ def test_every_package_is_pinned_with_its_hashes(name: str) -> None:
 @pytest.mark.parametrize("name", sorted(locks.LOCKS))
 def test_each_declared_dependency_is_locked_within_its_range(name: str) -> None:
     pins = _pinned(name)
-    for requirement in _wanted(locks.LOCKS[name]):
+    for requirement in _wanted(name):
         variants = pins.get(canonicalize_name(requirement.name))
         assert variants, f"{name}.lock does not pin {requirement.name}"
         for version, _ in variants:
@@ -107,20 +116,50 @@ def test_the_dev_extra_holds_the_ingest_extra() -> None:
     assert set(optional["ingest"]) <= set(optional["dev"])
 
 
+#: A pip command, however it is spelled: `pip`, `pip3`, `$(PIP)`, `python -m pip`, `uv pip`, with
+#: options before or after `install` (the W6 review's M7).
+PIP_INSTALL = re.compile(r"(?:\bpip3?\b|\$\(PIP\))[^&;\n]*?\binstall\b[^&;\n]*")
+
+
+def install_commands(text: str) -> list[str]:
+    """Every pip install in a file, with shell continuations joined and comments dropped."""
+    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+    return [match.group(0) for match in PIP_INSTALL.finditer(code.replace("\\\n", " "))]
+
+
+def install_problems(path: str, text: str, lock: str) -> list[str]:
+    """Each install takes its lock and the build lock, hash-checked, then the project with
+    `--no-deps --no-build-isolation`. Anything else resolves or fetches versions no test ran."""
+    installs = install_commands(text)
+    if not installs:
+        return [f"{path} installs nothing"]
+    problems = []
+    for wanted in (lock, "requirements/build.lock"):
+        if not any("--require-hashes" in c and wanted.split("/")[-1] in c for c in installs):
+            problems.append(f"{path} does not install {wanted} with --require-hashes")
+    for command in installs:
+        if "--require-hashes" in command:
+            continue
+        if "--no-deps" not in command or "--no-build-isolation" not in command:
+            problems.append(f"{path} resolves or fetches outside its locks: {command.strip()}")
+    return problems
+
+
 @pytest.mark.parametrize(("path", "lock"), [
     ("Makefile", "requirements/dev.lock"),
     ("scripts/install_engine_service.sh", "requirements/ingest.lock"),
     ("Dockerfile", "requirements/serve.lock"),
 ])
 def test_every_install_reads_its_lock_and_resolves_nothing_else(path: str, lock: str) -> None:
-    """Each install takes its lock, hash-checked, then the project with `--no-deps`. A plain
-    `pip install .` or `-e .` beside it would resolve the newest versions again."""
-    text = (ROOT / path).read_text(encoding="utf-8")
-    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
-    installs = re.findall(r"(?:pip|\$\(PIP\)) install[^\n]*", code)
-    assert installs, f"{path} installs nothing"
-    assert any("--require-hashes" in line and lock.split("/")[-1] in line for line in installs), (
-        f"{path} does not install {lock} with --require-hashes")
-    for line in installs:
-        if "--require-hashes" not in line:
-            assert "--no-deps" in line, f"{path} resolves dependencies outside its lock: {line.strip()}"
+    assert not install_problems(path, (ROOT / path).read_text(encoding="utf-8"), lock)
+
+
+@pytest.mark.parametrize("planted", [
+    "RUN pip3 install requests",  # the review's probes, beside the locked install
+    "RUN python -m pip --no-cache-dir install requests",
+    "RUN uv pip install requests",
+    "RUN pip install --no-deps .",  # no isolation flag: fetches the newest setuptools
+])
+def test_the_install_check_reads_every_spelling(planted: str) -> None:
+    text = (ROOT / "Dockerfile").read_text(encoding="utf-8") + f"\n{planted}\n"
+    assert install_problems("Dockerfile", text, "requirements/serve.lock")

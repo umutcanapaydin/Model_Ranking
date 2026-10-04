@@ -1,3 +1,9 @@
+# M18-W6 (the W6 review's M7): the build backend, declared and locked (`requirements/build.lock`),
+# so building the project at install time runs a tested setuptools, not the newest one fetched then.
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "model-ranking"
 version = "0.1.0"

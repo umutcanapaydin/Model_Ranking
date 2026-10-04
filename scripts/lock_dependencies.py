@@ -29,8 +29,12 @@ LOCK_DIR = ROOT / "requirements"
 #: - `serve`: the serving image (`Dockerfile`), which runs no refresh, so it has no pyarrow (#26);
 #: - `ingest`: the engine's release on the owner's Mac (`scripts/install_engine_service.sh`), which
 #:   serves and refreshes;
-#: - `dev`: a working tree (`make install`) and the suite.
-LOCKS: dict[str, tuple[str, ...]] = {"serve": (), "ingest": ("ingest",), "dev": ("dev", "ingest")}
+#: - `dev`: a working tree (`make install`) and the suite;
+#: - `build`: not the project's dependencies but its build backend (`[build-system]`), which every
+#:   install above takes too, and then builds the project with `--no-build-isolation`.
+LOCKS: dict[str, tuple[str, ...]] = {"serve": (), "ingest": ("ingest",), "dev": ("dev", "ingest"),
+                                     "build": ()}
+BUILD = "build"
 
 #: The oldest Python the project supports (`requires-python`); the lock resolves from it upwards.
 PYTHON = "3.11"
@@ -45,7 +49,11 @@ def lock_path(name: str) -> Path:
 def tables_hash(extras: tuple[str, ...], pyproject: Path = PYPROJECT) -> str:
     """The hash of what a lock is resolved from: the dependencies, the extras it holds, and the
     supported Pythons. A change to anything else in `pyproject.toml` leaves the locks current."""
-    project = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]
+    document = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    if extras == ("[build-system]",):
+        tables_of_build = {"build-system": sorted(document.get("build-system", {}).get("requires", []))}
+        return hashlib.sha256(json.dumps(tables_of_build, sort_keys=True).encode()).hexdigest()
+    project = document["project"]
     optional = project.get("optional-dependencies", {})
     tables = {
         "requires-python": project.get("requires-python"),
@@ -62,29 +70,44 @@ def recorded_hash(lock: Path) -> str | None:
     return None
 
 
+def resolved_from(name: str) -> tuple[str, ...]:
+    """What `tables_hash` reads for a lock: its extras, or the build backend for `build`."""
+    return ("[build-system]",) if name == BUILD else LOCKS[name]
+
+
+def build_requires(pyproject: Path = PYPROJECT) -> list[str]:
+    return list(tomllib.loads(pyproject.read_text(encoding="utf-8")).get("build-system", {}).get("requires", []))
+
+
 def stale(name: str) -> str | None:
     """Why the lock `name` is not current with `pyproject.toml`, or None."""
     lock = lock_path(name)
     if not lock.is_file():
         return f"{lock.relative_to(ROOT)} is missing"
-    if recorded_hash(lock) != tables_hash(LOCKS[name]):
+    if recorded_hash(lock) != tables_hash(resolved_from(name)):
         return f"{lock.relative_to(ROOT)} was resolved from another pyproject.toml; run `make lock`"
     return None
 
 
 def write(name: str) -> None:
     extras = LOCKS[name]
-    command = [sys.executable, "-m", "uv", "pip", "compile", str(PYPROJECT.relative_to(ROOT)),
+    if name == BUILD:  # the backend's own requirements, read from stdin
+        source, given = "-", "\n".join(build_requires()) + "\n"
+        what = "the [build-system] requires"
+    else:
+        source, given = str(PYPROJECT.relative_to(ROOT)), None
+        what = f"extras: {', '.join(extras) or 'none'}"
+    command = [sys.executable, "-m", "uv", "pip", "compile", source,
                "--universal", "--python-version", PYTHON, "--generate-hashes", "--no-header",
                "--quiet", *(arg for extra in extras for arg in ("--extra", extra))]
     resolved = subprocess.run(  # noqa: S603 -- our own interpreter and arguments, no shell
-        command, cwd=ROOT, capture_output=True, text=True, check=True,
+        command, cwd=ROOT, input=given, capture_output=True, text=True, check=True,
     ).stdout
     header = [
         f"# requirements/{name}.lock: written by `make lock` (scripts/lock_dependencies.py) from",
-        f"# pyproject.toml, extras: {', '.join(extras) or 'none'}. Do not edit it by hand.",
+        f"# pyproject.toml, {what}. Do not edit it by hand.",
         f"# Install with: pip install --require-hashes -r requirements/{name}.lock",
-        f"{HASH_LINE}{tables_hash(extras)}",
+        f"{HASH_LINE}{tables_hash(resolved_from(name))}",
     ]
     LOCK_DIR.mkdir(exist_ok=True)
     lock_path(name).write_text("\n".join(header) + "\n" + resolved, encoding="utf-8")

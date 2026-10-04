@@ -16,6 +16,7 @@ import io
 import sqlite3
 from dataclasses import dataclass
 
+from app.workflows.access_served import served as served
 from app.workflows.registry import canonicalize_with_reason, derive_identity, resolve_effort
 from app.workflows.run_records import SourceError
 
@@ -98,15 +99,3 @@ def link(conn: sqlite3.Connection) -> AccessReport:
     return AccessReport(linked, unlinked, conflicting)
 
 
-def served(conn: sqlite3.Connection) -> dict[str, str]:
-    """model id -> accessibility, for the models whose names agree.
-
-    An artifact built before this table existed (every one before M17-W3) serves none: the refresh
-    fingerprints the LIVE artifact too, and one that raised would read as unreadable and fail every
-    night (measured, before merge, on the served artifact).
-    """
-    if not conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'access'").fetchone():
-        return {}
-    return dict(conn.execute(
-        "SELECT model_id, MIN(accessibility) FROM access WHERE model_id IS NOT NULL "
-        "GROUP BY model_id HAVING COUNT(DISTINCT accessibility) = 1 ORDER BY model_id").fetchall())

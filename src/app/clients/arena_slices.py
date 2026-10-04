@@ -17,8 +17,9 @@ A file that is resharded (`-00000-of-00002`) is a 404 and so a failed source: lo
 **The file is read in a process of its own, under a memory ceiling** (`app.clients.parquet_reader`;
 the owner's ruling of 2026-09-24 on the wave's re-reviews). pyarrow decodes a whole column chunk
 before any check in Python can run, and a file's sizes are its writer's claims, so no check inside
-the decoding process bounds it. This module never imports pyarrow: the serving process imports
-`app.clients.*` (W-125), and `tests/unit/test_arena_slices.py` fails if the server ever loads it.
+the decoding process bounds it. This module never imports pyarrow, and the serving process never
+imports this module (W-125, fixed at M18-W6); `tests/unit/test_arena_slices.py` and
+`tests/unit/test_nightly_refresh.py` fail if either changes.
 """
 
 from __future__ import annotations

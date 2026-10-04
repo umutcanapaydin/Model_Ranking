@@ -234,15 +234,51 @@ def test_the_timeout_kill_takes_a_grandchild_that_holds_the_output(tmp_path: Pat
                 os.kill(int(pid_file.read_text(encoding="utf-8")), signal.SIGKILL)
 
 
-def test_a_cycle_that_stops_itself_at_its_limit_is_reported_as_timed_out(tmp_path: Path) -> None:
-    """W-126 (M18-W6): the cycle's own limit ends it before the engine's kill, with its own code;
+def test_a_cycle_that_ends_at_its_limit_is_reported_as_timed_out(tmp_path: Path) -> None:
+    """W-126 (M18-W6): the cycle's own limit ends it before the engine's kill, by SIGALRM;
     `/health` says so rather than "crashed"."""
-    from app.workflows.refresh import EXIT_TIMED_OUT
+    import signal
 
-    assert nightly.CODE_NAMES[EXIT_TIMED_OUT] == "timed out"
-    schedule = _child(tmp_path, f"raise SystemExit({EXIT_TIMED_OUT})")
-    assert asyncio.run(schedule.run_once("nightly")) == EXIT_TIMED_OUT
+    assert nightly.CODE_NAMES[-signal.SIGALRM] == "timed out"
+    schedule = _child(tmp_path, "import os, signal; os.kill(os.getpid(), signal.SIGALRM)")
+    assert asyncio.run(schedule.run_once("nightly")) == -signal.SIGALRM
     assert schedule.report()["refresh_last"] == "timed out"
+
+
+def test_the_kill_takes_the_group_even_when_the_cycle_has_already_exited(tmp_path: Path) -> None:
+    """The W6 review's M1(4): the cycle exits and leaves a grandchild holding its output. The
+    engine waited out its timeout, reported "killed" and left the grandchild running. Now the group
+    goes, and the night is reported by the cycle's own exit."""
+    import os
+    import signal
+
+    pid_file = tmp_path / "grandchild"
+    code = (
+        "import subprocess, sys\n"
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+        f"open({str(pid_file)!r}, 'w').write(str(child.pid))\n"
+        "raise SystemExit(2)\n"
+    )
+    try:
+        started = time.monotonic()
+        schedule = _child(tmp_path, code, timeout=2.0)
+        assert asyncio.run(schedule.run_once("nightly")) == 2
+        assert time.monotonic() - started < 10
+        grandchild = int(pid_file.read_text(encoding="utf-8"))
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                os.kill(grandchild, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.1)
+        else:
+            pytest.fail("the grandchild outlived the kill")
+        assert schedule.report()["refresh_last"] != "killed"
+    finally:
+        if pid_file.exists():
+            with __import__("contextlib").suppress(ProcessLookupError, ValueError):
+                os.kill(int(pid_file.read_text(encoding="utf-8")), signal.SIGKILL)
 
 
 def test_the_cycle_ends_its_fetches_then_itself_before_the_engine_kills_it() -> None:
@@ -431,7 +467,7 @@ def test_the_serving_process_never_loads_the_refresh_the_build_or_the_fetchers()
     # no client (`app.workflows.run_records`, `app.workflows.board_tables`). Every module under
     # `app.clients` is refused, so a client added later is covered without being named here.
     fetchers = sorted(m for m in loaded if m == "app.clients" or m.startswith(("app.clients.", "httpx", "pyarrow"))
-                      or m == "app.workflows.ingest")
+                      or m in {"app.workflows.ingest", "app.workflows.access"})  # access: the W6 review's M8
     assert not fetchers, f"the serving process loads {fetchers}"
 
 

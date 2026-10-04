@@ -1650,6 +1650,19 @@ def test_a_world_writable_artifact_directory_stops_the_cycle(tmp_path: Path) -> 
     assert code == EXIT_PUBLISHED, "a private directory was refused"
 
 
+def test_a_group_writable_artifact_directory_stops_the_cycle_too(tmp_path: Path) -> None:
+    """INV-38's other half (the W6 review's M4): the group, not only the world. A check for others
+    alone passed the world-writable test above."""
+    directory = tmp_path / "shared"
+    directory.mkdir()
+    directory.chmod(0o770)
+    live = directory / "advisor.db"
+    outcome, code = refresh(live, builder=_builder(), clock=lambda: 1.0)
+    assert code == EXIT_FAILED, f"a group-writable directory was trusted: {outcome.reason}"
+    assert "writable by group or others" in outcome.reason
+    assert not live.exists()
+
+
 @pytest.mark.parametrize("bad_clock", [float("nan"), float("inf"), 0.0, -1.0])
 def test_a_clock_that_cannot_be_reasoned_about_stops_the_cycle(
     tmp_path: Path, bad_clock: float
@@ -1850,27 +1863,71 @@ def test_an_accessibility_expiry_night_publishes_through_the_cycle(tmp_path: Pat
 # --- W-126 (M18-W6, #90): the cycle stops itself ---------------------------------------------------
 
 
-def test_the_cycle_stops_itself_at_its_limit() -> None:
-    """A cycle stuck anywhere ends itself at its limit with its own code, so an engine killed hard
-    no longer leaves it holding the lock (W-126); the lock goes with the process (flock)."""
+@pytest.mark.parametrize("stuck", [
+    "time.sleep(30)",
+    # The W6 review's M1(1): one call that holds the interpreter. A timer thread could not fire
+    # until it returned; the kernel's signal does not wait for it.
+    "re.match(r'(a+)+$', 'a' * 64 + 'b')",
+])
+def test_the_cycle_ends_at_its_limit_whatever_it_is_doing(stuck: str) -> None:
+    """A cycle stuck anywhere ends at its limit, so an engine killed hard no longer leaves it holding
+    the lock (W-126); the lock goes with the process (flock)."""
+    import signal
     import subprocess
     import sys
     import time
 
     code = (
-        "import time\nfrom app.workflows import refresh as cycle\n"
+        "import re, time\nfrom app.workflows import refresh as cycle\n"
         "cycle.CYCLE_LIMIT_SECONDS = 1.0\n"
-        "cycle.refresh = lambda *args, **kwargs: time.sleep(30)\n"
+        f"cycle.refresh = lambda *args, **kwargs: {stuck}\n"
         "raise SystemExit(cycle.main(['--db', 'unused.db']))\n"
     )
     started = time.monotonic()
-    done = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=20,
+    done = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=30,
                           env={**os.environ, "PYTHONPATH": "src"}, check=False)
-    assert time.monotonic() - started < 10
-    from app.workflows.refresh import EXIT_TIMED_OUT
+    assert time.monotonic() - started < 10, "the limit waited on the call it was meant to stop"
+    assert done.returncode == -signal.SIGALRM, (done.returncode, done.stderr[-500:])
 
-    assert done.returncode == EXIT_TIMED_OUT, done.stderr[-500:]
-    assert "timed out" in done.stdout
+
+def test_a_cycle_whose_engine_is_gone_ends_itself(tmp_path: Path) -> None:
+    """The W6 review's M1(3): the cycle runs in a session of its own (W-130), so launchd's cleanup
+    of a dead engine's process group no longer reaches it. It watches its parent instead."""
+    import signal
+    import subprocess
+    import sys
+    import time
+
+    pid_file = tmp_path / "cycle"
+    cycle_code = (
+        "import time\nfrom app.workflows import refresh as cycle\n"
+        "cycle.PARENT_POLL_SECONDS = 0.2\n"
+        "cycle.refresh = lambda *args, **kwargs: time.sleep(60)\n"
+        "raise SystemExit(cycle.main(['--db', 'unused.db']))\n"
+    )
+    engine_code = (  # starts the cycle as the engine does, naming itself, and dies at once
+        "import os, subprocess, sys\n"
+        f"cycle = subprocess.Popen([sys.executable, '-c', {cycle_code!r}], start_new_session=True,\n"
+        "                         env={**os.environ, 'MODEL_RANKING_ENGINE_PID': str(os.getpid())})\n"
+        f"open({str(pid_file)!r}, 'w').write(str(cycle.pid))\n"
+    )
+    try:
+        subprocess.run([sys.executable, "-c", engine_code], check=True, timeout=20,
+                       env={**os.environ, "PYTHONPATH": "src"})
+        cycle = int(pid_file.read_text(encoding="utf-8"))
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            try:
+                os.kill(cycle, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.1)
+        else:
+            pytest.fail("the cycle outlived its engine")
+    finally:
+        if pid_file.exists():
+            with __import__("contextlib").suppress(ProcessLookupError, ValueError):
+                os.kill(int(pid_file.read_text(encoding="utf-8")), signal.SIGKILL)
 
 
 def test_the_cycle_runs_inside_its_fetch_budget(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -44,12 +44,15 @@ Read this, and nothing else. Answer no question about what the app can do until 
 
 > **English.** "This app suggests which AI model to use for something you want to do. Type what you
 > would like to use an AI model for, in your own words, as many times as you like. There are no
-> right answers. I will note what you type, and at the end you choose which notes I may keep."
+> right answers. I will note what you type. At the end you choose which of your questions I may
+> keep. The ones you let me keep will be published, without your name, in the project's public
+> code repository, where anyone can read them, to test the app."
 >
 > **Türkçe.** "Bu uygulama, yapmak istediğin bir iş için hangi yapay zekâ modelini kullanacağını
 > önerir. Bir yapay zekâ modelini ne için kullanmak istediğini kendi cümlelerinle, istediğin kadar
-> yaz. Doğru cevap yok. Yazdıklarını not alacağım; sonunda hangi notları saklayabileceğime sen karar
-> vereceksin."
+> yaz. Doğru cevap yok. Yazdıklarını not alacağım. Sonunda hangi sorularını saklayabileceğime sen
+> karar vereceksin. Saklamama izin verdiklerin, adın olmadan, projenin herkese açık kod deposunda
+> yayımlanacak; herkes okuyabilecek. Uygulamayı sınamak için kullanılacaklar."
 
 Do not show them an example question, the surface list or the chooser. If they ask "what should I
 write?", answer: "Whatever you would really want an AI model for."
@@ -71,9 +74,16 @@ write?", answer: "Whatever you would really want an AI model for."
 
 - Show the person the notes of what they typed. They strike out anything they do not want kept,
   without giving a reason.
-- What is left is kept only with their spoken yes. Write "P2 agreed, <date>" under their list.
+- **Ask for the publication by name.** Say again that what they keep will be public, without their
+  name, in the project's code repository, and that anyone can read it. A question that says
+  anything about them or someone they know should be struck, whatever they decide (the W6 review's
+  M3: free text can carry anything about a person).
+- What is left is kept only with their spoken yes to that. Write "P2 agreed to publication, <date>"
+  under their list.
 - If they say no to all of it, the list is destroyed there and then.
 - Clear the gap register on the phone they used, or delete the development build from theirs.
+- **Close the home network.** Run `scripts/install_engine_service.sh --no-lan` once the last person
+  has gone, so the engine answers this Mac only again (D-171 note 7: `--no-lan` is the one control).
 
 ## 6. From notes to a held-out set
 

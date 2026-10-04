@@ -74,11 +74,12 @@ $(VENV)/pyvenv.cfg:
 	@echo "Using Python: $$($(SYS_PY) --version) at $$(command -v $(SYS_PY))"
 	$(SYS_PY) -m venv --upgrade-deps $(VENV)
 
-# M18-W6 (#35): from the lock, so a working tree runs the versions the suite was run on; then the
-# project itself, with nothing more resolved. `make lock` rewrites the locks after a pyproject change.
-$(VENV)/.installed: pyproject.toml requirements/dev.lock | $(VENV)/pyvenv.cfg
-	$(PIP) install --require-hashes -r requirements/dev.lock
-	$(PIP) install --no-deps -e .
+# M18-W6 (#35, D-177): from the locks, so a working tree runs the versions the suite was run on and
+# builds with a locked setuptools; then the project itself, with nothing more resolved or fetched.
+# `make lock` rewrites the locks after a pyproject change.
+$(VENV)/.installed: pyproject.toml requirements/dev.lock requirements/build.lock | $(VENV)/pyvenv.cfg
+	$(PIP) install --require-hashes -r requirements/dev.lock -r requirements/build.lock
+	$(PIP) install --no-deps --no-build-isolation -e .
 	@touch $@
 
 lock: install  ## rewrite requirements/*.lock from pyproject.toml (needs the network; #35)

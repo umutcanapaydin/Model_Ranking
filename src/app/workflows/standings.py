@@ -20,7 +20,7 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Any
 
-from app.workflows import access
+from app.workflows import access_served
 from app.workflows.categories import CATEGORIES
 from app.workflows.rank import (
     BLEND_INPUT_WEIGHT,
@@ -124,7 +124,7 @@ def board_standings(conn: sqlite3.Connection) -> dict[str, Any]:
             "standings": standings,
         })
 
-    accessibility = access.served(conn)
+    accessibility = access_served.served(conn)
     standing_models = {s["model"] for board in boards for s in board["standings"]}
     models = [
         {"id": mid, "display": display, "vendor": vendor,
