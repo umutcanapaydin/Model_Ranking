@@ -16,8 +16,7 @@ from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from app.clients.arena_slices import ARENA_SLICES
-from app.clients.epoch import EPOCH_ATTRIBUTION
+from app.workflows.board_tables import ARENA_SLICES, EPOCH_ATTRIBUTION
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.schema import EFFORT_LEVELS
 

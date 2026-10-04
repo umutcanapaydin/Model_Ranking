@@ -11,6 +11,8 @@ import json
 from typing import Any
 
 from app.clients.protocols import SourceError, fetch_bounded
+from app.workflows.registry import UNKNOWN_HARNESS as UNKNOWN_HARNESS
+from app.workflows.registry import split_harness as split_harness
 from app.workflows.schema import ScoreRow
 
 SWEBENCH_URL = (
@@ -19,7 +21,6 @@ SWEBENCH_URL = (
 )
 BENCHMARK = "SWE-bench Verified"
 METRIC = "% resolved"
-UNKNOWN_HARNESS = "unknown-agent"
 _TIMEOUT_S = 30.0
 
 
@@ -33,19 +34,6 @@ class SweBenchClient:
 
     def fetch_raw(self) -> str:
         return fetch_bounded(self.url, self.name, _TIMEOUT_S)
-
-
-def split_harness(entry_name: str) -> tuple[str, str]:
-    """Split a leaderboard entry into (harness, model-ish remainder).
-
-    Entries look like ``"live-SWE-agent + Claude 4.5 Opus medium"``; an entry
-    without a ``+`` keeps the full name and gets UNKNOWN_HARNESS
-    (REQ-ING-002: harness is never silently dropped).
-    """
-    if "+" in entry_name:
-        harness, _, rest = entry_name.partition("+")
-        return harness.strip(), rest.strip()
-    return UNKNOWN_HARNESS, entry_name.strip()
 
 
 def parse_verified(

@@ -16,8 +16,8 @@ import io
 import sqlite3
 from dataclasses import dataclass
 
-from app.clients.protocols import SourceError
 from app.workflows.registry import canonicalize_with_reason, derive_identity, resolve_effort
+from app.workflows.run_records import SourceError
 
 SOURCE = "epoch_access"
 FILE = "model_metadata.csv"

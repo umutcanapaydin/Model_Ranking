@@ -23,8 +23,7 @@ from typing import Any
 
 import yaml
 
-from app.clients.protocols import SourceError
-from app.workflows.ingest import RunContext, SourceReport
+from app.workflows.run_records import RunContext, SourceError, SourceReport
 from app.workflows.schema import PlanRow
 from app.workflows.yaml_guard import safe_load_bounded
 

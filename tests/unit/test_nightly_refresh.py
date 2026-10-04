@@ -362,7 +362,7 @@ def test_the_serving_process_never_loads_the_refresh_the_build_or_the_fetchers()
 
     probe = (
         "import sys, app.adapter.main\n"
-        "print('\\n'.join(sorted(m for m in sys.modules if m.startswith('app.'))))"
+        "print('\\n'.join(sorted(m for m in sys.modules if m.startswith(('app.', 'httpx', 'pyarrow')))))"
     )
     loaded = subprocess.run(
         [sys.executable, "-c", probe], capture_output=True, text=True, check=True,
@@ -372,6 +372,13 @@ def test_the_serving_process_never_loads_the_refresh_the_build_or_the_fetchers()
     cycle = {"app.workflows.refresh", "app.workflows.build", "app.workflows.sources",
              "app.workflows.epoch", "app.workflows.rosters"}
     assert not cycle & set(loaded), sorted(cycle & set(loaded))
+    # M18-W6 (#90, W-125): nor the parsers, the source clients or the HTTP client they share. The
+    # server needs their record types and two declared tables, which live in modules that import
+    # no client (`app.workflows.run_records`, `app.workflows.board_tables`). Every module under
+    # `app.clients` is refused, so a client added later is covered without being named here.
+    fetchers = sorted(m for m in loaded if m == "app.clients" or m.startswith(("app.clients.", "httpx", "pyarrow"))
+                      or m == "app.workflows.ingest")
+    assert not fetchers, f"the serving process loads {fetchers}"
 
 
 def test_the_child_inherits_no_secret_from_the_server(

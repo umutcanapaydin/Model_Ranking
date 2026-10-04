@@ -22,6 +22,12 @@ from typing import Any
 import httpx
 
 from app.clients.protocols import SourceError, bounded_get
+from app.workflows.board_tables import AGENT_HARNESS as AGENT_HARNESS
+from app.workflows.board_tables import ELO_BAND as ELO_BAND
+from app.workflows.board_tables import HARNESS as HARNESS
+from app.workflows.board_tables import IPS_BAND as IPS_BAND
+from app.workflows.board_tables import IPS_METRIC as IPS_METRIC
+from app.workflows.board_tables import METRIC as METRIC
 from app.workflows.schema import ScoreRow
 
 DATASET = "lmarena-ai/leaderboard-dataset"
@@ -38,8 +44,6 @@ FILTER_API = "https://datasets-server.huggingface.co/filter"
 OVERALL_CATEGORY = "overall"
 WHERE_OVERALL = "\"category\"='overall'"
 BENCHMARK = "Arena text"
-METRIC = "elo"
-HARNESS = "arena-crowd"
 ATTRIBUTION = "Arena leaderboard data © LMArena — lmarena-ai/leaderboard-dataset (CC-BY-4.0)"
 PREFERRED_CATEGORY = OVERALL_CATEGORY  # the overall board; the other slices: arena_slices.py
 
@@ -96,13 +100,6 @@ ARENA_BOARDS: dict[str, ArenaBoard] = {
     ),
 }
 _PAGE = 100
-#: The ratings an Arena Elo board can plausibly carry; anything outside is refused and counted.
-ELO_BAND = (0.0, 5000.0)
-#: Agent Arena boards (M17-W3, #37) publish IPS scores (τ̂), not Bradley-Terry Elo: measured from
-#: -0.25 to 0.35 on 2026-09-25, so negative values are real. Their own metric, harness and band.
-IPS_METRIC = "ips"
-AGENT_HARNESS = "arena-agent"
-IPS_BAND = (-1.0, 1.0)
 _MAX_PAGES = 50  # safety valve: latest split is a few hundred rows
 _TIMEOUT_S = 30.0
 #: REQ-GRD-002 / W-050. Each PAGE is capped at `MAX_RESPONSE_BYTES`, and until now nothing capped

@@ -14,6 +14,8 @@ from collections.abc import Callable, Collection
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
+from app.workflows.run_records import SourceError as SourceError
+
 if TYPE_CHECKING:
     import httpx
 
@@ -29,12 +31,6 @@ class RawSource(Protocol):
         ...
 
 
-class SourceError(RuntimeError):
-    """A source could not be fetched or its payload failed validation.
-
-    Ingestion of THIS source aborts loudly; other sources proceed
-    (architecture §3 — fairness-class fail OPEN).
-    """
 
 
 #: The largest response body any source client will read into memory, in bytes.
