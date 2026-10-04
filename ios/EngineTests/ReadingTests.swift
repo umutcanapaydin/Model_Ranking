@@ -345,3 +345,170 @@ final class ReadingThroughTheTiersTests: OfflineTestCase {
 private struct NoSimilarity: QuestionRouter {
     func route(_ question: String, within known: [String]) async -> RoutingOutcome? { nil }
 }
+
+/// The M18-W3 Tester (`docs/reviews/m18-wave-3-tester.md`), REQ-ASK-005: faults in the reading that
+/// every test passed. Each test names the faults it kills.
+final class ReadingFaultTests: OfflineTestCase {
+    private let known = ["coding", "assistant", "vision"]
+
+    /// T2 (W3, W7, W8): the bounds of "no word" as `isWord` documents them. Four letters decide;
+    /// five letters with no vowel are no word, and four are a word.
+    func testTheBoundsOfNoWordAreTheDocumentedOnes() {
+        XCTAssertTrue(InputSignals.noWord("asdf"))
+        XCTAssertTrue(InputSignals.noWord("bcdfg"))
+        for text in ["html", "rlhf"] {
+            XCTAssertFalse(InputSignals.noWord(text), text)
+        }
+    }
+
+    /// T2 (W11): a script beyond Latin is a word by itself. The suite's Cyrillic line passes for
+    /// another reason, its short words, and its Chinese line through the acronym rule.
+    func testALineInAnotherScriptIsNotNoWordWhateverItsWordLengths() {
+        for text in ["Лучшая модель программирования", "Καλύτερο μοντέλο προγραμματισμού"] {
+            XCTAssertFalse(InputSignals.noWord(text), text)
+        }
+    }
+
+    /// T2 (S2, S3): small talk is at most six words, as `smallTalk` documents.
+    func testSmallTalkIsAtMostSixWords() {
+        XCTAssertTrue(InputSignals.smallTalk("hi hello thanks ok cool bye"))
+        XCTAssertFalse(InputSignals.smallTalk("hi hello thanks ok cool bye nice"))
+    }
+
+    /// T3 (P3 to P7, P9): pasted content is an order with its content after the colon. The order
+    /// opens the text, after at most one word ("please"), and the text is short; a search that
+    /// names a model before the colon is none. After "translate into French:", an order with no
+    /// content, each line is a genuine search.
+    func testPastedContentIsAShortOrderWithItsContent() {
+        XCTAssertTrue(InputSignals.pastedContent("please translate this: good night"))
+        for text in ["translate into French:",
+                     "Explain to me in simple terms why my React app renders every component twice: it uses StrictMode",
+                     "Summarize long PDFs, which model is best: Claude or Gemini?",
+                     "I need help to summarize: long meeting transcripts",
+                     "Türkçe yaz ve düzelt, en iyisi hangisi: Claude mu Gemini mi?"] {
+            XCTAssertFalse(InputSignals.pastedContent(text), text)
+        }
+    }
+
+    /// T3 (V1, V3, V5): a Turkish verb counts in a request's forms only. The ability form is one, and
+    /// so is the aorist joined to its particle; the aorist with no question particle is a statement.
+    func testATurkishVerbCountsOnlyInARequestsForm() {
+        XCTAssertTrue(InputSignals.pastedContent("bunu İngilizceye çevirebilir misin: iyi geceler"))
+        XCTAssertTrue(InputSignals.pastedContent("şunu düzeltirmisin: merhba nasilsn"))
+        XCTAssertFalse(InputSignals.pastedContent("Almancayı en iyi kim çevirir: DeepL mi GPT mi?"))
+    }
+
+    /// T4 (I3, I7): an instruction needs its order and its object, in one sentence, and "komut"
+    /// alone is the command line. Each line is a genuine search with an order verb in it.
+    func testAnOrderNeedsItsObjectInTheSameSentence() {
+        for text in ["bana en iyi kodlama modelini göster", "Forget the price, which model writes the best code?",
+                     "Ignore the price. Which model follows instructions best?",
+                     "komut satırında çalışan bir kodlama modeli göster"] {
+            XCTAssertFalse(InputSignals.instructsTheApp(text), text)
+        }
+    }
+
+    /// T5 (M2, M3, M10, M12, M17): the image rule's branches no test reached. "Draw me", "arka plan"
+    /// with a removing verb, and a photo turned into a poster are made. A modifier just past the
+    /// four-word window, and a word that only starts like a Turkish making verb ("silik", faded),
+    /// are not.
+    func testTheImageRuleReadsEachOfItsForms() {
+        for text in ["draw me a cat in a spacesuit", "ürünün arka planını kaldır", "turn my photo into a poster"] {
+            XCTAssertTrue(InputSignals.makesAnImage(text), text)
+        }
+        for text in ["create a responsive product image carousel", "fotoğraftaki silik yazıyı okuyan model hangisi"] {
+            XCTAssertFalse(InputSignals.makesAnImage(text), text)
+        }
+    }
+
+    /// T6 (R11, R3): the wording tier's answer is read as the model's is, and the image rule keeps
+    /// the tier that routed, so the screen still says "going by its wording" (M13-W3 MINOR-5).
+    func testTheWordingTiersAnswerIsReadAndKeepsItsTier() async {
+        let made = await TieredRouter(model: nil, similarity: Answering(surface: "vision"))
+            .route("draw me a cat in a spacesuit", within: known)
+        XCTAssertEqual(made.categoryID, CategoryHints.unmeasuredFallback)
+        XCTAssertTrue(made.unmeasured)
+        XCTAssertEqual(made.tier, .similarity)
+        XCTAssertTrue(routingNotice(made, .english).hasPrefix("Going by its wording"), routingNotice(made, .english))
+        let nonsense = await TieredRouter(model: nil, similarity: Answering(surface: "coding"))
+            .route("asdf qwer zxcv", within: known)
+        XCTAssertEqual(nonsense.tier, .similarity)
+        XCTAssertEqual(nonsense.reading, .notASearch)
+    }
+
+    /// T7 (B3): the model's "something else" counts when it declines, too. A question it declines
+    /// and doubts is asked about, and is not kept in the gap register as a need (D-169 clause 5).
+    func testTheModelsDoubtCountsWhenItDeclines() async {
+        XCTAssertEqual(ModelOutputBoundary.outcome(for: ModelOutputBoundary.declineSentinel, within: known,
+                                                   request: "something else")?.reading, .unsure)
+        let question = "what is the boiling point of water at sea level"
+        let outcome = await TieredRouter(
+            model: ScriptedModelRouter(answers: [question: ["request": "something else",
+                                                            "surface": ModelOutputBoundary.declineSentinel]]),
+            similarity: NoSimilarity()
+        ).route(question, within: known)
+        XCTAssertTrue(outcome.unmeasured)
+        XCTAssertEqual(outcome.reading, .unsure)
+        XCTAssertFalse(recordsGap(outcome), "a question the model doubts is kept as a need")
+    }
+
+    /// T1 (the coverage drop): D-169's note and its question back, in both languages. No test
+    /// executed the four sentences, and the Turkish ones run on no screen a test drives.
+    func testTheNoteAndTheQuestionBackAreSaidInBothLanguages() {
+        let sentences: [(Language) -> String] = [UIText.notASearchNote, UIText.askBack, UIText.askBackFind,
+                                                 UIText.askBackNo]
+        for say in sentences {
+            XCTAssertFalse(say(.english).isEmpty)
+            XCTAssertFalse(say(.turkish).isEmpty)
+            XCTAssertNotEqual(say(.turkish), say(.english), "a D-169 sentence is English on the Turkish screen")
+        }
+        // The English is D-169's own words (clause 4, and the M18-W3 amendment's question back).
+        XCTAssertTrue(UIText.notASearchNote(.english).hasPrefix(
+            "This does not look like a model search. Say what you will use the model for"))
+        XCTAssertEqual(UIText.askBack(.english), "Did you mean to find a model for this?")
+        XCTAssertEqual(UIText.askBackFind(.english).lowercased(), "find a model")
+        XCTAssertEqual(UIText.askBackNo(.english).lowercased(), "no")
+        for language in [Language.english, .turkish] {
+            // Clause 4: example-based guidance, so the note quotes its one example.
+            XCTAssertEqual(UIText.notASearchNote(language).filter { $0 == "\"" }.count, 2, UIText.notASearchNote(language))
+            XCTAssertNotEqual(UIText.askBackFind(language), UIText.askBackNo(language))
+        }
+    }
+}
+
+/// A wording tier that always names one surface, as `SimilarityRouter` does above its floor.
+private struct Answering: QuestionRouter {
+    let surface: String
+    func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
+        RoutingOutcome(categoryID: surface, tier: .similarity, unmeasured: false)
+    }
+}
+
+/// The M18-W3 second Tester (`docs/reviews/m18-wave-3-tester-2.md`), REQ-ASK-005 and REQ-GAP-001:
+/// faults in the boundary's verdict that every test passed. Each test names the faults it kills.
+final class ReadingVerdictFaultTests: OfflineTestCase {
+    private let known = ["coding", "assistant", "vision"]
+
+    /// T10 (X2, X3): only the model's "something else" is a doubt, on either branch. A verdict of
+    /// "a model search", or none at all (`try?` on a field the model left out), reads as a search.
+    /// So a question the model declines as a search is the unmeasured answer it was before D-169,
+    /// and the gap register keeps it (REQ-GAP-001).
+    func testOnlySomethingElseIsADoubtOnEitherBranch() async {
+        for request in [nil, ModelOutputBoundary.searchValue] as [String?] {
+            for surface in [ModelOutputBoundary.declineSentinel, "coding"] {
+                XCTAssertEqual(ModelOutputBoundary.outcome(for: surface, within: known, request: request)?.reading,
+                               .search, "\(surface), verdict \(request ?? "none")")
+            }
+        }
+        let question = "a recipe for lentil soup with what is in my fridge"
+        for answer in [["surface": ModelOutputBoundary.declineSentinel, "request": ModelOutputBoundary.searchValue],
+                       ["surface": ModelOutputBoundary.declineSentinel]] {
+            let outcome = await TieredRouter(model: ScriptedModelRouter(answers: [question: answer]),
+                                             similarity: NoSimilarity()).route(question, within: known)
+            XCTAssertEqual(outcome.tier, .model)
+            XCTAssertTrue(outcome.unmeasured)
+            XCTAssertEqual(outcome.reading, .search, "a question the model declined as a search is asked back: \(answer)")
+            XCTAssertTrue(recordsGap(outcome), "a question the model declined as a search is not kept as a need: \(answer)")
+        }
+    }
+}
