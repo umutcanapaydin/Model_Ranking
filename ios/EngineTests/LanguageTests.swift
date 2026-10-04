@@ -491,7 +491,7 @@ final class CombinedListLanguageTests: OfflineTestCase {
         XCTAssertEqual(UIText.boardEfforts(["high", "unspecified"], .english),
                        "Effort levels of the models in this list: high, unspecified")
         XCTAssertEqual(UIText.boardEfforts(["high", "unspecified"], .turkish),
-                       "Bu listedeki modellerin çaba düzeyleri: high, unspecified")
+                       "Bu listedeki modellerin çaba düzeyleri: yüksek, belirtilmemiş")
         XCTAssertEqual(UIText.placeOn("Arena text · French", place: 3, .english), "#3 on Arena text · French")
         XCTAssertEqual(UIText.placeOn("Arena text · Fransızca", place: 3, .turkish),
                        "Arena text · Fransızca listesinde #3")
@@ -630,5 +630,18 @@ final class AccessFilterLanguageTests: OfflineTestCase {
         XCTAssertEqual(UIText.accessFilterCount(shown: 2, of: 3, .english), "2 of 3 shown; places are among all 3")
         XCTAssertEqual(UIText.accessFilterCount(shown: 2, of: 3, .turkish),
                        "3 modelin 2 tanesi gösteriliyor; sıralar 3 modelin tamamı içinde")
+    }
+}
+
+/// Review K2 (M18-W2): effort names (high, max, xhigh, unspecified) sat untranslated in Turkish sentences.
+final class EffortNameTests: OfflineTestCase {
+    func testEveryEffortTheEngineServesHasATurkishName() {
+        let turkish = ["minimal": "en düşük", "low": "düşük", "medium": "orta", "high": "yüksek",
+                       "xhigh": "çok yüksek", "max": "en yüksek", "unspecified": "belirtilmemiş"]
+        for (effort, name) in turkish {
+            XCTAssertEqual(effortName(effort, .turkish), name)
+            XCTAssertEqual(effortName(effort, .english), effort, "English keeps the engine's word")
+        }
+        XCTAssertEqual(effortName("ultra", .turkish), "ultra", "a level this build does not know keeps its name")
     }
 }

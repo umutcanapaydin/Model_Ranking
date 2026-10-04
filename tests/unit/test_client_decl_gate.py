@@ -86,5 +86,7 @@ def test_a_release_build_carries_no_ui_test_hook() -> None:
     """D-175 clause 3: the launch arguments the scripted router is handed are read in Debug only."""
     found = {"LaunchRouting.swift": {"Foundation.ProcessInfo.arguments", "Swift.CommandLine.arguments"}}
     assert len(gate.release_problems(found)) == 2
+    # Review M5: the launch environment is as easy to set from a UI test as the arguments.
+    assert len(gate.release_problems({"LaunchRouting.swift": {"Foundation.ProcessInfo.environment"}})) == 1
     inert = {"LaunchRouting.swift": {"Foundation.ProcessInfo.processInfo", "main.ScriptedModelRouter"}}
     assert gate.release_problems(inert) == []

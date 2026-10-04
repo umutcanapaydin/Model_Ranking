@@ -136,12 +136,28 @@ def test_the_combined_list_renders_the_disclosures_its_plan_carries() -> None:
     ), "the combined list no longer renders the disclosures its plan carries"
     for direct in ("UIText.combinedNote(", "UIText.tiedPlaces(", "UIText.combinedEffortNote("):
         assert direct not in section, f"{direct} is said by hand on the combined list, outside its plan"
-    assert re.search(r"PlanMemo\.Inputs\([^)]*primaryHealth:", code, re.DOTALL), (
+    # Review M4: the call must sit where the list's title sits, not under a condition of its own
+    # (a branch that skips it is #67's defect class). Measured by brace depth from the section start.
+    def depth(at: int) -> int:
+        return section[:at].count("{") - section[:at].count("}")
+
+    call = section.index("disclosureList(view.disclosures")
+    title = section.index("SectionTitle(text: UIText.combinedTitle(language))")
+    assert depth(call) == depth(title), "the combined list's disclosures are rendered under a condition"
+    # ...and the plan is told the values, not merely given the labels (review M4): the routed
+    # surface's own health (`routedSurfaceHealth`, AnswerPlanTests) and the kept copy's age (M3).
+    assert re.search(r"primaryHealth: routedSurfaceHealth\(answers, routing\),", code), (
         "the plan is not told whether the surface's board is stale (#72)"
+    )
+    assert re.search(r"phoneCopyDays: staleCopyDays\(fetchedAt: standingsFetchedAt, now: Date\(\)\)", code), (
+        "the plan is not told how old the phone's copy of the standings is (#72, review M3)"
+    )
+    assert re.search(r"standings = kept\.standings\s*standingsFetchedAt = kept\.fetchedAt", code), (
+        "the kept copy's time is not recorded beside the standings"
     )
     # #70: planned through the memo, never in `body` directly, and the memo learns of new standings.
     assert "answerPlan(" not in code, "the screen plans in `body` again, on every render (#70)"
-    assert re.search(r"standings = kept\s*standingsStamp \+= 1", code), (
+    assert re.search(r"standingsFetchedAt = kept\.fetchedAt\s*standingsStamp \+= 1", code), (
         "new standings do not bump the stamp, so the memo would keep planning on the old ones"
     )
 

@@ -77,16 +77,37 @@ public struct StandingsStore {
     /// fetch, which is stored. A failed fetch serves the last good standings and keeps their time.
     /// A stored time ahead of `now` (a clock that stepped back) is fetched again.
     func current(now: Date, fetch: () async throws -> FetchedStandings) async -> Standings? {
+        await currentKept(now: now, fetch: fetch)?.standings
+    }
+
+    /// `current`, with the time the served standings arrived, so a copy kept past a day because a
+    /// newer one could not be fetched can be said on screen (M18-W2 review M3, #72).
+    func currentKept(now: Date, fetch: () async throws -> FetchedStandings) async -> KeptStandings? {
         let stored = load()
         if let stored, stored.fetchedAt <= now, now.timeIntervalSince(stored.fetchedAt) < Self.maxAge {
-            return stored.standings
+            return KeptStandings(standings: stored.standings, fetchedAt: stored.fetchedAt)
         }
         do {
             let fresh = try await fetch()
             save(fresh, at: now)
-            return fresh.standings
+            return KeptStandings(standings: fresh.standings, fetchedAt: now)
         } catch {
-            return stored?.standings
+            return stored.map { KeptStandings(standings: $0.standings, fetchedAt: $0.fetchedAt) }
         }
     }
+}
+
+/// Standings as served, and when they arrived on this phone.
+struct KeptStandings {
+    let standings: Standings
+    let fetchedAt: Date
+}
+
+/// Whole days the served copy has been kept past the day it is meant to last, or `nil` while it is
+/// younger than a day, or when its time is unknown or ahead of `now`.
+func staleCopyDays(fetchedAt: Date?, now: Date) -> Int? {
+    guard let fetchedAt, fetchedAt <= now else { return nil }
+    let age = now.timeIntervalSince(fetchedAt)
+    guard age >= StandingsStore.maxAge else { return nil }
+    return Int(age / 86_400)
 }

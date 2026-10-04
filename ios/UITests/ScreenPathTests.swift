@@ -123,12 +123,35 @@ final class ScreenPathTests: XCTestCase {
         keep("the combined list, filtered to models with an API or open weights")
     }
 
+    /// Review M7: the first version tapped whatever the second button in the tree was, and asserted
+    /// nothing about what was chosen.
     func testChangeOpensTheChooserAndAChoiceIsShown() {
+        let showing = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Showing:'")).firstMatch
+        XCTAssertTrue(showing.waitForExistence(timeout: 10))
+        let before = showing.label
         app.buttons["change"].tap()
-        XCTAssertTrue(app.navigationBars["What should we rank?"].waitForExistence(timeout: 10))
+        let chooser = app.navigationBars["What should we rank?"]
+        XCTAssertTrue(chooser.waitForExistence(timeout: 10))
         keep("the surface chooser")
-        app.buttons.element(boundBy: 1).tap()
-        XCTAssertTrue(app.buttons["change"].waitForExistence(timeout: 10), "the chooser did not close")
+        app.buttons["surface.vision"].tap()
+        XCTAssertTrue(chooser.waitForNonExistence(timeout: 10), "the chooser did not close")
+        XCTAssertTrue(showing.waitForExistence(timeout: 10))
+        XCTAssertNotEqual(showing.label, before, "the chosen surface is not the one shown")
+        XCTAssertFalse(showing.label.contains("Coding"), showing.label)
+    }
+
+    /// REQ-APP-002 (Ruling A), on screen (review K3): the coding question shows both coding answers,
+    /// the ordering note says their order means nothing, and a one-answer surface says no such thing.
+    func testCodingShowsBothAnswersAndSaysTheirOrderMeansNothing() {
+        let note = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'No position here means anything'"))
+            .firstMatch
+        XCTAssertTrue(note.waitForExistence(timeout: 10), "two coding answers and no ordering note")
+        XCTAssertGreaterThanOrEqual(app.buttons.matching(NSPredicate(format: "label CONTAINS 'See the evidence'")).count, 2)
+        ask("Which model writes code best?")
+        XCTAssertTrue(note.waitForExistence(timeout: 10))
+        app.buttons["change"].tap()
+        app.buttons["surface.vision"].tap()
+        XCTAssertTrue(note.waitForNonExistence(timeout: 10), "a one-answer surface says its order means nothing")
     }
 
     func testACardOpensItsEvidence() {

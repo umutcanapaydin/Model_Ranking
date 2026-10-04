@@ -127,7 +127,7 @@ public func detailFacts(
         facts.append(
             DetailFact(
                 label: language == .turkish ? "Çaba düzeyi" : "Effort level",
-                value: effort,
+                value: effortName(effort, language),
                 note: (language == .turkish
                     ? "aynı listede farklı seviyeler karşılaştırılabilir değildir"
                     : "levels on one board are not comparable with each other") + tool

@@ -198,7 +198,7 @@ final class DetailFactTests: OfflineTestCase {
         XCTAssertEqual(value(facts(subject), "Effort level"), "high")
         XCTAssertEqual(facts(subject).first { $0.label == "Effort level" }?.note,
                        "levels on one board are not comparable with each other · evaluation tool: arena-crowd")
-        XCTAssertEqual(value(facts(subject, .turkish), "Çaba düzeyi"), "high")
+        XCTAssertEqual(value(facts(subject, .turkish), "Çaba düzeyi"), "yüksek")
         XCTAssertFalse(facts(subject).contains { $0.value.isEmpty || $0.value == "—" })
     }
 

@@ -23,12 +23,15 @@ struct CombinedView: Equatable {
     var sharedCount: Int { list.entries.count }
     /// #72 (M18-W2): the surface's own board's health, from its answer's `source_health`.
     var staleness: SourceHealth? = nil
+    /// #72's other half (review M3): whole days the phone's copy of the standings is past its day.
+    var phoneCopyDays: Int? = nil
 
     /// Everything this list must say, as data (#67, M18-W2 P4): the view renders exactly these, and
     /// a test on the plan holds them, so a branch of the view cannot quietly skip one. Loudest first.
     var disclosures: [CombinedDisclosure] {
         var out: [CombinedDisclosure] = []
         if let staleness, staleness.stale { out.append(.staleBoard(staleness)) }
+        if let phoneCopyDays { out.append(.stalePhoneCopy(days: phoneCopyDays)) }
         out.append(.productsOwnOrder(models: sharedCount, boards: list.boards.count))
         if Set(list.entries.map(\.place)).count < list.entries.count { out.append(.tiedPlaces) }
         if !efforts.isEmpty { out.append(.mixedEfforts(efforts)) }
@@ -40,6 +43,9 @@ struct CombinedView: Equatable {
 enum CombinedDisclosure: Equatable {
     /// #72: the surface's own board is stale, as its cards would have said.
     case staleBoard(SourceHealth)
+    /// #72, review M3: the standings this list combines were kept on the phone past their day,
+    /// because a newer copy could not be fetched.
+    case stalePhoneCopy(days: Int)
     /// D-160 clause 3: the order is the product's own; how many models, on how many boards (#54).
     case productsOwnOrder(models: Int, boards: Int)
     /// Some places are shared (1, 1, 3).
@@ -110,7 +116,7 @@ enum AnswerPlan: Equatable {
 /// A refinement whose board the standings lack is left out rather than failing the list.
 func answerPlan(
     outcome: RoutingOutcome?, primaryBoard: String?, standings: Standings?, removed: Set<Refinement>,
-    primaryHealth: SourceHealth? = nil
+    primaryHealth: SourceHealth? = nil, phoneCopyDays: Int? = nil
 ) -> AnswerPlan {
     // A primary board the standings lack needs no check of its own: `combine` refuses an unknown
     // board, and a refusal is today's cards below.
@@ -132,7 +138,7 @@ func answerPlan(
     guard let list = try? combine(standings, boards: boards) else { return .cards }
     return .combined(CombinedView(
         list: list, refinements: offered, removed: removed.intersection(offered),
-        mixedEfforts: mixedEfforts(list), staleness: primaryHealth
+        mixedEfforts: mixedEfforts(list), staleness: primaryHealth, phoneCopyDays: phoneCopyDays
     ))
 }
 
@@ -205,6 +211,7 @@ final class PlanMemo {
         let standingsStamp: Int
         let removed: Set<Refinement>
         let primaryHealth: SourceHealth?
+        var phoneCopyDays: Int? = nil
     }
 
     private var last: (inputs: Inputs, plan: AnswerPlan)?
@@ -215,7 +222,8 @@ final class PlanMemo {
         if let last, last.inputs == inputs { return last.plan }
         computed += 1
         let plan = answerPlan(outcome: inputs.outcome, primaryBoard: inputs.primaryBoard, standings: standings,
-                              removed: inputs.removed, primaryHealth: inputs.primaryHealth)
+                              removed: inputs.removed, primaryHealth: inputs.primaryHealth,
+                              phoneCopyDays: inputs.phoneCopyDays)
         last = (inputs, plan)
         return plan
     }
@@ -234,4 +242,11 @@ func hasAPIOrOpenWeights(_ accessibility: String?) -> Bool {
 /// models: the filter hides rows, it does not re-rank them (D-167).
 func filteredEntries(_ entries: [CombinedEntry], onlyAPIOrOpenWeights: Bool) -> [CombinedEntry] {
     onlyAPIOrOpenWeights ? entries.filter { hasAPIOrOpenWeights($0.model.accessibility) } : entries
+}
+
+/// The routed surface's own health, from the answers on screen: what the plan's stale-board
+/// disclosure reads (#72). A function, so a test drives the lookup the view makes (review M4).
+func routedSurfaceHealth(_ answers: [Answer], _ outcome: RoutingOutcome?) -> SourceHealth? {
+    guard let outcome else { return nil }
+    return answers.first { $0.surface == outcome.categoryID }?.sourceHealth
 }

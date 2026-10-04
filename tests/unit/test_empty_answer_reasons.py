@@ -192,3 +192,47 @@ def test_the_two_reasons_are_not_the_same_sentence(
     assert coding and coding[0]["picks"], "fixture assumption: coding must have evidence"
 
     assert "no evidence" in str(no_evidence["unavailable_reason"]).lower()
+
+
+# --- D-176 clause 7 (M18-W2 review M2): the reason as a code, so the app says the right one -------
+
+
+def test_each_reason_carries_its_code(served_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The app composes the reason in the reader's language from this code. Composed from anything
+    less, the third reason ("could not be read") was said as the first, a false cause in two languages."""
+    monkeypatch.setenv("MODEL_RANKING_DB", str(served_db))
+    monkeypatch.setenv("APP_ENV", "test")
+
+    (assistant,) = _answers(served_db, "assistant")
+    assert assistant["unavailable_reason_code"] == "no_evidence"
+    assert assistant["source_health"]["reason"] == "no_source"  # type: ignore[index]
+
+    low = {a["surface"]: a for a in _answers(served_db, "coding", budget="low")}
+    assert low["coding"]["unavailable_reason_code"] == "over_budget"
+
+    answered = {a["surface"]: a for a in _answers(served_db, "coding")}
+    assert answered["coding"]["picks"], "fixture assumption: coding answers at unlimited"
+    assert answered["coding"]["unavailable_reason_code"] is None
+    assert answered["coding"]["source_health"]["reason"] is None  # type: ignore[index]
+
+
+def test_an_unreadable_artifact_says_so_by_code(served_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The third reason, which no test reached: the database raises while the answer is served."""
+    import sqlite3
+
+    import app.adapter.main as main_mod
+
+    monkeypatch.setenv("MODEL_RANKING_DB", str(served_db))
+    monkeypatch.setenv("APP_ENV", "test")
+
+    def unreadable(*_: object, **__: object) -> object:
+        raise sqlite3.DatabaseError("file is not a database")
+
+    with sqlite3.connect(served_db) as conn:
+        monkeypatch.setattr(main_mod, "recommend", unreadable)
+        monkeypatch.setattr(main_mod, "_source_health_json", unreadable)
+        answer = main_mod._answer_for(conn, "coding", "unlimited")
+
+    assert answer["unavailable_reason"] == "This surface's evidence could not be read."
+    assert answer["unavailable_reason_code"] == "unreadable"
+    assert answer["source_health"]["reason"] == "unreadable"

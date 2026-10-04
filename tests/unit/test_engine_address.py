@@ -25,6 +25,8 @@ def test_the_default_engine_is_loopback_and_the_owners_address_stays_on_his_mac(
     assert '#include? "Engine.local.xcconfig"' in settings, "the owner's override is an optional include"
     ignored = (IOS.parent / ".gitignore").read_text(encoding="utf-8").splitlines()
     assert "ios/Config/Engine.local.xcconfig" in ignored, "the owner's address must not be committed"
+    # M18-W2 review M6: the UI target's local override names a team, which the project never carries (#93).
+    assert "ios/Config/UITests.local.xcconfig" in ignored, "the UI target's local override must not be committed"
 
 
 def test_the_partial_plist_carries_the_address_and_only_the_local_network_exception() -> None:

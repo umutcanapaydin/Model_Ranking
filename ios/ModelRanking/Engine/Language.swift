@@ -618,7 +618,7 @@ extension UIText {
 
     /// D-112 on the combined list (review B1): the cards' `effort_mix_notice`, said of the list.
     static func combinedEffortNote(efforts: [String], _ language: Language) -> String {
-        let named = efforts.joined(separator: ", ")
+        let named = efforts.map { effortName($0, language) }.joined(separator: ", ")
         return language == .turkish
             ? "Not: Bu panolar modelleri tek bir çaba düzeyinde karşılaştırmıyor ve bu listedeki modeller "
                 + "farklı düzeylerde ölçüldü (\(named)). Daha yüksek çabayla çalıştırılan bir model, daha düşük "
@@ -630,7 +630,7 @@ extension UIText {
 
     /// The efforts the listed models stand at on one board, in the detail.
     static func boardEfforts(_ efforts: [String], _ language: Language) -> String {
-        let named = efforts.joined(separator: ", ")
+        let named = efforts.map { effortName($0, language) }.joined(separator: ", ")
         return language == .turkish ? "Bu listedeki modellerin çaba düzeyleri: \(named)"
             : "Effort levels of the models in this list: \(named)"
     }
@@ -679,6 +679,13 @@ extension UIText {
         language == .turkish
             ? "\(total) modelin \(shown) tanesi gösteriliyor; sıralar \(total) modelin tamamı içinde"
             : "\(shown) of \(total) shown; places are among all \(total)"
+    }
+
+    /// Review M3 (#72): the combined list's standings are an old copy kept on this phone.
+    static func stalePhoneCopy(days: Int, _ language: Language) -> String {
+        language == .turkish
+            ? "Bu listenin dayandığı sıralamalar bu telefona \(days) gün önce indirildi; daha yenisi alınamadı."
+            : "The standings behind this list reached this phone \(days) days ago; a newer copy could not be fetched."
     }
 
     /// The control under a shortened combined list.
@@ -738,5 +745,21 @@ extension EngineError {
         case .undecodable:
             return "Uygulamanın bu sürümü gönderilen cevabı okuyamadı. Çözüm, uygulamayı güncellemek."
         }
+    }
+}
+
+/// An effort level as the reader's language names it (M18-W2 review K2). English keeps the engine's
+/// word; a level this build does not know keeps its name in both.
+func effortName(_ effort: String, _ language: Language) -> String {
+    guard language == .turkish else { return effort }
+    switch effort {
+    case "minimal": return "en düşük"
+    case "low": return "düşük"
+    case "medium": return "orta"
+    case "high": return "yüksek"
+    case "xhigh": return "çok yüksek"
+    case "max": return "en yüksek"
+    case "unspecified": return "belirtilmemiş"
+    default: return effort
     }
 }

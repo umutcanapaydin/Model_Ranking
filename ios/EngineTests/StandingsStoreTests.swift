@@ -126,6 +126,21 @@ final class StandingsStoreTests: OfflineTestCase {
         XCTAssertEqual(store().load()?.fetchedAt, arrived, "a failed fetch replaced the stored time")
     }
 
+    /// Review M3 (#72's phone-copy half): the copy served after a failed fetch says how old it is,
+    /// so the combined list can say so.
+    func testAKeptCopyServedAfterAFailedFetchCarriesItsAge() async throws {
+        store().save(try fetched(), at: arrived)
+        let kept = await store().currentKept(now: arrived.addingTimeInterval(3 * 86_400 + 60)) {
+            throw EngineError.offline
+        }
+        XCTAssertEqual(kept?.fetchedAt, arrived)
+        XCTAssertEqual(staleCopyDays(fetchedAt: kept?.fetchedAt, now: arrived.addingTimeInterval(3 * 86_400 + 60)), 3)
+        XCTAssertNil(staleCopyDays(fetchedAt: arrived, now: arrived.addingTimeInterval(23 * 3600)),
+                     "a copy younger than a day is the normal case and says nothing")
+        XCTAssertNil(staleCopyDays(fetchedAt: arrived, now: arrived.addingTimeInterval(-3600)))
+        XCTAssertNil(staleCopyDays(fetchedAt: nil, now: arrived))
+    }
+
     func testAFetchedPayloadIsStoredAndServed() async throws {
         let served = await store().current(now: arrived) { try FetchedStandings(payload: standingsPayload) }
 

@@ -547,9 +547,119 @@ final class BoardsRequestTests: OfflineTestCase {
     }
 }
 
+/// A stub that sends its body in chunks, from a queue of its own, and records whether the loading
+/// system stopped it before the last one: the observable difference between a read that stops at
+/// its ceiling and one that takes everything and checks the size after (review M1).
+private final class ChunkedStub: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static var chunkSize = 64 * 1024
+    nonisolated(unsafe) static var chunks = 64
+    /// The `Content-Length` the response declares, or none.
+    nonisolated(unsafe) static var declared: Int?
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var sent = 0
+    nonisolated(unsafe) private static var stoppedEarly = false
+    private var cancelled = false
+
+    static func reset() {
+        lock.lock(); defer { lock.unlock() }
+        sent = 0
+        stoppedEarly = false
+    }
+
+    static var observed: (sent: Int, stopped: Bool) {
+        lock.lock(); defer { lock.unlock() }
+        return (sent, stoppedEarly)
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        let headers = Self.declared.map { ["Content-Length": String($0)] } ?? [:]
+        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: headers)!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        let (size, count) = (Self.chunkSize, Self.chunks)
+        DispatchQueue(label: "chunked-stub").async { [self] in
+            for _ in 0..<count {
+                if isCancelled { return }
+                client?.urlProtocol(self, didLoad: Data(repeating: 0x20, count: size))
+                Self.lock.lock(); Self.sent += 1; Self.lock.unlock()
+                Thread.sleep(forTimeInterval: 0.005)
+            }
+            if !isCancelled { client?.urlProtocolDidFinishLoading(self) }
+        }
+    }
+
+    private var isCancelled: Bool {
+        Self.lock.lock(); defer { Self.lock.unlock() }
+        return cancelled
+    }
+
+    override func stopLoading() {
+        Self.lock.lock(); defer { Self.lock.unlock() }
+        cancelled = true
+        if Self.sent < Self.chunks { Self.stoppedEarly = true }
+    }
+}
+
 /// #56 (M17-W4 security S3): the phone read a whole response into memory before any size check, and
 /// only `/v1/boards` had a ceiling. Every route has one now, and the read stops at it.
 final class ResponseCeilingTests: OfflineTestCase {
+    private func chunkedClient() -> EngineClient {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ChunkedStub.self]
+        return EngineClient(baseURL: URL(string: "http://127.0.0.1:8080")!, session: URLSession(configuration: configuration))
+    }
+
+    private func settle() async {
+        for _ in 0..<200 where !ChunkedStub.observed.stopped {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+    }
+
+    /// Review M1, the property itself: 4 MiB offered in 64 KiB chunks against the categories' 256 KiB
+    /// ceiling. The transfer is stopped long before its last chunk; a read that took everything and
+    /// checked the size afterwards would have let all 64 arrive.
+    func testTheReadStopsAtTheCeilingWhileTheResponseStreams() async {
+        ChunkedStub.reset()
+        ChunkedStub.declared = nil
+        ChunkedStub.chunks = 64
+        do {
+            _ = try await chunkedClient().categories()
+            XCTFail("a 4 MiB answer was accepted under a 256 KiB ceiling")
+        } catch let EngineError.undecodable(detail) {
+            XCTAssertTrue(detail.contains("larger than"), detail)
+        } catch {
+            XCTFail("refused as \(error)")
+        }
+        await settle()
+        let observed = ChunkedStub.observed
+        XCTAssertTrue(observed.stopped, "the transfer was not stopped: the whole response was read")
+        XCTAssertLessThan(observed.sent, 32, "\(observed.sent) of 64 chunks were sent before the read stopped")
+    }
+
+    /// A declared length over the ceiling is refused before a byte is read: here the body that follows
+    /// is small, and only the declaration can refuse it.
+    func testADeclaredLengthOverTheCeilingIsRefusedBeforeTheBody() async {
+        ChunkedStub.reset()
+        ChunkedStub.declared = 10 * 1024 * 1024
+        ChunkedStub.chunks = 1
+        ChunkedStub.chunkSize = 16
+        defer {
+            ChunkedStub.declared = nil
+            ChunkedStub.chunkSize = 64 * 1024
+            ChunkedStub.chunks = 64
+        }
+        do {
+            _ = try await chunkedClient().categories()
+            XCTFail("a response declaring 10 MiB was read")
+        } catch let EngineError.undecodable(detail) {
+            XCTAssertTrue(detail.contains("larger than"), "refused for its body, not its declaration: \(detail)")
+        } catch {
+            XCTFail("refused as \(error)")
+        }
+    }
+
     private func client() -> EngineClient {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubProtocol.self]

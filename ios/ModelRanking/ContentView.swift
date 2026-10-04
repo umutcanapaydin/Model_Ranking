@@ -54,6 +54,8 @@ struct ContentView: View {
     @State private var standingsInFlight = false
     /// #70: bumped whenever `standings` is replaced, so the plan's memo knows without comparing them.
     @State private var standingsStamp = 0
+    /// When the standings on screen reached this phone (review M3, #72).
+    @State private var standingsFetchedAt: Date?
     @State private var planMemo = PlanMemo()
     @State private var removedRefinements: Set<Refinement> = []
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -172,8 +174,10 @@ struct ContentView: View {
                     outcome: routing,
                     primaryBoard: categories.first { $0.id == routing?.categoryID }?.primaryBoard,
                     standingsStamp: standingsStamp, removed: removedRefinements,
-                    // #72: the surface's own answer says whether its board is stale.
-                    primaryHealth: answers.first { $0.surface == routing?.categoryID }?.sourceHealth
+                    // #72: the surface's own answer says whether its board is stale, and the kept
+                    // copy's age whether the phone's standings are (review M3).
+                    primaryHealth: routedSurfaceHealth(answers, routing),
+                    phoneCopyDays: staleCopyDays(fetchedAt: standingsFetchedAt, now: Date())
                 ), standings: standings)
                 if case let .combined(view) = plan {
                     combinedSection(view)
@@ -257,7 +261,9 @@ struct ContentView: View {
                         }
                         disclosures(answer)
 
-                        if answer.id == ordered.first?.id {
+                        // Review K1: the engine sends the note with every answer, and it is about how
+                        // TWO answers are ordered, so it is said only where there are two.
+                        if answer.id == ordered.first?.id, ordered.count > 1 {
                             // Ruling A's disclosure. It used to open the screen; the question
                             // field took that place, so it moved to where the answers START rather
                             // than being dropped — it is about how the ANSWERS are ordered, and
@@ -570,6 +576,7 @@ struct ContentView: View {
                                 )
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("surface.\(choice.id)")  // M18-W2 review M7
                     }
                 }
                 .padding(16)
@@ -712,11 +719,12 @@ struct ContentView: View {
     private func emptyAnswer(_ answer: Answer) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(UIText.noPicks(language)).font(.headline)
-            if answer.unavailableReason != nil {
-                // D-176: which of the engine's two reasons, said in the reader's language.
+            if let reason = answer.unavailableReason {
+                // D-176 clause 7: which of the engine's three reasons, by its code, in the reader's
+                // language; the engine's own sentence where the code is missing or unknown.
                 Text(unavailableSentence(
-                    rankedNothing: answer.ranking.isEmpty, benchmark: answer.primaryBenchmark, language
-                ))
+                    code: answer.unavailableReasonCode, benchmark: answer.primaryBenchmark, language
+                ) ?? reason)
                 .font(.subheadline).foregroundStyle(.secondary)
             }
         }
@@ -893,8 +901,9 @@ struct ContentView: View {
         standingsInFlight = true
         Task {
             defer { standingsInFlight = false }
-            if let kept = await StandingsStore.onDevice.current(now: Date(), fetch: { try await client.boards() }) {
-                standings = kept
+            if let kept = await StandingsStore.onDevice.currentKept(now: Date(), fetch: { try await client.boards() }) {
+                standings = kept.standings
+                standingsFetchedAt = kept.fetchedAt
                 standingsStamp += 1
             }
         }

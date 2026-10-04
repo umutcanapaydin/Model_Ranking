@@ -319,7 +319,9 @@ struct EngineClient {
     /// At most `ceiling` bytes of a response (#56). A declared length over the ceiling is refused
     /// before a byte is read, and the transfer is cancelled at the first byte beyond it, so no
     /// response sits in memory whole before its size is known. Refused as `undecodable`, the case a
-    /// payload this app will not read already is (`FetchedStandings`).
+    /// payload this app will not read already is (`FetchedStandings`), whatever the status was: an
+    /// oversized refusal loses the engine's status and words, and the screen says the answer could
+    /// not be read. That is the closed direction, and deliberate (review M1).
     private static func read(_ bytes: URLSession.AsyncBytes, declared: Int64, upTo ceiling: Int) async throws -> Data {
         let tooLarge = EngineError.undecodable("the response is larger than the \(ceiling) bytes this app accepts")
         guard declared <= Int64(ceiling) else {

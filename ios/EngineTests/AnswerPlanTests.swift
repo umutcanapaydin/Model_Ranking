@@ -156,7 +156,8 @@ final class AnswerPlanTests: OfflineTestCase {
 
     private func stale(_ days: Int) -> SourceHealth {
         SourceHealth(benchmark: "B arena", stale: true, notice: "old",
-                     sources: [SourceRow(source: "s", rows: 3, newestRunDate: nil, ageDays: days, stale: true)])
+                     sources: [SourceRow(source: "s", rows: 3, newestRunDate: nil, ageDays: days, stale: true)],
+                     reason: nil)
     }
 
     /// #67: the gate could not see a view branch, so the combined list's disclosures are fields of
@@ -179,7 +180,7 @@ final class AnswerPlanTests: OfflineTestCase {
     /// #72: the cards warned that the surface's board was stale and the combined list that replaced
     /// them did not. A fresh board says nothing; a stale one is said first and loudly.
     func testAStaleBoardIsSaidOnTheCombinedListAsLoudlyAsOnTheCards() {
-        let fresh = SourceHealth(benchmark: "B arena", stale: false, notice: nil, sources: [])
+        let fresh = SourceHealth(benchmark: "B arena", stale: false, notice: nil, sources: [], reason: nil)
         let quiet = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: data, removed: [],
                                primaryHealth: fresh)
         guard case let .combined(calm) = quiet else { return XCTFail("\(quiet)") }
@@ -193,9 +194,39 @@ final class AnswerPlanTests: OfflineTestCase {
         XCTAssertTrue(said.first?.text.contains("200") == true, said.first?.text ?? "nil")
     }
 
+    /// Review M3 (#72's other half): standings kept on the phone past a day, because a newer copy
+    /// could not be fetched, are said on the list, loudly.
+    func testAnOldPhoneCopyIsSaidOnTheCombinedList() {
+        let plan = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: data, removed: [],
+                              phoneCopyDays: 3)
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+        XCTAssertEqual(view.disclosures.first, .stalePhoneCopy(days: 3))
+        XCTAssertEqual(combinedDisclosure(.stalePhoneCopy(days: 3), .english)?.weight, .state)
+        let fresh = answerPlan(outcome: routed([french]), primaryBoard: "arena", standings: data, removed: [])
+        guard case let .combined(calm) = fresh else { return XCTFail("\(fresh)") }
+        XCTAssertFalse(calm.disclosures.contains(.stalePhoneCopy(days: 3)))
+    }
+
+    /// Review M4: the view handed the plan whatever health it liked, and a `nil` passed every gate. The
+    /// lookup is this function, driven here, and the view's call to it is pinned.
+    func testThePlanIsGivenTheRoutedSurfacesOwnHealth() throws {
+        func answer(_ surface: String, stale: Bool) throws -> Answer {
+            try JSONDecoder().decode(Answer.self, from: Data("""
+            {"surface": "\(surface)", "title": "T", "primary_benchmark": "B \(surface)", "metric": "elo",
+             "eligible_count": 0, "frontier_size": 0, "sources": [], "picks": [], "ranking": [],
+             "source_health": {"benchmark": "B \(surface)", "stale": \(stale), "notice": null, "sources": []}}
+            """.utf8))
+        }
+        let answers = [try answer("coding", stale: false), try answer("assistant", stale: true)]
+        XCTAssertEqual(routedSurfaceHealth(answers, routed([french]))?.benchmark, "B assistant")
+        XCTAssertEqual(routedSurfaceHealth(answers, routed([french]))?.stale, true)
+        XCTAssertNil(routedSurfaceHealth(answers, nil), "no question, no routed surface")
+    }
+
     /// Every disclosure says itself in both languages, and none is dropped on the way.
     func testEveryCombinedDisclosureIsSaidInBothLanguages() {
-        let all: [CombinedDisclosure] = [.staleBoard(stale(120)), .productsOwnOrder(models: 2, boards: 2),
+        let all: [CombinedDisclosure] = [.staleBoard(stale(120)), .stalePhoneCopy(days: 3),
+                                         .productsOwnOrder(models: 2, boards: 2),
                                          .tiedPlaces, .mixedEfforts(["high", "max"])]
         for disclosure in all {
             let english = combinedDisclosure(disclosure, .english)
@@ -263,7 +294,8 @@ final class AnswerPlanTests: OfflineTestCase {
     func testTheEffortNoteNamesEveryEffortInBothLanguages() {
         for language in Language.allCases {
             let note = UIText.combinedEffortNote(efforts: ["high", "unspecified"], language)
-            XCTAssertTrue(note.contains("high") && note.contains("unspecified"), "\(language): \(note)")
+            XCTAssertTrue(note.contains(effortName("high", language)) && note.contains(effortName("unspecified", language)),
+                          "\(language): \(note)")
         }
     }
 

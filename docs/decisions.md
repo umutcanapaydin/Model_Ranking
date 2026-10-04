@@ -3526,7 +3526,9 @@ lifted the simulator restriction on 2026-10-04.
 **Clause 3, as built (M18-W2 P1).** The scripted router (`ScriptedModelRouter`) is in the Engine,
 which is never compiled on `DEBUG` (`test_ios_platform_drift`), and reads nothing itself. The one
 launch-argument read is `LaunchRouting.swift`, in Debug only; `make client-decls` refuses a Release
-build that reads launch arguments.
+build that reads its launch arguments or its launch environment (review M5). One launch argument
+does reach a Release build, by design: `-language`, through `@AppStorage("language")`, the one
+`UserDefaults` value the text gate allows. It chooses the language and nothing else.
 
 **Decisions on #63's findings (clause 4, M18-W2 P3).** Reproduced on 2026-10-04; the list is in
 #63's thread.
@@ -3553,6 +3555,9 @@ build that reads launch arguments.
 - **13, surface names:** each has a line saying what it is for in the chooser.
 - **14, the gap register:** it says what it is for, and its button carries a visible label.
 - **A, the combined list's length:** ten rows, and the rest on request.
+- **#72's other half, a stale phone copy** (review M3): standings kept on the phone past their day,
+  because a newer copy could not be fetched, are said on the combined list as loudly as a stale
+  board.
 - **B, a drawing request ranked as image reading:** question reading, filed as #113 for W3.
 
 **Decision on #78 (clause 4, M18-W2 P6).** The served accessibility becomes a reader filter on the
@@ -3589,6 +3594,12 @@ source ids (`epoch_swe_bench_verified`, `swebench`).
    are old, not what the engine calls its feeds.
 6. **On an anchored Elo surface, the close call's gap is said out of 100,** the rule
    `leaderSentence` follows (D-143, review M-2).
+7. **An empty answer and an empty source list carry their reason as a code** (added after the
+   wave's code review, M2). The engine has three reasons for an empty answer: nothing reached the
+   ranking, nothing fit the budget, or the evidence could not be read. Composed without a code, the
+   third was said as the first, a false cause in two languages. So each answer gains
+   `unavailable_reason_code` (`no_evidence`, `over_budget`, `unreadable`), and `source_health` gains
+   `reason` (`no_source`, `unreadable`, or null). Both are additive; the English sentences stay.
 
 **The rejected alternative.** `?lang=tr` on the engine. D-136 refused it for the sentences under a
 pick; the same reasons hold here.

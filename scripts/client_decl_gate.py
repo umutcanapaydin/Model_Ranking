@@ -319,8 +319,10 @@ def _capability_problem(name: str, symbol: str, decl: str) -> str | None:
 
 #: D-175 clause 3: the UI tests' hook exists in Debug builds only. A Release build that reads its
 #: launch arguments ships a way to steer the app from outside it. (The scripted router itself is in
-#: the Engine, which is never compiled on DEBUG, and is inert unless handed the arguments.)
-DEBUG_ONLY = ("ProcessInfo.arguments", "CommandLine.arguments", "CommandLine.unsafeArgv")
+#: the Engine, which is never compiled on DEBUG, and is inert unless handed the arguments.) The launch
+#: environment is the same door (M18-W2 review M5); `getenv` is refused already, by the module list.
+DEBUG_ONLY = ("ProcessInfo.arguments", "ProcessInfo.environment", "CommandLine.arguments",
+              "CommandLine.unsafeArgv")
 
 
 def release_problems(found: dict[str, set[str]]) -> list[str]:

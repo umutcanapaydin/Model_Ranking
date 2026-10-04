@@ -133,8 +133,9 @@ def test_the_shipped_artifact_is_what_was_measured(client: TestClient) -> None:
 @pytest.mark.parametrize("task", ["coding", "agentic-coding", "assistant", "everyday", "expert",
                                   "mathematics", "abstract", "vision", "search"])
 def test_a_close_call_carries_the_values_it_quotes(client: TestClient, task: str) -> None:
-    """D-176 (M18-W2): the close call was the one notice under a pick a Turkish reader met in English
-    (#63 finding 2). Its fact names the runner-up and the gap, and the sentence quotes exactly those."""
+    """D-176 (M18-W2), REQ-LOC-001: the close call was the one notice under a pick a Turkish reader
+    met in English (#63 finding 2). Its fact names the runner-up and the gap, and the sentence quotes
+    exactly those."""
     answers = client.get("/v1/recommendations", params={"task": task}).json()["answers"]
     for answer in answers:
         prose, fact = answer.get("close_call"), answer.get("close_call_fact")

@@ -35,9 +35,20 @@ func staleSentence(_ health: SourceHealth, _ language: Language) -> String? {
     guard health.stale else { return nil }
     let benchmark = health.benchmark
     guard !health.sources.isEmpty else {
-        return language == .turkish
-            ? "\(benchmark) için sunulan veride hiçbir kanıt kaynağı yok; ne kadar güncel olduğu bilinemiyor."
-            : "No evidence source for \(benchmark) is in the served data, so how fresh it is cannot be told."
+        // Review M2: no sources has two causes, and the engine names which (D-176 clause 7). A
+        // health that names neither is the engine's English.
+        switch (health.reason, language) {
+        case ("no_source", .turkish):
+            return "\(benchmark) için sunulan veride hiçbir kanıt kaynağı yok; ne kadar güncel olduğu bilinemiyor."
+        case ("no_source", .english):
+            return "No evidence source for \(benchmark) is in the served data, so how fresh it is cannot be told."
+        case ("unreadable", .turkish):
+            return "Bu alanın kanıtı okunamadı; ne kadar güncel olduğu bilinmiyor."
+        case ("unreadable", .english):
+            return "This surface's evidence could not be read, so how fresh it is is unknown."
+        default:
+            return nil
+        }
     }
     let total = health.sources.count
     let stale = health.sources.filter(\.stale)
@@ -105,7 +116,7 @@ func effortMixSentence(efforts: [String], _ language: Language) -> String? {
     let distinct = Set(efforts.filter { !$0.isEmpty })
     let levels = distinct.sorted()  // the engine's order: `sorted(distinct)`
     guard levels.count > 1 else { return nil }
-    let named = levels.joined(separator: ", ")
+    let named = levels.map { effortName($0, language) }.joined(separator: ", ")
     return language == .turkish
         ? "Not: Bu alan modelleri tek bir çaba düzeyinde karşılaştırmıyor ve buradaki puanlar farklı "
             + "düzeylerden geliyor (\(named)). Daha yüksek çabayla çalıştırılan bir model, daha düşük "
@@ -132,7 +143,7 @@ func orderingSentence(_ language: Language) -> String {
 
 /// The line under a surface: how many models, on which board, at which effort.
 func rankedOnSentence(count: Int, benchmark: String, effort: String?, _ language: Language) -> String {
-    switch (effort, language) {
+    switch (effort.map { effortName($0, language) }, language) {
     case let (level?, .turkish): return "\(benchmark) üzerinde, \(level) çaba düzeyinde sıralanan \(count) model"
     case (nil, .turkish): return "\(benchmark) üzerinde sıralanan \(count) model"
     case let (level?, .english): return "\(count) models ranked on \(benchmark), at \(level) effort"
@@ -140,22 +151,29 @@ func rankedOnSentence(count: Int, benchmark: String, effort: String?, _ language
     }
 }
 
-/// Why an answer has no picks. The engine's two reasons stay two (M7): nothing reached the ranking,
-/// or nothing fit a budget.
-func unavailableSentence(rankedNothing: Bool, benchmark: String, _ language: Language) -> String {
-    switch (rankedNothing, language) {
-    case (true, .turkish):
+/// Why an answer has no picks, by the engine's code (D-176 clause 7). Its three reasons stay three
+/// (M7, review M2): nothing reached the ranking, nothing fit a budget, the evidence could not be read.
+/// `nil` for no code or one this build does not know: the engine's English is shown.
+func unavailableSentence(code: String?, benchmark: String, _ language: Language) -> String? {
+    switch (code, language) {
+    case ("no_evidence", .turkish):
         return "Bu alanın sıralayacak kanıtı yok: sunulan veride \(benchmark) üzerinden sıralamaya giren "
             + "bir sonuç yok. Bu bir sonuç değil, kanıttaki bir boşluk."
-    case (true, .english):
+    case ("no_evidence", .english):
         return "This surface has no evidence to rank: nothing on \(benchmark) reached the ranking in the "
             + "served data. This is a gap in the evidence, not a result."
-    case (false, .turkish):
+    case ("over_budget", .turkish):
         return "Bu alanın listesindeki hiçbir model istenen bütçeye uymuyor, bu yüzden bu cevap hiçbir şey "
             + "sıralamıyor. Gizlenmek yerine gösteriliyor."
-    case (false, .english):
+    case ("over_budget", .english):
         return "No model on this surface's benchmark fits the requested budget, so this answer ranks "
             + "nothing. It is shown rather than hidden."
+    case ("unreadable", .turkish):
+        return "Bu alanın kanıtı okunamadı. Bu bir sonuç değil, kanıttaki bir boşluk."
+    case ("unreadable", .english):
+        return "This surface's evidence could not be read. This is a gap in the evidence, not a result."
+    default:
+        return nil
     }
 }
 
@@ -231,6 +249,8 @@ func combinedDisclosure(_ disclosure: CombinedDisclosure, _ language: Language) 
         guard let text = staleSentence(health, language) ?? health.notice else { return nil }
         let dated = health.sources.contains { $0.ageDays != nil }
         return Disclosure(text: text, weight: dated ? .state : .property)
+    case let .stalePhoneCopy(days):
+        return Disclosure(text: UIText.stalePhoneCopy(days: days, language), weight: .state)
     case let .productsOwnOrder(models, boards):
         return Disclosure(text: UIText.combinedNote(models: models, boards: boards, language), weight: .property)
     case .tiedPlaces:

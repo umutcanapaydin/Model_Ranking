@@ -5,6 +5,7 @@
 //  stale one named internal source ids. These tests hold the remainder: each notice is composed
 //  from served facts in both languages, quotes the same numbers in both, names no source id, and
 //  falls back to the engine's own English when a fact is missing or one this build does not know.
+//  REQ-LOC-001 (the client composes every sentence from facts) is cited here.
 
 import XCTest
 
@@ -20,7 +21,7 @@ final class NoticesTests: OfflineTestCase {
             SourceRow(source: "source_\(index)", rows: 10, newestRunDate: nil, ageDays: pair.0, stale: pair.1)
         }
         return SourceHealth(benchmark: benchmark, stale: flags.contains(true), notice: "engine text",
-                            sources: rows)
+                            sources: rows, reason: nil)
     }
 
     // MARK: staleness
@@ -64,7 +65,8 @@ final class NoticesTests: OfflineTestCase {
     }
 
     func testABoardWithNoSourceAtAllIsSaid() {
-        let empty = SourceHealth(benchmark: "DeepSWE", stale: true, notice: "engine text", sources: [])
+        let empty = SourceHealth(benchmark: "DeepSWE", stale: true, notice: "engine text", sources: [],
+                                 reason: "no_source")
 
         XCTAssertEqual(staleSentence(empty, .english),
                        "No evidence source for DeepSWE is in the served data, so how fresh it is cannot be told.")
@@ -90,7 +92,7 @@ final class NoticesTests: OfflineTestCase {
     func testTheEffortMixNamesTheLevelsInBothLanguages() {
         XCTAssertEqual(effortMixSentence(efforts: ["max", "high", "max"], .turkish),
                        "Not: Bu alan modelleri tek bir çaba düzeyinde karşılaştırmıyor ve buradaki puanlar "
-                       + "farklı düzeylerden geliyor (high, max). Daha yüksek çabayla çalıştırılan bir model, "
+                       + "farklı düzeylerden geliyor (yüksek, en yüksek). Daha yüksek çabayla çalıştırılan bir model, "
                        + "daha düşük çabayla çalıştırılandan iyi görünebilir.")
         XCTAssertNil(effortMixSentence(efforts: ["max"], .english), "one level is not a mix")
     }
@@ -101,17 +103,52 @@ final class NoticesTests: OfflineTestCase {
         XCTAssertEqual(rankedOnSentence(count: 54, benchmark: "SWE-bench Verified", effort: nil, .turkish),
                        "SWE-bench Verified üzerinde sıralanan 54 model")
         XCTAssertEqual(rankedOnSentence(count: 18, benchmark: "DeepSWE", effort: "high", .turkish),
-                       "DeepSWE üzerinde, high çaba düzeyinde sıralanan 18 model")
+                       "DeepSWE üzerinde, yüksek çaba düzeyinde sıralanan 18 model")
         XCTAssertEqual(rankedOnSentence(count: 18, benchmark: "DeepSWE", effort: "high", .english),
                        "18 models ranked on DeepSWE, at high effort")
     }
 
-    func testAnEmptyAnswerSaysWhichOfItsTwoReasons() {
-        XCTAssertTrue(unavailableSentence(rankedNothing: true, benchmark: "DeepSWE", .turkish)
-            .contains("DeepSWE"))
-        XCTAssertNotEqual(unavailableSentence(rankedNothing: true, benchmark: "B", .english),
-                          unavailableSentence(rankedNothing: false, benchmark: "B", .english),
-                          "the two reasons collapsed into one, which M7 spent a security round preventing")
+    /// Review M2: the engine has three reasons, and the third ("could not be read") was said as the
+    /// first. Each is composed from its code (D-176 clause 7); no code, or one this build does not
+    /// know, composes nothing, and the engine's English is shown.
+    func testAnEmptyAnswerSaysWhichOfItsThreeReasons() {
+        let codes = ["no_evidence", "over_budget", "unreadable"]
+        for language in Language.allCases {
+            let said = codes.compactMap { unavailableSentence(code: $0, benchmark: "DeepSWE", language) }
+            XCTAssertEqual(Set(said).count, 3, "two reasons collapsed into one, which M7 spent a security round preventing")
+        }
+        XCTAssertTrue(unavailableSentence(code: "no_evidence", benchmark: "DeepSWE", .turkish)?.contains("DeepSWE") == true)
+        XCTAssertNil(unavailableSentence(code: nil, benchmark: "B", .turkish))
+        XCTAssertNil(unavailableSentence(code: "some_future_reason", benchmark: "B", .turkish))
+    }
+
+    func testABoardWhoseEvidenceCouldNotBeReadIsNotSaidToHaveNoSource() {
+        let unreadable = SourceHealth(benchmark: "B", stale: true, notice: "engine text", sources: [], reason: "unreadable")
+        let english = staleSentence(unreadable, .english)
+        XCTAssertEqual(english, "This surface's evidence could not be read, so how fresh it is is unknown.")
+        XCTAssertNotNil(staleSentence(unreadable, .turkish))
+        let unknown = SourceHealth(benchmark: "B", stale: true, notice: "engine text", sources: [], reason: nil)
+        XCTAssertNil(staleSentence(unknown, .turkish), "an empty health with no reason is the engine's English")
+    }
+
+    /// The engine's three empty answers, as it serves them, each said for what it is.
+    func testTheEnginesThreeEmptyAnswersAreEachSaidTruly() throws {
+        func empty(_ code: String, _ health: String) throws -> Answer {
+            try JSONDecoder().decode(Answer.self, from: Data("""
+            {"surface": "coding", "title": "Coding", "primary_benchmark": "SWE-bench Verified",
+             "metric": "% resolved", "eligible_count": 0, "frontier_size": 0, "sources": [], "picks": [],
+             "ranking": [], "unavailable_reason": "engine sentence", "unavailable_reason_code": "\(code)",
+             "source_health": {"benchmark": "SWE-bench Verified", "stale": true, "notice": "engine notice",
+                               "sources": [], "reason": "\(health)"}}
+            """.utf8))
+        }
+        let unreadable = try empty("unreadable", "unreadable")
+        let said = answerDisclosures(unreadable, anchor: nil, .english).map(\.text)
+        XCTAssertEqual(said, ["This surface's evidence could not be read, so how fresh it is is unknown."])
+        XCTAssertEqual(unavailableSentence(code: unreadable.unavailableReasonCode, benchmark: "SWE-bench Verified", .english),
+                       "This surface's evidence could not be read. This is a gap in the evidence, not a result.")
+        let gap = try empty("no_evidence", "no_source")
+        XCTAssertTrue(answerDisclosures(gap, anchor: nil, .english).first?.text.hasPrefix("No evidence source") == true)
     }
 
     // MARK: the close call

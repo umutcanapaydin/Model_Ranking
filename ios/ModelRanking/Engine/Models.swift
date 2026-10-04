@@ -103,6 +103,9 @@ struct Answer: Decodable, Identifiable {
     /// "this surface has no evidence to rank" — two different sentences, and M7 spent a security
     /// round making sure they are not collapsed into one. The client must not collapse them either.
     let unavailableReason: String?
+    /// D-176 clause 7 (M18-W2 review M2): which reason, as a code: `no_evidence`, `over_budget`,
+    /// `unreadable`. The app composes the sentence from it.
+    let unavailableReasonCode: String?
 
     let closeCall: String?
     /// D-176 (M18-W2): the values `closeCall` quotes, so `Notices.swift` says it in either language.
@@ -130,6 +133,7 @@ struct Answer: Decodable, Identifiable {
         case eligibleCount = "eligible_count"
         case frontierSize = "frontier_size"
         case unavailableReason = "unavailable_reason"
+        case unavailableReasonCode = "unavailable_reason_code"
         case closeCall = "close_call"
         case closeCallFact = "close_call_fact"
         case staleNotice = "stale_notice"
@@ -175,6 +179,8 @@ struct SourceHealth: Decodable, Equatable {
     let stale: Bool
     let notice: String?
     let sources: [SourceRow]
+    /// D-176 clause 7: why `sources` is empty, when it is: `no_source` or `unreadable`.
+    let reason: String?
 }
 
 struct SourceRow: Decodable, Identifiable, Equatable {
