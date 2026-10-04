@@ -217,6 +217,16 @@ became the filter "Only models with an API or open weights" (D-175). It filed #1
 the engine's data), #113 (a drawing request read as image reading, for W3), #114 (a test-order
 defect on `main`) and #115 (the Turkish permission prompt seen on a phone, for W6).
 
+**Amendment (2026-10-05, W3's close).** W3 took #113 from W2 beside #66 and #73.
+- #73 met its bar.
+- #66 held its false-positive bound and missed its catch bar.
+- #113 missed both of its bars.
+Three variants were spent on each problem, and the pull request asks the owner whether to ship what
+holds (D-169 clause 6, as amended). Three code reviews ran: two BLOCKING rounds (the committed
+`.venv` link, a spoiled held-out set, an image rule that over-fired), then PASS WITH MINOR. Two
+Tester seats ran: the first was BLOCKING on coverage, closed by its own test; the second was MINOR.
+It filed #117, #118, #119, #120, #126, #127, #132 and #133.
+
 **Amendment (2026-10-04, W6's own valve).** W6's P5, the compiler-level gates (#110, #107, #60,
 #85), moves to M19. Each needs a design of its own, and none blocks a first release on the owner's
 devices. The security-invariants list (#89) names each as a gap, with its issue, for the closure's
