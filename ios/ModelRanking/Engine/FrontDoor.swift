@@ -303,7 +303,7 @@ public struct GapRegisterStore {
 
     /// An unreadable or absent file is an EMPTY register, never a crash on launch.
     public func load() -> GapRegister {
-        // #58: `Data(contentsOf:)` fetches an https address as happily as a file, and a URL decoded
+        // #58: the read below fetches an https address as happily as a file, and a URL decoded
         // from text was the way there. The register is only ever a file on this device.
         guard url.isFileURL,
               let data = try? Data(contentsOf: url),
