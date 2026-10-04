@@ -78,6 +78,19 @@ Filled by: lead agent (Claude Code, local lane) · Date: 2026-10-05 · Wave comm
 The review record's nested sub-points were renumbered from bullets to numbered lists, format only,
 so the wave check reads only the findings' own bullets.
 
+## After the close: CI on the pull request
+
+CI first ran on this close's commit, and it was red two ways. Neither showed locally, and row 9's
+"gates SKIPPED: none" did not hold. The M18 repo review found both. It is the closure's record, on
+the branch `enhancement/m18-closure`, which this branch precedes:
+
+| finding | disposition |
+|---|---|
+| repo review M1: the guard's way out was per thread, set by a function fixture, so every live contract test was refused (16 failed, 2 errors, W4's Epoch tests among them) | fixed `d749403`: the way out is process-wide, set by a hook before the test's fixtures run |
+| repo review M2: one more artifact test skips in CI, 78 against a budget of 77 | fixed `d749403`: the budget is 78, with its reason; #137 asks for a local check |
+
+After `d749403`, every check on the pull request passes, `live-contracts` included.
+
 ## Wave footprint — RECORD ONLY, no rule attached
 
 ```

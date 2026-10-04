@@ -16,7 +16,6 @@ from __future__ import annotations
 import ipaddress
 import os
 import socket
-import threading
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -54,11 +53,14 @@ class NetworkReachedError(RuntimeError):
 
 
 _REAL: dict[str, object] = {}
-_LIFTED = threading.local()
+#: Process-wide, not per thread: a live contract test's downloads run on a worker thread
+#: (`protocols.bounded_get`), and a thread-local exemption stopped every one of them in CI (the M18
+#: repo review's M1). Set before the test's fixtures, module-scoped ones included, and cleared after.
+_LIFTED = {"on": False}
 
 
 def _refuse_unless_local(host: object, what: str) -> None:
-    if not getattr(_LIFTED, "on", False) and not _is_local(host):
+    if not _LIFTED["on"] and not _is_local(host):
         raise NetworkReachedError(f"a unit test {what} {host!r} (#122)")
 
 
@@ -121,14 +123,21 @@ def _remove_network_guard() -> None:
     _REAL.clear()
 
 
-@pytest.fixture(autouse=True)
-def _live_contract_tests_may_reach_out(request: pytest.FixtureRequest) -> Iterator[None]:
-    live = os.environ.get("RUN_CONTRACT_TESTS") == "1" and "integration" in Path(str(request.node.path)).parts
-    _LIFTED.on = live
-    try:
-        yield
-    finally:
-        _LIFTED.on = False
+def is_live_contract_test(path: object) -> bool:
+    """A test under `tests/integration`, in a run that asked for the live sources."""
+    return os.environ.get("RUN_CONTRACT_TESTS") == "1" and "integration" in Path(str(path)).parts
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_setup(item: pytest.Item) -> Iterator[None]:
+    _LIFTED["on"] = is_live_contract_test(item.path)  # before the fixtures, whatever their scope
+    yield
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_teardown(item: pytest.Item, nextitem: pytest.Item | None) -> Iterator[None]:
+    yield
+    _LIFTED["on"] = False
 
 
 # --- W-108: the tests that read the real artifact ------------------------------------------------
