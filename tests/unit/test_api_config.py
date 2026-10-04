@@ -745,3 +745,24 @@ def test_no_test_reloads_a_module_other_tests_import_names_from() -> None:
             if name == "reload":
                 reloads.append(f"{path.relative_to(tests)}:{node.lineno}")
     assert not reloads, f"these tests reload a module: {reloads}"
+
+
+def test_the_empty_answer_tests_then_this_file_pass_in_that_order() -> None:
+    """Tester (M18-W7), #114 as its issue asked: run the two files in the order that failed. The gate
+    above reads calls named `reload`, so `from importlib import reload as again` passed it, and the
+    five `ConfigError` checks failed again in this order. A child pytest, without coverage, reports or
+    workers, and with this test deselected so it does not start itself."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    this = "tests/unit/test_api_config.py::test_the_empty_answer_tests_then_this_file_pass_in_that_order"
+    done = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts=",
+         "tests/unit/test_empty_answer_reasons.py", "tests/unit/test_api_config.py", "--deselect", this],
+        cwd=root, capture_output=True, text=True, timeout=300, check=False,
+        env={k: v for k, v in os.environ.items() if not k.startswith(("PYTEST_", "COV_"))},
+    )
+    assert done.returncode == 0, done.stdout[-2000:]

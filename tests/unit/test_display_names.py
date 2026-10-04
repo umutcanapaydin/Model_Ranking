@@ -103,3 +103,16 @@ def test_every_model_the_artifact_serves_is_named_by_this_code_as_a_product() ->
             misordered.append(problem)
     assert not raw_ids, f"served under their raw id: {sorted(raw_ids)}"
     assert not misordered, misordered
+
+
+def test_claude_4_is_the_edge_and_the_rest_of_a_name_stays() -> None:
+    """Tester (M18-W7), #112: the turn's edges. Claude 4 itself is tier first, a Haiku turns like an
+    Opus, and what follows the version (a date, a mode) stays with the name. With the edge moved
+    either way, Haiku left out, or the rest of the name dropped, every earlier test passed."""
+    turn = registry.claude_word_order
+    assert turn("Claude 4 Opus") == "Claude Opus 4"
+    assert turn("Claude Opus 4") == "Claude Opus 4"
+    assert turn("Claude 4.9 Haiku") == "Claude Haiku 4.9"
+    assert turn("Claude Haiku 3.5") == "Claude 3.5 Haiku"
+    assert turn("Claude 4.9 Opus (thinking)") == "Claude Opus 4.9 (thinking)"
+    assert turn("Claude Sonnet 3.7 (2025-02-19)") == "Claude 3.7 Sonnet (2025-02-19)"

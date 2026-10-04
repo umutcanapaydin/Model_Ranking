@@ -581,3 +581,20 @@ def test_every_command_a_script_tells_the_operator_to_run_exists() -> None:
         declared = set(re.findall(r"^\s{2}(?:-\w, )?(--[\w-]+)", helped.stdout, re.M))
         missing = [flag for flag in flags if flag not in declared]
         assert not missing, f"{name} prints `-m {module}` with {missing}, which it does not take"
+
+
+def test_the_launchers_hint_builds_the_artifact_it_looked_for(tmp_path: Path) -> None:
+    """Tester (M18-W7), the W7 review's M6: the hint printed `--db advisor.db`, a file in the release
+    folder, while the service reads `$DEPLOY/data/advisor.db`; run as printed, it built a file the
+    next start would not read. The printed command must name the path that was missing."""
+    import shlex
+
+    tree = tmp_path / "release"
+    tree.mkdir()
+    missing = tmp_path / "data" / "advisor.db"
+    done = _launch(tree, MODEL_RANKING_DB=str(missing))
+    assert done.returncode == 1, done.stdout + done.stderr
+    hints = [line.split("build it:", 1)[1] for line in done.stdout.splitlines() if "build it:" in line]
+    assert len(hints) == 1, done.stdout
+    argv = shlex.split(hints[0])
+    assert argv[argv.index("--db") + 1] == str(missing), hints[0]

@@ -193,7 +193,7 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
     # is left out of its own comparison. Their strings are compared as strings, after JSON decoding.
     tuning = {p.name: _json_strings(json.loads(p.read_text(encoding="utf-8")))
               for p in sorted((root / "scripts/router_probe").glob("*.json")) if p not in live}
-    found = _held_out_leaks(held, texts, tuning)
+    found = _held_out_leaks(held, texts, _every_tuning_set_read(tuning))
     assert not found, f"held-out questions written into code, tests or tuning sets (file, length): {found}"
 
 
@@ -1356,3 +1356,47 @@ def test_a_held_question_clears_the_old_answer_and_its_two_taps_do_what_they_say
     assert re.search(
         r"routingInFlight = true\s*Task \{\s*defer \{ routingInFlight = false \}\s*await apply\(", confirm.group(1)
     ), "Find a model does not hold the field while it answers, or never gives it back"
+
+
+def _every_tuning_set_read(tuning: dict[str, list[str]]) -> dict[str, list[str]]:
+    """Tester (M18-W7), #119: the gate itself must read the tuning sets, of both shapes. With no
+    `.json` set read, or the `{q, ...}` sets read as empty, the gate passed: no question leaks today.
+    Only file names are printed."""
+    expected = {"probe_questions.json", "offtopic_questions.json", "refinement_questions.json",
+                "image_tuning_questions.json"}
+    assert expected <= set(tuning), f"tuning sets not read: {sorted(expected - set(tuning))}"
+    empty = sorted(name for name, strings in tuning.items() if not strings)
+    assert not empty, f"tuning sets read as empty: {empty}"
+    return tuning
+
+
+def test_the_held_out_gate_folds_case_on_every_side_and_reads_every_shape() -> None:
+    """Tester (M18-W7), #119 and the W7 review's K4: the planted case above is a lower-case question
+    copied in capitals. A question written with capitals and copied in lower case, the code half,
+    a short question whole in a set, and a `{q, ...}` set each passed a mutant of the gate.
+    Made-up questions, never a real one."""
+    planted = "Which Model Would Best Plan A Three Day Hike In The Alps"
+    assert _held_out_leaks({planted}, {}, {"tuning.json": [planted.lower()]})
+    assert _held_out_leaks({planted.lower()}, {"Router.swift": f'let q = "{planted.upper()}"'}, {})
+    assert _held_out_leaks({"Short One Here"}, {}, {"tuning.json": ["short one here"]})
+    assert planted in _json_strings([{"q": planted, "expected": "assistant"}])
+
+
+def test_greetings_in_the_off_topic_sets_are_not_searches_and_the_probe_skips_them() -> None:
+    """Tester (M18-W7), #118 and the W7 review's M7: D-169 reads a greeting as not a search, so the
+    off-topic sets label "hello", "good morning" and "thanks" NOT_A_SEARCH, and `probe.swift`, the
+    one scorer of their `[question, label]` shape, leaves those rows unscored instead of counting a
+    miss. Both sets are retired (the held-out gate's list), so their rows may be read here."""
+    import json
+
+    folder = CLIENT.parents[1] / "scripts/router_probe"
+    labels: dict[str, list[str]] = {}
+    for name in ("offtopic_questions.json", "offtopic_heldout_questions.json"):
+        for question, label in json.loads((folder / name).read_text(encoding="utf-8")):
+            labels.setdefault(question, []).append(label)
+    for greeting in ("hello", "good morning", "thanks"):
+        assert labels.get(greeting) and set(labels[greeting]) == {"NOT_A_SEARCH"}, greeting
+    probe = (folder / "probe.swift").read_text(encoding="utf-8")
+    assert re.search(r'if want == "NOT_A_SEARCH" \{ unscored \+= 1; continue \}', probe), (
+        "probe.swift scores a NOT_A_SEARCH row as a miss again"
+    )

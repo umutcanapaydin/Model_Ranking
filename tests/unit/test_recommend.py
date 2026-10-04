@@ -687,3 +687,18 @@ def test_a_pick_that_is_the_leader_carries_no_trade_off() -> None:
     assert value.model == quality.model == budget.model, [p.model for p in rec.picks]
     for pick in (value, budget):
         assert pick.trade_off is None and pick.trade_off_fact is None, pick.label
+
+
+def test_the_value_pick_can_be_the_leader_while_the_budget_pick_is_not() -> None:
+    """Tester (M18-W7), #102: each pick is compared with the leader on its own. In every earlier test
+    the value and budget picks were both the leader or both not, so the budget line reading the value
+    pick's flag (`cheap_is_quality = value is quality`) passed the suite. Priced between the value
+    and the budget picks, the leader is also the value pick; the budget pick is still another model."""
+    conn = _db()
+    conn.execute("UPDATE px_median SET in_m = 0.4, out_m = 1.0 WHERE model_id = 'claude-4.5-opus'")
+    rec = recommend(conn, "unlimited")
+    assert rec is not None
+    quality, value, budget = rec.picks
+    assert value.model == quality.model != budget.model, [p.model for p in rec.picks]
+    assert value.trade_off is None and value.trade_off_fact is None
+    assert budget.trade_off and budget.trade_off_fact
