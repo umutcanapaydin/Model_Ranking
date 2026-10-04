@@ -96,7 +96,8 @@ def test_a_latest_token_followed_by_a_word_derives_no_model(name: str) -> None:
 
 
 @pytest.mark.parametrize("name", ["chatgpt-4o-latest-20250326", "gpt-5.2-chat-latest-20260210",
-                                  "openai/chatgpt-4o-latest-2025-03-26", "claude-instant-1.2"])
+                                  "openai/chatgpt-4o-latest-2025-03-26", "claude-instant-1.2",
+                                  "gpt-4o-latest-v2"])  # W4 review R3: a version after it, too
 def test_a_dated_release_of_a_latest_alias_still_derives(name: str) -> None:
     """A date or version after the alias names one release, which is exactly what D-166 keeps."""
     assert derive_identity(name) is not None

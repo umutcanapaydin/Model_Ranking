@@ -271,6 +271,38 @@ def test_a_replaced_artifact_is_built_again(tmp_path: Path, monkeypatch: pytest.
     assert {b["id"] for b in before["boards"]} - {b["id"] for b in after["boards"]} == {"swebench"}
 
 
+def test_a_publish_during_a_build_is_not_filed_under_the_new_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """W4 review M1 (#55): the route opened the artifact, then read its identity. A publish landing
+    in between filed the OLD payload under the NEW artifact's key, and served it until the next one."""
+    import sqlite3
+
+    from app.adapter import main as adapter
+
+    db = tmp_path / "pipeline.db"
+    _seeded_db(db)
+    replacement = tmp_path / "next.db"
+    _seeded_db(replacement)
+    conn = sqlite3.connect(replacement)
+    conn.execute("DELETE FROM scores WHERE source = 'swebench'")
+    conn.commit()
+    conn.close()
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    real_open = adapter.open_readonly
+
+    def open_then_publish(path: Path) -> sqlite3.Connection:
+        opened = real_open(path)
+        if replacement.exists():
+            replacement.replace(db)  # the refresh publishes while this request holds the old file
+        return opened
+
+    monkeypatch.setattr(adapter, "open_readonly", open_then_publish)
+    client = TestClient(adapter.app)
+    assert "swebench" in {b["id"] for b in client.get("/v1/boards").json()["boards"]}
+    assert "swebench" not in {b["id"] for b in client.get("/v1/boards").json()["boards"]}
+
+
 def test_a_client_that_accepts_gzip_gets_the_boards_compressed(client: TestClient) -> None:
     """#55 (D-173 clause 5): about 500 KB a day uncompressed. Compressed for a client that asks, with
     the security header kept; unchanged for one that does not."""

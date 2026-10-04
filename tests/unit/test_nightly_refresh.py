@@ -576,3 +576,25 @@ def test_the_launcher_does_not_pin_a_hand_kept_epoch_bundle() -> None:
     assert "epoch_data" not in text
     assert 'EPOCH_DIR="${MR_EPOCH_DIR:-}"' in text, "the default is no bundle, so the engine fetches"
     assert "unset MODEL_RANKING_EPOCH_DIR" in text, "an inherited one must not win over the fetch"
+
+
+def test_the_child_checks_the_bounds_the_engine_serves_under(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """W4 review B1 (#57, D-173 clause 4): the child's allowlist left out the bound variables, so a
+    refresh checked its candidate against the defaults while the engine served under the owner's
+    override. Raised, every night was refused; lowered, a night published what a restart refuses."""
+    from app.workflows import serving_bounds
+
+    overrides = {"MODEL_RANKING_MAX_PUBLISHED_RANKING_ROWS": "1000",
+                 "MODEL_RANKING_MAX_PUBLISHED_STANDINGS_ROWS": "30000",
+                 "MODEL_RANKING_MAX_RANKED_ROWS": "10"}
+    for name, value in overrides.items():
+        monkeypatch.setenv(name, value)
+    seen = tmp_path / "bounds.json"
+    code = ("import dataclasses, json; from app.workflows.serving_bounds import bounds_from_env; "
+            f"json.dump(dataclasses.asdict(bounds_from_env()), open({str(seen)!r}, 'w'))")
+    assert asyncio.run(_child(tmp_path, code).run_once("nightly")) == 0
+    import dataclasses
+
+    assert json.loads(seen.read_text(encoding="utf-8")) == dataclasses.asdict(serving_bounds.bounds_from_env())
