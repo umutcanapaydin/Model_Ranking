@@ -609,3 +609,15 @@ Lesson: set a behaviour's bar after one baseline run, and verify on the real scr
   three are stacked, open and unmerged.
 - The owner asked the agent not to wait for merges, and to close issues once their fixes merged.
 Lesson: a gate that matches a spelling is beaten by the next spelling; read the structure, and plant the violation.
+
+## 2026-10-05 — the M18 closure: two independent reads, and a guard that never ran
+
+- The repo review (17 findings) and the closure security seat (one MAJOR, five MINOR) both passed
+  with findings. The MAJOR, which the review also found: `make deps` read no extra, so pyarrow left
+  the audit with W6. It now audits the locks. Every finding is fixed (`d749403`, `c256864`) or filed
+  (#137-#147).
+- W7's CI was red on the live contract tests and the skip budget; fixed on its branch, now green.
+- This session ran from the owner's home folder, so the repository's hooks never loaded. W7's
+  force-push went through a guard that blocks it (#142, the owner's to change).
+- The owner's bug-closing instruction is D-178; `note.txt` is retired; the M18 plan is reconciled.
+Lesson: start the session in the repository, or the guards you cite are not running.
