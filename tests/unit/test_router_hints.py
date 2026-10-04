@@ -506,3 +506,12 @@ def _assert_the_client_has_no_way_off_the_device() -> None:
     assert re.findall(r"isa = PBXFileSystemSynchronizedRootGroup;\s*path = (\w+);", project) == [
         "ModelRanking"
     ], "the target compiles a folder this gate does not read"
+
+
+def test_the_comment_stripper_removes_block_comments_too() -> None:
+    """#98: `_code` cut each line at its first `//` and kept `/* ... */`, so a line wrapped in a block
+    comment could satisfy any pin that reads Swift through it (the W1 Tester's mutant C4)."""
+    swift = 'let a = 1\n/* if let x = f() {\n    Text(x)\n} */\nlet b = "http://kept" // gone\n'
+    stripped = _code(swift)
+    assert "Text(x)" not in stripped and "if let" not in stripped
+    assert "let a = 1" in stripped and "let b =" in stripped
