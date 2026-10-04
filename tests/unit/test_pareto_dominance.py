@@ -178,7 +178,7 @@ def test_the_frontier_stays_sorted_by_quality_then_price() -> None:
     assert [row.model for row in pareto_frontier(rows)] == ["top", "mid", "cheap"]
 
 
-def test_equal_scores_and_equal_prices_break_on_name() -> None:
+def test_equal_scores_and_equal_prices_keep_the_rankings_order() -> None:
     """The last term of the sort key, and the only tiebreak still reachable after the fix.
 
     **Writing this test found something the reviewer's mutant report implied and nobody stated:
@@ -192,19 +192,25 @@ def test_equal_scores_and_equal_prices_break_on_name() -> None:
     the intended ordering, and removing it would make the key disagree with `min(value_pool,
     key=(blended_per_m, model))` two functions away. It is recorded so a future reader does not
     spend an hour writing the test that cannot exist.
+
+    **#44 (D-173 clause 1) changed the last term.** It was the display name, a spelling, so a
+    re-spelled model moved inside a full tie. The sort is stable and keeps the order the ranking
+    gave, which is by model id.
     """
     rows = [_ranking_row("b", 80.0, 5.0), _ranking_row("a", 80.0, 5.0)]
-    assert [r.model for r in pareto_frontier(rows)] == ["a", "b"]
+    assert [r.model for r in pareto_frontier(rows)] == ["b", "a"]
+
+
+def test_a_price_tie_in_a_pick_goes_to_the_rankings_order_not_the_name() -> None:
+    """#44 (D-173 clause 1): the value and cheapest picks broke a price tie by display name. The
+    first row in the ranking's order (score, then model id) wins it."""
+    from app.workflows.recommend import first_cheapest
+
+    rows = [_ranking_row("Zed", 80.0, 5.0), _ranking_row("Alpha", 70.0, 5.0)]
+    assert first_cheapest(rows).model == "Zed"
 
 
 def test_the_subscription_frontier_orders_the_same_way() -> None:
     """The second engine's key is `(-score, monthly_usd, plan)` and had the same untested tail."""
     rows = [_plan_rank("b", 80.0, 5.0), _plan_rank("a", 80.0, 5.0)]
     assert [r.plan for r in _pareto(rows)] == ["a", "b"]
-
-
-def test_a_full_tie_on_the_frontier_keeps_the_rankings_order() -> None:
-    """#44 (D-173 clause 1): rows tied on score AND price were ordered by display name. The frontier
-    keeps the order the ranking gave them (by model id), so a re-spelling moves nothing."""
-    rows = [_ranking_row("Zed", 80.0, 1.0), _ranking_row("Alpha", 80.0, 1.0)]
-    assert [r.model for r in pareto_frontier(rows)] == ["Zed", "Alpha"]
