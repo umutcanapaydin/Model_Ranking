@@ -184,8 +184,11 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
                 held.add(text)
     sources = [p for folder in ("ios", "src", "scripts", "tests") for p in (root / folder).rglob("*")
                if p.is_file() and p.suffix in {".swift", ".py"} and ".build" not in p.parts and "build" not in p.parts]
-    found = sorted({(p.name, q[:40]) for p in sources for q in held if q in p.read_text(encoding="utf-8", errors="ignore")})
-    assert not found, f"held-out questions written into code or tests: {found}"
+    # Whole quoted strings: a tuning question may contain a short held-out one by chance, and the
+    # question's text is not printed, so a failure does not spoil the set it guards.
+    texts = {p.name: p.read_text(encoding="utf-8", errors="ignore") for p in sources}
+    found = sorted({(name, len(q)) for name, text in texts.items() for q in held if f'"{q}"' in text})
+    assert not found, f"held-out questions written into code or tests (file, length): {found}"
 
 
 def test_the_apps_copy_of_the_ordering_note_is_the_engines() -> None:
