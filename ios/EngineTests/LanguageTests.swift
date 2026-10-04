@@ -8,7 +8,7 @@ import XCTest
 
 @testable import ModelRankingEngine
 
-final class LanguageCompositionTests: XCTestCase {
+final class LanguageCompositionTests: OfflineTestCase {
 
     private let highest: [String: Any] = [
         "reason": "highest_score", "benchmark": "SWE-bench Verified",
@@ -132,7 +132,7 @@ final class LanguageCompositionTests: XCTestCase {
     }
 }
 
-final class LocalisedUnitTests: XCTestCase {
+final class LocalisedUnitTests: OfflineTestCase {
 
     /// **Seen on the first Turkish screenshot: "En iyisinin 6 points yakınında".** The unit came
     /// from the engine as an English display label and went into a Turkish sentence unchanged. A
@@ -188,7 +188,7 @@ final class LocalisedUnitTests: XCTestCase {
     }
 }
 
-final class ScreenChromeTests: XCTestCase {
+final class ScreenChromeTests: OfflineTestCase {
 
     /// The chrome is a string TABLE — a title, a placeholder, a button — and that is deliberate:
     /// a table is the right shape for text carrying no values, and the wrong shape for a sentence
@@ -261,7 +261,7 @@ final class ScreenChromeTests: XCTestCase {
     }
 }
 
-final class HostileFactValueTests: XCTestCase {
+final class HostileFactValueTests: OfflineTestCase {
 
     /// **BLOCKING-1 of the M12 Stage 4.0 review.** `Int(Double)` is not a conversion, it is an
     /// assertion that the value fits — and every number here arrives from `/v1`. A well-formed
@@ -398,7 +398,7 @@ final class HostileFactValueTests: XCTestCase {
 }
 
 /// The router reads English. After M12-W4 the app asks in Turkish. Stage 4.0 MAJOR-7.
-final class RouterLanguageTests: XCTestCase {
+final class RouterLanguageTests: OfflineTestCase {
     /// The exact sentence the Turkish placeholder invites, plus questions a Turkish reader would
     /// actually type on this product.
     func testTurkishQuestionsAreDeclinedRatherThanScoredAsEnglish() {
@@ -439,7 +439,7 @@ final class RouterLanguageTests: XCTestCase {
 
 /// M18-W1 second review B2 (REQ-DEV-001): the address under a failure to reach the engine, in both
 /// languages.
-final class EngineAddressLanguageTests: XCTestCase {
+final class EngineAddressLanguageTests: OfflineTestCase {
     func testTheEngineAddressLineSpeaksBothLanguages() {
         let address = "http://umut-macbook-pro-2.local:8080"
         XCTAssertEqual(UIText.engineAddress(.english, address), "Engine address: http://umut-macbook-pro-2.local:8080")
@@ -449,7 +449,7 @@ final class EngineAddressLanguageTests: XCTestCase {
 
 /// M17-W5 review M4: a board added by a refinement is named as its chip is, and a chip says what a
 /// tap on it does, in both languages.
-final class CombinedListLanguageTests: XCTestCase {
+final class CombinedListLanguageTests: OfflineTestCase {
 
     private func board(_ id: String, benchmark: String) -> BoardStandings {
         BoardStandings(id: id, benchmark: benchmark, metric: "elo", rankingEffort: nil, evidenceDate: nil,

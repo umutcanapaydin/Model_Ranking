@@ -18,7 +18,7 @@ import XCTest
 
 @testable import ModelRankingEngine
 
-final class SameHostOnlyTests: XCTestCase {
+final class SameHostOnlyTests: OfflineTestCase {
     private func redirect(from host: String, to target: String) async -> URLRequest? {
         let delegate = SameHostOnly(host: host)
         let response = HTTPURLResponse(
@@ -84,7 +84,7 @@ final class SameHostOnlyTests: XCTestCase {
     }
 }
 
-final class EngineErrorVocabularyTests: XCTestCase {
+final class EngineErrorVocabularyTests: OfflineTestCase {
 
     /// Every case must say something DIFFERENT, because the whole reason they are separate cases
     /// is that they need different advice. A blanket sentence is the M8 plan's Trap 2.
@@ -137,7 +137,7 @@ final class EngineErrorVocabularyTests: XCTestCase {
     }
 }
 
-final class PayloadDecodingTests: XCTestCase {
+final class PayloadDecodingTests: OfflineTestCase {
 
     /// A payload the app cannot read must become `undecodable` — NOT an empty screen. Rendering a
     /// contract mismatch as "no results" is how a broken `/v1` looks exactly like a correct answer
@@ -232,7 +232,7 @@ private final class StubProtocol: URLProtocol, @unchecked Sendable {
     }
 }
 
-final class EngineClientDecisionTests: XCTestCase {
+final class EngineClientDecisionTests: OfflineTestCase {
     private func client() -> EngineClient {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubProtocol.self]
@@ -342,7 +342,7 @@ final class EngineClientDecisionTests: XCTestCase {
 
 // MARK: - M12-W2 — what the person holding the phone is told
 
-final class UserFacingMessageTests: XCTestCase {
+final class UserFacingMessageTests: OfflineTestCase {
 
     private let all: [EngineError] = [
         .unreachable("Could not connect to the server."),
@@ -415,7 +415,7 @@ final class UserFacingMessageTests: XCTestCase {
 
 // MARK: - M12-W3 — the chosen budget reaches the engine
 
-final class BudgetIsSentTests: XCTestCase {
+final class BudgetIsSentTests: OfflineTestCase {
     private func client() -> EngineClient {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubProtocol.self]
@@ -468,7 +468,7 @@ final class BudgetIsSentTests: XCTestCase {
 
 /// M17-W4 (D-167): the standings are fetched whatever the question is, so the request carries
 /// nothing -- no query, no path beyond the route -- and the bytes the engine sent are kept whole.
-final class BoardsRequestTests: XCTestCase {
+final class BoardsRequestTests: OfflineTestCase {
     private func client() -> EngineClient {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubProtocol.self]
@@ -548,7 +548,7 @@ final class BoardsRequestTests: XCTestCase {
 }
 
 /// M18-W1 (#87, D-171, REQ-DEV-001): the engine the app talks to is set per build, and loopback when it is not.
-final class EngineAddressTests: XCTestCase {
+final class EngineAddressTests: OfflineTestCase {
     func testABuildsEngineAddressIsUsedWhenItIsAnHttpUrlWithAHost() {
         XCTAssertEqual(EngineClient.engineURL(from: "http://Umut-MacBook-Pro-2.local:8080"),
                        URL(string: "http://Umut-MacBook-Pro-2.local:8080"))

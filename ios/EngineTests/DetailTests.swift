@@ -23,7 +23,7 @@ private struct Subject: DetailSubject {
     var effort: String?
 }
 
-final class DetailFactTests: XCTestCase {
+final class DetailFactTests: OfflineTestCase {
     private func facts(
         _ subject: Subject,
         anchor: Double? = 1400,

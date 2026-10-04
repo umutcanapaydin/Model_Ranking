@@ -6,7 +6,7 @@ import XCTest
 
 @testable import ModelRankingEngine
 
-final class RefinementBoundaryTests: XCTestCase {
+final class RefinementBoundaryTests: OfflineTestCase {
     private let served = ["coding", "assistant", "vision", "mathematics"]
 
     private func values(_ outcome: RoutingOutcome?) -> [String] {

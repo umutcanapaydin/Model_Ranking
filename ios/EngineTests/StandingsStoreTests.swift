@@ -14,17 +14,19 @@ private let standingsPayload = Data(#"""
     "blended_per_m":1.25,"accessibility":null}]}
     """#.utf8)
 
-final class StandingsStoreTests: XCTestCase {
+final class StandingsStoreTests: OfflineTestCase {
     private var folder: URL!
     private let arrived = Date(timeIntervalSince1970: 1_790_000_000)
 
     override func setUp() {
+        super.setUp()
         folder = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
     }
 
     override func tearDown() {
         try? FileManager.default.removeItem(at: folder)
+        super.tearDown()
     }
 
     private func store() -> StandingsStore {

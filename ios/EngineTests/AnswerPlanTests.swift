@@ -5,7 +5,7 @@ import XCTest
 
 @testable import ModelRankingEngine
 
-final class AnswerPlanTests: XCTestCase {
+final class AnswerPlanTests: OfflineTestCase {
     private func board(_ id: String, _ rows: [(String, Int)]) -> BoardStandings {
         BoardStandings(
             id: id, benchmark: "B \(id)", metric: "elo", rankingEffort: nil, evidenceDate: "2026-09-18",

@@ -5,7 +5,7 @@ import XCTest
 
 @testable import ModelRankingEngine
 
-final class ScoreFormTests: XCTestCase {
+final class ScoreFormTests: OfflineTestCase {
     /// REQ-CMP-004's citing tests, one per metric family, each in both languages.
     func testABoundedPercentageIsShownAgainstItsCeiling() {
         XCTAssertEqual(scoreText(83.5, metric: "% resolved", .english), "Score 83.5 / 100")
@@ -99,7 +99,7 @@ final class ScoreFormTests: XCTestCase {
     }
 }
 
-final class CheapPriceTests: XCTestCase {
+final class CheapPriceTests: OfflineTestCase {
     /// Seen on the M13-W3 simulator screenshot: DeepSeek V4 Flash at $0.13/1M read "about $0 per
     /// 1,500 pages of text". Rounding to whole dollars made a model that is not free look free.
     func testAPriceBelowADollarKeepsItsCents() {
@@ -130,7 +130,7 @@ final class CheapPriceTests: XCTestCase {
     }
 }
 
-final class PickLabelTests: XCTestCase {
+final class PickLabelTests: OfflineTestCase {
     /// Plan §2 W4: with no budget control, a label implying the reader set a budget is false.
     func testTheCheapestAcceptablePickIsNotCalledABudgetPick() {
         XCTAssertEqual(UIText.pickLabel("budget_pick", .english), "AFFORDABLE PICK")
@@ -149,7 +149,7 @@ final class PickLabelTests: XCTestCase {
 
 // MARK: - M14-W4: one score out of 100, per surface (D-143)
 
-final class OutOf100Tests: XCTestCase {
+final class OutOf100Tests: OfflineTestCase {
     /// REQ-SCR-001: an anchored Elo reads out of 100, and a model exactly at the anchor reads 50.
     func testAnEloRatingAtItsAnchorReadsFiftyOutOfAHundred() {
         XCTAssertEqual(scoreText(1467.5, metric: "elo", .english, anchor: 1467.5), "Score 50 / 100")
@@ -237,7 +237,7 @@ final class OutOf100Tests: XCTestCase {
 }
 
 /// Review M-1/M-2: the sentences on an anchored card speak the card's unit, never `Elo`.
-final class OutOf100SentenceTests: XCTestCase {
+final class OutOf100SentenceTests: OfflineTestCase {
     /// The assistant best-value card the seat measured: anchor 1400, a leader reading 65.0 / 100
     /// (1507.5) and a pick 25.5 Elo behind it reading 61.6. The sentence must say 3.4 points.
     func testTheTradeOffSaysPointsOutOf100NotElo() {

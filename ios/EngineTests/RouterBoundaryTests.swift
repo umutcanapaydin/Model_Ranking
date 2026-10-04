@@ -46,7 +46,7 @@ private let served = [
     "vision", "search", "search_factuality",
 ]
 
-final class RouterBoundaryTests: XCTestCase {
+final class RouterBoundaryTests: OfflineTestCase {
 
     // MARK: - REQ-RTR-003: any tier may be absent and the screen still works
 
@@ -163,7 +163,7 @@ final class RouterBoundaryTests: XCTestCase {
 // to check by hand, so the code that produces that value was never run. `unmeasured` was asserted
 // on a `RoutingOutcome` literal; the floor was never crossed; the default tier was never observed.
 
-final class RouterThresholdTests: XCTestCase {
+final class RouterThresholdTests: OfflineTestCase {
 
     /// REQ-RTR-005 through the REAL router. `unmeasured: true` → `false` at `Router.swift:171`
     /// survived all 18 tests before this existed.
@@ -206,7 +206,7 @@ final class RouterThresholdTests: XCTestCase {
     }
 }
 
-final class DefaultTierTests: XCTestCase {
+final class DefaultTierTests: OfflineTestCase {
 
     /// MAJOR from the review: nothing asserted that the DEFAULT router carries the on-device tier,
     /// so `platformModelRouter()` returning nil survived — the app could ship with tier 1
@@ -234,7 +234,7 @@ final class DefaultTierTests: XCTestCase {
 }
 
 
-final class ModelOutputBoundaryTests: XCTestCase {
+final class ModelOutputBoundaryTests: OfflineTestCase {
 
     /// D-104, REQ-RTR-002 — the one guard standing between a language model's output and a value
     /// this product acts on. The seat's mutant deleting it survived the entire suite, because it
