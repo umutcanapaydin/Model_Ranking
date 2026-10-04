@@ -593,3 +593,19 @@ itself can be read, as an encoded schema can, assert the value.
   filed (#76-#86).
 - From 2026-09-29 the owner asked the agent to proceed on its own recommendations.
 Lesson: set a behaviour's bar after one baseline run, and verify on the real screen what no gate reads.
+
+## 2026-09-29/10-05 — M18: the app on the owner's phone, the screen tested, the question read, a release prepared
+
+- W1 put the app on the owner's iPhone over the home network, by opt-in, checking every Host
+  (D-171). W4 and W5 cleared the engine's and the gates' backlogs (D-173). W2 gave the screen a
+  committed UI test target (D-175) and Turkish throughout (D-176). All four are merged (#99, #109,
+  #111, #116).
+- W3 read the question: signals in code, a closed verdict from the model, and a one-tap question
+  back. #73 met its bar. #66 held its false-positive bound and missed its catch bar. #113 missed both
+  bars. The first held-out set was spoiled when the author read it; fresh sets came from a new seat.
+  The pull request (#134) asks the owner whether to ship what holds.
+- W6 wrote the security-invariants list (71 rows), locked every install (D-177), bounded the refresh
+  in three limits, and put the data licences to the owner (#135). W7 took 13 open issues (#136). The
+  three are stacked, open and unmerged.
+- The owner asked the agent not to wait for merges, and to close issues once their fixes merged.
+Lesson: a gate that matches a spelling is beaten by the next spelling; read the structure, and plant the violation.
