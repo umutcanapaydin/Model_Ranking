@@ -154,20 +154,20 @@ sufficient.
   need to the owner's gap register (R4). This is the same kind of defect as B4.
 
   **Why MINOR on its merits:**
-  - The rule now reaches only `vision`.
-  - On the independent set, no request to read an image was overridden: 8 of 10 reach `vision`
+  1. The rule now reaches only `vision`.
+  2. On the independent set, no request to read an image was overridden: 8 of 10 reach `vision`
     after the fix, as at the baseline (`postfix-image_*`).
-  - It is one English construction, the answer carries its disclosure, and "Change" corrects it.
-  - The fix is a few lines.
+  3. It is one English construction, the answer carries its disclosure, and "Change" corrects it.
+  4. The fix is a few lines.
 
   **The fix:**
-  - Turn the test around. After an image noun, "into" means reading, unless a picture or style word
+  5. Turn the test around. After an image noun, "into" means reading, unless a picture or style word
     follows (cartoon, painting, sketch, anime, watercolour, drawing, sticker). Look to the end of the
     text, not eight words.
-  - Add the lines above as must-not-fire, through the tiers.
-  - Let `ReadingProbe.swift` record the tier's own surface, so a run can count the overrides (round
+  6. Add the lines above as must-not-fire, through the tiers.
+  7. Let `ReadingProbe.swift` record the tier's own surface, so a run can count the overrides (round
     2's B4, fix 1).
-  - If this is not fixed in this wave, file it on #113 with these lines.
+  8. If this is not fixed in this wave, file it on #113 with these lines.
 
 - **M17** `ios/ModelRanking/Engine/Reading.swift:79-82`, `:89-93`. **Round 2's M11, residual: the
   instruction signal still asks some genuine searches.** Each of these asks the reader, even when the
@@ -185,32 +185,32 @@ sufficient.
   istemci tarafı kodunu gösteren model
   ```
   The Turkish verbs and objects are matched as bare prefixes (`:80`, `:82`):
-  - `unut` matches the negative `unutmayan` ("that does not forget");
-  - `paylaş` matches `paylaşmak`, and `göster` matches `gösteren`;
-  - the object `istem` ("prompt") matches `istemiyorum` ("I don't want") and `istemci` ("client");
-  - `komut` matches `komut satırı` ("command line").
+  1. `unut` matches the negative `unutmayan` ("that does not forget");
+  2. `paylaş` matches `paylaşmak`, and `göster` matches `gösteren`;
+  3. the object `istem` ("prompt") matches `istemiyorum` ("I don't want") and `istemci` ("client");
+  4. `komut` matches `komut satırı` ("command line").
 
   The English verbs do not see a negation. The doc comment (`:68-73`) and D-169's amendment
   (`decisions.md:3339-3340`) say the phrases are specific enough that a search about instructions
   does not use them. The amendment also says "each list is matched on whole words"
   (`decisions.md:3342`). These two lists are matched by prefix.
-  - **Why MINOR:** each costs one tap, and on the held-out sets the code's doubts asked no genuine
+  5. **Why MINOR:** each costs one tap, and on the held-out sets the code's doubts asked no genuine
     search. My count is 0 of the genuine rows of all three fresh sets.
-  - **The fix:** read the Turkish verbs through `isTurkishVerb` (`:236`), which already accepts only
+  6. **The fix:** read the Turkish verbs through `isTurkishVerb` (`:236`), which already accepts only
     request forms, so `unutmayan` and `gösteren` drop out. Match the objects by their forms
     (`talimat…`, `istemi`, `istemini`), not `istem…`. Skip a verb after "not", "n't" or "won't". Add
     the lines as must-not-fire.
 
 - **M18** `ios/ModelRanking/Engine/Reading.swift:269-276`. **A plural acronym is "no word", which gives
   the note unasked.**
-  - `CRDTs` reads as no word: it is mixed case, so it is not taken as an acronym (`:271`), and it is five
+  1. `CRDTs` reads as no word: it is mixed case, so it is not taken as an acronym (`:271`), and it is five
     letters with no vowel (`:276`). Through the tiers, with the model saying "a model search" and
     `coding`, the reading is the note. That is D-169's costliest class, bounded at 2 per run.
-  - The code's own rule is "an acronym is a word" (`:29-30`).
-  - The reverse also holds: `ASDF QWER`, `AAAAAAAA` and `SDFGHJ` read as acronyms, so nonsense typed in
+  2. The code's own rule is "an acronym is a word" (`:29-30`).
+  3. The reverse also holds: `ASDF QWER`, `AAAAAAAA` and `SDFGHJ` read as acronyms, so nonsense typed in
     capitals escapes. That only costs catches.
-  - **Why MINOR:** a whole search made of one such token is rare.
-  - **The fix:** drop one trailing `s` before the capitals test, and run the repeated-letter and
+  4. **Why MINOR:** a whole search made of one such token is rare.
+  5. **The fix:** drop one trailing `s` before the capitals test, and run the repeated-letter and
     keyboard checks before it.
 
 - **M19** `ios/ModelRanking/ContentView.swift:851`, `:887-891`, `:930`;
@@ -227,9 +227,9 @@ sufficient.
      only by UI tests (`ScreenPathTests.swift:153`, `:132-136`), which no gate runs (R1).
 
   **The fix:**
-  - Pin `decline`'s body to its two statements.
-  - Pin `held = nil` in `select` and in `apply`.
-  - Add one UI path: the note, then "Change", then a surface, then its ranking shows.
+  1. Pin `decline`'s body to its two statements.
+  2. Pin `held = nil` in `select` and in `apply`.
+  3. Add one UI path: the note, then "Change", then a surface, then its ranking shows.
 
 - **M20** `docs/prd.md:542`, `:524`, `:544` and eight older rows;
   `docs/research/m18-w3-question-reading-probe-2026-10-04.md:131`, `:147-149`. **Records: one number
@@ -243,20 +243,20 @@ sufficient.
      (`postfix`, 3 and 3). Before the narrowing the rule caught them (`final2`, 0 on `web-dev`).
   3. **Citations.** Lines this wave inserted into two test files moved citations that were right at
      `93040ac`:
-     - REQ-ASK-005: `ReadingTests.swift:103`, `:123`, `:230` (now `:110`, `:138`, `:261`);
-     - REQ-GAP-001: `ReadingTests.swift:252` (the gap test is `:307`), `test_ios_client_contract.py:803`
+     1. REQ-ASK-005: `ReadingTests.swift:103`, `:123`, `:230` (now `:110`, `:138`, `:261`);
+     2. REQ-GAP-001: `ReadingTests.swift:252` (the gap test is `:307`), `test_ios_client_contract.py:803`
        (now `:806`; the held-branch pin is `:869`), `test_router_hints.py:383` (now `:399`);
-     - older rows that cite `test_ios_client_contract.py:204`, `:379`, `:446`, `:511`, `:770` (twice),
+     3. older rows that cite `test_ios_client_contract.py:204`, `:379`, `:446`, `:511`, `:770` (twice),
        `:973` and `:1110` (now `:236`, `:415`, `:482`, `:547`, `:806`, `:1034`, `:1171`): REQ-APP-001,
        REQ-APP-002, REQ-APP-004, REQ-APP-005, REQ-ASK-001, REQ-ASK-004, REQ-DTL-001 and REQ-PRC-002;
-     - REQ-RTR-004's `test_router_hints.py:310` (now `:326`).
+     4. REQ-RTR-004's `test_router_hints.py:310` (now `:326`).
 
      Each now points into another test or into a test's body.
 
   **The fix:**
-  - Give REQ-IMG-003 the shipped number, 7 of 15, on a spent set.
-  - In the record, give 6 and 2 of 8, and the 3 requests on `web-dev`.
-  - Re-point the 15 citations. **K7** is the gate that would stop this happening again.
+  1. Give REQ-IMG-003 the shipped number, 7 of 15, on a spent set.
+  2. In the record, give 6 and 2 of 8, and the 3 requests on `web-dev`.
+  3. Re-point the 15 citations. **K7** is the gate that would stop this happening again.
 
 ### PASS (what looks good)
 
@@ -452,23 +452,23 @@ ios/ModelRanking/Engine/ScriptedRouting.swift:26:        return ModelOutputBound
 - **R5** `docs/plans/m18-wave-3-plan.md:86`; D-169 clause 6 (`decisions.md:3353-3357`). **The owner's
   one question may be asked on the wrong numbers.** The plan and the ADR say only "whether to ship what
   holds". For the owner to decide, the pull request should say, in plain words:
-  - #73 is met.
-  - #66: no genuine search got the note, and 1 to 3 of 40 were asked. 19 to 21 of 40 non-searches
+  1. #73 is met.
+  2. #66: no genuine search got the note, and 1 to 3 of 40 were asked. 19 to 21 of 40 non-searches
     were caught, against 32. Knowledge questions are the gap.
-  - #113, for the code that ships: 7 of 15 requests to make an image are told "not measured", and 3
+  3. #113, for the code that ships: 7 of 15 requests to make an image are told "not measured", and 3
     get the `web-dev` ranking as if measured. 8 of 10 requests to read one reach `vision`, as before,
     but up to 6 of them only after a question.
-  - Every genuine search that was asked was asked on the model's "something else" alone. That is one
+  4. Every genuine search that was asked was asked on the model's "something else" alone. That is one
     lever the owner can pull: if the model's verdict alone did not ask, no genuine search would be
     asked, and about 8 or 9 of the 20 catches would be lost (record §5).
 
   What would show it is real: a pull request whose question omits these numbers, or gives 10 of 15.
 - **R6** `Reading.swift:129-173`; #113. **The image rule reads orders, not searches.** It catches "draw
   me a cat" and "generate a picture of …". It misses the way a model search is usually written:
-  - "which model is best at generating images";
-  - "which AI creates the best logos";
-  - `resim üreten model hangisi`;
-  - `görsel oluşturan yapay zeka`.
+  1. "which model is best at generating images";
+  2. "which AI creates the best logos";
+  3. `resim üreten model hangisi`;
+  4. `görsel oluşturan yapay zeka`.
 
   The model also now sends 3 of 15 requests to make an image to `web-dev`, where the rule does not
   reach. This is what keeps #113 open. What would show it is real: #91's questions, with requests to

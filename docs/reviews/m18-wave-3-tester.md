@@ -4,14 +4,14 @@ id: m18-wave-3-tester
 status: ratified
 seat: independent
 process_version: v6.6
-date: 2026-10-04
+date: 2026-10-05
 ---
 # Wave 3 Tester Review, second seat (m18)
 
 **Reviewer:** Tester subagent (fresh eyes). This seat wrote none of the wave's code, tests or records.
 It is not the first Tester seat, and it is none of the three Code-Reviewer seats.
 **Independent:** yes
-**Date:** 2026-10-04
+**Date:** 2026-10-05 (the seat ran from the evening of 2026-10-04 and finished after midnight)
 **Commit range:** `93040ac..a4c898f`, 16 commits. `a4c898f` is the fix round for the first Tester's
 BLOCKING verdict (`docs/reviews/m18-wave-3-tester-round-1.md`, then at `m18-wave-3-tester.md`, T1 to T9). By `/close-wave`, a BLOCKING Tester
 verdict means a fix round and then a new Tester. This is that new seat.
@@ -191,13 +191,13 @@ No touched module is below its base. This seat's tests add no source line, so th
       X18, "Find a model" calls `decline` (`ScreenPathTests.swift:153`); X19, "No" calls `confirm`
       (`:132`); X20, "Find a model" does nothing (`:153`).
    3. Three faults fail nothing at all:
-      - X17 drops `defer { routingInFlight = false }` from `confirm`. After "Find a model", the field
+      1. X17 drops `defer { routingInFlight = false }` from `confirm`. After "Find a model", the field
         stays locked and the spinner turns for good (`:460`, `:475`). The reader cannot ask again
         until the app restarts.
-      - X16 drops `routingInFlight = true` from `confirm`. The field is open while the answer loads,
+      2. X16 drops `routingInFlight = true` from `confirm`. The field is open while the answer loads,
         and `confirm`'s `defer` can unlock it while a newer question still routes: the double route
         the review's M3 closed.
-      - X21 shows both buttons in English on the Turkish screen. That is #63 finding 2's class. The UI
+      3. X21 shows both buttons in English on the Turkish screen. That is #63 finding 2's class. The UI
         tests run in English only.
    4. **The fix:** the same test (`test_ios_client_contract.py:1288`). It pins each button to its
       action in the reader's language, and `confirm`'s lock and unlock. It kills X16 to X21.
@@ -241,7 +241,7 @@ No touched module is below its base. This seat's tests add no source line, so th
 
 ## Risks queued to next M
 
-- No new risk. The first seat's R7 and R8 stand: #113's rule does nothing on the wording tier, and
+- None new. The first seat's R7 and R8 stand: #113's rule does nothing on the wording tier, and
   #66's catch rate without Apple Intelligence is a third of the bar. The reviews' R3 to R6 stand as the
   third review wrote them.
 
