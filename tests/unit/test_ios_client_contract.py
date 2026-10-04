@@ -162,6 +162,32 @@ def test_the_combined_list_renders_the_disclosures_its_plan_carries() -> None:
     )
 
 
+def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
+    """M18-W3 review B2 and K2: a held-out set measures only while nothing was tuned on it (D-147
+    clause 5). The #66 measure was spoiled that way: held-out questions were asserted word for word
+    in a test and fed phrases to the signals. So no held-out question of 15 characters or more may
+    appear in the app, its tests, the engine or the scripts, beyond the set files themselves."""
+    import json
+
+    root = CLIENT.parents[1]
+    sets = sorted((root / "scripts/router_probe").glob("*heldout*_questions.json"))
+    # Sets already run, and so tuning now: M16's and M17's, and M18-W3's first two (review B2).
+    retired = {"heldout_questions.json", "refinement_heldout_questions.json", "coding_heldout_m17_questions.json",
+               "notasearch_m17_heldout_questions.json", "image_heldout_first_questions.json"}
+    live = [path for path in sets if path.name not in retired]
+    assert live, "no live held-out set found; this check compares nothing"
+    held = set()
+    for path in live:
+        for row in json.loads(path.read_text(encoding="utf-8")):
+            text = row[0] if isinstance(row, list) else row["q"]
+            if len(text) >= 15:
+                held.add(text)
+    sources = [p for folder in ("ios", "src", "scripts", "tests") for p in (root / folder).rglob("*")
+               if p.is_file() and p.suffix in {".swift", ".py"} and ".build" not in p.parts and "build" not in p.parts]
+    found = sorted({(p.name, q[:40]) for p in sources for q in held if q in p.read_text(encoding="utf-8", errors="ignore")})
+    assert not found, f"held-out questions written into code or tests: {found}"
+
+
 def test_the_apps_copy_of_the_ordering_note_is_the_engines() -> None:
     """D-176 (M18-W2): the app says Ruling A's ordering note in both languages from its own copy of
     the engine's sentence, because the note carries no values to compose from. The copy must be the
@@ -832,6 +858,14 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     # REQ-ASK-004 for the QUESTION (W3 review BLOCKING-2): a ticket before the router is awaited,
     # checked after it, and retired by a `Change` selection.
     asked = ask.group(1)
+    # D-169 clauses 4 and 5 (M18-W3 review M2): a held reading sends no request, loads nothing and
+    # keeps nothing in the register. Its branch holds the question and returns, and nothing else.
+    held_branch = re.search(r"guard outcome\.reading == \.search else \{(.*?)\n        \}", asked, re.S)
+    assert held_branch, "the branch for input that is not a search is gone"
+    held_code = "\n".join(line.split("//", 1)[0] for line in held_branch.group(1).splitlines())
+    for forbidden in ("load(", "client.", "gaps.", "recordsGap", "task =", "apply("):
+        assert forbidden not in held_code, f"a held reading reaches `{forbidden}`"
+    assert re.search(r"held = HeldReading\(typed: typed, outcome: outcome\)", held_code), "the reading is not held"
     assert re.search(
         r"let ticket = routingGate\.begin\(\)\s*let outcome = await router\.route", asked
     ), "routing takes no ticket before it suspends"

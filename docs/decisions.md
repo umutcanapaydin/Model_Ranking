@@ -3327,33 +3327,35 @@ Intelligence become the common case.
 **AMENDED 2026-10-04 (M18-W3, decided by the agent on the owner's standing instruction of 2026-09-29,
 within the milestone plan's §2 W3).** Measured in M17, the on-device model alone could not hold the
 line (five variants; `docs/research/issue-66-not-a-model-search-probe-2026-09-28.md` on the issue-66
-branch). The M18 plan changes how the line is held:
-- **Clause 2 becomes a separate field.** It is a closed yes/no field before the surface (the issue
-  branch's variant 3), not a value among the surfaces. "The alternative not taken" no longer holds:
-  the contradiction it warned of is resolved in code, by the decision below.
-- **Clause 3 is amended.** Two signals decided in code apply on every tier, the model or not:
-  *no word* (text with no word in any language) and *pasted content* (a colon followed by a long
-  text, code, or several lines). The wording tier still cannot read a knowledge question or an
-  injection.
+branch). M18 holds it as follows; the measure is `docs/research/m18-w3-question-reading-probe-2026-10-04.md`.
+- **Clause 2 becomes a separate field.** It is a closed yes/no field, generated after the surface (the
+  issue branch's variant 3; generated first, it moved questions about documents to other surfaces).
+  "The alternative not taken" no longer holds: the contradiction it warned of is resolved in code, by
+  the decision below.
+- **Clause 3 is amended.** Signals decided in code apply on every tier, the model or not:
+  - *no word* (keyboard runs, repeated letters, long runs with no vowel; an acronym is a word);
+  - *small talk*: greetings, thanks and the like, and nothing else;
+  - *pasted content*: three lines, a code block, or a verb of acting before a colon;
+  - *an instruction to the app*: phrases specific enough that a search about instructions or roles
+    does not use them.
+
+  Each list is matched on whole words, under both the default and the Turkish case folding.
 - **Clause 4 gains a third outcome.** The decision is:
-  - *no word* → the note;
-  - the model says "not a search" **and** the content is pasted → the note;
-  - one of the two alone → a one-tap question back, "Did you mean to find a model for this?", which
-    sends nothing until the reader taps "find a model" (the ranking, as routed) or "no" (the note).
-- **Clause 6, restated for the question back.** On the held-out set, twice:
-  - at most 2 genuine searches get the note unasked;
-  - at most 4 are asked;
-  - at least 80 % of the not-a-search inputs get the note or the question.
-- **As built and measured** (`docs/research/m18-w3-question-reading-probe-2026-10-04.md`, variant E
-  at `4373dae`):
-  - Four signals are read in code: no word, pasted content, an instruction to the app, and small
-    talk. The first, third and fourth are the note alone. The model's verdict is generated last.
-  - On the held-out set, no genuine search was given the note or asked, in either run.
-  - 26 and 29 of 40 not-a-search inputs got the note or the question: below the 80 % bar. Knowledge
-    questions are the gap (1 and 2 of 9).
-  - Clause 6's catch bar is not met after three variants. The wave ships what holds, with the
-    shortfall stated in its pull request; the owner's merge is the acceptance this clause asks for.
-    #66 stays open for knowledge questions.
+  - *no word* or *small talk* → the note, alone: nothing in them can be routed;
+  - pasted content or an instruction to the app, together with the model's "not a search" → the note;
+  - any one of those three alone → a one-tap question back, "Did you mean to find a model for this?",
+    which sends nothing until the reader taps "find a model" (the ranking, as routed) or "no" (the
+    note). While it waits, no surface is shown.
+- **#113, in the same place.** A request to make or change an image is routed as unmeasured on every
+  tier, whatever surface was chosen: the model sent it to `vision`, which measures reading an image.
+- **Clause 6, restated for the question back.** On a held-out set, twice: at most 2 genuine searches
+  get the note unasked, at most 4 are asked, and at least 80 % of the not-a-search inputs get the note
+  or the question. Clause 6's "three failed attempts stop the work, and it goes back to the owner"
+  stands: where a bar is missed, the wave's pull request asks the owner one plain question, whether to
+  ship what holds.
+- **The first held-out measure was spoiled** (the wave's code review, B2): the author had read part of
+  the not-a-search held-out set, and its phrases reached the signals. That set and the first image set
+  are tuning sets now, and fresh sets written by a new independent seat are the measure.
 
 ## D-170 — The engine runs as a launchd service, from a deployed release of `main`
 

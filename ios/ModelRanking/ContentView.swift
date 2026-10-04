@@ -504,7 +504,11 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             row {
                 Group {
-                    if let outcome = routing,
+                    if held != nil {
+                        // D-169 clause 4 (review M3): the note and "Change" only; no surface is shown
+                        // for a question that was not answered.
+                        EmptyView()
+                    } else if let outcome = routing,
                        let echo = echoLine(question: asked, surfaceTitle: surfaceTitle(outcome.categoryID))
                     {
                         Text(echo)
@@ -867,6 +871,9 @@ struct ContentView: View {
 
     /// D-169 (M18-W3): the reader said it is a model search; it is answered as one, routed as read.
     private func confirm(_ held: HeldReading) {
+        // Review M3: one question at a time, as `submit` holds it; a tap while another routes would
+        // take a newer question's ticket.
+        guard !routingInFlight else { return }
         var outcome = held.outcome
         outcome.reading = .search
         routingInFlight = true

@@ -37,7 +37,7 @@ slice; the Tester's fault injection is owed.
 An independent seat wrote two new sets from the surface list and the problem statements. It read
 none of the router's wording:
 - `coding_heldout_m18_questions.json`: 80 questions, half in Turkish.
-- `image_heldout_questions.json`: 30 questions, half in Turkish.
+- `image_heldout_questions.json` (now `image_heldout_first_questions.json`, retired): 30 questions, half in Turkish.
 
 The baseline was run through `RefinementProbe.swift`, the model tier alone, on the owner's Mac.
 
@@ -67,36 +67,42 @@ The M17 rule holds: three variants per problem, then stop and file it.
 
 **Measured at `4373dae` (variant E), held out, twice** (the research record):
 - #73: 34 and 30 of 40; web-dev 16, 16; document 14, 14; other 5, 7. **Met.**
-- #113: 14 and 14 of 15 told "not measured"; 10 and 10 of 10 reading reach `vision`. **Met.**
-- #66: 0 genuine searches noted and 0 asked, in both runs; 26 and 29 of 40 caught. **The catch bar is
-  not met**; knowledge questions are the gap. After three variants the work on it stops, and #66 stays
-  open for them.
+- #113 and #66 were measured too, and that measure was **spoiled** (the code review's B2): the author
+  had read part of the not-a-search held-out set while checking its format, and its phrases reached the
+  signals. Both sets are tuning sets now. A new independent seat wrote fresh sets
+  (`notasearch_heldout_m18_questions.json`, `image_heldout_m18_questions.json`), which are the measure,
+  run once, after the review's fixes. The bars stay as set.
 
 ## Design (D-169, amended in this wave)
 
 1. **Signals decided in code, and tested** (`Reading.swift`). These do not depend on the model and
-   run on every tier:
-   - *no word*: text with no word in any language (keyboard runs, repeated letters, no vowels);
-   - *pasted content*: a colon followed by a long text, code, or several lines.
-2. **The model's reading:** one closed yes/no field before the surface, under D-169's instructions on
+   run on every tier, matched on whole words under both case foldings:
+   - *no word*: text with no word in any language (keyboard runs, repeated letters, long runs with
+     no vowel; an acronym is a word);
+   - *small talk*: greetings and thanks, and nothing else (tuning variant B);
+   - *pasted content*: three lines, a code block, or a verb of acting before a colon;
+   - *an instruction to the app*: specific phrases, in both languages (tuning variant B).
+2. **The model's reading:** one closed yes/no field, generated after the surface (variant D), under D-169's instructions on
    the owner's line. It is variant 3 of #66, which stayed inside the false-positive bound.
 3. **The decision:**
-   - *no word* → the note;
-   - the model says "not a search" **and** the content is pasted → the note;
-   - one of those two alone → **the question back** ("Did you mean to find a model for this?"), with
-     two taps: *find a model* (the ranking, as routed) or *no* (the note);
+   - *no word* or *small talk* → the note;
+   - the model says "not a search" **and** pasted content or an instruction to the app → the note;
+   - any one of those three alone → **the question back** ("Did you mean to find a model for this?"),
+     with two taps: *find a model* (the ranking, as routed) or *no* (the note);
    - otherwise → a search, routed as today.
 4. **The screen:**
    - the note and "Change", with no ranking, no request and no gap entry (D-169 clauses 4 and 5);
    - the question back shows the two taps and sends nothing until one is tapped.
-5. **#73 and #113** are wording in the model tier's descriptions and instructions, measured.
+5. **#73** is wording in the model tier's descriptions and instructions, measured. **#113** is wording
+   and a rule in code: the model would not decline a request to make an image (tuning: 0 of 6), so a
+   request to make or change one is routed as unmeasured on every tier (`makesAnImage`).
 
 ## Phases
 
 | Phase | Issues | Acceptance check |
 |---|---|---|
 | P0 | — | This plan, D-169 brought in and amended, the sets and the baseline committed |
-| P1, signals | #66 | `noWord` and `pastedContent` are tested on their own; neither fires on any genuine question in the tuning and held-out sets |
+| P1, signals | #66 | Each signal is tested on its own; none fires on a genuine question in the tuning sets, but one, a task with its content after a colon, which is a doubt by D-169 and is named in the test |
 | P2, reading | #66 | `RoutingOutcome` carries the reading; the boundary maps the model's field; the decision table is tested; the screen shows the note and the question back, held by UI tests |
 | P3, wording | #73, #113 | Tuned on the tuning sets, at most three variants each |
 | P4, measure | #66, #73, #113 | Every bar above holds in both runs on the held-out sets; the research record holds the runs |

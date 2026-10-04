@@ -19,59 +19,75 @@ enum InputReading: Equatable {
 }
 
 /// The signals decided in code. They read the text only, so they run on every tier, model or not.
+///
+/// Every list here is matched on whole words, under both the default and the Turkish case folding
+/// (review M7: "İ" and "I" fold differently in Turkish), never on a bare prefix (review B4:
+/// "yap" matched "yapay").
 enum InputSignals {
     /// Text with no word in any language: keyboard runs ("asdf qwer"), one letter repeated
-    /// ("aaaa"), letters with no vowel ("sdfsdf"), or nothing but digits and punctuation. Fewer than
-    /// four letters decides nothing ("ok", "zzz"): too little to read in code.
+    /// ("aaaa"), a long run of letters with no vowel ("sdfsdf"), or nothing but digits and
+    /// punctuation. Fewer than four letters decides nothing ("ok", "zzz"). A token written in capitals
+    /// is an acronym, and an acronym is a word (review B3: "HTML CSS", "PHP SQL").
     static func noWord(_ text: String) -> Bool {
         let letters = text.filter(\.isLetter)
         if letters.isEmpty { return !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         guard letters.count >= 4 else { return false }
-        let tokens = text.lowercased().split { !$0.isLetter }.map(String.init)
+        let tokens = text.split { !$0.isLetter }.map(String.init)
         return !tokens.contains(where: isWord)
     }
 
     /// Content pasted in to be acted on now: three or more lines, a code block, or a short
     /// instruction to act ("translate into Spanish:", "şunu düzelt:") followed by a colon and the
-    /// content. A question that only contains a colon, such as an error line pasted into a question
-    /// about code ("TypeError: …"), is not pasted content by this rule.
+    /// content. The instruction must be a verb, not a noun made from one (review M8: "Çeviri:",
+    /// "Kod düzeltme:" name a topic), and a question that only contains a colon, such as an error
+    /// line pasted into a question about code ("TypeError: …"), is not pasted content.
     static func pastedContent(_ text: String) -> Bool {
         let lines = text.split(whereSeparator: \.isNewline).filter {
             !$0.trimmingCharacters(in: .whitespaces).isEmpty
         }
         if lines.count >= 3 || text.contains("```") { return true }
         guard let colon = text.firstIndex(of: ":") else { return false }
-        let before = text[..<colon].lowercased()
         let after = text[text.index(after: colon)...].trimmingCharacters(in: .whitespacesAndNewlines)
-        let words = before.split { !$0.isLetter }.map(String.init)
-        guard (1...8).contains(words.count), after.count >= 2 else { return false }
-        return words.contains { word in actVerbs.contains { word == $0 || (word.hasPrefix($0) && $0.count >= 4) } }
+        guard after.count >= 2 else { return false }
+        return folds(String(text[..<colon])).contains { before in
+            let words = wordsOf(before)
+            guard (1...8).contains(words.count) else { return false }
+            return words.indices.contains { index in
+                actVerbsEnglish.contains(words[index]) || isTurkishVerb(words, at: index, stems: actStemsTurkish)
+            }
+        }
     }
 
     /// An attempt to instruct the model behind the text box, by the phrasings such attempts use, in
     /// both languages: "ignore your previous instructions", "you are now", "print your system
-    /// prompt", "önceki talimatları unut", "sen artık". Each phrase is specific enough that a model
-    /// search does not use it. Held by `ReadingTests`; a phrase added here is a reviewed edit.
+    /// prompt", "önceki talimatları unut", "sen artık bir". Each phrase is specific: a search for a
+    /// model that follows instructions well uses none of them (review B3). It is a doubt, not a
+    /// verdict: alone, the reader is asked.
     static func instructsTheApp(_ text: String) -> Bool {
-        let folded = text.lowercased()
-        return instructionPhrases.contains { folded.contains($0) }
+        folds(text).contains { folded in
+            let spaced = " " + wordsOf(folded).joined(separator: " ") + " "
+            return instructionPhrases.contains { spaced.contains(" \($0) ") }
+        }
     }
 
     static let instructionPhrases: [String] = [
-        "ignore your", "ignore all", "ignore the previous", "ignore previous", "previous instructions",
-        "system prompt", "your instructions", "your hidden", "you are now", "forget everything",
-        "forget your", "stay in character", "reply with the single", "respond only with",
-        "and nothing else", "new rule:", "talimat", "sistem komut", "sistem istem", "sen artık",
-        "artık sen", "bundan sonra sadece", "kuralları bir kenara", "kuralları unut", "gizli ayar",
-        "başka bir şey yazma", "yeni kural",
+        "ignore your", "ignore all previous", "ignore all prior", "ignore the previous", "ignore previous",
+        "ignore the above", "previous instructions", "prior instructions", "your system prompt",
+        "your instructions", "your hidden", "you are now", "forget everything", "forget your instructions",
+        "forget your rules", "reply with the single word",
+        "talimatlarını unut", "talimatları unut", "önceki talimatları", "önceki bütün talimatlarını",
+        "talimatlarını yazdır", "talimatlarını göster", "sistem komutunu", "sistem istemini",
+        "sen artık bir", "artık sen bir", "kuralları bir kenara", "kurallarını unut", "gizli ayarlarını",
     ]
 
     /// A greeting, thanks or small talk, and nothing else ("hi", "how are you", "ok", "selam",
-    /// "nasılsın", "test test 123"): every word is one of these, and there are at most six.
+    /// "nasılsın", "test test"): every word is one of these, and there are at most six. A model
+    /// search always names something beyond these words, so this decides alone.
     static func smallTalk(_ text: String) -> Bool {
-        let words = text.lowercased().split { !$0.isLetter }.map(String.init)
-        guard (1...6).contains(words.count) else { return false }
-        return words.allSatisfy(smallTalkWords.contains)
+        folds(text).contains { folded in
+            let words = wordsOf(folded)
+            return (1...6).contains(words.count) && words.allSatisfy(smallTalkWords.contains)
+        }
     }
 
     static let smallTalkWords: Set<String> = [
@@ -84,50 +100,124 @@ enum InputSignals {
 
     /// #113 (M18-W3): a request to MAKE or CHANGE an image, which nothing here measures: `vision`
     /// measures reading one. The on-device model sent these to `vision` even when told not to (0 of
-    /// 6 on the tuning set), so the line is drawn here: a verb that makes or changes followed,
-    /// within three words, by an image, or "draw"/"çiz" alone. Held by `ReadingTests`.
+    /// 6 on the tuning set), so the line is drawn here, narrowly (review B4):
+    /// - English: a making verb, then an image within four words, with no "from", "of", "for" or
+    ///   the like between ("generate code from an image" reads one); or "draw" before "me", "a", "an";
+    /// - Turkish: an image within four words before a making verb ("kedi resmi çiz"), or a form of
+    ///   "çiz" itself ("çizelge" and "çizgi" are not).
     static func makesAnImage(_ text: String) -> Bool {
-        let words = text.lowercased().split { !$0.isLetter }.map(String.init)
-        if words.contains(where: { $0 == "draw" || $0.hasPrefix("çiz") || $0 == "sketch" }) { return true }
-        for (index, word) in words.enumerated() where imageVerbs.contains(where: { word.hasPrefix($0) }) {
-            let near = words.dropFirst(index + 1).prefix(3) + words.prefix(index).suffix(3)
-            if near.contains(where: { candidate in imageNouns.contains { candidate.hasPrefix($0) } }) { return true }
+        folds(text).contains { folded in
+            let words = wordsOf(folded)
+            // A background removed or replaced, in a text that names an image ("remove the background
+            // from my product photo"); background noise in a podcast is no image.
+            if words.contains(where: isImageNoun), zip(words, words.dropFirst()).contains(where: { pair in
+                (["remove", "blur", "replace", "change"].contains(pair.0) && ["background", "the"].contains(pair.1))
+                    || (pair.0 == "arka" && pair.1.hasPrefix("plan"))
+            }), words.contains("background") || words.contains("arka") {
+                return true
+            }
+            for (index, word) in words.enumerated() {
+                let next = words.dropFirst(index + 1).prefix(4)
+                if word == "draw", let first = next.first, ["me", "a", "an", "my", "some"].contains(first) { return true }
+                if drawStemsTurkish.contains(word) { return true }
+                if imageVerbsEnglish.contains(word), let noun = next.firstIndex(where: isImageNoun),
+                   !words[(index + 1)..<noun].contains(where: readingPrepositions.contains) {
+                    return true
+                }
+                if isTurkishVerb(words, at: index, stems: imageStemsTurkish),
+                   words[max(0, index - 4)..<index].contains(where: isImageNoun) {
+                    return true
+                }
+            }
+            return false
         }
-        return false
     }
 
-    private static let imageVerbs = [
+    private static let imageVerbsEnglish: Set<String> = [
         "generate", "create", "make", "design", "edit", "retouch", "remove", "turn", "paint", "illustrate",
-        "fix", "enhance", "restore", "colorize", "colourise", "brighten", "sharpen",
-        "oluştur", "yap", "tasarla", "düzenle", "rötuş", "kaldır", "sil", "üret", "düzelt",
-        "netleştir", "renklendir",
+        "fix", "enhance", "restore", "colorize", "colourise", "brighten", "sharpen", "redraw",
     ]
-    private static let imageNouns = [
-        "image", "picture", "photo", "logo", "illustration", "avatar", "drawing", "poster", "icon",
-        "wallpaper", "selfie", "background", "resim", "görsel", "fotoğraf", "logo", "illüstrasyon",
-        "afiş", "ikon", "simge", "arka", "avatar", "portre", "portrait",
+    private static let readingPrepositions: Set<String> = [
+        "from", "of", "for", "in", "on", "about", "using", "with", "based", "into",
+    ]
+    private static let imageStemsTurkish: Set<String> = [
+        "oluştur", "tasarla", "düzenle", "rötuşla", "kaldır", "sil", "üret", "düzelt", "netleştir",
+        "renklendir", "boya", "çiz",
+    ]
+    private static let drawStemsTurkish: Set<String> = [
+        "çiz", "çizer", "çizebilir", "çizsene", "çizin", "çizsin", "çizermisin", "çizebilirmisin",
     ]
 
-    /// The verbs that ask the app to do something to text it is given, in both languages. A Turkish
-    /// verb is matched by its stem, so "çevir", "çevirir misin" and "düzeltir misin" all count.
-    /// Held by `ReadingTests`; a verb added here is a reviewed edit.
-    static let actVerbs: Set<String> = [
+    private static func isImageNoun(_ word: String) -> Bool {
+        let english: Set<String> = [
+            "image", "images", "picture", "pictures", "photo", "photos", "logo", "logos", "illustration",
+            "illustrations", "avatar", "avatars", "drawing", "poster", "icon", "icons", "wallpaper",
+            "selfie", "portrait", "cartoon",
+        ]
+        if english.contains(word) { return true }
+        // Turkish nouns take suffixes ("resmi", "fotoğrafımdaki"), so stems of five or more letters
+        // are matched at the start; "logo" and "ikon" only as themselves or with a vowel suffix.
+        let stems = ["resim", "resm", "görsel", "fotoğraf", "illüstrasyon", "afiş", "avatar", "portre", "çizim"]
+        if stems.contains(where: { word.hasPrefix($0) }) { return true }
+        return ["logo", "logoyu", "logosu", "logomu", "logomuzu", "ikon", "ikonu", "simge", "simgesi"].contains(word)
+    }
+
+    /// The verbs that ask the app to do something to text it is given. English as whole words;
+    /// Turkish by `isTurkishVerb`. Held by `ReadingTests`; a verb added here is a reviewed edit.
+    static let actVerbsEnglish: Set<String> = [
         "translate", "fix", "summarize", "summarise", "rewrite", "correct", "proofread", "convert",
         "explain", "answer", "solve", "calculate", "compute", "debug", "refactor", "rephrase",
         "paraphrase", "shorten", "improve", "edit", "write",
+    ]
+    static let actStemsTurkish: Set<String> = [
         "çevir", "tercüme", "düzelt", "özetle", "açıkla", "cevapla", "yanıtla", "hesapla", "dönüştür",
         "çöz", "kısalt", "iyileştir", "yaz",
     ]
 
+    /// A Turkish verb from `stems`, as a request is written: the bare imperative ("çevir"), a polite
+    /// imperative ("çevirsene", "çevirin"), the ability form ("çevirebilir"), or the aorist before a
+    /// question particle ("çevirir misin"). A noun built from the verb ("çeviri", "düzeltme") is not.
+    static func isTurkishVerb(_ words: [String], at index: Int, stems: Set<String>) -> Bool {
+        let word = words[index]
+        let questionFollows = index + 1 < words.count
+            && ["mi", "mı", "mu", "mü", "misin", "mısın", "musun", "müsün", "misiniz", "mısınız"]
+                .contains(where: { words[index + 1].hasPrefix($0) })
+        for stem in stems where word.hasPrefix(stem) {
+            let rest = String(word.dropFirst(stem.count))
+            if ["", "sene", "sana", "in", "ın", "un", "ün", "iver", "ıver", "ebilir", "abilir", "yebilir",
+                "yabilir"].contains(rest) {
+                return true
+            }
+            if ["ir", "ır", "ur", "ür", "er", "ar", "r"].contains(rest), questionFollows { return true }
+            if ["irmisin", "ırmısın", "urmusun", "ürmüsün", "ermisin", "armısın", "rmısın", "rmisin"].contains(rest) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /// The text folded both ways: the default and Turkish case folding differ on "I" and "İ", and a
+    /// reader may write either (review M7).
+    static func folds(_ text: String) -> [String] {
+        [text.lowercased(), text.lowercased(with: Locale(identifier: "tr_TR"))]
+    }
+
+    static func wordsOf(_ text: String) -> [String] {
+        text.split { !$0.isLetter }.map(String.init)
+    }
+
     /// A word, in any language: letters from a script beyond Latin (Cyrillic, Greek, Arabic, CJK and
-    /// the rest) are always words here; a Latin token is a word when it has a vowel, is not one letter
-    /// repeated or two letters alternating, and is not a run along a keyboard row.
-    private static func isWord(_ token: String) -> Bool {
-        if token.unicodeScalars.contains(where: { $0.value > 0x024F }) { return true }
+    /// the rest) are always words here; so is a token written in capitals, an acronym. Otherwise a
+    /// Latin token is a word unless it is one letter repeated or two alternating, a run along a
+    /// keyboard row, or five or more letters with no vowel.
+    private static func isWord(_ original: String) -> Bool {
+        if original.unicodeScalars.contains(where: { $0.value > 0x024F }) { return true }
+        if original.count >= 2, original == original.uppercased() { return true }
+        let token = original.lowercased()
         let distinct = Set(token)
         if token.count >= 2, distinct.count <= (token.count >= 4 ? 2 : 1) { return false }
-        guard token.contains(where: { vowels.contains($0) }) else { return false }
-        return !(token.count >= 4 && keyboardRows.contains { $0.contains(token) })
+        if token.count >= 4, keyboardRows.contains(where: { $0.contains(token) }) { return false }
+        return token.count < 5 || token.contains(where: { vowels.contains($0) })
     }
 
     private static let vowels: Set<Character> = Set("aeiouyáàâäãåæéèêëíìîïóòôöõøúùûüıœ")
@@ -142,14 +232,14 @@ enum InputSignals {
 
 /// D-169 as amended at M18-W3: the reading, from the signals in code and the model's verdict.
 ///
-/// - `noWord` decides alone: there is nothing to route. So do an instruction to the app and small
-///   talk, read in code (`certain`).
-/// - The model's "not a search" and pasted content together decide it is not a search.
+/// - No word, or small talk and nothing else, decides alone: there is nothing to route.
+/// - A doubt in code (pasted content, an instruction to the app) and the model's "not a search"
+///   together decide it is not a search.
 /// - Either one alone is a doubt, and the reader is asked.
 /// - `modelSaysNotASearch` is `nil` where no model read the question (another tier answered).
-func inputReading(noWord: Bool, pasted: Bool, modelSaysNotASearch: Bool?, certain: Bool = false) -> InputReading {
-    if noWord || certain { return .notASearch }
-    switch (modelSaysNotASearch ?? false, pasted) {
+func inputReading(noWord: Bool, smallTalk: Bool, doubt: Bool, modelSaysNotASearch: Bool?) -> InputReading {
+    if noWord || smallTalk { return .notASearch }
+    switch (modelSaysNotASearch ?? false, doubt) {
     case (true, true): return .notASearch
     case (true, false), (false, true): return .unsure
     case (false, false): return .search

@@ -129,6 +129,9 @@ final class RefinementBoundaryTests: OfflineTestCase {
             }
             XCTAssertEqual(try offered("surface"), served + [ModelOutputBoundary.declineSentinel])
             XCTAssertEqual(try offered("request"), ["a model search", "something else"])
+            // M18-W3 (review M6): the verdict is generated LAST. First, it moved questions about
+            // documents to other surfaces on the tuning set (16 to 10 of 16).
+            XCTAssertEqual(root["x-order"] as? [String], ["surface"] + RefinementKind.allCases.map(\.rawValue) + ["request"])
             for kind in RefinementKind.allCases {
                 XCTAssertEqual(try offered(kind.rawValue),
                                Refinements.table.filter { $0.kind == kind }.map(\.value) + ["none"])

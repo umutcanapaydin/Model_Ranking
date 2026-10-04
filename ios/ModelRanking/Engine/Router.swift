@@ -546,7 +546,7 @@ enum ModelOutputBoundary {
         known + [declineSentinel]
     }
 
-    /// D-169 (M18-W3): the model's verdict on the input, a closed yes/no generated before the surface.
+    /// D-169 (M18-W3): the model's verdict on the input, a closed yes/no generated after the surface.
     static let searchValue = "a model search"
     static let notASearchValue = "something else"
     static let requestChoices = [searchValue, notASearchValue]
@@ -710,9 +710,9 @@ struct TieredRouter {
             read.reading = outcome.reading
         }
         read.reading = inputReading(
-            noWord: InputSignals.noWord(question), pasted: InputSignals.pastedContent(question),
-            modelSaysNotASearch: outcome.tier == .model ? outcome.reading != .search : nil,
-            certain: InputSignals.instructsTheApp(question) || InputSignals.smallTalk(question))
+            noWord: InputSignals.noWord(question), smallTalk: InputSignals.smallTalk(question),
+            doubt: InputSignals.pastedContent(question) || InputSignals.instructsTheApp(question),
+            modelSaysNotASearch: outcome.tier == .model ? outcome.reading != .search : nil)
         return read
     }
 

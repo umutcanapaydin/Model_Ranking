@@ -292,6 +292,18 @@ def test_the_router_never_produces_anything_but_a_category_id() -> None:
         "whether it is measured, the other surface ids it came close to and the declared "
         "refinements it chose is a channel for an opinion the router may not have"
     )
+    # M18-W3 review M1: `reading`'s TYPE is the closed enum, and the enum carries no value: a case
+    # with a payload (`case said(String)`) would be a channel for the model's words.
+    assert re.search(r"var reading:\s*InputReading\s*=\s*\.search\s*$", block, re.MULTILINE), (
+        "`reading` must stay the closed InputReading enum"
+    )
+    reading_source = (ROUTER.parent / "Reading.swift").read_text(encoding="utf-8")
+    enum = reading_source[reading_source.index("enum InputReading") :]
+    enum = enum[: enum.index("\n}\n")]
+    cases = re.findall(r"^\s*case\s+(.+)$", enum, re.MULTILINE)
+    assert [c.strip() for c in cases] == ["search", "notASearch", "unsure"], (
+        f"InputReading's cases are {cases}; each must be a bare name, with no associated value"
+    )
     assert re.search(r"var alternatives:\s*\[String\]", block), (
         "`alternatives` must stay a list of surface ids; any other type can carry a sentence"
     )

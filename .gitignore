@@ -1,5 +1,7 @@
 # Virtual envs
 .venv/
+# M18-W3 review B1: `.venv/` matches only a directory; a link named .venv slipped past it.
+.venv
 venv/
 env/
 

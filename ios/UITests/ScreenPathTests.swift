@@ -153,7 +153,12 @@ final class ScreenPathTests: XCTestCase {
     func testFindAModelAnswersTheQuestionAsRouted() {
         ask("fix this function: def add(a, b): return a - b")
         XCTAssertTrue(app.buttons["askBack.find"].waitForExistence(timeout: 20))
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Showing:'")).firstMatch.exists,
+                       "a surface is shown for a question not yet answered")
         app.buttons["askBack.find"].tap()
+        // Review M3: the echo of the routed question appears only once it is answered as routed.
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH '“fix this function'")).firstMatch
+            .waitForExistence(timeout: 20), "Find a model did not answer the question as routed")
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'See the evidence'")).firstMatch
             .waitForExistence(timeout: 20), "Find a model did not answer")
         XCTAssertFalse(field("askBack").exists)
