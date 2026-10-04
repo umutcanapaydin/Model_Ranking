@@ -26,7 +26,8 @@ date: 2026-10-04
 
 **The security invariants (#89).**
 - 71 invariants, each citing its negative tests, held by a gate that fails closed.
-- Five gaps, each on an issue.
+- Six gaps, G-1 to G-6, each on an issue. (This said five; corrected at the M18 closure, the repo
+  review's M9. W7 closed two and the closure added two; the list's count is the one to read.)
 - 11 rows were mutated by the author, 20 mutants were run by the review, and 10 rows were mutated
   by the Tester. Every mutant died once the review's and the Tester's tests were in.
 

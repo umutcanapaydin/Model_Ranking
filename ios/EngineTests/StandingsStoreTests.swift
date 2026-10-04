@@ -174,9 +174,19 @@ final class StandingsStoreTests: OfflineTestCase {
         XCTAssertEqual(stored.standings, fetched.standings)
     }
 
+    /// A valid payload padded with JSON whitespace to `count` bytes. It decodes at any size, so only
+    /// the ceiling can refuse it (the M18 closure security seat's S4: zero bytes never decode, so a
+    /// test that fed them passed with the ceiling removed).
+    private func padded(to count: Int) -> Data {
+        standingsPayload + Data(repeating: UInt8(ascii: " "), count: count - standingsPayload.count)
+    }
+
     func testAPayloadOverTheCeilingIsNeverAccepted() {
         // Security S2: the ceiling holds wherever standings are made, not only on the network path.
-        XCTAssertThrowsError(try FetchedStandings(payload: Data(count: EngineClient.maxStandingsBytes + 1)))
+        XCTAssertThrowsError(try FetchedStandings(payload: padded(to: EngineClient.maxStandingsBytes + 1))) { error in
+            guard case let EngineError.undecodable(detail) = error else { return XCTFail("refused as \(error)") }
+            XCTAssertTrue(detail.contains("larger than"), "refused, but not for its size: \(detail)")
+        }
     }
 
     func testAFreshFetchIsStampedWithTheTimeItWasAskedFor() async throws {
@@ -190,11 +200,8 @@ final class StandingsStoreTests: OfflineTestCase {
         // Tester M6: pinned both ways -- the ceiling the research record measures against (about
         // eight times the 2026-09-25 payload), and "at" the ceiling is inside it.
         XCTAssertEqual(EngineClient.maxStandingsBytes, 4 * 1024 * 1024)
-        XCTAssertThrowsError(try FetchedStandings(payload: Data(count: EngineClient.maxStandingsBytes))) { error in
-            if case let EngineError.undecodable(detail) = error {
-                XCTAssertFalse(detail.contains("larger than"), "a payload at the ceiling was refused for its size")
-            }
-        }
+        XCTAssertNoThrow(try FetchedStandings(payload: padded(to: EngineClient.maxStandingsBytes)),
+                         "a valid payload at the ceiling was refused")
     }
 
     func testAnUnreadableFileIsNothingStoredNotACrash() throws {

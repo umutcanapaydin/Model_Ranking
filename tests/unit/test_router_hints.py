@@ -720,8 +720,31 @@ def test_only_tests_hand_the_gap_register_a_writer_of_their_own() -> None:
                 depth += {"(": 1, ")": -1}.get(code[end], 0)
                 end += 1
             call = code[match.end():end]
-            if "write:" in call:
+            # A trailing closure is the writer too (the M18 closure security seat's S3, V2).
+            if "write:" in call or code[end:].lstrip().startswith("{"):
                 passed.append(f"{path.relative_to(root)}: {call[:60]}")
     assert not passed, f"the app hands the gap register a writer of its own: {passed}"
     assert "write:" in (root / "ios/EngineTests/FrontDoorTests.swift").read_text(encoding="utf-8"), (
         "the test that needs the parameter is gone; then the parameter can go too")
+
+
+def test_the_view_reaches_the_gap_register_only_as_the_on_device_store() -> None:
+    """INV-67 holds where the store is defined (the M18 closure security seat's S3). Its
+    initialiser takes the URL, the file protection and the writer, so a view that built its own
+    store could save the typed question unprotected (V1) or hand it a writer (V2), with every other
+    gate green. Outside `FrontDoor.swift`, the app names the store only as `.onDevice`."""
+    root = pathlib.Path(__file__).resolve().parents[2]
+    app = root / "ios" / "ModelRanking"
+    home = app / "Engine" / "FrontDoor.swift"
+    seen, other = 0, []
+    for path in sorted(app.rglob("*.swift")):
+        if path == home:
+            continue
+        code = _code(path.read_text(encoding="utf-8"))
+        for match in re.finditer(r"\bGapRegisterStore\b", code):
+            seen += 1
+            if not re.match(r"\s*\.\s*onDevice\b", code[match.end():]):
+                line = code.count("\n", 0, match.start()) + 1
+                other.append(f"{path.relative_to(root)}:{line}: {code[match.start():match.start() + 60]!r}")
+    assert seen, "the view names the gap register nowhere; was it read?"
+    assert not other, f"the app reaches the gap register other than as `.onDevice`: {other}"

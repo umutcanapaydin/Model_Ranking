@@ -70,9 +70,11 @@ help:  ## this list, generated from the annotation on each target (a hand-writte
 # the editable install runs only when pyproject.toml changed since the last one. A phony
 # prerequisite here once kept the venv permanently out of date: every target rebuilt it over the
 # network, and an offline `make check` failed on pip rather than on anything it checks.
+# No `--upgrade-deps` (the M18 closure security seat's S5): it fetched the newest pip, unhashed, and
+# ran it before the hash-checked install. The Python's bundled pip installs the locks, pip among them.
 $(VENV)/pyvenv.cfg:
 	@echo "Using Python: $$($(SYS_PY) --version) at $$(command -v $(SYS_PY))"
-	$(SYS_PY) -m venv --upgrade-deps $(VENV)
+	$(SYS_PY) -m venv $(VENV)
 
 # M18-W6 (#35, D-177): from the locks, so a working tree runs the versions the suite was run on and
 # builds with a locked setuptools; then the project itself, with nothing more resolved or fetched.
@@ -251,8 +253,16 @@ secrets:  ## gitleaks over the working tree (install it first: INSTALL.md)
 	@command -v gitleaks >/dev/null 2>&1 || { echo "gitleaks not installed: cannot scan the tree for secrets. Install gitleaks (INSTALL.md)" >&2; exit 2; }
 	gitleaks detect --source . --no-git -v
 
-deps: install  ## the DECLARED dependencies against known advisories -- the same command CI runs (another stack: STACK_DEPS too)
-	$(PY) -m pip_audit --strict .
+#: Every lock under requirements/ (D-177), read from the directory, so a new lock is audited unasked.
+LOCKS := $(sort $(wildcard requirements/*.lock))
+
+deps: install  ## every LOCKED dependency, as it installs (D-177), against known advisories (another stack: STACK_DEPS too)
+# The M18 repo review's M3. This audited `.`, and pip-audit reads only `[project].dependencies` from
+# a pyproject.toml, so pyarrow left the audit when W6 moved it to the `ingest` extra. The locks are
+# what every install takes, extras included. No lock fails closed: an audit of nothing would pass.
+# CI runs the same audit once the owner applies the patch on #81.
+	@test -n "$(LOCKS)" || { echo "FAIL [deps]: no lock under requirements/ -- the audit would read nothing"; exit 1; }
+	$(PY) -m pip_audit --strict --disable-pip $(addprefix -r ,$(LOCKS))
 	$(if $(ON_PYTHON),,$(call bound,STACK_DEPS))
 
 slopsquat:  ## seed F.8: DECLARED deps exist on PyPI and are not brand new (offline = non-zero, never clean)

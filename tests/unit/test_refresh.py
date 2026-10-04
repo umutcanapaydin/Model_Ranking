@@ -2066,3 +2066,30 @@ def test_a_cycle_run_by_hand_with_a_copied_engine_pid_runs_to_its_end() -> None:
     done = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=30,
                           env={**os.environ, "PYTHONPATH": "src", cycle.ENGINE_PID: "1"}, check=False)
     assert done.returncode == 0, (done.returncode, done.stderr[-500:])
+
+
+def test_a_publish_replaces_the_file_and_never_writes_into_it(tmp_path: Path) -> None:
+    """INV-4 (the M18 closure security seat's S2): publishing over the live file passed every test.
+
+    A rename makes the live path name the candidate's own file in one step, and a reader that opened
+    the old file keeps reading the old bytes. A copy writes into the file the engine is reading, and
+    a kill mid-copy (SIGALRM at 27 minutes, SIGKILL at 30) leaves it torn. So: the published file is
+    the candidate's inode, and the old one is unchanged under its reader.
+    """
+    live = _artifact(tmp_path / "advisor.db", top_score=74.5)
+    built: list[int] = []
+
+    def building(argv: list[str]) -> int:
+        target = Path(argv[argv.index("--db") + 1])
+        _artifact(target, top_score=75.5)
+        built.append(target.stat().st_ino)
+        return 0
+
+    with live.open("rb") as reader:
+        before = reader.read()
+        outcome, code = refresh(live, builder=building)
+        reader.seek(0)
+        assert reader.read() == before, "the publish wrote into the file a reader had open"
+
+    assert code == EXIT_PUBLISHED and outcome.published, outcome.reason
+    assert built and live.stat().st_ino == built[0], "the published file is not the candidate's own file"
