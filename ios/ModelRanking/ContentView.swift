@@ -59,6 +59,8 @@ struct ContentView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     /// New finding A (M18-W2): whether the combined list shows every row or its top ten.
     @State private var showingAllCombined = false
+    /// #78: the reader's filter on the combined list. Kept across questions: it is a preference.
+    @State private var onlyAPIOrOpenWeights = false
     /// The reader's language. `@AppStorage` so the choice survives a relaunch — a flag switch that
     /// forgets is a flag switch nobody uses twice.
     @AppStorage("language") private var language: Language = .english
@@ -303,6 +305,19 @@ struct ContentView: View {
             // Why each board beyond the surface's own was added.
             Text(UIText.alsoCounting(language)).font(.footnote).foregroundStyle(Design.muted)
             refinementChips(view.refinements, removed: view.removed)
+            // #78 (M18-W2 P6): the served accessibility, as a reader filter. It hides rows; every
+            // row keeps its place among all the shared models.
+            Toggle(isOn: $onlyAPIOrOpenWeights) {
+                Text(UIText.accessFilter(language)).font(.footnote)
+            }
+            .tint(Design.accent)
+            .accessibilityIdentifier("accessFilter")
+            let rows = filteredEntries(view.list.entries, onlyAPIOrOpenWeights: onlyAPIOrOpenWeights)
+            if onlyAPIOrOpenWeights {
+                Text(UIText.accessFilterCount(shown: rows.count, of: view.list.entries.count, language))
+                    .font(.footnote).foregroundStyle(.secondary)
+                    .accessibilityIdentifier("accessFilterCount")
+            }
             Card {
                 VStack(alignment: .leading, spacing: 0) {
                     if view.list.entries.isEmpty {
@@ -310,9 +325,7 @@ struct ContentView: View {
                             .padding(12)
                     }
                     // New finding A (M18-W2): the top ten, and the rest on request.
-                    let shown = Array(view.list.entries.prefix(
-                        visibleCount(total: view.list.entries.count, expanded: showingAllCombined)
-                    ))
+                    let shown = Array(rows.prefix(visibleCount(total: rows.count, expanded: showingAllCombined)))
                     ForEach(shown, id: \.model.id) { entry in
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
                             // The combination's own place: tied models share it (review M1).
@@ -331,13 +344,13 @@ struct ContentView: View {
                             Divider().padding(.leading, 12)
                         }
                     }
-                    if view.list.entries.count > combinedVisibleRows {
+                    if rows.count > combinedVisibleRows {
                         Divider().padding(.leading, 12)
                         Button {
                             showingAllCombined.toggle()
                         } label: {
                             Text(showingAllCombined ? UIText.showFewer(language)
-                                 : UIText.showAll(view.list.entries.count, language))
+                                 : UIText.showAll(rows.count, language))
                                 .font(.subheadline)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(12)

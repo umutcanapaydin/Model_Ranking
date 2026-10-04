@@ -355,3 +355,30 @@ final class CombinedLengthTests: OfflineTestCase {
         XCTAssertEqual(visibleCount(total: 0, expanded: false), 0)
     }
 }
+
+/// #78 (M18-W2 P6): the served accessibility was decoded and used by nothing. It is a reader filter on
+/// the combined list now: only models with an API or open weights.
+final class AccessFilterTests: OfflineTestCase {
+    private func entry(_ id: String, _ access: String?, place: Int) -> CombinedEntry {
+        CombinedEntry(model: StandingModel(id: id, display: id, vendor: "V", blendedPerM: 1, accessibility: access),
+                      positions: [], place: place)
+    }
+
+    func testTheFilterKeepsModelsWithAnAPIOrOpenWeights() {
+        XCTAssertTrue(hasAPIOrOpenWeights("API access"))
+        XCTAssertTrue(hasAPIOrOpenWeights("Open weights (unrestricted)"))
+        XCTAssertTrue(hasAPIOrOpenWeights("Open weights (restricted use)"))
+        XCTAssertTrue(hasAPIOrOpenWeights("Open weights (non-commercial)"))
+        XCTAssertFalse(hasAPIOrOpenWeights("Hosted access (no API)"))
+        XCTAssertFalse(hasAPIOrOpenWeights(nil), "an unpublished access is not claimed")
+        XCTAssertFalse(hasAPIOrOpenWeights("Something new"), "a value this build does not know is not claimed")
+    }
+
+    /// Places stay the combination's own: the filter hides rows, it does not re-rank (D-167).
+    func testFilteringKeepsEachModelsPlace() {
+        let entries = [entry("a", "API access", place: 1), entry("b", nil, place: 2),
+                       entry("c", "Open weights (unrestricted)", place: 3)]
+        XCTAssertEqual(filteredEntries(entries, onlyAPIOrOpenWeights: true).map(\.place), [1, 3])
+        XCTAssertEqual(filteredEntries(entries, onlyAPIOrOpenWeights: false).count, 3)
+    }
+}

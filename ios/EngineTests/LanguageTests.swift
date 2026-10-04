@@ -621,3 +621,14 @@ final class ScreenExplanationTests: OfflineTestCase {
         XCTAssertTrue(UIText.gapsPurpose(.english).contains("this device"))
     }
 }
+
+/// #78 (M18-W2 P6): the combined list's access filter says what it does.
+final class AccessFilterLanguageTests: OfflineTestCase {
+    func testTheFilterSaysWhatItDoesInBothLanguages() {
+        XCTAssertEqual(UIText.accessFilter(.english), "Only models with an API or open weights")
+        XCTAssertEqual(UIText.accessFilter(.turkish), "Yalnızca API'si ya da açık ağırlıkları olan modeller")
+        XCTAssertEqual(UIText.accessFilterCount(shown: 2, of: 3, .english), "2 of 3 shown; places are among all 3")
+        XCTAssertEqual(UIText.accessFilterCount(shown: 2, of: 3, .turkish),
+                       "3 modelin 2 tanesi gösteriliyor; sıralar 3 modelin tamamı içinde")
+    }
+}

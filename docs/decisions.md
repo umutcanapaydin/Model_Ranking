@@ -3555,6 +3555,13 @@ build that reads launch arguments.
 - **A, the combined list's length:** ten rows, and the rest on request.
 - **B, a drawing request ranked as image reading:** question reading, filed as #113 for W3.
 
+**Decision on #78 (clause 4, M18-W2 P6).** The served accessibility becomes a reader filter on the
+combined list: "Only models with an API or open weights". It is served on `/v1/boards` only, so the
+cards (from `/v1/recommendations`) carry no filter. A model with no published access, or a value this
+build does not know, is not claimed. The filter hides rows and never re-ranks: every row keeps its
+place among all the shared models, and the screen says how many it shows of how many. D-173 clause
+3's loss guard keeps protecting the values the filter reads.
+
 ## D-176 — The notices are composed by the app from facts; the close call gains its fact
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29; M18-W2

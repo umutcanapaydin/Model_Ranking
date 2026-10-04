@@ -669,6 +669,18 @@ extension UIText {
             : "Models sharing a place are tied: their places on the boards balance out."
     }
 
+    /// #78: the combined list's reader filter, and how many rows it leaves.
+    static func accessFilter(_ language: Language) -> String {
+        language == .turkish ? "Yalnızca API'si ya da açık ağırlıkları olan modeller"
+            : "Only models with an API or open weights"
+    }
+
+    static func accessFilterCount(shown: Int, of total: Int, _ language: Language) -> String {
+        language == .turkish
+            ? "\(total) modelin \(shown) tanesi gösteriliyor; sıralar \(total) modelin tamamı içinde"
+            : "\(shown) of \(total) shown; places are among all \(total)"
+    }
+
     /// The control under a shortened combined list.
     static func showAll(_ total: Int, _ language: Language) -> String {
         language == .turkish ? "\(total) modelin hepsini göster" : "Show all \(total)"

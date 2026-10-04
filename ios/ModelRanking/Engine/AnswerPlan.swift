@@ -220,3 +220,18 @@ final class PlanMemo {
         return plan
     }
 }
+
+// MARK: - The reader's access filter (#78, M18-W2)
+
+/// Whether a model's served accessibility (Epoch's `model_metadata.csv`, M17-W3) says it has an API
+/// or open weights. An unpublished value, or one this build does not know, is not claimed.
+func hasAPIOrOpenWeights(_ accessibility: String?) -> Bool {
+    guard let accessibility else { return false }
+    return accessibility == "API access" || accessibility.hasPrefix("Open weights")
+}
+
+/// The combined list's rows with the filter applied. Each keeps its place among all the shared
+/// models: the filter hides rows, it does not re-rank them (D-167).
+func filteredEntries(_ entries: [CombinedEntry], onlyAPIOrOpenWeights: Bool) -> [CombinedEntry] {
+    onlyAPIOrOpenWeights ? entries.filter { hasAPIOrOpenWeights($0.model.accessibility) } : entries
+}

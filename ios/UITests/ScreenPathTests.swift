@@ -110,6 +110,19 @@ final class ScreenPathTests: XCTestCase {
         XCTAssertEqual(app.buttons["showAllCombined"].label, "Show fewer")
     }
 
+    /// #78: the served accessibility is a reader filter on the combined list, and says what it hid.
+    func testTheAccessFilterHidesRowsAndSaysHowMany() {
+        ask("Translate my letter into French")
+        let filter = app.switches["accessFilter"]
+        XCTAssertTrue(filter.waitForExistence(timeout: 30), "the combined list offers no access filter")
+        XCTAssertFalse(field("accessFilterCount").exists, "the count shows before the filter is on")
+        filter.switches.firstMatch.tap()
+        let count = field("accessFilterCount")
+        XCTAssertTrue(count.waitForExistence(timeout: 10), "the filter is on and says nothing about what it hid")
+        XCTAssertTrue(count.label.contains(" shown; places are among all "), count.label)
+        keep("the combined list, filtered to models with an API or open weights")
+    }
+
     func testChangeOpensTheChooserAndAChoiceIsShown() {
         app.buttons["change"].tap()
         XCTAssertTrue(app.navigationBars["What should we rank?"].waitForExistence(timeout: 10))
