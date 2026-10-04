@@ -264,7 +264,7 @@ run: install  ## the engine on :8080, serving the repo's own artifact
 	@# means an operator who sets either one keeps it -- these do not override a real deployment.
 	MODEL_RANKING_DB="$${MODEL_RANKING_DB:-$(CURDIR)/advisor.db}" \
 	APP_BUILD="$${APP_BUILD:-dev-$$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}" \
-	$(PY) -m uvicorn app.adapter.main:app --host 0.0.0.0 --port 8080 --reload
+	$(PY) -m uvicorn app.adapter.main:app --host 127.0.0.1 --port 8080 --reload
 
 clean:  ## remove the venv and every tool cache
 	rm -rf $(VENV) .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage build/check-fast

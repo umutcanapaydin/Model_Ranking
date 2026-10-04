@@ -112,6 +112,7 @@ build_and_launch() {
   if ! xcodebuild -project ios/ModelRanking.xcodeproj -scheme ModelRanking \
       -destination "platform=iOS Simulator,name=$DEVICE" -configuration Debug \
       -derivedDataPath "$BUILD_DIR/dd" build CODE_SIGNING_ALLOWED=NO \
+      ENGINE_URL=http://127.0.0.1:8080 PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE" \
       > "$BUILD_DIR/build.log" 2>&1; then
     echo "build    : FAILED"
     grep -E "error:" "$BUILD_DIR/build.log" | head -10

@@ -522,7 +522,8 @@ def test_the_client_refuses_a_redirect_that_leaves_its_configured_host() -> None
         "the delegate exists and is not passed to the request that needs it — an injection point "
         "that cannot inject, which is this project's most-repeated defect"
     )
-    assert re.search(r"request\.url\?\.host\s*==\s*host", client), (
+    # M18-W1 second review K3: compared without case; SameHostOnlyTests holds the behaviour.
+    assert re.search(r"request\.url\?\.host\?\.lowercased\(\)\s*==\s*host\?\.lowercased\(\)", client), (
         "the redirect delegate no longer compares hosts; a same-host check that does not check "
         "the host follows every redirect while looking like a control"
     )

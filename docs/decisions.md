@@ -3283,3 +3283,110 @@ The installer installs from PyPI without a lock (#35).
 installer's safety properties need more than the substring tests the M17 closure security seat found
 (MINOR-4).
 
+
+## D-171 — The engine can serve the owner's phone on his home network, by opt-in, checking every Host
+
+**Status:** accepted -- the owner asked on 2026-09-29 to see the app ("I want to see it, it's been two
+weeks", translated from Turkish) and to proceed on the agent's recommendations; M18-W1 · **Date:**
+2026-09-29 · **Amends** D-170 · from #87, #86.
+
+**Context.** The engine service (D-170) binds 127.0.0.1, so only the Mac and its simulator reach it.
+The owner's phone is on the same home network. A hosted engine needs the data licences ruled (#88) and
+the Stage 5.1 review first.
+
+**Decision.**
+1. **The engine checks the Host.** With `MODEL_RANKING_ALLOWED_HOSTS` set (a comma list), a request
+   whose Host, port stripped, is not on it gets 400. The service always sets it, loopback included, so
+   a page the owner's browser loads cannot rebind a name to the engine (closure security seat INFO
+   I-4). Unset, as in tests and by-hand development, every Host is served.
+2. **Loopback by default, fail closed.** `MODEL_RANKING_BIND` feeds uvicorn's one `--host`, and defaults
+   to 127.0.0.1. A bind that is not loopback with no allowed Hosts refuses to start.
+3. **The home network by opt-in only.** `scripts/install_engine_service.sh --lan` binds 0.0.0.0 and
+   allows `127.0.0.1`, `localhost`, the Mac's `<LocalHostName>.local` and its LAN address. Without
+   `--lan` nothing changes but the Host check.
+4. **The app's engine address is per build** (`ENGINE_URL` → the Info plist's `EngineURL`), with
+   loopback the fallback. The app declares local networking. The requests are the same parameterless
+   ones (D-126; D-160 as amended by D-168 note 9).
+
+**The cost.** On the home network, anyone who can reach the Mac can read what the engine serves:
+public benchmark data, read-only GETs, no account. A device on that network can also send an allowed
+Host by hand. The Host check stops a browser page, not a person on the network. The Mac's firewall and
+the opt-in are the controls.
+
+**Revisit when:** the app leaves the home network (a hosted engine, Stage 5), or the engine serves
+anything that is not public.
+
+**Notes from the wave's code review (2026-09-29).** `docs/reviews/m18-wave-1-review.md` found the
+decision describing a smaller exposure than the code made; these notes correct it.
+1. **Clause 2 is held where the bind is known (B1).** The variable was checked, not the bind, so
+   `make run` and a hand-typed `uvicorn --host 0.0.0.0` served every Host on every interface. Now,
+   with no list, the engine refuses any request that arrived on a network address rather than
+   loopback, whatever started it; and `make run` binds 127.0.0.1. The startup refusal stays for the
+   service.
+2. **Every network, not only the home one (M1).** `--lan` binds every interface, on every network
+   the MacBook joins, and the Mac announces its `.local` name on each, until the installer runs with
+   `--no-lan`. A reinstall keeps the mode it finds and says so (M2), so a routine redeploy after a
+   merge does not close it by accident, nor open it.
+3. **The Mac's firewall is off** (measured 2026-09-29), so it is not a control today; the opt-in is.
+   The owner's page says how to close the engine or turn the firewall on.
+4. **The phone's requests cross Wi-Fi in cleartext.** `/v1/recommendations` carries `task` (the
+   surface the question routed to, D-168 note 9) and `budget`; clause 4's "parameterless" was wrong.
+   Anyone who can see the network's traffic can read them. The question's text still never leaves
+   the phone.
+5. **The engine address is baked into the build,** an exception to AGENTS.md §5 ("runtime config
+   never build-baked"): a phone app has no process environment. `ios/app.sh` pins its own simulator
+   build to loopback, and the client's "not answering" message names the address it tried (M4).
+6. **The `.local` name can change** (R1): macOS renames a Mac on a Bonjour conflict. The page says to
+   check the name if the phone stops reaching the engine.
+
+REQ-DEV-001 (`docs/prd.md`) states the criterion this ADR serves.
+
+**Notes from the wave's second code review (2026-10-01).** They supersede the cost's last sentence
+and note 3's pointer to the firewall.
+7. **The firewall is not a control for this.** The macOS application firewall allows or blocks an
+   application, not a device or a network: allowing Python lets every device on every network in, and
+   blocking it shuts the phone out too. While `--lan` is on, the one control is `--no-lan`.
+8. **The address is on the screen** (note 5 said so before it was true). Under a failure to reach the
+   engine (unreachable, timed out, or no connection, which is how a refused local-network permission
+   can read), the failure view shows the address the app asked (`EngineError.addressNote`).
+9. **What forwards to loopback is not loopback** (R3). The no-list rule reads the socket's local
+   address, so a reverse proxy, `ssh -L` or a tunnel in front of an engine with no list exposes it with
+   every Host served. A hosted engine sets its list whatever its bind (#94).
+
+**Note from the wave's third code review (2026-10-01).** It completes note 6.
+10. **A renamed Mac needs the installer again**, not only a new address in the app: the engine's list
+    holds the name it was installed with, and refuses the new one (`unknown_host`, whose address the
+    failure screen now shows).
+
+
+## D-172 — The security review runs once per milestone, at its closure; a wave closes on its Code-Reviewer and Tester
+
+**Status:** accepted -- the owner's ruling of 2026-09-29: "a security review at the end of the
+milestone is enough now; at a wave's close, testing is enough" (owner, translated from Turkish) ·
+**Date:** 2026-09-29 ·
+**Amends** D-161 (its v6.6 note on review depth) and `docs/plans/m18-plan.md` · from #84.
+
+**Context.** Three texts disagreed on when a wave gets a security pass (#84): `AGENTS.md` §4 said
+both "never per wave" and "a HIGH wave also gets a security pass on its slice", and D-161's note
+retired the per-milestone seat that M17 then ran anyway. M17's two HIGH-wave passes found MINORs
+only, after the wave's Code-Reviewer and Tester had run; the milestone's closure seat found the
+cross-wave findings (MINOR-1 to MINOR-5).
+
+**Decision.**
+1. **No security pass per wave**, at any risk tier. `/close-wave` step 5 and checklist row 4 are
+   N/A in this project, citing this ADR. The risk tier still sets the Tester's fault injection.
+2. **A wave closes on its Code-Reviewer, then its Tester**, two separate independent subagents, as
+   D-161 has it.
+3. **One security seat per milestone, at its closure**: a fresh-eyes subagent from
+   `.claude/agents/Security-Reviewer.md` on the milestone's whole diff, before the closure pull
+   request opens. Each finding is fixed there, red first, or filed.
+4. **The Stage 5.1 release review is unchanged**: once, before anything deploys beyond the owner's
+   Mac.
+
+**The cost.** A security defect in a wave's slice can sit on `main` until the milestone closes. It
+reaches only the owner's Mac meanwhile, since nothing deploys elsewhere (D-170), with one exception:
+M18-W1's `--lan`, which the owner turns on. W1 had no pass on its slice; its Code-Reviewer read the
+network surface (B1, M1) and the closure seat reads it again.
+
+**Revisit when:** a wave's defect that a slice pass would have caught reaches the owner, or anything
+deploys beyond the owner's Mac.

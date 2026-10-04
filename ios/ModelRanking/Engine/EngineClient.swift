@@ -130,7 +130,28 @@ final class SameHostOnly: NSObject, URLSessionTaskDelegate {
         newRequest request: URLRequest,
         completionHandler: @escaping (URLRequest?) -> Void
     ) {
-        completionHandler(request.url?.host == host ? request : nil)
+        // W1 second review K3: DNS names are not case-sensitive, and URLSession lower-cases the host.
+        completionHandler(request.url?.host?.lowercased() == host?.lowercased() ? request : nil)
+    }
+}
+
+extension EngineError {
+    /// The line the failure screen shows under a failure to reach the engine (M18-W1 review B2).
+    ///
+    /// On a phone, a mistyped `ENGINE_URL` falls back to loopback, which the phone can never reach,
+    /// and a refused local-network permission can read as no connection at all. The address the app
+    /// asked is what tells those apart from an engine that is down. So does the engine's own refusal
+    /// of a name not on its list (D-171), and the platform's refusal of a cleartext name (W1 third
+    /// review M10): there the address IS the cause. Any other answer the engine gave carries none.
+    func addressNote(_ address: URL, _ language: Language) -> String? {
+        switch self {
+        case .unreachable, .timedOut, .offline, .insecureTransport:
+            return UIText.engineAddress(language, address.absoluteString)
+        case let .refused(_, code, _):
+            return code == "unknown_host" ? UIText.engineAddress(language, address.absoluteString) : nil
+        case .undecodable:
+            return nil
+        }
     }
 }
 
@@ -139,9 +160,19 @@ struct EngineClient {
     let baseURL: URL
     private let session: URLSession
 
-    /// Where the engine lives during development. `make run` binds 8080 on the developer's Mac,
-    /// and the iOS Simulator shares that host's loopback.
-    static let localDefault = URL(string: "http://127.0.0.1:8080")!
+    /// Where the engine lives: this build's `EngineURL` (the `ENGINE_URL` build setting, D-171),
+    /// or loopback, where the engine runs on the Mac and the iOS Simulator shares its loopback.
+    static let localDefault = engineURL(from: Bundle.main.object(forInfoDictionaryKey: "EngineURL") as? String)
+
+    /// An http(s) URL with a host, or loopback. A build without the setting, or with a value that
+    /// is not an engine address, talks to the Mac it was built on, as every build did before M18.
+    static func engineURL(from raw: String?) -> URL {
+        let loopback = URL(string: "http://127.0.0.1:8080")!
+        guard let raw, let url = URL(string: raw), let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https", let host = url.host, !host.isEmpty
+        else { return loopback }
+        return url
+    }
 
     /// How long a person will stare at a spinner before the app owes them a sentence.
     ///
@@ -244,10 +275,10 @@ struct EngineClient {
             case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed:
                 throw EngineError.offline
             default:
-                throw EngineError.unreachable(error.localizedDescription)
+                throw EngineError.unreachable("\(baseURL.absoluteString): \(error.localizedDescription)")
             }
         } catch {
-            throw EngineError.unreachable(error.localizedDescription)
+            throw EngineError.unreachable("\(baseURL.absoluteString): \(error.localizedDescription)")
         }
 
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0

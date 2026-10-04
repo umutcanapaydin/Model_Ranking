@@ -542,6 +542,42 @@ def _egress_problems(db: Path) -> list[str]:
     return out
 
 
+#: D-171 (M18-W1): the Host names this engine answers to, a comma list. The service always sets it
+#: (loopback included, so a browser page cannot rebind a name to the engine); unset, as in tests and
+#: by-hand development, every Host is served.
+ALLOWED_HOSTS_VAR = "MODEL_RANKING_ALLOWED_HOSTS"
+#: D-171: the address uvicorn binds, as the service's launcher passes it. Loopback unless opted in.
+BIND_VAR = "MODEL_RANKING_BIND"
+_LOOPBACK = frozenset({"127.0.0.1", "::1", "localhost"})
+
+
+def allowed_hosts() -> frozenset[str]:
+    """The Host names on the service's list, lower-cased; empty when no list is set."""
+    raw = os.environ.get(ALLOWED_HOSTS_VAR, "")
+    return frozenset(name.strip().lower() for name in raw.split(",") if name.strip())
+
+
+def _host_name(header: str) -> str:
+    """A Host header without its port: `[::1]:8080` -> `::1`, `a.local:8080` -> `a.local`."""
+    host = header.strip().lower()
+    if host.startswith("["):
+        return host[1 : host.index("]")] if "]" in host else host
+    return host.rsplit(":", 1)[0] if host.count(":") == 1 else host
+
+
+def _arrived_off_loopback(server: Any) -> bool:
+    """Whether a request came in on a network address rather than loopback: uvicorn reports the
+    local address each connection arrived on, whatever the bind. A name, as tests use, is not one."""
+    import ipaddress
+
+    if not server:
+        return False
+    try:
+        return not ipaddress.ip_address(str(server[0])).is_loopback
+    except ValueError:
+        return False
+
+
 def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
     """Check the security-relevant configuration once, at import, and FAIL CLOSED unless told not to.
 
@@ -606,6 +642,15 @@ def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
         # a data refresh that outgrows the machine should still fail at DEPLOY rather than under
         # the first burst of traffic, which is what W-017's condition (a) was always about.
         problems.extend(_egress_problems(db))
+
+    # D-171: beyond loopback only with a list of the Hosts the engine answers to. The service's
+    # preflight turns this problem into a refused start.
+    bind = os.environ.get(BIND_VAR, "127.0.0.1").strip().lower()
+    if bind not in _LOOPBACK and not allowed_hosts():
+        problems.append(
+            f"{BIND_VAR}={bind!r} serves beyond loopback with no {ALLOWED_HOSTS_VAR}: a page in the "
+            "owner's browser could rebind a name to this engine (D-171)"
+        )
 
     # D-154: the engine's own nightly refresh runs only where ingestion may (D-116).
     refresh_problem = nightly.switch_problem(
@@ -700,6 +745,21 @@ if _ALLOWED_ORIGINS:
         allow_methods=["GET"],
         allow_headers=["Accept", "Content-Type"],
     )
+
+
+@app.middleware("http")
+async def _known_host(request: Any, call_next: Any) -> Any:
+    """D-171: with a list set, a request to a Host not on it is refused before any route runs. With
+    no list, only what arrives on loopback is served, whatever the bind: `make run` and a hand-typed
+    uvicorn bound 0.0.0.0 with no list, and this is what holds them (W1 review B1)."""
+    allowed = allowed_hosts()
+    refused = (_host_name(request.headers.get("host", "")) not in allowed if allowed
+               else _arrived_off_loopback(request.scope.get("server")))
+    if refused:
+        response = _error(400, "unknown_host", "This engine does not answer to that host.")
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+    return await call_next(request)
 
 
 @app.middleware("http")
