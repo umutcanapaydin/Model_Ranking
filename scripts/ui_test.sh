@@ -2,8 +2,9 @@
 # D-175: the iOS UI test target (ModelRankingUITests), on the simulator, against a local engine.
 #
 # Builds the app for 127.0.0.1:$UI_TEST_PORT, starts an engine there from a COPY of the artifact
-# (MODEL_RANKING_DB, or advisor.db in the repo), and runs the target in two passes: every class but
-# FailureScreenTests with the engine up, then FailureScreenTests after the engine is stopped.
+# (MODEL_RANKING_DB; else the one the engine service serves; else advisor.db in the repo, #139), and
+# runs the target in two passes: every class but FailureScreenTests with the engine up, then
+# FailureScreenTests after the engine is stopped.
 # ScreenAuditTests (#63) captures and asserts nothing, so it runs only when named in UI_TEST_ONLY.
 # Not a leg of check-fast, gate or CI: none of them has a simulator and a built artifact. A wave that
 # changes a screen cites a run of this in its close record. UI_TEST_ONLY=Class[/test] runs one pass.
@@ -11,7 +12,13 @@ set -u
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${UI_TEST_PORT:-8090}"
-DB="${MODEL_RANKING_DB:-$REPO/advisor.db}"
+# #139: the service's artifact first. The checkout's copy can be weeks older (2026-09-24, before the
+# refinement boards), and the screen would then be tested on boards the phone no longer gets.
+SERVED="$HOME/Library/Application Support/model-ranking/engine/data/advisor.db"
+if [ -n "${MODEL_RANKING_DB:-}" ]; then DB="$MODEL_RANKING_DB"
+elif [ -f "$SERVED" ]; then DB="$SERVED"
+else DB="$REPO/advisor.db"
+fi
 DEVICE="${UI_TEST_DEVICE:-iPhone 17 Pro}"
 OUT="${UI_TEST_OUT:-$REPO/build/ui-test}"
 ONLY="${UI_TEST_ONLY:-}"
@@ -25,6 +32,7 @@ fi
 mkdir -p "$OUT"
 rm -rf "$OUT"/*.xcresult
 cp "$DB" "$OUT/advisor.db"
+echo "ui-test: the engine starts from a copy of $DB"
 
 ENGINE=""
 stop_engine() {
