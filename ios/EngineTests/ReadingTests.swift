@@ -235,7 +235,7 @@ final class ReadingThroughTheTiersTests: OfflineTestCase {
     }
 
     private func tiered(_ answers: [String: [String: String]]) -> TieredRouter {
-        TieredRouter(model: ScriptedModelRouter(answers: answers), similarity: NoSimilarity())
+        TieredRouter(model: ScriptedModelRouter(answers: answers), similarity: SilentTier())
     }
 
     func testTheModelsDoubtWithPastedContentIsANote() async {
@@ -261,7 +261,7 @@ final class ReadingThroughTheTiersTests: OfflineTestCase {
 
     /// Code signals run on every tier: with no model at all, no word is still a note.
     func testNoWordIsANoteOnEveryTier() async {
-        let outcome = await TieredRouter(model: nil, similarity: NoSimilarity()).route("asdf qwer zxcv", within: known)
+        let outcome = await TieredRouter(model: nil, similarity: SilentTier()).route("asdf qwer zxcv", within: known)
         XCTAssertEqual(outcome.tier, .manual)
         XCTAssertEqual(outcome.reading, .notASearch)
     }
@@ -322,7 +322,7 @@ final class ReadingThroughTheTiersTests: OfflineTestCase {
         for (question, surface) in lines {
             let router = TieredRouter(model: ScriptedModelRouter(answers: [question: ["request": "a model search",
                                                                                         "surface": surface]]),
-                                      similarity: NoSimilarity())
+                                      similarity: SilentTier())
             let outcome = await router.route(question, within: known)
             XCTAssertEqual(outcome.categoryID, surface, question)
             XCTAssertFalse(outcome.unmeasured, question)
@@ -339,11 +339,6 @@ final class ReadingThroughTheTiersTests: OfflineTestCase {
         outcome.reading = .notASearch
         XCTAssertFalse(recordsGap(outcome))
     }
-}
-
-/// A wording tier that never answers, so a test reaches the tier after it.
-private struct NoSimilarity: QuestionRouter {
-    func route(_ question: String, within known: [String]) async -> RoutingOutcome? { nil }
 }
 
 /// The M18-W3 Tester (`docs/reviews/m18-wave-3-tester.md`), REQ-ASK-005: faults in the reading that
@@ -424,13 +419,13 @@ final class ReadingFaultTests: OfflineTestCase {
     /// T6 (R11, R3): the wording tier's answer is read as the model's is, and the image rule keeps
     /// the tier that routed, so the screen still says "going by its wording" (M13-W3 MINOR-5).
     func testTheWordingTiersAnswerIsReadAndKeepsItsTier() async {
-        let made = await TieredRouter(model: nil, similarity: Answering(surface: "vision"))
+        let made = await TieredRouter(model: nil, similarity: AnsweringWordingTier(surface: "vision"))
             .route("draw me a cat in a spacesuit", within: known)
         XCTAssertEqual(made.categoryID, CategoryHints.unmeasuredFallback)
         XCTAssertTrue(made.unmeasured)
         XCTAssertEqual(made.tier, .similarity)
         XCTAssertTrue(routingNotice(made, .english).hasPrefix("Going by its wording"), routingNotice(made, .english))
-        let nonsense = await TieredRouter(model: nil, similarity: Answering(surface: "coding"))
+        let nonsense = await TieredRouter(model: nil, similarity: AnsweringWordingTier(surface: "coding"))
             .route("asdf qwer zxcv", within: known)
         XCTAssertEqual(nonsense.tier, .similarity)
         XCTAssertEqual(nonsense.reading, .notASearch)
@@ -445,7 +440,7 @@ final class ReadingFaultTests: OfflineTestCase {
         let outcome = await TieredRouter(
             model: ScriptedModelRouter(answers: [question: ["request": "something else",
                                                             "surface": ModelOutputBoundary.declineSentinel]]),
-            similarity: NoSimilarity()
+            similarity: SilentTier()
         ).route(question, within: known)
         XCTAssertTrue(outcome.unmeasured)
         XCTAssertEqual(outcome.reading, .unsure)
@@ -476,14 +471,6 @@ final class ReadingFaultTests: OfflineTestCase {
     }
 }
 
-/// A wording tier that always names one surface, as `SimilarityRouter` does above its floor.
-private struct Answering: QuestionRouter {
-    let surface: String
-    func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
-        RoutingOutcome(categoryID: surface, tier: .similarity, unmeasured: false)
-    }
-}
-
 /// The M18-W3 second Tester (`docs/reviews/m18-wave-3-tester-2.md`), REQ-ASK-005 and REQ-GAP-001:
 /// faults in the boundary's verdict that every test passed. Each test names the faults it kills.
 final class ReadingVerdictFaultTests: OfflineTestCase {
@@ -504,7 +491,7 @@ final class ReadingVerdictFaultTests: OfflineTestCase {
         for answer in [["surface": ModelOutputBoundary.declineSentinel, "request": ModelOutputBoundary.searchValue],
                        ["surface": ModelOutputBoundary.declineSentinel]] {
             let outcome = await TieredRouter(model: ScriptedModelRouter(answers: [question: answer]),
-                                             similarity: NoSimilarity()).route(question, within: known)
+                                             similarity: SilentTier()).route(question, within: known)
             XCTAssertEqual(outcome.tier, .model)
             XCTAssertTrue(outcome.unmeasured)
             XCTAssertEqual(outcome.reading, .search, "a question the model declined as a search is asked back: \(answer)")

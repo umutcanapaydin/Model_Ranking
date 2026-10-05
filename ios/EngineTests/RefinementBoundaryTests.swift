@@ -151,10 +151,7 @@ final class RefinementBoundaryTests: OfflineTestCase {
 
     func testTheManualTierNeverRefines() async {
         // Review M5: the last tier, when neither the model nor the wording answers.
-        struct Silent: QuestionRouter {
-            func route(_ question: String, within known: [String]) async -> RoutingOutcome? { nil }
-        }
-        let outcome = await TieredRouter(model: nil, similarity: Silent())
+        let outcome = await TieredRouter(model: nil, similarity: SilentTier())
             .route("I want to write a contract in French for a legal case", within: served)
 
         XCTAssertEqual(outcome.tier, .manual)

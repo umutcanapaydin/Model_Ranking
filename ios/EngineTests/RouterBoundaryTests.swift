@@ -14,29 +14,6 @@ import XCTest
 
 @testable import ModelRankingEngine
 
-/// A tier that answers with whatever it was told to, or refuses.
-private struct StubRouter: QuestionRouter {
-    let outcome: RoutingOutcome?
-
-    // `asked` used to live here, never assigned and never read — a value type cannot record being
-    // called, which is why `SpyRouter` below is a class. A dead member on a test double reads as
-    // coverage that is not there.
-    func route(_ question: String, within known: [String]) async -> RoutingOutcome? { outcome }
-}
-
-/// Records that it was reached. Class, so the recording survives the value copy `route` makes.
-private final class SpyRouter: QuestionRouter, @unchecked Sendable {
-    private(set) var questions: [String] = []
-    let outcome: RoutingOutcome?
-
-    init(outcome: RoutingOutcome?) { self.outcome = outcome }
-
-    func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
-        questions.append(question)
-        return outcome
-    }
-}
-
 // Every surface `/v1/categories` serves, in the engine's order. Eleven since M14-W2: the router
 // centres its similarity scores on the mean over THESE ids, so a list that lags the engine tests a
 // router the app does not ship (M14-W2 review MAJOR-4).
@@ -51,7 +28,7 @@ final class RouterBoundaryTests: OfflineTestCase {
     // MARK: - REQ-RTR-003: any tier may be absent and the screen still works
 
     func testWithNoTierAtAllTheReaderStillGetsASurface() async {
-        let router = TieredRouter(model: nil, similarity: StubRouter(outcome: nil))
+        let router = TieredRouter(model: nil, similarity: FixedTier(outcome: nil))
 
         let outcome = await router.route("anything at all", within: served)
 
@@ -64,9 +41,9 @@ final class RouterBoundaryTests: OfflineTestCase {
     }
 
     func testTheModelTierIsPreferredWhenItAnswers() async {
-        let model = SpyRouter(
+        let model = SpyTier(
             outcome: RoutingOutcome(categoryID: "web-dev", tier: .model, unmeasured: false))
-        let similarity = SpyRouter(
+        let similarity = SpyTier(
             outcome: RoutingOutcome(categoryID: "coding", tier: .similarity, unmeasured: false))
         let router = TieredRouter(model: model, similarity: similarity)
 
@@ -78,9 +55,9 @@ final class RouterBoundaryTests: OfflineTestCase {
     }
 
     func testTheSimilarityTierIsReachedWhenTheModelDeclines() async {
-        let similarity = SpyRouter(
+        let similarity = SpyTier(
             outcome: RoutingOutcome(categoryID: "mathematics", tier: .similarity, unmeasured: false))
-        let router = TieredRouter(model: StubRouter(outcome: nil), similarity: similarity)
+        let router = TieredRouter(model: FixedTier(outcome: nil), similarity: similarity)
 
         let outcome = await router.route("prove a theorem", within: served)
 
@@ -92,7 +69,7 @@ final class RouterBoundaryTests: OfflineTestCase {
     /// The seam this wave had to open. Before `model` was injectable, this test could not be
     /// written at all on a machine carrying FoundationModels — `route` built its own tier 1.
     func testTheModelTierIsNotConsultedWhenTheDeviceHasNone() async {
-        let similarity = SpyRouter(
+        let similarity = SpyTier(
             outcome: RoutingOutcome(categoryID: "everyday", tier: .similarity, unmeasured: false))
         let router = TieredRouter(model: nil, similarity: similarity)
 
