@@ -1400,3 +1400,18 @@ def test_greetings_in_the_off_topic_sets_are_not_searches_and_the_probe_skips_th
     assert re.search(r'if want == "NOT_A_SEARCH" \{ unscored \+= 1; continue \}', probe), (
         "probe.swift scores a NOT_A_SEARCH row as a miss again"
     )
+
+
+def test_the_swift_tests_share_one_set_of_tier_stubs() -> None:
+    """#126 (the M18-W3 Tester's K9): eight `QuestionRouter` stubs lived privately in four test files,
+    with no shared answering wording tier, and the gap the Tester's T6 found (no reading test drove
+    an answering wording tier through `TieredRouter`) grew in that space. The stubs live in one file,
+    `TierStubs.swift`, and no other test file declares one."""
+    tests = CLIENT.parent / "EngineTests"
+    home = tests / "TierStubs.swift"
+    declares = re.compile(r"\b(?:struct|class|enum|actor)\s+(\w+)\s*:[^{\n]*\bQuestionRouter\b")
+    elsewhere = [f"{path.name}: {match.group(1)}" for path in sorted(tests.glob("*.swift")) if path != home
+                 for match in declares.finditer(path.read_text(encoding="utf-8"))]
+    shared = declares.findall(home.read_text(encoding="utf-8")) if home.exists() else []
+    assert len(shared) >= 4, f"TierStubs.swift declares {shared}; the shared tiers are missing"
+    assert not elsewhere, f"tier stubs declared outside TierStubs.swift: {elsewhere}"
