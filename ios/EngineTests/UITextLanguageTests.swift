@@ -91,4 +91,32 @@ final class UITextLanguageTests: OfflineTestCase {
         let names = sentences.map(\.0)
         XCTAssertEqual(Set(names).count, names.count, "a sentence is listed twice")
     }
+
+    /// The fix Tester's T1 (#127). The table gives each function one input, so a sentence's other
+    /// branches went unwalked, and a sentence that carries a value the language changes (a date, an
+    /// effort, a refinement's name) differed from its English even with an English frame around the
+    /// Turkish value. Here every other branch is walked, each with a value both languages print
+    /// alike: a date this build cannot read, an effort and a refinement it does not know.
+    func testEveryBranchAndFrameIsSaidInBothLanguages() {
+        let unnamed = Refinement(value: "zz-unnamed", kind: .language, board: "zz", surfaces: [], reason: "")
+        let frames: [(String, (Language) -> String?)] = [
+            ("boardDate", { UIText.boardDate(.measured("zz-day"), $0) }),
+            ("boardDate", { UIText.boardDate(.readOn("zz-day"), $0) }),
+            ("boardDate", { UIText.boardDate(.unknown, $0) }),
+            ("combinedEffortNote", { UIText.combinedEffortNote(efforts: ["zz-effort"], $0) }),
+            ("boardEfforts", { UIText.boardEfforts(["zz-effort"], $0) }),
+            ("chipAction", { UIText.chipAction(unnamed, removed: false, $0) }),
+            ("chipAction", { UIText.chipAction(unnamed, removed: true, $0) }),
+            ("seeAll", { UIText.seeAll(12, eligible: nil, $0) }),
+            ("seeAll", { UIText.seeAll(12, eligible: 12, $0) }),
+            ("pickLabel", { UIText.pickLabel("best_value", $0) }),
+            ("pickLabel", { UIText.pickLabel("budget_pick", $0) }),
+        ]
+        for (index, (name, compose)) in frames.enumerated() {
+            let english = compose(.english)
+            let turkish = compose(.turkish)
+            XCTAssertFalse((turkish ?? "").trimmingCharacters(in: .whitespaces).isEmpty, "\(name) #\(index): no Turkish")
+            XCTAssertNotEqual(turkish, english, "\(name) #\(index): the Turkish reader is given the English")
+        }
+    }
 }
