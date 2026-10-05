@@ -226,3 +226,13 @@ holds (D-169 clause 6, as amended). Three code reviews ran: two BLOCKING rounds 
 `.venv` link, a spoiled held-out set, an image rule that over-fired), then PASS WITH MINOR. Two
 Tester seats ran: the first was BLOCKING on coverage, closed by its own test; the second was MINOR.
 It filed #117, #118, #119, #120, #126, #127, #132 and #133.
+
+**Amendment (2026-10-04, W6's own valve).** W6's P5, the compiler-level gates (#110, #107, #60,
+#85), moves to M19. Each needs a design of its own, and none blocks a first release on the owner's
+devices. The security-invariants list (#89) names each as a gap, with its issue, for the closure's
+security seat.
+
+**Amendment (2026-10-04, W6's close).** W6 delivered #89 (the security-invariants list), #90 (W-125,
+W-126, W-130 fixed), #35 and #26 (the locks, D-177), #88's table (the ruling is the owner's, asked in
+the pull request) and #91's protocol. P5 moved to M19 by its valve. #81's workflow patch is on the
+issue for the owner. It filed #121 to #125.

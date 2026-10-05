@@ -200,6 +200,96 @@ def test_a_cycle_that_hangs_is_killed_at_the_timeout(tmp_path: Path) -> None:
     assert schedule.running_since is None
 
 
+def test_the_timeout_kill_takes_a_grandchild_that_holds_the_output(tmp_path: Path) -> None:
+    """W-130 (M18-W6, #90): the cycle starts a reader of its own (D-165), and a grandchild that
+    inherits the cycle's output kept the kill waiting on the pipe (30.1 s against a 2 s timeout,
+    M16 closure). The cycle runs in its own process group, and the kill takes the whole group."""
+    import os
+    import signal
+
+    pid_file = tmp_path / "grandchild"
+    code = (
+        "import subprocess, sys, time\n"
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+        f"open({str(pid_file)!r}, 'w').write(str(child.pid))\n"
+        "time.sleep(30)\n"
+    )
+    try:
+        started = time.monotonic()
+        assert asyncio.run(_child(tmp_path, code, timeout=2.0).run_once("nightly")) is None
+        assert time.monotonic() - started < 10, "the kill waited on a grandchild holding the pipe"
+        grandchild = int(pid_file.read_text(encoding="utf-8"))
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                os.kill(grandchild, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.1)
+        else:
+            pytest.fail("the grandchild outlived the kill")
+    finally:
+        if pid_file.exists():
+            with __import__("contextlib").suppress(ProcessLookupError, ValueError):
+                os.kill(int(pid_file.read_text(encoding="utf-8")), signal.SIGKILL)
+
+
+def test_a_cycle_that_ends_at_its_limit_is_reported_as_timed_out(tmp_path: Path) -> None:
+    """W-126 (M18-W6): the cycle's own limit ends it before the engine's kill, by SIGALRM;
+    `/health` says so rather than "crashed"."""
+    import signal
+
+    assert nightly.CODE_NAMES[-signal.SIGALRM] == "timed out"
+    schedule = _child(tmp_path, "import os, signal; os.kill(os.getpid(), signal.SIGALRM)")
+    assert asyncio.run(schedule.run_once("nightly")) == -signal.SIGALRM
+    assert schedule.report()["refresh_last"] == "timed out"
+
+
+def test_the_kill_takes_the_group_even_when_the_cycle_has_already_exited(tmp_path: Path) -> None:
+    """The W6 review's M1(4): the cycle exits and leaves a grandchild holding its output. The
+    engine waited out its timeout, reported "killed" and left the grandchild running. Now the group
+    goes, and the night is reported by the cycle's own exit."""
+    import os
+    import signal
+
+    pid_file = tmp_path / "grandchild"
+    code = (
+        "import subprocess, sys\n"
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+        f"open({str(pid_file)!r}, 'w').write(str(child.pid))\n"
+        "raise SystemExit(2)\n"
+    )
+    try:
+        started = time.monotonic()
+        schedule = _child(tmp_path, code, timeout=2.0)
+        assert asyncio.run(schedule.run_once("nightly")) == 2
+        assert time.monotonic() - started < 10
+        grandchild = int(pid_file.read_text(encoding="utf-8"))
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                os.kill(grandchild, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.1)
+        else:
+            pytest.fail("the grandchild outlived the kill")
+        assert schedule.report()["refresh_last"] != "killed"
+    finally:
+        if pid_file.exists():
+            with __import__("contextlib").suppress(ProcessLookupError, ValueError):
+                os.kill(int(pid_file.read_text(encoding="utf-8")), signal.SIGKILL)
+
+
+def test_the_cycle_ends_its_fetches_then_itself_before_the_engine_kills_it() -> None:
+    """W-126: a slow night spends the fetch budget, and the sources left carry (D-156); the cycle's
+    own limit comes next, and the engine's kill last, with room between each."""
+    from app.workflows import refresh as cycle
+
+    assert cycle.FETCH_BUDGET_SECONDS + 5 * 60 <= cycle.CYCLE_LIMIT_SECONDS
+    assert cycle.CYCLE_LIMIT_SECONDS + 2 * 60 <= nightly.TIMEOUT_SECONDS
+
+
 def test_a_cycle_that_raises_or_fails_reports_its_code_and_does_not_raise(tmp_path: Path) -> None:
     assert asyncio.run(_child(tmp_path, "raise SystemExit(2)").run_once("nightly")) == 2
     assert asyncio.run(_child(tmp_path, "raise RuntimeError('boom')").run_once("nightly")) == 1
@@ -362,7 +452,7 @@ def test_the_serving_process_never_loads_the_refresh_the_build_or_the_fetchers()
 
     probe = (
         "import sys, app.adapter.main\n"
-        "print('\\n'.join(sorted(m for m in sys.modules if m.startswith('app.'))))"
+        "print('\\n'.join(sorted(m for m in sys.modules if m.startswith(('app.', 'httpx', 'pyarrow')))))"
     )
     loaded = subprocess.run(
         [sys.executable, "-c", probe], capture_output=True, text=True, check=True,
@@ -372,6 +462,13 @@ def test_the_serving_process_never_loads_the_refresh_the_build_or_the_fetchers()
     cycle = {"app.workflows.refresh", "app.workflows.build", "app.workflows.sources",
              "app.workflows.epoch", "app.workflows.rosters"}
     assert not cycle & set(loaded), sorted(cycle & set(loaded))
+    # M18-W6 (#90, W-125): nor the parsers, the source clients or the HTTP client they share. The
+    # server needs their record types and two declared tables, which live in modules that import
+    # no client (`app.workflows.run_records`, `app.workflows.board_tables`). Every module under
+    # `app.clients` is refused, so a client added later is covered without being named here.
+    fetchers = sorted(m for m in loaded if m == "app.clients" or m.startswith(("app.clients.", "httpx", "pyarrow"))
+                      or m in {"app.workflows.ingest", "app.workflows.access"})  # access: the W6 review's M8
+    assert not fetchers, f"the serving process loads {fetchers}"
 
 
 def test_the_child_inherits_no_secret_from_the_server(
@@ -613,3 +710,71 @@ def test_the_child_reads_every_bound_from_its_own_variable(tmp_path: Path, monke
             f"json.dump(dataclasses.asdict(bounds_from_env()), open({str(seen)!r}, 'w'))")
     assert asyncio.run(_child(tmp_path, code).run_once("nightly")) == 0
     assert sorted(json.loads(seen.read_text(encoding="utf-8")).values()) == sorted(overrides.values())
+
+
+# --- the Tester's pins (M18-W6): the engine's side of the limits -----------------------------------
+
+
+def test_the_engine_names_itself_to_the_cycle(tmp_path: Path) -> None:
+    """The M18-W6 Tester's survivor: the engine's `MODEL_RANKING_ENGINE_PID` line could go and every
+    test stayed green, since the parent-watch test starts its own engine. Without it a cycle whose
+    engine died before the cycle got going watches launchd, and never ends itself (D-154 as
+    amended). The name is read from `refresh`, so the two sides cannot drift apart."""
+    import os
+
+    from app.workflows import refresh as cycle
+
+    seen = tmp_path / "engine"
+    code = f"import os; open({str(seen)!r}, 'w').write(os.environ.get({cycle.ENGINE_PID!r}, ''))"
+    assert asyncio.run(_child(tmp_path, code).run_once("nightly")) == 0
+    assert seen.read_text(encoding="utf-8") == str(os.getpid())
+
+
+def test_a_cancelled_cycle_takes_its_group_with_it(tmp_path: Path) -> None:
+    """The M18-W6 Tester's survivor: the group kill in `run_once`'s `finally` could go and every test
+    stayed green, since the timeout path kills the group itself. The `finally` is the graceful
+    stop's path (the lifespan cancels the schedule): without it a grandchild holding the output
+    kept the stop waiting on the pipe, and outlived the engine (W-130 on the cancel path)."""
+    import contextlib
+    import os
+    import signal
+
+    pid_file = tmp_path / "grandchild"
+    code = (
+        "import subprocess, sys, time\n"
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+        f"open({str(pid_file)!r}, 'w').write(str(child.pid))\n"
+        "time.sleep(30)\n"
+    )
+
+    async def cancel_once_started() -> float:
+        task = asyncio.create_task(_child(tmp_path, code).run_once("nightly"))
+        for _ in range(300):  # 15 s at most
+            if pid_file.exists():
+                break
+            await asyncio.sleep(0.05)
+        assert pid_file.exists(), "the cycle never started its grandchild"
+        await asyncio.sleep(0.2)
+        task.cancel()
+        stopped = time.monotonic()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        return time.monotonic() - stopped
+
+    try:
+        took = asyncio.run(cancel_once_started())
+        assert took < 10, f"the stop waited {took:.0f} s on a grandchild holding the pipe"
+        grandchild = int(pid_file.read_text(encoding="utf-8"))
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                os.kill(grandchild, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.1)
+        else:
+            pytest.fail("the grandchild outlived the stop")
+    finally:
+        if pid_file.exists():
+            with contextlib.suppress(ProcessLookupError, ValueError):
+                os.kill(int(pid_file.read_text(encoding="utf-8")), signal.SIGKILL)

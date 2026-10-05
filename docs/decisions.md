@@ -2428,6 +2428,22 @@ service's wrapper (`scripts/engine_service.sh`, D-170), not by `ios/app.sh`.
 
 ---
 
+**AMENDED 2026-10-04 (M18-W6, #90; W-126, W-130; decided by the agent on the owner's standing
+instruction of 2026-09-29).** Clause 1's kill is now the last of three limits:
+- the cycle's downloads share a budget of 20 minutes; past it, the sources left carry their last good
+  data (D-156);
+- the cycle ends at 27 minutes. The kernel ends it (SIGALRM, default action), so no call that holds
+  the interpreter can delay it; the engine reports "timed out";
+- the engine kills it at 30 minutes, as before.
+
+The engine starts the cycle in a session of its own and kills the whole group, whether or not the
+cycle itself has exited, so a grandchild such as the parquet reader (D-165) cannot hold the output
+pipe. A session of its own is outside launchd's cleanup of a dead engine's group. So the engine
+names itself to the cycle (`MODEL_RANKING_ENGINE_PID`), and a cycle whose engine is gone ends
+itself within seconds, the same way as at its limit (the W6 review's M1). "A real cycle takes 6-9
+seconds" was true when written; with M17's boards a slow night is bounded by the budget, not by the
+kill.
+
 ## D-155 — The project runs on DevFlow v6.0
 
 **Status:** **accepted by the owner 2026-09-23** (in session, choosing each option below) · **Date:**
@@ -3717,3 +3733,45 @@ screen are the ones they cannot read.
 
 **Revisit when:** a third language is added, or the engine adds a notice. A new notice needs its
 fact, as clause 2 did.
+
+
+## D-177 — Every install reads a hash-checked lock, and pyarrow is the refresh's extra
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29; M18-W6
+· **Date:** 2026-10-04 · from #35, #26 · **Amends** D-116 (how the serving image is built) and
+D-170 clause 1 (how a release's venv is built).
+
+**Context.** `pyproject.toml` gave lower bounds only, so every fresh install took the newest versions
+that day. A release venv built on 2026-09-25 differed from the tested one in 11 packages (#35; the
+M17 closure seat's I-6). The serving image installed pyarrow (126 MB), which only the refresh needs
+and the serving image never runs (#26; D-116, D-154).
+
+**Decision.**
+1. **Four locks under `requirements/`,** resolved by `make lock` (`scripts/lock_dependencies.py`,
+   uv, universal, Python 3.11 up), each with every hash:
+   - `serve.lock`: the serving image;
+   - `ingest.lock`: the engine's release on the owner's Mac, which serves and refreshes;
+   - `dev.lock`: a working tree and the suite;
+   - `build.lock`: the build backend, which `[build-system]` now declares.
+2. **Every install takes its lock and the build lock with `--require-hashes`,** then the project with
+   `--no-deps --no-build-isolation`. That covers `make install`, the release's venv
+   (`scripts/install_engine_service.sh`) and the `Dockerfile`. Nothing is resolved or fetched beyond
+   the locks.
+3. **pyarrow is the `ingest` extra.** It is also in `dev`, so the suite can read parquet. The
+   serving lock carries none.
+4. **A lock is current or the suite fails.** Each lock records the hash of the `pyproject.toml`
+   tables it was resolved from, and `tests/unit/test_dependency_locks.py` compares them offline. The
+   same file holds clause 2 for every way of spelling `pip install`.
+5. **CI's install lines are the owner's** (`.github/workflows/**`). The change is proposed as a
+   patch in the wave's pull request, and CI keeps resolving fresh until it is applied. The
+   `Dockerfile` is a K.10 surface (`AGENTS.md` §6): its change is named in the pull request for the
+   owner's review.
+
+**The rejected alternative.** Pinning exact versions in `pyproject.toml`. It pins only the direct
+dependencies, checks no hash, and makes every library upgrade an edit to the project file.
+
+**Mitigation if violated.** A deploy runs versions no test has seen, or the serving image ships the
+refresh's code.
+
+**Revisit when:** a dependency must be upgraded for a security advisory (run `make lock`, then the
+suite), or CI's Pythons cannot install a pinned version (the risk the W6 review's R1 names).

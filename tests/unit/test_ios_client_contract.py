@@ -906,6 +906,12 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     assert re.search(r"held = nil\s*guard id != task else \{ return \}", select.group(1)), (
         "a surface chosen from the note loads behind it and never shows"
     )
+    # INV-70 (M17 closure I-8, W5 security S1, defence in depth): only a surface the engine lists
+    # becomes `task`, and the check comes before anything changes. Removing it passed every gate.
+    chosen = select.group(1)
+    guard = re.search(r"guard categories\.contains\(where: \{ \$0\.id == id \}\) else \{ return \}", chosen)
+    assert guard and guard.start() < chosen.index("task = id") and guard.start() < chosen.index(
+        "routingGate.invalidate()"), "Change makes a surface the engine does not list the request's task"
 
     # REQ-ASK-003: the sentence above an unmeasured answer, in the colour that marks it (M6), and
     # the on-device reason whenever the model did not route (M4).

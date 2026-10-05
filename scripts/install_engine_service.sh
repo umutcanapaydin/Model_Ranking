@@ -115,7 +115,13 @@ deploy() {
     if [ "$with_venv" = yes ]; then
       python="$("$REPO/.venv/bin/python" -c 'import sys; print(sys._base_executable)')" \
         || { echo "FAIL: no base interpreter from $REPO/.venv"; return 1; }
-      "$python" -m venv "$rel/.venv" && "$rel/.venv/bin/python" -m pip install -q -e "$rel" \
+      # M18-W6 (#35, D-177): the locked versions, hash-checked; the release serves AND refreshes,
+      # so it takes the ingest lock (#26), and the locked build backend. Then the release itself,
+      # with nothing more resolved or fetched.
+      "$python" -m venv "$rel/.venv" \
+        && "$rel/.venv/bin/python" -m pip install -q --require-hashes \
+             -r "$rel/requirements/ingest.lock" -r "$rel/requirements/build.lock" \
+        && "$rel/.venv/bin/python" -m pip install -q --no-deps --no-build-isolation -e "$rel" \
         || { echo "FAIL: the release's venv"; return 1; }
     fi
     echo "$sha" > "$rel/RELEASE"

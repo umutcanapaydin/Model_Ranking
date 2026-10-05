@@ -15,8 +15,24 @@ import re
 import sqlite3
 from dataclasses import dataclass
 
-from app.clients.swebench import split_harness
 from app.workflows.schema import EFFORT_LEVELS, EFFORT_UNSPECIFIED
+
+#: The harness of a SWE-bench entry that names none (REQ-ING-002). Here, not in the client, so the
+#: server can canonicalize a name without loading the client (W-125, M18-W6).
+UNKNOWN_HARNESS = "unknown-agent"
+
+
+def split_harness(entry_name: str) -> tuple[str, str]:
+    """Split a leaderboard entry into (harness, model-ish remainder).
+
+    Entries look like ``"live-SWE-agent + Claude 4.5 Opus medium"``; an entry
+    without a ``+`` keeps the full name and gets UNKNOWN_HARNESS
+    (REQ-ING-002: harness is never silently dropped).
+    """
+    if "+" in entry_name:
+        harness, _, rest = entry_name.partition("+")
+        return harness.strip(), rest.strip()
+    return UNKNOWN_HARNESS, entry_name.strip()
 
 
 @dataclass(frozen=True)

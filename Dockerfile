@@ -9,8 +9,14 @@
 FROM python:3.11-slim AS build
 WORKDIR /app
 COPY pyproject.toml ./
+COPY requirements/serve.lock requirements/build.lock ./requirements/
 COPY src ./src
-RUN pip install --no-cache-dir --prefix=/install .
+# M18-W6 (D-177): the locked versions, hash-checked (#35), and no refresh dependencies, pyarrow among
+# them (#26): the serving image runs no refresh (D-116, D-154). The locked build backend goes into
+# this stage only; the project is then built with it, with nothing resolved or fetched.
+RUN pip install --no-cache-dir --require-hashes -r requirements/build.lock \
+ && pip install --no-cache-dir --prefix=/install --require-hashes -r requirements/serve.lock \
+ && pip install --no-cache-dir --prefix=/install --no-deps --no-build-isolation .
 
 FROM python:3.11-slim
 # L.7: the build stamp is what makes `curl /health | jq .build` answer "which code is live", and

@@ -28,17 +28,20 @@ import json
 import math
 import os
 import shutil
+import signal
 import sqlite3
 import stat
 import statistics
 import sys
 import tempfile
+import threading
 import time
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, fields
 from pathlib import Path
 
 from app.clients import epoch_bundle
+from app.clients.protocols import cycle_budget
 from app.workflows import access
 from app.workflows import boards as declared_boards
 from app.workflows.build import CARRY_TABLES
@@ -83,6 +86,55 @@ EXIT_BUSY = 4
 #: A first-class outcome and not an error: nothing is broken, and the right response is to look at
 #: the upstream rather than at this process.
 EXIT_REFUSED = 3
+
+#: W-126 (M18-W6, #90). Every fetch of a cycle ends within this, together; a source not yet fetched
+#: then fails and carries its last good data (D-156), instead of a slow night running into the
+#: engine's kill and losing every source's night.
+FETCH_BUDGET_SECONDS = 20 * 60.0
+#: The cycle then ends here, whatever it is doing, before the engine's kill
+#: (`nightly.TIMEOUT_SECONDS`, 30 minutes). The kernel ends it: SIGALRM with its default action,
+#: so no Python code runs, a call that holds the interpreter cannot delay it, and no shutdown can
+#: race it (the W6 review's M1: a timer thread fired 4.8 s late behind one regex, and once aborted
+#: Python). The engine reads the signal as "timed out". The live artifact is untouched, since a
+#: publish is one rename; the lock goes with the process; the reader it may have started ends on its
+#: own watchdog (D-165).
+CYCLE_LIMIT_SECONDS = 27 * 60.0
+#: How often the cycle checks that the engine that started it is still there. The engine starts it
+#: in a session of its own, so its kill takes the cycle's whole group (W-130), and launchd's cleanup
+#: of a dead engine's group no longer reaches it. A cycle whose engine is gone ends itself, the same
+#: way as at its limit (the W6 review's M1).
+PARENT_POLL_SECONDS = 5.0
+#: The engine names itself here, so a cycle whose engine died before the cycle got going still
+#: knows it (its parent is already launchd by then). A cycle run by hand watches the shell instead.
+ENGINE_PID = "MODEL_RANKING_ENGINE_PID"
+
+
+class _Limits:
+    """The cycle's wall-clock limit and its watch on its parent, for the length of one `main`."""
+
+    def __init__(self, seconds: float, poll: float) -> None:
+        self._previous = signal.signal(signal.SIGALRM, signal.SIG_DFL)
+        signal.setitimer(signal.ITIMER_REAL, seconds)
+        named = os.environ.get(ENGINE_PID, "")
+        self._parent = os.getppid()
+        if named.isdigit() and self._parent == 1 and int(named) != 1:
+            # Already orphaned: the engine that named itself died before this cycle got going. In any
+            # other case the cycle watches its real parent, so a variable copied into a shell does
+            # not end a cycle run by hand (the W6 Tester's R2).
+            self._parent = int(named)
+        self._done = threading.Event()
+        threading.Thread(target=self._watch, args=(poll,), name="parent-watch", daemon=True).start()
+
+    def _watch(self, poll: float) -> None:
+        while not self._done.wait(poll):
+            if os.getppid() != self._parent:  # the engine is gone; this cycle was its child
+                os.kill(os.getpid(), signal.SIGALRM)
+
+    def close(self) -> None:
+        self._done.set()
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        if self._previous is not None:
+            signal.signal(signal.SIGALRM, self._previous)
 
 
 @dataclass(frozen=True)
@@ -1272,17 +1324,21 @@ def main(argv: list[str] | None = None) -> int:
         if value:
             passthrough += [flag, value]
 
+    limits = _Limits(CYCLE_LIMIT_SECONDS, PARENT_POLL_SECONDS)
     try:
-        outcome, code = refresh(
-            Path(args.db), build_args=passthrough,
-            fetch_epoch=epoch_bundle.fetch_bundle if args.fetch_epoch else None,
-        )
+        with cycle_budget(FETCH_BUDGET_SECONDS):
+            outcome, code = refresh(
+                Path(args.db), build_args=passthrough,
+                fetch_epoch=epoch_bundle.fetch_bundle if args.fetch_epoch else None,
+            )
     except BaseException as exc:
         # The cycle records its own crash and re-raises, so without this the interpreter exits 1 —
         # and 1 is EXIT_UNCHANGED, which this command's own documentation calls "a RESULT, not a
         # failure". A scheduler reading exit codes would have been told nothing happened.
         print(json.dumps({"published": False, "reason": f"crashed: {type(exc).__name__}: {exc}"}))
         return EXIT_FAILED
+    finally:
+        limits.close()
     print(outcome.as_json())
     return code
 
