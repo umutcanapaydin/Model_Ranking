@@ -125,6 +125,18 @@ def _remove_network_guard() -> None:
 
 _ROOT = Path(__file__).resolve().parents[1]
 
+#: #143 (the M18 closure security seat's S8): the guard allows this machine, so a proxy variable
+#: naming a proxy here would carry a unit test's request out through it. The run hides them, and a
+#: live contract test gets them back for its own run.
+PROXY_VARS = ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy")
+_SAVED_PROXIES: dict[str, str] = {}
+
+
+def _hide_proxies() -> None:
+    for name in PROXY_VARS:
+        if name in os.environ:
+            _SAVED_PROXIES[name] = os.environ.pop(name)
+
 
 def is_live_contract_test(path: object) -> bool:
     """A test under this repository's `tests/integration`, in a run that asked for the live sources.
@@ -145,6 +157,8 @@ def is_live_contract_test(path: object) -> bool:
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_setup(item: pytest.Item) -> Iterator[None]:
     _LIFTED["on"] = is_live_contract_test(item.path)  # before the fixtures, whatever their scope
+    if _LIFTED["on"]:
+        os.environ.update(_SAVED_PROXIES)
     yield
 
 
@@ -152,6 +166,7 @@ def pytest_runtest_setup(item: pytest.Item) -> Iterator[None]:
 def pytest_runtest_teardown(item: pytest.Item, nextitem: pytest.Item | None) -> Iterator[None]:
     yield
     _LIFTED["on"] = False
+    _hide_proxies()
 
 
 # --- W-108: the tests that read the real artifact ------------------------------------------------
@@ -168,6 +183,7 @@ ARTIFACT = Path("advisor.db")
 
 def pytest_configure(config: pytest.Config) -> None:
     _install_network_guard()  # #122: before collection, so imports and every fixture are covered
+    _hide_proxies()  # #143
     config.addinivalue_line(
         "markers", "artifact: reads the built advisor.db (gitignored; W-108). Skipped where absent."
     )
@@ -233,3 +249,4 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
 def pytest_unconfigure(config: pytest.Config) -> None:
     _remove_network_guard()
+    os.environ.update(_SAVED_PROXIES)
