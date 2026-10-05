@@ -1400,3 +1400,20 @@ def test_greetings_in_the_off_topic_sets_are_not_searches_and_the_probe_skips_th
     assert re.search(r'if want == "NOT_A_SEARCH" \{ unscored \+= 1; continue \}', probe), (
         "probe.swift scores a NOT_A_SEARCH row as a miss again"
     )
+
+
+def test_knowledge_questions_in_the_off_topic_sets_are_not_searches() -> None:
+    """#128 (the W7 review's K1): D-169 names a knowledge question, everyday trivia outside every
+    measured area, as not a search, and the not-a-search tuning set so labels its question asking
+    for the capital of Turkey. The off-topic sets still expected a surface for the same class, so a probe counted
+    the right answer (the note, or the question back) as a miss. One fact each: a capital, a winner,
+    an author. Both sets are retired (the held-out gate's list), so their rows may be read here."""
+    import json
+
+    folder = CLIENT.parents[1] / "scripts/router_probe"
+    labels: dict[str, list[str]] = {}
+    for name in ("offtopic_questions.json", "offtopic_heldout_questions.json"):
+        for question, label in json.loads((folder / name).read_text(encoding="utf-8")):
+            labels.setdefault(question, []).append(label)
+    for trivia in ("what is the capital of france", "who won the world cup in 2022", "who wrote the odyssey"):
+        assert labels.get(trivia) and set(labels[trivia]) == {"NOT_A_SEARCH"}, trivia
