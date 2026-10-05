@@ -365,3 +365,33 @@ def test_an_unreadable_member_is_named_in_the_refusal(tmp_path: Path) -> None:
     """The log line is the operator's only clue to WHICH board broke."""
     with pytest.raises(SourceError, match=r"gpqa_diamond\.csv.*LZMAError"):
         epoch_bundle.unpack(_corrupt_lzma(), tmp_path)
+
+
+def test_a_killed_cycles_status_scratch_and_journal_are_swept_too(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#146 (the M18 closure security seat's S12). A cycle killed while it writes its record leaves
+    `<artifact>.refresh.json.<random>.writing`; one killed while its candidate is written leaves
+    SQLite's `<candidate>-journal`. Neither was in the sweep's list, so each stayed for good."""
+    import os
+    import time
+
+    from app.workflows.refresh import refresh
+
+    from .test_refresh_carry import _first_cycle
+
+    live = _first_cycle(tmp_path, monkeypatch)
+    old = time.time() - 2 * 86400
+    stale = [live.parent / f"{live.name}.refresh.json.dead.writing",
+             live.parent / f"{live.name}.dead.candidate-journal"]
+    for path in stale:
+        path.write_text("x", encoding="utf-8")
+        os.utime(path, (old, old))
+    fresh = [live.parent / f"{live.name}.refresh.json.sibling.writing",
+             live.parent / f"{live.name}.sibling.candidate-journal"]
+    for path in fresh:
+        path.write_text("x", encoding="utf-8")
+
+    refresh(live)
+    assert not [p.name for p in stale if p.exists()], "a killed cycle's scratch outlived the sweep"
+    assert all(p.exists() for p in fresh), "a sibling's scratch minutes old is never touched"

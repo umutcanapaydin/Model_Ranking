@@ -1090,11 +1090,13 @@ STALE_SCRATCH_S = 86400.0
 
 def _sweep_stale_scratch(target: Path, *, now: float | None = None) -> list[Path]:
     """Remove what a KILLED cycle left beside the artifact (W-124, security pass F2): candidates,
-    build reports, arrival records and unpacked bundles, a day old or more. Called under the lock,
-    so no live cycle's scratch is ever this old; a sibling's minutes-old file is never touched."""
+    build reports, arrival records and unpacked bundles, a day old or more; and (#146) a record's
+    `.writing` scratch and the journal SQLite keeps beside a candidate it was writing. Called under
+    the lock, so no live cycle's scratch is ever this old; a sibling's minutes-old file is never
+    touched."""
     clock = time.time() if now is None else now
     swept: list[Path] = []
-    for suffix in ("candidate", "sources", "last-ok", "epoch"):
+    for suffix in ("candidate", "candidate-journal", "sources", "last-ok", "epoch", "writing"):
         for path in target.parent.glob(f"{target.name}.*.{suffix}"):
             try:
                 if clock - path.stat().st_mtime < STALE_SCRATCH_S:
