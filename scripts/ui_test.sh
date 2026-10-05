@@ -42,7 +42,11 @@ print("ok" if row.fetchone() else "none")
 PY
 )"
 if [ "$slices" != ok ]; then
-  echo "ui-test: $DB holds none of Arena's slice boards, the refinement boards (D-168): it is older than the screen"
+  if [ "$slices" = none ]; then
+    echo "ui-test: $DB holds none of Arena's slice boards, the refinement boards (D-168): it is older than the screen"
+  else
+    echo "ui-test: could not read whether $DB holds the refinement boards (D-168): it is not an artifact this code reads"
+  fi
   echo "         build a current one: .venv/bin/python -m app.workflows.refresh --db $(printf '%q' "$DB") --fetch-epoch"
   echo "         or set MODEL_RANKING_DB to a current artifact"
   exit 2
