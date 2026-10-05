@@ -9,7 +9,7 @@
 ["what is the difference between rent and lease","assistant|everyday~"],
 ["plan a three day trip to rome","assistant|everyday~"],
 ["how do i remove a coffee stain","assistant|everyday~"],
-["who wrote the odyssey","assistant|everyday~"],
+["who wrote the odyssey","NOT_A_SEARCH"],
 ["convert 50 dollars to euros","assistant|everyday~"],
 ["how do i boil an egg","assistant|everyday~"],
 ["why is my houseplant turning yellow","assistant|everyday~"],
