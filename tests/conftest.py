@@ -16,6 +16,7 @@ from __future__ import annotations
 import ipaddress
 import os
 import socket
+import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -158,6 +159,19 @@ def pytest_configure_node(node: Any) -> None:
     node.workerinput[_HANDED] = dict(_SAVED_PROXIES)
 
 
+#: #150: with every proxy variable hidden, urllib's `getproxies()`, which httpx asks, falls back on
+#: macOS to the System Configuration's proxies, so a system proxy here would do what a variable did.
+#: The fallback is looked up by name when `getproxies()` runs, so replacing it covers httpx too.
+_REAL_SYSTEM_PROXIES: Any = getattr(urllib.request, "getproxies_macosx_sysconf", None)
+
+
+def system_proxies() -> dict[str, str]:
+    """No system proxy for a unit test; a live contract test asks the real fallback."""
+    if _LIFTED["on"] and _REAL_SYSTEM_PROXIES is not None:
+        return dict(_REAL_SYSTEM_PROXIES())
+    return {}
+
+
 def is_live_contract_test(path: object) -> bool:
     """A test under this repository's `tests/integration`, in a run that asked for the live sources.
 
@@ -204,6 +218,8 @@ ARTIFACT = Path("advisor.db")
 def pytest_configure(config: pytest.Config) -> None:
     _install_network_guard()  # #122: before collection, so imports and every fixture are covered
     _hide_proxies()  # #143
+    if _REAL_SYSTEM_PROXIES is not None:  # #150: macOS only; no other platform falls back here
+        urllib.request.getproxies_macosx_sysconf = system_proxies
     _SAVED_PROXIES.update(handed_proxies(config))
     config.addinivalue_line(
         "markers", "artifact: reads the built advisor.db (gitignored; W-108). Skipped where absent."
@@ -271,3 +287,5 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 def pytest_unconfigure(config: pytest.Config) -> None:
     _remove_network_guard()
     os.environ.update(_SAVED_PROXIES)
+    if _REAL_SYSTEM_PROXIES is not None:
+        urllib.request.getproxies_macosx_sysconf = _REAL_SYSTEM_PROXIES
