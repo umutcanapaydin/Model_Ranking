@@ -297,3 +297,13 @@ def test_no_venv_upgrade_hides_on_a_continued_line_or_in_a_variable(tmp_path: Pa
         code = "\n".join(line for line in (ROOT / path).read_text(encoding="utf-8").splitlines()
                          if not line.lstrip().startswith("#"))
         assert not UNLOCKED_UPGRADE.search(code.replace("\\\n", " ")), f"{path} upgrades pip outside the locks"
+
+
+def test_the_api_tests_drive_the_engine_with_the_client_starlette_keeps() -> None:
+    """#125 (the M18-W6 Tester's K1). Every run printed "Using `httpx` with `starlette.testclient` is
+    deprecated; install `httpx2` instead": the API tests drove the engine through a path the next
+    starlette may drop, and a `make lock` past that release would turn most of them red at once.
+    The test client is to run on httpx2, which starlette's own test client prefers."""
+    import starlette.testclient as testclient
+
+    assert testclient.httpx.__name__ == "httpx2", "the test client runs on httpx, the path starlette deprecates"
