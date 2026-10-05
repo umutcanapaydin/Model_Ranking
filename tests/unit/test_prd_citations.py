@@ -199,7 +199,7 @@ def test_a_place_the_prd_points_into_holds_the_code_it_names() -> None:
     by_name = tracked()
     places = 0
     for row in PRD.read_text(encoding="utf-8").splitlines():
-        for match in re.finditer(r"`([^`]+)`[^`(]{0,40}?\bin\s+::(\w+)", row):
+        for match in re.finditer(r"`([^`]+)`[^`(]{0,40}?\bin\s+`?::(\w+)", row):  # with or without backticks
             files = list(ANY_FILE.finditer(row[: match.start()]))
             assert files, f"no file named before {match.group(0)!r}"
             (path,) = by_name[files[-1].group(1)]

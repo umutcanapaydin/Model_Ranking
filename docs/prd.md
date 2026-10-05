@@ -9,13 +9,14 @@
 >   **OPEN** (not built), **SUPERSEDED** (by the ADR or requirement named). A status says where
 >   the requirement stands now; how it got there is in git and the ADRs.
 >   `tests/unit/test_prd_status.py` refuses any other opening word.
-> - **Evidence is cited by name, never by line** (#131): `<file>.py::<test_name>`, a second test of
+> - **Evidence in Python or Swift is cited by name, never by line** (#131): `<file>.py::<test_name>`, a second test of
 >   the same file as `::<other_test>`, a class of tests by its class name, and a place inside a
 >   test as "in `::<test_name>`". A Python test file is under `tests/unit/` and a Swift one under
 >   `ios/EngineTests/`, unless a path says otherwise. A make target is named as `make <target>`.
 >   `tests/unit/test_prd_citations.py` checks each name is declared in its file, refuses a line
 >   pointer into Python or Swift, and refuses a `make` target the Makefile does not define. A line
->   pointer that shifted onto another test passed the old check (M18-W7, #126).
+>   pointer that shifted onto another test passed the old check (M18-W7, #126). Pointers into
+>   workflow and record files (`ci.yml:7`, a plan's line) keep their line numbers and stay outside it.
 > - First restructure into REQ-IDs (this file), then re-read for Open Questions in §9 (seed A.3 — separate passes).
 
 ---
