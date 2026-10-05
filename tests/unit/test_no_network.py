@@ -155,13 +155,16 @@ def test_a_proxy_in_the_shell_reaches_no_unit_test(monkeypatch: pytest.MonkeyPat
 
     from tests import conftest
 
-    assert not set(conftest.PROXY_VARS) & set(os.environ), "a unit test sees a proxy variable"
+    assert not conftest.proxy_names(), "a unit test sees a proxy variable"
     saved = dict(conftest._SAVED_PROXIES)
     try:
         monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:9")
         monkeypatch.setenv("all_proxy", "socks5://127.0.0.1:9")
+        monkeypatch.setenv("Ftp_Proxy", "http://127.0.0.1:9")  # any case (the fix Tester's K2)
+        monkeypatch.setenv("NO_PROXY", "localhost")  # not a proxy: left alone
         conftest._hide_proxies()
-        assert "HTTPS_PROXY" not in os.environ and "all_proxy" not in os.environ
+        assert not conftest.proxy_names()
+        assert os.environ.get("NO_PROXY") == "localhost"
 
         def during(path: str) -> bool:
             item = SimpleNamespace(path=Path(path))
@@ -180,6 +183,28 @@ def test_a_proxy_in_the_shell_reaches_no_unit_test(monkeypatch: pytest.MonkeyPat
         monkeypatch.setenv("RUN_CONTRACT_TESTS", "1")
         assert during("tests/integration/test_x_contract.py"), "a live contract test lost the proxy"
         assert not during("tests/unit/test_x.py"), "a unit test was handed the proxy"
+    finally:
+        conftest._SAVED_PROXIES.clear()
+        conftest._SAVED_PROXIES.update(saved)
+
+
+def test_an_xdist_worker_is_handed_the_proxies_its_controller_hid() -> None:
+    """The fix Tester's R2: the controller hides the proxies before it starts its workers, so under
+    `-n` a live contract test on a worker had none to get back. The controller hands them over in
+    the worker's input, and the worker takes them as its own to give back."""
+    from types import SimpleNamespace
+
+    from tests import conftest
+
+    saved = dict(conftest._SAVED_PROXIES)
+    try:
+        conftest._SAVED_PROXIES.clear()
+        conftest._SAVED_PROXIES["HTTPS_PROXY"] = "http://127.0.0.1:9"
+        node = SimpleNamespace(workerinput={})
+        conftest.pytest_configure_node(node)
+        worker = SimpleNamespace(workerinput=node.workerinput)
+        assert conftest.handed_proxies(worker) == {"HTTPS_PROXY": "http://127.0.0.1:9"}
+        assert conftest.handed_proxies(SimpleNamespace()) == {}, "a run without xdist is handed nothing"
     finally:
         conftest._SAVED_PROXIES.clear()
         conftest._SAVED_PROXIES.update(saved)
