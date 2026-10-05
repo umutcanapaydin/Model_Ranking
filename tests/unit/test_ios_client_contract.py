@@ -1415,3 +1415,23 @@ def test_the_swift_tests_share_one_set_of_tier_stubs() -> None:
     shared = declares.findall(home.read_text(encoding="utf-8")) if home.exists() else []
     assert len(shared) >= 4, f"TierStubs.swift declares {shared}; the shared tiers are missing"
     assert not elsewhere, f"tier stubs declared outside TierStubs.swift: {elsewhere}"
+
+
+def test_no_test_file_declares_a_tier_stub_in_any_shape() -> None:
+    """#126 (the fix Tester's T1): the stub gate above reads a declaration only as `struct Name:
+    ... QuestionRouter` on one line, so a generic stub (`struct Name<T>: QuestionRouter`), one that
+    conforms in an extension, or one whose conformance runs onto the next line passed it. Here every
+    test source, in any folder, is read with its line comments removed, and a conformance to
+    `QuestionRouter` outside `TierStubs.swift` fails."""
+    tests = CLIENT.parent / "EngineTests"
+    home = tests / "TierStubs.swift"
+    conforms = re.compile(r"\b(?:struct|class|enum|actor|extension)\s+[\w.]+\s*(?:<[^>{]*>)?"
+                          r"\s*:[^{]*\bQuestionRouter\b")
+    assert conforms.search(home.read_text(encoding="utf-8")), "the pattern finds no shared stub"
+    sources = sorted(path for path in tests.rglob("*.swift") if path != home)
+    assert len(sources) >= 10, f"read {len(sources)} test sources; was EngineTests read?"
+    found = []
+    for path in sources:
+        code = re.sub(r"//[^\n]*", "", path.read_text(encoding="utf-8"))
+        found += [f"{path.name}: {' '.join(m.group(0).split())[:60]}" for m in conforms.finditer(code)]
+    assert not found, f"tier stubs declared outside TierStubs.swift: {found}"

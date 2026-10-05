@@ -181,3 +181,29 @@ def test_a_test_is_cited_by_name_and_a_line_pointer_is_refused() -> None:
     assert problems("Evidence: test_x.py:3", by_name, read), "a line pointer was accepted"
     assert problems("Evidence: test_x.py::test_gone", by_name, read)
     assert problems("Evidence: test_x.py::test_a, ::test_gone", by_name, read)
+
+
+def _body_of(lines: list[str], name: str) -> str:
+    """The lines of test `name`, from its declaration to the next test's (or the file's end)."""
+    starts = [k for k, line in enumerate(lines) if (hit := TEST_DECLARATION.match(line)) and name in hit.groups()]
+    assert len(starts) == 1, f"{name} is declared {len(starts)} times"
+    end = next((k for k in range(starts[0] + 1, len(lines)) if TEST_DECLARATION.match(lines[k])), len(lines))
+    return "\n".join(lines[starts[0]:end])
+
+
+def test_a_place_the_prd_points_into_holds_the_code_it_names() -> None:
+    """#126 (its fix Tester's R1), in #131's terms. A place inside a test is cited as
+    "`clear()` exercised in `::testName`", and the code it names must stand in that test's body.
+    As a line it only had to exist: after #126 removed lines above it, it sat on a doc comment, every
+    gate passed, and #131's conversion then named the test the stale line led to."""
+    by_name = tracked()
+    places = 0
+    for row in PRD.read_text(encoding="utf-8").splitlines():
+        for match in re.finditer(r"`([^`]+)`[^`(]{0,40}?\bin\s+::(\w+)", row):
+            files = list(ANY_FILE.finditer(row[: match.start()]))
+            assert files, f"no file named before {match.group(0)!r}"
+            (path,) = by_name[files[-1].group(1)]
+            body = _body_of((ROOT / path).read_text(encoding="utf-8").splitlines(), match.group(2))
+            places += 1
+            assert match.group(1) in body, f"{files[-1].group(1)}::{match.group(2)} does not hold `{match.group(1)}`"
+    assert places, "no place inside a test was read; the pattern matches nothing"
