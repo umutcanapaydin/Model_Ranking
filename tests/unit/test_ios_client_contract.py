@@ -1400,3 +1400,21 @@ def test_greetings_in_the_off_topic_sets_are_not_searches_and_the_probe_skips_th
     assert re.search(r'if want == "NOT_A_SEARCH" \{ unscored \+= 1; continue \}', probe), (
         "probe.swift scores a NOT_A_SEARCH row as a miss again"
     )
+
+
+def test_every_screen_sentence_has_a_row_in_the_language_test() -> None:
+    """#127: `UITextLanguageTests` composes every `UIText` sentence in both languages and fails on
+    one that is empty or the same in Turkish as in English. Its table is a hand-kept list beside the
+    functions it covers, so the functions are read here from `Language.swift`, and a sentence added
+    without a row, or a row naming no sentence, fails (AGENTS.md section 3.5)."""
+    language = (CLIENT / "Engine/Language.swift").read_text(encoding="utf-8")
+    declared: set[str] = set()
+    for opening in re.finditer(r"^(?:public )?(?:enum|extension) UIText \{$", language, re.M):
+        body = language[opening.end():]
+        body = body[: re.search(r"^\}$", body, re.M).end()] if re.search(r"^\}$", body, re.M) else ""
+        declared |= set(re.findall(r"\bstatic func (\w+)\(", body))
+    assert len(declared) >= 40, f"read {len(declared)} UIText functions; was Language.swift read?"
+    test = CLIENT.parent / "EngineTests/UITextLanguageTests.swift"
+    rows = set(re.findall(r'\("(\w+)", \{', test.read_text(encoding="utf-8"))) if test.exists() else set()
+    assert not declared - rows, f"sentences no test composes in both languages: {sorted(declared - rows)}"
+    assert not rows - declared, f"rows naming no UIText function: {sorted(rows - declared)}"
