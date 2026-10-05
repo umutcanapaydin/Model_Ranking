@@ -748,3 +748,28 @@ def test_the_view_reaches_the_gap_register_only_as_the_on_device_store() -> None
                 other.append(f"{path.relative_to(root)}:{line}: {code[match.start():match.start() + 60]!r}")
     assert seen, "the view names the gap register nowhere; was it read?"
     assert not other, f"the app reaches the gap register other than as `.onDevice`: {other}"
+
+
+def test_the_view_only_loads_and_saves_the_on_device_store() -> None:
+    """The M18 closure Tester's T4 (INV-67). The pin above reads the name before `.onDevice`, not
+    what follows it. `let make = type(of: GapRegisterStore.onDevice).init`, then
+    `make(GapRegisterStore.onDevice.url, [.atomic], GapRegisterStore.onDevice.write).save(gaps)`,
+    builds a store with no file protection (V1 spelled another way). It compiled in all four
+    `client-decls` configurations and passed every test: the name is always followed by
+    `.onDevice`, the initialiser is never applied by name, and no `write(` call is written. Outside
+    `FrontDoor.swift`, the store is only ever `GapRegisterStore.onDevice.load()` or `.save(`."""
+    root = pathlib.Path(__file__).resolve().parents[2]
+    app = root / "ios" / "ModelRanking"
+    home = app / "Engine" / "FrontDoor.swift"
+    uses, other = 0, []
+    for path in sorted(app.rglob("*.swift")):
+        if path == home:
+            continue
+        code = _code(path.read_text(encoding="utf-8"))
+        for match in re.finditer(r"\bGapRegisterStore\b", code):
+            uses += 1
+            if not re.match(r"\s*\.\s*onDevice\s*\.\s*(?:load|save)\s*\(", code[match.end():]):
+                line = code.count("\n", 0, match.start()) + 1
+                other.append(f"{path.relative_to(root)}:{line}: {code[match.start():match.start() + 70]!r}")
+    assert uses, "the view names the gap register nowhere; was it read?"
+    assert not other, f"the view does more with the gap register than load and save it: {other}"

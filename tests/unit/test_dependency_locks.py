@@ -266,3 +266,34 @@ def test_an_install_beside_the_project_or_a_capital_pip_is_read(path: str, plant
             "scripts/install_engine_service.sh": "requirements/ingest.lock"}[path]
     text = (ROOT / path).read_text(encoding="utf-8") + f"\n{planted}\n"
     assert install_problems(path, text, lock), planted
+
+
+def test_the_audit_decides_make_deps() -> None:
+    """The M18 closure Tester's T2. The two tests above read what is audited, and that no lock
+    stops the target. Neither reads that the audit's verdict is make's: a `-` before the audit
+    line, `|| true` after it, `--strict` dropped, or a guard that prints its message and goes on
+    each passed both. `PY=false` is an audit that fails and `PY=true` one that passes; neither
+    runs pip-audit, so nothing is fetched."""
+    failed = _make("PY=false", "deps")
+    assert failed.returncode != 0, "an audit that failed left `make deps` green: " + failed.stdout + failed.stderr
+    empty = _make("LOCKS=", "PY=true", "deps")
+    assert empty.returncode != 0 and "no lock under requirements/" in empty.stdout, (
+        "no lock, and an audit of nothing passed: " + empty.stdout + empty.stderr)
+    audits = [line for line in _make("-n", "deps").stdout.splitlines() if "pip_audit" in line]
+    assert len(audits) == 1 and "--strict" in audits[0].split(), audits
+
+
+def test_no_venv_upgrade_hides_on_a_continued_line_or_in_a_variable(tmp_path: Path) -> None:
+    """The M18 closure Tester's T3. `test_no_venv_upgrades_pip_before_the_locks` reads one line at a
+    time, so `--upgrade-deps` on the next line of a continued command passed it, in the Makefile and
+    in the release script, whose venv command is continued today; so did a make variable holding
+    it. The Makefile's venv rule is read here from make's own dry run, expanded, and each file with
+    its continued lines joined."""
+    venv = tmp_path / "venv"  # named, never made: a dry run
+    run = _make("-n", f"VENV={venv}", f"{venv}/pyvenv.cfg")
+    assert run.returncode == 0 and "-m venv" in run.stdout, run.stdout + run.stderr
+    assert not UNLOCKED_UPGRADE.search(run.stdout.replace("\\\n", " ")), run.stdout
+    for path in ("Makefile", "scripts/install_engine_service.sh", "Dockerfile"):
+        code = "\n".join(line for line in (ROOT / path).read_text(encoding="utf-8").splitlines()
+                         if not line.lstrip().startswith("#"))
+        assert not UNLOCKED_UPGRADE.search(code.replace("\\\n", " ")), f"{path} upgrades pip outside the locks"

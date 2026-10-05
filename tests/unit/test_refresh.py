@@ -2093,3 +2093,41 @@ def test_a_publish_replaces_the_file_and_never_writes_into_it(tmp_path: Path) ->
 
     assert code == EXIT_PUBLISHED and outcome.published, outcome.reason
     assert built and live.stat().st_ino == built[0], "the published file is not the candidate's own file"
+
+
+def test_a_publish_whose_rename_fails_leaves_the_live_artifact_where_it_was(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """INV-4, "a publish is one atomic rename" (the M18 closure Tester's T1).
+
+    Deleting the live file and then renaming the candidate in passed every test, the one above
+    included: the live path ends as the candidate's inode, and an open reader keeps the old bytes.
+    Between the two steps there is no artifact, and a kill there (SIGALRM at 27 minutes, SIGKILL at
+    30) leaves none. Here the rename onto the live path fails, as a full disk or a kill would stop
+    it: the live file is still there, byte-identical, and nothing is published.
+    """
+    live = _artifact(tmp_path / "advisor.db", top_score=74.5)
+    before = live.read_bytes()
+    refused: list[str] = []
+
+    def refusing(real):  # type: ignore[no-untyped-def]
+        def move(src, dst, *args, **kwargs):  # type: ignore[no-untyped-def]
+            if os.path.realpath(dst) == os.path.realpath(live):
+                refused.append(str(src))
+                raise OSError("the test refuses the rename onto the live artifact")
+            return real(src, dst, *args, **kwargs)
+        return move
+
+    monkeypatch.setattr(os, "replace", refusing(os.replace))
+    monkeypatch.setattr(os, "rename", refusing(os.rename))
+
+    def building(argv: list[str]) -> int:
+        _artifact(Path(argv[argv.index("--db") + 1]), top_score=75.5)
+        return 0
+
+    outcome, code = refresh(live, builder=building)
+
+    assert refused, "the candidate was never renamed onto the live path"
+    assert live.is_file(), "the live artifact was gone when the publish failed"
+    assert live.read_bytes() == before, "a publish that failed changed the live artifact"
+    assert code == EXIT_FAILED and not outcome.published, outcome.reason

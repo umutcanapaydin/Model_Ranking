@@ -123,9 +123,23 @@ def _remove_network_guard() -> None:
     _REAL.clear()
 
 
+_ROOT = Path(__file__).resolve().parents[1]
+
+
 def is_live_contract_test(path: object) -> bool:
-    """A test under `tests/integration`, in a run that asked for the live sources."""
-    return os.environ.get("RUN_CONTRACT_TESTS") == "1" and "integration" in Path(str(path)).parts
+    """A test under this repository's `tests/integration`, in a run that asked for the live sources.
+
+    The path is read from the repository down (the M18 closure Tester's R2): read whole, a checkout
+    under any folder named `integration` lifted the guard for every test in a contract run."""
+    if os.environ.get("RUN_CONTRACT_TESTS") != "1":
+        return False
+    where = Path(str(path))
+    if where.is_absolute():
+        try:
+            where = where.resolve().relative_to(_ROOT)
+        except ValueError:
+            return False
+    return where.parts[:2] == ("tests", "integration")
 
 
 @pytest.hookimpl(hookwrapper=True)
