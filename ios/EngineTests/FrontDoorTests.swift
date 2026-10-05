@@ -10,23 +10,6 @@ import XCTest
 
 @testable import ModelRankingEngine
 
-private struct DecliningModel: QuestionRouter {
-    /// The on-device tier recognised the question and said nothing here measures it.
-    func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
-        ModelOutputBoundary.outcome(for: ModelOutputBoundary.declineSentinel, within: known)
-    }
-}
-
-private struct Silent: QuestionRouter {
-    func route(_ question: String, within known: [String]) async -> RoutingOutcome? { nil }
-}
-
-/// Answers with what it was given, immediately.
-private struct Fixed: QuestionRouter {
-    let outcome: RoutingOutcome?
-    func route(_ question: String, within known: [String]) async -> RoutingOutcome? { outcome }
-}
-
 /// Raised once, read from any task.
 private final class Flag: @unchecked Sendable {
     private let lock = NSLock()
@@ -42,14 +25,6 @@ private final class Flag: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return raised
-    }
-}
-
-/// A model call that does not come back in any time a reader would wait.
-private struct Hanging: QuestionRouter {
-    func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
-        try? await Task.sleep(nanoseconds: 10_000_000_000)
-        return RoutingOutcome(categoryID: "web-dev", tier: .model, unmeasured: false)
     }
 }
 
@@ -423,7 +398,7 @@ final class UnmeasuredQuestionTests: OfflineTestCase {
     /// The model tier's decline PATH, labelled as what it is: the sentinel reaches the notice. It
     /// does not read the question, and it is not cited as the wrong-modality or wrong-axis test.
     func testTheModelTiersDeclineIsCarriedThroughToTheNotice() async {
-        let outcome = await TieredRouter(model: DecliningModel(), similarity: Silent())
+        let outcome = await TieredRouter(model: DecliningModelTier(), similarity: SilentTier())
             .route("anything at all", within: served)
 
         XCTAssertEqual(outcome.tier, .model)
@@ -457,7 +432,7 @@ final class UnmeasuredQuestionTests: OfflineTestCase {
     /// The contradiction second-opinion P1 found: `manual` loaded a ranking while claiming to be
     /// measured and telling the reader to pick a surface that was already picked for them.
     func testWhenBothTiersDeclineTheFallbackIsLabelledUnmeasured() async {
-        let router = TieredRouter(model: nil, similarity: Silent())
+        let router = TieredRouter(model: nil, similarity: SilentTier())
 
         let outcome = await router.route("¿cuál es el mejor modelo?", within: served)
 
@@ -537,7 +512,7 @@ final class SlowTierTests: OfflineTestCase {
     private let wording = RoutingOutcome(categoryID: "coding", tier: .similarity, unmeasured: false)
 
     func testAModelTierThatNeverAnswersHandsTheQuestionToTheWordingTier() async {
-        let router = TieredRouter(model: Hanging(), similarity: Fixed(outcome: wording),
+        let router = TieredRouter(model: HangingTier(), similarity: FixedTier(outcome: wording),
                                   modelTimeout: 0.2)
         let started = Date()
 
@@ -550,7 +525,7 @@ final class SlowTierTests: OfflineTestCase {
 
     func testAModelTierThatAnswersInTimeIsStillUsed() async {
         let model = RoutingOutcome(categoryID: "web-dev", tier: .model, unmeasured: false)
-        let router = TieredRouter(model: Fixed(outcome: model), similarity: Fixed(outcome: wording),
+        let router = TieredRouter(model: FixedTier(outcome: model), similarity: FixedTier(outcome: wording),
                                   modelTimeout: 5)
 
         let outcome = await router.route("build me a landing page", within: served)
