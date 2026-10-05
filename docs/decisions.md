@@ -3804,6 +3804,8 @@ suite), or CI's Pythons cannot install a pinned version (the risk the W6 review'
 
 **Amended at the M18 closure (2026-10-05, the closure security seat's S5 and S1):** `make install` makes its venv without `--upgrade-deps`, so the first pip to run is the Python's own, and it installs the locked pip; `make deps` audits the four locks, not `.`. Clause 2's "nothing is fetched beyond the locks" does not yet hold for the serving image, whose Python base is taken by tag (#141, the owner's file under K.10).
 
+**Amended at #125 (2026-10-05):** the `dev` extra takes `httpx2`, the client starlette's test client runs on; on httpx it warned that a later starlette may drop that path. A `make lock` to the newest versions on 2026-10-05 changed only `dev.lock` (httpx2, httpcore2, truststore, and `filelock` 4.0.10 to 4.0.11), and the suite stayed green.
+
 
 ## D-178 — A bug whose fix the owner merged is closed, marked unverified
 
