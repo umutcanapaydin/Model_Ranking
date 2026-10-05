@@ -1417,3 +1417,16 @@ def test_knowledge_questions_in_the_off_topic_sets_are_not_searches() -> None:
             labels.setdefault(question, []).append(label)
     for trivia in ("what is the capital of france", "who won the world cup in 2022", "who wrote the odyssey"):
         assert labels.get(trivia) and set(labels[trivia]) == {"NOT_A_SEARCH"}, trivia
+
+
+def test_the_probe_leaves_a_not_a_search_row_out_of_its_score() -> None:
+    """#128 (the fix Tester's T1): the relabelled rows stop counting as misses only if `probe.swift`
+    leaves them out of the score's denominator as well as its pass count. With the printed score
+    over `cases.count`, each NOT_A_SEARCH row was a miss again, the issue's symptom, and the suite
+    stayed green: the #118 test pins only the `continue`."""
+    probe = (CLIENT.parents[1] / "scripts/router_probe/probe.swift").read_text(encoding="utf-8")
+    score = re.findall(r'print\("\\\(pass\)/\\\(([^)]*)\)"', probe)
+    assert score, "probe.swift prints no score"
+    assert [part.replace(" ", "") for part in score] == ["cases.count-unscored"], (
+        f"probe.swift's score is not over the scored rows only: {score}"
+    )
