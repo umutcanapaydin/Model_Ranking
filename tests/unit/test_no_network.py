@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import os
 import socket
 import threading
 from pathlib import Path
@@ -144,3 +145,41 @@ def test_a_checkout_under_a_folder_named_integration_stays_guarded(monkeypatch: 
     assert not conftest.is_live_contract_test("/home/ci/integration/model_ranking/tests/unit/test_api_v1.py")
     assert not conftest.is_live_contract_test(conftest._ROOT / "tests" / "unit" / "integration" / "test_x.py")
     assert conftest.is_live_contract_test(conftest._ROOT / "tests" / "integration" / "test_x_contract.py")
+
+
+def test_a_proxy_in_the_shell_reaches_no_unit_test(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#143 (the M18 closure security seat's S8). The guard allows this machine, so a proxy variable
+    naming a proxy here would carry a unit test's request out through it. The run hides the proxy
+    variables; a live contract test gets them back for its own run, and loses them after."""
+    from types import SimpleNamespace
+
+    from tests import conftest
+
+    assert not set(conftest.PROXY_VARS) & set(os.environ), "a unit test sees a proxy variable"
+    saved = dict(conftest._SAVED_PROXIES)
+    try:
+        monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:9")
+        monkeypatch.setenv("all_proxy", "socks5://127.0.0.1:9")
+        conftest._hide_proxies()
+        assert "HTTPS_PROXY" not in os.environ and "all_proxy" not in os.environ
+
+        def during(path: str) -> bool:
+            item = SimpleNamespace(path=Path(path))
+            setup = conftest.pytest_runtest_setup(item)
+            next(setup)
+            seen = os.environ.get("HTTPS_PROXY") == "http://127.0.0.1:9"
+            setup.close()
+            teardown = conftest.pytest_runtest_teardown(item, None)
+            next(teardown)
+            with contextlib.suppress(StopIteration):
+                next(teardown)
+            conftest._LIFTED["on"] = False
+            assert "HTTPS_PROXY" not in os.environ, "the proxy outlived the test that was given it"
+            return seen
+
+        monkeypatch.setenv("RUN_CONTRACT_TESTS", "1")
+        assert during("tests/integration/test_x_contract.py"), "a live contract test lost the proxy"
+        assert not during("tests/unit/test_x.py"), "a unit test was handed the proxy"
+    finally:
+        conftest._SAVED_PROXIES.clear()
+        conftest._SAVED_PROXIES.update(saved)
