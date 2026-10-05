@@ -26,6 +26,27 @@ OFFLINE="FailureScreenTests"
 
 [ -f "$DB" ] || { echo "ui-test: no artifact at $DB (set MODEL_RANKING_DB)"; exit 2; }
 [ -x "$REPO/.venv/bin/python" ] || { echo "ui-test: $REPO/.venv is missing; run make install"; exit 2; }
+# #139: an artifact without Arena's slice boards, the refinement boards (D-168), is older than the
+# screen, which would then be tested on boards the phone no longer gets. Any doubt refuses: the
+# check prints `ok` only when the artifact opens read-only and holds a row of a declared slice.
+slices="$("$REPO/.venv/bin/python" - "$DB" 2>/dev/null <<'PY'
+import sys
+
+from app.workflows.board_tables import ARENA_SLICES
+from app.workflows.schema import open_readonly
+
+names = sorted({board.source_name for board in ARENA_SLICES})
+marks = ",".join("?" for _ in names)
+row = open_readonly(sys.argv[1]).execute(f"SELECT 1 FROM scores WHERE source IN ({marks}) LIMIT 1", names)
+print("ok" if row.fetchone() else "none")
+PY
+)"
+if [ "$slices" != ok ]; then
+  echo "ui-test: $DB holds none of Arena's slice boards, the refinement boards (D-168): it is older than the screen"
+  echo "         build a current one: .venv/bin/python -m app.workflows.refresh --db $(printf '%q' "$DB") --fetch-epoch"
+  echo "         or set MODEL_RANKING_DB to a current artifact"
+  exit 2
+fi
 if curl -s -m 1 -o /dev/null "http://127.0.0.1:$PORT/"; then
   echo "ui-test: something already answers on :$PORT; stop it or set UI_TEST_PORT"; exit 2
 fi
