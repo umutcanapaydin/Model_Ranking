@@ -152,3 +152,17 @@ def test_a_makefile_pointer_lands_on_the_target_its_sentence_names() -> None:
     read = files.__getitem__
     assert not problems("`make install-check`, a leg of `make check` (Makefile:2)", {}, read)
     assert problems("`make install-check`, a leg of `make check` (Makefile:1)", {}, read)
+
+
+def test_a_test_is_cited_by_name_and_a_line_pointer_is_refused() -> None:
+    """#131: a pointer by line that shifted onto ANOTHER test's declaration passed this gate. It
+    happened at M18-W7 (two pointers) and again at #126 (four). A test is cited by name,
+    `test_x.py::test_a`, and the gate checks that the name is declared in that file; a line pointer
+    into a test file is refused, whatever it lands on."""
+    files = {"tests/unit/test_x.py": ["import os", "", "def test_a():", "    pass", "", "def test_b():", "    pass"]}
+    by_name = {"test_x.py": ["tests/unit/test_x.py"]}
+    read = files.__getitem__
+    assert not problems("Evidence: test_x.py::test_a, ::test_b", by_name, read)
+    assert problems("Evidence: test_x.py:3", by_name, read), "a line pointer was accepted"
+    assert problems("Evidence: test_x.py::test_gone", by_name, read)
+    assert problems("Evidence: test_x.py::test_a, ::test_gone", by_name, read)
