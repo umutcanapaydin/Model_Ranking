@@ -18,6 +18,7 @@ import os
 import socket
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -125,6 +126,37 @@ def _remove_network_guard() -> None:
 
 _ROOT = Path(__file__).resolve().parents[1]
 
+#: #143 (the M18 closure security seat's S8): the guard allows this machine, so a proxy variable
+#: naming a proxy here would carry a unit test's request out through it. The run hides them, and a
+#: live contract test gets them back for its own run.
+_SAVED_PROXIES: dict[str, str] = {}
+#: How an xdist controller hands its hidden proxies to the workers it starts after hiding them.
+_HANDED = "model_ranking_hidden_proxies"
+
+
+def proxy_names() -> list[str]:
+    """Every variable urllib reads as a proxy (`getproxies_environment`): a name that ends in
+    `_proxy`, in any case, but `no_proxy`. Derived from urllib's rule, not listed (the fix Tester's
+    K2: `Https_Proxy` passed a list of six)."""
+    return [name for name in os.environ if name.lower().endswith("_proxy") and name.lower() != "no_proxy"]
+
+
+def _hide_proxies() -> None:
+    for name in proxy_names():
+        _SAVED_PROXIES[name] = os.environ.pop(name)
+
+
+def handed_proxies(config: object) -> dict[str, str]:
+    """What an xdist controller handed this worker (the fix Tester's R2): the controller hid the
+    proxies before it started its workers, so a worker's own environment holds none to give back."""
+    handed = getattr(config, "workerinput", {}).get(_HANDED, {})
+    return {str(name): str(value) for name, value in handed.items()}
+
+
+@pytest.hookimpl(optionalhook=True)
+def pytest_configure_node(node: Any) -> None:
+    node.workerinput[_HANDED] = dict(_SAVED_PROXIES)
+
 
 def is_live_contract_test(path: object) -> bool:
     """A test under this repository's `tests/integration`, in a run that asked for the live sources.
@@ -145,6 +177,8 @@ def is_live_contract_test(path: object) -> bool:
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_setup(item: pytest.Item) -> Iterator[None]:
     _LIFTED["on"] = is_live_contract_test(item.path)  # before the fixtures, whatever their scope
+    if _LIFTED["on"]:
+        os.environ.update(_SAVED_PROXIES)
     yield
 
 
@@ -152,6 +186,7 @@ def pytest_runtest_setup(item: pytest.Item) -> Iterator[None]:
 def pytest_runtest_teardown(item: pytest.Item, nextitem: pytest.Item | None) -> Iterator[None]:
     yield
     _LIFTED["on"] = False
+    _hide_proxies()
 
 
 # --- W-108: the tests that read the real artifact ------------------------------------------------
@@ -168,6 +203,8 @@ ARTIFACT = Path("advisor.db")
 
 def pytest_configure(config: pytest.Config) -> None:
     _install_network_guard()  # #122: before collection, so imports and every fixture are covered
+    _hide_proxies()  # #143
+    _SAVED_PROXIES.update(handed_proxies(config))
     config.addinivalue_line(
         "markers", "artifact: reads the built advisor.db (gitignored; W-108). Skipped where absent."
     )
@@ -233,3 +270,4 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
 def pytest_unconfigure(config: pytest.Config) -> None:
     _remove_network_guard()
+    os.environ.update(_SAVED_PROXIES)
