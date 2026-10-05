@@ -282,10 +282,18 @@ public struct GapRegisterStore {
     /// folder writes atomically only. A parameter, not an `#if os(...)`: the Engine is compiled the
     /// same way for `swift test` and for the app (`test_ios_platform_drift.py`).
     public let writeOptions: Data.WritingOptions
+    /// How the bytes reach the file. A parameter so a test can see whether a save tries to write,
+    /// and where (#121): Foundation cannot write to an https address, so without it the save side of
+    /// "only ever a file on this device" held by no test.
+    let write: (Data, GapRegisterStore) throws -> Void
 
-    public init(url: URL, writeOptions: Data.WritingOptions = .atomic) {
+    public init(url: URL, writeOptions: Data.WritingOptions = .atomic,
+                write: @escaping (Data, GapRegisterStore) throws -> Void = { data, store in
+                    try data.write(to: store.url, options: store.writeOptions)
+                }) {
         self.url = url
         self.writeOptions = writeOptions
+        self.write = write
     }
 
     /// Application Support, which the system does not purge, in a folder of its own that is
@@ -321,7 +329,7 @@ public struct GapRegisterStore {
         var values = URLResourceValues()
         values.isExcludedFromBackup = true
         try? folder.setResourceValues(values)
-        guard (try? data.write(to: url, options: writeOptions)) != nil else { return }
+        guard (try? write(data, self)) != nil else { return }
         var target = url
         try? target.setResourceValues(values)
     }

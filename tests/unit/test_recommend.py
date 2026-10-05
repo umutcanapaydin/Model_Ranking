@@ -130,7 +130,7 @@ def test_three_labeled_deterministic_picks() -> None:
     for p in rec1.picks:
         assert p.model and p.vendor and p.why and p.confidence in ("High", "Medium")
         assert p.harness
-    assert rec1.picks[0].model == "Claude 4.5 Opus"
+    assert rec1.picks[0].model == "Claude Opus 4.5"
 
 
 def test_req_lic_001_epoch_citation_ships_where_epoch_data_is_served() -> None:
@@ -196,7 +196,7 @@ def test_budget_filter_is_hard_constraint() -> None:
     for p in rec.picks:
         assert p.blended_per_m <= 2.0, f"{p.model} exceeds the low-budget cap"
     # the expensive leader must be gone
-    assert all(p.model != "Claude 4.5 Opus" for p in rec.picks)
+    assert all(p.model != "Claude Opus 4.5" for p in rec.picks)
 
 
 def test_an_unbuilt_database_is_refused_rather_than_answered_empty() -> None:
@@ -582,7 +582,7 @@ def test_secondary_score_rounds_and_absence_stays_absent(tmp_path, capsys) -> No
     assert main(["--db", str(db), "--budget", "unlimited"]) == 0
     picks = {p["model"]: p for p in json.loads(capsys.readouterr().out)["picks"]}
     assert picks["DeepSeek V3.2"]["secondary_score"] == 74.2  # rounded, not raw
-    assert picks["Claude 4.5 Opus"]["secondary_score"] is None  # absent, not 0.0
+    assert picks["Claude Opus 4.5"]["secondary_score"] is None  # absent, not 0.0
 
 
 def test_model_engine_trade_off_never_claims_a_gap_the_fields_deny() -> None:
@@ -633,3 +633,72 @@ def test_secondary_benchmark_evidence_is_cited_too() -> None:
     assert graded_on_two, "fixture must serve a secondary score for this to mean anything"
     assert all(p.confidence == "High" for p in graded_on_two)
     assert SWEBENCH_ATTRIBUTION in rec.sources  # Aider's citation lives in this string
+
+
+def test_a_pick_is_the_same_as_the_quality_pick_only_when_it_is_the_same_model() -> None:
+    """#102: whether the value and budget picks repeat the quality pick was decided by display name,
+    and display names are not unique (`models.display` has no UNIQUE). A different model that shared
+    the leader's name lost its trade-off sentence, as if it were the leader."""
+    conn = _db()
+    before = recommend(conn, "unlimited")
+    assert before is not None
+    quality, value, _budget = before.picks
+    assert value.model != quality.model and value.trade_off, "the fixture's value pick is the leader"
+    conn.execute("UPDATE models SET display = ? WHERE display = ?", (quality.model, value.model))
+    after = recommend(conn, "unlimited")
+    assert after is not None
+    _, shared, _ = after.picks
+    assert shared.model == quality.model, "the rename did not reach the pick"
+    assert shared.trade_off and shared.trade_off_fact, "a different model was taken for the leader"
+
+
+def test_epochs_citation_carries_its_current_title() -> None:
+    """#124 (M18-W7): Epoch renamed its prescribed citation from 'AI Benchmarking Hub' to
+    'Capabilities & benchmarking' (its bundle README and its web page, read 2026-10-04,
+    `docs/research/data-licences-2026-10-04.md` note 2). CC BY asks for the credit the licensor
+    prescribes, so the payload and the README say the current one."""
+    assert "\u2018Capabilities & benchmarking\u2019" in EPOCH_ATTRIBUTION
+    assert "Benchmarking Hub" not in EPOCH_ATTRIBUTION
+
+
+def test_the_budget_pick_is_the_leader_only_when_it_is_the_same_model_too() -> None:
+    """The W7 review's M3: #102's test held the value pick only; the old rule on the budget line
+    alone passed the suite. Renamed to the leader's name, a different budget pick keeps its trade-off."""
+    conn = _db()
+    before = recommend(conn, "unlimited")
+    assert before is not None
+    quality, _, budget = before.picks
+    assert budget.model != quality.model and budget.trade_off, "the fixture's budget pick is the leader"
+    conn.execute("UPDATE models SET display = ? WHERE display = ?", (quality.model, budget.model))
+    after = recommend(conn, "unlimited")
+    assert after is not None
+    *_, shared = after.picks
+    assert shared.model == quality.model and shared.trade_off and shared.trade_off_fact
+
+
+def test_a_pick_that_is_the_leader_carries_no_trade_off() -> None:
+    """The other half: both flags forced to False passed the suite. When the leader is also the
+    cheapest model, the value and budget picks are the leader, and say nothing against it."""
+    conn = _db()
+    conn.execute("UPDATE px_median SET in_m = 0.000001, out_m = 0.000001 WHERE model_id = 'claude-4.5-opus'")
+    rec = recommend(conn, "unlimited")
+    assert rec is not None
+    quality, value, budget = rec.picks
+    assert value.model == quality.model == budget.model, [p.model for p in rec.picks]
+    for pick in (value, budget):
+        assert pick.trade_off is None and pick.trade_off_fact is None, pick.label
+
+
+def test_the_value_pick_can_be_the_leader_while_the_budget_pick_is_not() -> None:
+    """Tester (M18-W7), #102: each pick is compared with the leader on its own. In every earlier test
+    the value and budget picks were both the leader or both not, so the budget line reading the value
+    pick's flag (`cheap_is_quality = value is quality`) passed the suite. Priced between the value
+    and the budget picks, the leader is also the value pick; the budget pick is still another model."""
+    conn = _db()
+    conn.execute("UPDATE px_median SET in_m = 0.4, out_m = 1.0 WHERE model_id = 'claude-4.5-opus'")
+    rec = recommend(conn, "unlimited")
+    assert rec is not None
+    quality, value, budget = rec.picks
+    assert value.model == quality.model != budget.model, [p.model for p in rec.picks]
+    assert value.trade_off is None and value.trade_off_fact is None
+    assert budget.trade_off and budget.trade_off_fact

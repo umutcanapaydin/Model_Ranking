@@ -726,3 +726,43 @@ def test_the_repositorys_own_artifact_is_checked_not_assumed() -> None:
         f"advisor.db is not servable: {problem}. Rebuild it with "
         "`python -m app.workflows.build --db advisor.db --force --epoch-dir <bundle>` (W-023)."
     )
+
+
+def test_no_test_reloads_a_module_other_tests_import_names_from() -> None:
+    """#114: a reload of `app.adapter.main` made a second `ConfigError` class, so this file's
+    `pytest.raises(ConfigError)` checks failed whenever the reloading file ran first. Test results
+    must not depend on file order (`-k`, xdist, random order). Any reload, of any module and however
+    it is spelled, is refused (the W7 review's M5: `importlib.reload(engine)` passed a name match)."""
+    import ast
+    from pathlib import Path
+
+    tests = Path(__file__).resolve().parents[1]
+    reloads = []
+    for path in sorted(tests.rglob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            func = node.func if isinstance(node, ast.Call) else None
+            name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
+            if name == "reload":
+                reloads.append(f"{path.relative_to(tests)}:{node.lineno}")
+    assert not reloads, f"these tests reload a module: {reloads}"
+
+
+def test_the_empty_answer_tests_then_this_file_pass_in_that_order() -> None:
+    """Tester (M18-W7), #114 as its issue asked: run the two files in the order that failed. The gate
+    above reads calls named `reload`, so `from importlib import reload as again` passed it, and the
+    five `ConfigError` checks failed again in this order. A child pytest, without coverage, reports or
+    workers, and with this test deselected so it does not start itself."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    this = "tests/unit/test_api_config.py::test_the_empty_answer_tests_then_this_file_pass_in_that_order"
+    done = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts=",
+         "tests/unit/test_empty_answer_reasons.py", "tests/unit/test_api_config.py", "--deselect", this],
+        cwd=root, capture_output=True, text=True, timeout=300, check=False,
+        env={k: v for k, v in os.environ.items() if not k.startswith(("PYTEST_", "COV_"))},
+    )
+    assert done.returncode == 0, done.stdout[-2000:]

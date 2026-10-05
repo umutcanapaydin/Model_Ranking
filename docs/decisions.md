@@ -3611,6 +3611,13 @@ the owner's machine.
 
 **Revisit when:** DevFlow's `/close-wave` says this itself (the finding is handed back on #52).
 
+**AMENDED 2026-10-04 (M18-W7, #120; decided by the agent on the owner's standing instruction of
+2026-09-29).** Clause 2's "its own copy of the artifact" is a copy of the artifact the engine
+service serves (the deployed release's `advisor.db`), made when the seat is set up. The M18-W3 third
+review seat found why it must say so: with no copy the suite stops at W-108, and with the older copy
+in the owner's checkout (2026-09-24, before the refinement boards) one test fails that the wave did
+not cause. Clause 2's own venv is built by `make install`, from the locks (D-177).
+
 
 ## D-175 — The screen is tested by a committed UI target, run locally, with scripted routing
 

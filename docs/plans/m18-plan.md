@@ -236,3 +236,12 @@ security seat.
 W-126, W-130 fixed), #35 and #26 (the locks, D-177), #88's table (the ruling is the owner's, asked in
 the pull request) and #91's protocol. P5 moved to M19 by its valve. #81's workflow patch is on the
 issue for the owner. It filed #121 to #125.
+
+**Amendment (2026-10-04, the owner's instruction: "if you will have time you can start with the open
+issues").** A W7 is added: the issue backlog, the open issues triaged `fix-issue` (#102, #103, #104,
+#105, #114, #118, #119, #122, #123), the reader-visible #112, and #121, #124 (the Epoch title) and
+#120. Risk HIGH (#104 touches the launcher). The wave plan is `docs/plans/m18-wave-7-plan.md`.
+
+**Amendment (2026-10-05, W7's close).** W7 delivered #102, #103, #104, #105, #114, #118, #119,
+#120, #121 and #123. #112, #122 and #124 were delivered in part; each issue says what is left. It
+filed #128, #129, #130 and #131.

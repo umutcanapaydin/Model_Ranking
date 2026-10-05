@@ -110,7 +110,7 @@ def test_cli_end_to_end_three_picks(tmp_path: Path) -> None:
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(proc.stdout)
     assert [p["label"] for p in payload["picks"]] == ["best_quality", "best_value", "budget_pick"]
-    assert payload["picks"][0]["model"] == "Claude 4.5 Opus"
+    assert payload["picks"][0]["model"] == "Claude Opus 4.5"
     assert payload["task"] == "coding"
     # W4 review BLOCKING-2: cite what this run actually read (swebench + pricing), and
     # do not claim Epoch, which this fixture never ingests.

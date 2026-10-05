@@ -778,6 +778,7 @@ def build(
     counted = _unconfirmed_suffix_rows(conn)
     reconciled = reconcile(conn)
     report.sources = _discount_resolved_efforts(conn, report.sources, counted)
+    run.reports[:] = _discount_resolved_efforts(conn, run.reports, counted)  # #103: one account
     if reconciled.models_registered < minimum_models:
         msg = (
             f"reconciliation registered {reconciled.models_registered} models, below "

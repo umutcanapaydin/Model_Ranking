@@ -26,7 +26,7 @@ IPS_BAND = (-1.0, 1.0)
 # licence is written ONCE, in the project's `CC-BY-4.0` convention (review MINOR-8 \u2014
 # it previously appeared twice, in two spellings, so a test could substring-match it).
 EPOCH_ATTRIBUTION = (
-    "Epoch AI, \u2018AI Benchmarking Hub\u2019. Published online at epoch.ai. "
+    "Epoch AI, \u2018Capabilities & benchmarking\u2019. Published online at epoch.ai. "
     "Retrieved from \u2018https://epoch.ai/benchmarks\u2019 [online resource]. "
     "(CC-BY-4.0)"
 )

@@ -71,6 +71,6 @@ Proprietary — ILGAR / Umut Can Apaydın. All rights reserved.
 
 ## Data attribution
 
-Epoch AI benchmark data is used under CC BY 4.0. Required citation: Epoch AI, ‘AI Benchmarking Hub’. Published online at epoch.ai. Retrieved from ‘https://epoch.ai/benchmarks’ [online resource].
+Epoch AI benchmark data is used under CC BY 4.0. Required citation: Epoch AI, ‘Capabilities & benchmarking’. Published online at epoch.ai. Retrieved from ‘https://epoch.ai/benchmarks’ [online resource].
 This citation also travels in every ranking export and recommendation payload source list
 (REQ-LIC-001).

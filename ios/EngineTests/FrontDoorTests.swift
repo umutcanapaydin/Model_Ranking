@@ -759,6 +759,25 @@ final class GapRegisterHardeningTests: OfflineTestCase {
         XCTAssertEqual(OfflineGuard.drain(), [], "the register reached for a remote address")
     }
 
+    /// #121 (M18-W7): the save side. Foundation cannot write to an https address, so a save there
+    /// wrote nothing with or without the guard, and the guard was held by no test. The store's writer
+    /// is a parameter: a save to anything but a file must not even try.
+    func testASaveToAnythingButAFileTriesNoWrite() {
+        var attempted: [URL] = []
+        let store = GapRegisterStore(url: URL(string: "https://example.invalid/gap-register.json")!,
+                                     write: { _, store in attempted.append(store.url) })
+        var register = GapRegister()
+        register.record("remove the background from my photo")
+        store.save(register)
+        XCTAssertEqual(attempted, [], "the register tried to write somewhere that is not a file")
+
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("gap-register.json")
+        GapRegisterStore(url: file, write: { _, store in attempted.append(store.url) }).save(register)
+        XCTAssertEqual(attempted, [file], "a save to a file no longer reaches its writer")
+    }
+
     /// And a save into a fresh folder round-trips, folder created on the way.
     func testASaveCreatesItsFolderAndRoundTrips() throws {
         let folder = FileManager.default.temporaryDirectory

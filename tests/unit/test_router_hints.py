@@ -521,7 +521,9 @@ EGRESS_EXACT = {
     ("FrontDoor.swift", "FileManager.default.temporaryDirectory"): "REQ-GAP-001: the fallback folder",
     ("FrontDoor.swift", "FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)"): "REQ-GAP-001: the register's folder",
     ("FrontDoor.swift", "Data(contentsOf: url)"): "REQ-GAP-001: the register reads its own file",
-    ("FrontDoor.swift", "data.write(to: url, options: writeOptions)"): "REQ-GAP-001: the register writes its own file",
+    # #121 (M18-W7): the write is the store's default writer, a parameter so a test sees each attempt.
+    ("FrontDoor.swift", "try data.write(to: store.url, options: store.writeOptions)"): "REQ-GAP-001: the register writes its own file",
+    ("FrontDoor.swift", "try? write(data, self)"): "REQ-GAP-001: `save` hands its file to that writer, after `url.isFileURL`",
     ("FrontDoor.swift", "public let url: URL"): "REQ-GAP-001: the register's own file",
     ("FrontDoor.swift", "public init(url: URL,"): "REQ-GAP-001: the register's own file",
     # M17-W4, D-167 clause 4: the standings the engine sent, kept for a day in the caches folder.
@@ -701,3 +703,25 @@ def test_the_model_is_told_what_each_of_its_two_verdicts_means() -> None:
     told = session.group(1)
     for value in ("searchValue", "notASearchValue"):
         assert f"\\(ModelOutputBoundary.{value})" in told, f"the model is not told what `{value}` means"
+
+
+def test_only_tests_hand_the_gap_register_a_writer_of_their_own() -> None:
+    """#121 made the register's writer a parameter, so a test can see each write a save tries. The
+    W7 review's R3: any file could then pass a writer that sends the typed question elsewhere. The
+    app builds its store only as `GapRegisterStore.onDevice`, with the default writer."""
+    root = pathlib.Path(__file__).resolve().parents[2]
+    app = root / "ios" / "ModelRanking"
+    passed = []
+    for path in sorted(app.rglob("*.swift")):
+        code = _code(path.read_text(encoding="utf-8"))
+        for match in re.finditer(r"GapRegisterStore\s*\(", code):
+            depth, end = 1, match.end()
+            while depth and end < len(code):  # the whole call, nested parentheses and all
+                depth += {"(": 1, ")": -1}.get(code[end], 0)
+                end += 1
+            call = code[match.end():end]
+            if "write:" in call:
+                passed.append(f"{path.relative_to(root)}: {call[:60]}")
+    assert not passed, f"the app hands the gap register a writer of its own: {passed}"
+    assert "write:" in (root / "ios/EngineTests/FrontDoorTests.swift").read_text(encoding="utf-8"), (
+        "the test that needs the parameter is gone; then the parameter can go too")

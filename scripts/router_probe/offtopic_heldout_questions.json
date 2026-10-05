@@ -4,7 +4,7 @@
 ["how many days until new year","assistant|everyday~"],
 ["is coffee bad for you","assistant|everyday~"],
 ["what should i wear to an interview","assistant|everyday~"],
-["good morning","assistant|everyday~"],
+["good morning","NOT_A_SEARCH"],
 ["how do i get a passport renewed","assistant|everyday~"],
 ["what is the difference between rent and lease","assistant|everyday~"],
 ["plan a three day trip to rome","assistant|everyday~"],
@@ -13,4 +13,4 @@
 ["convert 50 dollars to euros","assistant|everyday~"],
 ["how do i boil an egg","assistant|everyday~"],
 ["why is my houseplant turning yellow","assistant|everyday~"],
-["thanks","assistant|everyday~"]]
+["thanks","NOT_A_SEARCH"]]

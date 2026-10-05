@@ -111,11 +111,11 @@ def served_db(tmp_path: Path) -> Path:
 
 
 def _answers(served_db: Path, task: str, budget: str = "unlimited") -> list[dict[str, object]]:
-    import importlib
-
+    # #114: the app reads `MODEL_RANKING_DB` on each request, so no reload is needed. A reload made
+    # a new `ConfigError` class, and `test_api_config.py`'s `pytest.raises(ConfigError)` checks
+    # then failed whenever this file ran first.
     import app.adapter.main as main_mod
 
-    main_mod = importlib.reload(main_mod)
     with TestClient(main_mod.app) as client:
         response = client.get(f"/v1/recommendations?task={task}&budget={budget}")
     assert response.status_code == 200

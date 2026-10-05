@@ -189,9 +189,42 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
     # too); a shorter one only as a whole quoted string, since a tuning question may hold a short
     # phrase by chance. The question's text is not printed, so a failure does not spoil its set.
     texts = {p.name: p.read_text(encoding="utf-8", errors="ignore") for p in sources}
-    found = sorted({(name, len(q)) for name, text in texts.items() for q in held
-                    if (len(q) >= 25 and q in text) or f'"{q}"' in text})
-    assert not found, f"held-out questions written into code or tests (file, length): {found}"
+    # #119 (M18-W7): the probe's other sets too, which the tests and the tuning read; each live set
+    # is left out of its own comparison. Their strings are compared as strings, after JSON decoding.
+    tuning = {p.name: _json_strings(json.loads(p.read_text(encoding="utf-8")))
+              for p in sorted((root / "scripts/router_probe").glob("*.json")) if p not in live}
+    found = _held_out_leaks(held, texts, _every_tuning_set_read(tuning))
+    assert not found, f"held-out questions written into code, tests or tuning sets (file, length): {found}"
+
+
+def _json_strings(value: object) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        value = list(value.values())
+    return [s for item in value for s in _json_strings(item)] if isinstance(value, list) else []
+
+
+def _held_out_leaks(held: set[str], texts: dict[str, str], tuning: dict[str, list[str]]) -> list[tuple[str, int]]:
+    """(file, length) for each held-out question found. A question of 25 characters or more counts
+    anywhere; a shorter one only whole. The question itself is never printed."""
+    # Case-folded, so a question copied in capitals is found too (the W7 review's K4).
+    folded_texts = {name: text.casefold() for name, text in texts.items()}
+    in_code = {(name, len(q)) for name, text in folded_texts.items() for q in (h.casefold() for h in held)
+               if (len(q) >= 25 and q in text) or f'"{q}"' in text}
+    in_sets = {(name, len(q)) for name, strings in tuning.items() for q in (h.casefold() for h in held)
+               if any(q == s.casefold() or (len(q) >= 25 and q in s.casefold()) for s in strings)}
+    return sorted(in_code | in_sets)
+
+
+def test_a_held_out_question_copied_into_a_tuning_set_is_found() -> None:
+    """#119: the gate read `.swift` and `.py` only, so a live question pasted into a tuning `.json`
+    set passed it. Planted here with a made-up question, never a real one."""
+    planted = "which model would best plan a three day hike in the alps"
+    assert _held_out_leaks({planted}, {}, {"tuning.json": ["other", planted]}) == [("tuning.json", len(planted))]
+    assert _held_out_leaks({planted}, {}, {"tuning.json": [f"prefix: {planted}"]})
+    assert not _held_out_leaks({"short one here"}, {}, {"tuning.json": ["a short one here, inside"]})
+    assert _held_out_leaks({planted}, {}, {"tuning.json": [planted.upper()]}), "a question in capitals passed"
 
 
 def test_the_apps_copy_of_the_ordering_note_is_the_engines() -> None:
@@ -1323,3 +1356,47 @@ def test_a_held_question_clears_the_old_answer_and_its_two_taps_do_what_they_say
     assert re.search(
         r"routingInFlight = true\s*Task \{\s*defer \{ routingInFlight = false \}\s*await apply\(", confirm.group(1)
     ), "Find a model does not hold the field while it answers, or never gives it back"
+
+
+def _every_tuning_set_read(tuning: dict[str, list[str]]) -> dict[str, list[str]]:
+    """Tester (M18-W7), #119: the gate itself must read the tuning sets, of both shapes. With no
+    `.json` set read, or the `{q, ...}` sets read as empty, the gate passed: no question leaks today.
+    Only file names are printed."""
+    expected = {"probe_questions.json", "offtopic_questions.json", "refinement_questions.json",
+                "image_tuning_questions.json"}
+    assert expected <= set(tuning), f"tuning sets not read: {sorted(expected - set(tuning))}"
+    empty = sorted(name for name, strings in tuning.items() if not strings)
+    assert not empty, f"tuning sets read as empty: {empty}"
+    return tuning
+
+
+def test_the_held_out_gate_folds_case_on_every_side_and_reads_every_shape() -> None:
+    """Tester (M18-W7), #119 and the W7 review's K4: the planted case above is a lower-case question
+    copied in capitals. A question written with capitals and copied in lower case, the code half,
+    a short question whole in a set, and a `{q, ...}` set each passed a mutant of the gate.
+    Made-up questions, never a real one."""
+    planted = "Which Model Would Best Plan A Three Day Hike In The Alps"
+    assert _held_out_leaks({planted}, {}, {"tuning.json": [planted.lower()]})
+    assert _held_out_leaks({planted.lower()}, {"Router.swift": f'let q = "{planted.upper()}"'}, {})
+    assert _held_out_leaks({"Short One Here"}, {}, {"tuning.json": ["short one here"]})
+    assert planted in _json_strings([{"q": planted, "expected": "assistant"}])
+
+
+def test_greetings_in_the_off_topic_sets_are_not_searches_and_the_probe_skips_them() -> None:
+    """Tester (M18-W7), #118 and the W7 review's M7: D-169 reads a greeting as not a search, so the
+    off-topic sets label "hello", "good morning" and "thanks" NOT_A_SEARCH, and `probe.swift`, the
+    one scorer of their `[question, label]` shape, leaves those rows unscored instead of counting a
+    miss. Both sets are retired (the held-out gate's list), so their rows may be read here."""
+    import json
+
+    folder = CLIENT.parents[1] / "scripts/router_probe"
+    labels: dict[str, list[str]] = {}
+    for name in ("offtopic_questions.json", "offtopic_heldout_questions.json"):
+        for question, label in json.loads((folder / name).read_text(encoding="utf-8")):
+            labels.setdefault(question, []).append(label)
+    for greeting in ("hello", "good morning", "thanks"):
+        assert labels.get(greeting) and set(labels[greeting]) == {"NOT_A_SEARCH"}, greeting
+    probe = (folder / "probe.swift").read_text(encoding="utf-8")
+    assert re.search(r'if want == "NOT_A_SEARCH" \{ unscored \+= 1; continue \}', probe), (
+        "probe.swift scores a NOT_A_SEARCH row as a miss again"
+    )

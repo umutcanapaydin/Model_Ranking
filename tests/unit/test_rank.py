@@ -94,7 +94,7 @@ def test_ranking_takes_best_score_and_its_harness() -> None:
     conn = connect()
     _pipeline(conn)
     ranking = coding_ranking(conn)
-    assert [r.model for r in ranking] == ["Claude 4.5 Opus", "GPT-5"]
+    assert [r.model for r in ranking] == ["Claude Opus 4.5", "GPT-5"]
     gpt5 = ranking[1]
     assert gpt5.score == 74.4
     assert gpt5.harness == "mini-SWE-agent"
