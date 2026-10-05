@@ -110,7 +110,8 @@ final class RefinementBoundaryTests: OfflineTestCase {
         if #available(iOS 26.0, macOS 26.0, *) {
             let data = try JSONEncoder().encode(try ModelRouter.schema(for: served))
             let root = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
-            let fields = Set(["surface"] + RefinementKind.allCases.map(\.rawValue))
+            // D-169 (M18-W3): the request verdict, a closed yes/no, beside the surface and refinements.
+            let fields = Set(["request", "surface"] + RefinementKind.allCases.map(\.rawValue))
 
             XCTAssertEqual(root["additionalProperties"] as? Bool, false)
             XCTAssertEqual(Set(root["required"] as? [String] ?? []), fields)
@@ -127,6 +128,10 @@ final class RefinementBoundaryTests: OfflineTestCase {
                 }
             }
             XCTAssertEqual(try offered("surface"), served + [ModelOutputBoundary.declineSentinel])
+            XCTAssertEqual(try offered("request"), ["a model search", "something else"])
+            // M18-W3 (review M6): the verdict is generated LAST. First, it moved questions about
+            // documents to other surfaces on the tuning set (16 to 10 of 16).
+            XCTAssertEqual(root["x-order"] as? [String], ["surface"] + RefinementKind.allCases.map(\.rawValue) + ["request"])
             for kind in RefinementKind.allCases {
                 XCTAssertEqual(try offered(kind.rawValue),
                                Refinements.table.filter { $0.kind == kind }.map(\.value) + ["none"])

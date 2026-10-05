@@ -162,6 +162,38 @@ def test_the_combined_list_renders_the_disclosures_its_plan_carries() -> None:
     )
 
 
+def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
+    """M18-W3 review B2 and K2: a held-out set measures only while nothing was tuned on it (D-147
+    clause 5). The #66 measure was spoiled that way: held-out questions were asserted word for word
+    in a test and fed phrases to the signals. So no held-out question of 15 characters or more may
+    appear in the app, its tests, the engine or the scripts, beyond the set files themselves."""
+    import json
+
+    root = CLIENT.parents[1]
+    sets = sorted((root / "scripts/router_probe").glob("*heldout*_questions.json"))
+    # Sets already run, and so tuning now: M16's and M17's, and M18-W3's first two (review B2).
+    retired = {"heldout_questions.json", "refinement_heldout_questions.json", "coding_heldout_m17_questions.json",
+               "notasearch_m17_heldout_questions.json", "image_heldout_first_questions.json",
+               "offtopic_heldout_questions.json"}  # run in M13 and M16 (the second review's K4)
+    live = [path for path in sets if path.name not in retired]
+    assert live, "no live held-out set found; this check compares nothing"
+    held = set()
+    for path in live:
+        for row in json.loads(path.read_text(encoding="utf-8")):
+            text = row[0] if isinstance(row, list) else row["q"]
+            if len(text) >= 15:
+                held.add(text)
+    sources = [p for folder in ("ios", "src", "scripts", "tests") for p in (root / folder).rglob("*")
+               if p.is_file() and p.suffix in {".swift", ".py"} and ".build" not in p.parts and "build" not in p.parts]
+    # A question of 25 characters or more anywhere (the second review's M13: inside a longer string
+    # too); a shorter one only as a whole quoted string, since a tuning question may hold a short
+    # phrase by chance. The question's text is not printed, so a failure does not spoil its set.
+    texts = {p.name: p.read_text(encoding="utf-8", errors="ignore") for p in sources}
+    found = sorted({(name, len(q)) for name, text in texts.items() for q in held
+                    if (len(q) >= 25 and q in text) or f'"{q}"' in text})
+    assert not found, f"held-out questions written into code or tests (file, length): {found}"
+
+
 def test_the_apps_copy_of_the_ordering_note_is_the_engines() -> None:
     """D-176 (M18-W2): the app says Ruling A's ordering note in both languages from its own copy of
     the engine's sentence, because the note carries no values to compose from. The copy must be the
@@ -353,6 +385,10 @@ SORTING_PERMITTED = {
     ),
     ("FrontDoor.swift", "entries.indices"): (
         "M14-W3, REQ-GAP-001: when the register is full, the least-asked entry makes room."
+    ),
+    ("Reading.swift", "row"): (
+        "D-169 (M18-W3): a keyboard row's letters reversed, to read a run typed right to left as no "
+        "word. Letters of a fixed string, never a model, a score or an answer."
     ),
     ("Notices.swift", "ages"): (
         "D-176: the ages in days of a board's stale sources, smallest first, so the notice can say "
@@ -809,9 +845,15 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
 
     # REQ-ASK-002/003: a routed question LOADS the surface it was routed to — "returns a ranking"
     # (W3 review MAJOR-3, mutant M5) — and its echo appears only once that answer has loaded.
+    # D-169 (M18-W3): a question read as a search goes on to `apply`, which loads its surface.
     ask = re.search(r"private func ask\(\) async \{(.*?)\n    \}", home, re.S)
     assert ask, "the question path is gone"
-    body = ask.group(1)
+    assert re.search(r"guard outcome\.reading == \.search else \{.*?return\s*\}\s*await apply\(outcome,", ask.group(1), re.S), (
+        "a question read as a search is no longer answered, or one that is not is"
+    )
+    applied = re.search(r"private func apply\(_ outcome: RoutingOutcome, typed: String, ticket: Int\) async \{(.*?)\n    \}", home, re.S)
+    assert applied, "the path that answers a search is gone"
+    body = applied.group(1)
     assert re.search(
         r"if outcome\.categoryID != task \{\s*task = outcome\.categoryID\s*await load\(\)", body
     ), "a routed question no longer loads the surface it was routed to"
@@ -821,17 +863,49 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
 
     # REQ-ASK-004 for the QUESTION (W3 review BLOCKING-2): a ticket before the router is awaited,
     # checked after it, and retired by a `Change` selection.
+    asked = ask.group(1)
+    # D-169 clauses 4 and 5 (M18-W3 review M2): a held reading sends no request, loads nothing and
+    # keeps nothing in the register. Its branch holds the question and returns, and nothing else.
+    held_branch = re.search(r"guard outcome\.reading == \.search else \{(.*?)\n        \}", asked, re.S)
+    assert held_branch, "the branch for input that is not a search is gone"
+    held_code = "\n".join(line.split("//", 1)[0] for line in held_branch.group(1).splitlines())
+    for forbidden in ("load(", "client.", "gaps.", "recordsGap", "task =", "apply(", "routing = outcome", "Task {"):
+        assert forbidden not in held_code, f"a held reading reaches `{forbidden}`"
+    assert re.search(r"held = HeldReading\(typed: typed, outcome: outcome\)", held_code), "the reading is not held"
+    # The second review's M9: "Find a model" answers as routed, once, and "No" shows the note.
+    confirm = re.search(r"private func confirm\(_ held: HeldReading\) \{(.*?)\n    \}", home, re.S)
+    assert confirm and re.search(
+        r"guard !routingInFlight else \{ return \}.*outcome\.reading = \.search.*await apply\(outcome, typed: held\.typed",
+        confirm.group(1), re.S), "Find a model does not answer the held question as routed, once"
+    # The third review's M19: "No" is exactly the note. Anything more, a gap kept or `confirm` called,
+    # answers or records what the reader said is not a search.
+    decline = re.search(r"private func decline\(_ held: HeldReading\) \{(.*?)\n    \}", home, re.S)
+    assert decline, "the path for No is gone"
+    decline_code = [line.split("//", 1)[0].strip() for line in decline.group(1).splitlines()]
+    assert [line for line in decline_code if line] == [
+        "var outcome = held.outcome",
+        "outcome.reading = .notASearch",
+        "self.held = HeldReading(typed: held.typed, outcome: outcome)",
+    ], "No does not show the note, or does more than show it"
+    # The held card goes when a search is answered, first, before anything loads behind it.
+    assert re.match(r"\s*held = nil\n", body), "an answered search leaves the held card over its ranking"
     assert re.search(
-        r"let ticket = routingGate\.begin\(\)\s*let outcome = await router\.route", body
+        r"let ticket = routingGate\.begin\(\)\s*let outcome = await router\.route", asked
     ), "routing takes no ticket before it suspends"
     assert re.search(
         r"await router\.route\([^)]*\)\s*guard routingGate\.isCurrent\(ticket\) else \{ return \}",
-        body,
+        asked,
     ), "a late routing result is applied whatever the reader chose meanwhile"
+
     select = re.search(r"private func select\(_ id: String\) \{(.*?)\n    \}", home, re.S)
     assert select and "routingGate.invalidate()" in select.group(
         1
     ), "a Change selection does not retire the question still routing"
+    # The third review's M19: "Change" from the note or the question back shows the chosen surface,
+    # even the one already loaded behind the card.
+    assert re.search(r"held = nil\s*guard id != task else \{ return \}", select.group(1)), (
+        "a surface chosen from the note loads behind it and never shows"
+    )
 
     # REQ-ASK-003: the sentence above an unmeasured answer, in the colour that marks it (M6), and
     # the on-device reason whenever the model did not route (M4).
@@ -884,7 +958,7 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     # The field unlocks after every question however it ends (WF12), and a selection clears the
     # echo of the choice it overruled (WF9).
     assert re.search(
-        r"defer \{ routingInFlight = false \}", body
+        r"defer \{ routingInFlight = false \}", asked
     ), "the field stays locked after the first question"
     assert "routing = nil" in select.group(1), "a selection keeps the echo it overruled"
 
@@ -907,7 +981,7 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     assert re.search(
         r"if categories\.isEmpty \{\s*Text\(UIText\.surfacesUnavailable\(language\)\)", home
     ), "with no surfaces the controls go dead and nothing says why"
-    assert re.search(r"if categories\.isEmpty \{ await load\(\) \}", body), (
+    assert re.search(r"if categories\.isEmpty \{ await load\(\) \}", asked), (
         "a question asked before the surface list arrived is dropped instead of retried"
     )
 
@@ -1186,3 +1260,60 @@ def test_the_screen_composes_the_empty_reason_and_the_notices_from_their_facts()
         r"disclosureList\(answerDisclosures\(answer, anchor: category\(for: answer\)\?\.scoreAnchor, language\)\)",
         code,
     ), "the card notices are not composed in the reader's language on the surface's own scale"
+
+
+def test_the_held_card_stands_alone_and_shows_the_face_its_reading_asks_for() -> None:
+    """M18-W3 Tester T8 (faults U4b, U5, U6), REQ-ASK-005, D-169 clause 4: three faults on the held
+    card failed only `make ui-test`, which no gate runs (D-175): a ranking rendered under the held
+    card, a "Showing:" line above it, and the card's two faces swapped (a doubt shown the note, the
+    note shown the question back). This pins each where the gates can see it."""
+    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
+    assert re.search(r"if let held \{\s*readingCard\(held\)\s*\} else \{", code), (
+        "the answer can render under the held card: the previous ranking reads as this question's"
+    )
+    assert re.search(r"if held != nil \{\s*EmptyView\(\)\s*\} else if let outcome = routing,", code), (
+        "a surface is named above a question that was not answered"
+    )
+    card = re.search(r"private func readingCard\(_ held: HeldReading\) -> some View \{(.*?)\n    \}", code, re.S)
+    assert card, "the held card is gone"
+    assert re.search(
+        r"if held\.outcome\.reading == \.unsure \{\s*Text\(UIText\.askBack\(language\)\).*?"
+        r"\} else \{\s*Text\(UIText\.notASearchNote\(language\)\)",
+        card.group(1),
+        re.S,
+    ), "the held card does not ask exactly when the reading is unsure, and show the note otherwise"
+
+
+def test_a_held_question_clears_the_old_answer_and_its_two_taps_do_what_they_say() -> None:
+    """M18-W3 second Tester T11 and T12 (faults X13, X16 to X21), REQ-ASK-005, D-169 clause 4 ("the
+    previous question's ranking goes too") and its amendment ("while it waits, no surface is shown").
+    Each fault passed every gate. No UI test sees X13, X16, X17 or X21: each asks one question on a
+    fresh launch, taps once, and reads the screen in English.
+    - The held branch clears `routing`. The routing notice and the alternatives under the echo read
+      `routing` alone, so without it the previous question's surface stays named over a held one (X13).
+    - "Find a model" calls `confirm`, and "No" calls `decline`, each said in the reader's language
+      (X18 to X21).
+    - `confirm` holds the field while it answers, as `submit` does, and gives it back after (X16, X17).
+    """
+    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
+    ask = re.search(r"private func ask\(\) async \{(.*?)\n    \}", code, re.S)
+    assert ask, "the question path is gone"
+    held = re.search(r"guard outcome\.reading == \.search else \{(.*?)\n        \}", ask.group(1), re.S)
+    assert held, "the branch for input that is not a search is gone"
+    assert re.search(r"^\s*routing = nil\s*$", held.group(1), re.M), (
+        "the previous question's surface and its notice stay on screen over a held one"
+    )
+    card = re.search(r"private func readingCard\(_ held: HeldReading\) -> some View \{(.*?)\n    \}", code, re.S)
+    assert card, "the held card is gone"
+    taps = re.findall(r"Button\((UIText\.\w+\(\w+\))\) \{\s*(.*?)\s*\}", card.group(1))
+    assert taps == [("UIText.askBackFind(language)", "confirm(held)"), ("UIText.askBackNo(language)", "decline(held)")], (
+        f"the question back's taps are {taps}: Find a model must answer, No must show the note, each in the "
+        "reader's language"
+    )
+    confirm = re.search(r"private func confirm\(_ held: HeldReading\) \{(.*?)\n    \}", code, re.S)
+    assert confirm, "the path for Find a model is gone"
+    assert re.search(
+        r"routingInFlight = true\s*Task \{\s*defer \{ routingInFlight = false \}\s*await apply\(", confirm.group(1)
+    ), "Find a model does not hold the field while it answers, or never gives it back"

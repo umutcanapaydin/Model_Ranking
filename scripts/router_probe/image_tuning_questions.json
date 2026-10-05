@@ -1,0 +1,14 @@
+[
+  {"q": "generate a picture of a cat wearing sunglasses", "expected": "UNMEASURED", "group": "image-make", "lang": "en"},
+  {"q": "make me a logo for my bakery", "expected": "UNMEASURED", "group": "image-make", "lang": "en"},
+  {"q": "remove the background from my product photo", "expected": "UNMEASURED", "group": "image-make", "lang": "en"},
+  {"q": "bana bir kedi resmi çiz", "expected": "UNMEASURED", "group": "image-make", "lang": "tr"},
+  {"q": "düğün davetiyesi için bir illüstrasyon oluştur", "expected": "UNMEASURED", "group": "image-make", "lang": "tr"},
+  {"q": "fotoğrafımdaki kırmızı gözleri düzelt", "expected": "UNMEASURED", "group": "image-make", "lang": "tr"},
+  {"q": "what does this chart in my screenshot say", "expected": "vision", "group": "image-read", "lang": "en"},
+  {"q": "describe what is in this photo", "expected": "vision", "group": "image-read", "lang": "en"},
+  {"q": "read the receipt in this picture and total it up", "expected": "vision", "group": "image-read", "lang": "en"},
+  {"q": "bu ekran görüntüsündeki hata mesajını oku", "expected": "vision", "group": "image-read", "lang": "tr"},
+  {"q": "bu fotoğrafta hangi bitki var", "expected": "vision", "group": "image-read", "lang": "tr"},
+  {"q": "bu grafikteki eğilimi açıkla", "expected": "vision", "group": "image-read", "lang": "tr"}
+]

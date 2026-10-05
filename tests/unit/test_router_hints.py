@@ -286,11 +286,27 @@ def test_the_router_never_produces_anything_but_a_category_id() -> None:
     fields = set(
         re.findall(r"^\s*(?:public\s+)?(?:let|var)\s+(\w+)\s*:[^{\n]*$", block, re.MULTILINE)
     )
-    assert fields == {"categoryID", "tier", "unmeasured", "alternatives", "refinements"}, (
+    # `reading` (D-169, M18-W3) is a closed enum (search, not a search, unsure): no text.
+    assert fields == {"categoryID", "tier", "unmeasured", "alternatives", "refinements", "reading"}, (
         f"RoutingOutcome carries {sorted(fields)}; anything beyond a surface id, how it was chosen, "
         "whether it is measured, the other surface ids it came close to and the declared "
         "refinements it chose is a channel for an opinion the router may not have"
     )
+    # M18-W3 review M1: `reading`'s TYPE is the closed enum, and the enum carries no value: a case
+    # with a payload (`case said(String)`) would be a channel for the model's words.
+    assert re.search(r"var reading:\s*InputReading\s*=\s*\.search\s*$", block, re.MULTILINE), (
+        "`reading` must stay the closed InputReading enum"
+    )
+    reading_source = (ROUTER.parent / "Reading.swift").read_text(encoding="utf-8")
+    enum = reading_source[reading_source.index("enum InputReading") :]
+    enum = enum[: enum.index("\n}\n")]
+    code = "\n".join(line.split("//", 1)[0] for line in enum.splitlines())
+    cases = re.findall(r"^\s*(?:indirect\s+)?case\s+(.+)$", code, re.MULTILINE)
+    assert [c.strip() for c in cases] == ["search", "notASearch", "unsure"], (
+        f"InputReading's cases are {cases}; each must be a bare name, with no associated value"
+    )
+    # The second review's M10: `indirect`, or a case declared any other way, is refused outright.
+    assert "indirect" not in code and code.count("case ") == 3, "InputReading declares more than its three bare cases"
     assert re.search(r"var alternatives:\s*\[String\]", block), (
         "`alternatives` must stay a list of surface ids; any other type can carry a sentence"
     )
@@ -653,3 +669,35 @@ def test_the_comment_stripper_fails_closed_on_a_comment_that_never_closes() -> N
     assignment, and the D-168 pin passed."""
     with pytest.raises(ValueError, match="never closes"):
         _code("let pattern = #/a/*b/#\ncopy.refinements = extra\n")
+
+
+def test_the_model_tier_hands_the_boundary_the_verdict_it_asked_for() -> None:
+    """M18-W3 Tester T7 (fault B5), REQ-ASK-005: the schema offers a `request` field, and the boundary
+    maps it, and nothing held the one line between them. With `request: nil` passed instead, every
+    test passed: the model's "something else" was asked for and thrown away, so on a device with
+    Apple Intelligence only the code's signals read the question. `ModelRouter.route` needs the
+    on-device model, so this is a pin on the source."""
+    code = "\n".join(line.split("//", 1)[0] for line in ROUTER.read_text(encoding="utf-8").splitlines())
+    asked = re.findall(r'DynamicGenerationSchema\.Property\(\s*name:\s*"(\w+)",\s*description:\s*ModelOutputBoundary\.requestGuidance', code)
+    assert asked == ["request"], "the schema no longer asks the model for its verdict"
+    assert re.search(
+        r"ModelOutputBoundary\.outcome\(\s*for: try\? content\.value\(String\.self, forProperty: \"surface\"\),"
+        r"\s*within: known,\s*refinements: refinements,\s*request: try\? content\.value\(String\.self, forProperty: \"request\"\)\)",
+        code,
+    ), "the model tier does not hand the boundary the verdict its schema asked for"
+
+
+def test_the_model_is_told_what_each_of_its_two_verdicts_means() -> None:
+    """M18-W3 second Tester T13 (fault X9), REQ-ASK-005, D-169 as amended: the instructions' last
+    paragraph tells the model when its verdict is "a model search" and when it is "something else",
+    with genuine searches written as tasks that must stay searches. With the paragraph deleted, every
+    test passed: the model keeps only the field's one-line guidance, and the probe that measures its
+    reading runs on the owner's Mac alone. This pins that the instructions name both closed values,
+    from the boundary's own constants, so what the model is told and what the boundary maps cannot
+    part."""
+    code = ROUTER.read_text(encoding="utf-8")
+    session = re.search(r'LanguageModelSession\(\s*instructions: """(.*?)"""', code, re.S)
+    assert session, "the model tier's instructions are gone"
+    told = session.group(1)
+    for value in ("searchValue", "notASearchValue"):
+        assert f"\\(ModelOutputBoundary.{value})" in told, f"the model is not told what `{value}` means"

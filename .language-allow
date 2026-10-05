@@ -94,3 +94,23 @@ ios/EngineTests/NoticesTests.swift      # asserts those exact Turkish sentences,
 ios/UITests/FailureScreenTests.swift    # M18-W2 (#96): asserts the Turkish failure screen by its words,
                                         # for the reason LanguageTests.swift is exempt above
 ios/ModelRanking/tr.lproj/              # #95: the Turkish Info plist strings; Turkish is their subject
+scripts/router_probe/notasearch_m17_heldout_questions.json  # M18-W3 (#66, D-169): M17's held-out set, half
+                                  # Turkish; retired to tuning at M18-W3 (review B2); the Turkish IS the evidence
+scripts/router_probe/notasearch_tuning_questions.json  # the tuning set's Turkish questions, kept verbatim
+scripts/router_probe/coding_heldout_m18_questions.json  # M18-W3 (#73): held-out, half Turkish, written by an
+                                  # independent seat; translating them removes the evidence
+scripts/router_probe/coding_heldout_m17_questions.json  # M17's held-out set (run once), now a tuning set
+scripts/router_probe/coding_tuning_questions.json  # M17's tuning set (#73), Turkish kept verbatim
+scripts/router_probe/image_heldout_first_questions.json  # M18-W3 (#113): the first held-out set, run once, then
+                                  # retired to tuning (review B2); half Turkish, independent seat
+ios/ModelRanking/Engine/Reading.swift   # M18-W3 (D-169, #113): the Turkish words, verbs, phrases and
+                                        # nouns the signals in code read (review M6); its prose and
+                                        # comments are English
+ios/EngineTests/ReadingTests.swift      # asserts Turkish inputs by their words, for the reason
+                                        # LanguageTests.swift is exempt above
+scripts/router_probe/image_tuning_questions.json  # M18-W3 (#113): the author's tuning set, half Turkish
+scripts/router_probe/notasearch_heldout_m18_questions.json  # M18-W3 (#66): the fresh held-out set (review B2),
+                                  # half Turkish, written by an independent seat
+scripts/router_probe/image_heldout_m18_questions.json  # M18-W3 (#113): the fresh held-out set, half Turkish
+docs/research/m18-w3-runs/              # M18-W3 (review K3): every probe run's per-question output, so
+                                        # a run can be re-scored; the questions are half Turkish

@@ -1,0 +1,730 @@
+[
+  {
+    "model" : "search",
+    "q" : "my pytest suite broke after bumping numpy to 2.0, AttributeError: module 'numpy' has no attribute 'float'",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "error[E0499]: cannot borrow `*self` as mutable more than once at a time. what am i doing wrong",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Write a Postgres query that returns each customer's most recent order along with the total they've spent",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "bash script that deletes docker images older than 30 days, run from cron",
+    "reading" : "search",
+    "surface" : "agentic-coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "regex for validating an IBAN? needs to allow spaces between the groups",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "TypeScript: Type 'string | undefined' is not assignable to type 'string'. cleanest fix without slapping ! everywhere",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "which model is best for Rust?",
+    "reading" : "search",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Can you review this Go code for race conditions? Several goroutines append to the same slice and the count comes out wrong sometimes.",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Kotlin app on Android freezes when I load data from Room, do I need a different coroutine dispatcher?",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "fix the flaky tests across our monorepo, you can run the suite and edit whatever files you need",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Rust'ta 'borrowed value does not live long enough' hatası alıyorum, lifetime'ları nasıl düzeltirim?",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "SQLAlchemy'yi 2.0'a yükselttikten sonra testlerin yarısı kırıldı, her yerde session.query uyarısı var",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "PostgreSQL'de aylık toplam satışları kategoriye göre getiren bi sorgu yazar mısın",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "GitLab CI pipeline'ım docker build adımında 'permission denied' verip düşüyor, .gitlab-ci.yml aşağıda",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "şu python fonksiyonunu refactor etmem lazım, iç içe 5 tane if var hiç okunmuyo",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Java'da NullPointerException alıyorum, stack trace 42. satırı gösteriyor ama orada null olabilecek bir şey göremiyorum",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Flutter uygulamamda uzun listeyi kaydırınca kasma oluyor, performansı nasıl iyileştiririm",
+    "reading" : "search",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Spark job'um shuffle aşamasında OutOfMemoryError veriyor, veri hattını nasıl optimize ederim",
+    "reading" : "search",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Python kod yazmak için en iyi yapay zeka modeli hangisi?",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "projedeki bütün deprecation uyarılarını sen düzelt, testleri de çalıştırıp hepsinin geçtiğinden emin ol",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Django ORM query returns duplicate rows when I filter across a ManyToMany, and .distinct() makes it super slow",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "my Express.js unit test with supertest fails with 'Cannot set headers after they are sent to the client'",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "getting a CORS error from my FastAPI backend when the frontend on localhost:3000 calls it, the preflight returns 400",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "React state bug: the counter inside setInterval is always stuck at 1, useEffect has empty deps",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "I need pytest tests for my Flask REST endpoints, mocking out the database layer",
+    "reading" : "search",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Spring Boot controller gives 415 Unsupported Media Type when I POST json from Postman",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Django'da migrate çalıştırınca 'relation already exists' hatası veriyor, ne yapmalıyım",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Express.js middleware'im için yazdığım Jest testi geçmiyor, next() hiç çağrılmamış diyor",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Node.js backend'imde CORS hatası alıyorum, tarayıcıdan gelen OPTIONS isteği 404 dönüyor",
+    "reading" : "search",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "React'te useEffect sonsuz döngüye giriyor, state'i güncelleyince bileşen durmadan yeniden render oluyor",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Laravel'de Eloquent ilişkisi null dönüyor ama veritabanında kayıt var, foreign key de doğru",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "ASP.NET Core Web API'de 'Unable to resolve service for type' hatası alıyorum, dependency injection'da ne eksik?",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "python script to parse a CSV where some fields have commas inside quotes, pandas keeps splitting them wrong",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "write me a script that renames every PDF in a folder using the invoice date, like 2024-03-01_acme.pdf",
+    "reading" : "search",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "awk one liner to count 500 errors per hour in an nginx access log",
+    "reading" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "reportlab throws LayoutError: Flowable too large when generating our monthly report PDF, how do i split the table across pages",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Python ile 2 GB'lık bir log dosyasını belleği doldurmadan okuyup ERROR satırlarını ayıklayan kod lazım",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "CSV dosyasını pandas ile okurken UnicodeDecodeError alıyorum, Türkçe karakterler bozuluyor",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "openpyxl ile Excel raporlarını birleştiren scriptim 'Worksheet does not exist' hatası veriyor",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Docker içinde wkhtmltopdf ile PDF oluşturunca boş sayfa çıkıyor, lokalde düzgün çalışıyor",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "build me a landing page for my coffee shop with a menu section, opening hours and a map",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "I want a simple portfolio website to show off my photography",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "make a responsive navbar with a hamburger menu in plain HTML and CSS",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "which AI is best for building websites?",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "design a pricing page with three tiers for my SaaS using tailwind",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "one page wedding site with an RSVP form and a countdown to the day",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "my css grid layout breaks on mobile, the cards overflow off the screen",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Create a to-do web app from scratch in React that saves everything to local storage",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "kuaför salonum için basit bir web sitesi yapmak istiyorum, randevu al butonu olsun",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "HTML ve CSS ile kişisel portfolyo sayfası hazırla, koyu tema olsun",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "yeni mobil uygulamam için bi tanıtım sayfası (landing page) tasarla, App Store ve Google Play butonları olsun",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "web sitesi yapmak için en iyi yapay zeka hangisi",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Tailwind ile responsive bir blog ana sayfası kodla",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "sıfırdan küçük bir e-ticaret sitesi kurmak istiyorum, ürün listesi ve sepet sayfası olsun",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "telefonda header kayıyor, flexbox ile logo ve menüyü düzgün hizalayamadım",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "React ile hava durumu gösteren küçük bir web uygulaması yapalım, şehir adıyla arama olsun",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Can you summarise this 120-page REST API specification for a manager who doesn't code? I'll attach the PDF",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "here's our software licence agreement, does it let us ship the library inside a closed-source commercial product?",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "summarise this research paper in 5 bullet points, it's the attached pdf",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "read this 40 page employment contract and tell me what it says about the notice period and the non-compete",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "we have a 200 page technical design document for the billing system, what are the main components it describes and how do they fit together",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "go through these meeting transcripts and pull out every action item and who owns it",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "tldr of this annual report, mostly the revenue and risk sections",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "I pasted the full PostgreSQL 17 release notes below, which changes matter for someone running a small reporting database?",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "bu 60 sayfalık kira sözleşmesini özetler misin, beni bağlayan maddeler hangileri",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "yazılım lisans sözleşmesini yükledim, kaynak kodu değiştirip müşterilere dağıtabilir miyiz, sözleşme ne diyor?",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "not",
+    "q" : "ekteki makaleyi okuyup yöntem kısmını sade bir dille anlat",
+    "reading" : "unsure",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "şirketin 150 sayfalık teknik şartnamesini yöneticim için madde madde özetle",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "yüklediğim tezin sonuç bölümünü yarım sayfada özetler misin",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "bu uzun API dokümantasyonu PDF'ini okuyup hangi özellikleri sunduğunu teknik olmayan birine anlat",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "toplantı tutanaklarını okuyup alınan kararları ve sorumlularını listele",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "sistem mimarisi dokümanını yapıştırdım, içinde veritabanı yedekleme süreci nasıl anlatılmış?",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "prove that the average-case running time of quicksort is O(n log n)",
+    "reading" : "search",
+    "surface" : "mathematics",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "I want an agent that migrates our whole repo from JavaScript to TypeScript by itself, editing files and running the tests until they pass",
+    "reading" : "search",
+    "surface" : "agentic-coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "screenshot of the error popup attached, what does it mean and how do i fix it",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "not",
+    "q" : "can the AI take over my browser, log into our admin panel and fill in the monthly export form for me",
+    "reading" : "unsure",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "bu fonksiyonun zaman karmaşıklığını hesapla: iç içe iki döngü var, içteki j=i'den n'e kadar gidiyor",
+    "reading" : "unsure",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "tüm kod tabanını kendi başına React 16'dan 18'e taşıyacak, dosyaları düzenleyip testleri çalıştıracak bir ajan lazım",
+    "reading" : "search",
+    "surface" : "agentic-coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "not",
+    "q" : "hata ekranının fotoğrafını çektim, ekranda ne yazıyor ve sorun ne olabilir?",
+    "reading" : "unsure",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Node.js'in şu an güncel LTS sürümü hangisi, bugün itibarıyla?",
+    "reading" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "my jest tests started failing after I upgraded node",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "TypeError: cannot read properties of undefined in my express route",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "how do I fix a lifetime error in rust",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Django migration fails with a foreign key error",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "write a bash script that renames all pdf files in a folder by date",
+    "reading" : "search",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "parse a large csv file in python without running out of memory",
+    "reading" : "search",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "my github actions workflow can't find the python module",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "best model to review my pull requests",
+    "reading" : "search",
+    "surface" : "agentic-coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Flutter uygulamam iOS'ta açılışta çöküyor",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Spring Boot projemde bir NullPointerException alıyorum",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "React'te useEffect sonsuz döngüye giriyor, nasıl düzeltirim",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "log dosyasındaki hataları awk ile nasıl ayıklarım",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "SQL sorgum çok yavaş çalışıyor, indeks önerir misin",
+    "reading" : "search",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "pytest ile API'm için birim testleri yazmak istiyorum",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "build a portfolio website for my photography",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "I need a landing page for my coffee shop",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Kuaförüm için basit bir web sitesi yapmak istiyorum",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "make a responsive navbar with html and css",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "summarise this 50 page research paper for me",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "answer questions from our 120 page employee handbook",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "Bu 30 sayfalık kira sözleşmesini özetler misin",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "read the release notes pdf and tell me what changed",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "explain the API reference document to a non-technical manager",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "an agent that migrates my whole codebase to typescript",
+    "reading" : "search",
+    "surface" : "agentic-coding",
+    "unmeasured" : "false"
+  }
+]

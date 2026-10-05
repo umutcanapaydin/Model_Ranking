@@ -1,0 +1,562 @@
+[
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "why does my list comprehension give me a list of None?? [print(x) for x in items]",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "TypeError: 'NoneType' object is not subscriptable  -- happens on result['id'], how do i fix",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "which model is best for writing rust? i keep fighting the borrow checker every single day",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "can someone explain what this regex does ^(?=.*\\d)(?=.*[a-z]).{8,}$",
+    "surface" : "factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "need a bash script that rsyncs ~\/projects to my external drive every night, and logs if it fails",
+    "surface" : "agentic-coding",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "pytest keeps saying fixture 'db' not found even tho its defined in conftest.py, what am i doing wrong",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "business",
+    "language" : "none",
+    "q" : "postgres query to get the top 3 customers by total order amount in each country",
+    "surface" : "factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "free(): double free detected in tcache 2 -- my C program crashes, how do i find where with valgrind",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "how do I turn this blocking java call into a kotlin suspend function without freezing the main thread",
+    "surface" : "agentic-coding",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "software",
+    "language" : "none",
+    "q" : "refactor this 200 line java method into smaller functions pls, its a mess of nested ifs",
+    "surface" : "everyday",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "pythonda dict'i value'ya göre nasıl sıralarım ya",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "IndexError: list index out of range alıyorum for döngüsünde neden olabilir",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "swiftte 'Unexpectedly found nil while unwrapping an Optional value' hatası veriyo nasıl çözerim",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "c# da .Result kullaninca deadlock oluyormus, async await mantığını açıklar mısın",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "kod yazmak için en iyi model hangisi? özellikle java spring boot projesi için soruyorum",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "şu fonksiyonu daha okunabilir hale getirir misin çok uzun oldu, değişken isimleri de berbat",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "mysql de iki tabloyu joinleyip tekrar eden kayıtları silmem lazım, sorguyu yazabilir misin",
+    "surface" : "factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "hiç unit test yazmadım, şu indirim hesaplayan fonksiyon için jest ile örnek test gösterir misin",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "software",
+    "language" : "none",
+    "q" : "merge conflict çıktı dosyada <<<<<<< HEAD falan yazıyor ne yapacağımı bilmiyorum",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "recursive fibonacci çok yavaş çalışıyo, memoization ile nasıl hızlandırırım python",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "software",
+    "language" : "none",
+    "q" : "django ORM gives me duplicate rows when i filter on a ManyToMany field, and .distinct() breaks with my order_by",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "my express route returns 404 in the supertest test but works fine from postman?? test file attached",
+    "surface" : "agentic-coding",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "Access to fetch at 'http:\/\/localhost:8000\/api' from origin 'http:\/\/localhost:3000' has been blocked by CORS policy. backend is flask, what do i change",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "React Hook useEffect has a missing dependency: 'fetchData'. should i just disable the eslint rule or is there a proper fix",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "software",
+    "language" : "none",
+    "q" : "next.js hydration error 'Text content does not match server-rendered HTML' i think its from a Date.now() in my component",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "vue 3 computed property doesnt update when i push into an array that lives inside a reactive object, why",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "laravel eloquent'te n+1 problemi var, with() ekledim yine de debugbar'da yüzlerce sorgu görünüyor",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "node api'm jwt doğrularken 'invalid signature' diyor, secret iki tarafta da aynı halbuki",
+    "surface" : "agentic-coding",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "software",
+    "language" : "none",
+    "q" : "react'ta state değişiyor ama component tekrar render olmuyor, array'e direkt push yapıyorum sorun bu mu",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "fastapi endpointine post atınca 422 Unprocessable Entity dönüyor, pydantic modeli doğru gibi duruyor",
+    "surface" : "factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "angular serviste HttpClient subscribe'ın dışında veriyi console.log yapınca undefined çıkıyor neden",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "Uncaught TypeError: Cannot read properties of undefined (reading 'map') apiden gelen listeyi map'lerken patlıyor",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "domain" : "science",
+    "language" : "none",
+    "q" : "how to read a 2GB csv in pandas without running out of ram, chunksize? dtypes?",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "awk one-liner to count 500 responses per hour in my nginx access.log",
+    "surface" : "search_factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "PyPDF2 throws PdfReadError: EOF marker not found on some of the files, how do i catch that and skip them in my loop",
+    "surface" : "factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "write a python script that goes through a messy jsonl log line by line and pulls out request_id and latency_ms",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "pandas ile excel okuyunca tarih sütunu 45123 gibi sayı olarak geliyo, nasıl tarihe çeviririm",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "log dosyasından grep ile sadece ERROR satırlarını alıp güne göre saydırmak istiyorum komutu ne",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "java'da pdfbox ile pdften metin çekerken türkçe karakterler bozuk çıkıyor ş ğ falan",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "csv okurken UnicodeDecodeError: 'utf-8' codec can't decode byte 0xfe in position 0 hatası alıyorum",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "build me a landing page for my dog walking business: hero, pricing cards, contact form",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "i want a simple portfolio site for my photography, dark theme with a grid gallery",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "software",
+    "language" : "none",
+    "q" : "make a responsive navbar that turns into a hamburger menu on mobile, tailwind if you can",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "which ai is best at making websites? want a small one for my bakery",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "software",
+    "language" : "none",
+    "q" : "create a little single page habit tracker web app with a monthly calendar view",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "my blog homepage looks like it's from 2012, can you redesign it so it feels modern and clean",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "set up a wedding website with an rsvp page, the day's schedule and a map to the venue",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "need a pricing page with 3 tiers, monthly\/yearly toggle and a FAQ accordion at the bottom",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "küçük kafem için web sitesi yapmak istiyorum menü ve iletişim sayfası olsun yeter",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "software",
+    "language" : "none",
+    "q" : "kendime portfolyo sitesi lazım, yazılımcıyım projelerimi sergileyeceğim modern bir şey olsun",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "yeni ürünümüz için tek sayfalık tanıtım sayfası tasarlar mısın, telefonda da düzgün görünsün",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "site yapmak için hangi yapay zeka daha iyi",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "e-ticaret için ürün listeleme sayfası yapalım, solda filtreler sağda kartlar ve sepete ekle butonu",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "restoran sitemin header kısmı telefonda üst üste biniyor, düzenleyip yeniden yapar mısın",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "nişanımız için geri sayım sayacı olan şık bir davetiye sayfası yapmak istiyorum",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "dernek için haberler, etkinlikler ve bağış bölümü olan bir site kurmamız lazım nereden başlayalım",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "legal",
+    "language" : "none",
+    "q" : "summarize this 60 page lease and flag anything weird about early termination",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "legal",
+    "language" : "none",
+    "q" : "compare these two vendor contracts and list where the liability and indemnity clauses differ",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "business",
+    "language" : "none",
+    "q" : "pull every date and dollar amount out of this annual report pdf into a table",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "software",
+    "language" : "none",
+    "q" : "here's our 40 page API spec as a PDF, give the new hire a one page overview of the endpoints and auth flow",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "business",
+    "language" : "none",
+    "q" : "i have a huge incident log report from last week, boil it down to 5 bullets my manager will actually read",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "business",
+    "language" : "none",
+    "q" : "best model for reading really long pdfs? i get 200+ page analyst reports from clients",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "business",
+    "language" : "none",
+    "q" : "go through this employee handbook and tell me what it says about parental leave and working from home",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "science",
+    "language" : "none",
+    "q" : "what are the key findings and the methodology in this 30 page white paper, short version pls",
+    "surface" : "factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "legal",
+    "language" : "japanese",
+    "q" : "bu kira sözleşmesini özetler misin 45 sayfa okumaya üşendim",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "business",
+    "language" : "none",
+    "q" : "iki tedarikçi teklif dosyasını karşılaştır, fiyat ve teslim süresi farklarını tablo yap",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "business",
+    "language" : "none",
+    "q" : "şirketin faaliyet raporundaki tüm finansal rakamları çıkarıp liste halinde verebilir misin",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "business",
+    "language" : "none",
+    "q" : "elimde uzun bir teknik şartname pdf'i var, yöneticiye sunmak için 1 sayfalık özet lazım",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "science",
+    "language" : "none",
+    "q" : "tezimin literatür taraması bölümünü okuyup ana argümanları madde madde yazar mısın",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "legal",
+    "language" : "none",
+    "q" : "ihale şartnamesinde cezai şartların geçtiği yerleri bulup sayfa numaralarıyla listele",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "legal",
+    "language" : "none",
+    "q" : "uzun pdf okumada hangi model iyi, 300 sayfalık mevzuat metni var",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "software",
+    "language" : "none",
+    "q" : "sunucu loglarından hazırlanmış 80 sayfalık hata raporunu müdürüm için teknik olmayan dille özetle",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "mathematical",
+    "language" : "none",
+    "q" : "prove that sqrt(2) is irrational, step by step please",
+    "surface" : "mathematics",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "open the expense portal in my browser and fill in last week's taxi receipts for me",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "i want something that takes my whole python 2 repo, ports it to python 3 on its own, runs the test suite and opens a PR when it's green",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "write a cover letter for a junior backend developer job, i know python and docker",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "mathematical",
+    "language" : "none",
+    "q" : "1+2+...+n = n(n+1)\/2 olduğunu tümevarımla ispatlar mısın",
+    "surface" : "mathematics",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "tarayıcıdan github'a girip benim yerime yeni repo aç, ayarlardan main branch korumasını da aktif et",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "tüm kod tabanını kendi kendine tarayıp eski api çağrılarını yenisine çeviren, testleri koşup kırılanları düzelten bir ajan arıyorum",
+    "surface" : "agentic-coding",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "software",
+    "language" : "none",
+    "q" : "ekipteki yazılımcı arkadaşa sprint teslimi geciktiği için kırıcı olmayan bir mesaj yazar mısın",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  }
+]

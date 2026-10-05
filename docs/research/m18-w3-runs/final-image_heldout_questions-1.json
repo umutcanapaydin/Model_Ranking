@@ -1,0 +1,212 @@
+[
+  {
+    "model" : "search",
+    "q" : "draw me a cute cartoon fox curled up reading a book",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "generate a logo for my coffee brand 'Morning Ritual', minimal, earthy colours",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "turn my selfie into a pixar style avatar i can use on discord",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "remove the background from this product photo and put it on plain white for my etsy listing",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "which model is best for making ai art? mostly fantasy landscapes",
+    "reading" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "create an illustration for a kids book page: a whale floating over a city at night",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "retouch this portrait, smooth the skin a little and fix the red eyes",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "annemin doğum günü için kedili bir kart resmi çizer misin",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "kuaför salonum için logo tasarla, adı Makas Atölyesi, sade olsun",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "bu fotoğrafta arkada kalan insanları silebilir misin",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "profil fotoma bakarak anime tarzı bir avatar oluştur",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "instagram postu için sonbahar temalı görsel üret, masada kahve fincanı ve yapraklar olsun",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "resim üretmede hangi yapay zeka en iyisi",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "dedemlerin eski siyah beyaz fotoğrafını renklendirir misin",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "çocuk masalı için uzayda gezen bir kaplumbağa illüstrasyonu yapar mısın",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "what breed is the dog in this photo?",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "look at this bar chart and tell me which quarter had the highest sales",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "not",
+    "q" : "can you get the text out of this screenshot? it's an error popup and i can't copy from it",
+    "reading" : "unsure",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "i'm blind, please describe what's in this picture my sister sent me",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "here's a photo of grandma's handwritten recipe card, type it out for me",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "bu fotoğraftaki bitki ne acaba, yaprakları sararmaya başladı",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "not",
+    "q" : "ekran görüntüsündeki tabloyu yazıya döker misin",
+    "reading" : "unsure",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "not",
+    "q" : "şu grafikte hangi ay en düşük çıkmış, resimden okuyabiliyor musun",
+    "reading" : "unsure",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "market fişinin fotoğrafını attım toplam ne kadar yazıyor",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "bu resimde kaç kişi var ve ne yapıyorlar",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "write alt text for the pictures in my blog posts, i'll paste them one by one",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "python code to resize every image in a folder to 800px wide with Pillow, keep aspect ratio",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "how do i make images lazy load on my site so the page loads faster",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "opencv ile görüntüdeki yüzleri bulup kare içine alan bir python kodu yazar mısın",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "sahilde gün batımı fotoğrafım için instagrama güzel bir açıklama yazar mısın",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  }
+]

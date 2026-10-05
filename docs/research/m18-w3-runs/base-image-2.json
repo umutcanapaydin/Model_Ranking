@@ -1,0 +1,212 @@
+[
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "draw me a cute cartoon fox curled up reading a book",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "generate a logo for my coffee brand 'Morning Ritual', minimal, earthy colours",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "turn my selfie into a pixar style avatar i can use on discord",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "remove the background from this product photo and put it on plain white for my etsy listing",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "which model is best for making ai art? mostly fantasy landscapes",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "create an illustration for a kids book page: a whale floating over a city at night",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "retouch this portrait, smooth the skin a little and fix the red eyes",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "annemin doğum günü için kedili bir kart resmi çizer misin",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "kuaför salonum için logo tasarla, adı Makas Atölyesi, sade olsun",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "bu fotoğrafta arkada kalan insanları silebilir misin",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "profil fotoma bakarak anime tarzı bir avatar oluştur",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "instagram postu için sonbahar temalı görsel üret, masada kahve fincanı ve yapraklar olsun",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "resim üretmede hangi yapay zeka en iyisi",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "dedemlerin eski siyah beyaz fotoğrafını renklendirir misin",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "çocuk masalı için uzayda gezen bir kaplumbağa illüstrasyonu yapar mısın",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "what breed is the dog in this photo?",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "look at this bar chart and tell me which quarter had the highest sales",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "can you get the text out of this screenshot? it's an error popup and i can't copy from it",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "i'm blind, please describe what's in this picture my sister sent me",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "here's a photo of grandma's handwritten recipe card, type it out for me",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "bu fotoğraftaki bitki ne acaba, yaprakları sararmaya başladı",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "ekran görüntüsündeki tabloyu yazıya döker misin",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "şu grafikte hangi ay en düşük çıkmış, resimden okuyabiliyor musun",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "market fişinin fotoğrafını attım toplam ne kadar yazıyor",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "bu resimde kaç kişi var ve ne yapıyorlar",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "write alt text for the pictures in my blog posts, i'll paste them one by one",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "python code to resize every image in a folder to 800px wide with Pillow, keep aspect ratio",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "software",
+    "language" : "none",
+    "q" : "how do i make images lazy load on my site so the page loads faster",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "opencv ile görüntüdeki yüzleri bulup kare içine alan bir python kodu yazar mısın",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "domain" : "none",
+    "language" : "none",
+    "q" : "sahilde gün batımı fotoğrafım için instagrama güzel bir açıklama yazar mısın",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  }
+]

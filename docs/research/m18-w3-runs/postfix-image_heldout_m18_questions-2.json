@@ -1,0 +1,282 @@
+[
+  {
+    "model" : "search",
+    "q" : "draw a cat in a space helmet floating past saturn",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "generate an image of a cozy cabin in the snow at nite",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "design a logo for my coffee shop, its called Bean There",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "make me an app icon for a budgeting app, flat style, green",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "remove the background from my product photo so its just white",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "COLORIZE MY GRANDPARENTS OLD BLACK AND WHITE WEDDING PHOTO",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "turn my selfie into a pixar style cartoon",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "illustrate a kids book page: a dragon reading under an oak tree",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "uzayda yüzen bir balina resmi çiz",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "kafem için logo tasarla adı Köşe Kahve, minimalist olsun",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "fotografimin arka planini degistir, deniz kenari olsun",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "düğün fotoğraflarıma rötuş yap, yüzdeki sivilceleri sil",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "eski siyah beyaz aile fotoğrafını renklendir",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "bana gün batımında istanbul boğazı görseli oluştur",
+    "reading" : "search",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "model" : "search",
+    "q" : "fotomu cizgi film karakterine cevir",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "whats in this photo?",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "not",
+    "q" : "read the text off this screenshot pls",
+    "reading" : "unsure",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "describe this picture in detail",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "what does this bar chart show? which month had the most sales",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "read the items and prices from this receipt pic",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "bu fotoğrafta ne var",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "ekran görüntüsündeki yazıyı metne çevir",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "not",
+    "q" : "bu grafiği yorumla, satışlar hangi ayda düştü",
+    "reading" : "unsure",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "fisteki urunleri ve fiyatlari tek tek yaz",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "resimdeki bitki ne, tanıyabilir misin",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "write a python script that resizes every jpg in a folder to 800px wide",
+    "reading" : "search",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "help me draw conclusions from a 40 page market research report",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "how do i get rid of background noise in my podcast recordings",
+    "reading" : "search",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "not",
+    "q" : "write alt text for the images on my blog",
+    "reading" : "unsure",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "plot monthly revenue as a bar chart using matplotlib",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "which ai is good at drawing up a business plan for a small bakery",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "build a photography portfolio website with a full-screen image gallery",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "klasördeki tüm jpg dosyalarını küçülten python kodu yaz",
+    "reading" : "search",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "yapay zeka ile ilgili bu haftaki son haberler neler",
+    "reading" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "belediyeye şikayet için resmi bir dilekçe yazmama yardım et",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "not",
+    "q" : "sinavlar icin haftalik calisma cizelgesi hazirla",
+    "reading" : "unsure",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "iş arkadaşlarıma nasıl sınır çizerim",
+    "reading" : "search",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "ses kaydındaki arka plan gürültüsünü nasıl temizlerim",
+    "reading" : "search",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "javascript ile canvas üzerinde satış grafiği çizen kod yaz",
+    "reading" : "search",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "model" : "search",
+    "q" : "yazılımda tasarım kalıpları nelerdir, singleton örneğiyle anlat",
+    "reading" : "search",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  }
+]
