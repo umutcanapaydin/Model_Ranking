@@ -31,6 +31,8 @@
 #    1  more at M18-W7 (#112, the W7 review's M4): every model the served artifact names, named as
 #       this code would (`test_display_names.py`). The rules it applies are held where CI runs too:
 #       the same file's tests over the name table and Anthropic's word order.
-# The owner's Mac skips 25 of these, not 78, because it has the database. Lower this when CI builds
+#    1  needs macOS: a planted System Configuration proxy reaches no unit test (`test_no_network.py`,
+#       #150). Linux has no such fallback, so there is nothing to hold there.
+# The owner's Mac skips 25 of these, not 79, because it has the database. Lower this when CI builds
 # an artifact from fixtures (W-108's remedy), not by skipping less honestly.
-78
+79
