@@ -79,6 +79,27 @@ def test_an_artifact_with_too_many_ranked_models_refuses_to_boot(
     assert adapter.validate_startup_config(env="production") == ()
 
 
+def test_an_artifact_with_too_many_rows_in_one_answer_refuses_to_boot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """INV-33's third bound, the largest single answer (the M18 closure security seat's S4). The
+    refresh's check of it was held; the engine's own boot check was not, and a bound read 1000
+    times wider passed every test."""
+    db = tmp_path / "wide.db"
+    _servable(db)  # its largest answer is three rows, on `coding`
+    monkeypatch.setattr(adapter, "MAX_RANKED_ROWS", 5000)
+    monkeypatch.setattr(adapter, "MAX_PUBLISHED_RANKING_ROWS", 2)
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    monkeypatch.setattr(adapter, "APP_BUILD", "deadbee")
+    monkeypatch.delenv("MODEL_RANKING_CORS_ORIGINS", raising=False)
+
+    with pytest.raises(adapter.ConfigError, match="3 ranking rows in a single answer"):
+        adapter.validate_startup_config(env="production")
+
+    monkeypatch.setattr(adapter, "MAX_PUBLISHED_RANKING_ROWS", 3)  # at the bound, it boots
+    assert adapter.validate_startup_config(env="production") == ()
+
+
 def test_the_ranked_count_is_distinct_reconciled_models_not_score_rows(tmp_path: Path) -> None:
     """What is counted decides whether the bound means anything.
 

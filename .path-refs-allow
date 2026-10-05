@@ -74,6 +74,7 @@ release.sh                    # example project script named in scripts/README.m
 GP-v4.1-presentation-TR.html  # removed at v4.3 under the English-only rule; the manifest says so
 research/**/*                 # GP's own research tree, which lives in the authoring repository
 docs/roadmap.md               # the project's roadmap, named in a seed
+note.txt                      # this project's session note, retired at the M18 closure (repo review M15; DevFlow v6.1 dropped it); docs/process-log.md, append-only, still names it
 
 # ── model_ranking (DevFlow v6.0 adoption, D-155) ────────────────────────────────────────────────
 # This project is 16 milestones old. Its records are append-only (B.2) and they quote paths that

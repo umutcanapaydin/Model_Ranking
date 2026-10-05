@@ -99,6 +99,8 @@ def test_only_a_live_contract_test_steps_out_of_the_guard(monkeypatch: pytest.Mo
         setup.close()
         teardown = conftest.pytest_runtest_teardown(item, None)
         next(teardown)
+        # The test's fixtures are torn down here, still under the test's own rule (closure Tester R1).
+        assert bool(conftest._LIFTED["on"]) == on, "the lift changed before the fixtures were torn down"
         with contextlib.suppress(StopIteration):
             next(teardown)
         left_lifted = bool(conftest._LIFTED["on"])
@@ -130,3 +132,15 @@ def test_a_live_contract_test_may_reach_out_from_any_thread(monkeypatch: pytest.
     monkeypatch.setitem(conftest._LIFTED, "on", False)
     with pytest.raises(NetworkReachedError):
         conftest._refuse_unless_local("example.com", "looked up")
+
+
+def test_a_checkout_under_a_folder_named_integration_stays_guarded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The M18 closure Tester's R2: the rule read the whole path, so in a contract run a checkout
+    under any folder named `integration` lifted the guard for every unit test. It reads the path
+    from the repository down."""
+    from tests import conftest
+
+    monkeypatch.setenv("RUN_CONTRACT_TESTS", "1")
+    assert not conftest.is_live_contract_test("/home/ci/integration/model_ranking/tests/unit/test_api_v1.py")
+    assert not conftest.is_live_contract_test(conftest._ROOT / "tests" / "unit" / "integration" / "test_x.py")
+    assert conftest.is_live_contract_test(conftest._ROOT / "tests" / "integration" / "test_x_contract.py")

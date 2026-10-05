@@ -83,6 +83,9 @@ behaves as the stub was *told* to answer.
 - **The last three are the verifier's**, never the agent's.
 - Enhancements and documentation are **not** in this pipeline. There, the merge closing the issue
   is correct.
+- **This project (D-178):** on the owner's instruction, a bug whose fix the owner merged in full is
+  closed with `dev:done` and a comment that it is merged and not verified. The verifier's labels and
+  a reopen on `qa:failed` stand.
 
 ## A bug's PR carries no closing keyword
 

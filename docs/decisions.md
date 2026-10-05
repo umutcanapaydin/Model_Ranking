@@ -685,6 +685,8 @@ unset `MODEL_RANKING_DB` or `APP_BUILD`, with citing tests including a real subp
 W-017 is closed and the traffic shape is known — either of which changes the premise this choice
 rests on.
 
+**Amended by D-177 (2026-10-04)**: the serving image installs `requirements/serve.lock`, hash-checked, then the project with `--no-deps --no-build-isolation`; it carries no pyarrow.
+
 ## D-117 — Scoped inter-wave commit and push authority for the lead agent
 
 **Status:** ratified — owner directive, 2026-08-17: *"You may also use git to push between waves."*
@@ -1073,6 +1075,8 @@ Evidence does.**
 **Revisit when:** a modality the owner wants has no public measurement at all. That is a real case —
 it is the "workaround" he has already anticipated — and it needs its own decision rather than a
 quiet exception to this one.
+
+**Amended by D-169 (2026-09-28; amended in M18-W3, 2026-10-04)**: the on-device model's closed output gains a yes/no field, whether the input is a search for a model at all, and an input that is not one gets a note or a question back, not a ranking.
 
 ---
 
@@ -1584,6 +1588,8 @@ broken by this milestone, and D-115 exists so that a consumer is not broken for 
 convenience. Unifying two sources of truth is worth breaking that consumer; **not saying so is
 not.** A record that describes the mechanism and not the outcome leaves the next person to
 rediscover the outcome from a user complaint.
+
+**Amended by D-176 (2026-10-04)**: the recorded English remainder ends; the app composes the notices from served facts too, and `close_call_fact`, `unavailable_reason_code` and `source_health`'s `reason` are added.
 
 ## D-137 — A review has a DATE, and a review dated before the code did not read the code
 
@@ -2945,6 +2951,8 @@ changes as follows:
   GitHub rejects the file, so the issue agent has never started. The proposed workflow diff fixes
   it; until the owner applies it, `conformance` (and so `make check` and `make gate`) is red on it.
 
+**Amended by D-172 (2026-09-29)**: the per-milestone security seat is back, once at each milestone's closure, and never per wave.
+
 ## D-162 — The out-of-100 anchor is the surface's floor, and moves with it
 
 **Status:** accepted -- **ruled by the owner 2026-09-23** (asked in Turkish whether the reference
@@ -3423,6 +3431,8 @@ The installer installs from PyPI without a lock (#35).
 installer's safety properties need more than the substring tests the M17 closure security seat found
 (MINOR-4).
 
+**Amended by D-171 (2026-09-29)**: clause 1's bind is loopback by default and the home network by opt-in, with every Host checked. **Amended by D-177 (2026-10-04)**: a release's venv takes `requirements/ingest.lock` and `requirements/build.lock`, hash-checked, so the cost's "without a lock (#35)" no longer holds.
+
 
 ## D-171 — The engine can serve the owner's phone on his home network, by opt-in, checking every Host
 
@@ -3618,6 +3628,15 @@ review seat found why it must say so: with no copy the suite stops at W-108, and
 in the owner's checkout (2026-09-24, before the refinement boards) one test fails that the wave did
 not cause. Clause 2's own venv is built by `make install`, from the locks (D-177).
 
+**AMENDED 2026-10-05 (M18 closure, the repo review's M10; decided by the agent on the owner's
+standing instruction of 2026-09-29).** Clause 3 refuses `simctl` and `xcodebuild` to every seat, and
+D-175 clause 2 asks a wave that changes a screen to cite a `make ui-test` run, which needs both. So
+a screen wave's Tester may run `make ui-test`, and through it the simulator and `xcodebuild`, against
+the engine that target starts on 127.0.0.1:8090 from a copy of the served artifact. Nothing else
+leaves the stubs: never the engine installer or remover, never `launchctl`. The owner lifted the
+simulator restriction on 2026-10-04. M18-W2's Tester and M18-W3's first Tester ran `make ui-test`
+before this was written; `docs/control-events.csv` records both.
+
 
 ## D-175 — The screen is tested by a committed UI target, run locally, with scripted routing
 
@@ -3782,3 +3801,39 @@ refresh's code.
 
 **Revisit when:** a dependency must be upgraded for a security advisory (run `make lock`, then the
 suite), or CI's Pythons cannot install a pinned version (the risk the W6 review's R1 names).
+
+**Amended at the M18 closure (2026-10-05, the closure security seat's S5 and S1):** `make install` makes its venv without `--upgrade-deps`, so the first pip to run is the Python's own, and it installs the locked pip; `make deps` audits the four locks, not `.`. Clause 2's "nothing is fetched beyond the locks" does not yet hold for the serving image, whose Python base is taken by tag (#141, the owner's file under K.10).
+
+
+## D-178 — A bug whose fix the owner merged is closed, marked unverified
+
+**Status:** accepted -- the owner's instruction of 2026-10-04: "mr merged there is 53 issue if their
+pr's are merged please close them" (owner) · **Date:** 2026-10-05, recorded at the M18 closure
+(the repo review's M16) · **Amends** `.agents/rules/issues.md`'s verification pipeline for this
+project.
+
+**Context.** `.agents/rules/issues.md` keeps a bug open after its fix merges, with `dev:done`, until a
+verifier sets `qa:passed` on a deployed build. This project has one verifier, the owner, and its only
+deploy is the owner's Mac. On 2026-10-04 the owner asked for every bug whose fix PR was merged to be
+closed, and thirteen were (for example #67 and #86). The rule was then only in issue comments, and
+`issues.md` still said the opposite.
+
+**Decision.**
+1. When a bug's fix PR is merged, the agent closes the bug with `dev:done` and one comment: the fix
+   is merged in #N and has not been verified on a deployed build; reopen it if the problem is still
+   seen.
+2. Only a bug the merged PR fixes in full is closed. A bug a PR addresses in part, or one whose
+   measured bar was missed, stays open with what is left.
+3. The rest of the pipeline stands. A bug's PR still carries no closing keyword, so the merge does not
+   close it by itself. `qa:passed`, `qa:failed` and `qa:blocked` stay the verifier's, and a failed
+   verification reopens the bug with `qa:failed`.
+
+**The rejected alternative.** Keeping each bug open for `qa:passed`. With one verifier and no
+deployed build beyond the owner's Mac, the open list filled with fixed bugs, and the owner asked for
+them to be closed.
+
+**Mitigation if violated.** A closed bug is taken as verified. The comment says it is not, and
+`dev:done` stays on it.
+
+**Revisit when:** someone other than the owner verifies, or the engine is deployed beyond the owner's
+Mac.

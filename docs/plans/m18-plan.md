@@ -1,7 +1,7 @@
 ---
 record_type: plan
 id: m18-plan
-status: draft
+status: ratified
 process_version: v6.6
 date: 2026-09-29
 ---
@@ -19,6 +19,7 @@ M17 closure PR that carries it. A later change is a plan amendment. GitHub miles
 `M18: the app in the owner's hands, and ready for a first reader`.
 
 **Cap and order.** Six waves: at the ~4–6 cap, so W5 is the one to drop if the milestone runs long.
+(Seven ran: W7, the issue backlog, was added by amendment on the owner's instruction. See §2 W7.)
 Each wave ends with `/close-wave`, and each HIGH wave has a security pass on its slice before its
 pull request opens. The pull request opens only after the reviews and `/pre-merge` (owner rule,
 2026-09-23).
@@ -132,10 +133,19 @@ The issues, each fixed red first:
 - **#91.** A protocol for a stranger's first use, whose questions become W3's next held-out set.
 - **#81** (workflow edits) is the owner's; the agent proposes the diff.
 
+### W7 — The issue backlog (risk: **HIGH**; added by amendment, 2026-10-04)
+
+- Added on the owner's instruction "if you will have time you can start with the open issues".
+- The open issues triaged `fix-issue` (#102, #103, #104, #105, #114, #118, #119, #122, #123), the
+  reader-visible #112, and #120, #121 and #124 (the Epoch title).
+- HIGH: #104 touches the launcher, a security glob. Its delivery is the amendment of 2026-10-05
+  below.
+
 ## 3. Risk tiers and security globs
 
 - **HIGH waves:** W1 (a network surface), W3 (what the on-device model's output decides, D-126) and W6
   (release prerequisites).
+  As run, all seven waves were HIGH (the closure's amendment below).
 - **Security globs.** A diff touching any of these makes a wave HIGH:
   - `src/app/adapter/main.py`
   - `scripts/*engine_service*.sh`
@@ -184,6 +194,7 @@ budget.
 | W4 | #44, #45, #48, #57, #71, #74, #55, #56, #39, #42, #77, #79, #76 |
 | W5 | #51, #58, #59, #60, #82, #83, #85, #52, #33, #68, #80, #84, #92 |
 | W6 | #89, #88, #90, #91 (new), #26, #35, #81 (owner) |
+| W7 | #102, #103, #104, #105, #112, #114, #118, #119, #120, #121, #122, #123, #124 (added by amendment) |
 
 **Left out, with the reason:**
 - #38, #40, #41 and #61 are `dev:done` and deployed (`release-3f2e91d`). They wait for the owner's
@@ -197,6 +208,11 @@ budget.
 - The closure report, if the Quality Gate is kept on.
 - The Stage 5.1 release security review only if the owner calls a release.
 
+**Amendment (2026-09-29, the owner's ruling, D-172).** No wave gets a security pass on its slice,
+whatever its risk tier; §0's "each HIGH wave has a security pass" and §3's "HIGH waves" no longer
+add one. A wave closes on its Code-Reviewer and its Tester. The closure adds one security seat on the
+milestone's whole diff, before the closure pull request opens.
+
 **Amendment (2026-10-04, the owner's choice).** W4 runs before W2, because W2 needs the simulator,
 which the owner keeps off for now. #74 and #56, the app's code, move from W4 to W2: #74 lands with #70
 there, as its triage asks. W4's decisions are recorded as D-173.
@@ -205,27 +221,12 @@ there, as its triage asks. W4's decisions are recorded as D-173.
 to W6, beside the invariants list (#89): each is an invariant that list must cite a negative test for,
 and each needs a design of its own. W5 closes on the rest of its scope.
 
-**Amendment (2026-09-29, the owner's ruling, D-172).** No wave gets a security pass on its slice,
-whatever its risk tier; §0's "each HIGH wave has a security pass" and §3's "HIGH waves" no longer
-add one. A wave closes on its Code-Reviewer and its Tester. The closure adds one security seat on the
-milestone's whole diff, before the closure pull request opens.
-
 **Amendment (2026-10-04, W2's close).** W2 ran HIGH, not MED: it changed
 `ios/ModelRanking/Engine/EngineClient.swift` (#56), a security glob, and added a Debug-only test
 hook. It delivered its whole scope, #74 and #56 included, and #95 and #96 from W1's triage. #78
 became the filter "Only models with an API or open weights" (D-175). It filed #112 (raw model names,
 the engine's data), #113 (a drawing request read as image reading, for W3), #114 (a test-order
 defect on `main`) and #115 (the Turkish permission prompt seen on a phone, for W6).
-
-**Amendment (2026-10-05, W3's close).** W3 took #113 from W2 beside #66 and #73.
-- #73 met its bar.
-- #66 held its false-positive bound and missed its catch bar.
-- #113 missed both of its bars.
-Three variants were spent on each problem, and the pull request asks the owner whether to ship what
-holds (D-169 clause 6, as amended). Three code reviews ran: two BLOCKING rounds (the committed
-`.venv` link, a spoiled held-out set, an image rule that over-fired), then PASS WITH MINOR. Two
-Tester seats ran: the first was BLOCKING on coverage, closed by its own test; the second was MINOR.
-It filed #117, #118, #119, #120, #126, #127, #132 and #133.
 
 **Amendment (2026-10-04, W6's own valve).** W6's P5, the compiler-level gates (#110, #107, #60,
 #85), moves to M19. Each needs a design of its own, and none blocks a first release on the owner's
@@ -242,6 +243,28 @@ issues").** A W7 is added: the issue backlog, the open issues triaged `fix-issue
 #105, #114, #118, #119, #122, #123), the reader-visible #112, and #121, #124 (the Epoch title) and
 #120. Risk HIGH (#104 touches the launcher). The wave plan is `docs/plans/m18-wave-7-plan.md`.
 
+**Amendment (2026-10-05, W3's close).** W3 took #113 from W2 beside #66 and #73.
+- #73 met its bar.
+- #66 held its false-positive bound and missed its catch bar.
+- #113 missed both of its bars.
+Three variants were spent on each problem, and the pull request asks the owner whether to ship what
+holds (D-169 clause 6, as amended). Three code reviews ran: two BLOCKING rounds (the committed
+`.venv` link, a spoiled held-out set, an image rule that over-fired), then PASS WITH MINOR. Two
+Tester seats ran: the first was BLOCKING on coverage, closed by its own test; the second was MINOR.
+It filed #117, #118, #119, #120, #126, #127, #132 and #133.
+
 **Amendment (2026-10-05, W7's close).** W7 delivered #102, #103, #104, #105, #114, #118, #119,
 #120, #121 and #123. #112, #122 and #124 were delivered in part; each issue says what is left. It
 filed #128, #129, #130 and #131.
+
+**Amendment (2026-10-05, the closure).** The plan as run:
+- **Seven waves**, all HIGH. W1, W3 and W6 were planned HIGH. W2 (`EngineClient.swift`, #56), W4
+  (`src/app/adapter/main.py`, `src/app/clients/**`) and W5 (`FrontDoor.swift` and the D-126 gates)
+  touched the security globs in §3, so each ran HIGH, as its close records. W7 was HIGH from its
+  amendment.
+- **No wave had a security pass on its slice** (D-172). The closure's security seat read the whole
+  diff: `docs/reviews/m18-closure-security-review.md`.
+- **Moved to M19:** #60, #85, #107 and #110 (W5's and W6's valves); #66 and #113 stay open on their
+  missed bars, which the owner rules on in #134.
+- The amendments above are in date order since the closure (the repo review's M12); their text
+  is unchanged.

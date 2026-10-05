@@ -11,7 +11,9 @@ serving image (`Dockerfile`). The network is never needed: a lock records the ha
 from __future__ import annotations
 
 import importlib.util
+import os
 import re
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -107,6 +109,51 @@ def test_only_the_refresh_locks_carry_pyarrow() -> None:
     """#26: the serving image runs no refresh (D-116, D-154), so it does not ship pyarrow."""
     assert "pyarrow" not in _pinned("serve")
     assert "pyarrow" in _pinned("ingest") and "pyarrow" in _pinned("dev")
+
+
+#: A venv or bootstrap step that upgrades pip from the index: unhashed, and run before the locks.
+UNLOCKED_UPGRADE = re.compile(r"-m\s+(?:venv|ensurepip)\b[^\n;&|]*--upgrade", re.IGNORECASE)
+
+
+@pytest.mark.parametrize("path", ["Makefile", "scripts/install_engine_service.sh", "Dockerfile"])
+def test_no_venv_upgrades_pip_before_the_locks(path: str) -> None:
+    """The M18 closure security seat's S5: `venv --upgrade-deps` fetched the newest pip with no hash
+    and ran it before the hash-checked install. The bundled pip installs the locks, pip among them."""
+    code = "\n".join(line for line in (ROOT / path).read_text(encoding="utf-8").splitlines()
+                     if not line.lstrip().startswith("#"))
+    assert not UNLOCKED_UPGRADE.search(code), f"{path} upgrades pip outside the locks"
+
+
+def test_the_upgrade_check_sees_each_spelling() -> None:
+    for planted in ("python -m venv --upgrade-deps .venv", "$(SYS_PY) -m venv --upgrade .venv",
+                    "python3 -m ensurepip --upgrade"):
+        assert UNLOCKED_UPGRADE.search(planted), planted
+    assert not UNLOCKED_UPGRADE.search("python -m venv .venv")
+
+
+def _make(*args: str) -> subprocess.CompletedProcess[str]:
+    """`make` in the repository, `install` held as made, and none of an outer make's flags."""
+    env = {k: v for k, v in os.environ.items() if k not in {"MAKEFLAGS", "MFLAGS", "MAKELEVEL"}}
+    return subprocess.run(["make", "--no-print-directory", "-o", "install", *args], cwd=ROOT, env=env,
+                          capture_output=True, text=True, timeout=60, check=False)
+
+
+def test_the_dependency_audit_reads_every_lock() -> None:
+    """The M18 repo review's M3: `pip_audit .` reads no extra, so pyarrow left `make deps` with W6.
+    The files it audits are read from make's own dry run, so nothing runs and nothing is fetched."""
+    run = _make("-n", "deps")
+    audits = [line for line in run.stdout.splitlines() if "pip_audit" in line]
+    assert run.returncode == 0 and len(audits) == 1, run.stdout + run.stderr
+    audited = re.findall(r"(?:^|\s)-r\s+(\S+)", audits[0])
+    assert sorted(audited) == sorted(str(locks.lock_path(name).relative_to(ROOT)) for name in locks.LOCKS)
+    assert any("pyarrow" in _pinned(Path(path).stem) for path in audited)
+
+
+def test_an_audit_with_no_lock_fails_closed() -> None:
+    """No lock is a failure, never an audit of nothing. `PY=false`: were the guard gone, the audit
+    would fail without the message rather than reach PyPI."""
+    run = _make("LOCKS=", "PY=false", "deps")
+    assert run.returncode != 0 and "no lock under requirements/" in run.stdout, run.stdout + run.stderr
 
 
 def test_the_dev_extra_holds_the_ingest_extra() -> None:
@@ -219,3 +266,34 @@ def test_an_install_beside_the_project_or_a_capital_pip_is_read(path: str, plant
             "scripts/install_engine_service.sh": "requirements/ingest.lock"}[path]
     text = (ROOT / path).read_text(encoding="utf-8") + f"\n{planted}\n"
     assert install_problems(path, text, lock), planted
+
+
+def test_the_audit_decides_make_deps() -> None:
+    """The M18 closure Tester's T2. The two tests above read what is audited, and that no lock
+    stops the target. Neither reads that the audit's verdict is make's: a `-` before the audit
+    line, `|| true` after it, `--strict` dropped, or a guard that prints its message and goes on
+    each passed both. `PY=false` is an audit that fails and `PY=true` one that passes; neither
+    runs pip-audit, so nothing is fetched."""
+    failed = _make("PY=false", "deps")
+    assert failed.returncode != 0, "an audit that failed left `make deps` green: " + failed.stdout + failed.stderr
+    empty = _make("LOCKS=", "PY=true", "deps")
+    assert empty.returncode != 0 and "no lock under requirements/" in empty.stdout, (
+        "no lock, and an audit of nothing passed: " + empty.stdout + empty.stderr)
+    audits = [line for line in _make("-n", "deps").stdout.splitlines() if "pip_audit" in line]
+    assert len(audits) == 1 and "--strict" in audits[0].split(), audits
+
+
+def test_no_venv_upgrade_hides_on_a_continued_line_or_in_a_variable(tmp_path: Path) -> None:
+    """The M18 closure Tester's T3. `test_no_venv_upgrades_pip_before_the_locks` reads one line at a
+    time, so `--upgrade-deps` on the next line of a continued command passed it, in the Makefile and
+    in the release script, whose venv command is continued today; so did a make variable holding
+    it. The Makefile's venv rule is read here from make's own dry run, expanded, and each file with
+    its continued lines joined."""
+    venv = tmp_path / "venv"  # named, never made: a dry run
+    run = _make("-n", f"VENV={venv}", f"{venv}/pyvenv.cfg")
+    assert run.returncode == 0 and "-m venv" in run.stdout, run.stdout + run.stderr
+    assert not UNLOCKED_UPGRADE.search(run.stdout.replace("\\\n", " ")), run.stdout
+    for path in ("Makefile", "scripts/install_engine_service.sh", "Dockerfile"):
+        code = "\n".join(line for line in (ROOT / path).read_text(encoding="utf-8").splitlines()
+                         if not line.lstrip().startswith("#"))
+        assert not UNLOCKED_UPGRADE.search(code.replace("\\\n", " ")), f"{path} upgrades pip outside the locks"

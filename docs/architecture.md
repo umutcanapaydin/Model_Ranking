@@ -1,7 +1,7 @@
 # Architecture — model_ranking
 
 > What the system looks like and the contracts between its parts, as the code stands after
-> M18-W4 (2026-10-04). Per seed A.2, the PRD, the ADRs and this document are adversarial sources of
+> M18's seven waves (2026-10-05). Per seed A.2, the PRD, the ADRs and this document are adversarial sources of
 > truth until shown consistent; §7 lists where a record and the code disagree. Cites ADRs in
 > `docs/decisions.md` and files, never line numbers.
 
@@ -27,6 +27,7 @@ OWNER'S MAC: launchd service com.ilgar.modelranking.engine, a deployed release o
       v
 IPHONE APP (SwiftUI)
   question -> router (on-device model, then sentence similarity, then manual) -> surface + refinements
+           -> reading (signals in code + the model's verdict): a search, a note, or a one-tap question back
   EngineClient: GET /v1/categories, /v1/recommendations?task=SURFACE&budget=unlimited, /v1/boards
   StandingsStore (kept one day, on the device) -> Combine.swift -> the product's own combined list
   screens: home (cards, or the combined list), full ranking, model detail, combined-list detail
@@ -41,13 +42,15 @@ deterministic, tested code (D-104).
 
 | Component | Owns | Does not own |
 |---|---|---|
-| `src/app/clients/` | One client per upstream: bounded fetches, parsers, the parquet reader process, fakes for tests | Ranking policy |
-| `src/app/workflows/` | Ingest, registry, build, refresh, ranking, recommendation, floors, standings, serving bounds, schema; the CLIs (`build`, `refresh`, `recommend`, `coverage`, `schema migrate`) | HTTP |
+| `src/app/clients/` | One client per upstream: bounded fetches, parsers, the parquet reader process, fakes for tests | Ranking policy; anything the serving process loads (W-125) |
+| `src/app/workflows/` | Ingest, registry, build, refresh, ranking, recommendation, floors, standings, serving bounds, schema; the client-free tables and records the server shares with the clients (`board_tables`, `run_records`); the CLIs (`build`, `refresh`, `recommend`, `coverage`, `schema migrate`) | HTTP |
 | `src/app/adapter/` | The HTTP surface (`main.py`) and the nightly schedule (`nightly.py`) | Computing a number; running ingestion in the serving process |
 | `data/` | Curated plans and rosters; the Epoch bundle URL | Benchmark evaluation dates |
-| `ios/ModelRanking/Engine/` | Routing, the engine client, the standings store, the combination, every rule a screen applies; run by `swift test` through `ios/Package.swift` | Ranking a model; any number the engine did not send, except the two named arithmetic files |
+| `ios/ModelRanking/Engine/` | Routing, reading the question, the engine client, the standings store, the combination, the notices, every rule a screen applies; run by `swift test` through `ios/Package.swift` | Ranking a model; any number the engine did not send, except the two named arithmetic files |
 | `ios/ModelRanking/ContentView.swift` | Rendering the screens | Decisions |
+| `ios/UITests/` | The UI test target, run locally by `make ui-test` (D-175) | Judging the on-device model's reading (the router probe measures it) |
 | `scripts/install_engine_service.sh`, `scripts/engine_service.sh`, `scripts/remove_engine_service.sh` | Deploying, starting and removing the engine service | — |
+| `requirements/*.lock` | The exact versions, with hashes, that every install takes, written by `make lock` (D-177) | Choosing versions: `pyproject.toml` declares the ranges |
 | `src/app/workers/` | Nothing (an empty package) | — |
 
 ### 2.1 The build and its sources
@@ -103,7 +106,7 @@ routes (`DECLARED_ROUTES`), all GET, and turns the docs and OpenAPI routes off.
 |---|---|---|
 | `/health` | `status`, `version`, `build` (L.7); `evidence` (`servable` or `unavailable`); the refresh's state, last outcome, carried and expired sources, drift, derived and unmatched names | D-154, D-156, D-157 |
 | `/v1/categories` | Each surface: benchmark, metric, ranking effort, close-call margin, floor (`min_quality`), out-of-100 anchor, what its price leaves out, its primary board, its second board's age | D-138, D-152, D-153, D-159, D-162, D-168 |
-| `/v1/recommendations?task=&budget=` | One answer per surface: up to three picks, with the facts the client words in its own language, and the full ranking in the engine's order, with source health and evidence dating. `task=coding` answers on both coding surfaces and neither leads (Ruling A) | D-115, D-125, D-136 |
+| `/v1/recommendations?task=&budget=` | One answer per surface: up to three picks, with the facts the client words in its own language, and the full ranking in the engine's order, with source health and evidence dating. Each notice has its fact: `close_call_fact`, an empty answer's `unavailable_reason_code`, a source's `reason`. `task=coding` answers on both coding surfaces and neither leads (Ruling A) | D-115, D-125, D-136, D-176 |
 | `/v1/budgets` | The budget caps (`low` $2, `medium` $8 per 1M blended tokens, `unlimited`) and the blend weights | D-134 |
 | `/v1/boards` | Every board's standings as positions, never scores, and each model's name, vendor, blended price and accessibility. No parameters. Built once per artifact | D-167, D-173 |
 
@@ -133,6 +136,9 @@ routes (`DECLARED_ROUTES`), all GET, and turns the docs and OpenAPI routes off.
   answers 503 `evidence_unavailable`, with no file path in the body.
 - **A republished artifact is picked up on the next request.** Each request opens the file by
   path. The memos for the probe and for `/v1/boards` are keyed on the file's identity, not its path.
+- **The serving process loads no ingestion code.** Importing `app.adapter.main` loads no
+  `app.clients` module, no `app.workflows.ingest`, no `httpx` and no `pyarrow` (W-125, fixed in
+  M18-W6). The record types and tables both sides need live in client-free modules.
 
 ### 2.4 The nightly refresh
 
@@ -149,9 +155,14 @@ environment.
   `--epoch-dir` instead when the owner sets `MODEL_RANKING_EPOCH_DIR`.
   - The child inherits an allowlisted environment, and only the last 64 KiB of its output goes to
     the engine log.
-  - It is killed after 30 minutes and on shutdown.
-  - No request ever waits on it, and the serving process never imports the refresh, the build or
-    the fetchers (`tests/unit/test_nightly_refresh.py`).
+  - Three limits bound it (D-154 as amended in M18-W6). Its downloads share a 20-minute budget,
+    after which the sources left carry their last good data (D-156). At 27 minutes the kernel ends
+    the cycle (SIGALRM). At 30 minutes, and on shutdown, the engine kills it.
+  - The child runs in a session of its own, and the engine kills its whole process group, so a
+    grandchild such as the parquet reader cannot outlive it (W-130). The engine names itself to the
+    child, and a child whose engine is gone ends itself within seconds (W-126).
+  - No request ever waits on it, and the serving process never imports the refresh, the build, the
+    fetchers or any client (`tests/unit/test_nightly_refresh.py`).
 
 One cycle, in `src/app/workflows/refresh.py`:
 
@@ -207,17 +218,28 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
   1. The on-device model (FoundationModels, iOS 26 with Apple Intelligence available), within
      8 seconds. A generation schema limits its output to the surface ids `/v1/categories` served,
      plus a decline value, and one field each for language and domain from the declared table,
-     plus `none`. `ModelOutputBoundary` then drops any surface the engine did not serve and any
-     refinement the chosen surface does not allow.
+     plus `none`. A last closed field says whether the input is a search for a model at all
+     (D-169 as amended). `ModelOutputBoundary` then drops any surface the engine did not serve and
+     any refinement the chosen surface does not allow.
   2. Sentence similarity (`NLEmbedding`) against example questions for each surface. Available on
      every device.
   3. Manual: the chat ranking (`assistant`), marked unmeasured. The reader corrects it with the
      Change sheet.
 
-  The router picks the question; it never ranks or recommends (D-126). A question the catalogue
+  The router picks the question; it never ranks or recommends (D-126). A search the catalogue
   does not measure is answered with `assistant`, marked unmeasured, and counted in the gap register
-  on the device (`FrontDoor.swift`). The register is kept in Application Support and excluded from
-  backup.
+  on the device (`FrontDoor.swift`). Only a search is counted. The register is kept in Application
+  Support and excluded from backup.
+- **Reading the question** (`Reading.swift`, `TieredRouter.read`; D-169 as amended in M18-W3).
+  - Signals decided in code run on every tier: no word in any language, small talk, pasted
+    content, and an instruction to the app.
+  - With the model's verdict, they give one of three readings. No word or small talk alone gives a
+    short note and no ranking. A doubt in code together with the model's "not a search" gives the
+    note too. Either one alone gives a one-tap question back, and nothing is sent until the reader
+    answers.
+  - A request to make or change an image that a tier sent to `vision` is answered as unmeasured
+    (#113). No other surface is overridden.
+  - A note or a question back sends no request and records no gap.
 - **Refinements** (`Refinements.swift`, D-168): a declared table of Arena text slices, eight task
   languages and eight domains, each with the surfaces it may refine. At most two are added. A
   coding question takes none (Ruling A). Only the model tier refines.
@@ -226,6 +248,9 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
     `ios/Config/Engine.xcconfig`), with loopback as the fallback.
   - It uses an ephemeral session with a 10-second timeout and no cache, and the `SameHostOnly`
     redirect guard.
+  - It reads each response as a stream and stops at the route's ceiling (#56): 4 MiB for
+    `/v1/boards`, 1 MiB for `/v1/recommendations`, 256 KiB for any other route. A declared length
+    over the ceiling is refused before the body is read.
   - It makes three calls: `/v1/categories` on every load, `/v1/recommendations` with the routed or
     tapped surface as `task` and `budget=unlimited`, and `/v1/boards` with no query.
 - **Standings store** (`StandingsStore.swift`, D-167). Keeps the last `/v1/boards` payload for one
@@ -243,6 +268,12 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
 
   `AnswerPlan.swift` decides what the screen shows: one board shows the cards, more than one shows
   the combined list.
+  - A model the engine picks for more than one reason is one card carrying every label it earned
+    (D-175, #63 finding 1).
+  - The combined list shows ten rows, and the rest on request.
+  - The reader may keep only models with an API or open weights (#78). The filter reads the
+    accessibility `/v1/boards` serves, hides rows, and never re-ranks: each row keeps its place, and
+    the screen says how many it shows of how many.
 - **Screens** (`ContentView.swift`):
   - The home screen: the question field and the routed surface with its tier. Below them, either
     one card per answer (up to three picks and a ranking preview, five models in all) or the
@@ -255,13 +286,17 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
   - The gap list.
 
   The app speaks English and Turkish, writing each sentence from the facts the engine sends
-  (`Language.swift`, D-136). `Uncertainty.swift` is the one file allowed arithmetic on scores
+  (`Language.swift`, D-136). The notices, too, are written from served facts (`Notices.swift`,
+  D-176): the engine decides whether a notice is said, and the app how. Where a fact is missing, the
+  engine's English is shown. `Uncertainty.swift` is the one file allowed arithmetic on scores
   (D-138).
 - **Gates on the client.**
   - `tests/unit/test_ios_client_contract.py`: arithmetic happens only in the two named files.
   - `scripts/client_decl_gate.py`: the network belongs only to `EngineClient.swift`, and the file
     system only to `FrontDoor.swift` and `StandingsStore.swift`.
   - `tests/unit/test_router_hints.py`: nothing the reader types reaches an engine call.
+  - `make ui-test` (D-175): the screen's paths in the simulator, with scripted routing through the
+    same boundary. It runs on the owner's Mac only, never in CI.
 
 ## 3. Data flows
 
@@ -273,6 +308,8 @@ Nothing in this flow involves the phone.
 
 1. The reader types a question.
 2. The router, on the device, picks a surface and, on the model tier, up to two refinements.
+   The reading decides whether it is a search. A note ends here, and a question back waits for
+   the reader's tap. Neither sends anything.
 3. The app asks `/v1/recommendations` for that surface.
 4. With no refinement kept, the screen shows the engine's cards. With one or more, and the
    standings kept, the phone combines the boards itself and shows the combined list.
@@ -349,7 +386,7 @@ restart would refuse.
 - An undecodable payload is shown as a contract mismatch, not as an empty answer.
 
 **The on-device model into the app.** `ModelOutputBoundary` (§2.5). Whatever the model returns
-becomes a served surface id, a declared refinement, or nothing.
+becomes a served surface id, a declared refinement, a yes/no reading, or nothing.
 
 ## 5. Deployment topology
 
@@ -359,7 +396,7 @@ owner's Mac
     -> ~/Library/Application Support/model-ranking/engine_service.sh        (the wrapper)
     -> engine/current/scripts/engine_service.sh --service                   (the release's launcher)
     -> uvicorn app.adapter.main:app --host MODEL_RANKING_BIND --port 8080
-  engine/releases/SHA      origin/main exported with git archive, its own venv, a RELEASE stamp
+  engine/releases/SHA      origin/main exported with git archive, its own venv from the locks, a RELEASE stamp
   engine/current           -> the live release (three kept; the previous one is never removed)
   engine/data/advisor.db   the artifact and its refresh record, kept across redeploys
   ~/Library/Logs/model-ranking-engine.log   the engine log, refresh output included
@@ -371,6 +408,9 @@ owner's Mac
     rolls back to the previous release, or on a first install removes the service.
   - The owner runs it after each merge, or the agent does on his standing instruction. A merge is
     not live until it runs.
+  - The release's venv takes `requirements/ingest.lock` and `requirements/build.lock`, hash-checked,
+    then the project with `--no-deps --no-build-isolation` (D-177). Nothing else is resolved or
+    fetched.
   - `scripts/remove_engine_service.sh` takes the service off and keeps the releases and the data.
 - **The launcher** (`scripts/engine_service.sh`).
   - With `--service` it refuses to start a tree with no RELEASE stamp.
@@ -390,7 +430,8 @@ owner's Mac
   overridden by a git-ignored `Engine.local.xcconfig`. `ios/app.sh` builds the simulator app pinned
   to loopback. Running on the owner's iPhone is `docs/owner-iphone.md`.
 - **Nowhere else.** `fly.toml` and `Dockerfile` remain as D-116's Fly.io target. Nothing has been
-  deployed there (D-123).
+  deployed there (D-123). The image installs `requirements/serve.lock`, which carries no pyarrow
+  (D-177).
   - A hosted engine waits for the Stage 5.1 security review and the data licences ruling (#88).
   - A production environment refuses the nightly switch, so a hosted engine needs ingestion
     somewhere else first (D-154).
@@ -438,14 +479,14 @@ owner's Mac
 | 5 | Ingestion on a serving host | D-116 clause 2: never | The Mac's engine serves the phone (opt-in) and refreshes in a child process | Accepted: D-154 clause 2 allows the switch only in a relaxed environment; the service runs `APP_ENV=test`; a production engine refuses it |
 | 6 | Runtime config | AGENTS.md §5: never build-baked | The app's engine address is baked into each build | Accepted exception: D-171 note 5 (a phone app has no process environment) |
 | 7 | What leaves the phone | D-160 clause 1, first wording: nothing derived from the question | The routed surface id is sent as `task` | Resolved: D-160 amendment, D-168 note 9 |
-| 8 | Ingestion code in the server | D-154 clause 1, first wording | The server loads the source parsers and httpx, but never the refresh, the build or the fetchers, and calls none of them | Accepted: W-125 (`docs/warnings.ledger.md`), owning milestone M18 |
+| 8 | Ingestion code in the server | D-154 clause 1, first wording | The server loads no client, parser, `httpx` or `pyarrow` | Resolved: W-125, fixed in M18-W6 (`docs/warnings.ledger.md`) |
 
 ## 8. Deliberately not there
 
 - **No accounts.** No sign-in, no per-reader state on the engine, no mutating route.
 - **No server-side model.** No language model computes, adjusts or explains a score, a price or an
-  availability (D-104). The only model is the phone's own, and it only picks a surface and
-  refinements from closed sets (D-126, D-168).
+  availability (D-104). The only model is the phone's own. It only picks a surface, refinements and
+  whether the input is a search, each from a closed set (D-126, D-168, D-169).
 - **Nothing the reader types leaves the phone.** The question's text, the refinements, the
   removals and the gap register stay on the device (§3).
 - **No analytics or telemetry in the app**, and no refresh button or freshness screen (D-151).
@@ -458,9 +499,9 @@ owner's Mac
 
 **Open items that bear on this architecture:**
 
-- W-125: the server loads the parsers.
-- W-131: there is no single list of security invariants, and Stage 5.1 needs one.
-- #35: the installer installs from PyPI without a lock.
-- #66, #73: reading a question that is not a model search, and routing coding questions. Both are
-  M18-W3.
+- #66, #113: the question reading missed its catch bar, and the image rule missed both of its
+  bars. The owner decides whether it ships as measured (PR #134).
+- #88: the data licences are tabled, and a public release waits on the owner's ruling.
+- `docs/security-invariants.md` names its open gaps, each on an issue. #122 is one: a child
+  process a test starts is beyond the suite's network guard.
 - The Stage 5.1 release review has not run.
