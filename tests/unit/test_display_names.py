@@ -38,7 +38,8 @@ NO_LONGER_MODELS = {
     "claude3-haiku20240307", "claude3-opus20240229", "claude3-sonnet20240229", "claude3.5-haiku20241022",
     "o3-2025-04-16", "gpt5-2025-08-07", "gpt4.1-mini2025-04-14", "gpt4.1-nano2025-04-14",
     "gpt5.2-pro2025-12-11", "gpt5.4-pro2026-03-05", "o3-mini2025-01-31", "o3-pro2025-06-10",
-    "mistral-small2503", "mistral-small3.1-24b-instruct2503",
+    "mistral-small2503", "mistral-small3.1-24b-instruct2503", "mistral-medium2604",
+    "mistral-medium3",  # a moving alias since M19-W1 (D-166): Mistral moved it to Medium 3.5
 }
 
 #: #112's remainder (the W7 review's M4 class): served under a lower-case spelling of the id, not the
@@ -52,7 +53,7 @@ LOWER_CASE_ON_2026_10_06 = {
     "gpt4-0613", "gpt4-1106-preview", "gpt4-turbo2024-04-09", "gpt4.5-preview", "gpt4o-mini2024-07-18",
     "gpt5.1-codex-max", "granite4.1-8b", "granite4.2-8b", "grok-code-fast1", "grok4.1-fast-reasoning",
     "grok4.20-multi-agent-beta0309", "grok4.3", "jamba1.5-large", "jamba1.5-mini", "llama2-7b-chat",
-    "llama3-70b-instruct", "magistral-small2509", "mercury2", "mistral-medium2505", "mistral-medium2604",
+    "llama3-70b-instruct", "magistral-small2509", "mercury2", "mistral-medium2505",
     "mistral-small2402", "nova2-lite",
     "o1-mini2024-09-12", "o1-pro2025-03-19", "pixtral12b2409", "qwen-plus2025-01-25", "qwen-turbo2024-11-01",
     "qwen3-30b-a3b-thinking2507", "qwen3-4b-instruct2507", "qwen3-vl235b-a22b-thinking", "step3.5-flash",
@@ -136,8 +137,10 @@ def test_every_model_the_artifact_serves_is_named_by_this_code_as_a_product() ->
         name = curated.get(model_id) or registry._derived_display(model_id, names)
         if name == model_id and model_id not in SPELLED_AS_THEIR_ID:
             raw_ids.append(model_id)
-        elif name == name.lower() and model_id not in SPELLED_AS_THEIR_ID | {"o1-2024-12-17"}:
-            lower_case.append(model_id)  # #112's remainder: the id with its dashes back is no name
+        elif name == name.lower() and model_id not in SPELLED_AS_THEIR_ID | set(registry.DISPLAY_NAMES):
+            # #112's remainder: the id with its dashes back is no name. A table name is ruled with its
+            # source, and OpenAI writes some in lower case (`gpt-oss-120b`, `o1-mini (2024-09-12)`).
+            lower_case.append(model_id)
         if problem := _claude_order_problem(name):
             misordered.append(problem)
     assert not raw_ids, f"served under their raw id: {sorted(raw_ids)}"

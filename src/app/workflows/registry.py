@@ -585,6 +585,81 @@ DISPLAY_NAMES: dict[str, str] = {
     "qwen3.5-122b-a10b": "Qwen3.5 122B A10B",
     "qwq-plus": "QwQ Plus",
     "trinity-large-thinking": "Trinity Large Thinking",
+    # #112's remainder (M19-W1): served under a lower-case spelling of the id. Each name is its maker's,
+    # from the page beside it (read 2026-10-06), in this table's form: words spaced as the maker writes
+    # them in prose, a snapshot's date in brackets where the maker's name carries none.
+    # Cohere
+    "c4ai-aya-expanse32b": "Aya Expanse 32B",                    # docs.cohere.com/docs/aya-expanse
+    "command-a03-2025": "Command A (03-2025)",                   # docs.cohere.com/docs/command-a
+    "command-r-plus08-2024": "Command R+ 08-2024",               # docs.cohere.com/docs/command-r-plus
+    "command-r08-2024": "Command R 08-2024",                     # docs.cohere.com/docs/command-r
+    # Meta: its cards name the family "Code Llama" and the variant "Instruct" ("CodeLlama 70B Instruct")
+    "codellama34b-instruct": "Code Llama 34B Instruct",  # huggingface.co/meta-llama/CodeLlama-34b-Instruct-hf
+    "codellama70b-instruct": "Code Llama 70B Instruct",  # huggingface.co/meta-llama/CodeLlama-70b-Instruct-hf
+    "llama2-7b-chat": "Llama 2 7B Chat",                 # huggingface.co/meta-llama/Llama-2-7b-chat-hf
+    "llama3-70b-instruct": "Llama 3 70B Instruct",       # huggingface.co/meta-llama/Meta-Llama-3-70B-Instruct
+    # Mistral: the names its model list gives each version (docs.mistral.ai/models)
+    "devstral-small2505": "Devstral Small 1.0",                  # .../models/devstral-small-1-0-25-05
+    "magistral-small2509": "Magistral Small 1.2",                # .../models/magistral-small-1-2-25-09
+    "mistral-medium2505": "Mistral Medium 3",                    # .../models/mistral-medium-3-25-05
+    "mistral-small2402": "Mistral Small 1.0",                    # .../models/mistral-small-1-0-24-02
+    "pixtral12b2409": "Pixtral 12B",                             # .../models/pixtral-12b-24-09
+    # Baidu
+    "ernie5.1": "ERNIE 5.1",                                     # ernie.baidu.com/blog/posts/ernie-5.1-0508-release
+    # Google: Gemma sizes as DeepMind writes "Gemma 3 27B IT" (ai.google.dev/gemma/docs/core/model_card_3)
+    "gemini-exp1206": "Gemini Exp-1206",                         # blog.google/feed/gemini-exp-1206
+    "gemini3.1-flash-lite-preview": "Gemini 3.1 Flash-Lite Preview",  # ai.google.dev/gemini-api/docs/models
+    "gemma2-27b-it": "Gemma 2 27B IT",                           # huggingface.co/google/gemma-2-27b-it
+    "gemma2b-it": "Gemma 2B IT",                                 # huggingface.co/google/gemma-2b-it
+    "gemma3-12b-it": "Gemma 3 12B IT",                           # ai.google.dev/gemma/docs/core/model_card_3
+    "gemma3-27b-it": "Gemma 3 27B IT",                           # ai.google.dev/gemma/docs/core/model_card_3
+    "gemma3-4b-it": "Gemma 3 4B IT",                             # ai.google.dev/gemma/docs/core/model_card_3
+    "gemma4-31b": "Gemma 4 31B",                                 # ai.google.dev/gemma/docs/core/model_card_4
+    "gemma7b-it": "Gemma 7B IT",                                 # huggingface.co/google/gemma-7b-it
+    # Z.ai
+    "glm4.5-air": "GLM-4.5-Air",                                 # docs.z.ai/guides/llm/glm-4.5
+    "glm4.5v": "GLM-4.5V",                                       # docs.z.ai/guides/vlm/glm-4.5v
+    "glm5v-turbo": "GLM-5V-Turbo",                               # docs.z.ai/guides/vlm/glm-5v-turbo
+    # OpenAI: its model pages, developers.openai.com/api/docs/models/<model>, which list each snapshot;
+    # it writes gpt-oss, o1-mini and o1-pro in lower case. 0613 and 1106-preview are named only in its
+    # 2023 announcements (openai.com/index/function-calling-and-other-api-updates, .../devday).
+    "gpt-oss120b": "gpt-oss-120b",                               # .../models/gpt-oss-120b
+    "gpt-oss20b": "gpt-oss-20b",                                 # .../models/gpt-oss-20b
+    "gpt3.5-turbo0125": "GPT-3.5 Turbo (0125)",                  # .../models/gpt-3.5-turbo
+    "gpt3.5-turbo0613": "GPT-3.5 Turbo (0613)",                  # the June 2023 announcement
+    "gpt3.5-turbo1106": "GPT-3.5 Turbo (1106)",                  # .../models/gpt-3.5-turbo
+    "gpt4-0125-preview": "GPT-4 Turbo Preview (0125)",           # .../models/gpt-4-turbo-preview
+    "gpt4-0613": "GPT-4 (0613)",                                 # .../models/gpt-4
+    "gpt4-1106-preview": "GPT-4 Turbo Preview (1106)",           # the DevDay announcement
+    "gpt4-turbo2024-04-09": "GPT-4 Turbo (2024-04-09)",          # .../models/gpt-4-turbo
+    "gpt4.5-preview": "GPT-4.5 Preview",                         # .../models/gpt-4.5-preview
+    "gpt4o-mini2024-07-18": "GPT-4o mini (2024-07-18)",          # .../models/gpt-4o-mini
+    "gpt5.1-codex-max": "GPT-5.1-Codex-Max",                     # .../models/gpt-5.1-codex-max
+    "o1-mini2024-09-12": "o1-mini (2024-09-12)",                 # .../models/o1-mini
+    "o1-pro2025-03-19": "o1-pro (2025-03-19)",                   # .../models/o1-pro
+    # IBM
+    "granite4.1-8b": "Granite 4.1 8B",                   # research.ibm.com/blog/granite-4-1-ai-foundation-models
+    "granite4.2-8b": "Granite 4.2 8B",                           # huggingface.co/ibm-granite/granite-4.2-8b
+    # xAI
+    "grok-code-fast1": "Grok Code Fast 1",                       # x.ai/news/grok-code-fast-1
+    "grok4.1-fast-reasoning": "Grok 4.1 Fast (reasoning)",       # x.ai/news/grok-4-1-fast
+    "grok4.20-multi-agent-beta0309": "Grok 4.20 Multi-Agent Beta (0309)",  # docs.x.ai/developers/models
+    "grok4.3": "Grok 4.3",                                       # docs.x.ai/developers/models/grok-4.3
+    # AI21, Inception, Amazon
+    "jamba1.5-large": "Jamba 1.5 Large",                         # huggingface.co/ai21labs/AI21-Jamba-1.5-Large
+    "jamba1.5-mini": "Jamba 1.5 Mini",                           # huggingface.co/ai21labs/AI21-Jamba-1.5-Mini
+    "mercury2": "Mercury 2",                                     # inceptionlabs.ai/blog/introducing-mercury-2
+    "nova2-lite": "Nova 2 Lite",                         # docs.aws.amazon.com/bedrock (model-card-amazon-nova-2-lite)
+    # Alibaba: its notice names the snapshots "Qwen-Plus-2025-01-25" and "Qwen-Turbo-2024-11-01"
+    # (alibabacloud.com/en/notice/model_studio_update_of_qwenplusturbo_4f8); Qwen3's cards on huggingface.co/Qwen
+    "qwen-plus2025-01-25": "Qwen-Plus-2025-01-25",
+    "qwen-turbo2024-11-01": "Qwen-Turbo-2024-11-01",
+    "qwen3-30b-a3b-thinking2507": "Qwen3-30B-A3B-Thinking-2507",
+    "qwen3-4b-instruct2507": "Qwen3-4B-Instruct-2507",
+    "qwen3-vl235b-a22b-thinking": "Qwen3-VL-235B-A22B-Thinking",
+    # StepFun, Hugging Face H4 (whose card writes "Zephyr 7B β"; a served name is ASCII, D-157)
+    "step3.5-flash": "Step 3.5 Flash",                           # huggingface.co/stepfun-ai/Step-3.5-Flash
+    "zephyr7b-beta": "Zephyr 7B Beta",                           # huggingface.co/HuggingFaceH4/zephyr-7b-beta
 }
 
 
