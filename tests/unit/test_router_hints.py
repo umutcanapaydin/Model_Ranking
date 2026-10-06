@@ -852,3 +852,22 @@ def test_the_text_gate_refuses_a_link_detector_and_an_initialiser_it_cannot_see_
         assert any(re.search(p, line) for p in EGRESS), line
     for line in ("let days = aged.map(String.init)", "return groups.map(PickCard.init)"):
         assert not any(re.search(p, line) for p in EGRESS), line
+
+
+def test_the_pins_read_no_code_the_compiler_never_builds() -> None:
+    """#110 (the M18-W5 review's K3): a line moved under `#if false` leaves the build, but `_code`
+    kept it, so a pin could be satisfied by code the app no longer compiles. A branch whose condition
+    is the literal `false` or `!true` is dropped, and so is an `#else` after a `true`; a condition
+    `_code` cannot decide (`DEBUG`, a platform) keeps its code. Lines keep their numbers."""
+    swift = "let a = 1\n#if false\nlet hidden = 2\n#endif\nlet b = 3\n"
+    stripped = _code(swift)
+    assert "hidden" not in stripped and "let a = 1" in stripped and "let b = 3" in stripped
+    assert stripped.count("\n") == swift.count("\n"), "a dropped line must keep its line"
+    nested = "#if false\n#if DEBUG\nlet x = 1\n#endif\nlet y = 2\n#endif\nlet z = 3\n"
+    assert "let x" not in _code(nested) and "let y" not in _code(nested) and "let z = 3" in _code(nested)
+    branches = "#if false\nlet dead = 1\n#else\nlet live = 2\n#endif\n"
+    assert "dead" not in _code(branches) and "let live = 2" in _code(branches)
+    negated = "#if !true\nlet dead = 1\n#elseif DEBUG\nlet maybe = 2\n#endif\n"
+    assert "dead" not in _code(negated) and "let maybe = 2" in _code(negated)
+    taken = "#if true\nlet kept = 1\n#else\nlet never = 2\n#endif\n"
+    assert "let kept = 1" in _code(taken) and "never" not in _code(taken)
