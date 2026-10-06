@@ -1,0 +1,502 @@
+[
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "make a minimal logo for my coffee shop's website",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "need an app icon for my habit tracker app, something flat and colorful",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "generate a hero image for my saas landing page",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "erase the power lines from my sunset shot",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "make my dog look like a renaissance oil painting portrait",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which ai is best at generating realistic pictures of people",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "colourise an old black and white photo of my grandparents",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "draw a cute sticker of a sleepy cat i can use on whatsapp",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "upscale my blurry phone pic to 4k",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "design a poster for our school's spring concert",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "kuaför salonum için instagramda kullanacağım bir logo tasarla",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "web sitem için deniz temalı bir arka plan görseli oluştur",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "mobil uygulamam icin ikon cizdirmek istiyorum hangi yapay zeka iyi",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "fotoğrafın arkasındaki insanları silebilen bir ai var mı",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "vesikalık fotoğrafımın arka planını beyaz yap",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "çocuk kitabı için suluboya tarzında illüstrasyon çizen model",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "profil fotom icin anime tarzi bir avatar yap",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "resimdeki gökyüzünü gün batımıyla değiştir",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "e-ticaret sitemdeki ürün fotoğraflarını rötuşlayacak yapay zeka",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "dugun davetiyesi icin cicekli bir gorsel uret",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "what model is the old car in this picture",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "can u read the total off this receipt pic",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "what does this bar chart from my lecture slides show",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "theres an error in this screenshot of my terminal, what does it say",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which model is best at identifying plants from pictures",
+    "reading" : "search",
+    "routed" : "expert",
+    "surface" : "expert",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bu fotoğraftaki çiçeğin adı ne",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "faturanın fotoğrafını çektim son ödeme tarihini okur musun",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bu grafikteki satış trendini yorumlar mısın",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "telefonumdaki hata mesajının ekran görüntüsünü anlayan model lazım",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "eski bir mektubun fotografindaki el yazisini okuyabilir misin",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "need a bash one-liner to batch convert heic photos to png",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "my react image gallery loads slowly, how do i lazy load the pictures",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "build a portfolio website to show off my photography",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "write an instagram caption for my beach photo",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "summarise this research paper for me including what its figures show",
+    "reading" : "search",
+    "routed" : "document",
+    "surface" : "document",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "help me write an email to a client explaining why their wedding photos are late",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "agent that can update all image paths across my codebase and run the build by itself",
+    "reading" : "search",
+    "routed" : "agentic-coding",
+    "surface" : "agentic-coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "need a model that writes opencv code to detect faces in images",
+    "reading" : "search",
+    "routed" : "agentic-coding",
+    "surface" : "agentic-coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "move all the screenshots on my desktop into one folder and rename them by date",
+    "reading" : "search",
+    "routed" : "computer-use",
+    "surface" : "computer-use",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "look up who took the famous lunch atop a skyscraper photo and cite sources",
+    "reading" : "search",
+    "routed" : "search_factuality",
+    "surface" : "search_factuality",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "fotoğraf yükleme özelliği olan bir web sitesi yapmak istiyorum",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "flutterda resim sıkıştırma kodu yazacak model",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "tatil fotoğrafım için komik bir açıklama yaz",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bol grafikli 80 sayfalık raporu özetleyecek model lazım",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "fotoğrafçılık işime başlamak için iş planı hazırlamama yardım et",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "galeri uygulamamın bütün dosyalarında resim yükleme kodunu değiştirip testleri çalıştıracak ajan",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "fotoğraf makinesi alacağım, bugünkü fiyatları karşılaştırır mısın",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "javascript ile resim kaydirici slider yaz",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "müzedeki ünlü resimler hakkında uydurmadan doğru bilgi veren model",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bilgisayarımdaki binlerce fotoğrafı tarihine göre klasörlere ayıracak yapay zeka",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  }
+]
