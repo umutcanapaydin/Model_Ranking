@@ -1,68 +1,60 @@
-# PROPOSAL — M6-W4, not yet adopted. D-116 names Fly.io as the target; this file is what that would
-# look like, for the owner's review. K.10 cross-team surface; see `.github/CODEOWNERS`.
+# The hosted engine on Fly.io (D-116, the owner's choice; M19-W5, the first release). K.10 cross-team
+# surface; see `.github/CODEOWNERS`.
 #
-# NOT A DEPLOY AUTHORISATION until the owner adopts it. **W-017 is CLOSED as of M7-W3**: the
-# serving snapshot that copied the whole database into memory per unauthenticated request has been
-# DELETED, not bounded. M7-W2 removed the write that forced it and M7-W3 removed the copy, so the
-# process reads the operator's file directly. Measured after the change: 30 additional requests
-# grew peak RSS by 0.64 MiB against a 0.93 MiB database, where a copy per request would have added
-# roughly 28 MiB.
+# NOT A DEPLOY AUTHORISATION: the owner deploys, with `scripts/deploy_hosted_engine.sh`, after the
+# Stage 5.1 security review. W-017 is CLOSED (M7-W3): the serving snapshot that copied the whole
+# database into memory per request was deleted, and the process reads the artifact directly
+# (measured: 30 requests grew peak RSS by 0.64 MiB over a 0.93 MiB database).
+#
+# `app` names the deployment and, with it, the one Host the engine answers to (below). Fly app names
+# are global: if this one is taken, rename it here and in MODEL_RANKING_ALLOWED_HOSTS together.
 
 app = "model-ranking"
 primary_region = "fra"
 
 [build]
-  # APP_BUILD is supplied at build time so /health can answer "which code is live" (L.7).
-  [build.args]
-    APP_BUILD = "set-me-to-the-git-sha"
+  # The stage that carries the public artifact inside the image (no volume to start empty). APP_BUILD
+  # is passed by the deploy script from the commit; with none, production refuses to boot (L.7).
+  build-target = "hosted"
 
 [env]
   APP_ENV = "production"
-  MODEL_RANKING_DB = "/data/advisor.db"
-  # Concurrency is still DECLARED rather than inherited: sync handlers run on AnyIO's thread pool,
-  # whose default of 40 is a number nobody in this project chose. `hard_limit` below must equal it.
-  #
-  # MODEL_RANKING_MEMORY_BUDGET_MB was REMOVED at M7-W3 along with the snapshot it sized. It fed a
-  # `max_database_bytes()` ceiling that refused to boot on a file too large to copy per request;
-  # nothing copies now, so the ceiling would refuse a perfectly servable artifact for a cost this
-  # process no longer pays.
+  MODEL_RANKING_DB = "/srv/advisor.db"
+  # #94: the engine binds every interface in the image, so it answers only to this Host (D-171).
+  MODEL_RANKING_ALLOWED_HOSTS = "model-ranking.fly.dev"
+  # Concurrency is DECLARED rather than inherited: sync handlers run on AnyIO's thread pool, whose
+  # default of 40 is a number nobody in this project chose. `hard_limit` below must equal it.
   MODEL_RANKING_MAX_CONCURRENCY = "8"
 
-# The VM size stays DECLARED rather than defaulted — it was absent once, which silently meant Fly's
-# 256 MB while `hard_limit = 8` was being described as W-017's containment. It is no longer tied to
-# a snapshot arithmetic, because there is no snapshot: measured resident use is ~62 MiB serving a
+# The VM size stays DECLARED rather than defaulted: measured resident use is ~62 MiB serving a
 # 0.93 MiB database, and it grows with SQLite's page cache rather than with request count.
 [[vm]]
   size = "shared-cpu-1x"
   memory = "256mb"
 
-[[mounts]]
-  source = "model_ranking_data"
-  destination = "/data"
-
 [http_service]
   internal_port = 8080
   force_https = true
-  # Deliberately not scaling to zero: the first request after a cold start would pay the snapshot
-  # cost W-017 records, which is the one cost this service should not pay on a user's latency.
+  # One machine always up: a phone's first question should not wait for a cold start.
   auto_stop_machines = false
   auto_start_machines = true
   min_machines_running = 1
 
   [http_service.concurrency]
     # This is the EDGE half of the cap; the process half is `MODEL_RANKING_MAX_CONCURRENCY` above,
-    # applied to AnyIO's thread limiter at startup. Before Stage 4.0 only this half existed and the
-    # process was quietly running AnyIO's default of 40 — so the file asserted a containment the
-    # code was not honouring. `hard_limit` must equal MODEL_RANKING_MAX_CONCURRENCY; the app's
-    # budget arithmetic assumes it.
+    # applied to AnyIO's thread limiter at startup. `hard_limit` must equal
+    # MODEL_RANKING_MAX_CONCURRENCY; the app's budget arithmetic assumes it.
     type = "requests"
     soft_limit = 4
     hard_limit = 8
 
-[checks.health]
-  type = "http"
-  port = 8080
-  method = "get"
-  path = "/health"
-  interval = "30s"
-  timeout = "5s"
+  # The check reaches the machine by its address, which the Host list refuses (400), so it names the
+  # deployment's Host as a phone does.
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    timeout = "5s"
+    [http_service.checks.headers]
+      Host = "model-ranking.fly.dev"
