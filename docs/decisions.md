@@ -3914,3 +3914,58 @@ rows a board already had, which the refresh must publish, then read as every row
 
 **Revisit when:** `/v1/boards` serves a row's raw name or harness, or a board's floor stops counting
 every row.
+
+## D-180 — The phone's privacy sinks hold by what the compiler resolves, not by how the source spells it
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
+("proceed with what you recommend, don't ask", owner, translated from Turkish); M19-W2 · **Date:**
+2026-10-06 · **Amends** D-126's enforcement (`scripts/client_decl_gate.py`, "What this gate does NOT
+do") · from #85, gap G-1.
+
+**Context.** D-160 clause 1 and D-168 clause 9 promise that nothing derived from the question reaches
+the daily `/v1/boards` request or the standings file. The M17 closure's security seat broke both
+with every gate passing (`docs/reviews/m17-closure-security-review.md`, MINOR-3):
+- **P2:** a `nonisolated(unsafe) static var` on `EngineClient`, set by the screen from the question's
+  refinements and read by `boards()` into a query item;
+- **P3:** the screen built `Standings(apiVersion: typed, ...)`, wrapped it as `FetchedStandings` and
+  saved it through `StandingsStore`, into the device's caches.
+
+The declaration gate scopes by file, and the text gate by spelling, so a relay through shared state,
+or a constructor called from the wrong file, passes both.
+
+**Decision.**
+1. The two privacy sinks are named: `EngineClient.swift`, which sends every request, and
+   `StandingsStore.swift`, which writes the standings file.
+2. The declaration gate reads the compiled module, in all four build configurations, and refuses:
+   - mutable stored state declared in a sink file outside a function body: a `static`, global or
+     member `var`;
+   - a sink file reading mutable stored state declared in any other file, whatever reaches it (a
+     global, a static, or a class instance's `var` through a `let`);
+   - `FetchedStandings(payload:)` built anywhere but the two sink files: only the engine's answer and
+     the store's own file become standings.
+3. So a sink sends or keeps only what its parameters, its immutable configuration and the engine's
+   answer give it, and `boards()` takes no parameter (INV-66).
+4. Lanes without Xcode hold the same by text, as the M17 seat proposed: no `static var` or
+   `nonisolated(unsafe)` in the two files; `boards()` calls exactly `fetch("v1/boards", query: [])`;
+   `Standings(` is built nowhere in the client; `FetchedStandings(` appears only in the two files.
+
+**Measured.** A throwaway spike (`spike-m19-g1`, 2026-10-06, never pushed) ran the three rules over
+the compiled client in two configurations: the shipping client gave no finding; P2 was refused by
+the first rule, a variant relaying through a global `var` in `ContentView.swift` by the second, and
+P3 by the third. The current gate passed all three mutants in all four configurations.
+
+**The rejected alternative.** A type that cannot carry the question: a constructor only the network
+answer or the store's file can call. Swift's access control is per file, and `FetchedStandings` has
+two legitimate producers in two files and twelve test call sites. Admitting exactly those needs a
+token per file and a test-only way to make one, which any client file could then call. It also does
+nothing for P2, whose relay is shared state, not a type.
+
+**What it does not do.** A sink file's own code is still trusted: an edit inside `EngineClient.swift`
+that sends a new parameter is a reviewed change to a security glob, and its tests pin what each
+request carries (INV-64, INV-65). The gate holds the routes an edit elsewhere can take.
+
+**Mitigation if violated.** A relay through shared state, or standings built from typed text, again
+carries the question off the device or into its caches with every gate passing.
+
+**Revisit when:** a third sink appears (a new route or a new store), or Swift can admit exactly two
+files to a declaration.
