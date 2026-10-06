@@ -561,8 +561,15 @@ final class SlowTierTests: OfflineTestCase {
         pause.executableURL = URL(fileURLWithPath: "/bin/sh")
         let pid = ProcessInfo.processInfo.processIdentifier
         pause.arguments = ["-c", "sleep 0.05; kill -STOP \(pid); sleep 6; kill -CONT \(pid)"]
+        // The W3 review's R3: if the pausing helper died between its STOP and its CONT, the test process
+        // would stay stopped and the Swift leg, which has no timeout, would hang. A second helper sends
+        // CONT whatever happens to the first.
+        let backstop = Process()
+        backstop.executableURL = URL(fileURLWithPath: "/bin/sh")
+        backstop.arguments = ["-c", "sleep 8; kill -CONT \(pid) 2>/dev/null; true"]
         let started = Date()
         let control = plainTimer(0.2)
+        try backstop.run()
         try pause.run()
 
         let outcome = await router.route("fix my code", within: served)
@@ -570,7 +577,9 @@ final class SlowTierTests: OfflineTestCase {
         let late = await control.value
 
         XCTAssertEqual(outcome.tier, .similarity, "the question waited for a model that never came")
-        XCTAssertLessThan(elapsed, late + 4,
+        // Two seconds, not four (the W3 review's M7): six seconds stopped and a four-second margin is
+        // about `HangingTier`'s ten, so a router that waited the model out passed.
+        XCTAssertLessThan(elapsed, late + 2,
                           "the deadline was waited out by the call it exists to abandon: \(elapsed) s, a plain timer \(late) s")
         #endif
     }

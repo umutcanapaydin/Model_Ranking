@@ -108,9 +108,9 @@ def missing_closes(root: pathlib.Path) -> list[str]:
     return missing
 
 
-#: #140: a wave a plan names outside a heading. `M17-W5` is another milestone's wave and `W-108` a
-#: warning's id, so neither counts.
-NAMED_WAVE = re.compile(r"(?<![\w-])W(\d+)\b")
+#: #140: a wave a plan names outside a heading: `W3`, `Wave 3`, or `M19-W3` in M19's own plan.
+#: Another milestone's wave and `W-108`, a warning's id, do not count.
+NAMED_WAVE = re.compile(r"(?<![\w-])(?:M(\d+)-)?W(?:ave\s*)?(\d+)\b")
 
 
 def headless_waves(root: pathlib.Path) -> list[str]:
@@ -127,9 +127,11 @@ def headless_waves(root: pathlib.Path) -> list[str]:
         headed = {int(wave) for wave, _ in WAVE_HEADING.findall(text)}
         named: dict[int, str] = {}
         for paragraph in re.split(r"\n\s*\n", text):
-            if paragraph.lstrip().startswith("**Amendment"):
-                for wave in NAMED_WAVE.findall(paragraph):
-                    named.setdefault(int(wave), "an amendment")
+            # Bold or not (the W3 review's M3); `M19-W3` counts for M19's plan only.
+            if re.match(r"^\s*\**\s*Amendment\b", paragraph):
+                for milestone, wave in NAMED_WAVE.findall(paragraph):
+                    if not milestone or milestone == found.group(1):
+                        named.setdefault(int(wave), "an amendment")
         for row in re.findall(r"^\|\s*W(\d+)\s*\|", text, re.M):
             named.setdefault(int(row), "a table")
         problems += [f"m{found.group(1)}'s plan names W{wave} in {where} and gives it no heading, so no "

@@ -89,7 +89,9 @@ def _close(root: Path, *, tier: str, touched: str, plan: str | None) -> Path:
     text = TEMPLATE.read_text(encoding="utf-8")
     text = re.sub(r"^date: .*$", "date: 2026-10-06", text, count=1, flags=re.M)
     text = re.sub(r"\(risk: \*\*HIGH\*\*", f"(risk: **{tier}**", text, count=1)
-    text = re.sub(r"^Touched:.*$", f"Touched:        {touched}", text, count=1, flags=re.M)
+    # The whole footprint, its continuation lines too: the template's names `EngineClient.swift`
+    # on its second line, in brace form, which the HIGH rule now reads (the W3 review's M2).
+    text = re.sub(r"^Touched:.*\n(?:[ \t]+.*\n)*", f"Touched:        {touched}\n", text, count=1, flags=re.M)
     record = root / "docs" / "plans" / "m18-wave-1-close.md"
     record.parent.mkdir(parents=True)
     record.write_text(text, encoding="utf-8")

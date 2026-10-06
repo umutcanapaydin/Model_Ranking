@@ -54,7 +54,8 @@ def test_a_budget_above_the_count_fails_too(tmp_path: Path) -> None:
 
 #: A skip outside the `needs` marker: the local check could not count it (the meta-rule that keeps
 #: the derivation whole). Spelled so that this line is not one.
-RAW_SKIP = re.compile(r"\bpytest\.(?:skip\(|mark\.skip(?:if)?\b|importorskip\()")
+RAW_SKIP = re.compile(r"\bpytest\.(?:skip\(|xfail\(|mark\.(?:skip(?:if)?|xfail)\b|importorskip\()"
+                      r"|\bunittest\.(?:skip\w*\b|SkipTest\b)|\.skipTest\(|\bfrom\s+pytest\s+import\b[^\n]*\b(?:skip|mark|xfail)\b")
 
 
 def test_every_skip_goes_through_a_needs_marker() -> None:
@@ -74,7 +75,8 @@ def test_every_skip_goes_through_a_needs_marker() -> None:
 def test_every_spelling_of_a_skip_is_refused() -> None:
     """The W3 review's M1: `xfail`, `unittest`'s skips and an imported `skip` or `mark` slipped past the
     pattern, and CI's report counts each as a skip."""
-    spellings = ["pytest.xfail('x')", "@pytest.mark.xfail(reason='x')", "@unittest.skip('x')",
-                 "@unittest.skipIf(True, 'x')", "self.skipTest('x')", "from pytest import skip",
-                 "from pytest import mark", "from pytest import xfail", "raise unittest.SkipTest('x')"]
+    py, ut = "pytest" + ".", "unittest" + "."  # so that this file's own lines are none of them
+    spellings = [py + "xfail('x')", "@" + py + "mark.xfail(reason='x')", "@" + ut + "skip('x')",
+                 "@" + ut + "skipIf(True, 'x')", "self." + "skipTest('x')", "from pytest " + "import skip",
+                 "from pytest " + "import mark", "from pytest " + "import xfail", "raise " + ut + "SkipTest('x')"]
     assert [line for line in spellings if not RAW_SKIP.search(line)] == []

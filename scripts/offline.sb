@@ -1,10 +1,12 @@
 ; #122, gap G-5, option B: the test run is offline at the operating system's level, every child process
 ; included, whatever its language or environment. `make test` runs pytest inside this profile on macOS.
-; Loopback stays open (the engine tests' servers), and so do unix sockets (the resolver's and the
-; system's own); every other outbound connection is refused with EPERM before a packet leaves.
+; Loopback stays open (the engine tests' servers), and so do unix sockets but the system resolver's:
+; a name lookup would leave the machine through it (the W3 review's M5), and `localhost` resolves
+; without it. Every other outbound connection is refused with EPERM before a packet leaves.
 ; A live contract test (RUN_CONTRACT_TESTS=1) runs outside `make test`, as before.
 (version 1)
 (allow default)
 (deny network-outbound)
 (allow network-outbound (remote ip "localhost:*"))
 (allow network-outbound (remote unix-socket))
+(deny network-outbound (remote unix-socket (path-literal "/private/var/run/mDNSResponder")))

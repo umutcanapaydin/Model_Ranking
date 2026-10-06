@@ -290,10 +290,30 @@ def plan_globs(plan: pathlib.Path) -> list[str]:
         return []
     globs: list[str] = []
     for line in lines[start + 1:]:
-        if not re.match(r"^\s+-\s", line):
+        # A bullet, or the continuation of one that wrapped (indented, no dash): the W3 review's M3.
+        if not (re.match(r"^\s+-\s", line) or (re.match(r"^\s{3,}\S", line) and globs)):
             break
         globs += re.findall(r"`([^`]+)`", line)
     return globs
+
+
+def _footprint_paths(touched: str) -> list[str]:
+    """#140 and the W3 review's M2: the paths a footprint names, a brace form expanded
+    (`Engine/{Models,EngineClient}.swift`)."""
+    paths: list[str] = []
+    for token in re.split(r"[\s·]+", touched):
+        token = token.strip("`,;()")
+        braced = re.match(r"^(.*)\{([^{}]+)\}(.*)$", token)
+        paths += [f"{braced.group(1)}{part}{braced.group(3)}" for part in braced.group(2).split(",")] if braced else [token]
+    return [path for path in paths if path]
+
+
+def _touches(path: str, glob: str) -> bool:
+    """A path matches a glob; a folder touches every glob beneath it (the W3 review's M2)."""
+    if fnmatch.fnmatch(path, glob):
+        return True
+    folder = path.rstrip("/") + "/"
+    return path.endswith("/") and glob.startswith(folder)
 
 
 def _glob_problems(p: pathlib.Path, touched: str, evidence: str) -> list[str]:
@@ -304,8 +324,7 @@ def _glob_problems(p: pathlib.Path, touched: str, evidence: str) -> list[str]:
     if not globs:
         return [f"`{plan.name}` names no security globs (a `Security globs` bullet with backticked paths), so "
                 "no rule can say what makes this wave HIGH; it fails closed (#140)"]
-    paths = [token.strip("`,;()") for token in re.split(r"[\s·]+", touched) if token.strip("`,;()")]
-    hits = sorted({f"{path} ({glob})" for path in paths for glob in globs if fnmatch.fnmatch(path, glob)})
+    hits = sorted({f"{path} ({glob})" for path in _footprint_paths(touched) for glob in globs if _touches(path, glob)})
     if hits and not re.search(r"\bHIGH\b", evidence):
         return [f"the footprint touches its plan's security globs ({', '.join(hits)}) and row 1 does not "
                 "record the wave as HIGH -- a diff touching a security glob is HIGH (#140)"]

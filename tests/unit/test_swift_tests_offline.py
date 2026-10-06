@@ -92,12 +92,13 @@ def test_the_base_fails_a_test_whose_requests_it_recorded() -> None:
         "the base no longer fails a test that reached for the network")
 
 
-def test_a_bare_session_configuration_is_refused_in_any_spelling() -> None:
+def test_a_bare_session_configuration_is_refused_in_both_of_its_spellings() -> None:
     """#108: `URLSessionConfiguration()` trapped an xctest process under the tripwire (signal 5). Read
     without trapping a process on the owner's Mac: its `init` is `[super init]`, an uninitialised base
     configuration the factories never return, and a session copies a configuration through every
     setter, the exchanged Swift `setProtocolClasses:` among them, which takes `[AnyClass]?`. Which
-    value traps is unmeasured; what holds either way is that no source builds one."""
+    value traps is unmeasured; what holds either way is that no source writes one, in the two spellings
+    read here (a typealias, a subclass or an init reference is not read: the W3 review's M9)."""
     planted = {
         "A.swift": "let c = URLSessionConfiguration()",
         "B.swift": "let c = URLSessionConfiguration.init( )",

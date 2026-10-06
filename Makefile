@@ -93,7 +93,9 @@ install: $(VENV)/.installed  ## Stage 0: create the venv, install the project, w
 	@$(PY) scripts/write_install_marker.py
 
 #: #122: the operating system this runs on; `make -n test UNAME_S=Darwin` shows the macOS recipe anywhere.
-UNAME_S ?= $(shell uname -s)
+#: `:=`, not `?=`: a variable in the environment must not turn the offline run off (the W3 review's M6);
+#: only the command line names the system.
+UNAME_S := $(shell uname -s)
 OFFLINE_RUN = $(if $(filter Darwin,$(UNAME_S)),MODEL_RANKING_REQUIRE_OFFLINE=1 /usr/bin/sandbox-exec -f scripts/offline.sb,)
 
 test: install  ## pytest in parallel, with the served artifact required, offline on macOS (another stack: STACK_TEST)

@@ -40,9 +40,10 @@
 #    2  need macOS: a planted System Configuration proxy reaches no unit test, and no httpx client
 #       (`test_no_network.py`, #150 and its Tester's T1). Linux has no such fallback, so there is
 #       nothing to hold there.
-#    1  needs a run offline at the operating system's level: a child process the suite starts is
-#       refused an outside peer (`test_offline_run.py`, M19-W3, #122). `make test` runs so on macOS;
-#       CI's half is a patch for the owner's workflow file, and lowers this when applied.
-# The owner's Mac skips 25 of these, not 82, because it has the database. Lower this when CI builds
+#    2  need a run offline at the operating system's level: a child process the suite starts is
+#       refused an outside peer, and a name lookup (`test_offline_run.py`, M19-W3, #122, D-183).
+#       `make test` runs so on macOS; CI's half is a patch for the owner's workflow file, and lowers
+#       this by two when applied.
+# The owner's Mac skips 25 of these, not 83, because it has the database. Lower this when CI builds
 # an artifact from fixtures (W-108's remedy), not by skipping less honestly.
-82
+83

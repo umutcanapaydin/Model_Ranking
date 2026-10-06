@@ -1502,14 +1502,14 @@ def test_a_signal_word_only_a_held_out_set_holds_is_flagged() -> None:
     assert _held_out_only_signals(lists, held, tuning) == ["you are now"]
 
 
-def test_a_turkish_stem_matches_with_its_suffixes_and_an_english_word_only_whole() -> None:
-    """#117's matching, decided on the owner's standing instruction: whole words, and a Turkish word
-    with its suffixes. "unut" is in "unutsana"; "print" is not in "printer"; an entry under three
-    letters is a suffix or a particle, not a signal. (Turkish letters are escaped: the repository is
-    English, V4C-79.)"""
-    lists = [(["unut"], True), (["print", "\u00e7iz", "mu"], False)]
-    held = ["talimatlar\u0131 unutsana", "a printer driver", "bir kedi \u00e7izsene", "bu mu"]
-    assert _held_out_only_signals(lists, held, []) == ["unut", "\u00e7iz"]
+def test_an_entry_matches_at_a_words_start_with_any_ending() -> None:
+    """#117's matching (D-183, as the W3 review's M8 changed it): an entry matches at the start of a
+    word with any ending, Turkish suffixes and English plurals alike; not inside a word; and under
+    three letters it is a suffix or a particle, not a signal. (Turkish letters are escaped: the
+    repository is English, V4C-79.)"""
+    lists = [(["unut"], True), (["print", "\u00e7iz", "mu", "pirate"], False)]
+    held = ["talimatlar\u0131 unutsana", "a printer driver", "bir kedi \u00e7izsene", "bu mu", "a spirates"]
+    assert _held_out_only_signals(lists, held, []) == ["print", "unut", "\u00e7iz"]
 
 
 def test_a_turkish_word_without_a_turkish_letter_is_matched_with_its_suffixes() -> None:
@@ -1533,8 +1533,9 @@ def test_every_signal_word_only_a_live_held_out_set_holds_is_reviewed() -> None:
 #: #117: each entry of `Reading.swift`'s lists that a live held-out set holds and no tuning set does,
 #: with where it came from (`git log -S`, ordered against the commit that wrote its set). Seven were in
 #: the app before their set was written (`da48707`, "unread by the author"), so they cannot have come
-#: from it. Five were added after their set existed and their origin is unshown: #177, before W4
-#: measures on those sets.
+#: from it. Four were added after their set existed and their origin is unshown: #177, before W4
+#: measures on those sets. (`komutu`, `component` and `line`, flagged when English was matched whole,
+#: are in a tuning set in a suffixed form.)
 _BEFORE = "in the app before {set} was written (da48707), so not read from it"
 _AFTER = "added in {sha} after {set} was written; origin unshown (#177)"
 HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
@@ -1545,14 +1546,11 @@ HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
     "colorize": _BEFORE.format(set="image_heldout_m18") + "; 4373dae, M18-W3 P3",
     "drawing": _BEFORE.format(set="image_heldout_m18") + "; 4373dae, M18-W3 P3",
     "icon": _BEFORE.format(set="image_heldout_m18") + "; 4373dae, M18-W3 P3",
-    "komutu": _AFTER.format(sha="b6ab027 (M18-W3 review round 3)", set="coding_heldout_m18 (71ffe5f)"),
-    "component": _AFTER.format(sha="2d5f86a (M18-W3 review round 2, B4)", set="coding_heldout_m18 (71ffe5f)"),
-    "line": _AFTER.format(sha="2d5f86a (M18-W3 review round 2, B4)", set="coding_heldout_m18 (71ffe5f)"),
+    "debug": _AFTER.format(sha="2bd9154 (M18-W3 P1)", set="coding_heldout_m18 (71ffe5f)"),
+    "conclusion": _AFTER.format(sha="2d5f86a (M18-W3 review round 2, B4)", set="image_heldout_m18 (da48707)"),
     "conclusions": _AFTER.format(sha="2d5f86a (M18-W3 review round 2, B4)", set="image_heldout_m18 (da48707)"),
     "plot": _AFTER.format(sha="2d5f86a (M18-W3 review round 2, B4)", set="image_heldout_m18 (da48707)"),
 }
-#: A Turkish-specific letter: an entry carrying one is a Turkish stem, matched with its suffixes.
-TURKISH_LETTER = re.compile("[\u00e7\u011f\u0131\u00f6\u015f\u00fc]")
 #: A list of two or more string literals: every word, phrase, verb and noun list in `Reading.swift`,
 #: the inline ones in its functions too, derived from the source rather than named here.
 STRING_LIST = re.compile(r'\[\s*((?:"[^"\n]*"\s*,?\s*){2,})\]')
@@ -1586,17 +1584,19 @@ def _held_and_tuning_strings() -> tuple[list[str], list[str]]:
 
 
 def _held_out_only_signals(lists: list[tuple[list[str], bool]], held: list[str], tuning: list[str]) -> list[str]:
-    """#117: each entry found in `held` and in no `tuning` string, sorted. Whole words, and a stem (or a
-    word with a Turkish letter) also with its suffixes; under three letters it is a suffix or a
-    particle, not a signal. Case-folded on every side."""
+    """#117: each entry found in `held` and in no `tuning` string, sorted: at a word's start with any
+    ending (D-183); under three letters it is a suffix or a particle, not a signal. Case-folded on
+    every side. Whether a list holds stems no longer changes the match (the W3 review's M8)."""
     held_text, tuning_text = "\n".join(held).casefold(), "\n".join(tuning).casefold()
     found = set()
-    for entries, stems in lists:
+    for entries, _stems in lists:
         for entry in entries:
             word = entry.strip().casefold()
             if len(word) < 3:
                 continue
-            pattern = rf"(?<!\w){re.escape(word)}" + ("" if stems or TURKISH_LETTER.search(word) else r"(?!\w)")
+            # At a word's start, with any ending (the W3 review's M8): a word's language cannot be read
+            # from its letters ("sistem komut"), and an English plural is the same word.
+            pattern = rf"(?<!\w){re.escape(word)}"
             if re.search(pattern, held_text) and not re.search(pattern, tuning_text):
                 found.add(entry)
     return sorted(found)

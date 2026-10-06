@@ -73,6 +73,18 @@ def test_a_child_process_the_suite_starts_cannot_name_an_outside_peer() -> None:
     assert curl.returncode == 7, curl.stderr  # "couldn't connect": refused before a packet left
 
 
+@pytest.mark.needs("offline")
+def test_a_child_process_cannot_look_a_name_up_either() -> None:
+    """The W3 review's M5: the profile left the system resolver's socket open, so a child resolved
+    `example.com` and the lookup left the machine. The resolver's socket is refused now; connecting to
+    a unix socket sends nothing anywhere, so the probe is safe either way."""
+    probe = ("import socket\ns = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)\n"
+             "try:\n    s.connect('/private/var/run/mDNSResponder')\n    print('reached')\n"
+             "except PermissionError:\n    print('refused')\n")
+    child = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, timeout=30, check=False)
+    assert child.stdout.strip() == "refused", child.stdout + child.stderr
+
+
 def test_a_child_process_still_reaches_loopback() -> None:
     """#122: the engine tests talk to a server on loopback; the profile leaves it open."""
     listener = socket.socket()
