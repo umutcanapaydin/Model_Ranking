@@ -63,3 +63,100 @@ must meet each one.
 | questions that only mention images, overridden | both | at most 1 of 20 | the plan |
 
 D-169 clause 6 holds the model tier, as it says; on the wording tier the reading is reported.
+
+## 3. Variants, on the tuning sets only
+
+Each variant changing the model's instructions or schema ran through `ReadingProbe.swift`. Each
+variant changing only the code after the model was scored with `ReplayProbe.swift`: the reference
+runs' recorded model answers (`v0-*`), read again by the variant's code, which is exact for such a
+variant (checked on 306 rows: none differed).
+
+**#66, the reading tuning set (306: 109 not a search, 22 of them knowledge questions; 186 genuine).**
+Runs 1 and 2.
+
+| variant | what changed | not a search caught | knowledge | genuine noted / asked | genuine on surface |
+|---|---|---:|---:|---:|---:|
+| reference (`3426ff3`) | — | 69, 67 | 1, 2 | 0 / 14, 0 / 7 | 133, 131 |
+| a | the model's instructions: a question of fact defined by what is asked; `assistant` no longer "answers a general question" | 76 | 2 | 0 / 17 | 128 |
+| b | in code: a question of fact is a doubt; small talk, a task with its content and an order read as the tuning sets typed them | 97, 94 | 18, 18 | 0 / 15, 0 / 8 | 133, 131 |
+| c | a and b | 93 | 18 | 0 / 17 | 129 |
+
+The model's verdict hardly moves with its instructions: it called 2 of 22 knowledge questions
+something else under (a), against 1 and 2 under the reference, and (a) cost surface accuracy and
+asked more genuine searches. (a) and (c) ran once: their second runs were stopped when the first
+showed each below (b) on every measure, to free the model for the held-out measure. (b) was built
+(`de8c3f8`).
+
+**#113, the image tuning set (82: 36 to make, 26 to read, 20 that only mention images).**
+
+| variant | what changed | made, told "not measured" | read, reaching `vision` | others overridden |
+|---|---|---:|---:|---:|
+| reference | — | 24, 23 | 21, 21 | 0, 0 |
+| a | the rule on every surface | 29, 28 | 21, 21 | 0, 0 |
+| b | c, and a closed yes/no field asking the model whether the text makes or changes a picture | 35 | 15 | 7 |
+| c | a, the Turkish forms it missed, and never on `coding` or `agentic-coding` | 32, 31 | 21, 21 | 0, 0 |
+
+(b)'s field said yes to requests to read an image and to code that handles images: it failed both
+guards in its first run, and its second was stopped. (c) was built: on the M18 reviews' B4 lines
+the rule reached `coding`, so it now stops there; on the tuning sets it changes no genuine search's
+surface. On the wording tier, (c) took the image tuning set from 25 to 33 of 36, overriding nothing.
+
+## 4. The held-out measure, at `de8c3f8`
+
+Twice on each tier, on the sets of §1, each run once through the code that was built.
+
+| measure | tier | bar | run 1 | run 2 | baseline | met |
+|---|---|---|---:|---:|---:|---|
+| genuine searches given the note (40) | model | at most 2 | 0 | 0 | 0, 0 | yes |
+| genuine searches asked (40) | model | at most 4 | 2 | 1 | 0, 0 | yes |
+| not-a-search inputs given the note or asked (50) | model | at least 40 | 25 | 27 | 18, 21 | **no** |
+| knowledge questions given the note or asked (20) | model | at least 14 | 6 | 6 | 1, 3 | **no** |
+| requests to make an image told "not measured" (20) | model | at least 14 | 8 | 8 | 2, 1 | **no** |
+| requests to make an image told "not measured" (20) | wording | at least 18 | 18 | 18 | 14, 14 | yes |
+| genuine searches on their expected surface (40) | model | at least 26 | 32 | 29 | 30, 28 | yes |
+| | wording | at least 12 | 14 | 14 | 14, 14 | yes |
+| requests to read an image reaching `vision` (10) | model | at least 8 | 10 | 9 | 10, 9 | yes |
+| | wording | at least 3 | 4 | 4 | 4, 4 | yes |
+| questions that only mention images, overridden (20) | both | at most 1 | 0 | 0 | 0, 0 | yes |
+
+By class on the model tier (noted / asked), runs 1 and 2: knowledge 0 / 6 and 0 / 6; instructions
+to the app 0 / 4 and 1 / 5; chit-chat 0 / 7 and 0 / 7; pasted content 1 / 7 and 0 / 8. The requests to
+make an image still missed went to `vision` (9) and `web-dev` (3) in both runs. On the wording tier,
+6 knowledge questions were asked in each run, and 1 genuine search.
+
+**The misses, read now that the sets are spent.**
+- *Knowledge questions:* the signal's length limit (ten words) left out three; "live" in "how long do
+  giant tortoises usually live" was read as something current; English "which" and "what" before a
+  noun ("which river", "what country", "what instrument"), the Turkish "which" before a noun ("in
+  which province", "which city's"), "where to", and "how many" typed without its Turkish letter are
+  not read as questions of fact. The model called each "a model search".
+- *Requests to make an image:* five are searches for a model that makes images ("which ai is best at
+  generating realistic pictures of people", "a model that draws illustrations", translated from
+  Turkish), which no rule reads; two
+  verbs are not on the list ("erase", "upscale"); in two the image is too far from its verb.
+- *Genuine searches asked* (translated from Turkish): "could you recommend a general model for my
+  daily tasks" on the model's word, and "which chatbot gives information as reliable as Wikipedia" on
+  the fact signal (its "which one").
+
+## 5. What it says
+
+- **No genuine search is denied its ranking, and few are asked about:** 0 given the note, 2 and 1
+  asked of 40, inside both bounds, as at M18.
+- **#66 improves and misses its bars.** Knowledge questions caught go from 1 and 3 to 6 and 6 of 20,
+  and not-a-search inputs from 18 and 21 to 25 and 27 of 50, against bars of 14 and 40. The signal
+  was written from the tuning sets' phrasings and reaches about a third of a stranger's. The model's
+  own verdict does not move with its instructions (§3, variant a).
+- **#113 meets its bar on the wording tier and misses it on the model tier.** Requests to make an
+  image told "not measured": 14 to 18 of 20 without the model (bar 18), 2 and 1 to 8 and 8 with it
+  (bar 14). No question that only mentions an image was overridden, and requests to read one reach
+  `vision` as before.
+- **Three variants were run per problem.** By the plan and D-169 clause 6, nothing more is tuned on
+  these sets, and the pull request asks the owner whether to ship what holds.
+
+## 6. State
+
+- Shipped by the wave: the reading of a question of fact (a doubt), the second-round signals, and the
+  image rule on every surface but code. #66 and #113 stay open: the knowledge and image-making gaps
+  of §4 are what a next round would start from, on fresh sets.
+- The two M19 sets are spent. They stay registered as live (`RETIRED_HELD_OUT` leaves them out) until
+  the next fresh set lands, as the M18 sets did until #177: the held-out gates need a live set.

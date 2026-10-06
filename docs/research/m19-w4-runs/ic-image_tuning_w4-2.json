@@ -1,0 +1,740 @@
+[
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "generate a picture of a cat wearing sunglasses",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "make me a logo for my bakery",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "remove the background from my product photo",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "bana bir kedi resmi çiz",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "düğün davetiyesi için bir illüstrasyon oluştur",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "fotoğrafımdaki kırmızı gözleri düzelt",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "not",
+    "q" : "what does this chart in my screenshot say",
+    "reading" : "unsure",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "describe what is in this photo",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "read the receipt in this picture and total it up",
+    "reading" : "search",
+    "routed" : "document",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "bu ekran görüntüsündeki hata mesajını oku",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "bu fotoğrafta hangi bitki var",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "bu grafikteki eğilimi açıkla",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "draw me a cute cartoon fox curled up reading a book",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "generate a logo for my coffee brand 'Morning Ritual', minimal, earthy colours",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "turn my selfie into a pixar style avatar i can use on discord",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "remove the background from this product photo and put it on plain white for my etsy listing",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "which model is best for making ai art? mostly fantasy landscapes",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "create an illustration for a kids book page: a whale floating over a city at night",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "retouch this portrait, smooth the skin a little and fix the red eyes",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "annemin doğum günü için kedili bir kart resmi çizer misin",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "kuaför salonum için logo tasarla, adı Makas Atölyesi, sade olsun",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "bu fotoğrafta arkada kalan insanları silebilir misin",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "profil fotoma bakarak anime tarzı bir avatar oluştur",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "instagram postu için sonbahar temalı görsel üret, masada kahve fincanı ve yapraklar olsun",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "resim üretmede hangi yapay zeka en iyisi",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "dedemlerin eski siyah beyaz fotoğrafını renklendirir misin",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "çocuk masalı için uzayda gezen bir kaplumbağa illüstrasyonu yapar mısın",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "what breed is the dog in this photo?",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "not",
+    "q" : "look at this bar chart and tell me which quarter had the highest sales",
+    "reading" : "unsure",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "not",
+    "q" : "can you get the text out of this screenshot? it's an error popup and i can't copy from it",
+    "reading" : "unsure",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "i'm blind, please describe what's in this picture my sister sent me",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "here's a photo of grandma's handwritten recipe card, type it out for me",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "bu fotoğraftaki bitki ne acaba, yaprakları sararmaya başladı",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "ekran görüntüsündeki tabloyu yazıya döker misin",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "şu grafikte hangi ay en düşük çıkmış, resimden okuyabiliyor musun",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "market fişinin fotoğrafını attım toplam ne kadar yazıyor",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "bu resimde kaç kişi var ve ne yapıyorlar",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "write alt text for the pictures in my blog posts, i'll paste them one by one",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "python code to resize every image in a folder to 800px wide with Pillow, keep aspect ratio",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "how do i make images lazy load on my site so the page loads faster",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "opencv ile görüntüdeki yüzleri bulup kare içine alan bir python kodu yazar mısın",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "sahilde gün batımı fotoğrafım için instagrama güzel bir açıklama yazar mısın",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "draw a cat in a space helmet floating past saturn",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "generate an image of a cozy cabin in the snow at nite",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "design a logo for my coffee shop, its called Bean There",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "make me an app icon for a budgeting app, flat style, green",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "remove the background from my product photo so its just white",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "COLORIZE MY GRANDPARENTS OLD BLACK AND WHITE WEDDING PHOTO",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "turn my selfie into a pixar style cartoon",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "illustrate a kids book page: a dragon reading under an oak tree",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "uzayda yüzen bir balina resmi çiz",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "kafem için logo tasarla adı Köşe Kahve, minimalist olsun",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "fotografimin arka planini degistir, deniz kenari olsun",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "düğün fotoğraflarıma rötuş yap, yüzdeki sivilceleri sil",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "eski siyah beyaz aile fotoğrafını renklendir",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "bana gün batımında istanbul boğazı görseli oluştur",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "not",
+    "q" : "fotomu cizgi film karakterine cevir",
+    "reading" : "unsure",
+    "routed" : "document",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "whats in this photo?",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "read the text off this screenshot pls",
+    "reading" : "search",
+    "routed" : "document",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "describe this picture in detail",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "not",
+    "q" : "what does this bar chart show? which month had the most sales",
+    "reading" : "unsure",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "read the items and prices from this receipt pic",
+    "reading" : "search",
+    "routed" : "document",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "bu fotoğrafta ne var",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "ekran görüntüsündeki yazıyı metne çevir",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "not",
+    "q" : "bu grafiği yorumla, satışlar hangi ayda düştü",
+    "reading" : "unsure",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "fisteki urunleri ve fiyatlari tek tek yaz",
+    "reading" : "search",
+    "routed" : "search_factuality",
+    "surface" : "search_factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "resimdeki bitki ne, tanıyabilir misin",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "write a python script that resizes every jpg in a folder to 800px wide",
+    "reading" : "search",
+    "routed" : "computer-use",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "help me draw conclusions from a 40 page market research report",
+    "reading" : "search",
+    "routed" : "document",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "how do i get rid of background noise in my podcast recordings",
+    "reading" : "search",
+    "routed" : "computer-use",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "write alt text for the images on my blog",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "plot monthly revenue as a bar chart using matplotlib",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "which ai is good at drawing up a business plan for a small bakery",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "build a photography portfolio website with a full-screen image gallery",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "klasördeki tüm jpg dosyalarını küçülten python kodu yaz",
+    "reading" : "search",
+    "routed" : "computer-use",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "yapay zeka ile ilgili bu haftaki son haberler neler",
+    "reading" : "search",
+    "routed" : "factuality",
+    "surface" : "factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "belediyeye şikayet için resmi bir dilekçe yazmama yardım et",
+    "reading" : "search",
+    "routed" : "document",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "sinavlar icin haftalik calisma cizelgesi hazirla",
+    "reading" : "search",
+    "routed" : "document",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "iş arkadaşlarıma nasıl sınır çizerim",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "ses kaydındaki arka plan gürültüsünü nasıl temizlerim",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "javascript ile canvas üzerinde satış grafiği çizen kod yaz",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "yazılımda tasarım kalıpları nelerdir, singleton örneğiyle anlat",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  }
+]

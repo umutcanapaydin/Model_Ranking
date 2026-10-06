@@ -4178,3 +4178,54 @@ offline profile; #108's guard reads two spellings, not a typealias or a subclass
 
 **Revisit when:** the owner applies #122's CI patch (`NEEDS["offline"].in_ci` becomes `True`, and the
 budget falls by one), or a check here fires on correct input.
+
+## D-184 — Reading a question, the second round: a question of fact is a doubt, and the image rule reaches every surface but code
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
+("proceed with what you recommend, don't ask", owner, translated from Turkish); M19-W4, the owner
+reviews the wave (AGENTS.md §3) · **Date:** 2026-10-07 · from #66, #113, #177 · **Amends** D-169
+(as amended at M18-W3), clauses 3 and 4.
+
+**Context.** M18-W3 left two gaps (`docs/research/m18-w3-question-reading-probe-2026-10-04.md`): the
+on-device model calls a question of everyday fact "a model search" (1 of 10 caught), and a request to
+make an image routed anywhere but `vision`, or worded as the rule did not read it, is ranked as if
+measured (#113). M19-W4 measured three variants per problem on the tuning sets and the built one on
+fresh held-out sets, twice per tier (`docs/research/m19-w4-question-reading-probe.md`).
+
+**Decision.**
+1. **A question of fact is a doubt in code** (`InputSignals.asksAFact`): at most ten words, written as
+   a question of fact ("who", "when", "where", "how many", "what is", and the Turkish words for who,
+   where, how many, when and which year), naming no model or AI, no asker, no recommendation,
+   nothing current and no image the asker has. It joins pasted content and an order to the app in
+   D-169's table: with the model's "something else" it is the note; alone the reader is asked. It runs
+   on every tier, so without the model a question of fact is asked about.
+2. **The signals read input as people typed it in the tuning sets:** small talk at length and Turkish
+   without its letters; a task ordered by "make" or by a Turkish verb typed without its letters; an
+   order to copy the hidden rules out, or a role handed over ("pretend ur a", "from now on answer").
+   Every word added is in a tuning row (#117's check stays quiet).
+3. **The image rule overrides wherever the tier sent the question but `coding` and
+   `agentic-coding`**, not only `vision`: at the baseline 6 and 7 of 20 requests to make an image went
+   to `web-dev`. A question the tier sent to code is about code, so the M18 reviews' B4 lines keep
+   their surface. The rule reads the Turkish forms it missed: "make" asked as a question after an
+   image, and "photo" and "change" typed without their Turkish letters.
+4. **The model's instructions do not change.** Telling it what a question of fact is moved its
+   verdict on 1 of 22 such questions and cost surface accuracy (variant a); a closed field asking it
+   whether the text makes a picture said yes to reading one (variant b). Neither was built.
+
+**Measured** (§4 of the record), at `de8c3f8`, twice per tier: no genuine search given the note, 2 and
+1 of 40 asked; knowledge questions 6 and 6 of 20 caught (baseline 1, 3; bar 14); not-a-search inputs 25
+and 27 of 50 (baseline 18, 21; D-169's bar 40); requests to make an image told "not measured" 8 and 8
+of 20 with the model (baseline 2, 1; bar 14), 18 and 18 without it (baseline 14; bar 18). Every guard
+holds. D-169 clause 6's catch bar and #66's and #113's model-tier bars are missed: by clause 6 the
+work stops after three variants per problem, and the pull request asks the owner whether to ship what
+holds.
+
+**#177.** The three M18 held-out sets, spent at M18-W3, are retired to tuning
+(`RETIRED_HELD_OUT`), rather than an origin shown for each of the four signal words added after them.
+
+**The cost.** A few more genuine searches are asked about (on the tuning set, one more in 186; on the
+held-out set, 2 and 1 of 40, from 0). The fact signal reads about a third of a stranger's questions of
+fact: its forms are the tuning sets' (§4 lists the misses).
+
+**Revisit when:** a stranger's first use (#91's protocol) gives a set to measure on, or a stronger
+on-device model reads a question of fact as something else.
