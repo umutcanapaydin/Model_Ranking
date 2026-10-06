@@ -1,4 +1,5 @@
-"""#100: the board guards compare a board's rows by the model each links to, as the roster guards do.
+"""#100 (D-179): the board guards compare a board's rows by the model each links to, as the roster
+guards do.
 
 D-173 clause 2 moved the roster guards to model ids (#39); the board guards (D-159 on a surface's own
 board, D-164 on every declared board) still compared raw names. The M18-W4 reviewer's probe: an
@@ -155,3 +156,21 @@ def test_an_unlinked_row_is_still_compared_by_its_name(tmp_path: Path) -> None:
     reasons = _reasons(tmp_path, _re_spell, base=unlinked)
     assert any(reason.startswith(f"board {SLICE.source}") for reason in reasons), reasons
     assert not any(reason.startswith("coding's board") for reason in reasons), reasons
+
+
+@pytest.mark.parametrize("direction", ["gains", "loses"])
+def test_a_row_that_keeps_its_name_and_changes_its_link_counts(tmp_path: Path, direction: str) -> None:
+    """D-179, as the M19-W1 review's M1 asked it to say: a row whose link is gained or lost changes
+    what the board serves (a standing appears or leaves), so twelve such rows on one board refuse
+    the night, the way twelve new names did before."""
+
+    def unlinked(conn: sqlite3.Connection) -> None:
+        conn.execute("UPDATE scores SET model_id = NULL WHERE source = ?", (SLICE.source,))
+
+    def relinked(conn: sqlite3.Connection) -> None:
+        conn.execute("UPDATE scores SET model_id = 'probe-' || substr(raw_name, 7) WHERE source = ?",
+                     (SLICE.source,))
+
+    reasons = (_reasons(tmp_path, relinked, base=unlinked) if direction == "gains"
+               else _reasons(tmp_path, unlinked))
+    assert any(reason.startswith(f"board {SLICE.source}") for reason in reasons), reasons

@@ -1,4 +1,4 @@
-"""#124: each served source is credited as its publisher's terms ask.
+"""#124 (REQ-SRC-010 as M19 states it): each served source is credited as its publisher's terms ask.
 
 The facts, each read at its source (`docs/research/data-licences-2026-10-04.md` has the URLs):
 - Epoch's hub "also includes data sourced from external projects, which retains its original

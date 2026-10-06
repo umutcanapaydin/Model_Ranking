@@ -3883,10 +3883,18 @@ through on the night it matters.
 - A row that keeps its name and moves to another model now counts, where before it moved no board
   guard: what the board serves changed. A registry change does this, so a large one is read with
   the owner on its first night.
+- So does a row that keeps its name and gains or loses its link (the M19-W1 review's M1): a standing
+  appears on the board or leaves it. D-157 links a derived model only while it has a price and a
+  score, so a price feed that adds or drops a quarter of a board's linked models in one night is
+  refused, and the refusal names the board and its counts. Before, no board guard saw it; the
+  surface's roster guard (D-173 clause 2) sees the models it ranks.
 
 **Measured.** The first night with M19-W1's code, simulated on a copy of the served artifact
-(release-3f2e91d) on 2026-10-06, publishes. The board nearest a limit is `epoch_frontiermath`: 13% of
-its rows moved to other models (#129's and #162's joins), against the limit of 25%.
+(release-3f2e91d) on 2026-10-06, publishes. The board nearest a limit is `epoch_frontiermath`: 16% of
+its rows (18 of 114) changed model, against the limit of 25%. That night carries a day of upstream
+change and M18's and this wave's registry changes at once (#129's joins, GPT-5's dated rows among
+them), with every link gained or lost in between. How often links move on ordinary nights is not yet
+measured; a refusal for it names the board and its counts.
 
 **The rejected alternative.** Comparing a row by its model, harness and effort. A harness relabel on
 rows a board already had, which the refresh must publish, then read as every row lost and new.
