@@ -116,3 +116,63 @@ func fixtureClosure(_ standings: [Standing]) -> [Int] {
 func fixtureO1SortsByFoundation(_ standings: [Standing]) -> [Standing] {
     standings.sorted(using: KeyPathComparator(\Standing.position))
 }
+
+// The W2 fix's own probes, past the review's list: a condition's binding, a case's binding, a
+// memberwise initialiser, a function as a value, a mutating method, a protocol requirement and a
+// compound operator. Each REFUSED.
+func fixtureIfLet(_ standing: Standing) -> Double {
+    if let age = standing.ageDays {
+        return age * 2
+    }
+    return 0
+}
+
+func fixtureGuardLet(_ standing: Standing) -> Double {
+    guard let age = standing.ageDays else { return 0 }
+    return age * 2
+}
+
+func fixtureCase(_ standing: Standing) -> Double {
+    switch standing.ageDays {
+    case let .some(age): return age * 2
+    case .none: return 0
+    }
+}
+
+struct FixturePlaceBox {
+    let value: Int
+}
+
+func fixtureThroughABox(_ standing: Standing) -> Int {
+    let box = FixturePlaceBox(value: standing.position)
+    return box.value + 1
+}
+
+func fixtureAsAValue(_ standing: Standing) -> Int {
+    let served = fixtureServedPlace
+    return served(standing) + 1
+}
+
+func fixtureAppended(_ standing: Standing) -> Int {
+    var places: [Int] = []
+    places.append(standing.position)
+    return places[0] + 1
+}
+
+protocol FixturePlaced {
+    var placed: Int { get }
+}
+
+extension Standing: FixturePlaced {
+    var placed: Int { position }
+}
+
+func fixtureByProtocol(_ item: any FixturePlaced) -> Int {
+    item.placed + 1
+}
+
+func fixtureCompound(_ standing: Standing) -> Int {
+    var place = standing.position
+    place -= 1
+    return place
+}

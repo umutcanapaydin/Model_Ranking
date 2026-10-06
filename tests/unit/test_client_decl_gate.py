@@ -332,6 +332,14 @@ def _lines_of(file: str, declaration: str) -> range:
     ("ContentView.swift", "struct FixtureRanker"),           # a method's parameter
     ("ContentView.swift", "func fixtureClosure"),            # a closure's `$0`
     ("Router.swift", "func fixtureRouterDiscounts"),         # the review's M5: outside `priceInPages`
+    ("ContentView.swift", "func fixtureIfLet"),              # a condition's binding
+    ("ContentView.swift", "func fixtureGuardLet"),           # `guard let`
+    ("ContentView.swift", "func fixtureCase"),               # a case's binding
+    ("ContentView.swift", "func fixtureThroughABox"),        # a memberwise initialiser, then the field
+    ("ContentView.swift", "func fixtureAsAValue"),           # a function as a value
+    ("ContentView.swift", "func fixtureAppended"),           # a mutating method's argument
+    ("ContentView.swift", "func fixtureByProtocol"),         # a protocol requirement's witness
+    ("ContentView.swift", "func fixtureCompound"),           # `-=`
 ])
 def test_arithmetic_on_a_served_number_is_refused_whatever_carries_it(file: str, declaration: str) -> None:
     """The W2 review's B1 (D-181, INV-76, REQ-APP-005): the review got arithmetic on a served number past
