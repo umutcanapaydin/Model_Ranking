@@ -17,6 +17,7 @@ import sqlite3
 
 import pytest
 
+from app.workflows import registry
 from app.workflows.registry import derive_identity, reconcile
 from app.workflows.schema import connect
 
@@ -236,3 +237,77 @@ def test_a_spelling_the_grammar_accepts_is_still_bounded_for_display() -> None:
     reconcile(conn)
     display = conn.execute("SELECT display FROM models").fetchone()[0]
     assert display != padded and len(display) <= 64
+
+
+@pytest.mark.parametrize(("name", "model_id", "effort"), [
+    ("o3-mini-high", "o3-mini", "high"),          # #130: OpenRouter's slug for o3-mini at high effort
+    ("grok-4.7-xhigh", "grok4.7", "xhigh"),       # the same dash, from Arena
+    ("o3-mini_high", "o3-mini", "high"),          # the spellings already read are unchanged
+    ("o3-mini (high)", "o3-mini", "high"),
+    ("magistral-medium", "magistral-medium", None),  # a product: Magistral Medium, not Magistral at medium
+    ("qwen3-max", "qwen3-max", None),             # a product: Qwen3 Max
+    ("gpt-5.1-codex-max", "gpt5.1-codex-max", None),
+])
+def test_a_dash_effort_is_an_effort_only_where_no_product_takes_the_word(
+    name: str, model_id: str, effort: str | None
+) -> None:
+    """#130: the grammar read `_high` and `(high)` as an effort but not `-high`, so `o3-mini-high`
+    was served as a model of its own (REQ-CAN-005; REQ-CAN-001: an effort is never a model). A dash reads as an effort for `high` and `xhigh`
+    only: `-medium` and `-max` end product names (Magistral Medium, Qwen3 Max, Codex Max)."""
+    identity = derive_identity(name)
+    assert identity is not None and (identity.model_id, identity.effort) == (model_id, effort), identity
+    assert derive_identity("mistral-medium") is None, "a moving alias stays one (D-166)"
+
+
+@pytest.mark.parametrize("name", ["ppl-sonar-pro-high", "ppl-sonar-reasoning-pro-high"])
+def test_a_sonar_names_high_is_its_search_context_not_an_effort(name: str) -> None:
+    """The M19-W1 review's R2: on Perplexity's Sonar names (Arena's `ppl-sonar-pro-high`), `high` is
+    the search-context size, so #130's dash grammar made Sonar Pro at high effort of them. The name
+    stays whole, and so does the name it is served under."""
+    identity = derive_identity(name)
+    assert identity is not None and (identity.model_id, identity.effort) == (name, None), identity
+    assert registry._derived_display(name, [name]) == name
+
+
+def test_o3_mini_high_is_stored_as_o3_mini_at_high_effort_on_the_path_a_build_takes() -> None:
+    """#130's expected result, end to end (the M19-W1 Tester, fault F11): Arena's and OpenRouter's
+    `o3-mini-high` is o3-mini, its score stored at effort `high`. Production no longer reaches
+    `derive_identity` for the name: the curated `o3-mini` rule takes it, and ingest reads the effort.
+    A rule that stopped taking `-high` left the derived path to propose `o3-mini`, a curated id it
+    may not take, so the score was dropped, and the whole suite stayed green.
+    covers REQ-CAN-001, REQ-CAN-005 (#130)"""
+    import json
+
+    from app.clients.fakes import FakeRawSource
+    from app.workflows.ingest import RunContext, ingest_arena, ingest_openrouter
+
+    board = json.dumps({"rows": [
+        {"row_idx": i, "row": {"model_name": name, "rating": rating, "category": "overall",
+                               "leaderboard_publish_date": "2026-09-13"}}
+        for i, (name, rating) in enumerate([("o3-mini", 1300.0), ("o3-mini-high", 1320.0)])
+    ], "num_rows_total": 2})
+    catalog = json.dumps({"data": [
+        {"id": slug, "pricing": {"prompt": "0.0000011", "completion": "0.0000044"}}
+        for slug in ("openai/o3-mini", "openai/o3-mini-high")
+    ]})
+    conn = connect(":memory:")
+    run = RunContext(observed_at="t")
+    ingest_arena(conn, FakeRawSource("arena", board), run)
+    ingest_openrouter(conn, FakeRawSource("openrouter", catalog), run)
+    report = reconcile(conn)
+    assert conn.execute("SELECT raw_name, model_id, effort FROM scores ORDER BY raw_name").fetchall() == [
+        ("o3-mini", "o3-mini", "unspecified"), ("o3-mini-high", "o3-mini", "high")]
+    assert conn.execute("SELECT DISTINCT model_id FROM pricing").fetchall() == [("o3-mini",)]
+    assert conn.execute("SELECT id FROM models").fetchall() == [("o3-mini",)]
+    assert report.derived == () and "o3-mini-high" not in report.dropped_names
+
+
+def test_a_derived_models_name_carries_no_dash_effort() -> None:
+    """#130's dash grammar reaches the name a reader sees (the M19-W1 Tester, fault F12): a model
+    known only by `zeta-9-xhigh` is Zeta 9 at effort `xhigh`, served as `zeta-9`, never under a name
+    that ends in its effort. Removing the strip from `_derived_display` kept every test green.
+    covers REQ-CAN-001 (#130, #112)"""
+    conn = _conn(["openrouter/acme/zeta-9"], [("zeta-9-xhigh", "unspecified")])
+    reconcile(conn)
+    assert conn.execute("SELECT id, display FROM models").fetchall() == [("zeta9", "zeta-9")]
+    assert conn.execute("SELECT model_id, effort FROM scores").fetchall() == [("zeta9", "xhigh")]

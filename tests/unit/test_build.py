@@ -564,3 +564,30 @@ def test_the_run_reports_give_the_same_account_of_unknown_efforts() -> None:
     (built,) = [r for r in report.sources if r.source == "aider"]
     (ran,) = [r for r in run.reports if r.source == "aider"]
     assert built.effort_unknown == ran.effort_unknown == 1  # zorblax-9_high, and only it
+
+
+def test_a_derived_latest_v_id_is_said_in_the_drift_not_refused() -> None:
+    """#106 (the W4 review's R4): a version after `-latest` derives one release (D-173 clause 8). If a
+    source ever moves such a name, the id it derived is a moving alias. The build still registers
+    it, and says so in its drift, which the refresh record and `/health` carry."""
+    from app.workflows.registry import derive_identity
+
+    pricing = json.loads(PRICING)
+    pricing["openai/gpt-6-astra-latest-v2"] = {"mode": "chat", "input_cost_per_token": 1e-06,
+                                               "output_cost_per_token": 4e-06}
+    aider = json.dumps([
+        {"model": "gpt-5 (high)", "pass_rate_2": 61.0, "edit_format": "diff"},
+        {"model": "claude-4-5-opus", "pass_rate_2": 70.5, "edit_format": "diff"},
+        {"model": "gpt-6-astra-latest-v2", "pass_rate_2": 55.0, "edit_format": "diff"},
+    ])
+    conn = connect(":memory:")
+    report = _build(conn, sources=_sources(pricing=json.dumps(pricing), aider=aider))
+    identity = derive_identity("gpt-6-astra-latest-v2")
+    assert identity is not None and identity.model_id in report.derived, report.derived
+    notes = [note for note in report.drift if identity.model_id in note and "latest-v" in note]
+    assert notes, report.drift
+    # The review's M3: a drift line is `<source>: <reason>`, and `/health` lists the text before the
+    # colon as a source; the note's source is the registry, not "derived <id>".
+    from app.adapter.nightly import _drifted
+
+    assert _drifted(notes) == "registry", notes

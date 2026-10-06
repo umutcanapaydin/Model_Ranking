@@ -181,3 +181,16 @@ Not tracked: token spend is not visible to the agent (as in M16 to M18). The wav
 - Capture per `docs/closure-checklist.md` §B.2: process log, EXPERIENCE, roadmap snapshot, AGENTS.md
   diet.
 - The Stage 5.1 release review only if the owner calls a release (W5).
+
+**Amendment (2026-10-06, W1).** #162 joins W1: listing every served name for #130 found that the
+GPT-5 mini, nano and chat rules took any minor version, so GPT-5 mini, GPT-5.1 Codex mini and
+GPT-5.4 mini were served as one model, with one another's prices and scores. It is the same goal
+as #129 (one release, one model), in the other direction.
+
+**Amendment (2026-10-06, W1 close).** Naming #112's list against the makers' pages found more of
+#129's defect, one release under two ids, each with part of its evidence: GPT-5 (its only snapshot,
+`gpt-5-2025-08-07`), Mistral Small 3.1 (`mistral-small-2503` and its open weights) and Mistral Medium
+3.5 (`mistral-medium-2604`). Each joins #129's fix, ruled from its maker's page. Mistral moved the
+alias `mistral-medium-3` to Medium 3.5, so it joins D-166's moving aliases. Two findings that need
+a ruling are filed rather than taken: #163 (whether a family rule may gather a release's later
+snapshots) and #164 (an id its maker retired and reroutes to a newer model).

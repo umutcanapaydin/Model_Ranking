@@ -141,7 +141,8 @@ def test_req_lic_001_epoch_citation_ships_where_epoch_data_is_served() -> None:
     real and is what BLOCKING-2 caught: a payload that never read Epoch must not claim
     it, because `sources` is a provenance claim in a machine contract.
     """
-    from app.workflows.rank import SWEBENCH_ATTRIBUTION
+    from app.workflows.board_tables import EPOCH_CITATION
+    from app.workflows.rank import AIDER_ATTRIBUTION
 
     conn = _db()
     # Same benchmark, evidence supplied by the Epoch bundle instead of swebench.com.
@@ -159,13 +160,13 @@ def test_req_lic_001_epoch_citation_ships_where_epoch_data_is_served() -> None:
     assert EPOCH_ATTRIBUTION in rec.sources
     # This fixture ALSO serves an Aider secondary score and grades confidence on it, so
     # it owes that citation too (M5 security review MINOR): served data, served credit.
-    assert SWEBENCH_ATTRIBUTION in rec.sources
+    assert AIDER_ATTRIBUTION in rec.sources
     assert any(p.secondary_score is not None for p in rec.picks)
 
     readme = (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
     # The README must carry Epoch's prescribed citation text itself, not a paraphrase.
-    assert EPOCH_ATTRIBUTION.removesuffix(" (CC-BY-4.0)") in readme
-    assert "CC BY 4.0" in readme  # and name the licence
+    assert EPOCH_CITATION in readme
+    assert "CC BY 4.0" in readme and "https://creativecommons.org/licenses/by/4.0/" in readme  # #124
 
 
 def test_payload_never_claims_a_source_it_did_not_read() -> None:
@@ -175,11 +176,16 @@ def test_payload_never_claims_a_source_it_did_not_read() -> None:
     Epoch row anywhere. The first cut stamped every payload with the full catalogue, so
     it claimed Arena AND Epoch regardless: two sources it never opened.
     """
-    from app.workflows.rank import ARENA_ATTRIBUTION, PRICING_ATTRIBUTION, SWEBENCH_ATTRIBUTION
+    from app.workflows.rank import (
+        AIDER_ATTRIBUTION,
+        ARENA_ATTRIBUTION,
+        PRICING_ATTRIBUTION,
+        SWEBENCH_ATTRIBUTION,
+    )
 
     rec = recommend(_db(), "unlimited")
     assert rec is not None
-    assert rec.sources == (PRICING_ATTRIBUTION, SWEBENCH_ATTRIBUTION)
+    assert rec.sources == (PRICING_ATTRIBUTION, SWEBENCH_ATTRIBUTION, AIDER_ATTRIBUTION)
     assert ARENA_ATTRIBUTION not in rec.sources
     assert EPOCH_ATTRIBUTION not in rec.sources
 
@@ -615,7 +621,7 @@ def test_secondary_benchmark_evidence_is_cited_too() -> None:
     primary rows came from Epoch served an Aider secondary score, graded its confidence
     "two independent benchmarks" on it, and cited only Epoch.
     """
-    from app.workflows.rank import SWEBENCH_ATTRIBUTION
+    from app.workflows.rank import AIDER_ATTRIBUTION
 
     conn = _db()
     conn.execute(
@@ -632,7 +638,7 @@ def test_secondary_benchmark_evidence_is_cited_too() -> None:
     graded_on_two = [p for p in rec.picks if p.secondary_score is not None]
     assert graded_on_two, "fixture must serve a secondary score for this to mean anything"
     assert all(p.confidence == "High" for p in graded_on_two)
-    assert SWEBENCH_ATTRIBUTION in rec.sources  # Aider's citation lives in this string
+    assert AIDER_ATTRIBUTION in rec.sources  # #124: Aider's own citation, apart from SWE-bench's
 
 
 def test_a_pick_is_the_same_as_the_quality_pick_only_when_it_is_the_same_model() -> None:

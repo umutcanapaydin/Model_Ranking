@@ -9,7 +9,13 @@ import pytest
 
 from app.clients.fakes import FakeRawSource
 from app.workflows.ingest import RunContext, ingest_litellm, ingest_swebench
-from app.workflows.registry import MODEL_RULES, canonicalize, reconcile
+from app.workflows.registry import (
+    MODEL_RULES,
+    canonicalize,
+    derive_identity,
+    reconcile,
+    split_harness,
+)
 from app.workflows.schema import connect
 
 
@@ -30,9 +36,8 @@ def test_variant_never_leaks_into_parent() -> None:
     """REQ-CAN-002 regression (spike bug red→green): nano/mini/codex/chat ≠ parent."""
     cases = {
         "gpt-5-nano": "gpt-5-nano",
-        "gpt-5.1-nano": "gpt-5-nano",
         "gpt-5-mini-2026-01-01": "gpt-5-mini",
-        "gpt-5.1-codex-mini": "gpt-5-mini",
+        "gpt-5.1-codex-mini": "gpt-5.1-codex-mini",  # #162: its own model, never GPT-5 mini
         # ChatGPT's plan table (2026-09-23) names "GPT-5 Thinking Mini": a word between the
         # version and "mini" must not let the variant fall through to the parent.
         "GPT-5 Thinking Mini": "gpt-5-mini",
@@ -56,6 +61,10 @@ def test_variant_never_leaks_into_parent() -> None:
         rule = canonicalize(alias)
         assert rule is not None, alias
         assert rule.canonical_id == expected, f"{alias} → {rule.canonical_id}, want {expected}"
+    # #162: a minor release's variant that no rule names leaks into neither its parent (GPT-5.1) nor
+    # GPT-5's variant: matched by no rule, it derives a model of its own (D-157).
+    assert canonicalize("gpt-5.1-nano") is None
+    assert canonicalize("gpt-5.5-thinking-mini") is None
 
 
 def test_date_suffixed_alias_is_dropped_not_misversioned() -> None:
@@ -265,10 +274,11 @@ LIVE_NAME_EXPECTATIONS: tuple[tuple[str, str | None], ...] = (
     ("gemini-3-pro-image", None),
     ("gemini-3.1-flash-image", None),
     ("gemini-3.1-flash-lite", None),
-    # versioned Pro models drop and are counted; they never join bare GPT-5 Pro
+    # versioned Pro models never join bare GPT-5 Pro: 5.2 and 5.4 have rules of their own (#129, one
+    # snapshot each), and one with no rule derives a model of its own (D-157)
     ("gpt-5.5-pro", None),
-    ("gpt-5.4-pro", None),
-    ("gpt-5.2-pro", None),
+    ("gpt-5.4-pro", "gpt-5.4-pro"),
+    ("gpt-5.2-pro", "gpt-5.2-pro"),
     ("gpt-5-pro", "gpt-5-pro"),
     # provider version notations: dotted, dashed, and Fireworks' `p`
     ("fireworks_ai/glm-5p1", "glm-5.1"),
@@ -560,3 +570,106 @@ def test_the_fable_5_parent_keeps_its_version_guard(name: str) -> None:
     """M16-W4 review M21: P3's defect class is a parent rule with no version guard."""
     rule = canonicalize(name)
     assert rule is None or rule.canonical_id != "claude-fable-5"
+
+
+@pytest.mark.parametrize(("name", "model_id"), [
+    ("gpt-5-mini-2025-08-07", "gpt-5-mini"),
+    ("GPT-5 mini", "gpt-5-mini"),
+    ("GPT-5 Thinking Mini", "gpt-5-mini"),                 # ChatGPT's plan table (6d222af)
+    ("GPT 5 mini (2025-08-07) (medium)", "gpt-5-mini"),
+    ("gpt-5.4-mini", "gpt-5.4-mini"),
+    ("openai/gpt-5.4-mini-2026-03-17", "gpt-5.4-mini"),
+    ("GPT-5.4 Mini", "gpt-5.4-mini"),
+    ("gpt-5.4-mini-high", "gpt-5.4-mini"),                 # Arena, at high effort
+    ("openrouter/openai/gpt-5.1-codex-mini", "gpt-5.1-codex-mini"),
+    ("gpt-5-nano-2025-08-07", "gpt-5-nano"),
+    ("gpt-5.4-nano", "gpt-5.4-nano"),
+    ("GPT-5.4 Nano", "gpt-5.4-nano"),
+    ("gpt-5-chat-latest", "gpt-5-chat"),
+    ("azure/gpt-5.1-chat", "gpt-5.1-chat"),
+    ("openrouter/openai/gpt-5.2-chat", "gpt-5.2-chat"),
+    ("gpt-5.3-chat-latest", "gpt-5.3-chat"),
+])
+def test_each_gpt5_minor_release_is_a_model_of_its_own(name: str, model_id: str) -> None:
+    """#162: the GPT-5 mini, nano and chat rules took any minor version (`gpt-5(?:[.-]?\\d)?`), so
+    GPT-5 mini, GPT-5.1 Codex mini and GPT-5.4 mini were one model, with one another's prices and
+    scores (REQ-CAN-001), and GPT-5 and 5.4 nano, and GPT-5.1 to 5.3 chat, the same."""
+    rule = canonicalize(name)
+    assert rule is not None and rule.canonical_id == model_id, (name, rule)
+
+
+#: #129: each release whose dated id is its only snapshot, by its maker's page (2026-10-06):
+#: Anthropic's model deprecations page lists one id for each Claude here; OpenAI's model pages list
+#: one snapshot for each OpenAI model here. Every spelling the sources use, dated or not, is one model.
+ONE_SNAPSHOT_RELEASES = {
+    "claude-3-haiku": ["Claude 3 Haiku", "claude-3-haiku", "claude-3-haiku-20240307", "claude-3-haiku@20240307"],
+    "claude-3-opus": ["Claude 3 Opus", "claude-3-opus", "claude-3-opus-20240229",
+                      "anthropic.claude-3-opus-20240229-v1:0", "claude-3-opus@20240229"],
+    "claude-3-sonnet": ["Claude 3 Sonnet", "claude-3-sonnet", "claude-3-sonnet-20240229", "claude-3-sonnet@20240229"],
+    "claude-3.5-haiku": ["Claude 3.5 Haiku", "claude-3-5-haiku", "claude-3.5-haiku", "claude-3-5-haiku-20241022",
+                         "us.anthropic.claude-3-5-haiku-20241022-v1:0"],
+    "gpt-4.1-mini": ["GPT-4.1 mini", "gpt-4.1-mini", "gpt-4.1-mini-2025-04-14"],
+    "gpt-4.1-nano": ["GPT-4.1 nano", "gpt-4.1-nano", "gpt-4.1-nano-2025-04-14"],
+    # found while naming #112's list: GPT-5's Epoch scores sat on its dated id, the rest on `gpt-5`
+    "gpt-5": ["GPT-5", "gpt-5", "gpt-5-2025-08-07", "gpt-5-2025-08-07_high", "GPT 5 (2025-08-07) (medium)"],
+    "gpt-5.2-pro": ["GPT-5.2 Pro", "gpt-5.2-pro", "gpt-5.2-pro-2025-12-11", "gpt-5.2-pro-2025-12-11_xhigh"],
+    "gpt-5.4-pro": ["GPT-5.4 Pro", "gpt-5.4-pro", "gpt-5.4-pro-2026-03-05"],
+    # found while naming #112's list: Mistral's page gives `mistral-small-2503` as Mistral Small 3.1's
+    # API name, and its model card names the weights "Mistral Small 3.1 (2503)" (read 2026-10-06)
+    # and Mistral Medium 3.5, one version (v26.04): `mistral-medium-2604` and `mistral-medium-3-5`
+    "mistral-medium-3.5": ["Mistral Medium 3.5", "mistral-medium-3.5", "mistral-medium-3-5", "mistral-medium-2604",
+                           "mistral/mistral-medium-2604"],
+    "mistral-small-3.1": ["Mistral Small 3.1", "mistral-small-2503", "mistral-small-3.1-24b-instruct-2503",
+                          "watsonx/mistralai/mistral-small-3-1-24b-instruct-2503"],
+    "o3": ["o3", "o3 (2025-04-16)", "o3-2025-04-16", "o3-2025-04-16_high", "openai-o3"],
+    "o3-mini": ["o3-mini", "o3-mini (high)", "o3-mini-2025-01-31", "o3-mini-2025-01-31_low",
+                "Agentless Lite + O3 Mini (20250214)"],
+    "o3-pro": ["o3-pro", "o3-pro (high)", "o3-pro-2025-06-10", "o3-pro-2025-06-10_medium"],
+}
+
+
+@pytest.mark.parametrize(("model_id", "name"), [(m, n) for m, names in ONE_SNAPSHOT_RELEASES.items() for n in names])
+def test_a_release_with_one_snapshot_is_one_model(model_id: str, name: str) -> None:
+    """#129: one release was served under two ids, an undated one holding Epoch's ECI score and a
+    dated one holding Arena's and the rest, so a list joining boards could show it twice, each with
+    part of its evidence. "O3 Mini" with a space had also reached o3."""
+    rule = canonicalize(split_harness(name)[1] if " + " in name else name)
+    assert rule is not None and rule.canonical_id == model_id, (name, rule)
+
+
+def test_a_release_with_two_snapshots_stays_two_models() -> None:
+    """#129: Claude 3.5 Sonnet had two snapshots (20240620, 20241022), so they are not one model."""
+    first = derive_identity("claude-3-5-sonnet-20240620")
+    second = derive_identity("claude-3-5-sonnet-20241022")
+    assert canonicalize("claude-3-5-sonnet-20240620") is None and canonicalize("claude-3-5-sonnet-20241022") is None
+    assert first is not None and second is not None and first.model_id != second.model_id
+
+
+@pytest.mark.parametrize(("name", "derived"), [
+    ("gpt-5-codex-mini", "gpt5-codex-mini"), ("openai/gpt-5-codex-mini", "gpt5-codex-mini"),
+    ("GPT-5 Codex Mini", "gpt5-codex-mini"),
+    ("gpt-5.2-codex-mini", "gpt5.2-codex-mini"),  # the Tester's M4: one rule over, GPT-5.2 Codex took it
+])
+def test_a_gpt5_codex_mini_is_neither_gpt5_mini_nor_gpt5_codex(name: str, derived: str) -> None:
+    """The M19-W1 review's M4: #162 made GPT-5.1 Codex mini a model of its own, yet GPT-5 mini's rule
+    still took `gpt-5-codex-mini`, and GPT-5 Codex's would take it next. No rule names that product
+    (OpenAI's model pages do not list it, read 2026-10-06), so it derives a model of its own (D-157),
+    as #162 left any unnamed variant."""
+    assert canonicalize(name) is None, canonicalize(name)
+    identity = derive_identity(name)
+    assert identity is not None and identity.model_id == derived
+
+
+@pytest.mark.parametrize("minor", ["5.1", "5.2", "5.3", "5.4", "5.5", "5.6"])
+@pytest.mark.parametrize("variant", ["mini", "nano", "chat", "thinking-mini", "Thinking Nano"])
+def test_no_gpt5_minor_release_rule_takes_another_releases_variant(minor: str, variant: str) -> None:
+    """#162 put `mini`, `nano` and `chat` in every GPT-5.x parent rule's lookahead (the M19-W1 Tester,
+    fault F14): with GPT-5.2's taken out, `gpt-5.2-mini` became GPT-5.2 and the suite stayed green, as
+    only 5.1 and 5.5 were pinned. A minor release's variant is its own rule's model, or no rule's
+    (it derives, D-157); never its parent's, and never GPT-5's variant.
+    covers REQ-CAN-002 (#162)"""
+    for name in (f"gpt-{minor}-{variant}", f"openai/gpt-{minor}-{variant}", f"GPT-{minor} {variant}",
+                 f"gpt-{minor}-{variant}-2026-01-01"):
+        rule = canonicalize(name)
+        own = f"gpt-{minor}-{variant.lower().removeprefix('thinking').strip(' -')}"
+        assert rule is None or rule.canonical_id == own, (name, rule)

@@ -16,7 +16,13 @@ from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from app.workflows.board_tables import ARENA_SLICES, EPOCH_ATTRIBUTION
+from app.workflows.board_tables import (
+    ARENA_ATTRIBUTION,
+    ARENA_SLICES,
+    CC_BY_NC_4,
+    EPOCH_ATTRIBUTION,
+    EPOCH_EXTERNAL_ATTRIBUTION,
+)
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.schema import EFFORT_LEVELS
 
@@ -30,16 +36,21 @@ BLEND_NOTE = "blended $/1M = input*0.75 + output*0.25"
 # an `assistant` answer ranks purely on Arena Elo, and claiming SWE-bench, Aider and
 # Epoch alongside it is a false provenance claim in a machine contract. Payloads build
 # their list from the evidence they actually used, via `attributions_for`.
+# #124: each publisher under its own licence, with links. OpenRouter's terms state no attribution
+# clause for its catalogue, so the credit claims none (`app.clients.openrouter`).
 PRICING_ATTRIBUTION = (
-    "Pricing data: BerriAI/litellm (MIT) and OpenRouter public model catalog (attribution required)"
+    "Pricing data: BerriAI/litellm (MIT) and OpenRouter's public model catalog, "
+    "https://openrouter.ai/api/v1/models"
 )
-ARENA_ATTRIBUTION = "Arena leaderboard data © LMArena — lmarena-ai/leaderboard-dataset (CC-BY-4.0)"
-SWEBENCH_ATTRIBUTION = "Coding scores: swebench.com leaderboard (SWE-bench) and Aider polyglot leaderboard (Apache-2.0)"
+SWEBENCH_ATTRIBUTION = f"Coding scores: SWE-bench leaderboard, https://www.swebench.com ({CC_BY_NC_4})"
+AIDER_ATTRIBUTION = "Coding scores: Aider polyglot leaderboard, https://github.com/Aider-AI/aider (Apache-2.0)"
 ATTRIBUTIONS = (
     ARENA_ATTRIBUTION,
     PRICING_ATTRIBUTION,
     SWEBENCH_ATTRIBUTION,
+    AIDER_ATTRIBUTION,
     EPOCH_ATTRIBUTION,
+    *EPOCH_EXTERNAL_ATTRIBUTION.values(),
 )
 
 # Which citation each `scores.source` value obliges. A source missing from this map is
@@ -63,20 +74,22 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     # stays unattributed and raises.
     **{board.source_name: ARENA_ATTRIBUTION for board in ARENA_SLICES},
     "swebench": SWEBENCH_ATTRIBUTION,
-    "aider": SWEBENCH_ATTRIBUTION,
+    "aider": AIDER_ATTRIBUTION,
     "epoch_swe_bench_verified": EPOCH_ATTRIBUTION,
-    "epoch_deepswe_external": EPOCH_ATTRIBUTION,
-    # D-127's boards. All seven come out of the same owner-placed Epoch bundle and carry the same
-    # citation, so they are listed individually rather than matched by an `epoch_` prefix: a
-    # prefix rule would attribute a source nobody had reviewed the licence of, which is the
-    # opposite of what this table is for.
+    # #124: compiled by Epoch from another publisher, and credited to it.
+    "epoch_deepswe_external": EPOCH_EXTERNAL_ATTRIBUTION["epoch_deepswe_external"],
+    # D-127's boards. All seven come out of the same owner-placed Epoch bundle, and are listed
+    # individually rather than matched by an `epoch_` prefix: a prefix rule would attribute a source
+    # nobody had reviewed the licence of, which is the opposite of what this table is for. Three
+    # Epoch ran itself and carry its citation; four it compiles from other publishers, and each of
+    # those is credited to its source (#124).
     "epoch_eci": EPOCH_ATTRIBUTION,
     "epoch_gpqa": EPOCH_ATTRIBUTION,
     "epoch_aime": EPOCH_ATTRIBUTION,
-    "epoch_terminalbench": EPOCH_ATTRIBUTION,
-    "epoch_arc_agi": EPOCH_ATTRIBUTION,
-    "epoch_webdev": EPOCH_ATTRIBUTION,
-    "epoch_mmlu": EPOCH_ATTRIBUTION,
+    "epoch_terminalbench": EPOCH_EXTERNAL_ATTRIBUTION["epoch_terminalbench"],
+    "epoch_arc_agi": EPOCH_EXTERNAL_ATTRIBUTION["epoch_arc_agi"],
+    "epoch_webdev": EPOCH_EXTERNAL_ATTRIBUTION["epoch_webdev"],
+    "epoch_mmlu": EPOCH_EXTERNAL_ATTRIBUTION["epoch_mmlu"],
     # M17-W3 (#37): five more Epoch-run boards, CC-BY like GPQA, listed one by one as above.
     "epoch_simpleqa": EPOCH_ATTRIBUTION,
     "epoch_frontiermath": EPOCH_ATTRIBUTION,

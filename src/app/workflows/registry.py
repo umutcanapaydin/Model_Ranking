@@ -86,29 +86,58 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("claude-4-opus",     "Claude Opus 4",     "Anthropic", r"claude[-_ ]?4[-_ ]?opus|claude[-_ ]?opus[-_ ]?4(?![.\-]?[15])"),
     ModelRule("claude-4-sonnet",   "Claude Sonnet 4",   "Anthropic", r"claude[-_ ]?4[-_ ]?sonnet|claude[-_ ]?sonnet[-_ ]?4(?![.\-]?5)"),
     ModelRule("claude-3.7-sonnet", "Claude 3.7 Sonnet", "Anthropic", r"claude[-_ ]?3[.\-]?7[-_ ]?sonnet"),
+    # #129: a release whose dated id is its only snapshot (Anthropic's model deprecations page,
+    # read 2026-10-06) is one model, dated or not. Claude 3.5 Sonnet had two snapshots and stays two.
+    ModelRule("claude-3.5-haiku",  "Claude 3.5 Haiku",  "Anthropic", r"claude[-_ ]?3[.\-]5[-_ ]?haiku|claude[-_ ]?haiku[-_ ]?3[.\-]5"),
+    ModelRule("claude-3-opus",     "Claude 3 Opus",     "Anthropic", r"claude[-_ ]?3[-_ ]?opus|claude[-_ ]?opus[-_ ]?3(?![.\-]?\d)"),
+    ModelRule("claude-3-sonnet",   "Claude 3 Sonnet",   "Anthropic", r"claude[-_ ]?3[-_ ]?sonnet|claude[-_ ]?sonnet[-_ ]?3(?![.\-]?\d)"),
+    ModelRule("claude-3-haiku",    "Claude 3 Haiku",    "Anthropic", r"claude[-_ ]?3[-_ ]?haiku|claude[-_ ]?haiku[-_ ]?3(?![.\-]?\d)"),
     # ── OpenAI: variant rules BEFORE parent-family rules (REQ-CAN-002) ──
     ModelRule("gpt-5-pro",         "GPT-5 Pro",         "OpenAI",    r"gpt[-_ ]?5[-_ ]?pro"),
+    # #129: one snapshot each (OpenAI's model pages, read 2026-10-06): one model, dated or not.
+    ModelRule("gpt-5.4-pro",       "GPT-5.4 Pro",       "OpenAI",    r"gpt[-_ ]?5[.\-]4[-_ ]?pro"),
+    ModelRule("gpt-5.2-pro",       "GPT-5.2 Pro",       "OpenAI",    r"gpt[-_ ]?5[.\-]2[-_ ]?pro"),
     # "Thinking" is ChatGPT's name for a reasoning mode; ChatGPT's plan table writes the variant
     # after it ("GPT-5 Thinking Mini", 2026-09-23), past the parent rule's lookahead.
-    ModelRule("gpt-5-nano",        "GPT-5 nano",        "OpenAI",    r"gpt[-_ ]?5(?:[.\-]?\d)?[-_ ]?(?:thinking[-_ ]?)?nano"),
-    ModelRule("gpt-5-mini",        "GPT-5 mini",        "OpenAI",    r"gpt[-_ ]?5(?:[.\-]?\d)?[-_ ]?(?:codex[-_ ]?|thinking[-_ ]?)?mini"),
-    ModelRule("gpt-5-chat",        "GPT-5 chat",        "OpenAI",    r"gpt[-_ ]?5(?:[.\-]?\d)?[-_ ]?chat"),
-    ModelRule("gpt-5.2-codex",     "GPT-5.2 Codex",     "OpenAI",    r"gpt[-_ ]?5[.\-]?2[-_ ]?codex(?![-_ ]?max)"),
-    ModelRule("gpt-5.1-codex",     "GPT-5.1 Codex",     "OpenAI",    r"gpt[-_ ]?5[.\-]?1[-_ ]?codex(?![-_ ]?max)"),
-    ModelRule("gpt-5-codex",       "GPT-5 Codex",       "OpenAI",    r"gpt[-_ ]?5[-_ ]?codex(?![-_ ]?max)"),
+    # #162: each minor release is a model of its own, ahead of GPT-5's rules, which take GPT-5 only.
+    # They had taken any minor version, so GPT-5 mini held GPT-5.4 mini's and GPT-5.1 Codex mini's
+    # prices and scores. A minor release not named here derives a model of its own (D-157).
+    ModelRule("gpt-5.4-nano",       "GPT-5.4 nano",       "OpenAI", r"gpt[-_ ]?5[.\-]4[-_ ]?nano"),
+    ModelRule("gpt-5.4-mini",       "GPT-5.4 mini",       "OpenAI", r"gpt[-_ ]?5[.\-]4[-_ ]?mini"),
+    ModelRule("gpt-5.1-codex-mini", "GPT-5.1 Codex mini", "OpenAI", r"gpt[-_ ]?5[.\-]1[-_ ]?codex[-_ ]?mini"),
+    ModelRule("gpt-5.3-chat",       "GPT-5.3 chat",       "OpenAI", r"gpt[-_ ]?5[.\-]3[-_ ]?chat"),
+    ModelRule("gpt-5.2-chat",       "GPT-5.2 chat",       "OpenAI", r"gpt[-_ ]?5[.\-]2[-_ ]?chat"),
+    ModelRule("gpt-5.1-chat",       "GPT-5.1 chat",       "OpenAI", r"gpt[-_ ]?5[.\-]1[-_ ]?chat"),
+    ModelRule("gpt-5-nano",        "GPT-5 nano",        "OpenAI",    r"gpt[-_ ]?5[-_ ]?(?:thinking[-_ ]?)?nano"),
+    # The review's M4: a Codex mini is not GPT-5 mini, nor GPT-5 Codex; no rule names one for GPT-5, so
+    # it derives a model of its own (D-157), as #162 left any unnamed variant.
+    ModelRule("gpt-5-mini",        "GPT-5 mini",        "OpenAI",    r"gpt[-_ ]?5[-_ ]?(?:thinking[-_ ]?)?mini"),
+    ModelRule("gpt-5-chat",        "GPT-5 chat",        "OpenAI",    r"gpt[-_ ]?5[-_ ]?chat"),
+    ModelRule("gpt-5.2-codex",     "GPT-5.2 Codex",     "OpenAI",    r"gpt[-_ ]?5[.\-]?2[-_ ]?codex(?![-_ ]?(?:max|mini))"),
+    ModelRule("gpt-5.1-codex",     "GPT-5.1 Codex",     "OpenAI",    r"gpt[-_ ]?5[.\-]?1[-_ ]?codex(?![-_ ]?(?:max|mini))"),
+    ModelRule("gpt-5-codex",       "GPT-5 Codex",       "OpenAI",    r"gpt[-_ ]?5[-_ ]?codex(?![-_ ]?(?:max|mini))"),
     # GPT-5.6 ships three named variants (luna/sol/terra, live in both pricing and
     # Arena) — distinct models, so they precede the bare 5.6 rule.
     ModelRule("gpt-5.6-sol",       "GPT-5.6 Sol",       "OpenAI",    r"gpt[-_ ]?5[.\-]6[-_ ]?sol"),
     ModelRule("gpt-5.6-luna",      "GPT-5.6 Luna",      "OpenAI",    r"gpt[-_ ]?5[.\-]6[-_ ]?luna"),
     ModelRule("gpt-5.6-terra",     "GPT-5.6 Terra",     "OpenAI",    r"gpt[-_ ]?5[.\-]6[-_ ]?terra"),
-    ModelRule("gpt-5.6",           "GPT-5.6",           "OpenAI",    r"gpt[-_ ]?5[.\-]6(?!\d)(?![-_ ]?(?:sol|luna|terra|codex|pro))"),
-    ModelRule("gpt-5.5",           "GPT-5.5",           "OpenAI",    r"gpt[-_ ]?5[.\-]5(?!\d)(?![-_ ]?codex|[-_ ]?pro)"),
-    ModelRule("gpt-5.4",           "GPT-5.4",           "OpenAI",    r"gpt[-_ ]?5[.\-]4(?!\d)(?![-_ ]?codex|[-_ ]?pro)"),
-    ModelRule("gpt-5.2",           "GPT-5.2",           "OpenAI",    r"gpt[-_ ]?5[.\-]2(?!\d)(?![-_ ]?codex|[-_ ]?pro)"),
-    ModelRule("gpt-5.1",           "GPT-5.1",           "OpenAI",    r"gpt[-_ ]?5[.\-]1(?!\d)(?![-_ ]?codex|[-_ ]?pro)"),
-    ModelRule("gpt-5",             "GPT-5",             "OpenAI",    r"gpt[-_ ]?5(?![.\-]?\d|[-_ ]?mini|[-_ ]?nano|[-_ ]?chat|[-_ ]?codex|[-_ ]?pro)"),
-    ModelRule("o3",                "o3",                "OpenAI",    r"\bo3(?![-\w])|\bo3[-_ ](?:high|medium|low)"),
+    ModelRule("gpt-5.6",           "GPT-5.6",           "OpenAI",    r"gpt[-_ ]?5[.\-]6(?!\d)(?![-_ ]?(?:sol|luna|terra|codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
+    ModelRule("gpt-5.5",           "GPT-5.5",           "OpenAI",    r"gpt[-_ ]?5[.\-]5(?!\d)(?![-_ ]?(?:codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
+    ModelRule("gpt-5.4",           "GPT-5.4",           "OpenAI",    r"gpt[-_ ]?5[.\-]4(?!\d)(?![-_ ]?(?:codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
+    ModelRule("gpt-5.2",           "GPT-5.2",           "OpenAI",    r"gpt[-_ ]?5[.\-]2(?!\d)(?![-_ ]?(?:codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
+    ModelRule("gpt-5.1",           "GPT-5.1",           "OpenAI",    r"gpt[-_ ]?5[.\-]1(?!\d)(?![-_ ]?(?:codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
+    # #129: GPT-5's only snapshot is `gpt-5-2025-08-07` (OpenAI's model page, read 2026-10-06), so
+    # its dated id is GPT-5 too.
+    ModelRule("gpt-5",             "GPT-5",             "OpenAI",    r"gpt[-_ ]?5(?![.\-]?\d|[-_ ]?mini|[-_ ]?nano|[-_ ]?chat|[-_ ]?codex|[-_ ]?pro)|gpt[-_ ]?5[-_ ]2025[-_ ]?08[-_ ]?07"),
+    # #129: o3, o3-mini and o3-pro have one snapshot each (OpenAI's model pages, read 2026-10-06), so
+    # each is one model, dated or not; o3-mini and o3-pro come first, so "O3 Mini" never reaches o3.
+    ModelRule("o3-mini",           "o3-mini",           "OpenAI",    r"\bo3[-_ ]?mini"),
+    ModelRule("o3-pro",            "o3-pro",            "OpenAI",    r"\bo3[-_ ]?pro"),
+    ModelRule("o3",                "o3",                "OpenAI",    r"\bo3(?![-\w])|\bo3[-_ ](?:high|medium|low)|\bo3[-_ ]2025[-_ ]?04[-_ ]?16"),
     ModelRule("o4-mini",           "o4-mini",           "OpenAI",    r"\bo4[-_ ]?mini"),
+    # #129: one snapshot each (OpenAI's model pages, read 2026-10-06): one model, dated or not.
+    ModelRule("gpt-4.1-mini",      "GPT-4.1 mini",      "OpenAI",    r"gpt[-_ ]?4\.1[-_ ]?mini"),
+    ModelRule("gpt-4.1-nano",      "GPT-4.1 nano",      "OpenAI",    r"gpt[-_ ]?4\.1[-_ ]?nano"),
     ModelRule("gpt-4.1",           "GPT-4.1",           "OpenAI",    r"gpt[-_ ]?4\.1(?![-_ ]?(mini|nano))"),
     ModelRule("gpt-4o",            "GPT-4o",            "OpenAI",    r"gpt[-_ ]?4o(?![-_ ]?mini)"),
     # ── Google ──────────────────────────────────────────────────────────
@@ -159,6 +188,12 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("glm-4.6",           "GLM-4.6",           "Zhipu",     r"glm[-_ ]?4[.\-]?6"),
     ModelRule("glm-4.5",           "GLM-4.5",           "Zhipu",     r"glm[-_ ]?4[.\-]?5(?!v|[-_ ]?air)"),
     ModelRule("mistral-large",     "Mistral Large",     "Mistral",   r"mistral[-_ ]?large"),
+    # #129: Mistral Medium 3.5 has one version, v26.04 (Mistral's model page, read 2026-10-06), whether
+    # served as `mistral-medium-3.5` or `mistral-medium-2604`.
+    ModelRule("mistral-medium-3.5", "Mistral Medium 3.5", "Mistral", r"mistral[-_ ]?medium[-_ ]?(?:3[.\-]5(?!\d)|2604(?!\d))"),
+    # #129: Mistral's page gives `mistral-small-2503` as Mistral Small 3.1's API name (v25.03), and its
+    # card names the weights "Mistral Small 3.1 (2503)" (read 2026-10-06): one release, one model.
+    ModelRule("mistral-small-3.1", "Mistral Small 3.1", "Mistral",   r"mistral[-_ ]?small[-_ ]?(?:3[.\-]1(?!\d)|2503(?!\d))"),
     ModelRule("devstral",          "Devstral",          "Mistral",   r"devstral(?![-_ ]?(?:small|medium))"),
     ModelRule("doubao-seed-code",  "Doubao Seed Code",  "ByteDance", r"doubao[-_ ]?seed[-_ ]?code"),
     ModelRule("minimax-m3",        "MiniMax M3",        "MiniMax",   r"minimax[-_ ]?m3"),
@@ -380,6 +415,18 @@ _AT_DECORATION = frozenset({"default", "latest"})
 #: Epoch writes a run's effort after an underscore (`gpt-6-astra_high`). `none`, `minimal`,
 #: `promax` and `unknown` are not efforts this schema stores; they are removed and read as unspecified.
 _UNDERSCORE_EFFORT = re.compile(r"_(none|minimal|low|medium|high|xhigh|max|promax|unknown)\Z", re.I)
+#: #130: OpenRouter and Arena write a run's effort after a dash (`o3-mini-high`, `grok-4.7-xhigh`).
+#: Only `high` and `xhigh`: `-medium` and `-max` end product names (Magistral Medium, Qwen3 Max, Codex
+#: Max), and no product ends in `-high`.
+_DASH_EFFORT = re.compile(r"-(xhigh|high)\Z", re.I)
+#: The review's R2 (M19-W1): on Perplexity's Sonar names `-high` is the search-context size
+#: (`ppl-sonar-pro-high`), not an effort, so the dash grammar leaves them whole.
+_SEARCH_CONTEXT_NAME = re.compile(r"sonar", re.I)
+
+
+def _dash_effort(text: str) -> re.Match[str] | None:
+    """A trailing `-high` or `-xhigh` that is an effort, and not a Sonar name's search context."""
+    return None if _SEARCH_CONTEXT_NAME.search(text) else _DASH_EFFORT.search(text)
 #: The route segment before a model name, as price feeds write it, to the vendor it names.
 _VENDOR_SLUGS: dict[str, str] = {
     "openai": "OpenAI", "anthropic": "Anthropic", "google": "Google", "gemini": "Google",
@@ -443,6 +490,8 @@ MOVING_ALIASES: dict[str, str] = {
     "command-r": "Cohere repointed the alias (2024-03 to 2024-08)",
     "command-r-plus": "Cohere repointed the alias (2024-04 to 2024-08)",
     "mistral-medium": "Mistral reused the name for a different generation",
+    # M19-W1: Mistral Medium 3.5's page lists `mistral-medium-3` among its API names (2026-10-06).
+    "mistral-medium3": "Mistral moved the alias from Medium 3 (25.05) to Medium 3.5 (26.04)",
     "gpt4-turbo": "OpenAI moved the alias across the preview and 2024-04-09 releases",
     "gpt4o-mini": "an undated OpenAI alias, pinned only by its dated snapshot",
     "o1": "OpenAI moved the alias from the preview to 2024-12-17",
@@ -468,7 +517,7 @@ def derive_identity(name: str) -> DerivedIdentity | None:
         return None
     text = name.strip()
     effort: str | None = None
-    suffix = _UNDERSCORE_EFFORT.search(text) or _PAREN_EFFORT.search(text)
+    suffix = _UNDERSCORE_EFFORT.search(text) or _PAREN_EFFORT.search(text) or _dash_effort(text)
     if suffix:
         token = suffix.group(1).lower()
         effort = token if token in EFFORT_LEVELS else None
@@ -516,10 +565,6 @@ _DISPLAY = re.compile(r"[A-Za-z0-9][A-Za-z0-9 .+()\-]{0,63}")
 #: word order the curated rules use; Claude in Anthropic's (`test_display_names.py`). OpenAI's
 #: reasoning models are named as their ids (`o3`, `o4-mini`) and need no entry.
 DISPLAY_NAMES: dict[str, str] = {
-    "claude3-haiku20240307": "Claude 3 Haiku (2024-03-07)",
-    "claude3-opus20240229": "Claude 3 Opus (2024-02-29)",
-    "claude3-sonnet20240229": "Claude 3 Sonnet (2024-02-29)",
-    "claude3.5-haiku20241022": "Claude 3.5 Haiku (2024-10-22)",
     "claude3.5-sonnet20240620": "Claude 3.5 Sonnet (2024-06-20)",
     "claude3.5-sonnet20241022": "Claude 3.5 Sonnet (2024-10-22)",
     "dbrx-instruct": "DBRX Instruct",
@@ -541,7 +586,6 @@ DISPLAY_NAMES: dict[str, str] = {
     "nova-micro": "Nova Micro",
     "nova-pro": "Nova Pro",
     "o1-2024-12-17": "o1 (2024-12-17)",
-    "o3-2025-04-16": "o3 (2025-04-16)",
     "qwen2-72b-instruct": "Qwen2 72B Instruct",
     "qwen2.5-14b-instruct": "Qwen2.5 14B Instruct",
     "qwen2.5-32b-instruct": "Qwen2.5 32B Instruct",
@@ -551,6 +595,100 @@ DISPLAY_NAMES: dict[str, str] = {
     "qwen3.5-122b-a10b": "Qwen3.5 122B A10B",
     "qwq-plus": "QwQ Plus",
     "trinity-large-thinking": "Trinity Large Thinking",
+    # #112's remainder (M19-W1): served under a lower-case spelling of the id. Each name is its maker's,
+    # from the page beside it (read 2026-10-06), in this table's form: words spaced as the maker writes
+    # them in prose, a snapshot's date in brackets where the maker's name carries none.
+    # Cohere
+    "c4ai-aya-expanse32b": "Aya Expanse 32B",                    # docs.cohere.com/docs/aya-expanse
+    "command-a03-2025": "Command A (03-2025)",                   # docs.cohere.com/docs/command-a
+    "command-r-plus08-2024": "Command R+ 08-2024",               # docs.cohere.com/docs/command-r-plus
+    "command-r08-2024": "Command R 08-2024",                     # docs.cohere.com/docs/command-r
+    # Meta: its cards name the family "Code Llama" and the variant "Instruct" ("CodeLlama 70B Instruct")
+    "codellama34b-instruct": "Code Llama 34B Instruct",  # huggingface.co/meta-llama/CodeLlama-34b-Instruct-hf
+    "codellama70b-instruct": "Code Llama 70B Instruct",  # huggingface.co/meta-llama/CodeLlama-70b-Instruct-hf
+    "llama2-7b-chat": "Llama 2 7B Chat",                 # huggingface.co/meta-llama/Llama-2-7b-chat-hf
+    "llama3-70b-instruct": "Llama 3 70B Instruct",       # huggingface.co/meta-llama/Meta-Llama-3-70B-Instruct
+    # Mistral: the names its model list gives each version (docs.mistral.ai/models)
+    "devstral-small2505": "Devstral Small 1.0",                  # .../models/devstral-small-1-0-25-05
+    "magistral-small2509": "Magistral Small 1.2",                # .../models/magistral-small-1-2-25-09
+    "mistral-medium2505": "Mistral Medium 3",                    # .../models/mistral-medium-3-25-05
+    "mistral-small2402": "Mistral Small 1.0",                    # .../models/mistral-small-1-0-24-02
+    "pixtral12b2409": "Pixtral 12B",                             # .../models/pixtral-12b-24-09
+    # Baidu
+    "ernie5.1": "ERNIE 5.1",                                     # ernie.baidu.com/blog/posts/ernie-5.1-0508-release
+    # Google: Gemma sizes as DeepMind writes "Gemma 3 27B IT" (ai.google.dev/gemma/docs/core/model_card_3)
+    "gemini-exp1206": "Gemini Exp-1206",                         # blog.google/feed/gemini-exp-1206
+    "gemini3.1-flash-lite-preview": "Gemini 3.1 Flash-Lite Preview",  # ai.google.dev/gemini-api/docs/models
+    "gemma2-27b-it": "Gemma 2 27B IT",                           # huggingface.co/google/gemma-2-27b-it
+    "gemma2b-it": "Gemma 2B IT",                                 # huggingface.co/google/gemma-2b-it
+    "gemma3-12b-it": "Gemma 3 12B IT",                           # ai.google.dev/gemma/docs/core/model_card_3
+    "gemma3-27b-it": "Gemma 3 27B IT",                           # ai.google.dev/gemma/docs/core/model_card_3
+    "gemma3-4b-it": "Gemma 3 4B IT",                             # ai.google.dev/gemma/docs/core/model_card_3
+    "gemma4-31b": "Gemma 4 31B",                                 # ai.google.dev/gemma/docs/core/model_card_4
+    "gemma7b-it": "Gemma 7B IT",                                 # huggingface.co/google/gemma-7b-it
+    # Z.ai
+    "glm4.5-air": "GLM-4.5-Air",                                 # docs.z.ai/guides/llm/glm-4.5
+    "glm4.5v": "GLM-4.5V",                                       # docs.z.ai/guides/vlm/glm-4.5v
+    "glm5v-turbo": "GLM-5V-Turbo",                               # docs.z.ai/guides/vlm/glm-5v-turbo
+    # OpenAI: its model pages, developers.openai.com/api/docs/models/<model>, which list each snapshot;
+    # it writes gpt-oss, o1-mini and o1-pro in lower case. 0613 and 1106-preview are named only in its
+    # 2023 announcements (openai.com/index/function-calling-and-other-api-updates, .../devday).
+    "gpt-oss120b": "gpt-oss-120b",                               # .../models/gpt-oss-120b
+    "gpt-oss20b": "gpt-oss-20b",                                 # .../models/gpt-oss-20b
+    "gpt3.5-turbo0125": "GPT-3.5 Turbo (0125)",                  # .../models/gpt-3.5-turbo
+    "gpt3.5-turbo0613": "GPT-3.5 Turbo (0613)",                  # the June 2023 announcement
+    "gpt3.5-turbo1106": "GPT-3.5 Turbo (1106)",                  # .../models/gpt-3.5-turbo
+    "gpt4-0125-preview": "GPT-4 Turbo Preview (0125)",           # .../models/gpt-4-turbo-preview
+    "gpt4-0613": "GPT-4 (0613)",                                 # .../models/gpt-4
+    "gpt4-1106-preview": "GPT-4 Turbo Preview (1106)",           # the DevDay announcement
+    "gpt4-turbo2024-04-09": "GPT-4 Turbo (2024-04-09)",          # .../models/gpt-4-turbo
+    "gpt4.5-preview": "GPT-4.5 Preview",                         # .../models/gpt-4.5-preview
+    "gpt4o-mini2024-07-18": "GPT-4o mini (2024-07-18)",          # .../models/gpt-4o-mini
+    "gpt5.1-codex-max": "GPT-5.1-Codex-Max",                     # .../models/gpt-5.1-codex-max
+    "o1-mini2024-09-12": "o1-mini (2024-09-12)",                 # .../models/o1-mini
+    "o1-pro2025-03-19": "o1-pro (2025-03-19)",                   # .../models/o1-pro
+    # IBM
+    "granite4.1-8b": "Granite 4.1 8B",                   # research.ibm.com/blog/granite-4-1-ai-foundation-models
+    "granite4.2-8b": "Granite 4.2 8B",                           # huggingface.co/ibm-granite/granite-4.2-8b
+    # xAI
+    "grok-code-fast1": "Grok Code Fast 1",                       # x.ai/news/grok-code-fast-1
+    "grok4.1-fast-reasoning": "Grok 4.1 Fast (reasoning)",       # x.ai/news/grok-4-1-fast
+    "grok4.20-multi-agent-beta0309": "Grok 4.20 Multi-Agent Beta (0309)",  # docs.x.ai/developers/models
+    "grok4.3": "Grok 4.3",                                       # docs.x.ai/developers/models/grok-4.3
+    # AI21, Inception, Amazon
+    "jamba1.5-large": "Jamba 1.5 Large",                         # huggingface.co/ai21labs/AI21-Jamba-1.5-Large
+    "jamba1.5-mini": "Jamba 1.5 Mini",                           # huggingface.co/ai21labs/AI21-Jamba-1.5-Mini
+    "mercury2": "Mercury 2",                                     # inceptionlabs.ai/blog/introducing-mercury-2
+    "nova2-lite": "Nova 2 Lite",                         # docs.aws.amazon.com/bedrock (model-card-amazon-nova-2-lite)
+    # Alibaba: its notice names the snapshots "Qwen-Plus-2025-01-25" and "Qwen-Turbo-2024-11-01"
+    # (alibabacloud.com/en/notice/model_studio_update_of_qwenplusturbo_4f8); Qwen3's cards on huggingface.co/Qwen
+    "qwen-plus2025-01-25": "Qwen-Plus-2025-01-25",
+    "qwen-turbo2024-11-01": "Qwen-Turbo-2024-11-01",
+    "qwen3-30b-a3b-thinking2507": "Qwen3-30B-A3B-Thinking-2507",
+    "qwen3-4b-instruct2507": "Qwen3-4B-Instruct-2507",
+    "qwen3-vl235b-a22b-thinking": "Qwen3-VL-235B-A22B-Thinking",
+    # StepFun, Hugging Face H4 (whose card writes "Zephyr 7B β"; a served name is ASCII, D-157)
+    "step3.5-flash": "Step 3.5 Flash",                           # huggingface.co/stepfun-ai/Step-3.5-Flash
+    "zephyr7b-beta": "Zephyr 7B Beta",                           # huggingface.co/HuggingFaceH4/zephyr-7b-beta
+    # Found by the artifact test once it named models by `reconcile` (M19-W1): each name is the one its
+    # maker's model card opens with, on huggingface.co/<maker>/<repo> (read 2026-10-06).
+    "gemma4-26b-a4b-it": "Gemma 4 26B A4B IT",                   # google/gemma-4-26B-A4B-it
+    "glm4.7-flash": "GLM-4.7-Flash",                             # zai-org/GLM-4.7-Flash
+    "llama3.1-nemotron-ultra253b-v1": "Llama-3.1-Nemotron-Ultra-253B-v1",  # nvidia/Llama-3_1-Nemotron-Ultra-253B-v1
+    "llama3.1-nemotron70b-instruct": "Llama-3.1-Nemotron-70B-Instruct",    # nvidia/Llama-3.1-Nemotron-70B-Instruct-HF
+    "nvidia-nemotron3-super120b-a12b": "NVIDIA-Nemotron-3-Super-120B-A12B",  # nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16
+    "mistral-small24b-instruct2501": "Mistral Small 3 (2501)",   # mistralai/Mistral-Small-24B-Instruct-2501
+    "mixtral8x22b-instruct-v0.1": "Mixtral-8x22B-Instruct-v0.1",  # mistralai/Mixtral-8x22B-Instruct-v0.1
+    "nous-hermes2-mixtral8x7b-dpo": "Nous Hermes 2 Mixtral 8x7B DPO",  # NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO
+    "phi3-medium4k-instruct": "Phi-3-Medium-4K-Instruct",        # microsoft/Phi-3-medium-4k-instruct
+    "phi3-mini128k-instruct": "Phi-3-Mini-128K-Instruct",        # microsoft/Phi-3-mini-128k-instruct
+    "qwen2-vl7b-instruct": "Qwen2-VL-7B-Instruct",               # Qwen/Qwen2-VL-7B-Instruct
+    "qwen2.5-vl32b-instruct": "Qwen2.5-VL-32B-Instruct",         # Qwen/Qwen2.5-VL-32B-Instruct
+    "qwen2.5-vl72b-instruct": "Qwen2.5-VL-72B-Instruct",         # Qwen/Qwen2.5-VL-72B-Instruct
+    "qwen3-30b-a3b-instruct2507": "Qwen3-30B-A3B-Instruct-2507",  # Qwen/Qwen3-30B-A3B-Instruct-2507
+    "qwen3-next80b-a3b-instruct": "Qwen3-Next-80B-A3B-Instruct",  # Qwen/Qwen3-Next-80B-A3B-Instruct
+    "qwen3-next80b-a3b-thinking": "Qwen3-Next-80B-A3B-Thinking",  # Qwen/Qwen3-Next-80B-A3B-Thinking
+    "qwen3-vl235b-a22b-instruct": "Qwen3-VL-235B-A22B-Instruct",  # Qwen/Qwen3-VL-235B-A22B-Instruct
 }
 
 
@@ -580,7 +718,10 @@ def _derived_display(model_id: str, names: list[str]) -> str:
         return DISPLAY_NAMES[model_id]
     candidates = set()
     for name in names:
-        bare = _PAREN_EFFORT.sub("", _UNDERSCORE_EFFORT.sub("", name.rsplit("/", 1)[-1])).strip()
+        bare = _PAREN_EFFORT.sub("", _UNDERSCORE_EFFORT.sub("", name.rsplit("/", 1)[-1]))
+        if dash := _dash_effort(bare):
+            bare = bare[: dash.start()]
+        bare = bare.strip()
         derived = derive_identity(bare)
         if _DISPLAY.fullmatch(bare) and derived is not None and derived.model_id == model_id:
             candidates.add(bare)
