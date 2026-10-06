@@ -204,6 +204,13 @@ def test_arithmetic_on_a_served_position_through_another_name_is_refused() -> No
     tripwire, which matches the words around the operator. The compiler follows the value. REQ-APP-005."""
     refused = gate.problems(gate.references(FLOW_AST))
     assert any(line.startswith("ContentView.swift:") and "served position" in line for line in refused), refused
+    # M19-W2 Tester: the fixture's other shapes refuse a served position in this file too, so the line
+    # above held nothing of R4's own; with the binding rule off it stayed green. The refusal must be on
+    # R4's own lines. # covers REQ-APP-005, D-181 clause 2 (a binding)
+    span = _lines_of("ContentView.swift", "func fixtureViewRanksByHand")
+    own = [line for line in refused if line.startswith("ContentView.swift:") and "served position" in line
+           and int(line.split(":")[1]) in span]
+    assert own, ("R4's own `let place = standing.position; place + 1` is not refused", refused)
 
 
 def test_a_second_sort_under_a_permitted_name_is_refused() -> None:
@@ -463,3 +470,75 @@ def test_the_committed_dump_is_the_fixture_as_it_compiles(monkeypatch: pytest.Mo
     if broken is None:
         pytest.skip("no Xcode toolchain")
     assert any("g2_fixture_ast.txt" in line for line in broken), broken
+
+
+def test_a_permission_the_client_no_longer_uses_fails_the_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """M19-W2 Tester (D-181 clause 5; D-180 clause 2's listed calls; the W2 review's R3): "a permission
+    the shipping client no longer uses fails the gate, so a ruling cannot outlive its code and a change
+    in the compiler's printed layout cannot silence a rule unnoticed". Nothing held it: with
+    `unseen_permissions` returning nothing, or `main()` not calling it, every test passed. Here each
+    kind of permission is judged on the compiled fixture's own facts (seen where the fixture uses it,
+    reported where it does not), and `main()` fails a client that shows none of them.
+    # covers REQ-APP-005, REQ-GAP-001, D-180, D-181"""
+    missing = gate.unseen_permissions(gate.references(FLOW_AST))
+    for seen in ("Combine.swift: position arithmetic", "Combine.swift: `sorted` on `common`",
+                 "StandingsStore.swift: a call to `FetchedStandings.init`"):
+        assert seen not in missing, ("the fixture uses this permission", seen, missing)
+    for unseen in ("Uncertainty.swift: score arithmetic", "Router.swift: price arithmetic in priceInPages",
+                   "FrontDoor.swift: `sorted` on `entries`", "EngineClient.swift: a call to `UIText.engineAddress`",
+                   "`GapEntry`, which no type decodes"):
+        assert unseen in missing, ("the fixture does not use this permission", unseen, missing)
+
+    names = {path.name for path in gate.CLIENT.rglob("*.swift")}
+    monkeypatch.setattr(gate, "self_test", lambda: [])
+    monkeypatch.setattr(gate, "dump_ast", lambda sdk_name, flags, folder=gate.CLIENT: ("", 0))
+    monkeypatch.setattr(gate, "problems", lambda found: [])
+    monkeypatch.setattr(gate, "references", lambda ast: {name: set() for name in names})
+    assert gate.main() == 1, "a client that uses none of the permissions passed the gate"
+    # The control: with no permission granted, the same client passes, so the failure above is theirs.
+    for table in ("ARITHMETIC_PERMITTED", "SORTS_PERMITTED", "SINK_CALLS_PERMITTED", "NOT_SERVED"):
+        monkeypatch.setattr(gate, table, {})
+    assert gate.main() == 0
+
+
+#: M19-W2 Tester: two routes D-180 clause 2 names for the code a sink runs elsewhere, which no fixture
+#: planted: a computed property (here read inside `FetchedStandings.init`, a call the sink may make),
+#: and a protocol requirement the sink's own file declares, answered by a conformance in another file.
+#: Each body reads the screen's global. The sink calls nothing it may not, so only `_SinkReach` sees them.
+SINK_REACH_PROBE = {
+    "EngineClient.swift": (
+        "import Foundation\n\n"
+        "protocol ProbeTagging {\n    func tag() -> String\n}\n\n"
+        "struct ProbeClient {\n"
+        "    func tagged(_ tagger: any ProbeTagging) -> String { tagger.tag() }\n"
+        "    func kept(_ data: Data) -> FetchedStandings? { try? FetchedStandings(payload: data) }\n"
+        "}\n"),
+    "Models.swift": (
+        "import Foundation\n\n"
+        "nonisolated(unsafe) var probeNote = \"\"\n\n"
+        "struct FetchedStandings {\n    let payload: Data\n\n"
+        "    init(payload: Data) throws {\n        self.payload = payload + Data(ProbeHolder.suffix.utf8)\n    }\n}\n"),
+    "Detail.swift": (
+        "import Foundation\n\n"
+        "struct ProbeHolder {\n    static var suffix: String { probeNote }\n}\n\n"
+        "struct ProbeTagger: ProbeTagging {\n    func tag() -> String { probeNote }\n}\n"),
+}
+
+
+@pytest.mark.skipif(shutil.which("xcrun") is None, reason="needs Xcode's compiler: the probe is compiled")
+def test_the_code_a_sink_runs_is_followed_into_computed_properties_and_protocol_witnesses(tmp_path: Path) -> None:
+    """M19-W2 Tester (D-180 clause 2, INV-66): `_SinkReach` follows "the functions, initialisers and
+    computed properties it calls ... every member a protocol requirement may dispatch to". Only the
+    function route was planted (the fixture's `fixtureStamped`), so with the computed-property or the
+    protocol branch of `_SinkReach.reached` removed every test passed. Compiled, as the gate compiles.
+    # covers REQ-GAP-001, D-180"""
+    for name, source in SINK_REACH_PROBE.items():
+        (tmp_path / name).write_text(source, encoding="utf-8")
+    _, sdk_name, flags = gate.CONFIGURATIONS[0]
+    dumped = gate.dump_ast(sdk_name, flags, tmp_path)
+    assert dumped is not None and dumped[1] == 0, dumped and dumped[0][-800:]
+    refused = gate.problems(gate.references(dumped[0]))
+    runs = [line for line in refused if line.startswith("Detail.swift:") and "code a privacy sink runs" in line]
+    assert any("`ProbeHolder.suffix`" in line and "`probeNote`" in line for line in runs), refused
+    assert any("`ProbeTagger.tag()`" in line and "`probeNote`" in line for line in runs), refused
+    assert len(refused) == 2, ("the probe's sink calls nothing it may not; only the two bodies are refused", refused)

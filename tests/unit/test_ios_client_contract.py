@@ -1465,3 +1465,18 @@ def test_a_directive_inside_a_comment_hides_nothing(tmp_path: pathlib.Path) -> N
     swift = tmp_path / "Probe.swift"
     swift.write_text("/*\n#if false\n*/\nlet probe = standing.position + 1\n/*\n#endif\n*/\n", encoding="utf-8")
     assert "standing.position + 1" in _swift(swift)
+
+
+def test_a_pin_here_never_reads_a_branch_no_build_compiles(tmp_path: pathlib.Path) -> None:
+    """M19-W2 Tester (#110, INV-78): every Swift pin here reads through `_swift`, and the test above
+    holds that; nothing held that `_swift` drops what no build compiles. With `_swift` returning the
+    raw text every test passed, and the timeout pin passes with both timeouts under `#if false` (the
+    W2 review's F2). # covers REQ-GAP-001 (INV-78)"""
+    swift = tmp_path / "Probe.swift"
+    text = ("let live = 1\n#if false\nconfiguration.timeoutIntervalForRequest = 10\n#endif\n"
+            "#if true\nlet kept = 2\n#else\nlet never = 3\n#endif\nlet after = 4\n")
+    swift.write_text(text, encoding="utf-8")
+    read = _swift(swift)
+    assert "timeoutIntervalForRequest" not in read and "never" not in read, "a branch no build compiles reads as live"
+    assert all(kept in read for kept in ("let live = 1", "let kept = 2", "let after = 4"))
+    assert read.count("\n") == text.count("\n"), "a dropped line must keep its line"
