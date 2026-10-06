@@ -210,3 +210,15 @@ through `Any` or text: the served facts reach the phone that way, so G-2 stays o
 remainder only (#171). #144's test reads the shipped session's configuration, not a `Set-Cookie`
 answer, because a `URLProtocol` stub bypasses the session's cookie handling (measured; the review's
 M9). Filed from the review: #168 (K1), #169 (K2), #170 (R1).
+
+**Amendment (2026-10-06, the second W2 review).** A second Code-Reviewer found more routes past the
+rules of the day, the same kinds of hole as the first. The privacy routes are closed by rules that do
+not grow by spelling (D-180 as amended): a kept type is built, extended and conformed only in its own
+file, the store is built and saved to only in its own, no file touches memory unsafely, and the code a
+sink runs elsewhere reads no shared mutable state. The arithmetic shapes are not chased a third time:
+D-181 now names the operators, methods and names it holds. The W2 criterion is not met as worded,
+because no check over the compiler's declarations proves "by any route the compiler accepts" or
+"however the value is named". Its privacy half is met for every route the M17 closure and both W2
+reviews planted, each refused; its arithmetic half for every shape the first W2 review planted and the
+operators, methods and names D-181 lists, and not for the second review's B3 shapes. Gaps G-1 and G-2
+stay open in part for the rest (#172; #171, #173).
