@@ -533,6 +533,31 @@ final class SlowTierTests: OfflineTestCase {
         XCTAssertEqual(outcome.tier, .model, "the deadline cut off a model that answered")
     }
 
+    /// #149: the deadline test failed once at 11.4 s against its 5 s bound, in a `make check-fast`
+    /// run with every core busy. The race only suspends; no app code blocks a thread; and in a test
+    /// process a blocked pool delays no timer (measured: 32 blocked tasks, a 0.2 s timer on time). So
+    /// what was late was the process itself, not scheduled. Stopped for six seconds here (SIGSTOP,
+    /// then SIGCONT: a pause, never a crash), every timer in it is late alike, and the question must
+    /// still go to the wording tier.
+    func testTheDeadlineIsHeldWhenTheProcessIsStarved() async throws {
+        #if os(macOS)
+        let router = TieredRouter(model: HangingTier(), similarity: FixedTier(outcome: wording),
+                                  modelTimeout: 0.2)
+        let pause = Process()
+        pause.executableURL = URL(fileURLWithPath: "/bin/sh")
+        let pid = ProcessInfo.processInfo.processIdentifier
+        pause.arguments = ["-c", "sleep 0.05; kill -STOP \(pid); sleep 6; kill -CONT \(pid)"]
+        let started = Date()
+        try pause.run()
+
+        let outcome = await router.route("fix my code", within: served)
+
+        XCTAssertEqual(outcome.tier, .similarity, "the question waited for a model that never came")
+        XCTAssertLessThan(Date().timeIntervalSince(started), 5,
+                          "the deadline was waited out by the call it exists to abandon")
+        #endif
+    }
+
     /// W3 re-review-2 R3-4: the abandoned call is not only left behind, it is told to stop.
     func testTheCallThatMissesTheDeadlineIsCancelled() async {
         let cancelled = Flag()
