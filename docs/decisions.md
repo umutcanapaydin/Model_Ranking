@@ -3942,17 +3942,32 @@ or a constructor called from the wrong file, passes both.
    - a sink file reading mutable stored state declared in any other file, whatever reaches it (a
      global, a static, or a class instance's `var` through a `let`);
    - `FetchedStandings(payload:)` built anywhere but the two sink files: only the engine's answer and
-     the store's own file become standings.
-3. So a sink sends or keeps only what its parameters, its immutable configuration and the engine's
-   answer give it, and `boards()` takes no parameter (INV-66).
-4. Lanes without Xcode hold the same by text, as the M17 seat proposed: no `static var` or
-   `nonisolated(unsafe)` in the two files; `boards()` calls exactly `fetch("v1/boards", query: [])`;
-   `Standings(` is built nowhere in the client; `FetchedStandings(` appears only in the two files.
+     the store's own file become standings;
+   - `EngineClient(baseURL:session:)` or `EngineClient.engineURL(from:)` used anywhere but
+     `EngineClient.swift`: the app builds `EngineClient()`, so no other file chooses where a request
+     goes (the W2 review's B2);
+   - anything a sink holds at a type's or the file's scope, a `let` included, of a type outside a short
+     list of values and the `URLSession` its own initialiser builds: a `let` holding an
+     `NSMutableString` is as shared as a `var` (the W2 review's M1);
+   - a sink calling a function, an initialiser or a computed property another file declares, unless it
+     is listed with its reason (today `UIText.engineAddress` and `FetchedStandings.init`): a body
+     another file owns can read the screen's state (M1). A listed call the sink no longer makes fails
+     the gate, so the list cannot go stale.
+3. So a sink sends or keeps only what its parameters, its own configuration and the engine's answer
+   give it, and `boards()` takes no parameter (INV-66).
+4. Lanes without Xcode hold the same by text, as the M17 seat proposed: no stored `static var`, with a
+   value or without, no stored `var` at file scope and no `nonisolated(unsafe)` in the two files;
+   `boards()` calls exactly `fetch("v1/boards", query: [])`; `Standings(` is built nowhere in the
+   client; `FetchedStandings(` appears only in the two files.
 
 **Measured.** A throwaway spike (`spike-m19-g1`, 2026-10-06, never pushed) ran the three rules over
 the compiled client in two configurations: the shipping client gave no finding; P2 was refused by
 the first rule, a variant relaying through a global `var` in `ContentView.swift` by the second, and
-P3 by the third. The current gate passed all three mutants in all four configurations.
+P3 by the third. The current gate passed all three mutants in all four configurations. The W2
+review's relays were each refused on the shipping client in all four configurations after the fix:
+U5 and U3b (a client built on a URL made from typed text, in `Detail.swift` and in `FrontDoor.swift`),
+S3 (an `NSMutableString` held as a `static let` on the client, set by the screen) and S2b (a function
+in `Detail.swift` that the request calls).
 
 **The rejected alternative.** A type that cannot carry the question: a constructor only the network
 answer or the store's file can call. Swift's access control is per file, and `FetchedStandings` has
@@ -3962,7 +3977,8 @@ nothing for P2, whose relay is shared state, not a type.
 
 **What it does not do.** A sink file's own code is still trusted: an edit inside `EngineClient.swift`
 that sends a new parameter is a reviewed change to a security glob, and its tests pin what each
-request carries (INV-64, INV-65). The gate holds the routes an edit elsewhere can take.
+request carries (INV-64, INV-65). The gate holds the routes an edit elsewhere can take. The date the
+standings store writes comes from its caller, a channel no rule here sees (#170).
 
 **Mitigation if violated.** A relay through shared state, or standings built from typed text, again
 carries the question off the device or into its caches with every gate passing.
@@ -3983,17 +3999,31 @@ sort's receiver. `let place = standing.position; place + 1` passed the first (th
 R4), and a second `common.sorted()` in `Combine.swift` passed the second (its Tester's M7).
 
 **Decision.**
-1. The declaration gate (D-180's home) follows each served number, a field `Models.swift` decodes
-   from the engine, through every local it is bound to, every parameter a call passes it to and
-   every loop element it yields, to a fixed point, on the compiled module in all four configurations.
-2. An arithmetic operator on a served number is refused outside the file a ruling names for it:
-   scores in `Uncertainty.swift` (D-138), positions in `Combine.swift` (D-167), and prices in
-   `Router.swift` and `Language.swift`, which turn the price per million tokens into a price per
-   page, in English and in Turkish (REQ-CMP-002, the unit a reader outside the industry uses, beside
-   the exact figure).
-3. A sort, reversal, shuffle or `max(by:)`/`min(by:)` is keyed on the receiver the compiler resolved,
-   and counted: each permitted one may occur as often as its table says, once today.
-4. The text tripwires stay, for the lanes without Xcode.
+1. A served number is any numeric value stored by a type the client decodes, found on the compiled
+   module, never listed by hand; a type the engine never sends (the phone's own gap register) is
+   named, with its reason, and a static is never decoded. The fields a ruling speaks of have a kind
+   (score, position, price, the tie margin, the Elo anchor); any other is a served number no ruling
+   names.
+2. The declaration gate (D-180's home) follows each served number, to a fixed point, on the compiled
+   module in all four configurations: through a binding, an assignment (`=` and `+=`), a function's
+   or a computed property's result, a function's, a method's or an initialiser's parameter (and a
+   memberwise initialiser's stored property), a function used as a value, every name a loop, a
+   condition (`if let`, `guard let`) or a `switch` case binds, a place handed `inout` (a mutating
+   method's receiver), a closure handed each element, and a protocol requirement, from every member of
+   its name. A value carries a served number only if its compiled type can hold one, and each carrier
+   is keyed where the compiler declares it, never by a bare name.
+3. Any operator on a number (`&+` and `Int32` included) or a numeric method (`advanced(by:)`) on a
+   served number is refused outside the place a ruling names: scores and the tie margin in
+   `Uncertainty.swift` (D-138), the anchor in its three conversions out of 100 (D-143), positions in
+   `Combine.swift` (D-167), and prices only in `priceInPages` in `Router.swift` and `Language.swift`,
+   which turn the price per million tokens into a price per page, in English and in Turkish
+   (REQ-CMP-002, the unit a reader outside the industry uses, beside the exact figure).
+4. A sort, reversal, shuffle or `max(by:)`/`min(by:)`, the standard library's or Foundation's
+   (`sorted(using:)`), is keyed on the receiver the compiler resolved, and counted: each permitted one
+   may occur as often as its table says, once today.
+5. A permission the shipping client no longer uses fails the gate, so a ruling cannot outlive its
+   code and a change in the compiler's printed layout cannot silence a rule unnoticed.
+6. The text tripwires stay, for the lanes without Xcode.
 
 **Found on the way.** The price-in-pages conversion was arithmetic on a served price that no table
 named: its parameter is called `blendedPerM`, without the `.` the text tripwire looks for. REQ-CMP-002
@@ -4001,19 +4031,24 @@ requires it, so it is permitted by name here rather than removed.
 
 **Measured.** The shipping client passes in all four configurations. Three mutants planted in it
 were each refused: a served score doubled through a local on the screen, a served price divided
-through a local in `Detail.swift`, and a second `common.sorted()` in `Combine.swift`.
+through a local in `Detail.swift`, and a second `common.sorted()` in `Combine.swift`. After the W2
+review's B1, its sixteen mutants (A0 to A14 and O1) and eight more shapes found while fixing it (`if
+let`, `guard let`, a `switch` case, a memberwise initialiser, a function as a value, `append`, a
+protocol requirement, `-=`) were each refused on the shipping client in all four configurations,
+with no refusal outside them.
 
 **The rejected alternative.** Exact-expression permissions, as `EGRESS_EXACT` does for egress: each
 permitted line spelled out. It holds what is written, but an alias on a line nobody listed is still
 invisible to it, which is the hole.
 
-**What it does not do.** A value that leaves the module's sight, through a closure stored and called
-later, a protocol's dynamic dispatch or a collection of mixed values, can still carry a served number
-past it; review and the Swift tests hold those. Formatter rounding is not arithmetic here
+**What it does not do.** A number passed through `Any` or through text is not followed, and the
+served facts (`whyFact`, `tradeOffFact`) reach the phone through `Any`, so arithmetic on a fact's
+number is held by review (gap G-2, #171). A protocol requirement carries what any member of its name
+carries, which can refuse more than it should, never less. Formatter rounding is not arithmetic here
 (REQ-APP-005 stays partial for it).
 
-**Revisit when:** a file needs arithmetic on a served number a ruling does not yet name, or the flow
-needs more than the shapes listed in (1).
+**Revisit when:** a file needs arithmetic on a served number a ruling does not yet name, #171 is
+taken, or the flow needs more than the shapes listed in (2).
 
 ## D-182 — Each pick carries its model's id on `/v1`, and the app keys its cards on it
 

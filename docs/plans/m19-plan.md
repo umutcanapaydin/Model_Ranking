@@ -200,3 +200,13 @@ own valve: it rewires the screen, which a dozen text pins hold as it is and only
 prove, and W2 already changes the answer screen's cards (#138). It goes to the next wave that works
 on the screen. The compiler-level arithmetic check (D-181) found the price in pages, a conversion of
 a served price REQ-CMP-002 requires, in two files no table named; D-181 names them.
+
+**Amendment (2026-10-06, the W2 review).** The Code-Reviewer's two blocking findings were fixed in the
+wave, each with a red test made from the review's mutants: B1 (arithmetic on a served number through
+ordinary names) by following a served number through every name the compiler shows (D-181 as
+amended), and B2 (a client built on a URL made from typed text) by keeping the client's address in
+`EngineClient.swift` (D-180 as amended). The W2 criterion "however the value is named" holds except
+through `Any` or text: the served facts reach the phone that way, so G-2 stays open for that
+remainder only (#171). #144's test reads the shipped session's configuration, not a `Set-Cookie`
+answer, because a `URLProtocol` stub bypasses the session's cookie handling (measured; the review's
+M9). Filed from the review: #168 (K1), #169 (K2), #170 (R1).
