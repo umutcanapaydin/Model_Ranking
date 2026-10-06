@@ -654,3 +654,18 @@ def test_a_gpt5_codex_mini_is_neither_gpt5_mini_nor_gpt5_codex(name: str) -> Non
     assert canonicalize(name) is None, canonicalize(name)
     identity = derive_identity(name)
     assert identity is not None and identity.model_id == "gpt5-codex-mini"
+
+
+@pytest.mark.parametrize("minor", ["5.1", "5.2", "5.3", "5.4", "5.5", "5.6"])
+@pytest.mark.parametrize("variant", ["mini", "nano", "chat", "thinking-mini", "Thinking Nano"])
+def test_no_gpt5_minor_release_rule_takes_another_releases_variant(minor: str, variant: str) -> None:
+    """#162 put `mini`, `nano` and `chat` in every GPT-5.x parent rule's lookahead (the M19-W1 Tester,
+    fault F14): with GPT-5.2's taken out, `gpt-5.2-mini` became GPT-5.2 and the suite stayed green, as
+    only 5.1 and 5.5 were pinned. A minor release's variant is its own rule's model, or no rule's
+    (it derives, D-157); never its parent's, and never GPT-5's variant.
+    covers REQ-CAN-002 (#162)"""
+    for name in (f"gpt-{minor}-{variant}", f"openai/gpt-{minor}-{variant}", f"GPT-{minor} {variant}",
+                 f"gpt-{minor}-{variant}-2026-01-01"):
+        rule = canonicalize(name)
+        own = f"gpt-{minor}-{variant.lower().removeprefix('thinking').strip(' -')}"
+        assert rule is None or rule.canonical_id == own, (name, rule)

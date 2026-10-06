@@ -267,3 +267,47 @@ def test_a_sonar_names_high_is_its_search_context_not_an_effort(name: str) -> No
     identity = derive_identity(name)
     assert identity is not None and (identity.model_id, identity.effort) == (name, None), identity
     assert registry._derived_display(name, [name]) == name
+
+
+def test_o3_mini_high_is_stored_as_o3_mini_at_high_effort_on_the_path_a_build_takes() -> None:
+    """#130's expected result, end to end (the M19-W1 Tester, fault F11): Arena's and OpenRouter's
+    `o3-mini-high` is o3-mini, its score stored at effort `high`. Production no longer reaches
+    `derive_identity` for the name: the curated `o3-mini` rule takes it, and ingest reads the effort.
+    A rule that stopped taking `-high` left the derived path to propose `o3-mini`, a curated id it
+    may not take, so the score was dropped, and the whole suite stayed green.
+    covers REQ-CAN-001, REQ-CAN-005 (#130)"""
+    import json
+
+    from app.clients.fakes import FakeRawSource
+    from app.workflows.ingest import RunContext, ingest_arena, ingest_openrouter
+
+    board = json.dumps({"rows": [
+        {"row_idx": i, "row": {"model_name": name, "rating": rating, "category": "overall",
+                               "leaderboard_publish_date": "2026-09-13"}}
+        for i, (name, rating) in enumerate([("o3-mini", 1300.0), ("o3-mini-high", 1320.0)])
+    ], "num_rows_total": 2})
+    catalog = json.dumps({"data": [
+        {"id": slug, "pricing": {"prompt": "0.0000011", "completion": "0.0000044"}}
+        for slug in ("openai/o3-mini", "openai/o3-mini-high")
+    ]})
+    conn = connect(":memory:")
+    run = RunContext(observed_at="t")
+    ingest_arena(conn, FakeRawSource("arena", board), run)
+    ingest_openrouter(conn, FakeRawSource("openrouter", catalog), run)
+    report = reconcile(conn)
+    assert conn.execute("SELECT raw_name, model_id, effort FROM scores ORDER BY raw_name").fetchall() == [
+        ("o3-mini", "o3-mini", "unspecified"), ("o3-mini-high", "o3-mini", "high")]
+    assert conn.execute("SELECT DISTINCT model_id FROM pricing").fetchall() == [("o3-mini",)]
+    assert conn.execute("SELECT id FROM models").fetchall() == [("o3-mini",)]
+    assert report.derived == () and "o3-mini-high" not in report.dropped_names
+
+
+def test_a_derived_models_name_carries_no_dash_effort() -> None:
+    """#130's dash grammar reaches the name a reader sees (the M19-W1 Tester, fault F12): a model
+    known only by `zeta-9-xhigh` is Zeta 9 at effort `xhigh`, served as `zeta-9`, never under a name
+    that ends in its effort. Removing the strip from `_derived_display` kept every test green.
+    covers REQ-CAN-001 (#130, #112)"""
+    conn = _conn(["openrouter/acme/zeta-9"], [("zeta-9-xhigh", "unspecified")])
+    reconcile(conn)
+    assert conn.execute("SELECT id, display FROM models").fetchall() == [("zeta9", "zeta-9")]
+    assert conn.execute("SELECT model_id, effort FROM scores").fetchall() == [("zeta9", "xhigh")]
