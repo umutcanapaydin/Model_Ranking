@@ -238,6 +238,10 @@ FIXTURE_REFUSALS = {
     ("EngineClient.swift", "mutable stored state"),
     ("EngineClient.swift", "mutable state declared in ContentView.swift"),
     ("ContentView.swift", "builds FetchedStandings"),
+    # #60 (G-2): arithmetic on a served position through another name, and a second sort under a
+    # permitted receiver's name.
+    ("ContentView.swift", "served position"),
+    ("Combine.swift", "sorts `common`"),
 }
 SOURCE = re.compile(r'^\(source_file "([^"]+)"', re.MULTILINE)
 #: One node of the dump: its indentation (the tree's depth) and its kind.

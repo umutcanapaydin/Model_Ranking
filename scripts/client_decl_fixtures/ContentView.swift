@@ -22,3 +22,10 @@ func fixtureViewRelays(_ typed: String) {
 func fixtureViewKeepsTheQuestion(_ typed: String) -> FetchedStandings? {
     try? FetchedStandings(payload: Data(typed.utf8))
 }
+
+// #60 (G-2): arithmetic on a served position through another name, the M17-W4 review's R4.
+// REFUSED: the screen ranks nothing.
+func fixtureViewRanksByHand(_ standing: Standing) -> Int {
+    let place = standing.position
+    return place + 1
+}

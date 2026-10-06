@@ -176,3 +176,44 @@ def test_what_the_sinks_may_hold_and_others_may_read_passes() -> None:
     allowed = ("`limit`", "`computed`", "`parts`")
     assert not [line for line in refused if any(name in line for name in allowed)], refused
     assert not [line for line in refused if line.startswith(("Detail.swift:", "Models.swift:"))], refused
+
+
+#: #60 (G-2): what `swiftc -dump-ast` printed for the compiled fixture (Xcode 26), trimmed to the
+#: functions these rules read: `Combine.swift`'s permitted position arithmetic and its two sorts of a
+#: list named `common`, and `ContentView.swift` adding to a served position through another name.
+FLOW_AST = (ROOT / "tests" / "unit" / "data" / "g2_fixture_ast.txt").read_text(encoding="utf-8")
+
+
+def _without(ast: str, function: str) -> str:
+    """`ast` with one top-level function's subtree removed."""
+    out, skipping = [], False
+    for line in ast.splitlines():
+        if line.startswith("  (func_decl"):
+            skipping = f'"{function}"' in line
+        elif line.startswith("(source_file"):
+            skipping = False
+        if not skipping:
+            out.append(line)
+    return "\n".join(out) + "\n"
+
+
+def test_arithmetic_on_a_served_position_through_another_name_is_refused() -> None:
+    """#60 (the M17-W4 review's R4): `let place = standing.position; place + 1` passed the text
+    tripwire, which matches the words around the operator. The compiler follows the value."""
+    refused = gate.problems(gate.references(FLOW_AST))
+    assert any(line.startswith("ContentView.swift:") and "served position" in line for line in refused), refused
+
+
+def test_a_second_sort_under_a_permitted_name_is_refused() -> None:
+    """#60 (the M17-W4 Tester's M7): a second `common.sorted()` in `Combine.swift` passed, because the
+    permission was keyed by the receiver's name. Each permitted sort is counted."""
+    refused = gate.problems(gate.references(FLOW_AST))
+    assert any(line.startswith("Combine.swift:") and "sorts `common`" in line for line in refused), refused
+    once = gate.problems(gate.references(_without(FLOW_AST, "fixtureCombinesTwice(_:)")))
+    assert not [line for line in once if "sorts `common`" in line], once
+
+
+def test_permitted_arithmetic_passes_where_its_ruling_names_the_file() -> None:
+    """#60: D-167 lets `Combine.swift` rank positions; the gate refuses nothing there for it."""
+    refused = gate.problems(gate.references(FLOW_AST))
+    assert not [line for line in refused if line.startswith("Combine.swift:") and "served position" in line], refused

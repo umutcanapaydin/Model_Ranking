@@ -1,0 +1,201 @@
+(source_file "/x/Combine.swift"
+  (func_decl range=[/x/Combine.swift:5:1 - line:7:1] "fixtureCombinedRank(_:)" interface_type="(Standing) -> Int" access=internal result="Int" thrown_type="<null>"
+    (parameter_list range=[/x/Combine.swift:5:25 - line:5:46]
+      (parameter "standing" interface_type="Standing"))
+    (brace_stmt range=[/x/Combine.swift:5:55 - line:7:1]
+      (return_stmt implicit range=[/x/Combine.swift:6:5 - line:6:18]
+        (binary_expr type="Int" location=/x/Combine.swift:6:7 range=[/x/Combine.swift:6:5 - line:6:18] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr implicit type="(Int, Int) -> Int" location=/x/Combine.swift:6:7 range=[/x/Combine.swift:6:7 - line:6:7] nothrow isolation_crossing="none"
+            (declref_expr type="(Int.Type) -> (Int, Int) -> Int" location=/x/Combine.swift:6:7 range=[/x/Combine.swift:6:7 - line:6:7] decl="Swift.(file).Int extension.+" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (type_expr implicit type="Int.Type" location=/x/Combine.swift:6:7 range=[/x/Combine.swift:6:7 - line:6:7] typerepr="Int"))))
+          (argument_list implicit
+            (argument
+              (integer_literal_expr type="Int" location=/x/Combine.swift:6:5 range=[/x/Combine.swift:6:5 - line:6:5] value="1" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))
+            (argument
+              (member_ref_expr type="Int" location=/x/Combine.swift:6:18 range=[/x/Combine.swift:6:9 - line:6:18] decl="main.(file).Standing.position@/x/Models.swift:6:9"
+                (declref_expr type="Standing" location=/x/Combine.swift:6:9 range=[/x/Combine.swift:6:9 - line:6:9] decl="main.(file).fixtureCombinedRank(_:).standing@/x/Combine.swift:5:28" function_ref=unapplied))))))))
+  (func_decl range=[/x/Combine.swift:9:1 - line:12:1] "fixtureCombines(_:)" interface_type="([Standing]) -> [String]" access=internal result="[String]" thrown_type="<null>"
+    (parameter_list range=[/x/Combine.swift:9:21 - line:9:45]
+      (parameter "standings" interface_type="[Standing]"))
+    (brace_stmt range=[/x/Combine.swift:9:59 - line:12:1]
+      (pattern_binding_decl range=[/x/Combine.swift:10:5 - line:10:39]
+        (pattern_entry
+          (pattern_named type="[String]" "common")
+          (original_init=call_expr type="[String]" location=/x/Combine.swift:10:28 range=[/x/Combine.swift:10:18 - line:10:39] nothrow isolation_crossing="none"
+            (dot_syntax_call_expr type="((Standing) -> String) -> [String]" location=/x/Combine.swift:10:28 range=[/x/Combine.swift:10:18 - line:10:28] nothrow isolation_crossing="none"
+              (declref_expr type="([Standing]) -> ((Standing) -> String) -> [String]" location=/x/Combine.swift:10:28 range=[/x/Combine.swift:10:28 - line:10:28] decl="Swift.(file).Collection extension.map [with (substitution_map generic_signature=<Self, T, E where Self : Collection, T : Copyable, T : Escapable, E : Error> Self -> [Standing] T -> String E -> Never)]" function_ref=single apply)
+              (argument_list implicit
+                (argument
+                  (declref_expr type="[Standing]" location=/x/Combine.swift:10:18 range=[/x/Combine.swift:10:18 - line:10:18] decl="main.(file).fixtureCombines(_:).standings@/x/Combine.swift:9:24" function_ref=unapplied))))
+            (argument_list
+              (argument
+                (function_conversion_expr implicit type="(Standing) -> String" location=/x/Combine.swift:10:32 range=[/x/Combine.swift:10:32 - line:10:34]
+                  (capture_list implicit type="(Standing) -> String" location=/x/Combine.swift:10:32 range=[/x/Combine.swift:10:32 - line:10:34]
+                    (pattern_binding_decl implicit
+                      (pattern_entry
+                        (pattern_named implicit type="KeyPath<Standing, String>" "$kp$")
+                        (original_init=keypath_expr type="KeyPath<Standing, String>" location=/x/Combine.swift:10:32 range=[/x/Combine.swift:10:32 - line:10:34]
+                          (components
+                            (member decl="main.(file).Standing.model@/x/Models.swift:5:9" type="String"))
+                          (parsed_path=unresolved_dot_expr type="<null>" field="model" function_ref=unapplied
+                            (key_path_dot_expr implicit type="<null>")))
+                        (processed_init=keypath_expr type="KeyPath<Standing, String>" location=/x/Combine.swift:10:32 range=[/x/Combine.swift:10:32 - line:10:34]
+                          (components
+                            (member decl="main.(file).Standing.model@/x/Models.swift:5:9" type="String"))
+                          (parsed_path=unresolved_dot_expr type="<null>" field="model" function_ref=unapplied
+                            (key_path_dot_expr implicit type="<null>")))))
+                    (autoclosure_expr implicit type="(Standing) -> String" location=/x/Combine.swift:10:32 range=[/x/Combine.swift:10:32 - line:10:34] discriminator=0 nonisolated captures=($kp$<direct>) escaping
+                      (parameter_list
+                        (parameter "$0" interface_type="Standing"))
+                      (keypath_application_expr implicit type="String" location=/x/Combine.swift:10:32 range=[/x/Combine.swift:10:32 - line:10:34]
+                        (declref_expr implicit type="Standing" location=/x/Combine.swift:10:32 range=[/x/Combine.swift:10:32 - line:10:32] decl="main.(file).fixtureCombines(_:).autoclosure discriminator=0.$0" function_ref=unapplied)
+                        (declref_expr implicit type="KeyPath<Standing, String>" location=/x/Combine.swift:10:32 range=[/x/Combine.swift:10:32 - line:10:32] decl="main.(file).fixtureCombines(_:).$kp$" function_ref=unapplied))))))))
+          (processed_init=call_expr type="[String]" location=/x/Combine.swift:10:28 range=[/x/Combine.swift:10:18 - line:10:39] nothrow isolation_crossing="none"
+            (dot_syntax_call_expr type="((Standing) -> String) -> [String]" location=/x/Combine.swift:10:28 range=[/x/Combine.swift:10:18 - line:10:28] nothrow isolation_crossing="none"
+              (declref_expr type="([Standing]) -> ((Standing) -> String) -> [String]" location=/x/Combine.swift:10:28 range=[/x/Combine.swift:10:28 - line:10:28] decl="Swift.(file).Collection extension.map [with (substitution_map generic_signature=<Self, T, E where Self : Collection, T : Copyable, T : Escapable, E : Error> Self -> [Standing] T -> String E -> Never)]" function_ref=single apply)
+              (argument_list implicit
+                (argument
+                  (declref_expr type="[Standing]" location=/x/Combine.swift:10:18 range=[/x/Combine.swift:10:18 - line:10:18] decl="main.(file).fixtureCombines(_:).standings@/x/Combine.swift:9:24" function_ref=unapplied))))
+            (argument_list
+              (argument
+                (function_conversion_expr implicit type="(Standing) -> String" location=/x/Combine.swift:10:32 range=[/x/Combine.swift:10:32 - line:10:34]
+                  (capture_list implicit type="(Standing) -> String" location=/x/Combine.swift:10:32 range=[/x/Combine.swift:10:32 - line:10:34]
+                    (pattern_binding_decl implicit
+                      (pattern_entry
+                        (pattern_named implicit type="KeyPath<Standing, String>" "$kp$")
+                        (original_init=keypath_expr type="KeyPath<Standing, String>" location=/x/Combine.swift:10:32 range=[/x/Combine.swift:10:32 - line:10:34]
+                          (components
+                            (member decl="main.(file).Standing.model@/x/Models.swift:5:9" type="String"))
+                          (parsed_path=unresolved_dot_expr type="<null>" field="model" function_ref=unapplied
+                            (key_path_dot_expr implicit type="<null>")))
+                        (processed_init=keypath_expr type="KeyPath<Standing, String>" location=/x/Combine.swift:10:32 range=[/x/Combine.swift:10:32 - line:10:34]
+                          (components
+                            (member decl="main.(file).Standing.model@/x/Models.swift:5:9" type="String"))
+                          (parsed_path=unresolved_dot_expr type="<null>" field="model" function_ref=unapplied
+                            (key_path_dot_expr implicit type="<null>")))))
+                    (autoclosure_expr implicit type="(Standing) -> String" location=/x/Combine.swift:10:32 range=[/x/Combine.swift:10:32 - line:10:34] discriminator=0 nonisolated captures=($kp$<direct>) escaping
+                      (parameter_list
+                        (parameter "$0" interface_type="Standing"))
+                      (keypath_application_expr implicit type="String" location=/x/Combine.swift:10:32 range=[/x/Combine.swift:10:32 - line:10:34]
+                        (declref_expr implicit type="Standing" location=/x/Combine.swift:10:32 range=[/x/Combine.swift:10:32 - line:10:32] decl="main.(file).fixtureCombines(_:).autoclosure discriminator=0.$0" function_ref=unapplied)
+                        (declref_expr implicit type="KeyPath<Standing, String>" location=/x/Combine.swift:10:32 range=[/x/Combine.swift:10:32 - line:10:32] decl="main.(file).fixtureCombines(_:).$kp$" function_ref=unapplied))))))))))
+      (var_decl range=[/x/Combine.swift:10:9 - line:10:9] "common" interface_type="[String]" access=private let readImpl=stored immutable
+        (has_initial_value_attr implicit)
+        (has_storage_attr implicit))
+      (return_stmt range=[/x/Combine.swift:11:5 - line:11:26]
+        (call_expr type="[String]" location=/x/Combine.swift:11:19 range=[/x/Combine.swift:11:12 - line:11:26] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr type="() -> [String]" location=/x/Combine.swift:11:19 range=[/x/Combine.swift:11:12 - line:11:19] nothrow isolation_crossing="none"
+            (declref_expr type="([String]) -> () -> [String]" location=/x/Combine.swift:11:19 range=[/x/Combine.swift:11:19 - line:11:19] decl="Swift.(file).Sequence extension.sorted() [with (substitution_map generic_signature=<Self where Self : Sequence, Self.Element : Comparable> Self -> [String])]" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (declref_expr type="[String]" location=/x/Combine.swift:11:12 range=[/x/Combine.swift:11:12 - line:11:12] decl="main.(file).fixtureCombines(_:).common@/x/Combine.swift:10:9" function_ref=unapplied))))
+          (argument_list)))))
+  (func_decl range=[/x/Combine.swift:14:1 - line:17:1] "fixtureCombinesTwice(_:)" interface_type="([Standing]) -> [String]" access=internal result="[String]" thrown_type="<null>"
+    (parameter_list range=[/x/Combine.swift:14:26 - line:14:50]
+      (parameter "standings" interface_type="[Standing]"))
+    (brace_stmt range=[/x/Combine.swift:14:64 - line:17:1]
+      (pattern_binding_decl range=[/x/Combine.swift:15:5 - line:15:39]
+        (pattern_entry
+          (pattern_named type="[String]" "common")
+          (original_init=call_expr type="[String]" location=/x/Combine.swift:15:28 range=[/x/Combine.swift:15:18 - line:15:39] nothrow isolation_crossing="none"
+            (dot_syntax_call_expr type="((Standing) -> String) -> [String]" location=/x/Combine.swift:15:28 range=[/x/Combine.swift:15:18 - line:15:28] nothrow isolation_crossing="none"
+              (declref_expr type="([Standing]) -> ((Standing) -> String) -> [String]" location=/x/Combine.swift:15:28 range=[/x/Combine.swift:15:28 - line:15:28] decl="Swift.(file).Collection extension.map [with (substitution_map generic_signature=<Self, T, E where Self : Collection, T : Copyable, T : Escapable, E : Error> Self -> [Standing] T -> String E -> Never)]" function_ref=single apply)
+              (argument_list implicit
+                (argument
+                  (declref_expr type="[Standing]" location=/x/Combine.swift:15:18 range=[/x/Combine.swift:15:18 - line:15:18] decl="main.(file).fixtureCombinesTwice(_:).standings@/x/Combine.swift:14:29" function_ref=unapplied))))
+            (argument_list
+              (argument
+                (function_conversion_expr implicit type="(Standing) -> String" location=/x/Combine.swift:15:32 range=[/x/Combine.swift:15:32 - line:15:34]
+                  (capture_list implicit type="(Standing) -> String" location=/x/Combine.swift:15:32 range=[/x/Combine.swift:15:32 - line:15:34]
+                    (pattern_binding_decl implicit
+                      (pattern_entry
+                        (pattern_named implicit type="KeyPath<Standing, String>" "$kp$")
+                        (original_init=keypath_expr type="KeyPath<Standing, String>" location=/x/Combine.swift:15:32 range=[/x/Combine.swift:15:32 - line:15:34]
+                          (components
+                            (member decl="main.(file).Standing.model@/x/Models.swift:5:9" type="String"))
+                          (parsed_path=unresolved_dot_expr type="<null>" field="model" function_ref=unapplied
+                            (key_path_dot_expr implicit type="<null>")))
+                        (processed_init=keypath_expr type="KeyPath<Standing, String>" location=/x/Combine.swift:15:32 range=[/x/Combine.swift:15:32 - line:15:34]
+                          (components
+                            (member decl="main.(file).Standing.model@/x/Models.swift:5:9" type="String"))
+                          (parsed_path=unresolved_dot_expr type="<null>" field="model" function_ref=unapplied
+                            (key_path_dot_expr implicit type="<null>")))))
+                    (autoclosure_expr implicit type="(Standing) -> String" location=/x/Combine.swift:15:32 range=[/x/Combine.swift:15:32 - line:15:34] discriminator=0 nonisolated captures=($kp$<direct>) escaping
+                      (parameter_list
+                        (parameter "$0" interface_type="Standing"))
+                      (keypath_application_expr implicit type="String" location=/x/Combine.swift:15:32 range=[/x/Combine.swift:15:32 - line:15:34]
+                        (declref_expr implicit type="Standing" location=/x/Combine.swift:15:32 range=[/x/Combine.swift:15:32 - line:15:32] decl="main.(file).fixtureCombinesTwice(_:).autoclosure discriminator=0.$0" function_ref=unapplied)
+                        (declref_expr implicit type="KeyPath<Standing, String>" location=/x/Combine.swift:15:32 range=[/x/Combine.swift:15:32 - line:15:32] decl="main.(file).fixtureCombinesTwice(_:).$kp$" function_ref=unapplied))))))))
+          (processed_init=call_expr type="[String]" location=/x/Combine.swift:15:28 range=[/x/Combine.swift:15:18 - line:15:39] nothrow isolation_crossing="none"
+            (dot_syntax_call_expr type="((Standing) -> String) -> [String]" location=/x/Combine.swift:15:28 range=[/x/Combine.swift:15:18 - line:15:28] nothrow isolation_crossing="none"
+              (declref_expr type="([Standing]) -> ((Standing) -> String) -> [String]" location=/x/Combine.swift:15:28 range=[/x/Combine.swift:15:28 - line:15:28] decl="Swift.(file).Collection extension.map [with (substitution_map generic_signature=<Self, T, E where Self : Collection, T : Copyable, T : Escapable, E : Error> Self -> [Standing] T -> String E -> Never)]" function_ref=single apply)
+              (argument_list implicit
+                (argument
+                  (declref_expr type="[Standing]" location=/x/Combine.swift:15:18 range=[/x/Combine.swift:15:18 - line:15:18] decl="main.(file).fixtureCombinesTwice(_:).standings@/x/Combine.swift:14:29" function_ref=unapplied))))
+            (argument_list
+              (argument
+                (function_conversion_expr implicit type="(Standing) -> String" location=/x/Combine.swift:15:32 range=[/x/Combine.swift:15:32 - line:15:34]
+                  (capture_list implicit type="(Standing) -> String" location=/x/Combine.swift:15:32 range=[/x/Combine.swift:15:32 - line:15:34]
+                    (pattern_binding_decl implicit
+                      (pattern_entry
+                        (pattern_named implicit type="KeyPath<Standing, String>" "$kp$")
+                        (original_init=keypath_expr type="KeyPath<Standing, String>" location=/x/Combine.swift:15:32 range=[/x/Combine.swift:15:32 - line:15:34]
+                          (components
+                            (member decl="main.(file).Standing.model@/x/Models.swift:5:9" type="String"))
+                          (parsed_path=unresolved_dot_expr type="<null>" field="model" function_ref=unapplied
+                            (key_path_dot_expr implicit type="<null>")))
+                        (processed_init=keypath_expr type="KeyPath<Standing, String>" location=/x/Combine.swift:15:32 range=[/x/Combine.swift:15:32 - line:15:34]
+                          (components
+                            (member decl="main.(file).Standing.model@/x/Models.swift:5:9" type="String"))
+                          (parsed_path=unresolved_dot_expr type="<null>" field="model" function_ref=unapplied
+                            (key_path_dot_expr implicit type="<null>")))))
+                    (autoclosure_expr implicit type="(Standing) -> String" location=/x/Combine.swift:15:32 range=[/x/Combine.swift:15:32 - line:15:34] discriminator=0 nonisolated captures=($kp$<direct>) escaping
+                      (parameter_list
+                        (parameter "$0" interface_type="Standing"))
+                      (keypath_application_expr implicit type="String" location=/x/Combine.swift:15:32 range=[/x/Combine.swift:15:32 - line:15:34]
+                        (declref_expr implicit type="Standing" location=/x/Combine.swift:15:32 range=[/x/Combine.swift:15:32 - line:15:32] decl="main.(file).fixtureCombinesTwice(_:).autoclosure discriminator=0.$0" function_ref=unapplied)
+                        (declref_expr implicit type="KeyPath<Standing, String>" location=/x/Combine.swift:15:32 range=[/x/Combine.swift:15:32 - line:15:32] decl="main.(file).fixtureCombinesTwice(_:).$kp$" function_ref=unapplied))))))))))
+      (var_decl range=[/x/Combine.swift:15:9 - line:15:9] "common" interface_type="[String]" access=private let readImpl=stored immutable
+        (has_initial_value_attr implicit)
+        (has_storage_attr implicit))
+      (return_stmt range=[/x/Combine.swift:16:5 - line:16:26]
+        (call_expr type="[String]" location=/x/Combine.swift:16:19 range=[/x/Combine.swift:16:12 - line:16:26] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr type="() -> [String]" location=/x/Combine.swift:16:19 range=[/x/Combine.swift:16:12 - line:16:19] nothrow isolation_crossing="none"
+            (declref_expr type="([String]) -> () -> [String]" location=/x/Combine.swift:16:19 range=[/x/Combine.swift:16:19 - line:16:19] decl="Swift.(file).Sequence extension.sorted() [with (substitution_map generic_signature=<Self where Self : Sequence, Self.Element : Comparable> Self -> [String])]" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (declref_expr type="[String]" location=/x/Combine.swift:16:12 range=[/x/Combine.swift:16:12 - line:16:12] decl="main.(file).fixtureCombinesTwice(_:).common@/x/Combine.swift:15:9" function_ref=unapplied))))
+          (argument_list))))))
+(source_file "/x/ContentView.swift"
+  (func_decl range=[/x/ContentView.swift:28:1 - line:31:1] "fixtureViewRanksByHand(_:)" interface_type="(Standing) -> Int" access=internal result="Int" thrown_type="<null>"
+    (parameter_list range=[/x/ContentView.swift:28:28 - line:28:49]
+      (parameter "standing" interface_type="Standing"))
+    (brace_stmt range=[/x/ContentView.swift:28:58 - line:31:1]
+      (pattern_binding_decl range=[/x/ContentView.swift:29:5 - line:29:26]
+        (pattern_entry
+          (pattern_named type="Int" "place")
+          (original_init=unresolved_dot_expr type="<null>" field="position" function_ref=unapplied
+            (declref_expr type="Standing" location=/x/ContentView.swift:29:17 range=[/x/ContentView.swift:29:17 - line:29:17] decl="main.(file).fixtureViewRanksByHand(_:).standing@/x/ContentView.swift:28:31" function_ref=unapplied))
+          (processed_init=member_ref_expr type="Int" location=/x/ContentView.swift:29:26 range=[/x/ContentView.swift:29:17 - line:29:26] decl="main.(file).Standing.position@/x/Models.swift:6:9"
+            (declref_expr type="Standing" location=/x/ContentView.swift:29:17 range=[/x/ContentView.swift:29:17 - line:29:17] decl="main.(file).fixtureViewRanksByHand(_:).standing@/x/ContentView.swift:28:31" function_ref=unapplied))))
+      (var_decl range=[/x/ContentView.swift:29:9 - line:29:9] "place" interface_type="Int" access=private let readImpl=stored immutable
+        (has_initial_value_attr implicit)
+        (has_storage_attr implicit))
+      (return_stmt range=[/x/ContentView.swift:30:5 - line:30:20]
+        (binary_expr type="Int" location=/x/ContentView.swift:30:18 range=[/x/ContentView.swift:30:12 - line:30:20] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr implicit type="(Int, Int) -> Int" location=/x/ContentView.swift:30:18 range=[/x/ContentView.swift:30:18 - line:30:18] nothrow isolation_crossing="none"
+            (declref_expr type="(Int.Type) -> (Int, Int) -> Int" location=/x/ContentView.swift:30:18 range=[/x/ContentView.swift:30:18 - line:30:18] decl="Swift.(file).Int extension.+" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (type_expr implicit type="Int.Type" location=/x/ContentView.swift:30:18 range=[/x/ContentView.swift:30:18 - line:30:18] typerepr="Int"))))
+          (argument_list implicit
+            (argument
+              (declref_expr type="Int" location=/x/ContentView.swift:30:12 range=[/x/ContentView.swift:30:12 - line:30:12] decl="main.(file).fixtureViewRanksByHand(_:).place@/x/ContentView.swift:29:9" function_ref=unapplied))
+            (argument
+              (integer_literal_expr type="Int" location=/x/ContentView.swift:30:20 range=[/x/ContentView.swift:30:20 - line:30:20] value="1" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))))))))
+(source_file "/x/Detail.swift"
+(source_file "/x/EngineClient.swift"
+(source_file "/x/Models.swift"
+(source_file "/x/StandingsStore.swift"
