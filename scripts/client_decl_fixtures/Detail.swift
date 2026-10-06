@@ -31,3 +31,7 @@ func fixtureDetailRelays(_ typed: String) -> URL? {
     guard let address = fixtureReadLike(EngineClient.localDefault, from: Data(json.utf8))?["a"] else { return nil }
     return EngineClient(baseURL: address).boards()
 }
+
+// The W2 review's M1, S2b: a function this file declares and a sink calls. Its body reads nothing
+// here; the gate refuses the call, since a body another file owns can read anything.
+func fixtureRelayed() -> String { "" }

@@ -1430,3 +1430,18 @@ def test_the_probe_leaves_a_not_a_search_row_out_of_its_score() -> None:
     assert [part.replace(" ", "") for part in score] == ["cases.count-unscored"], (
         f"probe.swift's score is not over the scored rows only: {score}"
     )
+
+
+#: A read of a file's text; the pattern is spelled so that this line is not one.
+READ = re.compile(r"\.read_text\(")
+
+
+def test_every_swift_pin_here_reads_the_code_the_compiler_builds() -> None:
+    """The W2 review's M3 (#110, INV-78, REQ-GAP-001): F2 put both timeouts under `#if false` and
+    passed `make check-fast`, because the timeout pin read the dead lines. A Swift file is read here
+    through `_swift`, which drops what no build compiles; a raw read says why on its own line."""
+    lines = pathlib.Path(__file__).read_text(encoding="utf-8").splitlines()  # raw: this file's own text
+    raw = [f"{number}: {line.strip()}" for number, line in enumerate(lines, start=1)
+           if READ.search(line) and "json.loads(" not in line and "# raw:" not in line
+           and not line.lstrip().startswith("return _built(")]
+    assert not raw, f"Swift read past `_swift`, so a `#if false` branch reads as live: {raw}"

@@ -316,6 +316,9 @@ FIXTURE_REFUSALS = {
     # price arithmetic outside `priceInPages`.
     ("ContentView.swift", "served number"), ("ContentView.swift", "sorts `standings`"),
     ("Router.swift", "served price"),
+    # The W2 review's M1: a sink holding a mutable object as a constant, and calling a function
+    # another file declares.
+    ("EngineClient.swift", "holds `relay`"), ("EngineClient.swift", "calls `fixtureRelayed`"),
 }
 SOURCE = re.compile(r'^\(source_file "([^"]+)"', re.MULTILINE)
 #: One node of the dump: its indentation (the tree's depth) and its kind.

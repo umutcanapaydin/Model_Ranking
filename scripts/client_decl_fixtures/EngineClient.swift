@@ -53,3 +53,11 @@ struct EngineClient {
         baseURL
     }
 }
+
+// The W2 review's M1: a relay through an object the sink holds as a constant, which another file
+// can still change (S3), and through a function another file declares (S2b). REFUSED, both.
+struct FixtureHeldRelayClient {
+    static let relay = NSMutableString()
+
+    func boardsQuery() -> String { (Self.relay as String) + fixtureRelayed() }
+}

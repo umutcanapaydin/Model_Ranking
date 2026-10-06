@@ -901,3 +901,38 @@ def test_the_pins_read_no_code_the_compiler_never_builds() -> None:
     assert "dead" not in _code(negated) and "let maybe = 2" in _code(negated)
     taken = "#if true\nlet kept = 1\n#else\nlet never = 2\n#endif\n"
     assert "let kept = 1" in _code(taken) and "never" not in _code(taken)
+
+
+@pytest.mark.parametrize("mutant", ["static var, no value", "file-scope var"])
+def test_the_sink_pins_refuse_shared_state_however_it_is_declared(mutant: str) -> None:
+    """The W2 review's M2 (D-180 clause 4, INV-66): `static var probeTag: String?`, which has no `=`,
+    and a stored `var` at file scope in a sink each passed the text half, measured on copies of the
+    shipping sources. The compiled gate refused both; the lanes without Xcode did not."""
+    sources = _client_sources()
+    client = "Engine/EngineClient.swift"
+    if mutant == "static var, no value":
+        sources[client] = sources[client].replace("struct EngineClient {\n", "struct EngineClient {\n    static var probeTag: String?\n", 1)
+    else:
+        sources[client] += '\nvar probeRelay = ""\n'
+    assert sources[client] != _client_sources()[client], "the mutant was not planted"
+    assert any("holds mutable shared state" in line for line in _sink_pin_problems(sources))
+
+
+@pytest.mark.parametrize("condition", ["!(true)", "false && DEBUG", "DEBUG && false", "!(true || DEBUG)", "((false))"])
+def test_a_branch_no_build_compiles_is_dropped_however_its_condition_is_spelled(condition: str) -> None:
+    """The W2 review's M3 (#110, INV-78): `#if !(true)` and `#if false && DEBUG` were kept, and both
+    are decidably dead. A condition is read in three values: true, false, or not known here."""
+    assert "dead()" not in _built(f"#if {condition}\ndead()\n#endif\nlive()\n")
+    assert "live()" in _built(f"#if {condition}\ndead()\n#endif\nlive()\n")
+
+
+@pytest.mark.parametrize("condition", ["DEBUG", "!DEBUG", "false || DEBUG", "os(iOS) && true", "canImport(UIKit)"])
+def test_a_branch_some_build_may_compile_is_kept(condition: str) -> None:
+    """The other half of M3: a condition this cannot decide keeps its code, so a pin sees at least what
+    any build compiles."""
+    assert "maybe()" in _built(f"#if {condition}\nmaybe()\n#endif\n")
+
+
+def test_the_else_of_a_branch_every_build_takes_is_dropped() -> None:
+    """M3: `#if true || DEBUG` is always built, so its `#else` never is."""
+    assert "dead()" not in _built("#if true || DEBUG\nlive()\n#else\ndead()\n#endif\n")

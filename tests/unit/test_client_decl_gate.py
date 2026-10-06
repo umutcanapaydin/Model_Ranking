@@ -363,3 +363,22 @@ def test_the_price_in_pages_is_permitted_where_it_is_computed() -> None:
     refused = gate.problems(gate.references(FLOW_AST))
     span = _lines_of("Router.swift", "func priceInPages")
     assert not [line for line in refused if line.startswith("Router.swift:") and int(line.split(":")[1]) in span], refused
+
+
+def test_a_sink_holds_nothing_another_file_can_change() -> None:
+    """The W2 review's M1, S3 (D-180 clause 2, INV-66, REQ-GAP-001): `static let probeRelay =
+    NSMutableString()` on the client, set by the screen and read by the request, passed: the rule
+    refused a `var`, and a `let` holding a mutable object is as shared. What a sink holds is a
+    listed type; nothing else in the fixture's sinks is refused for it."""
+    refused = gate.problems(gate.references(FLOW_AST))
+    assert any(line.startswith("EngineClient.swift:") and "holds `relay`" in line for line in refused), refused
+    assert not [line for line in refused if "holds `" in line and "holds `relay`" not in line], refused
+
+
+def test_a_sink_calls_nothing_another_file_declares_but_what_is_listed() -> None:
+    """The W2 review's M1, S2b (D-180 clause 2, INV-66, REQ-GAP-001): a sink calling a function that
+    `Detail.swift` declares reads whatever that function reads, and the screen can set it. A sink
+    calls only the functions listed for it, each with its reason."""
+    refused = gate.problems(gate.references(FLOW_AST))
+    assert any(line.startswith("EngineClient.swift:") and "calls `fixtureRelayed`" in line for line in refused), refused
+    assert not [line for line in refused if "calls `" in line and "fixtureRelayed" not in line], refused
