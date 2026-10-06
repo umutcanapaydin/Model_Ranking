@@ -43,7 +43,7 @@ struct EngineClient {
         self.baseURL = baseURL
     }
 
-    static let localDefault = URL(string: "http://127.0.0.1:8080") ?? URL(fileURLWithPath: "/")
+    static let localDefault = URL(string: "http://127.0.0.1:8080")!
 
     static func engineURL(from raw: String) -> URL {
         URL(string: raw) ?? localDefault

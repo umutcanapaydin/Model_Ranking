@@ -215,9 +215,21 @@ SINK_FILES = {
     "EngineClient.swift": "every request to the engine, the boards request among them (INV-66)",
     "StandingsStore.swift": "the standings file on this device (INV-66)",
 }
-#: Declarations only the listed files may call. Standings come from the engine's answer or the
-#: store's own file, never from what the screen builds (the M17 closure's P3).
-PROVENANCE = {"FetchedStandings.init(payload:)": {"EngineClient.swift", "StandingsStore.swift"}}
+#: Declarations only the listed files may call, each with why. Standings come from the engine's answer
+#: or the store's own file, never from what the screen builds (the M17 closure's P3); a client on an
+#: address, and an address made from text, come from the engine client alone, or a file could point the
+#: requests wherever the question says (the W2 review's B2).
+PROVENANCE: dict[str, tuple[set[str], str]] = {
+    "FetchedStandings.init(payload:)": (
+        {"EngineClient.swift", "StandingsStore.swift"},
+        "only the engine's answer and the store's own file become standings"),
+    "EngineClient.init(baseURL:session:)": (
+        {"EngineClient.swift"},
+        "only the engine client builds a client on an address; the app builds `EngineClient()`"),
+    "EngineClient.engineURL(from:)": (
+        {"EngineClient.swift"},
+        "only the engine client makes its address from text, the build's own setting"),
+}
 
 #: #60 (G-2): the numbers the engine sends, by the field `Models.swift` decodes each into, and what
 #: each one is. Arithmetic on one, reached directly or through any local, parameter or loop element
@@ -396,9 +408,10 @@ def _shared_state(ast: str) -> tuple[dict[tuple[str, int, int], str], list[tuple
     return shared, refs
 
 
-#: #107: a call, or a constructor's, whose result is a URL (`URL`, `URL?`, `[URL]`).
-MAKES_URL = re.compile(r'^ *\((?:\w+=)?(?:call_expr|constructor_ref_call_expr) [^\n]*?\btype="(?:Foundation\.)?'
-                       r'(?:URL\??|\[URL\]\??|Optional<URL>)"[^\n]*?location=[^ ]*?(\w+\.swift):(\d+)')
+#: #107: a call, or a constructor's, whose result is or holds a URL: `URL`, `URL?`, `[URL]`, and since
+#: the W2 review's B2 any type that names one (`[String : URL]?`, `Set<URL>`, a tuple).
+MAKES_URL = re.compile(r'^ *\((?:\w+=)?(?:call_expr|constructor_ref_call_expr) [^\n]*?\btype="[^"]*\bURL\b[^"]*"'
+                       r'[^\n]*?location=[^ ]*?(\w+\.swift):(\d+)')
 
 
 def url_facts(ast: str) -> dict[str, set[str]]:
@@ -612,9 +625,9 @@ def _sink_problem(name: str, symbol: str) -> str | None:
         variable, _, declared = subject.partition("@")
         return (f"{name}: reads `{variable}`, mutable state declared in {declared}, so whatever sets it "
                 f"reaches {SINK_FILES[name]} (D-180)")
-    if fact == "<builds" and name not in PROVENANCE.get(subject, set()):
-        return (f"{name}: builds {subject.split('.')[0]} (`{subject}`); only the engine's answer and "
-                "the store's own file become standings (D-180)")
+    if fact == "<builds" and subject in PROVENANCE and name not in PROVENANCE[subject][0]:
+        verb = f"builds {subject.split('.')[0]}" if ".init(" in subject else "calls"
+        return f"{name}: {verb} (`{subject}`); {PROVENANCE[subject][1]} (D-180)"
     return None
 
 
