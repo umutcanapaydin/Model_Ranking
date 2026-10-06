@@ -1,0 +1,8 @@
+# M19-W5: the build context Fly's builder uploads is only what the Dockerfile copies. Without this
+# list it was the whole tree, the venv, the git history and the owner's artifact included.
+*
+!pyproject.toml
+!requirements/serve.lock
+!requirements/build.lock
+!src
+!build/hosted/advisor.db

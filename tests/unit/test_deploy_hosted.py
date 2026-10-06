@@ -68,8 +68,11 @@ def test_a_deploy_stamps_the_commit_ships_the_public_artifact_and_checks_health(
     assert called.startswith("deploy") and f"--build-arg APP_BUILD=release-{sha}" in called, called
     shipped = repo / "build" / "hosted" / "advisor.db"
     with sqlite3.connect(shipped) as conn:
-        sources = {row[0] for row in conn.execute("SELECT DISTINCT source FROM scores")}
-    assert sources and not sources & {"swebench", "epoch_deepswe_external"}, sources
+        scored = {row[0] for row in conn.execute("SELECT DISTINCT source FROM scores")}
+        priced = {row[0] for row in conn.execute("SELECT DISTINCT source FROM pricing")}
+    # The fixture's scores are all from left-out sources; its prices are LiteLLM's, which stay.
+    assert not scored & {"swebench", "epoch_deepswe_external"}, scored
+    assert priced == {"litellm"}, priced
 
 
 def test_a_health_answer_from_another_build_fails_the_deploy(tmp_path: Path) -> None:

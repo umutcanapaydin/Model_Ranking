@@ -83,3 +83,20 @@ def derive(source: Path, target: Path) -> dict[str, int]:
         workspace.unlink(missing_ok=True)
         raise
     return removed
+
+
+def main(argv: list[str] | None = None) -> int:
+    """`python -m app.workflows.public --from SERVED --to TARGET`: what the deploy script runs."""
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="public", description="Derive the public artifact (#88).")
+    parser.add_argument("--from", dest="source", required=True, help="the built artifact, only read")
+    parser.add_argument("--to", dest="target", required=True, help="the public copy to write")
+    args = parser.parse_args(argv)
+    removed = derive(Path(args.source), Path(args.target))
+    print(json.dumps({"public": args.target, **removed, "left_out": sorted(LEFT_OUT)}))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
