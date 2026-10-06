@@ -462,13 +462,14 @@ def test_foundations_nsarray_sort_is_counted_as_a_sort() -> None:
 
 def test_the_committed_dump_is_the_fixture_as_it_compiles(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """The second W2 review's K1: `g2_fixture_ast.txt` is a second copy of the fixture's compile, and
-    nothing compared the two where Xcode runs. The self-test now does, and fails when they differ."""
+    nothing compared the two where Xcode runs. The self-test now does, and fails when they differ. The
+    committed dump stands in for the compile, so this runs where there is no Xcode too."""
+    monkeypatch.setattr(gate, "dump_ast", lambda sdk_name, flags, folder=gate.CLIENT: (FLOW_AST, 0))
+    assert gate.self_test() == [], "the committed dump is not the fixture as the gate reads it"
     stale = tmp_path / "g2_fixture_ast.txt"
     stale.write_text(FLOW_AST.replace("fixtureStamped", "fixtureStampedLongAgo"), encoding="utf-8")
-    monkeypatch.setattr(gate, "SNAPSHOT", stale, raising=False)
-    broken = gate.self_test()
-    if broken is None:
-        pytest.skip("no Xcode toolchain")
+    monkeypatch.setattr(gate, "SNAPSHOT", stale)
+    broken = gate.self_test() or []
     assert any("g2_fixture_ast.txt" in line for line in broken), broken
 
 
