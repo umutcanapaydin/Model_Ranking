@@ -48,8 +48,8 @@ EPOCH_EXTERNAL_ATTRIBUTION: dict[str, str] = {
         ("epoch_arc_agi", "ARC-AGI scores: ARC Prize leaderboard, https://arcprize.org/leaderboard"),
         ("epoch_deepswe_external", "DeepSWE scores: Datacurve's DeepSWE leaderboard, https://deepswe.datacurve.ai/"),
         ("epoch_mmlu", "MMLU scores: Stanford CRFM's HELM Lite leaderboard, "
-                       "https://crfm.stanford.edu/helm/lite/latest/#/leaderboard/mmlu, and the model technical "
-                       "reports Epoch's `mmlu_external.csv` names"),
+                       "https://crfm.stanford.edu/helm/lite/latest/#/leaderboard/mmlu, and the model makers' "
+                       "technical reports Epoch names for its other rows"),
         ("epoch_terminalbench", "Terminal-Bench 2.0 scores: Terminal-Bench v2 leaderboard, "
                                 "https://www.tbench.ai/leaderboard/terminal-bench/2.0"),
         ("epoch_webdev", "WebDev Arena scores: LMArena's WebDev Arena leaderboard, https://arena.ai/leaderboard"),
