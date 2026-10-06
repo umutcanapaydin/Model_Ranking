@@ -21,6 +21,7 @@ security pass runs on the slice; the milestone closure's security seat reads it.
 | #101 | The subscription engine breaks ties by plan name | P1 |
 | #106 | A moving `-latest-vN` alias could derive a fixed model id | P1 |
 | #130 | `o3-mini-high` is served as a model of its own | P1 |
+| #162 | GPT-5's minor releases served as one GPT-5 mini, nano and chat (found in P1, added) | P1 |
 | #129 | One release is served under two model ids, its evidence split | P2 |
 | #100 | The board guards compare raw names, so a re-spelling reads as names lost and gained | P2 |
 | #124 | Attribution lags the publishers' terms (the parts that need no #88 ruling) | P3 |

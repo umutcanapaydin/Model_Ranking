@@ -181,3 +181,8 @@ Not tracked: token spend is not visible to the agent (as in M16 to M18). The wav
 - Capture per `docs/closure-checklist.md` §B.2: process log, EXPERIENCE, roadmap snapshot, AGENTS.md
   diet.
 - The Stage 5.1 release review only if the owner calls a release (W5).
+
+**Amendment (2026-10-06, W1).** #162 joins W1: listing every served name for #130 found that the
+GPT-5 mini, nano and chat rules took any minor version, so GPT-5 mini, GPT-5.1 Codex mini and
+GPT-5.4 mini were served as one model, with one another's prices and scores. It is the same goal
+as #129 (one release, one model), in the other direction.
