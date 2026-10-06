@@ -134,6 +134,17 @@ def test_what_the_board_guards_are_for_still_refuses(
         assert any(reason.startswith(board) for reason in reasons), (board, reasons)
 
 
+def test_a_relabelled_harness_or_effort_moves_no_board_guard(tmp_path: Path) -> None:
+    """A row's harness and effort are its provenance, not its model: a relabel on rows the board
+    already had is published (`test_refresh.py::test_a_freshness_or_provenance_update_is_published`),
+    never read as rows lost and new."""
+
+    def relabel(conn: sqlite3.Connection) -> None:
+        conn.execute("UPDATE scores SET harness = 'other', effort = 'high' WHERE source = ?", (SLICE.source,))
+
+    assert _reasons(tmp_path, relabel) == []
+
+
 def test_an_unlinked_row_is_still_compared_by_its_name(tmp_path: Path) -> None:
     """A row the reconcile linked to no model has nothing but its name, so re-spelling it is a name
     lost and a name gained, as before."""

@@ -2803,6 +2803,10 @@ Budget Pick says so.
   returning after about two weeks away (28-32% new names), and an upstream that respells its names
   (ECI's `_` to `-`: 284 of 521). Single ordinary days measured 14-17% at most.
 
+**Amended by D-179 (2026-10-06)**: the guard compares a board's rows by the model each links to, and by
+raw name only where a row links to none, so an upstream that re-spells its names and keeps every model
+(ECI's `_` to `-` above) is no longer refused (#100).
+
 ---
 
 ## D-160 — A combined list is built on the phone, and nothing about the question leaves it
@@ -3053,6 +3057,9 @@ bad data until someone looks.
 
 **Revisit when:** boards held back a publish on more than one night in a month, or W4 serves boards on
 a route whose own checks make this one redundant.
+
+**Amended by D-179 (2026-10-06)**: clause 2's limits compare a board's rows by the model each links to,
+and by raw name only where a row links to none; a re-spelling is recorded with the night (#100).
 
 ## D-165 — A downloaded file a native library parses is read in a process of its own, under a memory ceiling
 
@@ -3599,6 +3606,9 @@ owner asked the agent to take its recommendation rather than ask.
 - the payload matters again (an ETag); or
 - a board is carried that no source still publishes.
 
+**Amended by D-179 (2026-10-06)**: clause 2's board half -- the board guards compare model ids too, and
+a re-spelled board row is recorded with the night's `renamed` (#100).
+
 
 ## D-174 — Review seats run one after another, each in its own worktree
 
@@ -3839,3 +3849,52 @@ them to be closed.
 
 **Revisit when:** someone other than the owner verifies, or the engine is deployed beyond the owner's
 Mac.
+
+## D-179 — The board guards compare a row by the model it links to
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
+("proceed with what you recommend, don't ask", owner, translated from Turkish); M19-W1 · **Date:**
+2026-10-06 · **Amends** D-159, D-164 and D-173 clause 2 · from #100.
+
+**Context.** D-173 clause 2 moved the roster guards to model ids (#39). The board guards (D-159 on a
+surface's own board, D-164 on every declared board) still compared raw names. The M18-W4 reviewer
+re-spelled 77 of the 173 names on `coding`'s board, keeping every model, and the night was refused.
+D-159 had measured the same on a real upstream: ECI's `_` to `-`, 284 of 521 names. A refusal on a
+re-spelling is published by hand, and a guard that is waved through on ordinary nights is waved
+through on the night it matters.
+
+**Decision.**
+1. A board row the reconcile linked to a model is compared by that model. A row linked to none is
+   compared by its raw name, as before. A row's harness and effort are not part of it: a relabel on
+   rows the board already had is a provenance update, and publishes
+   (`test_refresh.py::test_a_freshness_or_provenance_update_is_published`).
+2. The comparison counts rows, not models: a model's second row on a board is a row of its own. The
+   floor counts every row (D-159), so a board flooded with new spellings of models it already had
+   still reads as new rows.
+3. A re-spelling is recorded with the night's `renamed`, as `old -> new on <board>`, once for each
+   pair of spellings, with the number of boards it was seen on. It is never a reason to refuse.
+4. The limits stay: a quarter lost refuses (D-128), and more than a quarter new refuses (D-132).
+
+**What an upstream's names can move now.**
+- A name re-spelled to another name that reconciles to the same model moves no guard. What a reader
+  is served does not change: `/v1/boards` carries model ids and positions, never raw names.
+- A name re-spelled to one that reconciles to another model, or to none, still counts as a row lost
+  and a row new.
+- A row that keeps its name and moves to another model now counts, where before it moved no board
+  guard: what the board serves changed. A registry change does this, so a large one is read with
+  the owner on its first night.
+
+**Measured.** The first night with M19-W1's code, simulated on a copy of the served artifact
+(release-3f2e91d) on 2026-10-06, publishes. The board nearest a limit is `epoch_frontiermath`: 13% of
+its rows moved to other models (#129's and #162's joins), against the limit of 25%.
+
+**The rejected alternative.** Comparing a row by its model, harness and effort. A harness relabel on
+rows a board already had, which the refresh must publish, then read as every row lost and new.
+
+**Mitigation if violated.**
+- If board rows are compared by name again, a cosmetic re-spelling refuses a night.
+- If they are compared by distinct model, a flood of spellings of one model moves the floor with no
+  guard.
+
+**Revisit when:** `/v1/boards` serves a row's raw name or harness, or a board's floor stops counting
+every row.

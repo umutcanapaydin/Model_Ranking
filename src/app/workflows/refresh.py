@@ -36,9 +36,10 @@ import sys
 import tempfile
 import threading
 import time
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, fields
 from pathlib import Path
+from typing import NamedTuple, TypeVar
 
 from app.clients import epoch_bundle
 from app.clients.protocols import cycle_budget
@@ -47,7 +48,7 @@ from app.workflows import boards as declared_boards
 from app.workflows.build import CARRY_TABLES
 from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
-from app.workflows.floors import board_names, derived_floor
+from app.workflows.floors import board_rows, derived_floor
 from app.workflows.rank import build_price_medians, ranked_with_ids
 from app.workflows.recommend import BUDGETS, eligible_rows, round_optional_score, round_score
 from app.workflows.schema import open_readonly
@@ -157,7 +158,8 @@ class RefreshOutcome:
     #: D-157 clause 4, from the build: models derived from the data, and the top unmatched names.
     derived: tuple[str, ...] = ()
     unmatched: tuple[str, ...] = ()
-    #: #39 (D-173 clause 2): models whose served name changed while their id did not, `old -> new`.
+    #: #39 (D-173 clause 2): models whose served name changed while their id did not, `old -> new`;
+    #: then board rows re-spelled while their model did not (#100, D-179), `old -> new on <board>`.
     #: Information, never a reason to refuse.
     renamed: tuple[str, ...] = ()
 
@@ -200,9 +202,52 @@ MAX_SURFACE_LOSS = 0.25
 MAX_SURFACE_GAIN = 0.25
 MAX_MEDIAN_PRICE_MOVE = 0.25
 
+#: How the board guards name a surface's own board (D-159) and a declared board (D-164), in their
+#: reasons and in the night's record of re-spellings (#100).
+OWN_BOARD = "{name}'s board"
+DECLARED_BOARD = "board {name}"
+
+
+class LinkedRow(NamedTuple):
+    """A board row the reconcile linked to a model, as the board guards compare it (#100, D-179).
+
+    Not its raw name: an upstream that re-spells a model keeps the row, as D-173 clause 2 keeps a
+    re-spelled model on a surface's roster. Nor its harness or effort, which a relabel changes on
+    rows the board already had (a provenance update, published). `copy` numbers one model's rows, so
+    a second row of a model already on the board is a row of its own: the floor counts every row
+    (D-159), and a board flooded with spellings of models it had must still read as new rows.
+    """
+
+    model: str
+    copy: int
+
+
+#: A board row as the guards compare it: linked, or, where the reconcile linked no model, its raw
+#: name, as every row was compared before #100.
+BoardRow = str | LinkedRow
+
+#: model id -> the raw names its rows on one board arrived under: what a re-spelling changes.
+Spellings = dict[str, frozenset[str]]
+
+_Item = TypeVar("_Item")
+
+
+def board_identities(rows: Iterable[tuple[str, str | None]]) -> tuple[frozenset[BoardRow], Spellings]:
+    """A board's rows, (raw name, model id), as the guards compare them, and each linked model's
+    spellings for the night's record (#100)."""
+    unlinked: set[str] = set()
+    spellings: dict[str, list[str]] = {}
+    for raw_name, model_id in rows:
+        if model_id is None:
+            unlinked.add(raw_name)
+        else:
+            spellings.setdefault(model_id, []).append(raw_name)
+    linked = {LinkedRow(model, copy) for model, names in spellings.items() for copy in range(len(names))}
+    return frozenset(unlinked | linked), {model: frozenset(names) for model, names in spellings.items()}
+
 
 def _mostly_new(
-    live: dict[str, frozenset[str]], candidate: dict[str, frozenset[str]],
+    live: Mapping[str, frozenset[_Item]], candidate: Mapping[str, frozenset[_Item]],
     subject: str, noun: str, why: str,
 ) -> list[str]:
     """D-132's limit: every surface where more than a quarter of what it would show is new."""
@@ -227,15 +272,16 @@ def _mostly_new(
 
 
 def _mostly_lost(
-    live: dict[str, frozenset[str]], candidate: dict[str, frozenset[str]], subject: str, why: str,
+    live: Mapping[str, frozenset[BoardRow]], candidate: Mapping[str, frozenset[BoardRow]],
+    subject: str, why: str,
 ) -> list[str]:
-    """D-128's limit on a board's names: every board that would lose a quarter or more of them."""
+    """D-128's limit on a board's rows: every board that would lose a quarter or more of them."""
     reasons: list[str] = []
     for name, was in sorted(live.items()):
         lost = len(was - candidate.get(name, frozenset()))
         if was and lost >= len(was) * MAX_SURFACE_LOSS:
             reasons.append(
-                f"{subject.format(name=name)} would lose {lost} of {len(was)} names "
+                f"{subject.format(name=name)} would lose {lost} of {len(was)} rows "
                 f"({lost / len(was):.0%}, at or over the {MAX_SURFACE_LOSS:.0%} limit); {why}"
             )
     return reasons
@@ -268,18 +314,20 @@ def upward_anomalies(
     # The same limit on the surface's OWN BOARD (owner, 2026-09-23; D-159 correction). Its floor is
     # derived from every row, ranked or not, so rows nobody prices can move the floor and every
     # Budget Pick while the ranked names above stay exactly the same.
+    # Rows are compared by the model each links to (#100, D-179), so a re-spelled set is not new
+    # here; a set returning after a gap still is.
     reasons += _mostly_new(
-        live.board, candidate.board, "{name}'s board", "names",
-        "its floor is derived from every one of their rows (D-159); a renamed or returning set "
-        "reads as new here too, and is published by hand",
+        live.board, candidate.board, OWN_BOARD, "rows",
+        "its floor is derived from every one of their rows (D-159); a returning set reads as new "
+        "here too, and is published by hand",
     )
 
     # D-164 clause 2: the same limit on every declared board. A board appearing for the first time
     # passes as returning (`_mostly_new`'s empty-set rule), so the night the boards arrive publishes.
     reasons += _mostly_new(
-        live.boards, candidate.boards, "board {name}", "names",
+        live.boards, candidate.boards, DECLARED_BOARD, "rows",
         "a board is published content and is guarded as one (D-164); a board that is mostly new "
-        "names overnight is published by hand",
+        "rows overnight is published by hand",
     )
 
     for name, before in sorted((prices or live).median_price.items()):
@@ -310,6 +358,25 @@ def display_changes(live: ServingSummary, candidate: ServingSummary) -> list[str
     ]
 
 
+def board_respellings(live: ServingSummary, candidate: ServingSummary) -> list[str]:
+    """Board rows re-spelled while their model stayed (#100, D-179), as `old -> new on <board>`.
+    Recorded with the night's `renamed`, never a reason to refuse: the board guards compare the model
+    a row links to, so a re-spelling moved none of them. One upstream name is on every board its
+    source publishes (Arena's slices), so each is said once, with how many more boards it was on."""
+    seen: dict[tuple[str, str], list[str]] = {}
+    for board, models in live.spellings.items():
+        after = candidate.spellings.get(board, {})
+        for model, before in models.items():
+            now = after.get(model, frozenset())
+            old, new = before - now, now - before
+            if old and new:
+                seen.setdefault((" / ".join(sorted(old)), " / ".join(sorted(new))), []).append(board)
+    return [
+        f"{old} -> {new} on {min(boards)}" + (f" and {len(boards) - 1} more" if len(boards) > 1 else "")
+        for (old, new), boards in sorted(seen.items())
+    ]
+
+
 def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
     """Every way the candidate would be WORSE than what is being served. Empty means it is safe.
 
@@ -337,12 +404,12 @@ def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
     # every row of a surface's own board, so a board that loses a quarter of its names moves the
     # floor and the Budget Pick as surely as one that gains them -- and unguarded, the names'
     # return would then be refused every night by the growth limit in `upward_anomalies`.
-    reasons += _mostly_lost(live.board, candidate.board, "{name}'s board",
+    reasons += _mostly_lost(live.board, candidate.board, OWN_BOARD,
                             "its floor is derived from every one of their rows (D-159)")
 
     # D-164 clause 2: every declared board, by the same limit. An expired board's rows are already
     # gone from `live` on an expiry night (`_served_without`), so its drop is excused exactly.
-    reasons += _mostly_lost(live.boards, candidate.boards, "board {name}",
+    reasons += _mostly_lost(live.boards, candidate.boards, DECLARED_BOARD,
                             "a board is published content and is guarded as one (D-164)")
 
     # #42 (D-173 clause 3): the phone filters on accessibility, so a truncated model_metadata.csv
@@ -462,15 +529,19 @@ class ServingSummary:
     #: price is a reported number — true of the score, false of the price, because the price is
     #: also a filter.
     eligible: dict[str, dict[str, int]]
-    #: surface -> every raw name on its own board (D-159: the floor is derived from all of its rows,
-    #: ranked or not). The ranked names above cannot see a board flooded with rows nobody prices, which
-    #: moves the floor and every Budget Pick (owner, 2026-09-23). Defaults empty for a summary built
-    #: by hand, which the board guard then treats as a board returning.
-    board: dict[str, frozenset[str]] = dataclasses.field(default_factory=dict)
+    #: surface -> every row on its own board (D-159: the floor is derived from all of its rows,
+    #: ranked or not), as `board_identities` names them: by the model a row links to, or by its raw
+    #: name where it links to none (#100). The ranked ids above cannot see a board flooded with rows
+    #: nobody prices, which moves the floor and every Budget Pick (owner, 2026-09-23). Defaults empty
+    #: for a summary built by hand, which the board guard then treats as a board returning.
+    board: dict[str, frozenset[BoardRow]] = dataclasses.field(default_factory=dict)
     #: D-164: each declared board no surface ranks on (`app.workflows.boards.uncovered`: Arena's
-    #: category slices, the Epoch boards no surface uses) -> its raw names. Guarded exactly as a
-    #: surface's own board is: a quarter lost, or a quarter new.
-    boards: dict[str, frozenset[str]] = dataclasses.field(default_factory=dict)
+    #: category slices, the Epoch boards no surface uses) -> its rows, named as `board`'s are.
+    #: Guarded exactly as a surface's own board is: a quarter lost, or a quarter new.
+    boards: dict[str, frozenset[BoardRow]] = dataclasses.field(default_factory=dict)
+    #: Each board, named as its guard names it (`OWN_BOARD`, `DECLARED_BOARD`) -> the spellings of its
+    #: linked rows, for `board_respellings` (#100).
+    spellings: dict[str, Spellings] = dataclasses.field(default_factory=dict)
     #: model id -> the name it is served under, for `display_changes` (#39).
     displays: dict[str, str] = dataclasses.field(default_factory=dict)
     #: How many models carry an accessibility value the phone filters on (#42, D-173 clause 3).
@@ -515,7 +586,8 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
     eligible: dict[str, dict[str, int]] = {}
     names: dict[str, frozenset[str]] = {}
     prices: dict[str, float] = {}
-    boards: dict[str, frozenset[str]] = {}
+    boards: dict[str, frozenset[BoardRow]] = {}
+    spellings: dict[str, Spellings] = {}
     displays: dict[str, str] = {}
     for name in sorted(CATEGORIES):
         spec = CATEGORIES[name]
@@ -543,14 +615,14 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         eligible[name] = {b: len(eligible_rows(rows, b)) for b in sorted(BUDGETS)}
         names[name] = frozenset(model_id for model_id, _ in ranked)
         displays.update((model_id, row.model) for model_id, row in ranked)
-        boards[name] = board_names(conn, spec)
+        boards[name], spellings[OWN_BOARD.format(name=name)] = board_identities(board_rows(conn, spec))
         prices[name] = statistics.median([row.blended_per_m for row in rows]) if rows else 0.0
         for row in rows:
             digest.update(_row_digest(row).encode())
     # D-164: a board is published content (W4 serves the standings, D-160). Every row's name, the
     # model it reconciled to and its score, rounded as the output boundary rounds it (D-109), so a
     # board that moves publishes and one that only re-stamps its rows does not.
-    other_boards: dict[str, frozenset[str]] = {}
+    other_boards: dict[str, frozenset[BoardRow]] = {}
     for board in declared_boards.uncovered():
         standings = conn.execute(
             "SELECT raw_name, model_id, score FROM scores WHERE source = ? AND benchmark = ? "
@@ -558,7 +630,8 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         digest.update(f"slice:{board.source}:{len(standings)}\n".encode())
         for raw_name, model_id, score in standings:
             digest.update(f"{raw_name}|{model_id}|{round_score(score)}\n".encode())
-        other_boards[board.source] = frozenset(raw_name for raw_name, _, _ in standings)
+        other_boards[board.source], spellings[DECLARED_BOARD.format(name=board.source)] = board_identities(
+            (raw_name, model_id) for raw_name, model_id, _ in standings)
     # M17-W3: each model's accessibility is served to the phone (W4), so a change publishes.
     accessibility_of = access.served(conn)
     for model_id, accessibility in accessibility_of.items():
@@ -571,6 +644,7 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         eligible=eligible,
         board=boards,
         boards=other_boards,
+        spellings=spellings,
         displays=displays,
         accessible=len(accessibility_of),
     )
@@ -1213,7 +1287,7 @@ def _cycle(
             return record(outcome, EXIT_FAILED)
 
         baseline = _served_without(target, set(expired)) if expired and live else live
-        renamed = tuple(display_changes(live, fresh)) if live is not None else ()
+        renamed = tuple(display_changes(live, fresh) + board_respellings(live, fresh)) if live is not None else ()
 
         if live is not None and fresh.digest == live.digest:
             return record(
