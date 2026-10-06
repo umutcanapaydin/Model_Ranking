@@ -208,3 +208,45 @@ def test_an_xdist_worker_is_handed_the_proxies_its_controller_hid() -> None:
     finally:
         conftest._SAVED_PROXIES.clear()
         conftest._SAVED_PROXIES.update(saved)
+
+
+@pytest.mark.skipif(not hasattr(__import__("urllib.request").request, "getproxies_macosx_sysconf"),
+                    reason="macOS's System Configuration fallback (#150)")
+def test_a_system_proxy_reaches_no_unit_test(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#150. With every proxy variable hidden (#143), urllib's `getproxies()`, which httpx asks,
+    falls back on macOS to the System Configuration's proxies. A system proxy on this machine would
+    carry a unit test's request out. The operating system's answer is planted below urllib."""
+    import urllib.request
+
+    for name in ("NO_PROXY", "no_proxy"):
+        monkeypatch.delenv(name, raising=False)  # an empty environment is what lets the fallback run
+    monkeypatch.setattr(urllib.request, "_get_proxies", lambda: {"https": "http://127.0.0.1:9"})
+    assert urllib.request.getproxies() == {}, "a system proxy reached a unit test"
+
+
+def test_a_live_contract_test_keeps_the_system_proxy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#150: the system's proxies are hidden from a unit test only; a live contract test asks the
+    real fallback, as it gets the proxy variables back."""
+    from tests import conftest
+
+    monkeypatch.setattr(conftest, "_REAL_SYSTEM_PROXIES", lambda: {"https": "http://127.0.0.1:9"})
+    assert conftest.system_proxies() == {}
+    monkeypatch.setitem(conftest._LIFTED, "on", True)
+    assert conftest.system_proxies() == {"https": "http://127.0.0.1:9"}
+
+
+@pytest.mark.skipif(not hasattr(__import__("urllib.request").request, "getproxies_macosx_sysconf"),
+                    reason="macOS's System Configuration fallback (#150)")
+def test_a_system_proxy_reaches_no_httpx_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#150 (the fix Tester's T1): httpx reads proxies through its own reference to urllib's
+    `getproxies`, taken when httpx was imported, so a check on `urllib.request.getproxies` alone
+    passed with that function replaced and the fallback left in place. A planted system proxy must
+    not carry an httpx request: it goes direct, and the guard stops it before anything is sent."""
+    import urllib.request
+
+    for name in ("NO_PROXY", "no_proxy"):
+        monkeypatch.delenv(name, raising=False)
+    planted = {"http": "http://127.0.0.1:9", "https": "http://127.0.0.1:9"}
+    monkeypatch.setattr(urllib.request, "_get_proxies", lambda: planted)
+    with httpx.Client(timeout=1) as client, pytest.raises(NetworkReachedError):
+        client.get("http://192.0.2.1/")
