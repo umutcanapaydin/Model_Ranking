@@ -109,8 +109,12 @@ def test_a_bare_session_configuration_is_refused_in_both_of_its_spellings() -> N
 
 def test_no_swift_source_builds_a_bare_session_configuration() -> None:
     """#108: in the app and its tests, every configuration comes from a factory the tripwire guards."""
-    engine = TESTS.parent / "ModelRanking"
-    sources = {p.name: p.read_text(encoding="utf-8") for p in sorted([*TESTS.glob("*.swift"), *engine.rglob("*.swift")])}
+    # Every Swift file under `ios/`, the UI tests and `Package.swift` too, keyed by its path so two
+    # files with one name are both read (the W3 Tester's M8); the build folders are not sources.
+    ios = TESTS.parent
+    sources = {str(p.relative_to(ios)): p.read_text(encoding="utf-8") for p in sorted(ios.rglob("*.swift"))
+               if not {".build", "build", "DerivedData"} & set(p.relative_to(ios).parts)}
+    assert any(name.startswith("UITests/") for name in sources) and "Package.swift" in sources, sorted(sources)[:5]
     assert len(sources) > 20, "the Swift sources were not read"
     assert _bare_configurations(sources) == []
 

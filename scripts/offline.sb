@@ -10,3 +10,8 @@
 (allow network-outbound (remote ip "localhost:*"))
 (allow network-outbound (remote unix-socket))
 (deny network-outbound (remote unix-socket (path-literal "/private/var/run/mDNSResponder")))
+; The resolver's mach service, which Network.framework asks instead of the socket, and LaunchServices,
+; through which a child could hand a URL to an app outside this sandbox (the W3 Tester's M7). Read from
+; the profile; the whole suite passes with both denied.
+(deny mach-lookup (global-name "com.apple.dnssd.service"))
+(deny mach-lookup (global-name "com.apple.coreservices.launchservicesd"))

@@ -16,6 +16,7 @@ from __future__ import annotations
 import ipaddress
 import os
 import socket
+import sys
 import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
@@ -275,7 +276,11 @@ def _slices_stay_off_the_network(request: pytest.FixtureRequest, monkeypatch: py
 def pytest_sessionstart(session: pytest.Session) -> None:
     # In the controlling process, before any worker collects: raised inside an xdist worker the
     # same refusal surfaces as an INTERNALERROR traceback that does not say what is missing.
-    if os.environ.get("MODEL_RANKING_REQUIRE_OFFLINE") == "1" and not skips.offline():
+    # `make test` sets MODEL_RANKING_REQUIRE_ARTIFACT=1 in its recipe; on a Mac that run must be offline
+    # too, even if the environment dropped the sandbox and its flag (`MAKEFLAGS`, the W3 Tester's M3).
+    must_be_offline = os.environ.get("MODEL_RANKING_REQUIRE_OFFLINE") == "1" or (
+        os.environ.get("MODEL_RANKING_REQUIRE_ARTIFACT") == "1" and sys.platform == "darwin")
+    if must_be_offline and not skips.offline():
         pytest.exit(
             "#122: this run must be offline at the operating system's level (MODEL_RANKING_REQUIRE_OFFLINE=1), "
             "and a child process could still reach the network. Run it through `make test`, which wraps it in "

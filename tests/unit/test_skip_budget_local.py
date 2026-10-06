@@ -80,7 +80,9 @@ def test_an_unset_budget_fails_the_local_check(tmp_path: Path) -> None:
 #: A skip outside the `needs` marker: the local check could not count it (the meta-rule that keeps
 #: the derivation whole). Spelled so that this line is not one.
 RAW_SKIP = re.compile(r"\bpytest\.(?:skip\(|xfail\(|mark\.(?:skip(?:if)?|xfail)\b|importorskip\()"
-                      r"|\bunittest\.(?:skip\w*\b|SkipTest\b)|\.skipTest\(|\bfrom\s+pytest\s+import\b[^\n]*\b(?:skip|mark|xfail)\b")
+                      r"|\bunittest\.(?:skip\w*\b|SkipTest\b)|\.skipTest\(|\bfrom\s+pytest\s+import\b[^\n]*\b(?:skip|mark|xfail)\b"
+                      # The W3 Tester's M4: an aliased import, the skip's exception, pytest's own module.
+                      r"|\bimport\s+pytest\s+as\b|\bskip\.Exception\b|\b_pytest\.outcomes\b")
 
 
 def test_every_skip_goes_through_a_needs_marker() -> None:
@@ -108,11 +110,12 @@ def test_every_spelling_of_a_skip_is_refused() -> None:
 
 
 def test_more_skip_shapes_are_refused() -> None:
-    """The W3 Tester's M4: an aliased import, `pytest.skip.Exception` and `_pytest.outcomes` each
-    skipped where the scan and `--derive` could not see it."""
-    py = "pytest"
-    spellings = ["import " + py + " as pt", "raise " + py + ".skip.Exception('x')", "from _" + py + ".outcomes import skip",
-                 "_" + py + ".outcomes.skip('x')"]
+    """The W3 Tester's M4: an aliased import, the skip's own exception and pytest's private outcomes
+    module each skipped where the scan and `--derive` could not see it. (Spelled in pieces, so that
+    this file's own lines are none of them.)"""
+    py, exc, out = "pytest", "skip" + ".Exception", "_pytest" + ".outcomes"
+    spellings = ["import " + py + " as pt", "raise " + py + "." + exc + "('x')", "from " + out + " import skip",
+                 out + ".skip('x')"]
     assert [line for line in spellings if not RAW_SKIP.search(line)] == []
 
 
@@ -122,7 +125,8 @@ def test_an_empty_parametrize_fails_collection(tmp_path: Path) -> None:
     probe = tmp_path / "test_empty_probe.py"
     probe.write_text("import pytest\n\n\n@pytest.mark.parametrize('x', [])\ndef test_x(x: int) -> None:\n    assert x\n",
                      encoding="utf-8")
-    run = subprocess.run([sys.executable, "-m", "pytest", "--collect-only", "-q", "--no-cov", "-p", "no:cacheprovider",
-                          f"--junitxml={tmp_path / 'j.xml'}", str(probe)], cwd=ROOT, capture_output=True, text=True,
-                         timeout=120, check=False)
+    # `-c`: the suite's own settings, which a file outside the repository would not otherwise read.
+    run = subprocess.run([sys.executable, "-m", "pytest", "-c", str(ROOT / "pyproject.toml"), "--collect-only", "-q",
+                          "--no-cov", "-p", "no:cacheprovider", f"--junitxml={tmp_path / 'j.xml'}", str(probe)],
+                         cwd=ROOT, capture_output=True, text=True, timeout=120, check=False)
     assert run.returncode != 0, run.stdout

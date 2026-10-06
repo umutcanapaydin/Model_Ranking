@@ -4143,8 +4143,10 @@ the signal words.
    (the `Security globs` bullet, brace forms and folders read) must be HIGH, and a plan with no list
    fails closed (#140).
 3. **The test run is offline at the operating system's level** (#122, option B). On macOS `make test`
-   runs pytest inside `scripts/offline.sb`: every outbound connection but loopback, and the system
-   resolver's socket, is refused before a packet leaves, children included whatever their language.
+   runs pytest inside `scripts/offline.sb`: every outbound connection but loopback is refused before
+   a packet leaves, children included whatever their language, and so are the system resolver's
+   socket and its mach service, and LaunchServices (read from the profile, not measured by a lookup).
+   The run `make test` marks must be offline on a Mac whatever the environment names the system.
    The run says it must be offline, and stops before any test if a child could still name an outside
    peer. The probe sends nothing (a UDP `connect()`). CI's half is a patch for the owner's workflow
    file, posted on #122.
@@ -4166,7 +4168,7 @@ the signal words.
   gate that names a stance proves nothing about what a child does.
 - **#117 matching English whole and Turkish with suffixes.** Replayed on M18-W3's tree it missed two
   of the review's phrases, Turkish words with no Turkish letter; a word's language cannot be read from
-  its letters (the W3 review's M8).
+  its letters (the W3 review's M8). The W3 Tester's fixture now holds M18-W3's own eleven, from its 27.
 
 **What it does not do.** CI's test job is not offline until the owner applies the patch (gap G-5);
 the record of what CI has (`NEEDS[...].in_ci`) is kept by hand beside the workflow; the HIGH rule

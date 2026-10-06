@@ -73,7 +73,7 @@ def test_a_child_process_the_suite_starts_cannot_name_an_outside_peer() -> None:
     assert curl.returncode == 7, curl.stderr  # "couldn't connect": refused before a packet left
 
 
-@pytest.mark.needs("offline")
+@pytest.mark.needs("offline", "macos")  # the resolver's socket path is macOS's (the W3 Tester's M1)
 def test_a_child_process_cannot_look_a_name_up_either() -> None:
     """The W3 review's M5: the profile left the system resolver's socket open, so a child resolved
     `example.com` and the lookup left the machine. The resolver's socket is refused now; connecting to

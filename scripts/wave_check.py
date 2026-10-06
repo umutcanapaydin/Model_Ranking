@@ -55,13 +55,20 @@ def deferrable_findings(body: str) -> tuple[list[str], int]:
     ids: list[str] = []
     unnamed = 0
     in_section = False
+    finding_above = False
     for line in body.splitlines():
         h = re.match(r"^#{2,4}\s+(.*)$", line)
         if h:
             in_section = bool(DEFERRABLE.search(h.group(1)))
+            finding_above = False
             continue
         if not in_section or not re.match(r"^\s*[-*]\s+\S", line):
             continue
+        # An indented bullet belongs to the finding above it (the W3 Tester's M9); one with no finding
+        # above it is still counted, so a verdict indented throughout fails closed.
+        if re.match(r"^\s+[-*]\s", line) and finding_above:
+            continue
+        finding_above = True
         if re.match(r"^\s*[-*]\s+(?:\*\*)?(?:none\b|n/a\b|—\s*$|-\s*$)", line, re.I):
             continue
         m = FINDING_ID.match(line)
@@ -300,20 +307,33 @@ def plan_globs(plan: pathlib.Path) -> list[str]:
 def _footprint_paths(touched: str) -> list[str]:
     """#140 and the W3 review's M2: the paths a footprint names, a brace form expanded
     (`Engine/{Models,EngineClient}.swift`)."""
+    # A space inside braces is part of the brace form (the W3 Tester's M6).
+    touched = re.sub(r"\{[^{}]*\}", lambda found: re.sub(r"\s+", "", found.group(0)), touched)
     paths: list[str] = []
     for token in re.split(r"[\s·]+", touched):
-        token = token.strip("`,;()")
-        braced = re.match(r"^(.*)\{([^{}]+)\}(.*)$", token)
-        paths += [f"{braced.group(1)}{part}{braced.group(3)}" for part in braced.group(2).split(",")] if braced else [token]
-    return [path for path in paths if path]
+        pending = [token.strip("`,;()").removeprefix("./")]
+        while pending:
+            path = pending.pop()
+            braced = re.match(r"^(.*?)\{([^{}]+)\}(.*)$", path)
+            if braced:  # every group, one at a time
+                pending += [f"{braced.group(1)}{part}{braced.group(3)}" for part in braced.group(2).split(",")]
+            elif path:
+                paths.append(path)
+    return paths
 
 
 def _touches(path: str, glob: str) -> bool:
     """A path matches a glob; a folder touches every glob beneath it (the W3 review's M2)."""
     if fnmatch.fnmatch(path, glob):
         return True
-    folder = path.rstrip("/") + "/"
-    return path.endswith("/") and glob.startswith(folder)
+    # A folder, with its slash or without (the W3 Tester's M6), touches every glob beneath it.
+    return glob.startswith(path.rstrip("/") + "/")
+
+
+def _tier(evidence: str) -> str | None:
+    """The tier row 1 records: its first tier word, so "MED, not HIGH" is MED (the W3 Tester's M6)."""
+    found = re.search(r"\b(HIGH|MED|LOW)\b", evidence)
+    return found.group(1) if found else None
 
 
 def _glob_problems(p: pathlib.Path, touched: str, evidence: str) -> list[str]:
@@ -325,7 +345,7 @@ def _glob_problems(p: pathlib.Path, touched: str, evidence: str) -> list[str]:
         return [f"`{plan.name}` names no security globs (a `Security globs` bullet with backticked paths), so "
                 "no rule can say what makes this wave HIGH; it fails closed (#140)"]
     hits = sorted({f"{path} ({glob})" for path in _footprint_paths(touched) for glob in globs if _touches(path, glob)})
-    if hits and not re.search(r"\bHIGH\b", evidence):
+    if hits and _tier(evidence) != "HIGH":
         return [f"the footprint touches its plan's security globs ({', '.join(hits)}) and row 1 does not "
                 "record the wave as HIGH -- a diff touching a security glob is HIGH (#140)"]
     return []

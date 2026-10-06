@@ -147,6 +147,9 @@ disallow_incomplete_defs = false
 # is worth less than a low one. Raise it in the tree, where a reviewer sees the diff.
 addopts = "-ra --strict-markers --strict-config --cov=src/app --cov-report=term-missing --cov-report=json --cov-fail-under=60 --junitxml=.pytest-report.xml"
 testpaths = ["tests"]
+# M19-W3 (the Tester's M4, #137): a `parametrize` with no cases skips, and CI counts the skip where the
+# local count (`coverage_floor.py --derive`) cannot see it; it is a collection error instead.
+empty_parameter_set_mark = "fail_at_collect"
 asyncio_mode = "auto"
 pythonpath = ["src"]
 
