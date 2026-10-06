@@ -217,3 +217,38 @@ def test_permitted_arithmetic_passes_where_its_ruling_names_the_file() -> None:
     """#60: D-167 lets `Combine.swift` rank positions; the gate refuses nothing there for it."""
     refused = gate.problems(gate.references(FLOW_AST))
     assert not [line for line in refused if line.startswith("Combine.swift:") and "served position" in line], refused
+
+
+#: #107: what `swiftc -dump-ast` prints for a URL made by a call whose name is no initialiser: a
+#: generic decode wrapper declared in another file and called with `URL`. Beside it, what must pass:
+#: the screen reading the engine's address, and the one door making its URL.
+MADE_URL_AST = (
+    '(source_file "/x/ContentView.swift"\n'
+    '  (call_expr type="URL?" location=/x/ContentView.swift:3:5 nothrow isolation_crossing="none"\n'
+    '    (declref_expr type="(URL.Type, Data) -> URL?" location=/x/ContentView.swift:3:5 '
+    'decl="main.(file).fixtureDecode(_:from:)@/x/Detail.swift:3:6 [with (substitution_map '
+    'generic_signature=<T where T : Decodable> T -> URL)]" function_ref=single apply))\n'
+    '  (member_ref_expr type="URL" location=/x/ContentView.swift:5:20 '
+    'decl="main.(file).EngineClient.baseURL@/x/EngineClient.swift:2:9")\n'
+    '(source_file "/x/EngineClient.swift"\n'
+    '  (call_expr type="URL?" location=/x/EngineClient.swift:4:10 nothrow isolation_crossing="none"\n'
+    '    (declref_expr type="(String) -> URL?" location=/x/EngineClient.swift:4:10 '
+    'decl="Foundation.(file).URL.init(string:)" function_ref=single apply))\n'
+)
+
+
+def test_a_url_made_by_any_call_outside_its_files_is_refused() -> None:
+    """#107: `URL(_:strategy:)` and a generic decode wrapper make a URL from text with no initialiser
+    or decode the gate listed. A call whose result is a URL is refused outside the network door and
+    the two stores, whatever it is called; reading a URL that exists is not making one."""
+    refused = gate.problems(gate.references(MADE_URL_AST))
+    assert any(line.startswith("ContentView.swift:") and "makes a URL" in line for line in refused), refused
+    assert not [line for line in refused if line.startswith("EngineClient.swift:")], refused
+    assert len([line for line in refused if "makes a URL" in line]) == 1, refused
+
+
+def test_a_link_detector_is_the_network() -> None:
+    """#107: `NSDataDetector` with the `.link` type finds URLs in text, so it is the network's first
+    step, as a URL made from a string is."""
+    refused = gate.problems({"ContentView.swift": {"Foundation.NSDataDetector"}})
+    assert any("NSDataDetector" in line and "network" in line for line in refused), refused

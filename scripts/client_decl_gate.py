@@ -270,6 +270,9 @@ FIXTURE_REFUSALS = {
     # permitted receiver's name.
     ("ContentView.swift", "served position"),
     ("Combine.swift", "sorts `common`"),
+    # #107: a URL made by the parse strategy, by a decode wrapper and by a link detector.
+    ("ContentView.swift", "makes a URL"),
+    ("ContentView.swift", "NSDataDetector"),
 }
 SOURCE = re.compile(r'^\(source_file "([^"]+)"', re.MULTILINE)
 #: One node of the dump: its indentation (the tree's depth) and its kind.

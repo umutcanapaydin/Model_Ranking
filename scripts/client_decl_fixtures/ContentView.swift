@@ -29,3 +29,18 @@ func fixtureViewRanksByHand(_ standing: Standing) -> Int {
     let place = standing.position
     return place + 1
 }
+
+// #107: three more ways to make a URL from text. REFUSED: the parse strategy, the wrapper called
+// with `URL`, and a link detector.
+func fixtureViewParses(_ typed: String) -> URL? {
+    try? URL(typed, strategy: .url)
+}
+
+func fixtureViewDecodesThroughAWrapper(_ data: Data) -> URL? {
+    fixtureDecode(URL.self, from: data)
+}
+
+func fixtureViewFindsLinks(_ typed: String) -> [URL] {
+    let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+    return detector?.matches(in: typed, range: NSRange(typed.startIndex..., in: typed)).compactMap(\.url) ?? []
+}

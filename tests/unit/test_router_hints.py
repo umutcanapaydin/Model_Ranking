@@ -835,3 +835,16 @@ def test_the_sink_pins_refuse_the_m17_closures_mutants(mutant: str) -> None:
         sources[view] += ("\nfunc keep(_ typed: String) -> FetchedStandings? {\n    try? FetchedStandings(payload: "
                           "JSONEncoder().encode(Standings(apiVersion: typed, attributions: [], boards: [], models: [])))\n}\n")
     assert _sink_pin_problems(sources), f"{mutant} passed the text pins"
+
+
+def test_the_text_gate_refuses_a_link_detector_and_an_initialiser_it_cannot_see_applied() -> None:
+    """#107, for the lanes without Xcode: `NSDataDetector` finds URLs in text, and `type(of: x).init`
+    or an unapplied `.init` builds a value without the gate seeing its initialiser applied (the M18
+    closure Tester's K1, which built an unprotected gap register that way). The client maps with
+    `String.init` and `PickCard.init`, which build no store and reach no network."""
+    for line in ("let detector = try NSDataDetector(types: 1)",
+                 "let make = type(of: GapRegisterStore.onDevice).init",
+                 "let make = GapRegisterStore.init"):
+        assert any(re.search(p, line) for p in EGRESS), line
+    for line in ("let days = aged.map(String.init)", "return groups.map(PickCard.init)"):
+        assert not any(re.search(p, line) for p in EGRESS), line

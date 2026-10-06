@@ -13,3 +13,9 @@ struct FixtureBox: Decodable {
 func fixtureDetailDecodesAnOptionalAddress(_ typed: String) -> URL? {
     (try? JSONDecoder().decode(FixtureBox.self, from: Data("{\"address\": \"\(typed)\"}".utf8)))?.address
 }
+
+// #107: a generic decode wrapper, declared here and called with `URL` elsewhere. ALLOWED here: it
+// makes nothing until a caller names the type.
+func fixtureDecode<T: Decodable>(_ type: T.Type, from data: Data) -> T? {
+    try? JSONDecoder().decode(type, from: data)
+}
