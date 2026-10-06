@@ -52,6 +52,31 @@ def test_a_budget_above_the_count_fails_too(tmp_path: Path) -> None:
     assert "fewer than the 100000" in run.stdout, run.stdout
 
 
+def test_a_need_that_skips_py_does_not_name_stops_the_count(tmp_path: Path) -> None:
+    """#137, D-183 clause 1, fail closed (the M19-W3 Tester's F4 and F9): a `needs` that no entry of
+    `tests/skips.py` names cannot be counted, so the local check stops with "cannot run" (exit 2) and
+    names the need; it never passes on a count it could not take. With the collection failure's
+    `return 2` made `return 0`, or the unknown need let through, every test here stayed green."""
+    (tmp_path / "test_planted_need.py").write_text(
+        'import pytest\n\n\n@pytest.mark.needs("bogus")\ndef test_planted() -> None:\n    assert True\n',
+        encoding="utf-8",
+    )
+    run = _derive("tests", str(tmp_path))
+    assert run.returncode == 2, run.stdout + run.stderr
+    assert "CANNOT RUN" in run.stdout and "does not name" in run.stdout, run.stdout
+
+
+def test_an_unset_budget_fails_the_local_check(tmp_path: Path) -> None:
+    """#137, D-183 clause 1, fail closed (the M19-W3 Tester's F5): a budget file that holds no number
+    is unset, which is a failure and never a licence. With that `return 1` made `return 0`, every test
+    here stayed green."""
+    budget = tmp_path / "skip-budget.txt"
+    budget.write_text("# a reason, and no number under it\n", encoding="utf-8")
+    run = _derive("--budget-file", str(budget))
+    assert run.returncode == 1, run.stdout + run.stderr
+    assert "no skip budget" in run.stdout, run.stdout
+
+
 #: A skip outside the `needs` marker: the local check could not count it (the meta-rule that keeps
 #: the derivation whole). Spelled so that this line is not one.
 RAW_SKIP = re.compile(r"\bpytest\.(?:skip\(|xfail\(|mark\.(?:skip(?:if)?|xfail)\b|importorskip\()"
