@@ -6,7 +6,10 @@
 # ingestion on the serving host — the network-fetching code and the untrusted-producer boundary
 # W-005 guards stay off the public surface entirely.
 
-FROM python:3.11-slim AS build
+# #141: the base by digest (read 2026-10-07), so a rebuild takes this base and its pip, the tool that
+# checks the hashes. To move it, read the index digest of the tag and replace both lines:
+#   docker buildx imagetools inspect python:3.11-slim   (the "Digest:" line)
+FROM python:3.11-slim@sha256:0dd364ba7e10242f07755449e3a3d0e35f9efd987952737b90def6709ab0c5ce AS build
 WORKDIR /app
 COPY pyproject.toml ./
 COPY requirements/serve.lock requirements/build.lock ./requirements/
@@ -18,7 +21,7 @@ RUN pip install --no-cache-dir --require-hashes -r requirements/build.lock \
  && pip install --no-cache-dir --prefix=/install --require-hashes -r requirements/serve.lock \
  && pip install --no-cache-dir --prefix=/install --no-deps --no-build-isolation .
 
-FROM python:3.11-slim
+FROM python:3.11-slim@sha256:0dd364ba7e10242f07755449e3a3d0e35f9efd987952737b90def6709ab0c5ce
 # L.7: the build stamp is what makes `curl /health | jq .build` answer "which code is live", and
 # REQ-API-006 refuses to boot production without it. Passed at build time, never baked in source.
 ARG APP_BUILD=unknown
