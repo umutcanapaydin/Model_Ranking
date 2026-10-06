@@ -79,3 +79,11 @@ def test_a_release_build_reaches_the_hosted_engine_over_https() -> None:
     release = _xcconfig("Engine.xcconfig").get("ENGINE_URL[config=Release]", "")
     assert release.replace("$()", "") == f"https://{app}.fly.dev", release
     assert _xcconfig("Engine.xcconfig")["ENGINE_URL"].replace("$()", "") == "http://127.0.0.1:8080"
+
+
+def test_the_iphone_guide_sets_the_home_address_for_debug_builds_only() -> None:
+    """The M19-W5 review's M6: the guide had the owner write `ENGINE_URL = http://<Mac>` in the local
+    config, which overrides the Release address too, so a TestFlight build would ask the owner's Mac."""
+    guide = (REPO / "docs" / "owner-iphone.md").read_text(encoding="utf-8")
+    assert "ENGINE_URL[config=Debug] = http:/$()/My-Mac.local:8080" in guide
+    assert not re.search(r"^\s*ENGINE_URL\s*=", guide, re.MULTILINE), "an unconditional ENGINE_URL in the guide"

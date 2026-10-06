@@ -651,6 +651,23 @@ IMPORT = re.compile(
 )
 
 
+def _allowed_in_an_asset_catalog(path: pathlib.Path) -> bool:
+    """The M19-W5 review's K2: what an asset catalog may hold unread. Not yet narrowed (red)."""
+    return True
+
+
+def test_an_asset_catalog_holds_only_images_and_their_metadata() -> None:
+    """The M19-W5 review's K2: any file in an `.xcassets` folder passed both client gates, so a data
+    asset of another kind would ship unread. Only images and each folder's `Contents.json` pass."""
+    catalog = pathlib.Path("Assets.xcassets")
+    for path in (catalog / "AppIcon.appiconset" / "AppIcon.png", catalog / "AppIcon.appiconset" / "Contents.json",
+                 catalog / "Contents.json"):
+        assert _allowed_in_an_asset_catalog(path), path
+    for path in (catalog / "Canned.dataset" / "payload.bin", catalog / "Canned.dataset" / "payload.txt",
+                 catalog / "Canned.dataset" / "payload.json"):
+        assert not _allowed_in_an_asset_catalog(path), path
+
+
 def _assert_the_client_has_no_way_off_the_device() -> None:
     used: set[tuple[str, str]] = set()
     storage = 0
