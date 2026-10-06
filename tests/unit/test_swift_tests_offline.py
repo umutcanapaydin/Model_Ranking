@@ -114,6 +114,13 @@ def test_no_swift_source_builds_a_bare_session_configuration() -> None:
     assert _bare_configurations(sources) == []
 
 
+#: #108: a configuration built by its own initialiser, `URLSessionConfiguration()` or `.init()`.
+BARE_CONFIGURATION = re.compile(r"\bURLSessionConfiguration\s*(?:\.\s*init\s*)?\(\s*\)")
+
+
 def _bare_configurations(sources: dict[str, str]) -> list[str]:
-    """#108: not yet written."""
-    return []
+    """#108: the files that build a bare configuration, read as code: the tripwire's own header names
+    one in a comment, and a comment builds nothing."""
+    from tests.unit.test_router_hints import _code
+
+    return sorted(name for name, source in sources.items() if BARE_CONFIGURATION.search(_code(source)))
