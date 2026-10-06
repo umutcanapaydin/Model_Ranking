@@ -380,6 +380,10 @@ _AT_DECORATION = frozenset({"default", "latest"})
 #: Epoch writes a run's effort after an underscore (`gpt-6-astra_high`). `none`, `minimal`,
 #: `promax` and `unknown` are not efforts this schema stores; they are removed and read as unspecified.
 _UNDERSCORE_EFFORT = re.compile(r"_(none|minimal|low|medium|high|xhigh|max|promax|unknown)\Z", re.I)
+#: #130: OpenRouter and Arena write a run's effort after a dash (`o3-mini-high`, `grok-4.7-xhigh`).
+#: Only `high` and `xhigh`: `-medium` and `-max` end product names (Magistral Medium, Qwen3 Max, Codex
+#: Max), and no product ends in `-high`.
+_DASH_EFFORT = re.compile(r"-(xhigh|high)\Z", re.I)
 #: The route segment before a model name, as price feeds write it, to the vendor it names.
 _VENDOR_SLUGS: dict[str, str] = {
     "openai": "OpenAI", "anthropic": "Anthropic", "google": "Google", "gemini": "Google",
@@ -468,7 +472,7 @@ def derive_identity(name: str) -> DerivedIdentity | None:
         return None
     text = name.strip()
     effort: str | None = None
-    suffix = _UNDERSCORE_EFFORT.search(text) or _PAREN_EFFORT.search(text)
+    suffix = _UNDERSCORE_EFFORT.search(text) or _PAREN_EFFORT.search(text) or _DASH_EFFORT.search(text)
     if suffix:
         token = suffix.group(1).lower()
         effort = token if token in EFFORT_LEVELS else None
@@ -580,7 +584,7 @@ def _derived_display(model_id: str, names: list[str]) -> str:
         return DISPLAY_NAMES[model_id]
     candidates = set()
     for name in names:
-        bare = _PAREN_EFFORT.sub("", _UNDERSCORE_EFFORT.sub("", name.rsplit("/", 1)[-1])).strip()
+        bare = _DASH_EFFORT.sub("", _PAREN_EFFORT.sub("", _UNDERSCORE_EFFORT.sub("", name.rsplit("/", 1)[-1]))).strip()
         derived = derive_identity(bare)
         if _DISPLAY.fullmatch(bare) and derived is not None and derived.model_id == model_id:
             candidates.add(bare)

@@ -30,7 +30,11 @@ RAW_ON_2026_10_04 = {
     "claude3-opus20240229", "claude3-sonnet20240229",
 }
 #: Ids that ARE their product name: OpenAI writes its reasoning models in lower case, as their ids.
-SPELLED_AS_THEIR_ID = {"o1-preview", "o3", "o3-mini", "o3-mini-high", "o3-pro", "o4-mini"}
+SPELLED_AS_THEIR_ID = {"o1-preview", "o3", "o3-mini", "o3-pro", "o4-mini"}
+#: Ids of 2026-10-04 that are no longer models: each is another model's score now.
+NO_LONGER_MODELS = {
+    "o3-mini-high",  # #130: o3-mini at high effort
+}
 
 CLAUDE = re.compile(r"Claude (?:(?P<old>\d(?:\.\d)?) (?:Opus|Sonnet|Haiku)|(?:Opus|Sonnet|Haiku) (?P<new>\d(?:\.\d)?))\b")
 
@@ -62,7 +66,7 @@ def test_the_word_order_check_fails_on_the_old_spellings() -> None:
 
 
 def test_no_model_served_under_its_raw_id_is_left_without_a_name() -> None:
-    named = set(registry.DISPLAY_NAMES) | SPELLED_AS_THEIR_ID
+    named = set(registry.DISPLAY_NAMES) | SPELLED_AS_THEIR_ID | NO_LONGER_MODELS
     assert RAW_ON_2026_10_04 - named == set(), sorted(RAW_ON_2026_10_04 - named)
 
 
@@ -95,6 +99,8 @@ def test_every_model_the_artifact_serves_is_named_by_this_code_as_a_product() ->
     curated = {rule.canonical_id: rule.display for rule in registry.MODEL_RULES}
     raw_ids, misordered = [], []
     for (model_id,) in conn.execute("SELECT id FROM models"):
+        if model_id in NO_LONGER_MODELS:  # an artifact built before its fix holds it until the next build
+            continue
         names = [n for (n,) in conn.execute(
             "SELECT raw_name FROM scores WHERE model_id = ? UNION SELECT alias FROM pricing WHERE model_id = ?",
             (model_id, model_id))]
