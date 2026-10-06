@@ -281,8 +281,11 @@ def main() -> int:
     MUST_BLOCK = ["git push origin main --force", "git push --force origin main", "git push -f o x",
                   "git push origin main", "git push origin master", "git push origin HEAD:main",
                   "git reset --hard HEAD~1", "rm -rf .", "rm -rf ~/work", "rm -fr /home/u",
-                  "git clean -fd"]
+                  "git clean -fd",
+                  # #142 (the M18 closure's S6): a short-option cluster holding `f`, and a mirror push.
+                  "git push -uf origin x", "git push -fu origin x", "git push --mirror origin"]
     MUST_ALLOW = ["git push -u origin fix/issue-3", "git push origin enhancement/x", "git push",
+                  "git push --follow-tags origin x",
                   "git status", "rm file.txt", "rm -r build",
                   "git reset HEAD~1", "npm run format"]
     bash_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
