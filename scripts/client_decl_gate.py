@@ -250,6 +250,13 @@ ARITHMETIC_PERMITTED: dict[tuple[str, str, str | None], str] = {
     ("Combine.swift", "position", None): "D-167: the combination ranks served positions",
     ("Router.swift", "price", "priceInPages"): "REQ-CMP-002: the price in pages, beside the exact figure",
     ("Language.swift", "price", "priceInPages"): "REQ-CMP-002: the price in pages, in its Turkish sentence",
+    ("Uncertainty.swift", "anchor", "distanceOutOf100"): "D-143: a distance from the leader, out of 100",
+    ("Uncertainty.swift", "anchor", "anchoredFact"): "D-143: a pick's fact restated out of 100 (review M-1)",
+}
+#: A type the client decodes that the engine never sends: the phone's own record, kept on the phone.
+#: Every other decoded type is served, so a new one counts until it is named here, with its reason.
+NOT_SERVED = {
+    "GapEntry": "REQ-GAP-001: the phone's own count of a question it could not answer, saved on the phone",
 }
 #: (file, call, the receiver the compiler resolved) -> how many such sorts the file may make (Ruling
 #: A, REQ-APP-002). Counted, so a second sort under a permitted name fails (the M17-W4 Tester's M7).
@@ -326,7 +333,7 @@ NUMERIC_FIELD = re.compile(r'^ *\(var_decl [^"]*"(\w+)" interface_type="(?:U?Int
                            r'CGFloat|Decimal)\??"[^\n]*readImpl=stored')
 #: Any operator on a type that is not text or a collection: `+`, `-=`, `&+`, on `Int`, `Int32`,
 #: `FixedWidthInteger`, `Decimal`... (the review's A5, A7).
-OPERATOR = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.(\w+) extension\.(&?[-+*/%]=?)(?:"| \[with)')
+OPERATOR = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.(\w+)(?: extension)?\.(&?[-+*/%]=?)(?:"| \[with)')
 NOT_NUMBERS = {"String", "Substring", "StringProtocol", "Character", "Array", "ArraySlice",
                "ContiguousArray", "Set", "Dictionary", "Sequence", "Collection",
                "RangeReplaceableCollection", "Optional"}
@@ -348,7 +355,12 @@ LOCAL_VAR = re.compile(r'^ *\(var_decl [^\[]*range=\[([^\]:]+):(\d+):(\d+)')
 PATTERN_NAME = re.compile(r'^ *\(pattern_named (?:[^"=]*="[^"]*")*[^"=]*"([^"]+)"')
 PARAMETER = re.compile(r'^ *\(parameter "([^"]+)"')
 FUNCTION = re.compile(r'^ *\((?:func_decl|constructor_decl) [^\[]*range=\[[^\]:]+:(\d+):\d+[^"]*"(\w+)')
-CALLEE = re.compile(r'decl="main\.\(file\)\.(?:[\w.]+\.)?(\w+)(?:\([^)"]*\))?@([^":]+):(\d+):\d+" function_ref=\w+ apply')
+#: A reference into the app's module as the flow reads it: a generic one ends `[with ...]`.
+FLOW_REF = re.compile(r'decl="main\.\(file\)\.([^"@]+)@([^":]+):(\d+):(\d+)(?:"| \[with)')
+CALLEE = re.compile(r'decl="main\.\(file\)\.((?:[\w.]+\.)?)(\w+)(?:\([^)"]*\))?@([^":]+):(\d+):\d+(?:"| \[with)'
+                    r'.*? function_ref=\w+ apply')
+#: A type's declaration. A protocol's node is `protocol`, not `protocol_decl`.
+TYPE_DECL = re.compile(r'^ *\((struct_decl|class_decl|enum_decl|extension_decl|protocol)\b[^"]*"([\w.]+)"')
 LOCATION = re.compile(r"location=[^ ]*?(\w+\.swift):(\d+):(\d+)")
 APPLIED = re.compile(r" function_ref=\w+ apply")
 #: A type that can hold a number: `Int`, `Double?`, `[Int]`, `(offset: Int, element: Int)`. A model,
@@ -527,10 +539,11 @@ def served_fields(roots: list[_Node]) -> dict[tuple[str, str], str]:
         if node.kind in ("func_decl", "constructor_decl", "accessor_decl", "closure_expr"):
             return
         if (named := DECODED_TYPE.match(node.line)) is not None:
-            decoded = named.group(1)
+            decoded = None if named.group(1) in NOT_SERVED else named.group(1)
         elif node.kind in ("struct_decl", "class_decl", "enum_decl"):
             decoded = None
-        if decoded and (field := NUMERIC_FIELD.match(node.line)):
+        # A static is the type's own constant, never decoded.
+        if decoded and (field := NUMERIC_FIELD.match(node.line)) and " static " not in node.line:
             found[(decoded, field.group(1))] = FIELD_KINDS.get(field.group(1), "number")
         for kid in node.kids:
             visit(kid, decoded)
@@ -579,6 +592,41 @@ def _parameters(roots: list[_Node]) -> dict[tuple[str, str, int], list[tuple[str
     return found
 
 
+def _members(roots: list[_Node]) -> tuple[dict[tuple[str, str], tuple[object, ...]],
+                                          list[tuple[str, tuple[object, ...]]],
+                                          dict[str, list[tuple[object, ...]]]]:
+    """What the types declare: each struct's or class's stored properties by `(type, name)`, for its
+    memberwise initialiser; each protocol requirement; and every other member, by name, as a witness
+    a requirement may dispatch to. Properties by location, functions by their result."""
+    stored: dict[tuple[str, str], tuple[object, ...]] = {}
+    requirements: list[tuple[str, tuple[object, ...]]] = []
+    witnesses: dict[str, list[tuple[object, ...]]] = {}
+
+    def visit(node: _Node, file: str, container: tuple[str, str] | None) -> None:
+        declared = TYPE_DECL.match(node.line)
+        member: tuple[str, tuple[object, ...]] | None = None
+        if container and (place := LOCAL_VAR.match(node.line)) and (named := VAR_NAME.match(node.line)):
+            member = named.group(1), (pathlib.Path(place.group(1)).name, int(place.group(2)), int(place.group(3)))
+            if container[0] in ("struct_decl", "class_decl") and "readImpl=stored" in node.line:
+                stored[(container[1], member[0])] = member[1]
+        elif container and node.kind == "func_decl" and (function := FUNCTION.match(node.line)):
+            member = function.group(2), ("result", file, int(function.group(1)), function.group(2))
+        if member is not None:
+            if container and container[0] == "protocol":
+                requirements.append(member)
+            else:
+                witnesses.setdefault(member[0], []).append(member[1])
+        if node.kind in ("func_decl", "constructor_decl", "accessor_decl", "closure_expr", "var_decl"):
+            return
+        inner = (declared.group(1), declared.group(2).split(".")[-1]) if declared else container
+        for kid in node.kids:
+            visit(kid, file, inner)
+
+    for root in roots:
+        visit(root, _file_of(root), None)
+    return stored, requirements, witnesses
+
+
 class _Flow:
     """The flow of served numbers through one compiled module, to a fixed point (D-181)."""
 
@@ -589,6 +637,7 @@ class _Flow:
         self.functions: dict[tuple[str, str], list[int]] = {}
         for file, name, line in self.parameters:
             self.functions.setdefault((file, name), []).append(line)
+        self.stored, self.requirements, self.witnesses = _members(roots)
         self.carriers: _Carriers = {}
 
     def declared(self, file: str, name: str, row: int) -> int | None:
@@ -600,16 +649,19 @@ class _Flow:
         """What served numbers an expression reaches: a served field, or anything they flowed into."""
         found: set[str] = set()
         for item in node.walk():
-            for reference in MAIN_REF.finditer(item.line):
+            for reference in FLOW_REF.finditer(item.line):
                 symbol, path, row, column = reference.groups()
                 file, parts, line = pathlib.Path(path).name, symbol.split("."), int(row)
-                # A call: the compiler prints a function whose labels are all `_` without them.
-                called = "(" in parts[-1] or APPLIED.match(item.line, reference.end()) is not None
+                # A function, called or used as a value. The compiler prints one whose labels are all
+                # `_` without them, so its type says it is one.
+                typed = TYPE_OF["type"].search(item.line)
+                function = "(" in parts[-1] or APPLIED.match(item.line, reference.end()) is not None or (
+                    typed is not None and "->" in typed.group(1))
                 if len(parts) >= 2 and (kind := self.served.get((parts[-2], parts[-1]))):
                     found.add(kind)
                 found |= self.carriers.get((file, line, int(column)), set())
                 found |= self.carriers.get(("bound", file, line, parts[-1]), set())
-                if called and (at := self.declared(file, parts[-1], line)) is not None:
+                if function and (at := self.declared(file, parts[-1], line)) is not None:
                     found |= self.carriers.get(("result", file, at, _base(parts[-1])), set())
                 if len(parts) >= 2 and "(" in parts[-2] and (at := self.declared(file, parts[-2], line)) is not None:
                     found |= self.carriers.get(("parameter", file, at, _base(parts[-2]), parts[-1]), set())
@@ -623,7 +675,9 @@ class _Flow:
                 file = _file_of(root)
                 for node in root.walk():
                     changed |= self.binding(node) | self.assignment(node) | self.loop(node, file)
-                    changed |= self.call(node) | self.result(node, file) | self.closure(node, file)
+                    changed |= self.condition(node, file) | self.cases(node)
+                    changed |= self.call(node) | self.inout(node) | self.result(node, file) | self.closure(node, file)
+            changed |= self.dispatch()
 
     def binding(self, node: _Node) -> bool:
         """`let x = served`: into the locals the binding declares."""
@@ -638,16 +692,26 @@ class _Flow:
                         changed |= _mark(self.carriers, key, kinds)
         return changed
 
+    def _target(self, node: _Node) -> tuple[object, ...] | None:
+        """Where an assigned or `inout` place is declared."""
+        found = next((m for item in node.walk() if (m := FLOW_REF.search(item.line))), None)
+        return None if found is None else (pathlib.Path(found.group(2)).name, int(found.group(3)), int(found.group(4)))
+
     def assignment(self, node: _Node) -> bool:
-        """`x = served`, `self.x = served`: into what is assigned (the review's A1)."""
-        if node.kind != "assign_expr" or len(node.kids) < 2 or not _numeric(node.kids[0], "type"):
+        """`x = served`, `self.x = served` (the review's A1), and `x += served`: into what is assigned."""
+        if node.kind == "assign_expr" and len(node.kids) >= 2:
+            place, value = node.kids[0], node.kids[1]
+        elif (node.kind == "binary_expr" and len(node.kids) >= 2 and node.kids[0].kids
+              and (operator := OPERATOR.search(node.kids[0].kids[0].line)) and operator.group(2).endswith("=")
+              and len(arguments := [kid for kid in node.kids[1].kids if kid.kind == "argument"]) == 2):
+            place, value = arguments
+        else:
             return False
-        if not (kinds := self.carried(node.kids[1])):
+        if not _numeric(place, "type") and not _numeric(place.kids[0] if place.kids else place, "type"):
             return False
-        target = next((m for item in node.kids[0].walk() if (m := MAIN_REF.search(item.line))), None)
-        if target is None:
+        if not (kinds := self.carried(value)) or (target := self._target(place)) is None:
             return False
-        return _mark(self.carriers, (pathlib.Path(target.group(2)).name, int(target.group(3)), int(target.group(4))), kinds)
+        return _mark(self.carriers, target, kinds)
 
     def loop(self, node: _Node, file: str) -> bool:
         """`for x in served`, `for (i, x) in ...`: into every name the pattern binds (the review's A10, A11)."""
@@ -661,21 +725,64 @@ class _Flow:
                  if (m := PATTERN_NAME.match(item.line)) and _numeric(item, "type")}
         return any([_mark(self.carriers, ("bound", file, int(start.group(1)), name), kinds) for name in names])
 
+    def condition(self, node: _Node, file: str) -> bool:
+        """`if let x = served`, `guard let`, `while let`, `if case let`: into the names a condition binds,
+        on the line its value starts."""
+        if node.kind != "pattern" or len(node.kids) < 2 or not (start := LOCAL_VAR_RANGE.search(node.kids[1].line)):
+            return False
+        kinds = set().union(*(self.carried(kid) for kid in node.kids[1:]))
+        names = {m.group(1) for item in node.kids[0].walk()
+                 if (m := PATTERN_NAME.match(item.line)) and _numeric(item, "type")}
+        return any([_mark(self.carriers, ("bound", file, int(start.group(1)), name), kinds) for name in names])
+
+    def cases(self, node: _Node) -> bool:
+        """`switch served { case let x: ... }`: into the names each case binds."""
+        if node.kind != "switch_stmt" or not node.kids or node.kids[0].kind == "case_stmt":
+            return False
+        if not (kinds := self.carried(node.kids[0])):
+            return False
+        bound = [variable for case in node.kids if case.kind == "case_stmt" for kid in case.kids
+                 if kid.label == "case_body_variables" for variable in kid.kids]
+        return any([_mark(self.carriers, (pathlib.Path(place.group(1)).name, int(place.group(2)), int(place.group(3))), kinds)
+                    for variable in bound
+                    if _numeric(variable, "interface_type") and (place := LOCAL_VAR.match(variable.line))])
+
     def call(self, node: _Node) -> bool:
-        """A function's, a method's or an initialiser's parameters, from its arguments (the review's A12)."""
+        """A function's, a method's or an initialiser's parameters, from its arguments (the review's A12);
+        and a memberwise initialiser's stored properties."""
         if node.kind != "call_expr" or len(node.kids) < 2 or node.kids[1].kind != "argument_list":
             return False
         callee = next((m for item in node.kids[0].walk() if (m := CALLEE.search(item.line))), None)
         if callee is None:
             return False
-        target, name = pathlib.Path(callee.group(2)).name, callee.group(1)
-        if (at := self.declared(target, name, int(callee.group(3)))) is None:
+        owner, name, target = callee.group(1).rstrip(".").split(".")[-1], callee.group(2), pathlib.Path(callee.group(3)).name
+        if (at := self.declared(target, name, int(callee.group(4)))) is None:
             return False
         arguments = [kid for kid in node.kids[1].kids if kid.kind == "argument"]
+        changed = False
         # Not strict: a parameter with a default takes no argument.
-        return any([_mark(self.carriers, ("parameter", target, at, name, parameter), self.carried(argument))
-                    for (parameter, numeric), argument in zip(self.parameters[(target, name, at)], arguments, strict=False)
-                    if numeric])
+        for (parameter, numeric), argument in zip(self.parameters[(target, name, at)], arguments, strict=False):
+            if numeric and (kinds := self.carried(argument)):
+                changed |= _mark(self.carriers, ("parameter", target, at, name, parameter), kinds)
+                if name == "init" and (owner, parameter) in self.stored:
+                    changed |= _mark(self.carriers, self.stored[(owner, parameter)], kinds)
+        return changed
+
+    def inout(self, node: _Node) -> bool:
+        """`places.append(served)`, `fill(&total, served)`: into a place a call is handed `inout`,
+        a mutating method's receiver among them."""
+        if node.kind != "call_expr" or len(node.kids) < 2 or node.kids[1].kind != "argument_list":
+            return False
+        handed = [kid for kid in node.kids[1].kids if kid.kind == "argument"]
+        if node.kids[0].kind == "dot_syntax_call_expr":
+            handed += [kid for listed in node.kids[0].kids if listed.kind == "argument_list"
+                       for kid in listed.kids if kid.kind == "argument"]
+        places = [kid for kid in handed if kid.line.lstrip().startswith("(argument inout") and kid.kids]
+        values = [kid for kid in node.kids[1].kids if kid.kind == "argument" and kid not in places]
+        if not places or not (kinds := set().union(*(self.carried(kid) for kid in values))):
+            return False
+        return any([_mark(self.carriers, target, kinds) for place in places
+                    if _numeric(place.kids[0], "type") and (target := self._target(place)) is not None])
 
     def result(self, node: _Node, file: str) -> bool:
         """What a function returns, to every call of it (the review's A2); what a computed property
@@ -707,6 +814,15 @@ class _Flow:
                     changed |= _mark(self.carriers, ("bound", file, int(start.group(1)), named.group(1)), kinds)
         return changed
 
+    def dispatch(self) -> bool:
+        """`item.placed` on `any FixturePlaced`: a protocol requirement carries what any member of that
+        name carries, since the compiler cannot say which type answers."""
+        changed = False
+        for name, key in self.requirements:
+            kinds = set().union(*(self.carriers.get(witness, set()) for witness in self.witnesses.get(name, [])))
+            changed |= _mark(self.carriers, key, kinds)
+        return changed
+
 
 def _scoped(node: _Node, function: str | None = None) -> Iterator[tuple[_Node, str | None]]:
     """Every node with the name of the function it is in, for permissions scoped to one (M5)."""
@@ -733,6 +849,10 @@ def flow_facts(ast: str) -> dict[str, set[str]]:
                 sorts[(file, *ordering)] = sorts.get((file, *ordering), 0) + 1
     for (file, method, receiver), count in sorts.items():
         facts.setdefault(file, set()).add(f"main.<sorts>.{method}.{receiver}={count}")
+    for root in flow.roots:
+        for node in root.walk():
+            if (named := DECODED_TYPE.match(node.line)) and named.group(1) in NOT_SERVED:
+                facts.setdefault(_file_of(root), set()).add(f"main.<unserved>.{named.group(1)}")
     return facts
 
 
@@ -805,6 +925,8 @@ def unseen_permissions(found: dict[str, set[str]]) -> list[str]:
                if not any(n == name and k == kind and (function is None or f == function) for n, k, f in seen_arithmetic)]
     missing += [f"{name}: `{call}` on `{receiver}`" for name, call, receiver in SORTS_PERMITTED
                 if (name, call, receiver) not in seen_sorts]
+    seen_types = {fact.split(">.")[1] for facts in found.values() for fact in facts if fact.startswith("main.<unserved>.")}
+    missing += [f"`{name}`, which no type decodes" for name in NOT_SERVED if name not in seen_types]
     return missing
 
 
