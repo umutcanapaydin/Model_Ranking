@@ -275,6 +275,13 @@ def _slices_stay_off_the_network(request: pytest.FixtureRequest, monkeypatch: py
 def pytest_sessionstart(session: pytest.Session) -> None:
     # In the controlling process, before any worker collects: raised inside an xdist worker the
     # same refusal surfaces as an INTERNALERROR traceback that does not say what is missing.
+    if os.environ.get("MODEL_RANKING_REQUIRE_OFFLINE") == "1" and not skips.offline():
+        pytest.exit(
+            "#122: this run must be offline at the operating system's level (MODEL_RANKING_REQUIRE_OFFLINE=1), "
+            "and a child process could still reach the network. Run it through `make test`, which wraps it in "
+            "scripts/offline.sb on macOS.",
+            returncode=4,
+        )
     if os.environ.get("MODEL_RANKING_REQUIRE_ARTIFACT") == "1" and not ARTIFACT.is_file():
         pytest.exit(
             f"W-108: this run must execute the tests that read {ARTIFACT}, and it is missing "

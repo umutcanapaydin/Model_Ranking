@@ -92,13 +92,20 @@ install: $(VENV)/.installed  ## Stage 0: create the venv, install the project, w
 # `process_version`. It fails closed: a version nobody can establish is what it exists to prevent.
 	@$(PY) scripts/write_install_marker.py
 
-test: install  ## pytest in parallel, with the served artifact required (another stack: STACK_TEST)
+#: #122: the operating system this runs on; `make -n test UNAME_S=Darwin` shows the macOS recipe anywhere.
+UNAME_S ?= $(shell uname -s)
+OFFLINE_RUN = $(if $(filter Darwin,$(UNAME_S)),MODEL_RANKING_REQUIRE_OFFLINE=1 /usr/bin/sandbox-exec -f scripts/offline.sb,)
+
+test: install  ## pytest in parallel, with the served artifact required, offline on macOS (another stack: STACK_TEST)
 	@# `-n auto`: one worker per core (8 on the owner's Mac). Measured before adopting it: three
 	@# parallel runs, 908 passed each time, and coverage.json identical to a serial run (3188
 	@# lines, 89%) -- the coverage floor below reads that file, so a parallel run that lost
 	@# coverage data would have turned the floor into a false alarm. CI stays serial: `.github/`
 	@# is a DevOps-owned surface (AGENTS.md section 5). A single test by hand: plain `pytest path`.
-	$(if $(ON_PYTHON),MODEL_RANKING_REQUIRE_ARTIFACT=1 $(PY) -m pytest -n auto,$(call bound,STACK_TEST))
+	@# #122 (option B): on macOS the run is offline at the OS level, children included
+	@# (`scripts/offline.sb`), and says it must be: the suite refuses to start if a child could still
+	@# reach the network. No sandbox-exec on a Mac is a failure here, never an unguarded run.
+	$(if $(ON_PYTHON),MODEL_RANKING_REQUIRE_ARTIFACT=1 $(OFFLINE_RUN) $(PY) -m pytest -n auto,$(call bound,STACK_TEST))
 	@# W-041's per-module floor reads the coverage.json this run just wrote, so it runs HERE, in the
 	@# same recipe: under DevFlow v6.6's check-fast a separate `coverage-floor` prerequisite would run
 	@# in another leg, beside the tests, and read the previous run's file (D-161).

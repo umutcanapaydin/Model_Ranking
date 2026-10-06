@@ -14,9 +14,12 @@ this file, so the count is the tests' own and never a second list.
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import shutil
+import subprocess
+import sys
 import urllib.request
 from collections.abc import Callable
 from pathlib import Path
@@ -26,6 +29,20 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 ARTIFACT = Path("advisor.db")
+
+
+@functools.cache
+def offline() -> bool:
+    """#122: whether a child process of this run is refused an outside peer by the operating system.
+    A child names TEST-NET-1 over UDP, which sends no packet: outside a sandbox it simply succeeds;
+    inside macOS's profile the system refuses it (EPERM), and in a Linux network namespace with only
+    loopback there is no route to it (ENETUNREACH). A child, because this process carries a Python
+    guard of its own that would answer first."""
+    probe = ("import errno, socket\ns = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)\n"
+             "try:\n    s.connect(('192.0.2.1', 9))\nexcept OSError as e:\n"
+             "    print('refused' if e.errno in (errno.EPERM, errno.EACCES, errno.ENETUNREACH) else e)\n")
+    child = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, timeout=30, check=False)
+    return child.stdout.strip() == "refused"
 
 
 class Need(NamedTuple):
@@ -49,6 +66,8 @@ NEEDS: dict[str, Need] = {
     "macos": Need("macOS's System Configuration proxy fallback",
                   lambda: hasattr(urllib.request, "getproxies_macosx_sysconf"), False,
                   "the test job runs on ubuntu, which has no such fallback (#150)"),
+    "offline": Need("a run offline at the operating system's level, children included", offline, False,
+                    "CI's half is a patch for the owner's workflow file (#122)"),
     "bash_curl": Need("bash and curl", lambda: shutil.which("bash") is not None and shutil.which("curl") is not None,
                       True, "both are on the ubuntu image"),
     "git": Need("a git checkout", lambda: shutil.which("git") is not None and (ROOT / ".git").exists(), True,

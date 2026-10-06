@@ -25,19 +25,21 @@ ROOT = Path(__file__).resolve().parents[2]
 
 #: A child's attempt to name a peer off this machine. TEST-NET-1, and UDP, so no packet in any case.
 UDP_PROBE = (
-    "import socket\n"
+    "import errno, socket\n"
     "s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)\n"
     "try:\n"
     "    s.connect(('192.0.2.1', 9))\n"
     "    print('reached')\n"
-    "except PermissionError:\n"
-    "    print('refused')\n"
+    "except OSError as e:\n"
+    "    print('refused' if e.errno in (errno.EPERM, errno.EACCES, errno.ENETUNREACH) else e)\n"
 )
 
 
 def _make_test(uname: str) -> str:
-    return subprocess.run(["make", "-n", "test", f"UNAME_S={uname}"], cwd=ROOT, capture_output=True, text=True,
-                          check=False, timeout=120).stdout
+    """The pytest command `make test` would run on `uname`; its comment lines are not commands."""
+    lines = subprocess.run(["make", "-n", "test", f"UNAME_S={uname}"], cwd=ROOT, capture_output=True, text=True,
+                           check=False, timeout=120).stdout.splitlines()
+    return next((line for line in lines if "-m pytest" in line and not line.lstrip().startswith("#")), "")
 
 
 def test_make_test_runs_the_suite_offline_on_macos() -> None:
@@ -58,12 +60,17 @@ def test_a_run_that_must_be_offline_and_is_not_stops_before_any_test(monkeypatch
         conftest.pytest_sessionstart(None)  # type: ignore[arg-type]
 
 
+@pytest.mark.needs("offline")
 def test_a_child_process_the_suite_starts_cannot_name_an_outside_peer() -> None:
     """#122: a child of the test run is refused by the operating system, not by a Python guard it
-    may not carry."""
+    may not carry: a Python child with a scrubbed environment, and `curl`, which is no Python at all.
+    It runs where the run is offline (`needs("offline")`): elsewhere the TCP half would send a packet."""
     child = subprocess.run([sys.executable, "-c", UDP_PROBE], capture_output=True, text=True, timeout=30,
                            check=False, env={k: v for k, v in os.environ.items() if k != "PYTHONPATH"})
     assert child.stdout.strip() == "refused", child.stdout + child.stderr
+    curl = subprocess.run(["curl", "-sS", "--max-time", "5", "-o", "/dev/null", "http://192.0.2.1:9/"],
+                          capture_output=True, text=True, timeout=30, check=False)
+    assert curl.returncode == 7, curl.stderr  # "couldn't connect": refused before a packet left
 
 
 def test_a_child_process_still_reaches_loopback() -> None:
