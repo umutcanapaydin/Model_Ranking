@@ -419,6 +419,14 @@ _UNDERSCORE_EFFORT = re.compile(r"_(none|minimal|low|medium|high|xhigh|max|proma
 #: Only `high` and `xhigh`: `-medium` and `-max` end product names (Magistral Medium, Qwen3 Max, Codex
 #: Max), and no product ends in `-high`.
 _DASH_EFFORT = re.compile(r"-(xhigh|high)\Z", re.I)
+#: The review's R2 (M19-W1): on Perplexity's Sonar names `-high` is the search-context size
+#: (`ppl-sonar-pro-high`), not an effort, so the dash grammar leaves them whole.
+_SEARCH_CONTEXT_NAME = re.compile(r"sonar", re.I)
+
+
+def _dash_effort(text: str) -> re.Match[str] | None:
+    """A trailing `-high` or `-xhigh` that is an effort, and not a Sonar name's search context."""
+    return None if _SEARCH_CONTEXT_NAME.search(text) else _DASH_EFFORT.search(text)
 #: The route segment before a model name, as price feeds write it, to the vendor it names.
 _VENDOR_SLUGS: dict[str, str] = {
     "openai": "OpenAI", "anthropic": "Anthropic", "google": "Google", "gemini": "Google",
@@ -509,7 +517,7 @@ def derive_identity(name: str) -> DerivedIdentity | None:
         return None
     text = name.strip()
     effort: str | None = None
-    suffix = _UNDERSCORE_EFFORT.search(text) or _PAREN_EFFORT.search(text) or _DASH_EFFORT.search(text)
+    suffix = _UNDERSCORE_EFFORT.search(text) or _PAREN_EFFORT.search(text) or _dash_effort(text)
     if suffix:
         token = suffix.group(1).lower()
         effort = token if token in EFFORT_LEVELS else None
@@ -710,7 +718,10 @@ def _derived_display(model_id: str, names: list[str]) -> str:
         return DISPLAY_NAMES[model_id]
     candidates = set()
     for name in names:
-        bare = _DASH_EFFORT.sub("", _PAREN_EFFORT.sub("", _UNDERSCORE_EFFORT.sub("", name.rsplit("/", 1)[-1]))).strip()
+        bare = _PAREN_EFFORT.sub("", _UNDERSCORE_EFFORT.sub("", name.rsplit("/", 1)[-1]))
+        if dash := _dash_effort(bare):
+            bare = bare[: dash.start()]
+        bare = bare.strip()
         derived = derive_identity(bare)
         if _DISPLAY.fullmatch(bare) and derived is not None and derived.model_id == model_id:
             candidates.add(bare)
