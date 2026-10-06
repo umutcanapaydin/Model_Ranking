@@ -110,7 +110,11 @@ NETWORK = ("URLSession", "URLRequest", "URLComponents", "URLQueryItem", "NSURL",
            "Stream.getStreamsToHost",
            # #58: a URL made by DECODING is neither a spelling nor an initialiser; `references`
            # records it under this name, from the decode's own type substitution.
-           "URL.decoded")
+           "URL.decoded",
+           # #107: a link detector finds URLs in text; and any CALL whose result is a URL, whatever
+           # it is called (`URL(_:strategy:)`, a decode wrapper in another file), is recorded under
+           # `URL.made` by `url_facts`.
+           "NSDataDetector", "NSTextCheckingResult.url", "URL.made")
 NETWORK_FILE = "EngineClient.swift"
 
 #: Declarations that touch the file system, including the local-file half of `URL`. Only the files in
@@ -272,7 +276,7 @@ FIXTURE_REFUSALS = {
     ("Combine.swift", "sorts `common`"),
     # #107: a URL made by the parse strategy, by a decode wrapper and by a link detector.
     ("ContentView.swift", "makes a URL"),
-    ("ContentView.swift", "NSDataDetector"),
+    ("ContentView.swift", "NSDataDetector"), ("ContentView.swift", "NSTextCheckingResult.url"),
 }
 SOURCE = re.compile(r'^\(source_file "([^"]+)"', re.MULTILINE)
 #: One node of the dump: its indentation (the tree's depth) and its kind.
@@ -346,7 +350,7 @@ def references(ast: str) -> dict[str, set[str]]:
             symbol = re.sub(r"([\w.]+) extension\.", r"\1.", symbol)
             symbol = re.sub(r"(^|\.)extension\.", r"\1", symbol)
             found[name].add(f"{module}.{symbol.rstrip('.')}")
-    for name, facts in (*sink_facts(ast).items(), *flow_facts(ast).items()):
+    for name, facts in (*sink_facts(ast).items(), *flow_facts(ast).items(), *url_facts(ast).items()):
         found.setdefault(name, set()).update(facts)
     return found
 
@@ -379,6 +383,24 @@ def _shared_state(ast: str) -> tuple[dict[tuple[str, int, int], str], list[tuple
         refs += [(current, symbol, (pathlib.Path(path).name, int(row), int(column)))
                  for symbol, path, row, column in MAIN_REF.findall(line)]
     return shared, refs
+
+
+#: #107: a call, or a constructor's, whose result is a URL (`URL`, `URL?`, `[URL]`).
+MAKES_URL = re.compile(r'^ *\((?:\w+=)?(?:call_expr|constructor_ref_call_expr) [^\n]*?\btype="(?:Foundation\.)?'
+                       r'(?:URL\??|\[URL\]\??|Optional<URL>)"[^\n]*?location=[^ ]*?(\w+\.swift):(\d+)')
+
+
+def url_facts(ast: str) -> dict[str, set[str]]:
+    """#107: `{file name: {"Foundation.URL.made", ...}}` for every call that makes a URL, so the
+    network rule judges it as it judges `URL.init(string:)`, whatever the call is named."""
+    facts: dict[str, set[str]] = {}
+    current = ""
+    for line in ast.splitlines():
+        if line.startswith("(source_file"):
+            current = pathlib.Path(line.split('"')[1]).name
+        elif MAKES_URL.match(line):
+            facts.setdefault(current, set()).add("Foundation.URL.made")
+    return facts
 
 
 def sink_facts(ast: str) -> dict[str, set[str]]:
@@ -621,7 +643,10 @@ def _capability_problem(name: str, symbol: str, decl: str) -> str | None:
     if any(symbol.startswith(p) for p in FILESYSTEM) and name not in FILESYSTEM_FILES:
         allowed = "; ".join(f"{file}: {what}" for file, what in FILESYSTEM_FILES.items())
         return (f"{name}: `{decl}` reaches the file system, and only these files write one: {allowed}")
-    if any(symbol.startswith(p) or head == p for p in NETWORK) and name != NETWORK_FILE:
+    if symbol == "URL.made" and name not in {NETWORK_FILE, *FILESYSTEM_FILES}:
+        return (f"{name}: makes a URL (a call whose result is a URL, whatever it is named), and only "
+                f"{NETWORK_FILE} and the two stores make one (D-126, #107)")
+    if any(symbol.startswith(p) or head == p for p in NETWORK) and symbol != "URL.made" and name != NETWORK_FILE:
         return (f"{name}: `{decl}` is the network, and {NETWORK_FILE} is the one door (D-126); "
                 "its arguments are pinned in EngineClientTests.swift")
     if head.split(".")[0] == "AppStorage" and name != APPSTORAGE_FILE:

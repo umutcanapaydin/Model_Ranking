@@ -497,6 +497,10 @@ EGRESS = (
     r"\b(?:fatalError|preconditionFailure|precondition|assertionFailure|assert)\s*\([^\n]*\\\(",
     # indirection a text gate cannot follow, refused outright
     r"\btypealias\b", r"\bNSClassFromString\b", r"\bNSSelectorFromString\b", r"\bdlopen\b",
+    # #107: a link detector finds URLs in text; `type(of: x).init` and an unapplied `.init` build a
+    # value without the gate seeing its initialiser applied (the M18 closure Tester's K1). The client
+    # maps with `String.init` and `PickCard.init`, which build no store and reach no network.
+    r"\bNSDataDetector\b", r"\btype\s*\(\s*of\s*:", r"(?<!\bString)(?<!\bPickCard)\.\s*init\b(?!\s*\()",
     r"\bdlsym\b", r"@_silgen_name", r"\bperform\s*\(\s*(?:#selector|Selector)",
 )
 
