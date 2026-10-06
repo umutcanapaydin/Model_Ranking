@@ -87,6 +87,10 @@ asked more genuine searches. (a) and (c) ran once: their second runs were stoppe
 showed each below (b) on every measure, to free the model for the held-out measure. (b) was built
 (`de8c3f8`).
 
+The plan's coding guard (the retired M18 coding set, run for any change to the model's instructions)
+was not run for (a), (c) or #113's (b): none of the three was built, so nothing that ships changed the
+model's instructions.
+
 **#113, the image tuning set (82: 36 to make, 26 to read, 20 that only mention images).**
 
 | variant | what changed | made, told "not measured" | read, reaching `vision` | others overridden |
@@ -153,7 +157,32 @@ make an image still missed went to `vision` (9) and `web-dev` (3) in both runs. 
 - **Three variants were run per problem.** By the plan and D-169 clause 6, nothing more is tuned on
   these sets, and the pull request asks the owner whether to ship what holds.
 
-## 6. State
+## 6. After the code review (informational, on spent sets)
+
+The wave's code review (`docs/reviews/m19-wave-4-review.md`, MAJOR) found the image rule overriding
+questions about an image in a website or a document (MJ1, the M18 reviews' B4 class), and the fact
+signal reading searches that name "I" or "AI" in capitals, an AI tool, a task, or the Turkish "which
+one" (MJ2). Its fixes (`671b305`) change only code after the model, so the held-out model runs are
+replayed through it (`review-*`; exact, §3) and the wording tier is run again (`revieww-*`). Both sets
+were spent at §4, so this measures nothing held out; it shows what the fixes cost.
+
+| measure | tier | §4, `de8c3f8` | after the review, `671b305` |
+|---|---|---:|---:|
+| not-a-search inputs given the note or asked (50) | model | 25, 27 | 24, 26 |
+| knowledge questions given the note or asked (20) | model | 6, 6 | 5, 5 |
+| genuine searches given the note / asked (40) | model | 0 / 2, 0 / 1 | 0 / 1, 0 / 0 |
+| genuine searches on their expected surface (40) | model | 32, 29 | 32, 29 |
+| requests to make an image told "not measured" (20) | model | 8, 8 | 8, 8 |
+| | wording | 18 | 18 |
+| requests to read an image reaching `vision` (10) | model | 10, 9 | 10, 9 |
+| questions that only mention images, overridden (20) | both | 0 | 0 |
+
+The knowledge question lost is the one `nerede` ("where") read, a word the review found no tuning row
+holds whole (its M2); the genuine searches no longer asked were asked on `hangisi` ("which one"). On the tuning sets
+the fixes cost one knowledge question (17 of 22, from 18) and one not-a-search input per run, and no
+request to make an image. The review's thirteen website and document lines now keep their surface.
+
+## 7. State
 
 - Shipped by the wave: the reading of a question of fact (a doubt), the second-round signals, and the
   image rule on every surface but code. #66 and #113 stay open: the knowledge and image-making gaps
