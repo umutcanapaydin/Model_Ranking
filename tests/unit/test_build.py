@@ -584,4 +584,10 @@ def test_a_derived_latest_v_id_is_said_in_the_drift_not_refused() -> None:
     report = _build(conn, sources=_sources(pricing=json.dumps(pricing), aider=aider))
     identity = derive_identity("gpt-6-astra-latest-v2")
     assert identity is not None and identity.model_id in report.derived, report.derived
-    assert [note for note in report.drift if identity.model_id in note and "latest-v" in note], report.drift
+    notes = [note for note in report.drift if identity.model_id in note and "latest-v" in note]
+    assert notes, report.drift
+    # The review's M3: a drift line is `<source>: <reason>`, and `/health` lists the text before the
+    # colon as a source; the note's source is the registry, not "derived <id>".
+    from app.adapter.nightly import _drifted
+
+    assert _drifted(notes) == "registry", notes
