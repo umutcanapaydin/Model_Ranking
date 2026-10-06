@@ -111,3 +111,20 @@ def test_the_hosted_image_carries_the_artifact_the_deployment_serves() -> None:
     assert any(line.startswith("COPY ") and line.split()[-1] == served for line in hosted), hosted
     assert fly["build"]["build-target"] == "hosted"
     assert "mounts" not in fly
+
+
+def _user(stage_lines: list[str]) -> str | None:
+    users = [line.split()[1] for line in stage_lines if line.split()[:1] == ["USER"]]
+    return users[-1] if users else None
+
+
+def test_the_hosted_engine_runs_as_no_root_and_cannot_write_its_artifact() -> None:
+    """The M19 security review's S4: the engine run as root, or its artifact made its own, passed the
+    whole suite. The hosted stage inherits the serving stage's non-root user and takes the artifact
+    as root's, unchangeable by the engine."""
+    stages = _stages(DOCKERFILE.read_text(encoding="utf-8"))
+    serving_user = _user(_serving_stage(DOCKERFILE.read_text(encoding="utf-8")))
+    hosted_user = _user(stages["hosted"]) or serving_user
+    assert hosted_user not in (None, "root", "0"), hosted_user
+    copies = [line for line in stages["hosted"] if line.startswith("COPY ")]
+    assert copies and not any("--chown" in line or "--chmod" in line for line in copies), copies

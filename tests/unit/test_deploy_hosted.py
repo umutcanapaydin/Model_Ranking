@@ -155,3 +155,13 @@ def test_the_build_context_keeps_every_copy_source_and_the_dockerfile() -> None:
     assert sources and "build/hosted/advisor.db" in sources
     for source in [*sources, "Dockerfile"]:
         assert any(source.rstrip("/") == k or source.startswith(k + "/") for k in kept), (source, kept)
+
+
+def test_the_build_context_leaves_out_what_git_ignores_under_src() -> None:
+    """The M19 security review's S14: `!src` let a git-ignored file there (a `.env`, bytecode) reach
+    Fly's remote builder."""
+    rules = [line.strip() for line in (REPO / ".dockerignore").read_text(encoding="utf-8").splitlines()
+             if line.strip() and not line.startswith("#")]
+    after = rules[rules.index("!src") + 1:]
+    for pattern in ("**/.env*", "**/__pycache__", "**/*.pyc"):
+        assert pattern in after, (pattern, rules)

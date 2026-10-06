@@ -40,6 +40,8 @@ def test_the_public_artifact_carries_no_row_of_a_left_out_source(tmp_path: Path)
     assert _rows(built, "scores")["swebench"] > 0, "the built artifact is left as it was"
     # The image's engine is not root and the copy is root's: the file must be readable by all.
     assert served.stat().st_mode & 0o004, oct(served.stat().st_mode)
+    # Nor writable by anyone but its owner (the M19 security review's S4).
+    assert not served.stat().st_mode & 0o022, oct(served.stat().st_mode)
 
 
 def test_the_price_medians_are_rebuilt_from_the_kept_prices(tmp_path: Path) -> None:
