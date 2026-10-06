@@ -511,16 +511,30 @@ final class AlternativeSurfaceTests: OfflineTestCase {
 final class SlowTierTests: OfflineTestCase {
     private let wording = RoutingOutcome(categoryID: "coding", tier: .similarity, unmeasured: false)
 
+    /// #149: a plain timer of the deadline's length, started beside the call. A process that is not
+    /// scheduled makes every timer late alike, so the deadline is held against this, not the clock:
+    /// a race that waited for the model would take its ten seconds while this took its 0.2.
+    private func plainTimer(_ seconds: Double) -> Task<Double, Never> {
+        let started = Date()
+        return Task {
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            return Date().timeIntervalSince(started)
+        }
+    }
+
     func testAModelTierThatNeverAnswersHandsTheQuestionToTheWordingTier() async {
         let router = TieredRouter(model: HangingTier(), similarity: FixedTier(outcome: wording),
                                   modelTimeout: 0.2)
         let started = Date()
+        let control = plainTimer(0.2)
 
         let outcome = await router.route("fix my code", within: served)
+        let elapsed = Date().timeIntervalSince(started)
+        let late = await control.value
 
         XCTAssertEqual(outcome.tier, .similarity, "the question waited for a model that never came")
-        XCTAssertLessThan(Date().timeIntervalSince(started), 5,
-                          "the deadline was waited out by the call it exists to abandon")
+        XCTAssertLessThan(elapsed, late + 4,
+                          "the deadline was waited out by the call it exists to abandon: \(elapsed) s, a plain timer \(late) s")
     }
 
     func testAModelTierThatAnswersInTimeIsStillUsed() async {
@@ -548,13 +562,16 @@ final class SlowTierTests: OfflineTestCase {
         let pid = ProcessInfo.processInfo.processIdentifier
         pause.arguments = ["-c", "sleep 0.05; kill -STOP \(pid); sleep 6; kill -CONT \(pid)"]
         let started = Date()
+        let control = plainTimer(0.2)
         try pause.run()
 
         let outcome = await router.route("fix my code", within: served)
+        let elapsed = Date().timeIntervalSince(started)
+        let late = await control.value
 
         XCTAssertEqual(outcome.tier, .similarity, "the question waited for a model that never came")
-        XCTAssertLessThan(Date().timeIntervalSince(started), 5,
-                          "the deadline was waited out by the call it exists to abandon")
+        XCTAssertLessThan(elapsed, late + 4,
+                          "the deadline was waited out by the call it exists to abandon: \(elapsed) s, a plain timer \(late) s")
         #endif
     }
 
