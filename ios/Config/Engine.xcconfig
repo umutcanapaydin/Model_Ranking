@@ -4,12 +4,14 @@
 //   ENGINE_URL[config=Debug] = http:/$()/My-Mac.local:8080   (Debug only: Release stays hosted)
 // (`/$()/` keeps `//` from starting a comment in an xcconfig.)
 ENGINE_URL = http:/$()/127.0.0.1:8080
-// M19-W5: a Release build (an archive for TestFlight) reaches the hosted engine, over HTTPS, at the
-// name the deployment answers to (fly.toml's `app`, #94). Engine.local.xcconfig can still override it.
-ENGINE_URL[config=Release] = https:/$()/model-ranking.fly.dev
 // The app icon (M19-W5): App Store Connect refuses an upload without one.
 ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
 // The bundle id lives here, not in the project, so a personal team can override it (and set
 // DEVELOPMENT_TEAM) in Engine.local.xcconfig without touching a tracked file.
 PRODUCT_BUNDLE_IDENTIFIER = com.ilgar.modelranking
 #include? "Engine.local.xcconfig"
+// M19-W5: a Release build (an archive for TestFlight) reaches the hosted engine, over HTTPS, at the
+// name the deployment answers to (fly.toml's `app`, #94). After the local file, on purpose: the last
+// matching setting wins, so no local ENGINE_URL can send an archive elsewhere (the M19 security
+// review's S1).
+ENGINE_URL[config=Release] = https:/$()/model-ranking.fly.dev

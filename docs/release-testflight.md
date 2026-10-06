@@ -34,6 +34,10 @@ review of this wave has passed and you have merged its pull request.**
    the hosted engine: `/health` names the build, a coding question gets real picks, and every
    surface answers or says why it cannot.
 
+**Cost.** Nothing limits how often the public engine is called, and Fly bills traffic out of it (a
+`/v1/boards` answer is about 0.5 MB). Set a billing alert in the Fly dashboard (Billing → alerts)
+before you share the app beyond yourself.
+
 **After each nightly refresh you want public,** run `scripts/deploy_hosted_engine.sh` again: the
 public artifact is derived from the one your Mac serves, and each deploy is one image of code and
 data. Nothing refreshes on Fly (D-116).

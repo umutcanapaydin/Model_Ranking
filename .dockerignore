@@ -6,4 +6,8 @@
 !requirements/serve.lock
 !requirements/build.lock
 !src
+# What git ignores under src/ stays out too: a local secret file, bytecode (the M19 security review's S14).
+**/.env*
+**/__pycache__
+**/*.pyc
 !build/hosted/advisor.db
