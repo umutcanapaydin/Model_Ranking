@@ -660,6 +660,25 @@ DISPLAY_NAMES: dict[str, str] = {
     # StepFun, Hugging Face H4 (whose card writes "Zephyr 7B β"; a served name is ASCII, D-157)
     "step3.5-flash": "Step 3.5 Flash",                           # huggingface.co/stepfun-ai/Step-3.5-Flash
     "zephyr7b-beta": "Zephyr 7B Beta",                           # huggingface.co/HuggingFaceH4/zephyr-7b-beta
+    # Found by the artifact test once it named models by `reconcile` (M19-W1): each name is the one its
+    # maker's model card opens with, on huggingface.co/<maker>/<repo> (read 2026-10-06).
+    "gemma4-26b-a4b-it": "Gemma 4 26B A4B IT",                   # google/gemma-4-26B-A4B-it
+    "glm4.7-flash": "GLM-4.7-Flash",                             # zai-org/GLM-4.7-Flash
+    "llama3.1-nemotron-ultra253b-v1": "Llama-3.1-Nemotron-Ultra-253B-v1",  # nvidia/Llama-3_1-Nemotron-Ultra-253B-v1
+    "llama3.1-nemotron70b-instruct": "Llama-3.1-Nemotron-70B-Instruct",    # nvidia/Llama-3.1-Nemotron-70B-Instruct-HF
+    "nvidia-nemotron3-super120b-a12b": "NVIDIA-Nemotron-3-Super-120B-A12B",  # nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16
+    "mistral-small24b-instruct2501": "Mistral Small 3 (2501)",   # mistralai/Mistral-Small-24B-Instruct-2501
+    "mixtral8x22b-instruct-v0.1": "Mixtral-8x22B-Instruct-v0.1",  # mistralai/Mixtral-8x22B-Instruct-v0.1
+    "nous-hermes2-mixtral8x7b-dpo": "Nous Hermes 2 Mixtral 8x7B DPO",  # NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO
+    "phi3-medium4k-instruct": "Phi-3-Medium-4K-Instruct",        # microsoft/Phi-3-medium-4k-instruct
+    "phi3-mini128k-instruct": "Phi-3-Mini-128K-Instruct",        # microsoft/Phi-3-mini-128k-instruct
+    "qwen2-vl7b-instruct": "Qwen2-VL-7B-Instruct",               # Qwen/Qwen2-VL-7B-Instruct
+    "qwen2.5-vl32b-instruct": "Qwen2.5-VL-32B-Instruct",         # Qwen/Qwen2.5-VL-32B-Instruct
+    "qwen2.5-vl72b-instruct": "Qwen2.5-VL-72B-Instruct",         # Qwen/Qwen2.5-VL-72B-Instruct
+    "qwen3-30b-a3b-instruct2507": "Qwen3-30B-A3B-Instruct-2507",  # Qwen/Qwen3-30B-A3B-Instruct-2507
+    "qwen3-next80b-a3b-instruct": "Qwen3-Next-80B-A3B-Instruct",  # Qwen/Qwen3-Next-80B-A3B-Instruct
+    "qwen3-next80b-a3b-thinking": "Qwen3-Next-80B-A3B-Thinking",  # Qwen/Qwen3-Next-80B-A3B-Thinking
+    "qwen3-vl235b-a22b-instruct": "Qwen3-VL-235B-A22B-Instruct",  # Qwen/Qwen3-VL-235B-A22B-Instruct
 }
 
 

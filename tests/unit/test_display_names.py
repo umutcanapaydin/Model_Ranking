@@ -55,6 +55,12 @@ LOWER_CASE_ON_2026_10_06 = {
     "o1-mini2024-09-12", "o1-pro2025-03-19", "pixtral12b2409", "qwen-plus2025-01-25", "qwen-turbo2024-11-01",
     "qwen3-30b-a3b-thinking2507", "qwen3-4b-instruct2507", "qwen3-vl235b-a22b-thinking", "step3.5-flash",
     "zephyr7b-beta",
+    # and the 17 the artifact test found once it named models by `reconcile`, as a build does
+    "gemma4-26b-a4b-it", "glm4.7-flash", "llama3.1-nemotron-ultra253b-v1", "llama3.1-nemotron70b-instruct",
+    "mistral-small24b-instruct2501", "mixtral8x22b-instruct-v0.1", "nous-hermes2-mixtral8x7b-dpo",
+    "nvidia-nemotron3-super120b-a12b", "phi3-medium4k-instruct", "phi3-mini128k-instruct", "qwen2-vl7b-instruct",
+    "qwen2.5-vl32b-instruct", "qwen2.5-vl72b-instruct", "qwen3-30b-a3b-instruct2507", "qwen3-next80b-a3b-instruct",
+    "qwen3-next80b-a3b-thinking", "qwen3-vl235b-a22b-instruct",
 }
 
 CLAUDE = re.compile(r"Claude (?:(?P<old>\d(?:\.\d)?) (?:Opus|Sonnet|Haiku)|(?:Opus|Sonnet|Haiku) (?P<new>\d(?:\.\d)?))\b")
