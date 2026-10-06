@@ -284,11 +284,19 @@ def _plan_dominates(o: PlanRank, r: PlanRank) -> bool:
 
 
 def _pareto(rows: list[PlanRank]) -> list[PlanRank]:
-    """Plans not dominated on (quality score, monthly price) — REQ-REC-003 / REQ-FIX-001."""
+    """Plans not dominated on (quality score, monthly price) — REQ-REC-003 / REQ-FIX-001.
+
+    A full tie is ordered by the plan's stable id, never its name (#101), as the model engine orders
+    one by model id (D-173 clause 1): a name is a spelling, and a re-spelled plan must not move."""
     return sorted(
         (r for r in rows if not any(_plan_dominates(o, r) for o in rows)),
-        key=lambda r: (-r.score, r.monthly_usd, r.plan),
+        key=lambda r: (-r.score, r.monthly_usd, r.plan_id),
     )
+
+
+def first_cheapest_plan(rows: list[PlanRank]) -> PlanRank:
+    """The cheapest plan, a price tie going to the stable id (#101), as `first_cheapest` does for models."""
+    return min(rows, key=lambda r: (r.monthly_usd, r.plan_id))
 
 
 def _stale_notice(conn: sqlite3.Connection, ranking: list[PlanRank]) -> str | None:
@@ -434,12 +442,12 @@ def recommend_subscription(
     unit = spec.score_unit
 
     value_pool = [r for r in frontier if quality.score - r.score <= spec.value_window]
-    value = min(value_pool, key=lambda r: (r.monthly_usd, r.plan))
+    value = first_cheapest_plan(value_pool)
 
     floor = derived_floor(conn, spec)  # D-159: from the served board
     floor_pool = [r for r in rows if floor is not None and r.score >= floor]
     floor_met = bool(floor_pool)
-    cheap = min(floor_pool or rows, key=lambda r: (r.monthly_usd, r.plan))
+    cheap = first_cheapest_plan(floor_pool or rows)
 
     # Equivalence (M4-W4 review BLOCKING-1). The first cut compared only against the
     # QUALITY pick, so in the live `unlimited` case — where quality is Perplexity Max and
@@ -472,7 +480,7 @@ def recommend_subscription(
                 and r.scored_by_model == picked.scored_by_model
                 and r.score == picked.score
             ),
-            key=lambda r: (r.monthly_usd, r.plan, r.plan_id),
+            key=lambda r: (r.monthly_usd, r.plan_id),
         )
         if tied:
             groups.append((label, picked, tied))
