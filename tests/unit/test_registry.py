@@ -274,10 +274,11 @@ LIVE_NAME_EXPECTATIONS: tuple[tuple[str, str | None], ...] = (
     ("gemini-3-pro-image", None),
     ("gemini-3.1-flash-image", None),
     ("gemini-3.1-flash-lite", None),
-    # versioned Pro models drop and are counted; they never join bare GPT-5 Pro
+    # versioned Pro models never join bare GPT-5 Pro: 5.2 and 5.4 have rules of their own (#129, one
+    # snapshot each), and one with no rule derives a model of its own (D-157)
     ("gpt-5.5-pro", None),
-    ("gpt-5.4-pro", None),
-    ("gpt-5.2-pro", None),
+    ("gpt-5.4-pro", "gpt-5.4-pro"),
+    ("gpt-5.2-pro", "gpt-5.2-pro"),
     ("gpt-5-pro", "gpt-5-pro"),
     # provider version notations: dotted, dashed, and Fireworks' `p`
     ("fireworks_ai/glm-5p1", "glm-5.1"),

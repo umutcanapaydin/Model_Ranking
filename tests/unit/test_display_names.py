@@ -34,6 +34,9 @@ SPELLED_AS_THEIR_ID = {"o1-preview", "o3", "o3-mini", "o3-pro", "o4-mini"}
 #: Ids of 2026-10-04 that are no longer models: each is another model's score now.
 NO_LONGER_MODELS = {
     "o3-mini-high",  # #130: o3-mini at high effort
+    # #129: each dated id is its release's only snapshot, one model with the undated one
+    "claude3-haiku20240307", "claude3-opus20240229", "claude3-sonnet20240229", "claude3.5-haiku20241022",
+    "o3-2025-04-16",
 }
 
 CLAUDE = re.compile(r"Claude (?:(?P<old>\d(?:\.\d)?) (?:Opus|Sonnet|Haiku)|(?:Opus|Sonnet|Haiku) (?P<new>\d(?:\.\d)?))\b")

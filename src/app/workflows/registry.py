@@ -86,8 +86,17 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("claude-4-opus",     "Claude Opus 4",     "Anthropic", r"claude[-_ ]?4[-_ ]?opus|claude[-_ ]?opus[-_ ]?4(?![.\-]?[15])"),
     ModelRule("claude-4-sonnet",   "Claude Sonnet 4",   "Anthropic", r"claude[-_ ]?4[-_ ]?sonnet|claude[-_ ]?sonnet[-_ ]?4(?![.\-]?5)"),
     ModelRule("claude-3.7-sonnet", "Claude 3.7 Sonnet", "Anthropic", r"claude[-_ ]?3[.\-]?7[-_ ]?sonnet"),
+    # #129: a release whose dated id is its only snapshot (Anthropic's model deprecations page,
+    # read 2026-10-06) is one model, dated or not. Claude 3.5 Sonnet had two snapshots and stays two.
+    ModelRule("claude-3.5-haiku",  "Claude 3.5 Haiku",  "Anthropic", r"claude[-_ ]?3[.\-]5[-_ ]?haiku|claude[-_ ]?haiku[-_ ]?3[.\-]5"),
+    ModelRule("claude-3-opus",     "Claude 3 Opus",     "Anthropic", r"claude[-_ ]?3[-_ ]?opus|claude[-_ ]?opus[-_ ]?3(?![.\-]?\d)"),
+    ModelRule("claude-3-sonnet",   "Claude 3 Sonnet",   "Anthropic", r"claude[-_ ]?3[-_ ]?sonnet|claude[-_ ]?sonnet[-_ ]?3(?![.\-]?\d)"),
+    ModelRule("claude-3-haiku",    "Claude 3 Haiku",    "Anthropic", r"claude[-_ ]?3[-_ ]?haiku|claude[-_ ]?haiku[-_ ]?3(?![.\-]?\d)"),
     # ── OpenAI: variant rules BEFORE parent-family rules (REQ-CAN-002) ──
     ModelRule("gpt-5-pro",         "GPT-5 Pro",         "OpenAI",    r"gpt[-_ ]?5[-_ ]?pro"),
+    # #129: one snapshot each (OpenAI's model pages, read 2026-10-06): one model, dated or not.
+    ModelRule("gpt-5.4-pro",       "GPT-5.4 Pro",       "OpenAI",    r"gpt[-_ ]?5[.\-]4[-_ ]?pro"),
+    ModelRule("gpt-5.2-pro",       "GPT-5.2 Pro",       "OpenAI",    r"gpt[-_ ]?5[.\-]2[-_ ]?pro"),
     # "Thinking" is ChatGPT's name for a reasoning mode; ChatGPT's plan table writes the variant
     # after it ("GPT-5 Thinking Mini", 2026-09-23), past the parent rule's lookahead.
     # #162: each minor release is a model of its own, ahead of GPT-5's rules, which take GPT-5 only.
@@ -116,8 +125,15 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("gpt-5.2",           "GPT-5.2",           "OpenAI",    r"gpt[-_ ]?5[.\-]2(?!\d)(?![-_ ]?(?:codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
     ModelRule("gpt-5.1",           "GPT-5.1",           "OpenAI",    r"gpt[-_ ]?5[.\-]1(?!\d)(?![-_ ]?(?:codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
     ModelRule("gpt-5",             "GPT-5",             "OpenAI",    r"gpt[-_ ]?5(?![.\-]?\d|[-_ ]?mini|[-_ ]?nano|[-_ ]?chat|[-_ ]?codex|[-_ ]?pro)"),
-    ModelRule("o3",                "o3",                "OpenAI",    r"\bo3(?![-\w])|\bo3[-_ ](?:high|medium|low)"),
+    # #129: o3, o3-mini and o3-pro have one snapshot each (OpenAI's model pages, read 2026-10-06), so
+    # each is one model, dated or not; o3-mini and o3-pro come first, so "O3 Mini" never reaches o3.
+    ModelRule("o3-mini",           "o3-mini",           "OpenAI",    r"\bo3[-_ ]?mini"),
+    ModelRule("o3-pro",            "o3-pro",            "OpenAI",    r"\bo3[-_ ]?pro"),
+    ModelRule("o3",                "o3",                "OpenAI",    r"\bo3(?![-\w])|\bo3[-_ ](?:high|medium|low)|\bo3[-_ ]2025[-_ ]?04[-_ ]?16"),
     ModelRule("o4-mini",           "o4-mini",           "OpenAI",    r"\bo4[-_ ]?mini"),
+    # #129: one snapshot each (OpenAI's model pages, read 2026-10-06): one model, dated or not.
+    ModelRule("gpt-4.1-mini",      "GPT-4.1 mini",      "OpenAI",    r"gpt[-_ ]?4\.1[-_ ]?mini"),
+    ModelRule("gpt-4.1-nano",      "GPT-4.1 nano",      "OpenAI",    r"gpt[-_ ]?4\.1[-_ ]?nano"),
     ModelRule("gpt-4.1",           "GPT-4.1",           "OpenAI",    r"gpt[-_ ]?4\.1(?![-_ ]?(mini|nano))"),
     ModelRule("gpt-4o",            "GPT-4o",            "OpenAI",    r"gpt[-_ ]?4o(?![-_ ]?mini)"),
     # ── Google ──────────────────────────────────────────────────────────
@@ -529,10 +545,6 @@ _DISPLAY = re.compile(r"[A-Za-z0-9][A-Za-z0-9 .+()\-]{0,63}")
 #: word order the curated rules use; Claude in Anthropic's (`test_display_names.py`). OpenAI's
 #: reasoning models are named as their ids (`o3`, `o4-mini`) and need no entry.
 DISPLAY_NAMES: dict[str, str] = {
-    "claude3-haiku20240307": "Claude 3 Haiku (2024-03-07)",
-    "claude3-opus20240229": "Claude 3 Opus (2024-02-29)",
-    "claude3-sonnet20240229": "Claude 3 Sonnet (2024-02-29)",
-    "claude3.5-haiku20241022": "Claude 3.5 Haiku (2024-10-22)",
     "claude3.5-sonnet20240620": "Claude 3.5 Sonnet (2024-06-20)",
     "claude3.5-sonnet20241022": "Claude 3.5 Sonnet (2024-10-22)",
     "dbrx-instruct": "DBRX Instruct",
@@ -554,7 +566,6 @@ DISPLAY_NAMES: dict[str, str] = {
     "nova-micro": "Nova Micro",
     "nova-pro": "Nova Pro",
     "o1-2024-12-17": "o1 (2024-12-17)",
-    "o3-2025-04-16": "o3 (2025-04-16)",
     "qwen2-72b-instruct": "Qwen2 72B Instruct",
     "qwen2.5-14b-instruct": "Qwen2.5 14B Instruct",
     "qwen2.5-32b-instruct": "Qwen2.5 32B Instruct",
