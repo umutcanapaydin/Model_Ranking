@@ -15,7 +15,7 @@ from app.workflows.schema import connect
 
 LISTED = ("claude3.5-sonnet", "mistral7b-instruct", "deepseek-chat", "deepseek-reasoner", "command-r",
           "command-r-plus", "mistral-medium", "gpt4-turbo", "gpt4o-mini", "o1", "o1-mini", "yi-large",
-          "claude-instant", "command-r+", "claude-instant-v1")
+          "claude-instant", "command-r+", "claude-instant-v1", "mistral-medium3")
 
 
 def test_the_list_is_the_one_the_review_found_each_with_a_reason() -> None:
@@ -27,6 +27,16 @@ def test_the_list_is_the_one_the_review_found_each_with_a_reason() -> None:
                                   "openrouter/anthropic/claude-3.5-sonnet", "command-r-plus", "Yi-large"])
 def test_a_moving_alias_derives_no_model(name: str) -> None:
     assert derive_identity(name) is None
+
+
+def test_mistral_medium_3_is_an_alias_of_a_later_release() -> None:
+    """Found while naming #112's list (M19-W1): Mistral's Medium 3.5 page lists `mistral-medium-3` among
+    its API names (read 2026-10-06), so a price under it is 3.5's while a board's "Mistral Medium 3"
+    is May 2025's. The dated `mistral-medium-2505` still names Mistral Medium 3."""
+    assert derive_identity("mistral-medium-3") is None
+    assert derive_identity("Mistral Medium 3") is None
+    dated = derive_identity("mistral-medium-2505")
+    assert dated is not None and dated.model_id == "mistral-medium2505"
 
 
 @pytest.mark.parametrize(("name", "derived"), [("gpt-4o-mini-2024-07-18", "gpt4o-mini2024-07-18"),

@@ -616,6 +616,9 @@ ONE_SNAPSHOT_RELEASES = {
     "gpt-5.4-pro": ["GPT-5.4 Pro", "gpt-5.4-pro", "gpt-5.4-pro-2026-03-05"],
     # found while naming #112's list: Mistral's page gives `mistral-small-2503` as Mistral Small 3.1's
     # API name, and its model card names the weights "Mistral Small 3.1 (2503)" (read 2026-10-06)
+    # and Mistral Medium 3.5, one version (v26.04): `mistral-medium-2604` and `mistral-medium-3-5`
+    "mistral-medium-3.5": ["Mistral Medium 3.5", "mistral-medium-3.5", "mistral-medium-3-5", "mistral-medium-2604",
+                           "mistral/mistral-medium-2604"],
     "mistral-small-3.1": ["Mistral Small 3.1", "mistral-small-2503", "mistral-small-3.1-24b-instruct-2503",
                           "watsonx/mistralai/mistral-small-3-1-24b-instruct-2503"],
     "o3": ["o3", "o3 (2025-04-16)", "o3-2025-04-16", "o3-2025-04-16_high", "openai-o3"],
