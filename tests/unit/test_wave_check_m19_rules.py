@@ -127,3 +127,12 @@ def test_a_high_close_on_a_glob_and_a_med_close_off_them_pass(tmp_path: Path) ->
     assert _wave_check(high).returncode == 0, _wave_check(high).stdout
     med = _close(tmp_path / "b", tier="MED", touched="src/app/workflows/rank.py", plan=GLOBS)
     assert _wave_check(med).returncode == 0, _wave_check(med).stdout
+
+
+def test_the_glob_list_is_read_from_its_own_bullet_not_a_mention_of_it(tmp_path: Path) -> None:
+    """Found writing #140's rule on M19's own plan: a bullet that only mentions "security globs" came
+    first, and the list under it read empty, failing every M19 close closed."""
+    plan = tmp_path / "m19-plan.md"
+    plan.write_text("- **#140:** the gates read the plan's own security globs.\n\n" + GLOBS, encoding="utf-8")
+    globs = _module("wave_check").plan_globs(plan)
+    assert "ios/ModelRanking/Engine/EngineClient.swift" in globs and ".claude/settings.json" in globs, globs
