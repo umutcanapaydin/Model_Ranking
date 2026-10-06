@@ -36,10 +36,7 @@ NO_LONGER_MODELS = {
     "o3-mini-high",  # #130: o3-mini at high effort
     # #129: each dated id is its release's only snapshot, one model with the undated one
     "claude3-haiku20240307", "claude3-opus20240229", "claude3-sonnet20240229", "claude3.5-haiku20241022",
-    "o3-2025-04-16", "gpt5-2025-08-07", "gpt4.1-mini2025-04-14", "gpt4.1-nano2025-04-14",
-    "gpt5.2-pro2025-12-11", "gpt5.4-pro2026-03-05", "o3-mini2025-01-31", "o3-pro2025-06-10",
-    "mistral-small2503", "mistral-small3.1-24b-instruct2503", "mistral-medium2604",
-    "mistral-medium3",  # a moving alias since M19-W1 (D-166): Mistral moved it to Medium 3.5
+    "o3-2025-04-16",
 }
 
 #: #112's remainder (the W7 review's M4 class): served under a lower-case spelling of the id, not the
@@ -119,22 +116,29 @@ def test_a_board_spelling_in_the_other_order_is_turned_round() -> None:
 
 @pytest.mark.artifact
 def test_every_model_the_artifact_serves_is_named_by_this_code_as_a_product() -> None:
-    """The plan's check for #112, over the served names: every model in the artifact, named the way
-    this code would name it, from the names its own rows carry. An approximation of the build, which
-    names a derived model from each score's PARSED name (the W7 Tester's T4: 20 of 200 derived names
-    differ); its checks, no raw id and Anthropic's order, hold on either input. None reads as its raw
-    id or a lower-case spelling of it (#112's remainder), but OpenAI's, and every Claude is in
-    Anthropic's order (the review's M4, and its R1: a new model served under its raw id shows here)."""
-    conn = sqlite3.connect(f"file:{ARTIFACT}?mode=ro", uri=True)
-    curated = {rule.canonical_id: rule.display for rule in registry.MODEL_RULES}
+    """The plan's check for #112, over the served names: every model in the artifact, named by this
+    code's own `reconcile` over the artifact's rows, as a build names them. None reads as its raw id
+    or a lower-case spelling of it (#112's remainder), but OpenAI's, and every Claude is in
+    Anthropic's order (the review's M4, and its R1: a new model served under its raw id shows here).
+
+    M19-W1: this read each model's score names AND price aliases, an approximation of the build,
+    which names a derived model from its score names only (the W7 Tester's T4). A capitalised price
+    alias (`azure_ai/Phi-3-medium-4k-instruct`) then hid 17 lower-case names the build serves."""
+    source = sqlite3.connect(f"file:{ARTIFACT}?mode=ro", uri=True)
+    conn = sqlite3.connect(":memory:")
+    try:
+        source.backup(conn)
+        conn.execute("UPDATE scores SET model_id = NULL")
+        conn.execute("UPDATE pricing SET model_id = NULL")
+        conn.execute("DELETE FROM models")
+        registry.reconcile(conn)
+        served = conn.execute("SELECT id, display FROM models").fetchall()
+    finally:
+        source.close()
+        conn.close()
+    assert len(served) > 100, "the artifact named almost nothing: the check would prove nothing"
     raw_ids, lower_case, misordered = [], [], []
-    for (model_id,) in conn.execute("SELECT id FROM models"):
-        if model_id in NO_LONGER_MODELS:  # an artifact built before its fix holds it until the next build
-            continue
-        names = [n for (n,) in conn.execute(
-            "SELECT raw_name FROM scores WHERE model_id = ? UNION SELECT alias FROM pricing WHERE model_id = ?",
-            (model_id, model_id))]
-        name = curated.get(model_id) or registry._derived_display(model_id, names)
+    for model_id, name in served:
         if name == model_id and model_id not in SPELLED_AS_THEIR_ID:
             raw_ids.append(model_id)
         elif name == name.lower() and model_id not in SPELLED_AS_THEIR_ID | set(registry.DISPLAY_NAMES):
