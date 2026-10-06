@@ -45,6 +45,17 @@ final class ScreenPathTests: XCTestCase {
         app.buttons["send"].tap()
     }
 
+    /// Ask again (#133). The field keeps the last question after a send, so it is emptied first: a
+    /// tap at its end, then one delete per character.
+    private func askAgain(_ question: String) {
+        let box = field("question")
+        let old = (box.value as? String) ?? ""
+        box.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
+        box.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: old.count))
+        box.typeText(question)
+        app.buttons["send"].tap()
+    }
+
     /// Swipe until the element is wholly on screen. A coordinate tap does not scroll, and the
     /// combined list is long.
     private func bringIntoView(_ element: XCUIElement) {
@@ -228,5 +239,53 @@ final class ScreenPathTests: XCTestCase {
         XCTAssertTrue(app.navigationBars.firstMatch.waitForExistence(timeout: 10))
         XCTAssertFalse(field("question").isHittable, "the evidence screen did not open")
         keep("a card's evidence")
+    }
+
+
+    /// #133 (the M18-W3 Tester's K12 and T11): a question held for the reader after an answered one.
+    /// The first answer's echo, its routing notice and its cards go; only the question back and
+    /// "Change" stay (D-169 clause 4: "the previous question's ranking goes too").
+    func testAHeldSecondQuestionClearsTheFirstAnswer() {
+        ask("Which model writes code best?")
+        let echo = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH '“Which model writes code best?'"))
+            .firstMatch
+        XCTAssertTrue(echo.waitForExistence(timeout: 20), "the first question was not answered")
+        let notice = app.staticTexts["Matched by meaning, on this device."]
+        XCTAssertTrue(notice.exists, "the first answer shows no routing notice to clear")
+        askAgain("what is the capital of australia")
+        XCTAssertTrue(field("askBack").waitForExistence(timeout: 20), "the second question was not held")
+        XCTAssertFalse(echo.exists, "the first question's echo stays above the held one")
+        XCTAssertFalse(notice.exists, "the first question's routing notice stays above the held one")
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label CONTAINS 'See the evidence'")).firstMatch.exists,
+                       "the first question's cards stay beside the question back")
+        XCTAssertTrue(app.buttons["change"].exists)
+        keep("a held second question")
+    }
+
+    /// #133 (the M18-W3 Tester's K12 and X21): the Turkish screen, held for the reader. The question
+    /// back, its two buttons and the note are said, and none in the English, which X21 put back on
+    /// the card's buttons with every gate green. Compared with the English, so this file holds no
+    /// Turkish (the repository is English, L1).
+    func testATurkishReaderIsAskedBackInTurkish() {
+        app.terminate()
+        let table = (try? JSONSerialization.data(withJSONObject: routing)).flatMap { String(data: $0, encoding: .utf8) }
+        app.launchArguments = ["-language", "tr", "-UITestRouting", table ?? "{}"]
+        app.launch()
+        XCTAssertTrue(field("question").waitForExistence(timeout: 30), "the Turkish screen never loaded")
+        XCTAssertTrue(app.buttons["change"].waitForExistence(timeout: 30), "no answer on the Turkish screen")
+        ask("what is the capital of australia")
+        XCTAssertTrue(field("askBack").waitForExistence(timeout: 20), "the reader was not asked")
+        for (identifier, english) in [("askBack", "Did you mean to find a model for this?"),
+                                      ("askBack.find", "Find a model"), ("askBack.no", "No")] {
+            let label = field(identifier).label
+            XCTAssertFalse(label.isEmpty, "\(identifier) says nothing")
+            XCTAssertNotEqual(label, english, "\(identifier) is in English on the Turkish screen")
+        }
+        keep("the question back, in Turkish")
+        app.buttons["askBack.no"].tap()
+        XCTAssertTrue(field("notASearch").waitForExistence(timeout: 10))
+        XCTAssertFalse(field("notASearch").label.hasPrefix("This does not look like a model search"),
+                       "the note is in English on the Turkish screen")
+        keep("the note, in Turkish")
     }
 }
