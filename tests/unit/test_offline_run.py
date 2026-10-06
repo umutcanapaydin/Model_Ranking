@@ -117,3 +117,17 @@ def test_the_environment_cannot_turn_the_offline_run_off() -> None:
     """The W3 review's M6: `UNAME_S=Linux` in the environment removed the sandbox and its refusal on
     a Mac (`?=`). Only the command line may name the system, as the tests here do."""
     assert _make_test_in({"UNAME_S": "Linux"}) == _make_test_in({})
+
+
+def test_make_tests_own_marker_requires_the_offline_run_on_a_mac(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The W3 Tester's M3: `MAKEFLAGS=UNAME_S=Linux` in the environment still removed the sandbox and
+    its flag from `make test`. The run `make test` marks (MODEL_RANKING_REQUIRE_ARTIFACT=1, set by the
+    recipe itself) must be offline on a Mac, whatever names the system."""
+    from tests import conftest, skips
+
+    monkeypatch.delenv("MODEL_RANKING_REQUIRE_OFFLINE", raising=False)
+    monkeypatch.setenv("MODEL_RANKING_REQUIRE_ARTIFACT", "1")
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(skips, "offline", lambda: False)
+    with pytest.raises(pytest.exit.Exception, match="offline"):
+        conftest.pytest_sessionstart(None)  # type: ignore[arg-type]

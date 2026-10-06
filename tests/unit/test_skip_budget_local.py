@@ -105,3 +105,24 @@ def test_every_spelling_of_a_skip_is_refused() -> None:
                  "@" + ut + "skipIf(True, 'x')", "self." + "skipTest('x')", "from pytest " + "import skip",
                  "from pytest " + "import mark", "from pytest " + "import xfail", "raise " + ut + "SkipTest('x')"]
     assert [line for line in spellings if not RAW_SKIP.search(line)] == []
+
+
+def test_more_skip_shapes_are_refused() -> None:
+    """The W3 Tester's M4: an aliased import, `pytest.skip.Exception` and `_pytest.outcomes` each
+    skipped where the scan and `--derive` could not see it."""
+    py = "pytest"
+    spellings = ["import " + py + " as pt", "raise " + py + ".skip.Exception('x')", "from _" + py + ".outcomes import skip",
+                 "_" + py + ".outcomes.skip('x')"]
+    assert [line for line in spellings if not RAW_SKIP.search(line)] == []
+
+
+def test_an_empty_parametrize_fails_collection(tmp_path: Path) -> None:
+    """The W3 Tester's M4: `parametrize` with no cases skips, and CI counts it; the suite's settings now
+    make it a collection error instead (`empty_parameter_set_mark`)."""
+    probe = tmp_path / "test_empty_probe.py"
+    probe.write_text("import pytest\n\n\n@pytest.mark.parametrize('x', [])\ndef test_x(x: int) -> None:\n    assert x\n",
+                     encoding="utf-8")
+    run = subprocess.run([sys.executable, "-m", "pytest", "--collect-only", "-q", "--no-cov", "-p", "no:cacheprovider",
+                          f"--junitxml={tmp_path / 'j.xml'}", str(probe)], cwd=ROOT, capture_output=True, text=True,
+                         timeout=120, check=False)
+    assert run.returncode != 0, run.stdout

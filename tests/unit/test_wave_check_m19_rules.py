@@ -174,3 +174,37 @@ def test_wave_check_all_reports_a_headless_wave(monkeypatch: pytest.MonkeyPatch,
     monkeypatch.setattr(check, "headless_waves", lambda root: ["m19's plan names W9 in an amendment"])
     assert check.main() == 1
     assert "W9" in capsys.readouterr().out
+
+
+def test_a_findings_sub_bullets_are_part_of_it(tmp_path: Path) -> None:
+    """The W3 Tester's M9: the W3 review's verdict wrote sub-bullets under its findings, and each was
+    counted as a finding with no id, so `make wave-check` would refuse the close. An indented bullet
+    belongs to the finding above it; one with no finding above it still counts (fail closed)."""
+    check = _module("wave_check")
+    body = ("## Verdict\n\nMINOR\n\n### MINOR\n\n- **M1** the first.\n  - a detail.\n  - another.\n"
+            "- **M2** the second.\n\n## K.9 candidates\n\n  - an indented bullet with no finding above it.\n")
+    assert check.deferrable_findings(body) == (["M1", "M2"], 1)
+
+
+def test_more_plan_layouts_name_a_wave(tmp_path: Path) -> None:
+    """The W3 Tester's M5: an `### Amendments` list, a `| **W3** |` cell, a "Plan amendment" paragraph
+    and a lower-case "wave 3" each named W3 unflagged."""
+    check = _module("wave_check_all")
+    for text in ("\n### Amendments\n\n- 2026-10-06: W3 joins.\n", "\n| Wave | Issues |\n|---|---|\n| **W3** | #12 |\n",
+                 "\nPlan amendment (2026-10-06): W3 joins.\n", "\n**Amendment (2026-10-06).** wave 3 joins.\n"):
+        root = _plan(tmp_path / str(abs(hash(text))), text)
+        assert any("W3" in line for line in check.headless_waves(root)), text
+
+
+def test_more_footprint_shapes_and_a_tier_that_says_not_high(tmp_path: Path) -> None:
+    """The W3 Tester's M6: a brace with a space, two brace groups, `./`, a folder with no trailing slash,
+    and a tier cell reading "MED, not HIGH" each passed a MED close touching a glob."""
+    for i, touched in enumerate(("ios/ModelRanking/Engine/{Models, EngineClient}.swift",
+                                 "ios/{ModelRanking,Other}/Engine/{EngineClient,Models}.swift",
+                                 "./ios/ModelRanking/Engine/EngineClient.swift", "ios/ModelRanking/Engine")):
+        done = _wave_check(_close(tmp_path / str(i), tier="MED", touched=touched, plan=GLOBS))
+        assert "EngineClient.swift" in done.stdout, touched
+    record = _close(tmp_path / "tier", tier="MED", touched="ios/ModelRanking/Engine/EngineClient.swift", plan=GLOBS)
+    record.write_text(record.read_text(encoding="utf-8").replace("(risk: **MED**", "(risk: **MED**, not HIGH", 1),
+                      encoding="utf-8")
+    assert "EngineClient.swift" in _wave_check(record).stdout
