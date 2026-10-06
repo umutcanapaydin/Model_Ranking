@@ -294,6 +294,8 @@ def main() -> int:
     MUST_ALLOW = ["git push -u origin fix/issue-3", "git push origin enhancement/x", "git push",
                   "git push --follow-tags origin x", "git push -4 origin x", "fly status", "fly logs",
                   "scripts/deploy_hosted_engine.sh --dry-run",
+                  # Named, not run: a message or a search that mentions them is no deploy.
+                  "git commit -m 'fly deploy docs'", "grep -n deploy_hosted_engine.sh docs/release-testflight.md",
                   "git status", "rm file.txt", "rm -r build",
                   "git reset HEAD~1", "npm run format"]
     bash_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
