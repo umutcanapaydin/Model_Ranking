@@ -599,3 +599,22 @@ def test_the_launchers_hint_builds_the_artifact_it_looked_for(tmp_path: Path, fo
     assert len(hints) == 1, done.stdout
     argv = shlex.split(hints[0])
     assert argv[argv.index("--db") + 1] == str(missing), hints[0]
+
+
+def test_a_preflight_that_dies_without_a_word_stops_the_start(tmp_path: Path) -> None:
+    """#145 (the M18 closure's S11): the launcher read the preflight's output, not its exit status,
+    so a preflight killed with nothing printed (out of memory, say) let the engine start unchecked.
+    The tree's python dies with status 137 and no output on the preflight; were the engine started,
+    it would only say so and exit, so no server runs whatever the launcher does."""
+    tree = tmp_path / "tree"
+    (tree / ".venv" / "bin").mkdir(parents=True)
+    python = tree / ".venv" / "bin" / "python"
+    python.write_text('#!/bin/sh\ncase "$1" in\n  -B) exit 137 ;;\n  *) echo "the engine would start here"; exit 0 ;;\n'
+                      "esac\n", encoding="utf-8")
+    python.chmod(0o755)
+    db = tmp_path / "advisor.db"
+    db.write_bytes(b"")
+    done = _launch(tree, MODEL_RANKING_DB=str(db))
+    assert done.returncode == 1, done.stdout + done.stderr
+    assert "REFUSED" in done.stdout and "137" in done.stdout, done.stdout
+    assert "starting on" not in done.stdout and "the engine would start here" not in done.stdout
