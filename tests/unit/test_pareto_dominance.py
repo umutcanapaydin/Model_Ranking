@@ -202,19 +202,23 @@ def test_a_price_tie_in_a_pick_goes_to_the_rankings_order_not_the_name() -> None
     assert first_cheapest(rows).model == "Zed"
 
 
-def test_the_subscription_frontier_orders_a_tie_by_plan_id_as_models_are_by_model_id() -> None:
-    """#101: the subscription engine broke a full tie by the plan's name, a spelling, as the model
-    engine did before #44 (D-173 clause 1). Plans are ordered by their stable id, so a re-spelled
-    plan does not move inside a tie. The names here sort one way and the ids the other."""
-    rows = [dataclasses.replace(_plan_rank("a", 80.0, 5.0), plan_id="p2"),
-            dataclasses.replace(_plan_rank("b", 80.0, 5.0), plan_id="p1")]
-    assert [r.plan for r in _pareto(rows)] == ["b", "a"]
-
-
-def test_a_plan_pick_breaks_a_price_tie_by_plan_id() -> None:
-    """#101: the value and cheapest plan picks broke a price tie by the plan's name."""
+def test_both_engines_break_a_tie_by_the_stable_id_never_by_the_name() -> None:
+    """#101: the subscription engine broke a full tie, and a price tie in its picks, by the plan's
+    name, a spelling, as the model engine did before #44 (D-173 clause 1). One rule for both: a
+    price tie goes to the ranking's order, the better score and then the stable id. In each pair the
+    names sort one way and the ids the other.
+    `test_subscribe.py::test_a_price_tie_among_plans_goes_to_the_plan_id_through_the_answer` holds
+    the plan side through the answer itself."""
+    from app.workflows.recommend import first_cheapest
     from app.workflows.subscribe import first_cheapest_plan
 
-    rows = [dataclasses.replace(_plan_rank("Alpha", 70.0, 5.0), plan_id="p2"),
-            dataclasses.replace(_plan_rank("Zed", 80.0, 5.0), plan_id="p1")]
-    assert first_cheapest_plan(rows).plan == "Zed"
+    models = [_ranking_row("Zed", 80.0, 5.0), _ranking_row("Alpha", 70.0, 5.0)]
+    assert first_cheapest(models).model == "Zed"
+    plans = [dataclasses.replace(_plan_rank("Alpha", 80.0, 5.0), plan_id="p2"),
+             dataclasses.replace(_plan_rank("Zed", 70.0, 5.0), plan_id="p1")]
+    assert first_cheapest_plan(plans).plan == "Alpha", "the better score first, as for models"
+    level = [dataclasses.replace(plan, score=80.0) for plan in plans]
+    assert first_cheapest_plan(level).plan == "Zed", "then the id, never the name"
+    tied = [dataclasses.replace(_plan_rank("a", 80.0, 5.0), plan_id="p2"),
+            dataclasses.replace(_plan_rank("b", 80.0, 5.0), plan_id="p1")]
+    assert [r.plan for r in _pareto(tied)] == ["b", "a"]

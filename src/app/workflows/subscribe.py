@@ -295,8 +295,9 @@ def _pareto(rows: list[PlanRank]) -> list[PlanRank]:
 
 
 def first_cheapest_plan(rows: list[PlanRank]) -> PlanRank:
-    """The cheapest plan, a price tie going to the stable id (#101), as `first_cheapest` does for models."""
-    return min(rows, key=lambda r: (r.monthly_usd, r.plan_id))
+    """The cheapest plan. A price tie goes to the first in the ranking's order, the best score and
+    then the stable id, never the name (#101), as `first_cheapest` does for models (D-173 clause 1)."""
+    return min(rows, key=lambda r: (r.monthly_usd, -r.score, r.plan_id))
 
 
 def _stale_notice(conn: sqlite3.Connection, ranking: list[PlanRank]) -> str | None:
@@ -502,8 +503,8 @@ def recommend_subscription(
         parts = []
         for _label, picked, tied in groups:
             members = [picked, *tied]
-            cheapest = min(members, key=lambda r: (r.monthly_usd, r.plan))
-            dearest = max(members, key=lambda r: (r.monthly_usd, r.plan))
+            cheapest = first_cheapest_plan(members)  # #101: a price tie goes to the plan's id
+            dearest = max(members, key=lambda r: (r.monthly_usd, r.plan_id))
             span = (
                 f" Monthly difference for the same model: ${cheapest.monthly_usd:.2f} — "
                 f"${dearest.monthly_usd:.2f}."
