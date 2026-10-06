@@ -4080,7 +4080,8 @@ through `Any`, so arithmetic on a fact's number is held by review (gap G-2, #171
 than it should in two ways: a protocol requirement carries what any member of its name carries, and
 an operand counts as served when a served field appears anywhere inside it, a closure's body
 included, so `answers.filter { $0.eligibleCount > 0 }.count + 1` is refused (the second review's M5,
-#173). Formatter rounding is not arithmetic here (REQ-APP-005 stays partial for it).
+#173); and a list of served numbers is a carrier, so `let scores = picks.map(\.score)` then
+`scores.count + 1` is refused as arithmetic on a score (the third review's M2, #173). Formatter rounding is not arithmetic here (REQ-APP-005 stays partial for it).
 
 **Revisit when:** a file needs arithmetic on a served number a ruling does not yet name, or #171 or
 #173 is taken.
