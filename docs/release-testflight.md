@@ -22,12 +22,16 @@ review of this wave has passed and you have merged its pull request.**
    change it in three places: `app` and `MODEL_RANKING_ALLOWED_HOSTS` in `fly.toml`, the health
    check's `Host` there too, and `ENGINE_URL[config=Release]` in `ios/Config/Engine.xcconfig`.
    Commit the change: the deploy refuses an uncommitted tree.
-4. **Deploy.** From the repository: `scripts/deploy_hosted_engine.sh --dry-run` first (it derives
+4. **Try the image on your Mac first** (optional, free): with Docker Desktop running, `make
+   cold-start` builds the hosted image, boots it with nothing saved, and runs the customer journey
+   against it on `127.0.0.1:18080`.
+5. **Deploy.** From the repository: `scripts/deploy_hosted_engine.sh --dry-run` first (it derives
    the public artifact and checks the tree), then `scripts/deploy_hosted_engine.sh`. It builds on
    Fly's builder, stamps the build with the commit, and stops with an error unless
    `https://model-ranking.fly.dev/health` answers that build.
-5. **Check it.** `curl https://model-ranking.fly.dev/health` shows `"build": "release-<sha>"`, and
-   `curl https://model-ranking.fly.dev/v1/categories` lists the surfaces.
+6. **Check it.** `make journey URL=https://model-ranking.fly.dev` runs the customer journey against
+   the hosted engine: `/health` names the build, a coding question gets real picks, and every
+   surface answers or says why it cannot.
 
 **After each nightly refresh you want public,** run `scripts/deploy_hosted_engine.sh` again: the
 public artifact is derived from the one your Mac serves, and each deploy is one image of code and
