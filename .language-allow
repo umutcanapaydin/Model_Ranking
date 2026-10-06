@@ -115,3 +115,7 @@ scripts/router_probe/image_heldout_m18_questions.json  # M18-W3 (#113): the fres
 docs/research/m18-w3-runs/              # M18-W3 (review K3): every probe run's per-question output, so
                                         # a run can be re-scored; the questions are half Turkish
 docs/research/stranger-first-use-protocol.md   # #91: the script read aloud to a Turkish-speaking participant, a product-facing text given in both languages
+scripts/router_probe/notasearch_heldout_m19_questions.json  # M19-W4 (#66, #177): the fresh held-out set,
+                                  # half Turkish, written by an independent seat; the Turkish IS the evidence
+scripts/router_probe/image_heldout_m19_questions.json  # M19-W4 (#113, #177): the fresh held-out set, half
+                                  # Turkish, written by an independent seat; the Turkish IS the evidence

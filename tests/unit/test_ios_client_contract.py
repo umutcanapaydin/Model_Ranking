@@ -202,12 +202,16 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
     assert not found, f"held-out questions written into code, tests or tuning sets (file, length): {found}"
 
 
-#: Held-out sets already run, and so tuning now: M16's and M17's, and M18-W3's first two (review B2);
-#: `heldout_questions.json` and `offtopic_heldout_questions.json` ran in M13 and M16 (its second
-#: review's K4). Shared by the held-out gates (#117).
+#: Held-out sets already run, and so tuning now: M16's and M17's, M18-W3's first two (review B2),
+#: and M18-W3's three fresh ones, spent there and retired at M19-W4 (#177: four signal words were
+#: added after them with no origin shown); `heldout_questions.json` and
+#: `offtopic_heldout_questions.json` ran in M13 and M16 (its second review's K4). Shared by the
+#: held-out gates (#117).
 RETIRED_HELD_OUT = {"heldout_questions.json", "refinement_heldout_questions.json",
                     "coding_heldout_m17_questions.json", "notasearch_m17_heldout_questions.json",
-                    "image_heldout_first_questions.json", "offtopic_heldout_questions.json"}
+                    "image_heldout_first_questions.json", "offtopic_heldout_questions.json",
+                    "coding_heldout_m18_questions.json", "notasearch_heldout_m18_questions.json",
+                    "image_heldout_m18_questions.json"}
 
 
 def _live_held_out_sets() -> list[pathlib.Path]:
@@ -1576,25 +1580,29 @@ def test_every_signal_word_only_a_live_held_out_set_holds_is_reviewed() -> None:
 
 
 #: #117: each entry of `Reading.swift`'s lists that a live held-out set holds and no tuning set does,
-#: with where it came from (`git log -S`, ordered against the commit that wrote its set). Seven were in
-#: the app before their set was written (`da48707`, "unread by the author"), so they cannot have come
-#: from it. Four were added after their set existed and their origin is unshown: #177, before W4
-#: measures on those sets. (`komutu`, `component` and `line`, flagged when English was matched whole,
-#: are in a tuning set in a suffixed form.)
-_BEFORE = "in the app before {set} was written (da48707), so not read from it"
-_AFTER = "added in {sha} after {set} was written; origin unshown (#177)"
+#: with where it came from. The M18 sets the first entries came from are retired (#177, M19-W4):
+#: four of their words were added after the sets existed, with no origin shown, so the sets became
+#: tuning and W4 measures on fresh ones. Each entry below was in the app before its set was
+#: written, so it cannot have come from it.
+_BEFORE = "in the app before {set} was written ({sha}), so not read from it"
 HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
-    "llm": _BEFORE.format(set="notasearch_heldout_m18") + "; 2bd9154, M18-W3 P1",
-    "art\u0131k sen bir": _BEFORE.format(set="notasearch_heldout_m18") + "; 55a1aef, M18-W3 review round 1",
-    "tamam": _BEFORE.format(set="notasearch_heldout_m18") + "; 4373dae, M18-W3 P3",
-    "illustrate": _BEFORE.format(set="image_heldout_m18") + "; 4373dae, M18-W3 P3",
-    "colorize": _BEFORE.format(set="image_heldout_m18") + "; 4373dae, M18-W3 P3",
-    "drawing": _BEFORE.format(set="image_heldout_m18") + "; 4373dae, M18-W3 P3",
-    "icon": _BEFORE.format(set="image_heldout_m18") + "; 4373dae, M18-W3 P3",
-    "debug": _AFTER.format(sha="2bd9154 (M18-W3 P1)", set="coding_heldout_m18 (71ffe5f)"),
-    "conclusion": _AFTER.format(sha="2d5f86a (M18-W3 review round 2, B4)", set="image_heldout_m18 (da48707)"),
-    "conclusions": _AFTER.format(sha="2d5f86a (M18-W3 review round 2, B4)", set="image_heldout_m18 (da48707)"),
-    "plot": _AFTER.format(sha="2d5f86a (M18-W3 review round 2, B4)", set="image_heldout_m18 (da48707)"),
+    "first": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
+    "from now on you": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
+    "geceler": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
+    "komutlar\u0131": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
+    "komutlar\u0131n\u0131": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
+    "sa\u011fol": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
+    "thx": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
+    "blur": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "colourise": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "ikon": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "oil": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "paint": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "painting": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "poster": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "r\u00f6tu\u015fla": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "slider": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "sticker": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
 }
 #: A list of two or more string literals: every word, phrase, verb and noun list in `Reading.swift`,
 #: the inline ones in its functions too, derived from the source rather than named here.
