@@ -186,6 +186,9 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("glm-4.6",           "GLM-4.6",           "Zhipu",     r"glm[-_ ]?4[.\-]?6"),
     ModelRule("glm-4.5",           "GLM-4.5",           "Zhipu",     r"glm[-_ ]?4[.\-]?5(?!v|[-_ ]?air)"),
     ModelRule("mistral-large",     "Mistral Large",     "Mistral",   r"mistral[-_ ]?large"),
+    # #129: Mistral Medium 3.5 has one version, v26.04 (Mistral's model page, read 2026-10-06), whether
+    # served as `mistral-medium-3.5` or `mistral-medium-2604`.
+    ModelRule("mistral-medium-3.5", "Mistral Medium 3.5", "Mistral", r"mistral[-_ ]?medium[-_ ]?(?:3[.\-]5(?!\d)|2604(?!\d))"),
     # #129: Mistral's page gives `mistral-small-2503` as Mistral Small 3.1's API name (v25.03), and its
     # card names the weights "Mistral Small 3.1 (2503)" (read 2026-10-06): one release, one model.
     ModelRule("mistral-small-3.1", "Mistral Small 3.1", "Mistral",   r"mistral[-_ ]?small[-_ ]?(?:3[.\-]1(?!\d)|2503(?!\d))"),
@@ -477,6 +480,8 @@ MOVING_ALIASES: dict[str, str] = {
     "command-r": "Cohere repointed the alias (2024-03 to 2024-08)",
     "command-r-plus": "Cohere repointed the alias (2024-04 to 2024-08)",
     "mistral-medium": "Mistral reused the name for a different generation",
+    # M19-W1: Mistral Medium 3.5's page lists `mistral-medium-3` among its API names (2026-10-06).
+    "mistral-medium3": "Mistral moved the alias from Medium 3 (25.05) to Medium 3.5 (26.04)",
     "gpt4-turbo": "OpenAI moved the alias across the preview and 2024-04-09 releases",
     "gpt4o-mini": "an undated OpenAI alias, pinned only by its dated snapshot",
     "o1": "OpenAI moved the alias from the preview to 2024-12-17",
