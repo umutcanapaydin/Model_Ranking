@@ -4229,3 +4229,64 @@ fact: its forms are the tuning sets' (§4 lists the misses).
 
 **Revisit when:** a stranger's first use (#91's protocol) gives a set to measure on, or a stronger
 on-device model reads a question of fact as something else.
+
+## D-185 — The first release: a public artifact inside the hosted image, and the app ready for TestFlight
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
+("proceed with what you recommend, don't ask", owner, translated from Turkish), after the owner called
+the release on 2026-10-07 ("we need to deploy the engine to a real supabase or something and we need
+to go for testflight"); M19-W5, the owner reviews the wave (AGENTS.md §3) and may overrule any clause
+before the deploy · **Date:** 2026-10-07 · from #94, #88, #141, #145, #147, #142 · **Amends** D-116
+(how the hosted artifact ships) · **Records** the owner's #88 ruling as the agent's recommendation,
+pending the owner.
+
+**Context.** D-116 chose Fly.io and an artifact shipped to the host; D-123 moved go-live to the iOS
+app, and stopped at Fly's payment step. The owner named Supabase "or something": Supabase hosts
+Postgres, auth, storage and Deno edge functions, and the engine is one long-running Python process
+reading one SQLite file (D-116 weighed Supabase and set it aside for that reason). The licence review
+of 2026-10-07 (#88) found sources whose terms do not clearly permit a public app, and App Review asks
+an app showing a third party's content to be permitted to (guideline 5.2.2), TestFlight's external
+testing included.
+
+**Decision.**
+1. **The host stays Fly.io (D-116).** `fly.toml` deploys the image's `hosted` stage, one machine always
+   up, and names `model-ranking.fly.dev` as the one Host the engine answers to; its health check sends
+   that Host (#94).
+2. **The artifact ships inside the hosted image, built on the owner's Mac.** A volume starts empty,
+   so a first deploy could not boot; an image that carries its artifact is one immutable pair of code
+   and data, and a rollback restores both. Ingestion stays on the Mac (D-116 clause 2). The image tells
+   its startup check where it binds, so with no Host list it refuses to boot (#94).
+3. **The hosted engine serves a public artifact**, derived offline from the Mac's (`app.workflows.public`),
+   with seven sources left out, each for its reason in `LEFT_OUT`:
+
+   | source | feeds | why it is left out |
+   |---|---|---|
+   | `swebench` | `coding` (half its rows; Epoch's SWE-bench Verified stays) | CC BY-NC 4.0 |
+   | `epoch_arc_agi` | `abstract`, its only source | ARC Prize: personal or internal use; no database without permission |
+   | `epoch_deepswe_external` | `agentic-coding`, its only source | no licence published |
+   | `epoch_terminalbench` | `computer-use`, its only source | no licence stated |
+   | `epoch_webdev` | `web-dev`, its only source | arena.ai's terms: personal or internal business use |
+   | `epoch_mmlu` | `everyday`'s secondary score, display only | no licence found |
+   | `openrouter` | the second price of 168 models | its terms forbid use of its data unless authorised |
+
+   `abstract`, `agentic-coding`, `computer-use` and `web-dev` answer that they have no evidence on the
+   hosted engine (D-121's path). The owner's Mac keeps every source under W-129's ruling. A source comes
+   back with its publisher's written permission, or a licensed replacement (LMArena's CC-BY `webdev`
+   board for `web-dev`, filed).
+4. **The app is ready for TestFlight:** an app icon (a placeholder), a privacy manifest (UserDefaults,
+   reason CA92.1; no tracking; nothing collected, D-126), the encryption answer in its Info plist, and a
+   Release `ENGINE_URL` of `https://model-ranking.fly.dev`. `docs/release-testflight.md` holds the
+   owner's steps.
+5. **Nothing is deployed or uploaded by the agent.** The account, card, signing and App Store Connect
+   steps are the owner's, after the Stage 5.1 security review (BLOCKING before any deploy).
+
+**The alternatives not taken.** Supabase: a rewrite of the engine as edge functions over Postgres, for
+no gain the product needs. A volume with the artifact uploaded by hand: a first deploy that cannot
+boot, and code and data that roll back apart. Every source in public: App Review may ask for permission
+nobody holds.
+
+**The cost.** Four surfaces dark on the hosted engine until a publisher says yes; `coding` ranks 32
+models where the Mac's ranks 54. A deploy per refresh the owner wants public.
+
+**Revisit when:** a publisher grants permission, a licensed replacement is built, or the app moves to
+a paid launch (then SWE-bench must go whatever else changes, and the table goes to a lawyer).
