@@ -5,6 +5,10 @@
 # on every pull request for weeks. A budget is the smallest thing that cannot be written and left
 # unimplemented -- it is either met or it is not.
 #
+# Checked twice: by CI's test job on its own run, and before a push by `make test`, which counts the
+# tests CI will skip from their `needs` markers (`tests/skips.py`, `coverage_floor.py --derive`,
+# #137) and fails unless the count is this number.
+#
 # Start at your current count, then lower it. A budget that never moves is a ratchet that ratcheted
 # once. Raising it is legitimate and must happen HERE, in the tree, where a reviewer sees the diff.
 # model_ranking, set at the DevFlow v6.0 adoption (D-155) to the count the first CI run measured on
@@ -36,6 +40,10 @@
 #    2  need macOS: a planted System Configuration proxy reaches no unit test, and no httpx client
 #       (`test_no_network.py`, #150 and its Tester's T1). Linux has no such fallback, so there is
 #       nothing to hold there.
-# The owner's Mac skips 25 of these, not 81, because it has the database. Lower this when CI builds
+#    2  need a run offline at the operating system's level: a child process the suite starts is
+#       refused an outside peer, and a name lookup (`test_offline_run.py`, M19-W3, #122, D-183).
+#       `make test` runs so on macOS; CI's half is a patch for the owner's workflow file, and lowers
+#       this by one when applied: the name-lookup test reads a macOS path, so it needs macOS too.
+# The owner's Mac skips 25 of these, not 83, because it has the database. Lower this when CI builds
 # an artifact from fixtures (W-108's remedy), not by skipping less honestly.
-81
+83

@@ -125,11 +125,10 @@ def test_epoch_workflow_refuses_to_drop_its_verification_clock() -> None:
         ingest_epoch(connect(), source, RunContext(observed_at="2026-08-16T00:00:00+00:00"))
 
 
+@pytest.mark.needs("epoch")
 def test_real_epoch_board_reproduces_plan_level_freshness_distribution() -> None:
     """REQ-ING-011b/REQ-SUB-007: real engine selects 2 fresh, 3 stale, 5 unscored."""
-    raw_dir = os.environ.get("EPOCH_DATA_DIR")
-    if raw_dir is None:
-        pytest.skip("set EPOCH_DATA_DIR to the unpacked owner-fetched Epoch bundle")
+    raw_dir = os.environ["EPOCH_DATA_DIR"]
 
     root = Path(__file__).resolve().parents[2]
     conn = connect()

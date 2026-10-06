@@ -39,9 +39,7 @@ def _evidence(client: TestClient) -> str:
     return str(client.get("/health").json()["evidence"])
 
 
-@pytest.mark.skipif(
-    hasattr(os, "geteuid") and os.geteuid() == 0, reason="root can read a mode-000 file"
-)
+@pytest.mark.needs("not_root")  # root reads a mode-000 file
 def test_an_artifact_whose_permissions_are_revoked_reads_unavailable(
     serving: tuple[TestClient, Path],
 ) -> None:

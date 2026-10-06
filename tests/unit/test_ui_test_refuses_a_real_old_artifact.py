@@ -8,7 +8,6 @@ fails on its query and prints nothing: the refusal it sees is the error path, an
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -18,8 +17,7 @@ from app.workflows.schema import connect
 
 from .test_ui_test_script import _chosen, _layout
 
-NEEDS = pytest.mark.skipif(shutil.which("bash") is None or shutil.which("curl") is None,
-                           reason="needs bash and curl")
+NEEDS = pytest.mark.needs("bash_curl")
 
 
 def _old(path: Path) -> None:

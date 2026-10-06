@@ -6,7 +6,7 @@
 //  (`tests/unit/test_swift_tests_offline.py` holds that).
 //
 //  The ways a test can make a request that it catches (measured on macOS 26 before it was written).
-//  Not caught: a session built from a bare `URLSessionConfiguration()` (#108); a background session,
+//  Not caught: a session built from a bare `URLSessionConfiguration()` (#108, which the source refuses); a background session,
 //  which never asks custom protocols (the SDK says so; the source check refuses one); and a test class
 //  that is not an `OfflineTestCase` (held by `tests/unit/test_swift_tests_offline.py`, aliases included):
 //  - `URLProtocol.registerClass` reaches `URLSession.shared` and `Data(contentsOf:)`, but not a

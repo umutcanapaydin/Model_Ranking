@@ -695,6 +695,7 @@ def test_a_pre_m5_database_refuses_to_serve(monkeypatch: pytest.MonkeyPatch, tmp
         adapter.validate_startup_config(env="production")
 
 
+@pytest.mark.needs("artifact")
 def test_the_repositorys_own_artifact_is_checked_not_assumed() -> None:
     """The probe is pointed at the real file, because that is the artifact D-116 ships.
 
@@ -711,15 +712,11 @@ def test_the_repositorys_own_artifact_is_checked_not_assumed() -> None:
 
     import app.adapter.main as adapter
 
+    # advisor.db is gitignored and mounted at deploy time (D-116), so this guard protects the
+    # OWNER'S machine only: CI cannot check an artifact CI does not have, and skips it (`needs`,
+    # #137). What protects a deploy is the startup probe in adapter.main, which refuses to boot on
+    # an unusable database. Recorded as W-029 so the gap is stated rather than inferred from a skip.
     artifact = Path("advisor.db")
-    if not artifact.exists():
-        pytest.skip(
-            "advisor.db is not present in this checkout. It is gitignored and mounted at\n"
-            "deploy time (D-116), so this guard protects the OWNER'S machine only: CI\n"
-            "cannot check an artifact CI does not have. What protects a deploy is the\n"
-            "startup probe in adapter.main, which refuses to boot on an unusable database.\n"
-            "Recorded as W-029 so the gap is stated rather than inferred from a skip."
-        )
 
     problem = adapter._database_unusable(artifact)
     assert problem is None, (

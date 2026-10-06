@@ -132,11 +132,10 @@ def test_missing_epoch_board_fails_loudly_per_source(tmp_path: Path) -> None:
         client.fetch_raw()
 
 
+@pytest.mark.needs("epoch")
 def test_real_epoch_swe_bench_csv_satisfies_the_parser_contract() -> None:
     """REQ-ING-010: the parser is checked against the owner-fetched real CSV shape."""
-    raw_dir = os.environ.get("EPOCH_DATA_DIR")
-    if raw_dir is None:
-        pytest.skip("set EPOCH_DATA_DIR to the unpacked owner-fetched Epoch bundle")
+    raw_dir = os.environ["EPOCH_DATA_DIR"]
 
     client = EpochClient(Path(raw_dir), last_verified="2026-08-15")
     rows, skipped = parse_swe_bench_verified(

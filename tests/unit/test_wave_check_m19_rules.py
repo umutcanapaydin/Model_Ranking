@@ -1,0 +1,210 @@
+"""M19-W3, #140: the two wave gates read what the plan says, not a narrower copy of it.
+
+- #82's check counted a milestone's waves from its `### W<n>` headings. A wave added by an amendment
+  paragraph, or named only in a table, has none, so its missing close was invisible. Any wave the
+  plan names must now have its heading, in every plan from M18 on.
+- #83's HIGH rule read one path, `src/app/clients`, while the plan lists its own security globs
+  (`m19-plan.md` §3). From 2026-10-06 a close whose footprint touches any of its plan's globs must be
+  HIGH, and a plan with no glob list fails closed.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import re
+import subprocess
+import sys
+from pathlib import Path
+from types import ModuleType
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[2]
+TEMPLATE = ROOT / "docs" / "plans" / "m18-wave-1-close.md"
+GLOBS = """
+## 3. Risk tiers and security globs
+
+- **Security globs.** A diff touching any of these makes a wave HIGH:
+  - `src/app/adapter/main.py`
+  - `ios/ModelRanking/Engine/EngineClient.swift`
+  - `src/app/clients/**` (input parsing, #83)
+  - `.github/workflows/**` and `.claude/settings.json` (the owner's)
+"""
+
+
+def _module(name: str) -> ModuleType:
+    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _plan(root: Path, text: str, *, milestone: int = 19, closes: tuple[int, ...] = (1, 2),
+          closed: bool = True) -> Path:
+    plans = root / "docs" / "plans"
+    plans.mkdir(parents=True)
+    (plans / f"m{milestone}-plan.md").write_text(f"# M{milestone}\n\n### W1 — one\n\n### W2 — two\n{text}",
+                                                 encoding="utf-8")
+    for wave in closes:
+        (plans / f"m{milestone}-wave-{wave}-close.md").write_text("a close\n", encoding="utf-8")
+    if closed:
+        (root / "docs" / f"closure-report-m{milestone}.md").write_text("closed\n", encoding="utf-8")
+    (root / "docs" / "control-events.csv").write_text("control,wave,kind,reason,date\n", encoding="utf-8")
+    return root
+
+
+def test_a_wave_an_amendment_adds_without_a_heading_is_refused(tmp_path: Path) -> None:
+    """#140, slice 1: M18-W7 was added by an amendment; had it no heading, its missing close was
+    invisible. A wave an amendment names must carry a heading, so its close can be required."""
+    check = _module("wave_check_all")
+    root = _plan(tmp_path, "\n**Amendment (2026-10-06, the owner).** W3 joins the milestone: the backlog.\n")
+    problems = check.headless_waves(root)
+    assert any("W3" in line and "heading" in line for line in problems), problems
+
+
+def test_a_wave_a_table_names_without_a_heading_is_refused(tmp_path: Path) -> None:
+    """#140: the issue inventory names each wave in its first column (`| W3 | #12 |`)."""
+    check = _module("wave_check_all")
+    root = _plan(tmp_path, "\n| Wave | Issues |\n|---|---|\n| W1 | #1 |\n| W3 | #12 |\n")
+    assert any("W3" in line for line in check.headless_waves(root))
+
+
+def test_an_open_milestones_plan_is_held_to_it_too(tmp_path: Path) -> None:
+    """#140: found while the milestone runs, not at its closure, when the wave is already invisible."""
+    check = _module("wave_check_all")
+    root = _plan(tmp_path, "\n**Amendment (2026-10-06).** W3 is added.\n", closes=(1,), closed=False)
+    assert any("W3" in line for line in check.headless_waves(root))
+
+
+def test_waves_named_with_their_headings_and_other_milestones_waves_pass(tmp_path: Path) -> None:
+    """Quiet when it should be: W2 named in an amendment has its heading; `M17-W5` is another
+    milestone's wave; `W-108` is a warning, not a wave."""
+    check = _module("wave_check_all")
+    root = _plan(tmp_path, "\n**Amendment (2026-10-06).** W2 runs before W1, as M17-W5 did; W-108 stays.\n")
+    assert check.headless_waves(root) == []
+
+
+def _close(root: Path, *, tier: str, touched: str, plan: str | None) -> Path:
+    text = TEMPLATE.read_text(encoding="utf-8")
+    text = re.sub(r"^date: .*$", "date: 2026-10-06", text, count=1, flags=re.M)
+    text = re.sub(r"\(risk: \*\*HIGH\*\*", f"(risk: **{tier}**", text, count=1)
+    # The whole footprint, its continuation lines too: the template's names `EngineClient.swift`
+    # on its second line, in brace form, which the HIGH rule now reads (the W3 review's M2).
+    text = re.sub(r"^Touched:.*\n(?:[ \t]+.*\n)*", f"Touched:        {touched}\n", text, count=1, flags=re.M)
+    record = root / "docs" / "plans" / "m18-wave-1-close.md"
+    record.parent.mkdir(parents=True)
+    record.write_text(text, encoding="utf-8")
+    if plan is not None:
+        (root / "docs" / "plans" / "m18-plan.md").write_text(f"# M18\n\n### W1 — one\n{plan}", encoding="utf-8")
+    reviews = root / "docs" / "reviews"
+    reviews.mkdir()
+    for seat in ("review", "tester"):
+        name = f"m18-wave-1-{seat}.md"
+        verdict = (ROOT / "docs" / "reviews" / name).read_text(encoding="utf-8")
+        (reviews / name).write_text(re.sub(r"^date: .*$", "date: 2026-10-06", verdict, count=1, flags=re.M),
+                                    encoding="utf-8")
+    return record
+
+
+def _wave_check(record: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run([sys.executable, str(ROOT / "scripts" / "wave_check.py"), str(record)],
+                          capture_output=True, text=True, cwd=record.parents[2], timeout=60, check=False)
+
+
+def test_a_med_close_touching_one_of_its_plans_security_globs_is_refused(tmp_path: Path) -> None:
+    """#140, slice 2: a MED close touching `EngineClient.swift` passed, because the rule read only
+    `src/app/clients`. The plan's own globs make it HIGH."""
+    done = _wave_check(_close(tmp_path, tier="MED", touched="ios/ModelRanking/Engine/EngineClient.swift", plan=GLOBS))
+    assert done.returncode != 0 and "EngineClient.swift" in done.stdout, done.stdout
+
+
+def test_a_close_whose_plan_names_no_security_globs_fails_closed(tmp_path: Path) -> None:
+    """#140: a plan with no glob list, or no plan, cannot say what is HIGH; that is a failure."""
+    assert "security glob" in _wave_check(_close(tmp_path / "a", tier="HIGH", touched="x.py", plan="")).stdout
+    assert "security glob" in _wave_check(_close(tmp_path / "b", tier="HIGH", touched="x.py", plan=None)).stdout
+
+
+def test_a_high_close_on_a_glob_and_a_med_close_off_them_pass(tmp_path: Path) -> None:
+    """Quiet when it should be."""
+    high = _close(tmp_path / "a", tier="HIGH", touched="ios/ModelRanking/Engine/EngineClient.swift", plan=GLOBS)
+    assert _wave_check(high).returncode == 0, _wave_check(high).stdout
+    med = _close(tmp_path / "b", tier="MED", touched="src/app/workflows/rank.py", plan=GLOBS)
+    assert _wave_check(med).returncode == 0, _wave_check(med).stdout
+
+
+def test_the_glob_list_is_read_from_its_own_bullet_not_a_mention_of_it(tmp_path: Path) -> None:
+    """Found writing #140's rule on M19's own plan: a bullet that only mentions "security globs" came
+    first, and the list under it read empty, failing every M19 close closed."""
+    plan = tmp_path / "m19-plan.md"
+    plan.write_text("- **#140:** the gates read the plan's own security globs.\n\n" + GLOBS, encoding="utf-8")
+    globs = _module("wave_check").plan_globs(plan)
+    assert "ios/ModelRanking/Engine/EngineClient.swift" in globs and ".claude/settings.json" in globs, globs
+
+
+def test_a_footprint_in_brace_form_or_as_a_folder_still_touches_the_glob(tmp_path: Path) -> None:
+    """The W3 review's M2: `ios/ModelRanking/Engine/{Models,EngineClient}.swift` (the shape
+    `m19-wave-2-close.md` used) and the folder `ios/ModelRanking/Engine/` each passed a MED close."""
+    braced = _close(tmp_path / "a", tier="MED", touched="ios/ModelRanking/Engine/{Models,EngineClient}.swift",
+                    plan=GLOBS)
+    assert "EngineClient.swift" in _wave_check(braced).stdout
+    folder = _close(tmp_path / "b", tier="MED", touched="ios/ModelRanking/Engine/", plan=GLOBS)
+    assert "EngineClient.swift" in _wave_check(folder).stdout
+
+
+def test_other_spellings_of_an_amended_wave_are_read(tmp_path: Path) -> None:
+    """The W3 review's M3: `M19-W3`, an amendment that is not bold, and `Wave 3` went unflagged."""
+    check = _module("wave_check_all")
+    for text in ("\n**Amendment (2026-10-06).** M19-W3 joins.\n", "\nAmendment (2026-10-06). W3 joins.\n",
+                 "\n**Amendment (2026-10-06).** Wave 3 joins.\n"):
+        root = _plan(tmp_path / str(abs(hash(text))), text)
+        assert any("W3" in line for line in check.headless_waves(root)), text
+
+
+def test_a_glob_bullet_that_wraps_keeps_every_glob(tmp_path: Path) -> None:
+    """The W3 review's M3: a bullet whose globs wrap to a second line dropped the rest of the list."""
+    plan = tmp_path / "m19-plan.md"
+    plan.write_text("- **Security globs.** HIGH:\n  - `src/a.py` and\n    `ios/B.swift`\n  - `c/**`\n", encoding="utf-8")
+    assert _module("wave_check").plan_globs(plan) == ["src/a.py", "ios/B.swift", "c/**"]
+
+
+def test_wave_check_all_reports_a_headless_wave(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """The W3 review's M4: with `headless_waves` removed from `main`, every test stayed green."""
+    check = _module("wave_check_all")
+    monkeypatch.setattr(check, "headless_waves", lambda root: ["m19's plan names W9 in an amendment"])
+    assert check.main() == 1
+    assert "W9" in capsys.readouterr().out
+
+
+def test_a_findings_sub_bullets_are_part_of_it(tmp_path: Path) -> None:
+    """The W3 Tester's M9: the W3 review's verdict wrote sub-bullets under its findings, and each was
+    counted as a finding with no id, so `make wave-check` would refuse the close. An indented bullet
+    belongs to the finding above it; one with no finding above it still counts (fail closed)."""
+    check = _module("wave_check")
+    body = ("## Verdict\n\nMINOR\n\n### MINOR\n\n- **M1** the first.\n  - a detail.\n  - another.\n"
+            "- **M2** the second.\n\n## K.9 candidates\n\n  - an indented bullet with no finding above it.\n")
+    assert check.deferrable_findings(body) == (["M1", "M2"], 1)
+
+
+def test_more_plan_layouts_name_a_wave(tmp_path: Path) -> None:
+    """The W3 Tester's M5: an `### Amendments` list, a `| **W3** |` cell, a "Plan amendment" paragraph
+    and a lower-case "wave 3" each named W3 unflagged."""
+    check = _module("wave_check_all")
+    for text in ("\n### Amendments\n\n- 2026-10-06: W3 joins.\n", "\n| Wave | Issues |\n|---|---|\n| **W3** | #12 |\n",
+                 "\nPlan amendment (2026-10-06): W3 joins.\n", "\n**Amendment (2026-10-06).** wave 3 joins.\n"):
+        root = _plan(tmp_path / str(abs(hash(text))), text)
+        assert any("W3" in line for line in check.headless_waves(root)), text
+
+
+def test_more_footprint_shapes_and_a_tier_that_says_not_high(tmp_path: Path) -> None:
+    """The W3 Tester's M6: a brace with a space, two brace groups, `./`, a folder with no trailing slash,
+    and a tier cell reading "MED, not HIGH" each passed a MED close touching a glob."""
+    for i, touched in enumerate(("ios/ModelRanking/Engine/{Models, EngineClient}.swift",
+                                 "ios/{ModelRanking,Other}/Engine/{EngineClient,Models}.swift",
+                                 "./ios/ModelRanking/Engine/EngineClient.swift", "ios/ModelRanking/Engine")):
+        done = _wave_check(_close(tmp_path / str(i), tier="MED", touched=touched, plan=GLOBS))
+        assert "EngineClient.swift" in done.stdout, touched
+    record = _close(tmp_path / "tier", tier="MED", touched="ios/ModelRanking/Engine/EngineClient.swift", plan=GLOBS)
+    record.write_text(record.read_text(encoding="utf-8").replace("(risk: **MED**", "(risk: **MED**, not HIGH", 1),
+                      encoding="utf-8")
+    assert "EngineClient.swift" in _wave_check(record).stdout

@@ -222,3 +222,11 @@ because no check over the compiler's declarations proves "by any route the compi
 reviews planted, each refused; its arithmetic half for every shape the first W2 review planted and the
 operators, methods and names D-181 lists, and not for the second review's B3 shapes. Gaps G-1 and G-2
 stay open in part for the rest (#172; #171, #173).
+
+**Amendment (2026-10-06, W3).** Two choices the plan left to the owner were taken on the standing
+instruction of 2026-09-29: #122's option B (the test run offline at the operating system's level on
+macOS; CI's half is a patch posted on #122 for the owner) and #117's matching (whole words, Turkish with
+its suffixes). #108 is delivered by its guard only, under the wave's valve: the cause was read, not
+measured, since measuring means trapping a process; the issue stays open. #117's check found four
+signal words added after the M18 held-out sets that alone hold them (#177, before W4 measures on those
+sets). A load-sensitive timing test was filed as #178.

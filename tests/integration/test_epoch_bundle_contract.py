@@ -8,15 +8,11 @@ CANNOT run in the build sandbox; they run with RUN_CONTRACT_TESTS=1 (REQ-CI-001)
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.skipif(
-    os.environ.get("RUN_CONTRACT_TESTS") != "1",
-    reason="contract test needs network; set RUN_CONTRACT_TESTS=1",
-)
+pytestmark = pytest.mark.needs("contract")  # #137: RUN_CONTRACT_TESTS=1 and the network
 
 
 @pytest.fixture(scope="module")

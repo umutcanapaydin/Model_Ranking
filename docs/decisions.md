@@ -4118,3 +4118,63 @@ vendor, a score and a price would still show as one card, and one model under tw
 the app disagree about which pick is the leader.
 
 **Revisit when:** the app needs the id for more than grouping, or `/v1` gains a second id field.
+
+## D-183 — The gates see before the push: CI's skips counted, the run offline, the plan read
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
+("proceed with what you recommend, don't ask", owner, translated from Turkish); M19-W3, the owner
+reviews the wave (AGENTS.md §3) · **Date:** 2026-10-06 · from #137, #140, #122, #149, #117, #108;
+written at the W3 review's M10.
+
+**Context.** Four checks found their problems after a push or never: CI's skip budget, raised three
+times in M18 and once in M19-W2 only after CI failed; the wave gates, which read headings and one path
+while the plan says more; a child process a test starts, which no in-process guard sees; and a
+held-out set, which only measures while nothing was tuned on it (D-147 clause 5), with no check of
+the signal words.
+
+**Decision.**
+1. **Every skip names its need.** A test skips only through `@pytest.mark.needs("<what>")`;
+   `tests/skips.py` names each need once, with whether this machine has it and whether CI's test job
+   does, and why. `make test` counts, from those markers, how many tests CI will skip
+   (`coverage_floor.py --derive`) and fails unless it is the budget in `docs/skip-budget.txt`, more or
+   fewer. A skip spelled any other way is refused in the source (#137).
+2. **The wave gates read the plan.** A wave an amendment or a table names must have its own heading,
+   so its close can be required; a close whose footprint touches one of its plan's security globs
+   (the `Security globs` bullet, brace forms and folders read) must be HIGH, and a plan with no list
+   fails closed (#140).
+3. **The test run is offline at the operating system's level** (#122, option B). On macOS `make test`
+   runs pytest inside `scripts/offline.sb`: every outbound connection but loopback is refused before
+   a packet leaves, children included whatever their language, and so are the system resolver's
+   socket and its mach service, and LaunchServices (read from the profile, not measured by a lookup).
+   The run `make test` marks must be offline on a Mac whatever the environment names the system.
+   The run says it must be offline, and stops before any test if a child could still name an outside
+   peer. The probe sends nothing (a UDP `connect()`). CI's half is a patch for the owner's workflow
+   file, posted on #122.
+4. **A deadline test is held against a plain timer started beside it**, not the clock: a process that
+   is not scheduled makes every timer late alike, and a race that waited for the work would not
+   (#149).
+5. **A signal word only a live held-out set holds is flagged by the entry**: every list of strings in
+   `Reading.swift`, matched at a word's start with any ending, against the live held-out sets and every
+   other probe set. Each flagged entry is named in the test with where it came from; a new one fails
+   until a reviewer has asked, and a stale name fails too (#117).
+6. **A bare `URLSessionConfiguration()` is refused in the source**, in its two spellings, since the
+   Swift tripwire does not see it and it trapped a test process (#108, its cause read, not measured).
+
+**The rejected alternatives.**
+- **The checks in CI only.** They would keep finding problems after the push, which is the fault this
+  decision exists to fix.
+- **#122's option A**, a `sitecustomize` carrying the guard into Python children: it misses a scrubbed
+  environment, a non-Python child and the nightly's refresh. **Option C**, holding it by review: a
+  gate that names a stance proves nothing about what a child does.
+- **#117 matching English whole and Turkish with suffixes.** Replayed on M18-W3's tree it missed two
+  of the review's phrases, Turkish words with no Turkish letter; a word's language cannot be read from
+  its letters (the W3 review's M8). The W3 Tester's fixture now holds M18-W3's own eleven, from its 27.
+
+**What it does not do.** CI's test job is not offline until the owner applies the patch (gap G-5);
+the record of what CI has (`NEEDS[...].in_ci`) is kept by hand beside the workflow; the HIGH rule
+reads the footprint a close records, not the commit range's diff; the held-out check reads the
+signal lists, not the wording tier's hint sentences; the Swift tests' own children are not under the
+offline profile; #108's guard reads two spellings, not a typealias or a subclass. Each is filed.
+
+**Revisit when:** the owner applies #122's CI patch (`NEEDS["offline"].in_ci` becomes `True`, and the
+budget falls by one), or a check here fires on correct input.

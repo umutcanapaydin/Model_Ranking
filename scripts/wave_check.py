@@ -26,6 +26,7 @@ Refuses:
 The footprint fields and the review files are graded by the `process_version` the record declares
 (see below). Exit 0 pass · 1 fail · 2 usage.
 """
+import fnmatch
 import pathlib
 import re
 import sys
@@ -54,13 +55,20 @@ def deferrable_findings(body: str) -> tuple[list[str], int]:
     ids: list[str] = []
     unnamed = 0
     in_section = False
+    finding_above = False
     for line in body.splitlines():
         h = re.match(r"^#{2,4}\s+(.*)$", line)
         if h:
             in_section = bool(DEFERRABLE.search(h.group(1)))
+            finding_above = False
             continue
         if not in_section or not re.match(r"^\s*[-*]\s+\S", line):
             continue
+        # An indented bullet belongs to the finding above it (the W3 Tester's M9); one with no finding
+        # above it is still counted, so a verdict indented throughout fails closed.
+        if re.match(r"^\s+[-*]\s", line) and finding_above:
+            continue
+        finding_above = True
         if re.match(r"^\s*[-*]\s+(?:\*\*)?(?:none\b|n/a\b|—\s*$|-\s*$)", line, re.I):
             continue
         m = FINDING_ID.match(line)
@@ -272,6 +280,75 @@ DEVFLOW_ADOPTED = "2026-09-23"
 CURRENT_AT_ADOPTION = (6, 6)
 #: #83: closes dated from this day on are held to "a diff touching input parsing is HIGH".
 INPUT_PARSING_HIGH_FROM = "2026-10-04"
+#: #140: closes dated from this day on are held to their own plan's security globs.
+PLAN_GLOBS_HIGH_FROM = "2026-10-06"
+
+
+def plan_globs(plan: pathlib.Path) -> list[str]:
+    """#140: the security globs a milestone plan lists, under its `Security globs` bullet: every
+    backticked path on the indented bullets that follow it. None (or no plan) is an empty list, which
+    the caller refuses: a plan that names no globs cannot say what makes a wave HIGH."""
+    if not plan.is_file():
+        return []
+    lines = plan.read_text(encoding="utf-8", errors="replace").splitlines()
+    start = next((i for i, line in enumerate(lines)
+                  if re.match(r"^\s*-\s*\**\s*Security globs\b", line, re.I)), None)
+    if start is None:
+        return []
+    globs: list[str] = []
+    for line in lines[start + 1:]:
+        # A bullet, or the continuation of one that wrapped (indented, no dash): the W3 review's M3.
+        if not (re.match(r"^\s+-\s", line) or (re.match(r"^\s{3,}\S", line) and globs)):
+            break
+        globs += re.findall(r"`([^`]+)`", line)
+    return globs
+
+
+def _footprint_paths(touched: str) -> list[str]:
+    """#140 and the W3 review's M2: the paths a footprint names, a brace form expanded
+    (`Engine/{Models,EngineClient}.swift`)."""
+    # A space inside braces is part of the brace form (the W3 Tester's M6).
+    touched = re.sub(r"\{[^{}]*\}", lambda found: re.sub(r"\s+", "", found.group(0)), touched)
+    paths: list[str] = []
+    for token in re.split(r"[\s·]+", touched):
+        pending = [token.strip("`,;()").removeprefix("./")]
+        while pending:
+            path = pending.pop()
+            braced = re.match(r"^(.*?)\{([^{}]+)\}(.*)$", path)
+            if braced:  # every group, one at a time
+                pending += [f"{braced.group(1)}{part}{braced.group(3)}" for part in braced.group(2).split(",")]
+            elif path:
+                paths.append(path)
+    return paths
+
+
+def _touches(path: str, glob: str) -> bool:
+    """A path matches a glob; a folder touches every glob beneath it (the W3 review's M2)."""
+    if fnmatch.fnmatch(path, glob):
+        return True
+    # A folder, with its slash or without (the W3 Tester's M6), touches every glob beneath it.
+    return glob.startswith(path.rstrip("/") + "/")
+
+
+def _tier(evidence: str) -> str | None:
+    """The tier row 1 records: its first tier word, so "MED, not HIGH" is MED (the W3 Tester's M6)."""
+    found = re.search(r"\b(HIGH|MED|LOW)\b", evidence)
+    return found.group(1) if found else None
+
+
+def _glob_problems(p: pathlib.Path, touched: str, evidence: str) -> list[str]:
+    """#140: a close whose footprint touches one of its plan's security globs must be HIGH."""
+    ids = re.match(r"m(\d+)-wave-\d+-close\.md$", p.name)
+    plan = p.parent / f"m{ids.group(1)}-plan.md" if ids else p.parent / "missing-plan.md"
+    globs = plan_globs(plan)
+    if not globs:
+        return [f"`{plan.name}` names no security globs (a `Security globs` bullet with backticked paths), so "
+                "no rule can say what makes this wave HIGH; it fails closed (#140)"]
+    hits = sorted({f"{path} ({glob})" for path in _footprint_paths(touched) for glob in globs if _touches(path, glob)})
+    if hits and _tier(evidence) != "HIGH":
+        return [f"the footprint touches its plan's security globs ({', '.join(hits)}) and row 1 does not "
+                "record the wave as HIGH -- a diff touching a security glob is HIGH (#140)"]
+    return []
 
 
 def main(argv: list[str]) -> int:
@@ -370,6 +447,8 @@ def main(argv: list[str]) -> int:
                 and not re.search(r"\bHIGH\b", evidence)):
             bad.append("the footprint touches `src/app/clients` (input parsing) and row 1 does not "
                        "record the wave as HIGH -- a diff touching input parsing is HIGH (#83)")
+        if dated is None or dated.group(1) >= PLAN_GLOBS_HIGH_FROM:
+            bad += _glob_problems(p, touched.group(1) if touched else "", evidence)
     if not re.search(r"Filled by:.*Date:.*commit range", text, re.I):
         bad.append("no signed footer (`Filled by: … Date: … Wave commit range: …`) -- an unsigned "
                    "close names nobody and no commit range, so its evidence cannot be scoped")

@@ -16,12 +16,15 @@ from __future__ import annotations
 import ipaddress
 import os
 import socket
+import sys
 import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
+
+from tests import skips
 
 os.environ.setdefault("APP_ENV", "test")
 
@@ -215,7 +218,13 @@ def pytest_runtest_teardown(item: pytest.Item, nextitem: pytest.Item | None) -> 
 ARTIFACT = Path("advisor.db")
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption("--ci-skips-report", default=None,
+                     help="#137: write how many tests CI's test job will skip, from their `needs` markers")
+
+
 def pytest_configure(config: pytest.Config) -> None:
+    skips.configure(config)  # #137: the `needs` marker
     _install_network_guard()  # #122: before collection, so imports and every fixture are covered
     _hide_proxies()  # #143
     if _REAL_SYSTEM_PROXIES is not None:  # #150: macOS only; no other platform falls back here
@@ -267,6 +276,17 @@ def _slices_stay_off_the_network(request: pytest.FixtureRequest, monkeypatch: py
 def pytest_sessionstart(session: pytest.Session) -> None:
     # In the controlling process, before any worker collects: raised inside an xdist worker the
     # same refusal surfaces as an INTERNALERROR traceback that does not say what is missing.
+    # `make test` sets MODEL_RANKING_REQUIRE_ARTIFACT=1 in its recipe; on a Mac that run must be offline
+    # too, even if the environment dropped the sandbox and its flag (`MAKEFLAGS`, the W3 Tester's M3).
+    must_be_offline = os.environ.get("MODEL_RANKING_REQUIRE_OFFLINE") == "1" or (
+        os.environ.get("MODEL_RANKING_REQUIRE_ARTIFACT") == "1" and sys.platform == "darwin")
+    if must_be_offline and not skips.offline():
+        pytest.exit(
+            "#122: this run must be offline at the operating system's level (MODEL_RANKING_REQUIRE_OFFLINE=1), "
+            "and a child process could still reach the network. Run it through `make test`, which wraps it in "
+            "scripts/offline.sb on macOS.",
+            returncode=4,
+        )
     if os.environ.get("MODEL_RANKING_REQUIRE_ARTIFACT") == "1" and not ARTIFACT.is_file():
         pytest.exit(
             f"W-108: this run must execute the tests that read {ARTIFACT}, and it is missing "
@@ -276,12 +296,8 @@ def pytest_sessionstart(session: pytest.Session) -> None:
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    needing = [item for item in items if item.get_closest_marker("artifact")]
-    if not needing or ARTIFACT.is_file():
-        return
-    skip = pytest.mark.skip(reason=f"W-108: needs the built {ARTIFACT}, which is not in the repo")
-    for item in needing:
-        item.add_marker(skip)
+    # #137: every skip goes through `needs` (`tests/skips.py`), which also counts CI's.
+    skips.apply(config, items)
 
 
 def pytest_unconfigure(config: pytest.Config) -> None:

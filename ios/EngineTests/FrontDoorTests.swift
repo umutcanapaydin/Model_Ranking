@@ -511,16 +511,30 @@ final class AlternativeSurfaceTests: OfflineTestCase {
 final class SlowTierTests: OfflineTestCase {
     private let wording = RoutingOutcome(categoryID: "coding", tier: .similarity, unmeasured: false)
 
+    /// #149: a plain timer of the deadline's length, started beside the call. A process that is not
+    /// scheduled makes every timer late alike, so the deadline is held against this, not the clock:
+    /// a race that waited for the model would take its ten seconds while this took its 0.2.
+    private func plainTimer(_ seconds: Double) -> Task<Double, Never> {
+        let started = Date()
+        return Task {
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            return Date().timeIntervalSince(started)
+        }
+    }
+
     func testAModelTierThatNeverAnswersHandsTheQuestionToTheWordingTier() async {
         let router = TieredRouter(model: HangingTier(), similarity: FixedTier(outcome: wording),
                                   modelTimeout: 0.2)
         let started = Date()
+        let control = plainTimer(0.2)
 
         let outcome = await router.route("fix my code", within: served)
+        let elapsed = Date().timeIntervalSince(started)
+        let late = await control.value
 
         XCTAssertEqual(outcome.tier, .similarity, "the question waited for a model that never came")
-        XCTAssertLessThan(Date().timeIntervalSince(started), 5,
-                          "the deadline was waited out by the call it exists to abandon")
+        XCTAssertLessThan(elapsed, late + 4,
+                          "the deadline was waited out by the call it exists to abandon: \(elapsed) s, a plain timer \(late) s")
     }
 
     func testAModelTierThatAnswersInTimeIsStillUsed() async {
@@ -531,6 +545,43 @@ final class SlowTierTests: OfflineTestCase {
         let outcome = await router.route("build me a landing page", within: served)
 
         XCTAssertEqual(outcome.tier, .model, "the deadline cut off a model that answered")
+    }
+
+    /// #149: the deadline test failed once at 11.4 s against its 5 s bound, in a `make check-fast`
+    /// run with every core busy. The race only suspends; no app code blocks a thread; and in a test
+    /// process a blocked pool delays no timer (measured: 32 blocked tasks, a 0.2 s timer on time). So
+    /// what was late was the process itself, not scheduled. Stopped for six seconds here (SIGSTOP,
+    /// then SIGCONT: a pause, never a crash), every timer in it is late alike, and the question must
+    /// still go to the wording tier.
+    func testTheDeadlineIsHeldWhenTheProcessIsStarved() async throws {
+        #if os(macOS)
+        let router = TieredRouter(model: HangingTier(), similarity: FixedTier(outcome: wording),
+                                  modelTimeout: 0.2)
+        let pause = Process()
+        pause.executableURL = URL(fileURLWithPath: "/bin/sh")
+        let pid = ProcessInfo.processInfo.processIdentifier
+        pause.arguments = ["-c", "sleep 0.05; kill -STOP \(pid); sleep 6; kill -CONT \(pid)"]
+        // The W3 review's R3: if the pausing helper died between its STOP and its CONT, the test process
+        // would stay stopped and the Swift leg, which has no timeout, would hang. A second helper sends
+        // CONT whatever happens to the first.
+        let backstop = Process()
+        backstop.executableURL = URL(fileURLWithPath: "/bin/sh")
+        backstop.arguments = ["-c", "sleep 8; kill -CONT \(pid) 2>/dev/null; true"]
+        let started = Date()
+        let control = plainTimer(0.2)
+        try backstop.run()
+        try pause.run()
+
+        let outcome = await router.route("fix my code", within: served)
+        let elapsed = Date().timeIntervalSince(started)
+        let late = await control.value
+
+        XCTAssertEqual(outcome.tier, .similarity, "the question waited for a model that never came")
+        // Two seconds, not four (the W3 review's M7): six seconds stopped and a four-second margin is
+        // about `HangingTier`'s ten, so a router that waited the model out passed.
+        XCTAssertLessThan(elapsed, late + 2,
+                          "the deadline was waited out by the call it exists to abandon: \(elapsed) s, a plain timer \(late) s")
+        #endif
     }
 
     /// W3 re-review-2 R3-4: the abandoned call is not only left behind, it is told to stop.

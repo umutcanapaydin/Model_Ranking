@@ -74,12 +74,12 @@ def _chosen(tmp_path: Path, env: dict[str, str]) -> str:
     return str(name)
 
 
-@pytest.mark.skipif(shutil.which("bash") is None or shutil.which("curl") is None, reason="needs bash and curl")
+@pytest.mark.needs("bash_curl")
 def test_ui_test_starts_from_the_served_artifact_when_there_is_one(tmp_path: Path) -> None:
     assert _chosen(tmp_path, _layout(tmp_path, served=True)) == "the served artifact"
 
 
-@pytest.mark.skipif(shutil.which("bash") is None or shutil.which("curl") is None, reason="needs bash and curl")
+@pytest.mark.needs("bash_curl")
 def test_ui_test_falls_back_to_the_checkout_and_obeys_its_variable(tmp_path: Path) -> None:
     env = _layout(tmp_path, served=False)
     assert _chosen(tmp_path, env) == "the checkout's copy"

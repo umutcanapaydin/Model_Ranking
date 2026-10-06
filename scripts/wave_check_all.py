@@ -108,6 +108,42 @@ def missing_closes(root: pathlib.Path) -> list[str]:
     return missing
 
 
+#: #140: a wave a plan names outside a heading: `W3`, `Wave 3`, or `M19-W3` in M19's own plan.
+#: Another milestone's wave and `W-108`, a warning's id, do not count.
+NAMED_WAVE = re.compile(r"(?<![\w-])(?:M(\d+)-)?(?:W|[Ww]ave\s*)(\d+)\b")
+
+
+def headless_waves(root: pathlib.Path) -> list[str]:
+    """#140: each wave a plan names in an amendment paragraph or a table's first column with no
+    heading of its own. `missing_closes` counts waves by their headings, so one added by an
+    amendment alone (as M18-W7 was) would have no close required of it. Every plan from M18 on,
+    open or closed, so it is found while the milestone runs."""
+    problems: list[str] = []
+    for plan in sorted((root / "docs" / "plans").glob("m*-plan.md")):
+        found = re.fullmatch(r"m(\d+)-plan\.md", plan.name)
+        if found is None or int(found.group(1)) < EXPECTED_CLOSES_FROM:
+            continue
+        text = plan.read_text(encoding="utf-8")
+        headed = {int(wave) for wave, _ in WAVE_HEADING.findall(text)}
+        named: dict[int, str] = {}
+        in_amendments = False
+        for paragraph in re.split(r"\n\s*\n", text):
+            # An amendment paragraph, bold or not, "Plan amendment" too, and everything under an
+            # `Amendments` heading (the W3 review's M3, its Tester's M5); `M19-W3` counts for M19 only.
+            if re.match(r"^\s*#", paragraph):
+                in_amendments = re.match(r"^\s*#+\s*.*\bamendments?\b", paragraph, re.I) is not None
+            if in_amendments or re.match(r"^\s*\**\s*(?:plan\s+)?amendment\b", paragraph, re.I):
+                for milestone, wave in NAMED_WAVE.findall(paragraph):
+                    if not milestone or milestone == found.group(1):
+                        named.setdefault(int(wave), "an amendment")
+        for row in re.findall(r"^\|\s*\**\s*W(\d+)\s*\**\s*\|", text, re.M):
+            named.setdefault(int(row), "a table")
+        problems += [f"m{found.group(1)}'s plan names W{wave} in {where} and gives it no heading, so no "
+                     f"close can be required of it; add `### W{wave} — ...` (#140)"
+                     for wave, where in sorted(named.items()) if wave not in headed]
+    return problems
+
+
 def _load_wave_check():
     """Import the sibling validator by path; `scripts/` is not a package."""
     spec = importlib.util.spec_from_file_location("wave_check", ROOT / "scripts/wave_check.py")
@@ -163,7 +199,7 @@ def main() -> int:
         if code != 0:
             failed.append(f"{record.relative_to(ROOT)}\n{captured.getvalue()}".rstrip())
 
-    unclosed = missing_closes(ROOT)
+    unclosed = [*missing_closes(ROOT), *headless_waves(ROOT)]
     for message in failed:
         print(message)
     for message in [*dodged, *unclosed]:
@@ -172,7 +208,7 @@ def main() -> int:
     if failed or dodged or unclosed:
         print(
             f"wave-check-all FAIL: {len(failed)} record(s) failed, {len(dodged)} without the stamp, "
-            f"{len(unclosed)} planned wave(s) with no close"
+            f"{len(unclosed)} planned wave(s) with no close or no heading"
         )
         return 1
 

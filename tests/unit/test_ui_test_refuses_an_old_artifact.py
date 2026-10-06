@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
 import sqlite3
 import subprocess
 from pathlib import Path
@@ -12,7 +11,7 @@ import pytest
 from .test_ui_test_script import _layout
 
 
-@pytest.mark.skipif(shutil.which("bash") is None or shutil.which("curl") is None, reason="needs bash and curl")
+@pytest.mark.needs("bash_curl")
 def test_ui_test_refuses_an_artifact_without_the_refinement_boards(tmp_path: Path) -> None:
     """#139: with no served artifact, `make ui-test` "refuses an artifact that lacks the refinement
     boards, with a message naming the command that builds one". The planted artifact is the shape of

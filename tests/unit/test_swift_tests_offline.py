@@ -90,3 +90,42 @@ def test_the_base_fails_a_test_whose_requests_it_recorded() -> None:
     assert drained, "the base no longer reads what the tripwire saw"
     assert re.search(rf"XCTAssertEqual\(\s*{drained.group(1)}\s*,\s*\[\]", body), (
         "the base no longer fails a test that reached for the network")
+
+
+def test_a_bare_session_configuration_is_refused_in_both_of_its_spellings() -> None:
+    """#108: `URLSessionConfiguration()` trapped an xctest process under the tripwire (signal 5). Read
+    without trapping a process on the owner's Mac: its `init` is `[super init]`, an uninitialised base
+    configuration the factories never return, and a session copies a configuration through every
+    setter, the exchanged Swift `setProtocolClasses:` among them, which takes `[AnyClass]?`. Which
+    value traps is unmeasured; what holds either way is that no source writes one, in the two spellings
+    read here (a typealias, a subclass or an init reference is not read: the W3 review's M9)."""
+    planted = {
+        "A.swift": "let c = URLSessionConfiguration()",
+        "B.swift": "let c = URLSessionConfiguration.init( )",
+        "C.swift": "let c = URLSessionConfiguration.ephemeral  // not URLSessionConfiguration()",
+    }
+    assert _bare_configurations(planted) == ["A.swift", "B.swift"]
+
+
+def test_no_swift_source_builds_a_bare_session_configuration() -> None:
+    """#108: in the app and its tests, every configuration comes from a factory the tripwire guards."""
+    # Every Swift file under `ios/`, the UI tests and `Package.swift` too, keyed by its path so two
+    # files with one name are both read (the W3 Tester's M8); the build folders are not sources.
+    ios = TESTS.parent
+    sources = {str(p.relative_to(ios)): p.read_text(encoding="utf-8") for p in sorted(ios.rglob("*.swift"))
+               if not {".build", "build", "DerivedData"} & set(p.relative_to(ios).parts)}
+    assert any(name.startswith("UITests/") for name in sources) and "Package.swift" in sources, sorted(sources)[:5]
+    assert len(sources) > 20, "the Swift sources were not read"
+    assert _bare_configurations(sources) == []
+
+
+#: #108: a configuration built by its own initialiser, `URLSessionConfiguration()` or `.init()`.
+BARE_CONFIGURATION = re.compile(r"\bURLSessionConfiguration\s*(?:\.\s*init\s*)?\(\s*\)")
+
+
+def _bare_configurations(sources: dict[str, str]) -> list[str]:
+    """#108: the files that build a bare configuration, read as code: the tripwire's own header names
+    one in a comment, and a comment builds nothing."""
+    from tests.unit.test_router_hints import _code
+
+    return sorted(name for name, source in sources.items() if BARE_CONFIGURATION.search(_code(source)))
