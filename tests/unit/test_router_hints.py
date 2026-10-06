@@ -78,6 +78,16 @@ def _interpolation_end(swift: str, i: int) -> int:
 
 
 def _code(swift: str) -> str:
+    """The source with its comments removed and only what some build compiles (`_built`)."""
+    return _built(_stripped(swift))
+
+
+#: A line inside a string literal that would read as a compilation directive (the second W2 review's
+#: M2). It is text, so the directive is broken with an invisible joiner before `_built` reads it.
+_DIRECTIVE_IN_TEXT = re.compile(r"(?m)(?<=\n)([ \t]*)#(?=(?:if|elseif|else|endif)\b)")
+
+
+def _stripped(swift: str) -> str:
     """The source with its comments removed, so a pin holds the code and not a comment quoting it.
 
     A scanner, not a pattern (#98, W5 reviews M2 and M8): Swift block comments NEST, a `/*` inside a
@@ -104,7 +114,7 @@ def _code(swift: str) -> str:
             i = n if end < 0 else end
         elif swift[i] == '"' or (swift[i] == "#" and re.match(r'#+"', swift[i:i + 8])):
             close = _string_end(swift, i)
-            out.append(swift[i:close])
+            out.append(_DIRECTIVE_IN_TEXT.sub("\\1\u2060#", swift[i:close]))
             i = close
         else:
             out.append(swift[i])
@@ -112,7 +122,7 @@ def _code(swift: str) -> str:
     if depth:  # W5 Tester: a comment Swift would refuse to build means the scan misread the file
         msg = "a block comment never closes: `_code` misread a literal, and would erase live code"
         raise ValueError(msg)
-    return _built("".join(out))
+    return "".join(out)
 
 
 #: #110: a compilation condition's tokens: `!`, `&&`, `||`, parentheses, and a name or a call.
@@ -179,8 +189,14 @@ def _built(swift: str) -> str:
     branch every build takes. A condition this cannot decide keeps its code (`_decide`), so a pin sees
     at least what any build compiles. Dropped lines stay as empty lines, so the code after them keeps
     its line numbers."""
+    return "\n".join(line if built else "" for line, built in zip(swift.split("\n"), _built_mask(swift), strict=True))
+
+
+def _built_mask(swift: str) -> list[bool]:
+    """For each line of `swift`, whether some build compiles it (`_built`). Run on `_stripped` text,
+    so a directive inside a comment or a string is not one (the second W2 review's M2, M3)."""
     stack: list[list[bool]] = []  # [this branch is built, a branch above it was certainly taken]
-    lines = []
+    lines: list[bool] = []
     for line in swift.split("\n"):
         directive = re.match(r"\s*#(if|elseif|else|endif)\b\s*(.*?)\s*$", line)
         if directive:
@@ -193,10 +209,10 @@ def _built(swift: str) -> str:
                 stack[-1] = [not stack[-1][1], True]
             elif kind == "endif" and stack:
                 stack.pop()
-            lines.append(line)
+            lines.append(True)
         else:
-            lines.append(line if all(built for built, _ in stack) else "")
-    return "\n".join(lines)
+            lines.append(all(built for built, _ in stack))
+    return lines
 
 
 def _hint_ids() -> set[str]:
@@ -868,10 +884,27 @@ def test_the_view_only_loads_and_saves_the_on_device_store() -> None:
 #: The two sinks (D-180 clause 1); `make client-decls` holds the same on the compiled module.
 SINKS = ("Engine/EngineClient.swift", "Engine/StandingsStore.swift")
 #: A stored `static var`, with a value or without (the W2 review's M2); a computed one opens a brace.
-STORED_STATIC = re.compile(r"\bstatic\s+var\s+\w+\s*(?::[^={\n]+)?(?:=|$)", re.MULTILINE)
-#: A stored `var` at file scope, in column one after its access modifier (M2).
-FILE_VAR = re.compile(r"^(?:(?:private|fileprivate|internal|public)\s+)?var\s+\w+\s*(?::[^={\n]+)?(?:=|$)",
-                      re.MULTILINE)
+STORED_STATIC = re.compile(r"\bstatic\s+var\s+(?:\w+|\([^)]*\))\s*(?::[^={\n]+)?(?:=|$)", re.MULTILINE)
+#: A stored `var` at file scope, a tuple's too, read on `_top_level` text so that its indentation
+#: (under `#if DEBUG`) does not hide it (the second W2 review's M2).
+FILE_VAR = re.compile(r"^\s*(?:(?:private|fileprivate|internal|public|nonisolated\(unsafe\))\s+)*var\s+"
+                      r"(?:\w+|\([^)]*\))\s*(?::[^={\n]+)?(?:=|$)", re.MULTILINE)
+
+
+def _top_level(code: str) -> str:
+    """`code` with everything inside braces blanked, lines kept: what is declared at file scope."""
+    out: list[str] = []
+    depth, i = 0, 0
+    while i < len(code):
+        if code[i] == '"' or (code[i] == "#" and re.match(r'#+"', code[i:i + 8])):
+            close = _string_end(code, i)
+            out.append(code[i:close] if depth == 0 else re.sub(r"[^\n]", " ", code[i:close]))
+            i = close
+            continue
+        depth += {"{": 1, "}": -1}.get(code[i], 0)
+        out.append(code[i] if depth == 0 or code[i] == "\n" else " ")
+        i += 1
+    return "".join(out)
 BUILDS = re.compile(r"(?<![\w.])(Fetched)?Standings\s*(?:\.\s*init\s*)?\(")
 
 
@@ -882,7 +915,8 @@ def _sink_pin_problems(sources: dict[str, str]) -> list[str]:
     problems = []
     for path in SINKS:
         code = _code(sources[path])
-        if "nonisolated(unsafe)" in re.sub(r"\s", "", code) or STORED_STATIC.search(code) or FILE_VAR.search(code):
+        if ("nonisolated(unsafe)" in re.sub(r"\s", "", code) or STORED_STATIC.search(code)
+                or FILE_VAR.search(_top_level(code))):
             problems.append(f"{path}: holds mutable shared state (a stored `static var`, a file-scope `var` "
                             "or `nonisolated(unsafe)`)")
     client = _code(sources["Engine/EngineClient.swift"])

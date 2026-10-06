@@ -416,7 +416,7 @@ def test_only_the_store_builds_a_store_or_saves_to_one() -> None:
     from the question, and standings saved from another file, each passed every compiled check."""
     assert _refused_in("Detail.swift", "StandingsStore.init(url:)")
     assert _refused_in("Detail.swift", "StandingsStore.save(_:at:)")
-    assert not _refused_in("StandingsStore.swift", "StandingsStore.")
+    assert not _refused_in("StandingsStore.swift", "`StandingsStore.")
 
 
 def test_no_file_touches_memory_unsafely() -> None:

@@ -25,7 +25,7 @@ import re
 
 import pytest
 
-from tests.unit.test_router_hints import _built
+from tests.unit.test_router_hints import _built_mask, _stripped
 
 CLIENT = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking"
 MODELS = CLIENT / "Engine/Models.swift"
@@ -33,8 +33,10 @@ MODELS = CLIENT / "Engine/Models.swift"
 
 def _swift(path: pathlib.Path) -> str:
     """A Swift file as the compiler builds it: a branch no build compiles (`#if false`) is dropped, so
-    a pin never reads dead code as live (#110, the W2 review's M3). Comments are kept."""
-    return _built(path.read_text(encoding="utf-8"))
+    a pin never reads dead code as live (#110, the W2 review's M3). Comments are kept, and a directive
+    inside a comment or a string is none (the second W2 review's M3)."""
+    raw = path.read_text(encoding="utf-8")
+    return "\n".join(line if built else "" for line, built in zip(raw.split("\n"), _built_mask(_stripped(raw)), strict=True))
 
 
 def _swift_sources() -> dict[str, str]:
@@ -1452,7 +1454,7 @@ def test_every_swift_pin_here_reads_the_code_the_compiler_builds() -> None:
     lines = pathlib.Path(__file__).read_text(encoding="utf-8").splitlines()  # raw: this file's own text
     raw = [f"{number}: {line.strip()}" for number, line in enumerate(lines, start=1)
            if READ.search(line) and "json.loads(" not in line and "# raw:" not in line
-           and not line.lstrip().startswith("return _built(")]
+           and not line.lstrip().startswith("raw = path.")]
     assert not raw, f"Swift read past `_swift`, so a `#if false` branch reads as live: {raw}"
 
 

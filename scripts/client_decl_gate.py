@@ -31,12 +31,14 @@ with no Xcode, and this one runs where the toolchain is. Neither is the whole ch
   directory from there passes too (B31). What a file does with a capability it owns is for review
   and the tests. The first exception is the two privacy sinks (#85, D-180): neither holds anything
   but a value of a listed type, reads mutable state another file can set, or calls what another file
-  declares unless it is listed; only they build standings, and only `EngineClient.swift` builds a
-  client on an address of its own (`SINK_FILES`, `SINK_HELD_TYPES`, `SINK_CALLS_PERMITTED`,
-  `PROVENANCE`). The second is a served number (#60, D-181): it is followed through bindings,
-  assignments, results, parameters, loops, conditions, cases, `inout` and protocol requirements
-  (`_Flow`), but not through `Any` or text. The served facts (`whyFact`, `tradeOffFact`) reach the
-  phone through `Any`, so arithmetic on them is held by review, not here (G-2).
+  declares unless it is listed, and the code a sink runs elsewhere reads no shared mutable state
+  (`_SinkReach`); only they build standings, only `EngineClient.swift` builds a client on an address
+  of its own and only the store's file builds or saves to a store, a kept type is extended and
+  conformed nowhere else, and no file touches memory unsafely (`SINK_FILES`, `SINK_HELD_TYPES`,
+  `SINK_CALLS_PERMITTED`, `PROVENANCE`, `KEPT_TYPES`, `UNSAFE`). These are the routes D-180 names, not
+  a proof that no other route exists (G-1, #172). The second is a served number (#60, D-181): the
+  operators, methods and names it lists are followed (`_Flow`), others are not (#173), and nor is a
+  number through `Any` or text; the served facts reach the phone through `Any` (G-2, #171).
 - It does not see arguments, and some of the check lives in the text gate for that reason:
   `Text("[report](https://…)")` is a `LocalizedStringKey` literal, not an `AttributedString`, so a
   markdown link written as a literal passes here and dies there (B10); a key built at run time is
@@ -234,7 +236,25 @@ PROVENANCE: dict[str, tuple[set[str], str]] = {
     "EngineClient.engineURL(from:)": (
         {"EngineClient.swift"},
         "only the engine client makes its address from text, the build's own setting"),
+    # The second W2 review's U10 and P3w: a store on a path made from the question, and standings
+    # saved from another file. The app reaches the store through `onDevice.currentKept` only.
+    "StandingsStore.init(url:)": (
+        {"StandingsStore.swift"},
+        "only the store's own file builds a store, on the one place it keeps standings"),
+    "StandingsStore.save(_:at:)": (
+        {"StandingsStore.swift"},
+        "only the store's own file saves standings, the ones it fetched"),
 }
+#: The second W2 review's B1: the types `PROVENANCE` guards. A protocol requirement their initialiser
+#: satisfies is another name for it, and an initialiser added in an extension is another initialiser,
+#: so each is extended only in the file that declares it, and conforms to no protocol the app declares.
+KEPT_TYPES = {symbol.split(".")[0] for symbol in PROVENANCE}
+
+#: The second W2 review's U9: memory touched unsafely can rewrite any value, a sink's own included,
+#: whatever the rules above say. The client uses none, so a symbol any part of whose path starts so is
+#: refused everywhere.
+UNSAFE = ("Unsafe", "withUnsafe", "unsafe", "Unmanaged", "OpaquePointer", "withMemoryRebound",
+          "assumingMemoryBound", "bindMemory")
 
 #: The W2 review's M1 (D-180 clause 2): what a sink may hold at a type's or the file's scope, by its
 #: compiled type. A value is copied, so no other file can change the sink's; `URLSession` is built in
@@ -311,6 +331,9 @@ IMPORT = re.compile(r'\(import_decl[^)]*module="([^"]+)"')
 DECODES_URL = re.compile(r'decl="[^"]*\.decode(?:IfPresent)?\([^"]*\[with \(substitution_map[^"]*->[^"]*\bURL\b')
 #: The fixture `self_test` compiles: files the gate must refuse and files it must allow (#51).
 FIXTURES = ROOT / "scripts" / "client_decl_fixtures"
+#: The fixture's dump as committed, which the flow tests read where there is no Xcode. The self-test
+#: compares it with the fixture's compile (the second W2 review's K1); `--snapshot` writes it again.
+SNAPSHOT = ROOT / "tests" / "unit" / "data" / "g2_fixture_ast.txt"
 #: What the fixture must produce, as (file, a phrase the refusal carries).
 FIXTURE_REFUSALS = {
     ("ContentView.swift", "URLSession"), ("ContentView.swift", "URL.decoded"),
@@ -378,8 +401,8 @@ NUMERIC_METHOD = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.\w+ extensio
 HANDS_ELEMENTS = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.\w+ extension\.(?:map|compactMap|flatMap|filter|'
                             r'forEach|reduce|first|last|contains|allSatisfy|drop|prefix|min|max|sorted|firstIndex|'
                             r'lastIndex|partition|count)' + _CALLED)
-ORDERING_CALL = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.\w+ extension\.(sorted|sort|max|min|reversed|'
-                           r'shuffled|swapAt)' + _CALLED)
+ORDERING_CALL = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.\w+(?: extension)?\.(sorted|sort|sortedArray|max|'
+                           r'min|reversed|shuffled|swapAt)' + _CALLED)
 LOCAL_VAR = re.compile(r'^ *\(var_decl [^\[]*range=\[([^\]:]+):(\d+):(\d+)')
 #: A bound name: the quoted string that is no attribute's value (`type="Int" "place"`).
 PATTERN_NAME = re.compile(r'^ *\(pattern_named (?:[^"=]*="[^"]*")*[^"=]*"([^"]+)"')
@@ -489,6 +512,10 @@ def _shared_state(ast: str) -> tuple[dict[tuple[str, int, int], str], list[tuple
 #: constructor's type is a function's, so what it makes is after its last arrow: `(URL) ->
 #: XMLParser?` takes a URL and makes none.
 MAKES_URL = re.compile(r'^ *\((?:\w+=)?(?:call_expr|constructor_ref_call_expr) [^\n]*?\btype="([^"]*)"')
+#: The second W2 review's U11 and M6: a cast makes a URL no call returns, `value as? URL` or a
+#: `case let u as URL` pattern, out of `Any`.
+CASTS_URL = re.compile(r'^ *\((?:\w+=)?(?:(?:conditional|forced)_checked_cast_expr [^\n]*?\b(?:written_)?type|'
+                       r'pattern_is [^\n]*?\bcast_to)="[^"]*\bURL\b')
 
 
 def url_facts(ast: str) -> dict[str, set[str]]:
@@ -499,7 +526,8 @@ def url_facts(ast: str) -> dict[str, set[str]]:
     for line in ast.splitlines():
         if line.startswith("(source_file"):
             current = pathlib.Path(line.split('"')[1]).name
-        elif (call := MAKES_URL.match(line)) and re.search(r"\bURL\b", call.group(1).rsplit("->", 1)[-1]):
+        elif (((call := MAKES_URL.match(line)) and re.search(r"\bURL\b", call.group(1).rsplit("->", 1)[-1]))
+              or CASTS_URL.match(line)):
             facts.setdefault(current, set()).add("Foundation.URL.made")
     return facts
 
@@ -553,6 +581,132 @@ def _sink_calls(ast: str) -> list[tuple[str, str]]:
     return found
 
 
+def _kept_types(ast: str) -> list[tuple[str, str]]:
+    """The second W2 review's B1: `(file, fact)` for an extension of a kept type outside the file that
+    declares it, and for a kept type's conformance to a protocol the app declares."""
+    declared: dict[str, str] = {}
+    protocols: set[str] = set()
+    conformances: list[tuple[str, str, str, bool]] = []  # (file, type, what it inherits, an extension)
+    current = ""
+    for line in ast.splitlines():
+        if line.startswith("(source_file"):
+            current = pathlib.Path(line.split('"')[1]).name
+        elif named := TYPE_DECL.match(line):
+            kind, type_name = named.group(1), named.group(2).split(".")[-1]
+            if kind == "protocol":
+                protocols.add(type_name)
+            elif type_name in KEPT_TYPES:
+                if kind != "extension_decl":
+                    declared[type_name] = current
+                inheriting = re.search(r'\binherits="([^"]*)"', line)
+                conformances.append((current, type_name, inheriting.group(1) if inheriting else "",
+                                     kind == "extension_decl"))
+    found: list[tuple[str, str]] = []
+    for file, type_name, inherits, extension in conformances:
+        if extension and file != declared.get(type_name):
+            found.append((file, f"main.<extends>.{type_name}@{declared.get(type_name, '?')}"))
+        found += [(file, f"main.<conforms>.{type_name}:{protocol}")
+                  for protocol in (part.strip() for part in inherits.split(",")) if protocol in protocols]
+    return found
+
+
+#: The second W2 review's B2: what a sink runs is not its file alone. A body another file owns runs
+#: when a sink calls it, or when a decoder does (a coding witness, called by no name). Each such body,
+#: followed through the functions, initialisers and computed properties it reaches and every member a
+#: protocol requirement may dispatch to, reads no shared `var` (a global, a `static` or a class's) and
+#: no closure kept in a global or a `static`. What it does not follow: a stored property's default, a
+#: global or `static` `let`'s initialiser, a closure kept in a value, and what Foundation holds.
+_LOCAL_KINDS = {"func_decl", "constructor_decl", "destructor_decl", "accessor_decl", "closure_expr"}
+
+
+class _SinkReach:
+    """The second W2 review's B2: the bodies a privacy sink runs, and the shared state they read."""
+
+    def __init__(self, roots: list[_Node]) -> None:
+        self.roots = roots
+        self.bodies: dict[tuple[object, ...], tuple[str, str, _Node]] = {}
+        self.lines: dict[tuple[str, str], list[int]] = {}
+        self.members: dict[str, list[tuple[object, ...]]] = {}
+        self.mutable: dict[tuple[str, int, int], str] = {}
+        self.protocols: set[str] = set()
+        self.witnesses: list[tuple[object, ...]] = []
+        for root in roots:
+            self.index(root, _file_of(root), "", "source_file")
+
+    def index(self, node: _Node, file: str, owner: str, scope: str) -> None:
+        if declared := TYPE_DECL.match(node.line):
+            owner, scope = declared.group(2).split(".")[-1], declared.group(1)
+            if scope == "protocol":
+                self.protocols.add(owner)
+        elif function := FUNCTION.match(node.line):
+            self.function(node, file, owner, function)
+        elif node.kind == "var_decl":
+            self.variable(node, owner, scope)
+        for kid in node.kids:
+            self.index(kid, file, owner, node.kind if node.kind in _LOCAL_KINDS else scope)
+
+    def function(self, node: _Node, file: str, owner: str, function: re.Match[str]) -> None:
+        key: tuple[object, ...] = ("fn", file, int(function.group(1)), function.group(2))
+        printed = node.line.split('"')[1] if '"' in node.line else function.group(2)
+        self.bodies[key] = (file, f"{owner}.{printed}" if owner else printed, node)
+        self.lines.setdefault((file, function.group(2)), []).append(int(function.group(1)))
+        self.members.setdefault(function.group(2), []).append(key)
+        if printed in ("init(from:)", "encode(to:)"):
+            self.witnesses.append(key)
+
+    def variable(self, node: _Node, owner: str, scope: str) -> None:
+        if not (place := LOCAL_VAR.match(node.line)) or not (named := VAR_NAME.match(node.line)):
+            return
+        key = (pathlib.Path(place.group(1)).name, int(place.group(2)), int(place.group(3)))
+        if "readImpl=getter" in node.line:
+            self.bodies[key] = (key[0], f"{owner}.{named.group(1)}" if owner else named.group(1), node)
+            self.members.setdefault(named.group(1), []).append(key)
+        static = " static " in node.line and scope not in _LOCAL_KINDS
+        typed = TYPE_OF["interface_type"].search(node.line)
+        closure = typed is not None and "->" in typed.group(1) and (scope == "source_file" or static)
+        shared = scope in ("source_file", "class_decl") or static
+        if shared and ("writeImpl=stored" in node.line or closure):
+            self.mutable[key] = named.group(1)
+
+    def reached(self, node: _Node) -> Iterator[tuple[object, ...]]:
+        """The bodies `node` calls or reads: by location, by the function's name and line, and every
+        member a protocol requirement may dispatch to."""
+        for item in node.walk():
+            for reference in FLOW_REF.finditer(item.line):
+                symbol, path, row, column = reference.groups()
+                file, parts, line = pathlib.Path(path).name, symbol.split("."), int(row)
+                typed = TYPE_OF["type"].search(item.line)
+                called = "(" in parts[-1] or APPLIED.match(item.line, reference.end()) is not None or (
+                    typed is not None and "->" in typed.group(1))
+                if (file, line, int(column)) in self.bodies:
+                    yield (file, line, int(column))
+                candidates = [n for n in self.lines.get((file, _base(parts[-1])), []) if n <= line]
+                if called and candidates:
+                    yield ("fn", file, max(candidates), _base(parts[-1]))
+                if len(parts) >= 2 and _base(parts[-2]) in self.protocols:
+                    yield from self.members.get(_base(parts[-1]), [])
+
+    def facts(self) -> list[tuple[str, str]]:
+        queue = [key for root in self.roots if _file_of(root) in SINK_FILES for key in self.reached(root)]
+        queue += self.witnesses
+        seen: set[tuple[object, ...]] = set()
+        found: list[tuple[str, str]] = []
+        while queue:
+            key = queue.pop()
+            if key in seen or key not in self.bodies:
+                continue
+            seen.add(key)
+            file, shown, node = self.bodies[key]
+            if file in SINK_FILES:
+                continue
+            found += [(file, f"main.<sink runs>.{shown} reads {self.mutable[where]}@{where[0]}")
+                      for item in node.walk() for reference in FLOW_REF.finditer(item.line)
+                      if (where := (pathlib.Path(reference.group(2)).name, int(reference.group(3)),
+                                    int(reference.group(4)))) in self.mutable]
+            queue += list(self.reached(node))
+        return found
+
+
 def sink_facts(ast: str) -> dict[str, set[str]]:
     """#85 (D-180): `{file name: {"main.<...>", ...}}`, the facts `problems` judges about the sinks: a
     sink's own shared state, its reads of another file's, and who calls a `PROVENANCE` declaration."""
@@ -561,7 +715,7 @@ def sink_facts(ast: str) -> dict[str, set[str]]:
     for (file, _, _), name in shared.items():
         if file in SINK_FILES:
             facts.setdefault(file, set()).add(f"main.<mutable stored state>.{name}")
-    for file, fact in (*_sink_holds(ast), *_sink_calls(ast)):
+    for file, fact in (*_sink_holds(ast), *_sink_calls(ast), *_kept_types(ast), *_SinkReach(_tree(ast)).facts()):
         facts.setdefault(file, set()).add(fact)
     for file, symbol, declared in refs:
         if file in SINK_FILES and declared in shared and declared[0] != file:
@@ -1042,6 +1196,26 @@ def _sink_problem(name: str, symbol: str) -> str | None:
     if fact == "<builds" and subject in PROVENANCE and name not in PROVENANCE[subject][0]:
         verb = f"builds {subject.split('.')[0]}" if ".init(" in subject else "calls"
         return f"{name}: {verb} (`{subject}`); {PROVENANCE[subject][1]} (D-180)"
+    return _kept_problem(name, fact, subject)
+
+
+def _kept_problem(name: str, fact: str, subject: str) -> str | None:
+    """The second W2 review's B1 and B2: a kept type extended or conforming, and code a sink runs."""
+    if fact == "<extends":
+        kept, _, declared = subject.partition("@")
+        return (f"{name}: extends `{kept}` outside its own file ({declared}); a kept type gains no "
+                "initialiser and no conformance elsewhere (D-180, the second W2 review's B1)")
+    if fact == "<conforms":
+        kept, _, protocol = subject.partition(":")
+        return (f"{name}: `{kept}` conforms to `{protocol}`, a protocol the app declares, so its "
+                "initialiser can be called by another name; a kept type conforms to none (D-180, the "
+                "second W2 review's B1)")
+    if fact == "<sink runs":
+        body, _, read = subject.partition(" reads ")
+        variable, _, declared = read.partition("@")
+        return (f"{name}: `{body}`, code a privacy sink runs, reads `{variable}` ({declared}), shared "
+                "mutable state another file can set, so whatever sets it reaches the sink (D-180, the "
+                "second W2 review's B2)")
     return None
 
 
@@ -1075,6 +1249,9 @@ def _capability_problem(name: str, symbol: str, decl: str) -> str | None:
         return None
     if any(symbol.startswith(p) or head == p for p in FORBIDDEN):
         return f"{name}: `{decl}` carries text off the device or into shared storage"
+    if any(part.startswith(UNSAFE) for part in head.split(".")):
+        return (f"{name}: `{decl}` touches memory unsafely, which can rewrite any value, a privacy sink's "
+                "own included; the client uses none (D-180, the second W2 review's U9)")
     if any(symbol.startswith(p) for p in PATH_BUILDING):
         if name in {*FILESYSTEM_FILES, NETWORK_FILE}:
             return None
@@ -1127,6 +1304,32 @@ def problems(found: dict[str, set[str]]) -> list[str]:
     return bad
 
 
+def fixture_dump(ast: str) -> str:
+    """The fixture's dump as committed: its folder as `/x/`, no `decl_context`, and every memory
+    address as `0x0`, so writing it twice writes the same bytes."""
+    text = re.sub(r" ?decl_context=0x[0-9a-f]+", "", ast.replace(f"{FIXTURES.resolve()}/", "/x/"))
+    text = re.sub(r"\b0x[0-9a-f]{6,}\b", "0x0", text)
+    return text if text.endswith("\n") else text + "\n"
+
+
+#: A declaration in the dump, by kind, name and line: what the snapshot must agree on with the
+#: fixture. Addresses and the compiler's layout of an expression may differ between Xcode versions.
+DECLARED = re.compile(r'^ *\((func_decl|constructor_decl|var_decl|struct_decl|class_decl|enum_decl|extension_decl|'
+                      r'protocol)\b[^\n]*?range=\[/x/(\w+\.swift):(\d+):\d+[^"]*"([^"]+)"', re.MULTILINE)
+
+
+def _snapshot_drift(ast: str) -> list[str]:
+    """The second W2 review's K1: the committed dump against the fixture as it compiles."""
+    if not SNAPSHOT.exists():
+        return [f"{SNAPSHOT.name} is missing; write it with `--snapshot`"]
+    now = set(DECLARED.findall(fixture_dump(ast)))
+    kept = set(DECLARED.findall(SNAPSHOT.read_text(encoding="utf-8")))
+    if now == kept:
+        return []
+    return [f"{SNAPSHOT.name} is not the fixture as it compiles ({len(now - kept)} declaration(s) new, "
+            f"{len(kept - now)} gone); write it again with `--snapshot`"]
+
+
 def self_test() -> list[str] | None:
     """#51: the gate on its compiled fixture. What it failed to refuse, or allowed wrongly; empty
     when it behaves; None where there is no toolchain."""
@@ -1138,11 +1341,24 @@ def self_test() -> list[str] | None:
     if code != 0:
         return [f"the fixture does not type-check: {ast[-500:]}"]
     refused = problems(references(ast))
+    drift = _snapshot_drift(ast)
     missed = [f"{file}: {phrase} was not refused" for file, phrase in sorted(FIXTURE_REFUSALS)
               if not any(line.startswith(f"{file}:") and phrase in line for line in refused)]
     wrong = [line for line in refused
              if not any(line.startswith(f"{file}:") and phrase in line for file, phrase in FIXTURE_REFUSALS)]
-    return missed + [f"refused what it must allow: {line}" for line in wrong]
+    return drift + missed + [f"refused what it must allow: {line}" for line in wrong]
+
+
+def write_snapshot() -> int:
+    """`--snapshot`: write the fixture's dump where the flow tests read it."""
+    _, sdk_name, flags = CONFIGURATIONS[0]
+    dumped = dump_ast(sdk_name, flags, FIXTURES)
+    if dumped is None or dumped[1] != 0:
+        print("client-decls: the fixture does not compile here, so no snapshot was written")
+        return 1
+    SNAPSHOT.write_text(fixture_dump(dumped[0]), encoding="utf-8")
+    print(f"client-decls: wrote {SNAPSHOT.relative_to(ROOT)}")
+    return 0
 
 
 def main() -> int:
@@ -1189,4 +1405,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(write_snapshot() if sys.argv[1:] == ["--snapshot"] else main())
