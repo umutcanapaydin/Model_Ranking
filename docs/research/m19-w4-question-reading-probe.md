@@ -159,7 +159,7 @@ make an image still missed went to `vision` (9) and `web-dev` (3) in both runs. 
 
 ## 6. After the code review (informational, on spent sets)
 
-The wave's code review (`docs/reviews/m19-wave-4-review.md`, MAJOR) found the image rule overriding
+The wave's code review (`docs/reviews/m19-wave-4-review-round-1.md`, MAJOR) found the image rule overriding
 questions about an image in a website or a document (MJ1, the M18 reviews' B4 class), and the fact
 signal reading searches that name "I" or "AI" in capitals, an AI tool, a task, or the Turkish "which
 one" (MJ2). Its fixes (`671b305`) change only code after the model, so the held-out model runs are

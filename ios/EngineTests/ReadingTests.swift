@@ -620,7 +620,7 @@ final class ReadingSecondRoundTests: OfflineTestCase {
     }
 }
 
-/// The M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-review.md`), REQ-ASK-005, REQ-IMG-003 and
+/// The M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-review-round-1.md`), REQ-ASK-005, REQ-IMG-003 and
 /// REQ-RTR-005: inputs the second round misread. The lines are the review's own, made up to probe
 /// the rules, or tuning rows; none is a held-out question.
 final class ReadingSecondRoundReviewTests: OfflineTestCase {
