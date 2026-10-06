@@ -38,6 +38,8 @@ def test_the_public_artifact_carries_no_row_of_a_left_out_source(tmp_path: Path)
     assert not set(_rows(served, "pricing")) & EXPECTED_LEFT_OUT
     assert counts["scores_removed"] == sum(n for s, n in _rows(built, "scores").items() if s in EXPECTED_LEFT_OUT)
     assert _rows(built, "scores")["swebench"] > 0, "the built artifact is left as it was"
+    # The image's engine is not root and the copy is root's: the file must be readable by all.
+    assert served.stat().st_mode & 0o004, oct(served.stat().st_mode)
 
 
 def test_the_price_medians_are_rebuilt_from_the_kept_prices(tmp_path: Path) -> None:
