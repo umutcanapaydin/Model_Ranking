@@ -155,7 +155,7 @@ SINK_AST = (
 def test_a_sink_holding_or_reading_shared_mutable_state_is_refused() -> None:
     """#85 (D-180 clause 2): the M17 relay P2 kept a refinement in a `static var` on `EngineClient`, and
     a variant kept it in a global `var` the screen sets; both passed every gate, which scoped by file.
-    A sink file's mutable stored state, and its reads of any other file's, are refused."""
+    A sink file's mutable stored state, and its reads of any other file's, are refused. REQ-GAP-001."""
     refused = gate.problems(gate.references(SINK_AST))
     assert any(line.startswith("EngineClient.swift:") and "`tag`" in line and "mutable stored state" in line
                for line in refused), refused
@@ -165,14 +165,14 @@ def test_a_sink_holding_or_reading_shared_mutable_state_is_refused() -> None:
 
 def test_standings_built_outside_the_two_sinks_are_refused() -> None:
     """#85 (D-180 clause 2): P3 made the typed question into `FetchedStandings` on the screen and saved
-    it into the device's caches. Only the engine's answer and the store's own file build standings."""
+    it into the device's caches. Only the engine's answer and the store's own file build standings. REQ-GAP-001."""
     refused = gate.problems(gate.references(SINK_AST))
     assert any(line.startswith("ContentView.swift:") and "builds FetchedStandings" in line for line in refused), refused
 
 
 def test_what_the_sinks_may_hold_and_others_may_read_passes() -> None:
     """#85 (D-180): a `let`, a computed property and a function's local are not shared state; a file
-    that is not a sink may read a global; the standings initialiser's own parameter is not a call."""
+    that is not a sink may read a global; the standings initialiser's own parameter is not a call. REQ-GAP-001."""
     refused = gate.problems(gate.references(SINK_AST))
     allowed = ("`limit`", "`computed`", "`parts`")
     assert not [line for line in refused if any(name in line for name in allowed)], refused
@@ -201,14 +201,14 @@ def _without(ast: str, function: str) -> str:
 
 def test_arithmetic_on_a_served_position_through_another_name_is_refused() -> None:
     """#60 (the M17-W4 review's R4): `let place = standing.position; place + 1` passed the text
-    tripwire, which matches the words around the operator. The compiler follows the value."""
+    tripwire, which matches the words around the operator. The compiler follows the value. REQ-APP-005."""
     refused = gate.problems(gate.references(FLOW_AST))
     assert any(line.startswith("ContentView.swift:") and "served position" in line for line in refused), refused
 
 
 def test_a_second_sort_under_a_permitted_name_is_refused() -> None:
     """#60 (the M17-W4 Tester's M7): a second `common.sorted()` in `Combine.swift` passed, because the
-    permission was keyed by the receiver's name. Each permitted sort is counted."""
+    permission was keyed by the receiver's name. Each permitted sort is counted. REQ-APP-002."""
     refused = gate.problems(gate.references(FLOW_AST))
     assert any(line.startswith("Combine.swift:") and "sorts `common`" in line for line in refused), refused
     once = gate.problems(gate.references(_without(FLOW_AST, "fixtureCombinesTwice(_:)")))
@@ -216,7 +216,7 @@ def test_a_second_sort_under_a_permitted_name_is_refused() -> None:
 
 
 def test_permitted_arithmetic_passes_where_its_ruling_names_the_file() -> None:
-    """#60: D-167 lets `Combine.swift` rank positions; the gate refuses nothing there for it."""
+    """#60: D-167 lets `Combine.swift` rank positions; the gate refuses nothing there for it. REQ-APP-005."""
     refused = gate.problems(gate.references(FLOW_AST))
     assert not [line for line in refused if line.startswith("Combine.swift:") and "served position" in line], refused
 
@@ -242,7 +242,7 @@ MADE_URL_AST = (
 def test_a_url_made_by_any_call_outside_its_files_is_refused() -> None:
     """#107: `URL(_:strategy:)` and a generic decode wrapper make a URL from text with no initialiser
     or decode the gate listed. A call whose result is a URL is refused outside the network door and
-    the two stores, whatever it is called; reading a URL that exists is not making one."""
+    the two stores, whatever it is called; reading a URL that exists is not making one. REQ-GAP-001."""
     refused = gate.problems(gate.references(MADE_URL_AST))
     assert any(line.startswith("ContentView.swift:") and "makes a URL" in line for line in refused), refused
     assert not [line for line in refused if line.startswith("EngineClient.swift:")], refused
@@ -251,14 +251,14 @@ def test_a_url_made_by_any_call_outside_its_files_is_refused() -> None:
 
 def test_a_link_detector_is_the_network() -> None:
     """#107: `NSDataDetector` with the `.link` type finds URLs in text, so it is the network's first
-    step, as a URL made from a string is."""
+    step, as a URL made from a string is. REQ-GAP-001."""
     refused = gate.problems({"ContentView.swift": {"Foundation.NSDataDetector"}})
     assert any("NSDataDetector" in line and "network" in line for line in refused), refused
 
 
 def test_turning_cookies_off_is_the_one_cookie_symbol_allowed_and_only_in_the_door() -> None:
     """#144: the session sets `HTTPCookie.AcceptPolicy.never`, a member of a family the gate refuses
-    (cookies go to a store the system writes). That one value is allowed in the network door only."""
+    (cookies go to a store the system writes). That one value is allowed in the network door only. REQ-GAP-001."""
     assert gate.problems({"EngineClient.swift": {"Foundation.HTTPCookie.AcceptPolicy.never"}}) == []
     assert gate.problems({"ContentView.swift": {"Foundation.HTTPCookie.AcceptPolicy.never"}})
     assert gate.problems({"EngineClient.swift": {"Foundation.HTTPCookieStorage.shared"}})
@@ -303,7 +303,7 @@ def test_only_the_engine_client_builds_a_client_on_an_address_of_its_own() -> No
 
 def test_a_url_inside_another_type_is_made_all_the_same() -> None:
     """The W2 review's B2 (INV-63): a generic decode returning `[String: URL]` made a URL the rule,
-    which matched `URL`, `URL?` and `[URL]` only, never saw."""
+    which matched `URL`, `URL?` and `[URL]` only, never saw. REQ-GAP-001."""
     refused = gate.problems(gate.references(CLIENT_AST))
     assert any(line.startswith("Detail.swift:") and "makes a URL" in line for line in refused), refused
 
@@ -353,13 +353,13 @@ def test_arithmetic_on_a_served_number_is_refused_whatever_carries_it(file: str,
 
 def test_foundations_sort_is_counted_as_a_sort() -> None:
     """The W2 review's M4: `sorted(using:)` (Foundation) passed the compiled sort rule, which read the
-    standard library's sorts only."""
+    standard library's sorts only. REQ-APP-002."""
     refused = gate.problems(gate.references(FLOW_AST))
     assert any(line.startswith("ContentView.swift:") and "sorts `standings`" in line for line in refused), refused
 
 
 def test_the_price_in_pages_is_permitted_where_it_is_computed() -> None:
-    """The W2 review's M5: the price permission is `priceInPages`'s, not the whole file's."""
+    """The W2 review's M5: the price permission is `priceInPages`'s, not the whole file's. REQ-APP-005."""
     refused = gate.problems(gate.references(FLOW_AST))
     span = _lines_of("Router.swift", "func priceInPages")
     assert not [line for line in refused if line.startswith("Router.swift:") and int(line.split(":")[1]) in span], refused

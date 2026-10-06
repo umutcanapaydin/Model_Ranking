@@ -779,7 +779,7 @@ def test_read_only_handle_refuses_a_write() -> None:
 def test_each_pick_carries_the_id_of_the_model_it_ranks(client: TestClient, tmp_path: Path) -> None:
     """#138 (D-182): the engine decides "the same model" by its ranking row (#102), and the app by a
     pick's name, vendor, score and price, because a pick carried no id. Each pick carries the id of
-    the model whose row it is, the one the surface's ranking holds under that name."""
+    the model whose row it is, the one the surface's ranking holds under that name. REQ-API-001."""
     import sqlite3
 
     from app.workflows.categories import CATEGORIES

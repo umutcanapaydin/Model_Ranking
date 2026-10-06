@@ -351,7 +351,7 @@ final class PickCardTests: OfflineTestCase {
     }
 
     /// #138 (D-182): the cards follow the engine's model, not its shown values. Two models that share
-    /// a display name, a vendor, a score and a price are two cards; one model is one card.
+    /// a display name, a vendor, a score and a price are two cards; one model is one card. REQ-API-001.
     func testTwoModelsThatShareEveryShownValueAreTwoCards() throws {
         let picks = [try pick("best_quality", "Gemini 3 Flash", reason: "highest", id: "gemini-3-flash"),
                      try pick("best_value", "Gemini 3 Flash", reason: "cheapest_within", id: "gemini3-flash-lite")]
@@ -361,7 +361,8 @@ final class PickCardTests: OfflineTestCase {
         XCTAssertEqual(pickCards(one).count, 1)
     }
 
-    /// #138 (D-182 clause 2): an engine older than D-182 sends no id, and the cards keep the old rule.
+    /// #138 (D-182 clause 2, REQ-API-001): an engine older than D-182 sends no id, and the cards keep
+    /// the old rule.
     func testPicksWithoutAnIdKeepTheFourValueRule() throws {
         let picks = [try pick("best_quality", "Gemini 3 Flash", reason: "highest"),
                      try pick("best_value", "Gemini 3 Flash", reason: "cheapest_within")]

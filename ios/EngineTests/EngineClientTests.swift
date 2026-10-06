@@ -831,6 +831,7 @@ final class MidStreamFailureTests: OfflineTestCase {
 /// here as it ships, through its own configuration. Its configuration is what can be observed: a
 /// URLProtocol stub bypasses the session's cookie handling (measured: a stub answering `Set-Cookie`
 /// saw no `Cookie` sent back even from the session that kept cookies), so a stub cannot show it.
+/// INV-85; REQ-GAP-001 (nothing the phone records leaves it, and a cookie is a record it sends back).
 final class EngineCookieTests: OfflineTestCase {
     private func shippedConfiguration() throws -> URLSessionConfiguration {
         let session = Mirror(reflecting: EngineClient()).children.first { $0.label == "session" }?.value

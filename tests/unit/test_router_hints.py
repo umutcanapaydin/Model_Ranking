@@ -904,14 +904,14 @@ def _client_sources() -> dict[str, str]:
 
 def test_the_privacy_sinks_hold_by_text_too() -> None:
     """#85 (D-180 clause 4, INV-66): no shared state in a sink, the boards request asks for nothing,
-    and standings come only from the engine's answer or the store's own file."""
+    and standings come only from the engine's answer or the store's own file. REQ-GAP-001."""
     assert _sink_pin_problems(_client_sources()) == []
 
 
 @pytest.mark.parametrize("mutant", ["P2", "P2b", "P3"])
 def test_the_sink_pins_refuse_the_m17_closures_mutants(mutant: str) -> None:
     """The M17 closure seat's mutants (`docs/reviews/m17-closure-security-review.md`, MINOR-3), planted
-    in copies of the shipping sources: each is refused here, where there is no compiler."""
+    in copies of the shipping sources: each is refused here, where there is no compiler. REQ-GAP-001."""
     sources = _client_sources()
     client, view = "Engine/EngineClient.swift", "ContentView.swift"
     relay = 'Self.tag.isEmpty ? [] : [URLQueryItem(name: "t", value: Self.tag)]'
@@ -934,7 +934,7 @@ def test_the_text_gate_refuses_a_link_detector_and_an_initialiser_it_cannot_see_
     """#107, for the lanes without Xcode: `NSDataDetector` finds URLs in text, and `type(of: x).init`
     or an unapplied `.init` builds a value without the gate seeing its initialiser applied (the M18
     closure Tester's K1, which built an unprotected gap register that way). The client maps with
-    `String.init` and `PickCard.init`, which build no store and reach no network."""
+    `String.init` and `PickCard.init`, which build no store and reach no network. REQ-GAP-001."""
     for line in ("let detector = try NSDataDetector(types: 1)",
                  "let make = type(of: GapRegisterStore.onDevice).init",
                  "let make = GapRegisterStore.init"):
@@ -947,7 +947,7 @@ def test_the_pins_read_no_code_the_compiler_never_builds() -> None:
     """#110 (the M18-W5 review's K3): a line moved under `#if false` leaves the build, but `_code`
     kept it, so a pin could be satisfied by code the app no longer compiles. A branch whose condition
     is the literal `false` or `!true` is dropped, and so is an `#else` after a `true`; a condition
-    `_code` cannot decide (`DEBUG`, a platform) keeps its code. Lines keep their numbers."""
+    `_code` cannot decide (`DEBUG`, a platform) keeps its code. Lines keep their numbers. REQ-GAP-001."""
     swift = "let a = 1\n#if false\nlet hidden = 2\n#endif\nlet b = 3\n"
     stripped = _code(swift)
     assert "hidden" not in stripped and "let a = 1" in stripped and "let b = 3" in stripped
@@ -966,7 +966,7 @@ def test_the_pins_read_no_code_the_compiler_never_builds() -> None:
 def test_the_sink_pins_refuse_shared_state_however_it_is_declared(mutant: str) -> None:
     """The W2 review's M2 (D-180 clause 4, INV-66): `static var probeTag: String?`, which has no `=`,
     and a stored `var` at file scope in a sink each passed the text half, measured on copies of the
-    shipping sources. The compiled gate refused both; the lanes without Xcode did not."""
+    shipping sources. The compiled gate refused both; the lanes without Xcode did not. REQ-GAP-001."""
     sources = _client_sources()
     client = "Engine/EngineClient.swift"
     if mutant == "static var, no value":
@@ -980,7 +980,7 @@ def test_the_sink_pins_refuse_shared_state_however_it_is_declared(mutant: str) -
 @pytest.mark.parametrize("condition", ["!(true)", "false && DEBUG", "DEBUG && false", "!(true || DEBUG)", "((false))"])
 def test_a_branch_no_build_compiles_is_dropped_however_its_condition_is_spelled(condition: str) -> None:
     """The W2 review's M3 (#110, INV-78): `#if !(true)` and `#if false && DEBUG` were kept, and both
-    are decidably dead. A condition is read in three values: true, false, or not known here."""
+    are decidably dead. A condition is read in three values: true, false, or not known here. REQ-GAP-001."""
     assert "dead()" not in _built(f"#if {condition}\ndead()\n#endif\nlive()\n")
     assert "live()" in _built(f"#if {condition}\ndead()\n#endif\nlive()\n")
 
@@ -988,10 +988,10 @@ def test_a_branch_no_build_compiles_is_dropped_however_its_condition_is_spelled(
 @pytest.mark.parametrize("condition", ["DEBUG", "!DEBUG", "false || DEBUG", "os(iOS) && true", "canImport(UIKit)"])
 def test_a_branch_some_build_may_compile_is_kept(condition: str) -> None:
     """The other half of M3: a condition this cannot decide keeps its code, so a pin sees at least what
-    any build compiles."""
+    any build compiles. REQ-GAP-001."""
     assert "maybe()" in _built(f"#if {condition}\nmaybe()\n#endif\n")
 
 
 def test_the_else_of_a_branch_every_build_takes_is_dropped() -> None:
-    """M3: `#if true || DEBUG` is always built, so its `#else` never is."""
+    """M3: `#if true || DEBUG` is always built, so its `#else` never is. REQ-GAP-001."""
     assert "dead()" not in _built("#if true || DEBUG\nlive()\n#else\ndead()\n#endif\n")

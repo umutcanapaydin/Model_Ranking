@@ -168,8 +168,9 @@ struct PickCard: Identifiable {
 
 /// The engine's picks as cards: one per model, in the engine's order.
 ///
-/// A model is the same row only if name, vendor, score and price all agree. Names alone are not
-/// unique (#102), and two rows that agree on all four are one model to any reader.
+/// One model is one card, by the id the engine sends with each pick (D-182, #138): names are not
+/// unique (#102), and two models can share a name, a vendor, a score and a price. An engine older
+/// than D-182 sends no id, and then a model is the same row only if all four agree (`sameRow`).
 func pickCards(_ picks: [Pick]) -> [PickCard] {
     var groups: [[Pick]] = []
     for pick in picks {

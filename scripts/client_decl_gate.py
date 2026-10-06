@@ -25,13 +25,18 @@ with no Xcode, and this one runs where the toolchain is. Neither is the whole ch
 
 **What this gate does NOT do** (M16-W1 review, measured):
 
-- It scopes by FILE, not by data, with one exception. A function declared in `EngineClient.swift`
+- It scopes by FILE, not by data, with two exceptions. A function declared in `EngineClient.swift`
   resolves in `main`, and `main` is not capability-checked, so a relay there that any file can call
   passes (B19); the file system is whole inside `FrontDoor.swift`, so a write to the temporary
   directory from there passes too (B31). What a file does with a capability it owns is for review
-  and the tests. The exception is the two privacy sinks (#85, D-180): neither may hold or read
-  mutable state another file can set, and only they build standings, so a relay through shared
-  state or standings made on the screen is refused (`SINK_FILES`, `PROVENANCE`).
+  and the tests. The first exception is the two privacy sinks (#85, D-180): neither holds anything
+  but a value of a listed type, reads mutable state another file can set, or calls what another file
+  declares unless it is listed; only they build standings, and only `EngineClient.swift` builds a
+  client on an address of its own (`SINK_FILES`, `SINK_HELD_TYPES`, `SINK_CALLS_PERMITTED`,
+  `PROVENANCE`). The second is a served number (#60, D-181): it is followed through bindings,
+  assignments, results, parameters, loops, conditions, cases, `inout` and protocol requirements
+  (`_Flow`), but not through `Any` or text. The served facts (`whyFact`, `tradeOffFact`) reach the
+  phone through `Any`, so arithmetic on them is held by review, not here (G-2).
 - It does not see arguments, and some of the check lives in the text gate for that reason:
   `Text("[report](https://…)")` is a `LocalizedStringKey` literal, not an `AttributedString`, so a
   markdown link written as a literal passes here and dies there (B10); a key built at run time is
@@ -41,7 +46,7 @@ with no Xcode, and this one runs where the toolchain is. Neither is the whole ch
   hands the pasteboard is what the reader chose to copy (B22).
 - One known false positive: `URL.appending…` is file-scoped, so building a path to a bundle
   resource outside the two owning files fails (FP3). `Bundle.main.url(forResource:withExtension:)`
-  builds no path and passes.
+  makes a URL, so since #107 it fails there too (`URL.made`).
 """
 
 from __future__ import annotations
