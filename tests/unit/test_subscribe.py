@@ -674,3 +674,46 @@ def test_an_empty_own_board_says_so_on_the_plan_axis() -> None:
     rec = recommend_subscription(conn, "unlimited", "coding")
     assert rec is not None
     assert "board is empty" in rec.picks[2].why
+
+
+def _priced_alike(price: int) -> str:
+    """Three plans at one price on one model, whose names sort one way and whose ids the other."""
+    plans = "".join(
+        f"""
+  - id: {plan_id}
+    provider: TieCo
+    name: {name}
+    monthly_usd: {price}
+    currency: USD
+    region: US
+    limits: a price tie
+    included_models: [Gemini 3.1 Pro]
+    source_url: https://tieco.example/{plan_id}
+    last_verified: 2026-08-15"""
+        for plan_id, name in (("tie-a", "Zed Twin"), ("tie-b", "Yak Twin"), ("tie-c", "Alpha Twin"))
+    )
+    return DOC + plans + "\n"
+
+
+def test_a_price_tie_among_plans_goes_to_the_plan_id_through_the_answer() -> None:
+    """#101 through `recommend_subscription` (the M19-W1 review's M2). The value pick, the group's
+    member order and the group's "cheapest" sentence each broke a price tie by the plan's name, a
+    spelling; each goes to the plan's stable id. Mutants putting the name back on either pick or on
+    the group's order passed the whole suite before this test."""
+    rec = recommend_subscription(_db(_priced_alike(12)), "unlimited", "coding")
+    assert rec is not None
+    assert rec.picks[1].plan == "Zed Twin", "the value pick is the tied plan with the first id"
+    (group,) = [g for g in rec.equivalent_plans if g.model == "Gemini 3.1 Pro"]
+    assert [m.plan for m in group.members] == ["Yak Twin", "Alpha Twin", "Mid Plan"]
+    assert rec.equivalence_note is not None
+    assert "The cheapest in this group is Zed Twin ($12.00/month)." in rec.equivalence_note
+
+
+def test_the_cheapest_plan_pick_takes_a_price_tie_in_the_rankings_order() -> None:
+    """#101, as models do (D-173 clause 1): at $8 the three twins (77.4) meet Cheap Plan (70.0). The
+    cheapest pick is the first of them in the ranking's order, the best score and then the plan's
+    id: Zed Twin. Not the first name (Alpha Twin), and not the first id (`cheap-plan`), which would
+    hand the reader a lower score for the same price."""
+    rec = recommend_subscription(_db(_priced_alike(8)), "unlimited", "coding")
+    assert rec is not None
+    assert rec.picks[2].plan == "Zed Twin"
