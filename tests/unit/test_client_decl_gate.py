@@ -260,3 +260,47 @@ def test_turning_cookies_off_is_the_one_cookie_symbol_allowed_and_only_in_the_do
     assert gate.problems({"EngineClient.swift": {"Foundation.HTTPCookie.AcceptPolicy.never"}}) == []
     assert gate.problems({"ContentView.swift": {"Foundation.HTTPCookie.AcceptPolicy.never"}})
     assert gate.problems({"EngineClient.swift": {"Foundation.HTTPCookieStorage.shared"}})
+
+
+#: The W2 review's B2: what `swiftc -dump-ast` prints for its two routes onto the boards request. A
+#: client built on an address of a file's own (U5, U3b), an address made from text by the engine
+#: client's helper (U3b), and a URL inside a dictionary (U5). Beside them, what must pass: the app's
+#: `EngineClient()` and the engine client building itself.
+CLIENT_AST = (
+    '(source_file "/x/Detail.swift"\n'
+    '  (call_expr type="[String : URL]?" location=/x/Detail.swift:9:21 nothrow isolation_crossing="none"\n'
+    '    (declref_expr type="(URL, Data) -> [String : URL]?" location=/x/Detail.swift:9:21 '
+    'decl="main.(file).fixtureReadLike(_:from:)@/x/Detail.swift:3:6 [with (substitution_map '
+    'generic_signature=<T where T : Decodable> T -> URL)]" function_ref=single apply))\n'
+    '  (declref_expr type="(EngineClient.Type) -> (URL, URLSession?) -> EngineClient" location=/x/Detail.swift:10:12 '
+    'decl="main.(file).EngineClient.init(baseURL:session:)@/x/EngineClient.swift:30:5" function_ref=single apply)\n'
+    '(source_file "/x/StandingsStore.swift"\n'
+    '  (declref_expr type="(String) -> URL" location=/x/StandingsStore.swift:20:40 '
+    'decl="main.(file).EngineClient.engineURL(from:)@/x/EngineClient.swift:36:17" function_ref=single apply)\n'
+    '(source_file "/x/ContentView.swift"\n'
+    '  (declref_expr type="(EngineClient.Type) -> () -> EngineClient" location=/x/ContentView.swift:85:30 '
+    'decl="main.(file).EngineClient.init()@/x/EngineClient.swift:26:5" function_ref=single apply)\n'
+    '(source_file "/x/EngineClient.swift"\n'
+    '  (declref_expr type="(EngineClient.Type) -> (URL, URLSession?) -> EngineClient" location=/x/EngineClient.swift:27:9 '
+    'decl="main.(file).EngineClient.init(baseURL:session:)@/x/EngineClient.swift:30:5" function_ref=single apply)\n'
+)
+
+
+def test_only_the_engine_client_builds_a_client_on_an_address_of_its_own() -> None:
+    """The W2 review's B2 (D-180, INV-66, REQ-GAP-001): the typed question reached the boards request
+    with every gate green, through a client another file built on its own address (U5 from
+    `Detail.swift`, U3b from `FrontDoor.swift`). Only `EngineClient.swift` builds a client with an
+    address, or makes one from text; the app builds `EngineClient()`."""
+    refused = gate.problems(gate.references(CLIENT_AST))
+    assert any(line.startswith("Detail.swift:") and "EngineClient.init(baseURL:session:)" in line
+               for line in refused), refused
+    assert any(line.startswith("StandingsStore.swift:") and "EngineClient.engineURL(from:)" in line
+               for line in refused), refused
+    assert not [line for line in refused if line.startswith(("ContentView.swift:", "EngineClient.swift:"))], refused
+
+
+def test_a_url_inside_another_type_is_made_all_the_same() -> None:
+    """The W2 review's B2 (INV-63): a generic decode returning `[String: URL]` made a URL the rule,
+    which matched `URL`, `URL?` and `[URL]` only, never saw."""
+    refused = gate.problems(gate.references(CLIENT_AST))
+    assert any(line.startswith("Detail.swift:") and "makes a URL" in line for line in refused), refused

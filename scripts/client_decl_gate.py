@@ -283,6 +283,11 @@ FIXTURE_REFUSALS = {
     # #107: a URL made by the parse strategy, by a decode wrapper and by a link detector.
     ("ContentView.swift", "makes a URL"),
     ("ContentView.swift", "NSDataDetector"), ("ContentView.swift", "NSTextCheckingResult.url"),
+    # The W2 review's B2: a client built on an address of a file's own, the address made from text,
+    # and a URL hidden in a dictionary.
+    ("Detail.swift", "makes a URL"), ("Detail.swift", "EngineClient.init(baseURL:session:)"),
+    ("StandingsStore.swift", "EngineClient.init(baseURL:session:)"),
+    ("StandingsStore.swift", "EngineClient.engineURL(from:)"),
 }
 SOURCE = re.compile(r'^\(source_file "([^"]+)"', re.MULTILINE)
 #: One node of the dump: its indentation (the tree's depth) and its kind.

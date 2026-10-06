@@ -29,3 +29,27 @@ struct FixtureQuietClient {
         return parts.joined(separator: "/")
     }
 }
+
+// #85 (D-180, the W2 review's B2): the client and how its address is made. Only this file may build a
+// client with an address of its own, or make one from text; the app builds `EngineClient()`.
+struct EngineClient {
+    let baseURL: URL
+
+    init() {
+        self.init(baseURL: EngineClient.localDefault)
+    }
+
+    init(baseURL: URL, session: URLSession? = nil) {
+        self.baseURL = baseURL
+    }
+
+    static let localDefault = URL(string: "http://127.0.0.1:8080") ?? URL(fileURLWithPath: "/")
+
+    static func engineURL(from raw: String) -> URL {
+        URL(string: raw) ?? localDefault
+    }
+
+    func boards() -> URL {
+        baseURL
+    }
+}
