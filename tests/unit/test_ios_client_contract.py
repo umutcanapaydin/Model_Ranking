@@ -25,19 +25,27 @@ import re
 
 import pytest
 
+from tests.unit.test_router_hints import _built
+
 CLIENT = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking"
 MODELS = CLIENT / "Engine/Models.swift"
 
 
+def _swift(path: pathlib.Path) -> str:
+    """A Swift file as the compiler builds it: a branch no build compiles (`#if false`) is dropped, so
+    a pin never reads dead code as live (#110, the W2 review's M3). Comments are kept."""
+    return _built(path.read_text(encoding="utf-8"))
+
+
 def _swift_sources() -> dict[str, str]:
-    sources = {p.name: p.read_text(encoding="utf-8") for p in CLIENT.rglob("*.swift")}
+    sources = {p.name: _swift(p) for p in CLIENT.rglob("*.swift")}
     assert sources, f"no Swift sources under {CLIENT}; this test would pass vacuously"
     return sources
 
 
 def _optional_properties(struct: str) -> set[str]:
     """Every `let name: T?` in one struct — the fields the engine may or may not send."""
-    source = MODELS.read_text(encoding="utf-8")
+    source = _swift(MODELS)
     start = source.index(f"struct {struct}:")
     end = source.index("enum CodingKeys", start)
     return {m.group(1) for m in re.finditer(r"let\s+(\w+):\s*[\w\[\]]+\?", source[start:end])}
@@ -104,7 +112,7 @@ def test_the_disclosure_view_is_actually_reached_from_the_rendered_screen() -> N
     the call sits on a code path a user reaches — but it closes the difference between a function
     that exists and a function that runs, which is this project's most-repeated defect class.
     """
-    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    view = _swift(CLIENT / "ContentView.swift")
 
     definitions = re.findall(r"func\s+disclosures\s*\(", view)
     assert definitions, "the disclosure view is gone entirely"
@@ -126,7 +134,7 @@ def test_the_combined_list_renders_the_disclosures_its_plan_carries() -> None:
     dropped the effort notice with every gate green. Since M18-W2 the combined list's disclosures are
     fields of its plan (`CombinedView.disclosures`), held by `AnswerPlanTests`; this holds that the
     view renders them whole and says none of them by hand, where a branch could skip it."""
-    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    view = _swift(CLIENT / "ContentView.swift")
     code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
     start = code.index("private func combinedSection(")
     section = code[start:code.index("private func refinementChips(", start)]
@@ -188,7 +196,8 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
     # A question of 25 characters or more anywhere (the second review's M13: inside a longer string
     # too); a shorter one only as a whole quoted string, since a tuning question may hold a short
     # phrase by chance. The question's text is not printed, so a failure does not spoil its set.
-    texts = {p.name: p.read_text(encoding="utf-8", errors="ignore") for p in sources}
+    # raw: a held-out question in a comment or a dead branch is still a leak.
+    texts = {p.name: p.read_text(encoding="utf-8", errors="ignore") for p in sources}  # raw: see above
     # #119 (M18-W7): the probe's other sets too, which the tests and the tuning read; each live set
     # is left out of its own comparison. Their strings are compared as strings, after JSON decoding.
     tuning = {p.name: _json_strings(json.loads(p.read_text(encoding="utf-8")))
@@ -233,7 +242,7 @@ def test_the_apps_copy_of_the_ordering_note_is_the_engines() -> None:
     sentence the engine sends, or the Turkish beside it translates a sentence nobody serves."""
     from app.adapter.main import ORDERING_NOTE
 
-    source = (CLIENT / "Engine/Notices.swift").read_text(encoding="utf-8")
+    source = _swift(CLIENT / "Engine/Notices.swift")
     match = re.search(r"let orderingNoteEnglish = ((?:\s*\+?\s*\"[^\"]*\")+)", source)
     assert match, "Notices.swift no longer holds its copy of the ordering note"
     copy = "".join(re.findall(r'"([^"]*)"', match.group(1)))
@@ -245,7 +254,7 @@ def test_the_blend_the_detail_screen_states_is_the_engines() -> None:
     output. `/v1` does not publish the weights, so the app holds a copy, held equal here."""
     from app.workflows.rank import BLEND_INPUT_WEIGHT, BLEND_OUTPUT_WEIGHT
 
-    source = (CLIENT / "Engine/Detail.swift").read_text(encoding="utf-8")
+    source = _swift(CLIENT / "Engine/Detail.swift")
     shares = dict(re.findall(r"let blend(Input|Output)Percent = (\d+)", source))
     assert shares == {"Input": str(round(BLEND_INPUT_WEIGHT * 100)), "Output": str(round(BLEND_OUTPUT_WEIGHT * 100))}
 
@@ -559,7 +568,7 @@ def test_no_failure_switch_falls_back_to_a_default_clause() -> None:
     This test does not check that the sentences are good. It checks that a new failure mode CANNOT
     be added silently.
     """
-    client = (CLIENT / "Engine/EngineClient.swift").read_text(encoding="utf-8")
+    client = _swift(CLIENT / "Engine/EngineClient.swift")
     enum_start = client.index("enum EngineError")
     enum_end = client.index("struct EngineClient")
     body = client[enum_start:enum_end]
@@ -588,7 +597,7 @@ def test_the_client_bounds_how_long_it_will_wait() -> None:
     Fails by removing the timeout configuration or by taking `URLSession.shared` as the default
     session again.
     """
-    client = (CLIENT / "Engine/EngineClient.swift").read_text(encoding="utf-8")
+    client = _swift(CLIENT / "Engine/EngineClient.swift")
 
     assert "timeoutIntervalForRequest" in client, (
         "the client sets no request timeout; a stalled engine leaves the spinner running"
@@ -651,7 +660,7 @@ def test_every_response_is_read_through_its_routes_ceiling() -> None:
     request is streamed and read through `read(_:declared:upTo:)` with the route's ceiling; a second
     request, or a read that skips the ceiling, is what this refuses. ResponseCeilingTests holds the
     behaviour."""
-    client = (CLIENT / "Engine/EngineClient.swift").read_text(encoding="utf-8")
+    client = _swift(CLIENT / "Engine/EngineClient.swift")
     code = "\n".join(line.split("//", 1)[0] for line in client.splitlines())
     assert len(re.findall(r"session\.\w+\(", code)) == 1, "a second request path, outside the ceiling"
     assert re.search(r"try await EngineClient\.read\(bytes,[^)]*upTo: EngineClient\.byteCeiling\(for: path\)\)",
@@ -671,7 +680,7 @@ def test_the_client_refuses_a_redirect_that_leaves_its_configured_host() -> None
     Dies to: dropping the delegate from the `bytes(from:delegate:)` call (`data(from:)` until #56
     streamed it), or widening the delegate to accept a different host.
     """
-    client = (CLIENT / "Engine/EngineClient.swift").read_text(encoding="utf-8")
+    client = _swift(CLIENT / "Engine/EngineClient.swift")
 
     assert "willPerformHTTPRedirection" in client, (
         "no redirect delegate; the engine's Location header decides where this app goes next"
@@ -696,7 +705,7 @@ def test_the_one_moment_transport_security_fires_is_not_reported_as_a_dead_serve
     `NSAllowsArbitraryLoads`, which permits cleartext to every host. The mitigation for that risk
     is naming the condition, which is what this pins.
     """
-    client = (CLIENT / "Engine/EngineClient.swift").read_text(encoding="utf-8")
+    client = _swift(CLIENT / "Engine/EngineClient.swift")
 
     assert "appTransportSecurityRequiresSecureConnection" in client, (
         "an ATS refusal is still mapped to 'the engine is not answering'"
@@ -747,7 +756,7 @@ def test_the_client_says_when_the_full_ranking_is_wider_than_the_budget() -> Non
     # it moved to. What must hold is that the client READS both numbers and COMPARES them; which
     # file does it is not the reader's concern and should not be the test's.
     code = "\n".join(
-        "\n".join(line.split("//", 1)[0] for line in path.read_text(encoding="utf-8").splitlines())
+        "\n".join(line.split("//", 1)[0] for line in _swift(path).splitlines())
         for path in sorted(CLIENT.rglob("*.swift"))
     )
 
@@ -777,7 +786,7 @@ def test_the_screen_calls_the_uncertainty_functions_it_depends_on() -> None:
     """
     view = "\n".join(
         line.split("//", 1)[0]
-        for line in (CLIENT / "ContentView.swift").read_text(encoding="utf-8").splitlines()
+        for line in _swift(CLIENT / "ContentView.swift").splitlines()
     )
 
     assert re.search(
@@ -846,7 +855,7 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     """
     # Split on the RAW text, then strip comments: the marker is itself a comment, so stripping first
     # erased it and made "the home screen" the whole file, the full ranking's filter included.
-    raw = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    raw = _swift(CLIENT / "ContentView.swift")
     assert "// MARK: - Rows" in raw, "the marker ending the home screen's code has moved"
     home = "\n".join(
         line.split("//", 1)[0] for line in raw[: raw.index("// MARK: - Rows")].splitlines()
@@ -1038,7 +1047,7 @@ def test_every_score_on_screen_goes_through_the_figures_line() -> None:
     """
     view = "\n".join(
         line.split("//", 1)[0]
-        for line in (CLIENT / "ContentView.swift").read_text(encoding="utf-8").splitlines()
+        for line in _swift(CLIENT / "ContentView.swift").splitlines()
     )
 
     for struct, value, rank in (
@@ -1099,7 +1108,7 @@ def test_the_detail_screen_is_reachable_and_composes_nothing_itself() -> None:
     """
     view = "\n".join(
         line.split("//", 1)[0]
-        for line in (CLIENT / "ContentView.swift").read_text(encoding="utf-8").splitlines()
+        for line in _swift(CLIENT / "ContentView.swift").splitlines()
     )
 
     assert "struct ModelDetail: View" in view, "the detail screen is gone"
@@ -1204,9 +1213,9 @@ def test_every_screen_string_the_client_calls_exists() -> None:
     """
     view = "\n".join(
         line.split("//", 1)[0]
-        for line in (CLIENT / "ContentView.swift").read_text(encoding="utf-8").splitlines()
+        for line in _swift(CLIENT / "ContentView.swift").splitlines()
     )
-    language = (CLIENT / "Engine" / "Language.swift").read_text(encoding="utf-8")
+    language = _swift(CLIENT / "Engine" / "Language.swift")
 
     called = set(re.findall(r"\bUIText\.([a-zA-Z]\w*)", view))
     defined = set(re.findall(r"static\s+(?:func|let|var)\s+([a-zA-Z]\w*)", language))
@@ -1231,7 +1240,7 @@ def test_every_place_that_prints_a_search_price_says_what_it_leaves_out() -> Non
     """
     view = "\n".join(
         line.split("//", 1)[0]
-        for line in (CLIENT / "ContentView.swift").read_text(encoding="utf-8").splitlines()
+        for line in _swift(CLIENT / "ContentView.swift").splitlines()
     )
 
     def body_of(marker: str) -> str:
@@ -1270,10 +1279,10 @@ def test_every_reason_the_engine_can_give_is_one_the_app_can_word() -> None:
     Turkish screen -- MINOR-1's own symptom. Both sets are READ: the engine's from the `"reason":`
     entries `recommend.py` builds its facts with, the app's from `PickReason`'s raw values."""
     engine_source = (pathlib.Path(__file__).resolve().parents[2]
-                     / "src/app/workflows/recommend.py").read_text(encoding="utf-8")
+                     / "src/app/workflows/recommend.py").read_text(encoding="utf-8")  # raw: Python
     engine = {code for expr in re.findall(r'"reason":\s*([^,}\n]+)', engine_source)
               for code in re.findall(r'"([a-z_]+)"', expr)}
-    language = (CLIENT / "Engine/Language.swift").read_text(encoding="utf-8")
+    language = _swift(CLIENT / "Engine/Language.swift")
     body = language[language.index("enum PickReason"):]
     body = body[:body.index("}")]
     app = set(re.findall(r'case \w+ = "([a-z_]+)"', body))
@@ -1288,7 +1297,7 @@ def test_the_screen_composes_the_empty_reason_and_the_notices_from_their_facts()
     `"no_evidence"`, the card notices composed in English, or the close call composed with no
     anchor (D-143), every gate passed. The first is review M2 again: an unreadable answer said as an
     evidence gap, in both languages."""
-    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    view = _swift(CLIENT / "ContentView.swift")
     code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
     assert re.search(
         r"unavailableSentence\(\s*code: answer\.unavailableReasonCode,\s*benchmark: answer\.primaryBenchmark,"
@@ -1306,7 +1315,7 @@ def test_the_held_card_stands_alone_and_shows_the_face_its_reading_asks_for() ->
     card failed only `make ui-test`, which no gate runs (D-175): a ranking rendered under the held
     card, a "Showing:" line above it, and the card's two faces swapped (a doubt shown the note, the
     note shown the question back). This pins each where the gates can see it."""
-    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    view = _swift(CLIENT / "ContentView.swift")
     code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
     assert re.search(r"if let held \{\s*readingCard\(held\)\s*\} else \{", code), (
         "the answer can render under the held card: the previous ranking reads as this question's"
@@ -1335,7 +1344,7 @@ def test_a_held_question_clears_the_old_answer_and_its_two_taps_do_what_they_say
       (X18 to X21).
     - `confirm` holds the field while it answers, as `submit` does, and gives it back after (X16, X17).
     """
-    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    view = _swift(CLIENT / "ContentView.swift")
     code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
     ask = re.search(r"private func ask\(\) async \{(.*?)\n    \}", code, re.S)
     assert ask, "the question path is gone"
@@ -1396,7 +1405,7 @@ def test_greetings_in_the_off_topic_sets_are_not_searches_and_the_probe_skips_th
             labels.setdefault(question, []).append(label)
     for greeting in ("hello", "good morning", "thanks"):
         assert labels.get(greeting) and set(labels[greeting]) == {"NOT_A_SEARCH"}, greeting
-    probe = (folder / "probe.swift").read_text(encoding="utf-8")
+    probe = _swift(folder / "probe.swift")
     assert re.search(r'if want == "NOT_A_SEARCH" \{ unscored \+= 1; continue \}', probe), (
         "probe.swift scores a NOT_A_SEARCH row as a miss again"
     )
@@ -1424,7 +1433,7 @@ def test_the_probe_leaves_a_not_a_search_row_out_of_its_score() -> None:
     leaves them out of the score's denominator as well as its pass count. With the printed score
     over `cases.count`, each NOT_A_SEARCH row was a miss again, the issue's symptom, and the suite
     stayed green: the #118 test pins only the `continue`."""
-    probe = (CLIENT.parents[1] / "scripts/router_probe/probe.swift").read_text(encoding="utf-8")
+    probe = _swift(CLIENT.parents[1] / "scripts/router_probe/probe.swift")
     score = re.findall(r'print\("\\\(pass\)/\\\(([^)]*)\)"', probe)
     assert score, "probe.swift prints no score"
     assert [part.replace(" ", "") for part in score] == ["cases.count-unscored"], (

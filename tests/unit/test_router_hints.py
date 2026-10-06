@@ -115,22 +115,76 @@ def _code(swift: str) -> str:
     return _built("".join(out))
 
 
-#: #110: a compilation condition `_code` can decide, the literal `true` or `false`, either negated.
-_LITERAL_CONDITION = {"true": True, "false": False, "!true": False, "!false": True}
+#: #110: a compilation condition's tokens: `!`, `&&`, `||`, parentheses, and a name or a call.
+_CONDITION_TOKEN = re.compile(r"\s*(\|\||&&|!|\(|\)|[A-Za-z_]\w*|[^\s()!&|]+)")
+
+
+def _decide(condition: str) -> bool | None:
+    """A compilation condition in three values (the W2 review's M3): `True` where every build compiles
+    the branch, `False` where none does, `None` where this cannot say. Only the literals `true` and
+    `false` are known; `DEBUG`, `os(iOS)` and anything unparsed are not, and an unknown keeps code."""
+    tokens = _CONDITION_TOKEN.findall(condition)
+    at = 0
+
+    def peek() -> str | None:
+        return tokens[at] if at < len(tokens) else None
+
+    def take() -> str:
+        nonlocal at
+        at += 1
+        return tokens[at - 1]
+
+    def either() -> bool | None:
+        values = [both()]
+        while peek() == "||":
+            take()
+            values.append(both())
+        return True if True in values else (False if all(v is False for v in values) else None)
+
+    def both() -> bool | None:
+        values = [unary()]
+        while peek() == "&&":
+            take()
+            values.append(unary())
+        return False if False in values else (True if all(v is True for v in values) else None)
+
+    def unary() -> bool | None:
+        if peek() == "!":
+            take()
+            value = unary()
+            return None if value is None else not value
+        token = take()
+        if token == "(":
+            value = either()
+            if take() != ")":
+                raise ValueError(condition)
+            return value
+        if peek() == "(":  # a call: `os(iOS)`, `canImport(UIKit)`, `swift(>=5.9)`
+            depth = 0
+            while (inner := take()) != ")" or depth > 1:
+                depth += {"(": 1, ")": -1}.get(inner, 0)
+            return None
+        return {"true": True, "false": False}.get(token)
+
+    try:
+        value = either()
+    except (IndexError, ValueError):
+        return None
+    return value if at == len(tokens) else None
 
 
 def _built(swift: str) -> str:
-    """`swift` without the branches the compiler never builds (#110): an `#if` or `#elseif` on the
-    literal `false` or `!true`, and an `#else` after a branch on the literal `true`. A condition this
-    cannot decide keeps its code, so a pin sees at least what any build compiles. Dropped lines stay
-    as empty lines, so the code after them keeps its line numbers."""
+    """`swift` without the branches the compiler never builds (#110): an `#if` or `#elseif` whose
+    condition is false in every build (`false`, `!(true)`, `false && DEBUG`), and an `#else` after a
+    branch every build takes. A condition this cannot decide keeps its code (`_decide`), so a pin sees
+    at least what any build compiles. Dropped lines stay as empty lines, so the code after them keeps
+    its line numbers."""
     stack: list[list[bool]] = []  # [this branch is built, a branch above it was certainly taken]
     lines = []
     for line in swift.split("\n"):
         directive = re.match(r"\s*#(if|elseif|else|endif)\b\s*(.*?)\s*$", line)
         if directive:
-            kind, condition = directive.group(1), re.sub(r"\s+", "", directive.group(2))
-            decided = _LITERAL_CONDITION.get(condition.strip("()"))
+            kind, decided = directive.group(1), _decide(directive.group(2))
             if kind == "if":
                 stack.append([decided is not False, decided is True])
             elif kind == "elseif" and stack:
@@ -813,7 +867,11 @@ def test_the_view_only_loads_and_saves_the_on_device_store() -> None:
 
 #: The two sinks (D-180 clause 1); `make client-decls` holds the same on the compiled module.
 SINKS = ("Engine/EngineClient.swift", "Engine/StandingsStore.swift")
-STORED_STATIC = re.compile(r"\bstatic\s+var\s+\w+\s*(?::[^={\n]+)?=")
+#: A stored `static var`, with a value or without (the W2 review's M2); a computed one opens a brace.
+STORED_STATIC = re.compile(r"\bstatic\s+var\s+\w+\s*(?::[^={\n]+)?(?:=|$)", re.MULTILINE)
+#: A stored `var` at file scope, in column one after its access modifier (M2).
+FILE_VAR = re.compile(r"^(?:(?:private|fileprivate|internal|public)\s+)?var\s+\w+\s*(?::[^={\n]+)?(?:=|$)",
+                      re.MULTILINE)
 BUILDS = re.compile(r"(?<![\w.])(Fetched)?Standings\s*(?:\.\s*init\s*)?\(")
 
 
@@ -824,8 +882,9 @@ def _sink_pin_problems(sources: dict[str, str]) -> list[str]:
     problems = []
     for path in SINKS:
         code = _code(sources[path])
-        if "nonisolated(unsafe)" in re.sub(r"\s", "", code) or STORED_STATIC.search(code):
-            problems.append(f"{path}: holds mutable shared state (a stored `static var` or `nonisolated(unsafe)`)")
+        if "nonisolated(unsafe)" in re.sub(r"\s", "", code) or STORED_STATIC.search(code) or FILE_VAR.search(code):
+            problems.append(f"{path}: holds mutable shared state (a stored `static var`, a file-scope `var` "
+                            "or `nonisolated(unsafe)`)")
     client = _code(sources["Engine/EngineClient.swift"])
     boards = client[client.index("func boards()"):]
     boards = boards[:boards.index("\n    }\n")]

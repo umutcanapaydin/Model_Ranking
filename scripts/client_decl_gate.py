@@ -231,6 +231,20 @@ PROVENANCE: dict[str, tuple[set[str], str]] = {
         "only the engine client makes its address from text, the build's own setting"),
 }
 
+#: The W2 review's M1 (D-180 clause 2): what a sink may hold at a type's or the file's scope, by its
+#: compiled type. A value is copied, so no other file can change the sink's; `URLSession` is built in
+#: `EngineClient.init(baseURL:session:)`, which only `EngineClient.swift` calls (`PROVENANCE`). Any
+#: other type, a `let` of `NSMutableString` or a `@TaskLocal`'s storage among them, is refused.
+SINK_HELD_TYPES = {"String", "Int", "Double", "Bool", "TimeInterval", "Date", "Data", "URL", "Standings",
+                   "URLSession"}
+#: The W2 review's M1: what a sink may call that another file declares, each with its reason. A body
+#: another file owns can read the screen's state, so any other call is refused.
+SINK_CALLS_PERMITTED = {
+    ("EngineClient.swift", "UIText.engineAddress"): "the failure line naming the address, made from its two arguments",
+    ("EngineClient.swift", "FetchedStandings.init"): "PROVENANCE: the engine's answer becomes standings",
+    ("StandingsStore.swift", "FetchedStandings.init"): "PROVENANCE: the store's own file becomes standings",
+}
+
 #: #60 (G-2), D-181 as the W2 review's B1 widened it: a served number is any numeric value a type the
 #: client decodes (`Decodable` or `Codable`) stores, found on the compiled module, never typed out by
 #: hand. Arithmetic on one, however it travels (see `_Flow`), is a second scoring implementation
@@ -476,6 +490,55 @@ def url_facts(ast: str) -> dict[str, set[str]]:
     return facts
 
 
+def _sink_holds(ast: str) -> list[tuple[str, str]]:
+    """The W2 review's M1: `(sink file, fact)` for what a sink holds at a type's or the file's scope,
+    with its compiled type."""
+    found: list[tuple[str, str]] = []
+    stack: list[tuple[int, str]] = []
+    current = ""
+    for line in ast.splitlines():
+        if not (node := NODE.match(line)):
+            continue
+        depth, kind = len(node.group(1)), node.group(2)
+        while stack and stack[-1][0] >= depth:
+            stack.pop()
+        if kind == "source_file":
+            current = pathlib.Path(line.split('"')[1]).name
+        elif kind == "var_decl" and current in SINK_FILES and "readImpl=stored" in line:
+            scope = next((k for _, k in reversed(stack) if k in SHARED_SCOPES | LOCAL_SCOPES), "source_file")
+            named, typed = VAR_NAME.match(line), TYPE_OF["interface_type"].search(line)
+            if scope in SHARED_SCOPES and named and typed:
+                found.append((current, f"main.<holds>.{named.group(1)}:{typed.group(1)}"))
+        stack.append((depth, kind))
+    return found
+
+
+def _sink_calls(ast: str) -> list[tuple[str, str]]:
+    """The W2 review's M1: `(sink file, fact)` for each function, initialiser or computed property a
+    sink reaches that another file declares. A call is known by its labels, by `function_ref=...
+    apply` after it, or by a function type: the compiler prints one whose labels are all `_` without
+    them."""
+    getters = {(pathlib.Path(start.group(1)).name, int(start.group(2)), int(start.group(3)))
+               for line in ast.splitlines()
+               if line.lstrip().startswith("(var_decl") and "readImpl=getter" in line
+               and (start := RANGE_START.search(line))}
+    found: list[tuple[str, str]] = []
+    current = ""
+    for line in ast.splitlines():
+        if line.startswith("(source_file"):
+            current = pathlib.Path(line.split('"')[1]).name
+        if current not in SINK_FILES:
+            continue
+        for reference in FLOW_REF.finditer(line):
+            symbol, path, row, column = reference.groups()
+            declared, last, typed = pathlib.Path(path).name, symbol.split(".")[-1], TYPE_OF["type"].search(line)
+            called = "(" in last or APPLIED.match(line, reference.end()) is not None or (
+                typed is not None and "->" in typed.group(1) and "enum_element" not in line)
+            if declared not in SINK_FILES and (called or (declared, int(row), int(column)) in getters):
+                found.append((current, f"main.<calls>.{'.'.join([*symbol.split('.')[:-1], _base(last)])}@{declared}"))
+    return found
+
+
 def sink_facts(ast: str) -> dict[str, set[str]]:
     """#85 (D-180): `{file name: {"main.<...>", ...}}`, the facts `problems` judges about the sinks: a
     sink's own shared state, its reads of another file's, and who calls a `PROVENANCE` declaration."""
@@ -484,6 +547,8 @@ def sink_facts(ast: str) -> dict[str, set[str]]:
     for (file, _, _), name in shared.items():
         if file in SINK_FILES:
             facts.setdefault(file, set()).add(f"main.<mutable stored state>.{name}")
+    for file, fact in (*_sink_holds(ast), *_sink_calls(ast)):
+        facts.setdefault(file, set()).add(fact)
     for file, symbol, declared in refs:
         if file in SINK_FILES and declared in shared and declared[0] != file:
             facts.setdefault(file, set()).add(f"main.<reads mutable state>.{shared[declared]}@{declared[0]}")
@@ -928,6 +993,10 @@ def unseen_permissions(found: dict[str, set[str]]) -> list[str]:
                if not any(n == name and k == kind and (function is None or f == function) for n, k, f in seen_arithmetic)]
     missing += [f"{name}: `{call}` on `{receiver}`" for name, call, receiver in SORTS_PERMITTED
                 if (name, call, receiver) not in seen_sorts]
+    seen_calls = {(name, fact.split(">.")[1].split("@")[0])
+                  for name, facts in found.items() for fact in facts if fact.startswith("main.<calls>.")}
+    missing += [f"{name}: a call to `{called}`" for name, called in SINK_CALLS_PERMITTED
+                if (name, called) not in seen_calls]
     seen_types = {fact.split(">.")[1] for facts in found.values() for fact in facts if fact.startswith("main.<unserved>.")}
     missing += [f"`{name}`, which no type decodes" for name in NOT_SERVED if name not in seen_types]
     return missing
@@ -943,6 +1012,19 @@ def _sink_problem(name: str, symbol: str) -> str | None:
         variable, _, declared = subject.partition("@")
         return (f"{name}: reads `{variable}`, mutable state declared in {declared}, so whatever sets it "
                 f"reaches {SINK_FILES[name]} (D-180)")
+    if fact == "<holds":
+        held, _, typed = subject.partition(":")
+        if typed.rstrip("?") not in SINK_HELD_TYPES:
+            return (f"{name}: holds `{held}`, a `{typed}`, which another file can change through a reference; "
+                    f"a sink holds only values and what its own initialiser builds (D-180, the W2 review's M1)")
+        return None
+    if fact == "<calls":
+        called, _, declared = subject.partition("@")
+        if (name, called) not in SINK_CALLS_PERMITTED:
+            return (f"{name}: calls `{called.split('.')[-1]}` (`{called}`, {declared}), which another file "
+                    "declares; a body another file owns can read the screen's state, so a sink calls only "
+                    "what is listed for it (D-180, the W2 review's M1)")
+        return None
     if fact == "<builds" and subject in PROVENANCE and name not in PROVENANCE[subject][0]:
         verb = f"builds {subject.split('.')[0]}" if ".init(" in subject else "calls"
         return f"{name}: {verb} (`{subject}`); {PROVENANCE[subject][1]} (D-180)"
