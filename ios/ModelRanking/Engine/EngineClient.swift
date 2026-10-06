@@ -206,6 +206,12 @@ struct EngineClient {
             configuration.timeoutIntervalForRequest = TimeInterval(EngineClient.requestTimeout)
             configuration.timeoutIntervalForResource = TimeInterval(EngineClient.requestTimeout)
             configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+            // #144: no cookie is kept or sent. A cookie set by the engine's host, or by anyone on the
+            // home network's cleartext path, would otherwise ride on every later request, the
+            // parameterless `/v1/boards` included.
+            configuration.httpShouldSetCookies = false
+            configuration.httpCookieAcceptPolicy = .never
+            configuration.httpCookieStorage = nil
             self.session = URLSession(configuration: configuration)
         }
     }

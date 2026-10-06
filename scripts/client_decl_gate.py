@@ -246,6 +246,12 @@ SORTS_PERMITTED = {
     ("Reading.swift", "reversed", "row"): 1,
 }
 
+#: (file, symbol) a forbidden family's member is allowed as, each with its reason. Exact, never a
+#: prefix: the family stays refused everywhere else.
+FORBIDDEN_EXCEPT = {
+    ("EngineClient.swift", "HTTPCookie.AcceptPolicy.never"): "#144: the session refuses every cookie",
+}
+
 #: `@AppStorage("language")` is the one piece of app storage the client keeps, and it holds a
 #: `Language`, never text a reader typed. The text gate pins its declaration; here the SwiftUI
 #: property wrapper itself is allowed only in the file that declares it.
@@ -633,6 +639,8 @@ def _module_problem(name: str, module: str, symbol: str, decl: str) -> str | Non
 def _capability_problem(name: str, symbol: str, decl: str) -> str | None:
     """Network, file system and the ways text leaves a phone, inside the allowed modules."""
     head = symbol.split("(")[0]
+    if (name, symbol) in FORBIDDEN_EXCEPT:
+        return None
     if any(symbol.startswith(p) or head == p for p in FORBIDDEN):
         return f"{name}: `{decl}` carries text off the device or into shared storage"
     if any(symbol.startswith(p) for p in PATH_BUILDING):

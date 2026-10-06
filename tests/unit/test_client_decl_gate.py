@@ -252,3 +252,11 @@ def test_a_link_detector_is_the_network() -> None:
     step, as a URL made from a string is."""
     refused = gate.problems({"ContentView.swift": {"Foundation.NSDataDetector"}})
     assert any("NSDataDetector" in line and "network" in line for line in refused), refused
+
+
+def test_turning_cookies_off_is_the_one_cookie_symbol_allowed_and_only_in_the_door() -> None:
+    """#144: the session sets `HTTPCookie.AcceptPolicy.never`, a member of a family the gate refuses
+    (cookies go to a store the system writes). That one value is allowed in the network door only."""
+    assert gate.problems({"EngineClient.swift": {"Foundation.HTTPCookie.AcceptPolicy.never"}}) == []
+    assert gate.problems({"ContentView.swift": {"Foundation.HTTPCookie.AcceptPolicy.never"}})
+    assert gate.problems({"EngineClient.swift": {"Foundation.HTTPCookieStorage.shared"}})
