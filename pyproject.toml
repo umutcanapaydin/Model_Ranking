@@ -41,6 +41,7 @@ dev = [
     "black>=24.10",
     "mypy>=1.13",
     "respx>=0.21",
+    "httpx2>=2.13",  # #125: starlette's test client runs on it; on httpx it warns, and a later starlette may drop that path
     "asgi-lifespan>=2.1",
     "types-pyyaml>=6.0",
     # v2.0 security gates (Stage 2 internal commit-gate via hooks, F.6/F.7/F.8)
