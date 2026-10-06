@@ -174,3 +174,77 @@ def test_a_row_that_keeps_its_name_and_changes_its_link_counts(tmp_path: Path, d
     reasons = (_reasons(tmp_path, relinked, base=unlinked) if direction == "gains"
                else _reasons(tmp_path, unlinked))
     assert any(reason.startswith(f"board {SLICE.source}") for reason in reasons), reasons
+
+
+def _priced_by_two_feeds(path: Path) -> Path:
+    """Twelve derived models on `SLICE`, each with a price and an accessibility value. Four are priced
+    by `litellm` alone, eight by `openrouter`: a `litellm` expiry unlinks a third of the board."""
+    from app.workflows import access
+    from app.workflows.rank import build_price_medians
+    from app.workflows.registry import reconcile
+    from app.workflows.schema import connect
+
+    conn = connect(str(path))
+    try:
+        for i in range(12):
+            name = f"zorblax-{i}"
+            conn.execute(
+                "INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, source_url,"
+                " observed_at) VALUES (?, ?, 'elo', ?, 'arena-crowd', 'unspecified', ?, 'u', 't')",
+                (name, SLICE.benchmark, 1200.0 + i, SLICE.source))
+            conn.execute(
+                "INSERT INTO pricing (alias, input_per_m, output_per_m, source, source_url, observed_at)"
+                " VALUES (?, 1, 2, ?, 'u', 't')", (name, "litellm" if i < 4 else "openrouter"))
+            conn.execute(
+                "INSERT INTO access (raw_name, accessibility, source, source_url, observed_at)"
+                " VALUES (?, 'API access', 'epoch_access', 'u', 't')", (name,))
+        reconcile(conn)
+        build_price_medians(conn)
+        access.link(conn)
+        conn.commit()
+    finally:
+        conn.close()
+    return path
+
+
+def _built_without(live: Path, path: Path, source: str) -> Path:
+    """What a build makes without `source`: its rows gone, every link made again (D-157)."""
+    import shutil
+
+    from app.workflows import access
+    from app.workflows.rank import build_price_medians
+    from app.workflows.registry import reconcile
+
+    shutil.copyfile(live, path)
+    conn = sqlite3.connect(path)
+    try:
+        for table in ("scores", "pricing", "access"):
+            conn.execute(f"DELETE FROM {table} WHERE source = ?", (source,))
+        conn.execute("UPDATE scores SET model_id = NULL")
+        conn.execute("UPDATE pricing SET model_id = NULL")
+        conn.execute("DELETE FROM models")
+        reconcile(conn)
+        build_price_medians(conn)
+        access.link(conn)
+        conn.commit()
+    finally:
+        conn.close()
+    return path
+
+
+def test_a_price_feeds_expiry_is_judged_against_the_links_a_build_would_make(tmp_path: Path) -> None:
+    """The M19-W1 Tester's M5 and K1 (D-156 clause 3, D-179). On the night a price feed's data expires,
+    the baseline is the live artifact without that feed's rows, but it kept every link, while a build
+    without the feed unlinks each derived model the feed alone priced (D-157). So the board guards
+    read those rows as lost and new, and the accessibility guard read their values as lost: an expiry
+    the refresh exists to publish was refused. The baseline is linked again, as a build links it."""
+    from app.workflows.refresh import _served_without
+
+    live_path = _priced_by_two_feeds(tmp_path / "live.db")
+    live = fingerprint_of(live_path)
+    candidate = fingerprint_of(_built_without(live_path, tmp_path / "candidate.db", "litellm"))
+    assert live is not None and candidate is not None
+    assert len(live.boards[SLICE.source]) == 12 and candidate.accessible == 8, "the fixture proves nothing"
+    baseline = _served_without(live_path, {"litellm"})
+    reasons = degradations(baseline, candidate) + upward_anomalies(live, candidate, baseline)
+    assert not [r for r in reasons if SLICE.source in r or r.startswith("accessibility")], reasons
