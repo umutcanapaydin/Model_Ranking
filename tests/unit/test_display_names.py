@@ -36,7 +36,26 @@ NO_LONGER_MODELS = {
     "o3-mini-high",  # #130: o3-mini at high effort
     # #129: each dated id is its release's only snapshot, one model with the undated one
     "claude3-haiku20240307", "claude3-opus20240229", "claude3-sonnet20240229", "claude3.5-haiku20241022",
-    "o3-2025-04-16", "gpt5-2025-08-07",
+    "o3-2025-04-16", "gpt5-2025-08-07", "gpt4.1-mini2025-04-14", "gpt4.1-nano2025-04-14",
+    "gpt5.2-pro2025-12-11", "gpt5.4-pro2026-03-05", "o3-mini2025-01-31", "o3-pro2025-06-10",
+}
+
+#: #112's remainder (the W7 review's M4 class): served under a lower-case spelling of the id, not the
+#: id itself. Measured with M19-W1's code on a candidate built from live sources on 2026-10-06.
+LOWER_CASE_ON_2026_10_06 = {
+    "c4ai-aya-expanse32b", "codellama34b-instruct", "codellama70b-instruct", "command-a03-2025",
+    "command-r-plus08-2024", "command-r08-2024", "devstral-small2505", "ernie5.1", "gemini-exp1206",
+    "gemini3.1-flash-lite-preview", "gemma2-27b-it", "gemma2b-it", "gemma3-12b-it", "gemma3-27b-it",
+    "gemma3-4b-it", "gemma4-31b", "gemma7b-it", "glm4.5-air", "glm4.5v", "glm5v-turbo", "gpt-oss120b",
+    "gpt-oss20b", "gpt3.5-turbo0125", "gpt3.5-turbo0613", "gpt3.5-turbo1106", "gpt4-0125-preview",
+    "gpt4-0613", "gpt4-1106-preview", "gpt4-turbo2024-04-09", "gpt4.5-preview", "gpt4o-mini2024-07-18",
+    "gpt5.1-codex-max", "granite4.1-8b", "granite4.2-8b", "grok-code-fast1", "grok4.1-fast-reasoning",
+    "grok4.20-multi-agent-beta0309", "grok4.3", "jamba1.5-large", "jamba1.5-mini", "llama2-7b-chat",
+    "llama3-70b-instruct", "magistral-small2509", "mercury2", "mistral-medium2505", "mistral-medium2604",
+    "mistral-small2402", "mistral-small2503", "mistral-small3.1-24b-instruct2503", "nova2-lite",
+    "o1-mini2024-09-12", "o1-pro2025-03-19", "pixtral12b2409", "qwen-plus2025-01-25", "qwen-turbo2024-11-01",
+    "qwen3-30b-a3b-thinking2507", "qwen3-4b-instruct2507", "qwen3-vl235b-a22b-thinking", "step3.5-flash",
+    "zephyr7b-beta",
 }
 
 CLAUDE = re.compile(r"Claude (?:(?P<old>\d(?:\.\d)?) (?:Opus|Sonnet|Haiku)|(?:Opus|Sonnet|Haiku) (?P<new>\d(?:\.\d)?))\b")
@@ -73,6 +92,12 @@ def test_no_model_served_under_its_raw_id_is_left_without_a_name() -> None:
     assert RAW_ON_2026_10_04 - named == set(), sorted(RAW_ON_2026_10_04 - named)
 
 
+def test_no_model_served_under_a_lower_case_spelling_of_its_id_is_left_without_a_name() -> None:
+    """#112's remainder: `c4ai-aya-expanse-32b` is the id with its dashes back, not a name."""
+    assert LOWER_CASE_ON_2026_10_06 - set(registry.DISPLAY_NAMES) == set(), sorted(
+        LOWER_CASE_ON_2026_10_06 - set(registry.DISPLAY_NAMES))
+
+
 def test_each_name_in_the_table_is_a_bounded_spelling_and_wins_for_its_model() -> None:
     """A table name reaches `/v1` like any display, so it keeps D-157's bound (M16 MAJOR-1)."""
     for model_id, name in registry.DISPLAY_NAMES.items():
@@ -95,12 +120,12 @@ def test_every_model_the_artifact_serves_is_named_by_this_code_as_a_product() ->
     """The plan's check for #112, over the served names: every model in the artifact, named the way
     this code would name it, from the names its own rows carry. An approximation of the build, which
     names a derived model from each score's PARSED name (the W7 Tester's T4: 20 of 200 derived names
-    differ); its two checks, no raw id and Anthropic's order, hold on either input. None reads as its
-    raw id, but OpenAI's, and every Claude is in Anthropic's order (the review's M4, and its R1: a new
-    model served under its raw id shows here)."""
+    differ); its checks, no raw id and Anthropic's order, hold on either input. None reads as its raw
+    id or a lower-case spelling of it (#112's remainder), but OpenAI's, and every Claude is in
+    Anthropic's order (the review's M4, and its R1: a new model served under its raw id shows here)."""
     conn = sqlite3.connect(f"file:{ARTIFACT}?mode=ro", uri=True)
     curated = {rule.canonical_id: rule.display for rule in registry.MODEL_RULES}
-    raw_ids, misordered = [], []
+    raw_ids, lower_case, misordered = [], [], []
     for (model_id,) in conn.execute("SELECT id FROM models"):
         if model_id in NO_LONGER_MODELS:  # an artifact built before its fix holds it until the next build
             continue
@@ -110,9 +135,12 @@ def test_every_model_the_artifact_serves_is_named_by_this_code_as_a_product() ->
         name = curated.get(model_id) or registry._derived_display(model_id, names)
         if name == model_id and model_id not in SPELLED_AS_THEIR_ID:
             raw_ids.append(model_id)
+        elif name == name.lower() and model_id not in SPELLED_AS_THEIR_ID | {"o1-2024-12-17"}:
+            lower_case.append(model_id)  # #112's remainder: the id with its dashes back is no name
         if problem := _claude_order_problem(name):
             misordered.append(problem)
     assert not raw_ids, f"served under their raw id: {sorted(raw_ids)}"
+    assert not lower_case, f"served under a lower-case spelling of their id: {sorted(lower_case)}"
     assert not misordered, misordered
 
 
