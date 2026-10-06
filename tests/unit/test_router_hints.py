@@ -773,3 +773,65 @@ def test_the_view_only_loads_and_saves_the_on_device_store() -> None:
                 other.append(f"{path.relative_to(root)}:{line}: {code[match.start():match.start() + 70]!r}")
     assert uses, "the view names the gap register nowhere; was it read?"
     assert not other, f"the view does more with the gap register than load and save it: {other}"
+
+
+# --- #85 (D-180 clause 4): the privacy sinks, held by text in the lanes without Xcode --------------
+
+#: The two sinks (D-180 clause 1); `make client-decls` holds the same on the compiled module.
+SINKS = ("Engine/EngineClient.swift", "Engine/StandingsStore.swift")
+STORED_STATIC = re.compile(r"\bstatic\s+var\s+\w+\s*(?::[^={\n]+)?=")
+BUILDS = re.compile(r"(?<![\w.])(Fetched)?Standings\s*(?:\.\s*init\s*)?\(")
+
+
+def _sink_pin_problems(sources: dict[str, str]) -> list[str]:
+    """What breaks D-180's text half in `{path under ios/ModelRanking: Swift source}`: a sink holding
+    shared state, a boards request that is not the parameterless one, standings built anywhere but
+    the engine's answer and the store's file."""
+    problems = []
+    for path in SINKS:
+        code = _code(sources[path])
+        if "nonisolated(unsafe)" in re.sub(r"\s", "", code) or STORED_STATIC.search(code):
+            problems.append(f"{path}: holds mutable shared state (a stored `static var` or `nonisolated(unsafe)`)")
+    client = _code(sources["Engine/EngineClient.swift"])
+    boards = client[client.index("func boards()"):]
+    boards = boards[:boards.index("\n    }\n")]
+    if boards.count("fetch(") != 1 or 'fetch("v1/boards", query: [])' not in boards or "URLQueryItem" in boards:
+        problems.append("Engine/EngineClient.swift: `boards()` is not exactly `fetch(\"v1/boards\", query: [])`")
+    for path, source in sorted(sources.items()):
+        for match in BUILDS.finditer(_code(source)):
+            if match.group(1) is None or path not in SINKS:
+                problems.append(f"{path}: builds `{match.group(0).strip()}`; only the engine's answer and the "
+                                "store's own file become standings")
+    return problems
+
+
+def _client_sources() -> dict[str, str]:
+    return {str(p.relative_to(CLIENT)): p.read_text(encoding="utf-8") for p in CLIENT.rglob("*.swift")}
+
+
+def test_the_privacy_sinks_hold_by_text_too() -> None:
+    """#85 (D-180 clause 4, INV-66): no shared state in a sink, the boards request asks for nothing,
+    and standings come only from the engine's answer or the store's own file."""
+    assert _sink_pin_problems(_client_sources()) == []
+
+
+@pytest.mark.parametrize("mutant", ["P2", "P2b", "P3"])
+def test_the_sink_pins_refuse_the_m17_closures_mutants(mutant: str) -> None:
+    """The M17 closure seat's mutants (`docs/reviews/m17-closure-security-review.md`, MINOR-3), planted
+    in copies of the shipping sources: each is refused here, where there is no compiler."""
+    sources = _client_sources()
+    client, view = "Engine/EngineClient.swift", "ContentView.swift"
+    relay = 'Self.tag.isEmpty ? [] : [URLQueryItem(name: "t", value: Self.tag)]'
+    if mutant == "P2":
+        sources[client] = sources[client].replace(
+            "    private let session: URLSession\n",
+            "    private let session: URLSession\n    nonisolated(unsafe) static var tag = \"\"\n", 1)
+        sources[client] = sources[client].replace('fetch("v1/boards", query: [])', f'fetch("v1/boards", query: {relay})', 1)
+    elif mutant == "P2b":
+        sources[client] = sources[client].replace(
+            'fetch("v1/boards", query: [])',
+            'fetch("v1/boards", query: relayTag.isEmpty ? [] : [URLQueryItem(name: "t", value: relayTag)])', 1)
+    else:
+        sources[view] += ("\nfunc keep(_ typed: String) -> FetchedStandings? {\n    try? FetchedStandings(payload: "
+                          "JSONEncoder().encode(Standings(apiVersion: typed, attributions: [], boards: [], models: [])))\n}\n")
+    assert _sink_pin_problems(sources), f"{mutant} passed the text pins"

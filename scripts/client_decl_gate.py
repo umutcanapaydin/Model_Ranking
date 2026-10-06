@@ -25,10 +25,13 @@ with no Xcode, and this one runs where the toolchain is. Neither is the whole ch
 
 **What this gate does NOT do** (M16-W1 review, measured):
 
-- It scopes by FILE, never by data. A function declared in `EngineClient.swift` resolves in `main`,
-  and `main` is not capability-checked, so a relay there that any file can call passes (B19); the
-  file system is whole inside `FrontDoor.swift`, so a write to the temporary directory from there
-  passes too (B31). What a file does with a capability it owns is for review and the tests.
+- It scopes by FILE, not by data, with one exception. A function declared in `EngineClient.swift`
+  resolves in `main`, and `main` is not capability-checked, so a relay there that any file can call
+  passes (B19); the file system is whole inside `FrontDoor.swift`, so a write to the temporary
+  directory from there passes too (B31). What a file does with a capability it owns is for review
+  and the tests. The exception is the two privacy sinks (#85, D-180): neither may hold or read
+  mutable state another file can set, and only they build standings, so a relay through shared
+  state or standings made on the screen is refused (`SINK_FILES`, `PROVENANCE`).
 - It does not see arguments, and some of the check lives in the text gate for that reason:
   `Text("[report](https://…)")` is a `LocalizedStringKey` literal, not an `AttributedString`, so a
   markdown link written as a literal passes here and dies there (B10); a key built at run time is
@@ -200,6 +203,17 @@ FORBIDDEN = (
     "NSKeyedArchiver",
 )
 
+#: #85 (D-180): the two privacy sinks. Each sends or keeps only what its parameters, its immutable
+#: configuration and the engine's answer give it, so nothing derived from the question can reach
+#: them through state another file sets. The file scope above cannot see that (the M17 closure's P2).
+SINK_FILES = {
+    "EngineClient.swift": "every request to the engine, the boards request among them (INV-66)",
+    "StandingsStore.swift": "the standings file on this device (INV-66)",
+}
+#: Declarations only the listed files may call. Standings come from the engine's answer or the
+#: store's own file, never from what the screen builds (the M17 closure's P3).
+PROVENANCE = {"FetchedStandings.init(payload:)": {"EngineClient.swift", "StandingsStore.swift"}}
+
 #: `@AppStorage("language")` is the one piece of app storage the client keeps, and it holds a
 #: `Language`, never text a reader typed. The text gate pins its declaration; here the SwiftUI
 #: property wrapper itself is allowed only in the file that declares it.
@@ -226,6 +240,16 @@ FIXTURE_REFUSALS = {
     ("ContentView.swift", "builds FetchedStandings"),
 }
 SOURCE = re.compile(r'^\(source_file "([^"]+)"', re.MULTILINE)
+#: One node of the dump: its indentation (the tree's depth) and its kind.
+NODE = re.compile(r"^( *)\((\w+)")
+VAR_NAME = re.compile(r'^ *\(var_decl [^"]*"([^"]+)"')
+RANGE_START = re.compile(r"range=\[([^\]:]+):(\d+):(\d+)")
+#: A reference into the app's own module, with the place its declaration starts.
+MAIN_REF = re.compile(r'decl="main\.\(file\)\.([^"@]+)@([^":]+):(\d+):(\d+)"')
+#: The scopes a declaration can live in: shared (a type or the file) or a body's own (a local).
+SHARED_SCOPES = {"source_file", "struct_decl", "class_decl", "enum_decl", "extension_decl",
+                 "protocol_decl", "actor_decl"}
+LOCAL_SCOPES = {"func_decl", "constructor_decl", "destructor_decl", "accessor_decl", "closure_expr"}
 
 
 def dump_ast(sdk_name: str, flags: list[str], folder: pathlib.Path = CLIENT) -> tuple[str, int] | None:
@@ -273,7 +297,71 @@ def references(ast: str) -> dict[str, set[str]]:
             symbol = re.sub(r"([\w.]+) extension\.", r"\1.", symbol)
             symbol = re.sub(r"(^|\.)extension\.", r"\1", symbol)
             found[name].add(f"{module}.{symbol.rstrip('.')}")
+    for name, facts in sink_facts(ast).items():
+        found.setdefault(name, set()).update(facts)
     return found
+
+
+def _shared_state(ast: str) -> tuple[dict[tuple[str, int, int], str], list[tuple[str, str, tuple[str, int, int]]]]:
+    """Every `var` the client shares, by where its declaration starts, and every reference into the
+    app's own module, as `(file, symbol, where its declaration starts)`.
+
+    Shared state is a `var` whose storage the compiler marks `writeImpl=stored`, declared in a type or
+    at file scope: a `let`, a computed property and a function's local are not shared.
+    """
+    shared: dict[tuple[str, int, int], str] = {}
+    refs: list[tuple[str, str, tuple[str, int, int]]] = []
+    stack: list[tuple[int, str]] = []
+    current = ""
+    for line in ast.splitlines():
+        node = NODE.match(line)
+        if node:
+            depth, kind = len(node.group(1)), node.group(2)
+            while stack and stack[-1][0] >= depth:
+                stack.pop()
+            if kind == "source_file":
+                current = pathlib.Path(line.split('"')[1]).name
+            elif kind == "var_decl" and "writeImpl=stored" in line:
+                scope = next((k for _, k in reversed(stack) if k in SHARED_SCOPES | LOCAL_SCOPES), "source_file")
+                start, named = RANGE_START.search(line), VAR_NAME.match(line)
+                if scope in SHARED_SCOPES and start and named:
+                    shared[(pathlib.Path(start.group(1)).name, int(start.group(2)), int(start.group(3)))] = named.group(1)
+            stack.append((depth, kind))
+        refs += [(current, symbol, (pathlib.Path(path).name, int(row), int(column)))
+                 for symbol, path, row, column in MAIN_REF.findall(line)]
+    return shared, refs
+
+
+def sink_facts(ast: str) -> dict[str, set[str]]:
+    """#85 (D-180): `{file name: {"main.<...>", ...}}`, the facts `problems` judges about the sinks: a
+    sink's own shared state, its reads of another file's, and who calls a `PROVENANCE` declaration."""
+    shared, refs = _shared_state(ast)
+    facts: dict[str, set[str]] = {}
+    for (file, _, _), name in shared.items():
+        if file in SINK_FILES:
+            facts.setdefault(file, set()).add(f"main.<mutable stored state>.{name}")
+    for file, symbol, declared in refs:
+        if file in SINK_FILES and declared in shared and declared[0] != file:
+            facts.setdefault(file, set()).add(f"main.<reads mutable state>.{shared[declared]}@{declared[0]}")
+        if symbol in PROVENANCE:
+            facts.setdefault(file, set()).add(f"main.<builds>.{symbol}")
+    return facts
+
+
+def _sink_problem(name: str, symbol: str) -> str | None:
+    """#85 (D-180): a sink's shared state, a sink reading another file's, standings built elsewhere."""
+    fact, _, subject = symbol.partition(">.")
+    if fact == "<mutable stored state":
+        return (f"{name}: `{subject}` is mutable stored state in a privacy sink ({SINK_FILES[name]}); "
+                "any file can set it, so it can relay the question (D-180)")
+    if fact == "<reads mutable state":
+        variable, _, declared = subject.partition("@")
+        return (f"{name}: reads `{variable}`, mutable state declared in {declared}, so whatever sets it "
+                f"reaches {SINK_FILES[name]} (D-180)")
+    if fact == "<builds" and name not in PROVENANCE.get(subject, set()):
+        return (f"{name}: builds {subject.split('.')[0]} (`{subject}`); only the engine's answer and "
+                "the store's own file become standings (D-180)")
+    return None
 
 
 def _module_problem(name: str, module: str, symbol: str, decl: str) -> str | None:
@@ -341,6 +429,10 @@ def problems(found: dict[str, set[str]]) -> list[str]:
     for name, decls in sorted(found.items()):
         for decl in sorted(decls):
             module, _, symbol = decl.partition(".")
+            if module == "main" and symbol.startswith("<"):
+                if (problem := _sink_problem(name, symbol)) is not None:
+                    bad.append(problem)
+                continue
             problem = _module_problem(name, module, symbol, decl)
             if problem is None and symbol != "<imported>" and module not in {"main", "UIKit", "CoreFoundation"}:
                 problem = _capability_problem(name, symbol, decl)
