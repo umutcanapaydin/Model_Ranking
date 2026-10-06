@@ -36,7 +36,7 @@ NO_LONGER_MODELS = {
     "o3-mini-high",  # #130: o3-mini at high effort
     # #129: each dated id is its release's only snapshot, one model with the undated one
     "claude3-haiku20240307", "claude3-opus20240229", "claude3-sonnet20240229", "claude3.5-haiku20241022",
-    "o3-2025-04-16",
+    "o3-2025-04-16", "gpt5-2025-08-07",
 }
 
 CLAUDE = re.compile(r"Claude (?:(?P<old>\d(?:\.\d)?) (?:Opus|Sonnet|Haiku)|(?:Opus|Sonnet|Haiku) (?P<new>\d(?:\.\d)?))\b")

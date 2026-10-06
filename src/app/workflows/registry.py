@@ -124,7 +124,9 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("gpt-5.4",           "GPT-5.4",           "OpenAI",    r"gpt[-_ ]?5[.\-]4(?!\d)(?![-_ ]?(?:codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
     ModelRule("gpt-5.2",           "GPT-5.2",           "OpenAI",    r"gpt[-_ ]?5[.\-]2(?!\d)(?![-_ ]?(?:codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
     ModelRule("gpt-5.1",           "GPT-5.1",           "OpenAI",    r"gpt[-_ ]?5[.\-]1(?!\d)(?![-_ ]?(?:codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
-    ModelRule("gpt-5",             "GPT-5",             "OpenAI",    r"gpt[-_ ]?5(?![.\-]?\d|[-_ ]?mini|[-_ ]?nano|[-_ ]?chat|[-_ ]?codex|[-_ ]?pro)"),
+    # #129: GPT-5's only snapshot is `gpt-5-2025-08-07` (OpenAI's model page, read 2026-10-06), so
+    # its dated id is GPT-5 too.
+    ModelRule("gpt-5",             "GPT-5",             "OpenAI",    r"gpt[-_ ]?5(?![.\-]?\d|[-_ ]?mini|[-_ ]?nano|[-_ ]?chat|[-_ ]?codex|[-_ ]?pro)|gpt[-_ ]?5[-_ ]2025[-_ ]?08[-_ ]?07"),
     # #129: o3, o3-mini and o3-pro have one snapshot each (OpenAI's model pages, read 2026-10-06), so
     # each is one model, dated or not; o3-mini and o3-pro come first, so "O3 Mini" never reaches o3.
     ModelRule("o3-mini",           "o3-mini",           "OpenAI",    r"\bo3[-_ ]?mini"),

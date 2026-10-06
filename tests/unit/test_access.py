@@ -61,8 +61,8 @@ def test_names_link_to_the_models_their_scores_link_to_and_a_disagreement_gives_
     conn = connect(":memory:")
     try:
         # `claude-opus-4-1-20250805` resolves by a curated rule to `claude-4.1-opus`; the two gpt-5
-        # spellings derive `gpt5-2025-08-07`; an unregistered name links nowhere.
-        _models(conn, "claude-4.1-opus", "gpt5-2025-08-07")
+        # spellings resolve to `gpt-5`, its only snapshot (#129); an unregistered name links nowhere.
+        _models(conn, "claude-4.1-opus", "gpt-5")
         rows, _ = access.parse_metadata(_csv(
             ("claude-opus-4-1-20250805", "API access"),
             ("gpt-5-2025-08-07", "API access"),
@@ -71,7 +71,7 @@ def test_names_link_to_the_models_their_scores_link_to_and_a_disagreement_gives_
         access.store(conn, rows, source="epoch_access", source_url="u", observed_at="z")
         report = access.link(conn)
         assert access.served(conn) == {"claude-4.1-opus": "API access"}
-        assert report.conflicting == ("gpt5-2025-08-07",)
+        assert report.conflicting == ("gpt-5",)
         assert report.unlinked == 1
     finally:
         conn.close()
