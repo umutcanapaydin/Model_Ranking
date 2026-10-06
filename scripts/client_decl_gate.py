@@ -220,6 +220,10 @@ FIXTURES = ROOT / "scripts" / "client_decl_fixtures"
 FIXTURE_REFUSALS = {
     ("ContentView.swift", "URLSession"), ("ContentView.swift", "URL.decoded"),
     ("Detail.swift", "FileManager"), ("Detail.swift", "URL.decoded"),
+    # #85 (D-180): the M17 relay through shared state, both halves, and P3's standings.
+    ("EngineClient.swift", "mutable stored state"),
+    ("EngineClient.swift", "mutable state declared in ContentView.swift"),
+    ("ContentView.swift", "builds FetchedStandings"),
 }
 SOURCE = re.compile(r'^\(source_file "([^"]+)"', re.MULTILINE)
 

@@ -10,3 +10,15 @@ func fixtureViewDecodesAnAddress(_ typed: String) -> [URL] {
     let json = Data("[\"https://example.invalid/?q=\(typed)\"]".utf8)
     return (try? JSONDecoder().decode([URL].self, from: json)) ?? []
 }
+
+// #85 (D-180): the screen's half of a relay through shared state, and P3, the typed question made
+// into standings. The sink file's read of this global and the standings built here are REFUSED.
+nonisolated(unsafe) var fixtureScreenRelay = ""
+
+func fixtureViewRelays(_ typed: String) {
+    fixtureScreenRelay = typed
+}
+
+func fixtureViewKeepsTheQuestion(_ typed: String) -> FetchedStandings? {
+    try? FetchedStandings(payload: Data(typed.utf8))
+}

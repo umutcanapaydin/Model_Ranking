@@ -110,3 +110,69 @@ def test_main_refuses_a_release_dump_that_carries_a_ui_test_hook(monkeypatch: py
     assert gate.main() == 1, "a Release build that reads its launch environment passed"
     dumps("debug", "Foundation.ProcessInfo.arguments")
     assert gate.main() == 0, "the Debug-only hook was refused in a Debug build"
+
+
+#: #85 (D-180): what `swiftc -dump-ast` prints for the M17 relays and P3, trimmed from the compiled
+#: fixture (`scripts/client_decl_fixtures/`, Xcode 26). A sink file's static `var`, a global `var` the
+#: screen sets and the sink reads, and standings built from typed text; beside them, what the gate
+#: must allow: a `let`, a computed property, a function's local, a non-sink reading the global, and
+#: the standings initialiser's own parameter.
+SINK_AST = (
+    '(source_file "/x/EngineClient.swift"\n'
+    '  (struct_decl range=[/x/EngineClient.swift:1:1 - line:9:1] "Relay" interface_type="Relay.Type" access=internal\n'
+    '    (var_decl decl_context=0x1 range=[/x/EngineClient.swift:2:36 - line:2:36] "tag" interface_type="String" '
+    'access=internal static readImpl=stored writeImpl=stored readWriteImpl=stored nonisolated(unsafe)\n'
+    '    (var_decl decl_context=0x1 range=[/x/EngineClient.swift:3:16 - line:3:16] "limit" interface_type="Int" '
+    'access=internal let static readImpl=stored immutable\n'
+    '    (var_decl decl_context=0x1 range=[/x/EngineClient.swift:4:16 - line:4:16] "computed" interface_type="Int" '
+    'access=internal static readImpl=getter immutable\n'
+    '    (func_decl range=[/x/EngineClient.swift:5:5 - line:8:5] "build()" interface_type="(Relay) -> () -> String" access=internal\n'
+    '      (brace_stmt range=[/x/EngineClient.swift:5:20 - line:8:5]\n'
+    '        (var_decl decl_context=0x2 range=[/x/EngineClient.swift:6:13 - line:6:13] "parts" interface_type="[String]" '
+    'access=private readImpl=stored writeImpl=stored readWriteImpl=stored\n'
+    '        (member_ref_expr type="@lvalue String" location=/x/EngineClient.swift:7:20 '
+    'decl="main.(file).Relay.tag@/x/EngineClient.swift:2:36")\n'
+    '        (declref_expr type="@lvalue String" location=/x/EngineClient.swift:7:30 '
+    'decl="main.(file).screenRelay@/x/ContentView.swift:3:25" function_ref=unapplied)))))\n'
+    '(source_file "/x/ContentView.swift"\n'
+    '  (var_decl decl_context=0x3 range=[/x/ContentView.swift:3:25 - line:3:25] "screenRelay" interface_type="String" '
+    'access=internal readImpl=stored writeImpl=stored readWriteImpl=stored nonisolated(unsafe)\n'
+    '  (func_decl range=[/x/ContentView.swift:5:1 - line:7:1] "keep(_:)" interface_type="(String) -> FetchedStandings?" access=internal\n'
+    '    (brace_stmt range=[/x/ContentView.swift:5:40 - line:7:1]\n'
+    '      (declref_expr implicit type="(FetchedStandings.Type) -> (Data) throws -> FetchedStandings" '
+    'location=/x/ContentView.swift:6:10 decl="main.(file).FetchedStandings.init(payload:)@/x/Models.swift:9:5" '
+    'function_ref=single apply))))\n'
+    '(source_file "/x/Detail.swift"\n'
+    '  (declref_expr type="String" location=/x/Detail.swift:2:5 decl="main.(file).screenRelay@/x/ContentView.swift:3:25" '
+    'function_ref=unapplied)\n'
+    '(source_file "/x/Models.swift"\n'
+    '  (declref_expr type="Data" location=/x/Models.swift:9:15 '
+    'decl="main.(file).FetchedStandings.init(payload:).data@/x/Models.swift:9:15" function_ref=unapplied)\n'
+)
+
+
+def test_a_sink_holding_or_reading_shared_mutable_state_is_refused() -> None:
+    """#85 (D-180 clause 2): the M17 relay P2 kept a refinement in a `static var` on `EngineClient`, and
+    a variant kept it in a global `var` the screen sets; both passed every gate, which scoped by file.
+    A sink file's mutable stored state, and its reads of any other file's, are refused."""
+    refused = gate.problems(gate.references(SINK_AST))
+    assert any(line.startswith("EngineClient.swift:") and "`tag`" in line and "mutable stored state" in line
+               for line in refused), refused
+    assert any(line.startswith("EngineClient.swift:") and "`screenRelay`" in line
+               and "mutable state declared in ContentView.swift" in line for line in refused), refused
+
+
+def test_standings_built_outside_the_two_sinks_are_refused() -> None:
+    """#85 (D-180 clause 2): P3 made the typed question into `FetchedStandings` on the screen and saved
+    it into the device's caches. Only the engine's answer and the store's own file build standings."""
+    refused = gate.problems(gate.references(SINK_AST))
+    assert any(line.startswith("ContentView.swift:") and "builds FetchedStandings" in line for line in refused), refused
+
+
+def test_what_the_sinks_may_hold_and_others_may_read_passes() -> None:
+    """#85 (D-180): a `let`, a computed property and a function's local are not shared state; a file
+    that is not a sink may read a global; the standings initialiser's own parameter is not a call."""
+    refused = gate.problems(gate.references(SINK_AST))
+    allowed = ("`limit`", "`computed`", "`parts`")
+    assert not [line for line in refused if any(name in line for name in allowed)], refused
+    assert not [line for line in refused if line.startswith(("Detail.swift:", "Models.swift:"))], refused
