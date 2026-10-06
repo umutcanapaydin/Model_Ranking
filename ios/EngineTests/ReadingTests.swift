@@ -524,7 +524,8 @@ final class ReadingSecondRoundTests: OfflineTestCase {
                      "Who wrote One Hundred Years of Solitude?", "when did the berlin wall fall",
                      "HOW TALL IS MOUNT EVEREST IN METERS", "whats the capital of australia",
                      "kanadanin baskenti neresi", "istanbul hangi yil fethedildi", "Ahtapotun kaç kolu var?",
-                     "türkiyenin en uzun nehri hangisi", "Fransız İhtilali ne zaman oldu",
+                     // Not "türkiyenin en uzun nehri hangisi": "hangisi" left the signal (the W4 review's MJ2).
+                     "Fransız İhtilali ne zaman oldu",
                      "Osmanlı İmparatorluğu hangi yıl kuruldu?", "ışık hızı saniyede kaç km"] {
             XCTAssertTrue(InputSignals.asksAFact(text), text)
         }

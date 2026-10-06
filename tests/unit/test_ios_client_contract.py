@@ -1583,8 +1583,10 @@ def test_every_signal_word_only_a_live_held_out_set_holds_is_reviewed() -> None:
 #: with where it came from. The M18 sets the first entries came from are retired (#177, M19-W4):
 #: four of their words were added after the sets existed, with no origin shown, so the sets became
 #: tuning and W4 measures on fresh ones. Each entry below was in the app before its set was
-#: written, so it cannot have come from it.
+#: written, so it cannot have come from it; or, marked so, it came from the W4 review after the set
+#: was measured and spent, and as a modifier or an exclusion it can only lower that set's catches.
 _BEFORE = "in the app before {set} was written ({sha}), so not read from it"
+_AFTER_MEASURE = "from the W4 review's {finding}, after {set} was measured and spent; it can only lower its catches"
 HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
     "first": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
     "from now on you": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
@@ -1603,6 +1605,11 @@ HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
     "r\u00f6tu\u015fla": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
     "slider": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
     "sticker": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "galeri": _AFTER_MEASURE.format(finding="MJ1", set="image_heldout_m19"),
+    "y\u00fckleme": _AFTER_MEASURE.format(finding="MJ1", set="image_heldout_m19"),
+    "chatbot": _AFTER_MEASURE.format(finding="MJ2", set="notasearch_heldout_m19"),
+    "deepseek": _AFTER_MEASURE.format(finding="MJ2", set="notasearch_heldout_m19"),
+    "gemini": _AFTER_MEASURE.format(finding="MJ2", set="notasearch_heldout_m19"),
 }
 #: A list of two or more string literals: every word, phrase, verb and noun list in `Reading.swift`,
 #: the inline ones in its functions too, derived from the source rather than named here.
