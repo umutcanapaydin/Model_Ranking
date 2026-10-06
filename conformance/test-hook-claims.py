@@ -283,9 +283,17 @@ def main() -> int:
                   "git reset --hard HEAD~1", "rm -rf .", "rm -rf ~/work", "rm -fr /home/u",
                   "git clean -fd",
                   # #142 (the M18 closure's S6): a short-option cluster holding `f`, and a mirror push.
-                  "git push -uf origin x", "git push -fu origin x", "git push --mirror origin"]
+                  "git push -uf origin x", "git push -fu origin x", "git push --mirror origin",
+                  # The M19-W5 review's M1 and K1, the M19 security review's S5 and S6: a cluster with a
+                  # digit, an abbreviated --mirror, a quoted -f or +refspec, a continued line, main
+                  # named by its full ref, and the hosted engine deployed or destroyed by an agent.
+                  "git push -4f origin x", "git push -f4 origin x", "git push --mi origin", "git push --mirr origin",
+                  "git push origin '+x'", "git push '-f' origin x", "git push \\\n--force origin x",
+                  "git push origin HEAD:refs/heads/main", "fly deploy --remote-only",
+                  "flyctl apps destroy model-ranking", "scripts/deploy_hosted_engine.sh"]
     MUST_ALLOW = ["git push -u origin fix/issue-3", "git push origin enhancement/x", "git push",
-                  "git push --follow-tags origin x",
+                  "git push --follow-tags origin x", "git push -4 origin x", "fly status", "fly logs",
+                  "scripts/deploy_hosted_engine.sh --dry-run",
                   "git status", "rm file.txt", "rm -r build",
                   "git reset HEAD~1", "npm run format"]
     bash_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
