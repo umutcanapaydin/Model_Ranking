@@ -4014,3 +4014,36 @@ past it; review and the Swift tests hold those. Formatter rounding is not arithm
 
 **Revisit when:** a file needs arithmetic on a served number a ruling does not yet name, or the flow
 needs more than the shapes listed in (1).
+
+## D-182 — Each pick carries its model's id on `/v1`, and the app keys its cards on it
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
+("proceed with what you recommend, don't ask", owner, translated from Turkish); M19-W2, written
+before the wave serves the field · **Date:** 2026-10-06 · **Amends** the `/v1/recommendations` pick
+contract (`PUBLIC_PICK_FIELDS`), additively · from #138.
+
+**Context.** The engine and the app decide "the same model" by two rules. Since #102 (M18-W7) the
+engine decides that a cheaper pick is the leader by its ranking row, because a display name is not
+unique (`models.display`). The app merges picks into one card when their display name, vendor, score
+and price are all equal (#63 finding 1, `AnswerPlan.swift`), because a pick carries no id. #129 was
+the case where the rule could fail: one release under two ids, with the same name and vendor.
+
+**Decision.**
+1. Each pick on `/v1/recommendations` gains `model_id`: the canonical id of the model it ranks, the
+   registry's own (curated or derived). The field is additive; every existing field keeps its name,
+   type and meaning.
+2. The app makes one card of the picks that share a `model_id`. A pick with none, from an engine
+   older than this decision, falls back to the four-value rule.
+3. The id is identity, not a name: it is never shown.
+
+**Why it is safe to publish.** An id is derived from the public names the sources publish, by the
+registry's closed grammar, and is already a key of `/v1/boards`' `models` (D-167). It says nothing
+about the reader: no request carries the question (D-160 clause 1).
+
+**The rejected alternative.** Keep the four-value rule. Two models that share a display name, a
+vendor, a score and a price would still show as one card, and one model under two ids as two.
+
+**Mitigation if violated.** The app shows one card for two models, or two for one, and the engine and
+the app disagree about which pick is the leader.
+
+**Revisit when:** the app needs the id for more than grouping, or `/v1` gains a second id field.
