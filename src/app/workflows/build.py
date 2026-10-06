@@ -787,6 +787,10 @@ def build(
         raise BuildError(msg)
     report.reconciled = reconciled
     report.derived = list(reconciled.derived)
+    # #106 (the W4 review's R4): a version after `-latest` derives one release (D-173 clause 8). If a
+    # source ever moves such a name, the id it derived is a moving alias: said here, never refused.
+    report.drift += [f"derived {model_id}: a `latest-v` name, one release only while its source keeps it "
+                     "fixed (#106)" for model_id in report.derived if "latest-v" in model_id]
     linked = access.link(conn)
     report.access = {"linked": linked.linked, "unlinked": linked.unlinked,
                      "conflicting": list(linked.conflicting)}
