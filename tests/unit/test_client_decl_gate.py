@@ -308,6 +308,21 @@ def test_a_url_inside_another_type_is_made_all_the_same() -> None:
     assert any(line.startswith("Detail.swift:") and "makes a URL" in line for line in refused), refused
 
 
+def _constructed(type_: str) -> str:
+    return ('(source_file "/x/ContentView.swift"\n'
+            f'  (constructor_ref_call_expr type="{type_}" location=/x/ContentView.swift:3:5 '
+            'range=[/x/ContentView.swift:3:5 - line:3:5] nothrow isolation_crossing="none"\n')
+
+
+def test_a_call_that_takes_a_url_is_not_one_that_makes_one() -> None:
+    """Found replaying the review's K1 on the B2 fix: `XMLParser(contentsOf:)` was refused as making
+    a URL, because the rule read the constructor's whole type, `(URL) -> XMLParser?`. What a call
+    makes is what it returns, after its last arrow. REQ-GAP-001."""
+    assert gate.url_facts(_constructed("(URL) -> XMLParser?")) == {}
+    assert gate.url_facts(_constructed("(__shared String) -> URL?")) == {"ContentView.swift": {"Foundation.URL.made"}}
+    assert gate.url_facts(_constructed("(Data) -> [String : URL]?")) == {"ContentView.swift": {"Foundation.URL.made"}}
+
+
 FIXTURES = ROOT / "scripts" / "client_decl_fixtures"
 
 
