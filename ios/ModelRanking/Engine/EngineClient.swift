@@ -197,7 +197,15 @@ struct EngineClient {
         }
     }
 
-    init(baseURL: URL = EngineClient.localDefault, session: URLSession? = nil) {
+    /// The app's client: this build's engine address, and a session that keeps nothing (#144).
+    init() {
+        self.init(baseURL: EngineClient.localDefault)
+    }
+
+    /// A client on a given address. Only this file builds one (D-180, the W2 review's B2): another
+    /// file building a client on an address of its own could point every request wherever it liked.
+    /// The tests build one on their stub.
+    init(baseURL: URL, session: URLSession? = nil) {
         self.baseURL = baseURL
         if let session {
             self.session = session
@@ -206,6 +214,12 @@ struct EngineClient {
             configuration.timeoutIntervalForRequest = TimeInterval(EngineClient.requestTimeout)
             configuration.timeoutIntervalForResource = TimeInterval(EngineClient.requestTimeout)
             configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+            // #144: no cookie is kept or sent. A cookie set by the engine's host, or by anyone on the
+            // home network's cleartext path, would otherwise ride on every later request, the
+            // parameterless `/v1/boards` included.
+            configuration.httpShouldSetCookies = false
+            configuration.httpCookieAcceptPolicy = .never
+            configuration.httpCookieStorage = nil
             self.session = URLSession(configuration: configuration)
         }
     }

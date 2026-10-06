@@ -78,12 +78,22 @@ def _interpolation_end(swift: str, i: int) -> int:
 
 
 def _code(swift: str) -> str:
+    """The source with its comments removed and only what some build compiles (`_built`)."""
+    return _built(_stripped(swift))
+
+
+#: A line inside a string literal that would read as a compilation directive (the second W2 review's
+#: M2). It is text, so the directive is broken with an invisible joiner before `_built` reads it.
+_DIRECTIVE_IN_TEXT = re.compile(r"(?m)(?<=\n)([ \t]*)#(?=(?:if|elseif|else|endif)\b)")
+
+
+def _stripped(swift: str) -> str:
     """The source with its comments removed, so a pin holds the code and not a comment quoting it.
 
     A scanner, not a pattern (#98, W5 reviews M2 and M8): Swift block comments NEST, a `/*` inside a
     `//` comment opens nothing, and comment markers inside a string literal -- a raw one, or one inside
     an interpolation -- are text. Newlines inside a block comment are kept, so the code after it keeps
-    its line. Code under `#if false` is not removed (#110).
+    its line. A branch the compiler never builds (`#if false`) is dropped too (#110, `_built`).
     """
     out: list[str] = []
     i, depth, n = 0, 0, len(swift)
@@ -104,7 +114,7 @@ def _code(swift: str) -> str:
             i = n if end < 0 else end
         elif swift[i] == '"' or (swift[i] == "#" and re.match(r'#+"', swift[i:i + 8])):
             close = _string_end(swift, i)
-            out.append(swift[i:close])
+            out.append(_DIRECTIVE_IN_TEXT.sub("\\1\u2060#", swift[i:close]))
             i = close
         else:
             out.append(swift[i])
@@ -113,6 +123,96 @@ def _code(swift: str) -> str:
         msg = "a block comment never closes: `_code` misread a literal, and would erase live code"
         raise ValueError(msg)
     return "".join(out)
+
+
+#: #110: a compilation condition's tokens: `!`, `&&`, `||`, parentheses, and a name or a call.
+_CONDITION_TOKEN = re.compile(r"\s*(\|\||&&|!|\(|\)|[A-Za-z_]\w*|[^\s()!&|]+)")
+
+
+def _decide(condition: str) -> bool | None:
+    """A compilation condition in three values (the W2 review's M3): `True` where every build compiles
+    the branch, `False` where none does, `None` where this cannot say. Only the literals `true` and
+    `false` are known; `DEBUG`, `os(iOS)` and anything unparsed are not, and an unknown keeps code."""
+    tokens = _CONDITION_TOKEN.findall(condition)
+    at = 0
+
+    def peek() -> str | None:
+        return tokens[at] if at < len(tokens) else None
+
+    def take() -> str:
+        nonlocal at
+        at += 1
+        return tokens[at - 1]
+
+    def either() -> bool | None:
+        values = [both()]
+        while peek() == "||":
+            take()
+            values.append(both())
+        return True if True in values else (False if all(v is False for v in values) else None)
+
+    def both() -> bool | None:
+        values = [unary()]
+        while peek() == "&&":
+            take()
+            values.append(unary())
+        return False if False in values else (True if all(v is True for v in values) else None)
+
+    def unary() -> bool | None:
+        if peek() == "!":
+            take()
+            value = unary()
+            return None if value is None else not value
+        token = take()
+        if token == "(":
+            value = either()
+            if take() != ")":
+                raise ValueError(condition)
+            return value
+        if peek() == "(":  # a call: `os(iOS)`, `canImport(UIKit)`, `swift(>=5.9)`
+            depth = 0
+            while (inner := take()) != ")" or depth > 1:
+                depth += {"(": 1, ")": -1}.get(inner, 0)
+            return None
+        return {"true": True, "false": False}.get(token)
+
+    try:
+        value = either()
+    except (IndexError, ValueError):
+        return None
+    return value if at == len(tokens) else None
+
+
+def _built(swift: str) -> str:
+    """`swift` without the branches the compiler never builds (#110): an `#if` or `#elseif` whose
+    condition is false in every build (`false`, `!(true)`, `false && DEBUG`), and an `#else` after a
+    branch every build takes. A condition this cannot decide keeps its code (`_decide`), so a pin sees
+    at least what any build compiles. Dropped lines stay as empty lines, so the code after them keeps
+    its line numbers."""
+    return "\n".join(line if built else "" for line, built in zip(swift.split("\n"), _built_mask(swift), strict=True))
+
+
+def _built_mask(swift: str) -> list[bool]:
+    """For each line of `swift`, whether some build compiles it (`_built`). Run on `_stripped` text,
+    so a directive inside a comment or a string is not one (the second W2 review's M2, M3)."""
+    stack: list[list[bool]] = []  # [this branch is built, a branch above it was certainly taken]
+    lines: list[bool] = []
+    for line in swift.split("\n"):
+        directive = re.match(r"\s*#(if|elseif|else|endif)\b\s*(.*?)\s*$", line)
+        if directive:
+            kind, decided = directive.group(1), _decide(directive.group(2))
+            if kind == "if":
+                stack.append([decided is not False, decided is True])
+            elif kind == "elseif" and stack:
+                stack[-1] = [not stack[-1][1] and decided is not False, stack[-1][1] or decided is True]
+            elif kind == "else" and stack:
+                stack[-1] = [not stack[-1][1], True]
+            elif kind == "endif" and stack:
+                stack.pop()
+            lines.append(True)
+        else:
+            lines.append(all(built for built, _ in stack))
+    return lines
 
 
 def _hint_ids() -> set[str]:
@@ -497,6 +597,10 @@ EGRESS = (
     r"\b(?:fatalError|preconditionFailure|precondition|assertionFailure|assert)\s*\([^\n]*\\\(",
     # indirection a text gate cannot follow, refused outright
     r"\btypealias\b", r"\bNSClassFromString\b", r"\bNSSelectorFromString\b", r"\bdlopen\b",
+    # #107: a link detector finds URLs in text; `type(of: x).init` and an unapplied `.init` build a
+    # value without the gate seeing its initialiser applied (the M18 closure Tester's K1). The client
+    # maps with `String.init` and `PickCard.init`, which build no store and reach no network.
+    r"\bNSDataDetector\b", r"\btype\s*\(\s*of\s*:", r"(?<!\bString)(?<!\bPickCard)\.\s*init\b(?!\s*\()",
     r"\bdlsym\b", r"@_silgen_name", r"\bperform\s*\(\s*(?:#selector|Selector)",
 )
 
@@ -773,3 +877,170 @@ def test_the_view_only_loads_and_saves_the_on_device_store() -> None:
                 other.append(f"{path.relative_to(root)}:{line}: {code[match.start():match.start() + 70]!r}")
     assert uses, "the view names the gap register nowhere; was it read?"
     assert not other, f"the view does more with the gap register than load and save it: {other}"
+
+
+# --- #85 (D-180 clause 4): the privacy sinks, held by text in the lanes without Xcode --------------
+
+#: The two sinks (D-180 clause 1); `make client-decls` holds the same on the compiled module.
+SINKS = ("Engine/EngineClient.swift", "Engine/StandingsStore.swift")
+#: A stored `static var`, with a value or without (the W2 review's M2); a computed one opens a brace.
+STORED_STATIC = re.compile(r"\bstatic\s+var\s+(?:\w+|\([^)]*\))\s*(?::[^={\n]+)?(?:=|$)", re.MULTILINE)
+#: A stored `var` at file scope, a tuple's too, read on `_top_level` text so that its indentation
+#: (under `#if DEBUG`) does not hide it (the second W2 review's M2).
+FILE_VAR = re.compile(r"^\s*(?:(?:private|fileprivate|internal|public|nonisolated\(unsafe\))\s+)*var\s+"
+                      r"(?:\w+|\([^)]*\))\s*(?::[^={\n]+)?(?:=|$)", re.MULTILINE)
+
+
+def _top_level(code: str) -> str:
+    """`code` with everything inside braces blanked, lines kept: what is declared at file scope."""
+    out: list[str] = []
+    depth, i = 0, 0
+    while i < len(code):
+        if code[i] == '"' or (code[i] == "#" and re.match(r'#+"', code[i:i + 8])):
+            close = _string_end(code, i)
+            out.append(code[i:close] if depth == 0 else re.sub(r"[^\n]", " ", code[i:close]))
+            i = close
+            continue
+        depth += {"{": 1, "}": -1}.get(code[i], 0)
+        out.append(code[i] if depth == 0 or code[i] == "\n" else " ")
+        i += 1
+    return "".join(out)
+BUILDS = re.compile(r"(?<![\w.])(Fetched)?Standings\s*(?:\.\s*init\s*)?\(")
+
+
+def _sink_pin_problems(sources: dict[str, str]) -> list[str]:
+    """What breaks D-180's text half in `{path under ios/ModelRanking: Swift source}`: a sink holding
+    shared state, a boards request that is not the parameterless one, standings built anywhere but
+    the engine's answer and the store's file."""
+    problems = []
+    for path in SINKS:
+        code = _code(sources[path])
+        if ("nonisolated(unsafe)" in re.sub(r"\s", "", code) or STORED_STATIC.search(code)
+                or FILE_VAR.search(_top_level(code))):
+            problems.append(f"{path}: holds mutable shared state (a stored `static var`, a file-scope `var` "
+                            "or `nonisolated(unsafe)`)")
+    client = _code(sources["Engine/EngineClient.swift"])
+    boards = client[client.index("func boards()"):]
+    boards = boards[:boards.index("\n    }\n")]
+    if boards.count("fetch(") != 1 or 'fetch("v1/boards", query: [])' not in boards or "URLQueryItem" in boards:
+        problems.append("Engine/EngineClient.swift: `boards()` is not exactly `fetch(\"v1/boards\", query: [])`")
+    for path, source in sorted(sources.items()):
+        for match in BUILDS.finditer(_code(source)):
+            if match.group(1) is None or path not in SINKS:
+                problems.append(f"{path}: builds `{match.group(0).strip()}`; only the engine's answer and the "
+                                "store's own file become standings")
+    return problems
+
+
+def _client_sources() -> dict[str, str]:
+    return {str(p.relative_to(CLIENT)): p.read_text(encoding="utf-8") for p in CLIENT.rglob("*.swift")}
+
+
+def test_the_privacy_sinks_hold_by_text_too() -> None:
+    """#85 (D-180 clause 4, INV-66): no shared state in a sink, the boards request asks for nothing,
+    and standings come only from the engine's answer or the store's own file. REQ-GAP-001."""
+    assert _sink_pin_problems(_client_sources()) == []
+
+
+@pytest.mark.parametrize("mutant", ["P2", "P2b", "P3"])
+def test_the_sink_pins_refuse_the_m17_closures_mutants(mutant: str) -> None:
+    """The M17 closure seat's mutants (`docs/reviews/m17-closure-security-review.md`, MINOR-3), planted
+    in copies of the shipping sources: each is refused here, where there is no compiler. REQ-GAP-001."""
+    sources = _client_sources()
+    client, view = "Engine/EngineClient.swift", "ContentView.swift"
+    relay = 'Self.tag.isEmpty ? [] : [URLQueryItem(name: "t", value: Self.tag)]'
+    if mutant == "P2":
+        sources[client] = sources[client].replace(
+            "    private let session: URLSession\n",
+            "    private let session: URLSession\n    nonisolated(unsafe) static var tag = \"\"\n", 1)
+        sources[client] = sources[client].replace('fetch("v1/boards", query: [])', f'fetch("v1/boards", query: {relay})', 1)
+    elif mutant == "P2b":
+        sources[client] = sources[client].replace(
+            'fetch("v1/boards", query: [])',
+            'fetch("v1/boards", query: relayTag.isEmpty ? [] : [URLQueryItem(name: "t", value: relayTag)])', 1)
+    else:
+        sources[view] += ("\nfunc keep(_ typed: String) -> FetchedStandings? {\n    try? FetchedStandings(payload: "
+                          "JSONEncoder().encode(Standings(apiVersion: typed, attributions: [], boards: [], models: [])))\n}\n")
+    assert _sink_pin_problems(sources), f"{mutant} passed the text pins"
+
+
+def test_the_text_gate_refuses_a_link_detector_and_an_initialiser_it_cannot_see_applied() -> None:
+    """#107, for the lanes without Xcode: `NSDataDetector` finds URLs in text, and `type(of: x).init`
+    or an unapplied `.init` builds a value without the gate seeing its initialiser applied (the M18
+    closure Tester's K1, which built an unprotected gap register that way). The client maps with
+    `String.init` and `PickCard.init`, which build no store and reach no network. REQ-GAP-001."""
+    for line in ("let detector = try NSDataDetector(types: 1)",
+                 "let make = type(of: GapRegisterStore.onDevice).init",
+                 "let make = GapRegisterStore.init"):
+        assert any(re.search(p, line) for p in EGRESS), line
+    for line in ("let days = aged.map(String.init)", "return groups.map(PickCard.init)"):
+        assert not any(re.search(p, line) for p in EGRESS), line
+
+
+def test_the_pins_read_no_code_the_compiler_never_builds() -> None:
+    """#110 (the M18-W5 review's K3): a line moved under `#if false` leaves the build, but `_code`
+    kept it, so a pin could be satisfied by code the app no longer compiles. A branch whose condition
+    is the literal `false` or `!true` is dropped, and so is an `#else` after a `true`; a condition
+    `_code` cannot decide (`DEBUG`, a platform) keeps its code. Lines keep their numbers. REQ-GAP-001."""
+    swift = "let a = 1\n#if false\nlet hidden = 2\n#endif\nlet b = 3\n"
+    stripped = _code(swift)
+    assert "hidden" not in stripped and "let a = 1" in stripped and "let b = 3" in stripped
+    assert stripped.count("\n") == swift.count("\n"), "a dropped line must keep its line"
+    nested = "#if false\n#if DEBUG\nlet x = 1\n#endif\nlet y = 2\n#endif\nlet z = 3\n"
+    assert "let x" not in _code(nested) and "let y" not in _code(nested) and "let z = 3" in _code(nested)
+    branches = "#if false\nlet dead = 1\n#else\nlet live = 2\n#endif\n"
+    assert "dead" not in _code(branches) and "let live = 2" in _code(branches)
+    negated = "#if !true\nlet dead = 1\n#elseif DEBUG\nlet maybe = 2\n#endif\n"
+    assert "dead" not in _code(negated) and "let maybe = 2" in _code(negated)
+    taken = "#if true\nlet kept = 1\n#else\nlet never = 2\n#endif\n"
+    assert "let kept = 1" in _code(taken) and "never" not in _code(taken)
+
+
+@pytest.mark.parametrize("mutant", ["static var, no value", "file-scope var", "static var, a tuple",
+                                    "file-scope var, a tuple", "file-scope var, indented"])
+def test_the_sink_pins_refuse_shared_state_however_it_is_declared(mutant: str) -> None:
+    """The W2 review's M2 (D-180 clause 4, INV-66): `static var probeTag: String?`, which has no `=`,
+    and a stored `var` at file scope in a sink each passed the text half, measured on copies of the
+    shipping sources. The compiled gate refused both; the lanes without Xcode did not. REQ-GAP-001."""
+    sources = _client_sources()
+    client = "Engine/EngineClient.swift"
+    if mutant == "static var, no value":
+        sources[client] = sources[client].replace("struct EngineClient {\n", "struct EngineClient {\n    static var probeTag: String?\n", 1)
+    elif mutant == "static var, a tuple":  # the second W2 review's M2
+        sources[client] = sources[client].replace(
+            "struct EngineClient {\n", 'struct EngineClient {\n    static var (probeTag, probeOther) = ("", "")\n', 1)
+    elif mutant == "file-scope var, a tuple":
+        sources[client] += '\nvar (probeRelay, probeOther) = ("", "")\n'
+    elif mutant == "file-scope var, indented":
+        sources[client] += '\n#if DEBUG\n    var probeRelay = ""\n#endif\n'
+    else:
+        sources[client] += '\nvar probeRelay = ""\n'
+    assert sources[client] != _client_sources()[client], "the mutant was not planted"
+    assert any("holds mutable shared state" in line for line in _sink_pin_problems(sources))
+
+
+@pytest.mark.parametrize("condition", ["!(true)", "false && DEBUG", "DEBUG && false", "!(true || DEBUG)", "((false))"])
+def test_a_branch_no_build_compiles_is_dropped_however_its_condition_is_spelled(condition: str) -> None:
+    """The W2 review's M3 (#110, INV-78): `#if !(true)` and `#if false && DEBUG` were kept, and both
+    are decidably dead. A condition is read in three values: true, false, or not known here. REQ-GAP-001."""
+    assert "dead()" not in _built(f"#if {condition}\ndead()\n#endif\nlive()\n")
+    assert "live()" in _built(f"#if {condition}\ndead()\n#endif\nlive()\n")
+
+
+@pytest.mark.parametrize("condition", ["DEBUG", "!DEBUG", "false || DEBUG", "os(iOS) && true", "canImport(UIKit)"])
+def test_a_branch_some_build_may_compile_is_kept(condition: str) -> None:
+    """The other half of M3: a condition this cannot decide keeps its code, so a pin sees at least what
+    any build compiles. REQ-GAP-001."""
+    assert "maybe()" in _built(f"#if {condition}\nmaybe()\n#endif\n")
+
+
+def test_the_else_of_a_branch_every_build_takes_is_dropped() -> None:
+    """M3: `#if true || DEBUG` is always built, so its `#else` never is. REQ-GAP-001."""
+    assert "dead()" not in _built("#if true || DEBUG\nlive()\n#else\ndead()\n#endif\n")
+
+
+def test_a_directive_inside_a_string_is_text() -> None:
+    """The second W2 review's M2 (#110, INV-78): a multi-line string holding the line `#if false`, and
+    another holding `#endif`, hid the live code between them from the pins. A string is text."""
+    swift = 'let a = """\n#if false\n"""\nstatic var probeTag = ""\nlet b = """\n#endif\n"""\n'
+    assert "static var probeTag" in _code(swift)

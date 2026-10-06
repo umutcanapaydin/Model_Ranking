@@ -658,6 +658,42 @@ def test_a_pick_is_the_same_as_the_quality_pick_only_when_it_is_the_same_model()
     assert shared.trade_off and shared.trade_off_fact, "a different model was taken for the leader"
 
 
+def test_two_models_that_share_a_name_keep_their_own_ids() -> None:
+    """The W2 review's M6 (#138, D-182, REQ-API-001): the id test in `test_api_v1.py` maps ids by display
+    name, so a lookup keyed by name passed the whole suite. Renamed to the leader's name, the value
+    pick is still another model, and it carries that model's id, not the leader's."""
+    conn = _db()
+    before = recommend(conn, "unlimited")
+    assert before is not None
+    quality, value, _budget = before.picks
+    assert value.model_id != quality.model_id, "the fixture's value pick is the leader"
+    conn.execute("UPDATE models SET display = ? WHERE display = ?", (quality.model, value.model))
+    after = recommend(conn, "unlimited")
+    assert after is not None
+    leader, shared, _ = after.picks
+    assert shared.model == leader.model, "the rename did not reach the pick"
+    assert (leader.model_id, shared.model_id) == (quality.model_id, value.model_id)
+
+
+def test_each_pick_carries_its_own_models_id_the_budget_pick_included() -> None:
+    """M19-W2 Tester (#138, D-182 clause 1): with the budget pick handed the leader's id, every test
+    passed. The test above reads the quality and value picks only, and the `/v1` id test passed with it
+    too. Here the fixture's three picks are three models, and each carries the id the surface's own
+    ranking gives its row. # covers REQ-API-001, D-182"""
+    from app.workflows.rank import ranked_with_ids
+
+    conn = _db()
+    rec = recommend(conn, "unlimited")
+    assert rec is not None
+    ranked = ranked_with_ids(conn, CATEGORIES["coding"])
+    by_name = {row.model: model_id for model_id, row in ranked}
+    assert len(by_name) == len(ranked), "two ranked rows share a name; the lookup below cannot tell them apart"
+    assert [pick.label for pick in rec.picks] == ["best_quality", "best_value", "budget_pick"]
+    assert len({pick.model for pick in rec.picks}) == 3, "the fixture's three picks are no longer three models"
+    for pick in rec.picks:
+        assert pick.model_id == by_name[pick.model], (pick.label, pick.model, pick.model_id)
+
+
 def test_epochs_citation_carries_its_current_title() -> None:
     """#124 (M18-W7): Epoch renamed its prescribed citation from 'AI Benchmarking Hub' to
     'Capabilities & benchmarking' (its bundle README and its web page, read 2026-10-04,

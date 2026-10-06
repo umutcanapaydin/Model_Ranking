@@ -194,3 +194,31 @@ as #129 (one release, one model), in the other direction.
 alias `mistral-medium-3` to Medium 3.5, so it joins D-166's moving aliases. Two findings that need
 a ruling are filed rather than taken: #163 (whether a family rule may gather a release's later
 snapshots) and #164 (an id its maker retired and reroutes to a newer model).
+
+**Amendment (2026-10-06, W2).** #132 (the held reading into the Engine) leaves W2 by the wave plan's
+own valve: it rewires the screen, which a dozen text pins hold as it is and only the UI target can
+prove, and W2 already changes the answer screen's cards (#138). It goes to the next wave that works
+on the screen. The compiler-level arithmetic check (D-181) found the price in pages, a conversion of
+a served price REQ-CMP-002 requires, in two files no table named; D-181 names them.
+
+**Amendment (2026-10-06, the W2 review).** The Code-Reviewer's two blocking findings were fixed in the
+wave, each with a red test made from the review's mutants: B1 (arithmetic on a served number through
+ordinary names) by following a served number through every name the compiler shows (D-181 as
+amended), and B2 (a client built on a URL made from typed text) by keeping the client's address in
+`EngineClient.swift` (D-180 as amended). The W2 criterion "however the value is named" holds except
+through `Any` or text: the served facts reach the phone that way, so G-2 stays open for that
+remainder only (#171). #144's test reads the shipped session's configuration, not a `Set-Cookie`
+answer, because a `URLProtocol` stub bypasses the session's cookie handling (measured; the review's
+M9). Filed from the review: #168 (K1), #169 (K2), #170 (R1).
+
+**Amendment (2026-10-06, the second W2 review).** A second Code-Reviewer found more routes past the
+rules of the day, the same kinds of hole as the first. The privacy routes are closed by rules that do
+not grow by spelling (D-180 as amended): a kept type is built, extended and conformed only in its own
+file, the store is built and saved to only in its own, no file touches memory unsafely, and the code a
+sink runs elsewhere reads no shared mutable state. The arithmetic shapes are not chased a third time:
+D-181 now names the operators, methods and names it holds. The W2 criterion is not met as worded,
+because no check over the compiler's declarations proves "by any route the compiler accepts" or
+"however the value is named". Its privacy half is met for every route the M17 closure and both W2
+reviews planted, each refused; its arithmetic half for every shape the first W2 review planted and the
+operators, methods and names D-181 lists, and not for the second review's B3 shapes. Gaps G-1 and G-2
+stay open in part for the rest (#172; #171, #173).

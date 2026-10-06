@@ -3914,3 +3914,207 @@ rows a board already had, which the refresh must publish, then read as every row
 
 **Revisit when:** `/v1/boards` serves a row's raw name or harness, or a board's floor stops counting
 every row.
+
+## D-180 — The phone's privacy sinks hold by what the compiler resolves, not by how the source spells it
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
+("proceed with what you recommend, don't ask", owner, translated from Turkish); M19-W2 · **Date:**
+2026-10-06 · **Amends** D-126's enforcement (`scripts/client_decl_gate.py`, "What this gate does NOT
+do") · from #85, gap G-1.
+
+**Context.** D-160 clause 1 and D-168 clause 9 promise that nothing derived from the question reaches
+the daily `/v1/boards` request or the standings file. The M17 closure's security seat broke both
+with every gate passing (`docs/reviews/m17-closure-security-review.md`, MINOR-3):
+- **P2:** a `nonisolated(unsafe) static var` on `EngineClient`, set by the screen from the question's
+  refinements and read by `boards()` into a query item;
+- **P3:** the screen built `Standings(apiVersion: typed, ...)`, wrapped it as `FetchedStandings` and
+  saved it through `StandingsStore`, into the device's caches.
+
+The declaration gate scopes by file, and the text gate by spelling, so a relay through shared state,
+or a constructor called from the wrong file, passes both.
+
+**Decision.**
+1. The two privacy sinks are named: `EngineClient.swift`, which sends every request, and
+   `StandingsStore.swift`, which writes the standings file.
+2. The declaration gate reads the compiled module, in all four build configurations, and refuses:
+   - mutable stored state declared in a sink file outside a function body: a `static`, global or
+     member `var`;
+   - a sink file reading mutable stored state declared in any other file, whatever reaches it (a
+     global, a static, or a class instance's `var` through a `let`);
+   - `FetchedStandings(payload:)` built anywhere but the two sink files: only the engine's answer and
+     the store's own file become standings;
+   - `EngineClient(baseURL:session:)` or `EngineClient.engineURL(from:)` used anywhere but
+     `EngineClient.swift`: the app builds `EngineClient()`, so no other file chooses where a request
+     goes (the W2 review's B2);
+   - anything a sink holds at a type's or the file's scope, a `let` included, of a type outside a short
+     list of values and the `URLSession` its own initialiser builds: a `let` holding an
+     `NSMutableString` is as shared as a `var` (the W2 review's M1);
+   - a sink calling a function, an initialiser or a computed property another file declares, unless it
+     is listed with its reason (today `UIText.engineAddress` and `FetchedStandings.init`): a body
+     another file owns can read the screen's state (M1). A listed call the sink no longer makes fails
+     the gate, so the list cannot go stale;
+   - `StandingsStore(url:)` or `StandingsStore.save(_:at:)` used anywhere but `StandingsStore.swift`:
+     the app reaches the store through `onDevice.currentKept` only (the second W2 review's U10, P3w);
+   - a kept type (`FetchedStandings`, `EngineClient`, `StandingsStore`) extended outside the file that
+     declares it, or conforming to a protocol the app declares: a protocol requirement its
+     initialiser satisfies is another name for that initialiser (P3w, U8, U11);
+   - memory touched unsafely anywhere in the client (`Unsafe*`, `withUnsafe*`, `unsafeBitCast`),
+     which can rewrite a sink's own values (U9); the client uses none;
+   - shared mutable state (a global, `static` or class `var`, or a closure kept in a global or a
+     `static`) read by the code a sink runs outside its file: the functions, initialisers and computed
+     properties it calls, followed through the client, every member a protocol requirement may
+     dispatch to, and every custom coding witness, which a decoder runs by no name (S5, S5b).
+3. So a sink sends or keeps only what its parameters, its own configuration and the engine's answer
+   give it, by every route clause 2 names, and `boards()` takes no parameter (INV-66).
+4. Lanes without Xcode hold the same by text, as the M17 seat proposed: no stored `static var`, with a
+   value or without, a tuple's included, no stored `var` at file scope however indented, and no
+   `nonisolated(unsafe)` in the two files; `boards()` calls exactly `fetch("v1/boards", query: [])`;
+   `Standings(` is built nowhere in the client; `FetchedStandings(` appears only in the two files. A
+   compilation directive inside a comment or a string is text, not a branch.
+
+**Measured.** A throwaway spike (`spike-m19-g1`, 2026-10-06, never pushed) ran the three rules over
+the compiled client in two configurations: the shipping client gave no finding; P2 was refused by
+the first rule, a variant relaying through a global `var` in `ContentView.swift` by the second, and
+P3 by the third. The current gate passed all three mutants in all four configurations. The W2
+review's relays were each refused on the shipping client in all four configurations after the fix:
+U5 and U3b (a client built on a URL made from typed text, in `Detail.swift` and in `FrontDoor.swift`),
+S3 (an `NSMutableString` held as a `static let` on the client, set by the screen) and S2b (a function
+in `Detail.swift` that the request calls). So were the second review's P3w (P3 through a protocol
+requirement), U8 and U11 (a client built through one, on an address made from the question or out of
+`Any`), U9 (the client's address rewritten through unsafe memory), U10 (a store on a path made from
+the question), and S5 and S5b (the screen's global read by the standings' initialiser and by a
+decoding witness), each planted alone.
+
+**The rejected alternative.** A type that cannot carry the question: a constructor only the network
+answer or the store's file can call. Swift's access control is per file, and `FetchedStandings` has
+two legitimate producers in two files and twelve test call sites. Admitting exactly those needs a
+token per file and a test-only way to make one, which any client file could then call. It also does
+nothing for P2, whose relay is shared state, not a type.
+
+**What it does not do.** It does not prove that nothing derived from the question reaches a sink
+by any route the compiler accepts: that is a property of how values flow, and a check over the
+declarations the compiler resolved holds only the routes it names (clause 2). Two reviews each found
+routes past the rules of the day; each is named and refused now. It does not follow a stored
+property's default value, a global or `static` `let`'s initialiser, a closure kept in a value, or
+state Foundation holds (`Thread.threadDictionary`, the second review's M1): gap G-1, #172. A sink
+file's own code is trusted: an edit inside `EngineClient.swift` that sends a new parameter is a
+reviewed change to a security glob, and its tests pin what each request carries (INV-64, INV-65).
+The date the standings store writes comes from its caller, a channel no rule here sees (#170).
+
+**Mitigation if violated.** A relay through shared state, or standings built from typed text, again
+carries the question off the device or into its caches with every gate passing.
+
+**Revisit when:** a third sink appears (a new route or a new store), or Swift can admit exactly two
+files to a declaration.
+
+## D-181 — The phone's arithmetic and ordering rules are checked on what the compiler resolves
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
+("proceed with what you recommend, don't ask", owner, translated from Turkish); M19-W2 · **Date:**
+2026-10-06 · **Amends** the enforcement of D-104, D-138, D-160 clause 2 and D-167 clause 4 · from
+#60, gap G-2.
+
+**Context.** The text tripwires for REQ-APP-005 (no arithmetic on a number the engine sent) and
+Ruling A (the client orders nothing itself) match the words around an operator and the name of a
+sort's receiver. `let place = standing.position; place + 1` passed the first (the M17-W4 review's
+R4), and a second `common.sorted()` in `Combine.swift` passed the second (its Tester's M7).
+
+**Decision.**
+1. A served number is any numeric value stored by a type whose own declaration conforms to
+   `Decodable` or `Codable`, found on the compiled module, never listed by hand; a type the engine
+   never sends (the phone's own gap register) is named, with its reason, and a static is never
+   decoded. A conformance declared in an extension is not seen (#173). The fields a ruling speaks of
+   have a kind (score, position, price, the tie margin, the Elo anchor); any other is a served number
+   no ruling names.
+2. The declaration gate (D-180's home) follows each served number, to a fixed point, on the compiled
+   module in all four configurations: through a binding, an assignment (`=` and `+=`), a function's
+   or a computed property's result, a function's, a method's or an initialiser's parameter (and a
+   memberwise initialiser's stored property), a function used as a value, every name a loop, a
+   condition (`if let`, `guard let`) or a `switch` case binds, a place handed `inout` (a mutating
+   method's receiver), a closure handed each element, and a protocol requirement, from every member of
+   its name. A value carries a served number only if its compiled type can hold one, and each carrier
+   is keyed where the compiler declares it, never by a bare name; but a name a loop, a condition or a
+   closure binds is keyed by the line its statement or value starts, so one written on a later line
+   is not followed, and a tuple assignment marks its first name only. Not followed: `self` in a member
+   of a numeric type, an enum case's payload, a subscript's parameter, `Any` and text (#171, #173).
+3. An infix arithmetic operator (`+`, `-`, `*`, `/`, `%`, each with its `=` and `&` forms) of the
+   standard library or Foundation, on any type but text and the collections (`Int32` and `Decimal`
+   included), or one of
+   the numeric methods `advanced`, `distance`, `adding…`, `subtracting…`, `multiplied…`,
+   `divided…`, `remainder…`, `squareRoot`, `negate` and `addProduct`, on a served number, is refused
+   outside the place a ruling names. Prefix `-`, shifts and bit operators, an operator passed as a
+   function (`reduce(0, +)`), free functions (`pow`) and other numeric methods
+   (`truncatingRemainder`, `quotientAndRemainder`) are not seen (#173). The places: scores and the
+   tie margin in `Uncertainty.swift` (D-138), the anchor in its three conversions out of 100 (D-143),
+   positions in `Combine.swift` (D-167), and prices only in `priceInPages` in `Router.swift` and
+   `Language.swift`, which turn the price per million tokens into a price per page, in English and
+   in Turkish (REQ-CMP-002, the unit a reader outside the industry uses, beside the exact figure).
+4. A sort, reversal, shuffle or `max(by:)`/`min(by:)`, the standard library's or Foundation's
+   (`sorted(using:)`, `NSArray.sortedArray`), is keyed on the receiver the compiler resolved, and
+   counted: each permitted one may occur as often as its table says, once today.
+5. A permission the shipping client no longer uses fails the gate, so a ruling cannot outlive its
+   code and a change in the compiler's printed layout cannot silence a rule unnoticed.
+6. The text tripwires stay, for the lanes without Xcode.
+
+**Found on the way.** The price-in-pages conversion was arithmetic on a served price that no table
+named: its parameter is called `blendedPerM`, without the `.` the text tripwire looks for. REQ-CMP-002
+requires it, so it is permitted by name here rather than removed.
+
+**Measured.** The shipping client passes in all four configurations. Three mutants planted in it
+were each refused: a served score doubled through a local on the screen, a served price divided
+through a local in `Detail.swift`, and a second `common.sorted()` in `Combine.swift`. After the W2
+review's B1, its sixteen mutants (A0 to A14 and O1) and eight more shapes found while fixing it (`if
+let`, `guard let`, a `switch` case, a memberwise initialiser, a function as a value, `append`, a
+protocol requirement, `-=`) were each refused on the shipping client in all four configurations,
+with no refusal outside them.
+
+**The rejected alternative.** Exact-expression permissions, as `EGRESS_EXACT` does for egress: each
+permitted line spelled out. It holds what is written, but an alias on a line nobody listed is still
+invisible to it, which is the hole.
+
+**What it does not do.** It does not hold that no arithmetic happens on a served number however the
+value is named: it holds the operators, methods and names clauses 1 to 3 list, and two reviews each
+found more past the lists of the day (the second review's B3, #173). A number passed through `Any`
+or through text is not followed, and the served facts (`whyFact`, `tradeOffFact`) reach the phone
+through `Any`, so arithmetic on a fact's number is held by review (gap G-2, #171). It refuses more
+than it should in two ways: a protocol requirement carries what any member of its name carries, and
+an operand counts as served when a served field appears anywhere inside it, a closure's body
+included, so `answers.filter { $0.eligibleCount > 0 }.count + 1` is refused (the second review's M5,
+#173); and a list of served numbers is a carrier, so `let scores = picks.map(\.score)` then
+`scores.count + 1` is refused as arithmetic on a score (the third review's M2, #173). Formatter rounding is not arithmetic here (REQ-APP-005 stays partial for it).
+
+**Revisit when:** a file needs arithmetic on a served number a ruling does not yet name, or #171 or
+#173 is taken.
+
+## D-182 — Each pick carries its model's id on `/v1`, and the app keys its cards on it
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
+("proceed with what you recommend, don't ask", owner, translated from Turkish); M19-W2, written
+before the wave serves the field · **Date:** 2026-10-06 · **Amends** the `/v1/recommendations` pick
+contract (`PUBLIC_PICK_FIELDS`), additively · from #138.
+
+**Context.** The engine and the app decide "the same model" by two rules. Since #102 (M18-W7) the
+engine decides that a cheaper pick is the leader by its ranking row, because a display name is not
+unique (`models.display`). The app merges picks into one card when their display name, vendor, score
+and price are all equal (#63 finding 1, `AnswerPlan.swift`), because a pick carries no id. #129 was
+the case where the rule could fail: one release under two ids, with the same name and vendor.
+
+**Decision.**
+1. Each pick on `/v1/recommendations` gains `model_id`: the canonical id of the model it ranks, the
+   registry's own (curated or derived). The field is additive; every existing field keeps its name,
+   type and meaning.
+2. The app makes one card of the picks that share a `model_id`. A pick with none, from an engine
+   older than this decision, falls back to the four-value rule.
+3. The id is identity, not a name: it is never shown.
+
+**Why it is safe to publish.** An id is derived from the public names the sources publish, by the
+registry's closed grammar, and is already a key of `/v1/boards`' `models` (D-167). It says nothing
+about the reader: no request carries the question (D-160 clause 1).
+
+**The rejected alternative.** Keep the four-value rule. Two models that share a display name, a
+vendor, a score and a price would still show as one card, and one model under two ids as two.
+
+**Mitigation if violated.** The app shows one card for two models, or two for one, and the engine and
+the app disagree about which pick is the leader.
+
+**Revisit when:** the app needs the id for more than grouping, or `/v1` gains a second id field.

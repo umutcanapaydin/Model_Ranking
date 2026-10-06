@@ -31,7 +31,7 @@ from app.workflows.rank import (
     RankingRow,
     UnbuiltEvidenceError,
     attributions_for,
-    category_ranking,
+    ranked_with_ids,
     require_price_medians,
     secondary_evidence_sources,
 )
@@ -186,6 +186,9 @@ class Pick:
     #: If the fact and the sentence ever disagree, the FACT is right and the sentence is a defect.
     why_fact: dict[str, object]
     trade_off_fact: dict[str, object] | None
+    #: D-182 (#138): the id of the model whose ranking row this pick is, so a client makes one card
+    #: per model as the engine decides one (#102), not by display name, which is not unique.
+    model_id: str
 
 
 @dataclass(frozen=True)
@@ -398,6 +401,7 @@ def effort_mix_notice(efforts: list[str | None], spec: CategorySpec) -> str | No
 def _pick(
     label: str,
     row: RankingRow,
+    model_id: str,
     spec: CategorySpec,
     why: str,
     trade_off: str | None,
@@ -429,6 +433,7 @@ def _pick(
         trade_off=trade_off,
         why_fact=why_fact,
         trade_off_fact=trade_off_fact,
+        model_id=model_id,
     )
 
 
@@ -495,7 +500,11 @@ def recommend(
         raise ValueError(msg)
     spec = get_category(task)
     require_price_medians(conn)
-    rows = eligible_rows(category_ranking(conn, spec), budget)
+    # D-182 (#138): each row's model id, by the row itself: the filters, the frontier and
+    # `first_cheapest` hand rows on without copying them (#102), so a row's identity finds its id.
+    ranked = ranked_with_ids(conn, spec)
+    ids = {id(row): model_id for model_id, row in ranked}
+    rows = eligible_rows([row for _, row in ranked], budget)
     if not rows:
         return None
 
@@ -549,6 +558,7 @@ def recommend(
         _pick(
             "best_quality",
             quality,
+            ids[id(quality)],
             spec,
             why=f"Highest {spec.primary_benchmark} score among eligible models ({quality.score:.1f} {unit}).",
             trade_off=None,
@@ -563,6 +573,7 @@ def recommend(
         _pick(
             "best_value",
             value,
+            ids[id(value)],
             spec,
             why=(
                 f"On the Pareto frontier, the cheapest model within {window:g} {unit} of the leader."
@@ -581,6 +592,7 @@ def recommend(
         _pick(
             "budget_pick",
             cheap,
+            ids[id(cheap)],
             spec,
             why=(
                 # `:g`, not `:.0f`. The floor is a real threshold — `84.4` — and printing it as

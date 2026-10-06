@@ -229,6 +229,9 @@ struct Pick: Decodable, Identifiable {
     /// does not know.
     let whyFact: JSONValue?
     let tradeOffFact: JSONValue?
+    /// D-182 (#138): the id of the model this pick ranks, so one model is one card, as the engine
+    /// decides it. Absent from an engine older than D-182; never shown.
+    let modelId: String?
 
     var whyFactDictionary: [String: Any] { whyFact?.dictionary ?? [:] }
     var tradeOffFactDictionary: [String: Any] { tradeOffFact?.dictionary ?? [:] }
@@ -249,6 +252,7 @@ struct Pick: Decodable, Identifiable {
         case effortNote = "effort_note"
         case confidenceBasis = "confidence_basis"
         case tradeOff = "trade_off"
+        case modelId = "model_id"
     }
 }
 
