@@ -90,3 +90,30 @@ def test_the_base_fails_a_test_whose_requests_it_recorded() -> None:
     assert drained, "the base no longer reads what the tripwire saw"
     assert re.search(rf"XCTAssertEqual\(\s*{drained.group(1)}\s*,\s*\[\]", body), (
         "the base no longer fails a test that reached for the network")
+
+
+def test_a_bare_session_configuration_is_refused_in_any_spelling() -> None:
+    """#108: `URLSessionConfiguration()` trapped an xctest process under the tripwire (signal 5). Read
+    without trapping a process on the owner's Mac: its `init` is `[super init]`, an uninitialised base
+    configuration the factories never return, and a session copies a configuration through every
+    setter, the exchanged Swift `setProtocolClasses:` among them, which takes `[AnyClass]?`. Which
+    value traps is unmeasured; what holds either way is that no source builds one."""
+    planted = {
+        "A.swift": "let c = URLSessionConfiguration()",
+        "B.swift": "let c = URLSessionConfiguration.init( )",
+        "C.swift": "let c = URLSessionConfiguration.ephemeral  // not URLSessionConfiguration()",
+    }
+    assert _bare_configurations(planted) == ["A.swift", "B.swift"]
+
+
+def test_no_swift_source_builds_a_bare_session_configuration() -> None:
+    """#108: in the app and its tests, every configuration comes from a factory the tripwire guards."""
+    engine = TESTS.parent / "ModelRanking"
+    sources = {p.name: p.read_text(encoding="utf-8") for p in sorted([*TESTS.glob("*.swift"), *engine.rglob("*.swift")])}
+    assert len(sources) > 20, "the Swift sources were not read"
+    assert _bare_configurations(sources) == []
+
+
+def _bare_configurations(sources: dict[str, str]) -> list[str]:
+    """#108: not yet written."""
+    return []
