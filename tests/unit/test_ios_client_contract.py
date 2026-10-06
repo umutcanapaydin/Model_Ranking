@@ -180,13 +180,7 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
     import json
 
     root = CLIENT.parents[1]
-    sets = sorted((root / "scripts/router_probe").glob("*heldout*_questions.json"))
-    # Sets already run, and so tuning now: M16's and M17's, and M18-W3's first two (review B2).
-    retired = {"heldout_questions.json", "refinement_heldout_questions.json", "coding_heldout_m17_questions.json",
-               "notasearch_m17_heldout_questions.json", "image_heldout_first_questions.json",
-               "offtopic_heldout_questions.json"}  # run in M13 and M16 (the second review's K4)
-    live = [path for path in sets if path.name not in retired]
-    assert live, "no live held-out set found; this check compares nothing"
+    live = _live_held_out_sets()
     held = set()
     for path in live:
         for row in json.loads(path.read_text(encoding="utf-8")):
@@ -206,6 +200,21 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
               for p in sorted((root / "scripts/router_probe").glob("*.json")) if p not in live}
     found = _held_out_leaks(held, texts, _every_tuning_set_read(tuning))
     assert not found, f"held-out questions written into code, tests or tuning sets (file, length): {found}"
+
+
+#: Held-out sets already run, and so tuning now: M16's and M17's, and M18-W3's first two (review B2);
+#: `heldout_questions.json` and `offtopic_heldout_questions.json` ran in M13 and M16 (its second
+#: review's K4). Shared by the held-out gates (#117).
+RETIRED_HELD_OUT = {"heldout_questions.json", "refinement_heldout_questions.json",
+                    "coding_heldout_m17_questions.json", "notasearch_m17_heldout_questions.json",
+                    "image_heldout_first_questions.json", "offtopic_heldout_questions.json"}
+
+
+def _live_held_out_sets() -> list[pathlib.Path]:
+    sets = sorted((CLIENT.parents[1] / "scripts/router_probe").glob("*heldout*_questions.json"))
+    live = [path for path in sets if path.name not in RETIRED_HELD_OUT]
+    assert live, "no live held-out set found; this check compares nothing"
+    return live
 
 
 def _json_strings(value: object) -> list[str]:
@@ -1512,20 +1521,73 @@ def test_every_signal_word_only_a_live_held_out_set_holds_is_reviewed() -> None:
     assert set(HELD_OUT_ONLY_REVIEWED) - flagged == set(), "reviewed entries no longer flagged; remove them"
 
 
-#: #117: the reviewed entries, each with where it came from. Filled with the check, in its fix.
-HELD_OUT_ONLY_REVIEWED: dict[str, str] = {}
+#: #117: each entry of `Reading.swift`'s lists that a live held-out set holds and no tuning set does,
+#: with where it came from (`git log -S`, ordered against the commit that wrote its set). Seven were in
+#: the app before their set was written (`da48707`, "unread by the author"), so they cannot have come
+#: from it. Five were added after their set existed and their origin is unshown: #177, before W4
+#: measures on those sets.
+_BEFORE = "in the app before {set} was written (da48707), so not read from it"
+_AFTER = "added in {sha} after {set} was written; origin unshown (#177)"
+HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
+    "llm": _BEFORE.format(set="notasearch_heldout_m18") + "; 2bd9154, M18-W3 P1",
+    "art\u0131k sen bir": _BEFORE.format(set="notasearch_heldout_m18") + "; 55a1aef, M18-W3 review round 1",
+    "tamam": _BEFORE.format(set="notasearch_heldout_m18") + "; 4373dae, M18-W3 P3",
+    "illustrate": _BEFORE.format(set="image_heldout_m18") + "; 4373dae, M18-W3 P3",
+    "colorize": _BEFORE.format(set="image_heldout_m18") + "; 4373dae, M18-W3 P3",
+    "drawing": _BEFORE.format(set="image_heldout_m18") + "; 4373dae, M18-W3 P3",
+    "icon": _BEFORE.format(set="image_heldout_m18") + "; 4373dae, M18-W3 P3",
+    "komutu": _AFTER.format(sha="b6ab027 (M18-W3 review round 3)", set="coding_heldout_m18 (71ffe5f)"),
+    "component": _AFTER.format(sha="2d5f86a (M18-W3 review round 2, B4)", set="coding_heldout_m18 (71ffe5f)"),
+    "line": _AFTER.format(sha="2d5f86a (M18-W3 review round 2, B4)", set="coding_heldout_m18 (71ffe5f)"),
+    "conclusions": _AFTER.format(sha="2d5f86a (M18-W3 review round 2, B4)", set="image_heldout_m18 (da48707)"),
+    "plot": _AFTER.format(sha="2d5f86a (M18-W3 review round 2, B4)", set="image_heldout_m18 (da48707)"),
+}
+#: A Turkish-specific letter: an entry carrying one is a Turkish stem, matched with its suffixes.
+TURKISH_LETTER = re.compile("[\u00e7\u011f\u0131\u00f6\u015f\u00fc]")
+#: A list of two or more string literals: every word, phrase, verb and noun list in `Reading.swift`,
+#: the inline ones in its functions too, derived from the source rather than named here.
+STRING_LIST = re.compile(r'\[\s*((?:"[^"\n]*"\s*,?\s*){2,})\]')
 
 
 def _reading_lists() -> list[tuple[list[str], bool]]:
-    """#117: not yet written."""
-    return []
+    """#117: each list of strings in `Reading.swift`, and whether its entries are stems: a list whose
+    declaration names Turkish or stems, or one matched with `hasPrefix`."""
+    code = "\n".join(line.split("//")[0] for line in _swift(CLIENT / "Engine/Reading.swift").splitlines())
+    lists = []
+    for found in STRING_LIST.finditer(code):
+        named = code[max(0, found.start() - 160):found.start()]
+        stems = (re.search(r"(Turkish|[Ss]tems)\b[^\n]*$", named) is not None
+                 or "hasPrefix" in code[found.end():found.end() + 60])
+        lists.append((re.findall(r'"([^"\n]*)"', found.group(1)), stems))
+    assert sum(len(entries) for entries, _ in lists) > 100, "Reading.swift's lists were not read"
+    return lists
 
 
 def _held_and_tuning_strings() -> tuple[list[str], list[str]]:
-    """#117: not yet written."""
-    return [], []
+    """#117: every string of the live held-out sets, and of every other probe set (tuning, and the
+    retired held-out sets, which are tuning now)."""
+    import json
+
+    live = _live_held_out_sets()
+    held = [text for path in live for text in _json_strings(json.loads(path.read_text(encoding="utf-8")))]
+    tuning = [text for path in sorted((CLIENT.parents[1] / "scripts/router_probe").glob("*.json")) if path not in live
+              for text in _json_strings(json.loads(path.read_text(encoding="utf-8")))]
+    assert held and tuning, "the held-out or the tuning sets read as empty; this check compares nothing"
+    return held, tuning
 
 
 def _held_out_only_signals(lists: list[tuple[list[str], bool]], held: list[str], tuning: list[str]) -> list[str]:
-    """#117: not yet written."""
-    return []
+    """#117: each entry found in `held` and in no `tuning` string, sorted. Whole words, and a stem (or a
+    word with a Turkish letter) also with its suffixes; under three letters it is a suffix or a
+    particle, not a signal. Case-folded on every side."""
+    held_text, tuning_text = "\n".join(held).casefold(), "\n".join(tuning).casefold()
+    found = set()
+    for entries, stems in lists:
+        for entry in entries:
+            word = entry.strip().casefold()
+            if len(word) < 3:
+                continue
+            pattern = rf"(?<!\w){re.escape(word)}" + ("" if stems or TURKISH_LETTER.search(word) else r"(?!\w)")
+            if re.search(pattern, held_text) and not re.search(pattern, tuning_text):
+                found.add(entry)
+    return sorted(found)
