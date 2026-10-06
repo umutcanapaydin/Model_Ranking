@@ -86,3 +86,22 @@ def test_a_child_process_still_reaches_loopback() -> None:
         assert child.stdout.strip() == "ok", child.stdout + child.stderr
     finally:
         listener.close()
+
+
+def _make_test_in(env: dict[str, str]) -> str:
+    lines = subprocess.run(["make", "-n", "test"], cwd=ROOT, capture_output=True, text=True, check=False, timeout=120,
+                           env={**os.environ, **env}).stdout.splitlines()
+    return next((line for line in lines if "-m pytest" in line and not line.lstrip().startswith("#")), "")
+
+
+def test_make_test_still_counts_the_skips_ci_will_take() -> None:
+    """The W3 review's M4: with `--derive` removed from `make test`, every test stayed green (#137)."""
+    lines = subprocess.run(["make", "-n", "test"], cwd=ROOT, capture_output=True, text=True, check=False,
+                           timeout=120).stdout
+    assert "scripts/coverage_floor.py --derive" in lines
+
+
+def test_the_environment_cannot_turn_the_offline_run_off() -> None:
+    """The W3 review's M6: `UNAME_S=Linux` in the environment removed the sandbox and its refusal on
+    a Mac (`?=`). Only the command line may name the system, as the tests here do."""
+    assert _make_test_in({"UNAME_S": "Linux"}) == _make_test_in({})

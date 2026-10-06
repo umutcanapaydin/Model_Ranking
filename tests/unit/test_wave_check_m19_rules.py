@@ -17,6 +17,8 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE = ROOT / "docs" / "plans" / "m18-wave-1-close.md"
 GLOBS = """
@@ -136,3 +138,37 @@ def test_the_glob_list_is_read_from_its_own_bullet_not_a_mention_of_it(tmp_path:
     plan.write_text("- **#140:** the gates read the plan's own security globs.\n\n" + GLOBS, encoding="utf-8")
     globs = _module("wave_check").plan_globs(plan)
     assert "ios/ModelRanking/Engine/EngineClient.swift" in globs and ".claude/settings.json" in globs, globs
+
+
+def test_a_footprint_in_brace_form_or_as_a_folder_still_touches_the_glob(tmp_path: Path) -> None:
+    """The W3 review's M2: `ios/ModelRanking/Engine/{Models,EngineClient}.swift` (the shape
+    `m19-wave-2-close.md` used) and the folder `ios/ModelRanking/Engine/` each passed a MED close."""
+    braced = _close(tmp_path / "a", tier="MED", touched="ios/ModelRanking/Engine/{Models,EngineClient}.swift",
+                    plan=GLOBS)
+    assert "EngineClient.swift" in _wave_check(braced).stdout
+    folder = _close(tmp_path / "b", tier="MED", touched="ios/ModelRanking/Engine/", plan=GLOBS)
+    assert "EngineClient.swift" in _wave_check(folder).stdout
+
+
+def test_other_spellings_of_an_amended_wave_are_read(tmp_path: Path) -> None:
+    """The W3 review's M3: `M19-W3`, an amendment that is not bold, and `Wave 3` went unflagged."""
+    check = _module("wave_check_all")
+    for text in ("\n**Amendment (2026-10-06).** M19-W3 joins.\n", "\nAmendment (2026-10-06). W3 joins.\n",
+                 "\n**Amendment (2026-10-06).** Wave 3 joins.\n"):
+        root = _plan(tmp_path / str(abs(hash(text))), text)
+        assert any("W3" in line for line in check.headless_waves(root)), text
+
+
+def test_a_glob_bullet_that_wraps_keeps_every_glob(tmp_path: Path) -> None:
+    """The W3 review's M3: a bullet whose globs wrap to a second line dropped the rest of the list."""
+    plan = tmp_path / "m19-plan.md"
+    plan.write_text("- **Security globs.** HIGH:\n  - `src/a.py` and\n    `ios/B.swift`\n  - `c/**`\n", encoding="utf-8")
+    assert _module("wave_check").plan_globs(plan) == ["src/a.py", "ios/B.swift", "c/**"]
+
+
+def test_wave_check_all_reports_a_headless_wave(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """The W3 review's M4: with `headless_waves` removed from `main`, every test stayed green."""
+    check = _module("wave_check_all")
+    monkeypatch.setattr(check, "headless_waves", lambda root: ["m19's plan names W9 in an amendment"])
+    assert check.main() == 1
+    assert "W9" in capsys.readouterr().out

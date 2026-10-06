@@ -69,3 +69,12 @@ def test_every_skip_goes_through_a_needs_marker() -> None:
            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1)
            if RAW_SKIP.search(line)]
     assert not raw, f"a skip the local count cannot see; use @pytest.mark.needs(...): {raw}"
+
+
+def test_every_spelling_of_a_skip_is_refused() -> None:
+    """The W3 review's M1: `xfail`, `unittest`'s skips and an imported `skip` or `mark` slipped past the
+    pattern, and CI's report counts each as a skip."""
+    spellings = ["pytest.xfail('x')", "@pytest.mark.xfail(reason='x')", "@unittest.skip('x')",
+                 "@unittest.skipIf(True, 'x')", "self.skipTest('x')", "from pytest import skip",
+                 "from pytest import mark", "from pytest import xfail", "raise unittest.SkipTest('x')"]
+    assert [line for line in spellings if not RAW_SKIP.search(line)] == []
