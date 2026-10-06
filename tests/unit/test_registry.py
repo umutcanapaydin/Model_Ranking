@@ -30,9 +30,8 @@ def test_variant_never_leaks_into_parent() -> None:
     """REQ-CAN-002 regression (spike bug red→green): nano/mini/codex/chat ≠ parent."""
     cases = {
         "gpt-5-nano": "gpt-5-nano",
-        "gpt-5.1-nano": "gpt-5-nano",
         "gpt-5-mini-2026-01-01": "gpt-5-mini",
-        "gpt-5.1-codex-mini": "gpt-5-mini",
+        "gpt-5.1-codex-mini": "gpt-5.1-codex-mini",  # #162: its own model, never GPT-5 mini
         # ChatGPT's plan table (2026-09-23) names "GPT-5 Thinking Mini": a word between the
         # version and "mini" must not let the variant fall through to the parent.
         "GPT-5 Thinking Mini": "gpt-5-mini",
@@ -56,6 +55,10 @@ def test_variant_never_leaks_into_parent() -> None:
         rule = canonicalize(alias)
         assert rule is not None, alias
         assert rule.canonical_id == expected, f"{alias} → {rule.canonical_id}, want {expected}"
+    # #162: a minor release's variant that no rule names leaks into neither its parent (GPT-5.1) nor
+    # GPT-5's variant: matched by no rule, it derives a model of its own (D-157).
+    assert canonicalize("gpt-5.1-nano") is None
+    assert canonicalize("gpt-5.5-thinking-mini") is None
 
 
 def test_date_suffixed_alias_is_dropped_not_misversioned() -> None:

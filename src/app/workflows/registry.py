@@ -90,9 +90,18 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("gpt-5-pro",         "GPT-5 Pro",         "OpenAI",    r"gpt[-_ ]?5[-_ ]?pro"),
     # "Thinking" is ChatGPT's name for a reasoning mode; ChatGPT's plan table writes the variant
     # after it ("GPT-5 Thinking Mini", 2026-09-23), past the parent rule's lookahead.
-    ModelRule("gpt-5-nano",        "GPT-5 nano",        "OpenAI",    r"gpt[-_ ]?5(?:[.\-]?\d)?[-_ ]?(?:thinking[-_ ]?)?nano"),
-    ModelRule("gpt-5-mini",        "GPT-5 mini",        "OpenAI",    r"gpt[-_ ]?5(?:[.\-]?\d)?[-_ ]?(?:codex[-_ ]?|thinking[-_ ]?)?mini"),
-    ModelRule("gpt-5-chat",        "GPT-5 chat",        "OpenAI",    r"gpt[-_ ]?5(?:[.\-]?\d)?[-_ ]?chat"),
+    # #162: each minor release is a model of its own, ahead of GPT-5's rules, which take GPT-5 only.
+    # They had taken any minor version, so GPT-5 mini held GPT-5.4 mini's and GPT-5.1 Codex mini's
+    # prices and scores. A minor release not named here derives a model of its own (D-157).
+    ModelRule("gpt-5.4-nano",       "GPT-5.4 nano",       "OpenAI", r"gpt[-_ ]?5[.\-]4[-_ ]?nano"),
+    ModelRule("gpt-5.4-mini",       "GPT-5.4 mini",       "OpenAI", r"gpt[-_ ]?5[.\-]4[-_ ]?mini"),
+    ModelRule("gpt-5.1-codex-mini", "GPT-5.1 Codex mini", "OpenAI", r"gpt[-_ ]?5[.\-]1[-_ ]?codex[-_ ]?mini"),
+    ModelRule("gpt-5.3-chat",       "GPT-5.3 chat",       "OpenAI", r"gpt[-_ ]?5[.\-]3[-_ ]?chat"),
+    ModelRule("gpt-5.2-chat",       "GPT-5.2 chat",       "OpenAI", r"gpt[-_ ]?5[.\-]2[-_ ]?chat"),
+    ModelRule("gpt-5.1-chat",       "GPT-5.1 chat",       "OpenAI", r"gpt[-_ ]?5[.\-]1[-_ ]?chat"),
+    ModelRule("gpt-5-nano",        "GPT-5 nano",        "OpenAI",    r"gpt[-_ ]?5[-_ ]?(?:thinking[-_ ]?)?nano"),
+    ModelRule("gpt-5-mini",        "GPT-5 mini",        "OpenAI",    r"gpt[-_ ]?5[-_ ]?(?:codex[-_ ]?|thinking[-_ ]?)?mini"),
+    ModelRule("gpt-5-chat",        "GPT-5 chat",        "OpenAI",    r"gpt[-_ ]?5[-_ ]?chat"),
     ModelRule("gpt-5.2-codex",     "GPT-5.2 Codex",     "OpenAI",    r"gpt[-_ ]?5[.\-]?2[-_ ]?codex(?![-_ ]?max)"),
     ModelRule("gpt-5.1-codex",     "GPT-5.1 Codex",     "OpenAI",    r"gpt[-_ ]?5[.\-]?1[-_ ]?codex(?![-_ ]?max)"),
     ModelRule("gpt-5-codex",       "GPT-5 Codex",       "OpenAI",    r"gpt[-_ ]?5[-_ ]?codex(?![-_ ]?max)"),
@@ -101,11 +110,11 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("gpt-5.6-sol",       "GPT-5.6 Sol",       "OpenAI",    r"gpt[-_ ]?5[.\-]6[-_ ]?sol"),
     ModelRule("gpt-5.6-luna",      "GPT-5.6 Luna",      "OpenAI",    r"gpt[-_ ]?5[.\-]6[-_ ]?luna"),
     ModelRule("gpt-5.6-terra",     "GPT-5.6 Terra",     "OpenAI",    r"gpt[-_ ]?5[.\-]6[-_ ]?terra"),
-    ModelRule("gpt-5.6",           "GPT-5.6",           "OpenAI",    r"gpt[-_ ]?5[.\-]6(?!\d)(?![-_ ]?(?:sol|luna|terra|codex|pro))"),
-    ModelRule("gpt-5.5",           "GPT-5.5",           "OpenAI",    r"gpt[-_ ]?5[.\-]5(?!\d)(?![-_ ]?codex|[-_ ]?pro)"),
-    ModelRule("gpt-5.4",           "GPT-5.4",           "OpenAI",    r"gpt[-_ ]?5[.\-]4(?!\d)(?![-_ ]?codex|[-_ ]?pro)"),
-    ModelRule("gpt-5.2",           "GPT-5.2",           "OpenAI",    r"gpt[-_ ]?5[.\-]2(?!\d)(?![-_ ]?codex|[-_ ]?pro)"),
-    ModelRule("gpt-5.1",           "GPT-5.1",           "OpenAI",    r"gpt[-_ ]?5[.\-]1(?!\d)(?![-_ ]?codex|[-_ ]?pro)"),
+    ModelRule("gpt-5.6",           "GPT-5.6",           "OpenAI",    r"gpt[-_ ]?5[.\-]6(?!\d)(?![-_ ]?(?:sol|luna|terra|codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
+    ModelRule("gpt-5.5",           "GPT-5.5",           "OpenAI",    r"gpt[-_ ]?5[.\-]5(?!\d)(?![-_ ]?(?:codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
+    ModelRule("gpt-5.4",           "GPT-5.4",           "OpenAI",    r"gpt[-_ ]?5[.\-]4(?!\d)(?![-_ ]?(?:codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
+    ModelRule("gpt-5.2",           "GPT-5.2",           "OpenAI",    r"gpt[-_ ]?5[.\-]2(?!\d)(?![-_ ]?(?:codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
+    ModelRule("gpt-5.1",           "GPT-5.1",           "OpenAI",    r"gpt[-_ ]?5[.\-]1(?!\d)(?![-_ ]?(?:codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
     ModelRule("gpt-5",             "GPT-5",             "OpenAI",    r"gpt[-_ ]?5(?![.\-]?\d|[-_ ]?mini|[-_ ]?nano|[-_ ]?chat|[-_ ]?codex|[-_ ]?pro)"),
     ModelRule("o3",                "o3",                "OpenAI",    r"\bo3(?![-\w])|\bo3[-_ ](?:high|medium|low)"),
     ModelRule("o4-mini",           "o4-mini",           "OpenAI",    r"\bo4[-_ ]?mini"),
