@@ -194,3 +194,9 @@ as #129 (one release, one model), in the other direction.
 alias `mistral-medium-3` to Medium 3.5, so it joins D-166's moving aliases. Two findings that need
 a ruling are filed rather than taken: #163 (whether a family rule may gather a release's later
 snapshots) and #164 (an id its maker retired and reroutes to a newer model).
+
+**Amendment (2026-10-06, W2).** #132 (the held reading into the Engine) leaves W2 by the wave plan's
+own valve: it rewires the screen, which a dozen text pins hold as it is and only the UI target can
+prove, and W2 already changes the answer screen's cards (#138). It goes to the next wave that works
+on the screen. The compiler-level arithmetic check (D-181) found the price in pages, a conversion of
+a served price REQ-CMP-002 requires, in two files no table named; D-181 names them.
