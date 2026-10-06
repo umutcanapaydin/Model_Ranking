@@ -134,6 +134,9 @@ enum InputSignals {
         "geceler", "akşamlar", "görüşürüz",
     ]
 
+    /// #66 (M19-W4): a question of everyday fact asked for its answer. Not yet read (red).
+    static func asksAFact(_ text: String) -> Bool { false }
+
     /// #113 (M18-W3): a request to MAKE or CHANGE an image, which nothing here measures: `vision`
     /// measures reading one. The on-device model sent these to `vision` even when told not to (0 of
     /// 6 on the tuning set). `TieredRouter.read` applies this ONLY to a question routed to `vision`
