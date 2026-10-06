@@ -2628,6 +2628,8 @@ supersedes the first amendment's exemption bullet.
 
 **Amended (2026-10-04, M18-W5, #92 N2)**: carried rows meet the store's rules. A carried date is stored as a calendar date, and a source whose live rows hold a score that is not finite is not carried: it fails as an unreachable source would.
 
+**Amended by D-179 (2026-10-06)**: the baseline also unlinks each derived model the expired rows leave without a price or a score, as a build does (D-157), and the board guards read the baseline's rows (a board the expiry empties keeps its live rows, for the third review's MINOR-1). Before, an expired price feed's derived models stayed linked in the baseline, and the accessibility guard refused the night.
+
 ---
 
 ## D-999 — the agent opens drafts; a human merges
@@ -3888,6 +3890,12 @@ through on the night it matters.
   score, so a price feed that adds or drops a quarter of a board's linked models in one night is
   refused, and the refusal names the board and its counts. Before, no board guard saw it; the
   surface's roster guard (D-173 clause 2) sees the models it ranks.
+- On the night a source expires (D-156 clause 3), the baseline unlinks each derived model the
+  expired rows leave without a price or a score, as a build without the source does, and the board
+  guards read the baseline's rows. A row the expiry unlinked is then neither lost nor new, and the
+  accessibility guard no longer reads its value as lost (the M19-W1 Tester's M5 and K1). Measured on
+  the served artifact: a `litellm` or an `openrouter` expiry publishes; a `litellm` expiry was
+  refused before, on a board and on accessibility.
 
 **Measured.** The first night with M19-W1's code, simulated on a copy of the served artifact
 (release-3f2e91d) on 2026-10-06, publishes. The board nearest a limit is `epoch_frontiermath`: 16% of

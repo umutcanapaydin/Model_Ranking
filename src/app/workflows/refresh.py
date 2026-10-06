@@ -51,6 +51,7 @@ from app.workflows.categories import CATEGORIES
 from app.workflows.floors import board_rows, derived_floor
 from app.workflows.rank import build_price_medians, ranked_with_ids
 from app.workflows.recommend import BUDGETS, eligible_rows, round_optional_score, round_score
+from app.workflows.registry import MODEL_RULES
 from app.workflows.schema import open_readonly
 from app.workflows.serving_bounds import bounds_from_env, egress_problems
 
@@ -303,9 +304,12 @@ def upward_anomalies(
     decides that something is fine on balance; it reports what looks wrong and the cycle stops.
 
     `prices` is the baseline the MEDIAN is judged against on an expiry night (D-156): expired rows
-    leaving can move a median legitimately. The new-names guard always reads `live`: removing rows
-    never adds a name, so an expiry needs no excuse there, and a surface the expiry blinds must not
-    pass for "a surface returning" (M16-W3 third review MINOR-1).
+    leaving can move a median legitimately. The roster's new-names guard always reads `live`:
+    removing rows never adds a model, so an expiry needs no excuse there, and a surface the expiry
+    blinds must not pass for "a surface returning" (M16-W3 third review MINOR-1). The board guards
+    read the baseline's rows where it has any: since D-179 a row is its link, and an expired price
+    feed unlinks the derived models it alone priced, so a row is not new for being unlinked (the
+    M19-W1 Tester's M5). A board the expiry empties keeps its live rows, for MINOR-1's reason.
     """
     reasons = _mostly_new(
         live.models, candidate.models, "{name}", "models",
@@ -316,8 +320,11 @@ def upward_anomalies(
     # Budget Pick while the ranked names above stay exactly the same.
     # Rows are compared by the model each links to (#100, D-179), so a re-spelled set is not new
     # here; a set returning after a gap still is.
+    base = prices or live
+    board = {name: base.board.get(name) or rows for name, rows in live.board.items()}
+    boards = {name: base.boards.get(name) or rows for name, rows in live.boards.items()}
     reasons += _mostly_new(
-        live.board, candidate.board, OWN_BOARD, "rows",
+        board, candidate.board, OWN_BOARD, "rows",
         "its floor is derived from every one of their rows (D-159); a returning set reads as new "
         "here too, and is published by hand",
     )
@@ -325,7 +332,7 @@ def upward_anomalies(
     # D-164 clause 2: the same limit on every declared board. A board appearing for the first time
     # passes as returning (`_mostly_new`'s empty-set rule), so the night the boards arrive publishes.
     reasons += _mostly_new(
-        live.boards, candidate.boards, DECLARED_BOARD, "rows",
+        boards, candidate.boards, DECLARED_BOARD, "rows",
         "a board is published content and is guarded as one (D-164); a board that is mostly new "
         "rows overnight is published by hand",
     )
@@ -1120,9 +1127,29 @@ def _served_without(target: Path, sources: set[str]) -> ServingSummary:
         # Every table a source's rows live in (#41: this was a third copy of the list, and missed
         # `access`); one the live artifact predates has nothing to drop.
         present = {row[0] for row in scratch.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        # The derived models the expired rows linked (the M19-W1 Tester's M5 and K1). D-157 registers
+        # a derived model only while it has a price and a score, so a build without the source leaves
+        # unlinked each one it alone priced or scored. Kept linked here, their board rows read as lost
+        # and new (D-179) and their accessibility values as lost (D-173 clause 3). Only these move:
+        # every other link stays as the live artifact made it.
+        curated = {rule.canonical_id for rule in MODEL_RULES}
+        touched = {
+            model_id for table in ("scores", "pricing") if table in present
+            for (model_id,) in scratch.execute(
+                f"SELECT DISTINCT model_id FROM {table} WHERE model_id IS NOT NULL AND source IN ({marks})",  # noqa: S608
+                tuple(sources))
+        } - curated
         for table in (t for t in CARRY_TABLES if t in present):
             scratch.execute(
                 f"DELETE FROM {table} WHERE source IN ({marks})", tuple(sources))  # noqa: S608
+        for model_id in sorted(touched):
+            priced = scratch.execute("SELECT 1 FROM pricing WHERE model_id = ? LIMIT 1", (model_id,)).fetchone()
+            scored = scratch.execute("SELECT 1 FROM scores WHERE model_id = ? LIMIT 1", (model_id,)).fetchone()
+            if priced and scored:
+                continue
+            for table in (t for t in CARRY_TABLES if t in present):
+                scratch.execute(f"UPDATE {table} SET model_id = NULL WHERE model_id = ?", (model_id,))  # noqa: S608
+            scratch.execute("DELETE FROM models WHERE id = ?", (model_id,))
         # The ranking reads prices from `px_median`, which the build DERIVES from `pricing`; left
         # alone, an expired price feed would still price the baseline.
         build_price_medians(scratch)
