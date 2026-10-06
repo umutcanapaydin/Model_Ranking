@@ -244,6 +244,7 @@ def test_a_mixed_answer_names_its_benchmark_too() -> None:
             trade_off=None,
             why_fact={},
             trade_off_fact=None,
+            model_id="m",
         )
 
     dating, note = adapter._evidence_dating((pick("2026-08-01"), pick(None)), "GPQA Diamond")

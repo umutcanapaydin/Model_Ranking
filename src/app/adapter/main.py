@@ -953,6 +953,9 @@ PUBLIC_PICK_FIELDS = frozenset(
     {
         "label",
         "model",
+        # D-182 (#138): the model's id, so a client makes one card per model, as the engine decides
+        # one; additive, never shown.
+        "model_id",
         "vendor",
         "score",
         "metric",

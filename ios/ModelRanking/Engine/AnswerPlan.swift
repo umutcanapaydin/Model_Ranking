@@ -182,8 +182,13 @@ func pickCards(_ picks: [Pick]) -> [PickCard] {
     return groups.map(PickCard.init)
 }
 
+/// D-182 (#138): one model is one card, by the id the engine sends; an engine older than D-182 sends
+/// none, and then the four shown values decide, as they did.
 private func sameRow(_ left: Pick, _ right: Pick) -> Bool {
-    left.model == right.model && left.vendor == right.vendor && left.score == right.score
+    if let leftID = left.modelId, let rightID = right.modelId {
+        return leftID == rightID
+    }
+    return left.model == right.model && left.vendor == right.vendor && left.score == right.score
         && left.blendedPerM == right.blendedPerM
 }
 
