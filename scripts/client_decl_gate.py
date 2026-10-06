@@ -51,6 +51,7 @@ import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Iterator
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "ios" / "ModelRanking"
@@ -214,6 +215,33 @@ SINK_FILES = {
 #: store's own file, never from what the screen builds (the M17 closure's P3).
 PROVENANCE = {"FetchedStandings.init(payload:)": {"EngineClient.swift", "StandingsStore.swift"}}
 
+#: #60 (G-2): the numbers the engine sends, by the field `Models.swift` decodes each into, and what
+#: each one is. Arithmetic on one, reached directly or through any local, parameter or loop element
+#: it flowed into, is a second scoring implementation unless a ruling names the file (REQ-APP-005).
+SERVED_NUMBERS = {
+    "score": "score", "secondaryScore": "score", "higherEffortScore": "score", "position": "position",
+    "blendedPerM": "price", "inputPerM": "price", "outputPerM": "price",
+    "eligibleCount": "count", "frontierSize": "count",
+}
+#: (file, what) -> the ruling that lets that file do arithmetic on it.
+ARITHMETIC_PERMITTED = {
+    ("Uncertainty.swift", "score"): "D-138: a rank range compares served scores against the engine's margin",
+    ("Combine.swift", "position"): "D-167: the combination ranks served positions",
+    ("Router.swift", "price"): "REQ-CMP-002: the price in pages, beside the exact figure",
+    ("Language.swift", "price"): "REQ-CMP-002: the price in pages, in its Turkish sentence",
+}
+#: (file, call, the receiver the compiler resolved) -> how many such sorts the file may make (Ruling
+#: A, REQ-APP-002). Counted, so a second sort under a permitted name fails (the M17-W4 Tester's M7).
+SORTS_PERMITTED = {
+    ("Combine.swift", "sorted", "common"): 1,
+    ("Combine.swift", "sorted", "placed"): 1,
+    ("FrontDoor.swift", "sorted", "entries"): 1,
+    ("FrontDoor.swift", "min", "entries"): 1,
+    ("Notices.swift", "sorted", "ages"): 1,
+    ("Notices.swift", "sorted", "distinct"): 1,
+    ("Reading.swift", "reversed", "row"): 1,
+}
+
 #: `@AppStorage("language")` is the one piece of app storage the client keeps, and it holds a
 #: `Language`, never text a reader typed. The text gate pins its declaration; here the SwiftUI
 #: property wrapper itself is allowed only in the file that declares it.
@@ -251,6 +279,20 @@ RANGE_START = re.compile(r"range=\[([^\]:]+):(\d+):(\d+)")
 #: A reference into the app's own module, with the place its declaration starts.
 MAIN_REF = re.compile(r'decl="main\.\(file\)\.([^"@]+)@([^":]+):(\d+):(\d+)"')
 #: The scopes a declaration can live in: shared (a type or the file) or a body's own (a local).
+#: #60: a node with an optional label (`processed_init=binary_expr`); an `original_init` subtree is the
+#: unresolved copy of a binding's expression, so it is skipped.
+LABELLED_NODE = re.compile(r"^( *)\((?:(\w+)=)?(\w+)")
+SERVED_REF = re.compile(r'decl="main\.\(file\)\.\w+\.(\w+)@[^"]*/Models\.swift:')
+NUMERIC_OPERATOR = re.compile(
+    r'decl="Swift\.\(file\)\.(?:Int|Int64|UInt|Double|Float|CGFloat|BinaryInteger|BinaryFloatingPoint|'
+    r'FloatingPoint|Numeric|AdditiveArithmetic|SignedNumeric|SignedInteger) extension\.([-+*/%]=?)"')
+ORDERING_CALL = re.compile(r'decl="Swift\.\(file\)\.\w+ extension\.(sorted|sort|max|min|reversed|shuffled|swapAt)\(([^)]*)\)')
+LOCAL_VAR = re.compile(r'^ *\(var_decl [^\[]*range=\[([^\]:]+):(\d+):(\d+)')
+PATTERN_NAME = re.compile(r'^ *\(pattern_named [^"]*"([^"]+)"')
+PARAMETER = re.compile(r'^ *\(parameter "([^"]+)"')
+FUNCTION = re.compile(r'^ *\(func_decl [^\[]*range=\[[^\]:]+:(\d+):\d+[^"]*"(\w+)')
+CALLEE = re.compile(r'decl="main\.\(file\)\.(?:[\w.]+\.)?(\w+)(?:\([^)"]*\))?@([^":]+):(\d+):\d+" function_ref=single apply')
+LOCATION_LINE = re.compile(r"location=[^ ]*?(\w+\.swift):(\d+)")
 SHARED_SCOPES = {"source_file", "struct_decl", "class_decl", "enum_decl", "extension_decl",
                  "protocol_decl", "actor_decl"}
 LOCAL_SCOPES = {"func_decl", "constructor_decl", "destructor_decl", "accessor_decl", "closure_expr"}
@@ -301,7 +343,7 @@ def references(ast: str) -> dict[str, set[str]]:
             symbol = re.sub(r"([\w.]+) extension\.", r"\1.", symbol)
             symbol = re.sub(r"(^|\.)extension\.", r"\1", symbol)
             found[name].add(f"{module}.{symbol.rstrip('.')}")
-    for name, facts in sink_facts(ast).items():
+    for name, facts in (*sink_facts(ast).items(), *flow_facts(ast).items()):
         found.setdefault(name, set()).update(facts)
     return found
 
@@ -350,6 +392,178 @@ def sink_facts(ast: str) -> dict[str, set[str]]:
         if symbol in PROVENANCE:
             facts.setdefault(file, set()).add(f"main.<builds>.{symbol}")
     return facts
+
+
+class _Node:
+    """One node of the dump: its depth, its kind, its first line, and its children."""
+
+    __slots__ = ("depth", "kids", "kind", "line")
+
+    def __init__(self, depth: int, kind: str, line: str) -> None:
+        self.depth, self.kind, self.line = depth, kind, line
+        self.kids: list[_Node] = []
+
+    def walk(self) -> Iterator[_Node]:
+        yield self
+        for kid in self.kids:
+            yield from kid.walk()
+
+
+def _tree(ast: str) -> list[_Node]:
+    """The dump as a tree, one root per source file, without the unresolved `original_init` copies."""
+    roots: list[_Node] = []
+    stack: list[_Node] = []
+    skip: int | None = None
+    for line in ast.splitlines():
+        match = LABELLED_NODE.match(line)
+        if not match:
+            continue
+        depth, label, kind = len(match.group(1)), match.group(2), match.group(3)
+        if skip is not None and depth > skip:
+            continue
+        skip = depth if label == "original_init" else None
+        if skip is not None:
+            continue
+        while stack and stack[-1].depth >= depth:
+            stack.pop()
+        node = _Node(depth, kind, line)
+        (stack[-1].kids if stack else roots).append(node)
+        stack.append(node)
+    return roots
+
+
+def _file_of(root: _Node) -> str:
+    return pathlib.Path(root.line.split('"')[1]).name
+
+
+#: What carries a served number: a declaration's start `(file, line, column)`, or `(file, name)` for
+#: a parameter or a loop element, whose declarations print no place of their own.
+_Carriers = dict[tuple[object, ...], set[str]]
+
+
+def _carried(node: _Node, carriers: _Carriers) -> set[str]:
+    """What served numbers an expression reaches: a served field, or anything they flowed into."""
+    found: set[str] = set()
+    for item in node.walk():
+        if served := SERVED_REF.search(item.line):
+            found.add(SERVED_NUMBERS.get(served.group(1), ""))
+        for symbol, path, row, column in MAIN_REF.findall(item.line):
+            file = pathlib.Path(path).name
+            found |= carriers.get((file, int(row), int(column)), set())
+            found |= carriers.get((file, symbol.split(".")[-1]), set())
+    return found - {""}
+
+
+def _mark(carriers: _Carriers, key: tuple[object, ...], kinds: set[str]) -> bool:
+    if not kinds or kinds <= carriers.get(key, set()):
+        return False
+    carriers.setdefault(key, set()).update(kinds)
+    return True
+
+
+def _parameters(roots: list[_Node]) -> dict[tuple[str, str, int], list[str]]:
+    """`(file, function name, line) -> its parameter names`, in order."""
+    found: dict[tuple[str, str, int], list[str]] = {}
+    for root in roots:
+        for node in root.walk():
+            if function := FUNCTION.match(node.line):
+                listed = next((kid for kid in node.kids if kid.kind == "parameter_list"), None)
+                names = [m.group(1) for kid in (listed.kids if listed else []) if (m := PARAMETER.match(kid.line))]
+                found[(_file_of(root), function.group(2), int(function.group(1)))] = names
+    return found
+
+
+def _flow_once(node: _Node, file: str, carriers: _Carriers, parameters: dict[tuple[str, str, int], list[str]]) -> bool:
+    """One step of the flow at one node: into a binding's locals, a loop's element, a call's parameters."""
+    changed = False
+    for index, kid in enumerate(node.kids):
+        if kid.kind == "pattern_binding_decl" and (kinds := _carried(kid, carriers)):
+            for sibling in node.kids[index + 1:]:
+                if sibling.kind != "var_decl" or not (place := LOCAL_VAR.match(sibling.line)):
+                    break
+                changed |= _mark(carriers, (pathlib.Path(place.group(1)).name, int(place.group(2)), int(place.group(3))), kinds)
+    if node.kind == "for_each_stmt":
+        named = next((m for kid in node.kids if (m := PATTERN_NAME.match(kid.line))), None)
+        sequence = next((kid for kid in node.kids if kid.kind in ("declref_expr", "member_ref_expr", "call_expr")), None)
+        if named and sequence is not None:
+            changed |= _mark(carriers, (file, named.group(1)), _carried(sequence, carriers))
+    if node.kind == "call_expr" and len(node.kids) > 1 and (callee := CALLEE.search(node.kids[0].line)):
+        target = pathlib.Path(callee.group(2)).name
+        arguments = [kid for kid in node.kids[1].kids if kid.kind == "argument"]
+        # Not strict: a parameter with a default takes no argument.
+        names = parameters.get((target, callee.group(1), int(callee.group(3))), [])
+        for name, argument in zip(names, arguments, strict=False):
+            changed |= _mark(carriers, (target, name), _carried(argument, carriers))
+    return changed
+
+
+def flow_facts(ast: str) -> dict[str, set[str]]:
+    """#60 (G-2): `{file name: {"main.<...>", ...}}`, the arithmetic on served numbers and the sorts
+    each file makes, resolved by the compiler and followed to a fixed point, for `problems` to judge."""
+    roots = _tree(ast)
+    parameters = _parameters(roots)
+    carriers: _Carriers = {}
+    changed = True
+    while changed:
+        changed = False
+        for root in roots:
+            for node in root.walk():
+                changed |= _flow_once(node, _file_of(root), carriers, parameters)
+    facts: dict[str, set[str]] = {}
+    sorts: dict[tuple[str, str, str], int] = {}
+    for root in roots:
+        file = _file_of(root)
+        for node in root.walk():
+            for fact in _arithmetic(node, carriers):
+                facts.setdefault(file, set()).add(fact)
+            if (ordering := _ordering(node)) is not None:
+                sorts[(file, *ordering)] = sorts.get((file, *ordering), 0) + 1
+    for (file, method, receiver), count in sorts.items():
+        facts.setdefault(file, set()).add(f"main.<sorts>.{method}.{receiver}={count}")
+    return facts
+
+
+def _arithmetic(node: _Node, carriers: _Carriers) -> list[str]:
+    """`main.<arithmetic>.<what>@<line> <operator>` for an arithmetic operator on a served number."""
+    if node.kind != "binary_expr" or len(node.kids) < 2:
+        return []
+    operator = next((m for item in node.kids[0].walk() if (m := NUMERIC_OPERATOR.search(item.line))), None)
+    if operator is None:
+        return []
+    place = LOCATION_LINE.search(node.line)
+    line = place.group(2) if place else "?"
+    return [f"main.<arithmetic>.{kind}@{line} {operator.group(1)}" for kind in sorted(_carried(node.kids[1], carriers))]
+
+
+def _ordering(node: _Node) -> tuple[str, str] | None:
+    """`(call, receiver)` for a sort, a reversal, a shuffle or a `max(by:)`/`min(by:)` on a resolved receiver."""
+    if node.kind != "dot_syntax_call_expr" or len(node.kids) < 2:
+        return None
+    call = ORDERING_CALL.search(node.kids[0].line)
+    if call is None or (call.group(1) in ("max", "min") and call.group(2) != "by:"):
+        return None
+    receiver = next((m for item in node.kids[1].walk() if (m := MAIN_REF.search(item.line))), None)
+    return call.group(1), receiver.group(1).split(".")[-1] if receiver else "?"
+
+
+def _flow_problem(name: str, symbol: str) -> str | None:
+    """#60 (G-2): arithmetic on a served number outside its ruling's file, or a sort past its count."""
+    fact, _, subject = symbol.partition(">.")
+    if fact == "<arithmetic":
+        what, _, where = subject.partition("@")
+        if (name, what) in ARITHMETIC_PERMITTED:
+            return None
+        line, _, operator = where.partition(" ")
+        return (f"{name}:{line}: `{operator}` on a served {what}, a second scoring implementation; only the "
+                f"files a ruling names do arithmetic on one (REQ-APP-005; D-138, D-167, REQ-CMP-002)")
+    if fact == "<sorts":
+        call_receiver, _, count = subject.rpartition("=")
+        call, _, receiver = call_receiver.partition(".")
+        allowed = SORTS_PERMITTED.get((name, call, receiver), 0)
+        if int(count) > allowed:
+            return (f"{name}: sorts `{receiver}` with `{call}` {count} time(s), and {allowed} is permitted; the "
+                    "client orders nothing itself but where a ruling says why (Ruling A, REQ-APP-002)")
+    return None
 
 
 def _sink_problem(name: str, symbol: str) -> str | None:
@@ -434,7 +648,7 @@ def problems(found: dict[str, set[str]]) -> list[str]:
         for decl in sorted(decls):
             module, _, symbol = decl.partition(".")
             if module == "main" and symbol.startswith("<"):
-                if (problem := _sink_problem(name, symbol)) is not None:
+                if (problem := _sink_problem(name, symbol) or _flow_problem(name, symbol)) is not None:
                     bad.append(problem)
                 continue
             problem = _module_problem(name, module, symbol, decl)

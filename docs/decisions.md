@@ -3969,3 +3969,48 @@ carries the question off the device or into its caches with every gate passing.
 
 **Revisit when:** a third sink appears (a new route or a new store), or Swift can admit exactly two
 files to a declaration.
+
+## D-181 — The phone's arithmetic and ordering rules are checked on what the compiler resolves
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
+("proceed with what you recommend, don't ask", owner, translated from Turkish); M19-W2 · **Date:**
+2026-10-06 · **Amends** the enforcement of D-104, D-138, D-160 clause 2 and D-167 clause 4 · from
+#60, gap G-2.
+
+**Context.** The text tripwires for REQ-APP-005 (no arithmetic on a number the engine sent) and
+Ruling A (the client orders nothing itself) match the words around an operator and the name of a
+sort's receiver. `let place = standing.position; place + 1` passed the first (the M17-W4 review's
+R4), and a second `common.sorted()` in `Combine.swift` passed the second (its Tester's M7).
+
+**Decision.**
+1. The declaration gate (D-180's home) follows each served number, a field `Models.swift` decodes
+   from the engine, through every local it is bound to, every parameter a call passes it to and
+   every loop element it yields, to a fixed point, on the compiled module in all four configurations.
+2. An arithmetic operator on a served number is refused outside the file a ruling names for it:
+   scores in `Uncertainty.swift` (D-138), positions in `Combine.swift` (D-167), and prices in
+   `Router.swift` and `Language.swift`, which turn the price per million tokens into a price per
+   page, in English and in Turkish (REQ-CMP-002, the unit a reader outside the industry uses, beside
+   the exact figure).
+3. A sort, reversal, shuffle or `max(by:)`/`min(by:)` is keyed on the receiver the compiler resolved,
+   and counted: each permitted one may occur as often as its table says, once today.
+4. The text tripwires stay, for the lanes without Xcode.
+
+**Found on the way.** The price-in-pages conversion was arithmetic on a served price that no table
+named: its parameter is called `blendedPerM`, without the `.` the text tripwire looks for. REQ-CMP-002
+requires it, so it is permitted by name here rather than removed.
+
+**Measured.** The shipping client passes in all four configurations. Three mutants planted in it
+were each refused: a served score doubled through a local on the screen, a served price divided
+through a local in `Detail.swift`, and a second `common.sorted()` in `Combine.swift`.
+
+**The rejected alternative.** Exact-expression permissions, as `EGRESS_EXACT` does for egress: each
+permitted line spelled out. It holds what is written, but an alias on a line nobody listed is still
+invisible to it, which is the hole.
+
+**What it does not do.** A value that leaves the module's sight, through a closure stored and called
+later, a protocol's dynamic dispatch or a collection of mixed values, can still carry a served number
+past it; review and the Swift tests hold those. Formatter rounding is not arithmetic here
+(REQ-APP-005 stays partial for it).
+
+**Revisit when:** a file needs arithmetic on a served number a ruling does not yet name, or the flow
+needs more than the shapes listed in (1).
