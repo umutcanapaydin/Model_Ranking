@@ -1,7 +1,8 @@
 """OpenRouter pricing source: client + parser (REQ-ING-005, D-101).
 
-Fetches the public, no-auth ``/api/v1/models`` catalog (documented data API,
-attribution required per OpenRouter terms — carried in export metadata).
+Fetches the public, no-auth ``/api/v1/models`` catalog. It is credited in export metadata, though
+OpenRouter's terms (last updated 2026-08-31) state no licence and no attribution clause for it: its
+CC BY 4.0 grant covers only its Data API endpoints (#124; what its terms permit is #88's ruling).
 Prices arrive as STRING $/token values; converted to $/1M. Entries that are
 free (0) or unpriced are skipped, never stored as zero (schema CHECK backs
 this up).

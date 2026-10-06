@@ -23,6 +23,7 @@ import httpx
 
 from app.clients.protocols import SourceError, bounded_get
 from app.workflows.board_tables import AGENT_HARNESS as AGENT_HARNESS
+from app.workflows.board_tables import ARENA_ATTRIBUTION
 from app.workflows.board_tables import ELO_BAND as ELO_BAND
 from app.workflows.board_tables import HARNESS as HARNESS
 from app.workflows.board_tables import IPS_BAND as IPS_BAND
@@ -44,7 +45,7 @@ FILTER_API = "https://datasets-server.huggingface.co/filter"
 OVERALL_CATEGORY = "overall"
 WHERE_OVERALL = "\"category\"='overall'"
 BENCHMARK = "Arena text"
-ATTRIBUTION = "Arena leaderboard data © LMArena — lmarena-ai/leaderboard-dataset (CC-BY-4.0)"
+ATTRIBUTION = ARENA_ATTRIBUTION
 PREFERRED_CATEGORY = OVERALL_CATEGORY  # the overall board; the other slices: arena_slices.py
 
 

@@ -19,16 +19,48 @@ IPS_METRIC = "ips"
 AGENT_HARNESS = "arena-agent"
 IPS_BAND = (-1.0, 1.0)
 
+#: The Creative Commons licences served data is under, each in the project's `CC-BY-4.0` convention
+#: and with the URI CC BY 4.0 section 3(a)(1)(C) asks a notice to carry (#124).
+CC_BY_4 = "CC-BY-4.0, https://creativecommons.org/licenses/by/4.0/"
+CC_BY_NC_4 = "CC-BY-NC-4.0, https://creativecommons.org/licenses/by-nc/4.0/"
+
 # Epoch's OWN prescribed citation, quoted verbatim from the bundle's README, plus the
 # licence token. Its URL and the client's are different things on purpose (W4 review
 # BLOCKING-3, second half): `epoch.ai/benchmarks` is the citation target Epoch requires;
 # `app.clients.epoch.EPOCH_BUNDLE_URL` is where the bytes were acquired. The
-# licence is written ONCE, in the project's `CC-BY-4.0` convention (review MINOR-8 \u2014
-# it previously appeared twice, in two spellings, so a test could substring-match it).
-EPOCH_ATTRIBUTION = (
+# licence is written ONCE (review MINOR-8 \u2014 it previously appeared twice, in two
+# spellings, so a test could substring-match it).
+EPOCH_CITATION = (
     "Epoch AI, \u2018Capabilities & benchmarking\u2019. Published online at epoch.ai. "
-    "Retrieved from \u2018https://epoch.ai/benchmarks\u2019 [online resource]. "
-    "(CC-BY-4.0)"
+    "Retrieved from \u2018https://epoch.ai/benchmarks\u2019 [online resource]."
+)
+EPOCH_ATTRIBUTION = f"{EPOCH_CITATION} ({CC_BY_4})"
+
+#: #124: the boards Epoch compiles from other publishers. Epoch's hub "also includes data sourced
+#: from external projects, which retains its original licensing", and users "should credit the
+#: original sources as indicated" (epoch.ai/benchmarks/use-this-data, read 2026-10-06). Each is
+#: credited to the source its file's `Source` column names (the bundle of 2026-10-06), then to
+#: Epoch's compilation. None claims a licence: Epoch's grant does not reach them, and what each
+#: source's own terms permit is the owner's ruling (#88).
+EPOCH_EXTERNAL_ATTRIBUTION: dict[str, str] = {
+    source: f"{credit}. Via {EPOCH_CITATION}"
+    for source, credit in (
+        ("epoch_arc_agi", "ARC-AGI scores: ARC Prize leaderboard, https://arcprize.org/leaderboard"),
+        ("epoch_deepswe_external", "DeepSWE scores: Datacurve's DeepSWE leaderboard, https://deepswe.datacurve.ai/"),
+        ("epoch_mmlu", "MMLU scores: Stanford CRFM's HELM Lite leaderboard, "
+                       "https://crfm.stanford.edu/helm/lite/latest/#/leaderboard/mmlu, and the model technical "
+                       "reports Epoch's `mmlu_external.csv` names"),
+        ("epoch_terminalbench", "Terminal-Bench 2.0 scores: Terminal-Bench v2 leaderboard, "
+                                "https://www.tbench.ai/leaderboard/terminal-bench/2.0"),
+        ("epoch_webdev", "WebDev Arena scores: LMArena's WebDev Arena leaderboard, https://arena.ai/leaderboard"),
+    )
+}
+
+#: LMArena's dataset, under its card's CC-BY-4.0 grant (D-101). Here, not in its client, so the serving
+#: process and the client read one string (W-125).
+ARENA_ATTRIBUTION = (
+    "Arena leaderboard data \u00a9 LMArena \u2014 lmarena-ai/leaderboard-dataset, "
+    f"https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset ({CC_BY_4})"
 )
 
 
