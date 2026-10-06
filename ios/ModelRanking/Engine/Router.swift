@@ -704,11 +704,14 @@ struct TieredRouter {
     static func read(_ question: String, _ outcome: RoutingOutcome) -> RoutingOutcome {
         var read = outcome
         // #113 (M18-W3, M19-W4): making or changing an image is not measured; the same outcome the
-        // model's decline gives, with the same disclosure. Wherever the tier sent it but the two coding
-        // surfaces: a question the tier sent to code is about code (the code reviews' B4). At the M19-W4
-        // baseline, 6 and 7 of 20 requests to make an image went to `web-dev`, where the rule did not reach.
-        if !outcome.unmeasured, !["coding", "agentic-coding"].contains(outcome.categoryID),
-           InputSignals.makesAnImage(question) {
+        // model's decline gives, with the same disclosure. On `vision`, as M18 built it. Elsewhere, as
+        // at the M19-W4 baseline 6 and 7 of 20 requests to make an image went to `web-dev`: never on the
+        // two coding surfaces, since a question the tier sent to code is about code, and never on a
+        // question that names a website, an app or a document, which is about that (the M18 reviews'
+        // B4, the M19-W4 review's MJ1).
+        let reaches = outcome.categoryID == "vision"
+            || (!["coding", "agentic-coding"].contains(outcome.categoryID) && !InputSignals.namesASiteOrADocument(question))
+        if !outcome.unmeasured, reaches, InputSignals.makesAnImage(question) {
             read = RoutingOutcome(categoryID: CategoryHints.unmeasuredFallback, tier: outcome.tier, unmeasured: true)
             read.reading = outcome.reading
         }

@@ -236,4 +236,7 @@ wrote the fresh held-out sets; the three M18 sets were retired to tuning (#177, 
 instruction). Three variants were run per problem, and the built one measured twice per tier: every
 guard and bound held, #113's wording-tier bar was met, and #66's and #113's model-tier bars and D-169
 clause 6's catch bar were missed (`docs/research/m19-w4-question-reading-probe.md`, D-184). By the
-valve, the pull request asks the owner whether to ship what holds; #66 and #113 stay open.
+valve, the pull request asks the owner whether to ship what holds; #66 and #113 stay open. Two
+variants that changed the model ran once each, and #113's (b) once: their first runs settled them.
+The coding-set guard owed to variants that change the model's instructions was not run, since none of
+them was built. The code review's fixes cost one knowledge question on the spent set (record §6).

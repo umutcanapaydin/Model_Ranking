@@ -524,7 +524,8 @@ final class ReadingSecondRoundTests: OfflineTestCase {
                      "Who wrote One Hundred Years of Solitude?", "when did the berlin wall fall",
                      "HOW TALL IS MOUNT EVEREST IN METERS", "whats the capital of australia",
                      "kanadanin baskenti neresi", "istanbul hangi yil fethedildi", "Ahtapotun kaç kolu var?",
-                     "türkiyenin en uzun nehri hangisi", "Fransız İhtilali ne zaman oldu",
+                     // Not "türkiyenin en uzun nehri hangisi": "hangisi" left the signal (the W4 review's MJ2).
+                     "Fransız İhtilali ne zaman oldu",
                      "Osmanlı İmparatorluğu hangi yıl kuruldu?", "ışık hızı saniyede kaç km"] {
             XCTAssertTrue(InputSignals.asksAFact(text), text)
         }
@@ -616,5 +617,73 @@ final class ReadingSecondRoundTests: OfflineTestCase {
             .route("make me an app icon for a budgeting app, flat style, green", within: known)
         XCTAssertTrue(worded.unmeasured)
         XCTAssertEqual(worded.tier, .similarity)
+    }
+}
+
+/// The M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-review-round-1.md`), REQ-ASK-005, REQ-IMG-003 and
+/// REQ-RTR-005: inputs the second round misread. The lines are the review's own, made up to probe
+/// the rules, or tuning rows; none is a held-out question.
+final class ReadingSecondRoundReviewTests: OfflineTestCase {
+    private let known = ["coding", "agentic-coding", "web-dev", "document", "assistant", "vision"]
+
+    /// MJ1 (the M18 reviews' B4 class): a question about a website or a document that mentions an
+    /// image keeps the surface its tier chose; so does one the tier sent to agentic coding (M4).
+    func testAQuestionAboutASiteOrADocumentThatMentionsAnImageKeepsItsSurface() async {
+        let lines: [(String, String)] = [
+            ("fix the broken image on my wordpress site", "web-dev"), ("make images load faster on my website", "web-dev"),
+            ("change the background image of my website", "web-dev"), ("remove the background image from my css", "web-dev"),
+            ("make the hero image full width in tailwind", "web-dev"), ("fix the logo alignment in my navbar", "web-dev"),
+            ("remove the image border in my html", "web-dev"), ("sitemdeki resimleri düzelt, yüklenmiyorlar", "web-dev"),
+            ("web sitem için resim galerisi yap", "web-dev"), ("sitem için resim yükleme sayfası yap", "web-dev"),
+            ("react ile resim galerisi sayfası yap", "web-dev"),
+            ("fix the image placement in my latex document", "document"), ("make the images in my pdf smaller", "document"),
+            ("let an agent fix the broken images across my repo", "agentic-coding"),
+        ]
+        for (question, surface) in lines {
+            let outcome = await TieredRouter(
+                model: ScriptedModelRouter(answers: [question: ["request": "a model search", "surface": surface]]),
+                similarity: SilentTier()
+            ).route(question, within: known)
+            XCTAssertEqual(outcome.categoryID, surface, question)
+            XCTAssertFalse(outcome.unmeasured, question)
+        }
+    }
+
+    /// MJ2: a search that names the asker, an AI or a task is no question of fact, whatever the case
+    /// folding ("I" and "AI" fold to "ı" and "aı" in Turkish) and however the asker writes "which".
+    func testASearchThatNamesTheAskerAnAIOrATaskIsNoQuestionOfFact() {
+        for text in ["Where can I run llama locally", "When should I use opus instead of sonnet",
+                     "How much should I pay for a coding assistant", "Who has the most accurate AI for medical questions",
+                     "How much does an AI subscription cost", "how much does claude cost", "claude kaç para",
+                     "what is the most accurate chatbot for medical questions", "who leads in coding",
+                     "what is good for coding in rust", "what's good for writing a novel",
+                     "kodlamada en güçlüsü hangisi", "çeviri için en uygun hangisi", "ödev için hangisi",
+                     "kodlamada kim önde",
+                     // M4: an act verb, a plural or suffixed "model", and an opener not at the start.
+                     "who can explain recursion simply", "who trains the largest models", "bu modeli kim yaptı",
+                     "the question is who wrote hamlet"] {
+            XCTAssertFalse(InputSignals.asksAFact(text), text)
+        }
+    }
+
+    /// M1: "health" alone is a search, not small talk; "eline sağlık" (thanks for your effort) is.
+    func testHealthAloneIsNoSmallTalk() async {
+        XCTAssertFalse(InputSignals.smallTalk("sağlık"))
+        XCTAssertFalse(InputSignals.smallTalk("sağlık ok"))
+        XCTAssertTrue(InputSignals.smallTalk("çok teşekkürler, eline sağlık"))
+        let outcome = await TieredRouter(
+            model: ScriptedModelRouter(answers: ["sağlık": ["request": "a model search", "surface": "assistant"]]),
+            similarity: SilentTier()
+        ).route("sağlık", within: known)
+        XCTAssertEqual(outcome.reading, .search)
+    }
+
+    /// M6 and K2: a search typed with a colon, its model or its "which" after it, is no pasted
+    /// content; nor is one whose "AI" before the colon is written in capitals.
+    func testASearchTypedWithAColonIsNoPastedContent() {
+        for text in ["make vs cmake: which is better for c++", "React ile todo uygulaması yap: hangi model en iyisi",
+                     "Summarize with AI: what works"] {
+            XCTAssertFalse(InputSignals.pastedContent(text), text)
+        }
     }
 }

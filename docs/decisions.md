@@ -3410,6 +3410,8 @@ branch). M18 holds it as follows; the measure is `docs/research/m18-w3-question-
     on `web-dev` as if measured; #66 unchanged (21 and 20 caught, 1 and 2 genuine searches asked);
     coding 33 and 32 of 40. The question back reached genuine searches 8 and 10 times in 145.
 
+**Amended by D-184 (2026-10-07)**: a question of fact is a doubt in code beside pasted content and an order to the app, and the #113 image rule reaches every surface but the two coding surfaces, except a question about an image in a website, an app or a document.
+
 ## D-170 — The engine runs as a launchd service, from a deployed release of `main`
 
 **Status:** accepted -- **ruled by the owner on the review of #32** (2026-09-25), recorded as an ADR
@@ -4195,21 +4197,28 @@ measured (#113). M19-W4 measured three variants per problem on the tuning sets a
 fresh held-out sets, twice per tier (`docs/research/m19-w4-question-reading-probe.md`).
 
 **Decision.**
-1. **A question of fact is a doubt in code** (`InputSignals.asksAFact`): at most ten words, written as
-   a question of fact ("who", "when", "where", "how many", "what is", and the Turkish words for who,
-   where, how many, when and which year), naming no model or AI, no asker, no recommendation,
-   nothing current and no image the asker has. It joins pasted content and an order to the app in
+1. **A question of fact is a doubt in code** (`InputSignals.asksAFact`): at most ten words, opening as
+   a question of fact ("who", "when", "where", "what is", "what was", "what year", "how many", "how
+   much", "how tall", "how long", "how far", "how old", "how big", "how high"; and the Turkish words
+   for where (as "the place of"), who, how many, when and which year), and naming, in any case folding,
+   no model, AI or AI tool, no asker or their wish, no recommendation, no task, nothing current and
+   no image the asker has. It joins pasted content and an order to the app in
    D-169's table: with the model's "something else" it is the note; alone the reader is asked. It runs
    on every tier, so without the model a question of fact is asked about.
 2. **The signals read input as people typed it in the tuning sets:** small talk at length and Turkish
    without its letters; a task ordered by "make" or by a Turkish verb typed without its letters; an
    order to copy the hidden rules out, or a role handed over ("pretend ur a", "from now on answer").
-   Every word added is in a tuning row (#117's check stays quiet).
+   Every word the signals added before the measure is in a tuning row at a word's start, as #117's
+   check reads; the code review found two that no tuning row holds whole, as the app matches them
+   (`nerede`, `öner`): the first left the signal, the second is read by its stem (record §6).
 3. **The image rule overrides wherever the tier sent the question but `coding` and
    `agentic-coding`**, not only `vision`: at the baseline 6 and 7 of 20 requests to make an image went
-   to `web-dev`. A question the tier sent to code is about code, so the M18 reviews' B4 lines keep
-   their surface. The rule reads the Turkish forms it missed: "make" asked as a question after an
-   image, and "photo" and "change" typed without their Turkish letters.
+   to `web-dev`. A question the tier sent to code is about code, and beyond `vision` a question about
+   an image in a website, an app or a document is about that (the M18 reviews' B4, the W4 review's
+   MJ1); one that names the image ("app icon") or what it is made for ("a logo for my website") is
+   still read. The rule reads the Turkish forms it missed: "make" in each request form after an image
+   that is its object (not a modifier, as in `resim galerisi`), and "photo" and "change" typed without
+   their Turkish letters.
 4. **The model's instructions do not change.** Telling it what a question of fact is moved its
    verdict on 1 of 22 such questions and cost surface accuracy (variant a); a closed field asking it
    whether the text makes a picture said yes to reading one (variant b). Neither was built.

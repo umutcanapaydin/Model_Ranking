@@ -1,10 +1,11 @@
-//  Reading.swift — whether what was typed is a search for a model at all (D-169, amended M18-W3).
+//  Reading.swift — whether what was typed is a search for a model at all (D-169, amended at M18-W3
+//  and by D-184 at M19-W4).
 //
 //  Some input states no need: an attempt to instruct the model, chit-chat or nonsense, a knowledge
 //  question, or content pasted in for the app to act on. Measured in M17, the on-device model alone
-//  could not tell those from the product's normal input. M18 holds the line with two signals
-//  decided here, in code, and tested, combined with the model's own reading. Where the two disagree,
-//  the reader is asked rather than decided for.
+//  could not tell those from the product's normal input. M18 holds the line with signals decided
+//  here, in code, and tested, combined with the model's own reading; M19-W4 adds a question of fact
+//  to the doubts (D-184). Where the two disagree, the reader is asked rather than decided for.
 
 import Foundation
 
@@ -50,14 +51,22 @@ enum InputSignals {
         guard let colon = text.firstIndex(of: ":") else { return false }
         let after = text[text.index(after: colon)...].trimmingCharacters(in: .whitespacesAndNewlines)
         guard after.count >= 2 else { return false }
-        return folds(String(text[..<colon])).contains { before in
-            let words = wordsOf(before)
+        let before = folds(String(text[..<colon])).map(wordsOf)
+        // A search names what it searches for before the colon ("Best model to explain code: …");
+        // an instruction does not (the second review's M12). Judged over every folding: "AI" folds
+        // to "aı" in Turkish (the M19-W4 review's K2).
+        let searchWords: Set<String> = ["model", "models", "llm", "ai", "which", "best", "hangi", "modeli", "modelin"]
+        if before.contains(where: { $0.contains(where: searchWords.contains) }) { return false }
+        // Or after it: its "which" first, or a model named ("make vs cmake: which is better", the
+        // M19-W4 review's M6).
+        if folds(after).map(wordsOf).contains(where: { words in
+            ["which", "hangi", "hangisi"].contains(words.first ?? "")
+                || words.contains(where: { $0.hasPrefix("model") || ["ai", "llm"].contains($0) })
+        }) {
+            return false
+        }
+        return before.contains { words in
             guard (1...8).contains(words.count) else { return false }
-            // A search names what it searches for before the colon ("Best model to explain code: …");
-            // an instruction does not (the second review's M12).
-            if words.contains(where: { ["model", "models", "llm", "ai", "which", "best", "hangi", "modeli", "modelin"].contains($0) }) {
-                return false
-            }
             // The verb where an instruction puts it: first in English ("translate into Spanish:",
             // "please fix this:"), last in Turkish ("şunu İngilizceye çevir:", "çevirir misin:").
             let english = words.prefix(2).contains(where: actVerbsEnglish.contains)
@@ -121,18 +130,28 @@ enum InputSignals {
     /// search always names something beyond these words, so this decides alone.
     static func smallTalk(_ text: String) -> Bool {
         folds(text).contains { folded in
-            let words = wordsOf(folded)
-            return (1...6).contains(words.count) && words.allSatisfy(smallTalkWords.contains)
+            // A phrase counts as one word of small talk ("eline sağlık"); its words alone do not, so
+            // "sağlık" (health) is a search (the M19-W4 review's M1).
+            var spaced = " " + wordsOf(folded).joined(separator: " ") + " "
+            var phrases = 0
+            for phrase in smallTalkPhrases where spaced.contains(" \(phrase) ") {
+                spaced = spaced.replacingOccurrences(of: " \(phrase) ", with: " ")
+                phrases += 1
+            }
+            let words = spaced.split(separator: " ").map(String.init)
+            return (1...6).contains(words.count + phrases) && words.allSatisfy(smallTalkWords.contains)
         }
     }
+
+    static let smallTalkPhrases = ["eline sağlık"]
 
     static let smallTalkWords: Set<String> = [
         "hi", "hello", "hey", "hiya", "yo", "sup", "thanks", "thank", "you", "thx", "ok", "okay", "cool",
         "nice", "great", "lol", "haha", "bye", "good", "morning", "evening", "night", "how", "are",
         "doing", "today", "test", "testing", "selam", "merhaba", "mrb", "slm", "nasılsın", "naber",
         "teşekkürler", "teşekkür", "ederim", "sağol", "sağ", "ol", "tamam", "peki", "günaydın", "iyi",
-        "geceler", "akşamlar", "görüşürüz", "nasilsin", "eyvallah", "tmm", "çok", "eline", "sağlık", "that", "was",
-        "really", "helpful", "much",
+        "geceler", "akşamlar", "görüşürüz", "nasilsin", "eyvallah", "tmm", "çok", "that", "was", "really",
+        "helpful", "much",
     ]
 
     /// #66 (M19-W4): a question of everyday fact asked for its answer, not a search for a model
@@ -141,15 +160,19 @@ enum InputSignals {
     /// has. A doubt, as the others are: alone, the reader is asked. The model called 21 and 20 of 22
     /// such questions on the tuning set "a model search".
     static func asksAFact(_ text: String) -> Bool {
-        folds(text).contains { folded in
-            let words = wordsOf(folded)
-            guard (2...10).contains(words.count) else { return false }
-            if words.contains(where: { word in
+        let folded = folds(text).map(wordsOf)
+        // Excluded if ANY folding names a model, the asker, a task or the rest: "I" and "AI" fold to
+        // "ı" and "aı" in Turkish, and iOS capitalises "I" (the M19-W4 review's MJ2).
+        if folded.contains(where: { words in
+            words.contains(where: { word in
                 word.hasPrefix("model") || factExclusions.contains(word) || actVerbsEnglish.contains(word)
-                    || isImageNoun(word)
-            }) {
-                return false
-            }
+                    || factExclusionStemsTurkish.contains(where: word.hasPrefix) || isImageNoun(word)
+            })
+        }) {
+            return false
+        }
+        return folded.contains { words in
+            guard (2...10).contains(words.count) else { return false }
             let english = factOpeners.contains { words.starts(with: $0) }
             let pairs = zip(words, words.dropFirst())
             let turkish = words.contains(where: factWordsTurkish.contains)
@@ -165,18 +188,24 @@ enum InputSignals {
         ["how", "many"], ["how", "much"], ["how", "tall"], ["how", "long"], ["how", "far"], ["how", "old"],
         ["how", "big"], ["how", "high"],
     ]
-    /// The Turkish words of a question of fact: where, who, how many, which one ("ne zaman" and "hangi
-    /// yıl" are read as pairs).
-    static let factWordsTurkish: Set<String> = ["neresi", "nerede", "kim", "kaç", "hangisi"]
-    /// A word that makes it a search, a task or a request rather than a question of fact: a model or
-    /// an AI named, the asker in it or their wish, a recommendation, something current, or an image
-    /// the asker has (with the image nouns of `isImageNoun`).
+    /// The Turkish words of a question of fact: where, who, how many ("ne zaman" and "hangi yıl" are
+    /// read as pairs). Not "hangisi" (which one): `X için hangisi` is how a Turkish reader asks for a
+    /// model (the M19-W4 review's MJ2); not "nerede", which no tuning row holds whole (its M2).
+    static let factWordsTurkish: Set<String> = ["neresi", "kim", "kaç"]
+    /// A word that makes it a search, a task or a request rather than a question of fact: a model, an
+    /// AI or an AI tool named, the asker in it or their wish, a recommendation, a task, something
+    /// current, or an image the asker has (with the image nouns of `isImageNoun`).
     static let factExclusions: Set<String> = [
-        "ai", "llm", "gpt", "yapay", "zeka", "zekâ", "best", "better", "recommend", "i", "my", "me", "we", "our",
-        "us", "bana", "benim", "ben", "istiyorum", "iyi", "iyisi", "öner", "today", "tonight", "now", "latest",
-        "live", "yesterday", "tomorrow", "week", "bugün", "bugun", "şimdi", "dün", "yarın", "güncel", "hafta",
-        "this", "screenshot",
+        "ai", "llm", "gpt", "yapay", "zeka", "zekâ", "chatbot", "chatgpt", "claude", "gemini", "deepseek",
+        "llama", "mistral", "grok", "copilot", "opus", "sonnet", "assistant", "asistan", "bot", "best",
+        "better", "recommend", "i", "my", "me", "we", "our", "us", "bana", "benim", "ben", "istiyorum", "iyi",
+        "iyisi", "coding", "code", "programming", "writing", "translation", "math", "maths", "essay",
+        "homework", "today", "tonight", "now", "latest", "live", "yesterday", "tomorrow", "week", "bugün",
+        "bugun", "şimdi", "dün", "yarın", "güncel", "hafta", "this", "screenshot",
     ]
+    /// The same in Turkish, by stem, since the language joins its suffixes: to recommend, to code, to
+    /// translate, homework, software (the M19-W4 review's MJ2 and M2).
+    static let factExclusionStemsTurkish = ["öner", "kodla", "çevir", "çeviri", "ödev", "yazılım"]
 
     /// #113 (M18-W3): a request to MAKE or CHANGE an image, which nothing here measures: `vision`
     /// measures reading one. The on-device model sent these to `vision` even when told not to (0 of
@@ -228,8 +257,12 @@ enum InputSignals {
                         return true
                     }
                 }
+                // The image must be the verb's object, not a modifier of it ("resim galerisi yap" makes
+                // a gallery page, "resim yükleme sayfası" an upload page: the M19-W4 review's MJ1).
                 if isTurkishVerb(words, at: index, stems: imageStemsTurkish),
-                   words[max(0, index - 4)..<index].contains(where: isImageNoun) {
+                   words.indices[max(0, index - 4)..<index].contains(where: { spot in
+                       isImageNoun(words[spot]) && !(spot + 1 < index && modifierHeadsTurkish.contains(where: words[spot + 1].hasPrefix))
+                   }) {
                     return true
                 }
             }
@@ -259,6 +292,43 @@ enum InputSignals {
         "comics", "artwork", "art", "pixel", "oil", "pencil", "character", "caricature", "collage", "mosaic",
         "style", "gif", "animation",
     ]
+    /// A word after an image noun that makes the noun a modifier, in Turkish: a gallery, an upload,
+    /// a page or a section of it.
+    private static let modifierHeadsTurkish = ["galeri", "yükleme", "sayfa", "bölüm"]
+    /// Whether the question is about an image IN a website, an app or a document (the M19-W4 review's
+    /// MJ1): beyond `vision`, the image rule does not override one ("fix the broken image on my
+    /// wordpress site", "sitemdeki resimleri düzelt"). A site word does not count when it names the
+    /// image ("app icon", "website logo") or the site the image is made FOR ("a logo for my website",
+    /// "web sitem için"). English whole, Turkish by stem, where a suffix ("sitemdeki") places it.
+    static func namesASiteOrADocument(_ text: String) -> Bool {
+        folds(text).contains { folded in
+            let words = wordsOf(folded)
+            return words.indices.contains { spot in
+                let word = words[spot]
+                let english = siteWordsEnglish.contains(word)
+                guard english || siteStemsTurkish.contains(where: word.hasPrefix) else { return false }
+                let next = spot + 1 < words.count ? words[spot + 1] : ""
+                let bare = english || ["uygulama", "site", "web"].contains(word)
+                if bare, isImageNoun(next) || siteWordsEnglish.contains(next) || siteStemsTurkish.contains(where: next.hasPrefix) {
+                    return false
+                }
+                if next == "için" { return false }
+                if english, words[..<spot].last(where: placePrepositions.contains) == "for" { return false }
+                return true
+            }
+        }
+    }
+
+    /// The prepositions before a site word that say where the image is, or (`for`) what it is for.
+    private static let placePrepositions: Set<String> = ["for", "on", "in", "of", "from", "to", "at", "into", "onto"]
+
+    private static let siteWordsEnglish: Set<String> = [
+        "site", "sites", "website", "websites", "webpage", "web", "page", "pages", "app", "apps", "css", "html",
+        "navbar", "tailwind", "wordpress", "react", "frontend", "component", "latex", "pdf", "document",
+        "documents", "docx", "slide", "slides",
+    ]
+    private static let siteStemsTurkish = ["site", "sayfa", "uygulama", "belge"]
+
     private static let drawIdioms: Set<String> = [
         "conclusion", "conclusions", "comparison", "distinction", "line", "parallel", "chart", "graph",
         "plot", "diagram", "table", "box", "boundary", "sample", "card", "blank", "crowd", "breath",
@@ -358,11 +428,12 @@ enum InputSignals {
     }()
 }
 
-/// D-169 as amended at M18-W3: the reading, from the signals in code and the model's verdict.
+/// D-169 as amended at M18-W3 and by D-184: the reading, from the signals in code and the model's
+/// verdict.
 ///
 /// - No word, or small talk and nothing else, decides alone: there is nothing to route.
-/// - A doubt in code (pasted content, an instruction to the app) and the model's "not a search"
-///   together decide it is not a search.
+/// - A doubt in code (pasted content, an instruction to the app, a question of fact) and the
+///   model's "not a search" together decide it is not a search.
 /// - Either one alone is a doubt, and the reader is asked.
 /// - `modelSaysNotASearch` is `nil` where no model read the question (another tier answered).
 func inputReading(noWord: Bool, smallTalk: Bool, doubt: Bool, modelSaysNotASearch: Bool?) -> InputReading {

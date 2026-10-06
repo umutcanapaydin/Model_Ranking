@@ -23,6 +23,11 @@ final class ReplayProbe: XCTestCase {
         guard let recorded = json as? [[String: String]], !recorded.isEmpty,
               recorded.allSatisfy({ $0["routed"] != nil && $0["declined"] != nil && $0["model"] != nil })
         else { return XCTFail("\(input) is not a ReadingProbe run with `routed`, `declined` and `model`") }
+        // A wording-tier run is not replayed: its manual-tier rows carry no tier answer to rebuild, so a
+        // replay would copy the old reading (the M19-W4 review's M3). Run that tier fresh instead.
+        guard !recorded.contains(where: { $0["tier"] != nil }) else {
+            return XCTFail("\(input) is a wording-tier run; run it fresh with PROBE_TIER=wording, not replayed")
+        }
         let rows: [[String: String]] = recorded.map { row in
             let question = row["q"] ?? ""
             guard let routed = row["routed"], routed != "nil" else { return row }
