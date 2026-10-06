@@ -477,9 +477,10 @@ def _shared_state(ast: str) -> tuple[dict[tuple[str, int, int], str], list[tuple
 
 
 #: #107: a call, or a constructor's, whose result is or holds a URL: `URL`, `URL?`, `[URL]`, and since
-#: the W2 review's B2 any type that names one (`[String : URL]?`, `Set<URL>`, a tuple).
-MAKES_URL = re.compile(r'^ *\((?:\w+=)?(?:call_expr|constructor_ref_call_expr) [^\n]*?\btype="[^"]*\bURL\b[^"]*"'
-                       r'[^\n]*?location=[^ ]*?(\w+\.swift):(\d+)')
+#: the W2 review's B2 any type that names one (`[String : URL]?`, `Set<URL>`, a tuple). A
+#: constructor's type is a function's, so what it makes is after its last arrow: `(URL) ->
+#: XMLParser?` takes a URL and makes none.
+MAKES_URL = re.compile(r'^ *\((?:\w+=)?(?:call_expr|constructor_ref_call_expr) [^\n]*?\btype="([^"]*)"')
 
 
 def url_facts(ast: str) -> dict[str, set[str]]:
@@ -490,7 +491,7 @@ def url_facts(ast: str) -> dict[str, set[str]]:
     for line in ast.splitlines():
         if line.startswith("(source_file"):
             current = pathlib.Path(line.split('"')[1]).name
-        elif MAKES_URL.match(line):
+        elif (call := MAKES_URL.match(line)) and re.search(r"\bURL\b", call.group(1).rsplit("->", 1)[-1]):
             facts.setdefault(current, set()).add("Foundation.URL.made")
     return facts
 
