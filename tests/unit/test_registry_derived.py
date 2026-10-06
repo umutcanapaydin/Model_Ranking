@@ -17,6 +17,7 @@ import sqlite3
 
 import pytest
 
+from app.workflows import registry
 from app.workflows.registry import derive_identity, reconcile
 from app.workflows.schema import connect
 
@@ -256,3 +257,13 @@ def test_a_dash_effort_is_an_effort_only_where_no_product_takes_the_word(
     identity = derive_identity(name)
     assert identity is not None and (identity.model_id, identity.effort) == (model_id, effort), identity
     assert derive_identity("mistral-medium") is None, "a moving alias stays one (D-166)"
+
+
+@pytest.mark.parametrize("name", ["ppl-sonar-pro-high", "ppl-sonar-reasoning-pro-high"])
+def test_a_sonar_names_high_is_its_search_context_not_an_effort(name: str) -> None:
+    """The M19-W1 review's R2: on Perplexity's Sonar names (Arena's `ppl-sonar-pro-high`), `high` is
+    the search-context size, so #130's dash grammar made Sonar Pro at high effort of them. The name
+    stays whole, and so does the name it is served under."""
+    identity = derive_identity(name)
+    assert identity is not None and (identity.model_id, identity.effort) == (name, None), identity
+    assert registry._derived_display(name, [name]) == name
