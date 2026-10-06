@@ -152,3 +152,22 @@ def test_a_makefile_pointer_lands_on_the_target_its_sentence_names() -> None:
     read = files.__getitem__
     assert not problems("`make install-check`, a leg of `make check` (Makefile:2)", {}, read)
     assert problems("`make install-check`, a leg of `make check` (Makefile:1)", {}, read)
+
+
+def test_a_place_the_prd_points_into_holds_the_code_it_names() -> None:
+    """#126 (the fix Tester's R1): a pointer the PRD places inside a test (`` `clear()` exercised at
+    :693 ``) need only exist for the gate above, so when #126 removed lines above it, it moved onto a
+    doc comment and every gate passed. The code it names must stand on the line it names."""
+    by_name = tracked()
+    places = 0
+    for row in PRD.read_text(encoding="utf-8").splitlines():
+        for match in re.finditer(r"`([^`]+)`[^`(]{0,40}?\bat\s+:(\d+)", row):
+            named = list(NAMED_FILE.finditer(row[: match.start()]))
+            assert named, f"no file named before {match.group(0)!r}"
+            (path,) = by_name[named[-1].group(1)]
+            line = (ROOT / path).read_text(encoding="utf-8").splitlines()[int(match.group(2)) - 1]
+            places += 1
+            assert match.group(1) in line, (
+                f"{named[-1].group(1)}:{match.group(2)} does not hold `{match.group(1)}`: {line.strip()!r}"
+            )
+    assert places, "no pointer into a test's body was read; the pattern matches nothing"
