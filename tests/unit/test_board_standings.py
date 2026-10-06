@@ -154,7 +154,7 @@ def test_the_key_sets_are_frozen() -> None:
 
 def test_each_board_is_dated_and_attributed() -> None:
     from app.clients.epoch import EPOCH_ATTRIBUTION
-    from app.workflows.rank import PRICING_ATTRIBUTION
+    from app.workflows.rank import PRICING_ATTRIBUTION_LITELLM
 
     conn = _conn()
     _chess(conn)
@@ -164,7 +164,8 @@ def test_each_board_is_dated_and_attributed() -> None:
     assert board["evidence_date"] == "2026-09-18"
     assert board["observed_at"] == "2026-09-25"
     assert board["attribution"] == EPOCH_ATTRIBUTION
-    assert set(payload["attributions"]) == {EPOCH_ATTRIBUTION, PRICING_ATTRIBUTION}
+    # The fixture's prices are LiteLLM's alone: OpenRouter is not credited (M19-W5 review, MJ1).
+    assert set(payload["attributions"]) == {EPOCH_ATTRIBUTION, PRICING_ATTRIBUTION_LITELLM}
 
 
 def test_an_unattributed_source_fails_rather_than_publishing() -> None:

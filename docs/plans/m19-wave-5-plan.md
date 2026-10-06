@@ -30,8 +30,8 @@ billing, signing and App Store Connect steps are the owner's, handed over as exa
   its artifact is one immutable pair of code and data, and a rollback restores both.
 - **The hosted artifact is public, and carries only the sources whose terms permit it** (#88; the
   licence table in the new ADR). Left out: ARC-AGI, DeepSWE, Terminal-Bench, SWE-bench's own board,
-  MMLU and OpenRouter. `abstract`, `agentic-coding` and `computer-use` say they have no evidence
-  there; `coding` ranks on Epoch's SWE-bench Verified. The owner's Mac keeps every source under
+  MMLU, Epoch's web-dev copy and OpenRouter (seven). `abstract`, `agentic-coding`, `computer-use` and
+  `web-dev` say they have no evidence there; `coding` ranks on Epoch's SWE-bench Verified. The owner's Mac keeps every source under
   W-129's ruling. The owner may overrule before the deploy.
 
 ## Issues

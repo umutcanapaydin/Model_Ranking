@@ -41,6 +41,14 @@ _REMOVE = {
     "scores": "DELETE FROM scores WHERE source IN (SELECT value FROM json_each(?))",
     "pricing": "DELETE FROM pricing WHERE source IN (SELECT value FROM json_each(?))",
 }
+#: What else the public artifact does not carry (the M19-W5 review): LiteLLM's own copies of
+#: OpenRouter's prices, under `openrouter/` aliases (MJ1), and the vendor subscription plans, which
+#: `/v1` never serves and one vendor's terms keep from public display (M2).
+_REMOVE_ALSO = {
+    "openrouter_aliases": "DELETE FROM pricing WHERE source = 'litellm' AND alias LIKE 'openrouter/%'",
+    "plan_models": "DELETE FROM plan_models",
+    "plans": "DELETE FROM plans",
+}
 _SURVIVORS = "SELECT count(*) FROM scores WHERE source IN (SELECT value FROM json_each(?))"
 
 
@@ -67,11 +75,17 @@ def derive(source: Path, target: Path) -> dict[str, int]:
             with conn:
                 for table, statement in _REMOVE.items():
                     removed[f"{table}_removed"] = conn.execute(statement, (sources,)).rowcount
+                for what, statement in _REMOVE_ALSO.items():
+                    removed[f"{what}_removed"] = conn.execute(statement).rowcount
             if build_price_medians(conn) <= 0:
                 raise ValueError("no prices are left to rank by: the public artifact would answer nothing")
             left = conn.execute(_SURVIVORS, (sources,)).fetchone()[0]
             if left:
                 raise ValueError(f"{left} rows of a left-out source survived the derivation")
+            # Out of WAL, whatever the built artifact journals: a WAL file cannot be opened read-only in
+            # a folder the engine cannot write, as `/srv` in the image is not (the review's R3). The
+            # VACUUM drops the deleted rows' pages from the file (its M2).
+            conn.execute("PRAGMA journal_mode=DELETE")
             conn.execute("VACUUM")
         finally:
             conn.close()

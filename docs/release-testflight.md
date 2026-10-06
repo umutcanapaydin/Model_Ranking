@@ -17,10 +17,11 @@ review of this wave has passed and you have merged its pull request.**
 1. **Update your checkout.** `git checkout main && git pull`, then `make install`.
 2. **Log in and add a card.** `fly auth login`. Fly asks for a payment method before it places a
    machine, even the smallest (D-123): add one at https://fly.io/dashboard → Billing. The
-   declared machine (`shared-cpu-1x`, 256 MB, always on) costs about two dollars a month.
+   declared machine (`shared-cpu-1x`, 256 MB, always on; the script deploys one, `--ha=false`)
+   costs about two dollars a month.
 3. **Create the app.** `fly apps create model-ranking`. If the name is taken, choose another, and
-   change it in three places: `app` and `MODEL_RANKING_ALLOWED_HOSTS` in `fly.toml`, the health
-   check's `Host` there too, and `ENGINE_URL[config=Release]` in `ios/Config/Engine.xcconfig`.
+   change it in four places: `app`, `MODEL_RANKING_ALLOWED_HOSTS` and the health check's `Host` in
+   `fly.toml`, and `ENGINE_URL[config=Release]` in `ios/Config/Engine.xcconfig`.
    Commit the change: the deploy refuses an uncommitted tree.
 4. **Try the image on your Mac first** (optional, free): with Docker Desktop running, `make
    cold-start` builds the hosted image, boots it with nothing saved, and runs the customer journey
@@ -56,7 +57,9 @@ You need an Apple Developer Program membership (99 USD a year) for TestFlight.
 3. **Archive.** Open `ios/ModelRanking.xcodeproj` in Xcode, choose "Any iOS Device (arm64)" as the
    destination, then Product → Archive. A Release build reaches `https://model-ranking.fly.dev`.
 4. **Upload.** In the Organizer that opens: Distribute App → App Store Connect → Upload. The
-   encryption question is already answered in the app (no non-exempt encryption).
+   encryption question is already answered in the app (no non-exempt encryption). Each later upload
+   needs a higher build number: raise `CURRENT_PROJECT_VERSION` (Xcode: the target → General →
+   Build) before you archive again.
 5. **Testers.** In App Store Connect → TestFlight, add yourself and anyone on your team as internal
    testers (up to 100); they install the TestFlight app and accept the invitation. External testers
    need a Beta App Review first, which may ask that you are permitted to show each source's data
@@ -66,7 +69,9 @@ You need an Apple Developer Program membership (99 USD a year) for TestFlight.
 
 - **The deploy stops on `/health`:** `fly logs` shows why the engine refused to boot. The usual
   causes are a missing `APP_BUILD` (deploy with the script, not `fly deploy` by hand) or a Host list
-  that does not name the app (step 1.3).
+  that does not name the app (step 1.3). If the engine boots but Fly's health check fails, the check
+  may not be sending its `Host` header: replace `[[http_service.checks]]` in `fly.toml` with a TCP
+  check (`[[services.tcp_checks]]`) and deploy again.
 - **The app says it cannot reach the engine:** the address it asked is on the failure screen. A
   TestFlight build must show `https://model-ranking.fly.dev`.
 - **The upload is refused for the icon:** the icon must be 1024 pixels with no transparency

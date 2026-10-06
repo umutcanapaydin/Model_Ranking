@@ -42,6 +42,10 @@ PRICING_ATTRIBUTION = (
     "Pricing data: BerriAI/litellm (MIT) and OpenRouter's public model catalog, "
     "https://openrouter.ai/api/v1/models"
 )
+#: The credit where the served prices are LiteLLM's alone, as in the hosted engine's public artifact
+#: (#88, D-185; the M19-W5 review's MJ1): crediting a catalogue the artifact does not carry is a
+#: false provenance claim, as W4's BLOCKING-2 put it for scores.
+PRICING_ATTRIBUTION_LITELLM = "Pricing data: BerriAI/litellm (MIT)"
 SWEBENCH_ATTRIBUTION = f"Coding scores: SWE-bench leaderboard, https://www.swebench.com ({CC_BY_NC_4})"
 AIDER_ATTRIBUTION = "Coding scores: Aider polyglot leaderboard, https://github.com/Aider-AI/aider (Apache-2.0)"
 ATTRIBUTIONS = (
@@ -118,21 +122,33 @@ def secondary_evidence_sources(conn: sqlite3.Connection, spec: CategorySpec) -> 
     }
 
 
-def attributions_for(evidence_sources: Iterable[str], *, priced: bool) -> tuple[str, ...]:
+def served_pricing_sources(conn: sqlite3.Connection) -> frozenset[str]:
+    """The price sources the served artifact holds for a canonical model (M19-W5 review, MJ1)."""
+    return frozenset(row[0] for row in conn.execute("SELECT DISTINCT source FROM pricing WHERE model_id IS NOT NULL"))
+
+
+def attributions_for(
+    evidence_sources: Iterable[str], *, priced: bool, pricing_sources: Iterable[str] | None = None
+) -> tuple[str, ...]:
     """The citations a payload actually owes, in catalogue order.
 
     ``priced`` adds the pricing citation for payloads that rank on $/1M (the model
     engine). The subscription engine ranks on the curated plan table's monthly price
-    and must not claim the per-token pricing feeds it never read.
+    and must not claim the per-token pricing feeds it never read. ``pricing_sources`` names the
+    price sources the served artifact holds (`served_pricing_sources`): OpenRouter is credited only
+    where its prices are; with none given, the whole catalogue's credit (an export on the owner's Mac).
     """
-    owed = {PRICING_ATTRIBUTION} if priced else set()
+    pricing = (PRICING_ATTRIBUTION if pricing_sources is None or "openrouter" in set(pricing_sources)
+               else PRICING_ATTRIBUTION_LITELLM)
+    owed = {pricing} if priced else set()
     for source in evidence_sources:
         citation = SOURCE_ATTRIBUTION.get(source)
         if citation is None:
             msg = f"unattributed evidence source {source!r}; add it to SOURCE_ATTRIBUTION"
             raise ValueError(msg)
         owed.add(citation)
-    return tuple(c for c in ATTRIBUTIONS if c in owed)
+    catalogue = [pricing if c == PRICING_ATTRIBUTION else c for c in ATTRIBUTIONS]
+    return tuple(c for c in catalogue if c in owed)
 
 
 @dataclass(frozen=True)

@@ -1,6 +1,5 @@
-# PROPOSAL — M6-W4, not yet adopted. K.10: this file is a cross-team contract surface, and
-# `.github/CODEOWNERS` marks it as such. It ships in this wave for the owner's review, per the
-# signed plan's Trap 3, and is not treated as settled until he says so.
+# The serving image (D-116), and its `hosted` stage for Fly.io (D-185, M19-W5). K.10: this file is a
+# cross-team contract surface, and `.github/CODEOWNERS` marks it as such; the owner reviews each change.
 #
 # Shape follows D-116: one read-only process, one SQLite file, no managed datastore, and no
 # ingestion on the serving host — the network-fetching code and the untrusted-producer boundary

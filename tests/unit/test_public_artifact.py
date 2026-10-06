@@ -111,8 +111,7 @@ def test_a_public_answer_credits_only_the_prices_it_serves(tmp_path: Path, monke
     public.derive(built, served)
     for path, credits_openrouter in ((built, True), (served, False)):
         monkeypatch.setenv("MODEL_RANKING_DB", str(path))
-        answer = TestClient(main.app).get("/v1/recommendations?task=coding").json()["answers"][0]
-        credits = " ".join(answer.get("sources") or [])
+        credits = " ".join(TestClient(main.app).get("/v1/boards").json()["attributions"])
         assert ("OpenRouter" in credits) is credits_openrouter, (path.name, credits)
         assert "litellm" in credits, credits
 

@@ -652,8 +652,9 @@ IMPORT = re.compile(
 
 
 def _allowed_in_an_asset_catalog(path: pathlib.Path) -> bool:
-    """The M19-W5 review's K2: what an asset catalog may hold unread. Not yet narrowed (red)."""
-    return True
+    """The M19-W5 review's K2: what an asset catalog may hold unread: images, and each folder's own
+    `Contents.json`. A data asset of any other kind ships as it is, so it is read like any source."""
+    return path.suffix.lower() in {".png", ".jpg", ".jpeg", ".heic", ".pdf"} or path.name == "Contents.json"
 
 
 def test_an_asset_catalog_holds_only_images_and_their_metadata() -> None:
@@ -674,7 +675,8 @@ def _assert_the_client_has_no_way_off_the_device() -> None:
     for path in sorted(p for p in CLIENT.rglob("*") if p.is_file()):
         # An asset catalog is images and their metadata, compiled into one file (M19-W5: the check
         # compared a folder's name to ".xcassets" whole, which no catalog is named).
-        if any(part.endswith(".xcassets") for part in path.parts) or path.name == ".DS_Store":
+        if path.name == ".DS_Store" or (any(part.endswith(".xcassets") for part in path.parts)
+                                        and _allowed_in_an_asset_catalog(path)):
             continue
         # A privacy manifest (`.xcprivacy`) is a property list, read like `.plist` (M19-W5).
         assert path.suffix in {".swift", ".plist", ".json", ".strings", ".xcprivacy"}, (

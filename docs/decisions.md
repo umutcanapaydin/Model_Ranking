@@ -687,6 +687,8 @@ rests on.
 
 **Amended by D-177 (2026-10-04)**: the serving image installs `requirements/serve.lock`, hash-checked, then the project with `--no-deps --no-build-isolation`; it carries no pyarrow.
 
+**Amended by D-185 (2026-10-07)**: the hosted engine's artifact ships inside its image (the `hosted` stage), a public copy with the sources whose terms do not permit a public app left out; the owner's Mac keeps the full one.
+
 ## D-117 — Scoped inter-wave commit and push authority for the lead agent
 
 **Status:** ratified — owner directive, 2026-08-17: *"You may also use git to push between waves."*

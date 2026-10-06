@@ -5,12 +5,14 @@
 #   scripts/deploy_hosted_engine.sh --dry-run   derive it and check the tree; deploy nothing
 #
 # In order, stopping at the first failure:
-#  1. The tree must be committed, untracked files included: the image is stamped with this commit
-#     (APP_BUILD, L.7) and built from this tree, so it must be exactly what the commit holds.
+#  1. The tree must be committed, untracked files included, and its commit on origin/main: the image
+#     is stamped with this commit (APP_BUILD, L.7) and built from this tree, and a release is what
+#     `main` holds.
 #  2. The public artifact (#88, `app.workflows.public`) is derived from the one this Mac's engine
 #     serves (MODEL_RANKING_SERVED) into build/hosted/advisor.db, the file the image's `hosted` stage
 #     copies. The Mac's artifact is only read; the refresh stays on the Mac (D-116).
-#  3. `fly deploy` builds that stage on Fly's builder, stamped release-<sha>.
+#  3. `fly deploy` builds that stage on Fly's builder, on one machine (`--ha=false`; Fly places two by
+#     default), stamped release-<sha>-data-<digest>: the code and the data it carries.
 #  4. https://<app>.fly.dev/health must answer that build.
 #
 # The first time, the owner's own steps (D-123): `fly auth login`, a payment method on the Fly
@@ -29,7 +31,10 @@ if [ -n "$(git status --porcelain)" ]; then
   git status --short >&2
   exit 1
 fi
-BUILD="release-$(git rev-parse --short HEAD)"
+if ! git merge-base --is-ancestor HEAD origin/main 2>/dev/null; then
+  echo "[deploy] refused: HEAD is not on origin/main; a release is what main holds (merge, pull, then deploy)" >&2
+  exit 1
+fi
 APP="$("$PYTHON" -c 'import tomllib; print(tomllib.load(open("fly.toml", "rb"))["app"])')"
 if [ ! -f "$SERVED" ]; then
   echo "[deploy] refused: no served artifact at $SERVED (set MODEL_RANKING_SERVED)" >&2
@@ -38,12 +43,14 @@ fi
 
 mkdir -p build/hosted
 "$PYTHON" -m app.workflows.public --from "$SERVED" --to build/hosted/advisor.db
+DATA="$("$PYTHON" -c 'import hashlib, sys; print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest()[:8])' build/hosted/advisor.db)"
+BUILD="release-$(git rev-parse --short HEAD)-data-$DATA"
 if [ "$DRY" = 1 ]; then
   echo "[deploy] dry run: build/hosted/advisor.db is ready; $BUILD would be deployed to $APP"
   exit 0
 fi
 
-fly deploy --build-arg "APP_BUILD=$BUILD" --remote-only
+fly deploy --build-arg "APP_BUILD=$BUILD" --remote-only --ha=false
 
 LIVE=""
 for try in $(seq 1 "$TRIES"); do

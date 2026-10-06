@@ -27,6 +27,7 @@ from app.workflows.rank import (
     BLEND_OUTPUT_WEIGHT,
     SOURCE_ATTRIBUTION,
     attributions_for,
+    served_pricing_sources,
 )
 
 #: The metrics served today, every one higher-is-better. A position needs to know which way a board
@@ -136,7 +137,8 @@ def board_standings(conn: sqlite3.Connection) -> dict[str, Any]:
         if mid in standing_models
     ]
     return {
-        "attributions": list(attributions_for([b["id"] for b in boards], priced=True)),
+        "attributions": list(attributions_for([b["id"] for b in boards], priced=True,
+                                              pricing_sources=served_pricing_sources(conn))),
         "boards": boards,
         "models": models,
     }

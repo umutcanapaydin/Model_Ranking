@@ -1,7 +1,7 @@
 // M18-W1 (D-171): the engine the app talks to, read into the Info plist's `EngineURL`.
 // Loopback serves the Mac and its simulator. To run on your iPhone, create Engine.local.xcconfig
 // beside this file (git-ignored) with your Mac's name, and install the service with --lan:
-//   ENGINE_URL = http:/$()/My-Mac.local:8080
+//   ENGINE_URL[config=Debug] = http:/$()/My-Mac.local:8080   (Debug only: Release stays hosted)
 // (`/$()/` keeps `//` from starting a comment in an xcconfig.)
 ENGINE_URL = http:/$()/127.0.0.1:8080
 // M19-W5: a Release build (an archive for TestFlight) reaches the hosted engine, over HTTPS, at the
