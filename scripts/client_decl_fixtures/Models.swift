@@ -6,7 +6,7 @@ struct Standing: Decodable {
     let model: String
     let position: Int
     let score: Double
-    let scoreAnchor: Double?
+    let ageDays: Double?
 }
 
 struct Pick: Decodable {

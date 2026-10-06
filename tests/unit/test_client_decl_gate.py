@@ -106,6 +106,7 @@ def test_main_refuses_a_release_dump_that_carries_a_ui_test_hook(monkeypatch: py
 
     monkeypatch.setattr(gate, "self_test", lambda: [])
     monkeypatch.setattr(gate, "problems", lambda found: [])
+    monkeypatch.setattr(gate, "unseen_permissions", lambda found: [])
     dumps("release", "Foundation.ProcessInfo.environment")
     assert gate.main() == 1, "a Release build that reads its launch environment passed"
     dumps("debug", "Foundation.ProcessInfo.arguments")

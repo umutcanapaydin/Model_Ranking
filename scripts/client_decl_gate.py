@@ -231,20 +231,25 @@ PROVENANCE: dict[str, tuple[set[str], str]] = {
         "only the engine client makes its address from text, the build's own setting"),
 }
 
-#: #60 (G-2): the numbers the engine sends, by the field `Models.swift` decodes each into, and what
-#: each one is. Arithmetic on one, reached directly or through any local, parameter or loop element
-#: it flowed into, is a second scoring implementation unless a ruling names the file (REQ-APP-005).
-SERVED_NUMBERS = {
-    "score": "score", "secondaryScore": "score", "higherEffortScore": "score", "position": "position",
+#: #60 (G-2), D-181 as the W2 review's B1 widened it: a served number is any numeric value a type the
+#: client decodes (`Decodable` or `Codable`) stores, found on the compiled module, never typed out by
+#: hand. Arithmetic on one, however it travels (see `_Flow`), is a second scoring implementation
+#: unless a ruling names the place (REQ-APP-005). These fields have a kind a ruling can name; any
+#: other served number is a "served number", which no ruling names.
+FIELD_KINDS = {
+    "score": "score", "secondaryScore": "score", "higherEffortScore": "score",
+    "position": "position",
     "blendedPerM": "price", "inputPerM": "price", "outputPerM": "price",
-    "eligibleCount": "count", "frontierSize": "count",
+    "minQuality": "score", "behindBy": "score", "closeCallMargin": "margin", "scoreAnchor": "anchor",
 }
-#: (file, what) -> the ruling that lets that file do arithmetic on it.
-ARITHMETIC_PERMITTED = {
-    ("Uncertainty.swift", "score"): "D-138: a rank range compares served scores against the engine's margin",
-    ("Combine.swift", "position"): "D-167: the combination ranks served positions",
-    ("Router.swift", "price"): "REQ-CMP-002: the price in pages, beside the exact figure",
-    ("Language.swift", "price"): "REQ-CMP-002: the price in pages, in its Turkish sentence",
+#: (file, kind, the function it is in, or None for the whole file) -> the ruling that permits it.
+ARITHMETIC_PERMITTED: dict[tuple[str, str, str | None], str] = {
+    ("Uncertainty.swift", "score", None): "D-138: a rank range compares served scores against the engine's margin",
+    ("Uncertainty.swift", "margin", None): "D-138: the engine's margin, against which a rank range compares scores",
+    ("Uncertainty.swift", "anchor", "scoreOutOf100"): "D-143: the Elo expectation against the served anchor",
+    ("Combine.swift", "position", None): "D-167: the combination ranks served positions",
+    ("Router.swift", "price", "priceInPages"): "REQ-CMP-002: the price in pages, beside the exact figure",
+    ("Language.swift", "price", "priceInPages"): "REQ-CMP-002: the price in pages, in its Turkish sentence",
 }
 #: (file, call, the receiver the compiler resolved) -> how many such sorts the file may make (Ruling
 #: A, REQ-APP-002). Counted, so a second sort under a permitted name fails (the M17-W4 Tester's M7).
@@ -316,17 +321,42 @@ MAIN_REF = re.compile(r'decl="main\.\(file\)\.([^"@]+)@([^":]+):(\d+):(\d+)"')
 #: #60: a node with an optional label (`processed_init=binary_expr`); an `original_init` subtree is the
 #: unresolved copy of a binding's expression, so it is skipped.
 LABELLED_NODE = re.compile(r"^( *)\((?:(\w+)=)?(\w+)")
-SERVED_REF = re.compile(r'decl="main\.\(file\)\.\w+\.(\w+)@[^"]*/Models\.swift:')
-NUMERIC_OPERATOR = re.compile(
-    r'decl="Swift\.\(file\)\.(?:Int|Int64|UInt|Double|Float|CGFloat|BinaryInteger|BinaryFloatingPoint|'
-    r'FloatingPoint|Numeric|AdditiveArithmetic|SignedNumeric|SignedInteger) extension\.([-+*/%]=?)"')
-ORDERING_CALL = re.compile(r'decl="Swift\.\(file\)\.\w+ extension\.(sorted|sort|max|min|reversed|shuffled|swapAt)\(([^)]*)\)')
+DECODED_TYPE = re.compile(r'^ *\((?:struct_decl|class_decl) [^"]*"(\w+)"[^\n]*\binherits="[^"]*\b(?:Decodable|Codable)\b')
+NUMERIC_FIELD = re.compile(r'^ *\(var_decl [^"]*"(\w+)" interface_type="(?:U?Int(?:8|16|32|64)?|Double|Float|'
+                           r'CGFloat|Decimal)\??"[^\n]*readImpl=stored')
+#: Any operator on a type that is not text or a collection: `+`, `-=`, `&+`, on `Int`, `Int32`,
+#: `FixedWidthInteger`, `Decimal`... (the review's A5, A7).
+OPERATOR = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.(\w+) extension\.(&?[-+*/%]=?)(?:"| \[with)')
+NOT_NUMBERS = {"String", "Substring", "StringProtocol", "Character", "Array", "ArraySlice",
+               "ContiguousArray", "Set", "Dictionary", "Sequence", "Collection",
+               "RangeReplaceableCollection", "Optional"}
+#: The end of a resolved function's name. The compiler prints a function whose labels are all `_`
+#: by its base name alone (`map [with ...`, `swapAt"`), and any other with its labels.
+_CALLED = r'(?:\(([^)]*)\))?(?:"| \[with)'
+#: A numeric method, which is arithmetic by another spelling (the review's A6).
+NUMERIC_METHOD = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.\w+ extension\.(advanced|distance|adding\w*|'
+                            r'subtracting\w*|multiplied\w*|divided\w*|remainder\w*|squareRoot|negate|addProduct)'
+                            + _CALLED)
+#: A function that hands each element of its receiver to a closure.
+HANDS_ELEMENTS = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.\w+ extension\.(?:map|compactMap|flatMap|filter|'
+                            r'forEach|reduce|first|last|contains|allSatisfy|drop|prefix|min|max|sorted|firstIndex|'
+                            r'lastIndex|partition|count)' + _CALLED)
+ORDERING_CALL = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.\w+ extension\.(sorted|sort|max|min|reversed|'
+                           r'shuffled|swapAt)' + _CALLED)
 LOCAL_VAR = re.compile(r'^ *\(var_decl [^\[]*range=\[([^\]:]+):(\d+):(\d+)')
-PATTERN_NAME = re.compile(r'^ *\(pattern_named [^"]*"([^"]+)"')
+#: A bound name: the quoted string that is no attribute's value (`type="Int" "place"`).
+PATTERN_NAME = re.compile(r'^ *\(pattern_named (?:[^"=]*="[^"]*")*[^"=]*"([^"]+)"')
 PARAMETER = re.compile(r'^ *\(parameter "([^"]+)"')
-FUNCTION = re.compile(r'^ *\(func_decl [^\[]*range=\[[^\]:]+:(\d+):\d+[^"]*"(\w+)')
-CALLEE = re.compile(r'decl="main\.\(file\)\.(?:[\w.]+\.)?(\w+)(?:\([^)"]*\))?@([^":]+):(\d+):\d+" function_ref=single apply')
-LOCATION_LINE = re.compile(r"location=[^ ]*?(\w+\.swift):(\d+)")
+FUNCTION = re.compile(r'^ *\((?:func_decl|constructor_decl) [^\[]*range=\[[^\]:]+:(\d+):\d+[^"]*"(\w+)')
+CALLEE = re.compile(r'decl="main\.\(file\)\.(?:[\w.]+\.)?(\w+)(?:\([^)"]*\))?@([^":]+):(\d+):\d+" function_ref=\w+ apply')
+LOCATION = re.compile(r"location=[^ ]*?(\w+\.swift):(\d+):(\d+)")
+APPLIED = re.compile(r" function_ref=\w+ apply")
+#: A type that can hold a number: `Int`, `Double?`, `[Int]`, `(offset: Int, element: Int)`. A model,
+#: a row or a list of them is no served number, though its fields are; only these carry one.
+NUMERIC_TYPE = re.compile(r"\b(?:U?Int(?:8|16|32|64)?|Double|Float|CGFloat|Decimal)\b")
+TYPE_OF = {name: re.compile(rf'\b{name}="([^"]*)"') for name in ("type", "interface_type", "result")}
+#: The line a node's range starts on.
+LOCAL_VAR_RANGE = re.compile(r"range=\[[^\]:]+:(\d+):\d+")
 SHARED_SCOPES = {"source_file", "struct_decl", "class_decl", "enum_decl", "extension_decl",
                  "protocol_decl", "actor_decl"}
 LOCAL_SCOPES = {"func_decl", "constructor_decl", "destructor_decl", "accessor_decl", "closure_expr"}
@@ -448,12 +478,12 @@ def sink_facts(ast: str) -> dict[str, set[str]]:
 
 
 class _Node:
-    """One node of the dump: its depth, its kind, its first line, and its children."""
+    """One node of the dump: its depth, label, kind, first line, and children."""
 
-    __slots__ = ("depth", "kids", "kind", "line")
+    __slots__ = ("depth", "kids", "kind", "label", "line")
 
-    def __init__(self, depth: int, kind: str, line: str) -> None:
-        self.depth, self.kind, self.line = depth, kind, line
+    def __init__(self, depth: int, label: str, kind: str, line: str) -> None:
+        self.depth, self.label, self.kind, self.line = depth, label, kind, line
         self.kids: list[_Node] = []
 
     def walk(self) -> Iterator[_Node]:
@@ -471,7 +501,7 @@ def _tree(ast: str) -> list[_Node]:
         match = LABELLED_NODE.match(line)
         if not match:
             continue
-        depth, label, kind = len(match.group(1)), match.group(2), match.group(3)
+        depth, label, kind = len(match.group(1)), match.group(2) or "", match.group(3)
         if skip is not None and depth > skip:
             continue
         skip = depth if label == "original_init" else None
@@ -479,7 +509,7 @@ def _tree(ast: str) -> list[_Node]:
             continue
         while stack and stack[-1].depth >= depth:
             stack.pop()
-        node = _Node(depth, kind, line)
+        node = _Node(depth, label, kind, line)
         (stack[-1].kids if stack else roots).append(node)
         stack.append(node)
     return roots
@@ -489,22 +519,43 @@ def _file_of(root: _Node) -> str:
     return pathlib.Path(root.line.split('"')[1]).name
 
 
-#: What carries a served number: a declaration's start `(file, line, column)`, or `(file, name)` for
-#: a parameter or a loop element, whose declarations print no place of their own.
+def served_fields(roots: list[_Node]) -> dict[tuple[str, str], str]:
+    """`(type, field) -> kind` for every numeric value a decoded type stores (the review's A8)."""
+    found: dict[tuple[str, str], str] = {}
+
+    def visit(node: _Node, decoded: str | None) -> None:
+        if node.kind in ("func_decl", "constructor_decl", "accessor_decl", "closure_expr"):
+            return
+        if (named := DECODED_TYPE.match(node.line)) is not None:
+            decoded = named.group(1)
+        elif node.kind in ("struct_decl", "class_decl", "enum_decl"):
+            decoded = None
+        if decoded and (field := NUMERIC_FIELD.match(node.line)):
+            found[(decoded, field.group(1))] = FIELD_KINDS.get(field.group(1), "number")
+        for kid in node.kids:
+            visit(kid, decoded)
+
+    for root in roots:
+        visit(root, None)
+    return found
+
+
+#: What carries a served number, by where the compiler says it is declared: a declaration's
+#: `(file, line, column)`; `("bound", file, line, name)` for a loop's or a closure's name, bound on the
+#: line its `for` or `{` starts; `("parameter", file, line, function, name)` and `("result", file,
+#: line, function)` for a function declared at that line. Never a bare name, which every `row` and
+#: `index` in a file would share.
 _Carriers = dict[tuple[object, ...], set[str]]
 
 
-def _carried(node: _Node, carriers: _Carriers) -> set[str]:
-    """What served numbers an expression reaches: a served field, or anything they flowed into."""
-    found: set[str] = set()
-    for item in node.walk():
-        if served := SERVED_REF.search(item.line):
-            found.add(SERVED_NUMBERS.get(served.group(1), ""))
-        for symbol, path, row, column in MAIN_REF.findall(item.line):
-            file = pathlib.Path(path).name
-            found |= carriers.get((file, int(row), int(column)), set())
-            found |= carriers.get((file, symbol.split(".")[-1]), set())
-    return found - {""}
+def _base(name: str) -> str:
+    return name.split("(")[0]
+
+
+def _numeric(node: _Node, attribute: str) -> bool:
+    """Whether what a node declares or computes can hold a number, by its compiled type."""
+    typed = TYPE_OF[attribute].search(node.line)
+    return typed is not None and NUMERIC_TYPE.search(typed.group(1)) is not None
 
 
 def _mark(carriers: _Carriers, key: tuple[object, ...], kinds: set[str]) -> bool:
@@ -514,60 +565,169 @@ def _mark(carriers: _Carriers, key: tuple[object, ...], kinds: set[str]) -> bool
     return True
 
 
-def _parameters(roots: list[_Node]) -> dict[tuple[str, str, int], list[str]]:
-    """`(file, function name, line) -> its parameter names`, in order."""
-    found: dict[tuple[str, str, int], list[str]] = {}
+def _parameters(roots: list[_Node]) -> dict[tuple[str, str, int], list[tuple[str, bool]]]:
+    """`(file, function or initialiser name, line) -> its parameters`, in order: each name, and
+    whether it can hold a number."""
+    found: dict[tuple[str, str, int], list[tuple[str, bool]]] = {}
     for root in roots:
         for node in root.walk():
             if function := FUNCTION.match(node.line):
                 listed = next((kid for kid in node.kids if kid.kind == "parameter_list"), None)
-                names = [m.group(1) for kid in (listed.kids if listed else []) if (m := PARAMETER.match(kid.line))]
+                names = [(m.group(1), _numeric(kid, "interface_type"))
+                         for kid in (listed.kids if listed else []) if (m := PARAMETER.match(kid.line))]
                 found[(_file_of(root), function.group(2), int(function.group(1)))] = names
     return found
 
 
-def _flow_once(node: _Node, file: str, carriers: _Carriers, parameters: dict[tuple[str, str, int], list[str]]) -> bool:
-    """One step of the flow at one node: into a binding's locals, a loop's element, a call's parameters."""
-    changed = False
-    for index, kid in enumerate(node.kids):
-        if kid.kind == "pattern_binding_decl" and (kinds := _carried(kid, carriers)):
-            for sibling in node.kids[index + 1:]:
-                if sibling.kind != "var_decl" or not (place := LOCAL_VAR.match(sibling.line)):
-                    break
-                changed |= _mark(carriers, (pathlib.Path(place.group(1)).name, int(place.group(2)), int(place.group(3))), kinds)
-    if node.kind == "for_each_stmt":
-        named = next((m for kid in node.kids if (m := PATTERN_NAME.match(kid.line))), None)
-        sequence = next((kid for kid in node.kids if kid.kind in ("declref_expr", "member_ref_expr", "call_expr")), None)
-        if named and sequence is not None:
-            changed |= _mark(carriers, (file, named.group(1)), _carried(sequence, carriers))
-    if node.kind == "call_expr" and len(node.kids) > 1 and (callee := CALLEE.search(node.kids[0].line)):
-        target = pathlib.Path(callee.group(2)).name
+class _Flow:
+    """The flow of served numbers through one compiled module, to a fixed point (D-181)."""
+
+    def __init__(self, roots: list[_Node]) -> None:
+        self.roots = roots
+        self.served = served_fields(roots)
+        self.parameters = _parameters(roots)
+        self.functions: dict[tuple[str, str], list[int]] = {}
+        for file, name, line in self.parameters:
+            self.functions.setdefault((file, name), []).append(line)
+        self.carriers: _Carriers = {}
+
+    def declared(self, file: str, name: str, row: int) -> int | None:
+        """The line of the function `name` a reference at `row` names: the nearest one at or above it,
+        since a function's range starts at its attributes, and a reference at its name."""
+        return max((line for line in self.functions.get((file, _base(name)), []) if line <= row), default=None)
+
+    def carried(self, node: _Node) -> set[str]:
+        """What served numbers an expression reaches: a served field, or anything they flowed into."""
+        found: set[str] = set()
+        for item in node.walk():
+            for reference in MAIN_REF.finditer(item.line):
+                symbol, path, row, column = reference.groups()
+                file, parts, line = pathlib.Path(path).name, symbol.split("."), int(row)
+                # A call: the compiler prints a function whose labels are all `_` without them.
+                called = "(" in parts[-1] or APPLIED.match(item.line, reference.end()) is not None
+                if len(parts) >= 2 and (kind := self.served.get((parts[-2], parts[-1]))):
+                    found.add(kind)
+                found |= self.carriers.get((file, line, int(column)), set())
+                found |= self.carriers.get(("bound", file, line, parts[-1]), set())
+                if called and (at := self.declared(file, parts[-1], line)) is not None:
+                    found |= self.carriers.get(("result", file, at, _base(parts[-1])), set())
+                if len(parts) >= 2 and "(" in parts[-2] and (at := self.declared(file, parts[-2], line)) is not None:
+                    found |= self.carriers.get(("parameter", file, at, _base(parts[-2]), parts[-1]), set())
+        return found
+
+    def run(self) -> None:
+        changed = True
+        while changed:
+            changed = False
+            for root in self.roots:
+                file = _file_of(root)
+                for node in root.walk():
+                    changed |= self.binding(node) | self.assignment(node) | self.loop(node, file)
+                    changed |= self.call(node) | self.result(node, file) | self.closure(node, file)
+
+    def binding(self, node: _Node) -> bool:
+        """`let x = served`: into the locals the binding declares."""
+        changed = False
+        for index, kid in enumerate(node.kids):
+            if kid.kind == "pattern_binding_decl" and (kinds := self.carried(kid)):
+                for sibling in node.kids[index + 1:]:
+                    if sibling.kind != "var_decl" or not (place := LOCAL_VAR.match(sibling.line)):
+                        break
+                    if _numeric(sibling, "interface_type"):
+                        key = (pathlib.Path(place.group(1)).name, int(place.group(2)), int(place.group(3)))
+                        changed |= _mark(self.carriers, key, kinds)
+        return changed
+
+    def assignment(self, node: _Node) -> bool:
+        """`x = served`, `self.x = served`: into what is assigned (the review's A1)."""
+        if node.kind != "assign_expr" or len(node.kids) < 2 or not _numeric(node.kids[0], "type"):
+            return False
+        if not (kinds := self.carried(node.kids[1])):
+            return False
+        target = next((m for item in node.kids[0].walk() if (m := MAIN_REF.search(item.line))), None)
+        if target is None:
+            return False
+        return _mark(self.carriers, (pathlib.Path(target.group(2)).name, int(target.group(3)), int(target.group(4))), kinds)
+
+    def loop(self, node: _Node, file: str) -> bool:
+        """`for x in served`, `for (i, x) in ...`: into every name the pattern binds (the review's A10, A11)."""
+        if node.kind != "for_each_stmt" or not (start := LOCAL_VAR_RANGE.search(node.line)):
+            return False
+        patterns = [kid for kid in node.kids if kid.kind.startswith("pattern_") and kid.kind != "pattern_binding_decl"]
+        sequence = [kid for kid in node.kids
+                    if not kid.kind.startswith("pattern_") and kid.kind != "brace_stmt" and kid.label != "where"]
+        kinds = set().union(*(self.carried(kid) for kid in sequence)) if sequence else set()
+        names = {m.group(1) for kid in patterns for item in kid.walk()
+                 if (m := PATTERN_NAME.match(item.line)) and _numeric(item, "type")}
+        return any([_mark(self.carriers, ("bound", file, int(start.group(1)), name), kinds) for name in names])
+
+    def call(self, node: _Node) -> bool:
+        """A function's, a method's or an initialiser's parameters, from its arguments (the review's A12)."""
+        if node.kind != "call_expr" or len(node.kids) < 2 or node.kids[1].kind != "argument_list":
+            return False
+        callee = next((m for item in node.kids[0].walk() if (m := CALLEE.search(item.line))), None)
+        if callee is None:
+            return False
+        target, name = pathlib.Path(callee.group(2)).name, callee.group(1)
+        if (at := self.declared(target, name, int(callee.group(3)))) is None:
+            return False
         arguments = [kid for kid in node.kids[1].kids if kid.kind == "argument"]
         # Not strict: a parameter with a default takes no argument.
-        names = parameters.get((target, callee.group(1), int(callee.group(3))), [])
-        for name, argument in zip(names, arguments, strict=False):
-            changed |= _mark(carriers, (target, name), _carried(argument, carriers))
-    return changed
+        return any([_mark(self.carriers, ("parameter", target, at, name, parameter), self.carried(argument))
+                    for (parameter, numeric), argument in zip(self.parameters[(target, name, at)], arguments, strict=False)
+                    if numeric])
+
+    def result(self, node: _Node, file: str) -> bool:
+        """What a function returns, to every call of it (the review's A2); what a computed property
+        returns, to every reading of it."""
+        if node.kind == "func_decl" and (function := FUNCTION.match(node.line)) and _numeric(node, "result"):
+            key: tuple[object, ...] = ("result", file, int(function.group(1)), function.group(2))
+        elif (node.kind == "var_decl" and "readImpl=getter" in node.line and _numeric(node, "interface_type")
+              and (place := LOCAL_VAR.match(node.line))):
+            key = (pathlib.Path(place.group(1)).name, int(place.group(2)), int(place.group(3)))
+        else:
+            return False
+        kinds = set().union(*(self.carried(item) for item in node.walk() if item.kind == "return_stmt"))
+        return _mark(self.carriers, key, kinds)
+
+    def closure(self, node: _Node, file: str) -> bool:
+        """`served.map { $0 - 1 }`, `served.map { s in s - 1 }`: into the parameters of a closure handed
+        each element."""
+        if node.kind != "call_expr" or len(node.kids) < 2 or not node.kids[0].kids:
+            return False
+        if not HANDS_ELEMENTS.search(node.kids[0].kids[0].line) or not (kinds := self.carried(node.kids[0])):
+            return False
+        changed = False
+        for closure in (item for item in node.kids[1].walk() if item.kind == "closure_expr"):
+            listed = next((kid for kid in closure.kids if kid.kind == "parameter_list"), None)
+            if listed is None or not (start := LOCAL_VAR_RANGE.search(closure.line)):
+                continue
+            for parameter in listed.kids:
+                if (named := PARAMETER.match(parameter.line)) and _numeric(parameter, "interface_type"):
+                    changed |= _mark(self.carriers, ("bound", file, int(start.group(1)), named.group(1)), kinds)
+        return changed
+
+
+def _scoped(node: _Node, function: str | None = None) -> Iterator[tuple[_Node, str | None]]:
+    """Every node with the name of the function it is in, for permissions scoped to one (M5)."""
+    if named := FUNCTION.match(node.line):
+        function = named.group(2)
+    yield node, function
+    for kid in node.kids:
+        yield from _scoped(kid, function)
 
 
 def flow_facts(ast: str) -> dict[str, set[str]]:
     """#60 (G-2): `{file name: {"main.<...>", ...}}`, the arithmetic on served numbers and the sorts
     each file makes, resolved by the compiler and followed to a fixed point, for `problems` to judge."""
-    roots = _tree(ast)
-    parameters = _parameters(roots)
-    carriers: _Carriers = {}
-    changed = True
-    while changed:
-        changed = False
-        for root in roots:
-            for node in root.walk():
-                changed |= _flow_once(node, _file_of(root), carriers, parameters)
+    flow = _Flow(_tree(ast))
+    flow.run()
     facts: dict[str, set[str]] = {}
     sorts: dict[tuple[str, str, str], int] = {}
-    for root in roots:
+    for root in flow.roots:
         file = _file_of(root)
-        for node in root.walk():
-            for fact in _arithmetic(node, carriers):
+        for node, function in _scoped(root):
+            for fact in _arithmetic(node, flow, function):
                 facts.setdefault(file, set()).add(fact)
             if (ordering := _ordering(node)) is not None:
                 sorts[(file, *ordering)] = sorts.get((file, *ordering), 0) + 1
@@ -576,20 +736,28 @@ def flow_facts(ast: str) -> dict[str, set[str]]:
     return facts
 
 
-def _arithmetic(node: _Node, carriers: _Carriers) -> list[str]:
-    """`main.<arithmetic>.<what>@<line> <operator>` for an arithmetic operator on a served number."""
-    if node.kind != "binary_expr" or len(node.kids) < 2:
+def _arithmetic(node: _Node, flow: _Flow, function: str | None) -> list[str]:
+    """`main.<arithmetic>.<kind>@<line> <operator> in <function>` for arithmetic on a served number:
+    an operator on a number, or a numeric method."""
+    operands: _Node | None = None
+    operator = ""
+    if node.kind == "binary_expr" and len(node.kids) >= 2:
+        found = next((m for item in node.kids[0].walk() if (m := OPERATOR.search(item.line))), None)
+        if found is not None and found.group(1) not in NOT_NUMBERS:
+            operands, operator = node, found.group(2)
+    elif node.kind == "call_expr" and node.kids and node.kids[0].kids and (
+            method := NUMERIC_METHOD.search(node.kids[0].kids[0].line)):
+        operands, operator = node, f".{method.group(1)}"
+    if operands is None:
         return []
-    operator = next((m for item in node.kids[0].walk() if (m := NUMERIC_OPERATOR.search(item.line))), None)
-    if operator is None:
-        return []
-    place = LOCATION_LINE.search(node.line)
+    place = LOCATION.search(node.line)
     line = place.group(2) if place else "?"
-    return [f"main.<arithmetic>.{kind}@{line} {operator.group(1)}" for kind in sorted(_carried(node.kids[1], carriers))]
+    return [f"main.<arithmetic>.{kind}@{line} {operator} in {function or '-'}" for kind in sorted(flow.carried(operands))]
 
 
 def _ordering(node: _Node) -> tuple[str, str] | None:
-    """`(call, receiver)` for a sort, a reversal, a shuffle or a `max(by:)`/`min(by:)` on a resolved receiver."""
+    """`(call, receiver)` for a sort, a reversal, a shuffle or a `max(by:)`/`min(by:)` on a resolved
+    receiver, the standard library's or Foundation's (the review's M4)."""
     if node.kind != "dot_syntax_call_expr" or len(node.kids) < 2:
         return None
     call = ORDERING_CALL.search(node.kids[0].line)
@@ -599,16 +767,22 @@ def _ordering(node: _Node) -> tuple[str, str] | None:
     return call.group(1), receiver.group(1).split(".")[-1] if receiver else "?"
 
 
+def _arithmetic_permitted(name: str, kind: str, function: str) -> bool:
+    return (name, kind, None) in ARITHMETIC_PERMITTED or (name, kind, function) in ARITHMETIC_PERMITTED
+
+
 def _flow_problem(name: str, symbol: str) -> str | None:
-    """#60 (G-2): arithmetic on a served number outside its ruling's file, or a sort past its count."""
+    """#60 (G-2): arithmetic on a served number outside its ruling's place, or a sort past its count."""
     fact, _, subject = symbol.partition(">.")
     if fact == "<arithmetic":
-        what, _, where = subject.partition("@")
-        if (name, what) in ARITHMETIC_PERMITTED:
+        kind, _, where = subject.partition("@")
+        line, _, rest = where.partition(" ")
+        operator, _, function = rest.partition(" in ")
+        if _arithmetic_permitted(name, kind, function):
             return None
-        line, _, operator = where.partition(" ")
+        what = "number" if kind == "number" else kind
         return (f"{name}:{line}: `{operator}` on a served {what}, a second scoring implementation; only the "
-                f"files a ruling names do arithmetic on one (REQ-APP-005; D-138, D-167, REQ-CMP-002)")
+                f"places a ruling names do arithmetic on one (REQ-APP-005; D-138, D-167, REQ-CMP-002)")
     if fact == "<sorts":
         call_receiver, _, count = subject.rpartition("=")
         call, _, receiver = call_receiver.partition(".")
@@ -617,6 +791,21 @@ def _flow_problem(name: str, symbol: str) -> str | None:
             return (f"{name}: sorts `{receiver}` with `{call}` {count} time(s), and {allowed} is permitted; the "
                     "client orders nothing itself but where a ruling says why (Ruling A, REQ-APP-002)")
     return None
+
+
+def unseen_permissions(found: dict[str, set[str]]) -> list[str]:
+    """The W2 review's R3: every permitted arithmetic and sort must be SEEN on the shipping client. One
+    that is not is stale, or the compiler's printed layout moved and a rule went quiet."""
+    seen_arithmetic = {(name, fact.split(">.")[1].split("@")[0], fact.rpartition(" in ")[2])
+                       for name, facts in found.items() for fact in facts if fact.startswith("main.<arithmetic>.")}
+    seen_sorts = {(name, *fact.split(">.")[1].rpartition("=")[0].split(".", 1))
+                  for name, facts in found.items() for fact in facts if fact.startswith("main.<sorts>.")}
+    missing = [f"{name}: {kind} arithmetic{f' in {function}' if function else ''}"
+               for name, kind, function in ARITHMETIC_PERMITTED
+               if not any(n == name and k == kind and (function is None or f == function) for n, k, f in seen_arithmetic)]
+    missing += [f"{name}: `{call}` on `{receiver}`" for name, call, receiver in SORTS_PERMITTED
+                if (name, call, receiver) not in seen_sorts]
+    return missing
 
 
 def _sink_problem(name: str, symbol: str) -> str | None:
@@ -763,6 +952,8 @@ def main() -> int:
                   "stops early leaves files unchecked while everything else still passes")
             return 1
         bad += [f"({label}) {line}" for line in problems(found)]
+        bad += [f"({label}) a permission no longer matches anything, so its rule may have gone quiet "
+                f"(the W2 review's R3): {line}" for line in unseen_permissions(found)]
         if "release" in label:
             bad += [f"({label}) {line}" for line in release_problems(found)]
         totals.append(f"{label}: {sum(len(v) for v in found.values())}")

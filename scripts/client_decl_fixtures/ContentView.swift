@@ -79,7 +79,7 @@ func fixtureA7Converted(_ standing: Standing) -> Int32 {
 }
 
 func fixtureA8Unlisted(_ standing: Standing) -> Double {
-    (standing.scoreAnchor ?? 0) - 100
+    (standing.ageDays ?? 0) - 100
 }
 
 func fixtureA10Literal(_ standing: Standing) -> Int {

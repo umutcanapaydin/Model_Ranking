@@ -209,7 +209,7 @@
                 (member_ref_expr type="String.UTF8View" location=/x/ContentView.swift:10:65 range=[/x/ContentView.swift:10:21 - line:10:65] decl="Swift.(file).String extension.utf8"
                   (interpolated_string_literal_expr type="String" location=/x/ContentView.swift:10:21 range=[/x/ContentView.swift:10:21 - line:10:21] literal_capacity=31 interpolation_count=1 builder_init="Swift.(file).DefaultStringInterpolation.init(literalCapacity:interpolationCount:)" result_init="Swift.(file).String extension.init(stringInterpolation:)"
                     (tap_expr implicit type="String.StringInterpolation" location=/x/ContentView.swift:10:21 range=[/x/ContentView.swift:10:21 - line:10:60] var="main.(file).fixtureViewDecodesAnAddress(_:).$interpolation"
-                      (opaque_value_expr implicit type="String.StringInterpolation" location=/x/ContentView.swift:10:21 range=[/x/ContentView.swift:10:21 - line:10:21] 0xbed9f89f0)
+                      (opaque_value_expr implicit type="String.StringInterpolation" location=/x/ContentView.swift:10:21 range=[/x/ContentView.swift:10:21 - line:10:21] 0xad79d89f0)
                       (brace_stmt implicit range=[/x/ContentView.swift:10:22 - line:10:60]
                         (var_decl implicit "$interpolation" interface_type="String.StringInterpolation" access=private readImpl=stored writeImpl=stored readWriteImpl=stored
                           (has_storage_attr implicit))
@@ -254,7 +254,7 @@
                 (member_ref_expr type="String.UTF8View" location=/x/ContentView.swift:10:65 range=[/x/ContentView.swift:10:21 - line:10:65] decl="Swift.(file).String extension.utf8"
                   (interpolated_string_literal_expr type="String" location=/x/ContentView.swift:10:21 range=[/x/ContentView.swift:10:21 - line:10:21] literal_capacity=31 interpolation_count=1 builder_init="Swift.(file).DefaultStringInterpolation.init(literalCapacity:interpolationCount:)" result_init="Swift.(file).String extension.init(stringInterpolation:)"
                     (tap_expr implicit type="String.StringInterpolation" location=/x/ContentView.swift:10:21 range=[/x/ContentView.swift:10:21 - line:10:60] var="main.(file).fixtureViewDecodesAnAddress(_:).$interpolation"
-                      (opaque_value_expr implicit type="String.StringInterpolation" location=/x/ContentView.swift:10:21 range=[/x/ContentView.swift:10:21 - line:10:21] 0xbed9f89f0)
+                      (opaque_value_expr implicit type="String.StringInterpolation" location=/x/ContentView.swift:10:21 range=[/x/ContentView.swift:10:21 - line:10:21] 0xad79d89f0)
                       (brace_stmt implicit range=[/x/ContentView.swift:10:22 - line:10:60]
                         (var_decl implicit "$interpolation" interface_type="String.StringInterpolation" access=private readImpl=stored writeImpl=stored readWriteImpl=stored
                           (has_storage_attr implicit))
@@ -322,7 +322,7 @@
                 (parameter_list)
                 (array_expr type="[URL]" location=/x/ContentView.swift:11:67 range=[/x/ContentView.swift:11:67 - line:11:68] initializer="Swift.(file).Array extension.init(arrayLiteral:) [with (substitution_map generic_signature=<Element where Element : Copyable, Element : Escapable> Element -> URL)]"))))))))
   (pattern_binding_decl range=[/x/ContentView.swift:16:21 - line:16:46]
-    (pattern_entry init_context=0xbed7f17c0
+    (pattern_entry init_context=0xad77d17c0
       (pattern_named type="String" "fixtureScreenRelay")
       (original_init=string_literal_expr type="String" location=/x/ContentView.swift:16:46 range=[/x/ContentView.swift:16:46 - line:16:46] encoding=utf8 value="" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")
       (processed_init=string_literal_expr type="String" location=/x/ContentView.swift:16:46 range=[/x/ContentView.swift:16:46 - line:16:46] encoding=utf8 value="" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))
@@ -589,12 +589,12 @@
               (integer_literal_expr type="Int" location=/x/ContentView.swift:60:36 range=[/x/ContentView.swift:60:36 - line:60:36] value="1" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))))
   (extension_decl range=[/x/ContentView.swift:63:1 - line:67:1] "Standing"
     (pattern_binding_decl range=[/x/ContentView.swift:64:5 - line:66:5]
-      (pattern_entry init_context=0xbed820e50
+      (pattern_entry init_context=0xad7800e50
         (pattern_typed type="Int"
           (pattern_named type="Int" "fixtureA3Next")
-          (type_unqualified_ident id="Int" bind="Swift.(file).Int" decl_context=0x0))))
+          (type_unqualified_ident id="Int" bind="Swift.(file).Int"))))
     (var_decl range=[/x/ContentView.swift:64:9 - line:64:9] "fixtureA3Next" interface_type="Int" access=internal readImpl=getter immutable
-      (accessor_decl range=[/x/ContentView.swift:64:28 - line:66:5] <anonymous @ 0xbed820b58> interface_type="(Standing) -> () -> Int" access=internal get for="fixtureA3Next"
+      (accessor_decl range=[/x/ContentView.swift:64:28 - line:66:5] <anonymous @ 0xad7800b58> interface_type="(Standing) -> () -> Int" access=internal get for="fixtureA3Next"
         (parameter "self" interface_type="Standing") result="Int" thrown_type="<null>"
         (parameter_list)
         (brace_stmt range=[/x/ContentView.swift:64:28 - line:66:5]
@@ -672,28 +672,28 @@
     (parameter_list range=[/x/ContentView.swift:81:23 - line:81:44]
       (parameter "standing" interface_type="Standing"))
     (brace_stmt range=[/x/ContentView.swift:81:56 - line:83:1]
-      (return_stmt implicit range=[/x/ContentView.swift:82:5 - line:82:35]
-        (binary_expr type="Double" location=/x/ContentView.swift:82:33 range=[/x/ContentView.swift:82:5 - line:82:35] nothrow isolation_crossing="none"
-          (dot_syntax_call_expr implicit type="(Double, Double) -> Double" location=/x/ContentView.swift:82:33 range=[/x/ContentView.swift:82:33 - line:82:33] nothrow isolation_crossing="none"
-            (declref_expr type="(Double.Type) -> (Double, Double) -> Double" location=/x/ContentView.swift:82:33 range=[/x/ContentView.swift:82:33 - line:82:33] decl="Swift.(file).Double extension.-" function_ref=single apply)
+      (return_stmt implicit range=[/x/ContentView.swift:82:5 - line:82:31]
+        (binary_expr type="Double" location=/x/ContentView.swift:82:29 range=[/x/ContentView.swift:82:5 - line:82:31] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr implicit type="(Double, Double) -> Double" location=/x/ContentView.swift:82:29 range=[/x/ContentView.swift:82:29 - line:82:29] nothrow isolation_crossing="none"
+            (declref_expr type="(Double.Type) -> (Double, Double) -> Double" location=/x/ContentView.swift:82:29 range=[/x/ContentView.swift:82:29 - line:82:29] decl="Swift.(file).Double extension.-" function_ref=single apply)
             (argument_list implicit
               (argument
-                (type_expr implicit type="Double.Type" location=/x/ContentView.swift:82:33 range=[/x/ContentView.swift:82:33 - line:82:33] typerepr="Double"))))
+                (type_expr implicit type="Double.Type" location=/x/ContentView.swift:82:29 range=[/x/ContentView.swift:82:29 - line:82:29] typerepr="Double"))))
           (argument_list implicit
             (argument
-              (paren_expr type="Double" location=/x/ContentView.swift:82:27 range=[/x/ContentView.swift:82:5 - line:82:31]
-                (binary_expr type="Double" location=/x/ContentView.swift:82:27 range=[/x/ContentView.swift:82:6 - line:82:30] nothrow isolation_crossing="none"
-                  (declref_expr type="(consuming Double?, @autoclosure () throws -> Double) throws -> Double" location=/x/ContentView.swift:82:27 range=[/x/ContentView.swift:82:27 - line:82:27] decl="Swift.(file).?? [with (substitution_map generic_signature=<T where T : Escapable> T -> Double)]" function_ref=single apply)
+              (paren_expr type="Double" location=/x/ContentView.swift:82:23 range=[/x/ContentView.swift:82:5 - line:82:27]
+                (binary_expr type="Double" location=/x/ContentView.swift:82:23 range=[/x/ContentView.swift:82:6 - line:82:26] nothrow isolation_crossing="none"
+                  (declref_expr type="(consuming Double?, @autoclosure () throws -> Double) throws -> Double" location=/x/ContentView.swift:82:23 range=[/x/ContentView.swift:82:23 - line:82:23] decl="Swift.(file).?? [with (substitution_map generic_signature=<T where T : Escapable> T -> Double)]" function_ref=single apply)
                   (argument_list implicit
                     (argument
-                      (member_ref_expr type="Double?" location=/x/ContentView.swift:82:15 range=[/x/ContentView.swift:82:6 - line:82:15] decl="main.(file).Standing.scoreAnchor@/x/Models.swift:9:9"
+                      (member_ref_expr type="Double?" location=/x/ContentView.swift:82:15 range=[/x/ContentView.swift:82:6 - line:82:15] decl="main.(file).Standing.ageDays@/x/Models.swift:9:9"
                         (declref_expr type="Standing" location=/x/ContentView.swift:82:6 range=[/x/ContentView.swift:82:6 - line:82:6] decl="main.(file).fixtureA8Unlisted(_:).standing@/x/ContentView.swift:81:26" function_ref=unapplied)))
                     (argument
-                      (autoclosure_expr implicit type="() throws -> Double" location=/x/ContentView.swift:82:30 range=[/x/ContentView.swift:82:30 - line:82:30] discriminator=0 nonisolated
+                      (autoclosure_expr implicit type="() throws -> Double" location=/x/ContentView.swift:82:26 range=[/x/ContentView.swift:82:26 - line:82:26] discriminator=0 nonisolated
                         (parameter_list)
-                        (integer_literal_expr type="Double" location=/x/ContentView.swift:82:30 range=[/x/ContentView.swift:82:30 - line:82:30] value="0" builtin_initializer="Swift.(file).Double extension.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))))
+                        (integer_literal_expr type="Double" location=/x/ContentView.swift:82:26 range=[/x/ContentView.swift:82:26 - line:82:26] value="0" builtin_initializer="Swift.(file).Double extension.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))))
             (argument
-              (integer_literal_expr type="Double" location=/x/ContentView.swift:82:35 range=[/x/ContentView.swift:82:35 - line:82:35] value="100" builtin_initializer="Swift.(file).Double extension.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))))
+              (integer_literal_expr type="Double" location=/x/ContentView.swift:82:31 range=[/x/ContentView.swift:82:31 - line:82:31] value="100" builtin_initializer="Swift.(file).Double extension.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))))
   (func_decl range=[/x/ContentView.swift:85:1 - line:91:1] "fixtureA10Literal(_:)" interface_type="(Standing) -> Int" access=internal result="Int" thrown_type="<null>"
     (parameter_list range=[/x/ContentView.swift:85:23 - line:85:44]
       (parameter "standing" interface_type="Standing"))
@@ -903,13 +903,13 @@
           (argument_list implicit))
         (destructure_tuple_expr implicit type="(Int, Int)" location=/x/ContentView.swift:95:24 range=[/x/ContentView.swift:95:24 - line:95:24]
           (destructured=array
-            (opaque_value_expr implicit type="Int" location=/x/ContentView.swift:95:24 range=[/x/ContentView.swift:95:24 - line:95:24] 0xbeba3a190)
-            (opaque_value_expr implicit type="Int" location=/x/ContentView.swift:95:24 range=[/x/ContentView.swift:95:24 - line:95:24] 0xbeba3a1b8))
-          (opaque_value_expr implicit type="(offset: Int, element: Int)" location=/x/ContentView.swift:95:24 range=[/x/ContentView.swift:95:24 - line:95:24] 0xbeba3a168)
+            (opaque_value_expr implicit type="Int" location=/x/ContentView.swift:95:24 range=[/x/ContentView.swift:95:24 - line:95:24] 0xad5a56190)
+            (opaque_value_expr implicit type="Int" location=/x/ContentView.swift:95:24 range=[/x/ContentView.swift:95:24 - line:95:24] 0xad5a561b8))
+          (opaque_value_expr implicit type="(offset: Int, element: Int)" location=/x/ContentView.swift:95:24 range=[/x/ContentView.swift:95:24 - line:95:24] 0xad5a56168)
           (tuple_expr implicit type="(Int, Int)" location=/x/ContentView.swift:95:24 range=[/x/ContentView.swift:95:24 - line:95:24] "'',''"
-            (opaque_value_expr implicit type="Int" location=/x/ContentView.swift:95:24 range=[/x/ContentView.swift:95:24 - line:95:24] 0xbeba3a190)
-            (opaque_value_expr implicit type="Int" location=/x/ContentView.swift:95:24 range=[/x/ContentView.swift:95:24 - line:95:24] 0xbeba3a1b8)))
-        (opaque_value_expr implicit type="(offset: Int, element: Int)" location=/x/ContentView.swift:95:24 range=[/x/ContentView.swift:95:24 - line:95:24] 0xbeba3a168)
+            (opaque_value_expr implicit type="Int" location=/x/ContentView.swift:95:24 range=[/x/ContentView.swift:95:24 - line:95:24] 0xad5a56190)
+            (opaque_value_expr implicit type="Int" location=/x/ContentView.swift:95:24 range=[/x/ContentView.swift:95:24 - line:95:24] 0xad5a561b8)))
+        (opaque_value_expr implicit type="(offset: Int, element: Int)" location=/x/ContentView.swift:95:24 range=[/x/ContentView.swift:95:24 - line:95:24] 0xad5a56168)
         (brace_stmt range=[/x/ContentView.swift:95:66 - line:97:5]
           (assign_expr type="()" location=/x/ContentView.swift:96:15 range=[/x/ContentView.swift:96:9 - line:96:25]
             (declref_expr type="@lvalue Int" location=/x/ContentView.swift:96:9 range=[/x/ContentView.swift:96:9 - line:96:9] decl="main.(file).fixtureA11Tuple(_:).total@/x/ContentView.swift:94:9" function_ref=unapplied)
@@ -1073,14 +1073,14 @@
             (type_expr type="FileManager.Type" location=/x/Detail.swift:6:9 range=[/x/Detail.swift:6:9 - line:6:9] typerepr="FileManager"))))))
   (struct_decl range=[/x/Detail.swift:9:1 - line:11:1] "FixtureBox" interface_type="FixtureBox.Type" access=internal non_resilient inherits="Decodable"
     (pattern_binding_decl range=[/x/Detail.swift:10:5 - line:10:21]
-      (pattern_entry init_context=0xbb9bf5418
+      (pattern_entry init_context=0x919b7c418
         (pattern_typed type="URL?"
           (pattern_named type="URL?" "address")
           (type_optional
-            (type_unqualified_ident id="URL" bind="Foundation.(file).URL" decl_context=0x0)))))
+            (type_unqualified_ident id="URL" bind="Foundation.(file).URL")))))
     (var_decl range=[/x/Detail.swift:10:9 - line:10:9] "address" interface_type="URL?" access=internal let readImpl=stored immutable
       (has_storage_attr implicit)
-      (accessor_decl implicit range=[/x/Detail.swift:10:9 - line:10:9] <anonymous @ 0xbb9f0ace8> interface_type="(FixtureBox) -> () -> URL?" access=internal get for="address"
+      (accessor_decl implicit range=[/x/Detail.swift:10:9 - line:10:9] <anonymous @ 0x919eccce8> interface_type="(FixtureBox) -> () -> URL?" access=internal get for="address"
         (parameter "self" interface_type="FixtureBox") result="URL?" thrown_type="<null>"
         (parameter_list)
         (brace_stmt implicit range=[/x/Detail.swift:10:9 - line:10:9]
@@ -1090,11 +1090,11 @@
     (enum_decl implicit "CodingKeys" interface_type="FixtureBox.CodingKeys.Type" access=private non_resilient inherits="CodingKey"
       (enum_element_decl implicit "address" interface_type="(FixtureBox.CodingKeys.Type) -> FixtureBox.CodingKeys" access=internal)
       (pattern_binding_decl implicit
-        (pattern_entry init_context=0xbb9e8a308
+        (pattern_entry init_context=0x919e3c308
           (pattern_typed implicit type="Int"
             (pattern_named implicit type="Int" "hashValue"))))
       (pattern_binding_decl implicit
-        (pattern_entry init_context=0xbb9e8c1a8
+        (pattern_entry init_context=0x919e3e1a8
           (pattern_typed implicit type="String"
             (pattern_named implicit type="String" "stringValue"))))
       (constructor_decl implicit "init(stringValue:)" interface_type="(FixtureBox.CodingKeys.Type) -> (String) -> FixtureBox.CodingKeys?" access=private designated failable=true
@@ -1129,11 +1129,11 @@
                 (fail_stmt implicit))))
           (return_stmt implicit)))
       (pattern_binding_decl implicit
-        (pattern_entry init_context=0xbb9f055e0
+        (pattern_entry init_context=0x919ec75e0
           (pattern_typed implicit type="Int?"
             (pattern_named implicit type="Int?" "intValue"))))
       (constructor_decl implicit "init(intValue:)" interface_type="(FixtureBox.CodingKeys.Type) -> (Int) -> FixtureBox.CodingKeys?" access=private designated failable=true
-        (parameter "self" decl_context=0xbb9f05b08) thrown_type="<null>"
+        (parameter "self") thrown_type="<null>"
         (parameter_list
           (parameter "intValue" apiName="intValue" interface_type="Int"))
         (brace_stmt implicit
@@ -1142,7 +1142,7 @@
         (implements_attr
           (protocol=<null typerepr>) member="==(_:_:)")
         (semantics_attr implicit value="derived_enum_equals")
-        (parameter "self" decl_context=0xbb9e85a28) result="Bool" thrown_type="<null>"
+        (parameter "self") result="Bool" thrown_type="<null>"
         (parameter_list
           (parameter "a" interface_type="FixtureBox.CodingKeys")
           (parameter "b" interface_type="FixtureBox.CodingKeys"))
@@ -1215,7 +1215,7 @@
                 (load_expr implicit type="Int"
                   (declref_expr implicit type="@lvalue Int" decl="main.(file).FixtureBox.CodingKeys.hash(into:).discriminator" function_ref=unapplied)))))))
       (var_decl implicit "hashValue" interface_type="Int" access=fileprivate readImpl=getter immutable
-        (accessor_decl implicit <anonymous @ 0xbb9e8a110> interface_type="(FixtureBox.CodingKeys) -> () -> Int" access=fileprivate get for="hashValue"
+        (accessor_decl implicit <anonymous @ 0x919e3c110> interface_type="(FixtureBox.CodingKeys) -> () -> Int" access=fileprivate get for="hashValue"
           (parameter "self" interface_type="FixtureBox.CodingKeys") result="Int" thrown_type="<null>"
           (parameter_list)
           (brace_stmt implicit
@@ -1226,14 +1226,14 @@
                   (argument label="for"
                     (declref_expr implicit type="FixtureBox.CodingKeys" decl="main.(file).FixtureBox.CodingKeys.<anonymous>.self" function_ref=unapplied))))))))
       (var_decl implicit "intValue" interface_type="Int?" access=fileprivate readImpl=getter immutable
-        (accessor_decl implicit <anonymous @ 0xbb9f05638> interface_type="(FixtureBox.CodingKeys) -> () -> Int?" access=fileprivate get for="intValue"
-          (parameter "self" decl_context=0xbb9f05630) result="Int?" thrown_type="<null>"
+        (accessor_decl implicit <anonymous @ 0x919ec7638> interface_type="(FixtureBox.CodingKeys) -> () -> Int?" access=fileprivate get for="intValue"
+          (parameter "self") result="Int?" thrown_type="<null>"
           (parameter_list)
           (brace_stmt implicit
             (return_stmt implicit
               (nil_literal_expr implicit type="Int?" initializer="**NULL**")))))
       (var_decl implicit "stringValue" interface_type="String" access=fileprivate readImpl=getter immutable
-        (accessor_decl implicit <anonymous @ 0xbb9e8c200> interface_type="(FixtureBox.CodingKeys) -> () -> String" access=fileprivate get for="stringValue"
+        (accessor_decl implicit <anonymous @ 0x919e3e200> interface_type="(FixtureBox.CodingKeys) -> () -> String" access=fileprivate get for="stringValue"
           (parameter "self" interface_type="FixtureBox.CodingKeys") result="String" thrown_type="<null>"
           (parameter_list)
           (brace_stmt implicit
@@ -1246,7 +1246,7 @@
                   (return_stmt implicit
                     (string_literal_expr implicit type="String" encoding=utf8 value="address" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
     (constructor_decl implicit range=[/x/Detail.swift:9:8 - line:9:8] "init(address:)" interface_type="(FixtureBox.Type) -> (URL?) -> FixtureBox" access=internal designated
-      (parameter "self" decl_context=0xbb9c7b818) thrown_type="<null>"
+      (parameter "self") thrown_type="<null>"
       (parameter_list range=[/x/Detail.swift:9:8 - line:9:8]
         (parameter "address" apiName="address" interface_type="URL?")))
     (constructor_decl implicit "init(from:)" interface_type="(FixtureBox.Type) -> (any Decoder) throws -> FixtureBox" access=internal designated
@@ -1259,28 +1259,28 @@
             (pattern_named implicit type="KeyedDecodingContainer<FixtureBox.CodingKeys>" "container")
             (original_init=try_expr implicit type="KeyedDecodingContainer<FixtureBox.CodingKeys>"
               (open_existential_expr implicit type="KeyedDecodingContainer<FixtureBox.CodingKeys>"
-                (opaque_value_expr implicit type="any Decoder" 0xbb7c5b598)
+                (opaque_value_expr implicit type="any Decoder" 0x917c8f598)
                 (declref_expr implicit type="any Decoder" decl="main.(file).FixtureBox.init(from:).decoder" function_ref=unapplied)
                 (call_expr implicit type="KeyedDecodingContainer<FixtureBox.CodingKeys>" throws isolation_crossing="none"
                   (dot_syntax_call_expr implicit type="(FixtureBox.CodingKeys.Type) throws -> KeyedDecodingContainer<FixtureBox.CodingKeys>" nothrow isolation_crossing="none"
                     (declref_expr implicit type="(any Decoder) -> (FixtureBox.CodingKeys.Type) throws -> KeyedDecodingContainer<FixtureBox.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> FixtureBox.CodingKeys)]" function_ref=single apply)
                     (argument_list implicit
                       (argument
-                        (opaque_value_expr implicit type="any Decoder" 0xbb7c5b598))))
+                        (opaque_value_expr implicit type="any Decoder" 0x917c8f598))))
                   (argument_list implicit labels="keyedBy:"
                     (argument label="keyedBy"
                       (dot_self_expr type="FixtureBox.CodingKeys.Type"
                         (type_expr implicit type="FixtureBox.CodingKeys.Type" typerepr="CodingKeys")))))))
             (processed_init=try_expr implicit type="KeyedDecodingContainer<FixtureBox.CodingKeys>"
               (open_existential_expr implicit type="KeyedDecodingContainer<FixtureBox.CodingKeys>"
-                (opaque_value_expr implicit type="any Decoder" 0xbb7c5b598)
+                (opaque_value_expr implicit type="any Decoder" 0x917c8f598)
                 (declref_expr implicit type="any Decoder" decl="main.(file).FixtureBox.init(from:).decoder" function_ref=unapplied)
                 (call_expr implicit type="KeyedDecodingContainer<FixtureBox.CodingKeys>" throws isolation_crossing="none"
                   (dot_syntax_call_expr implicit type="(FixtureBox.CodingKeys.Type) throws -> KeyedDecodingContainer<FixtureBox.CodingKeys>" nothrow isolation_crossing="none"
                     (declref_expr implicit type="(any Decoder) -> (FixtureBox.CodingKeys.Type) throws -> KeyedDecodingContainer<FixtureBox.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> FixtureBox.CodingKeys)]" function_ref=single apply)
                     (argument_list implicit
                       (argument
-                        (opaque_value_expr implicit type="any Decoder" 0xbb7c5b598))))
+                        (opaque_value_expr implicit type="any Decoder" 0x917c8f598))))
                   (argument_list implicit labels="keyedBy:"
                     (argument label="keyedBy"
                       (dot_self_expr type="FixtureBox.CodingKeys.Type"
@@ -1348,7 +1348,7 @@
                                 (member_ref_expr type="String.UTF8View" location=/x/Detail.swift:14:90 range=[/x/Detail.swift:14:60 - line:14:90] decl="Swift.(file).String extension.utf8"
                                   (interpolated_string_literal_expr type="String" location=/x/Detail.swift:14:60 range=[/x/Detail.swift:14:60 - line:14:60] literal_capacity=15 interpolation_count=1 builder_init="Swift.(file).DefaultStringInterpolation.init(literalCapacity:interpolationCount:)" result_init="Swift.(file).String extension.init(stringInterpolation:)"
                                     (tap_expr implicit type="String.StringInterpolation" location=/x/Detail.swift:14:60 range=[/x/Detail.swift:14:60 - line:14:85] var="main.(file).fixtureDetailDecodesAnOptionalAddress(_:).$interpolation"
-                                      (opaque_value_expr implicit type="String.StringInterpolation" location=/x/Detail.swift:14:60 range=[/x/Detail.swift:14:60 - line:14:60] 0xbb7ddd160)
+                                      (opaque_value_expr implicit type="String.StringInterpolation" location=/x/Detail.swift:14:60 range=[/x/Detail.swift:14:60 - line:14:60] 0x917e35160)
                                       (brace_stmt implicit range=[/x/Detail.swift:14:61 - line:14:85]
                                         (var_decl implicit "$interpolation" interface_type="String.StringInterpolation" access=private readImpl=stored writeImpl=stored readWriteImpl=stored
                                           (has_storage_attr implicit))
@@ -1579,7 +1579,7 @@
                 (array_expr type="[URL]" location=/x/EngineClient.swift:9:60 range=[/x/EngineClient.swift:9:60 - line:9:61] initializer="Swift.(file).Array extension.init(arrayLiteral:) [with (substitution_map generic_signature=<Element where Element : Copyable, Element : Escapable> Element -> URL)]"))))))))
   (struct_decl range=[/x/EngineClient.swift:15:1 - line:19:1] "FixtureRelayClient" interface_type="FixtureRelayClient.Type" access=internal non_resilient
     (pattern_binding_decl range=[/x/EngineClient.swift:16:25 - line:16:42]
-      (pattern_entry init_context=0x901c17018
+      (pattern_entry init_context=0xc89b82018
         (pattern_named type="String" "tag")
         (original_init=string_literal_expr type="String" location=/x/EngineClient.swift:16:42 range=[/x/EngineClient.swift:16:42 - line:16:42] encoding=utf8 value="" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")
         (processed_init=string_literal_expr type="String" location=/x/EngineClient.swift:16:42 range=[/x/EngineClient.swift:16:42 - line:16:42] encoding=utf8 value="" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))
@@ -1587,14 +1587,14 @@
       (has_initial_value_attr implicit)
       (has_storage_attr implicit)
       (nonisolated_attr range=[/x/EngineClient.swift:16:5 - line:16:23] unsafe)
-      (accessor_decl implicit range=[/x/EngineClient.swift:16:36 - line:16:36] <anonymous @ 0x901cb7eb0> interface_type="(FixtureRelayClient.Type) -> () -> String" access=internal static get for="tag"
+      (accessor_decl implicit range=[/x/EngineClient.swift:16:36 - line:16:36] <anonymous @ 0xc89c0aeb0> interface_type="(FixtureRelayClient.Type) -> () -> String" access=internal static get for="tag"
         (parameter "self" interface_type="FixtureRelayClient.Type") result="String" thrown_type="<null>"
         (parameter_list)
         (brace_stmt implicit range=[/x/EngineClient.swift:16:36 - line:16:36]
           (return_stmt implicit
             (member_ref_expr implicit type="String" decl="main.(file).FixtureRelayClient.tag@/x/EngineClient.swift:16:36" direct_to_storage
               (declref_expr implicit type="FixtureRelayClient.Type" decl="main.(file).FixtureRelayClient.<anonymous>.self@/x/EngineClient.swift:16:36" function_ref=unapplied)))))
-      (accessor_decl implicit range=[/x/EngineClient.swift:16:36 - line:16:36] <anonymous @ 0x901ca2200> interface_type="(FixtureRelayClient.Type) -> (String) -> ()" access=internal static set for="tag"
+      (accessor_decl implicit range=[/x/EngineClient.swift:16:36 - line:16:36] <anonymous @ 0xc89c0b200> interface_type="(FixtureRelayClient.Type) -> (String) -> ()" access=internal static set for="tag"
         (parameter "self" interface_type="FixtureRelayClient.Type") result="()" thrown_type="<null>"
         (parameter_list range=[/x/EngineClient.swift:16:36 - line:16:36]
           (parameter "value" interface_type="String"))
@@ -1603,7 +1603,7 @@
             (member_ref_expr implicit type="@lvalue String" decl="main.(file).FixtureRelayClient.tag@/x/EngineClient.swift:16:36" direct_to_storage
               (declref_expr implicit type="FixtureRelayClient.Type" decl="main.(file).FixtureRelayClient.<anonymous>.self@/x/EngineClient.swift:16:36" function_ref=unapplied))
             (declref_expr implicit type="String" decl="main.(file).FixtureRelayClient.<anonymous>.value@/x/EngineClient.swift:16:36" function_ref=unapplied))))
-      (accessor_decl implicit range=[/x/EngineClient.swift:16:36 - line:16:36] <anonymous @ 0x901cbc788> interface_type="(FixtureRelayClient.Type) -> () -> ()" access=internal static _modify for="tag"
+      (accessor_decl implicit range=[/x/EngineClient.swift:16:36 - line:16:36] <anonymous @ 0xc89bf9788> interface_type="(FixtureRelayClient.Type) -> () -> ()" access=internal static _modify for="tag"
         (parameter "self" interface_type="FixtureRelayClient.Type") result="()" thrown_type="<null>"
         (parameter_list)
         (brace_stmt implicit range=[/x/EngineClient.swift:16:36 - line:16:36]
@@ -1612,7 +1612,7 @@
               (member_ref_expr implicit type="@lvalue String" decl="main.(file).FixtureRelayClient.tag@/x/EngineClient.swift:16:36" direct_to_impl
                 (declref_expr implicit type="FixtureRelayClient.Type" decl="main.(file).FixtureRelayClient.<anonymous>.self@/x/EngineClient.swift:16:36" function_ref=unapplied)))))))
     (func_decl range=[/x/EngineClient.swift:18:5 - line:18:66] "boardsQuery()" interface_type="(FixtureRelayClient) -> () -> String" access=internal
-      (parameter "self" decl_context=0x901c17198) result="String" thrown_type="<null>"
+      (parameter "self") result="String" thrown_type="<null>"
       (parameter_list range=[/x/EngineClient.swift:18:21 - line:18:22])
       (brace_stmt range=[/x/EngineClient.swift:18:34 - line:18:66]
         (return_stmt implicit range=[/x/EngineClient.swift:18:36 - line:18:47]
@@ -1631,20 +1631,20 @@
                 (load_expr implicit type="String" location=/x/EngineClient.swift:18:47 range=[/x/EngineClient.swift:18:47 - line:18:47]
                   (declref_expr type="@lvalue String" location=/x/EngineClient.swift:18:47 range=[/x/EngineClient.swift:18:47 - line:18:47] decl="main.(file).fixtureScreenRelay@/x/ContentView.swift:16:25" function_ref=unapplied))))))))
     (constructor_decl implicit range=[/x/EngineClient.swift:15:8 - line:15:8] "init()" interface_type="(FixtureRelayClient.Type) -> () -> FixtureRelayClient" access=internal designated
-      (parameter "self" decl_context=0x901ca0a00) thrown_type="<null>"
+      (parameter "self") thrown_type="<null>"
       (parameter_list)
       (brace_stmt implicit range=[/x/EngineClient.swift:15:8 - line:15:8]
         (return_stmt implicit range=[/x/EngineClient.swift:15:8 - line:15:8]))))
   (struct_decl range=[/x/EngineClient.swift:21:1 - line:31:1] "FixtureQuietClient" interface_type="FixtureQuietClient.Type" access=internal non_resilient
     (pattern_binding_decl range=[/x/EngineClient.swift:22:5 - line:22:24]
-      (pattern_entry init_context=0x901c175c8
+      (pattern_entry init_context=0xc89b825c8
         (pattern_named type="Int" "limit")
         (original_init=integer_literal_expr type="Int" location=/x/EngineClient.swift:22:24 range=[/x/EngineClient.swift:22:24 - line:22:24] value="4" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")
         (processed_init=integer_literal_expr type="Int" location=/x/EngineClient.swift:22:24 range=[/x/EngineClient.swift:22:24 - line:22:24] value="4" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))
     (var_decl range=[/x/EngineClient.swift:22:16 - line:22:16] "limit" interface_type="Int" access=internal let static readImpl=stored immutable
       (has_initial_value_attr implicit)
       (has_storage_attr implicit)
-      (accessor_decl implicit range=[/x/EngineClient.swift:22:16 - line:22:16] <anonymous @ 0x901ccae28> interface_type="(FixtureQuietClient.Type) -> () -> Int" access=internal static get for="limit"
+      (accessor_decl implicit range=[/x/EngineClient.swift:22:16 - line:22:16] <anonymous @ 0xc89c1de28> interface_type="(FixtureQuietClient.Type) -> () -> Int" access=internal static get for="limit"
         (parameter "self" interface_type="FixtureQuietClient.Type") result="Int" thrown_type="<null>"
         (parameter_list)
         (brace_stmt implicit range=[/x/EngineClient.swift:22:16 - line:22:16]
@@ -1652,12 +1652,12 @@
             (member_ref_expr implicit type="Int" decl="main.(file).FixtureQuietClient.limit@/x/EngineClient.swift:22:16" direct_to_storage
               (declref_expr implicit type="FixtureQuietClient.Type" decl="main.(file).FixtureQuietClient.<anonymous>.self@/x/EngineClient.swift:22:16" function_ref=unapplied))))))
     (pattern_binding_decl range=[/x/EngineClient.swift:23:5 - line:23:42]
-      (pattern_entry init_context=0x901c17ad0
+      (pattern_entry init_context=0xc89b82ad0
         (pattern_typed type="Int"
           (pattern_named type="Int" "computed")
-          (type_unqualified_ident id="Int" bind="Swift.(file).Int" decl_context=0x0))))
+          (type_unqualified_ident id="Int" bind="Swift.(file).Int"))))
     (var_decl range=[/x/EngineClient.swift:23:16 - line:23:16] "computed" interface_type="Int" access=internal static readImpl=getter immutable
-      (accessor_decl range=[/x/EngineClient.swift:23:30 - line:23:42] <anonymous @ 0x901c177d8> interface_type="(FixtureQuietClient.Type) -> () -> Int" access=internal static get for="computed"
+      (accessor_decl range=[/x/EngineClient.swift:23:30 - line:23:42] <anonymous @ 0xc89b827d8> interface_type="(FixtureQuietClient.Type) -> () -> Int" access=internal static get for="computed"
         (parameter "self" interface_type="FixtureQuietClient.Type") result="Int" thrown_type="<null>"
         (parameter_list)
         (brace_stmt range=[/x/EngineClient.swift:23:30 - line:23:42]
@@ -1675,13 +1675,13 @@
                 (argument
                   (integer_literal_expr type="Int" location=/x/EngineClient.swift:23:40 range=[/x/EngineClient.swift:23:40 - line:23:40] value="1" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))))))))
     (pattern_binding_decl range=[/x/EngineClient.swift:24:5 - line:24:15]
-      (pattern_entry init_context=0x901c17c58
+      (pattern_entry init_context=0xc89b82c58
         (pattern_typed type="String"
           (pattern_named type="String" "host")
-          (type_unqualified_ident id="String" bind="Swift.(file).String" decl_context=0x0))))
+          (type_unqualified_ident id="String" bind="Swift.(file).String"))))
     (var_decl range=[/x/EngineClient.swift:24:9 - line:24:9] "host" interface_type="String" access=internal let readImpl=stored immutable
       (has_storage_attr implicit)
-      (accessor_decl implicit range=[/x/EngineClient.swift:24:9 - line:24:9] <anonymous @ 0x901ccb268> interface_type="(FixtureQuietClient) -> () -> String" access=internal get for="host"
+      (accessor_decl implicit range=[/x/EngineClient.swift:24:9 - line:24:9] <anonymous @ 0xc89c1e268> interface_type="(FixtureQuietClient) -> () -> String" access=internal get for="host"
         (parameter "self" interface_type="FixtureQuietClient") result="String" thrown_type="<null>"
         (parameter_list)
         (brace_stmt implicit range=[/x/EngineClient.swift:24:9 - line:24:9]
@@ -1726,18 +1726,18 @@
               (argument label="separator"
                 (string_literal_expr type="String" location=/x/EngineClient.swift:29:40 range=[/x/EngineClient.swift:29:40 - line:29:40] encoding=utf8 value="/" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))
     (constructor_decl implicit range=[/x/EngineClient.swift:21:8 - line:21:8] "init(host:)" interface_type="(FixtureQuietClient.Type) -> (String) -> FixtureQuietClient" access=internal designated
-      (parameter "self" decl_context=0x901cbf7c8) thrown_type="<null>"
+      (parameter "self") thrown_type="<null>"
       (parameter_list range=[/x/EngineClient.swift:21:8 - line:21:8]
         (parameter "host" apiName="host" interface_type="String"))))
   (struct_decl range=[/x/EngineClient.swift:35:1 - line:55:1] "EngineClient" interface_type="EngineClient.Type" access=internal non_resilient
     (pattern_binding_decl range=[/x/EngineClient.swift:36:5 - line:36:18]
-      (pattern_entry init_context=0x901c18590
+      (pattern_entry init_context=0xc89b83590
         (pattern_typed type="URL"
           (pattern_named type="URL" "baseURL")
-          (type_unqualified_ident id="URL" bind="Foundation.(file).URL" decl_context=0x0))))
+          (type_unqualified_ident id="URL" bind="Foundation.(file).URL"))))
     (var_decl range=[/x/EngineClient.swift:36:9 - line:36:9] "baseURL" interface_type="URL" access=internal let readImpl=stored immutable
       (has_storage_attr implicit)
-      (accessor_decl implicit range=[/x/EngineClient.swift:36:9 - line:36:9] <anonymous @ 0x901cdcac0> interface_type="(EngineClient) -> () -> URL" access=internal get for="baseURL"
+      (accessor_decl implicit range=[/x/EngineClient.swift:36:9 - line:36:9] <anonymous @ 0xc89c2bac0> interface_type="(EngineClient) -> () -> URL" access=internal get for="baseURL"
         (parameter "self" interface_type="EngineClient") result="URL" thrown_type="<null>"
         (parameter_list)
         (brace_stmt implicit range=[/x/EngineClient.swift:36:9 - line:36:9]
@@ -1776,7 +1776,7 @@
           (declref_expr type="URL" location=/x/EngineClient.swift:43:24 range=[/x/EngineClient.swift:43:24 - line:43:24] decl="main.(file).EngineClient.init(baseURL:session:).baseURL@/x/EngineClient.swift:42:10" function_ref=unapplied))
         (return_stmt implicit range=[/x/EngineClient.swift:44:5 - line:44:5])))
     (pattern_binding_decl range=[/x/EngineClient.swift:46:5 - line:46:67]
-      (pattern_entry init_context=0x901c18e00
+      (pattern_entry init_context=0xc89b83e00
         (pattern_named type="URL" "localDefault")
         (original_init=force_value_expr type="URL" location=/x/EngineClient.swift:46:67 range=[/x/EngineClient.swift:46:31 - line:46:67]
           (call_expr type="URL?" location=/x/EngineClient.swift:46:31 range=[/x/EngineClient.swift:46:31 - line:46:66] nothrow isolation_crossing="none"
@@ -1801,7 +1801,7 @@
     (var_decl range=[/x/EngineClient.swift:46:16 - line:46:16] "localDefault" interface_type="URL" access=internal let static readImpl=stored immutable
       (has_initial_value_attr implicit)
       (has_storage_attr implicit)
-      (accessor_decl implicit range=[/x/EngineClient.swift:46:16 - line:46:16] <anonymous @ 0x901d1ed90> interface_type="(EngineClient.Type) -> () -> URL" access=internal static get for="localDefault"
+      (accessor_decl implicit range=[/x/EngineClient.swift:46:16 - line:46:16] <anonymous @ 0xc89cb0d90> interface_type="(EngineClient.Type) -> () -> URL" access=internal static get for="localDefault"
         (parameter "self" interface_type="EngineClient.Type") result="URL" thrown_type="<null>"
         (parameter_list)
         (brace_stmt implicit range=[/x/EngineClient.swift:46:16 - line:46:16]
@@ -1843,13 +1843,13 @@
   (import_decl range=[/x/Models.swift:3:1 - line:3:8] module="Foundation")
   (struct_decl range=[/x/Models.swift:5:1 - line:10:1] "Standing" interface_type="Standing.Type" access=internal non_resilient inherits="Decodable"
     (pattern_binding_decl range=[/x/Models.swift:6:5 - line:6:16]
-      (pattern_entry init_context=0xa777f6150
+      (pattern_entry init_context=0x74fbd2150
         (pattern_typed type="String"
           (pattern_named type="String" "model")
-          (type_unqualified_ident id="String" bind="Swift.(file).String" decl_context=0x0))))
+          (type_unqualified_ident id="String" bind="Swift.(file).String"))))
     (var_decl range=[/x/Models.swift:6:9 - line:6:9] "model" interface_type="String" access=internal let readImpl=stored immutable
       (has_storage_attr implicit)
-      (accessor_decl implicit range=[/x/Models.swift:6:9 - line:6:9] <anonymous @ 0xa77c02f10> interface_type="(Standing) -> () -> String" access=internal get for="model"
+      (accessor_decl implicit range=[/x/Models.swift:6:9 - line:6:9] <anonymous @ 0x74ff16f10> interface_type="(Standing) -> () -> String" access=internal get for="model"
         (parameter "self" interface_type="Standing") result="String" thrown_type="<null>"
         (parameter_list)
         (brace_stmt implicit range=[/x/Models.swift:6:9 - line:6:9]
@@ -1857,13 +1857,13 @@
             (member_ref_expr implicit type="String" decl="main.(file).Standing.model@/x/Models.swift:6:9" direct_to_storage
               (declref_expr implicit type="Standing" decl="main.(file).Standing.<anonymous>.self@/x/Models.swift:6:9" function_ref=unapplied))))))
     (pattern_binding_decl range=[/x/Models.swift:7:5 - line:7:19]
-      (pattern_entry init_context=0xa777f62e0
+      (pattern_entry init_context=0x74fbd22e0
         (pattern_typed type="Int"
           (pattern_named type="Int" "position")
-          (type_unqualified_ident id="Int" bind="Swift.(file).Int" decl_context=0x0))))
+          (type_unqualified_ident id="Int" bind="Swift.(file).Int"))))
     (var_decl range=[/x/Models.swift:7:9 - line:7:9] "position" interface_type="Int" access=internal let readImpl=stored immutable
       (has_storage_attr implicit)
-      (accessor_decl implicit range=[/x/Models.swift:7:9 - line:7:9] <anonymous @ 0xa77c031f0> interface_type="(Standing) -> () -> Int" access=internal get for="position"
+      (accessor_decl implicit range=[/x/Models.swift:7:9 - line:7:9] <anonymous @ 0x74ff171f0> interface_type="(Standing) -> () -> Int" access=internal get for="position"
         (parameter "self" interface_type="Standing") result="Int" thrown_type="<null>"
         (parameter_list)
         (brace_stmt implicit range=[/x/Models.swift:7:9 - line:7:9]
@@ -1871,45 +1871,45 @@
             (member_ref_expr implicit type="Int" decl="main.(file).Standing.position@/x/Models.swift:7:9" direct_to_storage
               (declref_expr implicit type="Standing" decl="main.(file).Standing.<anonymous>.self@/x/Models.swift:7:9" function_ref=unapplied))))))
     (pattern_binding_decl range=[/x/Models.swift:8:5 - line:8:16]
-      (pattern_entry init_context=0xa777f6468
+      (pattern_entry init_context=0x74fbd2468
         (pattern_typed type="Double"
           (pattern_named type="Double" "score")
-          (type_unqualified_ident id="Double" bind="Swift.(file).Double" decl_context=0x0))))
+          (type_unqualified_ident id="Double" bind="Swift.(file).Double"))))
     (var_decl range=[/x/Models.swift:8:9 - line:8:9] "score" interface_type="Double" access=internal let readImpl=stored immutable
       (has_storage_attr implicit)
-      (accessor_decl implicit range=[/x/Models.swift:8:9 - line:8:9] <anonymous @ 0xa77c03488> interface_type="(Standing) -> () -> Double" access=internal get for="score"
+      (accessor_decl implicit range=[/x/Models.swift:8:9 - line:8:9] <anonymous @ 0x74ff17488> interface_type="(Standing) -> () -> Double" access=internal get for="score"
         (parameter "self" interface_type="Standing") result="Double" thrown_type="<null>"
         (parameter_list)
         (brace_stmt implicit range=[/x/Models.swift:8:9 - line:8:9]
           (return_stmt implicit
             (member_ref_expr implicit type="Double" decl="main.(file).Standing.score@/x/Models.swift:8:9" direct_to_storage
               (declref_expr implicit type="Standing" decl="main.(file).Standing.<anonymous>.self@/x/Models.swift:8:9" function_ref=unapplied))))))
-    (pattern_binding_decl range=[/x/Models.swift:9:5 - line:9:28]
-      (pattern_entry init_context=0xa777f6610
+    (pattern_binding_decl range=[/x/Models.swift:9:5 - line:9:24]
+      (pattern_entry init_context=0x74fbd2608
         (pattern_typed type="Double?"
-          (pattern_named type="Double?" "scoreAnchor")
+          (pattern_named type="Double?" "ageDays")
           (type_optional
-            (type_unqualified_ident id="Double" bind="Swift.(file).Double" decl_context=0x0)))))
-    (var_decl range=[/x/Models.swift:9:9 - line:9:9] "scoreAnchor" interface_type="Double?" access=internal let readImpl=stored immutable
+            (type_unqualified_ident id="Double" bind="Swift.(file).Double")))))
+    (var_decl range=[/x/Models.swift:9:9 - line:9:9] "ageDays" interface_type="Double?" access=internal let readImpl=stored immutable
       (has_storage_attr implicit)
-      (accessor_decl implicit range=[/x/Models.swift:9:9 - line:9:9] <anonymous @ 0xa77c03840> interface_type="(Standing) -> () -> Double?" access=internal get for="scoreAnchor"
+      (accessor_decl implicit range=[/x/Models.swift:9:9 - line:9:9] <anonymous @ 0x74ff17840> interface_type="(Standing) -> () -> Double?" access=internal get for="ageDays"
         (parameter "self" interface_type="Standing") result="Double?" thrown_type="<null>"
         (parameter_list)
         (brace_stmt implicit range=[/x/Models.swift:9:9 - line:9:9]
           (return_stmt implicit
-            (member_ref_expr implicit type="Double?" decl="main.(file).Standing.scoreAnchor@/x/Models.swift:9:9" direct_to_storage
+            (member_ref_expr implicit type="Double?" decl="main.(file).Standing.ageDays@/x/Models.swift:9:9" direct_to_storage
               (declref_expr implicit type="Standing" decl="main.(file).Standing.<anonymous>.self@/x/Models.swift:9:9" function_ref=unapplied))))))
     (enum_decl implicit "CodingKeys" interface_type="Standing.CodingKeys.Type" access=private non_resilient inherits="CodingKey"
       (enum_element_decl implicit "model" interface_type="(Standing.CodingKeys.Type) -> Standing.CodingKeys" access=internal)
       (enum_element_decl implicit "position" interface_type="(Standing.CodingKeys.Type) -> Standing.CodingKeys" access=internal)
       (enum_element_decl implicit "score" interface_type="(Standing.CodingKeys.Type) -> Standing.CodingKeys" access=internal)
-      (enum_element_decl implicit "scoreAnchor" interface_type="(Standing.CodingKeys.Type) -> Standing.CodingKeys" access=internal)
+      (enum_element_decl implicit "ageDays" interface_type="(Standing.CodingKeys.Type) -> Standing.CodingKeys" access=internal)
       (pattern_binding_decl implicit
-        (pattern_entry init_context=0xa77b47ef0
+        (pattern_entry init_context=0x74fe9fef0
           (pattern_typed implicit type="Int"
             (pattern_named implicit type="Int" "hashValue"))))
       (pattern_binding_decl implicit
-        (pattern_entry init_context=0xa77b4ae48
+        (pattern_entry init_context=0x74fea2e48
           (pattern_typed implicit type="String"
             (pattern_named implicit type="String" "stringValue"))))
       (constructor_decl implicit "init(stringValue:)" interface_type="(Standing.CodingKeys.Type) -> (String) -> Standing.CodingKeys?" access=private designated failable=true
@@ -1980,14 +1980,14 @@
                     (declref_expr implicit type="(String, String) -> Bool" decl="Swift.(file).~= [with (substitution_map generic_signature=<T where T : Equatable> T -> String)]" function_ref=single apply)
                     (argument_list implicit
                       (argument
-                        (string_literal_expr implicit type="String" encoding=utf8 value="scoreAnchor" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))
+                        (string_literal_expr implicit type="String" encoding=utf8 value="ageDays" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))
                       (argument
                         (declref_expr implicit type="String" decl="main.(file).Standing.CodingKeys.init(stringValue:).$match" function_ref=unapplied))))))
               (brace_stmt implicit
                 (assign_expr implicit type="()"
                   (declref_expr implicit type="@lvalue Standing.CodingKeys" decl="main.(file).Standing.CodingKeys.init(stringValue:).self" function_ref=unapplied)
                   (dot_syntax_call_expr implicit type="Standing.CodingKeys" nothrow isolation_crossing="none"
-                    (declref_expr implicit type="(Standing.CodingKeys.Type) -> Standing.CodingKeys" decl="main.(file).Standing.CodingKeys.scoreAnchor" function_ref=double apply)
+                    (declref_expr implicit type="(Standing.CodingKeys.Type) -> Standing.CodingKeys" decl="main.(file).Standing.CodingKeys.ageDays" function_ref=double apply)
                     (argument_list implicit
                       (argument
                         (type_expr implicit type="Standing.CodingKeys.Type" null_typerepr)))))))
@@ -1998,11 +1998,11 @@
                 (fail_stmt implicit))))
           (return_stmt implicit)))
       (pattern_binding_decl implicit
-        (pattern_entry init_context=0xa77b50240
+        (pattern_entry init_context=0x74ff10240
           (pattern_typed implicit type="Int?"
             (pattern_named implicit type="Int?" "intValue"))))
       (constructor_decl implicit "init(intValue:)" interface_type="(Standing.CodingKeys.Type) -> (Int) -> Standing.CodingKeys?" access=private designated failable=true
-        (parameter "self" decl_context=0xa77b50768) thrown_type="<null>"
+        (parameter "self") thrown_type="<null>"
         (parameter_list
           (parameter "intValue" apiName="intValue" interface_type="Int"))
         (brace_stmt implicit
@@ -2011,7 +2011,7 @@
         (implements_attr
           (protocol=<null typerepr>) member="==(_:_:)")
         (semantics_attr implicit value="derived_enum_equals")
-        (parameter "self" decl_context=0xa77b43628) result="Bool" thrown_type="<null>"
+        (parameter "self") result="Bool" thrown_type="<null>"
         (parameter_list
           (parameter "a" interface_type="Standing.CodingKeys")
           (parameter "b" interface_type="Standing.CodingKeys"))
@@ -2045,7 +2045,7 @@
                   (integer_literal_expr implicit type="Int" value="2" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))))
             (case_stmt implicit
               (case_label_item ownership=borrowing
-                (pattern_enum_element implicit type="Standing.CodingKeys" element="Standing.CodingKeys.scoreAnchor"))
+                (pattern_enum_element implicit type="Standing.CodingKeys" element="Standing.CodingKeys.ageDays"))
               (brace_stmt implicit
                 (assign_expr implicit type="()"
                   (declref_expr implicit type="@lvalue Int" decl="main.(file).Standing.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied)
@@ -2079,7 +2079,7 @@
                   (integer_literal_expr implicit type="Int" value="2" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))))
             (case_stmt implicit
               (case_label_item ownership=borrowing
-                (pattern_enum_element implicit type="Standing.CodingKeys" element="Standing.CodingKeys.scoreAnchor"))
+                (pattern_enum_element implicit type="Standing.CodingKeys" element="Standing.CodingKeys.ageDays"))
               (brace_stmt implicit
                 (assign_expr implicit type="()"
                   (declref_expr implicit type="@lvalue Int" decl="main.(file).Standing.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)
@@ -2130,7 +2130,7 @@
                   (integer_literal_expr implicit type="Int" value="2" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))))
             (case_stmt implicit
               (case_label_item ownership=borrowing
-                (pattern_enum_element implicit type="Standing.CodingKeys" element="Standing.CodingKeys.scoreAnchor"))
+                (pattern_enum_element implicit type="Standing.CodingKeys" element="Standing.CodingKeys.ageDays"))
               (brace_stmt implicit
                 (assign_expr implicit type="()"
                   (declref_expr implicit type="@lvalue Int" decl="main.(file).Standing.CodingKeys.hash(into:).discriminator" function_ref=unapplied)
@@ -2147,7 +2147,7 @@
                 (load_expr implicit type="Int"
                   (declref_expr implicit type="@lvalue Int" decl="main.(file).Standing.CodingKeys.hash(into:).discriminator" function_ref=unapplied)))))))
       (var_decl implicit "hashValue" interface_type="Int" access=fileprivate readImpl=getter immutable
-        (accessor_decl implicit <anonymous @ 0xa77b47cf8> interface_type="(Standing.CodingKeys) -> () -> Int" access=fileprivate get for="hashValue"
+        (accessor_decl implicit <anonymous @ 0x74fe9fcf8> interface_type="(Standing.CodingKeys) -> () -> Int" access=fileprivate get for="hashValue"
           (parameter "self" interface_type="Standing.CodingKeys") result="Int" thrown_type="<null>"
           (parameter_list)
           (brace_stmt implicit
@@ -2158,14 +2158,14 @@
                   (argument label="for"
                     (declref_expr implicit type="Standing.CodingKeys" decl="main.(file).Standing.CodingKeys.<anonymous>.self" function_ref=unapplied))))))))
       (var_decl implicit "intValue" interface_type="Int?" access=fileprivate readImpl=getter immutable
-        (accessor_decl implicit <anonymous @ 0xa77b50298> interface_type="(Standing.CodingKeys) -> () -> Int?" access=fileprivate get for="intValue"
-          (parameter "self" decl_context=0xa77b50290) result="Int?" thrown_type="<null>"
+        (accessor_decl implicit <anonymous @ 0x74ff10298> interface_type="(Standing.CodingKeys) -> () -> Int?" access=fileprivate get for="intValue"
+          (parameter "self") result="Int?" thrown_type="<null>"
           (parameter_list)
           (brace_stmt implicit
             (return_stmt implicit
               (nil_literal_expr implicit type="Int?" initializer="**NULL**")))))
       (var_decl implicit "stringValue" interface_type="String" access=fileprivate readImpl=getter immutable
-        (accessor_decl implicit <anonymous @ 0xa77b4aea0> interface_type="(Standing.CodingKeys) -> () -> String" access=fileprivate get for="stringValue"
+        (accessor_decl implicit <anonymous @ 0x74fea2ea0> interface_type="(Standing.CodingKeys) -> () -> String" access=fileprivate get for="stringValue"
           (parameter "self" interface_type="Standing.CodingKeys") result="String" thrown_type="<null>"
           (parameter_list)
           (brace_stmt implicit
@@ -2191,10 +2191,10 @@
                     (string_literal_expr implicit type="String" encoding=utf8 value="score" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))))
               (case_stmt implicit
                 (case_label_item ownership=borrowing
-                  (pattern_enum_element implicit type="Standing.CodingKeys" element="Standing.CodingKeys.scoreAnchor"))
+                  (pattern_enum_element implicit type="Standing.CodingKeys" element="Standing.CodingKeys.ageDays"))
                 (brace_stmt implicit
                   (return_stmt implicit
-                    (string_literal_expr implicit type="String" encoding=utf8 value="scoreAnchor" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
+                    (string_literal_expr implicit type="String" encoding=utf8 value="ageDays" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
     (constructor_decl implicit "init(from:)" interface_type="(Standing.Type) -> (any Decoder) throws -> Standing" access=internal designated
       (parameter "self" interface_type="Standing" inout) thrown_type="<null>"
       (parameter_list
@@ -2205,28 +2205,28 @@
             (pattern_named implicit type="KeyedDecodingContainer<Standing.CodingKeys>" "container")
             (original_init=try_expr implicit type="KeyedDecodingContainer<Standing.CodingKeys>"
               (open_existential_expr implicit type="KeyedDecodingContainer<Standing.CodingKeys>"
-                (opaque_value_expr implicit type="any Decoder" 0xa75f62e68)
+                (opaque_value_expr implicit type="any Decoder" 0x74dc42e68)
                 (declref_expr implicit type="any Decoder" decl="main.(file).Standing.init(from:).decoder" function_ref=unapplied)
                 (call_expr implicit type="KeyedDecodingContainer<Standing.CodingKeys>" throws isolation_crossing="none"
                   (dot_syntax_call_expr implicit type="(Standing.CodingKeys.Type) throws -> KeyedDecodingContainer<Standing.CodingKeys>" nothrow isolation_crossing="none"
                     (declref_expr implicit type="(any Decoder) -> (Standing.CodingKeys.Type) throws -> KeyedDecodingContainer<Standing.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> Standing.CodingKeys)]" function_ref=single apply)
                     (argument_list implicit
                       (argument
-                        (opaque_value_expr implicit type="any Decoder" 0xa75f62e68))))
+                        (opaque_value_expr implicit type="any Decoder" 0x74dc42e68))))
                   (argument_list implicit labels="keyedBy:"
                     (argument label="keyedBy"
                       (dot_self_expr type="Standing.CodingKeys.Type"
                         (type_expr implicit type="Standing.CodingKeys.Type" typerepr="CodingKeys")))))))
             (processed_init=try_expr implicit type="KeyedDecodingContainer<Standing.CodingKeys>"
               (open_existential_expr implicit type="KeyedDecodingContainer<Standing.CodingKeys>"
-                (opaque_value_expr implicit type="any Decoder" 0xa75f62e68)
+                (opaque_value_expr implicit type="any Decoder" 0x74dc42e68)
                 (declref_expr implicit type="any Decoder" decl="main.(file).Standing.init(from:).decoder" function_ref=unapplied)
                 (call_expr implicit type="KeyedDecodingContainer<Standing.CodingKeys>" throws isolation_crossing="none"
                   (dot_syntax_call_expr implicit type="(Standing.CodingKeys.Type) throws -> KeyedDecodingContainer<Standing.CodingKeys>" nothrow isolation_crossing="none"
                     (declref_expr implicit type="(any Decoder) -> (Standing.CodingKeys.Type) throws -> KeyedDecodingContainer<Standing.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> Standing.CodingKeys)]" function_ref=single apply)
                     (argument_list implicit
                       (argument
-                        (opaque_value_expr implicit type="any Decoder" 0xa75f62e68))))
+                        (opaque_value_expr implicit type="any Decoder" 0x74dc42e68))))
                   (argument_list implicit labels="keyedBy:"
                     (argument label="keyedBy"
                       (dot_self_expr type="Standing.CodingKeys.Type"
@@ -2295,7 +2295,7 @@
                       (argument
                         (type_expr implicit type="Standing.CodingKeys.Type" null_typerepr)))))))))
         (assign_expr implicit type="()"
-          (member_ref_expr implicit type="@lvalue Double?" decl="main.(file).Standing.scoreAnchor@/x/Models.swift:9:9" direct_to_storage
+          (member_ref_expr implicit type="@lvalue Double?" decl="main.(file).Standing.ageDays@/x/Models.swift:9:9" direct_to_storage
             (declref_expr implicit type="@lvalue Standing" decl="main.(file).Standing.init(from:).self" function_ref=unapplied))
           (try_expr implicit type="Double?"
             (call_expr implicit type="Double?" throws isolation_crossing="none"
@@ -2310,27 +2310,27 @@
                     (type_expr implicit type="Double.Type" null_typerepr)))
                 (argument label="forKey"
                   (dot_syntax_call_expr implicit type="Standing.CodingKeys" nothrow isolation_crossing="none"
-                    (declref_expr implicit type="(Standing.CodingKeys.Type) -> Standing.CodingKeys" decl="main.(file).Standing.CodingKeys.scoreAnchor" function_ref=double apply)
+                    (declref_expr implicit type="(Standing.CodingKeys.Type) -> Standing.CodingKeys" decl="main.(file).Standing.CodingKeys.ageDays" function_ref=double apply)
                     (argument_list implicit
                       (argument
                         (type_expr implicit type="Standing.CodingKeys.Type" null_typerepr)))))))))
         (return_stmt implicit)))
-    (constructor_decl implicit range=[/x/Models.swift:5:8 - line:5:8] "init(model:position:score:scoreAnchor:)" interface_type="(Standing.Type) -> (String, Int, Double, Double?) -> Standing" access=internal designated
-      (parameter "self" decl_context=0xa77843718) thrown_type="<null>"
+    (constructor_decl implicit range=[/x/Models.swift:5:8 - line:5:8] "init(model:position:score:ageDays:)" interface_type="(Standing.Type) -> (String, Int, Double, Double?) -> Standing" access=internal designated
+      (parameter "self") thrown_type="<null>"
       (parameter_list range=[/x/Models.swift:5:8 - line:5:8]
         (parameter "model" apiName="model" interface_type="String")
         (parameter "position" apiName="position" interface_type="Int")
         (parameter "score" apiName="score" interface_type="Double")
-        (parameter "scoreAnchor" apiName="scoreAnchor" interface_type="Double?"))))
+        (parameter "ageDays" apiName="ageDays" interface_type="Double?"))))
   (struct_decl range=[/x/Models.swift:12:1 - line:14:1] "Pick" interface_type="Pick.Type" access=internal non_resilient inherits="Decodable"
     (pattern_binding_decl range=[/x/Models.swift:13:5 - line:13:22]
-      (pattern_entry init_context=0xa777f6948
+      (pattern_entry init_context=0x74fbd2940
         (pattern_typed type="Double"
           (pattern_named type="Double" "blendedPerM")
-          (type_unqualified_ident id="Double" bind="Swift.(file).Double" decl_context=0x0))))
+          (type_unqualified_ident id="Double" bind="Swift.(file).Double"))))
     (var_decl range=[/x/Models.swift:13:9 - line:13:9] "blendedPerM" interface_type="Double" access=internal let readImpl=stored immutable
       (has_storage_attr implicit)
-      (accessor_decl implicit range=[/x/Models.swift:13:9 - line:13:9] <anonymous @ 0xa7677a840> interface_type="(Pick) -> () -> Double" access=internal get for="blendedPerM"
+      (accessor_decl implicit range=[/x/Models.swift:13:9 - line:13:9] <anonymous @ 0x74dc2e840> interface_type="(Pick) -> () -> Double" access=internal get for="blendedPerM"
         (parameter "self" interface_type="Pick") result="Double" thrown_type="<null>"
         (parameter_list)
         (brace_stmt implicit range=[/x/Models.swift:13:9 - line:13:9]
@@ -2340,11 +2340,11 @@
     (enum_decl implicit "CodingKeys" interface_type="Pick.CodingKeys.Type" access=private non_resilient inherits="CodingKey"
       (enum_element_decl implicit "blendedPerM" interface_type="(Pick.CodingKeys.Type) -> Pick.CodingKeys" access=internal)
       (pattern_binding_decl implicit
-        (pattern_entry init_context=0xa76779208
+        (pattern_entry init_context=0x74dc2d208
           (pattern_typed implicit type="Int"
             (pattern_named implicit type="Int" "hashValue"))))
       (pattern_binding_decl implicit
-        (pattern_entry init_context=0xa76779738
+        (pattern_entry init_context=0x74dc2d738
           (pattern_typed implicit type="String"
             (pattern_named implicit type="String" "stringValue"))))
       (constructor_decl implicit "init(stringValue:)" interface_type="(Pick.CodingKeys.Type) -> (String) -> Pick.CodingKeys?" access=private designated failable=true
@@ -2379,11 +2379,11 @@
                 (fail_stmt implicit))))
           (return_stmt implicit)))
       (pattern_binding_decl implicit
-        (pattern_entry init_context=0xa76779ef8
+        (pattern_entry init_context=0x74dc2def8
           (pattern_typed implicit type="Int?"
             (pattern_named implicit type="Int?" "intValue"))))
       (constructor_decl implicit "init(intValue:)" interface_type="(Pick.CodingKeys.Type) -> (Int) -> Pick.CodingKeys?" access=private designated failable=true
-        (parameter "self" decl_context=0xa7677a200) thrown_type="<null>"
+        (parameter "self") thrown_type="<null>"
         (parameter_list
           (parameter "intValue" apiName="intValue" interface_type="Int"))
         (brace_stmt implicit
@@ -2392,7 +2392,7 @@
         (implements_attr
           (protocol=<null typerepr>) member="==(_:_:)")
         (semantics_attr implicit value="derived_enum_equals")
-        (parameter "self" decl_context=0xa76778bb8) result="Bool" thrown_type="<null>"
+        (parameter "self") result="Bool" thrown_type="<null>"
         (parameter_list
           (parameter "a" interface_type="Pick.CodingKeys")
           (parameter "b" interface_type="Pick.CodingKeys"))
@@ -2465,7 +2465,7 @@
                 (load_expr implicit type="Int"
                   (declref_expr implicit type="@lvalue Int" decl="main.(file).Pick.CodingKeys.hash(into:).discriminator" function_ref=unapplied)))))))
       (var_decl implicit "hashValue" interface_type="Int" access=fileprivate readImpl=getter immutable
-        (accessor_decl implicit <anonymous @ 0xa76779010> interface_type="(Pick.CodingKeys) -> () -> Int" access=fileprivate get for="hashValue"
+        (accessor_decl implicit <anonymous @ 0x74dc2d010> interface_type="(Pick.CodingKeys) -> () -> Int" access=fileprivate get for="hashValue"
           (parameter "self" interface_type="Pick.CodingKeys") result="Int" thrown_type="<null>"
           (parameter_list)
           (brace_stmt implicit
@@ -2476,14 +2476,14 @@
                   (argument label="for"
                     (declref_expr implicit type="Pick.CodingKeys" decl="main.(file).Pick.CodingKeys.<anonymous>.self" function_ref=unapplied))))))))
       (var_decl implicit "intValue" interface_type="Int?" access=fileprivate readImpl=getter immutable
-        (accessor_decl implicit <anonymous @ 0xa76779f50> interface_type="(Pick.CodingKeys) -> () -> Int?" access=fileprivate get for="intValue"
-          (parameter "self" decl_context=0xa76779f48) result="Int?" thrown_type="<null>"
+        (accessor_decl implicit <anonymous @ 0x74dc2df50> interface_type="(Pick.CodingKeys) -> () -> Int?" access=fileprivate get for="intValue"
+          (parameter "self") result="Int?" thrown_type="<null>"
           (parameter_list)
           (brace_stmt implicit
             (return_stmt implicit
               (nil_literal_expr implicit type="Int?" initializer="**NULL**")))))
       (var_decl implicit "stringValue" interface_type="String" access=fileprivate readImpl=getter immutable
-        (accessor_decl implicit <anonymous @ 0xa76779790> interface_type="(Pick.CodingKeys) -> () -> String" access=fileprivate get for="stringValue"
+        (accessor_decl implicit <anonymous @ 0x74dc2d790> interface_type="(Pick.CodingKeys) -> () -> String" access=fileprivate get for="stringValue"
           (parameter "self" interface_type="Pick.CodingKeys") result="String" thrown_type="<null>"
           (parameter_list)
           (brace_stmt implicit
@@ -2496,7 +2496,7 @@
                   (return_stmt implicit
                     (string_literal_expr implicit type="String" encoding=utf8 value="blendedPerM" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
     (constructor_decl implicit range=[/x/Models.swift:12:8 - line:12:8] "init(blendedPerM:)" interface_type="(Pick.Type) -> (Double) -> Pick" access=internal designated
-      (parameter "self" decl_context=0xa76777918) thrown_type="<null>"
+      (parameter "self") thrown_type="<null>"
       (parameter_list range=[/x/Models.swift:12:8 - line:12:8]
         (parameter "blendedPerM" apiName="blendedPerM" interface_type="Double")))
     (constructor_decl implicit "init(from:)" interface_type="(Pick.Type) -> (any Decoder) throws -> Pick" access=internal designated
@@ -2509,28 +2509,28 @@
             (pattern_named implicit type="KeyedDecodingContainer<Pick.CodingKeys>" "container")
             (original_init=try_expr implicit type="KeyedDecodingContainer<Pick.CodingKeys>"
               (open_existential_expr implicit type="KeyedDecodingContainer<Pick.CodingKeys>"
-                (opaque_value_expr implicit type="any Decoder" 0xa75fcc0e8)
+                (opaque_value_expr implicit type="any Decoder" 0x74dce00e8)
                 (declref_expr implicit type="any Decoder" decl="main.(file).Pick.init(from:).decoder" function_ref=unapplied)
                 (call_expr implicit type="KeyedDecodingContainer<Pick.CodingKeys>" throws isolation_crossing="none"
                   (dot_syntax_call_expr implicit type="(Pick.CodingKeys.Type) throws -> KeyedDecodingContainer<Pick.CodingKeys>" nothrow isolation_crossing="none"
                     (declref_expr implicit type="(any Decoder) -> (Pick.CodingKeys.Type) throws -> KeyedDecodingContainer<Pick.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> Pick.CodingKeys)]" function_ref=single apply)
                     (argument_list implicit
                       (argument
-                        (opaque_value_expr implicit type="any Decoder" 0xa75fcc0e8))))
+                        (opaque_value_expr implicit type="any Decoder" 0x74dce00e8))))
                   (argument_list implicit labels="keyedBy:"
                     (argument label="keyedBy"
                       (dot_self_expr type="Pick.CodingKeys.Type"
                         (type_expr implicit type="Pick.CodingKeys.Type" typerepr="CodingKeys")))))))
             (processed_init=try_expr implicit type="KeyedDecodingContainer<Pick.CodingKeys>"
               (open_existential_expr implicit type="KeyedDecodingContainer<Pick.CodingKeys>"
-                (opaque_value_expr implicit type="any Decoder" 0xa75fcc0e8)
+                (opaque_value_expr implicit type="any Decoder" 0x74dce00e8)
                 (declref_expr implicit type="any Decoder" decl="main.(file).Pick.init(from:).decoder" function_ref=unapplied)
                 (call_expr implicit type="KeyedDecodingContainer<Pick.CodingKeys>" throws isolation_crossing="none"
                   (dot_syntax_call_expr implicit type="(Pick.CodingKeys.Type) throws -> KeyedDecodingContainer<Pick.CodingKeys>" nothrow isolation_crossing="none"
                     (declref_expr implicit type="(any Decoder) -> (Pick.CodingKeys.Type) throws -> KeyedDecodingContainer<Pick.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> Pick.CodingKeys)]" function_ref=single apply)
                     (argument_list implicit
                       (argument
-                        (opaque_value_expr implicit type="any Decoder" 0xa75fcc0e8))))
+                        (opaque_value_expr implicit type="any Decoder" 0x74dce00e8))))
                   (argument_list implicit labels="keyedBy:"
                     (argument label="keyedBy"
                       (dot_self_expr type="Pick.CodingKeys.Type"
@@ -2614,13 +2614,13 @@
             (type_expr type="FileManager.Type" location=/x/StandingsStore.swift:5:5 range=[/x/StandingsStore.swift:5:5 - line:5:5] typerepr="FileManager"))))))
   (struct_decl range=[/x/StandingsStore.swift:9:1 - line:15:1] "FetchedStandings" interface_type="FetchedStandings.Type" access=internal non_resilient
     (pattern_binding_decl range=[/x/StandingsStore.swift:10:5 - line:10:18]
-      (pattern_entry init_context=0x841b6e270
+      (pattern_entry init_context=0xb0fb74270
         (pattern_typed type="Data"
           (pattern_named type="Data" "payload")
-          (type_unqualified_ident id="Data" bind="Foundation.(file).Data" decl_context=0x0))))
+          (type_unqualified_ident id="Data" bind="Foundation.(file).Data"))))
     (var_decl range=[/x/StandingsStore.swift:10:9 - line:10:9] "payload" interface_type="Data" access=internal let readImpl=stored immutable
       (has_storage_attr implicit)
-      (accessor_decl implicit range=[/x/StandingsStore.swift:10:9 - line:10:9] <anonymous @ 0x841be7da0> interface_type="(FetchedStandings) -> () -> Data" access=internal get for="payload"
+      (accessor_decl implicit range=[/x/StandingsStore.swift:10:9 - line:10:9] <anonymous @ 0xb0fbd8da0> interface_type="(FetchedStandings) -> () -> Data" access=internal get for="payload"
         (parameter "self" interface_type="FetchedStandings") result="Data" thrown_type="<null>"
         (parameter_list)
         (brace_stmt implicit range=[/x/StandingsStore.swift:10:9 - line:10:9]
