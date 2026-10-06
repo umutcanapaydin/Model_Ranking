@@ -35,3 +35,27 @@ func fixtureDetailRelays(_ typed: String) -> URL? {
 // The W2 review's M1, S2b: a function this file declares and a sink calls. Its body reads nothing
 // here; the gate refuses the call, since a body another file owns can read anything.
 func fixtureRelayed() -> String { "" }
+
+// The second W2 review's B1, P3w: standings built through a protocol requirement their initialiser
+// satisfies. REFUSED: a kept type is extended only in its own file, and conforms to no protocol the
+// app declares.
+protocol FixtureMadeFromBytes {
+    init(payload: Data) throws
+}
+
+extension FetchedStandings: FixtureMadeFromBytes {}
+
+func fixtureMake<S: FixtureMadeFromBytes>(_ kind: S.Type, _ typed: String) -> S? {
+    try? S(payload: Data(typed.utf8))
+}
+
+// U10 and P3w's save: a store built on a place of the screen's choosing, and standings saved from
+// here. REFUSED, both: only the store's own file builds a store or saves to one.
+func fixtureStoreElsewhere(_ place: URL, _ kept: FetchedStandings) {
+    StandingsStore(url: place).save(kept, at: Date())
+}
+
+// U9: the client's address rewritten through its memory. REFUSED: no file touches memory unsafely.
+func fixtureRewrites(_ client: inout EngineClient) {
+    withUnsafeMutablePointer(to: &client) { _ in }
+}

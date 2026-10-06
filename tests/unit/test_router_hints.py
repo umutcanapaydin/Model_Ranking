@@ -962,7 +962,8 @@ def test_the_pins_read_no_code_the_compiler_never_builds() -> None:
     assert "let kept = 1" in _code(taken) and "never" not in _code(taken)
 
 
-@pytest.mark.parametrize("mutant", ["static var, no value", "file-scope var"])
+@pytest.mark.parametrize("mutant", ["static var, no value", "file-scope var", "static var, a tuple",
+                                    "file-scope var, a tuple", "file-scope var, indented"])
 def test_the_sink_pins_refuse_shared_state_however_it_is_declared(mutant: str) -> None:
     """The W2 review's M2 (D-180 clause 4, INV-66): `static var probeTag: String?`, which has no `=`,
     and a stored `var` at file scope in a sink each passed the text half, measured on copies of the
@@ -971,6 +972,13 @@ def test_the_sink_pins_refuse_shared_state_however_it_is_declared(mutant: str) -
     client = "Engine/EngineClient.swift"
     if mutant == "static var, no value":
         sources[client] = sources[client].replace("struct EngineClient {\n", "struct EngineClient {\n    static var probeTag: String?\n", 1)
+    elif mutant == "static var, a tuple":  # the second W2 review's M2
+        sources[client] = sources[client].replace(
+            "struct EngineClient {\n", 'struct EngineClient {\n    static var (probeTag, probeOther) = ("", "")\n', 1)
+    elif mutant == "file-scope var, a tuple":
+        sources[client] += '\nvar (probeRelay, probeOther) = ("", "")\n'
+    elif mutant == "file-scope var, indented":
+        sources[client] += '\n#if DEBUG\n    var probeRelay = ""\n#endif\n'
     else:
         sources[client] += '\nvar probeRelay = ""\n'
     assert sources[client] != _client_sources()[client], "the mutant was not planted"
@@ -995,3 +1003,10 @@ def test_a_branch_some_build_may_compile_is_kept(condition: str) -> None:
 def test_the_else_of_a_branch_every_build_takes_is_dropped() -> None:
     """M3: `#if true || DEBUG` is always built, so its `#else` never is. REQ-GAP-001."""
     assert "dead()" not in _built("#if true || DEBUG\nlive()\n#else\ndead()\n#endif\n")
+
+
+def test_a_directive_inside_a_string_is_text() -> None:
+    """The second W2 review's M2 (#110, INV-78): a multi-line string holding the line `#if false`, and
+    another holding `#endif`, hid the live code between them from the pins. A string is text."""
+    swift = 'let a = """\n#if false\n"""\nstatic var probeTag = ""\nlet b = """\n#endif\n"""\n'
+    assert "static var probeTag" in _code(swift)

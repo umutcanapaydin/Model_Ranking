@@ -397,3 +397,69 @@ def test_a_sink_calls_nothing_another_file_declares_but_what_is_listed() -> None
     refused = gate.problems(gate.references(FLOW_AST))
     assert any(line.startswith("EngineClient.swift:") and "calls `fixtureRelayed`" in line for line in refused), refused
     assert not [line for line in refused if "calls `" in line and "fixtureRelayed" not in line], refused
+
+
+def _refused_in(file: str, phrase: str) -> list[str]:
+    return [line for line in gate.problems(gate.references(FLOW_AST)) if line.startswith(f"{file}:") and phrase in line]
+
+
+def test_a_kept_type_is_extended_only_in_its_own_file_and_conforms_to_no_protocol_the_app_declares() -> None:
+    """The second W2 review's B1, P3w (D-180, INV-66, REQ-GAP-001): the M17 mutant P3 again, through a
+    protocol requirement `FetchedStandings.init(payload:)` satisfies, passed `make check-fast`: the
+    provenance rule reads references to the initialiser by name, and a requirement is another name."""
+    assert _refused_in("Detail.swift", "conforms to `FixtureMadeFromBytes`")
+    assert _refused_in("Detail.swift", "extends `FetchedStandings`")
+
+
+def test_only_the_store_builds_a_store_or_saves_to_one() -> None:
+    """The second W2 review's U10 and P3w (D-180, INV-66, REQ-GAP-001): a store built on a path made
+    from the question, and standings saved from another file, each passed every compiled check."""
+    assert _refused_in("Detail.swift", "StandingsStore.init(url:)")
+    assert _refused_in("Detail.swift", "StandingsStore.save(_:at:)")
+    assert not _refused_in("StandingsStore.swift", "StandingsStore.")
+
+
+def test_no_file_touches_memory_unsafely() -> None:
+    """The second W2 review's U9 (INV-66, REQ-GAP-001): the client's address rewritten in place through
+    `withUnsafeMutablePointer` passed. The client uses no unsafe memory, so all of it is refused."""
+    assert _refused_in("Detail.swift", "withUnsafeMutablePointer")
+
+
+def test_a_url_out_of_any_by_a_cast_is_made() -> None:
+    """The second W2 review's U11 and M6 (INV-63, REQ-GAP-001): `value as? URL` makes a URL no call
+    returns, so `url_facts` never saw it; nor a `case let u as URL` pattern."""
+    cast = ('(source_file "/x/Detail.swift"\n'
+            '  (conditional_checked_cast_expr type="URL?" location=/x/Detail.swift:3:5 '
+            'range=[/x/Detail.swift:3:5 - line:3:9] value_cast written_type="URL"\n')
+    pattern = ('(source_file "/x/Detail.swift"\n'
+               '  (pattern_is type="Any" cast_kind=value_cast cast_to="URL"\n')
+    assert gate.url_facts(cast) == {"Detail.swift": {"Foundation.URL.made"}}
+    assert gate.url_facts(pattern) == {"Detail.swift": {"Foundation.URL.made"}}
+
+
+def test_the_code_a_sink_runs_reads_no_shared_mutable_state() -> None:
+    """The second W2 review's B2, S5 and S5b (D-180, INV-66, INV-67, REQ-GAP-001): the body of
+    `FetchedStandings.init(payload:)`, a call the sinks may make, and a decoding witness it reaches,
+    each wrote the screen's global into the standings file, and no rule read them. What a sink runs,
+    followed through the calls it makes and every coding witness, reads no shared `var`."""
+    refused = _refused_in("Models.swift", "a privacy sink runs")
+    assert any("fixtureStamped" in line for line in refused), refused
+    assert any("FixtureNoted" in line for line in refused), refused
+
+
+def test_foundations_nsarray_sort_is_counted_as_a_sort() -> None:
+    """The second W2 review's M4 (REQ-APP-002): `NSArray.sortedArray(comparator:)` was no sort to the
+    compiled rule."""
+    assert _refused_in("ContentView.swift", "with `sortedArray`")
+
+
+def test_the_committed_dump_is_the_fixture_as_it_compiles(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The second W2 review's K1: `g2_fixture_ast.txt` is a second copy of the fixture's compile, and
+    nothing compared the two where Xcode runs. The self-test now does, and fails when they differ."""
+    stale = tmp_path / "g2_fixture_ast.txt"
+    stale.write_text(FLOW_AST.replace("fixtureStamped", "fixtureStampedLongAgo"), encoding="utf-8")
+    monkeypatch.setattr(gate, "SNAPSHOT", stale, raising=False)
+    broken = gate.self_test()
+    if broken is None:
+        pytest.skip("no Xcode toolchain")
+    assert any("g2_fixture_ast.txt" in line for line in broken), broken

@@ -5,12 +5,21 @@ func fixtureStoreFolder() -> URL {
     FileManager.default.temporaryDirectory
 }
 
-// #85 (D-180): the store builds standings from its own file, which the gate must ALLOW.
-struct FetchedStandings {
-    let payload: Data
+// #85 (D-180): the store builds standings from its own file, saves them and is built here, which the
+// gate must ALLOW.
+struct StandingsStore {
+    let url: URL
 
-    init(payload: Data) throws {
-        self.payload = payload
+    init(url: URL) {
+        self.url = url
+    }
+
+    static var onDevice: StandingsStore {
+        StandingsStore(url: fixtureStoreFolder())
+    }
+
+    func save(_ fetched: FetchedStandings, at date: Date) {
+        _ = (fetched, date)
     }
 }
 

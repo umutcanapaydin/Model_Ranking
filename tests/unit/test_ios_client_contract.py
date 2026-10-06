@@ -1454,3 +1454,12 @@ def test_every_swift_pin_here_reads_the_code_the_compiler_builds() -> None:
            if READ.search(line) and "json.loads(" not in line and "# raw:" not in line
            and not line.lstrip().startswith("return _built(")]
     assert not raw, f"Swift read past `_swift`, so a `#if false` branch reads as live: {raw}"
+
+
+def test_a_directive_inside_a_comment_hides_nothing(tmp_path: pathlib.Path) -> None:
+    """The second W2 review's M3 (#110, INV-78): `_swift` read directives in comments, so a `#if false`
+    and an `#endif`, each in a block comment, hid the live code between them (F3), which the pins
+    before the wave read. A comment is not a directive."""
+    swift = tmp_path / "Probe.swift"
+    swift.write_text("/*\n#if false\n*/\nlet probe = standing.position + 1\n/*\n#endif\n*/\n", encoding="utf-8")
+    assert "standing.position + 1" in _swift(swift)

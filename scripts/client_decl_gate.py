@@ -338,6 +338,14 @@ FIXTURE_REFUSALS = {
     # The W2 review's M1: a sink holding a mutable object as a constant, and calling a function
     # another file declares.
     ("EngineClient.swift", "holds `relay`"), ("EngineClient.swift", "calls `fixtureRelayed`"),
+    # The second W2 review's B1 and B2: standings built through a protocol requirement, a store built
+    # and saved to outside its file, memory rewritten, and the code a sink runs reading the screen's
+    # global (through a call, and through a decoding witness). M4: an `NSArray` sort.
+    ("Detail.swift", "conforms to `FixtureMadeFromBytes`"), ("Detail.swift", "extends `FetchedStandings`"),
+    ("Detail.swift", "StandingsStore.init(url:)"), ("Detail.swift", "StandingsStore.save(_:at:)"),
+    ("Detail.swift", "withUnsafeMutablePointer"),
+    ("Models.swift", "a privacy sink runs"),
+    ("ContentView.swift", "with `sortedArray`"),
 }
 SOURCE = re.compile(r'^\(source_file "([^"]+)"', re.MULTILINE)
 #: One node of the dump: its indentation (the tree's depth) and its kind.

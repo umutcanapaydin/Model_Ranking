@@ -176,3 +176,8 @@ func fixtureCompound(_ standing: Standing) -> Int {
     place -= 1
     return place
 }
+
+// The second W2 review's M4: Foundation's `NSArray` sort, keyed on a served number. REFUSED.
+func fixtureO2SortsAnNSArray(_ standings: [Standing]) -> [Any] {
+    (standings.map(\.position) as NSArray).sortedArray(comparator: { _, _ in .orderedSame })
+}
