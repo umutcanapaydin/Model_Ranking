@@ -38,6 +38,7 @@ NO_LONGER_MODELS = {
     "claude3-haiku20240307", "claude3-opus20240229", "claude3-sonnet20240229", "claude3.5-haiku20241022",
     "o3-2025-04-16", "gpt5-2025-08-07", "gpt4.1-mini2025-04-14", "gpt4.1-nano2025-04-14",
     "gpt5.2-pro2025-12-11", "gpt5.4-pro2026-03-05", "o3-mini2025-01-31", "o3-pro2025-06-10",
+    "mistral-small2503", "mistral-small3.1-24b-instruct2503",
 }
 
 #: #112's remainder (the W7 review's M4 class): served under a lower-case spelling of the id, not the
@@ -52,7 +53,7 @@ LOWER_CASE_ON_2026_10_06 = {
     "gpt5.1-codex-max", "granite4.1-8b", "granite4.2-8b", "grok-code-fast1", "grok4.1-fast-reasoning",
     "grok4.20-multi-agent-beta0309", "grok4.3", "jamba1.5-large", "jamba1.5-mini", "llama2-7b-chat",
     "llama3-70b-instruct", "magistral-small2509", "mercury2", "mistral-medium2505", "mistral-medium2604",
-    "mistral-small2402", "mistral-small2503", "mistral-small3.1-24b-instruct2503", "nova2-lite",
+    "mistral-small2402", "nova2-lite",
     "o1-mini2024-09-12", "o1-pro2025-03-19", "pixtral12b2409", "qwen-plus2025-01-25", "qwen-turbo2024-11-01",
     "qwen3-30b-a3b-thinking2507", "qwen3-4b-instruct2507", "qwen3-vl235b-a22b-thinking", "step3.5-flash",
     "zephyr7b-beta",

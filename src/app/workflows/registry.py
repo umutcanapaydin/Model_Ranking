@@ -186,6 +186,9 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("glm-4.6",           "GLM-4.6",           "Zhipu",     r"glm[-_ ]?4[.\-]?6"),
     ModelRule("glm-4.5",           "GLM-4.5",           "Zhipu",     r"glm[-_ ]?4[.\-]?5(?!v|[-_ ]?air)"),
     ModelRule("mistral-large",     "Mistral Large",     "Mistral",   r"mistral[-_ ]?large"),
+    # #129: Mistral's page gives `mistral-small-2503` as Mistral Small 3.1's API name (v25.03), and its
+    # card names the weights "Mistral Small 3.1 (2503)" (read 2026-10-06): one release, one model.
+    ModelRule("mistral-small-3.1", "Mistral Small 3.1", "Mistral",   r"mistral[-_ ]?small[-_ ]?(?:3[.\-]1(?!\d)|2503(?!\d))"),
     ModelRule("devstral",          "Devstral",          "Mistral",   r"devstral(?![-_ ]?(?:small|medium))"),
     ModelRule("doubao-seed-code",  "Doubao Seed Code",  "ByteDance", r"doubao[-_ ]?seed[-_ ]?code"),
     ModelRule("minimax-m3",        "MiniMax M3",        "MiniMax",   r"minimax[-_ ]?m3"),
