@@ -610,6 +610,8 @@ ONE_SNAPSHOT_RELEASES = {
                          "us.anthropic.claude-3-5-haiku-20241022-v1:0"],
     "gpt-4.1-mini": ["GPT-4.1 mini", "gpt-4.1-mini", "gpt-4.1-mini-2025-04-14"],
     "gpt-4.1-nano": ["GPT-4.1 nano", "gpt-4.1-nano", "gpt-4.1-nano-2025-04-14"],
+    # found while naming #112's list: GPT-5's Epoch scores sat on its dated id, the rest on `gpt-5`
+    "gpt-5": ["GPT-5", "gpt-5", "gpt-5-2025-08-07", "gpt-5-2025-08-07_high", "GPT 5 (2025-08-07) (medium)"],
     "gpt-5.2-pro": ["GPT-5.2 Pro", "gpt-5.2-pro", "gpt-5.2-pro-2025-12-11", "gpt-5.2-pro-2025-12-11_xhigh"],
     "gpt-5.4-pro": ["GPT-5.4 Pro", "gpt-5.4-pro", "gpt-5.4-pro-2026-03-05"],
     "o3": ["o3", "o3 (2025-04-16)", "o3-2025-04-16", "o3-2025-04-16_high", "openai-o3"],
