@@ -23,6 +23,8 @@ from typing import Any
 
 import pytest
 
+from tests import skips
+
 os.environ.setdefault("APP_ENV", "test")
 
 
@@ -215,7 +217,13 @@ def pytest_runtest_teardown(item: pytest.Item, nextitem: pytest.Item | None) -> 
 ARTIFACT = Path("advisor.db")
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption("--ci-skips-report", default=None,
+                     help="#137: write how many tests CI's test job will skip, from their `needs` markers")
+
+
 def pytest_configure(config: pytest.Config) -> None:
+    skips.configure(config)  # #137: the `needs` marker
     _install_network_guard()  # #122: before collection, so imports and every fixture are covered
     _hide_proxies()  # #143
     if _REAL_SYSTEM_PROXIES is not None:  # #150: macOS only; no other platform falls back here
@@ -276,12 +284,8 @@ def pytest_sessionstart(session: pytest.Session) -> None:
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    needing = [item for item in items if item.get_closest_marker("artifact")]
-    if not needing or ARTIFACT.is_file():
-        return
-    skip = pytest.mark.skip(reason=f"W-108: needs the built {ARTIFACT}, which is not in the repo")
-    for item in needing:
-        item.add_marker(skip)
+    # #137: every skip goes through `needs` (`tests/skips.py`), which also counts CI's.
+    skips.apply(config, items)
 
 
 def pytest_unconfigure(config: pytest.Config) -> None:

@@ -10,7 +10,6 @@ refuses what it is for, and that is held by tests rather than by hand-run review
 from __future__ import annotations
 
 import importlib.util
-import shutil
 from pathlib import Path
 
 import pytest
@@ -53,7 +52,7 @@ def test_a_url_decoded_outside_the_engine_client_is_the_network() -> None:
     assert gate.problems({"EngineClient.swift": found["ContentView.swift"]}) == []
 
 
-@pytest.mark.skipif(shutil.which("xcrun") is None, reason="needs Xcode's compiler: the fixture is compiled")
+@pytest.mark.needs("xcode")  # the fixture is compiled
 def test_the_gate_refuses_its_compiled_fixture() -> None:
     """#51: the whole gate, compiled, on files that must be refused and files that must be allowed."""
     assert gate.self_test() == []
@@ -526,7 +525,7 @@ SINK_REACH_PROBE = {
 }
 
 
-@pytest.mark.skipif(shutil.which("xcrun") is None, reason="needs Xcode's compiler: the probe is compiled")
+@pytest.mark.needs("xcode")  # the probe is compiled
 def test_the_code_a_sink_runs_is_followed_into_computed_properties_and_protocol_witnesses(tmp_path: Path) -> None:
     """M19-W2 Tester (D-180 clause 2, INV-66): `_SinkReach` follows "the functions, initialisers and
     computed properties it calls ... every member a protocol requirement may dispatch to". Only the

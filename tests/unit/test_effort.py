@@ -392,7 +392,7 @@ def test_coverage_entrypoint_requires_the_category_effort(tmp_path: Path, capsys
     assert "Max Only Plan" in agentic["scoreable"]
 
 
-@pytest.mark.skipif(not os.getenv("EPOCH_DATA_DIR"), reason="set EPOCH_DATA_DIR for local contract")
+@pytest.mark.needs("epoch")
 def test_real_deepswe_shape_has_one_disclosed_unknown_effort() -> None:
     """REQ-CAN-005 contract: owner-fetched 50-row DeepSWE shape stays understood."""
     bundle = Path(os.environ["EPOCH_DATA_DIR"])

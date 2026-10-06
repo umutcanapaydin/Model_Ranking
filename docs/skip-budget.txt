@@ -5,6 +5,10 @@
 # on every pull request for weeks. A budget is the smallest thing that cannot be written and left
 # unimplemented -- it is either met or it is not.
 #
+# Checked twice: by CI's test job on its own run, and before a push by `make test`, which counts the
+# tests CI will skip from their `needs` markers (`tests/skips.py`, `coverage_floor.py --derive`,
+# #137) and fails unless the count is this number.
+#
 # Start at your current count, then lower it. A budget that never moves is a ratchet that ratcheted
 # once. Raising it is legitimate and must happen HERE, in the tree, where a reviewer sees the diff.
 # model_ranking, set at the DevFlow v6.0 adoption (D-155) to the count the first CI run measured on

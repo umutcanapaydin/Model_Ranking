@@ -25,9 +25,7 @@ from app.workflows.board_measurement import (
 
 
 def _real_measurement() -> tuple[W1Measurement, Path]:
-    raw_dir = os.environ.get("EPOCH_DATA_DIR")
-    if raw_dir is None:
-        pytest.skip("set EPOCH_DATA_DIR to the unpacked owner-fetched Epoch bundle")
+    raw_dir = os.environ["EPOCH_DATA_DIR"]  # every caller needs("epoch")
     root = Path(__file__).resolve().parents[2]
     report = measure_w1_boards(
         raw_dir,
@@ -40,6 +38,7 @@ def _real_measurement() -> tuple[W1Measurement, Path]:
     return report, root
 
 
+@pytest.mark.needs("epoch")
 def test_real_five_board_measurement_replays_the_signed_engine_results() -> None:
     """REQ-SUB-007: real registry/coverage/ranking reproduces before + five candidates."""
     report, _ = _real_measurement()
@@ -91,6 +90,7 @@ def test_real_five_board_measurement_replays_the_signed_engine_results() -> None
     assert {row.status for row in measured["TerminalBench"].selected} == {"stale"}
 
 
+@pytest.mark.needs("epoch")
 def test_gemini_contradiction_is_preserved_in_the_decision_record() -> None:
     """REQ-REC-012: both real rows and their configuration disagreement stay disclosed."""
     report, root = _real_measurement()
@@ -160,13 +160,12 @@ def test_complete_baseline_snapshot_rejects_truncation_and_provenance_drift() ->
         validate_baseline_snapshot(json.dumps(payload))
 
 
+@pytest.mark.needs("epoch")
 def test_real_measurement_cli_applies_d109_once_at_json_boundary(
     capsys, tmp_path: Path, monkeypatch
 ) -> None:
     """REQ-REC-010/REQ-REC-012: real entry keeps raw math but emits one-decimal scores."""
-    raw_dir = os.environ.get("EPOCH_DATA_DIR")
-    if raw_dir is None:
-        pytest.skip("set EPOCH_DATA_DIR to the unpacked owner-fetched Epoch bundle")
+    raw_dir = os.environ["EPOCH_DATA_DIR"]  # every caller needs("epoch")
 
     monkeypatch.chdir(tmp_path)  # defaults resolve from the repository, not the caller's cwd
     assert main(["--bundle-dir", raw_dir]) == 0

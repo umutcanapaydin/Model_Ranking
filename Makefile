@@ -103,6 +103,10 @@ test: install  ## pytest in parallel, with the served artifact required (another
 	@# same recipe: under DevFlow v6.6's check-fast a separate `coverage-floor` prerequisite would run
 	@# in another leg, beside the tests, and read the previous run's file (D-161).
 	$(if $(ON_PYTHON),$(PY) -B scripts/module_coverage_floor.py)
+	@# #137: CI skips what this machine runs (the built advisor.db, Xcode, macOS), so its skip budget
+	@# was seen only after a push. The count CI will skip, from the tests' `needs` markers, must be the
+	@# budget, here, before one.
+	$(if $(ON_PYTHON),$(PY) -B scripts/coverage_floor.py --derive)
 
 lint: install  ## ruff over src, tests and scripts (another stack: STACK_LINT)
 	$(if $(ON_PYTHON),$(PY) -m ruff check src tests scripts,$(call bound,STACK_LINT))

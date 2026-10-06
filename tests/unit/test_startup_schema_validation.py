@@ -91,6 +91,7 @@ def test_a_servable_artifact_is_accepted(tmp_path: Path) -> None:
     assert _database_unusable(_artifact(tmp_path / "good.db")) is None
 
 
+@pytest.mark.needs("artifact")
 def test_the_shipping_artifact_is_accepted() -> None:
     """The same claim against the real thing, when the real thing is present.
 
@@ -99,8 +100,6 @@ def test_the_shipping_artifact_is_accepted() -> None:
     what the product actually serves. This one may skip; the one above may not.
     """
     artifact = REPO / "advisor.db"
-    if not artifact.exists():  # pragma: no cover - gitignored; absent on a fresh clone
-        pytest.skip("advisor.db is not in this working tree (it is gitignored)")
     assert _database_unusable(artifact) is None
 
 

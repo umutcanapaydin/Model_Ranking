@@ -82,6 +82,7 @@ def test_under_xdist_a_unit_test_sees_no_proxy_and_a_live_contract_test_gets_the
     (tmp_path / "tests" / "integration").mkdir()
     (tmp_path / "tests" / "__init__.py").write_text("", encoding="utf-8")
     shutil.copy(ROOT / "tests" / "conftest.py", tmp_path / "tests" / "conftest.py")
+    shutil.copy(ROOT / "tests" / "skips.py", tmp_path / "tests" / "skips.py")  # the conftest's own (#137)
     (tmp_path / "tests" / "unit" / "test_unit_probe.py").write_text(SEES_NONE, encoding="utf-8")
     (tmp_path / "tests" / "integration" / "test_contract_probe.py").write_text(GETS_THEM_BACK, encoding="utf-8")
     proxies = {"HTTPS_PROXY": PROXY, "all_proxy": PROXY, "Http_Proxy": PROXY}

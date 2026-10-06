@@ -210,8 +210,7 @@ def test_an_xdist_worker_is_handed_the_proxies_its_controller_hid() -> None:
         conftest._SAVED_PROXIES.update(saved)
 
 
-@pytest.mark.skipif(not hasattr(__import__("urllib.request").request, "getproxies_macosx_sysconf"),
-                    reason="macOS's System Configuration fallback (#150)")
+@pytest.mark.needs("macos")  # #150
 def test_a_system_proxy_reaches_no_unit_test(monkeypatch: pytest.MonkeyPatch) -> None:
     """#150. With every proxy variable hidden (#143), urllib's `getproxies()`, which httpx asks,
     falls back on macOS to the System Configuration's proxies. A system proxy on this machine would
@@ -235,8 +234,7 @@ def test_a_live_contract_test_keeps_the_system_proxy(monkeypatch: pytest.MonkeyP
     assert conftest.system_proxies() == {"https": "http://127.0.0.1:9"}
 
 
-@pytest.mark.skipif(not hasattr(__import__("urllib.request").request, "getproxies_macosx_sysconf"),
-                    reason="macOS's System Configuration fallback (#150)")
+@pytest.mark.needs("macos")  # #150
 def test_a_system_proxy_reaches_no_httpx_client(monkeypatch: pytest.MonkeyPatch) -> None:
     """#150 (the fix Tester's T1): httpx reads proxies through its own reference to urllib's
     `getproxies`, taken when httpx was imported, so a check on `urllib.request.getproxies` alone

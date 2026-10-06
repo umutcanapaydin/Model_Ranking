@@ -157,7 +157,7 @@ def test_rerun_replaces_only_deepswe_rows() -> None:
     ).fetchone() == (61.0, "deep-new")
 
 
-@pytest.mark.skipif(not os.getenv("EPOCH_DATA_DIR"), reason="set EPOCH_DATA_DIR for local contract")
+@pytest.mark.needs("epoch")
 def test_real_board_reproduces_signed_coverage_and_undated_health(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

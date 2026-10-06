@@ -2,14 +2,9 @@
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
-pytestmark = pytest.mark.skipif(
-    os.environ.get("RUN_CONTRACT_TESTS") != "1",
-    reason="contract test needs network; set RUN_CONTRACT_TESTS=1",
-)
+pytestmark = pytest.mark.needs("contract")  # #137: RUN_CONTRACT_TESTS=1 and the network
 
 
 def test_real_swebench_payload_satisfies_parser_contract() -> None:

@@ -8,7 +8,6 @@ then fails. The index is read directly, so the check holds wherever git is.
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -17,7 +16,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 
 
-@pytest.mark.skipif(shutil.which("git") is None or not (ROOT / ".git").exists(), reason="needs a git checkout")
+@pytest.mark.needs("git")
 def test_no_symbolic_link_is_tracked() -> None:
     index = subprocess.run(["git", "ls-files", "-s"], cwd=ROOT, capture_output=True, text=True, check=True).stdout
     links = [line.split("\t", 1)[1] for line in index.splitlines() if line.startswith("120000 ")]

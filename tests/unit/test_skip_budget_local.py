@@ -42,6 +42,16 @@ def test_a_planted_test_that_needs_the_artifact_fails_the_local_check(tmp_path: 
     assert "docs/skip-budget.txt" in run.stdout, run.stdout
 
 
+def test_a_budget_above_the_count_fails_too(tmp_path: Path) -> None:
+    """#137, the other direction: a budget above what CI will skip is a ratchet left loose. The
+    check names the count to lower it to."""
+    budget = tmp_path / "skip-budget.txt"
+    budget.write_text("100000\n", encoding="utf-8")
+    run = _derive("--budget-file", str(budget))
+    assert run.returncode == 1, run.stdout + run.stderr
+    assert "fewer than the 100000" in run.stdout, run.stdout
+
+
 #: A skip outside the `needs` marker: the local check could not count it (the meta-rule that keeps
 #: the derivation whole). Spelled so that this line is not one.
 RAW_SKIP = re.compile(r"\bpytest\.(?:skip\(|mark\.skip(?:if)?\b|importorskip\()")
