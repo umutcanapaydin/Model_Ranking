@@ -202,7 +202,19 @@ def test_a_price_tie_in_a_pick_goes_to_the_rankings_order_not_the_name() -> None
     assert first_cheapest(rows).model == "Zed"
 
 
-def test_the_subscription_frontier_orders_the_same_way() -> None:
-    """The second engine's key is `(-score, monthly_usd, plan)` and had the same untested tail."""
-    rows = [_plan_rank("b", 80.0, 5.0), _plan_rank("a", 80.0, 5.0)]
-    assert [r.plan for r in _pareto(rows)] == ["a", "b"]
+def test_the_subscription_frontier_orders_a_tie_by_plan_id_as_models_are_by_model_id() -> None:
+    """#101: the subscription engine broke a full tie by the plan's name, a spelling, as the model
+    engine did before #44 (D-173 clause 1). Plans are ordered by their stable id, so a re-spelled
+    plan does not move inside a tie. The names here sort one way and the ids the other."""
+    rows = [dataclasses.replace(_plan_rank("a", 80.0, 5.0), plan_id="p2"),
+            dataclasses.replace(_plan_rank("b", 80.0, 5.0), plan_id="p1")]
+    assert [r.plan for r in _pareto(rows)] == ["b", "a"]
+
+
+def test_a_plan_pick_breaks_a_price_tie_by_plan_id() -> None:
+    """#101: the value and cheapest plan picks broke a price tie by the plan's name."""
+    from app.workflows.subscribe import first_cheapest_plan
+
+    rows = [dataclasses.replace(_plan_rank("Alpha", 70.0, 5.0), plan_id="p2"),
+            dataclasses.replace(_plan_rank("Zed", 80.0, 5.0), plan_id="p1")]
+    assert first_cheapest_plan(rows).plan == "Zed"
