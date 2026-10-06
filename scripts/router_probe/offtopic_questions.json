@@ -3,11 +3,11 @@
 "what time is it",
 "search|assistant|everyday~"], [
 "what is the capital of france",
-"assistant|everyday~"], [
+"NOT_A_SEARCH"], [
 "recommend a good pizza place",
 "search|assistant|everyday~"], [
 "who won the world cup in 2022",
-"assistant|everyday~"], [
+"NOT_A_SEARCH"], [
 "my back hurts what should i do",
 "assistant|everyday~"], [
 "how do i cook rice",
