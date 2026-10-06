@@ -1,4 +1,5 @@
-"""#112 (M18-W7): the names a reader sees are product names, in their maker's word order.
+"""#112 (M18-W7; REQ-CAN-001 as M19 states it): the names a reader sees are product names, in their
+maker's spelling and word order.
 
 On the 2026-10-04 artifact 28 of 315 models were served under their raw id (`mimo-v2.6-flash`,
 `o3-2025-04-16`), and Claude names came in two word orders ("Claude 4.5 Opus" beside "Claude Opus

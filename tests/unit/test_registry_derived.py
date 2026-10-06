@@ -252,7 +252,7 @@ def test_a_dash_effort_is_an_effort_only_where_no_product_takes_the_word(
     name: str, model_id: str, effort: str | None
 ) -> None:
     """#130: the grammar read `_high` and `(high)` as an effort but not `-high`, so `o3-mini-high`
-    was served as a model of its own (REQ-CAN-005). A dash reads as an effort for `high` and `xhigh`
+    was served as a model of its own (REQ-CAN-005; REQ-CAN-001: an effort is never a model). A dash reads as an effort for `high` and `xhigh`
     only: `-medium` and `-max` end product names (Magistral Medium, Qwen3 Max, Codex Max)."""
     identity = derive_identity(name)
     assert identity is not None and (identity.model_id, identity.effort) == (model_id, effort), identity
