@@ -113,8 +113,8 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     # it derives a model of its own (D-157), as #162 left any unnamed variant.
     ModelRule("gpt-5-mini",        "GPT-5 mini",        "OpenAI",    r"gpt[-_ ]?5[-_ ]?(?:thinking[-_ ]?)?mini"),
     ModelRule("gpt-5-chat",        "GPT-5 chat",        "OpenAI",    r"gpt[-_ ]?5[-_ ]?chat"),
-    ModelRule("gpt-5.2-codex",     "GPT-5.2 Codex",     "OpenAI",    r"gpt[-_ ]?5[.\-]?2[-_ ]?codex(?![-_ ]?max)"),
-    ModelRule("gpt-5.1-codex",     "GPT-5.1 Codex",     "OpenAI",    r"gpt[-_ ]?5[.\-]?1[-_ ]?codex(?![-_ ]?max)"),
+    ModelRule("gpt-5.2-codex",     "GPT-5.2 Codex",     "OpenAI",    r"gpt[-_ ]?5[.\-]?2[-_ ]?codex(?![-_ ]?(?:max|mini))"),
+    ModelRule("gpt-5.1-codex",     "GPT-5.1 Codex",     "OpenAI",    r"gpt[-_ ]?5[.\-]?1[-_ ]?codex(?![-_ ]?(?:max|mini))"),
     ModelRule("gpt-5-codex",       "GPT-5 Codex",       "OpenAI",    r"gpt[-_ ]?5[-_ ]?codex(?![-_ ]?(?:max|mini))"),
     # GPT-5.6 ships three named variants (luna/sol/terra, live in both pricing and
     # Arena) — distinct models, so they precede the bare 5.6 rule.
