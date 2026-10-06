@@ -560,3 +560,29 @@ def test_the_fable_5_parent_keeps_its_version_guard(name: str) -> None:
     """M16-W4 review M21: P3's defect class is a parent rule with no version guard."""
     rule = canonicalize(name)
     assert rule is None or rule.canonical_id != "claude-fable-5"
+
+
+@pytest.mark.parametrize(("name", "model_id"), [
+    ("gpt-5-mini-2025-08-07", "gpt-5-mini"),
+    ("GPT-5 mini", "gpt-5-mini"),
+    ("GPT-5 Thinking Mini", "gpt-5-mini"),                 # ChatGPT's plan table (6d222af)
+    ("GPT 5 mini (2025-08-07) (medium)", "gpt-5-mini"),
+    ("gpt-5.4-mini", "gpt-5.4-mini"),
+    ("openai/gpt-5.4-mini-2026-03-17", "gpt-5.4-mini"),
+    ("GPT-5.4 Mini", "gpt-5.4-mini"),
+    ("gpt-5.4-mini-high", "gpt-5.4-mini"),                 # Arena, at high effort
+    ("openrouter/openai/gpt-5.1-codex-mini", "gpt-5.1-codex-mini"),
+    ("gpt-5-nano-2025-08-07", "gpt-5-nano"),
+    ("gpt-5.4-nano", "gpt-5.4-nano"),
+    ("GPT-5.4 Nano", "gpt-5.4-nano"),
+    ("gpt-5-chat-latest", "gpt-5-chat"),
+    ("azure/gpt-5.1-chat", "gpt-5.1-chat"),
+    ("openrouter/openai/gpt-5.2-chat", "gpt-5.2-chat"),
+    ("gpt-5.3-chat-latest", "gpt-5.3-chat"),
+])
+def test_each_gpt5_minor_release_is_a_model_of_its_own(name: str, model_id: str) -> None:
+    """#162: the GPT-5 mini, nano and chat rules took any minor version (`gpt-5(?:[.-]?\\d)?`), so
+    GPT-5 mini, GPT-5.1 Codex mini and GPT-5.4 mini were one model, with one another's prices and
+    scores (REQ-CAN-001), and GPT-5 and 5.4 nano, and GPT-5.1 to 5.3 chat, the same."""
+    rule = canonicalize(name)
+    assert rule is not None and rule.canonical_id == model_id, (name, rule)
