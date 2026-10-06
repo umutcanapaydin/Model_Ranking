@@ -96,6 +96,7 @@ PICK_KEYS = {
     "effort", "higher_effort", "higher_effort_score", "effort_note",
     "confidence", "confidence_basis", "why", "trade_off",
     "why_fact", "trade_off_fact",          # D-136, M12-W4
+    "model_id",                            # D-182 (#138): the model's id, for the app's cards
 }
 
 RANKING_ROW_KEYS = {
@@ -773,3 +774,24 @@ def test_read_only_handle_refuses_a_write() -> None:
         conn = open_readonly(path)
         with pytest.raises(sqlite3.OperationalError):
             conn.execute("CREATE TABLE probe (x INTEGER)")
+
+
+def test_each_pick_carries_the_id_of_the_model_it_ranks(client: TestClient, tmp_path: Path) -> None:
+    """#138 (D-182): the engine decides "the same model" by its ranking row (#102), and the app by a
+    pick's name, vendor, score and price, because a pick carried no id. Each pick carries the id of
+    the model whose row it is, the one the surface's ranking holds under that name."""
+    import sqlite3
+
+    from app.workflows.categories import CATEGORIES
+    from app.workflows.rank import ranked_with_ids
+
+    conn = sqlite3.connect(tmp_path / "pipeline.db")
+    try:
+        answers = client.get("/v1/recommendations", params={"task": "coding"}).json()["answers"]
+        assert answers and all(answer["picks"] for answer in answers), "the fixture serves no pick"
+        for answer in answers:
+            ids = {row.model: model_id for model_id, row in ranked_with_ids(conn, CATEGORIES[answer["surface"]])}
+            for pick in answer["picks"]:
+                assert pick.get("model_id") == ids[pick["model"]], pick
+    finally:
+        conn.close()

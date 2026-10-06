@@ -337,16 +337,35 @@ final class AnswerPlanTests: OfflineTestCase {
 /// "the cheapest model within 6 points of the best".
 final class PickCardTests: OfflineTestCase {
     private func pick(_ label: String, _ model: String, reason: String, score: Double = 73.8,
-                      price: Double = 1.31) throws -> Pick
+                      price: Double = 1.31, id: String? = nil) throws -> Pick
     {
+        let modelID = id.map { #""model_id": "\#($0)", "# } ?? ""
         let json = """
-        {"label": "\(label)", "model": "\(model)", "vendor": "Google", "score": \(score), "metric": "% resolved",
+        {\(modelID)"label": "\(label)", "model": "\(model)", "vendor": "Google", "score": \(score), "metric": "% resolved",
          "blended_per_m": \(price), "input_per_m": 1, "output_per_m": 2, "harness": "h",
          "confidence": "Medium", "confidence_basis": "b", "why": "why \(label)",
          "why_fact": {"reason": "\(reason)", "unit": "points", "window": 6.0, "floor": 67.0,
                       "benchmark": "DeepSWE"}}
         """
         return try JSONDecoder().decode(Pick.self, from: Data(json.utf8))
+    }
+
+    /// #138 (D-182): the cards follow the engine's model, not its shown values. Two models that share
+    /// a display name, a vendor, a score and a price are two cards; one model is one card.
+    func testTwoModelsThatShareEveryShownValueAreTwoCards() throws {
+        let picks = [try pick("best_quality", "Gemini 3 Flash", reason: "highest", id: "gemini-3-flash"),
+                     try pick("best_value", "Gemini 3 Flash", reason: "cheapest_within", id: "gemini3-flash-lite")]
+        XCTAssertEqual(pickCards(picks).count, 2)
+        let one = [try pick("best_quality", "Gemini 3 Flash", reason: "highest", id: "gemini-3-flash"),
+                   try pick("best_value", "Gemini 3 Flash", reason: "cheapest_within", id: "gemini-3-flash")]
+        XCTAssertEqual(pickCards(one).count, 1)
+    }
+
+    /// #138 (D-182 clause 2): an engine older than D-182 sends no id, and the cards keep the old rule.
+    func testPicksWithoutAnIdKeepTheFourValueRule() throws {
+        let picks = [try pick("best_quality", "Gemini 3 Flash", reason: "highest"),
+                     try pick("best_value", "Gemini 3 Flash", reason: "cheapest_within")]
+        XCTAssertEqual(pickCards(picks).count, 1)
     }
 
     func testOneModelHoldingThreeLabelsIsOneCardWithThreeLabels() throws {
