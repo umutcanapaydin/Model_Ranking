@@ -53,7 +53,7 @@ final class SameHostOnlyTests: OfflineTestCase {
     func testTheHostIsComparedWithoutCase() async {
         // W1 second review K3 (REQ-DEV-001): DNS names are not case-sensitive, the owner's address is written
         // mixed-case, and URLSession sends the host lower-cased.
-        let followed = await redirect(from: "Umut-MacBook-Pro-2.local", to: "http://umut-macbook-pro-2.local/v1/categories/")
+        let followed = await redirect(from: "My-Mac.local", to: "http://my-mac.local/v1/categories/")
 
         XCTAssertNotNil(followed, "a same-host redirect was refused for the case of its letters")
     }
@@ -717,37 +717,37 @@ final class ResponseCeilingTests: OfflineTestCase {
 /// M18-W1 (#87, D-171, REQ-DEV-001): the engine the app talks to is set per build, and loopback when it is not.
 final class EngineAddressTests: OfflineTestCase {
     func testABuildsEngineAddressIsUsedWhenItIsAnHttpUrlWithAHost() {
-        XCTAssertEqual(EngineClient.engineURL(from: "http://Umut-MacBook-Pro-2.local:8080"),
-                       URL(string: "http://Umut-MacBook-Pro-2.local:8080"))
+        XCTAssertEqual(EngineClient.engineURL(from: "http://My-Mac.local:8080"),
+                       URL(string: "http://My-Mac.local:8080"))
         XCTAssertEqual(EngineClient.engineURL(from: "https://engine.example"), URL(string: "https://engine.example"))
-        XCTAssertEqual(EngineClient.engineURL(from: "http://192.168.0.26:8080"), URL(string: "http://192.168.0.26:8080"))
+        XCTAssertEqual(EngineClient.engineURL(from: "http://192.0.2.26:8080"), URL(string: "http://192.0.2.26:8080"))
     }
 
     func testAFailureToReachTheEngineShowsTheAddressItAsked() {
         // W1 second review B2: on a phone, a mistyped ENGINE_URL falls back to loopback, which the
         // phone can never reach; the address under the error is how the owner sees it.
-        let address = URL(string: "http://umut-macbook-pro-2.local:8080")!
+        let address = URL(string: "http://my-mac.local:8080")!
         for error: EngineError in [.unreachable("x"), .timedOut(seconds: 5), .offline] {
             let note = error.addressNote(address, .english)
-            XCTAssertEqual(note, "Engine address: http://umut-macbook-pro-2.local:8080", "\(error)")
+            XCTAssertEqual(note, "Engine address: http://my-mac.local:8080", "\(error)")
         }
     }
 
     func testAFailureWhoseCauseIsTheAddressShowsIt() {
         // W1 third review M10: the engine's own refusal of a Host not on its list (D-171), and ATS
         // refusing a cleartext name, are the two failures where the address is the cause.
-        let address = URL(string: "http://umut-macbook-pro-2.local:8080")!
+        let address = URL(string: "http://my-mac.local:8080")!
         for error: EngineError in [.refused(status: 400, code: "unknown_host", message: "m"), .insecureTransport] {
-            XCTAssertEqual(error.addressNote(address, .english), "Engine address: http://umut-macbook-pro-2.local:8080", "\(error)")
+            XCTAssertEqual(error.addressNote(address, .english), "Engine address: http://my-mac.local:8080", "\(error)")
         }
     }
 
     func testTheAddressLineIsInTheReadersLanguage() {
         // W1 Tester T5 (REQ-DEV-001): the failure view passes the reader's language; the line follows it.
-        let address = URL(string: "http://umut-macbook-pro-2.local:8080")!
+        let address = URL(string: "http://my-mac.local:8080")!
         for error: EngineError in [.unreachable("x"), .timedOut(seconds: 5), .offline, .insecureTransport,
                                    .refused(status: 400, code: "unknown_host", message: "m")] {
-            XCTAssertEqual(error.addressNote(address, .turkish), "Motor adresi: http://umut-macbook-pro-2.local:8080", "\(error)")
+            XCTAssertEqual(error.addressNote(address, .turkish), "Motor adresi: http://my-mac.local:8080", "\(error)")
         }
     }
 
