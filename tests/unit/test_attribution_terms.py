@@ -71,3 +71,11 @@ def test_a_creative_commons_source_links_its_material_and_its_licence(source: st
 def test_the_pricing_credit_claims_no_term_openrouter_does_not_state() -> None:
     assert "attribution required" not in PRICING_ATTRIBUTION
     assert "attribution required" not in (openrouter.__doc__ or "")
+
+
+def test_a_credit_the_reader_sees_carries_no_markup_or_file_name() -> None:
+    """The M19-W1 review's M7: the app prints a board's attribution as it is
+    (`ContentView.swift`'s detail screen), so a credit names its sources in words, without code
+    formatting or a file name."""
+    for citation in ATTRIBUTIONS:
+        assert "`" not in citation and ".csv" not in citation, citation
