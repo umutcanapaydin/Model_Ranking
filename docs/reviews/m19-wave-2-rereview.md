@@ -13,7 +13,7 @@ and none of the fixes made after the first review.
 **Independent:** yes
 **Date:** 2026-10-06
 **Commit range:** `1843437..4e737ea` (31 commits; 29 files, +5,562 / -58). The commits after `40bb4d1`
-answer the first review (`docs/reviews/m19-wave-2-review.md`, BLOCKING).
+answer the first review (`docs/reviews/m19-wave-2-review-round-1.md`, BLOCKING).
 **Risk tier:** HIGH (`docs/plans/m19-plan.md:62-64`; `docs/plans/m19-wave-2-plan.md:13-15`). The diff
 touches `EngineClient.swift` and `src/app/adapter/main.py`, both security globs (`m19-plan.md:123-132`).
 By D-172 no security seat runs on the wave.
@@ -407,7 +407,7 @@ Gaps, tracked: B1, B2, B3 (blocking); M1 to M6 (minor); R1. Already filed: #168,
 | `docs/plans/m19-plan.md` | two W2 amendments | whole; B1, B3 |
 | `docs/plans/m19-wave-2-plan.md` | the wave plan | whole |
 | `docs/prd.md` | REQ-API-001, REQ-APP-005, REQ-GAP-001 rows | the three rows |
-| `docs/reviews/m19-wave-2-review.md` | the first verdict | whole; every finding replayed |
+| `docs/reviews/m19-wave-2-review-round-1.md` | the first verdict | whole; every finding replayed |
 | `docs/security-invariants.md` | INV-62/63/66/67/76/78 reworded, INV-85, G-1 and G-3 removed, G-2 narrowed | the diff and the count (73 rows, measured) |
 | `ios/EngineTests/AnswerPlanTests.swift` | two #138 tests | whole hunk |
 | `ios/EngineTests/EngineClientTests.swift` | `EngineCookieTests` | whole hunk |
