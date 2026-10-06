@@ -83,7 +83,7 @@ def _code(swift: str) -> str:
     A scanner, not a pattern (#98, W5 reviews M2 and M8): Swift block comments NEST, a `/*` inside a
     `//` comment opens nothing, and comment markers inside a string literal -- a raw one, or one inside
     an interpolation -- are text. Newlines inside a block comment are kept, so the code after it keeps
-    its line. Code under `#if false` is not removed (#110).
+    its line. A branch the compiler never builds (`#if false`) is dropped too (#110, `_built`).
     """
     out: list[str] = []
     i, depth, n = 0, 0, len(swift)
@@ -112,7 +112,37 @@ def _code(swift: str) -> str:
     if depth:  # W5 Tester: a comment Swift would refuse to build means the scan misread the file
         msg = "a block comment never closes: `_code` misread a literal, and would erase live code"
         raise ValueError(msg)
-    return "".join(out)
+    return _built("".join(out))
+
+
+#: #110: a compilation condition `_code` can decide, the literal `true` or `false`, either negated.
+_LITERAL_CONDITION = {"true": True, "false": False, "!true": False, "!false": True}
+
+
+def _built(swift: str) -> str:
+    """`swift` without the branches the compiler never builds (#110): an `#if` or `#elseif` on the
+    literal `false` or `!true`, and an `#else` after a branch on the literal `true`. A condition this
+    cannot decide keeps its code, so a pin sees at least what any build compiles. Dropped lines stay
+    as empty lines, so the code after them keeps its line numbers."""
+    stack: list[list[bool]] = []  # [this branch is built, a branch above it was certainly taken]
+    lines = []
+    for line in swift.split("\n"):
+        directive = re.match(r"\s*#(if|elseif|else|endif)\b\s*(.*?)\s*$", line)
+        if directive:
+            kind, condition = directive.group(1), re.sub(r"\s+", "", directive.group(2))
+            decided = _LITERAL_CONDITION.get(condition.strip("()"))
+            if kind == "if":
+                stack.append([decided is not False, decided is True])
+            elif kind == "elseif" and stack:
+                stack[-1] = [not stack[-1][1] and decided is not False, stack[-1][1] or decided is True]
+            elif kind == "else" and stack:
+                stack[-1] = [not stack[-1][1], True]
+            elif kind == "endif" and stack:
+                stack.pop()
+            lines.append(line)
+        else:
+            lines.append(line if all(built for built, _ in stack) else "")
+    return "\n".join(lines)
 
 
 def _hint_ids() -> set[str]:
