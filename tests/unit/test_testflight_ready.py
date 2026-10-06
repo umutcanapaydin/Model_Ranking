@@ -29,14 +29,15 @@ REQUIRED_REASONS = {
 }
 
 
+#: A setting's line: its name, with any bracketed conditions (`ENGINE_URL[config=Release]`), then its
+#: value. A line that opens with `//` is a comment; `/$()/` keeps a URL's slashes from being one.
+SETTING = re.compile(r"^\s*([A-Za-z_]\w*(?:\[[^\]]*\])*)\s*=\s*(.*?)\s*$")
+
+
 def _xcconfig(name: str) -> dict[str, str]:
-    settings = {}
-    for line in (CONFIG / name).read_text(encoding="utf-8").splitlines():
-        line = line.split("//", 1)[0] if not line.lstrip().startswith("ENGINE_URL") else line
-        if "=" in line and not line.lstrip().startswith(("//", "#")):
-            key, value = line.split("=", 1)
-            settings[key.strip()] = value.strip()
-    return settings
+    lines = (CONFIG / name).read_text(encoding="utf-8").splitlines()
+    found = (SETTING.match(line) for line in lines if not line.lstrip().startswith("//"))
+    return {match.group(1): match.group(2) for match in found if match}
 
 
 def test_the_app_has_a_1024_icon_with_no_alpha_channel() -> None:

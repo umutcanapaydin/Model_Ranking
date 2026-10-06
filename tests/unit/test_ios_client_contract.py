@@ -543,7 +543,10 @@ def test_the_shipping_client_carries_no_canned_payload() -> None:
     checks the target directory for both shapes a fixture takes: a bundled `.json` resource and a
     payload pasted into the Swift as a literal.
     """
-    resources = [p.name for p in CLIENT.rglob("*.json")]
+    # An asset catalog's own `Contents.json` describes its images and is compiled away (M19-W5's app
+    # icon); any other JSON in a catalog, a data asset's payload, ships and is caught.
+    resources = [p.name for p in CLIENT.rglob("*.json")
+                 if not (p.name == "Contents.json" and any(part.endswith(".xcassets") for part in p.parts))]
     assert not resources, f"a JSON resource ships inside the app target: {resources}"
 
     # The quotes may be ESCAPED. A payload pasted into Swift arrives as `"{\"api_version\": ...}"`,

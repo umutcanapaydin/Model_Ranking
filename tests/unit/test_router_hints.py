@@ -655,9 +655,12 @@ def _assert_the_client_has_no_way_off_the_device() -> None:
     used: set[tuple[str, str]] = set()
     storage = 0
     for path in sorted(p for p in CLIENT.rglob("*") if p.is_file()):
-        if ".xcassets" in path.parts or path.name == ".DS_Store":
+        # An asset catalog is images and their metadata, compiled into one file (M19-W5: the check
+        # compared a folder's name to ".xcassets" whole, which no catalog is named).
+        if any(part.endswith(".xcassets") for part in path.parts) or path.name == ".DS_Store":
             continue
-        assert path.suffix in {".swift", ".plist", ".json", ".strings"}, (
+        # A privacy manifest (`.xcprivacy`) is a property list, read like `.plist` (M19-W5).
+        assert path.suffix in {".swift", ".plist", ".json", ".strings", ".xcprivacy"}, (
             f"{path.relative_to(CLIENT)} is a source this gate cannot read; the Xcode target "
             "compiles every file in the folder, so a non-Swift file is an unguarded door"
         )
