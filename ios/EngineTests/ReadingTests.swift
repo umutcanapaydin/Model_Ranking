@@ -173,6 +173,10 @@ final class ReadingTests: OfflineTestCase {
         XCTAssertEqual(inputReading(noWord: false, smallTalk: false, doubt: false, modelSaysNotASearch: nil), .search)
     }
 
+    /// #66 (M19-W4): the genuine tuning questions a question of fact reads, each a doubt the reader is
+    /// asked about rather than decided for. Named, so a new one is not waved through.
+    static let genuineQuestionsOfFact: Set<String> = ["what is the mechanism of an sn2 reaction"]
+
     /// No genuine question in the tuning sets trips a code signal: each would cost a reader a question
     /// or a note they did not need.
     func testNoGenuineTuningQuestionTripsASignal() throws {
@@ -197,6 +201,9 @@ final class ReadingTests: OfflineTestCase {
                 XCTAssertFalse(InputSignals.noWord(question), "\(name): \(question)")
                 XCTAssertFalse(InputSignals.instructsTheApp(question), "\(name): \(question)")
                 XCTAssertFalse(InputSignals.smallTalk(question), "\(name): \(question)")
+                if !Self.genuineQuestionsOfFact.contains(question) {
+                    XCTAssertFalse(InputSignals.asksAFact(question), "\(name): \(question)")
+                }
                 if (expected == "DECLINE" && question.contains("photo")) || expected == "UNMEASURED" {
                     if name.hasPrefix("image") { continue }  // measured by the probe, not asserted here
                     XCTAssertTrue(InputSignals.makesAnImage(question), "\(name): \(question)")
@@ -245,8 +252,10 @@ final class ReadingThroughTheTiersTests: OfflineTestCase {
         XCTAssertEqual(outcome.reading, .notASearch)
     }
 
+    /// M19-W4: on a question no signal in code reads. "what is the capital of australia" was the line
+    /// here; a question of fact is now a doubt in code too, so with the model's it is the note (#66).
     func testTheModelsDoubtAloneIsAQuestionBack() async {
-        let question = "what is the capital of australia"
+        let question = "a playlist for a long drive"
         let outcome = await tiered([question: ["request": "something else", "surface": "assistant"]])
             .route(question, within: known)
         XCTAssertEqual(outcome.reading, .unsure)
@@ -305,8 +314,10 @@ final class ReadingThroughTheTiersTests: OfflineTestCase {
         XCTAssertTrue(recordsGap(outcome), "a request to make an image is a gap the register keeps")
     }
 
-    /// The code reviews' B4: the image rule overrides only a question routed to `vision`. Every probe
-    /// line both reviews ran, with the model naming the surface a careful reader would, keeps it.
+    /// The code reviews' B4: the image rule never overrides a question the tier sent to code, and a
+    /// question about a website or a photo that mentions an image is no request to make one (M19-W4,
+    /// when the rule left `vision`). Every probe line both reviews ran, with the model naming the
+    /// surface a careful reader would, keeps it.
     func testTheImageRuleNeverOverridesAnotherSurface() async {
         let lines: [(String, String)] = [
             ("remove duplicate photos with a python script", "coding"), ("fix image upload in django", "coding"),
@@ -436,7 +447,8 @@ final class ReadingFaultTests: OfflineTestCase {
     func testTheModelsDoubtCountsWhenItDeclines() async {
         XCTAssertEqual(ModelOutputBoundary.outcome(for: ModelOutputBoundary.declineSentinel, within: known,
                                                    request: "something else")?.reading, .unsure)
-        let question = "what is the boiling point of water at sea level"
+        // M19-W4: no question of fact here, which is now a doubt in code as well (#66).
+        let question = "a playlist for a long drive"
         let outcome = await TieredRouter(
             model: ScriptedModelRouter(answers: [question: ["request": "something else",
                                                             "surface": ModelOutputBoundary.declineSentinel]]),
