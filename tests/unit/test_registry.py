@@ -643,3 +643,14 @@ def test_a_release_with_two_snapshots_stays_two_models() -> None:
     second = derive_identity("claude-3-5-sonnet-20241022")
     assert canonicalize("claude-3-5-sonnet-20240620") is None and canonicalize("claude-3-5-sonnet-20241022") is None
     assert first is not None and second is not None and first.model_id != second.model_id
+
+
+@pytest.mark.parametrize("name", ["gpt-5-codex-mini", "openai/gpt-5-codex-mini", "GPT-5 Codex Mini"])
+def test_a_gpt5_codex_mini_is_neither_gpt5_mini_nor_gpt5_codex(name: str) -> None:
+    """The M19-W1 review's M4: #162 made GPT-5.1 Codex mini a model of its own, yet GPT-5 mini's rule
+    still took `gpt-5-codex-mini`, and GPT-5 Codex's would take it next. No rule names that product
+    (OpenAI's model pages do not list it, read 2026-10-06), so it derives a model of its own (D-157),
+    as #162 left any unnamed variant."""
+    assert canonicalize(name) is None, canonicalize(name)
+    identity = derive_identity(name)
+    assert identity is not None and identity.model_id == "gpt5-codex-mini"
