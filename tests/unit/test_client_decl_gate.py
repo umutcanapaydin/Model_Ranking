@@ -178,9 +178,10 @@ def test_what_the_sinks_may_hold_and_others_may_read_passes() -> None:
     assert not [line for line in refused if line.startswith(("Detail.swift:", "Models.swift:"))], refused
 
 
-#: #60 (G-2): what `swiftc -dump-ast` printed for the compiled fixture (Xcode 26), trimmed to the
-#: functions these rules read: `Combine.swift`'s permitted position arithmetic and its two sorts of a
-#: list named `common`, and `ContentView.swift` adding to a served position through another name.
+#: #60 (G-2): what `swiftc -dump-ast` printed for the whole compiled fixture (Xcode 26), paths made
+#: `/x/`: `Combine.swift`'s permitted position arithmetic and its two sorts of a list named `common`,
+#: `ContentView.swift` adding to a served position through another name, and since the W2 review's B1
+#: every shape that review got past the gate.
 FLOW_AST = (ROOT / "tests" / "unit" / "data" / "g2_fixture_ast.txt").read_text(encoding="utf-8")
 
 
@@ -304,3 +305,52 @@ def test_a_url_inside_another_type_is_made_all_the_same() -> None:
     which matched `URL`, `URL?` and `[URL]` only, never saw."""
     refused = gate.problems(gate.references(CLIENT_AST))
     assert any(line.startswith("Detail.swift:") and "makes a URL" in line for line in refused), refused
+
+
+FIXTURES = ROOT / "scripts" / "client_decl_fixtures"
+
+
+def _lines_of(file: str, declaration: str) -> range:
+    """The lines a fixture declaration spans: from its line to the next `}` in column one."""
+    lines = (FIXTURES / file).read_text(encoding="utf-8").splitlines()
+    start = next(i for i, line in enumerate(lines, start=1) if declaration in line)
+    end = next(i for i, line in enumerate(lines, start=1) if i > start and line.startswith("}"))
+    return range(start, end + 1)
+
+
+@pytest.mark.parametrize(("file", "declaration"), [
+    ("ContentView.swift", "func fixtureA1Reassigned"),       # a reassigned local
+    ("ContentView.swift", "func fixtureA2Returned"),         # a function's return value
+    ("ContentView.swift", "var fixtureA3Next"),              # a computed property on a decoded type
+    ("ContentView.swift", "func fixtureA5Wrapping"),         # `&+`
+    ("ContentView.swift", "func fixtureA6Advanced"),         # `.advanced(by:)`
+    ("ContentView.swift", "func fixtureA7Converted"),        # `Int32(...)`, then `+`
+    ("ContentView.swift", "func fixtureA8Unlisted"),         # a decoded field no table listed
+    ("ContentView.swift", "func fixtureA10Literal"),         # a loop over a literal
+    ("ContentView.swift", "func fixtureA11Tuple"),           # a loop's tuple pattern
+    ("ContentView.swift", "struct FixtureRanker"),           # a method's parameter
+    ("ContentView.swift", "func fixtureClosure"),            # a closure's `$0`
+    ("Router.swift", "func fixtureRouterDiscounts"),         # the review's M5: outside `priceInPages`
+])
+def test_arithmetic_on_a_served_number_is_refused_whatever_carries_it(file: str, declaration: str) -> None:
+    """The W2 review's B1 (D-181, INV-76, REQ-APP-005): the review got arithmetic on a served number past
+    the gate through each of these. Each is refused, on a line of its own declaration."""
+    span = _lines_of(file, declaration)
+    refused = gate.problems(gate.references(FLOW_AST))
+    hits = [line for line in refused if line.startswith(f"{file}:") and "served" in line
+            and int(line.split(":")[1]) in span]
+    assert hits, (declaration, [line for line in refused if line.startswith(f"{file}:")])
+
+
+def test_foundations_sort_is_counted_as_a_sort() -> None:
+    """The W2 review's M4: `sorted(using:)` (Foundation) passed the compiled sort rule, which read the
+    standard library's sorts only."""
+    refused = gate.problems(gate.references(FLOW_AST))
+    assert any(line.startswith("ContentView.swift:") and "sorts `standings`" in line for line in refused), refused
+
+
+def test_the_price_in_pages_is_permitted_where_it_is_computed() -> None:
+    """The W2 review's M5: the price permission is `priceInPages`'s, not the whole file's."""
+    refused = gate.problems(gate.references(FLOW_AST))
+    span = _lines_of("Router.swift", "func priceInPages")
+    assert not [line for line in refused if line.startswith("Router.swift:") and int(line.split(":")[1]) in span], refused

@@ -44,3 +44,75 @@ func fixtureViewFindsLinks(_ typed: String) -> [URL] {
     let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
     return detector?.matches(in: typed, range: NSRange(typed.startIndex..., in: typed)).compactMap(\.url) ?? []
 }
+
+// The W2 review's B1: arithmetic on a served number through the names it can pass under. REFUSED, each.
+func fixtureA1Reassigned(_ standing: Standing) -> Int {
+    var place = 0
+    place = standing.position
+    return place + 1
+}
+
+func fixtureServedPlace(_ standing: Standing) -> Int {
+    standing.position
+}
+
+func fixtureA2Returned(_ standing: Standing) -> Int {
+    fixtureServedPlace(standing) + 1
+}
+
+extension Standing {
+    var fixtureA3Next: Int {
+        position + 1
+    }
+}
+
+func fixtureA5Wrapping(_ standing: Standing) -> Int {
+    standing.position &+ 1
+}
+
+func fixtureA6Advanced(_ standing: Standing) -> Int {
+    standing.position.advanced(by: 1)
+}
+
+func fixtureA7Converted(_ standing: Standing) -> Int32 {
+    Int32(standing.position) + 1
+}
+
+func fixtureA8Unlisted(_ standing: Standing) -> Double {
+    (standing.scoreAnchor ?? 0) - 100
+}
+
+func fixtureA10Literal(_ standing: Standing) -> Int {
+    var total = 0
+    for place in [standing.position] {
+        total = place + 1
+    }
+    return total
+}
+
+func fixtureA11Tuple(_ standings: [Standing]) -> Int {
+    var total = 0
+    for (index, place) in standings.map(\.position).enumerated() {
+        total = place * index
+    }
+    return total
+}
+
+struct FixtureRanker {
+    func rank(_ place: Int) -> Int {
+        place + 1
+    }
+}
+
+func fixtureA12Method(_ standing: Standing) -> Int {
+    FixtureRanker().rank(standing.position)
+}
+
+func fixtureClosure(_ standings: [Standing]) -> [Int] {
+    standings.map(\.position).map { $0 - 1 }
+}
+
+// The W2 review's M4: Foundation's sort, keyed on a served number. REFUSED.
+func fixtureO1SortsByFoundation(_ standings: [Standing]) -> [Standing] {
+    standings.sorted(using: KeyPathComparator(\Standing.position))
+}

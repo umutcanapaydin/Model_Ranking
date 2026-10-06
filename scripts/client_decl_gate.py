@@ -300,6 +300,10 @@ FIXTURE_REFUSALS = {
     ("Detail.swift", "makes a URL"), ("Detail.swift", "EngineClient.init(baseURL:session:)"),
     ("StandingsStore.swift", "EngineClient.init(baseURL:session:)"),
     ("StandingsStore.swift", "EngineClient.engineURL(from:)"),
+    # The W2 review's B1, M4 and M5: arithmetic through every shape it named, Foundation's sort, and a
+    # price arithmetic outside `priceInPages`.
+    ("ContentView.swift", "served number"), ("ContentView.swift", "sorts `standings`"),
+    ("Router.swift", "served price"),
 }
 SOURCE = re.compile(r'^\(source_file "([^"]+)"', re.MULTILINE)
 #: One node of the dump: its indentation (the tree's depth) and its kind.
