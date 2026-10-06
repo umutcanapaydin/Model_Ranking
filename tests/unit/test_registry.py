@@ -9,7 +9,13 @@ import pytest
 
 from app.clients.fakes import FakeRawSource
 from app.workflows.ingest import RunContext, ingest_litellm, ingest_swebench
-from app.workflows.registry import MODEL_RULES, canonicalize, reconcile
+from app.workflows.registry import (
+    MODEL_RULES,
+    canonicalize,
+    derive_identity,
+    reconcile,
+    split_harness,
+)
 from app.workflows.schema import connect
 
 
@@ -589,3 +595,41 @@ def test_each_gpt5_minor_release_is_a_model_of_its_own(name: str, model_id: str)
     scores (REQ-CAN-001), and GPT-5 and 5.4 nano, and GPT-5.1 to 5.3 chat, the same."""
     rule = canonicalize(name)
     assert rule is not None and rule.canonical_id == model_id, (name, rule)
+
+
+#: #129: each release whose dated id is its only snapshot, by its maker's page (2026-10-06):
+#: Anthropic's model deprecations page lists one id for each Claude here; OpenAI's model pages list
+#: one snapshot for each OpenAI model here. Every spelling the sources use, dated or not, is one model.
+ONE_SNAPSHOT_RELEASES = {
+    "claude-3-haiku": ["Claude 3 Haiku", "claude-3-haiku", "claude-3-haiku-20240307", "claude-3-haiku@20240307"],
+    "claude-3-opus": ["Claude 3 Opus", "claude-3-opus", "claude-3-opus-20240229",
+                      "anthropic.claude-3-opus-20240229-v1:0", "claude-3-opus@20240229"],
+    "claude-3-sonnet": ["Claude 3 Sonnet", "claude-3-sonnet", "claude-3-sonnet-20240229", "claude-3-sonnet@20240229"],
+    "claude-3.5-haiku": ["Claude 3.5 Haiku", "claude-3-5-haiku", "claude-3.5-haiku", "claude-3-5-haiku-20241022",
+                         "us.anthropic.claude-3-5-haiku-20241022-v1:0"],
+    "gpt-4.1-mini": ["GPT-4.1 mini", "gpt-4.1-mini", "gpt-4.1-mini-2025-04-14"],
+    "gpt-4.1-nano": ["GPT-4.1 nano", "gpt-4.1-nano", "gpt-4.1-nano-2025-04-14"],
+    "gpt-5.2-pro": ["GPT-5.2 Pro", "gpt-5.2-pro", "gpt-5.2-pro-2025-12-11", "gpt-5.2-pro-2025-12-11_xhigh"],
+    "gpt-5.4-pro": ["GPT-5.4 Pro", "gpt-5.4-pro", "gpt-5.4-pro-2026-03-05"],
+    "o3": ["o3", "o3 (2025-04-16)", "o3-2025-04-16", "o3-2025-04-16_high", "openai-o3"],
+    "o3-mini": ["o3-mini", "o3-mini (high)", "o3-mini-2025-01-31", "o3-mini-2025-01-31_low",
+                "Agentless Lite + O3 Mini (20250214)"],
+    "o3-pro": ["o3-pro", "o3-pro (high)", "o3-pro-2025-06-10", "o3-pro-2025-06-10_medium"],
+}
+
+
+@pytest.mark.parametrize(("model_id", "name"), [(m, n) for m, names in ONE_SNAPSHOT_RELEASES.items() for n in names])
+def test_a_release_with_one_snapshot_is_one_model(model_id: str, name: str) -> None:
+    """#129: one release was served under two ids, an undated one holding Epoch's ECI score and a
+    dated one holding Arena's and the rest, so a list joining boards could show it twice, each with
+    part of its evidence. "O3 Mini" with a space had also reached o3."""
+    rule = canonicalize(split_harness(name)[1] if " + " in name else name)
+    assert rule is not None and rule.canonical_id == model_id, (name, rule)
+
+
+def test_a_release_with_two_snapshots_stays_two_models() -> None:
+    """#129: Claude 3.5 Sonnet had two snapshots (20240620, 20241022), so they are not one model."""
+    first = derive_identity("claude-3-5-sonnet-20240620")
+    second = derive_identity("claude-3-5-sonnet-20241022")
+    assert canonicalize("claude-3-5-sonnet-20240620") is None and canonicalize("claude-3-5-sonnet-20241022") is None
+    assert first is not None and second is not None and first.model_id != second.model_id
