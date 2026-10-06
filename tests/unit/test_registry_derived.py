@@ -236,3 +236,23 @@ def test_a_spelling_the_grammar_accepts_is_still_bounded_for_display() -> None:
     reconcile(conn)
     display = conn.execute("SELECT display FROM models").fetchone()[0]
     assert display != padded and len(display) <= 64
+
+
+@pytest.mark.parametrize(("name", "model_id", "effort"), [
+    ("o3-mini-high", "o3-mini", "high"),          # #130: OpenRouter's slug for o3-mini at high effort
+    ("grok-4.7-xhigh", "grok4.7", "xhigh"),       # the same dash, from Arena
+    ("o3-mini_high", "o3-mini", "high"),          # the spellings already read are unchanged
+    ("o3-mini (high)", "o3-mini", "high"),
+    ("magistral-medium", "magistral-medium", None),  # a product: Magistral Medium, not Magistral at medium
+    ("qwen3-max", "qwen3-max", None),             # a product: Qwen3 Max
+    ("gpt-5.1-codex-max", "gpt5.1-codex-max", None),
+])
+def test_a_dash_effort_is_an_effort_only_where_no_product_takes_the_word(
+    name: str, model_id: str, effort: str | None
+) -> None:
+    """#130: the grammar read `_high` and `(high)` as an effort but not `-high`, so `o3-mini-high`
+    was served as a model of its own (REQ-CAN-005). A dash reads as an effort for `high` and `xhigh`
+    only: `-medium` and `-max` end product names (Magistral Medium, Qwen3 Max, Codex Max)."""
+    identity = derive_identity(name)
+    assert identity is not None and (identity.model_id, identity.effort) == (model_id, effort), identity
+    assert derive_identity("mistral-medium") is None, "a moving alias stays one (D-166)"
