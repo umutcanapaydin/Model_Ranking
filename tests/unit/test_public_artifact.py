@@ -307,3 +307,23 @@ def test_the_adr_and_the_runbook_name_the_surfaces_that_go_dark() -> None:
         named = re.search(r"((?:`[a-z-]+`(?:, | and ))+`[a-z-]+`) (?:say|answer)[^.]*no evidence on the hosted engine", flat)
         assert named, name
         assert set(re.findall(r"`([a-z-]+)`", named.group(1))) == set(DARK_ON_THE_HOSTED_ENGINE), (name, named.group(1))
+
+
+def test_no_table_keeps_a_row_of_a_left_out_source(tmp_path: Path) -> None:
+    """The W5 Tester's M3: the derivation cleaned `scores` and `pricing` by name; `access` also names a
+    source, and a left-out source's row there survived with no error. Every table with a `source`
+    column is cleaned of the left-out sources."""
+    built, served = tmp_path / "built.db", tmp_path / "public.db"
+    _seeded_db(built)
+    with sqlite3.connect(built) as conn:
+        conn.execute("INSERT INTO access (raw_name, accessibility, source, source_url, observed_at)"
+                     " VALUES ('x', 'api', 'epoch_arc_agi', 'https://arcprize.example', '2026-10-01')")
+    public.derive(built, served)
+    with sqlite3.connect(served) as conn:
+        tables = [row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")]
+        for table in tables:
+            columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+            if "source" in columns:
+                left = conn.execute(f"SELECT count(*) FROM {table} WHERE source IN ({','.join('?' * len(EXPECTED_LEFT_OUT))})",
+                                    tuple(EXPECTED_LEFT_OUT)).fetchone()[0]
+                assert left == 0, table
