@@ -4181,7 +4181,7 @@ offline profile; #108's guard reads two spellings, not a typealias or a subclass
 **Revisit when:** the owner applies #122's CI patch (`NEEDS["offline"].in_ci` becomes `True`, and the
 budget falls by one), or a check here fires on correct input.
 
-## D-184 — Reading a question, the second round: a question of fact is a doubt, and the image rule reaches every surface but code
+## D-184 — Reading a question, the second round: a question of fact is a doubt, and the image rule stays on vision
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
 ("proceed with what you recommend, don't ask", owner, translated from Turkish); M19-W4, the owner
@@ -4211,10 +4211,11 @@ fresh held-out sets, twice per tier (`docs/research/m19-w4-question-reading-prob
    Every word the signals added before the measure is in a tuning row at a word's start, as #117's
    check reads; the code review found two that no tuning row holds whole, as the app matches them
    (`nerede`, `öner`): the first left the signal, the second is read by its stem (record §6).
-3. **The image rule stays on `vision`** (M18-W3), and reads the Turkish forms it missed: "make" in
-   each request form after an image that is its object (not a modifier, as in `resim galerisi`), and
-   "photo" and "change" typed without their Turkish letters; English words are compared as English
-   under the Turkish folding. At the baseline 6 and 7 of 20 requests to make an image went to
+3. **The image rule stays on `vision`** (M18-W3), and reads "photo" and "change" typed without their
+   Turkish letters, takes an image before `galerisi`, `yükleme`, `sayfası` or `bölümü` as a modifier,
+   and compares English words as English under the Turkish folding. The Turkish "make" (`yap`) the
+   wave added came out: it is the verb of most Turkish task phrases ("do the question in the photo"),
+   and read requests to read an image as making one (the fourth code review's B1). At the baseline 6 and 7 of 20 requests to make an image went to
    `web-dev`, where the rule does not reach. The wave reached beyond `vision` three times (every
    surface but code; a site vocabulary as a guard; a new image or the asker's own), and each reach
    told ordinary questions about an image on a website, in a store, an app or a document "not
@@ -4231,9 +4232,9 @@ of 20 with the model (baseline 2, 1; bar 14), 18 and 18 without it (baseline 14;
 holds. D-169 clause 6's catch bar and #66's and #113's model-tier bars are missed: by clause 6 the
 work stops after three variants per problem, and the pull request asks the owner whether to ship what
 holds. After the code reviews (record §6), on the spent sets: knowledge 5 and 5 of 20, not a search 24
-and 26 of 50, genuine searches asked 1 and 0; with the image rule back on `vision` only, requests to
-make an image told "not measured" 4 and 3 of 20 with the model and 14 of 20 without it, so #113 meets
-neither of its bars.
+and 26 of 50, genuine searches asked 1 and 0; with the image rule back on `vision` only and without
+`yap`, requests to make an image told "not measured" 2 and 1 of 20 with the model and 14 of 20 without
+it, the baseline: what ships does not move #113, which meets neither of its bars.
 
 **#177.** The three M18 held-out sets, spent at M18-W3, are retired to tuning
 (`RETIRED_HELD_OUT`), rather than an origin shown for each of the four signal words added after them.

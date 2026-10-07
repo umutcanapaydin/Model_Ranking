@@ -101,7 +101,8 @@ model's instructions.
 | c | a, the Turkish forms it missed, and never on `coding` or `agentic-coding` | 32, 31 | 21, 21 | 0, 0 |
 
 (b)'s field said yes to requests to read an image and to code that handles images: it failed both
-guards in its first run, and its second was stopped. (c) was built: on the M18 reviews' B4 lines
+guards in its first run, and its second was stopped. (c) was built (and its reach beyond `vision`,
+and its Turkish "make", later came out: §6): on the M18 reviews' B4 lines
 the rule reached `coding`, so it now stops there; on the tuning sets it changes no genuine search's
 surface. On the wording tier, (c) took the image tuning set from 25 to 33 of 36, overriding nothing.
 
@@ -150,9 +151,9 @@ make an image still missed went to `vision` (9) and `web-dev` (3) in both runs. 
   and not-a-search inputs from 18 and 21 to 25 and 27 of 50, against bars of 14 and 40. The signal
   was written from the tuning sets' phrasings and reaches about a third of a stranger's. The model's
   own verdict does not move with its instructions (§3, variant a).
-- **#113 meets its bar on the wording tier and misses it on the model tier.** Requests to make an
-  image told "not measured": 14 to 18 of 20 without the model (bar 18), 2 and 1 to 8 and 8 with it
-  (bar 14). No question that only mentions an image was overridden, and requests to read one reach
+- **#113, as measured at `de8c3f8`, met its bar on the wording tier and missed it on the model
+  tier.** Requests to make an image told "not measured": 14 to 18 of 20 without the model (bar 18), 2
+  and 1 to 8 and 8 with it (bar 14). The code that ships keeps neither gain (§6). No question that only mentions an image was overridden, and requests to read one reach
   `vision` as before.
 - **Three variants were run per problem.** By the plan and D-169 clause 6, nothing more is tuned on
   these sets, and the pull request asks the owner whether to ship what holds.
@@ -195,18 +196,24 @@ back on `vision` only, with the Turkish forms and the folding fix kept (`review3
 
 | measure | tier | §4, `de8c3f8` | the code that ships |
 |---|---|---:|---:|
-| requests to make an image told "not measured" (20) | model | 8, 8 | 4, 3 |
+| requests to make an image told "not measured" (20) | model | 8, 8 | 2, 1 |
 | | wording | 18 | 14 |
 | requests to read an image reaching `vision` (10) | model | 10, 9 | 10, 9 |
 | questions that only mention images, overridden (20) | both | 0 | 0 |
 
-The reading measures are as in the table above. On the image tuning set, 27 and 26 of 36 (model) and
-25 of 36 (wording). #113 meets neither bar; the reach beyond `vision` is #191.
+**The fourth code review** (`docs/reviews/m19-wave-4-review-round-4.md`, BLOCKING) found the
+Turkish "make" (`yap`) the wave added reading requests to read an image on `vision` ("do the question
+in the photo") as making one. It came out (`review4-*`, `review4w-*`); the column above is the code
+that ships, without it.
+
+The reading measures are as in the table above. On the image tuning set, 25 and 24 of 36 (model) and
+25 of 36 (wording): the baseline. #113 meets neither bar; the reach beyond `vision` is #191.
 
 ## 7. State
 
-- Shipped by the wave: the reading of a question of fact (a doubt), the second-round signals, and the
-  image rule's Turkish forms, on `vision` only. #66 and #113 stay open: the knowledge and image-making gaps
+- Shipped by the wave: the reading of a question of fact (a doubt) and the second-round signals
+  (#66: knowledge 5 and 5 of 20, from 1 and 3), and a few Turkish forms for the image rule on `vision`,
+  which move no measured count (#113 as at the baseline). #66 and #113 stay open: the knowledge and image-making gaps
   of §4 are what a next round would start from, on fresh sets.
 - The two M19 sets are spent. They stay registered as live (`RETIRED_HELD_OUT` leaves them out) until
   the next fresh set lands, as the M18 sets did until #177: the held-out gates need a live set.

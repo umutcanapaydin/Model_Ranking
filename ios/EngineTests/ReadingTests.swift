@@ -314,10 +314,9 @@ final class ReadingThroughTheTiersTests: OfflineTestCase {
         XCTAssertTrue(recordsGap(outcome), "a request to make an image is a gap the register keeps")
     }
 
-    /// The code reviews' B4: the image rule never overrides a question the tier sent to code, and a
-    /// question about a website or a photo that mentions an image is no request to make one (M19-W4,
-    /// when the rule left `vision`). Every probe line both reviews ran, with the model naming the
-    /// surface a careful reader would, keeps it.
+    /// The code reviews' B4: the image rule overrides only a question routed to `vision` (D-184
+    /// clause 3; M19-W4's reach beyond it came out, #191). Every probe line both reviews ran, with the
+    /// model naming the surface a careful reader would, keeps it.
     func testTheImageRuleNeverOverridesAnotherSurface() async {
         let lines: [(String, String)] = [
             ("remove duplicate photos with a python script", "coding"), ("fix image upload in django", "coding"),
@@ -512,7 +511,7 @@ final class ReadingVerdictFaultTests: OfflineTestCase {
     }
 }
 
-/// M19-W4 (#66, #113; REQ-ASK-005, REQ-IMG-003, REQ-RTR-005): the second round, from the tuning sets' misses
+/// M19-W4 (#66, #113; D-184; REQ-ASK-005, REQ-IMG-003, REQ-RTR-005): the second round, from the tuning sets' misses
 /// (`docs/research/m19-w4-question-reading-probe.md`). Every line is a tuning row, never a held-out one.
 final class ReadingSecondRoundTests: OfflineTestCase {
     private let known = ["coding", "agentic-coding", "web-dev", "assistant", "vision", "factuality", "search"]
@@ -575,9 +574,11 @@ final class ReadingSecondRoundTests: OfflineTestCase {
 
     /// #113: a request to make an image, in the Turkish forms the rule missed.
     func testARequestToMakeAnImageAsPeopleTypeItIsRead() {
-        for text in ["çocuk masalı için uzayda gezen bir kaplumbağa illüstrasyonu yapar mısın",
+        // Not "… illüstrasyonu yapar mısın" or "… rötuş yap, …": "yap" left the rule (the fourth
+        // review's B1: it read Turkish requests to read an image as making one).
+        for text in [
                      "fotografimin arka planini degistir, deniz kenari olsun",
-                     "düğün fotoğraflarıma rötuş yap, yüzdeki sivilceleri sil"] {
+                     "fotografimdaki lekeleri sil"] {
             XCTAssertTrue(InputSignals.makesAnImage(text), text)
         }
     }
@@ -668,10 +669,10 @@ final class ReadingSecondRoundReviewTests: OfflineTestCase {
     }
 }
 
-/// The second M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-rereview.md`), REQ-IMG-003 and
-/// REQ-RTR-005, REQ-ASK-005: beyond `vision`, only a new image or the asker's own is a request to
-/// make one; "fix the image" or "make images …" is about a site or a file. The lines are the
-/// review's own or made up here; none is a held-out question.
+/// The second M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-rereview.md`), D-184, REQ-IMG-003,
+/// REQ-RTR-005 and REQ-ASK-005: a question about an image on a site or in a file keeps its surface
+/// (the rule acts on `vision` only since the reach came out, #191). The lines are the review's own or
+/// made up here; none is a held-out question.
 final class ReadingRoundTwoReviewTests: OfflineTestCase {
     private let known = ["web-dev", "document", "assistant", "vision"]
 
@@ -739,7 +740,7 @@ final class ReadingImageRuleOnVisionOnlyTests: OfflineTestCase {
             XCTAssertEqual(outcome.categoryID, surface, question)
             XCTAssertFalse(outcome.unmeasured, question)
         }
-        for question in ["make me a logo for my bakery", "düğün fotoğraflarıma rötuş yap, yüzdeki sivilceleri sil"] {
+        for question in ["make me a logo for my bakery", "fotografimin arka planini degistir, deniz kenari olsun"] {
             let outcome = await TieredRouter(
                 model: ScriptedModelRouter(answers: [question: ["request": "a model search", "surface": "vision"]]),
                 similarity: SilentTier()
@@ -765,5 +766,33 @@ final class ReadingTurkishDoOnVisionTests: OfflineTestCase {
             XCTAssertEqual(outcome.categoryID, "vision", question)
             XCTAssertFalse(outcome.unmeasured, question)
         }
+    }
+}
+
+
+/// The fourth M19-W4 Code-Reviewer's M3 and M4 (D-184): branches of what stays that no test reached.
+final class ReadingRoundFourHoldsTests: OfflineTestCase {
+    /// The Turkish modifier rule on `vision`: an image before "galerisi" or "yükleme" names a gallery
+    /// or an upload page, not an image to make; a photo stem typed without its letter is an image.
+    func testTheTurkishImageFormsThatStayOnVision() async {
+        for (question, unmeasured) in [("resim galerisi oluştur", false), ("resim yükleme sayfası oluştur", false),
+                                       ("fotografimdaki lekeleri sil", true)] {
+            let outcome = await TieredRouter(
+                model: ScriptedModelRouter(answers: [question: ["request": "a model search", "surface": "vision"]]),
+                similarity: SilentTier()
+            ).route(question, within: ["vision", "assistant"])
+            XCTAssertEqual(outcome.unmeasured, unmeasured, question)
+        }
+    }
+
+    /// "what's" opens a question of fact as "what is" does.
+    func testWhatsOpensAQuestionOfFact() {
+        XCTAssertTrue(InputSignals.asksAFact("what's the capital of peru"))
+    }
+
+    /// M4: GNU make's error line is no order to make.
+    func testAMakeErrorLineIsNoPastedContent() {
+        XCTAssertFalse(InputSignals.pastedContent("make: *** No rule to make target 'all'. Stop."))
+        XCTAssertTrue(InputSignals.pastedContent("make this sound more polite: send me the report now"))
     }
 }
