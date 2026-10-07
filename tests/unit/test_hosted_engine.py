@@ -118,19 +118,40 @@ def _user(stage_lines: list[str]) -> str | None:
     return users[-1] if users else None
 
 
+def _instructions(lines: list[str]) -> list[tuple[str, str]]:
+    """Each line as Docker reads it: its instruction in upper case (Docker reads any case), and the
+    rest."""
+    pairs = []
+    for line in lines:
+        words = line.split(maxsplit=1)
+        if words and not words[0].startswith("#"):
+            pairs.append((words[0].upper(), words[1] if len(words) == 2 else ""))
+    return pairs
+
+
+def _is_root(user: str) -> bool:
+    """`root`, or a numeric id of 0 however written (Docker does not look a number up), or a name the
+    text cannot know (a variable). The user before any group: `USER 0:0` is root (the re-read's N3)."""
+    name = user.split(":")[0]
+    return name.lower() == "root" or (name.isdigit() and int(name) == 0) or "$" in name
+
+
 def _inv86_problems(text: str) -> list[str]:
     """What breaks INV-86 in a Dockerfile's text: the hosted engine run as root, an artifact the engine
-    can write (a `--chown` or `--chmod` copy), or anything the hosted stage runs."""
+    can write (a `--chown` or `--chmod` copy), or anything the hosted stage runs (the release security
+    review's RS2: read as Docker reads it)."""
     stages = _stages(text)
-    hosted_user = _user(stages["hosted"]) or _user(_serving_stage(text))
+    hosted = _instructions(stages["hosted"])
+    users = [rest.split()[0] for op, rest in hosted if op == "USER" and rest.split()]
+    serving = [rest.split()[0] for op, rest in _instructions(_serving_stage(text)) if op == "USER" and rest.split()]
     problems = []
-    # The user before any group: `USER root:root` and `USER 0:0` are root too (the re-read's N3).
-    if hosted_user is None or hosted_user.split(":")[0] in ("root", "0"):
-        problems.append(f"the hosted engine runs as {hosted_user!r}")
-    copies = [line for line in stages["hosted"] if line.startswith("COPY ")]
-    if not copies or any("--chown" in line or "--chmod" in line for line in copies):
+    every_user = users or serving[-1:]
+    if not every_user or any(_is_root(user) for user in every_user):
+        problems.append(f"the hosted engine runs as root at some point: {every_user}")
+    copies = [rest for op, rest in hosted if op == "COPY"]
+    if not copies or any(flag in rest.lower() for rest in copies for flag in ("--chown", "--chmod")):
         problems.append(f"the artifact's copy: {copies}")
-    if any(line.startswith("RUN ") for line in stages["hosted"]):
+    if any(op == "RUN" for op, _ in hosted):
         problems.append("the hosted stage runs a command")
     return problems
 
