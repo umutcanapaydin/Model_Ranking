@@ -69,6 +69,9 @@ enum InputSignals {
         }
         return before.contains { words in
             guard (1...8).contains(words.count) else { return false }
+            // "make: *** No rule to make target" is the tool's error line, not an order to make (the
+            // fourth M19-W4 review's M4).
+            if words == ["make"] { return false }
             // The verb where an instruction puts it: first in English ("translate into Spanish:",
             // "please fix this:"), last in Turkish ("şunu İngilizceye çevir:", "çevirir misin:").
             let english = words.prefix(2).contains(where: actVerbsEnglish.contains)
@@ -311,7 +314,7 @@ enum InputSignals {
     ]
     private static let imageStemsTurkish: Set<String> = [
         "oluştur", "tasarla", "düzenle", "rötuşla", "kaldır", "sil", "üret", "düzelt", "netleştir",
-        "renklendir", "boya", "çiz", "yap",
+        "renklendir", "boya", "çiz",
     ]
     private static let drawStemsTurkish: Set<String> = [
         "çiz", "çizer", "çizebilir", "çizsene", "çizin", "çizsin", "çizermisin", "çizebilirmisin",
