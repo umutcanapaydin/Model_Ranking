@@ -58,12 +58,14 @@ enum InputSignals {
         let searchWords: Set<String> = ["model", "models", "llm", "ai", "which", "best", "hangi", "modeli", "modelin"]
         if before.contains(where: { $0.contains(where: searchWords.contains) }) { return false }
         // Or a comparison before it ("make vs cmake: which is better"), or a question for a model after
-        // it, opening with "which" and naming a model ("…: hangi model en iyisi"): content may open with
-        // "which" or name AI, and still be content (the M19-W4 reviews' M6 and M3).
+        // it: a model, AI or LLM named, with "which" or "best" first, or the Turkish `hangi`/`hangisi`
+        // anywhere, since Turkish puts it last ("…: en iyi model hangisi"). Content may open with
+        // "which" or name AI, and still be content (the M19-W4 reviews' M6, M3 and the fifth's M1).
         if before.contains(where: { $0.contains("vs") || $0.contains("versus") }) { return false }
         if folds(after).map(wordsOf).contains(where: { words in
-            ["which", "hangi", "hangisi"].contains(words.first ?? "")
-                && words.contains(where: { $0.hasPrefix("model") || ["ai", "llm"].contains($0) })
+            let asks = ["which", "best"].contains(words.first ?? "")
+                || words.contains(where: { ["hangi", "hangisi"].contains($0) })
+            return asks && words.contains(where: { $0.hasPrefix("model") || ["ai", "llm", "yapay"].contains($0) })
         }) {
             return false
         }
@@ -269,8 +271,8 @@ enum InputSignals {
                         return true
                     }
                 }
-                // The image must be the verb's object, not a modifier of it ("resim galerisi yap" makes
-                // a gallery page, "resim yükleme sayfası" an upload page: the M19-W4 review's MJ1).
+                // An image before "galerisi", "yükleme", "sayfası" or "bölümü" names a gallery or an
+                // upload page, not an image to make (the M19-W4 review's MJ1); other cases are not read.
                 if isTurkishVerb(turkishWords, at: index, stems: imageStemsTurkish),
                    turkishWords.indices[max(0, index - 4)..<index].contains(where: { spot in
                        isImageNoun(turkishWords[spot])
