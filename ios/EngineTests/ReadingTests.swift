@@ -512,7 +512,8 @@ final class ReadingVerdictFaultTests: OfflineTestCase {
 }
 
 /// M19-W4 (#66, #113; D-184; REQ-ASK-005, REQ-IMG-003, REQ-RTR-005): the second round, from the tuning sets' misses
-/// (`docs/research/m19-w4-question-reading-probe.md`). Every line is a tuning row, never a held-out one.
+/// (`docs/research/m19-w4-question-reading-probe.md`). Every line is a tuning row or made up, never a
+/// held-out one.
 final class ReadingSecondRoundTests: OfflineTestCase {
     private let known = ["coding", "agentic-coding", "web-dev", "assistant", "vision", "factuality", "search"]
 
@@ -601,7 +602,7 @@ final class ReadingSecondRoundTests: OfflineTestCase {
     }
 }
 
-/// The M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-review-round-1.md`), REQ-ASK-005, REQ-IMG-003 and
+/// The M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-review-round-1.md`), D-184, REQ-ASK-005, REQ-IMG-003 and
 /// REQ-RTR-005: inputs the second round misread. The lines are the review's own, made up to probe
 /// the rules, or tuning rows; none is a held-out question.
 final class ReadingSecondRoundReviewTests: OfflineTestCase {
@@ -718,7 +719,7 @@ final class ReadingRoundTwoReviewTests: OfflineTestCase {
     }
 }
 
-/// The third M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-review-round-3.md`), REQ-IMG-003 and
+/// The third M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-review-round-3.md`), D-184, REQ-IMG-003 and
 /// REQ-RTR-005: the image rule's reach beyond `vision` drew three verdicts on one class and came out
 /// of the wave. A request to make an image that the tier sent elsewhere keeps that surface, as M18
 /// shipped it; on `vision` the rule reads it, Turkish forms included.

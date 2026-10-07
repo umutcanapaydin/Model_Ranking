@@ -103,7 +103,7 @@ model's instructions.
 (b)'s field said yes to requests to read an image and to code that handles images: it failed both
 guards in its first run, and its second was stopped. (c) was built (and its reach beyond `vision`,
 and its Turkish "make", later came out: §6): on the M18 reviews' B4 lines
-the rule reached `coding`, so it now stops there; on the tuning sets it changes no genuine search's
+the rule reached `coding`, so it then stopped there; on the tuning sets it changed no genuine search's
 surface. On the wording tier, (c) took the image tuning set from 25 to 33 of 36, overriding nothing.
 
 ## 4. The held-out measure, at `de8c3f8`
@@ -192,7 +192,8 @@ request to make an image. The review's thirteen website and document lines now k
 **The third code review** (`docs/reviews/m19-wave-4-review-round-3.md`, BLOCKING) found the
 second fix's patterns ("my photo", a making verb with "a") overriding ordinary questions about a
 site's or a file's image again. The third verdict on one class takes the slice out: the image rule is
-back on `vision` only, with the Turkish forms and the folding fix kept (`review3-*`, `review3w-*`):
+back on `vision` only, with the Turkish forms and the folding fix kept (`review3-*`, `review3w-*`). The
+table's last column is the code that ships after the fourth review too (`review4-*`, `review4w-*`):
 
 | measure | tier | §4, `de8c3f8` | the code that ships |
 |---|---|---:|---:|
@@ -207,7 +208,8 @@ in the photo") as making one. It came out (`review4-*`, `review4w-*`); the colum
 that ships, without it.
 
 The reading measures are as in the table above. On the image tuning set, 25 and 24 of 36 (model) and
-25 of 36 (wording): the baseline. #113 meets neither bar; the reach beyond `vision` is #191.
+25 of 36 (wording), against 24 and 23, and 25, at the reference. #113 meets neither bar; the reach
+beyond `vision` is #191.
 
 ## 7. State
 

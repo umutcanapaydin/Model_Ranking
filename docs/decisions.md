@@ -4215,7 +4215,9 @@ fresh held-out sets, twice per tier (`docs/research/m19-w4-question-reading-prob
    Turkish letters, takes an image before `galerisi`, `yükleme`, `sayfası` or `bölümü` as a modifier,
    and compares English words as English under the Turkish folding. The Turkish "make" (`yap`) the
    wave added came out: it is the verb of most Turkish task phrases ("do the question in the photo"),
-   and read requests to read an image as making one (the fourth code review's B1). At the baseline 6 and 7 of 20 requests to make an image went to
+   and read requests to read an image as making one (the fourth code review's B1); it stays a verb of
+   a task with its content (`bu cümleyi daha resmi yap: …`, "make this sentence more formal: …", clause 2). At the baseline 6 and 7 of 20
+   requests to make an image went to
    `web-dev`, where the rule does not reach. The wave reached beyond `vision` three times (every
    surface but code; a site vocabulary as a guard; a new image or the asker's own), and each reach
    told ordinary questions about an image on a website, in a store, an app or a document "not
@@ -4240,7 +4242,7 @@ it, the baseline: what ships does not move #113, which meets neither of its bars
 (`RETIRED_HELD_OUT`), rather than an origin shown for each of the four signal words added after them.
 
 **The cost.** A few more genuine searches are asked about (on the tuning set, one more in 186; on the
-held-out set, 2 and 1 of 40, from 0). The fact signal reads about a third of a stranger's questions of
+held-out set, 2 and 1 of 40 at `de8c3f8`, and 1 and 0 of 40 as the code ships, from 0). The fact signal reads about a third of a stranger's questions of
 fact: its forms are the tuning sets' (§4 lists the misses).
 
 **Revisit when:** a stranger's first use (#91's protocol) gives a set to measure on, or a stronger
