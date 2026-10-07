@@ -118,17 +118,49 @@ def _user(stage_lines: list[str]) -> str | None:
     return users[-1] if users else None
 
 
+def _instructions(lines: list[str]) -> list[tuple[str, str]]:
+    """Each line as Docker reads it: its instruction in upper case (Docker reads any case), and the
+    rest."""
+    pairs = []
+    for line in lines:
+        words = line.split(maxsplit=1)
+        if words and not words[0].startswith("#"):
+            pairs.append((words[0].upper(), words[1] if len(words) == 2 else ""))
+    return pairs
+
+
+def _is_root(user: str) -> bool:
+    """`root`, or a numeric id of 0 however written (Docker does not look a number up), or a name the
+    text cannot know (a variable). The user before any group: `USER 0:0` is root (the re-read's N3)."""
+    name = user.split(":")[0]
+    return name.lower() == "root" or (name.isdigit() and int(name) == 0) or "$" in name
+
+
+def _inv86_problems(text: str) -> list[str]:
+    """What breaks INV-86 in a Dockerfile's text: the hosted engine run as root, an artifact the engine
+    can write (a `--chown` or `--chmod` copy), or anything the hosted stage runs (the release security
+    review's RS2: read as Docker reads it)."""
+    stages = _stages(text)
+    hosted = _instructions(stages["hosted"])
+    users = [rest.split()[0] for op, rest in hosted if op == "USER" and rest.split()]
+    serving = [rest.split()[0] for op, rest in _instructions(_serving_stage(text)) if op == "USER" and rest.split()]
+    problems = []
+    every_user = users or serving[-1:]
+    if not every_user or any(_is_root(user) for user in every_user):
+        problems.append(f"the hosted engine runs as root at some point: {every_user}")
+    copies = [rest for op, rest in hosted if op == "COPY"]
+    if not copies or any(flag in rest.lower() for rest in copies for flag in ("--chown", "--chmod")):
+        problems.append(f"the artifact's copy: {copies}")
+    if any(op == "RUN" for op, _ in hosted):
+        problems.append("the hosted stage runs a command")
+    return problems
+
+
 def test_the_hosted_engine_runs_as_no_root_and_cannot_write_its_artifact() -> None:
     """The M19 security review's S4: the engine run as root, or its artifact made its own, passed the
     whole suite. The hosted stage inherits the serving stage's non-root user and takes the artifact
     as root's, unchangeable by the engine."""
-    stages = _stages(DOCKERFILE.read_text(encoding="utf-8"))
-    serving_user = _user(_serving_stage(DOCKERFILE.read_text(encoding="utf-8")))
-    hosted_user = _user(stages["hosted"]) or serving_user
-    # The user before any group: `USER root:root` and `USER 0:0` are root too (the re-read's N3).
-    assert hosted_user is not None and hosted_user.split(":")[0] not in ("root", "0"), hosted_user
-    copies = [line for line in stages["hosted"] if line.startswith("COPY ")]
-    assert copies and not any("--chown" in line or "--chmod" in line for line in copies), copies
+    assert _inv86_problems(DOCKERFILE.read_text(encoding="utf-8")) == []
 
 
 def test_the_hosted_stage_only_copies_and_points_at_its_artifact() -> None:
@@ -136,8 +168,30 @@ def test_the_hosted_stage_only_copies_and_points_at_its_artifact() -> None:
     dropped, passed every test. The stage copies the artifact and names it, and runs nothing."""
     fly = tomllib.loads(FLY.read_text(encoding="utf-8"))
     hosted = _stages(DOCKERFILE.read_text(encoding="utf-8"))["hosted"]
-    assert not any(line.startswith("RUN ") for line in hosted), hosted
+    assert "the hosted stage runs a command" not in _inv86_problems(DOCKERFILE.read_text(encoding="utf-8"))
     assert _env(hosted).get("MODEL_RANKING_DB") == fly["env"]["MODEL_RANKING_DB"]
+
+
+@pytest.mark.parametrize(
+    "planted",
+    [
+        "USER root:root",
+        "USER 0:0",
+        "USER 00",  # a numeric id is not looked up: uid 0 (the release security review's K7)
+        "user root",  # Docker reads an instruction in any case (K8)
+        "USER $ROOT_USER",  # a user the text cannot name
+        "copy --chown=appuser build/hosted/advisor.db /srv/advisor.db",
+        "user root\nrun chmod 666 /srv/advisor.db\nuser appuser",  # K10
+        "RUN chmod 666 /srv/advisor.db",
+    ],
+)
+def test_inv86_holds_however_the_dockerfile_spells_it(planted: str) -> None:
+    """The release security review's RS2: INV-86's checks read the Dockerfile as Docker does, an
+    instruction in any case and a numeric root as root. Each line is appended to the hosted stage, the
+    Dockerfile's last."""
+    text = DOCKERFILE.read_text(encoding="utf-8").rstrip("\n") + "\n" + planted + "\n"
+    assert planted.splitlines()[0] in _stages(text)["hosted"], "the plant is not in the hosted stage"
+    assert _inv86_problems(text), planted
 
 
 # --- The W5 Tester seat (docs/reviews/m19-wave-5-tester.md) ------------------------------------------------

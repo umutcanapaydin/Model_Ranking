@@ -319,6 +319,8 @@ the closure report. **Revisit when:** a second project's post-prod dataset exist
 
 ---
 
+**Amended by D-181 (2026-10-06)**: the rule that the phone does no arithmetic on a served number outside its named files is checked on the compiled module, through the names, operators and methods D-181 lists; gap G-2 in `docs/security-invariants.md` holds what it does not follow (added at the M19 closure, the repo review's M10).
+
 ## D-105 — Category layer: primary-benchmark-per-category; no cross-scale averaging; generic row contract
 
 **Status:** proposed (owner pre-accepted in m2-plan §13, 2026-08-11; ratify at M2 closure)
@@ -1082,6 +1084,8 @@ quiet exception to this one.
 
 ---
 
+**Amended by D-180 (2026-10-06)**: the enforcement of what leaves the phone reads what the compiler resolved, in all four build configurations: the two privacy sinks, `EngineClient.swift` and `StandingsStore.swift`, hold only values and call only what is listed; gap G-1 holds the rest (added at the M19 closure, the repo review's M10).
+
 ## D-127 — Nine categories to open with, `assistant` split, Tier-3 demoted to evidence
 
 **Status:** accepted · **Date:** 2026-08-19 · **Decided by:** the owner
@@ -1705,6 +1709,8 @@ missing fact.
 the rounding concession above. That moves the answer payload and is therefore a real revision.
 
 ---
+
+**Amended by D-181 (2026-10-06)**: the arithmetic on the margin and the scores this ADR publishes is checked on the compiled module, not by spelling; `Uncertainty.swift` stays the one file allowed it (added at the M19 closure, the repo review's M10).
 
 ## D-139 — A second benchmark older than 90 days, or undated, does not upgrade a coverage claim
 
@@ -2847,6 +2853,7 @@ note 9:** the surface a question routes to is sent as `task` of `/v1/recommendat
 D-126, the same request a reader's own tap on that surface makes. The question's text, its
 refinements and the reader's removals never leave the device.
 
+**Amended by D-181 (2026-10-06)**: clause 2 (the combination does arithmetic on positions only, in `Combine.swift`) is checked on the compiled module, through the names D-181 lists; gap G-2 holds the rest (added at the M19 closure, the repo review's M10).
 
 ## D-161 — The project runs on DevFlow v6.4, and session commits carry the owner's identity
 
@@ -3206,6 +3213,8 @@ distance between models shown, which would need scores and a new ADR under D-105
   clause 3 stands as ruled.
 
 **Amended by D-173 (2026-10-04)**: `/v1/boards` is built once per artifact and compressed on request (clause 5), and boards no question selects stay published (clause 6).
+
+**Amended by D-181 (2026-10-06)**: clause 4's two named permissions, each for one file, are checked on the compiled module: a served number is any numeric value a decoded type stores, found by the compiler, never listed by hand, and it is followed through the names D-181 lists; gap G-2 holds the rest (added at the M19 closure, the repo review's M10).
 
 ## D-168 — The question selects its boards as a surface plus declared refinements
 

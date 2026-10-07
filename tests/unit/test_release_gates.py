@@ -1,4 +1,5 @@
-"""M19-W5: the Stage 5.2 gates `make journey` and `make cold-start`, wired for the hosted engine.
+"""M19-W5 (D-185, REQ-API-009): the Stage 5.2 gates `make journey` and `make cold-start`, wired for the
+hosted engine.
 
 `make journey URL=...` runs the black-box journey (`scripts/journey.py`) against the deployed engine;
 `make cold-start` builds the image's `hosted` stage and boots it with nothing persisted, on loopback,

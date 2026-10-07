@@ -1,7 +1,7 @@
 ---
 record_type: plan
 id: m19-plan
-status: draft
+status: ratified
 process_version: v6.6
 date: 2026-10-05
 ---
@@ -241,3 +241,19 @@ variants that changed the model ran once each, and #113's (b) once: their first 
 The coding-set guard owed to variants that change the model's instructions was not run, since none of
 them was built. The code review's fixes cost one knowledge question on the spent set; after three review verdicts on
 one class, the image rule's reach beyond `vision` came out of the wave (#191, record §6).
+
+**Amendment (2026-10-07, W5).** The owner called the release ("we need to deploy the engine to a
+real supabase or something and we need to go for testflight", owner, 2026-10-07). Supabase hosts
+databases and functions, not a Python service, so D-116's Fly.io stands (D-185). #88 was ruled on
+the standing instruction (D-185, a public artifact without seven sources; the owner may overrule),
+and #141, #145, #147 and #94 were taken. #142's guard half was written in four commits marked OWNER
+APPROVAL; its other half is #189. #81 (CI) and #115 (the phone's prompt) stay the owner's. The
+TestFlight files were added beyond the list, as the release needs them. The Stage 5.1 review ran
+(MAJOR), and its re-read after the fixes is MINOR; nothing is deployed or uploaded by the agent.
+
+**Amendment (2026-10-07, the M19 closure).** §1's W5 criterion is met for the agent's items and not
+for two of the owner's: #81 (CI) and #115 (the phone's prompt) are neither done nor ruled. W5 built
+a deploy surface §3 does not name (`Dockerfile`, `fly.toml`, `.dockerignore`,
+`scripts/deploy_hosted_engine.sh`, `src/app/workflows/public.py`, `ios/Config/**`); the next plan's
+globs carry it (the repo review's M14). The status is ratified: the owner merged this plan (#161),
+and its waves ran as amended here.
