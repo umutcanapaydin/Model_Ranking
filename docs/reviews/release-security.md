@@ -435,3 +435,15 @@ The conditions:
    - Never destroy the Fly app while TestFlight builds are installed (S10).
 5. **Before external testers** (Beta App Review), treat #187, a rate limit, as the cost control that
    is still owed.
+
+## Dispositions, at the closure
+
+Added by the lead agent after the seat closed; the record above is as the seat wrote it.
+
+| finding | disposition |
+|---|---|
+| RS1 | the owner's (a hook change, AGENTS.md §3): the seven spellings and the seat's two-regex fix are on #189, and #197's description names `fb2040d`'s regression before its merge |
+| RS2 | fixed `55e39b8` (red) and `b77ec21`: INV-86's checks read an instruction in any case and a numeric or variable root |
+| RS3 | no action (INFO): a backstop; the delete it double-checks is held by `test_public_artifact.py` |
+| RS4 | fixed in this closure: the runbook's S10 line (never destroy the Fly app while builds are installed; `fly scale count 0` to stop it); #187's body corrected |
+| RS5 | no action (INFO) |

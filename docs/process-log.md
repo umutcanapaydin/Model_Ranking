@@ -637,3 +637,15 @@ Lesson: start the session in the repository, or the guards you cite are not runn
 - The owner asked the agent to stop waiting for merges, finish as draft pull requests, and fix the
   medium bugs and above.
 Lesson: a rule that reads people's words meets the reviewer's next phrasing; measure its reach on a set, and stop at three.
+
+## 2026-10-07 — the M19 closure: a reading change that broke the screen, and the release's verdict of record
+
+- The repo review (MINOR: one MAJOR, fifteen MINOR) found W4's question-of-fact doubt had turned three
+  UI tests red, unseen because no M19 wave ran `make ui-test`; fixed on W4's branch (`bd60265`, 19 of
+  19). Its MINOR findings were drift (the architecture, AGENTS.md, the PRD, the plan, the ledger) and
+  are fixed here or filed (#198 to #203).
+- An independent seat read the release surface changed after the security re-read and wrote the
+  verdict of record the release rules name (`docs/reviews/release-security.md`, MINOR: the owner may deploy once the pull requests merge).
+- The 29 issues M19 took are in its GitHub milestone; M18's milestone is closed.
+- The deploy, the TestFlight upload and the four OWNER APPROVAL hook commits wait on the owner.
+Lesson: when what the reader is shown changes, run the screen's tests, even if only the reading moved.

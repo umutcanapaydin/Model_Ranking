@@ -48,6 +48,10 @@ dashboard's usage page now and then once the app is shared; a rate limit is #187
 **After each deploy, log out:** `fly auth logout`. While you are logged in, a coding agent on this
 Mac could deploy or destroy the app (#190).
 
+**Never destroy the Fly app while TestFlight builds are installed.** Its name would be free for anyone
+to claim, and every installed build would then ask their server (the security review's S10). To stop
+the engine, run `fly scale count 0`; `fly scale count 1` starts it again.
+
 **After each nightly refresh you want public,** run `scripts/deploy_hosted_engine.sh` again: the
 public artifact is derived from the one your Mac serves, and each deploy is one image of code and
 data. Nothing refreshes on Fly (D-116).

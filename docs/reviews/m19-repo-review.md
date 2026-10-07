@@ -352,19 +352,19 @@ left in this file alone (`docs/closure-checklist.md` §B.0).
 
 | finding | severity | disposition |
 |---|---|---|
-| M1 | MAJOR | |
-| M2 | MINOR | |
-| M3 | MINOR | |
-| M4 | MINOR | |
-| M5 | MINOR | |
-| M6 | MINOR | |
-| M7 | MINOR | |
-| M8 | MINOR | |
-| M9 | MINOR | |
-| M10 | MINOR | |
-| M11 | MINOR | |
-| M12 | MINOR | |
-| M13 | MINOR | |
-| M14 | MINOR | |
-| M15 | MINOR | |
-| M16 | MINOR | |
+| M1 | MAJOR | fixed `bd60265` on `wave/m19-w4`: the three tests ask a question no code signal reads, a new test holds the question-of-fact note on screen; `make ui-test` 19 of 19 (3 of 16 red before). The shared fixture is #199 |
+| M2 | MINOR | closed by `docs/reviews/release-security.md` (`8084c23`), an independent short read of `6c98dd7..81af5ba` on the release surface: MINOR |
+| M3 | MINOR | fixed `47da19a` (the runbook's step 1.1 updates the Mac's engine and lets it refresh first); the stamp is #198 |
+| M4 | MINOR | fixed `47da19a` (a rename and the health-check fallback go through a pull request; README names the runbook) |
+| M5 | MINOR | fixed `b5725db` and `47da19a` |
+| M6 | MINOR | fixed `47da19a` |
+| M7 | MINOR | fixed `47da19a` (the checklist's E.1 reads PASS or MINOR, as the Security-Reviewer's definition does); the verdict of record is `docs/reviews/release-security.md` (`8084c23`), MINOR |
+| M8 | MINOR | fixed `47da19a` (REQ-REL-001 to 003, REQ-API-009, REQ-REF-007, W-030, the two test files' citations) |
+| M9 | MINOR | fixed `47da19a` (W-123, REQ-ASK-003, REQ-RTR-005); #191's body corrected in place |
+| M10 | MINOR | fixed `47da19a` (five Amended-by pointers); the check is #200 |
+| M11 | MINOR | #201 |
+| M12 | MINOR | fixed `b5725db` and `47da19a` (M19's skips, the `2dc5b9f` bypass and the hook-less sessions as ledger rows); the gate is #202 |
+| M13 | MINOR | fixed `b5725db` (the M19 entry; the closure's entry follows); the gate is #203 |
+| M14 | MINOR | fixed `b5725db` and `47da19a` (the W5 and closure amendments, the status); on GitHub, the 29 issues M19 took are in its milestone, and M18's milestone is closed |
+| M15 | MINOR | triaged #185 to #195 and #198 to #203; `dev:done` on #149 |
+| M16 | MINOR | fixed `47da19a` (`tests/unit/test_journey.py`) |

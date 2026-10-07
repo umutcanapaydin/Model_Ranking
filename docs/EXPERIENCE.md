@@ -866,3 +866,72 @@ timing is cheap to keep by hand once it is named (the repo review's M17).
 - Thirteen merged bugs were closed without `qa:passed`, on the owner's instruction; D-178 makes it
   the rule.
 - A W6 review probe ended in a Python crash report on the owner's Mac, from the wave's own timer.
+
+## M19 closure — 2026-10-07 — a word list meets the next phrasing, and a release is mostly the owner's steps
+
+M18 left the app on the owner's phone, the question read in code and by the model, and a release
+prepared but not called. M19 fixed what the reader sees, held the phone's promises on the compiled
+module, moved the gates before the push, read the question a second time, and, when the owner called
+it, made the engine ready for Fly.io and the app ready for TestFlight.
+- **What the reader sees.** 74 models named as their makers spell them, one release one model, and
+  each pick carrying its model's id (W1; D-179, D-182).
+- **What the phone promises.** The privacy sinks and the arithmetic rule are checked on what the
+  compiler resolved, in all four build configurations (W2; D-180, D-181).
+- **What a wave sees before it pushes.** CI's skip count, the plan's tier and globs, and a test run
+  offline on macOS (W3; D-183).
+- **What a release needs.** A public artifact without the sources whose terms do not permit it, one
+  deploy script that ships `main`'s tip and reads `/health` back, and an app whose Release build asks
+  the hosted engine (W5; D-185).
+
+Engineering shapes worth keeping:
+
+1. **A rule that reads people's words is beaten by the reviewer's next phrasing.** W4's reading went
+   through five review rounds. Each round wrote new sentences the rules misread: a gallery read as
+   an image to make, a Turkish "make" that is the verb of most Turkish tasks, a colon before a model
+   question. The fix that held was the narrow one: keep the image rule on `vision`, where it was
+   measured, and stop at three verdicts on one class (#191).
+2. **Measure a code-only change by replaying the model's recorded answers.** The on-device model's
+   answers were recorded once per run, and `ReplayProbe` read them through each later commit. Five
+   review rounds re-measured without running the model again, and every replay matched row for row.
+   It cannot measure a change to the model's instructions; that needs a fresh run.
+3. **A held-out set is spent by its measures, not only by being read.** The M19 sets were written
+   by an independent seat and not read until measured. Five review rounds then replayed on them, so
+   they are spent too (#195).
+4. **The order of an xcconfig is a security property.** The last matching setting wins, so the
+   owner's local `ENGINE_URL`, included after the Release line, would have sent a TestFlight archive
+   to the owner's Mac over plain http. The security seat found it by reading the include order; the
+   Release line now comes after the include, and a test reads the order.
+5. **A licence table is a code change.** The public artifact is derived from the served one by
+   removing whole sources, and a test holds that every table with a `source` column is in the list,
+   after the Tester found accessibility rows of a left-out source surviving.
+6. **A change to how the question is read is a change to the screen.** W4's new doubt turned three
+   committed UI tests red: they waited for a question back that the note now replaced. W4's close
+   cited no UI run, `swift test` does not compile the UI target, and five review rounds read the
+   Engine only. The milestone review found it from the code; `make ui-test` confirmed 3 of 16 red,
+   and the fix ran 19 of 19 (#199 asks for one fixture both suites read).
+7. **A release is mostly the owner's steps.** An account, a card, a signing identity, an app record
+   and an upload are the owner's; the agent's part is a runbook the owner can follow without the
+   agent, and a deploy script that refuses anything but `main`'s tip.
+
+**The closure reviews.** The repo review (`docs/reviews/m19-repo-review.md`) is MINOR: one MAJOR,
+the UI tests above, fixed on W4's branch, and fifteen MINOR, each fixed here or filed (#198 to #203);
+the dispositions are at the end of the record. Most were drift: the architecture, AGENTS.md, the PRD
+and the plan still described M18, and no M19 skip had reached the ledger, the same findings as M18's
+review. The release's security verdict of record is `docs/reviews/release-security.md`
+(MINOR: the owner may deploy once the release's pull requests merge), after the first Stage 5.1 review (MAJOR) and its re-read (MINOR).
+
+**What was accepted rather than solved:**
+- #66's and #113's bars, missed a second time; the owner is asked on #196;
+- the image rule beyond `vision` (#191), past three attempts;
+- the hosted engine's rate limit and spending cap (#187, #188), and the guard's other spellings
+  (#189);
+- nothing deployed beyond the owner's devices, twelfth milestone; the deploy and the upload wait on
+  the owner's steps and merges.
+
+**Control bypass** (the ledger rows are in `docs/control-events.csv`):
+- W5's `2dc5b9f` was committed without `make check-fast`.
+- A W3 probe (`open -g https://example.invalid/`) may have opened a browser tab on the owner's Mac;
+  the address cannot resolve, so nothing was sent.
+- Every M19 session started outside the repository, so its hooks never loaded (#142), M18's
+  closure lesson not kept; `make check-fast` was run by hand before each commit, with the one
+  exception above. One ledger row records it.
