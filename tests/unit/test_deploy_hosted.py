@@ -188,3 +188,99 @@ def test_only_the_tip_of_origin_main_deploys(tmp_path: Path) -> None:
     done = _deploy(env)
     assert done.returncode != 0 and "origin/main" in done.stdout + done.stderr
     assert not calls.exists()
+
+
+# --- The W5 Tester seat (docs/reviews/m19-wave-5-tester.md) ------------------------------------------------
+
+def test_an_untracked_file_is_refused_before_anything_is_built(tmp_path: Path) -> None:
+    """The script's step 1: "The tree must be committed, untracked files included". An untracked file
+    under `src/` goes into the image (`!src` in `.dockerignore`) but into no commit, so the stamp would
+    name code the image does not hold. Only a changed tracked file was tested; `--untracked-files=no`
+    (the Tester's D1) passed every test."""
+    repo, _served, calls, env = _scratch(tmp_path)
+    (repo / "not_committed.py").write_text("print('not in any commit')\n", encoding="utf-8")
+    done = _deploy(env)
+    assert done.returncode != 0 and not calls.exists(), done.stdout + done.stderr
+    assert not (repo / "build" / "hosted" / "advisor.db").exists()
+
+
+@pytest.mark.parametrize("served_state", ["missing", "unreadable"])
+def test_a_derivation_that_cannot_run_stops_the_deploy_beside_an_older_artifact(
+    tmp_path: Path, served_state: str
+) -> None:
+    """#88: the image ships what the derivation just wrote, never an older public artifact left in
+    build/hosted. A derivation that fails must stop the deploy; `|| true` after it (the Tester's D2)
+    passed every test, and so did the missing-artifact refusal removed (D7)."""
+    repo, served, calls, env = _scratch(tmp_path)
+    (repo / ".gitignore").write_text("build/\n", encoding="utf-8")
+    _git("-C", str(repo), "add", ".gitignore")
+    _git("-C", str(repo), "commit", "-qm", "ignore build")
+    _git("-C", str(repo), "push", "-q", "origin", "main")
+    older = repo / "build" / "hosted" / "advisor.db"
+    older.parent.mkdir(parents=True)
+    _seeded_db(older)
+    if served_state == "missing":
+        served.unlink()
+    else:
+        served.write_bytes(b"not a database")
+    done = _deploy(env)
+    assert done.returncode != 0, done.stdout + done.stderr
+    assert not calls.exists(), calls.read_text(encoding="utf-8")
+    if served_state == "missing":
+        assert "MODEL_RANKING_SERVED" in done.stderr, done.stderr
+
+
+def test_the_image_is_built_on_flys_builder(tmp_path: Path) -> None:
+    """The runbook (step 1.5) and the script's header: the deploy builds on Fly's builder, not on the
+    Mac's Docker. `--remote-only` dropped (the Tester's D3) passed every test."""
+    _repo, _served, calls, env = _scratch(tmp_path)
+    assert _deploy(env).returncode == 0
+    assert "--remote-only" in calls.read_text(encoding="utf-8").split()
+
+
+def _dockerignore_keeps(path: str) -> bool:
+    """Whether Docker's build context holds `path` under `.dockerignore`: the last rule that matches
+    the path or a folder above it decides; `**` spans folders, `*` one name (moby's patternmatcher)."""
+    import re
+
+    def regex(pattern: str) -> re.Pattern[str]:
+        out, i = "", 0
+        while i < len(pattern):
+            if pattern.startswith("**/", i):
+                out, i = out + "(?:.*/)?", i + 3
+            elif pattern.startswith("**", i):
+                out, i = out + ".*", i + 2
+            elif pattern[i] == "*":
+                out, i = out + "[^/]*", i + 1
+            elif pattern[i] == "?":
+                out, i = out + "[^/]", i + 1
+            else:
+                out, i = out + re.escape(pattern[i]), i + 1
+        return re.compile(out)
+
+    rules = [line.strip() for line in (REPO / ".dockerignore").read_text(encoding="utf-8").splitlines()
+             if line.strip() and not line.strip().startswith("#")]
+    parts = path.split("/")
+    candidates = ["/".join(parts[: n + 1]) for n in range(len(parts))]
+    kept = True
+    for rule in rules:
+        negated = rule.startswith("!")
+        compiled = regex(rule.lstrip("!").strip("/"))
+        if any(compiled.fullmatch(candidate) for candidate in candidates):
+            kept = negated
+    return kept
+
+
+@pytest.mark.parametrize(("path", "kept"), [
+    ("Dockerfile", True), ("pyproject.toml", True), ("requirements/serve.lock", True),
+    ("requirements/build.lock", True), ("src/app/adapter/main.py", True), ("build/hosted/advisor.db", True),
+    ("advisor.db", False), (".venv/bin/python", False), (".git/config", False), ("tests/unit/test_api_v1.py", False),
+    ("docs/decisions.md", False), ("build/hosted/advisor.db.x1.deriving", False),
+    ("src/app/.env", False), ("src/app/.env.local", False), ("src/app/__pycache__/main.cpython-311.pyc", False),
+    ("src/app/stray.pyc", False), ("src/app/cert.pem", False), ("src/app/server.key", False),
+])
+def test_the_build_context_holds_what_the_image_copies_and_no_secret(path: str, kept: bool) -> None:
+    """The M19 security review's S14 and the second W5 review's M6, read as Docker reads the list: the
+    last matching rule wins. The wave's tests check that each pattern is present after `!src`, so a
+    later `!` rule bringing a secret back (the Tester's K6; the second review's I3) passed every test."""
+    assert _dockerignore_keeps(path) is kept, path

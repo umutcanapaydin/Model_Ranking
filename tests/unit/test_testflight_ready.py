@@ -119,3 +119,29 @@ def test_nothing_after_the_release_address_can_replace_it() -> None:
     release = next(i for i, line in enumerate(lines) if line.startswith("ENGINE_URL[config=Release]"))
     after = [line for line in lines[release + 1:] if line.strip() and not line.lstrip().startswith("//")]
     assert not any(line.lstrip().startswith(("ENGINE_URL", "#include")) for line in after), after
+
+
+# --- The W5 Tester seat (docs/reviews/m19-wave-5-tester.md) ------------------------------------------------
+
+#: An app-target build configuration based on Engine.xcconfig, and the settings it sets itself.
+_ENGINE_CONFIG = re.compile(
+    r"/\* (?P<name>\w+) \*/ = \{\s*isa = XCBuildConfiguration;\s*"
+    r"baseConfigurationReference = \w+ /\* Engine\.xcconfig \*/;\s*buildSettings = \{(?P<settings>.*?)\n\t\t\t\};",
+    re.DOTALL,
+)
+
+
+def test_no_target_setting_overrides_what_the_engine_config_or_the_local_file_sets() -> None:
+    """D-185 clause 4 and the runbook's step 2.1. A target's own build setting outranks its xcconfig, so
+    an `ENGINE_URL` set on the app target sends every archive there, whatever Engine.xcconfig says, and
+    one set to "" drops the icon. Planted in the project's Release configuration (the Tester's X1, X2),
+    each passed every test, which read the xcconfig alone. The local file's `DEVELOPMENT_TEAM` and
+    `PRODUCT_BUNDLE_IDENTIFIER` would be overridden the same way."""
+    project = (REPO / "ios" / "ModelRanking.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")
+    configs = {match["name"]: match["settings"] for match in _ENGINE_CONFIG.finditer(project)}
+    assert set(configs) == {"Debug", "Release"}, sorted(configs)
+    owned = {name.split("[")[0] for name in _xcconfig("Engine.xcconfig")} | {"DEVELOPMENT_TEAM", "PRODUCT_BUNDLE_IDENTIFIER"}
+    assert {"ENGINE_URL", "ASSETCATALOG_COMPILER_APPICON_NAME"} <= owned
+    for name, settings in configs.items():
+        keys = {line.split("=", 1)[0].strip().strip('"').split("[")[0] for line in settings.splitlines() if "=" in line}
+        assert not keys & owned, (name, sorted(keys & owned))

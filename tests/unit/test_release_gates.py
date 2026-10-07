@@ -73,3 +73,46 @@ def test_a_cold_start_that_cannot_build_stops_and_runs_nothing(tmp_path: Path) -
                           env=env, check=False)
     assert done.returncode != 0
     assert not any(line.startswith("docker run") for line in calls.read_text(encoding="utf-8").splitlines())
+
+
+# --- The W5 Tester seat (docs/reviews/m19-wave-5-tester.md) ------------------------------------------------
+
+def _cold_start(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["bash", "docs/cold-start.sh"], cwd=REPO, capture_output=True, text=True, timeout=60,
+                          env=env, check=False)
+
+
+def test_a_cold_start_whose_journey_fails_fails(tmp_path: Path) -> None:
+    """Stage 5.2: the gate is the journey's verdict on the booted image. Its exit swallowed (the
+    Tester's J1) passed every test, because the stand-in journey always passed."""
+    env, calls = _stand_ins(tmp_path)
+    Path(env["PYTHON"]).write_text(f'#!/bin/sh\necho "python $*" >> "{calls}"\n'
+                                   'case "$1" in scripts/journey.py) exit 3 ;; esac\n', encoding="utf-8")
+    done = _cold_start(env)
+    lines = calls.read_text(encoding="utf-8").splitlines()
+    assert any(line.startswith("python scripts/journey.py") for line in lines), lines
+    assert done.returncode != 0, done.stdout + done.stderr
+    assert any(line.startswith("docker rm -f") for line in lines), "the container is removed on failure too"
+
+
+def test_a_container_that_never_answers_fails_the_cold_start(tmp_path: Path) -> None:
+    """Stage 5.2: an image that never answers /health fails the gate, shows its log and is removed. The
+    final `exit 1` made `exit 0` (the Tester's J2) passed every test: the stand-in curl always answered."""
+    env, calls = _stand_ins(tmp_path)
+    (tmp_path / "bin" / "curl").write_text(f'#!/bin/sh\necho "curl $*" >> "{calls}"\nexit 7\n', encoding="utf-8")
+    done = _cold_start(env)
+    lines = calls.read_text(encoding="utf-8").splitlines()
+    assert done.returncode != 0, done.stdout + done.stderr
+    assert not any(line.startswith("python scripts/journey.py") for line in lines), lines
+    assert any(line.startswith("docker logs") for line in lines), lines
+    assert any(line.startswith("docker rm -f") for line in lines), lines
+
+
+def test_the_journey_refuses_an_empty_url(tmp_path: Path) -> None:
+    """`make journey URL=` binds to a deployed URL; an empty one is no URL. `set -u` refuses an unset
+    URL alone, so the `${URL:?}` line removed (the Tester's J4) passed every test; an empty URL then
+    reached the journey."""
+    env, calls = _stand_ins(tmp_path)
+    done = subprocess.run(["bash", "docs/journey.sh"], cwd=REPO, capture_output=True, text=True, timeout=60,
+                          env={**env, "URL": ""}, check=False)
+    assert done.returncode != 0 and not calls.exists()

@@ -191,3 +191,69 @@ def test_the_testers_two_spellings_are_refused() -> None:
     assert tls_off('client = httpx.Client(**{"verify": False})')
     assert model_imports("from google import generativeai")
     assert not model_imports("from google import protobuf")
+
+
+# --- The W5 Tester seat (docs/reviews/m19-wave-5-tester.md) ------------------------------------------------
+
+#: #147: tests and docs name a Mac and a home network only by placeholder (RFC 6762's `.local` names
+#: chosen for the purpose, and the probe values the launcher tests feed). Anything else could be a real
+#: machine's name or address.
+PLACEHOLDER_LOCAL_NAMES = {"my-mac", "probe-mac", "a"}
+PLACEHOLDER_PRIVATE_ADDRESSES = {"192.168.9.9", "192.168.1.10"}
+#: A `.local` host name: followed by a port, a path, a quote, a bracket, a comma, a space or the end,
+#: so a file name such as `Engine.local.xcconfig` is not read as one.
+LOCAL_NAME = re.compile(r"(?i)(?<![\w.-])([a-z0-9][a-z0-9-]*)\.local(?=[:/\s\"'`)\],]|$)", re.MULTILINE)
+#: An RFC 1918 address, a regex-escaped one (`192\.168\.…`) included.
+PRIVATE_ADDRESS = re.compile(r"(?<![\d.])((?:10|172\\?\.(?:1[6-9]|2\d|3[01])|192\\?\.168)(?:\\?\.\d{1,3}){1,3})(?![\d])")
+#: macOS names a computer after its owner and its model, joined by hyphens, with `-2` and so on after
+#: it: a hyphenated token holding the word "MacBook".
+MAC_COMPUTER_NAME = re.compile(r"(?i)[a-z0-9-]*(?:[a-z0-9]-macbook|macbook-[a-z0-9])[a-z0-9-]*")
+
+
+def owner_network_names(text: str) -> list[str]:
+    """Each `.local` name, private address or Mac computer name in `text` that is not a placeholder."""
+    lower = text.lower()
+    found = [m.group(1) for m in LOCAL_NAME.finditer(text) if m.group(1).lower() not in PLACEHOLDER_LOCAL_NAMES]
+    found += [m.group(1) for m in PRIVATE_ADDRESS.finditer(text)
+              if m.group(1).replace("\\", "") not in PLACEHOLDER_PRIVATE_ADDRESSES
+              and m.group(1).replace("\\", "").count(".") == 3]
+    if "macbook" in lower:  # the pattern is slow; most files never say the word
+        found += [m.group(0) for m in MAC_COMPUTER_NAME.finditer(text)]
+    return found
+
+
+def test_no_tracked_file_names_a_mac_or_home_address_beyond_the_placeholders() -> None:
+    """#147 (wave plan P1): "No tracked file names the owner's Mac or home address: tests and docs use
+    `my-mac.local` and `192.0.2.x`". No test held it, and the wave's own round-1 review record spelled
+    both again in a search pattern (the second W5 review's M7), found only by reading. The scan reads
+    every tracked text file, review records included, and names neither."""
+    listed = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, check=True).stdout
+    problems = []
+    for name in filter(None, listed.decode("utf-8").split("\0")):
+        path = ROOT / name
+        if not path.is_file():
+            continue
+        data = path.read_bytes()
+        if b"\0" in data[:8192]:
+            continue
+        problems += [f"{name}: {hit}" for hit in owner_network_names(data.decode("utf-8", "replace"))]
+    assert not problems, problems
+
+
+def test_the_network_name_scan_reads_each_spelling() -> None:
+    """The scan above, on planted lines: each real-looking name or address is found, a placeholder, a
+    documentation address (RFC 5737) and a file name are not. Each planted value is written in two
+    pieces (`|` removed), so the scan of this file does not find it."""
+    def planted(text: str) -> str:
+        return text.replace("|", "")
+
+    name, address = planted("Someones-Mac|Book-Pro-2"), planted("192.168.|4.31")
+    assert set(owner_network_names(f"http:/$()/{name}.local:8080")) == {name}
+    assert owner_network_names(planted("git grep -i 'someones-mac|book'")) == [planted("someones-mac|book")]
+    assert owner_network_names(f"ENGINE_LAN_IP={address}") == [address]
+    escaped = address.replace(".", "\\.")
+    assert owner_network_names(f"git grep 'pro-2\\|{escaped}'") == [escaped]
+    assert owner_network_names(planted("10.0.|0.7 and 172.20.|1.2")) == [planted("10.0.|0.7"), planted("172.20.|1.2")]
+    assert owner_network_names(planted("the-office-imac.lo|cal")) == ["the-office-imac"]
+    assert owner_network_names("http:/$()/My-Mac.local:8080, 192.0.2.26, probe-mac.local, 192.168.9.9") == []
+    assert owner_network_names("Engine.local.xcconfig, settings.local.json, the MacBook joins, macOS 10.15.7") == []

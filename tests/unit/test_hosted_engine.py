@@ -138,3 +138,64 @@ def test_the_hosted_stage_only_copies_and_points_at_its_artifact() -> None:
     hosted = _stages(DOCKERFILE.read_text(encoding="utf-8"))["hosted"]
     assert not any(line.startswith("RUN ") for line in hosted), hosted
     assert _env(hosted).get("MODEL_RANKING_DB") == fly["env"]["MODEL_RANKING_DB"]
+
+
+# --- The W5 Tester seat (docs/reviews/m19-wave-5-tester.md) ------------------------------------------------
+
+def test_the_hosted_stage_builds_on_the_stage_that_runs_the_engine() -> None:
+    """INV-86 is read from the serving stage (its `USER`, `ENV` and `CMD`), which the hosted stage is
+    assumed to inherit. `FROM build AS hosted` (the Tester's K1) passed every test: an image that runs
+    as root, with no engine command, no bind and no production lane."""
+    text = DOCKERFILE.read_text(encoding="utf-8")
+    serving = _serving_stage(text)
+    serving_name = serving[0].split()[-1]
+    hosted_from = _stages(text)["hosted"][0].split()
+    assert hosted_from[:1] == ["FROM"] and hosted_from[1] == serving_name, (hosted_from, serving_name)
+
+
+def test_fly_reaches_the_port_the_engine_listens_on() -> None:
+    """D-185 clause 1: Fly sends each request to `internal_port`; the engine listens on its command's
+    `--port`. A mismatch (the Tester's K5, K7) passed every test and would fail only at the deploy."""
+    serving = _serving_stage(DOCKERFILE.read_text(encoding="utf-8"))
+    cmd = next(line for line in serving if line.startswith("CMD "))
+    argv = json.loads(cmd[len("CMD "):])
+    port = int(argv[argv.index("--port") + 1])
+    fly = tomllib.loads(FLY.read_text(encoding="utf-8"))
+    assert fly["http_service"]["internal_port"] == port
+    assert any(line.split()[:2] == ["EXPOSE", str(port)] for line in serving), "the image exposes the port"
+
+
+def test_one_machine_is_always_up() -> None:
+    """D-185 clause 1 and the runbook's cost: one machine, always up ("a phone's first question should
+    not wait for a cold start"). Scaling to zero (the Tester's K4) passed every test."""
+    service = tomllib.loads(FLY.read_text(encoding="utf-8"))["http_service"]
+    assert service["auto_stop_machines"] is False
+    assert service["min_machines_running"] >= 1
+
+
+def test_the_images_own_health_check_asks_by_the_deployments_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#94: with a Host list set the engine refuses its own loopback address, so the image's
+    HEALTHCHECK names the first listed Host. It is run here against a stand-in `urlopen`; with the
+    header dropped (the Tester's K3) every test passed."""
+    import urllib.request
+
+    lines = DOCKERFILE.read_text(encoding="utf-8").replace("\\\n", " ").splitlines()
+    check = next(line for line in lines if line.startswith("HEALTHCHECK "))
+    code = json.loads(check[check.index('python -c "') + len("python -c "):])
+    asked: list[urllib.request.Request] = []
+
+    class _Answer:
+        status = 200
+
+    def _urlopen(request: urllib.request.Request, *args: object, **kwargs: object) -> _Answer:
+        asked.append(request)
+        return _Answer()
+
+    monkeypatch.setattr(urllib.request, "urlopen", _urlopen)
+    hosts = tomllib.loads(FLY.read_text(encoding="utf-8"))["env"][adapter.ALLOWED_HOSTS_VAR]
+    monkeypatch.setenv(adapter.ALLOWED_HOSTS_VAR, hosts)
+    with pytest.raises(SystemExit) as stopped:
+        exec(compile(code, "HEALTHCHECK", "exec"), {"__name__": "__main__"})
+    assert stopped.value.code == 0
+    assert asked and asked[0].full_url == "http://127.0.0.1:8080/health"
+    assert asked[0].get_header("Host") == hosts.split(",")[0]
