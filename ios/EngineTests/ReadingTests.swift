@@ -855,3 +855,21 @@ final class ReadingSecondRoundFaultTests: OfflineTestCase {
         XCTAssertTrue(InputSignals.makesAnImage("ürünün arka planını tamamen kaldır"))
     }
 }
+
+/// The fifth M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-review.md`), D-184, REQ-ASK-005: a search
+/// typed as "a task: which model", its "which one" last in Turkish, is no pasted content; and the
+/// Turkish folding of capitals holds in the fact signal and before a colon. The lines are the
+/// review's own or made up here.
+final class ReadingRoundFiveTests: OfflineTestCase {
+    func testATaskThenAModelQuestionAfterTheColonIsASearch() {
+        for text in ["bir mobil oyun yap: en iyi model hangisi", "make a flutter app: best model for it?",
+                     "kodumu duzelt: en iyi model hangisi"] {
+            XCTAssertFalse(InputSignals.pastedContent(text), text)
+        }
+    }
+
+    func testTurkishCapitalsFoldAsTurkish() {
+        XCTAssertFalse(InputSignals.asksAFact("MATEMATİKTE EN İYİ KİM"))
+        XCTAssertFalse(InputSignals.pastedContent("ŞUNU HANGİ DİLE ÇEVİR: iyi geceler"))
+    }
+}
