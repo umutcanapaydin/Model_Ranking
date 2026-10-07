@@ -97,3 +97,25 @@ def test_a_release_build_reaches_the_hosted_engine_whatever_the_local_config_say
     include = next(i for i, line in enumerate(lines) if line.startswith('#include? "Engine.local.xcconfig"'))
     release = next(i for i, line in enumerate(lines) if line.startswith("ENGINE_URL[config=Release]"))
     assert release > include, "the Release address must come after the local file, which may set ENGINE_URL"
+
+
+def test_the_shared_scheme_archives_the_app_in_release() -> None:
+    """The second W5 review's M3: the runbook archives with Product → Archive, and the shared scheme
+    built nothing for archiving and had no Archive action, so an archive would hold no app."""
+    import xml.etree.ElementTree as ET
+
+    scheme = ET.parse(REPO / "ios" / "ModelRanking.xcodeproj" / "xcshareddata" / "xcschemes" / "ModelRanking.xcscheme")
+    app = [entry for entry in scheme.iter("BuildActionEntry")
+           if any(ref.get("BuildableName") == "ModelRanking.app" for ref in entry.iter("BuildableReference"))]
+    assert app and app[0].get("buildForArchiving") == "YES"
+    archive = scheme.find("ArchiveAction")
+    assert archive is not None and archive.get("buildConfiguration") == "Release"
+
+
+def test_nothing_after_the_release_address_can_replace_it() -> None:
+    """The second W5 review's M4: a later ENGINE_URL of any condition, or a later include, would win
+    over the Release address as the local file once did."""
+    lines = (CONFIG / "Engine.xcconfig").read_text(encoding="utf-8").splitlines()
+    release = next(i for i, line in enumerate(lines) if line.startswith("ENGINE_URL[config=Release]"))
+    after = [line for line in lines[release + 1:] if line.strip() and not line.lstrip().startswith("//")]
+    assert not any(line.lstrip().startswith(("ENGINE_URL", "#include")) for line in after), after

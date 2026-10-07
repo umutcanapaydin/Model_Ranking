@@ -163,5 +163,28 @@ def test_the_build_context_leaves_out_what_git_ignores_under_src() -> None:
     rules = [line.strip() for line in (REPO / ".dockerignore").read_text(encoding="utf-8").splitlines()
              if line.strip() and not line.startswith("#")]
     after = rules[rules.index("!src") + 1:]
-    for pattern in ("**/.env*", "**/__pycache__", "**/*.pyc"):
+    for pattern in ("**/.env*", "**/__pycache__", "**/*.pyc", "**/*.pem", "**/*.key"):
         assert pattern in after, (pattern, rules)
+
+
+def test_the_script_takes_no_argument_but_dry_run(tmp_path: Path) -> None:
+    """The second W5 review's M1: `--dry-run-no` or `now --dry-run` reached `fly deploy`."""
+    _repo, _served, calls, env = _scratch(tmp_path)
+    for flags in (["--dry-run-no"], ["now", "--dry-run"], ["--dry-run=false"]):
+        done = _deploy(env, *flags)
+        assert done.returncode != 0, flags
+    assert not calls.exists()
+
+
+def test_only_the_tip_of_origin_main_deploys(tmp_path: Path) -> None:
+    """The second W5 review's R5: the script never fetched, so an older main commit, or a stale
+    origin/main, could be deployed. It fetches, and deploys only origin/main's tip."""
+    _repo, _served, calls, env = _scratch(tmp_path)
+    other = tmp_path / "other"
+    _git("clone", "-q", str(tmp_path / "origin.git"), str(other))
+    (other / "README").write_text("newer main\n", encoding="utf-8")
+    _git("-C", str(other), "commit", "-qam", "newer")
+    _git("-C", str(other), "push", "-q", "origin", "main")
+    done = _deploy(env)
+    assert done.returncode != 0 and "origin/main" in done.stdout + done.stderr
+    assert not calls.exists()

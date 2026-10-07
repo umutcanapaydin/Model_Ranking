@@ -128,3 +128,12 @@ def test_the_hosted_engine_runs_as_no_root_and_cannot_write_its_artifact() -> No
     assert hosted_user not in (None, "root", "0"), hosted_user
     copies = [line for line in stages["hosted"] if line.startswith("COPY ")]
     assert copies and not any("--chown" in line or "--chmod" in line for line in copies), copies
+
+
+def test_the_hosted_stage_only_copies_and_points_at_its_artifact() -> None:
+    """The second W5 review's M6: a `RUN chmod` in the hosted stage, or its MODEL_RANKING_DB line
+    dropped, passed every test. The stage copies the artifact and names it, and runs nothing."""
+    fly = tomllib.loads(FLY.read_text(encoding="utf-8"))
+    hosted = _stages(DOCKERFILE.read_text(encoding="utf-8"))["hosted"]
+    assert not any(line.startswith("RUN ") for line in hosted), hosted
+    assert _env(hosted).get("MODEL_RANKING_DB") == fly["env"]["MODEL_RANKING_DB"]
