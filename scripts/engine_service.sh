@@ -53,16 +53,23 @@ fi
 export APP_ENV=test MODEL_RANKING_DB="$DB" APP_BUILD="$BUILD"
 # PREFLIGHT (W-042). The engine serves in the RELAXED lane (`APP_ENV=test`), where
 # `validate_startup_config` RETURNS its problems instead of raising; so they are run here, and any
-# problem refuses the start. Same evidence and messages, strict consequence.
+# problem refuses the start. Same evidence and messages, strict consequence. A preflight that exits
+# non-zero refuses the start too, printed or not: one killed before it could print (out of memory,
+# say) checked nothing (#145).
 PREFLIGHT=$("$REPO/.venv/bin/python" -B -c 'from app.adapter.main import validate_startup_config
 import sys
 problems = validate_startup_config()
 if problems:
     print("\n".join(problems))
     sys.exit(1)' 2>&1)
-if [ -n "$PREFLIGHT" ]; then
+PREFLIGHT_STATUS=$?
+if [ "$PREFLIGHT_STATUS" -ne 0 ] || [ -n "$PREFLIGHT" ]; then
   echo "[engine] $(stamp) REFUSED to start; the startup checks reported:"
-  echo "$PREFLIGHT" | sed 's/^/         /'
+  if [ -n "$PREFLIGHT" ]; then
+    echo "$PREFLIGHT" | sed 's/^/         /'
+  else
+    echo "         nothing, and exited with status $PREFLIGHT_STATUS"
+  fi
   exit 1
 fi
 

@@ -281,8 +281,26 @@ def main() -> int:
     MUST_BLOCK = ["git push origin main --force", "git push --force origin main", "git push -f o x",
                   "git push origin main", "git push origin master", "git push origin HEAD:main",
                   "git reset --hard HEAD~1", "rm -rf .", "rm -rf ~/work", "rm -fr /home/u",
-                  "git clean -fd"]
+                  "git clean -fd",
+                  # #142 (the M18 closure's S6): a short-option cluster holding `f`, and a mirror push.
+                  "git push -uf origin x", "git push -fu origin x", "git push --mirror origin",
+                  # The M19-W5 review's M1 and K1, the M19 security review's S5 and S6: a cluster with a
+                  # digit, an abbreviated --mirror, a quoted -f or +refspec, a continued line, main
+                  # named by its full ref, and the hosted engine deployed or destroyed by an agent.
+                  "git push -4f origin x", "git push -f4 origin x", "git push --mi origin", "git push --mirr origin",
+                  "git push origin '+x'", "git push '-f' origin x", "git push \\\n--force origin x",
+                  "git push origin HEAD:refs/heads/main", "fly deploy --remote-only",
+                  "flyctl apps destroy model-ranking", "scripts/deploy_hosted_engine.sh",
+                  # The W5 Tester's M1: a dry run first, then the deploy, on one line.
+                  "scripts/deploy_hosted_engine.sh --dry-run && scripts/deploy_hosted_engine.sh",
+                  "scripts/deploy_hosted_engine.sh --dry-run | scripts/deploy_hosted_engine.sh"]
     MUST_ALLOW = ["git push -u origin fix/issue-3", "git push origin enhancement/x", "git push",
+                  "git push --follow-tags origin x", "git push -4 origin x", "fly status", "fly logs",
+                  "scripts/deploy_hosted_engine.sh --dry-run",
+                  # Named, not run: a message or a search that mentions them is no deploy.
+                  "git commit -m 'fly deploy docs'", "grep -n deploy_hosted_engine.sh docs/release-testflight.md",
+                  # The second W5 review's M2: an option or a branch that only starts like --mirror.
+                  "git log --grep push --min-parents=2", "git push origin wave/m19--minor", "git push origin fix--mi",
                   "git status", "rm file.txt", "rm -r build",
                   "git reset HEAD~1", "npm run format"]
     bash_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])

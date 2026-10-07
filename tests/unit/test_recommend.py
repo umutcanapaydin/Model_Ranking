@@ -179,13 +179,14 @@ def test_payload_never_claims_a_source_it_did_not_read() -> None:
     from app.workflows.rank import (
         AIDER_ATTRIBUTION,
         ARENA_ATTRIBUTION,
-        PRICING_ATTRIBUTION,
+        PRICING_ATTRIBUTION_LITELLM,
         SWEBENCH_ATTRIBUTION,
     )
 
     rec = recommend(_db(), "unlimited")
     assert rec is not None
-    assert rec.sources == (PRICING_ATTRIBUTION, SWEBENCH_ATTRIBUTION, AIDER_ATTRIBUTION)
+    # The prices here are LiteLLM's alone, so OpenRouter is not credited either (M19-W5 review, MJ1).
+    assert rec.sources == (PRICING_ATTRIBUTION_LITELLM, SWEBENCH_ATTRIBUTION, AIDER_ATTRIBUTION)
     assert ARENA_ATTRIBUTION not in rec.sources
     assert EPOCH_ATTRIBUTION not in rec.sources
 

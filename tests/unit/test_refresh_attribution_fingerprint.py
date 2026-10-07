@@ -53,8 +53,8 @@ def test_two_sources_owe_different_citations() -> None:
     If both sources produced the same citation the fingerprint would be right to ignore the field,
     so the defect is established here rather than assumed.
     """
-    arena = attributions_for(["arena"], priced=True)
-    swebench = attributions_for(["swebench"], priced=True)
+    arena = attributions_for(["arena"], priced=True, pricing_sources=None)
+    swebench = attributions_for(["swebench"], priced=True, pricing_sources=None)
     assert arena != swebench
 
 

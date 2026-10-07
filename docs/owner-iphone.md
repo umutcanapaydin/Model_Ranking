@@ -16,10 +16,12 @@ once, **after the M18-W1 pull request is merged**.
 1. **Open the engine to the network.** On the Mac, from the repository:
    `scripts/install_engine_service.sh --lan`
    It binds the engine to every network the Mac is on, and answers only to your Mac's own names
-   (`umut-macbook-pro-2.local` and its address). It prints `home network: on`.
-2. **Point the app at your Mac, and sign it.** Create `ios/Config/Engine.local.xcconfig`:
+   (its local hostname, `my-mac.local` here, and its address). It prints `home network: on`.
+2. **Point the app at your Mac, and sign it.** Create `ios/Config/Engine.local.xcconfig`, with your
+   Mac's own name (System Settings → General → Sharing → Local hostname) for `My-Mac.local`. The
+   address is for Debug builds only, so a Release build (TestFlight) still reaches the hosted engine:
    ```
-   ENGINE_URL = http:/$()/Umut-MacBook-Pro-2.local:8080
+   ENGINE_URL[config=Debug] = http:/$()/My-Mac.local:8080
    DEVELOPMENT_TEAM = <your team id>
    ```
    - Write `http:/$()/` exactly: a plain `//` starts a comment in this file, and the app would then

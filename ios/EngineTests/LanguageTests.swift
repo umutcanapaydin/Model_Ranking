@@ -443,9 +443,9 @@ final class RouterLanguageTests: OfflineTestCase {
 /// languages.
 final class EngineAddressLanguageTests: OfflineTestCase {
     func testTheEngineAddressLineSpeaksBothLanguages() {
-        let address = "http://umut-macbook-pro-2.local:8080"
-        XCTAssertEqual(UIText.engineAddress(.english, address), "Engine address: http://umut-macbook-pro-2.local:8080")
-        XCTAssertEqual(UIText.engineAddress(.turkish, address), "Motor adresi: http://umut-macbook-pro-2.local:8080")
+        let address = "http://my-mac.local:8080"
+        XCTAssertEqual(UIText.engineAddress(.english, address), "Engine address: http://my-mac.local:8080")
+        XCTAssertEqual(UIText.engineAddress(.turkish, address), "Motor adresi: http://my-mac.local:8080")
     }
 }
 

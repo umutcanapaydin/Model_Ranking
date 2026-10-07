@@ -20,7 +20,7 @@ from .test_api_v1 import _seeded_db
 
 HOSTS = "MODEL_RANKING_ALLOWED_HOSTS"
 BIND = "MODEL_RANKING_BIND"
-LIST = "127.0.0.1,localhost,umut-macbook-pro-2.local,192.168.0.26"
+LIST = "127.0.0.1,localhost,my-mac.local,192.0.2.26"
 
 
 @pytest.fixture()
@@ -34,14 +34,14 @@ def db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 @pytest.mark.parametrize("base", ["http://127.0.0.1:8080", "http://localhost:8080",
-                                  "http://Umut-MacBook-Pro-2.local:8080", "http://192.168.0.26:8080"])
+                                  "http://My-Mac.local:8080", "http://192.0.2.26:8080"])
 def test_a_host_on_the_list_is_served(db: Path, monkeypatch: pytest.MonkeyPatch, base: str) -> None:
     monkeypatch.setenv(HOSTS, LIST)
     assert TestClient(adapter.app, base_url=base).get("/v1/categories").status_code == 200
 
 
 @pytest.mark.parametrize("base", ["http://evil.example", "http://127.0.0.1.evil.example:8080",
-                                  "http://192.168.0.27:8080", "http://umut-macbook-pro-2.local.evil.example"])
+                                  "http://192.0.2.27:8080", "http://my-mac.local.evil.example"])
 def test_a_host_not_on_the_list_is_refused(db: Path, monkeypatch: pytest.MonkeyPatch, base: str) -> None:
     monkeypatch.setenv(HOSTS, LIST)
     response = TestClient(adapter.app, base_url=base).get("/v1/categories")
@@ -72,7 +72,7 @@ def test_a_bind_beyond_loopback_needs_a_list_of_hosts(db: Path, monkeypatch: pyt
 def test_without_a_list_a_request_arriving_on_a_network_address_is_refused(db: Path) -> None:
     """W1 review B1: `make run` and a hand-typed uvicorn bound 0.0.0.0 with no list, and a foreign
     Host was served. With no list, only what arrives on loopback is served, whatever the bind."""
-    response = TestClient(adapter.app, base_url="http://192.168.0.26:8080").get("/v1/categories")
+    response = TestClient(adapter.app, base_url="http://192.0.2.26:8080").get("/v1/categories")
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "unknown_host"
     assert TestClient(adapter.app, base_url="http://127.0.0.1:8080").get("/v1/categories").status_code == 200
@@ -81,10 +81,10 @@ def test_without_a_list_a_request_arriving_on_a_network_address_is_refused(db: P
 def test_the_host_is_compared_without_case_on_both_sides(db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """W1 review M5: httpx and URLSession lower-case the host, so only a raw header tests the header
     side, and only a mixed-case entry tests the list side."""
-    monkeypatch.setenv(HOSTS, "127.0.0.1,Umut-MacBook-Pro-2.local")
+    monkeypatch.setenv(HOSTS, "127.0.0.1,My-Mac.local")
     client = TestClient(adapter.app, base_url="http://127.0.0.1:8080")
-    assert client.get("/v1/categories", headers={"host": "UMUT-MACBOOK-PRO-2.LOCAL:8080"}).status_code == 200
-    assert client.get("/v1/categories", headers={"host": "umut-macbook-pro-2.local"}).status_code == 200
+    assert client.get("/v1/categories", headers={"host": "MY-MAC.LOCAL:8080"}).status_code == 200
+    assert client.get("/v1/categories", headers={"host": "my-mac.local"}).status_code == 200
 
 
 def test_an_empty_host_is_refused_when_a_list_is_set(db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -108,7 +108,7 @@ def test_without_a_list_a_connection_with_no_local_address_is_not_called_a_netwo
     path, for a Unix socket; neither is a network address."""
     assert adapter._arrived_off_loopback(None) is False
     assert adapter._arrived_off_loopback(("/tmp/engine.sock", None)) is False
-    assert adapter._arrived_off_loopback(("192.168.0.26", 8080)) is True
+    assert adapter._arrived_off_loopback(("192.0.2.26", 8080)) is True
     assert adapter._arrived_off_loopback(("::1", 8080)) is False
 
 
@@ -120,7 +120,7 @@ def test_every_path_is_behind_the_host_check(db: Path, monkeypatch: pytest.Monke
     refused = TestClient(adapter.app, base_url="http://evil.example").get(path)
     assert refused.status_code == 400 and refused.json()["error"]["code"] == "unknown_host", path
     monkeypatch.delenv(HOSTS)
-    arrived = TestClient(adapter.app, base_url="http://192.168.0.26:8080").get(path)
+    arrived = TestClient(adapter.app, base_url="http://192.0.2.26:8080").get(path)
     assert arrived.status_code == 400 and arrived.json()["error"]["code"] == "unknown_host", path
 
 

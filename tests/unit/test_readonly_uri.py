@@ -108,6 +108,8 @@ WRITABLE_OPENS: dict[tuple[str, str], str] = {
     ("scripts/calibrate_board.py", "main"): "a scratch copy the script makes, never the artifact",
     ("scripts/survey_boards.py", "measure"): "a scratch copy the script makes, never the artifact",
     ("scripts/survey_boards.py", "measure_slices"): "a scratch copy the script makes, never the artifact",
+    ("src/app/workflows/public.py", "derive"): "the public copy it writes beside the artifact (#88); the "
+    "artifact itself opens through open_readonly",
 }
 
 

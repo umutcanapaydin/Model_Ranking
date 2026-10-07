@@ -34,6 +34,7 @@ from app.workflows.rank import (
     ranked_with_ids,
     require_price_medians,
     secondary_evidence_sources,
+    served_pricing_sources,
 )
 from app.workflows.schema import EFFORT_UNSPECIFIED, open_readonly
 from app.workflows.serialize import recommendation_json
@@ -632,6 +633,7 @@ def recommend(
                 else set()
             ),
             priced=True,
+            pricing_sources=served_pricing_sources(conn),
         ),
         eligible_count=len(rows),
         frontier_size=len(frontier),

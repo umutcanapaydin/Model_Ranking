@@ -109,7 +109,7 @@ PRD row's 28 evidence line numbers each point at the test they name (checked one
 |---|---|---|---|
 | `127.0.0.1:<port>`, `localhost:<port>`, `127.0.0.1` | 200 | 200 | 200 |
 | `evil.example`, `127.0.0.1.evil.example:<port>` | 200 | 400 `unknown_host` | 400 |
-| `UMUT-MACBOOK-PRO-2.LOCAL:8080`, `192.168.0.26:8080` | 200 | 400 | 200 |
+| `MY-MAC.LOCAL:8080`, `192.0.2.26:8080` | 200 | 400 | 200 |
 | `[::1]:8080` | 200 | 400 | 400 |
 | empty, or no Host header | 200 | 400 | 400 |
 | `/health`, Host `127.0.0.1` / Host `evil.example` | 200 / 200 | 200 / 400 | 200 / 400 |
@@ -416,7 +416,7 @@ def test_every_path_is_behind_the_host_check(db: Path, monkeypatch: pytest.Monke
     refused = TestClient(adapter.app, base_url="http://evil.example").get(path)
     assert refused.status_code == 400 and refused.json()["error"]["code"] == "unknown_host", path
     monkeypatch.delenv(HOSTS)
-    arrived = TestClient(adapter.app, base_url="http://192.168.0.26:8080").get(path)
+    arrived = TestClient(adapter.app, base_url="http://192.0.2.26:8080").get(path)
     assert arrived.status_code == 400 and arrived.json()["error"]["code"] == "unknown_host", path
 ```
 

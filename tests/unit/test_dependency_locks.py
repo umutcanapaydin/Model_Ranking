@@ -307,3 +307,40 @@ def test_the_api_tests_drive_the_engine_with_the_client_starlette_keeps() -> Non
     import starlette.testclient as testclient
 
     assert testclient.httpx.__name__ == "httpx2", "the test client runs on httpx, the path starlette deprecates"
+
+
+def _from_images(text: str) -> list[str]:
+    """The image each `FROM` line builds on, its flags (`--platform=...`) left out."""
+    images = []
+    for line in text.splitlines():
+        words = line.split()
+        if words and words[0].upper() == "FROM":
+            rest = [word for word in words[1:] if not word.startswith("--")]
+            if rest:
+                images.append(rest[0])
+    return images
+
+
+def base_problems(text: str) -> list[str]:
+    """#141: each base a Dockerfile builds on, named by tag rather than digest. A `FROM` of an earlier
+    stage (`FROM build AS hosted`) is that stage, not a base."""
+    stages = {line.split()[-1].lower() for line in text.splitlines()
+              if line.split()[:1] and line.split()[0].upper() == "FROM" and len(line.split()) >= 4
+              and line.split()[-2].upper() == "AS"}
+    return [image for image in _from_images(text)
+            if image.lower() not in stages and not re.search(r"@sha256:[0-9a-f]{64}$", image)]
+
+
+def test_the_serving_image_names_its_base_by_digest() -> None:
+    """#141 (the M18 closure's S5): D-177 and INV-81 say an install fetches nothing beyond the locks,
+    but both stages took `python:3.11-slim` by tag, so a rebuild could take another base, and with it
+    another pip, the tool that checks the hashes."""
+    assert base_problems((ROOT / "Dockerfile").read_text(encoding="utf-8")) == []
+
+
+def test_the_base_check_reads_tags_digests_and_stages() -> None:
+    digest = "python:3.11-slim@sha256:" + "a" * 64
+    assert base_problems(f"FROM {digest} AS build\nFROM build AS hosted\n") == []
+    assert base_problems(f"FROM {digest} AS build\nFROM python:3.11-slim\n") == ["python:3.11-slim"]
+    assert base_problems("FROM --platform=linux/amd64 python:3.11-slim\n") == ["python:3.11-slim"]
+    assert base_problems("from python:3.11-slim@sha256:abc\n") == ["python:3.11-slim@sha256:abc"]

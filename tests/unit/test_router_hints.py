@@ -651,13 +651,35 @@ IMPORT = re.compile(
 )
 
 
+def _allowed_in_an_asset_catalog(path: pathlib.Path) -> bool:
+    """The M19-W5 review's K2: what an asset catalog may hold unread: images, and each folder's own
+    `Contents.json`. A data asset of any other kind ships as it is, so it is read like any source."""
+    return path.suffix.lower() in {".png", ".jpg", ".jpeg", ".heic", ".pdf"} or path.name == "Contents.json"
+
+
+def test_an_asset_catalog_holds_only_images_and_their_metadata() -> None:
+    """The M19-W5 review's K2: any file in an `.xcassets` folder passed both client gates, so a data
+    asset of another kind would ship unread. Only images and each folder's `Contents.json` pass."""
+    catalog = pathlib.Path("Assets.xcassets")
+    for path in (catalog / "AppIcon.appiconset" / "AppIcon.png", catalog / "AppIcon.appiconset" / "Contents.json",
+                 catalog / "Contents.json"):
+        assert _allowed_in_an_asset_catalog(path), path
+    for path in (catalog / "Canned.dataset" / "payload.bin", catalog / "Canned.dataset" / "payload.txt",
+                 catalog / "Canned.dataset" / "payload.json"):
+        assert not _allowed_in_an_asset_catalog(path), path
+
+
 def _assert_the_client_has_no_way_off_the_device() -> None:
     used: set[tuple[str, str]] = set()
     storage = 0
     for path in sorted(p for p in CLIENT.rglob("*") if p.is_file()):
-        if ".xcassets" in path.parts or path.name == ".DS_Store":
+        # An asset catalog is images and their metadata, compiled into one file (M19-W5: the check
+        # compared a folder's name to ".xcassets" whole, which no catalog is named).
+        if path.name == ".DS_Store" or (any(part.endswith(".xcassets") for part in path.parts)
+                                        and _allowed_in_an_asset_catalog(path)):
             continue
-        assert path.suffix in {".swift", ".plist", ".json", ".strings"}, (
+        # A privacy manifest (`.xcprivacy`) is a property list, read like `.plist` (M19-W5).
+        assert path.suffix in {".swift", ".plist", ".json", ".strings", ".xcprivacy"}, (
             f"{path.relative_to(CLIENT)} is a source this gate cannot read; the Xcode target "
             "compiles every file in the folder, so a non-Swift file is an unguarded door"
         )

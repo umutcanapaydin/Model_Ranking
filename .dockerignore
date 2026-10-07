@@ -1,0 +1,17 @@
+# M19-W5: the build context Fly's builder uploads is only the Dockerfile and what it copies. Without this
+# list it was the whole tree, the venv, the git history and the owner's artifact included.
+*
+!Dockerfile
+!pyproject.toml
+!requirements/serve.lock
+!requirements/build.lock
+!src
+# What git ignores under src/ stays out too: a local secret file, bytecode (the M19 security review's S14).
+**/.env*
+**/__pycache__
+**/*.pyc
+**/*.pem
+**/*.key
+**/*.db
+**/*.sqlite*
+!build/hosted/advisor.db

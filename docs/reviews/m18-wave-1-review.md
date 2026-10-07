@@ -48,7 +48,7 @@ repository root; `docs/permission-matrix.md` does not exist. `git diff --stat e8
   127.0.0.1:8138 with a list, the nightly switch unset. Each was stopped with SIGTERM, then SIGKILL,
   and no listener was left.
   - With no list, every Host got 200: `127.0.0.1`, `evil.example`, mixed case, empty.
-  - With the list: `evil.example` and an empty Host got 400; `UMUT-MACBOOK-PRO-2.LOCAL:8080`
+  - With the list: `evil.example` and an empty Host got 400; `MY-MAC.LOCAL:8080`
     against a mixed-case entry got 200.
 - **Mutants: 29.** Each was applied in place, run against its named tests, and restored from the
   original bytes. After each one I checked `git hash-object` against `HEAD:<file>` and
