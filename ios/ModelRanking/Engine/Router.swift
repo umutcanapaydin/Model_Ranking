@@ -699,18 +699,17 @@ struct TieredRouter {
         ))
     }
 
-    /// D-169 as amended at M18-W3: the outcome's reading, from the signals in code and, where the
-    /// model read the question, its verdict. The signals run on every tier.
+    /// D-169 as amended at M18-W3 and by D-184: the outcome's reading, from the signals in code and,
+    /// where the model read the question, its verdict. The signals run on every tier.
     static func read(_ question: String, _ outcome: RoutingOutcome) -> RoutingOutcome {
         var read = outcome
         // #113 (M18-W3, M19-W4): making or changing an image is not measured; the same outcome the
         // model's decline gives, with the same disclosure. On `vision`, as M18 built it. Elsewhere, as
-        // at the M19-W4 baseline 6 and 7 of 20 requests to make an image went to `web-dev`: never on the
-        // two coding surfaces, since a question the tier sent to code is about code, and never on a
-        // question that names a website, an app or a document, which is about that (the M18 reviews'
-        // B4, the M19-W4 review's MJ1).
+        // at the M19-W4 baseline 6 and 7 of 20 requests to make an image went to `web-dev`, only a new
+        // image or the asker's own, and never on the two coding surfaces: "fix the image" or "make
+        // images …" is about a site or a file (the M18 reviews' B4, the M19-W4 reviews' MJ1 and B1).
         let reaches = outcome.categoryID == "vision"
-            || (!["coding", "agentic-coding"].contains(outcome.categoryID) && !InputSignals.namesASiteOrADocument(question))
+            || (!["coding", "agentic-coding"].contains(outcome.categoryID) && InputSignals.asksForANewOrOwnImage(question))
         if !outcome.unmeasured, reaches, InputSignals.makesAnImage(question) {
             read = RoutingOutcome(categoryID: CategoryHints.unmeasuredFallback, tier: outcome.tier, unmeasured: true)
             read.reading = outcome.reading

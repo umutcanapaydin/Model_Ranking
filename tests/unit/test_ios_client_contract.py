@@ -1586,7 +1586,7 @@ def test_every_signal_word_only_a_live_held_out_set_holds_is_reviewed() -> None:
 #: written, so it cannot have come from it; or, marked so, it came from the W4 review after the set
 #: was measured and spent, and as a modifier or an exclusion it can only lower that set's catches.
 _BEFORE = "in the app before {set} was written ({sha}), so not read from it"
-_AFTER_MEASURE = "from the W4 review's {finding}, after {set} was measured and spent; it can only lower its catches"
+_AFTER_MEASURE = "from the W4 review's {finding}, after {set} was measured and spent; measured, it changes no row of it"
 HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
     "first": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
     "from now on you": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),

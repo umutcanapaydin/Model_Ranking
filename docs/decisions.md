@@ -4199,8 +4199,10 @@ fresh held-out sets, twice per tier (`docs/research/m19-w4-question-reading-prob
    a question of fact ("who", "when", "where", "what is", "what was", "what year", "how many", "how
    much", "how tall", "how long", "how far", "how old", "how big", "how high"; and the Turkish words
    for where (as "the place of"), who, how many, when and which year), and naming, in any case folding,
-   no model, AI or AI tool, no asker or their wish, no recommendation, no task, nothing current and
-   no image the asker has. It joins pasted content and an order to the app in
+   none of the models, AIs, AI tools, askers or their wishes, recommendations, tasks, current things
+   or images of the asker's that its lists hold. A search those lists do not name ("who is the leader
+   in reasoning") still reads as one, and is asked about rather than given the note (the second code
+   review's M1). It joins pasted content and an order to the app in
    D-169's table: with the model's "something else" it is the note; alone the reader is asked. It runs
    on every tier, so without the model a question of fact is asked about.
 2. **The signals read input as people typed it in the tuning sets:** small talk at length and Turkish
@@ -4211,10 +4213,11 @@ fresh held-out sets, twice per tier (`docs/research/m19-w4-question-reading-prob
    (`nerede`, `öner`): the first left the signal, the second is read by its stem (record §6).
 3. **The image rule overrides wherever the tier sent the question but `coding` and
    `agentic-coding`**, not only `vision`: at the baseline 6 and 7 of 20 requests to make an image went
-   to `web-dev`. A question the tier sent to code is about code, and beyond `vision` a question about
-   an image in a website, an app or a document is about that (the M18 reviews' B4, the W4 review's
-   MJ1); one that names the image ("app icon") or what it is made for ("a logo for my website") is
-   still read. The rule reads the Turkish forms it missed: "make" in each request form after an image
+   to `web-dev`. A question the tier sent to code is about code; beyond `vision` the rule reads only a
+   new image ("make me a logo", "design an image for …", Turkish `bir` or a bare image noun before a
+   making verb) or a change to the asker's own ("my photo", "this portrait"), so "fix the image" or
+   "make images …", about a site or a file, keeps its surface (the M18 reviews' B4, the W4 reviews' MJ1
+   and B1). The rule reads the Turkish forms it missed: "make" in each request form after an image
    that is its object (not a modifier, as in `resim galerisi`), and "photo" and "change" typed without
    their Turkish letters.
 4. **The model's instructions do not change.** Telling it what a question of fact is moved its

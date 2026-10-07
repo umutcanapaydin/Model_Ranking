@@ -512,7 +512,7 @@ final class ReadingVerdictFaultTests: OfflineTestCase {
     }
 }
 
-/// M19-W4 (#66, #113; REQ-ASK-005, REQ-IMG-003): the second round, from the tuning sets' misses
+/// M19-W4 (#66, #113; REQ-ASK-005, REQ-IMG-003, REQ-RTR-005): the second round, from the tuning sets' misses
 /// (`docs/research/m19-w4-question-reading-probe.md`). Every line is a tuning row, never a held-out one.
 final class ReadingSecondRoundTests: OfflineTestCase {
     private let known = ["coding", "agentic-coding", "web-dev", "assistant", "vision", "factuality", "search"]
