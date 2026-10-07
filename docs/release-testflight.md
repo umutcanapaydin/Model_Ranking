@@ -9,21 +9,27 @@ date: 2026-10-07
 
 Your steps, in order. Everything the code could do is done: the image, `fly.toml`, the public
 artifact, the deploy script, the app's icon, privacy manifest and Release address. What is left
-needs your accounts, your card or your signing identity. **Deploy only after the Stage 5.1 security
-review of this wave has passed and you have merged its pull request.**
+needs your accounts, your card or your signing identity. **Deploy only after you have merged the
+release's pull requests (M19-W4, M19-W5 and the M19 closure) and the release's security verdict of
+record, `docs/reviews/release-security.md`, is PASS or MINOR (not BLOCKING).**
 
 ## 1. The engine on Fly.io (once)
 
-1. **Update your checkout.** `git checkout main && git pull`, then `make install`.
+1. **Update your checkout and your Mac's engine.** `git checkout main && git pull`, then `make
+   install`, then `scripts/install_engine_service.sh` (it keeps the home-network mode it finds). The
+   hosted engine serves a copy of the data your Mac's engine built, so the Mac must run the code you
+   deploy: let it refresh once after the install (the next night, between 23:00 and 01:00), and check
+   that `curl -s http://127.0.0.1:8080/health` names the new release and a refresh after it. Nothing
+   yet records which release built the data (#198).
 2. **Log in and add a card.** `fly auth login`. Fly asks for a payment method before it places a
    machine, even the smallest (D-123): add one at https://fly.io/dashboard → Billing. The
    declared machine (`shared-cpu-1x`, 256 MB, always on; the script deploys one, `--ha=false`)
    costs about two dollars a month.
-3. **Create the app.** `fly apps create model-ranking`. If the name is taken, choose another, and
-   change it in four places: `app`, `MODEL_RANKING_ALLOWED_HOSTS` and the health check's `Host` in
-   `fly.toml`, and `ENGINE_URL[config=Release]` in `ios/Config/Engine.xcconfig`. Merge that change to
-   `main`: the deploy ships only `main`'s tip.
-   Commit the change: the deploy refuses an uncommitted tree.
+3. **Create the app.** `fly apps create model-ranking`. If the name is taken, choose another and
+   ask the agent to rename it on a branch: four places (`app`, `MODEL_RANKING_ALLOWED_HOSTS` and the
+   health check's `Host` in `fly.toml`, and `ENGINE_URL[config=Release]` in
+   `ios/Config/Engine.xcconfig`) and the tests that read them. Merge that pull request, then `git
+   pull`: the deploy ships only `main`'s tip, from a clean tree.
 4. **Try the image on your Mac first** (optional, free): with Docker Desktop running, `make
    cold-start` builds the hosted image, boots it with nothing saved, and runs the customer journey
    against it on `127.0.0.1:18080`.
@@ -81,8 +87,9 @@ You need an Apple Developer Program membership (99 USD a year) for TestFlight.
 - **The deploy stops on `/health`:** `fly logs` shows why the engine refused to boot. The usual
   causes are a missing `APP_BUILD` (deploy with the script, not `fly deploy` by hand) or a Host list
   that does not name the app (step 1.3). If the engine boots but Fly's health check fails, the check
-  may not be sending its `Host` header: replace `[[http_service.checks]]` in `fly.toml` with a TCP
-  check (`[[services.tcp_checks]]`) and deploy again.
+  may not be sending its `Host` header. The fallback, a TCP check in place of
+  `[[http_service.checks]]`, changes `fly.toml` and INV-86's test (`tests/unit/test_hosted_engine.py`),
+  so ask the agent for it as a pull request, merge it, `git pull`, and deploy again.
 - **The app says it cannot reach the engine:** the address it asked is on the failure screen. A
   TestFlight build must show `https://model-ranking.fly.dev`.
 - **The upload is refused for the icon:** the icon must be 1024 pixels with no transparency

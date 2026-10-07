@@ -38,6 +38,7 @@ The rest is read on demand, when a rule or a stage points at it:
 - `docs/decisions.md` — what is settled (D-001..D-007 universal, project ADRs from D-100)
 - `docs/closure-checklist.md` — milestone close and release
 - `docs/security-baseline.md` — the release security review
+- `docs/release-testflight.md` — the owner's release steps: the engine on Fly.io, the app on TestFlight
 - `.agents/rules/practices.md` — the engineering rules
 - `UPGRADING.md` — moving this project to a newer DevFlow
 

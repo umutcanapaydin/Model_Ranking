@@ -1,7 +1,7 @@
 ---
 record_type: plan
 id: m19-plan
-status: draft
+status: ratified
 process_version: v6.6
 date: 2026-10-05
 ---
@@ -250,3 +250,10 @@ and #141, #145, #147 and #94 were taken. #142's guard half was written in four c
 APPROVAL; its other half is #189. #81 (CI) and #115 (the phone's prompt) stay the owner's. The
 TestFlight files were added beyond the list, as the release needs them. The Stage 5.1 review ran
 (MAJOR), and its re-read after the fixes is MINOR; nothing is deployed or uploaded by the agent.
+
+**Amendment (2026-10-07, the M19 closure).** §1's W5 criterion is met for the agent's items and not
+for two of the owner's: #81 (CI) and #115 (the phone's prompt) are neither done nor ruled. W5 built
+a deploy surface §3 does not name (`Dockerfile`, `fly.toml`, `.dockerignore`,
+`scripts/deploy_hosted_engine.sh`, `src/app/workflows/public.py`, `ios/Config/**`); the next plan's
+globs carry it (the repo review's M14). The status is ratified: the owner merged this plan (#161),
+and its waves ran as amended here.

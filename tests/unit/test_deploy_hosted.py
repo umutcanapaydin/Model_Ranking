@@ -1,4 +1,5 @@
-"""M19-W5 (#94, #88): `scripts/deploy_hosted_engine.sh`, the one way the hosted engine is deployed.
+"""M19-W5 (#94, #88; D-185 clause 5, REQ-REL-003): `scripts/deploy_hosted_engine.sh`, the one way the
+hosted engine is deployed.
 
 The owner runs it; nothing here deploys. It is run against a scratch repository with stand-ins for
 `fly` and `curl` first on its PATH, so no request leaves this machine: the `fly` stand-in records its

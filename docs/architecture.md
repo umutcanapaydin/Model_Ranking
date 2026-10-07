@@ -70,7 +70,8 @@ D-120: `0` built and servable, `2` failed, `3` built but not servable.
 The sources are declared once, in `src/app/workflows/sources.py`, and the build and the smoke gate
 both derive from that list:
 
-- **Prices:** LiteLLM and OpenRouter. Both are required.
+- **Prices:** LiteLLM and OpenRouter. Both are required. The public artifact the hosted engine
+  serves carries LiteLLM's prices only (D-185).
 - **Scores fetched over the network:** SWE-bench Verified and Aider, both required. Six Arena boards
   (`arena`, `arena_document`, `arena_factuality`, `arena_vision`, `arena_search`,
   `arena_search_factuality`) are optional (D-121): without one, its surface says it has no evidence.
@@ -267,8 +268,8 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
   - The engine's address comes from the build's `EngineURL` (the `ENGINE_URL` setting in
     `ios/Config/Engine.xcconfig`), with loopback as the fallback. A Release build's address is the
     hosted engine, set after the local file's include so no local setting replaces it (D-185).
-  - It uses an ephemeral session with a 10-second timeout and no cache, and the `SameHostOnly`
-    redirect guard.
+  - It uses an ephemeral session with a 10-second timeout, no cache and no cookies (INV-85), and the
+    `SameHostOnly` redirect guard.
   - It reads each response as a stream and stops at the route's ceiling (#56): 4 MiB for
     `/v1/boards`, 1 MiB for `/v1/recommendations`, 256 KiB for any other route. A declared length
     over the ceiling is refused before the body is read.
@@ -290,7 +291,7 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
   `AnswerPlan.swift` decides what the screen shows: one board shows the cards, more than one shows
   the combined list.
   - A model the engine picks for more than one reason is one card carrying every label it earned
-    (D-175, #63 finding 1).
+    (D-175, #63 finding 1): the picks that share a `model_id` (D-182).
   - The combined list shows ten rows, and the rest on request.
   - The reader may keep only models with an API or open weights (#78). The filter reads the
     accessibility `/v1/boards` serves, hides rows, and never re-ranks: each row keeps its place, and
@@ -312,7 +313,10 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
   engine's English is shown. `Uncertainty.swift` is the one file allowed arithmetic on scores
   (D-138).
 - **Gates on the client.**
-  - `tests/unit/test_ios_client_contract.py`: arithmetic happens only in the two named files.
+  - `tests/unit/test_ios_client_contract.py` and the declaration gate below: arithmetic on a served
+    number happens only in its named places (D-181): scores and the tie margin in `Uncertainty.swift`,
+    the anchor's conversions out of 100, positions in `Combine.swift`, and prices only in
+    `priceInPages` in `Router.swift` and `Language.swift`.
   - `scripts/client_decl_gate.py`: the network belongs only to `EngineClient.swift`, and the file
     system only to `FrontDoor.swift` and `StandingsStore.swift`. It reads what the compiler resolved,
     in all four build configurations: the two privacy sinks hold only values and call only what is

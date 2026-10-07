@@ -108,7 +108,8 @@ Runs once, after the final milestone closes, or at a release the owner calls: E.
 
 ### E.1 — Security review (Stage 5.1) — BLOCKING, before any deploy
 
-Runs once, on the whole release, before anything deploys. A fresh-eyes subagent from `.claude/agents/Security-Reviewer.md` writes its verdict to `docs/reviews/release-security.md`. **It must PASS before any E.2 step.**
+Runs once, on the whole release, before anything deploys. A fresh-eyes subagent from `.claude/agents/Security-Reviewer.md` writes its verdict to `docs/reviews/release-security.md`. **It must be PASS or MINOR before any E.2 step** (a
+MINOR's findings each fixed or filed, as `.claude/agents/Security-Reviewer.md` says); BLOCKING stops the release.
 
 - [ ] Secret scan green across all waves (gitleaks in CI and in `make gate`); no `.env`/secret committed
 - [ ] Dependency hygiene: every new dep exists on PyPI and its first release is ≥ 90 days old (`make slopsquat`) + pip-audit clean
@@ -120,7 +121,7 @@ Runs once, on the whole release, before anything deploys. A fresh-eyes subagent 
 - [ ] Every guard/limit/enforcement component in the release is WIRED — reachable from the live request path, proven by an end-to-end citing test ("built ≠ wired")
 - [ ] **Only if the project handles money:** integer minor units + currency end-to-end; Money type rejects float; float sweep of money modules clean
 - [ ] **Skip ledger:** every check that legitimately did NOT run for this release (contract-test self-skips, N/A rows) is a row in `docs/control-events.csv` with its reason — silent non-execution is indistinguishable from PASS
-- [ ] **Verdict PASS** → proceed to E.2. **BLOCKING → nothing deploys.**
+- [ ] **Verdict PASS or MINOR** → proceed to E.2. **BLOCKING → nothing deploys.**
 
 ### E.2 — Deploy + go-live readiness (Stage 5.2)
 

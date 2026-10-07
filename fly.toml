@@ -1,5 +1,5 @@
-# The hosted engine on Fly.io (D-116, the owner's choice; M19-W5, the first release). K.10 cross-team
-# surface; see `.github/CODEOWNERS`.
+# The hosted engine on Fly.io (D-116, the owner's choice; M19-W5, the first release). A K.10 deploy
+# surface: the owner reviews each change (AGENTS.md §5).
 #
 # NOT A DEPLOY AUTHORISATION: the owner deploys, with `scripts/deploy_hosted_engine.sh`, after the
 # Stage 5.1 security review. W-017 is CLOSED (M7-W3): the serving snapshot that copied the whole
