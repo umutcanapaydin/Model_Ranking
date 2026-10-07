@@ -752,3 +752,35 @@ final class ReadingRoundTwoReviewTests: OfflineTestCase {
         }
     }
 }
+
+/// The third M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-review-round-3.md`), REQ-IMG-003 and
+/// REQ-RTR-005: the image rule's reach beyond `vision` drew three verdicts on one class and came out
+/// of the wave. A request to make an image that the tier sent elsewhere keeps that surface, as M18
+/// shipped it; on `vision` the rule reads it, Turkish forms included.
+final class ReadingImageRuleOnVisionOnlyTests: OfflineTestCase {
+    private let known = ["web-dev", "document", "assistant", "everyday", "vision", "coding"]
+
+    func testTheImageRuleOverridesOnlyAQuestionRoutedToVision() async {
+        let elsewhere: [(String, String)] = [
+            ("make me a logo for my bakery", "web-dev"), ("design a logo to put on my website", "web-dev"),
+            ("retouch this portrait", "assistant"), ("fix my hero image on my homepage", "web-dev"),
+            ("make our images smaller in the slides", "document"), ("kafem için logo tasarla", "assistant"),
+            ("remove duplicate photos with a python script", "coding"),
+        ]
+        for (question, surface) in elsewhere {
+            let outcome = await TieredRouter(
+                model: ScriptedModelRouter(answers: [question: ["request": "a model search", "surface": surface]]),
+                similarity: SilentTier()
+            ).route(question, within: known)
+            XCTAssertEqual(outcome.categoryID, surface, question)
+            XCTAssertFalse(outcome.unmeasured, question)
+        }
+        for question in ["make me a logo for my bakery", "düğün fotoğraflarıma rötuş yap, yüzdeki sivilceleri sil"] {
+            let outcome = await TieredRouter(
+                model: ScriptedModelRouter(answers: [question: ["request": "a model search", "surface": "vision"]]),
+                similarity: SilentTier()
+            ).route(question, within: known)
+            XCTAssertTrue(outcome.unmeasured, question)
+        }
+    }
+}
