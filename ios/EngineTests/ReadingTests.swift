@@ -688,7 +688,7 @@ final class ReadingSecondRoundReviewTests: OfflineTestCase {
     }
 }
 
-/// The second M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-review.md`), REQ-IMG-003 and
+/// The second M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-rereview.md`), REQ-IMG-003 and
 /// REQ-RTR-005, REQ-ASK-005: beyond `vision`, only a new image or the asker's own is a request to
 /// make one; "fix the image" or "make images …" is about a site or a file. The lines are the
 /// review's own or made up here; none is a held-out question.

@@ -177,7 +177,7 @@ were spent at §4, so this measures nothing held out; it shows what the fixes co
 | requests to read an image reaching `vision` (10) | model | 10, 9 | 10, 9 |
 | questions that only mention images, overridden (20) | both | 0 | 0 |
 
-**The second code review** (`docs/reviews/m19-wave-4-review.md`, BLOCKING) found the first
+**The second code review** (`docs/reviews/m19-wave-4-rereview.md`, BLOCKING) found the first
 fix fitted to its own lines: other website, store and document questions were still overridden. The
 image rule beyond `vision` now reads only a new image or the asker's own (`review2-*`, `review2w-*`):
 on the spent sets and the tuning sets it scores as the first fix did, row for row on every measure

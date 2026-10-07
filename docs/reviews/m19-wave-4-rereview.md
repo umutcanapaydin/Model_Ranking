@@ -1,6 +1,6 @@
 ---
 record_type: review
-id: m19-wave-4-review
+id: m19-wave-4-rereview
 status: ratified
 seat: independent
 process_version: v6.6
