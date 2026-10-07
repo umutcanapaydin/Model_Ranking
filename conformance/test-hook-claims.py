@@ -296,6 +296,8 @@ def main() -> int:
                   "scripts/deploy_hosted_engine.sh --dry-run",
                   # Named, not run: a message or a search that mentions them is no deploy.
                   "git commit -m 'fly deploy docs'", "grep -n deploy_hosted_engine.sh docs/release-testflight.md",
+                  # The second W5 review's M2: an option or a branch that only starts like --mirror.
+                  "git log --grep push --min-parents=2", "git push origin wave/m19--minor",
                   "git status", "rm file.txt", "rm -r build",
                   "git reset HEAD~1", "npm run format"]
     bash_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
