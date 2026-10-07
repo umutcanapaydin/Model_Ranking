@@ -748,3 +748,22 @@ final class ReadingImageRuleOnVisionOnlyTests: OfflineTestCase {
         }
     }
 }
+
+/// The fourth M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-review-round-4.md`), D-184, REQ-IMG-003:
+/// on `vision`, a Turkish request to READ an image that uses `yap` ("do", "make": `soruyu yap`,
+/// `çevirisini yap`) is a reading, not a request to make one. The lines are the review's own.
+final class ReadingTurkishDoOnVisionTests: OfflineTestCase {
+    func testATurkishRequestToReadAnImageWithYapKeepsVision() async {
+        for question in ["hangi model fotoğraftaki soruyu yapabilir", "bu fotoğraftaki soruyu yap",
+                         "fotoğraftaki tabloyu excel yap", "resimdeki faturayı tablo yap",
+                         "fotoğraftaki menünün çevirisini yap", "bu görseldeki grafiğin analizini yap",
+                         "resimdeki kodun açıklamasını yap", "fotoğraftaki ders notlarının özetini yap"] {
+            let outcome = await TieredRouter(
+                model: ScriptedModelRouter(answers: [question: ["request": "a model search", "surface": "vision"]]),
+                similarity: SilentTier()
+            ).route(question, within: ["vision", "assistant"])
+            XCTAssertEqual(outcome.categoryID, "vision", question)
+            XCTAssertFalse(outcome.unmeasured, question)
+        }
+    }
+}
