@@ -177,6 +177,12 @@ were spent at §4, so this measures nothing held out; it shows what the fixes co
 | requests to read an image reaching `vision` (10) | model | 10, 9 | 10, 9 |
 | questions that only mention images, overridden (20) | both | 0 | 0 |
 
+**The second code review** (`docs/reviews/m19-wave-4-rereview.md`, BLOCKING) found the first
+fix fitted to its own lines: other website, store and document questions were still overridden. The
+image rule beyond `vision` now reads only a new image or the asker's own (`review2-*`, `review2w-*`):
+on the spent sets and the tuning sets it scores as the first fix did, row for row on every measure
+above, and on the wording tier's image tuning set 33 of 36.
+
 The knowledge question lost is the one `nerede` ("where") read, a word the review found no tuning row
 holds whole (its M2); the genuine searches no longer asked were asked on `hangisi` ("which one"). On the tuning sets
 the fixes cost one knowledge question (17 of 22, from 18) and one not-a-search input per run, and no

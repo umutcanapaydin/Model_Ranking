@@ -1,0 +1,822 @@
+[
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "generate a picture of a cat wearing sunglasses",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "make me a logo for my bakery",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "remove the background from my product photo",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bana bir kedi resmi çiz",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "düğün davetiyesi için bir illüstrasyon oluştur",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "fotoğrafımdaki kırmızı gözleri düzelt",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "what does this chart in my screenshot say",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "describe what is in this photo",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "read the receipt in this picture and total it up",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bu ekran görüntüsündeki hata mesajını oku",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bu fotoğrafta hangi bitki var",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bu grafikteki eğilimi açıkla",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "draw me a cute cartoon fox curled up reading a book",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "generate a logo for my coffee brand 'Morning Ritual', minimal, earthy colours",
+    "reading" : "search",
+    "routed" : "abstract",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "turn my selfie into a pixar style avatar i can use on discord",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "remove the background from this product photo and put it on plain white for my etsy listing",
+    "reading" : "search",
+    "routed" : "computer-use",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which model is best for making ai art? mostly fantasy landscapes",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "create an illustration for a kids book page: a whale floating over a city at night",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "retouch this portrait, smooth the skin a little and fix the red eyes",
+    "reading" : "search",
+    "routed" : "expert",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "annemin doğum günü için kedili bir kart resmi çizer misin",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "kuaför salonum için logo tasarla, adı Makas Atölyesi, sade olsun",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bu fotoğrafta arkada kalan insanları silebilir misin",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "profil fotoma bakarak anime tarzı bir avatar oluştur",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "instagram postu için sonbahar temalı görsel üret, masada kahve fincanı ve yapraklar olsun",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "resim üretmede hangi yapay zeka en iyisi",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "dedemlerin eski siyah beyaz fotoğrafını renklendirir misin",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "çocuk masalı için uzayda gezen bir kaplumbağa illüstrasyonu yapar mısın",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "what breed is the dog in this photo?",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "look at this bar chart and tell me which quarter had the highest sales",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "can you get the text out of this screenshot? it's an error popup and i can't copy from it",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "i'm blind, please describe what's in this picture my sister sent me",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "here's a photo of grandma's handwritten recipe card, type it out for me",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bu fotoğraftaki bitki ne acaba, yaprakları sararmaya başladı",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "ekran görüntüsündeki tabloyu yazıya döker misin",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "şu grafikte hangi ay en düşük çıkmış, resimden okuyabiliyor musun",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "market fişinin fotoğrafını attım toplam ne kadar yazıyor",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bu resimde kaç kişi var ve ne yapıyorlar",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "write alt text for the pictures in my blog posts, i'll paste them one by one",
+    "reading" : "search",
+    "routed" : "search_factuality",
+    "surface" : "search_factuality",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "python code to resize every image in a folder to 800px wide with Pillow, keep aspect ratio",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "how do i make images lazy load on my site so the page loads faster",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "opencv ile görüntüdeki yüzleri bulup kare içine alan bir python kodu yazar mısın",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "sahilde gün batımı fotoğrafım için instagrama güzel bir açıklama yazar mısın",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "draw a cat in a space helmet floating past saturn",
+    "reading" : "search",
+    "routed" : "abstract",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "generate an image of a cozy cabin in the snow at nite",
+    "reading" : "search",
+    "routed" : "abstract",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "design a logo for my coffee shop, its called Bean There",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "make me an app icon for a budgeting app, flat style, green",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "remove the background from my product photo so its just white",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "COLORIZE MY GRANDPARENTS OLD BLACK AND WHITE WEDDING PHOTO",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "turn my selfie into a pixar style cartoon",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "illustrate a kids book page: a dragon reading under an oak tree",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "uzayda yüzen bir balina resmi çiz",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "kafem için logo tasarla adı Köşe Kahve, minimalist olsun",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "fotografimin arka planini degistir, deniz kenari olsun",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "düğün fotoğraflarıma rötuş yap, yüzdeki sivilceleri sil",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "eski siyah beyaz aile fotoğrafını renklendir",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bana gün batımında istanbul boğazı görseli oluştur",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "fotomu cizgi film karakterine cevir",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "whats in this photo?",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "read the text off this screenshot pls",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "describe this picture in detail",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "what does this bar chart show? which month had the most sales",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "read the items and prices from this receipt pic",
+    "reading" : "search",
+    "routed" : "document",
+    "surface" : "document",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bu fotoğrafta ne var",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "ekran görüntüsündeki yazıyı metne çevir",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bu grafiği yorumla, satışlar hangi ayda düştü",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "fisteki urunleri ve fiyatlari tek tek yaz",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "resimdeki bitki ne, tanıyabilir misin",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "write a python script that resizes every jpg in a folder to 800px wide",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "help me draw conclusions from a 40 page market research report",
+    "reading" : "search",
+    "routed" : "document",
+    "surface" : "document",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "how do i get rid of background noise in my podcast recordings",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "write alt text for the images on my blog",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "plot monthly revenue as a bar chart using matplotlib",
+    "reading" : "search",
+    "routed" : "expert",
+    "surface" : "expert",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which ai is good at drawing up a business plan for a small bakery",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "build a photography portfolio website with a full-screen image gallery",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "klasördeki tüm jpg dosyalarını küçülten python kodu yaz",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "yapay zeka ile ilgili bu haftaki son haberler neler",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "belediyeye şikayet için resmi bir dilekçe yazmama yardım et",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "sinavlar icin haftalik calisma cizelgesi hazirla",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "iş arkadaşlarıma nasıl sınır çizerim",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "ses kaydındaki arka plan gürültüsünü nasıl temizlerim",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "javascript ile canvas üzerinde satış grafiği çizen kod yaz",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "yazılımda tasarım kalıpları nelerdir, singleton örneğiyle anlat",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  }
+]

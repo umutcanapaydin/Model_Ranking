@@ -512,7 +512,7 @@ final class ReadingVerdictFaultTests: OfflineTestCase {
     }
 }
 
-/// M19-W4 (#66, #113; REQ-ASK-005, REQ-IMG-003): the second round, from the tuning sets' misses
+/// M19-W4 (#66, #113; REQ-ASK-005, REQ-IMG-003, REQ-RTR-005): the second round, from the tuning sets' misses
 /// (`docs/research/m19-w4-question-reading-probe.md`). Every line is a tuning row, never a held-out one.
 final class ReadingSecondRoundTests: OfflineTestCase {
     private let known = ["coding", "agentic-coding", "web-dev", "assistant", "vision", "factuality", "search"]
@@ -684,6 +684,71 @@ final class ReadingSecondRoundReviewTests: OfflineTestCase {
         for text in ["make vs cmake: which is better for c++", "React ile todo uygulaması yap: hangi model en iyisi",
                      "Summarize with AI: what works"] {
             XCTAssertFalse(InputSignals.pastedContent(text), text)
+        }
+    }
+}
+
+/// The second M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-rereview.md`), REQ-IMG-003 and
+/// REQ-RTR-005, REQ-ASK-005: beyond `vision`, only a new image or the asker's own is a request to
+/// make one; "fix the image" or "make images …" is about a site or a file. The lines are the
+/// review's own or made up here; none is a held-out question.
+final class ReadingRoundTwoReviewTests: OfflineTestCase {
+    private let known = ["web-dev", "document", "assistant", "vision"]
+
+    private func route(_ question: String, _ surface: String) async -> RoutingOutcome {
+        await TieredRouter(model: ScriptedModelRouter(answers: [question: ["request": "a model search", "surface": surface]]),
+                           similarity: SilentTier()).route(question, within: known)
+    }
+
+    /// B1: a question about an image in a site, a store or a file keeps its surface on any tier.
+    func testAQuestionAboutAnImageInASiteOrAFileKeepsItsSurface() async {
+        let lines: [(String, String)] = [
+            ("fix the image alignment for my website", "web-dev"), ("make images load faster for my website", "web-dev"),
+            ("fix the broken image in my shopify store", "web-dev"), ("make images load faster on my blog", "web-dev"),
+            ("fix the hero image on my homepage", "web-dev"), ("remove the image shadow in my squarespace theme", "web-dev"),
+            ("make the logo bigger in the header of my blog", "web-dev"),
+            ("fix the images not showing in my next.js project", "web-dev"),
+            ("make the avatar round with border radius", "web-dev"), ("fix the logo position in the footer", "web-dev"),
+            ("edit the image src with javascript", "web-dev"), ("make the photos clickable in my portfolio", "web-dev"),
+            ("blogumdaki resimleri düzelt, açılmıyorlar", "web-dev"), ("sunumdaki resimleri küçük yap", "document"),
+            ("make the images smaller in my powerpoint", "document"), ("fix the image placement in my word doc", "document"),
+            // K1: "This" and "Into" fold to "thıs" and "ınto" in Turkish; the photo is read, not made.
+            ("Turn This Receipt Photo Into A Spreadsheet", "vision"),
+        ]
+        for (question, surface) in lines {
+            let outcome = await route(question, surface)
+            XCTAssertEqual(outcome.categoryID, surface, question)
+            XCTAssertFalse(outcome.unmeasured, question)
+        }
+    }
+
+    /// B1: a new image, or a change to the asker's own, is unmeasured wherever the tier sent it.
+    func testANewImageOrTheAskersOwnIsUnmeasuredWhereverItWasRouted() async {
+        let lines: [(String, String)] = [
+            ("design a logo to put on my website", "web-dev"), ("design an image for the header of my website", "web-dev"),
+            ("generate a hero image to use on my landing page", "web-dev"),
+            ("create a banner image for the homepage of my site", "web-dev"),
+            ("web sitemde kullanmak için bir logo tasarla", "web-dev"), ("sitemin ana sayfası için bir görsel oluştur", "web-dev"),
+            ("remove the background from my product photo", "assistant"), ("retouch this portrait", "assistant"),
+        ]
+        for (question, surface) in lines {
+            let outcome = await route(question, surface)
+            XCTAssertEqual(outcome.categoryID, CategoryHints.unmeasuredFallback, question)
+            XCTAssertTrue(outcome.unmeasured, question)
+        }
+    }
+
+    /// M2 and M5: a Turkish name's suffix after an apostrophe is no English "I"; a lone "I" is.
+    func testAnApostropheSuffixIsNoAsker() {
+        XCTAssertTrue(InputSignals.asksAFact("Hamlet'i kim yazdı"))
+        XCTAssertFalse(InputSignals.asksAFact("Where should I start"))
+    }
+
+    /// M3: content that opens with "which" or names AI after the colon is still pasted content.
+    func testContentAfterAColonMayAskOrNameAI() {
+        for text in ["translate into turkish: which train goes to izmir tonight",
+                     "summarize: the new AI act changes how companies report"] {
+            XCTAssertTrue(InputSignals.pastedContent(text), text)
         }
     }
 }

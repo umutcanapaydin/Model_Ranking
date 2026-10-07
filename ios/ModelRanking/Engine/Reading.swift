@@ -57,11 +57,13 @@ enum InputSignals {
         // to "aı" in Turkish (the M19-W4 review's K2).
         let searchWords: Set<String> = ["model", "models", "llm", "ai", "which", "best", "hangi", "modeli", "modelin"]
         if before.contains(where: { $0.contains(where: searchWords.contains) }) { return false }
-        // Or after it: its "which" first, or a model named ("make vs cmake: which is better", the
-        // M19-W4 review's M6).
+        // Or a comparison before it ("make vs cmake: which is better"), or a question for a model after
+        // it, opening with "which" and naming a model ("…: hangi model en iyisi"): content may open with
+        // "which" or name AI, and still be content (the M19-W4 reviews' M6 and M3).
+        if before.contains(where: { $0.contains("vs") || $0.contains("versus") }) { return false }
         if folds(after).map(wordsOf).contains(where: { words in
             ["which", "hangi", "hangisi"].contains(words.first ?? "")
-                || words.contains(where: { $0.hasPrefix("model") || ["ai", "llm"].contains($0) })
+                && words.contains(where: { $0.hasPrefix("model") || ["ai", "llm"].contains($0) })
         }) {
             return false
         }
@@ -161,9 +163,12 @@ enum InputSignals {
     /// such questions on the tuning set "a model search".
     static func asksAFact(_ text: String) -> Bool {
         let folded = folds(text).map(wordsOf)
+        // A suffix after an apostrophe belongs to its word ("Hamlet'i", "Türkiye'nin"), so it is no
+        // English "I" (the second M19-W4 review's M2); "I'm" still leaves an "I".
+        let bare = text.replacingOccurrences(of: "['’]\\p{L}+", with: "", options: .regularExpression)
         // Excluded if ANY folding names a model, the asker, a task or the rest: "I" and "AI" fold to
         // "ı" and "aı" in Turkish, and iOS capitalises "I" (the M19-W4 review's MJ2).
-        if folded.contains(where: { words in
+        if folds(bare).map(wordsOf).contains(where: { words in
             words.contains(where: { word in
                 word.hasPrefix("model") || factExclusions.contains(word) || actVerbsEnglish.contains(word)
                     || factExclusionStemsTurkish.contains(where: word.hasPrefix) || isImageNoun(word)
@@ -220,7 +225,10 @@ enum InputSignals {
     ///   "çiz" itself, or "arka plan" with a removing verb after it.
     static func makesAnImage(_ text: String) -> Bool {
         folds(text).contains { folded in
-            let words = wordsOf(folded)
+            let turkishWords = wordsOf(folded)
+            // English words compared as English: "This" and "Into" fold to "thıs" and "ınto" in Turkish,
+            // and "into" decides a reading (the second M19-W4 review's K1). Turkish words stay as they are.
+            let words = turkishWords.map { $0.replacingOccurrences(of: "ı", with: "i") }
             for (index, word) in words.enumerated() {
                 let next = Array(words.dropFirst(index + 1).prefix(4))
                 if word == "background", index > 0,
@@ -229,8 +237,8 @@ enum InputSignals {
                    words.contains(where: isImageNoun) {
                     return true
                 }
-                if word == "arka", next.first?.hasPrefix("plan") == true,
-                   next.dropFirst().prefix(3).contains(where: { candidate in
+                if turkishWords[index] == "arka", turkishWords.dropFirst(index + 1).first?.hasPrefix("plan") == true,
+                   turkishWords.dropFirst(index + 2).prefix(3).contains(where: { candidate in
                        ["kaldır", "sil", "değiştir", "degistir", "bulanıklaştır"].contains { candidate.hasPrefix($0) }
                    }) {
                     return true
@@ -241,7 +249,7 @@ enum InputSignals {
                         return true
                     }
                 }
-                if drawStemsTurkish.contains(word) { return true }
+                if drawStemsTurkish.contains(turkishWords[index]) { return true }
                 if imageVerbsEnglish.contains(word), let at = next.firstIndex(where: isImageNoun) {
                     let between = next[..<at]
                     let after = at + 1 < next.count ? next[at + 1] : (index + at + 2 < words.count ? words[index + at + 2] : "")
@@ -259,9 +267,10 @@ enum InputSignals {
                 }
                 // The image must be the verb's object, not a modifier of it ("resim galerisi yap" makes
                 // a gallery page, "resim yükleme sayfası" an upload page: the M19-W4 review's MJ1).
-                if isTurkishVerb(words, at: index, stems: imageStemsTurkish),
-                   words.indices[max(0, index - 4)..<index].contains(where: { spot in
-                       isImageNoun(words[spot]) && !(spot + 1 < index && modifierHeadsTurkish.contains(where: words[spot + 1].hasPrefix))
+                if isTurkishVerb(turkishWords, at: index, stems: imageStemsTurkish),
+                   turkishWords.indices[max(0, index - 4)..<index].contains(where: { spot in
+                       isImageNoun(turkishWords[spot])
+                           && !(spot + 1 < index && modifierHeadsTurkish.contains(where: turkishWords[spot + 1].hasPrefix))
                    }) {
                     return true
                 }
@@ -295,39 +304,50 @@ enum InputSignals {
     /// A word after an image noun that makes the noun a modifier, in Turkish: a gallery, an upload,
     /// a page or a section of it.
     private static let modifierHeadsTurkish = ["galeri", "yükleme", "sayfa", "bölüm"]
-    /// Whether the question is about an image IN a website, an app or a document (the M19-W4 review's
-    /// MJ1): beyond `vision`, the image rule does not override one ("fix the broken image on my
-    /// wordpress site", "sitemdeki resimleri düzelt"). A site word does not count when it names the
-    /// image ("app icon", "website logo") or the site the image is made FOR ("a logo for my website",
-    /// "web sitem için"). English whole, Turkish by stem, where a suffix ("sitemdeki") places it.
-    static func namesASiteOrADocument(_ text: String) -> Bool {
+    /// Beyond `vision`, the request the image rule may read (the second M19-W4 review's B1): a NEW
+    /// image ("make me a logo", "design an image for …", "draw a …"; Turkish `bir` or a bare image
+    /// noun before a making verb, "bir logo tasarla"), or a change to the asker's OWN image ("my
+    /// photo", "this portrait"; Turkish "fotoğrafım…", or `bu` before an image). "Fix the image" or
+    /// "make images …" is about a site or a file, and keeps its surface. Read with `makesAnImage`.
+    static func asksForANewOrOwnImage(_ text: String) -> Bool {
         folds(text).contains { folded in
             let words = wordsOf(folded)
-            return words.indices.contains { spot in
-                let word = words[spot]
-                let english = siteWordsEnglish.contains(word)
-                guard english || siteStemsTurkish.contains(where: word.hasPrefix) else { return false }
-                let next = spot + 1 < words.count ? words[spot + 1] : ""
-                let bare = english || ["uygulama", "site", "web"].contains(word)
-                if bare, isImageNoun(next) || siteWordsEnglish.contains(next) || siteStemsTurkish.contains(where: next.hasPrefix) {
-                    return false
+            // English words compared as English: "This" folds to "thıs" in Turkish (the review's K1).
+            let english = words.map { $0.replacingOccurrences(of: "ı", with: "i") }
+            for (index, word) in english.enumerated() {
+                if newImageVerbsEnglish.contains(word) {
+                    var rest = english.dropFirst(index + 1).prefix(5)
+                    if let first = rest.first, ["me", "us"].contains(first) { rest = rest.dropFirst() }
+                    if let article = rest.first, ["a", "an", "some", "new"].contains(article),
+                       word == "draw" || rest.dropFirst().prefix(3).contains(where: isImageNoun) {
+                        return true
+                    }
                 }
-                if next == "için" { return false }
-                if english, words[..<spot].last(where: placePrepositions.contains) == "for" { return false }
-                return true
+                if isImageNoun(word), english[max(0, index - 2)..<index].contains(where: ownWordsEnglish.contains) {
+                    return true
+                }
+            }
+            for index in words.indices where isTurkishVerb(words, at: index, stems: newImageStemsTurkish) {
+                let window = words[max(0, index - 4)..<index]
+                if (window.contains("bir") && window.contains(where: isImageNoun))
+                    || window.contains(where: bareImageNounsTurkish.contains) {
+                    return true
+                }
+            }
+            return words.indices.contains { spot in
+                ownImageStemsTurkish.contains(where: words[spot].hasPrefix)
+                    || (words[spot] == "bu" && spot + 1 < words.count && isImageNoun(words[spot + 1]))
             }
         }
     }
 
-    /// The prepositions before a site word that say where the image is, or (`for`) what it is for.
-    private static let placePrepositions: Set<String> = ["for", "on", "in", "of", "from", "to", "at", "into", "onto"]
-
-    private static let siteWordsEnglish: Set<String> = [
-        "site", "sites", "website", "websites", "webpage", "web", "page", "pages", "app", "apps", "css", "html",
-        "navbar", "tailwind", "wordpress", "react", "frontend", "component", "latex", "pdf", "document",
-        "documents", "docx", "slide", "slides",
+    private static let newImageVerbsEnglish: Set<String> = [
+        "make", "generate", "create", "design", "draw", "illustrate", "paint", "redraw",
     ]
-    private static let siteStemsTurkish = ["site", "sayfa", "uygulama", "belge"]
+    private static let ownWordsEnglish: Set<String> = ["my", "this", "our", "these"]
+    private static let newImageStemsTurkish: Set<String> = ["tasarla", "oluştur", "üret", "çiz", "yap"]
+    private static let bareImageNounsTurkish: Set<String> = ["logo", "resim", "görsel", "fotoğraf", "illüstrasyon", "avatar"]
+    private static let ownImageStemsTurkish = ["fotoğrafım", "fotografim", "fotom"]
 
     private static let drawIdioms: Set<String> = [
         "conclusion", "conclusions", "comparison", "distinction", "line", "parallel", "chart", "graph",
