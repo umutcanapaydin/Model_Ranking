@@ -198,6 +198,9 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
     # is left out of its own comparison. Their strings are compared as strings, after JSON decoding.
     tuning = {p.name: _json_strings(json.loads(p.read_text(encoding="utf-8")))
               for p in sorted((root / "scripts/router_probe").glob("*.json")) if p not in live}
+    # The tuning sets a wave keeps beside its runs too (the M19-W4 Tester), keyed by their path.
+    tuning |= {str(p.relative_to(root)): _json_strings(json.loads(p.read_text(encoding="utf-8")))
+               for p in _research_tuning_sets()}
     found = _held_out_leaks(held, texts, _every_tuning_set_read(tuning))
     assert not found, f"held-out questions written into code, tests or tuning sets (file, length): {found}"
 
@@ -1614,9 +1617,11 @@ HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
     "deepseek": _AFTER_MEASURE.format(finding="MJ2", set="notasearch_heldout_m19"),
     "gemini": _AFTER_MEASURE.format(finding="MJ2", set="notasearch_heldout_m19"),
 }
-#: A list of two or more string literals: every word, phrase, verb and noun list in `Reading.swift`,
-#: the inline ones in its functions too, derived from the source rather than named here.
-STRING_LIST = re.compile(r'\[\s*((?:"[^"\n]*"\s*,?\s*){2,})\]')
+#: A list of string literals: every word, phrase, verb and noun list in `Reading.swift`, the inline
+#: ones in its functions too, derived from the source rather than named here. One literal is a list
+#: too (the M19-W4 Tester): W4 put `smallTalkPhrases` and four of `factOpeners` in one-entry lists,
+#: which a bound of two left unread.
+STRING_LIST = re.compile(r'\[\s*((?:"[^"\n]*"\s*,?\s*)+)\]')
 
 
 def _reading_lists() -> list[tuple[list[str], bool]]:
@@ -1631,6 +1636,48 @@ def _reading_lists() -> list[tuple[list[str], bool]]:
         lists.append((re.findall(r'"([^"\n]*)"', found.group(1)), stems))
     assert sum(len(entries) for entries, _ in lists) > 100, "Reading.swift's lists were not read"
     return lists
+
+
+def test_every_fact_opener_and_small_talk_phrase_is_read_by_the_held_out_check() -> None:
+    """The M19-W4 Tester (#117, D-183 clause 5; D-184 clause 2): the check read lists of two or more
+    literals, so the five entries W4 added in one-entry lists (`smallTalkPhrases`, and "who", "when",
+    "where" and "whats" in `factOpeners`) were outside it, and a one-entry list could take a word from a
+    live held-out set unflagged. Reading them flags nothing new (measured at `d324669`). It also fails
+    when the check stops reading two-entry lists, such as `factOpeners`' ["how", "far"], which no test
+    held."""
+    code = "\n".join(line.split("//")[0] for line in _swift(CLIENT / "Engine/Reading.swift").splitlines())
+    wanted: set[str] = set()
+    for name in ("factOpeners", "smallTalkPhrases"):
+        declared = re.search(rf"static let {name}\b[^=]*=\s*(\[.*?\])\n", code, re.S)
+        assert declared, f"Reading.swift no longer declares {name}"
+        wanted |= set(re.findall(r'"([^"\n]*)"', declared.group(1)))
+    assert {"who", "whats", "far", "eline sa\u011fl\u0131k"} <= wanted, "the lists were not read here"
+    read = {entry for entries, _ in _reading_lists() for entry in entries}
+    assert wanted - read == set(), "entries of Reading.swift the held-out check does not read"
+
+
+#: The tuning sets a wave keeps beside its runs (`docs/research/<wave>-runs/`) rather than in
+#: `scripts/router_probe/`: M18-W3's and M19-W4's (the M19-W4 Tester: a live held-out question copied
+#: into one passed every gate). A set's name has no run's prefix ("v0-", "final-"), so no run is read.
+RESEARCH_TUNING_SET = re.compile(r"^[a-z_]*tuning[a-z0-9_]*\.json$")
+
+
+def _research_tuning_sets() -> list[pathlib.Path]:
+    found = sorted(path for path in (CLIENT.parents[1] / "docs/research").glob("*/*.json")
+                   if RESEARCH_TUNING_SET.match(path.name))
+    names = {path.name for path in found}
+    expected = {"reading_tuning.json", "reading_tuning_w4.json", "image_tuning_w4.json"}
+    assert expected <= names, f"research tuning sets not read: {sorted(expected - names)}"
+    return found
+
+
+def test_the_tuning_sets_kept_beside_their_runs_are_read_by_the_leak_gate() -> None:
+    """The M19-W4 Tester (D-147 clause 5, #119): W4 tuned on `reading_tuning_w4.json`,
+    `image_tuning_w4.json` and M18-W3's `reading_tuning.json`, all in `docs/research/`, which the leak
+    gate did not read: a live held-out question planted in either reading set passed it. The gate now
+    reads them, and only them: no run output, whose rows a held-out set's run holds by design."""
+    found = _research_tuning_sets()
+    assert all("-" not in path.name and "heldout" not in path.name for path in found), [p.name for p in found]
 
 
 def _held_and_tuning_strings() -> tuple[list[str], list[str]]:

@@ -796,3 +796,62 @@ final class ReadingRoundFourHoldsTests: OfflineTestCase {
         XCTAssertTrue(InputSignals.pastedContent("make this sound more polite: send me the report now"))
     }
 }
+
+/// The M19-W4 Tester (`docs/reviews/m19-wave-4-tester.md`), REQ-ASK-005, REQ-IMG-003 and D-184: faults in
+/// the second round's reading that every test passed. Each test names the faults it kills. Every line
+/// is made up here; none is a held-out question or close to one.
+final class ReadingSecondRoundFaultTests: OfflineTestCase {
+    /// F7, F45 (D-184 clause 1; the W4 review's MJ2): "hangisi" (which one), and "hangi" (which) before
+    /// any noun but a year, are how a Turkish reader asks for a tool, so neither opens a question of fact.
+    /// The review's lines each hold an excluded word as well, so they passed with "hangisi" read again.
+    func testWhichOneAndWhichBeforeANounOpenNoQuestionOfFact() {
+        for text in ["sunum hazırlamak için hangisi", "tatil planı yapmak için hangisi",
+                     "uzun pdf özetlemek için hangi araç", "hangi uygulama daha hızlı"] {
+            XCTAssertFalse(InputSignals.asksAFact(text), text)
+        }
+    }
+
+    /// F44: a Turkish question of fact typed in capitals is read under the Turkish folding, where "İ"
+    /// folds to "i"; the default folding keeps a combining dot above it.
+    func testATurkishQuestionOfFactInCapitalsIsRead() {
+        XCTAssertTrue(InputSignals.asksAFact("AVUSTRALYANIN BAŞKENTİ NERESİ"))
+    }
+
+    /// F40: "what's" opens a question of fact, as "whats" and "what is" do (`factOpeners`).
+    func testWhatsWithItsApostropheOpensAQuestionOfFact() {
+        XCTAssertTrue(InputSignals.asksAFact("what's the boiling point of mercury"))
+    }
+
+    /// F23 (the W4 review's M1): a phrase counts as one word of small talk, as `smallTalk` says: alone
+    /// it is small talk, and after six words it is past the bound.
+    func testAPhraseOfSmallTalkCountsAsOneWord() {
+        XCTAssertTrue(InputSignals.smallTalk("eline sağlık"))
+        XCTAssertFalse(InputSignals.smallTalk("hi hello thanks ok cool bye eline sağlık"))
+    }
+
+    /// F35 (the W4 review's MJ1): an image that modifies another noun ("fotoğraf galerisi", "resim
+    /// yükleme") is no object of a Turkish making verb. The review's lines were sent to `web-dev`, where
+    /// the rule no longer reaches since #191, so they passed without the modifier rule; on `vision` it
+    /// still decides.
+    func testATurkishImageThatModifiesANounIsNoImageToMake() async {
+        for text in ["blog için fotoğraf galerisi oluştur", "resim yükleme sayfası tasarla"] {
+            XCTAssertFalse(InputSignals.makesAnImage(text), text)
+            let outcome = await TieredRouter(
+                model: ScriptedModelRouter(answers: [text: ["request": "a model search", "surface": "vision"]]),
+                similarity: SilentTier()
+            ).route(text, within: ["web-dev", "assistant", "vision"])
+            XCTAssertEqual(outcome.categoryID, "vision", text)
+            XCTAssertFalse(outcome.unmeasured, text)
+        }
+    }
+
+    /// F37 (D-184 clause 3): "fotoğraf" typed without its Turkish letter is an image too.
+    func testAPhotoTypedWithoutItsTurkishLetterIsAnImage() {
+        XCTAssertTrue(InputSignals.makesAnImage("eski fotografimi renklendir"))
+    }
+
+    /// F39: "arka plan" with a removing verb up to three words after it, as `makesAnImage` reads it.
+    func testABackgroundRemovedAWordLaterIsMade() {
+        XCTAssertTrue(InputSignals.makesAnImage("ürünün arka planını tamamen kaldır"))
+    }
+}
