@@ -10,4 +10,6 @@
 **/.env*
 **/__pycache__
 **/*.pyc
+**/*.pem
+**/*.key
 !build/hosted/advisor.db

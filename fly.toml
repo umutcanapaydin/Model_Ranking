@@ -7,7 +7,9 @@
 # (measured: 30 requests grew peak RSS by 0.64 MiB over a 0.93 MiB database).
 #
 # `app` names the deployment and, with it, the one Host the engine answers to (below). Fly app names
-# are global: if this one is taken, rename it here and in MODEL_RANKING_ALLOWED_HOSTS together.
+# are global: if this one is taken, rename it in four places together: `app`,
+# MODEL_RANKING_ALLOWED_HOSTS and the health check's Host here, and ENGINE_URL[config=Release] in
+# ios/Config/Engine.xcconfig (docs/release-testflight.md, step 1.3).
 
 app = "model-ranking"
 primary_region = "fra"

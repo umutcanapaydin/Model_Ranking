@@ -49,7 +49,10 @@ _REMOVE_ALSO = {
     "plan_models": "DELETE FROM plan_models",
     "plans": "DELETE FROM plans",
 }
-_SURVIVORS = "SELECT count(*) FROM scores WHERE source IN (SELECT value FROM json_each(?))"
+_SURVIVORS = (
+    "SELECT (SELECT count(*) FROM scores WHERE source IN (SELECT value FROM json_each(?)))"
+    " + (SELECT count(*) FROM pricing WHERE source IN (SELECT value FROM json_each(?)))"
+)
 
 
 def derive(source: Path, target: Path) -> dict[str, int]:
@@ -79,7 +82,7 @@ def derive(source: Path, target: Path) -> dict[str, int]:
                     removed[f"{what}_removed"] = conn.execute(statement).rowcount
             if build_price_medians(conn) <= 0:
                 raise ValueError("no prices are left to rank by: the public artifact would answer nothing")
-            left = conn.execute(_SURVIVORS, (sources,)).fetchone()[0]
+            left = conn.execute(_SURVIVORS, (sources, sources)).fetchone()[0]
             if left:
                 raise ValueError(f"{left} rows of a left-out source survived the derivation")
             # Out of WAL, whatever the built artifact journals: a WAL file cannot be opened read-only in

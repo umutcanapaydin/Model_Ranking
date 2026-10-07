@@ -4280,8 +4280,12 @@ testing included.
    | `epoch_mmlu` | `everyday`'s secondary score, display only | no licence found |
    | `openrouter` | the second price of 168 models | its terms forbid use of its data unless authorised |
 
-   `abstract`, `agentic-coding`, `computer-use` and `web-dev` answer that they have no evidence on the
-   hosted engine (D-121's path). The owner's Mac keeps every source under W-129's ruling. A source comes
+   The public artifact also drops LiteLLM's own copies of OpenRouter's prices (`openrouter/` aliases)
+   and the vendor subscription plans, which `/v1` never serves; its pricing credit names only the
+   sources it serves. Measured on the artifact of 2026-10-07: 296 models priced, against 303 (seven
+   had only an OpenRouter price); `assistant`, `everyday`, `expert`, `factuality` and `mathematics` each
+   rank 2 to 4 fewer models. `abstract`, `agentic-coding`, `computer-use` and `web-dev` answer that
+   they have no evidence on the hosted engine (D-121's path). The owner's Mac keeps every source under W-129's ruling. A source comes
    back with its publisher's written permission, or a licensed replacement (LMArena's CC-BY `webdev`
    board for `web-dev`, #185).
 4. **The app is ready for TestFlight:** an app icon (a placeholder), a privacy manifest (UserDefaults,

@@ -290,7 +290,7 @@ def test_the_csv_cites_exactly_what_the_json_cites_no_more(tmp_path: Path) -> No
     # is why the first version of this test stayed green against that mutant.
     from app.workflows.rank import attributions_for
 
-    owed = attributions_for({row["evidence_source"] for row in payload["rows"]}, priced=True)
+    owed = attributions_for({row["evidence_source"] for row in payload["rows"]}, priced=True, pricing_sources=None)
     assert tuple(payload["attribution"]) == owed, "the export cites the catalogue, not its sources"
     assert tuple(cited) == owed
 

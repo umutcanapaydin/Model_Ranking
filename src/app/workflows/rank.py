@@ -127,8 +127,13 @@ def served_pricing_sources(conn: sqlite3.Connection) -> frozenset[str]:
     return frozenset(row[0] for row in conn.execute("SELECT DISTINCT source FROM pricing WHERE model_id IS NOT NULL"))
 
 
+#: `attributions_for`'s marker for "not given": a priced payload must say which price sources it
+#: serves, or `None` for the owner's full export (the second W5 review's R4).
+_UNSAID: frozenset[str] = frozenset({"<unsaid>"})
+
+
 def attributions_for(
-    evidence_sources: Iterable[str], *, priced: bool, pricing_sources: Iterable[str] | None = None
+    evidence_sources: Iterable[str], *, priced: bool, pricing_sources: Iterable[str] | None = _UNSAID
 ) -> tuple[str, ...]:
     """The citations a payload actually owes, in catalogue order.
 
@@ -136,8 +141,12 @@ def attributions_for(
     engine). The subscription engine ranks on the curated plan table's monthly price
     and must not claim the per-token pricing feeds it never read. ``pricing_sources`` names the
     price sources the served artifact holds (`served_pricing_sources`): OpenRouter is credited only
-    where its prices are; with none given, the whole catalogue's credit (an export on the owner's Mac).
+    where its prices are; with `None`, the whole catalogue's credit (an export on the owner's Mac). A
+    priced call must say which: one that forgot would credit OpenRouter again.
     """
+    if priced and pricing_sources is _UNSAID:
+        msg = "a priced payload names the price sources it serves (served_pricing_sources), or None"
+        raise TypeError(msg)
     pricing = (PRICING_ATTRIBUTION if pricing_sources is None or "openrouter" in set(pricing_sources)
                else PRICING_ATTRIBUTION_LITELLM)
     owed = {pricing} if priced else set()
@@ -447,7 +456,7 @@ def export_ranking(
         item["higher_effort_score"] = round_optional_score(row.higher_effort_score)
         dicts.append(item)
     # W4 review BLOCKING-2: an export cites the sources IT carries, not the catalogue.
-    attribution = attributions_for({r.evidence_source for r in ranking}, priced=True)
+    attribution = attributions_for({r.evidence_source for r in ranking}, priced=True, pricing_sources=None)
 
     fields = list(RankingRow.__dataclass_fields__)
     with csv_path.open("w", newline="", encoding="utf-8") as f:

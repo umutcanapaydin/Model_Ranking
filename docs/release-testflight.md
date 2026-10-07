@@ -54,12 +54,15 @@ You need an Apple Developer Program membership (99 USD a year) for TestFlight.
 
 1. **Signing.** In `ios/Config/Engine.local.xcconfig` (git-ignored; create it if `docs/owner-iphone.md`
    has not), set `DEVELOPMENT_TEAM = <your team id>`. If App Store Connect says the bundle id is taken,
-   set `PRODUCT_BUNDLE_IDENTIFIER` there too. Do not set `ENGINE_URL` there for a TestFlight build,
-   or it replaces the hosted address.
+   set `PRODUCT_BUNDLE_IDENTIFIER` there too. An `ENGINE_URL` there reaches Debug builds only: a
+   Release build always asks the hosted engine (the Release address comes after this file).
 2. **The app record.** At https://appstoreconnect.apple.com → Apps → "+": New App, iOS, the bundle id
    from step 1, a name (for example "Model Ranking"), primary language English.
 3. **Archive.** Open `ios/ModelRanking.xcodeproj` in Xcode, choose "Any iOS Device (arm64)" as the
    destination, then Product → Archive. A Release build reaches `https://model-ranking.fly.dev`.
+   To check before uploading: in the Organizer, right-click the archive → Show in Finder, and in
+   Terminal run `plutil -p <the .xcarchive>/Products/Applications/ModelRanking.app/Info.plist | grep
+   EngineURL`; it must say `https://model-ranking.fly.dev`.
 4. **Upload.** In the Organizer that opens: Distribute App → App Store Connect → Upload. The
    encryption question is already answered in the app (no non-exempt encryption). Each later upload
    needs a higher build number: raise `CURRENT_PROJECT_VERSION` (Xcode: the target → General →

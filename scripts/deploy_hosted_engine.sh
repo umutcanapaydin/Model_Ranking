@@ -22,8 +22,14 @@ REPO="${MODEL_RANKING_REPO:-$(cd "$(dirname "$0")/.." && pwd)}"
 SERVED="${MODEL_RANKING_SERVED:-$HOME/Library/Application Support/model-ranking/engine/data/advisor.db}"
 PYTHON="${PYTHON:-$REPO/.venv/bin/python}"
 TRIES="${DEPLOY_HEALTH_TRIES:-12}"
+# No argument, or exactly --dry-run: anything else is refused, never read as a deploy (the second W5
+# review's M1).
 DRY=0
-if [ "${1:-}" = "--dry-run" ]; then DRY=1; fi
+case "$#:${1:-}" in
+  0:) ;;
+  1:--dry-run) DRY=1 ;;
+  *) echo "[deploy] refused: the only argument is --dry-run (got: $*)" >&2; exit 2 ;;
+esac
 
 cd "$REPO"
 if [ -n "$(git status --porcelain)" ]; then
@@ -31,8 +37,11 @@ if [ -n "$(git status --porcelain)" ]; then
   git status --short >&2
   exit 1
 fi
-if ! git merge-base --is-ancestor HEAD origin/main 2>/dev/null; then
-  echo "[deploy] refused: HEAD is not on origin/main; a release is what main holds (merge, pull, then deploy)" >&2
+# A release is main's tip, read fresh: an older main commit, or a stale origin/main, is refused (the
+# second W5 review's R5).
+git fetch -q origin main || { echo "[deploy] refused: could not fetch origin/main" >&2; exit 1; }
+if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+  echo "[deploy] refused: HEAD is not the tip of origin/main; a release is what main holds (pull, then deploy)" >&2
   exit 1
 fi
 APP="$("$PYTHON" -c 'import tomllib; print(tomllib.load(open("fly.toml", "rb"))["app"])')"

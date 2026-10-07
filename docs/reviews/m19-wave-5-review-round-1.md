@@ -218,7 +218,7 @@ fixed and a seat confirms it, or the owner rules on it, this verdict holds the c
 - **M7** `docs/reviews/m18-wave-1-review.md:51`; `docs/reviews/m18-wave-1-tester.md:112`, `:419`.
   **#147's acceptance is not met: "No tracked file names the owner's Mac or home address" (wave
   plan, P1).**
-  - `git grep -i -E "umut-macbook|192\.168\.0\.26"` finds the Mac's name and its LAN address in two
+  - `git grep -i -E "<the Mac's name>|<its LAN address>"` (redacted, #147) finds the Mac's name and its LAN address in two
     ratified review records.
   - The four files #147 named are clean. The git history keeps the name in any case, and the
     repository is public.
