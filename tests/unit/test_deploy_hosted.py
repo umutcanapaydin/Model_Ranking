@@ -109,7 +109,7 @@ def test_the_build_context_carries_what_the_image_copies_and_little_else(source:
     assert any(rule.lstrip("!").rstrip("/*") == source for rule in rules if rule.startswith("!")), rules
 
 
-# --- The M19-W5 review (docs/reviews/m19-wave-5-review.md) -----------------------------------------
+# --- The M19-W5 review (docs/reviews/m19-wave-5-review-round-1.md) ----------------------------------------
 
 def test_a_deploy_places_one_machine(tmp_path: Path) -> None:
     """M4: a first `fly deploy` places two machines by default, not the one the records cost."""
