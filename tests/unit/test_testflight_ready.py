@@ -92,7 +92,7 @@ def test_the_iphone_guide_sets_the_home_address_for_debug_builds_only() -> None:
 def test_a_release_build_reaches_the_hosted_engine_whatever_the_local_config_says() -> None:
     """The M19 security review's S1: in an xcconfig the last matching setting wins, and
     `Engine.local.xcconfig` was included after the Release line, so the owner's own `ENGINE_URL` (as
-    the iPhone guide had him write it) sent a TestFlight archive to his Mac over plain http."""
+    the iPhone guide said to write it) sent a TestFlight archive to the owner's Mac over plain http."""
     lines = (CONFIG / "Engine.xcconfig").read_text(encoding="utf-8").splitlines()
     include = next(i for i, line in enumerate(lines) if line.startswith('#include? "Engine.local.xcconfig"'))
     release = next(i for i, line in enumerate(lines) if line.startswith("ENGINE_URL[config=Release]"))
