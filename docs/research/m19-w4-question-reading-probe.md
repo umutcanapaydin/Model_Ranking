@@ -188,10 +188,25 @@ holds whole (its M2); the genuine searches no longer asked were asked on `hangis
 the fixes cost one knowledge question (17 of 22, from 18) and one not-a-search input per run, and no
 request to make an image. The review's thirteen website and document lines now keep their surface.
 
+**The third code review** (`docs/reviews/m19-wave-4-review-round-3.md`, BLOCKING) found the
+second fix's patterns ("my photo", a making verb with "a") overriding ordinary questions about a
+site's or a file's image again. The third verdict on one class takes the slice out: the image rule is
+back on `vision` only, with the Turkish forms and the folding fix kept (`review3-*`, `review3w-*`):
+
+| measure | tier | §4, `de8c3f8` | the code that ships |
+|---|---|---:|---:|
+| requests to make an image told "not measured" (20) | model | 8, 8 | 4, 3 |
+| | wording | 18 | 14 |
+| requests to read an image reaching `vision` (10) | model | 10, 9 | 10, 9 |
+| questions that only mention images, overridden (20) | both | 0 | 0 |
+
+The reading measures are as in the table above. On the image tuning set, 27 and 26 of 36 (model) and
+25 of 36 (wording). #113 meets neither bar; the reach beyond `vision` is #191.
+
 ## 7. State
 
 - Shipped by the wave: the reading of a question of fact (a doubt), the second-round signals, and the
-  image rule on every surface but code. #66 and #113 stay open: the knowledge and image-making gaps
+  image rule's Turkish forms, on `vision` only. #66 and #113 stay open: the knowledge and image-making gaps
   of §4 are what a next round would start from, on fresh sets.
 - The two M19 sets are spent. They stay registered as live (`RETIRED_HELD_OUT` leaves them out) until
   the next fresh set lands, as the M18 sets did until #177: the held-out gates need a live set.

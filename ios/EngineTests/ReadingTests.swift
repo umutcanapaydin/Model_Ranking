@@ -598,26 +598,6 @@ final class ReadingSecondRoundTests: OfflineTestCase {
             .route(question, within: known)
         XCTAssertEqual(worded.reading, .unsure)
     }
-
-    /// #113: a request to make an image is unmeasured wherever the tier sent it but code, the model's
-    /// `web-dev` and `assistant` and the wording tier's alike (6 and 7 of 20 went to `web-dev` at the
-    /// baseline, where the rule did not reach).
-    func testARequestToMakeAnImageIsUnmeasuredWhereverItWasRouted() async {
-        for (question, surface) in [("make me a logo for my bakery", "web-dev"),
-                                    ("design a logo for my coffee shop, its called Bean There", "web-dev"),
-                                    ("kafem için logo tasarla adı Köşe Kahve, minimalist olsun", "assistant")] {
-            let outcome = await TieredRouter(model: ScriptedModelRouter(answers: [question: ["request": "a model search",
-                                                                                             "surface": surface]]),
-                                             similarity: SilentTier()).route(question, within: known)
-            XCTAssertEqual(outcome.categoryID, CategoryHints.unmeasuredFallback, question)
-            XCTAssertTrue(outcome.unmeasured, question)
-            XCTAssertEqual(outcome.tier, .model, question)
-        }
-        let worded = await TieredRouter(model: nil, similarity: AnsweringWordingTier(surface: "web-dev"))
-            .route("make me an app icon for a budgeting app, flat style, green", within: known)
-        XCTAssertTrue(worded.unmeasured)
-        XCTAssertEqual(worded.tier, .similarity)
-    }
 }
 
 /// The M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-review-round-1.md`), REQ-ASK-005, REQ-IMG-003 and
@@ -722,22 +702,6 @@ final class ReadingRoundTwoReviewTests: OfflineTestCase {
         }
     }
 
-    /// B1: a new image, or a change to the asker's own, is unmeasured wherever the tier sent it.
-    func testANewImageOrTheAskersOwnIsUnmeasuredWhereverItWasRouted() async {
-        let lines: [(String, String)] = [
-            ("design a logo to put on my website", "web-dev"), ("design an image for the header of my website", "web-dev"),
-            ("generate a hero image to use on my landing page", "web-dev"),
-            ("create a banner image for the homepage of my site", "web-dev"),
-            ("web sitemde kullanmak için bir logo tasarla", "web-dev"), ("sitemin ana sayfası için bir görsel oluştur", "web-dev"),
-            ("remove the background from my product photo", "assistant"), ("retouch this portrait", "assistant"),
-        ]
-        for (question, surface) in lines {
-            let outcome = await route(question, surface)
-            XCTAssertEqual(outcome.categoryID, CategoryHints.unmeasuredFallback, question)
-            XCTAssertTrue(outcome.unmeasured, question)
-        }
-    }
-
     /// M2 and M5: a Turkish name's suffix after an apostrophe is no English "I"; a lone "I" is.
     func testAnApostropheSuffixIsNoAsker() {
         XCTAssertTrue(InputSignals.asksAFact("Hamlet'i kim yazdı"))
@@ -749,6 +713,38 @@ final class ReadingRoundTwoReviewTests: OfflineTestCase {
         for text in ["translate into turkish: which train goes to izmir tonight",
                      "summarize: the new AI act changes how companies report"] {
             XCTAssertTrue(InputSignals.pastedContent(text), text)
+        }
+    }
+}
+
+/// The third M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-review-round-3.md`), REQ-IMG-003 and
+/// REQ-RTR-005: the image rule's reach beyond `vision` drew three verdicts on one class and came out
+/// of the wave. A request to make an image that the tier sent elsewhere keeps that surface, as M18
+/// shipped it; on `vision` the rule reads it, Turkish forms included.
+final class ReadingImageRuleOnVisionOnlyTests: OfflineTestCase {
+    private let known = ["web-dev", "document", "assistant", "everyday", "vision", "coding"]
+
+    func testTheImageRuleOverridesOnlyAQuestionRoutedToVision() async {
+        let elsewhere: [(String, String)] = [
+            ("make me a logo for my bakery", "web-dev"), ("design a logo to put on my website", "web-dev"),
+            ("retouch this portrait", "assistant"), ("fix my hero image on my homepage", "web-dev"),
+            ("make our images smaller in the slides", "document"), ("kafem için logo tasarla", "assistant"),
+            ("remove duplicate photos with a python script", "coding"),
+        ]
+        for (question, surface) in elsewhere {
+            let outcome = await TieredRouter(
+                model: ScriptedModelRouter(answers: [question: ["request": "a model search", "surface": surface]]),
+                similarity: SilentTier()
+            ).route(question, within: known)
+            XCTAssertEqual(outcome.categoryID, surface, question)
+            XCTAssertFalse(outcome.unmeasured, question)
+        }
+        for question in ["make me a logo for my bakery", "düğün fotoğraflarıma rötuş yap, yüzdeki sivilceleri sil"] {
+            let outcome = await TieredRouter(
+                model: ScriptedModelRouter(answers: [question: ["request": "a model search", "surface": "vision"]]),
+                similarity: SilentTier()
+            ).route(question, within: known)
+            XCTAssertTrue(outcome.unmeasured, question)
         }
     }
 }

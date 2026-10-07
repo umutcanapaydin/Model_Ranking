@@ -3410,7 +3410,7 @@ branch). M18 holds it as follows; the measure is `docs/research/m18-w3-question-
     on `web-dev` as if measured; #66 unchanged (21 and 20 caught, 1 and 2 genuine searches asked);
     coding 33 and 32 of 40. The question back reached genuine searches 8 and 10 times in 145.
 
-**Amended by D-184 (2026-10-07)**: a question of fact is a doubt in code beside pasted content and an order to the app, and the #113 image rule reaches every surface but the two coding surfaces, except a question about an image in a website, an app or a document.
+**Amended by D-184 (2026-10-07)**: a question of fact is a doubt in code beside pasted content and an order to the app; the #113 image rule stays on `vision`, reading more Turkish forms (its reach beyond `vision` came out of M19-W4, #191).
 
 ## D-170 — The engine runs as a launchd service, from a deployed release of `main`
 
@@ -4213,15 +4213,15 @@ fresh held-out sets, twice per tier (`docs/research/m19-w4-question-reading-prob
    Every word the signals added before the measure is in a tuning row at a word's start, as #117's
    check reads; the code review found two that no tuning row holds whole, as the app matches them
    (`nerede`, `öner`): the first left the signal, the second is read by its stem (record §6).
-3. **The image rule overrides wherever the tier sent the question but `coding` and
-   `agentic-coding`**, not only `vision`: at the baseline 6 and 7 of 20 requests to make an image went
-   to `web-dev`. A question the tier sent to code is about code; beyond `vision` the rule reads only a
-   new image ("make me a logo", "design an image for …", Turkish `bir` or a bare image noun before a
-   making verb) or a change to the asker's own ("my photo", "this portrait"), so "fix the image" or
-   "make images …", about a site or a file, keeps its surface (the M18 reviews' B4, the W4 reviews' MJ1
-   and B1). The rule reads the Turkish forms it missed: "make" in each request form after an image
-   that is its object (not a modifier, as in `resim galerisi`), and "photo" and "change" typed without
-   their Turkish letters.
+3. **The image rule stays on `vision`** (M18-W3), and reads the Turkish forms it missed: "make" in
+   each request form after an image that is its object (not a modifier, as in `resim galerisi`), and
+   "photo" and "change" typed without their Turkish letters; English words are compared as English
+   under the Turkish folding. At the baseline 6 and 7 of 20 requests to make an image went to
+   `web-dev`, where the rule does not reach. The wave reached beyond `vision` three times (every
+   surface but code; a site vocabulary as a guard; a new image or the asker's own), and each reach
+   told ordinary questions about an image on a website, in a store, an app or a document "not
+   measured" (the three code reviews: MAJOR, BLOCKING, BLOCKING). By the rule that a third BLOCKING
+   verdict on one finding takes the slice out, the reach came out (#191).
 4. **The model's instructions do not change.** Telling it what a question of fact is moved its
    verdict on 1 of 22 such questions and cost surface accuracy (variant a); a closed field asking it
    whether the text makes a picture said yes to reading one (variant b). Neither was built.
@@ -4232,7 +4232,10 @@ and 27 of 50 (baseline 18, 21; D-169's bar 40); requests to make an image told "
 of 20 with the model (baseline 2, 1; bar 14), 18 and 18 without it (baseline 14; bar 18). Every guard
 holds. D-169 clause 6's catch bar and #66's and #113's model-tier bars are missed: by clause 6 the
 work stops after three variants per problem, and the pull request asks the owner whether to ship what
-holds.
+holds. After the code reviews (record §6), on the spent sets: knowledge 5 and 5 of 20, not a search 24
+and 26 of 50, genuine searches asked 1 and 0; with the image rule back on `vision` only, requests to
+make an image told "not measured" 4 and 3 of 20 with the model and 14 of 20 without it, so #113 meets
+neither of its bars.
 
 **#177.** The three M18 held-out sets, spent at M18-W3, are retired to tuning
 (`RETIRED_HELD_OUT`), rather than an origin shown for each of the four signal words added after them.

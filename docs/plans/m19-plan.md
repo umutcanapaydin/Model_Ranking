@@ -239,4 +239,5 @@ clause 6's catch bar were missed (`docs/research/m19-w4-question-reading-probe.m
 valve, the pull request asks the owner whether to ship what holds; #66 and #113 stay open. Two
 variants that changed the model ran once each, and #113's (b) once: their first runs settled them.
 The coding-set guard owed to variants that change the model's instructions was not run, since none of
-them was built. The code review's fixes cost one knowledge question on the spent set (record §6).
+them was built. The code review's fixes cost one knowledge question on the spent set; after three review verdicts on
+one class, the image rule's reach beyond `vision` came out of the wave (#191, record §6).
