@@ -1584,7 +1584,7 @@ def test_every_signal_word_only_a_live_held_out_set_holds_is_reviewed() -> None:
 #: four of their words were added after the sets existed, with no origin shown, so the sets became
 #: tuning and W4 measures on fresh ones. Each entry below was in the app before its set was
 #: written, so it cannot have come from it; or, marked so, it came from the W4 review after the set
-#: was measured and spent, and as a modifier or an exclusion it can only lower that set's catches.
+#: was measured and spent; measured, none of them changes a row of that set (the third W4 review's M1).
 _BEFORE = "in the app before {set} was written ({sha}), so not read from it"
 _AFTER_MEASURE = "from the W4 review's {finding}, after {set} was measured and spent; measured, it changes no row of it"
 HELD_OUT_ONLY_REVIEWED: dict[str, str] = {

@@ -214,9 +214,10 @@ enum InputSignals {
 
     /// #113 (M18-W3): a request to MAKE or CHANGE an image, which nothing here measures: `vision`
     /// measures reading one. The on-device model sent these to `vision` even when told not to (0 of
-    /// 6 on the tuning set). `TieredRouter.read` applies this wherever the tier sent the question but
-    /// the two coding surfaces (M19-W4: 6 and 7 of 20 went to `web-dev` at its baseline): a question
-    /// the tier sent to code is about code (the code reviews' B4). Narrowly, here:
+    /// 6 on the tuning set). `TieredRouter.read` applies this ONLY to a question routed to `vision`:
+    /// beyond it, a question about code, a website, a store or a file that mentions an image is routed
+    /// as its tier chose (the M18 reviews' B4). M19-W4 reached further, three times, and each reach drew
+    /// a review verdict on that class; the slice came out (#191). Narrowly, here:
     /// - English: a making verb, then within four words an image that is the verb's object: not after
     ///   "from", "of", "for" or the like, not a modifier ("image upload", "photo gallery"), and not
     ///   turned "into" text, a table or data (that is reading it);
@@ -304,51 +305,6 @@ enum InputSignals {
     /// A word after an image noun that makes the noun a modifier, in Turkish: a gallery, an upload,
     /// a page or a section of it.
     private static let modifierHeadsTurkish = ["galeri", "yükleme", "sayfa", "bölüm"]
-    /// Beyond `vision`, the request the image rule may read (the second M19-W4 review's B1): a NEW
-    /// image ("make me a logo", "design an image for …", "draw a …"; Turkish `bir` or a bare image
-    /// noun before a making verb, "bir logo tasarla"), or a change to the asker's OWN image ("my
-    /// photo", "this portrait"; Turkish "fotoğrafım…", or `bu` before an image). "Fix the image" or
-    /// "make images …" is about a site or a file, and keeps its surface. Read with `makesAnImage`.
-    static func asksForANewOrOwnImage(_ text: String) -> Bool {
-        folds(text).contains { folded in
-            let words = wordsOf(folded)
-            // English words compared as English: "This" folds to "thıs" in Turkish (the review's K1).
-            let english = words.map { $0.replacingOccurrences(of: "ı", with: "i") }
-            for (index, word) in english.enumerated() {
-                if newImageVerbsEnglish.contains(word) {
-                    var rest = english.dropFirst(index + 1).prefix(5)
-                    if let first = rest.first, ["me", "us"].contains(first) { rest = rest.dropFirst() }
-                    if let article = rest.first, ["a", "an", "some", "new"].contains(article),
-                       word == "draw" || rest.dropFirst().prefix(3).contains(where: isImageNoun) {
-                        return true
-                    }
-                }
-                if isImageNoun(word), english[max(0, index - 2)..<index].contains(where: ownWordsEnglish.contains) {
-                    return true
-                }
-            }
-            for index in words.indices where isTurkishVerb(words, at: index, stems: newImageStemsTurkish) {
-                let window = words[max(0, index - 4)..<index]
-                if (window.contains("bir") && window.contains(where: isImageNoun))
-                    || window.contains(where: bareImageNounsTurkish.contains) {
-                    return true
-                }
-            }
-            return words.indices.contains { spot in
-                ownImageStemsTurkish.contains(where: words[spot].hasPrefix)
-                    || (words[spot] == "bu" && spot + 1 < words.count && isImageNoun(words[spot + 1]))
-            }
-        }
-    }
-
-    private static let newImageVerbsEnglish: Set<String> = [
-        "make", "generate", "create", "design", "draw", "illustrate", "paint", "redraw",
-    ]
-    private static let ownWordsEnglish: Set<String> = ["my", "this", "our", "these"]
-    private static let newImageStemsTurkish: Set<String> = ["tasarla", "oluştur", "üret", "çiz", "yap"]
-    private static let bareImageNounsTurkish: Set<String> = ["logo", "resim", "görsel", "fotoğraf", "illüstrasyon", "avatar"]
-    private static let ownImageStemsTurkish = ["fotoğrafım", "fotografim", "fotom"]
-
     private static let drawIdioms: Set<String> = [
         "conclusion", "conclusions", "comparison", "distinction", "line", "parallel", "chart", "graph",
         "plot", "diagram", "table", "box", "boundary", "sample", "card", "blank", "crowd", "breath",

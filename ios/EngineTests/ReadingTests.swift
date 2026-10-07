@@ -598,26 +598,6 @@ final class ReadingSecondRoundTests: OfflineTestCase {
             .route(question, within: known)
         XCTAssertEqual(worded.reading, .unsure)
     }
-
-    /// #113: a request to make an image is unmeasured wherever the tier sent it but code, the model's
-    /// `web-dev` and `assistant` and the wording tier's alike (6 and 7 of 20 went to `web-dev` at the
-    /// baseline, where the rule did not reach).
-    func testARequestToMakeAnImageIsUnmeasuredWhereverItWasRouted() async {
-        for (question, surface) in [("make me a logo for my bakery", "web-dev"),
-                                    ("design a logo for my coffee shop, its called Bean There", "web-dev"),
-                                    ("kafem için logo tasarla adı Köşe Kahve, minimalist olsun", "assistant")] {
-            let outcome = await TieredRouter(model: ScriptedModelRouter(answers: [question: ["request": "a model search",
-                                                                                             "surface": surface]]),
-                                             similarity: SilentTier()).route(question, within: known)
-            XCTAssertEqual(outcome.categoryID, CategoryHints.unmeasuredFallback, question)
-            XCTAssertTrue(outcome.unmeasured, question)
-            XCTAssertEqual(outcome.tier, .model, question)
-        }
-        let worded = await TieredRouter(model: nil, similarity: AnsweringWordingTier(surface: "web-dev"))
-            .route("make me an app icon for a budgeting app, flat style, green", within: known)
-        XCTAssertTrue(worded.unmeasured)
-        XCTAssertEqual(worded.tier, .similarity)
-    }
 }
 
 /// The M19-W4 Code-Reviewer (`docs/reviews/m19-wave-4-review-round-1.md`), REQ-ASK-005, REQ-IMG-003 and
@@ -719,22 +699,6 @@ final class ReadingRoundTwoReviewTests: OfflineTestCase {
             let outcome = await route(question, surface)
             XCTAssertEqual(outcome.categoryID, surface, question)
             XCTAssertFalse(outcome.unmeasured, question)
-        }
-    }
-
-    /// B1: a new image, or a change to the asker's own, is unmeasured wherever the tier sent it.
-    func testANewImageOrTheAskersOwnIsUnmeasuredWhereverItWasRouted() async {
-        let lines: [(String, String)] = [
-            ("design a logo to put on my website", "web-dev"), ("design an image for the header of my website", "web-dev"),
-            ("generate a hero image to use on my landing page", "web-dev"),
-            ("create a banner image for the homepage of my site", "web-dev"),
-            ("web sitemde kullanmak için bir logo tasarla", "web-dev"), ("sitemin ana sayfası için bir görsel oluştur", "web-dev"),
-            ("remove the background from my product photo", "assistant"), ("retouch this portrait", "assistant"),
-        ]
-        for (question, surface) in lines {
-            let outcome = await route(question, surface)
-            XCTAssertEqual(outcome.categoryID, CategoryHints.unmeasuredFallback, question)
-            XCTAssertTrue(outcome.unmeasured, question)
         }
     }
 
