@@ -12,4 +12,6 @@
 **/*.pyc
 **/*.pem
 **/*.key
+**/*.db
+**/*.sqlite*
 !build/hosted/advisor.db

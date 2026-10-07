@@ -160,3 +160,28 @@ def test_the_public_artifact_opens_read_only_whatever_the_built_one_journals(tmp
     public.derive(built, served)
     with sqlite3.connect(served) as conn:
         assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "delete"
+
+
+def test_a_left_out_price_that_survives_stops_the_derivation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The release re-read's N4: the survivor check's price half had no test. With the price
+    deletion gone, the derivation refuses, and leaves nothing to deploy."""
+    built, served = tmp_path / "built.db", tmp_path / "public.db"
+    _seeded_db(built)
+    with sqlite3.connect(built) as conn:
+        conn.execute("INSERT INTO pricing (alias, model_id, input_per_m, output_per_m, source, source_url,"
+                     " observed_at) SELECT alias, model_id, 1.0, 1.0, 'openrouter', 'https://openrouter.ai',"
+                     " observed_at FROM pricing WHERE source = 'litellm'")
+    monkeypatch.setattr(public, "_REMOVE", {"scores": public._REMOVE["scores"]})
+    with pytest.raises(ValueError, match="survived"):
+        public.derive(built, served)
+    assert not served.exists()
+
+
+def test_a_priced_credit_must_say_which_prices_it_serves() -> None:
+    """The release re-read's N4: a priced call that forgets its price sources would credit
+    OpenRouter again; it is refused (the second W5 review's R4)."""
+    from app.workflows.rank import attributions_for
+
+    with pytest.raises(TypeError):
+        attributions_for(["arena"], priced=True)
+    assert attributions_for(["arena"], priced=False)

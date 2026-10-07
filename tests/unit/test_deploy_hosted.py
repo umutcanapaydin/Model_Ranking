@@ -163,7 +163,7 @@ def test_the_build_context_leaves_out_what_git_ignores_under_src() -> None:
     rules = [line.strip() for line in (REPO / ".dockerignore").read_text(encoding="utf-8").splitlines()
              if line.strip() and not line.startswith("#")]
     after = rules[rules.index("!src") + 1:]
-    for pattern in ("**/.env*", "**/__pycache__", "**/*.pyc", "**/*.pem", "**/*.key"):
+    for pattern in ("**/.env*", "**/__pycache__", "**/*.pyc", "**/*.pem", "**/*.key", "**/*.db", "**/*.sqlite*"):
         assert pattern in after, (pattern, rules)
 
 

@@ -21,7 +21,8 @@ review of this wave has passed and you have merged its pull request.**
    costs about two dollars a month.
 3. **Create the app.** `fly apps create model-ranking`. If the name is taken, choose another, and
    change it in four places: `app`, `MODEL_RANKING_ALLOWED_HOSTS` and the health check's `Host` in
-   `fly.toml`, and `ENGINE_URL[config=Release]` in `ios/Config/Engine.xcconfig`.
+   `fly.toml`, and `ENGINE_URL[config=Release]` in `ios/Config/Engine.xcconfig`. Merge that change to
+   `main`: the deploy ships only `main`'s tip.
    Commit the change: the deploy refuses an uncommitted tree.
 4. **Try the image on your Mac first** (optional, free): with Docker Desktop running, `make
    cold-start` builds the hosted image, boots it with nothing saved, and runs the customer journey
@@ -35,8 +36,11 @@ review of this wave has passed and you have merged its pull request.**
    surface answers or says why it cannot.
 
 **Cost.** Nothing limits how often the public engine is called, and Fly bills traffic out of it (a
-`/v1/boards` answer is about 0.5 MB). Set a billing alert in the Fly dashboard (Billing → alerts)
-before you share the app beyond yourself.
+`/v1/boards` answer is about 0.5 MB). Fly has no billing alert and no spending cap, so look at the
+dashboard's usage page now and then once the app is shared; a rate limit is #187.
+
+**After each deploy, log out:** `fly auth logout`. While you are logged in, a coding agent on this
+Mac could deploy or destroy the app (#190).
 
 **After each nightly refresh you want public,** run `scripts/deploy_hosted_engine.sh` again: the
 public artifact is derived from the one your Mac serves, and each deploy is one image of code and

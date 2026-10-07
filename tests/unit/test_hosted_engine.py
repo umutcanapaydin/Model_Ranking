@@ -125,7 +125,8 @@ def test_the_hosted_engine_runs_as_no_root_and_cannot_write_its_artifact() -> No
     stages = _stages(DOCKERFILE.read_text(encoding="utf-8"))
     serving_user = _user(_serving_stage(DOCKERFILE.read_text(encoding="utf-8")))
     hosted_user = _user(stages["hosted"]) or serving_user
-    assert hosted_user not in (None, "root", "0"), hosted_user
+    # The user before any group: `USER root:root` and `USER 0:0` are root too (the re-read's N3).
+    assert hosted_user is not None and hosted_user.split(":")[0] not in ("root", "0"), hosted_user
     copies = [line for line in stages["hosted"] if line.startswith("COPY ")]
     assert copies and not any("--chown" in line or "--chmod" in line for line in copies), copies
 
