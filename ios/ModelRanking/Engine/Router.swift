@@ -699,21 +699,23 @@ struct TieredRouter {
         ))
     }
 
-    /// D-169 as amended at M18-W3: the outcome's reading, from the signals in code and, where the
-    /// model read the question, its verdict. The signals run on every tier.
+    /// D-169 as amended at M18-W3 and by D-184: the outcome's reading, from the signals in code and,
+    /// where the model read the question, its verdict. The signals run on every tier.
     static func read(_ question: String, _ outcome: RoutingOutcome) -> RoutingOutcome {
         var read = outcome
         // #113 (M18-W3): making or changing an image is not measured; the same outcome the model's
         // decline gives, with the same disclosure. Only where the tier chose `vision`, which measures
-        // READING an image (the code reviews' B4): a question about code or a website that mentions
-        // an image is routed as its tier chose.
+        // READING an image (the code reviews' B4): a question about code, a website, a store or a file
+        // that mentions an image is routed as its tier chose. M19-W4's reach beyond `vision` came out
+        // after three review verdicts on that class (#191).
         if outcome.categoryID == "vision", !outcome.unmeasured, InputSignals.makesAnImage(question) {
             read = RoutingOutcome(categoryID: CategoryHints.unmeasuredFallback, tier: outcome.tier, unmeasured: true)
             read.reading = outcome.reading
         }
         read.reading = inputReading(
             noWord: InputSignals.noWord(question), smallTalk: InputSignals.smallTalk(question),
-            doubt: InputSignals.pastedContent(question) || InputSignals.instructsTheApp(question),
+            doubt: InputSignals.pastedContent(question) || InputSignals.instructsTheApp(question)
+                || InputSignals.asksAFact(question),
             modelSaysNotASearch: outcome.tier == .model ? outcome.reading != .search : nil)
         return read
     }

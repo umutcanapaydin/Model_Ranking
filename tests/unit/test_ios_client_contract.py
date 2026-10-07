@@ -198,16 +198,23 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
     # is left out of its own comparison. Their strings are compared as strings, after JSON decoding.
     tuning = {p.name: _json_strings(json.loads(p.read_text(encoding="utf-8")))
               for p in sorted((root / "scripts/router_probe").glob("*.json")) if p not in live}
+    # The tuning sets a wave keeps beside its runs too (the M19-W4 Tester), keyed by their path.
+    tuning |= {str(p.relative_to(root)): _json_strings(json.loads(p.read_text(encoding="utf-8")))
+               for p in _research_tuning_sets()}
     found = _held_out_leaks(held, texts, _every_tuning_set_read(tuning))
     assert not found, f"held-out questions written into code, tests or tuning sets (file, length): {found}"
 
 
-#: Held-out sets already run, and so tuning now: M16's and M17's, and M18-W3's first two (review B2);
-#: `heldout_questions.json` and `offtopic_heldout_questions.json` ran in M13 and M16 (its second
-#: review's K4). Shared by the held-out gates (#117).
+#: Held-out sets already run, and so tuning now: M16's and M17's, M18-W3's first two (review B2),
+#: and M18-W3's three fresh ones, spent there and retired at M19-W4 (#177: four signal words were
+#: added after them with no origin shown); `heldout_questions.json` and
+#: `offtopic_heldout_questions.json` ran in M13 and M16 (its second review's K4). Shared by the
+#: held-out gates (#117).
 RETIRED_HELD_OUT = {"heldout_questions.json", "refinement_heldout_questions.json",
                     "coding_heldout_m17_questions.json", "notasearch_m17_heldout_questions.json",
-                    "image_heldout_first_questions.json", "offtopic_heldout_questions.json"}
+                    "image_heldout_first_questions.json", "offtopic_heldout_questions.json",
+                    "coding_heldout_m18_questions.json", "notasearch_heldout_m18_questions.json",
+                    "image_heldout_m18_questions.json"}
 
 
 def _live_held_out_sets() -> list[pathlib.Path]:
@@ -1576,29 +1583,42 @@ def test_every_signal_word_only_a_live_held_out_set_holds_is_reviewed() -> None:
 
 
 #: #117: each entry of `Reading.swift`'s lists that a live held-out set holds and no tuning set does,
-#: with where it came from (`git log -S`, ordered against the commit that wrote its set). Seven were in
-#: the app before their set was written (`da48707`, "unread by the author"), so they cannot have come
-#: from it. Four were added after their set existed and their origin is unshown: #177, before W4
-#: measures on those sets. (`komutu`, `component` and `line`, flagged when English was matched whole,
-#: are in a tuning set in a suffixed form.)
-_BEFORE = "in the app before {set} was written (da48707), so not read from it"
-_AFTER = "added in {sha} after {set} was written; origin unshown (#177)"
+#: with where it came from. The M18 sets the first entries came from are retired (#177, M19-W4):
+#: four of their words were added after the sets existed, with no origin shown, so the sets became
+#: tuning and W4 measures on fresh ones. Each entry below was in the app before its set was
+#: written, so it cannot have come from it; or, marked so, it came from the W4 review after the set
+#: was measured and spent; measured, none of them changes a row of that set (the third W4 review's M1).
+_BEFORE = "in the app before {set} was written ({sha}), so not read from it"
+_AFTER_MEASURE = "from the W4 review's {finding}, after {set} was measured and spent; measured, it changes no row of it"
 HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
-    "llm": _BEFORE.format(set="notasearch_heldout_m18") + "; 2bd9154, M18-W3 P1",
-    "art\u0131k sen bir": _BEFORE.format(set="notasearch_heldout_m18") + "; 55a1aef, M18-W3 review round 1",
-    "tamam": _BEFORE.format(set="notasearch_heldout_m18") + "; 4373dae, M18-W3 P3",
-    "illustrate": _BEFORE.format(set="image_heldout_m18") + "; 4373dae, M18-W3 P3",
-    "colorize": _BEFORE.format(set="image_heldout_m18") + "; 4373dae, M18-W3 P3",
-    "drawing": _BEFORE.format(set="image_heldout_m18") + "; 4373dae, M18-W3 P3",
-    "icon": _BEFORE.format(set="image_heldout_m18") + "; 4373dae, M18-W3 P3",
-    "debug": _AFTER.format(sha="2bd9154 (M18-W3 P1)", set="coding_heldout_m18 (71ffe5f)"),
-    "conclusion": _AFTER.format(sha="2d5f86a (M18-W3 review round 2, B4)", set="image_heldout_m18 (da48707)"),
-    "conclusions": _AFTER.format(sha="2d5f86a (M18-W3 review round 2, B4)", set="image_heldout_m18 (da48707)"),
-    "plot": _AFTER.format(sha="2d5f86a (M18-W3 review round 2, B4)", set="image_heldout_m18 (da48707)"),
+    "first": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
+    "from now on you": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
+    "geceler": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
+    "komutlar\u0131": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
+    "komutlar\u0131n\u0131": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
+    "sa\u011fol": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
+    "thx": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
+    "blur": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "colourise": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "ikon": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "oil": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "paint": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "painting": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "poster": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "r\u00f6tu\u015fla": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "slider": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "sticker": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
+    "galeri": _AFTER_MEASURE.format(finding="MJ1", set="image_heldout_m19"),
+    "y\u00fckleme": _AFTER_MEASURE.format(finding="MJ1", set="image_heldout_m19"),
+    "chatbot": _AFTER_MEASURE.format(finding="MJ2", set="notasearch_heldout_m19"),
+    "deepseek": _AFTER_MEASURE.format(finding="MJ2", set="notasearch_heldout_m19"),
+    "gemini": _AFTER_MEASURE.format(finding="MJ2", set="notasearch_heldout_m19"),
 }
-#: A list of two or more string literals: every word, phrase, verb and noun list in `Reading.swift`,
-#: the inline ones in its functions too, derived from the source rather than named here.
-STRING_LIST = re.compile(r'\[\s*((?:"[^"\n]*"\s*,?\s*){2,})\]')
+#: A list of string literals: every word, phrase, verb and noun list in `Reading.swift`, the inline
+#: ones in its functions too, derived from the source rather than named here. One literal is a list
+#: too (the M19-W4 Tester): W4 put `smallTalkPhrases` and four of `factOpeners` in one-entry lists,
+#: which a bound of two left unread.
+STRING_LIST = re.compile(r'\[\s*((?:"[^"\n]*"\s*,?\s*)+)\]')
 
 
 def _reading_lists() -> list[tuple[list[str], bool]]:
@@ -1613,6 +1633,48 @@ def _reading_lists() -> list[tuple[list[str], bool]]:
         lists.append((re.findall(r'"([^"\n]*)"', found.group(1)), stems))
     assert sum(len(entries) for entries, _ in lists) > 100, "Reading.swift's lists were not read"
     return lists
+
+
+def test_every_fact_opener_and_small_talk_phrase_is_read_by_the_held_out_check() -> None:
+    """The M19-W4 Tester (#117, D-183 clause 5; D-184 clause 2): the check read lists of two or more
+    literals, so the five entries W4 added in one-entry lists (`smallTalkPhrases`, and "who", "when",
+    "where" and "whats" in `factOpeners`) were outside it, and a one-entry list could take a word from a
+    live held-out set unflagged. Reading them flags nothing new (measured at `d324669`). It also fails
+    when the check stops reading two-entry lists, such as `factOpeners`' ["how", "far"], which no test
+    held."""
+    code = "\n".join(line.split("//")[0] for line in _swift(CLIENT / "Engine/Reading.swift").splitlines())
+    wanted: set[str] = set()
+    for name in ("factOpeners", "smallTalkPhrases"):
+        declared = re.search(rf"static let {name}\b[^=]*=\s*(\[.*?\])\n", code, re.S)
+        assert declared, f"Reading.swift no longer declares {name}"
+        wanted |= set(re.findall(r'"([^"\n]*)"', declared.group(1)))
+    assert {"who", "whats", "far", "eline sa\u011fl\u0131k"} <= wanted, "the lists were not read here"
+    read = {entry for entries, _ in _reading_lists() for entry in entries}
+    assert wanted - read == set(), "entries of Reading.swift the held-out check does not read"
+
+
+#: The tuning sets a wave keeps beside its runs (`docs/research/<wave>-runs/`) rather than in
+#: `scripts/router_probe/`: M18-W3's and M19-W4's (the M19-W4 Tester: a live held-out question copied
+#: into one passed every gate). A set's name has no run's prefix ("v0-", "final-"), so no run is read.
+RESEARCH_TUNING_SET = re.compile(r"^[a-z_]*tuning[a-z0-9_]*\.json$")
+
+
+def _research_tuning_sets() -> list[pathlib.Path]:
+    found = sorted(path for path in (CLIENT.parents[1] / "docs/research").glob("*/*.json")
+                   if RESEARCH_TUNING_SET.match(path.name))
+    names = {path.name for path in found}
+    expected = {"reading_tuning.json", "reading_tuning_w4.json", "image_tuning_w4.json"}
+    assert expected <= names, f"research tuning sets not read: {sorted(expected - names)}"
+    return found
+
+
+def test_the_tuning_sets_kept_beside_their_runs_are_read_by_the_leak_gate() -> None:
+    """The M19-W4 Tester (D-147 clause 5, #119): W4 tuned on `reading_tuning_w4.json`,
+    `image_tuning_w4.json` and M18-W3's `reading_tuning.json`, all in `docs/research/`, which the leak
+    gate did not read: a live held-out question planted in either reading set passed it. The gate now
+    reads them, and only them: no run output, whose rows a held-out set's run holds by design."""
+    found = _research_tuning_sets()
+    assert all("-" not in path.name and "heldout" not in path.name for path in found), [p.name for p in found]
 
 
 def _held_and_tuning_strings() -> tuple[list[str], list[str]]:

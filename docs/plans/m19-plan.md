@@ -230,3 +230,14 @@ its suffixes). #108 is delivered by its guard only, under the wave's valve: the 
 measured, since measuring means trapping a process; the issue stays open. #117's check found four
 signal words added after the M18 held-out sets that alone hold them (#177, before W4 measures on those
 sets). A load-sensitive timing test was filed as #178.
+
+**Amendment (2026-10-07, W4).** The owner had not run a stranger's session, so an independent seat
+wrote the fresh held-out sets; the three M18 sets were retired to tuning (#177, taken on the standing
+instruction). Three variants were run per problem, and the built one measured twice per tier: every
+guard and bound held, #113's wording-tier bar was met at `de8c3f8` (the code that ships keeps neither of
+#113's gains), and #66's and #113's model-tier bars and D-169 clause 6's catch bar were missed (`docs/research/m19-w4-question-reading-probe.md`, D-184). By the
+valve, the pull request asks the owner whether to ship what holds; #66 and #113 stay open. Two
+variants that changed the model ran once each, and #113's (b) once: their first runs settled them.
+The coding-set guard owed to variants that change the model's instructions was not run, since none of
+them was built. The code review's fixes cost one knowledge question on the spent set; after three review verdicts on
+one class, the image rule's reach beyond `vision` came out of the wave (#191, record §6).

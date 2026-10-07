@@ -3408,6 +3408,8 @@ branch). M18 holds it as follows; the measure is `docs/research/m18-w3-question-
     on `web-dev` as if measured; #66 unchanged (21 and 20 caught, 1 and 2 genuine searches asked);
     coding 33 and 32 of 40. The question back reached genuine searches 8 and 10 times in 145.
 
+**Amended by D-184 (2026-10-07)**: a question of fact is a doubt in code beside pasted content and an order to the app; the #113 image rule stays on `vision`, reading more Turkish forms (its reach beyond `vision` came out of M19-W4, #191).
+
 ## D-170 — The engine runs as a launchd service, from a deployed release of `main`
 
 **Status:** accepted -- **ruled by the owner on the review of #32** (2026-09-25), recorded as an ADR
@@ -4178,3 +4180,70 @@ offline profile; #108's guard reads two spellings, not a typealias or a subclass
 
 **Revisit when:** the owner applies #122's CI patch (`NEEDS["offline"].in_ci` becomes `True`, and the
 budget falls by one), or a check here fires on correct input.
+
+## D-184 — Reading a question, the second round: a question of fact is a doubt, and the image rule stays on vision
+
+**Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
+("proceed with what you recommend, don't ask", owner, translated from Turkish); M19-W4, the owner
+reviews the wave (AGENTS.md §3) · **Date:** 2026-10-07 · from #66, #113, #177 · **Amends** D-169
+(as amended at M18-W3), clauses 3 and 4.
+
+**Context.** M18-W3 left two gaps (`docs/research/m18-w3-question-reading-probe-2026-10-04.md`): the
+on-device model calls a question of everyday fact "a model search" (1 of 10 caught), and a request to
+make an image routed anywhere but `vision`, or worded as the rule did not read it, is ranked as if
+measured (#113). M19-W4 measured three variants per problem on the tuning sets and the built one on
+fresh held-out sets, twice per tier (`docs/research/m19-w4-question-reading-probe.md`).
+
+**Decision.**
+1. **A question of fact is a doubt in code** (`InputSignals.asksAFact`): at most ten words, opening as
+   a question of fact ("who", "when", "where", "what is", "what was", "what year", "how many", "how
+   much", "how tall", "how long", "how far", "how old", "how big", "how high"; and the Turkish words
+   for where (as "the place of"), who, how many, when and which year), and naming, in any case folding,
+   none of the models, AIs, AI tools, askers or their wishes, recommendations, tasks, current things
+   or images of the asker's that its lists hold. A search those lists do not name ("who is the leader
+   in reasoning") still reads as one, and is asked about rather than given the note (the second code
+   review's M1). It joins pasted content and an order to the app in
+   D-169's table: with the model's "something else" it is the note; alone the reader is asked. It runs
+   on every tier, so without the model a question of fact is asked about.
+2. **The signals read input as people typed it in the tuning sets:** small talk at length and Turkish
+   without its letters; a task ordered by "make" or by a Turkish verb typed without its letters; an
+   order to copy the hidden rules out, or a role handed over ("pretend ur a", "from now on answer").
+   Every word the signals added before the measure is in a tuning row at a word's start, as #117's
+   check reads; the code review found two that no tuning row holds whole, as the app matches them
+   (`nerede`, `öner`): the first left the signal, the second is read by its stem (record §6).
+3. **The image rule stays on `vision`** (M18-W3), and reads "photo" and "change" typed without their
+   Turkish letters, takes an image before `galerisi`, `yükleme`, `sayfası` or `bölümü` as a modifier,
+   and compares English words as English under the Turkish folding. The Turkish "make" (`yap`) the
+   wave added came out: it is the verb of most Turkish task phrases ("do the question in the photo"),
+   and read requests to read an image as making one (the fourth code review's B1); it stays a verb of
+   a task with its content (`bu cümleyi daha resmi yap: …`, "make this sentence more formal: …", clause 2). At the baseline 6 and 7 of 20
+   requests to make an image went to
+   `web-dev`, where the rule does not reach. The wave reached beyond `vision` three times (every
+   surface but code; a site vocabulary as a guard; a new image or the asker's own), and each reach
+   told ordinary questions about an image on a website, in a store, an app or a document "not
+   measured" (the three code reviews: MAJOR, BLOCKING, BLOCKING). By the rule that a third BLOCKING
+   verdict on one finding takes the slice out, the reach came out (#191).
+4. **The model's instructions do not change.** Telling it what a question of fact is moved its
+   verdict on 1 of 22 such questions and cost surface accuracy (variant a); a closed field asking it
+   whether the text makes a picture said yes to reading one (variant b). Neither was built.
+
+**Measured** (§4 of the record), at `de8c3f8`, twice per tier: no genuine search given the note, 2 and
+1 of 40 asked; knowledge questions 6 and 6 of 20 caught (baseline 1, 3; bar 14); not-a-search inputs 25
+and 27 of 50 (baseline 18, 21; D-169's bar 40); requests to make an image told "not measured" 8 and 8
+of 20 with the model (baseline 2, 1; bar 14), 18 and 18 without it (baseline 14; bar 18). Every guard
+holds. D-169 clause 6's catch bar and #66's and #113's model-tier bars are missed: by clause 6 the
+work stops after three variants per problem, and the pull request asks the owner whether to ship what
+holds. After the code reviews (record §6), on the spent sets: knowledge 5 and 5 of 20, not a search 24
+and 26 of 50, genuine searches asked 1 and 0; with the image rule back on `vision` only and without
+`yap`, requests to make an image told "not measured" 2 and 1 of 20 with the model and 14 of 20 without
+it, the baseline: what ships does not move #113, which meets neither of its bars.
+
+**#177.** The three M18 held-out sets, spent at M18-W3, are retired to tuning
+(`RETIRED_HELD_OUT`), rather than an origin shown for each of the four signal words added after them.
+
+**The cost.** A few more genuine searches are asked about (on the tuning set, one more in 186; on the
+held-out set, 2 and 1 of 40 at `de8c3f8`, and 1 and 0 of 40 as the code ships, from 0). The fact signal reads about a third of a stranger's questions of
+fact: its forms are the tuning sets' (§4 lists the misses).
+
+**Revisit when:** a stranger's first use (#91's protocol) gives a set to measure on, or a stronger
+on-device model reads a question of fact as something else.
