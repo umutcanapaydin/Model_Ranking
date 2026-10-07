@@ -40,6 +40,9 @@ LEFT_OUT: dict[str, str] = {
 _REMOVE = {
     "scores": "DELETE FROM scores WHERE source IN (SELECT value FROM json_each(?))",
     "pricing": "DELETE FROM pricing WHERE source IN (SELECT value FROM json_each(?))",
+    # Each model's accessibility names its source as well (the W5 Tester's M3); a test holds that
+    # every table with a `source` column is here.
+    "access": "DELETE FROM access WHERE source IN (SELECT value FROM json_each(?))",
 }
 #: What else the public artifact does not carry (the M19-W5 review): LiteLLM's own copies of
 #: OpenRouter's prices, under `openrouter/` aliases (MJ1), and the vendor subscription plans, which
@@ -52,6 +55,7 @@ _REMOVE_ALSO = {
 _SURVIVORS = (
     "SELECT (SELECT count(*) FROM scores WHERE source IN (SELECT value FROM json_each(?)))"
     " + (SELECT count(*) FROM pricing WHERE source IN (SELECT value FROM json_each(?)))"
+    " + (SELECT count(*) FROM access WHERE source IN (SELECT value FROM json_each(?)))"
 )
 
 
@@ -82,7 +86,7 @@ def derive(source: Path, target: Path) -> dict[str, int]:
                     removed[f"{what}_removed"] = conn.execute(statement).rowcount
             if build_price_medians(conn) <= 0:
                 raise ValueError("no prices are left to rank by: the public artifact would answer nothing")
-            left = conn.execute(_SURVIVORS, (sources, sources)).fetchone()[0]
+            left = conn.execute(_SURVIVORS, (sources, sources, sources)).fetchone()[0]
             if left:
                 raise ValueError(f"{left} rows of a left-out source survived the derivation")
             # Out of WAL, whatever the built artifact journals: a WAL file cannot be opened read-only in
