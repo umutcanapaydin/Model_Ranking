@@ -621,3 +621,19 @@ Lesson: a gate that matches a spelling is beaten by the next spelling; read the 
   force-push went through a guard that blocks it (#142, the owner's to change).
 - The owner's bug-closing instruction is D-178; `note.txt` is retired; the M18 plan is reconciled.
 Lesson: start the session in the repository, or the guards you cite are not running.
+
+## 2026-10-05/07 — M19: what the reader sees, the phone's promises, the gates, the question again, a first release prepared
+
+- W1 named 74 models as their makers spell them and made one release one model (#112, #129, #162,
+  #130, #124; D-179, D-182). W2 held the phone's privacy and arithmetic promises on the compiled
+  module (D-180, D-181; #85, #60, #107, #110). W3 put CI's skips, the plan's tier and an offline test
+  run before the push (D-183). All three are merged (#167, #176, #184).
+- W4 read the question a second time, on fresh held-out sets (D-184). #66 improved and missed its
+  bars; #113 is where it was. The image rule's reach beyond `vision` drew three verdicts and came out
+  (#191). Five review rounds; the pull request (#196) asks the owner whether to ship what holds.
+- The owner called the release (W5): the engine ready for Fly.io with a public artifact (D-185, #88),
+  the app ready for TestFlight, the force-push guard widened for the owner's approval (#142). The
+  Stage 5.1 review was MAJOR, and its re-read MINOR. Nothing is deployed (#197).
+- The owner asked the agent to stop waiting for merges, finish as draft pull requests, and fix the
+  medium bugs and above.
+Lesson: a rule that reads people's words meets the reviewer's next phrasing; measure its reach on a set, and stop at three.

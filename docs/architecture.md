@@ -1,7 +1,7 @@
 # Architecture — model_ranking
 
 > What the system looks like and the contracts between its parts, as the code stands after
-> M18's seven waves (2026-10-05). Per seed A.2, the PRD, the ADRs and this document are adversarial sources of
+> M19's five waves (2026-10-07). Per seed A.2, the PRD, the ADRs and this document are adversarial sources of
 > truth until shown consistent; §7 lists where a record and the code disagree. Cites ADRs in
 > `docs/decisions.md` and files, never line numbers.
 
@@ -24,8 +24,15 @@ OWNER'S MAC: launchd service com.ilgar.modelranking.engine, a deployed release o
                              advisor.db  (one SQLite file: the artifact)
     routes read it read-only: /health  /v1/categories  /v1/recommendations  /v1/budgets  /v1/boards
       |  HTTP GET, Host-checked; loopback by default, the home network by opt-in (D-171)
+      |
+      |  the owner's deploy: app.workflows.public derives a public copy, without the sources
+      |  whose terms do not permit it (D-185), and the image carries it
       v
-IPHONE APP (SwiftUI)
+FLY.IO, prepared and not yet deployed: one machine, the `hosted` image, Host model-ranking.fly.dev
+    the same five routes over HTTPS; no refresh (D-116); a new deploy per refresh made public
+      |
+      v
+IPHONE APP (SwiftUI): a Debug build asks the Mac, a Release build (TestFlight) asks Fly.io
   question -> router (on-device model, then sentence similarity, then manual) -> surface + refinements
            -> reading (signals in code + the model's verdict): a search, a note, or a one-tap question back
   EngineClient: GET /v1/categories, /v1/recommendations?task=SURFACE&budget=unlimited, /v1/boards
@@ -49,7 +56,8 @@ deterministic, tested code (D-104).
 | `ios/ModelRanking/Engine/` | Routing, reading the question, the engine client, the standings store, the combination, the notices, every rule a screen applies; run by `swift test` through `ios/Package.swift` | Ranking a model; any number the engine did not send, except the two named arithmetic files |
 | `ios/ModelRanking/ContentView.swift` | Rendering the screens | Decisions |
 | `ios/UITests/` | The UI test target, run locally by `make ui-test` (D-175) | Judging the on-device model's reading (the router probe measures it) |
-| `scripts/install_engine_service.sh`, `scripts/engine_service.sh`, `scripts/remove_engine_service.sh` | Deploying, starting and removing the engine service | — |
+| `scripts/install_engine_service.sh`, `scripts/engine_service.sh`, `scripts/remove_engine_service.sh` | Deploying, starting and removing the engine service on the Mac | — |
+| `Dockerfile`, `fly.toml`, `scripts/deploy_hosted_engine.sh`, `src/app/workflows/public.py` | The hosted engine: its image, its one machine and Host, the one way to deploy it, and the public artifact it carries (D-185) | Refreshing: the hosted engine serves what the owner's Mac derived |
 | `requirements/*.lock` | The exact versions, with hashes, that every install takes, written by `make lock` (D-177) | Choosing versions: `pyproject.toml` declares the ranges |
 | `src/app/workers/` | Nothing (an empty package) | — |
 
@@ -78,7 +86,10 @@ both derive from that list:
 
 Every source name is reconciled to one canonical model by the curated rules in
 `src/app/workflows/registry.py`. A name no rule matches becomes a derived model when it has both a
-price and a score (D-157). A moving, undated alias never derives one (D-166).
+price and a score (D-157). A moving, undated alias never derives one (D-166). One release is one
+model, dated or not, where its maker lists one snapshot, and each minor release's mini, nano, chat
+and Codex mini is a model of its own (M19-W1, #129, #162). A model is named as its maker spells it
+(`registry.DISPLAY_NAMES`, each with its maker's page, #112).
 
 A source that fails a cycle serves its last good rows from the live artifact for up to 30 days,
 counted from when it last arrived (D-156). Past that, an optional source's surfaces drop and say
@@ -106,7 +117,7 @@ routes (`DECLARED_ROUTES`), all GET, and turns the docs and OpenAPI routes off.
 |---|---|---|
 | `/health` | `status`, `version`, `build` (L.7); `evidence` (`servable` or `unavailable`); the refresh's state, last outcome, carried and expired sources, drift, derived and unmatched names | D-154, D-156, D-157 |
 | `/v1/categories` | Each surface: benchmark, metric, ranking effort, close-call margin, floor (`min_quality`), out-of-100 anchor, what its price leaves out, its primary board, its second board's age | D-138, D-152, D-153, D-159, D-162, D-168 |
-| `/v1/recommendations?task=&budget=` | One answer per surface: up to three picks, with the facts the client words in its own language, and the full ranking in the engine's order, with source health and evidence dating. Each notice has its fact: `close_call_fact`, an empty answer's `unavailable_reason_code`, a source's `reason`. `task=coding` answers on both coding surfaces and neither leads (Ruling A) | D-115, D-125, D-136, D-176 |
+| `/v1/recommendations?task=&budget=` | One answer per surface: up to three picks, each with its model's id (`model_id`, D-182), with the facts the client words in its own language, and the full ranking in the engine's order, with source health and evidence dating. Each notice has its fact: `close_call_fact`, an empty answer's `unavailable_reason_code`, a source's `reason`. `task=coding` answers on both coding surfaces and neither leads (Ruling A) | D-115, D-125, D-136, D-176 |
 | `/v1/budgets` | The budget caps (`low` $2, `medium` $8 per 1M blended tokens, `unlimited`) and the blend weights | D-134 |
 | `/v1/boards` | Every board's standings as positions, never scores, and each model's name, vendor, blended price and accessibility. No parameters. Built once per artifact | D-167, D-173 |
 
@@ -122,7 +133,8 @@ routes (`DECLARED_ROUTES`), all GET, and turns the docs and OpenAPI routes off.
   - the serving bounds in `src/app/workflows/serving_bounds.py`: at most 500 rows in one answer,
     25,000 positions on `/v1/boards` and 5,000 ranked models, each overridable by its environment
     variable. A response is never trimmed to fit; an artifact past a bound does not start;
-  - binding beyond loopback needs a Host list (D-171);
+  - binding beyond loopback needs a Host list (D-171); the image tells the check where it binds, so
+    an image run with no list refuses to boot (#94);
   - the nightly switch is allowed only in a relaxed environment (D-154);
   - `APP_BUILD` is required in a strict environment (L.7).
 
@@ -136,6 +148,9 @@ routes (`DECLARED_ROUTES`), all GET, and turns the docs and OpenAPI routes off.
   answers 503 `evidence_unavailable`, with no file path in the body.
 - **A republished artifact is picked up on the next request.** Each request opens the file by
   path. The memos for the probe and for `/v1/boards` are keyed on the file's identity, not its path.
+- **Credits follow what is served.** Each answer's `sources` and `attributions` name the boards it
+  ranks on, each with its own licence and original source (#124), and the price sources the artifact
+  carries (`rank.served_pricing_sources`, D-185): the public artifact credits LiteLLM alone.
 - **The serving process loads no ingestion code.** Importing `app.adapter.main` loads no
   `app.clients` module, no `app.workflows.ingest`, no `httpx` and no `pyarrow` (W-125, fixed in
   M18-W6). The record types and tables both sides need live in client-free modules.
@@ -191,8 +206,9 @@ direction, without somebody looking (D-128, D-132). The candidate is refused whe
 - more than a quarter of a surface's models are ids never served before (D-132; ids, not names,
   D-173 clause 2);
 - a surface's median price would move more than a quarter, either way (D-132);
-- a surface's own board, or any board no surface ranks on, would lose a quarter or more of its raw
-  names, or would be more than a quarter new names (D-159, D-164);
+- a surface's own board, or any board no surface ranks on, would lose a quarter or more of its
+  rows, or would be more than a quarter new rows; a row the reconcile linked to a model is compared
+  by that model, so a re-spelling is recorded, never refused (D-159, D-164, D-179);
 - the number of models with an accessibility value would fall by a quarter or more (D-173 clause 3).
 
 Not refused, on purpose:
@@ -237,15 +253,20 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
     short note and no ranking. A doubt in code together with the model's "not a search" gives the
     note too. Either one alone gives a one-tap question back, and nothing is sent until the reader
     answers.
+  - A question of fact ("who won the 2018 World Cup", its Turkish forms too) is a doubt in code,
+    unless it names an AI model or a task (D-184). A greeting's thanks is small talk, and a pasted
+    error or text stays pasted content unless a model question follows the colon.
   - A request to make or change an image that a tier sent to `vision` is answered as unmeasured
-    (#113). No other surface is overridden.
+    (#113), read also without Turkish letters and under the Turkish case folding (D-184). No other
+    surface is overridden; a request sent elsewhere is #191.
   - A note or a question back sends no request and records no gap.
 - **Refinements** (`Refinements.swift`, D-168): a declared table of Arena text slices, eight task
   languages and eight domains, each with the surfaces it may refine. At most two are added. A
   coding question takes none (Ruling A). Only the model tier refines.
 - **Engine client** (`EngineClient.swift`). The only code that talks to the network.
   - The engine's address comes from the build's `EngineURL` (the `ENGINE_URL` setting in
-    `ios/Config/Engine.xcconfig`), with loopback as the fallback.
+    `ios/Config/Engine.xcconfig`), with loopback as the fallback. A Release build's address is the
+    hosted engine, set after the local file's include so no local setting replaces it (D-185).
   - It uses an ephemeral session with a 10-second timeout and no cache, and the `SameHostOnly`
     redirect guard.
   - It reads each response as a stream and stops at the route's ceiling (#56): 4 MiB for
@@ -293,7 +314,11 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
 - **Gates on the client.**
   - `tests/unit/test_ios_client_contract.py`: arithmetic happens only in the two named files.
   - `scripts/client_decl_gate.py`: the network belongs only to `EngineClient.swift`, and the file
-    system only to `FrontDoor.swift` and `StandingsStore.swift`.
+    system only to `FrontDoor.swift` and `StandingsStore.swift`. It reads what the compiler resolved,
+    in all four build configurations: the two privacy sinks hold only values and call only what is
+    listed (D-180), arithmetic on a served number is followed through the names D-181 lists, a URL
+    made anywhere else is the network (#107), and a pin reads only code some build compiles (#110).
+    Gaps G-1 and G-2 in `docs/security-invariants.md` hold what they do not follow.
   - `tests/unit/test_router_hints.py`: nothing the reader types reaches an engine call.
   - `make ui-test` (D-175): the screen's paths in the simulator, with scripted routing through the
     same boundary. It runs on the owner's Mac only, never in CI.
@@ -323,7 +348,8 @@ was asked, so the request says nothing about the question (D-167 clause 1).
 - `task` is a surface id the engine itself served, chosen by the router or tapped by the reader;
 - `budget` is always `unlimited` in this app.
 
-These requests cross the home network in cleartext when the opt-in is on (D-171 note 4).
+These requests cross the home network in cleartext when the opt-in is on (D-171 note 4). A
+TestFlight build sends them to the hosted engine over HTTPS.
 
 **What never crosses** (D-126; D-160 as amended by D-168 note 9; checked by
 `tests/unit/test_router_hints.py`):
@@ -364,7 +390,8 @@ no per-reader state.
 - With no list, a request that arrived on a network address rather than loopback is refused,
   whatever the bind.
 - The service always sets the list: `127.0.0.1` and `localhost`, plus the Mac's `.local` name and
-  its LAN address under `--lan`.
+  its LAN address under `--lan`. The hosted engine's list is `model-ranking.fly.dev` alone
+  (`fly.toml`), and Fly's health check sends that Host (INV-86).
 - The check stops a browser page that rebinds a name to the engine. It does not stop a person on
   the network, who can send an allowed Host by hand.
 - Anything that forwards to loopback (a proxy, `ssh -L`, a tunnel) in front of an engine with no
@@ -382,7 +409,7 @@ restart would refuse.
 - `SameHostOnly` refuses any redirect to a host other than the configured engine, comparing hosts
   without case.
 - The app allows cleartext only through `NSAllowsLocalNetworking` in `ios/Config/Info.plist`;
-  there are no arbitrary loads.
+  there are no arbitrary loads. A Release build asks an HTTPS address.
 - An undecodable payload is shown as a contract mismatch, not as an empty answer.
 
 **The on-device model into the app.** `ModelOutputBoundary` (§2.5). Whatever the model returns
@@ -417,6 +444,8 @@ owner's Mac
   - It sets `APP_ENV=test`, `MODEL_RANKING_DB` and `APP_BUILD`, and runs the startup checks.
   - It turns the nightly refresh on and starts uvicorn on `MODEL_RANKING_BIND`, which defaults to
     127.0.0.1.
+  - Its preflight is judged by its exit status: a check that dies without a word stops the start
+    (#145).
   - `ios/app.sh` starts the same launcher from the development checkout when the service is not
     installed.
 - **The home network, by opt-in** (D-171).
@@ -426,15 +455,32 @@ owner's Mac
   - `--lan` binds every interface on every network the Mac joins. The macOS firewall is not a
     control for this; `--no-lan` is the only one (D-171 note 7).
   - A renamed Mac needs the installer run again.
-- **The app.** The engine's address is set per build: `ENGINE_URL` in `ios/Config/Engine.xcconfig`,
-  overridden by a git-ignored `Engine.local.xcconfig`. `ios/app.sh` builds the simulator app pinned
-  to loopback. Running on the owner's iPhone is `docs/owner-iphone.md`.
-- **Nowhere else.** `fly.toml` and `Dockerfile` remain as D-116's Fly.io target. Nothing has been
-  deployed there (D-123). The image installs `requirements/serve.lock`, which carries no pyarrow
-  (D-177).
-  - A hosted engine waits for the Stage 5.1 security review and the data licences ruling (#88).
-  - A production environment refuses the nightly switch, so a hosted engine needs ingestion
-    somewhere else first (D-154).
+- **The app.** The engine's address is set per build: `ENGINE_URL` in `ios/Config/Engine.xcconfig`.
+  A git-ignored `Engine.local.xcconfig` overrides it for Debug builds only; a Release build always
+  asks the hosted engine. `ios/app.sh` builds the simulator app pinned to loopback. Running on the
+  owner's iPhone is `docs/owner-iphone.md`; TestFlight is `docs/release-testflight.md` (an icon, a
+  privacy manifest, the encryption answer, a scheme that archives in Release).
+
+```
+Fly.io (D-116, D-185): prepared, deployed only by the owner
+  scripts/deploy_hosted_engine.sh   origin/main's tip only, a clean tree; derives the public artifact,
+                                    stamps APP_BUILD=release-<sha>-data-<digest>, fly deploy
+                                    --remote-only --ha=false, then reads /health back
+  Dockerfile, stage `hosted`        the `serve` stage (requirements/serve.lock, no pyarrow; the base by
+                                    digest, #141) plus the public artifact at /srv/advisor.db, read-only,
+                                    run as a non-root user
+  fly.toml                          one shared-cpu-1x machine, 256 MB, always on; APP_ENV=production;
+                                    MODEL_RANKING_ALLOWED_HOSTS=model-ranking.fly.dev; HTTPS forced
+```
+
+- **The public artifact** (`python -m app.workflows.public`, D-185, INV-87). Derived offline from the
+  artifact the Mac serves. It removes every score, price and accessibility row of the seven sources
+  whose terms do not permit a public copy (`LEFT_OUT`), LiteLLM's copies of OpenRouter's prices
+  (its `openrouter/` aliases) and the vendor plans, rebuilds the price medians, and vacuums, so no
+  byte of them is left. `abstract`,
+  `agentic-coding`, `computer-use` and `web-dev` say they have no evidence on it.
+- **No refresh on Fly.** A production environment refuses the nightly switch (D-154). The Mac
+  refreshes; a refresh the owner wants public is one more deploy.
 
 ## 6. Cross-cutting concerns
 
@@ -475,7 +521,7 @@ owner's Mac
 | 1 | API surface | PRD §8 (M1): no API serving | Five read-only GET routes | Resolved: D-115, D-124, D-125, D-134, D-167 |
 | 2 | Persistence | PRD §7: a disposable SQLite file | One SQLite artifact, built and shipped, read-only to the engine; no managed database | Resolved: D-116 |
 | 3 | Source freshness | REQ-ING-003 flags staleness; no scheduler at M1 | The engine refreshes nightly in a child process | Resolved: D-151, D-154 |
-| 4 | Deploy target | D-116: Fly.io (`fly.toml`, `Dockerfile`) | The engine runs only on the owner's Mac | Open by design: D-123, D-170. Stage 5.1 and #88 come first |
+| 4 | Deploy target | D-116: Fly.io (`fly.toml`, `Dockerfile`) | The engine runs on the owner's Mac; the hosted image, its artifact and its deploy script are ready, not deployed | Ready: D-185; the Stage 5.1 review passed on its re-read; the owner deploys |
 | 5 | Ingestion on a serving host | D-116 clause 2: never | The Mac's engine serves the phone (opt-in) and refreshes in a child process | Accepted: D-154 clause 2 allows the switch only in a relaxed environment; the service runs `APP_ENV=test`; a production engine refuses it |
 | 6 | Runtime config | AGENTS.md §5: never build-baked | The app's engine address is baked into each build | Accepted exception: D-171 note 5 (a phone app has no process environment) |
 | 7 | What leaves the phone | D-160 clause 1, first wording: nothing derived from the question | The routed surface id is sent as `task` | Resolved: D-160 amendment, D-168 note 9 |
@@ -493,15 +539,18 @@ owner's Mac
 - **No scores in the phone's standings, and no averaging across scales.** The phone combines
   positions only (D-105, D-167).
 - **No managed database, CDN or multi-region serving.** The data is one small file, served by one
-  process.
+  process on one machine (`--ha=false`).
 - **No benchmark of our own.** The product aggregates published results from documented endpoints
   only, with no scraping (D-101).
 
 **Open items that bear on this architecture:**
 
-- #66, #113: the question reading missed its catch bar, and the image rule missed both of its
-  bars. The owner decides whether it ships as measured (PR #134).
-- #88: the data licences are tabled, and a public release waits on the owner's ruling.
-- `docs/security-invariants.md` names its open gaps, each on an issue. #122 is one: a child
-  process a test starts is beyond the suite's network guard.
-- The Stage 5.1 release review has not run.
+- #66, #113: the second round improved #66 and missed its bars, and left #113 where it was. The
+  owner decides whether it ships as measured (PR #196).
+- #88: ruled by D-185 on the owner's standing instruction; the owner may overrule it.
+- The hosted engine has no rate limit and Fly no spending cap (#187), and the budget argument is
+  #188.
+- `docs/security-invariants.md` names its open gaps, each on an issue. G-5 is one: in CI's test job
+  a child process a test starts is beyond the suite's network guard.
+- The Stage 5.1 release review ran (`docs/reviews/m19-closure-security-review.md`) and its re-read
+  is MINOR (`docs/reviews/m19-release-security-reread.md`). Nothing is deployed yet.
