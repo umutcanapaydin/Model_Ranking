@@ -4,11 +4,14 @@ A family is every board that measures a surface's task, the primary first: the b
 combines into the product's own list (M20-W2). The engine holds the only copy and publishes it on
 `/v1/categories`; the phone reads it there and keeps none of its own.
 
-A board stands in a family when it measures the task itself. The boards that narrow a question
-instead (a language, a domain, a facet of one board) stand outside every family, each with its
-reason: the question adds them as refinements (D-168, M20-W3), and counting them in a family would
-let one source's facets outvote the others. A board may stand in two families: Terminal-Bench measures
-both agentic coding and operating a computer.
+A board stands in a family when it measures the task itself, and a family holds at most one board of
+each source: Arena publishes slices of one vote (its text, vision and agent boards), and a board beside
+its own slice would let that source outvote the others (the W1 review's M1). Two publishers of one
+benchmark are two measurements (D-168 clause 5): SWE-bench's own board and Epoch's both stand in
+`coding`. The boards that narrow a question instead (a language, a domain, another facet) stand outside
+every family, each with its reason; the ones the app's refinement table names are added by the
+question (D-168, M20-W3). A board may stand in two families: Terminal-Bench measures both agentic
+coding and operating a computer.
 
 Client-free: the serving process imports this module, so it imports nothing from `app.clients` (W-125).
 """
@@ -19,8 +22,8 @@ from __future__ import annotations
 FAMILIES: dict[str, tuple[str, ...]] = {
     "coding": ("swebench", "epoch_swe_bench_verified", "aider", "arena_text_coding"),
     "agentic-coding": ("epoch_deepswe_external", "epoch_terminalbench", "arena_agent"),
-    "assistant": ("arena", "arena_text_instruction_following", "arena_text_multi_turn"),
-    "everyday": ("epoch_eci", "arena", "arena_text_hard_prompts"),
+    "assistant": ("arena",),
+    "everyday": ("epoch_eci", "arena", "epoch_mmlu"),
     "expert": ("epoch_gpqa", "arena_text_expert", "epoch_mmlu"),
     "mathematics": ("epoch_aime", "epoch_frontiermath", "epoch_frontiermath_t4", "arena_text_math"),
     "computer-use": ("epoch_terminalbench", "arena_agent"),
@@ -28,13 +31,15 @@ FAMILIES: dict[str, tuple[str, ...]] = {
     "web-dev": ("epoch_webdev", "arena_text_coding"),
     "document": ("arena_document", "arena_text_longer_query"),
     "factuality": ("arena_factuality", "epoch_simpleqa"),
-    "vision": ("arena_vision", "arena_vision_ocr", "arena_vision_diagram"),
+    "vision": ("arena_vision",),
     "search": ("arena_search", "arena_search_factuality"),
     "search_factuality": ("arena_search_factuality", "arena_search"),
 }
 
 _LANGUAGE = "a language slice of Arena's text board: a refinement the question adds (D-168), not the task"
-_VISION_LANGUAGE = "a language slice of Arena's vision board: a refinement, not the task"
+_VISION_LANGUAGE = "a language slice of Arena's vision board, which no refinement adds yet"
+_TEXT_FACET = "a facet of Arena's text board, which stands in its families through `arena` or one slice"
+_NO_LANGUAGE = "a slice of Arena's text board that names no one language a question could ask for"
 _DOMAIN = "a domain slice of Arena's text board: a refinement the question adds (D-168), not the task"
 _AGENT_FACET = "a facet of Arena's agent board, which stands in the family once through `arena_agent`"
 _VISION_FACET = "a facet of Arena's vision board that names no surface's task"
@@ -42,12 +47,12 @@ _VISION_FACET = "a facet of Arena's vision board that names no surface's task"
 #: board -> why it stands in no family.
 OUTSIDE_FAMILIES: dict[str, str] = {
     "arena_text_chinese": _LANGUAGE,
-    "arena_text_english": _LANGUAGE,
+    "arena_text_english": _NO_LANGUAGE,
     "arena_text_french": _LANGUAGE,
     "arena_text_german": _LANGUAGE,
     "arena_text_japanese": _LANGUAGE,
     "arena_text_korean": _LANGUAGE,
-    "arena_text_non_english": _LANGUAGE,
+    "arena_text_non_english": _NO_LANGUAGE,
     "arena_text_polish": _LANGUAGE,
     "arena_text_russian": _LANGUAGE,
     "arena_text_spanish": _LANGUAGE,
@@ -61,7 +66,12 @@ OUTSIDE_FAMILIES: dict[str, str] = {
     "arena_text_industry_medicine_and_healthcare": _DOMAIN,
     "arena_text_industry_software_and_it_services": _DOMAIN,
     "arena_text_industry_writing_and_literature_and_language": _DOMAIN,
-    "arena_text_creative_writing": "creative writing: no surface measures it; a refinement where a question asks for it",
+    "arena_text_creative_writing": "creative writing: no surface measures it, and no refinement adds it yet",
+    "arena_text_instruction_following": _TEXT_FACET,
+    "arena_text_multi_turn": _TEXT_FACET,
+    "arena_text_hard_prompts": _TEXT_FACET,
+    "arena_vision_ocr": "a facet of Arena's vision board, which stands in `vision` itself",
+    "arena_vision_diagram": "a facet of Arena's vision board, which stands in `vision` itself",
     "arena_agent_bash_recovery_steps": _AGENT_FACET,
     "arena_agent_praise_complaint": _AGENT_FACET,
     "arena_agent_steerability": _AGENT_FACET,
