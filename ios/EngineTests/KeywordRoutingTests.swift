@@ -80,8 +80,63 @@ final class KeywordRoutingTests: OfflineTestCase {
             ("book a table for me on a restaurant website", "computer-use"),
             ("ekteki makaleyi özetle", "document"),
             ("küçük bir e-ticaret sitesi kurmak istiyorum", "web-dev"),
-            ("python'un bugün en güncel sürümü hangisi", "search"),
+            ("en son haberleri bulan model", "search"),
         ])
+    }
+
+    /// The hotfix review's M2: Turkish typed without its letters names its surface as well.
+    func testTurkishTypedWithoutItsLettersIsRead() async {
+        await assertRoutes([
+            ("yazilim gelistirmek icin en iyi model", "coding"),
+            ("tibbi sorular icin model", "expert"),
+            ("sozlesme ozetleyen model", "document"),
+            ("olasilik sorusu cozen model", "mathematics"),
+            ("gorsel okuyan model", "vision"),
+        ])
+    }
+
+    /// The hotfix review's B1 and B2: an everyday word is not a keyword. Each line names no surface by
+    /// it, or names another; none goes where the colliding word would send it.
+    func testAnEverydayWordIsNotAKeyword() {
+        let lines: [(String, String)] = [
+            ("summarise this book", "computer-use"), ("how does the immune system react to a virus", "web-dev"),
+            ("write a script for my youtube video", "coding"), ("the user agent string of my phone", "agentic-coding"),
+            ("make updates to my essay", "factuality"), ("subscribe to our newsletter", "search"),
+            ("with the exception of mondays", "coding"), ("a tv program about space", "coding"),
+            ("the prime minister's speech", "mathematics"), ("best coding model right now", "search"),
+            ("implement binary search in python", "search"), ("is google gemini good for coding", "search"),
+            ("bugün matematik için en iyi model", "search"), ("ajandamı düzenle", "agentic-coding"),
+            ("bu plan mantıklı mı", "abstract"), ("haftalık çizelge hazırla", "vision"),
+            ("şu ana kadar ne yaptık", "search"), ("şunu anlamadım", "search"),
+            ("express your feelings in a letter", "coding"), ("how does the liver function", "coding"),
+        ]
+        for (question, wrong) in lines {
+            XCTAssertNotEqual(CategoryHints.namedSurface(question, within: known), wrong, question)
+        }
+        XCTAssertEqual(CategoryHints.namedSurface("summarise this book", within: known), "document")
+        XCTAssertEqual(CategoryHints.namedSurface("best coding model right now", within: known), "coding")
+        XCTAssertEqual(CategoryHints.namedSurface("bugün matematik için en iyi model", within: known), "mathematics")
+    }
+
+    /// The hotfix review's M1, D-187 clause 4: the model's "none of these" on a question it read as a
+    /// search goes to the wording tier, and a question it read as something else keeps its outcome.
+    func testTheModelsDeclineOnASearchGoesToTheWordingTier() async {
+        let question = "best ai for coding"
+        let declined = await TieredRouter(
+            model: ScriptedModelRouter(answers: [question: ["request": "a model search",
+                                                            "surface": ModelOutputBoundary.declineSentinel]]),
+            similarity: SimilarityRouter()
+        ).route(question, within: known)
+        XCTAssertEqual(declined.categoryID, "coding")
+        XCTAssertFalse(declined.unmeasured)
+        XCTAssertEqual(declined.tier, .similarity)
+
+        let doubted = await TieredRouter(
+            model: ScriptedModelRouter(answers: [question: ["request": "something else",
+                                                            "surface": ModelOutputBoundary.declineSentinel]]),
+            similarity: SimilarityRouter()
+        ).route(question, within: known)
+        XCTAssertEqual(doubted.tier, .model, "a question the model doubts keeps the model's outcome")
     }
 
     /// The order the rules are read in is the decision between two surfaces a question names: web
