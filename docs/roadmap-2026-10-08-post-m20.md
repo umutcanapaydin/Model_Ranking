@@ -39,8 +39,9 @@ A snapshot, never edited after it is written (seed I.1).
   only when a session starts in the repository, #142), re-scope it, or refuse it (`docs/refusals.md`).
 - Licences per source before external testers or the App Store (D-185, D-186).
 
-**What is next (M21, planned in `docs/plans/m21-plan.md`, 46 issues in its milestone).**
-- W1: the data a reader sees (#163 to #166, #124, #185, #198, #205, #214, #216).
+**What is next (M21, planned in `docs/plans/m21-plan.md`, 47 issues in its milestone).**
+- W1: the data a reader sees (#163 to #166, #124, #185, #198, #205, #214, #216), and the limit's
+  shared-address case before external testers (#228).
 - W2: reading what is not a search, and the wording tier's dead ends (#66, #194, #180, #186, #193,
   #199, #218, #222, and #226: the owner's judgement of answers, D-188's revisit).
 - W3: the phone's promises held further (#85, #132, #168 to #175, #188, #219, #220, #223).

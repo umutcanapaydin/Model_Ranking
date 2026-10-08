@@ -95,9 +95,11 @@ enum Refinements {
     ]
 
     /// M20-W3 (#211, D-188): the boards a question combines: its surface's family, in the family's
-    /// order and none twice, then at most `maxAdded` refinements the surface allows, language before
-    /// domain. A refinement the family already holds takes none of the places. A family the engine did
-    /// not send (an engine older than M20) is the primary board alone.
+    /// order, none twice and at most `maxFamily`. Where the engine names the family's board of Arena's
+    /// text vote (`refined`), the first refinement the surface allows, language before domain, takes
+    /// its place and no other joins: one vote, one board (D-188 clause 6). Otherwise (an engine older
+    /// than the M20 closure) at most `maxAdded` refinements join after the family, none the family
+    /// already holds. A family the engine did not send is the primary board alone.
     static func familyBoards(primary: String, family: [String], surface: String, chosen: [Refinement],
                              refined: String? = nil) -> [String] {
         // One pass with a set, and no more than `maxFamily` boards: a broken payload's family of

@@ -26,6 +26,9 @@ def client(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> TestClien
     _seeded_db(db)
     monkeypatch.setenv("MODEL_RANKING_DB", str(db))
     monkeypatch.setenv("MODEL_RANKING_RATE_LIMIT", "3")
+    # One minute held still, so no test meets the turn of a real minute halfway (a flake the M20
+    # closure's full run met in `test_an_empty_header_is_the_connection`).
+    monkeypatch.setattr(main, "_rate_clock", lambda: 1_000_020.0)
     main.reset_rate_windows()
     return TestClient(main.app)
 
@@ -111,9 +114,9 @@ def test_the_next_minute_serves_again() -> None:
 def test_the_next_minute_serves_again_through_the_engine(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     from app.adapter import main
 
-    monkeypatch.setattr(main.time, "time", lambda: 600.0)
+    monkeypatch.setattr(main, "_rate_clock", lambda: 600.0)
     assert [_ask(client) for _ in range(4)] == [200, 200, 200, 429]
-    monkeypatch.setattr(main.time, "time", lambda: 660.0)
+    monkeypatch.setattr(main, "_rate_clock", lambda: 660.0)
     assert _ask(client) == 200
 
 
@@ -243,7 +246,7 @@ def test_retry_after_is_the_rest_of_the_minute(client: TestClient, monkeypatch: 
     """covers REQ-REL-004 (`Retry-After`): the client is told the seconds left in its window."""
     from app.adapter import main
 
-    monkeypatch.setattr(main.time, "time", lambda: 645.0)
+    monkeypatch.setattr(main, "_rate_clock", lambda: 645.0)
     assert [_ask(client) for _ in range(3)] == [200, 200, 200]
     refused = client.get("/v1/budgets", headers={"Fly-Client-IP": "203.0.113.7"})
     assert refused.status_code == 429
@@ -298,7 +301,7 @@ def test_a_broken_limiter_is_logged_once_a_minute(client: TestClient, monkeypatc
         raise RuntimeError("the limiter broke")
 
     monkeypatch.setattr(main, "_over_limit", broken)
-    monkeypatch.setattr(main.time, "time", lambda: 1200.0)
+    monkeypatch.setattr(main, "_rate_clock", lambda: 1200.0)
     with caplog.at_level(logging.WARNING, logger=main.__name__):
         assert all(_ask(client) == 200 for _ in range(5))
     assert sum("rate limiter failed" in record.getMessage() for record in caplog.records) == 1
@@ -348,8 +351,8 @@ def test_a_limit_below_a_boards_weight_still_serves_one_boards_answer_a_minute(
     from app.adapter import main
 
     monkeypatch.setenv("MODEL_RANKING_RATE_LIMIT", "10")
-    monkeypatch.setattr(main.time, "time", lambda: 1800.0)
+    monkeypatch.setattr(main, "_rate_clock", lambda: 1800.0)
     ip = {"Fly-Client-IP": "203.0.113.80"}
     assert [client.get("/v1/boards", headers=ip).status_code for _ in range(2)] == [200, 429]
-    monkeypatch.setattr(main.time, "time", lambda: 1860.0)
+    monkeypatch.setattr(main, "_rate_clock", lambda: 1860.0)
     assert client.get("/v1/boards", headers=ip).status_code == 200

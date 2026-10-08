@@ -221,6 +221,11 @@ _RATE_WINDOWS: dict[str, tuple[int, int]] = {}
 _RATE_STATE: dict[str, int] = {"scanned": -1, "scans": 0, "warned": -1}
 
 
+def _rate_clock() -> float:
+    """The limiter's clock: the wall time, read in one place so a test can hold the minute still."""
+    return time.time()
+
+
 def rate_limit_problems() -> list[str]:
     """What is wrong with the limit's setting, for the startup check: a strict environment refuses it."""
     raw = os.environ.get(RATE_LIMIT_VAR, "").strip()
@@ -795,9 +800,11 @@ async def _limited(request: Any, call_next: Any) -> Any:
     the list is a 400 and is never counted (INV-26; the M20 closure security seat's S2)."""
     limit = _rate_limit()
     if limit and request.url.path != "/health":
-        now = time.time()
+        now = _rate_clock()
         try:
-            over, wait = _over_limit(_client_key(request), limit, now, RATE_WEIGHTS.get(request.url.path, 1))
+            # A weight above the limit costs the whole minute, never every minute (the closure fixes M4).
+            weight = min(RATE_WEIGHTS.get(request.url.path, 1), limit)
+            over, wait = _over_limit(_client_key(request), limit, now, weight)
         except Exception as exc:
             # Fails open, and says so once a minute: a broken limiter must be seen (the W5 review's
             # M4), not repeated on every request (the Tester's R1).

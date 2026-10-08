@@ -191,25 +191,34 @@ func answerPlan(
 
 /// M20-W4 (D-188): the family's own list. The refinements are the on-device model's where it read the
 /// question, none included, and otherwise the ones the question's words name (D-188 clause 6, the one
-/// reader); only one whose board the standings hold, and that the surface allows, is offered. A family that leaves one board is today's cards, with the removed
-/// refinements kept to restore.
+/// reader). Only one whose board the standings hold and the surface allows is offered, and where it
+/// takes the place of its vote's board (`refinedBoard`), only the one that stands. A family left at
+/// one board is today's cards, with the removed refinements kept to restore, unless that board is a
+/// kept refinement's.
 private func familyPlan(
     outcome: RoutingOutcome, family: [String], question: String?, asOf: Date, standings: Standings,
     removed: Set<Refinement>, phoneCopyDays: Int?, refinedBoard: String?
 ) -> AnswerPlan {
     let chosen = outcome.tier == .model ? outcome.refinements : Refinements.read(question ?? "")
-    let offered = chosen.filter { refinement in
+    let allowed = chosen.filter { refinement in
         refinement.surfaces.contains(outcome.categoryID) && standings.boards.contains { $0.id == refinement.board }
     }
+    // One vote, one board (D-188 clause 6): where a refinement takes the place of its vote's board, only
+    // the one that stands is offered, a language before a domain, so no chip says a board was counted
+    // when it was not (the closure fixes review's M1).
+    let offered = refinedBoard.map { family.contains($0) } == true
+        ? Array(RefinementKind.allCases.flatMap { kind in allowed.filter { $0.kind == kind } }.prefix(1))
+        : allowed
     let kept = offered.filter { !removed.contains($0) }
     let boards = Refinements.familyBoards(primary: family[0], family: family, surface: outcome.categoryID, chosen: kept,
                                           refined: refinedBoard)
     guard let list = try? combineFamily(standings, boards: boards, asOf: asOf), !list.entries.isEmpty else {
         return .cards
     }
-    // One board is the cards, unless a refinement took the family's place: then it is that slice's
-    // list, with its chip (the M20 repo review's M1: `assistant` in Spanish is the Spanish board).
-    guard list.boards.count > 1 || list.boards.first?.id != family[0] else {
+    // One board is the cards, unless a kept refinement's board is that one board: then it is that
+    // slice's list, with its chip (the M20 repo review's M1: `assistant` in Spanish is the Spanish
+    // board). A family the standings left at one other board is the cards (the closure fixes M2).
+    guard list.boards.count > 1 || kept.contains(where: { $0.board == list.boards.first?.id }) else {
         guard !offered.isEmpty, kept.isEmpty else { return .cards }
         return .restorable(offered)
     }

@@ -29,7 +29,7 @@ beside it where a wave touches nothing M20 touches.
 
 ## 2. Waves
 
-### W1 — The data a reader sees (risk: **HIGH**; #163, #164, #165, #124, #185, #166, #198, #205, #214, #216)
+### W1 — The data a reader sees (risk: **HIGH**; #163, #164, #165, #124, #185, #166, #198, #205, #214, #216, #228)
 
 `src/app/clients/**` and the registry change.
 - **#163, #164, #165:** each in the registry's curated rules, with the maker's page as the source.
@@ -95,7 +95,7 @@ About 2M tokens; not measured per wave.
 
 | Wave | Issues |
 |---|---|
-| W1 | #163, #164, #165, #124, #185, #166, #198, #205, #214, #216 |
+| W1 | #163, #164, #165, #124, #185, #166, #198, #205, #214, #216, #228 |
 | W2 | #66, #194, #180, #186, #193, #199, #218, #222, #226 |
 | W3 | #85, #132, #168, #169, #170, #171, #172, #173, #174, #175, #188, #219, #220, #223 |
 | W4 | #122, #178, #179, #181, #182, #183, #108, #189, #200, #201, #202, #203, #227 |

@@ -206,3 +206,16 @@ None
     a handful of testers on one carrier.
   - The fix to weigh then. Do not add the weight of a refused request, and keep the log-once rule
     (which my "refused request not counted" mutant broke), or key `/v1/boards` on its own budget.
+
+## Dispositions, at the closure
+
+| finding | disposition |
+|---|---|
+| M1 | fixed (this closure's last fix commit): only the refinement that stands is offered |
+| M2 | fixed (the same commit): a one-board list only for a kept refinement's board |
+| M3 | fixed (red commit): a boards request after 100 light ones is refused and logged, held |
+| M4 | fixed (the same fix commit): a weight above the limit costs the whole minute |
+| M5 | fixed (red commit): the memo test and the screen's source tripwire |
+| M6 | fixed (the same fix commit): both docstrings, and the plan's K.8 list names `refined_board` |
+| R1 | #228 (M21-W1, before external testers) |
+

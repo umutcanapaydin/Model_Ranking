@@ -157,6 +157,8 @@ $ grep -n "^ARENA_SLICES" src/app/workflows/board_tables.py
 ```
 
 - `/v1/categories` gains `boards` per surface (additive; `primary_board` keeps its meaning).
+- At the closure (the repo review's M1), `/v1/categories` gains `refined_board` per surface (additive; `null`
+  where no refinement refines it), and a new 429 `rate_limited` in the API's one error shape (W5, #187).
 - `combineFamily`, `FamilyList` and `FamilyEntry` are new beside `combine` (W2); `AnswerPlan.swift`
   calls them where the engine names a family (W4), and maps a family's entries to `CombinedEntry`.
 - `/v1/boards` is unchanged: positions and `evidence_date`, no score (D-167).
