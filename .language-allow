@@ -108,6 +108,8 @@ ios/ModelRanking/Engine/Reading.swift   # M18-W3 (D-169, #113): the Turkish word
                                         # comments are English
 ios/EngineTests/ReadingTests.swift      # asserts Turkish inputs by their words, for the reason
                                         # LanguageTests.swift is exempt above
+ios/EngineTests/KeywordRoutingTests.swift # D-187: asserts Turkish questions by the words that name a
+                                        # surface, for the reason LanguageTests.swift is exempt above
 scripts/router_probe/image_tuning_questions.json  # M18-W3 (#113): the author's tuning set, half Turkish
 scripts/router_probe/notasearch_heldout_m18_questions.json  # M18-W3 (#66): the fresh held-out set (review B2),
                                   # half Turkish, written by an independent seat

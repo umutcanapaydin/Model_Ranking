@@ -180,29 +180,26 @@ final class UnmeasuredQuestionTests: OfflineTestCase {
     /// this tier both questions went to `everyday` as MEASURED answers.
     private let shipping = TieredRouter(model: nil, similarity: SimilarityRouter())
 
-    /// Wrong MODALITY: an image job, which no surface measures.
-    func testAnImageQuestionIsAnsweredWithARankingAndTheSentenceSayingWhatItCannotTell() async {
+    /// D-187 (the owner's ruling, 2026-10-08): an image job is answered from `vision`, the board of
+    /// the models that read images best, not told "not measured".
+    func testAnImageJobIsAnsweredFromTheImageBoard() async {
         let outcome = await shipping.route("make my profile photo look better", within: served)
 
-        XCTAssertEqual(outcome.categoryID, "assistant", "no ranking was loaded for the question")
-        XCTAssertTrue(outcome.unmeasured, "an image question was answered as a measured one")
-        XCTAssertTrue(routingNotice(outcome, .english).contains("cannot tell you which model is best"))
+        XCTAssertEqual(outcome.categoryID, "vision")
+        XCTAssertFalse(outcome.unmeasured, "an understood image job was told it is not measured")
+        XCTAssertFalse(routingNotice(outcome, .english).contains("cannot tell you which model is best"))
     }
 
-    /// Wrong AXIS: a measured domain, asked about a property nothing measures.
-    func testASpeedQuestionIsAnsweredWithARankingAndTheSentenceSayingWhatItCannotTell() async {
-        let outcome = await shipping.route("which model answers fastest", within: served)
+    /// D-187: a question on an axis no board ranks (speed, context) is answered from the closest
+    /// board, never "not measured".
+    func testASpeedOrContextQuestionIsAnsweredFromTheClosestBoard() async {
+        for question in ["which model answers fastest", "which model has the longest context window"] {
+            let outcome = await shipping.route(question, within: served)
 
-        XCTAssertEqual(outcome.categoryID, "assistant")
-        XCTAssertTrue(outcome.unmeasured, "a speed question was answered as a measured one")
-        XCTAssertTrue(routingNotice(outcome, .turkish).contains("söyleyemez"))
-    }
-
-    /// The reviewer's third probe, and the same axis gap.
-    func testAContextWindowQuestionIsNotAnsweredAsMeasured() async {
-        let outcome = await shipping.route("which model has the longest context window", within: served)
-
-        XCTAssertTrue(outcome.unmeasured, "a context-window question was answered as a measured one")
+            XCTAssertFalse(outcome.unmeasured, question)
+            XCTAssertTrue(served.contains(outcome.categoryID), question)
+            XCTAssertFalse(routingNotice(outcome, .turkish).contains("söyleyemez"), question)
+        }
     }
 
     /// W3 re-review NEW-1: measured tasks that MENTION a photo, a video or a frame. The wording tier
@@ -258,11 +255,12 @@ final class UnmeasuredQuestionTests: OfflineTestCase {
         }
     }
 
-    func testADeclineNeverOffersTheChatRankingItIsAlreadyShowing() async {
+    /// D-187: an answer never offers the surface it is already showing as its own alternative.
+    func testAnAnswerNeverOffersTheSurfaceItIsAlreadyShowing() async {
         let outcome = await shipping.route("make my profile photo look better", within: served)
 
-        XCTAssertTrue(outcome.unmeasured)
-        XCTAssertFalse(outcome.alternatives.contains(CategoryHints.unmeasuredFallback))
+        XCTAssertFalse(outcome.unmeasured)
+        XCTAssertFalse(outcome.alternatives.contains(outcome.categoryID))
         XCTAssertLessThanOrEqual(outcome.alternatives.count, 2)
         XCTAssertTrue(outcome.alternatives.allSatisfy(served.contains))
     }
@@ -326,9 +324,10 @@ final class UnmeasuredQuestionTests: OfflineTestCase {
             XCTAssertEqual(outcome?.categoryID, "vision", question)
             XCTAssertEqual(outcome?.unmeasured, false, question)
         }
-        // and the other half of W-115's narrowing: MAKING one is still declined
+        // D-187: MAKING one is answered from the same board now, not declined
         let made = await SimilarityRouter().route("generate an image of a cat", within: served)
-        XCTAssertEqual(made?.unmeasured, true)
+        XCTAssertEqual(made?.categoryID, "vision")
+        XCTAssertEqual(made?.unmeasured, false)
     }
 
     /// M15-W3 review m-4: the positive routing tests above paraphrase the router's own examples, so
@@ -380,8 +379,12 @@ final class UnmeasuredQuestionTests: OfflineTestCase {
     /// crediting the floor with work it does not do: the floor is exercised on a question that
     /// routes confidently (both sides of the threshold, the M13 seat's requirement), and nonsense
     /// is asserted to be declined however that happens.
-    func testTheFloorDecidesAndNonsenseIsDeclinedByTheGroupsInstead() async {
-        let real = "fix a bug in my python repo"
+    ///
+    /// D-187: the decline groups decline nothing any more; the floor is what is left of "not
+    /// understood", on a question that names no surface (a named one is understood whatever its
+    /// score), and nonsense is the reading's (`InputSignals.noWord`, the note).
+    func testTheFloorDecidesAQuestionThatNamesNoSurface() async {
+        let real = "explain how a catalyst lowers activation energy"
 
         let routed = await SimilarityRouter().route(real, within: served)
         XCTAssertEqual(routed?.unmeasured, false, real)
@@ -389,10 +392,11 @@ final class UnmeasuredQuestionTests: OfflineTestCase {
         let unreachable = await SimilarityRouter(floor: 0.9).route(real, within: served)
         XCTAssertEqual(unreachable?.unmeasured, true, "the floor no longer decides anything")
 
-        let noise = await SimilarityRouter().route("zzz", within: served)
-        XCTAssertEqual(noise?.unmeasured, true, "nonsense routed as a measured question")
-        let noiseWithoutFloor = await SimilarityRouter(floor: 0.0).route("zzz", within: served)
-        XCTAssertEqual(noiseWithoutFloor?.unmeasured, true, "it is the decline groups, not the floor")
+        let named = await SimilarityRouter(floor: 0.9).route("fix a bug in my python repo", within: served)
+        XCTAssertEqual(named?.categoryID, "coding", "a question that names its surface is understood")
+
+        let noise = await TieredRouter(model: nil).route("asdf qwer zxcv", within: served)
+        XCTAssertEqual(noise.reading, .notASearch, "nonsense is the note")
     }
 
     /// The model tier's decline PATH, labelled as what it is: the sentinel reaches the notice. It
@@ -485,9 +489,10 @@ final class AlternativeSurfaceTests: OfflineTestCase {
         XCTAssertEqual(Set(alternatives).count, alternatives.count)
     }
 
+    /// A question below the floor names no surface (D-187: no keyword decides it), so nothing matched.
     func testAnUnmeasuredQuestionOffersNoAlternativesBecauseNothingMatched() async {
         let outcome = await SimilarityRouter(floor: 2.0)
-            .route("fix the failing unit test in my python project", within: served)
+            .route("help me plan a trip to rome", within: served)
 
         XCTAssertEqual(outcome?.alternatives, [])
     }

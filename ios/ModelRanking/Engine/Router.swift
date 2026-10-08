@@ -212,6 +212,11 @@ enum CategoryHints {
     ]
 }
 
+extension CategoryHints {
+    /// D-187: the surface a question names outright, or nil. A stub until the rules are written.
+    static func namedSurface(_ question: String, within known: [String]) -> String? { nil }
+}
+
 protocol QuestionRouter {
     func route(_ question: String, within known: [String]) async -> RoutingOutcome?
 }
