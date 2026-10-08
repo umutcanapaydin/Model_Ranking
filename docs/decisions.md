@@ -3216,6 +3216,8 @@ distance between models shown, which would need scores and a new ADR under D-105
 
 **Amended by D-181 (2026-10-06)**: clause 4's two named permissions, each for one file, are checked on the compiled module: a served number is any numeric value a decoded type stores, found by the compiler, never listed by hand, and it is followed through the names D-181 lists; gap G-2 holds the rest (added at the M19 closure, the repo review's M10).
 
+**Amended by D-188 (2026-10-08, proposed)**: clause 3 -- a surface's family is combined by mean percentile position, a model kept when half its boards rank it, not only the models every board ranks (D-188 clauses 2 and 3); the D-167 path stays for an engine that names no family.
+
 ## D-168 — The question selects its boards as a surface plus declared refinements
 
 **Status:** accepted -- **ruled by the owner 2026-09-28** (asked in Turkish, with explanations, four
@@ -3311,7 +3313,7 @@ owner rulings of the same day, asked in Turkish.
    `/v1/recommendations`: the same request a reader's own tap on that surface makes. The question's
    text, its refinements and the reader's removals never leave the device.
 
-**Amended by D-188 (2026-10-08, proposed)**: clause 4 -- where the on-device model did not read the question, the answer plan reads its refinements from the words (D-188 clause 6); the routing outcome still carries none.
+**Amended by D-188 (2026-10-08, proposed)**: clause 4 -- where the on-device model did not read the question, the answer plan reads its refinements from the words (D-188 clause 6); the routing outcome still carries none. Clause 6 (#54, no threshold) -- a family list keeps a model ranked by half its boards (D-188 clause 2). Clause 7 -- the combined list is the default answer, a family of one board the cards (D-188 clause 5). Clause 1 -- a refinement takes the place of its vote's board and never joins beside it, so of a language and a domain the language stands (D-188 clause 6).
 
 ## D-169 — A question that is not a model search gets a guiding note, not a ranking
 
@@ -4395,12 +4397,16 @@ board's ranking, with its board named, not a statement that nothing ranks it. **
 combination of boards for a task none ranks is built (the owner's next step: the on-device model
 composing a list from the boards).
 
+**Amended by D-188 (2026-10-08, proposed)**: clause 1 -- a short question made only of model names, their tier names and Turkish particles ("claude mu chatgpt mi") is a general question before the embedding is tried, since the embedding reads it as English (#206, M20-W3; `CategoryHints.comparesModelsOnly`).
+
 ## D-188 — Our own list for every question: a family of boards per task, combined by position
 
 **Status:** proposed -- the agent's proposal for the owner's goal of 2026-10-08 ("our biggest
 strength": the app composes its own list per question from many boards, owner, translated from
 Turkish); approved, amended or refused by the owner with the M20 plan (`docs/plans/m20-plan.md`) ·
-**Date:** 2026-10-08 · **Would amend** D-167 clause 3 and D-168 · from #209, #210, #211, #212.
+**Date:** 2026-10-08 · **Would amend** D-167 clause 3, D-168 clauses 4, 6 and 7 (clause 6 is the owner's
+#54 ruling, "no threshold": a family list keeps a model at half its boards) and D-187 clause 1 (#206) ·
+from #209, #210, #211, #212.
 
 **Context.** The default answer ranks one board per surface. The phone's combined list keeps only the
 models every chosen board ranks (D-167 clause 3) and is built only when the on-device model picks a
@@ -4440,7 +4446,8 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    2026-10-08 (the served `/v1/boards`, the W1 families): `coding` 58 models (its primary 40),
    `agentic-coding` 18 (18), `everyday` 130 (155), `expert` 124 (154), `mathematics` 125 (144),
    `computer-use` 85 (43), `abstract` 80 (77), `web-dev` 215 (94), `document` 197 (34), `factuality` 134
-   (116), `search` and `search_factuality` 28 (28, 27); `assistant` and `vision` are one board.
+   (116); `assistant`, `vision`, `search` and `search_factuality` are one board each (the search figures
+   first measured, 28 (28, 27), were for a family that held both search boards, before the W1 Tester's M1).
 3. **Place.** A model's place is the mean of its percentile positions, (position - 1) over (the
    board's size - 1), across the boards that rank it, positions only and never a score (D-105). Ties
    share a place and are broken by model id. A board that ranks no model, or that the standings lack
@@ -4457,20 +4464,29 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    launch screen, which answers no one yet, shows the primary boards' picks. The primary board's own
    answer (the picks and their price notes) is one tap away. Ruling A holds: coding shows two
    families, both or neither, neither leading. The list says which boards built it, each with its
-   date, and how many of them a model needs (the W4 review's B1).
+   date, and how many of them a model needs (the W4 review's B1). A family of one board (`vision`,
+   `search`, `search_factuality`, and `assistant` with no refinement) is that board's own answer, the
+   cards (the M20 repo review's M6).
 6. **Refinements from the words (amends D-168 clause 4; the W3 review's B1).** Where the on-device
    model did not read the question (it is off, or another tier answered), the words choose the
    refinements it would have: `Refinements.read`, in English and Turkish, from words with one reading
    only, and at most one of each kind, as the model's schema has one field per kind (the first each
    the question names). An English language name counts only as the task's language ("in French",
    "learn Spanish", "Korean translation"), since it is also a nationality ("German cars", "in Chinese
-   stocks"); a domain word with a second meaning is not read (law, health, a novel approach). The answer plan is the one reader, a gate holds
-   it, and `familyBoards` keeps only what the surface allows, at most two, languages first. The routing
-   outcome still carries refinements only from `ModelOutputBoundary`. Where the model read the
-   question, its choice stands, none included.
+   stocks"); a domain word with a second meaning is not read (law, health, a novel approach). The
+   answer plan is the one reader, a gate holds it, and `familyBoards` keeps only what the surface
+   allows, languages first. The routing outcome still carries refinements only from
+   `ModelOutputBoundary`. Where the model read the question, its choice stands, none included.
+   **One vote, one board (the M20 repo review's M1, the agent's ruling under the owner's standing
+   instruction of 2026-09-29).** Every refinement is a slice of Arena's text vote, so it takes the
+   place of the family's board of that vote, which `/v1/categories` names as `refined_board`; it never
+   joins beside it, where one vote would count twice for the coverage and for the mean (clause 1). Of
+   a language and a domain, the language stands. `assistant` in Spanish is the Spanish board's list.
+   A gate holds every family, with every refinement it allows, to one board a vote.
 
 **The alternative.** Keep "every board ranks it" over the two or three boards most models share. It is
 simpler, but a new model ranked by two boards out of eight would never appear.
 
-**Revisit when:** the labelled set (#195) shows the combined list placing models worse than the
-primary board for the questions it was built for.
+**Revisit when:** the owner's judgement of a sample of answers (#226) prefers the primary board's own
+answer to the family list. The labelled set of #195 cannot show it: it is labelled for the surface, not
+for the best model (M20-W5, `docs/research/m20-w5-family-probe.md` §4; the M20 repo review's M5).

@@ -8,8 +8,8 @@ date: 2026-10-08
 # M20 Plan — our own list for every question
 
 **One sentence.** M20 makes the product's own combined list the default answer to every question.
-For each task it reads every board that measures it, combines them by position, weighs a stale board
-less, and says which boards it used. Today the default answer is one board.
+For each task it reads every board that measures it, combines them by position, every board counting
+the same (an older one named under the list), and says which boards it used. Today the default answer is one board.
 
 **The goal is the owner's.** On 2026-10-08, after the first TestFlight build, the owner ruled that an
 understood question is answered from the closest board, never "not measured" (D-187). The owner
@@ -50,7 +50,7 @@ review. A wave's pull request opens after its reviews.
 ### W1 — Every board that measures a task, named by the engine (risk: **HIGH**; #209)
 
 `src/app/adapter/main.py` changes, so the wave is HIGH.
-- **D-188 first.** It records the families, the combination rule and the staleness weight (W2), for
+- **D-188 first.** It records the families, the combination rule and how an older board is named (W2), for
   the owner's approval with this plan.
 - **One declared table in the engine.** Each surface maps to its family of boards, with the primary
   first (`app.workflows.families`, a client-free module of its own). `/v1/categories` gains `boards` per
@@ -104,7 +104,7 @@ and new models are what readers ask about.
   (D-188 clause 6), the one reader a gate holds. `AnswerPlan.swift` joins the security globs while it
   hosts that amendment of D-168 clause 4, so W4 is HIGH.
 - **"Built from N boards"** with their dates. A stale board is a small note on its own line ("SWE-bench
-  has added no result since 25 June; it weighs half here").
+  has added no result since 25 June; it counts the same as the others here").
 - **A row's detail** shows each board's position for that model.
 - **The engine's single-board answer** (the picks, the price notes) stays one tap away, as "the
   primary board".

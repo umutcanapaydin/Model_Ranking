@@ -10,8 +10,21 @@ date: 2026-10-07
 Your steps, in order. Everything the code could do is done: the image, `fly.toml`, the public
 artifact, the deploy script, the app's icon, privacy manifest and Release address. What is left
 needs your accounts, your card or your signing identity. **Deploy only after you have merged the
-release's pull requests (M19-W4, M19-W5 and the M19 closure) and the release's security verdict of
-record, `docs/reviews/release-security.md`, is PASS or MINOR (not BLOCKING).**
+release's pull requests and the release's security verdict of record,
+`docs/reviews/release-security.md`, is PASS or MINOR (not BLOCKING).** The first release was M19's
+(TestFlight build 1); the next is build 3, below.
+
+## Build 3 (M20), in this order
+
+1. **Merge** the M20 pull requests in order: #213 (the plans), #215, #217, #221, #224, #225, then the
+   M20 closure. The M20 closure security seat says the release verdict stands for build 3
+   (`docs/reviews/m20-closure-security-review.md`).
+2. **Deploy the engine first** (§1 steps 1, 5 and 6). An app built for M20 against the old engine shows
+   no family list, and says nothing about it.
+3. **Check the families are served:** `curl -s https://model-ranking.fly.dev/v1/categories | grep -c
+   refined_board` must print a number above 0.
+4. **Check that Fly sets the client's address** (below, after the cost note).
+5. **Archive and upload build 3** (§2 steps 3 and 4). The build number is already 3.
 
 ## 1. The engine on Fly.io (once)
 
@@ -60,12 +73,13 @@ Look at the dashboard's usage page now and then once the app is shared.
 R1): a forged `Fly-Client-IP` header must not give each request a new address. From any computer:
 
 ```
-cd ~/Desktop/ILGAR/model_ranking && for n in $(seq 1 250); do curl -s -o /dev/null -w "%{http_code} " -H "Fly-Client-IP: 198.51.100.$((n % 250))" https://model-ranking.fly.dev/v1/budgets; done; echo
+cd ~/Desktop/ILGAR/model_ranking && seq 1 250 | xargs -P 25 -I{} curl -s -o /dev/null -w "%{http_code}\n" -H "Fly-Client-IP: 198.51.100.{}" https://model-ranking.fly.dev/v1/budgets | sort | uniq -c
 ```
 
-Some answers must be `429`. 250 requests cover a turn of the minute, which resets the count (the W5
-Tester's T4). If every one is `200`, Fly passed the forged header through: stop sharing the app and
-say so in #187.
+The 250 requests go 25 at a time, so they finish in a few seconds, well inside a minute. The count
+of `429` must be above 0: every request came from your one address, whatever the forged header said.
+If every answer is `200`, Fly passed the forged header through: stop sharing the app and say so in
+#187. (The repo review's M2: one request at a time could take longer than the window.)
 
 **After each deploy, log out:** `fly auth logout`. While you are logged in, a coding agent on this
 Mac could deploy or destroy the app (#190).

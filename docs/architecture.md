@@ -28,8 +28,9 @@ OWNER'S MAC: launchd service com.ilgar.modelranking.engine, a deployed release o
       |  the owner's deploy: app.workflows.public derives a public copy, without the sources
       |  whose terms do not permit it (D-185), and the image carries it
       v
-FLY.IO, prepared and not yet deployed: one machine, the `hosted` image, Host model-ranking.fly.dev
-    the same five routes over HTTPS; no refresh (D-116); a new deploy per refresh made public
+FLY.IO, serving TestFlight since 2026-10-07: one machine, the `hosted` image, Host model-ranking.fly.dev
+    the same five routes over HTTPS; no refresh (D-116); a new deploy per refresh made public;
+    one client limited to 120 requests a minute, a /v1/boards answer counting thirty (#187, INV-88)
       |
       v
 IPHONE APP (SwiftUI): a Debug build asks the Mac, a Release build (TestFlight) asks Fly.io
@@ -116,7 +117,7 @@ routes (`DECLARED_ROUTES`), all GET, and turns the docs and OpenAPI routes off.
 | Route | What it serves | ADRs |
 |---|---|---|
 | `/health` | `status`, `version`, `build` (L.7); `evidence` (`servable` or `unavailable`); the refresh's state, last outcome, carried and expired sources, drift, derived and unmatched names | D-154, D-156, D-157 |
-| `/v1/categories` | Each surface: benchmark, metric, ranking effort, close-call margin, floor (`min_quality`), out-of-100 anchor, what its price leaves out, its primary board, its family of boards (`boards`, the primary first, `app.workflows.families`, D-188), its second board's age | D-138, D-152, D-153, D-159, D-162, D-168, D-188 |
+| `/v1/categories` | Each surface: benchmark, metric, ranking effort, close-call margin, floor (`min_quality`), out-of-100 anchor, what its price leaves out, its primary board, its family of boards and the board a refinement takes the place of (`refined_board`, D-188 clause 6; `boards`, the primary first, `app.workflows.families`, D-188), its second board's age | D-138, D-152, D-153, D-159, D-162, D-168, D-188 |
 | `/v1/recommendations?task=&budget=` | One answer per surface: up to three picks, each with its model's id (`model_id`, D-182), with the facts the client words in its own language, and the full ranking in the engine's order, with source health and evidence dating. Each notice has its fact: `close_call_fact`, an empty answer's `unavailable_reason_code`, a source's `reason`. `task=coding` answers on both coding surfaces and neither leads (Ruling A) | D-115, D-125, D-136, D-176 |
 | `/v1/budgets` | The budget caps (`low` $2, `medium` $8 per 1M blended tokens, `unlimited`) and the blend weights | D-134 |
 | `/v1/boards` | Every board's standings as positions, never scores, and each model's name, vendor, blended price and accessibility. No parameters. Built once per artifact | D-167, D-173 |
@@ -265,8 +266,12 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
     manual tier and offers Change.
   - A note or a question back sends no request and records no gap.
 - **Refinements** (`Refinements.swift`, D-168): a declared table of Arena text slices, eight task
-  languages and eight domains, each with the surfaces it may refine. At most two are added. A
-  coding question takes none (Ruling A). Only the model tier refines.
+  languages and eight domains, each with the surfaces it may refine. A coding question takes none
+  (Ruling A). The on-device model chooses them where it read the question; otherwise the answer plan
+  reads them from the question's words (`Refinements.read`, D-188 clause 6), the one reader a gate
+  holds (INV-89). Every refinement is a slice of Arena's text vote, so it takes the place of the
+  family's board of that vote (`refined_board` on `/v1/categories`): of a language and a domain, the
+  language stands.
 - **Engine client** (`EngineClient.swift`). The only code that talks to the network.
   - The engine's address comes from the build's `EngineURL` (the `ENGINE_URL` setting in
     `ios/Config/Engine.xcconfig`), with loopback as the fallback. A Release build's address is the
@@ -284,15 +289,19 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
   - The day's fetch starts after the answer, never before it. If a fetch fails, the kept copy is
     used.
   - The store refuses any address that is not a file on the device.
-- **Combination** (`Combine.swift`; D-160, D-167, D-168). The only file allowed to do arithmetic on
-  positions:
-  - it keeps only the models every chosen board ranks, and re-ranks them on each board among
-    themselves;
-  - it orders them by the sum of those ranks and breaks an equal sum by model id;
-  - tied models share a place on screen.
+- **Combination** (`Combine.swift`; D-160, D-167, D-168, D-188). The only file allowed to do
+  arithmetic on positions:
+  - `combineFamily` (D-188, the default since M20): a surface's family of boards, from
+    `/v1/categories`' `boards`. A model enters when half the family's boards rank it, rounded up; its
+    place is the mean of its percentile positions on them, every board counting the same; an older
+    or undated board is named under the list;
+  - `combine` (D-167, for an engine that names no family): only the models every chosen board ranks,
+    ordered by the sum of their ranks;
+  - equal values share a place, broken by model id.
 
-  `AnswerPlan.swift` decides what the screen shows: one board shows the cards, more than one shows
-  the combined list.
+  `AnswerPlan.swift` decides what the screen shows: the family's list for every question asked and
+  every surface chosen; a family of one board is its cards; the primary board's own answer is one
+  tap away; coding shows two family lists or neither (Ruling A).
   - A model the engine picks for more than one reason is one card carrying every label it earned
     (D-175, #63 finding 1): the picks that share a `model_id` (D-182).
   - The combined list shows ten rows, and the rest on request.
@@ -339,12 +348,14 @@ Nothing in this flow involves the phone.
 **A question, on the phone.**
 
 1. The reader types a question.
-2. The router, on the device, picks a surface and, on the model tier, up to two refinements.
+2. The router, on the device, picks a surface and, on the model tier, its refinements (the words
+   choose them otherwise, in the answer plan).
    The reading decides whether it is a search. A note ends here, and a question back waits for
    the reader's tap. Neither sends anything.
 3. The app asks `/v1/recommendations` for that surface.
-4. With no refinement kept, the screen shows the engine's cards. With one or more, and the
-   standings kept, the phone combines the boards itself and shows the combined list.
+4. With the standings kept, the phone combines the surface's family, a refinement in place of its
+   vote's board, and shows that list; a family of one board, or an engine that names none, shows the
+   engine's cards.
 
 **Standings, once a day.** The app fetches `/v1/boards` with no query string, the same way whatever
 was asked, so the request says nothing about the question (D-167 clause 1).
@@ -394,6 +405,10 @@ no per-reader state.
 
 - With `MODEL_RANKING_ALLOWED_HOSTS` set, a request whose Host (port removed, case ignored) is not
   on the list gets `400 unknown_host` before any route runs.
+- Then the rate limit (#187, INV-88): with `MODEL_RANKING_RATE_LIMIT` set (120 in `fly.toml`), one
+  client (an IPv4 address or an IPv6 /64, from `Fly-Client-IP`) past it in a clock minute gets
+  `429 rate_limited` with `Retry-After`; a `/v1/boards` answer counts as thirty, `/health` is never
+  limited, and a limiter that breaks serves the request (fails open).
 - With no list, a request that arrived on a network address rather than loopback is refused,
   whatever the bind.
 - The service always sets the list: `127.0.0.1` and `localhost`, plus the Mac's `.local` name and
@@ -554,7 +569,8 @@ Fly.io (D-116, D-185): prepared, deployed only by the owner
 - #66, #113: the second round improved #66 and missed its bars, and left #113 where it was. The
   owner decides whether it ships as measured (PR #196).
 - #88: ruled by D-185 on the owner's standing instruction; the owner may overrule it.
-- The hosted engine has no rate limit and Fly no spending cap (#187), and the budget argument is
+- The hosted engine limits one client to 120 requests a minute (#187, INV-88); Fly has no spending
+  cap, and the client's address is trusted from `Fly-Client-IP` (gap G-9). The budget argument is
   #188.
 - `docs/security-invariants.md` names its open gaps, each on an issue. G-5 is one: in CI's test job
   a child process a test starts is beyond the suite's network guard.

@@ -302,7 +302,7 @@ NOT_SERVED = {
 SORTS_PERMITTED = {
     ("Combine.swift", "sorted", "common"): 1,
     ("Combine.swift", "sorted", "placed"): 1,
-    # D-188 clause 3 (M20-W2): a family's models ordered by their weighted mean percentile positions.
+    # D-188 clause 3 (M20-W2): a family's models ordered by their mean percentile positions.
     ("Combine.swift", "sorted", "means"): 1,
     ("FrontDoor.swift", "sorted", "entries"): 1,
     ("FrontDoor.swift", "min", "entries"): 1,

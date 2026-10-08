@@ -2,7 +2,7 @@
 //  the product's own list, by position and never by score (D-105).
 //
 //  A model enters when at least half of the family's boards rank it, rounded up, and at least one (with
-//  two boards, either is enough: the W1 review measured "and at least two" as an intersection). Its place is the weighted mean of its percentile positions, (position - 1)
+//  two boards, either is enough: the W1 review measured "and at least two" as an intersection). Its place is the mean of its percentile positions, (position - 1)
 //  over (the board's size - 1), across the boards that rank it; every board counts the same, and one
 //  whose newest evaluation is more than 90 days old, or undated, is named under the list (the W2
 //  review measured a half weight letting Arena decide five families alone). Equal means share a place,

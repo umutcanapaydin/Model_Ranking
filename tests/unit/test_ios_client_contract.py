@@ -437,7 +437,7 @@ def test_score_arithmetic_happens_only_where_an_adr_permits_it() -> None:
 SORTING_PERMITTED = {
     ("Combine.swift", "common"): "D-167 clause 3: shared models ordered by their combined ranks.",
     ("Combine.swift", "means.keys"): (
-        "D-188 clause 3 (M20-W2): a family's models ordered by their weighted mean percentile positions, "
+        "D-188 clause 3 (M20-W2): a family's models ordered by their mean percentile positions, "
         "the product's own list, positions only."
     ),
     ("Combine.swift", "placed"): (
