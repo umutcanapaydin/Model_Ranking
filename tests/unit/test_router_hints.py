@@ -348,19 +348,28 @@ def test_only_the_model_output_boundary_builds_an_outcome_with_refinements() -> 
 
 
 #: D-188 clause 6 (the M20-W3 review's B1 and R1): where the on-device model did not choose the
-#: refinements, the answer plan reads them from the question's words. That is the one reader.
-WORD_REFINEMENT_READERS = {"AnswerPlan.swift"}
+#: refinements, the answer plan reads them from the question's words. That is the one reader, by
+#: its path (the second round's M3).
+WORD_REFINEMENT_READERS = {"Engine/AnswerPlan.swift"}
 
 
 def test_only_the_answer_plan_reads_refinements_from_the_words() -> None:
     """A refinement read from the words reaches the combined list with no boundary check of its own
-    (`familyBoards` keeps only those the surface allows), so the client may read them in one place."""
-    readers = {
-        path.name
-        for path in CLIENT.rglob("*.swift")
-        if re.search(r"\bRefinements\.read\(", _code(path.read_text(encoding="utf-8")))
-    }
+    (`familyBoards` keeps only those the surface allows), so the client may read them in one place.
+    Any reference counts, called or not (`= Refinements.read`, `.map(Refinements.read)`); inside the
+    enum nothing calls `read` but its declaration, and no other file extends the enum."""
+    readers = set()
+    for path in CLIENT.rglob("*.swift"):
+        code = _code(path.read_text(encoding="utf-8"))
+        name = path.relative_to(CLIENT).as_posix()
+        if re.search(r"\bRefinements\s*\.\s*read\b", code):
+            readers.add(name)
+        if name != "Engine/Refinements.swift":
+            assert not re.search(r"\bextension\s+Refinements\b", code), f"{name} extends Refinements"
     assert readers <= WORD_REFINEMENT_READERS, f"refinements read from the words outside the answer plan: {readers}"
+    own = _code((CLIENT / "Engine/Refinements.swift").read_text(encoding="utf-8"))
+    uses = re.findall(r"(\bfunc\s+)?\bread\s*\(", own) + re.findall(r"\b(?:Self|Refinements)\s*\.\s*read\b", own)
+    assert uses.count("func ") == 1 and len(uses) == 1, "Refinements calls its own read"
 
 
 def test_only_the_wording_tier_builds_an_outcome_with_alternatives() -> None:
