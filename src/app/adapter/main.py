@@ -48,7 +48,7 @@ from fastapi.responses import JSONResponse
 from app.adapter import nightly
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.coverage import SOURCE_STALE_DAYS, source_health
-from app.workflows.families import FAMILIES
+from app.workflows.families import FAMILIES, REFINED_BOARD
 from app.workflows.floors import derived_floor
 from app.workflows.rank import (
     BLEND_INPUT_WEIGHT,
@@ -1489,6 +1489,9 @@ def categories() -> dict[str, Any]:
                 # task, the primary first. The phone combines it and reads each board's date from
                 # `/v1/boards`, so no date is copied here.
                 "boards": list(FAMILIES[spec.id]),
+                # The M20 repo review's M1 (D-188 clause 6): the board a refinement takes the place of,
+                # the family's board of Arena's text vote; `null` where no refinement refines the surface.
+                "refined_board": REFINED_BOARD.get(spec.id),
                 # REQ-UNC-002. The age is the engine's own (`recommend.secondary_age_days`) against
                 # the artifact's anchor; `null` when the board is undated or unreadable.
                 "secondary_benchmark": spec.secondary_benchmark,

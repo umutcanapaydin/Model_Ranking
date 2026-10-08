@@ -36,8 +36,18 @@ FAMILIES: dict[str, tuple[str, ...]] = {
     "search_factuality": ("arena_search_factuality",),
 }
 
-#: surface -> the board a refinement takes the place of (a stub in the red commit).
-REFINED_BOARD: dict[str, str] = {}
+#: surface -> the board a refinement takes the place of: the family's board of Arena's text vote. Every
+#: refinement is a slice of that vote, so beside it one vote would count twice, for the coverage and for
+#: the mean (the M20 repo review's M1; D-188 clauses 1 and 6). A surface no refinement refines has none.
+REFINED_BOARD: dict[str, str] = {
+    "assistant": "arena",
+    "everyday": "arena",
+    "expert": "arena_text_expert",
+    "mathematics": "arena_text_math",
+    "web-dev": "arena_text_coding",
+    "document": "arena_text_longer_query",
+    "factuality": "arena_factuality",
+}
 
 _LANGUAGE = "a language slice of Arena's text board: a refinement the question adds (D-168), not the task"
 _VISION_LANGUAGE = "a language slice of Arena's vision board, which no refinement adds yet"

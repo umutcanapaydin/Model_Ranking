@@ -166,7 +166,7 @@ func answerPlan(
     // M20-W4 (D-188 clause 5): an engine that names the surface's family gets the family's own list.
     if let family, !family.isEmpty {
         return familyPlan(outcome: outcome, family: family, question: question, asOf: asOf, standings: standings,
-                          removed: removed, phoneCopyDays: phoneCopyDays)
+                          removed: removed, phoneCopyDays: phoneCopyDays, refinedBoard: refinedBoard)
     }
     // Only a refinement whose board the standings hold is offered: a chip for a board that is not
     // counted would say it was.
@@ -195,18 +195,21 @@ func answerPlan(
 /// refinements kept to restore.
 private func familyPlan(
     outcome: RoutingOutcome, family: [String], question: String?, asOf: Date, standings: Standings,
-    removed: Set<Refinement>, phoneCopyDays: Int?
+    removed: Set<Refinement>, phoneCopyDays: Int?, refinedBoard: String?
 ) -> AnswerPlan {
     let chosen = outcome.tier == .model ? outcome.refinements : Refinements.read(question ?? "")
     let offered = chosen.filter { refinement in
         refinement.surfaces.contains(outcome.categoryID) && standings.boards.contains { $0.id == refinement.board }
     }
     let kept = offered.filter { !removed.contains($0) }
-    let boards = Refinements.familyBoards(primary: family[0], family: family, surface: outcome.categoryID, chosen: kept)
+    let boards = Refinements.familyBoards(primary: family[0], family: family, surface: outcome.categoryID, chosen: kept,
+                                          refined: refinedBoard)
     guard let list = try? combineFamily(standings, boards: boards, asOf: asOf), !list.entries.isEmpty else {
         return .cards
     }
-    guard list.boards.count > 1 else {
+    // One board is the cards, unless a refinement took the family's place: then it is that slice's
+    // list, with its chip (the M20 repo review's M1: `assistant` in Spanish is the Spanish board).
+    guard list.boards.count > 1 || list.boards.first?.id != family[0] else {
         guard !offered.isEmpty, kept.isEmpty else { return .cards }
         return .restorable(offered)
     }
@@ -341,6 +344,8 @@ final class PlanMemo {
         var family: [String]? = nil
         var question: String? = nil
         var asOf: Date = Date(timeIntervalSince1970: 0)
+        /// The M20 repo review's M1: the family's board a refinement takes the place of.
+        var refinedBoard: String? = nil
     }
 
     private var last: (inputs: Inputs, plan: AnswerPlan)?
@@ -353,7 +358,7 @@ final class PlanMemo {
         let plan = answerPlan(outcome: inputs.outcome, primaryBoard: inputs.primaryBoard, family: inputs.family,
                               question: inputs.question, asOf: inputs.asOf, standings: standings,
                               removed: inputs.removed, primaryHealth: inputs.primaryHealth,
-                              phoneCopyDays: inputs.phoneCopyDays)
+                              phoneCopyDays: inputs.phoneCopyDays, refinedBoard: inputs.refinedBoard)
         last = (inputs, plan)
         return plan
     }

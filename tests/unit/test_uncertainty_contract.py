@@ -318,6 +318,8 @@ SERVED_CATEGORY_KEYS = {
     "primary_board",
     # M20-W1, D-188 clause 1: the surface's family, every board that measures its task, primary first.
     "boards",
+    # The M20 repo review's M1, D-188 clause 6: the board a refinement takes the place of.
+    "refined_board",
 }
 
 

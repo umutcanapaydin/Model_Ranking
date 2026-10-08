@@ -184,6 +184,23 @@ final class PayloadDecodingTests: OfflineTestCase {
         XCTAssertNil(list.categories.last?.boards)
     }
 
+    /// The M20 repo review's M1: the board a refinement takes the place of decodes, and is absent where
+    /// no refinement refines the surface or the engine is older.
+    func testTheBoardARefinementReplacesDecodes() throws {
+        let payload = Data(#"""
+        {"categories": [{"id": "everyday", "title": "Everyday", "primary_benchmark": "ECI",
+          "metric": "eci", "ranking_effort": null, "primary_board": "epoch_eci",
+          "boards": ["epoch_eci", "arena", "epoch_mmlu"], "refined_board": "arena"},
+         {"id": "vision", "title": "Vision", "primary_benchmark": "Arena vision", "metric": "elo",
+          "ranking_effort": null, "primary_board": "arena_vision", "boards": ["arena_vision"],
+          "refined_board": null},
+         {"id": "coding", "title": "Coding", "primary_benchmark": "SWE-bench Verified",
+          "metric": "% resolved", "ranking_effort": null, "primary_board": "swebench"}]}
+        """#.utf8)
+        let list = try JSONDecoder().decode(CategoryList.self, from: payload)
+        XCTAssertEqual(list.categories.map(\.refinedBoard), ["arena", nil, nil])
+    }
+
     /// M16-W2 (D-152, D-153): the two W1 fields reach the client. COPIED from `/v1/categories` on
     /// 2026-09-23 (V3C-44), one surface that carries a price exclusion and one that does not.
     func testTheFloorAndThePriceExclusionDecode() throws {

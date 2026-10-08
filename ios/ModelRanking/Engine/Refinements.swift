@@ -108,13 +108,21 @@ enum Refinements {
         for board in family.isEmpty ? [primary] : family where boards.count < maxFamily && seen.insert(board).inserted {
             boards.append(board)
         }
+        let allowed = RefinementKind.allCases.flatMap { kind in
+            chosen.filter { $0.kind == kind && $0.surfaces.contains(surface) }
+        }
+        // The M20 repo review's M1 (D-188 clause 6): every refinement is a slice of Arena's text vote,
+        // so the first one allowed takes the place of the family's board of that vote, and no other
+        // joins: one vote, one board. An engine that names no such board keeps the older way.
+        if let refined, let index = boards.firstIndex(of: refined) {
+            if let first = allowed.first(where: { !boards.contains($0.board) }) { boards[index] = first.board }
+            return boards
+        }
         var added = 0
-        for kind in RefinementKind.allCases {
-            for refinement in chosen where refinement.kind == kind && refinement.surfaces.contains(surface) {
-                guard added < maxAdded, !boards.contains(refinement.board) else { continue }
-                boards.append(refinement.board)
-                added += 1
-            }
+        for refinement in allowed {
+            guard added < maxAdded, !boards.contains(refinement.board) else { continue }
+            boards.append(refinement.board)
+            added += 1
         }
         return boards
     }

@@ -351,6 +351,7 @@ struct ContentView: View {
             phoneCopyDays: staleCopyDays(fetchedAt: standingsFetchedAt, now: Date())
         )
         inputs.family = info?.boards
+        inputs.refinedBoard = info?.refinedBoard
         inputs.question = question
         inputs.asOf = utcDay(Date())
         return inputs
