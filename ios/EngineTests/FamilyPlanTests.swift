@@ -92,17 +92,132 @@ final class FamilyPlanTests: OfflineTestCase {
                               primaryHealth: stale)
         guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
         XCTAssertFalse(view.disclosures.contains { if case .staleBoard = $0 { return true }; return false })
-        XCTAssertTrue(view.disclosures.contains(.olderBoards(["B swebench"])))
+        XCTAssertTrue(view.disclosures.contains(.olderBoards([NamedBoard(name: "B swebench", date: .measured("2026-02-26"))])))
         let said = view.disclosures.compactMap { combinedDisclosure($0, .english) }
         XCTAssertTrue(said.allSatisfy { $0.weight != .state }, "nothing here is the loud warning")
     }
 
-    func testTheOlderBoardsNoteIsSaidInBothLanguages() {
-        let english = combinedDisclosure(.olderBoards(["SWE-bench Verified"]), .english)
-        let turkish = combinedDisclosure(.olderBoards(["SWE-bench Verified"]), .turkish)
+    /// The W4 review's B1: the older-boards note dates each board, in the plural where there are two.
+    func testTheOlderBoardsNoteIsSaidInBothLanguagesWithEachDate() {
+        let one = [NamedBoard(name: "SWE-bench Verified", date: .measured("2026-06-25"))]
+        let english = combinedDisclosure(.olderBoards(one), .english)
+        let turkish = combinedDisclosure(.olderBoards(one), .turkish)
         XCTAssertNotNil(english)
         XCTAssertNotEqual(english?.text, turkish?.text)
         XCTAssertTrue(english?.text.contains("SWE-bench Verified") == true)
+        XCTAssertTrue(english?.text.contains("25 Jun") == true, english?.text ?? "")
+        let two = one + [NamedBoard(name: "Aider", date: .unknown)]
+        let both = UIText.olderBoards(two, .english)
+        XCTAssertTrue(both.contains("they count"), both)
+        XCTAssertTrue(UIText.olderBoards(one, .english).contains("it counts"))
+    }
+
+    /// The W4 review's B1: a family list says how many boards built it, each with its date, and how
+    /// many of them a model needs; never that every model is on every board.
+    func testAFamilyListSaysItsBoardsTheirDatesAndTheCoverage() {
+        let plan = answerPlan(outcome: routed("coding"), primaryBoard: "swebench",
+                              family: ["swebench", "aider", "arena_text_coding"], question: "best model for coding",
+                              asOf: today, standings: coding, removed: [])
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+        let boards = ["swebench", "aider", "arena_text_coding"].map { NamedBoard(name: "B \($0)", date: .measured("2026-09-20")) }
+        XCTAssertTrue(view.disclosures.contains(.familyOrder(models: 3, boards: boards, coverage: 2)), "\(view.disclosures)")
+        XCTAssertFalse(view.disclosures.contains { if case .productsOwnOrder = $0 { return true }; return false })
+        let note = UIText.familyNote(models: 3, boards: boards, coverage: 2, .english)
+        XCTAssertTrue(note.contains("3 boards"), note)
+        XCTAssertTrue(note.contains("at least 2"), note)
+        XCTAssertTrue(note.contains("B aider"), note)
+        XCTAssertTrue(note.contains("20 Sep"), note)
+        XCTAssertFalse(note.contains("on all"), note)
+        XCTAssertNotEqual(note, UIText.familyNote(models: 3, boards: boards, coverage: 2, .turkish))
+        XCTAssertEqual(orderNote(view, .english), note, "the boards' screen says the same sentence")
+    }
+
+    /// The W4 review's M2: a removed refinement is not counted on a family, and comes back.
+    func testARemovedRefinementIsNotCountedOnAFamilyAndComesBack() {
+        let french = Refinements.table.filter { $0.value == "french" }
+        let data = standings([board("epoch_eci", [("a", 1), ("b", 2)]), board("arena", [("b", 1), ("a", 2)]),
+                              board("arena_text_french", [("a", 1), ("b", 2)])])
+        let plan = answerPlan(outcome: routed("everyday"), primaryBoard: "epoch_eci", family: ["epoch_eci", "arena"],
+                              question: "reply in french", asOf: today, standings: data, removed: Set(french))
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+        XCTAssertEqual(view.list.boards.map(\.id), ["epoch_eci", "arena"])
+        XCTAssertEqual(view.removed, Set(french))
+        XCTAssertEqual(view.refinements, french, "the removed chip stays, to restore")
+    }
+
+    /// The W4 review's M2: a one-board family whose every refinement is removed keeps the chips.
+    func testAOneBoardFamilyWithEveryRefinementRemovedIsRestorable() {
+        let french = Refinements.table.filter { $0.value == "french" }
+        let data = standings([board("arena", [("b", 1), ("a", 2)]), board("arena_text_french", [("a", 1), ("b", 2)])])
+        let plan = answerPlan(outcome: routed("assistant"), primaryBoard: "arena", family: ["arena"],
+                              question: "reply in french", asOf: today, standings: data, removed: Set(french))
+        XCTAssertEqual(plan, .restorable(french))
+    }
+
+    /// The W4 review's M2: a refinement the surface does not allow is never offered.
+    func testARefinementTheSurfaceDoesNotAllowIsNotOffered() {
+        let french = Refinements.table.filter { $0.value == "french" }
+        let data = standings([board("swebench", [("a", 1), ("b", 2)]), board("aider", [("b", 1), ("a", 2)]),
+                              board("arena_text_french", [("a", 1), ("b", 2)])])
+        let plan = answerPlan(outcome: routed("coding", tier: .model, refinements: french), primaryBoard: "swebench",
+                              family: ["swebench", "aider"], question: "code in french", asOf: today,
+                              standings: data, removed: [])
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+        XCTAssertEqual(view.refinements, [])
+        XCTAssertEqual(view.list.boards.map(\.id), ["swebench", "aider"])
+    }
+
+    /// The W4 review's M2: the paired surface is planned at the routed tier, as itself.
+    func testThePairedOutcomeIsTheOtherSurfaceAtTheRoutedTier() {
+        let paired = pairedOutcome(routed("coding", tier: .model), surface: "agentic-coding")
+        XCTAssertEqual(paired?.categoryID, "agentic-coding")
+        XCTAssertEqual(paired?.tier, .model)
+        XCTAssertNil(pairedOutcome(nil, surface: "agentic-coding"))
+        XCTAssertEqual(pairedSurface(routed: "agentic-coding", answers: ["coding", "agentic-coding"]), "coding")
+        XCTAssertEqual(pairedSurface(routed: "coding", answers: ["coding", "agentic-coding"]), "agentic-coding")
+        XCTAssertNil(pairedSurface(routed: "vision", answers: ["vision"]))
+    }
+
+    /// Ruling A (the W4 review's M2): both coding lists or neither.
+    func testCodingShowsBothFamilyListsOrNeither() {
+        let plan = answerPlan(outcome: routed("coding"), primaryBoard: "swebench",
+                              family: ["swebench", "aider", "arena_text_coding"], question: "best model for coding",
+                              asOf: today, standings: coding, removed: [])
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+        XCTAssertEqual(familyLists(plan, paired: false, pairedPlan: nil)?.first, view)
+        XCTAssertNil(familyLists(plan, paired: false, pairedPlan: nil)?.second)
+        XCTAssertEqual(familyLists(plan, paired: true, pairedPlan: plan)?.second, view)
+        XCTAssertNil(familyLists(plan, paired: true, pairedPlan: .cards), "one coding list alone would lead")
+        XCTAssertNil(familyLists(plan, paired: true, pairedPlan: nil))
+        XCTAssertNil(familyLists(.cards, paired: false, pairedPlan: nil))
+    }
+
+    /// The W4 review's M2 and M4: the memo keeps the family, and a surface the reader chose gets its
+    /// family list, read from no words.
+    func testTheMemoKeepsTheFamilyAndAChosenSurfaceGetsItsList() {
+        let memo = PlanMemo()
+        var inputs = PlanMemo.Inputs(outcome: chosenOutcome("coding"), primaryBoard: "swebench", standingsStamp: 1,
+                                     removed: [], primaryHealth: nil)
+        inputs.family = ["swebench", "aider", "arena_text_coding"]
+        inputs.asOf = today
+        guard case let .combined(view) = memo.plan(inputs, standings: coding) else { return XCTFail("cards") }
+        XCTAssertEqual(view.refinements, [])
+        XCTAssertEqual(chosenOutcome("coding").tier, .manual)
+    }
+
+    /// The W4 review's M2: a family whose models all miss the coverage is today's cards, and the
+    /// phone copy's age is said on a family list.
+    func testAnEmptyFamilyListIsTheCardsAndTheCopysAgeIsSaid() {
+        let thin = standings([board("swebench", [("a", 1)]), board("aider", [("b", 1)]),
+                              board("arena_text_coding", [("c", 1)])])
+        XCTAssertEqual(answerPlan(outcome: routed("coding"), primaryBoard: "swebench",
+                                  family: ["swebench", "aider", "arena_text_coding"], question: nil, asOf: today,
+                                  standings: thin, removed: []), .cards)
+        let plan = answerPlan(outcome: routed("coding"), primaryBoard: "swebench",
+                              family: ["swebench", "aider", "arena_text_coding"], question: nil, asOf: today,
+                              standings: coding, removed: [], phoneCopyDays: 3)
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+        XCTAssertTrue(view.disclosures.contains(.stalePhoneCopy(days: 3)))
     }
 
     func testTheMemoPlansAgainWhenTheFamilyOrTheQuestionChanges() {

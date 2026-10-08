@@ -596,13 +596,19 @@ final class ScreenExplanationTests: OfflineTestCase {
     /// M20-W4 (#208, D-188): the caption under the question, the primary board's toggle and the
     /// half-weight note, each in both languages.
     func testTheM20SentencesAreSaidInBothLanguages() {
-        for available in [true, false] {
-            XCTAssertNotEqual(UIText.onDeviceCaption(available, .english), UIText.onDeviceCaption(available, .turkish))
+        // The W4 review's M5: one caption per state, so a phone that cannot run the model is not told
+        // it is turned off.
+        let states: [OnDeviceState] = [.available, .notEligible, .turnedOff, .downloading, .unavailable]
+        for state in states {
+            XCTAssertNotEqual(UIText.onDeviceCaption(state, .english), UIText.onDeviceCaption(state, .turkish))
         }
-        XCTAssertNotEqual(UIText.onDeviceCaption(true, .english), UIText.onDeviceCaption(false, .english))
+        XCTAssertEqual(Set(states.map { UIText.onDeviceCaption($0, .english) }).count, states.count)
+        XCTAssertEqual(Set(states.map { UIText.onDeviceCaption($0, .turkish) }).count, states.count)
+        XCTAssertEqual(UIText.onDeviceCaption(.available, .english), "Apple Intelligence enhanced")
         XCTAssertNotEqual(UIText.primaryOnItsOwn(.english), UIText.primaryOnItsOwn(.turkish))
         XCTAssertNotEqual(UIText.backToCombined(.english), UIText.backToCombined(.turkish))
-        XCTAssertNotEqual(UIText.olderBoards(["Aider"], .english), UIText.olderBoards(["Aider"], .turkish))
+        let aider = [NamedBoard(name: "Aider", date: .unknown)]
+        XCTAssertNotEqual(UIText.olderBoards(aider, .english), UIText.olderBoards(aider, .turkish))
     }
 
     /// The combined list's tied places ("1, 1, 3") say why, once.

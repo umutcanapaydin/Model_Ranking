@@ -25,9 +25,12 @@ struct CombinedView: Equatable {
     var staleness: SourceHealth? = nil
     /// #72's other half (review M3): whole days the phone's copy of the standings is past its day.
     var phoneCopyDays: Int? = nil
-    /// D-188 clause 4 (M20-W4): the benchmarks of the family's boards older than 90 days or undated,
-    /// named in a small note; they count the same. A family list says no loud stale warning.
-    var olderBoards: [String] = []
+    /// D-188 clause 4 (M20-W4): the family's boards older than 90 days or undated, each with its
+    /// date, named in a small note; they count the same. A family list says no loud stale warning.
+    var olderBoards: [NamedBoard] = []
+    /// D-188 clause 2 (the W4 review's B1): on a family list, how many of its boards a model needs.
+    /// `nil` on a list that keeps only the models every board ranks (D-167 clause 3).
+    var coverage: Int? = nil
 
     /// Everything this list must say, as data (#67, M18-W2 P4): the view renders exactly these, and
     /// a test on the plan holds them, so a branch of the view cannot quietly skip one. Loudest first.
@@ -35,7 +38,11 @@ struct CombinedView: Equatable {
         var out: [CombinedDisclosure] = []
         if let staleness, staleness.stale { out.append(.staleBoard(staleness)) }
         if let phoneCopyDays { out.append(.stalePhoneCopy(days: phoneCopyDays)) }
-        out.append(.productsOwnOrder(models: sharedCount, boards: list.boards.count))
+        if let coverage {
+            out.append(.familyOrder(models: sharedCount, boards: list.boards.map { NamedBoard($0) }, coverage: coverage))
+        } else {
+            out.append(.productsOwnOrder(models: sharedCount, boards: list.boards.count))
+        }
         if !olderBoards.isEmpty { out.append(.olderBoards(olderBoards)) }
         if Set(list.entries.map(\.place)).count < list.entries.count { out.append(.tiedPlaces) }
         if !efforts.isEmpty { out.append(.mixedEfforts(efforts)) }
@@ -56,8 +63,35 @@ enum CombinedDisclosure: Equatable {
     case tiedPlaces
     /// D-112: the listed models were measured at different efforts (review B1).
     case mixedEfforts([String])
+    /// D-188 clause 2 (the W4 review's B1): the order is the product's own, built from these boards,
+    /// each with its date; a model ranked by at least `coverage` of them is placed by its mean position.
+    case familyOrder(models: Int, boards: [NamedBoard], coverage: Int)
     /// D-188 clause 4 (M20-W4): these boards have no result in 90 days, or no date. A small note.
-    case olderBoards([String])
+    case olderBoards([NamedBoard])
+}
+
+/// A board as a disclosure names it: its benchmark and what its date means.
+struct NamedBoard: Equatable {
+    let name: String
+    let date: BoardDate
+
+    init(name: String, date: BoardDate) {
+        self.name = name
+        self.date = date
+    }
+
+    init(_ board: BoardStandings) {
+        self.init(name: board.benchmark, date: boardDate(board))
+    }
+}
+
+/// The sentence that says whose order a combined list is, as the list and its boards' screen say it.
+func orderNote(_ view: CombinedView, _ language: Language) -> String {
+    guard let coverage = view.coverage else {
+        return UIText.combinedNote(models: view.sharedCount, boards: view.list.boards.count, language)
+    }
+    return UIText.familyNote(models: view.sharedCount, boards: view.list.boards.map { NamedBoard($0) },
+                             coverage: coverage, language)
 }
 
 /// The efforts a board's listed models stand at, when there are two or more (D-112).
@@ -179,10 +213,11 @@ private func familyPlan(
         boards: list.boards,
         entries: list.entries.map { CombinedEntry(model: $0.model, positions: $0.positions, place: $0.place) }
     )
-    let older = list.boards.filter { list.staleBoards.contains($0.id) }.map(\.benchmark)
+    let older = list.boards.filter { list.staleBoards.contains($0.id) }.map { NamedBoard($0) }
     return .combined(CombinedView(
         list: combined, refinements: offered, removed: removed.intersection(offered),
-        mixedEfforts: mixedEfforts(combined), staleness: nil, phoneCopyDays: phoneCopyDays, olderBoards: older
+        mixedEfforts: mixedEfforts(combined), staleness: nil, phoneCopyDays: phoneCopyDays, olderBoards: older,
+        coverage: list.coverage
     ))
 }
 
@@ -191,6 +226,28 @@ private func familyPlan(
 /// chosen here; `nil` without a routed question.
 func pairedOutcome(_ routed: RoutingOutcome?, surface: String) -> RoutingOutcome? {
     routed.map { RoutingOutcome(categoryID: surface, tier: $0.tier, unmeasured: $0.unmeasured) }
+}
+
+/// Ruling A (M20-W4): the surface the engine answered beside the routed one, the first answer that
+/// is not it; `nil` with one answer.
+func pairedSurface(routed: String?, answers: [String]) -> String? {
+    answers.count > 1 ? answers.first { $0 != routed } : nil
+}
+
+/// The family lists the screen shows (D-188 clause 5): the routed surface's, and the paired one's
+/// where the engine answered two. Both or neither (Ruling A): one coding list alone would lead, so a
+/// pair that cannot both combine is today's cards.
+func familyLists(_ plan: AnswerPlan, paired: Bool, pairedPlan: AnswerPlan?) -> (first: CombinedView, second: CombinedView?)? {
+    guard case let .combined(first) = plan else { return nil }
+    guard paired else { return (first, nil) }
+    guard case let .combined(second)? = pairedPlan else { return nil }
+    return (first, second)
+}
+
+/// D-188 clause 5 (the W4 review's M4): a surface the reader chose, from "Change" or an alternative,
+/// is planned as a question routed there by hand: its family list, from no words.
+func chosenOutcome(_ surface: String) -> RoutingOutcome {
+    RoutingOutcome(categoryID: surface, tier: .manual, unmeasured: false)
 }
 
 // MARK: - One card per model (#63 finding 1, M18-W2)

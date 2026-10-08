@@ -105,6 +105,48 @@ final class QuestionFamilyTests: OfflineTestCase {
         }
     }
 
+    /// The W3 review's second round, M1: "in" before a nationality, or a speaker, is no language.
+    func testANationalityAfterInIsNoLanguage() {
+        for question in ["best ai for investing in chinese stocks", "what is trending in korean dramas",
+                         "recipes in french cuisine", "trends in german politics", "news in japanese markets",
+                         "invest in japanese yen", "in russian history class", "best chinese speaker brand",
+                         "japanese speaker for my car", "learn chinese cooking"] {
+            XCTAssertEqual(values(Refinements.read(question)), [], question)
+        }
+        XCTAssertEqual(values(Refinements.read("reply in german please")), ["german"])
+        XCTAssertEqual(values(Refinements.read("answer in french and spanish")), ["french"], "one language, the first named")
+    }
+
+    /// The second round's M2: the words choose at most one language and one domain, as the model's
+    /// schema does, each the first the question names.
+    func testTheWordsChooseOneOfEachKindTheFirstNamed() {
+        XCTAssertEqual(values(Refinements.read("translate legal contracts from german to french")), ["german", "legal"])
+        XCTAssertEqual(values(Refinements.read("translate from korean to japanese")), ["korean"])
+        XCTAssertEqual(values(Refinements.read("medical and legal questions")), ["medicine"])
+    }
+
+    /// The second round's M5: each context word is held.
+    func testEachContextWordThatMakesALanguageIsHeld() {
+        XCTAssertEqual(values(Refinements.read("i want to speak japanese")), ["japanese"])
+        XCTAssertEqual(values(Refinements.read("speaking russian with ai")), ["russian"])
+        XCTAssertEqual(values(Refinements.read("korean translation app")), ["korean"])
+        XCTAssertEqual(values(Refinements.read("a spanish translator")), ["spanish"])
+        XCTAssertEqual(values(Refinements.read("translate from korean")), ["korean"])
+        XCTAssertEqual(values(Refinements.read("switching from german cars to japanese ones")), [],
+                       "to and from count only in a question that asks to translate")
+        XCTAssertEqual(values(Refinements.read("writing tests for my api")), [])
+        XCTAssertEqual(values(Refinements.read("writing sql queries")), [])
+        XCTAssertEqual(values(Refinements.read("data scientific notebooks")), [])
+    }
+
+    /// The second round's M4: Turkish and English words with a second meaning.
+    func testMoreWordsWithASecondMeaningAreNoDomain() {
+        for question in ["kullanıcı hikayesi yaz", "sunucu işletmek", "doctor who episodes"] {
+            XCTAssertEqual(values(Refinements.read(question)), [], question)
+        }
+        XCTAssertEqual(values(Refinements.read("işletme ödevim için yapay zeka")), ["business"])
+    }
+
     /// The W3 review's M2: the Turkish word for Polish is also the word for a dialect.
     func testTheTurkishWordForADialectIsNoPolish() {
         for question in ["karadeniz lehçesi ile yaz", "bu lehçeyi anlayan yapay zeka"] {
