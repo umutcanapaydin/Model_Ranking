@@ -316,6 +316,8 @@ SERVED_CATEGORY_KEYS = {
     "score_anchor", "min_quality", "price_excludes", "secondary_benchmark", "secondary_age_days",
     # M17-W5, D-168: the surface's primary board by id, the first board a question combines.
     "primary_board",
+    # M20-W1, D-188 clause 1: the surface's family, every board that measures its task, primary first.
+    "boards",
 }
 
 

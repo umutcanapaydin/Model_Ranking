@@ -63,6 +63,9 @@ struct Category: Decodable, Identifiable, Equatable {
     /// D-168 (M17-W5). The board this surface ranks on, by id: the first board a question selecting
     /// this surface combines. `nil` from an engine older than W5, which then combines nothing.
     let primaryBoard: String?
+    /// D-188 (M20-W1). The surface's family: every board that measures its task, the primary first,
+    /// by id. `nil` from an engine older than M20, which then combines the primary board alone.
+    let boards: [String]?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -77,6 +80,7 @@ struct Category: Decodable, Identifiable, Equatable {
         case minQuality = "min_quality"
         case priceExcludes = "price_excludes"
         case primaryBoard = "primary_board"
+        case boards
     }
 }
 
