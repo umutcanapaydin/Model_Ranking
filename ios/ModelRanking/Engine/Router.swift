@@ -272,8 +272,8 @@ extension CategoryHints {
                       ["git", "rebase"], ["git", "branch"], ["git", "ile"], ["jest", "ile"], ["jest", "test*"],
                       ["pandas", "ile"], ["sql", "query"], ["binary", "search"], ["search", "algorithm*"],
                       ["app", "development"], ["app", "developer*"], ["mobile", "development"], ["ios", "development"],
-                      ["android", "development"], ["game", "development"], ["mobile", "app"], ["mobile", "apps"],
-                      ["ios", "app"], ["ios", "apps"], ["android", "app"], ["android", "apps"],
+                      ["android", "development"], ["game", "development"], ["build*", "an", "app*"], ["build*", "a", "mobile", "app*"],
+                      ["build*", "an", "ios", "app*"], ["build*", "an", "android", "app*"], ["make", "an", "app*"],
                       ["uygulama", "gelistir*"], ["mobil", "uygulama*"], ["swe", "bench"], ["in", "rust"],
                       ["rust", "code"], ["go", "programming"], ["swift", "code"], ["fix", "bugs"], ["bug", "fix*"],
                       ["programlama", "dil*"]],
@@ -282,11 +282,11 @@ extension CategoryHints {
             id: "computer-use", words: ["browse", "browsing"],
             phrases: [["computer", "use"], ["bilgisayar", "kullan*"], ["my", "browser"], ["browser", "automation"],
                       ["tarayici", "otomasyon*"], ["control", "my", "computer"], ["use", "my", "computer"],
-                      ["operate", "my"], ["using", "a", "computer"], ["log", "into"], ["log", "in", "to"],
+                      ["operate", "my", "computer"], ["operate", "my", "mac"], ["operate", "my", "pc"], ["operate", "my", "browser"], ["using", "a", "computer"], ["log", "into"], ["log", "in", "to"],
                       ["fill", "in", "form"], ["fill", "in", "forms"], ["fill", "in", "the", "form"],
                       ["fill", "out", "form"], ["fill", "out", "forms"], ["fill", "out", "the", "form"], ["fill", "forms"],
                       ["form", "doldur*"], ["click", "through"], ["shop", "on"], ["buy", "things", "for", "me"],
-                      ["benim", "yerime"], ["book", "a", "flight"], ["book", "a", "table"], ["book", "a", "room"],
+                      ["book", "a", "flight"], ["book", "a", "table"], ["book", "a", "room"],
                       ["book", "a", "hotel"], ["book", "me", "a"], ["rezervasyon", "yap*"]]),
         SurfaceWords(
             id: "web-dev", stems: ["website", "webpage", "frontend", "html", "tailwind", "nextjs", "reactjs",
@@ -298,7 +298,8 @@ extension CategoryHints {
                       ["e", "ticaret"], ["site", "kur*"], ["site", "yap*"], ["site", "olustur*"], ["sitesi", "kur*"],
                       ["sitesi", "yap*"], ["sitesi", "olustur*"]],
             marks: [".js"]),
-        SurfaceWords(id: "search_factuality", stems: ["cite", "kaynakca"], phrases: [["kaynak", "goster*"]]),
+        SurfaceWords(id: "search_factuality", stems: ["cite", "kaynakca"], words: ["citing"],
+                     phrases: [["kaynak", "goster*"]]),
         SurfaceWords(
             id: "factuality", stems: ["hallucinat", "halusinasyon", "factual", "dogruluk"], words: ["fact", "facts"],
             phrases: [["make", "up", "fact*"], ["make", "up", "source*"], ["make", "up", "citation*"],
@@ -311,8 +312,9 @@ extension CategoryHints {
                                        "statistic", "ispat", "theorem", "teorem"],
             words: ["proof", "prove", "asal", "olasilik", "olasiligi", "olasiliklar"], phrases: [["prime", "number*"]]),
         SurfaceWords(
-            id: "document", stems: ["summar", "dokuman", "belge", "sozlesme", "ozet", "agreement", "makale", "tutanak"],
-            words: ["document", "documents", "documentation", "pdf"],
+            id: "document", stems: ["summar", "dokuman", "sozlesme", "ozet", "agreement", "makale", "tutanak"],
+            words: ["document", "documents", "documentation", "pdf", "pdfs", "belge", "belgeyi", "belgesi", "belgesini",
+                    "belgeler", "belgeleri", "belgede", "belgeyle", "belgelerini"],
             phrases: [["release", "notes"], ["this", "contract*"], ["the", "contract*"], ["a", "contract"],
                       ["my", "contract*"], ["our", "contract*"], ["contract", "clause*"]]),
         SurfaceWords(
@@ -326,8 +328,8 @@ extension CategoryHints {
             words: ["logic", "mantik", "mantigi"], phrases: [["comes", "next"], ["siradaki", "sayi*"]]),
         SurfaceWords(
             id: "expert", stems: ["medical", "medicine", "lawyer", "scien", "physics", "chemistry", "biology", "tibb",
-                                  "doktor", "hukuk", "avukat", "fizik", "kimya", "biyoloji", "uzman"],
-            words: ["law", "legal", "bilim", "doctor", "expert"]),
+                                  "doktor", "hukuk", "avukat", "kimya", "biyoloji", "uzman"],
+            words: ["law", "legal", "bilim", "doctor", "expert", "fizik", "fizigi", "fizikte", "fizikten", "fizikle"]),
         SurfaceWords(
             id: "search", stems: ["internet", "arastir"],
             words: ["search", "searches", "searching", "news", "haberler", "haberleri", "haberlerini", "arama", "aramasi"],
@@ -345,6 +347,16 @@ extension CategoryHints {
                   "country", "qr", "penal", "morse", "bar"],
         "kod": ["posta", "indirim", "vergi", "kiyafet", "promosyon", "kupon", "alan", "ulke", "qr", "iban"],
         "law": ["in"],
+        "software": ["ai", "zeka", "chatbot"], "developer": ["ai"], "yazilim": ["zeka"], "website": ["ai"],
+        "algorithm": ["instagram", "tiktok", "youtube", "twitter", "facebook", "spotify", "netflix", "google"],
+        "scien": ["data", "computer"], "internet": ["without", "no", "offline"],
+    ]
+
+    /// A matched word that comes before one of these is something else: a code of conduct, science
+    /// fiction, an article to write.
+    static let notBefore: [String: Set<String>] = [
+        "code": ["of"], "codes": ["of"], "bilim": ["kurgu"],
+        "makale": ["yaz", "yazmak", "yazar", "yazan", "yazsin"],
     ]
 
     /// An agent named next to code is an agent that codes: "agent" alone is a user, travel or estate
@@ -357,7 +369,9 @@ extension CategoryHints {
     /// What `everyday` answers where the embedding cannot read the question: a question about AI models
     /// in general, which names no surface.
     static let generalWords = SurfaceWords(
-        id: "everyday", stems: ["everyday", "gunluk"], words: ["llm", "llms"],
+        id: "everyday", stems: ["everyday", "gunluk"],
+        words: ["llm", "llms", "chatgpt", "gpt", "gemini", "claude", "llama", "mistral", "deepseek", "copilot", "grok",
+                "qwen"],
         phrases: [["yapay", "zek*"], ["best", "ai"], ["which", "ai"], ["hangi", "yapay"], ["en", "iyi", "model*"],
                   ["best", "model*"], ["which", "model*"], ["hangi", "model*"], ["best", "llm*"], ["which", "llm*"]])
 
@@ -406,8 +420,9 @@ extension CategoryHints {
         let word = words[index]
         let entry = rule.words.first(where: { $0 == word }) ?? rule.stems.first(where: word.hasPrefix)
         guard let entry else { return false }
-        guard index > 0, let blocked = notAfter[entry] else { return true }
-        return !blocked.contains(words[index - 1])
+        if index > 0, let blocked = notAfter[entry], blocked.contains(words[index - 1]) { return false }
+        if index + 1 < words.count, let blocked = notBefore[entry], blocked.contains(words[index + 1]) { return false }
+        return true
     }
 
     private static func agentBesideCode(_ words: [String], _ coding: SurfaceWords) -> Bool {
