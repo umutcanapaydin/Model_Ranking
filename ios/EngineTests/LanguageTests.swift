@@ -605,6 +605,13 @@ final class ScreenExplanationTests: OfflineTestCase {
         XCTAssertEqual(Set(states.map { UIText.onDeviceCaption($0, .english) }).count, states.count)
         XCTAssertEqual(Set(states.map { UIText.onDeviceCaption($0, .turkish) }).count, states.count)
         XCTAssertEqual(UIText.onDeviceCaption(.available, .english), "Apple Intelligence enhanced")
+        // The second round's M3: each state says its own case.
+        XCTAssertTrue(UIText.onDeviceCaption(.turnedOff, .english).hasPrefix("Apple Intelligence off"))
+        XCTAssertTrue(UIText.onDeviceCaption(.notEligible, .english).hasPrefix("No Apple Intelligence on this device"))
+        XCTAssertTrue(UIText.onDeviceCaption(.downloading, .english).contains("downloading"))
+        XCTAssertTrue(UIText.onDeviceCaption(.unavailable, .english).contains("unavailable"))
+        XCTAssertTrue(UIText.onDeviceCaption(.turnedOff, .turkish).contains("kapalı"))
+        XCTAssertTrue(UIText.onDeviceCaption(.notEligible, .turkish).contains("bu cihazda") || UIText.onDeviceCaption(.notEligible, .turkish).contains("Bu cihazda"))
         XCTAssertNotEqual(UIText.primaryOnItsOwn(.english), UIText.primaryOnItsOwn(.turkish))
         XCTAssertNotEqual(UIText.backToCombined(.english), UIText.backToCombined(.turkish))
         let aider = [NamedBoard(name: "Aider", date: .unknown)]

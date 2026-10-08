@@ -244,6 +244,12 @@ func familyLists(_ plan: AnswerPlan, paired: Bool, pairedPlan: AnswerPlan?) -> (
     return (first, second)
 }
 
+/// The second round's M2: the outcome to plan, once its surface's answers are on screen (a stub in
+/// the red commit; the fix fills it).
+func plannedOutcome(routed: RoutingOutcome?, chosen: String?, answers: [String]) -> RoutingOutcome? {
+    nil
+}
+
 /// D-188 clause 5 (the W4 review's M4): a surface the reader chose, from "Change" or an alternative,
 /// is planned as a question routed there by hand: its family list, from no words.
 func chosenOutcome(_ surface: String) -> RoutingOutcome {

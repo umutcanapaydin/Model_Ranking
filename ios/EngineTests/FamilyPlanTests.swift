@@ -132,6 +132,39 @@ final class FamilyPlanTests: OfflineTestCase {
         XCTAssertEqual(orderNote(view, .english), note, "the boards' screen says the same sentence")
     }
 
+    /// The second round's M1 and M3: the note says how the place is reached (each board's place as a
+    /// share of its length, then the average), the count of models it holds, and in Turkish the
+    /// coverage, the plural and an undated board.
+    func testTheFamilyNoteSaysHowThePlaceIsReachedInBothLanguages() {
+        let boards = [NamedBoard(name: "Aider", date: .unknown), NamedBoard(name: "SWE-bench", date: .readOn("2026-09-24"))]
+        let english = UIText.familyNote(models: 58, boards: boards, coverage: 2, .english)
+        XCTAssertTrue(english.contains("58 models"), english)
+        XCTAssertTrue(english.contains("relative places"), english)
+        XCTAssertFalse(english.contains("mean position"), english)
+        XCTAssertTrue(english.contains("Aider, no date"), english)
+        XCTAssertTrue(english.contains("undated, read 24 September 2026"), english)
+        let turkish = UIText.familyNote(models: 58, boards: boards, coverage: 2, .turkish)
+        XCTAssertTrue(turkish.contains("58 model"), turkish)
+        XCTAssertTrue(turkish.contains("en az 2 panoda"), turkish)
+        XCTAssertTrue(turkish.contains("göreli"), turkish)
+        XCTAssertTrue(turkish.contains("Aider, tarih yok"), turkish)
+        XCTAssertTrue(turkish.contains("tarihsiz, 24 Eylül 2026 okundu"), turkish)
+        XCTAssertTrue(UIText.olderBoards(boards, .turkish).contains("sayılıyorlar"))
+        XCTAssertTrue(UIText.olderBoards(Array(boards.prefix(1)), .turkish).hasSuffix("sayılıyor."))
+    }
+
+    /// The second round's M2: a surface is planned only once its own answers are on screen, so a
+    /// "Change" never shows one coding list alone, or a new surface's list beside the old answers.
+    func testASurfaceIsPlannedOnlyOnceItsAnswersAreOnScreen() {
+        XCTAssertNil(plannedOutcome(routed: nil, chosen: "mathematics", answers: ["coding", "agentic-coding"]))
+        XCTAssertNil(plannedOutcome(routed: nil, chosen: "coding", answers: ["mathematics"]))
+        XCTAssertEqual(plannedOutcome(routed: nil, chosen: "mathematics", answers: ["mathematics"])?.tier, .manual)
+        XCTAssertNil(plannedOutcome(routed: routed("vision"), chosen: nil, answers: ["coding", "agentic-coding"]))
+        XCTAssertEqual(plannedOutcome(routed: routed("coding"), chosen: nil, answers: ["coding", "agentic-coding"])?.tier,
+                       .similarity)
+        XCTAssertNil(plannedOutcome(routed: nil, chosen: nil, answers: ["coding"]), "the launch screen plans nothing")
+    }
+
     /// The W4 review's M2: a removed refinement is not counted on a family, and comes back.
     func testARemovedRefinementIsNotCountedOnAFamilyAndComesBack() {
         let french = Refinements.table.filter { $0.value == "french" }
