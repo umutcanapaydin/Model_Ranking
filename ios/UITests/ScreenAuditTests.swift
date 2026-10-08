@@ -53,7 +53,7 @@ final class ScreenAuditTests: XCTestCase {
         let box = app.descendants(matching: .any)["question"]
         box.tap()
         box.typeText(question)
-        app.buttons["send"].tap()
+        app.buttons["send"].firstMatch.tap()
         sleep(3)
     }
 

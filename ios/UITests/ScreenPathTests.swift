@@ -40,11 +40,13 @@ final class ScreenPathTests: XCTestCase {
         app.descendants(matching: .any)[identifier]
     }
 
+    /// The software keyboard's return key is "send" too (`.submitLabel(.send)`), so "send" can match
+    /// two controls while the keyboard is up; either one sends, and the first is tapped.
     private func ask(_ question: String) {
         let box = field("question")
         box.tap()
         box.typeText(question)
-        app.buttons["send"].tap()
+        app.buttons["send"].firstMatch.tap()
     }
 
     /// Ask again (#133). The field keeps the last question after a send, so it is emptied first: a
@@ -55,7 +57,7 @@ final class ScreenPathTests: XCTestCase {
         box.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
         box.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: old.count))
         box.typeText(question)
-        app.buttons["send"].tap()
+        app.buttons["send"].firstMatch.tap()
     }
 
     /// Swipe until the element is wholly on screen. A coordinate tap does not scroll, and the
