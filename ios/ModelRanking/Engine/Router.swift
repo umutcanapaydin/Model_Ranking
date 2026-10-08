@@ -303,6 +303,9 @@ extension CategoryHints {
     /// word of the `coding` rule.
     static let agentWords = ["agent", "agents", "ajan", "ajani", "ajanlar"]
 
+    /// The second review's R2: a stub until `everyday` reads only where the embedding cannot.
+    static func generalSurface(_ question: String, within known: [String]) -> String? { nil }
+
     /// The surface a question names outright, among those the engine served, or nil.
     static func namedSurface(_ question: String, within known: [String]) -> String? {
         let readings = InputSignals.folds(question).map { InputSignals.wordsOf($0).map(plain) }
