@@ -168,7 +168,7 @@ enum Refinements {
 
     /// A matched word after one of these, or before one of these, is something else: data or computer
     /// science, science fiction (one word or two), physical therapy, writing code, an AI's software, a
-    /// server's or a battery's health (sağlık kontrolü, sağlık durumu). A trailing `*` reads a word by
+    /// server's or a battery's health (the Turkish word before a check or a status). A trailing `*` reads a word by
     /// its start.
     static let notAfter: [String: Set<String>] = [
         "science": ["data", "computer"], "scientific": ["data", "computer"], "bilim": ["veri", "bilgisayar"],
