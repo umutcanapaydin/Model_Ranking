@@ -33,6 +33,7 @@ import datetime as dt
 import logging
 import os
 import sqlite3
+import time
 from collections.abc import AsyncIterator
 from dataclasses import fields
 from pathlib import Path
@@ -198,6 +199,69 @@ def _positive_env(name: str, default: str) -> int:
 
 
 MAX_CONCURRENT_REQUESTS = _positive_env("MODEL_RANKING_MAX_CONCURRENCY", "8")
+
+#: #187 (M20-W5): requests one client may make per minute. Unset or empty, nothing is limited (the
+#: owner's Mac); `fly.toml` sets it for the hosted engine. A fairness control, so it fails OPEN
+#: (AGENTS.md section 5): a limiter that breaks serves the request.
+RATE_LIMIT_VAR = "MODEL_RANKING_RATE_LIMIT"
+#: The most clients counted at once; past it the counts start again, so memory stays bounded.
+RATE_WINDOW_KEYS = 10_000
+#: client -> (the minute, the requests in it). One window per minute, counted per client.
+_RATE_WINDOWS: dict[str, tuple[int, int]] = {}
+
+
+def rate_limit_problems() -> list[str]:
+    """What is wrong with the limit's setting, for the startup check: a strict environment refuses it."""
+    raw = os.environ.get(RATE_LIMIT_VAR, "").strip()
+    if not raw:
+        return []
+    try:
+        value = int(raw)
+    except ValueError:
+        return [f"{RATE_LIMIT_VAR} must be a whole number of requests per minute; got {raw!r}"]
+    return [] if value >= 0 else [f"{RATE_LIMIT_VAR} must not be negative; got {value}"]
+
+
+def _rate_limit() -> int:
+    """The limit in force, or 0 (no limit) when it is unset or unreadable; the startup check refuses
+    an unreadable one in production, and a relaxed environment serves rather than refuses."""
+    raw = os.environ.get(RATE_LIMIT_VAR, "").strip()
+    try:
+        return max(int(raw), 0) if raw else 0
+    except ValueError:
+        return 0
+
+
+def reset_rate_windows() -> None:
+    """Forget every count (tests)."""
+    _RATE_WINDOWS.clear()
+
+
+def rate_window_count() -> int:
+    return len(_RATE_WINDOWS)
+
+
+def _client_key(request: Any) -> str:
+    """The client: Fly's proxy names it in `Fly-Client-IP`; otherwise the connection's address."""
+    named = str(request.headers.get("fly-client-ip", "")).strip()
+    if named:
+        return named[:64]
+    client = request.scope.get("client")
+    return str(client[0]) if client else "unknown"
+
+
+def _over_limit(key: str, limit: int, now: float) -> tuple[bool, int]:
+    """Count one request for `key` in this minute; whether it is past `limit`, and the seconds left."""
+    minute = int(now // 60)
+    start, count = _RATE_WINDOWS.get(key, (minute, 0))
+    if start != minute:
+        start, count = minute, 0
+    if key not in _RATE_WINDOWS and len(_RATE_WINDOWS) >= RATE_WINDOW_KEYS:
+        _RATE_WINDOWS.clear()
+    _RATE_WINDOWS[key] = (start, count + 1)
+    return count + 1 > limit, 60 - int(now % 60)
+
+
 
 #: The largest ranked-model count this process will serve. Measured rather than guessed: the
 #: Stage-4.0 pass drove a container capped at the VM size `fly.toml` declares and found ~10,000
@@ -594,6 +658,8 @@ def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
             " verified (L.7)"
         )
 
+    # #187 (M20-W5): an unreadable request limit is a broken fairness control at boot, not per request.
+    problems.extend(rate_limit_problems())
     if problems and strict:
         raise ConfigError("; ".join(problems))
     return tuple(problems)
@@ -693,6 +759,23 @@ async def _known_host(request: Any, call_next: Any) -> Any:
         response = _error(400, "unknown_host", "This engine does not answer to that host.")
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def _limited(request: Any, call_next: Any) -> Any:
+    """#187: one client past the limit in a minute is told to wait; `/health` never is. Fails open."""
+    limit = _rate_limit()
+    if limit and request.url.path != "/health":
+        try:
+            over, wait = _over_limit(_client_key(request), limit, time.time())
+        except Exception:
+            over, wait = False, 0
+        if over:
+            response = _error(429, "rate_limited", "Too many requests from one client; try again shortly.")
+            response.headers["Retry-After"] = str(max(wait, 1))
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            return response
     return await call_next(request)
 
 
