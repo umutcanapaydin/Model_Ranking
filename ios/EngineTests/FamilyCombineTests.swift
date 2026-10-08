@@ -1,8 +1,8 @@
 //  M20-W2 (#210, REQ-CMB-002, REQ-CMB-003, D-188 clauses 2 to 4) -- a family of boards combined into
 //  the product's own list, by position and never by score (D-105).
 //
-//  A model enters when at least half of the family's boards rank it, and at least two (one, for a
-//  family of one board). Its place is the weighted mean of its percentile positions, (position - 1)
+//  A model enters when at least half of the family's boards rank it, rounded up, and at least one (with
+//  two boards, either is enough: the W1 review measured "and at least two" as an intersection). Its place is the weighted mean of its percentile positions, (position - 1)
 //  over (the board's size - 1), across the boards that rank it. A board whose newest evaluation is
 //  more than 90 days old, or that publishes no date, weighs half. Equal means share a place, and the
 //  order breaks them by model id.
@@ -37,7 +37,7 @@ final class FamilyCombineTests: OfflineTestCase {
         Dictionary(uniqueKeysWithValues: list.entries.map { ($0.model.id, $0.place) })
     }
 
-    /// D-188 clause 2: half of the family's boards, and at least two.
+    /// D-188 clause 2: half of the family's boards, rounded up, and at least one.
     func testAModelNeedsHalfTheFamilyAndAtLeastTwoBoards() throws {
         let four = standings([board("p", [("a", 1), ("b", 2), ("c", 3)]), board("q", [("a", 1), ("b", 2)]),
                               board("r", [("a", 1)]), board("s", [("a", 1), ("d", 2)])])
@@ -53,6 +53,12 @@ final class FamilyCombineTests: OfflineTestCase {
         let one = standings([board("only", [("a", 1), ("b", 2), ("c", 3)])])
         XCTAssertEqual(order(try combineFamily(one, boards: ["only"], asOf: today)), ["a", "b", "c"],
                        "a family of one board is that board")
+
+        // Two boards: either is enough, so the list is their union, not their intersection.
+        let two = standings([board("p", [("a", 1), ("b", 2)]), board("q", [("c", 1), ("a", 2)])])
+        let twoList = try combineFamily(two, boards: ["p", "q"], asOf: today)
+        XCTAssertEqual(twoList.coverage, 1)
+        XCTAssertEqual(Set(order(twoList)), ["a", "b", "c"])
     }
 
     /// D-188 clause 3: the mean of percentile positions, so a board of 3 and a board of 101 count alike.
@@ -102,10 +108,21 @@ final class FamilyCombineTests: OfflineTestCase {
         XCTAssertEqual(a?.positions, [BoardPosition(board: "p", position: 1), BoardPosition(board: "q", position: 2)])
     }
 
+    /// The W1 review's R1: a family board the standings lack (an Arena outage, a source left out) is left
+    /// out of the family, so it can neither empty the list nor raise the coverage.
+    func testAFamilyBoardTheStandingsLackIsLeftOut() throws {
+        let data = standings([board("p", [("a", 1), ("b", 2)]), board("q", [("b", 1), ("a", 2)])])
+        let full = try combineFamily(data, boards: ["p", "q"], asOf: today)
+        let withGone = try combineFamily(data, boards: ["p", "gone", "q"], asOf: today)
+        XCTAssertEqual(order(full), order(withGone))
+        XCTAssertEqual(withGone.coverage, full.coverage)
+        XCTAssertEqual(withGone.boards.map(\.id), ["p", "q"])
+    }
+
     func testAnUnknownBoardOrModelIsRefused() {
         let data = standings([board("p", [("a", 1)])])
-        XCTAssertThrowsError(try combineFamily(data, boards: ["p", "nope"], asOf: today)) {
-            XCTAssertEqual($0 as? CombineError, .unknownBoard("nope"))
+        XCTAssertThrowsError(try combineFamily(data, boards: ["nope"], asOf: today)) {
+            XCTAssertEqual($0 as? CombineError, .noBoards, "a family none of whose boards is kept has no list")
         }
         XCTAssertThrowsError(try combineFamily(data, boards: [], asOf: today)) {
             XCTAssertEqual($0 as? CombineError, .noBoards)
