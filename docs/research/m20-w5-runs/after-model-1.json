@@ -1,0 +1,722 @@
+[
+  {
+    "declined" : "false",
+    "model" : "not",
+    "q" : "which ai should i be using these days",
+    "reading" : "unsure",
+    "routed" : "computer-use",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "chatgpt vs claude vs gemini which one",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "not",
+    "q" : "best llm overall?",
+    "reading" : "unsure",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "whats the smartest model out there atm",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "gemini mi gpt mi",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "grok mu deepseek mi yoksa claude mu",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "su an en iyi yapay zeka hangisi",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "hangi yapay zekaya para vermeye değer",
+    "reading" : "search",
+    "routed" : "factuality",
+    "surface" : "factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "which model writes the cleanest rust code",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "best coding agent that can work through my whole repo on its own and open a PR",
+    "reading" : "search",
+    "routed" : "agentic-coding",
+    "surface" : "agentic-coding",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "which ai can actually answer phd level chemistry questions",
+    "reading" : "search",
+    "routed" : "expert",
+    "surface" : "expert",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "best ai for running shell commands and doing tasks on my computer by itself",
+    "reading" : "search",
+    "routed" : "computer-use",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "best ai to build a landing page with react and tailwind",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "which chatbot makes stuff up the least",
+    "reading" : "search",
+    "routed" : "factuality",
+    "surface" : "factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "which ai is best at searching the web for answers",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "which ai is nicest to talk to",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "genel kultur sorularinda hangi yapay zeka daha iyi",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "matematik olimpiyat sorularını en iyi çözen model hangisi",
+    "reading" : "search",
+    "routed" : "mathematics",
+    "surface" : "mathematics",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "zeka bulmacasi ve sekil oruntusu cozmede hangi ai iyi",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "uzun pdf raporlarını özetlemek için en iyi yapay zeka",
+    "reading" : "search",
+    "routed" : "document",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "ekran goruntusunu okuyup ne yazdigini anlatan ai hangisi",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "internette arama yapıp kaynak uydurmayan yapay zeka hangisi",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "kendi basina commit atip testleri calistiran en iyi kodlama ajani",
+    "reading" : "search",
+    "routed" : "agentic-coding",
+    "surface" : "agentic-coding",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "bilgisayarımı benim yerime kullanabilen en iyi ai hangisi",
+    "reading" : "search",
+    "routed" : "computer-use",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "which ai gives the best korean bbq marinade recipe",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "best ai to polish my python script before code review",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "which ai writes the best scraper with rotating user agents",
+    "reading" : "search",
+    "routed" : "computer-use",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "need outfit ideas for a cocktail dress code, which chatbot is best for that",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "best ai for advice on dealing with my mother in law",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "which model is best at novel pattern puzzles it has never seen",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "not",
+    "q" : "alman kurdu yavruma tuvalet egitimi icin en iyi yapay zeka",
+    "reading" : "unsure",
+    "routed" : "document",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "Karadeniz lehçesiyle sohbet edebilen en iyi yapay zeka hangisi",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "bilim kurgu dizisi önerisi için hangi ai daha iyi",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "japon arabalari hakkinda en cok sey bilen ai",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "jira'daki user story'lerden birim testi yazan en iyi model",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "unity oyunumdaki saglik barini kodlayacak en iyi ai",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "best ai for translating my emails into german",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "best ai that answers in french without slipping back into english",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "want to learn korean, which ai tutor is best",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "which ai handles polish grammar best",
+    "reading" : "search",
+    "routed" : "factuality",
+    "surface" : "factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "ingilizceden çinceye çeviri için en iyi yapay zeka",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "ispanyolca ogrenmek icin hangi ai daha iyi",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "rusca cevap veren en iyi chatbot hangisi",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "Lehçe metin çevirisinde en başarılı model",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "almanca konusma pratigi icin en iyi yapay zeka",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "which ai gives the best legal advice for a small claims case",
+    "reading" : "search",
+    "routed" : "expert",
+    "surface" : "expert",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "best ai to ask about my symptoms before i see a doctor",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "which model is best for writing a business plan for a coffee shop",
+    "reading" : "search",
+    "routed" : "search_factuality",
+    "surface" : "search_factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "best ai for writing poetry",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "which ai is best at answering excel and windows how-to questions",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "iş sözleşmemdeki maddeleri yorumlayan en iyi yapay zeka",
+    "reading" : "search",
+    "routed" : "document",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "not",
+    "q" : "kan tahlili sonuclarimi anlamak icin hangi ai",
+    "reading" : "unsure",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "şirketim için pazarlama stratejisi hazırlayacak en iyi yapay zeka",
+    "reading" : "search",
+    "routed" : "agentic-coding",
+    "surface" : "agentic-coding",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "kuantum fizigi sorularinda en iyi model hangisi",
+    "reading" : "search",
+    "routed" : "expert",
+    "surface" : "expert",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "which ai can read a screenshot of an error message and tell me whats wrong",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "best model for writing alt text for my photos",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "which ai can tell what car this is from a photo",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "snap a pic of a math problem, which ai solves it best",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "bu faturanın fotoğrafındaki yazıları okuyan en iyi ai",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "akciger filmimi yorumlayacak yapay zeka hangisi",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "kedimin fotografina bakip cinsini soyleyen ai",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "not",
+    "q" : "el yazısı notlarımın resmini metne çeviren model hangisi",
+    "reading" : "unsure",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "grafikteki rakamlari okuyabilen en iyi model",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "math: which model is best at proofs",
+    "reading" : "search",
+    "routed" : "mathematics",
+    "surface" : "mathematics",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "search: which ai finds the latest news fastest",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "coding: best model for refactoring old php",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "docs: best ai for comparing two contracts side by side",
+    "reading" : "search",
+    "routed" : "document",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "kodlama: react native uygulamasi icin en iyi model",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "matematik: türev ve integral sorularında hangi ai iyi",
+    "reading" : "search",
+    "routed" : "mathematics",
+    "surface" : "mathematics",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "çeviri: japoncaya en iyi çeviri yapan model",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "hukuk: kira artisi konusunda en iyi yapay zeka hangisi",
+    "reading" : "search",
+    "routed" : "computer-use",
+    "surface" : "computer-use",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "whats the capital of australia",
+    "reading" : "unsure",
+    "routed" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "not",
+    "q" : "hey how are you doing",
+    "reading" : "notASearch",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "how many calories are in a banana",
+    "reading" : "unsure",
+    "routed" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "what does llm stand for",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "thanks that was helpful",
+    "reading" : "notASearch",
+    "routed" : "coding",
+    "surface" : "coding",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "türkiyenin en uzun nehri hangisi",
+    "reading" : "search",
+    "routed" : "factuality",
+    "surface" : "factuality",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "not",
+    "q" : "en iyi pizza tarifi nedir",
+    "reading" : "unsure",
+    "routed" : "document",
+    "surface" : "document",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "chatgpt kim tarafindan yapildi",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "search",
+    "q" : "bugun hava nasil olacak",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "unmeasured" : "false"
+  }
+]

@@ -208,13 +208,15 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
 #: Held-out sets already run, and so tuning now: M16's and M17's, M18-W3's first two (review B2),
 #: and M18-W3's three fresh ones, spent there and retired at M19-W4 (#177: four signal words were
 #: added after them with no origin shown); `heldout_questions.json` and
-#: `offtopic_heldout_questions.json` ran in M13 and M16 (its second review's K4). Shared by the
-#: held-out gates (#117).
+#: `offtopic_heldout_questions.json` ran in M13 and M16 (its second review's K4); M19-W4's two,
+#: measured there and replayed by five review rounds, retired at M20-W5 (#195) when a fresh set
+#: (`wording_heldout_m20_questions.json`) took their place. Shared by the held-out gates (#117).
 RETIRED_HELD_OUT = {"heldout_questions.json", "refinement_heldout_questions.json",
                     "coding_heldout_m17_questions.json", "notasearch_m17_heldout_questions.json",
                     "image_heldout_first_questions.json", "offtopic_heldout_questions.json",
                     "coding_heldout_m18_questions.json", "notasearch_heldout_m18_questions.json",
-                    "image_heldout_m18_questions.json"}
+                    "image_heldout_m18_questions.json", "notasearch_heldout_m19_questions.json",
+                    "image_heldout_m19_questions.json"}
 
 
 def _live_held_out_sets() -> list[pathlib.Path]:
@@ -1590,36 +1592,14 @@ def test_every_signal_word_only_a_live_held_out_set_holds_is_reviewed() -> None:
 
 
 #: #117: each entry of `Reading.swift`'s lists that a live held-out set holds and no tuning set does,
-#: with where it came from. The M18 sets the first entries came from are retired (#177, M19-W4):
-#: four of their words were added after the sets existed, with no origin shown, so the sets became
-#: tuning and W4 measures on fresh ones. Each entry below was in the app before its set was
-#: written, so it cannot have come from it; or, marked so, it came from the W4 review after the set
-#: was measured and spent; measured, none of them changes a row of that set (the third W4 review's M1).
+#: with where it came from. The M19 sets the earlier entries came from are retired (#195, M20-W5);
+#: the live set is M20-W5's, written by an independent seat. Each entry below was in the app before
+#: that set was written, so it cannot have come from it.
 _BEFORE = "in the app before {set} was written ({sha}), so not read from it"
-_AFTER_MEASURE = "from the W4 review's {finding}, after {set} was measured and spent; measured, it changes no row of it"
 HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
-    "first": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
-    "from now on you": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
-    "geceler": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
-    "komutlar\u0131": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
-    "komutlar\u0131n\u0131": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
-    "sa\u011fol": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
-    "thx": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
-    "blur": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "colourise": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "ikon": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "oil": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "paint": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "painting": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "poster": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "r\u00f6tu\u015fla": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "slider": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "sticker": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "galeri": _AFTER_MEASURE.format(finding="MJ1", set="image_heldout_m19"),
-    "y\u00fckleme": _AFTER_MEASURE.format(finding="MJ1", set="image_heldout_m19"),
-    "chatbot": _AFTER_MEASURE.format(finding="MJ2", set="notasearch_heldout_m19"),
-    "deepseek": _AFTER_MEASURE.format(finding="MJ2", set="notasearch_heldout_m19"),
-    "gemini": _AFTER_MEASURE.format(finding="MJ2", set="notasearch_heldout_m19"),
+    "chatgpt": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
+    "grok": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
+    "resmin": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
 }
 #: A list of string literals: every word, phrase, verb and noun list in `Reading.swift`, the inline
 #: ones in its functions too, derived from the source rather than named here. One literal is a list
