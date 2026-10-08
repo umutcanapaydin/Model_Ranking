@@ -36,6 +36,9 @@ FAMILIES: dict[str, tuple[str, ...]] = {
     "search_factuality": ("arena_search_factuality",),
 }
 
+#: surface -> the board a refinement takes the place of (a stub in the red commit).
+REFINED_BOARD: dict[str, str] = {}
+
 _LANGUAGE = "a language slice of Arena's text board: a refinement the question adds (D-168), not the task"
 _VISION_LANGUAGE = "a language slice of Arena's vision board, which no refinement adds yet"
 _TEXT_FACET = "a facet of Arena's text board, which stands in its families through `arena` or one slice"

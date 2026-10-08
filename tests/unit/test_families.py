@@ -231,3 +231,38 @@ def test_d188_lists_every_family_as_the_code_holds_it() -> None:
     rows = re.findall(r"^\s*\| `([a-z_-]+)` \| ((?:`[a-z0-9_]+`(?:, )?)+) \|$", adr, re.MULTILINE)
     tabled = {surface: tuple(re.findall(r"`([a-z0-9_]+)`", boards)) for surface, boards in rows}
     assert tabled == families.FAMILIES, {s: (tabled.get(s), f) for s, f in families.FAMILIES.items() if tabled.get(s) != f}
+
+
+# --- The M20 repo review's M1 (docs/reviews/m20-repo-review.md) -------------------------------------------
+
+
+def test_a_refinement_takes_the_place_of_its_votes_board_and_never_joins_beside_it() -> None:
+    """covers REQ-CMB-004 (D-188 clauses 1 and 6, the M20 repo review's M1). Every refinement is a slice of
+    Arena's text vote. Added beside the family's own text-vote board, it let one vote count twice, for the
+    coverage and for the mean. So each surface a refinement may refine names that board, and a refinement
+    takes its place: every family, with any refinement it allows, holds one board of each vote."""
+    from .test_refinements import _entries
+
+    votes = _arena_votes()
+    entries = _entries()
+    refined_surfaces = {str(surface) for entry in entries for surface in entry["surfaces"]}  # type: ignore[union-attr]
+    assert set(families.REFINED_BOARD) == refined_surfaces, "a surface the table refines names no board, or the reverse"
+    for surface, board in families.REFINED_BOARD.items():
+        assert board in families.FAMILIES[surface], (surface, board)
+        assert votes.get(board) == "text", (surface, board)
+    for entry in entries:
+        slice_board = str(entry["board"])
+        assert votes.get(slice_board) == "text", slice_board
+        for surface in entry["surfaces"]:  # type: ignore[union-attr]
+            replaced = families.REFINED_BOARD[str(surface)]
+            family = [slice_board if board == replaced else board for board in families.FAMILIES[str(surface)]]
+            drawn = [votes.get(board, board) for board in family]
+            assert len(set(drawn)) == len(drawn), (surface, family)
+
+
+def test_the_categories_name_the_board_a_refinement_replaces(client: TestClient) -> None:
+    """covers REQ-CMB-004: `/v1/categories` names, per surface, the board a refinement takes the place of,
+    or `null` where no refinement refines it."""
+    served = {c["id"]: c for c in client.get("/v1/categories").json()["categories"]}
+    for surface in CATEGORIES:
+        assert served[surface]["refined_board"] == families.REFINED_BOARD.get(surface), surface

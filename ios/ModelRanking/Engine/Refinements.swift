@@ -98,7 +98,8 @@ enum Refinements {
     /// order and none twice, then at most `maxAdded` refinements the surface allows, language before
     /// domain. A refinement the family already holds takes none of the places. A family the engine did
     /// not send (an engine older than M20) is the primary board alone.
-    static func familyBoards(primary: String, family: [String], surface: String, chosen: [Refinement]) -> [String] {
+    static func familyBoards(primary: String, family: [String], surface: String, chosen: [Refinement],
+                             refined: String? = nil) -> [String] {
         // One pass with a set, and no more than `maxFamily` boards: a broken payload's family of
         // thousands neither freezes the screen nor builds a list from all of them (the M20 closure
         // security seat's S3).

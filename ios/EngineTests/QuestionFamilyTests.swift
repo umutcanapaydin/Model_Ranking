@@ -220,4 +220,22 @@ final class QuestionFamilyTests: OfflineTestCase {
         XCTAssertEqual(Set(boards).count, boards.count)
         XCTAssertEqual(boards.first, "board-0")
     }
+
+    /// The M20 repo review's M1 (D-188 clauses 1 and 6): every refinement is a slice of Arena's text
+    /// vote, so it takes the place of the family's board of that vote and never joins beside it; one
+    /// vote, one board, so of a language and a domain the language stands.
+    func testARefinementTakesThePlaceOfItsVotesBoard() {
+        XCTAssertEqual(Refinements.familyBoards(primary: "epoch_eci", family: ["epoch_eci", "arena", "epoch_mmlu"],
+                                                surface: "everyday", chosen: refinements(["spanish"]), refined: "arena"),
+                       ["epoch_eci", "arena_text_spanish", "epoch_mmlu"])
+        XCTAssertEqual(Refinements.familyBoards(primary: "epoch_gpqa",
+                                                family: ["epoch_gpqa", "arena_text_expert", "epoch_mmlu"],
+                                                surface: "expert", chosen: refinements(["legal", "french"]),
+                                                refined: "arena_text_expert"),
+                       ["epoch_gpqa", "arena_text_french", "epoch_mmlu"])
+        XCTAssertEqual(Refinements.familyBoards(primary: "epoch_aime", family: ["epoch_aime", "arena_text_math"],
+                                                surface: "mathematics", chosen: refinements(["mathematical"]),
+                                                refined: "arena_text_math"),
+                       ["epoch_aime", "arena_text_industry_mathematical"])
+    }
 }

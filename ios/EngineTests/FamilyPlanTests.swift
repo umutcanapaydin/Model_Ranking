@@ -341,4 +341,23 @@ final class FamilyPlanTests: OfflineTestCase {
             XCTAssertEqual(Array(read.prefix(2)), ["epoch_eci", "arena"], question)
         }
     }
+
+    /// The M20 repo review's M1: `assistant`'s family is Arena's one board, so a language takes its place,
+    /// and the list is that language's board alone (not Arena's general vote beside it), with its chip.
+    func testAOneBoardFamilyWithALanguageIsThatLanguagesList() {
+        let spanish = Refinements.table.filter { $0.value == "spanish" }
+        let data = standings([board("arena", [("a", 1), ("b", 2), ("c", 3)]),
+                              board("arena_text_spanish", [("b", 1), ("a", 2)])])
+        let plan = answerPlan(outcome: routed("assistant"), primaryBoard: "arena", family: ["arena"],
+                              question: "reply in spanish", asOf: today, standings: data, removed: [],
+                              refinedBoard: "arena")
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+        XCTAssertEqual(view.list.boards.map(\.id), ["arena_text_spanish"])
+        XCTAssertEqual(view.list.entries.map(\.model.id), ["b", "a"], "c has no Spanish evidence")
+        XCTAssertEqual(view.refinements, spanish)
+        let removed = answerPlan(outcome: routed("assistant"), primaryBoard: "arena", family: ["arena"],
+                                 question: "reply in spanish", asOf: today, standings: data,
+                                 removed: Set(spanish), refinedBoard: "arena")
+        XCTAssertEqual(removed, .restorable(spanish))
+    }
 }

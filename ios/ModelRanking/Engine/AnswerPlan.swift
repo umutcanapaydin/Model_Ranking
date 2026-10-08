@@ -158,7 +158,7 @@ enum AnswerPlan: Equatable {
 func answerPlan(
     outcome: RoutingOutcome?, primaryBoard: String?, family: [String]? = nil, question: String? = nil,
     asOf: Date = Date(), standings: Standings?, removed: Set<Refinement>,
-    primaryHealth: SourceHealth? = nil, phoneCopyDays: Int? = nil
+    primaryHealth: SourceHealth? = nil, phoneCopyDays: Int? = nil, refinedBoard: String? = nil
 ) -> AnswerPlan {
     // A primary board the standings lack needs no check of its own: `combine` refuses an unknown
     // board, and a refusal is today's cards below.
