@@ -211,6 +211,10 @@ RATE_LIMIT_VAR = "MODEL_RANKING_RATE_LIMIT"
 RATE_WINDOW_KEYS = 10_000
 #: client -> (the minute, the requests in it). One window per minute, counted per client.
 _RATE_WINDOWS: dict[str, tuple[int, int]] = {}
+#: The minute a full table was last scanned for an earlier minute's entries, and the scans so far: a
+#: table full of this minute's clients is scanned once, not for every new one (the W5 Tester's T2).
+#: And the minute a broken limiter last warned, so it warns once a minute (the Tester's R1).
+_RATE_STATE: dict[str, int] = {"scanned": -1, "scans": 0, "warned": -1}
 
 
 def rate_limit_problems() -> list[str]:
@@ -238,6 +242,7 @@ def _rate_limit() -> int:
 def reset_rate_windows() -> None:
     """Forget every count (tests)."""
     _RATE_WINDOWS.clear()
+    _RATE_STATE.update(scanned=-1, scans=0, warned=-1)
 
 
 def rate_window_count() -> int:
@@ -245,9 +250,8 @@ def rate_window_count() -> int:
 
 
 def rate_table_scans() -> int:
-    """How many times a full table was scanned for an earlier minute's entries (a stub in the red
-    commit)."""
-    return 0
+    """How many times a full table was scanned for an earlier minute's entries (tests)."""
+    return _RATE_STATE["scans"]
 
 
 def _client_key(request: Any) -> str:
@@ -260,7 +264,10 @@ def _client_key(request: Any) -> str:
         parsed = ipaddress.ip_address(address)
     except ValueError:
         return address
-    if parsed.version == 6:
+    if isinstance(parsed, ipaddress.IPv6Address):
+        # An IPv4 address written as IPv6 is that IPv4 client (the W5 Tester's T1).
+        if parsed.ipv4_mapped is not None:
+            return str(parsed.ipv4_mapped)
         return str(ipaddress.ip_network(f"{parsed}/64", strict=False))
     return address
 
@@ -270,8 +277,11 @@ def _over_limit(key: str, limit: int, now: float) -> tuple[bool, int]:
     minute = int(now // 60)
     wait = 60 - int(now % 60)
     if key not in _RATE_WINDOWS and len(_RATE_WINDOWS) >= RATE_WINDOW_KEYS:
-        for stale in [k for k, (start, _) in _RATE_WINDOWS.items() if start != minute]:
-            del _RATE_WINDOWS[stale]
+        if _RATE_STATE["scanned"] != minute:
+            _RATE_STATE["scanned"] = minute
+            _RATE_STATE["scans"] += 1
+            for stale in [k for k, (start, _) in _RATE_WINDOWS.items() if start != minute]:
+                del _RATE_WINDOWS[stale]
         if len(_RATE_WINDOWS) >= RATE_WINDOW_KEYS:
             return False, wait
     start, count = _RATE_WINDOWS.get(key, (minute, 0))
@@ -793,11 +803,15 @@ async def _limited(request: Any, call_next: Any) -> Any:
     """#187: one client past the limit in a minute is told to wait; `/health` never is. Fails open."""
     limit = _rate_limit()
     if limit and request.url.path != "/health":
+        now = time.time()
         try:
-            over, wait = _over_limit(_client_key(request), limit, time.time())
+            over, wait = _over_limit(_client_key(request), limit, now)
         except Exception as exc:
-            # Fails open, and says so: a broken limiter must be seen (the W5 review's M4).
-            _LOG.warning("rate limiter failed (%s); the request is served", type(exc).__name__)
+            # Fails open, and says so once a minute: a broken limiter must be seen (the W5 review's
+            # M4), not repeated on every request (the Tester's R1).
+            if _RATE_STATE["warned"] != int(now // 60):
+                _RATE_STATE["warned"] = int(now // 60)
+                _LOG.warning("rate limiter failed (%s); requests are served", type(exc).__name__)
             over, wait = False, 0
         if over:
             response = _error(429, "rate_limited", "Too many requests from one client; try again shortly.")

@@ -58,11 +58,12 @@ Look at the dashboard's usage page now and then once the app is shared.
 R1): a forged `Fly-Client-IP` header must not give each request a new address. From any computer:
 
 ```
-cd ~/Desktop/ILGAR/model_ranking && for n in $(seq 1 125); do curl -s -o /dev/null -w "%{http_code} " -H "Fly-Client-IP: 198.51.100.$((n % 250))" https://model-ranking.fly.dev/v1/budgets; done; echo
+cd ~/Desktop/ILGAR/model_ranking && for n in $(seq 1 250); do curl -s -o /dev/null -w "%{http_code} " -H "Fly-Client-IP: 198.51.100.$((n % 250))" https://model-ranking.fly.dev/v1/budgets; done; echo
 ```
 
-The last few answers must be `429`. If every one is `200`, Fly passed the forged header through:
-stop sharing the app and say so in #187.
+Some answers must be `429`. 250 requests cover a turn of the minute, which resets the count (the W5
+Tester's T4). If every one is `200`, Fly passed the forged header through: stop sharing the app and
+say so in #187.
 
 **After each deploy, log out:** `fly auth logout`. While you are logged in, a coding agent on this
 Mac could deploy or destroy the app (#190).
