@@ -38,9 +38,8 @@ _REMOVE = {
     # every table with a `source` column is here.
     "access": "DELETE FROM access WHERE source IN (SELECT value FROM json_each(?))",
 }
-#: What else the public artifact does not carry (the M19-W5 review): LiteLLM's own copies of
-#: OpenRouter's prices, under `openrouter/` aliases (MJ1), and the vendor subscription plans, which
-#: `/v1` never serves and one vendor's terms keep from public display (M2).
+#: What else the public artifact does not carry: the vendor subscription plans, which `/v1` never
+#: serves and one vendor's terms keep from public display (the M19-W5 review's M2).
 _REMOVE_ALSO = {
     "plan_models": "DELETE FROM plan_models",
     "plans": "DELETE FROM plans",

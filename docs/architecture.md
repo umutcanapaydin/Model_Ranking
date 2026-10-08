@@ -259,8 +259,9 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
     error or text stays pasted content unless a model question follows the colon.
   - An understood question is answered from the closest board, never "not measured" (D-187): a
     request to make or change an image from `vision`, a question about speed or sound from the
-    closest surface. Only a question that names no surface and scores below the wording tier's floor
-    is "not understood".
+    closest surface. "Not understood" is left for a question that names no surface and either scores
+    below the wording tier's floor or is in a language the embedding does not read; it goes to the
+    manual tier and offers Change.
   - A note or a question back sends no request and records no gap.
 - **Refinements** (`Refinements.swift`, D-168): a declared table of Arena text slices, eight task
   languages and eight domains, each with the surfaces it may refine. At most two are added. A

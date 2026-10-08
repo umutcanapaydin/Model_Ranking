@@ -114,6 +114,11 @@ enum CategoryHints {
     /// What this catalogue does NOT measure, in the words a person would use. M13-W3 review
     /// BLOCKING-1.
     ///
+    /// **Since D-187 (the owner's ruling, 2026-10-08) these decline nothing.** A question closest to
+    /// the first group (making or changing an image) is answered from `vision`; one closest to the
+    /// others (sound and video, speed and context) from the closest surface. The history below is
+    /// why the groups exist; read it as such.
+    ///
     /// The model tier can say "none of these" through its decline sentinel. The wording tier had no
     /// such way out: its only refusal is a similarity FLOOR, and a question about a photo is not
     /// "nothing like anything" — it is least unlike `everyday`, so it landed there as a MEASURED
@@ -219,75 +224,114 @@ extension CategoryHints {
     /// embedding, or a Turkish question (on the owner's TestFlight build every one of those was
     /// answered "not measured").
     ///
-    /// **The order is the decision.** The first rule a question's words meet decides, so the more
-    /// specific surface comes first: an agent that codes is `agentic-coding`, a web site is `web-dev`,
-    /// a cited search is `search_factuality`, a click through a site is `computer-use`. `everyday` is
-    /// last and reads a question about AI models in general.
+    /// **Only words with one reading.** A word a reader also uses for something else is not here, or
+    /// is here only inside a phrase (the hotfix review's B2): "book" is `book a`, "agent" is `ai agent`,
+    /// "react" is `react app`, "express" is `express js`, and a time word ("today", "güncel") names no
+    /// surface at all (its B1).
     ///
-    /// `stems` match the start of a word (`kod` reads `kodlama`, `kodumu`), `words` match a whole word,
-    /// and each phrase is words in a row, each read by its start. Written from the surfaces'
-    /// descriptions above, never from a held-out set.
+    /// **The order is the decision.** The first rule a question's words meet decides, so the more
+    /// specific surface comes first: an agent that codes before code, a booking or a click through a
+    /// site before a site, code before a search ("binary search in python"), a cited search before
+    /// a search. `everyday` is last and reads a question about AI models in general.
+    ///
+    /// Every word is compared in plain letters (`plain`), so Turkish typed without its letters
+    /// ("yazilim", "tibbi") reads as Turkish typed with them (the review's M2). `stems` match the start
+    /// of a word, `words` the whole word, and each phrase is words in a row, a trailing `*` reading a
+    /// word by its start. Written from the surfaces' descriptions and the tuning and retired sets, never
+    /// from a live held-out set.
     static let surfaceWords: [(id: String, stems: [String], words: [String], phrases: [[String]])] = [
-        ("agentic-coding", ["agent", "ajan", "otonom", "autonomous"], [],
-         [["on", "its", "own"], ["by", "itself"], ["kendi", "başına"]]),
-        ("computer-use", ["browser", "tarayıcı", "click", "tıkla", "booking", "rezervasyon"], ["book"],
-         [["computer", "use"], ["bilgisayar", "kullan"], ["fill", "in", "form"], ["form", "doldur"]]),
-        ("web-dev", ["website", "webpage", "frontend", "landing", "html", "tailwind", "nextjs", "site", "flexbox",
-                     "navbar", "responsive"], ["css", "react"],
-         [["web", "site"], ["web", "sayfa"], ["web", "app"], ["web", "uygulama"], ["web", "develop"],
-          ["web", "geliştir"], ["front", "end"]]),
-        ("search_factuality", ["cite", "kaynakça"], [], [["kaynak", "göster"], ["kaynaklarıyla"]]),
-        ("search", ["search", "google", "internet", "news", "haber", "arama", "araştır"],
-         ["today", "latest", "güncel", "bugün"], [["look", "up"], ["right", "now"], ["şu", "an"]]),
-        ("coding", ["code", "coding", "coder", "program", "developer", "debug", "python", "javascript",
-                    "typescript", "rust", "swift", "kotlin", "golang", "kod", "yazılım", "geliştirici",
-                    "refactor", "script", "error", "exception", "typeerror", "indexerror", "keyerror",
-                    "valueerror", "syntaxerror", "attributeerror", "importerror", "nullpointer",
-                    "outofmemory", "unicodedecode", "traceback", "compile", "function", "fonksiyon",
-                    "query", "sorgu", "regex", "django", "flask", "fastapi", "express", "node", "npm",
-                    "postgre", "mysql", "sqlite", "mongo", "pandas", "numpy", "pytest", "jest", "docker",
-                    "kubernetes", "gitlab", "github", "flutter", "laravel", "eloquent", "spring",
-                    "sqlalchemy", "algorithm", "algoritma", "döngü", "değişken", "deadlock", "async",
-                    "backend", "migration", "migrate", "deploy", "compiler", "awk", "bash"],
-         ["bug", "bugs", "sql", "java", "repo", "git", "orm", "cors", "jest"],
-         [["unit", "test"], ["birim", "test"], ["merge", "conflict"]]),
-        ("factuality", ["hallucinat", "halüsinasyon", "factual", "doğruluk", "uydur"], ["fact", "facts"],
-         [["make", "up"], ["made", "up"], ["making", "up"]]),
+        ("agentic-coding", ["agentic", "autonomous", "otonom"],
+         ["ajan", "ajani", "ajanlar", "ajanlari", "ajanin"],
+         [["coding", "agent*"], ["code", "agent*"], ["ai", "agent*"], ["kod", "ajan*"], ["on", "its", "own"],
+          ["by", "itself"], ["kendi", "basina"], ["kendi", "kendine"]]),
+        ("computer-use", [], [],
+         [["computer", "use"], ["bilgisayar", "kullan*"], ["use", "my", "browser"], ["drive", "my", "browser"],
+          ["control", "my", "browser"], ["browser", "automation"], ["tarayici", "otomasyon*"],
+          ["fill", "in", "form*"], ["fill", "out", "form*"], ["form", "doldur*"], ["click", "through"],
+          ["book", "a"], ["book", "me"], ["rezervasyon", "yap*"]]),
+        ("web-dev", ["website", "webpage", "frontend", "landing", "html", "tailwind", "nextjs", "reactjs",
+                     "flexbox", "navbar"],
+         ["css", "site", "sitesi", "siteyi", "sitem", "sitemi", "siteler"],
+         [["web", "site*"], ["web", "sayfa*"], ["web", "app*"], ["web", "uygulama*"], ["web", "develop*"],
+          ["web", "gelistir*"], ["front", "end"], ["react", "app*"], ["react", "component*"], ["react", "js"]]),
+        ("coding", ["code", "coding", "coder", "programming", "programmer", "programla", "programci", "debug",
+                    "python", "javascript", "typescript", "kotlin", "golang", "swiftui", "kod", "yazilim",
+                    "gelistirici", "refactor", "typeerror", "indexerror", "keyerror", "valueerror", "syntaxerror",
+                    "attributeerror", "importerror", "nullpointer", "outofmemory", "unicodedecode", "traceback",
+                    "compiler", "regex", "django", "fastapi", "expressjs", "nodejs", "postgre", "mysql", "sqlite",
+                    "mongodb", "pytest", "docker", "kubernetes", "gitlab", "github", "flutter", "laravel",
+                    "sqlalchemy", "algorithm", "algoritma", "deadlock", "backend", "stacktrace"],
+         ["bug", "bugs", "sql", "java", "repo", "git", "orm", "cors", "jest", "npm", "awk", "pandas", "numpy",
+          "query", "sorgu", "sorgusu", "sorguyu", "sorgum", "async"],
+         [["unit", "test*"], ["birim", "test*"], ["merge", "conflict*"], ["stack", "trace"], ["node", "js"],
+          ["express", "js"], ["express", "app*"], ["spring", "boot"], ["bash", "script*"], ["shell", "script*"],
+          ["python", "script*"], ["script", "that"], ["a", "script", "to"]]),
+        ("search_factuality", ["cite", "kaynakca"], [], [["kaynak", "goster*"]]),
+        ("factuality", ["hallucinat", "halusinasyon", "factual", "dogruluk", "uydur"], ["fact", "facts"],
+         [["make", "up"], ["made", "up"], ["making", "up"], ["makes", "up"]]),
         ("mathematics", ["math", "matematik", "equation", "denklem", "calculus", "algebra", "cebir", "geometr",
-                         "integral", "derivative", "türev", "probabilit", "olasılık", "istatistik", "statistic",
-                         "ispat", "theorem", "teorem", "prove", "prime", "asal"], ["proof"], []),
-        ("vision", ["image", "picture", "screenshot", "photograph", "görsel", "resim", "fotoğraf", "foto",
-                    "görüntü", "çiz"], ["photo", "photos", "ocr"], [["ekran", "görüntü"]]),
-        ("document", ["document", "contract", "summar", "doküman", "döküman", "belge", "sözleşme", "özet",
-                      "agreement", "makale", "tutanak"], ["pdf"], [["release", "notes"]]),
-        ("abstract", ["puzzle", "riddle", "logic", "bulmaca", "mantık", "örüntü", "sequence"], [],
-         [["comes", "next"], ["sıradaki", "sayı"]]),
-        ("expert", ["medical", "medicine", "doctor", "lawyer", "scien", "physics", "chemistry", "biology",
-                    "expert", "tıbb", "doktor", "hukuk", "avukat", "bilim", "fizik", "kimya", "biyoloji", "uzman"],
-         ["law", "legal"], []),
-        ("assistant", ["chatbot", "sohbet", "assistant", "asistan"], ["chat"], []),
-        ("everyday", ["everyday", "günlük"], ["llm", "llms"],
-         [["yapay", "zek"], ["best", "ai"], ["which", "ai"], ["hangi", "yapay"]]),
+                         "integral", "derivative", "turev", "probabilit", "olasilik", "istatistik", "statistic",
+                         "ispat", "theorem", "teorem"], ["proof", "prove", "asal"], [["prime", "number*"]]),
+        ("document", ["document", "contract", "summar", "dokuman", "belge", "sozlesme", "ozet", "agreement",
+                      "makale", "tutanak"], ["pdf"], [["release", "notes"]]),
+        ("vision", ["image", "picture", "screenshot", "photograph", "gorsel", "resim", "fotograf", "goruntu",
+                    "cizim"], ["photo", "photos", "ocr", "ciz", "cizer", "cizen", "cizsin", "cizebilir", "foto"],
+         [["ekran", "goruntu*"]]),
+        ("abstract", ["puzzle", "riddle", "bulmaca", "oruntu", "sequence"], ["logic", "mantik", "mantigi"],
+         [["comes", "next"], ["siradaki", "sayi*"], ["zeka", "soru*"]]),
+        ("expert", ["medical", "medicine", "lawyer", "scien", "physics", "chemistry", "biology", "tibb", "doktor",
+                    "hukuk", "avukat", "fizik", "kimya", "biyoloji", "uzman"], ["law", "legal", "bilim", "doctor", "expert"], []),
+        ("search", ["internet", "arastir"], ["search", "searches", "searching", "news", "haber", "haberler",
+                                              "haberleri", "arama", "aramasi"],
+         [["web", "search"], ["search", "the", "web"], ["look", "up"], ["search", "online"], ["internette", "ara*"]]),
+        ("assistant", ["chatbot", "sohbet", "asistan", "assistant"], ["chat"], []),
+        ("everyday", ["everyday", "gunluk"], ["llm", "llms"],
+         [["yapay", "zek*"], ["best", "ai"], ["which", "ai"], ["hangi", "yapay"], ["en", "iyi", "model*"],
+          ["best", "model*"], ["which", "model*"], ["hangi", "model*"]]),
     ]
+
+    /// A word in plain letters: lower case, and the Turkish letters as the ones a reader types without
+    /// them, so a list written plain reads both spellings.
+    static func plain(_ word: String) -> String {
+        let pairs: [Character: Character] = ["ı": "i", "ş": "s", "ğ": "g", "ü": "u", "ö": "o", "ç": "c",
+                                             "â": "a", "î": "i", "û": "u", "i̇": "i"]
+        return String(word.lowercased().map { pairs[$0] ?? $0 }).replacingOccurrences(of: "\u{307}", with: "")
+    }
+
+    /// An agent named beside code is an agent that codes: "agent" alone is a user agent, a travel
+    /// agent or a browser agent (the hotfix review's B2), so it names `agentic-coding` only with a
+    /// word of the `coding` rule.
+    static let agentWords = ["agent", "agents", "ajan", "ajani", "ajanlar"]
 
     /// The surface a question names outright, among those the engine served, or nil.
     static func namedSurface(_ question: String, within known: [String]) -> String? {
-        let readings = InputSignals.folds(question).map(InputSignals.wordsOf)
+        let readings = InputSignals.folds(question).map { InputSignals.wordsOf($0).map(plain) }
+        if known.contains("agentic-coding"), let coding = surfaceWords.first(where: { $0.id == "coding" }),
+           readings.contains(where: { words in words.contains(where: agentWords.contains) && names(coding, words) }) {
+            return "agentic-coding"
+        }
         for rule in surfaceWords where known.contains(rule.id) {
-            let named = readings.contains { words in
-                words.contains { word in rule.words.contains(word) || rule.stems.contains(where: word.hasPrefix) }
-                    || rule.phrases.contains { phrase in inRow(phrase, words) }
-            }
-            if named { return rule.id }
+            if readings.contains(where: { names(rule, $0) }) { return rule.id }
         }
         return nil
     }
 
-    /// Whether `phrase` stands in `words` as words in a row, each read by its start.
+    /// Whether `words` hold one of the rule's words, stems or phrases.
+    private static func names(_ rule: (id: String, stems: [String], words: [String], phrases: [[String]]),
+                              _ words: [String]) -> Bool {
+        words.contains { word in rule.words.contains(word) || rule.stems.contains(where: word.hasPrefix) }
+            || rule.phrases.contains { phrase in inRow(phrase, words) }
+    }
+
+    /// Whether `phrase` stands in `words` as words in a row: each whole, or by its start where it ends
+    /// in `*`.
     private static func inRow(_ phrase: [String], _ words: [String]) -> Bool {
         guard !phrase.isEmpty, phrase.count <= words.count else { return false }
         return (0...(words.count - phrase.count)).contains { start in
-            phrase.indices.allSatisfy { words[start + $0].hasPrefix(phrase[$0]) }
+            phrase.indices.allSatisfy { index in
+                let part = phrase[index], word = words[start + index]
+                return part.hasSuffix("*") ? word.hasPrefix(String(part.dropLast())) : word == part
+            }
         }
     }
 }
@@ -389,7 +433,11 @@ struct SimilarityRouter: QuestionRouter {
             let vectors = (CategoryHints.examples[id] ?? []).compactMap(vector)
             if !vectors.isEmpty { hints.append((id, vectors)) }
         }
-        guard hints.count > 1, let query = vector(text) else { return nil }
+        // The hotfix review's M3: an embedding that loads and cannot read this question still leaves
+        // a surface the question names.
+        guard hints.count > 1, let query = vector(text) else {
+            return named.map { RoutingOutcome(categoryID: $0, tier: .similarity, unmeasured: false) }
+        }
 
         // CENTRE THE SPACE, and this line is the difference between a router and a decoration.
         // Contextual embeddings are anisotropic: every vector carries a large component they all
