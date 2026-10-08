@@ -228,6 +228,6 @@ def test_d188_lists_every_family_as_the_code_holds_it() -> None:
 
     text = (pathlib.Path(__file__).resolve().parents[2] / "docs" / "decisions.md").read_text(encoding="utf-8")
     adr = text.split("\n## D-188", 1)[1].split("\n## ", 1)[0]
-    rows = re.findall(r"^\| `([a-z_-]+)` \| ((?:`[a-z_]+`(?:, )?)+) \|$", adr, re.MULTILINE)
-    tabled = {surface: tuple(re.findall(r"`([a-z_]+)`", boards)) for surface, boards in rows}
+    rows = re.findall(r"^\s*\| `([a-z_-]+)` \| ((?:`[a-z0-9_]+`(?:, )?)+) \|$", adr, re.MULTILINE)
+    tabled = {surface: tuple(re.findall(r"`([a-z0-9_]+)`", boards)) for surface, boards in rows}
     assert tabled == families.FAMILIES, {s: (tabled.get(s), f) for s, f in families.FAMILIES.items() if tabled.get(s) != f}
