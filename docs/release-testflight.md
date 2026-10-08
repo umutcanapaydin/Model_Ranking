@@ -41,9 +41,12 @@ record, `docs/reviews/release-security.md`, is PASS or MINOR (not BLOCKING).**
    the hosted engine: `/health` names the build, a coding question gets real picks, and every
    surface answers or says why it cannot.
 
-**Cost.** Nothing limits how often the public engine is called, and Fly bills traffic out of it (a
-`/v1/boards` answer is about 0.5 MB). Fly has no billing alert and no spending cap, so look at the
-dashboard's usage page now and then once the app is shared; a rate limit is #187.
+**Cost.** Fly bills traffic out of the public engine (a `/v1/boards` answer is about 0.5 MB), and
+has no billing alert and no spending cap. Since M20-W5 (#187) the engine answers one client at most
+`MODEL_RANKING_RATE_LIMIT` times a minute (120 in `fly.toml`; `/health` is never limited), so one
+scraper can draw at most about 0.5 MB x 120 = 60 MB a minute, not the link's whole speed. The limit
+is per Fly machine and kept in memory, and it fails open: if it breaks, the request is served. Still
+look at the dashboard's usage page now and then once the app is shared.
 
 **After each deploy, log out:** `fly auth logout`. While you are logged in, a coding agent on this
 Mac could deploy or destroy the app (#190).
