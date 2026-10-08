@@ -4410,7 +4410,27 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    already on `/v1/boards`. The phone never keeps its own copy. A family holds at most one board of
    each source (Arena's slices are facets of one vote); two publishers of one benchmark are two boards
    (D-168 clause 5). Every other board stands outside every family with its reason: a language or a
-   domain the question adds as a refinement, or a facet no surface measures.
+   domain the question adds as a refinement, or a facet no surface measures. Each search surface keeps
+   its one board: Arena's search and search-factuality boards rank the same models from one vote (the
+   W1 Tester's M1). The families (`app.workflows.families`, held equal to this table by a test):
+
+   | surface | family, the primary first |
+   |---|---|
+   | `coding` | `swebench`, `epoch_swe_bench_verified`, `aider`, `arena_text_coding` |
+   | `agentic-coding` | `epoch_deepswe_external`, `epoch_terminalbench`, `arena_agent` |
+   | `assistant` | `arena` |
+   | `everyday` | `epoch_eci`, `arena`, `epoch_mmlu` |
+   | `expert` | `epoch_gpqa`, `arena_text_expert`, `epoch_mmlu` |
+   | `mathematics` | `epoch_aime`, `epoch_frontiermath`, `epoch_frontiermath_t4`, `arena_text_math` |
+   | `computer-use` | `epoch_terminalbench`, `arena_agent` |
+   | `abstract` | `epoch_arc_agi`, `epoch_chess`, `epoch_mystery` |
+   | `web-dev` | `epoch_webdev`, `arena_text_coding` |
+   | `document` | `arena_document`, `arena_text_longer_query` |
+   | `factuality` | `arena_factuality`, `epoch_simpleqa` |
+   | `vision` | `arena_vision` |
+   | `search` | `arena_search` |
+   | `search_factuality` | `arena_search_factuality` |
+
 2. **Coverage.** A model enters the combined list when at least half of the family's boards rank it,
    rounded up, and at least one. With two boards, either is enough; "and at least two" was dropped after
    the W1 review measured it: on the served boards it turned a two-board family into the intersection
