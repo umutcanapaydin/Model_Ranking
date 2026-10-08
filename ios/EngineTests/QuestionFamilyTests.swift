@@ -66,7 +66,7 @@ final class QuestionFamilyTests: OfflineTestCase {
     func testAnEngineWithNoFamilyLeavesThePrimaryBoardFirst() {
         XCTAssertEqual(Refinements.familyBoards(primary: "arena", family: [], surface: "assistant",
                                                 chosen: refinements(["german", "french"])),
-                       ["arena", "arena_text_french", "arena_text_german"])
+                       ["arena", "arena_text_german", "arena_text_french"], "within a kind, the order chosen")
         XCTAssertEqual(Refinements.boards(primary: "arena", surface: "assistant", chosen: refinements(["legal"])),
                        ["arena", "arena_text_industry_legal_and_government"])
     }

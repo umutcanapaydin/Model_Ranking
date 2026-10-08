@@ -3311,6 +3311,8 @@ owner rulings of the same day, asked in Turkish.
    `/v1/recommendations`: the same request a reader's own tap on that surface makes. The question's
    text, its refinements and the reader's removals never leave the device.
 
+**Amended by D-188 (2026-10-08, proposed)**: clause 4 -- where the on-device model did not read the question, the answer plan reads its refinements from the words (D-188 clause 6); the routing outcome still carries none.
+
 ## D-169 — A question that is not a model search gets a guiding note, not a ranking
 
 **Status:** accepted -- **ruled by the owner 2026-09-28** (asked in Turkish, with explanations, seven
@@ -4453,6 +4455,15 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
 5. **The default.** The combined list is the default answer on every surface. The primary board's own
    answer (the picks and their price notes) is one tap away. Ruling A holds: coding shows two
    families, neither leading.
+6. **Refinements from the words (amends D-168 clause 4; the W3 review's B1).** Where the on-device
+   model did not read the question (it is off, or another tier answered), the words choose the
+   refinements it would have: `Refinements.read`, in English and Turkish, from words with one reading
+   only. An English language name counts only as the task's language ("in French", "learn Spanish",
+   "Korean translation"), since it is also a nationality ("German cars"); a domain word with a second
+   meaning is not read (law, health, a novel approach). The answer plan is the one reader, a gate holds
+   it, and `familyBoards` keeps only what the surface allows, at most two, languages first. The routing
+   outcome still carries refinements only from `ModelOutputBoundary`. Where the model read the
+   question, its choice stands, none included.
 
 **The alternative.** Keep "every board ranks it" over the two or three boards most models share. It is
 simpler, but a new model ranked by two boards out of eight would never appear.
