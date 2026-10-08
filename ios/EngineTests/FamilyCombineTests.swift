@@ -142,6 +142,129 @@ final class FamilyCombineTests: OfflineTestCase {
         XCTAssertEqual(withGone.boards.map(\.id), ["p", "q"])
     }
 
+    // MARK: - The M20-W2 Tester's tests: faults that passed every test above
+
+    /// covers REQ-CMB-002 (D-188 clause 3) -- the M20-W2 Tester's M1: the place is the MEAN over the
+    /// boards that rank a model. y: (0.25 + 0.5) / 2 = 0.375 on two boards; x: 0.5 on one. A sum (y 0.75)
+    /// or a mean over every board (x 0.25) puts x first.
+    func testTheMeanIsOverTheBoardsThatRankTheModel() throws {
+        let p = board("p", [("m1", 1), ("y", 2), ("x", 3), ("m4", 4), ("m5", 5)])
+        let q = board("q", [("z", 1), ("y", 2), ("w", 3)])
+        let list = try combineFamily(standings([p, q]), boards: ["p", "q"], asOf: today)
+        XCTAssertEqual(order(list), ["m1", "z", "y", "x", "m4", "m5", "w"])
+        XCTAssertEqual(list.entries.map(\.place), [1, 1, 3, 4, 5, 6, 6])
+    }
+
+    /// covers REQ-CMB-002 (D-188 clause 3) -- the M20-W2 Tester's M2: three models sharing a position share
+    /// one place, and the next model is placed after all three (1, 1, 1, 4), not after the second.
+    func testThreeModelsSharingAPositionShareOnePlace() throws {
+        let list = try combineFamily(standings([board("p", [("c", 1), ("a", 1), ("b", 1), ("d", 4)])]),
+                                     boards: ["p"], asOf: today)
+        XCTAssertEqual(order(list), ["a", "b", "c", "d"])
+        XCTAssertEqual(list.entries.map(\.place), [1, 1, 1, 4])
+    }
+
+    /// covers REQ-CMB-002 (D-188 clause 2) -- the M20-W2 Tester's M3: a board named twice in a family
+    /// counts once, so it neither raises the coverage nor counts a model's position twice.
+    func testABoardNamedTwiceCountsOnce() throws {
+        let data = standings([board("p", [("a", 1), ("b", 2)]), board("q", [("c", 1), ("a", 2)])])
+        let once = try combineFamily(data, boards: ["p", "q"], asOf: today)
+        XCTAssertEqual(try combineFamily(data, boards: ["p", "q", "p"], asOf: today), once)
+    }
+
+    /// covers REQ-CMB-002 (D-188 clause 2) -- the M20-W2 Tester's M3: a model one board lists twice (only
+    /// a bad payload could) stands on that board once, so it does not reach the coverage on it alone.
+    func testAModelListedTwiceOnABoardCountsOnce() throws {
+        let data = standings([board("p", [("a", 1), ("a", 2), ("b", 3)]), board("q", [("b", 1)]),
+                              board("r", [("c", 1)])])
+        let list = try combineFamily(data, boards: ["p", "q", "r"], asOf: today)
+        XCTAssertEqual(list.coverage, 2)
+        XCTAssertEqual(order(list), ["b"], "a stands on one board of three, however often that board lists it")
+    }
+
+    /// covers REQ-CMB-002 (D-188 clause 3) -- the M20-W2 Tester's M3: a position past the board's size
+    /// counts as its last place, so one bad row cannot outweigh every other board.
+    func testAPositionPastTheBoardsSizeCountsAsItsLast() throws {
+        let data = standings([board("p", [("a", 1), ("b", 9)]), board("q", [("b", 1), ("a", 2)])])
+        let list = try combineFamily(data, boards: ["p", "q"], asOf: today)
+        XCTAssertEqual(places(list)["a"], places(list)["b"], "b is last on p and first on q, a the other way")
+    }
+
+    /// covers REQ-CMB-002 -- the M20-W2 Tester's M3, the W2 review's R2 from the other side: a model the
+    /// model list lacks takes no place, so the models after it keep theirs.
+    func testAModelTheModelListLacksTakesNoPlace() throws {
+        let data = Standings(apiVersion: "v1", attributions: [],
+                             boards: [board("p", [("ghost", 1), ("a", 2), ("b", 3)])],
+                             models: ["a", "b"].map { StandingModel(id: $0, display: $0, vendor: "V",
+                                                                    blendedPerM: 1, accessibility: nil) })
+        let list = try combineFamily(data, boards: ["p"], asOf: today)
+        XCTAssertEqual(order(list), ["a", "b"])
+        XCTAssertEqual(list.entries.map(\.place), [1, 2])
+    }
+
+    /// covers REQ-CMB-002 -- the M20-W2 Tester's M3: a board that ranks no model is not among the list's
+    /// boards, the ones the detail screen names as the list's sources.
+    func testABoardThatRanksNoModelIsNotAmongTheListsBoards() throws {
+        let data = standings([board("p", [("a", 1)]), board("empty", [])])
+        XCTAssertEqual(try combineFamily(data, boards: ["p", "empty"], asOf: today).boards.map(\.id), ["p"])
+    }
+
+    /// covers REQ-CMB-002 (D-188 clause 3) -- the M20-W2 Tester's M3: equal means summed in a different
+    /// order are still equal, so they share a place. a is 0.1, 0.2, 0.3 on p, q, r, and b 0.3, 0.2, 0.1;
+    /// in floating point 0.1 + 0.2 + 0.3 is not 0.3 + 0.2 + 0.1.
+    func testEqualMeansSummedInADifferentOrderShareAPlace() throws {
+        // A board of eleven: a and b where given (sharing one position on q), the rest filled in.
+        func eleven(_ id: String, a: Int, b: Int) -> BoardStandings {
+            let taken: Set<Int> = a == b ? [a, a + 1] : [a, b]
+            let others = (1...11).filter { !taken.contains($0) }.map { ("o\($0)", $0) }
+            return board(id, ([("a", a), ("b", b)] + others).sorted { $0.1 < $1.1 })
+        }
+        let data = standings([eleven("p", a: 2, b: 4), eleven("q", a: 3, b: 3), eleven("r", a: 4, b: 2)])
+        XCTAssertEqual(data.boards.map(\.standings.count), [11, 11, 11])
+        let list = try combineFamily(data, boards: ["p", "q", "r"], asOf: today)
+        XCTAssertNotNil(places(list)["a"])
+        XCTAssertEqual(places(list)["a"], places(list)["b"], "a and b both average 0.2")
+    }
+
+    /// covers REQ-CMB-002 (D-188 clause 3) -- the M20-W2 Tester's M3: two means a thousandth apart stay
+    /// apart (a board of 1001 models; the served boards' steps are about that fine).
+    func testMeansAThousandthApartStayApart() throws {
+        let rows = (1...1001).map { ("m\(String(format: "%04d", $0))", $0) }
+        let list = try combineFamily(standings([board("big", rows)]), boards: ["big"], asOf: today)
+        XCTAssertEqual(Array(list.entries.prefix(3).map(\.place)), [1, 2, 3])
+    }
+
+    /// covers REQ-CMB-002 -- the M20-W2 Tester's M3: a payload carrying one board id twice is read at its
+    /// first copy, as `combine` reads it and as the scan the W2 review's M5 replaced did.
+    func testABoardIdSentTwiceIsReadAtItsFirstCopy() throws {
+        let data = standings([board("p", [("a", 1), ("b", 2)]), board("p", [("b", 1), ("a", 2)])])
+        XCTAssertEqual(order(try combineFamily(data, boards: ["p"], asOf: today)), ["a", "b"])
+    }
+
+    /// covers REQ-CMB-003 (D-188 clause 4) -- the M20-W2 Tester's M3: a date the phone cannot read cannot
+    /// be aged, so the board is named as an undated one is; a date with a time is read by its day.
+    func testAnUnreadableDateIsNamed() throws {
+        let data = standings([board("p", [("a", 1)], date: "Sept 2026"),
+                              board("q", [("a", 1)], date: "2026-07-10T23:59:59Z")])
+        XCTAssertEqual(try combineFamily(data, boards: ["p", "q"], asOf: today).staleBoards, ["p"])
+    }
+
+    /// covers REQ-CMB-002 -- the W2 review's M5, whose fix shipped without a test: a family's boards are
+    /// looked up once by id, so a family list near `/v1/categories`' size cap cannot freeze the screen
+    /// (#74's failure by a new path). The scan it replaced took 33.7 s for 25,000 boards. Undated boards,
+    /// so the time measured is the lookup's.
+    func testAFamilyOfManyBoardsCombinesWithoutFreezing() throws {
+        let count = 25_000
+        let boards = (0..<count).map { board(String(format: "b%05d", $0), [("a", 1)], date: nil) }
+        let data = standings(boards)
+        let started = Date()
+        let list = try combineFamily(data, boards: boards.map(\.id), asOf: today)
+        let seconds = Date().timeIntervalSince(started)
+        XCTAssertEqual(list.boards.count, count)
+        XCTAssertEqual(order(list), ["a"])
+        XCTAssertLessThan(seconds, 5, "combineFamily took \(seconds) s for a family of \(count) boards")
+    }
+
     func testAFamilyWithNoKnownBoardIsRefused() {
         let data = standings([board("p", [("a", 1)])])
         XCTAssertThrowsError(try combineFamily(data, boards: ["nope"], asOf: today)) {
