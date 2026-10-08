@@ -197,6 +197,27 @@ final class KeywordRoutingTests: OfflineTestCase {
         XCTAssertEqual(CategoryHints.namedSurface("user agent string parsing in python", within: known), "coding")
     }
 
+    /// The third review's M1 to M6: a product the reader is choosing is not a thing to build; a code of
+    /// conduct, a platform's algorithm, data science, a documentary, an article to write are not what
+    /// their stems name; "for me" alone is not operating a computer.
+    func testTheThirdReviewsWordsAreReadAsTheyAreMeant() async {
+        assertNotNamed([
+            ("benim yerime ödev yapan yapay zeka", "computer-use"), ("benim yerime mail yazan yapay zeka", "computer-use"),
+            ("how do i operate my new coffee machine", "computer-use"),
+            ("best ai software for video editing", "coding"), ("which ai has the best ios app", "coding"),
+            ("yapay zeka yazılımı öner", "coding"), ("best ai website for students", "web-dev"),
+            ("our code of conduct for the office", "coding"), ("how does the instagram algorithm work", "coding"),
+            ("best model for data science", "expert"), ("computer science homework help", "expert"),
+            ("fiziksel terapi egzersizleri", "expert"), ("en iyi bilim kurgu filmleri", "expert"),
+            ("en iyi belgesel önerisi", "document"), ("bir makale yaz", "document"),
+            ("which ai works without internet", "search"),
+        ])
+        await assertRoutes([("best ai to chat with pdfs", "document"), ("which model can operate my computer", "computer-use")])
+        for question in ["chatgpt mi gemini mi daha iyi", "claude mu chatgpt mi"] {
+            XCTAssertEqual(CategoryHints.generalSurface(question, within: known), "everyday", question)
+        }
+    }
+
     /// The second review's R2: a question about AI models in general names no surface; the embedding
     /// reads it where it can, and `everyday` answers it where it cannot (a Turkish question).
     func testAGeneralQuestionIsTheEmbeddingsOrEverydaysWhereItCannotRead() async {
