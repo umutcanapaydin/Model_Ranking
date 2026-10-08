@@ -39,7 +39,7 @@ beside it where a wave touches nothing M20 touches.
 - **#214, #216** (from M20-W1's and M20-W2's reviews): the board tables read without the client, and one
   90-day line in the engine.
 
-### W2 — Reading what is not a search (risk: **HIGH**; #66, #194, #180, #186, #193, #199, #218, #222)
+### W2 — Reading what is not a search (risk: **HIGH**; #66, #194, #180, #186, #193, #199, #218, #222, #226)
 
 `Router.swift` and `Reading.swift`.
 - **#194:** the exclusions come from the registry's model families, not eleven brands.
@@ -63,7 +63,7 @@ The privacy sinks and the arithmetic rule (D-180, D-181).
 **The one alternative:** stop at the routes a reader's text can actually take today. That is less
 work, but the reviews found each of these routes by planting it.
 
-### W4 — The controls (risk: **HIGH**; #122, #178, #179, #181, #182, #183, #108, #189, #200 to #203)
+### W4 — The controls (risk: **HIGH**; #122, #178, #179, #181, #182, #183, #108, #189, #200 to #203, #227)
 
 Gate definitions change, so the owner reviews the wave (AGENTS.md §3).
 - **#200 to #203:** `make check-records` and `make wave-check` read the ADR pointers and timing, the
@@ -96,9 +96,9 @@ About 2M tokens; not measured per wave.
 | Wave | Issues |
 |---|---|
 | W1 | #163, #164, #165, #124, #185, #166, #198, #205, #214, #216 |
-| W2 | #66, #194, #180, #186, #193, #199, #218, #222 |
+| W2 | #66, #194, #180, #186, #193, #199, #218, #222, #226 |
 | W3 | #85, #132, #168, #169, #170, #171, #172, #173, #174, #175, #188, #219, #220, #223 |
-| W4 | #122, #178, #179, #181, #182, #183, #108, #189, #200, #201, #202, #203 |
+| W4 | #122, #178, #179, #181, #182, #183, #108, #189, #200, #201, #202, #203, #227 |
 
 **Left out:** #81, #115, #190: the owner's (CI workflow, the phone's prompt, the owner's settings).
 

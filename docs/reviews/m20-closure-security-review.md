@@ -272,3 +272,13 @@ All were run in memory or on a scratch copy. The worktree was not written, and `
 
 **Network.** None. No `gh` call was needed. Every probe ran in process against a seeded scratch
 database. No process of mine is still running, and none ended in SIGABRT.
+
+## Dispositions, at the closure
+
+| finding | disposition |
+|---|---|
+| S1 | fixed `1a8ebcf` (red `e1ae742`): a `/v1/boards` answer counts as thirty requests; the runbook names the /48 |
+| S2 | fixed `1a8ebcf` (red `e1ae742`): the Host check runs before the limiter |
+| S3 | fixed `1a8ebcf`: positions clamped, a family cut to 16 boards in one pass |
+| S4 | fixed `1a8ebcf`: INV-88 and INV-89 in the register |
+| S5 | gap G-9 under #187: the owner's header check after the deploy (`docs/release-testflight.md`) |

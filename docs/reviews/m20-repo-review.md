@@ -255,12 +255,12 @@ findings lie between the waves.
 
 | finding | severity | disposition |
 |---|---|---|
-| M1 | MAJOR | to be fixed or filed at the closure |
-| M2 | MINOR | to be fixed or filed at the closure |
-| M3 | MINOR | to be fixed or filed at the closure |
-| M4 | MINOR | to be fixed or filed at the closure |
-| M5 | MINOR | to be fixed or filed at the closure |
-| M6 | MINOR | to be fixed or filed at the closure |
-| M7 | MINOR | to be fixed or filed at the closure |
-| M8 | MINOR | to be fixed or filed at the closure |
-| M9 | MINOR | to be fixed or filed at the closure |
+| M1 | MAJOR | fixed `fe2b906` (red `188f61e`): a refinement takes the place of its vote's board (D-188 clause 6) |
+| M2 | MINOR | fixed `38b9a7b` (the runbook's build 3 order; the header check 25 at a time) |
+| M3 | MINOR | fixed `38b9a7b` |
+| M4 | MINOR | fixed `38b9a7b`; #210 retitled |
+| M5 | MINOR | #226; D-188's revisit amended `38b9a7b` |
+| M6 | MINOR | fixed `38b9a7b` |
+| M7 | MINOR | fixed `38b9a7b` (architecture, AGENTS.md) and `1a8ebcf` (INV-88, INV-89) |
+| M8 | MINOR | fixed `38b9a7b` (D-187's Amended-by line) |
+| M9 | MINOR | fixed at the closure: the M20 process-log entries and the ledger's two M20 rows; #203 stays in M21-W4 |
