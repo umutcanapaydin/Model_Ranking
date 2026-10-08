@@ -181,7 +181,8 @@ final class ScreenPathTests: XCTestCase {
         XCTAssertTrue(more.label.hasPrefix("Show all"), more.label)
         XCTAssertTrue(app.buttons["seeTheBoards"].exists)
         // #67: the plan's disclosures reach the screen on this branch too.
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH \"The app's own list\""))
+        // The W4 review's B1: a family list says it is our own order, built from its boards.
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH \"Our own list, built from\""))
             .firstMatch.exists, "the combined list does not say its order is the product's own")
         keep("the combined list, shortened")
         bringIntoView(more)
