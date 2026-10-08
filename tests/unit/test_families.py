@@ -168,7 +168,8 @@ def _arena_votes() -> dict[str, str]:
 #: `arena_agent` against its own steerability facet (0.921), which stands outside. The W1 Tester's M1.
 #: Either the search factuality board leaves these families, or D-188 records that a factuality config is a
 #: vote of its own and `_arena_votes` says so; either way this set empties.
-_OPEN_ONE_VOTE_TWICE = {"search", "search_factuality"}
+#: Settled by the W1 Tester's M1: each search surface keeps its one board, so no family is open here.
+_OPEN_ONE_VOTE_TWICE: set[str] = set()
 
 
 def test_no_family_holds_two_boards_of_one_arena_vote() -> None:
@@ -217,3 +218,16 @@ def test_every_board_the_live_route_serves_is_in_a_family_or_named_outside(clien
     in_a_family = {board for family in named.values() for board in family}
     assert served <= in_a_family | set(families.OUTSIDE_FAMILIES), sorted(served - in_a_family - set(families.OUTSIDE_FAMILIES))
     assert {named[surface][0] for surface in named} & served, "no served board leads a family"
+
+
+def test_d188_lists_every_family_as_the_code_holds_it() -> None:
+    """The W1 Tester's M4: a board moved from one family to another passed every test, and D-188, which
+    records the families, listed only their sizes. D-188's family table equals `FAMILIES`, board for
+    board and in order."""
+    import re
+
+    text = (pathlib.Path(__file__).resolve().parents[2] / "docs" / "decisions.md").read_text(encoding="utf-8")
+    adr = text.split("\n## D-188", 1)[1].split("\n## ", 1)[0]
+    rows = re.findall(r"^\| `([a-z_-]+)` \| ((?:`[a-z_]+`(?:, )?)+) \|$", adr, re.MULTILINE)
+    tabled = {surface: tuple(re.findall(r"`([a-z_]+)`", boards)) for surface, boards in rows}
+    assert tabled == families.FAMILIES, {s: (tabled.get(s), f) for s, f in families.FAMILIES.items() if tabled.get(s) != f}
