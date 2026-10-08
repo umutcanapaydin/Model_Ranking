@@ -64,7 +64,7 @@ struct Category: Decodable, Identifiable, Equatable {
     /// this surface combines. `nil` from an engine older than W5, which then combines nothing.
     let primaryBoard: String?
     /// D-188 (M20-W1). The surface's family: every board that measures its task, the primary first,
-    /// by id. `nil` from an engine older than M20, which then combines the primary board alone.
+    /// by id. `nil` from an engine older than M20: the surface then has no family on the phone.
     let boards: [String]?
 
     enum CodingKeys: String, CodingKey {

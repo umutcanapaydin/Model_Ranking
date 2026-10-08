@@ -67,3 +67,57 @@ def test_the_categories_name_each_surfaces_family(client: TestClient) -> None:
     for surface in CATEGORIES:
         assert served[surface]["boards"] == list(families.FAMILIES[surface]), surface
         assert served[surface]["boards"][0] == served[surface]["primary_board"], surface
+
+
+# --- The M20-W1 Code-Reviewer (docs/reviews/m20-wave-1-review.md) ------------------------------------------
+
+
+def test_the_declared_boards_are_the_ones_the_engine_can_serve() -> None:
+    """M4: the gate reads four kinds of declaration; a fifth would be served and no gate would see it.
+    Every board the engine can attribute is one it can serve, so the two sets are compared."""
+    from app.workflows.rank import SOURCE_ATTRIBUTION
+
+    priced_only = {"litellm", "openrouter"}
+    assert _declared_boards() == set(SOURCE_ATTRIBUTION) - priced_only
+
+
+def _parent(board: str) -> str:
+    """The board a facet belongs to: Arena's text, vision and agent boards publish slices of one vote."""
+    for prefix, parent in (("arena_text_", "arena"), ("arena_vision_", "arena_vision"), ("arena_agent_", "arena_agent")):
+        if board.startswith(prefix):
+            return parent
+    return board
+
+
+def test_no_family_counts_one_board_twice_through_its_facets() -> None:
+    """M1: a board and its own slice rank the same models from one vote, so together they would let one
+    source outvote the others under D-188's coverage. A family holds at most one board of each source.
+    Two publishers of one benchmark (SWE-bench's own and Epoch's) are two measurements (D-168 clause 5)."""
+    for surface, family in families.FAMILIES.items():
+        parents = [_parent(board) for board in family]
+        assert len(set(parents)) == len(parents), (surface, family)
+
+
+#: A surface's second benchmark, by the board that publishes it.
+SECONDARY_BOARD = {"Aider polyglot": "aider", "MMLU": "epoch_mmlu"}
+
+
+def test_each_surfaces_second_benchmark_is_in_its_family() -> None:
+    """M2: `everyday` names MMLU as its second benchmark, and its family left MMLU out."""
+    for surface, spec in CATEGORIES.items():
+        if spec.secondary_benchmark is None:
+            continue
+        assert spec.secondary_benchmark in SECONDARY_BOARD, f"{surface}: name the board of {spec.secondary_benchmark}"
+        assert SECONDARY_BOARD[spec.secondary_benchmark] in families.FAMILIES[surface], surface
+
+
+def test_a_board_outside_as_a_refinement_is_one_the_refinement_table_adds() -> None:
+    """M3: five boards said they were "a refinement the question adds", and the app's refinement table
+    adds none of them. Every board outside for that reason is one the table names."""
+    import re
+
+    swift = (pathlib.Path(__file__).resolve().parents[2] / "ios" / "ModelRanking" / "Engine" / "Refinements.swift")
+    added = set(re.findall(r'board: "([a-z_]+)"', swift.read_text(encoding="utf-8")))
+    assert len(added) > 10, "the refinement table was not read"
+    said = {board for board, reason in families.OUTSIDE_FAMILIES.items() if "refinement the question adds" in reason}
+    assert said <= added, sorted(said - added)
