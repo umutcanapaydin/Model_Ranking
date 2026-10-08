@@ -209,6 +209,8 @@ RATE_LIMIT_VAR = "MODEL_RANKING_RATE_LIMIT"
 #: is this minute's, a new client is served uncounted, and no count it holds is reset (the W5
 #: review's M1: a crowd of new addresses must not free a client already refused).
 RATE_WINDOW_KEYS = 10_000
+#: path -> how many requests one answer counts as (a stub in the red commit).
+RATE_WEIGHTS: dict[str, int] = {}
 #: client -> (the minute, the requests in it). One window per minute, counted per client.
 _RATE_WINDOWS: dict[str, tuple[int, int]] = {}
 #: The minute a full table was last scanned for an earlier minute's entries, and the scans so far: a

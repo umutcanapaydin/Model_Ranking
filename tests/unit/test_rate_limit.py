@@ -302,3 +302,24 @@ def test_a_broken_limiter_is_logged_once_a_minute(client: TestClient, monkeypatc
     with caplog.at_level(logging.WARNING, logger=main.__name__):
         assert all(_ask(client) == 200 for _ in range(5))
     assert sum("rate limiter failed" in record.getMessage() for record in caplog.records) == 1
+
+
+def test_the_boards_answer_counts_as_thirty_requests(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The M20 closure security seat's S1: one `/v1/boards` answer is about 0.5 MB, which a phone needs
+    once a day, so it counts as thirty requests: four a minute under a limit of 120."""
+    from app.adapter import main
+
+    monkeypatch.setenv("MODEL_RANKING_RATE_LIMIT", "120")
+    assert main.RATE_WEIGHTS["/v1/boards"] == 30
+    statuses = [client.get("/v1/boards", headers={"Fly-Client-IP": "203.0.113.50"}).status_code for _ in range(5)]
+    assert statuses[:4] == [200, 200, 200, 200] and statuses[4] == 429
+
+
+def test_a_wrong_host_is_refused_before_it_is_counted(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The security seat's S2 (INV-26): a request to a Host not on the list is a 400, never a 429, and
+    is not counted."""
+    monkeypatch.setenv("MODEL_RANKING_ALLOWED_HOSTS", "testserver")
+    wrong = [client.get("/v1/budgets", headers={"Host": "evil.example", "Fly-Client-IP": "203.0.113.60"}).status_code
+             for _ in range(5)]
+    assert wrong == [400] * 5
+    assert _ask(client, "203.0.113.60") == 200, "the refused requests were counted"
