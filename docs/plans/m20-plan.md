@@ -39,7 +39,7 @@ review. A wave's pull request opens after its reviews.
 
 | Wave | REQ-IDs | Criterion |
 |---|---|---|
-| W1 | REQ-CMB-001 | `/v1/categories` names, for every surface, its family: every board that measures that task, the primary first, each with its evidence date. The family is derived from one declared table in the engine, never kept by hand on the phone, and a gate compares the two. Additive; no field changes meaning. |
+| W1 | REQ-CMB-001 | `/v1/categories` names, for every surface, its family: every board that measures that task, the primary first; the phone reads each board's date from `/v1/boards`, where it already is. The family is derived from one declared table in the engine, never kept by hand on the phone, and a gate compares the two. Additive; no field changes meaning. |
 | W2 | REQ-CMB-002, REQ-CMB-003 | The phone combines a family into one list by position, never by score (D-105). A model ranked by at least half of the family's boards, and by at least two, is placed by its mean percentile position across the boards that rank it. A board whose newest evaluation is older than 90 days weighs half. The rule is D-188 and holds on property tests, with ties shared and broken by model id. |
 | W3 | REQ-CMB-004 | Every understood question chooses its family: the on-device model's surface, or the wording tier's keywords (D-187), or the closest board. A refinement (a language, a domain) adds its slice board to the family. The question still never leaves the phone. |
 | W4 | REQ-CMB-005, REQ-APP-007, REQ-APP-008 | While Apple Intelligence reads the question, the field shows its glow and a small line says so (#208). The combined list is the default answer on every surface. It says "built from N boards" with each board's date, and a stale board is a small note on its own line, never a warning over the list. One tap shows where each board placed a model. The single-board ranking is one tap away. Ruling A holds for coding: two families, neither leading. |
@@ -54,7 +54,7 @@ review. A wave's pull request opens after its reviews.
   the owner's approval with this plan.
 - **One declared table in the engine.** Each surface maps to its family of boards, with the primary
   first (`app.workflows.board_tables` beside `ARENA_SLICES`). `/v1/categories` gains `boards` per
-  surface: ids and evidence dates.
+  surface, by id; each board's date is already on `/v1/boards`.
 - **A gate** holds that every board in a family is served on `/v1/boards`, and that every board
   `/v1/boards` serves belongs to a family or is named as left out, with its reason.
 
