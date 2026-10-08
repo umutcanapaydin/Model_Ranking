@@ -266,3 +266,39 @@ async def test_concurrent_requests_on_one_loop_never_pass_the_limit(client: Test
         )
     codes = sorted(answer.status_code for answer in answers)
     assert codes == [200] * 3 + [429] * 9
+
+
+def test_an_ipv4_mapped_address_is_its_ipv4_client(client: TestClient) -> None:
+    """The Tester's T1: an IPv4 address written as IPv6 (`::ffff:a.b.c.d`) is that IPv4 client, not
+    one /64 shared by every IPv4 reader."""
+    assert [_ask(client, f"::ffff:203.0.113.{n}") for n in range(1, 5)] == [200, 200, 200, 200]
+    assert [_ask(client, "::ffff:198.51.100.9") for _ in range(4)] == [200, 200, 200, 429]
+    assert _ask(client, "198.51.100.9") == 429, "the mapped and the dotted spelling are one client"
+
+
+def test_a_full_table_is_scanned_once_a_minute() -> None:
+    """The Tester's T2: a full table of this minute's clients is not scanned again for every new one."""
+    from app.adapter import main
+
+    main.reset_rate_windows()
+    for n in range(main.RATE_WINDOW_KEYS):
+        main._over_limit(f"held-{n}", 3, 600.0)
+    scans = main.rate_table_scans()
+    for n in range(100):
+        assert main._over_limit(f"new-{n}", 3, 600.0) == (False, 60)
+    assert main.rate_table_scans() - scans == 1
+
+
+def test_a_broken_limiter_is_logged_once_a_minute(client: TestClient, monkeypatch: pytest.MonkeyPatch,
+                                                  caplog: pytest.LogCaptureFixture) -> None:
+    """The Tester's R1: a limiter that stays broken warns once a minute, not on every request."""
+    from app.adapter import main
+
+    def broken(*_: object) -> bool:
+        raise RuntimeError("the limiter broke")
+
+    monkeypatch.setattr(main, "_over_limit", broken)
+    monkeypatch.setattr(main.time, "time", lambda: 1200.0)
+    with caplog.at_level(logging.WARNING, logger=main.__name__):
+        assert all(_ask(client) == 200 for _ in range(5))
+    assert sum("rate limiter failed" in record.getMessage() for record in caplog.records) == 1

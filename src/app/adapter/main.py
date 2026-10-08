@@ -244,6 +244,12 @@ def rate_window_count() -> int:
     return len(_RATE_WINDOWS)
 
 
+def rate_table_scans() -> int:
+    """How many times a full table was scanned for an earlier minute's entries (a stub in the red
+    commit)."""
+    return 0
+
+
 def _client_key(request: Any) -> str:
     """The client: Fly's proxy names it in `Fly-Client-IP`; otherwise the connection's address. An IPv6
     address is counted by its /64, which one host holds whole (the W5 review's M1)."""
