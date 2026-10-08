@@ -154,20 +154,20 @@ func answerPlan(
     ))
 }
 
-/// M20-W4 (D-188): the family's own list. The refinements are the on-device model's, or, where it chose
-/// none, the ones the question's words name (M20-W3); only one whose board the standings hold, and that
-/// the surface allows, is offered. A family that leaves one board is today's cards, with the removed
+/// M20-W4 (D-188): the family's own list. The refinements are the on-device model's where it read the
+/// question, none included, and otherwise the ones the question's words name (D-188 clause 6, the one
+/// reader); only one whose board the standings hold, and that the surface allows, is offered. A family that leaves one board is today's cards, with the removed
 /// refinements kept to restore.
 private func familyPlan(
     outcome: RoutingOutcome, family: [String], question: String?, asOf: Date, standings: Standings,
     removed: Set<Refinement>, phoneCopyDays: Int?
 ) -> AnswerPlan {
-    let chosen = outcome.refinements.isEmpty ? Refinements.read(question ?? "") : outcome.refinements
+    let chosen = outcome.tier == .model ? outcome.refinements : Refinements.read(question ?? "")
     let offered = chosen.filter { refinement in
         refinement.surfaces.contains(outcome.categoryID) && standings.boards.contains { $0.id == refinement.board }
     }
     let kept = offered.filter { !removed.contains($0) }
-    let boards = Refinements.familyBoards(family: family, surface: outcome.categoryID, chosen: kept)
+    let boards = Refinements.familyBoards(primary: family[0], family: family, surface: outcome.categoryID, chosen: kept)
     guard let list = try? combineFamily(standings, boards: boards, asOf: asOf), !list.entries.isEmpty else {
         return .cards
     }

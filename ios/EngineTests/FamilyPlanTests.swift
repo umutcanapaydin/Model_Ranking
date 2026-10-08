@@ -1,8 +1,8 @@
 //  M20-W4 (#212, REQ-CMB-005, D-188 clause 5): the combined list is the default answer. An engine that
 //  names a surface's family (M20-W1) gets the family's own list, combined by D-188 (M20-W2), with the
 //  boards the question's refinement adds (M20-W3); a family of one board is today's cards; an engine
-//  older than M20 keeps today's plan. A board that weighs half is a small note, never the stale
-//  warning over the list (D-188 clause 4).
+//  older than M20 keeps today's plan. An older board counts the same and is named in a small note,
+//  never the stale warning over the list (D-188 clause 4).
 
 import XCTest
 
@@ -67,7 +67,20 @@ final class FamilyPlanTests: OfflineTestCase {
         XCTAssertEqual(view.refinements, [french].compactMap { $0 })
     }
 
-    /// D-188 clause 4: an old board weighs half and is a small note; the loud stale warning is not said.
+    /// D-188 clause 6: where the on-device model read the question, its choice stands, none included;
+    /// the words are read only where another tier answered.
+    func testTheOnDeviceModelsChoiceOfNoRefinementStands() {
+        let data = standings([board("epoch_eci", [("a", 1), ("b", 2)]), board("arena", [("b", 1), ("a", 2)]),
+                              board("arena_text_french", [("a", 1), ("b", 2)])])
+        let plan = answerPlan(outcome: routed("everyday", tier: .model), primaryBoard: "epoch_eci",
+                              family: ["epoch_eci", "arena"], question: "best ai to write in french", asOf: today,
+                              standings: data, removed: [])
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+        XCTAssertEqual(view.list.boards.map(\.id), ["epoch_eci", "arena"])
+        XCTAssertEqual(view.refinements, [])
+    }
+
+    /// D-188 clause 4: an old board counts the same and is a small note; the loud stale warning is not said.
     func testAnOldFamilyBoardIsASmallNoteNotTheLoudWarning() {
         let data = standings([board("swebench", [("a", 1), ("b", 2)], date: "2026-02-26"),
                               board("aider", [("b", 1), ("a", 2)])])
