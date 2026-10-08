@@ -42,7 +42,7 @@ review. A wave's pull request opens after its reviews.
 | W1 | REQ-CMB-001 | `/v1/categories` names, for every surface, its family: every board that measures that task, the primary first, each with its evidence date. The family is derived from one declared table in the engine, never kept by hand on the phone, and a gate compares the two. Additive; no field changes meaning. |
 | W2 | REQ-CMB-002, REQ-CMB-003 | The phone combines a family into one list by position, never by score (D-105). A model ranked by at least half of the family's boards, and by at least two, is placed by its mean percentile position across the boards that rank it. A board whose newest evaluation is older than 90 days weighs half. The rule is D-188 and holds on property tests, with ties shared and broken by model id. |
 | W3 | REQ-CMB-004 | Every understood question chooses its family: the on-device model's surface, or the wording tier's keywords (D-187), or the closest board. A refinement (a language, a domain) adds its slice board to the family. The question still never leaves the phone. |
-| W4 | REQ-CMB-005, REQ-APP-007 | The combined list is the default answer on every surface. It says "built from N boards" with each board's date, and a stale board is a small note on its own line, never a warning over the list. One tap shows where each board placed a model. The single-board ranking is one tap away. Ruling A holds for coding: two families, neither leading. |
+| W4 | REQ-CMB-005, REQ-APP-007, REQ-APP-008 | While Apple Intelligence reads the question, the field shows its glow and a small line says so (#208). The combined list is the default answer on every surface. It says "built from N boards" with each board's date, and a stale board is a small note on its own line, never a warning over the list. One tap shows where each board placed a model. The single-board ranking is one tap away. Ruling A holds for coding: two families, neither leading. |
 | W5 | Stage 5.2 prerequisites | Build 3 goes to TestFlight against the hosted engine. The hosted engine has a rate limit before any external tester (#187). The combination is measured on a labelled set (#195) against the single-board answer. |
 
 ## 2. Waves
@@ -89,7 +89,7 @@ and new models are what readers ask about.
 - Nothing about the question leaves the phone: the family is read from `/v1/categories`, and
   `/v1/boards` is fetched as before (D-167 clause 1).
 
-### W4 — The combined list is the answer (risk: **MEDIUM**; #212, #199)
+### W4 — The combined list is the answer (risk: **MEDIUM**; #212, #199, #208)
 
 - **The home screen** shows the combined list by default on every surface: ten rows and the rest on
   request (D-175).
@@ -100,16 +100,17 @@ and new models are what readers ask about.
   primary board".
 - **#199:** the UI target's scripted routing and the reading each test expects move into one fixture
   that an Engine test also reads.
+- **#208** (the owner's ask, 2026-10-08): while Apple Intelligence reads the question, the question
+  field gets Apple Intelligence's moving glow, and a small line under it says so ("Apple Intelligence
+  enhanced"; where it is off, which tier answers instead). Reduce Motion gets a still border.
 - `make ui-test` runs in the wave (D-175 clause 2).
 
-### W5 — Build 3 on TestFlight, safely (risk: **HIGH**; #187, #195, #208)
+### W5 — Build 3 on TestFlight, safely (risk: **HIGH**; #187, #195)
 
 - **#187:** a rate limit on the hosted engine, per client, failing open (AGENTS.md §5). The owner's
   usage page note stays.
 - **#195:** a fresh labelled set from an independent seat. It measures D-187's keywords and the
   combined list against the single-board answer, before and after.
-- **#208** (the owner's idea, if the cap allows): the Apple Intelligence glow around the question
-  field and its small caption.
 - **The owner's steps:** the deploy and the build-3 upload, by `docs/release-testflight.md`.
 
 ## 3. Risk tiers and security globs
@@ -161,21 +162,14 @@ the labelled-set seat, the closure's two seats. Not measured per wave.
 | W1 | #209 |
 | W2 | #210 |
 | W3 | #211, #206 |
-| W4 | #212, #199 |
-| W5 | #187, #195, #208 |
+| W4 | #212, #199, #208 |
+| W5 | #187, #195 |
 
 **Left out, with the reason:**
-- The gate and process enhancements: #122, #169 to #175, #179 to #183, #186, #189, #193, #200 to #203. The
-  combined list comes first; they are the next controls milestone.
-- The data-identity bugs, low: #163, #164, #165. They move a few models' scores and do not block the
-  combined list.
-- #124 and #185: attribution and a licensed web-dev board. They wait on the licence ruling before
-  external testers (D-186).
-- #188: the budget argument. The app always sends `unlimited`.
-- #198, #205: the deploy stamp and the survivor check. Before `LEFT_OUT` is filled again.
-- #66, #194: the reading of non-searches. #195's fresh set measures them next.
+- The rest of the open queue is M21's (`docs/plans/m21-plan.md`, the owner's ask of 2026-10-08):
+  the gate and process enhancements, the data-identity bugs, the reading of non-searches, and the
+  deploy items. The combined list comes first.
 - #81, #115, #190: the owner's.
-- #85, #108, #132, #166, #168, #178: low, or measured only on the owner's devices.
 
 ## 8. Closure tasks
 
