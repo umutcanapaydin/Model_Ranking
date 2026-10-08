@@ -1694,3 +1694,10 @@ def _held_out_only_signals(lists: list[tuple[list[str], bool]], held: list[str],
             if re.search(pattern, held_text) and not re.search(pattern, tuning_text):
                 found.add(entry)
     return sorted(found)
+
+
+def test_the_screen_hands_the_refined_board_to_the_plan() -> None:
+    """The M20 closure fixes review's M5: the board a refinement replaces reaches the plan from the
+    served category; without it a refinement joins beside its vote's board again."""
+    view = (CLIENT / "ContentView.swift").read_text(encoding="utf-8")
+    assert re.search(r"inputs\.refinedBoard\s*=\s*info\?\.refinedBoard", view), "the plan is not given refined_board"

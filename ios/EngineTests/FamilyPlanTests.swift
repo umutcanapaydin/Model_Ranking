@@ -360,4 +360,43 @@ final class FamilyPlanTests: OfflineTestCase {
                                  removed: Set(spanish), refinedBoard: "arena")
         XCTAssertEqual(removed, .restorable(spanish))
     }
+
+    /// The closure fixes review's M1: of a language and a domain, only the one that stands is offered,
+    /// so no chip says a board was counted when it was not.
+    func testOnlyTheRefinementThatStandsIsOffered() {
+        let french = Refinements.table.filter { $0.value == "french" }
+        let data = standings([board("epoch_gpqa", [("a", 1), ("b", 2)]), board("arena_text_expert", [("b", 1), ("a", 2)]),
+                              board("arena_text_french", [("a", 1), ("b", 2)]),
+                              board("arena_text_industry_legal_and_government", [("b", 1), ("a", 2)])])
+        let plan = answerPlan(outcome: routed("expert"), primaryBoard: "epoch_gpqa",
+                              family: ["epoch_gpqa", "arena_text_expert"], question: "legal advice in french",
+                              asOf: today, standings: data, removed: [], refinedBoard: "arena_text_expert")
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+        XCTAssertEqual(view.list.boards.map(\.id), ["epoch_gpqa", "arena_text_french"])
+        XCTAssertEqual(view.refinements, french)
+    }
+
+    /// The closure fixes review's M2: a family left with one board that no refinement brought (its
+    /// primary missing from the standings) is today's cards, not a one-board list.
+    func testAOneBoardFamilyThatNoRefinementBroughtIsTheCards() {
+        let data = standings([board("arena", [("b", 1), ("a", 2)])])
+        XCTAssertEqual(answerPlan(outcome: routed("everyday"), primaryBoard: "epoch_eci",
+                                  family: ["epoch_eci", "arena", "epoch_mmlu"], question: "best ai", asOf: today,
+                                  standings: data, removed: [], refinedBoard: "arena"), .cards)
+    }
+
+    /// The closure fixes review's M5: the memo hands the board a refinement replaces to the plan.
+    func testTheMemoPassesTheBoardARefinementReplaces() {
+        let memo = PlanMemo()
+        let data = standings([board("arena", [("a", 1), ("b", 2), ("c", 3)]),
+                              board("arena_text_spanish", [("b", 1), ("a", 2)])])
+        var inputs = PlanMemo.Inputs(outcome: routed("assistant"), primaryBoard: "arena", standingsStamp: 1,
+                                     removed: [], primaryHealth: nil)
+        inputs.family = ["arena"]
+        inputs.question = "reply in spanish"
+        inputs.asOf = today
+        inputs.refinedBoard = "arena"
+        guard case let .combined(view) = memo.plan(inputs, standings: data) else { return XCTFail("cards") }
+        XCTAssertEqual(view.list.boards.map(\.id), ["arena_text_spanish"])
+    }
 }

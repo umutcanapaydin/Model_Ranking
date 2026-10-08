@@ -323,3 +323,33 @@ def test_a_wrong_host_is_refused_before_it_is_counted(client: TestClient, monkey
              for _ in range(5)]
     assert wrong == [400] * 5
     assert _ask(client, "203.0.113.60") == 200, "the refused requests were counted"
+
+
+def test_a_boards_answer_after_light_requests_crosses_the_limit_and_is_said(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The closure fixes review's M3: a `/v1/boards` answer is judged by its whole weight, and the
+    refusal it causes is logged, whatever the light requests before it."""
+    from app.adapter import main
+
+    monkeypatch.setenv("MODEL_RANKING_RATE_LIMIT", "120")
+    ip = {"Fly-Client-IP": "203.0.113.70"}
+    assert all(client.get("/v1/budgets", headers=ip).status_code == 200 for _ in range(100))
+    with caplog.at_level(logging.INFO, logger=main.__name__):
+        assert client.get("/v1/boards", headers=ip).status_code == 429
+    assert any("rate limited" in record.getMessage() for record in caplog.records)
+
+
+def test_a_limit_below_a_boards_weight_still_serves_one_boards_answer_a_minute(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The closure fixes review's M4: under a limit below thirty, a boards answer costs the whole
+    minute rather than being refused for ever."""
+    from app.adapter import main
+
+    monkeypatch.setenv("MODEL_RANKING_RATE_LIMIT", "10")
+    monkeypatch.setattr(main.time, "time", lambda: 1800.0)
+    ip = {"Fly-Client-IP": "203.0.113.80"}
+    assert [client.get("/v1/boards", headers=ip).status_code for _ in range(2)] == [200, 429]
+    monkeypatch.setattr(main.time, "time", lambda: 1860.0)
+    assert client.get("/v1/boards", headers=ip).status_code == 200
