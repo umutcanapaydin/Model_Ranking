@@ -189,3 +189,80 @@ def test_a_strict_engine_without_a_limit_says_so(monkeypatch: pytest.MonkeyPatch
     with caplog.at_level(logging.WARNING, logger=main.__name__), contextlib.suppress(main.ConfigError):
         main.validate_startup_config(env="production")
     assert any("no request limit" in record.getMessage() for record in caplog.records)
+
+
+# --- The W5 Tester's additions (covers REQ-REL-004): the edges the Tester probed. Five of them kill a
+# planted fault the earlier tests let through (docs/reviews/m20-wave-5-tester.md). ---
+
+
+def test_one_64_is_one_client_whatever_its_interface_id(client: TestClient) -> None:
+    """covers REQ-REL-004 (an IPv6 /64): a host rotates the whole low 64 bits, not just the last few. A
+    /96 or /112 key passed the earlier test, whose addresses differ only in the last hextet."""
+    rotated = ["2001:db8:1:2::1", "2001:db8:1:2:ffff::1", "2001:db8:1:2:8000:0:0:1", "2001:db8:1:2:1:2:3:4"]
+    assert [_ask(client, ip) for ip in rotated] == [200, 200, 200, 429]
+
+
+def test_a_long_header_is_kept_short(client: TestClient) -> None:
+    """covers REQ-REL-004 (bounded memory): the table's 10,000 keys stay small whatever a header holds, so
+    a header that does not parse costs at most 64 characters a client."""
+    from app.adapter import main
+
+    long_one = "x" * 4096
+    assert [_ask(client, long_one + str(n)) for n in range(4)] == [200, 200, 200, 429]
+    assert main.rate_window_count() == 1
+    assert all(len(key) <= 64 for key in main._RATE_WINDOWS)
+
+
+def test_a_header_that_does_not_parse_is_its_own_client(client: TestClient) -> None:
+    """covers REQ-REL-004: an unparsable header is served and counted as itself, never an error."""
+    assert [_ask(client, "not-an-address") for _ in range(4)] == [200, 200, 200, 429]
+    assert _ask(client, "203.0.113.7") == 200
+
+
+def test_an_empty_header_is_the_connection(client: TestClient) -> None:
+    """covers REQ-REL-004: an empty or blank `Fly-Client-IP` falls back to the connection's address,
+    so it shares a count with a request that has no header at all."""
+    assert client.get("/v1/budgets").status_code == 200
+    assert _ask(client, "") == 200
+    assert _ask(client, "   ") == 200
+    assert client.get("/v1/budgets").status_code == 429
+
+
+def test_a_crowded_out_client_is_served(client: TestClient) -> None:
+    """covers REQ-REL-004 (fails open): with every entry this minute's, a new client is served uncounted,
+    past the limit too. Refusing it would turn a full table into an outage for every new reader."""
+    from app.adapter import main
+
+    for n in range(main.RATE_WINDOW_KEYS):
+        main._over_limit(f"held-{n}", 3, 600.0)
+    assert [main._over_limit("crowded-out", 3, 600.0)[0] for _ in range(5)] == [False] * 5
+    assert main.rate_window_count() == main.RATE_WINDOW_KEYS
+
+
+def test_retry_after_is_the_rest_of_the_minute(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """covers REQ-REL-004 (`Retry-After`): the client is told the seconds left in its window."""
+    from app.adapter import main
+
+    monkeypatch.setattr(main.time, "time", lambda: 645.0)
+    assert [_ask(client) for _ in range(3)] == [200, 200, 200]
+    refused = client.get("/v1/budgets", headers={"Fly-Client-IP": "203.0.113.7"})
+    assert refused.status_code == 429
+    assert refused.headers["Retry-After"] == "15"
+
+
+async def test_concurrent_requests_on_one_loop_never_pass_the_limit(client: TestClient) -> None:
+    """covers REQ-REL-004 (hard criterion, concurrency): requests in flight together on one event loop are
+    counted one by one; exactly the limit is served."""
+    import asyncio
+
+    import httpx
+
+    from app.adapter import main
+
+    transport = httpx.ASGITransport(app=main.app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as ac:
+        answers = await asyncio.gather(
+            *(ac.get("/v1/budgets", headers={"Fly-Client-IP": "203.0.113.7"}) for _ in range(12))
+        )
+    codes = sorted(answer.status_code for answer in answers)
+    assert codes == [200] * 3 + [429] * 9
