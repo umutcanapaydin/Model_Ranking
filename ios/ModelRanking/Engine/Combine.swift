@@ -111,17 +111,18 @@ private func countBelow(_ position: Int, in ascending: [Int]) -> Int {
     return low
 }
 
-// MARK: - D-188 (M20-W2): a family combined. A stub until the rule is written.
+// MARK: - D-188 (M20-W2, #210): a family of boards combined into the product's own list
 
-/// One line of a family's combined list: the model, where each board that ranks it put it, and its place.
+/// One line of a family's combined list: the model, where each board that ranks it put it (in the
+/// family's order), and its place; tied models share one.
 struct FamilyEntry: Equatable {
     let model: StandingModel
     let positions: [BoardPosition]
     let place: Int
 }
 
-/// A family's combined list: the boards that rank anyone, the ones weighing half, the coverage a model
-/// needed, and the entries in order.
+/// A family's combined list: the boards that rank anyone (in the family's order), the ones that
+/// weigh half, the number of boards a model needed, and the entries in order.
 struct FamilyList: Equatable {
     let boards: [BoardStandings]
     let staleBoards: [String]
@@ -129,6 +130,78 @@ struct FamilyList: Equatable {
     let entries: [FamilyEntry]
 }
 
+/// How old a board's newest evaluation may be before it weighs half (D-188 clause 4).
+let freshForDays = 90
+
+/// Combine a family of boards (D-188 clauses 2 to 4), by position and never by score (D-105):
+/// - a board that ranks no model is left out, so it can change nothing;
+/// - a model enters when at least half of the remaining boards rank it, and at least two (one, for a
+///   family of one board);
+/// - its place is the weighted mean of its percentile positions, (position - 1) / (size - 1), over
+///   the boards that rank it; a board older than `freshForDays`, or undated, weighs half;
+/// - equal means share a place, and the order breaks them by model id (#44).
 func combineFamily(_ standings: Standings, boards family: [String], asOf today: Date) throws -> FamilyList {
-    FamilyList(boards: [], staleBoards: [], coverage: 0, entries: [])
+    var seen = Set<String>()
+    let ids = family.filter { seen.insert($0).inserted }
+    guard !ids.isEmpty else { throw CombineError.noBoards }
+    let named = try ids.map { id -> BoardStandings in
+        guard let board = standings.boards.first(where: { $0.id == id }) else {
+            throw CombineError.unknownBoard(id)
+        }
+        return board
+    }
+    let boards = named.filter { !$0.standings.isEmpty }
+    let models = Dictionary(standings.models.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    let stale = boards.filter { isStale($0, asOf: today) }.map(\.id)
+    let coverage = boards.count < 2 ? boards.count : max(2, (boards.count + 1) / 2)
+
+    // Per model: the weighted sum of percentile positions, the sum of weights, and the positions.
+    var weighted: [String: Double] = [:]
+    var weights: [String: Double] = [:]
+    var positions: [String: [BoardPosition]] = [:]
+    for board in boards {
+        let weight = stale.contains(board.id) ? 0.5 : 1.0
+        let span = Double(max(board.standings.count - 1, 1))
+        var listed = Set<String>()
+        for standing in board.standings where listed.insert(standing.model).inserted {
+            let percentile = Double(min(max(standing.position - 1, 0), board.standings.count - 1)) / span
+            weighted[standing.model, default: 0] += weight * percentile
+            weights[standing.model, default: 0] += weight
+            positions[standing.model, default: []].append(BoardPosition(board: board.id, position: standing.position))
+        }
+    }
+    // A mean is compared to nine places, so two equal means computed in different orders stay equal.
+    var means: [String: Int] = [:]
+    for (model, list) in positions where list.count >= coverage {
+        means[model] = Int(((weighted[model] ?? 0) / (weights[model] ?? 1) * 1_000_000_000).rounded())
+    }
+    let order = means.keys.sorted { lhs, rhs in
+        let (left, right) = (means[lhs, default: 0], means[rhs, default: 0])
+        return left == right ? lhs < rhs : left < right
+    }
+    var entries: [FamilyEntry] = []
+    for (index, id) in order.enumerated() {
+        guard let model = models[id] else { throw CombineError.unknownModel(id) }
+        let tied = index > 0 && means[order[index - 1], default: 0] == means[id, default: 0]
+        let place = tied ? entries[index - 1].place : index + 1
+        entries.append(FamilyEntry(model: model, positions: positions[id, default: []], place: place))
+    }
+    return FamilyList(boards: boards, staleBoards: stale, coverage: coverage, entries: entries)
 }
+
+/// Whether a board's newest evaluation is older than `freshForDays` on `today`, or unknown.
+private func isStale(_ board: BoardStandings, asOf today: Date) -> Bool {
+    guard let date = board.evidenceDate, let evaluated = evidenceDay.date(from: String(date.prefix(10))) else {
+        return true
+    }
+    return today.timeIntervalSince(evaluated) > Double(freshForDays) * 86_400
+}
+
+private let evidenceDay: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.calendar = Calendar(identifier: .gregorian)
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = TimeZone(identifier: "UTC")
+    formatter.dateFormat = "yyyy-MM-dd"
+    return formatter
+}()

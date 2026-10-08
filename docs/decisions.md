@@ -4410,11 +4410,12 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    already on `/v1/boards`. The phone never keeps its own copy.
 2. **Coverage.** A model enters the combined list when at least half of the family's boards rank it,
    and at least two do.
-3. **Place.** A model's place is the mean of its percentile positions (its position over the board's
-   size) across the boards that rank it, positions only and never a score (D-105). Ties share a place
-   and are broken by model id.
-4. **Staleness.** A board whose newest evaluation is older than 90 days weighs half in that mean. The
-   screen says so in one small line, not as a warning over the list.
+3. **Place.** A model's place is the mean of its percentile positions, (position - 1) over (the
+   board's size - 1), across the boards that rank it, positions only and never a score (D-105). Ties
+   share a place and are broken by model id. A board that ranks no model is left out of the family's
+   count.
+4. **Staleness.** A board whose newest evaluation is older than 90 days, or that publishes no date,
+   weighs half in that mean. The screen says so in one small line, not as a warning over the list.
 5. **The default.** The combined list is the default answer on every surface. The primary board's own
    answer (the picks and their price notes) is one tap away. Ruling A holds: coding shows two
    families, neither leading.
