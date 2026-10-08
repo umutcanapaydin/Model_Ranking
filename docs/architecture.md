@@ -116,7 +116,7 @@ routes (`DECLARED_ROUTES`), all GET, and turns the docs and OpenAPI routes off.
 | Route | What it serves | ADRs |
 |---|---|---|
 | `/health` | `status`, `version`, `build` (L.7); `evidence` (`servable` or `unavailable`); the refresh's state, last outcome, carried and expired sources, drift, derived and unmatched names | D-154, D-156, D-157 |
-| `/v1/categories` | Each surface: benchmark, metric, ranking effort, close-call margin, floor (`min_quality`), out-of-100 anchor, what its price leaves out, its primary board, its second board's age | D-138, D-152, D-153, D-159, D-162, D-168 |
+| `/v1/categories` | Each surface: benchmark, metric, ranking effort, close-call margin, floor (`min_quality`), out-of-100 anchor, what its price leaves out, its primary board, its family of boards (`boards`, the primary first, `app.workflows.families`, D-188), its second board's age | D-138, D-152, D-153, D-159, D-162, D-168 |
 | `/v1/recommendations?task=&budget=` | One answer per surface: up to three picks, each with its model's id (`model_id`, D-182), with the facts the client words in its own language, and the full ranking in the engine's order, with source health and evidence dating. Each notice has its fact: `close_call_fact`, an empty answer's `unavailable_reason_code`, a source's `reason`. `task=coding` answers on both coding surfaces and neither leads (Ruling A) | D-115, D-125, D-136, D-176 |
 | `/v1/budgets` | The budget caps (`low` $2, `medium` $8 per 1M blended tokens, `unlimited`) and the blend weights | D-134 |
 | `/v1/boards` | Every board's standings as positions, never scores, and each model's name, vendor, blended price and accessibility. No parameters. Built once per artifact | D-167, D-173 |
