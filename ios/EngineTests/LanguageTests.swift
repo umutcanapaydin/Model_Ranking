@@ -618,6 +618,24 @@ final class ScreenExplanationTests: OfflineTestCase {
         XCTAssertNotEqual(UIText.olderBoards(aider, .english), UIText.olderBoards(aider, .turkish))
     }
 
+    /// Tester (M20-W4, REQ-APP-007, #208): in Turkish too, each state of the on-device model gets its own
+    /// caption, so a model still downloading is never said to be unavailable, nor the other way round.
+    func testEachOnDeviceStateHasItsOwnCaptionInTurkish() {
+        XCTAssertEqual(UIText.onDeviceCaption(.available, .turkish), "Apple Intelligence ile güçlendirildi")
+        XCTAssertEqual(UIText.onDeviceCaption(.turnedOff, .turkish),
+                       "Apple Intelligence kapalı: sorular kelimelerle eşleşiyor")
+        XCTAssertEqual(UIText.onDeviceCaption(.notEligible, .turkish),
+                       "Bu cihazda Apple Intelligence yok: sorular kelimelerle eşleşiyor")
+        XCTAssertEqual(UIText.onDeviceCaption(.downloading, .turkish),
+                       "Apple Intelligence iniyor: şimdilik sorular kelimelerle eşleşiyor")
+        XCTAssertEqual(UIText.onDeviceCaption(.unavailable, .turkish),
+                       "Apple Intelligence şu an kullanılamıyor: sorular kelimelerle eşleşiyor")
+        XCTAssertEqual(UIText.onDeviceCaption(.downloading, .english),
+                       "Apple Intelligence is downloading: questions are matched by their words for now")
+        XCTAssertEqual(UIText.onDeviceCaption(.unavailable, .english),
+                       "Apple Intelligence is unavailable now: questions are matched by their words")
+    }
+
     /// The combined list's tied places ("1, 1, 3") say why, once.
     func testTiedPlacesOnTheCombinedListAreExplained() {
         XCTAssertNotNil(UIText.tiedPlaces(.turkish))
