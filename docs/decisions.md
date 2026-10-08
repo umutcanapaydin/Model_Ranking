@@ -4406,8 +4406,8 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
 
 **Decision (proposed).**
 1. **A family per surface.** The engine declares, for every surface, every board that measures that
-   task, the primary first, and publishes it on `/v1/categories` with each board's evidence date. The
-   phone never keeps its own copy.
+   task, the primary first, and publishes it on `/v1/categories`; each board's evidence date is
+   already on `/v1/boards`. The phone never keeps its own copy.
 2. **Coverage.** A model enters the combined list when at least half of the family's boards rank it,
    and at least two do.
 3. **Place.** A model's place is the mean of its percentile positions (its position over the board's
