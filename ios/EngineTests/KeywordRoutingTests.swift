@@ -63,6 +63,27 @@ final class KeywordRoutingTests: OfflineTestCase {
         ])
     }
 
+    /// The words people use in a coding question without saying "code": an error's name, a framework,
+    /// a query, a test, in both languages (made up; measured on the tuning and retired sets, D-187).
+    func testTheWordsOfAnEverydayCodingQuestionAreRead() async {
+        await assertRoutes([
+            ("TypeError: undefined is not a function in my express app", "coding"),
+            ("my django migration keeps failing", "coding"),
+            ("write a postgres query for monthly totals", "coding"),
+            ("pandas ile csv okurken UnicodeDecodeError alıyorum", "coding"),
+            ("mysql sorgusu yazar mısın", "coding"),
+            ("jest ile birim testi nasıl yazılır", "coding"),
+            ("merge conflict çıktı ne yapmalıyım", "coding"),
+            ("does this blog post make up its numbers", "factuality"),
+            ("prove that the square root of two is irrational", "mathematics"),
+            ("what number comes next in 3 5 9 17", "abstract"),
+            ("book a table for me on a restaurant website", "computer-use"),
+            ("ekteki makaleyi özetle", "document"),
+            ("küçük bir e-ticaret sitesi kurmak istiyorum", "web-dev"),
+            ("python'un bugün en güncel sürümü hangisi", "search"),
+        ])
+    }
+
     /// The order the rules are read in is the decision between two surfaces a question names: web
     /// search is `search`, not `web-dev`; an agent that codes is `agentic-coding`, not `coding`.
     func testTheMoreSpecificSurfaceWins() async {
