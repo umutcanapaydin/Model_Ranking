@@ -4421,8 +4421,8 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    (116), `search` and `search_factuality` 28 (28, 27); `assistant` and `vision` are one board.
 3. **Place.** A model's place is the mean of its percentile positions, (position - 1) over (the
    board's size - 1), across the boards that rank it, positions only and never a score (D-105). Ties
-   share a place and are broken by model id. A board that ranks no model is left out of the family's
-   count.
+   share a place and are broken by model id. A board that ranks no model, or that the standings lack
+   (an outage, a source left out), is left out of the family's count.
 4. **Staleness.** A board whose newest evaluation is older than 90 days, or that publishes no date,
    weighs half in that mean. The screen says so in one small line, not as a warning over the list.
 5. **The default.** The combined list is the default answer on every surface. The primary board's own

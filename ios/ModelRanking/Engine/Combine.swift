@@ -134,9 +134,9 @@ struct FamilyList: Equatable {
 let freshForDays = 90
 
 /// Combine a family of boards (D-188 clauses 2 to 4), by position and never by score (D-105):
-/// - a board that ranks no model is left out, so it can change nothing;
-/// - a model enters when at least half of the remaining boards rank it, and at least two (one, for a
-///   family of one board);
+/// - a board that ranks no model, or that the standings lack, is left out, so it can change nothing;
+/// - a model enters when at least half of the remaining boards rank it, rounded up, and at least one
+///   (with two boards, either is enough: D-188 clause 2 as the W1 review measured it);
 /// - its place is the weighted mean of its percentile positions, (position - 1) / (size - 1), over
 ///   the boards that rank it; a board older than `freshForDays`, or undated, weighs half;
 /// - equal means share a place, and the order breaks them by model id (#44).
@@ -144,16 +144,14 @@ func combineFamily(_ standings: Standings, boards family: [String], asOf today: 
     var seen = Set<String>()
     let ids = family.filter { seen.insert($0).inserted }
     guard !ids.isEmpty else { throw CombineError.noBoards }
-    let named = try ids.map { id -> BoardStandings in
-        guard let board = standings.boards.first(where: { $0.id == id }) else {
-            throw CombineError.unknownBoard(id)
-        }
-        return board
-    }
-    let boards = named.filter { !$0.standings.isEmpty }
+    // A family board the standings lack (an outage, a source left out) is left out, as a board that
+    // ranks no model is: neither can empty the list or raise the coverage (the W1 review's R1).
+    let boards = ids.compactMap { id in standings.boards.first(where: { $0.id == id }) }
+        .filter { !$0.standings.isEmpty }
+    guard !boards.isEmpty else { throw CombineError.noBoards }
     let models = Dictionary(standings.models.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     let stale = boards.filter { isStale($0, asOf: today) }.map(\.id)
-    let coverage = boards.count < 2 ? boards.count : max(2, (boards.count + 1) / 2)
+    let coverage = max(1, (boards.count + 1) / 2)
 
     // Per model: the weighted sum of percentile positions, the sum of weights, and the positions.
     var weighted: [String: Double] = [:]

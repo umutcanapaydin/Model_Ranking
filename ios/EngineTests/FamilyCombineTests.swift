@@ -70,9 +70,12 @@ final class FamilyCombineTests: OfflineTestCase {
         rows.append(("c", 101))
         let large = board("large", rows)
         let list = try combineFamily(standings([small, large]), boards: ["small", "large"], asOf: today)
-        XCTAssertEqual(Array(order(list).prefix(2)), ["a", "b"], "equal means are ordered by model id")
+        // With two boards either is enough, so the large board's other models enter too (each by its
+        // one percentile); a, b and c are read among themselves.
+        let three = order(list).filter { ["a", "b", "c"].contains($0) }
+        XCTAssertEqual(three, ["a", "b", "c"], "equal means are ordered by model id, and c is last")
         XCTAssertEqual(places(list)["a"], places(list)["b"], "equal means share a place")
-        XCTAssertEqual(order(list).last, "c")
+        XCTAssertLessThan(places(list)["b"] ?? 0, places(list)["c"] ?? 0)
     }
 
     /// D-188 clause 4: a board past 90 days weighs half, so a split between a fresh and an old board is
