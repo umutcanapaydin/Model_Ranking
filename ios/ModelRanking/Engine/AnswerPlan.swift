@@ -25,6 +25,8 @@ struct CombinedView: Equatable {
     var staleness: SourceHealth? = nil
     /// #72's other half (review M3): whole days the phone's copy of the standings is past its day.
     var phoneCopyDays: Int? = nil
+    /// D-188 clause 4 (M20-W4): the benchmarks of the family's boards that weigh half. A stub.
+    var weighedHalf: [String] = []
 
     /// Everything this list must say, as data (#67, M18-W2 P4): the view renders exactly these, and
     /// a test on the plan holds them, so a branch of the view cannot quietly skip one. Loudest first.
@@ -52,6 +54,8 @@ enum CombinedDisclosure: Equatable {
     case tiedPlaces
     /// D-112: the listed models were measured at different efforts (review B1).
     case mixedEfforts([String])
+    /// D-188 clause 4 (M20-W4): these boards weigh half, old or undated. A small note.
+    case boardsWeighHalf([String])
 }
 
 /// The efforts a board's listed models stand at, when there are two or more (D-112).
@@ -115,7 +119,8 @@ enum AnswerPlan: Equatable {
 /// names no primary board, standings not yet kept, a primary board they lack -- is today's cards.
 /// A refinement whose board the standings lack is left out rather than failing the list.
 func answerPlan(
-    outcome: RoutingOutcome?, primaryBoard: String?, standings: Standings?, removed: Set<Refinement>,
+    outcome: RoutingOutcome?, primaryBoard: String?, family: [String]? = nil, question: String? = nil,
+    asOf: Date = Date(), standings: Standings?, removed: Set<Refinement>,
     primaryHealth: SourceHealth? = nil, phoneCopyDays: Int? = nil
 ) -> AnswerPlan {
     // A primary board the standings lack needs no check of its own: `combine` refuses an unknown
@@ -218,6 +223,10 @@ final class PlanMemo {
         let removed: Set<Refinement>
         let primaryHealth: SourceHealth?
         var phoneCopyDays: Int? = nil
+        /// M20-W4: the surface's family, the question's text (for the refinement words) and the day. Stubs.
+        var family: [String]? = nil
+        var question: String? = nil
+        var asOf: Date = Date(timeIntervalSince1970: 0)
     }
 
     private var last: (inputs: Inputs, plan: AnswerPlan)?
