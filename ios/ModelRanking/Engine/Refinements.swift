@@ -92,6 +92,11 @@ enum Refinements {
                    reason: "Arena prompts about mathematical questions asked in conversation"),
     ]
 
+    /// M20-W3 (D-188): a stub until the family's boards are read.
+    static func familyBoards(family: [String], surface: String, chosen: [Refinement]) -> [String] { [] }
+    /// M20-W3: a stub until the words of a language or a domain are read.
+    static func read(_ question: String) -> [Refinement] { [] }
+
     /// The refinements a surface may take, in table order.
     static func allowed(for surface: String) -> [Refinement] {
         table.filter { $0.surfaces.contains(surface) }
