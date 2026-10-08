@@ -213,8 +213,71 @@ enum CategoryHints {
 }
 
 extension CategoryHints {
-    /// D-187: the surface a question names outright, or nil. A stub until the rules are written.
-    static func namedSurface(_ question: String, within known: [String]) -> String? { nil }
+    /// D-187 (M20 hotfix): the words that name a surface outright, in English and in Turkish. Read by
+    /// the wording tier before the sentence similarity, so a question that says "code", "kodlama",
+    /// "matematik" or "web sitesi" reaches its surface on a device with no on-device model, no English
+    /// embedding, or a Turkish question (on the owner's TestFlight build every one of those was
+    /// answered "not measured").
+    ///
+    /// **The order is the decision.** The first rule a question's words meet decides, so the more
+    /// specific surface comes first: an agent that codes is `agentic-coding`, a web site is `web-dev`,
+    /// a cited search is `search_factuality`, a click through a site is `computer-use`. `everyday` is
+    /// last and reads a question about AI models in general.
+    ///
+    /// `stems` match the start of a word (`kod` reads `kodlama`, `kodumu`), `words` match a whole word,
+    /// and each phrase is words in a row, each read by its start. Written from the surfaces'
+    /// descriptions above, never from a held-out set.
+    static let surfaceWords: [(id: String, stems: [String], words: [String], phrases: [[String]])] = [
+        ("agentic-coding", ["agent", "ajan", "otonom", "autonomous"], [],
+         [["on", "its", "own"], ["by", "itself"], ["kendi", "başına"]]),
+        ("computer-use", ["browser", "tarayıcı", "click", "tıkla"], [],
+         [["computer", "use"], ["bilgisayar", "kullan"], ["fill", "in", "form"], ["form", "doldur"]]),
+        ("web-dev", ["website", "webpage", "frontend", "landing", "html", "tailwind", "nextjs"], ["css", "react"],
+         [["web", "site"], ["web", "sayfa"], ["web", "app"], ["web", "uygulama"], ["web", "develop"],
+          ["web", "geliştir"], ["front", "end"]]),
+        ("search_factuality", ["cite", "kaynakça"], [], [["kaynak", "göster"], ["kaynaklarıyla"]]),
+        ("search", ["search", "google", "internet", "news", "haber", "arama", "araştır"], [],
+         [["look", "up"], ["güncel", "bilgi"]]),
+        ("coding", ["code", "coding", "coder", "program", "developer", "debug", "python", "javascript",
+                    "typescript", "rust", "swift", "kotlin", "golang", "kod", "yazılım", "geliştirici",
+                    "refactor", "script"], ["bug", "bugs", "sql", "java", "repo"], []),
+        ("mathematics", ["math", "matematik", "equation", "denklem", "calculus", "algebra", "cebir", "geometr",
+                         "integral", "derivative", "türev", "probabilit", "olasılık", "istatistik", "statistic",
+                         "ispat", "theorem", "teorem"], ["proof"], []),
+        ("vision", ["image", "picture", "screenshot", "photograph", "görsel", "resim", "fotoğraf", "foto",
+                    "görüntü", "çiz"], ["photo", "photos", "ocr"], [["ekran", "görüntü"]]),
+        ("document", ["document", "contract", "summar", "doküman", "döküman", "belge", "sözleşme", "özet"],
+         ["pdf"], []),
+        ("abstract", ["puzzle", "riddle", "logic", "bulmaca", "mantık", "örüntü"], [], []),
+        ("factuality", ["hallucinat", "halüsinasyon", "factual", "doğruluk", "uydur"], ["fact", "facts"], []),
+        ("expert", ["medical", "medicine", "doctor", "lawyer", "scien", "physics", "chemistry", "biology",
+                    "expert", "tıbb", "doktor", "hukuk", "avukat", "bilim", "fizik", "kimya", "biyoloji", "uzman"],
+         ["law", "legal"], []),
+        ("assistant", ["chatbot", "sohbet", "assistant", "asistan"], ["chat"], []),
+        ("everyday", ["everyday", "günlük"], ["llm", "llms"],
+         [["yapay", "zek"], ["best", "ai"], ["which", "ai"], ["hangi", "yapay"]]),
+    ]
+
+    /// The surface a question names outright, among those the engine served, or nil.
+    static func namedSurface(_ question: String, within known: [String]) -> String? {
+        let readings = InputSignals.folds(question).map(InputSignals.wordsOf)
+        for rule in surfaceWords where known.contains(rule.id) {
+            let named = readings.contains { words in
+                words.contains { word in rule.words.contains(word) || rule.stems.contains(where: word.hasPrefix) }
+                    || rule.phrases.contains { phrase in inRow(phrase, words) }
+            }
+            if named { return rule.id }
+        }
+        return nil
+    }
+
+    /// Whether `phrase` stands in `words` as words in a row, each read by its start.
+    private static func inRow(_ phrase: [String], _ words: [String]) -> Bool {
+        guard !phrase.isEmpty, phrase.count <= words.count else { return false }
+        return (0...(words.count - phrase.count)).contains { start in
+            phrase.indices.allSatisfy { words[start + $0].hasPrefix(phrase[$0]) }
+        }
+    }
 }
 
 protocol QuestionRouter {
@@ -282,14 +345,17 @@ struct SimilarityRouter: QuestionRouter {
     func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
         let text = question.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !text.isEmpty else { return nil }
-        guard SimilarityRouter.readsEnglish(text) else { return nil }
-        guard let embedding = NLContextualEmbedding(language: .english),
+        // D-187: a question that names a surface outright goes there, in either language and whether
+        // or not the embedding below can load: the matches below need both, and either can be missing.
+        let named = CategoryHints.namedSurface(question, within: known)
+        guard SimilarityRouter.readsEnglish(text),
+              let embedding = NLContextualEmbedding(language: .english),
               embedding.hasAvailableAssets,
               (try? embedding.load()) != nil
         else {
-            // Assets not on the device yet. Not an error: the caller drops to the manual fallback
-            // and says so, which is REQ-RTR-003 rather than a failure.
-            return nil
+            // Assets not on the device yet, or a question in another language. Not an error: a named
+            // surface answers, and otherwise the caller drops to the manual fallback and says so.
+            return named.map { RoutingOutcome(categoryID: $0, tier: .similarity, unmeasured: false) }
         }
 
         func vector(_ string: String) -> [Double]? {
@@ -368,27 +434,20 @@ struct SimilarityRouter: QuestionRouter {
             }
         }
         guard let best = closest.first else { return nil }
+        if let named {
+            return RoutingOutcome(categoryID: named, tier: .similarity, unmeasured: false,
+                                  alternatives: Array(closest.map(\.id).filter { $0 != named }.prefix(2)))
+        }
 
-        // BLOCKING-1: a question closer to something the catalogue does NOT measure than to any
-        // surface is unmeasured, whatever its score against the surfaces. Measured in the same
-        // centred space as the surfaces, so both are read with one ruler.
-        let declines = CategoryHints.unmeasuredHints.map { $0.compactMap(vector) }
-            .filter { !$0.isEmpty }.map(score)
-        if let decline = declines.max(), decline > best.score {
-            guard known.contains(CategoryHints.unmeasuredFallback) else { return nil }
-            // W3 re-review NEW-1, and the choice of which error to make. Wording cannot tell a
-            // question ABOUT a photo from a website task that INVOLVES one: measured, "click through
-            // a website and upload a photo" scores 0.57 against the image hint and 0.32 against
-            // `computer-use`, so no threshold separates the two. A false decline is therefore
-            // possible, and it is made cheap: the closest surfaces come with it as one-tap
-            // alternatives. The opposite error — a measured-looking answer to an unmeasured
-            // question — is the one REQ-ASK-003 forbids, and it costs the reader the truth.
-            return RoutingOutcome(
-                categoryID: CategoryHints.unmeasuredFallback, tier: .similarity, unmeasured: true,
-                alternatives: Array(
-                    closest.map(\.id).filter { $0 != CategoryHints.unmeasuredFallback }.prefix(2)
-                )
-            )
+        // D-187 (the owner's ruling, 2026-10-08): an understood question is answered from the closest
+        // board, never "not measured". The decline groups no longer decline. A question closest to
+        // making or changing an image goes to `vision`, the board of models that read images best; one
+        // closest to sound, video or speed is answered by the closest surface below.
+        let declines = CategoryHints.unmeasuredHints.map { $0.compactMap(vector) }.map { $0.isEmpty ? -Double.infinity : score($0) }
+        if let image = declines.first, image > best.score, declines.allSatisfy({ $0 <= image }),
+           known.contains("vision") {
+            return RoutingOutcome(categoryID: "vision", tier: .similarity, unmeasured: false,
+                                  alternatives: Array(closest.map(\.id).filter { $0 != "vision" }.prefix(2)))
         }
 
         if best.score < floor {
@@ -690,6 +749,12 @@ struct TieredRouter {
         if let model,
            let outcome = await firstWithin(modelTimeout, { await model.route(question, within: known) })
         {
+            // D-187: the model's "none of these" on a question it read as a search is not an answer;
+            // the wording tier, keywords first, gets the question.
+            if outcome.unmeasured, outcome.reading == .search,
+               let wording = await similarity.route(question, within: known), !wording.unmeasured {
+                return Self.read(question, wording)
+            }
             return Self.read(question, outcome)
         }
         if let outcome = await similarity.route(question, within: known) {
@@ -708,15 +773,9 @@ struct TieredRouter {
     /// where the model read the question, its verdict. The signals run on every tier.
     static func read(_ question: String, _ outcome: RoutingOutcome) -> RoutingOutcome {
         var read = outcome
-        // #113 (M18-W3): making or changing an image is not measured; the same outcome the model's
-        // decline gives, with the same disclosure. Only where the tier chose `vision`, which measures
-        // READING an image (the code reviews' B4): a question about code, a website, a store or a file
-        // that mentions an image is routed as its tier chose. M19-W4's reach beyond `vision` came out
-        // after three review verdicts on that class (#191).
-        if outcome.categoryID == "vision", !outcome.unmeasured, InputSignals.makesAnImage(question) {
-            read = RoutingOutcome(categoryID: CategoryHints.unmeasuredFallback, tier: outcome.tier, unmeasured: true)
-            read.reading = outcome.reading
-        }
+        // D-187 (the owner's ruling, 2026-10-08) retires #113's rule: a request to make or change an
+        // image is answered from `vision`, the board of the models that read images best, and is no
+        // longer told "not measured".
         read.reading = inputReading(
             noWord: InputSignals.noWord(question), smallTalk: InputSignals.smallTalk(question),
             doubt: InputSignals.pastedContent(question) || InputSignals.instructsTheApp(question)

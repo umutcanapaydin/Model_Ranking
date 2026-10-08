@@ -24,17 +24,11 @@ from pathlib import Path
 from app.workflows.rank import build_price_medians
 from app.workflows.schema import open_readonly
 
-#: Each source left out of the public artifact, with the reason the licence review gave.
-LEFT_OUT: dict[str, str] = {
-    "swebench": "the SWE-bench leaderboard is CC BY-NC 4.0: not for a paid app, unclear for a free one",
-    "epoch_arc_agi": "ARC Prize's terms grant personal or internal use only, and forbid a database of "
-    "its data without written permission",
-    "epoch_deepswe_external": "Datacurve publishes no licence for the DeepSWE board",
-    "epoch_terminalbench": "the Terminal-Bench leaderboard states no licence",
-    "epoch_webdev": "Epoch's copy cites arena.ai, whose terms permit personal or internal business use",
-    "epoch_mmlu": "the MMLU scores (HELM Lite and model reports) carry no licence found",
-    "openrouter": "OpenRouter's terms forbid use of its data except as it expressly authorises",
-}
+#: Each source left out of the public artifact, with its reason. Empty since D-186: the owner ruled on
+#: 2026-10-08 that the hosted engine serves every source while the app is on TestFlight, and that the
+#: licences (D-185's table) are settled before it goes to production. The machinery stays, held by
+#: its tests on planted sources, for that day.
+LEFT_OUT: dict[str, str] = {}
 
 #: The rows a source owns, each removed by one fixed statement; the sources go in as one JSON list.
 _REMOVE = {
@@ -48,9 +42,12 @@ _REMOVE = {
 #: OpenRouter's prices, under `openrouter/` aliases (MJ1), and the vendor subscription plans, which
 #: `/v1` never serves and one vendor's terms keep from public display (M2).
 _REMOVE_ALSO = {
-    "openrouter_aliases": "DELETE FROM pricing WHERE source = 'litellm' AND alias LIKE 'openrouter/%'",
     "plan_models": "DELETE FROM plan_models",
     "plans": "DELETE FROM plans",
+}
+#: The copies another source keeps of a left-out source's rows, removed only while it is left out.
+_COPIES_OF = {
+    "openrouter": ("openrouter_aliases", "DELETE FROM pricing WHERE source = 'litellm' AND alias LIKE 'openrouter/%'"),
 }
 _SURVIVORS = (
     "SELECT (SELECT count(*) FROM scores WHERE source IN (SELECT value FROM json_each(?)))"
@@ -82,6 +79,8 @@ def derive(source: Path, target: Path) -> dict[str, int]:
             with conn:
                 for table, statement in _REMOVE.items():
                     removed[f"{table}_removed"] = conn.execute(statement, (sources,)).rowcount
+                for left_out, (what, statement) in _COPIES_OF.items():
+                    removed[f"{what}_removed"] = conn.execute(statement).rowcount if left_out in LEFT_OUT else 0
                 for what, statement in _REMOVE_ALSO.items():
                     removed[f"{what}_removed"] = conn.execute(statement).rowcount
             if build_price_medians(conn) <= 0:

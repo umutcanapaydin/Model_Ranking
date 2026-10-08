@@ -73,3 +73,6 @@ advisor.db.refresh.lock
 # M18-W1 (D-171): the owner's engine address, set on his Mac only
 ios/Config/Engine.local.xcconfig
 ios/Config/UITests.local.xcconfig
+# Xcode's per-user state (window layout, breakpoints): written when the project is opened, never shared.
+# Untracked, it stopped the hosted deploy's clean-tree check after the first archive.
+xcuserdata/
