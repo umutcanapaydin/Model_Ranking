@@ -230,6 +230,20 @@ final class KeywordRoutingTests: OfflineTestCase {
         XCTAssertFalse(turkish.unmeasured)
     }
 
+    /// #206: a short Turkish question made of model names is not confidently Turkish, so the embedding
+    /// would read it as English; it is a general question.
+    func testAShortTurkishQuestionMadeOfModelNamesIsAGeneralQuestion() async {
+        for question in ["claude mu chatgpt mi", "chatgpt mi gemini mi daha iyi", "gemini mı claude mu hangisi"] {
+            XCTAssertTrue(CategoryHints.comparesModelsOnly(question), question)
+            let outcome = await routed(question)
+            XCTAssertEqual(outcome.categoryID, "everyday", question)
+            XCTAssertFalse(outcome.unmeasured, question)
+        }
+        for question in ["claude vs chatgpt", "is claude good", "claude mu chatgpt mi kod yazar", "hangisi daha iyi"] {
+            XCTAssertFalse(CategoryHints.comparesModelsOnly(question), question)
+        }
+    }
+
     /// The first review's M1, D-187 clause 4: the model's "none of these" on a question it read as a
     /// search goes to the wording tier, and a question it read as something else keeps its outcome.
     func testTheModelsDeclineOnASearchGoesToTheWordingTier() async {

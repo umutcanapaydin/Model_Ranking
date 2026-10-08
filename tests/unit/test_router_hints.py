@@ -347,6 +347,22 @@ def test_only_the_model_output_boundary_builds_an_outcome_with_refinements() -> 
     assert not re.search(r"\.refinements\s*(=|\.append|\+=)", source), "an outcome's refinements assigned after it is built"
 
 
+#: D-188 clause 6 (the M20-W3 review's B1 and R1): where the on-device model did not choose the
+#: refinements, the answer plan reads them from the question's words. That is the one reader.
+WORD_REFINEMENT_READERS = {"AnswerPlan.swift"}
+
+
+def test_only_the_answer_plan_reads_refinements_from_the_words() -> None:
+    """A refinement read from the words reaches the combined list with no boundary check of its own
+    (`familyBoards` keeps only those the surface allows), so the client may read them in one place."""
+    readers = {
+        path.name
+        for path in CLIENT.rglob("*.swift")
+        if re.search(r"\bRefinements\.read\(", _code(path.read_text(encoding="utf-8")))
+    }
+    assert readers <= WORD_REFINEMENT_READERS, f"refinements read from the words outside the answer plan: {readers}"
+
+
 def test_only_the_wording_tier_builds_an_outcome_with_alternatives() -> None:
     """Security pass S1 (M17-W5): an alternative is a surface the reader taps, and the tap sends it
     to the engine as `task`. Only the wording tier ranks alternatives, from the ids the engine
