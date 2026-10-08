@@ -3,9 +3,10 @@
 //
 //  A model enters when at least half of the family's boards rank it, rounded up, and at least one (with
 //  two boards, either is enough: the W1 review measured "and at least two" as an intersection). Its place is the weighted mean of its percentile positions, (position - 1)
-//  over (the board's size - 1), across the boards that rank it. A board whose newest evaluation is
-//  more than 90 days old, or that publishes no date, weighs half. Equal means share a place, and the
-//  order breaks them by model id.
+//  over (the board's size - 1), across the boards that rank it; every board counts the same, and one
+//  whose newest evaluation is more than 90 days old, or undated, is named under the list (the W2
+//  review measured a half weight letting Arena decide five families alone). Equal means share a place,
+//  and the order breaks them by model id.
 
 import XCTest
 
@@ -38,7 +39,7 @@ final class FamilyCombineTests: OfflineTestCase {
     }
 
     /// D-188 clause 2: half of the family's boards, rounded up, and at least one.
-    func testAModelNeedsHalfTheFamilyAndAtLeastTwoBoards() throws {
+    func testAModelNeedsHalfTheFamilysBoards() throws {
         let four = standings([board("p", [("a", 1), ("b", 2), ("c", 3)]), board("q", [("a", 1), ("b", 2)]),
                               board("r", [("a", 1)]), board("s", [("a", 1), ("d", 2)])])
         let list = try combineFamily(four, boards: ["p", "q", "r", "s"], asOf: today)
@@ -78,29 +79,48 @@ final class FamilyCombineTests: OfflineTestCase {
         XCTAssertLessThan(places(list)["b"] ?? 0, places(list)["c"] ?? 0)
     }
 
-    /// D-188 clause 4: a board past 90 days weighs half, so a split between a fresh and an old board is
-    /// decided by the fresh one; with both fresh it is a tie.
-    func testAnOldBoardWeighsHalf() throws {
+    /// D-188 clause 4 as the W2 review measured it: an old board counts the same, and is named.
+    func testAnOldBoardCountsTheSameAndIsNamed() throws {
         let fresh = board("fresh", [("a", 1), ("b", 2)])
         let old = board("old", [("b", 1), ("a", 2)], date: "2026-06-25")
         let split = try combineFamily(standings([fresh, old]), boards: ["fresh", "old"], asOf: today)
-        XCTAssertEqual(order(split), ["a", "b"])
-        XCTAssertLessThan(places(split)["a"] ?? 0, places(split)["b"] ?? 0)
+        XCTAssertEqual(places(split)["a"], places(split)["b"], "a split between two boards is a tie")
         XCTAssertEqual(split.staleBoards, ["old"])
-
-        let bothFresh = board("also", [("b", 1), ("a", 2)])
-        let tie = try combineFamily(standings([fresh, bothFresh]), boards: ["fresh", "also"], asOf: today)
-        XCTAssertEqual(places(tie)["a"], places(tie)["b"])
-        XCTAssertEqual(tie.staleBoards, [])
     }
 
-    /// D-188 clause 4: a board that publishes no date cannot be aged, so it weighs half too.
-    func testAnUndatedBoardWeighsHalf() throws {
+    /// D-188 clause 4: a board that publishes no date cannot be aged; it counts the same, and is named.
+    func testAnUndatedBoardCountsTheSameAndIsNamed() throws {
         let fresh = board("fresh", [("a", 1), ("b", 2)])
         let undated = board("undated", [("b", 1), ("a", 2)], date: nil)
         let list = try combineFamily(standings([fresh, undated]), boards: ["fresh", "undated"], asOf: today)
-        XCTAssertEqual(order(list), ["a", "b"])
+        XCTAssertEqual(places(list)["a"], places(list)["b"])
         XCTAssertEqual(list.staleBoards, ["undated"])
+    }
+
+    /// The W2 review's M6: a board is named past 90 whole days, as the engine's own line draws it.
+    func testTheNinetyDayLine() throws {
+        let ninety = board("ninety", [("a", 1), ("b", 2)], date: "2026-07-10")
+        let ninetyOne = board("ninetyOne", [("a", 1), ("b", 2)], date: "2026-07-09")
+        let list = try combineFamily(standings([ninety, ninetyOne]), boards: ["ninety", "ninetyOne"], asOf: today)
+        XCTAssertEqual(list.staleBoards, ["ninetyOne"])
+    }
+
+    /// The W2 review's M4: a shared position counts as that position, the competition ranking a board
+    /// publishes (two models at 1, the next at 3).
+    func testASharedPositionCountsAsThatPosition() throws {
+        let tied = board("tied", [("a", 1), ("b", 1), ("c", 3)])
+        let list = try combineFamily(standings([tied]), boards: ["tied"], asOf: today)
+        XCTAssertEqual(places(list)["a"], 1)
+        XCTAssertEqual(places(list)["b"], 1)
+        XCTAssertEqual(places(list)["c"], 3)
+    }
+
+    /// The W2 review's R2: one standing naming a model the payload's model list lacks leaves that model
+    /// out; it does not blank the family.
+    func testAModelTheModelListLacksIsLeftOut() throws {
+        let data = Standings(apiVersion: "v1", attributions: [], boards: [board("p", [("a", 1), ("ghost", 2)])],
+                             models: [StandingModel(id: "a", display: "A", vendor: "V", blendedPerM: 1, accessibility: nil)])
+        XCTAssertEqual(order(try combineFamily(data, boards: ["p"], asOf: today)), ["a"])
     }
 
     /// Each entry carries where every board that ranks it put it, in the family's order.
@@ -122,17 +142,13 @@ final class FamilyCombineTests: OfflineTestCase {
         XCTAssertEqual(withGone.boards.map(\.id), ["p", "q"])
     }
 
-    func testAnUnknownBoardOrModelIsRefused() {
+    func testAFamilyWithNoKnownBoardIsRefused() {
         let data = standings([board("p", [("a", 1)])])
         XCTAssertThrowsError(try combineFamily(data, boards: ["nope"], asOf: today)) {
             XCTAssertEqual($0 as? CombineError, .noBoards, "a family none of whose boards is kept has no list")
         }
         XCTAssertThrowsError(try combineFamily(data, boards: [], asOf: today)) {
             XCTAssertEqual($0 as? CombineError, .noBoards)
-        }
-        let orphan = Standings(apiVersion: "v1", attributions: [], boards: [board("p", [("ghost", 1)])], models: [])
-        XCTAssertThrowsError(try combineFamily(orphan, boards: ["p"], asOf: today)) {
-            XCTAssertEqual($0 as? CombineError, .unknownModel("ghost"))
         }
     }
 
@@ -154,10 +170,13 @@ final class FamilyCombineTests: OfflineTestCase {
         for index in 0..<(2 + generator.next(5)) {
             var pool = models
             var rows: [(String, Int)] = []
-            for position in 1...(3 + generator.next(9)) where !pool.isEmpty {
+            var position = 1
+            for _ in 1...(3 + generator.next(9)) where !pool.isEmpty {
                 rows.append((pool.remove(at: generator.next(pool.count)), position))
+                // Now and then two models share a place, as a board publishes a tie (the W2 review's M3).
+                if generator.next(4) != 0 { position = rows.count + 1 }
             }
-            let date = generator.next(3) == 0 ? "2026-05-01" : "2026-09-20"
+            let date: String? = [nil, "2026-05-01", "2026-09-20", "2026-09-20"][generator.next(4)]
             boards.append(board("b\(index)", rows, date: date))
         }
         return (standings(boards), boards.map(\.id))
