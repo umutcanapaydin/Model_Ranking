@@ -211,11 +211,11 @@ None
 
 | finding | disposition |
 |---|---|
-| M1 | fixed (this closure's last fix commit): only the refinement that stands is offered |
-| M2 | fixed (the same commit): a one-board list only for a kept refinement's board |
-| M3 | fixed (red commit): a boards request after 100 light ones is refused and logged, held |
-| M4 | fixed (the same fix commit): a weight above the limit costs the whole minute |
-| M5 | fixed (red commit): the memo test and the screen's source tripwire |
-| M6 | fixed (the same fix commit): both docstrings, and the plan's K.8 list names `refined_board` |
+| M1 | fixed `62ce8d2`: only the refinement that stands is offered |
+| M2 | fixed `62ce8d2`: a one-board list only for a kept refinement's board |
+| M3 | fixed `a05bc9e`: a boards request after 100 light ones is refused and logged, held |
+| M4 | fixed `62ce8d2`: a weight above the limit costs the whole minute |
+| M5 | fixed `a05bc9e` and `62ce8d2`: the memo test and the screen's source tripwire |
+| M6 | fixed `62ce8d2`: both docstrings, and the plan's K.8 list names `refined_board` |
 | R1 | #228 (M21-W1, before external testers) |
 
