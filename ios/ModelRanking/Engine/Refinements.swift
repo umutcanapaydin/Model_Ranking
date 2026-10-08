@@ -167,14 +167,18 @@ enum Refinements {
     static let translating: Set<String> = ["translate", "translates", "translating", "translation", "translator"]
 
     /// A matched word after one of these, or before one of these, is something else: data or computer
-    /// science, science fiction (one word or two), physical therapy, writing code. A trailing `*` reads
-    /// a word by its start.
+    /// science, science fiction (one word or two), physical therapy, writing code, an AI's software, a
+    /// server's or a battery's health (sağlık kontrolü, sağlık durumu). A trailing `*` reads a word by
+    /// its start.
     static let notAfter: [String: Set<String>] = [
         "science": ["data", "computer"], "scientific": ["data", "computer"], "bilim": ["veri", "bilgisayar"],
         "hikaye": ["kullanici"],
+        // AI software is the AI itself, as the router reads it (`CategoryHints.notAfter`).
+        "software": ["ai", "zeka", "chatbot"], "yazilim": ["zeka"],
     ]
     static let notBefore: [String: [String]] = [
         "science": ["fiction"], "bilim": ["kurgu*"], "fizik": ["tedavi*"], "doctor": ["who"],
+        "saglik": ["kontrol*", "durum*"],
         "writing": ["code", "codes", "tests", "scripts", "sql", "queries", "functions"],
     ]
     static let notStarting = ["bilimkurgu"]
