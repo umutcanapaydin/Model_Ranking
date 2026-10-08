@@ -67,6 +67,19 @@ final class FamilyPlanTests: OfflineTestCase {
         XCTAssertEqual(view.refinements, [french].compactMap { $0 })
     }
 
+    /// D-188 clause 6: where the on-device model read the question, its choice stands, none included;
+    /// the words are read only where another tier answered.
+    func testTheOnDeviceModelsChoiceOfNoRefinementStands() {
+        let data = standings([board("epoch_eci", [("a", 1), ("b", 2)]), board("arena", [("b", 1), ("a", 2)]),
+                              board("arena_text_french", [("a", 1), ("b", 2)])])
+        let plan = answerPlan(outcome: routed("everyday", tier: .model), primaryBoard: "epoch_eci",
+                              family: ["epoch_eci", "arena"], question: "best ai to write in french", asOf: today,
+                              standings: data, removed: [])
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+        XCTAssertEqual(view.list.boards.map(\.id), ["epoch_eci", "arena"])
+        XCTAssertEqual(view.refinements, [])
+    }
+
     /// D-188 clause 4: an old board weighs half and is a small note; the loud stale warning is not said.
     func testAnOldFamilyBoardIsASmallNoteNotTheLoudWarning() {
         let data = standings([board("swebench", [("a", 1), ("b", 2)], date: "2026-02-26"),
