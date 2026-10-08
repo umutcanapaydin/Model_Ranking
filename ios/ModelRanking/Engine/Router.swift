@@ -392,13 +392,21 @@ extension CategoryHints {
     static let comparisonParticles: Set<String> = ["mi", "mu", "hangisi", "hangi", "yoksa", "veya", "ya", "da",
                                                    "de", "ve", "daha", "iyi", "en"]
 
+    /// #206: the names of a model's tiers, part of its name ("gemini pro", "claude haiku").
+    static let modelTierWords: Set<String> = ["pro", "mini", "flash", "sonnet", "opus", "haiku", "plus", "turbo",
+                                              "max", "ultra", "nano", "lite", "preview", "thinking"]
+
     /// #206: a short question made only of model names and Turkish particles ("claude mu chatgpt mi").
     /// It is not confidently Turkish, so the embedding would read it as English and place it on a
-    /// surface it does not name; it is a general question. A single letter is a version's tail ("gpt-4o").
+    /// surface it does not name; it is a general question. A tier's name is part of a model's ("gemini
+    /// pro"), and a single letter is a version's tail ("gpt-4o").
     static func comparesModelsOnly(_ question: String) -> Bool {
         readings(question).contains { words in
             words.contains(where: generalWords.words.contains) && words.contains(where: comparisonParticles.contains)
-                && words.allSatisfy { generalWords.words.contains($0) || comparisonParticles.contains($0) || $0.count == 1 }
+                && words.allSatisfy { word in
+                    generalWords.words.contains(word) || comparisonParticles.contains(word)
+                        || modelTierWords.contains(word) || word.count == 1
+                }
         }
     }
 
