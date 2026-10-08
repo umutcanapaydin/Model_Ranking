@@ -132,6 +132,39 @@ final class FamilyPlanTests: OfflineTestCase {
         XCTAssertEqual(orderNote(view, .english), note, "the boards' screen says the same sentence")
     }
 
+    /// The second round's M1 and M3: the note says how the place is reached (each board's place as a
+    /// share of its length, then the average), the count of models it holds, and in Turkish the
+    /// coverage, the plural and an undated board.
+    func testTheFamilyNoteSaysHowThePlaceIsReachedInBothLanguages() {
+        let boards = [NamedBoard(name: "Aider", date: .unknown), NamedBoard(name: "SWE-bench", date: .readOn("2026-09-24"))]
+        let english = UIText.familyNote(models: 58, boards: boards, coverage: 2, .english)
+        XCTAssertTrue(english.contains("58 models"), english)
+        XCTAssertTrue(english.contains("relative places"), english)
+        XCTAssertFalse(english.contains("mean position"), english)
+        XCTAssertTrue(english.contains("Aider, no date"), english)
+        XCTAssertTrue(english.contains("undated, read 24 September 2026"), english)
+        let turkish = UIText.familyNote(models: 58, boards: boards, coverage: 2, .turkish)
+        XCTAssertTrue(turkish.contains("58 model"), turkish)
+        XCTAssertTrue(turkish.contains("en az 2 panoda"), turkish)
+        XCTAssertTrue(turkish.contains("göreli"), turkish)
+        XCTAssertTrue(turkish.contains("Aider, tarih yok"), turkish)
+        XCTAssertTrue(turkish.contains("tarihsiz, 24 Eylül 2026 okundu"), turkish)
+        XCTAssertTrue(UIText.olderBoards(boards, .turkish).contains("sayılıyorlar"))
+        XCTAssertTrue(UIText.olderBoards(Array(boards.prefix(1)), .turkish).hasSuffix("sayılıyor."))
+    }
+
+    /// The second round's M2: a surface is planned only once its own answers are on screen, so a
+    /// "Change" never shows one coding list alone, or a new surface's list beside the old answers.
+    func testASurfaceIsPlannedOnlyOnceItsAnswersAreOnScreen() {
+        XCTAssertNil(plannedOutcome(routed: nil, chosen: "mathematics", answers: ["coding", "agentic-coding"]))
+        XCTAssertNil(plannedOutcome(routed: nil, chosen: "coding", answers: ["mathematics"]))
+        XCTAssertEqual(plannedOutcome(routed: nil, chosen: "mathematics", answers: ["mathematics"])?.tier, .manual)
+        XCTAssertNil(plannedOutcome(routed: routed("vision"), chosen: nil, answers: ["coding", "agentic-coding"]))
+        XCTAssertEqual(plannedOutcome(routed: routed("coding"), chosen: nil, answers: ["coding", "agentic-coding"])?.tier,
+                       .similarity)
+        XCTAssertNil(plannedOutcome(routed: nil, chosen: nil, answers: ["coding"]), "the launch screen plans nothing")
+    }
+
     /// The W4 review's M2: a removed refinement is not counted on a family, and comes back.
     func testARemovedRefinementIsNotCountedOnAFamilyAndComesBack() {
         let french = Refinements.table.filter { $0.value == "french" }
@@ -233,5 +266,79 @@ final class FamilyPlanTests: OfflineTestCase {
         inputs.question = "best model for coding in french"
         _ = memo.plan(inputs, standings: coding)
         XCTAssertEqual(memo.computed, 2)
+    }
+
+    /// Tester (M20-W4, REQ-CMB-005, D-188 clause 2): on a family whose model count, board count and
+    /// coverage all differ (5, 4 and 2), the sentence the list itself shows (`combinedDisclosure`) and
+    /// the boards' screen (`orderNote`) are the family note with each count in its place, in both
+    /// languages, and never the every-board sentence that round 1's B1 removed.
+    func testTheListsOwnNoteSaysEachCountInItsPlaceInBothLanguages() {
+        let family = ["swebench", "aider", "arena_text_coding", "livecodebench"]
+        let data = standings([board("swebench", [("a", 1), ("b", 2), ("c", 3)]),
+                              board("aider", [("a", 1), ("d", 2), ("e", 3)]),
+                              board("arena_text_coding", [("b", 1), ("c", 2), ("d", 3), ("f", 4)]),
+                              board("livecodebench", [("e", 1), ("a", 2)])])
+        let plan = answerPlan(outcome: routed("coding"), primaryBoard: "swebench", family: family, question: nil,
+                              asOf: today, standings: data, removed: [])
+        guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
+        XCTAssertEqual(view.sharedCount, 5, "f is on one board of four")
+        let order = CombinedDisclosure.familyOrder(
+            models: 5, boards: family.map { NamedBoard(name: "B \($0)", date: .measured("2026-09-20")) }, coverage: 2)
+        XCTAssertTrue(view.disclosures.contains(order), "\(view.disclosures)")
+        let english = "Our own list, built from 4 boards ("
+            + family.map { "B \($0), 20 September 2026" }.joined(separator: "; ")
+            + "). 5 models; a model ranked by at least 2 of them is placed by the average of its relative places "
+            + "on those boards (each place as a share of that board's length). No leaderboard publishes this order."
+        let turkish = "Uygulamanın kendi listesi: 4 panodan kuruldu ("
+            + family.map { "B \($0), 20 Eylül 2026" }.joined(separator: "; ")
+            + "). 5 model; en az 2 panoda yer alan bir model, o panolardaki göreli sıralarının ortalamasıyla "
+            + "yerleşir (her sıra, o panonun uzunluğuna oranla). Bu sırayı hiçbir liste yayımlamıyor."
+        XCTAssertEqual(combinedDisclosure(order, .english)?.text, english)
+        XCTAssertEqual(combinedDisclosure(order, .turkish)?.text, turkish)
+        XCTAssertEqual(combinedDisclosure(order, .english)?.weight, .property)
+        XCTAssertEqual(orderNote(view, .english), english, "the boards' screen says the list's sentence")
+        XCTAssertEqual(orderNote(view, .turkish), turkish)
+    }
+
+    /// Tester (M20-W4, REQ-CMB-004): a refinement whose board the phone's standings lack is not
+    /// offered on a family list, whichever tier chose it, so no chip claims a board the list did not count.
+    func testARefinementWhoseBoardTheStandingsLackIsNotOfferedOnAFamily() {
+        let french = Refinements.table.filter { $0.value == "french" }
+        XCTAssertFalse(french.isEmpty)
+        let data = standings([board("epoch_eci", [("a", 1), ("b", 2)]), board("arena", [("b", 1), ("a", 2)])])
+        for outcome in [routed("everyday"), routed("everyday", tier: .model, refinements: french)] {
+            let plan = answerPlan(outcome: outcome, primaryBoard: "epoch_eci", family: ["epoch_eci", "arena"],
+                                  question: "best ai to write in french", asOf: today, standings: data, removed: [])
+            guard case let .combined(view) = plan else { return XCTFail("\(outcome.tier): \(plan)") }
+            XCTAssertEqual(view.refinements, [], "\(outcome.tier)")
+            XCTAssertEqual(view.list.boards.map(\.id), ["epoch_eci", "arena"], "\(outcome.tier)")
+        }
+    }
+
+    /// Tester (M20-W4, REQ-CMB-004, D-188 clause 6; the W3 Tester's R1): the W3 Tester's word probes,
+    /// re-run through the answer plan W4 wires. An AI's software and a machine's health add no domain
+    /// board to the family list; the writing the question names still does.
+    func testTheW3WordProbesAddNoSecondReadingThroughTheAnswerPlan() {
+        let software = "arena_text_industry_software_and_it_services"
+        let medicine = "arena_text_industry_medicine_and_healthcare"
+        let writing = "arena_text_industry_writing_and_literature_and_language"
+        let data = standings([board("epoch_eci", [("a", 1), ("b", 2)]), board("arena", [("b", 1), ("a", 2)]),
+                              board(software, [("a", 1), ("b", 2)]), board(medicine, [("b", 1), ("a", 2)]),
+                              board(writing, [("a", 1), ("b", 2)])])
+        func boards(_ question: String) -> [String] {
+            let plan = answerPlan(outcome: routed("everyday"), primaryBoard: "epoch_eci", family: ["epoch_eci", "arena"],
+                                  question: question, asOf: today, standings: data, removed: [])
+            guard case let .combined(view) = plan else { return [] }
+            return view.list.boards.map(\.id)
+        }
+        XCTAssertEqual(boards("best ai software for writing essays"), ["epoch_eci", "arena", writing])
+        for question in ["which ai software is best for essays", "best chatbot software for poems",
+                         "hangi yapay zeka yazılımı daha iyi", "sunucu sağlık durumu", "pil sağlık durumu",
+                         "kubernetes sağlık kontrolü betiği"] {
+            let read = boards(question)
+            XCTAssertFalse(read.contains(software), question)
+            XCTAssertFalse(read.contains(medicine), question)
+            XCTAssertEqual(Array(read.prefix(2)), ["epoch_eci", "arena"], question)
+        }
     }
 }

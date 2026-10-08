@@ -140,7 +140,12 @@ final class ScreenPathTests: XCTestCase {
     func testTheQuestionSaysWhoReadsIt() {
         let caption = field("aiCaption")
         XCTAssertTrue(caption.waitForExistence(timeout: 10), "no line says who reads the question")
-        XCTAssertTrue(caption.label.hasPrefix("Apple Intelligence"), caption.label)
+        // One line per state of the on-device model (the W4 review's M5); the simulator's state varies.
+        let lines = ["Apple Intelligence enhanced", "Apple Intelligence off: questions are matched by their words",
+                     "No Apple Intelligence on this device: questions are matched by their words",
+                     "Apple Intelligence is downloading: questions are matched by their words for now",
+                     "Apple Intelligence is unavailable now: questions are matched by their words"]
+        XCTAssertTrue(lines.contains(caption.label), caption.label)
         keep("who reads the question")
     }
 

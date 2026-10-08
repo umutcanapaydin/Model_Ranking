@@ -605,10 +605,35 @@ final class ScreenExplanationTests: OfflineTestCase {
         XCTAssertEqual(Set(states.map { UIText.onDeviceCaption($0, .english) }).count, states.count)
         XCTAssertEqual(Set(states.map { UIText.onDeviceCaption($0, .turkish) }).count, states.count)
         XCTAssertEqual(UIText.onDeviceCaption(.available, .english), "Apple Intelligence enhanced")
+        // The second round's M3: each state says its own case.
+        XCTAssertTrue(UIText.onDeviceCaption(.turnedOff, .english).hasPrefix("Apple Intelligence off"))
+        XCTAssertTrue(UIText.onDeviceCaption(.notEligible, .english).hasPrefix("No Apple Intelligence on this device"))
+        XCTAssertTrue(UIText.onDeviceCaption(.downloading, .english).contains("downloading"))
+        XCTAssertTrue(UIText.onDeviceCaption(.unavailable, .english).contains("unavailable"))
+        XCTAssertTrue(UIText.onDeviceCaption(.turnedOff, .turkish).contains("kapalı"))
+        XCTAssertTrue(UIText.onDeviceCaption(.notEligible, .turkish).contains("bu cihazda") || UIText.onDeviceCaption(.notEligible, .turkish).contains("Bu cihazda"))
         XCTAssertNotEqual(UIText.primaryOnItsOwn(.english), UIText.primaryOnItsOwn(.turkish))
         XCTAssertNotEqual(UIText.backToCombined(.english), UIText.backToCombined(.turkish))
         let aider = [NamedBoard(name: "Aider", date: .unknown)]
         XCTAssertNotEqual(UIText.olderBoards(aider, .english), UIText.olderBoards(aider, .turkish))
+    }
+
+    /// Tester (M20-W4, REQ-APP-007, #208): in Turkish too, each state of the on-device model gets its own
+    /// caption, so a model still downloading is never said to be unavailable, nor the other way round.
+    func testEachOnDeviceStateHasItsOwnCaptionInTurkish() {
+        XCTAssertEqual(UIText.onDeviceCaption(.available, .turkish), "Apple Intelligence ile güçlendirildi")
+        XCTAssertEqual(UIText.onDeviceCaption(.turnedOff, .turkish),
+                       "Apple Intelligence kapalı: sorular kelimelerle eşleşiyor")
+        XCTAssertEqual(UIText.onDeviceCaption(.notEligible, .turkish),
+                       "Bu cihazda Apple Intelligence yok: sorular kelimelerle eşleşiyor")
+        XCTAssertEqual(UIText.onDeviceCaption(.downloading, .turkish),
+                       "Apple Intelligence iniyor: şimdilik sorular kelimelerle eşleşiyor")
+        XCTAssertEqual(UIText.onDeviceCaption(.unavailable, .turkish),
+                       "Apple Intelligence şu an kullanılamıyor: sorular kelimelerle eşleşiyor")
+        XCTAssertEqual(UIText.onDeviceCaption(.downloading, .english),
+                       "Apple Intelligence is downloading: questions are matched by their words for now")
+        XCTAssertEqual(UIText.onDeviceCaption(.unavailable, .english),
+                       "Apple Intelligence is unavailable now: questions are matched by their words")
     }
 
     /// The combined list's tied places ("1, 1, 3") say why, once.

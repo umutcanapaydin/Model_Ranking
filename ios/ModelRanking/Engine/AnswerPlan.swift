@@ -64,7 +64,8 @@ enum CombinedDisclosure: Equatable {
     /// D-112: the listed models were measured at different efforts (review B1).
     case mixedEfforts([String])
     /// D-188 clause 2 (the W4 review's B1): the order is the product's own, built from these boards,
-    /// each with its date; a model ranked by at least `coverage` of them is placed by its mean position.
+    /// each with its date; a model ranked by at least `coverage` of them is placed by the average of its
+    /// relative places on them (D-188 clause 3).
     case familyOrder(models: Int, boards: [NamedBoard], coverage: Int)
     /// D-188 clause 4 (M20-W4): these boards have no result in 90 days, or no date. A small note.
     case olderBoards([NamedBoard])
@@ -242,6 +243,15 @@ func familyLists(_ plan: AnswerPlan, paired: Bool, pairedPlan: AnswerPlan?) -> (
     guard paired else { return (first, nil) }
     guard case let .combined(second)? = pairedPlan else { return nil }
     return (first, second)
+}
+
+/// The outcome the screen plans: a question's, or a surface the reader chose (D-188 clause 5), and
+/// only once that surface's own answers are on screen (the W4 review's second round, M2). While a
+/// "Change" reloads, the old answers stay, and a plan then would show a new surface's list beside
+/// them, or one coding list alone.
+func plannedOutcome(routed: RoutingOutcome?, chosen: String?, answers: [String]) -> RoutingOutcome? {
+    guard let outcome = routed ?? chosen.map(chosenOutcome), answers.contains(outcome.categoryID) else { return nil }
+    return outcome
 }
 
 /// D-188 clause 5 (the W4 review's M4): a surface the reader chose, from "Change" or an alternative,
