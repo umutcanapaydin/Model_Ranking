@@ -85,7 +85,12 @@ and new models are what readers ask about.
 - The surface the question routes to brings its family. A refinement the on-device model chose adds
   its slice board, as D-168 does today.
 - With no model on the device, D-187's keywords pick the surface, and a language word picks the
-  language slice: `Türkçe` ("Turkish") or "in French" adds that language's board.
+  language slice: "in French" or `Almanca` ("German") adds that language's board. Arena slices exist
+  for Chinese, French, German, Japanese, Korean, Polish, Russian and Spanish; Turkish has none, so a
+  Turkish task adds no board (the W3 review's M6).
+- **Amended after the W3 review (B1).** W3 delivers the functions (`familyBoards`, `Refinements.read`)
+  and their tests; W4's answer plan is what calls them, and D-188 clause 6 records the amendment to
+  D-168 clause 4 with a gate on the one reader.
 - #206: a short Turkish question made of model names is a general question.
 - Nothing about the question leaves the phone: the family is read from `/v1/categories`, and
   `/v1/boards` is fetched as before (D-167 clause 1).

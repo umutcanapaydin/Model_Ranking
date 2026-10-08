@@ -383,8 +383,23 @@ extension CategoryHints {
         return String(word.lowercased().map { pairs[$0] ?? $0 }).replacingOccurrences(of: "\u{307}", with: "")
     }
 
-    private static func readings(_ question: String) -> [[String]] {
+    /// The question's words in plain letters, once per case folding (the Turkish one and the other).
+    static func readings(_ question: String) -> [[String]] {
         InputSignals.folds(question).map { InputSignals.wordsOf($0).map(plain) }
+    }
+
+    /// #206: the Turkish particles a question comparing models puts between their names.
+    static let comparisonParticles: Set<String> = ["mi", "mu", "hangisi", "hangi", "yoksa", "veya", "ya", "da",
+                                                   "de", "ve", "daha", "iyi", "en"]
+
+    /// #206: a short question made only of model names and Turkish particles ("claude mu chatgpt mi").
+    /// It is not confidently Turkish, so the embedding would read it as English and place it on a
+    /// surface it does not name; it is a general question. A single letter is a version's tail ("gpt-4o").
+    static func comparesModelsOnly(_ question: String) -> Bool {
+        readings(question).contains { words in
+            words.contains(where: generalWords.words.contains) && words.contains(where: comparisonParticles.contains)
+                && words.allSatisfy { generalWords.words.contains($0) || comparisonParticles.contains($0) || $0.count == 1 }
+        }
     }
 
     /// The surface a question names outright, among those the engine served, or nil.
@@ -515,6 +530,10 @@ struct SimilarityRouter: QuestionRouter {
         // D-187: a question that names a surface outright goes there, in either language and whether
         // or not the embedding below can load: the matches below need both, and either can be missing.
         let named = CategoryHints.namedSurface(question, within: known)
+        if named == nil, CategoryHints.comparesModelsOnly(question) {
+            return CategoryHints.generalSurface(question, within: known)
+                .map { RoutingOutcome(categoryID: $0, tier: .similarity, unmeasured: false) }
+        }
         guard SimilarityRouter.readsEnglish(text),
               let embedding = NLContextualEmbedding(language: .english),
               embedding.hasAvailableAssets,
