@@ -92,10 +92,74 @@ enum Refinements {
                    reason: "Arena prompts about mathematical questions asked in conversation"),
     ]
 
-    /// M20-W3 (D-188): a stub until the family's boards are read.
-    static func familyBoards(family: [String], surface: String, chosen: [Refinement]) -> [String] { [] }
-    /// M20-W3: a stub until the words of a language or a domain are read.
-    static func read(_ question: String) -> [Refinement] { [] }
+    /// M20-W3 (#211, D-188): the boards a question combines: its surface's family, in the family's
+    /// order, then at most `maxAdded` refinements the surface allows, language before domain, none
+    /// twice. A family the engine did not send (an engine older than M20) is the caller's primary board.
+    static func familyBoards(family: [String], surface: String, chosen: [Refinement]) -> [String] {
+        var boards: [String] = []
+        for board in family where !boards.contains(board) { boards.append(board) }
+        var added = 0
+        for kind in RefinementKind.allCases {
+            for refinement in chosen where refinement.kind == kind && refinement.surfaces.contains(surface) {
+                guard added < maxAdded, !boards.contains(refinement.board) else { continue }
+                boards.append(refinement.board)
+                added += 1
+            }
+        }
+        return boards
+    }
+
+    /// M20-W3: the words that name a language the TASK concerns or a domain, for a device with no
+    /// on-device model to choose the refinement (D-168 clause 3). Compared in plain letters (D-187), and
+    /// only words with one reading: "Polish" is a language only as "in Polish" or its Turkish name,
+    /// never polishing a photo; the Turkish word for business is not read, since in plain letters it
+    /// is the English "is".
+    static let refinementWords: [String: (stems: [String], words: [String], phrases: [[String]])] = [
+        "chinese": (["cince"], ["chinese", "mandarin"], []),
+        "french": (["fransizca"], ["french"], []),
+        "german": (["almanca"], ["german"], []),
+        "japanese": (["japonca"], ["japanese"], []),
+        "korean": (["korece"], ["korean"], []),
+        "polish": (["lehce"], [], [["in", "polish"], ["into", "polish"], ["polish", "language"]]),
+        "russian": (["rusca"], ["russian"], []),
+        "spanish": (["ispanyolca"], ["spanish"], []),
+        "legal": (["hukuk", "avukat"], ["legal", "law", "lawyer", "lawyers"], []),
+        "medicine": (["tibb", "saglik", "doktor"], ["medical", "medicine", "doctor", "doctors", "health",
+                                                    "healthcare", "clinical"], []),
+        "business": (["finans", "pazarlama", "muhasebe", "isletme"], ["business", "finance", "financial",
+                                                                      "marketing", "accounting"], []),
+        "software": (["yazilim"], ["software"], []),
+        "writing": (["siir", "hikaye", "edebiyat", "kompozisyon"], ["writing", "essay", "novel", "poem",
+                                                                    "poetry", "story", "stories", "literature"], []),
+        "entertainment": (["muzik"], ["movie", "movies", "film", "films", "music", "sports", "sport"], []),
+        "science": (["bilim", "fizik", "kimya", "biyoloji"], ["science", "scientific", "physics", "chemistry",
+                                                              "biology"], []),
+        "mathematical": (["matematik"], ["math", "maths", "mathematics", "mathematical"], []),
+    ]
+
+    /// The refinements a question's words name, in table order (languages, then domains).
+    static func read(_ question: String) -> [Refinement] {
+        let raw = question.lowercased()
+        let readings = InputSignals.folds(question).map { InputSignals.wordsOf($0).map(CategoryHints.plain) }
+        return table.filter { refinement in
+            guard let entry = refinementWords[refinement.value] else { return false }
+            return readings.contains { words in
+                words.indices.contains { index in
+                    let word = words[index]
+                    guard entry.words.contains(word) || entry.stems.contains(where: word.hasPrefix) else { return false }
+                    // A mother-in-law is no law, and science fiction (bilim kurgu) is no science.
+                    if word == "law" && raw.contains("-in-law") { return false }
+                    if word.hasPrefix("bilim") && index + 1 < words.count && words[index + 1].hasPrefix("kurgu") { return false }
+                    return true
+                } || entry.phrases.contains { phrase in
+                    words.indices.contains { start in
+                        start + phrase.count <= words.count
+                            && phrase.indices.allSatisfy { words[start + $0] == phrase[$0] }
+                    }
+                }
+            }
+        }
+    }
 
     /// The refinements a surface may take, in table order.
     static func allowed(for surface: String) -> [Refinement] {

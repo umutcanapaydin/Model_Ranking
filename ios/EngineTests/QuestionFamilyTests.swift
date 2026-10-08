@@ -48,7 +48,7 @@ final class QuestionFamilyTests: OfflineTestCase {
     /// A word with a second reading is not a refinement: polishing a photo is not Polish.
     func testAWordWithASecondReadingIsNoRefinement() {
         XCTAssertEqual(values(Refinements.read("best ai for polishing my photos")), [])
-        XCTAssertEqual(values(Refinements.read("polish my essay")), [])
+        XCTAssertEqual(values(Refinements.read("polish my essay")), ["writing"], "an essay is writing; polishing is no language")
         XCTAssertEqual(values(Refinements.read("translate this into polish")), ["polish"])
         XCTAssertEqual(values(Refinements.read("what is the best ai")), [])
         XCTAssertEqual(values(Refinements.read("is it good for coding")), [], "\"is\" is not the Turkish \"iş\"")
