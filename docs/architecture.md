@@ -239,7 +239,8 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
      any refinement the chosen surface does not allow.
   2. The wording tier: first the words that name a surface outright, in English and Turkish
      (`CategoryHints.surfaceWords`, D-187), then sentence similarity (`NLEmbedding`) against example
-     questions for each surface. The words need no model and no embedding.
+     questions for each surface. The words need no model and no embedding; where the embedding
+     cannot run, a question about AI models in general is answered from `everyday`.
   3. Manual: the chat ranking (`assistant`), marked unmeasured. The reader corrects it with the
      Change sheet.
 

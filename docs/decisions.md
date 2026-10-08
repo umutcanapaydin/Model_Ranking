@@ -4373,9 +4373,13 @@ it routed 22 and 26 of 80 coding questions right and declined 41 of each.
 
 **Decision.**
 1. **Words that name a surface decide first** (`CategoryHints.surfaceWords`), in English and in
-   Turkish, in an order where the more specific surface wins (an agent before code, a click through a
-   site before a web site, a cited search before a search). They need neither the on-device model
-   nor the embedding. The screen says the question was matched on wording.
+   Turkish (typed with or without its letters), in an order where the more specific surface wins: an
+   agent that codes, then code, then operating a computer or a site for the reader, then a site to
+   build, and a cited search before a search. Only words with one reading are read; a word with a
+   second one is read inside a phrase or not at all (the two hotfix reviews). They need neither the
+   on-device model nor the embedding. The screen says the question was matched on wording. A question
+   about AI models in general names no surface: the embedding reads it, and `everyday` answers it
+   only where the embedding cannot.
 2. **The decline groups decline nothing.** A question closest to making or changing an image goes to
    `vision`, the board of the models that read images best; one closest to sound, video or speed goes
    to the closest surface.
