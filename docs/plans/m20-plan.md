@@ -42,7 +42,7 @@ review. A wave's pull request opens after its reviews.
 | W1 | REQ-CMB-001 | `/v1/categories` names, for every surface, its family: every board that measures that task, the primary first; the phone reads each board's date from `/v1/boards`, where it already is. The family is derived from one declared table in the engine, never kept by hand on the phone, and a gate compares the two. Additive; no field changes meaning. |
 | W2 | REQ-CMB-002, REQ-CMB-003 | The phone combines a family into one list by position, never by score (D-105). A model ranked by at least half of the family's boards (rounded up, at least one) is placed by its mean percentile position across the boards that rank it. Every board counts the same, and one older than 90 days or undated is named under the list (D-188 clause 4 as the W2 review measured it). The rule is D-188 and holds on property tests, with ties shared and broken by model id. |
 | W3 | REQ-CMB-004 | Every understood question chooses its family: the on-device model's surface, or the wording tier's keywords (D-187), or the closest board. A refinement (a language, a domain) adds its slice board to the family. The question still never leaves the phone. |
-| W4 | REQ-CMB-005, REQ-APP-007, REQ-APP-008 | While Apple Intelligence reads the question, the field shows its glow and a small line says so (#208). The combined list is the default answer on every surface. It says "built from N boards" with each board's date, and a stale board is a small note on its own line, never a warning over the list. One tap shows where each board placed a model. The single-board ranking is one tap away. Ruling A holds for coding: two families, neither leading. |
+| W4 | REQ-CMB-004 (the wiring, amended after W3's review), REQ-CMB-005, REQ-APP-007, REQ-APP-008 | While Apple Intelligence reads the question, the field shows its glow and a small line says so (#208). The combined list is the default answer on every surface. It says "built from N boards" with each board's date, and a stale board is a small note on its own line, never a warning over the list. One tap shows where each board placed a model. The single-board ranking is one tap away. Ruling A holds for coding: two families, neither leading. |
 | W5 | Stage 5.2 prerequisites | Build 3 goes to TestFlight against the hosted engine. The hosted engine has a rate limit before any external tester (#187). The combination is measured on a labelled set (#195) against the single-board answer. |
 
 ## 2. Waves
@@ -95,10 +95,14 @@ and new models are what readers ask about.
 - Nothing about the question leaves the phone: the family is read from `/v1/categories`, and
   `/v1/boards` is fetched as before (D-167 clause 1).
 
-### W4 — The combined list is the answer (risk: **MEDIUM**; #212, #199, #208)
+### W4 — The combined list is the answer (risk: **HIGH**, amended from MEDIUM after W3's review; #212, #199, #208, #211)
 
 - **The home screen** shows the combined list by default on every surface: ten rows and the rest on
   request (D-175).
+- **The wiring (amended after W3's review, B1 and M7).** The answer plan builds the family with
+  `familyBoards`; where the outcome's tier is not the model's, it reads the refinements from the words
+  (D-188 clause 6), the one reader a gate holds. `AnswerPlan.swift` joins the security globs while it
+  hosts that amendment of D-168 clause 4, so W4 is HIGH.
 - **"Built from N boards"** with their dates. A stale board is a small note on its own line ("SWE-bench
   has added no result since 25 June; it weighs half here").
 - **A row's detail** shows each board's position for that model.
@@ -121,13 +125,13 @@ and new models are what readers ask about.
 
 ## 3. Risk tiers and security globs
 
-- **HIGH waves:** W1, W2, W3 and W5, for the reasons each heading gives. W4 is MEDIUM: screen code
-  and its tests.
+- **HIGH waves:** every wave, for the reasons each heading gives. W4 was MEDIUM (screen code and its
+  tests) until W3's review moved the one word reader into `AnswerPlan.swift` (M7).
 - **Security globs.** A diff touching any of these makes a wave HIGH:
   - `src/app/adapter/main.py`, `src/app/clients/**`
   - `scripts/*engine_service*.sh`
   - `ios/ModelRanking/Engine/EngineClient.swift`, `Router.swift`, `StandingsStore.swift`,
-    `FrontDoor.swift`, `Combine.swift`
+    `FrontDoor.swift`, `Combine.swift`, `AnswerPlan.swift` (added after W3's review, M7)
   - `tests/conftest.py`
   - `.github/workflows/**`, `.claude/settings.json` (the owner's)
   - the deploy surface W5 of M19 built: `Dockerfile`, `fly.toml`, `.dockerignore`,
@@ -168,7 +172,7 @@ the labelled-set seat, the closure's two seats. Not measured per wave.
 | W1 | #209 |
 | W2 | #210 |
 | W3 | #211, #206 |
-| W4 | #212, #199, #208 |
+| W4 | #212, #199, #208, #211 (its wiring) |
 | W5 | #187, #195 |
 
 **Left out, with the reason:**

@@ -239,8 +239,15 @@ final class KeywordRoutingTests: OfflineTestCase {
             XCTAssertEqual(outcome.categoryID, "everyday", question)
             XCTAssertFalse(outcome.unmeasured, question)
         }
-        for question in ["claude vs chatgpt", "is claude good", "claude mu chatgpt mi kod yazar", "hangisi daha iyi"] {
+        for question in ["claude vs chatgpt", "is claude good", "claude mu chatgpt mi kod yazar", "hangisi daha iyi",
+                         "claude chatgpt"] {
             XCTAssertFalse(CategoryHints.comparesModelsOnly(question), question)
+        }
+        // The second round's M6: a model's tier name is part of its name.
+        for question in ["gemini pro mu chatgpt mi", "gpt 4o mini mi claude haiku mu", "claude sonnet mı gpt mi"] {
+            XCTAssertTrue(CategoryHints.comparesModelsOnly(question), question)
+            let outcome = await routed(question)
+            XCTAssertEqual(outcome.categoryID, "everyday", question)
         }
     }
 

@@ -4458,9 +4458,10 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
 6. **Refinements from the words (amends D-168 clause 4; the W3 review's B1).** Where the on-device
    model did not read the question (it is off, or another tier answered), the words choose the
    refinements it would have: `Refinements.read`, in English and Turkish, from words with one reading
-   only. An English language name counts only as the task's language ("in French", "learn Spanish",
-   "Korean translation"), since it is also a nationality ("German cars"); a domain word with a second
-   meaning is not read (law, health, a novel approach). The answer plan is the one reader, a gate holds
+   only, and at most one of each kind, as the model's schema has one field per kind (the first each
+   the question names). An English language name counts only as the task's language ("in French",
+   "learn Spanish", "Korean translation"), since it is also a nationality ("German cars", "in Chinese
+   stocks"); a domain word with a second meaning is not read (law, health, a novel approach). The answer plan is the one reader, a gate holds
    it, and `familyBoards` keeps only what the surface allows, at most two, languages first. The routing
    outcome still carries refinements only from `ModelOutputBoundary`. Where the model read the
    question, its choice stands, none included.

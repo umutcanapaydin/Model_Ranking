@@ -139,8 +139,11 @@ enum Refinements {
         "legal": Words(stems: ["hukuk", "avukat"], words: ["legal", "lawyer", "lawyers"]),
         "medicine": Words(stems: ["tibb"], words: ["medical", "medicine", "doctor", "doctors", "healthcare", "clinical",
                                                    "doktor", "doktorlar", "doktoru", "saglik"]),
-        "business": Words(stems: ["finans", "pazarlama", "muhasebe", "isletme"],
-                           words: ["business", "finance", "financial", "marketing", "accounting"]),
+        // The noun's forms only: the stem also starts the verb "to operate" (a server).
+        "business": Words(stems: ["finans", "pazarlama", "muhasebe"],
+                           words: ["business", "finance", "financial", "marketing", "accounting", "isletme",
+                                   "isletmesi", "isletmeler", "isletmeleri", "isletmem", "isletmemiz", "isletmemin",
+                                   "isletmeye", "isletmede", "isletmenin"]),
         "software": Words(stems: ["yazilim"], words: ["software"]),
         "writing": Words(stems: ["siir", "hikaye", "edebiyat", "kompozisyon"],
                          words: ["writing", "essay", "essays", "novels", "poem", "poems", "poetry", "literature"]),
@@ -151,12 +154,16 @@ enum Refinements {
         "mathematical": Words(stems: ["matematik"], words: ["math", "maths", "mathematics", "mathematical"]),
     ]
 
-    /// A language name counts after one of these ("in French", "learn Spanish") or before one of
-    /// these ("Japanese language", "Korean translation"), or after "to" or "from" in a question that
-    /// asks to translate ("translate from Korean").
+    /// A language name counts before one of `languageAfter` ("Japanese language", "Korean
+    /// translation"), or after one of `languageBefore` ("in French", "learn Spanish") or after "to" or
+    /// "from" in a question that asks to translate ("translate from Korean"), when it ends the question
+    /// or one of `languageEnds` follows it: "in Chinese stocks" and "French cuisine" are no language
+    /// (the second round's M1), and a Chinese speaker is a person or a loudspeaker.
     static let languageBefore: Set<String> = ["in", "into", "learn", "learning", "speak", "speaking"]
-    static let languageAfter: Set<String> = ["language", "translation", "translations", "translator", "speaker",
-                                             "speakers"]
+    static let languageAfter: Set<String> = ["language", "translation", "translations", "translator"]
+    static let languageEnds: Set<String> = ["please", "and", "or", "too", "only", "with", "for", "so", "because", "as",
+                                            "to", "from", "fluently", "well", "better", "properly", "correctly",
+                                            "instead", "now", "languages", "text", "texts"]
     static let translating: Set<String> = ["translate", "translates", "translating", "translation", "translator"]
 
     /// A matched word after one of these, or before one of these, is something else: data or computer
@@ -164,33 +171,43 @@ enum Refinements {
     /// a word by its start.
     static let notAfter: [String: Set<String>] = [
         "science": ["data", "computer"], "scientific": ["data", "computer"], "bilim": ["veri", "bilgisayar"],
+        "hikaye": ["kullanici"],
     ]
     static let notBefore: [String: [String]] = [
-        "science": ["fiction"], "bilim": ["kurgu*"], "fizik": ["tedavi*"],
+        "science": ["fiction"], "bilim": ["kurgu*"], "fizik": ["tedavi*"], "doctor": ["who"],
         "writing": ["code", "codes", "tests", "scripts", "sql", "queries", "functions"],
     ]
     static let notStarting = ["bilimkurgu"]
 
-    /// The refinements a question's words name, in table order (languages, then domains).
+    /// The refinements a question's words name: at most one of each kind, as the on-device model's
+    /// schema has one field per kind (the second round's M2), each the first the question names; the
+    /// language first.
     static func read(_ question: String) -> [Refinement] {
         let readings = CategoryHints.readings(question)
-        return table.filter { refinement in
-            guard let entry = refinementWords[refinement.value] else { return false }
-            return readings.contains { words in
-                entry.names.contains { namesLanguage($0, words) }
-                    || words.indices.contains { matches(entry, words, at: $0) }
+        // Where each refinement is first named, in either reading. No order is computed: the first of
+        // each kind is found by one pass (the client orders nothing of its own, Ruling A's tripwire).
+        var firstOfKind: [RefinementKind: (refinement: Refinement, at: Int)] = [:]
+        for refinement in table {
+            guard let entry = refinementWords[refinement.value] else { continue }
+            for words in readings {
+                let at = words.indices.first { index in
+                    entry.names.contains { namesLanguage($0, words, at: index) } || matches(entry, words, at: index)
+                }
+                if let at, at < (firstOfKind[refinement.kind]?.at ?? Int.max) {
+                    firstOfKind[refinement.kind] = (refinement, at)
+                }
             }
         }
+        return RefinementKind.allCases.compactMap { firstOfKind[$0]?.refinement }
     }
 
-    private static func namesLanguage(_ name: String, _ words: [String]) -> Bool {
-        let translates = words.contains(where: translating.contains)
-        return words.indices.contains { index in
-            guard words[index] == name else { return false }
-            let before = index > 0 ? words[index - 1] : "", after = index + 1 < words.count ? words[index + 1] : ""
-            return languageBefore.contains(before) || languageAfter.contains(after)
-                || (translates && (before == "to" || before == "from"))
-        }
+    private static func namesLanguage(_ name: String, _ words: [String], at index: Int) -> Bool {
+        guard words[index] == name else { return false }
+        let before = index > 0 ? words[index - 1] : "", after = index + 1 < words.count ? words[index + 1] : ""
+        if languageAfter.contains(after) { return true }
+        let asks = languageBefore.contains(before)
+            || ((before == "to" || before == "from") && words.contains(where: translating.contains))
+        return asks && (after.isEmpty || languageEnds.contains(after))
     }
 
     private static func matches(_ entry: Words, _ words: [String], at index: Int) -> Bool {
