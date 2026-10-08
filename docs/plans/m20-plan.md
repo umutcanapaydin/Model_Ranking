@@ -40,7 +40,7 @@ review. A wave's pull request opens after its reviews.
 | Wave | REQ-IDs | Criterion |
 |---|---|---|
 | W1 | REQ-CMB-001 | `/v1/categories` names, for every surface, its family: every board that measures that task, the primary first; the phone reads each board's date from `/v1/boards`, where it already is. The family is derived from one declared table in the engine, never kept by hand on the phone, and a gate compares the two. Additive; no field changes meaning. |
-| W2 | REQ-CMB-002, REQ-CMB-003 | The phone combines a family into one list by position, never by score (D-105). A model ranked by at least half of the family's boards, and by at least two, is placed by its mean percentile position across the boards that rank it. A board whose newest evaluation is older than 90 days weighs half. The rule is D-188 and holds on property tests, with ties shared and broken by model id. |
+| W2 | REQ-CMB-002, REQ-CMB-003 | The phone combines a family into one list by position, never by score (D-105). A model ranked by at least half of the family's boards (rounded up, at least one) is placed by its mean percentile position across the boards that rank it. A board whose newest evaluation is older than 90 days, or undated, weighs half. The rule is D-188 and holds on property tests, with ties shared and broken by model id. |
 | W3 | REQ-CMB-004 | Every understood question chooses its family: the on-device model's surface, or the wording tier's keywords (D-187), or the closest board. A refinement (a language, a domain) adds its slice board to the family. The question still never leaves the phone. |
 | W4 | REQ-CMB-005, REQ-APP-007, REQ-APP-008 | While Apple Intelligence reads the question, the field shows its glow and a small line says so (#208). The combined list is the default answer on every surface. It says "built from N boards" with each board's date, and a stale board is a small note on its own line, never a warning over the list. One tap shows where each board placed a model. The single-board ranking is one tap away. Ruling A holds for coding: two families, neither leading. |
 | W5 | Stage 5.2 prerequisites | Build 3 goes to TestFlight against the hosted engine. The hosted engine has a rate limit before any external tester (#187). The combination is measured on a labelled set (#195) against the single-board answer. |
@@ -53,7 +53,7 @@ review. A wave's pull request opens after its reviews.
 - **D-188 first.** It records the families, the combination rule and the staleness weight (W2), for
   the owner's approval with this plan.
 - **One declared table in the engine.** Each surface maps to its family of boards, with the primary
-  first (`app.workflows.board_tables` beside `ARENA_SLICES`). `/v1/categories` gains `boards` per
+  first (`app.workflows.families`, a client-free module of its own). `/v1/categories` gains `boards` per
   surface, by id; each board's date is already on `/v1/boards`.
 - **A gate** holds that every board in a family is served on `/v1/boards`, and that every board
   `/v1/boards` serves belongs to a family or is named as left out, with its reason.
@@ -65,7 +65,7 @@ copy of a fact the engine owns, so it would drift.
 
 `Combine.swift` is the one file allowed arithmetic on positions (D-160 clause 2), so the wave is HIGH.
 - **The rule (D-188, amending D-167 clause 3).**
-  - A model needs coverage: at least half of the family's boards and at least two.
+  - A model needs coverage: at least half of the family's boards, rounded up, and at least one.
   - Its place is the mean of its percentile positions (position over board size) across the boards
     that rank it.
   - A board older than 90 days weighs half.

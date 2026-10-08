@@ -4407,13 +4407,22 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
 **Decision (proposed).**
 1. **A family per surface.** The engine declares, for every surface, every board that measures that
    task, the primary first, and publishes it on `/v1/categories`; each board's evidence date is
-   already on `/v1/boards`. The phone never keeps its own copy.
+   already on `/v1/boards`. The phone never keeps its own copy. A family holds at most one board of
+   each source (Arena's slices are facets of one vote); two publishers of one benchmark are two boards
+   (D-168 clause 5). Every other board stands outside every family with its reason: a language or a
+   domain the question adds as a refinement, or a facet no surface measures.
 2. **Coverage.** A model enters the combined list when at least half of the family's boards rank it,
-   and at least two do.
+   rounded up, and at least one. With two boards, either is enough; "and at least two" was dropped after
+   the W1 review measured it: on the served boards it turned a two-board family into the intersection
+   this decision replaces (`computer-use`: 3 models where its primary board ranks 43). Measured on
+   2026-10-08 (the served `/v1/boards`, the W1 families): `coding` 58 models (its primary 40),
+   `agentic-coding` 18 (18), `everyday` 130 (155), `expert` 124 (154), `mathematics` 125 (144),
+   `computer-use` 85 (43), `abstract` 80 (77), `web-dev` 215 (94), `document` 197 (34), `factuality` 134
+   (116), `search` and `search_factuality` 28 (28, 27); `assistant` and `vision` are one board.
 3. **Place.** A model's place is the mean of its percentile positions, (position - 1) over (the
    board's size - 1), across the boards that rank it, positions only and never a score (D-105). Ties
-   share a place and are broken by model id. A board that ranks no model is left out of the family's
-   count.
+   share a place and are broken by model id. A board that ranks no model, or that the standings lack
+   (an outage, a source left out), is left out of the family's count.
 4. **Staleness.** A board whose newest evaluation is older than 90 days, or that publishes no date,
    weighs half in that mean. The screen says so in one small line, not as a warning over the list.
 5. **The default.** The combined list is the default answer on every surface. The primary board's own
