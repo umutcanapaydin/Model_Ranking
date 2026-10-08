@@ -110,3 +110,25 @@ private func countBelow(_ position: Int, in ascending: [Int]) -> Int {
     }
     return low
 }
+
+// MARK: - D-188 (M20-W2): a family combined. A stub until the rule is written.
+
+/// One line of a family's combined list: the model, where each board that ranks it put it, and its place.
+struct FamilyEntry: Equatable {
+    let model: StandingModel
+    let positions: [BoardPosition]
+    let place: Int
+}
+
+/// A family's combined list: the boards that rank anyone, the ones weighing half, the coverage a model
+/// needed, and the entries in order.
+struct FamilyList: Equatable {
+    let boards: [BoardStandings]
+    let staleBoards: [String]
+    let coverage: Int
+    let entries: [FamilyEntry]
+}
+
+func combineFamily(_ standings: Standings, boards family: [String], asOf today: Date) throws -> FamilyList {
+    FamilyList(boards: [], staleBoards: [], coverage: 0, entries: [])
+}
