@@ -147,6 +147,19 @@ final class QuestionFamilyTests: OfflineTestCase {
         XCTAssertEqual(values(Refinements.read("işletme ödevim için yapay zeka")), ["business"])
     }
 
+    /// The W3 Tester's M1 and M2: an AI's software is no software domain, and the Turkish word for
+    /// health before "check" or "status" is a machine's, not medicine.
+    func testAnAIsSoftwareAndAMachinesHealthAreNoDomain() {
+        XCTAssertEqual(values(Refinements.read("best ai software for writing essays")), ["writing"])
+        XCTAssertEqual(values(Refinements.read("hangi yapay zeka yazılımı daha iyi")), [])
+        XCTAssertEqual(values(Refinements.read("chatbot software for my shop")), [])
+        for question in ["kubernetes sağlık kontrolü betiği", "sunucu sağlık durumu", "pil sağlık durumu"] {
+            XCTAssertEqual(values(Refinements.read(question)), [], question)
+        }
+        XCTAssertEqual(values(Refinements.read("sağlık sorularım için yapay zeka")), ["medicine"])
+        XCTAssertEqual(values(Refinements.read("software architecture questions")), ["software"])
+    }
+
     /// The W3 review's M2: the Turkish word for Polish is also the word for a dialect.
     func testTheTurkishWordForADialectIsNoPolish() {
         for question in ["karadeniz lehçesi ile yaz", "bu lehçeyi anlayan yapay zeka"] {
