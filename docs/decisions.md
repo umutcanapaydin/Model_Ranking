@@ -4452,9 +4452,12 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    `coding`, `agentic-coding`, `everyday`, `computer-use` and `web-dev`, the one-source dominance
    clause 1 forbids. A shared position counts as that position (the competition ranking a board
    publishes).
-5. **The default.** The combined list is the default answer on every surface. The primary board's own
+5. **The default.** The combined list is the default answer on every surface: to every question asked,
+   and on every surface the reader chooses (from "Change" or an alternative, read from no words). The
+   launch screen, which answers no one yet, shows the primary boards' picks. The primary board's own
    answer (the picks and their price notes) is one tap away. Ruling A holds: coding shows two
-   families, neither leading.
+   families, both or neither, neither leading. The list says which boards built it, each with its
+   date, and how many of them a model needs (the W4 review's B1).
 6. **Refinements from the words (amends D-168 clause 4; the W3 review's B1).** Where the on-device
    model did not read the question (it is off, or another tier answered), the words choose the
    refinements it would have: `Refinements.read`, in English and Turkish, from words with one reading

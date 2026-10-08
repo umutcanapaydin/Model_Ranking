@@ -588,13 +588,25 @@ extension UIText {
         return language == .turkish ? names.1 : names.0
     }
 
-    /// #208: under the question, very small: which tier reads it.
-    static func onDeviceCaption(_ available: Bool, _ language: Language) -> String {
-        switch (available, language) {
-        case (true, .turkish): return "Apple Intelligence ile güçlendirildi"
-        case (true, _): return "Apple Intelligence enhanced"
-        case (false, .turkish): return "Apple Intelligence kapalı: sorular kelimelerle eşleşiyor"
-        case (false, _): return "Apple Intelligence off: questions are matched by their words"
+    /// #208: under the question, very small: which tier reads it, one line per state of the on-device
+    /// model (the W4 review's M5), so a phone that cannot run it is not told it is turned off.
+    static func onDeviceCaption(_ state: OnDeviceState, _ language: Language) -> String {
+        let turkish = language == .turkish
+        switch state {
+        case .available:
+            return turkish ? "Apple Intelligence ile güçlendirildi" : "Apple Intelligence enhanced"
+        case .turnedOff:
+            return turkish ? "Apple Intelligence kapalı: sorular kelimelerle eşleşiyor"
+                : "Apple Intelligence off: questions are matched by their words"
+        case .notEligible:
+            return turkish ? "Bu cihazda Apple Intelligence yok: sorular kelimelerle eşleşiyor"
+                : "No Apple Intelligence on this device: questions are matched by their words"
+        case .downloading:
+            return turkish ? "Apple Intelligence iniyor: şimdilik sorular kelimelerle eşleşiyor"
+                : "Apple Intelligence is downloading: questions are matched by their words for now"
+        case .unavailable:
+            return turkish ? "Apple Intelligence şu an kullanılamıyor: sorular kelimelerle eşleşiyor"
+                : "Apple Intelligence is unavailable now: questions are matched by their words"
         }
     }
 
@@ -682,12 +694,39 @@ extension UIText {
     }
 
     /// D-188 clause 4 (M20-W4): the family's boards with no result in 90 days, or no date, said small
-    /// under the list. They count the same as the others; the note only dates them.
-    static func olderBoards(_ benchmarks: [String], _ language: Language) -> String {
-        let names = benchmarks.joined(separator: ", ")
+    /// under the list, each with its date (the W4 review's B1). They count the same as the others.
+    static func olderBoards(_ boards: [NamedBoard], _ language: Language) -> String {
+        let names = boards.map { "\($0.name) (\(shortBoardDate($0.date, language)))" }.joined(separator: ", ")
+        let several = boards.count > 1
         return language == .turkish
-            ? "\(names): 90 gündür yeni sonuç yok ya da tarih yok; bu listede diğerleri kadar sayılıyor."
-            : "\(names): no new result in 90 days, or no date; it counts the same as the others here."
+            ? "\(names): 90 gündür yeni sonuç yok ya da tarih yok; bu listede diğerleri kadar sayıl"
+                + (several ? "ıyorlar." : "ıyor.")
+            : "\(names): no new result in 90 days, or no date; "
+                + (several ? "they count" : "it counts") + " the same as the others here."
+    }
+
+    /// D-188 clause 2 (the W4 review's B1): a family list says it is the product's own order, which
+    /// boards built it with each one's date, and how many of them a model needs.
+    static func familyNote(models: Int, boards: [NamedBoard], coverage: Int, _ language: Language) -> String {
+        let named = boards.map { "\($0.name), \(shortBoardDate($0.date, language))" }.joined(separator: "; ")
+        return language == .turkish
+            ? "Uygulamanın kendi listesi: \(boards.count) panodan kuruldu (\(named)). \(models) model; en az "
+                + "\(coverage) panoda yer alan bir model, o panolardaki ortalama sırasıyla yerleşir. Bu sırayı "
+                + "hiçbir liste yayımlamıyor."
+            : "Our own list, built from \(boards.count) boards (\(named)). \(models) models; a model ranked by at "
+                + "least \(coverage) of them is placed by its mean position on those boards. No leaderboard "
+                + "publishes this order."
+    }
+
+    /// A board's date in a list of boards: the day it was measured, the day it was read, or none.
+    static func shortBoardDate(_ date: BoardDate, _ language: Language) -> String {
+        switch date {
+        case let .measured(served): return readableDate(served, language) ?? served
+        case let .readOn(served):
+            let day = readableDate(served, language) ?? served
+            return language == .turkish ? "tarihsiz, \(day) okundu" : "undated, read \(day)"
+        case .unknown: return language == .turkish ? "tarih yok" : "no date"
+        }
     }
 
     /// Under a combined list with tied places (1, 1, 3): what a shared place means.

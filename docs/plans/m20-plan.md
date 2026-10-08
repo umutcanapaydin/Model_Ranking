@@ -108,8 +108,9 @@ and new models are what readers ask about.
 - **A row's detail** shows each board's position for that model.
 - **The engine's single-board answer** (the picks, the price notes) stays one tap away, as "the
   primary board".
-- **#199:** the UI target's scripted routing and the reading each test expects move into one fixture
-  that an Engine test also reads.
+- **#199** (moved to M21 after W4's review, M1): the UI target's scripted routing and the reading each
+  test expects move into one fixture that an Engine test also reads. The combined list came first, and
+  the fixture changes every UI test's setup; it goes with M21's gate work.
 - **#208** (the owner's ask, 2026-10-08): while Apple Intelligence reads the question, the question
   field gets Apple Intelligence's moving glow, and a small line under it says so ("Apple Intelligence
   enhanced"; where it is off, which tier answers instead). Reduce Motion gets a still border.
@@ -172,7 +173,7 @@ the labelled-set seat, the closure's two seats. Not measured per wave.
 | W1 | #209 |
 | W2 | #210 |
 | W3 | #211, #206 |
-| W4 | #212, #199, #208, #211 (its wiring) |
+| W4 | #212, #208, #211 (its wiring); #199 moved to M21 |
 | W5 | #187, #195 |
 
 **Left out, with the reason:**
