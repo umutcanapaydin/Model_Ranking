@@ -43,10 +43,26 @@ record, `docs/reviews/release-security.md`, is PASS or MINOR (not BLOCKING).**
 
 **Cost.** Fly bills traffic out of the public engine (a `/v1/boards` answer is about 0.5 MB), and
 has no billing alert and no spending cap. Since M20-W5 (#187) the engine answers one client at most
-`MODEL_RANKING_RATE_LIMIT` times a minute (120 in `fly.toml`; `/health` is never limited), so one
-scraper can draw at most about 0.5 MB x 120 = 60 MB a minute, not the link's whole speed. The limit
-is per Fly machine and kept in memory, and it fails open: if it breaks, the request is served. Still
-look at the dashboard's usage page now and then once the app is shared.
+`MODEL_RANKING_RATE_LIMIT` times a clock minute (120 in `fly.toml`; `/health` is never limited). A
+client is one IPv4 address, or one IPv6 /64.
+- One scraper can draw about 0.5 MB x 120 = 60 MB a minute, and twice that across the turn of a
+  minute (a fixed window). Kept up all day, that is about 86 GB a day from one address. Check
+  Fly's current outbound price on its pricing page to turn that into money.
+- Many addresses multiply it: the limit is per address, not a cap on the bill.
+- The limit is per Fly machine and kept in memory. It fails open: if it breaks, the request is
+  served and the engine logs a warning.
+
+Look at the dashboard's usage page now and then once the app is shared.
+
+**After the first deploy with the limit, check that Fly sets the client's address** (the W5 review's
+R1): a forged `Fly-Client-IP` header must not give each request a new address. From any computer:
+
+```
+cd ~/Desktop/ILGAR/model_ranking && for n in $(seq 1 125); do curl -s -o /dev/null -w "%{http_code} " -H "Fly-Client-IP: 198.51.100.$((n % 250))" https://model-ranking.fly.dev/v1/budgets; done; echo
+```
+
+The last few answers must be `429`. If every one is `200`, Fly passed the forged header through:
+stop sharing the app and say so in #187.
 
 **After each deploy, log out:** `fly auth logout`. While you are logged in, a coding agent on this
 Mac could deploy or destroy the app (#190).

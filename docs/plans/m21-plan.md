@@ -50,7 +50,7 @@ beside it where a wave touches nothing M20 touches.
 - **#218** (from M20-W3's second review): a short Turkish question with one word beyond model names
   is read as Turkish before the embedding.
 
-### W3 — The phone's promises, held further (risk: **HIGH**; #85, #132, #168 to #175, #188, #219, #220)
+### W3 — The phone's promises, held further (risk: **HIGH**; #85, #132, #168 to #175, #188, #219, #220, #223)
 
 The privacy sinks and the arithmetic rule (D-180, D-181).
 - **The gaps G-1 and G-2 narrow:** a default value, a static initialiser, a kept closure, `Any` and
@@ -97,7 +97,7 @@ About 2M tokens; not measured per wave.
 |---|---|
 | W1 | #163, #164, #165, #124, #185, #166, #198, #205, #214, #216 |
 | W2 | #66, #194, #180, #186, #193, #199, #218, #222 |
-| W3 | #85, #132, #168, #169, #170, #171, #172, #173, #174, #175, #188, #219, #220 |
+| W3 | #85, #132, #168, #169, #170, #171, #172, #173, #174, #175, #188, #219, #220, #223 |
 | W4 | #122, #178, #179, #181, #182, #183, #108, #189, #200, #201, #202, #203 |
 
 **Left out:** #81, #115, #190: the owner's (CI workflow, the phone's prompt, the owner's settings).

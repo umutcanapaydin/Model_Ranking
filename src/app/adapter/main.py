@@ -30,6 +30,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import datetime as dt
+import ipaddress
 import logging
 import os
 import sqlite3
@@ -204,7 +205,9 @@ MAX_CONCURRENT_REQUESTS = _positive_env("MODEL_RANKING_MAX_CONCURRENCY", "8")
 #: owner's Mac); `fly.toml` sets it for the hosted engine. A fairness control, so it fails OPEN
 #: (AGENTS.md section 5): a limiter that breaks serves the request.
 RATE_LIMIT_VAR = "MODEL_RANKING_RATE_LIMIT"
-#: The most clients counted at once; past it the counts start again, so memory stays bounded.
+#: The most clients counted at once. Past it, an earlier minute's entries are dropped; if every entry
+#: is this minute's, a new client is served uncounted, and no count it holds is reset (the W5
+#: review's M1: a crowd of new addresses must not free a client already refused).
 RATE_WINDOW_KEYS = 10_000
 #: client -> (the minute, the requests in it). One window per minute, counted per client.
 _RATE_WINDOWS: dict[str, tuple[int, int]] = {}
@@ -242,24 +245,37 @@ def rate_window_count() -> int:
 
 
 def _client_key(request: Any) -> str:
-    """The client: Fly's proxy names it in `Fly-Client-IP`; otherwise the connection's address."""
+    """The client: Fly's proxy names it in `Fly-Client-IP`; otherwise the connection's address. An IPv6
+    address is counted by its /64, which one host holds whole (the W5 review's M1)."""
     named = str(request.headers.get("fly-client-ip", "")).strip()
-    if named:
-        return named[:64]
     client = request.scope.get("client")
-    return str(client[0]) if client else "unknown"
+    address = named[:64] if named else (str(client[0]) if client else "unknown")
+    try:
+        parsed = ipaddress.ip_address(address)
+    except ValueError:
+        return address
+    if parsed.version == 6:
+        return str(ipaddress.ip_network(f"{parsed}/64", strict=False))
+    return address
 
 
 def _over_limit(key: str, limit: int, now: float) -> tuple[bool, int]:
     """Count one request for `key` in this minute; whether it is past `limit`, and the seconds left."""
     minute = int(now // 60)
+    wait = 60 - int(now % 60)
+    if key not in _RATE_WINDOWS and len(_RATE_WINDOWS) >= RATE_WINDOW_KEYS:
+        for stale in [k for k, (start, _) in _RATE_WINDOWS.items() if start != minute]:
+            del _RATE_WINDOWS[stale]
+        if len(_RATE_WINDOWS) >= RATE_WINDOW_KEYS:
+            return False, wait
     start, count = _RATE_WINDOWS.get(key, (minute, 0))
     if start != minute:
         start, count = minute, 0
-    if key not in _RATE_WINDOWS and len(_RATE_WINDOWS) >= RATE_WINDOW_KEYS:
-        _RATE_WINDOWS.clear()
     _RATE_WINDOWS[key] = (start, count + 1)
-    return count + 1 > limit, 60 - int(now % 60)
+    if count + 1 == limit + 1:
+        # Once per client per window, and never its address (the W5 review's M4).
+        _LOG.info("rate limited: one client passed %d requests in a minute", limit)
+    return count + 1 > limit, wait
 
 
 
@@ -660,6 +676,10 @@ def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
 
     # #187 (M20-W5): an unreadable request limit is a broken fairness control at boot, not per request.
     problems.extend(rate_limit_problems())
+    if strict and not _rate_limit():
+        # The owner's Mac runs strict with no limit; a hosted engine sets one (`fly.toml`). Said, not
+        # refused (the W5 review's R2).
+        _LOG.warning("%s is unset or 0: this engine serves with no request limit", RATE_LIMIT_VAR)
     if problems and strict:
         raise ConfigError("; ".join(problems))
     return tuple(problems)
@@ -769,7 +789,9 @@ async def _limited(request: Any, call_next: Any) -> Any:
     if limit and request.url.path != "/health":
         try:
             over, wait = _over_limit(_client_key(request), limit, time.time())
-        except Exception:
+        except Exception as exc:
+            # Fails open, and says so: a broken limiter must be seen (the W5 review's M4).
+            _LOG.warning("rate limiter failed (%s); the request is served", type(exc).__name__)
             over, wait = False, 0
         if over:
             response = _error(429, "rate_limited", "Too many requests from one client; try again shortly.")

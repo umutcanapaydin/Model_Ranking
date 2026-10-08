@@ -5,6 +5,7 @@ limited, and with no limit set (the owner's Mac) nothing is."""
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import pathlib
 import tomllib
@@ -185,9 +186,6 @@ def test_a_strict_engine_without_a_limit_says_so(monkeypatch: pytest.MonkeyPatch
     from app.adapter import main
 
     monkeypatch.delenv("MODEL_RANKING_RATE_LIMIT", raising=False)
-    with caplog.at_level(logging.WARNING, logger=main.__name__):
-        try:
-            main.validate_startup_config(env="production")
-        except main.ConfigError:
-            pass
+    with caplog.at_level(logging.WARNING, logger=main.__name__), contextlib.suppress(main.ConfigError):
+        main.validate_startup_config(env="production")
     assert any("no request limit" in record.getMessage() for record in caplog.records)

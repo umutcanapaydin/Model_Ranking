@@ -62,13 +62,13 @@ identical rows in both runs, as it should. The model tier is not deterministic.
 **What this says.**
 - **The wording tier gains one question:** a Turkish question made only of model names (#206).
 - **The model tier's spread covers the difference.** Its change between before and after (−2 on each
-  run) is within the two points its own two runs differ by. This milestone did not change what the
-  model tier answers.
-- **The weak kinds are the same on both tiers:**
-  - real language tasks: wording tier 1 of 9;
-  - real domain questions: wording 3 of 9, model 2 to 4;
-  - general "which AI" questions on the model tier: 3 of 8. The model sends them to a surface the
-    label does not allow.
+  run) is within the two points its own two runs differ by. Two runs a side can only show that no
+  change was large enough to see; they do not show that nothing changed.
+- **The tiers are weak on different kinds** (the W5 review's M6):
+  - real language tasks: wording 1 of 9, model 5 to 7;
+  - general "which AI" questions: wording 6 to 7 of 8, model 3 of 8 (the model sends them to a
+    surface the label does not allow);
+  - real domain questions are weak on both: wording 3 of 9, model 2 to 4.
 - **On the wording tier, 10 questions fall to "not measured"** (the manual tier). 8 of them are
   searches. That is 8 of 71 searches on a device without Apple Intelligence that get no answer
   until the reader picks a surface. Filed (§5).
@@ -78,12 +78,13 @@ identical rows in both runs, as it should. The model tier is not deterministic.
 | | right on | needed on | a wrong one added on |
 |---|---:|---:|---:|
 | language | 74 of 78 | 10 | 0 |
-| domain | 69 of 78 | 18 | 3 |
+| domain | 69 of 78 | 18 | 3 (2 where the label has none, 1 in place of the labelled one) |
 
 - **No language board was added where none was asked for.** Four real language tasks got none: the
   rule reads a language name only where a word makes it the task's (D-188 clause 6). The second
   review traded those four for no false additions.
-- **The domain rule added a domain three times where the label has none,** and missed six.
+- **The domain rule added a domain twice where the label has none, and gave a different domain
+  once.** It found none on six of the 18 that need one, so the labelled domain is missing on seven.
 - This is the device without the model. With the model, the model's own choice stands (D-188
   clause 6), and this probe did not measure it.
 
@@ -94,7 +95,7 @@ identical rows in both runs, as it should. The model tier is not deterministic.
 | searches answered with a list (wording tier) | 65 of 78 |
 | lists built from more than one board | 54 |
 | boards per list | 1 board: 11 · 2: 8 · 3: 27 · 4: 15 · 5: 4 |
-| models listed, mean | 126.8 (the primary board alone: 117.3) |
+| models listed, mean over the 54 lists from more than one board | 126.8 (their primary boards alone: 117.3) |
 | top 10 shared with the primary board's top 10 | mean 5.2 (min 2, max 9) |
 | the same first model | 26 of 54 |
 | older boards named under a list | `epoch_mmlu` 28 times, `epoch_eci` 23, `swebench`, `epoch_swe_bench_verified` and `aider` 7 each, others fewer |
