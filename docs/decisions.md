@@ -4392,3 +4392,35 @@ it routed 22 and 26 of 80 coding questions right and declined 41 of each.
 board's ranking, with its board named, not a statement that nothing ranks it. **Revisit when:** the
 combination of boards for a task none ranks is built (the owner's next step: the on-device model
 composing a list from the boards).
+
+## D-188 — Our own list for every question: a family of boards per task, combined by position
+
+**Status:** proposed -- the agent's proposal for the owner's goal of 2026-10-08 ("our biggest
+strength": the app composes its own list per question from many boards, owner, translated from
+Turkish); approved, amended or refused by the owner with the M20 plan (`docs/plans/m20-plan.md`) ·
+**Date:** 2026-10-08 · **Would amend** D-167 clause 3 and D-168 · from #209, #210, #211, #212.
+
+**Context.** The default answer ranks one board per surface. The phone's combined list keeps only the
+models every chosen board ranks (D-167 clause 3) and is built only when the on-device model picks a
+refinement. The engine serves 63 boards; coding alone has eight related ones.
+
+**Decision (proposed).**
+1. **A family per surface.** The engine declares, for every surface, every board that measures that
+   task, the primary first, and publishes it on `/v1/categories` with each board's evidence date. The
+   phone never keeps its own copy.
+2. **Coverage.** A model enters the combined list when at least half of the family's boards rank it,
+   and at least two do.
+3. **Place.** A model's place is the mean of its percentile positions (its position over the board's
+   size) across the boards that rank it, positions only and never a score (D-105). Ties share a place
+   and are broken by model id.
+4. **Staleness.** A board whose newest evaluation is older than 90 days weighs half in that mean. The
+   screen says so in one small line, not as a warning over the list.
+5. **The default.** The combined list is the default answer on every surface. The primary board's own
+   answer (the picks and their price notes) is one tap away. Ruling A holds: coding shows two
+   families, neither leading.
+
+**The alternative.** Keep "every board ranks it" over the two or three boards most models share. It is
+simpler, but a new model ranked by two boards out of eight would never appear.
+
+**Revisit when:** the labelled set (#195) shows the combined list placing models worse than the
+primary board for the questions it was built for.

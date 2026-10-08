@@ -1,0 +1,186 @@
+---
+record_type: plan
+id: m20-plan
+status: draft
+process_version: v6.6
+date: 2026-10-08
+---
+# M20 Plan — our own list for every question
+
+**One sentence.** M20 makes the product's own combined list the default answer to every question.
+For each task it reads every board that measures it, combines them by position, weighs a stale board
+less, and says which boards it used. Today the default answer is one board.
+
+**The goal is the owner's.** On 2026-10-08, after the first TestFlight build, the owner ruled that an
+understood question is answered from the closest board, never "not measured" (D-187). The owner
+also named the product's core: the app composes its own list per question from the hundreds of
+models' results on many boards, using the on-device model where it runs and predefined methods
+where it does not ("this is our biggest strength", owner, translated from Turkish). The owner
+approves this plan, or changes it, by merging its pull request. GitHub milestone:
+`M20: our own list for every question`.
+
+**Where it starts.**
+- **The engine.** It serves 63 boards on `/v1/boards`, positions only (D-167). For coding alone there
+  are eight related boards: SWE-bench Verified (Epoch's and SWE-bench's own), Aider, DeepSWE,
+  Terminal-Bench, Arena's coding slice, Arena's software-industry slice, and Arena WebDev.
+- **The default answer** ranks one board per surface (`/v1/recommendations`; `primary_board` on
+  `/v1/categories`, `src/app/adapter/main.py:1354`).
+- **The phone's combined list** (`combine`, `ios/ModelRanking/Engine/Combine.swift:47`) needs the
+  on-device model to pick a refinement. It keeps only the models every chosen board ranks (D-167
+  clause 3), so with eight boards almost nothing would be left.
+- **On the owner's phone, with Apple Intelligence off,** every answer is one board, and a board the
+  publisher stopped updating shows a staleness warning the owner read as the app being out of date.
+
+**Cap and order.** Five waves. W5 is the release wave, so it is the one to drop. Each wave ends with
+`/close-wave` (Code-Reviewer, then Tester). The milestone ends with one security seat and a repo
+review. A wave's pull request opens after its reviews.
+
+## 1. Acceptance criteria (REQ-IDs)
+
+| Wave | REQ-IDs | Criterion |
+|---|---|---|
+| W1 | REQ-CMB-001 | `/v1/categories` names, for every surface, its family: every board that measures that task, the primary first, each with its evidence date. The family is derived from one declared table in the engine, never kept by hand on the phone, and a gate compares the two. Additive; no field changes meaning. |
+| W2 | REQ-CMB-002, REQ-CMB-003 | The phone combines a family into one list by position, never by score (D-105). A model ranked by at least half of the family's boards, and by at least two, is placed by its mean percentile position across the boards that rank it. A board whose newest evaluation is older than 90 days weighs half. The rule is D-188 and holds on property tests, with ties shared and broken by model id. |
+| W3 | REQ-CMB-004 | Every understood question chooses its family: the on-device model's surface, or the wording tier's keywords (D-187), or the closest board. A refinement (a language, a domain) adds its slice board to the family. The question still never leaves the phone. |
+| W4 | REQ-CMB-005, REQ-APP-007 | The combined list is the default answer on every surface. It says "built from N boards" with each board's date, and a stale board is a small note on its own line, never a warning over the list. One tap shows where each board placed a model. The single-board ranking is one tap away. Ruling A holds for coding: two families, neither leading. |
+| W5 | Stage 5.2 prerequisites | Build 3 goes to TestFlight against the hosted engine. The hosted engine has a rate limit before any external tester (#187). The combination is measured on a labelled set (#195) against the single-board answer. |
+
+## 2. Waves
+
+### W1 — Every board that measures a task, named by the engine (risk: **HIGH**; #209)
+
+`src/app/adapter/main.py` changes, so the wave is HIGH.
+- **D-188 first.** It records the families, the combination rule and the staleness weight (W2), for
+  the owner's approval with this plan.
+- **One declared table in the engine.** Each surface maps to its family of boards, with the primary
+  first (`app.workflows.board_tables` beside `ARENA_SLICES`). `/v1/categories` gains `boards` per
+  surface: ids and evidence dates.
+- **A gate** holds that every board in a family is served on `/v1/boards`, and that every board
+  `/v1/boards` serves belongs to a family or is named as left out, with its reason.
+
+**The one alternative:** the family list kept in the app. That is faster to ship, but it is a second
+copy of a fact the engine owns, so it would drift.
+
+### W2 — Many boards into one list (risk: **HIGH**; #210)
+
+`Combine.swift` is the one file allowed arithmetic on positions (D-160 clause 2), so the wave is HIGH.
+- **The rule (D-188, amending D-167 clause 3).**
+  - A model needs coverage: at least half of the family's boards and at least two.
+  - Its place is the mean of its percentile positions (position over board size) across the boards
+    that rank it.
+  - A board older than 90 days weighs half.
+  - Ties share a place and are broken by model id. Positions only; no score is read (D-105).
+- **Property tests:** permuting the boards changes nothing; a board added with no models changes
+  nothing; a model better on every board is never below one worse on every board; a stale board can
+  never move a model past one that leads on every fresh board.
+
+**The one alternative:** keep "every board ranks it" and use only the two or three boards most
+models share. That is simpler, but a new model ranked by two boards out of eight would never appear,
+and new models are what readers ask about.
+
+### W3 — The question picks its family (risk: **HIGH**; #211, #206)
+
+`Router.swift` is a security glob.
+- The surface the question routes to brings its family. A refinement the on-device model chose adds
+  its slice board, as D-168 does today.
+- With no model on the device, D-187's keywords pick the surface, and a language word picks the
+  language slice: `Türkçe` ("Turkish") or "in French" adds that language's board.
+- #206: a short Turkish question made of model names is a general question.
+- Nothing about the question leaves the phone: the family is read from `/v1/categories`, and
+  `/v1/boards` is fetched as before (D-167 clause 1).
+
+### W4 — The combined list is the answer (risk: **MEDIUM**; #212, #199)
+
+- **The home screen** shows the combined list by default on every surface: ten rows and the rest on
+  request (D-175).
+- **"Built from N boards"** with their dates. A stale board is a small note on its own line ("SWE-bench
+  has added no result since 25 June; it weighs half here").
+- **A row's detail** shows each board's position for that model.
+- **The engine's single-board answer** (the picks, the price notes) stays one tap away, as "the
+  primary board".
+- **#199:** the UI target's scripted routing and the reading each test expects move into one fixture
+  that an Engine test also reads.
+- `make ui-test` runs in the wave (D-175 clause 2).
+
+### W5 — Build 3 on TestFlight, safely (risk: **HIGH**; #187, #195, #208)
+
+- **#187:** a rate limit on the hosted engine, per client, failing open (AGENTS.md §5). The owner's
+  usage page note stays.
+- **#195:** a fresh labelled set from an independent seat. It measures D-187's keywords and the
+  combined list against the single-board answer, before and after.
+- **#208** (the owner's idea, if the cap allows): the Apple Intelligence glow around the question
+  field and its small caption.
+- **The owner's steps:** the deploy and the build-3 upload, by `docs/release-testflight.md`.
+
+## 3. Risk tiers and security globs
+
+- **HIGH waves:** W1, W2, W3 and W5, for the reasons each heading gives. W4 is MEDIUM: screen code
+  and its tests.
+- **Security globs.** A diff touching any of these makes a wave HIGH:
+  - `src/app/adapter/main.py`, `src/app/clients/**`
+  - `scripts/*engine_service*.sh`
+  - `ios/ModelRanking/Engine/EngineClient.swift`, `Router.swift`, `StandingsStore.swift`,
+    `FrontDoor.swift`, `Combine.swift`
+  - `tests/conftest.py`
+  - `.github/workflows/**`, `.claude/settings.json` (the owner's)
+  - the deploy surface W5 of M19 built: `Dockerfile`, `fly.toml`, `.dockerignore`,
+    `scripts/deploy_hosted_engine.sh`, `src/app/workflows/public.py`, `ios/Config/**`
+
+## 4. Spike check
+
+None needed. W2's rule can be tried on the served `/v1/boards` payload in a scratch test before the
+wave; it uses no new dependency.
+
+## 5. K.8 contracts, grep-verified at `bd273bc`
+
+```
+$ grep -n "\"primary_board\"" src/app/adapter/main.py
+1354:                "primary_board": spec.primary_source,
+$ grep -n "^func combine" ios/ModelRanking/Engine/Combine.swift
+47:func combine(_ standings: Standings, boards chosen: [String]) throws -> CombinedList {
+$ grep -n "struct BoardStandings" ios/ModelRanking/Engine/Models.swift
+348:struct BoardStandings: Codable, Equatable, Identifiable {
+$ grep -n "^ARENA_SLICES" src/app/workflows/board_tables.py
+130:ARENA_SLICES: tuple[ArenaSlice, ...] = (
+```
+
+- `/v1/categories` gains `boards` per surface (additive; `primary_board` keeps its meaning).
+- `combine` gains the coverage rule and the weight. `CombinedEntry` gains each board's weight. Its
+  callers are `AnswerPlan.swift` and the combined detail screen.
+- `/v1/boards` is unchanged: positions and `evidence_date`, no score (D-167).
+
+## 6. Token budget
+
+About 2.5M tokens: five waves of implementation, two review seats per wave, one Tester per wave,
+the labelled-set seat, the closure's two seats. Not measured per wave.
+
+## 7. Issue inventory
+
+| Wave | Issues |
+|---|---|
+| W1 | #209 |
+| W2 | #210 |
+| W3 | #211, #206 |
+| W4 | #212, #199 |
+| W5 | #187, #195, #208 |
+
+**Left out, with the reason:**
+- The gate and process enhancements: #122, #169 to #175, #179 to #183, #186, #189, #193, #200 to #203. The
+  combined list comes first; they are the next controls milestone.
+- The data-identity bugs, low: #163, #164, #165. They move a few models' scores and do not block the
+  combined list.
+- #124 and #185: attribution and a licensed web-dev board. They wait on the licence ruling before
+  external testers (D-186).
+- #188: the budget argument. The app always sends `unlimited`.
+- #198, #205: the deploy stamp and the survivor check. Before `LEFT_OUT` is filled again.
+- #66, #194: the reading of non-searches. #195's fresh set measures them next.
+- #81, #115, #190: the owner's.
+- #85, #108, #132, #166, #168, #178: low, or measured only on the owner's devices.
+
+## 8. Closure tasks
+
+- `/repo-review` across the milestone, and the one closure security seat (D-172).
+- Capture per `docs/closure-checklist.md` §B.2: process log, EXPERIENCE, roadmap snapshot, AGENTS.md
+  diet.
+- The release security verdict (`docs/reviews/release-security.md`) is read again for the release
+  surface W5 changes.
