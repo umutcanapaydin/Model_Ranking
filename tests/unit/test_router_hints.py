@@ -372,6 +372,22 @@ def test_only_the_answer_plan_reads_refinements_from_the_words() -> None:
     assert uses.count("func ") == 1 and len(uses) == 1, "Refinements calls its own read"
 
 
+def test_no_other_name_reaches_the_word_reader() -> None:
+    """The W3 Tester's T2 (D-188 clause 6): the gate above reads `Refinements.read` and `Self.read`.
+    Three more spellings compile and call the same reader: a type alias (`typealias R = Refinements`,
+    then `R.read(q)`), the metatype (`Refinements.self.read(q)`) and a backticked name
+    (``Refinements.`read`(q)``). The first two were planted in a scratch copy of `ContentView.swift`,
+    built, and passed the gate above. The client uses none of the three, so none may appear in it."""
+    for path in CLIENT.rglob("*.swift"):
+        code = _code(path.read_text(encoding="utf-8"))
+        name = path.relative_to(CLIENT).as_posix()
+        assert not re.search(r"\btypealias\s+\w+\s*(?:<[^>]*>)?\s*=\s*(?:\w+\s*\.\s*)?Refinements\b", code), (
+            f"{name} gives Refinements a second name"
+        )
+        assert not re.search(r"\bRefinements\s*\.\s*self\b", code), f"{name} reaches Refinements by its metatype"
+        assert not re.search(r"`read`", code), f"{name} spells read in backticks"
+
+
 def test_only_the_wording_tier_builds_an_outcome_with_alternatives() -> None:
     """Security pass S1 (M17-W5): an alternative is a surface the reader taps, and the tap sends it
     to the engine as `task`. Only the wording tier ranks alternatives, from the ids the engine
