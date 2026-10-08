@@ -70,8 +70,7 @@ D-120: `0` built and servable, `2` failed, `3` built but not servable.
 The sources are declared once, in `src/app/workflows/sources.py`, and the build and the smoke gate
 both derive from that list:
 
-- **Prices:** LiteLLM and OpenRouter. Both are required. The public artifact the hosted engine
-  serves carries LiteLLM's prices only (D-185).
+- **Prices:** LiteLLM and OpenRouter. Both are required.
 - **Scores fetched over the network:** SWE-bench Verified and Aider, both required. Six Arena boards
   (`arena`, `arena_document`, `arena_factuality`, `arena_vision`, `arena_search`,
   `arena_search_factuality`) are optional (D-121): without one, its surface says it has no evidence.
@@ -238,8 +237,10 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
      plus `none`. A last closed field says whether the input is a search for a model at all
      (D-169 as amended). `ModelOutputBoundary` then drops any surface the engine did not serve and
      any refinement the chosen surface does not allow.
-  2. Sentence similarity (`NLEmbedding`) against example questions for each surface. Available on
-     every device.
+  2. The wording tier: first the words that name a surface outright, in English and Turkish
+     (`CategoryHints.surfaceWords`, D-187), then sentence similarity (`NLEmbedding`) against example
+     questions for each surface. The words need no model and no embedding; where the embedding
+     cannot run, a question about AI models in general is answered from `everyday`.
   3. Manual: the chat ranking (`assistant`), marked unmeasured. The reader corrects it with the
      Change sheet.
 
@@ -257,9 +258,11 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
   - A question of fact ("who won the 2018 World Cup", its Turkish forms too) is a doubt in code,
     unless it names an AI model or a task (D-184). A greeting's thanks is small talk, and a pasted
     error or text stays pasted content unless a model question follows the colon.
-  - A request to make or change an image that a tier sent to `vision` is answered as unmeasured
-    (#113), read also without Turkish letters and under the Turkish case folding (D-184). No other
-    surface is overridden; a request sent elsewhere is #191.
+  - An understood question is answered from the closest board, never "not measured" (D-187): a
+    request to make or change an image from `vision`, a question about speed or sound from the
+    closest surface. "Not understood" is left for a question that names no surface and either scores
+    below the wording tier's floor or is in a language the embedding does not read; it goes to the
+    manual tier and offers Change.
   - A note or a question back sends no request and records no gap.
 - **Refinements** (`Refinements.swift`, D-168): a declared table of Arena text slices, eight task
   languages and eight domains, each with the surfaces it may refine. At most two are added. A
@@ -477,12 +480,11 @@ Fly.io (D-116, D-185): prepared, deployed only by the owner
                                     MODEL_RANKING_ALLOWED_HOSTS=model-ranking.fly.dev; HTTPS forced
 ```
 
-- **The public artifact** (`python -m app.workflows.public`, D-185, INV-87). Derived offline from the
-  artifact the Mac serves. It removes every score, price and accessibility row of the seven sources
-  whose terms do not permit a public copy (`LEFT_OUT`), LiteLLM's copies of OpenRouter's prices
-  (its `openrouter/` aliases) and the vendor plans, rebuilds the price medians, and vacuums, so no
-  byte of them is left. `abstract`,
-  `agentic-coding`, `computer-use` and `web-dev` say they have no evidence on it.
+- **The public artifact** (`python -m app.workflows.public`, D-185 as amended by D-186, INV-87).
+  Derived offline from the artifact the Mac serves. While the app is on TestFlight it leaves out no
+  source (D-186): only the vendor plans go. A source put in `LEFT_OUT` loses every score, price and
+  accessibility row and its copies under another source, the price medians are rebuilt, and the file
+  is vacuumed so no byte of it is left.
 - **No refresh on Fly.** A production environment refuses the nightly switch (D-154). The Mac
   refreshes; a refresh the owner wants public is one more deploy.
 

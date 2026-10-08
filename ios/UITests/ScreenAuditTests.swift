@@ -53,7 +53,13 @@ final class ScreenAuditTests: XCTestCase {
         let box = app.descendants(matching: .any)["question"]
         box.tap()
         box.typeText(question)
-        app.buttons["send"].tap()
+        // The highest "send" on screen is the app's; the keyboard's return key is "send" too.
+        var send = app.buttons["send"].firstMatch
+        for candidate in app.buttons.matching(identifier: "send").allElementsBoundByIndex
+        where candidate.frame.minY < send.frame.minY {
+            send = candidate
+        }
+        send.tap()
         sleep(3)
     }
 

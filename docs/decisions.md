@@ -3421,6 +3421,8 @@ branch). M18 holds it as follows; the measure is `docs/research/m18-w3-question-
 
 **Amended by D-184 (2026-10-07)**: a question of fact is a doubt in code beside pasted content and an order to the app; the #113 image rule stays on `vision`, reading more Turkish forms (its reach beyond `vision` came out of M19-W4, #191).
 
+**Amended by D-187 (2026-10-08)**: an understood question is answered from the closest board, never "not measured"; the note and the question back stay for input that is not a search.
+
 ## D-170 — The engine runs as a launchd service, from a deployed release of `main`
 
 **Status:** accepted -- **ruled by the owner on the review of #32** (2026-09-25), recorded as an ADR
@@ -4259,6 +4261,8 @@ fact: its forms are the tuning sets' (§4 lists the misses).
 **Revisit when:** a stranger's first use (#91's protocol) gives a set to measure on, or a stronger
 on-device model reads a question of fact as something else.
 
+**Amended by D-187 (2026-10-08)**: clause 3's image rule is retired: a request to make or change an image is answered from `vision`.
+
 ## D-185 — The first release: a public artifact inside the hosted image, and the app ready for TestFlight
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
@@ -4323,3 +4327,68 @@ models where the Mac's ranks 54. A deploy per refresh the owner wants public.
 
 **Revisit when:** a publisher grants permission, a licensed replacement is built, or the app moves to
 a paid launch (then SWE-bench must go whatever else changes, and the table goes to a lawyer).
+
+**Amended by D-186 (2026-10-08)**: clause 3's table is not applied while the app is on TestFlight: the hosted engine serves every source; the table returns before production.
+
+## D-186 — On TestFlight the hosted engine serves every source; the licences are settled before production
+
+**Status:** accepted -- decided by the owner on 2026-10-08, from the TestFlight build ("remove D-185;
+we talk about the licences when we go to production; let's see the app on TestFlight, I want all the
+models", owner, translated from Turkish) · **Date:** 2026-10-08 · **Amends** D-185 clause 3 · from
+the owner's first TestFlight session.
+
+**Context.** D-185 clause 3, taken by the agent on the standing instruction, left seven sources out of
+the hosted engine's artifact for their licences. On the first TestFlight build `agentic-coding`,
+`web-dev`, `computer-use` and `abstract` answered "Nothing to recommend here" and `coding` ranked 32
+models where the Mac's ranks 54. The owner had not ruled on the licences and read the result as a
+filter gone wrong.
+
+**Decision.**
+1. `public.LEFT_OUT` is empty: the hosted engine serves every score, price and accessibility row the
+   Mac's engine serves, LiteLLM's copies of OpenRouter's prices included. The vendor plans, which `/v1`
+   never serves, still stay out.
+2. The derivation's machinery stays, held by its tests on planted sources, so the day a source must
+   go it is one line in `LEFT_OUT`.
+3. D-185's table is the starting point when the app goes beyond internal testers: before external
+   TestFlight testers or the App Store, the owner rules on each source (a permission, a licensed
+   replacement such as #185's, or leaving it out).
+
+**The cost.** The hosted engine serves data whose terms do not clearly permit a public app (D-185's
+table), to the owner's internal testers. **Revisit when:** external testers or an App Store
+submission are planned.
+
+## D-187 — An understood question is answered from the closest board, never "not measured"
+
+**Status:** accepted -- decided by the owner on 2026-10-08, from the TestFlight build ("there is no
+'we don't measure' any more: we measure, we produce something. If we don't understand the question,
+that is different, but if we do, for image polishing for example, we show the models that scored
+well on images", owner, translated from Turkish) · **Date:** 2026-10-08 · **Amends** D-169 and
+D-184 clause 3, and REQ-RTR-005, REQ-ASK-003 and REQ-IMG-003 · from the owner's first TestFlight
+session.
+
+**Context.** With no on-device model on the owner's phone, the wording tier answered most questions
+"not measured": its decline groups caught "which model writes code best", it refused every Turkish
+question, and it needed an English embedding the device may not have. On the tuning and retired sets
+it routed 22 and 26 of 80 coding questions right and declined 41 of each.
+
+**Decision.**
+1. **Words that name a surface decide first** (`CategoryHints.surfaceWords`), in English and in
+   Turkish (typed with or without its letters), in an order where the more specific surface wins: an
+   agent that codes, then code, then operating a computer or a site for the reader, then a site to
+   build, and a cited search before a search. Only words with one reading are read; a word with a
+   second one is read inside a phrase or not at all (the two hotfix reviews). They need neither the
+   on-device model nor the embedding. The screen says the question was matched on wording. A question
+   about AI models in general names no surface: the embedding reads it, and `everyday` answers it
+   only where the embedding cannot.
+2. **The decline groups decline nothing.** A question closest to making or changing an image goes to
+   `vision`, the board of the models that read images best; one closest to sound, video or speed goes
+   to the closest surface.
+3. **#113's rule is retired.** A request to make an image on `vision` is answered from `vision`.
+4. **The model's "none of these"** on a question it read as a search goes to the wording tier.
+5. **What stays "not understood":** a question that names no surface and scores below the floor, and
+   input that is not a search (D-169's note and question back).
+
+**The cost.** A reader asking for something no board ranks (image making, speed) gets the closest
+board's ranking, with its board named, not a statement that nothing ranks it. **Revisit when:** the
+combination of boards for a task none ranks is built (the owner's next step: the on-device model
+composing a list from the boards).

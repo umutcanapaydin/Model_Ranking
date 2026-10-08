@@ -72,8 +72,8 @@ def test_a_deploy_stamps_the_commit_ships_the_public_artifact_and_checks_health(
     with sqlite3.connect(shipped) as conn:
         scored = {row[0] for row in conn.execute("SELECT DISTINCT source FROM scores")}
         priced = {row[0] for row in conn.execute("SELECT DISTINCT source FROM pricing")}
-    # The fixture's scores are all from left-out sources; its prices are LiteLLM's, which stay.
-    assert not scored & {"swebench", "epoch_deepswe_external"}, scored
+    # D-186: nothing is left out on TestFlight, so the shipped copy keeps the fixture's sources.
+    assert {"swebench", "epoch_deepswe_external"} <= scored, scored
     assert priced == {"litellm"}, priced
 
 

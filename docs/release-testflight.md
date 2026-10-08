@@ -56,11 +56,10 @@ the engine, run `fly scale count 0`; `fly scale count 1` starts it again.
 public artifact is derived from the one your Mac serves, and each deploy is one image of code and
 data. Nothing refreshes on Fly (D-116).
 
-**What the public artifact leaves out** (#88, D-185): SWE-bench's own board, ARC-AGI, DeepSWE,
-Terminal-Bench, Epoch's web-dev copy, MMLU and OpenRouter's prices. `abstract`, `agentic-coding`,
-`computer-use` and `web-dev` say they have no evidence on the hosted engine; your Mac's engine keeps
-every source. To ship everything instead, remove a source from `LEFT_OUT` in
-`src/app/workflows/public.py` only after you have the publisher's permission.
+**What the public artifact leaves out:** nothing but the vendor plans, which the app never shows
+(D-186, your ruling of 2026-10-08). The hosted engine serves every source your Mac's does. Before
+external testers or the App Store, D-185's licence table is ruled source by source; leaving one out
+is one line in `LEFT_OUT` in `src/app/workflows/public.py`.
 
 ## 2. The app on TestFlight
 

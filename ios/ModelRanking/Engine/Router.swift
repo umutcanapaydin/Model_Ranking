@@ -114,6 +114,11 @@ enum CategoryHints {
     /// What this catalogue does NOT measure, in the words a person would use. M13-W3 review
     /// BLOCKING-1.
     ///
+    /// **Since D-187 (the owner's ruling, 2026-10-08) these decline nothing.** A question closest to
+    /// the first group (making or changing an image) is answered from `vision`; one closest to the
+    /// others (sound and video, speed and context) from the closest surface. The history below is
+    /// why the groups exist; read it as such.
+    ///
     /// The model tier can say "none of these" through its decline sentinel. The wording tier had no
     /// such way out: its only refusal is a similarity FLOOR, and a question about a photo is not
     /// "nothing like anything" — it is least unlike `everyday`, so it landed there as a MEASURED
@@ -212,6 +217,236 @@ enum CategoryHints {
     ]
 }
 
+extension CategoryHints {
+    /// D-187 (M20 hotfix): the words that name a surface outright, in English and in Turkish. Read by
+    /// the wording tier before the sentence similarity, so a question that says "code", "kodlama",
+    /// "matematik" or "web sitesi" reaches its surface on a device with no on-device model, no English
+    /// embedding, or a Turkish question (on the owner's TestFlight build every one of those was
+    /// answered "not measured").
+    ///
+    /// **Only words with one reading** (the two hotfix reviews). A word a reader also uses for
+    /// something else is here only inside a phrase ("book a flight", "react app", "git commit",
+    /// "jest ile"), or with the words it must not follow (`notAfter`: a dress code, a user agent, a
+    /// mother-in-law), or not at all (a time word, "bug", "query", "haber"). A rule's `unless` words
+    /// leave the question to the embedding: "write a script that resizes images" is code, not vision.
+    ///
+    /// **The order is the decision.** The first rule a question's words meet decides: an agent that
+    /// codes, then code (before a booking or a site: "python code to book a room"), then operating a
+    /// computer or a site for the reader (before building one), then a site to build, and so on. A
+    /// question about AI models in general names no surface here: the embedding reads it, and only
+    /// where the embedding cannot run does `generalSurface` answer `everyday`.
+    ///
+    /// Every word is compared in plain letters (`plain`), so Turkish typed without its letters reads as
+    /// Turkish typed with them. `stems` match the start of a word, `words` the whole word, each phrase
+    /// is words in a row (a trailing `*` reads a word by its start), and `marks` are read on the raw
+    /// text, for names its symbols split ("c++", "next.js"). Written from the surfaces' descriptions,
+    /// the tuning and retired sets and the reviews' probes, never from a live held-out set.
+    struct SurfaceWords {
+        let id: String
+        var stems: [String] = []
+        var words: [String] = []
+        var phrases: [[String]] = []
+        var marks: [String] = []
+        var unless: [String] = []
+    }
+
+    static let surfaceWords: [SurfaceWords] = [
+        SurfaceWords(id: "agentic-coding", stems: ["agentic"],
+                     phrases: [["coding", "agent*"], ["code", "agent*"], ["kod", "ajan*"], ["kodlama", "ajan*"]]),
+        SurfaceWords(
+            id: "coding",
+            stems: ["coding", "coder", "programmer", "debug", "python", "javascript", "typescript", "kotlin",
+                    "golang", "swiftui", "kod", "yazilim", "gelistirici", "refactor", "typeerror", "indexerror",
+                    "keyerror", "valueerror", "syntaxerror", "attributeerror", "importerror", "nullpointer",
+                    "outofmemory", "unicodedecode", "traceback", "compiler", "regex", "django", "fastapi",
+                    "expressjs", "nodejs", "postgre", "mysql", "sqlite", "mongodb", "pytest", "docker",
+                    "kubernetes", "gitlab", "github", "flutter", "laravel", "sqlalchemy", "algorithm",
+                    "algoritma", "deadlock", "backend", "stacktrace", "software", "developer", "leetcode",
+                    "dataframe"],
+            words: ["code", "codes", "codebase", "sql", "java", "repo", "orm", "cors", "npm", "awk", "async", "php",
+                    "ruby", "programming", "programlama", "programlamada", "programlamaya", "programci",
+                    "programcilar"],
+            phrases: [["unit", "test*"], ["birim", "test*"], ["merge", "conflict*"], ["stack", "trace"],
+                      ["node", "js"], ["express", "js"], ["spring", "boot"], ["bash", "script*"], ["shell", "script*"],
+                      ["python", "script*"], ["git", "commit"], ["git", "push"], ["git", "pull"], ["git", "merge"],
+                      ["git", "rebase"], ["git", "branch"], ["git", "ile"], ["jest", "ile"], ["jest", "test*"],
+                      ["pandas", "ile"], ["sql", "query"], ["binary", "search"], ["search", "algorithm*"],
+                      ["app", "development"], ["app", "developer*"], ["mobile", "development"], ["ios", "development"],
+                      ["android", "development"], ["game", "development"], ["build*", "an", "app*"], ["build*", "a", "mobile", "app*"],
+                      ["build*", "an", "ios", "app*"], ["build*", "an", "android", "app*"], ["make", "an", "app*"],
+                      ["uygulama", "gelistir*"], ["mobil", "uygulama*"], ["swe", "bench"], ["in", "rust"],
+                      ["rust", "code"], ["go", "programming"], ["swift", "code"], ["fix", "bugs"], ["bug", "fix*"],
+                      ["programlama", "dil*"]],
+            marks: ["c++", "c#", "f#", "node.js"]),
+        SurfaceWords(
+            id: "computer-use", words: ["browse", "browsing"],
+            phrases: [["computer", "use"], ["bilgisayar", "kullan*"], ["my", "browser"], ["browser", "automation"],
+                      ["tarayici", "otomasyon*"], ["control", "my", "computer"], ["use", "my", "computer"],
+                      ["operate", "my", "computer"], ["operate", "my", "mac"], ["operate", "my", "pc"], ["operate", "my", "browser"], ["using", "a", "computer"], ["log", "into"], ["log", "in", "to"],
+                      ["fill", "in", "form"], ["fill", "in", "forms"], ["fill", "in", "the", "form"],
+                      ["fill", "out", "form"], ["fill", "out", "forms"], ["fill", "out", "the", "form"], ["fill", "forms"],
+                      ["form", "doldur*"], ["click", "through"], ["shop", "on"], ["buy", "things", "for", "me"],
+                      ["book", "a", "flight"], ["book", "a", "table"], ["book", "a", "room"],
+                      ["book", "a", "hotel"], ["book", "me", "a"], ["rezervasyon", "yap*"]]),
+        SurfaceWords(
+            id: "web-dev", stems: ["website", "webpage", "frontend", "html", "tailwind", "nextjs", "reactjs",
+                                   "flexbox", "navbar"],
+            words: ["css"],
+            phrases: [["web", "site*"], ["web", "sayfa*"], ["web", "app"], ["web", "apps"], ["web", "application*"],
+                      ["web", "uygulama*"], ["web", "develop*"], ["web", "gelistir*"], ["front", "end"],
+                      ["react", "app"], ["react", "apps"], ["react", "component*"], ["react", "js"], ["landing", "page*"],
+                      ["e", "ticaret"], ["site", "kur*"], ["site", "yap*"], ["site", "olustur*"], ["sitesi", "kur*"],
+                      ["sitesi", "yap*"], ["sitesi", "olustur*"]],
+            marks: [".js"]),
+        SurfaceWords(id: "search_factuality", stems: ["cite", "kaynakca"], words: ["citing"],
+                     phrases: [["kaynak", "goster*"]]),
+        SurfaceWords(
+            id: "factuality", stems: ["hallucinat", "halusinasyon", "factual", "dogruluk"], words: ["fact", "facts"],
+            phrases: [["make", "up", "fact*"], ["make", "up", "source*"], ["make", "up", "citation*"],
+                      ["make", "up", "number*"], ["make", "up", "statistic*"], ["make", "up", "its", "number*"],
+                      ["made", "up", "fact*"], ["made", "up", "number*"], ["makes", "things", "up"],
+                      ["making", "things", "up"], ["bilgi", "uydur*"], ["kaynak", "uydur*"]]),
+        SurfaceWords(
+            id: "mathematics", stems: ["math", "matematik", "equation", "denklem", "calculus", "algebra", "cebir",
+                                       "geometr", "integral", "derivative", "turev", "probabilit", "istatistik",
+                                       "statistic", "ispat", "theorem", "teorem"],
+            words: ["proof", "prove", "asal", "olasilik", "olasiligi", "olasiliklar"], phrases: [["prime", "number*"]]),
+        SurfaceWords(
+            id: "document", stems: ["summar", "dokuman", "sozlesme", "ozet", "agreement", "makale", "tutanak"],
+            words: ["document", "documents", "documentation", "pdf", "pdfs", "belge", "belgeyi", "belgesi", "belgesini",
+                    "belgeler", "belgeleri", "belgede", "belgeyle", "belgelerini"],
+            phrases: [["release", "notes"], ["this", "contract*"], ["the", "contract*"], ["a", "contract"],
+                      ["my", "contract*"], ["our", "contract*"], ["contract", "clause*"]]),
+        SurfaceWords(
+            id: "vision", stems: ["image", "picture", "screenshot", "photograph", "gorsel", "resim", "fotograf",
+                                  "goruntu", "cizim"],
+            words: ["photo", "photos", "ocr", "ciz", "cizer", "cizen", "cizsin", "cizebilir", "foto"],
+            phrases: [["ekran", "goruntu*"]],
+            unless: ["script", "scripts", "code", "program", "kod", "kodu", "betik"]),
+        SurfaceWords(
+            id: "abstract", stems: ["puzzle", "riddle", "bulmaca", "oruntu", "sequence"],
+            words: ["logic", "mantik", "mantigi"], phrases: [["comes", "next"], ["siradaki", "sayi*"]]),
+        SurfaceWords(
+            id: "expert", stems: ["medical", "medicine", "lawyer", "scien", "physics", "chemistry", "biology", "tibb",
+                                  "doktor", "hukuk", "avukat", "kimya", "biyoloji", "uzman"],
+            words: ["law", "legal", "bilim", "doctor", "expert", "fizik", "fizigi", "fizikte", "fizikten", "fizikle"]),
+        SurfaceWords(
+            id: "search", stems: ["internet", "arastir"],
+            words: ["search", "searches", "searching", "news", "haberler", "haberleri", "haberlerini", "arama", "aramasi"],
+            phrases: [["web", "search"], ["search", "the", "web"], ["look", "up"], ["search", "online"],
+                      ["internette", "ara*"]]),
+        SurfaceWords(id: "assistant", stems: ["chatbot", "sohbet", "asistan", "assistant"], words: ["chat"]),
+    ]
+
+    /// A matched word that follows one of these is something else: a dress, tax or postal code; a
+    /// user, travel or estate agent; a moon landing; a mother-in-law.
+    static let notAfter: [String: Set<String>] = [
+        "code": ["dress", "tax", "civil", "zip", "post", "postal", "promo", "discount", "coupon", "area",
+                 "country", "qr", "penal", "morse", "bar"],
+        "codes": ["dress", "tax", "civil", "zip", "post", "postal", "promo", "discount", "coupon", "area",
+                  "country", "qr", "penal", "morse", "bar"],
+        "kod": ["posta", "indirim", "vergi", "kiyafet", "promosyon", "kupon", "alan", "ulke", "qr", "iban"],
+        "law": ["in"],
+        "software": ["ai", "zeka", "chatbot"], "developer": ["ai"], "yazilim": ["zeka"], "website": ["ai"],
+        "algorithm": ["instagram", "tiktok", "youtube", "twitter", "facebook", "spotify", "netflix", "google"],
+        "scien": ["data", "computer"], "internet": ["without", "no", "offline"],
+    ]
+
+    /// A matched word that comes before one of these is something else: a code of conduct, science
+    /// fiction, an article to write.
+    static let notBefore: [String: Set<String>] = [
+        "code": ["of"], "codes": ["of"], "bilim": ["kurgu"],
+        "makale": ["yaz", "yazmak", "yazar", "yazan", "yazsin"],
+    ]
+
+    /// An agent named next to code is an agent that codes: "agent" alone is a user, travel or estate
+    /// agent, a browser agent or a spy, so it names `agentic-coding` only within two words of a word of
+    /// the `coding` rule, and never after one of these.
+    static let agentWords = ["agent", "agents", "ajan", "ajani", "ajanlar", "ajanlari"]
+    static let notAnAgentThatCodes: Set<String> = ["user", "travel", "estate", "insurance", "secret", "real",
+                                                   "free", "booking", "sales"]
+
+    /// What `everyday` answers where the embedding cannot read the question: a question about AI models
+    /// in general, which names no surface.
+    static let generalWords = SurfaceWords(
+        id: "everyday", stems: ["everyday", "gunluk"],
+        words: ["llm", "llms", "chatgpt", "gpt", "gemini", "claude", "llama", "mistral", "deepseek", "copilot", "grok",
+                "qwen"],
+        phrases: [["yapay", "zek*"], ["best", "ai"], ["which", "ai"], ["hangi", "yapay"], ["en", "iyi", "model*"],
+                  ["best", "model*"], ["which", "model*"], ["hangi", "model*"], ["best", "llm*"], ["which", "llm*"]])
+
+    /// A word in plain letters: lower case, and the Turkish letters as the ones a reader types without
+    /// them, so a list written plain reads both spellings.
+    static func plain(_ word: String) -> String {
+        let pairs: [Character: Character] = ["ı": "i", "ş": "s", "ğ": "g", "ü": "u", "ö": "o", "ç": "c",
+                                             "â": "a", "î": "i", "û": "u", "i̇": "i"]
+        return String(word.lowercased().map { pairs[$0] ?? $0 }).replacingOccurrences(of: "\u{307}", with: "")
+    }
+
+    private static func readings(_ question: String) -> [[String]] {
+        InputSignals.folds(question).map { InputSignals.wordsOf($0).map(plain) }
+    }
+
+    /// The surface a question names outright, among those the engine served, or nil.
+    static func namedSurface(_ question: String, within known: [String]) -> String? {
+        let readings = readings(question), raw = question.lowercased()
+        if known.contains("agentic-coding"), let coding = surfaceWords.first(where: { $0.id == "coding" }),
+           readings.contains(where: { agentBesideCode($0, coding) }) {
+            return "agentic-coding"
+        }
+        for rule in surfaceWords where known.contains(rule.id) && names(rule, readings, raw) {
+            return rule.id
+        }
+        return nil
+    }
+
+    /// `everyday` for a question about AI models in general, where the embedding cannot read it.
+    static func generalSurface(_ question: String, within known: [String]) -> String? {
+        known.contains(generalWords.id) && names(generalWords, readings(question), question.lowercased())
+            ? generalWords.id : nil
+    }
+
+    private static func names(_ rule: SurfaceWords, _ readings: [[String]], _ raw: String) -> Bool {
+        if readings.contains(where: { words in words.contains(where: rule.unless.contains) }) { return false }
+        return rule.marks.contains(where: raw.contains) || readings.contains { words in
+            words.indices.contains { index in matchesWord(rule, words, at: index) }
+                || rule.phrases.contains { phrase in inRow(phrase, words) }
+        }
+    }
+
+    /// Whether the word at `index` is one of the rule's words or stems, and does not follow a word that
+    /// makes it something else.
+    private static func matchesWord(_ rule: SurfaceWords, _ words: [String], at index: Int) -> Bool {
+        let word = words[index]
+        let entry = rule.words.first(where: { $0 == word }) ?? rule.stems.first(where: word.hasPrefix)
+        guard let entry else { return false }
+        if index > 0, let blocked = notAfter[entry], blocked.contains(words[index - 1]) { return false }
+        if index + 1 < words.count, let blocked = notBefore[entry], blocked.contains(words[index + 1]) { return false }
+        return true
+    }
+
+    private static func agentBesideCode(_ words: [String], _ coding: SurfaceWords) -> Bool {
+        words.indices.contains { index in
+            guard agentWords.contains(words[index]),
+                  index == 0 || !notAnAgentThatCodes.contains(words[index - 1]) else { return false }
+            let near = max(0, index - 2)...min(words.count - 1, index + 2)
+            return near.contains { $0 != index && matchesWord(coding, words, at: $0) }
+        }
+    }
+
+    /// Whether `phrase` stands in `words` as words in a row: each whole, or by its start where it ends
+    /// in `*`.
+    private static func inRow(_ phrase: [String], _ words: [String]) -> Bool {
+        guard !phrase.isEmpty, phrase.count <= words.count else { return false }
+        return (0...(words.count - phrase.count)).contains { start in
+            phrase.indices.allSatisfy { index in
+                let part = phrase[index], word = words[start + index]
+                return part.hasSuffix("*") ? word.hasPrefix(String(part.dropLast())) : word == part
+            }
+        }
+    }
+}
+
 protocol QuestionRouter {
     func route(_ question: String, within known: [String]) async -> RoutingOutcome?
 }
@@ -277,14 +512,18 @@ struct SimilarityRouter: QuestionRouter {
     func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
         let text = question.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !text.isEmpty else { return nil }
-        guard SimilarityRouter.readsEnglish(text) else { return nil }
-        guard let embedding = NLContextualEmbedding(language: .english),
+        // D-187: a question that names a surface outright goes there, in either language and whether
+        // or not the embedding below can load: the matches below need both, and either can be missing.
+        let named = CategoryHints.namedSurface(question, within: known)
+        guard SimilarityRouter.readsEnglish(text),
+              let embedding = NLContextualEmbedding(language: .english),
               embedding.hasAvailableAssets,
               (try? embedding.load()) != nil
         else {
-            // Assets not on the device yet. Not an error: the caller drops to the manual fallback
-            // and says so, which is REQ-RTR-003 rather than a failure.
-            return nil
+            // Assets not on the device yet, or a question in another language. Not an error: a named
+            // surface answers, and otherwise the caller drops to the manual fallback and says so.
+            return (named ?? CategoryHints.generalSurface(question, within: known))
+                .map { RoutingOutcome(categoryID: $0, tier: .similarity, unmeasured: false) }
         }
 
         func vector(_ string: String) -> [Double]? {
@@ -306,7 +545,12 @@ struct SimilarityRouter: QuestionRouter {
             let vectors = (CategoryHints.examples[id] ?? []).compactMap(vector)
             if !vectors.isEmpty { hints.append((id, vectors)) }
         }
-        guard hints.count > 1, let query = vector(text) else { return nil }
+        // The hotfix review's M3: an embedding that loads and cannot read this question still leaves
+        // a surface the question names.
+        guard hints.count > 1, let query = vector(text) else {
+            return (named ?? CategoryHints.generalSurface(question, within: known))
+                .map { RoutingOutcome(categoryID: $0, tier: .similarity, unmeasured: false) }
+        }
 
         // CENTRE THE SPACE, and this line is the difference between a router and a decoration.
         // Contextual embeddings are anisotropic: every vector carries a large component they all
@@ -363,27 +607,20 @@ struct SimilarityRouter: QuestionRouter {
             }
         }
         guard let best = closest.first else { return nil }
+        if let named {
+            return RoutingOutcome(categoryID: named, tier: .similarity, unmeasured: false,
+                                  alternatives: Array(closest.map(\.id).filter { $0 != named }.prefix(2)))
+        }
 
-        // BLOCKING-1: a question closer to something the catalogue does NOT measure than to any
-        // surface is unmeasured, whatever its score against the surfaces. Measured in the same
-        // centred space as the surfaces, so both are read with one ruler.
-        let declines = CategoryHints.unmeasuredHints.map { $0.compactMap(vector) }
-            .filter { !$0.isEmpty }.map(score)
-        if let decline = declines.max(), decline > best.score {
-            guard known.contains(CategoryHints.unmeasuredFallback) else { return nil }
-            // W3 re-review NEW-1, and the choice of which error to make. Wording cannot tell a
-            // question ABOUT a photo from a website task that INVOLVES one: measured, "click through
-            // a website and upload a photo" scores 0.57 against the image hint and 0.32 against
-            // `computer-use`, so no threshold separates the two. A false decline is therefore
-            // possible, and it is made cheap: the closest surfaces come with it as one-tap
-            // alternatives. The opposite error — a measured-looking answer to an unmeasured
-            // question — is the one REQ-ASK-003 forbids, and it costs the reader the truth.
-            return RoutingOutcome(
-                categoryID: CategoryHints.unmeasuredFallback, tier: .similarity, unmeasured: true,
-                alternatives: Array(
-                    closest.map(\.id).filter { $0 != CategoryHints.unmeasuredFallback }.prefix(2)
-                )
-            )
+        // D-187 (the owner's ruling, 2026-10-08): an understood question is answered from the closest
+        // board, never "not measured". The decline groups no longer decline. A question closest to
+        // making or changing an image goes to `vision`, the board of models that read images best; one
+        // closest to sound, video or speed is answered by the closest surface below.
+        let declines = CategoryHints.unmeasuredHints.map { $0.compactMap(vector) }.map { $0.isEmpty ? -Double.infinity : score($0) }
+        if let image = declines.first, image > best.score, declines.allSatisfy({ $0 <= image }),
+           known.contains("vision") {
+            return RoutingOutcome(categoryID: "vision", tier: .similarity, unmeasured: false,
+                                  alternatives: Array(closest.map(\.id).filter { $0 != "vision" }.prefix(2)))
         }
 
         if best.score < floor {
@@ -685,6 +922,12 @@ struct TieredRouter {
         if let model,
            let outcome = await firstWithin(modelTimeout, { await model.route(question, within: known) })
         {
+            // D-187: the model's "none of these" on a question it read as a search is not an answer;
+            // the wording tier, keywords first, gets the question.
+            if outcome.unmeasured, outcome.reading == .search,
+               let wording = await similarity.route(question, within: known), !wording.unmeasured {
+                return Self.read(question, wording)
+            }
             return Self.read(question, outcome)
         }
         if let outcome = await similarity.route(question, within: known) {
@@ -703,15 +946,9 @@ struct TieredRouter {
     /// where the model read the question, its verdict. The signals run on every tier.
     static func read(_ question: String, _ outcome: RoutingOutcome) -> RoutingOutcome {
         var read = outcome
-        // #113 (M18-W3): making or changing an image is not measured; the same outcome the model's
-        // decline gives, with the same disclosure. Only where the tier chose `vision`, which measures
-        // READING an image (the code reviews' B4): a question about code, a website, a store or a file
-        // that mentions an image is routed as its tier chose. M19-W4's reach beyond `vision` came out
-        // after three review verdicts on that class (#191).
-        if outcome.categoryID == "vision", !outcome.unmeasured, InputSignals.makesAnImage(question) {
-            read = RoutingOutcome(categoryID: CategoryHints.unmeasuredFallback, tier: outcome.tier, unmeasured: true)
-            read.reading = outcome.reading
-        }
+        // D-187 (the owner's ruling, 2026-10-08) retires #113's rule: a request to make or change an
+        // image is answered from `vision`, the board of the models that read images best, and is no
+        // longer told "not measured".
         read.reading = inputReading(
             noWord: InputSignals.noWord(question), smallTalk: InputSignals.smallTalk(question),
             doubt: InputSignals.pastedContent(question) || InputSignals.instructsTheApp(question)

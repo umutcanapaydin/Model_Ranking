@@ -300,18 +300,17 @@ final class ReadingThroughTheTiersTests: OfflineTestCase {
         XCTAssertEqual(outcome.reading, .notASearch)
     }
 
-    /// Review M2: #113's rule replaces `vision`, where the model put a request to make an image, with the
-    /// unmeasured outcome, and keeps its tier and reading; the refinements go with the surface.
-    func testARequestToMakeAnImageRoutedToVisionIsUnmeasured() async {
+    /// D-187 (the owner's ruling, 2026-10-08) retires #113's rule: a request to make an image the model
+    /// put on `vision` is answered from `vision`, with its tier and reading, and is no gap.
+    func testARequestToMakeAnImageRoutedToVisionIsAnsweredFromVision() async {
         let question = "bana bir kedi resmi çiz"
         let outcome = await tiered([question: ["request": "a model search", "surface": "vision", "language": "turkish"]])
             .route(question, within: known)
-        XCTAssertEqual(outcome.categoryID, CategoryHints.unmeasuredFallback)
-        XCTAssertTrue(outcome.unmeasured)
+        XCTAssertEqual(outcome.categoryID, "vision")
+        XCTAssertFalse(outcome.unmeasured)
         XCTAssertEqual(outcome.tier, .model)
-        XCTAssertEqual(outcome.refinements, [])
         XCTAssertEqual(outcome.reading, .search)
-        XCTAssertTrue(recordsGap(outcome), "a request to make an image is a gap the register keeps")
+        XCTAssertFalse(recordsGap(outcome), "an answered request is not a gap")
     }
 
     /// The code reviews' B4: the image rule overrides only a question routed to `vision` (D-184
@@ -429,12 +428,13 @@ final class ReadingFaultTests: OfflineTestCase {
     /// T6 (R11, R3): the wording tier's answer is read as the model's is, and the image rule keeps
     /// the tier that routed, so the screen still says "going by its wording" (M13-W3 MINOR-5).
     func testTheWordingTiersAnswerIsReadAndKeepsItsTier() async {
+        // D-187: a request to make an image stays on `vision`, and the screen says it matched on wording.
         let made = await TieredRouter(model: nil, similarity: AnsweringWordingTier(surface: "vision"))
             .route("draw me a cat in a spacesuit", within: known)
-        XCTAssertEqual(made.categoryID, CategoryHints.unmeasuredFallback)
-        XCTAssertTrue(made.unmeasured)
+        XCTAssertEqual(made.categoryID, "vision")
+        XCTAssertFalse(made.unmeasured)
         XCTAssertEqual(made.tier, .similarity)
-        XCTAssertTrue(routingNotice(made, .english).hasPrefix("Going by its wording"), routingNotice(made, .english))
+        XCTAssertTrue(routingNotice(made, .english).hasPrefix("Matched on wording"), routingNotice(made, .english))
         let nonsense = await TieredRouter(model: nil, similarity: AnsweringWordingTier(surface: "coding"))
             .route("asdf qwer zxcv", within: known)
         XCTAssertEqual(nonsense.tier, .similarity)
@@ -741,12 +741,14 @@ final class ReadingImageRuleOnVisionOnlyTests: OfflineTestCase {
             XCTAssertEqual(outcome.categoryID, surface, question)
             XCTAssertFalse(outcome.unmeasured, question)
         }
+        // D-187: a request to make an image on `vision` is answered from `vision` too.
         for question in ["make me a logo for my bakery", "fotografimin arka planini degistir, deniz kenari olsun"] {
             let outcome = await TieredRouter(
                 model: ScriptedModelRouter(answers: [question: ["request": "a model search", "surface": "vision"]]),
                 similarity: SilentTier()
             ).route(question, within: known)
-            XCTAssertTrue(outcome.unmeasured, question)
+            XCTAssertEqual(outcome.categoryID, "vision", question)
+            XCTAssertFalse(outcome.unmeasured, question)
         }
     }
 }
@@ -776,8 +778,9 @@ final class ReadingRoundFourHoldsTests: OfflineTestCase {
     /// The Turkish modifier rule on `vision`: an image before "galerisi" or "yükleme" names a gallery
     /// or an upload page, not an image to make; a photo stem typed without its letter is an image.
     func testTheTurkishImageFormsThatStayOnVision() async {
+        // D-187: every one is answered from `vision`; none is told "not measured".
         for (question, unmeasured) in [("resim galerisi oluştur", false), ("resim yükleme sayfası oluştur", false),
-                                       ("fotografimdaki lekeleri sil", true)] {
+                                       ("fotografimdaki lekeleri sil", false)] {
             let outcome = await TieredRouter(
                 model: ScriptedModelRouter(answers: [question: ["request": "a model search", "surface": "vision"]]),
                 similarity: SilentTier()

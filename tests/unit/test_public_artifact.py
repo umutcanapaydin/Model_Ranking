@@ -1,10 +1,11 @@
 """M19-W5 (#88): the hosted engine serves a public artifact, derived from the built one on the
-owner's Mac with every source whose terms do not clearly permit a public app left out. The owner's
-Mac keeps every source (W-129). The licence table is in the ADR this wave adds."""
+owner's Mac. D-186 (the owner's ruling, 2026-10-08): while the app is on TestFlight it leaves out no
+source, and the licences (D-185's table) are settled before production. The derivation's machinery
+(a left-out source's rows and every byte of them gone, the medians rebuilt, the survivors refused) is
+held here on sources planted in `LEFT_OUT` for each test, for that day."""
 
 from __future__ import annotations
 
-import re
 import sqlite3
 from pathlib import Path
 
@@ -15,9 +16,15 @@ from app.workflows import public
 
 from .test_api_v1 import _seeded_db
 
-#: The sources the licence review of 2026-10-07 found no clear permission for (#88).
+#: D-185's licence table, planted in `LEFT_OUT` by the tests of the machinery (D-186 left it empty).
 EXPECTED_LEFT_OUT = {"swebench", "epoch_arc_agi", "epoch_deepswe_external", "epoch_terminalbench",
                      "epoch_webdev", "epoch_mmlu", "openrouter"}
+
+
+@pytest.fixture
+def planted(monkeypatch: pytest.MonkeyPatch) -> None:
+    """D-185's table in `LEFT_OUT`, for a test of what the derivation does to a left-out source."""
+    monkeypatch.setattr(public, "LEFT_OUT", {source: "planted for the test" for source in EXPECTED_LEFT_OUT})
 
 
 def _rows(db: Path, table: str) -> dict[str, int]:
@@ -25,12 +32,27 @@ def _rows(db: Path, table: str) -> dict[str, int]:
         return dict(conn.execute(f"SELECT source, count(*) FROM {table} GROUP BY source").fetchall())
 
 
-def test_the_left_out_sources_are_the_ones_the_licence_review_named() -> None:
-    assert set(public.LEFT_OUT) == EXPECTED_LEFT_OUT
-    assert all(reason.strip() for reason in public.LEFT_OUT.values()), "each source says why it is left out"
+def test_the_hosted_engine_leaves_out_no_source_on_testflight() -> None:
+    """D-186: every source the Mac's engine serves is served by the hosted engine until production."""
+    assert public.LEFT_OUT == {}
 
 
-def test_the_public_artifact_carries_no_row_of_a_left_out_source(tmp_path: Path) -> None:
+def test_the_public_artifact_keeps_every_source_and_every_openrouter_price(tmp_path: Path) -> None:
+    """D-186: nothing left out, so the public artifact's scores and prices are the built one's, LiteLLM's
+    copies of OpenRouter's prices included; only the vendor plans, which `/v1` never serves, go."""
+    built, served = tmp_path / "built.db", tmp_path / "public.db"
+    _seeded_db(built)
+    with sqlite3.connect(built) as conn:
+        conn.execute("INSERT INTO pricing (alias, model_id, input_per_m, output_per_m, source, source_url,"
+                     " observed_at) SELECT 'openrouter/' || alias, model_id, 9.0, 9.0, 'litellm', source_url,"
+                     " observed_at FROM pricing WHERE source = 'litellm'")
+    counts = public.derive(built, served)
+    assert _rows(served, "scores") == _rows(built, "scores")
+    assert _rows(served, "pricing") == _rows(built, "pricing")
+    assert counts["scores_removed"] == counts["pricing_removed"] == counts["openrouter_aliases_removed"] == 0
+
+
+def test_the_public_artifact_carries_no_row_of_a_left_out_source(tmp_path: Path, planted: None) -> None:
     built, served = tmp_path / "built.db", tmp_path / "public.db"
     _seeded_db(built)
     assert {"swebench", "epoch_deepswe_external"} <= set(_rows(built, "scores")), "the fixture seeds them"
@@ -45,7 +67,7 @@ def test_the_public_artifact_carries_no_row_of_a_left_out_source(tmp_path: Path)
     assert not served.stat().st_mode & 0o022, oct(served.stat().st_mode)
 
 
-def test_the_price_medians_are_rebuilt_from_the_kept_prices(tmp_path: Path) -> None:
+def test_the_price_medians_are_rebuilt_from_the_kept_prices(tmp_path: Path, planted: None) -> None:
     """A median kept from the built artifact would still carry a left-out source's prices."""
     built, served = tmp_path / "built.db", tmp_path / "public.db"
     _seeded_db(built)
@@ -62,7 +84,7 @@ def test_the_price_medians_are_rebuilt_from_the_kept_prices(tmp_path: Path) -> N
 
 
 def test_a_surface_whose_only_source_is_left_out_says_it_has_no_evidence(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, planted: None
 ) -> None:
     """D-121's path, not a new one: the surface answers that it has no evidence, and never a 500."""
     built, served = tmp_path / "built.db", tmp_path / "public.db"
@@ -86,7 +108,7 @@ def test_derive_refuses_to_overwrite_the_built_artifact(tmp_path: Path) -> None:
 
 # --- The M19-W5 review (docs/reviews/m19-wave-5-review-round-1.md) ----------------------------------------
 
-def test_no_openrouter_price_rides_in_under_another_source(tmp_path: Path) -> None:
+def test_no_openrouter_price_rides_in_under_another_source(tmp_path: Path, planted: None) -> None:
     """MJ1: LiteLLM carries copies of OpenRouter's prices under `openrouter/...` aliases; leaving the
     `openrouter` source out left them in, 456 rows linked to 179 models."""
     built, served = tmp_path / "built.db", tmp_path / "public.db"
@@ -100,7 +122,9 @@ def test_no_openrouter_price_rides_in_under_another_source(tmp_path: Path) -> No
         assert conn.execute("SELECT count(*) FROM pricing WHERE alias LIKE 'openrouter/%'").fetchone()[0] == 0
 
 
-def test_a_public_answer_credits_only_the_prices_it_serves(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_public_answer_credits_only_the_prices_it_serves(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, planted: None
+) -> None:
     """MJ1: every priced answer credited "OpenRouter's public model catalog", whose prices the public
     artifact does not carry. The credit follows the price sources present; the full artifact keeps it."""
     from app.adapter import main
@@ -119,7 +143,7 @@ def test_a_public_answer_credits_only_the_prices_it_serves(tmp_path: Path, monke
         assert "litellm" in credits, credits
 
 
-def test_no_byte_of_a_left_out_row_survives_in_the_file(tmp_path: Path) -> None:
+def test_no_byte_of_a_left_out_row_survives_in_the_file(tmp_path: Path, planted: None) -> None:
     """M2: without VACUUM the deleted rows stay in the file's free pages ("ARC-AGI" 573 times in the
     shipped file), and every test passed."""
     built, served = tmp_path / "built.db", tmp_path / "public.db"
@@ -163,7 +187,9 @@ def test_the_public_artifact_opens_read_only_whatever_the_built_one_journals(tmp
         assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "delete"
 
 
-def test_a_left_out_price_that_survives_stops_the_derivation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_left_out_price_that_survives_stops_the_derivation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, planted: None
+) -> None:
     """The release re-read's N4: the survivor check's price half had no test. With the price
     deletion gone, the derivation refuses, and leaves nothing to deploy."""
     built, served = tmp_path / "built.db", tmp_path / "public.db"
@@ -192,7 +218,7 @@ def test_a_priced_credit_must_say_which_prices_it_serves() -> None:
 
 @pytest.mark.parametrize("delete_missed", ["scores", "pricing"])
 def test_a_left_out_row_the_deletes_miss_stops_the_derivation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, delete_missed: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, delete_missed: str, planted: None
 ) -> None:
     """#88, INV-87: the survivor check is what refuses an artifact a missed delete would leave a left-out
     source's rows in; with it made a no-op (the Tester's F2) every other test passed. Nothing is written,
@@ -210,7 +236,7 @@ def test_a_left_out_row_the_deletes_miss_stops_the_derivation(
     assert not list(tmp_path.glob("*.deriving")), "a failed derivation leaves its workspace behind"
 
 
-def test_an_artifact_left_with_no_price_is_refused_and_nothing_is_written(tmp_path: Path) -> None:
+def test_an_artifact_left_with_no_price_is_refused_and_nothing_is_written(tmp_path: Path, planted: None) -> None:
     """#88: a public artifact with no price left would answer nothing; the derivation refuses it rather
     than ship it (the Tester's F3: `<= 0` read as `< 0` passed every test)."""
     built, served = tmp_path / "built.db", tmp_path / "public.db"
@@ -241,27 +267,23 @@ def test_a_priced_payload_must_say_which_price_sources_it_serves() -> None:
     assert attributions_for([], priced=True, pricing_sources={"litellm", "openrouter"}) == (PRICING_ATTRIBUTION,)
 
 
-def test_the_adr_names_every_source_the_public_artifact_leaves_out() -> None:
-    """#88's ruling is an ADR (wave plan P3): D-185's table and `LEFT_OUT` name the same sources, so
-    neither can drop or add one alone (the Tester's R1: a row deleted from D-185 passed every test)."""
+def test_d186_supersedes_d185s_list_and_says_so() -> None:
+    """D-186 is the ruling `LEFT_OUT` follows now, and D-185 points at it, so neither record reads as
+    the list the code holds without the other."""
     text = (Path(__file__).resolve().parents[2] / "docs" / "decisions.md").read_text(encoding="utf-8")
-    adr = text.split("\n## D-185", 1)[1].split("\n## ", 1)[0]
-    tabled = set(re.findall(r"^\s*\| `([a-z_]+)` \|", adr, re.MULTILINE))
-    assert tabled == set(public.LEFT_OUT), (tabled, sorted(public.LEFT_OUT))
+    assert "\n## D-186 " in text
+    d185 = text.split("\n## D-185", 1)[1].split("\n## ", 1)[0]
+    assert "Amended by D-186" in d185
 
 
-#: D-185 clause 3: the surfaces whose only source the public artifact leaves out.
-DARK_ON_THE_HOSTED_ENGINE = ("abstract", "agentic-coding", "computer-use", "web-dev")
+#: The surfaces whose only source D-185's table left out; every one answers since D-186.
+DARK_UNDER_D185 = ("abstract", "agentic-coding", "computer-use", "web-dev")
 
 
-def test_each_surface_whose_only_source_is_left_out_goes_dark_and_coding_keeps_epochs_board(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Wave plan P3: "each affected surface saying it has no evidence", and D-185: `coding` ranks on
-    Epoch's SWE-bench Verified. The wave's test drives one of the four, on a fixture where it is the only
-    one with rows. Here each surface is given rows first, so each answers on the built artifact (the test
-    is not vacuous), and `coding` gets Epoch's rows beside SWE-bench's own. Deleting by benchmark rather
-    than by source (the Tester's F11) darkened `coding` and passed every test."""
+def test_every_surface_answers_on_the_public_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """D-186: on the hosted engine `agentic-coding`, `web-dev`, `computer-use` and `abstract` answer as
+    the Mac's engine does (on TestFlight they said "Nothing to recommend here"), and `coding` keeps
+    SWE-bench's own board. Each surface is given rows first, so the test is not vacuous."""
     from app.adapter import main
     from app.workflows.categories import CATEGORIES
     from app.workflows.schema import EFFORT_UNSPECIFIED
@@ -270,8 +292,8 @@ def test_each_surface_whose_only_source_is_left_out_goes_dark_and_coding_keeps_e
     _seeded_db(built)
     with sqlite3.connect(built) as conn:
         models = [row[0] for row in conn.execute("SELECT id FROM models ORDER BY id")]
-        feeds = [(surface, CATEGORIES[surface].primary_source) for surface in DARK_ON_THE_HOSTED_ENGINE]
-        for surface, source in [*feeds, ("coding", "epoch_swe_bench_verified")]:
+        for surface in DARK_UNDER_D185:
+            source = CATEGORIES[surface].primary_source
             if conn.execute("SELECT count(*) FROM scores WHERE source = ?", (source,)).fetchone()[0]:
                 continue
             spec = CATEGORIES[surface]
@@ -282,34 +304,15 @@ def test_each_surface_whose_only_source_is_left_out_goes_dark_and_coding_keeps_e
                 [(mid, mid, spec.primary_benchmark, spec.metric, 50.0 + 10 * n,
                   spec.ranking_effort or EFFORT_UNSPECIFIED, source) for n, mid in enumerate(models)])
     public.derive(built, served)
-    for path in (built, served):
-        monkeypatch.setenv("MODEL_RANKING_DB", str(path))
-        client = TestClient(main.app)
-        for surface in (*DARK_ON_THE_HOSTED_ENGINE, "coding"):
-            answers = {a["surface"]: a for a in client.get(f"/v1/recommendations?task={surface}").json()["answers"]}
-            answer = answers[surface]
-            if path == served and surface != "coding":
-                assert answer["unavailable_reason_code"] == "no_evidence", (path.name, surface, answer)
-                assert answer["source_health"]["reason"] == "no_source", (path.name, surface)
-            else:
-                assert answer["unavailable_reason_code"] is None and answer["picks"], (path.name, surface, answer)
+    assert "swebench" in _rows(served, "scores")
+    monkeypatch.setenv("MODEL_RANKING_DB", str(served))
+    client = TestClient(main.app)
+    for surface in (*DARK_UNDER_D185, "coding"):
+        answers = {a["surface"]: a for a in client.get(f"/v1/recommendations?task={surface}").json()["answers"]}
+        assert answers[surface]["unavailable_reason_code"] is None and answers[surface]["picks"], surface
 
 
-def test_the_adr_and_the_runbook_name_the_surfaces_that_go_dark() -> None:
-    """D-185 clause 3 and the owner's runbook say which surfaces answer "no evidence" on the hosted
-    engine; the test above holds the engine to that list, and this holds the two records to it (the
-    Tester's R4: one surface dropped from the runbook's sentence passed every test)."""
-    root = Path(__file__).resolve().parents[2]
-    adr = (root / "docs" / "decisions.md").read_text(encoding="utf-8").split("\n## D-185", 1)[1].split("\n## ", 1)[0]
-    runbook = (root / "docs" / "release-testflight.md").read_text(encoding="utf-8")
-    for name, text in (("D-185", adr), ("docs/release-testflight.md", runbook)):
-        flat = " ".join(text.split())
-        named = re.search(r"((?:`[a-z-]+`(?:, | and ))+`[a-z-]+`) (?:say|answer)[^.]*no evidence on the hosted engine", flat)
-        assert named, name
-        assert set(re.findall(r"`([a-z-]+)`", named.group(1))) == set(DARK_ON_THE_HOSTED_ENGINE), (name, named.group(1))
-
-
-def test_no_table_keeps_a_row_of_a_left_out_source(tmp_path: Path) -> None:
+def test_no_table_keeps_a_row_of_a_left_out_source(tmp_path: Path, planted: None) -> None:
     """The W5 Tester's M3: the derivation cleaned `scores` and `pricing` by name; `access` also names a
     source, and a left-out source's row there survived with no error. Every table with a `source`
     column is cleaned of the left-out sources."""

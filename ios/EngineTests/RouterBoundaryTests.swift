@@ -150,7 +150,8 @@ final class RouterThresholdTests: OfflineTestCase {
         // a nonsense string would leave the result depending on the embedding's opinion of it.
         let router = SimilarityRouter(floor: 2.0)
 
-        let outcome = await router.route("fix the failing unit test in my python project", within: served)
+        // D-187: a question that names no surface; a named one is understood whatever its score.
+        let outcome = await router.route("help me plan a trip to rome", within: served)
 
         XCTAssertEqual(outcome?.unmeasured, true,
                        "a question below the floor was returned as MEASURED; the product would "
