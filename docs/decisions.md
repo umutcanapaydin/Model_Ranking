@@ -4443,8 +4443,13 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    board's size - 1), across the boards that rank it, positions only and never a score (D-105). Ties
    share a place and are broken by model id. A board that ranks no model, or that the standings lack
    (an outage, a source left out), is left out of the family's count.
-4. **Staleness.** A board whose newest evaluation is older than 90 days, or that publishes no date,
-   weighs half in that mean. The screen says so in one small line, not as a warning over the list.
+4. **Staleness.** Every board counts the same. A board whose newest evaluation is more than 90 whole
+   days old, or that publishes no date, is named under the list in one small line, never as a warning
+   over it. A half weight was the first proposal; the W2 review measured it on the served boards:
+   every board but Arena's is older than 90 days or undated, so Arena alone would have decided
+   `coding`, `agentic-coding`, `everyday`, `computer-use` and `web-dev`, the one-source dominance
+   clause 1 forbids. A shared position counts as that position (the competition ranking a board
+   publishes).
 5. **The default.** The combined list is the default answer on every surface. The primary board's own
    answer (the picks and their price notes) is one tap away. Ruling A holds: coding shows two
    families, neither leading.
