@@ -127,3 +127,4 @@ scripts/router_probe/image_heldout_m19_questions.json  # M19-W4 (#113, #177): th
                                   # Turkish, written by an independent seat; the Turkish IS the evidence
 docs/reviews/m20-wave-3-review-round-1.md # M20-W3: the first review record quotes the Turkish probe questions it ran verbatim, each translated;
                                   # the Turkish IS the evidence that a word has a second reading
+ios/EngineTests/FamilyPlanTests.swift   # M20-W4: holds the family note and the older-boards note in Turkish, word for word

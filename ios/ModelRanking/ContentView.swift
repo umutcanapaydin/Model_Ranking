@@ -189,7 +189,8 @@ struct ContentView: View {
                 // #70: planned when what it reads changes, not on every render (a keystroke is one).
                 // D-188 clause 5: a question asked, or a surface the reader chose (read from no words),
                 // gets its family list.
-                let shown = routing ?? (chosenByReader ? chosenOutcome(task) : nil)
+                let shown = plannedOutcome(routed: routing, chosen: chosenByReader ? task : nil,
+                                           answers: answers.map(\.surface))
                 let words = routing == nil ? nil : asked
                 let plan = planMemo.plan(planInputs(for: shown, answers, question: words), standings: standings)
                 // Ruling A (M20-W4): a coding question answers on two surfaces, and each gets its own

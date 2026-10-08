@@ -711,11 +711,11 @@ extension UIText {
         let named = boards.map { "\($0.name), \(shortBoardDate($0.date, language))" }.joined(separator: "; ")
         return language == .turkish
             ? "Uygulamanın kendi listesi: \(boards.count) panodan kuruldu (\(named)). \(models) model; en az "
-                + "\(coverage) panoda yer alan bir model, o panolardaki ortalama sırasıyla yerleşir. Bu sırayı "
-                + "hiçbir liste yayımlamıyor."
+                + "\(coverage) panoda yer alan bir model, o panolardaki göreli sıralarının ortalamasıyla yerleşir "
+                + "(her sıra, o panonun uzunluğuna oranla). Bu sırayı hiçbir liste yayımlamıyor."
             : "Our own list, built from \(boards.count) boards (\(named)). \(models) models; a model ranked by at "
-                + "least \(coverage) of them is placed by its mean position on those boards. No leaderboard "
-                + "publishes this order."
+                + "least \(coverage) of them is placed by the average of its relative places on those boards (each "
+                + "place as a share of that board's length). No leaderboard publishes this order."
     }
 
     /// A board's date in a list of boards: the day it was measured, the day it was read, or none.
