@@ -13,6 +13,8 @@ final class ScreenPathTests: XCTestCase {
     /// What the model tier answers, per question (the generation schema's field names).
     private let routing: [String: [String: String]] = [
         "Which model writes code best?": ["surface": "coding", "language": "none", "domain": "none"],
+        // M20-W4: `vision` is a family of one board, so it answers with today's cards.
+        "Which model reads my photos best?": ["surface": "vision", "language": "none", "domain": "none"],
         "Translate my letter into French": ["surface": "assistant", "language": "french", "domain": "none"],
         // D-169 (M18-W3): the model's verdict is scripted too; the code signals are the app's own.
         "what is the capital of australia": ["request": "something else", "surface": "assistant"],
@@ -80,6 +82,15 @@ final class ScreenPathTests: XCTestCase {
         XCTAssertTrue(screen.contains(element.frame), "\(element) never came on screen")
     }
 
+    /// Swipe back to the question. The home screen is a lazy stack, so what is far above is not in
+    /// the tree until it is near the screen again.
+    private func backToTheQuestion() {
+        for _ in 0..<60 where !field("question").isHittable {
+            app.swipeDown(velocity: .fast)
+        }
+        XCTAssertTrue(field("question").isHittable, "the question never came back on screen")
+    }
+
     private func keep(_ name: String) {
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = name
@@ -87,11 +98,48 @@ final class ScreenPathTests: XCTestCase {
         add(shot)
     }
 
+    /// M20-W4: a surface whose family is one board answers with today's cards.
     func testAQuestionThatSelectsOneBoardShowsTheCards() {
-        ask("Which model writes code best?")
+        ask("Which model reads my photos best?")
         XCTAssertTrue(app.buttons["change"].waitForExistence(timeout: 20))
         XCTAssertFalse(field("combinedList").waitForExistence(timeout: 3), "one board needs no combination")
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'See the evidence'")).firstMatch.exists)
         keep("one board: the cards")
+    }
+
+    /// M20-W4 (D-188 clause 5, Ruling A): a coding question gets two family lists by default, each
+    /// named, with the note that their order means nothing; the primary boards' own answers are one
+    /// tap away, and one tap back.
+    func testCodingGetsTwoFamilyListsAndThePrimaryAnswersAreOneTapAway() {
+        ask("Which model writes code best?")
+        XCTAssertTrue(field("combinedList").waitForExistence(timeout: 30), "coding did not get its family list")
+        keep("coding: the family lists")
+        let note = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'No position here means anything'"))
+            .firstMatch
+        bringIntoView(note)
+        let toggle = app.buttons["primaryToggle"]
+        bringIntoView(toggle)
+        XCTAssertEqual(toggle.label, "Show the primary board's own answer")
+        toggle.tap()
+        backToTheQuestion()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'See the evidence'")).firstMatch
+            .waitForExistence(timeout: 10), "the primary boards' own answers did not show")
+        XCTAssertFalse(field("combinedList").exists, "the combined list stays over the primary answers")
+        keep("coding: the primary boards' own answers")
+        let back = app.buttons["primaryToggle"]
+        bringIntoView(back)
+        XCTAssertEqual(back.label, "Back to our combined list")
+        back.tap()
+        backToTheQuestion()
+        XCTAssertTrue(field("combinedList").waitForExistence(timeout: 10), "the combined list did not come back")
+    }
+
+    /// #208: a small line under the question says which tier reads it.
+    func testTheQuestionSaysWhoReadsIt() {
+        let caption = field("aiCaption")
+        XCTAssertTrue(caption.waitForExistence(timeout: 10), "no line says who reads the question")
+        XCTAssertTrue(caption.label.hasPrefix("Apple Intelligence"), caption.label)
+        keep("who reads the question")
     }
 
     /// M17-W5's first simulator-found defect: a removed chip vanished and could not be restored.
@@ -195,8 +243,8 @@ final class ScreenPathTests: XCTestCase {
         // Review M3: the echo of the routed question appears only once it is answered as routed.
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH '“fix this function'")).firstMatch
             .waitForExistence(timeout: 20), "Find a model did not answer the question as routed")
-        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'See the evidence'")).firstMatch
-            .waitForExistence(timeout: 20), "Find a model did not answer")
+        // M20-W4: answered as routed, a coding question gets its family list.
+        XCTAssertTrue(field("combinedList").waitForExistence(timeout: 20), "Find a model did not answer")
         XCTAssertFalse(field("askBack").exists)
     }
 
@@ -253,7 +301,9 @@ final class ScreenPathTests: XCTestCase {
         XCTAssertTrue(note.waitForExistence(timeout: 10), "two coding answers and no ordering note")
         XCTAssertGreaterThanOrEqual(app.buttons.matching(NSPredicate(format: "label CONTAINS 'See the evidence'")).count, 2)
         ask("Which model writes code best?")
-        XCTAssertTrue(note.waitForExistence(timeout: 10))
+        XCTAssertTrue(field("combinedList").waitForExistence(timeout: 30))
+        bringIntoView(note)
+        backToTheQuestion()
         app.buttons["change"].tap()
         app.buttons["surface.vision"].tap()
         XCTAssertTrue(note.waitForNonExistence(timeout: 10), "a one-answer surface says its order means nothing")

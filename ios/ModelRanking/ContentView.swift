@@ -185,14 +185,20 @@ struct ContentView: View {
                 // #70: planned when what it reads changes, not on every render (a keystroke is one).
                 let plan = planMemo.plan(planInputs(for: routing, answers), standings: standings)
                 // Ruling A (M20-W4): a coding question answers on two surfaces, and each gets its own
-                // family list; neither leads, and the note under them says so.
-                let paired: Answer? = ordered.count > 1 ? ordered.dropFirst().first : nil
+                // family list; neither leads, and the note under them says so. Both lists or neither: a
+                // paired surface that cannot combine leaves both answers as today's cards.
+                let paired: Answer? = ordered.count > 1 ? ordered.first { $0.surface != routing?.categoryID } : nil
                 let pairedPlan: AnswerPlan? = paired.flatMap { answer in
                     pairedOutcome(routing, surface: answer.surface).map { outcome in
                         pairedPlanMemo.plan(planInputs(for: outcome, answers), standings: standings)
                     }
                 }
-                if case let .combined(view) = plan, !showingPrimaryAnswer {
+                let pairCombines: Bool = {
+                    guard paired != nil else { return true }
+                    if case .combined? = pairedPlan { return true }
+                    return false
+                }()
+                if case let .combined(view) = plan, pairCombines, !showingPrimaryAnswer {
                     combinedSection(view, title: paired == nil ? nil : routing.map { surfaceTitle($0.categoryID) })
                     if let paired, case let .combined(pairedView)? = pairedPlan {
                         combinedSection(pairedView, title: surfaceTitle(paired.surface))
@@ -202,7 +208,7 @@ struct ContentView: View {
                     }
                     primaryToggle(showingPrimary: false)
                 } else {
-                if case .combined = plan {
+                if case .combined = plan, pairCombines {
                     primaryToggle(showingPrimary: true)
                 }
                 if case let .restorable(removed) = plan {
@@ -1059,7 +1065,6 @@ struct ContentView: View {
 // worst outcome available here, because the disclosures are what make this product honest and not
 // one of them is load-bearing to a layout.
 
-/// A rounded surface with real padding. The one container everything sits in.
 /// #208: Apple Intelligence's moving glow, a gradient ring turning around the question card. Still
 /// where the reader asked for less motion.
 struct IntelligenceGlow: View {
@@ -1082,6 +1087,7 @@ struct IntelligenceGlow: View {
     }
 }
 
+/// A rounded surface with real padding. The one container everything sits in.
 struct Card<Content: View>: View {
     var padding: CGFloat = 20
     @ViewBuilder var content: Content
