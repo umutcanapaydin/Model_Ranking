@@ -45,10 +45,12 @@ record, `docs/reviews/release-security.md`, is PASS or MINOR (not BLOCKING).**
 has no billing alert and no spending cap. Since M20-W5 (#187) the engine answers one client at most
 `MODEL_RANKING_RATE_LIMIT` times a clock minute (120 in `fly.toml`; `/health` is never limited). A
 client is one IPv4 address, or one IPv6 /64.
-- One scraper can draw about 0.5 MB x 120 = 60 MB a minute, and twice that across the turn of a
-  minute (a fixed window). Kept up all day, that is about 86 GB a day from one address. Check
-  Fly's current outbound price on its pricing page to turn that into money.
-- Many addresses multiply it: the limit is per address, not a cap on the bill.
+- A `/v1/boards` answer (about 0.5 MB, which a phone needs once a day) counts as thirty requests,
+  so one address draws at most four a minute: about 2 MB a minute, twice that across the turn of a
+  minute (a fixed window), about 3 GB a day kept up all day. Every other answer is a few KB.
+- Many addresses multiply it: the limit is per address, not a cap on the bill. One IPv6 /48, which
+  one person can rent, holds 65,536 /64s, so to the engine it can look like that many clients.
+  Check Fly's current outbound price on its pricing page to turn gigabytes into money.
 - The limit is per Fly machine and kept in memory. It fails open: if it breaks, the request is
   served and the engine logs a warning.
 

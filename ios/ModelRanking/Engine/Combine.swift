@@ -162,7 +162,9 @@ func combineFamily(_ standings: Standings, boards family: [String], asOf today: 
         let span = Double(max(board.standings.count - 1, 1))
         var listed = Set<String>()
         for standing in board.standings where listed.insert(standing.model).inserted {
-            let percentile = Double(min(max(standing.position - 1, 0), board.standings.count - 1)) / span
+            // Clamped before the subtraction: a position of Int.min decodes, and `- 1` would trap (the
+            // M20 closure security seat's S3).
+            let percentile = Double(min(max(standing.position, 1) - 1, board.standings.count - 1)) / span
             sums[standing.model, default: 0] += percentile
             positions[standing.model, default: []].append(BoardPosition(board: board.id, position: standing.position))
         }

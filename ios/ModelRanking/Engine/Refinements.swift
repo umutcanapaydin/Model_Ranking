@@ -38,6 +38,8 @@ struct Refinement: Equatable, Hashable {
 enum Refinements {
     /// At most this many refinements join the surface's primary board (D-168 clause 1).
     static let maxAdded = 2
+    /// The most boards a family may bring; the largest served family has five (`families.py`).
+    static let maxFamily = 16
 
     static let table: [Refinement] = [
         Refinement(value: "chinese", kind: .language, board: "arena_text_chinese",
@@ -97,8 +99,14 @@ enum Refinements {
     /// domain. A refinement the family already holds takes none of the places. A family the engine did
     /// not send (an engine older than M20) is the primary board alone.
     static func familyBoards(primary: String, family: [String], surface: String, chosen: [Refinement]) -> [String] {
+        // One pass with a set, and no more than `maxFamily` boards: a broken payload's family of
+        // thousands neither freezes the screen nor builds a list from all of them (the M20 closure
+        // security seat's S3).
         var boards: [String] = []
-        for board in family.isEmpty ? [primary] : family where !boards.contains(board) { boards.append(board) }
+        var seen = Set<String>()
+        for board in family.isEmpty ? [primary] : family where boards.count < maxFamily && seen.insert(board).inserted {
+            boards.append(board)
+        }
         var added = 0
         for kind in RefinementKind.allCases {
             for refinement in chosen where refinement.kind == kind && refinement.surfaces.contains(surface) {

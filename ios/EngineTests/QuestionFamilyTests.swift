@@ -210,4 +210,14 @@ final class QuestionFamilyTests: OfflineTestCase {
             XCTAssertEqual(values(Refinements.read(question)), [], question)
         }
     }
+
+    /// The M20 closure security seat's S3: a family of thousands, with repeats, is read in one pass and
+    /// cut to `maxFamily` boards.
+    func testAFamilyOfThousandsIsCutAndReadOnce() {
+        let family = (0..<20_000).map { "board-\($0 % 5_000)" }
+        let boards = Refinements.familyBoards(primary: "board-0", family: family, surface: "assistant", chosen: [])
+        XCTAssertEqual(boards.count, Refinements.maxFamily)
+        XCTAssertEqual(Set(boards).count, boards.count)
+        XCTAssertEqual(boards.first, "board-0")
+    }
 }

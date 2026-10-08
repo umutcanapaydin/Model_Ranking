@@ -345,4 +345,21 @@ final class FamilyCombineTests: OfflineTestCase {
             }
         }
     }
+
+    /// The M20 closure security seat's S3: a position at the integer's limit, which decodes, places
+    /// the model last rather than trapping. Written with its fix: the red would trap the test process
+    /// and open a crash dialog on the owner's Mac; the seat showed the overflow with `xcrun swift`.
+    func testAPositionAtTheIntegersLimitDoesNotTrap() throws {
+        let boards = [
+            BoardStandings(id: "one", benchmark: "One", metric: "elo", rankingEffort: nil, evidenceDate: "2026-10-01",
+                           observedAt: "2026-10-07", attribution: "x",
+                           standings: [Standing(model: "a", position: Int.min, effort: "unspecified"),
+                                       Standing(model: "b", position: 1, effort: "unspecified")]),
+        ]
+        let standings = Standings(apiVersion: "v1", attributions: [], boards: boards,
+                                  models: ["a", "b"].map { StandingModel(id: $0, display: $0, vendor: "V", blendedPerM: 1,
+                                                                         accessibility: nil) })
+        let list = try combineFamily(standings, boards: ["one"], asOf: Date())
+        XCTAssertEqual(Set(list.entries.map(\.model.id)), ["a", "b"])
+    }
 }

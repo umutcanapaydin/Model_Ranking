@@ -209,8 +209,10 @@ RATE_LIMIT_VAR = "MODEL_RANKING_RATE_LIMIT"
 #: is this minute's, a new client is served uncounted, and no count it holds is reset (the W5
 #: review's M1: a crowd of new addresses must not free a client already refused).
 RATE_WINDOW_KEYS = 10_000
-#: path -> how many requests one answer counts as (a stub in the red commit).
-RATE_WEIGHTS: dict[str, int] = {}
+#: path -> how many requests one answer counts as. A `/v1/boards` answer is about 0.5 MB and a phone
+#: needs it once a day, so it counts as thirty: four a minute under a limit of 120 (the M20 closure
+#: security seat's S1). Every other path counts as one.
+RATE_WEIGHTS: dict[str, int] = {"/v1/boards": 30}
 #: client -> (the minute, the requests in it). One window per minute, counted per client.
 _RATE_WINDOWS: dict[str, tuple[int, int]] = {}
 #: The minute a full table was last scanned for an earlier minute's entries, and the scans so far: a
@@ -274,8 +276,9 @@ def _client_key(request: Any) -> str:
     return address
 
 
-def _over_limit(key: str, limit: int, now: float) -> tuple[bool, int]:
-    """Count one request for `key` in this minute; whether it is past `limit`, and the seconds left."""
+def _over_limit(key: str, limit: int, now: float, weight: int = 1) -> tuple[bool, int]:
+    """Count one request of `weight` for `key` in this minute; whether it is past `limit`, and the
+    seconds left."""
     minute = int(now // 60)
     wait = 60 - int(now % 60)
     if key not in _RATE_WINDOWS and len(_RATE_WINDOWS) >= RATE_WINDOW_KEYS:
@@ -289,11 +292,11 @@ def _over_limit(key: str, limit: int, now: float) -> tuple[bool, int]:
     start, count = _RATE_WINDOWS.get(key, (minute, 0))
     if start != minute:
         start, count = minute, 0
-    _RATE_WINDOWS[key] = (start, count + 1)
-    if count + 1 == limit + 1:
+    _RATE_WINDOWS[key] = (start, count + weight)
+    if count <= limit < count + weight:
         # Once per client per window, and never its address (the W5 review's M4).
         _LOG.info("rate limited: one client passed %d requests in a minute", limit)
-    return count + 1 > limit, wait
+    return count + weight > limit, wait
 
 
 
@@ -786,28 +789,15 @@ if _ALLOWED_ORIGINS:
 
 
 @app.middleware("http")
-async def _known_host(request: Any, call_next: Any) -> Any:
-    """D-171: with a list set, a request to a Host not on it is refused before any route runs. With
-    no list, only what arrives on loopback is served, whatever the bind: `make run` and a hand-typed
-    uvicorn bound 0.0.0.0 with no list, and this is what holds them (W1 review B1)."""
-    allowed = allowed_hosts()
-    refused = (_host_name(request.headers.get("host", "")) not in allowed if allowed
-               else _arrived_off_loopback(request.scope.get("server")))
-    if refused:
-        response = _error(400, "unknown_host", "This engine does not answer to that host.")
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        return response
-    return await call_next(request)
-
-
-@app.middleware("http")
 async def _limited(request: Any, call_next: Any) -> Any:
-    """#187: one client past the limit in a minute is told to wait; `/health` never is. Fails open."""
+    """#187: one client past the limit in a minute is told to wait; `/health` never is. Fails open.
+    Declared before `_known_host`, so Starlette runs the Host check first: a request to a Host not on
+    the list is a 400 and is never counted (INV-26; the M20 closure security seat's S2)."""
     limit = _rate_limit()
     if limit and request.url.path != "/health":
         now = time.time()
         try:
-            over, wait = _over_limit(_client_key(request), limit, now)
+            over, wait = _over_limit(_client_key(request), limit, now, RATE_WEIGHTS.get(request.url.path, 1))
         except Exception as exc:
             # Fails open, and says so once a minute: a broken limiter must be seen (the W5 review's
             # M4), not repeated on every request (the Tester's R1).
@@ -820,6 +810,21 @@ async def _limited(request: Any, call_next: Any) -> Any:
             response.headers["Retry-After"] = str(max(wait, 1))
             response.headers["X-Content-Type-Options"] = "nosniff"
             return response
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def _known_host(request: Any, call_next: Any) -> Any:
+    """D-171: with a list set, a request to a Host not on it is refused before any route runs. With
+    no list, only what arrives on loopback is served, whatever the bind: `make run` and a hand-typed
+    uvicorn bound 0.0.0.0 with no list, and this is what holds them (W1 review B1)."""
+    allowed = allowed_hosts()
+    refused = (_host_name(request.headers.get("host", "")) not in allowed if allowed
+               else _arrived_off_loopback(request.scope.get("server")))
+    if refused:
+        response = _error(400, "unknown_host", "This engine does not answer to that host.")
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
     return await call_next(request)
 
 
