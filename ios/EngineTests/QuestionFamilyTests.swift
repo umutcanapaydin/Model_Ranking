@@ -171,4 +171,30 @@ final class QuestionFamilyTests: OfflineTestCase {
         XCTAssertEqual(values(Refinements.read("physics homework help")), ["science"])
         XCTAssertEqual(values(Refinements.read("fizik ödevime yardım et")), ["science"])
     }
+
+    /// The W3 Tester's T1 (REQ-CMB-004, D-188 clause 6): "to" makes a language in a question that asks
+    /// to translate, and neither "to" nor "from" does in one that does not. Planted, "to" dropped and
+    /// the translation condition dropped each stayed green: since the second round's `languageEnds`,
+    /// "switching from german cars to japanese ones" reads nothing either way, as "cars" and "ones"
+    /// end no language.
+    func testToOrFromMakesALanguageOnlyInAQuestionThatAsksToTranslate() {
+        XCTAssertEqual(values(Refinements.read("translate this paragraph to french")), ["french"])
+        XCTAssertEqual(values(Refinements.read("translate to japanese please")), ["japanese"])
+        for question in ["upgrading from german to japanese cars", "moving from korean to chinese food"] {
+            XCTAssertEqual(values(Refinements.read(question)), [], question)
+        }
+    }
+
+    /// The W3 Tester's T1 (REQ-CMB-004, D-188 clause 6): the context words and guards no test held.
+    /// Planted, each of these stayed green: "learning" dropped, the "bilgisayar" ("computer") guard on
+    /// "bilim" ("science") dropped, and the writing guards on "codes", "scripts", "queries" and
+    /// "functions" dropped.
+    func testTheRemainingContextWordsAndGuardsAreHeld() {
+        XCTAssertEqual(values(Refinements.read("learning japanese with ai")), ["japanese"])
+        XCTAssertEqual(values(Refinements.read("chinese translations of poems")), ["chinese", "writing"])
+        for question in ["bilgisayar bilimi ödevi", "writing codes", "writing scripts for my app",
+                         "writing queries for postgres", "writing functions in python"] {
+            XCTAssertEqual(values(Refinements.read(question)), [], question)
+        }
+    }
 }

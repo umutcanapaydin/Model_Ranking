@@ -251,6 +251,20 @@ final class KeywordRoutingTests: OfflineTestCase {
         }
     }
 
+    /// The W3 Tester's T3 (#206): the outcome is a match on wording, which the reader is shown
+    /// (`RoutingTier`). Planted, labelling it the on-device model's stayed green. Where the engine
+    /// served no `everyday`, the question is not placed by the embedding: the manual fallback says so.
+    func testAQuestionMadeOfModelNamesIsAMatchOnWording() async {
+        for question in ["claude mu chatgpt mi", "gemini pro mu chatgpt mi"] {
+            let outcome = await routed(question)
+            XCTAssertEqual(outcome.categoryID, "everyday", question)
+            XCTAssertEqual(outcome.tier, .similarity, question)
+            let unserved = await TieredRouter(model: nil).route(question, within: ["coding", "assistant"])
+            XCTAssertEqual(unserved.tier, .manual, question)
+            XCTAssertTrue(unserved.unmeasured, question)
+        }
+    }
+
     /// The first review's M1, D-187 clause 4: the model's "none of these" on a question it read as a
     /// search goes to the wording tier, and a question it read as something else keeps its outcome.
     func testTheModelsDeclineOnASearchGoesToTheWordingTier() async {
