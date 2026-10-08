@@ -57,6 +57,11 @@ struct ContentView: View {
     /// When the standings on screen reached this phone (review M3, #72).
     @State private var standingsFetchedAt: Date?
     @State private var planMemo = PlanMemo()
+    /// M20-W4 (Ruling A): the second coding surface's family list, planned beside the first.
+    @State private var pairedPlanMemo = PlanMemo()
+    /// M20-W4 (D-188 clause 5): the primary board's own answer, one tap from the combined list.
+    @State private var showingPrimaryAnswer = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var removedRefinements: Set<Refinement> = []
     @Environment(\.dynamicTypeSize) private var typeSize
     /// New finding A (M18-W2): whether the combined list shows every row or its top ten.
@@ -178,18 +183,28 @@ struct ContentView: View {
                 // D-168 clause 7 (M17-W5): several boards chosen, the product's combined list is the
                 // answer; one board, today's cards below.
                 // #70: planned when what it reads changes, not on every render (a keystroke is one).
-                let plan = planMemo.plan(PlanMemo.Inputs(
-                    outcome: routing,
-                    primaryBoard: categories.first { $0.id == routing?.categoryID }?.primaryBoard,
-                    standingsStamp: standingsStamp, removed: removedRefinements,
-                    // #72: the surface's own answer says whether its board is stale, and the kept
-                    // copy's age whether the phone's standings are (review M3).
-                    primaryHealth: routedSurfaceHealth(answers, routing),
-                    phoneCopyDays: staleCopyDays(fetchedAt: standingsFetchedAt, now: Date())
-                ), standings: standings)
-                if case let .combined(view) = plan {
-                    combinedSection(view)
+                let plan = planMemo.plan(planInputs(for: routing, answers), standings: standings)
+                // Ruling A (M20-W4): a coding question answers on two surfaces, and each gets its own
+                // family list; neither leads, and the note under them says so.
+                let paired: Answer? = ordered.count > 1 ? ordered.dropFirst().first : nil
+                let pairedPlan: AnswerPlan? = paired.flatMap { answer in
+                    pairedOutcome(routing, surface: answer.surface).map { outcome in
+                        pairedPlanMemo.plan(planInputs(for: outcome, answers), standings: standings)
+                    }
+                }
+                if case let .combined(view) = plan, !showingPrimaryAnswer {
+                    combinedSection(view, title: paired == nil ? nil : routing.map { surfaceTitle($0.categoryID) })
+                    if let paired, case let .combined(pairedView)? = pairedPlan {
+                        combinedSection(pairedView, title: surfaceTitle(paired.surface))
+                        if !orderingNote.isEmpty {
+                            Text(orderingSentence(language)).font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
+                    primaryToggle(showingPrimary: false)
                 } else {
+                if case .combined = plan {
+                    primaryToggle(showingPrimary: true)
+                }
                 if case let .restorable(removed) = plan {
                     // Every refinement removed: the chips stay, so one tap puts a board back.
                     VStack(alignment: .leading, spacing: 8) {
@@ -310,11 +325,39 @@ struct ContentView: View {
         .refreshable { await load() }
     }
 
-    // MARK: - The combined list (D-168 clause 7, M17-W5)
+    // MARK: - The combined list (D-168 clause 7, M17-W5; the default since M20-W4)
+
+    /// What the plan reads (#70), with M20-W4's family, question and day.
+    private func planInputs(for routing: RoutingOutcome?, _ answers: [Answer]) -> PlanMemo.Inputs {
+        let info = categories.first { $0.id == routing?.categoryID }
+        var inputs = PlanMemo.Inputs(
+            outcome: routing, primaryBoard: info?.primaryBoard, standingsStamp: standingsStamp,
+            removed: removedRefinements,
+            // #72: the surface's own answer says whether its board is stale, and the kept copy's age
+            // whether the phone's standings are (review M3).
+            primaryHealth: routedSurfaceHealth(answers, routing),
+            phoneCopyDays: staleCopyDays(fetchedAt: standingsFetchedAt, now: Date())
+        )
+        inputs.family = info?.boards
+        inputs.question = asked
+        inputs.asOf = Calendar.current.startOfDay(for: Date())
+        return inputs
+    }
+
+    /// D-188 clause 5: the primary board's own answer, one tap from the combined list, and back.
+    private func primaryToggle(showingPrimary: Bool) -> some View {
+        Button(showingPrimary ? UIText.backToCombined(language) : UIText.primaryOnItsOwn(language)) {
+            showingPrimaryAnswer.toggle()
+        }
+        .font(.footnote)
+        .accessibilityIdentifier("primaryToggle")
+    }
 
     @ViewBuilder
-    private func combinedSection(_ view: CombinedView) -> some View {
+    private func combinedSection(_ view: CombinedView, title: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 12) {
+            // M20-W4, Ruling A: two coding surfaces' lists each name their surface above.
+            if let title { SectionTitle(text: title) }
             SectionTitle(text: UIText.combinedTitle(language))
                 .accessibilityIdentifier("combinedList")
             // Why each board beyond the surface's own was added.
@@ -481,7 +524,18 @@ struct ContentView: View {
                     Text(UIText.privateQuestion(language)).font(.caption)
                 }
                 .foregroundStyle(Design.muted)
+                // #208 (the owner's ask): which tier reads the question, said very small.
+                Text(UIText.onDeviceCaption(onDevice == .available, language))
+                    .font(.caption2)
+                    .foregroundStyle(onDevice == .available ? AnyShapeStyle(Design.accent) : AnyShapeStyle(Design.muted))
+                    .accessibilityIdentifier("aiCaption")
             }
+            }
+            // #208: Apple Intelligence's moving glow around the question while it reads it.
+            .overlay {
+                if onDevice == .available {
+                    IntelligenceGlow(still: reduceMotion).allowsHitTesting(false)
+                }
             }
             matchedSurfaceRow
                 .padding(.horizontal, 2)
@@ -861,6 +915,7 @@ struct ContentView: View {
         routing = outcome
         removedRefinements = []
         showingAllCombined = false
+        showingPrimaryAnswer = false
         // REQ-GAP-001. A question nothing here measures is recorded on THIS device and nowhere
         // else. It goes to the register, never to `client` (REQ-RTR-004).
         if recordsGap(outcome) {
@@ -1005,6 +1060,28 @@ struct ContentView: View {
 // one of them is load-bearing to a layout.
 
 /// A rounded surface with real padding. The one container everything sits in.
+/// #208: Apple Intelligence's moving glow, a gradient ring turning around the question card. Still
+/// where the reader asked for less motion.
+struct IntelligenceGlow: View {
+    let still: Bool
+    @State private var turn = 0.0
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 24, style: .continuous)
+            .strokeBorder(
+                AngularGradient(colors: [.pink, .purple, .blue, .cyan, .orange, .pink], center: .center,
+                                angle: .degrees(turn)),
+                lineWidth: 3
+            )
+            .blur(radius: 1.5)
+            .onAppear {
+                guard !still else { return }
+                withAnimation(.linear(duration: 4).repeatForever(autoreverses: false)) { turn = 360 }
+            }
+            .accessibilityHidden(true)
+    }
+}
+
 struct Card<Content: View>: View {
     var padding: CGFloat = 20
     @ViewBuilder var content: Content

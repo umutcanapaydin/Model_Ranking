@@ -588,6 +588,25 @@ extension UIText {
         return language == .turkish ? names.1 : names.0
     }
 
+    /// #208: under the question, very small: which tier reads it.
+    static func onDeviceCaption(_ available: Bool, _ language: Language) -> String {
+        switch (available, language) {
+        case (true, .turkish): return "Apple Intelligence ile güçlendirildi"
+        case (true, _): return "Apple Intelligence enhanced"
+        case (false, .turkish): return "Apple Intelligence kapalı: sorular kelimelerle eşleşiyor"
+        case (false, _): return "Apple Intelligence off: questions are matched by their words"
+        }
+    }
+
+    /// D-188 clause 5 (M20-W4): the primary board's own answer, and back to the combined list.
+    static func primaryOnItsOwn(_ language: Language) -> String {
+        language == .turkish ? "Yalnızca ana tablonun cevabını göster" : "Show the primary board's own answer"
+    }
+
+    static func backToCombined(_ language: Language) -> String {
+        language == .turkish ? "Birleşik listemize dön" : "Back to our combined list"
+    }
+
     static func combinedTitle(_ language: Language) -> String {
         language == .turkish ? "Bu soruya göre birleşik sıralama" : "Combined for this question"
     }
@@ -660,6 +679,14 @@ extension UIText {
         case (_, false): return "Remove the \(name) board"
         case (_, true): return "Add the \(name) board back"
         }
+    }
+
+    /// D-188 clause 4 (M20-W4): the family's boards that weigh half, said small, under the list.
+    static func boardsWeighHalf(_ benchmarks: [String], _ language: Language) -> String {
+        let names = benchmarks.joined(separator: ", ")
+        return language == .turkish
+            ? "\(names) bu listede yarım ağırlıkta: 90 gündür yeni sonuç eklenmedi ya da tarih yok."
+            : "\(names) weighs half in this list: no new result in 90 days, or no date."
     }
 
     /// Under a combined list with tied places (1, 1, 3): what a shared place means.

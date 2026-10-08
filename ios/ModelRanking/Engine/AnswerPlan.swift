@@ -25,7 +25,8 @@ struct CombinedView: Equatable {
     var staleness: SourceHealth? = nil
     /// #72's other half (review M3): whole days the phone's copy of the standings is past its day.
     var phoneCopyDays: Int? = nil
-    /// D-188 clause 4 (M20-W4): the benchmarks of the family's boards that weigh half. A stub.
+    /// D-188 clause 4 (M20-W4): the benchmarks of the family's boards that weigh half (old or
+    /// undated). Said as a small note; a family list says no loud stale warning (`staleness` is nil).
     var weighedHalf: [String] = []
 
     /// Everything this list must say, as data (#67, M18-W2 P4): the view renders exactly these, and
@@ -35,6 +36,7 @@ struct CombinedView: Equatable {
         if let staleness, staleness.stale { out.append(.staleBoard(staleness)) }
         if let phoneCopyDays { out.append(.stalePhoneCopy(days: phoneCopyDays)) }
         out.append(.productsOwnOrder(models: sharedCount, boards: list.boards.count))
+        if !weighedHalf.isEmpty { out.append(.boardsWeighHalf(weighedHalf)) }
         if Set(list.entries.map(\.place)).count < list.entries.count { out.append(.tiedPlaces) }
         if !efforts.isEmpty { out.append(.mixedEfforts(efforts)) }
         return out
@@ -126,6 +128,11 @@ func answerPlan(
     // A primary board the standings lack needs no check of its own: `combine` refuses an unknown
     // board, and a refusal is today's cards below.
     guard let outcome, !outcome.unmeasured, let primaryBoard, let standings else { return .cards }
+    // M20-W4 (D-188 clause 5): an engine that names the surface's family gets the family's own list.
+    if let family, !family.isEmpty {
+        return familyPlan(outcome: outcome, family: family, question: question, asOf: asOf, standings: standings,
+                          removed: removed, phoneCopyDays: phoneCopyDays)
+    }
     // Only a refinement whose board the standings hold is offered: a chip for a board that is not
     // counted would say it was.
     let offered = outcome.refinements.filter { refinement in
@@ -145,6 +152,45 @@ func answerPlan(
         list: list, refinements: offered, removed: removed.intersection(offered),
         mixedEfforts: mixedEfforts(list), staleness: primaryHealth, phoneCopyDays: phoneCopyDays
     ))
+}
+
+/// M20-W4 (D-188): the family's own list. The refinements are the on-device model's, or, where it chose
+/// none, the ones the question's words name (M20-W3); only one whose board the standings hold, and that
+/// the surface allows, is offered. A family that leaves one board is today's cards, with the removed
+/// refinements kept to restore.
+private func familyPlan(
+    outcome: RoutingOutcome, family: [String], question: String?, asOf: Date, standings: Standings,
+    removed: Set<Refinement>, phoneCopyDays: Int?
+) -> AnswerPlan {
+    let chosen = outcome.refinements.isEmpty ? Refinements.read(question ?? "") : outcome.refinements
+    let offered = chosen.filter { refinement in
+        refinement.surfaces.contains(outcome.categoryID) && standings.boards.contains { $0.id == refinement.board }
+    }
+    let kept = offered.filter { !removed.contains($0) }
+    let boards = Refinements.familyBoards(family: family, surface: outcome.categoryID, chosen: kept)
+    guard let list = try? combineFamily(standings, boards: boards, asOf: asOf), !list.entries.isEmpty else {
+        return .cards
+    }
+    guard list.boards.count > 1 else {
+        guard !offered.isEmpty, kept.isEmpty else { return .cards }
+        return .restorable(offered)
+    }
+    let combined = CombinedList(
+        boards: list.boards,
+        entries: list.entries.map { CombinedEntry(model: $0.model, positions: $0.positions, place: $0.place) }
+    )
+    let halves = list.boards.filter { list.staleBoards.contains($0.id) }.map(\.benchmark)
+    return .combined(CombinedView(
+        list: combined, refinements: offered, removed: removed.intersection(offered),
+        mixedEfforts: mixedEfforts(combined), staleness: nil, phoneCopyDays: phoneCopyDays, weighedHalf: halves
+    ))
+}
+
+/// Ruling A (M20-W4): the engine expanded a coding question to two surfaces, and the second one's family
+/// list is planned as the routed one's is, by the same tier. The surface is the engine's answer, never
+/// chosen here; `nil` without a routed question.
+func pairedOutcome(_ routed: RoutingOutcome?, surface: String) -> RoutingOutcome? {
+    routed.map { RoutingOutcome(categoryID: surface, tier: $0.tier, unmeasured: $0.unmeasured) }
 }
 
 // MARK: - One card per model (#63 finding 1, M18-W2)
@@ -223,7 +269,8 @@ final class PlanMemo {
         let removed: Set<Refinement>
         let primaryHealth: SourceHealth?
         var phoneCopyDays: Int? = nil
-        /// M20-W4: the surface's family, the question's text (for the refinement words) and the day. Stubs.
+        /// M20-W4: the surface's family, the question's text (for the refinement words when no on-device
+        /// model chose one) and the day the staleness is judged on.
         var family: [String]? = nil
         var question: String? = nil
         var asOf: Date = Date(timeIntervalSince1970: 0)
@@ -236,7 +283,8 @@ final class PlanMemo {
     func plan(_ inputs: Inputs, standings: Standings?) -> AnswerPlan {
         if let last, last.inputs == inputs { return last.plan }
         computed += 1
-        let plan = answerPlan(outcome: inputs.outcome, primaryBoard: inputs.primaryBoard, standings: standings,
+        let plan = answerPlan(outcome: inputs.outcome, primaryBoard: inputs.primaryBoard, family: inputs.family,
+                              question: inputs.question, asOf: inputs.asOf, standings: standings,
                               removed: inputs.removed, primaryHealth: inputs.primaryHealth,
                               phoneCopyDays: inputs.phoneCopyDays)
         last = (inputs, plan)

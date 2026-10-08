@@ -593,6 +593,18 @@ final class ScreenExplanationTests: OfflineTestCase {
         XCTAssertNil(rangeNote(ranges: ranges, shown: [0], .english), "no range on screen, nothing to explain")
     }
 
+    /// M20-W4 (#208, D-188): the caption under the question, the primary board's toggle and the
+    /// half-weight note, each in both languages.
+    func testTheM20SentencesAreSaidInBothLanguages() {
+        for available in [true, false] {
+            XCTAssertNotEqual(UIText.onDeviceCaption(available, .english), UIText.onDeviceCaption(available, .turkish))
+        }
+        XCTAssertNotEqual(UIText.onDeviceCaption(true, .english), UIText.onDeviceCaption(false, .english))
+        XCTAssertNotEqual(UIText.primaryOnItsOwn(.english), UIText.primaryOnItsOwn(.turkish))
+        XCTAssertNotEqual(UIText.backToCombined(.english), UIText.backToCombined(.turkish))
+        XCTAssertNotEqual(UIText.boardsWeighHalf(["Aider"], .english), UIText.boardsWeighHalf(["Aider"], .turkish))
+    }
+
     /// The combined list's tied places ("1, 1, 3") say why, once.
     func testTiedPlacesOnTheCombinedListAreExplained() {
         XCTAssertNotNil(UIText.tiedPlaces(.turkish))
