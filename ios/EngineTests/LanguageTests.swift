@@ -602,7 +602,7 @@ final class ScreenExplanationTests: OfflineTestCase {
         XCTAssertNotEqual(UIText.onDeviceCaption(true, .english), UIText.onDeviceCaption(false, .english))
         XCTAssertNotEqual(UIText.primaryOnItsOwn(.english), UIText.primaryOnItsOwn(.turkish))
         XCTAssertNotEqual(UIText.backToCombined(.english), UIText.backToCombined(.turkish))
-        XCTAssertNotEqual(UIText.boardsWeighHalf(["Aider"], .english), UIText.boardsWeighHalf(["Aider"], .turkish))
+        XCTAssertNotEqual(UIText.olderBoards(["Aider"], .english), UIText.olderBoards(["Aider"], .turkish))
     }
 
     /// The combined list's tied places ("1, 1, 3") say why, once.

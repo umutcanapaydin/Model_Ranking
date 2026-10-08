@@ -25,9 +25,9 @@ struct CombinedView: Equatable {
     var staleness: SourceHealth? = nil
     /// #72's other half (review M3): whole days the phone's copy of the standings is past its day.
     var phoneCopyDays: Int? = nil
-    /// D-188 clause 4 (M20-W4): the benchmarks of the family's boards that weigh half (old or
-    /// undated). Said as a small note; a family list says no loud stale warning (`staleness` is nil).
-    var weighedHalf: [String] = []
+    /// D-188 clause 4 (M20-W4): the benchmarks of the family's boards older than 90 days or undated,
+    /// named in a small note; they count the same. A family list says no loud stale warning.
+    var olderBoards: [String] = []
 
     /// Everything this list must say, as data (#67, M18-W2 P4): the view renders exactly these, and
     /// a test on the plan holds them, so a branch of the view cannot quietly skip one. Loudest first.
@@ -36,7 +36,7 @@ struct CombinedView: Equatable {
         if let staleness, staleness.stale { out.append(.staleBoard(staleness)) }
         if let phoneCopyDays { out.append(.stalePhoneCopy(days: phoneCopyDays)) }
         out.append(.productsOwnOrder(models: sharedCount, boards: list.boards.count))
-        if !weighedHalf.isEmpty { out.append(.boardsWeighHalf(weighedHalf)) }
+        if !olderBoards.isEmpty { out.append(.olderBoards(olderBoards)) }
         if Set(list.entries.map(\.place)).count < list.entries.count { out.append(.tiedPlaces) }
         if !efforts.isEmpty { out.append(.mixedEfforts(efforts)) }
         return out
@@ -56,8 +56,8 @@ enum CombinedDisclosure: Equatable {
     case tiedPlaces
     /// D-112: the listed models were measured at different efforts (review B1).
     case mixedEfforts([String])
-    /// D-188 clause 4 (M20-W4): these boards weigh half, old or undated. A small note.
-    case boardsWeighHalf([String])
+    /// D-188 clause 4 (M20-W4): these boards have no result in 90 days, or no date. A small note.
+    case olderBoards([String])
 }
 
 /// The efforts a board's listed models stand at, when there are two or more (D-112).
@@ -179,10 +179,10 @@ private func familyPlan(
         boards: list.boards,
         entries: list.entries.map { CombinedEntry(model: $0.model, positions: $0.positions, place: $0.place) }
     )
-    let halves = list.boards.filter { list.staleBoards.contains($0.id) }.map(\.benchmark)
+    let older = list.boards.filter { list.staleBoards.contains($0.id) }.map(\.benchmark)
     return .combined(CombinedView(
         list: combined, refinements: offered, removed: removed.intersection(offered),
-        mixedEfforts: mixedEfforts(combined), staleness: nil, phoneCopyDays: phoneCopyDays, weighedHalf: halves
+        mixedEfforts: mixedEfforts(combined), staleness: nil, phoneCopyDays: phoneCopyDays, olderBoards: older
     ))
 }
 

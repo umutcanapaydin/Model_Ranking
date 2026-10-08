@@ -79,14 +79,14 @@ final class FamilyPlanTests: OfflineTestCase {
                               primaryHealth: stale)
         guard case let .combined(view) = plan else { return XCTFail("\(plan)") }
         XCTAssertFalse(view.disclosures.contains { if case .staleBoard = $0 { return true }; return false })
-        XCTAssertTrue(view.disclosures.contains(.boardsWeighHalf(["B swebench"])))
+        XCTAssertTrue(view.disclosures.contains(.olderBoards(["B swebench"])))
         let said = view.disclosures.compactMap { combinedDisclosure($0, .english) }
         XCTAssertTrue(said.allSatisfy { $0.weight != .state }, "nothing here is the loud warning")
     }
 
-    func testTheWeighedHalfNoteIsSaidInBothLanguages() {
-        let english = combinedDisclosure(.boardsWeighHalf(["SWE-bench Verified"]), .english)
-        let turkish = combinedDisclosure(.boardsWeighHalf(["SWE-bench Verified"]), .turkish)
+    func testTheOlderBoardsNoteIsSaidInBothLanguages() {
+        let english = combinedDisclosure(.olderBoards(["SWE-bench Verified"]), .english)
+        let turkish = combinedDisclosure(.olderBoards(["SWE-bench Verified"]), .turkish)
         XCTAssertNotNil(english)
         XCTAssertNotEqual(english?.text, turkish?.text)
         XCTAssertTrue(english?.text.contains("SWE-bench Verified") == true)

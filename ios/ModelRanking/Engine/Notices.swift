@@ -257,7 +257,7 @@ func combinedDisclosure(_ disclosure: CombinedDisclosure, _ language: Language) 
         return Disclosure(text: UIText.tiedPlaces(language), weight: .property)
     case let .mixedEfforts(efforts):
         return Disclosure(text: UIText.combinedEffortNote(efforts: efforts, language), weight: .property)
-    case let .boardsWeighHalf(benchmarks):
-        return Disclosure(text: UIText.boardsWeighHalf(benchmarks, language), weight: .property)
+    case let .olderBoards(benchmarks):
+        return Disclosure(text: UIText.olderBoards(benchmarks, language), weight: .property)
     }
 }

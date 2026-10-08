@@ -62,7 +62,7 @@ final class UITextLanguageTests: OfflineTestCase {
             ("boardDate", { UIText.boardDate(.measured("2026-09-24"), $0) }),
             ("chipAction", { UIText.chipAction(chinese, removed: false, $0) }),
             ("tiedPlaces", { UIText.tiedPlaces($0) }),
-            ("boardsWeighHalf", { UIText.boardsWeighHalf(["SWE-bench Verified"], $0) }),
+            ("olderBoards", { UIText.olderBoards(["SWE-bench Verified"], $0) }),
             ("onDeviceCaption", { UIText.onDeviceCaption(true, $0) }),
             ("primaryOnItsOwn", { UIText.primaryOnItsOwn($0) }),
             ("backToCombined", { UIText.backToCombined($0) }),

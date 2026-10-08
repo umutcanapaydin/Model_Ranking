@@ -681,12 +681,13 @@ extension UIText {
         }
     }
 
-    /// D-188 clause 4 (M20-W4): the family's boards that weigh half, said small, under the list.
-    static func boardsWeighHalf(_ benchmarks: [String], _ language: Language) -> String {
+    /// D-188 clause 4 (M20-W4): the family's boards with no result in 90 days, or no date, said small
+    /// under the list. They count the same as the others; the note only dates them.
+    static func olderBoards(_ benchmarks: [String], _ language: Language) -> String {
         let names = benchmarks.joined(separator: ", ")
         return language == .turkish
-            ? "\(names) bu listede yarım ağırlıkta: 90 gündür yeni sonuç eklenmedi ya da tarih yok."
-            : "\(names) weighs half in this list: no new result in 90 days, or no date."
+            ? "\(names): 90 gündür yeni sonuç yok ya da tarih yok; bu listede diğerleri kadar sayılıyor."
+            : "\(names): no new result in 90 days, or no date; it counts the same as the others here."
     }
 
     /// Under a combined list with tied places (1, 1, 3): what a shared place means.
