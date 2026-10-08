@@ -121,8 +121,8 @@ struct FamilyEntry: Equatable {
     let place: Int
 }
 
-/// A family's combined list: the boards that rank anyone (in the family's order), the ones that
-/// weigh half, the number of boards a model needed, and the entries in order.
+/// A family's combined list: the boards that rank anyone (in the family's order), the ones older than
+/// 90 days or undated (named under the list), the number of boards a model needed, and the entries.
 struct FamilyList: Equatable {
     let boards: [BoardStandings]
     let staleBoards: [String]
@@ -130,48 +130,47 @@ struct FamilyList: Equatable {
     let entries: [FamilyEntry]
 }
 
-/// How old a board's newest evaluation may be before it weighs half (D-188 clause 4).
+/// How old a board's newest evaluation may be before the list names it (D-188 clause 4).
 let freshForDays = 90
 
 /// Combine a family of boards (D-188 clauses 2 to 4), by position and never by score (D-105):
 /// - a board that ranks no model, or that the standings lack, is left out, so it can change nothing;
 /// - a model enters when at least half of the remaining boards rank it, rounded up, and at least one
 ///   (with two boards, either is enough: D-188 clause 2 as the W1 review measured it);
-/// - its place is the weighted mean of its percentile positions, (position - 1) / (size - 1), over
-///   the boards that rank it; a board older than `freshForDays`, or undated, weighs half;
-/// - equal means share a place, and the order breaks them by model id (#44).
+/// - its place is the mean of its percentile positions, (position - 1) / (size - 1), over the boards
+///   that rank it, a shared position counting as that position; every board counts the same (a half
+///   weight for an old board let Arena decide five families alone, the W2 review's R1);
+/// - a board older than `freshForDays` whole days, or undated, is named (`staleBoards`);
+/// - equal means share a place, and the order breaks them by model id (#44); a model the payload's
+///   model list lacks is left out rather than failing the family (the W2 review's R2).
 func combineFamily(_ standings: Standings, boards family: [String], asOf today: Date) throws -> FamilyList {
     var seen = Set<String>()
     let ids = family.filter { seen.insert($0).inserted }
     guard !ids.isEmpty else { throw CombineError.noBoards }
-    // A family board the standings lack (an outage, a source left out) is left out, as a board that
-    // ranks no model is: neither can empty the list or raise the coverage (the W1 review's R1).
-    let boards = ids.compactMap { id in standings.boards.first(where: { $0.id == id }) }
-        .filter { !$0.standings.isEmpty }
+    // Each board looked up once by id (the W2 review's M5: a scan per id grew with the square).
+    let byID = Dictionary(standings.boards.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    let boards = ids.compactMap { byID[$0] }.filter { !$0.standings.isEmpty }
     guard !boards.isEmpty else { throw CombineError.noBoards }
     let models = Dictionary(standings.models.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     let stale = boards.filter { isStale($0, asOf: today) }.map(\.id)
     let coverage = max(1, (boards.count + 1) / 2)
 
-    // Per model: the weighted sum of percentile positions, the sum of weights, and the positions.
-    var weighted: [String: Double] = [:]
-    var weights: [String: Double] = [:]
+    // Per model: the sum of its percentile positions, and its positions in the family's order.
+    var sums: [String: Double] = [:]
     var positions: [String: [BoardPosition]] = [:]
     for board in boards {
-        let weight = stale.contains(board.id) ? 0.5 : 1.0
         let span = Double(max(board.standings.count - 1, 1))
         var listed = Set<String>()
         for standing in board.standings where listed.insert(standing.model).inserted {
             let percentile = Double(min(max(standing.position - 1, 0), board.standings.count - 1)) / span
-            weighted[standing.model, default: 0] += weight * percentile
-            weights[standing.model, default: 0] += weight
+            sums[standing.model, default: 0] += percentile
             positions[standing.model, default: []].append(BoardPosition(board: board.id, position: standing.position))
         }
     }
     // A mean is compared to nine places, so two equal means computed in different orders stay equal.
     var means: [String: Int] = [:]
-    for (model, list) in positions where list.count >= coverage {
-        means[model] = Int(((weighted[model] ?? 0) / (weights[model] ?? 1) * 1_000_000_000).rounded())
+    for (model, list) in positions where list.count >= coverage && models[model] != nil {
+        means[model] = Int(((sums[model] ?? 0) / Double(list.count) * 1_000_000_000).rounded())
     }
     let order = means.keys.sorted { lhs, rhs in
         let (left, right) = (means[lhs, default: 0], means[rhs, default: 0])
@@ -179,7 +178,7 @@ func combineFamily(_ standings: Standings, boards family: [String], asOf today: 
     }
     var entries: [FamilyEntry] = []
     for (index, id) in order.enumerated() {
-        guard let model = models[id] else { throw CombineError.unknownModel(id) }
+        guard let model = models[id] else { continue }
         let tied = index > 0 && means[order[index - 1], default: 0] == means[id, default: 0]
         let place = tied ? entries[index - 1].place : index + 1
         entries.append(FamilyEntry(model: model, positions: positions[id, default: []], place: place))
@@ -187,12 +186,16 @@ func combineFamily(_ standings: Standings, boards family: [String], asOf today: 
     return FamilyList(boards: boards, staleBoards: stale, coverage: coverage, entries: entries)
 }
 
-/// Whether a board's newest evaluation is older than `freshForDays` on `today`, or unknown.
+/// Whether a board's newest evaluation is more than `freshForDays` whole days before `today`, or
+/// unknown: the line the engine's source health draws (the W2 review's M6).
 private func isStale(_ board: BoardStandings, asOf today: Date) -> Bool {
     guard let date = board.evidenceDate, let evaluated = evidenceDay.date(from: String(date.prefix(10))) else {
         return true
     }
-    return today.timeIntervalSince(evaluated) > Double(freshForDays) * 86_400
+    var utc = Calendar(identifier: .gregorian)
+    utc.timeZone = TimeZone(identifier: "UTC") ?? .current
+    let days = utc.dateComponents([.day], from: utc.startOfDay(for: evaluated), to: utc.startOfDay(for: today)).day ?? 0
+    return days > freshForDays
 }
 
 private let evidenceDay: DateFormatter = {

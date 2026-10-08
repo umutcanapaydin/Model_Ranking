@@ -4410,7 +4410,27 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    already on `/v1/boards`. The phone never keeps its own copy. A family holds at most one board of
    each source (Arena's slices are facets of one vote); two publishers of one benchmark are two boards
    (D-168 clause 5). Every other board stands outside every family with its reason: a language or a
-   domain the question adds as a refinement, or a facet no surface measures.
+   domain the question adds as a refinement, or a facet no surface measures. Each search surface keeps
+   its one board: Arena's search and search-factuality boards rank the same models from one vote (the
+   W1 Tester's M1). The families (`app.workflows.families`, held equal to this table by a test):
+
+   | surface | family, the primary first |
+   |---|---|
+   | `coding` | `swebench`, `epoch_swe_bench_verified`, `aider`, `arena_text_coding` |
+   | `agentic-coding` | `epoch_deepswe_external`, `epoch_terminalbench`, `arena_agent` |
+   | `assistant` | `arena` |
+   | `everyday` | `epoch_eci`, `arena`, `epoch_mmlu` |
+   | `expert` | `epoch_gpqa`, `arena_text_expert`, `epoch_mmlu` |
+   | `mathematics` | `epoch_aime`, `epoch_frontiermath`, `epoch_frontiermath_t4`, `arena_text_math` |
+   | `computer-use` | `epoch_terminalbench`, `arena_agent` |
+   | `abstract` | `epoch_arc_agi`, `epoch_chess`, `epoch_mystery` |
+   | `web-dev` | `epoch_webdev`, `arena_text_coding` |
+   | `document` | `arena_document`, `arena_text_longer_query` |
+   | `factuality` | `arena_factuality`, `epoch_simpleqa` |
+   | `vision` | `arena_vision` |
+   | `search` | `arena_search` |
+   | `search_factuality` | `arena_search_factuality` |
+
 2. **Coverage.** A model enters the combined list when at least half of the family's boards rank it,
    rounded up, and at least one. With two boards, either is enough; "and at least two" was dropped after
    the W1 review measured it: on the served boards it turned a two-board family into the intersection
@@ -4423,8 +4443,13 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    board's size - 1), across the boards that rank it, positions only and never a score (D-105). Ties
    share a place and are broken by model id. A board that ranks no model, or that the standings lack
    (an outage, a source left out), is left out of the family's count.
-4. **Staleness.** A board whose newest evaluation is older than 90 days, or that publishes no date,
-   weighs half in that mean. The screen says so in one small line, not as a warning over the list.
+4. **Staleness.** Every board counts the same. A board whose newest evaluation is more than 90 whole
+   days old, or that publishes no date, is named under the list in one small line, never as a warning
+   over it. A half weight was the first proposal; the W2 review measured it on the served boards:
+   every board but Arena's is older than 90 days or undated, so Arena alone would have decided
+   `coding`, `agentic-coding`, `everyday`, `computer-use` and `web-dev`, the one-source dominance
+   clause 1 forbids. A shared position counts as that position (the competition ranking a board
+   publishes).
 5. **The default.** The combined list is the default answer on every surface. The primary board's own
    answer (the picks and their price notes) is one tap away. Ruling A holds: coding shows two
    families, neither leading.

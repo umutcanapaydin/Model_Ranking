@@ -32,8 +32,8 @@ FAMILIES: dict[str, tuple[str, ...]] = {
     "document": ("arena_document", "arena_text_longer_query"),
     "factuality": ("arena_factuality", "epoch_simpleqa"),
     "vision": ("arena_vision",),
-    "search": ("arena_search", "arena_search_factuality"),
-    "search_factuality": ("arena_search_factuality", "arena_search"),
+    "search": ("arena_search",),
+    "search_factuality": ("arena_search_factuality",),
 }
 
 _LANGUAGE = "a language slice of Arena's text board: a refinement the question adds (D-168), not the task"
