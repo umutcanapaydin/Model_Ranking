@@ -114,6 +114,8 @@ final class ScreenPathTests: XCTestCase {
         ask("Which model writes code best?")
         XCTAssertTrue(field("combinedList").waitForExistence(timeout: 30), "coding did not get its family list")
         keep("coding: the family lists")
+        // The W4 review's M2 and M7: two lists, the second with identifiers of its own.
+        bringIntoView(field("combinedList.paired"))
         let note = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'No position here means anything'"))
             .firstMatch
         bringIntoView(note)
