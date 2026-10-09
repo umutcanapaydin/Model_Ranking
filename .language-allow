@@ -134,3 +134,5 @@ docs/research/m20-w5-runs/              # M20-W5 (#195): every probe run's per-q
 ios/EngineTests/FamilyPlanTests.swift   # M20-W4: holds the family note and the older-boards note in Turkish, word for word
 ios/EngineTests/ReadingM21Tests.swift   # M21-W2 (#194, #218): asserts Turkish questions by their words, for the reason ReadingTests does
 docs/research/judgement/questions.json   # M21-W2 (#226): the judgement sheet's starter questions, half Turkish, as readers ask them
+docs/research/m21-w2-runs/              # M21-W2 (#66, #222): every probe run's per-question output and the wave's own
+                                        # sentences, half Turkish, so a run can be re-scored

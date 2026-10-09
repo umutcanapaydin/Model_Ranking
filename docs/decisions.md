@@ -4267,6 +4267,8 @@ on-device model reads a question of fact as something else.
 
 **Amended by D-187 (2026-10-08)**: clause 3's image rule is retired: a request to make or change an image is answered from `vision`.
 
+**Amended by D-189 (2026-10-09)**: clause 1 -- the question of fact's model names come from the registry (`registry.family_words`), not eleven brands; a family word that is also plain English names a model only beside a version (#194).
+
 ## D-185 — The first release: a public artifact inside the hosted image, and the app ready for TestFlight
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
@@ -4397,6 +4399,8 @@ board's ranking, with its board named, not a statement that nothing ranks it. **
 combination of boards for a task none ranks is built (the owner's next step: the on-device model
 composing a list from the boards).
 
+**Amended by D-189 (2026-10-09)**: clause 1 -- a question with a Turkish letter or question word never reaches the English embedding, and a Turkish ask for the best one, which one, a model or a recommendation is answered from `everyday` (#218, #222).
+
 **Amended by D-188 (2026-10-08, proposed)**: clause 1 -- a short question made only of model names, their tier names and Turkish particles ("claude mu chatgpt mi") is a general question before the embedding is tried, since the embedding reads it as English (#206, M20-W3; `CategoryHints.comparesModelsOnly`).
 
 ## D-188 — Our own list for every question: a family of boards per task, combined by position
@@ -4491,3 +4495,37 @@ simpler, but a new model ranked by two boards out of eight would never appear.
 answer to the family list on more questions than ours (`docs/judgement-sheet.md`; `revisit` in
 `scripts/judgement_sheet.py`, M21-W2). The labelled set of #195 cannot show it: it is labelled for the surface, not
 for the best model (M20-W5, `docs/research/m20-w5-family-probe.md` §4; the M20 repo review's M5).
+
+## D-189 — The wording tier reads Turkish as Turkish, a Turkish ask for a model as general, and a ranked model's name as a search
+
+**Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 (take
+the recommended option, M21's plan approved with M20's) · **Date:** 2026-10-09 · **Amends** D-187
+clause 1 and D-184 clause 1 · from #218, #222, #194 (M21-W2).
+
+**Context.** On M20-W5's held-out set, 8 of 71 searches fell to "not measured" on a device without
+Apple Intelligence, all of them Turkish (#222). A short Turkish question is not confidently Turkish to
+the language recogniser, so the English embedding read it and guessed a surface (#218). The fact
+doubt left a search alone only when it named one of eleven brands; a search naming any other model the
+app ranks was asked about (#194).
+
+**Decision.**
+1. **Turkish before the embedding (#218).** A question with a Turkish letter or a Turkish question
+   word (`mi`, `mu`, `hangisi`, `hangi`, `nedir`, plain letters) never reaches the English embedding;
+   D-187's Turkish path (the words that name a surface, then the general answer) answers it
+   (`CategoryHints.readsAsTurkish`).
+2. **A Turkish ask for a model is general (#222).** Where the embedding cannot read a question that
+   names no surface, an ask for "the best one" (`en iyisi`), "which one for" (`için hangisi`), a model
+   (`model…`) or a recommendation (`öner…`) is answered from `everyday`, not "not measured"
+   (`CategoryHints.generalWords`).
+3. **A ranked model's name makes it a search (#194).** The fact doubt's model names are the
+   registry's (`registry.family_words`, written to `ModelFamilies.swift` and held equal by a test). A
+   family word that is also plain English or Turkish (phi, nova, titan, kimi…) names a model only
+   beside a version (`phi-4`, `nova 2`).
+
+**Measured** (`docs/research/m21-w2-reading-probe.md`): the wording tier's not-measured searches fell
+from 8 to 4 of 71, all moved to the general answer, and none was given the note. The model tier asked
+about 3 to 5 of 71 searches, against 4 and 4 before.
+
+**Revisit when:** a fresh held-out set shows the general answer given to a question whose label names
+another surface on more than half of the Turkish searches it catches. That would mean the general
+answer hides a surface the words could have named.
