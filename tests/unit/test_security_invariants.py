@@ -423,8 +423,11 @@ def _blocks(text: str) -> list[str]:
 
 def pointer_problems(records: dict[str, str], prd: str, register: str) -> list[str]:
     """Outside the register, a block that names a client gate points at the register's rows; so does a PRD
-    row that cites the compiled gate, one a gated row takes as its source, and one that cites any test a
-    gated row cites. The pointer names rows that exist, and every gated row the PRD row draws on."""
+    row that cites the compiled gate, one a gated row takes as its source, one that cites any test a gated
+    row cites, one that cites a test in a gate file (`PRD_GATE_CITATIONS`), and one that names a test the
+    three gate files declare, with or without its file (the M21-W3 review's round 6, M4). A PRD row in
+    NOT_ON_REGISTER is exempt, with its reason. The pointer names rows that exist, and every gated row
+    the PRD row draws on."""
     rows, _, _ = parse(register)
     known = {row.number for row in rows}
     sources: dict[str, set[int]] = {}
@@ -523,7 +526,8 @@ def test_no_record_restates_a_client_gates_property_without_its_row() -> None:
     stated what a gate holds flatly, and round 5's REQ-DTL-001 cited a pin no register row cites. A record
     outside the register that names a client gate, a PRD row that draws on a gated row (its source, or a
     test it cites), and a PRD row that cites any gate test points at the row instead, unless the PRD row
-    is listed in NOT_ON_REGISTER with its reason."""
+    is listed in NOT_ON_REGISTER with its reason. Round 6's M4: a row naming a gate test without its file
+    was not read."""
     register = LIST.read_text(encoding="utf-8")
     prd = (ROOT / "docs" / "prd.md").read_text(encoding="utf-8")
     problems_now = pointer_problems(_records(), prd, register)
@@ -534,3 +538,7 @@ def test_no_record_restates_a_client_gates_property_without_its_row() -> None:
         row = next(line for line in prd.splitlines() if line.startswith(f"| {req} |"))
         unpointed = prd.replace(row, POINTER.sub("held in part", row), 1)
         assert any(req in p for p in pointer_problems(_records(), unpointed, register)), req
+    row = next(line for line in prd.splitlines() if line.startswith("| REQ-CMP-002 |"))
+    bare = prd.replace(row, row[:-2] + " The detail pin (test_the_detail_screen_is_reachable_and_composes_nothing_itself) "
+                       "holds that nothing on the screen is computed. |", 1)
+    assert any("REQ-CMP-002" in p for p in pointer_problems(_records(), bare, register)), "a bare gate test name was not read"
