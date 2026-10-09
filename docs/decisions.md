@@ -4271,7 +4271,7 @@ on-device model reads a question of fact as something else.
 
 **Amended by D-187 (2026-10-08)**: clause 3's image rule is retired: a request to make or change an image is answered from `vision`.
 
-**Amended by D-191 (2026-10-09)**: clause 1 -- the question of fact's model names come from the registry (`registry.family_words`) and the served names, not eleven brands; a family word that is also plain English or Turkish names a model only beside a version its names use, never on a word about cost or making (#194).
+**Note from D-191 (2026-10-09)**: #194's change to clause 1 (the question of fact's model names from the registry) was tried at M21-W2 and taken out after three verdicts; clause 1 stands as written, with its eleven brands.
 
 ## D-185 — The first release: a public artifact inside the hosted image, and the app ready for TestFlight
 
@@ -4405,7 +4405,7 @@ board's ranking, with its board named, not a statement that nothing ranks it. **
 combination of boards for a task none ranks is built (the owner's next step: the on-device model
 composing a list from the boards).
 
-**Amended by D-191 (2026-10-09)**: clause 1 -- a question that reads as Turkish (a letter only Turkish has, or two Turkish signals) never reaches the English embedding, and a comparison of model names is answered from `everyday` (#218, #206); the Turkish general ask (#222) was tried and taken out.
+**Amended by D-191 (2026-10-09)**: clause 1 -- a comparison of any ranked families' names is answered from `everyday` (#206); the Turkish signals before the embedding (#218) and the Turkish general ask (#222) were tried and taken out after three verdicts.
 
 **Amended by D-188 (2026-10-08, proposed)**: clause 1 -- a short question made only of model names, their tier names and Turkish particles ("claude mu chatgpt mi") is a general question before the embedding is tried, since the embedding reads it as English (#206, M20-W3; `CategoryHints.comparesModelsOnly`).
 
@@ -4585,67 +4585,51 @@ under the CC-BY-4.0 grant the engine's other Arena boards use.
 evidence on an artifact built by an older release, so the hosted engine is deployed after the owner's Mac
 has refreshed once (the deploy's stamp names the release that built the data, #198).
 
-## D-191 — The wording tier reads Turkish as Turkish, and a ranked model's name as a search; the Turkish general ask was taken out
+## D-191 — A comparison of model names is general; the wave's three reading rules were taken out after three verdicts
 
 **Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 (take
-the recommended option, M21's plan approved with M20's), amended after two review rounds
-(`docs/reviews/m21-wave-2-review-round-1.md`, `docs/reviews/m21-wave-2-review.md`) · **Date:** 2026-10-09 ·
-**Amends** D-187 clause 1 and D-184 clause 1 · from #218, #194, #206; #222 stays open (M21-W2).
+the recommended option, M21's plan approved with M20's), after two review rounds and a Tester
+(`docs/reviews/m21-wave-2-review-round-1.md`, `docs/reviews/m21-wave-2-review.md`,
+`docs/reviews/m21-wave-2-tester.md`) · **Date:** 2026-10-09 · **Amends** D-187 clause 1 · from #206; #194,
+#218 and #222 stay open (M21-W2).
 
 **Context.** On M20-W5's held-out set, 8 of 71 searches fell to "not measured" on a device without
 Apple Intelligence, all of them Turkish (#222). A short Turkish question is not confidently Turkish to
-the language recogniser, so the English embedding read it and guessed a surface (#218). The fact
-doubt left a search alone only when it named one of eleven brands; a search naming any other model the
-app ranks was asked about (#194).
+the language recogniser, so the English embedding guesses a surface (#218). The fact doubt leaves a
+search alone only when it names one of eleven brands, so a search naming another ranked model is asked
+about (#194).
 
 **Decision.**
-1. **Turkish before the embedding (#218).** A question that reads as Turkish never reaches the English
-   embedding; D-187's Turkish path (the words that name a surface, then the general answer) answers it
-   (`CategoryHints.readsAsTurkish`).
-   - A letter only Turkish has (dotless i, s-cedilla, soft g, dotted capital I) decides alone.
-   - Otherwise every signal counts each time it occurs, and two decide.
-   - A signal is a letter Turkish shares with other languages (c-cedilla with French and Portuguese,
-     o-umlaut and u-umlaut with German and the Nordic languages), or a word of
-     `CategoryHints.turkishQuestionWords` written in lower case.
-   - That list holds 23 words written only in Turkish: the question particles, "which", "for",
-     "better", "good", "AI", "why", "where", "how many" and the like. Words other languages share are
-     not in it ("en", "ne", "kim", "var", "ve", "bir", "ile"), and a capitalised "Kim", "MI" or "NE",
-     a name or a state code, is no signal (the reviews' M5 and M6).
-2. **A comparison of model names is general (#206).** A question made only of ranked families' names
-   and Turkish particles ("nemotron mu glm mi") is answered from `everyday` by the wording tier itself,
-   for every family the registry names (`CategoryHints.comparesModelsOnly`; the second review's M2).
-3. **A ranked model's name makes it a search (#194).** The fact doubt's model names are the registry's
-   (`registry.family_words`, written to `ModelFamilies.swift`, held equal byte for byte), and the
-   served models' names the phone keeps (`ServedModelNames`, round 1's M2).
-   - **A plain family word** ("qwen", "mixtral", "claude") names a model wherever it stands.
-   - **A word that is also plain English or Turkish** ("llama", "kimi", "phi", "o3", "nvidia", the rest of
-     `AMBIGUOUS_FAMILY_WORDS`) names a model only beside a version its own names use. The version may
-     be written apart (Kimi K2, Command R, Nova Lite, Phi-3, Mercury 2: `registry.family_versions`)
-     or onto the word ("llama3", "gemma3"; a Turkish suffix after an apostrophe is its own token).
-   - **A word about cost or making never does** (the second review's M3): a granite countertop, an o1
-     visa and nvidia stock have those words too. So "who makes llama" is a question of fact, and "who
-     makes llama 3" a search.
-   - **A word only the engine serves** names a model only beside a version its served names use.
-4. **The Turkish general ask is taken out (#222; the second review's M1).** An ask for "the best one",
-   "which one for" or a recommendation was read as general at the first two rounds. Then:
-   - Its first form caught asks about coffee and holidays.
-   - Narrowed to asks beside a task, it still read words with a second reading as tasks: summer, a
-     printer, a student, boots, a model aircraft.
-   - The one-reading AI words alone add nothing to the general words (D-187).
-   - So the rule came out, as the stop-at-three practice asks. `generalSurface` is as it was at
-     `972b55e`, and #222 stays open with the measured state: 8 of 71 held-out searches not measured,
-     all Turkish.
+1. **What ships: a comparison of model names is general (#206).** A question made only of ranked
+   families' names, their tiers and Turkish particles (`nemotron mu glm mi`) is answered from `everyday`
+   by the wording tier itself (`CategoryHints.comparesModelsOnly`).
+   - The names are every family the registry names (`registry.family_words`, written to
+     `ModelFamilies.swift` and held equal byte for byte), not twelve brands.
+   - It is narrow by its shape: every word must be a name, a tier, a particle or one letter, so
+     `kimi mi geldi` ("did some come?") is none.
+   - The words the router reads hold letters only, so `o3 mü o4 mü` is not read here; it reaches the
+     embedding, which is #218's.
+2. **Taken out after three verdicts, as M19's image rule was.** Each review found the same class
+   again. Each rule is back to its state at `972b55e`, and its issue stays open with the measured state.
+   - **#194, a ranked model's name in the fact doubt.**
+     - Round 1: a version rule. Its versions spelled with a letter missed Kimi K2, and the words with a
+       second meaning (nvidia, o3, glm) were read as models.
+     - Round 2: versions only, with no word about cost or making. It read "who makes llama" as a question
+       of fact, and missed "llama3" and the Turkish forms.
+     - The Tester: an everyday word as a served version ("step 3", "command a").
+   - **#218, the Turkish signals before the embedding.**
+     - Round 1: a German `ü` and an English "MI" were read as Turkish.
+     - Round 2: a capitalised "Kim" or "NE" was read as Turkish, and a particle typed twice counted once.
+     - The Tester: one Turkish-only letter sent an English search to "not measured" (an email to
+       `Çağla`, a trip from `İzmir`), and an English "mu" typed twice was read as Turkish.
+   - **#222, the Turkish general ask.** Taken out at round 2: its task words have a second reading
+     (summer, a printer, a student, boots, a model aircraft).
 
-**Measured** (`docs/research/m21-w2-reading-probe.md`, §6 and §7; the wording tier, counts only):
-- **After both rounds**, every one of the 78 held-out rows reads as it did at `972b55e`: 44 right, 8 of
-  71 searches not measured, none given the note.
-- **The model tier** was measured only before the reviews: it asked about 3 to 5 of 71 searches,
-  against 4 and 4 before. It is reached by clauses 1 and 2 too, through the wording tier when the model
-  declines, and was not measured again.
-- **The served names** were absent from the probes. The second reviewer's re-run with the served
-  snapshot's names changed none of the 78 rows.
+**Measured** (`docs/research/m21-w2-reading-probe.md` §8; the wording tier, counts only):
+- At the head, every one of the 78 held-out rows reads as at `972b55e`: 44 right, 8 of 71 searches not
+  measured (all Turkish), none given the note. The kept comparison rule moves none of them.
+- The model tier was measured only before the reviews (§2).
 
-**Revisit when:** a fresh held-out set (#237) shows clause 1 or 3 reading a question of fact as a search,
-or a Turkish question as English, on more than one in twenty of its questions; or the owner rules on
-the four core brands' second readings (#238). Clause 4's rule returns only with one-reading words,
-measured on that set.
+**Revisit when:** a fresh held-out set (#237) is written, which is where a fourth attempt at #194, #218
+or #222 starts, with only words that have one reading; or the owner rules on the four core brands'
+second readings (#238).

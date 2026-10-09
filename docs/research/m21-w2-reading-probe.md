@@ -121,3 +121,23 @@ new set".
   names (301 models), and none of the 78 rows changed. The model tier was not measured with them.
 - **The model tier was not run again,** for the reason in §6.
 - **The set is spent.** #237 asks for a fresh set.
+
+## 8. After the Tester: two rules taken out (`docs/reviews/m21-wave-2-tester.md`, D-191)
+
+**What changed.** #194's model names in the fact doubt and #218's Turkish signals before the embedding
+were taken out after three verdicts each. Each is back to its `972b55e` state. #206's comparison of
+model names stays, reading every ranked family (D-191 clause 1).
+
+**Measured** on the wording tier, twice, at `35a8563` (`final-wording-1.json`, `final-wording-2.json`;
+counts only, the same scorer):
+
+| run | right (78) | searches not measured (71) | given the note | asked | non-searches caught (7) |
+|---|---:|---:|---:|---:|---:|
+| before (`972b55e`) | 44 | 8 | 0 | 0 | 3 |
+| at `35a8563`, run 1 and 2 | 44, 44 | 8, 8 | 0, 0 | 0, 0 | 3, 3 |
+
+- **All 78 rows read as at `972b55e`.** The kept comparison rule moves none of them.
+- **#194, #218 and #222 stay open** with this state: 8 of 71 held-out searches not measured, all
+  Turkish.
+- **The served names and the model tier** are as §7 says. The served names no longer exist in the app.
+
