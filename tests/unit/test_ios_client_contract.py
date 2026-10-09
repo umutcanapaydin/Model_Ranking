@@ -295,6 +295,11 @@ SERVED_NUMBERS = (
 )
 
 
+def _served_numbers(sources: dict[str, str] | None = None) -> set[str]:
+    """#169: the served numbers, from the decoded types (a stub in the red commit)."""
+    return set(SERVED_NUMBERS)
+
+
 def test_the_client_performs_no_arithmetic_on_a_number_the_engine_sent() -> None:
     """Trap 1, and it protects three ADRs at once.
 
@@ -1720,3 +1725,15 @@ def test_the_device_state_is_read_again_on_returning_to_the_foreground() -> None
     assert re.search(r"\.onChange\(of: scenePhase\).*?onDevice = TieredRouter\.onDeviceState\(\)", view, re.S), (
         "the device state is not read again when the app returns to the front"
     )
+
+
+def test_the_text_tripwire_reads_its_served_numbers_from_the_decoded_types() -> None:
+    """#169 (M21-W3): the text tripwire's served numbers come from the types the client decodes, as the
+    compiled gate's do (`served_fields`), so a number decoded tomorrow reaches both checks with no list
+    edited. Held on the shipping types and on a type planted in text."""
+    derived = _served_numbers()
+    assert {"score", "blendedPerM", "eligibleCount", "scoreAnchor", "closeCallMargin", "minQuality",
+            "behindBy"} <= derived, sorted(derived)
+    planted = "struct Fresh: Decodable {\n    let novelty: Double\n    static let constant = 2\n}\n"
+    assert "novelty" in _served_numbers({"Planted.swift": planted})
+    assert "constant" not in _served_numbers({"Planted.swift": planted})
