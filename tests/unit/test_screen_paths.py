@@ -71,3 +71,16 @@ def test_what_a_search_waits_for_is_read_inside_its_wait_too() -> None:
     assert deciding, "waitForAnswer returns nothing"
     for line in deciding:
         assert "combinedList" in line or "evidence" in line, line
+
+
+def test_a_search_waits_for_its_own_answer_not_the_one_on_screen() -> None:
+    """The M21-W2 Tester's M5: setUp leaves the first answer's cards on screen, and they stay while a later
+    question routes, so a search's wait that reads only the cards returns at once. It waits for the
+    question's own echo first, which appears once that question's answer is applied."""
+    swift = UI.read_text(encoding="utf-8")
+    start = swift.find("private func waitForAnswer(")
+    assert start >= 0, "waitForAnswer is gone"
+    body = swift[start:swift.find("\n    }\n", start)]
+    assert "to question: String" in body, "waitForAnswer does not know which question it waits for"
+    assert "BEGINSWITH" in body and "question" in body.split("BEGINSWITH", 1)[1][:200], "no echo of the question"
+    assert 'waitForAnswer(to: question' in swift, "the search arm does not pass its question"

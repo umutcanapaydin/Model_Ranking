@@ -259,7 +259,9 @@ final class ModelComparisonRouteTests: OfflineTestCase {
                          "search", "search_factuality"]
 
     func testAComparisonOfFamiliesOutsideTheTwelveBrandsIsEveryday() async {
-        for question in ["nemotron mu glm mi", "mixtral mi nemotron mu"] {
+        // The Tester's M4: a comparison of two families with a second reading ("glm", "minimax", "o3") is
+        // still a comparison of model names: every word is a name or a particle.
+        for question in ["nemotron mu glm mi", "mixtral mi nemotron mu", "glm mi minimax mi", "o3 mü o4 mü"] {
             let outcome = await SimilarityRouter().route(question, within: known)
             XCTAssertEqual(outcome?.categoryID, "everyday", question)
             XCTAssertEqual(outcome?.unmeasured, false, question)
