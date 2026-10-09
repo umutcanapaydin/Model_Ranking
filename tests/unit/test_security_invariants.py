@@ -264,15 +264,29 @@ def test_the_testers_three_spellings_are_refused() -> None:
     assert any("cannot read as a test" in p for p in problems(bare)), "a bare citation was skipped"
 
 
-# --- the client gates' wording (the M21-W3 review's round 3, R1) ------------------------------------
+# --- the client gates' wording (the M21-W3 review's rounds 3 and 4) --------------------------------
+#
+# What the compiled gate refuses is defined by its fixture (`scripts/client_decl_fixtures/`, held by its
+# self-test), and what a text pin refuses by the spellings its test reads. A record that describes the
+# refused forms in prose is always wider or narrower than that, so the register's rows name the fixture's
+# rules and the pins' tests instead, and other records point at the rows. These checks hold the wording
+# they can read exactly. Their limits: a restatement that names no gate, or that sits beside its pointer,
+# is not read; they hold that the sentence and the pointer are there, not that nothing else is said.
 
-#: A row cites one of the client gates when its tests name one of these: the compiled declaration gate
-#: or the two text-pin files.
-GATE_CITATIONS = ("`make client-decls`", "`tests/unit/test_client_decl_gate.py::", "`tests/unit/test_router_hints.py::",
-                  "`tests/unit/test_ios_client_contract.py::")
-#: The one sentence each such row ends with. The gates refuse the forms they list and no others, so a
-#: row says which forms, and which gaps hold the rest; the gaps it names are the row's own "Partial:".
-CATCH_ALL = re.compile(r"The gate refuses the forms listed here; any other form is not held \((G-\d+(?:, G-\d+)*)\)\.$")
+#: A row cites the compiled gate when its tests name one of these.
+COMPILED_CITATIONS = ("`make client-decls`", "`tests/unit/test_client_decl_gate.py::")
+#: The text-pin files: a row cites a pin when it cites a test in one of them.
+PIN_FILES = ("tests/unit/test_router_hints.py", "tests/unit/test_ios_client_contract.py")
+_NAMES = r"`[^`]+`(?:(?:, | and )`[^`]+`)*"
+_GAPS = r"\((G-\d+(?:, G-\d+)*)\)"
+#: The sentence a row that cites the compiled gate carries, naming the fixture's rules (`FIXTURE_RULES`).
+COMPILED = re.compile(r"The compiled gate refuses the shapes its fixture holds \(`scripts/client_decl_fixtures/`, "
+                      rf"rules? ({_NAMES})\), each as written there; the same form written another way \(bound to a "
+                      r"name first, split over lines, behind a widened type\) is not held, and any other form is not "
+                      rf"held {_GAPS}\.")
+#: The sentence a row that cites a text pin carries, naming each pin test it cites.
+PINS = re.compile(rf"[Tt]he text pins? ({_NAMES}) refuses? the spellings (?:it|they) reads?; any other spelling is not "
+                  r"held \(G-14\)\.")
 #: How a record outside the register refers to what these gates hold, instead of restating it.
 POINTER = re.compile(r"[Hh]eld in part by the compiled gate and the text pins: see "
                      r"(INV-\d+(?:(?:, | and )INV-\d+)*) in `docs/security-invariants\.md`")
@@ -280,28 +294,80 @@ POINTER = re.compile(r"[Hh]eld in part by the compiled gate and the text pins: s
 GATE_NAMES = ("client_decl_gate.py", "client-decls", "test_router_hints.py", "test_ios_client_contract.py")
 LIST_ITEM = re.compile(r"^\s*(?:[-*]|\d+\.) ")
 PRD_ROW = re.compile(r"^\| (REQ-[A-Z]+-\d+) \|")
+COUNTED = re.compile(r"\*\*Count\.\*\* (\d+) rows, .*? (\d+) hold only in part, .*? (\d+) gaps are open", re.S)
 
 
-def gate_row_problems(text: str) -> list[str]:
-    """Each register row that cites a client gate says it is held in part and ends with the catch-all,
-    naming exactly its own gaps; a row that says "Held in part" ends with it too."""
+def _fixture_rules() -> set[str]:
+    """The compiled gate's rule names, as its self-test holds them (`FIXTURE_RULES`)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("client_decl_gate", ROOT / "scripts" / "client_decl_gate.py")
+    assert spec and spec.loader
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    return set(gate.FIXTURE_RULES)
+
+
+def _gated(claim: str, cell: str) -> tuple[bool, set[str]]:
+    """Whether a row cites the compiled gate, and the pin tests it cites."""
+    return (any(c in cell for c in COMPILED_CITATIONS),
+            {name for path, name in TEST.findall(cell) if path in PIN_FILES})
+
+
+def gate_row_problems(text: str, rules: set[str]) -> list[str]:
+    """Each register row that cites a client gate says it is held in part; one that cites the compiled gate
+    carries COMPILED, naming rules the fixture has; one that cites a text pin carries PINS, naming exactly
+    the pin tests it cites; and the gaps the two sentences name are exactly the row's own "Partial:"."""
     found: list[str] = []
     for line in section(text, "The list").splitlines():
         match = ROW.match(line.rstrip())
         if not match:
             continue
         number, claim, cell = match.group(1), match.group(2), match.group(4)
-        if not (any(c in cell for c in GATE_CITATIONS) or "Held in part" in claim):
+        compiled, pins = _gated(claim, cell)
+        if not (compiled or pins or "Held in part" in claim):
             continue
         if "Held in part" not in claim:
             found.append(f"INV-{number} cites a client gate and does not say it is held in part")
-        ending = CATCH_ALL.search(claim)
-        if not ending:
-            found.append(f"INV-{number} does not end with the catch-all ({CATCH_ALL.pattern})")
-            continue
+        named: set[str] = set()
+        if compiled:
+            said = COMPILED.search(claim)
+            if not said:
+                found.append(f"INV-{number} cites the compiled gate and does not name its fixture's rules ({COMPILED.pattern})")
+            else:
+                unknown = set(re.findall(r"`([^`]+)`", said.group(1))) - rules
+                if unknown:
+                    found.append(f"INV-{number} names rules the fixture does not have: {sorted(unknown)}")
+                named |= set(said.group(2).split(", "))
+        if pins:
+            said = PINS.search(claim)
+            if not said:
+                found.append(f"INV-{number} cites a text pin and does not name it ({PINS.pattern})")
+            else:
+                if set(re.findall(r"`([^`]+)`", said.group(1))) != pins:
+                    found.append(f"INV-{number} names other pin tests than the {sorted(pins)} it cites")
+                named.add("G-14")
         partial = set(GAP_REF.findall(" ".join(re.findall(r"Partial: [^<]*", cell))))
-        if set(ending.group(1).split(", ")) != partial:
-            found.append(f"INV-{number}'s catch-all names {ending.group(1)}, its Partial: names {sorted(partial)}")
+        if (compiled or pins) and named != partial:
+            found.append(f"INV-{number}'s sentences name {sorted(named)}, its Partial: names {sorted(partial)}")
+    return found
+
+
+def table_problems(text: str) -> list[str]:
+    """Each gap's Rows column is exactly the rows that name it, and the count line's three numbers are the
+    rows, the rows that name a gap, and the gaps."""
+    rows, gaps, _ = parse(text)
+    found: list[str] = []
+    for line in section(text, "Gaps").splitlines():
+        if match := GAP.match(line.rstrip()):
+            listed = {int(n) for n in re.findall(r"INV-(\d+)", match.group(2))}
+            naming = {row.number for row in rows if match.group(1) in row.gaps}
+            if listed != naming:
+                found.append(f"{match.group(1)} lists INV-{sorted(listed)}; the rows that name it are INV-{sorted(naming)}")
+    counted = COUNTED.search(text)
+    actual = (len(rows), sum(1 for row in rows if row.gaps), len(gaps))
+    if not counted or tuple(int(n) for n in counted.groups()) != actual:
+        found.append(f"the count line says {counted.groups() if counted else 'nothing'}; the tables hold {actual}")
     return found
 
 
@@ -322,28 +388,33 @@ def _blocks(text: str) -> list[str]:
 
 
 def pointer_problems(records: dict[str, str], prd: str, register: str) -> list[str]:
-    """Outside the register, a block that names a client gate, a PRD row that cites the compiled gate,
-    and a PRD row a gated invariant takes as its source, each point at the register's rows instead of
-    restating what the gates hold: the pointer names rows that exist, and a source row's own row."""
+    """Outside the register, a block that names a client gate points at the register's rows; so does a PRD
+    row that cites the compiled gate, one a gated row takes as its source, and one that cites any test a
+    gated row cites. The pointer names rows that exist, and every gated row the PRD row draws on."""
     rows, _, _ = parse(register)
     known = {row.number for row in rows}
     sources: dict[str, set[int]] = {}
+    tests: dict[str, set[int]] = {}
     for line in section(register, "The list").splitlines():
-        if (match := ROW.match(line.rstrip())) and any(c in match.group(4) for c in GATE_CITATIONS):
-            for req in re.findall(r"REQ-[A-Z]+-\d+", match.group(3)):
-                sources.setdefault(req, set()).add(int(match.group(1)))
+        match = ROW.match(line.rstrip())
+        if not match or not any(_gated(match.group(2), match.group(4))):
+            continue
+        for req in re.findall(r"REQ-[A-Z]+-\d+", match.group(3)):
+            sources.setdefault(req, set()).add(int(match.group(1)))
+        for _, name in TEST.findall(match.group(4)):
+            tests.setdefault(name, set()).add(int(match.group(1)))
     found: list[str] = []
 
     def check(where: str, block: str, needed: set[int]) -> None:
         pointer = POINTER.search(" ".join(block.split()))  # a wrapped paragraph is one sentence
         if not pointer:
-            found.append(f"{where} names a client gate or holds a gated invariant, and does not point at its row")
+            found.append(f"{where} names a client gate or draws on a gated row, and does not point at its row")
             return
         named = {int(n) for n in re.findall(r"INV-(\d+)", pointer.group(1))}
         if named - known:
             found.append(f"{where} points at rows the register does not hold: {sorted(named - known)}")
         if needed - named:
-            found.append(f"{where} does not point at INV-{sorted(needed - named)}, whose source it is")
+            found.append(f"{where} does not point at INV-{sorted(needed - named)}, which it draws on")
 
     for name, text in records.items():
         for block in _blocks(text):
@@ -353,7 +424,10 @@ def pointer_problems(records: dict[str, str], prd: str, register: str) -> list[s
     for line in prd.splitlines():
         if not (match := PRD_ROW.match(line)):
             continue
-        needed = sources.get(match.group(1), set())
+        needed = set(sources.get(match.group(1), set()))
+        for name, numbers in tests.items():
+            if re.search(rf"\b{name}\b", line):
+                needed |= numbers
         if needed or "test_client_decl_gate.py" in line or "client-decls" in line:
             gated += 1
             check(f"docs/prd.md {match.group(1)}", line, needed)
@@ -366,31 +440,49 @@ def _records() -> dict[str, str]:
     return {name: (ROOT / name).read_text(encoding="utf-8") for name in ("docs/architecture.md", "AGENTS.md")}
 
 
-def test_every_row_about_the_client_gates_ends_with_the_catch_all() -> None:
-    """The M21-W3 review's round 3 (B1, R1): INV-62 listed what its gate refuses and did not say that
-    any other form is not held. Every row that cites a client gate now ends with the same sentence,
-    naming its gaps; a row missing it, or naming other gaps than its "Partial:", is refused."""
+def test_every_row_about_the_client_gates_names_its_fixture_rules_and_its_pins() -> None:
+    """The M21-W3 review's rounds 3 and 4 (B1, R1): a row listed the forms its gate refuses in prose, and
+    the prose was wider than the gate. A row that cites the compiled gate names the fixture's rules and
+    says any form written another way is not held; one that cites a text pin names the pin tests; and the
+    gaps they name are its "Partial:". Each refusal is watched on a planted row."""
     text = LIST.read_text(encoding="utf-8")
-    assert not gate_row_problems(text), gate_row_problems(text)
+    rules = _fixture_rules()
+    assert not gate_row_problems(text, rules), gate_row_problems(text, rules)
     gated = next(line for line in section(text, "The list").splitlines()
-                 if ROW.match(line) and "`make client-decls`" in line)
-    bare = CATCH_ALL.sub("", gated.split(" | ")[1])
-    unsaid = text.replace(gated, gated.replace(gated.split(" | ")[1], bare, 1), 1)
-    assert any("catch-all" in p for p in gate_row_problems(unsaid))
-    other = text.replace(gated, re.sub(r"any other form is not held \(G-\d+", "any other form is not held (G-99", gated, count=1), 1)
-    assert any("its Partial: names" in p for p in gate_row_problems(other))
+                 if ROW.match(line) and "`make client-decls`" in line and "`tests/unit/test_router_hints.py::" in line)
+    unsaid = text.replace(gated, COMPILED.sub("", gated, count=1), 1)
+    assert any("fixture's rules" in p for p in gate_row_problems(unsaid, rules))
+    unknown = text.replace(gated, re.sub(r"rules? `[^`]+`", "rule `no such rule`", gated, count=1), 1)
+    assert any("rules the fixture does not have" in p for p in gate_row_problems(unknown, rules))
+    other = text.replace(gated, re.sub(r"is not held \(G-\d+", "is not held (G-99", gated, count=1), 1)
+    assert any("its Partial: names" in p for p in gate_row_problems(other, rules))
+    pinless = text.replace(gated, PINS.sub("", gated, count=1), 1)
+    assert any("does not name it" in p for p in gate_row_problems(pinless, rules))
+
+
+def test_the_gap_table_and_the_count_line_match_the_rows() -> None:
+    """The M21-W3 review's round 4 (M1): a gap's Rows column could drop a row that names it, and the count
+    line's words were not read."""
+    text = LIST.read_text(encoding="utf-8")
+    assert not table_problems(text), table_problems(text)
+    gap = next(line for line in section(text, "Gaps").splitlines() if GAP.match(line) and ", INV-" in line.split(" | ")[1])
+    dropped = text.replace(gap, gap.replace(", INV-", ", XNV-", 1), 1)
+    assert any("the rows that name it" in p for p in table_problems(dropped))
+    miscounted = re.sub(r"(\d+) gaps are open", lambda m: f"{int(m.group(1)) + 1} gaps are open", text, count=1)
+    assert any("the count line says" in p for p in table_problems(miscounted))
 
 
 def test_no_record_restates_a_client_gates_property_without_its_row() -> None:
-    """The M21-W3 review's round 3 (B2, R1): `docs/architecture.md` and REQ-RTR-004 stated INV-64 flatly,
-    resting it on a text pin G-11's own example passes. A record outside the register that names a client
-    gate, or a requirement a gated row takes as its source, points at the row instead."""
+    """The M21-W3 review's rounds 3 and 4 (B2, R1): `docs/architecture.md`, REQ-RTR-004 and REQ-CMB-004
+    stated what a gate holds flatly. A record outside the register that names a client gate, and a PRD row
+    that draws on a gated row (its source, or a test it cites), points at the row instead."""
     register = LIST.read_text(encoding="utf-8")
     prd = (ROOT / "docs" / "prd.md").read_text(encoding="utf-8")
     problems_now = pointer_problems(_records(), prd, register)
     assert not problems_now, problems_now
     stated = {"docs/architecture.md": "- `scripts/client_decl_gate.py`: the network belongs only to the client.\n"}
     assert pointer_problems(stated, prd, register)
-    unpointed = "\n".join(line for line in prd.splitlines() if not line.startswith("| REQ-RTR-004 |"))
-    unpointed += "\n| REQ-RTR-004 | x | **MET.** Evidence: test_router_hints.py::test_x. |"
-    assert any("REQ-RTR-004" in p for p in pointer_problems(_records(), unpointed, register))
+    for req in ("REQ-RTR-004", "REQ-CMB-004"):
+        row = next(line for line in prd.splitlines() if line.startswith(f"| {req} |"))
+        unpointed = prd.replace(row, POINTER.sub("held in part", row), 1)
+        assert any(req in p for p in pointer_problems(_records(), unpointed, register)), req
