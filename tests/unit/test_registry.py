@@ -724,7 +724,8 @@ def test_claude_haiku_5_5_is_named_as_anthropic_spells_it(name: str) -> None:
 
 @pytest.mark.parametrize("name", ["DeepSeek-R1-0528-Qwen3-8B", "deepseek-r1-0528-qwen3-8b",
                                   "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B", "DeepSeek-R1-Distill-Llama-70B",
-                                  "deepseek-r1-qwen3-8b", "deepseek-r1-0528-distill"])
+                                  "deepseek-r1-qwen3-8b", "deepseek-r1-0528-distill",
+                                  "llamagate/deepseek-r1-8b", "deepseek-r1:8b", "deepseek-r1-7b", "deepseek-r1:32b"])
 def test_a_distilled_model_is_not_the_release_it_was_distilled_from(name: str) -> None:
     """The W1 review's B2: R1-0528's rule took `DeepSeek-R1-0528-Qwen3-8B`, an 8B Qwen model distilled
     from it. A distill or a small size after the release is another model, refused by both R1 rules."""
@@ -781,5 +782,67 @@ def test_glm_4_6v_is_not_glm_4_6(name: str) -> None:
     """The W1 review's K2: GLM-4.6V, the vision model, sat in GLM-4.6's rows and price median."""
     rule = canonicalize(name)
     assert rule is None or rule.canonical_id != "glm-4.6", (name, rule)
-    if "flash" not in name:
-        assert rule is not None and (rule.canonical_id, rule.display) == ("glm-4.6v", "GLM-4.6V")
+
+
+@pytest.mark.parametrize(
+    ("name", "model"),
+    [
+        ("GLM-4.6V", "glm-4.6v"),
+        ("glm-4.6v", "glm-4.6v"),
+        ("glm-4.6v_32K", "glm-4.6v"),  # Epoch's spellings (the second W1 review's M1)
+        ("glm-4.6v_unknown", "glm-4.6v"),
+        ("glm-4.6v-flash", "glm-4.6v-flash"),
+        ("zai/glm-4.6v-flash", "glm-4.6v-flash"),
+        ("GLM-4.6V-Flash (thinking)", "glm-4.6v-flash"),
+        ("glm-4.6", "glm-4.6"),
+        ("glm-4.6_32K", "glm-4.6"),
+    ],
+)
+def test_glm_4_6v_and_its_flash_are_each_their_own_model(name: str, model: str) -> None:
+    """The second W1 review's M1: GLM-4.6V-Flash, the small model Zhipu publishes beside GLM-4.6V, merged
+    into it, and Epoch's `glm-4.6v_32K` reached no rule. Each is its own model, in every spelling."""
+    rule = canonicalize(name)
+    assert rule is not None and rule.canonical_id == model, (name, rule)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "novita/deepseek/deepseek-r1-0528-qwen3-8b",
+        "fireworks_ai/accounts/fireworks/models/deepseek-r1-0528-distill-qwen3-8b",
+        "DeepSeek-R1-0528-Qwen3-8B",
+    ],
+)
+def test_the_qwen3_8b_distill_is_one_model_in_every_spelling(name: str) -> None:
+    """The second W1 review's M2 and M3: Fireworks' `-distill-qwen3-8b` reached no rule, and the distill's
+    rule could be removed with every test passing."""
+    rule = canonicalize(name)
+    assert rule is not None and rule.canonical_id == "deepseek-r1-0528-qwen3-8b", (name, rule)
+
+
+@pytest.mark.parametrize("name", ["claude-sonnet-4-7", "Claude Sonnet 4.7", "databricks/databricks-claude-sonnet-4-1"])
+def test_a_minor_sonnet_4_release_is_not_sonnet_4(name: str) -> None:
+    """The second W1 review's M3: a one-digit minor version after `4` is another release, not Sonnet 4."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id != "claude-4-sonnet", (name, rule)
+
+
+@pytest.mark.parametrize("name", ["DeepSeek-R1-Zero", "deepseek-r1-lite-preview", "tngtech/deepseek-r1t-chimera",
+                                  "deepseek-r1t2-chimera"])
+def test_a_model_named_after_r1_is_not_r1(name: str) -> None:
+    """The second W1 review's K2: R1-Zero, R1-Lite-Preview and the R1T Chimeras are models of their own."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id not in {"deepseek-r1", "deepseek-r1-0528"}, (name, rule)
+
+
+def test_volcengines_dated_r1_is_r1_0528() -> None:
+    """The second W1 review's K2: Volcengine spells R1-0528 `deepseek-r1-250528`."""
+    rule = canonicalize("volcengine/deepseek-r1-250528")
+    assert rule is not None and rule.canonical_id == "deepseek-r1-0528"
+
+
+@pytest.mark.parametrize("name", ["mistral-large-3.1", "mistral-large-3-1", "mistral-large-4.1", "Mistral Large 4.1"])
+def test_a_minor_mistral_large_release_is_not_its_major(name: str) -> None:
+    """The second W1 review's R2: as Sonnet 4's rule does, Large 3's and 4's refuse a minor version."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id not in {"mistral-large-3", "mistral-large-4"}, (name, rule)

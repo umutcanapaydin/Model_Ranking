@@ -84,9 +84,32 @@ def test_data_built_by_another_release_is_refused(tmp_path: Path, built_by: str 
 def test_data_from_another_release_deploys_when_the_owner_names_it(tmp_path: Path) -> None:
     """The refusal is lifted only for the release the owner names, never for any."""
     _repo, served, calls, env = _scratch(tmp_path)
-    status_path(served).unlink()
+    status_path(served).write_text("{}", encoding="utf-8")  # a record from before #198: no builder named
     assert _deploy({**env, "DEPLOY_ACCEPT_DATA_FROM": "release-0000000"}).returncode != 0
     done = _deploy({**env, "DEPLOY_ACCEPT_DATA_FROM": "unknown"})
     assert done.returncode == 0, done.stdout + done.stderr
+    assert "builder the record does not name" in done.stdout + done.stderr
     stamp = [arg for arg in calls.read_text(encoding="utf-8").split() if arg.startswith("APP_BUILD=")][-1]
     assert stamp.endswith("-from-unknown"), stamp
+
+
+@pytest.mark.parametrize("record", [None, "not json"])
+def test_unknown_accepts_no_missing_or_unreadable_record(tmp_path: Path, record: str | None) -> None:
+    """The second W1 review's R1: `unknown` names a record that does not name its builder, never a copy
+    with no record or a record nobody can read."""
+    _repo, served, calls, env = _scratch(tmp_path)
+    if record is None:
+        status_path(served).unlink()
+    else:
+        status_path(served).write_text(record, encoding="utf-8")
+    done = _deploy({**env, "DEPLOY_ACCEPT_DATA_FROM": "unknown"})
+    assert done.returncode != 0, done.stdout + done.stderr
+    assert not calls.exists()
+
+
+def test_the_refusal_runs_before_anything_is_derived(tmp_path: Path) -> None:
+    """The second W1 review's R1: a refused deploy leaves no public artifact behind."""
+    repo, served, _calls, env = _scratch(tmp_path)
+    status_path(served).write_text(json.dumps({"served_built_by": "release-1234567"}), encoding="utf-8")
+    assert _deploy(env).returncode != 0
+    assert not (repo / "build" / "hosted" / "advisor.db").exists()

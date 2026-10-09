@@ -412,3 +412,17 @@ def test_a_full_table_still_counts_the_standings_of_a_client_it_holds(
         main._over_limit(f"crowd-{n}", 120, main._rate_clock())
     statuses = [client.get("/v1/boards", headers=ip).status_code for _ in range(6)]
     assert statuses == [200, 200, 200, 200, 429, 429], statuses
+
+
+def test_a_new_minute_resets_both_of_a_clients_counts(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The second W1 review's M4: a phone that took four standings in one minute and opens the next with a
+    question is served its standings again."""
+    from app.adapter import main
+
+    monkeypatch.setenv("MODEL_RANKING_RATE_LIMIT", "120")
+    ip = {"Fly-Client-IP": "203.0.113.95"}
+    monkeypatch.setattr(main, "_rate_clock", lambda: 2400.0)
+    assert [client.get("/v1/boards", headers=ip).status_code for _ in range(4)] == [200] * 4
+    monkeypatch.setattr(main, "_rate_clock", lambda: 2460.0)
+    assert client.get("/v1/budgets", headers=ip).status_code == 200
+    assert client.get("/v1/boards", headers=ip).status_code == 200
