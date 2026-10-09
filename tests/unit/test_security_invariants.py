@@ -262,3 +262,135 @@ def test_the_testers_three_spellings_are_refused() -> None:
     assert any("not a test" in p for p in problems(helper)), "a helper was accepted as a test"
     bare = text.replace(last, last[:-2] + "<br>tests/unit/test_nope.py::test_gone |", 1)
     assert any("cannot read as a test" in p for p in problems(bare)), "a bare citation was skipped"
+
+
+# --- the client gates' wording (the M21-W3 review's round 3, R1) ------------------------------------
+
+#: A row cites one of the client gates when its tests name one of these: the compiled declaration gate
+#: or the two text-pin files.
+GATE_CITATIONS = ("`make client-decls`", "`tests/unit/test_client_decl_gate.py::", "`tests/unit/test_router_hints.py::",
+                  "`tests/unit/test_ios_client_contract.py::")
+#: The one sentence each such row ends with. The gates refuse the forms they list and no others, so a
+#: row says which forms, and which gaps hold the rest; the gaps it names are the row's own "Partial:".
+CATCH_ALL = re.compile(r"The gate refuses the forms listed here; any other form is not held \((G-\d+(?:, G-\d+)*)\)\.$")
+#: How a record outside the register refers to what these gates hold, instead of restating it.
+POINTER = re.compile(r"[Hh]eld in part by the compiled gate and the text pins: see "
+                     r"(INV-\d+(?:(?:, | and )INV-\d+)*) in `docs/security-invariants\.md`")
+#: What names one of the client gates in a record outside the register.
+GATE_NAMES = ("client_decl_gate.py", "client-decls", "test_router_hints.py", "test_ios_client_contract.py")
+LIST_ITEM = re.compile(r"^\s*(?:[-*]|\d+\.) ")
+PRD_ROW = re.compile(r"^\| (REQ-[A-Z]+-\d+) \|")
+
+
+def gate_row_problems(text: str) -> list[str]:
+    """Each register row that cites a client gate says it is held in part and ends with the catch-all,
+    naming exactly its own gaps; a row that says "Held in part" ends with it too."""
+    found: list[str] = []
+    for line in section(text, "The list").splitlines():
+        match = ROW.match(line.rstrip())
+        if not match:
+            continue
+        number, claim, cell = match.group(1), match.group(2), match.group(4)
+        if not (any(c in cell for c in GATE_CITATIONS) or "Held in part" in claim):
+            continue
+        if "Held in part" not in claim:
+            found.append(f"INV-{number} cites a client gate and does not say it is held in part")
+        ending = CATCH_ALL.search(claim)
+        if not ending:
+            found.append(f"INV-{number} does not end with the catch-all ({CATCH_ALL.pattern})")
+            continue
+        partial = set(GAP_REF.findall(" ".join(re.findall(r"Partial: [^<]*", cell))))
+        if set(ending.group(1).split(", ")) != partial:
+            found.append(f"INV-{number}'s catch-all names {ending.group(1)}, its Partial: names {sorted(partial)}")
+    return found
+
+
+def _blocks(text: str) -> list[str]:
+    """A markdown file's paragraphs and list items, each one block."""
+    blocks: list[str] = []
+    current: list[str] = []
+    for line in text.splitlines():
+        if not line.strip() or LIST_ITEM.match(line):
+            if current:
+                blocks.append("\n".join(current))
+            current = [line] if line.strip() else []
+        else:
+            current.append(line)
+    if current:
+        blocks.append("\n".join(current))
+    return blocks
+
+
+def pointer_problems(records: dict[str, str], prd: str, register: str) -> list[str]:
+    """Outside the register, a block that names a client gate, a PRD row that cites the compiled gate,
+    and a PRD row a gated invariant takes as its source, each point at the register's rows instead of
+    restating what the gates hold: the pointer names rows that exist, and a source row's own row."""
+    rows, _, _ = parse(register)
+    known = {row.number for row in rows}
+    sources: dict[str, set[int]] = {}
+    for line in section(register, "The list").splitlines():
+        if (match := ROW.match(line.rstrip())) and any(c in match.group(4) for c in GATE_CITATIONS):
+            for req in re.findall(r"REQ-[A-Z]+-\d+", match.group(3)):
+                sources.setdefault(req, set()).add(int(match.group(1)))
+    found: list[str] = []
+
+    def check(where: str, block: str, needed: set[int]) -> None:
+        pointer = POINTER.search(block)
+        if not pointer:
+            found.append(f"{where} names a client gate or holds a gated invariant, and does not point at its row")
+            return
+        named = {int(n) for n in re.findall(r"INV-(\d+)", pointer.group(1))}
+        if named - known:
+            found.append(f"{where} points at rows the register does not hold: {sorted(named - known)}")
+        if needed - named:
+            found.append(f"{where} does not point at INV-{sorted(needed - named)}, whose source it is")
+
+    for name, text in records.items():
+        for block in _blocks(text):
+            if any(gate in block for gate in GATE_NAMES):
+                check(f"{name}: {block.strip()[:60]!r}", block, set())
+    gated = 0
+    for line in prd.splitlines():
+        if not (match := PRD_ROW.match(line)):
+            continue
+        needed = sources.get(match.group(1), set())
+        if needed or "test_client_decl_gate.py" in line or "client-decls" in line:
+            gated += 1
+            check(f"docs/prd.md {match.group(1)}", line, needed)
+    if gated < 3:
+        found.append(f"only {gated} PRD rows were read as gated")
+    return found
+
+
+def _records() -> dict[str, str]:
+    return {name: (ROOT / name).read_text(encoding="utf-8") for name in ("docs/architecture.md", "AGENTS.md")}
+
+
+def test_every_row_about_the_client_gates_ends_with_the_catch_all() -> None:
+    """The M21-W3 review's round 3 (B1, R1): INV-62 listed what its gate refuses and did not say that
+    any other form is not held. Every row that cites a client gate now ends with the same sentence,
+    naming its gaps; a row missing it, or naming other gaps than its "Partial:", is refused."""
+    text = LIST.read_text(encoding="utf-8")
+    assert not gate_row_problems(text), gate_row_problems(text)
+    gated = next(line for line in section(text, "The list").splitlines()
+                 if ROW.match(line) and "`make client-decls`" in line)
+    bare = CATCH_ALL.sub("", gated.split(" | ")[1])
+    unsaid = text.replace(gated, gated.replace(gated.split(" | ")[1], bare, 1), 1)
+    assert any("catch-all" in p for p in gate_row_problems(unsaid))
+    other = text.replace(gated, re.sub(r"not held \(G-\d+", "not held (G-99", gated, count=1), 1)
+    assert any("its Partial: names" in p for p in gate_row_problems(other))
+
+
+def test_no_record_restates_a_client_gates_property_without_its_row() -> None:
+    """The M21-W3 review's round 3 (B2, R1): `docs/architecture.md` and REQ-RTR-004 stated INV-64 flatly,
+    resting it on a text pin G-11's own example passes. A record outside the register that names a client
+    gate, or a requirement a gated row takes as its source, points at the row instead."""
+    register = LIST.read_text(encoding="utf-8")
+    prd = (ROOT / "docs" / "prd.md").read_text(encoding="utf-8")
+    problems_now = pointer_problems(_records(), prd, register)
+    assert not problems_now, problems_now
+    stated = {"docs/architecture.md": "- `scripts/client_decl_gate.py`: the network belongs only to the client.\n"}
+    assert pointer_problems(stated, prd, register)
+    unpointed = "\n".join(line for line in prd.splitlines() if not line.startswith("| REQ-RTR-004 |"))
+    unpointed += "\n| REQ-RTR-004 | x | **MET.** Evidence: test_router_hints.py::test_x. |"
+    assert any("REQ-RTR-004" in p for p in pointer_problems(_records(), unpointed, register))
