@@ -4030,14 +4030,22 @@ carries the question off the device or into its caches with every gate passing.
 **Revisit when:** a third sink appears (a new route or a new store), or Swift can admit exactly two
 files to a declaration.
 
-**Note (M21-W3, #172, #85, #170, #174, #188):** the routes the second W2 review left open are held on
-the compiled module. A global or `static` `let` a sink reads runs no initialiser that reads shared
-mutable state, and neither a sink nor the code it runs uses Foundation's shared state (the main
-thread's dictionary, the notification centre, the shared caches and credential stores). A stored
+**Note (M21-W3, #172, #85, #170, #174, #188; the wave's review B1, B2, K1, #241):** the routes the second
+W2 review left open are held on the compiled module. A global or `static` `let` a sink reads runs no
+initialiser that reads shared mutable state. A sink references only the Foundation declarations the
+shipping sinks use (`SINK_FOUNDATION_ALLOWED`, an allowlist). The code a sink runs in another file uses
+none of the process-wide state Foundation and Swift hold that the gate lists (the threads' and queues'
+names and dictionaries, the process's information, the time zone and locale, the notification centre,
+the shared caches and credential stores), and reads no constant holding a Foundation or app object. No
+file reaches a value, a class or a selector by name: reflection, the ObjectiveC runtime's associated
+objects and functions, `NSExpression`, `NSPredicate` and key-value coding are refused (#241). A stored
 default is held as the sink's call to an initialiser another file declares, and a kept closure as a
-value a sink may not hold; both were refused already. The standings store dates what it keeps by its
-own clock (#170), and the recommendation request's arguments name only their declared sources (#174,
-#188). Gap G-1 is closed.
+value a sink may not hold; both were refused already. The standings store dates what it keeps by its own
+clock (#170). The recommendation request's arguments name only their declared sources, and the surface
+is set only from a routed outcome or `select(_:)`'s argument, never through its storage, its binding or
+a helper's outcome (#174, #188). Gap G-1 stays open, narrowed: the code a sink runs elsewhere is still
+held by a list of what is refused, and a relay through a Swift-module object held in a constant passes
+(#242 moves it to an allowlist). What the router puts in an outcome's surface is gap G-11 (#244).
 
 ## D-181 — The phone's arithmetic and ordering rules are checked on what the compiler resolves
 
@@ -4118,15 +4126,21 @@ included, so `answers.filter { $0.eligibleCount > 0 }.count + 1` is refused (the
 **Revisit when:** a file needs arithmetic on a served number a ruling does not yet name, or #171 or
 #173 is taken.
 
-**Note (M21-W3, #171, #173, #169):** both are taken. The rule follows a served number through text,
-`Any` and a served fact's number, and refuses every shape the second W2 review planted (prefix and
-shift operators, an operator passed as a function, `pow` and the remainder, quotient and overflow
-methods, a subscript's parameter, a name bound on a later line, a conformance in an extension); the
-client declares no arithmetic operator and extends no number. An operand's closures, and text no number
-is parsed from, are not read, so a count of served things and a label's length are not served numbers
-(the third review's M2 is gone). The three D-143 places restate a fact's number too, so they are
-permitted for it. The text tripwire reads its served fields from the decoded types (#169). Gap G-2 is
-closed.
+**Note (M21-W3, #171, #173, #169; the wave's review B3, M1, M3):** both are taken. The rule follows a
+served number through text, `Any` and a served fact's number, and through what carries one back: the
+parsers (`NSString`'s number properties, `NumberFormatter`, `Scanner`, a JSON decode) and the boxes
+(`AnyHashable`, `AnyObject`, `NSNumber`, `Data`). It refuses every shape the second W2 review planted
+(prefix and shift operators, an operator passed as a function, `pow` and the remainder, quotient and
+overflow methods, a subscript's parameter, a name bound on a later line, a conformance in an extension),
+and `^`, `&` and `~`; the client declares no arithmetic operator and extends no number. A served fact is a
+kind of its own: the three D-143 places may restate it, and no other served number. An operand's
+closures, text no number is parsed from, a count and a row number are not read, so a count of served
+things and a label's length are not served numbers (the third review's M2 is gone); a count of what a
+served number built (`Array(repeating:count:)`, a range's bound, `dropFirst(_:)`) is. A closure's `$0` is
+bound to its own closure. The text tripwire derives the served fields the compiled gate does, held equal
+on the fixture (#169). Gap G-2 stays open, narrowed: the rule is still a list of what is refused, and
+`abs`, `min`, `max`, `.magnitude`, `.rounded(_:)` and a table indexed by a served number pass (#242
+moves it to an allowlist).
 
 ## D-182 — Each pick carries its model's id on `/v1`, and the app keys its cards on it
 
