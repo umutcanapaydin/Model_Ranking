@@ -175,7 +175,7 @@ fail, restore.
 | INV-89 | Refinements are read from the question's words in one place, `AnswerPlan.swift`. They are values of the declared table and reach no request and no stored file. The routing outcome carries refinements only from `ModelOutputBoundary`. | D-188 clause 6; D-168 clause 4 as amended; D-126; M20 closure security S4 | `tests/unit/test_router_hints.py::test_only_the_answer_plan_reads_refinements_from_the_words`<br>`tests/unit/test_router_hints.py::test_no_other_name_reaches_the_word_reader`<br>`tests/unit/test_router_hints.py::test_only_the_model_output_boundary_builds_an_outcome_with_refinements`<br>`make client-decls` (INV-66's compiled sink rules) |
 
 **Count.** 77 rows, each with a test since M19-W2 (D-180). Five hold only in part, and each names its
-gap. Five gaps are open (below); the records that count them cite this section.
+gap. Six gaps are open (below); the records that count them cite this section.
 
 **Not a row.** The held-out gate (D-147 clause 5, `tests/unit/test_ios_client_contract.py::test_no_held_out_question_is_written_into_the_code_or_its_tests`) keeps a measure honest. It guards nothing an attacker could reach, so it is not a security invariant (M18 repo review M9).
 
@@ -190,6 +190,7 @@ Each gap is an invariant that a test does not yet hold, or holds only in part. E
 | G-5 | INV-6 | On macOS the whole run is offline, children included (#122, M19-W3). In CI's test job a child process a test starts (a refresh cycle, a launcher, a probe) can still reach the network until the owner applies the workflow patch posted on #122; the in-process half holds there from configuration on (M18-W7) | #122 |
 | G-7 | INV-82 | The force-push guard blocks `f` in any option cluster, `--mirror` and its abbreviations, a quoted option or `+` refspec, a continued line, `main` by its full ref, and an agent's deploy or destroy of the hosted engine in its plain spellings (M19-W5, for the owner's approval); it is a best effort over text, and #189 lists what it misses. It does not see a push set through `-c` or `git config`, and runs only in a session started in the repository; M18-W7's force-push ran in one that was not (the M18 closure security seat's S6; the M19 security review's S5). Branch protection holds `main` on GitHub | #142, #189 |
 | G-9 | INV-88 | The client's address is read from `Fly-Client-IP`. Only Fly's proxy should set it, and only the runbook's manual check after a deploy shows that it does (`docs/release-testflight.md`); no test can, since it is Fly's behaviour. | #187 |
+| G-10 | INV-62, INV-63, INV-64, INV-66, INV-76 | The compiled gate (`make client-decls`) is authoritative on a Mac with Xcode, the owner's, where `make check-fast` and `make check` run before every push; there it fails rather than skip when the toolchain is missing (#175, M21-W3). CI's Linux lane has no Xcode and still skips it, so a change validated only in CI is held by the text pins alone. The fixture carries a refused shape for each of the gate's rules and is compiled in all four configurations, so a change in the compiler's printed layout that silences a rule fails the self-test (`FIXTURE_RULES`). | #175 |
 
 **Closed by M18-W6.** Four gaps the drafting found were closed in the same wave, each with a test:
 the `select` guard (INV-70, M17's I-8), CI least privilege (INV-10), TLS never turned off (INV-11),

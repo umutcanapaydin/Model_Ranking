@@ -231,3 +231,8 @@ struct ContentView {
         task = typed
     }
 }
+
+// #175 R3: text into shared storage another app or the system can read. REFUSED (FORBIDDEN).
+func fixtureViewKeepsTheQuestionInDefaults(_ typed: String) {
+    UserDefaults.standard.set(typed, forKey: "q")
+}

@@ -54,6 +54,7 @@ with no Xcode, and this one runs where the toolchain is. Neither is the whole ch
 from __future__ import annotations
 
 import pathlib
+import platform
 import re
 import shutil
 import subprocess
@@ -405,12 +406,34 @@ FIXTURE_REFUSALS = {
     ("Detail.swift", "StandingsStore.currentKept(now:fetch:)"),
     # #174, #188: the reader's text as a request's budget, and kept as the surface it sends.
     ("ContentView.swift", "the request's `budget` argument"), ("ContentView.swift", "assigns `ContentView.task`"),
+    # #175 R3: a framework off the allowlist, and text into shared storage (FORBIDDEN).
+    ("Imports.swift", "imports `Network`"), ("ContentView.swift", "UserDefaults"),
     # #168: a URL loaded as text, as NSData and by an XML parser is the network too.
     ("ContentView.swift", "String.init(contentsOf"), ("ContentView.swift", "NSData.init(contentsOf"),
     ("ContentView.swift", "XMLParser.init(contentsOf"),
 }
-#: #175: each rule, by a phrase its refusal carries (a stub in the red commit).
-FIXTURE_RULES: dict[str, str] = {}
+#: #175 R3: each rule the gate applies, by a phrase a refusal of it carries. Every rule has at least one
+#: refusal the fixture must produce in every configuration, so a change in the compiler's printed
+#: layout that silences one rule fails the self-test, wherever the gate runs.
+FIXTURE_RULES: dict[str, str] = {
+    "the module allowlist": "imports `Network`",
+    "the network door": "URLSession",
+    "a URL decoded from text": "URL.decoded",
+    "a URL made from text": "makes a URL",
+    "the file system": "FileManager",
+    "text off the device (FORBIDDEN)": "UserDefaults",
+    "unsafe memory": "withUnsafeMutablePointer",
+    "a sink's own shared state": "mutable stored state",
+    "a sink reading another file's state": "mutable state declared in",
+    "a sink holding a reference": "holds `relay`",
+    "a sink calling another file": "calls `fixtureRelayed`",
+    "the code a sink runs": "a privacy sink runs",
+    "provenance": "StandingsStore.save(_:at:)",
+    "a kept type extended": "extends `FetchedStandings`",
+    "arithmetic on a served number": "served number",
+    "a sort past its count": "sorts `standings`",
+    "a request's arguments": "the request's `budget` argument",
+}
 SOURCE = re.compile(r'^\(source_file "([^"]+)"', re.MULTILINE)
 #: One node of the dump: its indentation (the tree's depth) and its kind.
 NODE = re.compile(r"^( *)\((\w+)")
@@ -1503,22 +1526,29 @@ def _snapshot_drift(ast: str) -> list[str]:
 
 
 def self_test() -> list[str] | None:
-    """#51: the gate on its compiled fixture. What it failed to refuse, or allowed wrongly; empty
-    when it behaves; None where there is no toolchain."""
-    _, sdk_name, flags = CONFIGURATIONS[0]
-    dumped = dump_ast(sdk_name, flags, FIXTURES)
-    if dumped is None:
-        return None
-    ast, code = dumped
-    if code != 0:
-        return [f"the fixture does not type-check: {ast[-500:]}"]
-    refused = problems(references(ast))
-    drift = _snapshot_drift(ast)
-    missed = [f"{file}: {phrase} was not refused" for file, phrase in sorted(FIXTURE_REFUSALS)
-              if not any(line.startswith(f"{file}:") and phrase in line for line in refused)]
-    wrong = [line for line in refused
-             if not any(line.startswith(f"{file}:") and phrase in line for file, phrase in FIXTURE_REFUSALS)]
-    return drift + missed + [f"refused what it must allow: {line}" for line in wrong]
+    """#51: the gate on its compiled fixture, in every configuration it reads (#175 R3). What it failed
+    to refuse, or allowed wrongly; empty when it behaves; None where there is no toolchain."""
+    broken: list[str] = []
+    for index, (label, sdk_name, flags) in enumerate(CONFIGURATIONS):
+        dumped = dump_ast(sdk_name, flags, FIXTURES)
+        if dumped is None:
+            return None
+        ast, code = dumped
+        if code != 0:
+            return [f"({label}) the fixture does not type-check: {ast[-500:]}"]
+        refused = problems(references(ast))
+        if index == 0:
+            broken += _snapshot_drift(ast)
+        broken += [f"({label}) {file}: {phrase} was not refused" for file, phrase in sorted(FIXTURE_REFUSALS)
+                   if not any(line.startswith(f"{file}:") and phrase in line for line in refused)]
+        broken += [f"({label}) refused what it must allow: {line}" for line in refused
+                   if not any(line.startswith(f"{file}:") and phrase in line for file, phrase in FIXTURE_REFUSALS)]
+    return broken
+
+
+def _host() -> str:
+    """The operating system the gate runs on. A Mac is the gate's authoritative host (#175 R1)."""
+    return platform.system()
 
 
 def write_snapshot() -> int:
@@ -1530,6 +1560,18 @@ def write_snapshot() -> int:
         return 1
     SNAPSHOT.write_text(fixture_dump(dumped[0]), encoding="utf-8")
     print(f"client-decls: wrote {SNAPSHOT.relative_to(ROOT)}")
+    return 0
+
+
+def _no_toolchain() -> int:
+    """No Xcode toolchain. A Mac is where this gate is authoritative (#175 R1, gap G-10): the text pins
+    cannot see the routes D-180 and D-181 moved onto the compiled module, so a skip there would pass
+    them unread, and it fails instead. Any other host says it skipped."""
+    if _host() == "Darwin":
+        print("client-decls FAIL: no Xcode toolchain (xcrun) on this Mac, the gate's authoritative host; it "
+              "does not skip here (#175)")
+        return 1
+    print("client-decls SKIPPED NO-ENVIRONMENT: no Xcode toolchain (xcrun) on PATH")
     return 0
 
 
@@ -1546,8 +1588,7 @@ def main() -> int:
     for label, sdk_name, flags in CONFIGURATIONS:
         dumped = dump_ast(sdk_name, flags)
         if dumped is None:
-            print("client-decls SKIPPED NO-ENVIRONMENT: no Xcode toolchain (xcrun) on PATH")
-            return 0
+            return _no_toolchain()
         ast, code = dumped
         if code != 0:
             print(f"client-decls FAIL: the client does not type-check ({label}), so this gate "

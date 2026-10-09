@@ -1674,7 +1674,27 @@
     (constructor_decl implicit range=[/x/ContentView.swift:206:8 - line:206:8] "init(task:)" interface_type="(ContentView.Type) -> (String) -> ContentView" access=internal designated
       (parameter "self") thrown_type="<null>"
       (parameter_list range=[/x/ContentView.swift:206:8 - line:206:8]
-        (parameter "task" apiName="task" interface_type="String" default_arg=stored property)))))
+        (parameter "task" apiName="task" interface_type="String" default_arg=stored property))))
+  (func_decl range=[/x/ContentView.swift:236:1 - line:238:1] "fixtureViewKeepsTheQuestionInDefaults(_:)" interface_type="(String) -> ()" access=internal result="()" thrown_type="<null>"
+    (parameter_list range=[/x/ContentView.swift:236:43 - line:236:59]
+      (parameter "typed" interface_type="String"))
+    (brace_stmt range=[/x/ContentView.swift:236:61 - line:238:1]
+      (call_expr type="Void" location=/x/ContentView.swift:237:27 range=[/x/ContentView.swift:237:5 - line:237:49] nothrow isolation_crossing="none"
+        (dot_syntax_call_expr type="(Any?, String) -> Void" location=/x/ContentView.swift:237:27 range=[/x/ContentView.swift:237:5 - line:237:27] nothrow isolation_crossing="none"
+          (declref_expr type="(UserDefaults) -> (Any?, String) -> Void" location=/x/ContentView.swift:237:27 range=[/x/ContentView.swift:237:27 - line:237:27] decl="Foundation.(file).UserDefaults.set(_:forKey:)" function_ref=single apply)
+          (argument_list implicit
+            (argument
+              (member_ref_expr type="UserDefaults" location=/x/ContentView.swift:237:18 range=[/x/ContentView.swift:237:5 - line:237:18] decl="Foundation.(file).UserDefaults.standard@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSUserDefaults.h:59:53"
+                (type_expr type="UserDefaults.Type" location=/x/ContentView.swift:237:5 range=[/x/ContentView.swift:237:5 - line:237:5] typerepr="UserDefaults")))))
+        (argument_list labels="_:forKey:"
+          (argument
+            (inject_into_optional implicit type="Any?" location=/x/ContentView.swift:237:31 range=[/x/ContentView.swift:237:31 - line:237:31]
+              (erasure_expr implicit type="Any" location=/x/ContentView.swift:237:31 range=[/x/ContentView.swift:237:31 - line:237:31]
+                (builtin_conformance type="String" protocol="Copyable" synthesized nonisolated)
+                (builtin_conformance type="String" protocol="Escapable" synthesized nonisolated)
+                (declref_expr type="String" location=/x/ContentView.swift:237:31 range=[/x/ContentView.swift:237:31 - line:237:31] decl="main.(file).fixtureViewKeepsTheQuestionInDefaults(_:).typed@/x/ContentView.swift:236:46" function_ref=unapplied))))
+          (argument label="forKey"
+            (string_literal_expr type="String" location=/x/ContentView.swift:237:46 range=[/x/ContentView.swift:237:46 - line:237:46] encoding=utf8 value="q" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))
 (source_file "/x/Detail.swift"
   (import_decl range=[/x/Detail.swift:3:1 - line:3:8] module="Foundation")
   (func_decl range=[/x/Detail.swift:5:1 - line:7:1] "fixtureDetailWrites(_:)" interface_type="(String) -> ()" access=internal result="()" thrown_type="<null>"
@@ -2659,6 +2679,14 @@
       (parameter_list)
       (brace_stmt implicit range=[/x/EngineClient.swift:63:8 - line:63:8]
         (return_stmt implicit range=[/x/EngineClient.swift:63:8 - line:63:8])))))
+(source_file "/x/Imports.swift"
+  (import_decl range=[/x/Imports.swift:3:1 - line:3:8] module="Foundation")
+  (import_decl range=[/x/Imports.swift:4:1 - line:4:8] module="Network")
+  (func_decl range=[/x/Imports.swift:6:1 - line:6:38] "fixtureImportsOnly()" interface_type="() -> Int" access=internal result="Int" thrown_type="<null>"
+    (parameter_list range=[/x/Imports.swift:6:24 - line:6:25])
+    (brace_stmt range=[/x/Imports.swift:6:34 - line:6:38]
+      (return_stmt implicit range=[/x/Imports.swift:6:36 - line:6:36]
+        (integer_literal_expr type="Int" location=/x/Imports.swift:6:36 range=[/x/Imports.swift:6:36 - line:6:36] value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
 (source_file "/x/Models.swift"
   (import_decl range=[/x/Models.swift:3:1 - line:3:8] module="Foundation")
   (struct_decl range=[/x/Models.swift:5:1 - line:10:1] "Standing" interface_type="Standing.Type" access=internal non_resilient inherits="Decodable"

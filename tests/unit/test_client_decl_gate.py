@@ -577,9 +577,9 @@ def test_the_self_test_compiles_the_fixture_in_every_configuration(monkeypatch: 
     layout change in any of them fails the self-test. The fixture is compiled once per configuration."""
     seen: list[list[str]] = []
 
-    def dump(_sdk: str, flags: list[str], *_rest: object) -> None:
+    def dump(_sdk: str, flags: list[str], *_rest: object) -> tuple[str, int]:
         seen.append(list(flags))
-        return None
+        return "", 0
 
     monkeypatch.setattr(gate, "dump_ast", dump)
     gate.self_test()
