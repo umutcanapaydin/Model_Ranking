@@ -294,6 +294,24 @@ POINTER = re.compile(r"[Hh]eld in part by the compiled gate and the text pins: s
 GATE_NAMES = ("client_decl_gate.py", "client-decls", "test_router_hints.py", "test_ios_client_contract.py")
 LIST_ITEM = re.compile(r"^\s*(?:[-*]|\d+\.) ")
 PRD_ROW = re.compile(r"^\| (REQ-[A-Z]+-\d+) \|")
+#: What a PRD row cites when it rests on a client gate: a test in one of the three gate files, or the
+#: compiled gate itself (the M21-W3 review's round 5, B2: the architecture branch read both pin files,
+#: the PRD branch only the rows a register row draws on).
+PRD_GATE_CITATIONS = ("test_router_hints.py", "test_ios_client_contract.py", "test_client_decl_gate.py", "client-decls")
+#: PRD rows that cite a gate test for a property the register does not hold, each with why. A row that
+#: cites a gate test, draws on no gated row and is not here fails closed: it points at its row, or it
+#: is added here with a reason.
+NOT_ON_REGISTER = {
+    "REQ-APP-001": "no canned payload is compiled into the shipping target: what the build carries, not a "
+                   "privacy or arithmetic property",
+    "REQ-APP-003": "every disclosure the engine sends is shown: what the screen says, not what it computes "
+                   "or sends",
+    "REQ-APP-004": "the app degrades with a stated condition: availability, not privacy or arithmetic",
+    "REQ-RTR-005": "the unmeasured fallback is a surface the engine serves: which surface, not what leaves "
+                   "the phone",
+    "REQ-PRC-002": "a search price says the search call is not in it: what the screen says beside a served "
+                   "price, not a change to it",
+}
 COUNTED = re.compile(r"\*\*Count\.\*\* (\d+) rows, .*? (\d+) hold only in part, .*? (\d+) gaps are open", re.S)
 
 
@@ -421,16 +439,28 @@ def pointer_problems(records: dict[str, str], prd: str, register: str) -> list[s
             if any(gate in block for gate in GATE_NAMES):
                 check(f"{name}: {block.strip()[:60]!r}", block, set())
     gated = 0
+    exempt: set[str] = set()
     for line in prd.splitlines():
         if not (match := PRD_ROW.match(line)):
             continue
-        needed = set(sources.get(match.group(1), set()))
+        req = match.group(1)
+        needed = set(sources.get(req, set()))
         for name, numbers in tests.items():
             if re.search(rf"\b{name}\b", line):
                 needed |= numbers
-        if needed or "test_client_decl_gate.py" in line or "client-decls" in line:
+        cites = any(c in line for c in PRD_GATE_CITATIONS)
+        if req in NOT_ON_REGISTER:
+            exempt.add(req)
+            if needed:
+                found.append(f"docs/prd.md {req} is listed as off the register but draws on INV-{sorted(needed)}")
+            elif not cites:
+                found.append(f"docs/prd.md {req} is listed as off the register and cites no gate test: a stale entry")
+            continue
+        if needed or cites:
             gated += 1
-            check(f"docs/prd.md {match.group(1)}", line, needed)
+            check(f"docs/prd.md {req}", line, needed)
+    for req in sorted(set(NOT_ON_REGISTER) - exempt):
+        found.append(f"NOT_ON_REGISTER names {req}, which the PRD does not hold")
     if gated < 3:
         found.append(f"only {gated} PRD rows were read as gated")
     return found
@@ -474,15 +504,17 @@ def test_the_gap_table_and_the_count_line_match_the_rows() -> None:
 
 def test_no_record_restates_a_client_gates_property_without_its_row() -> None:
     """The M21-W3 review's rounds 3 and 4 (B2, R1): `docs/architecture.md`, REQ-RTR-004 and REQ-CMB-004
-    stated what a gate holds flatly. A record outside the register that names a client gate, and a PRD row
-    that draws on a gated row (its source, or a test it cites), points at the row instead."""
+    stated what a gate holds flatly, and round 5's REQ-DTL-001 cited a pin no register row cites. A record
+    outside the register that names a client gate, a PRD row that draws on a gated row (its source, or a
+    test it cites), and a PRD row that cites any gate test points at the row instead, unless the PRD row
+    is listed in NOT_ON_REGISTER with its reason."""
     register = LIST.read_text(encoding="utf-8")
     prd = (ROOT / "docs" / "prd.md").read_text(encoding="utf-8")
     problems_now = pointer_problems(_records(), prd, register)
     assert not problems_now, problems_now
     stated = {"docs/architecture.md": "- `scripts/client_decl_gate.py`: the network belongs only to the client.\n"}
     assert pointer_problems(stated, prd, register)
-    for req in ("REQ-RTR-004", "REQ-CMB-004"):
+    for req in ("REQ-RTR-004", "REQ-CMB-004", "REQ-DTL-001"):
         row = next(line for line in prd.splitlines() if line.startswith(f"| {req} |"))
         unpointed = prd.replace(row, POINTER.sub("held in part", row), 1)
         assert any(req in p for p in pointer_problems(_records(), unpointed, register)), req
