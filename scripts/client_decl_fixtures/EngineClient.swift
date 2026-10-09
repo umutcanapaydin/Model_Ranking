@@ -52,6 +52,10 @@ struct EngineClient {
     func boards() -> URL {
         baseURL
     }
+
+    func recommendation(task: String, budget: String) -> URL {
+        baseURL.appending(path: task + budget)
+    }
 }
 
 // The W2 review's M1: a relay through an object the sink holds as a constant, which another file

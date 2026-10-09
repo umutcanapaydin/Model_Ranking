@@ -1479,7 +1479,202 @@
             (argument
               (autoclosure_expr implicit type="() throws -> Bool" location=/x/ContentView.swift:196:48 range=[/x/ContentView.swift:196:48 - line:196:48] discriminator=0 nonisolated
                 (parameter_list)
-                (boolean_literal_expr type="Bool" location=/x/ContentView.swift:196:48 range=[/x/ContentView.swift:196:48 - line:196:48] value=false builtin_initializer="Swift.(file).Bool extension.init(_builtinBooleanLiteral:)" initializer="**NULL**")))))))))
+                (boolean_literal_expr type="Bool" location=/x/ContentView.swift:196:48 range=[/x/ContentView.swift:196:48 - line:196:48] value=false builtin_initializer="Swift.(file).Bool extension.init(_builtinBooleanLiteral:)" initializer="**NULL**"))))))))
+  (struct_decl range=[/x/ContentView.swift:202:1 - line:204:1] "RoutingOutcome" interface_type="RoutingOutcome.Type" access=internal non_resilient
+    (pattern_binding_decl range=[/x/ContentView.swift:203:5 - line:203:21]
+      (pattern_entry init_context=0x0
+        (pattern_typed type="String"
+          (pattern_named type="String" "categoryID")
+          (type_unqualified_ident id="String" bind="Swift.(file).String"))))
+    (var_decl range=[/x/ContentView.swift:203:9 - line:203:9] "categoryID" interface_type="String" access=internal let readImpl=stored immutable
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/ContentView.swift:203:9 - line:203:9] <anonymous @ 0x0> interface_type="(RoutingOutcome) -> () -> String" access=internal get for="categoryID"
+        (parameter "self" interface_type="RoutingOutcome") result="String" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/ContentView.swift:203:9 - line:203:9]
+          (return_stmt implicit
+            (member_ref_expr implicit type="String" decl="main.(file).RoutingOutcome.categoryID@/x/ContentView.swift:203:9" direct_to_storage
+              (declref_expr implicit type="RoutingOutcome" decl="main.(file).RoutingOutcome.<anonymous>.self@/x/ContentView.swift:203:9" function_ref=unapplied))))))
+    (constructor_decl implicit range=[/x/ContentView.swift:202:8 - line:202:8] "init(categoryID:)" interface_type="(RoutingOutcome.Type) -> (String) -> RoutingOutcome" access=internal designated
+      (parameter "self") thrown_type="<null>"
+      (parameter_list range=[/x/ContentView.swift:202:8 - line:202:8]
+        (parameter "categoryID" apiName="categoryID" interface_type="String"))))
+  (struct_decl range=[/x/ContentView.swift:206:1 - line:233:1] "ContentView" interface_type="ContentView.Type" access=internal non_resilient
+    (pattern_binding_decl range=[/x/ContentView.swift:207:5 - line:207:16]
+      (pattern_entry init_context=0x0
+        (pattern_named type="String" "task")
+        (original_init=string_literal_expr type="String" location=/x/ContentView.swift:207:16 range=[/x/ContentView.swift:207:16 - line:207:16] encoding=utf8 value="coding" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")
+        (processed_init=string_literal_expr type="String" location=/x/ContentView.swift:207:16 range=[/x/ContentView.swift:207:16 - line:207:16] encoding=utf8 value="coding" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))
+    (var_decl range=[/x/ContentView.swift:207:9 - line:207:9] "task" interface_type="String" access=internal readImpl=stored writeImpl=stored readWriteImpl=stored
+      (has_initial_value_attr implicit)
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/ContentView.swift:207:9 - line:207:9] <anonymous @ 0x0> interface_type="(ContentView) -> () -> String" access=internal get for="task"
+        (parameter "self" interface_type="ContentView") result="String" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/ContentView.swift:207:9 - line:207:9]
+          (return_stmt implicit
+            (member_ref_expr implicit type="String" decl="main.(file).ContentView.task@/x/ContentView.swift:207:9" direct_to_storage
+              (declref_expr implicit type="ContentView" decl="main.(file).ContentView.<anonymous>.self@/x/ContentView.swift:207:9" function_ref=unapplied)))))
+      (accessor_decl implicit range=[/x/ContentView.swift:207:9 - line:207:9] <anonymous @ 0x0> interface_type="(inout ContentView) -> (String) -> ()" access=internal set for="task"
+        (parameter "self" interface_type="ContentView" inout) result="()" thrown_type="<null>"
+        (parameter_list range=[/x/ContentView.swift:207:9 - line:207:9]
+          (parameter "value" interface_type="String"))
+        (brace_stmt implicit range=[/x/ContentView.swift:207:9 - line:207:9]
+          (assign_expr implicit type="()"
+            (member_ref_expr implicit type="@lvalue String" decl="main.(file).ContentView.task@/x/ContentView.swift:207:9" direct_to_storage
+              (declref_expr implicit type="@lvalue ContentView" decl="main.(file).ContentView.<anonymous>.self@/x/ContentView.swift:207:9" function_ref=unapplied))
+            (declref_expr implicit type="String" decl="main.(file).ContentView.<anonymous>.value@/x/ContentView.swift:207:9" function_ref=unapplied))))
+      (accessor_decl implicit range=[/x/ContentView.swift:207:9 - line:207:9] <anonymous @ 0x0> interface_type="(inout ContentView) -> () -> ()" access=internal _modify for="task"
+        (parameter "self" interface_type="ContentView" inout) result="()" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/ContentView.swift:207:9 - line:207:9]
+          (yield_stmt implicit range=[/x/ContentView.swift:207:9 - line:207:9]
+            (inout_expr implicit type="inout String"
+              (member_ref_expr implicit type="@lvalue String" decl="main.(file).ContentView.task@/x/ContentView.swift:207:9" direct_to_impl
+                (declref_expr implicit type="@lvalue ContentView" decl="main.(file).ContentView.<anonymous>.self@/x/ContentView.swift:207:9" function_ref=unapplied)))))))
+    (pattern_binding_decl range=[/x/ContentView.swift:208:13 - line:208:26]
+      (pattern_entry init_context=0x0
+        (pattern_named type="String" "budget")
+        (original_init=string_literal_expr type="String" location=/x/ContentView.swift:208:26 range=[/x/ContentView.swift:208:26 - line:208:26] encoding=utf8 value="unlimited" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")
+        (processed_init=string_literal_expr type="String" location=/x/ContentView.swift:208:26 range=[/x/ContentView.swift:208:26 - line:208:26] encoding=utf8 value="unlimited" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))
+    (var_decl range=[/x/ContentView.swift:208:17 - line:208:17] "budget" interface_type="String" access=private let readImpl=stored immutable
+      (has_initial_value_attr implicit)
+      (has_storage_attr implicit)
+      (access_control_attr range=[/x/ContentView.swift:208:5 - line:208:5] access_level=private)
+      (accessor_decl implicit range=[/x/ContentView.swift:208:17 - line:208:17] <anonymous @ 0x0> interface_type="(ContentView) -> () -> String" access=private get for="budget"
+        (parameter "self" interface_type="ContentView") result="String" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/ContentView.swift:208:17 - line:208:17]
+          (return_stmt implicit
+            (member_ref_expr implicit type="String" decl="main.(file).ContentView.budget@/x/ContentView.swift:208:17" direct_to_storage
+              (declref_expr implicit type="ContentView" decl="main.(file).ContentView.<anonymous>.self@/x/ContentView.swift:208:17" function_ref=unapplied))))))
+    (pattern_binding_decl range=[/x/ContentView.swift:209:5 - line:209:31]
+      (pattern_entry init_context=0x0
+        (pattern_named type="EngineClient" "client")
+        (original_init=call_expr type="EngineClient" location=/x/ContentView.swift:209:18 range=[/x/ContentView.swift:209:18 - line:209:31] nothrow isolation_crossing="none"
+          (constructor_ref_call_expr type="() -> EngineClient" location=/x/ContentView.swift:209:18 range=[/x/ContentView.swift:209:18 - line:209:18] nothrow isolation_crossing="none"
+            (declref_expr implicit type="(EngineClient.Type) -> () -> EngineClient" location=/x/ContentView.swift:209:18 range=[/x/ContentView.swift:209:18 - line:209:18] decl="main.(file).EngineClient.init()@/x/EngineClient.swift:38:5" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (type_expr type="EngineClient.Type" location=/x/ContentView.swift:209:18 range=[/x/ContentView.swift:209:18 - line:209:18] typerepr="EngineClient"))))
+          (argument_list))
+        (processed_init=call_expr type="EngineClient" location=/x/ContentView.swift:209:18 range=[/x/ContentView.swift:209:18 - line:209:31] nothrow isolation_crossing="none"
+          (constructor_ref_call_expr type="() -> EngineClient" location=/x/ContentView.swift:209:18 range=[/x/ContentView.swift:209:18 - line:209:18] nothrow isolation_crossing="none"
+            (declref_expr implicit type="(EngineClient.Type) -> () -> EngineClient" location=/x/ContentView.swift:209:18 range=[/x/ContentView.swift:209:18 - line:209:18] decl="main.(file).EngineClient.init()@/x/EngineClient.swift:38:5" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (type_expr type="EngineClient.Type" location=/x/ContentView.swift:209:18 range=[/x/ContentView.swift:209:18 - line:209:18] typerepr="EngineClient"))))
+          (argument_list))))
+    (var_decl range=[/x/ContentView.swift:209:9 - line:209:9] "client" interface_type="EngineClient" access=internal let readImpl=stored immutable
+      (has_initial_value_attr implicit)
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/ContentView.swift:209:9 - line:209:9] <anonymous @ 0x0> interface_type="(ContentView) -> () -> EngineClient" access=internal get for="client"
+        (parameter "self" interface_type="ContentView") result="EngineClient" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/ContentView.swift:209:9 - line:209:9]
+          (return_stmt implicit
+            (member_ref_expr implicit type="EngineClient" decl="main.(file).ContentView.client@/x/ContentView.swift:209:9" direct_to_storage
+              (declref_expr implicit type="ContentView" decl="main.(file).ContentView.<anonymous>.self@/x/ContentView.swift:209:9" function_ref=unapplied))))))
+    (func_decl range=[/x/ContentView.swift:211:5 - line:213:5] "load()" interface_type="(ContentView) -> () -> URL" access=internal
+      (parameter "self" interface_type="ContentView") result="URL" thrown_type="<null>"
+      (parameter_list range=[/x/ContentView.swift:211:14 - line:211:15])
+      (brace_stmt range=[/x/ContentView.swift:211:24 - line:213:5]
+        (return_stmt implicit range=[/x/ContentView.swift:212:9 - line:212:57]
+          (call_expr type="URL" location=/x/ContentView.swift:212:16 range=[/x/ContentView.swift:212:9 - line:212:57] nothrow isolation_crossing="none"
+            (dot_syntax_call_expr type="(String, String) -> URL" location=/x/ContentView.swift:212:16 range=[/x/ContentView.swift:212:9 - line:212:16] nothrow isolation_crossing="none"
+              (declref_expr type="(EngineClient) -> (String, String) -> URL" location=/x/ContentView.swift:212:16 range=[/x/ContentView.swift:212:16 - line:212:16] decl="main.(file).EngineClient.recommendation(task:budget:)@/x/EngineClient.swift:56:10" function_ref=single apply)
+              (argument_list implicit
+                (argument
+                  (member_ref_expr type="EngineClient" location=/x/ContentView.swift:212:9 range=[/x/ContentView.swift:212:9 - line:212:9] decl="main.(file).ContentView.client@/x/ContentView.swift:209:9"
+                    (declref_expr implicit type="ContentView" location=/x/ContentView.swift:212:9 range=[/x/ContentView.swift:212:9 - line:212:9] decl="main.(file).ContentView.load().self@/x/ContentView.swift:211:10" function_ref=unapplied)))))
+            (argument_list labels="task:budget:"
+              (argument label="task"
+                (member_ref_expr type="String" location=/x/ContentView.swift:212:37 range=[/x/ContentView.swift:212:37 - line:212:37] decl="main.(file).ContentView.task@/x/ContentView.swift:207:9"
+                  (declref_expr implicit type="ContentView" location=/x/ContentView.swift:212:37 range=[/x/ContentView.swift:212:37 - line:212:37] decl="main.(file).ContentView.load().self@/x/ContentView.swift:211:10" function_ref=unapplied)))
+              (argument label="budget"
+                (member_ref_expr type="String" location=/x/ContentView.swift:212:51 range=[/x/ContentView.swift:212:51 - line:212:51] decl="main.(file).ContentView.budget@/x/ContentView.swift:208:17"
+                  (declref_expr implicit type="ContentView" location=/x/ContentView.swift:212:51 range=[/x/ContentView.swift:212:51 - line:212:51] decl="main.(file).ContentView.load().self@/x/ContentView.swift:211:10" function_ref=unapplied))))))))
+    (func_decl range=[/x/ContentView.swift:215:14 - line:217:5] "apply(_:)" interface_type="(inout ContentView) -> (RoutingOutcome) -> ()" access=internal
+      (mutating_attr range=[/x/ContentView.swift:215:5 - line:215:5])
+      (parameter "self" interface_type="ContentView" inout) result="()" thrown_type="<null>"
+      (parameter_list range=[/x/ContentView.swift:215:24 - line:215:50]
+        (parameter "outcome" interface_type="RoutingOutcome"))
+      (brace_stmt range=[/x/ContentView.swift:215:52 - line:217:5]
+        (assign_expr type="()" location=/x/ContentView.swift:216:14 range=[/x/ContentView.swift:216:9 - line:216:24]
+          (member_ref_expr type="@lvalue String" location=/x/ContentView.swift:216:9 range=[/x/ContentView.swift:216:9 - line:216:9] decl="main.(file).ContentView.task@/x/ContentView.swift:207:9"
+            (declref_expr implicit type="@lvalue ContentView" location=/x/ContentView.swift:216:9 range=[/x/ContentView.swift:216:9 - line:216:9] decl="main.(file).ContentView.apply(_:).self@/x/ContentView.swift:215:19" function_ref=unapplied))
+          (member_ref_expr type="String" location=/x/ContentView.swift:216:24 range=[/x/ContentView.swift:216:16 - line:216:24] decl="main.(file).RoutingOutcome.categoryID@/x/ContentView.swift:203:9"
+            (declref_expr type="RoutingOutcome" location=/x/ContentView.swift:216:16 range=[/x/ContentView.swift:216:16 - line:216:16] decl="main.(file).ContentView.apply(_:).outcome@/x/ContentView.swift:215:27" function_ref=unapplied)))))
+    (func_decl range=[/x/ContentView.swift:219:14 - line:221:5] "select(_:)" interface_type="(inout ContentView) -> (String) -> ()" access=internal
+      (mutating_attr range=[/x/ContentView.swift:219:5 - line:219:5])
+      (parameter "self" interface_type="ContentView" inout) result="()" thrown_type="<null>"
+      (parameter_list range=[/x/ContentView.swift:219:25 - line:219:38]
+        (parameter "id" interface_type="String"))
+      (brace_stmt range=[/x/ContentView.swift:219:40 - line:221:5]
+        (assign_expr type="()" location=/x/ContentView.swift:220:14 range=[/x/ContentView.swift:220:9 - line:220:16]
+          (member_ref_expr type="@lvalue String" location=/x/ContentView.swift:220:9 range=[/x/ContentView.swift:220:9 - line:220:9] decl="main.(file).ContentView.task@/x/ContentView.swift:207:9"
+            (declref_expr implicit type="@lvalue ContentView" location=/x/ContentView.swift:220:9 range=[/x/ContentView.swift:220:9 - line:220:9] decl="main.(file).ContentView.select(_:).self@/x/ContentView.swift:219:19" function_ref=unapplied))
+          (declref_expr type="String" location=/x/ContentView.swift:220:16 range=[/x/ContentView.swift:220:16 - line:220:16] decl="main.(file).ContentView.select(_:).id@/x/ContentView.swift:219:28" function_ref=unapplied))))
+    (func_decl range=[/x/ContentView.swift:224:5 - line:227:5] "loadAsked(_:)" interface_type="(ContentView) -> (String) -> URL" access=internal
+      (parameter "self" interface_type="ContentView") result="URL" thrown_type="<null>"
+      (parameter_list range=[/x/ContentView.swift:224:19 - line:224:35]
+        (parameter "asked" interface_type="String"))
+      (brace_stmt range=[/x/ContentView.swift:224:44 - line:227:5]
+        (pattern_binding_decl range=[/x/ContentView.swift:225:9 - line:225:52]
+          (pattern_entry
+            (pattern_named type="String" "budget")
+            (original_init=sequence_expr type="<null>"
+              (unresolved_dot_expr type="<null>" field="isEmpty" function_ref=unapplied
+                (declref_expr type="String" location=/x/ContentView.swift:225:22 range=[/x/ContentView.swift:225:22 - line:225:22] decl="main.(file).ContentView.loadAsked(_:).asked@/x/ContentView.swift:224:22" function_ref=unapplied))
+              (ternary_expr type="String" location=/x/ContentView.swift:225:36 range=[/x/ContentView.swift:225:22 - line:225:52]
+                (member_ref_expr type="Bool" location=/x/ContentView.swift:225:28 range=[/x/ContentView.swift:225:22 - line:225:28] decl="Swift.(file).String extension.isEmpty"
+                  (declref_expr type="String" location=/x/ContentView.swift:225:22 range=[/x/ContentView.swift:225:22 - line:225:22] decl="main.(file).ContentView.loadAsked(_:).asked@/x/ContentView.swift:224:22" function_ref=unapplied))
+                (member_ref_expr type="String" location=/x/ContentView.swift:225:43 range=[/x/ContentView.swift:225:38 - line:225:43] decl="main.(file).ContentView.budget@/x/ContentView.swift:208:17"
+                  (declref_expr type="ContentView" location=/x/ContentView.swift:225:38 range=[/x/ContentView.swift:225:38 - line:225:38] decl="main.(file).ContentView.loadAsked(_:).self@/x/ContentView.swift:224:10" function_ref=unapplied))
+                (declref_expr type="String" location=/x/ContentView.swift:225:52 range=[/x/ContentView.swift:225:52 - line:225:52] decl="main.(file).ContentView.loadAsked(_:).asked@/x/ContentView.swift:224:22" function_ref=unapplied))
+              (unresolved_decl_ref_expr type="<null>" name="asked" function_ref=unapplied))
+            (processed_init=ternary_expr type="String" location=/x/ContentView.swift:225:36 range=[/x/ContentView.swift:225:22 - line:225:52]
+              (member_ref_expr type="Bool" location=/x/ContentView.swift:225:28 range=[/x/ContentView.swift:225:22 - line:225:28] decl="Swift.(file).String extension.isEmpty"
+                (declref_expr type="String" location=/x/ContentView.swift:225:22 range=[/x/ContentView.swift:225:22 - line:225:22] decl="main.(file).ContentView.loadAsked(_:).asked@/x/ContentView.swift:224:22" function_ref=unapplied))
+              (member_ref_expr type="String" location=/x/ContentView.swift:225:43 range=[/x/ContentView.swift:225:38 - line:225:43] decl="main.(file).ContentView.budget@/x/ContentView.swift:208:17"
+                (declref_expr type="ContentView" location=/x/ContentView.swift:225:38 range=[/x/ContentView.swift:225:38 - line:225:38] decl="main.(file).ContentView.loadAsked(_:).self@/x/ContentView.swift:224:10" function_ref=unapplied))
+              (declref_expr type="String" location=/x/ContentView.swift:225:52 range=[/x/ContentView.swift:225:52 - line:225:52] decl="main.(file).ContentView.loadAsked(_:).asked@/x/ContentView.swift:224:22" function_ref=unapplied))))
+        (var_decl range=[/x/ContentView.swift:225:13 - line:225:13] "budget" interface_type="String" access=private let readImpl=stored immutable
+          (has_initial_value_attr implicit)
+          (has_storage_attr implicit))
+        (return_stmt range=[/x/ContentView.swift:226:9 - line:226:64]
+          (call_expr type="URL" location=/x/ContentView.swift:226:23 range=[/x/ContentView.swift:226:16 - line:226:64] nothrow isolation_crossing="none"
+            (dot_syntax_call_expr type="(String, String) -> URL" location=/x/ContentView.swift:226:23 range=[/x/ContentView.swift:226:16 - line:226:23] nothrow isolation_crossing="none"
+              (declref_expr type="(EngineClient) -> (String, String) -> URL" location=/x/ContentView.swift:226:23 range=[/x/ContentView.swift:226:23 - line:226:23] decl="main.(file).EngineClient.recommendation(task:budget:)@/x/EngineClient.swift:56:10" function_ref=single apply)
+              (argument_list implicit
+                (argument
+                  (member_ref_expr type="EngineClient" location=/x/ContentView.swift:226:16 range=[/x/ContentView.swift:226:16 - line:226:16] decl="main.(file).ContentView.client@/x/ContentView.swift:209:9"
+                    (declref_expr implicit type="ContentView" location=/x/ContentView.swift:226:16 range=[/x/ContentView.swift:226:16 - line:226:16] decl="main.(file).ContentView.loadAsked(_:).self@/x/ContentView.swift:224:10" function_ref=unapplied)))))
+            (argument_list labels="task:budget:"
+              (argument label="task"
+                (member_ref_expr type="String" location=/x/ContentView.swift:226:44 range=[/x/ContentView.swift:226:44 - line:226:44] decl="main.(file).ContentView.task@/x/ContentView.swift:207:9"
+                  (declref_expr implicit type="ContentView" location=/x/ContentView.swift:226:44 range=[/x/ContentView.swift:226:44 - line:226:44] decl="main.(file).ContentView.loadAsked(_:).self@/x/ContentView.swift:224:10" function_ref=unapplied)))
+              (argument label="budget"
+                (declref_expr type="String" location=/x/ContentView.swift:226:58 range=[/x/ContentView.swift:226:58 - line:226:58] decl="main.(file).ContentView.loadAsked(_:).budget@/x/ContentView.swift:225:13" function_ref=unapplied)))))))
+    (func_decl range=[/x/ContentView.swift:230:14 - line:232:5] "keepAsked(_:)" interface_type="(inout ContentView) -> (String) -> ()" access=internal
+      (mutating_attr range=[/x/ContentView.swift:230:5 - line:230:5])
+      (parameter "self" interface_type="ContentView" inout) result="()" thrown_type="<null>"
+      (parameter_list range=[/x/ContentView.swift:230:28 - line:230:44]
+        (parameter "typed" interface_type="String"))
+      (brace_stmt range=[/x/ContentView.swift:230:46 - line:232:5]
+        (assign_expr type="()" location=/x/ContentView.swift:231:14 range=[/x/ContentView.swift:231:9 - line:231:16]
+          (member_ref_expr type="@lvalue String" location=/x/ContentView.swift:231:9 range=[/x/ContentView.swift:231:9 - line:231:9] decl="main.(file).ContentView.task@/x/ContentView.swift:207:9"
+            (declref_expr implicit type="@lvalue ContentView" location=/x/ContentView.swift:231:9 range=[/x/ContentView.swift:231:9 - line:231:9] decl="main.(file).ContentView.keepAsked(_:).self@/x/ContentView.swift:230:19" function_ref=unapplied))
+          (declref_expr type="String" location=/x/ContentView.swift:231:16 range=[/x/ContentView.swift:231:16 - line:231:16] decl="main.(file).ContentView.keepAsked(_:).typed@/x/ContentView.swift:230:31" function_ref=unapplied))))
+    (constructor_decl implicit range=[/x/ContentView.swift:206:8 - line:206:8] "init()" interface_type="(ContentView.Type) -> () -> ContentView" access=internal designated
+      (parameter "self") thrown_type="<null>"
+      (parameter_list)
+      (brace_stmt implicit range=[/x/ContentView.swift:206:8 - line:206:8]
+        (return_stmt implicit range=[/x/ContentView.swift:206:8 - line:206:8])))
+    (constructor_decl implicit range=[/x/ContentView.swift:206:8 - line:206:8] "init(task:)" interface_type="(ContentView.Type) -> (String) -> ContentView" access=internal designated
+      (parameter "self") thrown_type="<null>"
+      (parameter_list range=[/x/ContentView.swift:206:8 - line:206:8]
+        (parameter "task" apiName="task" interface_type="String" default_arg=stored property)))))
 (source_file "/x/Detail.swift"
   (import_decl range=[/x/Detail.swift:3:1 - line:3:8] module="Foundation")
   (func_decl range=[/x/Detail.swift:5:1 - line:7:1] "fixtureDetailWrites(_:)" interface_type="(String) -> ()" access=internal result="()" thrown_type="<null>"
@@ -2270,7 +2465,7 @@
       (parameter "self") thrown_type="<null>"
       (parameter_list range=[/x/EngineClient.swift:21:8 - line:21:8]
         (parameter "host" apiName="host" interface_type="String"))))
-  (struct_decl range=[/x/EngineClient.swift:35:1 - line:55:1] "EngineClient" interface_type="EngineClient.Type" access=internal non_resilient
+  (struct_decl range=[/x/EngineClient.swift:35:1 - line:59:1] "EngineClient" interface_type="EngineClient.Type" access=internal non_resilient
     (pattern_binding_decl range=[/x/EngineClient.swift:36:5 - line:36:18]
       (pattern_entry init_context=0x0
         (pattern_typed type="URL"
@@ -2379,62 +2574,91 @@
       (brace_stmt range=[/x/EngineClient.swift:52:26 - line:54:5]
         (return_stmt implicit range=[/x/EngineClient.swift:53:9 - line:53:9]
           (member_ref_expr type="URL" location=/x/EngineClient.swift:53:9 range=[/x/EngineClient.swift:53:9 - line:53:9] decl="main.(file).EngineClient.baseURL@/x/EngineClient.swift:36:9"
-            (declref_expr implicit type="EngineClient" location=/x/EngineClient.swift:53:9 range=[/x/EngineClient.swift:53:9 - line:53:9] decl="main.(file).EngineClient.boards().self@/x/EngineClient.swift:52:10" function_ref=unapplied))))))
-  (struct_decl range=[/x/EngineClient.swift:59:1 - line:63:1] "FixtureHeldRelayClient" interface_type="FixtureHeldRelayClient.Type" access=internal non_resilient
-    (pattern_binding_decl range=[/x/EngineClient.swift:60:5 - line:60:40]
-      (pattern_entry init_context=0x0
-        (pattern_named type="NSMutableString" "relay")
-        (original_init=call_expr type="NSMutableString" location=/x/EngineClient.swift:60:24 range=[/x/EngineClient.swift:60:24 - line:60:40] nothrow isolation_crossing="none"
-          (constructor_ref_call_expr type="() -> NSMutableString" location=/x/EngineClient.swift:60:24 range=[/x/EngineClient.swift:60:24 - line:60:24] nothrow isolation_crossing="none"
-            (declref_expr implicit type="(NSMutableString.Type) -> () -> NSMutableString" location=/x/EngineClient.swift:60:24 range=[/x/EngineClient.swift:60:24 - line:60:24] decl="Foundation.(file).NSMutableString.init()@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSString.h:114:1" function_ref=single apply)
-            (argument_list implicit
-              (argument
-                (type_expr type="NSMutableString.Type" location=/x/EngineClient.swift:60:24 range=[/x/EngineClient.swift:60:24 - line:60:24] typerepr="NSMutableString"))))
-          (argument_list))
-        (processed_init=call_expr type="NSMutableString" location=/x/EngineClient.swift:60:24 range=[/x/EngineClient.swift:60:24 - line:60:40] nothrow isolation_crossing="none"
-          (constructor_ref_call_expr type="() -> NSMutableString" location=/x/EngineClient.swift:60:24 range=[/x/EngineClient.swift:60:24 - line:60:24] nothrow isolation_crossing="none"
-            (declref_expr implicit type="(NSMutableString.Type) -> () -> NSMutableString" location=/x/EngineClient.swift:60:24 range=[/x/EngineClient.swift:60:24 - line:60:24] decl="Foundation.(file).NSMutableString.init()@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSString.h:114:1" function_ref=single apply)
-            (argument_list implicit
-              (argument
-                (type_expr type="NSMutableString.Type" location=/x/EngineClient.swift:60:24 range=[/x/EngineClient.swift:60:24 - line:60:24] typerepr="NSMutableString"))))
-          (argument_list))))
-    (var_decl range=[/x/EngineClient.swift:60:16 - line:60:16] "relay" interface_type="NSMutableString" access=internal let static readImpl=stored immutable
-      (has_initial_value_attr implicit)
-      (has_storage_attr implicit)
-      (accessor_decl implicit range=[/x/EngineClient.swift:60:16 - line:60:16] <anonymous @ 0x0> interface_type="(FixtureHeldRelayClient.Type) -> () -> NSMutableString" access=internal static get for="relay"
-        (parameter "self" interface_type="FixtureHeldRelayClient.Type") result="NSMutableString" thrown_type="<null>"
-        (parameter_list)
-        (brace_stmt implicit range=[/x/EngineClient.swift:60:16 - line:60:16]
-          (return_stmt implicit
-            (member_ref_expr implicit type="NSMutableString" decl="main.(file).FixtureHeldRelayClient.relay@/x/EngineClient.swift:60:16" direct_to_storage
-              (declref_expr implicit type="FixtureHeldRelayClient.Type" decl="main.(file).FixtureHeldRelayClient.<anonymous>.self@/x/EngineClient.swift:60:16" function_ref=unapplied))))))
-    (func_decl range=[/x/EngineClient.swift:62:5 - line:62:78] "boardsQuery()" interface_type="(FixtureHeldRelayClient) -> () -> String" access=internal
-      (parameter "self") result="String" thrown_type="<null>"
-      (parameter_list range=[/x/EngineClient.swift:62:21 - line:62:22])
-      (brace_stmt range=[/x/EngineClient.swift:62:34 - line:62:78]
-        (return_stmt implicit range=[/x/EngineClient.swift:62:36 - line:62:76]
-          (binary_expr type="String" location=/x/EngineClient.swift:62:59 range=[/x/EngineClient.swift:62:36 - line:62:76] nothrow isolation_crossing="none"
-            (dot_syntax_call_expr implicit type="(String, String) -> String" location=/x/EngineClient.swift:62:59 range=[/x/EngineClient.swift:62:59 - line:62:59] nothrow isolation_crossing="none"
-              (declref_expr type="(String.Type) -> (String, String) -> String" location=/x/EngineClient.swift:62:59 range=[/x/EngineClient.swift:62:59 - line:62:59] decl="Swift.(file).String extension.+" function_ref=single apply)
+            (declref_expr implicit type="EngineClient" location=/x/EngineClient.swift:53:9 range=[/x/EngineClient.swift:53:9 - line:53:9] decl="main.(file).EngineClient.boards().self@/x/EngineClient.swift:52:10" function_ref=unapplied)))))
+    (func_decl range=[/x/EngineClient.swift:56:5 - line:58:5] "recommendation(task:budget:)" interface_type="(EngineClient) -> (String, String) -> URL" access=internal
+      (parameter "self" interface_type="EngineClient") result="URL" thrown_type="<null>"
+      (parameter_list range=[/x/EngineClient.swift:56:24 - line:56:53]
+        (parameter "task" apiName="task" interface_type="String")
+        (parameter "budget" apiName="budget" interface_type="String"))
+      (brace_stmt range=[/x/EngineClient.swift:56:62 - line:58:5]
+        (return_stmt implicit range=[/x/EngineClient.swift:57:9 - line:57:46]
+          (call_expr type="URL" location=/x/EngineClient.swift:57:17 range=[/x/EngineClient.swift:57:9 - line:57:46] nothrow isolation_crossing="none"
+            (dot_syntax_call_expr type="(String, URL.DirectoryHint) -> URL" location=/x/EngineClient.swift:57:17 range=[/x/EngineClient.swift:57:9 - line:57:17] nothrow isolation_crossing="none"
+              (declref_expr type="(URL) -> (String, URL.DirectoryHint) -> URL" location=/x/EngineClient.swift:57:17 range=[/x/EngineClient.swift:57:17 - line:57:17] decl="Foundation.(file).URL extension.appending(path:directoryHint:) [with (substitution_map generic_signature=<S where S : StringProtocol> S -> String)]" function_ref=single apply)
               (argument_list implicit
                 (argument
-                  (type_expr implicit type="String.Type" location=/x/EngineClient.swift:62:59 range=[/x/EngineClient.swift:62:59 - line:62:59] typerepr="String"))))
+                  (member_ref_expr type="URL" location=/x/EngineClient.swift:57:9 range=[/x/EngineClient.swift:57:9 - line:57:9] decl="main.(file).EngineClient.baseURL@/x/EngineClient.swift:36:9"
+                    (declref_expr implicit type="EngineClient" location=/x/EngineClient.swift:57:9 range=[/x/EngineClient.swift:57:9 - line:57:9] decl="main.(file).EngineClient.recommendation(task:budget:).self@/x/EngineClient.swift:56:10" function_ref=unapplied)))))
+            (argument_list labels="path:directoryHint:"
+              (argument label="path"
+                (binary_expr type="String" location=/x/EngineClient.swift:57:38 range=[/x/EngineClient.swift:57:33 - line:57:40] nothrow isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(String, String) -> String" location=/x/EngineClient.swift:57:38 range=[/x/EngineClient.swift:57:38 - line:57:38] nothrow isolation_crossing="none"
+                    (declref_expr type="(String.Type) -> (String, String) -> String" location=/x/EngineClient.swift:57:38 range=[/x/EngineClient.swift:57:38 - line:57:38] decl="Swift.(file).String extension.+" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="String.Type" location=/x/EngineClient.swift:57:38 range=[/x/EngineClient.swift:57:38 - line:57:38] typerepr="String"))))
+                  (argument_list implicit
+                    (argument
+                      (declref_expr type="String" location=/x/EngineClient.swift:57:33 range=[/x/EngineClient.swift:57:33 - line:57:33] decl="main.(file).EngineClient.recommendation(task:budget:).task@/x/EngineClient.swift:56:25" function_ref=unapplied))
+                    (argument
+                      (declref_expr type="String" location=/x/EngineClient.swift:57:40 range=[/x/EngineClient.swift:57:40 - line:57:40] decl="main.(file).EngineClient.recommendation(task:budget:).budget@/x/EngineClient.swift:56:39" function_ref=unapplied)))))
+              (argument label="directoryHint"
+                (default_argument_expr implicit type="URL.DirectoryHint" location=/x/EngineClient.swift:57:26 range=[/x/EngineClient.swift:57:26 - line:57:26] default_args_owner="Foundation.(file).URL extension.appending(path:directoryHint:) [with (substitution_map generic_signature=<S where S : StringProtocol> S -> String)]" param=1))))))))
+  (struct_decl range=[/x/EngineClient.swift:63:1 - line:67:1] "FixtureHeldRelayClient" interface_type="FixtureHeldRelayClient.Type" access=internal non_resilient
+    (pattern_binding_decl range=[/x/EngineClient.swift:64:5 - line:64:40]
+      (pattern_entry init_context=0x0
+        (pattern_named type="NSMutableString" "relay")
+        (original_init=call_expr type="NSMutableString" location=/x/EngineClient.swift:64:24 range=[/x/EngineClient.swift:64:24 - line:64:40] nothrow isolation_crossing="none"
+          (constructor_ref_call_expr type="() -> NSMutableString" location=/x/EngineClient.swift:64:24 range=[/x/EngineClient.swift:64:24 - line:64:24] nothrow isolation_crossing="none"
+            (declref_expr implicit type="(NSMutableString.Type) -> () -> NSMutableString" location=/x/EngineClient.swift:64:24 range=[/x/EngineClient.swift:64:24 - line:64:24] decl="Foundation.(file).NSMutableString.init()@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSString.h:114:1" function_ref=single apply)
             (argument_list implicit
               (argument
-                (paren_expr type="String" location=/x/EngineClient.swift:62:48 range=[/x/EngineClient.swift:62:36 - line:62:57]
-                  (coerce_expr type="String" location=/x/EngineClient.swift:62:48 range=[/x/EngineClient.swift:62:37 - line:62:51] written_type="String"
-                    (bridge_from_objc_expr implicit type="String" location=/x/EngineClient.swift:62:42 range=[/x/EngineClient.swift:62:37 - line:62:42]
-                      (member_ref_expr type="NSMutableString" location=/x/EngineClient.swift:62:42 range=[/x/EngineClient.swift:62:37 - line:62:42] decl="main.(file).FixtureHeldRelayClient.relay@/x/EngineClient.swift:60:16"
-                        (type_expr type="FixtureHeldRelayClient.Type" location=/x/EngineClient.swift:62:37 range=[/x/EngineClient.swift:62:37 - line:62:37] typerepr="FixtureHeldRelayClient"))))))
+                (type_expr type="NSMutableString.Type" location=/x/EngineClient.swift:64:24 range=[/x/EngineClient.swift:64:24 - line:64:24] typerepr="NSMutableString"))))
+          (argument_list))
+        (processed_init=call_expr type="NSMutableString" location=/x/EngineClient.swift:64:24 range=[/x/EngineClient.swift:64:24 - line:64:40] nothrow isolation_crossing="none"
+          (constructor_ref_call_expr type="() -> NSMutableString" location=/x/EngineClient.swift:64:24 range=[/x/EngineClient.swift:64:24 - line:64:24] nothrow isolation_crossing="none"
+            (declref_expr implicit type="(NSMutableString.Type) -> () -> NSMutableString" location=/x/EngineClient.swift:64:24 range=[/x/EngineClient.swift:64:24 - line:64:24] decl="Foundation.(file).NSMutableString.init()@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSString.h:114:1" function_ref=single apply)
+            (argument_list implicit
               (argument
-                (call_expr type="String" location=/x/EngineClient.swift:62:61 range=[/x/EngineClient.swift:62:61 - line:62:76] nothrow isolation_crossing="none"
-                  (declref_expr type="() -> String" location=/x/EngineClient.swift:62:61 range=[/x/EngineClient.swift:62:61 - line:62:61] decl="main.(file).fixtureRelayed()@/x/Detail.swift:37:6" function_ref=single apply)
+                (type_expr type="NSMutableString.Type" location=/x/EngineClient.swift:64:24 range=[/x/EngineClient.swift:64:24 - line:64:24] typerepr="NSMutableString"))))
+          (argument_list))))
+    (var_decl range=[/x/EngineClient.swift:64:16 - line:64:16] "relay" interface_type="NSMutableString" access=internal let static readImpl=stored immutable
+      (has_initial_value_attr implicit)
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/EngineClient.swift:64:16 - line:64:16] <anonymous @ 0x0> interface_type="(FixtureHeldRelayClient.Type) -> () -> NSMutableString" access=internal static get for="relay"
+        (parameter "self" interface_type="FixtureHeldRelayClient.Type") result="NSMutableString" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/EngineClient.swift:64:16 - line:64:16]
+          (return_stmt implicit
+            (member_ref_expr implicit type="NSMutableString" decl="main.(file).FixtureHeldRelayClient.relay@/x/EngineClient.swift:64:16" direct_to_storage
+              (declref_expr implicit type="FixtureHeldRelayClient.Type" decl="main.(file).FixtureHeldRelayClient.<anonymous>.self@/x/EngineClient.swift:64:16" function_ref=unapplied))))))
+    (func_decl range=[/x/EngineClient.swift:66:5 - line:66:78] "boardsQuery()" interface_type="(FixtureHeldRelayClient) -> () -> String" access=internal
+      (parameter "self") result="String" thrown_type="<null>"
+      (parameter_list range=[/x/EngineClient.swift:66:21 - line:66:22])
+      (brace_stmt range=[/x/EngineClient.swift:66:34 - line:66:78]
+        (return_stmt implicit range=[/x/EngineClient.swift:66:36 - line:66:76]
+          (binary_expr type="String" location=/x/EngineClient.swift:66:59 range=[/x/EngineClient.swift:66:36 - line:66:76] nothrow isolation_crossing="none"
+            (dot_syntax_call_expr implicit type="(String, String) -> String" location=/x/EngineClient.swift:66:59 range=[/x/EngineClient.swift:66:59 - line:66:59] nothrow isolation_crossing="none"
+              (declref_expr type="(String.Type) -> (String, String) -> String" location=/x/EngineClient.swift:66:59 range=[/x/EngineClient.swift:66:59 - line:66:59] decl="Swift.(file).String extension.+" function_ref=single apply)
+              (argument_list implicit
+                (argument
+                  (type_expr implicit type="String.Type" location=/x/EngineClient.swift:66:59 range=[/x/EngineClient.swift:66:59 - line:66:59] typerepr="String"))))
+            (argument_list implicit
+              (argument
+                (paren_expr type="String" location=/x/EngineClient.swift:66:48 range=[/x/EngineClient.swift:66:36 - line:66:57]
+                  (coerce_expr type="String" location=/x/EngineClient.swift:66:48 range=[/x/EngineClient.swift:66:37 - line:66:51] written_type="String"
+                    (bridge_from_objc_expr implicit type="String" location=/x/EngineClient.swift:66:42 range=[/x/EngineClient.swift:66:37 - line:66:42]
+                      (member_ref_expr type="NSMutableString" location=/x/EngineClient.swift:66:42 range=[/x/EngineClient.swift:66:37 - line:66:42] decl="main.(file).FixtureHeldRelayClient.relay@/x/EngineClient.swift:64:16"
+                        (type_expr type="FixtureHeldRelayClient.Type" location=/x/EngineClient.swift:66:37 range=[/x/EngineClient.swift:66:37 - line:66:37] typerepr="FixtureHeldRelayClient"))))))
+              (argument
+                (call_expr type="String" location=/x/EngineClient.swift:66:61 range=[/x/EngineClient.swift:66:61 - line:66:76] nothrow isolation_crossing="none"
+                  (declref_expr type="() -> String" location=/x/EngineClient.swift:66:61 range=[/x/EngineClient.swift:66:61 - line:66:61] decl="main.(file).fixtureRelayed()@/x/Detail.swift:37:6" function_ref=single apply)
                   (argument_list))))))))
-    (constructor_decl implicit range=[/x/EngineClient.swift:59:8 - line:59:8] "init()" interface_type="(FixtureHeldRelayClient.Type) -> () -> FixtureHeldRelayClient" access=internal designated
+    (constructor_decl implicit range=[/x/EngineClient.swift:63:8 - line:63:8] "init()" interface_type="(FixtureHeldRelayClient.Type) -> () -> FixtureHeldRelayClient" access=internal designated
       (parameter "self") thrown_type="<null>"
       (parameter_list)
-      (brace_stmt implicit range=[/x/EngineClient.swift:59:8 - line:59:8]
-        (return_stmt implicit range=[/x/EngineClient.swift:59:8 - line:59:8])))))
+      (brace_stmt implicit range=[/x/EngineClient.swift:63:8 - line:63:8]
+        (return_stmt implicit range=[/x/EngineClient.swift:63:8 - line:63:8])))))
 (source_file "/x/Models.swift"
   (import_decl range=[/x/Models.swift:3:1 - line:3:8] module="Foundation")
   (struct_decl range=[/x/Models.swift:5:1 - line:10:1] "Standing" interface_type="Standing.Type" access=internal non_resilient inherits="Decodable"

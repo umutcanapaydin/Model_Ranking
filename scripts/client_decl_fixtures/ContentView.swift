@@ -195,3 +195,39 @@ func fixtureViewReadsAnAddressAsNSData(_ address: URL) -> Data? {
 func fixtureViewParsesAnAddress(_ address: URL) -> Bool {
     XMLParser(contentsOf: address)?.parse() ?? false
 }
+
+// #174, #188 (INV-64 on the compiled module): the screen's request. ALLOWED: the surface it holds,
+// assigned only a routed outcome's surface or the one chosen from the engine's list, and its constant
+// budget.
+struct RoutingOutcome {
+    let categoryID: String
+}
+
+struct ContentView {
+    var task = "coding"
+    private let budget = "unlimited"
+    let client = EngineClient()
+
+    func load() -> URL {
+        client.recommendation(task: task, budget: budget)
+    }
+
+    mutating func apply(_ outcome: RoutingOutcome) {
+        task = outcome.categoryID
+    }
+
+    mutating func select(_ id: String) {
+        task = id
+    }
+
+    // The M19 closure's S2: what the reader typed sent as the budget. REFUSED.
+    func loadAsked(_ asked: String) -> URL {
+        let budget = asked.isEmpty ? self.budget : asked
+        return client.recommendation(task: task, budget: budget)
+    }
+
+    // The typed question kept as the surface the next request sends. REFUSED.
+    mutating func keepAsked(_ typed: String) {
+        task = typed
+    }
+}

@@ -386,6 +386,8 @@ FIXTURE_REFUSALS = {
     ("ContentView.swift", "with `sortedArray`"),
     # #170: a date of another file's choosing into the standings file.
     ("Detail.swift", "StandingsStore.currentKept(now:fetch:)"),
+    # #174, #188: the reader's text as a request's budget, and kept as the surface it sends.
+    ("ContentView.swift", "the request's `budget` argument"), ("ContentView.swift", "assigns `ContentView.task`"),
     # #168: a URL loaded as text, as NSData and by an XML parser is the network too.
     ("ContentView.swift", "String.init(contentsOf"), ("ContentView.swift", "NSData.init(contentsOf"),
     ("ContentView.swift", "XMLParser.init(contentsOf"),
