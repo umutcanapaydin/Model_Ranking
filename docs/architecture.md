@@ -407,8 +407,9 @@ no per-reader state.
   on the list gets `400 unknown_host` before any route runs.
 - Then the rate limit (#187, INV-88): with `MODEL_RANKING_RATE_LIMIT` set (120 in `fly.toml`), one
   client (an IPv4 address or an IPv6 /64, from `Fly-Client-IP`) past it in a clock minute gets
-  `429 rate_limited` with `Retry-After`; a `/v1/boards` answer counts as thirty, `/health` is never
-  limited, and a limiter that breaks serves the request (fails open).
+  `429 rate_limited` with `Retry-After`; a `/v1/boards` answer counts as thirty in a window of its
+  own, so standings never block a question (#228); a refused request is not charged; `/health` is
+  never limited, and a limiter that breaks serves the request (fails open).
 - With no list, a request that arrived on a network address rather than loopback is refused,
   whatever the bind.
 - The service always sets the list: `127.0.0.1` and `localhost`, plus the Mac's `.local` name and

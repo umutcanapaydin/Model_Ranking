@@ -24,38 +24,12 @@ import csv
 import datetime as dt
 import io
 import math
-from dataclasses import dataclass
 from pathlib import Path
 
 from app.clients.epoch import validate_last_verified
 from app.clients.protocols import SourceError
+from app.workflows.board_tables import EpochBoard as EpochBoard
 from app.workflows.schema import ScoreRow
-
-
-@dataclass(frozen=True)
-class EpochBoard:
-    """One board in the bundle, declared rather than coded."""
-
-    file: str
-    source_name: str
-    benchmark: str
-    metric: str
-    score_column: str
-    #: ``fraction`` multiplies by 100 so a [0, 1] board lands on the same 0-100 scale the rest of
-    #: this project reports. That is a UNIT CHANGE of one quantity, not the cross-scale mixing
-    #: D-105 forbids -- 0.65 and 65% are the same number. It is declared per board because an
-    #: unconverted fraction silently fails every threshold: a floor of 83.6 rejects a board whose
-    #: leader reads 0.948.
-    scale: str = "fraction"
-    #: ``Started at`` where Epoch ran the evaluation itself; ``None`` for an aggregated board,
-    #: which makes its rows undated evidence the engine discloses.
-    date_column: str | None = None
-    #: The upper bound a parsed score may not exceed, on the board's OWN scale before conversion.
-    #: Elo boards have no natural ceiling, so ``None`` disables the check rather than inventing one.
-    maximum: float | None = 1.0
-    #: The column naming the model. Every board used ``Model version`` until Epoch's 2026-09
-    #: capabilities index, which lists one row per model under ``Model`` (M16-W4).
-    name_column: str = "Model version"
 
 
 class EpochBoardClient:

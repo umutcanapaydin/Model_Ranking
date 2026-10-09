@@ -37,11 +37,12 @@ from app.clients.arena import (
 from app.clients.arena_slices import ArenaSliceClient
 from app.clients.deepswe import DeepSWEClient
 from app.clients.epoch import EpochClient
-from app.clients.epoch_board import EpochBoard, EpochBoardClient
+from app.clients.epoch_board import EpochBoardClient
 from app.clients.litellm import LiteLLMClient, parse_pricing
 from app.clients.openrouter import OpenRouterClient, parse_models
 from app.clients.protocols import RawSource
 from app.clients.swebench import SweBenchClient, parse_verified
+from app.workflows.board_tables import EPOCH_BOARDS as _EPOCH_BOARDS
 from app.workflows.ingest import (
     RunContext,
     SourceReport,
@@ -248,144 +249,10 @@ LOCAL_BUNDLES: tuple[LocalBundle, ...] = (
 ARENA_SLICE_CLIENT = ArenaSliceClient
 
 
-#: The Epoch boards D-127's categories rank on, declared as DATA rather than as one client per
-#: board. The bundle carries 77 CSVs; adding a category is a row here, not a new module.
-#:
-#: Two shapes in one list, and the difference is visible in `date_column`: `gpqa` and `aime` are
-#: evaluations Epoch RAN, so they carry evaluation dates. Boards Epoch AGGREGATES mostly publish
-#: none, which makes their rows undated evidence the engine discloses per answer (REQ-API-004),
-#: exactly as it already does for DeepSWE.
-#:
-#: **M13-W2, REQ-UNC-003: "mostly" is doing work that the previous wording did not do, and its
-#: absence cost a real date.** This comment used to read *"The rest are boards Epoch AGGREGATES —
-#: no dates at all"*, which turned an observation about most of the boards into a property of all
-#: of them. `terminalbench_external.csv` is aggregated AND dated — `Run date`, populated on 204 of
-#: 204 rows — and nobody looked, because the list already had a rule that explained why not.
-#: **Read the header of a board you are adding; do not infer its dating from which half of this
-#: sentence it falls in.** `tests/unit/test_board_run_dates.py` now names every board's dating
-#: decision explicitly and fails when a new board is added without one.
-#:
-#: `scale` is per board because five of them publish 0-1 fractions while this project reports on
-#: 0-100. That is a unit change of one quantity, NOT the cross-scale mixing D-105 forbids — and it
-#: is declared rather than inferred because an unconverted fraction silently fails every threshold.
 #: The one client every declared board reads through. Held here rather than named as a string
 #: wherever it is needed, so the registry-coverage test derives it instead of typing it.
 EPOCH_BOARD_CLIENT = EpochBoardClient
 
-EPOCH_BOARDS: tuple[EpochBoard, ...] = (
-    EpochBoard(
-        # M16-W4: the 2026-09 bundle moved the index into a directory, one row per model under
-        # its display name (`Model`), and renamed the score column. Undated, as before: its `date`
-        # column is a release date, which never becomes evidence.
-        file="epoch_capabilities_index/eci_scores.csv",
-        source_name="epoch_eci",
-        benchmark="Epoch Capabilities Index",
-        metric="ECI",
-        score_column="eci",
-        name_column="Model",
-        scale="raw",
-        maximum=None,
-    ),
-    EpochBoard(
-        file="gpqa_diamond.csv",
-        source_name="epoch_gpqa",
-        benchmark="GPQA Diamond",
-        metric="% correct",
-        score_column="mean_score",
-        date_column="Started at",
-    ),
-    # M17-W3 (#37, owner ruling 2026-09-25): Epoch-run boards of classes A and B
-    # (docs/research/source-expansion-2026-09-23.md §2.1). Each has GPQA Diamond's shape, measured
-    # on the 2026-09 bundle: `mean_score` on 0-1, dated by `Started at`. No surface ranks on them
-    # yet; they are boards for W4 to combine, published and guarded as boards (D-164).
-    EpochBoard(
-        file="simpleqa_verified.csv",
-        source_name="epoch_simpleqa",
-        benchmark="SimpleQA Verified",
-        metric="% correct",
-        score_column="mean_score",
-        date_column="Started at",
-    ),
-    EpochBoard(
-        file="frontiermath_tiers_1_3_v2.csv",
-        source_name="epoch_frontiermath",
-        benchmark="FrontierMath Tiers 1-3",
-        metric="% correct",
-        score_column="mean_score",
-        date_column="Started at",
-    ),
-    EpochBoard(
-        file="frontiermath_tier_4_v2.csv",
-        source_name="epoch_frontiermath_t4",
-        benchmark="FrontierMath Tier 4",
-        metric="% correct",
-        score_column="mean_score",
-        date_column="Started at",
-    ),
-    EpochBoard(
-        file="chess_puzzles.csv",
-        source_name="epoch_chess",
-        benchmark="Chess puzzles",
-        metric="% correct",
-        score_column="mean_score",
-        date_column="Started at",
-    ),
-    EpochBoard(
-        file="mystery_game_puzzles.csv",
-        source_name="epoch_mystery",
-        benchmark="Mystery game puzzles",
-        metric="% correct",
-        score_column="mean_score",
-        date_column="Started at",
-    ),
-    EpochBoard(
-        file="otis_mock_aime_2024_2025.csv",
-        source_name="epoch_aime",
-        benchmark="AIME (mock)",
-        metric="% correct",
-        score_column="mean_score",
-        date_column="Started at",
-    ),
-    EpochBoard(
-        file="terminalbench_external.csv",
-        source_name="epoch_terminalbench",
-        benchmark="TerminalBench",
-        metric="% resolved",
-        score_column="Accuracy mean",
-        # M13-W2, REQ-UNC-003: this board is NOT one of the undated ones, and had been treated as
-        # one since it was declared. `terminalbench_external.csv` carries a `Run date` column
-        # populated on 204 of 204 rows with real evaluation dates from 2025-10-31 onward — a date
-        # the product held and threw away, leaving `computer-use` reporting its evidence as undated
-        # and therefore un-ageable.
-        #
-        # It is the exception the comment above this tuple did not anticipate: Epoch AGGREGATES
-        # this board rather than running it, and it still publishes when each run happened.
-        # `webdev_arena_external.csv` carries `Last updated` and is deliberately NOT wired the same
-        # way — 33 of 109 rows, every one the same value, which is the date the page was refreshed
-        # and not the date a model was measured.
-        date_column="Run date",
-    ),
-    EpochBoard(
-        file="arc_agi_external.csv",
-        source_name="epoch_arc_agi",
-        benchmark="ARC-AGI",
-        metric="% correct",
-        score_column="Score",
-    ),
-    EpochBoard(
-        file="webdev_arena_external.csv",
-        source_name="epoch_webdev",
-        benchmark="WebDev Arena",
-        metric="elo",
-        score_column="Arena Score",
-        scale="raw",
-        maximum=None,
-    ),
-    EpochBoard(
-        file="mmlu_external.csv",
-        source_name="epoch_mmlu",
-        benchmark="MMLU",
-        metric="% correct",
-        score_column="EM",
-    ),
-)
+#: The Epoch boards are declared in `app.workflows.board_tables` (#214), which imports no client; the
+#: refresh reads them from here as before.
+EPOCH_BOARDS = _EPOCH_BOARDS

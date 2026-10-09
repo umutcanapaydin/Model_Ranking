@@ -165,8 +165,15 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("deepseek-v4",       "DeepSeek V4",       "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?4(?![.\-p]\d(?!\d))(?![-_ ]?(?:pro|flash))"),
     ModelRule("deepseek-v3.2",     "DeepSeek V3.2",     "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3[.\-]2(?!\d)"),
     ModelRule("deepseek-v3.1",     "DeepSeek V3.1",     "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3[.\-]1(?!\d)"),
-    ModelRule("deepseek-v3",       "DeepSeek V3",       "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3(?![.\-]?\d)"),
-    ModelRule("deepseek-r1",       "DeepSeek R1",       "DeepSeek",  r"deepseek[-_ ]?r1(?![-_ ]?distill)"),
+    # #163 (D-189): DeepSeek publishes V3-0324 and R1-0528 as releases of their own, and boards rank
+    # them beside V3 and R1; a board spells the date `-0324`, `(0324)` or `(Mar 2025)`.
+    ModelRule("deepseek-v3-0324",  "DeepSeek V3-0324",  "DeepSeek",
+              r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3[-_ ]?(?:0324|\(0324\)|\(mar(?:ch)?[-_ ]?2025\))"),
+    ModelRule("deepseek-v3",       "DeepSeek V3",       "DeepSeek",
+              r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3(?![.\-]?\d)(?![-_ ]?\((?:0324|mar(?:ch)?[-_ ]?2025)\))"),
+    ModelRule("deepseek-r1-0528",  "DeepSeek R1-0528",  "DeepSeek",  r"deepseek[-_ ]?r1[-_ ]?(?:0528|\(0528\))"),
+    ModelRule("deepseek-r1",       "DeepSeek R1",       "DeepSeek",
+              r"deepseek[-_ ]?r1(?![-_ ]?distill)(?![-_ ]?\(?0528)"),
     # ── Others (dotted versions before bare families) ───────────────────
     ModelRule("qwen3.8-max",       "Qwen3.8 Max",       "Alibaba",   r"qwen[-_ ]?3[.\-]8[-_ ]?max"),
     ModelRule("qwen3.7-max",       "Qwen3.7 Max",       "Alibaba",   r"qwen[-_ ]?3[.\-]7[-_ ]?max"),
@@ -275,6 +282,10 @@ def modality_mismatch(name: str, rule: ModelRule) -> str | None:
     return None
 
 
+#: #165: the reason a fine-tune's name is refused, counted beside the modality guard's refusals.
+FINE_TUNE = "fine-tune"
+
+
 def canonicalize_with_reason(name: str) -> tuple[ModelRule | None, str | None]:
     """The lookup plus WHY it failed: ``(rule, None)``, ``(None, token)`` or ``(None, None)``.
 
@@ -291,6 +302,10 @@ def canonicalize_with_reason(name: str) -> tuple[ModelRule | None, str | None]:
     a list whose stated purpose is to find drift at closure. Returning the reason is what makes
     the two countable apart.
     """
+    # #165: a fine-tune is its owner's model, priced as one; D-157 refuses it on the derive path, and
+    # the curated rules, which match by search, refuse it here. Refused for its reason, not as drift.
+    if name.strip().rsplit("/", 1)[-1].lower().startswith("ft:"):
+        return (None, FINE_TUNE)
     for rule, rx in _COMPILED:
         if rx.search(name):
             token = modality_mismatch(name, rule)
@@ -501,6 +516,10 @@ MOVING_ALIASES: dict[str, str] = {
     # #40 (M17-W3 Tester K1): two more spellings of listed aliases, as the grammar derives them.
     "command-r+": "Cohere's `Command R+`, the alias `command-r-plus` spelled with its plus sign",
     "claude-instant-v1": "Bedrock's name for the undated Claude Instant alias",
+    # #164 (D-189): a retired id its maker reroutes to a newer model moves as these do: its scores are
+    # the old model's, its prices the new one's (https://docs.x.ai/developers/migration/may-15-retirement).
+    "grok-code-fast1": "xAI retired it on 2026-05-15 and routes it to grok-build-0.1",
+    "grok4.1-fast-reasoning": "xAI retired it on 2026-05-15 and routes it to grok-4.3 at low effort",
 }
 #: #40: an undated name ending in `-latest` moves by definition, whichever family it names. A date
 #: after it (`chatgpt-4o-latest-20250326`) names one release and still derives.

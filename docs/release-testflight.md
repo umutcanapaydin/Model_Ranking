@@ -59,7 +59,8 @@ has no billing alert and no spending cap. Since M20-W5 (#187) the engine answers
 `MODEL_RANKING_RATE_LIMIT` times a clock minute (120 in `fly.toml`; `/health` is never limited). A
 client is one IPv4 address, or one IPv6 /64.
 - A `/v1/boards` answer (about 0.5 MB, which a phone needs once a day) counts as thirty requests,
-  so one address draws at most four a minute: about 2 MB a minute, twice that across the turn of a
+  in a window of its own so standings never block a question (#228), so one address draws at most
+  four a minute: about 2 MB a minute, twice that across the turn of a
   minute (a fixed window), about 3 GB a day kept up all day. Every other answer is a few KB.
 - Many addresses multiply it: the limit is per address, not a cap on the bill. One IPv6 /48, which
   one person can rent, holds 65,536 /64s, so to the engine it can look like that many clients.

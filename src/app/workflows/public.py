@@ -44,9 +44,11 @@ _REMOVE_ALSO = {
     "plan_models": "DELETE FROM plan_models",
     "plans": "DELETE FROM plans",
 }
-#: The copies another source keeps of a left-out source's rows, removed only while it is left out.
+#: The copies another source keeps of a left-out source's rows, removed only while it is left out:
+#: what the removal is called, its statement, and the count the survivor check reads (#205).
 _COPIES_OF = {
-    "openrouter": ("openrouter_aliases", "DELETE FROM pricing WHERE source = 'litellm' AND alias LIKE 'openrouter/%'"),
+    "openrouter": ("openrouter_aliases", "DELETE FROM pricing WHERE source = 'litellm' AND alias LIKE 'openrouter/%'",
+                   "SELECT count(*) FROM pricing WHERE source = 'litellm' AND alias LIKE 'openrouter/%'"),
 }
 _SURVIVORS = (
     "SELECT (SELECT count(*) FROM scores WHERE source IN (SELECT value FROM json_each(?)))"
@@ -78,13 +80,16 @@ def derive(source: Path, target: Path) -> dict[str, int]:
             with conn:
                 for table, statement in _REMOVE.items():
                     removed[f"{table}_removed"] = conn.execute(statement, (sources,)).rowcount
-                for left_out, (what, statement) in _COPIES_OF.items():
+                for left_out, (what, statement, _count) in _COPIES_OF.items():
                     removed[f"{what}_removed"] = conn.execute(statement).rowcount if left_out in LEFT_OUT else 0
                 for what, statement in _REMOVE_ALSO.items():
                     removed[f"{what}_removed"] = conn.execute(statement).rowcount
             if build_price_medians(conn) <= 0:
                 raise ValueError("no prices are left to rank by: the public artifact would answer nothing")
             left = conn.execute(_SURVIVORS, (sources, sources, sources)).fetchone()[0]
+            # #205: a left-out source's copies under another source survive a missed delete too.
+            left += sum(conn.execute(count).fetchone()[0] for source_name, (_what, _delete, count)
+                        in _COPIES_OF.items() if source_name in LEFT_OUT)
             if left:
                 raise ValueError(f"{left} rows of a left-out source survived the derivation")
             # Out of WAL, whatever the built artifact journals: a WAL file cannot be opened read-only in

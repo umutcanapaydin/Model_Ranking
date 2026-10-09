@@ -2711,6 +2711,8 @@ length bound.
 
 ---
 
+**Amended by D-189 (2026-10-09)**: clause 2 -- a curated rule refuses a fine-tune's name (`ft:`) for its reason, as the derive path does (#165).
+
 ## D-158 — The nightly refresh fetches the Epoch bundle itself
 
 **Status:** accepted -- the owner ruled the direction and its clock on 2026-09-23 (M16-W4 plan,
@@ -3148,6 +3150,8 @@ release and still derives. A curated rule still takes a `-latest` name it matche
 `@latest` route decoration is unchanged: it stays decoration, as the M16-W4 grammar ruled.
 
 **Amended by D-173 (2026-10-04)**: clause 8 -- a `-latest` token followed by a word names no release; followed by a date or a version (`v2`) it does (#48).
+
+**Amended by D-189 (2026-10-09)**: a retired id its maker reroutes to a newer model is listed as a moving alias, with its retirement and where it now routes (#164).
 
 ## D-167 — The phone holds every board's standings as positions, and combines only what every chosen board ranks
 
@@ -4490,3 +4494,43 @@ simpler, but a new model ranked by two boards out of eight would never appear.
 **Revisit when:** the owner's judgement of a sample of answers (#226) prefers the primary board's own
 answer to the family list. The labelled set of #195 cannot show it: it is labelled for the surface, not
 for the best model (M20-W5, `docs/research/m20-w5-family-probe.md` §4; the M20 repo review's M5).
+
+## D-189 — What a model is: a release its maker names, and an id that keeps its meaning
+
+**Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 (take
+the recommended option; the owner may overrule) · **Date:** 2026-10-09 · **Amends** D-166, D-157
+clause 2 · from #163, #164, #165.
+
+**Context.** Three defects of one kind put one model's score or price on another (M19-W1's findings):
+- DeepSeek V3's rule gathered V3-0324's rows, which boards spell `(0324)` or `(Mar 2025)`, so V3 was
+  ranked on V3-0324's scores; R1's rule did the same with R1-0528, and Arena ranks both beside R1.
+- xAI retired `grok-code-fast-1` and `grok-4-1-fast-reasoning` on 2026-05-15 and now routes them to
+  newer models, so their prices are the new models' while their scores are the old ones'.
+- A fine-tune's price alias (`ft:gpt-4o-...`) reached its base model's price median through a
+  curated rule, at about twice the base price.
+
+**Decision.**
+1. **A model is a release its maker names.** Dated snapshots its maker serves under one model name
+   (GPT-4o's, the Gemini 2.5 Pro previews) are that model, as D-182's one-release rule has it. A
+   release the maker publishes under a name of its own (DeepSeek-V3-0324, DeepSeek-R1-0528) is its
+   own model, whichever way a board spells its date; a curated rule for it precedes its
+   predecessor's, which excludes it.
+2. **An id that changes meaning moves.** A retired id its maker reroutes to another model is a
+   moving alias (D-166): it derives no model, and its rows are dropped and counted. Each is listed
+   with its retirement and where it routes. Its historical scores are lost, because a price row
+   carries no date to keep only the prices from before the retirement.
+3. **A fine-tune is its owner's model.** `canonicalize` refuses a name whose last route segment
+   starts with `ft:`, for its reason (`fine-tune`), as D-157 already refuses it on the derive path;
+   it is counted with the modality guard's refusals, never as drift.
+
+**Applied.** Clause 1 to DeepSeek V3-0324 and R1-0528, the families M19-W1 found two releases in
+on one board. GPT-4o's dated snapshots, the Gemini 2.5 Pro previews and Mistral Large's 2407 and 2411
+stay gathered: each is a snapshot of one release its maker names, and none was found ranked twice
+by one board under two releases. A family found so later is split by this clause.
+
+**Consequence.** Model ids move on the first night after the release (`deepseek-r1-0528` is new; V3's
+rows split): D-179's board guards count those links as changed rows, as they did for #129's joins.
+
+**Revisit when:** a maker names a release apart that a board spells with a date this rule does not
+read, or a rerouted id's historical scores are needed (then pricing rows need a date).
+

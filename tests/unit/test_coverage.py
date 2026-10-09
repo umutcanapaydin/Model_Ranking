@@ -257,8 +257,9 @@ def test_plan_evidence_health_uses_selected_row_not_source_max() -> None:
     ]
     plans = {
         row.plan_id: row
+        # #216: the plan is 60 days old; against a 59-day window it is stale on the one line.
         for row in plan_evidence_health(
-            conn, CATEGORIES["coding"], today=dt.date(2026, 8, 16)
+            conn, CATEGORIES["coding"], today=dt.date(2026, 8, 16), window_days=59
         ).plans
     }
 

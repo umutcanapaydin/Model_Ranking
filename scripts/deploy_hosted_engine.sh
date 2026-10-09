@@ -12,7 +12,8 @@
 #     serves (MODEL_RANKING_SERVED) into build/hosted/advisor.db, the file the image's `hosted` stage
 #     copies. The Mac's artifact is only read; the refresh stays on the Mac (D-116).
 #  3. `fly deploy` builds that stage on Fly's builder, on one machine (`--ha=false`; Fly places two by
-#     default), stamped release-<sha>-data-<digest>: the code and the data it carries.
+#     default), stamped release-<sha>-data-<digest>-from-<sha>: the code, the data it carries, and the
+#     release that built that data, read from the refresh's record beside it (#198).
 #  4. https://<app>.fly.dev/health must answer that build.
 #
 # The first time, the owner's own steps (D-123): `fly auth login`, a payment method on the Fly
@@ -53,7 +54,20 @@ fi
 mkdir -p build/hosted
 "$PYTHON" -m app.workflows.public --from "$SERVED" --to build/hosted/advisor.db
 DATA="$("$PYTHON" -c 'import hashlib, sys; print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest()[:8])' build/hosted/advisor.db)"
-BUILD="release-$(git rev-parse --short HEAD)-data-$DATA"
+# #198: the release that built the served data, from the refresh's record beside it. Names and ids are
+# applied when the data is built, so a Mac that runs an older release ships that release's data.
+DATA_BY="$("$PYTHON" -c 'import json, sys
+try:
+    built = json.load(open(sys.argv[1])).get("served_built_by") or "unknown"
+except (OSError, ValueError):
+    built = "unknown"
+print(built)' "$SERVED.refresh.json")"
+case "$DATA_BY" in
+  release-*) FROM="$(printf '%s' "${DATA_BY#release-}" | cut -c1-7)" ;;
+  *) FROM="unknown" ;;
+esac
+BUILD="release-$(git rev-parse --short HEAD)-data-$DATA-from-$FROM"
+echo "[deploy] the data was built by $DATA_BY; the code is release-$(git rev-parse --short HEAD)"
 if [ "$DRY" = 1 ]; then
   echo "[deploy] dry run: build/hosted/advisor.db is ready; $BUILD would be deployed to $APP"
   exit 0
