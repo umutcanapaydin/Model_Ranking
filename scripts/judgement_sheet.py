@@ -21,7 +21,7 @@ import json
 import pathlib
 import random
 
-#: The repository (a stub in the red commit).
+#: The repository: the key is never written inside it (the M21-W2 review's M7).
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FIELDS = ["n", "question", "surface", "A", "B", "choice", "note"]
 
@@ -29,6 +29,9 @@ FIELDS = ["n", "question", "surface", "A", "B", "choice", "note"]
 def make(probe: pathlib.Path, out: pathlib.Path, key: pathlib.Path, seed: int = 0) -> None:
     """Write the blinded sheet and its key. A question the screen answers with cards (no family list) is
     left out: there is nothing to compare."""
+    if key.resolve().is_relative_to(ROOT):
+        raise ValueError(f"the key {key} is inside the repository, where it could be committed beside the sheet "
+                         "and seen before the owner judges; write it outside (for example ~/judgement-key.json)")
     rows = [row for row in json.loads(probe.read_text(encoding="utf-8")) if row.get("family")]
     coin = random.Random(seed)  # noqa: S311 -- a seeded coin, so a sheet can be made again; not a secret
     sheet_rows, sides = [], []

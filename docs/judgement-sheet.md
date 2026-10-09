@@ -28,10 +28,11 @@ say. A question the screen answers with one board's cards is left out: there is 
    JUDGE_BOARDS=/tmp/boards.json JUDGE_OUT=/tmp/rows.json swift test --filter JudgementProbe
    ```
 2. **The sheet:** `.venv/bin/python scripts/judgement_sheet.py make --probe /tmp/rows.json --sheet
-   docs/research/judgement/sheet.csv --key docs/research/judgement/key.json --seed 2026`. Do not open
-   the key.
+   docs/research/judgement/sheet.csv --key ~/judgement-key.json --seed 2026`. The key goes outside the
+   repository (the script refuses a key inside it), so it cannot be committed beside the sheet. Do not
+   open it.
 3. **Judge:** open `sheet.csv`. In `choice`, write A, B or `same` for the list you would use for that
    question; `note` is free. Leave a row blank to skip it.
 4. **Score:** `.venv/bin/python scripts/judgement_sheet.py score --sheet docs/research/judgement/sheet.csv
-   --key docs/research/judgement/key.json`. It prints how many times ours, the primary board's or neither
+   --key ~/judgement-key.json`. It prints how many times ours, the primary board's or neither
    was preferred, and `revisit`: whether D-188 is to be revisited.
