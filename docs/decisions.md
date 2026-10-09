@@ -2711,6 +2711,8 @@ length bound.
 
 ---
 
+**Amended by D-189 (2026-10-09)**: clause 2 -- a curated rule refuses a fine-tune's name (`ft:`) for its reason, as the derive path does (#165).
+
 ## D-158 — The nightly refresh fetches the Epoch bundle itself
 
 **Status:** accepted -- the owner ruled the direction and its clock on 2026-09-23 (M16-W4 plan,
@@ -3148,6 +3150,8 @@ release and still derives. A curated rule still takes a `-latest` name it matche
 `@latest` route decoration is unchanged: it stays decoration, as the M16-W4 grammar ruled.
 
 **Amended by D-173 (2026-10-04)**: clause 8 -- a `-latest` token followed by a word names no release; followed by a date or a version (`v2`) it does (#48).
+
+**Amended by D-189 (2026-10-09)**: a retired id its maker reroutes to a newer model is listed as a moving alias, with its retirement and where it now routes (#164).
 
 ## D-167 — The phone holds every board's standings as positions, and combines only what every chosen board ranks
 
@@ -4267,7 +4271,7 @@ on-device model reads a question of fact as something else.
 
 **Amended by D-187 (2026-10-08)**: clause 3's image rule is retired: a request to make or change an image is answered from `vision`.
 
-**Amended by D-189 (2026-10-09)**: clause 1 -- the question of fact's model names come from the registry (`registry.family_words`), not eleven brands; a family word that is also plain English names a model only beside a version (#194).
+**Amended by D-191 (2026-10-09)**: clause 1 -- the question of fact's model names come from the registry (`registry.family_words`), not eleven brands; a family word that is also plain English names a model only beside a version (#194).
 
 ## D-185 — The first release: a public artifact inside the hosted image, and the app ready for TestFlight
 
@@ -4336,6 +4340,8 @@ a paid launch (then SWE-bench must go whatever else changes, and the table goes 
 
 **Amended by D-186 (2026-10-08)**: clause 3's table is not applied while the app is on TestFlight: the hosted engine serves every source; the table returns before production.
 
+**Amended by D-190 (2026-10-09)**: `web-dev` ranks on LMArena's own WebDev board (CC-BY-4.0), so the public artifact keeps the surface while `epoch_webdev` stays in clause 3's table (#185).
+
 ## D-186 — On TestFlight the hosted engine serves every source; the licences are settled before production
 
 **Status:** accepted -- decided by the owner on 2026-10-08, from the TestFlight build ("remove D-185;
@@ -4399,7 +4405,7 @@ board's ranking, with its board named, not a statement that nothing ranks it. **
 combination of boards for a task none ranks is built (the owner's next step: the on-device model
 composing a list from the boards).
 
-**Amended by D-189 (2026-10-09)**: clause 1 -- a question with a Turkish letter or question word never reaches the English embedding, and a Turkish ask for the best one, which one, a model or a recommendation is answered from `everyday` (#218, #222).
+**Amended by D-191 (2026-10-09)**: clause 1 -- a question with a Turkish letter or question word never reaches the English embedding, and a Turkish ask for the best one, which one, a model or a recommendation is answered from `everyday` (#218, #222).
 
 **Amended by D-188 (2026-10-08, proposed)**: clause 1 -- a short question made only of model names, their tier names and Turkish particles ("claude mu chatgpt mi") is a general question before the embedding is tried, since the embedding reads it as English (#206, M20-W3; `CategoryHints.comparesModelsOnly`).
 
@@ -4436,7 +4442,7 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    | `mathematics` | `epoch_aime`, `epoch_frontiermath`, `epoch_frontiermath_t4`, `arena_text_math` |
    | `computer-use` | `epoch_terminalbench`, `arena_agent` |
    | `abstract` | `epoch_arc_agi`, `epoch_chess`, `epoch_mystery` |
-   | `web-dev` | `epoch_webdev`, `arena_text_coding` |
+   | `web-dev` | `arena_webdev`, `arena_text_coding` |
    | `document` | `arena_document`, `arena_text_longer_query` |
    | `factuality` | `arena_factuality`, `epoch_simpleqa` |
    | `vision` | `arena_vision` |
@@ -4496,7 +4502,90 @@ answer to the family list on more questions than ours (`docs/judgement-sheet.md`
 `scripts/judgement_sheet.py`, M21-W2). The labelled set of #195 cannot show it: it is labelled for the surface, not
 for the best model (M20-W5, `docs/research/m20-w5-family-probe.md` §4; the M20 repo review's M5).
 
-## D-189 — The wording tier reads Turkish as Turkish, a Turkish ask for a model as general, and a ranked model's name as a search
+**Amended by D-190 (2026-10-09)**: clause 1's table -- `web-dev`'s family is `arena_webdev`, `arena_text_coding`; Epoch's copy of the same board stands outside (#185).
+
+## D-189 — What a model is: a release its maker names, and an id that keeps its meaning
+
+**Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 (take
+the recommended option; the owner may overrule) · **Date:** 2026-10-09 · **Amends** D-166, D-157
+clause 2 · from #163, #164, #165.
+
+**Context.** Three defects of one kind put one model's score or price on another (M19-W1's findings):
+- DeepSeek V3's rule gathered V3-0324's rows, which boards spell `(0324)` or `(Mar 2025)`, so V3 was
+  ranked on V3-0324's scores; R1's rule did the same with R1-0528, and Arena ranks both beside R1.
+- xAI retired `grok-code-fast-1` and `grok-4-1-fast-reasoning` on 2026-05-15 and now routes them to
+  newer models, so their prices are the new models' while their scores are the old ones'.
+- A fine-tune's price alias (`ft:gpt-4o-...`) reached its base model's price median through a
+  curated rule, at about twice the base price.
+
+**Decision.**
+1. **A model is a release its maker names.** Dated snapshots its maker serves under one model name
+   (GPT-4o's, the Gemini 2.5 Pro previews) are that model, as D-182's one-release rule has it. A
+   release the maker publishes under a name of its own (DeepSeek-V3-0324, DeepSeek-R1-0528) is its
+   own model, whichever way a board spells its date; a curated rule for it precedes its
+   predecessor's, which excludes it.
+2. **An id that changes meaning moves.** A retired id its maker reroutes to another model is a
+   moving alias (D-166): it derives no model, and its rows are dropped and counted. Each is listed
+   with its retirement and where it routes. Its historical scores are lost, because a price row
+   carries no date to keep only the prices from before the retirement.
+3. **A fine-tune is its owner's model.** `canonicalize` refuses a name whose last route segment
+   starts with `ft:`, for its reason (`fine-tune`), as D-157 already refuses it on the derive path;
+   it is counted with the modality guard's refusals, never as drift.
+
+**Applied (corrected after the M21-W1 review's B1 to B3).**
+- **DeepSeek** V3-0324 and R1-0528, in every spelling a board uses (`(0324)`, `(Mar 2025)`, `(0528)`,
+  Epoch's `(May 2025)`). A distill or a small size after the release (`DeepSeek-R1-0528-Qwen3-8B`) is
+  another model, named by its own rule.
+- **Mistral Large**, which Arena ranked five times as one model: Large 1.0 (24.02), 2 (24.07), 2.1
+  (24.11), 3 (25.12) and 4, as Mistral's model page names them (docs.mistral.ai/getting-started/models,
+  read 2026-10-09). The undated `mistral-large` moves (D-166).
+- **Claude Sonnet 4.6**, which four boards ranked as Sonnet 4.
+- **GLM-4.6V**, the vision model, apart from GLM-4.6, and GLM-4.6V-Flash apart from both, in every
+  spelling (Epoch's `glm-4.6v_32K` included).
+- **R1's namesakes**: R1-Zero, R1-Lite-Preview and the R1T Chimeras are not R1, and Volcengine's
+  `deepseek-r1-250528` is R1-0528. A one-digit minor version after Mistral Large 3 or 4, as after
+  Sonnet 4, is another release.
+
+**What stays gathered, and why.** GPT-4o's dated snapshots and the Gemini 2.5 Pro and 2.5 Flash previews
+are snapshots of one model name their makers serve, so they stay one model; a board that ranks two of them
+is read at the model's best row (D-182). The first version of this paragraph said no board ranked a
+gathered family twice. That was false: Arena ranks GPT-4o's snapshots apart. **The query that finds the
+cases**, kept in `docs/research/m21-w1-first-nights-after-m19-w1.md`, lists each curated model a board
+ranks under two release names; the candidates it found that are not split here (a size or a name the
+maker publishes apart, whose maker's page this wave did not read) are #232's.
+
+**Consequence.** Model ids move on the first night after the release (`deepseek-r1-0528` is new; V3's
+rows split): D-179's board guards count those links as changed rows, as they did for #129's joins.
+
+**Revisit when:** a maker names a release apart that a board spells with a date this rule does not
+read, or a rerouted id's historical scores are needed (then pricing rows need a date).
+
+## D-190 — `web-dev` ranks on LMArena's own WebDev board
+
+**Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 · **Date:**
+2026-10-09 · **Amends** D-185 (what the public artifact can serve), D-188 clause 1 (the families table) ·
+from #185.
+
+**Context.** `web-dev`'s only board was Epoch's copy of the WebDev Arena leaderboard. Epoch cites arena.ai,
+whose site terms D-185 read as personal or internal business use, so its licence table keeps the copy off a
+public artifact, and the surface would go dark on the hosted engine once the table applies (D-186 empties it
+on TestFlight). LMArena publishes the same board in `lmarena-ai/leaderboard-dataset` (the `webdev` config)
+under the CC-BY-4.0 grant the engine's other Arena boards use.
+
+**Decision.**
+1. `arena_webdev` is declared as an Arena board (`ARENA_BOARDS["webdev"]`, optional as every Arena board is,
+   D-121) and is `web-dev`'s primary board, credited as the dataset is.
+2. Its thresholds are measured on the board, not carried over: `scripts/calibrate_board.py --config webdev`
+   on 2026-10-08 (`docs/research/m21-w1-webdev-calibration.json`): 140 rows, 91 ranked, a close call of 9.3
+   Elo and a window of 37.3 Elo (D-148's rules).
+3. `web-dev`'s family is `arena_webdev` and `arena_text_coding`. Epoch's copy is one vote with LMArena's
+   board, so it stands outside (D-188 clause 1), and stays in D-185's table.
+
+**Consequence.** The first refresh after the release adds the board. Until then the surface has no
+evidence on an artifact built by an older release, so the hosted engine is deployed after the owner's Mac
+has refreshed once (the deploy's stamp names the release that built the data, #198).
+
+## D-191 — The wording tier reads Turkish as Turkish, a Turkish ask for a model as general, and a ranked model's name as a search
 
 **Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 (take
 the recommended option, M21's plan approved with M20's) · **Date:** 2026-10-09 · **Amends** D-187

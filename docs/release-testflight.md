@@ -19,7 +19,12 @@ release's pull requests and the release's security verdict of record,
 1. **Merge** the M20 pull requests in order: #213 (the plans), #215, #217, #221, #224, #225, then the
    M20 closure. The M20 closure security seat says the release verdict stands for build 3
    (`docs/reviews/m20-closure-security-review.md`).
-2. **Deploy the engine first** (§1 steps 1, 5 and 6). An app built for M20 against the old engine shows
+2. **Deploy the engine first** (§1 steps 1, 5 and 6). From M21 on, let the Mac refresh once with the new
+   release before the deploy (§1 step 1): `web-dev`'s board (D-190) and the split DeepSeek releases (D-189)
+   arrive with the data. The deploy refuses data another release built, a dry run included (#198): it
+   says which release built the data, and `DEPLOY_ACCEPT_DATA_FROM=<that release>` deploys it anyway.
+   `unknown` accepts only a record that names no builder (one written before #198), and says so; a copy
+   with no record beside it, or a record nobody can read, is always refused. An app built for M20 against the old engine shows
    no family list, and says nothing about it.
 3. **Check the families are served:** `curl -s https://model-ranking.fly.dev/v1/categories | grep -c
    refined_board` must print a number above 0.
@@ -59,7 +64,8 @@ has no billing alert and no spending cap. Since M20-W5 (#187) the engine answers
 `MODEL_RANKING_RATE_LIMIT` times a clock minute (120 in `fly.toml`; `/health` is never limited). A
 client is one IPv4 address, or one IPv6 /64.
 - A `/v1/boards` answer (about 0.5 MB, which a phone needs once a day) counts as thirty requests,
-  so one address draws at most four a minute: about 2 MB a minute, twice that across the turn of a
+  in a window of its own so standings never block a question (#228), so one address draws at most
+  four a minute: about 2 MB a minute, twice that across the turn of a
   minute (a fixed window), about 3 GB a day kept up all day. Every other answer is a few KB.
 - Many addresses multiply it: the limit is per address, not a cap on the bill. One IPv6 /48, which
   one person can rent, holds 65,536 /64s, so to the engine it can look like that many clients.

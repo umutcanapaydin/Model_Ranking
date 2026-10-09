@@ -15,7 +15,8 @@ from app.workflows.schema import connect
 
 LISTED = ("claude3.5-sonnet", "mistral7b-instruct", "deepseek-chat", "deepseek-reasoner", "command-r",
           "command-r-plus", "mistral-medium", "gpt4-turbo", "gpt4o-mini", "o1", "o1-mini", "yi-large",
-          "claude-instant", "command-r+", "claude-instant-v1", "mistral-medium3")
+          "claude-instant", "command-r+", "claude-instant-v1", "mistral-medium3", "grok-code-fast1",
+          "grok4.1-fast-reasoning", "mistral-large")
 
 
 def test_the_list_is_the_one_the_review_found_each_with_a_reason() -> None:
@@ -136,14 +137,15 @@ def test_a_decorated_latest_alias_derives_no_model(name: str) -> None:
 
 
 def test_a_curated_rule_still_takes_a_latest_name() -> None:
-    """Tester T2 of #40, D-166 clause 2 through reconcile: `mistral-large-latest` is the curated
-    `mistral-large`'s, and the `-latest` rule only stops derivation."""
+    """Tester T2 of #40, D-166 clause 2 through reconcile: `claude-3-5-haiku-latest` is the curated
+    Claude 3.5 Haiku's, and the `-latest` rule only stops derivation. (It read `mistral-large-latest`
+    until M21-W1 split Mistral Large into its releases, D-189; the undated name now moves.)"""
     conn = connect(":memory:")
     try:
-        _row(conn, "mistral-large-latest")
+        _row(conn, "claude-3-5-haiku-latest")
         report = reconcile(conn)
-        assert conn.execute("SELECT model_id FROM scores").fetchone() == ("mistral-large",)
-        assert "mistral-large-latest" not in report.dropped_names
+        assert conn.execute("SELECT model_id FROM scores").fetchone() == ("claude-3.5-haiku",)
+        assert "claude-3-5-haiku-latest" not in report.dropped_names
     finally:
         conn.close()
 
@@ -154,4 +156,12 @@ def test_a_latest_token_followed_by_a_v_word_is_refused_by_the_token(name: str) 
     modality word (`registry._MODALITY_TOKENS`), not because of the token, so it cannot hold the
     `v`-word edge. The same name without `-latest` derives, so the None here is the token's."""
     assert derive_identity(name.replace("-latest", "", 1)) is not None, "the case would test another rule"
+    assert derive_identity(name) is None
+
+
+@pytest.mark.parametrize("name", ["xai/grok-code-fast-1", "grok-code-fast-1", "azure_ai/grok-4-1-fast-reasoning"])
+def test_a_retired_id_its_maker_reroutes_derives_no_model(name: str) -> None:
+    """#164 (D-166 as amended by D-189): xAI retired `grok-code-fast-1` and `grok-4-1-fast-reasoning` on
+    2026-05-15 and routes them to newer models, so a price under either is the new model's while its
+    scores are the old one's. The id moved, as D-166's aliases move: it derives no model."""
     assert derive_identity(name) is None

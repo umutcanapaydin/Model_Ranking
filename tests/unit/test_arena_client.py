@@ -280,9 +280,9 @@ def test_an_unregistered_board_is_refused_and_never_defaulted() -> None:
     from app.clients.protocols import SourceError
 
     # M15-W3 registered `vision`, so the example moved: these are real configs of the dataset that
-    # this product deliberately does NOT read (the image boards rank nobody; `webdev` would be a
-    # second board for an existing surface), plus two spellings that are not configs at all.
-    for unknown in ("image_edit", "text_to_video", "webdev", "", "TEXT"):
+    # this product deliberately does NOT read (the image boards rank nobody; `webdev` is read since
+    # M21-W1, #185), plus two spellings that are not configs at all.
+    for unknown in ("image_edit", "text_to_video", "document_style_control", "", "TEXT"):
         try:
             ArenaClient(config=unknown)
         except SourceError as exc:
@@ -367,10 +367,12 @@ def test_every_registered_arena_board_is_attributed_and_floored() -> None:
 MEASURED_BOARD_ROWS = {
     "text": 402, "text_factuality": 171, "document": 44,
     "vision": 152, "search": 34, "search_factuality": 32,
+    "webdev": 141,  # M21-W1 (#185): the overall board on 2026-10-08
 }
 PINNED_ROW_FLOORS = {
     "text": 250, "text_factuality": 25, "document": 25,
     "vision": 60, "search": 20, "search_factuality": 20,
+    "webdev": 70,
 }
 
 
@@ -417,6 +419,7 @@ def test_ingest_stores_each_board_under_its_own_benchmark() -> None:
         "arena_vision": "Arena vision",
         "arena_search": "Arena search",
         "arena_search_factuality": "Arena search factuality",
+        "arena_webdev": "Arena WebDev",
     }
 
 

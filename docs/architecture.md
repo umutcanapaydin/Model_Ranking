@@ -12,7 +12,7 @@
 ```
 UPSTREAM SOURCES (untrusted input)
   prices : LiteLLM, OpenRouter
-  scores : SWE-bench Verified, Aider, six Arena boards and Arena's category slices (Hugging Face),
+  scores : SWE-bench Verified, Aider, seven Arena boards and Arena's category slices (Hugging Face),
            the Epoch AI bundle (a zip from epoch.ai; also each model's accessibility)
       |  bounded HTTP fetches, made only by the refresh's child process
       v
@@ -72,9 +72,10 @@ The sources are declared once, in `src/app/workflows/sources.py`, and the build 
 both derive from that list:
 
 - **Prices:** LiteLLM and OpenRouter. Both are required.
-- **Scores fetched over the network:** SWE-bench Verified and Aider, both required. Six Arena boards
+- **Scores fetched over the network:** SWE-bench Verified and Aider, both required. Seven Arena boards
   (`arena`, `arena_document`, `arena_factuality`, `arena_vision`, `arena_search`,
-  `arena_search_factuality`) are optional (D-121): without one, its surface says it has no evidence.
+  `arena_search_factuality`, `arena_webdev`) are optional (D-121): without one, its surface says it has
+  no evidence. `arena_webdev` is `web-dev`'s board since M21-W1 (D-190).
 - **Arena's category slices** (text and vision) and the Agent Arena boards are read from one parquet
   file per config (`src/app/clients/arena_slices.py`). Each slice is a board of its own (D-164).
 - **The Epoch AI bundle.** The refresh downloads it and the build only reads the unpacked
@@ -407,8 +408,9 @@ no per-reader state.
   on the list gets `400 unknown_host` before any route runs.
 - Then the rate limit (#187, INV-88): with `MODEL_RANKING_RATE_LIMIT` set (120 in `fly.toml`), one
   client (an IPv4 address or an IPv6 /64, from `Fly-Client-IP`) past it in a clock minute gets
-  `429 rate_limited` with `Retry-After`; a `/v1/boards` answer counts as thirty, `/health` is never
-  limited, and a limiter that breaks serves the request (fails open).
+  `429 rate_limited` with `Retry-After`; a `/v1/boards` answer counts as thirty in a window of its
+  own, so standings never block a question (#228); a refused request is not charged; `/health` is
+  never limited, and a limiter that breaks serves the request (fails open).
 - With no list, a request that arrived on a network address rather than loopback is refused,
   whatever the bind.
 - The service always sets the list: `127.0.0.1` and `localhost`, plus the Mac's `.local` name and
@@ -486,7 +488,9 @@ owner's Mac
 ```
 Fly.io (D-116, D-185): prepared, deployed only by the owner
   scripts/deploy_hosted_engine.sh   origin/main's tip only, a clean tree; derives the public artifact,
-                                    stamps APP_BUILD=release-<sha>-data-<digest>, fly deploy
+                                    stamps APP_BUILD=release-<sha>-data-<digest>-from-<sha>
+                                    (the release that built the data, #198; data another release
+                                    built is refused unless DEPLOY_ACCEPT_DATA_FROM names it), fly deploy
                                     --remote-only --ha=false, then reads /health back
   Dockerfile, stage `hosted`        the `serve` stage (requirements/serve.lock, no pyarrow; the base by
                                     digest, #141) plus the public artifact at /srv/advisor.db, read-only,
