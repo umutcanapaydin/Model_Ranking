@@ -12,8 +12,8 @@ than the primary board's own, so the owner judges a sample. D-188 is revisited w
 primary board's answer on more questions than ours (`scripts/judgement_sheet.py`, `revisit`).
 
 **What the sheet holds.** Per question, two lists, A and B: our family list's first five, as the screen
-shows it, and the primary board's own first five. A seeded coin chose which is A; the sheet does not
-say. A question the screen answers with one board's cards is left out: there is nothing to compare.
+shows it, and the primary board's own first five. A coin chose which is A; its seed is drawn at random and kept only in
+the key, so the sheet does not say. A question the screen answers with one board's cards is left out: there is nothing to compare.
 
 **Steps** (about 15 minutes; the agent can do steps 1 and 2 and hand you the sheet):
 
@@ -28,7 +28,7 @@ say. A question the screen answers with one board's cards is left out: there is 
    JUDGE_BOARDS=/tmp/boards.json JUDGE_OUT=/tmp/rows.json swift test --filter JudgementProbe
    ```
 2. **The sheet:** `.venv/bin/python scripts/judgement_sheet.py make --probe /tmp/rows.json --sheet
-   docs/research/judgement/sheet.csv --key ~/judgement-key.json --seed 2026`. The key goes outside the
+   docs/research/judgement/sheet.csv --key ~/judgement-key.json`. The key goes outside the
    repository (the script refuses a key inside it), so it cannot be committed beside the sheet. Do not
    open it.
 3. **Judge:** open `sheet.csv`. In `choice`, write A, B or `same` for the list you would use for that

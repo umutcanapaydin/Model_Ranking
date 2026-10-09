@@ -2,13 +2,13 @@
 
 D-188 makes our family list the default answer. No board says whether it is the better answer, so the
 owner judges a sample: per question, two lists, A and B, one our family list's first five and one the
-primary board's own first five, in an order a seeded coin chose and the sheet does not show. He writes
-A, B or "same" in `choice`. The key, kept apart, says which side was ours; the scorer counts.
+primary board's own first five, in an order a coin chose and the sheet does not show (its seed is drawn
+at random and kept only in the key). He writes A, B or "same" in `choice`. The key, kept apart, says which side was ours; the scorer counts.
 
 D-188 is revisited when the owner prefers the primary board's answer on more questions than ours.
 
-    .venv/bin/python scripts/judgement_sheet.py make --probe rows.json --sheet sheet.csv --key key.json
-    .venv/bin/python scripts/judgement_sheet.py score --sheet sheet.csv --key key.json
+    .venv/bin/python scripts/judgement_sheet.py make --probe rows.json --sheet sheet.csv --key ~/judgement-key.json
+    .venv/bin/python scripts/judgement_sheet.py score --sheet sheet.csv --key ~/judgement-key.json
 
 `rows.json` is `scripts/router_probe/JudgementProbe.swift`'s output (`docs/judgement-sheet.md`).
 """
@@ -20,20 +20,34 @@ import csv
 import json
 import pathlib
 import random
+import secrets
 
 #: The repository: the key is never written inside it (the M21-W2 review's M7).
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FIELDS = ["n", "question", "surface", "A", "B", "choice", "note"]
 
 
-def make(probe: pathlib.Path, out: pathlib.Path, key: pathlib.Path, seed: int = 0) -> None:
+def _inside(path: pathlib.Path, root: pathlib.Path) -> bool:
+    """Whether `path` lies inside `root`, by the real files (the second review's M7): the nearest existing
+    folder of `path`, or any of its parents, is `root` itself, so a spelling in other letters on a volume
+    that ignores case, a `..` or a link is caught."""
+    folder = path.resolve().parent
+    while not folder.exists():
+        folder = folder.parent
+    return root.exists() and any(candidate.samefile(root) for candidate in [folder, *folder.parents])
+
+
+def make(probe: pathlib.Path, out: pathlib.Path, key: pathlib.Path, seed: int | None = None) -> None:
     """Write the blinded sheet and its key. A question the screen answers with cards (no family list) is
-    left out: there is nothing to compare."""
-    if key.resolve().is_relative_to(ROOT):
+    left out: there is nothing to compare. The seed is drawn at random unless one is given, and written
+    only into the key, so the sheet and the steps cannot rebuild it (the second review's M7)."""
+    if _inside(key, ROOT):
         raise ValueError(f"the key {key} is inside the repository, where it could be committed beside the sheet "
                          "and seen before the owner judges; write it outside (for example ~/judgement-key.json)")
+    if seed is None:
+        seed = secrets.randbits(32)
     rows = [row for row in json.loads(probe.read_text(encoding="utf-8")) if row.get("family")]
-    coin = random.Random(seed)  # noqa: S311 -- a seeded coin, so a sheet can be made again; not a secret
+    coin = random.Random(seed)  # noqa: S311 -- the coin's seed is the secret, drawn by `secrets` and kept in the key
     sheet_rows, sides = [], []
     for n, row in enumerate(rows, 1):
         ours_first = coin.random() < 0.5
@@ -46,14 +60,15 @@ def make(probe: pathlib.Path, out: pathlib.Path, key: pathlib.Path, seed: int = 
         writer = csv.DictWriter(handle, fieldnames=FIELDS)
         writer.writeheader()
         writer.writerows(sheet_rows)
-    key.write_text(json.dumps(sides, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    key.parent.mkdir(parents=True, exist_ok=True)
+    key.write_text(json.dumps({"seed": seed, "sides": sides}, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def score(sheet: pathlib.Path, key: pathlib.Path) -> dict[str, object]:
     """Count the owner's choices against the key. A choice is A, B or "same" (any case); a blank one is
     unjudged. `revisit` is D-188's condition: the primary board preferred on more questions than ours."""
     rows = list(csv.DictReader(sheet.open(encoding="utf-8")))
-    sides = json.loads(key.read_text(encoding="utf-8"))
+    sides = json.loads(key.read_text(encoding="utf-8"))["sides"]
     if [row["question"] for row in rows] != [side["question"] for side in sides]:
         raise ValueError("the key is for another sheet: its questions differ")
     counts = {"family": 0, "primary": 0, "same": 0, "unjudged": 0}
@@ -79,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
     making.add_argument("--probe", type=pathlib.Path, required=True)
     making.add_argument("--sheet", type=pathlib.Path, required=True)
     making.add_argument("--key", type=pathlib.Path, required=True)
-    making.add_argument("--seed", type=int, default=0)
+    making.add_argument("--seed", type=int, default=None, help="for a test only; the default is drawn at random")
     scoring = commands.add_parser("score")
     scoring.add_argument("--sheet", type=pathlib.Path, required=True)
     scoring.add_argument("--key", type=pathlib.Path, required=True)
