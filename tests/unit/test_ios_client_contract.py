@@ -1701,3 +1701,22 @@ def test_the_screen_hands_the_refined_board_to_the_plan() -> None:
     served category; without it a refinement joins beside its vote's board again."""
     view = _swift(CLIENT / "ContentView.swift")
     assert re.search(r"inputs\.refinedBoard\s*=\s*info\?\.refinedBoard", view), "the plan is not given refined_board"
+
+
+def test_the_boards_screen_lays_out_its_rows_lazily() -> None:
+    """#219 (M21-W3): a family list holds up to about 215 models since D-188, so "See the boards"
+    lays its rows out as they come on screen, not all at once."""
+    view = _swift(CLIENT / "ContentView.swift")
+    detail = re.search(r"struct CombinedDetail: View \{.*?\n\}\n", view, re.S)
+    assert detail, "CombinedDetail is gone"
+    assert "LazyVStack" in detail.group(0), "the boards screen draws every model at once"
+
+
+def test_the_device_state_is_read_again_on_returning_to_the_foreground() -> None:
+    """#220 (M21-W3): Apple Intelligence can be turned on or off, or finish downloading, while the app
+    runs; the glow and the caption read its state again whenever the app comes back to the front."""
+    view = _swift(CLIENT / "ContentView.swift")
+    assert re.search(r"@State private var onDevice\b", view), "the device state is read once, at launch"
+    assert re.search(r"\.onChange\(of: scenePhase\).*?onDevice = TieredRouter\.onDeviceState\(\)", view, re.S), (
+        "the device state is not read again when the app returns to the front"
+    )
