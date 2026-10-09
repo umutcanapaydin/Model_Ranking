@@ -140,9 +140,15 @@ def loopback_http(monkeypatch: pytest.MonkeyPatch) -> None:
 #: How long a misbehaving server keeps it up. Past this it hangs up, so a fetch with no deadline
 #: of its own FAILS the test's time assertion instead of hanging the suite.
 _MISBEHAVE_S = 4.0
+#: #178: the per-read timeout of the default-deadline test, the drip's interval, and one stall of the
+#: drip as long as a read took under a loaded `make check-fast` (more than 0.3 s, 2026-10-06). The
+#: per-read timeout must outlast the stall by a wide margin, or it, not the deadline, ends the fetch.
+_PER_READ_S = 0.3
+_DRIP_S = 0.2
+_LOAD_STALL_S = 0.4
 
 
-def _header_drip(conn: socket.socket, stop: threading.Event) -> None:
+def _header_drip(conn: socket.socket, stop: threading.Event, stall: float = 0.0) -> None:
     conn.recv(65536)
     conn.sendall(b"HTTP/1.1 200 OK\r\n")
     until = time.monotonic() + _MISBEHAVE_S
@@ -151,8 +157,14 @@ def _header_drip(conn: socket.socket, stop: threading.Event) -> None:
             conn.sendall(b"X-Drip: 1\r\n")
         except OSError:
             return
-        time.sleep(0.2)
+        time.sleep(_DRIP_S + stall)
+        stall = 0.0
     conn.close()
+
+
+def _header_drip_stalling_once(conn: socket.socket, stop: threading.Event) -> None:
+    """The drip, with one pause as long as a loaded machine's: a stand-in for #178's run."""
+    _header_drip(conn, stop, stall=_LOAD_STALL_S)
 
 
 def _slow_redirect(conn: socket.socket, stop: threading.Event) -> None:
@@ -260,11 +272,11 @@ def test_without_a_deadline_of_its_own_a_fetch_takes_four_timeouts_at_most() -> 
     """T3: litellm, openrouter, swebench, aider and the Arena rows client pass no deadline and rely
     on the default: `DEADLINE_FACTOR` x `timeout`."""
     assert protocols.DEADLINE_FACTOR == 4.0
-    for port in _serve(_header_drip):
+    for port in _serve(_header_drip_stalling_once):
         started = time.monotonic()
         with pytest.raises(SourceError, match="deadline"):
-            fetch_bounded_bytes(f"http://127.0.0.1:{port}/", "probe", 0.3, hosts=("127.0.0.1",))
-        assert time.monotonic() - started < 2.5
+            fetch_bounded_bytes(f"http://127.0.0.1:{port}/", "probe", _PER_READ_S, hosts=("127.0.0.1",))
+        assert time.monotonic() - started < protocols.DEADLINE_FACTOR * _PER_READ_S + 1.3
 
 
 @respx.mock
