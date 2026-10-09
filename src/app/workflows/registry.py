@@ -449,13 +449,29 @@ _FAMILY_VENDORS: tuple[tuple[str, str], ...] = (
 
 
 
+_FIRST_WORD = re.compile(r"[A-Za-z]+")
+
+
 def family_words() -> frozenset[str]:
-    """The family words of the models this registry ranks (#194; a stub in the red commit)."""
-    return frozenset()
+    """The family words of the models this registry ranks, in lower case (#194, M21-W2): every family
+    word a derived id starts with or a vendor head names, and the first word of every display name.
+    The phone reads a question that names one as a search for a model, never a question of fact;
+    `scripts/model_family_words.py` writes them to `ios/ModelRanking/Engine/ModelFamilies.swift`."""
+    words = {word for word, _ in _FAMILY_VENDORS} | {word for heads in _VENDOR_FAMILIES.values() for word in heads}
+    for name in [rule.display for rule in MODEL_RULES] + list(DISPLAY_NAMES.values()):
+        first = _FIRST_WORD.match(name)
+        if first and len(first.group(0)) > 1:
+            words.add(first.group(0).lower())
+    return frozenset(words)
 
 
-#: Family words that are also plain English (a stub in the red commit).
-AMBIGUOUS_FAMILY_WORDS: frozenset[str] = frozenset()
+#: The family words that are also plain English or Turkish (a phi in a formula, a llama, Mercury, a
+#: titan, Palmyra, "kimi" for "some"): each names a model only beside a version (`phi-4`, `nova 2`),
+#: so a question of fact about the thing itself is still read as one (#194).
+AMBIGUOUS_FAMILY_WORDS: frozenset[str] = frozenset({
+    "aya", "code", "command", "ernie", "granite", "jamba", "kimi", "llama", "mercury", "nous", "nova",
+    "palmyra", "phi", "step", "titan", "trinity", "zephyr",
+})
 
 @dataclass(frozen=True)
 class DerivedIdentity:

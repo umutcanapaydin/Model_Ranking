@@ -28,15 +28,8 @@ final class ReplayProbe: XCTestCase {
         guard !recorded.contains(where: { $0["tier"] != nil }) else {
             return XCTFail("\(input) is a wording-tier run; run it fresh with PROBE_TIER=wording, not replayed")
         }
-        let rows: [[String: String]] = recorded.map { row in
-            let question = row["q"] ?? ""
-            guard let routed = row["routed"], routed != "nil" else { return row }
-            var model = RoutingOutcome(categoryID: routed, tier: .model, unmeasured: row["declined"] == "true")
-            model.reading = row["model"] == "not" ? .unsure : .search
-            let read = TieredRouter.read(question, model)
-            return ["q": question, "surface": read.categoryID, "routed": routed, "declined": row["declined"] ?? "",
-                    "unmeasured": "\(read.unmeasured)", "model": row["model"] ?? "", "reading": "\(read.reading)"]
-        }
+        // #193 (M21-W2): the rebuild is `ProbeRows.replay`, in `EngineTests/`, which a test runs.
+        let rows: [[String: String]] = recorded.map(ProbeRows.replay)
         try JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted, .sortedKeys])
             .write(to: URL(fileURLWithPath: output))
     }

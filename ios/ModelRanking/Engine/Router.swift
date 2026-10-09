@@ -388,8 +388,18 @@ extension CategoryHints {
         InputSignals.folds(question).map { InputSignals.wordsOf($0).map(plain) }
     }
 
-    /// #218: whether a question reads as Turkish before the embedding is tried (a stub in the red commit).
-    static func readsAsTurkish(_ question: String) -> Bool { false }
+    /// #218: the Turkish question words a short Turkish question carries: the question particle and
+    /// "which", in plain letters (`mı` and `mü` read as `mi` and `mu`).
+    static let turkishQuestionWords: Set<String> = ["mi", "mu", "midir", "mudur", "hangisi", "hangi", "nedir"]
+
+    /// #218: whether a question reads as Turkish before the embedding is tried: a Turkish letter in it,
+    /// or a Turkish question word. A short Turkish question is not confidently Turkish to the language
+    /// recogniser ("claude mu chatgpt mi almanca"), and the English embedding then places it on a
+    /// surface it does not name; read as Turkish, D-187's Turkish path answers it.
+    static func readsAsTurkish(_ question: String) -> Bool {
+        if question.lowercased().contains(where: { "çğıöşü".contains($0) }) || question.contains("İ") { return true }
+        return readings(question).contains { words in words.contains(where: turkishQuestionWords.contains) }
+    }
 
     /// #206: the Turkish particles a question comparing models puts between their names.
     static let comparisonParticles: Set<String> = ["mi", "mu", "hangisi", "hangi", "yoksa", "veya", "ya", "da",
@@ -545,7 +555,8 @@ struct SimilarityRouter: QuestionRouter {
             return CategoryHints.generalSurface(question, within: known)
                 .map { RoutingOutcome(categoryID: $0, tier: .similarity, unmeasured: false) }
         }
-        guard SimilarityRouter.readsEnglish(text),
+        // #218: a question that reads as Turkish never reaches the English embedding.
+        guard !CategoryHints.readsAsTurkish(question), SimilarityRouter.readsEnglish(text),
               let embedding = NLContextualEmbedding(language: .english),
               embedding.hasAvailableAssets,
               (try? embedding.load()) != nil

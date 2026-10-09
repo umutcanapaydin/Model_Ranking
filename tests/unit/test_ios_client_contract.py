@@ -1598,7 +1598,6 @@ def test_every_signal_word_only_a_live_held_out_set_holds_is_reviewed() -> None:
 _BEFORE = "in the app before {set} was written ({sha}), so not read from it"
 HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
     "chatgpt": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
-    "grok": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
     "resmin": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
 }
 #: A list of string literals: every word, phrase, verb and noun list in `Reading.swift`, the inline
