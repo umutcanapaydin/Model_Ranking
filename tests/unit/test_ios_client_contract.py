@@ -1715,6 +1715,50 @@ def _plain(text: str) -> str:
     return text.casefold().translate(pairs).replace("\u0307", "")
 
 
+# --- The M21-W2 review's M6 -------------------------------------------------------------------------------
+
+#: One Swift shape per way `Reading.swift` matches a list: each literal is read with its own use's mode.
+_SHAPES = """
+    static let wholeList: Set<String> = ["alpha"]
+    static let stemList: Set<String> = ["bravo"]
+    static let phraseList = ["charlie delta"]
+    func uses(_ word: String, _ words: [String], _ spaced: String) -> Bool {
+        if wholeList.contains(word) || stemList.contains(where: word.hasPrefix) { return true }
+        for phrase in phraseList where spaced.contains(" \\(phrase) ") { return true }
+        let asks = ["echo", "foxtrot"].contains(words.first ?? "")
+        if words == ["golf"] { return false }
+        if ["hotel", "india"].contains(where: { word.hasPrefix($0) }) { return true }
+        let stems = ["juliet"]
+        if stems.contains(where: { word.hasPrefix($0) }) { return true }
+        return asks && words.contains(where: { ["kilo"].contains($0) }) || ["lima", "mike"].contains(word)
+    }
+"""
+
+
+def test_each_inline_list_is_read_with_its_own_uses_mode() -> None:
+    """M6 (a): a literal is read with the mode of its own use, not the last declaration above it."""
+    modes = {entry: whole for entries, whole in _lists_in(_SHAPES) for entry in entries}
+    assert modes == {
+        "alpha": True, "bravo": False, "charlie delta": True, "echo": True, "foxtrot": True, "golf": True,
+        "hotel": False, "india": False, "juliet": False, "kilo": True, "lima": True, "mike": True,
+    }
+
+
+def test_the_wording_read_holds_the_family_words_and_their_ambiguous_list() -> None:
+    """M6 (c): the generated family words (`ModelFamilies.swift`) and the hand-kept ambiguous list are
+    matched against questions too, so the held-out check reads them."""
+    from app.workflows.registry import AMBIGUOUS_FAMILY_WORDS
+
+    entries = {entry for found, _whole in _wording_lists() for entry in found}
+    assert {"qwen", "mixtral", "kimi", "expanse"} <= entries
+    assert set(AMBIGUOUS_FAMILY_WORDS) <= entries
+
+
+def _lists_in(code: str) -> list[tuple[list[str], bool]]:
+    """M6 (a): a stub in the red commit."""
+    return []
+
+
 # --- M21-W2 (#186, #180): the held-out check matches as the app does, and reads the wording tier -------
 
 
