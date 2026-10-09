@@ -77,6 +77,7 @@ struct FixtureDefaulted {
 
 enum FixtureStatics {
     static let tag = fixtureScreenRelay
+    static let associated = (objc_getAssociatedObject(Bundle.main, "q") as? String) ?? ""
 }
 
 func fixtureScreenKeeps() -> FixtureKept {

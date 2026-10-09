@@ -616,7 +616,9 @@ def _marked(mark: str) -> int:
      "decoded-in-extension", "through-any", "through-text", "served-fact", "fact-through-any",
      # The M21-W3 review's B3 and M1.
      "nsstring-parse", "formatter-parse", "scanner-parse", "anyhashable", "anyobject", "nsnumber",
-     "json-round-trip", "xor", "bitwise-not", "bitwise-and", "fact-nsnumber", "served-dollar"],
+     "json-round-trip", "xor", "bitwise-not", "bitwise-and", "fact-nsnumber", "served-dollar",
+     # A count of a list a served number builds (the review's M1 allowance, laundered).
+     "count-of-built", "range-count", "drop-count"],
 )
 def test_each_shape_the_second_review_planted_is_refused(shape: str) -> None:
     """#173 (D-181, G-2): every operator, method and name the second M19-W2 review planted past the
@@ -654,7 +656,8 @@ def test_every_route_172_names_into_a_sink_is_refused() -> None:
 # --- The M21-W3 review (docs/reviews/m21-wave-3-review.md) ------------------------------------------------
 
 
-@pytest.mark.parametrize("mark", ["nearby-row-numbers", "positions-count", "indices-count", "row-numbers"])
+@pytest.mark.parametrize("mark", ["nearby-row-numbers", "positions-count", "indices-count", "row-numbers",
+                                  "keypath-count"])
 def test_counts_and_row_numbers_are_not_served_numbers(mark: str) -> None:
     """The review's M1: a count of served numbers, a row number, and a closure's `$0` a few lines below a
     served one are not served numbers; the served `$0` itself still is (`served-dollar`)."""
@@ -722,3 +725,17 @@ def test_the_text_tripwire_reads_what_the_compiled_gate_reads() -> None:
     text = _served_numbers(fixture)
     assert text == compiled, (sorted(compiled - text), sorted(text - compiled))
     assert {"whyFact", "tradeOffFact", "number", "number(_:)"} <= _served_numbers()
+
+
+def test_reflection_and_the_runtime_by_name_are_refused() -> None:
+    """Past the review's K1 (#241): `Mirror` reads any stored field by name, past the served-field flow
+    (G-2); the ObjectiveC runtime's associated objects carry the reader's words from the screen to code
+    a sink runs (G-1); and the runtime's class, method and selector functions reach code by name. The
+    client uses none of them, so each is refused outright."""
+    assert _refused_in("Arithmetic.swift", "Mirror")
+    assert _refused_in("ContentView.swift", "objc_setAssociatedObject")
+    assert _refused_in("Detail.swift", "objc_getAssociatedObject")
+    for symbol in ("NSClassFromString(_:", "NSSelectorFromString(_:", "class_getInstanceMethod(_:_:",
+                   "method_exchangeImplementations(_:_:", "Mirror.init(reflecting:"):
+        problem = gate._capability_problem("ContentView.swift", symbol, symbol)
+        assert problem is not None and "by name" in problem, (symbol, problem)

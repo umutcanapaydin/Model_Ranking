@@ -272,6 +272,12 @@ func fixtureViewReadsAnAddressAsAMutableArray(_ address: URL) -> NSMutableArray?
     NSMutableArray(contentsOf: address)
 }
 
+// The ObjectiveC runtime's associated objects: the screen hangs the reader's words on a shared
+// object, and code a sink runs takes them off it (Detail.swift). REFUSED by name, both.
+func fixtureViewAssociates(_ typed: String) {
+    objc_setAssociatedObject(Bundle.main, "q", typed, .OBJC_ASSOCIATION_RETAIN)
+}
+
 // The M21-W3 review's M4: the launch arguments, a Debug-only hook, compiled into Release. REFUSED in the
 // Release configurations only.
 func fixtureViewReadsTheLaunch() -> [String] {

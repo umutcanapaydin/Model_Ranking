@@ -95,3 +95,12 @@ func shapeNearbyRowNumbers(_ list: [Standing]) -> [Int] { list.enumerated().map 
 func shapePositionsCount(_ list: [Standing]) -> Int { let positions = list.map(\.position); return positions.count + 1 } // allowed: positions-count
 func shapeIndicesCount(_ s: Standing) -> Int { [s.position].indices.count - 1 } // allowed: indices-count
 func shapeRowNumbers(_ list: [Standing]) -> [Int] { list.map(\.position).enumerated().map { $0.offset + 1 } } // allowed: row-numbers
+func shapeKeyPathCount(_ list: [Standing]) -> Int { list.map(\.position).count + 1 } // allowed: keypath-count
+
+// The M21-W3 review's M1 allowance, laundered: a count of a list a served number BUILDS (its length,
+// a range's bound, how many are dropped) is a function of that number. REFUSED, each. A served number
+// read by reflection is refused by name (Mirror).
+func shapeCountOfBuilt(_ s: Standing) -> Int { Array(repeating: 0, count: s.position).count + 1 } // shape: count-of-built
+func shapeRangeCount(_ s: Standing) -> Int { (0..<s.position).count * 2 } // shape: range-count
+func shapeDropCount(_ s: Standing) -> Int { [1, 2, 3].dropFirst(s.position).count + 1 } // shape: drop-count
+func shapeMirror(_ s: Standing) -> Int { (Mirror(reflecting: s).children.first?.value as? Int ?? 0) + 1 }

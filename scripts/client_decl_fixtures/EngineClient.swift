@@ -75,6 +75,7 @@ struct FixtureKept {
 struct FixtureRoutesClient {
     func boardsDefaulted() -> String { FixtureDefaulted().tag }
     func boardsStatic() -> String { FixtureStatics.tag }
+    func boardsAssociated() -> String { FixtureStatics.associated }
     func boardsKept(_ kept: FixtureKept) -> String { kept.make() }
     func boardsThreadState() -> String { (Thread.main.threadDictionary["q"] as? String) ?? "" }
     func boardsNotified() -> String {
