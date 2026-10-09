@@ -332,10 +332,10 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
     `priceInPages` in `Router.swift` and `Language.swift`.
   - `scripts/client_decl_gate.py`: the network belongs only to `EngineClient.swift`, and the file
     system only to `FrontDoor.swift` and `StandingsStore.swift`. It reads what the compiler resolved,
-    in all four build configurations: the two privacy sinks hold only values and call only what is
-    listed (D-180), arithmetic on a served number is followed through the names D-181 lists, a URL
-    made anywhere else is the network (#107), and a pin reads only code some build compiles (#110).
-    Gaps G-1 and G-2 in `docs/security-invariants.md` hold what they do not follow.
+    in all four build configurations, and refuses only the forms its lists name: a privacy sink's
+    mutable state and unlisted calls (D-180), arithmetic on a served number through the names D-181
+    lists, and a URL made anywhere else (#107); and a pin reads only code some build compiles (#110).
+    Gaps G-1, G-2, G-11 and G-12 in `docs/security-invariants.md` name what the lists do not hold.
   - `tests/unit/test_router_hints.py`: nothing the reader types reaches an engine call.
   - `make ui-test` (D-175): the screen's paths in the simulator, with scripted routing through the
     same boundary. It runs on the owner's Mac only, never in CI.
