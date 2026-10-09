@@ -283,21 +283,36 @@ def test_the_blend_the_detail_screen_states_is_the_engines() -> None:
 
 
 #: Numbers the ENGINE decided. Rounding, ordering and comparison of these belong to D-104/105/109.
-SERVED_NUMBERS = (
-    "score",
-    "secondaryScore",
-    "blendedPerM",
-    "inputPerM",
-    "outputPerM",
-    "higherEffortScore",
-    "eligibleCount",
-    "frontierSize",
-)
+#: #169 (M21-W3): a type the client decodes, opening on its own line, and a stored numeric property one
+#: level inside it. The compiled gate reads the same from the compiler (`served_fields`); this is its
+#: half for the lanes with no Xcode, so the two lists cannot say different things.
+DECODED_STRUCT = re.compile(r"^(?:\w+ )*(?:struct|class) (\w+)\b[^{\n]*\b(?:Decodable|Codable)\b[^{\n]*\{", re.M)
+STORED_NUMBER = re.compile(r"^    (?:(?:public|private|internal|fileprivate) )?(?:let|var) (\w+): "
+                           r"(?:U?Int(?:8|16|32|64)?|Double|Float|CGFloat|Decimal)\??\s*(?:$|//|=)", re.M)
 
 
 def _served_numbers(sources: dict[str, str] | None = None) -> set[str]:
-    """#169: the served numbers, from the decoded types (a stub in the red commit)."""
-    return set(SERVED_NUMBERS)
+    """#169: every stored number a decoded type holds, as the compiled gate derives it, less the
+    types the engine never sends (`NOT_SERVED` in `scripts/client_decl_gate.py`)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("client_decl_gate", CLIENT.parents[1] / "scripts/client_decl_gate.py")
+    assert spec and spec.loader
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    found: set[str] = set()
+    for text in (sources if sources is not None else _swift_sources()).values():
+        for declared in DECODED_STRUCT.finditer(text):
+            if declared.group(1) in gate.NOT_SERVED:
+                continue
+            body = text[declared.end():]
+            closing = re.search(r"^\}", body, re.M)
+            found |= set(STORED_NUMBER.findall(body[: closing.start()] if closing else body))
+    return found
+
+
+#: The served numbers the text tripwire watches, derived (#169).
+SERVED_NUMBERS = tuple(sorted(_served_numbers()))
 
 
 def test_the_client_performs_no_arithmetic_on_a_number_the_engine_sent() -> None:
