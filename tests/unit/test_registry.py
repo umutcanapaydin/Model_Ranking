@@ -12,6 +12,7 @@ from app.workflows.ingest import RunContext, ingest_litellm, ingest_swebench
 from app.workflows.registry import (
     MODEL_RULES,
     canonicalize,
+    canonicalize_with_reason,
     derive_identity,
     reconcile,
     split_harness,
@@ -673,3 +674,39 @@ def test_no_gpt5_minor_release_rule_takes_another_releases_variant(minor: str, v
         rule = canonicalize(name)
         own = f"gpt-{minor}-{variant.lower().removeprefix('thinking').strip(' -')}"
         assert rule is None or rule.canonical_id == own, (name, rule)
+
+
+# --- M21-W1 -----------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("name", "model"),
+    [
+        ("DeepSeek V3 (0324)", "deepseek-v3-0324"),
+        ("DeepSeek-V3 (Mar 2025)", "deepseek-v3-0324"),
+        ("deepseek-v3-0324", "deepseek-v3-0324"),
+        ("DeepSeek Chat V3 (prev)", "deepseek-v3"),
+        ("DeepSeek-V3", "deepseek-v3"),
+        ("deepseek-r1-0528", "deepseek-r1-0528"),
+        ("DeepSeek R1 (0528)", "deepseek-r1-0528"),
+        ("deepseek-r1", "deepseek-r1"),
+        ("DeepSeek R1", "deepseek-r1"),
+    ],
+)
+def test_a_release_its_maker_names_apart_is_its_own_model(name: str, model: str) -> None:
+    """#163 (D-189): DeepSeek publishes V3-0324 and R1-0528 as releases of their own, and a board that
+    ranks both beside V3 and R1 ranked one model twice; a board's best row then put V3-0324's scores on
+    V3. Each is its own model, whichever way a board spells its date."""
+    rule = canonicalize(name)
+    assert rule is not None and rule.canonical_id == model, (name, rule)
+
+
+@pytest.mark.parametrize(
+    "alias", ["ft:gpt-4o-2024-08-06", "ft:gpt-4.1-mini-2025-04-14", "openai/ft:o4-mini-2025-04-16"]
+)
+def test_a_fine_tunes_price_never_reaches_its_base_model(alias: str) -> None:
+    """#165: a fine-tune is its owner's model, priced as one (D-157 refuses it on the derive path). The
+    curated rules matched it by search, so `ft:gpt-4o-...` fed `gpt-4o`'s price median at twice its
+    price. It is refused for its reason, as the modality guard refuses an image model."""
+    assert canonicalize_with_reason(alias) == (None, "fine-tune")
+    assert canonicalize(alias) is None

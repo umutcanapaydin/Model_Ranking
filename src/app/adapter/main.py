@@ -258,6 +258,11 @@ def rate_window_count() -> int:
     return len(_RATE_WINDOWS)
 
 
+def rate_window_used(key: str, now: float) -> int:
+    """What `key` has used of this minute's window (a stub in the red commit)."""
+    return -1
+
+
 def rate_table_scans() -> int:
     """How many times a full table was scanned for an earlier minute's entries (tests)."""
     return _RATE_STATE["scans"]

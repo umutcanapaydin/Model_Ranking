@@ -337,7 +337,9 @@ def test_a_boards_answer_after_light_requests_crosses_the_limit_and_is_said(
 
     monkeypatch.setenv("MODEL_RANKING_RATE_LIMIT", "120")
     ip = {"Fly-Client-IP": "203.0.113.70"}
+    # #228: the boards window is its own, so light requests never cross it; four boards answers do.
     assert all(client.get("/v1/budgets", headers=ip).status_code == 200 for _ in range(100))
+    assert all(client.get("/v1/boards", headers=ip).status_code == 200 for _ in range(4))
     with caplog.at_level(logging.INFO, logger=main.__name__):
         assert client.get("/v1/boards", headers=ip).status_code == 429
     assert any("rate limited" in record.getMessage() for record in caplog.records)
@@ -356,3 +358,23 @@ def test_a_limit_below_a_boards_weight_still_serves_one_boards_answer_a_minute(
     assert [client.get("/v1/boards", headers=ip).status_code for _ in range(2)] == [200, 429]
     monkeypatch.setattr(main, "_rate_clock", lambda: 1860.0)
     assert client.get("/v1/boards", headers=ip).status_code == 200
+
+
+
+def test_standings_never_block_questions(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#228: phones behind one carrier address fetch their standings in the same minute. `/v1/boards`
+    counts in a window of its own, so five fetches refuse the fifth fetch and never a question."""
+    monkeypatch.setenv("MODEL_RANKING_RATE_LIMIT", "120")
+    ip = {"Fly-Client-IP": "203.0.113.90"}
+    boards = [client.get("/v1/boards", headers=ip).status_code for _ in range(5)]
+    assert boards == [200, 200, 200, 200, 429]
+    assert all(client.get("/v1/budgets", headers=ip).status_code == 200 for _ in range(100))
+
+
+def test_a_refused_request_is_not_charged() -> None:
+    """#228: a request the limiter refuses costs nothing, so a client that waits is served at once."""
+    from app.adapter import main
+
+    main.reset_rate_windows()
+    assert [main._over_limit("k", 3, 600.0)[0] for _ in range(6)] == [False, False, False, True, True, True]
+    assert main.rate_window_used("k", 600.0) == 3

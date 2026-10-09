@@ -330,3 +330,21 @@ def test_no_table_keeps_a_row_of_a_left_out_source(tmp_path: Path, planted: None
                 left = conn.execute(f"SELECT count(*) FROM {table} WHERE source IN ({','.join('?' * len(EXPECTED_LEFT_OUT))})",
                                     tuple(EXPECTED_LEFT_OUT)).fetchone()[0]
                 assert left == 0, table
+
+
+def test_a_missed_copy_of_a_left_out_source_stops_the_derivation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, planted: None
+) -> None:
+    """#205: LiteLLM's `openrouter/` aliases are a copy of a left-out source's prices. The survivor check
+    counted only rows by source, so a missed alias delete passed; it counts the copies too."""
+    built, served = tmp_path / "built.db", tmp_path / "public.db"
+    _seeded_db(built)
+    with sqlite3.connect(built) as conn:
+        conn.execute("INSERT INTO pricing (alias, model_id, input_per_m, output_per_m, source, source_url,"
+                     " observed_at) SELECT 'openrouter/' || alias, model_id, input_per_m, output_per_m, 'litellm',"
+                     " source_url, observed_at FROM pricing WHERE source = 'litellm'")
+    what, _statement, *rest = public._COPIES_OF["openrouter"]
+    monkeypatch.setitem(public._COPIES_OF, "openrouter", (what, "DELETE FROM pricing WHERE 0", *rest))
+    with pytest.raises(ValueError, match="survived"):
+        public.derive(built, served)
+    assert not served.exists()
