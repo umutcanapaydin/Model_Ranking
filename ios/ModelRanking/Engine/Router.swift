@@ -388,25 +388,26 @@ extension CategoryHints {
         InputSignals.folds(question).map { InputSignals.wordsOf($0).map(plain) }
     }
 
-    /// #218: Turkish words a short Turkish question carries, in plain letters: the question particles,
-    /// "which", "for", "the best", and the like. One alone is no proof ("mi" is an English "MI"); two are.
+    /// #218: Turkish words a short Turkish question carries, in plain letters, each written only in
+    /// Turkish: the question particles, "which", "for", "better", "good", "AI" and the like. Not the
+    /// words other languages share ("en", "ne", "kim", "var"): the second review's M6.
     static let turkishQuestionWords: Set<String> = [
-        "mi", "mu", "midir", "mudur", "hangisi", "hangisini", "hangi", "nedir", "icin", "en", "iyi", "daha", "ve",
-        "bir", "ile", "ne", "nasil", "yapay", "zeka", "bana", "benim", "gibi", "kadar", "neden", "nerede", "kim",
-        "kac", "olan", "var", "yok",
+        "mi", "mu", "midir", "mudur", "hangisi", "hangisini", "hangi", "nedir", "icin", "iyi", "daha", "nasil",
+        "yapay", "zeka", "bana", "benim", "gibi", "kadar", "neden", "nerede", "kac", "olan", "yok",
     ]
 
-    /// #218 (the M21-W2 review's M5, D-191): whether a question reads as Turkish before the embedding is
-    /// tried. A letter only Turkish has (ı, ş, ğ, İ) decides alone; a letter it shares with German and the
-    /// Nordic languages (ç, ö, ü) and each Turkish word count as one signal, and two decide. A short
-    /// Turkish question is not confidently Turkish to the language recogniser ("claude mu chatgpt mi
-    /// almanca"), and the English embedding then places it on a surface it does not name; read as Turkish,
-    /// D-187's Turkish path answers it. "Zürich" or "the MI board exam" alone is no Turkish.
+    /// #218 (the M21-W2 reviews' M5 and M6, D-191): whether a question reads as Turkish before the embedding
+    /// is tried. A letter only Turkish has (dotless i, s-cedilla, soft g, dotted capital I) decides alone.
+    /// Otherwise each signal counts once per time it occurs: a letter Turkish shares with other languages
+    /// (c-cedilla, o-umlaut, u-umlaut), and each Turkish word written in lower case (a capitalised "Kim",
+    /// "MI" or "NE" is a name or a state code); two decide. A short Turkish question is not confidently
+    /// Turkish to the language recogniser ("claude mu chatgpt mi almanca"), and the English embedding
+    /// then places it on a surface it does not name; read as Turkish, D-187's Turkish path answers it.
     static func readsAsTurkish(_ question: String) -> Bool {
         if question.contains(where: { "ışğİŞĞ".contains($0) }) { return true }
         let shared = question.lowercased().contains(where: { "çöü".contains($0) }) ? 1 : 0
-        let words = Set(readings(question).flatMap { $0 }.filter(turkishQuestionWords.contains))
-        return shared + words.count >= 2
+        let lowercase = InputSignals.wordsOf(question).filter { $0 == $0.lowercased() }.map(plain)
+        return shared + lowercase.filter(turkishQuestionWords.contains).count >= 2
     }
 
     /// #206: the Turkish particles a question comparing models puts between their names.
@@ -450,29 +451,12 @@ extension CategoryHints {
         return nil
     }
 
-    /// #222 (M21-W2): a Turkish ask for "the best one" (`en iyisi`), "which one for" (`için hangisi`),
-    /// "which one is good", "one that helps" (`yardım ed…`) or a recommendation (`öner…`). General only beside a task or a model
-    /// (`askSubjects`), so "kahve için en iyisi hangisi" ("which is best for coffee") is not (the review's
-    /// M4, D-191). Written from the wave's own sentences.
-    static let turkishAsks = SurfaceWords(
-        id: "everyday", stems: ["oner"],
-        phrases: [["en", "iyisi"], ["icin", "hangisi*"], ["hangisi*", "iyi"], ["hangisini", "kullan*"],
-                  ["yardim", "ed*"]])
-    /// What a general ask must name: a model or AI, or a task a model does (to write, prepare, learn,
-    /// translate, solve, summarise, code, explain, plan, homework, correct, analyse).
-    static let askSubjects = SurfaceWords(
-        id: "everyday",
-        stems: ["model", "yapay", "chatbot", "asistan", "gpt", "yaz", "hazirla", "ogren", "cevir", "coz", "ozet",
-                "kodla", "anlat", "planla", "odev", "tercume", "duzelt", "analiz"],
-        words: ["ai", "llm", "zeka", "bot"])
-
-    /// `everyday` for a question about AI models in general, where the embedding cannot read it: the
-    /// general words, or a Turkish ask beside a task or a model.
+    /// `everyday` for a question about AI models in general, where the embedding cannot read it.
+    /// (#222's Turkish ask for "the best one" was read here at M21-W2 and taken out after its second
+    /// review: its task words have a second reading, D-191.)
     static func generalSurface(_ question: String, within known: [String]) -> String? {
-        let readings = readings(question), raw = question.lowercased()
-        let general = names(generalWords, readings, raw)
-            || (names(turkishAsks, readings, raw) && names(askSubjects, readings, raw))
-        return known.contains(generalWords.id) && general ? generalWords.id : nil
+        known.contains(generalWords.id) && names(generalWords, readings(question), question.lowercased())
+            ? generalWords.id : nil
     }
 
     private static func names(_ rule: SurfaceWords, _ readings: [[String]], _ raw: String) -> Bool {
@@ -584,9 +568,11 @@ struct SimilarityRouter: QuestionRouter {
         // D-187: a question that names a surface outright goes there, in either language and whether
         // or not the embedding below can load: the matches below need both, and either can be missing.
         let named = CategoryHints.namedSurface(question, within: known)
+        // #206 (the second review's M2): a comparison of model names is a general question, answered from
+        // `everyday` directly, whichever ranked families it names.
         if named == nil, CategoryHints.comparesModelsOnly(question) {
-            return CategoryHints.generalSurface(question, within: known)
-                .map { RoutingOutcome(categoryID: $0, tier: .similarity, unmeasured: false) }
+            return known.contains("everyday")
+                ? RoutingOutcome(categoryID: "everyday", tier: .similarity, unmeasured: false) : nil
         }
         // #218: a question that reads as Turkish never reaches the English embedding.
         guard !CategoryHints.readsAsTurkish(question), SimilarityRouter.readsEnglish(text),
