@@ -208,17 +208,19 @@ CATEGORIES: dict[str, CategorySpec] = {
     "web-dev": CategorySpec(
         id="web-dev",
         title="Web development",
-        primary_benchmark="WebDev Arena",
+        primary_benchmark="Arena WebDev",
         metric="elo",
         score_unit="Elo",
         secondary_benchmark=None,
-        primary_source="epoch_webdev",
-        # The other thin surface, on a different scale and for the same structural reason. 102 on
-        # the board, 49 ranked; the leader sits 30 Elo above second. A 100-Elo window admits 3 of
-        # those 49. Elo thresholds are NOT comparable to the percentage categories above -- that is
-        # what D-105 forbids.
-        value_window=100.0,
-        close_call=6.8,
+        # M21-W1 (#185): LMArena's own WebDev board, under its dataset card's CC-BY-4.0 grant, in
+        # place of Epoch's copy (`epoch_webdev`), which D-185 left out of the public artifact.
+        primary_source="arena_webdev",
+        # Measured on LMArena's board of 2026-10-08 with `scripts/calibrate_board.py --config webdev`
+        # (`docs/research/m21-w1-webdev-calibration.json`): 140 rows, 91 ranked; the median gap
+        # between pairs whose published 95% intervals overlap is 9.3 Elo; the window is the M8 rule's
+        # 37.3 Elo. Elo thresholds are NOT comparable to the percentage categories above (D-105).
+        value_window=37.3,
+        close_call=9.3,
     ),
     # ── M14-W2: two boards of the dataset `assistant` already reads (D-142, D-145) ─────────────
     #

@@ -76,6 +76,9 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     # M4-W2: named by Perplexity's documented plan roster, and live in both pricing
     # (claude-sonnet-5) and Arena (claude-sonnet-5-high).
     ModelRule("claude-5-sonnet",   "Claude Sonnet 5",   "Anthropic", r"claude[-_ ]?sonnet[-_ ]?5(?![.\-]?\d)|claude[-_ ]?5[-_ ]?sonnet"),
+    # M21-W1: Anthropic's Haiku 5.5 arrived on the 2026-10-08 boards and prices; derived, it was served
+    # under its raw id (`claude-haiku5.5`), so it is named here as Anthropic spells it.
+    ModelRule("claude-5.5-haiku",  "Claude Haiku 5.5",  "Anthropic", r"claude[-_ ]?5[.\-]5[-_ ]?haiku|claude[-_ ]?haiku[-_ ]?5[.\-]5(?!\d)"),
     ModelRule("claude-4.8-opus",   "Claude Opus 4.8",   "Anthropic", r"claude[-_ ]?4[.\-]8[-_ ]?opus|claude[-_ ]?opus[-_ ]?4[.\-]8"),
     ModelRule("claude-4.7-opus",   "Claude Opus 4.7",   "Anthropic", r"claude[-_ ]?4[.\-]7[-_ ]?opus|claude[-_ ]?opus[-_ ]?4[.\-]7"),
     ModelRule("claude-4.6-opus",   "Claude Opus 4.6",   "Anthropic", r"claude[-_ ]?4[.\-]6[-_ ]?opus|claude[-_ ]?opus[-_ ]?4[.\-]6"),

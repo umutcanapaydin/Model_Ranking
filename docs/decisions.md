@@ -4338,6 +4338,8 @@ a paid launch (then SWE-bench must go whatever else changes, and the table goes 
 
 **Amended by D-186 (2026-10-08)**: clause 3's table is not applied while the app is on TestFlight: the hosted engine serves every source; the table returns before production.
 
+**Amended by D-190 (2026-10-09)**: `web-dev` ranks on LMArena's own WebDev board (CC-BY-4.0), so the public artifact keeps the surface while `epoch_webdev` stays in clause 3's table (#185).
+
 ## D-186 — On TestFlight the hosted engine serves every source; the licences are settled before production
 
 **Status:** accepted -- decided by the owner on 2026-10-08, from the TestFlight build ("remove D-185;
@@ -4436,7 +4438,7 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    | `mathematics` | `epoch_aime`, `epoch_frontiermath`, `epoch_frontiermath_t4`, `arena_text_math` |
    | `computer-use` | `epoch_terminalbench`, `arena_agent` |
    | `abstract` | `epoch_arc_agi`, `epoch_chess`, `epoch_mystery` |
-   | `web-dev` | `epoch_webdev`, `arena_text_coding` |
+   | `web-dev` | `arena_webdev`, `arena_text_coding` |
    | `document` | `arena_document`, `arena_text_longer_query` |
    | `factuality` | `arena_factuality`, `epoch_simpleqa` |
    | `vision` | `arena_vision` |
@@ -4495,6 +4497,8 @@ simpler, but a new model ranked by two boards out of eight would never appear.
 answer to the family list. The labelled set of #195 cannot show it: it is labelled for the surface, not
 for the best model (M20-W5, `docs/research/m20-w5-family-probe.md` §4; the M20 repo review's M5).
 
+**Amended by D-190 (2026-10-09)**: clause 1's table -- `web-dev`'s family is `arena_webdev`, `arena_text_coding`; Epoch's copy of the same board stands outside (#185).
+
 ## D-189 — What a model is: a release its maker names, and an id that keeps its meaning
 
 **Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 (take
@@ -4533,4 +4537,29 @@ rows split): D-179's board guards count those links as changed rows, as they did
 
 **Revisit when:** a maker names a release apart that a board spells with a date this rule does not
 read, or a rerouted id's historical scores are needed (then pricing rows need a date).
+
+## D-190 — `web-dev` ranks on LMArena's own WebDev board
+
+**Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 · **Date:**
+2026-10-09 · **Amends** D-185 (what the public artifact can serve), D-188 clause 1 (the families table) ·
+from #185.
+
+**Context.** `web-dev`'s only board was Epoch's copy of the WebDev Arena leaderboard. Epoch cites arena.ai,
+whose site terms D-185 read as personal or internal business use, so its licence table keeps the copy off a
+public artifact, and the surface would go dark on the hosted engine once the table applies (D-186 empties it
+on TestFlight). LMArena publishes the same board in `lmarena-ai/leaderboard-dataset` (the `webdev` config)
+under the CC-BY-4.0 grant the engine's other Arena boards use.
+
+**Decision.**
+1. `arena_webdev` is declared as an Arena board (`ARENA_BOARDS["webdev"]`, optional as every Arena board is,
+   D-121) and is `web-dev`'s primary board, credited as the dataset is.
+2. Its thresholds are measured on the board, not carried over: `scripts/calibrate_board.py --config webdev`
+   on 2026-10-08 (`docs/research/m21-w1-webdev-calibration.json`): 140 rows, 91 ranked, a close call of 9.3
+   Elo and a window of 37.3 Elo (D-148's rules).
+3. `web-dev`'s family is `arena_webdev` and `arena_text_coding`. Epoch's copy is one vote with LMArena's
+   board, so it stands outside (D-188 clause 1), and stays in D-185's table.
+
+**Consequence.** The first refresh after the release adds the board. Until then the surface has no
+evidence on an artifact built by an older release, so the hosted engine is deployed after the owner's Mac
+has refreshed once (the deploy's stamp names the release that built the data, #198).
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import inspect
 import json
 import pathlib
@@ -274,14 +275,22 @@ def test_a_category_ranks_on_the_board_it_names_and_reads_the_metric_that_board_
     the agreement can be computed rather than restated. That is what makes it a gate and not a
     second copy of the table.
     """
+    from app.clients.arena import ARENA_BOARDS, METRIC
     from app.workflows.sources import EPOCH_BOARDS
 
-    boards = {b.source_name: b for b in EPOCH_BOARDS}
+    @dataclasses.dataclass(frozen=True)
+    class Declared:
+        benchmark: str
+        metric: str
+
+    boards = {b.source_name: Declared(b.benchmark, b.metric) for b in EPOCH_BOARDS}
+    # M21-W1 (#185): the Arena boards a surface ranks on declare theirs too.
+    boards |= {b.id: Declared(b.benchmark, METRIC) for b in ARENA_BOARDS.values()}
     checked = 0
     for name, spec in CATEGORIES.items():
         board = boards.get(spec.primary_source)
         if board is None:
-            continue  # not a declared Epoch board; covered by the registry test
+            continue  # not a declared board; covered by the registry test
         checked += 1
         assert spec.primary_benchmark == board.benchmark, (
             f"{name} says it ranks on {spec.primary_benchmark!r} and its source "
@@ -291,7 +300,8 @@ def test_a_category_ranks_on_the_board_it_names_and_reads_the_metric_that_board_
             f"{name} reads {spec.metric!r} from a board that publishes {board.metric!r}; a score "
             "relabelled onto another scale is D-105's defect with a different spelling"
         )
-    assert checked >= 6, f"expected the six board-backed categories to be checked; saw {checked}"
+    # `coding` (SWE-bench) and `agentic-coding` (DeepSWE) read clients of their own, not a declared table.
+    assert checked == len(CATEGORIES) - 2, f"every surface but the two coding ones is checked; saw {checked}"
 
 
 def test_no_threshold_is_on_a_scale_its_own_metric_cannot_reach() -> None:

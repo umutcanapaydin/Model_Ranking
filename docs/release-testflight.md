@@ -19,7 +19,9 @@ release's pull requests and the release's security verdict of record,
 1. **Merge** the M20 pull requests in order: #213 (the plans), #215, #217, #221, #224, #225, then the
    M20 closure. The M20 closure security seat says the release verdict stands for build 3
    (`docs/reviews/m20-closure-security-review.md`).
-2. **Deploy the engine first** (§1 steps 1, 5 and 6). An app built for M20 against the old engine shows
+2. **Deploy the engine first** (§1 steps 1, 5 and 6). From M21 on, let the Mac refresh once with the new
+   release before the deploy (§1 step 1): `web-dev`'s board (D-190) and the split DeepSeek releases (D-189)
+   arrive with the data, and the dry run says which release built it (#198). An app built for M20 against the old engine shows
    no family list, and says nothing about it.
 3. **Check the families are served:** `curl -s https://model-ranking.fly.dev/v1/categories | grep -c
    refined_board` must print a number above 0.

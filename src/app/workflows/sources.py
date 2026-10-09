@@ -32,6 +32,7 @@ from app.clients.arena import (
     ArenaSearchClient,
     ArenaSearchFactualityClient,
     ArenaVisionClient,
+    ArenaWebDevClient,
     parse_arena,
 )
 from app.clients.arena_slices import ArenaSliceClient
@@ -220,6 +221,16 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         ingest=ingest_arena,
         parse=parse_arena,
         minimum_rows=ARENA_BOARDS["search_factuality"].minimum_rows,
+        required=False,
+    ),
+    # M21-W1 (#185): LMArena's own WebDev board, `web-dev`'s primary under CC-BY-4.0. OPTIONAL as
+    # every Arena board is (D-121): without it the surface says it has no evidence.
+    RemoteSource(
+        name="arena_webdev",
+        client=ArenaWebDevClient,
+        ingest=ingest_arena,
+        parse=parse_arena,
+        minimum_rows=ARENA_BOARDS["webdev"].minimum_rows,
         required=False,
     ),
 )

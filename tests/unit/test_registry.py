@@ -710,3 +710,12 @@ def test_a_fine_tunes_price_never_reaches_its_base_model(alias: str) -> None:
     price. It is refused for its reason, as the modality guard refuses an image model."""
     assert canonicalize_with_reason(alias) == (None, "fine-tune")
     assert canonicalize(alias) is None
+
+
+@pytest.mark.parametrize("name", ["claude-haiku-5-5", "anthropic.claude-haiku-5-5", "openrouter/anthropic/claude-haiku-5.5",
+                                  "claude-haiku-5.5"])
+def test_claude_haiku_5_5_is_named_as_anthropic_spells_it(name: str) -> None:
+    """M21-W1: on the 2026-10-08 artifact Haiku 5.5 was derived and served as `claude-haiku5.5`
+    (`test_display_names.py` found it); a curated rule names it."""
+    rule = canonicalize(name)
+    assert rule is not None and (rule.canonical_id, rule.display) == ("claude-5.5-haiku", "Claude Haiku 5.5")
