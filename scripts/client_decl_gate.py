@@ -121,7 +121,12 @@ NETWORK = ("URLSession", "URLRequest", "URLComponents", "URLQueryItem", "NSURL",
            # #107: a link detector finds URLs in text; and any CALL whose result is a URL, whatever
            # it is called (`URL(_:strategy:)`, a decode wrapper in another file), is recorded under
            # `URL.made` by `url_facts`.
-           "NSDataDetector", "NSTextCheckingResult.url", "URL.made")
+           "NSDataDetector", "NSTextCheckingResult.url", "URL.made",
+           # #168: initialisers that load a URL, an https one included. The text gate's `contentsOf:`
+           # refuses their spelling; these refuse what the compiler binds.
+           "String.init(contentsOf", "NSString.init(contentsOf", "NSData.init(contentsOf",
+           "NSArray.init(contentsOf", "NSDictionary.init(contentsOf", "XMLParser.init(contentsOf",
+           "NSAttributedString.init(url", "NSAttributedString.init(contentsOf")
 NETWORK_FILE = "EngineClient.swift"
 
 #: Declarations that touch the file system, including the local-file half of `URL`. Only the files in
