@@ -40,3 +40,36 @@ extension ShapeDecoded: Decodable {}
 func shapeDecodedInExtension(_ d: ShapeDecoded) -> Int { d.points + 1 } // shape: decoded-in-extension
 
 func shapeFilterCount(_ s: Standing) -> Int { [s].filter { $0.position > 0 }.count + 1 } // allowed: filter-count
+
+// #171: a served number through `Any` and through text, and a served fact's number. REFUSED.
+func shapeThroughAny(_ s: Standing) -> Int {
+    var bag: [String: Any] = [:]
+    bag["p"] = s.position
+    return (bag["p"] as? Int ?? 0) + 1 // shape: through-any
+}
+
+func shapeThroughText(_ s: Standing) -> Int {
+    let text = "\(s.position)"
+    return (Int(text) ?? 0) + 1 // shape: through-text
+}
+
+enum ShapeValue: Decodable {
+    case number(Double)
+    case word(String)
+}
+
+struct ShapeFact: Decodable { let fact: ShapeValue }
+
+func shapeServedFact(_ f: ShapeFact) -> Double {
+    if case let .number(n) = f.fact { return n + 1 } // shape: served-fact
+    return 0
+}
+
+func shapeFactThroughAny(_ f: ShapeFact) -> Double {
+    var out: [String: Any] = [:]
+    if case let .number(n) = f.fact { out["n"] = n }
+    return (out["n"] as? Double ?? 0) * 2 // shape: fact-through-any
+}
+
+// ALLOWED: a label's length is not a served number.
+func shapeLabelLength(_ s: Standing) -> Int { "#\(s.position)".count + 1 } // allowed: label-length

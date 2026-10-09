@@ -643,7 +643,1220 @@
                                   (argument
                                     (integer_literal_expr type="Int" location=/x/Arithmetic.swift:42:74 range=[/x/Arithmetic.swift:42:74 - line:42:74] value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))))))))))
             (argument
-              (integer_literal_expr type="Int" location=/x/Arithmetic.swift:42:86 range=[/x/Arithmetic.swift:42:86 - line:42:86] value="1" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))))))))
+              (integer_literal_expr type="Int" location=/x/Arithmetic.swift:42:86 range=[/x/Arithmetic.swift:42:86 - line:42:86] value="1" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))))
+  (func_decl range=[/x/Arithmetic.swift:45:1 - line:49:1] "shapeThroughAny(_:)" interface_type="(Standing) -> Int" access=internal result="Int" thrown_type="<null>"
+    (parameter_list range=[/x/Arithmetic.swift:45:21 - line:45:35]
+      (parameter "s" interface_type="Standing"))
+    (brace_stmt range=[/x/Arithmetic.swift:45:44 - line:49:1]
+      (pattern_binding_decl range=[/x/Arithmetic.swift:46:5 - line:46:32]
+        (pattern_entry
+          (pattern_typed type="[String : Any]"
+            (pattern_named type="[String : Any]" "bag")
+            (type_dictionary
+              (type_unqualified_ident id="String" bind="Swift.(file).String")
+              (type_composite)))
+          (original_init=dictionary_expr type="[String : Any]" location=/x/Arithmetic.swift:46:30 range=[/x/Arithmetic.swift:46:30 - line:46:32] initializer="Swift.(file).Dictionary extension.init(dictionaryLiteral:) [with (substitution_map generic_signature=<Key, Value where Key : Hashable, Value : Copyable, Value : Escapable> Key -> String Value -> Any)]")
+          (processed_init=dictionary_expr type="[String : Any]" location=/x/Arithmetic.swift:46:30 range=[/x/Arithmetic.swift:46:30 - line:46:32] initializer="Swift.(file).Dictionary extension.init(dictionaryLiteral:) [with (substitution_map generic_signature=<Key, Value where Key : Hashable, Value : Copyable, Value : Escapable> Key -> String Value -> Any)]")))
+      (var_decl range=[/x/Arithmetic.swift:46:9 - line:46:9] "bag" interface_type="[String : Any]" access=private readImpl=stored writeImpl=stored readWriteImpl=stored
+        (has_initial_value_attr implicit)
+        (has_storage_attr implicit))
+      (assign_expr type="()" location=/x/Arithmetic.swift:47:14 range=[/x/Arithmetic.swift:47:5 - line:47:18]
+        (subscript_expr type="@lvalue Any?" location=/x/Arithmetic.swift:47:8 range=[/x/Arithmetic.swift:47:5 - line:47:12] decl="Swift.(file).Dictionary extension.subscript(_:) [with (substitution_map generic_signature=<Key, Value where Key : Hashable, Value : Copyable, Value : Escapable> Key -> String Value -> Any)]"
+          (inout_expr implicit type="inout Dictionary<String, Any>" location=/x/Arithmetic.swift:47:5 range=[/x/Arithmetic.swift:47:5 - line:47:5]
+            (declref_expr type="@lvalue [String : Any]" location=/x/Arithmetic.swift:47:5 range=[/x/Arithmetic.swift:47:5 - line:47:5] decl="main.(file).shapeThroughAny(_:).bag@/x/Arithmetic.swift:46:9" function_ref=unapplied))
+          (argument_list
+            (argument
+              (string_literal_expr type="String" location=/x/Arithmetic.swift:47:9 range=[/x/Arithmetic.swift:47:9 - line:47:9] encoding=utf8 value="p" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))))
+        (inject_into_optional implicit type="Any?" location=/x/Arithmetic.swift:47:18 range=[/x/Arithmetic.swift:47:16 - line:47:18]
+          (erasure_expr implicit type="Any" location=/x/Arithmetic.swift:47:18 range=[/x/Arithmetic.swift:47:16 - line:47:18]
+            (builtin_conformance type="Int" protocol="Copyable" synthesized nonisolated)
+            (builtin_conformance type="Int" protocol="Escapable" synthesized nonisolated)
+            (member_ref_expr type="Int" location=/x/Arithmetic.swift:47:18 range=[/x/Arithmetic.swift:47:16 - line:47:18] decl="main.(file).Standing.position@/x/Models.swift:7:9"
+              (declref_expr type="Standing" location=/x/Arithmetic.swift:47:16 range=[/x/Arithmetic.swift:47:16 - line:47:16] decl="main.(file).shapeThroughAny(_:).s@/x/Arithmetic.swift:45:24" function_ref=unapplied)))))
+      (return_stmt range=[/x/Arithmetic.swift:48:5 - line:48:38]
+        (binary_expr type="Int" location=/x/Arithmetic.swift:48:36 range=[/x/Arithmetic.swift:48:12 - line:48:38] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr implicit type="(Int, Int) -> Int" location=/x/Arithmetic.swift:48:36 range=[/x/Arithmetic.swift:48:36 - line:48:36] nothrow isolation_crossing="none"
+            (declref_expr type="(Int.Type) -> (Int, Int) -> Int" location=/x/Arithmetic.swift:48:36 range=[/x/Arithmetic.swift:48:36 - line:48:36] decl="Swift.(file).Int extension.+" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (type_expr implicit type="Int.Type" location=/x/Arithmetic.swift:48:36 range=[/x/Arithmetic.swift:48:36 - line:48:36] typerepr="Int"))))
+          (argument_list implicit
+            (argument
+              (paren_expr type="Int" location=/x/Arithmetic.swift:48:30 range=[/x/Arithmetic.swift:48:12 - line:48:34]
+                (binary_expr type="Int" location=/x/Arithmetic.swift:48:30 range=[/x/Arithmetic.swift:48:13 - line:48:33] nothrow isolation_crossing="none"
+                  (declref_expr type="(consuming Int?, @autoclosure () throws -> Int) throws -> Int" location=/x/Arithmetic.swift:48:30 range=[/x/Arithmetic.swift:48:30 - line:48:30] decl="Swift.(file).?? [with (substitution_map generic_signature=<T where T : Escapable> T -> Int)]" function_ref=single apply)
+                  (argument_list implicit
+                    (argument
+                      (optional_evaluation_expr implicit type="Int?" location=/x/Arithmetic.swift:48:22 range=[/x/Arithmetic.swift:48:13 - line:48:26]
+                        (conditional_checked_cast_expr type="Int?" location=/x/Arithmetic.swift:48:22 range=[/x/Arithmetic.swift:48:13 - line:48:26] value_cast written_type="Int"
+                          (bind_optional_expr implicit type="Any" location=/x/Arithmetic.swift:48:16 range=[/x/Arithmetic.swift:48:13 - line:48:20] depth=0
+                            (load_expr implicit type="Any?" location=/x/Arithmetic.swift:48:16 range=[/x/Arithmetic.swift:48:13 - line:48:20]
+                              (subscript_expr type="@lvalue Any?" location=/x/Arithmetic.swift:48:16 range=[/x/Arithmetic.swift:48:13 - line:48:20] decl="Swift.(file).Dictionary extension.subscript(_:) [with (substitution_map generic_signature=<Key, Value where Key : Hashable, Value : Copyable, Value : Escapable> Key -> String Value -> Any)]"
+                                (inout_expr implicit type="inout Dictionary<String, Any>" location=/x/Arithmetic.swift:48:13 range=[/x/Arithmetic.swift:48:13 - line:48:13]
+                                  (declref_expr type="@lvalue [String : Any]" location=/x/Arithmetic.swift:48:13 range=[/x/Arithmetic.swift:48:13 - line:48:13] decl="main.(file).shapeThroughAny(_:).bag@/x/Arithmetic.swift:46:9" function_ref=unapplied))
+                                (argument_list
+                                  (argument
+                                    (string_literal_expr type="String" location=/x/Arithmetic.swift:48:17 range=[/x/Arithmetic.swift:48:17 - line:48:17] encoding=utf8 value="p" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
+                    (argument
+                      (autoclosure_expr implicit type="() throws -> Int" location=/x/Arithmetic.swift:48:33 range=[/x/Arithmetic.swift:48:33 - line:48:33] discriminator=0 nonisolated
+                        (parameter_list)
+                        (integer_literal_expr type="Int" location=/x/Arithmetic.swift:48:33 range=[/x/Arithmetic.swift:48:33 - line:48:33] value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))))
+            (argument
+              (integer_literal_expr type="Int" location=/x/Arithmetic.swift:48:38 range=[/x/Arithmetic.swift:48:38 - line:48:38] value="1" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))))
+  (func_decl range=[/x/Arithmetic.swift:51:1 - line:54:1] "shapeThroughText(_:)" interface_type="(Standing) -> Int" access=internal result="Int" thrown_type="<null>"
+    (parameter_list range=[/x/Arithmetic.swift:51:22 - line:51:36]
+      (parameter "s" interface_type="Standing"))
+    (brace_stmt range=[/x/Arithmetic.swift:51:45 - line:54:1]
+      (pattern_binding_decl range=[/x/Arithmetic.swift:52:5 - line:52:16]
+        (pattern_entry
+          (pattern_named type="String" "text")
+          (original_init=interpolated_string_literal_expr type="String" location=/x/Arithmetic.swift:52:16 range=[/x/Arithmetic.swift:52:16 - line:52:16] literal_capacity=0 interpolation_count=1 builder_init="Swift.(file).DefaultStringInterpolation.init(literalCapacity:interpolationCount:)" result_init="Swift.(file).String extension.init(stringInterpolation:)"
+            (tap_expr implicit type="String.StringInterpolation" location=/x/Arithmetic.swift:52:16 range=[/x/Arithmetic.swift:52:16 - line:52:30] var="main.(file).shapeThroughText(_:).$interpolation"
+              (opaque_value_expr implicit type="String.StringInterpolation" location=/x/Arithmetic.swift:52:16 range=[/x/Arithmetic.swift:52:16 - line:52:16] 0x0)
+              (brace_stmt implicit range=[/x/Arithmetic.swift:52:17 - line:52:30]
+                (var_decl implicit "$interpolation" interface_type="String.StringInterpolation" access=private readImpl=stored writeImpl=stored readWriteImpl=stored
+                  (has_storage_attr implicit))
+                (call_expr implicit type="()" location=/x/Arithmetic.swift:52:17 range=[/x/Arithmetic.swift:52:17 - line:52:16] nothrow isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(String) -> ()" location=/x/Arithmetic.swift:52:17 range=[/x/Arithmetic.swift:52:17 - line:52:16] nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(inout DefaultStringInterpolation) -> (String) -> ()" location=/x/Arithmetic.swift:52:16 range=[/x/Arithmetic.swift:52:16 - line:52:16] decl="Swift.(file).DefaultStringInterpolation.appendLiteral" function_ref=single apply)
+                    (argument_list implicit
+                      (argument inout
+                        (inout_expr implicit type="inout DefaultStringInterpolation" location=/x/Arithmetic.swift:52:17 range=[/x/Arithmetic.swift:52:17 - line:52:17]
+                          (declref_expr implicit type="@lvalue String.StringInterpolation" location=/x/Arithmetic.swift:52:17 range=[/x/Arithmetic.swift:52:17 - line:52:17] decl="main.(file).shapeThroughText(_:).$interpolation" function_ref=unapplied)))))
+                  (argument_list implicit
+                    (argument
+                      (string_literal_expr type="String" location=/x/Arithmetic.swift:52:16 range=[/x/Arithmetic.swift:52:16 - line:52:16] encoding=utf8 value="" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))))
+                (call_expr type="()" location=/x/Arithmetic.swift:52:18 range=[/x/Arithmetic.swift:52:18 - line:52:29] nothrow isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(Int) -> ()" location=/x/Arithmetic.swift:52:18 range=[/x/Arithmetic.swift:52:18 - line:52:18] nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(inout DefaultStringInterpolation) -> (Int) -> ()" location=/x/Arithmetic.swift:52:18 range=[/x/Arithmetic.swift:52:18 - line:52:18] decl="Swift.(file).DefaultStringInterpolation.appendInterpolation [with (substitution_map generic_signature=<T where T : CustomStringConvertible> T -> Int)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument inout
+                        (inout_expr implicit type="inout DefaultStringInterpolation" location=/x/Arithmetic.swift:52:18 range=[/x/Arithmetic.swift:52:18 - line:52:18]
+                          (declref_expr implicit type="@lvalue String.StringInterpolation" location=/x/Arithmetic.swift:52:18 range=[/x/Arithmetic.swift:52:18 - line:52:18] decl="main.(file).shapeThroughText(_:).$interpolation" function_ref=unapplied)))))
+                  (argument_list
+                    (argument
+                      (member_ref_expr type="Int" location=/x/Arithmetic.swift:52:21 range=[/x/Arithmetic.swift:52:19 - line:52:21] decl="main.(file).Standing.position@/x/Models.swift:7:9"
+                        (declref_expr type="Standing" location=/x/Arithmetic.swift:52:19 range=[/x/Arithmetic.swift:52:19 - line:52:19] decl="main.(file).shapeThroughText(_:).s@/x/Arithmetic.swift:51:25" function_ref=unapplied)))))
+                (call_expr implicit type="()" location=/x/Arithmetic.swift:52:30 range=[/x/Arithmetic.swift:52:30 - line:52:30] nothrow isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(String) -> ()" location=/x/Arithmetic.swift:52:30 range=[/x/Arithmetic.swift:52:30 - line:52:30] nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(inout DefaultStringInterpolation) -> (String) -> ()" location=/x/Arithmetic.swift:52:30 range=[/x/Arithmetic.swift:52:30 - line:52:30] decl="Swift.(file).DefaultStringInterpolation.appendLiteral" function_ref=single apply)
+                    (argument_list implicit
+                      (argument inout
+                        (inout_expr implicit type="inout DefaultStringInterpolation" location=/x/Arithmetic.swift:52:30 range=[/x/Arithmetic.swift:52:30 - line:52:30]
+                          (declref_expr implicit type="@lvalue String.StringInterpolation" location=/x/Arithmetic.swift:52:30 range=[/x/Arithmetic.swift:52:30 - line:52:30] decl="main.(file).shapeThroughText(_:).$interpolation" function_ref=unapplied)))))
+                  (argument_list implicit
+                    (argument
+                      (string_literal_expr type="String" location=/x/Arithmetic.swift:52:30 range=[/x/Arithmetic.swift:52:30 - line:52:30] encoding=utf8 value="" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))
+          (processed_init=interpolated_string_literal_expr type="String" location=/x/Arithmetic.swift:52:16 range=[/x/Arithmetic.swift:52:16 - line:52:16] literal_capacity=0 interpolation_count=1 builder_init="Swift.(file).DefaultStringInterpolation.init(literalCapacity:interpolationCount:)" result_init="Swift.(file).String extension.init(stringInterpolation:)"
+            (tap_expr implicit type="String.StringInterpolation" location=/x/Arithmetic.swift:52:16 range=[/x/Arithmetic.swift:52:16 - line:52:30] var="main.(file).shapeThroughText(_:).$interpolation"
+              (opaque_value_expr implicit type="String.StringInterpolation" location=/x/Arithmetic.swift:52:16 range=[/x/Arithmetic.swift:52:16 - line:52:16] 0x0)
+              (brace_stmt implicit range=[/x/Arithmetic.swift:52:17 - line:52:30]
+                (var_decl implicit "$interpolation" interface_type="String.StringInterpolation" access=private readImpl=stored writeImpl=stored readWriteImpl=stored
+                  (has_storage_attr implicit))
+                (call_expr implicit type="()" location=/x/Arithmetic.swift:52:17 range=[/x/Arithmetic.swift:52:17 - line:52:16] nothrow isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(String) -> ()" location=/x/Arithmetic.swift:52:17 range=[/x/Arithmetic.swift:52:17 - line:52:16] nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(inout DefaultStringInterpolation) -> (String) -> ()" location=/x/Arithmetic.swift:52:16 range=[/x/Arithmetic.swift:52:16 - line:52:16] decl="Swift.(file).DefaultStringInterpolation.appendLiteral" function_ref=single apply)
+                    (argument_list implicit
+                      (argument inout
+                        (inout_expr implicit type="inout DefaultStringInterpolation" location=/x/Arithmetic.swift:52:17 range=[/x/Arithmetic.swift:52:17 - line:52:17]
+                          (declref_expr implicit type="@lvalue String.StringInterpolation" location=/x/Arithmetic.swift:52:17 range=[/x/Arithmetic.swift:52:17 - line:52:17] decl="main.(file).shapeThroughText(_:).$interpolation" function_ref=unapplied)))))
+                  (argument_list implicit
+                    (argument
+                      (string_literal_expr type="String" location=/x/Arithmetic.swift:52:16 range=[/x/Arithmetic.swift:52:16 - line:52:16] encoding=utf8 value="" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))))
+                (call_expr type="()" location=/x/Arithmetic.swift:52:18 range=[/x/Arithmetic.swift:52:18 - line:52:29] nothrow isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(Int) -> ()" location=/x/Arithmetic.swift:52:18 range=[/x/Arithmetic.swift:52:18 - line:52:18] nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(inout DefaultStringInterpolation) -> (Int) -> ()" location=/x/Arithmetic.swift:52:18 range=[/x/Arithmetic.swift:52:18 - line:52:18] decl="Swift.(file).DefaultStringInterpolation.appendInterpolation [with (substitution_map generic_signature=<T where T : CustomStringConvertible> T -> Int)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument inout
+                        (inout_expr implicit type="inout DefaultStringInterpolation" location=/x/Arithmetic.swift:52:18 range=[/x/Arithmetic.swift:52:18 - line:52:18]
+                          (declref_expr implicit type="@lvalue String.StringInterpolation" location=/x/Arithmetic.swift:52:18 range=[/x/Arithmetic.swift:52:18 - line:52:18] decl="main.(file).shapeThroughText(_:).$interpolation" function_ref=unapplied)))))
+                  (argument_list
+                    (argument
+                      (member_ref_expr type="Int" location=/x/Arithmetic.swift:52:21 range=[/x/Arithmetic.swift:52:19 - line:52:21] decl="main.(file).Standing.position@/x/Models.swift:7:9"
+                        (declref_expr type="Standing" location=/x/Arithmetic.swift:52:19 range=[/x/Arithmetic.swift:52:19 - line:52:19] decl="main.(file).shapeThroughText(_:).s@/x/Arithmetic.swift:51:25" function_ref=unapplied)))))
+                (call_expr implicit type="()" location=/x/Arithmetic.swift:52:30 range=[/x/Arithmetic.swift:52:30 - line:52:30] nothrow isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(String) -> ()" location=/x/Arithmetic.swift:52:30 range=[/x/Arithmetic.swift:52:30 - line:52:30] nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(inout DefaultStringInterpolation) -> (String) -> ()" location=/x/Arithmetic.swift:52:30 range=[/x/Arithmetic.swift:52:30 - line:52:30] decl="Swift.(file).DefaultStringInterpolation.appendLiteral" function_ref=single apply)
+                    (argument_list implicit
+                      (argument inout
+                        (inout_expr implicit type="inout DefaultStringInterpolation" location=/x/Arithmetic.swift:52:30 range=[/x/Arithmetic.swift:52:30 - line:52:30]
+                          (declref_expr implicit type="@lvalue String.StringInterpolation" location=/x/Arithmetic.swift:52:30 range=[/x/Arithmetic.swift:52:30 - line:52:30] decl="main.(file).shapeThroughText(_:).$interpolation" function_ref=unapplied)))))
+                  (argument_list implicit
+                    (argument
+                      (string_literal_expr type="String" location=/x/Arithmetic.swift:52:30 range=[/x/Arithmetic.swift:52:30 - line:52:30] encoding=utf8 value="" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
+      (var_decl range=[/x/Arithmetic.swift:52:9 - line:52:9] "text" interface_type="String" access=private let readImpl=stored immutable
+        (has_initial_value_attr implicit)
+        (has_storage_attr implicit))
+      (return_stmt range=[/x/Arithmetic.swift:53:5 - line:53:31]
+        (binary_expr type="Int" location=/x/Arithmetic.swift:53:29 range=[/x/Arithmetic.swift:53:12 - line:53:31] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr implicit type="(Int, Int) -> Int" location=/x/Arithmetic.swift:53:29 range=[/x/Arithmetic.swift:53:29 - line:53:29] nothrow isolation_crossing="none"
+            (declref_expr type="(Int.Type) -> (Int, Int) -> Int" location=/x/Arithmetic.swift:53:29 range=[/x/Arithmetic.swift:53:29 - line:53:29] decl="Swift.(file).Int extension.+" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (type_expr implicit type="Int.Type" location=/x/Arithmetic.swift:53:29 range=[/x/Arithmetic.swift:53:29 - line:53:29] typerepr="Int"))))
+          (argument_list implicit
+            (argument
+              (paren_expr type="Int" location=/x/Arithmetic.swift:53:23 range=[/x/Arithmetic.swift:53:12 - line:53:27]
+                (binary_expr type="Int" location=/x/Arithmetic.swift:53:23 range=[/x/Arithmetic.swift:53:13 - line:53:26] nothrow isolation_crossing="none"
+                  (declref_expr type="(consuming Int?, @autoclosure () throws -> Int) throws -> Int" location=/x/Arithmetic.swift:53:23 range=[/x/Arithmetic.swift:53:23 - line:53:23] decl="Swift.(file).?? [with (substitution_map generic_signature=<T where T : Escapable> T -> Int)]" function_ref=single apply)
+                  (argument_list implicit
+                    (argument
+                      (call_expr type="Int?" location=/x/Arithmetic.swift:53:13 range=[/x/Arithmetic.swift:53:13 - line:53:21] nothrow isolation_crossing="none"
+                        (constructor_ref_call_expr type="(String) -> Int?" location=/x/Arithmetic.swift:53:13 range=[/x/Arithmetic.swift:53:13 - line:53:13] nothrow isolation_crossing="none"
+                          (declref_expr implicit type="(Int.Type) -> (String) -> Int?" location=/x/Arithmetic.swift:53:13 range=[/x/Arithmetic.swift:53:13 - line:53:13] decl="Swift.(file).FixedWidthInteger extension.init(_:) [with (substitution_map generic_signature=<Self where Self : FixedWidthInteger> Self -> Int)]" function_ref=single apply)
+                          (argument_list implicit
+                            (argument
+                              (type_expr type="Int.Type" location=/x/Arithmetic.swift:53:13 range=[/x/Arithmetic.swift:53:13 - line:53:13] typerepr="Int"))))
+                        (argument_list
+                          (argument
+                            (declref_expr type="String" location=/x/Arithmetic.swift:53:17 range=[/x/Arithmetic.swift:53:17 - line:53:17] decl="main.(file).shapeThroughText(_:).text@/x/Arithmetic.swift:52:9" function_ref=unapplied)))))
+                    (argument
+                      (autoclosure_expr implicit type="() throws -> Int" location=/x/Arithmetic.swift:53:26 range=[/x/Arithmetic.swift:53:26 - line:53:26] discriminator=0 nonisolated
+                        (parameter_list)
+                        (integer_literal_expr type="Int" location=/x/Arithmetic.swift:53:26 range=[/x/Arithmetic.swift:53:26 - line:53:26] value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))))
+            (argument
+              (integer_literal_expr type="Int" location=/x/Arithmetic.swift:53:31 range=[/x/Arithmetic.swift:53:31 - line:53:31] value="1" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))))
+  (enum_decl range=[/x/Arithmetic.swift:56:1 - line:59:1] "ShapeValue" interface_type="ShapeValue.Type" access=internal non_resilient inherits="Decodable"
+    (enum_case_decl range=[/x/Arithmetic.swift:57:5 - line:57:23]
+      (enum_element_decl range=[/x/Arithmetic.swift:57:10 - line:57:23] "number(_:)" interface_type="(ShapeValue.Type) -> (Double) -> ShapeValue" access=internal
+        (parameter_list range=[/x/Arithmetic.swift:57:16 - line:57:23]
+          (parameter <anonymous @ 0x0> interface_type="Double"))))
+    (enum_element_decl range=[/x/Arithmetic.swift:57:10 - line:57:23] "number(_:)" interface_type="(ShapeValue.Type) -> (Double) -> ShapeValue" access=internal
+      (parameter_list range=[/x/Arithmetic.swift:57:16 - line:57:23]
+        (parameter <anonymous @ 0x0> interface_type="Double")))
+    (enum_case_decl range=[/x/Arithmetic.swift:58:5 - line:58:21]
+      (enum_element_decl range=[/x/Arithmetic.swift:58:10 - line:58:21] "word(_:)" interface_type="(ShapeValue.Type) -> (String) -> ShapeValue" access=internal
+        (parameter_list range=[/x/Arithmetic.swift:58:14 - line:58:21]
+          (parameter <anonymous @ 0x0> interface_type="String"))))
+    (enum_element_decl range=[/x/Arithmetic.swift:58:10 - line:58:21] "word(_:)" interface_type="(ShapeValue.Type) -> (String) -> ShapeValue" access=internal
+      (parameter_list range=[/x/Arithmetic.swift:58:14 - line:58:21]
+        (parameter <anonymous @ 0x0> interface_type="String")))
+    (enum_decl implicit "CodingKeys" interface_type="ShapeValue.CodingKeys.Type" access=private non_resilient inherits="CodingKey"
+      (enum_element_decl implicit "number")
+      (enum_element_decl implicit "word")
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int"
+            (pattern_named implicit type="Int" "hashValue"))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="String"
+            (pattern_named implicit type="String" "stringValue"))))
+      (constructor_decl implicit "init(stringValue:)" interface_type="(ShapeValue.CodingKeys.Type) -> (String) -> ShapeValue.CodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "stringValue" apiName="stringValue" interface_type="String"))
+        (brace_stmt implicit
+          (switch_stmt implicit
+            (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.CodingKeys.init(stringValue:).stringValue" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_expr implicit
+                  (string_literal_expr implicit type="<null>" encoding=utf8 value="number" builtin_initializer="**NULL**" initializer="**NULL**")))
+              (brace_stmt implicit
+                (assign_expr implicit type="<null>"
+                  (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.CodingKeys.init(stringValue:).self" function_ref=unapplied)
+                  (member_ref_expr implicit type="<null>" decl="main.(file).ShapeValue.CodingKeys.number"
+                    (type_expr implicit type="ShapeValue.CodingKeys.Type" null_typerepr)))))
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_expr implicit
+                  (string_literal_expr implicit type="<null>" encoding=utf8 value="word" builtin_initializer="**NULL**" initializer="**NULL**")))
+              (brace_stmt implicit
+                (assign_expr implicit type="<null>"
+                  (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.CodingKeys.init(stringValue:).self" function_ref=unapplied)
+                  (member_ref_expr implicit type="<null>" decl="main.(file).ShapeValue.CodingKeys.word"
+                    (type_expr implicit type="ShapeValue.CodingKeys.Type" null_typerepr)))))
+            (case_stmt implicit
+              (case_label_item default ownership=borrowing
+                (pattern_any implicit))
+              (brace_stmt implicit
+                (fail_stmt implicit))))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int?"
+            (pattern_named implicit type="Int?" "intValue"))))
+      (constructor_decl implicit "init(intValue:)" interface_type="(ShapeValue.CodingKeys.Type) -> (Int) -> ShapeValue.CodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "intValue" apiName="intValue" interface_type="Int"))
+        (brace_stmt implicit
+          (return_stmt implicit
+            (nil_literal_expr implicit type="<null>" initializer="**NULL**"))))
+      (func_decl implicit "__derived_enum_equals(_:_:)" interface_type="(ShapeValue.CodingKeys.Type) -> (ShapeValue.CodingKeys, ShapeValue.CodingKeys) -> Bool" access=fileprivate static
+        (implements_attr
+          (protocol=<null typerepr>) member="==(_:_:)")
+        (semantics_attr implicit value="derived_enum_equals")
+        (parameter "self") result="Bool" thrown_type="<null>"
+        (parameter_list
+          (parameter "a" interface_type="ShapeValue.CodingKeys")
+          (parameter "b" interface_type="ShapeValue.CodingKeys"))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_a"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="ShapeValue.CodingKeys" decl="main.(file).ShapeValue.CodingKeys.__derived_enum_equals(_:_:).a" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="ShapeValue.CodingKeys" element="ShapeValue.CodingKeys.number"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).ShapeValue.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))))
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="ShapeValue.CodingKeys" element="ShapeValue.CodingKeys.word"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).ShapeValue.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="1" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_b"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="ShapeValue.CodingKeys" decl="main.(file).ShapeValue.CodingKeys.__derived_enum_equals(_:_:).b" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="ShapeValue.CodingKeys" element="ShapeValue.CodingKeys.number"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).ShapeValue.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))))
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="ShapeValue.CodingKeys" element="ShapeValue.CodingKeys.word"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).ShapeValue.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="1" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (return_stmt implicit
+            (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(Int, Int) -> Bool" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Int.Type) -> (Int, Int) -> Bool" decl="Swift.(file).Int.==" function_ref=unapplied)
+                (argument_list implicit
+                  (argument
+                    (type_expr implicit type="Int.Type" null_typerepr))))
+              (argument_list implicit
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).ShapeValue.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied))
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).ShapeValue.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)))))))
+      (func_decl implicit "hash(into:)" interface_type="(ShapeValue.CodingKeys) -> (inout Hasher) -> ()" access=fileprivate
+        (parameter "self") result="()" thrown_type="<null>"
+        (parameter_list
+          (parameter "hasher" apiName="into" interface_type="Hasher" inout))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "discriminator"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="ShapeValue.CodingKeys" decl="main.(file).ShapeValue.CodingKeys.hash(into:).self" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="ShapeValue.CodingKeys" element="ShapeValue.CodingKeys.number"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).ShapeValue.CodingKeys.hash(into:).discriminator" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))))
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="ShapeValue.CodingKeys" element="ShapeValue.CodingKeys.word"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).ShapeValue.CodingKeys.hash(into:).discriminator" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="1" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (call_expr implicit type="<null>" isolation_crossing="none"
+            (unresolved_dot_expr implicit type="<null>" field="combine(_:)" function_ref=unapplied
+              (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.CodingKeys.hash(into:).hasher" function_ref=unapplied))
+            (argument_list implicit
+              (argument
+                (declref_expr implicit type="Int" decl="main.(file).ShapeValue.CodingKeys.hash(into:).discriminator" function_ref=unapplied))))))
+      (var_decl implicit "hashValue" interface_type="Int" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> access=fileprivate get for="hashValue"
+          (parameter "self") result="Int" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (call_expr implicit type="Int" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(ShapeValue.CodingKeys) -> Int" decl="Swift.(file)._hashValue(for:) [with (substitution_map generic_signature=<H where H : Hashable> H -> ShapeValue.CodingKeys)]" function_ref=unapplied)
+                (argument_list implicit labels="for:"
+                  (argument label="for"
+                    (declref_expr implicit type="ShapeValue.CodingKeys" decl="main.(file).ShapeValue.CodingKeys.<anonymous>.self" function_ref=unapplied))))))))
+      (var_decl implicit "intValue" interface_type="Int?" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> access=fileprivate get for="intValue"
+          (parameter "self") result="Int?" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (nil_literal_expr implicit type="<null>" initializer="**NULL**")))))
+      (var_decl implicit "stringValue" interface_type="String" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> access=fileprivate get for="stringValue"
+          (parameter "self") result="String" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (switch_stmt implicit
+              (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.CodingKeys.<anonymous>.self" function_ref=unapplied)
+              (case_stmt implicit
+                (case_label_item ownership=borrowing
+                  (pattern_enum_element implicit type="ShapeValue.CodingKeys" element="ShapeValue.CodingKeys.number"))
+                (brace_stmt implicit
+                  (return_stmt implicit
+                    (string_literal_expr implicit type="<null>" encoding=utf8 value="number" builtin_initializer="**NULL**" initializer="**NULL**"))))
+              (case_stmt implicit
+                (case_label_item ownership=borrowing
+                  (pattern_enum_element implicit type="ShapeValue.CodingKeys" element="ShapeValue.CodingKeys.word"))
+                (brace_stmt implicit
+                  (return_stmt implicit
+                    (string_literal_expr implicit type="<null>" encoding=utf8 value="word" builtin_initializer="**NULL**" initializer="**NULL**")))))))))
+    (enum_decl implicit "NumberCodingKeys" interface_type="ShapeValue.NumberCodingKeys.Type" access=private non_resilient inherits="CodingKey"
+      (enum_element_decl implicit "_0")
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int"
+            (pattern_named implicit type="Int" "hashValue"))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="String"
+            (pattern_named implicit type="String" "stringValue"))))
+      (constructor_decl implicit "init(stringValue:)" interface_type="(ShapeValue.NumberCodingKeys.Type) -> (String) -> ShapeValue.NumberCodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "stringValue" apiName="stringValue" interface_type="String"))
+        (brace_stmt implicit
+          (switch_stmt implicit
+            (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.NumberCodingKeys.init(stringValue:).stringValue" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_expr implicit
+                  (string_literal_expr implicit type="<null>" encoding=utf8 value="_0" builtin_initializer="**NULL**" initializer="**NULL**")))
+              (brace_stmt implicit
+                (assign_expr implicit type="<null>"
+                  (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.NumberCodingKeys.init(stringValue:).self" function_ref=unapplied)
+                  (member_ref_expr implicit type="<null>" decl="main.(file).ShapeValue.NumberCodingKeys._0"
+                    (type_expr implicit type="ShapeValue.NumberCodingKeys.Type" null_typerepr)))))
+            (case_stmt implicit
+              (case_label_item default ownership=borrowing
+                (pattern_any implicit))
+              (brace_stmt implicit
+                (fail_stmt implicit))))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int?"
+            (pattern_named implicit type="Int?" "intValue"))))
+      (constructor_decl implicit "init(intValue:)" interface_type="(ShapeValue.NumberCodingKeys.Type) -> (Int) -> ShapeValue.NumberCodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "intValue" apiName="intValue" interface_type="Int"))
+        (brace_stmt implicit
+          (return_stmt implicit
+            (nil_literal_expr implicit type="<null>" initializer="**NULL**"))))
+      (func_decl implicit "__derived_enum_equals(_:_:)" interface_type="(ShapeValue.NumberCodingKeys.Type) -> (ShapeValue.NumberCodingKeys, ShapeValue.NumberCodingKeys) -> Bool" access=fileprivate static
+        (implements_attr
+          (protocol=<null typerepr>) member="==(_:_:)")
+        (semantics_attr implicit value="derived_enum_equals")
+        (parameter "self") result="Bool" thrown_type="<null>"
+        (parameter_list
+          (parameter "a" interface_type="ShapeValue.NumberCodingKeys")
+          (parameter "b" interface_type="ShapeValue.NumberCodingKeys"))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_a"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="ShapeValue.NumberCodingKeys" decl="main.(file).ShapeValue.NumberCodingKeys.__derived_enum_equals(_:_:).a" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="ShapeValue.NumberCodingKeys" element="ShapeValue.NumberCodingKeys._0"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).ShapeValue.NumberCodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_b"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="ShapeValue.NumberCodingKeys" decl="main.(file).ShapeValue.NumberCodingKeys.__derived_enum_equals(_:_:).b" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="ShapeValue.NumberCodingKeys" element="ShapeValue.NumberCodingKeys._0"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).ShapeValue.NumberCodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (return_stmt implicit
+            (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(Int, Int) -> Bool" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Int.Type) -> (Int, Int) -> Bool" decl="Swift.(file).Int.==" function_ref=unapplied)
+                (argument_list implicit
+                  (argument
+                    (type_expr implicit type="Int.Type" null_typerepr))))
+              (argument_list implicit
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).ShapeValue.NumberCodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied))
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).ShapeValue.NumberCodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)))))))
+      (func_decl implicit "hash(into:)" interface_type="(ShapeValue.NumberCodingKeys) -> (inout Hasher) -> ()" access=fileprivate
+        (parameter "self") result="()" thrown_type="<null>"
+        (parameter_list
+          (parameter "hasher" apiName="into" interface_type="Hasher" inout))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "discriminator"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="ShapeValue.NumberCodingKeys" decl="main.(file).ShapeValue.NumberCodingKeys.hash(into:).self" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="ShapeValue.NumberCodingKeys" element="ShapeValue.NumberCodingKeys._0"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).ShapeValue.NumberCodingKeys.hash(into:).discriminator" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (call_expr implicit type="<null>" isolation_crossing="none"
+            (unresolved_dot_expr implicit type="<null>" field="combine(_:)" function_ref=unapplied
+              (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.NumberCodingKeys.hash(into:).hasher" function_ref=unapplied))
+            (argument_list implicit
+              (argument
+                (declref_expr implicit type="Int" decl="main.(file).ShapeValue.NumberCodingKeys.hash(into:).discriminator" function_ref=unapplied))))))
+      (var_decl implicit "hashValue" interface_type="Int" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> access=fileprivate get for="hashValue"
+          (parameter "self") result="Int" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (call_expr implicit type="Int" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(ShapeValue.NumberCodingKeys) -> Int" decl="Swift.(file)._hashValue(for:) [with (substitution_map generic_signature=<H where H : Hashable> H -> ShapeValue.NumberCodingKeys)]" function_ref=unapplied)
+                (argument_list implicit labels="for:"
+                  (argument label="for"
+                    (declref_expr implicit type="ShapeValue.NumberCodingKeys" decl="main.(file).ShapeValue.NumberCodingKeys.<anonymous>.self" function_ref=unapplied))))))))
+      (var_decl implicit "intValue" interface_type="Int?" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> access=fileprivate get for="intValue"
+          (parameter "self") result="Int?" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (nil_literal_expr implicit type="<null>" initializer="**NULL**")))))
+      (var_decl implicit "stringValue" interface_type="String" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> access=fileprivate get for="stringValue"
+          (parameter "self") result="String" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (switch_stmt implicit
+              (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.NumberCodingKeys.<anonymous>.self" function_ref=unapplied)
+              (case_stmt implicit
+                (case_label_item ownership=borrowing
+                  (pattern_enum_element implicit type="ShapeValue.NumberCodingKeys" element="ShapeValue.NumberCodingKeys._0"))
+                (brace_stmt implicit
+                  (return_stmt implicit
+                    (string_literal_expr implicit type="<null>" encoding=utf8 value="_0" builtin_initializer="**NULL**" initializer="**NULL**")))))))))
+    (enum_decl implicit "WordCodingKeys" interface_type="ShapeValue.WordCodingKeys.Type" access=private non_resilient inherits="CodingKey"
+      (enum_element_decl implicit "_0")
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int"
+            (pattern_named implicit type="Int" "hashValue"))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="String"
+            (pattern_named implicit type="String" "stringValue"))))
+      (constructor_decl implicit "init(stringValue:)" interface_type="(ShapeValue.WordCodingKeys.Type) -> (String) -> ShapeValue.WordCodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "stringValue" apiName="stringValue" interface_type="String"))
+        (brace_stmt implicit
+          (switch_stmt implicit
+            (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.WordCodingKeys.init(stringValue:).stringValue" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_expr implicit
+                  (string_literal_expr implicit type="<null>" encoding=utf8 value="_0" builtin_initializer="**NULL**" initializer="**NULL**")))
+              (brace_stmt implicit
+                (assign_expr implicit type="<null>"
+                  (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.WordCodingKeys.init(stringValue:).self" function_ref=unapplied)
+                  (member_ref_expr implicit type="<null>" decl="main.(file).ShapeValue.WordCodingKeys._0"
+                    (type_expr implicit type="ShapeValue.WordCodingKeys.Type" null_typerepr)))))
+            (case_stmt implicit
+              (case_label_item default ownership=borrowing
+                (pattern_any implicit))
+              (brace_stmt implicit
+                (fail_stmt implicit))))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int?"
+            (pattern_named implicit type="Int?" "intValue"))))
+      (constructor_decl implicit "init(intValue:)" interface_type="(ShapeValue.WordCodingKeys.Type) -> (Int) -> ShapeValue.WordCodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "intValue" apiName="intValue" interface_type="Int"))
+        (brace_stmt implicit
+          (return_stmt implicit
+            (nil_literal_expr implicit type="<null>" initializer="**NULL**"))))
+      (func_decl implicit "__derived_enum_equals(_:_:)" interface_type="(ShapeValue.WordCodingKeys.Type) -> (ShapeValue.WordCodingKeys, ShapeValue.WordCodingKeys) -> Bool" access=fileprivate static
+        (implements_attr
+          (protocol=<null typerepr>) member="==(_:_:)")
+        (semantics_attr implicit value="derived_enum_equals")
+        (parameter "self") result="Bool" thrown_type="<null>"
+        (parameter_list
+          (parameter "a" interface_type="ShapeValue.WordCodingKeys")
+          (parameter "b" interface_type="ShapeValue.WordCodingKeys"))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_a"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="ShapeValue.WordCodingKeys" decl="main.(file).ShapeValue.WordCodingKeys.__derived_enum_equals(_:_:).a" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="ShapeValue.WordCodingKeys" element="ShapeValue.WordCodingKeys._0"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).ShapeValue.WordCodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_b"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="ShapeValue.WordCodingKeys" decl="main.(file).ShapeValue.WordCodingKeys.__derived_enum_equals(_:_:).b" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="ShapeValue.WordCodingKeys" element="ShapeValue.WordCodingKeys._0"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).ShapeValue.WordCodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (return_stmt implicit
+            (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(Int, Int) -> Bool" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Int.Type) -> (Int, Int) -> Bool" decl="Swift.(file).Int.==" function_ref=unapplied)
+                (argument_list implicit
+                  (argument
+                    (type_expr implicit type="Int.Type" null_typerepr))))
+              (argument_list implicit
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).ShapeValue.WordCodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied))
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).ShapeValue.WordCodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)))))))
+      (func_decl implicit "hash(into:)" interface_type="(ShapeValue.WordCodingKeys) -> (inout Hasher) -> ()" access=fileprivate
+        (parameter "self") result="()" thrown_type="<null>"
+        (parameter_list
+          (parameter "hasher" apiName="into" interface_type="Hasher" inout))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "discriminator"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="ShapeValue.WordCodingKeys" decl="main.(file).ShapeValue.WordCodingKeys.hash(into:).self" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="ShapeValue.WordCodingKeys" element="ShapeValue.WordCodingKeys._0"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).ShapeValue.WordCodingKeys.hash(into:).discriminator" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (call_expr implicit type="<null>" isolation_crossing="none"
+            (unresolved_dot_expr implicit type="<null>" field="combine(_:)" function_ref=unapplied
+              (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.WordCodingKeys.hash(into:).hasher" function_ref=unapplied))
+            (argument_list implicit
+              (argument
+                (declref_expr implicit type="Int" decl="main.(file).ShapeValue.WordCodingKeys.hash(into:).discriminator" function_ref=unapplied))))))
+      (var_decl implicit "hashValue" interface_type="Int" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> access=fileprivate get for="hashValue"
+          (parameter "self") result="Int" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (call_expr implicit type="Int" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(ShapeValue.WordCodingKeys) -> Int" decl="Swift.(file)._hashValue(for:) [with (substitution_map generic_signature=<H where H : Hashable> H -> ShapeValue.WordCodingKeys)]" function_ref=unapplied)
+                (argument_list implicit labels="for:"
+                  (argument label="for"
+                    (declref_expr implicit type="ShapeValue.WordCodingKeys" decl="main.(file).ShapeValue.WordCodingKeys.<anonymous>.self" function_ref=unapplied))))))))
+      (var_decl implicit "intValue" interface_type="Int?" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> access=fileprivate get for="intValue"
+          (parameter "self") result="Int?" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (nil_literal_expr implicit type="<null>" initializer="**NULL**")))))
+      (var_decl implicit "stringValue" interface_type="String" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> access=fileprivate get for="stringValue"
+          (parameter "self") result="String" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (switch_stmt implicit
+              (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.WordCodingKeys.<anonymous>.self" function_ref=unapplied)
+              (case_stmt implicit
+                (case_label_item ownership=borrowing
+                  (pattern_enum_element implicit type="ShapeValue.WordCodingKeys" element="ShapeValue.WordCodingKeys._0"))
+                (brace_stmt implicit
+                  (return_stmt implicit
+                    (string_literal_expr implicit type="<null>" encoding=utf8 value="_0" builtin_initializer="**NULL**" initializer="**NULL**")))))))))
+    (constructor_decl implicit "init(from:)" interface_type="(ShapeValue.Type) -> (any Decoder) throws -> ShapeValue" access=internal designated
+      (parameter "self") thrown_type="<null>"
+      (parameter_list
+        (parameter "decoder" apiName="from" interface_type="any Decoder"))
+      (brace_stmt implicit
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit "container")
+            (original_init=try_expr implicit type="<null>"
+              (call_expr implicit type="<null>" isolation_crossing="none"
+                (unresolved_dot_expr implicit type="<null>" field="container(keyedBy:)" function_ref=unapplied
+                  (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.init(from:).decoder" function_ref=unapplied))
+                (argument_list implicit labels="keyedBy:"
+                  (argument label="keyedBy"
+                    (dot_self_expr type="<null>"
+                      (type_expr implicit type="ShapeValue.CodingKeys.Type" typerepr="CodingKeys"))))))
+            (processed_init=try_expr implicit type="<null>"
+              (call_expr implicit type="<null>" isolation_crossing="none"
+                (unresolved_dot_expr implicit type="<null>" field="container(keyedBy:)" function_ref=unapplied
+                  (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.init(from:).decoder" function_ref=unapplied))
+                (argument_list implicit labels="keyedBy:"
+                  (argument label="keyedBy"
+                    (dot_self_expr type="<null>"
+                      (type_expr implicit type="ShapeValue.CodingKeys.Type" typerepr="CodingKeys"))))))))
+        (var_decl implicit "container" interface_type="KeyedDecodingContainer<ShapeValue.CodingKeys>" let readImpl=stored immutable)
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit "allKeys")
+            (original_init=call_expr implicit type="<null>" isolation_crossing="none"
+              (declref_expr implicit type="<null>" decl="Swift.(file).ArraySlice" function_ref=unapplied)
+              (argument_list implicit
+                (argument
+                  (unresolved_dot_expr implicit type="<null>" field="allKeys" function_ref=unapplied
+                    (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.init(from:).container" direct_to_storage function_ref=unapplied)))))
+            (processed_init=call_expr implicit type="<null>" isolation_crossing="none"
+              (declref_expr implicit type="<null>" decl="Swift.(file).ArraySlice" function_ref=unapplied)
+              (argument_list implicit
+                (argument
+                  (unresolved_dot_expr implicit type="<null>" field="allKeys" function_ref=unapplied
+                    (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.init(from:).container" direct_to_storage function_ref=unapplied)))))))
+        (var_decl implicit "allKeys")
+        (guard_stmt implicit
+          (conditions=array
+            (pattern
+              (pattern_binding implicit kind=let
+                (pattern_named implicit "onlyKey"))
+              (call_expr implicit type="<null>" isolation_crossing="none"
+                (unresolved_dot_expr implicit type="<null>" field="popFirst" function_ref=unapplied
+                  (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.init(from:).allKeys" function_ref=unapplied))
+                (argument_list implicit)))
+            (unresolved_dot_expr implicit type="<null>" field="isEmpty" function_ref=unapplied
+              (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.init(from:).allKeys" function_ref=unapplied)))
+          (brace_stmt implicit
+            (throw_stmt
+              (call_expr implicit type="<null>" isolation_crossing="none"
+                (unresolved_dot_expr implicit type="<null>" field="typeMismatch(_:_:)" function_ref=unapplied
+                  (type_expr implicit type="DecodingError.Type" null_typerepr))
+                (argument_list implicit
+                  (argument
+                    (dot_self_expr type="<null>"
+                      (type_expr implicit type="ShapeValue.Type" null_typerepr)))
+                  (argument
+                    (call_expr implicit type="<null>" isolation_crossing="none"
+                      (unresolved_dot_expr implicit type="<null>" field="init(codingPath:debugDescription:underlyingError:)" function_ref=unapplied
+                        (type_expr implicit type="DecodingError.Context.Type" null_typerepr))
+                      (argument_list implicit labels="codingPath:debugDescription:underlyingError:"
+                        (argument label="codingPath"
+                          (unresolved_dot_expr implicit type="<null>" field="codingPath" function_ref=unapplied
+                            (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.init(from:).container" direct_to_storage function_ref=unapplied)))
+                        (argument label="debugDescription"
+                          (string_literal_expr implicit type="<null>" encoding=utf8 value="Invalid number of keys found, expected one." builtin_initializer="**NULL**" initializer="**NULL**"))
+                        (argument label="underlyingError"
+                          (nil_literal_expr implicit type="<null>" initializer="**NULL**"))))))))))
+        (switch_stmt implicit
+          (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.init(from:).onlyKey" function_ref=unapplied)
+          (case_stmt implicit
+            (case_label_item ownership=borrowing
+              (pattern_enum_element implicit type="ShapeValue.CodingKeys" element="ShapeValue.CodingKeys.number"))
+            (brace_stmt implicit
+              (pattern_binding_decl implicit
+                (pattern_entry
+                  (pattern_named implicit "nestedContainer")
+                  (original_init=try_expr implicit type="<null>"
+                    (call_expr implicit type="<null>" isolation_crossing="none"
+                      (unresolved_dot_expr implicit type="<null>" field="nestedContainer(keyedBy:forKey:)" function_ref=unapplied
+                        (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.init(from:).container" direct_to_storage function_ref=unapplied))
+                      (argument_list implicit labels="keyedBy:forKey:"
+                        (argument label="keyedBy"
+                          (dot_self_expr type="<null>"
+                            (type_expr implicit type="ShapeValue.NumberCodingKeys.Type" typerepr="NumberCodingKeys")))
+                        (argument label="forKey"
+                          (member_ref_expr implicit type="<null>" decl="main.(file).ShapeValue.CodingKeys.number"
+                            (type_expr implicit type="ShapeValue.CodingKeys.Type" null_typerepr))))))
+                  (processed_init=try_expr implicit type="<null>"
+                    (call_expr implicit type="<null>" isolation_crossing="none"
+                      (unresolved_dot_expr implicit type="<null>" field="nestedContainer(keyedBy:forKey:)" function_ref=unapplied
+                        (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.init(from:).container" direct_to_storage function_ref=unapplied))
+                      (argument_list implicit labels="keyedBy:forKey:"
+                        (argument label="keyedBy"
+                          (dot_self_expr type="<null>"
+                            (type_expr implicit type="ShapeValue.NumberCodingKeys.Type" typerepr="NumberCodingKeys")))
+                        (argument label="forKey"
+                          (member_ref_expr implicit type="<null>" decl="main.(file).ShapeValue.CodingKeys.number"
+                            (type_expr implicit type="ShapeValue.CodingKeys.Type" null_typerepr))))))))
+              (var_decl implicit "nestedContainer" interface_type="KeyedDecodingContainer<ShapeValue.NumberCodingKeys>" let readImpl=stored immutable)
+              (assign_expr implicit type="<null>"
+                (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.init(from:).self" function_ref=unapplied)
+                (call_expr implicit type="<null>" isolation_crossing="none"
+                  (unresolved_dot_expr implicit type="<null>" field="number(_:)" function_ref=unapplied
+                    (type_expr implicit type="ShapeValue.Type" null_typerepr))
+                  (argument_list implicit
+                    (argument
+                      (try_expr implicit type="<null>"
+                        (call_expr implicit type="<null>" isolation_crossing="none"
+                          (unresolved_dot_expr implicit type="<null>" field="decode(_:forKey:)" function_ref=unapplied
+                            (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.init(from:).nestedContainer" direct_to_storage function_ref=unapplied))
+                          (argument_list implicit labels="_:forKey:"
+                            (argument
+                              (dot_self_expr type="Double"
+                                (type_expr implicit type="Double.Type" null_typerepr)))
+                            (argument label="forKey"
+                              (member_ref_expr implicit type="<null>" decl="main.(file).ShapeValue.NumberCodingKeys._0"
+                                (type_expr implicit type="ShapeValue.NumberCodingKeys.Type" null_typerepr))))))))))))
+          (case_stmt implicit
+            (case_label_item ownership=borrowing
+              (pattern_enum_element implicit type="ShapeValue.CodingKeys" element="ShapeValue.CodingKeys.word"))
+            (brace_stmt implicit
+              (pattern_binding_decl implicit
+                (pattern_entry
+                  (pattern_named implicit "nestedContainer")
+                  (original_init=try_expr implicit type="<null>"
+                    (call_expr implicit type="<null>" isolation_crossing="none"
+                      (unresolved_dot_expr implicit type="<null>" field="nestedContainer(keyedBy:forKey:)" function_ref=unapplied
+                        (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.init(from:).container" direct_to_storage function_ref=unapplied))
+                      (argument_list implicit labels="keyedBy:forKey:"
+                        (argument label="keyedBy"
+                          (dot_self_expr type="<null>"
+                            (type_expr implicit type="ShapeValue.WordCodingKeys.Type" typerepr="WordCodingKeys")))
+                        (argument label="forKey"
+                          (member_ref_expr implicit type="<null>" decl="main.(file).ShapeValue.CodingKeys.word"
+                            (type_expr implicit type="ShapeValue.CodingKeys.Type" null_typerepr))))))
+                  (processed_init=try_expr implicit type="<null>"
+                    (call_expr implicit type="<null>" isolation_crossing="none"
+                      (unresolved_dot_expr implicit type="<null>" field="nestedContainer(keyedBy:forKey:)" function_ref=unapplied
+                        (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.init(from:).container" direct_to_storage function_ref=unapplied))
+                      (argument_list implicit labels="keyedBy:forKey:"
+                        (argument label="keyedBy"
+                          (dot_self_expr type="<null>"
+                            (type_expr implicit type="ShapeValue.WordCodingKeys.Type" typerepr="WordCodingKeys")))
+                        (argument label="forKey"
+                          (member_ref_expr implicit type="<null>" decl="main.(file).ShapeValue.CodingKeys.word"
+                            (type_expr implicit type="ShapeValue.CodingKeys.Type" null_typerepr))))))))
+              (var_decl implicit "nestedContainer" interface_type="KeyedDecodingContainer<ShapeValue.WordCodingKeys>" let readImpl=stored immutable)
+              (assign_expr implicit type="<null>"
+                (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.init(from:).self" function_ref=unapplied)
+                (call_expr implicit type="<null>" isolation_crossing="none"
+                  (unresolved_dot_expr implicit type="<null>" field="word(_:)" function_ref=unapplied
+                    (type_expr implicit type="ShapeValue.Type" null_typerepr))
+                  (argument_list implicit
+                    (argument
+                      (try_expr implicit type="<null>"
+                        (call_expr implicit type="<null>" isolation_crossing="none"
+                          (unresolved_dot_expr implicit type="<null>" field="decode(_:forKey:)" function_ref=unapplied
+                            (declref_expr implicit type="<null>" decl="main.(file).ShapeValue.init(from:).nestedContainer" direct_to_storage function_ref=unapplied))
+                          (argument_list implicit labels="_:forKey:"
+                            (argument
+                              (dot_self_expr type="String"
+                                (type_expr implicit type="String.Type" null_typerepr)))
+                            (argument label="forKey"
+                              (member_ref_expr implicit type="<null>" decl="main.(file).ShapeValue.WordCodingKeys._0"
+                                (type_expr implicit type="ShapeValue.WordCodingKeys.Type" null_typerepr))))))))))))))))
+  (struct_decl range=[/x/Arithmetic.swift:61:1 - line:61:52] "ShapeFact" interface_type="ShapeFact.Type" access=internal non_resilient inherits="Decodable"
+    (pattern_binding_decl range=[/x/Arithmetic.swift:61:31 - line:61:41]
+      (pattern_entry init_context=0x0
+        (pattern_typed type="ShapeValue"
+          (pattern_named type="ShapeValue" "fact")
+          (type_unqualified_ident id="ShapeValue" bind="main.(file).ShapeValue@/x/Arithmetic.swift:56:6"))))
+    (var_decl range=[/x/Arithmetic.swift:61:35 - line:61:35] "fact" interface_type="ShapeValue" access=internal let readImpl=stored immutable
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/Arithmetic.swift:61:35 - line:61:35] <anonymous @ 0x0> interface_type="(ShapeFact) -> () -> ShapeValue" access=internal get for="fact"
+        (parameter "self" interface_type="ShapeFact") result="ShapeValue" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/Arithmetic.swift:61:35 - line:61:35]
+          (return_stmt implicit
+            (member_ref_expr implicit type="ShapeValue" decl="main.(file).ShapeFact.fact@/x/Arithmetic.swift:61:35" direct_to_storage
+              (declref_expr implicit type="ShapeFact" decl="main.(file).ShapeFact.<anonymous>.self@/x/Arithmetic.swift:61:35" function_ref=unapplied))))))
+    (enum_decl implicit "CodingKeys" interface_type="ShapeFact.CodingKeys.Type" access=private non_resilient inherits="CodingKey"
+      (enum_element_decl implicit "fact" interface_type="(ShapeFact.CodingKeys.Type) -> ShapeFact.CodingKeys" access=internal)
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int"
+            (pattern_named implicit type="Int" "hashValue"))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="String"
+            (pattern_named implicit type="String" "stringValue"))))
+      (constructor_decl implicit "init(stringValue:)" interface_type="(ShapeFact.CodingKeys.Type) -> (String) -> ShapeFact.CodingKeys?" access=private designated failable=true
+        (parameter "self" interface_type="ShapeFact.CodingKeys" inout) thrown_type="<null>"
+        (parameter_list
+          (parameter "stringValue" apiName="stringValue" interface_type="String"))
+        (brace_stmt implicit
+          (switch_stmt implicit
+            (declref_expr implicit type="String" decl="main.(file).ShapeFact.CodingKeys.init(stringValue:).stringValue" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_expr implicit type="String" ownership=borrowing
+                  (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(String, String) -> Bool" decl="Swift.(file).~= [with (substitution_map generic_signature=<T where T : Equatable> T -> String)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (string_literal_expr implicit type="String" encoding=utf8 value="fact" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))
+                      (argument
+                        (declref_expr implicit type="String" decl="main.(file).ShapeFact.CodingKeys.init(stringValue:).$match" function_ref=unapplied))))))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue ShapeFact.CodingKeys" decl="main.(file).ShapeFact.CodingKeys.init(stringValue:).self" function_ref=unapplied)
+                  (dot_syntax_call_expr implicit type="ShapeFact.CodingKeys" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(ShapeFact.CodingKeys.Type) -> ShapeFact.CodingKeys" decl="main.(file).ShapeFact.CodingKeys.fact" function_ref=double apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="ShapeFact.CodingKeys.Type" null_typerepr)))))))
+            (case_stmt implicit
+              (case_label_item default ownership=borrowing
+                (pattern_any implicit type="String"))
+              (brace_stmt implicit
+                (fail_stmt implicit))))
+          (return_stmt implicit)))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int?"
+            (pattern_named implicit type="Int?" "intValue"))))
+      (constructor_decl implicit "init(intValue:)" interface_type="(ShapeFact.CodingKeys.Type) -> (Int) -> ShapeFact.CodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "intValue" apiName="intValue" interface_type="Int"))
+        (brace_stmt implicit
+          (fail_stmt implicit)))
+      (func_decl implicit "__derived_enum_equals(_:_:)" interface_type="(ShapeFact.CodingKeys.Type) -> (ShapeFact.CodingKeys, ShapeFact.CodingKeys) -> Bool" access=fileprivate static
+        (implements_attr
+          (protocol=<null typerepr>) member="==(_:_:)")
+        (semantics_attr implicit value="derived_enum_equals")
+        (parameter "self") result="Bool" thrown_type="<null>"
+        (parameter_list
+          (parameter "a" interface_type="ShapeFact.CodingKeys")
+          (parameter "b" interface_type="ShapeFact.CodingKeys"))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_a"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="ShapeFact.CodingKeys" decl="main.(file).ShapeFact.CodingKeys.__derived_enum_equals(_:_:).a" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="ShapeFact.CodingKeys" element="ShapeFact.CodingKeys.fact"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).ShapeFact.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_b"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="ShapeFact.CodingKeys" decl="main.(file).ShapeFact.CodingKeys.__derived_enum_equals(_:_:).b" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="ShapeFact.CodingKeys" element="ShapeFact.CodingKeys.fact"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).ShapeFact.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (return_stmt implicit
+            (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(Int, Int) -> Bool" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Int.Type) -> (Int, Int) -> Bool" decl="Swift.(file).Int.==" function_ref=unapplied)
+                (argument_list implicit
+                  (argument
+                    (type_expr implicit type="Int.Type" null_typerepr))))
+              (argument_list implicit
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).ShapeFact.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied))
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).ShapeFact.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)))))))
+      (func_decl implicit "hash(into:)" interface_type="(ShapeFact.CodingKeys) -> (inout Hasher) -> ()" access=fileprivate
+        (parameter "self" interface_type="ShapeFact.CodingKeys") result="()" thrown_type="<null>"
+        (parameter_list
+          (parameter "hasher" apiName="into" interface_type="Hasher" inout))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "discriminator"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="ShapeFact.CodingKeys" decl="main.(file).ShapeFact.CodingKeys.hash(into:).self" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="ShapeFact.CodingKeys" element="ShapeFact.CodingKeys.fact"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).ShapeFact.CodingKeys.hash(into:).discriminator" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (call_expr implicit type="()" nothrow isolation_crossing="none"
+            (dot_syntax_call_expr implicit type="(Int) -> ()" nothrow isolation_crossing="none"
+              (declref_expr implicit type="(inout Hasher) -> (Int) -> ()" decl="Swift.(file).Hasher.combine [with (substitution_map generic_signature=<H where H : Hashable> H -> Int)]" function_ref=single apply)
+              (argument_list implicit
+                (argument inout
+                  (inout_expr implicit type="inout Hasher"
+                    (declref_expr implicit type="@lvalue Hasher" decl="main.(file).ShapeFact.CodingKeys.hash(into:).hasher" function_ref=unapplied)))))
+            (argument_list implicit
+              (argument
+                (load_expr implicit type="Int"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).ShapeFact.CodingKeys.hash(into:).discriminator" function_ref=unapplied)))))))
+      (var_decl implicit "hashValue" interface_type="Int" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(ShapeFact.CodingKeys) -> () -> Int" access=fileprivate get for="hashValue"
+          (parameter "self" interface_type="ShapeFact.CodingKeys") result="Int" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (call_expr implicit type="Int" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(ShapeFact.CodingKeys) -> Int" decl="Swift.(file)._hashValue(for:) [with (substitution_map generic_signature=<H where H : Hashable> H -> ShapeFact.CodingKeys)]" function_ref=unapplied)
+                (argument_list implicit labels="for:"
+                  (argument label="for"
+                    (declref_expr implicit type="ShapeFact.CodingKeys" decl="main.(file).ShapeFact.CodingKeys.<anonymous>.self" function_ref=unapplied))))))))
+      (var_decl implicit "intValue" interface_type="Int?" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(ShapeFact.CodingKeys) -> () -> Int?" access=fileprivate get for="intValue"
+          (parameter "self") result="Int?" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (nil_literal_expr implicit type="Int?" initializer="**NULL**")))))
+      (var_decl implicit "stringValue" interface_type="String" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(ShapeFact.CodingKeys) -> () -> String" access=fileprivate get for="stringValue"
+          (parameter "self" interface_type="ShapeFact.CodingKeys") result="String" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (switch_stmt implicit
+              (declref_expr implicit type="ShapeFact.CodingKeys" decl="main.(file).ShapeFact.CodingKeys.<anonymous>.self" function_ref=unapplied)
+              (case_stmt implicit
+                (case_label_item ownership=borrowing
+                  (pattern_enum_element implicit type="ShapeFact.CodingKeys" element="ShapeFact.CodingKeys.fact"))
+                (brace_stmt implicit
+                  (return_stmt implicit
+                    (string_literal_expr implicit type="String" encoding=utf8 value="fact" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
+    (constructor_decl implicit range=[/x/Arithmetic.swift:61:8 - line:61:8] "init(fact:)" interface_type="(ShapeFact.Type) -> (ShapeValue) -> ShapeFact" access=internal designated
+      (parameter "self") thrown_type="<null>"
+      (parameter_list range=[/x/Arithmetic.swift:61:8 - line:61:8]
+        (parameter "fact" apiName="fact" interface_type="ShapeValue")))
+    (constructor_decl implicit "init(from:)" interface_type="(ShapeFact.Type) -> (any Decoder) throws -> ShapeFact" access=internal designated
+      (parameter "self" interface_type="ShapeFact" inout) thrown_type="<null>"
+      (parameter_list
+        (parameter "decoder" apiName="from" interface_type="any Decoder"))
+      (brace_stmt implicit
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit type="KeyedDecodingContainer<ShapeFact.CodingKeys>" "container")
+            (original_init=try_expr implicit type="KeyedDecodingContainer<ShapeFact.CodingKeys>"
+              (open_existential_expr implicit type="KeyedDecodingContainer<ShapeFact.CodingKeys>"
+                (opaque_value_expr implicit type="any Decoder" 0x0)
+                (declref_expr implicit type="any Decoder" decl="main.(file).ShapeFact.init(from:).decoder" function_ref=unapplied)
+                (call_expr implicit type="KeyedDecodingContainer<ShapeFact.CodingKeys>" throws isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(ShapeFact.CodingKeys.Type) throws -> KeyedDecodingContainer<ShapeFact.CodingKeys>" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(any Decoder) -> (ShapeFact.CodingKeys.Type) throws -> KeyedDecodingContainer<ShapeFact.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> ShapeFact.CodingKeys)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (opaque_value_expr implicit type="any Decoder" 0x0))))
+                  (argument_list implicit labels="keyedBy:"
+                    (argument label="keyedBy"
+                      (dot_self_expr type="ShapeFact.CodingKeys.Type"
+                        (type_expr implicit type="ShapeFact.CodingKeys.Type" typerepr="CodingKeys")))))))
+            (processed_init=try_expr implicit type="KeyedDecodingContainer<ShapeFact.CodingKeys>"
+              (open_existential_expr implicit type="KeyedDecodingContainer<ShapeFact.CodingKeys>"
+                (opaque_value_expr implicit type="any Decoder" 0x0)
+                (declref_expr implicit type="any Decoder" decl="main.(file).ShapeFact.init(from:).decoder" function_ref=unapplied)
+                (call_expr implicit type="KeyedDecodingContainer<ShapeFact.CodingKeys>" throws isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(ShapeFact.CodingKeys.Type) throws -> KeyedDecodingContainer<ShapeFact.CodingKeys>" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(any Decoder) -> (ShapeFact.CodingKeys.Type) throws -> KeyedDecodingContainer<ShapeFact.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> ShapeFact.CodingKeys)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (opaque_value_expr implicit type="any Decoder" 0x0))))
+                  (argument_list implicit labels="keyedBy:"
+                    (argument label="keyedBy"
+                      (dot_self_expr type="ShapeFact.CodingKeys.Type"
+                        (type_expr implicit type="ShapeFact.CodingKeys.Type" typerepr="CodingKeys")))))))))
+        (var_decl implicit "container" interface_type="KeyedDecodingContainer<ShapeFact.CodingKeys>" access=private let readImpl=stored immutable
+          (has_initial_value_attr implicit)
+          (has_storage_attr implicit))
+        (assign_expr implicit type="()"
+          (member_ref_expr implicit type="@lvalue ShapeValue" decl="main.(file).ShapeFact.fact@/x/Arithmetic.swift:61:35" direct_to_storage
+            (declref_expr implicit type="@lvalue ShapeFact" decl="main.(file).ShapeFact.init(from:).self" function_ref=unapplied))
+          (try_expr implicit type="ShapeValue"
+            (call_expr implicit type="ShapeValue" throws isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(ShapeValue.Type, ShapeFact.CodingKeys) throws -> ShapeValue" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(KeyedDecodingContainer<ShapeFact.CodingKeys>) -> (ShapeValue.Type, ShapeFact.CodingKeys) throws -> ShapeValue" decl="Swift.(file).KeyedDecodingContainer.decode(_:forKey:) [with (substitution_map generic_signature=<K, T where K : CodingKey, T : Decodable> K -> ShapeFact.CodingKeys T -> ShapeValue)]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (declref_expr implicit type="KeyedDecodingContainer<ShapeFact.CodingKeys>" decl="main.(file).ShapeFact.init(from:).container" function_ref=unapplied))))
+              (argument_list implicit labels="_:forKey:"
+                (argument
+                  (dot_self_expr type="ShapeValue.Type"
+                    (type_expr implicit type="ShapeValue.Type" null_typerepr)))
+                (argument label="forKey"
+                  (dot_syntax_call_expr implicit type="ShapeFact.CodingKeys" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(ShapeFact.CodingKeys.Type) -> ShapeFact.CodingKeys" decl="main.(file).ShapeFact.CodingKeys.fact" function_ref=double apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="ShapeFact.CodingKeys.Type" null_typerepr)))))))))
+        (return_stmt implicit))))
+  (func_decl range=[/x/Arithmetic.swift:63:1 - line:66:1] "shapeServedFact(_:)" interface_type="(ShapeFact) -> Double" access=internal result="Double" thrown_type="<null>"
+    (parameter_list range=[/x/Arithmetic.swift:63:21 - line:63:36]
+      (parameter "f" interface_type="ShapeFact"))
+    (brace_stmt range=[/x/Arithmetic.swift:63:48 - line:66:1]
+      (if_stmt range=[/x/Arithmetic.swift:64:5 - line:64:52]
+        (conditions=array
+          (pattern
+            (pattern_binding type="ShapeValue" kind=let
+              (pattern_enum_element type="ShapeValue" element="ShapeValue.number"
+                (pattern_paren type="Double"
+                  (pattern_named type="Double" "n"))))
+            (member_ref_expr type="ShapeValue" location=/x/Arithmetic.swift:64:32 range=[/x/Arithmetic.swift:64:30 - line:64:32] decl="main.(file).ShapeFact.fact@/x/Arithmetic.swift:61:35"
+              (declref_expr type="ShapeFact" location=/x/Arithmetic.swift:64:30 range=[/x/Arithmetic.swift:64:30 - line:64:30] decl="main.(file).shapeServedFact(_:).f@/x/Arithmetic.swift:63:24" function_ref=unapplied))))
+        (brace_stmt range=[/x/Arithmetic.swift:64:37 - line:64:52]
+          (return_stmt range=[/x/Arithmetic.swift:64:39 - line:64:50]
+            (binary_expr type="Double" location=/x/Arithmetic.swift:64:48 range=[/x/Arithmetic.swift:64:46 - line:64:50] nothrow isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(Double, Double) -> Double" location=/x/Arithmetic.swift:64:48 range=[/x/Arithmetic.swift:64:48 - line:64:48] nothrow isolation_crossing="none"
+                (declref_expr type="(Double.Type) -> (Double, Double) -> Double" location=/x/Arithmetic.swift:64:48 range=[/x/Arithmetic.swift:64:48 - line:64:48] decl="Swift.(file).Double extension.+" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (type_expr implicit type="Double.Type" location=/x/Arithmetic.swift:64:48 range=[/x/Arithmetic.swift:64:48 - line:64:48] typerepr="Double"))))
+              (argument_list implicit
+                (argument
+                  (declref_expr type="Double" location=/x/Arithmetic.swift:64:46 range=[/x/Arithmetic.swift:64:46 - line:64:46] decl="main.(file).shapeServedFact(_:).n@/x/Arithmetic.swift:64:25" function_ref=unapplied))
+                (argument
+                  (integer_literal_expr type="Double" location=/x/Arithmetic.swift:64:50 range=[/x/Arithmetic.swift:64:50 - line:64:50] value="1" builtin_initializer="Swift.(file).Double extension.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))))
+      (return_stmt range=[/x/Arithmetic.swift:65:5 - line:65:12]
+        (integer_literal_expr type="Double" location=/x/Arithmetic.swift:65:12 range=[/x/Arithmetic.swift:65:12 - line:65:12] value="0" builtin_initializer="Swift.(file).Double extension.init(_builtinIntegerLiteral:)" initializer="**NULL**"))))
+  (func_decl range=[/x/Arithmetic.swift:68:1 - line:72:1] "shapeFactThroughAny(_:)" interface_type="(ShapeFact) -> Double" access=internal result="Double" thrown_type="<null>"
+    (parameter_list range=[/x/Arithmetic.swift:68:25 - line:68:40]
+      (parameter "f" interface_type="ShapeFact"))
+    (brace_stmt range=[/x/Arithmetic.swift:68:52 - line:72:1]
+      (pattern_binding_decl range=[/x/Arithmetic.swift:69:5 - line:69:32]
+        (pattern_entry
+          (pattern_typed type="[String : Any]"
+            (pattern_named type="[String : Any]" "out")
+            (type_dictionary
+              (type_unqualified_ident id="String" bind="Swift.(file).String")
+              (type_composite)))
+          (original_init=dictionary_expr type="[String : Any]" location=/x/Arithmetic.swift:69:30 range=[/x/Arithmetic.swift:69:30 - line:69:32] initializer="Swift.(file).Dictionary extension.init(dictionaryLiteral:) [with (substitution_map generic_signature=<Key, Value where Key : Hashable, Value : Copyable, Value : Escapable> Key -> String Value -> Any)]")
+          (processed_init=dictionary_expr type="[String : Any]" location=/x/Arithmetic.swift:69:30 range=[/x/Arithmetic.swift:69:30 - line:69:32] initializer="Swift.(file).Dictionary extension.init(dictionaryLiteral:) [with (substitution_map generic_signature=<Key, Value where Key : Hashable, Value : Copyable, Value : Escapable> Key -> String Value -> Any)]")))
+      (var_decl range=[/x/Arithmetic.swift:69:9 - line:69:9] "out" interface_type="[String : Any]" access=private readImpl=stored writeImpl=stored readWriteImpl=stored
+        (has_initial_value_attr implicit)
+        (has_storage_attr implicit))
+      (if_stmt range=[/x/Arithmetic.swift:70:5 - line:70:52]
+        (conditions=array
+          (pattern
+            (pattern_binding type="ShapeValue" kind=let
+              (pattern_enum_element type="ShapeValue" element="ShapeValue.number"
+                (pattern_paren type="Double"
+                  (pattern_named type="Double" "n"))))
+            (member_ref_expr type="ShapeValue" location=/x/Arithmetic.swift:70:32 range=[/x/Arithmetic.swift:70:30 - line:70:32] decl="main.(file).ShapeFact.fact@/x/Arithmetic.swift:61:35"
+              (declref_expr type="ShapeFact" location=/x/Arithmetic.swift:70:30 range=[/x/Arithmetic.swift:70:30 - line:70:30] decl="main.(file).shapeFactThroughAny(_:).f@/x/Arithmetic.swift:68:28" function_ref=unapplied))))
+        (brace_stmt range=[/x/Arithmetic.swift:70:37 - line:70:52]
+          (assign_expr type="()" location=/x/Arithmetic.swift:70:48 range=[/x/Arithmetic.swift:70:39 - line:70:50]
+            (subscript_expr type="@lvalue Any?" location=/x/Arithmetic.swift:70:42 range=[/x/Arithmetic.swift:70:39 - line:70:46] decl="Swift.(file).Dictionary extension.subscript(_:) [with (substitution_map generic_signature=<Key, Value where Key : Hashable, Value : Copyable, Value : Escapable> Key -> String Value -> Any)]"
+              (inout_expr implicit type="inout Dictionary<String, Any>" location=/x/Arithmetic.swift:70:39 range=[/x/Arithmetic.swift:70:39 - line:70:39]
+                (declref_expr type="@lvalue [String : Any]" location=/x/Arithmetic.swift:70:39 range=[/x/Arithmetic.swift:70:39 - line:70:39] decl="main.(file).shapeFactThroughAny(_:).out@/x/Arithmetic.swift:69:9" function_ref=unapplied))
+              (argument_list
+                (argument
+                  (string_literal_expr type="String" location=/x/Arithmetic.swift:70:43 range=[/x/Arithmetic.swift:70:43 - line:70:43] encoding=utf8 value="n" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))))
+            (inject_into_optional implicit type="Any?" location=/x/Arithmetic.swift:70:50 range=[/x/Arithmetic.swift:70:50 - line:70:50]
+              (erasure_expr implicit type="Any" location=/x/Arithmetic.swift:70:50 range=[/x/Arithmetic.swift:70:50 - line:70:50]
+                (builtin_conformance type="Double" protocol="Copyable" synthesized nonisolated)
+                (builtin_conformance type="Double" protocol="Escapable" synthesized nonisolated)
+                (declref_expr type="Double" location=/x/Arithmetic.swift:70:50 range=[/x/Arithmetic.swift:70:50 - line:70:50] decl="main.(file).shapeFactThroughAny(_:).n@/x/Arithmetic.swift:70:25" function_ref=unapplied))))))
+      (return_stmt range=[/x/Arithmetic.swift:71:5 - line:71:41]
+        (binary_expr type="Double" location=/x/Arithmetic.swift:71:39 range=[/x/Arithmetic.swift:71:12 - line:71:41] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr implicit type="(Double, Double) -> Double" location=/x/Arithmetic.swift:71:39 range=[/x/Arithmetic.swift:71:39 - line:71:39] nothrow isolation_crossing="none"
+            (declref_expr type="(Double.Type) -> (Double, Double) -> Double" location=/x/Arithmetic.swift:71:39 range=[/x/Arithmetic.swift:71:39 - line:71:39] decl="Swift.(file).Double extension.*" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (type_expr implicit type="Double.Type" location=/x/Arithmetic.swift:71:39 range=[/x/Arithmetic.swift:71:39 - line:71:39] typerepr="Double"))))
+          (argument_list implicit
+            (argument
+              (paren_expr type="Double" location=/x/Arithmetic.swift:71:33 range=[/x/Arithmetic.swift:71:12 - line:71:37]
+                (binary_expr type="Double" location=/x/Arithmetic.swift:71:33 range=[/x/Arithmetic.swift:71:13 - line:71:36] nothrow isolation_crossing="none"
+                  (declref_expr type="(consuming Double?, @autoclosure () throws -> Double) throws -> Double" location=/x/Arithmetic.swift:71:33 range=[/x/Arithmetic.swift:71:33 - line:71:33] decl="Swift.(file).?? [with (substitution_map generic_signature=<T where T : Escapable> T -> Double)]" function_ref=single apply)
+                  (argument_list implicit
+                    (argument
+                      (optional_evaluation_expr implicit type="Double?" location=/x/Arithmetic.swift:71:22 range=[/x/Arithmetic.swift:71:13 - line:71:26]
+                        (conditional_checked_cast_expr type="Double?" location=/x/Arithmetic.swift:71:22 range=[/x/Arithmetic.swift:71:13 - line:71:26] value_cast written_type="Double"
+                          (bind_optional_expr implicit type="Any" location=/x/Arithmetic.swift:71:16 range=[/x/Arithmetic.swift:71:13 - line:71:20] depth=0
+                            (load_expr implicit type="Any?" location=/x/Arithmetic.swift:71:16 range=[/x/Arithmetic.swift:71:13 - line:71:20]
+                              (subscript_expr type="@lvalue Any?" location=/x/Arithmetic.swift:71:16 range=[/x/Arithmetic.swift:71:13 - line:71:20] decl="Swift.(file).Dictionary extension.subscript(_:) [with (substitution_map generic_signature=<Key, Value where Key : Hashable, Value : Copyable, Value : Escapable> Key -> String Value -> Any)]"
+                                (inout_expr implicit type="inout Dictionary<String, Any>" location=/x/Arithmetic.swift:71:13 range=[/x/Arithmetic.swift:71:13 - line:71:13]
+                                  (declref_expr type="@lvalue [String : Any]" location=/x/Arithmetic.swift:71:13 range=[/x/Arithmetic.swift:71:13 - line:71:13] decl="main.(file).shapeFactThroughAny(_:).out@/x/Arithmetic.swift:69:9" function_ref=unapplied))
+                                (argument_list
+                                  (argument
+                                    (string_literal_expr type="String" location=/x/Arithmetic.swift:71:17 range=[/x/Arithmetic.swift:71:17 - line:71:17] encoding=utf8 value="n" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
+                    (argument
+                      (autoclosure_expr implicit type="() throws -> Double" location=/x/Arithmetic.swift:71:36 range=[/x/Arithmetic.swift:71:36 - line:71:36] discriminator=0 nonisolated
+                        (parameter_list)
+                        (integer_literal_expr type="Double" location=/x/Arithmetic.swift:71:36 range=[/x/Arithmetic.swift:71:36 - line:71:36] value="0" builtin_initializer="Swift.(file).Double extension.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))))
+            (argument
+              (integer_literal_expr type="Double" location=/x/Arithmetic.swift:71:41 range=[/x/Arithmetic.swift:71:41 - line:71:41] value="2" builtin_initializer="Swift.(file).Double extension.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))))
+  (func_decl range=[/x/Arithmetic.swift:75:1 - line:75:74] "shapeLabelLength(_:)" interface_type="(Standing) -> Int" access=internal result="Int" thrown_type="<null>"
+    (parameter_list range=[/x/Arithmetic.swift:75:22 - line:75:36]
+      (parameter "s" interface_type="Standing"))
+    (brace_stmt range=[/x/Arithmetic.swift:75:45 - line:75:74]
+      (return_stmt implicit range=[/x/Arithmetic.swift:75:47 - line:75:72]
+        (binary_expr type="Int" location=/x/Arithmetic.swift:75:70 range=[/x/Arithmetic.swift:75:47 - line:75:72] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr implicit type="(Int, Int) -> Int" location=/x/Arithmetic.swift:75:70 range=[/x/Arithmetic.swift:75:70 - line:75:70] nothrow isolation_crossing="none"
+            (declref_expr type="(Int.Type) -> (Int, Int) -> Int" location=/x/Arithmetic.swift:75:70 range=[/x/Arithmetic.swift:75:70 - line:75:70] decl="Swift.(file).Int extension.+" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (type_expr implicit type="Int.Type" location=/x/Arithmetic.swift:75:70 range=[/x/Arithmetic.swift:75:70 - line:75:70] typerepr="Int"))))
+          (argument_list implicit
+            (argument
+              (member_ref_expr type="Int" location=/x/Arithmetic.swift:75:64 range=[/x/Arithmetic.swift:75:47 - line:75:64] decl="Swift.(file).String extension.count"
+                (interpolated_string_literal_expr type="String" location=/x/Arithmetic.swift:75:47 range=[/x/Arithmetic.swift:75:47 - line:75:47] literal_capacity=1 interpolation_count=1 builder_init="Swift.(file).DefaultStringInterpolation.init(literalCapacity:interpolationCount:)" result_init="Swift.(file).String extension.init(stringInterpolation:)"
+                  (tap_expr implicit type="String.StringInterpolation" location=/x/Arithmetic.swift:75:47 range=[/x/Arithmetic.swift:75:47 - line:75:62] var="main.(file).shapeLabelLength(_:).$interpolation"
+                    (opaque_value_expr implicit type="String.StringInterpolation" location=/x/Arithmetic.swift:75:47 range=[/x/Arithmetic.swift:75:47 - line:75:47] 0x0)
+                    (brace_stmt implicit range=[/x/Arithmetic.swift:75:48 - line:75:62]
+                      (var_decl implicit "$interpolation" interface_type="String.StringInterpolation" access=private readImpl=stored writeImpl=stored readWriteImpl=stored
+                        (has_storage_attr implicit))
+                      (call_expr implicit type="()" location=/x/Arithmetic.swift:75:48 range=[/x/Arithmetic.swift:75:48 - line:75:47] nothrow isolation_crossing="none"
+                        (dot_syntax_call_expr implicit type="(String) -> ()" location=/x/Arithmetic.swift:75:48 range=[/x/Arithmetic.swift:75:48 - line:75:47] nothrow isolation_crossing="none"
+                          (declref_expr implicit type="(inout DefaultStringInterpolation) -> (String) -> ()" location=/x/Arithmetic.swift:75:47 range=[/x/Arithmetic.swift:75:47 - line:75:47] decl="Swift.(file).DefaultStringInterpolation.appendLiteral" function_ref=single apply)
+                          (argument_list implicit
+                            (argument inout
+                              (inout_expr implicit type="inout DefaultStringInterpolation" location=/x/Arithmetic.swift:75:48 range=[/x/Arithmetic.swift:75:48 - line:75:48]
+                                (declref_expr implicit type="@lvalue String.StringInterpolation" location=/x/Arithmetic.swift:75:48 range=[/x/Arithmetic.swift:75:48 - line:75:48] decl="main.(file).shapeLabelLength(_:).$interpolation" function_ref=unapplied)))))
+                        (argument_list implicit
+                          (argument
+                            (string_literal_expr type="String" location=/x/Arithmetic.swift:75:47 range=[/x/Arithmetic.swift:75:47 - line:75:47] encoding=utf8 value="#" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))))
+                      (call_expr type="()" location=/x/Arithmetic.swift:75:50 range=[/x/Arithmetic.swift:75:50 - line:75:61] nothrow isolation_crossing="none"
+                        (dot_syntax_call_expr implicit type="(Int) -> ()" location=/x/Arithmetic.swift:75:50 range=[/x/Arithmetic.swift:75:50 - line:75:50] nothrow isolation_crossing="none"
+                          (declref_expr implicit type="(inout DefaultStringInterpolation) -> (Int) -> ()" location=/x/Arithmetic.swift:75:50 range=[/x/Arithmetic.swift:75:50 - line:75:50] decl="Swift.(file).DefaultStringInterpolation.appendInterpolation [with (substitution_map generic_signature=<T where T : CustomStringConvertible> T -> Int)]" function_ref=single apply)
+                          (argument_list implicit
+                            (argument inout
+                              (inout_expr implicit type="inout DefaultStringInterpolation" location=/x/Arithmetic.swift:75:50 range=[/x/Arithmetic.swift:75:50 - line:75:50]
+                                (declref_expr implicit type="@lvalue String.StringInterpolation" location=/x/Arithmetic.swift:75:50 range=[/x/Arithmetic.swift:75:50 - line:75:50] decl="main.(file).shapeLabelLength(_:).$interpolation" function_ref=unapplied)))))
+                        (argument_list
+                          (argument
+                            (member_ref_expr type="Int" location=/x/Arithmetic.swift:75:53 range=[/x/Arithmetic.swift:75:51 - line:75:53] decl="main.(file).Standing.position@/x/Models.swift:7:9"
+                              (declref_expr type="Standing" location=/x/Arithmetic.swift:75:51 range=[/x/Arithmetic.swift:75:51 - line:75:51] decl="main.(file).shapeLabelLength(_:).s@/x/Arithmetic.swift:75:25" function_ref=unapplied)))))
+                      (call_expr implicit type="()" location=/x/Arithmetic.swift:75:62 range=[/x/Arithmetic.swift:75:62 - line:75:62] nothrow isolation_crossing="none"
+                        (dot_syntax_call_expr implicit type="(String) -> ()" location=/x/Arithmetic.swift:75:62 range=[/x/Arithmetic.swift:75:62 - line:75:62] nothrow isolation_crossing="none"
+                          (declref_expr implicit type="(inout DefaultStringInterpolation) -> (String) -> ()" location=/x/Arithmetic.swift:75:62 range=[/x/Arithmetic.swift:75:62 - line:75:62] decl="Swift.(file).DefaultStringInterpolation.appendLiteral" function_ref=single apply)
+                          (argument_list implicit
+                            (argument inout
+                              (inout_expr implicit type="inout DefaultStringInterpolation" location=/x/Arithmetic.swift:75:62 range=[/x/Arithmetic.swift:75:62 - line:75:62]
+                                (declref_expr implicit type="@lvalue String.StringInterpolation" location=/x/Arithmetic.swift:75:62 range=[/x/Arithmetic.swift:75:62 - line:75:62] decl="main.(file).shapeLabelLength(_:).$interpolation" function_ref=unapplied)))))
+                        (argument_list implicit
+                          (argument
+                            (string_literal_expr type="String" location=/x/Arithmetic.swift:75:62 range=[/x/Arithmetic.swift:75:62 - line:75:62] encoding=utf8 value="" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
+            (argument
+              (integer_literal_expr type="Int" location=/x/Arithmetic.swift:75:72 range=[/x/Arithmetic.swift:75:72 - line:75:72] value="1" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))))))))
 (source_file "/x/Combine.swift"
   (import_decl range=[/x/Combine.swift:3:1 - line:3:8] module="Foundation")
   (func_decl range=[/x/Combine.swift:5:1 - line:7:1] "fixtureCombinedRank(_:)" interface_type="(Standing) -> Int" access=internal result="Int" thrown_type="<null>"

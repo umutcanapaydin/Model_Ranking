@@ -607,7 +607,7 @@ def _marked(mark: str) -> int:
     "shape",
     ["prefix-minus", "shift", "shift-assign", "operator-as-value", "operator-as-value-map", "pow", "truncating",
      "quotient", "overflow", "custom-operator", "numeric-extension", "subscript", "later-line",
-     "decoded-in-extension"],
+     "decoded-in-extension", "through-any", "through-text", "served-fact", "fact-through-any"],
 )
 def test_each_shape_the_second_review_planted_is_refused(shape: str) -> None:
     """#173 (D-181, G-2): every operator, method and name the second M19-W2 review planted past the
@@ -621,4 +621,10 @@ def test_a_count_of_served_things_is_not_arithmetic_on_a_served_number() -> None
     """#173, the review's M5: `filter { $0.position > 0 }.count + 1` counts things; the walk read the
     closure inside the operand and refused it as `+` on a served position."""
     line = _marked("// allowed: filter-count")
+    assert not [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+
+
+def test_a_labels_length_is_not_a_served_number() -> None:
+    """#171: following a served number through text must not make a label's length one."""
+    line = _marked("// allowed: label-length")
     assert not [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
