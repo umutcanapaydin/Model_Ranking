@@ -322,6 +322,11 @@ ARITHMETIC_PERMITTED: dict[tuple[str, str, str | None], str] = {
     ("Language.swift", "price", "priceInPages"): "REQ-CMP-002: the price in pages, in its Turkish sentence",
     ("Uncertainty.swift", "anchor", "distanceOutOf100"): "D-143: a distance from the leader, out of 100",
     ("Uncertainty.swift", "anchor", "anchoredFact"): "D-143: a pick's fact restated out of 100 (review M-1)",
+    # #171: a served fact's number (`JSONValue.number`, read through `Any`) is a served number since
+    # M21-W3, and these are the places D-143 restates one out of 100: the same three functions.
+    ("Uncertainty.swift", "number", "anchoredFact"): "D-143: a pick's fact restated out of 100 (#171)",
+    ("Uncertainty.swift", "number", "distanceOutOf100"): "D-143: a fact's distance from the leader, out of 100 (#171)",
+    ("Uncertainty.swift", "number", "scoreOutOf100"): "D-143: a fact's score against the served anchor (#171)",
 }
 #: A type the client decodes that the engine never sends: the phone's own record, kept on the phone.
 #: Every other decoded type is served, so a new one counts until it is named here, with its reason.
@@ -474,6 +479,11 @@ OPERATOR_DECL = re.compile(r'^ *\(func_decl [^"]*"(&?(?:<<|>>|[-+*/%])=?)(?:\([_
 NUMERIC_EXTENSION = re.compile(r'^ *\(extension_decl [^"]*"(U?Int(?:8|16|32|64)?|Double|Float|CGFloat|Decimal|BinaryInteger|'
                                r'FixedWidthInteger|SignedInteger|UnsignedInteger|FloatingPoint|BinaryFloatingPoint|'
                                r'Numeric|SignedNumeric|AdditiveArithmetic)"')
+#: #171: a decoded enum, a case of it whose payload is a number, and a stored field typed as one.
+DECODED_ENUM = re.compile(r'^ *\(enum_decl [^"]*"(\w+)"[^\n]*\binherits="[^"]*\b(?:Decodable|Codable)\b')
+NUMERIC_CASE = re.compile(r'^ *\(enum_element_decl (?!implicit)[^"]*"(\w+)\(_:\)" interface_type="[^"]*-> \('
+                          r'(?:U?Int(?:8|16|32|64)?|Double|Float|CGFloat|Decimal)\) ->')
+FACT_FIELD = re.compile(r'^ *\(var_decl [^"]*"(\w+)" interface_type="(\w+)\??"[^\n]*readImpl=stored')
 #: #173: a type that conforms to `Decodable` in an extension stores served numbers too.
 DECODED_EXTENSION = re.compile(r'^ *\(extension_decl [^"]*"(\w+)"[^\n]*\binherits="[^"]*\b(?:Decodable|Codable)\b')
 #: A function that hands each element of its receiver to a closure.
@@ -847,11 +857,30 @@ def _file_of(root: _Node) -> str:
     return pathlib.Path(root.line.split('"')[1]).name
 
 
+def _served_cases(roots: list[_Node]) -> dict[tuple[str, str], str]:
+    """#171: `(enum, case) -> "number"` for each numeric payload of an enum the client decodes."""
+    found: dict[tuple[str, str], str] = {}
+    for root in roots:
+        for node in root.walk():
+            if (named := DECODED_ENUM.match(node.line)) is None or named.group(1) in NOT_SERVED:
+                continue
+            for element in node.kids:
+                if (case := NUMERIC_CASE.match(element.line)) is not None:
+                    found[(named.group(1), case.group(1))] = "number"
+                    found[(named.group(1), f"{case.group(1)}(_:)")] = "number"
+    return found
+
+
 def served_fields(roots: list[_Node]) -> dict[tuple[str, str], str]:
     """`(type, field) -> kind` for every numeric value a decoded type stores (the review's A8)."""
     found: dict[tuple[str, str], str] = {}
     # #173: a type that conforms in an extension is decoded too.
     extended = {m.group(1) for root in roots for node in root.walk() if (m := DECODED_EXTENSION.match(node.line))}
+    # #171: a decoded enum's numeric payload is a served number (`JSONValue.number`), and so is a field
+    # of a decoded type that holds such an enum (`Pick.whyFact`).
+    cases = _served_cases(roots)
+    found.update(cases)
+    fact_types = {enum for enum, _ in cases}
 
     def visit(node: _Node, decoded: str | None) -> None:
         if node.kind in ("func_decl", "constructor_decl", "accessor_decl", "closure_expr"):
@@ -867,6 +896,9 @@ def served_fields(roots: list[_Node]) -> dict[tuple[str, str], str]:
         # A static is the type's own constant, never decoded.
         if decoded and (field := NUMERIC_FIELD.match(node.line)) and " static " not in node.line:
             found[(decoded, field.group(1))] = FIELD_KINDS.get(field.group(1), "number")
+        elif decoded and (held := FACT_FIELD.match(node.line)) and held.group(2) in fact_types \
+                and " static " not in node.line:
+            found[(decoded, held.group(1))] = "number"
         for kid in node.kids:
             visit(kid, decoded)
 
@@ -893,6 +925,42 @@ def _numeric(node: _Node, attribute: str) -> bool:
     return typed is not None and NUMERIC_TYPE.search(typed.group(1)) is not None
 
 
+#: #171: text, and a value of `Any`, can carry a served number too: written into text and parsed back,
+#: or put in a container of `Any` and cast back out.
+TEXTY_TYPE = re.compile(r"^(?:@lvalue )?(?:inout )?(?:String|Substring|DefaultStringInterpolation)\??$|\bAny\b")
+TEXT_NODE = re.compile(r'\btype="(?:@lvalue )?(?:String|Substring|DefaultStringInterpolation)\??"')
+#: A number parsed from text: the numeric types' initialisers from a string.
+PARSES_NUMBER = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.(?:U?Int(?:8|16|32|64)?|Double|Float|Decimal|'
+                           r'FixedWidthInteger|BinaryInteger|BinaryFloatingPoint|LosslessStringConvertible)'
+                           r'(?: extension)?\.init\(_:')
+
+
+def _texty(node: _Node, attribute: str) -> bool:
+    """#171: whether a node declares or computes text, or a value of `Any` (a container of it among them)."""
+    typed = TYPE_OF[attribute].search(node.line)
+    return typed is not None and TEXTY_TYPE.search(typed.group(1)) is not None
+
+
+def _carries(node: _Node, attribute: str) -> bool:
+    """A number, text, or `Any`: what can carry a served number (#171)."""
+    return _numeric(node, attribute) or _texty(node, attribute)
+
+
+def _reach(node: _Node, closures: bool = True, text: bool = True) -> Iterator[_Node]:
+    """A node and what it is computed from. Without `closures`, a closure's body is left out (#173, the
+    review's M5: a count of served things is not a served number). Without `text`, text is left out
+    unless a number is parsed from it (#171: a label's length is not a served number; `Int(text)` is)."""
+    yield node
+    parses = node.kind == "call_expr" and bool(node.kids) and any(
+        PARSES_NUMBER.search(item.line) for item in node.kids[0].walk())
+    for kid in node.kids:
+        if not closures and kid.kind == "closure_expr":
+            continue
+        if not (text or parses) and TEXT_NODE.search(kid.line):
+            continue
+        yield from _reach(kid, closures, text or parses)
+
+
 def _mark(carriers: _Carriers, key: tuple[object, ...], kinds: set[str]) -> bool:
     if not kinds or kinds <= carriers.get(key, set()):
         return False
@@ -900,21 +968,21 @@ def _mark(carriers: _Carriers, key: tuple[object, ...], kinds: set[str]) -> bool
     return True
 
 
-def _parameters(roots: list[_Node]) -> dict[tuple[str, str, int], list[tuple[str, bool]]]:
-    """`(file, function or initialiser name, line) -> its parameters`, in order: each name, and
-    whether it can hold a number."""
-    found: dict[tuple[str, str, int], list[tuple[str, bool]]] = {}
+def _parameters(roots: list[_Node]) -> dict[tuple[str, str, int], list[tuple[str, bool, bool]]]:
+    """`(file, function or initialiser name, line) -> its parameters`, in order: each name, whether it
+    can carry a number (a number, text or `Any`, #171), and whether it is text or `Any`."""
+    found: dict[tuple[str, str, int], list[tuple[str, bool, bool]]] = {}
     for root in roots:
         for node in root.walk():
             if function := FUNCTION.match(node.line):
                 listed = next((kid for kid in node.kids if kid.kind == "parameter_list"), None)
-                names = [(m.group(1), _numeric(kid, "interface_type"))
+                names = [(m.group(1), _carries(kid, "interface_type"), _texty(kid, "interface_type"))
                          for kid in (listed.kids if listed else []) if (m := PARAMETER.match(kid.line))]
                 found[(_file_of(root), function.group(2), int(function.group(1)))] = names
             elif node.kind == "subscript_decl" and (start := RANGE_START.search(node.line)):
                 # #173: a subscript's parameters, which its getter lists, keyed as a function `subscript`.
                 listed = next((item for item in node.walk() if item.kind == "parameter_list"), None)
-                names = [(m.group(1), _numeric(kid, "interface_type"))
+                names = [(m.group(1), _carries(kid, "interface_type"), _texty(kid, "interface_type"))
                          for kid in (listed.kids if listed else []) if (m := PARAMETER.match(kid.line))]
                 found[(_file_of(root), "subscript", int(start.group(2)))] = names
     return found
@@ -973,12 +1041,11 @@ class _Flow:
         since a function's range starts at its attributes, and a reference at its name."""
         return max((line for line in self.functions.get((file, _base(name)), []) if line <= row), default=None)
 
-    def carried(self, node: _Node, closures: bool = True) -> set[str]:
+    def carried(self, node: _Node, closures: bool = True, text: bool = False) -> set[str]:
         """What served numbers an expression reaches: a served field, or anything they flowed into.
-        Without `closures`, a closure inside it is not read (#173, the review's M5: a count of served
-        things is not a served number)."""
+        `_reach` says which parts of it are read: closures, and text a number is not parsed from."""
         found: set[str] = set()
-        for item in (node.walk() if closures else _outside_closures(node)):
+        for item in _reach(node, closures, text):
             for reference in FLOW_REF.finditer(item.line):
                 symbol, path, row, column = reference.groups()
                 file, parts, line = pathlib.Path(path).name, symbol.split("."), int(row)
@@ -1021,11 +1088,12 @@ class _Flow:
         """`let x = served`: into the locals the binding declares."""
         changed = False
         for index, kid in enumerate(node.kids):
-            if kid.kind == "pattern_binding_decl" and (kinds := self.carried(kid)):
+            if kid.kind == "pattern_binding_decl":
                 for sibling in node.kids[index + 1:]:
                     if sibling.kind != "var_decl" or not (place := LOCAL_VAR.match(sibling.line)):
                         break
-                    if _numeric(sibling, "interface_type"):
+                    kinds = self.carried(kid, text=_texty(sibling, "interface_type"))
+                    if kinds and _carries(sibling, "interface_type"):
                         key = (pathlib.Path(place.group(1)).name, int(place.group(2)), int(place.group(3)))
                         changed |= _mark(self.carriers, key, kinds)
         return changed
@@ -1045,9 +1113,11 @@ class _Flow:
             place, value = arguments
         else:
             return False
-        if not _numeric(place, "type") and not _numeric(place.kids[0] if place.kids else place, "type"):
+        inner = place.kids[0] if place.kids else place
+        if not _carries(place, "type") and not _carries(inner, "type"):
             return False
-        if not (kinds := self.carried(value)) or (target := self._target(place)) is None:
+        text = _texty(place, "type") or _texty(inner, "type")
+        if not (kinds := self.carried(value, text=text)) or (target := self._target(place)) is None:
             return False
         return _mark(self.carriers, target, kinds)
 
@@ -1060,7 +1130,7 @@ class _Flow:
                     if not kid.kind.startswith("pattern_") and kid.kind != "brace_stmt" and kid.label != "where"]
         kinds = set().union(*(self.carried(kid) for kid in sequence)) if sequence else set()
         names = {m.group(1) for kid in patterns for item in kid.walk()
-                 if (m := PATTERN_NAME.match(item.line)) and _numeric(item, "type")}
+                 if (m := PATTERN_NAME.match(item.line)) and _carries(item, "type")}
         return any([_mark(self.carriers, ("bound", file, int(start.group(1)), name), kinds) for name in names])
 
     def condition(self, node: _Node, file: str) -> bool:
@@ -1068,22 +1138,29 @@ class _Flow:
         on the line its value starts."""
         if node.kind != "pattern" or len(node.kids) < 2 or not (start := LOCAL_VAR_RANGE.search(node.kids[1].line)):
             return False
-        kinds = set().union(*(self.carried(kid) for kid in node.kids[1:]))
+        kinds = set().union(*(self.carried(kid, text=True) for kid in node.kids))
         names = {m.group(1) for item in node.kids[0].walk()
-                 if (m := PATTERN_NAME.match(item.line)) and _numeric(item, "type")}
+                 if (m := PATTERN_NAME.match(item.line)) and _carries(item, "type")}
         return any([_mark(self.carriers, ("bound", file, int(start.group(1)), name), kinds) for name in names])
 
     def cases(self, node: _Node) -> bool:
         """`switch served { case let x: ... }`: into the names each case binds."""
         if node.kind != "switch_stmt" or not node.kids or node.kids[0].kind == "case_stmt":
             return False
-        if not (kinds := self.carried(node.kids[0])):
-            return False
-        bound = [variable for case in node.kids if case.kind == "case_stmt" for kid in case.kids
-                 if kid.label == "case_body_variables" for variable in kid.kids]
-        return any([_mark(self.carriers, (pathlib.Path(place.group(1)).name, int(place.group(2)), int(place.group(3))), kinds)
-                    for variable in bound
-                    if _numeric(variable, "interface_type") and (place := LOCAL_VAR.match(variable.line))])
+        subject = self.carried(node.kids[0], text=True)
+        changed = False
+        for case in (kid for kid in node.kids if kid.kind == "case_stmt"):
+            # #171: a case that binds a served enum's numeric payload binds a served number, whatever
+            # the subject (`case let .number(double)` on a served fact).
+            labels = set().union(*(self.carried(kid) for kid in case.kids
+                                   if kid.label != "case_body_variables" and kid.kind != "brace_stmt"))
+            if not (kinds := subject | labels):
+                continue
+            changed |= any([_mark(self.carriers, (pathlib.Path(place.group(1)).name, int(place.group(2)),
+                                                  int(place.group(3))), kinds)
+                            for kid in case.kids if kid.label == "case_body_variables" for variable in kid.kids
+                            if _carries(variable, "interface_type") and (place := LOCAL_VAR.match(variable.line))])
+        return changed
 
     def call(self, node: _Node) -> bool:
         """A function's, a method's or an initialiser's parameters, from its arguments (the review's A12);
@@ -1099,8 +1176,8 @@ class _Flow:
         arguments = [kid for kid in node.kids[1].kids if kid.kind == "argument"]
         changed = False
         # Not strict: a parameter with a default takes no argument.
-        for (parameter, numeric), argument in zip(self.parameters[(target, name, at)], arguments, strict=False):
-            if numeric and (kinds := self.carried(argument)):
+        for (parameter, numeric, text), argument in zip(self.parameters[(target, name, at)], arguments, strict=False):
+            if numeric and (kinds := self.carried(argument, text=text)):
                 changed |= _mark(self.carriers, ("parameter", target, at, name, parameter), kinds)
                 if name == "init" and (owner, parameter) in self.stored:
                     changed |= _mark(self.carriers, self.stored[(owner, parameter)], kinds)
@@ -1116,9 +1193,9 @@ class _Flow:
         listed = next((kid for kid in node.kids if kid.kind == "argument_list"), None)
         arguments = [kid for kid in (listed.kids if listed else []) if kid.kind == "argument"]
         changed = False
-        for (parameter, numeric), argument in zip(self.parameters.get((target, "subscript", at), []), arguments,
-                                                  strict=False):
-            if numeric and (kinds := self.carried(argument)):
+        for (parameter, numeric, text), argument in zip(self.parameters.get((target, "subscript", at), []),
+                                                        arguments, strict=False):
+            if numeric and (kinds := self.carried(argument, text=text)):
                 changed |= _mark(self.carriers, ("parameter", target, at, "subscript", parameter), kinds)
         return changed
 
@@ -1141,14 +1218,16 @@ class _Flow:
     def result(self, node: _Node, file: str) -> bool:
         """What a function returns, to every call of it (the review's A2); what a computed property
         returns, to every reading of it."""
-        if node.kind == "func_decl" and (function := FUNCTION.match(node.line)) and _numeric(node, "result"):
+        if node.kind == "func_decl" and (function := FUNCTION.match(node.line)) and _carries(node, "result"):
             key: tuple[object, ...] = ("result", file, int(function.group(1)), function.group(2))
-        elif (node.kind == "var_decl" and "readImpl=getter" in node.line and _numeric(node, "interface_type")
+            text = _texty(node, "result")
+        elif (node.kind == "var_decl" and "readImpl=getter" in node.line and _carries(node, "interface_type")
               and (place := LOCAL_VAR.match(node.line))):
             key = (pathlib.Path(place.group(1)).name, int(place.group(2)), int(place.group(3)))
+            text = _texty(node, "interface_type")
         else:
             return False
-        kinds = set().union(*(self.carried(item) for item in node.walk() if item.kind == "return_stmt"))
+        kinds = set().union(*(self.carried(item, text=text) for item in node.walk() if item.kind == "return_stmt"))
         return _mark(self.carriers, key, kinds)
 
     def closure(self, node: _Node, file: str) -> bool:
@@ -1259,14 +1338,6 @@ def _operator_as_value(node: _Node) -> str | None:
             if found is not None and found.group(1) not in NOT_NUMBERS:
                 return found.group(2)
     return None
-
-
-def _outside_closures(node: _Node) -> Iterator[_Node]:
-    """A node and its descendants, a closure's body left out."""
-    yield node
-    for kid in node.kids:
-        if kid.kind != "closure_expr":
-            yield from _outside_closures(kid)
 
 
 def _ordering(node: _Node) -> tuple[str, str] | None:
