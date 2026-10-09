@@ -10,8 +10,10 @@ final class ModelNameSearchTests: OfflineTestCase {
     /// #194: a search that names a model the engine ranks, beyond the eleven brands the list once
     /// held, is no question of fact, on either tier.
     func testASearchNamingARankedModelIsNoQuestionOfFact() {
-        for text in ["what is cheaper, qwen or kimi", "how much does o3 cost per million tokens", "who makes mixtral",
-                     "how much does phi-4 cost", "what is the context window of qwen3", "who trains nemotron",
+        // The second review's M3: "o3" and "phi" alone are ambiguous (ozone, a letter), so their examples
+        // name a version their names use; "phi-4" is read from the served names (testAServedVersion...).
+        for text in ["what is cheaper, qwen or kimi", "how much does o3 mini cost per million tokens", "who makes mixtral",
+                     "how much does phi-3 cost", "what is the context window of qwen3", "who trains nemotron",
                      "when did glm 4.5 come out", "kimi mi qwen mi daha ucuz", "how many tokens can magistral read"] {
             XCTAssertFalse(InputSignals.asksAFact(text), text)
         }
@@ -28,10 +30,17 @@ final class ModelNameSearchTests: OfflineTestCase {
                      "what is the command for undo"] {
             XCTAssertTrue(InputSignals.asksAFact(text), text)
         }
-        // The review's M3: an ambiguous word stands as a model beside a version its own names use (Phi-3,
-        // Nova 2), or in a question about a model's cost or making.
-        for text in ["how much does phi 4 cost", "what is phi-3 good at", "how fast is nova 2"] {
+        // The second review's M3: an ambiguous word stands as a model only beside a version its own names
+        // use (Phi-3, Nova 2), written apart or onto the name (M4: "llama3", "gemma3").
+        for text in ["what is phi-3 good at", "how fast is nova 2", "what is llama3 good at", "what is gemma3 good at",
+                     "llama3'ü kim yaptı"] {
             XCTAssertFalse(InputSignals.asksAFact(text), text)
+        }
+        // A served name supplies a version the registry's names do not: Phi-4 (the second review's M4).
+        let served = ServedModelNames(displayNames: ["Phi-4", "Llama 4 Maverick"])
+        for text in ["what is phi-4 good at", "what is phi4 good at", "when did llama 4 come out"] {
+            XCTAssertTrue(InputSignals.asksAFact(text), "\(text): no served names")
+            XCTAssertFalse(InputSignals.asksAFact(text, served: served), text)
         }
     }
 
@@ -134,10 +143,24 @@ final class WordingTierReachTests: OfflineTestCase {
 /// version's spelling; a word with a second meaning is no model unless it stands as one.
 final class ModelNameReviewTests: OfflineTestCase {
     func testAServedModelIsASearchWhateverItsVersionsSpelling() {
-        for text in ["who makes llama", "how much does llama cost per token", "how much does kimi k2 cost",
-                     "who makes command r", "who trains aya expanse", "how fast is nova lite", "who makes trinity large",
-                     "what is minimax m2", "how big is gemma 3", "what is o3 mini"] {
+        for text in ["how much does kimi k2 cost", "who makes command r", "who trains aya expanse", "how fast is nova lite",
+                     "who makes trinity large", "what is minimax m2", "how big is gemma 3", "what is o3 mini",
+                     "who makes llama 3"] {
             XCTAssertFalse(InputSignals.asksAFact(text), text)
+        }
+    }
+
+    /// The second review's M3 (D-191): no word about cost or making turns an ambiguous word, or a word only
+    /// the engine serves, into a model; only a version its names use does.
+    func testCostOrMakingWordsMakeNoModel() {
+        let served = ServedModelNames(displayNames: ["Solar Pro 4", "Meta Llama 3.1 8B"])
+        for text in ["how much does a granite countertop cost", "what is the price of granite per square foot",
+                     "what is the price of mercury", "when was mercury released as a single",
+                     "how much does a command strip cost", "how much does a titan watch cost",
+                     "when was the titan submarine released", "how much does the usmle step 1 cost",
+                     "how much does an o1 visa cost", "what is the price of nvidia stock", "who makes llama",
+                     "how much do solar panels cost", "who makes meta quest", "how much does a meta quest 3 cost"] {
+            XCTAssertTrue(InputSignals.asksAFact(text, served: served), text)
         }
     }
 
@@ -204,6 +227,27 @@ final class TurkishReadingReviewTests: OfflineTestCase {
         for text in ["kod için hangisi", "çeviri için model", "gemini mı daha iyi", "en iyi model hangisi",
                      "claude mu chatgpt mi almanca", "yaşlı bir köpek için oyuncak"] {
             XCTAssertTrue(CategoryHints.readsAsTurkish(text), text)
+        }
+    }
+}
+
+
+/// The second review's M5: the router carries the served names into the reading.
+final class ServedNamesRouteTests: OfflineTestCase {
+    private let known = ["coding", "assistant", "agentic-coding", "everyday", "expert", "mathematics",
+                         "computer-use", "abstract", "web-dev", "document", "factuality", "vision",
+                         "search", "search_factuality"]
+
+    func testTheRouterReadsAServedModelAsASearch() async {
+        var router = TieredRouter(model: nil)
+        for question in ["when did yi-34b come out", "what is phi-4 good at"] {
+            let without = await router.route(question, within: known)
+            XCTAssertNotEqual(without.reading, .search, "\(question): no served names")
+        }
+        router.servedNames = ServedModelNames(displayNames: ["Yi-34B", "Phi-4"])
+        for question in ["when did yi-34b come out", "what is phi-4 good at"] {
+            let with = await router.route(question, within: known)
+            XCTAssertEqual(with.reading, .search, question)
         }
     }
 }
