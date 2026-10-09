@@ -791,7 +791,7 @@ def test_a_mac_without_the_toolchain_fails_by_the_name_its_platform_gives(monkey
     assert gate.main() == 0
 
 
-def test_a_sink_reads_none_of_the_standard_librarys_process_wide_state() -> None:
+def test_a_sink_is_refused_the_command_lines_two_members() -> None:
     """The M21-W3 Tester (D-180, the review's B1): `SINK_SWIFT_REFUSED` has no shape in the fixture (G-10), so
     with it emptied every test passed. `CommandLine`'s arguments are process-wide state; a privacy sink reads
     none, and a file that is no sink is not refused for them. # covers REQ-GAP-001"""
