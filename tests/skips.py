@@ -77,6 +77,11 @@ NEEDS: dict[str, Need] = {
 }
 
 
+def ci_job_facts(workflow_text: str) -> dict[str, bool]:
+    """#182: whether CI's test job has each need, read from its workflow file."""
+    return {}
+
+
 def configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers", f"needs(*what): the test needs each named thing ({', '.join(sorted(NEEDS))}; "
