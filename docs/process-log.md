@@ -683,3 +683,19 @@ Lesson: a sentence that describes an order is part of the order; test the words 
 - The ledger's `commit-after-check-fast` control reached its third row, which is the owner's to rule.
 Lesson: review the seams at the milestone's head; a wave reviewed alone cannot see what the next wave joins to it.
 
+
+## 2026-10-09/10 — M21-W1 to W3: the data a reader sees, reading what is not a search, the phone's promises
+
+- The owner asked for the open queue as drafts, then for the waves one at a time after a parallel run of
+  three hit the usage limit. Each wave ran alone from then on.
+- W1 (#236): one model per release (D-189), `web-dev` on LMArena's own board (D-190), the data's release
+  named and checked before a deploy, standings that never block questions. Its first review was BLOCKING
+  (releases still sharing scores), the second MINOR.
+- W2 (#240): model comparisons from every registry family, the held-out gates, the UI fixture and the
+  owner's judgement sheet ship; three reading rules (#194, #218, #222) came out after three verdicts each.
+- W3 (#250): the compiled gate refuses more shapes and its fixture is its definition; five review rounds
+  found records stating more than the gates hold, so the records now name the fixture's rules and point
+  at the register (#248 sweeps the older ones).
+- Every M21 session started outside the repository, so the hooks did not load (#142); the ledger row is
+  the milestone's.
+Lesson: a record that describes a gate in prose will be wider or narrower than the gate; point at its definition instead.

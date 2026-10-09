@@ -29,6 +29,7 @@ The footprint fields and the review files are graded by the `process_version` th
 import fnmatch
 import pathlib
 import re
+import subprocess
 import sys
 
 NAME_RE = re.compile(r"^m\d+-wave-\d+-close\.md$")          # anchored: `x-m1-wave-1-close.md` is not one
@@ -351,6 +352,142 @@ def _glob_problems(p: pathlib.Path, touched: str, evidence: str) -> list[str]:
     return []
 
 
+#: D-192 (#183, #201, #202, #203): closes dated from this day on are read against their commit range's
+#: history and the ledger. A gate does not invalidate a record written before it (GPF-001).
+HISTORY_RULES_FROM = "2026-10-10"
+#: A commit that changes one of these changes code (#201).
+CODE_DIRS = ("src/", "ios/", "scripts/")
+
+
+def _git(root: pathlib.Path, *args: str) -> str | None:
+    """git's output, or None when the command fails (no repository, an unknown ref)."""
+    try:
+        done = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, timeout=60,  # noqa: S603, S607
+                              check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return done.stdout.strip() if done.returncode == 0 else None
+
+
+def _history_absent(root: pathlib.Path) -> str | None:
+    """Why there is no history to read here, or None. CI's test job checks out one commit."""
+    if _git(root, "rev-parse", "--is-inside-work-tree") != "true":
+        return "no git history here"
+    if _git(root, "rev-parse", "--is-shallow-repository") == "true":
+        return "a shallow clone, as CI's test job checks out one commit"
+    return None
+
+
+def _close_date(text: str) -> str | None:
+    dated = re.search(r"^date:\s*(\d{4}-\d{2}-\d{2})", text, re.M)
+    return dated.group(1) if dated else None
+
+
+def _row1_evidence(text: str) -> str:
+    tier_row = re.search(r"^\|\s*1\s*\|.*$", text, re.M)
+    cells = [c.strip() for c in tier_row.group(0).strip().strip("|").split("|")] if tier_row else []
+    return cells[2] if len(cells) > 2 else ""
+
+
+def history_problems(close: pathlib.Path, text: str, root: pathlib.Path) -> tuple[list[str], str | None]:
+    """D-192 clause 2: what a close dated from `HISTORY_RULES_FROM` owes its commit range's history.
+
+    - #183: the files the range changed are held to the plan's security globs, as the footprint is.
+    - #201: an ADR the range adds first appears in a commit that changes no code, unless the milestone
+      plan named it before that commit.
+    - #203: `docs/process-log.md` has a heading dated inside the range.
+
+    Returns (problems, skipped): `skipped` says why the history could not be read (no repository, or a
+    shallow clone); a range the history cannot resolve is a problem, never a skip."""
+    date = _close_date(text)
+    if date is not None and date < HISTORY_RULES_FROM:
+        return [], None
+    absent = _history_absent(root)
+    if absent:
+        return [], f"the history rules (#183, #201, #203) read nothing: {absent}"
+    found = re.search(r"Wave commit range:\s*`([^`]+)`", text)
+    if not found:
+        return ["the footer names no `Wave commit range` in backticks for git to read; it fails closed (#183)"], None
+    spec = found.group(1).strip()
+    three = "..." in spec
+    start, _, end = spec.partition("..." if three else "..")
+    end = end or "HEAD"
+    if end == "HEAD":
+        # Pinned to the commit that added the close, so a later wave's work is not read as this one's.
+        rel = close.resolve().relative_to(root.resolve()).as_posix() if close.resolve().is_relative_to(
+            root.resolve()) else close.name
+        added = _git(root, "log", "--diff-filter=A", "--format=%H", "--", rel)
+        if added:
+            end = added.splitlines()[-1]
+    base = _git(root, "merge-base", start, end) if three else _git(root, "rev-parse", "--verify", f"{start}^{{commit}}")
+    if base is None or _git(root, "rev-parse", "--verify", f"{end}^{{commit}}") is None:
+        return [f"the commit range `{spec}` cannot be read in this history; it fails closed (#183)"], None
+    problems: list[str] = []
+    changed = (_git(root, "diff", "--name-only", base, end) or "").splitlines()
+
+    ids = re.match(r"m(\d+)-wave-\d+-close\.md$", close.name)
+    plan_rel = f"docs/plans/m{ids.group(1)}-plan.md" if ids else "docs/plans/missing-plan.md"
+    globs = plan_globs(root / plan_rel)
+    hits = sorted({f"{path} ({glob})" for path in changed for glob in globs if _touches(path, glob)})
+    if hits and _tier(_row1_evidence(text)) != "HIGH":
+        problems.append(f"the commit range `{spec}` changes its plan's security globs ({', '.join(hits)}) and row 1 "
+                        "does not record the wave as HIGH -- the range's diff is the authority, not the footprint (#183)")
+
+    def adrs(log: str) -> set[str]:
+        return set(re.findall(r"^## (D-\d+)\b", log, re.M))
+
+    added_adrs = adrs(_git(root, "show", f"{end}:docs/decisions.md") or "") - adrs(
+        _git(root, "show", f"{base}:docs/decisions.md") or "")
+    for adr in sorted(added_adrs, key=lambda d: int(d[2:])):
+        first = (_git(root, "log", "--reverse", "--format=%H", "-S", f"## {adr} ", f"{base}..{end}", "--",
+                      "docs/decisions.md") or "").splitlines()
+        if not first:
+            continue
+        files = (_git(root, "show", "--name-only", "--format=", first[0]) or "").splitlines()
+        plan_before = _git(root, "show", f"{first[0]}^:{plan_rel}") or ""
+        if any(f.startswith(CODE_DIRS) for f in files) and not re.search(rf"\b{re.escape(adr)}\b", plan_before):
+            problems.append(f"{adr} first appears in `{first[0][:7]}`, which also changes code, and the plan did not "
+                            "name it before -- write the decision before the code it governs (#201)")
+
+    days = (_git(root, "log", "--format=%cs", f"{base}..{end}") or "").split()
+    log_path = root / "docs" / "process-log.md"
+    log = log_path.read_text(encoding="utf-8", errors="replace") if log_path.is_file() else ""
+    if days:
+        low, high = min(days), max(days)
+        spans = [(d, d[:8] + tail if tail else d)
+                 for d, tail in re.findall(r"^## (\d{4}-\d{2}-\d{2})(?:/(\d{2}))?", log, re.M)]
+        if not any(first_day <= high and last_day >= low for first_day, last_day in spans):
+            problems.append(f"`docs/process-log.md` has no heading dated inside the range ({low} to {high}) -- "
+                            "a session starts from the process log (#203)")
+    return problems, None
+
+
+def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]]) -> list[str]:
+    """D-192 clause 3 (#202): each gate row 9 lists as skipped, and a session started outside the
+    repository, has a `docs/control-events.csv` row for the wave or its milestone."""
+    date = _close_date(text)
+    if date is not None and date < HISTORY_RULES_FROM:
+        return []
+    owners = {wave_id, wave_id.split("-")[0]}
+
+    def ledgered(control: str) -> bool:
+        return any(len(row) >= 2 and row[0].strip().lower() == control and row[1].strip() in owners for row in ledger)
+
+    problems: list[str] = []
+    listed = re.search(r"gates SKIPPED:\s*(.*?)(?:\s·\s|`|$)", text, re.M)
+    for entry in (listed.group(1).split(",") if listed else []):
+        name = re.sub(r"^make\s+", "", entry.split("(")[0].strip().lower())
+        name = re.sub(r"\s+", "-", name).strip(".-")
+        if name and name != "none" and not ledgered(name):
+            problems.append(f"row 9 lists `{entry.strip()}` as skipped and `docs/control-events.csv` has no `{name}` "
+                            f"row for {wave_id} or its milestone -- a skip the ledger does not count becomes "
+                            "permanent (#202)")
+    if re.search(r"started outside the repository", text, re.I) and not ledgered("repository-hooks"):
+        problems.append(f"the close says its session started outside the repository, and `docs/control-events.csv` "
+                        f"has no `repository-hooks` row for {wave_id} or its milestone (#202, #142)")
+    return problems
+
+
 def main(argv: list[str]) -> int:
     for stream in (sys.stdout, sys.stderr):    # a console that cannot encode a character prints `?`
         reconfigure = getattr(stream, "reconfigure", None)
@@ -512,6 +649,19 @@ def main(argv: list[str]) -> int:
     if p.resolve().relative_to(root).parts[:1] != ("conformance",):
         bad.extend(review_seat_problems(
             text, root, int(milestone_match.group(1)) if milestone_match else None))
+
+    # D-192 clauses 2 and 3 (#183, #201, #202, #203): the commit range's history and the ledger.
+    if milestone_match and p.resolve().relative_to(root).parts[:1] != ("conformance",):
+        history, skipped = history_problems(p, text, root)
+        bad.extend(history)
+        if skipped:
+            print(f"SKIPPED [wave-check]: {skipped}")
+        ledger_rows = ([[c.strip() for c in ln.split(",")]
+                        for ln in LEDGER.read_text(encoding="utf-8", errors="replace").splitlines()
+                        if ln.strip() and not ln.startswith("#")] if LEDGER.is_file() else [])
+        wave_ids = re.match(r"m(\d+)-wave-(\d+)", p.name)
+        if wave_ids:
+            bad.extend(skip_ledger_problems(text, f"m{wave_ids.group(1)}-w{wave_ids.group(2)}", ledger_rows))
 
     if rows == 0:
         bad.append("no checklist rows found -- this is not a filled checklist")

@@ -111,9 +111,9 @@ def _write(root: Path, rel: str, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def _commit(root: Path, message: str, date: str, **files: str) -> str:
+def _commit(root: Path, message: str, date: str, files: dict[str, str]) -> str:
     for rel, text in files.items():
-        _write(root, rel.replace("__", "/"), text)
+        _write(root, rel, text)
     _git(root, "add", "-A")
     _git(root, "commit", "-q", "-m", message, date=date)
     return _git(root, "rev-parse", "--short", "HEAD")
@@ -121,13 +121,13 @@ def _commit(root: Path, message: str, date: str, **files: str) -> str:
 
 def _repo(tmp_path: Path, *, plan: str = GLOBS, log: str = "## 2026-10-10 — M30-W1\n\nwork.\n") -> tuple[Path, str]:
     root = tmp_path / "repo"
-    root.mkdir()
+    root.mkdir(parents=True)
     _git(root, "init", "-q", "-b", "main")
-    base = _commit(root, "base", "2026-10-01T12:00:00", **{
-        "docs__plans__m30-plan.md": f"# M30\n\n### W1 — one\n{plan}",
-        "docs__decisions.md": "# Decisions\n\n## D-1 — One\n\nBody.\n",
-        "docs__process-log.md": "# Process log\n\n## 2026-10-01 — before\n\nold.\n",
-        "src__app__other.py": "x = 1\n"})
+    base = _commit(root, "base", "2026-10-01T12:00:00", {
+        "docs/plans/m30-plan.md": f"# M30\n\n### W1 — one\n{plan}",
+        "docs/decisions.md": "# Decisions\n\n## D-1 — One\n\nBody.\n",
+        "docs/process-log.md": "# Process log\n\n## 2026-10-01 — before\n\nold.\n",
+        "src/app/other.py": "x = 1\n"})
     _write(root, "docs/process-log.md", "# Process log\n\n## 2026-10-01 — before\n\nold.\n\n" + log)
     return root, base
 
@@ -143,7 +143,7 @@ def test_a_med_close_whose_range_changes_a_security_glob_is_refused(tmp_path: Pa
     own diff is the authority."""
     check = _module("wave_check")
     root, base = _repo(tmp_path)
-    _commit(root, "change the engine", "2026-10-10T13:00:00", src__app__adapter__main__py="x = 2\n")
+    _commit(root, "change the engine", "2026-10-10T13:00:00", {"src/app/adapter/main.py": "x = 2\n"})
     text = _close_text(base, tier="MED")
     problems, skipped = check.history_problems(root / "docs" / "plans" / "m30-wave-1-close.md", text, root)
     assert skipped is None
@@ -157,8 +157,8 @@ def test_an_adr_first_written_beside_its_code_is_refused(tmp_path: Path) -> None
     check = _module("wave_check")
     root, base = _repo(tmp_path)
     _commit(root, "rule and code", "2026-10-10T13:00:00",
-            docs__decisions__md="# Decisions\n\n## D-1 — One\n\nBody.\n\n## D-2 — Two\n\nNew.\n",
-            src__app__other__py="x = 3\n")
+            {"docs/decisions.md": "# Decisions\n\n## D-1 — One\n\nBody.\n\n## D-2 — Two\n\nNew.\n",
+            "src/app/other.py": "x = 3\n"})
     problems, _ = check.history_problems(root / "docs" / "plans" / "m30-wave-1-close.md", _close_text(base), root)
     assert any("D-2" in p for p in problems), problems
 
@@ -168,15 +168,15 @@ def test_an_adr_written_first_or_named_in_the_plan_passes(tmp_path: Path) -> Non
     check = _module("wave_check")
     root, base = _repo(tmp_path)
     _commit(root, "the rule", "2026-10-10T13:00:00",
-            docs__decisions__md="# Decisions\n\n## D-1 — One\n\nBody.\n\n## D-2 — Two\n\nNew.\n")
-    _commit(root, "the code", "2026-10-10T14:00:00", src__app__other__py="x = 3\n")
+            {"docs/decisions.md": "# Decisions\n\n## D-1 — One\n\nBody.\n\n## D-2 — Two\n\nNew.\n"})
+    _commit(root, "the code", "2026-10-10T14:00:00", {"src/app/other.py": "x = 3\n"})
     close = root / "docs" / "plans" / "m30-wave-1-close.md"
     assert check.history_problems(close, _close_text(base), root)[0] == []
 
     other, start = _repo(tmp_path / "b", plan=GLOBS + "\nD-2 records the rule.\n")
     _commit(other, "rule and code", "2026-10-10T13:00:00",
-            docs__decisions__md="# Decisions\n\n## D-1 — One\n\nBody.\n\n## D-2 — Two\n\nNew.\n",
-            src__app__other__py="x = 3\n")
+            {"docs/decisions.md": "# Decisions\n\n## D-1 — One\n\nBody.\n\n## D-2 — Two\n\nNew.\n",
+            "src/app/other.py": "x = 3\n"})
     assert check.history_problems(other / "docs" / "plans" / "m30-wave-1-close.md", _close_text(start), other)[0] == []
 
 
@@ -184,7 +184,7 @@ def test_a_wave_with_no_process_log_entry_in_its_range_is_refused(tmp_path: Path
     """#203: M19's five waves wrote no entry until the closure, and a new session started from M18's."""
     check = _module("wave_check")
     root, base = _repo(tmp_path, log="")
-    _commit(root, "work", "2026-10-10T13:00:00", src__app__other__py="x = 4\n")
+    _commit(root, "work", "2026-10-10T13:00:00", {"src/app/other.py": "x = 4\n"})
     problems, _ = check.history_problems(root / "docs" / "plans" / "m30-wave-1-close.md", _close_text(base), root)
     assert any("process-log" in p for p in problems), problems
 
@@ -193,7 +193,7 @@ def test_a_process_log_heading_spanning_the_range_passes(tmp_path: Path) -> None
     """A heading written as a span of days (`2026-10-09/11`) covers each day in it."""
     check = _module("wave_check")
     root, base = _repo(tmp_path, log="## 2026-10-09/11 — M30\n\nwork.\n")
-    _commit(root, "work", "2026-10-10T13:00:00", src__app__other__py="x = 5\n")
+    _commit(root, "work", "2026-10-10T13:00:00", {"src/app/other.py": "x = 5\n"})
     assert check.history_problems(root / "docs" / "plans" / "m30-wave-1-close.md", _close_text(base), root)[0] == []
 
 
@@ -210,7 +210,7 @@ def test_a_shallow_clone_or_no_history_says_skipped(tmp_path: Path) -> None:
     """CI's test job checks out one commit; there the history rules say SKIPPED, loudly."""
     check = _module("wave_check")
     root, base = _repo(tmp_path)
-    _commit(root, "work", "2026-10-10T13:00:00", src__app__other__py="x = 6\n")
+    _commit(root, "work", "2026-10-10T13:00:00", {"src/app/other.py": "x = 6\n"})
     shallow = tmp_path / "shallow"
     subprocess.run(["git", "clone", "-q", "--depth", "1", f"file://{root}", str(shallow)], check=True, timeout=30,
                    capture_output=True)
@@ -228,8 +228,8 @@ def test_a_close_dated_before_the_rules_is_not_read_for_history(tmp_path: Path) 
     check = _module("wave_check")
     root, base = _repo(tmp_path, log="")
     _commit(root, "rule and code", "2026-10-09T13:00:00",
-            docs__decisions__md="# Decisions\n\n## D-1 — One\n\nBody.\n\n## D-2 — Two\n\nNew.\n",
-            src__app__adapter__main__py="x = 7\n")
+            {"docs/decisions.md": "# Decisions\n\n## D-1 — One\n\nBody.\n\n## D-2 — Two\n\nNew.\n",
+            "src/app/adapter/main.py": "x = 7\n"})
     assert check.history_problems(root / "docs" / "plans" / "m30-wave-1-close.md",
                                   _close_text(base, tier="MED", date="2026-10-09"), root) == ([], None)
 

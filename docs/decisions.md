@@ -2163,6 +2163,8 @@ The candidate-count sizing stays for the boards without published intervals. No 
 
 ---
 
+**Amended by D-159 (2026-09-23)**: clause 1 stays the rule; each floor's value is computed by the build from its board instead of kept by hand in `categories.py` (added at M21-W4, #200).
+
 ## D-149 — One application: the engine refreshes itself, and the app can ask it to
 
 **Status:** **accepted by the owner 2026-09-22** (in session, at M15-W4) · **Date:** 2026-09-22 ·
@@ -2458,6 +2460,8 @@ itself within seconds, the same way as at its limit (the W6 review's M1). "A rea
 seconds" was true when written; with M17's boards a slow night is bounded by the budget, not by the
 kill.
 
+**Amended by D-170 (2026-09-29)**: clause 2 -- the engine runs as a launchd service, from a deployed release of `main` (added at M21-W4, #200).
+
 ## D-155 — The project runs on DevFlow v6.0
 
 **Status:** **accepted by the owner 2026-09-23** (in session, choosing each option below) · **Date:**
@@ -2713,6 +2717,8 @@ length bound.
 
 **Amended by D-189 (2026-10-09)**: clause 2 -- a curated rule refuses a fine-tune's name (`ft:`) for its reason, as the derive path does (#165).
 
+**Amended by D-166 (2026-09-25)**: a moving, undated API alias never creates a derived model (added at M21-W4, #200).
+
 ## D-158 — The nightly refresh fetches the Epoch bundle itself
 
 **Status:** accepted -- the owner ruled the direction and its clock on 2026-09-23 (M16-W4 plan,
@@ -2856,6 +2862,8 @@ D-126, the same request a reader's own tap on that surface makes. The question's
 refinements and the reader's removals never leave the device.
 
 **Amended by D-181 (2026-10-06)**: clause 2 (the combination does arithmetic on positions only, in `Combine.swift`) is checked on the compiled module, through the names D-181 lists; gap G-2 holds the rest (added at the M19 closure, the repo review's M10).
+
+**Amended by D-168 (2026-09-28)**: the "intent" wording -- the question selects its boards as a surface plus declared refinements (added at M21-W4, #200).
 
 ## D-161 — The project runs on DevFlow v6.4, and session commits carry the owner's identity
 
@@ -4221,6 +4229,8 @@ offline profile; #108's guard reads two spellings, not a typealias or a subclass
 **Revisit when:** the owner applies #122's CI patch (`NEEDS["offline"].in_ci` becomes `True`, and the
 budget falls by one), or a check here fires on correct input.
 
+**Amended by D-192 (2026-10-10)**: the close checks also read the commit range's history, the process log and the ledger for skips and the hooks (D-192 clauses 2 and 3).
+
 ## D-184 — Reading a question, the second round: a question of fact is a doubt, and the image rule stays on vision
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
@@ -4674,8 +4684,9 @@ and test names that state a gate's property flatly (#248).
    - an ADR the range adds first appears in a commit that changes no `src/`, `ios/` or `scripts/` file,
      or the milestone plan names it (#201);
    - `docs/process-log.md` has a heading dated inside the range (#203).
-   Where the clone is shallow (CI's test job), these rules say SKIPPED loudly; where the history exists
-   and the range cannot be read, the close fails.
+   Where there is no history to read (not a git checkout, or a shallow clone as CI's test job checks
+   out), these rules say SKIPPED loudly; where the history exists and the range cannot be read, the close
+   fails. A range ending at `HEAD` is pinned to the commit that added the close.
 3. `make wave-check` reads row 9's `gates SKIPPED:` list, and a close that says its session started
    outside the repository: each needs a row in `docs/control-events.csv` for the wave or its milestone
    (#202).
