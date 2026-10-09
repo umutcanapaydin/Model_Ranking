@@ -76,7 +76,15 @@ Gate definitions change, so the owner reviews the wave (AGENTS.md §3).
 ## 3. Risk tiers and security globs
 
 - **HIGH waves:** all four.
-- **Security globs:** M20's list (`docs/plans/m20-plan.md` §3), and `ios/ModelRanking/Engine/Reading.swift`.
+- **Security globs.** A diff touching any of these makes a wave HIGH (M20's list, and `Reading.swift`):
+  - `src/app/adapter/main.py`, `src/app/clients/**`
+  - `scripts/*engine_service*.sh`
+  - `ios/ModelRanking/Engine/EngineClient.swift`, `Router.swift`, `StandingsStore.swift`,
+    `FrontDoor.swift`, `Combine.swift`, `AnswerPlan.swift`, `Reading.swift`
+  - `tests/conftest.py`
+  - `.github/workflows/**`, `.claude/settings.json` (the owner's)
+  - the deploy surface: `Dockerfile`, `fly.toml`, `.dockerignore`, `scripts/deploy_hosted_engine.sh`,
+    `src/app/workflows/public.py`, `ios/Config/**`
 
 ## 4. Spike check
 
