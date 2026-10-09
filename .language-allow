@@ -132,3 +132,4 @@ scripts/router_probe/wording_heldout_m20_questions.json  # M20-W5 (#195): the fr
 docs/research/m20-w5-runs/              # M20-W5 (#195): every probe run's per-question output, so a run
                                         # can be re-scored; the questions are half Turkish
 ios/EngineTests/FamilyPlanTests.swift   # M20-W4: holds the family note and the older-boards note in Turkish, word for word
+ios/EngineTests/ReadingM21Tests.swift   # M21-W2 (#194, #218): asserts Turkish questions by their words, for the reason ReadingTests does

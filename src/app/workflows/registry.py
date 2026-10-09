@@ -448,6 +448,15 @@ _FAMILY_VENDORS: tuple[tuple[str, str], ...] = (
 )
 
 
+
+def family_words() -> frozenset[str]:
+    """The family words of the models this registry ranks (#194; a stub in the red commit)."""
+    return frozenset()
+
+
+#: Family words that are also plain English (a stub in the red commit).
+AMBIGUOUS_FAMILY_WORDS: frozenset[str] = frozenset()
+
 @dataclass(frozen=True)
 class DerivedIdentity:
     """A derived model id, and the effort Epoch's underscore suffix stated, if any."""

@@ -388,6 +388,9 @@ extension CategoryHints {
         InputSignals.folds(question).map { InputSignals.wordsOf($0).map(plain) }
     }
 
+    /// #218: whether a question reads as Turkish before the embedding is tried (a stub in the red commit).
+    static func readsAsTurkish(_ question: String) -> Bool { false }
+
     /// #206: the Turkish particles a question comparing models puts between their names.
     static let comparisonParticles: Set<String> = ["mi", "mu", "hangisi", "hangi", "yoksa", "veya", "ya", "da",
                                                    "de", "ve", "daha", "iyi", "en"]
