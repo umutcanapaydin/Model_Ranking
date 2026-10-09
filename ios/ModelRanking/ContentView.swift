@@ -1595,8 +1595,3 @@ struct CombinedDetail: View {
     }
 }
 
-/// D-169 (M18-W3): what was typed, and how it was read, while the screen shows the note or asks.
-struct HeldReading: Equatable {
-    let typed: String
-    let outcome: RoutingOutcome
-}
