@@ -1609,25 +1609,23 @@ STRING_LIST = re.compile(r'\[\s*((?:"[^"\n]*"\s*,?\s*)+)\]')
 
 
 def _reading_lists() -> list[tuple[list[str], bool]]:
-    """#117: each list of strings in `Reading.swift`, and whether the app matches its entries whole
-    (#186, M21-W2): read from the code that uses the list, by its name. A list any use of which reads
-    by `hasPrefix` (or that no use is found for) is matched by its start; the rest whole. The literals
-    compared inline are read too: `== "ne"` whole, `hasPrefix("yıl")` by its start."""
+    """#117: each list of strings in `Reading.swift`, with whether the app matches its entries whole
+    (#186; read per literal by `_lists_in`, the M21-W2 review's M6)."""
     code = "\n".join(line.split("//")[0] for line in _swift(CLIENT / "Engine/Reading.swift").splitlines())
-    lists = []
-    for found in STRING_LIST.finditer(code):
-        declared = re.findall(r"\b(?:let|var)\s+(\w+)", code[max(0, found.start() - 400):found.start()])
-        lists.append((re.findall(r'"([^"\n]*)"', found.group(1)), bool(declared) and _matched_whole(code, declared[-1])))
-    lists.append((re.findall(r'==\s*"([^"\n]+)"', code), True))
-    lists.append((re.findall(r'hasPrefix\("([^"\n]+)"\)', code), False))
+    lists = _lists_in(code)
     assert sum(len(entries) for entries, _ in lists) > 100, "Reading.swift's lists were not read"
     return lists
 
 
 def _matched_whole(code: str, name: str) -> bool:
     """#186: whether every use of the list `name` matches an entry whole: no use reads by `hasPrefix`
-    or `hasSuffix`, and at least one use is found."""
-    uses = [m.group(1) for m in re.finditer(rf"\b{re.escape(name)}\.\w+\b(.{{0,90}})", code)]
+    or `hasSuffix`, and at least one use is found: a method on it (`name.contains`) or a loop over it
+    whose test is whole (`for p in name where spaced.contains(" \\(p) ")`, the review's M6)."""
+    # Each use's own call, its parentheses balanced one level deep, not the text after it (the review's M6).
+    uses = [m.group(1) for m in re.finditer(rf"\b{re.escape(name)}\.\w+\(((?:[^()]|\([^()]*\))*)\)", code)]
+    # A method passed by name (`words.contains(where: factWordsTurkish.contains)`) is a whole use too.
+    uses += ["" for _ in re.finditer(rf"\b{re.escape(name)}\.(?:contains|firstIndex|first)\b(?!\()", code)]
+    uses += [m.group(1) for m in re.finditer(rf"\bin {re.escape(name)}\b([^\n]*)", code)]
     return bool(uses) and not any("hasPrefix" in use or "hasSuffix" in use for use in uses)
 
 
@@ -1755,8 +1753,28 @@ def test_the_wording_read_holds_the_family_words_and_their_ambiguous_list() -> N
 
 
 def _lists_in(code: str) -> list[tuple[list[str], bool]]:
-    """M6 (a): a stub in the red commit."""
-    return []
+    """Each string literal list in `code`, and whether the app matches its entries whole (#186; the M21-W2
+    review's M6): a declaration's (`let name = [`) by the uses of its name, an inline one by its own use
+    right after it (`.contains(x)` and `== [` whole, `.contains(where: … hasPrefix …)` by its start).
+    Anything else is read by its start, the mode that flags less. The literals compared inline (`== "ne"`
+    whole, `hasPrefix("yıl")` by its start) are read too."""
+    lists: list[tuple[list[str], bool]] = []
+    for found in STRING_LIST.finditer(code):
+        entries = re.findall(r'"([^"\n]*)"', found.group(1))
+        before, after = code[max(0, found.start() - 200):found.start()], code[found.end():found.end() + 80]
+        declared = re.search(r"\b(?:let|var)\s+(\w+)\s*(?::[^=\n]+)?=\s*$", before)
+        if re.match(r"\s*\.contains\(where:[^\n]*hasPrefix", after):
+            whole = False
+        elif re.match(r"\s*\.\w+\(", after):
+            whole = bool(re.match(r"\s*\.contains\((?!where:)", after))
+        elif declared:
+            whole = _matched_whole(code, declared.group(1))
+        else:
+            whole = bool(re.search(r"==\s*$", before))
+        lists.append((entries, whole))
+    lists.append((re.findall(r'==\s*"([^"\n]+)"', code), True))
+    lists.append((re.findall(r'hasPrefix\("([^"\n]+)"\)', code), False))
+    return lists
 
 
 # --- M21-W2 (#186, #180): the held-out check matches as the app does, and reads the wording tier -------
@@ -1822,7 +1840,6 @@ WORDING_HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
     "integral": _WORDING_AT_MAIN,
     "kurgu": _WORDING_AT_MAIN,
     "law": _WORDING_AT_MAIN,
-    "learn": _WORDING_AT_MAIN,
     "overall": _WORDING_AT_MAIN,
     "php": _WORDING_AT_MAIN,
     "rust code": _WORDING_AT_MAIN,
@@ -1831,6 +1848,7 @@ WORDING_HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
     "turev": _WORDING_AT_MAIN,
     "user": _WORDING_AT_MAIN,
     "yazan": _WORDING_AT_MAIN,
+    "learn": _WORDING_IN_W3.format(sha="fb773fe"),
     "pazarlama": _WORDING_IN_W3.format(sha="7c12a7b"),
     "poetry": _WORDING_IN_W3.format(sha="7c12a7b"),
     "yoksa": _WORDING_IN_W3.format(sha="fb773fe"),
@@ -1845,11 +1863,18 @@ def _wording_lists() -> list[tuple[list[str], bool]]:
     - every other literal in `CategoryHints` and in the refinement words (D-188 clause 6), whole, or by
       its start where it ends in `*`.
     Read from `Router.swift`'s `CategoryHints` and `Refinements.swift` from `struct Words` to `read`."""
+    from app.workflows.registry import AMBIGUOUS_FAMILY_WORDS
+
     router = _swift(CLIENT / "Engine/Router.swift")
     refinements = _swift(CLIENT / "Engine/Refinements.swift")
+    # The review's M6 (c): the generated family words, their versions, and the hand-kept ambiguous list.
+    families = _swift(CLIENT / "Engine/ModelFamilies.swift")
     regions = [router[router.index("enum CategoryHints"):router.index("protocol QuestionRouter")],
                refinements[refinements.index("struct Words"):refinements.index("static func read(")]]
-    lists: list[tuple[list[str], bool]] = []
+    lists: list[tuple[list[str], bool]] = [
+        (re.findall(r'"([^"\n]*)"', families), True),
+        (sorted(AMBIGUOUS_FAMILY_WORDS), True),
+    ]
     for region in regions:
         code = "\n".join(line.split("//")[0] for line in region.splitlines())
         taken: list[tuple[int, int]] = []
