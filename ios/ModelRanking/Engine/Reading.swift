@@ -166,7 +166,7 @@ enum InputSignals {
     /// fact, and naming no model, no task, no person asking, nothing current and no image the asker
     /// has. A doubt, as the others are: alone, the reader is asked. The model called 21 and 20 of 22
     /// such questions on the tuning set "a model search".
-    static func asksAFact(_ text: String) -> Bool {
+    static func asksAFact(_ text: String, served: ServedModelNames = ServedModelNames()) -> Bool {
         let folded = folds(text).map(wordsOf)
         // A suffix after an apostrophe belongs to its word ("Hamlet'i", "Türkiye'nin"), so it is no
         // English "I" (the second M19-W4 review's M2); "I'm" still leaves an "I".
@@ -219,7 +219,7 @@ enum InputSignals {
     /// (`ModelFamilies`, generated): a word with a version attached reads by its letters ("qwen3",
     /// "phi4"), and a family word that is also plain English counts only beside a version ("phi-4",
     /// "nova 2", never "what is phi"). The brand names this list once held come from there now.
-    static func namesARankedModel(_ text: String) -> Bool {
+    static func namesARankedModel(_ text: String, served: ServedModelNames = ServedModelNames()) -> Bool {
         folds(text).contains { folded in
             let tokens = folded.split { !$0.isLetter && !$0.isNumber }.map(String.init)
             return tokens.indices.contains { index in

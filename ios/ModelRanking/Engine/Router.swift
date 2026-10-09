@@ -989,7 +989,8 @@ struct TieredRouter {
 
     /// D-169 as amended at M18-W3 and by D-184: the outcome's reading, from the signals in code and,
     /// where the model read the question, its verdict. The signals run on every tier.
-    static func read(_ question: String, _ outcome: RoutingOutcome) -> RoutingOutcome {
+    static func read(_ question: String, _ outcome: RoutingOutcome, served: ServedModelNames = ServedModelNames())
+        -> RoutingOutcome {
         var read = outcome
         // D-187 (the owner's ruling, 2026-10-08) retires #113's rule: a request to make or change an
         // image is answered from `vision`, the board of the models that read images best, and is no

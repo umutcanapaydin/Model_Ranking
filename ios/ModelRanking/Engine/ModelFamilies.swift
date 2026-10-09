@@ -12,6 +12,8 @@ enum ModelFamilies {
         "o3", "o4", "palmyra", "phi", "pixtral", "qwen", "qwq", "step", "titan", "trinity", "zephyr",
     ]
     /// The family words that are also plain English or Turkish; they name a model only beside a version.
+    /// The tokens the registry's names put after an ambiguous family word (a stub in the red commit).
+    static let versions: [String: Set<String>] = [:]
     static let ambiguous: Set<String> = [
         "aya", "code", "command", "ernie", "granite", "jamba", "kimi", "llama", "mercury", "nous", "nova",
         "palmyra", "phi", "step", "titan", "trinity", "zephyr",

@@ -28,7 +28,9 @@ final class ModelNameSearchTests: OfflineTestCase {
                      "what is the command for undo"] {
             XCTAssertTrue(InputSignals.asksAFact(text), text)
         }
-        for text in ["how much does phi 4 cost", "what is phi-4 good at", "how fast is nova 2"] {
+        // The review's M3: an ambiguous word stands as a model beside a version its own names use (Phi-3,
+        // Nova 2), or in a question about a model's cost or making.
+        for text in ["how much does phi 4 cost", "what is phi-3 good at", "how fast is nova 2"] {
             XCTAssertFalse(InputSignals.asksAFact(text), text)
         }
     }
@@ -124,5 +126,52 @@ final class WordingTierReachTests: OfflineTestCase {
         for question in ["hangisi daha uzun, nil mi amazon mu", "bugün hava nasıl", "kitabın yazarı kim"] {
             XCTAssertNil(CategoryHints.generalSurface(question, within: known), question)
         }
+    }
+}
+
+/// The M21-W2 review's M1 to M3 and K1 (#194, D-191): a served model's name is a search whatever its
+/// version's spelling; a word with a second meaning is no model unless it stands as one.
+final class ModelNameReviewTests: OfflineTestCase {
+    func testAServedModelIsASearchWhateverItsVersionsSpelling() {
+        for text in ["who makes llama", "how much does llama cost per token", "how much does kimi k2 cost",
+                     "who makes command r", "who trains aya expanse", "how fast is nova lite", "who makes trinity large",
+                     "what is minimax m2", "how big is gemma 3", "what is o3 mini"] {
+            XCTAssertFalse(InputSignals.asksAFact(text), text)
+        }
+    }
+
+    func testAWordWithASecondMeaningIsNoModelUnlessItStandsAsOne() {
+        for text in ["who founded nvidia", "what is the minimax algorithm", "what is o3 in chemistry",
+                     "what is mimo in wifi", "what is a glm in statistics", "who is gemma chan",
+                     "how long does an o1 visa take", "who were the mercury 7 astronauts", "when is usmle step 1",
+                     "what do llamas eat", "who is kimi raikkonen"] {
+            XCTAssertTrue(InputSignals.asksAFact(text), text)
+        }
+    }
+
+    func testAModelOnlyTheEngineServesIsASearch() {
+        let served = ServedModelNames(displayNames: ["StarCoder 2 15B", "Yi-34B", "Solar Pro 4", "Muse Spark"])
+        for text in ["who makes starcoder 2", "when did yi-34b come out", "who makes solar pro 4", "what is muse spark"] {
+            XCTAssertTrue(InputSignals.asksAFact(text), "\(text): no model with no served names")
+            XCTAssertFalse(InputSignals.asksAFact(text, served: served), text)
+            let read = TieredRouter.read(text, RoutingOutcome(categoryID: "assistant", tier: .similarity,
+                                                              unmeasured: false), served: served)
+            XCTAssertEqual(read.reading, .search, text)
+        }
+        for text in ["what is solar energy", "who is the greek muse of history"] {
+            XCTAssertTrue(InputSignals.asksAFact(text, served: served), text)
+        }
+        let fromStandings = ServedModelNames(Standings(apiVersion: "v1", attributions: [], boards: [],
+                                                       models: [StandingModel(id: "yi-34b", display: "Yi-34B", vendor: "01",
+                                                                              blendedPerM: 1, accessibility: nil)]))
+        XCTAssertFalse(InputSignals.asksAFact("when did yi-34b come out", served: fromStandings))
+    }
+
+    /// K1: a question made only of model names reads every family the registry names.
+    func testAComparisonOfAnyRankedFamiliesIsAGeneralQuestion() {
+        for question in ["mixtral mi qwen mi", "nemotron mu claude mu"] {
+            XCTAssertTrue(CategoryHints.comparesModelsOnly(question), question)
+        }
+        XCTAssertFalse(CategoryHints.comparesModelsOnly("kimi mi geldi"), "kimi alone is a Turkish word")
     }
 }

@@ -518,6 +518,11 @@ def family_words() -> frozenset[str]:
     return frozenset(words)
 
 
+def family_versions() -> dict[str, frozenset[str]]:
+    """Per ambiguous family word, the tokens its names put after it (a stub in the red commit)."""
+    return {}
+
+
 #: The family words that are also plain English or Turkish (a phi in a formula, a llama, Mercury, a
 #: titan, Palmyra, "kimi" for "some"): each names a model only beside a version (`phi-4`, `nova 2`),
 #: so a question of fact about the thing itself is still read as one (#194).
