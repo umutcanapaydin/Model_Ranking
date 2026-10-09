@@ -114,22 +114,9 @@ final class WordingTierReachTests: OfflineTestCase {
                          "computer-use", "abstract", "web-dev", "document", "factuality", "vision",
                          "search", "search_factuality"]
 
-    /// #222 (M21-W2): a Turkish search that asks for "the best one", "which one", a model or a
-    /// recommendation, naming no surface, is a general question, not "not measured". Written for this
-    /// test, never from a held-out set.
-    func testATurkishAskForTheBestOneIsAGeneralQuestion() async {
-        for question in ["ingilizce e-posta yazmak için en iyisi hangisi", "fransızca mektup yazmama yardım edecek model",
-                         // The review's M4: an ask names a task or a model now ("çözmek", to solve).
-                         "muhasebe sorularını çözmek için hangisi daha iyi", "şiir yazmak için en iyisi",
-                         "bir hikaye yazdırmak istiyorum hangisi iyi", "yazı: blog yazısı için öneri",
-                         "sunum hazırlamak için en iyisi", "ödev yaparken hangisini kullanayım",
-                         "yemek tarifi önerecek model", "dil öğrenmek için en iyisi"] {
-            XCTAssertNil(CategoryHints.namedSurface(question, within: known), question)
-            XCTAssertEqual(CategoryHints.generalSurface(question, within: known), "everyday", question)
-            let outcome = await TieredRouter(model: nil).route(question, within: known)
-            XCTAssertFalse(outcome.unmeasured, question)
-        }
-    }
+    // #222's general-ask rule is taken out after the second review (M1, D-191): its task words have a
+    // second reading ("yaz" is summer, "öğrenci" a student, "bot" boots), so an ask for "the best one"
+    // that names no surface is "not measured" again, as at 972b55e; #222 stays open with that state.
 
     /// #222: a question that is no ask for the best one stays as it was.
     func testATurkishQuestionThatAsksForNoneIsNoGeneralQuestion() {
@@ -212,7 +199,13 @@ final class TurkishReadingReviewTests: OfflineTestCase {
     /// is no general question.
     func testAnAskAboutNoTaskOrModelIsNoGeneralQuestion() {
         for question in ["tatil için en iyisi neresi", "kahve için en iyisi hangisi", "araba almak için hangisi daha iyi",
-                         "hangisi iyi, iphone mu samsung mu", "model uçak yapımı", "en ünlü model kim"] {
+                         "hangisi iyi, iphone mu samsung mu", "model uçak yapımı", "en ünlü model kim",
+                         // The second review's M1: a task word with a second reading.
+                         "yaz tatili için en iyisi neresi", "yazın tatil için en iyisi neresi", "yazlık için en iyisi neresi",
+                         "yazıcı için hangisi iyi", "öğrenci için hangisi daha iyi, macbook mu dell mi",
+                         "kışlık bot için en iyisi hangisi", "model uçak için en iyisi hangisi",
+                         "kahvaltı hazırlamak için en iyisi hangisi", "kan analizi için en iyisi hangisi",
+                         "saç düzeltmek için en iyisi hangisi"] {
             XCTAssertNil(CategoryHints.generalSurface(question, within: known), question)
         }
     }
@@ -221,11 +214,16 @@ final class TurkishReadingReviewTests: OfflineTestCase {
     func testALetterOtherLanguagesShareIsNoTurkishAlone() {
         for text in ["help me draft a toast for a wedding in Zürich", "plan a weekend in Köln with kids",
                      "a tool to practise German words like Übung and Brötchen", "plan meals for a week in Göteborg",
-                     "help me study for the MI board exam"] {
+                     "help me study for the MI board exam",
+                     // The second review's M6: a capitalised name or a state code is no Turkish word.
+                     "write a cover letter for Kim in Detroit, MI", "plan a road trip from Detroit MI to Omaha NE",
+                     "write a short bio of Björk for Kim"] {
             XCTAssertFalse(CategoryHints.readsAsTurkish(text), text)
         }
         for text in ["kod için hangisi", "çeviri için model", "gemini mı daha iyi", "en iyi model hangisi",
-                     "claude mu chatgpt mi almanca", "yaşlı bir köpek için oyuncak"] {
+                     "claude mu chatgpt mi almanca", "yaşlı bir köpek için oyuncak",
+                     // The second review's M2: a particle typed twice is two signals.
+                     "phi mi gemma mi", "glm mi minimax mi"] {
             XCTAssertTrue(CategoryHints.readsAsTurkish(text), text)
         }
     }
@@ -248,6 +246,23 @@ final class ServedNamesRouteTests: OfflineTestCase {
         for question in ["when did yi-34b come out", "what is phi-4 good at"] {
             let with = await router.route(question, within: known)
             XCTAssertEqual(with.reading, .search, question)
+        }
+    }
+}
+
+
+/// The second review's M2 (#206, K1): a comparison of any two ranked families is a general question,
+/// answered from `everyday` by the route itself.
+final class ModelComparisonRouteTests: OfflineTestCase {
+    private let known = ["coding", "assistant", "agentic-coding", "everyday", "expert", "mathematics",
+                         "computer-use", "abstract", "web-dev", "document", "factuality", "vision",
+                         "search", "search_factuality"]
+
+    func testAComparisonOfFamiliesOutsideTheTwelveBrandsIsEveryday() async {
+        for question in ["nemotron mu glm mi", "mixtral mi nemotron mu"] {
+            let outcome = await SimilarityRouter().route(question, within: known)
+            XCTAssertEqual(outcome?.categoryID, "everyday", question)
+            XCTAssertEqual(outcome?.unmeasured, false, question)
         }
     }
 }
