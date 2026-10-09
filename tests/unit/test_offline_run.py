@@ -138,7 +138,7 @@ def _swift_runs(target: str, uname: str) -> list[str]:
     """Each `swift test` command a Swift leg runs, as `make -n` prints its recipe on `uname`."""
     printed = subprocess.run(["make", "-n", target, f"UNAME_S={uname}"], cwd=ROOT, capture_output=True, text=True,
                              check=False, timeout=120).stdout.splitlines()
-    commands = "\n".join(line for line in printed if not line.lstrip().startswith("#"))
+    commands = "\n".join(re.sub(r'echo "[^"]*"', "", line) for line in printed if not line.lstrip().startswith("#"))
     return re.findall(r"[^`;(\n]*\bswift test\b[^`;)\n]*", commands)
 
 

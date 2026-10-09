@@ -140,6 +140,11 @@ coverage-floor: install  ## W-041: no module carries materially less test proof 
 #: declarations drop together -- and it had been wrong three times. Deleting a test now requires
 #: deleting its line here, which a reviewer sees in the diff.
 SWIFT_TEST_MANIFEST := ios/EngineTests/test-manifest.txt
+#: #179: on macOS every `swift test` runs inside the same offline profile as `make test`, from `ios/`,
+#: so a child the Swift suite starts is offline too (the tripwire sees this process's sessions only).
+#: SwiftPM's own sandbox cannot nest inside it, so it is off (`--disable-sandbox`, measured by the
+#: M19-W3 review); the suite still runs nothing but the Engine's sources.
+SWIFT_TEST = $(if $(filter Darwin,$(UNAME_S)),MODEL_RANKING_REQUIRE_OFFLINE=1 /usr/bin/sandbox-exec -f ../scripts/offline.sb swift test --disable-sandbox,swift test)
 SWIFT_TEST_FLOOR := $(shell grep -c . $(SWIFT_TEST_MANIFEST))
 
 swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING sources
@@ -158,7 +163,7 @@ swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING so
 	@# first a pipe swallowing the status, then `runner` calling commands that do not exist, now
 	@# this. Same shape as `coverage-floor`: the floor is raised deliberately, never lowered quietly.
 	@if command -v swift > /dev/null 2>&1; then \
-		out=`cd ios && swift test 2>&1`; rc=$$?; mkdir -p build; echo "$$out" > build/swift-test.log; [ $$rc -eq 0 ] || { echo "$$out" | grep -E "error:|failed \(" | head -30; echo "(full swift output: build/swift-test.log)"; exit 1; }; \
+		out=`cd ios && $(SWIFT_TEST) 2>&1`; rc=$$?; mkdir -p build; echo "$$out" > build/swift-test.log; [ $$rc -eq 0 ] || { echo "$$out" | grep -E "error:|failed \(" | head -30; echo "(full swift output: build/swift-test.log)"; exit 1; }; \
 		line=`echo "$$out" | grep -E "Executed [0-9]+ tests, with" | tail -1`; \
 		if echo "$$line" | grep -q "skipped"; then \
 			echo "swift-test FAIL: a test was SKIPPED, which counts as executed."; \
@@ -172,7 +177,7 @@ swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING so
 			echo "  A suite that stops being discovered exits 0 and reports nothing."; \
 			exit 1; \
 		fi; \
-		( cd ios && swift test --list-tests 2>/dev/null ) | sort > build/swift-tests-discovered.txt; \
+		( cd ios && $(SWIFT_TEST) --list-tests 2>/dev/null ) | sort > build/swift-tests-discovered.txt; \
 		if ! diff -u $(SWIFT_TEST_MANIFEST) build/swift-tests-discovered.txt > build/swift-manifest.diff 2>&1; then \
 			echo "swift-test FAIL: the discovered tests are not the manifest (D-150)."; \
 			head -20 build/swift-manifest.diff; \
@@ -196,7 +201,7 @@ swift-test-parallel:  ## `swift-test` for `check-fast`: the same suite with --pa
 	@# A skip is read from the SOURCES: measured, `--parallel` reports a skipped test as passed.
 	@if command -v swift > /dev/null 2>&1; then \
 		mkdir -p build; rm -f build/swift-xunit.xml; \
-		out=`cd ios && swift test --parallel --xunit-output ../build/swift-xunit.xml 2>&1`; rc=$$?; \
+		out=`cd ios && $(SWIFT_TEST) --parallel --xunit-output ../build/swift-xunit.xml 2>&1`; rc=$$?; \
 		echo "$$out" > build/swift-test-parallel.log; \
 		[ $$rc -eq 0 ] || { echo "$$out" | grep -E "error:|failed|✘" | head -30; echo "(full swift output: build/swift-test-parallel.log)"; exit 1; }; \
 		$(SYS_PY) -B scripts/swift_xunit_gate.py build/swift-xunit.xml $(SWIFT_TEST_MANIFEST) $(dir $(SWIFT_TEST_MANIFEST)); \
