@@ -1073,7 +1073,7 @@ struct ContentView: View {
         standingsInFlight = true
         Task {
             defer { standingsInFlight = false }
-            if let kept = await StandingsStore.onDevice.currentKept(now: Date(), fetch: { try await client.boards() }) {
+            if let kept = await StandingsStore.onDevice.currentKept(fetch: { try await client.boards() }) {
                 standings = kept.standings
                 standingsFetchedAt = kept.fetchedAt
                 standingsStamp += 1

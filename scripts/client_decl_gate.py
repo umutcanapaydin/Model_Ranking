@@ -249,6 +249,14 @@ PROVENANCE: dict[str, tuple[set[str], str]] = {
     "StandingsStore.save(_:at:)": (
         {"StandingsStore.swift"},
         "only the store's own file saves standings, the ones it fetched"),
+    # #170: a date is a 64-bit channel into the standings file, so only the store's own file dates
+    # what it keeps; the app calls `currentKept(fetch:)`, which reads the store's clock.
+    "StandingsStore.currentKept(now:fetch:)": (
+        {"StandingsStore.swift"},
+        "only the store's own file dates the standings it keeps, by its own clock"),
+    "StandingsStore.current(now:fetch:)": (
+        {"StandingsStore.swift"},
+        "only the store's own file dates the standings it keeps, by its own clock"),
 }
 #: The second W2 review's B1: the types `PROVENANCE` guards. A protocol requirement their initialiser
 #: satisfies is another name for it, and an initialiser added in an extension is another initialiser,
