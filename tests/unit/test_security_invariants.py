@@ -634,7 +634,7 @@ GATE_DOC_FILES = ("scripts/client_decl_gate.py", "tests/unit/test_client_decl_ga
 PROPERTY_PHRASES: dict[str, frozenset[int]] = {
     r"\bnothing\b[^.|]{0,40}\bleaves the (?:phone|device)\b": frozenset({66}),
     r"\bnothing (?:the reader )?typed\b|\bnothing the reader types\b": frozenset({64}),
-    r"\bonly\b[^.|]{0,60}\b(?:reach(?:es)?|talks? to) the network\b": frozenset({62}),
+    r"\bonly\b(?:`[^`]*`|[^.|`]){0,60}\b(?:reach(?:es)?|talks? to) the network\b": frozenset({62}),
     r"\b(?:changes|performs) no (?:number|arithmetic)\b|\bcomputed by the client\b|\bthe (?:client|phone) computes\b":
         frozenset({76}),
     r"\borders nothing\b|\bno ordering of its own\b": frozenset({76}),

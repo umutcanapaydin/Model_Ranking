@@ -32,7 +32,7 @@ DECODED_URL = (
 )
 
 
-def test_the_network_and_the_file_system_are_refused_outside_their_files() -> None:
+def test_the_listed_network_and_file_system_symbols_are_refused_outside_their_files() -> None:
     """#51: `URLSession` outside `EngineClient.swift`, `FileManager` outside `FILESYSTEM_FILES`."""
     found = {
         "ContentView.swift": {"Foundation.URLSession"},
@@ -98,7 +98,7 @@ def test_make_client_decls_fails_when_its_self_test_does(monkeypatch: pytest.Mon
     assert gate.main() == 1
 
 
-def test_a_release_build_carries_no_ui_test_hook() -> None:
+def test_a_release_build_reading_its_launch_arguments_or_environment_is_refused() -> None:
     """D-175 clause 3: the launch arguments the scripted router is handed are read in Debug only."""
     found = {"LaunchRouting.swift": {"Foundation.ProcessInfo.arguments", "Swift.CommandLine.arguments"}}
     assert len(gate.release_problems(found)) == 2
@@ -262,7 +262,7 @@ MADE_URL_AST = (
 )
 
 
-def test_a_url_made_by_any_call_outside_its_files_is_refused() -> None:
+def test_a_url_made_by_the_fixtures_calls_outside_its_files_is_refused() -> None:
     """#107: `URL(_:strategy:)` and a generic decode wrapper make a URL from text with no initialiser
     or decode the gate listed. A call whose result is a URL is refused outside the network door and
     the two stores, whatever it is called; reading a URL that exists is not making one. REQ-GAP-001."""
@@ -404,7 +404,7 @@ def test_the_price_in_pages_is_permitted_where_it_is_computed() -> None:
     assert not [line for line in refused if line.startswith("Router.swift:") and int(line.split(":")[1]) in span], refused
 
 
-def test_a_sink_holds_nothing_another_file_can_change() -> None:
+def test_a_sink_holding_a_mutable_object_or_a_closure_is_refused_in_the_fixtures_forms() -> None:
     """The W2 review's M1, S3 (D-180 clause 2, INV-66, REQ-GAP-001): `static let probeRelay =
     NSMutableString()` on the client, set by the screen and read by the request, passed: the rule
     refused a `var`, and a `let` holding a mutable object is as shared. What a sink holds is a
@@ -416,7 +416,7 @@ def test_a_sink_holds_nothing_another_file_can_change() -> None:
                 and "holds `make`" not in line], refused
 
 
-def test_a_sink_calls_nothing_another_file_declares_but_what_is_listed() -> None:
+def test_a_sink_calling_a_function_another_file_declares_is_refused_in_the_fixtures_forms() -> None:
     """The W2 review's M1, S2b (D-180 clause 2, INV-66, REQ-GAP-001): a sink calling a function that
     `Detail.swift` declares reads whatever that function reads, and the screen can set it. A sink
     calls only the functions listed for it, each with its reason."""
@@ -431,7 +431,7 @@ def _refused_in(file: str, phrase: str) -> list[str]:
     return [line for line in gate.problems(gate.references(FLOW_AST)) if line.startswith(f"{file}:") and phrase in line]
 
 
-def test_a_kept_type_is_extended_only_in_its_own_file_and_conforms_to_no_protocol_the_app_declares() -> None:
+def test_a_kept_type_extended_or_conformed_to_outside_its_file_is_refused_in_the_fixtures_forms() -> None:
     """The second W2 review's B1, P3w (D-180, INV-66, REQ-GAP-001): the M17 mutant P3 again, through a
     protocol requirement `FetchedStandings.init(payload:)` satisfies, passed `make check-fast`: the
     provenance rule reads references to the initialiser by name, and a requirement is another name."""
@@ -447,7 +447,7 @@ def test_only_the_store_builds_a_store_or_saves_to_one() -> None:
     assert not _refused_in("StandingsStore.swift", "`StandingsStore.")
 
 
-def test_no_file_touches_memory_unsafely() -> None:
+def test_with_unsafe_mutable_pointer_in_the_fixture_is_refused() -> None:
     """The second W2 review's U9 (INV-66, REQ-GAP-001): the client's address rewritten in place through
     `withUnsafeMutablePointer` passed. The client uses no unsafe memory, so all of it is refused."""
     assert _refused_in("Detail.swift", "withUnsafeMutablePointer")
@@ -661,7 +661,7 @@ def test_a_labels_length_is_not_a_served_number() -> None:
     assert not [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
 
 
-def test_every_route_172_names_into_a_sink_is_refused() -> None:
+def test_the_routes_172_names_into_a_sink_are_refused_in_the_fixtures_forms() -> None:
     """#172 (D-180, INV-66, gap G-1): a stored default (the sink's call to another file's initialiser), a
     closure the sink keeps (a sink holds only values), a static `let`'s initialiser reading the screen's
     state, and Foundation's shared state read in a sink: each refused on the fixture."""

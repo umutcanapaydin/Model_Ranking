@@ -374,7 +374,7 @@ def test_only_the_answer_plan_reads_refinements_from_the_words() -> None:
     assert uses.count("func ") == 1 and len(uses) == 1, "Refinements calls its own read"
 
 
-def test_no_other_name_reaches_the_word_reader() -> None:
+def test_the_three_other_names_for_the_word_reader_are_refused() -> None:
     """The W3 Tester's T2 (D-188 clause 6): the gate above reads `Refinements.read` and `Self.read`.
     Three more spellings compile and call the same reader: a type alias (`typealias R = Refinements`,
     then `R.read(q)`), the metatype (`Refinements.self.read(q)`) and a backticked name
@@ -412,7 +412,7 @@ def test_only_the_wording_tier_builds_an_outcome_with_alternatives() -> None:
     )
 
 
-def test_the_router_never_produces_anything_but_a_category_id() -> None:
+def test_the_routing_outcome_declares_the_six_fields_and_types_the_pin_reads() -> None:
     """D-126's absolute boundary, asserted on the TYPE the router can return.
 
     `RoutingOutcome` carries a category id, a tier and a flag. There is no field a recommendation,

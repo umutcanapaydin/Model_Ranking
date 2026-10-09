@@ -32,9 +32,10 @@ MODELS = CLIENT / "Engine/Models.swift"
 
 
 def _swift(path: pathlib.Path) -> str:
-    """A Swift file as the compiler builds it: a branch no build compiles (`#if false`) is dropped, so
-    a pin never reads dead code as live (#110, the W2 review's M3). Comments are kept, and a directive
-    inside a comment or a string is none (the second W2 review's M3)."""
+    """A Swift file with each branch `_built_mask` reads as never built blanked (`#if false`, and the
+    conditions `_decide` reads as false from their literals), so a pin does not read that branch as
+    live (#110, the W2 review's M3). Comments are kept, so a `/* */` copy of a line a pin requires satisfies it (G-15, #247); a
+    directive inside a comment or a string is none (the second W2 review's M3)."""
     raw = path.read_text(encoding="utf-8")
     return "\n".join(line if built else "" for line, built in zip(raw.split("\n"), _built_mask(_stripped(raw)), strict=True))
 
@@ -352,7 +353,7 @@ def _served_numbers(sources: dict[str, str] | None = None) -> set[str]:
 SERVED_NUMBERS = tuple(sorted(_served_numbers()))
 
 
-def test_the_client_performs_no_arithmetic_on_a_number_the_engine_sent() -> None:
+def test_the_arithmetic_spellings_the_pin_reads_on_a_served_number_are_refused() -> None:
     """Trap 1, and it protects three ADRs at once.
 
     D-109 puts rounding at the output boundary, D-105 forbids cross-scale averaging and D-104 keeps
@@ -535,7 +536,7 @@ def _sort_receiver(code: str, start: int) -> str:
     return match.group(1) if match else ""
 
 
-def test_the_client_applies_no_ordering_of_its_own() -> None:
+def test_the_ordering_spellings_the_pin_reads_are_refused_in_the_client() -> None:
     """Ruling A's real cost, three milestones after the ruling.
 
     `/v1` emits two coding answers in a documented non-semantic order and states in the envelope
@@ -739,7 +740,7 @@ def test_every_failure_the_client_names_reaches_the_screen_with_a_sentence() -> 
     )
 
 
-def test_every_response_is_read_through_its_routes_ceiling() -> None:
+def test_the_one_request_is_read_through_its_routes_ceiling() -> None:
     """#56 (M17-W4 security S3): a whole response was buffered before any size check. The one
     request is streamed and read through `read(_:declared:upTo:)` with the route's ceiling; a second
     request, or a read that skips the ceiling, is what this refuses. ResponseCeilingTests holds the
@@ -1531,7 +1532,7 @@ def test_the_probe_leaves_a_not_a_search_row_out_of_its_score() -> None:
 READ = re.compile(r"\.read_text\(")
 
 
-def test_every_swift_pin_here_reads_the_code_the_compiler_builds() -> None:
+def test_a_swift_read_in_this_file_goes_through_swift_which_drops_literally_false_branches() -> None:
     """The W2 review's M3 (#110, INV-78, REQ-GAP-001): F2 put both timeouts under `#if false` and
     passed `make check-fast`, because the timeout pin read the dead lines. A Swift file is read here
     through `_swift`, which drops what no build compiles; a raw read says why on its own line."""
@@ -1542,7 +1543,7 @@ def test_every_swift_pin_here_reads_the_code_the_compiler_builds() -> None:
     assert not raw, f"Swift read past `_swift`, so a `#if false` branch reads as live: {raw}"
 
 
-def test_a_directive_inside_a_comment_hides_nothing(tmp_path: pathlib.Path) -> None:
+def test_a_directive_inside_a_block_comment_is_not_read_as_one(tmp_path: pathlib.Path) -> None:
     """The second W2 review's M3 (#110, INV-78): `_swift` read directives in comments, so a `#if false`
     and an `#endif`, each in a block comment, hid the live code between them (F3), which the pins
     before the wave read. A comment is not a directive."""

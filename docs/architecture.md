@@ -562,7 +562,8 @@ Fly.io (D-116, D-185): prepared, deployed only by the owner
   availability (D-104). The only model is the phone's own. It only picks a surface, refinements and
   whether the input is a search, each from a closed set (D-126, D-168, D-169).
 - **Nothing the reader types leaves the phone.** The question's text, the refinements, the
-  removals and the gap register stay on the device (§3).
+  removals and the gap register stay on the device (§3). Held in part by the compiled gate and the
+  text pins: see INV-64 and INV-66 in `docs/security-invariants.md`.
 - **No analytics or telemetry in the app**, and no refresh button or freshness screen (D-151).
 - **No scores in the phone's standings, and no averaging across scales.** The phone combines
   positions only (D-105, D-167).

@@ -4046,6 +4046,11 @@ other form is not held: see INV-66 in `docs/security-invariants.md` (G-1, #242),
 what reaches a value by name. The standings store dates what it keeps by its own clock (#170). The
 request rule is INV-64's (G-11, #244).
 
+**Note (M21-W4, #248):** "What it does not do" above says the routes two reviews found are "each
+named and refused now". That is more than the gate holds: each is refused in the shapes the fixture
+holds, as written there, and any other form is not held: see INV-66 in `docs/security-invariants.md`
+(G-1, #242). The cited tests are renamed to what they hold (D-192 clause 6).
+
 ## D-181 — The phone's arithmetic and ordering rules are checked on what the compiler resolves
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
@@ -4135,6 +4140,11 @@ closure or loop parameter is still matched by name up to five lines below its bi
 can refuse an unrelated binding of the same name, more than it should (round 2's M1; none on the
 shipping client). The text tripwire derives the served fields the compiled gate does, held equal on
 the fixture (#169).
+
+**Note (M21-W4, #248):** "What it does not do" above says the rule "holds the operators, methods and
+names clauses 1 to 3 list". It holds them in the shapes the fixture holds, as written there; the same
+operator written another way is not held: see INV-76 in `docs/security-invariants.md` (G-2, #242).
+The two text pins it cites are renamed to what they hold (D-192 clause 6).
 
 ## D-182 — Each pick carries its model's id on `/v1`, and the app keys its cards on it
 
@@ -4694,9 +4704,12 @@ and test names that state a gate's property flatly (#248).
    by a test (#182); the workflow itself is the owner's.
 5. The Swift legs run inside the offline profile on macOS (#179), and the model tier's deadline tests run
    once more on a one-thread cooperative pool (#181).
-6. A live record that states a gated invariant's property names its INV row; a test a gated row cites
-   carries no universal word (`no_`, `never`, `any`, `every`, `whatever`, `however`, `nothing`) unless the
-   row names the gap it leaves. A test holds both, from a hand-kept list of property phrases (#248).
+6. A test a gated row cites carries no universal word in its name (`no`, `never`, `any`, `every`,
+   `whatever`, `however`, `nothing`) unless a hand-kept list says why the word is no claim; a block of a
+   live record, or a docstring of a gate or pin file, that matches a hand-kept list of property phrases
+   names the rows that hold it in part. Neither reads `only`, a phrase not on the list, an ADR body or a
+   comment. A row's sentences beside its fixed ones are not checked: on the 15 gated rows, the three
+   such sentences a universal-word rule would flag were all false alarms (#248).
 
 **Consequence.** CI's shallow checkout cannot run the history rules; the owner's `make check` and the
 pre-push gate do. The patch giving CI's test job its history (`fetch-depth: 0`) is posted on #122 for the
