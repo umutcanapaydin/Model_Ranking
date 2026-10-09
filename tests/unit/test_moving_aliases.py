@@ -16,7 +16,7 @@ from app.workflows.schema import connect
 LISTED = ("claude3.5-sonnet", "mistral7b-instruct", "deepseek-chat", "deepseek-reasoner", "command-r",
           "command-r-plus", "mistral-medium", "gpt4-turbo", "gpt4o-mini", "o1", "o1-mini", "yi-large",
           "claude-instant", "command-r+", "claude-instant-v1", "mistral-medium3", "grok-code-fast1",
-          "grok4.1-fast-reasoning")
+          "grok4.1-fast-reasoning", "mistral-large")
 
 
 def test_the_list_is_the_one_the_review_found_each_with_a_reason() -> None:
@@ -137,14 +137,15 @@ def test_a_decorated_latest_alias_derives_no_model(name: str) -> None:
 
 
 def test_a_curated_rule_still_takes_a_latest_name() -> None:
-    """Tester T2 of #40, D-166 clause 2 through reconcile: `mistral-large-latest` is the curated
-    `mistral-large`'s, and the `-latest` rule only stops derivation."""
+    """Tester T2 of #40, D-166 clause 2 through reconcile: `claude-3-5-haiku-latest` is the curated
+    Claude 3.5 Haiku's, and the `-latest` rule only stops derivation. (It read `mistral-large-latest`
+    until M21-W1 split Mistral Large into its releases, D-189; the undated name now moves.)"""
     conn = connect(":memory:")
     try:
-        _row(conn, "mistral-large-latest")
+        _row(conn, "claude-3-5-haiku-latest")
         report = reconcile(conn)
-        assert conn.execute("SELECT model_id FROM scores").fetchone() == ("mistral-large",)
-        assert "mistral-large-latest" not in report.dropped_names
+        assert conn.execute("SELECT model_id FROM scores").fetchone() == ("claude-3.5-haiku",)
+        assert "claude-3-5-haiku-latest" not in report.dropped_names
     finally:
         conn.close()
 

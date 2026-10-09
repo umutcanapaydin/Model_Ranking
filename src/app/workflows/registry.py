@@ -61,6 +61,11 @@ class ModelRule:
 
 
 # fmt: off
+#: The W1 review's B2: after a DeepSeek release, a distill, a base it was distilled into, or a small size
+#: names another model (`DeepSeek-R1-0528-Qwen3-8B`); 671B is the release itself.
+_NOT_A_DISTILL = r"(?!.*(?:distill|qwen|llama|(?<![\d.])(?:1\.5|7|8|14|32|70)b(?![a-z])))"
+
+
 MODEL_RULES: tuple[ModelRule, ...] = (
     # ── Anthropic (variants before parents) ─────────────────────────────
     # M4-W1: families added from a LIVE drop-list probe (LiteLLM pricing + SWE-bench +
@@ -87,7 +92,10 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("claude-4.5-haiku",  "Claude Haiku 4.5",  "Anthropic", r"claude[-_ ]?4[.\-]?5[-_ ]?haiku|claude[-_ ]?haiku[-_ ]?4[.\-]?5"),
     ModelRule("claude-4.1-opus",   "Claude Opus 4.1",   "Anthropic", r"claude[-_ ]?4[.\-]1[-_ ]?opus|claude[-_ ]?opus[-_ ]?4[.\-]1"),
     ModelRule("claude-4-opus",     "Claude Opus 4",     "Anthropic", r"claude[-_ ]?4[-_ ]?opus|claude[-_ ]?opus[-_ ]?4(?![.\-]?[15])"),
-    ModelRule("claude-4-sonnet",   "Claude Sonnet 4",   "Anthropic", r"claude[-_ ]?4[-_ ]?sonnet|claude[-_ ]?sonnet[-_ ]?4(?![.\-]?5)"),
+    # The W1 review's B3: four boards ranked Sonnet 4.6 as Sonnet 4. A minor version after `4` (one digit,
+    # not a date) is another release.
+    ModelRule("claude-4.6-sonnet", "Claude Sonnet 4.6", "Anthropic", r"claude[-_ ]?4[.\-]6[-_ ]?sonnet|claude[-_ ]?sonnet[-_ ]?4[.\-]6(?!\d)"),
+    ModelRule("claude-4-sonnet",   "Claude Sonnet 4",   "Anthropic", r"claude[-_ ]?4[-_ ]?sonnet|claude[-_ ]?sonnet[-_ ]?4(?![.\-]?[1-9](?!\d))"),
     ModelRule("claude-3.7-sonnet", "Claude 3.7 Sonnet", "Anthropic", r"claude[-_ ]?3[.\-]?7[-_ ]?sonnet"),
     # #129: a release whose dated id is its only snapshot (Anthropic's model deprecations page,
     # read 2026-10-06) is one model, dated or not. Claude 3.5 Sonnet had two snapshots and stays two.
@@ -174,9 +182,14 @@ MODEL_RULES: tuple[ModelRule, ...] = (
               r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3[-_ ]?(?:0324|\(0324\)|\(mar(?:ch)?[-_ ]?2025\))"),
     ModelRule("deepseek-v3",       "DeepSeek V3",       "DeepSeek",
               r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3(?![.\-]?\d)(?![-_ ]?\((?:0324|mar(?:ch)?[-_ ]?2025)\))"),
-    ModelRule("deepseek-r1-0528",  "DeepSeek R1-0528",  "DeepSeek",  r"deepseek[-_ ]?r1[-_ ]?(?:0528|\(0528\))"),
+    # Epoch spells R1-0528 `DeepSeek-R1 (May 2025)` (the W1 review's B1). A distill, or a small size,
+    # after the release is another model: `DeepSeek-R1-0528-Qwen3-8B` is an 8B Qwen (B2).
+    ModelRule("deepseek-r1-0528-qwen3-8b", "DeepSeek-R1-0528-Qwen3-8B", "DeepSeek",
+              r"deepseek[-_ ]?r1[-_ ]?0528[-_ ]?qwen3[-_ ]?8b"),
+    ModelRule("deepseek-r1-0528",  "DeepSeek R1-0528",  "DeepSeek",
+              r"deepseek[-_ ]?r1[-_ ]?(?:0528|\(0528\)|\(may[-_ ]?2025\))" + _NOT_A_DISTILL),
     ModelRule("deepseek-r1",       "DeepSeek R1",       "DeepSeek",
-              r"deepseek[-_ ]?r1(?![-_ ]?distill)(?![-_ ]?\(?0528)"),
+              r"deepseek[-_ ]?r1(?![-_ ]?\(?0528|[-_ ]?\(may[-_ ]?2025\))" + _NOT_A_DISTILL),
     # ── Others (dotted versions before bare families) ───────────────────
     ModelRule("qwen3.8-max",       "Qwen3.8 Max",       "Alibaba",   r"qwen[-_ ]?3[.\-]8[-_ ]?max"),
     ModelRule("qwen3.7-max",       "Qwen3.7 Max",       "Alibaba",   r"qwen[-_ ]?3[.\-]7[-_ ]?max"),
@@ -195,9 +208,22 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("glm-5.2",           "GLM-5.2",           "Zhipu",     r"glm[-_ ]?5[.\-p]2(?!\d)"),
     ModelRule("glm-5.1",           "GLM-5.1",           "Zhipu",     r"glm[-_ ]?5[.\-p]1(?!\d)"),
     ModelRule("glm-5",             "GLM-5",             "Zhipu",     r"glm[-_ ]?5(?![.\-p]\d(?!\d))(?!v)(?![-_ ]?code)"),
-    ModelRule("glm-4.6",           "GLM-4.6",           "Zhipu",     r"glm[-_ ]?4[.\-]?6"),
+    # GLM-4.6V is the vision model, not GLM-4.6 (the W1 review's K2), named as Zhipu spells it.
+    ModelRule("glm-4.6v",          "GLM-4.6V",          "Zhipu",     r"glm[-_ ]?4[.\-]?6v(?!\w)"),
+    ModelRule("glm-4.6",           "GLM-4.6",           "Zhipu",     r"glm[-_ ]?4[.\-]?6(?!v)"),
     ModelRule("glm-4.5",           "GLM-4.5",           "Zhipu",     r"glm[-_ ]?4[.\-]?5(?!v|[-_ ]?air)"),
-    ModelRule("mistral-large",     "Mistral Large",     "Mistral",   r"mistral[-_ ]?large"),
+    # The W1 review's B3 (D-189 clause 1): Mistral names each Large release apart (Large 1.0 is 24.02,
+    # 2.0 is 24.07, 2.1 is 24.11, 3 is 25.12, then 4; docs.mistral.ai/getting-started/models, read
+    # 2026-10-09), and Arena ranks all five. The undated `mistral-large` moves (D-166).
+    ModelRule("mistral-large-4",   "Mistral Large 4",   "Mistral",   r"mistral[-_ ]?large[-_ ]?4(?!\d)"),
+    ModelRule("mistral-large-3",   "Mistral Large 3",   "Mistral",   r"mistral[-_ ]?large[-_ ]?(?:3(?!\d)|2512)"),
+    ModelRule("mistral-large-2.1", "Mistral Large 2.1", "Mistral",
+              r"mistral[-_ ]?large[-_ @]?2411|mistral[-_ ]?large[-_ ]?2[.\-]1(?!\d)"
+              r"|mistral[-_ ]?large[-_ ]?2[-_ ]?\(nov(?:ember)?[-_ ]?2024\)"),
+    ModelRule("mistral-large-2",   "Mistral Large 2",   "Mistral",
+              r"mistral[-_ ]?large[-_ @]?2407|mistral[-_ ]?large[-_ ]?2(?:[.\-]0)?(?![.\-]?\d)"),
+    ModelRule("mistral-large-1",   "Mistral Large 1.0", "Mistral",
+              r"mistral[-_ ]?large[-_ @]?2402|mistral[-_ ]?large[-_ ]?1(?:\.0)?(?![.\d])"),
     # #129: Mistral Medium 3.5 has one version, v26.04 (Mistral's model page, read 2026-10-06), whether
     # served as `mistral-medium-3.5` or `mistral-medium-2604`.
     ModelRule("mistral-medium-3.5", "Mistral Medium 3.5", "Mistral", r"mistral[-_ ]?medium[-_ ]?(?:3[.\-]5(?!\d)|2604(?!\d))"),
@@ -519,6 +545,8 @@ MOVING_ALIASES: dict[str, str] = {
     # #40 (M17-W3 Tester K1): two more spellings of listed aliases, as the grammar derives them.
     "command-r+": "Cohere's `Command R+`, the alias `command-r-plus` spelled with its plus sign",
     "claude-instant-v1": "Bedrock's name for the undated Claude Instant alias",
+    # The W1 review's B3: the undated name has meant Large 1.0, 2.0, 2.1, 3 and 4 in turn.
+    "mistral-large": "Mistral moved the undated name across Large 1.0, 2, 2.1, 3 and 4",
     # #164 (D-189): a retired id its maker reroutes to a newer model moves as these do: its scores are
     # the old model's, its prices the new one's (https://docs.x.ai/developers/migration/may-15-retirement).
     "grok-code-fast1": "xAI retired it on 2026-05-15 and routes it to grok-build-0.1",

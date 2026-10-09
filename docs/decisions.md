@@ -4527,10 +4527,23 @@ clause 2 · from #163, #164, #165.
    starts with `ft:`, for its reason (`fine-tune`), as D-157 already refuses it on the derive path;
    it is counted with the modality guard's refusals, never as drift.
 
-**Applied.** Clause 1 to DeepSeek V3-0324 and R1-0528, the families M19-W1 found two releases in
-on one board. GPT-4o's dated snapshots, the Gemini 2.5 Pro previews and Mistral Large's 2407 and 2411
-stay gathered: each is a snapshot of one release its maker names, and none was found ranked twice
-by one board under two releases. A family found so later is split by this clause.
+**Applied (corrected after the M21-W1 review's B1 to B3).**
+- **DeepSeek** V3-0324 and R1-0528, in every spelling a board uses (`(0324)`, `(Mar 2025)`, `(0528)`,
+  Epoch's `(May 2025)`). A distill or a small size after the release (`DeepSeek-R1-0528-Qwen3-8B`) is
+  another model, named by its own rule.
+- **Mistral Large**, which Arena ranked five times as one model: Large 1.0 (24.02), 2 (24.07), 2.1
+  (24.11), 3 (25.12) and 4, as Mistral's model page names them (docs.mistral.ai/getting-started/models,
+  read 2026-10-09). The undated `mistral-large` moves (D-166).
+- **Claude Sonnet 4.6**, which four boards ranked as Sonnet 4.
+- **GLM-4.6V**, the vision model, apart from GLM-4.6.
+
+**What stays gathered, and why.** GPT-4o's dated snapshots and the Gemini 2.5 Pro and 2.5 Flash previews
+are snapshots of one model name their makers serve, so they stay one model; a board that ranks two of them
+is read at the model's best row (D-182). The first version of this paragraph said no board ranked a
+gathered family twice. That was false: Arena ranks GPT-4o's snapshots apart. **The query that finds the
+cases**, kept in `docs/research/m21-w1-first-nights-after-m19-w1.md`, lists each curated model a board
+ranks under two release names; the candidates it found that are not split here (a size or a name the
+maker publishes apart, whose maker's page this wave did not read) are #232's.
 
 **Consequence.** Model ids move on the first night after the release (`deepseek-r1-0528` is new; V3's
 rows split): D-179's board guards count those links as changed rows, as they did for #129's joins.

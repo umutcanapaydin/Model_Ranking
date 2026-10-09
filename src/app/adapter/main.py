@@ -214,10 +214,14 @@ RATE_WINDOW_KEYS = 10_000
 #: security seat's S1), in a window of its own, so standings never block a question (#228). Every
 #: other path counts as one.
 RATE_WEIGHTS: dict[str, int] = {"/v1/boards": 30}
-#: client -> (the minute, the requests in it). One window per minute, counted per client.
-#: The third value says whether this window's refusal was logged: a refused request is not charged
-#: (#228), so the count alone cannot say so.
-_RATE_WINDOWS: dict[str, tuple[int, int, int]] = {}
+#: client -> (the minute, its questions, its standings, whether this window's refusal was logged). One
+#: window per minute per client, its two counts in ONE entry, so the full-table rule ("a crowd of new
+#: clients never resets a count it holds") holds per client (the M21-W1 review's R1). A refused request
+#: is not charged (#228), so the counts alone cannot say whether a refusal was logged.
+_RATE_WINDOWS: dict[str, tuple[int, int, int, int]] = {}
+#: Which of a client's two counts a path is charged to: standings in one, everything else in the other
+#: (#228: standings never block questions).
+_STANDINGS, _QUESTIONS = 2, 1
 #: The minute a full table was last scanned for an earlier minute's entries, and the scans so far: a
 #: table full of this minute's clients is scanned once, not for every new one (the W5 Tester's T2).
 #: And the minute a broken limiter last warned, so it warns once a minute (the Tester's R1).
@@ -261,10 +265,10 @@ def rate_window_count() -> int:
     return len(_RATE_WINDOWS)
 
 
-def rate_window_used(key: str, now: float) -> int:
-    """What `key` has used of this minute's window (tests)."""
-    start, count, _said = _RATE_WINDOWS.get(key, (int(now // 60), 0, 0))
-    return count if start == int(now // 60) else 0
+def rate_window_used(key: str, now: float, bucket: int = _QUESTIONS) -> int:
+    """What `key` has used of this minute's window, in one of its two counts (tests)."""
+    window = _RATE_WINDOWS.get(key)
+    return window[bucket] if window is not None and window[0] == int(now // 60) else 0
 
 
 def rate_table_scans() -> int:
@@ -290,9 +294,9 @@ def _client_key(request: Any) -> str:
     return address
 
 
-def _over_limit(key: str, limit: int, now: float, weight: int = 1) -> tuple[bool, int]:
-    """Count one request of `weight` for `key` in this minute; whether it is past `limit`, and the
-    seconds left."""
+def _over_limit(key: str, limit: int, now: float, weight: int = 1, bucket: int = _QUESTIONS) -> tuple[bool, int]:
+    """Count one request of `weight` for `key` in this minute, in one of its two counts; whether it is
+    past `limit`, and the seconds left."""
     minute = int(now // 60)
     wait = 60 - int(now % 60)
     if key not in _RATE_WINDOWS and len(_RATE_WINDOWS) >= RATE_WINDOW_KEYS:
@@ -303,17 +307,19 @@ def _over_limit(key: str, limit: int, now: float, weight: int = 1) -> tuple[bool
                 del _RATE_WINDOWS[stale]
         if len(_RATE_WINDOWS) >= RATE_WINDOW_KEYS:
             return False, wait
-    start, count, said = _RATE_WINDOWS.get(key, (minute, 0, 0))
-    if start != minute:
-        start, count, said = minute, 0, 0
-    if count + weight > limit:
+    window = list(_RATE_WINDOWS.get(key, (minute, 0, 0, 0)))
+    if window[0] != minute:
+        window = [minute, 0, 0, 0]
+    if window[bucket] + weight > limit:
         # #228: a refused request is not charged, so a client that waits is served at once. Said once
         # per client per window, and never with its address (the W5 review's M4).
-        if not said:
+        if not window[3]:
             _LOG.info("rate limited: one client passed %d requests in a minute", limit)
-        _RATE_WINDOWS[key] = (start, count, 1)
+        window[3] = 1
+        _RATE_WINDOWS[key] = (window[0], window[1], window[2], window[3])
         return True, wait
-    _RATE_WINDOWS[key] = (start, count + weight, said)
+    window[bucket] += weight
+    _RATE_WINDOWS[key] = (window[0], window[1], window[2], window[3])
     return False, wait
 
 
@@ -817,11 +823,10 @@ async def _limited(request: Any, call_next: Any) -> Any:
         try:
             # A weight above the limit costs the whole minute, never every minute (the closure fixes M4).
             weight = min(RATE_WEIGHTS.get(request.url.path, 1), limit)
-            client = _client_key(request)
-            # #228: a weighed path counts in a window of its own, so standings never block questions
-            # (phones behind one carrier address fetch them in the same minute).
-            key = f"{request.url.path}|{client}"[:64] if request.url.path in RATE_WEIGHTS else client
-            over, wait = _over_limit(key, limit, now, weight)
+            # #228: standings count apart from questions, in the client's one entry (the W1 review's R1),
+            # so standings never block questions (phones behind one carrier address fetch them together).
+            bucket = _STANDINGS if request.url.path in RATE_WEIGHTS else _QUESTIONS
+            over, wait = _over_limit(_client_key(request), limit, now, weight, bucket)
         except Exception as exc:
             # Fails open, and says so once a minute: a broken limiter must be seen (the W5 review's
             # M4), not repeated on every request (the Tester's R1).

@@ -72,9 +72,10 @@ The sources are declared once, in `src/app/workflows/sources.py`, and the build 
 both derive from that list:
 
 - **Prices:** LiteLLM and OpenRouter. Both are required.
-- **Scores fetched over the network:** SWE-bench Verified and Aider, both required. Six Arena boards
+- **Scores fetched over the network:** SWE-bench Verified and Aider, both required. Seven Arena boards
   (`arena`, `arena_document`, `arena_factuality`, `arena_vision`, `arena_search`,
-  `arena_search_factuality`) are optional (D-121): without one, its surface says it has no evidence.
+  `arena_search_factuality`, `arena_webdev`) are optional (D-121): without one, its surface says it has
+  no evidence. `arena_webdev` is `web-dev`'s board since M21-W1 (D-190).
 - **Arena's category slices** (text and vision) and the Agent Arena boards are read from one parquet
   file per config (`src/app/clients/arena_slices.py`). Each slice is a board of its own (D-164).
 - **The Epoch AI bundle.** The refresh downloads it and the build only reads the unpacked
@@ -487,7 +488,9 @@ owner's Mac
 ```
 Fly.io (D-116, D-185): prepared, deployed only by the owner
   scripts/deploy_hosted_engine.sh   origin/main's tip only, a clean tree; derives the public artifact,
-                                    stamps APP_BUILD=release-<sha>-data-<digest>, fly deploy
+                                    stamps APP_BUILD=release-<sha>-data-<digest>-from-<sha>
+                                    (the release that built the data, #198; data another release
+                                    built is refused unless DEPLOY_ACCEPT_DATA_FROM names it), fly deploy
                                     --remote-only --ha=false, then reads /health back
   Dockerfile, stage `hosted`        the `serve` stage (requirements/serve.lock, no pyarrow; the base by
                                     digest, #141) plus the public artifact at /srv/advisor.db, read-only,

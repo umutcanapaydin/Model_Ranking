@@ -21,7 +21,8 @@ release's pull requests and the release's security verdict of record,
    (`docs/reviews/m20-closure-security-review.md`).
 2. **Deploy the engine first** (§1 steps 1, 5 and 6). From M21 on, let the Mac refresh once with the new
    release before the deploy (§1 step 1): `web-dev`'s board (D-190) and the split DeepSeek releases (D-189)
-   arrive with the data, and the dry run says which release built it (#198). An app built for M20 against the old engine shows
+   arrive with the data. The deploy refuses data another release built, a dry run included (#198): it
+   says which release built the data, and `DEPLOY_ACCEPT_DATA_FROM=<that release>` deploys it anyway. An app built for M20 against the old engine shows
    no family list, and says nothing about it.
 3. **Check the families are served:** `curl -s https://model-ranking.fly.dev/v1/categories | grep -c
    refined_board` must print a number above 0.

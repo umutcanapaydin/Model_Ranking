@@ -73,3 +73,41 @@ A refresh of a copy of the served artifact, run with this wave's code (in the wa
 140 rows, and V3-0324 and R1-0528 hold 31 and 34 rows of their own. `web-dev` passes the turnover
 guard as a surface returning: the served artifact holds no row of its new board. A second cycle also
 published, after Anthropic's Haiku 5.5 got its curated name.
+
+## The query that finds a family a board ranks under two releases (the review's B3)
+
+Run on an artifact, it lists each curated model a board ranks under two release names; effort, search and
+thinking variants are read as one name. On the artifact refreshed with this wave's code it found the
+families D-189 splits here (Mistral Large, Claude Sonnet 4.6, GLM-4.6V), the snapshots that stay gathered
+(GPT-4o, the Gemini 2.5 previews) and the candidates #232 holds.
+
+```python
+import sqlite3, re, collections
+from app.workflows.registry import MODEL_RULES, split_harness, resolve_effort
+curated = {r.canonical_id for r in MODEL_RULES}
+conn = sqlite3.connect("advisor.db")
+def key(raw):
+    _, m = split_harness(raw)
+    m = resolve_effort(m, None).model_name.lower()
+    m = re.sub(r"[-_ ](search|grounding|thinking[-_ ]?\d*k?|no thinking|non[-_ ]?reasoning|reasoning|preview"
+               r"|instant|customtools|\d+k)\b.*$", "", m)
+    m = re.sub(r"\s*\((?:no )?thinking.*?\)|\s*\(default.*?\)|\s*\(\d+k think\)", "", m)
+    m = re.sub(r"[-_ ]?(?:high|low|medium|max|xhigh|minimal|none|unknown)$", "", m)
+    return re.sub(r"[\s_]+", "-", m.strip())
+groups = collections.defaultdict(set)
+for mid, src, raw in conn.execute("SELECT model_id, source, raw_name FROM scores WHERE model_id IS NOT NULL"):
+    if mid in curated:
+        groups[(mid, src)].add(key(raw))
+for (mid, src), keys in sorted(groups.items()):
+    if len(keys) > 1:
+        print(mid, src, sorted(keys))
+```
+
+**The refresh trial after the review's fixes** (this worktree's artifact, 2026-10-09) published, with 14
+surfaces answering:
+- 313 models;
+- Mistral Large 1.0, 2, 2.1, 3 and 4 hold 30, 30, 29, 38 and 29 rows;
+- Claude Sonnet 4.6 holds 65 rows, apart from Sonnet 4's 88;
+- R1-0528 holds 32 rows, and its Qwen3-8B distill holds 3 of its own;
+- GLM-4.6V holds 27 rows apart from GLM-4.6.
+

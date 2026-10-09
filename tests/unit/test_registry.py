@@ -781,3 +781,5 @@ def test_glm_4_6v_is_not_glm_4_6(name: str) -> None:
     """The W1 review's K2: GLM-4.6V, the vision model, sat in GLM-4.6's rows and price median."""
     rule = canonicalize(name)
     assert rule is None or rule.canonical_id != "glm-4.6", (name, rule)
+    if "flash" not in name:
+        assert rule is not None and (rule.canonical_id, rule.display) == ("glm-4.6v", "GLM-4.6V")
