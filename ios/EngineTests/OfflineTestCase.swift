@@ -124,6 +124,26 @@ class OfflineTestCase: XCTestCase {
 }
 
 final class OfflineGuardTests: OfflineTestCase {
+    /// #179: the tripwire sees this process's sessions only; a child the suite starts is another
+    /// process. `make swift-test` and `swift-test-parallel` run the suite inside `scripts/offline.sb`,
+    /// so a child that names a peer off this machine is refused by the operating system. A UDP
+    /// connect to TEST-NET-1 records a peer and sends no packet, inside the profile or out of it.
+    func testAChildTheSuiteStartsCannotNameAnOutsidePeer() throws {
+        #if os(macOS)
+        let child = Process()
+        child.executableURL = URL(fileURLWithPath: "/bin/bash")
+        child.arguments = ["-c", "exec 3<>/dev/udp/192.0.2.1/9"]
+        let errors = Pipe()
+        child.standardError = errors
+        try child.run()
+        child.waitUntilExit()
+        let said = String(decoding: errors.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        XCTAssertNotEqual(child.terminationStatus, 0,
+                          "a child named an outside peer; run the suite through make swift-test, inside scripts/offline.sb")
+        XCTAssertTrue(said.contains("Operation not permitted"), said)
+        #endif
+    }
+
     func testEverySessionConfigurationAsksTheTripwireFirst() {
         // A session a test builds for itself, as `EngineClient` does without a stub, is caught too.
         for configuration in [URLSessionConfiguration.default, URLSessionConfiguration.ephemeral] {
