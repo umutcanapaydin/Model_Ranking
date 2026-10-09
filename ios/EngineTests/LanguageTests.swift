@@ -540,6 +540,33 @@ final class FailureLanguageTests: OfflineTestCase {
     }
 }
 
+/// #223 (M21-W3): every refusal the engine can send is said in the reader's language, keyed on its
+/// code; the engine's own English is the fallback for a code this app does not know, and stays in the
+/// diagnostic either way.
+final class RefusalLanguageTests: OfflineTestCase {
+    private let codes = ["rate_limited", "unknown_host", "internal_error", "evidence_unavailable", "unknown_task",
+                         "unknown_budget"]
+
+    func testEveryKnownRefusalIsSaidInBothLanguages() {
+        for code in codes {
+            let refusal = EngineError.refused(status: 400, code: code, message: "the engine's English")
+            let english = refusal.errorDescription(.english), turkish = refusal.errorDescription(.turkish)
+            XCTAssertNotEqual(english, "the engine's English", code)
+            XCTAssertNotEqual(turkish, "the engine's English", code)
+            XCTAssertNotEqual(english, turkish, code)
+            XCTAssertEqual(english, refusal.errorDescription, code)
+            XCTAssertTrue(refusal.diagnostic?.contains("the engine's English") == true, code)
+        }
+        XCTAssertEqual(Set(codes.map { EngineError.refused(status: 400, code: $0, message: "m").errorDescription(.turkish) }).count,
+                       codes.count, "two refusals say the same thing")
+    }
+
+    func testTheRateLimitSaysToWaitInTurkish() {
+        let refusal = EngineError.refused(status: 429, code: "rate_limited", message: "Too many requests")
+        XCTAssertTrue(refusal.errorDescription(.turkish)?.contains("bekle") == true)
+    }
+}
+
 /// #63 findings 5, 6 and 7 (M18-W2).
 final class TurkishWordingTests: OfflineTestCase {
     /// "SORUN" reads as "problem"; the label means "your question".

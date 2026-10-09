@@ -817,6 +817,13 @@ extension EngineError {
         }
     }
 
+    /// #223: an engine refusal in the reader's language, by its code (a stub in the red commit).
+    static func refusalSentence(_ code: String, _ language: Language) -> String? {
+        switch code {
+        default: return nil
+        }
+    }
+
     /// What the person holding the phone can do, in their language. `nil` exactly where `recovery` is.
     func recovery(_ language: Language) -> String? {
         guard language == .turkish else { return recovery }
