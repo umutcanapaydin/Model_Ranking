@@ -87,6 +87,7 @@ def tls_off(text: str) -> list[str]:
     return [line.strip() for line in text.splitlines() if TLS_OFF.search(line)]
 
 
+@pytest.mark.needs("git")
 def test_nothing_turns_tls_verification_off() -> None:
     files = [path for path in tracked(".py", ".swift") if path != Path(__file__)]
     assert len(files) > 100, "the scan read almost nothing"
@@ -222,6 +223,7 @@ def owner_network_names(text: str) -> list[str]:
     return found
 
 
+@pytest.mark.needs("git")
 def test_no_tracked_file_names_a_mac_or_home_address_beyond_the_placeholders() -> None:
     """#147 (wave plan P1): "No tracked file names the owner's Mac or home address: tests and docs use
     `my-mac.local` and `192.0.2.x`". No test held it, and the wave's own round-1 review record spelled

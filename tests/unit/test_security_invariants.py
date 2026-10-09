@@ -20,6 +20,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 LIST = ROOT / "docs" / "security-invariants.md"
 
@@ -155,6 +157,7 @@ def test_the_list_holds_together() -> None:
     assert not problems(LIST.read_text(encoding="utf-8")), problems(LIST.read_text(encoding="utf-8"))
 
 
+@pytest.mark.needs("git")
 def test_every_invariant_the_code_names_is_on_the_list() -> None:
     files = tracked(".py", ".sh", ".swift")
     assert len(files) > 100, "the scan read almost nothing"

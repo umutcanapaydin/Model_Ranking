@@ -20,6 +20,8 @@ import re
 import subprocess
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 PRD = ROOT / "docs" / "prd.md"
 #: A citation by name: `test_x.py::test_a`.
@@ -120,6 +122,7 @@ def problems(text: str, by_name: dict[str, list[str]], read: object = None) -> l
     return found
 
 
+@pytest.mark.needs("git")
 def test_every_prd_citation_names_its_test() -> None:
     text = PRD.read_text(encoding="utf-8")
     assert len(NAMED.findall(text)) > 50, "the PRD's citations were not read"
@@ -191,6 +194,7 @@ def _body_of(lines: list[str], name: str) -> str:
     return "\n".join(lines[starts[0]:end])
 
 
+@pytest.mark.needs("git")
 def test_a_place_the_prd_points_into_holds_the_code_it_names() -> None:
     """#126 (its fix Tester's R1), in #131's terms. A place inside a test is cited as
     "`clear()` exercised in `::testName`", and the code it names must stand in that test's body.
