@@ -419,6 +419,20 @@ FIXTURE_REFUSALS = {
     ("EngineClient.swift", "FixtureDefaulted.init"), ("Detail.swift", "FixtureStatics.tag"),
     ("EngineClient.swift", "holds `make`"), ("EngineClient.swift", "threadDictionary"),
     ("EngineClient.swift", "NotificationCenter"),
+    # The M21-W3 review's B1: Foundation's process-wide state in a sink, and objects another file holds
+    # in constants, read by a sink.
+    ("EngineClient.swift", "Thread.main"), ("EngineClient.swift", "ProcessInfo.processName"),
+    ("EngineClient.swift", "OperationQueue.main"), ("EngineClient.swift", "NSTimeZone.default"),
+    ("EngineClient.swift", "reads `fixtureScreenBox`"), ("EngineClient.swift", "reads `box`"),
+    ("EngineClient.swift", "Foundation.NSMutableString"),
+    # B2: the surface's twins: its wrapper's storage, a helper's outcome, the request method as a value.
+    ("ContentView.swift", "ContentView._task"), ("ContentView.swift", "used as a value"),
+    ("Detail.swift", "builds RoutingOutcome"), ("Detail.swift", "extends `RoutingOutcome`"),
+    # M2 and K1 (#241): a mutable class's URL initialiser, and an expression evaluated by name.
+    ("ContentView.swift", "NSMutableArray.init(contentsOf"), ("ContentView.swift", "NSExpression"),
+    # M4: the five rules the fixture lacked (the Release-only hook is in FIXTURE_RELEASE_REFUSALS).
+    ("Detail.swift", "UIKit.UIPasteboard"), ("Detail.swift", "CoreFoundation.CFSocketCreate"),
+    ("Detail.swift", "builds a path"), ("Detail.swift", "stores something outside the register"),
     # #175 R3: a framework off the allowlist, and text into shared storage (FORBIDDEN).
     ("Imports.swift", "imports `Network`"), ("ContentView.swift", "UserDefaults"),
     # #168: a URL loaded as text, as NSData and by an XML parser is the network too.
@@ -446,7 +460,19 @@ FIXTURE_RULES: dict[str, str] = {
     "arithmetic on a served number": "served number",
     "a sort past its count": "sorts `standings`",
     "a request's arguments": "the request's `budget` argument",
+    # The M21-W3 review's M4 and B1, B2, K1.
+    "the UIKit symbol list": "UIKit.UIPasteboard",
+    "the CoreFoundation symbol list": "CoreFoundation.CFSocketCreate",
+    "a path built elsewhere": "builds a path",
+    "a second @AppStorage": "stores something outside the register",
+    "the Release-only hook": "Debug-only UI test hook",
+    "a sink's Foundation list": "Thread.main",
+    "a request method as a value": "used as a value",
+    "the router's outcomes": "builds RoutingOutcome",
+    "an expression by name": "NSExpression",
 }
+#: The M21-W3 review's M4: what the fixture must produce in the Release configurations only.
+FIXTURE_RELEASE_REFUSALS = {("ContentView.swift", "Debug-only UI test hook")}
 SOURCE = re.compile(r'^\(source_file "([^"]+)"', re.MULTILINE)
 #: One node of the dump: its indentation (the tree's depth) and its kind.
 NODE = re.compile(r"^( *)\((\w+)")

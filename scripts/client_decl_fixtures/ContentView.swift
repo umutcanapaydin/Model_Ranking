@@ -1,6 +1,7 @@
 // #51, #58: a fixture `client_decl_gate.py --self-test` compiles. It must be REFUSED: a view that
 // opens a connection, and a view that decodes a URL out of text (the security slice's S1).
 import Foundation
+import SwiftUI
 
 func fixtureViewFetches(_ address: URL) async throws -> Data {
     try await URLSession.shared.data(from: address).0
@@ -204,7 +205,7 @@ struct RoutingOutcome {
 }
 
 struct ContentView {
-    var task = "coding"
+    @State var task = "coding"
     private let budget = "unlimited"
     let client = EngineClient()
 
@@ -230,6 +231,51 @@ struct ContentView {
     mutating func keepAsked(_ typed: String) {
         task = typed
     }
+
+    // The M21-W3 review's B2: four twins of the line above. REFUSED, each: the wrapper's storage, its
+    // binding, an outcome a helper in another file builds, and the request method held as a value.
+    func keepAskedThroughStorage(_ typed: String) {
+        _task.wrappedValue = typed
+    }
+
+    func keepAskedThroughBinding(_ typed: String) {
+        let bound = _task.projectedValue
+        bound.wrappedValue = typed
+    }
+
+    mutating func keepAskedThroughAHelper(_ typed: String) {
+        let outcome = RoutingOutcome.fixtureEcho(typed)
+        task = outcome.categoryID
+    }
+
+    func askThroughAValue(_ typed: String) -> URL {
+        let ask = client.recommendation
+        return ask(typed, budget)
+    }
+}
+
+// The M21-W3 review's B1: a mutable Foundation container held in a constant, here and as a static,
+// which the sink reads. REFUSED where the sink reads them.
+let fixtureScreenBox = NSMutableString()
+
+enum FixtureShelf {
+    static let box = NSMutableDictionary()
+}
+
+// The M21-W3 review's K1 (#241): an expression evaluated by name reaches any class. REFUSED.
+func fixtureViewEvaluates(_ typed: String) -> Any? {
+    NSExpression(format: typed).expressionValue(with: nil, context: nil)
+}
+
+// The M21-W3 review's M2: the mutable classes' own URL initialisers. REFUSED as the network.
+func fixtureViewReadsAnAddressAsAMutableArray(_ address: URL) -> NSMutableArray? {
+    NSMutableArray(contentsOf: address)
+}
+
+// The M21-W3 review's M4: the launch arguments, a Debug-only hook, compiled into Release. REFUSED in the
+// Release configurations only.
+func fixtureViewReadsTheLaunch() -> [String] {
+    ProcessInfo.processInfo.arguments
 }
 
 // #175 R3: text into shared storage another app or the system can read. REFUSED (FORBIDDEN).

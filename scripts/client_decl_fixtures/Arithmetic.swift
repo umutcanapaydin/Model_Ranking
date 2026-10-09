@@ -73,3 +73,25 @@ func shapeFactThroughAny(_ f: ShapeFact) -> Double {
 
 // ALLOWED: a label's length is not a served number.
 func shapeLabelLength(_ s: Standing) -> Int { "#\(s.position)".count + 1 } // allowed: label-length
+
+// The M21-W3 review's B3: a served number parsed back from text, boxed, round-tripped through JSON, and
+// met by a bitwise operator. REFUSED, each.
+func shapeNSStringParse(_ s: Standing) -> Int { let text = "\(s.position)"; return (text as NSString).integerValue + 1 } // shape: nsstring-parse
+func shapeFormatterParse(_ s: Standing) -> Int { let text = "\(s.position)"; return (NumberFormatter().number(from: text)?.intValue ?? 0) + 1 } // shape: formatter-parse
+func shapeScannerParse(_ s: Standing) -> Int { let text = "\(s.position)"; return (Scanner(string: text).scanInt() ?? 0) + 1 } // shape: scanner-parse
+func shapeAnyHashable(_ s: Standing) -> Int { let boxed = AnyHashable(s.position); return (boxed.base as? Int ?? 0) + 1 } // shape: anyhashable
+func shapeAnyObject(_ s: Standing) -> Int { let boxed = s.position as AnyObject; return (boxed as? Int ?? 0) + 1 } // shape: anyobject
+func shapeNSNumber(_ s: Standing) -> Int { let boxed = NSNumber(value: s.position); return boxed.intValue + 1 } // shape: nsnumber
+func shapeJSONRoundTrip(_ s: Standing) -> Int { let bytes = (try? JSONEncoder().encode([s.position])) ?? Data(); let back = (try? JSONDecoder().decode([Int].self, from: bytes)) ?? []; return (back.first ?? 0) + 1 } // shape: json-round-trip
+func shapeXor(_ s: Standing) -> Int { s.position ^ 1 } // shape: xor
+func shapeBitwiseNot(_ s: Standing) -> Int { ~s.position } // shape: bitwise-not
+func shapeBitwiseAnd(_ s: Standing) -> Int { s.position & 0xFF } // shape: bitwise-and
+func shapeFactNSNumber(_ f: ShapeFact) -> Double { if case let .number(n) = f.fact { return NSNumber(value: n).doubleValue * 2 }; return 0 } // shape: fact-nsnumber
+
+// The M21-W3 review's M1: counts, row numbers, and a closure's `$0` near a served one. ALLOWED, each;
+// the served `$0` itself is REFUSED.
+func shapeServedDollar(_ list: [Standing]) -> [Int] { list.map(\.position).map { $0 + 1 } } // shape: served-dollar
+func shapeNearbyRowNumbers(_ list: [Standing]) -> [Int] { list.enumerated().map { $0.offset + 1 } } // allowed: nearby-row-numbers
+func shapePositionsCount(_ list: [Standing]) -> Int { let positions = list.map(\.position); return positions.count + 1 } // allowed: positions-count
+func shapeIndicesCount(_ s: Standing) -> Int { [s.position].indices.count - 1 } // allowed: indices-count
+func shapeRowNumbers(_ list: [Standing]) -> [Int] { list.map(\.position).enumerated().map { $0.offset + 1 } } // allowed: row-numbers

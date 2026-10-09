@@ -593,7 +593,7 @@ def test_the_self_test_compiles_the_fixture_in_every_configuration(monkeypatch: 
 def test_every_rule_has_a_refused_shape_in_the_fixture() -> None:
     """#175 R3: each rule the gate applies has at least one refusal the fixture must produce, so a layout
     change that silences one rule fails the self-test."""
-    phrases = {phrase for _, phrase in gate.FIXTURE_REFUSALS}
+    phrases = {phrase for _, phrase in gate.FIXTURE_REFUSALS | gate.FIXTURE_RELEASE_REFUSALS}
     assert len(gate.FIXTURE_RULES) >= 8, "the rules are not named"
     for rule, phrase in gate.FIXTURE_RULES.items():
         assert any(phrase in carried for carried in phrases), f"no fixture refusal carries the {rule} rule"
@@ -611,7 +611,10 @@ def _marked(mark: str) -> int:
     "shape",
     ["prefix-minus", "shift", "shift-assign", "operator-as-value", "operator-as-value-map", "pow", "truncating",
      "quotient", "overflow", "custom-operator", "numeric-extension", "subscript", "later-line",
-     "decoded-in-extension", "through-any", "through-text", "served-fact", "fact-through-any"],
+     "decoded-in-extension", "through-any", "through-text", "served-fact", "fact-through-any",
+     # The M21-W3 review's B3 and M1.
+     "nsstring-parse", "formatter-parse", "scanner-parse", "anyhashable", "anyobject", "nsnumber",
+     "json-round-trip", "xor", "bitwise-not", "bitwise-and", "fact-nsnumber", "served-dollar"],
 )
 def test_each_shape_the_second_review_planted_is_refused(shape: str) -> None:
     """#173 (D-181, G-2): every operator, method and name the second M19-W2 review planted past the
@@ -643,3 +646,77 @@ def test_every_route_172_names_into_a_sink_is_refused() -> None:
     assert _refused_in("Detail.swift", "`FixtureStatics.tag`, code a privacy sink runs")
     assert _refused_in("EngineClient.swift", "uses `Thread.threadDictionary`")
     assert _refused_in("EngineClient.swift", "uses `NotificationCenter")
+
+
+
+# --- The M21-W3 review (docs/reviews/m21-wave-3-review.md) ------------------------------------------------
+
+
+@pytest.mark.parametrize("mark", ["nearby-row-numbers", "positions-count", "indices-count", "row-numbers"])
+def test_counts_and_row_numbers_are_not_served_numbers(mark: str) -> None:
+    """The review's M1: a count of served numbers, a row number, and a closure's `$0` a few lines below a
+    served one are not served numbers; the served `$0` itself still is (`served-dollar`)."""
+    line = _marked(f"// allowed: {mark}")
+    assert not [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+
+
+def test_a_served_fact_is_a_kind_of_its_own_and_d143_permits_only_it() -> None:
+    """The review's B3: the three D-143 places restate a served fact's number out of 100; a served count
+    or any other number there is arithmetic no ruling names."""
+    assert gate._flow_problem("Uncertainty.swift", "<arithmetic>.fact@5 * in scoreOutOf100") is None
+    assert gate._flow_problem("Uncertainty.swift", "<arithmetic>.number@5 * in scoreOutOf100") is not None
+    assert gate._flow_problem("Uncertainty.swift", "<arithmetic>.number@5 * in anchoredFact") is not None
+    assert gate._served_cases(gate._tree(FLOW_AST))[("ShapeValue", "number")] == "fact"
+
+
+def test_a_sink_references_only_its_listed_foundation_and_no_object_another_file_holds() -> None:
+    """The review's B1 (INV-66, gap G-1): Foundation's process-wide state in a sink (the main thread's and
+    the main queue's names, the process name, the default time zone), and a mutable container another
+    file holds in a constant or a static, are refused where the sink reads them."""
+    for phrase in ("Thread.main", "ProcessInfo.processName", "OperationQueue.main", "NSTimeZone.default"):
+        assert _refused_in("EngineClient.swift", phrase), phrase
+    assert _refused_in("EngineClient.swift", "reads `fixtureScreenBox`")
+    assert _refused_in("EngineClient.swift", "reads `box`")
+
+
+def test_every_twin_of_the_refused_surface_is_refused() -> None:
+    """The review's B2 (INV-64): the surface set through the wrapper's storage or its binding, from an
+    outcome a helper in another file builds, and the request method held as a value: each refused."""
+    assert _refused_in("ContentView.swift", "ContentView._task")
+    assert _refused_in("ContentView.swift", "used as a value")
+    assert _refused_in("Detail.swift", "builds RoutingOutcome")
+    assert _refused_in("Detail.swift", "extends `RoutingOutcome`")
+    assert len(_refused_in("ContentView.swift", "assigns `ContentView.task`")) >= 2
+
+
+def test_the_mutable_classes_url_initialisers_and_an_expression_by_name_are_refused() -> None:
+    """The review's M2 (#168's twins) and K1 (#241)."""
+    assert _refused_in("ContentView.swift", "NSMutableArray.init(contentsOf")
+    assert _refused_in("ContentView.swift", "NSExpression")
+
+
+def test_the_fixture_carries_the_five_rules_it_lacked() -> None:
+    """The review's M4 (#175 R3): the UIKit and CoreFoundation symbol lists, a path built outside its
+    files, a second @AppStorage, and the Release-only hook, each refused on the fixture, and each a rule
+    the self-test names."""
+    assert _refused_in("Detail.swift", "UIKit.UIPasteboard")
+    assert _refused_in("Detail.swift", "CoreFoundation.CFSocketCreate")
+    assert _refused_in("Detail.swift", "builds a path")
+    assert _refused_in("Detail.swift", "stores something outside the register")
+    released = gate.release_problems(gate.references(FLOW_AST))
+    assert any(line.startswith("ContentView.swift:") and "Debug-only UI test hook" in line for line in released)
+    assert {"the UIKit symbol list", "the CoreFoundation symbol list", "a path built elsewhere",
+            "a second @AppStorage", "the Release-only hook"} <= set(gate.FIXTURE_RULES)
+
+
+def test_the_text_tripwire_reads_what_the_compiled_gate_reads() -> None:
+    """The review's M3 (#169): the text derivation (`_served_numbers`, for the lanes with no Xcode) and the
+    compiled gate's `served_fields` name the same fields on the fixture, a served fact's enum payload and
+    a field typed as one included; and on the shipping client the text list holds the served facts."""
+    from .test_ios_client_contract import _served_numbers, _swift
+
+    compiled = {field for _, field in gate.served_fields(gate._tree(FLOW_AST))}
+    fixture = {p.name: _swift(p) for p in (ROOT / "scripts" / "client_decl_fixtures").glob("*.swift")}
+    text = _served_numbers(fixture)
+    assert text == compiled, (sorted(compiled - text), sorted(text - compiled))
+    assert {"whyFact", "tradeOffFact", "number", "number(_:)"} <= _served_numbers()

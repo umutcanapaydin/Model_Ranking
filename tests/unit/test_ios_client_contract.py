@@ -1949,7 +1949,12 @@ def test_the_boards_screen_lays_out_its_rows_lazily() -> None:
     view = _swift(CLIENT / "ContentView.swift")
     detail = re.search(r"struct CombinedDetail: View \{.*?\n\}\n", view, re.S)
     assert detail, "CombinedDetail is gone"
-    assert "LazyVStack" in detail.group(0), "the boards screen draws every model at once"
+    # The M21-W3 review's M4: the rows' ForEach is a direct child of the lazy stack, not anywhere in it.
+    lazy = re.search(r"\n( *)LazyVStack\([^\n]*\{\n(.*?)\n\1\}", detail.group(0), re.S)
+    assert lazy, "the boards screen draws every model at once"
+    child = lazy.group(1) + "    "
+    assert re.search(rf"^{child}ForEach\(view\.list\.entries\b", lazy.group(2), re.M), (
+        "the rows are not the lazy stack's own children, so they are laid out at once")
 
 
 def test_the_device_state_is_read_again_on_returning_to_the_foreground() -> None:
@@ -1957,9 +1962,11 @@ def test_the_device_state_is_read_again_on_returning_to_the_foreground() -> None
     runs; the glow and the caption read its state again whenever the app comes back to the front."""
     view = _swift(CLIENT / "ContentView.swift")
     assert re.search(r"@State private var onDevice\b", view), "the device state is read once, at launch"
-    assert re.search(r"\.onChange\(of: scenePhase\).*?onDevice = TieredRouter\.onDeviceState\(\)", view, re.S), (
-        "the device state is not read again when the app returns to the front"
-    )
+    # The M21-W3 review's M4: the handler does exactly that, and re-asks nothing.
+    handler = re.search(r"\.onChange\(of: scenePhase\) \{ _, phase in\n(.*?)\n *\}\n", view, re.S)
+    assert handler, "the device state is not read again when the app returns to the front"
+    body = [line.strip() for line in handler.group(1).splitlines() if line.strip()]
+    assert body == ["if phase == .active { onDevice = TieredRouter.onDeviceState() }"], body
 
 
 def test_the_text_tripwire_reads_its_served_numbers_from_the_decoded_types() -> None:
