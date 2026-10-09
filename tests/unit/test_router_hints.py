@@ -1086,7 +1086,7 @@ def test_the_sink_pins_refuse_the_planted_spellings_of_shared_state(mutant: str)
 
 
 @pytest.mark.parametrize("condition", ["!(true)", "false && DEBUG", "DEBUG && false", "!(true || DEBUG)", "((false))"])
-def test_a_branch_no_build_compiles_is_dropped_however_its_condition_is_spelled(condition: str) -> None:
+def test_a_branch_no_build_compiles_is_dropped_in_the_five_spellings_it_lists(condition: str) -> None:
     """The W2 review's M3 (#110, INV-78): `#if !(true)` and `#if false && DEBUG` were kept, and both
     are decidably dead. A condition is read in three values: true, false, or not known here. REQ-GAP-001."""
     assert "dead()" not in _built(f"#if {condition}\ndead()\n#endif\nlive()\n")
