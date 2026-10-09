@@ -1976,15 +1976,24 @@ DECLARED = re.compile(r'^ *\((func_decl|constructor_decl|var_decl|struct_decl|cl
 
 
 def _snapshot_drift(ast: str) -> list[str]:
-    """The second W2 review's K1: the committed dump against the fixture as it compiles."""
+    """The second W2 review's K1: the committed dump against the fixture as it compiles, by its
+    declarations and (the M21-W3 Tester's M2) by its refusals, line for line, the Release rule's too: a
+    shape whose body changed while another still carried its phrase passed the per-phrase check."""
     if not SNAPSHOT.exists():
         return [f"{SNAPSHOT.name} is missing; write it with `--snapshot`"]
-    now = set(DECLARED.findall(fixture_dump(ast)))
-    kept = set(DECLARED.findall(SNAPSHOT.read_text(encoding="utf-8")))
-    if now == kept:
+    compiled, committed = fixture_dump(ast), SNAPSHOT.read_text(encoding="utf-8")
+    now, kept = set(DECLARED.findall(compiled)), set(DECLARED.findall(committed))
+    if now != kept:
+        return [f"{SNAPSHOT.name} is not the fixture as it compiles ({len(now - kept)} declaration(s) new, "
+                f"{len(kept - now)} gone); write it again with `--snapshot`"]
+    found_now, found_kept = references(compiled), references(committed)
+    refused_now = sorted(problems(found_now)) + sorted(release_problems(found_now))
+    refused_kept = sorted(problems(found_kept)) + sorted(release_problems(found_kept))
+    if refused_now == refused_kept:
         return []
-    return [f"{SNAPSHOT.name} is not the fixture as it compiles ({len(now - kept)} declaration(s) new, "
-            f"{len(kept - now)} gone); write it again with `--snapshot`"]
+    return [f"the fixture as it compiles is refused otherwise than {SNAPSHOT.name} "
+            f"({len(set(refused_now) - set(refused_kept))} refusal(s) new, "
+            f"{len(set(refused_kept) - set(refused_now))} gone); write it again with `--snapshot`"]
 
 
 def self_test() -> list[str] | None:
