@@ -17,6 +17,7 @@ from __future__ import annotations
 import functools
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -26,6 +27,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 ARTIFACT = Path("advisor.db")
@@ -54,6 +56,7 @@ class Need(NamedTuple):
 
 #: Each need: what it is, whether this machine has it, and whether CI's test job (`.github/workflows/
 #: ci.yml`, ubuntu, `pytest`) has it, with the reason. A need CI lacks is a skip the budget counts.
+#: `in_ci` is held equal to what `ci_job_facts` reads from the workflow (`test_ci_needs.py`, #182).
 NEEDS: dict[str, Need] = {
     "artifact": Need("the built advisor.db", lambda: ARTIFACT.is_file(), False,
                      "gitignored, so never in a checkout (W-108)"),
@@ -78,8 +81,35 @@ NEEDS: dict[str, Need] = {
 
 
 def ci_job_facts(workflow_text: str) -> dict[str, bool]:
-    """#182: whether CI's test job has each need, read from its workflow file."""
-    return {}
+    """#182: whether CI's test job has each need, read from its workflow file. The job's runner, the
+    steps before the one that runs `pytest`, the variables that step sees and its command decide it;
+    `test_ci_needs.py` holds `NEEDS[...].in_ci` equal to this. A runner it cannot read is an error,
+    not a guess."""
+    workflow = yaml.safe_load(workflow_text)
+    job = workflow["jobs"]["test"]
+    runner = str(job.get("runs-on", ""))
+    if not runner.startswith(("ubuntu-", "macos-")):
+        msg = f"#182: the test job's runner {runner!r} is not one this reads (ubuntu-*, macos-*)"
+        raise ValueError(msg)
+    steps = job.get("steps", [])
+    at = next(i for i, step in enumerate(steps) if re.search(r"(?<![\w-])pytest(?![\w-])", str(step.get("run", ""))))
+    command = str(steps[at]["run"])
+    before = steps[:at]
+    env = {**(workflow.get("env") or {}), **(job.get("env") or {}), **(steps[at].get("env") or {})}
+    sudo = re.findall(r"\bsudo\b([^&|;]*)", command)
+    return {
+        "artifact": any("advisor.db" in str(step.get("run", "")) for step in before),
+        "contract": str(env.get("RUN_CONTRACT_TESTS", "")) == "1",
+        "epoch": bool(env.get("EPOCH_DATA_DIR")),
+        "xcode": runner.startswith("macos-"),
+        "macos": runner.startswith("macos-"),
+        # #122's patch: a network namespace (`unshare --net` or `-n`) around the run.
+        "offline": bool(re.search(r"\bunshare\b[^&|;]*\s(?:--net\b|-[a-zA-Z]*n[a-zA-Z]*\b)", command)),
+        "bash_curl": True,  # both are on the ubuntu and macOS images
+        "git": any(str(step.get("uses", "")).startswith("actions/checkout@") for step in before),
+        # Root unless the last `sudo` before pytest drops to a user (`-u`), as #122's patch does.
+        "not_root": "container" not in job and not (sudo and not re.search(r"\s-u\s", sudo[-1])),
+    }
 
 
 def configure(config: pytest.Config) -> None:
