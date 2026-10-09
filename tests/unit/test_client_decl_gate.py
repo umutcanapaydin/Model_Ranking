@@ -814,3 +814,28 @@ def test_make_client_decls_runs_the_gate_and_keeps_its_status() -> None:
             break
         recipe.append(line.strip())
     assert [line for line in recipe if not line.startswith("@#")] == ["$(PY) -B scripts/client_decl_gate.py"], recipe
+
+
+def _without_subtree(ast: str, opening: str) -> str:
+    """The dump with the node whose line starts with `opening` removed, children and all."""
+    lines = ast.splitlines(keepends=True)
+    start = next(index for index, line in enumerate(lines) if line.lstrip().startswith(opening))
+    depth = len(lines[start]) - len(lines[start].lstrip())
+    end = start + 1
+    while end < len(lines) and len(lines[end]) - len(lines[end].lstrip()) > depth:
+        end += 1
+    return "".join(lines[:start] + lines[end:])
+
+
+def test_make_client_decls_fails_when_the_fixture_is_refused_otherwise_than_its_dump(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """The M21-W3 Tester's M2 (G-10): the self-test asked for one refusal per (file, phrase) and compared the
+    committed dump with the compile by its declarations only, so `keepAsked`'s `task = typed` (#188) taken
+    out of the compile left `make client-decls` green: another shape still carried its phrase. The self-test
+    compares the compiled fixture's refusals with the committed dump's, line for line. The committed dump
+    stands in for the compile, so this runs where there is no Xcode too. # covers REQ-GAP-001"""
+    compiled = _without_subtree(FLOW_AST, "(assign_expr type=\"()\" location=/x/ContentView.swift:232:")
+    assert compiled != FLOW_AST
+    monkeypatch.setattr(gate, "dump_ast", lambda sdk_name, flags, folder=gate.CLIENT: (compiled, 0))
+    broken = gate.self_test() or []
+    assert any("refused otherwise" in line for line in broken), broken
