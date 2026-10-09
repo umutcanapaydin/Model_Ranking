@@ -1676,7 +1676,9 @@ def _held_and_tuning_strings() -> tuple[list[str], list[str]]:
     return held, tuning
 
 
-def _held_out_only_signals(lists: list[tuple[list[str], bool]], held: list[str], tuning: list[str]) -> list[str]:
+def _held_out_only_signals(
+    lists: list[tuple[list[str], bool]], held: list[str], tuning: list[str], plain_letters: bool = False
+) -> list[str]:
     """#117: each entry found in `held` and in no `tuning` string, sorted: at a word's start with any
     ending (D-183); under three letters it is a suffix or a particle, not a signal. Case-folded on
     every side. Whether a list holds stems no longer changes the match (the W3 review's M8)."""
@@ -1693,6 +1695,61 @@ def _held_out_only_signals(lists: list[tuple[list[str], bool]], held: list[str],
             if re.search(pattern, held_text) and not re.search(pattern, tuning_text):
                 found.add(entry)
     return sorted(found)
+
+
+# --- M21-W2 (#186, #180): the held-out check matches as the app does, and reads the wording tier -------
+
+
+def test_an_entry_the_app_matches_whole_is_flagged_when_only_a_held_out_set_holds_it_whole() -> None:
+    """#186: the check matched every entry at a word's start with any ending, while the app matches many
+    lists whole. `nerede` held whole only by a held-out row, while a tuning row holds `nereden`, passed.
+    A list matched whole is now matched whole; one matched by its start stays so."""
+    held, tuning = ["kitap nerede"], ["nereden geldi bu"]
+    assert _held_out_only_signals([(["nerede"], True)], held, tuning) == ["nerede"]
+    assert _held_out_only_signals([(["nerede"], False)], held, tuning) == []
+
+
+def test_the_check_reads_how_each_list_is_matched_and_the_inline_literals() -> None:
+    """#186: whether a list is matched whole or by its start is read from the code that uses it, and the
+    literals compared inline (`$0 == "ne"`, `hasPrefix("yıl")`) are read too."""
+    modes: dict[str, bool] = {}
+    for entries, whole in _reading_lists():
+        for entry in entries:
+            modes[entry] = modes.get(entry, True) and whole
+    assert modes.get("kim") is True, "factWordsTurkish is matched whole"
+    assert modes.get("thx") is True, "smallTalkWords is matched whole"
+    assert modes.get("kodla") is False, "factExclusionStemsTurkish is matched by its start"
+    assert modes.get("zaman") is True and modes.get("ne") is True, "the inline == literals"
+    assert modes.get("y\u0131l") is False, "the inline hasPrefix literal"
+
+
+def test_the_wording_tiers_tuned_text_is_read_by_the_held_out_check() -> None:
+    """#180: the wording tier's hint sentences, its keyword lists (D-187) and the refinement words
+    (D-188 clause 6) are tuned text matched against questions too, so the check reads them."""
+    entries = {entry: whole for found, whole in _wording_lists() for entry in found}
+    assert {"parses", "comprehension"} <= set(entries), "the hint sentences were not read"
+    assert entries.get("traceback") is False, "a stem is matched by its start"
+    assert entries.get("codebase") is True, "a word is matched whole"
+    assert entries.get("unit test") is False and entries.get("book a flight") is True, "phrases"
+    assert entries.get("lawyer") is True and entries.get("hukuk") is False, "the refinement words"
+
+
+def test_every_wording_entry_only_a_live_held_out_set_holds_is_reviewed() -> None:
+    """#180: each entry of the wording tier's tuned text that a live held-out set holds and no tuning set
+    does is named in `WORDING_HELD_OUT_ONLY_REVIEWED`, with where it came from, as `Reading.swift`'s are."""
+    flagged = set(_held_out_only_signals(_wording_lists(), *_held_and_tuning_strings(), plain_letters=True))
+    assert flagged - set(WORDING_HELD_OUT_ONLY_REVIEWED) == set(), f"unreviewed: {sorted(flagged - set(WORDING_HELD_OUT_ONLY_REVIEWED))}"
+    assert set(WORDING_HELD_OUT_ONLY_REVIEWED) - flagged == set(), "reviewed entries no longer flagged; remove them"
+
+
+#: #180: each entry of the wording tier's tuned text that a live held-out set holds and no tuning set does,
+#: with where it came from (a stub in the red commit).
+WORDING_HELD_OUT_ONLY_REVIEWED: dict[str, str] = {}
+
+
+def _wording_lists() -> list[tuple[list[str], bool]]:
+    """#180: the wording tier's tuned text (a stub in the red commit)."""
+    return []
 
 
 def test_the_screen_hands_the_refined_board_to_the_plan() -> None:
