@@ -22,7 +22,7 @@ from app.workflows.refresh import (
     write_status,
 )
 
-from .test_deploy_hosted import _deploy, _scratch
+from .test_deploy_hosted import _deploy, _git, _scratch
 
 AT = dt.datetime(2026, 10, 9, tzinfo=dt.UTC).timestamp()
 
@@ -54,24 +54,39 @@ def test_a_record_without_a_build_says_unknown(tmp_path: Path, monkeypatch: pyte
 
 
 def test_the_deploy_stamp_names_the_release_that_built_the_data(tmp_path: Path) -> None:
-    _repo, served, calls, env = _scratch(tmp_path)
-    status_path(served).write_text(json.dumps({"served_built_by": "release-1234567890abcdef"}), encoding="utf-8")
+    repo, _served, calls, env = _scratch(tmp_path)
     done = _deploy(env)
     assert done.returncode == 0, done.stdout + done.stderr
+    head = _git("-C", str(repo), "rev-parse", "--short=7", "HEAD")
     stamp = [arg for arg in calls.read_text(encoding="utf-8").split() if arg.startswith("APP_BUILD=")][-1]
-    assert stamp.endswith("-from-1234567"), stamp
+    assert stamp.endswith(f"-from-{head}"), stamp
 
 
-def test_a_dry_run_says_when_the_data_is_another_releases(tmp_path: Path) -> None:
-    _repo, served, _calls, env = _scratch(tmp_path)
-    status_path(served).write_text(json.dumps({"served_built_by": "release-1234567"}), encoding="utf-8")
-    done = _deploy(env, "--dry-run")
+@pytest.mark.parametrize("built_by", ["release-1234567", None])
+def test_data_built_by_another_release_is_refused(tmp_path: Path, built_by: str | None) -> None:
+    """The M21-W1 review's M4: names, ids and boards are applied when the data is built, so data an
+    older release built ships an older product under HEAD's stamp (`web-dev` dark before D-190's board
+    arrives). The deploy refuses it, a dry run included, and nothing is deployed."""
+    _repo, served, calls, env = _scratch(tmp_path)
+    record = status_path(served)
+    if built_by is None:
+        record.unlink()
+    else:
+        record.write_text(json.dumps({"served_built_by": built_by}), encoding="utf-8")
+    for flags in ((), ("--dry-run",)):
+        done = _deploy(env, *flags)
+        assert done.returncode != 0, flags
+        said = done.stdout + done.stderr
+        assert "built by" in said and "refresh" in said, said
+    assert not calls.exists()
+
+
+def test_data_from_another_release_deploys_when_the_owner_names_it(tmp_path: Path) -> None:
+    """The refusal is lifted only for the release the owner names, never for any."""
+    _repo, served, calls, env = _scratch(tmp_path)
+    status_path(served).unlink()
+    assert _deploy({**env, "DEPLOY_ACCEPT_DATA_FROM": "release-0000000"}).returncode != 0
+    done = _deploy({**env, "DEPLOY_ACCEPT_DATA_FROM": "unknown"})
     assert done.returncode == 0, done.stdout + done.stderr
-    assert "built by release-1234567" in done.stdout + done.stderr
-
-
-def test_a_served_artifact_with_no_record_is_stamped_unknown(tmp_path: Path) -> None:
-    _repo, _served, calls, env = _scratch(tmp_path)
-    assert _deploy(env).returncode == 0
     stamp = [arg for arg in calls.read_text(encoding="utf-8").split() if arg.startswith("APP_BUILD=")][-1]
     assert stamp.endswith("-from-unknown"), stamp

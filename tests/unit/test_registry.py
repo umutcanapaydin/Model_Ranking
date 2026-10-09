@@ -689,6 +689,7 @@ def test_no_gpt5_minor_release_rule_takes_another_releases_variant(minor: str, v
         ("DeepSeek-V3", "deepseek-v3"),
         ("deepseek-r1-0528", "deepseek-r1-0528"),
         ("DeepSeek R1 (0528)", "deepseek-r1-0528"),
+        ("DeepSeek-R1 (May 2025)", "deepseek-r1-0528"),  # Epoch's spelling (the W1 review's B1)
         ("deepseek-r1", "deepseek-r1"),
         ("DeepSeek R1", "deepseek-r1"),
     ],
@@ -719,3 +720,64 @@ def test_claude_haiku_5_5_is_named_as_anthropic_spells_it(name: str) -> None:
     (`test_display_names.py` found it); a curated rule names it."""
     rule = canonicalize(name)
     assert rule is not None and (rule.canonical_id, rule.display) == ("claude-5.5-haiku", "Claude Haiku 5.5")
+
+
+@pytest.mark.parametrize("name", ["DeepSeek-R1-0528-Qwen3-8B", "deepseek-r1-0528-qwen3-8b",
+                                  "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B", "DeepSeek-R1-Distill-Llama-70B",
+                                  "deepseek-r1-qwen3-8b", "deepseek-r1-0528-distill"])
+def test_a_distilled_model_is_not_the_release_it_was_distilled_from(name: str) -> None:
+    """The W1 review's B2: R1-0528's rule took `DeepSeek-R1-0528-Qwen3-8B`, an 8B Qwen model distilled
+    from it. A distill or a small size after the release is another model, refused by both R1 rules."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id not in {"deepseek-r1", "deepseek-r1-0528"}, (name, rule)
+
+
+@pytest.mark.parametrize(
+    ("name", "model"),
+    [
+        ("mistral-large-2402", "mistral-large-1"),
+        ("mistral.mistral-large-2402-v1:0", "mistral-large-1"),
+        ("mistral-large-2407", "mistral-large-2"),
+        ("Mistral Large 2 (Jul 2024)", "mistral-large-2"),
+        ("vertex_ai/mistral-large@2407", "mistral-large-2"),
+        ("snowflake/mistral-large2", "mistral-large-2"),
+        ("mistral-large-2411", "mistral-large-2.1"),
+        ("Mistral Large 2 (Nov 2024)", "mistral-large-2.1"),
+        ("vertex_ai/mistral-large@2411-001", "mistral-large-2.1"),
+        ("mistral-large-3", "mistral-large-3"),
+        ("mistral/mistral-large-2512", "mistral-large-3"),
+        ("mistral.mistral-large-3-675b-instruct", "mistral-large-3"),
+        ("fireworks_ai/accounts/fireworks/models/mistral-large-3-fp8", "mistral-large-3"),
+        ("mistral-large-4", "mistral-large-4"),
+        ("mistralai/mistral-large-4-0", "mistral-large-4"),
+        ("claude-sonnet-4-6", "claude-4.6-sonnet"),
+        ("Claude Sonnet 4.6", "claude-4.6-sonnet"),
+        ("openrouter/anthropic/claude-sonnet-4.6", "claude-4.6-sonnet"),
+        ("claude-sonnet-4-6_high", "claude-4.6-sonnet"),
+        ("claude-sonnet-4-20250514", "claude-4-sonnet"),
+        ("Claude Sonnet 4", "claude-4-sonnet"),
+        ("Claude 4 Sonnet (20250514)", "claude-4-sonnet"),
+    ],
+)
+def test_a_gathered_family_is_split_into_the_releases_its_maker_names(name: str, model: str) -> None:
+    """The W1 review's B3 (D-189 clause 1): Arena ranked Mistral Large 2402, 2407, 2411, 3 and 4 all as
+    `mistral-large`, and four boards ranked Claude Sonnet 4.6 as `claude-4-sonnet`. Mistral names Large
+    1.0 (24.02), 2.0 (24.07), 2.1 (24.11), 3 (25.12) and 4 apart (docs.mistral.ai/getting-started/models,
+    read 2026-10-09); Anthropic names Sonnet 4.6 apart from Sonnet 4."""
+    rule = canonicalize(name)
+    assert rule is not None and rule.canonical_id == model, (name, rule)
+
+
+@pytest.mark.parametrize("name", ["mistralai/mistral-large", "Mistral Large", "azure_ai/mistral-large",
+                                  "mistral-large-latest", "vertex_ai/mistral-large@latest"])
+def test_an_undated_mistral_large_moves_and_reaches_no_release(name: str) -> None:
+    """D-166: the undated name has meant each release in turn, so it reaches none of them."""
+    assert canonicalize(name) is None
+    assert derive_identity(name) is None
+
+
+@pytest.mark.parametrize("name", ["GLM-4.6V", "glm-4.6v", "zai/glm-4.6v-flash"])
+def test_glm_4_6v_is_not_glm_4_6(name: str) -> None:
+    """The W1 review's K2: GLM-4.6V, the vision model, sat in GLM-4.6's rows and price median."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id != "glm-4.6", (name, rule)

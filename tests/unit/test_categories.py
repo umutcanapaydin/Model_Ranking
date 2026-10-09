@@ -539,6 +539,8 @@ PINNED_M15_THRESHOLDS = {
     "vision": (7.8, 31.2),
     "search": (6.5, 25.9),
     "search_factuality": (4.9, 19.5),
+    # M21-W1 (#185, D-190; the W1 review's M1): measured on LMArena's own WebDev board.
+    "web-dev": (9.3, 37.3),
 }
 
 
@@ -548,3 +550,15 @@ def test_the_m15_surfaces_ship_the_thresholds_their_calibration_record_states() 
         assert (spec.close_call, spec.value_window) == (close_call, window), surface
         # the M14 rule: the window is four times the unrounded median, so within rounding of 4x
         assert abs(spec.value_window - 4 * spec.close_call) <= 0.2, surface
+
+
+def test_web_devs_thresholds_are_its_calibration_records() -> None:
+    """The W1 review's M1: the pinned pair is read from the record the board's calibration wrote."""
+    import json
+    from pathlib import Path
+
+    record = json.loads(Path("docs/research/m21-w1-webdev-calibration.json").read_text(encoding="utf-8"))
+    candidates = record["threshold_candidates"]
+    assert record["source"] == CATEGORIES["web-dev"].primary_source
+    assert (CATEGORIES["web-dev"].close_call, CATEGORIES["web-dev"].value_window) == (
+        candidates["close_call"], candidates["value_window"]) == PINNED_M15_THRESHOLDS["web-dev"]

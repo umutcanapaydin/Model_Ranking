@@ -378,3 +378,37 @@ def test_a_refused_request_is_not_charged() -> None:
     main.reset_rate_windows()
     assert [main._over_limit("k", 3, 600.0)[0] for _ in range(6)] == [False, False, False, True, True, True]
     assert main.rate_window_used("k", 600.0) == 3
+
+
+
+def test_each_client_has_its_own_boards_window(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The W1 review's M2: the boards window is per client, not one window for every phone."""
+    monkeypatch.setenv("MODEL_RANKING_RATE_LIMIT", "120")
+    for ip in ("203.0.113.91", "203.0.113.92"):
+        statuses = [client.get("/v1/boards", headers={"Fly-Client-IP": ip}).status_code for _ in range(4)]
+        assert statuses == [200] * 4, (ip, statuses)
+
+
+def test_questions_never_block_standings(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The W1 review's M2, the other direction: a client's 120 questions leave its standings served."""
+    monkeypatch.setenv("MODEL_RANKING_RATE_LIMIT", "120")
+    ip = {"Fly-Client-IP": "203.0.113.93"}
+    assert all(client.get("/v1/budgets", headers=ip).status_code == 200 for _ in range(120))
+    assert client.get("/v1/budgets", headers=ip).status_code == 429
+    assert client.get("/v1/boards", headers=ip).status_code == 200
+
+
+def test_a_full_table_still_counts_the_standings_of_a_client_it_holds(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The W1 review's R1: a client is one entry, its questions and its standings counted in it, so a
+    table full of this minute's clients never serves a client it holds uncounted standings."""
+    from app.adapter import main
+
+    monkeypatch.setenv("MODEL_RANKING_RATE_LIMIT", "120")
+    ip = {"Fly-Client-IP": "203.0.113.94"}
+    assert client.get("/v1/budgets", headers=ip).status_code == 200
+    for n in range(main.RATE_WINDOW_KEYS):
+        main._over_limit(f"crowd-{n}", 120, main._rate_clock())
+    statuses = [client.get("/v1/boards", headers=ip).status_code for _ in range(6)]
+    assert statuses == [200, 200, 200, 200, 429, 429], statuses

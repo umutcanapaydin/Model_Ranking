@@ -42,6 +42,10 @@ def _scratch(tmp_path: Path, health_build: str | None = None) -> tuple[Path, Pat
     _git("-C", str(repo), "push", "-q", "origin", "main")
     served = tmp_path / "served.db"
     _seeded_db(served)
+    # #198 (the M21-W1 review's M4): the served data was built by the release being deployed, as the
+    # refresh records it; a deploy refuses other data unless told which it accepts.
+    head = _git("-C", str(repo), "rev-parse", "--short=7", "HEAD")
+    (tmp_path / "served.db.refresh.json").write_text(f'{{"served_built_by": "release-{head}"}}', encoding="utf-8")
     bin_dir, calls = tmp_path / "bin", tmp_path / "fly-calls.txt"
     bin_dir.mkdir()
     (bin_dir / "fly").write_text(f'#!/bin/sh\necho "$@" >> "{calls}"\n', encoding="utf-8")
