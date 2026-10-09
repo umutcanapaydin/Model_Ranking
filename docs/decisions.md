@@ -4030,20 +4030,13 @@ carries the question off the device or into its caches with every gate passing.
 **Revisit when:** a third sink appears (a new route or a new store), or Swift can admit exactly two
 files to a declaration.
 
-**Note (M21-W3, #172, #85, #170, #174, #188; the wave's review, rounds 1 and 2):** the gate refuses
-more listed forms on the compiled module, and any other form is not held (gap G-1, #242). It refuses a
-global or `static` `let` a sink reads whose initialiser reads a `var` another file can set; in a sink, a
-Foundation declaration off `SINK_FOUNDATION_ALLOWED`, and `CommandLine`; in the code a sink runs in
-another file, a use of the process-wide state `FOUNDATION_SHARED` lists (the threads and operation queues,
-the process's information, `NSTimeZone`, `NSLocale`, `TimeZone`'s and `Locale`'s current, `CommandLine`,
-the notification centre, the shared caches, cookie and credential stores, the ubiquitous store); in both,
-a read of another file's constant whose declared type is a class `FOUNDATION_OBJECT` lists or an app
-class; and in any file, the symbols `BY_NAME` lists (gap G-12, #241). A stored default was already refused
-as the sink's call to an initialiser another file declares, and a kept closure as a stored property off
-`SINK_HELD_TYPES`. Forms the lists do not name pass: round 2 found a Foundation object behind a widened
-type (`Any`, `AnyObject`, an array, a struct holding one) and `Calendar.current`, and a probe found a
-Swift-module object held in a constant. The standings store dates what it keeps by its own clock (#170).
-The request rule refuses the forms INV-64's row lists, and only those (#174, #188; gap G-11, #244).
+**Note (M21-W3, #172, #85, #170, #174, #188; the wave's review, rounds 1 to 4):** the sink rules
+gained shapes in the gate's fixture (`scripts/client_decl_fixtures/`), which defines what they refuse.
+The compiled gate refuses the shapes its fixture holds, each as written there; the same form written
+another way (bound to a name first, split over lines, behind a widened type) is not held, and any
+other form is not held: see INV-66 in `docs/security-invariants.md` (G-1, #242), and G-12 (#241) for
+what reaches a value by name. The standings store dates what it keeps by its own clock (#170). The
+request rule is INV-64's (G-11, #244).
 
 ## D-181 — The phone's arithmetic and ordering rules are checked on what the compiler resolves
 
@@ -4124,25 +4117,16 @@ included, so `answers.filter { $0.eligibleCount > 0 }.count + 1` is refused (the
 **Revisit when:** a file needs arithmetic on a served number a ruling does not yet name, or #171 or
 #173 is taken.
 
-**Note (M21-W3, #171, #173, #169; the wave's review, rounds 1 and 2):** both are taken, and the gate
-refuses more listed forms; any other form is not held (gap G-2, #242). It refuses the shapes the second
-W2 review planted (prefix and shift operators, an operator passed as a function, `pow` and the remainder,
-quotient and overflow methods, a subscript's parameter, a name bound on a later line, a conformance in an
-extension), and `^`, `&` and `~`; the client declares no arithmetic operator and extends no number. It
-follows a served number through the listed carriers: text it is parsed back from by a parser
-`PARSES_NUMBER` lists (the numeric initialisers, `NSString`'s number properties, `NumberFormatter`,
-`Scanner`, a JSON decode), `Any` and the boxes `TEXTY_TYPE` lists (`AnyHashable`, `AnyObject`, `NSNumber`,
-`NSValue`, `Data`, the `NSString` types), and a served fact's number, a kind of its own that only the three
-D-143 places may restate. An operand's closures, text no number is parsed from, a count and a row number
-are not read, so a count of served things and a label's length are not served numbers (the third
-review's M2 is gone). A count of what a served number built is followed for the builders the fixture
-holds (`Array(repeating:count:)`, a range's bound, `dropFirst(_:)`); round 2 found `String(repeating:count:)`,
-`Data(count:)`, `Data(repeating:count:)` and `repeatElement(_:count:)` pass, and a probe found `abs`, `min`,
-`max`, `.magnitude`, `.rounded(_:)` and an app's table indexed by a served number pass. A closure's `$0` is
-bound to its own closure; a named closure or loop parameter is still matched by name up to five lines
-below its binding, so a served number can still be counted on an unrelated binding of the same name, a
-refusal of more than it should (round 2's M1; none on the shipping client). The text tripwire derives the
-served fields the compiled gate does, held equal on the fixture (#169).
+**Note (M21-W3, #171, #173, #169; the wave's review, rounds 1 to 4):** both are taken: the arithmetic
+rule gained shapes in the gate's fixture (`scripts/client_decl_fixtures/Arithmetic.swift`), which
+defines what it refuses. The compiled gate refuses the shapes its fixture holds, each as written
+there; the same form written another way (bound to a name first, split over lines, behind a widened
+type) is not held, and any other form is not held: see INV-76 in `docs/security-invariants.md` (G-2,
+#242). A served fact is a kind of its own that only the three D-143 places may restate. A named
+closure or loop parameter is still matched by name up to five lines below its binding, so the gate
+can refuse an unrelated binding of the same name, more than it should (round 2's M1; none on the
+shipping client). The text tripwire derives the served fields the compiled gate does, held equal on
+the fixture (#169).
 
 ## D-182 — Each pick carries its model's id on `/v1`, and the app keys its cards on it
 

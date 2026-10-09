@@ -7,7 +7,7 @@ INV-62, INV-63, INV-64, INV-66, INV-67, INV-75, INV-76, INV-85 and INV-89 in
 - The rules, on what the compiler printed: these run everywhere, including CI, which has no Xcode.
 - The whole gate on a compiled fixture (`scripts/client_decl_fixtures/`): runs where Xcode is, and
   `make client-decls` runs the same fixture before it checks the app, so the gate cannot pass the
-  app while it has stopped refusing.
+  app while a rule `FIXTURE_RULES` names has stopped refusing (G-10).
 """
 
 from __future__ import annotations
@@ -77,7 +77,7 @@ def test_a_url_decoded_if_present_is_the_network_too() -> None:
 
 def test_make_client_decls_fails_when_its_self_test_does(monkeypatch: pytest.MonkeyPatch) -> None:
     """W5 Tester: `main()` runs the self-test before it checks the app, so the gate cannot pass the app
-    while it has stopped refusing (#51). Nothing held that: with the call unwired, every test here and
+    while a rule `FIXTURE_RULES` names has stopped refusing (#51, G-10). Nothing held that: with the call unwired, every test here and
     `make client-decls` passed. A failed self-test returns before anything compiles, so this runs
     where there is no Xcode too."""
     monkeypatch.setattr(gate, "self_test", lambda: ["ContentView.swift: URL.decoded was not refused"])
@@ -365,9 +365,10 @@ def _lines_of(file: str, declaration: str) -> range:
     ("ContentView.swift", "func fixtureByProtocol"),         # a protocol requirement's witness
     ("ContentView.swift", "func fixtureCompound"),           # `-=`
 ])
-def test_arithmetic_on_a_served_number_is_refused_whatever_carries_it(file: str, declaration: str) -> None:
+def test_arithmetic_on_a_served_number_is_refused_in_the_forms_the_fixture_holds(file: str, declaration: str) -> None:
     """The W2 review's B1 (D-181, INV-76, REQ-APP-005): the review got arithmetic on a served number past
-    the gate through each of these. Each is refused, on a line of its own declaration."""
+    the gate through each of these. Each is refused, on a line of its own declaration; any other form
+    is not held (G-2; see INV-76)."""
     span = _lines_of(file, declaration)
     refused = gate.problems(gate.references(FLOW_AST))
     hits = [line for line in refused if line.startswith(f"{file}:") and "served" in line
@@ -450,11 +451,11 @@ def test_a_url_out_of_any_by_a_cast_is_made() -> None:
     assert gate.url_facts(pattern) == {"Detail.swift": {"Foundation.URL.made"}}
 
 
-def test_the_code_a_sink_runs_reads_no_shared_mutable_state() -> None:
+def test_the_code_a_sink_runs_is_refused_the_shared_state_the_fixture_holds() -> None:
     """The second W2 review's B2, S5 and S5b (D-180, INV-66, INV-67, REQ-GAP-001): the body of
     `FetchedStandings.init(payload:)`, a call the sinks may make, and a decoding witness it reaches,
-    each wrote the screen's global into the standings file, and no rule read them. What a sink runs,
-    followed through the calls it makes and every coding witness, reads no shared `var`."""
+    each wrote the screen's global into the standings file, and no rule read them. These shapes of
+    what a sink runs are refused; any other form is not held (G-1; see INV-66)."""
     refused = _refused_in("Models.swift", "a privacy sink runs")
     assert any("fixtureStamped" in line for line in refused), refused
     assert any("FixtureNoted" in line for line in refused), refused
@@ -583,8 +584,8 @@ def test_a_mac_without_the_toolchain_fails_the_gate_rather_than_skipping(monkeyp
 
 
 def test_the_self_test_compiles_the_fixture_in_every_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
-    """#175 R3: the fixture carries a refused shape per rule in each configuration the gate reads, so a
-    layout change in any of them fails the self-test. The fixture is compiled once per configuration."""
+    """#175 R3: the fixture carries a refused shape for each rule `FIXTURE_RULES` names, in each
+    configuration the gate reads, so a layout change in any of them fails the self-test. The fixture is compiled once per configuration."""
     seen: list[list[str]] = []
 
     def dump(_sdk: str, flags: list[str], *_rest: object) -> tuple[str, int]:
@@ -596,9 +597,10 @@ def test_the_self_test_compiles_the_fixture_in_every_configuration(monkeypatch: 
     assert [flags for _, _, flags in gate.CONFIGURATIONS] == seen
 
 
-def test_every_rule_has_a_refused_shape_in_the_fixture() -> None:
-    """#175 R3: each rule the gate applies has at least one refusal the fixture must produce, so a layout
-    change that silences one rule fails the self-test."""
+def test_each_rule_fixture_rules_names_has_a_refused_shape() -> None:
+    """#175 R3: each rule `FIXTURE_RULES` names has at least one refusal the fixture must produce, so a
+    layout change that silences one of them fails the self-test. Two rules are not named there and have
+    no such refusal: the budget's literal `let` and `SINK_SWIFT_REFUSED` (G-10)."""
     phrases = {phrase for _, phrase in gate.FIXTURE_REFUSALS | gate.FIXTURE_RELEASE_REFUSALS}
     assert len(gate.FIXTURE_RULES) >= 8, "the rules are not named"
     for rule, phrase in gate.FIXTURE_RULES.items():

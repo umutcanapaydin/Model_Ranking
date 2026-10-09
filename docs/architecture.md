@@ -269,11 +269,11 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
 - **Refinements** (`Refinements.swift`, D-168): a declared table of Arena text slices, eight task
   languages and eight domains, each with the surfaces it may refine. A coding question takes none
   (Ruling A). The on-device model chooses them where it read the question; otherwise the answer plan
-  reads them from the question's words (`Refinements.read`, D-188 clause 6), the one reader a gate
-  holds (INV-89). Every refinement is a slice of Arena's text vote, so it takes the place of the
+  reads them from the question's words (`Refinements.read`, D-188 clause 6), the one reader, held in
+  part by the text pins (INV-89). Every refinement is a slice of Arena's text vote, so it takes the place of the
   family's board of that vote (`refined_board` on `/v1/categories`): of a language and a domain, the
   language stands.
-- **Engine client** (`EngineClient.swift`). The only code that talks to the network.
+- **Engine client** (`EngineClient.swift`). The one network door, by design (D-126; held in part, INV-62).
   - The engine's address comes from the build's `EngineURL` (the `ENGINE_URL` setting in
     `ios/Config/Engine.xcconfig`), with loopback as the fallback. A Release build's address is the
     hosted engine, set after the local file's include so no local setting replaces it (D-185).

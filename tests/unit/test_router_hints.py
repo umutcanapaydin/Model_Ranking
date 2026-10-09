@@ -464,8 +464,9 @@ def test_the_router_never_produces_anything_but_a_category_id() -> None:
             )
 
 
-def test_nothing_typed_by_the_reader_reaches_the_engine() -> None:
-    """REQ-RTR-004. The engine is asked for a SURFACE, never for a question.
+def test_the_engine_calls_take_only_the_spellings_of_task_and_budget_the_pin_reads() -> None:
+    """REQ-RTR-004. The engine is asked for a SURFACE, never for a question. This pin refuses the
+    spellings it reads; any other spelling is not held (G-11, G-14; see INV-64).
 
     `/v1` takes `task` and `budget` and nothing else, and the router's only contribution to a
     request is which of nine ids the task is. The scoring path is untouched (D-104) because the
@@ -537,8 +538,9 @@ def test_nothing_typed_by_the_reader_reaches_the_engine() -> None:
     )
 
 
-def test_the_gap_register_stays_on_the_device() -> None:
-    """REQ-GAP-001 (M14-W3): what the reader typed is recorded locally and nowhere else.
+def test_the_gap_register_code_carries_no_egress_spelling_the_pin_reads() -> None:
+    """REQ-GAP-001 (M14-W3): what the reader typed is recorded locally and nowhere else. This pin
+    refuses the spellings it reads; any other spelling is not held (G-13, G-14; see INV-62 and INV-67).
 
     The register is the one place the app keeps the reader's words, so it is the most likely place
     for them to leak. Held structurally: it is saved only through `GapRegisterStore`, whose file is
@@ -1061,10 +1063,11 @@ def test_the_pins_read_no_code_the_compiler_never_builds() -> None:
 
 @pytest.mark.parametrize("mutant", ["static var, no value", "file-scope var", "static var, a tuple",
                                     "file-scope var, a tuple", "file-scope var, indented"])
-def test_the_sink_pins_refuse_shared_state_however_it_is_declared(mutant: str) -> None:
+def test_the_sink_pins_refuse_the_planted_spellings_of_shared_state(mutant: str) -> None:
     """The W2 review's M2 (D-180 clause 4, INV-66): `static var probeTag: String?`, which has no `=`,
     and a stored `var` at file scope in a sink each passed the text half, measured on copies of the
-    shipping sources. The compiled gate refused both; the lanes without Xcode did not. REQ-GAP-001."""
+    shipping sources. The compiled gate refused both; the lanes without Xcode did not. REQ-GAP-001. This
+    pin refuses the spellings it reads; any other spelling is not held (G-14; see INV-66)."""
     sources = _client_sources()
     client = "Engine/EngineClient.swift"
     if mutant == "static var, no value":
