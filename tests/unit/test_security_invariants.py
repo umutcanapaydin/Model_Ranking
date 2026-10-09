@@ -600,3 +600,130 @@ def test_each_gap_says_what_it_does_not_hold() -> None:
     assert any(p.startswith("G-2 ") for p in gap_wording_problems(overclaimed))
     complete = text.replace(words, words.replace("Examples, not a complete list: ", "These: ", 1), 1)
     assert any(p.startswith("G-2 ") for p in gap_wording_problems(complete))
+
+
+# --- #248 (M21-W4): names and older records that state a gate's property flatly ---------------------------
+#
+# Two narrow checks, each over a hand-kept list. What they do not read: a test name that overclaims with
+# no word below (`..._are_refused_outside_their_files` was renamed by review, not by this check), a
+# property stated in words the phrase list lacks, `only` in a name (it scopes as often as it claims),
+# `docs/decisions.md` (an ADR body is the decision as taken; a later note there carries the pointer),
+# the history records (`docs/reviews/`, the wave-close records, the process log and the ledgers), and
+# code comments.
+
+#: A word in a test's name that states its property for every case (the issue's list, and `nothing`).
+UNIVERSAL_IN_NAME = re.compile(r"(?:^|_)(no|never|any|every|whatever|however|nothing)(?=_|$)")
+#: Names a gated row cites whose word is not a claim, each with why.
+NOT_A_CLAIM = {
+    "test_a_url_out_of_any_by_a_cast_is_made": "`any` is Swift's `Any`, the type a URL is cast out of",
+    "test_the_comment_stripper_fails_closed_on_a_comment_that_never_closes": "`never` describes the input",
+    "test_a_branch_no_build_compiles_is_dropped_in_the_five_spellings_it_lists": "`no build compiles` describes "
+        "the branch, and the name says its scope: the five spellings it lists",
+    "test_the_gap_register_code_carries_no_egress_spelling_the_pin_reads": "the name says its scope: the "
+        "spellings the pin reads",
+}
+#: The live records the phrase check reads, as blocks.
+LIVE_RECORDS = ("AGENTS.md", "docs/architecture.md", "docs/prd.md", "docs/security-baseline.md",
+                "docs/feature-catalog.md", "docs/project-brief.md", "docs/owner-iphone.md",
+                "docs/release-testflight.md", "docs/refusals.md")
+#: The gate and pin files whose docstrings the phrase check reads.
+GATE_DOC_FILES = ("scripts/client_decl_gate.py", "tests/unit/test_client_decl_gate.py",
+                  "tests/unit/test_router_hints.py", "tests/unit/test_ios_client_contract.py")
+#: Phrases that state a gated row's property, each with the rows that hold it in part. A record block that
+#: matches one carries POINTER naming each of them; a docstring names each as `INV-n`.
+PROPERTY_PHRASES: dict[str, frozenset[int]] = {
+    r"\bnothing\b[^.|]{0,40}\bleaves the (?:phone|device)\b": frozenset({66}),
+    r"\bnothing (?:the reader )?typed\b|\bnothing the reader types\b": frozenset({64}),
+    r"\bonly\b[^.|]{0,60}\b(?:reach(?:es)?|talks? to) the network\b": frozenset({62}),
+    r"\b(?:changes|performs) no (?:number|arithmetic)\b|\bcomputed by the client\b|\bthe (?:client|phone) computes\b":
+        frozenset({76}),
+    r"\borders nothing\b|\bno ordering of its own\b": frozenset({76}),
+    r"\b(?:keeps|sends) no cookies?\b|\bneither keeps nor sends a cookie\b": frozenset({85}),
+}
+
+
+def _gated_citations(register: str) -> dict[str, set[int]]:
+    """Each test a gated row cites, with the rows that cite it."""
+    cited: dict[str, set[int]] = {}
+    for line in section(register, "The list").splitlines():
+        match = ROW.match(line.rstrip())
+        if match and any(_gated(match.group(2), match.group(4))):
+            for _, name in TEST.findall(match.group(4)):
+                cited.setdefault(name, set()).add(int(match.group(1)))
+    return cited
+
+
+def cited_name_problems(register: str) -> list[str]:
+    """A test a gated row cites carries no word of UNIVERSAL_IN_NAME, unless NOT_A_CLAIM says why."""
+    cited = _gated_citations(register)
+    found = [f"INV-{sorted(rows)} cites `{name}`, whose name says `{UNIVERSAL_IN_NAME.search(name).group(1)}` "  # type: ignore[union-attr]
+             "of a property the row holds in part" for name, rows in sorted(cited.items())
+             if UNIVERSAL_IN_NAME.search(name) and name not in NOT_A_CLAIM]
+    found += [f"NOT_A_CLAIM names `{name}`, which no gated row cites" for name in sorted(set(NOT_A_CLAIM) - set(cited))]
+    return found
+
+
+def _record_blocks(text: str) -> list[str]:
+    """A record's paragraphs and list items, and each table row on its own."""
+    blocks: list[str] = []
+    for block in _blocks(text):
+        rows = [line for line in block.splitlines() if line.startswith("|")]
+        blocks += rows or [block]
+    return blocks
+
+
+def _docstrings(source: str) -> list[str]:
+    import ast
+
+    return [doc for node in ast.walk(ast.parse(source))
+            if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+            and (doc := ast.get_docstring(node))]
+
+
+def phrase_problems(records: dict[str, str], sources: dict[str, str]) -> list[str]:
+    """A live record's block, or a gate or pin file's docstring, that states a property PROPERTY_PHRASES
+    lists names each row that holds it in part."""
+    found: list[str] = []
+    places = [(f"{name}: {block.strip()[:60]!r}", block, True) for name, text in records.items()
+              for block in _record_blocks(text)]
+    places += [(f"{name}: docstring {doc[:50]!r}", doc, False) for name, source in sources.items()
+               for doc in _docstrings(source)]
+    for where, text, is_record in places:
+        flat = " ".join(text.split())
+        for phrase, rows in PROPERTY_PHRASES.items():
+            if not re.search(phrase, flat, re.I):
+                continue
+            if is_record:
+                pointer = POINTER.search(flat)
+                named = {int(n) for n in re.findall(r"INV-(\d+)", pointer.group(1))} if pointer else set()
+            else:
+                named = {int(n) for n in MENTION.findall(flat)}
+            if rows - named:
+                found.append(f"{where} states a property INV-{sorted(rows)} holds in part, and does not name the row")
+    return found
+
+
+def test_a_test_a_gated_row_cites_is_not_named_for_every_case() -> None:
+    """#248 (the M21-W3 review's round 5, M2): six cited names stated the property flatly, each beside a
+    row saying it is held in part. Watched failing on a planted name."""
+    register = LIST.read_text(encoding="utf-8")
+    assert not cited_name_problems(register), cited_name_problems(register)
+    cited = sorted(_gated_citations(register))
+    planted = register.replace(f"::{cited[0]}`", "::test_no_route_is_refused_anywhere`", 1)
+    assert any("test_no_route_is_refused_anywhere" in p for p in cited_name_problems(planted))
+
+
+def test_a_record_that_states_a_gated_property_names_its_row() -> None:
+    """#248 (the M21-W3 review's rounds 3 to 5, classes 1 and 5): a statement that names no gate restates
+    a property held in part. Watched failing on a planted record and a planted docstring, and quiet when
+    the planted statement carries its pointer."""
+    records = {name: (ROOT / name).read_text(encoding="utf-8") for name in LIVE_RECORDS}
+    sources = {name: (ROOT / name).read_text(encoding="utf-8") for name in GATE_DOC_FILES}
+    assert not phrase_problems(records, sources), phrase_problems(records, sources)
+    flat = "- Only `EngineClient.swift` reaches the network.\n"
+    assert phrase_problems({"docs/architecture.md": flat}, {})
+    pointed = flat.rstrip("\n") + (" Held in part by the compiled gate and the text pins: see INV-62 in "
+                                   "`docs/security-invariants.md`.\n")
+    assert not phrase_problems({"docs/architecture.md": pointed}, {})
+    assert phrase_problems({}, {"probe.py": '"""The client performs no arithmetic on a served number."""\n'})
+    assert not phrase_problems({}, {"probe.py": '"""The client performs no arithmetic (INV-76)."""\n'})
