@@ -142,9 +142,10 @@ def loopback_http(monkeypatch: pytest.MonkeyPatch) -> None:
 _MISBEHAVE_S = 4.0
 #: #178: the per-read timeout of the default-deadline test, the drip's interval, and one stall of the
 #: drip as long as a read took under a loaded `make check-fast` (more than 0.3 s, 2026-10-06). The
-#: per-read timeout must outlast the stall by a wide margin, or it, not the deadline, ends the fetch.
-_PER_READ_S = 0.3
-_DRIP_S = 0.2
+#: per-read timeout must outlast the stall by a wide margin, or it, not the deadline, ends the fetch:
+#: the read has 0.7 s of slack where it had 0.1 s, and the deadline (3 s) stays under `_MISBEHAVE_S`.
+_PER_READ_S = 0.75
+_DRIP_S = 0.05
 _LOAD_STALL_S = 0.4
 
 
