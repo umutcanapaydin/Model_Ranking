@@ -97,3 +97,32 @@ final class ProbeRowTests: OfflineTestCase {
         XCTAssertEqual(row["surface"], "assistant")
     }
 }
+
+final class WordingTierReachTests: OfflineTestCase {
+    private let known = ["coding", "assistant", "agentic-coding", "everyday", "expert", "mathematics",
+                         "computer-use", "abstract", "web-dev", "document", "factuality", "vision",
+                         "search", "search_factuality"]
+
+    /// #222 (M21-W2): a Turkish search that asks for "the best one", "which one", a model or a
+    /// recommendation, naming no surface, is a general question, not "not measured". Written for this
+    /// test, never from a held-out set.
+    func testATurkishAskForTheBestOneIsAGeneralQuestion() async {
+        for question in ["ingilizce e-posta yazmak için en iyisi hangisi", "fransızca mektup yazmama yardım edecek model",
+                         "muhasebe soruları için hangisi daha iyi", "şiir yazmak için en iyisi",
+                         "bir hikaye yazdırmak istiyorum hangisi iyi", "yazı: blog yazısı için öneri",
+                         "sunum hazırlamak için en iyisi", "ödev yaparken hangisini kullanayım",
+                         "yemek tarifi önerecek model", "dil öğrenmek için en iyisi"] {
+            XCTAssertNil(CategoryHints.namedSurface(question, within: known), question)
+            XCTAssertEqual(CategoryHints.generalSurface(question, within: known), "everyday", question)
+            let outcome = await TieredRouter(model: nil).route(question, within: known)
+            XCTAssertFalse(outcome.unmeasured, question)
+        }
+    }
+
+    /// #222: a question that is no ask for the best one stays as it was.
+    func testATurkishQuestionThatAsksForNoneIsNoGeneralQuestion() {
+        for question in ["hangisi daha uzun, nil mi amazon mu", "bugün hava nasıl", "kitabın yazarı kim"] {
+            XCTAssertNil(CategoryHints.generalSurface(question, within: known), question)
+        }
+    }
+}
