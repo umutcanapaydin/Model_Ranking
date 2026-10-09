@@ -65,3 +65,20 @@ struct FixtureHeldRelayClient {
 
     func boardsQuery() -> String { (Self.relay as String) + fixtureRelayed() }
 }
+
+// #172: the sink's half of each route. REFUSED: a default value, a static initialiser and a kept
+// closure, each reading the screen's state; and Foundation's shared state, read in the sink itself.
+struct FixtureKept {
+    let make: () -> String
+}
+
+struct FixtureRoutesClient {
+    func boardsDefaulted() -> String { FixtureDefaulted().tag }
+    func boardsStatic() -> String { FixtureStatics.tag }
+    func boardsKept(_ kept: FixtureKept) -> String { kept.make() }
+    func boardsThreadState() -> String { (Thread.main.threadDictionary["q"] as? String) ?? "" }
+    func boardsNotified() -> String {
+        NotificationCenter.default.post(name: Notification.Name("q"), object: nil)
+        return ""
+    }
+}

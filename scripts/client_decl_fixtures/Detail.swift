@@ -65,3 +65,19 @@ func fixtureScreenDatesTheStore(_ typed: String) -> Int? {
 func fixtureRewrites(_ client: inout EngineClient) {
     withUnsafeMutablePointer(to: &client) { _ in }
 }
+
+// #172: routes from the screen's state into the code a sink runs. A stored property's default value,
+// which the implicit initialiser runs (REFUSED as the sink's call to an initialiser another file
+// declares); a static `let`'s initialiser, which runs on first use (REFUSED); and a closure the screen
+// builds and the sink keeps (REFUSED where the sink calls it).
+struct FixtureDefaulted {
+    let tag = fixtureScreenRelay
+}
+
+enum FixtureStatics {
+    static let tag = fixtureScreenRelay
+}
+
+func fixtureScreenKeeps() -> FixtureKept {
+    FixtureKept(make: { fixtureScreenRelay })
+}

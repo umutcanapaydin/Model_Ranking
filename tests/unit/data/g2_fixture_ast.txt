@@ -4135,7 +4135,64 @@
             (closure_expr type="(UnsafeMutablePointer<EngineClient>) -> ()" location=/x/Detail.swift:66:43 range=[/x/Detail.swift:66:43 - line:66:50] discriminator=0 nonisolated
               (parameter_list range=[/x/Detail.swift:66:45 - line:66:45]
                 (parameter <anonymous @ 0x0> interface_type="UnsafeMutablePointer<EngineClient>"))
-              (brace_stmt range=[/x/Detail.swift:66:43 - line:66:50]))))))))
+              (brace_stmt range=[/x/Detail.swift:66:43 - line:66:50])))))))
+  (struct_decl range=[/x/Detail.swift:73:1 - line:75:1] "FixtureDefaulted" interface_type="FixtureDefaulted.Type" access=internal non_resilient
+    (pattern_binding_decl range=[/x/Detail.swift:74:5 - line:74:15]
+      (pattern_entry init_context=0x0
+        (pattern_named type="String" "tag")
+        (original_init=unresolved_decl_ref_expr type="<null>" name="fixtureScreenRelay" function_ref=unapplied)
+        (processed_init=load_expr implicit type="String" location=/x/Detail.swift:74:15 range=[/x/Detail.swift:74:15 - line:74:15]
+          (declref_expr type="@lvalue String" location=/x/Detail.swift:74:15 range=[/x/Detail.swift:74:15 - line:74:15] decl="main.(file).fixtureScreenRelay@/x/ContentView.swift:16:25" function_ref=unapplied))))
+    (var_decl range=[/x/Detail.swift:74:9 - line:74:9] "tag" interface_type="String" access=internal let readImpl=stored immutable
+      (has_initial_value_attr implicit)
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/Detail.swift:74:9 - line:74:9] <anonymous @ 0x0> interface_type="(FixtureDefaulted) -> () -> String" access=internal get for="tag"
+        (parameter "self" interface_type="FixtureDefaulted") result="String" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/Detail.swift:74:9 - line:74:9]
+          (return_stmt implicit
+            (member_ref_expr implicit type="String" decl="main.(file).FixtureDefaulted.tag@/x/Detail.swift:74:9" direct_to_storage
+              (declref_expr implicit type="FixtureDefaulted" decl="main.(file).FixtureDefaulted.<anonymous>.self@/x/Detail.swift:74:9" function_ref=unapplied))))))
+    (constructor_decl implicit range=[/x/Detail.swift:73:8 - line:73:8] "init()" interface_type="(FixtureDefaulted.Type) -> () -> FixtureDefaulted" access=internal designated
+      (parameter "self") thrown_type="<null>"
+      (parameter_list)
+      (brace_stmt implicit range=[/x/Detail.swift:73:8 - line:73:8]
+        (return_stmt implicit range=[/x/Detail.swift:73:8 - line:73:8]))))
+  (enum_decl range=[/x/Detail.swift:77:1 - line:79:1] "FixtureStatics" interface_type="FixtureStatics.Type" access=internal non_resilient
+    (pattern_binding_decl range=[/x/Detail.swift:78:5 - line:78:22]
+      (pattern_entry init_context=0x0
+        (pattern_named type="String" "tag")
+        (original_init=unresolved_decl_ref_expr type="<null>" name="fixtureScreenRelay" function_ref=unapplied)
+        (processed_init=load_expr implicit type="String" location=/x/Detail.swift:78:22 range=[/x/Detail.swift:78:22 - line:78:22]
+          (declref_expr type="@lvalue String" location=/x/Detail.swift:78:22 range=[/x/Detail.swift:78:22 - line:78:22] decl="main.(file).fixtureScreenRelay@/x/ContentView.swift:16:25" function_ref=unapplied))))
+    (var_decl range=[/x/Detail.swift:78:16 - line:78:16] "tag" interface_type="String" access=internal let static readImpl=stored immutable
+      (has_initial_value_attr implicit)
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/Detail.swift:78:16 - line:78:16] <anonymous @ 0x0> interface_type="(FixtureStatics.Type) -> () -> String" access=internal static get for="tag"
+        (parameter "self" interface_type="FixtureStatics.Type") result="String" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/Detail.swift:78:16 - line:78:16]
+          (return_stmt implicit
+            (member_ref_expr implicit type="String" decl="main.(file).FixtureStatics.tag@/x/Detail.swift:78:16" direct_to_storage
+              (declref_expr implicit type="FixtureStatics.Type" decl="main.(file).FixtureStatics.<anonymous>.self@/x/Detail.swift:78:16" function_ref=unapplied)))))))
+  (func_decl range=[/x/Detail.swift:81:1 - line:83:1] "fixtureScreenKeeps()" interface_type="() -> FixtureKept" access=internal result="FixtureKept" thrown_type="<null>"
+    (parameter_list range=[/x/Detail.swift:81:24 - line:81:25])
+    (brace_stmt range=[/x/Detail.swift:81:42 - line:83:1]
+      (return_stmt implicit range=[/x/Detail.swift:82:5 - line:82:45]
+        (call_expr type="FixtureKept" location=/x/Detail.swift:82:5 range=[/x/Detail.swift:82:5 - line:82:45] nothrow isolation_crossing="none"
+          (constructor_ref_call_expr type="(@escaping () -> String) -> FixtureKept" location=/x/Detail.swift:82:5 range=[/x/Detail.swift:82:5 - line:82:5] nothrow isolation_crossing="none"
+            (declref_expr implicit type="(FixtureKept.Type) -> (@escaping () -> String) -> FixtureKept" location=/x/Detail.swift:82:5 range=[/x/Detail.swift:82:5 - line:82:5] decl="main.(file).FixtureKept.init(make:)@/x/EngineClient.swift:71:8" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (type_expr type="FixtureKept.Type" location=/x/Detail.swift:82:5 range=[/x/Detail.swift:82:5 - line:82:5] typerepr="FixtureKept"))))
+          (argument_list labels="make:"
+            (argument label="make"
+              (closure_expr type="() -> String" location=/x/Detail.swift:82:23 range=[/x/Detail.swift:82:23 - line:82:44] discriminator=0 nonisolated escaping single_expression
+                (parameter_list range=[/x/Detail.swift:82:23 - line:82:23])
+                (brace_stmt range=[/x/Detail.swift:82:23 - line:82:44]
+                  (return_stmt implicit range=[/x/Detail.swift:82:25 - line:82:25]
+                    (load_expr implicit type="String" location=/x/Detail.swift:82:25 range=[/x/Detail.swift:82:25 - line:82:25]
+                      (declref_expr type="@lvalue String" location=/x/Detail.swift:82:25 range=[/x/Detail.swift:82:25 - line:82:25] decl="main.(file).fixtureScreenRelay@/x/ContentView.swift:16:25" function_ref=unapplied))))))))))))
 (source_file "/x/EngineClient.swift"
   (import_decl range=[/x/EngineClient.swift:2:1 - line:2:8] module="Foundation")
   (func_decl range=[/x/EngineClient.swift:4:1 - line:6:1] "fixtureClientFetches(_:)" interface_type="(URL) async throws -> Data" access=internal result="Data" thrown_type="<null>"
@@ -4537,7 +4594,118 @@
       (parameter "self") thrown_type="<null>"
       (parameter_list)
       (brace_stmt implicit range=[/x/EngineClient.swift:63:8 - line:63:8]
-        (return_stmt implicit range=[/x/EngineClient.swift:63:8 - line:63:8])))))
+        (return_stmt implicit range=[/x/EngineClient.swift:63:8 - line:63:8]))))
+  (struct_decl range=[/x/EngineClient.swift:71:1 - line:73:1] "FixtureKept" interface_type="FixtureKept.Type" access=internal non_resilient
+    (pattern_binding_decl range=[/x/EngineClient.swift:72:5 - line:72:21]
+      (pattern_entry init_context=0x0
+        (pattern_typed type="() -> String"
+          (pattern_named type="() -> String" "make")
+          (type_function
+            (type_tuple)
+            (type_unqualified_ident id="String" bind="Swift.(file).String")))))
+    (var_decl range=[/x/EngineClient.swift:72:9 - line:72:9] "make" interface_type="() -> String" access=internal let readImpl=stored immutable
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/EngineClient.swift:72:9 - line:72:9] <anonymous @ 0x0> interface_type="(FixtureKept) -> () -> () -> String" access=internal get for="make"
+        (parameter "self" interface_type="FixtureKept") result="() -> String" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/EngineClient.swift:72:9 - line:72:9]
+          (return_stmt implicit
+            (member_ref_expr implicit type="() -> String" decl="main.(file).FixtureKept.make@/x/EngineClient.swift:72:9" direct_to_storage
+              (declref_expr implicit type="FixtureKept" decl="main.(file).FixtureKept.<anonymous>.self@/x/EngineClient.swift:72:9" function_ref=unapplied))))))
+    (constructor_decl implicit range=[/x/EngineClient.swift:71:8 - line:71:8] "init(make:)" interface_type="(FixtureKept.Type) -> (@escaping () -> String) -> FixtureKept" access=internal designated
+      (parameter "self") thrown_type="<null>"
+      (parameter_list range=[/x/EngineClient.swift:71:8 - line:71:8]
+        (parameter "make" apiName="make" interface_type="() -> String"))))
+  (struct_decl range=[/x/EngineClient.swift:75:1 - line:84:1] "FixtureRoutesClient" interface_type="FixtureRoutesClient.Type" access=internal non_resilient
+    (func_decl range=[/x/EngineClient.swift:76:5 - line:76:63] "boardsDefaulted()" interface_type="(FixtureRoutesClient) -> () -> String" access=internal
+      (parameter "self") result="String" thrown_type="<null>"
+      (parameter_list range=[/x/EngineClient.swift:76:25 - line:76:26])
+      (brace_stmt range=[/x/EngineClient.swift:76:38 - line:76:63]
+        (return_stmt implicit range=[/x/EngineClient.swift:76:40 - line:76:59]
+          (member_ref_expr type="String" location=/x/EngineClient.swift:76:59 range=[/x/EngineClient.swift:76:40 - line:76:59] decl="main.(file).FixtureDefaulted.tag@/x/Detail.swift:74:9"
+            (call_expr type="FixtureDefaulted" location=/x/EngineClient.swift:76:40 range=[/x/EngineClient.swift:76:40 - line:76:57] nothrow isolation_crossing="none"
+              (constructor_ref_call_expr type="() -> FixtureDefaulted" location=/x/EngineClient.swift:76:40 range=[/x/EngineClient.swift:76:40 - line:76:40] nothrow isolation_crossing="none"
+                (declref_expr implicit type="(FixtureDefaulted.Type) -> () -> FixtureDefaulted" location=/x/EngineClient.swift:76:40 range=[/x/EngineClient.swift:76:40 - line:76:40] decl="main.(file).FixtureDefaulted.init()@/x/Detail.swift:73:8" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (type_expr type="FixtureDefaulted.Type" location=/x/EngineClient.swift:76:40 range=[/x/EngineClient.swift:76:40 - line:76:40] typerepr="FixtureDefaulted"))))
+              (argument_list))))))
+    (func_decl range=[/x/EngineClient.swift:77:5 - line:77:56] "boardsStatic()" interface_type="(FixtureRoutesClient) -> () -> String" access=internal
+      (parameter "self") result="String" thrown_type="<null>"
+      (parameter_list range=[/x/EngineClient.swift:77:22 - line:77:23])
+      (brace_stmt range=[/x/EngineClient.swift:77:35 - line:77:56]
+        (return_stmt implicit range=[/x/EngineClient.swift:77:37 - line:77:52]
+          (member_ref_expr type="String" location=/x/EngineClient.swift:77:52 range=[/x/EngineClient.swift:77:37 - line:77:52] decl="main.(file).FixtureStatics.tag@/x/Detail.swift:78:16"
+            (type_expr type="FixtureStatics.Type" location=/x/EngineClient.swift:77:37 range=[/x/EngineClient.swift:77:37 - line:77:37] typerepr="FixtureStatics")))))
+    (func_decl range=[/x/EngineClient.swift:78:5 - line:78:66] "boardsKept(_:)" interface_type="(FixtureRoutesClient) -> (FixtureKept) -> String" access=internal
+      (parameter "self") result="String" thrown_type="<null>"
+      (parameter_list range=[/x/EngineClient.swift:78:20 - line:78:40]
+        (parameter "kept" interface_type="FixtureKept"))
+      (brace_stmt range=[/x/EngineClient.swift:78:52 - line:78:66]
+        (return_stmt implicit range=[/x/EngineClient.swift:78:54 - line:78:64]
+          (call_expr type="String" location=/x/EngineClient.swift:78:59 range=[/x/EngineClient.swift:78:54 - line:78:64] nothrow isolation_crossing="none"
+            (member_ref_expr type="() -> String" location=/x/EngineClient.swift:78:59 range=[/x/EngineClient.swift:78:54 - line:78:59] decl="main.(file).FixtureKept.make@/x/EngineClient.swift:72:9"
+              (declref_expr type="FixtureKept" location=/x/EngineClient.swift:78:54 range=[/x/EngineClient.swift:78:54 - line:78:54] decl="main.(file).FixtureRoutesClient.boardsKept(_:).kept@/x/EngineClient.swift:78:23" function_ref=unapplied))
+            (argument_list)))))
+    (func_decl range=[/x/EngineClient.swift:79:5 - line:79:95] "boardsThreadState()" interface_type="(FixtureRoutesClient) -> () -> String" access=internal
+      (parameter "self") result="String" thrown_type="<null>"
+      (parameter_list range=[/x/EngineClient.swift:79:27 - line:79:28])
+      (brace_stmt range=[/x/EngineClient.swift:79:40 - line:79:95]
+        (return_stmt implicit range=[/x/EngineClient.swift:79:42 - line:79:92]
+          (binary_expr type="String" location=/x/EngineClient.swift:79:89 range=[/x/EngineClient.swift:79:42 - line:79:92] nothrow isolation_crossing="none"
+            (declref_expr type="(consuming String?, @autoclosure () throws -> String) throws -> String" location=/x/EngineClient.swift:79:89 range=[/x/EngineClient.swift:79:89 - line:79:89] decl="Swift.(file).?? [with (substitution_map generic_signature=<T where T : Escapable> T -> String)]" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (paren_expr type="String?" location=/x/EngineClient.swift:79:77 range=[/x/EngineClient.swift:79:42 - line:79:87]
+                  (optional_evaluation_expr implicit type="String?" location=/x/EngineClient.swift:79:77 range=[/x/EngineClient.swift:79:43 - line:79:81]
+                    (conditional_checked_cast_expr type="String?" location=/x/EngineClient.swift:79:77 range=[/x/EngineClient.swift:79:43 - line:79:81] value_cast written_type="String"
+                      (bind_optional_expr implicit type="Any" location=/x/EngineClient.swift:79:71 range=[/x/EngineClient.swift:79:43 - line:79:75] depth=0
+                        (load_expr implicit type="Any?" location=/x/EngineClient.swift:79:71 range=[/x/EngineClient.swift:79:43 - line:79:75]
+                          (subscript_expr type="@lvalue Any?" location=/x/EngineClient.swift:79:71 range=[/x/EngineClient.swift:79:43 - line:79:75] decl="Foundation.(file).NSMutableDictionary extension.subscript(_:)"
+                            (member_ref_expr type="NSMutableDictionary" location=/x/EngineClient.swift:79:55 range=[/x/EngineClient.swift:79:43 - line:79:55] decl="Foundation.(file).Thread.threadDictionary@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSThread.h:26:51"
+                              (member_ref_expr type="Thread" location=/x/EngineClient.swift:79:50 range=[/x/EngineClient.swift:79:43 - line:79:50] decl="Foundation.(file).Thread.main@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSThread.h:52:47"
+                                (type_expr type="Thread.Type" location=/x/EngineClient.swift:79:43 range=[/x/EngineClient.swift:79:43 - line:79:43] typerepr="Thread")))
+                            (argument_list
+                              (argument
+                                (erasure_expr implicit type="Any" location=/x/EngineClient.swift:79:72 range=[/x/EngineClient.swift:79:72 - line:79:72]
+                                  (builtin_conformance type="String" protocol="Copyable" synthesized nonisolated)
+                                  (builtin_conformance type="String" protocol="Escapable" synthesized nonisolated)
+                                  (string_literal_expr type="String" location=/x/EngineClient.swift:79:72 range=[/x/EngineClient.swift:79:72 - line:79:72] encoding=utf8 value="q" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))))
+              (argument
+                (autoclosure_expr implicit type="() throws -> String" location=/x/EngineClient.swift:79:92 range=[/x/EngineClient.swift:79:92 - line:79:92] discriminator=0 nonisolated
+                  (parameter_list)
+                  (string_literal_expr type="String" location=/x/EngineClient.swift:79:92 range=[/x/EngineClient.swift:79:92 - line:79:92] encoding=utf8 value="" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))))))))
+    (func_decl range=[/x/EngineClient.swift:80:5 - line:83:5] "boardsNotified()" interface_type="(FixtureRoutesClient) -> () -> String" access=internal
+      (parameter "self") result="String" thrown_type="<null>"
+      (parameter_list range=[/x/EngineClient.swift:80:24 - line:80:25])
+      (brace_stmt range=[/x/EngineClient.swift:80:37 - line:83:5]
+        (call_expr type="Void" location=/x/EngineClient.swift:81:36 range=[/x/EngineClient.swift:81:9 - line:81:82] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr type="(NSNotification.Name, Any?) -> Void" location=/x/EngineClient.swift:81:36 range=[/x/EngineClient.swift:81:9 - line:81:36] nothrow isolation_crossing="none"
+            (declref_expr type="(NotificationCenter) -> (NSNotification.Name, Any?) -> Void" location=/x/EngineClient.swift:81:36 range=[/x/EngineClient.swift:81:36 - line:81:36] decl="Foundation.(file).NotificationCenter.post(name:object:)" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (member_ref_expr type="NotificationCenter" location=/x/EngineClient.swift:81:28 range=[/x/EngineClient.swift:81:9 - line:81:28] decl="Foundation.(file).NotificationCenter.default@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSNotification.h:39:59"
+                  (type_expr type="NotificationCenter.Type" location=/x/EngineClient.swift:81:9 range=[/x/EngineClient.swift:81:9 - line:81:9] typerepr="NotificationCenter")))))
+          (argument_list labels="name:object:"
+            (argument label="name"
+              (call_expr type="Notification.Name" location=/x/EngineClient.swift:81:60 range=[/x/EngineClient.swift:81:47 - line:81:68] nothrow isolation_crossing="none"
+                (constructor_ref_call_expr type="(String) -> Notification.Name" location=/x/EngineClient.swift:81:60 range=[/x/EngineClient.swift:81:47 - line:81:60] nothrow isolation_crossing="none"
+                  (declref_expr implicit type="(NSNotification.Name.Type) -> (String) -> NSNotification.Name" location=/x/EngineClient.swift:81:60 range=[/x/EngineClient.swift:81:60 - line:81:60] decl="Foundation.(file).NSNotification extension.Name.init(_:)@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSNotification.h:7:19" function_ref=single apply)
+                  (argument_list implicit
+                    (argument
+                      (type_expr type="Notification.Name.Type" location=/x/EngineClient.swift:81:47 range=[/x/EngineClient.swift:81:47 - line:81:60] typerepr="Notification.Name"))))
+                (argument_list
+                  (argument
+                    (string_literal_expr type="String" location=/x/EngineClient.swift:81:65 range=[/x/EngineClient.swift:81:65 - line:81:65] encoding=utf8 value="q" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))
+            (argument label="object"
+              (nil_literal_expr type="Any?" location=/x/EngineClient.swift:81:79 range=[/x/EngineClient.swift:81:79 - line:81:79] initializer="**NULL**"))))
+        (return_stmt range=[/x/EngineClient.swift:82:9 - line:82:16]
+          (string_literal_expr type="String" location=/x/EngineClient.swift:82:16 range=[/x/EngineClient.swift:82:16 - line:82:16] encoding=utf8 value="" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))))
+    (constructor_decl implicit range=[/x/EngineClient.swift:75:8 - line:75:8] "init()" interface_type="(FixtureRoutesClient.Type) -> () -> FixtureRoutesClient" access=internal designated
+      (parameter "self") thrown_type="<null>"
+      (parameter_list)
+      (brace_stmt implicit range=[/x/EngineClient.swift:75:8 - line:75:8]
+        (return_stmt implicit range=[/x/EngineClient.swift:75:8 - line:75:8])))))
 (source_file "/x/Imports.swift"
   (import_decl range=[/x/Imports.swift:3:1 - line:3:8] module="Foundation")
   (import_decl range=[/x/Imports.swift:4:1 - line:4:8] module="Network")
