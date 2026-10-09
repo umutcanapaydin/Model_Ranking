@@ -291,6 +291,10 @@ PINS = re.compile(rf"[Tt]he text pins? ({_NAMES}) refuses? the spellings (?:it|t
 #: B1; gap G-15), naming each such pin, a test the pin files declare.
 RAW = re.compile(rf"[Tt]he text pins? ({_NAMES}) reads? the Swift without `_code`, so a `#if false` or `/\* \*/` "
                  r"copy of a line (?:it|they) requires? satisfies (?:it|them) \(G-15\)\.")
+#: The sentence a row carries for contract pins, which read through `_swift` and so keep comments (the
+#: M21-W3 review's round 6, M2; gap G-15), naming each such pin, a test the pin files declare.
+COMMENTED = re.compile(rf"[Tt]he text pins? ({_NAMES}) reads? the Swift through `_swift`, which keeps comments, so a "
+                       r"`/\* \*/` copy of a line (?:it|they) requires? satisfies (?:it|them) \(G-15\)\.")
 #: How a record outside the register refers to what these gates hold, instead of restating it.
 POINTER = re.compile(r"[Hh]eld in part by the compiled gate and the text pins: see "
                      r"(INV-\d+(?:(?:, | and )INV-\d+)*) in `docs/security-invariants\.md`")
@@ -336,6 +340,12 @@ def _pin_tests() -> frozenset[str]:
     return frozenset().union(*(declared_names(ROOT / path) for path in PIN_FILES))
 
 
+@functools.cache
+def _gate_tests() -> frozenset[str]:
+    """The tests the three gate files declare: the two pin files and the compiled gate's."""
+    return _pin_tests() | declared_names(ROOT / "tests" / "unit" / "test_client_decl_gate.py")
+
+
 def _gated(claim: str, cell: str) -> tuple[bool, set[str]]:
     """Whether a row cites the compiled gate, and the pin tests it cites."""
     return (any(c in cell for c in COMPILED_CITATIONS),
@@ -345,8 +355,8 @@ def _gated(claim: str, cell: str) -> tuple[bool, set[str]]:
 def gate_row_problems(text: str, rules: set[str]) -> list[str]:
     """Each register row that cites a client gate says it is held in part; one that cites the compiled gate
     carries COMPILED, naming rules the fixture has; one that cites a text pin carries PINS, naming exactly
-    the pin tests it cites; RAW, where a row carries it, names pins the files declare; and the gaps the
-    sentences name are exactly the row's own "Partial:"."""
+    the pin tests it cites; RAW and COMMENTED, where a row carries them, name pins the files declare; and
+    the gaps the sentences name are exactly the row's own "Partial:"."""
     found: list[str] = []
     for line in section(text, "The list").splitlines():
         match = ROW.match(line.rstrip())
@@ -376,11 +386,12 @@ def gate_row_problems(text: str, rules: set[str]) -> list[str]:
                 if set(re.findall(r"`([^`]+)`", said.group(1))) != pins:
                     found.append(f"INV-{number} names other pin tests than the {sorted(pins)} it cites")
                 named.add("G-14")
-        if said_raw := RAW.search(claim):
-            unknown = set(re.findall(r"`([^`]+)`", said_raw.group(1))) - _pin_tests()
-            if unknown:
-                found.append(f"INV-{number} names raw-reading pins the pin files do not declare: {sorted(unknown)}")
-            named.add("G-15")
+        for said_read in (RAW.search(claim), COMMENTED.search(claim)):
+            if said_read:
+                unknown = set(re.findall(r"`([^`]+)`", said_read.group(1))) - _pin_tests()
+                if unknown:
+                    found.append(f"INV-{number} names pins the pin files do not declare: {sorted(unknown)}")
+                named.add("G-15")
         partial = set(GAP_REF.findall(" ".join(re.findall(r"Partial: [^<]*", cell))))
         if (compiled or pins) and named != partial:
             found.append(f"INV-{number}'s sentences name {sorted(named)}, its Partial: names {sorted(partial)}")
@@ -467,7 +478,7 @@ def pointer_problems(records: dict[str, str], prd: str, register: str) -> list[s
         for name, numbers in tests.items():
             if re.search(rf"\b{name}\b", line):
                 needed |= numbers
-        cites = any(c in line for c in PRD_GATE_CITATIONS)
+        cites = any(c in line for c in PRD_GATE_CITATIONS) or bool(set(re.findall(r"\btest_\w+", line)) & _gate_tests())
         if req in NOT_ON_REGISTER:
             exempt.add(req)
             if needed:

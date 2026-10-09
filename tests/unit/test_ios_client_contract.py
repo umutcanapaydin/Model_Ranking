@@ -284,8 +284,10 @@ def test_the_blend_the_detail_screen_states_is_the_engines() -> None:
 
 #: Numbers the ENGINE decided. Rounding, ordering and comparison of these belong to D-104/105/109.
 #: #169 (M21-W3): a type the client decodes, opening on its own line, and a stored numeric property one
-#: level inside it. The compiled gate reads the same from the compiler (`served_fields`); this is its
-#: half for the lanes with no Xcode, so the two lists cannot say different things.
+#: level inside it. The compiled gate reads served fields from the compiler (`served_fields`); this is
+#: its half for the lanes with no Xcode, held equal to it on the fixture
+#: (`test_the_text_tripwire_names_the_compiled_served_fields_on_the_fixture`). Another declaration form
+#: may differ, and on CI only the text list runs (G-10).
 DECODED_STRUCT = re.compile(r"^(?:\w+ )*(?:struct|class) (\w+)\b[^{\n]*\b(?:Decodable|Codable)\b[^{\n]*\{", re.M)
 #: The M21-W3 review's M3: a type declared plainly and made `Decodable` in an extension, a decoded
 #: enum with a numeric payload (a served fact), and a stored field typed as one; and a decoded type's

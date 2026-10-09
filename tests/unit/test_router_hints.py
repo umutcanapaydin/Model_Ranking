@@ -79,7 +79,8 @@ def _interpolation_end(swift: str, i: int) -> int:
 
 def _code(swift: str) -> str:
     """The source with its comments removed and a branch whose condition is literally false dropped
-    (`_built`): at least what some build compiles. Seven pins here read the Swift without it (G-15)."""
+    (`_built`): at least what some build compiles. Eight pins here read the app's Swift without it, and a
+    ninth reads `FrontDoorTests.swift` raw in its last assertion (G-15, INV-78)."""
     return _built(_stripped(swift))
 
 
@@ -94,7 +95,7 @@ def _stripped(swift: str) -> str:
     A scanner, not a pattern (#98, W5 reviews M2 and M8): Swift block comments NEST, a `/*` inside a
     `//` comment opens nothing, and comment markers inside a string literal -- a raw one, or one inside
     an interpolation -- are text. Newlines inside a block comment are kept, so the code after it keeps
-    its line. A branch whose condition is literally false is dropped too (#110, `_built`).
+    its line. `_code` then drops a branch whose condition is literally false (#110, `_built`).
     """
     out: list[str] = []
     i, depth, n = 0, 0, len(swift)

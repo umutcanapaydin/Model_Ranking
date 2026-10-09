@@ -722,7 +722,7 @@ def test_the_fixture_carries_the_five_rules_it_lacked() -> None:
             "a second @AppStorage", "the Release-only hook"} <= set(gate.FIXTURE_RULES)
 
 
-def test_the_text_tripwire_reads_what_the_compiled_gate_reads() -> None:
+def test_the_text_tripwire_names_the_compiled_served_fields_on_the_fixture() -> None:
     """The review's M3 (#169): the text derivation (`_served_numbers`, for the lanes with no Xcode) and the
     compiled gate's `served_fields` name the same fields on the fixture, a served fact's enum payload and
     a field typed as one included; and on the shipping client the text list holds the served facts."""
