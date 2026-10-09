@@ -4652,3 +4652,41 @@ about (#194).
 **Revisit when:** a fresh held-out set (#237) is written, which is where a fourth attempt at #194, #218
 or #222 starts, with only words that have one reading; or the owner rules on the four core brands'
 second readings (#238).
+
+## D-192 — The close checks read the history, and the records may not say more than a gate holds
+
+**Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29; the
+hook changes it names are the owner's to approve · **Date:** 2026-10-10 · **Amends** D-183 (what a wave
+sees before it pushes) · from #200, #201, #202, #203, #183, #182, #179, #181, #248, #249, #122, #189.
+
+**Context.** The M19 and M20 reviews found the same gaps at each closure: an ADR's Amends with no pointer
+under the ADR it amends (#200), an ADR first written beside the code it governs (#201), a skipped gate
+named only in a close's prose (#202), no process-log entry for a wave (#203), and a HIGH rule that reads
+the footprint an author typed instead of the commit range (#183). M21-W3's six review rounds found records
+and test names that state a gate's property flatly (#248).
+
+**Decision.**
+1. `make check-records` refuses an ADR whose `**Amends**` or `**Would amend**` names a D-ID that carries
+   no `**Amended by` line naming it back (#200).
+2. `make wave-check` reads the close's commit range from git, for closes dated from 2026-10-10 (a gate
+   does not invalidate records written before it, GPF-001):
+   - the files the range changed are held to the plan's security globs, as the footprint was (#183);
+   - an ADR the range adds first appears in a commit that changes no `src/`, `ios/` or `scripts/` file,
+     or the milestone plan names it (#201);
+   - `docs/process-log.md` has a heading dated inside the range (#203).
+   Where the clone is shallow (CI's test job), these rules say SKIPPED loudly; where the history exists
+   and the range cannot be read, the close fails.
+3. `make wave-check` reads row 9's `gates SKIPPED:` list, and a close that says its session started
+   outside the repository: each needs a row in `docs/control-events.csv` for the wave or its milestone
+   (#202).
+4. Tests that need git say so with `needs("git")` (#249). CI's test job's facts are read from its workflow
+   by a test (#182); the workflow itself is the owner's.
+5. The Swift legs run inside the offline profile on macOS (#179), and the model tier's deadline tests run
+   once more on a one-thread cooperative pool (#181).
+6. A live record that states a gated invariant's property names its INV row; a test a gated row cites
+   carries no universal word (`no_`, `never`, `any`, `every`, `whatever`, `however`, `nothing`) unless the
+   row names the gap it leaves. A test holds both, from a hand-kept list of property phrases (#248).
+
+**Consequence.** CI's shallow checkout cannot run the history rules; the owner's `make check` and the
+pre-push gate do. The patch giving CI's test job its history (`fetch-depth: 0`) is posted on #122 for the
+owner. The Bash guard's changes (#189) are in their own commits marked OWNER APPROVAL.
