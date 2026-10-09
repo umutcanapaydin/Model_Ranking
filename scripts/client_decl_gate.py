@@ -453,7 +453,7 @@ NUMERIC_FIELD = re.compile(r'^ *\(var_decl [^"]*"(\w+)" interface_type="(?:U?Int
                            r'CGFloat|Decimal)\??"[^\n]*readImpl=stored')
 #: Any operator on a type that is not text or a collection: `+`, `-=`, `&+`, on `Int`, `Int32`,
 #: `FixedWidthInteger`, `Decimal`... (the review's A5, A7).
-OPERATOR = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.(\w+)(?: extension)?\.(&?[-+*/%]=?)(?:"| \[with)')
+OPERATOR = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.(\w+)(?: extension)?\.(&?(?:<<|>>|[-+*/%])=?)(?:"| \[with)')
 NOT_NUMBERS = {"String", "Substring", "StringProtocol", "Character", "Array", "ArraySlice",
                "ContiguousArray", "Set", "Dictionary", "Sequence", "Collection",
                "RangeReplaceableCollection", "Optional"}
@@ -461,9 +461,21 @@ NOT_NUMBERS = {"String", "Substring", "StringProtocol", "Character", "Array", "A
 #: by its base name alone (`map [with ...`, `swapAt"`), and any other with its labels.
 _CALLED = r'(?:\(([^)]*)\))?(?:"| \[with)'
 #: A numeric method, which is arithmetic by another spelling (the review's A6).
-NUMERIC_METHOD = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.\w+ extension\.(advanced|distance|adding\w*|'
-                            r'subtracting\w*|multiplied\w*|divided\w*|remainder\w*|squareRoot|negate|addProduct)'
+NUMERIC_METHOD = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.\w+(?: extension)?\.(advanced|distance|adding\w*|'
+                            r'subtracting\w*|multiplied\w*|divided\w*|remainder\w*|squareRoot|negate|addProduct|'
+                            # #173: the remainder, quotient and overflow forms the second W2 review planted.
+                            r'truncatingRemainder|quotientAndRemainder|form\w+|\w+ReportingOverflow)'
                             + _CALLED)
+#: #173: a free numeric function, the C library's through Foundation's re-export among them.
+FREE_NUMERIC = re.compile(r'decl="(?:Swift|Foundation|_DarwinFoundation\d*)\.\(file\)\.(pow|sqrt|exp2?|log(?:2|10)?|fmod|'
+                          r'remainder|fabs|abs|cbrt|hypot)[(@"]')
+#: #173: an arithmetic operator the app declares for a type of its own, and an extension of a number.
+OPERATOR_DECL = re.compile(r'^ *\(func_decl [^"]*"(&?(?:<<|>>|[-+*/%])=?)(?:\([_:]*\))?"')
+NUMERIC_EXTENSION = re.compile(r'^ *\(extension_decl [^"]*"(U?Int(?:8|16|32|64)?|Double|Float|CGFloat|Decimal|BinaryInteger|'
+                               r'FixedWidthInteger|SignedInteger|UnsignedInteger|FloatingPoint|BinaryFloatingPoint|'
+                               r'Numeric|SignedNumeric|AdditiveArithmetic)"')
+#: #173: a type that conforms to `Decodable` in an extension stores served numbers too.
+DECODED_EXTENSION = re.compile(r'^ *\(extension_decl [^"]*"(\w+)"[^\n]*\binherits="[^"]*\b(?:Decodable|Codable)\b')
 #: A function that hands each element of its receiver to a closure.
 HANDS_ELEMENTS = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.\w+ extension\.(?:map|compactMap|flatMap|filter|'
                             r'forEach|reduce|first|last|contains|allSatisfy|drop|prefix|min|max|sorted|firstIndex|'
@@ -838,12 +850,18 @@ def _file_of(root: _Node) -> str:
 def served_fields(roots: list[_Node]) -> dict[tuple[str, str], str]:
     """`(type, field) -> kind` for every numeric value a decoded type stores (the review's A8)."""
     found: dict[tuple[str, str], str] = {}
+    # #173: a type that conforms in an extension is decoded too.
+    extended = {m.group(1) for root in roots for node in root.walk() if (m := DECODED_EXTENSION.match(node.line))}
 
     def visit(node: _Node, decoded: str | None) -> None:
         if node.kind in ("func_decl", "constructor_decl", "accessor_decl", "closure_expr"):
             return
-        if (named := DECODED_TYPE.match(node.line)) is not None:
-            decoded = None if named.group(1) in NOT_SERVED else named.group(1)
+        named = DECODED_TYPE.match(node.line) or (
+            (m := TYPE_DECL.match(node.line)) and m.group(1) in ("struct_decl", "class_decl")
+            and m.group(2) in extended and m)
+        if named:
+            name = named.group(1) if named.re is DECODED_TYPE else named.group(2)
+            decoded = None if name in NOT_SERVED else name
         elif node.kind in ("struct_decl", "class_decl", "enum_decl"):
             decoded = None
         # A static is the type's own constant, never decoded.
@@ -893,6 +911,12 @@ def _parameters(roots: list[_Node]) -> dict[tuple[str, str, int], list[tuple[str
                 names = [(m.group(1), _numeric(kid, "interface_type"))
                          for kid in (listed.kids if listed else []) if (m := PARAMETER.match(kid.line))]
                 found[(_file_of(root), function.group(2), int(function.group(1)))] = names
+            elif node.kind == "subscript_decl" and (start := RANGE_START.search(node.line)):
+                # #173: a subscript's parameters, which its getter lists, keyed as a function `subscript`.
+                listed = next((item for item in node.walk() if item.kind == "parameter_list"), None)
+                names = [(m.group(1), _numeric(kid, "interface_type"))
+                         for kid in (listed.kids if listed else []) if (m := PARAMETER.match(kid.line))]
+                found[(_file_of(root), "subscript", int(start.group(2)))] = names
     return found
 
 
@@ -949,10 +973,12 @@ class _Flow:
         since a function's range starts at its attributes, and a reference at its name."""
         return max((line for line in self.functions.get((file, _base(name)), []) if line <= row), default=None)
 
-    def carried(self, node: _Node) -> set[str]:
-        """What served numbers an expression reaches: a served field, or anything they flowed into."""
+    def carried(self, node: _Node, closures: bool = True) -> set[str]:
+        """What served numbers an expression reaches: a served field, or anything they flowed into.
+        Without `closures`, a closure inside it is not read (#173, the review's M5: a count of served
+        things is not a served number)."""
         found: set[str] = set()
-        for item in node.walk():
+        for item in (node.walk() if closures else _outside_closures(node)):
             for reference in FLOW_REF.finditer(item.line):
                 symbol, path, row, column = reference.groups()
                 file, parts, line = pathlib.Path(path).name, symbol.split("."), int(row)
@@ -964,9 +990,16 @@ class _Flow:
                 if len(parts) >= 2 and (kind := self.served.get((parts[-2], parts[-1]))):
                     found.add(kind)
                 found |= self.carriers.get((file, line, int(column)), set())
-                found |= self.carriers.get(("bound", file, line, parts[-1]), set())
+                # #173: a name bound a few lines below where its statement starts (`for` alone on its
+                # line) is keyed by the statement's line.
+                for back in range(6):
+                    found |= self.carriers.get(("bound", file, line - back, parts[-1]), set())
                 if function and (at := self.declared(file, parts[-1], line)) is not None:
                     found |= self.carriers.get(("result", file, at, _base(parts[-1])), set())
+                # #173: a subscript's parameter is printed under its getter, `<anonymous>`.
+                if len(parts) >= 2 and parts[-2] == "<anonymous>" and (
+                        at := self.declared(file, "subscript", line)) is not None:
+                    found |= self.carriers.get(("parameter", file, at, "subscript", parts[-1]), set())
                 if len(parts) >= 2 and "(" in parts[-2] and (at := self.declared(file, parts[-2], line)) is not None:
                     found |= self.carriers.get(("parameter", file, at, _base(parts[-2]), parts[-1]), set())
         return found
@@ -981,6 +1014,7 @@ class _Flow:
                     changed |= self.binding(node) | self.assignment(node) | self.loop(node, file)
                     changed |= self.condition(node, file) | self.cases(node)
                     changed |= self.call(node) | self.inout(node) | self.result(node, file) | self.closure(node, file)
+                    changed |= self.subscript(node)
             changed |= self.dispatch()
 
     def binding(self, node: _Node) -> bool:
@@ -1072,6 +1106,22 @@ class _Flow:
                     changed |= _mark(self.carriers, self.stored[(owner, parameter)], kinds)
         return changed
 
+    def subscript(self, node: _Node) -> bool:
+        """#173: a subscript's parameters, from the arguments it is read with."""
+        if node.kind != "subscript_expr" or not (reference := FLOW_REF.search(node.line)):
+            return False
+        target, row = pathlib.Path(reference.group(2)).name, int(reference.group(3))
+        if (at := self.declared(target, "subscript", row)) is None:
+            return False
+        listed = next((kid for kid in node.kids if kid.kind == "argument_list"), None)
+        arguments = [kid for kid in (listed.kids if listed else []) if kid.kind == "argument"]
+        changed = False
+        for (parameter, numeric), argument in zip(self.parameters.get((target, "subscript", at), []), arguments,
+                                                  strict=False):
+            if numeric and (kinds := self.carried(argument)):
+                changed |= _mark(self.carriers, ("parameter", target, at, "subscript", parameter), kinds)
+        return changed
+
     def inout(self, node: _Node) -> bool:
         """`places.append(served)`, `fill(&total, served)`: into a place a call is handed `inout`,
         a mutating method's receiver among them."""
@@ -1154,10 +1204,24 @@ def flow_facts(ast: str) -> dict[str, set[str]]:
     for (file, method, receiver), count in sorts.items():
         facts.setdefault(file, set()).add(f"main.<sorts>.{method}.{receiver}={count}")
     for root in flow.roots:
-        for node in root.walk():
-            if (named := DECODED_TYPE.match(node.line)) and named.group(1) in NOT_SERVED:
-                facts.setdefault(_file_of(root), set()).add(f"main.<unserved>.{named.group(1)}")
-    return facts
+        facts.setdefault(_file_of(root), set()).update(_declaration_facts(root))
+    return {file: found for file, found in facts.items() if found}
+
+
+def _declaration_facts(root: _Node) -> set[str]:
+    """A decoded type the engine never sends; and (#173) an arithmetic operator of the app's own or a
+    member added to a number, arithmetic no rule can follow, so neither is in the client."""
+    found: set[str] = set()
+    for node in root.walk():
+        if (named := DECODED_TYPE.match(node.line)) and named.group(1) in NOT_SERVED:
+            found.add(f"main.<unserved>.{named.group(1)}")
+        place = RANGE_START.search(node.line)
+        row = place.group(2) if place else "?"
+        if (declared := OPERATOR_DECL.match(node.line)) is not None:
+            found.add(f"main.<declares operator>.{declared.group(1)}@{row}")
+        if (extended := NUMERIC_EXTENSION.match(node.line)) is not None:
+            found.add(f"main.<extends number>.{extended.group(1)}@{row}")
+    return found
 
 
 def _arithmetic(node: _Node, flow: _Flow, function: str | None) -> list[str]:
@@ -1165,18 +1229,44 @@ def _arithmetic(node: _Node, flow: _Flow, function: str | None) -> list[str]:
     an operator on a number, or a numeric method."""
     operands: _Node | None = None
     operator = ""
-    if node.kind == "binary_expr" and len(node.kids) >= 2:
+    if node.kind in ("binary_expr", "prefix_unary_expr", "postfix_unary_expr") and node.kids:
         found = next((m for item in node.kids[0].walk() if (m := OPERATOR.search(item.line))), None)
         if found is not None and found.group(1) not in NOT_NUMBERS:
             operands, operator = node, found.group(2)
     elif node.kind == "call_expr" and node.kids and node.kids[0].kids and (
             method := NUMERIC_METHOD.search(node.kids[0].kids[0].line)):
         operands, operator = node, f".{method.group(1)}"
+    elif node.kind == "call_expr" and node.kids and (free := FREE_NUMERIC.search(node.kids[0].line)):
+        operands, operator = node, free.group(1)
+    elif node.kind == "call_expr" and (value := _operator_as_value(node)) is not None:
+        operands, operator = node, f"{value} (as a value)"
     if operands is None:
         return []
     place = LOCATION.search(node.line)
     line = place.group(2) if place else "?"
-    return [f"main.<arithmetic>.{kind}@{line} {operator} in {function or '-'}" for kind in sorted(flow.carried(operands))]
+    return [f"main.<arithmetic>.{kind}@{line} {operator} in {function or '-'}"
+            for kind in sorted(flow.carried(operands, closures=False))]
+
+
+def _operator_as_value(node: _Node) -> str | None:
+    """#173: a numeric operator handed to a call as a function (`reduce(0, +)`, `.map(-)`)."""
+    for listed in node.kids[1:]:
+        if listed.kind != "argument_list":
+            continue
+        # The compiler wraps an operator passed as a function in an implicit closure that applies it.
+        for wrapped in (item for argument in listed.kids for item in argument.walk() if item.kind == "autoclosure_expr"):
+            found = next((m for item in wrapped.walk() if (m := OPERATOR.search(item.line))), None)
+            if found is not None and found.group(1) not in NOT_NUMBERS:
+                return found.group(2)
+    return None
+
+
+def _outside_closures(node: _Node) -> Iterator[_Node]:
+    """A node and its descendants, a closure's body left out."""
+    yield node
+    for kid in node.kids:
+        if kid.kind != "closure_expr":
+            yield from _outside_closures(kid)
 
 
 def _ordering(node: _Node) -> tuple[str, str] | None:
@@ -1336,6 +1426,14 @@ def _flow_problem(name: str, symbol: str) -> str | None:
         what = "number" if kind == "number" else kind
         return (f"{name}:{line}: `{operator}` on a served {what}, a second scoring implementation; only the "
                 f"places a ruling names do arithmetic on one (REQ-APP-005; D-138, D-167, REQ-CMP-002)")
+    if fact == "<declares operator":
+        operator, _, line = subject.partition("@")
+        return (f"{name}:{line}: declares the operator `{operator}`, arithmetic no rule can follow; the client "
+                "computes no ranking value of its own (REQ-APP-005, D-181; #173)")
+    if fact == "<extends number":
+        number, _, line = subject.partition("@")
+        return (f"{name}:{line}: extends `{number}`; a member of a number does arithmetic on whatever calls "
+                "it, served numbers included (REQ-APP-005, D-181; #173)")
     if fact == "<sorts":
         call_receiver, _, count = subject.rpartition("=")
         call, _, receiver = call_receiver.partition(".")
