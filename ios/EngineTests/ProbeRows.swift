@@ -2,6 +2,8 @@
 //  `ReplayProbe.swift` reads back (#193, M21-W2). Both harnesses call these, and `ProbeRowTests` runs
 //  them, so a fault in the rebuild fails a committed test.
 
+import Foundation
+
 @testable import ModelRankingEngine
 
 enum ProbeRows {
@@ -32,4 +34,12 @@ enum ProbeRows {
          "unmeasured": "\(read.unmeasured)", "model": "nil", "reading": "\(read.reading)",
          "tier": "\(read.tier)", "declined": "\(tier?.unmeasured ?? true)"]
     }
+}
+
+/// #226 (M21-W2): one row of the owner's judgement sheet: what the screen shows for a question (our
+/// family list's first five) beside the primary board's own first five. `JudgementProbe` writes these;
+/// `scripts/judgement_sheet.py` blinds them into the sheet the owner fills in. (A stub in the red commit.)
+enum JudgementRows {
+    static func row(question: String, outcome: RoutingOutcome, categories: [ModelRankingEngine.Category], standings: Standings,
+                    asOf: Date) -> [String: Any] { [:] }
 }
