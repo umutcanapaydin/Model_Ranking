@@ -409,6 +409,8 @@ FIXTURE_REFUSALS = {
     ("ContentView.swift", "String.init(contentsOf"), ("ContentView.swift", "NSData.init(contentsOf"),
     ("ContentView.swift", "XMLParser.init(contentsOf"),
 }
+#: #175: each rule, by a phrase its refusal carries (a stub in the red commit).
+FIXTURE_RULES: dict[str, str] = {}
 SOURCE = re.compile(r'^\(source_file "([^"]+)"', re.MULTILINE)
 #: One node of the dump: its indentation (the tree's depth) and its kind.
 NODE = re.compile(r"^( *)\((\w+)")

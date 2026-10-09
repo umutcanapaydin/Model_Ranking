@@ -559,3 +559,37 @@ def test_a_request_argument_the_gate_does_not_know_is_refused() -> None:
     refused whatever it names."""
     assert ("EngineClient.recommendation(task:budget:)", "task") in gate.REQUEST_ARGUMENTS
     assert gate._request_problem("ContentView.swift", "<request argument>.EngineClient.search(text:)|text|a value@9")
+
+
+def test_a_mac_without_the_toolchain_fails_the_gate_rather_than_skipping(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#175 R1: a Mac with Xcode is the gate's authoritative host (`docs/security-invariants.md`, gap
+    G-10); a skip there would pass the routes D-180 and D-181 moved onto the compiled module unread. On
+    another host the gate still says it skipped."""
+    monkeypatch.setattr(gate, "dump_ast", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(gate, "_host", lambda: "Darwin")
+    assert gate.main() == 1
+    monkeypatch.setattr(gate, "_host", lambda: "Linux")
+    assert gate.main() == 0
+
+
+def test_the_self_test_compiles_the_fixture_in_every_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#175 R3: the fixture carries a refused shape per rule in each configuration the gate reads, so a
+    layout change in any of them fails the self-test. The fixture is compiled once per configuration."""
+    seen: list[list[str]] = []
+
+    def dump(_sdk: str, flags: list[str], *_rest: object) -> None:
+        seen.append(list(flags))
+        return None
+
+    monkeypatch.setattr(gate, "dump_ast", dump)
+    gate.self_test()
+    assert [flags for _, _, flags in gate.CONFIGURATIONS] == seen
+
+
+def test_every_rule_has_a_refused_shape_in_the_fixture() -> None:
+    """#175 R3: each rule the gate applies has at least one refusal the fixture must produce, so a layout
+    change that silences one rule fails the self-test."""
+    phrases = {phrase for _, phrase in gate.FIXTURE_REFUSALS}
+    assert len(gate.FIXTURE_RULES) >= 8, "the rules are not named"
+    for rule, phrase in gate.FIXTURE_RULES.items():
+        assert any(phrase in carried for carried in phrases), f"no fixture refusal carries the {rule} rule"
