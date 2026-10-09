@@ -79,8 +79,11 @@ struct ContentView: View {
     /// forgets is a flag switch nobody uses twice.
     @AppStorage("language") private var language: Language = .english
     private let router = TieredRouter.forThisLaunch()
-    /// Whether the on-device tier can run here, said as quiet help when it cannot.
-    private let onDevice = TieredRouter.onDeviceState()
+    /// Whether the on-device tier can run here, said as quiet help when it cannot. Read again each
+    /// time the app comes back to the front (#220): the reader can turn Apple Intelligence on or off,
+    /// or its model finish downloading, while the app runs.
+    @State private var onDevice = TieredRouter.onDeviceState()
+    @Environment(\.scenePhase) private var scenePhase
     /// Every question is asked at `unlimited` since the budget strip went (M13-W3). The engine still
     /// takes a budget, and `/v1/budgets` still publishes the caps for other consumers (D-134).
     private let budget = "unlimited"
@@ -144,6 +147,9 @@ struct ContentView: View {
             .sheet(isPresented: $choosingSurface) { surfaceSheet }
             .sheet(isPresented: $showingGaps) { gapSheet }
             .task { await load() }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { onDevice = TieredRouter.onDeviceState() }
+            }
         }
         .tint(Design.accent)
     }
@@ -1546,7 +1552,9 @@ struct CombinedDetail: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            // #219: a family list holds up to about 215 models, so its rows are laid out as they come
+            // on screen, not all at once.
+            LazyVStack(alignment: .leading, spacing: 16) {
                 Text(orderNote(view, language))
                     .font(.subheadline)
                 SectionTitle(text: UIText.boardsBehind(language))
