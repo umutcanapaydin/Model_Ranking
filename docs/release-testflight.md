@@ -22,7 +22,9 @@ release's pull requests and the release's security verdict of record,
 2. **Deploy the engine first** (§1 steps 1, 5 and 6). From M21 on, let the Mac refresh once with the new
    release before the deploy (§1 step 1): `web-dev`'s board (D-190) and the split DeepSeek releases (D-189)
    arrive with the data. The deploy refuses data another release built, a dry run included (#198): it
-   says which release built the data, and `DEPLOY_ACCEPT_DATA_FROM=<that release>` deploys it anyway. An app built for M20 against the old engine shows
+   says which release built the data, and `DEPLOY_ACCEPT_DATA_FROM=<that release>` deploys it anyway.
+   `unknown` accepts only a record that names no builder (one written before #198), and says so; a copy
+   with no record beside it, or a record nobody can read, is always refused. An app built for M20 against the old engine shows
    no family list, and says nothing about it.
 3. **Check the families are served:** `curl -s https://model-ranking.fly.dev/v1/categories | grep -c
    refined_board` must print a number above 0.

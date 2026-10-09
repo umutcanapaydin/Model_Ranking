@@ -4535,7 +4535,11 @@ clause 2 · from #163, #164, #165.
   (24.11), 3 (25.12) and 4, as Mistral's model page names them (docs.mistral.ai/getting-started/models,
   read 2026-10-09). The undated `mistral-large` moves (D-166).
 - **Claude Sonnet 4.6**, which four boards ranked as Sonnet 4.
-- **GLM-4.6V**, the vision model, apart from GLM-4.6.
+- **GLM-4.6V**, the vision model, apart from GLM-4.6, and GLM-4.6V-Flash apart from both, in every
+  spelling (Epoch's `glm-4.6v_32K` included).
+- **R1's namesakes**: R1-Zero, R1-Lite-Preview and the R1T Chimeras are not R1, and Volcengine's
+  `deepseek-r1-250528` is R1-0528. A one-digit minor version after Mistral Large 3 or 4, as after
+  Sonnet 4, is another release.
 
 **What stays gathered, and why.** GPT-4o's dated snapshots and the Gemini 2.5 Pro and 2.5 Flash previews
 are snapshots of one model name their makers serve, so they stay one model; a board that ranks two of them

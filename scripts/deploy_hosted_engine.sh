@@ -54,11 +54,18 @@ fi
 
 # #198: the release that built the served data, from the refresh's record beside it. Names and ids are
 # applied when the data is built, so a Mac that runs an older release ships that release's data.
-DATA_BY="$("$PYTHON" -c 'import json, sys
-try:
-    built = json.load(open(sys.argv[1])).get("served_built_by") or "unknown"
-except (OSError, ValueError):
-    built = "unknown"
+# `unknown` is a record that names no builder (one written before #198); a copy with no record beside it,
+# or a record nobody can read, is `missing` or `unreadable`, which no acceptance covers (the second
+# M21-W1 review's R1).
+DATA_BY="$("$PYTHON" -c 'import json, os, sys
+if not os.path.exists(sys.argv[1]):
+    built = "missing"
+else:
+    try:
+        record = json.load(open(sys.argv[1]))
+        built = (record.get("served_built_by") if isinstance(record, dict) else None) or "unknown"
+    except (OSError, ValueError):
+        built = "unreadable"
 print(built)' "$SERVED.refresh.json")"
 case "$DATA_BY" in
   release-*) FROM="$(printf '%s' "${DATA_BY#release-}" | cut -c1-7)" ;;
@@ -69,11 +76,24 @@ echo "[deploy] the data was built by $DATA_BY; the code is release-$HEAD_SHORT"
 # The M21-W1 review's M4: data another release built ships that release's names, ids and boards under
 # HEAD's stamp (`web-dev` dark before D-190's board arrives). Refused, a dry run included, unless the owner
 # names that very release in DEPLOY_ACCEPT_DATA_FROM (`unknown` for a record from before #198).
-if [ "$FROM" != "$HEAD_SHORT" ] && [ "${DEPLOY_ACCEPT_DATA_FROM:-}" != "$DATA_BY" ]; then
-  echo "[deploy] refused: the served data was built by $DATA_BY, not release-$HEAD_SHORT; let the Mac's" >&2
-  echo "         engine refresh once with this release (docs/release-testflight.md, step 1.1), or deploy it" >&2
-  echo "         anyway with DEPLOY_ACCEPT_DATA_FROM=$DATA_BY" >&2
+if [ "$DATA_BY" = "missing" ] || [ "$DATA_BY" = "unreadable" ]; then
+  echo "[deploy] refused: the served data's refresh record is $DATA_BY ($SERVED.refresh.json), so nothing" >&2
+  echo "         says which release built it; let the Mac's engine refresh once with this release" >&2
   exit 1
+fi
+if [ "$FROM" != "$HEAD_SHORT" ]; then
+  if [ "${DEPLOY_ACCEPT_DATA_FROM:-}" != "$DATA_BY" ]; then
+    echo "[deploy] refused: the served data was built by $DATA_BY, not release-$HEAD_SHORT; let the Mac's" >&2
+    echo "         engine refresh once with this release (docs/release-testflight.md, step 1.1), or deploy it" >&2
+    echo "         anyway with DEPLOY_ACCEPT_DATA_FROM=$DATA_BY" >&2
+    exit 1
+  fi
+  if [ "$DATA_BY" = "unknown" ]; then
+    echo "[deploy] accepting data whose builder the record does not name (a record from before #198), as"
+    echo "         DEPLOY_ACCEPT_DATA_FROM=unknown asks; it may be an older release's data"
+  else
+    echo "[deploy] accepting data built by $DATA_BY, as DEPLOY_ACCEPT_DATA_FROM asks"
+  fi
 fi
 mkdir -p build/hosted
 "$PYTHON" -m app.workflows.public --from "$SERVED" --to build/hosted/advisor.db

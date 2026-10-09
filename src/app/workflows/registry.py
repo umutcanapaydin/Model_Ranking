@@ -185,11 +185,14 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     # Epoch spells R1-0528 `DeepSeek-R1 (May 2025)` (the W1 review's B1). A distill, or a small size,
     # after the release is another model: `DeepSeek-R1-0528-Qwen3-8B` is an 8B Qwen (B2).
     ModelRule("deepseek-r1-0528-qwen3-8b", "DeepSeek-R1-0528-Qwen3-8B", "DeepSeek",
-              r"deepseek[-_ ]?r1[-_ ]?0528[-_ ]?qwen3[-_ ]?8b"),
+              r"deepseek[-_ ]?r1[-_ ]?0528[-_ ]?(?:distill[-_ ]?)?qwen3[-_ ]?8b"),
     ModelRule("deepseek-r1-0528",  "DeepSeek R1-0528",  "DeepSeek",
-              r"deepseek[-_ ]?r1[-_ ]?(?:0528|\(0528\)|\(may[-_ ]?2025\))" + _NOT_A_DISTILL),
+              r"deepseek[-_ ]?r1[-_ ]?(?:(?:25)?0528|\(0528\)|\(may[-_ ]?2025\))" + _NOT_A_DISTILL),
+    # A letter after `r1` (R1T, the Chimeras), R1-Zero and R1-Lite-Preview are models of their own (the
+    # second W1 review's K2); Volcengine spells R1-0528 `deepseek-r1-250528`.
     ModelRule("deepseek-r1",       "DeepSeek R1",       "DeepSeek",
-              r"deepseek[-_ ]?r1(?![-_ ]?\(?0528|[-_ ]?\(may[-_ ]?2025\))" + _NOT_A_DISTILL),
+              r"deepseek[-_ ]?r1(?![a-z])(?![-_ ]?(?:zero|lite))"
+              r"(?![-_ ]?\(?(?:25)?0528|[-_ ]?\(may[-_ ]?2025\))" + _NOT_A_DISTILL),
     # ── Others (dotted versions before bare families) ───────────────────
     ModelRule("qwen3.8-max",       "Qwen3.8 Max",       "Alibaba",   r"qwen[-_ ]?3[.\-]8[-_ ]?max"),
     ModelRule("qwen3.7-max",       "Qwen3.7 Max",       "Alibaba",   r"qwen[-_ ]?3[.\-]7[-_ ]?max"),
@@ -208,15 +211,21 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("glm-5.2",           "GLM-5.2",           "Zhipu",     r"glm[-_ ]?5[.\-p]2(?!\d)"),
     ModelRule("glm-5.1",           "GLM-5.1",           "Zhipu",     r"glm[-_ ]?5[.\-p]1(?!\d)"),
     ModelRule("glm-5",             "GLM-5",             "Zhipu",     r"glm[-_ ]?5(?![.\-p]\d(?!\d))(?!v)(?![-_ ]?code)"),
-    # GLM-4.6V is the vision model, not GLM-4.6 (the W1 review's K2), named as Zhipu spells it.
-    ModelRule("glm-4.6v",          "GLM-4.6V",          "Zhipu",     r"glm[-_ ]?4[.\-]?6v(?!\w)"),
+    # GLM-4.6V is the vision model, not GLM-4.6 (the W1 review's K2), and GLM-4.6V-Flash the small one
+    # beside it; Epoch's `glm-4.6v_32K` is GLM-4.6V (the second review's M1).
+    ModelRule("glm-4.6v-flash",    "GLM-4.6V-Flash",    "Zhipu",     r"glm[-_ ]?4[.\-]?6v[-_ ]?flash"),
+    ModelRule("glm-4.6v",          "GLM-4.6V",          "Zhipu",     r"glm[-_ ]?4[.\-]?6v(?![a-z\d])"),
     ModelRule("glm-4.6",           "GLM-4.6",           "Zhipu",     r"glm[-_ ]?4[.\-]?6(?!v)"),
     ModelRule("glm-4.5",           "GLM-4.5",           "Zhipu",     r"glm[-_ ]?4[.\-]?5(?!v|[-_ ]?air)"),
     # The W1 review's B3 (D-189 clause 1): Mistral names each Large release apart (Large 1.0 is 24.02,
     # 2.0 is 24.07, 2.1 is 24.11, 3 is 25.12, then 4; docs.mistral.ai/getting-started/models, read
     # 2026-10-09), and Arena ranks all five. The undated `mistral-large` moves (D-166).
-    ModelRule("mistral-large-4",   "Mistral Large 4",   "Mistral",   r"mistral[-_ ]?large[-_ ]?4(?!\d)"),
-    ModelRule("mistral-large-3",   "Mistral Large 3",   "Mistral",   r"mistral[-_ ]?large[-_ ]?(?:3(?!\d)|2512)"),
+    # A one-digit minor version after the major is another release, as Sonnet 4's rule reads it (the
+    # second review's R2); Mistral's API names Large 4 `mistral-large-4-0`.
+    ModelRule("mistral-large-4",   "Mistral Large 4",   "Mistral",
+              r"mistral[-_ ]?large[-_ ]?4(?!\d)(?![.\-][1-9](?!\d))"),
+    ModelRule("mistral-large-3",   "Mistral Large 3",   "Mistral",
+              r"mistral[-_ ]?large[-_ ]?(?:3(?!\d)(?![.\-][1-9](?!\d))|2512)"),
     ModelRule("mistral-large-2.1", "Mistral Large 2.1", "Mistral",
               r"mistral[-_ ]?large[-_ @]?2411|mistral[-_ ]?large[-_ ]?2[.\-]1(?!\d)"
               r"|mistral[-_ ]?large[-_ ]?2[-_ ]?\(nov(?:ember)?[-_ ]?2024\)"),

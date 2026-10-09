@@ -12,7 +12,7 @@
 ```
 UPSTREAM SOURCES (untrusted input)
   prices : LiteLLM, OpenRouter
-  scores : SWE-bench Verified, Aider, six Arena boards and Arena's category slices (Hugging Face),
+  scores : SWE-bench Verified, Aider, seven Arena boards and Arena's category slices (Hugging Face),
            the Epoch AI bundle (a zip from epoch.ai; also each model's accessibility)
       |  bounded HTTP fetches, made only by the refresh's child process
       v
