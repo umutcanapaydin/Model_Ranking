@@ -11,11 +11,37 @@ enum ModelFamilies {
         "mimo", "minimax", "ministral", "mistral", "mixtral", "nemotron", "nous", "nova", "nvidia", "o1",
         "o3", "o4", "palmyra", "phi", "pixtral", "qwen", "qwq", "step", "titan", "trinity", "zephyr",
     ]
-    /// The family words that are also plain English or Turkish; they name a model only beside a version.
-    /// The tokens the registry's names put after an ambiguous family word (a stub in the red commit).
-    static let versions: [String: Set<String>] = [:]
+    /// The family words that are also plain English or Turkish; they name a model only beside a version
+    /// their own names use (`versions`), or in a question about a model's cost or making.
     static let ambiguous: Set<String> = [
-        "aya", "code", "command", "ernie", "granite", "jamba", "kimi", "llama", "mercury", "nous", "nova",
-        "palmyra", "phi", "step", "titan", "trinity", "zephyr",
+        "aya", "code", "command", "ernie", "gemma", "glm", "granite", "jamba", "kimi", "llama", "mercury",
+        "mimo", "minimax", "nous", "nova", "nvidia", "o1", "o3", "o4", "palmyra", "phi", "step", "titan",
+        "trinity", "zephyr",
+    ]
+    /// The tokens the registry's names put right after an ambiguous family word.
+    static let versions: [String: Set<String>] = [
+        "aya": ["expanse"],
+        "code": ["fast", "llama"],
+        "command": ["a", "r"],
+        "ernie": ["5"],
+        "gemma": ["2", "2b", "3", "4", "7b"],
+        "glm": ["4", "5", "5v"],
+        "granite": ["4"],
+        "jamba": ["1"],
+        "kimi": ["k2"],
+        "llama": ["2", "3", "34b", "70b"],
+        "mercury": ["2"],
+        "mimo": ["v2"],
+        "minimax": ["m1", "m2", "m3"],
+        "nous": ["hermes"],
+        "nova": ["2", "lite", "micro", "pro"],
+        "nvidia": ["nemotron"],
+        "o1": ["2024", "mini", "pro"],
+        "o3": ["mini", "pro"],
+        "o4": ["mini"],
+        "phi": ["3"],
+        "step": ["3"],
+        "trinity": ["large"],
+        "zephyr": ["7b"],
     ]
 }

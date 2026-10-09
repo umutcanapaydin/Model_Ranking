@@ -419,9 +419,15 @@ extension CategoryHints {
     /// pro"), and a single letter is a version's tail ("gpt-4o").
     static func comparesModelsOnly(_ question: String) -> Bool {
         readings(question).contains { words in
-            words.contains(where: generalWords.words.contains) && words.contains(where: comparisonParticles.contains)
+            // K1 (the M21-W2 review): every family the registry names (`ModelFamilies`), not a list of
+            // twelve; an ambiguous one ("kimi", "some") is a filler beside a plain one, never alone.
+            let isModel = { (word: String) in
+                generalWords.words.contains(word)
+                    || (ModelFamilies.words.contains(word) && !ModelFamilies.ambiguous.contains(word))
+            }
+            return words.contains(where: isModel) && words.contains(where: comparisonParticles.contains)
                 && words.allSatisfy { word in
-                    generalWords.words.contains(word) || comparisonParticles.contains(word)
+                    isModel(word) || ModelFamilies.words.contains(word) || comparisonParticles.contains(word)
                         || modelTierWords.contains(word) || word.count == 1
                 }
         }
@@ -952,6 +958,10 @@ struct TieredRouter {
     /// §4), so eight seconds is a deadline for a hang, not for a slow answer.
     var modelTimeout: Double = 8
 
+    /// The names of the models the engine serves today (#194, the M21-W2 review's M2): a question that
+    /// names one is a search, though the registry's family words miss it. Empty until standings are kept.
+    var servedNames = ServedModelNames()
+
     /// The on-device model tier where the OS carries one. Not a policy decision — purely "does
     /// this device have it", which is why it is separate from `route`'s ordering.
     static func platformModelRouter() -> QuestionRouter? {
@@ -971,12 +981,12 @@ struct TieredRouter {
             // the wording tier, keywords first, gets the question.
             if outcome.unmeasured, outcome.reading == .search,
                let wording = await similarity.route(question, within: known), !wording.unmeasured {
-                return Self.read(question, wording)
+                return Self.read(question, wording, served: servedNames)
             }
-            return Self.read(question, outcome)
+            return Self.read(question, outcome, served: servedNames)
         }
         if let outcome = await similarity.route(question, within: known) {
-            return Self.read(question, outcome)
+            return Self.read(question, outcome, served: servedNames)
         }
         // `unmeasured: true` since M13-W3, by the signed plan's REQ-ASK-003: "`tier = manual` may
         // not carry `unmeasured = false`". The screen loads the chat ranking for this outcome, so
@@ -984,7 +994,7 @@ struct TieredRouter {
         // said "Pick a surface below" and loaded a surface anyway (second-opinion P1).
         return Self.read(question, RoutingOutcome(
             categoryID: CategoryHints.unmeasuredFallback, tier: .manual, unmeasured: true
-        ))
+        ), served: servedNames)
     }
 
     /// D-169 as amended at M18-W3 and by D-184: the outcome's reading, from the signals in code and,
@@ -998,7 +1008,7 @@ struct TieredRouter {
         read.reading = inputReading(
             noWord: InputSignals.noWord(question), smallTalk: InputSignals.smallTalk(question),
             doubt: InputSignals.pastedContent(question) || InputSignals.instructsTheApp(question)
-                || InputSignals.asksAFact(question),
+                || InputSignals.asksAFact(question, served: served),
             modelSaysNotASearch: outcome.tier == .model ? outcome.reading != .search : nil)
         return read
     }

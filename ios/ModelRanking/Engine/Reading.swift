@@ -173,8 +173,9 @@ enum InputSignals {
         let bare = text.replacingOccurrences(of: "['’]\\p{L}+", with: "", options: .regularExpression)
         // Excluded if ANY folding names a model, the asker, a task or the rest: "I" and "AI" fold to
         // "ı" and "aı" in Turkish, and iOS capitalises "I" (the M19-W4 review's MJ2).
-        // #194: a model the engine ranks, named by its registry family ("qwen", "o3", "phi-4").
-        if namesARankedModel(bare) { return false }
+        // #194: a model the engine ranks, named by its registry family ("qwen", "o3 mini", "phi-3"), or
+        // one only the engine serves today (the M21-W2 review's M2).
+        if namesARankedModel(bare, served: served) { return false }
         if folds(bare).map(wordsOf).contains(where: { words in
             words.contains(where: { word in
                 word.hasPrefix("model") || factExclusions.contains(word) || actVerbsEnglish.contains(word)
@@ -215,24 +216,44 @@ enum InputSignals {
         "homework", "today", "tonight", "now", "latest", "live", "yesterday", "tomorrow", "week", "bugün",
         "bugun", "şimdi", "dün", "yarın", "güncel", "hafta", "this", "screenshot",
     ]
-    /// #194 (M21-W2): whether the text names a model the engine ranks, by a family word of its registry
-    /// (`ModelFamilies`, generated): a word with a version attached reads by its letters ("qwen3",
-    /// "phi4"), and a family word that is also plain English counts only beside a version ("phi-4",
-    /// "nova 2", never "what is phi"). The brand names this list once held come from there now.
+    /// #194 (M21-W2; the review's M1 to M3, D-191): whether the text names a model the engine ranks, by
+    /// a family word of its registry (`ModelFamilies`, generated) or of a model only the engine serves
+    /// today (`served`). A word with a version attached reads by its letters ("qwen3"). A word that is
+    /// also plain English or Turkish ("llama", "kimi", "o3", "nvidia"), and every served-only word,
+    /// stands as a model only beside a token its own names put after it ("kimi k2", "nova lite",
+    /// "phi-3", never "mercury 7" or "usmle step 1"), or in a question about a model's cost or making
+    /// (`modelContext`: "who makes llama", "how much does o3 cost").
     static func namesARankedModel(_ text: String, served: ServedModelNames = ServedModelNames()) -> Bool {
         folds(text).contains { folded in
             let tokens = folded.split { !$0.isLetter && !$0.isNumber }.map(String.init)
+            let context = tokens.contains(where: modelContext.contains)
             return tokens.indices.contains { index in
                 let token = tokens[index]
-                let letters = String(token.prefix(while: \.isLetter))
                 let next = index + 1 < tokens.count ? tokens[index + 1] : ""
-                return [token, letters].contains { word in
-                    guard ModelFamilies.words.contains(word) else { return false }
-                    return !ModelFamilies.ambiguous.contains(word) || token != word || next.first?.isNumber == true
+                if ModelFamilies.words.contains(token) {
+                    guard ModelFamilies.ambiguous.contains(token) else { return true }
+                    return context || ModelFamilies.versions[token, default: []].contains(next)
+                        || served.versions[token, default: []].contains(next)
                 }
+                let letters = String(token.prefix(while: \.isLetter))
+                if letters != token, ModelFamilies.words.contains(letters), !ModelFamilies.ambiguous.contains(letters) {
+                    return true
+                }
+                if let after = served.versions[token] {
+                    return context || after.contains(next)
+                }
+                return false
             }
         }
     }
+
+    /// The words of a question about a model rather than the thing a model's name also names: its cost,
+    /// its tokens, its makers. "who founded nvidia" is not one ("founded" is not here).
+    static let modelContext: Set<String> = [
+        "cost", "costs", "price", "pricing", "priced", "token", "tokens", "api", "benchmark", "benchmarks",
+        "parameters", "params", "context", "llm", "model", "models", "chatbot", "prompt", "prompts", "makes",
+        "trains", "trained", "release", "released", "weights",
+    ]
 
     /// The same in Turkish, by stem, since the language joins its suffixes: to recommend, to code, to
     /// translate, homework, software (the M19-W4 review's MJ2 and M2).

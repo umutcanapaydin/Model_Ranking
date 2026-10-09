@@ -144,7 +144,7 @@ final class ModelNameReviewTests: OfflineTestCase {
         for text in ["who founded nvidia", "what is the minimax algorithm", "what is o3 in chemistry",
                      "what is mimo in wifi", "what is a glm in statistics", "who is gemma chan",
                      "how long does an o1 visa take", "who were the mercury 7 astronauts", "when is usmle step 1",
-                     "what do llamas eat", "who is kimi raikkonen"] {
+                     "what is a llama", "who is kimi raikkonen"] {
             XCTAssertTrue(InputSignals.asksAFact(text), text)
         }
     }

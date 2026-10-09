@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pathlib
 
-from app.workflows.registry import AMBIGUOUS_FAMILY_WORDS, family_words
+from app.workflows.registry import AMBIGUOUS_FAMILY_WORDS, family_versions, family_words
 
 SWIFT = pathlib.Path(__file__).resolve().parents[1] / "ios/ModelRanking/Engine/ModelFamilies.swift"
 
@@ -29,6 +29,12 @@ def _set(words: frozenset[str]) -> str:
     return "[\n" + "\n".join(lines) + "\n    ]"
 
 
+def _versions() -> str:
+    lines = [f'        "{word}": [{", ".join(chr(34) + v + chr(34) for v in sorted(after))}],'
+             for word, after in sorted(family_versions().items())]
+    return "[\n" + "\n".join(lines) + "\n    ]"
+
+
 def render() -> str:
     """The Swift file, as this registry would write it."""
     return f"""//  ModelFamilies.swift -- the family words of the models the engine ranks (#194, M21-W2).
@@ -39,8 +45,11 @@ def render() -> str:
 enum ModelFamilies {{
     /// Every family word the registry names a ranked model by, in plain lower case.
     static let words: Set<String> = {_set(family_words())}
-    /// The family words that are also plain English or Turkish; they name a model only beside a version.
+    /// The family words that are also plain English or Turkish; they name a model only beside a version
+    /// their own names use (`versions`), or in a question about a model's cost or making.
     static let ambiguous: Set<String> = {_set(AMBIGUOUS_FAMILY_WORDS)}
+    /// The tokens the registry's names put right after an ambiguous family word.
+    static let versions: [String: Set<String>] = {_versions()}
 }}
 """
 
