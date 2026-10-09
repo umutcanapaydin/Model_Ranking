@@ -110,7 +110,8 @@ final class WordingTierReachTests: OfflineTestCase {
     /// test, never from a held-out set.
     func testATurkishAskForTheBestOneIsAGeneralQuestion() async {
         for question in ["ingilizce e-posta yazmak için en iyisi hangisi", "fransızca mektup yazmama yardım edecek model",
-                         "muhasebe soruları için hangisi daha iyi", "şiir yazmak için en iyisi",
+                         // The review's M4: an ask names a task or a model now ("çözmek", to solve).
+                         "muhasebe sorularını çözmek için hangisi daha iyi", "şiir yazmak için en iyisi",
                          "bir hikaye yazdırmak istiyorum hangisi iyi", "yazı: blog yazısı için öneri",
                          "sunum hazırlamak için en iyisi", "ödev yaparken hangisini kullanayım",
                          "yemek tarifi önerecek model", "dil öğrenmek için en iyisi"] {
@@ -173,5 +174,36 @@ final class ModelNameReviewTests: OfflineTestCase {
             XCTAssertTrue(CategoryHints.comparesModelsOnly(question), question)
         }
         XCTAssertFalse(CategoryHints.comparesModelsOnly("kimi mi geldi"), "kimi alone is a Turkish word")
+    }
+}
+
+
+/// The M21-W2 review's M4 and M5 (D-191): an ask for "the best one" is general only about a task or a
+/// model; only a letter Turkish alone has, or two Turkish signals, read a question as Turkish.
+final class TurkishReadingReviewTests: OfflineTestCase {
+    private let known = ["coding", "assistant", "agentic-coding", "everyday", "expert", "mathematics",
+                         "computer-use", "abstract", "web-dev", "document", "factuality", "vision",
+                         "search", "search_factuality"]
+
+    /// M4: an ask with no task and no model ("which is best for coffee", "where is best for a holiday")
+    /// is no general question.
+    func testAnAskAboutNoTaskOrModelIsNoGeneralQuestion() {
+        for question in ["tatil için en iyisi neresi", "kahve için en iyisi hangisi", "araba almak için hangisi daha iyi",
+                         "hangisi iyi, iphone mu samsung mu", "model uçak yapımı", "en ünlü model kim"] {
+            XCTAssertNil(CategoryHints.generalSurface(question, within: known), question)
+        }
+    }
+
+    /// M5: German and Nordic letters, and an English "MI", are no Turkish signal alone.
+    func testALetterOtherLanguagesShareIsNoTurkishAlone() {
+        for text in ["help me draft a toast for a wedding in Zürich", "plan a weekend in Köln with kids",
+                     "a tool to practise German words like Übung and Brötchen", "plan meals for a week in Göteborg",
+                     "help me study for the MI board exam"] {
+            XCTAssertFalse(CategoryHints.readsAsTurkish(text), text)
+        }
+        for text in ["kod için hangisi", "çeviri için model", "gemini mı daha iyi", "en iyi model hangisi",
+                     "claude mu chatgpt mi almanca", "yaşlı bir köpek için oyuncak"] {
+            XCTAssertTrue(CategoryHints.readsAsTurkish(text), text)
+        }
     }
 }
