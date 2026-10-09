@@ -369,14 +369,10 @@ extension CategoryHints {
     /// What `everyday` answers where the embedding cannot read the question: a question about AI models
     /// in general, which names no surface.
     static let generalWords = SurfaceWords(
-        // #222 (M21-W2): a Turkish ask for "the best one" (`en iyisi`), "which one for" (`için hangisi`),
-        // a model or a recommendation (`model`, `öner`) names no surface but asks for a model; with no
-        // embedding to read it, it was "not measured". Written from the wave's own sentences.
-        id: "everyday", stems: ["everyday", "gunluk", "model", "oner"],
+        id: "everyday", stems: ["everyday", "gunluk"],
         words: ["llm", "llms", "chatgpt", "gpt", "gemini", "claude", "llama", "mistral", "deepseek", "copilot", "grok",
                 "qwen"],
-        phrases: [["en", "iyisi"], ["icin", "hangisi*"], ["hangisi*", "iyi"], ["hangisini", "kullan*"],
-                  ["yapay", "zek*"], ["best", "ai"], ["which", "ai"], ["hangi", "yapay"], ["en", "iyi", "model*"],
+        phrases: [["yapay", "zek*"], ["best", "ai"], ["which", "ai"], ["hangi", "yapay"], ["en", "iyi", "model*"],
                   ["best", "model*"], ["which", "model*"], ["hangi", "model*"], ["best", "llm*"], ["which", "llm*"]])
 
     /// A word in plain letters: lower case, and the Turkish letters as the ones a reader types without
@@ -392,17 +388,25 @@ extension CategoryHints {
         InputSignals.folds(question).map { InputSignals.wordsOf($0).map(plain) }
     }
 
-    /// #218: the Turkish question words a short Turkish question carries: the question particle and
-    /// "which", in plain letters (`mı` and `mü` read as `mi` and `mu`).
-    static let turkishQuestionWords: Set<String> = ["mi", "mu", "midir", "mudur", "hangisi", "hangi", "nedir"]
+    /// #218: Turkish words a short Turkish question carries, in plain letters: the question particles,
+    /// "which", "for", "the best", and the like. One alone is no proof ("mi" is an English "MI"); two are.
+    static let turkishQuestionWords: Set<String> = [
+        "mi", "mu", "midir", "mudur", "hangisi", "hangisini", "hangi", "nedir", "icin", "en", "iyi", "daha", "ve",
+        "bir", "ile", "ne", "nasil", "yapay", "zeka", "bana", "benim", "gibi", "kadar", "neden", "nerede", "kim",
+        "kac", "olan", "var", "yok",
+    ]
 
-    /// #218: whether a question reads as Turkish before the embedding is tried: a Turkish letter in it,
-    /// or a Turkish question word. A short Turkish question is not confidently Turkish to the language
-    /// recogniser ("claude mu chatgpt mi almanca"), and the English embedding then places it on a
-    /// surface it does not name; read as Turkish, D-187's Turkish path answers it.
+    /// #218 (the M21-W2 review's M5, D-191): whether a question reads as Turkish before the embedding is
+    /// tried. A letter only Turkish has (ı, ş, ğ, İ) decides alone; a letter it shares with German and the
+    /// Nordic languages (ç, ö, ü) and each Turkish word count as one signal, and two decide. A short
+    /// Turkish question is not confidently Turkish to the language recogniser ("claude mu chatgpt mi
+    /// almanca"), and the English embedding then places it on a surface it does not name; read as Turkish,
+    /// D-187's Turkish path answers it. "Zürich" or "the MI board exam" alone is no Turkish.
     static func readsAsTurkish(_ question: String) -> Bool {
-        if question.lowercased().contains(where: { "çğıöşü".contains($0) }) || question.contains("İ") { return true }
-        return readings(question).contains { words in words.contains(where: turkishQuestionWords.contains) }
+        if question.contains(where: { "ışğİŞĞ".contains($0) }) { return true }
+        let shared = question.lowercased().contains(where: { "çöü".contains($0) }) ? 1 : 0
+        let words = Set(readings(question).flatMap { $0 }.filter(turkishQuestionWords.contains))
+        return shared + words.count >= 2
     }
 
     /// #206: the Turkish particles a question comparing models puts between their names.
@@ -446,10 +450,29 @@ extension CategoryHints {
         return nil
     }
 
-    /// `everyday` for a question about AI models in general, where the embedding cannot read it.
+    /// #222 (M21-W2): a Turkish ask for "the best one" (`en iyisi`), "which one for" (`için hangisi`),
+    /// "which one is good", "one that helps" (`yardım ed…`) or a recommendation (`öner…`). General only beside a task or a model
+    /// (`askSubjects`), so "kahve için en iyisi hangisi" ("which is best for coffee") is not (the review's
+    /// M4, D-191). Written from the wave's own sentences.
+    static let turkishAsks = SurfaceWords(
+        id: "everyday", stems: ["oner"],
+        phrases: [["en", "iyisi"], ["icin", "hangisi*"], ["hangisi*", "iyi"], ["hangisini", "kullan*"],
+                  ["yardim", "ed*"]])
+    /// What a general ask must name: a model or AI, or a task a model does (to write, prepare, learn,
+    /// translate, solve, summarise, code, explain, plan, homework, correct, analyse).
+    static let askSubjects = SurfaceWords(
+        id: "everyday",
+        stems: ["model", "yapay", "chatbot", "asistan", "gpt", "yaz", "hazirla", "ogren", "cevir", "coz", "ozet",
+                "kodla", "anlat", "planla", "odev", "tercume", "duzelt", "analiz"],
+        words: ["ai", "llm", "zeka", "bot"])
+
+    /// `everyday` for a question about AI models in general, where the embedding cannot read it: the
+    /// general words, or a Turkish ask beside a task or a model.
     static func generalSurface(_ question: String, within known: [String]) -> String? {
-        known.contains(generalWords.id) && names(generalWords, readings(question), question.lowercased())
-            ? generalWords.id : nil
+        let readings = readings(question), raw = question.lowercased()
+        let general = names(generalWords, readings, raw)
+            || (names(turkishAsks, readings, raw) && names(askSubjects, readings, raw))
+        return known.contains(generalWords.id) && general ? generalWords.id : nil
     }
 
     private static func names(_ rule: SurfaceWords, _ readings: [[String]], _ raw: String) -> Bool {
