@@ -803,8 +803,9 @@ extension UIText {
 // MARK: - M18-W2 (#96): the failure screen's sentences
 
 extension EngineError {
-    /// What happened, in the reader's language. English is `errorDescription` itself, so the two
-    /// cannot drift; the engine's own refusal is shown as it sent it, in either language.
+    /// What happened, in the reader's language. A refusal whose code this app knows is the app's own
+    /// sentence, English too; for any other code, and in `errorDescription`, the engine's words are
+    /// shown as it sent them.
     func errorDescription(_ language: Language) -> String? {
         // #223: a refusal whose code this app knows is said in the reader's language, English too.
         if case let .refused(_, code, _) = self, let sentence = EngineError.refusalSentence(code, language) {

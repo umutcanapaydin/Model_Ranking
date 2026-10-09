@@ -208,7 +208,8 @@ client-decls: install  ## W-122 / D-126: the privacy invariant checked against R
 	@# Six rounds of a word list over the client were each bypassed by the next seat -- backticks,
 	@# a comment between two tokens, a typealias, `NSMutableURLRequest`, a markdown link, Handoff.
 	@# This type-checks the client against the iOS SDK and reads what the COMPILER bound each
-	@# reference to, where all of those are the same declaration. SKIPPED, loudly, with no Xcode.
+	@# reference to, where all of those are the same declaration. On a Mac without Xcode it fails
+	@# (#175); on another host it says SKIPPED.
 	$(PY) -B scripts/client_decl_gate.py
 
 wave-check-all: install  ## every wave-close record validated, not only the one you name
