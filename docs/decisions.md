@@ -4598,23 +4598,46 @@ doubt left a search alone only when it named one of eleven brands; a search nami
 app ranks was asked about (#194).
 
 **Decision.**
-1. **Turkish before the embedding (#218).** A question with a Turkish letter or a Turkish question
-   word (`mi`, `mu`, `hangisi`, `hangi`, `nedir`, plain letters) never reaches the English embedding;
-   D-187's Turkish path (the words that name a surface, then the general answer) answers it
-   (`CategoryHints.readsAsTurkish`).
+1. **Turkish before the embedding (#218).** A question that reads as Turkish never reaches the English
+   embedding; D-187's Turkish path (the words that name a surface, then the general answer) answers it
+   (`CategoryHints.readsAsTurkish`). A letter only Turkish has (the dotless i, s-cedilla, soft g and the
+   dotted capital I) decides alone. A letter it shares with German and the Nordic languages (c-cedilla,
+   o-umlaut, u-umlaut), and each Turkish word of
+   `CategoryHints.turkishQuestionWords` (the question particles, "which", "for", "the best", in plain
+   letters), count as one signal each, and two decide (the review's M5):
+   `Zürich`, `Köln` and "the MI board exam" are no Turkish.
 2. **A Turkish ask for a model is general (#222).** Where the embedding cannot read a question that
-   names no surface, an ask for "the best one" (`en iyisi`), "which one for" (`için hangisi`), a model
-   (`model…`) or a recommendation (`öner…`) is answered from `everyday`, not "not measured"
-   (`CategoryHints.generalWords`).
+   names no surface, an ask is answered from `everyday`, not "not measured": "the best one", "which one
+   for", "which one is good", "one that helps" or a recommendation (`CategoryHints.turkishAsks`, in
+   plain letters). It must sit beside a model, an AI or a task a model does (to write, prepare, learn,
+   translate, solve…) (`CategoryHints.askSubjects`; the review's M4). An ask for "which
+   is best for coffee" is not one.
 3. **A ranked model's name makes it a search (#194).** The fact doubt's model names are the
-   registry's (`registry.family_words`, written to `ModelFamilies.swift` and held equal by a test). A
-   family word that is also plain English or Turkish (phi, nova, titan, kimi…) names a model only
-   beside a version (`phi-4`, `nova 2`).
+   registry's (`registry.family_words`, written to `ModelFamilies.swift`, held equal byte for byte),
+   and the served models' names the phone keeps (`ServedModelNames`, the review's M2).
+   - A family word that is also plain English or Turkish names a model only beside a token its own
+     names put after it: Kimi K2, Command R, Nova Lite, Phi-3, Mercury 2 (`registry.family_versions`).
+     The words are phi, nova, titan, kimi, llama, nvidia, minimax, mimo, glm, gemma, o1 to o4 and the
+     rest of `AMBIGUOUS_FAMILY_WORDS`.
+   - Otherwise it names a model only in a question about a model's cost or making
+     (`InputSignals.modelContext`; the review's M1 and M3).
+   - **Llama is decided so:** "who makes llama" is a search, "what is a llama" a question of fact.
+   - A model only the engine serves is read the same way.
 
-**Measured** (`docs/research/m21-w2-reading-probe.md`): the wording tier's not-measured searches fell
-from 8 to 4 of 71, all moved to the general answer, and none was given the note. The model tier asked
-about 3 to 5 of 71 searches, against 4 and 4 before.
+**Measured** (`docs/research/m21-w2-reading-probe.md`):
+- **Wording tier.** With clause 2 as first written, the not-measured searches fell from 8 to 4 of 71,
+  all four moving to the general answer. With the review's narrowing they are 7 of 71, one moving.
+  No search was given the note.
+- **Model tier.** Before the review's fixes, it asked about 3 to 5 of 71 searches, against 4 and 4
+  before.
 
-**Revisit when:** a fresh held-out set shows the general answer given to a question whose label names
-another surface on more than half of the Turkish searches it catches. That would mean the general
-answer hides a surface the words could have named.
+**Revisit when:** a held-out set shows the general answer given to a question whose label names another
+surface on more than half of the Turkish searches it catches. That would mean the general answer hides
+a surface the words could have named.
+
+**That condition is met on the measured set, and clause 2 ships as measured** (the review's M4). The
+condition was met 4 of 4 with clause 2 as first written and is met 1 of 1 with it narrowed: each
+search clause 2 catches there gets `everyday`, which its label does not allow. This is accepted
+because the alternative is "not measured", the dead end D-187 rules out for a question the app
+understands, and the general answer is still a ranking the reader can change in one tap. The set is
+spent (#237); a fresh one decides whether clause 2 stays. The owner may overrule this at any time.

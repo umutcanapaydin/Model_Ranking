@@ -37,7 +37,7 @@ is not a search, it is right when it is not read as a search. "Asked" means the 
 | model, before 1 and 2 | 44, 48 | 1, 1 | 4, 4 | 0, 0 | 4, 3 |
 | model, after 1 and 2 | 45, 47 | 3, 1 | 5, 3 | 0, 0 | 5, 3 |
 
-On the wave's own 37 sentences (a fix commit's message says 12; the run says 11) (the wording tier, `own-sentences-*.json`), 11 fell to "not measured"
+On the wave's own 37 sentences (the wording tier, `own-sentences-*.json`), 11 fell to "not measured"
 before and none after.
 
 ## 3. What it says, issue by issue
@@ -72,3 +72,27 @@ before and none after.
 this set retired, none would, so the gate stays as it is. The lead's next step is a fresh set from an
 independent seat, then this set joins `RETIRED_HELD_OUT`. #222's own text asks the same: "measured on a
 new set".
+
+## 6. After the review's fixes (`docs/reviews/m21-wave-2-review.md`, M1 to M8)
+
+**Measured again** on the wording tier, twice, at the head after the fixes (`review-wording-1.json`,
+`review-wording-2.json`; counts only, the same scorer).
+
+| run | right (78) | searches not measured (71) | given the note | asked | non-searches caught (7) |
+|---|---:|---:|---:|---:|---:|
+| before (`972b55e`) | 44 | 8 | 0 | 0 | 3 |
+| as first fixed (`460b7cd`) | 44 | 4 | 0 | 0 | 3 |
+| after the review, run 1 and 2 | 44, 44 | 7, 7 | 0, 0 | 0, 0 | 3, 3 |
+
+- **The review's M4 narrowed #222.** A Turkish ask is general only beside a model, an AI or a task a
+  model does, so "which is best for coffee" is no longer answered with a ranking. Of the four held-out
+  searches the first rule had moved, three fall back to "not measured". All seven left are Turkish.
+- **The one search still moved** goes to `everyday`, which its label does not allow. So D-191's
+  revisit condition is met on this set, now 1 of 1 (4 of 4 before the narrowing). D-191 says so and
+  ships the rule as measured, for the reason it gives.
+- **Own sentences.** Of the wave's own 37, 2 fall to "not measured" after the narrowing
+  (`own-sentences-review.json`): the asks that name no task or model.
+- **The model tier was not run again.** The review's changes reach it only through the fact doubt's
+  model names (M1 to M3), which narrow it in both directions.
+- **The set is spent**, measured three times now. #237 asks for a fresh one from an independent seat,
+  and then the set's retirement.

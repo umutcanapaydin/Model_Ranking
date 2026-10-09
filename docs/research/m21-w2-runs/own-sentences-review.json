@@ -1,0 +1,372 @@
+[
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "almancaya çeviri yapan en iyi yapay zeka",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "ingilizce e-posta yazmak için en iyisi hangisi",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "fransızca mektup yazmama yardım edecek model",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "translate my email into german",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "help me write a cover letter in spanish",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best ai to reply to customers in japanese",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "muhasebe soruları için hangisi daha iyi",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "pazarlama metni yazan en iyi yapay zeka",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "vergi hesaplamada en iyi model",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best ai for marketing copy",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which ai helps with tax questions",
+    "reading" : "search",
+    "routed" : "document",
+    "surface" : "document",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best model for business strategy",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "şiir yazmak için en iyisi",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "bir hikaye yazdırmak istiyorum hangisi iyi",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best ai to write a wedding speech",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "hukuki sözleşme incelemesi için en iyisi",
+    "reading" : "search",
+    "routed" : "document",
+    "surface" : "document",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "tıbbi tahlil sonucumu yorumlayacak model",
+    "reading" : "search",
+    "routed" : "expert",
+    "surface" : "expert",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best ai for medical questions",
+    "reading" : "search",
+    "routed" : "expert",
+    "surface" : "expert",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "kod: python için en iyisi",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "çeviri: hangi model",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "yazı: blog yazısı için öneri",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "matematik: integral çözen model",
+    "reading" : "search",
+    "routed" : "mathematics",
+    "surface" : "mathematics",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "fizik sorularında hangisi iyi",
+    "reading" : "search",
+    "routed" : "expert",
+    "surface" : "expert",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "kimya ödevi için en iyi yapay zeka",
+    "reading" : "search",
+    "routed" : "expert",
+    "surface" : "expert",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best ai for physics homework",
+    "reading" : "search",
+    "routed" : "expert",
+    "surface" : "expert",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "sunum hazırlamak için en iyisi",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "excel formülleri için hangi model",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "cv hazırlamada en iyi yapay zeka",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "ödev yaparken hangisini kullanayım",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "seyahat planı yapan en iyi yapay zeka",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best ai for planning a trip",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "yemek tarifi önerecek model",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best ai for recipes",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "spor programı hazırlayan yapay zeka",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "dil öğrenmek için en iyisi",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best ai to learn korean",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "ingilizce pratik yapmak için model",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  }
+]
