@@ -138,3 +138,5 @@ docs/research/m21-w2-runs/              # M21-W2 (#66, #222): every probe run's 
                                         # sentences, half Turkish, so a run can be re-scored
 docs/reviews/m21-wave-2-review-round-1.md # M21-W2: the first review quotes the Turkish probe questions it ran verbatim, each translated;
                                   # the Turkish IS the evidence that a reading rule reaches too far
+docs/reviews/m21-wave-2-review.md # M21-W2: the second review quotes the Turkish probe questions it ran verbatim, each translated;
+                                  # the Turkish IS the evidence that a reading rule reaches too far
