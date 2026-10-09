@@ -28,7 +28,7 @@ FAMILIES: dict[str, tuple[str, ...]] = {
     "mathematics": ("epoch_aime", "epoch_frontiermath", "epoch_frontiermath_t4", "arena_text_math"),
     "computer-use": ("epoch_terminalbench", "arena_agent"),
     "abstract": ("epoch_arc_agi", "epoch_chess", "epoch_mystery"),
-    "web-dev": ("epoch_webdev", "arena_text_coding"),
+    "web-dev": ("arena_webdev", "arena_text_coding"),
     "document": ("arena_document", "arena_text_longer_query"),
     "factuality": ("arena_factuality", "epoch_simpleqa"),
     "vision": ("arena_vision",),
@@ -59,6 +59,7 @@ _VISION_FACET = "a facet of Arena's vision board that names no surface's task"
 
 #: board -> why it stands in no family.
 OUTSIDE_FAMILIES: dict[str, str] = {
+    "epoch_webdev": "Epoch's copy of LMArena's WebDev board, one vote with `arena_webdev`, which `web-dev` reads under its CC-BY grant (#185)",
     "arena_text_chinese": _LANGUAGE,
     "arena_text_english": _NO_LANGUAGE,
     "arena_text_french": _LANGUAGE,

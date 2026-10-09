@@ -402,10 +402,13 @@ extension CategoryHints {
     /// pro"), and a single letter is a version's tail ("gpt-4o").
     static func comparesModelsOnly(_ question: String) -> Bool {
         readings(question).contains { words in
-            words.contains(where: generalWords.words.contains) && words.contains(where: comparisonParticles.contains)
+            // M21-W2 (the first review's K1): every family the registry names (`ModelFamilies`, generated
+            // from it), not twelve brands. Narrow by its shape: every word is a model name, a tier or a
+            // particle, so "kimi mi geldi" ("did some come?") is none.
+            let isModel = { (word: String) in generalWords.words.contains(word) || ModelFamilies.words.contains(word) }
+            return words.contains(where: isModel) && words.contains(where: comparisonParticles.contains)
                 && words.allSatisfy { word in
-                    generalWords.words.contains(word) || comparisonParticles.contains(word)
-                        || modelTierWords.contains(word) || word.count == 1
+                    isModel(word) || comparisonParticles.contains(word) || modelTierWords.contains(word) || word.count == 1
                 }
         }
     }
@@ -538,9 +541,11 @@ struct SimilarityRouter: QuestionRouter {
         // D-187: a question that names a surface outright goes there, in either language and whether
         // or not the embedding below can load: the matches below need both, and either can be missing.
         let named = CategoryHints.namedSurface(question, within: known)
+        // #206 (M21-W2, the second review's M2): a comparison of model names is a general question,
+        // answered from `everyday` directly, whichever ranked families it names.
         if named == nil, CategoryHints.comparesModelsOnly(question) {
-            return CategoryHints.generalSurface(question, within: known)
-                .map { RoutingOutcome(categoryID: $0, tier: .similarity, unmeasured: false) }
+            return known.contains("everyday")
+                ? RoutingOutcome(categoryID: "everyday", tier: .similarity, unmeasured: false) : nil
         }
         guard SimilarityRouter.readsEnglish(text),
               let embedding = NLContextualEmbedding(language: .english),

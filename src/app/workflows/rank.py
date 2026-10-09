@@ -73,6 +73,8 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "arena_vision": ARENA_ATTRIBUTION,
     "arena_search": ARENA_ATTRIBUTION,
     "arena_search_factuality": ARENA_ATTRIBUTION,
+    # M21-W1 (#185): LMArena's own WebDev board, the same dataset and grant.
+    "arena_webdev": ARENA_ATTRIBUTION,
     # M17-W2: the 35 category slices, the same dataset and grant. Derived from the DECLARED table,
     # which is the reviewed list, and still not from an `arena_` prefix: a slice nobody declared
     # stays unattributed and raises.

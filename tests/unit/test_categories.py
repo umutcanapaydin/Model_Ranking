@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import inspect
 import json
 import pathlib
@@ -274,14 +275,22 @@ def test_a_category_ranks_on_the_board_it_names_and_reads_the_metric_that_board_
     the agreement can be computed rather than restated. That is what makes it a gate and not a
     second copy of the table.
     """
+    from app.clients.arena import ARENA_BOARDS, METRIC
     from app.workflows.sources import EPOCH_BOARDS
 
-    boards = {b.source_name: b for b in EPOCH_BOARDS}
+    @dataclasses.dataclass(frozen=True)
+    class Declared:
+        benchmark: str
+        metric: str
+
+    boards = {b.source_name: Declared(b.benchmark, b.metric) for b in EPOCH_BOARDS}
+    # M21-W1 (#185): the Arena boards a surface ranks on declare theirs too.
+    boards |= {b.id: Declared(b.benchmark, METRIC) for b in ARENA_BOARDS.values()}
     checked = 0
     for name, spec in CATEGORIES.items():
         board = boards.get(spec.primary_source)
         if board is None:
-            continue  # not a declared Epoch board; covered by the registry test
+            continue  # not a declared board; covered by the registry test
         checked += 1
         assert spec.primary_benchmark == board.benchmark, (
             f"{name} says it ranks on {spec.primary_benchmark!r} and its source "
@@ -291,7 +300,8 @@ def test_a_category_ranks_on_the_board_it_names_and_reads_the_metric_that_board_
             f"{name} reads {spec.metric!r} from a board that publishes {board.metric!r}; a score "
             "relabelled onto another scale is D-105's defect with a different spelling"
         )
-    assert checked >= 6, f"expected the six board-backed categories to be checked; saw {checked}"
+    # `coding` (SWE-bench) and `agentic-coding` (DeepSWE) read clients of their own, not a declared table.
+    assert checked == len(CATEGORIES) - 2, f"every surface but the two coding ones is checked; saw {checked}"
 
 
 def test_no_threshold_is_on_a_scale_its_own_metric_cannot_reach() -> None:
@@ -413,7 +423,7 @@ def test_every_surface_names_the_source_its_board_arrives_on() -> None:
         "mathematics": "epoch_aime",
         "computer-use": "epoch_terminalbench",
         "abstract": "epoch_arc_agi",
-        "web-dev": "epoch_webdev",
+        "web-dev": "arena_webdev",  # #185 (M21-W1): LMArena's own board, under CC-BY-4.0
     }
     assert set(pairs) == set(CATEGORIES), "a surface was added or removed without pinning its source"
     for surface, source in pairs.items():
@@ -529,6 +539,8 @@ PINNED_M15_THRESHOLDS = {
     "vision": (7.8, 31.2),
     "search": (6.5, 25.9),
     "search_factuality": (4.9, 19.5),
+    # M21-W1 (#185, D-190; the W1 review's M1): measured on LMArena's own WebDev board.
+    "web-dev": (9.3, 37.3),
 }
 
 
@@ -538,3 +550,15 @@ def test_the_m15_surfaces_ship_the_thresholds_their_calibration_record_states() 
         assert (spec.close_call, spec.value_window) == (close_call, window), surface
         # the M14 rule: the window is four times the unrounded median, so within rounding of 4x
         assert abs(spec.value_window - 4 * spec.close_call) <= 0.2, surface
+
+
+def test_web_devs_thresholds_are_its_calibration_records() -> None:
+    """The W1 review's M1: the pinned pair is read from the record the board's calibration wrote."""
+    import json
+    from pathlib import Path
+
+    record = json.loads(Path("docs/research/m21-w1-webdev-calibration.json").read_text(encoding="utf-8"))
+    candidates = record["threshold_candidates"]
+    assert record["source"] == CATEGORIES["web-dev"].primary_source
+    assert (CATEGORIES["web-dev"].close_call, CATEGORIES["web-dev"].value_window) == (
+        candidates["close_call"], candidates["value_window"]) == PINNED_M15_THRESHOLDS["web-dev"]

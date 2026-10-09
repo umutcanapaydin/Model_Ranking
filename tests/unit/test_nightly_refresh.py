@@ -778,3 +778,26 @@ def test_a_cancelled_cycle_takes_its_group_with_it(tmp_path: Path) -> None:
         if pid_file.exists():
             with contextlib.suppress(ProcessLookupError, ValueError):
                 os.kill(int(pid_file.read_text(encoding="utf-8")), signal.SIGKILL)
+
+
+def test_the_board_list_loads_no_client() -> None:
+    """#214 (W-125): `app.workflows.boards` lists every declared board. It read Arena's slices through
+    their client and Epoch's boards through the refresh's source list, so a serving import of it would
+    load every client and the HTTP client. It reads the declared tables only."""
+    import subprocess
+
+    probe = (
+        "import sys, app.workflows.boards\n"
+        "print('\\n'.join(sorted(m for m in sys.modules if m.startswith(('app.clients', 'httpx', 'pyarrow')))))"
+    )
+    loaded = subprocess.run(
+        [sys.executable, "-c", probe], capture_output=True, text=True, check=True,
+        env={**__import__("os").environ, "APP_ENV": "test", "PYTHONPATH": "src"},
+    ).stdout.split()
+    assert not loaded, f"the board list loads {loaded}"
+
+
+def test_the_refresh_child_knows_which_build_runs_it() -> None:
+    """#198: the refresh records which release built the data it publishes, so the child it runs in
+    is given the server's `APP_BUILD`, which is no secret."""
+    assert "APP_BUILD" in nightly.CHILD_ENV

@@ -1,0 +1,782 @@
+[
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which ai should i be using these days",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "chatgpt vs claude vs gemini which one",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best llm overall?",
+    "reading" : "search",
+    "routed" : "factuality",
+    "surface" : "factuality",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "whats the smartest model out there atm",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "gemini mi gpt mi",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "grok mu deepseek mi yoksa claude mu",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "su an en iyi yapay zeka hangisi",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "hangi yapay zekaya para vermeye değer",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which model writes the cleanest rust code",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best coding agent that can work through my whole repo on its own and open a PR",
+    "reading" : "search",
+    "routed" : "agentic-coding",
+    "surface" : "agentic-coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which ai can actually answer phd level chemistry questions",
+    "reading" : "search",
+    "routed" : "expert",
+    "surface" : "expert",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best ai for running shell commands and doing tasks on my computer by itself",
+    "reading" : "search",
+    "routed" : "agentic-coding",
+    "surface" : "agentic-coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best ai to build a landing page with react and tailwind",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which chatbot makes stuff up the least",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which ai is best at searching the web for answers",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which ai is nicest to talk to",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "genel kultur sorularinda hangi yapay zeka daha iyi",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "matematik olimpiyat sorularını en iyi çözen model hangisi",
+    "reading" : "search",
+    "routed" : "mathematics",
+    "surface" : "mathematics",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "zeka bulmacasi ve sekil oruntusu cozmede hangi ai iyi",
+    "reading" : "search",
+    "routed" : "abstract",
+    "surface" : "abstract",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "uzun pdf raporlarını özetlemek için en iyi yapay zeka",
+    "reading" : "search",
+    "routed" : "document",
+    "surface" : "document",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "ekran goruntusunu okuyup ne yazdigini anlatan ai hangisi",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "internette arama yapıp kaynak uydurmayan yapay zeka hangisi",
+    "reading" : "search",
+    "routed" : "factuality",
+    "surface" : "factuality",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "kendi basina commit atip testleri calistiran en iyi kodlama ajani",
+    "reading" : "search",
+    "routed" : "agentic-coding",
+    "surface" : "agentic-coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bilgisayarımı benim yerime kullanabilen en iyi ai hangisi",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which ai gives the best korean bbq marinade recipe",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best ai to polish my python script before code review",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which ai writes the best scraper with rotating user agents",
+    "reading" : "search",
+    "routed" : "agentic-coding",
+    "surface" : "agentic-coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "need outfit ideas for a cocktail dress code, which chatbot is best for that",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best ai for advice on dealing with my mother in law",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which model is best at novel pattern puzzles it has never seen",
+    "reading" : "search",
+    "routed" : "abstract",
+    "surface" : "abstract",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "alman kurdu yavruma tuvalet egitimi icin en iyi yapay zeka",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "Karadeniz lehçesiyle sohbet edebilen en iyi yapay zeka hangisi",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bilim kurgu dizisi önerisi için hangi ai daha iyi",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "japon arabalari hakkinda en cok sey bilen ai",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "jira'daki user story'lerden birim testi yazan en iyi model",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "unity oyunumdaki saglik barini kodlayacak en iyi ai",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best ai for translating my emails into german",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best ai that answers in french without slipping back into english",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "want to learn korean, which ai tutor is best",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which ai handles polish grammar best",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "ingilizceden çinceye çeviri için en iyi yapay zeka",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "ispanyolca ogrenmek icin hangi ai daha iyi",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "rusca cevap veren en iyi chatbot hangisi",
+    "reading" : "search",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "Lehçe metin çevirisinde en başarılı model",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "almanca konusma pratigi icin en iyi yapay zeka",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which ai gives the best legal advice for a small claims case",
+    "reading" : "search",
+    "routed" : "expert",
+    "surface" : "expert",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best ai to ask about my symptoms before i see a doctor",
+    "reading" : "search",
+    "routed" : "expert",
+    "surface" : "expert",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which model is best for writing a business plan for a coffee shop",
+    "reading" : "search",
+    "routed" : "web-dev",
+    "surface" : "web-dev",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best ai for writing poetry",
+    "reading" : "search",
+    "routed" : "factuality",
+    "surface" : "factuality",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which ai is best at answering excel and windows how-to questions",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "iş sözleşmemdeki maddeleri yorumlayan en iyi yapay zeka",
+    "reading" : "search",
+    "routed" : "document",
+    "surface" : "document",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "kan tahlili sonuclarimi anlamak icin hangi ai",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "şirketim için pazarlama stratejisi hazırlayacak en iyi yapay zeka",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "kuantum fizigi sorularinda en iyi model hangisi",
+    "reading" : "search",
+    "routed" : "expert",
+    "surface" : "expert",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which ai can read a screenshot of an error message and tell me whats wrong",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "best model for writing alt text for my photos",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "which ai can tell what car this is from a photo",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "snap a pic of a math problem, which ai solves it best",
+    "reading" : "search",
+    "routed" : "mathematics",
+    "surface" : "mathematics",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "bu faturanın fotoğrafındaki yazıları okuyan en iyi ai",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "akciger filmimi yorumlayacak yapay zeka hangisi",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "kedimin fotografina bakip cinsini soyleyen ai",
+    "reading" : "search",
+    "routed" : "vision",
+    "surface" : "vision",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "el yazısı notlarımın resmini metne çeviren model hangisi",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "grafikteki rakamlari okuyabilen en iyi model",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "math: which model is best at proofs",
+    "reading" : "search",
+    "routed" : "mathematics",
+    "surface" : "mathematics",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "search: which ai finds the latest news fastest",
+    "reading" : "search",
+    "routed" : "search",
+    "surface" : "search",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "coding: best model for refactoring old php",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "docs: best ai for comparing two contracts side by side",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "kodlama: react native uygulamasi icin en iyi model",
+    "reading" : "search",
+    "routed" : "coding",
+    "surface" : "coding",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "matematik: türev ve integral sorularında hangi ai iyi",
+    "reading" : "search",
+    "routed" : "mathematics",
+    "surface" : "mathematics",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "çeviri: japoncaya en iyi çeviri yapan model",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "hukuk: kira artisi konusunda en iyi yapay zeka hangisi",
+    "reading" : "search",
+    "routed" : "expert",
+    "surface" : "expert",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "hey how are you doing",
+    "reading" : "notASearch",
+    "routed" : "search",
+    "surface" : "search",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "how many calories are in a banana",
+    "reading" : "unsure",
+    "routed" : "assistant",
+    "surface" : "assistant",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "what does llm stand for",
+    "reading" : "search",
+    "routed" : "factuality",
+    "surface" : "factuality",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "thanks that was helpful",
+    "reading" : "notASearch",
+    "routed" : "vision",
+    "surface" : "vision",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "en iyi pizza tarifi nedir",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  },
+  {
+    "declined" : "false",
+    "model" : "nil",
+    "q" : "chatgpt kim tarafindan yapildi",
+    "reading" : "search",
+    "routed" : "everyday",
+    "surface" : "everyday",
+    "tier" : "similarity",
+    "unmeasured" : "false"
+  },
+  {
+    "declined" : "true",
+    "model" : "nil",
+    "q" : "bugun hava nasil olacak",
+    "reading" : "search",
+    "routed" : "nil",
+    "surface" : "assistant",
+    "tier" : "manual",
+    "unmeasured" : "true"
+  }
+]

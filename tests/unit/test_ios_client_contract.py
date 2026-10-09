@@ -1545,7 +1545,8 @@ def test_an_entry_matches_at_a_words_start_with_any_ending() -> None:
     word with any ending, Turkish suffixes and English plurals alike; not inside a word; and under
     three letters it is a suffix or a particle, not a signal. (Turkish letters are escaped: the
     repository is English, V4C-79.)"""
-    lists = [(["unut"], True), (["print", "\u00e7iz", "mu", "pirate"], False)]
+    # The tuple's flag is whether the app matches the list whole (#186); these are all read by their start.
+    lists = [(["unut"], False), (["print", "\u00e7iz", "mu", "pirate"], False)]
     held = ["talimatlar\u0131 unutsana", "a printer driver", "bir kedi \u00e7izsene", "bu mu", "a spirates"]
     assert _held_out_only_signals(lists, held, []) == ["print", "unut", "\u00e7iz"]
 
@@ -1631,17 +1632,24 @@ STRING_LIST = re.compile(r'\[\s*((?:"[^"\n]*"\s*,?\s*)+)\]')
 
 
 def _reading_lists() -> list[tuple[list[str], bool]]:
-    """#117: each list of strings in `Reading.swift`, and whether its entries are stems: a list whose
-    declaration names Turkish or stems, or one matched with `hasPrefix`."""
+    """#117: each list of strings in `Reading.swift`, with whether the app matches its entries whole
+    (#186; read per literal by `_lists_in`, the M21-W2 review's M6)."""
     code = "\n".join(line.split("//")[0] for line in _swift(CLIENT / "Engine/Reading.swift").splitlines())
-    lists = []
-    for found in STRING_LIST.finditer(code):
-        named = code[max(0, found.start() - 160):found.start()]
-        stems = (re.search(r"(Turkish|[Ss]tems)\b[^\n]*$", named) is not None
-                 or "hasPrefix" in code[found.end():found.end() + 60])
-        lists.append((re.findall(r'"([^"\n]*)"', found.group(1)), stems))
+    lists = _lists_in(code)
     assert sum(len(entries) for entries, _ in lists) > 100, "Reading.swift's lists were not read"
     return lists
+
+
+def _matched_whole(code: str, name: str) -> bool:
+    """#186: whether every use of the list `name` matches an entry whole: no use reads by `hasPrefix`
+    or `hasSuffix`, and at least one use is found: a method on it (`name.contains`) or a loop over it
+    whose test is whole (`for p in name where spaced.contains(" \\(p) ")`, the review's M6)."""
+    # Each use's own call, its parentheses balanced one level deep, not the text after it (the review's M6).
+    uses = [m.group(1) for m in re.finditer(rf"\b{re.escape(name)}\.\w+\(((?:[^()]|\([^()]*\))*)\)", code)]
+    # A method passed by name (`words.contains(where: factWordsTurkish.contains)`) is a whole use too.
+    uses += ["" for _ in re.finditer(rf"\b{re.escape(name)}\.(?:contains|firstIndex|first)\b(?!\()", code)]
+    uses += [m.group(1) for m in re.finditer(rf"\bin {re.escape(name)}\b([^\n]*)", code)]
+    return bool(uses) and not any("hasPrefix" in use or "hasSuffix" in use for use in uses)
 
 
 def test_every_fact_opener_and_small_talk_phrase_is_read_by_the_held_out_check() -> None:
@@ -1699,23 +1707,233 @@ def _held_and_tuning_strings() -> tuple[list[str], list[str]]:
     return held, tuning
 
 
-def _held_out_only_signals(lists: list[tuple[list[str], bool]], held: list[str], tuning: list[str]) -> list[str]:
-    """#117: each entry found in `held` and in no `tuning` string, sorted: at a word's start with any
-    ending (D-183); under three letters it is a suffix or a particle, not a signal. Case-folded on
-    every side. Whether a list holds stems no longer changes the match (the W3 review's M8)."""
-    held_text, tuning_text = "\n".join(held).casefold(), "\n".join(tuning).casefold()
+def _held_out_only_signals(
+    lists: list[tuple[list[str], bool]], held: list[str], tuning: list[str], plain_letters: bool = False
+) -> list[str]:
+    """#117: each entry found in `held` and in no `tuning` string, sorted. An entry the app matches
+    whole is matched whole (#186, M21-W2); any other at a word's start, with any ending (D-183, the W3
+    review's M8). Under three letters it is a suffix or a particle, not a signal. Case-folded on every
+    side; `plain_letters` folds the Turkish letters too, for the wording tier, which compares in plain
+    letters (D-187)."""
+    fold = _plain if plain_letters else str.casefold
+    held_text, tuning_text = fold("\n".join(held)), fold("\n".join(tuning))
     found = set()
-    for entries, _stems in lists:
+    for entries, whole in lists:
         for entry in entries:
-            word = entry.strip().casefold()
+            word = fold(entry.strip())
             if len(word) < 3:
                 continue
-            # At a word's start, with any ending (the W3 review's M8): a word's language cannot be read
-            # from its letters ("sistem komut"), and an English plural is the same word.
-            pattern = rf"(?<!\w){re.escape(word)}"
+            pattern = rf"(?<!\w){re.escape(word)}" + (r"(?!\w)" if whole else "")
             if re.search(pattern, held_text) and not re.search(pattern, tuning_text):
                 found.add(entry)
     return sorted(found)
+
+
+def _plain(text: str) -> str:
+    """Text in plain letters, as the wording tier compares it (`CategoryHints.plain`)."""
+    pairs = str.maketrans({"\u0131": "i", "\u015f": "s", "\u011f": "g", "\u00fc": "u", "\u00f6": "o",
+                           "\u00e7": "c", "\u00e2": "a", "\u00ee": "i", "\u00fb": "u"})
+    return text.casefold().translate(pairs).replace("\u0307", "")
+
+
+# --- The M21-W2 review's M6 -------------------------------------------------------------------------------
+
+#: One Swift shape per way `Reading.swift` matches a list: each literal is read with its own use's mode.
+_SHAPES = """
+    static let wholeList: Set<String> = ["alpha"]
+    static let stemList: Set<String> = ["bravo"]
+    static let phraseList = ["charlie delta"]
+    func uses(_ word: String, _ words: [String], _ spaced: String) -> Bool {
+        if wholeList.contains(word) || stemList.contains(where: word.hasPrefix) { return true }
+        for phrase in phraseList where spaced.contains(" \\(phrase) ") { return true }
+        let asks = ["echo", "foxtrot"].contains(words.first ?? "")
+        if words == ["golf"] { return false }
+        if ["hotel", "india"].contains(where: { word.hasPrefix($0) }) { return true }
+        let stems = ["juliet"]
+        if stems.contains(where: { word.hasPrefix($0) }) { return true }
+        return asks && words.contains(where: { ["kilo"].contains($0) }) || ["lima", "mike"].contains(word)
+    }
+"""
+
+
+def test_each_inline_list_is_read_with_its_own_uses_mode() -> None:
+    """M6 (a): a literal is read with the mode of its own use, not the last declaration above it."""
+    modes = {entry: whole for entries, whole in _lists_in(_SHAPES) for entry in entries}
+    assert modes == {
+        "alpha": True, "bravo": False, "charlie delta": True, "echo": True, "foxtrot": True, "golf": True,
+        "hotel": False, "india": False, "juliet": False, "kilo": True, "lima": True, "mike": True,
+    }
+
+
+def test_the_wording_read_holds_the_family_words() -> None:
+    """M6 (c): the generated family words (`ModelFamilies.swift`) are matched against questions too (a
+    comparison of model names, #206), so the held-out check reads them."""
+    entries = {entry for found, _whole in _wording_lists() for entry in found}
+    assert {"qwen", "mixtral", "kimi", "nemotron"} <= entries
+
+
+def _lists_in(code: str) -> list[tuple[list[str], bool]]:
+    """Each string literal list in `code`, and whether the app matches its entries whole (#186; the M21-W2
+    review's M6): a declaration's (`let name = [`) by the uses of its name, an inline one by its own use
+    right after it (`.contains(x)` and `== [` whole, `.contains(where: … hasPrefix …)` by its start).
+    Anything else is read by its start, the mode that flags less. The literals compared inline (`== "ne"`
+    whole, `hasPrefix("yıl")` by its start) are read too."""
+    lists: list[tuple[list[str], bool]] = []
+    for found in STRING_LIST.finditer(code):
+        entries = re.findall(r'"([^"\n]*)"', found.group(1))
+        before, after = code[max(0, found.start() - 200):found.start()], code[found.end():found.end() + 80]
+        declared = re.search(r"\b(?:let|var)\s+(\w+)\s*(?::[^=\n]+)?=\s*$", before)
+        if re.match(r"\s*\.contains\(where:[^\n]*hasPrefix", after):
+            whole = False
+        elif re.match(r"\s*\.\w+\(", after):
+            whole = bool(re.match(r"\s*\.contains\((?!where:)", after))
+        elif declared:
+            whole = _matched_whole(code, declared.group(1))
+        else:
+            whole = bool(re.search(r"==\s*$", before))
+        lists.append((entries, whole))
+    lists.append((re.findall(r'==\s*"([^"\n]+)"', code), True))
+    lists.append((re.findall(r'hasPrefix\("([^"\n]+)"\)', code), False))
+    return lists
+
+
+# --- M21-W2 (#186, #180): the held-out check matches as the app does, and reads the wording tier -------
+
+
+def test_an_entry_the_app_matches_whole_is_flagged_when_only_a_held_out_set_holds_it_whole() -> None:
+    """#186: the check matched every entry at a word's start with any ending, while the app matches many
+    lists whole. `nerede` held whole only by a held-out row, while a tuning row holds `nereden`, passed.
+    A list matched whole is now matched whole; one matched by its start stays so."""
+    held, tuning = ["kitap nerede"], ["nereden geldi bu"]
+    assert _held_out_only_signals([(["nerede"], True)], held, tuning) == ["nerede"]
+    assert _held_out_only_signals([(["nerede"], False)], held, tuning) == []
+
+
+def test_the_check_reads_how_each_list_is_matched_and_the_inline_literals() -> None:
+    """#186: whether a list is matched whole or by its start is read from the code that uses it, and the
+    literals compared inline (`$0 == "ne"`, `hasPrefix("yıl")`) are read too."""
+    modes: dict[str, bool] = {}
+    for entries, whole in _reading_lists():
+        for entry in entries:
+            modes[entry] = modes.get(entry, True) and whole
+    assert modes.get("kim") is True, "factWordsTurkish is matched whole"
+    assert modes.get("thx") is True, "smallTalkWords is matched whole"
+    assert modes.get("kodla") is False, "factExclusionStemsTurkish is matched by its start"
+    assert modes.get("zaman") is True and modes.get("ne") is True, "the inline == literals"
+    assert modes.get("y\u0131l") is False, "the inline hasPrefix literal"
+
+
+def test_the_wording_tiers_tuned_text_is_read_by_the_held_out_check() -> None:
+    """#180: the wording tier's hint sentences, its keyword lists (D-187) and the refinement words
+    (D-188 clause 6) are tuned text matched against questions too, so the check reads them."""
+    entries = {entry: whole for found, whole in _wording_lists() for entry in found}
+    assert {"parses", "comprehension"} <= set(entries), "the hint sentences were not read"
+    assert entries.get("traceback") is False, "a stem is matched by its start"
+    assert entries.get("codebase") is True, "a word is matched whole"
+    assert entries.get("unit test") is False and entries.get("book a flight") is True, "phrases"
+    assert entries.get("lawyer") is True and entries.get("hukuk") is False, "the refinement words"
+
+
+def test_every_wording_entry_only_a_live_held_out_set_holds_is_reviewed() -> None:
+    """#180: each entry of the wording tier's tuned text that a live held-out set holds and no tuning set
+    does is named in `WORDING_HELD_OUT_ONLY_REVIEWED`, with where it came from, as `Reading.swift`'s are."""
+    flagged = set(_held_out_only_signals(_wording_lists(), *_held_and_tuning_strings(), plain_letters=True))
+    assert flagged - set(WORDING_HELD_OUT_ONLY_REVIEWED) == set(), f"unreviewed: {sorted(flagged - set(WORDING_HELD_OUT_ONLY_REVIEWED))}"
+    assert set(WORDING_HELD_OUT_ONLY_REVIEWED) - flagged == set(), "reviewed entries no longer flagged; remove them"
+
+
+#: #180 (M21-W2): each entry of the wording tier's tuned text that a live held-out set holds and no tuning
+#: set does, with where it came from. The live set (`wording_heldout_m20`) was written by an independent
+#: seat that read no code, after M20-W3's `fb773fe`; every entry below was in the app before it, at `main`
+#: (`bd273bc`: the hint sentences and D-187's keyword lists) or in M20-W3 (the refinement words, #206).
+_WORDING_AT_MAIN = "in the app at bd273bc, before wording_heldout_m20 was written, so not read from it"
+_WORDING_IN_W3 = "added at {sha} (M20-W3), before wording_heldout_m20 was written by a seat that read no code"
+WORDING_HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
+    "agents": _WORDING_AT_MAIN,
+    "best llm": _WORDING_AT_MAIN,
+    "bilim": _WORDING_AT_MAIN,
+    "chatgpt": _WORDING_AT_MAIN,
+    "coding agent": _WORDING_AT_MAIN,
+    "commands": _WORDING_AT_MAIN,
+    "dress": _WORDING_AT_MAIN,
+    "grok": _WORDING_AT_MAIN,
+    "integral": _WORDING_AT_MAIN,
+    "kurgu": _WORDING_AT_MAIN,
+    "law": _WORDING_AT_MAIN,
+    "overall": _WORDING_AT_MAIN,
+    "php": _WORDING_AT_MAIN,
+    "rust code": _WORDING_AT_MAIN,
+    "searching": _WORDING_AT_MAIN,
+    "tasks": _WORDING_AT_MAIN,
+    "turev": _WORDING_AT_MAIN,
+    "user": _WORDING_AT_MAIN,
+    "yazan": _WORDING_AT_MAIN,
+    "learn": _WORDING_IN_W3.format(sha="fb773fe"),
+    "pazarlama": _WORDING_IN_W3.format(sha="7c12a7b"),
+    "poetry": _WORDING_IN_W3.format(sha="7c12a7b"),
+    "yoksa": _WORDING_IN_W3.format(sha="fb773fe"),
+}
+
+
+def _wording_lists() -> list[tuple[list[str], bool]]:
+    """#180 (M21-W2): the wording tier's tuned text, each entry with whether it is matched whole:
+    - the hint sentences (`CategoryHints.examples`), word by word, whole;
+    - the keyword lists (D-187): `stems:` by their start, `words:`, `unless:` and `names:` whole, each of
+      `phrases:` as words in a row (by its start where it ends in `*`), `marks:` by their start;
+    - every other literal in `CategoryHints` and in the refinement words (D-188 clause 6), whole, or by
+      its start where it ends in `*`.
+    Read from `Router.swift`'s `CategoryHints` and `Refinements.swift` from `struct Words` to `read`."""
+    router = _swift(CLIENT / "Engine/Router.swift")
+    refinements = _swift(CLIENT / "Engine/Refinements.swift")
+    # The review's M6 (c): the generated family words.
+    families = _swift(CLIENT / "Engine/ModelFamilies.swift")
+    regions = [router[router.index("enum CategoryHints"):router.index("protocol QuestionRouter")],
+               refinements[refinements.index("struct Words"):refinements.index("static func read(")]]
+    lists: list[tuple[list[str], bool]] = [(re.findall(r'"([^"\n]*)"', families), True)]
+    for region in regions:
+        code = "\n".join(line.split("//")[0] for line in region.splitlines())
+        taken: list[tuple[int, int]] = []
+        examples = re.search(r"static let examples[^=]*=\s*\[", code)
+        if examples:
+            end = _closing(code, examples.end() - 1)
+            taken.append((examples.start(), end))
+            sentences = re.findall(r'"([^"\n]*)"', code[examples.end():end])
+            lists.append(([word for sentence in sentences for word in re.findall(r"[^\W\d_]+", sentence)], True))
+        for label in re.finditer(r"\b(id|stems|words|phrases|marks|unless|names):\s*\[?", code):
+            if label.group(1) == "id":
+                quoted = re.match(r'\s*"[^"\n]*"', code[label.end():])
+                taken.append((label.start(), label.end() + (quoted.end() if quoted else 0)))
+                continue
+            if code[label.end() - 1] != "[":
+                continue
+            end = _closing(code, label.end() - 1)
+            taken.append((label.start(), end))
+            body = code[label.end():end]
+            if label.group(1) == "phrases":
+                for inner in re.findall(r"\[([^\[\]]*)\]", body):
+                    phrase = " ".join(re.findall(r'"([^"\n]*)"', inner))
+                    lists.append(([phrase.rstrip("*")], not phrase.endswith("*")))
+            else:
+                for entry in re.findall(r'"([^"\n]*)"', body):
+                    lists.append(([entry.rstrip("*")], label.group(1) in ("words", "unless", "names")
+                                  and not entry.endswith("*")))
+        for literal in re.finditer(r'"([^"\n]*)"', code):
+            entry = literal.group(1)
+            if any(start <= literal.start() <= end for start, end in taken) or "\\(" in entry:
+                continue
+            if re.search(r"[^\W\d_]", entry):
+                lists.append(([entry.rstrip("*")], not entry.endswith("*")))
+    return lists
+
+
+def _closing(code: str, start: int) -> int:
+    """The index of the bracket that closes the one at `start`."""
+    depth = 0
+    for index in range(start, len(code)):
+        depth += {"[": 1, "]": -1}.get(code[index], 0)
+        if depth == 0:
+            return index
+    return len(code)
 
 
 def test_the_screen_hands_the_refined_board_to_the_plan() -> None:
