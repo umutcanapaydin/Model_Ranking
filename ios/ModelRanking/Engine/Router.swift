@@ -369,10 +369,14 @@ extension CategoryHints {
     /// What `everyday` answers where the embedding cannot read the question: a question about AI models
     /// in general, which names no surface.
     static let generalWords = SurfaceWords(
-        id: "everyday", stems: ["everyday", "gunluk"],
+        // #222 (M21-W2): a Turkish ask for "the best one" (`en iyisi`), "which one for" (`için hangisi`),
+        // a model or a recommendation (`model`, `öner`) names no surface but asks for a model; with no
+        // embedding to read it, it was "not measured". Written from the wave's own sentences.
+        id: "everyday", stems: ["everyday", "gunluk", "model", "oner"],
         words: ["llm", "llms", "chatgpt", "gpt", "gemini", "claude", "llama", "mistral", "deepseek", "copilot", "grok",
                 "qwen"],
-        phrases: [["yapay", "zek*"], ["best", "ai"], ["which", "ai"], ["hangi", "yapay"], ["en", "iyi", "model*"],
+        phrases: [["en", "iyisi"], ["icin", "hangisi*"], ["hangisi*", "iyi"], ["hangisini", "kullan*"],
+                  ["yapay", "zek*"], ["best", "ai"], ["which", "ai"], ["hangi", "yapay"], ["en", "iyi", "model*"],
                   ["best", "model*"], ["which", "model*"], ["hangi", "model*"], ["best", "llm*"], ["which", "llm*"]])
 
     /// A word in plain letters: lower case, and the Turkish letters as the ones a reader types without
