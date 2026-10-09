@@ -593,3 +593,32 @@ def test_every_rule_has_a_refused_shape_in_the_fixture() -> None:
     assert len(gate.FIXTURE_RULES) >= 8, "the rules are not named"
     for rule, phrase in gate.FIXTURE_RULES.items():
         assert any(phrase in carried for carried in phrases), f"no fixture refusal carries the {rule} rule"
+
+
+def _marked(mark: str) -> int:
+    """The line of `Arithmetic.swift` in the fixture that carries `mark`."""
+    lines = (ROOT / "scripts" / "client_decl_fixtures" / "Arithmetic.swift").read_text(encoding="utf-8").splitlines()
+    found = [number for number, line in enumerate(lines, start=1) if line.rstrip().endswith(mark)]
+    assert len(found) == 1, f"{mark} marks {len(found)} lines"
+    return found[0]
+
+
+@pytest.mark.parametrize(
+    "shape",
+    ["prefix-minus", "shift", "shift-assign", "operator-as-value", "operator-as-value-map", "pow", "truncating",
+     "quotient", "overflow", "custom-operator", "numeric-extension", "subscript", "later-line",
+     "decoded-in-extension"],
+)
+def test_each_shape_the_second_review_planted_is_refused(shape: str) -> None:
+    """#173 (D-181, G-2): every operator, method and name the second M19-W2 review planted past the
+    arithmetic rule is refused at its own line."""
+    line = _marked(f"// shape: {shape}")
+    refused = [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+    assert refused, f"{shape} (Arithmetic.swift:{line}) is not refused"
+
+
+def test_a_count_of_served_things_is_not_arithmetic_on_a_served_number() -> None:
+    """#173, the review's M5: `filter { $0.position > 0 }.count + 1` counts things; the walk read the
+    closure inside the operand and refused it as `+` on a served position."""
+    line = _marked("// allowed: filter-count")
+    assert not [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]

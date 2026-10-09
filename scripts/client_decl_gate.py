@@ -406,6 +406,9 @@ FIXTURE_REFUSALS = {
     ("Detail.swift", "StandingsStore.currentKept(now:fetch:)"),
     # #174, #188: the reader's text as a request's budget, and kept as the surface it sends.
     ("ContentView.swift", "the request's `budget` argument"), ("ContentView.swift", "assigns `ContentView.task`"),
+    # #173: arithmetic on a served number by every shape the second M19-W2 review planted.
+    ("Arithmetic.swift", "on a served"), ("Arithmetic.swift", "declares the operator `+`"),
+    ("Arithmetic.swift", "extends `Int`"),
     # #175 R3: a framework off the allowlist, and text into shared storage (FORBIDDEN).
     ("Imports.swift", "imports `Network`"), ("ContentView.swift", "UserDefaults"),
     # #168: a URL loaded as text, as NSData and by an XML parser is the network too.
