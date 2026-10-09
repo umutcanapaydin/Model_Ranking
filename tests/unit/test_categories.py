@@ -413,7 +413,7 @@ def test_every_surface_names_the_source_its_board_arrives_on() -> None:
         "mathematics": "epoch_aime",
         "computer-use": "epoch_terminalbench",
         "abstract": "epoch_arc_agi",
-        "web-dev": "epoch_webdev",
+        "web-dev": "arena_webdev",  # #185 (M21-W1): LMArena's own board, under CC-BY-4.0
     }
     assert set(pairs) == set(CATEGORIES), "a surface was added or removed without pinning its source"
     for surface, source in pairs.items():
