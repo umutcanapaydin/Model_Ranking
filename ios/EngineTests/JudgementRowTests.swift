@@ -49,4 +49,16 @@ final class JudgementRowTests: OfflineTestCase {
         XCTAssertEqual(row["family"] as? [String], [])
         XCTAssertEqual(row["primary"] as? [String], ["A"])
     }
+
+    /// The M21-W2 review's M7: the primary board is read in its position order and both lists are cut at
+    /// five, whatever order the payload sends.
+    func testBothListsAreInPlaceOrderAndCutAtFive() throws {
+        let order = [("f", 6), ("a", 1), ("e", 5), ("b", 2), ("d", 4), ("c", 3)]
+        let data = standings([board("swebench", order), board("aider", order)])
+        let row = JudgementRows.row(question: "best model for coding",
+                                    outcome: RoutingOutcome(categoryID: "coding", tier: .similarity, unmeasured: false),
+                                    categories: try categories(), standings: data, asOf: Date())
+        XCTAssertEqual(row["primary"] as? [String], ["A", "B", "C", "D", "E"])
+        XCTAssertEqual(row["family"] as? [String], ["A", "B", "C", "D", "E"])
+    }
 }

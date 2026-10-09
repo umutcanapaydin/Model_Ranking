@@ -76,3 +76,48 @@ def test_the_scorer_refuses_a_choice_it_cannot_read_and_a_key_for_another_sheet(
     key.write_text(json.dumps([{"question": "another", "family": "A", "primary": "B"}]), encoding="utf-8")
     with pytest.raises(ValueError, match="key"):
         sheet.score(out, key)
+
+
+# --- The M21-W2 review's M7 ----------------------------------------------------------------------------------
+
+
+def _rows(n: int) -> list[dict[str, object]]:
+    return [{"q": f"question {i}", "surface": "coding", "family": [f"F{i}"], "primary": [f"P{i}"], "boards": ["b"]}
+            for i in range(n)]
+
+
+def test_ours_lands_on_both_sides(tmp_path: pathlib.Path) -> None:
+    """M7: with twelve rows the coin puts our list on A and on B, so "ours is always A" fails here."""
+    probe = tmp_path / "probe.json"
+    probe.write_text(json.dumps(_rows(12)), encoding="utf-8")
+    sheet.make(probe, tmp_path / "sheet.csv", tmp_path / "key.json", seed=2026)
+    sides = {side["family"] for side in json.loads((tmp_path / "key.json").read_text(encoding="utf-8"))}
+    assert sides == {"A", "B"}
+
+
+def test_a_tie_is_no_revisit_and_same_is_neither(tmp_path: pathlib.Path) -> None:
+    """M7: a tie does not call D-188's revisit, and "same" counts for neither list."""
+    probe = tmp_path / "probe.json"
+    probe.write_text(json.dumps(_rows(4)), encoding="utf-8")
+    out, key = tmp_path / "sheet.csv", tmp_path / "key.json"
+    sheet.make(probe, out, key, seed=1)
+    sides = json.loads(key.read_text(encoding="utf-8"))
+    rows = list(csv.DictReader(out.open(encoding="utf-8")))
+    for row, side, choice in zip(rows, sides, ["primary", "family", "same", "SAME"], strict=True):
+        row["choice"] = side.get(choice, choice)
+    with out.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+    assert sheet.score(out, key) == {"family": 1, "primary": 1, "same": 2, "unjudged": 0, "revisit": False}
+
+
+def test_the_key_is_never_written_inside_the_repository(tmp_path: pathlib.Path) -> None:
+    """M7: the key, written beside the sheet in the repository, could be committed and seen before the
+    owner judges; a key inside the repository is refused."""
+    probe = tmp_path / "probe.json"
+    probe.write_text(json.dumps(_rows(2)), encoding="utf-8")
+    inside = sheet.ROOT / "docs/research/judgement/key.json"
+    with pytest.raises(ValueError, match="key"):
+        sheet.make(probe, tmp_path / "sheet.csv", inside)
+    assert not inside.exists()

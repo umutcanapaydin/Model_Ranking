@@ -21,6 +21,8 @@ import json
 import pathlib
 import random
 
+#: The repository (a stub in the red commit).
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 FIELDS = ["n", "question", "surface", "A", "B", "choice", "note"]
 
 
