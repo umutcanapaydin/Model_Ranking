@@ -426,3 +426,21 @@ def test_a_new_minute_resets_both_of_a_clients_counts(client: TestClient, monkey
     monkeypatch.setattr(main, "_rate_clock", lambda: 2460.0)
     assert client.get("/v1/budgets", headers=ip).status_code == 200
     assert client.get("/v1/boards", headers=ip).status_code == 200
+
+
+def test_a_refusal_in_a_later_minute_is_said_again(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The M21-W1 Tester's T4: a refusal is said once per client per window (#228 keeps a flag for it in the
+    client's entry, since a refused request is no longer charged). A new window clears the flag with the
+    counts, or a client refused every minute would be said once and never again."""
+    from app.adapter import main
+
+    said: list[int] = []
+    for minute in (3000.0, 3060.0):
+        monkeypatch.setattr(main, "_rate_clock", lambda at=minute: at)
+        caplog.clear()
+        with caplog.at_level(logging.INFO, logger=main.__name__):
+            assert [_ask(client, "203.0.113.97") for _ in range(5)] == [200, 200, 200, 429, 429], minute
+        said.append(sum("rate limited" in record.getMessage() for record in caplog.records))
+    assert said == [1, 1]
