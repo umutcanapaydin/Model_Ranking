@@ -37,9 +37,28 @@ enum ProbeRows {
 }
 
 /// #226 (M21-W2): one row of the owner's judgement sheet: what the screen shows for a question (our
-/// family list's first five) beside the primary board's own first five. `JudgementProbe` writes these;
-/// `scripts/judgement_sheet.py` blinds them into the sheet the owner fills in. (A stub in the red commit.)
+/// family list's first five, planned by `answerPlan` as the screen plans it) beside the primary board's
+/// own first five. `scripts/router_probe/JudgementProbe.swift` writes these; `scripts/judgement_sheet.py`
+/// blinds them into the sheet the owner fills in. A question the screen answers with cards has no
+/// family list, and the sheet leaves it out.
 enum JudgementRows {
-    static func row(question: String, outcome: RoutingOutcome, categories: [ModelRankingEngine.Category], standings: Standings,
-                    asOf: Date) -> [String: Any] { [:] }
+    static func row(question: String, outcome: RoutingOutcome, categories: [ModelRankingEngine.Category],
+                    standings: Standings, asOf: Date) -> [String: Any] {
+        let info = categories.first { $0.id == outcome.categoryID }
+        let display = Dictionary(standings.models.map { ($0.id, $0.display) }, uniquingKeysWith: { first, _ in first })
+        var row: [String: Any] = ["q": question, "surface": outcome.categoryID, "family": [String](),
+                                  "primary": [String](), "boards": [String]()]
+        if let primary = info?.primaryBoard, let board = standings.boards.first(where: { $0.id == primary }) {
+            var seen = Set<String>()
+            let order = board.standings.sorted { $0.position < $1.position }.map(\.model).filter { seen.insert($0).inserted }
+            row["primary"] = order.prefix(5).map { display[$0] ?? $0 }
+        }
+        let plan = answerPlan(outcome: outcome, primaryBoard: info?.primaryBoard, family: info?.boards, question: question,
+                              asOf: asOf, standings: standings, removed: [], refinedBoard: info?.refinedBoard)
+        if case let .combined(view) = plan {
+            row["family"] = view.list.entries.prefix(5).map(\.model.display)
+            row["boards"] = view.list.boards.map(\.id)
+        }
+        return row
+    }
 }

@@ -4488,5 +4488,6 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
 simpler, but a new model ranked by two boards out of eight would never appear.
 
 **Revisit when:** the owner's judgement of a sample of answers (#226) prefers the primary board's own
-answer to the family list. The labelled set of #195 cannot show it: it is labelled for the surface, not
+answer to the family list on more questions than ours (`docs/judgement-sheet.md`; `revisit` in
+`scripts/judgement_sheet.py`, M21-W2). The labelled set of #195 cannot show it: it is labelled for the surface, not
 for the best model (M20-W5, `docs/research/m20-w5-family-probe.md` §4; the M20 repo review's M5).
