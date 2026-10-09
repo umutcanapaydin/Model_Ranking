@@ -55,6 +55,12 @@ func fixtureStoreElsewhere(_ place: URL, _ kept: FetchedStandings) {
     StandingsStore(url: place).save(kept, at: Date())
 }
 
+// #170: a date of the screen's choosing into the standings file, a 64-bit channel. REFUSED: only the
+// store's own file dates what it keeps.
+func fixtureScreenDatesTheStore(_ typed: String) -> Int? {
+    StandingsStore.onDevice.currentKept(now: Date(timeIntervalSince1970: Double(typed.utf8.count)), fetch: { 0 })
+}
+
 // U9: the client's address rewritten through its memory. REFUSED: no file touches memory unsafely.
 func fixtureRewrites(_ client: inout EngineClient) {
     withUnsafeMutablePointer(to: &client) { _ in }

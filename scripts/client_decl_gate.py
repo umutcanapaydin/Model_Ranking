@@ -376,6 +376,8 @@ FIXTURE_REFUSALS = {
     ("Detail.swift", "withUnsafeMutablePointer"),
     ("Models.swift", "a privacy sink runs"),
     ("ContentView.swift", "with `sortedArray`"),
+    # #170: a date of another file's choosing into the standings file.
+    ("Detail.swift", "StandingsStore.currentKept(now:fetch:)"),
     # #168: a URL loaded as text, as NSData and by an XML parser is the network too.
     ("ContentView.swift", "String.init(contentsOf"), ("ContentView.swift", "NSData.init(contentsOf"),
     ("ContentView.swift", "XMLParser.init(contentsOf"),

@@ -80,6 +80,11 @@ public struct StandingsStore {
         await currentKept(now: now, fetch: fetch)?.standings
     }
 
+    /// #170: `currentKept` dated by the store's own clock (a stub in the red commit).
+    func currentKept(fetch: () async throws -> FetchedStandings) async -> KeptStandings? {
+        nil
+    }
+
     /// `current`, with the time the served standings arrived, so a copy kept past a day because a
     /// newer one could not be fetched can be said on screen (M18-W2 review M3, #72).
     func currentKept(now: Date, fetch: () async throws -> FetchedStandings) async -> KeptStandings? {

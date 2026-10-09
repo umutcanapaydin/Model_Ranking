@@ -2008,21 +2008,60 @@
                   (argument
                     (type_expr type="Date.Type" location=/x/Detail.swift:55:47 range=[/x/Detail.swift:55:47 - line:55:47] typerepr="Date"))))
               (argument_list)))))))
-  (func_decl range=[/x/Detail.swift:59:1 - line:61:1] "fixtureRewrites(_:)" interface_type="(inout EngineClient) -> ()" access=internal result="()" thrown_type="<null>"
-    (parameter_list range=[/x/Detail.swift:59:21 - line:59:50]
+  (func_decl range=[/x/Detail.swift:60:1 - line:62:1] "fixtureScreenDatesTheStore(_:)" interface_type="(String) -> Int?" access=internal result="Int?" thrown_type="<null>"
+    (parameter_list range=[/x/Detail.swift:60:32 - line:60:48]
+      (parameter "typed" interface_type="String"))
+    (brace_stmt range=[/x/Detail.swift:60:58 - line:62:1]
+      (return_stmt implicit range=[/x/Detail.swift:61:5 - line:61:113]
+        (call_expr type="Int?" location=/x/Detail.swift:61:29 range=[/x/Detail.swift:61:5 - line:61:113] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr type="(Date, () -> Int) -> Int?" location=/x/Detail.swift:61:29 range=[/x/Detail.swift:61:5 - line:61:29] nothrow isolation_crossing="none"
+            (declref_expr type="(StandingsStore) -> (Date, () -> Int) -> Int?" location=/x/Detail.swift:61:29 range=[/x/Detail.swift:61:29 - line:61:29] decl="main.(file).StandingsStore.currentKept(now:fetch:)@/x/StandingsStore.swift:26:10" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (member_ref_expr type="StandingsStore" location=/x/Detail.swift:61:20 range=[/x/Detail.swift:61:5 - line:61:20] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                  (type_expr type="StandingsStore.Type" location=/x/Detail.swift:61:5 range=[/x/Detail.swift:61:5 - line:61:5] typerepr="StandingsStore")))))
+          (argument_list labels="now:fetch:"
+            (argument label="now"
+              (call_expr type="Date" location=/x/Detail.swift:61:46 range=[/x/Detail.swift:61:46 - line:61:98] nothrow isolation_crossing="none"
+                (constructor_ref_call_expr type="(TimeInterval) -> Date" location=/x/Detail.swift:61:46 range=[/x/Detail.swift:61:46 - line:61:46] nothrow isolation_crossing="none"
+                  (declref_expr implicit type="(Date.Type) -> (TimeInterval) -> Date" location=/x/Detail.swift:61:46 range=[/x/Detail.swift:61:46 - line:61:46] decl="Foundation.(file).Date.init(timeIntervalSince1970:)" function_ref=single apply)
+                  (argument_list implicit
+                    (argument
+                      (type_expr type="Date.Type" location=/x/Detail.swift:61:46 range=[/x/Detail.swift:61:46 - line:61:46] typerepr="Date"))))
+                (argument_list labels="timeIntervalSince1970:"
+                  (argument label="timeIntervalSince1970"
+                    (call_expr type="Double" location=/x/Detail.swift:61:74 range=[/x/Detail.swift:61:74 - line:61:97] nothrow isolation_crossing="none"
+                      (constructor_ref_call_expr type="(Int) -> Double" location=/x/Detail.swift:61:74 range=[/x/Detail.swift:61:74 - line:61:74] nothrow isolation_crossing="none"
+                        (declref_expr implicit type="(Double.Type) -> (Int) -> Double" location=/x/Detail.swift:61:74 range=[/x/Detail.swift:61:74 - line:61:74] decl="Swift.(file).Double extension.init(_:)" function_ref=single apply)
+                        (argument_list implicit
+                          (argument
+                            (type_expr type="Double.Type" location=/x/Detail.swift:61:74 range=[/x/Detail.swift:61:74 - line:61:74] typerepr="Double"))))
+                      (argument_list
+                        (argument
+                          (member_ref_expr type="Int" location=/x/Detail.swift:61:92 range=[/x/Detail.swift:61:81 - line:61:92] decl="Swift.(file).UTF8View extension.count"
+                            (member_ref_expr type="String.UTF8View" location=/x/Detail.swift:61:87 range=[/x/Detail.swift:61:81 - line:61:87] decl="Swift.(file).String extension.utf8"
+                              (declref_expr type="String" location=/x/Detail.swift:61:81 range=[/x/Detail.swift:61:81 - line:61:81] decl="main.(file).fixtureScreenDatesTheStore(_:).typed@/x/Detail.swift:60:35" function_ref=unapplied))))))))))
+            (argument label="fetch"
+              (closure_expr type="() -> Int" location=/x/Detail.swift:61:108 range=[/x/Detail.swift:61:108 - line:61:112] discriminator=0 nonisolated single_expression
+                (parameter_list range=[/x/Detail.swift:61:108 - line:61:108])
+                (brace_stmt range=[/x/Detail.swift:61:108 - line:61:112]
+                  (return_stmt implicit range=[/x/Detail.swift:61:110 - line:61:110]
+                    (integer_literal_expr type="Int" location=/x/Detail.swift:61:110 range=[/x/Detail.swift:61:110 - line:61:110] value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))))))))))
+  (func_decl range=[/x/Detail.swift:65:1 - line:67:1] "fixtureRewrites(_:)" interface_type="(inout EngineClient) -> ()" access=internal result="()" thrown_type="<null>"
+    (parameter_list range=[/x/Detail.swift:65:21 - line:65:50]
       (parameter "client" interface_type="EngineClient" inout))
-    (brace_stmt range=[/x/Detail.swift:59:52 - line:61:1]
-      (call_expr type="()" location=/x/Detail.swift:60:5 range=[/x/Detail.swift:60:5 - line:60:50] nothrow isolation_crossing="none"
-        (declref_expr type="(inout EngineClient, (UnsafeMutablePointer<EngineClient>) -> ()) -> ()" location=/x/Detail.swift:60:5 range=[/x/Detail.swift:60:5 - line:60:5] decl="Swift.(file).withUnsafeMutablePointer(to:_:) [with (substitution_map generic_signature=<T, E, Result where T : Escapable, E : Error, Result : Escapable> T -> EngineClient E -> Never Result -> ())]" function_ref=single apply)
+    (brace_stmt range=[/x/Detail.swift:65:52 - line:67:1]
+      (call_expr type="()" location=/x/Detail.swift:66:5 range=[/x/Detail.swift:66:5 - line:66:50] nothrow isolation_crossing="none"
+        (declref_expr type="(inout EngineClient, (UnsafeMutablePointer<EngineClient>) -> ()) -> ()" location=/x/Detail.swift:66:5 range=[/x/Detail.swift:66:5 - line:66:5] decl="Swift.(file).withUnsafeMutablePointer(to:_:) [with (substitution_map generic_signature=<T, E, Result where T : Escapable, E : Error, Result : Escapable> T -> EngineClient E -> Never Result -> ())]" function_ref=single apply)
         (argument_list labels="to:_:"
           (argument label="to" inout
-            (inout_expr type="inout EngineClient" location=/x/Detail.swift:60:34 range=[/x/Detail.swift:60:34 - line:60:35]
-              (declref_expr type="@lvalue EngineClient" location=/x/Detail.swift:60:35 range=[/x/Detail.swift:60:35 - line:60:35] decl="main.(file).fixtureRewrites(_:).client@/x/Detail.swift:59:24" function_ref=unapplied)))
+            (inout_expr type="inout EngineClient" location=/x/Detail.swift:66:34 range=[/x/Detail.swift:66:34 - line:66:35]
+              (declref_expr type="@lvalue EngineClient" location=/x/Detail.swift:66:35 range=[/x/Detail.swift:66:35 - line:66:35] decl="main.(file).fixtureRewrites(_:).client@/x/Detail.swift:65:24" function_ref=unapplied)))
           (argument
-            (closure_expr type="(UnsafeMutablePointer<EngineClient>) -> ()" location=/x/Detail.swift:60:43 range=[/x/Detail.swift:60:43 - line:60:50] discriminator=0 nonisolated
-              (parameter_list range=[/x/Detail.swift:60:45 - line:60:45]
+            (closure_expr type="(UnsafeMutablePointer<EngineClient>) -> ()" location=/x/Detail.swift:66:43 range=[/x/Detail.swift:66:43 - line:66:50] discriminator=0 nonisolated
+              (parameter_list range=[/x/Detail.swift:66:45 - line:66:45]
                 (parameter <anonymous @ 0x0> interface_type="UnsafeMutablePointer<EngineClient>"))
-              (brace_stmt range=[/x/Detail.swift:60:43 - line:60:50]))))))))
+              (brace_stmt range=[/x/Detail.swift:66:43 - line:66:50]))))))))
 (source_file "/x/EngineClient.swift"
   (import_decl range=[/x/EngineClient.swift:2:1 - line:2:8] module="Foundation")
   (func_decl range=[/x/EngineClient.swift:4:1 - line:6:1] "fixtureClientFetches(_:)" interface_type="(URL) async throws -> Data" access=internal result="Data" thrown_type="<null>"
@@ -3259,7 +3298,7 @@
         (member_ref_expr type="URL" location=/x/StandingsStore.swift:5:25 range=[/x/StandingsStore.swift:5:5 - line:5:25] decl="Foundation.(file).FileManager extension.temporaryDirectory@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSFileManager.h:462:35"
           (member_ref_expr type="FileManager" location=/x/StandingsStore.swift:5:17 range=[/x/StandingsStore.swift:5:5 - line:5:17] decl="Foundation.(file).FileManager.default@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSFileManager.h:100:52"
             (type_expr type="FileManager.Type" location=/x/StandingsStore.swift:5:5 range=[/x/StandingsStore.swift:5:5 - line:5:5] typerepr="FileManager"))))))
-  (struct_decl range=[/x/StandingsStore.swift:10:1 - line:24:1] "StandingsStore" interface_type="StandingsStore.Type" access=internal non_resilient
+  (struct_decl range=[/x/StandingsStore.swift:10:1 - line:34:1] "StandingsStore" interface_type="StandingsStore.Type" access=internal non_resilient
     (pattern_binding_decl range=[/x/StandingsStore.swift:11:5 - line:11:14]
       (pattern_entry init_context=0x0
         (pattern_typed type="URL"
@@ -3316,60 +3355,97 @@
           (discard_assignment_expr type="@lvalue (FetchedStandings, Date)" location=/x/StandingsStore.swift:22:9 range=[/x/StandingsStore.swift:22:9 - line:22:9])
           (tuple_expr type="(FetchedStandings, Date)" location=/x/StandingsStore.swift:22:13 range=[/x/StandingsStore.swift:22:13 - line:22:27] "'',''"
             (declref_expr type="FetchedStandings" location=/x/StandingsStore.swift:22:14 range=[/x/StandingsStore.swift:22:14 - line:22:14] decl="main.(file).StandingsStore.save(_:at:).fetched@/x/StandingsStore.swift:21:17" function_ref=unapplied)
-            (declref_expr type="Date" location=/x/StandingsStore.swift:22:23 range=[/x/StandingsStore.swift:22:23 - line:22:23] decl="main.(file).StandingsStore.save(_:at:).date@/x/StandingsStore.swift:21:47" function_ref=unapplied))))))
-  (func_decl range=[/x/StandingsStore.swift:26:1 - line:28:1] "fixtureStoreRestores(_:)" interface_type="(Data) -> FetchedStandings?" access=internal result="FetchedStandings?" thrown_type="<null>"
-    (parameter_list range=[/x/StandingsStore.swift:26:26 - line:26:39]
-      (parameter "data" interface_type="Data"))
-    (brace_stmt range=[/x/StandingsStore.swift:26:62 - line:28:1]
-      (return_stmt implicit range=[/x/StandingsStore.swift:27:5 - line:27:40]
-        (optional_try_expr type="FetchedStandings?" location=/x/StandingsStore.swift:27:10 range=[/x/StandingsStore.swift:27:5 - line:27:40] thrown_error="any Error"
-          (inject_into_optional implicit type="FetchedStandings?" location=/x/StandingsStore.swift:27:10 range=[/x/StandingsStore.swift:27:10 - line:27:40]
-            (call_expr type="FetchedStandings" location=/x/StandingsStore.swift:27:10 range=[/x/StandingsStore.swift:27:10 - line:27:40] throws isolation_crossing="none"
-              (constructor_ref_call_expr type="(Data) throws -> FetchedStandings" location=/x/StandingsStore.swift:27:10 range=[/x/StandingsStore.swift:27:10 - line:27:10] nothrow isolation_crossing="none"
-                (declref_expr implicit type="(FetchedStandings.Type) -> (Data) throws -> FetchedStandings" location=/x/StandingsStore.swift:27:10 range=[/x/StandingsStore.swift:27:10 - line:27:10] decl="main.(file).FetchedStandings.init(payload:)@/x/Models.swift:21:5" function_ref=single apply)
-                (argument_list implicit
-                  (argument
-                    (type_expr type="FetchedStandings.Type" location=/x/StandingsStore.swift:27:10 range=[/x/StandingsStore.swift:27:10 - line:27:10] typerepr="FetchedStandings"))))
-              (argument_list labels="payload:"
-                (argument label="payload"
-                  (declref_expr type="Data" location=/x/StandingsStore.swift:27:36 range=[/x/StandingsStore.swift:27:36 - line:27:36] decl="main.(file).fixtureStoreRestores(_:).data@/x/StandingsStore.swift:26:29" function_ref=unapplied)))))))))
-  (func_decl range=[/x/StandingsStore.swift:32:1 - line:34:1] "fixtureStoreRelays(_:)" interface_type="(String) -> URL" access=internal result="URL" thrown_type="<null>"
-    (parameter_list range=[/x/StandingsStore.swift:32:24 - line:32:40]
-      (parameter "typed" interface_type="String"))
-    (brace_stmt range=[/x/StandingsStore.swift:32:49 - line:34:1]
-      (return_stmt implicit range=[/x/StandingsStore.swift:33:5 - line:33:98]
-        (call_expr type="URL" location=/x/StandingsStore.swift:33:91 range=[/x/StandingsStore.swift:33:5 - line:33:98] nothrow isolation_crossing="none"
-          (dot_syntax_call_expr type="() -> URL" location=/x/StandingsStore.swift:33:91 range=[/x/StandingsStore.swift:33:5 - line:33:91] nothrow isolation_crossing="none"
-            (declref_expr type="(EngineClient) -> () -> URL" location=/x/StandingsStore.swift:33:91 range=[/x/StandingsStore.swift:33:91 - line:33:91] decl="main.(file).EngineClient.boards()@/x/EngineClient.swift:52:10" function_ref=single apply)
-            (argument_list implicit
-              (argument
-                (call_expr type="EngineClient" location=/x/StandingsStore.swift:33:5 range=[/x/StandingsStore.swift:33:5 - line:33:89] nothrow isolation_crossing="none"
-                  (constructor_ref_call_expr type="(URL, URLSession?) -> EngineClient" location=/x/StandingsStore.swift:33:5 range=[/x/StandingsStore.swift:33:5 - line:33:5] nothrow isolation_crossing="none"
-                    (declref_expr implicit type="(EngineClient.Type) -> (URL, URLSession?) -> EngineClient" location=/x/StandingsStore.swift:33:5 range=[/x/StandingsStore.swift:33:5 - line:33:5] decl="main.(file).EngineClient.init(baseURL:session:)@/x/EngineClient.swift:42:5" function_ref=single apply)
+            (declref_expr type="Date" location=/x/StandingsStore.swift:22:23 range=[/x/StandingsStore.swift:22:23 - line:22:23] decl="main.(file).StandingsStore.save(_:at:).date@/x/StandingsStore.swift:21:47" function_ref=unapplied)))))
+    (func_decl range=[/x/StandingsStore.swift:26:5 - line:29:5] "currentKept(now:fetch:)" interface_type="(StandingsStore) -> (Date, () -> Int) -> Int?" access=internal
+      (parameter "self" interface_type="StandingsStore") result="Int?" thrown_type="<null>"
+      (parameter_list range=[/x/StandingsStore.swift:26:21 - line:26:49]
+        (parameter "now" apiName="now" interface_type="Date")
+        (parameter "fetch" apiName="fetch" interface_type="() -> Int"))
+      (brace_stmt range=[/x/StandingsStore.swift:26:59 - line:29:5]
+        (assign_expr type="()" location=/x/StandingsStore.swift:27:11 range=[/x/StandingsStore.swift:27:9 - line:27:13]
+          (discard_assignment_expr type="@lvalue Date" location=/x/StandingsStore.swift:27:9 range=[/x/StandingsStore.swift:27:9 - line:27:9])
+          (declref_expr type="Date" location=/x/StandingsStore.swift:27:13 range=[/x/StandingsStore.swift:27:13 - line:27:13] decl="main.(file).StandingsStore.currentKept(now:fetch:).now@/x/StandingsStore.swift:26:22" function_ref=unapplied))
+        (return_stmt range=[/x/StandingsStore.swift:28:9 - line:28:22]
+          (inject_into_optional implicit type="Int?" location=/x/StandingsStore.swift:28:16 range=[/x/StandingsStore.swift:28:16 - line:28:22]
+            (call_expr type="Int" location=/x/StandingsStore.swift:28:16 range=[/x/StandingsStore.swift:28:16 - line:28:22] nothrow isolation_crossing="none"
+              (declref_expr type="() -> Int" location=/x/StandingsStore.swift:28:16 range=[/x/StandingsStore.swift:28:16 - line:28:16] decl="main.(file).StandingsStore.currentKept(now:fetch:).fetch@/x/StandingsStore.swift:26:33" function_ref=single apply)
+              (argument_list))))))
+    (func_decl range=[/x/StandingsStore.swift:31:5 - line:33:5] "currentKept(fetch:)" interface_type="(StandingsStore) -> (() -> Int) -> Int?" access=internal
+      (parameter "self" interface_type="StandingsStore") result="Int?" thrown_type="<null>"
+      (parameter_list range=[/x/StandingsStore.swift:31:21 - line:31:38]
+        (parameter "fetch" apiName="fetch" interface_type="() -> Int"))
+      (brace_stmt range=[/x/StandingsStore.swift:31:48 - line:33:5]
+        (return_stmt implicit range=[/x/StandingsStore.swift:32:9 - line:32:46]
+          (call_expr type="Int?" location=/x/StandingsStore.swift:32:9 range=[/x/StandingsStore.swift:32:9 - line:32:46] nothrow isolation_crossing="none"
+            (dot_syntax_call_expr implicit type="(Date, () -> Int) -> Int?" location=/x/StandingsStore.swift:32:9 range=[/x/StandingsStore.swift:32:9 - line:32:9] nothrow isolation_crossing="none"
+              (declref_expr type="(StandingsStore) -> (Date, () -> Int) -> Int?" location=/x/StandingsStore.swift:32:9 range=[/x/StandingsStore.swift:32:9 - line:32:9] decl="main.(file).StandingsStore.currentKept(now:fetch:)@/x/StandingsStore.swift:26:10" function_ref=single apply)
+              (argument_list implicit
+                (argument
+                  (declref_expr implicit type="StandingsStore" location=/x/StandingsStore.swift:32:9 range=[/x/StandingsStore.swift:32:9 - line:32:9] decl="main.(file).StandingsStore.currentKept(fetch:).self@/x/StandingsStore.swift:31:10" function_ref=unapplied))))
+            (argument_list labels="now:fetch:"
+              (argument label="now"
+                (call_expr type="Date" location=/x/StandingsStore.swift:32:26 range=[/x/StandingsStore.swift:32:26 - line:32:31] nothrow isolation_crossing="none"
+                  (constructor_ref_call_expr type="() -> Date" location=/x/StandingsStore.swift:32:26 range=[/x/StandingsStore.swift:32:26 - line:32:26] nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(Date.Type) -> () -> Date" location=/x/StandingsStore.swift:32:26 range=[/x/StandingsStore.swift:32:26 - line:32:26] decl="Foundation.(file).Date.init()" function_ref=single apply)
                     (argument_list implicit
                       (argument
-                        (type_expr type="EngineClient.Type" location=/x/StandingsStore.swift:33:5 range=[/x/StandingsStore.swift:33:5 - line:33:5] typerepr="EngineClient"))))
+                        (type_expr type="Date.Type" location=/x/StandingsStore.swift:32:26 range=[/x/StandingsStore.swift:32:26 - line:32:26] typerepr="Date"))))
+                  (argument_list)))
+              (argument label="fetch"
+                (declref_expr type="() -> Int" location=/x/StandingsStore.swift:32:41 range=[/x/StandingsStore.swift:32:41 - line:32:41] decl="main.(file).StandingsStore.currentKept(fetch:).fetch@/x/StandingsStore.swift:31:22" function_ref=unapplied))))))))
+  (func_decl range=[/x/StandingsStore.swift:36:1 - line:38:1] "fixtureStoreRestores(_:)" interface_type="(Data) -> FetchedStandings?" access=internal result="FetchedStandings?" thrown_type="<null>"
+    (parameter_list range=[/x/StandingsStore.swift:36:26 - line:36:39]
+      (parameter "data" interface_type="Data"))
+    (brace_stmt range=[/x/StandingsStore.swift:36:62 - line:38:1]
+      (return_stmt implicit range=[/x/StandingsStore.swift:37:5 - line:37:40]
+        (optional_try_expr type="FetchedStandings?" location=/x/StandingsStore.swift:37:10 range=[/x/StandingsStore.swift:37:5 - line:37:40] thrown_error="any Error"
+          (inject_into_optional implicit type="FetchedStandings?" location=/x/StandingsStore.swift:37:10 range=[/x/StandingsStore.swift:37:10 - line:37:40]
+            (call_expr type="FetchedStandings" location=/x/StandingsStore.swift:37:10 range=[/x/StandingsStore.swift:37:10 - line:37:40] throws isolation_crossing="none"
+              (constructor_ref_call_expr type="(Data) throws -> FetchedStandings" location=/x/StandingsStore.swift:37:10 range=[/x/StandingsStore.swift:37:10 - line:37:10] nothrow isolation_crossing="none"
+                (declref_expr implicit type="(FetchedStandings.Type) -> (Data) throws -> FetchedStandings" location=/x/StandingsStore.swift:37:10 range=[/x/StandingsStore.swift:37:10 - line:37:10] decl="main.(file).FetchedStandings.init(payload:)@/x/Models.swift:21:5" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (type_expr type="FetchedStandings.Type" location=/x/StandingsStore.swift:37:10 range=[/x/StandingsStore.swift:37:10 - line:37:10] typerepr="FetchedStandings"))))
+              (argument_list labels="payload:"
+                (argument label="payload"
+                  (declref_expr type="Data" location=/x/StandingsStore.swift:37:36 range=[/x/StandingsStore.swift:37:36 - line:37:36] decl="main.(file).fixtureStoreRestores(_:).data@/x/StandingsStore.swift:36:29" function_ref=unapplied)))))))))
+  (func_decl range=[/x/StandingsStore.swift:42:1 - line:44:1] "fixtureStoreRelays(_:)" interface_type="(String) -> URL" access=internal result="URL" thrown_type="<null>"
+    (parameter_list range=[/x/StandingsStore.swift:42:24 - line:42:40]
+      (parameter "typed" interface_type="String"))
+    (brace_stmt range=[/x/StandingsStore.swift:42:49 - line:44:1]
+      (return_stmt implicit range=[/x/StandingsStore.swift:43:5 - line:43:98]
+        (call_expr type="URL" location=/x/StandingsStore.swift:43:91 range=[/x/StandingsStore.swift:43:5 - line:43:98] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr type="() -> URL" location=/x/StandingsStore.swift:43:91 range=[/x/StandingsStore.swift:43:5 - line:43:91] nothrow isolation_crossing="none"
+            (declref_expr type="(EngineClient) -> () -> URL" location=/x/StandingsStore.swift:43:91 range=[/x/StandingsStore.swift:43:91 - line:43:91] decl="main.(file).EngineClient.boards()@/x/EngineClient.swift:52:10" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (call_expr type="EngineClient" location=/x/StandingsStore.swift:43:5 range=[/x/StandingsStore.swift:43:5 - line:43:89] nothrow isolation_crossing="none"
+                  (constructor_ref_call_expr type="(URL, URLSession?) -> EngineClient" location=/x/StandingsStore.swift:43:5 range=[/x/StandingsStore.swift:43:5 - line:43:5] nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(EngineClient.Type) -> (URL, URLSession?) -> EngineClient" location=/x/StandingsStore.swift:43:5 range=[/x/StandingsStore.swift:43:5 - line:43:5] decl="main.(file).EngineClient.init(baseURL:session:)@/x/EngineClient.swift:42:5" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr type="EngineClient.Type" location=/x/StandingsStore.swift:43:5 range=[/x/StandingsStore.swift:43:5 - line:43:5] typerepr="EngineClient"))))
                   (argument_list labels="baseURL:session:"
                     (argument label="baseURL"
-                      (call_expr type="URL" location=/x/StandingsStore.swift:33:40 range=[/x/StandingsStore.swift:33:27 - line:33:88] nothrow isolation_crossing="none"
-                        (dot_syntax_call_expr type="(String) -> URL" location=/x/StandingsStore.swift:33:40 range=[/x/StandingsStore.swift:33:27 - line:33:40] nothrow isolation_crossing="none"
-                          (declref_expr type="(EngineClient.Type) -> (String) -> URL" location=/x/StandingsStore.swift:33:40 range=[/x/StandingsStore.swift:33:40 - line:33:40] decl="main.(file).EngineClient.engineURL(from:)@/x/EngineClient.swift:48:17" function_ref=single apply)
+                      (call_expr type="URL" location=/x/StandingsStore.swift:43:40 range=[/x/StandingsStore.swift:43:27 - line:43:88] nothrow isolation_crossing="none"
+                        (dot_syntax_call_expr type="(String) -> URL" location=/x/StandingsStore.swift:43:40 range=[/x/StandingsStore.swift:43:27 - line:43:40] nothrow isolation_crossing="none"
+                          (declref_expr type="(EngineClient.Type) -> (String) -> URL" location=/x/StandingsStore.swift:43:40 range=[/x/StandingsStore.swift:43:40 - line:43:40] decl="main.(file).EngineClient.engineURL(from:)@/x/EngineClient.swift:48:17" function_ref=single apply)
                           (argument_list implicit
                             (argument
-                              (type_expr type="EngineClient.Type" location=/x/StandingsStore.swift:33:27 range=[/x/StandingsStore.swift:33:27 - line:33:27] typerepr="EngineClient"))))
+                              (type_expr type="EngineClient.Type" location=/x/StandingsStore.swift:43:27 range=[/x/StandingsStore.swift:43:27 - line:43:27] typerepr="EngineClient"))))
                         (argument_list labels="from:"
                           (argument label="from"
-                            (binary_expr type="String" location=/x/StandingsStore.swift:33:81 range=[/x/StandingsStore.swift:33:56 - line:33:83] nothrow isolation_crossing="none"
-                              (dot_syntax_call_expr implicit type="(String, String) -> String" location=/x/StandingsStore.swift:33:81 range=[/x/StandingsStore.swift:33:81 - line:33:81] nothrow isolation_crossing="none"
-                                (declref_expr type="(String.Type) -> (String, String) -> String" location=/x/StandingsStore.swift:33:81 range=[/x/StandingsStore.swift:33:81 - line:33:81] decl="Swift.(file).String extension.+" function_ref=single apply)
+                            (binary_expr type="String" location=/x/StandingsStore.swift:43:81 range=[/x/StandingsStore.swift:43:56 - line:43:83] nothrow isolation_crossing="none"
+                              (dot_syntax_call_expr implicit type="(String, String) -> String" location=/x/StandingsStore.swift:43:81 range=[/x/StandingsStore.swift:43:81 - line:43:81] nothrow isolation_crossing="none"
+                                (declref_expr type="(String.Type) -> (String, String) -> String" location=/x/StandingsStore.swift:43:81 range=[/x/StandingsStore.swift:43:81 - line:43:81] decl="Swift.(file).String extension.+" function_ref=single apply)
                                 (argument_list implicit
                                   (argument
-                                    (type_expr implicit type="String.Type" location=/x/StandingsStore.swift:33:81 range=[/x/StandingsStore.swift:33:81 - line:33:81] typerepr="String"))))
+                                    (type_expr implicit type="String.Type" location=/x/StandingsStore.swift:43:81 range=[/x/StandingsStore.swift:43:81 - line:43:81] typerepr="String"))))
                               (argument_list implicit
                                 (argument
-                                  (string_literal_expr type="String" location=/x/StandingsStore.swift:33:56 range=[/x/StandingsStore.swift:33:56 - line:33:56] encoding=utf8 value="http://127.0.0.1:8080/" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))
+                                  (string_literal_expr type="String" location=/x/StandingsStore.swift:43:56 range=[/x/StandingsStore.swift:43:56 - line:43:56] encoding=utf8 value="http://127.0.0.1:8080/" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))
                                 (argument
-                                  (declref_expr type="String" location=/x/StandingsStore.swift:33:83 range=[/x/StandingsStore.swift:33:83 - line:33:83] decl="main.(file).fixtureStoreRelays(_:).typed@/x/StandingsStore.swift:32:27" function_ref=unapplied))))))))
+                                  (declref_expr type="String" location=/x/StandingsStore.swift:43:83 range=[/x/StandingsStore.swift:43:83 - line:43:83] decl="main.(file).fixtureStoreRelays(_:).typed@/x/StandingsStore.swift:42:27" function_ref=unapplied))))))))
                     (argument label="session"
-                      (default_argument_expr implicit type="URLSession?" location=/x/StandingsStore.swift:33:17 range=[/x/StandingsStore.swift:33:17 - line:33:17] default_args_owner="main.(file).EngineClient.init(baseURL:session:)@/x/EngineClient.swift:42:5" param=1)))))))
+                      (default_argument_expr implicit type="URLSession?" location=/x/StandingsStore.swift:43:17 range=[/x/StandingsStore.swift:43:17 - line:43:17] default_args_owner="main.(file).EngineClient.init(baseURL:session:)@/x/EngineClient.swift:42:5" param=1)))))))
           (argument_list))))))

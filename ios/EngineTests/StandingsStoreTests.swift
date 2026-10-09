@@ -210,4 +210,15 @@ final class StandingsStoreTests: OfflineTestCase {
 
         XCTAssertNil(store().load())
     }
+
+    /// #170: the store dates what it keeps by its own clock, so no value the screen chooses reaches the
+    /// standings file; only the store's own file and these tests reach the dated form (the gate).
+    func testTheStoreDatesWhatItKeepsByItsOwnClock() async throws {
+        let before = Date()
+        let kept = await store().currentKept { try FetchedStandings(payload: standingsPayload) }
+        let after = Date()
+        let stored = try XCTUnwrap(store().load())
+        XCTAssertNotNil(kept)
+        XCTAssertTrue(stored.fetchedAt >= before.addingTimeInterval(-1) && stored.fetchedAt <= after.addingTimeInterval(1))
+    }
 }
