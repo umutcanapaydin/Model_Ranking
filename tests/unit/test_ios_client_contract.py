@@ -287,27 +287,62 @@ def test_the_blend_the_detail_screen_states_is_the_engines() -> None:
 #: level inside it. The compiled gate reads the same from the compiler (`served_fields`); this is its
 #: half for the lanes with no Xcode, so the two lists cannot say different things.
 DECODED_STRUCT = re.compile(r"^(?:\w+ )*(?:struct|class) (\w+)\b[^{\n]*\b(?:Decodable|Codable)\b[^{\n]*\{", re.M)
-STORED_NUMBER = re.compile(r"^    (?:(?:public|private|internal|fileprivate) )?(?:let|var) (\w+): "
-                           r"(?:U?Int(?:8|16|32|64)?|Double|Float|CGFloat|Decimal)\??\s*(?:$|//|=)", re.M)
+#: The M21-W3 review's M3: a type declared plainly and made `Decodable` in an extension, a decoded
+#: enum with a numeric payload (a served fact), and a stored field typed as one; and a decoded type's
+#: fields at any depth of indentation below it, a nested decoded type's included.
+ANY_TYPE = re.compile(r"^([ \t]*)(?:\w+ )*(?:struct|class) (\w+)\b[^{\n]*\{", re.M)
+DECODED_EXTENSION = re.compile(r"^extension (\w+)\s*:[^{\n]*\b(?:Decodable|Codable)\b", re.M)
+DECODED_ENUM = re.compile(r"^([ \t]*)(?:\w+ )*enum (\w+)\b[^{\n]*\b(?:Decodable|Codable)\b[^{\n]*\{", re.M)
+NUMERIC_CASE = re.compile(r"^\s*case (\w+)\((?:U?Int(?:8|16|32|64)?|Double|Float|CGFloat|Decimal)\)", re.M)
+NUMBER_TYPE = r"(?:U?Int(?:8|16|32|64)?|Double|Float|CGFloat|Decimal)"
+
+
+def _body(text: str, start: int, indent: str) -> str:
+    """A declaration's body: from its opening line to the closing brace at its own indentation; a
+    body written on its opening line (`struct S { let n: Int }`) is laid out one declaration a line."""
+    rest = text[start:]
+    line = rest.split("\n", 1)[0]
+    if line.rstrip().endswith("}"):
+        return "".join(f"\n{indent}    {part.strip()}" for part in line.rstrip()[:-1].split(";") if part.strip())
+    closing = re.search(rf"^{re.escape(indent)}\}}", rest, re.M)
+    return rest[: closing.start()] if closing else rest
 
 
 def _served_numbers(sources: dict[str, str] | None = None) -> set[str]:
     """#169: every stored number a decoded type holds, as the compiled gate derives it, less the
-    types the engine never sends (`NOT_SERVED` in `scripts/client_decl_gate.py`)."""
+    types the engine never sends (`NOT_SERVED` in `scripts/client_decl_gate.py`); and (the M21-W3
+    review's M3) each decoded enum's numeric payload, by its case and its constructor, and each stored
+    field typed as such an enum, as `served_fields` and `_served_cases` derive them."""
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("client_decl_gate", CLIENT.parents[1] / "scripts/client_decl_gate.py")
     assert spec and spec.loader
     gate = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gate)
+    texts = list((sources if sources is not None else _swift_sources()).values())
+    extended = {name for text in texts for name in DECODED_EXTENSION.findall(text)}
+    facts: set[str] = set()
     found: set[str] = set()
-    for text in (sources if sources is not None else _swift_sources()).values():
-        for declared in DECODED_STRUCT.finditer(text):
-            if declared.group(1) in gate.NOT_SERVED:
+    for text in texts:
+        for declared in DECODED_ENUM.finditer(text):
+            cases = set(NUMERIC_CASE.findall(_body(text, declared.end(), declared.group(1))))
+            if cases and declared.group(2) not in gate.NOT_SERVED:
+                facts.add(declared.group(2))
+                found |= cases | {f"{case}(_:)" for case in cases}
+    stored = re.compile(rf"^\s+(?:(?:public|private|internal|fileprivate) )?(?:let|var) (\w+): "
+                        rf"(?:{NUMBER_TYPE}|{'|'.join(sorted(facts)) or 'NoFact'})\??\s*(?:$|//|=)", re.M)
+    for text in texts:
+        for declared in ANY_TYPE.finditer(text):
+            name = declared.group(2)
+            decoded = DECODED_STRUCT.match(text, declared.start() + len(declared.group(1))) or name in extended
+            if not decoded or name in gate.NOT_SERVED:
                 continue
-            body = text[declared.end():]
-            closing = re.search(r"^\}", body, re.M)
-            found |= set(STORED_NUMBER.findall(body[: closing.start()] if closing else body))
+            body = _body(text, declared.end(), declared.group(1))
+            # A nested type's fields belong to it, so only this type's own level is read.
+            inner = declared.group(1) + "    "
+            found |= {field for field in stored.findall(body)
+                      if re.search(rf"^{re.escape(inner)}(?:(?:public|private|internal|fileprivate) )?(?:let|var) "
+                                   rf"{re.escape(field)}:", body, re.M)}
     return found
 
 
