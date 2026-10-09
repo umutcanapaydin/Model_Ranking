@@ -62,9 +62,9 @@ before and none after.
 ## 4. Not measured here
 
 - **#226's judgement:** that is the owner's (`docs/judgement-sheet.md`).
-- **The UI paths of #199:** `make ui-test` ran 18 of 19 under heavy load. The one failure was
-  `testACardOpensItsEvidence`'s window snapshot timing out in `setUp`; the routing came from the
-  fixture.
+- **The UI paths of #199:** `make ui-test` ran 18 of 19 under heavy load: the routing came from the
+  fixture, and the one failure was `testACardOpensItsEvidence`'s window snapshot timing out in `setUp`.
+  Run alone at a lower load, it passed.
 
 ## 5. The set's retirement
 
