@@ -57,8 +57,22 @@ def test_a_url_decoded_outside_the_engine_client_is_the_network() -> None:
 
 @pytest.mark.needs("xcode")  # the fixture is compiled
 def test_the_gate_refuses_its_compiled_fixture() -> None:
-    """#51: the whole gate, compiled, on files that must be refused and files that must be allowed."""
+    """#51: the whole gate, compiled, on files that must be refused and files that must be allowed.
+
+    The M21-W3 Tester (#175 R3, G-10): the self-test asks for one refusal per (file, phrase) and compares the
+    committed dump with the compile by its declarations only. So a fixture shape whose body changed, while
+    another shape still carried its phrase, left every test green: `keepAsked`'s `task = typed` (#188) made
+    `_ = typed` passed the self-test, and the tests that count shapes read the stale dump. The compiled
+    fixture is refused line for line as the committed dump is. # covers REQ-GAP-001, REQ-APP-005"""
     assert gate.self_test() == []
+    _, sdk_name, flags = gate.CONFIGURATIONS[0]
+    dumped = gate.dump_ast(sdk_name, flags, gate.FIXTURES)
+    assert dumped is not None and dumped[1] == 0, dumped and dumped[0][-800:]
+    compiled = gate.references(gate.fixture_dump(dumped[0]))
+    committed = gate.references(FLOW_AST)
+    assert sorted(gate.problems(compiled)) == sorted(gate.problems(committed)), (
+        "the fixture as it compiles is not refused as the committed dump is; write it again with `--snapshot`")
+    assert sorted(gate.release_problems(compiled)) == sorted(gate.release_problems(committed))
 
 
 #: What `swiftc -dump-ast` prints for a synthesised `Decodable` with an `Optional<URL>` property.
@@ -747,3 +761,56 @@ def test_reflection_and_the_runtime_by_name_are_refused() -> None:
                    "method_exchangeImplementations(_:_:", "Mirror.init(reflecting:"):
         problem = gate._capability_problem("ContentView.swift", symbol, symbol)
         assert problem is not None and "by name" in problem, (symbol, problem)
+
+
+# --- The M21-W3 Tester (docs/reviews/m21-wave-3-tester.md) ------------------------------------------------
+
+
+def test_the_self_test_requires_the_release_rule_in_each_release_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The M21-W3 Tester (the review's M4, G-10: "the Release configurations run their own rule on it"): with
+    the self-test's Release branch removed whole, its call and its expectation, every test and the self-test
+    passed, since nothing else asks for the Release-only hook's refusal. Here the rule is silenced, and the
+    self-test must say so in the two Release configurations and in no other. The committed dump stands in for
+    the compile, so this runs where there is no Xcode too. # covers REQ-GAP-001"""
+    monkeypatch.setattr(gate, "dump_ast", lambda sdk_name, flags, folder=gate.CLIENT: (FLOW_AST, 0))
+    assert gate.self_test() == []
+    monkeypatch.setattr(gate, "release_problems", lambda found: [])
+    broken = gate.self_test() or []
+    missed = sorted(line.split(")")[0] + ")" for line in broken if "Debug-only UI test hook was not refused" in line)
+    assert missed == ["(device, release)", "(simulator, release)"], broken
+
+
+def test_a_mac_without_the_toolchain_fails_by_the_name_its_platform_gives(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The M21-W3 Tester (#175 R1, G-10): the test above replaces `_host` itself, so a `_host` that misnames
+    the Mac (`platform.system().lower()`, which is "darwin") skipped the gate on the owner's Mac with every
+    test green. Here only the platform's own answer is replaced. # covers REQ-GAP-001"""
+    monkeypatch.setattr(gate, "dump_ast", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(gate.platform, "system", lambda: "Darwin")
+    assert gate.main() == 1, "the gate skipped on a Mac without its toolchain"
+    monkeypatch.setattr(gate.platform, "system", lambda: "Linux")
+    assert gate.main() == 0
+
+
+def test_a_sink_reads_none_of_the_standard_librarys_process_wide_state() -> None:
+    """The M21-W3 Tester (D-180, the review's B1): `SINK_SWIFT_REFUSED` has no shape in the fixture (G-10), so
+    with it emptied every test passed. `CommandLine`'s arguments are process-wide state; a privacy sink reads
+    none, and a file that is no sink is not refused for them. # covers REQ-GAP-001"""
+    for sink in gate.SINK_FILES:
+        for symbol in ("CommandLine.arguments", "CommandLine.unsafeArgv"):
+            assert gate.problems({sink: {f"Swift.{symbol}"}}), (sink, symbol)
+    assert gate._sink_module_problem("ContentView.swift", "Swift", "CommandLine.arguments") is None
+
+
+def test_make_client_decls_runs_the_gate_and_keeps_its_status() -> None:
+    """The M21-W3 Tester (#175 R1, G-10): `main()` fails on a Mac without its toolchain, and `make
+    client-decls` is how `make check-fast` and `make check` reach it. With the recipe's line made
+    `-$(PY) ...`, make printed "Error 1 (ignored)" and passed, and every test stayed green. The recipe runs
+    the gate and nothing that could drop its status. # covers REQ-GAP-001"""
+    lines = (ROOT / "Makefile").read_text(encoding="utf-8").splitlines()
+    start = next(index for index, line in enumerate(lines) if line.startswith("client-decls:"))
+    recipe: list[str] = []
+    for line in lines[start + 1:]:
+        if not line.startswith("\t"):
+            break
+        recipe.append(line.strip())
+    assert [line for line in recipe if not line.startswith("@#")] == ["$(PY) -B scripts/client_decl_gate.py"], recipe

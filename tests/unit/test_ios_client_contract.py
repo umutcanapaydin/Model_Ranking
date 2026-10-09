@@ -2016,3 +2016,24 @@ def test_the_text_tripwire_reads_its_served_numbers_from_the_decoded_types() -> 
     planted = "struct Fresh: Decodable {\n    let novelty: Double\n    static let constant = 2\n}\n"
     assert "novelty" in _served_numbers({"Planted.swift": planted})
     assert "constant" not in _served_numbers({"Planted.swift": planted})
+
+
+# --- The M21-W3 Tester (docs/reviews/m21-wave-3-tester.md) ------------------------------------------------
+
+
+def _view_code() -> str:
+    """`ContentView.swift` through `_swift`, with each line cut at `//`, as the pins above read it."""
+    return "\n".join(line.split("//", 1)[0] for line in _swift(CLIENT / "ContentView.swift").splitlines())
+
+
+def test_the_failure_view_says_the_error_in_the_readers_language() -> None:
+    """The M21-W3 Tester (#223): the Swift tests hold `errorDescription(_:)`, and
+    `test_every_failure_the_client_names_reaches_the_screen_with_a_sentence` holds that a view reads
+    `.errorDescription`. With the failure view reading the property, which is the engine's own
+    English for a refusal, every test stayed green. The failure view says the condition in the reader's
+    language. # covers REQ-APP-004"""
+    failure = re.search(r"private func failure\(_ error: EngineError\) -> some View \{(.*?)\n    \}\n", _view_code(), re.S)
+    assert failure, "the failure view is gone"
+    assert "Text(error.errorDescription(language) ?? \"\")" in failure.group(1), (
+        "the failure view does not say the error in the reader's language")
+    assert not re.search(r"\.errorDescription\b(?!\()", failure.group(1)), "the failure view reads the engine's own words"

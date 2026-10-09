@@ -553,3 +553,47 @@ def test_no_record_restates_a_client_gates_property_without_its_row() -> None:
     bare = prd.replace(row, row[:-2] + " The detail pin (test_the_detail_screen_is_reachable_and_composes_nothing_itself) "
                        "holds that nothing on the screen is computed. |", 1)
     assert any("REQ-CMP-002" in p for p in pointer_problems(_records(), bare, register)), "a bare gate test name was not read"
+
+
+# --- the gaps table's words (the M21-W3 Tester) -----------------------------------------------------------
+#
+# The checks above read a gap's Rows column and the count line, never its words: G-2 rewritten as "the
+# compiled arithmetic rule refuses every change of a served number" passed them all. A gap that says a rule
+# or a list refuses something also says what it does not hold, and a gap about a compiled rule's fixture
+# carries the catch-all its rows carry.
+
+#: A gap's words saying that a rule, a list or a pin refuses something.
+GAP_REFUSES = re.compile(r"\brefuses?\b")
+#: A gap about a compiled rule's shapes opens so (G-1, G-2, G-11).
+GAP_COMPILED_RULE = re.compile(r"^The compiled [\w ]+? rules? refuses? ")
+GAP_COMPILED = re.compile(r"^The compiled [\w ]+? rules? refuses? the shapes the fixture holds, each as written there\. "
+                          r"Any other form is not held: .*\bExamples, not a complete list: ")
+
+
+def gap_wording_problems(text: str) -> list[str]:
+    """Each gap that says what something refuses says what is not held; a compiled rule's gap carries the
+    fixture's catch-all and marks its examples as not complete."""
+    found: list[str] = []
+    for line in section(text, "Gaps").splitlines():
+        if not (match := GAP.match(line.rstrip())):
+            continue
+        gap, words = match.group(1), match.group(3)
+        if GAP_REFUSES.search(words) and "not held" not in words:
+            found.append(f"{gap} says what is refused and not what is not held")
+        if GAP_COMPILED_RULE.match(words) and not GAP_COMPILED.match(words):
+            found.append(f"{gap} states a compiled rule without its fixture's catch-all ({GAP_COMPILED.pattern})")
+    return found
+
+
+def test_each_gap_says_what_it_does_not_hold() -> None:
+    """The M21-W3 Tester: the gaps table's words are read too. Watched failing on a planted G-2."""
+    text = LIST.read_text(encoding="utf-8")
+    assert not gap_wording_problems(text), gap_wording_problems(text)
+    gap = next(line for line in section(text, "Gaps").splitlines() if line.startswith("| G-2 |"))
+    match = GAP.match(gap.rstrip())
+    assert match, gap
+    words = match.group(3)
+    overclaimed = text.replace(words, "The compiled arithmetic rule refuses every change of a served number.", 1)
+    assert any(p.startswith("G-2 ") for p in gap_wording_problems(overclaimed))
+    complete = text.replace(words, words.replace("Examples, not a complete list: ", "These: ", 1), 1)
+    assert any(p.startswith("G-2 ") for p in gap_wording_problems(complete))
