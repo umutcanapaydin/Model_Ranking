@@ -54,3 +54,20 @@ def test_a_search_is_waited_for_by_what_only_an_answer_shows() -> None:
     arm = re.search(r'case "search":([^\n]*)', swift)
     assert arm, "waitForReading has no search arm"
     assert '"change"' not in arm.group(1) and "waitForAnswer" in arm.group(1), arm.group(1)
+
+
+def test_what_a_search_waits_for_is_read_inside_its_wait_too() -> None:
+    """The M21-W2 Tester (#199; covers the second review's M5): the search arm's own line names no Change,
+    but the wait it calls could. A `waitForAnswer` that returned on `field("change")` stayed green above:
+    every line of its body that decides is read here, and none names Change; each reads the combined list
+    or a card's evidence."""
+    swift = UI.read_text(encoding="utf-8")
+    start = swift.find("private func waitForAnswer(")
+    assert start >= 0, "waitForAnswer is gone"
+    end = swift.find("\n    }\n", start)
+    body = swift[start:end]
+    assert '"change"' not in body, "a search's wait reads Change, which the note shows too"
+    deciding = [line for line in body.splitlines() if "return" in line]
+    assert deciding, "waitForAnswer returns nothing"
+    for line in deciding:
+        assert "combinedList" in line or "evidence" in line, line
