@@ -43,23 +43,23 @@ final class ScreenPathTests: XCTestCase {
         switch expectedReadings[question] {
         case "notASearch": return field("notASearch").waitForExistence(timeout: timeout)
         case "unsure": return field("askBack").waitForExistence(timeout: timeout)
-        case "search": return waitForAnswer(timeout: timeout)
+        case "search": return waitForAnswer(to: question, timeout: timeout)
         default:
             XCTFail("\(question) has no reading in ScreenPaths.json")
             return false
         }
     }
 
-    /// What only an answer shows: the combined list, or a card's way into its evidence. Never Change, which
-    /// the note shows too (the second review's M5).
-    private func waitForAnswer(timeout: Double) -> Bool {
+    /// What only an answer shows: the combined list, or a card's way into its evidence, never Change, which
+    /// the note shows too (the second review's M5). And the answer to `question` itself: setUp leaves the
+    /// first answer's cards on screen while a later question routes, so the wait first reads this
+    /// question's echo, which appears once its own answer is applied (the Tester's M5).
+    private func waitForAnswer(to question: String, timeout: Double) -> Bool {
         let evidence = app.buttons.matching(NSPredicate(format: "label CONTAINS 'See the evidence'")).firstMatch
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if field("combinedList").exists || evidence.exists { return true }
-            _ = field("combinedList").waitForExistence(timeout: 1)
-        }
-        return field("combinedList").exists || evidence.exists
+        let echo = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "\u{201C}" + String(question.prefix(12))))
+            .firstMatch
+        let answered = echo.waitForExistence(timeout: timeout)
+        return answered && (field("combinedList").waitForExistence(timeout: 5) || evidence.exists)
     }
 
     /// After the wait, the other reading's element is absent, as the fixture's reading of `question` says.

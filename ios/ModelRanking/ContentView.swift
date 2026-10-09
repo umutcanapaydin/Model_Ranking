@@ -78,14 +78,7 @@ struct ContentView: View {
     /// The reader's language. `@AppStorage` so the choice survives a relaunch — a flag switch that
     /// forgets is a flag switch nobody uses twice.
     @AppStorage("language") private var language: Language = .english
-    private let launchRouter = TieredRouter.forThisLaunch()
-    /// #194 (the M21-W2 review's M2): the router, reading a model the engine serves today as a search by
-    /// its served name, from the standings the phone keeps.
-    private var router: TieredRouter {
-        var reading = launchRouter
-        reading.servedNames = ServedModelNames(standings)
-        return reading
-    }
+    private let router = TieredRouter.forThisLaunch()
     /// Whether the on-device tier can run here, said as quiet help when it cannot.
     private let onDevice = TieredRouter.onDeviceState()
     /// Every question is asked at `unlimited` since the budget strip went (M13-W3). The engine still

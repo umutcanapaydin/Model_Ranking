@@ -506,9 +506,9 @@ _FIRST_WORD = re.compile(r"[A-Za-z]+")
 
 
 def family_words() -> frozenset[str]:
-    """The family words of the models this registry ranks, in lower case (#194, M21-W2): every family
-    word a derived id starts with or a vendor head names, and the first word of every display name.
-    The phone reads a question that names one as a search for a model, never a question of fact;
+    """The family words of the models this registry ranks, in lower case (#206, M21-W2): every family
+    word a derived id starts with or a vendor head names, and the first word of every display name. The
+    phone reads a question made only of these and particles as a comparison of model names;
     `scripts/model_family_words.py` writes them to `ios/ModelRanking/Engine/ModelFamilies.swift`."""
     words = {word for word, _ in _FAMILY_VENDORS} | {word for heads in _VENDOR_FAMILIES.values() for word in heads}
     for name in [rule.display for rule in MODEL_RULES] + list(DISPLAY_NAMES.values()):
@@ -517,33 +517,6 @@ def family_words() -> frozenset[str]:
             words.add(first.group(0).lower())
     return frozenset(words)
 
-
-_TOKEN = re.compile(r"[a-z0-9]+")
-
-
-def family_versions() -> dict[str, frozenset[str]]:
-    """Per ambiguous family word, the tokens the registry's own names put right after it (the M21-W2
-    review's M1 and M3): Kimi K2, Command R and A, Nova Lite, Aya Expanse, Mercury 2. An ambiguous word
-    stands as a model beside one of these, never beside any number ("mercury 7", "usmle step 1")."""
-    versions: dict[str, set[str]] = {word: set() for word in AMBIGUOUS_FAMILY_WORDS}
-    for name in [rule.display for rule in MODEL_RULES] + list(DISPLAY_NAMES.values()):
-        tokens = _TOKEN.findall(name.lower())
-        for index, token in enumerate(tokens[:-1]):
-            if token in versions:
-                versions[token].add(tokens[index + 1])
-    return {word: frozenset(after) for word, after in versions.items() if after}
-
-
-#: The family words that are also plain English or Turkish (a phi in a formula, a llama, Mercury, a
-#: titan, Palmyra, "kimi" for "some", a company, the minimax algorithm, a radio scheme, a statistical
-#: model, a name, ozone, a visa): each names a model only beside a version its own names use
-#: (`family_versions`) or in a question about a model's cost or making, so a question of fact about the
-#: thing itself is still read as one (#194; the M21-W2 review's M1 and M3, D-191).
-AMBIGUOUS_FAMILY_WORDS: frozenset[str] = frozenset({
-    "aya", "code", "command", "ernie", "gemma", "glm", "granite", "jamba", "kimi", "llama", "mercury",
-    "mimo", "minimax", "nous", "nova", "nvidia", "o1", "o3", "o4", "palmyra", "phi", "step", "titan",
-    "trinity", "zephyr",
-})
 
 @dataclass(frozen=True)
 class DerivedIdentity:

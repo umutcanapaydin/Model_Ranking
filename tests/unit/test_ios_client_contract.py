@@ -1599,6 +1599,7 @@ def test_every_signal_word_only_a_live_held_out_set_holds_is_reviewed() -> None:
 _BEFORE = "in the app before {set} was written ({sha}), so not read from it"
 HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
     "chatgpt": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
+    "grok": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
     "resmin": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
 }
 #: A list of string literals: every word, phrase, verb and noun list in `Reading.swift`, the inline
@@ -1742,14 +1743,11 @@ def test_each_inline_list_is_read_with_its_own_uses_mode() -> None:
     }
 
 
-def test_the_wording_read_holds_the_family_words_and_their_ambiguous_list() -> None:
-    """M6 (c): the generated family words (`ModelFamilies.swift`) and the hand-kept ambiguous list are
-    matched against questions too, so the held-out check reads them."""
-    from app.workflows.registry import AMBIGUOUS_FAMILY_WORDS
-
+def test_the_wording_read_holds_the_family_words() -> None:
+    """M6 (c): the generated family words (`ModelFamilies.swift`) are matched against questions too (a
+    comparison of model names, #206), so the held-out check reads them."""
     entries = {entry for found, _whole in _wording_lists() for entry in found}
-    assert {"qwen", "mixtral", "kimi", "expanse"} <= entries
-    assert set(AMBIGUOUS_FAMILY_WORDS) <= entries
+    assert {"qwen", "mixtral", "kimi", "nemotron"} <= entries
 
 
 def _lists_in(code: str) -> list[tuple[list[str], bool]]:
@@ -1863,18 +1861,13 @@ def _wording_lists() -> list[tuple[list[str], bool]]:
     - every other literal in `CategoryHints` and in the refinement words (D-188 clause 6), whole, or by
       its start where it ends in `*`.
     Read from `Router.swift`'s `CategoryHints` and `Refinements.swift` from `struct Words` to `read`."""
-    from app.workflows.registry import AMBIGUOUS_FAMILY_WORDS
-
     router = _swift(CLIENT / "Engine/Router.swift")
     refinements = _swift(CLIENT / "Engine/Refinements.swift")
-    # The review's M6 (c): the generated family words, their versions, and the hand-kept ambiguous list.
+    # The review's M6 (c): the generated family words.
     families = _swift(CLIENT / "Engine/ModelFamilies.swift")
     regions = [router[router.index("enum CategoryHints"):router.index("protocol QuestionRouter")],
                refinements[refinements.index("struct Words"):refinements.index("static func read(")]]
-    lists: list[tuple[list[str], bool]] = [
-        (re.findall(r'"([^"\n]*)"', families), True),
-        (sorted(AMBIGUOUS_FAMILY_WORDS), True),
-    ]
+    lists: list[tuple[list[str], bool]] = [(re.findall(r'"([^"\n]*)"', families), True)]
     for region in regions:
         code = "\n".join(line.split("//")[0] for line in region.splitlines())
         taken: list[tuple[int, int]] = []

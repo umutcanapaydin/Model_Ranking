@@ -388,28 +388,6 @@ extension CategoryHints {
         InputSignals.folds(question).map { InputSignals.wordsOf($0).map(plain) }
     }
 
-    /// #218: Turkish words a short Turkish question carries, in plain letters, each written only in
-    /// Turkish: the question particles, "which", "for", "better", "good", "AI" and the like. Not the
-    /// words other languages share ("en", "ne", "kim", "var"): the second review's M6.
-    static let turkishQuestionWords: Set<String> = [
-        "mi", "mu", "midir", "mudur", "hangisi", "hangisini", "hangi", "nedir", "icin", "iyi", "daha", "nasil",
-        "yapay", "zeka", "bana", "benim", "gibi", "kadar", "neden", "nerede", "kac", "olan", "yok",
-    ]
-
-    /// #218 (the M21-W2 reviews' M5 and M6, D-191): whether a question reads as Turkish before the embedding
-    /// is tried. A letter only Turkish has (dotless i, s-cedilla, soft g, dotted capital I) decides alone.
-    /// Otherwise each signal counts once per time it occurs: a letter Turkish shares with other languages
-    /// (c-cedilla, o-umlaut, u-umlaut), and each Turkish word written in lower case (a capitalised "Kim",
-    /// "MI" or "NE" is a name or a state code); two decide. A short Turkish question is not confidently
-    /// Turkish to the language recogniser ("claude mu chatgpt mi almanca"), and the English embedding
-    /// then places it on a surface it does not name; read as Turkish, D-187's Turkish path answers it.
-    static func readsAsTurkish(_ question: String) -> Bool {
-        if question.contains(where: { "ışğİŞĞ".contains($0) }) { return true }
-        let shared = question.lowercased().contains(where: { "çöü".contains($0) }) ? 1 : 0
-        let lowercase = InputSignals.wordsOf(question).filter { $0 == $0.lowercased() }.map(plain)
-        return shared + lowercase.filter(turkishQuestionWords.contains).count >= 2
-    }
-
     /// #206: the Turkish particles a question comparing models puts between their names.
     static let comparisonParticles: Set<String> = ["mi", "mu", "hangisi", "hangi", "yoksa", "veya", "ya", "da",
                                                    "de", "ve", "daha", "iyi", "en"]
@@ -424,16 +402,13 @@ extension CategoryHints {
     /// pro"), and a single letter is a version's tail ("gpt-4o").
     static func comparesModelsOnly(_ question: String) -> Bool {
         readings(question).contains { words in
-            // K1 (the M21-W2 review): every family the registry names (`ModelFamilies`), not a list of
-            // twelve; an ambiguous one ("kimi", "some") is a filler beside a plain one, never alone.
-            let isModel = { (word: String) in
-                generalWords.words.contains(word)
-                    || (ModelFamilies.words.contains(word) && !ModelFamilies.ambiguous.contains(word))
-            }
+            // M21-W2 (the first review's K1): every family the registry names (`ModelFamilies`, generated
+            // from it), not twelve brands. Narrow by its shape: every word is a model name, a tier or a
+            // particle, so "kimi mi geldi" ("did some come?") is none.
+            let isModel = { (word: String) in generalWords.words.contains(word) || ModelFamilies.words.contains(word) }
             return words.contains(where: isModel) && words.contains(where: comparisonParticles.contains)
                 && words.allSatisfy { word in
-                    isModel(word) || ModelFamilies.words.contains(word) || comparisonParticles.contains(word)
-                        || modelTierWords.contains(word) || word.count == 1
+                    isModel(word) || comparisonParticles.contains(word) || modelTierWords.contains(word) || word.count == 1
                 }
         }
     }
@@ -452,8 +427,6 @@ extension CategoryHints {
     }
 
     /// `everyday` for a question about AI models in general, where the embedding cannot read it.
-    /// (#222's Turkish ask for "the best one" was read here at M21-W2 and taken out after its second
-    /// review: its task words have a second reading, D-191.)
     static func generalSurface(_ question: String, within known: [String]) -> String? {
         known.contains(generalWords.id) && names(generalWords, readings(question), question.lowercased())
             ? generalWords.id : nil
@@ -568,14 +541,13 @@ struct SimilarityRouter: QuestionRouter {
         // D-187: a question that names a surface outright goes there, in either language and whether
         // or not the embedding below can load: the matches below need both, and either can be missing.
         let named = CategoryHints.namedSurface(question, within: known)
-        // #206 (the second review's M2): a comparison of model names is a general question, answered from
-        // `everyday` directly, whichever ranked families it names.
+        // #206 (M21-W2, the second review's M2): a comparison of model names is a general question,
+        // answered from `everyday` directly, whichever ranked families it names.
         if named == nil, CategoryHints.comparesModelsOnly(question) {
             return known.contains("everyday")
                 ? RoutingOutcome(categoryID: "everyday", tier: .similarity, unmeasured: false) : nil
         }
-        // #218: a question that reads as Turkish never reaches the English embedding.
-        guard !CategoryHints.readsAsTurkish(question), SimilarityRouter.readsEnglish(text),
+        guard SimilarityRouter.readsEnglish(text),
               let embedding = NLContextualEmbedding(language: .english),
               embedding.hasAvailableAssets,
               (try? embedding.load()) != nil
@@ -967,10 +939,6 @@ struct TieredRouter {
     /// §4), so eight seconds is a deadline for a hang, not for a slow answer.
     var modelTimeout: Double = 8
 
-    /// The names of the models the engine serves today (#194, the M21-W2 review's M2): a question that
-    /// names one is a search, though the registry's family words miss it. Empty until standings are kept.
-    var servedNames = ServedModelNames()
-
     /// The on-device model tier where the OS carries one. Not a policy decision — purely "does
     /// this device have it", which is why it is separate from `route`'s ordering.
     static func platformModelRouter() -> QuestionRouter? {
@@ -990,12 +958,12 @@ struct TieredRouter {
             // the wording tier, keywords first, gets the question.
             if outcome.unmeasured, outcome.reading == .search,
                let wording = await similarity.route(question, within: known), !wording.unmeasured {
-                return Self.read(question, wording, served: servedNames)
+                return Self.read(question, wording)
             }
-            return Self.read(question, outcome, served: servedNames)
+            return Self.read(question, outcome)
         }
         if let outcome = await similarity.route(question, within: known) {
-            return Self.read(question, outcome, served: servedNames)
+            return Self.read(question, outcome)
         }
         // `unmeasured: true` since M13-W3, by the signed plan's REQ-ASK-003: "`tier = manual` may
         // not carry `unmeasured = false`". The screen loads the chat ranking for this outcome, so
@@ -1003,13 +971,12 @@ struct TieredRouter {
         // said "Pick a surface below" and loaded a surface anyway (second-opinion P1).
         return Self.read(question, RoutingOutcome(
             categoryID: CategoryHints.unmeasuredFallback, tier: .manual, unmeasured: true
-        ), served: servedNames)
+        ))
     }
 
     /// D-169 as amended at M18-W3 and by D-184: the outcome's reading, from the signals in code and,
     /// where the model read the question, its verdict. The signals run on every tier.
-    static func read(_ question: String, _ outcome: RoutingOutcome, served: ServedModelNames = ServedModelNames())
-        -> RoutingOutcome {
+    static func read(_ question: String, _ outcome: RoutingOutcome) -> RoutingOutcome {
         var read = outcome
         // D-187 (the owner's ruling, 2026-10-08) retires #113's rule: a request to make or change an
         // image is answered from `vision`, the board of the models that read images best, and is no
@@ -1017,7 +984,7 @@ struct TieredRouter {
         read.reading = inputReading(
             noWord: InputSignals.noWord(question), smallTalk: InputSignals.smallTalk(question),
             doubt: InputSignals.pastedContent(question) || InputSignals.instructsTheApp(question)
-                || InputSignals.asksAFact(question, served: served),
+                || InputSignals.asksAFact(question),
             modelSaysNotASearch: outcome.tier == .model ? outcome.reading != .search : nil)
         return read
     }

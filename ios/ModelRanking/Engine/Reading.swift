@@ -166,16 +166,13 @@ enum InputSignals {
     /// fact, and naming no model, no task, no person asking, nothing current and no image the asker
     /// has. A doubt, as the others are: alone, the reader is asked. The model called 21 and 20 of 22
     /// such questions on the tuning set "a model search".
-    static func asksAFact(_ text: String, served: ServedModelNames = ServedModelNames()) -> Bool {
+    static func asksAFact(_ text: String) -> Bool {
         let folded = folds(text).map(wordsOf)
         // A suffix after an apostrophe belongs to its word ("Hamlet'i", "Türkiye'nin"), so it is no
         // English "I" (the second M19-W4 review's M2); "I'm" still leaves an "I".
         let bare = text.replacingOccurrences(of: "['’]\\p{L}+", with: "", options: .regularExpression)
         // Excluded if ANY folding names a model, the asker, a task or the rest: "I" and "AI" fold to
         // "ı" and "aı" in Turkish, and iOS capitalises "I" (the M19-W4 review's MJ2).
-        // #194: a model the engine ranks, named by its registry family ("qwen", "o3 mini", "phi-3"), or
-        // one only the engine serves today (the M21-W2 review's M2).
-        if namesARankedModel(bare, served: served) { return false }
         if folds(bare).map(wordsOf).contains(where: { words in
             words.contains(where: { word in
                 word.hasPrefix("model") || factExclusions.contains(word) || actVerbsEnglish.contains(word)
@@ -209,45 +206,13 @@ enum InputSignals {
     /// AI or an AI tool named, the asker in it or their wish, a recommendation, a task, something
     /// current, or an image the asker has (with the image nouns of `isImageNoun`).
     static let factExclusions: Set<String> = [
-        "ai", "llm", "yapay", "zeka", "zekâ", "chatbot", "chatgpt", "copilot", "opus", "sonnet", "assistant",
-        "asistan", "bot", "best",
+        "ai", "llm", "gpt", "yapay", "zeka", "zekâ", "chatbot", "chatgpt", "claude", "gemini", "deepseek",
+        "llama", "mistral", "grok", "copilot", "opus", "sonnet", "assistant", "asistan", "bot", "best",
         "better", "recommend", "i", "my", "me", "we", "our", "us", "bana", "benim", "ben", "istiyorum", "iyi",
         "iyisi", "coding", "code", "programming", "writing", "translation", "math", "maths", "essay",
         "homework", "today", "tonight", "now", "latest", "live", "yesterday", "tomorrow", "week", "bugün",
         "bugun", "şimdi", "dün", "yarın", "güncel", "hafta", "this", "screenshot",
     ]
-    /// #194 (M21-W2; the reviews' M1 to M4, D-191): whether the text names a model the engine ranks, by a
-    /// family word of its registry (`ModelFamilies`, generated) or of a model only the engine serves today
-    /// (`served`). A plain family word ("qwen", "mixtral") names a model wherever it stands, its version
-    /// written apart or onto it ("qwen3"). A word that is also plain English or Turkish ("llama", "kimi",
-    /// "o3", "nvidia"), and every served-only word, names a model only beside a version its own names use,
-    /// written apart ("kimi k2", "nova lite", "phi 3") or onto it ("llama3", "gemma3"): never on a word
-    /// about cost or making, which a granite countertop or an o1 visa has too (the second review's M3).
-    /// A Turkish suffix after an apostrophe is its own token ("llama3'ü").
-    static func namesARankedModel(_ text: String, served: ServedModelNames = ServedModelNames()) -> Bool {
-        folds(text).contains { folded in
-            let tokens = folded.split { !$0.isLetter && !$0.isNumber }.map(String.init)
-            return tokens.indices.contains { index in
-                let token = tokens[index]
-                let next = index + 1 < tokens.count ? tokens[index + 1] : ""
-                let letters = String(token.prefix(while: \.isLetter))
-                let attached = String(token.dropFirst(letters.count))
-                let versions = { (word: String) in
-                    ModelFamilies.versions[word, default: []].union(served.versions[word, default: []])
-                }
-                if ModelFamilies.words.contains(token) {
-                    return !ModelFamilies.ambiguous.contains(token) || versions(token).contains(next)
-                }
-                if !attached.isEmpty, ModelFamilies.words.contains(letters) {
-                    return !ModelFamilies.ambiguous.contains(letters) || versions(letters).contains(attached)
-                }
-                if let after = served.versions[token] { return after.contains(next) }
-                if !attached.isEmpty, let after = served.versions[letters] { return after.contains(attached) }
-                return false
-            }
-        }
-    }
-
     /// The same in Turkish, by stem, since the language joins its suffixes: to recommend, to code, to
     /// translate, homework, software (the M19-W4 review's MJ2 and M2).
     static let factExclusionStemsTurkish = ["öner", "kodla", "çevir", "çeviri", "ödev", "yazılım"]
