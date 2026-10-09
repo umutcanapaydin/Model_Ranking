@@ -542,3 +542,20 @@ def test_the_code_a_sink_runs_is_followed_into_computed_properties_and_protocol_
     assert any("`ProbeHolder.suffix`" in line and "`probeNote`" in line for line in runs), refused
     assert any("`ProbeTagger.tag()`" in line and "`probeNote`" in line for line in runs), refused
     assert len(refused) == 2, ("the probe's sink calls nothing it may not; only the two bodies are refused", refused)
+
+
+def test_the_readers_text_reaches_no_argument_of_a_request() -> None:
+    """#174, #188 (INV-64 on the compiled module): the M19 closure seat's S2 line (the typed question
+    sent as the budget) and the typed question kept as the surface are refused at their call and their
+    assignment; the screen's own request, its routed surface and its chosen one are allowed."""
+    assert _refused_in("ContentView.swift", "the request's `budget` argument")
+    assert _refused_in("ContentView.swift", "assigns `ContentView.task`")
+    refused = _refused_in("ContentView.swift", "#174, #188")
+    assert len(refused) == 2, refused
+
+
+def test_a_request_argument_the_gate_does_not_know_is_refused() -> None:
+    """#174: a new request parameter is a reviewed change, so an argument not in REQUEST_ARGUMENTS is
+    refused whatever it names."""
+    assert ("EngineClient.recommendation(task:budget:)", "task") in gate.REQUEST_ARGUMENTS
+    assert gate._request_problem("ContentView.swift", "<request argument>.EngineClient.search(text:)|text|a value@9")

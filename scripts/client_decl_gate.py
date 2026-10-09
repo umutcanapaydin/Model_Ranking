@@ -263,6 +263,23 @@ PROVENANCE: dict[str, tuple[set[str], str]] = {
 #: so each is extended only in the file that declares it, and conforms to no protocol the app declares.
 KEPT_TYPES = {symbol.split(".")[0] for symbol in PROVENANCE}
 
+#: #174, #188 (INV-64 on the compiled module): what each argument of a request the engine client
+#: sends may name. Outside the engine client, an argument names exactly its declaration here, or is a
+#: literal; any other value, whatever the screen built it from, is refused at the call. An argument
+#: of a request method not listed here is refused too, so a new parameter is a reviewed change.
+REQUEST_ARGUMENTS: dict[tuple[str, str], str] = {
+    ("EngineClient.recommendation(task:budget:)", "task"): "ContentView.task",
+    ("EngineClient.recommendation(task:budget:)", "budget"): "ContentView.budget",
+}
+#: What each of those declarations may hold. `None`: a `let` given a literal. Otherwise the one
+#: expression each assignment to it may be: a routed outcome's surface, or the surface `select(_:)`
+#: was given (the screen's sheet and alternatives offer only the engine's own list, and `select`
+#: refuses anything else). The surface itself leaves the phone by design (D-168 note 9, D-126).
+REQUEST_SOURCES: dict[str, set[str] | None] = {
+    "ContentView.budget": None,
+    "ContentView.task": {"RoutingOutcome.categoryID", "ContentView.select(_:).id"},
+}
+
 #: The second W2 review's U9: memory touched unsafely can rewrite any value, a sink's own included,
 #: whatever the rules above say. The client uses none, so a symbol any part of whose path starts so is
 #: refused everywhere.
@@ -494,7 +511,8 @@ def references(ast: str) -> dict[str, set[str]]:
             symbol = re.sub(r"([\w.]+) extension\.", r"\1.", symbol)
             symbol = re.sub(r"(^|\.)extension\.", r"\1", symbol)
             found[name].add(f"{module}.{symbol.rstrip('.')}")
-    for name, facts in (*sink_facts(ast).items(), *flow_facts(ast).items(), *url_facts(ast).items()):
+    for name, facts in (*sink_facts(ast).items(), *flow_facts(ast).items(), *url_facts(ast).items(),
+                        *request_facts(ast).items()):
         found.setdefault(name, set()).update(facts)
     return found
 
@@ -1149,6 +1167,135 @@ def _arithmetic_permitted(name: str, kind: str, function: str) -> bool:
     return (name, kind, None) in ARITHMETIC_PERMITTED or (name, kind, function) in ARITHMETIC_PERMITTED
 
 
+REQUEST_CALL = re.compile(r'decl="main\.\(file\)\.(EngineClient\.\w+\([^)"]*\))@')
+NAMED_DECL = re.compile(r'\bdecl="(\w+)\.\(file\)\.([^"@]+)@([^":]+):(\d+):(\d+)')
+ARGUMENT_LABEL = re.compile(r'^ *\(argument label="(\w+)"')
+
+
+def _named(node: _Node) -> set[str]:
+    """The declarations an expression names, by path, the implicit ones (`self`, a wrapper's storage)
+    left out; a declaration of another module keeps its module's name."""
+    named: set[str] = set()
+    for item in node.walk():
+        if " implicit " in item.line:
+            continue
+        for module, path, *_ in NAMED_DECL.findall(item.line):
+            named.add(path if module == "main" else f"{module}.{path}")
+    return named
+
+
+def _top(node: _Node) -> _Node:
+    """An expression past the loads, conversions and parentheses the compiler wraps it in."""
+    while node.kind in {"load_expr", "paren_expr", "function_conversion_expr", "inject_into_optional"} and node.kids:
+        node = node.kids[0]
+    return node
+
+
+def _line(node: _Node) -> int:
+    found = LOCATION.search(node.line)
+    return int(found.group(2)) if found else 0
+
+
+def _declared(roots: list[_Node]) -> dict[str, _Node]:
+    """`{"path:line:col": var_decl node}` for every stored property, by where it is declared."""
+    out: dict[str, _Node] = {}
+    for root in roots:
+        for node in root.walk():
+            if node.kind == "var_decl" and (start := RANGE_START.search(node.line)):
+                out[f"{pathlib.Path(start.group(1)).name}:{start.group(2)}:{start.group(3)}"] = node
+    return out
+
+
+def _literal_let(roots: list[_Node], where: str) -> bool:
+    """Whether the property declared at `where` is a `let` its binding gives a literal."""
+    for root in roots:
+        for parent in root.walk():
+            kids = parent.kids
+            for index, kid in enumerate(kids):
+                start = RANGE_START.search(kid.line) if kid.kind == "var_decl" else None
+                if not start or f"{pathlib.Path(start.group(1)).name}:{start.group(2)}:{start.group(3)}" != where:
+                    continue
+                binding = kids[index - 1] if index else None
+                literal = binding is not None and binding.kind == "pattern_binding_decl" and any(
+                    item.kind.endswith("literal_expr") for item in binding.walk()) and not _named(binding)
+                return " let " in kid.line and "immutable" in kid.line and literal
+    return False
+
+
+def _request_call(node: _Node) -> list[str]:
+    """The arguments of one call to an engine request that name anything but their declaration."""
+    if node.kind != "call_expr" or not node.kids or node.kids[0].kind != "dot_syntax_call_expr" \
+            or not node.kids[0].kids or not (call := REQUEST_CALL.search(node.kids[0].kids[0].line)):
+        return []
+    method, found = call.group(1), []
+    for arguments in node.kids[1:]:
+        if arguments.kind != "argument_list" or " implicit" in arguments.line:
+            continue
+        for argument in arguments.kids:
+            if (label := ARGUMENT_LABEL.match(argument.line)) is None:
+                continue
+            allowed = REQUEST_ARGUMENTS.get((method, label.group(1)))
+            named = _named(argument)
+            if allowed is None or (named and named != {allowed}):
+                shown = ", ".join(sorted(named)) or "a value"
+                found.append(f"main.<request argument>.{method}|{label.group(1)}|{shown}@{_line(node)}")
+    return found
+
+
+def _request_source(node: _Node) -> list[str]:
+    """An assignment, an `inout` use or a binding of a declaration a request sends, from anything but
+    its declared source."""
+    found = []
+    if node.kind in {"assign_expr", "inout_expr"} and node.kids:
+        for held in _named(_top(node.kids[0])) & set(REQUEST_SOURCES):
+            sources = REQUEST_SOURCES[held]
+            value = _top(node.kids[1]) if node.kind == "assign_expr" and len(node.kids) > 1 else None
+            top_named = {path for _, path, *_ in NAMED_DECL.findall(value.line)} if value else set()
+            if sources is None or not (top_named & sources):
+                found.append(f"main.<request source>.{held}|{node.kind}@{_line(node)}")
+    bindings = {f"{held.rpartition('.')[0]}.${held.rpartition('.')[2]}" for held in REQUEST_SOURCES}
+    found += [f"main.<request source>.{path}|binding@{_line(node)}"
+              for module, path, *_ in NAMED_DECL.findall(node.line) if module == "main" and path in bindings]
+    return found
+
+
+def request_facts(ast: str) -> dict[str, set[str]]:
+    """#174, #188 (INV-64): `{file: {"main.<request ...>", ...}}`, each argument of an engine request
+    that names anything but its one declaration in `REQUEST_ARGUMENTS`, and each source of those
+    declarations `REQUEST_SOURCES` does not allow."""
+    roots = _tree(ast)
+    facts: dict[str, set[str]] = {}
+    declared_at: dict[str, str] = {}
+    for root in roots:
+        file = _file_of(root)
+        for node in root.walk():
+            for module, path, decl_file, decl_line, decl_col in NAMED_DECL.findall(node.line):
+                if module == "main" and path in REQUEST_SOURCES:
+                    declared_at[path] = f"{pathlib.Path(decl_file).name}:{decl_line}:{decl_col}"
+            found = _request_source(node) + ([] if file == NETWORK_FILE else _request_call(node))
+            facts.setdefault(file, set()).update(found)
+    for held, sources in REQUEST_SOURCES.items():
+        if sources is None and held in declared_at and not _literal_let(roots, declared_at[held]):
+            facts.setdefault(declared_at[held].split(":")[0], set()).add(
+                f"main.<request source>.{held}|not a literal let@0")
+    return {file: found for file, found in facts.items() if found}
+
+
+def _request_problem(name: str, symbol: str) -> str | None:
+    """#174, #188 (INV-64): the reader's text, or anything the screen built, into a request's arguments."""
+    fact, _, subject = symbol.partition(">.")
+    detail, _, line = subject.rpartition("@")
+    if fact == "<request argument":
+        method, label, named = detail.split("|")
+        return (f"{name}:{line}: the request's `{label}` argument to `{method}` names {named}; a request "
+                "carries only its declared sources, never what the screen builds (INV-64, D-126; #174, #188)")
+    if fact == "<request source":
+        held, how = detail.split("|")
+        return (f"{name}:{line}: assigns `{held}` ({how}) from something other than its declared source; it "
+                "is sent to the engine, so what it holds is held too (INV-64, D-126; #174, #188)")
+    return None
+
+
 def _flow_problem(name: str, symbol: str) -> str | None:
     """#60 (G-2): arithmetic on a served number outside its ruling's place, or a sort past its count."""
     fact, _, subject = symbol.partition(">.")
@@ -1315,7 +1462,8 @@ def problems(found: dict[str, set[str]]) -> list[str]:
         for decl in sorted(decls):
             module, _, symbol = decl.partition(".")
             if module == "main" and symbol.startswith("<"):
-                if (problem := _sink_problem(name, symbol) or _flow_problem(name, symbol)) is not None:
+                if (problem := _sink_problem(name, symbol) or _flow_problem(name, symbol)
+                        or _request_problem(name, symbol)) is not None:
                     bad.append(problem)
                 continue
             problem = _module_problem(name, module, symbol, decl)

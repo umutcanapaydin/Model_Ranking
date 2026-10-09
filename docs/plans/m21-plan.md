@@ -76,7 +76,9 @@ Gate definitions change, so the owner reviews the wave (AGENTS.md §3).
 ## 3. Risk tiers and security globs
 
 - **HIGH waves:** all four.
-- **Security globs:** M20's list (`docs/plans/m20-plan.md` §3), and `ios/ModelRanking/Engine/Reading.swift`.
+- **Security globs:** M20's list (`docs/plans/m20-plan.md` §3), `ios/ModelRanking/Engine/Reading.swift`,
+  and `ios/ModelRanking/ContentView.swift` (added at M21-W3, #188: the screen builds the request's
+  arguments).
 
 ## 4. Spike check
 
