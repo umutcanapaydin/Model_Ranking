@@ -1410,7 +1410,76 @@
                       (declref_expr type="(ComparisonResult.Type) -> ComparisonResult" location=/x/ContentView.swift:182:79 range=[/x/ContentView.swift:182:79 - line:182:79] decl="Foundation.(file).ComparisonResult.orderedSame" function_ref=unapplied)
                       (argument_list implicit
                         (argument
-                          (type_expr implicit type="ComparisonResult.Type" location=/x/ContentView.swift:182:78 range=[/x/ContentView.swift:182:78 - line:182:78] typerepr="ComparisonResult"))))))))))))))
+                          (type_expr implicit type="ComparisonResult.Type" location=/x/ContentView.swift:182:78 range=[/x/ContentView.swift:182:78 - line:182:78] typerepr="ComparisonResult")))))))))))))
+  (func_decl range=[/x/ContentView.swift:187:1 - line:189:1] "fixtureViewReadsAnAddressAsText(_:)" interface_type="(URL) -> String?" access=internal result="String?" thrown_type="<null>"
+    (parameter_list range=[/x/ContentView.swift:187:37 - line:187:52]
+      (parameter "address" interface_type="URL"))
+    (brace_stmt range=[/x/ContentView.swift:187:65 - line:189:1]
+      (return_stmt implicit range=[/x/ContentView.swift:188:5 - line:188:53]
+        (optional_try_expr type="String?" location=/x/ContentView.swift:188:10 range=[/x/ContentView.swift:188:5 - line:188:53] thrown_error="any Error"
+          (inject_into_optional implicit type="String?" location=/x/ContentView.swift:188:10 range=[/x/ContentView.swift:188:10 - line:188:53]
+            (call_expr type="String" location=/x/ContentView.swift:188:10 range=[/x/ContentView.swift:188:10 - line:188:53] throws isolation_crossing="none"
+              (constructor_ref_call_expr type="(__shared URL, String.Encoding) throws -> String" location=/x/ContentView.swift:188:10 range=[/x/ContentView.swift:188:10 - line:188:10] nothrow isolation_crossing="none"
+                (declref_expr implicit type="(String.Type) -> (__shared URL, String.Encoding) throws -> String" location=/x/ContentView.swift:188:10 range=[/x/ContentView.swift:188:10 - line:188:10] decl="Foundation.(file).String extension.init(contentsOf:encoding:)" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (type_expr type="String.Type" location=/x/ContentView.swift:188:10 range=[/x/ContentView.swift:188:10 - line:188:10] typerepr="String"))))
+              (argument_list labels="contentsOf:encoding:"
+                (argument label="contentsOf"
+                  (declref_expr type="URL" location=/x/ContentView.swift:188:29 range=[/x/ContentView.swift:188:29 - line:188:29] decl="main.(file).fixtureViewReadsAnAddressAsText(_:).address@/x/ContentView.swift:187:40" function_ref=unapplied))
+                (argument label="encoding"
+                  (member_ref_expr type="String.Encoding" location=/x/ContentView.swift:188:49 range=[/x/ContentView.swift:188:48 - line:188:49] decl="Foundation.(file).String extension.Encoding.utf8"
+                    (type_expr implicit type="String.Encoding.Type" location=/x/ContentView.swift:188:48 range=[/x/ContentView.swift:188:48 - line:188:48] typerepr="String.Encoding"))))))))))
+  (func_decl range=[/x/ContentView.swift:191:1 - line:193:1] "fixtureViewReadsAnAddressAsNSData(_:)" interface_type="(URL) -> Data?" access=internal result="Data?" thrown_type="<null>"
+    (parameter_list range=[/x/ContentView.swift:191:39 - line:191:54]
+      (parameter "address" interface_type="URL"))
+    (brace_stmt range=[/x/ContentView.swift:191:65 - line:193:1]
+      (return_stmt implicit range=[/x/ContentView.swift:192:5 - line:192:40]
+        (coerce_expr type="Data?" location=/x/ContentView.swift:192:33 range=[/x/ContentView.swift:192:5 - line:192:40] written_type="Data?"
+          (optional_evaluation_expr implicit type="Data?" location=/x/ContentView.swift:192:5 range=[/x/ContentView.swift:192:5 - line:192:31]
+            (inject_into_optional implicit type="Data?" location=/x/ContentView.swift:192:5 range=[/x/ContentView.swift:192:5 - line:192:31]
+              (bridge_from_objc_expr implicit type="Data" location=/x/ContentView.swift:192:5 range=[/x/ContentView.swift:192:5 - line:192:31]
+                (bind_optional_expr implicit type="NSData" location=/x/ContentView.swift:192:5 range=[/x/ContentView.swift:192:5 - line:192:31] depth=0
+                  (call_expr type="NSData?" location=/x/ContentView.swift:192:5 range=[/x/ContentView.swift:192:5 - line:192:31] nothrow isolation_crossing="none"
+                    (constructor_ref_call_expr type="(URL) -> NSData?" location=/x/ContentView.swift:192:5 range=[/x/ContentView.swift:192:5 - line:192:5] nothrow isolation_crossing="none"
+                      (declref_expr implicit type="(NSData.Type) -> (URL) -> NSData?" location=/x/ContentView.swift:192:5 range=[/x/ContentView.swift:192:5 - line:192:5] decl="Foundation.(file).NSData extension.init(contentsOf:)@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSData.h:120:1" function_ref=single apply)
+                      (argument_list implicit
+                        (argument
+                          (type_expr type="NSData.Type" location=/x/ContentView.swift:192:5 range=[/x/ContentView.swift:192:5 - line:192:5] typerepr="NSData"))))
+                    (argument_list labels="contentsOf:"
+                      (argument label="contentsOf"
+                        (declref_expr type="URL" location=/x/ContentView.swift:192:24 range=[/x/ContentView.swift:192:24 - line:192:24] decl="main.(file).fixtureViewReadsAnAddressAsNSData(_:).address@/x/ContentView.swift:191:42" function_ref=unapplied))))))))))))
+  (func_decl range=[/x/ContentView.swift:195:1 - line:197:1] "fixtureViewParsesAnAddress(_:)" interface_type="(URL) -> Bool" access=internal result="Bool" thrown_type="<null>"
+    (parameter_list range=[/x/ContentView.swift:195:32 - line:195:47]
+      (parameter "address" interface_type="URL"))
+    (brace_stmt range=[/x/ContentView.swift:195:57 - line:197:1]
+      (return_stmt implicit range=[/x/ContentView.swift:196:5 - line:196:48]
+        (binary_expr type="Bool" location=/x/ContentView.swift:196:45 range=[/x/ContentView.swift:196:5 - line:196:48] nothrow isolation_crossing="none"
+          (declref_expr type="(consuming Bool?, @autoclosure () throws -> Bool) throws -> Bool" location=/x/ContentView.swift:196:45 range=[/x/ContentView.swift:196:45 - line:196:45] decl="Swift.(file).?? [with (substitution_map generic_signature=<T where T : Escapable> T -> Bool)]" function_ref=single apply)
+          (argument_list implicit
+            (argument
+              (optional_evaluation_expr implicit type="Bool?" location=/x/ContentView.swift:196:37 range=[/x/ContentView.swift:196:5 - line:196:43]
+                (inject_into_optional implicit type="Bool?" location=/x/ContentView.swift:196:37 range=[/x/ContentView.swift:196:5 - line:196:43]
+                  (call_expr type="Bool" location=/x/ContentView.swift:196:37 range=[/x/ContentView.swift:196:5 - line:196:43] nothrow isolation_crossing="none"
+                    (dot_syntax_call_expr type="() -> Bool" location=/x/ContentView.swift:196:37 range=[/x/ContentView.swift:196:5 - line:196:37] nothrow isolation_crossing="none"
+                      (declref_expr type="(XMLParser) -> () -> Bool" location=/x/ContentView.swift:196:37 range=[/x/ContentView.swift:196:37 - line:196:37] decl="Foundation.(file).XMLParser.parse()" function_ref=single apply)
+                      (argument_list implicit
+                        (argument
+                          (bind_optional_expr type="XMLParser" location=/x/ContentView.swift:196:35 range=[/x/ContentView.swift:196:5 - line:196:35] depth=0
+                            (call_expr type="XMLParser?" location=/x/ContentView.swift:196:5 range=[/x/ContentView.swift:196:5 - line:196:34] nothrow isolation_crossing="none"
+                              (constructor_ref_call_expr type="(URL) -> XMLParser?" location=/x/ContentView.swift:196:5 range=[/x/ContentView.swift:196:5 - line:196:5] nothrow isolation_crossing="none"
+                                (declref_expr implicit type="(XMLParser.Type) -> (URL) -> XMLParser?" location=/x/ContentView.swift:196:5 range=[/x/ContentView.swift:196:5 - line:196:5] decl="Foundation.(file).XMLParser.init(contentsOf:)@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSXMLParser.h:22:1" function_ref=single apply)
+                                (argument_list implicit
+                                  (argument
+                                    (type_expr type="XMLParser.Type" location=/x/ContentView.swift:196:5 range=[/x/ContentView.swift:196:5 - line:196:5] typerepr="XMLParser"))))
+                              (argument_list labels="contentsOf:"
+                                (argument label="contentsOf"
+                                  (declref_expr type="URL" location=/x/ContentView.swift:196:27 range=[/x/ContentView.swift:196:27 - line:196:27] decl="main.(file).fixtureViewParsesAnAddress(_:).address@/x/ContentView.swift:195:35" function_ref=unapplied))))))))
+                    (argument_list)))))
+            (argument
+              (autoclosure_expr implicit type="() throws -> Bool" location=/x/ContentView.swift:196:48 range=[/x/ContentView.swift:196:48 - line:196:48] discriminator=0 nonisolated
+                (parameter_list)
+                (boolean_literal_expr type="Bool" location=/x/ContentView.swift:196:48 range=[/x/ContentView.swift:196:48 - line:196:48] value=false builtin_initializer="Swift.(file).Bool extension.init(_builtinBooleanLiteral:)" initializer="**NULL**")))))))))
 (source_file "/x/Detail.swift"
   (import_decl range=[/x/Detail.swift:3:1 - line:3:8] module="Foundation")
   (func_decl range=[/x/Detail.swift:5:1 - line:7:1] "fixtureDetailWrites(_:)" interface_type="(String) -> ()" access=internal result="()" thrown_type="<null>"

@@ -181,3 +181,17 @@ func fixtureCompound(_ standing: Standing) -> Int {
 func fixtureO2SortsAnNSArray(_ standings: [Standing]) -> [Any] {
     (standings.map(\.position) as NSArray).sortedArray(comparator: { _, _ in .orderedSame })
 }
+
+// #168: three more initialisers that load a URL, an https one included. REFUSED as the network
+// outside EngineClient.swift (D-126, INV-63).
+func fixtureViewReadsAnAddressAsText(_ address: URL) -> String? {
+    try? String(contentsOf: address, encoding: .utf8)
+}
+
+func fixtureViewReadsAnAddressAsNSData(_ address: URL) -> Data? {
+    NSData(contentsOf: address) as Data?
+}
+
+func fixtureViewParsesAnAddress(_ address: URL) -> Bool {
+    XMLParser(contentsOf: address)?.parse() ?? false
+}

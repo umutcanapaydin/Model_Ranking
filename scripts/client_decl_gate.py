@@ -371,6 +371,9 @@ FIXTURE_REFUSALS = {
     ("Detail.swift", "withUnsafeMutablePointer"),
     ("Models.swift", "a privacy sink runs"),
     ("ContentView.swift", "with `sortedArray`"),
+    # #168: a URL loaded as text, as NSData and by an XML parser is the network too.
+    ("ContentView.swift", "String.init(contentsOf"), ("ContentView.swift", "NSData.init(contentsOf"),
+    ("ContentView.swift", "XMLParser.init(contentsOf"),
 }
 SOURCE = re.compile(r'^\(source_file "([^"]+)"', re.MULTILINE)
 #: One node of the dump: its indentation (the tree's depth) and its kind.
