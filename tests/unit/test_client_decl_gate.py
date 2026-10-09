@@ -393,7 +393,9 @@ def test_a_sink_holds_nothing_another_file_can_change() -> None:
     listed type; nothing else in the fixture's sinks is refused for it."""
     refused = gate.problems(gate.references(FLOW_AST))
     assert any(line.startswith("EngineClient.swift:") and "holds `relay`" in line for line in refused), refused
-    assert not [line for line in refused if "holds `" in line and "holds `relay`" not in line], refused
+    # #172 adds the fixture's kept closure (`holds `make``), refused for the same reason.
+    assert not [line for line in refused if "holds `" in line and "holds `relay`" not in line
+                and "holds `make`" not in line], refused
 
 
 def test_a_sink_calls_nothing_another_file_declares_but_what_is_listed() -> None:
@@ -402,7 +404,9 @@ def test_a_sink_calls_nothing_another_file_declares_but_what_is_listed() -> None
     calls only the functions listed for it, each with its reason."""
     refused = gate.problems(gate.references(FLOW_AST))
     assert any(line.startswith("EngineClient.swift:") and "calls `fixtureRelayed`" in line for line in refused), refused
-    assert not [line for line in refused if "calls `" in line and "fixtureRelayed" not in line], refused
+    # #172 adds the fixture's stored default, reached by the sink's call to `FixtureDefaulted.init`.
+    assert not [line for line in refused if "calls `" in line and "fixtureRelayed" not in line
+                and "FixtureDefaulted.init" not in line], refused
 
 
 def _refused_in(file: str, phrase: str) -> list[str]:
@@ -628,3 +632,14 @@ def test_a_labels_length_is_not_a_served_number() -> None:
     """#171: following a served number through text must not make a label's length one."""
     line = _marked("// allowed: label-length")
     assert not [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+
+
+def test_every_route_172_names_into_a_sink_is_refused() -> None:
+    """#172 (D-180, INV-66, gap G-1): a stored default (the sink's call to another file's initialiser), a
+    closure the sink keeps (a sink holds only values), a static `let`'s initialiser reading the screen's
+    state, and Foundation's shared state read in a sink: each refused on the fixture."""
+    assert _refused_in("EngineClient.swift", "FixtureDefaulted.init")
+    assert _refused_in("EngineClient.swift", "holds `make`")
+    assert _refused_in("Detail.swift", "`FixtureStatics.tag`, code a privacy sink runs")
+    assert _refused_in("EngineClient.swift", "uses `Thread.threadDictionary`")
+    assert _refused_in("EngineClient.swift", "uses `NotificationCenter")

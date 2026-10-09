@@ -714,6 +714,12 @@ def _kept_types(ast: str) -> list[tuple[str, str]]:
 _LOCAL_KINDS = {"func_decl", "constructor_decl", "destructor_decl", "accessor_decl", "closure_expr"}
 
 
+#: #172: Foundation's shared state, which any file can set and a sink could read: the main thread's
+#: dictionary, the notification centre, the shared caches and credential stores.
+FOUNDATION_SHARED = re.compile(r'decl="Foundation\.\(file\)\.((?:Thread\.threadDictionary|NotificationCenter|URLCache|'
+                               r'HTTPCookieStorage|URLCredentialStorage|NSUbiquitousKeyValueStore)[\w.]*)')
+
+
 class _SinkReach:
     """The second W2 review's B2: the bodies a privacy sink runs, and the shared state they read."""
 
@@ -737,8 +743,23 @@ class _SinkReach:
             self.function(node, file, owner, function)
         elif node.kind == "var_decl":
             self.variable(node, owner, scope)
-        for kid in node.kids:
+        for index, kid in enumerate(node.kids):
+            self.initialiser(node.kids, index, owner, scope)
             self.index(kid, file, owner, node.kind if node.kind in _LOCAL_KINDS else scope)
+
+    def initialiser(self, kids: list[_Node], index: int, owner: str, scope: str) -> None:
+        """#172: a global or `static` `let`'s initialiser runs on first use, so it is a body the code
+        that reads the constant runs."""
+        if kids[index].kind != "pattern_binding_decl" or index + 1 >= len(kids):
+            return
+        declared = kids[index + 1]
+        if declared.kind != "var_decl" or not (place := LOCAL_VAR.match(declared.line)) \
+                or not (named := VAR_NAME.match(declared.line)):
+            return
+        if scope in _LOCAL_KINDS or not (scope == "source_file" or " static " in declared.line):
+            return
+        key = (pathlib.Path(place.group(1)).name, int(place.group(2)), int(place.group(3)))
+        self.bodies.setdefault(key, (key[0], f"{owner}.{named.group(1)}" if owner else named.group(1), kids[index]))
 
     def function(self, node: _Node, file: str, owner: str, function: re.Match[str]) -> None:
         key: tuple[object, ...] = ("fn", file, int(function.group(1)), function.group(2))
@@ -785,7 +806,11 @@ class _SinkReach:
         queue = [key for root in self.roots if _file_of(root) in SINK_FILES for key in self.reached(root)]
         queue += self.witnesses
         seen: set[tuple[object, ...]] = set()
-        found: list[tuple[str, str]] = []
+        # #172: Foundation's shared state, read in a sink itself.
+        found: list[tuple[str, str]] = [
+            (_file_of(root), f"main.<sink runs>.{_file_of(root)} uses {used.group(1)}@Foundation")
+            for root in self.roots if _file_of(root) in SINK_FILES
+            for item in root.walk() for used in FOUNDATION_SHARED.finditer(item.line)]
         while queue:
             key = queue.pop()
             if key in seen or key not in self.bodies:
@@ -798,6 +823,8 @@ class _SinkReach:
                       for item in node.walk() for reference in FLOW_REF.finditer(item.line)
                       if (where := (pathlib.Path(reference.group(2)).name, int(reference.group(3)),
                                     int(reference.group(4)))) in self.mutable]
+            found += [(file, f"main.<sink runs>.{shown} uses {used.group(1)}@Foundation")
+                      for item in node.walk() for used in FOUNDATION_SHARED.finditer(item.line)]
             queue += list(self.reached(node))
         return found
 
@@ -1581,6 +1608,10 @@ def _kept_problem(name: str, fact: str, subject: str) -> str | None:
         return (f"{name}: `{kept}` conforms to `{protocol}`, a protocol the app declares, so its "
                 "initialiser can be called by another name; a kept type conforms to none (D-180, the "
                 "second W2 review's B1)")
+    if fact == "<sink runs" and " uses " in subject:
+        body, _, used = subject.partition(" uses ")
+        return (f"{name}: `{body}`, code a privacy sink runs, uses `{used.partition('@')[0]}`, Foundation's shared "
+                "state any file can set, so whatever sets it reaches the sink (D-180, #172)")
     if fact == "<sink runs":
         body, _, read = subject.partition(" reads ")
         variable, _, declared = read.partition("@")

@@ -4026,6 +4026,15 @@ carries the question off the device or into its caches with every gate passing.
 **Revisit when:** a third sink appears (a new route or a new store), or Swift can admit exactly two
 files to a declaration.
 
+**Note (M21-W3, #172, #85, #170, #174, #188):** the routes the second W2 review left open are held on
+the compiled module. A global or `static` `let` a sink reads runs no initialiser that reads shared
+mutable state, and neither a sink nor the code it runs uses Foundation's shared state (the main
+thread's dictionary, the notification centre, the shared caches and credential stores). A stored
+default is held as the sink's call to an initialiser another file declares, and a kept closure as a
+value a sink may not hold; both were refused already. The standings store dates what it keeps by its
+own clock (#170), and the recommendation request's arguments name only their declared sources (#174,
+#188). Gap G-1 is closed.
+
 ## D-181 — The phone's arithmetic and ordering rules are checked on what the compiler resolves
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
@@ -4104,6 +4113,16 @@ included, so `answers.filter { $0.eligibleCount > 0 }.count + 1` is refused (the
 
 **Revisit when:** a file needs arithmetic on a served number a ruling does not yet name, or #171 or
 #173 is taken.
+
+**Note (M21-W3, #171, #173, #169):** both are taken. The rule follows a served number through text,
+`Any` and a served fact's number, and refuses every shape the second W2 review planted (prefix and
+shift operators, an operator passed as a function, `pow` and the remainder, quotient and overflow
+methods, a subscript's parameter, a name bound on a later line, a conformance in an extension); the
+client declares no arithmetic operator and extends no number. An operand's closures, and text no number
+is parsed from, are not read, so a count of served things and a label's length are not served numbers
+(the third review's M2 is gone). The three D-143 places restate a fact's number too, so they are
+permitted for it. The text tripwire reads its served fields from the decoded types (#169). Gap G-2 is
+closed.
 
 ## D-182 — Each pick carries its model's id on `/v1`, and the app keys its cards on it
 
