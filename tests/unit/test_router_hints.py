@@ -78,7 +78,8 @@ def _interpolation_end(swift: str, i: int) -> int:
 
 
 def _code(swift: str) -> str:
-    """The source with its comments removed and only what some build compiles (`_built`)."""
+    """The source with its comments removed and a branch whose condition is literally false dropped
+    (`_built`): at least what some build compiles. Seven pins here read the Swift without it (G-15)."""
     return _built(_stripped(swift))
 
 
@@ -93,7 +94,7 @@ def _stripped(swift: str) -> str:
     A scanner, not a pattern (#98, W5 reviews M2 and M8): Swift block comments NEST, a `/*` inside a
     `//` comment opens nothing, and comment markers inside a string literal -- a raw one, or one inside
     an interpolation -- are text. Newlines inside a block comment are kept, so the code after it keeps
-    its line. A branch the compiler never builds (`#if false`) is dropped too (#110, `_built`).
+    its line. A branch whose condition is literally false is dropped too (#110, `_built`).
     """
     out: list[str] = []
     i, depth, n = 0, 0, len(swift)
@@ -466,7 +467,7 @@ def test_the_router_never_produces_anything_but_a_category_id() -> None:
 
 def test_the_engine_calls_take_only_the_spellings_of_task_and_budget_the_pin_reads() -> None:
     """REQ-RTR-004. The engine is asked for a SURFACE, never for a question. This pin refuses the
-    spellings it reads; any other spelling is not held (G-11, G-14; see INV-64).
+    spellings it reads; any other spelling is not held, and it reads the Swift without `_code` (G-11, G-14, G-15; see INV-64).
 
     `/v1` takes `task` and `budget` and nothing else, and the router's only contribution to a
     request is which of nine ids the task is. The scoring path is untouched (D-104) because the
@@ -540,7 +541,7 @@ def test_the_engine_calls_take_only_the_spellings_of_task_and_budget_the_pin_rea
 
 def test_the_gap_register_code_carries_no_egress_spelling_the_pin_reads() -> None:
     """REQ-GAP-001 (M14-W3): what the reader typed is recorded locally and nowhere else. This pin
-    refuses the spellings it reads; any other spelling is not held (G-13, G-14; see INV-62 and INV-67).
+    refuses the spellings it reads; any other spelling is not held, and it reads the Swift without `_code` (G-13, G-14, G-15; see INV-62 and INV-67).
 
     The register is the one place the app keeps the reader's words, so it is the most likely place
     for them to leak. Held structurally: it is saved only through `GapRegisterStore`, whose file is
@@ -1042,7 +1043,7 @@ def test_the_text_gate_refuses_a_link_detector_and_an_initialiser_it_cannot_see_
         assert not any(re.search(p, line) for p in EGRESS), line
 
 
-def test_the_pins_read_no_code_the_compiler_never_builds() -> None:
+def test_code_drops_a_branch_whose_condition_is_literally_false() -> None:
     """#110 (the M18-W5 review's K3): a line moved under `#if false` leaves the build, but `_code`
     kept it, so a pin could be satisfied by code the app no longer compiles. A branch whose condition
     is the literal `false` or `!true` is dropped, and so is an `#else` after a `true`; a condition

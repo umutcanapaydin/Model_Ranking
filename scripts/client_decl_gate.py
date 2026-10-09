@@ -13,7 +13,8 @@ all resolve to `Foundation.(file).URL.init(string:)`, so all three are one entry
 
 1. **Module allowlist.** A client file may reference declarations only from the modules below, plus
    the app's own. `Network`, `WebKit`, `CloudKit`, `Photos`, `Contacts` and everything else are
-   refused by absence, so an API nobody has thought of yet is refused too. `UIKit` and
+   refused by absence, so a declaration of a module nobody has listed is refused too; a class
+   reached by name is gap G-12. `UIKit` and
    `CoreFoundation` are allowlisted SYMBOL by symbol: both arrive through a re-export, and
    `CoreFoundation` whole carries sockets.
 2. **Capability rules inside the allowed modules.** Foundation and SwiftUI carry the ways text
@@ -133,8 +134,8 @@ NETWORK = ("URLSession", "URLRequest", "URLComponents", "URLQueryItem", "NSURL",
            "NSArray.init(contentsOf", "NSDictionary.init(contentsOf", "XMLParser.init(contentsOf",
            "NSAttributedString.init(url", "NSAttributedString.init(contentsOf")
 NETWORK_FILE = "EngineClient.swift"
-#: The M21-W3 review's M2: any initialiser that loads what a URL names (`NSMutableArray(contentsOf:)`,
-#: `NSAttributedString(url:)` and the classes the next SDK adds), whatever class declares it.
+#: The M21-W3 review's M2: an initialiser whose first label is `contentsOf:` or `url:`, whatever class
+#: declares it; another label is not held (G-14).
 CONTENTS_OF = re.compile(r"\.init\((?:contentsOf|url):")
 
 #: Declarations that touch the file system, including the local-file half of `URL`. Only the files in
@@ -522,7 +523,7 @@ FIXTURE_RULES: dict[str, str] = {
     "a path built elsewhere": "builds a path",
     "a second @AppStorage": "stores something outside the register",
     "the Release-only hook": "Debug-only UI test hook",
-    "a sink's Foundation list": "Thread.main",
+    "a sink's Foundation list": "not on the list of Foundation declarations",
     "a request method as a value": "used as a value",
     "the router's outcomes": "builds RoutingOutcome",
     "an expression by name": "NSExpression",

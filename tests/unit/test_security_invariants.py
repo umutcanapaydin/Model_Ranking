@@ -287,6 +287,10 @@ COMPILED = re.compile(r"The compiled gate refuses the shapes its fixture holds \
 #: The sentence a row that cites a text pin carries, naming each pin test it cites.
 PINS = re.compile(rf"[Tt]he text pins? ({_NAMES}) refuses? the spellings (?:it|they) reads?; any other spelling is not "
                   r"held \(G-14\)\.")
+#: The sentence a row carries for pins that read the Swift without `_code` (the M21-W3 review's round 5,
+#: B1; gap G-15), naming each such pin, a test the pin files declare.
+RAW = re.compile(rf"[Tt]he text pins? ({_NAMES}) reads? the Swift without `_code`, so a `#if false` or `/\* \*/` "
+                 r"copy of a line (?:it|they) requires? satisfies (?:it|them) \(G-15\)\.")
 #: How a record outside the register refers to what these gates hold, instead of restating it.
 POINTER = re.compile(r"[Hh]eld in part by the compiled gate and the text pins: see "
                      r"(INV-\d+(?:(?:, | and )INV-\d+)*) in `docs/security-invariants\.md`")
@@ -326,6 +330,12 @@ def _fixture_rules() -> set[str]:
     return set(gate.FIXTURE_RULES)
 
 
+@functools.cache
+def _pin_tests() -> frozenset[str]:
+    """The tests the two pin files declare."""
+    return frozenset().union(*(declared_names(ROOT / path) for path in PIN_FILES))
+
+
 def _gated(claim: str, cell: str) -> tuple[bool, set[str]]:
     """Whether a row cites the compiled gate, and the pin tests it cites."""
     return (any(c in cell for c in COMPILED_CITATIONS),
@@ -335,7 +345,8 @@ def _gated(claim: str, cell: str) -> tuple[bool, set[str]]:
 def gate_row_problems(text: str, rules: set[str]) -> list[str]:
     """Each register row that cites a client gate says it is held in part; one that cites the compiled gate
     carries COMPILED, naming rules the fixture has; one that cites a text pin carries PINS, naming exactly
-    the pin tests it cites; and the gaps the two sentences name are exactly the row's own "Partial:"."""
+    the pin tests it cites; RAW, where a row carries it, names pins the files declare; and the gaps the
+    sentences name are exactly the row's own "Partial:"."""
     found: list[str] = []
     for line in section(text, "The list").splitlines():
         match = ROW.match(line.rstrip())
@@ -365,6 +376,11 @@ def gate_row_problems(text: str, rules: set[str]) -> list[str]:
                 if set(re.findall(r"`([^`]+)`", said.group(1))) != pins:
                     found.append(f"INV-{number} names other pin tests than the {sorted(pins)} it cites")
                 named.add("G-14")
+        if said_raw := RAW.search(claim):
+            unknown = set(re.findall(r"`([^`]+)`", said_raw.group(1))) - _pin_tests()
+            if unknown:
+                found.append(f"INV-{number} names raw-reading pins the pin files do not declare: {sorted(unknown)}")
+            named.add("G-15")
         partial = set(GAP_REF.findall(" ".join(re.findall(r"Partial: [^<]*", cell))))
         if (compiled or pins) and named != partial:
             found.append(f"INV-{number}'s sentences name {sorted(named)}, its Partial: names {sorted(partial)}")
