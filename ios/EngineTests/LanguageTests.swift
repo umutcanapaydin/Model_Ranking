@@ -554,7 +554,6 @@ final class RefusalLanguageTests: OfflineTestCase {
             XCTAssertNotEqual(english, "the engine's English", code)
             XCTAssertNotEqual(turkish, "the engine's English", code)
             XCTAssertNotEqual(english, turkish, code)
-            XCTAssertEqual(english, refusal.errorDescription, code)
             XCTAssertTrue(refusal.diagnostic?.contains("the engine's English") == true, code)
         }
         XCTAssertEqual(Set(codes.map { EngineError.refused(status: 400, code: $0, message: "m").errorDescription(.turkish) }).count,

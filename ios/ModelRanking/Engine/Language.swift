@@ -806,6 +806,10 @@ extension EngineError {
     /// What happened, in the reader's language. English is `errorDescription` itself, so the two
     /// cannot drift; the engine's own refusal is shown as it sent it, in either language.
     func errorDescription(_ language: Language) -> String? {
+        // #223: a refusal whose code this app knows is said in the reader's language, English too.
+        if case let .refused(_, code, _) = self, let sentence = EngineError.refusalSentence(code, language) {
+            return sentence
+        }
         guard language == .turkish else { return errorDescription }
         switch self {
         case .unreachable: return "Motor yanıt vermiyor."
@@ -817,10 +821,30 @@ extension EngineError {
         }
     }
 
-    /// #223: an engine refusal in the reader's language, by its code (a stub in the red commit).
+    /// #223 (M21-W3): an engine refusal in the reader's language, by its code. `nil` for a code this
+    /// app does not know: the engine's own English is then shown, and it stays in `diagnostic` always.
+    /// `tests/unit/test_error_codes.py` holds the cases equal to the codes the engine sends.
     static func refusalSentence(_ code: String, _ language: Language) -> String? {
+        let turkish = language == .turkish
         switch code {
-        default: return nil
+        case "rate_limited":
+            return turkish ? "Bu bağlantıdan bir dakikada çok fazla istek geldi. Biraz bekle ve tekrar dene."
+                : "Too many requests came from this connection in a minute. Wait a moment and try again."
+        case "unknown_host":
+            return turkish ? "Bu motor, uygulamanın sorduğu adreste cevap vermiyor."
+                : "This engine does not answer at the address the app asked."
+        case "internal_error":
+            return turkish ? "Motor bu isteği karşılayamadı." : "The engine could not serve this request."
+        case "evidence_unavailable":
+            return turkish ? "Motorun verileri şu anda kullanılamıyor." : "The engine's evidence is not available right now."
+        case "unknown_task":
+            return turkish ? "Motor, uygulamanın sorduğu görevi tanımıyor. Çözüm, uygulamayı güncellemek."
+                : "The engine does not know the task this app asked for. Updating the app is the fix."
+        case "unknown_budget":
+            return turkish ? "Motor, uygulamanın sorduğu bütçeyi tanımıyor. Çözüm, uygulamayı güncellemek."
+                : "The engine does not know the budget this app asked for. Updating the app is the fix."
+        default:
+            return nil
         }
     }
 

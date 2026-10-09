@@ -47,6 +47,8 @@ enum EngineError: LocalizedError, Equatable {
         case .offline:
             return "This device has no network connection."
         case let .refused(_, _, message):
+            // The engine's own English. The screen words a code this app knows in the reader's
+            // language (`errorDescription(_:)`, #223); this file is a sink and calls no wording.
             return message
         case .undecodable:
             return "The engine's answer was not in a shape this app understands."
@@ -101,7 +103,9 @@ enum EngineError: LocalizedError, Equatable {
         case let .undecodable(detail):
             return "Payload did not match the /v1 contract: \(detail). Under D-124 this is a "
                 + "finding against /v1 before it is a client-side workaround."
-        case .timedOut, .offline, .refused:
+        case let .refused(status, code, message):
+            return "The engine refused (\(status) \(code)): \(message)"
+        case .timedOut, .offline:
             return nil
         }
     }
