@@ -43,10 +43,34 @@ final class ScreenPathTests: XCTestCase {
         switch expectedReadings[question] {
         case "notASearch": return field("notASearch").waitForExistence(timeout: timeout)
         case "unsure": return field("askBack").waitForExistence(timeout: timeout)
-        case "search": return app.buttons["change"].waitForExistence(timeout: timeout)
+        case "search": return waitForAnswer(timeout: timeout)
         default:
             XCTFail("\(question) has no reading in ScreenPaths.json")
             return false
+        }
+    }
+
+    /// What only an answer shows: the combined list, or a card's way into its evidence. Never Change, which
+    /// the note shows too (the second review's M5).
+    private func waitForAnswer(timeout: Double) -> Bool {
+        let evidence = app.buttons.matching(NSPredicate(format: "label CONTAINS 'See the evidence'")).firstMatch
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if field("combinedList").exists || evidence.exists { return true }
+            _ = field("combinedList").waitForExistence(timeout: 1)
+        }
+        return field("combinedList").exists || evidence.exists
+    }
+
+    /// After the wait, the other reading's element is absent, as the fixture's reading of `question` says.
+    private func assertReadingAlone(of question: String, file: StaticString = #filePath, line: UInt = #line) {
+        switch expectedReadings[question] {
+        case "notASearch":
+            XCTAssertFalse(field("askBack").exists, "\(question) was asked back", file: file, line: line)
+        case "unsure":
+            XCTAssertFalse(field("notASearch").exists, "\(question) got the note", file: file, line: line)
+        default:
+            XCTAssertFalse(field("askBack").exists || field("notASearch").exists, question, file: file, line: line)
         }
     }
 
@@ -255,7 +279,7 @@ final class ScreenPathTests: XCTestCase {
     func testAQuestionOfFactTheModelDoubtsIsTheNoteUnasked() {
         ask("what is the capital of australia")
         XCTAssertTrue(waitForReading(of: "what is the capital of australia"), "a question of fact the model doubts got no note")
-        XCTAssertFalse(field("askBack").exists, "a question of fact the model doubts was asked back")
+        assertReadingAlone(of: "what is the capital of australia")
         XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label CONTAINS 'See the evidence'")).firstMatch.exists,
                        "a ranking shows beside the note")
     }
@@ -265,7 +289,7 @@ final class ScreenPathTests: XCTestCase {
         ask("translate into Spanish: where is the train station")
         XCTAssertTrue(waitForReading(of: "translate into Spanish: where is the train station"),
                       "content pasted to act on got no note")
-        XCTAssertFalse(field("askBack").exists)
+        assertReadingAlone(of: "translate into Spanish: where is the train station")
     }
 
     /// REQ-ASK-005: pasted content alone is a doubt; "Find a model" answers it as routed.
