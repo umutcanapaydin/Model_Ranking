@@ -209,14 +209,6 @@ FORBIDDEN = (
     # not the argument, so it cannot tell `fatalError("\(typed)")` (B09) from a constant one; the
     # client calls none of these, so all of them are refused. The text gate also refuses
     # interpolation into them (W-121).
-    # The M21-W3 review's K1 (#241): an expression evaluated by name, key-value coding and `perform`
-    # reach any class and selector by name, past every declaration rule here. The client uses none.
-    "NSExpression",
-    "NSPredicate",
-    "NSObject.value(forKey",
-    "NSObject.value(forKeyPath",
-    "NSObject.setValue(",
-    "NSObject.perform(",
     "fatalError",
     "precondition",
     "assert",
@@ -230,6 +222,26 @@ FORBIDDEN = (
     "SecItemAdd",
     "CFPreferences",
     "NSKeyedArchiver",
+)
+#: The M21-W3 review's K1 (#241): what reaches a value, a class or a selector by name, past every
+#: declaration rule here. An expression evaluated by name, key-value coding and `perform` reach any
+#: class and selector; `Mirror` reads any stored field, a served number's included, past the served-field
+#: flow (G-2); the runtime's associated objects carry the reader's words on a shared object to code a
+#: sink runs (G-1); and its class, method and selector functions reach or swap code by name. The client
+#: uses none, so each is refused outright.
+BY_NAME = (
+    "NSExpression",
+    "NSPredicate",
+    "NSObject.value(forKey",
+    "NSObject.value(forKeyPath",
+    "NSObject.setValue(",
+    "NSObject.perform(",
+    "Mirror",
+    "objc_",
+    "class_",
+    "method_",
+    "NSClassFromString",
+    "NSSelectorFromString",
 )
 
 #: #85 (D-180): the two privacy sinks. Each sends or keeps only what its parameters, its immutable
@@ -468,6 +480,10 @@ FIXTURE_REFUSALS = {
     ("Detail.swift", "builds RoutingOutcome"), ("Detail.swift", "extends `RoutingOutcome`"),
     # M2 and K1 (#241): a mutable class's URL initialiser, and an expression evaluated by name.
     ("ContentView.swift", "NSMutableArray.init(contentsOf"), ("ContentView.swift", "NSExpression"),
+    # Past the review's fix: reflection, and the runtime's associated objects carrying the reader's words
+    # from the screen to code a sink runs (BY_NAME).
+    ("Arithmetic.swift", "Mirror"), ("ContentView.swift", "ObjectiveC.objc_"),
+    ("Detail.swift", "objc_getAssociatedObject"),
     # M4: the five rules the fixture lacked (the Release-only hook is in FIXTURE_RELEASE_REFUSALS).
     ("Detail.swift", "UIKit.UIPasteboard"), ("Detail.swift", "CoreFoundation.CFSocketCreate"),
     ("Detail.swift", "builds a path"), ("Detail.swift", "stores something outside the register"),
@@ -508,6 +524,7 @@ FIXTURE_RULES: dict[str, str] = {
     "a request method as a value": "used as a value",
     "the router's outcomes": "builds RoutingOutcome",
     "an expression by name": "NSExpression",
+    "reflection and the runtime by name": "ObjectiveC.objc_",
 }
 #: The M21-W3 review's M4: what the fixture must produce in the Release configurations only.
 FIXTURE_RELEASE_REFUSALS = {("ContentView.swift", "Debug-only UI test hook")}
@@ -1120,10 +1137,13 @@ def _reach(node: _Node, closures: bool = True, text: bool = True) -> Iterator[_N
     review's M5: a count of served things is not a served number). Without `text`, text is left out
     unless a number is parsed from it (#171: a label's length is not a served number; `Int(text)` is)."""
     yield node
-    if (node.kind == "member_ref_expr" and COUNTING.search(node.line)) or (
-            node.kind == "tuple_element_expr" and "field #=0" in node.line and node.kids
-            and ('"(offset: Int' in node.kids[0].line or 'type="EnumeratedSequence<' in node.kids[0].line)):
-        # A count, and an `enumerated()` element's offset, is a row number, not a served one (M1).
+    if node.kind == "member_ref_expr" and COUNTING.search(node.line):
+        # A count is how many there are, not a served number (M1), unless a served number built the list.
+        yield from _counted(node)
+        return
+    if node.kind == "tuple_element_expr" and "field #=0" in node.line and node.kids and (
+            '"(offset: Int' in node.kids[0].line or 'type="EnumeratedSequence<' in node.kids[0].line):
+        # An `enumerated()` element's offset is a row number, not a served one (M1).
         return
     parses = PARSES_NUMBER.search(node.line) is not None or (node.kind == "call_expr" and bool(node.kids) and any(
         PARSES_NUMBER.search(item.line) for item in node.kids[0].walk()))
@@ -1133,6 +1153,22 @@ def _reach(node: _Node, closures: bool = True, text: bool = True) -> Iterator[_N
         if not (text or parses) and TEXT_NODE.search(kid.line):
             continue
         yield from _reach(kid, closures, text or parses)
+
+
+def _counted(node: _Node) -> Iterator[_Node]:
+    """What a count depends on by value: a served number an argument gives (`Array(repeating:count:)`,
+    `dropFirst(_:)`, a range's bound, a subscript's index) makes the count a function of it, so it is
+    read. One a list holds as an element, or a closure or a key path maps, is not; nor is text, whose
+    length is no served number (#171)."""
+    for kid in node.kids:
+        if kid.kind in ("closure_expr", "keypath_expr") or TEXT_NODE.search(kid.line):
+            continue
+        if kid.kind != "argument_list":
+            yield from _counted(kid)
+            continue
+        for argument in kid.kids:
+            if not any(item.kind in ("closure_expr", "keypath_expr") for item in argument.walk()):
+                yield from _reach(argument, closures=False, text=False)
 
 
 def _mark(carriers: _Carriers, key: tuple[object, ...], kinds: set[str]) -> bool:
@@ -1835,6 +1871,17 @@ def _network_problem(name: str, symbol: str, head: str, decl: str) -> str | None
     return None
 
 
+def _reach_anything_problem(name: str, symbol: str, head: str, decl: str) -> str | None:
+    """What reaches any value past the declaration rules: by name (BY_NAME), or through memory."""
+    if any(symbol.startswith(p) or head == p for p in BY_NAME):
+        return (f"{name}: `{decl}` reaches a value, a class or a selector by name, past every declaration "
+                "rule here; the client uses none (the M21-W3 review's K1, #241)")
+    if any(part.startswith(UNSAFE) for part in head.split(".")):
+        return (f"{name}: `{decl}` touches memory unsafely, which can rewrite any value, a privacy sink's "
+                "own included; the client uses none (D-180, the second W2 review's U9)")
+    return None
+
+
 def _capability_problem(name: str, symbol: str, decl: str) -> str | None:
     """Network, file system and the ways text leaves a phone, inside the allowed modules."""
     head = symbol.split("(")[0]
@@ -1842,9 +1889,8 @@ def _capability_problem(name: str, symbol: str, decl: str) -> str | None:
         return None
     if any(symbol.startswith(p) or head == p for p in FORBIDDEN):
         return f"{name}: `{decl}` carries text off the device or into shared storage"
-    if any(part.startswith(UNSAFE) for part in head.split(".")):
-        return (f"{name}: `{decl}` touches memory unsafely, which can rewrite any value, a privacy sink's "
-                "own included; the client uses none (D-180, the second W2 review's U9)")
+    if (reached := _reach_anything_problem(name, symbol, head, decl)) is not None:
+        return reached
     if any(symbol.startswith(p) for p in PATH_BUILDING):
         if name in {*FILESYSTEM_FILES, NETWORK_FILE}:
             return None
