@@ -73,7 +73,7 @@ this set retired, none would, so the gate stays as it is. The lead's next step i
 independent seat, then this set joins `RETIRED_HELD_OUT`. #222's own text asks the same: "measured on a
 new set".
 
-## 6. After the review's fixes (`docs/reviews/m21-wave-2-review.md`, M1 to M8)
+## 6. After the first review's fixes (`docs/reviews/m21-wave-2-review-round-1.md`, M1 to M8)
 
 **Measured again** on the wording tier, twice, at the head after the fixes (`review-wording-1.json`,
 `review-wording-2.json`; counts only, the same scorer).
@@ -92,7 +92,32 @@ new set".
   ships the rule as measured, for the reason it gives.
 - **Own sentences.** Of the wave's own 37, 2 fall to "not measured" after the narrowing
   (`own-sentences-review.json`): the asks that name no task or model.
-- **The model tier was not run again.** The review's changes reach it only through the fact doubt's
-  model names (M1 to M3), which narrow it in both directions.
+- **The model tier was not run again.** The review's changes reach it through the fact doubt's model
+  names (M1 to M3), and also through clauses 1 and 2, because when the model declines the wording tier
+  answers (the second review's M8).
 - **The set is spent**, measured three times now. #237 asks for a fresh one from an independent seat,
   and then the set's retirement.
+
+## 7. After the second review's fixes (`docs/reviews/m21-wave-2-review.md`, M1 to M8)
+
+**Measured again** on the wording tier, twice, at `f976da7` (`review2-wording-1.json`,
+`review2-wording-2.json`; counts only, the same scorer).
+
+| run | right (78) | searches not measured (71) | given the note | asked | non-searches caught (7) |
+|---|---:|---:|---:|---:|---:|
+| before (`972b55e`) | 44 | 8 | 0 | 0 | 3 |
+| after the first review (`f7efd1e`) | 44 | 7 | 0 | 0 | 3 |
+| after the second review, run 1 and 2 | 44, 44 | 8, 8 | 0, 0 | 0, 0 | 3, 3 |
+
+- **All 78 rows are identical to `972b55e`.** The Turkish general ask (#222, D-191 clause 4) is taken
+  out, so the one held-out search it still caught is "not measured" again. #222 stays open with this
+  state.
+- **D-191's former revisit condition** (the general answer given to a search whose label names
+  another surface) no longer applies: no rule gives that answer.
+- **Own sentences.** Of the wave's own 37, 11 fall to "not measured" (`own-sentences-review2.json`), as
+  before the wave.
+- **Served names.** The probes route with no served names (`TieredRouter(model: nil)`, as the app does
+  before standings are kept). The second reviewer re-ran the wording probe with the served snapshot's
+  names (301 models), and none of the 78 rows changed. The model tier was not measured with them.
+- **The model tier was not run again,** for the reason in §6.
+- **The set is spent.** #237 asks for a fresh set.
