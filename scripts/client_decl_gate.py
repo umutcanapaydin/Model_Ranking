@@ -17,8 +17,13 @@ all resolve to `Foundation.(file).URL.init(string:)`, so all three are one entry
    `CoreFoundation` are allowlisted SYMBOL by symbol: both arrive through a re-export, and
    `CoreFoundation` whole carries sockets.
 2. **Capability rules inside the allowed modules.** Foundation and SwiftUI carry the ways text
-   leaves a phone, so those are named: the network is EngineClient's alone, the file system is the
-   gap register's alone, and sharing, hand-off, shared storage and logging belong to nobody.
+   leaves a phone, so those are named, as lists of the symbols each refuses: the network outside
+   `EngineClient.swift`, the file system outside the two stores, and sharing, hand-off, shared
+   storage and logging in any file. A symbol the lists do not name is not refused.
+
+What the client keeps on the phone is held in part by the compiled gate and the text pins: see
+INV-62, INV-63, INV-64, INV-66, INV-67, INV-75, INV-76, INV-85 and INV-89 in
+`docs/security-invariants.md`, whose gaps name what is not held.
 
 The text gate in `tests/unit/test_router_hints.py` stays: it runs in every lane, including the ones
 with no Xcode, and this one runs where the toolchain is. Neither is the whole check.
@@ -29,16 +34,15 @@ with no Xcode, and this one runs where the toolchain is. Neither is the whole ch
   resolves in `main`, and `main` is not capability-checked, so a relay there that any file can call
   passes (B19); the file system is whole inside `FrontDoor.swift`, so a write to the temporary
   directory from there passes too (B31). What a file does with a capability it owns is for review
-  and the tests. The first exception is the two privacy sinks (#85, D-180): neither holds anything
-  but a value of a listed type, reads mutable state another file can set, or calls what another file
-  declares unless it is listed, and the code a sink runs elsewhere reads no shared mutable state
-  (`_SinkReach`); only they build standings, only `EngineClient.swift` builds a client on an address
-  of its own and only the store's file builds or saves to a store, a kept type is extended and
-  conformed nowhere else, and no file touches memory unsafely (`SINK_FILES`, `SINK_HELD_TYPES`,
-  `SINK_CALLS_PERMITTED`, `PROVENANCE`, `KEPT_TYPES`, `UNSAFE`). These are the routes D-180 names, not
-  a proof that no other route exists (G-1, #172). The second is a served number (#60, D-181): the
-  operators, methods and names it lists are followed (`_Flow`), others are not (#173), and nor is a
-  number through `Any` or text; the served facts reach the phone through `Any` (G-2, #171).
+  and the tests. The first exception is the two privacy sinks (#85, D-180): in a sink and in the
+  code it runs elsewhere (`_SinkReach`), the gate refuses the forms `SINK_FILES`, `SINK_HELD_TYPES`,
+  `SINK_CALLS_PERMITTED`, `SINK_FOUNDATION_ALLOWED`, `FOUNDATION_SHARED`, `FOUNDATION_OBJECT`,
+  `PROVENANCE`, `KEPT_TYPES` and `UNSAFE` list; any other form is not held (G-1, #242). The second is
+  a served number (#60, D-181): the operators, methods and names it lists, and the carriers
+  (`TEXTY_TYPE`, `PARSES_NUMBER`) and builders `_Flow` follows; any other form is not held (G-2, #242).
+- The two stores' own URLs: a URL `FrontDoor.swift` or `StandingsStore.swift` makes (`URL.made`,
+  `URL.init(_:strategy:)`) and loads with `Data(contentsOf:)` is allowed there by design, so it is
+  held on the compiled module by nothing (G-13, #246).
 - It does not see arguments, and some of the check lives in the text gate for that reason:
   `Text("[report](https://…)")` is a `LocalizedStringKey` literal, not an `AttributedString`, so a
   markdown link written as a literal passes here and dies there (B10); a key built at run time is
@@ -223,12 +227,12 @@ FORBIDDEN = (
     "CFPreferences",
     "NSKeyedArchiver",
 )
-#: The M21-W3 review's K1 (#241): what reaches a value, a class or a selector by name, past every
+#: The M21-W3 review's K1 (#241): symbols that reach a value, a class or a selector by name, past every
 #: declaration rule here. An expression evaluated by name, key-value coding and `perform` reach any
 #: class and selector; `Mirror` reads any stored field, a served number's included, past the served-field
 #: flow (G-2); the runtime's associated objects carry the reader's words on a shared object to code a
 #: sink runs (G-1); and its class, method and selector functions reach or swap code by name. The client
-#: uses none, so each is refused outright.
+#: uses none, so each listed symbol is refused outright; any other by-name route is not held (G-12).
 BY_NAME = (
     "NSExpression",
     "NSPredicate",
@@ -244,9 +248,9 @@ BY_NAME = (
     "NSSelectorFromString",
 )
 
-#: #85 (D-180): the two privacy sinks. Each sends or keeps only what its parameters, its immutable
-#: configuration and the engine's answer give it, so nothing derived from the question can reach
-#: them through state another file sets. The file scope above cannot see that (the M17 closure's P2).
+#: #85 (D-180): the two privacy sinks. The rules below refuse, in each, the forms they list of state
+#: another file sets, which the file scope above cannot see (the M17 closure's P2); any other form is
+#: not held (G-1, INV-66).
 SINK_FILES = {
     "EngineClient.swift": "every request to the engine, the boards request among them (INV-66)",
     "StandingsStore.swift": "the standings file on this device (INV-66)",
@@ -493,9 +497,10 @@ FIXTURE_REFUSALS = {
     ("ContentView.swift", "String.init(contentsOf"), ("ContentView.swift", "NSData.init(contentsOf"),
     ("ContentView.swift", "XMLParser.init(contentsOf"),
 }
-#: #175 R3: each rule the gate applies, by a phrase a refusal of it carries. Every rule has at least one
+#: #175 R3: the rules the fixture holds, each by a phrase a refusal of it carries. Each has at least one
 #: refusal the fixture must produce in every configuration, so a change in the compiler's printed
-#: layout that silences one rule fails the self-test, wherever the gate runs.
+#: layout that silences one of them fails the self-test, wherever the gate runs. Two rules are not
+#: here and have no such refusal: the budget's literal `let` (`_literal_let`) and `SINK_SWIFT_REFUSED`.
 FIXTURE_RULES: dict[str, str] = {
     "the module allowlist": "imports `Network`",
     "the network door": "URLSession",
@@ -807,9 +812,11 @@ def _kept_types(ast: str) -> list[tuple[str, str]]:
 #: The second W2 review's B2: what a sink runs is not its file alone. A body another file owns runs
 #: when a sink calls it, or when a decoder does (a coding witness, called by no name). Each such body,
 #: followed through the functions, initialisers and computed properties it reaches and every member a
-#: protocol requirement may dispatch to, reads no shared `var` (a global, a `static` or a class's) and
-#: no closure kept in a global or a `static`. What it does not follow: a stored property's default, a
-#: global or `static` `let`'s initialiser, a closure kept in a value, and what Foundation holds.
+#: protocol requirement may dispatch to, is refused when it reads a shared `var` (a global, a `static`
+#: or a class's), a closure kept in a global or a `static`, a global or `static` `let` whose initialiser
+#: does (#172), a constant whose declared type is a class `FOUNDATION_OBJECT` lists or an app class, or
+#: the state `FOUNDATION_SHARED` lists; any other form is not held (G-1). A stored property's default
+#: and a closure kept in a value are refused at the sink instead.
 _LOCAL_KINDS = {"func_decl", "constructor_decl", "destructor_decl", "accessor_decl", "closure_expr"}
 
 
@@ -822,9 +829,10 @@ FOUNDATION_SHARED = re.compile(r'decl="(?:Foundation|Swift)\.\(file\)\.((?:Threa
                                r'Locale\.(?:current|autoupdatingCurrent)|CommandLine|NotificationCenter|URLCache|'
                                r'HTTPCookieStorage|URLCredentialStorage|NSUbiquitousKeyValueStore)[\w.]*)')
 #: The M21-W3 review's B1 (#242): the Foundation declarations the two privacy sinks' own files may
-#: reference, each by the path the compiler resolves. Anything else in a sink file is refused by
-#: absence, so a new one is a reviewed edit: what the boards request and the standings file are built
-#: from cannot widen unseen. The code a sink runs in another file is held by `FOUNDATION_SHARED` above.
+#: reference, each by the path the compiler resolves. Any other declaration of these modules in a sink
+#: file is refused by absence, so a new one is a reviewed edit; an object reached through a listed
+#: declaration, or held behind a widened type, is not held (G-1). The code a sink runs in another file
+#: is checked against `FOUNDATION_SHARED` above, a list.
 SINK_MODULES = {"Foundation", "CoreFoundation", "Dispatch", "ObjectiveC", "_DarwinFoundation1"}
 SINK_FOUNDATION_ALLOWED = frozenset({
     "Bundle.main", "Bundle.object(forInfoDictionaryKey:",
@@ -1103,8 +1111,9 @@ def _numeric(node: _Node, attribute: str) -> bool:
 #: or put in a container of `Any` and cast back out.
 TEXTY_TYPE = re.compile(r"^(?:@lvalue )?(?:inout )?(?:String|Substring|DefaultStringInterpolation|NSString|NSMutableString|"
                         r"Data|AnyHashable|AnyObject|NSNumber|NSValue)\??$|\bAny\b")
-#: Text and bytes, whose length is no served number: the walk enters them only where a number is
-#: parsed back out (the M21-W3 review's B3).
+#: Text and bytes: the walk enters them only where a number is parsed back out (the M21-W3 review's
+#: B3), so a label's length is not read as a served number, and nor is the count of text or bytes a
+#: served number sized (G-2).
 TEXT_NODE = re.compile(r'\btype="(?:@lvalue )?(?:String|Substring|DefaultStringInterpolation|NSString|NSMutableString|'
                        r'Data)\??"')
 #: A number parsed from text or bytes: the numeric types' initialisers from a string, and (the M21-W3
@@ -1138,7 +1147,7 @@ def _reach(node: _Node, closures: bool = True, text: bool = True) -> Iterator[_N
     unless a number is parsed from it (#171: a label's length is not a served number; `Int(text)` is)."""
     yield node
     if node.kind == "member_ref_expr" and COUNTING.search(node.line):
-        # A count is how many there are, not a served number (M1), unless a served number built the list.
+        # A count is not read as a served number (M1), but for the arguments `_counted` follows (G-2).
         yield from _counted(node)
         return
     if node.kind == "tuple_element_expr" and "field #=0" in node.line and node.kids and (
@@ -1156,10 +1165,11 @@ def _reach(node: _Node, closures: bool = True, text: bool = True) -> Iterator[_N
 
 
 def _counted(node: _Node) -> Iterator[_Node]:
-    """What a count depends on by value: a served number an argument gives (`Array(repeating:count:)`,
-    `dropFirst(_:)`, a range's bound, a subscript's index) makes the count a function of it, so it is
-    read. One a list holds as an element, or a closure or a key path maps, is not; nor is text, whose
-    length is no served number (#171)."""
+    """The arguments a count is read through: a served number a call, an operator or a subscript is
+    given (`Array(repeating:count:)`, `dropFirst(_:)`, a range's bound, a subscript's index). An element
+    of a list, a closure or a key path mapping one, and text and bytes are not followed into a count
+    (#171), so the count of `String(repeating:count:)` or `Data(count:)` a served number sized is not
+    held (G-2)."""
     for kid in node.kids:
         if kid.kind in ("closure_expr", "keypath_expr") or TEXT_NODE.search(kid.line):
             continue
@@ -1858,7 +1868,8 @@ def _module_problem(name: str, module: str, symbol: str, decl: str) -> str | Non
 
 def _network_problem(name: str, symbol: str, head: str, decl: str) -> str | None:
     """The network outside its one door: a declaration on `NETWORK`, or any initialiser that loads what a
-    URL names (the M21-W3 review's M2), `Data`'s for the two stores aside."""
+    URL names (the M21-W3 review's M2), `Data`'s for the two stores aside (so their own loads are gap
+    G-13, #246)."""
     if name == NETWORK_FILE:
         return None
     if (CONTENTS_OF.search(symbol) and not symbol.startswith("Data.init(contentsOf")

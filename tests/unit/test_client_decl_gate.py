@@ -1,5 +1,8 @@
 """#51, #58 -- the compiler-level half of D-126 (`scripts/client_decl_gate.py`, `make client-decls`)
-refuses what it is for, and that is held by tests rather than by hand-run review probes.
+refuses the forms its lists name, and that is held by tests rather than by hand-run review probes.
+What the client keeps on the phone is held in part by the compiled gate and the text pins: see
+INV-62, INV-63, INV-64, INV-66, INV-67, INV-75, INV-76, INV-85 and INV-89 in
+`docs/security-invariants.md`, whose gaps name what is not held.
 
 - The rules, on what the compiler printed: these run everywhere, including CI, which has no Xcode.
 - The whole gate on a compiled fixture (`scripts/client_decl_fixtures/`): runs where Xcode is, and
@@ -548,10 +551,11 @@ def test_the_code_a_sink_runs_is_followed_into_computed_properties_and_protocol_
     assert len(refused) == 2, ("the probe's sink calls nothing it may not; only the two bodies are refused", refused)
 
 
-def test_the_readers_text_reaches_no_argument_of_a_request() -> None:
-    """#174, #188 (INV-64 on the compiled module): the M19 closure seat's S2 line (the typed question
-    sent as the budget) and the typed question kept as the surface are refused at their call and their
-    assignment; the screen's own request, its routed surface and its chosen one are allowed."""
+def test_the_fixtures_six_request_shapes_are_refused_and_its_own_request_is_not() -> None:
+    """#174, #188 (INV-64's listed forms on the compiled module): the M19 closure seat's S2 line (the
+    typed question sent as the budget) and the typed question kept as the surface are refused at their
+    call and their assignment, with the review's four round-1 twins; the screen's own request, its
+    routed surface and its chosen one are allowed. Other forms are gap G-11."""
     assert _refused_in("ContentView.swift", "the request's `budget` argument")
     assert _refused_in("ContentView.swift", "assigns `ContentView.task`")
     refused = _refused_in("ContentView.swift", "#174, #188")
@@ -674,19 +678,21 @@ def test_a_served_fact_is_a_kind_of_its_own_and_d143_permits_only_it() -> None:
     assert gate._served_cases(gate._tree(FLOW_AST))[("ShapeValue", "number")] == "fact"
 
 
-def test_a_sink_references_only_its_listed_foundation_and_no_object_another_file_holds() -> None:
-    """The review's B1 (INV-66, gap G-1): Foundation's process-wide state in a sink (the main thread's and
-    the main queue's names, the process name, the default time zone), and a mutable container another
-    file holds in a constant or a static, are refused where the sink reads them."""
+def test_round_one_process_state_and_object_constants_in_a_sink_are_refused() -> None:
+    """The review's round-1 B1 (INV-66's listed forms): Foundation's process-wide state in a sink (the
+    main thread's and the main queue's names, the process name, the default time zone), and a constant
+    or a static another file holds whose declared type is a mutable container class `FOUNDATION_OBJECT`
+    lists, are refused where the sink reads them. Behind a widened type it is not held (gap G-1)."""
     for phrase in ("Thread.main", "ProcessInfo.processName", "OperationQueue.main", "NSTimeZone.default"):
         assert _refused_in("EngineClient.swift", phrase), phrase
     assert _refused_in("EngineClient.swift", "reads `fixtureScreenBox`")
     assert _refused_in("EngineClient.swift", "reads `box`")
 
 
-def test_every_twin_of_the_refused_surface_is_refused() -> None:
-    """The review's B2 (INV-64): the surface set through the wrapper's storage or its binding, from an
-    outcome a helper in another file builds, and the request method held as a value: each refused."""
+def test_round_one_twins_of_the_surface_are_refused() -> None:
+    """The review's round-1 B2 (INV-64's listed forms): the surface set through the wrapper's storage or
+    its binding, from an outcome a helper in another file builds, and the request method held as a
+    value: each refused. Round 2's twins are not (gap G-11)."""
     assert _refused_in("ContentView.swift", "ContentView._task")
     assert _refused_in("ContentView.swift", "used as a value")
     assert _refused_in("Detail.swift", "builds RoutingOutcome")

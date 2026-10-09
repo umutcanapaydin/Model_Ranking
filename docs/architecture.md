@@ -326,17 +326,20 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
   engine's English is shown. `Uncertainty.swift` is the one file allowed arithmetic on scores
   (D-138).
 - **Gates on the client.**
-  - `tests/unit/test_ios_client_contract.py` and the declaration gate below: arithmetic on a served
-    number happens only in its named places (D-181): scores and the tie margin in `Uncertainty.swift`,
-    the anchor's conversions out of 100, positions in `Combine.swift`, and prices only in
-    `priceInPages` in `Router.swift` and `Language.swift`.
-  - `scripts/client_decl_gate.py`: the network belongs only to `EngineClient.swift`, and the file
-    system only to `FrontDoor.swift` and `StandingsStore.swift`. It reads what the compiler resolved,
-    in all four build configurations, and refuses only the forms its lists name: a privacy sink's
-    mutable state and unlisted calls (D-180), arithmetic on a served number through the names D-181
-    lists, and a URL made anywhere else (#107); and a pin reads only code some build compiles (#110).
-    Gaps G-1, G-2, G-11 and G-12 in `docs/security-invariants.md` name what the lists do not hold.
-  - `tests/unit/test_router_hints.py`: nothing the reader types reaches an engine call.
+  - `tests/unit/test_ios_client_contract.py` and the declaration gate below: D-181 names the places
+    arithmetic on a served number is permitted (scores and the tie margin in `Uncertainty.swift`, the
+    anchor's conversions out of 100, positions in `Combine.swift`, prices in `priceInPages` in
+    `Router.swift` and `Language.swift`). That no other place does it is held in part by the compiled
+    gate and the text pins: see INV-76 in `docs/security-invariants.md`.
+  - `scripts/client_decl_gate.py`: the declaration gate, which reads the declarations the compiler
+    resolved, in all four build configurations (D-126, W-122). The network, the file system, the
+    privacy sinks and the Release build's launch arguments are held in part by the compiled gate and
+    the text pins: see INV-62, INV-63, INV-66 and INV-75 in `docs/security-invariants.md`, whose gaps
+    name what is not held.
+  - `tests/unit/test_router_hints.py`: the privacy pins, the text half of the client gates. What
+    reaches an engine call, what the gap register keeps and the code the pins read are held in part
+    by the compiled gate and the text pins: see INV-64, INV-67 and INV-78 in
+    `docs/security-invariants.md`.
   - `make ui-test` (D-175): the screen's paths in the simulator, with scripted routing through the
     same boundary. It runs on the owner's Mac only, never in CI.
 
@@ -370,8 +373,8 @@ was asked, so the request says nothing about the question (D-167 clause 1).
 These requests cross the home network in cleartext when the opt-in is on (D-171 note 4). A
 TestFlight build sends them to the hosted engine over HTTPS.
 
-**What never crosses** (D-126; D-160 as amended by D-168 note 9; checked by
-`tests/unit/test_router_hints.py`):
+**What never crosses** (D-126; D-160 as amended by D-168 note 9; held in part by the compiled gate
+and the text pins: see INV-64, INV-66, INV-67 and INV-89 in `docs/security-invariants.md`):
 
 - the question's text;
 - the refinements chosen and the reader's removals;

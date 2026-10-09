@@ -335,7 +335,7 @@ def pointer_problems(records: dict[str, str], prd: str, register: str) -> list[s
     found: list[str] = []
 
     def check(where: str, block: str, needed: set[int]) -> None:
-        pointer = POINTER.search(block)
+        pointer = POINTER.search(" ".join(block.split()))  # a wrapped paragraph is one sentence
         if not pointer:
             found.append(f"{where} names a client gate or holds a gated invariant, and does not point at its row")
             return
@@ -377,7 +377,7 @@ def test_every_row_about_the_client_gates_ends_with_the_catch_all() -> None:
     bare = CATCH_ALL.sub("", gated.split(" | ")[1])
     unsaid = text.replace(gated, gated.replace(gated.split(" | ")[1], bare, 1), 1)
     assert any("catch-all" in p for p in gate_row_problems(unsaid))
-    other = text.replace(gated, re.sub(r"not held \(G-\d+", "not held (G-99", gated, count=1), 1)
+    other = text.replace(gated, re.sub(r"any other form is not held \(G-\d+", "any other form is not held (G-99", gated, count=1), 1)
     assert any("its Partial: names" in p for p in gate_row_problems(other))
 
 
