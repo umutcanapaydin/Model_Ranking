@@ -12,17 +12,25 @@ struct HeldReading: Equatable {
     let outcome: RoutingOutcome
 
     /// What `ask` does with a routed outcome: nothing for a search, which is answered; otherwise the
-    /// reading is held (a stub in the red commit).
+    /// reading is held, and sends no request (D-169 clauses 4 and 5).
     static func holding(_ outcome: RoutingOutcome, typed: String) -> HeldReading? {
-        nil
+        outcome.reading == .search ? nil : HeldReading(typed: typed, outcome: outcome)
     }
 
-    /// "Find a model": the held question answered as a search, routed as read (a stub).
-    var confirmed: RoutingOutcome { outcome }
+    /// "Find a model": the held question answered as a search, on the surface it was routed to.
+    var confirmed: RoutingOutcome {
+        var answered = outcome
+        answered.reading = .search
+        return answered
+    }
 
-    /// "No": the note (a stub).
-    var declined: HeldReading { self }
+    /// "No": exactly the note, the same question read as not a search. Nothing kept, nothing answered.
+    var declined: HeldReading {
+        var note = outcome
+        note.reading = .notASearch
+        return HeldReading(typed: typed, outcome: note)
+    }
 
-    /// The card: the question back exactly while the reading is unsure, the note otherwise (a stub).
-    var asksBack: Bool { false }
+    /// The card: the question back exactly while the reading is unsure, the note otherwise.
+    var asksBack: Bool { outcome.reading == .unsure }
 }

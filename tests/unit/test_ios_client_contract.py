@@ -937,7 +937,8 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     # D-169 (M18-W3): a question read as a search goes on to `apply`, which loads its surface.
     ask = re.search(r"private func ask\(\) async \{(.*?)\n    \}", home, re.S)
     assert ask, "the question path is gone"
-    assert re.search(r"guard outcome\.reading == \.search else \{.*?return\s*\}\s*await apply\(outcome,", ask.group(1), re.S), (
+    assert re.search(r"if let reading = HeldReading\.holding\(outcome, typed: typed\) \{.*?return\s*\}\s*await apply\(outcome,",
+                     ask.group(1), re.S), (
         "a question read as a search is no longer answered, or one that is not is"
     )
     applied = re.search(r"private func apply\(_ outcome: RoutingOutcome, typed: String, ticket: Int\) async \{(.*?)\n    \}", home, re.S)
@@ -955,16 +956,18 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     asked = ask.group(1)
     # D-169 clauses 4 and 5 (M18-W3 review M2): a held reading sends no request, loads nothing and
     # keeps nothing in the register. Its branch holds the question and returns, and nothing else.
-    held_branch = re.search(r"guard outcome\.reading == \.search else \{(.*?)\n        \}", asked, re.S)
+    # #132: the decision is `HeldReading.holding`, held by `HeldReadingTests`; this pins its wiring.
+    held_branch = re.search(r"if let reading = HeldReading\.holding\(outcome, typed: typed\) \{(.*?)\n        \}",
+                            asked, re.S)
     assert held_branch, "the branch for input that is not a search is gone"
     held_code = "\n".join(line.split("//", 1)[0] for line in held_branch.group(1).splitlines())
     for forbidden in ("load(", "client.", "gaps.", "recordsGap", "task =", "apply(", "routing = outcome", "Task {"):
         assert forbidden not in held_code, f"a held reading reaches `{forbidden}`"
-    assert re.search(r"held = HeldReading\(typed: typed, outcome: outcome\)", held_code), "the reading is not held"
+    assert re.search(r"held = reading\b", held_code), "the reading is not held"
     # The second review's M9: "Find a model" answers as routed, once, and "No" shows the note.
     confirm = re.search(r"private func confirm\(_ held: HeldReading\) \{(.*?)\n    \}", home, re.S)
     assert confirm and re.search(
-        r"guard !routingInFlight else \{ return \}.*outcome\.reading = \.search.*await apply\(outcome, typed: held\.typed",
+        r"guard !routingInFlight else \{ return \}.*let outcome = held\.confirmed.*await apply\(outcome, typed: held\.typed",
         confirm.group(1), re.S), "Find a model does not answer the held question as routed, once"
     # The third review's M19: "No" is exactly the note. Anything more, a gap kept or `confirm` called,
     # answers or records what the reader said is not a search.
@@ -972,10 +975,8 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     assert decline, "the path for No is gone"
     decline_code = [line.split("//", 1)[0].strip() for line in decline.group(1).splitlines()]
     assert [line for line in decline_code if line] == [
-        "var outcome = held.outcome",
-        "outcome.reading = .notASearch",
-        "self.held = HeldReading(typed: held.typed, outcome: outcome)",
-    ], "No does not show the note, or does more than show it"
+        "self.held = held.declined",
+    ], "No does not show the note, or does more than show it (`HeldReading.declined`, held by HeldReadingTests)"
     # The held card goes when a search is answered, first, before anything loads behind it.
     assert re.match(r"\s*held = nil\n", body), "an answered search leaves the held card over its ranking"
     assert re.search(
@@ -1373,7 +1374,7 @@ def test_the_held_card_stands_alone_and_shows_the_face_its_reading_asks_for() ->
     card = re.search(r"private func readingCard\(_ held: HeldReading\) -> some View \{(.*?)\n    \}", code, re.S)
     assert card, "the held card is gone"
     assert re.search(
-        r"if held\.outcome\.reading == \.unsure \{\s*Text\(UIText\.askBack\(language\)\).*?"
+        r"if held\.asksBack \{\s*Text\(UIText\.askBack\(language\)\).*?"
         r"\} else \{\s*Text\(UIText\.notASearchNote\(language\)\)",
         card.group(1),
         re.S,
@@ -1395,7 +1396,8 @@ def test_a_held_question_clears_the_old_answer_and_its_two_taps_do_what_they_say
     code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
     ask = re.search(r"private func ask\(\) async \{(.*?)\n    \}", code, re.S)
     assert ask, "the question path is gone"
-    held = re.search(r"guard outcome\.reading == \.search else \{(.*?)\n        \}", ask.group(1), re.S)
+    held = re.search(r"if let reading = HeldReading\.holding\(outcome, typed: typed\) \{(.*?)\n        \}",
+                     ask.group(1), re.S)
     assert held, "the branch for input that is not a search is gone"
     assert re.search(r"^\s*routing = nil\s*$", held.group(1), re.M), (
         "the previous question's surface and its notice stay on screen over a held one"

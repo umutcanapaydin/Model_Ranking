@@ -924,9 +924,10 @@ struct ContentView: View {
         let outcome = await router.route(typed, within: known)
         guard routingGate.isCurrent(ticket) else { return }
         // D-169 (M18-W3): input that is not a search, or that the app is not sure is one, sends no
-        // request: it is held, and the reader sees the note or is asked.
-        guard outcome.reading == .search else {
-            held = HeldReading(typed: typed, outcome: outcome)
+        // request: it is held (`HeldReading.holding`, in the Engine since #132), and the reader sees
+        // the note or is asked.
+        if let reading = HeldReading.holding(outcome, typed: typed) {
+            held = reading
             asked = typed
             routing = nil
             return
@@ -965,8 +966,7 @@ struct ContentView: View {
         // Review M3: one question at a time, as `submit` holds it; a tap while another routes would
         // take a newer question's ticket.
         guard !routingInFlight else { return }
-        var outcome = held.outcome
-        outcome.reading = .search
+        let outcome = held.confirmed
         routingInFlight = true
         Task {
             defer { routingInFlight = false }
@@ -976,9 +976,7 @@ struct ContentView: View {
 
     /// The reader said it is not: the note.
     private func decline(_ held: HeldReading) {
-        var outcome = held.outcome
-        outcome.reading = .notASearch
-        self.held = HeldReading(typed: held.typed, outcome: outcome)
+        self.held = held.declined
     }
 
     /// The note (no ranking, no request) or the question back (two taps, nothing sent until one).
@@ -986,7 +984,7 @@ struct ContentView: View {
     private func readingCard(_ held: HeldReading) -> some View {
         Card {
             VStack(alignment: .leading, spacing: 12) {
-                if held.outcome.reading == .unsure {
+                if held.asksBack {
                     Text(UIText.askBack(language)).font(.headline)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("askBack")
