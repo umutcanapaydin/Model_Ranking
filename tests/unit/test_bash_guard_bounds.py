@@ -23,9 +23,13 @@ def _run(setup: str, command: str) -> subprocess.CompletedProcess[str]:
                           capture_output=True, text=True, timeout=60, check=False)
 
 
-def test_a_deadline_near_zero_blocks_even_git_status() -> None:
+#: A reading that takes longer than the deadline, so the bound, not the race with a fast reading, decides.
+SLOW = "import time\ng.DEADLINE_S = 0.2\ng.judge_text = lambda text, depth=0: time.sleep(3)"
+
+
+def test_a_reading_past_the_deadline_blocks_even_git_status() -> None:
     """Mutant G2 (the timer never started) survived every gate."""
-    done = _run("g.DEADLINE_S = 1e-6", "git status")
+    done = _run(SLOW, "git status")
     assert done.returncode == 2 and "BLOCKED" in done.stderr, done
 
 
@@ -33,4 +37,4 @@ def test_the_deadline_holds_where_there_is_no_sigalrm() -> None:
     """On Windows `signal.setitimer` does not exist; the guard then blocked every call, `git status` too."""
     setup = "import signal\nfor name in ('setitimer', 'SIGALRM', 'ITIMER_REAL', 'alarm'):\n    if hasattr(signal, name): delattr(signal, name)"
     assert _run(setup, "git status").returncode == 0
-    assert _run(setup + "\ng.DEADLINE_S = 1e-6", "git status").returncode == 2
+    assert _run(setup + "\n" + SLOW, "git status").returncode == 2
