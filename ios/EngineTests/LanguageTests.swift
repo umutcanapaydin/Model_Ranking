@@ -564,6 +564,17 @@ final class RefusalLanguageTests: OfflineTestCase {
         let refusal = EngineError.refused(status: 429, code: "rate_limited", message: "Too many requests")
         XCTAssertTrue(refusal.errorDescription(.turkish)?.contains("bekle") == true)
     }
+
+    /// The M21 repo review's M4: the phone's own refusal, a non-200 answer in no shape it knows (Fly's 502 or
+    /// 503 while the one machine restarts), was shown in English to a Turkish reader. It names the status.
+    func testThePhonesOwnUnexpectedRefusalIsSaidInTurkishWithItsStatus() {
+        let refusal = EngineError.refused(status: 502, code: "unexpected",
+                                          message: "The engine answered 502 in a shape this app did not recognise.")
+        let turkish = refusal.errorDescription(.turkish)
+        XCTAssertNotEqual(turkish, "The engine answered 502 in a shape this app did not recognise.")
+        XCTAssertTrue(turkish?.contains("502") == true, turkish ?? "nil")
+        XCTAssertTrue(refusal.errorDescription(.english)?.contains("502") == true)
+    }
 }
 
 /// #63 findings 5, 6 and 7 (M18-W2).
