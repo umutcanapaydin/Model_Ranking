@@ -927,8 +927,15 @@ def test_a_merge_named_in_the_bypass_is_never_docs_only(tmp_path: Path) -> None:
     _commit(root, "fix: code", "2026-10-10T13:00:00", {"src/app/f.py": "x = 1\n", "docs/n.md": "side\n"})
     _git(root, "checkout", "-q", "wave/m30-w1")
     _commit(root, "docs: n", "2026-10-10T13:30:00", {"docs/n.md": "wave\n"})
-    subprocess.run(["git", "-C", str(root), "merge", "-q", "side"], capture_output=True, check=False, timeout=30)
+    # The merge stops on its conflict, so it runs with the identity _git sets and its status is not read; CI has no
+    # git identity, and a merge that failed there left an ordinary commit and a test that passed nothing.
+    ident = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.invalid", "GIT_COMMITTER_NAME": "t",
+             "GIT_COMMITTER_EMAIL": "t@example.invalid"}
+    subprocess.run(["git", "-C", str(root), "merge", "-q", "side"], capture_output=True, check=False, timeout=30,
+                   env={**os.environ, **ident})
+    assert (root / ".git" / "MERGE_HEAD").is_file(), "the merge did not start"
     _commit(root, "docs: merge side", "2026-10-10T14:00:00", {"docs/n.md": "both\n"})
+    assert len(_git(root, "rev-list", "--parents", "-n", "1", "HEAD").split()) == 3, "HEAD is not a merge"
     merge = _git(root, "rev-parse", "--short", "HEAD")
     assert _git(root, "show", "--no-renames", "--name-only", "--format=", merge) == "docs/n.md"
     found = check.skip_ledger_problems(_bypass(merge), "m30-w1", _within(merge), root=root)
@@ -1050,7 +1057,9 @@ def test_the_standing_globs_are_every_gate_and_each_names_a_file() -> None:
         "tests/unit/test_router_hints.py", "tests/unit/test_ios_client_contract.py", "scripts/offline.sb",
         ".github/workflows/**", "tests/conftest.py", "stack.mk")
     for glob in check.STANDING_GLOBS:
-        assert any(path.is_file() for path in ROOT.glob(glob)), glob
+        # Before Python 3.13 a trailing ** matches directories only, so a directory's files are read through **/*.
+        files = ROOT.glob(glob + "/*" if glob.endswith("**") else glob)
+        assert any(path.is_file() for path in files), glob
 
 
 def test_the_records_name_the_commit_gate_and_the_write_refusal() -> None:
