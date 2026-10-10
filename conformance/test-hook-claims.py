@@ -385,6 +385,9 @@ def main() -> int:
                   'cp /tmp/x .githooks/pre-commit', 'rm .claude/hooks/bash_guard.py',
                   'printf x | tee .claude/settings.json', 'mv /tmp/g "$CLAUDE_PROJECT_DIR/.claude/hooks/bash_guard.py"',
                   'echo x >> .githooks/pre-push', "perl -pi -e 's/a/b/' .claude/hooks/bash_guard.py",
+                  # The M21 closure fixes review's M6: a destination given as an option, and another case.
+                  'cp -t .claude/hooks x.py', 'cp --target-directory=.githooks x', 'install -t .githooks x',
+                  'dd if=x of=.claude/settings.json', 'cp x .CLAUDE/settings.json',
                   # It blocks what it cannot read: an unclosed quote, substitution or backtick (no case held these).
                   "echo 'not closed", 'echo "not closed', 'echo $(date', 'echo `date', 'echo ${HOME']
     MUST_ALLOW = ["git push -u origin fix/issue-3", "git push origin enhancement/x", "git push",
@@ -419,7 +422,9 @@ def main() -> int:
                   "bash -c 'echo hi'", "bash <<'EOF'\necho hi\nEOF", 'case $1 in a) echo a;; *) echo other;; esac',
                   # S3: reading the guard, staging it and hashing it stay allowed.
                   'cat .claude/settings.json', 'git add .claude/hooks/bash_guard.py',
-                  'shasum -a 256 .claude/hooks/bash_guard.py', 'grep -n onFailure .claude/settings.json']
+                  'shasum -a 256 .claude/hooks/bash_guard.py', 'grep -n onFailure .claude/settings.json',
+                  # M6: Claude Code's own directory in the home is not this project's.
+                  'mkdir -p ~/.claude/plans', 'cp notes.md "$HOME/.claude/CLAUDE.md"']
     bash_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
                       if h.get("matcher") == "Bash"), None)
     env_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
@@ -482,13 +487,28 @@ def main() -> int:
                 (changed / ".claude" / "hooks" / "bash_guard.py").write_bytes(guard + b"\n")
                 cases.append(("Bash", "`git status` with the guard changed by one byte", cmd("git status"), True,
                               None, {"CLAUDE_PROJECT_DIR": str(changed)}))
+                # M6: the pin holds the guard's bytes, and `python3 -I` keeps a module beside it from changing
+                # what it imports: a `json.py` there that allows everything changes nothing.
+                shadow = pathlib.Path(tmp) / "shadow"
+                (shadow / ".claude" / "hooks").mkdir(parents=True)
+                (shadow / ".claude" / "hooks" / "bash_guard.py").write_bytes(guard)
+                (shadow / ".claude" / "hooks" / "json.py").write_text("import sys\nsys.exit(0)\n", encoding="utf-8")
+                cases.append(("Bash", "`env fly deploy` with a json.py beside the guard", cmd("env fly deploy"), True,
+                              None, {"CLAUDE_PROJECT_DIR": str(shadow)}))
             if env_hook:
+                # M6: a link into the project's .githooks/ is the project's .githooks/.
+                (pathlib.Path(tmp) / "hooks-link").symlink_to(root / ".githooks")
                 cases += [("Write", f"a write to `{f}`", fpath(f), want, None, {})
                           for f, want in ((".env", True), ("cfg/.env.prod", True), ("prod.env", True),
                                           ("src/app.py", False), ("README.md", False),
                                           # S3: the hooks and settings are the owner's, by the Edit tool too.
                                           (".claude/settings.json", True), (".githooks/pre-commit", True),
-                                          ("/Users/x/repo/.claude/hooks/bash_guard.py", True),
+                                          (str(root / ".claude" / "hooks" / "bash_guard.py"), True),
+                                          (str(root / ".CLAUDE" / "settings.json"), True),
+                                          (str(pathlib.Path(tmp) / "hooks-link" / "pre-push"), True),
+                                          # M6: another project's, and the home's, are not this one's.
+                                          ("/Users/x/repo/.claude/hooks/bash_guard.py", False),
+                                          (str(pathlib.Path.home() / ".claude" / "projects" / "x" / "memory" / "MEMORY.md"), False),
                                           ("docs/claude.md", False))]
             for kind in [k for k, h in (("Bash", bash_hook), ("Write", env_hook)) if h]:
                 ok_payload, bad_payload = ((cmd("git status"), cmd("git push origin main"))
