@@ -1027,6 +1027,20 @@ def test_every_plan_reads_the_gates_standing_globs(tmp_path: Path) -> None:
     assert tuple(g for g in globs if g in check.STANDING_GLOBS) == check.STANDING_GLOBS
 
 
+def test_the_standing_globs_are_every_gate_and_each_names_a_file() -> None:
+    """Round 2, M5: the list left out three gates the repo review's M3 named (the two text pins and the offline
+    sandbox), two M21's plan lists (CI's workflows, the test configuration), and stack.mk, which adds check legs.
+    The list is pinned whole, and each entry names a file, so a typo cannot keep a gate out."""
+    check = _module("wave_check")
+    assert check.STANDING_GLOBS == (
+        "scripts/wave_check.py", "scripts/check_records.py", "scripts/commit_gate.py", "scripts/check_fast.py",
+        "scripts/client_decl_gate.py", "scripts/client_decl_fixtures/**", "Makefile", ".githooks/**", ".claude/**",
+        "tests/unit/test_router_hints.py", "tests/unit/test_ios_client_contract.py", "scripts/offline.sb",
+        ".github/workflows/**", "tests/conftest.py", "stack.mk")
+    for glob in check.STANDING_GLOBS:
+        assert any(path.is_file() for path in ROOT.glob(glob)), glob
+
+
 def test_the_records_name_the_commit_gate_and_the_write_refusal() -> None:
     """The fixes review's M7: AGENTS.md let a human bypass only the pre-push gate and named neither the commit
     gate nor the write refusal; the ledger's header named only `git push --no-verify`."""
