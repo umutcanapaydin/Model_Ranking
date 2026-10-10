@@ -2,8 +2,9 @@
 //
 //  The coding test failed four times in full runs, its second family list "never came on screen
 //  within 60 swipes": each fast swipe flings the lazy stack on, and once a fling has carried the list
-//  past the top, swiping on up never brings it back. The step is decided here, from the element's
-//  frame, so it is tested without a simulator.
+//  past the top, swiping on up never brings it back. Now each step is a drag of under half the screen
+//  that stops before it is let go, so nothing is flung past, and its direction is decided here, from
+//  the element's frame, so it is tested without a simulator.
 
 import CoreGraphics
 import XCTest
@@ -15,8 +16,9 @@ enum ScrollStep: Equatable {
 /// The next step toward `element` (nil while the lazy stack has not built it yet, which happens below
 /// the screen as the list is read top down).
 func scrollStep(toward element: CGRect?, hittable: Bool, on screen: CGRect) -> ScrollStep {
-    if let frame = element, hittable, screen.contains(frame) { return .done }
-    return .dragUp
+    guard let frame = element else { return .dragUp }
+    if hittable, screen.contains(frame) { return .done }
+    return frame.minY < screen.minY ? .dragDown : .dragUp
 }
 
 final class ScrollStepTests: XCTestCase {

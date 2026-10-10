@@ -124,12 +124,21 @@ final class ScreenPathTests: XCTestCase {
 
     /// Swipe until the element is wholly on screen. A coordinate tap does not scroll, and the
     /// combined list is long.
+    /// #227: one drag of under half the screen at a time, held before it is let go so the stack is not
+    /// flung on, toward the element from whichever side it is on (`scrollStep`).
     private func bringIntoView(_ element: XCUIElement) {
-        let screen = app.windows.firstMatch.frame
-        for _ in 0..<60 where !(element.isHittable && screen.contains(element.frame)) {
-            app.swipeUp(velocity: .fast)
+        let window = app.windows.firstMatch
+        let screen = window.frame
+        let low = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.72))
+        let high = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.32))
+        for _ in 0..<60 {
+            let built = element.exists
+            let step = scrollStep(toward: built ? element.frame : nil, hittable: built && element.isHittable, on: screen)
+            if step == .done { break }
+            let (from, to) = step == .dragUp ? (low, high) : (high, low)
+            from.press(forDuration: 0.05, thenDragTo: to, withVelocity: .default, thenHoldForDuration: 0.2)
         }
-        XCTAssertTrue(screen.contains(element.frame), "\(element) never came on screen")
+        XCTAssertTrue(element.exists && screen.contains(element.frame), "\(element) never came on screen")
     }
 
     /// Swipe back to the question. The home screen is a lazy stack, so what is far above is not in
