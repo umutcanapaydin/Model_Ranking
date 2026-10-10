@@ -317,9 +317,9 @@ the closure report. **Revisit when:** a second project's post-prod dataset exist
 
 **Revisit when:** NL intake milestone opens (separate consent + privacy review).
 
----
-
 **Amended by D-181 (2026-10-06)**: the rule that the phone does no arithmetic on a served number outside its named files is checked on the compiled module, through the names, operators and methods D-181 lists; gap G-2 in `docs/security-invariants.md` holds what it does not follow (added at the M19 closure, the repo review's M10).
+
+---
 
 ## D-105 — Category layer: primary-benchmark-per-category; no cross-scale averaging; generic row contract
 
@@ -634,9 +634,9 @@ ADR exists in the form it does.
 would collapse the two surfaces into one and make the question moot — or the owner rules that one
 surface leads, which is a public-contract change and needs a superseding ADR and a `/v2`.
 
----
-
 **Amended by D-124 (2026-08-18)**: see D-124; the pointer was added at M21-W4 (the review's M6, #200).
+
+---
 
 ## D-116 — Deploy target: Fly.io, with the evidence database as a shipped artifact (closes OQ-3)
 
@@ -867,9 +867,9 @@ with another. The `picks: []` question genuinely does remain open for W2's REQ-A
 should be restored rather than left optional by inertia; or when a second source becomes optional,
 which would mean this is a pattern rather than an incident.
 
----
-
 **Amended by D-135 (2026-08-25)**: see D-135; the pointer was added at M21-W4 (the review's M6, #200).
+
+---
 
 ## D-122 — Review depth is calibrated by what the code can get WRONG, not by wave number
 
@@ -1086,9 +1086,9 @@ quiet exception to this one.
 
 **Amended by D-169 (2026-09-28; amended in M18-W3, 2026-10-04)**: the on-device model's closed output gains a yes/no field, whether the input is a search for a model at all, and an input that is not one gets a note or a question back, not a ranking.
 
----
-
 **Amended by D-180 (2026-10-06)**: the enforcement of what leaves the phone reads what the compiler resolved, in all four build configurations: the two privacy sinks, `EngineClient.swift` and `StandingsStore.swift`, hold only values and call only what is listed; gap G-1 holds the rest (added at the M19 closure, the repo review's M10).
+
+---
 
 ## D-127 — Nine categories to open with, `assistant` split, Tier-3 demoted to evidence
 
@@ -1712,11 +1712,11 @@ missing fact.
 **Revisit when:** the engine should compute the ranges itself, on raw scores, which would remove
 the rounding concession above. That moves the answer payload and is therefore a real revision.
 
----
-
 **Amended by D-181 (2026-10-06)**: the arithmetic on the margin and the scores this ADR publishes is checked on the compiled module, not by spelling; `Uncertainty.swift` stays the one file allowed it (added at the M19 closure, the repo review's M10).
 
 **Amended by D-160 (2026-09-23)**: see D-160 (its arithmetic permission); the pointer was added at M21-W4 (the review's second round, M5, #200).
+
+---
 
 ## D-139 — A second benchmark older than 90 days, or undated, does not upgrade a coverage claim
 
@@ -1775,9 +1775,9 @@ is still in the payload, and M14's detail screen is where it can return with its
 
 **Revisit when:** ECI publishes a ceiling or a readable unit, or the detail screen ships.
 
----
-
 **Amended by D-143 (2026-09-18)**: see D-143; the pointer was added at M21-W4 (the review's M6, #200).
+
+---
 
 ## D-141 — A HIGH wave owes its pulled-forward security pass, and its author cannot waive it
 
@@ -1949,11 +1949,11 @@ Recorded so the trade is visible rather than forgotten.
 **Revisit when:** a reader compares two surfaces' scores out loud and gets a wrong answer from it, or
 ECI's anchor cannot be defended.
 
----
-
 **Amended by D-146 (2026-09-20)**: see D-146; the pointer was added at M21-W4 (the review's M6, #200).
 
 **Amended by D-162 (2026-09-24)**: see D-162; the pointer was added at M21-W4 (the review's M6, #200).
+
+---
 
 ## D-144 — The optional-source exception belongs to the upstream, not to one board of it
 
@@ -2173,9 +2173,9 @@ and window measure what the board cannot tell apart** -- the live 95%-interval o
 it, for `document`, `factuality`, `vision`, `search` and `search_factuality` (`scripts/calibrate_board.py`).
 The candidate-count sizing stays for the boards without published intervals. No number changes.
 
----
-
 **Amended by D-159 (2026-09-23)**: clause 1 stays the rule; each floor's value is computed by the build from its board instead of kept by hand in `categories.py` (added at M21-W4, #200).
+
+---
 
 ## D-149 — One application: the engine refreshes itself, and the app can ask it to
 
@@ -2219,9 +2219,9 @@ rate limit and a place in the security review.
 **Revisit when:** the engine moves off the owner's Mac (the `fly.toml` deployment), where a
 scheduler inside a server that can be scaled to zero or to several copies behaves differently.
 
----
-
 **Amended by D-151 (2026-09-22)**: see D-151; the pointer was added at M21-W4 (the review's M6, #200).
+
+---
 
 ## D-150 — Two controls reviewed at their third acceptance: the Swift floor, and a fact `/v1` does not carry
 
@@ -2456,6 +2456,8 @@ service's wrapper (`scripts/engine_service.sh`, D-170), not by `ios/app.sh`.
 
 **Amended by D-173 (2026-10-04)**: clause 4's `scripts/retire_refresh.sh` is removed with the retired refresher (clause 7), and the child inherits the serving-bound variables (clause 4).
 
+**Amended by D-170 (2026-09-29)**: clause 2 -- the engine runs as a launchd service, from a deployed release of `main` (added at M21-W4, #200).
+
 ---
 
 **AMENDED 2026-10-04 (M18-W6, #90; W-126, W-130; decided by the agent on the owner's standing
@@ -2474,7 +2476,6 @@ itself within seconds, the same way as at its limit (the W6 review's M1). "A rea
 seconds" was true when written; with M17's boards a slow night is bounded by the budget, not by the
 kill.
 
-**Amended by D-170 (2026-09-29)**: clause 2 -- the engine runs as a launchd service, from a deployed release of `main` (added at M21-W4, #200).
 
 ## D-155 — The project runs on DevFlow v6.0
 
@@ -2577,9 +2578,9 @@ leaving it to branch protection anyway, is there a need to ask?"):*
 3. No hook change: `gh pr merge`, `gh pr ready`, `--no-verify` and `refs/heads/main` pushes are
    left to branch protection on `main`, which the owner sets.
 
----
-
 **Amended by D-161 (2026-09-23)**: see D-161; the pointer was added at M21-W4 (the review's M6, #200).
+
+---
 
 ## D-156 — Every source carries its last good data for 30 days, judged from when it last arrived
 
@@ -2729,11 +2730,11 @@ characters of a closed alphabet, reading as the same model through the grammar; 
 Taken verbatim, a score's name had served "Visit evil.example ... /zeta 9" as a model name with no
 length bound.
 
----
-
 **Amended by D-189 (2026-10-09)**: clause 2 -- a curated rule refuses a fine-tune's name (`ft:`) for its reason, as the derive path does (#165).
 
 **Amended by D-166 (2026-09-25)**: a moving, undated API alias never creates a derived model (added at M21-W4, #200).
+
+---
 
 ## D-158 — The nightly refresh fetches the Epoch bundle itself
 
