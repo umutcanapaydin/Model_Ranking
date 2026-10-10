@@ -453,4 +453,102 @@ def test_wave_check_all_prints_a_skip_on_a_pass(tmp_path: Path) -> None:
         "docs/plans/m30-wave-1-close.md: SKIPPED [wave-check]: the history rules read nothing: a shallow clone"]
     assert every.record_lines(Path("docs/plans/m30-wave-1-close.md"), 0, "wave-check PASS: x\n") == []
 
+
+# --- the M21-W4 review, round 2: M4 to M8 ----------------------------------------------------------
+
+
+def test_a_range_must_end_at_the_close(tmp_path: Path) -> None:
+    """Round 2's M4: an end the author typed, before the glob change, narrowed the range from its end."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path)
+    early = _commit(root, "early", "2026-10-10T12:30:00", {"src/app/other.py": "x = 5\n"})
+    _commit(root, "change the engine", "2026-10-10T13:00:00", {"src/app/adapter/main.py": "x = 2\n"})
+    text = _close_text(base, tier="MED").replace(f"`{base}...HEAD`", f"`{base}...{early}`")
+    problems, skipped = check.history_problems(_closed(root, text), text, root)
+    assert skipped is None and any("end at HEAD" in p for p in problems), (problems, skipped)
+
+
+def test_a_range_ending_on_main_is_refused_for_an_unmerged_close(tmp_path: Path) -> None:
+    """Round 2's M4: `main..main` said SKIPPED (merged) and passed, for a close that was not merged."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path)
+    _commit(root, "change the engine", "2026-10-10T13:00:00", {"src/app/adapter/main.py": "x = 2\n"})
+    for spec in ("main..main", f"{base}...main"):
+        text = _close_text(base, tier="MED").replace(f"`{base}...HEAD`", f"`{spec}`")
+        problems, skipped = check.history_problems(_closed(root, text, name="m30-wave-1-close.md"), text, root)
+        assert skipped is None and problems, (spec, problems, skipped)
+
+
+def test_an_adr_headed_with_a_colon_or_bare_is_read(tmp_path: Path) -> None:
+    """Round 2's M5: `## D-2: Two` and a bare `## D-2` found no first commit, and the rule skipped them."""
+    check = _module("wave_check")
+    for heading in ("## D-2: Two", "## D-2"):
+        root, base = _wave_branch(tmp_path / str(len(heading)))
+        _commit(root, "the code", "2026-10-10T13:00:00", {"src/app/other.py": "x = 3\n"})
+        _commit(root, "the rule", "2026-10-10T14:00:00",
+                {"docs/decisions.md": f"# Decisions\n\n## D-1 — One\n\nBody.\n\n{heading}\n\nNew.\n"})
+        text = _close_text(base)
+        problems, _ = check.history_problems(_closed(root, text), text, root)
+        assert any("D-2" in p for p in problems), (heading, problems)
+
+
+def test_the_amends_field_is_read_in_any_case(tmp_path: Path) -> None:
+    """Round 2's M5: `**amends** D-138` (D-160) passed with no pointer back."""
+    check = _module("check_records")
+    root = _decisions(tmp_path, AMENDED.format(pointer="").replace("**Amends** D-1 clause 2", "**amends** D-1 clause 2"))
+    assert any("D-2" in f.msg and "D-1" in f.msg for f in check.adr_pointer_findings(root))
+
+
+def test_the_session_field_is_read_from_row_8_only(tmp_path: Path) -> None:
+    """Round 2's M6: row 8's check text names both answers; the field is its evidence cell's."""
+    check = _module("wave_check")
+    row8 = ("| 8 | No checkout. Say also `Session started in the repository: yes` or "
+            "`Session started in the repository: no` | None. Session started in the repository: no | ✅ |\n")
+    text = _checklist(row8, date="2026-10-11")
+    assert any("repository-hooks" in p for p in check.skip_ledger_problems(text, "m30-w1", []))
+
+
+def test_na_and_waived_rows_and_the_labels_other_spellings_need_a_ledger_row(tmp_path: Path) -> None:
+    """Round 2's M6 and M8: an `N/A` row, a WAIVED row, and `gates SKIPPED :`, `**SKIPPED**:`, `SKIPPED —`."""
+    check = _module("wave_check")
+    rows = [["ui-test", "m30-w1", "skip", "no simulator", "2026-10-10"]]
+    for status in ("N/A (no simulator)", "WAIVED (no simulator)"):
+        text = _checklist(f"| 7 | `make ui-test` ran | none | {status} |\n")
+        assert any("ui-test" in p for p in check.skip_ledger_problems(text, "m30-w1", [])), status
+        assert check.skip_ledger_problems(text, "m30-w1", rows) == [], status
+    for label in ("gates SKIPPED : make ui-test", "gates **SKIPPED**: make ui-test", "gates SKIPPED \u2014 make ui-test"):
+        text = _checklist("").replace("gates SKIPPED: none", label)
+        assert any("ui-test" in p for p in check.skip_ledger_problems(text, "m30-w1", [])), label
+
+
+def test_a_stacked_range_from_the_previous_close_is_the_waves_base(tmp_path: Path) -> None:
+    """Round 2's M8: with the previous wave's close ignored, a stacked range from it read as narrower than
+    the milestone's base and nothing caught it."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path, log="## 2026-10-10 — M30-W1 to W2\n\nwork.\n")
+    _commit(root, "wave one", "2026-10-10T13:00:00", {"src/app/other.py": "x = 9\n"})
+    _closed(root, _close_text(base))
+    previous = _git(root, "rev-parse", "--short", "HEAD")
+    _git(root, "checkout", "-q", "-b", "wave/m30-w2")
+    _commit(root, "wave two", "2026-10-10T19:00:00", {"src/app/other.py": "x = 10\n"})
+    text = _close_text(previous).replace("m30-wave-1-close", "m30-wave-2-close")
+    problems, _ = check.history_problems(_closed(root, text, "2026-10-10T20:00:00", "m30-wave-2-close.md"), text, root)
+    assert problems == [], problems
+
+
+def test_a_gone_base_is_read_from_the_merge_base_the_close_records(tmp_path: Path) -> None:
+    """Round 2's M8: the recorded `merge base` could be dropped with no test failing."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path)
+    _commit(root, "wave one", "2026-10-10T13:00:00", {"src/app/adapter/main.py": "x = 2\n"})
+    _closed(root, _close_text(base))
+    _git(root, "checkout", "-q", "-b", "wave/m30-w2")
+    _commit(root, "wave two", "2026-10-10T19:00:00", {"src/app/other.py": "x = 10\n"})
+    text = (_close_text("wave/m30-w1", tier="MED").replace("m30-wave-1-close", "m30-wave-2-close")
+            .replace("`wave/m30-w1...HEAD`", f"`wave/m30-w1...HEAD` (merge base `{base}`)"))
+    close = _closed(root, text, "2026-10-10T20:00:00", "m30-wave-2-close.md")
+    _git(root, "branch", "-D", "wave/m30-w1")
+    problems, _ = check.history_problems(close, text, root)
+    assert any("src/app/adapter/main.py" in p for p in problems), problems
+
 pytestmark = pytest.mark.needs("git")

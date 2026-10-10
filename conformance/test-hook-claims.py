@@ -354,6 +354,8 @@ def main() -> int:
                   'echo ${x:-$(fly deploy)}', 'echo x |& bash', 'bash < /tmp/script.sh',
                   'find . -name x -exec fly deploy \\;', 'source scripts/deploy_hosted_engine.sh',
                   'echo "`fly deploy`"', 'cat <(fly deploy)', 'echo origin | xargs git push',
+                  # A pipe or a file wins over a here-string in this guard's reading (the round-2 review's M8).
+                  "echo 'fly launch' |& bash <<< 'echo hi'", "bash < /tmp/script.sh <<< 'echo hi'",
                   'git checkout HEAD src/x.py', 'git checkout -f', 'git switch --discard-changes main',
                   'git stash clear']
     MUST_ALLOW = ["git push -u origin fix/issue-3", "git push origin enhancement/x", "git push",
