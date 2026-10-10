@@ -394,18 +394,31 @@ def _merged(root: pathlib.Path, commit: str) -> bool:
 
 
 def _wave_base(root: pathlib.Path, ids: re.Match[str] | None, end: str) -> str | None:
-    """Where the wave starts: the commit that added the previous wave's close, when the end's history holds it
-    and it is later than the milestone's base on main; else the milestone's base on main."""
-    main_base = next((b for ref in ("origin/main", "main") if (b := _git(root, "merge-base", end, ref))), None)
-    previous = None
-    if ids and int(ids.group(2)) > 1:
-        rel = f"docs/plans/m{ids.group(1)}-wave-{int(ids.group(2)) - 1}-close.md"
-        added = (_git(root, "log", "--diff-filter=A", "--format=%H", end, "--", rel) or "").splitlines()
-        if added and _git(root, "merge-base", "--is-ancestor", added[-1], end) is not None:
-            previous = added[-1]
-    if previous and (main_base is None or _git(root, "merge-base", "--is-ancestor", main_base, previous) is not None):
-        return previous
-    return main_base
+    """Where the wave starts: the latest of these that the end's history holds -- the milestone's base on main,
+    the merge base with the previous milestone's closure branch (`origin/closure/m<N-1>` or `closure/m<N-1>`,
+    the M21 repo review's M2: a milestone stacked on an unmerged closure), the base the plan records
+    (``**Base:** `ref` ``), and the commit that added the previous wave's close."""
+    candidates = [next((b for ref in ("origin/main", "main") if (b := _git(root, "merge-base", end, ref))), None)]
+    if ids:
+        milestone, wave = int(ids.group(1)), int(ids.group(2))
+        candidates.append(next((b for ref in (f"origin/closure/m{milestone - 1}", f"closure/m{milestone - 1}")
+                                if (b := _git(root, "merge-base", end, ref))), None))
+        plan = root / "docs" / "plans" / f"m{milestone}-plan.md"
+        recorded = re.search(r"^\*\*Base:\*\*\s*`([^`]+)`", plan.read_text(encoding="utf-8", errors="replace"),
+                             re.M) if plan.is_file() else None
+        if recorded:
+            candidates.append(_git(root, "merge-base", end, recorded.group(1)))
+        if wave > 1:
+            rel = f"docs/plans/m{milestone}-wave-{wave - 1}-close.md"
+            added = (_git(root, "log", "--diff-filter=A", "--format=%H", end, "--", rel) or "").splitlines()
+            candidates.append(added[-1] if added else None)
+    base = None
+    for commit in candidates:
+        if not commit or _git(root, "merge-base", "--is-ancestor", commit, end) is None:
+            continue
+        if base is None or _git(root, "merge-base", "--is-ancestor", base, commit) is not None:
+            base = commit
+    return base
 
 
 def _names_wave(heading: str, milestone: str, wave: int) -> bool:
