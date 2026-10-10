@@ -879,3 +879,19 @@ def test_the_pass_line_counts_the_checklists_rows_not_the_ledgers(capsys: pytest
     finally:
         os.chdir(cwd)
     assert re.search(r"\(\d+ row\(s\), all evidenced", capsys.readouterr().out)
+
+
+def test_a_plans_base_line_is_not_read(tmp_path: Path) -> None:
+    """The fixes review's M5: a `**Base:**` line in the plan, a docs-only edit, let a MED close read only the tail
+    of its range, past a glob change (mutant X6 survived). The line is not read: the previous closure's branch
+    covers the stacked milestone."""
+    check = _module("wave_check")
+    root, _ = _wave_branch(tmp_path)
+    _commit(root, "change the engine", "2026-10-10T13:00:00", {"src/app/adapter/main.py": "x = 2\n"})
+    narrow = _commit(root, "other", "2026-10-10T14:00:00", {"src/app/other.py": "x = 9\n"})
+    plan = root / "docs" / "plans" / "m30-plan.md"
+    _commit(root, "the plan names a base", "2026-10-10T15:00:00",
+            {"docs/plans/m30-plan.md": plan.read_text(encoding="utf-8") + f"\n**Base:** `{narrow}`\n"})
+    text = _close_text(narrow, tier="MED")
+    problems, _ = check.history_problems(_closed(root, text), text, root)
+    assert any("wave's base" in p for p in problems), problems
