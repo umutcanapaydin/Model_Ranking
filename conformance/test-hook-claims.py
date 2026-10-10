@@ -138,7 +138,8 @@ def hook_paths(tmp: pathlib.Path) -> dict[str, str]:
 
 
 def run_hook(bash: str, command: str, payload: str, path: str | None = None,
-             extra: dict | None = None, timeout: float = 60) -> subprocess.CompletedProcess:
+             extra: dict | None = None, timeout: float = 60,
+             cwd: pathlib.Path | None = None) -> subprocess.CompletedProcess:
     env = dict(os.environ)
     if path is not None:
         env["PATH"] = path
@@ -149,7 +150,7 @@ def run_hook(bash: str, command: str, payload: str, path: str | None = None,
     # The M21-W4 Tester's M5: the hook runs in a session of its own; one that does not answer within its limit
     # has its whole group killed (the guard's interpreter included) and comes back as a failure, exit -9.
     proc = subprocess.Popen([bash, "-c", command], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE, env=env, start_new_session=hasattr(os, "killpg"))
+                            stderr=subprocess.PIPE, env=env, start_new_session=hasattr(os, "killpg"), cwd=cwd)
     try:
         out, err = proc.communicate(payload.encode("utf-8"), timeout=timeout)
         return subprocess.CompletedProcess(proc.args, proc.returncode, out, err)
@@ -423,8 +424,9 @@ def main() -> int:
                   # S3: reading the guard, staging it and hashing it stay allowed.
                   'cat .claude/settings.json', 'git add .claude/hooks/bash_guard.py',
                   'shasum -a 256 .claude/hooks/bash_guard.py', 'grep -n onFailure .claude/settings.json',
-                  # M6: Claude Code's own directory in the home is not this project's.
-                  'mkdir -p ~/.claude/plans', 'cp notes.md "$HOME/.claude/CLAUDE.md"']
+                  # The M21 closure fixes review, round 2, M6: `-t` is a destination for cp, mv, ln and install only,
+                  # and with one the last word is a source; rsync's `-t` keeps times.
+                  'rsync -t .claude/settings.json /tmp/out', 'cp -t /tmp/out .claude/settings.json']
     bash_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
                       if h.get("matcher") == "Bash"), None)
     env_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
@@ -443,11 +445,12 @@ def main() -> int:
     if not bash:
         unevaluable.append(why)
     else:
-        def cmd(c: str) -> str:
-            return json.dumps({"tool_input": {"command": c}}, ensure_ascii=False)
+        # Claude Code sends the session's working directory as `cwd`; a case without one leaves it out.
+        def cmd(c: str, cwd: pathlib.Path | None = None) -> str:
+            return json.dumps({"tool_input": {"command": c}, **({"cwd": str(cwd)} if cwd else {})}, ensure_ascii=False)
 
-        def fpath(f: str) -> str:
-            return json.dumps({"tool_input": {"file_path": f}}, ensure_ascii=False)
+        def fpath(f: str, cwd: pathlib.Path | None = None) -> str:
+            return json.dumps({"tool_input": {"file_path": f}, **({"cwd": str(cwd)} if cwd else {})}, ensure_ascii=False)
 
         # (hook, label, payload, want_block, PATH or None for this machine's, extra env)
         cases: list[tuple[str, str, str, bool, str | None, dict]] = []
@@ -487,6 +490,11 @@ def main() -> int:
                 (changed / ".claude" / "hooks" / "bash_guard.py").write_bytes(guard + b"\n")
                 cases.append(("Bash", "`git status` with the guard changed by one byte", cmd("git status"), True,
                               None, {"CLAUDE_PROJECT_DIR": str(changed)}))
+                # The fixes review, round 2, M8: after a pull the pin is already right and only a new session helps,
+                # so the line says to restart one, and where the owner's re-pin is written.
+                said = _err(run_hook(bash, bash_hook, cmd("git status"), None, {"CLAUDE_PROJECT_DIR": str(changed)}))
+                if PINNED not in said or "restart" not in said or "INSTALL.md" not in said:
+                    bad.append(f"the pin's BLOCKED line names neither the restart nor INSTALL.md: `{said[:120]}`")
                 # M6: the pin holds the guard's bytes, and `python3 -I` keeps a module beside it from changing
                 # what it imports: a `json.py` there that allows everything changes nothing.
                 shadow = pathlib.Path(tmp) / "shadow"
@@ -506,10 +514,73 @@ def main() -> int:
                                           (str(root / ".claude" / "hooks" / "bash_guard.py"), True),
                                           (str(root / ".CLAUDE" / "settings.json"), True),
                                           (str(pathlib.Path(tmp) / "hooks-link" / "pre-push"), True),
-                                          # M6: another project's, and the home's, are not this one's.
-                                          ("/Users/x/repo/.claude/hooks/bash_guard.py", False),
-                                          (str(pathlib.Path.home() / ".claude" / "projects" / "x" / "memory" / "MEMORY.md"), False),
                                           ("docs/claude.md", False))]
+            # The M21 closure fixes review, round 2, B1 and M6: the hooks and settings of EVERY work tree are the
+            # owner's -- a linked worktree's (a `.git` file) and a clone's (a `.git` directory) as much as the
+            # project's -- each path resolved from the payload's `cwd`, through a `cd` or `git -C` in the command and
+            # through a link, and case-folded. A `.claude/` whose parent holds no `.git` (Claude Code's own
+            # `~/.claude`) is not; neither is a read, nor a `-t` that is not a destination.
+            trees = pathlib.Path(tmp) / "trees"
+            worktree, clone, plain, home = (trees / name for name in ("worktree", "clone", "plain", "home"))
+            for d in (worktree / ".githooks", worktree / ".claude", worktree / "ios", clone / ".git", clone / ".githooks",
+                      plain / ".claude", plain / ".githooks", home / ".claude" / "projects"):
+                d.mkdir(parents=True)
+            (worktree / ".git").write_text("gitdir: /nowhere/.git/worktrees/worktree\n", encoding="utf-8")
+            (trees / "worktree-hooks").symlink_to(worktree / ".githooks")
+            at_home = {"HOME": str(home)}
+            if bash_hook is not None:
+                cases += [("Bash", f"`{c}` from {cwd.relative_to(trees)}", cmd(c, cwd), want, None, extra)
+                          for c, cwd, want, extra in (
+                              ("cp notes.md .githooks/commit-msg", worktree, True, {}),
+                              (f"cp notes.md {worktree / '.githooks' / 'commit-msg'}", plain, True, {}),
+                              ("cd ios && cp x ../.githooks/y", worktree, True, {}),
+                              ("pushd ios && cp x ../.claude/settings.json", worktree, True, {}),
+                              ("cp x ../.githooks/y", worktree / "ios", True, {}),
+                              ("cp x worktree-hooks/y", trees, True, {}),
+                              ("cp x .GITHOOKS/y", worktree, True, {}),
+                              ("echo x > .Claude/settings.json", clone, True, {}),
+                              (f"git -C {worktree} rm .githooks/commit-msg", plain, True, {}),
+                              ("cp -t .githooks x", worktree, True, {}),
+                              ("cp notes.md .claude/settings.json", plain, False, {}),
+                              ("cat .githooks/commit-msg", worktree, False, {}),
+                              ("mkdir -p ~/.claude/plans", plain, False, at_home),
+                              ('cp notes.md "$HOME/.claude/CLAUDE.md"', plain, False, at_home))]
+            if env_hook:
+                cases += [("Write", f"a write to `{f}`" + (f" from {cwd.relative_to(trees)}" if cwd else ""),
+                           fpath(f, cwd), want, None, extra)
+                          for f, cwd, want, extra in (
+                              (str(worktree / ".githooks" / "commit-msg"), None, True, {}),
+                              (str(worktree / ".claude" / "settings.json"), None, True, {}),
+                              (str(clone / ".githooks" / "pre-push"), None, True, {}),
+                              (".githooks/commit-msg", worktree, True, {}),
+                              ("../.githooks/x", worktree / "ios", True, {}),
+                              (str(worktree / ".Claude" / "settings.json"), None, True, {}),
+                              (str(trees / "worktree-hooks" / "pre-push"), None, True, {}),
+                              (str(plain / ".claude" / "settings.json"), None, False, {}),
+                              (".claude/x", plain, False, {}),
+                              (str(home / ".claude" / "projects" / "x" / "MEMORY.md"), None, False, at_home))]
+                # One refusal for both hooks: the Write hook runs the pinned guard, so a changed guard blocks it too.
+                cases.append(("Write", "a write with the guard changed by one byte", fpath("README.md"), True, None,
+                              {"CLAUDE_PROJECT_DIR": str(changed)}))
+            # M6: every interpreter the hooks start runs with -I, so a module in the directory a hook runs in (the
+            # project, which an agent writes) changes nothing. With a json.py there that exits 0, the text reading
+            # still blocks with its own message, and the Write hook still refuses.
+            for kind, entry in (("Bash", bash_hook), ("Write", env_hook)):
+                for unisolated in re.findall(r'"\$py"\s+(?!-I\b|\])[^;|]{0,40}', entry or ""):
+                    bad.append(f"the PreToolUse {kind} hook starts an interpreter without -I: `{unisolated}`")
+            planted = pathlib.Path(tmp) / "planted"
+            planted.mkdir()
+            (planted / "json.py").write_text("import sys\nsys.exit(0)\n", encoding="utf-8")
+            if bash_hook is not None:
+                r = run_hook(bash, bash_hook, cmd("git push origin main"), None, {"CLAUDE_PROJECT_DIR": str(stub)},
+                             cwd=planted)
+                if r.returncode != 2 or PINNED in _err(r):
+                    bad.append(f"the text reading did not block `git push origin main` with a json.py where the hook runs "
+                               f"(exit {r.returncode}; {_err(r)[:90] or 'no message'})")
+            if env_hook:
+                r = run_hook(bash, env_hook, fpath("cfg/.env"), None, {}, cwd=planted)
+                if r.returncode != 2:
+                    bad.append(f"the Write hook did not block a .env write with a json.py where it runs (exit {r.returncode})")
             for kind in [k for k, h in (("Bash", bash_hook), ("Write", env_hook)) if h]:
                 ok_payload, bad_payload = ((cmd("git status"), cmd("git push origin main"))
                                            if kind == "Bash" else
