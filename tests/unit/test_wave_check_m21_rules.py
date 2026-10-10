@@ -895,3 +895,30 @@ def test_a_plans_base_line_is_not_read(tmp_path: Path) -> None:
     text = _close_text(narrow, tier="MED")
     problems, _ = check.history_problems(_closed(root, text), text, root)
     assert any("wave's base" in p for p in problems), problems
+
+
+# --- the M21 closure fixes review: M7 (the gates' standing globs, and the records) -------------------------
+
+
+def test_every_plan_reads_the_gates_standing_globs(tmp_path: Path) -> None:
+    """The fixes review's M7: M3's globs went into M21's plan, which no later wave reads; a wave of M22 that
+    weakens a gate would close MEDIUM. plan_globs adds a standing list kept in wave_check.py."""
+    check = _module("wave_check")
+    plan = tmp_path / "m30-plan.md"
+    plan.write_text(f"# M30\n{GLOBS}", encoding="utf-8")
+    globs = check.plan_globs(plan)
+    assert "src/app/adapter/main.py" in globs
+    for gate in ("scripts/wave_check.py", "scripts/check_records.py", "scripts/commit_gate.py", "scripts/check_fast.py",
+                 "scripts/client_decl_gate.py", "scripts/client_decl_fixtures/**", "Makefile", ".githooks/**", ".claude/**"):
+        assert gate in globs, gate
+    assert tuple(g for g in globs if g in check.STANDING_GLOBS) == check.STANDING_GLOBS
+
+
+def test_the_records_name_the_commit_gate_and_the_write_refusal() -> None:
+    """The fixes review's M7: AGENTS.md let a human bypass only the pre-push gate and named neither the commit
+    gate nor the write refusal; the ledger's header named only `git push --no-verify`."""
+    agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    assert "commit-msg" in agents and ".githooks/" in agents and "refuse" in agents
+    header = "\n".join(line for line in (ROOT / "docs" / "control-events.csv").read_text(encoding="utf-8").splitlines()
+                       if line.startswith("#"))
+    assert "git commit --no-verify" in header and "git push --no-verify" in header
