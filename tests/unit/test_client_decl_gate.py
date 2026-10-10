@@ -839,3 +839,22 @@ def test_make_client_decls_fails_when_the_fixture_is_refused_otherwise_than_its_
     monkeypatch.setattr(gate, "dump_ast", lambda sdk_name, flags, folder=gate.CLIENT: (compiled, 0))
     broken = gate.self_test() or []
     assert any("refused otherwise" in line for line in broken), broken
+
+
+def test_the_objective_c_runtime_module_is_refused_in_the_client() -> None:
+    """The M21 closure security seat's S6: `BY_NAME` refused three families of the runtime by prefix while
+    `ObjectiveC`, the module that declares all of it (`sel_registerName`, `object_*`, `ivar_*`), was on the
+    allowlist. The shipping client resolves nothing there, so the module is off the list, for a sink too."""
+    assert "ObjectiveC" not in gate.MODULES and "ObjectiveC" not in gate.SINK_MODULES
+    refused = gate._module_problem("Detail.swift", "ObjectiveC", "sel_registerName", "ObjectiveC.(file).sel_registerName")
+    assert refused and "ObjectiveC" in refused
+    assert gate._module_problem("Detail.swift", "ObjectiveC", "<imported>", "ObjectiveC")
+
+
+def test_the_fixture_holds_a_runtime_call_the_module_rule_refuses() -> None:
+    """S6: the fixture plants one call into the runtime, under the module allowlist, and the committed dump
+    holds its refusal."""
+    fixture = (ROOT / "scripts" / "client_decl_fixtures" / "Imports.swift").read_text(encoding="utf-8")
+    assert "sel_registerName" in fixture
+    refused = gate.problems(gate.references((ROOT / "tests" / "unit" / "data" / "g2_fixture_ast.txt").read_text(encoding="utf-8")))
+    assert any("Imports.swift" in line and "ObjectiveC" in line for line in refused), refused[:5]
