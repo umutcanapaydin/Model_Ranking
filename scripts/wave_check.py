@@ -396,18 +396,14 @@ def _merged(root: pathlib.Path, commit: str) -> bool:
 def _wave_base(root: pathlib.Path, ids: re.Match[str] | None, end: str) -> str | None:
     """Where the wave starts: the latest of these that the end's history holds -- the milestone's base on main,
     the merge base with the previous milestone's closure branch (`origin/closure/m<N-1>` or `closure/m<N-1>`,
-    the M21 repo review's M2: a milestone stacked on an unmerged closure), the base the plan records
-    (``**Base:** `ref` ``), and the commit that added the previous wave's close."""
+    the M21 repo review's M2: a milestone stacked on an unmerged closure), and the commit that added the
+    previous wave's close. A plan's `**Base:**` line is not read: a docs-only edit must not narrow a range
+    (the M21 closure fixes review's M5)."""
     candidates = [next((b for ref in ("origin/main", "main") if (b := _git(root, "merge-base", end, ref))), None)]
     if ids:
         milestone, wave = int(ids.group(1)), int(ids.group(2))
         candidates.append(next((b for ref in (f"origin/closure/m{milestone - 1}", f"closure/m{milestone - 1}")
                                 if (b := _git(root, "merge-base", end, ref))), None))
-        plan = root / "docs" / "plans" / f"m{milestone}-plan.md"
-        recorded = re.search(r"^\*\*Base:\*\*\s*`([^`]+)`", plan.read_text(encoding="utf-8", errors="replace"),
-                             re.M) if plan.is_file() else None
-        if recorded:
-            candidates.append(_git(root, "merge-base", end, recorded.group(1)))
         if wave > 1:
             rel = f"docs/plans/m{milestone}-wave-{wave - 1}-close.md"
             added = (_git(root, "log", "--diff-filter=A", "--format=%H", end, "--", rel) or "").splitlines()
