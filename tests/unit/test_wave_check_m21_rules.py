@@ -783,3 +783,17 @@ def test_a_first_wave_stacked_on_an_unmerged_closure_starts_at_that_closure(tmp_
     close = _closed(root, text, "2026-10-10T19:00:00", "m31-wave-1-close.md")
     problems, skipped = check.history_problems(close, text, root)
     assert skipped is None and problems == [], problems
+
+
+def test_an_amended_by_pointer_below_its_adrs_separator_is_refused(tmp_path: Path) -> None:
+    """The M21 repo review's M5: eleven pointers sat after the amended ADR's closing `---`, where a reader
+    takes them for the next ADR's first line."""
+    check = _module("check_records")
+    pointer = "**Amended by D-2 (2026-09-02)**: clause 2.\n"
+    above = AMENDED.format(pointer="\n" + pointer + "\n---\n")
+    below = AMENDED.format(pointer="\n---\n\n" + pointer)
+    text = above.replace("Body.\n\n## D-3", "Body.\n\n**Amended by D-3 (2026-09-03, proposed)**: all.\n\n## D-3")
+    assert [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path / "a", text))] == []
+    text = below.replace("Body.\n\n## D-3", "Body.\n\n**Amended by D-3 (2026-09-03, proposed)**: all.\n\n## D-3")
+    found = [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path / "b", text))]
+    assert any("below" in m and "D-1" in m for m in found), found
