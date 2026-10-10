@@ -265,6 +265,7 @@ def test_the_hook_runs_only_the_three_gates(tmp_path: Path) -> None:
     """Round 2, R1: the hook ran whatever name HEAD's gate printed, so a committed gate that printed `help` let
     the next commit pass on `make help`. A name other than check-fast, check-red or check-docs is refused."""
     repo, log, env = _repo(tmp_path)
+    _git(repo, env, "add", "scripts/commit_gate.py")
     assert _commit(repo, env, "src/app/x.py", "fix: x").returncode == 0
     (repo / "scripts" / "commit_gate.py").write_text("print('help')\n", encoding="utf-8")
     _git(repo, env, "add", "scripts/commit_gate.py")

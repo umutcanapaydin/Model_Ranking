@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # commit-msg -- the owner's ruling of 2026-10-10 on `commit-after-check-fast` ("fix and narrow"), as the M21
-# closure applies it (docs/refusals.md R-1). Install once per clone: `make hooks`. It runs on `git merge` too.
+# closure applies it (docs/refusals.md R-1). Install once per clone: `make hooks`. Git runs it on `git commit`
+# and `git merge`, and on neither `cherry-pick` nor `rebase`.
 #
 # HEAD's copy of scripts/commit_gate.py names the gate from the staged paths (both sides of a rename) and the
 # subject, and the commit is refused when that gate fails:
-#   check-fast  -- any commit;
+#   check-fast  -- any commit, a merge, and one with nothing staged;
 #   check-red   -- a declared red test commit (`test: ..., red`, with a test staged): check-fast without the
-#                  legs that run tests;
+#                  legs that run tests, building the Swift tests and collecting the Python ones instead;
 #   check-docs  -- a docs-only commit: check-fast without the Swift tests and the compiled gate.
+# Any other name the gate prints is refused (the fixes review's round 2, R1), so a changed gate cannot pick a
+# make target that checks nothing.
 #
 # BYPASS. A human may commit with `git commit --no-verify` when that is right, and adds the row to
 # `docs/control-events.csv`; an agent never does.
@@ -31,6 +34,10 @@ target="$("$py" -B "$gate" --message-file "$message")"
 status=$?
 [ -n "$copy" ] && rm -f "$copy"
 [ $status -eq 0 ] && [ -n "$target" ] || refuse "scripts/commit_gate.py could not name the gate"
+case "$target" in
+  check-fast|check-red|check-docs) ;;
+  *) refuse "HEAD's scripts/commit_gate.py named \`$target\`, which is not check-fast, check-red or check-docs" ;;
+esac
 # Git exports GIT_DIR and GIT_INDEX_FILE to hooks; the gate's controls run git in throwaway repositories.
 unset $(git rev-parse --local-env-vars)
 command -v make >/dev/null 2>&1 || refuse "make not found (see INSTALL.md); make $target did not run"
