@@ -49,6 +49,9 @@ NO_INTERPRETER = ("BLOCKED: this guard cannot read the tool call -- no working p
 # The first stderr line of the Bash guard when it has an interpreter and no `grep` to match with.
 NO_GREP = "BLOCKED: this guard cannot run -- grep is not on PATH (see INSTALL.md)."
 UNREADABLE = "BLOCKED: this guard cannot read the tool call"
+#: The first stderr words of the Bash hook when the guard file is not the one it pins (the M21 closure
+#: security seat's S3).
+PINNED = "is not the guard the settings pin"
 POST_GREEN = "POST-EDIT CHECK: make check-fast GREEN"
 POST_FAILED = "POST-EDIT CHECK: make check-fast FAILED (exit 7) -- fix before the next edit"
 POST_NO_MAKE = "POST-EDIT CHECK CANNOT RUN: make is not installed (see INSTALL.md)"
@@ -376,6 +379,12 @@ def main() -> int:
                   # options, `rm` behind a wrapper, and a shell given `-s` (each plant stayed green without them).
                   'rm -r -f build', 'rm --recursive --force build', 'sudo rm -r -f build',
                   'cat setup.sh | bash -s -- --quiet',
+                  # The M21 closure security seat's S3: the guard and the hooks are the owner's, so a write to
+                  # `.claude/` or `.githooks/` through Bash is blocked; reading them is not.
+                  'echo x > .claude/hooks/bash_guard.py', "sed -i '' 's/a/b/' .claude/settings.json",
+                  'cp /tmp/x .githooks/pre-commit', 'rm .claude/hooks/bash_guard.py',
+                  'printf x | tee .claude/settings.json', 'mv /tmp/g "$CLAUDE_PROJECT_DIR/.claude/hooks/bash_guard.py"',
+                  'echo x >> .githooks/pre-push', "perl -pi -e 's/a/b/' .claude/hooks/bash_guard.py",
                   # It blocks what it cannot read: an unclosed quote, substitution or backtick (no case held these).
                   "echo 'not closed", 'echo "not closed', 'echo $(date', 'echo `date', 'echo ${HOME']
     MUST_ALLOW = ["git push -u origin fix/issue-3", "git push origin enhancement/x", "git push",
@@ -407,7 +416,10 @@ def main() -> int:
                   'git checkout -b feature origin/main', 'git checkout wave/m21-w4', 'git switch -c x',
                   'x=(a b c); echo ${x[0]}', 'f() { echo hi; }; f', 'echo ${HOME:-/tmp}', 'echo $(( 2 + 3 ))',
                   # The M21-W4 Tester: a shell's `-c` string and here-document that read as harmless, and a `case`.
-                  "bash -c 'echo hi'", "bash <<'EOF'\necho hi\nEOF", 'case $1 in a) echo a;; *) echo other;; esac']
+                  "bash -c 'echo hi'", "bash <<'EOF'\necho hi\nEOF", 'case $1 in a) echo a;; *) echo other;; esac',
+                  # S3: reading the guard, staging it and hashing it stay allowed.
+                  'cat .claude/settings.json', 'git add .claude/hooks/bash_guard.py',
+                  'shasum -a 256 .claude/hooks/bash_guard.py', 'grep -n onFailure .claude/settings.json']
     bash_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
                       if h.get("matcher") == "Bash"), None)
     env_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
@@ -449,13 +461,35 @@ def main() -> int:
                 (stub / ".claude" / "hooks").mkdir(parents=True)
                 (stub / ".claude" / "hooks" / "bash_guard.py").write_text("import sys\nsys.exit(0)\n",
                                                                          encoding="utf-8")
-                cases += [("Bash", f"`{c}` by the text reading alone", cmd(c), True, None,
-                           {"CLAUDE_PROJECT_DIR": str(stub)})
-                          for c in MUST_BLOCK[:MUST_BLOCK.index("FLY_API_TOKEN=x fly deploy")]]
+                # S3 pins the guard's sha256, so the stub is refused by the pin before it runs; a case held by
+                # the text reading must be refused by the text reading's own message, never by the pin's.
+                for c in MUST_BLOCK[:MUST_BLOCK.index("FLY_API_TOKEN=x fly deploy")]:
+                    r = run_hook(bash, bash_hook, cmd(c), None, {"CLAUDE_PROJECT_DIR": str(stub)})
+                    if r.returncode != 2 or PINNED in _err(r):
+                        bad.append(f"the text reading alone did not block `{c}` (exit {r.returncode}; "
+                                   f"{_err(r)[:90] or 'no message'})")
+                # The M21 closure security seat's S2: a second reading that dies with exit 1 still blocks
+                # (the hook's `|| exit 2`; only exit 2 blocks).
+                dies = pathlib.Path(tmp) / "exit-1"
+                (dies / ".claude" / "hooks").mkdir(parents=True)
+                (dies / ".claude" / "hooks" / "bash_guard.py").write_text("import sys\nsys.exit(1)\n", encoding="utf-8")
+                cases.append(("Bash", "`git status` with a second reading that exits 1", cmd("git status"), True, None,
+                              {"CLAUDE_PROJECT_DIR": str(dies)}))
+                # S3: the hook pins the guard's sha256; one changed byte blocks every command.
+                changed = pathlib.Path(tmp) / "changed"
+                (changed / ".claude" / "hooks").mkdir(parents=True)
+                guard = (root / ".claude" / "hooks" / "bash_guard.py").read_bytes()
+                (changed / ".claude" / "hooks" / "bash_guard.py").write_bytes(guard + b"\n")
+                cases.append(("Bash", "`git status` with the guard changed by one byte", cmd("git status"), True,
+                              None, {"CLAUDE_PROJECT_DIR": str(changed)}))
             if env_hook:
                 cases += [("Write", f"a write to `{f}`", fpath(f), want, None, {})
                           for f, want in ((".env", True), ("cfg/.env.prod", True), ("prod.env", True),
-                                          ("src/app.py", False), ("README.md", False))]
+                                          ("src/app.py", False), ("README.md", False),
+                                          # S3: the hooks and settings are the owner's, by the Edit tool too.
+                                          (".claude/settings.json", True), (".githooks/pre-commit", True),
+                                          ("/Users/x/repo/.claude/hooks/bash_guard.py", True),
+                                          ("docs/claude.md", False))]
             for kind in [k for k, h in (("Bash", bash_hook), ("Write", env_hook)) if h]:
                 ok_payload, bad_payload = ((cmd("git status"), cmd("git push origin main"))
                                            if kind == "Bash" else
