@@ -913,6 +913,64 @@ def test_each_commit_a_bypass_names_needs_a_row_naming_it(tmp_path: Path) -> Non
     assert any(code in p for p in check.skip_ledger_problems(_bypass(code), "m30-w1", other, root=root))
 
 
+def _within(sha: str) -> list[list[str]]:
+    return [["commit-after-check-fast", "m30-w1", "within-scope", f"{sha}, a docs-only commit", "2026-10-10"]]
+
+
+def test_a_merge_named_in_the_bypass_is_never_docs_only(tmp_path: Path) -> None:
+    """Round 2, M4: `git show --name-only` prints a merge's combined diff, only the files it resolved, so a merge
+    bringing in code whose one resolved file was Markdown read as docs-only and its within-scope row was
+    accepted. A merge is never docs-only or declared red."""
+    check = _module("wave_check")
+    root, _ = _wave_branch(tmp_path)
+    _git(root, "checkout", "-q", "-b", "side")
+    _commit(root, "fix: code", "2026-10-10T13:00:00", {"src/app/f.py": "x = 1\n", "docs/n.md": "side\n"})
+    _git(root, "checkout", "-q", "wave/m30-w1")
+    _commit(root, "docs: n", "2026-10-10T13:30:00", {"docs/n.md": "wave\n"})
+    subprocess.run(["git", "-C", str(root), "merge", "-q", "side"], capture_output=True, check=False, timeout=30)
+    _commit(root, "docs: merge side", "2026-10-10T14:00:00", {"docs/n.md": "both\n"})
+    merge = _git(root, "rev-parse", "--short", "HEAD")
+    assert _git(root, "show", "--no-renames", "--name-only", "--format=", merge) == "docs/n.md"
+    found = check.skip_ledger_problems(_bypass(merge), "m30-w1", _within(merge), root=root)
+    assert any(merge in p and "check-fast" in p for p in found), found
+
+
+def test_a_rename_named_in_the_bypass_counts_both_sides(tmp_path: Path) -> None:
+    """Round 2, M4 (mutant X10): `_gate_target` without `--no-renames` passed every test. A rename of code into
+    docs/ is a code commit."""
+    check = _module("wave_check")
+    root, _ = _wave_branch(tmp_path)
+    _commit(root, "fix: code", "2026-10-10T13:00:00", {"src/app/f.py": "x = 1\n" * 20})
+    _git(root, "mv", "src/app/f.py", "docs/f.md")
+    _git(root, "commit", "-q", "-m", "docs: move", date="2026-10-10T14:00:00")
+    moved = _git(root, "rev-parse", "--short", "HEAD")
+    found = check.skip_ledger_problems(_bypass(moved), "m30-w1", _within(moved), root=root)
+    assert any(moved in p and "check-fast" in p for p in found), found
+
+
+def test_a_sha_no_commit_holds_is_a_problem_on_a_full_history(tmp_path: Path) -> None:
+    """Round 2, M4: a SHA no history holds was taken as written, with the SKIPPED note a shallow clone gets."""
+    check = _module("wave_check")
+    root, _ = _wave_branch(tmp_path)
+    notes: list[str] = []
+    found = check.skip_ledger_problems(_bypass("abcdef1"), "m30-w1", _within("abcdef1"), root=root, notes=notes)
+    assert any("abcdef1" in p for p in found) and notes == [], (found, notes)
+
+
+def test_every_ledger_control_the_bypass_names_needs_its_own_row(tmp_path: Path) -> None:
+    """Round 2, M4: `Bypass: commit-after-check-fast once; security-pass N/A` passed with a security-pass row
+    alone (round 1's second X4 form). Each control of the ledger the field names needs a row of its own."""
+    check = _module("wave_check")
+    text = _checklist("").replace("outcome: shipped`", "outcome: shipped`. Bypass: commit-after-check-fast once; "
+                                  "security-pass N/A")
+    ledger = [["commit-after-check-fast", "m29-w1", "bypass", "x", "2026-10-01"],
+              ["security-pass", "m30", "skip", "x", "2026-10-10"]]
+    found = check.skip_ledger_problems(text, "m30-w1", ledger)
+    assert any("commit-after-check-fast" in p for p in found), found
+    ledger.append(["commit-after-check-fast", "m30-w1", "bypass", "x", "2026-10-10"])
+    assert check.skip_ledger_problems(text, "m30-w1", ledger) == []
+
+
 def test_the_bypass_must_name_a_control_the_ledger_counts_in_any_case(tmp_path: Path) -> None:
     """Mutant X4: a Bypass was satisfied by a row of the wave for whatever control. The control match is
     case-insensitive, as row 9's other checks are."""
