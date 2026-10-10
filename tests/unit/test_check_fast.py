@@ -68,3 +68,22 @@ def test_a_setting_that_names_no_check_prerequisite_fails() -> None:
 def test_an_empty_check_line_fails_closed() -> None:
     with pytest.raises(ValueError):
         _mod().check_prerequisites("gate: check\n")
+
+
+def test_without_drops_the_named_legs_and_refuses_a_name_that_is_not_one() -> None:
+    """The M21 closure fixes review's B1 and M2: `check-red` and `check-docs` are check-fast without some legs.
+    A name that is not a `check:` prerequisite fails, as CHECK_FAST_FORMS does, so a typo cannot keep a leg."""
+    kept, problems = _mod().without(["lint", "test", "swift-test", "check-records"], ["test", "swift-test"])
+    assert kept == ["lint", "check-records"] and problems == []
+    _, problems = _mod().without(["lint", "test"], ["tests"])
+    assert problems and "tests" in problems[0]
+
+
+@pytest.mark.parametrize(("target", "dropped"), [
+    ("check-red", "--without test swift-test conformance client-decls"),
+    ("check-docs", "--without swift-test client-decls"),
+])
+def test_the_red_and_docs_gates_are_check_fast_without_their_legs(target: str, dropped: str) -> None:
+    printed = subprocess.run(["make", "-n", target], cwd=ROOT, capture_output=True, text=True, check=False,
+                             timeout=60).stdout
+    assert "scripts/check_fast.py" in printed and dropped in printed, printed
