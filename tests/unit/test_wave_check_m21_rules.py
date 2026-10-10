@@ -206,6 +206,28 @@ def test_a_range_that_cannot_be_read_fails_closed(tmp_path: Path) -> None:
     assert skipped is None and any("range" in p for p in problems), problems
 
 
+def test_a_merged_close_whose_base_branch_was_deleted_says_skipped(tmp_path: Path) -> None:
+    """A close names its base by branch (`origin/wave/m21-w2...HEAD`), and the owner deletes a wave's
+    branch once it is merged; every merged close would then fail forever. A close merged into main whose
+    base is gone says SKIPPED (the rules ran on its branch before the merge); one not merged still fails."""
+    check = _module("wave_check")
+    root, _ = _repo(tmp_path)
+    _git(root, "branch", "wave/m30-w0")
+    _git(root, "checkout", "-q", "-b", "wave/m30-w1")
+    _commit(root, "work", "2026-10-10T13:00:00", {"src/app/other.py": "x = 8\n"})
+    close = root / "docs" / "plans" / "m30-wave-1-close.md"
+    text = _close_text("wave/m30-w0")
+    _commit(root, "the close", "2026-10-10T14:00:00", {"docs/plans/m30-wave-1-close.md": text})
+    assert check.history_problems(close, text, root) == ([], None)
+    _git(root, "branch", "-D", "wave/m30-w0")
+    problems, skipped = check.history_problems(close, text, root)
+    assert skipped is None and any("cannot be read" in p for p in problems), "an unmerged close still fails"
+    _git(root, "checkout", "-q", "main")
+    _git(root, "merge", "-q", "--ff-only", "wave/m30-w1")
+    problems, skipped = check.history_problems(close, text, root)
+    assert problems == [] and skipped and "merged" in skipped, (problems, skipped)
+
+
 def test_a_shallow_clone_or_no_history_says_skipped(tmp_path: Path) -> None:
     """CI's test job checks out one commit; there the history rules say SKIPPED, loudly."""
     check = _module("wave_check")
