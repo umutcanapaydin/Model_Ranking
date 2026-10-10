@@ -699,3 +699,22 @@ Lesson: review the seams at the milestone's head; a wave reviewed alone cannot s
 - Every M21 session started outside the repository, so the hooks did not load (#142); the ledger row is
   the milestone's.
 Lesson: a record that describes a gate in prose will be wider or narrower than the gate; point at its definition instead.
+
+## 2026-10-10 — M21-W4: the controls
+
+- The close checks read what the reviews said they missed: a close's commit range (the HIGH rule's diff,
+  an ADR first written beside its code, a process-log heading inside the range; #183, #201, #203), the
+  decision log's pointer pairs (#200), and a ledger row for each skipped gate and each session started
+  outside the repository (#202). CI's needs are read from its workflow (#182), and the tests that read the
+  checkout through git say so (#249).
+- The Swift legs run inside the offline profile (#179), and the deadline tests again on a one-thread pool
+  against a timer off the pool (#181). The fetch-deadline test's margin (#178) and the coding UI test's
+  scrolling (#227) were too tight for a loaded machine.
+- Fifteen cited test names and the records that restated a gated property were swept, with two narrow
+  checks over hand-kept lists (#248).
+- The Bash guard's second reading (#189) is in its own OWNER APPROVAL commit; CI's history and offline
+  halves are patches on #122 for the owner; #108 is carried, since its measurement traps a process.
+- D-192 was committed after `make check-records` but before `make check-fast` (`9cf8e12`); check-fast
+  passed after it with no change.
+Lesson: a rule that reads history must say what a pruned history means as well as a missing one: a branch
+deleted after its merge read as an unreadable range.
