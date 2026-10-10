@@ -743,12 +743,13 @@ def test_three_rows_after_a_controls_last_ruling_strike_and_rows_before_it_do_no
     check = _module("wave_check")
     three = ("c,m1-w1,bypass,a,2026-10-01", "c,m1-w2,bypass,b,2026-10-02", "c,m1-w3,skip,c,2026-10-03")
     assert check.ledger_strikes(_ledger(*three)) == ["c"]
-    assert check.ledger_strikes(_ledger(*three, "c,m1-closure,ruling,the owner: re-scoped,2026-10-04")) == []
+    assert check.ledger_strikes(_ledger(*three, 'c,m1-closure,ruling,"the owner, 2026-10-04: re-scoped",2026-10-04')) == []
     after = ("d,m2-w1,bypass,x,2026-10-05", "d,m2-w2,bypass,y,2026-10-06", "d,m2-w3,bypass,z,2026-10-07")
-    ruled = ("d,m1-closure,ruling,the owner,2026-10-04",)
-    assert check.ledger_strikes(_ledger(*three, "c,m1-closure,ruling,the owner,2026-10-04", *ruled, *after)) == ["d"]
+    ruled = ('d,m1-closure,ruling,"the owner, 2026-10-04",2026-10-04',)
+    assert check.ledger_strikes(_ledger(*three, 'c,m1-closure,ruling,"the owner, 2026-10-04",2026-10-04', *ruled,
+                                        *after)) == ["d"]
     assert check.ledger_strikes(_ledger(*ruled, *after[:2])) == []
-    same_day = ("e,m1-w1,bypass,a,2026-10-04", "e,m1-closure,ruling,the owner,2026-10-04",
+    same_day = ("e,m1-w1,bypass,a,2026-10-04", 'e,m1-closure,ruling,"the owner, 2026-10-04",2026-10-04',
                 "e,m2-w1,bypass,b,2026-10-04", "e,m2-w2,bypass,c,2026-10-04", "e,m2-w3,bypass,d,2026-10-05")
     assert check.ledger_strikes(_ledger(*same_day)) == ["e"], "a row of the ruling's day after it counts"
     assert check.ledger_strikes(_ledger("f,m1-w1,within-scope,a,2026-10-01", "f,m1-w2,within-scope,b,2026-10-02",
@@ -815,13 +816,14 @@ def test_only_the_owners_ruling_resets_a_count(tmp_path: Path) -> None:
     assert check.ledger_strikes(_ledger(*three, "c,m1-closure,review,the closure,2026-10-04")) == ["c"]
     assert check.ledger_strikes(_ledger(*three, "c,m1-closure,within-scope,x,2026-10-04")) == ["c"]
     assert check.ledger_strikes(_ledger(*three, "c,m1-closure,ruling,the closure decided,2026-10-04")) == ["c"]
-    assert check.ledger_strikes(_ledger(*three, "c,m1-closure,ruling,the owner ruled,2026-10-04")) == []
+    assert check.ledger_strikes(_ledger(*three, 'c,m1-closure,ruling,"the owner, 2026-10-04: ruled",2026-10-04')) == []
 
 
 def test_a_ledger_date_must_be_iso_and_not_in_the_future(tmp_path: Path) -> None:
     """The fixes review's M3: a review dated 2099-01-01 kept ten later bypasses from counting."""
     check = _module("wave_check")
-    rows = _ledger("c,m1-w1,bypass,a,2026-10-01", "c,m1-w2,bypass,b,10/02/2026", "c,m1-closure,ruling,the owner,2099-01-01")
+    rows = _ledger("c,m1-w1,bypass,a,2026-10-01", "c,m1-w2,bypass,b,10/02/2026",
+                   'c,m1-closure,ruling,"the owner, 2099-01-01",2099-01-01')
     found = check.ledger_problems(rows, today="2026-10-10")
     assert any("10/02/2026" in p for p in found) and any("2099-01-01" in p for p in found), found
     assert check.ledger_problems(_ledger("c,m1-w1,bypass,a,2026-10-10"), today="2026-10-10") == []
@@ -831,6 +833,59 @@ def test_a_ruling_that_names_no_owner_is_refused(tmp_path: Path) -> None:
     check = _module("wave_check")
     found = check.ledger_problems(_ledger("c,m1-closure,ruling,the closure decided,2026-10-04"), today="2026-10-10")
     assert any("owner" in p for p in found), found
+
+
+def test_a_ruling_is_the_owners_only_when_its_reason_starts_so(tmp_path: Path) -> None:
+    """Round 2, M3: `"the owner" in reason` matched the phrase both review rows carry ("not the owner's ruling;
+    the owner may overrule it"), so a review mistyped as a ruling reset the count, and nothing said so. A
+    ruling's reason starts `the owner, YYYY-MM-DD`, as both real rulings do."""
+    check = _module("wave_check")
+    three = ("c,m1-w1,bypass,a,2026-10-01", "c,m1-w2,bypass,b,2026-10-02", "c,m1-w3,skip,c,2026-10-03")
+    mislabel = ('c,m1-closure,ruling,"the agent\'s application (not the owner\'s ruling; the owner may overrule '
+                'it)",2026-10-04')
+    assert check.ledger_strikes(_ledger(*three, mislabel)) == ["c"]
+    assert any("the owner, YYYY-MM-DD" in p for p in check.ledger_problems(_ledger(mislabel), today="2026-10-10"))
+    for reason in ("the owner ruled", "the owner: re-scoped", "per the owner, 2026-10-04"):
+        row = f'c,m1-closure,ruling,"{reason}",2026-10-04'
+        assert check.ledger_strikes(_ledger(*three, row)) == ["c"], reason
+        assert check.ledger_problems(_ledger(row), today="2026-10-10"), reason
+    owner = 'c,m1-closure,ruling,"The owner, 2026-10-04 (translated from Turkish): fix",2026-10-04'
+    assert check.ledger_strikes(_ledger(*three, owner)) == []
+    assert check.ledger_problems(_ledger(owner), today="2026-10-10") == []
+
+
+def test_rows_count_by_their_place_after_the_last_ruling_not_their_date(tmp_path: Path) -> None:
+    """Round 2, M3: three bypasses appended after a ruling dated 2026-10-10, each dated 2026-10-09, counted
+    nothing; order was by date first. A row counts when it stands after the control's last ruling in the file."""
+    check = _module("wave_check")
+    ruling = 'c,m1-closure,ruling,"the owner, 2026-10-10",2026-10-10'
+    early = ("c,m2-w1,bypass,a,2026-10-09", "c,m2-w2,bypass,b,2026-10-09", "c,m2-w3,skip,c,2026-10-09")
+    assert check.ledger_strikes(_ledger(ruling, *early)) == ["c"]
+    late = ("c,m0-w1,bypass,a,2026-10-11", "c,m0-w2,bypass,b,2026-10-11", "c,m0-w3,skip,c,2026-10-11")
+    assert check.ledger_strikes(_ledger(*late, ruling)) == []
+
+
+def test_a_kind_outside_the_five_is_refused(tmp_path: Path) -> None:
+    """Round 2, M3: `bypassed` or `by-pass` counted nothing and raised nothing."""
+    check = _module("wave_check")
+    for kind in ("bypassed", "by-pass", "Ruling-ish", ""):
+        found = check.ledger_problems(_ledger(f"c,m1-w1,{kind},x,2026-10-01"), today="2026-10-10")
+        assert any("kind" in p for p in found), (kind, found)
+    for kind in ("skip", "bypass", "review", "within-scope", "BYPASS"):
+        assert check.ledger_problems(_ledger(f"c,m1-w1,{kind},x,2026-10-01"), today="2026-10-10") == [], kind
+
+
+def test_a_date_may_be_a_day_after_todays_utc_date(tmp_path: Path) -> None:
+    """Round 2, M3: today was the checker's local date, so a row the owner dated between 00:00 and 03:00 (UTC+3)
+    failed CI's UTC clock until 03:00. A row may be dated up to one day after today, and today is UTC."""
+    import datetime as dt
+
+    check = _module("wave_check")
+    assert check.ledger_problems(_ledger("c,m1-w1,bypass,a,2026-10-11"), today="2026-10-10") == []
+    assert check.ledger_problems(_ledger("c,m1-w1,bypass,a,2026-10-12"), today="2026-10-10")
+    utc = dt.datetime.now(dt.UTC).date()
+    assert check.ledger_problems(_ledger(f"c,m1-w1,bypass,a,{utc + dt.timedelta(days=1)}")) == []
+    assert check.ledger_problems(_ledger(f"c,m1-w1,bypass,a,{utc + dt.timedelta(days=2)}"))
 
 
 # --- the M21 closure fixes review: M4 (row 9's Bypass field) ----------------------------------------------
