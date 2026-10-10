@@ -4696,7 +4696,9 @@ and test names that state a gate's property flatly (#248).
    - `docs/process-log.md` has a heading dated inside the range (#203).
    Where there is no history to read (not a git checkout, or a shallow clone as CI's test job checks
    out), these rules say SKIPPED loudly; where the history exists and the range cannot be read, the close
-   fails. A range ending at `HEAD` is pinned to the commit that added the close.
+   fails, except a close merged into main whose base branch was deleted after the merge, which says
+   SKIPPED (the rules ran on its branch before). A range ending at `HEAD` is pinned to the commit that
+   added the close.
 3. `make wave-check` reads row 9's `gates SKIPPED:` list, and a close that says its session started
    outside the repository: each needs a row in `docs/control-events.csv` for the wave or its milestone
    (#202).

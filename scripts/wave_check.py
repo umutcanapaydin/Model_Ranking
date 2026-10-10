@@ -397,8 +397,9 @@ def history_problems(close: pathlib.Path, text: str, root: pathlib.Path) -> tupl
       plan named it before that commit.
     - #203: `docs/process-log.md` has a heading dated inside the range.
 
-    Returns (problems, skipped): `skipped` says why the history could not be read (no repository, or a
-    shallow clone); a range the history cannot resolve is a problem, never a skip."""
+    Returns (problems, skipped): `skipped` says why the history could not be read (no repository, a
+    shallow clone, or a merged close whose base branch was deleted); any other range the history cannot
+    resolve is a problem, never a skip."""
     date = _close_date(text)
     if date is not None and date < HISTORY_RULES_FROM:
         return [], None
@@ -412,15 +413,22 @@ def history_problems(close: pathlib.Path, text: str, root: pathlib.Path) -> tupl
     three = "..." in spec
     start, _, end = spec.partition("..." if three else "..")
     end = end or "HEAD"
+    committed = end != "HEAD"  # an end the close names, or the commit that added it: one a merge can hold
     if end == "HEAD":
         # Pinned to the commit that added the close, so a later wave's work is not read as this one's.
         rel = close.resolve().relative_to(root.resolve()).as_posix() if close.resolve().is_relative_to(
             root.resolve()) else close.name
         added = _git(root, "log", "--diff-filter=A", "--format=%H", "--", rel)
         if added:
-            end = added.splitlines()[-1]
+            end, committed = added.splitlines()[-1], True
     base = _git(root, "merge-base", start, end) if three else _git(root, "rev-parse", "--verify", f"{start}^{{commit}}")
-    if base is None or _git(root, "rev-parse", "--verify", f"{end}^{{commit}}") is None:
+    end_known = _git(root, "rev-parse", "--verify", f"{end}^{{commit}}") is not None
+    if base is None and end_known and committed and any(_git(root, "merge-base", "--is-ancestor", end, ref) is not None
+                                          for ref in ("origin/main", "main")):
+        # A wave's branch is deleted once it is merged, and the rules ran on that branch before the merge.
+        return [], (f"the range `{spec}` names a base this history no longer holds, and the close is merged into "
+                    "main: the history rules ran on its branch before the merge (#183)")
+    if base is None or not end_known:
         return [f"the commit range `{spec}` cannot be read in this history; it fails closed (#183)"], None
     problems: list[str] = []
     changed = (_git(root, "diff", "--name-only", base, end) or "").splitlines()
