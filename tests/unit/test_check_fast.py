@@ -9,6 +9,7 @@ or a gate that falls out of every leg, is red here and not only in the conforman
 from __future__ import annotations
 
 import importlib.util
+import os
 import shlex
 import subprocess
 import sys
@@ -118,6 +119,21 @@ def test_the_red_gates_compile_legs_build_and_collect_and_run_nothing() -> None:
     collect = subprocess.run(["make", "-n", "pytest-collect"], cwd=ROOT, capture_output=True, text=True,
                              check=False, timeout=60).stdout
     assert "pytest --collect-only" in collect and "--cov" not in collect, collect
+
+
+@pytest.mark.parametrize(("status", "passes"), [(0, True), (1, False)])
+def test_swift_build_tests_runs_the_build_and_keeps_its_status(tmp_path: Path, status: int, passes: bool) -> None:
+    """Round 3, M3: the leg was pinned by `make -n` text only, so a recipe that could not fail (mutant X13) passed
+    every test. With a `swift` on PATH that exits 1 the leg fails; with one that exits 0 it passes."""
+    stub = tmp_path / "bin"
+    stub.mkdir()
+    (stub / "swift").write_text(f'#!/bin/sh\necho "stub swift $*"\nexit {status}\n', encoding="utf-8")
+    (stub / "swift").chmod(0o755)
+    env = {**os.environ, "PATH": f"{stub}{os.pathsep}{os.environ['PATH']}"}
+    done = subprocess.run(["make", "--no-print-directory", "swift-build-tests"], cwd=ROOT, env=env, capture_output=True,
+                          text=True, timeout=300, check=False)
+    assert (done.returncode == 0) == passes and ("swift-build-tests PASS" in done.stdout) == passes, done
+    assert "stub swift build --build-tests" in (ROOT / "build" / "swift-build-tests.log").read_text(encoding="utf-8")
 
 
 def test_with_adds_a_leg_and_refuses_a_name_that_is_no_target() -> None:

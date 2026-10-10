@@ -273,3 +273,16 @@ def test_the_hook_runs_only_the_three_gates(tmp_path: Path) -> None:
     done = _commit(repo, env, "src/app/y.py", "fix: y")
     assert done.returncode != 0 and "help" in done.stderr and "REFUSED" in done.stderr, done
     assert "help" not in _logged(log)
+
+
+def test_r1_and_experience_say_why_check_red_leaves_out_the_privacy_gate() -> None:
+    """Round 3, M3: R-1 counted `client-decls` among the legs that run tests, and EXPERIENCE said a red commit runs
+    every leg but the tests. The compiled privacy gate runs no test; it is left out because its self-test
+    compares the fixture with its committed dump, and a red commit may add a shape the gate does not refuse yet."""
+    r1 = next(line for line in (ROOT / "docs" / "refusals.md").read_text(encoding="utf-8").splitlines()
+              if line.startswith("| R-1 |"))
+    assert "`conformance`, `client-decls`)" not in r1 and "fixture" in r1 and "dump" in r1, r1
+    experience = re.sub(r"\s+", " ", (ROOT / "docs" / "EXPERIENCE.md").read_text(encoding="utf-8"))
+    assert "runs every leg but the tests" not in experience
+    gate = re.sub(r"\s+", " ", (ROOT / "scripts" / "commit_gate.py").read_text(encoding="utf-8"))
+    assert "`conformance`, `client-decls`)" not in gate and "dump" in gate
