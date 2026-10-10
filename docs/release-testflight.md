@@ -20,8 +20,10 @@ This replaces the build-3 list: build 3 was never uploaded, and v2 ships M20 and
 The M21 closure security seat says the release verdict stands for v2, on six conditions
 (`docs/reviews/m21-closure-security-review.md`, "The release re-read"); each step below names its condition.
 
-1. **Merge** the pull requests in this order: #213 (the plans), #215, #217, #221, #224, #225, #229 (the M20
-   closure), #236, #240, #250, #251, then the M21 closure. Then `git checkout main && git pull`.
+1. **Merge** the one combined pull request from `closure/m21`, with **Create a merge commit** (not squash
+   or rebase). It carries every commit of #213, #215, #217, #221, #224, #225, #229 (the M20 closure),
+   #236, #240, #250 and #251, so GitHub marks those merged too, and the close checks, which read the
+   commit history (D-192), keep the history they read. Then `git checkout main && git pull`.
 2. **Run `make hooks` once** in your clone. From then on every commit runs `make check-fast` (or
    `make check-records` for a docs-only commit) and every push runs `make gate`, which runs the compiled
    gate (`make client-decls`). Nothing runs that gate automatically until you do (G-10; condition 2).

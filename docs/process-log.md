@@ -653,8 +653,8 @@ Lesson: when what the reader is shown changes, run the screen's tests, even if o
 ## 2026-10-08 — the first release live, the owner's first session on it, and M20: our own list for every question
 
 - The engine went live on Fly.io and TestFlight build 1 (0.1.0) was uploaded, both by the owner's
-  hand. His first session on the phone found "not measured" answers and a licence filter he had
-  not asked for. He ruled D-186 (every source on TestFlight, licences before production) and D-187
+  hand. Their first session on the phone found "not measured" answers and a licence filter they had
+  not asked for. They ruled D-186 (every source on TestFlight, licences before production) and D-187
   (an understood question is never "not measured"). The hotfix (#207) went through three review
   rounds and was merged and redeployed.
 - The owner named the product's core: our own list for every question, built from many boards. M20

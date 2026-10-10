@@ -395,3 +395,16 @@ sha256. The worktree was never written; `git status` shows only this record.
 **Network.** Only read-only `gh`: issues #241 and #245, and `main`'s branch protection. Every test
 and probe ran in process or inside `scripts/offline.sb`. No process of mine is still running, and none
 ended in SIGABRT.
+
+## Dispositions, at the closure
+
+| finding | disposition |
+|---|---|
+| S1 | fixed `70eb084`: G-10 says nothing runs the compiled gate automatically until `make hooks`; the runbook's v2 section runs `make check` on `main`'s tip and `make hooks` once |
+| S2 | fixed `3143da4` (red `efc0790`, `5ef5c6f`; OWNER APPROVAL): the guard's deadline is a timer thread, and a guard that exits 1 blocks |
+| S3 | fixed `3143da4` and `419d5dc` (red `efc0790`; OWNER APPROVAL): the hook pins the guard's sha256, and neither Bash nor the Write and Edit tools write into `.claude/` or `.githooks/` |
+| S4 | fixed `3143da4` and `70eb084`: G-7 and the permission matrix name the push to a destination git chooses itself, held by branch protection only |
+| S5 | fixed `ee22b3d` (red `8fe7332`): no name accepts a missing or unreadable record; INV-90 in the register |
+| S6 | fixed `d894287` (red `5575a0a`): `ObjectiveC` is off the client's allowlist, and the fixture holds a runtime call the gate refuses |
+| S7 | #245 narrowed to the declaration half (comment), named in G-10 (`70eb084`) |
+| S8 | the owner's check, once: `/hooks` in a session started in the repository (the runbook's v2 section, `70eb084`) |

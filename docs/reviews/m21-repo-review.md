@@ -248,14 +248,14 @@ Eleven findings: two MAJOR and nine MINOR, none BLOCKING.
 
 | finding | severity | disposition |
 |---|---|---|
-| M1 | MAJOR | to be fixed or filed at the closure |
-| M2 | MAJOR | to be fixed or filed at the closure |
-| M3 | MINOR | to be fixed or filed at the closure |
-| M4 | MINOR | to be fixed or filed at the closure |
-| M5 | MINOR | to be fixed or filed at the closure |
-| M6 | MINOR | to be fixed or filed at the closure |
-| M7 | MINOR | to be fixed or filed at the closure |
-| M8 | MINOR | to be fixed or filed at the closure |
-| M9 | MINOR | to be fixed or filed at the closure |
-| M10 | MINOR | to be fixed or filed at the closure |
-| M11 | MINOR | to be fixed or filed at the closure |
+| M1 | MAJOR | fixed `d912a76` (red `fbfa276`): the ledger rows for `9613a2b`, `9cf8e12` and M20's three bypasses; row 9's Bypass field needs its ledger row; the three-row rule counts only rows after a control's last ruling. The owner ruled on the control (2026-10-10): a pre-commit hook runs `scripts/commit_gate.py` (`96424b2`, red `0003573`; `.githooks/pre-commit` in `d466923`, OWNER APPROVAL) |
+| M2 | MAJOR | fixed `3160b70` (red `df3a32e`): a wave's base is the latest of `main`'s merge base, the previous milestone's closure branch, the plan's recorded base and the previous wave's close (D-192) |
+| M3 | MINOR | fixed `70eb084`: the plan's security globs hold the gates |
+| M4 | MINOR | fixed `95fd847` (red `1768cb5`) |
+| M5 | MINOR | fixed `6bb2519` (red `facac24`): A1 refuses a pointer below its ADR's separator, and fifteen pointers moved |
+| M6 | MINOR | fixed `70eb084` (the runbook's v2 section) and `ee22b3d` (the refusal's advice, INV-90) |
+| M7 | MINOR | fixed `70eb084`: G-10 names #245; #245 narrowed by comment (the security seat's S7) |
+| M8 | MINOR | the ten issues corrected by comment, each naming the round that holds its finding; a pointer that never moves is #252 |
+| M9 | MINOR | fixed `70eb084` |
+| M10 | MINOR | fixed `70eb084` (red `9cecb17`) |
+| M11 | MINOR | fixed `70eb084`: REQ-ASK-005 carries D-191's caveat |

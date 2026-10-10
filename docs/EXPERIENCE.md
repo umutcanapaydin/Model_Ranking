@@ -939,9 +939,9 @@ review. The release's security verdict of record is `docs/reviews/release-securi
 ## M20 closure — 2026-10-08 — our own list for every question, and the seams between waves
 
 M19 left the engine ready for Fly.io and the app ready for TestFlight. On 2026-10-07 the owner
-deployed the engine and uploaded build 1. His first session on the phone found "not measured"
-answers and a licence filter he had not asked for. He ruled D-186 and D-187, and the hotfix (#207)
-shipped the same day. He then named the product's core: our own list for every question, built from
+deployed the engine and uploaded build 1. The owner's first session on the phone found "not measured"
+answers and a licence filter they had not asked for. They ruled D-186 and D-187, and the hotfix (#207)
+shipped the same day. They then named the product's core: our own list for every question, built from
 every board that measures its task. M20 built it (D-188, proposed):
 - **The engine names each task's family of boards** on `/v1/categories` (W1).
 - **The phone combines a family** by mean percentile position. A model is kept when half the
@@ -995,3 +995,69 @@ release verdict of record stands for build 3. S1 to S4 are fixed, and S5 is gap 
   the control's third row, so it goes to the owner: fix it, re-scope it, or refuse it.
 - Every M20 session started outside the repository, so the hooks never loaded (#142). The clone has
   no `core.hooksPath`, so the pre-push `make gate` never ran.
+
+## M21 closure — 2026-10-10 — the open queue, and controls that read the history
+
+M20 left 47 issues the reviews and the owner's first session had filed. The owner asked for all of
+them as draft pull requests, without waiting for merges, and then for v2: M20 and M21 shipped
+together as build 4. Three waves run at once hit the usage limit, so from then on the waves ran one
+at a time. M21 delivered four waves:
+- **W1, the data a reader sees.** One model per release its maker names (D-189). `web-dev` on
+  LMArena's own WebDev board (D-190). The data's release is named, and checked before a deploy.
+  Standings never block questions.
+- **W2, reading what is not a search.** Model comparisons from every registry family (D-191), the
+  held-out gates, one UI routing fixture, and the owner's blinded judgement sheet.
+- **W3, the phone's promises.** The compiled gate refuses more shapes, and its fixture is its
+  definition. The held reading moved out of the screen.
+- **W4, the controls** (D-192). The close checks read the wave's commit range. The Bash guard reads a
+  command a second time, as the shell splits it.
+
+Engineering shapes worth keeping:
+
+1. **A record that describes a gate in prose is wider or narrower than the gate.** W3 drew five
+   BLOCKING rounds, each on another sentence that said more than the gates hold. Fixing sentences one
+   at a time never converged. What did: the records name the fixture's rules, end with "any other form
+   is not held", and a test holds that wording.
+2. **A reading rule that meets the next phrasing at every verdict comes out.** W2's three rules
+   (#194, #218, #222) each drew a third verdict on a phrasing the last fix had not seen, as M19's image
+   rule did. Each came out at its third verdict, and the held-out rows read as they did before. The
+   issues carry what was measured.
+3. **A rule that reads history must say what a missing history means.** W4's range rule read a deleted
+   branch as an unreadable range. The milestone review found that it also refused a first wave stacked
+   on a closure not yet on `main`. A wave's base is now the latest of four named points.
+4. **A control kept by memory fails at the seams.** Commands chained with `;` committed red trees in
+   M20. M21's two docs-only bypasses were never written to the ledger, so the three-row rule could not
+   see them. The owner ruled on the control: fix it with a pre-commit hook, gating a docs-only commit by
+   `make check-records`.
+5. **A guard is code, and its own target.** The guard's second reading drew two BLOCKING verdicts on
+   its lexer. The closure seat then found two more problems: an agent could rewrite the guard in the
+   middle of a session, and its deadline needed a signal that a hook may not get. The hook now pins the
+   guard's sha256, refuses writes into `.claude/` and `.githooks/`, and times the guard on a thread.
+6. **One agent at a time.** Running three waves at once exhausted the usage limit, and their checks
+   disturbed each other's timing (W1's `ResponseCeilingTests`). The waves were then run in order, each
+   reviewed alone. The seams between them were left to the closure, as M20 showed they must be.
+
+**The closure reviews.**
+- **The repo review** (`docs/reviews/m21-repo-review.md`) was MINOR, with two MAJOR findings, both
+  W4's new close rules meeting the rest of the milestone:
+  - M1: two bypasses had no ledger row;
+  - M2: a first wave stacked on an unmerged closure was refused.
+
+  Both are fixed on the closure branch, and M3 to M11 are fixed or filed (#252).
+- **The closure security seat** (`docs/reviews/m21-closure-security-review.md`) was MINOR. The release
+  verdict of record stands for v2, on six conditions, which the runbook's v2 section follows. S1 to S6
+  are fixed. S7 narrowed #245, and S8 is the owner's `/hooks` check.
+
+**What was accepted rather than solved:**
+- the Turkish reading's dead ends (#194, #218, #222): on a device without Apple Intelligence, 8 of 71
+  held-out searches still fall to "not measured";
+- the compiled gate holds in full only on a Mac with Xcode. CI's Linux lane skips it (#243), and
+  nothing runs it automatically until `make hooks`;
+- #108's cause is unmeasured: measuring it traps a process;
+- #122's CI patches wait on the owner;
+- #220's on-device measurement and #226's judgements are the owner's.
+
+**Control bypass** (the ledger rows are in `docs/control-events.csv`):
+- Two docs commits (`9613a2b`, `9cf8e12`) were gated by `make check-records` alone. The owner's
+  ruling makes that the rule for a docs-only commit.
+- Every M21 session started outside the repository, so the hooks never loaded (#142).
