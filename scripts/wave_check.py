@@ -286,10 +286,12 @@ PLAN_GLOBS_HIGH_FROM = "2026-10-06"
 
 
 #: The gates' own globs, which every plan's list carries (the M21 closure fixes review's M7): a wave that changes a
-#: gate is HIGH whatever its milestone's plan lists, so the gates do not lapse when a milestone ends.
+#: gate is HIGH whatever its milestone's plan lists, so the gates do not lapse when a milestone ends. Round 2's
+#: M5 added the text pins and the offline sandbox (INV-6), CI's workflows, the test configuration and stack.mk.
 STANDING_GLOBS = ("scripts/wave_check.py", "scripts/check_records.py", "scripts/commit_gate.py", "scripts/check_fast.py",
                   "scripts/client_decl_gate.py", "scripts/client_decl_fixtures/**", "Makefile", ".githooks/**",
-                  ".claude/**")
+                  ".claude/**", "tests/unit/test_router_hints.py", "tests/unit/test_ios_client_contract.py",
+                  "scripts/offline.sb", ".github/workflows/**", "tests/conftest.py", "stack.mk")
 
 
 def plan_globs(plan: pathlib.Path) -> list[str]:
