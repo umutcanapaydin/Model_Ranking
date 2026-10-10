@@ -90,7 +90,6 @@ MODULES = {
     "NaturalLanguage",
     "FoundationModels",
     "_Concurrency",
-    "ObjectiveC",
     "Observation",
     "Combine",
     "_DarwinFoundation1",  # `pow`, through Foundation's re-export
@@ -490,6 +489,8 @@ FIXTURE_REFUSALS = {
     ("Detail.swift", "builds a path"), ("Detail.swift", "stores something outside the register"),
     # #175 R3: a framework off the allowlist, and text into shared storage (FORBIDDEN).
     ("Imports.swift", "imports `Network`"), ("ContentView.swift", "UserDefaults"),
+    # The M21 closure security seat's S6: the runtime, imported and called, off the module allowlist.
+    ("Imports.swift", "imports `ObjectiveC`"), ("Imports.swift", "in `ObjectiveC`"),
     # #168: a URL loaded as text, as NSData and by an XML parser is the network too.
     ("ContentView.swift", "String.init(contentsOf"), ("ContentView.swift", "NSData.init(contentsOf"),
     ("ContentView.swift", "XMLParser.init(contentsOf"),
@@ -826,7 +827,9 @@ FOUNDATION_SHARED = re.compile(r'decl="(?:Foundation|Swift)\.\(file\)\.((?:Threa
 #: file is refused by absence, so a new one is a reviewed edit; an object reached through a listed
 #: declaration, or held behind a widened type, is not held (G-1). The code a sink runs in another file
 #: is checked against `FOUNDATION_SHARED` above, a list.
-SINK_MODULES = {"Foundation", "CoreFoundation", "Dispatch", "ObjectiveC", "_DarwinFoundation1"}
+#: `ObjectiveC` is on neither list (the M21 closure security seat's S6): it declares the whole runtime
+#: (`sel_registerName`, `object_*`, `ivar_*`), and the shipping client resolves nothing in it.
+SINK_MODULES = {"Foundation", "CoreFoundation", "Dispatch", "_DarwinFoundation1"}
 SINK_FOUNDATION_ALLOWED = frozenset({
     "Bundle.main", "Bundle.object(forInfoDictionaryKey:",
     "Code.appTransportSecurityRequiresSecureConnection", "Code.dataNotAllowed", "Code.networkConnectionLost",
