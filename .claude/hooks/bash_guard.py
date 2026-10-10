@@ -12,10 +12,13 @@ What it blocks:
 - `git reset --hard`, `git clean -f`, `git checkout --`, `.`, `-f` or a tree-ish with paths, `git switch -f`
   or `--discard-changes`, `git stash clear`, `git restore` without `--staged` or with `--worktree`, and `rm`
   both recursive and forced (permission-matrix.md S5). A git long option counts in any unique prefix;
-- a write into `.claude/` or `.githooks/`, the owner's hooks and settings (the M21 closure security seat's
-  S3): a redirection there; `rm`, `mv`, `tee`, `touch`, `chmod` and their kind on a path there; `cp`, `ln`,
-  `install`, `rsync` or `dd` with a destination there; `sed -i` or `perl -i` on one; and `git rm`, `git mv`,
-  `git checkout` or `git restore` naming one. Reading them is not refused.
+- a write into this project's own `.claude/` or `.githooks/`, the owner's hooks and settings (the M21 closure
+  security seat's S3): a redirection there; `rm`, `mv`, `tee`, `touch`, `chmod` and their kind on a path
+  there; `cp`, `ln`, `install`, `rsync` or `dd` with a destination there, given last or as an option (`-t`,
+  `--target-directory`, `of=`); `sed -i` or `perl -i` on one; and `git rm`, `git mv`, `git checkout` or
+  `git restore` naming one. A path is resolved (links followed, `~` and variables expanded, relative to the
+  payload's `cwd`) and compared case-folded with `$CLAUDE_PROJECT_DIR/.claude/` and `.githooks/` (the fixes
+  review's M6), so Claude Code's own `~/.claude` is not refused. Reading them is not refused.
 
 Where it looks: each command after `;`, `&&`, `||`, `|`, `|&`, `&`, a newline, `(`, `)`, `{` or `}`; inside
 `$( )`, backticks (nested ones too), `<( )`, `${ }`, `$(( ))` and an unquoted here-document's body; past
@@ -29,8 +32,9 @@ with `(` written against it (zsh's glob qualifiers, `=( )`); a `${(flags)...}`; 
 pattern that could name a guarded program, as a program word; a shell or `source` reading its commands from
 a pipe, a file or stdin; a `-c` with no string; an input over MAX_INPUT characters; and any command it has
 not read within DEADLINE_S seconds, a timer thread that writes the BLOCKED line and exits 2 wherever the
-guard runs, a long call into C included (the M21 closure security seat's S2). A hook that times out does not
-block below Claude Code 2.1.295, so the guard keeps its own bound.
+guard runs (the M21 closure security seat's S2). The thread runs only when Python lets it: a long call into C
+that holds the interpreter (a regex over a long word) runs to its end first, so that case is bounded only by
+the hook's own 30 s timeout and `onFailure: "block"`, from Claude Code 2.1.295 (the fixes review's M6).
 
 Not held, by class (G-7):
 - a program named when the command runs: through a variable, a substitution, an alias, a function, `hash`,
@@ -41,7 +45,9 @@ Not held, by class (G-7):
 - a push to a destination git chooses itself: a bare `git push`, `git push origin HEAD` or `@`, an upstream,
   `push.default` or `remote.pushDefault` (from a checkout on main, each pushes main; GitHub's branch protection
   is the control of record there, the M21 closure security seat's S4);
-- a write into `.claude/` or `.githooks/` by a program this does not list (`python -c`, `git apply`, an editor);
+- a write into `.claude/` or `.githooks/` by a program this does not list (`python -c`, `git apply`, `tar`, an
+  editor), through a path built when the command runs (`$(...)`, a variable set earlier in it), a hard link
+  made before, or a directory the command changes into (`cd .claude && ...`);
 - what the shell expands when the command runs, beyond the program word: `IFS`, history, globs and braces in
   arguments;
 - syntax this lexer does not model: it reads POSIX-like shell, and zsh's grammar beyond the forms above is
@@ -64,8 +70,13 @@ from dataclasses import dataclass, field
 MAX_INPUT = 32768
 #: How long the guard may read; past it, it blocks.
 DEADLINE_S = 5.0
-#: The owner's hooks and settings: no write through Bash (the M21 closure security seat's S3).
-OWNERS_PATH = re.compile(r"(^|[/=])\.(claude|githooks)(/|$)")
+#: The owner's hooks and settings: no write through Bash (the M21 closure security seat's S3). With
+#: CLAUDE_PROJECT_DIR set, a path is resolved (links followed, `~` and variables expanded, relative to the
+#: payload's `cwd`) and compared case-folded with the project's own `.claude/` and `.githooks/` (the fixes
+#: review's M6), so `~/.claude` is not the project's; without it, this literal pattern decides.
+OWNERS_PATH = re.compile(r"(^|[/=])\.(claude|githooks)(/|$)", re.IGNORECASE)
+#: Set by `main` from the payload and the environment.
+WHERE = {"cwd": "", "project": ""}
 #: Programs that change each path they are given, and those that change only their last one.
 CHANGES_EVERY = {"rm", "mv", "tee", "touch", "chmod", "chown", "chgrp", "truncate", "unlink", "rmdir", "shred", "mkdir"}
 CHANGES_LAST = {"cp", "ln", "install", "rsync", "dd", "ditto"}
@@ -484,7 +495,7 @@ def judge_text(text: str, depth: int = 0) -> str | None:
 
 def judge_command(cmd: Command, depth: int) -> str | None:
     """Past assignments and keywords; after a wrapper, every later word is tried as the program, in one pass."""
-    if any(OWNERS_PATH.search(path) for path in cmd.writes):
+    if any(_owners(path) for path in cmd.writes):
         return OWNERS
     words = cmd.words
     start = 0
@@ -604,22 +615,52 @@ OWNERS = ("BLOCKED: .claude/ and .githooks/ hold the owner's hooks and settings;
           "(OWNER APPROVAL, the M21 closure security seat's S3). Propose the change instead.")
 
 
+def _owners(path: str) -> bool:
+    """Whether a path a command writes is the project's own `.claude/` or `.githooks/` (or under one)."""
+    path = path[3:] if path.startswith("of=") else path
+    project = WHERE["project"]
+    if not project:
+        return bool(OWNERS_PATH.search(path))
+    expanded = os.path.expandvars(os.path.expanduser(path))
+    full = os.path.normcase(os.path.realpath(os.path.join(WHERE["cwd"] or project, expanded))).casefold()
+    for name in (".claude", ".githooks"):
+        own = os.path.normcase(os.path.realpath(os.path.join(project, name))).casefold()
+        if full == own or full.startswith(own + os.sep):
+            return True
+    return False
+
+
+def _destinations(args: list[str]) -> list[str]:
+    """Destinations given as options: `-t DIR`, `--target-directory=DIR` or `--target-directory DIR`, `of=`."""
+    found: list[str] = []
+    for i, arg in enumerate(args):
+        if arg in ("-t", "--target-directory") and i + 1 < len(args):
+            found.append(args[i + 1])
+        elif arg.startswith("--target-directory="):
+            found.append(arg.split("=", 1)[1])
+        elif arg.startswith("-t") and len(arg) > 2 and not arg.startswith("--"):
+            found.append(arg[2:])
+        elif arg.startswith("of="):
+            found.append(arg)
+    return found
+
+
 def _writes_protected(program: str, args: list[str]) -> str | None:
-    """A write into `.claude/` or `.githooks/` by a program this lists (S3)."""
-    paths = [a for a in args if not a.startswith("-") or a.startswith("of=")]
-    if program in CHANGES_EVERY and any(OWNERS_PATH.search(a) for a in paths):
+    """A write into the project's `.claude/` or `.githooks/` by a program this lists (S3, the fixes review's M6)."""
+    paths = [a for a in args if not a.startswith("-")]
+    options = _destinations(args)
+    if program in CHANGES_EVERY and any(_owners(a) for a in paths + options):
         return OWNERS
-    if program in CHANGES_LAST and paths and (OWNERS_PATH.search(paths[-1]) or any(
-            a.startswith("of=") and OWNERS_PATH.search(a) for a in args)):
+    if program in CHANGES_LAST and ((paths and _owners(paths[-1])) or any(_owners(a) for a in options)):
         return OWNERS
     in_place = (program == "sed" and any(a.startswith("-i") or a == "--in-place" or a.startswith("--in-place=")
                                          for a in args)) or (
         program == "perl" and any(a.startswith("-") and not a.startswith("--") and "i" in a[1:] for a in args))
-    if in_place and any(OWNERS_PATH.search(a) for a in paths):
+    if in_place and any(_owners(a) for a in paths):
         return OWNERS
     if program == "git":
         sub = next((a for a in args if not a.startswith("-")), "")
-        if sub in ("rm", "mv", "checkout", "restore") and any(OWNERS_PATH.search(a) for a in paths):
+        if sub in ("rm", "mv", "checkout", "restore") and any(_owners(a) for a in paths):
             return OWNERS
     return None
 
@@ -713,7 +754,8 @@ def _judge_git(args: list[str], behind_xargs: bool) -> str | None:  # noqa: C901
 
 
 def _expired() -> None:
-    """The guard's own bound (S2): a thread, so it holds where SIGALRM does not exist and stops a call into C."""
+    """The guard's own bound (S2): a thread, so it holds where SIGALRM does not exist. It cannot stop a long call
+    into C that holds the interpreter; the hook's timeout bounds that."""
     sys.stderr.buffer.write(f"BLOCKED: the command was not read within {DEADLINE_S:g} s (#189).\n".encode())
     sys.stderr.flush()
     os._exit(2)
@@ -726,6 +768,8 @@ def main() -> int:
     try:  # bytes, so a console's encoding (cp1254) cannot change what is read
         payload = json.loads(sys.stdin.buffer.read().decode("utf-8"))
         command = str(payload.get("tool_input", {}).get("command", "")) if isinstance(payload, dict) else ""
+        WHERE["cwd"] = str(payload.get("cwd") or "") if isinstance(payload, dict) else ""
+        WHERE["project"] = os.environ.get("CLAUDE_PROJECT_DIR", "")
         why = judge_text(command) if command.strip() else None
         timer.cancel()
     except BaseException as error:  # any doubt blocks: a guard that cannot read the call never allows it
