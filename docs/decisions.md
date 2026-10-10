@@ -4709,26 +4709,28 @@ and test names that state a gate's property flatly (#248).
 2. `make wave-check` reads the close's commit range from git, for closes dated from 2026-10-10, and for a
    close dated earlier but committed from then (a gate does not invalidate records written before it,
    GPF-001; the review's M3). The range is read as `git diff A...B` reads it, from the merge base of its
-   ends, whatever its dots (M4); it ends at HEAD, pinned to the commit that adds the close, and an end the
-   author names is refused (round 2's M4); it must start at the wave's base or before it (the commit that added the
+   ends, whatever its dots (M4); it ends at HEAD, pinned to the last commit that changes the close (HEAD itself
+   while the close has edits not yet committed), and an end the author names is refused (round 2's M4, round 3's M1); it must start at the wave's base or before it (the commit that added the
    previous wave's close, or the milestone's base on main) and hold a commit (M3); a start the history no
    longer holds is read from the merge base the footer records (``merge base `sha` ``), else from the
    wave's base (M4). Then:
    - every path the range changed, both sides of a rename, is held to the plan's security globs (#183);
-   - an ADR the range adds first appears in a commit that changes no `src/`, `ios/` or `scripts/` file,
+   - an ADR the range adds first appears in a commit that changes no `src/`, `ios/`, `scripts/`, `.claude/` or
+     `.githooks/` file (a hook is code here: round 3's M3),
      after no code commit of the range that cites it, and after no code commit at all unless the plan
      named it before; its heading is read as `## D-n`, `## D-n:` or `## D-n —`, and an ADR the range adds
      with no commit found adding its heading is a problem (#201, M5, round 2's M5);
    - `docs/process-log.md` has a heading naming the wave (`M21-W4`, or a span `M21-W1 to W4`), dated
      inside the range (#203, M5).
-   A close is merged when the commit that added it is on main; a merged close is not
+   A close is merged when its own last commit is on main; a merged close is not
    read again: the rules ran on its branch before the merge. Where there is no history to read (not a git
    checkout, or a shallow clone as CI's test job checks out), or a close is merged, the rules say SKIPPED,
    and `wave-check-all` prints that line on a pass too (M8).
 3. `make wave-check` reads row 9's `gates SKIPPED:` list (the label in any case, split on commas outside
    parentheses), every checklist row whose status says SKIPPED or WAIVED, and the field
    `Session started in the repository: yes|no` that the template's row 8 asks for, read from row 8's
-   evidence cell only; rows marked N/A count with the skipped and waived ones, and the label is read in
+   evidence cell only; rows marked N/A count with the skipped and waived ones, each ledgered by the control
+   its check cell names (round 3's M2), and the label is read in
    its other spellings (`gates SKIPPED :`, `**SKIPPED**:`, `SKIPPED —`). Each skip, and a `no`, needs a row
    in `docs/control-events.csv` for the wave or its milestone (#202, M7, round 2's M6). Prose about the
    session is not read; from 2026-10-11 a close carries the field.

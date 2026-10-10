@@ -13,6 +13,11 @@ run once per project, except the ones marked *every clone*.
 | gh, the GitHub CLI | `make labels`, `make ci-liveness` and the draft pull requests the skills open. Without it, the common steps say what to do instead |
 | gitleaks | `make secrets`, a leg of `make gate`, which runs before every push |
 
+**Claude Code 2.1.295 or later.** The Bash hook in `.claude/settings.json` sets `"onFailure": "block"`,
+which Claude Code reads from 2.1.295: there a hook that times out blocks the call. On an older version a
+timed-out hook lets the call through, and only the guard's own 5 s bound (`.claude/hooks/bash_guard.py`)
+protects. Check with `claude --version`.
+
 ## Windows
 
 Windows 10 or 11, working in **Git Bash**: every command in this file after the installs runs there,

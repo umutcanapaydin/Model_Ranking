@@ -356,7 +356,7 @@ def _glob_problems(p: pathlib.Path, touched: str, evidence: str) -> list[str]:
 #: history and the ledger. A gate does not invalidate a record written before it (GPF-001).
 HISTORY_RULES_FROM = "2026-10-10"
 #: A commit that changes one of these changes code (#201).
-CODE_DIRS = ("src/", "ios/", "scripts/")
+CODE_DIRS = ("src/", "ios/", "scripts/", ".claude/", ".githooks/")
 
 
 def _git(root: pathlib.Path, *args: str) -> str | None:
@@ -442,7 +442,12 @@ def history_problems(close: pathlib.Path, text: str, root: pathlib.Path) -> tupl
     rel = close.resolve().relative_to(root.resolve()).as_posix() if close.resolve().is_relative_to(
         root.resolve()) else close.name
     added = (_git(root, "log", "--diff-filter=A", "--format=%H %cs", "--", rel) or "").splitlines()
-    added_sha, added_day = added[-1].split() if added else (None, None)
+    added_day = added[-1].split()[1] if added else None
+    # The range ends at the last commit that changes the close (round 3's M1), or at HEAD while the close
+    # has edits not yet committed: work after the close's first commit is the wave's too.
+    last_sha = (_git(root, "log", "-1", "--format=%H", "--", rel) or "") or None
+    if last_sha and (_git(root, "show", f"{last_sha}:{rel}") or "").strip() != text.strip():
+        last_sha = None
     if date is not None and date < HISTORY_RULES_FROM and added_day is not None and added_day < HISTORY_RULES_FROM:
         return [], None
     found = re.search(r"Wave commit range:\s*`([^`]+)`", text)
@@ -453,9 +458,10 @@ def history_problems(close: pathlib.Path, text: str, root: pathlib.Path) -> tupl
     if typed_end.strip() not in ("", "HEAD"):
         return [f"the commit range `{spec}` must end at HEAD, the commit that adds the close, not at "
                 f"`{typed_end.strip()}`: an end the author names can leave the wave's last commits out (#183)"], None
-    if added_sha and _merged(root, added_sha):
+    own = (_git(root, "log", "-1", "--format=%H", "--", rel) or "") or None  # the close's own last commit
+    if own and _merged(root, own):
         return [], f"`{close.name}` is merged into main: the history rules ran on its branch before the merge (#183)"
-    end = added_sha or "HEAD"
+    end = last_sha or "HEAD"
     unreadable = [f"the commit range `{spec}` cannot be read in this history; it fails closed (#183)"]
     if _git(root, "rev-parse", "--verify", f"{end}^{{commit}}") is None:
         return unreadable, None
@@ -570,7 +576,7 @@ def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]]) -> li
         cells = [c.strip() for c in line.strip().strip("|").split("|")] if line.startswith("|") else []
         if len(cells) >= 4 and re.match(r"\d+[a-z]?$", cells[0]) and re.search(r"\b(SKIPPED|WAIVED)\b|\bN/A\b",
                                                                               cells[-1], re.I):
-            said = " ".join(cells[1:])
+            said = cells[1]  # the check cell: the control a row skipped is the one it names (round 3's M2)
             if not any(re.search(r"(?<![\w-])" + r"[-\s]+".join(map(re.escape, row[0].strip().split("-"))) + r"(?![\w-])",
                                  said, re.I) for row in rows):
                 problems.append(f"row {cells[0]} ({cells[1][:60]}) is marked `{cells[-1]}` and `docs/control-events.csv` "
