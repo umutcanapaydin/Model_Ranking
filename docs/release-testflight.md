@@ -28,9 +28,10 @@ The M21 closure security seat says the release verdict stands for v2, on six con
    every Claude Code session open in the clone (close it, then `cd ~/Desktop/ILGAR/model_ranking && claude`):
    the pull brings a changed guard and its new pin, and a session keeps the hooks it started with, so an old
    session blocks every Bash call and every write (`INSTALL.md`, "Changing the Bash guard").
-2. **Run `make hooks` once** in your clone. From then on the commit-msg gate runs before every commit
-   (`make check-fast`; `make check-red` for a declared red test commit; `make check-docs` for a docs-only
-   one; `docs/refusals.md` R-1) and every push runs `make gate`, which runs the compiled gate
+2. **Run `make hooks` once** in your clone. From then on the commit-msg gate runs on every `git commit`
+   and `git merge`, though not on `cherry-pick` or `rebase` (`make check-fast`; `make check-red` for a
+   declared red test commit; `make check-docs` for a docs-only one; `docs/refusals.md` R-1), and every
+   push runs `make gate`, which runs the compiled gate
    (`make client-decls`). Nothing runs that gate automatically until you do (G-10; condition 2).
    And start every Claude Code session in the repository (`cd ~/Desktop/ILGAR/model_ranking && claude`), so
    its hooks load: the Bash guard, the Write refusal and the post-edit check load in no other session (#142;

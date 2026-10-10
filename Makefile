@@ -440,7 +440,7 @@ labels:  ## Stage 0: create the issue-label vocabulary on GitHub, once per repo 
 # Without `gh` it prints the table to create by hand, and exits 2.
 	@$(SYS_PY) scripts/create_labels.py
 
-hooks:  ## Stage 0, once per clone: a gate before every commit (check-fast, check-red or check-docs), `make gate` before every push
+hooks:  ## Stage 0, once per clone: a gate on every git commit and git merge (check-fast, check-red or check-docs), `make gate` before every push
 	$(call need,git,install the commit-msg and pre-push hooks)
 	@git config core.hooksPath .githooks
 	@echo "core.hooksPath = $$(git config core.hooksPath) -- commit-msg now runs make check-fast (check-red for a declared red test commit, check-docs for a docs-only one), pre-push runs make gate"

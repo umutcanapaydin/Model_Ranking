@@ -138,9 +138,10 @@ In Git Bash (Windows) or a terminal (macOS, Linux), at the repository root.
 3. Name the project in `pyproject.toml`.
 4. `make install` — *every clone*: the venv, DevFlow's tooling and the project; it records the
    installed version in `.gp/installed`.
-5. `make hooks` — *every clone*: `make gate` runs before every push, and before every commit the
-   commit-msg gate runs one of three targets (`scripts/commit_gate.py`; the owner's ruling of 2026-10-10,
-   `docs/refusals.md` R-1): `make check-fast`; `make check-red` for a declared red test commit (a `test:`
+5. `make hooks` — *every clone*: `make gate` runs before every push, and on every `git commit` and
+   `git merge` (git runs it on neither `cherry-pick` nor `rebase`) the commit-msg gate runs one of three
+   targets (`scripts/commit_gate.py`; the owner's ruling of 2026-10-10, `docs/refusals.md` R-1):
+   `make check-fast`; `make check-red` for a declared red test commit (a `test:`
    subject that says `red` as a word of its own, with a test staged), which runs no test but builds the
    Swift tests and collects the Python ones; or
    `make check-docs` for a docs-only commit (every staged path a Markdown file outside the code
