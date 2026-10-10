@@ -376,3 +376,18 @@ None
     - Refuse a target outside the three names.
     - For a commit that stages `Makefile`, `stack.mk` or `scripts/check_fast.py`, also run the target from
       HEAD's copies of those files.
+
+## Dispositions, at the closure
+
+| finding | disposition |
+|---|---|
+| B1 | fixed `3bb09b9` (red `965d99d`; OWNER APPROVAL), records `18f7d96` (red `c95dbaf`): a `.claude` or `.githooks` beside any `.git` is refused |
+| M1 | fixed `d9f9ade` (red `9c13b1a`) |
+| M2 | fixed `c939211` (red `1f31509`): the ledger row for `85f80e3` |
+| M3 | fixed `7edade4` (red `c37fc38`) |
+| M4 | fixed `5632397` (red `fb1ed41`) |
+| M5 | fixed `9412654` (red `439679a`) |
+| M6 | fixed `3bb09b9` (red `965d99d`) and `18f7d96` (red `c95dbaf`) |
+| M7 | fixed `d9f9ade` (red `9c13b1a`) |
+| M8 | fixed `8f3cbfd` (round 1's id), `3bb09b9` (the BLOCKED line) and `18f7d96` (the runbook's restart step, AGENTS.md) |
+| R1 | fixed `7ba4b63` (red `699d1b1`; OWNER APPROVAL): the hook refuses any gate name but the three |

@@ -50,6 +50,7 @@ with #251.
   gaps #241, #242, #244 to #247.
 - **The data:** #230, #232 to #235.
 - **The controls:** #108 (its measurement traps a process), #122, #252 (a review pointer that never
-  moves), #253 (A1 reads Amends pointers one way).
+  moves), #253 (A1 reads Amends pointers one way), #254 (an amend staging only docs), #255 (closing
+  keywords in commit subjects), #256 (a `.git` made inside `.claude/`).
 - The 45 issues the waves delivered in full were closed when #251 merged; #124 and #220 stay open in
   part.

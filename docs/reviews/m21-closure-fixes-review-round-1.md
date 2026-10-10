@@ -317,3 +317,18 @@ version bump and most of the records do what their findings asked.
   session started in the repository (#142). `onFailure` is still unverified (S8), and `make hooks` is not
   yet run on the owner's clone. The owner's `/hooks` check (runbook v2, step 2) and the next close's row 8
   would show whether this risk is real.
+
+## Dispositions, at the closure
+
+| finding | disposition |
+|---|---|
+| B1 | fixed `85f80e3` (red `e8d8ee1`) and `a024244` (OWNER APPROVAL): a commit-msg hook gates a declared red test commit by `make check-red`; row 31 is `within-scope` (`85f80e3`) |
+| M1 | fixed `85f80e3` (red `e8d8ee1`): `--no-renames`, HEAD's copy of the gate, "make not found" |
+| M2 | fixed `85f80e3` (red `e8d8ee1`): a docs-only commit runs `make check-docs`, every leg but the Swift ones; R-1 corrected |
+| M3 | fixed `0b49f18` (red `a1c1724`): only an owner's ruling resets a count; dates checked; the owner's `repository-hooks` ruling is a row |
+| M4 | fixed `e8ff620` (red `1773fb4`) |
+| M5 | fixed `17a2a0b` (red `184a2c6`): the plan's `**Base:**` line is not read |
+| M6 | fixed `cd563f5`, `42b62aa` (OWNER APPROVAL; red `34e667d`) and `1dd80e6`; `cd563f5` is a ledger bypass row (`e877168`) |
+| M7 | fixed `048e59f` (red `83d9a3d`) |
+| K1 | #253 |
+| R1 | the owner's ruling on `repository-hooks` (sessions start in the repository) and the runbook's v2 step 2 (`make hooks`, `/hooks`) |

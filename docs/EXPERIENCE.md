@@ -1054,6 +1054,14 @@ Engineering shapes worth keeping:
 - **The closure security seat** (`docs/reviews/m21-closure-security-review.md`) was MINOR. The release
   verdict of record stands for v2, on six conditions, which the runbook's v2 section follows. S1 to S6
   are fixed. S7 narrowed #245, and S8 is the owner's `/hooks` check.
+- **The closure fixes review** read the fixes themselves, in three rounds
+  (`docs/reviews/m21-closure-fixes-review*.md`):
+  - round 1 was BLOCKING: the first commit hook refused every red test commit;
+  - round 2 was BLOCKING: the write refusal held only the main clone and left every linked worktree
+    open;
+  - round 3 was MINOR. Its fixes are on the closure branch, and its gaps are filed (#254 to #256).
+- **#251's merge** closed #194 and #222 through a closing keyword in two commit subjects. Both were
+  reopened, and #255 asks for a check.
 
 **What was accepted rather than solved:**
 - the Turkish reading's dead ends (#194, #218, #222): on a device without Apple Intelligence, 8 of 71

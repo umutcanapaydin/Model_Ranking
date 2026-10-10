@@ -722,3 +722,28 @@ Lesson: a record that describes a gate in prose will be wider or narrower than t
   wave's base (`da6b95f`), and every `swift test` runs under a watchdog.
 Lesson: a rule that reads history must say what a pruned history means as well as a missing one: a branch
 deleted after its merge read as an unreadable range.
+
+
+## 2026-10-10 — the M21 closure: two reviews, three rounds on the fixes, and the waves merged as one
+
+- The repo review was MINOR, with two MAJOR findings: W4's close rules met the rest of the milestone.
+  Two bypasses had no ledger row (M1), and a first wave stacked on an unmerged closure was refused (M2).
+  Both are fixed, and M3 to M11 are fixed or filed (#252).
+- The closure security seat was MINOR, and the release verdict of record stands for v2 on six
+  conditions, which the runbook's v2 section follows. S1 to S6 are fixed, S7 narrowed #245, and S8 is
+  the owner's `/hooks` check.
+- The owner ruled on two controls at their third row:
+  - `commit-after-check-fast`: fix it and narrow it. A commit-msg hook runs `make check-fast`,
+    `make check-docs` for a docs-only commit, or `make check-red` for a declared red test commit
+    (R-1).
+  - `repository-hooks`: fix it. Sessions start in the repository, and `make hooks` is run once.
+- The closure fixes review took three rounds. Round 1 was BLOCKING on the commit gate (it refused red
+  commits), and round 2 was BLOCKING on the write refusal (linked worktrees left open). Round 3 was
+  MINOR, and its fixes are in (#254 to #256 filed).
+- Two fix commits were checked together with the commit after them, not on their own trees (`cd563f5`,
+  `85f80e3`). They are two `bypass` rows after the ruling.
+- The owner merged the waves as one pull request (#251, a merge commit), and 45 issues they delivered
+  in full were closed. GitHub also closed #194 and #222 through `fix: #N` in two commit subjects; both
+  were reopened (#255).
+- v2 is 0.2.0, build 4. It is not deployed yet; the runbook's v2 section is the owner's.
+Lesson: a gate's exceptions are part of the gate. A hook that the DevFlow's own red commits cannot pass would have been bypassed at the first fix.

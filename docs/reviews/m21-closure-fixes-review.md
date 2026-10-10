@@ -366,3 +366,17 @@ None
   - **Mitigation to weigh** (OWNER APPROVAL): add `-S` beside `-I` in both hooks. The guard imports only the
     standard library. Under `-I -S` it allowed `git status`, refused a redirect into `.githooks/` and refused a
     Write into `.claude/` (measured).
+
+## Dispositions, at the closure
+
+| finding | disposition |
+|---|---|
+| M1 | fixed `00d6bbc` (red `7db7553`; OWNER APPROVAL) and `f8e2d25`; a `.git` made inside `.claude/` is #256 |
+| M2 | fixed `00d6bbc` (red `7db7553`) |
+| M3 | fixed `92799ea` (red `7c73c2a`): the records give the fixture's reason; `swift-build-tests` keeps its status |
+| M4 | fixed `f3cf507` (red `c99d4f5`) |
+| M5 | #194 and #222 reopened, #187's closing explained on the issue; the roadmap lists them as open |
+| M6 | fixed `f8e2d25` (red `c0a1e27`) |
+| M7 | held by `7db7553` (the guard's cases) and `131ddf1` (the gate's cases, which pass as delivered) |
+| K1 | #255 |
+| R1 | fixed `00d6bbc` (red `7db7553`; OWNER APPROVAL): every hook python runs with `-I -S` |
