@@ -731,11 +731,23 @@ def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]], root:
                         f"{wave_id} or its milestone -- a bypass the ledger does not count is invisible to the "
                         "three-row rule (#202, the M21 repo review's M1)")
     if said and not said.lower().startswith("none"):
-        # Round 2's M4: each control of the ledger the field names needs a row of its own for the wave.
+        # Round 2's M4: each control of the ledger the field names needs a row of its own for the wave. Round 3's
+        # M4: a `bypass` or `skip` row, which the three-row rule counts, unless a row of it names a SHA the field
+        # names (`_bypassed_commits` then judges that row's kind).
+        shas = SHA.findall(said)
         for control in dict.fromkeys(row[0].strip().lower() for row in ledger if row and row[0].strip()):
-            if re.search(r"(?<![\w-])" + re.escape(control) + r"(?![\w-])", said, re.I) and not ledgered(control):
+            if not re.search(r"(?<![\w-])" + re.escape(control) + r"(?![\w-])", said, re.I):
+                continue
+            own = [row for row in rows if row[0].strip().lower() == control]
+            by_sha = any(len(row) >= 4 and any(tok.startswith(sha[:7]) or sha.startswith(tok) for sha in shas
+                                               for tok in SHA.findall(row[3])) for row in own)
+            if not own:
                 problems.append(f"row 9's `Bypass:` names `{control}`, and `docs/control-events.csv` has no `{control}` "
                                 f"row for {wave_id} or its milestone (round 2's M4)")
+            elif not by_sha and not any(len(row) >= 3 and row[2].strip().lower() in ("bypass", "skip") for row in own):
+                problems.append(f"row 9's `Bypass:` names `{control}` with no SHA of its rows, and its rows for {wave_id} "
+                                "or its milestone hold no `bypass` or `skip`, the kinds the three-row rule counts "
+                                "(round 3's M4)")
         problems += _bypassed_commits(said, wave_id, rows, root, notes)
     if field and field.group(1).lower() == "no" and not ledgered("repository-hooks"):
         problems.append(f"the close says `Session started in the repository: no`, and `docs/control-events.csv` "
