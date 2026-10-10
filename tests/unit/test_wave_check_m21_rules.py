@@ -971,6 +971,18 @@ def test_every_ledger_control_the_bypass_names_needs_its_own_row(tmp_path: Path)
     assert check.skip_ledger_problems(text, "m30-w1", ledger) == []
 
 
+def test_a_bypass_named_without_a_sha_needs_a_bypass_or_skip_row(tmp_path: Path) -> None:
+    """Round 3, M4: `Bypass: commit-after-check-fast once` passed on a within-scope, review or ruling row of the
+    control, none of which the three-row rule counts. A control the field names with no SHA of its rows needs a
+    `bypass` or `skip` row for the wave or its milestone."""
+    check = _module("wave_check")
+    text = _checklist("").replace("outcome: shipped`", "outcome: shipped`. Bypass: commit-after-check-fast once")
+    for kind, ok in (("bypass", True), ("skip", True), ("within-scope", False), ("review", False), ("ruling", False)):
+        reason = "the owner, 2026-10-10: x" if kind == "ruling" else "x"
+        found = check.skip_ledger_problems(text, "m22-w1", [["commit-after-check-fast", "m22", kind, reason, "2026-10-10"]])
+        assert (found == []) == ok, (kind, found)
+
+
 def test_the_bypass_must_name_a_control_the_ledger_counts_in_any_case(tmp_path: Path) -> None:
     """Mutant X4: a Bypass was satisfied by a row of the wave for whatever control. The control match is
     case-insensitive, as row 9's other checks are."""
