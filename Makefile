@@ -144,7 +144,11 @@ SWIFT_TEST_MANIFEST := ios/EngineTests/test-manifest.txt
 #: so a child the Swift suite starts is offline too (the tripwire sees this process's sessions only).
 #: SwiftPM's own sandbox cannot nest inside it, so it is off (`--disable-sandbox`, measured by the
 #: M19-W3 review); the suite still runs nothing but the Engine's sources.
-SWIFT_TEST = $(if $(filter Darwin,$(UNAME_S)),MODEL_RANKING_REQUIRE_OFFLINE=1 /usr/bin/sandbox-exec -f ../scripts/offline.sb swift test --disable-sandbox,swift test)
+#: R1 (the M21-W4 review): each `swift test` runs under `scripts/watchdog.py`, which kills it (SIGKILL) and
+#: fails past this many seconds, so a hang fails the leg instead of stalling it.
+SWIFT_TEST_LIMIT ?= 1800
+SWIFT_WATCHDOG = $(SYS_PY) -B ../scripts/watchdog.py $(SWIFT_TEST_LIMIT)
+SWIFT_TEST = $(if $(filter Darwin,$(UNAME_S)),MODEL_RANKING_REQUIRE_OFFLINE=1 $(SWIFT_WATCHDOG) /usr/bin/sandbox-exec -f ../scripts/offline.sb swift test --disable-sandbox,$(SWIFT_WATCHDOG) swift test)
 #: #181: the deadline tests again on a one-thread cooperative pool, after the whole suite. A call that
 #: blocks a thread in the router's race then holds the only thread, so the router is late while the
 #: tests' control timer, on a dispatch queue, is not. A filter that matched nothing would exit 0, so

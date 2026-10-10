@@ -389,51 +389,95 @@ def _row1_evidence(text: str) -> str:
     return cells[2] if len(cells) > 2 else ""
 
 
+def _merged(root: pathlib.Path, commit: str) -> bool:
+    return any(_git(root, "merge-base", "--is-ancestor", commit, ref) is not None for ref in ("origin/main", "main"))
+
+
+def _wave_base(root: pathlib.Path, ids: re.Match[str] | None, end: str) -> str | None:
+    """Where the wave starts: the commit that added the previous wave's close, when the end's history holds it
+    and it is later than the milestone's base on main; else the milestone's base on main."""
+    main_base = next((b for ref in ("origin/main", "main") if (b := _git(root, "merge-base", end, ref))), None)
+    previous = None
+    if ids and int(ids.group(2)) > 1:
+        rel = f"docs/plans/m{ids.group(1)}-wave-{int(ids.group(2)) - 1}-close.md"
+        added = (_git(root, "log", "--diff-filter=A", "--format=%H", end, "--", rel) or "").splitlines()
+        if added and _git(root, "merge-base", "--is-ancestor", added[-1], end) is not None:
+            previous = added[-1]
+    if previous and (main_base is None or _git(root, "merge-base", "--is-ancestor", main_base, previous) is not None):
+        return previous
+    return main_base
+
+
+def _names_wave(heading: str, milestone: str, wave: int) -> bool:
+    """Whether a process-log heading names the wave: `M21-W4`, or a span `M21-W1 to W4`."""
+    for first, last in re.findall(rf"\bM{milestone}-W(\d+)(?:\s*(?:to|-|\u2013|\u2014|and)\s*W?(\d+))?", heading):
+        if int(first) == wave or (last and int(first) <= wave <= int(last)):
+            return True
+    return False
+
+
 def history_problems(close: pathlib.Path, text: str, root: pathlib.Path) -> tuple[list[str], str | None]:
-    """D-192 clause 2: what a close dated from `HISTORY_RULES_FROM` owes its commit range's history.
+    """D-192 clause 2, as the M21-W4 review left it: what a close owes its wave's history.
 
-    - #183: the files the range changed are held to the plan's security globs, as the footprint is.
-    - #201: an ADR the range adds first appears in a commit that changes no code, unless the milestone
-      plan named it before that commit.
-    - #203: `docs/process-log.md` has a heading dated inside the range.
+    The range is read as `git diff A...B` reads it, from the merge base of its two ends, whatever its dots
+    (M4), and an end `HEAD` is pinned to the commit that added the close. It starts at the wave's base or
+    before it (`_wave_base`) and holds a commit (M3); a start the history no longer holds is read from the
+    merge base the footer records (``merge base `sha` ``), else from the wave's base (M4). Then:
+    - #183: every path the range changed, both sides of a rename, is held to the plan's security globs;
+    - #201: an ADR the range adds first appears in a commit that changes no code, after no code commit of the
+      range that cites it, and after no code commit at all unless the plan named it before;
+    - #203: `docs/process-log.md` has a heading naming the wave (`M21-W4`, or a span `M21-W1 to W4`), dated
+      inside the range.
+    A close merged into main is not read again: the rules ran on its branch before the merge. A close dated
+    before `HISTORY_RULES_FROM` is not read if it was committed before then too (GPF-001).
 
-    Returns (problems, skipped): `skipped` says why the history could not be read (no repository, a
-    shallow clone, or a merged close whose base branch was deleted); any other range the history cannot
-    resolve is a problem, never a skip."""
+    Returns (problems, skipped): `skipped` says why the history was not read."""
+    ids = re.match(r"m(\d+)-wave-(\d+)-close\.md$", close.name)
     date = _close_date(text)
-    if date is not None and date < HISTORY_RULES_FROM:
-        return [], None
     absent = _history_absent(root)
     if absent:
+        if date is not None and date < HISTORY_RULES_FROM:
+            return [], None
         return [], f"the history rules (#183, #201, #203) read nothing: {absent}"
+    rel = close.resolve().relative_to(root.resolve()).as_posix() if close.resolve().is_relative_to(
+        root.resolve()) else close.name
+    added = (_git(root, "log", "--diff-filter=A", "--format=%H %cs", "--", rel) or "").splitlines()
+    added_sha, added_day = added[-1].split() if added else (None, None)
+    if date is not None and date < HISTORY_RULES_FROM and added_day is not None and added_day < HISTORY_RULES_FROM:
+        return [], None
     found = re.search(r"Wave commit range:\s*`([^`]+)`", text)
     if not found:
         return ["the footer names no `Wave commit range` in backticks for git to read; it fails closed (#183)"], None
     spec = found.group(1).strip()
-    three = "..." in spec
-    start, _, end = spec.partition("..." if three else "..")
+    start, _, end = spec.partition("..." if "..." in spec else "..")
     end = end or "HEAD"
-    committed = end != "HEAD"  # an end the close names, or the commit that added it: one a merge can hold
-    if end == "HEAD":
-        # Pinned to the commit that added the close, so a later wave's work is not read as this one's.
-        rel = close.resolve().relative_to(root.resolve()).as_posix() if close.resolve().is_relative_to(
-            root.resolve()) else close.name
-        added = _git(root, "log", "--diff-filter=A", "--format=%H", "--", rel)
-        if added:
-            end, committed = added.splitlines()[-1], True
-    base = _git(root, "merge-base", start, end) if three else _git(root, "rev-parse", "--verify", f"{start}^{{commit}}")
-    end_known = _git(root, "rev-parse", "--verify", f"{end}^{{commit}}") is not None
-    if base is None and end_known and committed and any(_git(root, "merge-base", "--is-ancestor", end, ref) is not None
-                                          for ref in ("origin/main", "main")):
-        # A wave's branch is deleted once it is merged, and the rules ran on that branch before the merge.
-        return [], (f"the range `{spec}` names a base this history no longer holds, and the close is merged into "
-                    "main: the history rules ran on its branch before the merge (#183)")
-    if base is None or not end_known:
-        return [f"the commit range `{spec}` cannot be read in this history; it fails closed (#183)"], None
+    committed = end != "HEAD"
+    if end == "HEAD" and added_sha:
+        end, committed = added_sha, True
+    unreadable = [f"the commit range `{spec}` cannot be read in this history; it fails closed (#183)"]
+    if _git(root, "rev-parse", "--verify", f"{end}^{{commit}}") is None:
+        return unreadable, None
+    if committed and _merged(root, end):
+        return [], f"`{close.name}` is merged into main: the history rules ran on its branch before the merge (#183)"
+    wave_base = _wave_base(root, ids, end)
+    recorded = re.search(r"merge base `([0-9a-f]{7,40})`", text)
+    start_sha = (_git(root, "rev-parse", "--verify", f"{start}^{{commit}}")
+                 or (recorded and _git(root, "rev-parse", "--verify", f"{recorded.group(1)}^{{commit}}")) or wave_base)
+    base = _git(root, "merge-base", start_sha, end) if start_sha else None
+    if base is None:
+        return unreadable, None
     problems: list[str] = []
-    changed = (_git(root, "diff", "--name-only", base, end) or "").splitlines()
+    if wave_base and _git(root, "merge-base", "--is-ancestor", base, wave_base) is None:
+        problems.append(f"the commit range `{spec}` starts at `{base[:7]}`, after the wave's base `{wave_base[:7]}` "
+                        "(the previous wave's close, or the milestone's base on main): a range narrower than the "
+                        "wave is refused (#183)")
+    if not (_git(root, "rev-list", f"{base}..{end}") or "").split():
+        problems.append(f"the commit range `{spec}` holds no commit: an empty range is refused (#183)")
+        return problems, None
+    changed: set[str] = set()
+    for line in (_git(root, "diff", "--name-status", "-M", base, end) or "").splitlines():
+        changed.update(line.split("\t")[1:])  # a rename's old path and its new one
 
-    ids = re.match(r"m(\d+)-wave-\d+-close\.md$", close.name)
     plan_rel = f"docs/plans/m{ids.group(1)}-plan.md" if ids else "docs/plans/missing-plan.md"
     globs = plan_globs(root / plan_rel)
     hits = sorted({f"{path} ({glob})" for path in changed for glob in globs if _touches(path, glob)})
@@ -452,47 +496,84 @@ def history_problems(close: pathlib.Path, text: str, root: pathlib.Path) -> tupl
         if not first:
             continue
         files = (_git(root, "show", "--name-only", "--format=", first[0]) or "").splitlines()
-        plan_before = _git(root, "show", f"{first[0]}^:{plan_rel}") or ""
-        if any(f.startswith(CODE_DIRS) for f in files) and not re.search(rf"\b{re.escape(adr)}\b", plan_before):
+        named = bool(re.search(rf"\b{re.escape(adr)}\b", _git(root, "show", f"{first[0]}^:{plan_rel}") or ""))
+        earlier = [entry.split("\x1f", 1) for entry in (_git(root, "log", "--format=%h\x1f%B\x1e", f"{base}..{first[0]}^",
+                                                                 "--", *CODE_DIRS) or "").split("\x1e") if entry.strip()]
+        if any(f.startswith(CODE_DIRS) for f in files) and not named:
             problems.append(f"{adr} first appears in `{first[0][:7]}`, which also changes code, and the plan did not "
                             "name it before -- write the decision before the code it governs (#201)")
+        elif earlier and (not named or any(re.search(rf"\b{re.escape(adr)}\b", msg) for _, msg in earlier)):
+            problems.append(f"{adr} first appears in `{first[0][:7]}`, after the range's code commit "
+                            f"`{earlier[0][0].strip()}` -- write the decision before the code it governs (#201)")
 
     days = (_git(root, "log", "--format=%cs", f"{base}..{end}") or "").split()
-    log_path = root / "docs" / "process-log.md"
+    log_path = root / "docs" / "process-log.md"  # the log as it stands: a stacked wave may add an earlier one's entry
     log = log_path.read_text(encoding="utf-8", errors="replace") if log_path.is_file() else ""
-    if days:
-        low, high = min(days), max(days)
-        spans = [(d, d[:8] + tail if tail else d)
-                 for d, tail in re.findall(r"^## (\d{4}-\d{2}-\d{2})(?:/(\d{2}))?", log, re.M)]
-        if not any(first_day <= high and last_day >= low for first_day, last_day in spans):
-            problems.append(f"`docs/process-log.md` has no heading dated inside the range ({low} to {high}) -- "
-                            "a session starts from the process log (#203)")
+    low, high = min(days), max(days)
+    headings = [(d, d[:8] + tail if tail else d, rest)
+                for d, tail, rest in re.findall(r"^## (\d{4}-\d{2}-\d{2})(?:/(\d{2}))?(.*)$", log, re.M)]
+    wave_name = f"M{ids.group(1)}-W{ids.group(2)}" if ids else "the wave"
+    if not any(first_day <= high and last_day >= low and (not ids or _names_wave(rest, ids.group(1), int(ids.group(2))))
+               for first_day, last_day, rest in headings):
+        problems.append(f"`docs/process-log.md` has no heading naming {wave_name} dated inside the range ({low} to "
+                        f"{high}) -- a session starts from the process log (#203)")
     return problems, None
 
 
+#: From this date a close carries `Session started in the repository: yes` or `no` (row 8 of the template).
+SESSION_FIELD_FROM = "2026-10-11"
+SESSION_FIELD = re.compile(r"Session started in the repository:\s*(yes|no)\b", re.I)
+
+
+def _outside_parentheses(listed: str) -> list[str]:
+    entries, depth, current = [], 0, ""
+    for ch in listed:
+        depth += {"(": 1, ")": -1}.get(ch, 0)
+        if ch == "," and depth == 0:
+            entries.append(current)
+            current = ""
+        else:
+            current += ch
+    return [*entries, current]
+
+
 def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]]) -> list[str]:
-    """D-192 clause 3 (#202): each gate row 9 lists as skipped, and a session started outside the
-    repository, has a `docs/control-events.csv` row for the wave or its milestone."""
+    """D-192 clause 3 (#202), as the M21-W4 review left it: each gate row 9 lists as skipped (the label in
+    any case, its list split on commas outside parentheses), each checklist row whose status says SKIPPED or
+    WAIVED, and a close whose field says `Session started in the repository: no`, has a
+    `docs/control-events.csv` row for the wave or its milestone. Prose about the session is not read; from
+    `SESSION_FIELD_FROM` the field is required."""
     date = _close_date(text)
     if date is not None and date < HISTORY_RULES_FROM:
         return []
     owners = {wave_id, wave_id.split("-")[0]}
+    rows = [row for row in ledger if len(row) >= 2 and row[1].strip() in owners]
 
     def ledgered(control: str) -> bool:
-        return any(len(row) >= 2 and row[0].strip().lower() == control and row[1].strip() in owners for row in ledger)
+        return any(row[0].strip().lower() == control for row in rows)
 
     problems: list[str] = []
-    listed = re.search(r"gates SKIPPED:\s*(.*?)(?:\s·\s|`|$)", text, re.M)
-    for entry in (listed.group(1).split(",") if listed else []):
+    listed = re.search(r"gates SKIPPED:\s*(.*?)(?:\s·\s|`|$)", text, re.M | re.I)
+    for entry in (_outside_parentheses(listed.group(1)) if listed else []):
         name = re.sub(r"^make\s+", "", entry.split("(")[0].strip().lower())
         name = re.sub(r"\s+", "-", name).strip(".-")
         if name and name != "none" and not ledgered(name):
             problems.append(f"row 9 lists `{entry.strip()}` as skipped and `docs/control-events.csv` has no `{name}` "
                             f"row for {wave_id} or its milestone -- a skip the ledger does not count becomes "
                             "permanent (#202)")
-    if re.search(r"started outside the repository", text, re.I) and not ledgered("repository-hooks"):
-        problems.append(f"the close says its session started outside the repository, and `docs/control-events.csv` "
+    for line in text.splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")] if line.startswith("|") else []
+        if len(cells) >= 4 and re.match(r"\d+[a-z]?$", cells[0]) and re.search(r"\b(SKIPPED|WAIVED)\b", cells[-1], re.I):
+            said = " ".join(cells[1:])
+            if not any(re.search(rf"(?<![\w-]){re.escape(row[0].strip())}(?![\w-])", said, re.I) for row in rows):
+                problems.append(f"row {cells[0]} ({cells[1][:60]}) is marked `{cells[-1]}` and `docs/control-events.csv` "
+                                f"has no row for {wave_id} or its milestone naming the control it skipped (#202)")
+    field = SESSION_FIELD.search(text)
+    if field and field.group(1).lower() == "no" and not ledgered("repository-hooks"):
+        problems.append(f"the close says `Session started in the repository: no`, and `docs/control-events.csv` "
                         f"has no `repository-hooks` row for {wave_id} or its milestone (#202, #142)")
+    if not field and date is not None and date >= SESSION_FIELD_FROM:
+        problems.append("the close does not say `Session started in the repository: yes` or `no` (row 8, #202)")
     return problems
 
 

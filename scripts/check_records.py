@@ -1538,7 +1538,10 @@ def duplicate_drift(root: Path) -> list[Finding]:
 
 #: An ADR's amendment field: `**Amends**` (accepted) or `**Would amend**` (proposed), read up to the next
 #: ` · ` field separator, the next bold field or a blank line, so `**applies** D-167` is not read.
-AMENDS_FIELD = re.compile(r"\*\*(?:Amends|Would amend)\*\*(.*?)(?=\s·\s|\*\*|\n\s*\n|\Z)", re.S)
+#: The field's spellings in the log: `**Amends** D-n`, `**Amends:** D-n`, and a bold run that opens with it,
+#: `**Amends D-n clause 2.**` (the M21-W4 review's M6).
+AMENDS_FIELD = re.compile(r"\*\*(?:Amends|Would amend):?\*\*(.*?)(?=\s·\s|\*\*|\n\s*\n|\Z)"
+                          r"|\*\*(?:Amends|Would amend) ([^*]*?)\*\*", re.S)
 
 
 def adr_pointer_findings(root: Path) -> list[Finding]:
@@ -1558,7 +1561,8 @@ def adr_pointer_findings(root: Path) -> list[Finding]:
     findings: list[Finding] = []
     for adr, (line, body) in sections.items():
         for field in AMENDS_FIELD.finditer(body):
-            for target in sorted(set(re.findall(r"\bD-\d+\b", field.group(1))), key=lambda d: int(d[2:])):
+            said = field.group(1) or field.group(2) or ""
+            for target in sorted(set(re.findall(r"\bD-\d+\b", said)), key=lambda d: int(d[2:])):
                 if target == adr or target not in sections:
                     continue
                 if not re.search(rf"\*\*Amended by {re.escape(adr)}\b", sections[target][1]):

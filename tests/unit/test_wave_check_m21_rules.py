@@ -221,7 +221,7 @@ def test_a_merged_close_whose_base_branch_was_deleted_says_skipped(tmp_path: Pat
     assert check.history_problems(close, text, root) == ([], None)
     _git(root, "branch", "-D", "wave/m30-w0")
     problems, skipped = check.history_problems(close, text, root)
-    assert skipped is None and any("cannot be read" in p for p in problems), "an unmerged close still fails"
+    assert skipped is None and problems == [], "unmerged, it is read from the wave's base (the M21-W4 review's M4)"
     _git(root, "checkout", "-q", "main")
     _git(root, "merge", "-q", "--ff-only", "wave/m30-w1")
     problems, skipped = check.history_problems(close, text, root)

@@ -636,6 +636,8 @@ surface leads, which is a public-contract change and needs a superseding ADR and
 
 ---
 
+**Amended by D-124 (2026-08-18)**: see D-124; the pointer was added at M21-W4 (the review's M6, #200).
+
 ## D-116 — Deploy target: Fly.io, with the evidence database as a shipped artifact (closes OQ-3)
 
 **Status:** ratified — the owner chose Fly.io on 2026-08-15 and it was recorded in
@@ -866,6 +868,8 @@ should be restored rather than left optional by inertia; or when a second source
 which would mean this is a pattern rather than an incident.
 
 ---
+
+**Amended by D-135 (2026-08-25)**: see D-135; the pointer was added at M21-W4 (the review's M6, #200).
 
 ## D-122 — Review depth is calibrated by what the code can get WRONG, not by wave number
 
@@ -1771,6 +1775,8 @@ is still in the payload, and M14's detail screen is where it can return with its
 
 ---
 
+**Amended by D-143 (2026-09-18)**: see D-143; the pointer was added at M21-W4 (the review's M6, #200).
+
 ## D-141 — A HIGH wave owes its pulled-forward security pass, and its author cannot waive it
 
 **Status:** **accepted by the owner 2026-09-22** (in session, at M15-W4, choosing "Yes, make it
@@ -1942,6 +1948,10 @@ Recorded so the trade is visible rather than forgotten.
 ECI's anchor cannot be defended.
 
 ---
+
+**Amended by D-146 (2026-09-20)**: see D-146; the pointer was added at M21-W4 (the review's M6, #200).
+
+**Amended by D-162 (2026-09-24)**: see D-162; the pointer was added at M21-W4 (the review's M6, #200).
 
 ## D-144 — The optional-source exception belongs to the upstream, not to one board of it
 
@@ -2208,6 +2218,8 @@ rate limit and a place in the security review.
 scheduler inside a server that can be scaled to zero or to several copies behaves differently.
 
 ---
+
+**Amended by D-151 (2026-09-22)**: see D-151; the pointer was added at M21-W4 (the review's M6, #200).
 
 ## D-150 — Two controls reviewed at their third acceptance: the Swift floor, and a fact `/v1` does not carry
 
@@ -2564,6 +2576,8 @@ leaving it to branch protection anyway, is there a need to ask?"):*
    left to branch protection on `main`, which the owner sets.
 
 ---
+
+**Amended by D-161 (2026-09-23)**: see D-161; the pointer was added at M21-W4 (the review's M6, #200).
 
 ## D-156 — Every source carries its last good data for 30 days, judged from when it last arrived
 
@@ -4686,26 +4700,37 @@ the footprint an author typed instead of the commit range (#183). M21-W3's six r
 and test names that state a gate's property flatly (#248).
 
 **Decision.**
-1. `make check-records` refuses an ADR whose `**Amends**` or `**Would amend**` names a D-ID that carries
-   no `**Amended by` line naming it back (#200).
-2. `make wave-check` reads the close's commit range from git, for closes dated from 2026-10-10 (a gate
-   does not invalidate records written before it, GPF-001):
-   - the files the range changed are held to the plan's security globs, as the footprint was (#183);
+1. `make check-records` refuses an ADR whose Amends field names a D-ID that carries no `**Amended by` line
+   naming it back (#200). The field is read in each spelling the log uses: `**Amends** D-n`,
+   `**Amends:** D-n`, a bold run opening `**Amends D-n ...**`, and `**Would amend**` (the M21-W4 review's M6).
+2. `make wave-check` reads the close's commit range from git, for closes dated from 2026-10-10, and for a
+   close dated earlier but committed from then (a gate does not invalidate records written before it,
+   GPF-001; the review's M3). The range is read as `git diff A...B` reads it, from the merge base of its
+   ends, whatever its dots (M4); it must start at the wave's base or before it (the commit that added the
+   previous wave's close, or the milestone's base on main) and hold a commit (M3); a start the history no
+   longer holds is read from the merge base the footer records (``merge base `sha` ``), else from the
+   wave's base (M4). Then:
+   - every path the range changed, both sides of a rename, is held to the plan's security globs (#183);
    - an ADR the range adds first appears in a commit that changes no `src/`, `ios/` or `scripts/` file,
-     or the milestone plan names it (#201);
-   - `docs/process-log.md` has a heading dated inside the range (#203).
-   Where there is no history to read (not a git checkout, or a shallow clone as CI's test job checks
-   out), these rules say SKIPPED loudly; where the history exists and the range cannot be read, the close
-   fails, except a close merged into main whose base branch was deleted after the merge, which says
-   SKIPPED (the rules ran on its branch before). A range ending at `HEAD` is pinned to the commit that
-   added the close.
-3. `make wave-check` reads row 9's `gates SKIPPED:` list, and a close that says its session started
-   outside the repository: each needs a row in `docs/control-events.csv` for the wave or its milestone
-   (#202).
+     after no code commit of the range that cites it, and after no code commit at all unless the plan
+     named it before (#201, M5);
+   - `docs/process-log.md` has a heading naming the wave (`M21-W4`, or a span `M21-W1 to W4`), dated
+     inside the range (#203, M5).
+   A range ending at `HEAD` is pinned to the commit that added the close. A close merged into main is not
+   read again: the rules ran on its branch before the merge. Where there is no history to read (not a git
+   checkout, or a shallow clone as CI's test job checks out), or a close is merged, the rules say SKIPPED,
+   and `wave-check-all` prints that line on a pass too (M8).
+3. `make wave-check` reads row 9's `gates SKIPPED:` list (the label in any case, split on commas outside
+   parentheses), every checklist row whose status says SKIPPED or WAIVED, and the field
+   `Session started in the repository: yes|no` that the template's row 8 asks for: each skip, and a `no`,
+   needs a row in `docs/control-events.csv` for the wave or its milestone (#202, M7). Prose about the
+   session is not read; from 2026-10-11 a close carries the field.
 4. Tests that need git say so with `needs("git")` (#249). CI's test job's facts are read from its workflow
    by a test (#182); the workflow itself is the owner's.
 5. The Swift legs run inside the offline profile on macOS (#179), and the model tier's deadline tests run
-   once more on a one-thread cooperative pool (#181).
+   once more on a one-thread cooperative pool (#181). Each `swift test` runs under `scripts/watchdog.py`,
+   which kills it (SIGKILL) and fails past `SWIFT_TEST_LIMIT` seconds, so a hang fails the leg (the
+   review's R1).
 6. A test a gated row cites carries no universal word in its name (`no`, `never`, `any`, `every`,
    `whatever`, `however`, `nothing`) unless a hand-kept list says why the word is no claim; a block of a
    live record, or a docstring of a gate or pin file, that matches a hand-kept list of property phrases
@@ -4715,4 +4740,5 @@ and test names that state a gate's property flatly (#248).
 
 **Consequence.** CI's shallow checkout cannot run the history rules; the owner's `make check` and the
 pre-push gate do. The patch giving CI's test job its history (`fetch-depth: 0`) is posted on #122 for the
-owner. The Bash guard's changes (#189) are in their own commits marked OWNER APPROVAL.
+owner. The Bash guard's changes (#189) are in their own commits marked OWNER APPROVAL; what its second
+reading does not hold is listed in its docstring and in G-7.
