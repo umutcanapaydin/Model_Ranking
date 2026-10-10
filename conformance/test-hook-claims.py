@@ -357,7 +357,13 @@ def main() -> int:
                   # A pipe or a file wins over a here-string in this guard's reading (the round-2 review's M8).
                   "echo 'fly launch' |& bash <<< 'echo hi'", "bash < /tmp/script.sh <<< 'echo hi'",
                   'git checkout HEAD src/x.py', 'git checkout -f', 'git switch --discard-changes main',
-                  'git stash clear']
+                  'git stash clear',
+                  # The M21-W4 Tester: what the docstring says it reads and no case held -- `rm`'s split and long
+                  # options, `rm` behind a wrapper, and a shell given `-s` (each plant stayed green without them).
+                  'rm -r -f build', 'rm --recursive --force build', 'sudo rm -r -f build',
+                  'cat setup.sh | bash -s -- --quiet',
+                  # It blocks what it cannot read: an unclosed quote, substitution or backtick (no case held these).
+                  "echo 'not closed", 'echo "not closed', 'echo $(date', 'echo `date', 'echo ${HOME']
     MUST_ALLOW = ["git push -u origin fix/issue-3", "git push origin enhancement/x", "git push",
                   "git push --follow-tags origin x", "git push -4 origin x", "fly status", "fly logs",
                   "scripts/deploy_hosted_engine.sh --dry-run",
@@ -385,7 +391,9 @@ def main() -> int:
                   'cat > f <<EOF\nbuilt $(date)\nEOF',
                   "git commit -F - <<'EOF'\nfix: the guard no longer lets `fly deploy` through\nEOF",
                   'git checkout -b feature origin/main', 'git checkout wave/m21-w4', 'git switch -c x',
-                  'x=(a b c); echo ${x[0]}', 'f() { echo hi; }; f', 'echo ${HOME:-/tmp}', 'echo $(( 2 + 3 ))']
+                  'x=(a b c); echo ${x[0]}', 'f() { echo hi; }; f', 'echo ${HOME:-/tmp}', 'echo $(( 2 + 3 ))',
+                  # The M21-W4 Tester: a shell's `-c` string and here-document that read as harmless, and a `case`.
+                  "bash -c 'echo hi'", "bash <<'EOF'\necho hi\nEOF", 'case $1 in a) echo a;; *) echo other;; esac']
     bash_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
                       if h.get("matcher") == "Bash"), None)
     env_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
@@ -420,6 +428,16 @@ def main() -> int:
                 # #189: the guard's second reading is a file in the project; without it the guard blocks.
                 cases.append(("Bash", "`git status` with the second reading missing", cmd("git status"), True,
                               None, {"CLAUDE_PROJECT_DIR": tmp}))
+                # The M21-W4 Tester: the text reading runs first and is held on its own. With a second reading
+                # that allows everything, each case from before #189 still blocks; without these, the text
+                # reading could be deleted and every case above would pass on the second reading alone.
+                stub = pathlib.Path(tmp) / "allow-all"
+                (stub / ".claude" / "hooks").mkdir(parents=True)
+                (stub / ".claude" / "hooks" / "bash_guard.py").write_text("import sys\nsys.exit(0)\n",
+                                                                         encoding="utf-8")
+                cases += [("Bash", f"`{c}` by the text reading alone", cmd(c), True, None,
+                           {"CLAUDE_PROJECT_DIR": str(stub)})
+                          for c in MUST_BLOCK[:MUST_BLOCK.index("FLY_API_TOKEN=x fly deploy")]]
             if env_hook:
                 cases += [("Write", f"a write to `{f}`", fpath(f), want, None, {})
                           for f, want in ((".env", True), ("cfg/.env.prod", True), ("prod.env", True),

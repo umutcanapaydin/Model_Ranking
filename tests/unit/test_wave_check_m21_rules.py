@@ -635,4 +635,70 @@ def test_a_merged_close_read_from_a_later_unmerged_branch_says_skipped(tmp_path:
     problems, skipped = check.history_problems(close, text, root)
     assert problems == [] and skipped and "merged" in skipped, (problems, skipped)
 
+
+# --- the M21-W4 Tester: D-192's clauses that a planted fault left green ----------------------------
+
+
+def test_a_process_log_heading_naming_the_wave_outside_the_range_is_refused(tmp_path: Path) -> None:
+    """D-192 clause 2 (#203): the heading names the wave and is dated inside the range. With the date
+    comparison removed, every other test stayed green (the Tester's plant WC1)."""
+    check = _module("wave_check")
+    for day in ("2026-10-01", "2026-10-12"):
+        root, base = _wave_branch(tmp_path / day, log=f"## {day} — M30-W1: another attempt\n\nwork.\n")
+        _commit(root, "work", "2026-10-10T13:00:00", {"src/app/other.py": "x = 4\n"})
+        text = _close_text(base)
+        problems, _ = check.history_problems(_closed(root, text), text, root)
+        assert any("process-log" in p and "M30-W1" in p for p in problems), (day, problems)
+
+
+def test_a_close_with_edits_not_yet_committed_is_read_to_head(tmp_path: Path) -> None:
+    """D-192 clause 2: the range ends at the close's last commit, "HEAD itself while the close has edits not
+    yet committed". With that half removed, every other test stayed green (the Tester's plant WC2)."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path)
+    text = _close_text(base, tier="MED")
+    close = _closed(root, text.replace("status: draft", "status: draft "), "2026-10-10T12:30:00")
+    _commit(root, "change the engine", "2026-10-10T13:00:00", {"src/app/adapter/main.py": "x = 2\n"})
+    _write(root, "docs/plans/m30-wave-1-close.md", text)  # edited in the tree, not committed
+    problems, _ = check.history_problems(close, text, root)
+    assert any("src/app/adapter/main.py" in p for p in problems), problems
+
+
+def test_a_plan_named_adr_after_a_code_commit_that_cites_it_is_refused(tmp_path: Path) -> None:
+    """D-192 clause 2 (#201): an ADR comes "after no code commit of the range that cites it", even when the
+    plan named it; an earlier code commit that does not cite it is allowed when the plan named it. With the
+    citing half removed, every other test stayed green (the Tester's plant WC3)."""
+    check = _module("wave_check")
+    for message, refused in (("the code for D-2", True), ("the code", False)):
+        root, base = _wave_branch(tmp_path / str(refused), plan=GLOBS + "\nD-2 records the rule.\n")
+        _commit(root, message, "2026-10-10T13:00:00", {"src/app/other.py": "x = 3\n"})
+        _commit(root, "the rule", "2026-10-10T14:00:00",
+                {"docs/decisions.md": "# Decisions\n\n## D-1 — One\n\nBody.\n\n## D-2 — Two\n\nNew.\n"})
+        text = _close_text(base)
+        problems, _ = check.history_problems(_closed(root, text), text, root)
+        assert any("D-2" in p for p in problems) == refused, (message, problems)
+
+
+def test_row_8_giving_both_answers_is_refused(tmp_path: Path) -> None:
+    """D-192 clause 3 (round 2's M6): both answers together are refused. With that check removed, every other
+    test stayed green (the Tester's plant WC4)."""
+    check = _module("wave_check")
+    row8 = ("| 8 | No checkout | Session started in the repository: yes. Later, "
+            "Session started in the repository: no | ✅ |\n")
+    ledger = [["repository-hooks", "m30", "skip", "every session", "2026-10-10"]]
+    problems = check.skip_ledger_problems(_checklist(row8, date="2026-10-11"), "m30-w1", ledger)
+    assert any("both" in p for p in problems), problems
+
+
+def test_the_pointer_back_names_the_adr_that_amends(tmp_path: Path) -> None:
+    """D-192 clause 1 (#200): the amended ADR carries an `**Amended by` line naming the ADR that amends it;
+    another ADR's pointer is not it. With any `**Amended by` line accepted, every other test stayed green (the
+    Tester's plant CR1). `**applies** D-3` is no amendment: no finding says D-2 amends D-3."""
+    check = _module("check_records")
+    text = AMENDED.format(pointer="\n**Amended by D-9 (2026-09-09)**: another rule.\n")
+    found = [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path, text))]
+    assert any(m.startswith("D-2 amends D-1,") for m in found), found
+    assert not any(m.startswith("D-2 amends D-3,") for m in found), found
+
+
 pytestmark = pytest.mark.needs("git")

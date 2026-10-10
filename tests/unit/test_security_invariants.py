@@ -727,3 +727,12 @@ def test_a_record_that_states_a_gated_property_names_its_row() -> None:
     assert not phrase_problems({"docs/architecture.md": pointed}, {})
     assert phrase_problems({}, {"probe.py": '"""The client performs no arithmetic on a served number."""\n'})
     assert not phrase_problems({}, {"probe.py": '"""The client performs no arithmetic (INV-76)."""\n'})
+
+
+def test_a_pointer_to_another_row_does_not_answer_the_phrase() -> None:
+    """#248: a block names each row that holds its phrase, not any row. With any `INV-n` accepted, every
+    other test stayed green (the M21-W4 Tester's plant P1)."""
+    wrong = ("- Only `EngineClient.swift` reaches the network. Held in part by the compiled gate and the text pins: "
+             "see INV-63 in `docs/security-invariants.md`.\n")
+    assert phrase_problems({"docs/architecture.md": wrong}, {})
+    assert phrase_problems({}, {"probe.py": '"""The client performs no arithmetic (INV-62)."""\n'})
