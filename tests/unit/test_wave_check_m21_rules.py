@@ -551,4 +551,88 @@ def test_a_gone_base_is_read_from_the_merge_base_the_close_records(tmp_path: Pat
     problems, _ = check.history_problems(close, text, root)
     assert any("src/app/adapter/main.py" in p for p in problems), problems
 
+
+# --- the M21-W4 review, round 3: M1 to M4 ----------------------------------------------------------
+
+
+def test_a_close_edited_after_later_work_reads_that_work(tmp_path: Path) -> None:
+    """Round 3's M1: a draft close committed first, then a glob change, then the close edited: the range
+    ended at the close's first commit and read none of it."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path)
+    text = _close_text(base, tier="MED")
+    close = _closed(root, text.replace("status: draft", "status: draft "), "2026-10-10T12:30:00")
+    _commit(root, "change the engine", "2026-10-10T13:00:00", {"src/app/adapter/main.py": "x = 2\n"})
+    _closed(root, text, "2026-10-10T14:00:00")
+    problems, _ = check.history_problems(close, text, root)
+    assert any("src/app/adapter/main.py" in p for p in problems), problems
+
+
+def test_an_adr_after_its_code_after_the_close_is_read(tmp_path: Path) -> None:
+    """Round 3's M1: the same for an ADR written after its code, both after the close's first commit."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path)
+    text = _close_text(base)
+    close = _closed(root, text.replace("status: draft", "status: draft "), "2026-10-10T12:30:00")
+    _commit(root, "the code", "2026-10-10T13:00:00", {"src/app/other.py": "x = 3\n"})
+    _commit(root, "the rule", "2026-10-10T14:00:00",
+            {"docs/decisions.md": "# Decisions\n\n## D-1 — One\n\nBody.\n\n## D-2 — Two\n\nNew.\n"})
+    _closed(root, text, "2026-10-10T15:00:00")
+    problems, _ = check.history_problems(close, text, root)
+    assert any("D-2" in p for p in problems), problems
+
+
+def test_a_skipped_row_is_ledgered_by_its_check_cell_only(tmp_path: Path) -> None:
+    """Round 3's M2: a skipped `ui-test` row whose evidence mentioned the security pass passed on the
+    milestone's `security-pass` row."""
+    check = _module("wave_check")
+    text = _checklist("| 7 | make ui-test ran | not run; the security pass is at closure | SKIPPED |\n")
+    rows = [["security-pass", "m30", "skip", "by rule", "2026-10-10"]]
+    assert any("make ui-test" in p for p in check.skip_ledger_problems(text, "m30-w1", rows))
+
+
+def test_a_hook_committed_before_its_adr_is_refused(tmp_path: Path) -> None:
+    """Round 3's M3: a change under `.claude/` was not code for #201, so a guard could precede its ADR."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path)
+    _commit(root, "the hook", "2026-10-10T13:00:00", {".claude/hooks/guard.py": "print(1)\n"})
+    _commit(root, "the rule", "2026-10-10T14:00:00",
+            {"docs/decisions.md": "# Decisions\n\n## D-1 — One\n\nBody.\n\n## D-2 — Two\n\nNew.\n"})
+    text = _close_text(base)
+    problems, _ = check.history_problems(_closed(root, text), text, root)
+    assert any("D-2" in p for p in problems), problems
+
+
+def test_an_adr_whose_heading_no_commit_adds_is_a_problem(tmp_path: Path) -> None:
+    """Round 3's M4: the heading arrives only in a merge commit, which `git log -G` does not read."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path)
+    _git(root, "checkout", "-q", "-b", "side")
+    _commit(root, "side work", "2026-10-10T12:00:00", {"docs/notes.md": "side\n"})
+    _git(root, "checkout", "-q", "wave/m30-w1")
+    _commit(root, "wave work", "2026-10-10T12:30:00", {"docs/other.md": "wave\n"})
+    _git(root, "merge", "-q", "--no-ff", "--no-commit", "side")
+    _write(root, "docs/decisions.md", "# Decisions\n\n## D-1 — One\n\nBody.\n\n## D-2 — Two\n\nNew.\n")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "merge side, adding D-2 in the merge")
+    text = _close_text(base)
+    problems, _ = check.history_problems(_closed(root, text), text, root)
+    assert any("D-2" in p and "no commit" in p for p in problems), problems
+
+
+def test_a_merged_close_read_from_a_later_unmerged_branch_says_skipped(tmp_path: Path) -> None:
+    """Round 3's M4: merged is asked of the close's own commit, not of HEAD; from W2's unmerged branch,
+    W1's merged close is not read again."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path)
+    _commit(root, "wave one", "2026-10-10T13:00:00", {"src/app/other.py": "x = 9\n"})
+    text = _close_text(base)
+    close = _closed(root, text)
+    _git(root, "checkout", "-q", "main")
+    _git(root, "merge", "-q", "--ff-only", "wave/m30-w1")
+    _git(root, "checkout", "-q", "-b", "wave/m30-w2")
+    _commit(root, "wave two", "2026-10-10T19:00:00", {"src/app/other.py": "x = 10\n"})
+    problems, skipped = check.history_problems(close, text, root)
+    assert problems == [] and skipped and "merged" in skipped, (problems, skipped)
+
 pytestmark = pytest.mark.needs("git")
