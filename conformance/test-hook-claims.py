@@ -139,6 +139,9 @@ def run_hook(bash: str, command: str, payload: str, path: str | None = None,
     env = dict(os.environ)
     if path is not None:
         env["PATH"] = path
+    # #189: as Claude Code runs a hook, with the project's directory, where the Bash guard's second
+    # reading lives; a case that names another directory says so in `extra`.
+    env["CLAUDE_PROJECT_DIR"] = str(pathlib.Path(__file__).resolve().parent.parent)
     env.update(extra or {})
     return subprocess.run([bash, "-c", command], input=payload.encode("utf-8"),
                           capture_output=True, env=env, timeout=60)
@@ -293,7 +296,25 @@ def main() -> int:
                   "flyctl apps destroy model-ranking", "scripts/deploy_hosted_engine.sh",
                   # The W5 Tester's M1: a dry run first, then the deploy, on one line.
                   "scripts/deploy_hosted_engine.sh --dry-run && scripts/deploy_hosted_engine.sh",
-                  "scripts/deploy_hosted_engine.sh --dry-run | scripts/deploy_hosted_engine.sh"]
+                  "scripts/deploy_hosted_engine.sh --dry-run | scripts/deploy_hosted_engine.sh",
+                  # #189 (the second M19-W5 review's M1, M2 and K1): a command the text guard missed,
+                  # spelled through an assignment, a wrapper, a subshell, a substitution or quotes, or
+                  # another fly subcommand; read by `.claude/hooks/bash_guard.py`, which splits it.
+                  "FLY_API_TOKEN=x fly deploy", "env fly deploy", "command fly deploy", "time fly deploy",
+                  "(fly deploy)", "$(fly deploy)", "fly launch", "fly secrets set A=b", "fly scale count 0",
+                  "fly machine stop x", "fly machine run img", "fly machine update x", "fly ssh console",
+                  "MODEL_RANKING_SERVED=x scripts/deploy_hosted_engine.sh", "git push origin 'HEAD:main'",
+                  "git push origin \\+x", "git push origin ''+x", "(git push --force origin x)",
+                  "$(git push -f origin x)", "git push \\\r\n--force origin x", "(rm -rf ~/work)", "`rm -rf x`",
+                  "$(git reset --hard HEAD~1)", "bash -c 'fly deploy'", "eval \"git push --force origin x\"",
+                  "git status\nfly deploy", "if true; then fly deploy; fi", "{ fly deploy; }", "! fly deploy",
+                  "while true; do git push --force origin x; done",
+                  # The release's Stage 5.1 verdict (RS1): four mirror spellings and three deploys beside a
+                  # dry run the text guard counted.
+                  "git push origin \\--mirror", "git push origin $'--mirror'", "git push origin ''--mirror",
+                  'git push origin ""--mirror', "scripts/deploy_hosted_engine.sh # deploy_hosted_engine.sh --dry-run",
+                  "scripts/deploy_hosted_engine.sh; echo deploy_hosted_engine.sh --dry-run",
+                  "echo deploy_hosted_engine.sh --dry-run; scripts/deploy_hosted_engine.sh"]
     MUST_ALLOW = ["git push -u origin fix/issue-3", "git push origin enhancement/x", "git push",
                   "git push --follow-tags origin x", "git push -4 origin x", "fly status", "fly logs",
                   "scripts/deploy_hosted_engine.sh --dry-run",
@@ -302,7 +323,10 @@ def main() -> int:
                   # The second W5 review's M2: an option or a branch that only starts like --mirror.
                   "git log --grep push --min-parents=2", "git push origin wave/m19--minor", "git push origin fix--mi",
                   "git status", "rm file.txt", "rm -r build",
-                  "git reset HEAD~1", "npm run format"]
+                  "git reset HEAD~1", "npm run format",
+                  # #189: the read-only fly subcommands, and a here-document whose body is data.
+                  "fly auth whoami", "fly apps list", "fly version", "fly logs -a model-ranking",
+                  "python3 - <<'EOF'\nprint(\"don't\")\nEOF", "git commit -m \"$(cat <<'EOF'\nIt's done\nEOF\n)\""]
     bash_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
                       if h.get("matcher") == "Bash"), None)
     env_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
@@ -334,6 +358,9 @@ def main() -> int:
             if bash_hook is not None:
                 cases += [("Bash", f"`{c}`", cmd(c), True, None, {}) for c in MUST_BLOCK]
                 cases += [("Bash", f"`{c}`", cmd(c), False, None, {}) for c in MUST_ALLOW]
+                # #189: the guard's second reading is a file in the project; without it the guard blocks.
+                cases.append(("Bash", "`git status` with the second reading missing", cmd("git status"), True,
+                              None, {"CLAUDE_PROJECT_DIR": tmp}))
             if env_hook:
                 cases += [("Write", f"a write to `{f}`", fpath(f), want, None, {})
                           for f, want in ((".env", True), ("cfg/.env.prod", True), ("prod.env", True),
