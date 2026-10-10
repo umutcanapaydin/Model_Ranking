@@ -576,44 +576,54 @@ def _ledger_rows(text: str) -> list[list[str]]:
     return [[c.strip() for c in row] for row in csv.reader(lines) if row]
 
 
+#: The ledger's kinds (its header names each).
+KINDS = ("skip", "bypass", "ruling", "review", "within-scope")
+#: How the owner's ruling begins: both real rulings do (the fixes review's round 2, M3).
+OWNER_RULING = re.compile(r"the owner, \d{4}-\d{2}-\d{2}\b", re.IGNORECASE)
+
+
+def _owners_ruling(row: list[str]) -> bool:
+    return len(row) >= 5 and row[2].lower() == "ruling" and OWNER_RULING.match(row[3]) is not None
+
+
 def ledger_strikes(rows: list[list[str]]) -> list[str]:
-    """The controls with three or more `skip` or `bypass` rows since their latest `ruling` that names the owner
-    (the owner's ruling of 2026-10-10, as the M21 closure fixes review's M3 left it): a row counts when its date
-    is after the ruling's, or the same date and later in the ledger. A `review` or `within-scope` row is
-    recorded and counts nothing: it neither strikes nor resets. A new bypass after a ruling still counts."""
-    ruled: dict[str, tuple[str, int]] = {}
-    for n, row in enumerate(rows):
-        if len(row) >= 5 and row[2].lower() == "ruling" and "the owner" in row[3].lower():
-            ruled[row[0]] = max(ruled.get(row[0], ("", -1)), (row[-1], n))
+    """The controls with three or more `skip` or `bypass` rows after their last `ruling` by the owner (the owner's
+    ruling of 2026-10-10, as the M21 closure fixes review's round 2, M3 left it): a row counts by its place in
+    the file, after that ruling, whatever its date. A `review` or `within-scope` row is recorded and counts
+    nothing: it neither strikes nor resets. A new bypass after a ruling still counts."""
+    ruled: dict[str, int] = {row[0]: n for n, row in enumerate(rows) if _owners_ruling(row)}
     counts: dict[str, int] = {}
     for n, row in enumerate(rows):
-        if len(row) >= 3 and row[2].lower() in ("skip", "bypass"):
-            since = ruled.get(row[0])
-            if since is None or (row[-1], n) > since:
-                counts[row[0]] = counts.get(row[0], 0) + 1
+        if len(row) >= 3 and row[2].lower() in ("skip", "bypass") and n > ruled.get(row[0], -1):
+            counts[row[0]] = counts.get(row[0], 0) + 1
     return sorted(control for control, n in counts.items() if n >= 3)
 
 
 def ledger_problems(rows: list[list[str]], today: str | None = None) -> list[str]:
-    """The fixes review's M3: every row's date is ISO (YYYY-MM-DD) and not later than today, so a future date
-    cannot hold later rows back; and a `ruling` names the owner, since only the owner's ruling resets a count."""
+    """The fixes review's M3, as round 2 left it: every row's kind is one of KINDS; its date is ISO (YYYY-MM-DD)
+    and at most a day after today's UTC date, so a row the owner dates in UTC+3 passes CI while a future date
+    cannot hold later rows back; and a `ruling`'s reason starts `the owner, YYYY-MM-DD`, since only the owner's
+    ruling resets a count."""
     import datetime as dt
 
-    today = today or dt.date.today().isoformat()
+    latest = (dt.date.fromisoformat(today) if today else dt.datetime.now(dt.UTC).date()) + dt.timedelta(days=1)
     found: list[str] = []
     for row in rows:
+        where = f"the ledger row `{','.join(row[:3])}`"
+        if len(row) < 3 or row[2].lower() not in KINDS:
+            found.append(f"{where} has the kind `{row[2] if len(row) >= 3 else ''}`, not one of {', '.join(KINDS)}")
         date = row[-1] if row else ""
         try:
             iso = re.fullmatch(r"\d{4}-\d{2}-\d{2}", date) is not None and dt.date.fromisoformat(date).isoformat() == date
         except ValueError:
             iso = False
         if not iso:
-            found.append(f"the ledger row `{','.join(row[:3])}` is dated `{date}`, not YYYY-MM-DD")
-        elif date > today:
-            found.append(f"the ledger row `{','.join(row[:3])}` is dated {date}, after today ({today})")
-        if len(row) >= 4 and row[2].lower() == "ruling" and "the owner" not in row[3].lower():
-            found.append(f"the ledger row `{','.join(row[:3])}` is a ruling that does not name the owner; only the "
-                         "owner's ruling resets a control's count")
+            found.append(f"{where} is dated `{date}`, not YYYY-MM-DD")
+        elif dt.date.fromisoformat(date) > latest:
+            found.append(f"{where} is dated {date}, more than a day after today ({latest - dt.timedelta(days=1)}, UTC)")
+        if len(row) >= 4 and row[2].lower() == "ruling" and not _owners_ruling(row):
+            found.append(f"{where} is a ruling whose reason does not start `the owner, YYYY-MM-DD`; only the owner's "
+                         "ruling resets a control's count")
     return found
 
 
