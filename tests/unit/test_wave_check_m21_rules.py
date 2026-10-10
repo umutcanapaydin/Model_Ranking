@@ -20,9 +20,12 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import re
 import subprocess
 from pathlib import Path
 from types import ModuleType
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -862,3 +865,17 @@ def test_the_bypass_must_name_a_control_the_ledger_counts_in_any_case(tmp_path: 
     text = _checklist("").replace("outcome: shipped`", "outcome: shipped`. Bypass: the COMMIT-AFTER-CHECK-FAST control")
     assert check.skip_ledger_problems(text, "m30-w1", [["commit-after-check-fast", "m30-w1", "bypass", "x", "2026-10-10"]]) == []
     assert check.skip_ledger_problems(text, "m30-w1", [["security-pass", "m30", "skip", "x", "2026-10-10"]])
+
+
+def test_the_pass_line_counts_the_checklists_rows_not_the_ledgers(capsys: pytest.CaptureFixture[str]) -> None:
+    """Found while fixing the fixes review's M4: the ledger's rows were read into the name that counts the
+    checklist's rows, so `rows == 0` (a close with no rows) could never fire beside the ledger, and the PASS
+    line printed the ledger."""
+    check = _module("wave_check")
+    cwd = Path.cwd()
+    os.chdir(ROOT)
+    try:
+        assert check.main(["wave_check.py", "docs/plans/m21-wave-4-close.md"]) == 0
+    finally:
+        os.chdir(cwd)
+    assert re.search(r"\(\d+ row\(s\), all evidenced", capsys.readouterr().out)
