@@ -20,10 +20,11 @@ This replaces the build-3 list: build 3 was never uploaded, and v2 ships M20 and
 The M21 closure security seat says the release verdict stands for v2, on six conditions
 (`docs/reviews/m21-closure-security-review.md`, "The release re-read"); each step below names its condition.
 
-1. **Merge** the one combined pull request from `closure/m21`, with **Create a merge commit** (not squash
-   or rebase). It carries every commit of #213, #215, #217, #221, #224, #225, #229 (the M20 closure),
-   #236, #240, #250 and #251, so GitHub marks those merged too, and the close checks, which read the
-   commit history (D-192), keep the history they read. Then `git checkout main && git pull`, and restart
+1. **Merge** the M21 closure's pull request (`closure/m21`), with **Create a merge commit** (not squash
+   or rebase), so the close checks, which read the commit history (D-192), keep the history they read.
+   The waves are on `main` already: #251, merged on 2026-10-10 with a merge commit (`0640401`), carried
+   #213, #215, #217, #221, #224, #225, #229 (the M20 closure), #236, #240 and #250, and GitHub marked them
+   merged. Then `git checkout main && git pull`, and restart
    every Claude Code session open in the clone (close it, then `cd ~/Desktop/ILGAR/model_ranking && claude`):
    the pull brings a changed guard and its new pin, and a session keeps the hooks it started with, so an old
    session blocks every Bash call and every write (`INSTALL.md`, "Changing the Bash guard").

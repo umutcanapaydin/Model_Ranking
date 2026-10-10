@@ -1027,12 +1027,18 @@ Engineering shapes worth keeping:
    on a closure not yet on `main`. A wave's base is now the latest of four named points.
 4. **A control kept by memory fails at the seams.** Commands chained with `;` committed red trees in
    M20. M21's two docs-only bypasses were never written to the ledger, so the three-row rule could not
-   see them. The owner ruled on the control: fix it with a pre-commit hook, gating a docs-only commit by
-   `make check-records`.
+   see them. The owner ruled on the control: fix it with a hook and narrow it for docs. The first hook
+   refused every red test commit, which the DevFlow makes on purpose, and the closure fixes review
+   called it BLOCKING. A gate's exceptions are part of the gate. The commit-msg hook now reads the
+   subject, so a declared red commit runs every leg but the tests. A docs-only commit skips only the
+   Swift legs, because the Python legs read Markdown too.
 5. **A guard is code, and its own target.** The guard's second reading drew two BLOCKING verdicts on
    its lexer. The closure seat then found two more problems: an agent could rewrite the guard in the
    middle of a session, and its deadline needed a signal that a hook may not get. The hook now pins the
    guard's sha256, refuses writes into `.claude/` and `.githooks/`, and times the guard on a thread.
+   The write refusal went wrong in both directions. At first it refused `~/.claude` as well. Narrowed
+   to the project directory, it then left every linked worktree open, and those worktrees are where
+   agents commit. It now protects a `.claude/` or `.githooks/` beside any `.git`.
 6. **One agent at a time.** Running three waves at once exhausted the usage limit, and their checks
    disturbed each other's timing (W1's `ResponseCeilingTests`). The waves were then run in order, each
    reviewed alone. The seams between them were left to the closure, as M20 showed they must be.
@@ -1058,6 +1064,10 @@ Engineering shapes worth keeping:
 - #220's on-device measurement and #226's judgements are the owner's.
 
 **Control bypass** (the ledger rows are in `docs/control-events.csv`):
-- Two docs commits (`9613a2b`, `9cf8e12`) were gated by `make check-records` alone. The owner's
-  ruling makes that the rule for a docs-only commit.
-- Every M21 session started outside the repository, so the hooks never loaded (#142).
+- Two docs commits (`9613a2b`, `9cf8e12`) were gated by `make check-records` alone, before the
+  ruling. They are `within-scope`.
+- After the ruling, two fix commits were committed without their own tree passing `make check-fast`
+  (`cd563f5`, `85f80e3`), each checked together with the commit after it. They are two `bypass` rows,
+  and a third would put the control before the owner again.
+- Every M21 session started outside the repository, so the hooks never loaded (#142). The owner ruled:
+  sessions start in the repository from now on.
