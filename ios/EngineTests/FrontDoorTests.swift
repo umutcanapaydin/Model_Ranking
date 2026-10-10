@@ -513,18 +513,53 @@ final class AlternativeSurfaceTests: OfflineTestCase {
 
 // MARK: - A slow tier is a failing tier (REQ-RTR-003, M13-W3 review MINOR-6)
 
+/// #181: when a timer on a dispatch queue fired, in seconds after it was started; awaited once the
+/// call under test has returned.
+private final class OffPoolTimer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var firedAfter: Double?
+    private var waiting: CheckedContinuation<Double, Never>?
+
+    init(_ seconds: Double) {
+        let started = Date()
+        DispatchQueue.global().asyncAfter(deadline: .now() + seconds) { [self] in
+            lock.lock()
+            let after = Date().timeIntervalSince(started)
+            firedAfter = after
+            let pending = waiting
+            waiting = nil
+            lock.unlock()
+            pending?.resume(returning: after)
+        }
+    }
+
+    var value: Double {
+        get async {
+            await withCheckedContinuation { continuation in
+                lock.lock()
+                if let after = firedAfter {
+                    lock.unlock()
+                    continuation.resume(returning: after)
+                } else {
+                    waiting = continuation
+                    lock.unlock()
+                }
+            }
+        }
+    }
+}
+
 final class SlowTierTests: OfflineTestCase {
     private let wording = RoutingOutcome(categoryID: "coding", tier: .similarity, unmeasured: false)
 
     /// #149: a plain timer of the deadline's length, started beside the call. A process that is not
     /// scheduled makes every timer late alike, so the deadline is held against this, not the clock:
     /// a race that waited for the model would take its ten seconds while this took its 0.2.
-    private func plainTimer(_ seconds: Double) -> Task<Double, Never> {
-        let started = Date()
-        return Task {
-            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-            return Date().timeIntervalSince(started)
-        }
+    /// #181: it runs on a dispatch queue, off the cooperative pool the router races on, so a call that
+    /// blocks the pool's one thread (`make swift-test` runs these on a one-thread pool) makes the
+    /// router late and not this.
+    private func plainTimer(_ seconds: Double) -> OffPoolTimer {
+        OffPoolTimer(seconds)
     }
 
     func testAModelTierThatNeverAnswersHandsTheQuestionToTheWordingTier() async {

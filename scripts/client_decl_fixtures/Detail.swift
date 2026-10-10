@@ -1,6 +1,7 @@
 // #51, #58: a fixture that must be REFUSED: a screen file that reaches the file system, and one
 // that decodes an optional URL (`decodeIfPresent`, W5 review B1).
 import Foundation
+import SwiftUI
 
 func fixtureDetailWrites(_ text: String) {
     _ = FileManager.default.temporaryDirectory
@@ -55,7 +56,57 @@ func fixtureStoreElsewhere(_ place: URL, _ kept: FetchedStandings) {
     StandingsStore(url: place).save(kept, at: Date())
 }
 
+// #170: a date of the screen's choosing into the standings file, a 64-bit channel. REFUSED: only the
+// store's own file dates what it keeps.
+func fixtureScreenDatesTheStore(_ typed: String) -> Int? {
+    StandingsStore.onDevice.currentKept(now: Date(timeIntervalSince1970: Double(typed.utf8.count)), fetch: { 0 })
+}
+
 // U9: the client's address rewritten through its memory. REFUSED: no file touches memory unsafely.
 func fixtureRewrites(_ client: inout EngineClient) {
     withUnsafeMutablePointer(to: &client) { _ in }
+}
+
+// #172: routes from the screen's state into the code a sink runs. A stored property's default value,
+// which the implicit initialiser runs (REFUSED as the sink's call to an initialiser another file
+// declares); a static `let`'s initialiser, which runs on first use (REFUSED); and a closure the screen
+// builds and the sink keeps (REFUSED where the sink calls it).
+struct FixtureDefaulted {
+    let tag = fixtureScreenRelay
+}
+
+enum FixtureStatics {
+    static let tag = fixtureScreenRelay
+    static let associated = (objc_getAssociatedObject(Bundle.main, "q") as? String) ?? ""
+}
+
+func fixtureScreenKeeps() -> FixtureKept {
+    FixtureKept(make: { fixtureScreenRelay })
+}
+
+// The M21-W3 review's B2: an outcome built from what was typed, in a file the router does not own.
+// REFUSED: only the router's files build one.
+extension RoutingOutcome {
+    static func fixtureEcho(_ typed: String) -> RoutingOutcome {
+        RoutingOutcome(categoryID: typed)
+    }
+}
+
+// The M21-W3 review's M4: a refused shape for each rule the fixture lacked. REFUSED, each: a UIKit
+// symbol off its list, a CoreFoundation one, a path built outside the stores and the client, and a
+// second @AppStorage.
+func fixtureDetailCopies() -> String? {
+    UIPasteboard.general.string
+}
+
+func fixtureDetailOpensASocket() -> CFSocket? {
+    CFSocketCreate(nil, 0, 0, 0, 0, nil, nil)
+}
+
+func fixtureDetailBuildsAPath(_ base: URL) -> URL {
+    base.appending(path: "elsewhere")
+}
+
+struct FixtureSecondStore {
+    @AppStorage("q") var kept = ""
 }

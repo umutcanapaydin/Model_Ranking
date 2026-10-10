@@ -78,7 +78,9 @@ def _interpolation_end(swift: str, i: int) -> int:
 
 
 def _code(swift: str) -> str:
-    """The source with its comments removed and only what some build compiles (`_built`)."""
+    """The source with its comments removed and a branch whose condition is literally false dropped
+    (`_built`): at least what some build compiles. Eight pins here read the app's Swift without it, and a
+    ninth reads `FrontDoorTests.swift` raw in its last assertion (G-15, INV-78)."""
     return _built(_stripped(swift))
 
 
@@ -93,7 +95,7 @@ def _stripped(swift: str) -> str:
     A scanner, not a pattern (#98, W5 reviews M2 and M8): Swift block comments NEST, a `/*` inside a
     `//` comment opens nothing, and comment markers inside a string literal -- a raw one, or one inside
     an interpolation -- are text. Newlines inside a block comment are kept, so the code after it keeps
-    its line. A branch the compiler never builds (`#if false`) is dropped too (#110, `_built`).
+    its line. `_code` then drops a branch whose condition is literally false (#110, `_built`).
     """
     out: list[str] = []
     i, depth, n = 0, 0, len(swift)
@@ -347,6 +349,47 @@ def test_only_the_model_output_boundary_builds_an_outcome_with_refinements() -> 
     assert not re.search(r"\.refinements\s*(=|\.append|\+=)", source), "an outcome's refinements assigned after it is built"
 
 
+#: D-188 clause 6 (the M20-W3 review's B1 and R1): where the on-device model did not choose the
+#: refinements, the answer plan reads them from the question's words. That is the one reader, by
+#: its path (the second round's M3).
+WORD_REFINEMENT_READERS = {"Engine/AnswerPlan.swift"}
+
+
+def test_only_the_answer_plan_reads_refinements_from_the_words() -> None:
+    """A refinement read from the words reaches the combined list with no boundary check of its own
+    (`familyBoards` keeps only those the surface allows), so the client may read them in one place.
+    Any reference counts, called or not (`= Refinements.read`, `.map(Refinements.read)`); inside the
+    enum nothing calls `read` but its declaration, and no other file extends the enum."""
+    readers = set()
+    for path in CLIENT.rglob("*.swift"):
+        code = _code(path.read_text(encoding="utf-8"))
+        name = path.relative_to(CLIENT).as_posix()
+        if re.search(r"\bRefinements\s*\.\s*read\b", code):
+            readers.add(name)
+        if name != "Engine/Refinements.swift":
+            assert not re.search(r"\bextension\s+Refinements\b", code), f"{name} extends Refinements"
+    assert readers <= WORD_REFINEMENT_READERS, f"refinements read from the words outside the answer plan: {readers}"
+    own = _code((CLIENT / "Engine/Refinements.swift").read_text(encoding="utf-8"))
+    uses = re.findall(r"(\bfunc\s+)?\bread\s*\(", own) + re.findall(r"\b(?:Self|Refinements)\s*\.\s*read\b", own)
+    assert uses.count("func ") == 1 and len(uses) == 1, "Refinements calls its own read"
+
+
+def test_the_three_other_names_for_the_word_reader_are_refused() -> None:
+    """The W3 Tester's T2 (D-188 clause 6): the gate above reads `Refinements.read` and `Self.read`.
+    Three more spellings compile and call the same reader: a type alias (`typealias R = Refinements`,
+    then `R.read(q)`), the metatype (`Refinements.self.read(q)`) and a backticked name
+    (``Refinements.`read`(q)``). The first two were planted in a scratch copy of `ContentView.swift`,
+    built, and passed the gate above. The client uses none of the three, so none may appear in it."""
+    for path in CLIENT.rglob("*.swift"):
+        code = _code(path.read_text(encoding="utf-8"))
+        name = path.relative_to(CLIENT).as_posix()
+        assert not re.search(r"\btypealias\s+\w+\s*(?:<[^>]*>)?\s*=\s*(?:\w+\s*\.\s*)?Refinements\b", code), (
+            f"{name} gives Refinements a second name"
+        )
+        assert not re.search(r"\bRefinements\s*\.\s*self\b", code), f"{name} reaches Refinements by its metatype"
+        assert not re.search(r"`read`", code), f"{name} spells read in backticks"
+
+
 def test_only_the_wording_tier_builds_an_outcome_with_alternatives() -> None:
     """Security pass S1 (M17-W5): an alternative is a surface the reader taps, and the tap sends it
     to the engine as `task`. Only the wording tier ranks alternatives, from the ids the engine
@@ -369,7 +412,7 @@ def test_only_the_wording_tier_builds_an_outcome_with_alternatives() -> None:
     )
 
 
-def test_the_router_never_produces_anything_but_a_category_id() -> None:
+def test_the_routing_outcome_declares_the_six_fields_and_types_the_pin_reads() -> None:
     """D-126's absolute boundary, asserted on the TYPE the router can return.
 
     `RoutingOutcome` carries a category id, a tier and a flag. There is no field a recommendation,
@@ -423,8 +466,9 @@ def test_the_router_never_produces_anything_but_a_category_id() -> None:
             )
 
 
-def test_nothing_typed_by_the_reader_reaches_the_engine() -> None:
-    """REQ-RTR-004. The engine is asked for a SURFACE, never for a question.
+def test_the_engine_calls_take_only_the_spellings_of_task_and_budget_the_pin_reads() -> None:
+    """REQ-RTR-004. The engine is asked for a SURFACE, never for a question. This pin refuses the
+    spellings it reads; any other spelling is not held, and it reads the Swift without `_code` (G-11, G-14, G-15; see INV-64).
 
     `/v1` takes `task` and `budget` and nothing else, and the router's only contribution to a
     request is which of nine ids the task is. The scoring path is untouched (D-104) because the
@@ -496,8 +540,9 @@ def test_nothing_typed_by_the_reader_reaches_the_engine() -> None:
     )
 
 
-def test_the_gap_register_stays_on_the_device() -> None:
-    """REQ-GAP-001 (M14-W3): what the reader typed is recorded locally and nowhere else.
+def test_the_gap_register_code_carries_no_egress_spelling_the_pin_reads() -> None:
+    """REQ-GAP-001 (M14-W3): what the reader typed is recorded locally and nowhere else. This pin
+    refuses the spellings it reads; any other spelling is not held, and it reads the Swift without `_code` (G-13, G-14, G-15; see INV-62 and INV-67).
 
     The register is the one place the app keeps the reader's words, so it is the most likely place
     for them to leak. Held structurally: it is saved only through `GapRegisterStore`, whose file is
@@ -999,7 +1044,7 @@ def test_the_text_gate_refuses_a_link_detector_and_an_initialiser_it_cannot_see_
         assert not any(re.search(p, line) for p in EGRESS), line
 
 
-def test_the_pins_read_no_code_the_compiler_never_builds() -> None:
+def test_code_drops_a_branch_whose_condition_is_literally_false() -> None:
     """#110 (the M18-W5 review's K3): a line moved under `#if false` leaves the build, but `_code`
     kept it, so a pin could be satisfied by code the app no longer compiles. A branch whose condition
     is the literal `false` or `!true` is dropped, and so is an `#else` after a `true`; a condition
@@ -1020,10 +1065,11 @@ def test_the_pins_read_no_code_the_compiler_never_builds() -> None:
 
 @pytest.mark.parametrize("mutant", ["static var, no value", "file-scope var", "static var, a tuple",
                                     "file-scope var, a tuple", "file-scope var, indented"])
-def test_the_sink_pins_refuse_shared_state_however_it_is_declared(mutant: str) -> None:
+def test_the_sink_pins_refuse_the_planted_spellings_of_shared_state(mutant: str) -> None:
     """The W2 review's M2 (D-180 clause 4, INV-66): `static var probeTag: String?`, which has no `=`,
     and a stored `var` at file scope in a sink each passed the text half, measured on copies of the
-    shipping sources. The compiled gate refused both; the lanes without Xcode did not. REQ-GAP-001."""
+    shipping sources. The compiled gate refused both; the lanes without Xcode did not. REQ-GAP-001. This
+    pin refuses the spellings it reads; any other spelling is not held (G-14; see INV-66)."""
     sources = _client_sources()
     client = "Engine/EngineClient.swift"
     if mutant == "static var, no value":
@@ -1042,7 +1088,7 @@ def test_the_sink_pins_refuse_shared_state_however_it_is_declared(mutant: str) -
 
 
 @pytest.mark.parametrize("condition", ["!(true)", "false && DEBUG", "DEBUG && false", "!(true || DEBUG)", "((false))"])
-def test_a_branch_no_build_compiles_is_dropped_however_its_condition_is_spelled(condition: str) -> None:
+def test_a_branch_no_build_compiles_is_dropped_in_the_five_spellings_it_lists(condition: str) -> None:
     """The W2 review's M3 (#110, INV-78): `#if !(true)` and `#if false && DEBUG` were kept, and both
     are decidably dead. A condition is read in three values: true, false, or not known here. REQ-GAP-001."""
     assert "dead()" not in _built(f"#if {condition}\ndead()\n#endif\nlive()\n")

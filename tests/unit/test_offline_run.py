@@ -14,6 +14,7 @@ no packet, and inside it the operating system refuses it (`EPERM`).
 from __future__ import annotations
 
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -131,3 +132,23 @@ def test_make_tests_own_marker_requires_the_offline_run_on_a_mac(monkeypatch: py
     monkeypatch.setattr(skips, "offline", lambda: False)
     with pytest.raises(pytest.exit.Exception, match="offline"):
         conftest.pytest_sessionstart(None)  # type: ignore[arg-type]
+
+
+def _swift_runs(target: str, uname: str) -> list[str]:
+    """Each `swift test` command a Swift leg runs, as `make -n` prints its recipe on `uname`."""
+    printed = subprocess.run(["make", "-n", target, f"UNAME_S={uname}"], cwd=ROOT, capture_output=True, text=True,
+                             check=False, timeout=120).stdout.splitlines()
+    commands = "\n".join(re.sub(r'echo "[^"]*"', "", line) for line in printed if not line.lstrip().startswith("#"))
+    return re.findall(r"[^`;(\n]*\bswift test\b[^`;)\n]*", commands)
+
+
+@pytest.mark.parametrize("leg", ["swift-test", "swift-test-parallel"])
+def test_both_swift_legs_run_inside_the_offline_profile_on_macos(leg: str) -> None:
+    """#179: since #149 the Swift suite starts child processes, which its tripwire cannot see. On
+    macOS every `swift test` a leg runs is inside the offline profile, with SwiftPM's own sandbox off
+    (it cannot nest); `OfflineGuardTests` shows a child refused. Linux has no `sandbox-exec`."""
+    darwin = _swift_runs(leg, "Darwin")
+    assert darwin, f"`make -n {leg}` printed no swift test"
+    for run in darwin:
+        assert "sandbox-exec -f ../scripts/offline.sb" in run and "--disable-sandbox" in run, run
+    assert not any("sandbox-exec" in run for run in _swift_runs(leg, "Linux"))

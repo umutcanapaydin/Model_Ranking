@@ -1,10 +1,13 @@
 """#51, #58 -- the compiler-level half of D-126 (`scripts/client_decl_gate.py`, `make client-decls`)
-refuses what it is for, and that is held by tests rather than by hand-run review probes.
+refuses the forms its lists name, and that is held by tests rather than by hand-run review probes.
+What the client keeps on the phone is held in part by the compiled gate and the text pins: see
+INV-62, INV-63, INV-64, INV-66, INV-67, INV-75, INV-76, INV-85 and INV-89 in
+`docs/security-invariants.md`, whose gaps name what is not held.
 
 - The rules, on what the compiler printed: these run everywhere, including CI, which has no Xcode.
 - The whole gate on a compiled fixture (`scripts/client_decl_fixtures/`): runs where Xcode is, and
   `make client-decls` runs the same fixture before it checks the app, so the gate cannot pass the
-  app while it has stopped refusing.
+  app while a rule `FIXTURE_RULES` names has stopped refusing (G-10).
 """
 
 from __future__ import annotations
@@ -29,7 +32,7 @@ DECODED_URL = (
 )
 
 
-def test_the_network_and_the_file_system_are_refused_outside_their_files() -> None:
+def test_the_listed_network_and_file_system_symbols_are_refused_outside_their_files() -> None:
     """#51: `URLSession` outside `EngineClient.swift`, `FileManager` outside `FILESYSTEM_FILES`."""
     found = {
         "ContentView.swift": {"Foundation.URLSession"},
@@ -54,8 +57,22 @@ def test_a_url_decoded_outside_the_engine_client_is_the_network() -> None:
 
 @pytest.mark.needs("xcode")  # the fixture is compiled
 def test_the_gate_refuses_its_compiled_fixture() -> None:
-    """#51: the whole gate, compiled, on files that must be refused and files that must be allowed."""
+    """#51: the whole gate, compiled, on files that must be refused and files that must be allowed.
+
+    The M21-W3 Tester (#175 R3, G-10): the self-test asks for one refusal per (file, phrase) and compares the
+    committed dump with the compile by its declarations only. So a fixture shape whose body changed, while
+    another shape still carried its phrase, left every test green: `keepAsked`'s `task = typed` (#188) made
+    `_ = typed` passed the self-test, and the tests that count shapes read the stale dump. The compiled
+    fixture is refused line for line as the committed dump is. # covers REQ-GAP-001, REQ-APP-005"""
     assert gate.self_test() == []
+    _, sdk_name, flags = gate.CONFIGURATIONS[0]
+    dumped = gate.dump_ast(sdk_name, flags, gate.FIXTURES)
+    assert dumped is not None and dumped[1] == 0, dumped and dumped[0][-800:]
+    compiled = gate.references(gate.fixture_dump(dumped[0]))
+    committed = gate.references(FLOW_AST)
+    assert sorted(gate.problems(compiled)) == sorted(gate.problems(committed)), (
+        "the fixture as it compiles is not refused as the committed dump is; write it again with `--snapshot`")
+    assert sorted(gate.release_problems(compiled)) == sorted(gate.release_problems(committed))
 
 
 #: What `swiftc -dump-ast` prints for a synthesised `Decodable` with an `Optional<URL>` property.
@@ -74,14 +91,14 @@ def test_a_url_decoded_if_present_is_the_network_too() -> None:
 
 def test_make_client_decls_fails_when_its_self_test_does(monkeypatch: pytest.MonkeyPatch) -> None:
     """W5 Tester: `main()` runs the self-test before it checks the app, so the gate cannot pass the app
-    while it has stopped refusing (#51). Nothing held that: with the call unwired, every test here and
+    while a rule `FIXTURE_RULES` names has stopped refusing (#51, G-10). Nothing held that: with the call unwired, every test here and
     `make client-decls` passed. A failed self-test returns before anything compiles, so this runs
     where there is no Xcode too."""
     monkeypatch.setattr(gate, "self_test", lambda: ["ContentView.swift: URL.decoded was not refused"])
     assert gate.main() == 1
 
 
-def test_a_release_build_carries_no_ui_test_hook() -> None:
+def test_a_release_build_reading_its_launch_arguments_or_environment_is_refused() -> None:
     """D-175 clause 3: the launch arguments the scripted router is handed are read in Debug only."""
     found = {"LaunchRouting.swift": {"Foundation.ProcessInfo.arguments", "Swift.CommandLine.arguments"}}
     assert len(gate.release_problems(found)) == 2
@@ -245,7 +262,7 @@ MADE_URL_AST = (
 )
 
 
-def test_a_url_made_by_any_call_outside_its_files_is_refused() -> None:
+def test_a_url_made_by_the_fixtures_calls_outside_its_files_is_refused() -> None:
     """#107: `URL(_:strategy:)` and a generic decode wrapper make a URL from text with no initialiser
     or decode the gate listed. A call whose result is a URL is refused outside the network door and
     the two stores, whatever it is called; reading a URL that exists is not making one. REQ-GAP-001."""
@@ -362,9 +379,10 @@ def _lines_of(file: str, declaration: str) -> range:
     ("ContentView.swift", "func fixtureByProtocol"),         # a protocol requirement's witness
     ("ContentView.swift", "func fixtureCompound"),           # `-=`
 ])
-def test_arithmetic_on_a_served_number_is_refused_whatever_carries_it(file: str, declaration: str) -> None:
+def test_arithmetic_on_a_served_number_is_refused_in_the_forms_the_fixture_holds(file: str, declaration: str) -> None:
     """The W2 review's B1 (D-181, INV-76, REQ-APP-005): the review got arithmetic on a served number past
-    the gate through each of these. Each is refused, on a line of its own declaration."""
+    the gate through each of these. Each is refused, on a line of its own declaration; any other form
+    is not held (G-2; see INV-76)."""
     span = _lines_of(file, declaration)
     refused = gate.problems(gate.references(FLOW_AST))
     hits = [line for line in refused if line.startswith(f"{file}:") and "served" in line
@@ -386,30 +404,34 @@ def test_the_price_in_pages_is_permitted_where_it_is_computed() -> None:
     assert not [line for line in refused if line.startswith("Router.swift:") and int(line.split(":")[1]) in span], refused
 
 
-def test_a_sink_holds_nothing_another_file_can_change() -> None:
+def test_a_sink_holding_a_mutable_object_or_a_closure_is_refused_in_the_fixtures_forms() -> None:
     """The W2 review's M1, S3 (D-180 clause 2, INV-66, REQ-GAP-001): `static let probeRelay =
     NSMutableString()` on the client, set by the screen and read by the request, passed: the rule
     refused a `var`, and a `let` holding a mutable object is as shared. What a sink holds is a
     listed type; nothing else in the fixture's sinks is refused for it."""
     refused = gate.problems(gate.references(FLOW_AST))
     assert any(line.startswith("EngineClient.swift:") and "holds `relay`" in line for line in refused), refused
-    assert not [line for line in refused if "holds `" in line and "holds `relay`" not in line], refused
+    # #172 adds the fixture's kept closure (`holds `make``), refused for the same reason.
+    assert not [line for line in refused if "holds `" in line and "holds `relay`" not in line
+                and "holds `make`" not in line], refused
 
 
-def test_a_sink_calls_nothing_another_file_declares_but_what_is_listed() -> None:
+def test_a_sink_calling_a_function_another_file_declares_is_refused_in_the_fixtures_forms() -> None:
     """The W2 review's M1, S2b (D-180 clause 2, INV-66, REQ-GAP-001): a sink calling a function that
     `Detail.swift` declares reads whatever that function reads, and the screen can set it. A sink
     calls only the functions listed for it, each with its reason."""
     refused = gate.problems(gate.references(FLOW_AST))
     assert any(line.startswith("EngineClient.swift:") and "calls `fixtureRelayed`" in line for line in refused), refused
-    assert not [line for line in refused if "calls `" in line and "fixtureRelayed" not in line], refused
+    # #172 adds the fixture's stored default, reached by the sink's call to `FixtureDefaulted.init`.
+    assert not [line for line in refused if "calls `" in line and "fixtureRelayed" not in line
+                and "FixtureDefaulted.init" not in line], refused
 
 
 def _refused_in(file: str, phrase: str) -> list[str]:
     return [line for line in gate.problems(gate.references(FLOW_AST)) if line.startswith(f"{file}:") and phrase in line]
 
 
-def test_a_kept_type_is_extended_only_in_its_own_file_and_conforms_to_no_protocol_the_app_declares() -> None:
+def test_a_kept_type_extended_or_conformed_to_outside_its_file_is_refused_in_the_fixtures_forms() -> None:
     """The second W2 review's B1, P3w (D-180, INV-66, REQ-GAP-001): the M17 mutant P3 again, through a
     protocol requirement `FetchedStandings.init(payload:)` satisfies, passed `make check-fast`: the
     provenance rule reads references to the initialiser by name, and a requirement is another name."""
@@ -425,7 +447,7 @@ def test_only_the_store_builds_a_store_or_saves_to_one() -> None:
     assert not _refused_in("StandingsStore.swift", "`StandingsStore.")
 
 
-def test_no_file_touches_memory_unsafely() -> None:
+def test_with_unsafe_mutable_pointer_in_the_fixture_is_refused() -> None:
     """The second W2 review's U9 (INV-66, REQ-GAP-001): the client's address rewritten in place through
     `withUnsafeMutablePointer` passed. The client uses no unsafe memory, so all of it is refused."""
     assert _refused_in("Detail.swift", "withUnsafeMutablePointer")
@@ -443,11 +465,11 @@ def test_a_url_out_of_any_by_a_cast_is_made() -> None:
     assert gate.url_facts(pattern) == {"Detail.swift": {"Foundation.URL.made"}}
 
 
-def test_the_code_a_sink_runs_reads_no_shared_mutable_state() -> None:
+def test_the_code_a_sink_runs_is_refused_the_shared_state_the_fixture_holds() -> None:
     """The second W2 review's B2, S5 and S5b (D-180, INV-66, INV-67, REQ-GAP-001): the body of
     `FetchedStandings.init(payload:)`, a call the sinks may make, and a decoding witness it reaches,
-    each wrote the screen's global into the standings file, and no rule read them. What a sink runs,
-    followed through the calls it makes and every coding witness, reads no shared `var`."""
+    each wrote the screen's global into the standings file, and no rule read them. These shapes of
+    what a sink runs are refused; any other form is not held (G-1; see INV-66)."""
     refused = _refused_in("Models.swift", "a privacy sink runs")
     assert any("fixtureStamped" in line for line in refused), refused
     assert any("FixtureNoted" in line for line in refused), refused
@@ -542,3 +564,278 @@ def test_the_code_a_sink_runs_is_followed_into_computed_properties_and_protocol_
     assert any("`ProbeHolder.suffix`" in line and "`probeNote`" in line for line in runs), refused
     assert any("`ProbeTagger.tag()`" in line and "`probeNote`" in line for line in runs), refused
     assert len(refused) == 2, ("the probe's sink calls nothing it may not; only the two bodies are refused", refused)
+
+
+def test_the_fixtures_six_request_shapes_are_refused_and_its_own_request_is_not() -> None:
+    """#174, #188 (INV-64's listed forms on the compiled module): the M19 closure seat's S2 line (the
+    typed question sent as the budget) and the typed question kept as the surface are refused at their
+    call and their assignment, with the review's four round-1 twins; the screen's own request, its
+    routed surface and its chosen one are allowed. Other forms are gap G-11."""
+    assert _refused_in("ContentView.swift", "the request's `budget` argument")
+    assert _refused_in("ContentView.swift", "assigns `ContentView.task`")
+    refused = _refused_in("ContentView.swift", "#174, #188")
+    # The two lines above, and the M21-W3 review's four twins (B2): six, and the screen's own request,
+    # `apply`'s routed surface and `select`'s chosen one are not among them.
+    assert len(refused) == 6, refused
+
+
+def test_a_request_argument_the_gate_does_not_know_is_refused() -> None:
+    """#174: a new request parameter is a reviewed change, so an argument not in REQUEST_ARGUMENTS is
+    refused whatever it names."""
+    assert ("EngineClient.recommendation(task:budget:)", "task") in gate.REQUEST_ARGUMENTS
+    assert gate._request_problem("ContentView.swift", "<request argument>.EngineClient.search(text:)|text|a value@9")
+
+
+def test_a_mac_without_the_toolchain_fails_the_gate_rather_than_skipping(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#175 R1: a Mac with Xcode is the gate's authoritative host (`docs/security-invariants.md`, gap
+    G-10); a skip there would pass the routes D-180 and D-181 moved onto the compiled module unread. On
+    another host the gate still says it skipped."""
+    monkeypatch.setattr(gate, "dump_ast", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(gate, "_host", lambda: "Darwin")
+    assert gate.main() == 1
+    monkeypatch.setattr(gate, "_host", lambda: "Linux")
+    assert gate.main() == 0
+
+
+def test_the_self_test_compiles_the_fixture_in_every_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#175 R3: the fixture carries a refused shape for each rule `FIXTURE_RULES` names, in each
+    configuration the gate reads, so a layout change in any of them fails the self-test. The fixture is compiled once per configuration."""
+    seen: list[list[str]] = []
+
+    def dump(_sdk: str, flags: list[str], *_rest: object) -> tuple[str, int]:
+        seen.append(list(flags))
+        return "", 0
+
+    monkeypatch.setattr(gate, "dump_ast", dump)
+    gate.self_test()
+    assert [flags for _, _, flags in gate.CONFIGURATIONS] == seen
+
+
+def test_each_rule_fixture_rules_names_has_a_refused_shape() -> None:
+    """#175 R3: each rule `FIXTURE_RULES` names has at least one refusal the fixture must produce, so a
+    layout change that silences one of them fails the self-test. Two rules are not named there and have
+    no such refusal: the budget's literal `let` and `SINK_SWIFT_REFUSED` (G-10)."""
+    phrases = {phrase for _, phrase in gate.FIXTURE_REFUSALS | gate.FIXTURE_RELEASE_REFUSALS}
+    assert len(gate.FIXTURE_RULES) >= 8, "the rules are not named"
+    for rule, phrase in gate.FIXTURE_RULES.items():
+        assert any(phrase in carried for carried in phrases), f"no fixture refusal carries the {rule} rule"
+
+
+def _marked(mark: str) -> int:
+    """The line of `Arithmetic.swift` in the fixture that carries `mark`."""
+    lines = (ROOT / "scripts" / "client_decl_fixtures" / "Arithmetic.swift").read_text(encoding="utf-8").splitlines()
+    found = [number for number, line in enumerate(lines, start=1) if line.rstrip().endswith(mark)]
+    assert len(found) == 1, f"{mark} marks {len(found)} lines"
+    return found[0]
+
+
+@pytest.mark.parametrize(
+    "shape",
+    ["prefix-minus", "shift", "shift-assign", "operator-as-value", "operator-as-value-map", "pow", "truncating",
+     "quotient", "overflow", "custom-operator", "numeric-extension", "subscript", "later-line",
+     "decoded-in-extension", "through-any", "through-text", "served-fact", "fact-through-any",
+     # The M21-W3 review's B3 and M1.
+     "nsstring-parse", "formatter-parse", "scanner-parse", "anyhashable", "anyobject", "nsnumber",
+     "json-round-trip", "xor", "bitwise-not", "bitwise-and", "fact-nsnumber", "served-dollar",
+     # A count of a list a served number builds (the review's M1 allowance, laundered).
+     "count-of-built", "range-count", "drop-count"],
+)
+def test_each_shape_the_second_review_planted_is_refused(shape: str) -> None:
+    """#173 (D-181, G-2): every operator, method and name the second M19-W2 review planted past the
+    arithmetic rule is refused at its own line."""
+    line = _marked(f"// shape: {shape}")
+    refused = [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+    assert refused, f"{shape} (Arithmetic.swift:{line}) is not refused"
+
+
+def test_a_count_of_served_things_is_not_arithmetic_on_a_served_number() -> None:
+    """#173, the review's M5: `filter { $0.position > 0 }.count + 1` counts things; the walk read the
+    closure inside the operand and refused it as `+` on a served position."""
+    line = _marked("// allowed: filter-count")
+    assert not [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+
+
+def test_a_labels_length_is_not_a_served_number() -> None:
+    """#171: following a served number through text must not make a label's length one."""
+    line = _marked("// allowed: label-length")
+    assert not [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+
+
+def test_the_routes_172_names_into_a_sink_are_refused_in_the_fixtures_forms() -> None:
+    """#172 (D-180, INV-66, gap G-1): a stored default (the sink's call to another file's initialiser), a
+    closure the sink keeps (a sink holds only values), a static `let`'s initialiser reading the screen's
+    state, and Foundation's shared state read in a sink: each refused on the fixture."""
+    assert _refused_in("EngineClient.swift", "FixtureDefaulted.init")
+    assert _refused_in("EngineClient.swift", "holds `make`")
+    assert _refused_in("Detail.swift", "`FixtureStatics.tag`, code a privacy sink runs")
+    assert _refused_in("EngineClient.swift", "uses `Thread.threadDictionary`")
+    assert _refused_in("EngineClient.swift", "uses `NotificationCenter")
+
+
+
+# --- The M21-W3 review (docs/reviews/m21-wave-3-review.md) ------------------------------------------------
+
+
+@pytest.mark.parametrize("mark", ["nearby-row-numbers", "positions-count", "indices-count", "row-numbers",
+                                  "keypath-count"])
+def test_counts_and_row_numbers_are_not_served_numbers(mark: str) -> None:
+    """The review's M1: a count of served numbers, a row number, and a closure's `$0` a few lines below a
+    served one are not served numbers; the served `$0` itself still is (`served-dollar`)."""
+    line = _marked(f"// allowed: {mark}")
+    assert not [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+
+
+def test_a_served_fact_is_a_kind_of_its_own_and_d143_permits_only_it() -> None:
+    """The review's B3: the three D-143 places restate a served fact's number out of 100; a served count
+    or any other number there is arithmetic no ruling names."""
+    assert gate._flow_problem("Uncertainty.swift", "<arithmetic>.fact@5 * in scoreOutOf100") is None
+    assert gate._flow_problem("Uncertainty.swift", "<arithmetic>.number@5 * in scoreOutOf100") is not None
+    assert gate._flow_problem("Uncertainty.swift", "<arithmetic>.number@5 * in anchoredFact") is not None
+    assert gate._served_cases(gate._tree(FLOW_AST))[("ShapeValue", "number")] == "fact"
+
+
+def test_round_one_process_state_and_object_constants_in_a_sink_are_refused() -> None:
+    """The review's round-1 B1 (INV-66's listed forms): Foundation's process-wide state in a sink (the
+    main thread's and the main queue's names, the process name, the default time zone), and a constant
+    or a static another file holds whose declared type is a mutable container class `FOUNDATION_OBJECT`
+    lists, are refused where the sink reads them. Behind a widened type it is not held (gap G-1)."""
+    for phrase in ("Thread.main", "ProcessInfo.processName", "OperationQueue.main", "NSTimeZone.default"):
+        assert _refused_in("EngineClient.swift", phrase), phrase
+    assert _refused_in("EngineClient.swift", "reads `fixtureScreenBox`")
+    assert _refused_in("EngineClient.swift", "reads `box`")
+
+
+def test_round_one_twins_of_the_surface_are_refused() -> None:
+    """The review's round-1 B2 (INV-64's listed forms): the surface set through the wrapper's storage or
+    its binding, from an outcome a helper in another file builds, and the request method held as a
+    value: each refused. Round 2's twins are not (gap G-11)."""
+    assert _refused_in("ContentView.swift", "ContentView._task")
+    assert _refused_in("ContentView.swift", "used as a value")
+    assert _refused_in("Detail.swift", "builds RoutingOutcome")
+    assert _refused_in("Detail.swift", "extends `RoutingOutcome`")
+    assert len(_refused_in("ContentView.swift", "assigns `ContentView.task`")) >= 2
+
+
+def test_the_mutable_classes_url_initialisers_and_an_expression_by_name_are_refused() -> None:
+    """The review's M2 (#168's twins) and K1 (#241)."""
+    assert _refused_in("ContentView.swift", "NSMutableArray.init(contentsOf")
+    assert _refused_in("ContentView.swift", "NSExpression")
+
+
+def test_the_fixture_carries_the_five_rules_it_lacked() -> None:
+    """The review's M4 (#175 R3): the UIKit and CoreFoundation symbol lists, a path built outside its
+    files, a second @AppStorage, and the Release-only hook, each refused on the fixture, and each a rule
+    the self-test names."""
+    assert _refused_in("Detail.swift", "UIKit.UIPasteboard")
+    assert _refused_in("Detail.swift", "CoreFoundation.CFSocketCreate")
+    assert _refused_in("Detail.swift", "builds a path")
+    assert _refused_in("Detail.swift", "stores something outside the register")
+    released = gate.release_problems(gate.references(FLOW_AST))
+    assert any(line.startswith("ContentView.swift:") and "Debug-only UI test hook" in line for line in released)
+    assert {"the UIKit symbol list", "the CoreFoundation symbol list", "a path built elsewhere",
+            "a second @AppStorage", "the Release-only hook"} <= set(gate.FIXTURE_RULES)
+
+
+def test_the_text_tripwire_names_the_compiled_served_fields_on_the_fixture() -> None:
+    """The review's M3 (#169): the text derivation (`_served_numbers`, for the lanes with no Xcode) and the
+    compiled gate's `served_fields` name the same fields on the fixture, a served fact's enum payload and
+    a field typed as one included; and on the shipping client the text list holds the served facts."""
+    from .test_ios_client_contract import _served_numbers, _swift
+
+    compiled = {field for _, field in gate.served_fields(gate._tree(FLOW_AST))}
+    fixture = {p.name: _swift(p) for p in (ROOT / "scripts" / "client_decl_fixtures").glob("*.swift")}
+    text = _served_numbers(fixture)
+    assert text == compiled, (sorted(compiled - text), sorted(text - compiled))
+    assert {"whyFact", "tradeOffFact", "number", "number(_:)"} <= _served_numbers()
+
+
+def test_reflection_and_the_runtime_by_name_are_refused() -> None:
+    """Past the review's K1 (#241): `Mirror` reads any stored field by name, past the served-field flow
+    (G-2); the ObjectiveC runtime's associated objects carry the reader's words from the screen to code
+    a sink runs (G-1); and the runtime's class, method and selector functions reach code by name. The
+    client uses none of them, so each is refused outright."""
+    assert _refused_in("Arithmetic.swift", "Mirror")
+    assert _refused_in("ContentView.swift", "objc_setAssociatedObject")
+    assert _refused_in("Detail.swift", "objc_getAssociatedObject")
+    for symbol in ("NSClassFromString(_:", "NSSelectorFromString(_:", "class_getInstanceMethod(_:_:",
+                   "method_exchangeImplementations(_:_:", "Mirror.init(reflecting:"):
+        problem = gate._capability_problem("ContentView.swift", symbol, symbol)
+        assert problem is not None and "by name" in problem, (symbol, problem)
+
+
+# --- The M21-W3 Tester (docs/reviews/m21-wave-3-tester.md) ------------------------------------------------
+
+
+def test_the_self_test_requires_the_release_rule_in_each_release_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The M21-W3 Tester (the review's M4, G-10: "the Release configurations run their own rule on it"): with
+    the self-test's Release branch removed whole, its call and its expectation, every test and the self-test
+    passed, since nothing else asks for the Release-only hook's refusal. Here the rule is silenced, and the
+    self-test must say so in the two Release configurations and in no other. The committed dump stands in for
+    the compile, so this runs where there is no Xcode too. # covers REQ-GAP-001"""
+    monkeypatch.setattr(gate, "dump_ast", lambda sdk_name, flags, folder=gate.CLIENT: (FLOW_AST, 0))
+    assert gate.self_test() == []
+    monkeypatch.setattr(gate, "release_problems", lambda found: [])
+    broken = gate.self_test() or []
+    missed = sorted(line.split(")")[0] + ")" for line in broken if "Debug-only UI test hook was not refused" in line)
+    assert missed == ["(device, release)", "(simulator, release)"], broken
+
+
+def test_a_mac_without_the_toolchain_fails_by_the_name_its_platform_gives(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The M21-W3 Tester (#175 R1, G-10): the test above replaces `_host` itself, so a `_host` that misnames
+    the Mac (`platform.system().lower()`, which is "darwin") skipped the gate on the owner's Mac with every
+    test green. Here only the platform's own answer is replaced. # covers REQ-GAP-001"""
+    monkeypatch.setattr(gate, "dump_ast", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(gate.platform, "system", lambda: "Darwin")
+    assert gate.main() == 1, "the gate skipped on a Mac without its toolchain"
+    monkeypatch.setattr(gate.platform, "system", lambda: "Linux")
+    assert gate.main() == 0
+
+
+def test_a_sink_is_refused_the_command_lines_two_members() -> None:
+    """The M21-W3 Tester (D-180, the review's B1): `SINK_SWIFT_REFUSED` has no shape in the fixture (G-10), so
+    with it emptied every test passed. `CommandLine`'s arguments are process-wide state; a privacy sink reads
+    none, and a file that is no sink is not refused for them. # covers REQ-GAP-001"""
+    for sink in gate.SINK_FILES:
+        for symbol in ("CommandLine.arguments", "CommandLine.unsafeArgv"):
+            assert gate.problems({sink: {f"Swift.{symbol}"}}), (sink, symbol)
+    assert gate._sink_module_problem("ContentView.swift", "Swift", "CommandLine.arguments") is None
+
+
+def test_make_client_decls_runs_the_gate_and_keeps_its_status() -> None:
+    """The M21-W3 Tester (#175 R1, G-10): `main()` fails on a Mac without its toolchain, and `make
+    client-decls` is how `make check-fast` and `make check` reach it. With the recipe's line made
+    `-$(PY) ...`, make printed "Error 1 (ignored)" and passed, and every test stayed green. The recipe runs
+    the gate and nothing that could drop its status. # covers REQ-GAP-001"""
+    lines = (ROOT / "Makefile").read_text(encoding="utf-8").splitlines()
+    start = next(index for index, line in enumerate(lines) if line.startswith("client-decls:"))
+    recipe: list[str] = []
+    for line in lines[start + 1:]:
+        if not line.startswith("\t"):
+            break
+        recipe.append(line.strip())
+    assert [line for line in recipe if not line.startswith("@#")] == ["$(PY) -B scripts/client_decl_gate.py"], recipe
+
+
+def _without_subtree(ast: str, opening: str) -> str:
+    """The dump with the node whose line starts with `opening` removed, children and all."""
+    lines = ast.splitlines(keepends=True)
+    start = next(index for index, line in enumerate(lines) if line.lstrip().startswith(opening))
+    depth = len(lines[start]) - len(lines[start].lstrip())
+    end = start + 1
+    while end < len(lines) and len(lines[end]) - len(lines[end].lstrip()) > depth:
+        end += 1
+    return "".join(lines[:start] + lines[end:])
+
+
+def test_make_client_decls_fails_when_the_fixture_is_refused_otherwise_than_its_dump(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """The M21-W3 Tester's M2 (G-10): the self-test asked for one refusal per (file, phrase) and compared the
+    committed dump with the compile by its declarations only, so `keepAsked`'s `task = typed` (#188) taken
+    out of the compile left `make client-decls` green: another shape still carried its phrase. The self-test
+    compares the compiled fixture's refusals with the committed dump's, line for line. The committed dump
+    stands in for the compile, so this runs where there is no Xcode too. # covers REQ-GAP-001"""
+    compiled = _without_subtree(FLOW_AST, "(assign_expr type=\"()\" location=/x/ContentView.swift:232:")
+    assert compiled != FLOW_AST
+    monkeypatch.setattr(gate, "dump_ast", lambda sdk_name, flags, folder=gate.CLIENT: (compiled, 0))
+    broken = gate.self_test() or []
+    assert any("refused otherwise" in line for line in broken), broken

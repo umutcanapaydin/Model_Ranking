@@ -27,6 +27,9 @@ primary_region = "fra"
   # Concurrency is DECLARED rather than inherited: sync handlers run on AnyIO's thread pool, whose
   # default of 40 is a number nobody in this project chose. `hard_limit` below must equal it.
   MODEL_RANKING_MAX_CONCURRENCY = "8"
+  # #187 (M20-W5): requests one client may make per minute. A question is about three; a scraper
+  # past this is told to wait (429), so the traffic Fly bills stays bounded. /health is never limited.
+  MODEL_RANKING_RATE_LIMIT = "120"
 
 # The VM size stays DECLARED rather than defaulted: measured resident use is ~62 MiB serving a
 # 0.93 MiB database, and it grows with SQLite's page cache rather than with request count.

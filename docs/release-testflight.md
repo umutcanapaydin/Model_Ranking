@@ -10,8 +10,26 @@ date: 2026-10-07
 Your steps, in order. Everything the code could do is done: the image, `fly.toml`, the public
 artifact, the deploy script, the app's icon, privacy manifest and Release address. What is left
 needs your accounts, your card or your signing identity. **Deploy only after you have merged the
-release's pull requests (M19-W4, M19-W5 and the M19 closure) and the release's security verdict of
-record, `docs/reviews/release-security.md`, is PASS or MINOR (not BLOCKING).**
+release's pull requests and the release's security verdict of record,
+`docs/reviews/release-security.md`, is PASS or MINOR (not BLOCKING).** The first release was M19's
+(TestFlight build 1); the next is build 3, below.
+
+## Build 3 (M20), in this order
+
+1. **Merge** the M20 pull requests in order: #213 (the plans), #215, #217, #221, #224, #225, then the
+   M20 closure. The M20 closure security seat says the release verdict stands for build 3
+   (`docs/reviews/m20-closure-security-review.md`).
+2. **Deploy the engine first** (§1 steps 1, 5 and 6). From M21 on, let the Mac refresh once with the new
+   release before the deploy (§1 step 1): `web-dev`'s board (D-190) and the split DeepSeek releases (D-189)
+   arrive with the data. The deploy refuses data another release built, a dry run included (#198): it
+   says which release built the data, and `DEPLOY_ACCEPT_DATA_FROM=<that release>` deploys it anyway.
+   `unknown` accepts only a record that names no builder (one written before #198), and says so; a copy
+   with no record beside it, or a record nobody can read, is always refused. An app built for M20 against the old engine shows
+   no family list, and says nothing about it.
+3. **Check the families are served:** `curl -s https://model-ranking.fly.dev/v1/categories | grep -c
+   refined_board` must print a number above 0.
+4. **Check that Fly sets the client's address** (below, after the cost note).
+5. **Archive and upload build 3** (§2 steps 3 and 4). The build number is already 3.
 
 ## 1. The engine on Fly.io (once)
 
@@ -41,9 +59,33 @@ record, `docs/reviews/release-security.md`, is PASS or MINOR (not BLOCKING).**
    the hosted engine: `/health` names the build, a coding question gets real picks, and every
    surface answers or says why it cannot.
 
-**Cost.** Nothing limits how often the public engine is called, and Fly bills traffic out of it (a
-`/v1/boards` answer is about 0.5 MB). Fly has no billing alert and no spending cap, so look at the
-dashboard's usage page now and then once the app is shared; a rate limit is #187.
+**Cost.** Fly bills traffic out of the public engine (a `/v1/boards` answer is about 0.5 MB), and
+has no billing alert and no spending cap. Since M20-W5 (#187) the engine answers one client at most
+`MODEL_RANKING_RATE_LIMIT` times a clock minute (120 in `fly.toml`; `/health` is never limited). A
+client is one IPv4 address, or one IPv6 /64.
+- A `/v1/boards` answer (about 0.5 MB, which a phone needs once a day) counts as thirty requests,
+  in a window of its own so standings never block a question (#228), so one address draws at most
+  four a minute: about 2 MB a minute, twice that across the turn of a
+  minute (a fixed window), about 3 GB a day kept up all day. Every other answer is a few KB.
+- Many addresses multiply it: the limit is per address, not a cap on the bill. One IPv6 /48, which
+  one person can rent, holds 65,536 /64s, so to the engine it can look like that many clients.
+  Check Fly's current outbound price on its pricing page to turn gigabytes into money.
+- The limit is per Fly machine and kept in memory. It fails open: if it breaks, the request is
+  served and the engine logs a warning.
+
+Look at the dashboard's usage page now and then once the app is shared.
+
+**After the first deploy with the limit, check that Fly sets the client's address** (the W5 review's
+R1): a forged `Fly-Client-IP` header must not give each request a new address. From any computer:
+
+```
+cd ~/Desktop/ILGAR/model_ranking && seq 1 250 | xargs -P 25 -I{} curl -s -o /dev/null -w "%{http_code}\n" -H "Fly-Client-IP: 198.51.100.{}" https://model-ranking.fly.dev/v1/budgets | sort | uniq -c
+```
+
+The 250 requests go 25 at a time, so they finish in a few seconds, well inside a minute. The count
+of `429` must be above 0: every request came from your one address, whatever the forged header said.
+If every answer is `200`, Fly passed the forged header through: stop sharing the app and say so in
+#187. (The repo review's M2: one request at a time could take longer than the window.)
 
 **After each deploy, log out:** `fly auth logout`. While you are logged in, a coding agent on this
 Mac could deploy or destroy the app (#190).

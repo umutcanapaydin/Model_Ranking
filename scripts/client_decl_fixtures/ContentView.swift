@@ -1,6 +1,7 @@
 // #51, #58: a fixture `client_decl_gate.py --self-test` compiles. It must be REFUSED: a view that
 // opens a connection, and a view that decodes a URL out of text (the security slice's S1).
 import Foundation
+import SwiftUI
 
 func fixtureViewFetches(_ address: URL) async throws -> Data {
     try await URLSession.shared.data(from: address).0
@@ -180,4 +181,110 @@ func fixtureCompound(_ standing: Standing) -> Int {
 // The second W2 review's M4: Foundation's `NSArray` sort, keyed on a served number. REFUSED.
 func fixtureO2SortsAnNSArray(_ standings: [Standing]) -> [Any] {
     (standings.map(\.position) as NSArray).sortedArray(comparator: { _, _ in .orderedSame })
+}
+
+// #168: three more initialisers that load a URL, an https one included. REFUSED as the network
+// outside EngineClient.swift (D-126, INV-63).
+func fixtureViewReadsAnAddressAsText(_ address: URL) -> String? {
+    try? String(contentsOf: address, encoding: .utf8)
+}
+
+func fixtureViewReadsAnAddressAsNSData(_ address: URL) -> Data? {
+    NSData(contentsOf: address) as Data?
+}
+
+func fixtureViewParsesAnAddress(_ address: URL) -> Bool {
+    XMLParser(contentsOf: address)?.parse() ?? false
+}
+
+// #174, #188 (INV-64 on the compiled module): the screen's request. ALLOWED: the surface it holds,
+// assigned only a routed outcome's surface or the one chosen from the engine's list, and its constant
+// budget.
+struct RoutingOutcome {
+    let categoryID: String
+}
+
+struct ContentView {
+    @State var task = "coding"
+    private let budget = "unlimited"
+    let client = EngineClient()
+
+    func load() -> URL {
+        client.recommendation(task: task, budget: budget)
+    }
+
+    mutating func apply(_ outcome: RoutingOutcome) {
+        task = outcome.categoryID
+    }
+
+    mutating func select(_ id: String) {
+        task = id
+    }
+
+    // The M19 closure's S2: what the reader typed sent as the budget. REFUSED.
+    func loadAsked(_ asked: String) -> URL {
+        let budget = asked.isEmpty ? self.budget : asked
+        return client.recommendation(task: task, budget: budget)
+    }
+
+    // The typed question kept as the surface the next request sends. REFUSED.
+    mutating func keepAsked(_ typed: String) {
+        task = typed
+    }
+
+    // The M21-W3 review's B2: four twins of the line above. REFUSED, each: the wrapper's storage, its
+    // binding, an outcome a helper in another file builds, and the request method held as a value.
+    func keepAskedThroughStorage(_ typed: String) {
+        _task.wrappedValue = typed
+    }
+
+    func keepAskedThroughBinding(_ typed: String) {
+        let bound = _task.projectedValue
+        bound.wrappedValue = typed
+    }
+
+    mutating func keepAskedThroughAHelper(_ typed: String) {
+        let outcome = RoutingOutcome.fixtureEcho(typed)
+        task = outcome.categoryID
+    }
+
+    func askThroughAValue(_ typed: String) -> URL {
+        let ask = client.recommendation
+        return ask(typed, budget)
+    }
+}
+
+// The M21-W3 review's B1: a mutable Foundation container held in a constant, here and as a static,
+// which the sink reads. REFUSED where the sink reads them.
+let fixtureScreenBox = NSMutableString()
+
+enum FixtureShelf {
+    static let box = NSMutableDictionary()
+}
+
+// The M21-W3 review's K1 (#241): an expression evaluated by name reaches any class. REFUSED.
+func fixtureViewEvaluates(_ typed: String) -> Any? {
+    NSExpression(format: typed).expressionValue(with: nil, context: nil)
+}
+
+// The M21-W3 review's M2: the mutable classes' own URL initialisers. REFUSED as the network.
+func fixtureViewReadsAnAddressAsAMutableArray(_ address: URL) -> NSMutableArray? {
+    NSMutableArray(contentsOf: address)
+}
+
+// The ObjectiveC runtime's associated objects: the screen hangs the reader's words on a shared
+// object, and code a sink runs takes them off it (Detail.swift). REFUSED by name, both.
+func fixtureViewAssociates(_ typed: String) {
+    objc_setAssociatedObject(Bundle.main, "q", typed, .OBJC_ASSOCIATION_RETAIN)
+}
+
+// The M21-W3 review's M4: the launch arguments, a Debug-only hook, compiled into Release. REFUSED in the
+// Release configurations only.
+func fixtureViewReadsTheLaunch() -> [String] {
+    ProcessInfo.processInfo.arguments
+}
+
+// #175 R3: text into shared storage another app or the system can read. REFUSED (FORBIDDEN).
+func fixtureViewKeepsTheQuestionInDefaults(_ typed: String) {
+    UserDefaults.standard.set(typed, forKey: "q")
 }

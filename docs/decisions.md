@@ -636,6 +636,8 @@ surface leads, which is a public-contract change and needs a superseding ADR and
 
 ---
 
+**Amended by D-124 (2026-08-18)**: see D-124; the pointer was added at M21-W4 (the review's M6, #200).
+
 ## D-116 — Deploy target: Fly.io, with the evidence database as a shipped artifact (closes OQ-3)
 
 **Status:** ratified — the owner chose Fly.io on 2026-08-15 and it was recorded in
@@ -866,6 +868,8 @@ should be restored rather than left optional by inertia; or when a second source
 which would mean this is a pattern rather than an incident.
 
 ---
+
+**Amended by D-135 (2026-08-25)**: see D-135; the pointer was added at M21-W4 (the review's M6, #200).
 
 ## D-122 — Review depth is calibrated by what the code can get WRONG, not by wave number
 
@@ -1712,6 +1716,8 @@ the rounding concession above. That moves the answer payload and is therefore a 
 
 **Amended by D-181 (2026-10-06)**: the arithmetic on the margin and the scores this ADR publishes is checked on the compiled module, not by spelling; `Uncertainty.swift` stays the one file allowed it (added at the M19 closure, the repo review's M10).
 
+**Amended by D-160 (2026-09-23)**: see D-160 (its arithmetic permission); the pointer was added at M21-W4 (the review's second round, M5, #200).
+
 ## D-139 — A second benchmark older than 90 days, or undated, does not upgrade a coverage claim
 
 **Status:** accepted · **Date:** 2026-09-15 (ruled 2026-09-06; implemented in `3440abe`) ·
@@ -1770,6 +1776,8 @@ is still in the payload, and M14's detail screen is where it can return with its
 **Revisit when:** ECI publishes a ceiling or a readable unit, or the detail screen ships.
 
 ---
+
+**Amended by D-143 (2026-09-18)**: see D-143; the pointer was added at M21-W4 (the review's M6, #200).
 
 ## D-141 — A HIGH wave owes its pulled-forward security pass, and its author cannot waive it
 
@@ -1942,6 +1950,10 @@ Recorded so the trade is visible rather than forgotten.
 ECI's anchor cannot be defended.
 
 ---
+
+**Amended by D-146 (2026-09-20)**: see D-146; the pointer was added at M21-W4 (the review's M6, #200).
+
+**Amended by D-162 (2026-09-24)**: see D-162; the pointer was added at M21-W4 (the review's M6, #200).
 
 ## D-144 — The optional-source exception belongs to the upstream, not to one board of it
 
@@ -2163,6 +2175,8 @@ The candidate-count sizing stays for the boards without published intervals. No 
 
 ---
 
+**Amended by D-159 (2026-09-23)**: clause 1 stays the rule; each floor's value is computed by the build from its board instead of kept by hand in `categories.py` (added at M21-W4, #200).
+
 ## D-149 — One application: the engine refreshes itself, and the app can ask it to
 
 **Status:** **accepted by the owner 2026-09-22** (in session, at M15-W4) · **Date:** 2026-09-22 ·
@@ -2206,6 +2220,8 @@ rate limit and a place in the security review.
 scheduler inside a server that can be scaled to zero or to several copies behaves differently.
 
 ---
+
+**Amended by D-151 (2026-09-22)**: see D-151; the pointer was added at M21-W4 (the review's M6, #200).
 
 ## D-150 — Two controls reviewed at their third acceptance: the Swift floor, and a fact `/v1` does not carry
 
@@ -2458,6 +2474,8 @@ itself within seconds, the same way as at its limit (the W6 review's M1). "A rea
 seconds" was true when written; with M17's boards a slow night is bounded by the budget, not by the
 kill.
 
+**Amended by D-170 (2026-09-29)**: clause 2 -- the engine runs as a launchd service, from a deployed release of `main` (added at M21-W4, #200).
+
 ## D-155 — The project runs on DevFlow v6.0
 
 **Status:** **accepted by the owner 2026-09-23** (in session, choosing each option below) · **Date:**
@@ -2560,6 +2578,8 @@ leaving it to branch protection anyway, is there a need to ask?"):*
    left to branch protection on `main`, which the owner sets.
 
 ---
+
+**Amended by D-161 (2026-09-23)**: see D-161; the pointer was added at M21-W4 (the review's M6, #200).
 
 ## D-156 — Every source carries its last good data for 30 days, judged from when it last arrived
 
@@ -2711,6 +2731,10 @@ length bound.
 
 ---
 
+**Amended by D-189 (2026-10-09)**: clause 2 -- a curated rule refuses a fine-tune's name (`ft:`) for its reason, as the derive path does (#165).
+
+**Amended by D-166 (2026-09-25)**: a moving, undated API alias never creates a derived model (added at M21-W4, #200).
+
 ## D-158 — The nightly refresh fetches the Epoch bundle itself
 
 **Status:** accepted -- the owner ruled the direction and its clock on 2026-09-23 (M16-W4 plan,
@@ -2854,6 +2878,8 @@ D-126, the same request a reader's own tap on that surface makes. The question's
 refinements and the reader's removals never leave the device.
 
 **Amended by D-181 (2026-10-06)**: clause 2 (the combination does arithmetic on positions only, in `Combine.swift`) is checked on the compiled module, through the names D-181 lists; gap G-2 holds the rest (added at the M19 closure, the repo review's M10).
+
+**Amended by D-168 (2026-09-28)**: the "intent" wording -- the question selects its boards as a surface plus declared refinements (added at M21-W4, #200).
 
 ## D-161 — The project runs on DevFlow v6.4, and session commits carry the owner's identity
 
@@ -3149,6 +3175,8 @@ release and still derives. A curated rule still takes a `-latest` name it matche
 
 **Amended by D-173 (2026-10-04)**: clause 8 -- a `-latest` token followed by a word names no release; followed by a date or a version (`v2`) it does (#48).
 
+**Amended by D-189 (2026-10-09)**: a retired id its maker reroutes to a newer model is listed as a moving alias, with its retirement and where it now routes (#164).
+
 ## D-167 — The phone holds every board's standings as positions, and combines only what every chosen board ranks
 
 **Status:** accepted -- **ruled by the owner 2026-09-25** (asked in Turkish, with explanations: the
@@ -3215,6 +3243,8 @@ distance between models shown, which would need scores and a new ADR under D-105
 **Amended by D-173 (2026-10-04)**: `/v1/boards` is built once per artifact and compressed on request (clause 5), and boards no question selects stay published (clause 6).
 
 **Amended by D-181 (2026-10-06)**: clause 4's two named permissions, each for one file, are checked on the compiled module: a served number is any numeric value a decoded type stores, found by the compiler, never listed by hand, and it is followed through the names D-181 lists; gap G-2 holds the rest (added at the M19 closure, the repo review's M10).
+
+**Amended by D-188 (2026-10-08, proposed)**: clause 3 -- a surface's family is combined by mean percentile position, a model kept when half its boards rank it, not only the models every board ranks (D-188 clauses 2 and 3); the D-167 path stays for an engine that names no family.
 
 ## D-168 — The question selects its boards as a surface plus declared refinements
 
@@ -3310,6 +3340,8 @@ owner rulings of the same day, asked in Turkish.
    question leaves the device". Since D-126 the surface the question routes to is sent as `task` of
    `/v1/recommendations`: the same request a reader's own tap on that surface makes. The question's
    text, its refinements and the reader's removals never leave the device.
+
+**Amended by D-188 (2026-10-08, proposed)**: clause 4 -- where the on-device model did not read the question, the answer plan reads its refinements from the words (D-188 clause 6); the routing outcome still carries none. Clause 6 (#54, no threshold) -- a family list keeps a model ranked by half its boards (D-188 clause 2). Clause 7 -- the combined list is the default answer, a family of one board the cards (D-188 clause 5). Clause 1 -- a refinement takes the place of its vote's board and never joins beside it, so of a language and a domain the language stands (D-188 clause 6).
 
 ## D-169 — A question that is not a model search gets a guiding note, not a ranking
 
@@ -4022,6 +4054,19 @@ carries the question off the device or into its caches with every gate passing.
 **Revisit when:** a third sink appears (a new route or a new store), or Swift can admit exactly two
 files to a declaration.
 
+**Note (M21-W3, #172, #85, #170, #174, #188; the wave's review, rounds 1 to 4):** the sink rules
+gained shapes in the gate's fixture (`scripts/client_decl_fixtures/`), which defines what they refuse.
+The compiled gate refuses the shapes its fixture holds, each as written there; the same form written
+another way (bound to a name first, split over lines, behind a widened type) is not held, and any
+other form is not held: see INV-66 in `docs/security-invariants.md` (G-1, #242), and G-12 (#241) for
+what reaches a value by name. The standings store dates what it keeps by its own clock (#170). The
+request rule is INV-64's (G-11, #244).
+
+**Note (M21-W4, #248):** "What it does not do" above says the routes two reviews found are "each
+named and refused now". That is more than the gate holds: each is refused in the shapes the fixture
+holds, as written there, and any other form is not held: see INV-66 in `docs/security-invariants.md`
+(G-1, #242). The cited tests are renamed to what they hold (D-192 clause 6).
+
 ## D-181 — The phone's arithmetic and ordering rules are checked on what the compiler resolves
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
@@ -4100,6 +4145,22 @@ included, so `answers.filter { $0.eligibleCount > 0 }.count + 1` is refused (the
 
 **Revisit when:** a file needs arithmetic on a served number a ruling does not yet name, or #171 or
 #173 is taken.
+
+**Note (M21-W3, #171, #173, #169; the wave's review, rounds 1 to 4):** both are taken: the arithmetic
+rule gained shapes in the gate's fixture (`scripts/client_decl_fixtures/Arithmetic.swift`), which
+defines what it refuses. The compiled gate refuses the shapes its fixture holds, each as written
+there; the same form written another way (bound to a name first, split over lines, behind a widened
+type) is not held, and any other form is not held: see INV-76 in `docs/security-invariants.md` (G-2,
+#242). A served fact is a kind of its own that only the three D-143 places may restate. A named
+closure or loop parameter is still matched by name up to five lines below its binding, so the gate
+can refuse an unrelated binding of the same name, more than it should (round 2's M1; none on the
+shipping client). The text tripwire derives the served fields the compiled gate does, held equal on
+the fixture (#169).
+
+**Note (M21-W4, #248):** "What it does not do" above says the rule "holds the operators, methods and
+names clauses 1 to 3 list". It holds them in the shapes the fixture holds, as written there; the same
+operator written another way is not held: see INV-76 in `docs/security-invariants.md` (G-2, #242).
+The two text pins it cites are renamed to what they hold (D-192 clause 6).
 
 ## D-182 — Each pick carries its model's id on `/v1`, and the app keys its cards on it
 
@@ -4194,6 +4255,8 @@ offline profile; #108's guard reads two spellings, not a typealias or a subclass
 **Revisit when:** the owner applies #122's CI patch (`NEEDS["offline"].in_ci` becomes `True`, and the
 budget falls by one), or a check here fires on correct input.
 
+**Amended by D-192 (2026-10-10)**: the close checks also read the commit range's history, the process log and the ledger for skips and the hooks (D-192 clauses 2 and 3).
+
 ## D-184 — Reading a question, the second round: a question of fact is a doubt, and the image rule stays on vision
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
@@ -4263,6 +4326,8 @@ on-device model reads a question of fact as something else.
 
 **Amended by D-187 (2026-10-08)**: clause 3's image rule is retired: a request to make or change an image is answered from `vision`.
 
+**Note from D-191 (2026-10-09)**: #194's change to clause 1 (the question of fact's model names from the registry) was tried at M21-W2 and taken out after three verdicts; clause 1 stands as written, with its eleven brands.
+
 ## D-185 — The first release: a public artifact inside the hosted image, and the app ready for TestFlight
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
@@ -4330,6 +4395,8 @@ a paid launch (then SWE-bench must go whatever else changes, and the table goes 
 
 **Amended by D-186 (2026-10-08)**: clause 3's table is not applied while the app is on TestFlight: the hosted engine serves every source; the table returns before production.
 
+**Amended by D-190 (2026-10-09)**: `web-dev` ranks on LMArena's own WebDev board (CC-BY-4.0), so the public artifact keeps the surface while `epoch_webdev` stays in clause 3's table (#185).
+
 ## D-186 — On TestFlight the hosted engine serves every source; the licences are settled before production
 
 **Status:** accepted -- decided by the owner on 2026-10-08, from the TestFlight build ("remove D-185;
@@ -4392,3 +4459,299 @@ it routed 22 and 26 of 80 coding questions right and declined 41 of each.
 board's ranking, with its board named, not a statement that nothing ranks it. **Revisit when:** the
 combination of boards for a task none ranks is built (the owner's next step: the on-device model
 composing a list from the boards).
+
+**Amended by D-191 (2026-10-09)**: clause 1 -- a comparison of any ranked families' names is answered from `everyday` (#206); the Turkish signals before the embedding (#218) and the Turkish general ask (#222) were tried and taken out after three verdicts.
+
+**Amended by D-188 (2026-10-08, proposed)**: clause 1 -- a short question made only of model names, their tier names and Turkish particles ("claude mu chatgpt mi") is a general question before the embedding is tried, since the embedding reads it as English (#206, M20-W3; `CategoryHints.comparesModelsOnly`).
+
+## D-188 — Our own list for every question: a family of boards per task, combined by position
+
+**Status:** proposed -- the agent's proposal for the owner's goal of 2026-10-08 ("our biggest
+strength": the app composes its own list per question from many boards, owner, translated from
+Turkish); approved, amended or refused by the owner with the M20 plan (`docs/plans/m20-plan.md`) ·
+**Date:** 2026-10-08 · **Would amend** D-167 clause 3, D-168 clauses 4, 6 and 7 (clause 6 is the owner's
+#54 ruling, "no threshold": a family list keeps a model at half its boards) and D-187 clause 1 (#206) ·
+from #209, #210, #211, #212.
+
+**Context.** The default answer ranks one board per surface. The phone's combined list keeps only the
+models every chosen board ranks (D-167 clause 3) and is built only when the on-device model picks a
+refinement. The engine serves 63 boards; coding alone has eight related ones.
+
+**Decision (proposed).**
+1. **A family per surface.** The engine declares, for every surface, every board that measures that
+   task, the primary first, and publishes it on `/v1/categories`; each board's evidence date is
+   already on `/v1/boards`. The phone never keeps its own copy. A family holds at most one board of
+   each source (Arena's slices are facets of one vote); two publishers of one benchmark are two boards
+   (D-168 clause 5). Every other board stands outside every family with its reason: a language or a
+   domain the question adds as a refinement, or a facet no surface measures. Each search surface keeps
+   its one board: Arena's search and search-factuality boards rank the same models from one vote (the
+   W1 Tester's M1). The families (`app.workflows.families`, held equal to this table by a test):
+
+   | surface | family, the primary first |
+   |---|---|
+   | `coding` | `swebench`, `epoch_swe_bench_verified`, `aider`, `arena_text_coding` |
+   | `agentic-coding` | `epoch_deepswe_external`, `epoch_terminalbench`, `arena_agent` |
+   | `assistant` | `arena` |
+   | `everyday` | `epoch_eci`, `arena`, `epoch_mmlu` |
+   | `expert` | `epoch_gpqa`, `arena_text_expert`, `epoch_mmlu` |
+   | `mathematics` | `epoch_aime`, `epoch_frontiermath`, `epoch_frontiermath_t4`, `arena_text_math` |
+   | `computer-use` | `epoch_terminalbench`, `arena_agent` |
+   | `abstract` | `epoch_arc_agi`, `epoch_chess`, `epoch_mystery` |
+   | `web-dev` | `arena_webdev`, `arena_text_coding` |
+   | `document` | `arena_document`, `arena_text_longer_query` |
+   | `factuality` | `arena_factuality`, `epoch_simpleqa` |
+   | `vision` | `arena_vision` |
+   | `search` | `arena_search` |
+   | `search_factuality` | `arena_search_factuality` |
+
+2. **Coverage.** A model enters the combined list when at least half of the family's boards rank it,
+   rounded up, and at least one. With two boards, either is enough; "and at least two" was dropped after
+   the W1 review measured it: on the served boards it turned a two-board family into the intersection
+   this decision replaces (`computer-use`: 3 models where its primary board ranks 43). Measured on
+   2026-10-08 (the served `/v1/boards`, the W1 families): `coding` 58 models (its primary 40),
+   `agentic-coding` 18 (18), `everyday` 130 (155), `expert` 124 (154), `mathematics` 125 (144),
+   `computer-use` 85 (43), `abstract` 80 (77), `web-dev` 215 (94), `document` 197 (34), `factuality` 134
+   (116); `assistant`, `vision`, `search` and `search_factuality` are one board each (the search figures
+   first measured, 28 (28, 27), were for a family that held both search boards, before the W1 Tester's M1).
+3. **Place.** A model's place is the mean of its percentile positions, (position - 1) over (the
+   board's size - 1), across the boards that rank it, positions only and never a score (D-105). Ties
+   share a place and are broken by model id. A board that ranks no model, or that the standings lack
+   (an outage, a source left out), is left out of the family's count.
+4. **Staleness.** Every board counts the same. A board whose newest evaluation is more than 90 whole
+   days old, or that publishes no date, is named under the list in one small line, never as a warning
+   over it. A half weight was the first proposal; the W2 review measured it on the served boards:
+   every board but Arena's is older than 90 days or undated, so Arena alone would have decided
+   `coding`, `agentic-coding`, `everyday`, `computer-use` and `web-dev`, the one-source dominance
+   clause 1 forbids. A shared position counts as that position (the competition ranking a board
+   publishes).
+5. **The default.** The combined list is the default answer on every surface: to every question asked,
+   and on every surface the reader chooses (from "Change" or an alternative, read from no words). The
+   launch screen, which answers no one yet, shows the primary boards' picks. The primary board's own
+   answer (the picks and their price notes) is one tap away. Ruling A holds: coding shows two
+   families, both or neither, neither leading. The list says which boards built it, each with its
+   date, and how many of them a model needs (the W4 review's B1). A family of one board (`vision`,
+   `search`, `search_factuality`, and `assistant` with no refinement) is that board's own answer, the
+   cards (the M20 repo review's M6).
+6. **Refinements from the words (amends D-168 clause 4; the W3 review's B1).** Where the on-device
+   model did not read the question (it is off, or another tier answered), the words choose the
+   refinements it would have: `Refinements.read`, in English and Turkish, from words with one reading
+   only, and at most one of each kind, as the model's schema has one field per kind (the first each
+   the question names). An English language name counts only as the task's language ("in French",
+   "learn Spanish", "Korean translation"), since it is also a nationality ("German cars", "in Chinese
+   stocks"); a domain word with a second meaning is not read (law, health, a novel approach). The
+   answer plan is the one reader, a gate holds it, and `familyBoards` keeps only what the surface
+   allows, languages first. The routing outcome still carries refinements only from
+   `ModelOutputBoundary`. Where the model read the question, its choice stands, none included.
+   **One vote, one board (the M20 repo review's M1, the agent's ruling under the owner's standing
+   instruction of 2026-09-29).** Every refinement is a slice of Arena's text vote, so it takes the
+   place of the family's board of that vote, which `/v1/categories` names as `refined_board`; it never
+   joins beside it, where one vote would count twice for the coverage and for the mean (clause 1). Of
+   a language and a domain, the language stands. `assistant` in Spanish is the Spanish board's list.
+   A gate holds every family, with every refinement it allows, to one board a vote.
+
+**The alternative.** Keep "every board ranks it" over the two or three boards most models share. It is
+simpler, but a new model ranked by two boards out of eight would never appear.
+
+**Revisit when:** the owner's judgement of a sample of answers (#226) prefers the primary board's own
+answer to the family list on more questions than ours (`docs/judgement-sheet.md`; `revisit` in
+`scripts/judgement_sheet.py`, M21-W2). The labelled set of #195 cannot show it: it is labelled for the surface, not
+for the best model (M20-W5, `docs/research/m20-w5-family-probe.md` §4; the M20 repo review's M5).
+
+**Amended by D-190 (2026-10-09)**: clause 1's table -- `web-dev`'s family is `arena_webdev`, `arena_text_coding`; Epoch's copy of the same board stands outside (#185).
+
+## D-189 — What a model is: a release its maker names, and an id that keeps its meaning
+
+**Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 (take
+the recommended option; the owner may overrule) · **Date:** 2026-10-09 · **Amends** D-166, D-157
+clause 2 · from #163, #164, #165.
+
+**Context.** Three defects of one kind put one model's score or price on another (M19-W1's findings):
+- DeepSeek V3's rule gathered V3-0324's rows, which boards spell `(0324)` or `(Mar 2025)`, so V3 was
+  ranked on V3-0324's scores; R1's rule did the same with R1-0528, and Arena ranks both beside R1.
+- xAI retired `grok-code-fast-1` and `grok-4-1-fast-reasoning` on 2026-05-15 and now routes them to
+  newer models, so their prices are the new models' while their scores are the old ones'.
+- A fine-tune's price alias (`ft:gpt-4o-...`) reached its base model's price median through a
+  curated rule, at about twice the base price.
+
+**Decision.**
+1. **A model is a release its maker names.** Dated snapshots its maker serves under one model name
+   (GPT-4o's, the Gemini 2.5 Pro previews) are that model, as D-182's one-release rule has it. A
+   release the maker publishes under a name of its own (DeepSeek-V3-0324, DeepSeek-R1-0528) is its
+   own model, whichever way a board spells its date; a curated rule for it precedes its
+   predecessor's, which excludes it.
+2. **An id that changes meaning moves.** A retired id its maker reroutes to another model is a
+   moving alias (D-166): it derives no model, and its rows are dropped and counted. Each is listed
+   with its retirement and where it routes. Its historical scores are lost, because a price row
+   carries no date to keep only the prices from before the retirement.
+3. **A fine-tune is its owner's model.** `canonicalize` refuses a name whose last route segment
+   starts with `ft:`, for its reason (`fine-tune`), as D-157 already refuses it on the derive path;
+   it is counted with the modality guard's refusals, never as drift.
+
+**Applied (corrected after the M21-W1 review's B1 to B3).**
+- **DeepSeek** V3-0324 and R1-0528, in every spelling a board uses (`(0324)`, `(Mar 2025)`, `(0528)`,
+  Epoch's `(May 2025)`). A distill or a small size after the release (`DeepSeek-R1-0528-Qwen3-8B`) is
+  another model, named by its own rule.
+- **Mistral Large**, which Arena ranked five times as one model: Large 1.0 (24.02), 2 (24.07), 2.1
+  (24.11), 3 (25.12) and 4, as Mistral's model page names them (docs.mistral.ai/getting-started/models,
+  read 2026-10-09). The undated `mistral-large` moves (D-166).
+- **Claude Sonnet 4.6**, which four boards ranked as Sonnet 4.
+- **GLM-4.6V**, the vision model, apart from GLM-4.6, and GLM-4.6V-Flash apart from both, in every
+  spelling (Epoch's `glm-4.6v_32K` included).
+- **R1's namesakes**: R1-Zero, R1-Lite-Preview and the R1T Chimeras are not R1, and Volcengine's
+  `deepseek-r1-250528` is R1-0528. A one-digit minor version after Mistral Large 3 or 4, as after
+  Sonnet 4, is another release.
+
+**What stays gathered, and why.** GPT-4o's dated snapshots and the Gemini 2.5 Pro and 2.5 Flash previews
+are snapshots of one model name their makers serve, so they stay one model; a board that ranks two of them
+is read at the model's best row (D-182). The first version of this paragraph said no board ranked a
+gathered family twice. That was false: Arena ranks GPT-4o's snapshots apart. **The query that finds the
+cases**, kept in `docs/research/m21-w1-first-nights-after-m19-w1.md`, lists each curated model a board
+ranks under two release names; the candidates it found that are not split here (a size or a name the
+maker publishes apart, whose maker's page this wave did not read) are #232's.
+
+**Consequence.** Model ids move on the first night after the release (`deepseek-r1-0528` is new; V3's
+rows split): D-179's board guards count those links as changed rows, as they did for #129's joins.
+
+**Revisit when:** a maker names a release apart that a board spells with a date this rule does not
+read, or a rerouted id's historical scores are needed (then pricing rows need a date).
+
+## D-190 — `web-dev` ranks on LMArena's own WebDev board
+
+**Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 · **Date:**
+2026-10-09 · **Amends** D-185 (what the public artifact can serve), D-188 clause 1 (the families table) ·
+from #185.
+
+**Context.** `web-dev`'s only board was Epoch's copy of the WebDev Arena leaderboard. Epoch cites arena.ai,
+whose site terms D-185 read as personal or internal business use, so its licence table keeps the copy off a
+public artifact, and the surface would go dark on the hosted engine once the table applies (D-186 empties it
+on TestFlight). LMArena publishes the same board in `lmarena-ai/leaderboard-dataset` (the `webdev` config)
+under the CC-BY-4.0 grant the engine's other Arena boards use.
+
+**Decision.**
+1. `arena_webdev` is declared as an Arena board (`ARENA_BOARDS["webdev"]`, optional as every Arena board is,
+   D-121) and is `web-dev`'s primary board, credited as the dataset is.
+2. Its thresholds are measured on the board, not carried over: `scripts/calibrate_board.py --config webdev`
+   on 2026-10-08 (`docs/research/m21-w1-webdev-calibration.json`): 140 rows, 91 ranked, a close call of 9.3
+   Elo and a window of 37.3 Elo (D-148's rules).
+3. `web-dev`'s family is `arena_webdev` and `arena_text_coding`. Epoch's copy is one vote with LMArena's
+   board, so it stands outside (D-188 clause 1), and stays in D-185's table.
+
+**Consequence.** The first refresh after the release adds the board. Until then the surface has no
+evidence on an artifact built by an older release, so the hosted engine is deployed after the owner's Mac
+has refreshed once (the deploy's stamp names the release that built the data, #198).
+
+## D-191 — A comparison of model names is general; the wave's three reading rules were taken out after three verdicts
+
+**Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 (take
+the recommended option, M21's plan approved with M20's), after two review rounds and a Tester
+(`docs/reviews/m21-wave-2-review-round-1.md`, `docs/reviews/m21-wave-2-review.md`,
+`docs/reviews/m21-wave-2-tester.md`) · **Date:** 2026-10-09 · **Amends** D-187 clause 1 · from #206; #194,
+#218 and #222 stay open (M21-W2).
+
+**Context.** On M20-W5's held-out set, 8 of 71 searches fell to "not measured" on a device without
+Apple Intelligence, all of them Turkish (#222). A short Turkish question is not confidently Turkish to
+the language recogniser, so the English embedding guesses a surface (#218). The fact doubt leaves a
+search alone only when it names one of eleven brands, so a search naming another ranked model is asked
+about (#194).
+
+**Decision.**
+1. **What ships: a comparison of model names is general (#206).** A question made only of ranked
+   families' names, their tiers and Turkish particles (`nemotron mu glm mi`) is answered from `everyday`
+   by the wording tier itself (`CategoryHints.comparesModelsOnly`).
+   - The names are every family the registry names (`registry.family_words`, written to
+     `ModelFamilies.swift` and held equal byte for byte), not twelve brands.
+   - It is narrow by its shape: every word must be a name, a tier, a particle or one letter, so
+     `kimi mi geldi` ("did some come?") is none.
+   - The words the router reads hold letters only, so `o3 mü o4 mü` is not read here; it reaches the
+     embedding, which is #218's.
+2. **Taken out after three verdicts, as M19's image rule was.** Each review found the same class
+   again. Each rule is back to its state at `972b55e`, and its issue stays open with the measured state.
+   - **#194, a ranked model's name in the fact doubt.**
+     - Round 1: a version rule. Its versions spelled with a letter missed Kimi K2, and the words with a
+       second meaning (nvidia, o3, glm) were read as models.
+     - Round 2: versions only, with no word about cost or making. It read "who makes llama" as a question
+       of fact, and missed "llama3" and the Turkish forms.
+     - The Tester: an everyday word as a served version ("step 3", "command a").
+   - **#218, the Turkish signals before the embedding.**
+     - Round 1: a German `ü` and an English "MI" were read as Turkish.
+     - Round 2: a capitalised "Kim" or "NE" was read as Turkish, and a particle typed twice counted once.
+     - The Tester: one Turkish-only letter sent an English search to "not measured" (an email to
+       `Çağla`, a trip from `İzmir`), and an English "mu" typed twice was read as Turkish.
+   - **#222, the Turkish general ask.** Taken out at round 2: its task words have a second reading
+     (summer, a printer, a student, boots, a model aircraft).
+
+**Measured** (`docs/research/m21-w2-reading-probe.md` §8; the wording tier, counts only):
+- At the head, every one of the 78 held-out rows reads as at `972b55e`: 44 right, 8 of 71 searches not
+  measured (all Turkish), none given the note. The kept comparison rule moves none of them.
+- The model tier was measured only before the reviews (§2).
+
+**Revisit when:** a fresh held-out set (#237) is written, which is where a fourth attempt at #194, #218
+or #222 starts, with only words that have one reading; or the owner rules on the four core brands'
+second readings (#238).
+
+## D-192 — The close checks read the history, and the records may not say more than a gate holds
+
+**Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29; the
+hook changes it names are the owner's to approve · **Date:** 2026-10-10 · **Amends** D-183 (what a wave
+sees before it pushes) · from #200, #201, #202, #203, #183, #182, #179, #181, #248, #249, #122, #189.
+
+**Context.** The M19 and M20 reviews found the same gaps at each closure: an ADR's Amends with no pointer
+under the ADR it amends (#200), an ADR first written beside the code it governs (#201), a skipped gate
+named only in a close's prose (#202), no process-log entry for a wave (#203), and a HIGH rule that reads
+the footprint an author typed instead of the commit range (#183). M21-W3's six review rounds found records
+and test names that state a gate's property flatly (#248).
+
+**Decision.**
+1. `make check-records` refuses an ADR whose Amends field names a D-ID that carries no `**Amended by` line
+   naming it back (#200). The field is read in each spelling the log uses: `**Amends** D-n`,
+   `**Amends:** D-n`, a bold run opening `**Amends D-n ...**`, and `**Would amend**`, in any case (the M21-W4
+   review's M6, and its second round's M5).
+2. `make wave-check` reads the close's commit range from git, for closes dated from 2026-10-10, and for a
+   close dated earlier but committed from then (a gate does not invalidate records written before it,
+   GPF-001; the review's M3). The range is read as `git diff A...B` reads it, from the merge base of its
+   ends, whatever its dots (M4); it ends at HEAD, pinned to the last commit that changes the close (HEAD itself
+   while the close has edits not yet committed), and an end the author names is refused (round 2's M4, round 3's M1); it must start at the wave's base or before it (the commit that added the
+   previous wave's close, or the milestone's base on main) and hold a commit (M3); a start the history no
+   longer holds is read from the merge base the footer records (``merge base `sha` ``), else from the
+   wave's base (M4). Then:
+   - every path the range changed, both sides of a rename, is held to the plan's security globs (#183);
+   - an ADR the range adds first appears in a commit that changes no `src/`, `ios/`, `scripts/`, `.claude/` or
+     `.githooks/` file (a hook is code here: round 3's M3),
+     after no code commit of the range that cites it, and after no code commit at all unless the plan
+     named it before; its heading is read as `## D-n`, `## D-n:` or `## D-n —`, and an ADR the range adds
+     with no commit found adding its heading is a problem (#201, M5, round 2's M5);
+   - `docs/process-log.md` has a heading naming the wave (`M21-W4`, or a span `M21-W1 to W4`), dated
+     inside the range (#203, M5).
+   A close is merged when the commit that added it is on main, whatever a later branch edits in it (the
+   M21-W4 Tester's M1); a merged close is not
+   read again: the rules ran on its branch before the merge. Where there is no history to read (not a git
+   checkout, or a shallow clone as CI's test job checks out), or a close is merged, the rules say SKIPPED,
+   and `wave-check-all` prints that line on a pass too (M8).
+3. `make wave-check` reads row 9's `gates SKIPPED:` list (the label in any case, split on commas outside
+   parentheses), every checklist row whose status says SKIPPED or WAIVED, and the field
+   `Session started in the repository: yes|no` that the template's row 8 asks for, read from row 8's
+   evidence cell only; rows marked N/A count with the skipped and waived ones, each ledgered by the control
+   its check cell names (round 3's M2), and the label is read in
+   its other spellings (`gates SKIPPED :`, `**SKIPPED**:`, `SKIPPED —`). Each skip, and a `no`, needs a row
+   in `docs/control-events.csv` for the wave or its milestone (#202, M7, round 2's M6). Prose about the
+   session is not read; from 2026-10-11 a close carries the field.
+4. Tests that need git say so with `needs("git")` (#249). CI's test job's facts are read from its workflow
+   by a test (#182); the workflow itself is the owner's.
+5. The Swift legs run inside the offline profile on macOS (#179), and the model tier's deadline tests run
+   once more on a one-thread cooperative pool (#181). Each `swift test` runs under `scripts/watchdog.py`:
+   past `SWIFT_TEST_LIMIT` seconds, or on Ctrl-C, it lists the command's descendants, sends SIGINT to each
+   of their process groups, then SIGKILL, so a hang fails the leg and leaves no test process behind (the
+   review's R1, round 2's M7).
+6. A test a gated row cites carries no universal word in its name (`no`, `never`, `any`, `every`,
+   `whatever`, `however`, `nothing`) unless a hand-kept list says why the word is no claim; a block of a
+   live record, or a docstring of a gate or pin file, that matches a hand-kept list of property phrases
+   names the rows that hold it in part. Neither reads `only`, a phrase not on the list, an ADR body or a
+   comment. A row's sentences beside its fixed ones are not checked: on the 15 gated rows, the three
+   such sentences a universal-word rule would flag were all false alarms (#248).
+
+**Consequence.** CI's shallow checkout cannot run the history rules; the owner's `make check` and the
+pre-push gate do. The patch giving CI's test job its history (`fetch-depth: 0`) is posted on #122 for the
+owner. The Bash guard's changes (#189) are in their own commits marked OWNER APPROVAL; what its second
+reading does not hold is listed by class in its docstring and in G-7. A PreToolUse command hook that times
+out does not block (Claude Code's hook docs), so the Bash hook carries `timeout: 30` and
+`onFailure: "block"`, and the guard keeps its own bound (5 s, 32 KB).

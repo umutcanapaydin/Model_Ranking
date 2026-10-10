@@ -57,10 +57,19 @@ struct ContentView: View {
     /// When the standings on screen reached this phone (review M3, #72).
     @State private var standingsFetchedAt: Date?
     @State private var planMemo = PlanMemo()
+    /// M20-W4 (Ruling A): the second coding surface's family list, planned beside the first.
+    @State private var pairedPlanMemo = PlanMemo()
+    /// M20-W4 (D-188 clause 5): the primary board's own answer, one tap from the combined list.
+    @State private var showingPrimaryAnswer = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var removedRefinements: Set<Refinement> = []
     @Environment(\.dynamicTypeSize) private var typeSize
-    /// New finding A (M18-W2): whether the combined list shows every row or its top ten.
-    @State private var showingAllCombined = false
+    /// New finding A (M18-W2): the surfaces whose combined list shows every row, not its top ten;
+    /// one per list, so coding's two expand apart (the W4 review's M7).
+    @State private var expandedLists: Set<String> = []
+    /// D-188 clause 5 (the W4 review's M4): the reader chose the surface on screen, from "Change" or
+    /// an alternative, so it gets its family list too. The launch screen answers no one yet.
+    @State private var chosenByReader = false
     /// D-169 (M18-W3): a question read as not a search, or one the app is not sure about, held
     /// for the reader instead of answered.
     @State private var held: HeldReading?
@@ -70,8 +79,11 @@ struct ContentView: View {
     /// forgets is a flag switch nobody uses twice.
     @AppStorage("language") private var language: Language = .english
     private let router = TieredRouter.forThisLaunch()
-    /// Whether the on-device tier can run here, said as quiet help when it cannot.
-    private let onDevice = TieredRouter.onDeviceState()
+    /// Whether the on-device tier can run here, said as quiet help when it cannot. Read again each
+    /// time the app comes back to the front (#220): the reader can turn Apple Intelligence on or off,
+    /// or its model finish downloading, while the app runs.
+    @State private var onDevice = TieredRouter.onDeviceState()
+    @Environment(\.scenePhase) private var scenePhase
     /// Every question is asked at `unlimited` since the budget strip went (M13-W3). The engine still
     /// takes a budget, and `/v1/budgets` still publishes the caps for other consumers (D-134).
     private let budget = "unlimited"
@@ -135,6 +147,9 @@ struct ContentView: View {
             .sheet(isPresented: $choosingSurface) { surfaceSheet }
             .sheet(isPresented: $showingGaps) { gapSheet }
             .task { await load() }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { onDevice = TieredRouter.onDeviceState() }
+            }
         }
         .tint(Design.accent)
     }
@@ -178,18 +193,36 @@ struct ContentView: View {
                 // D-168 clause 7 (M17-W5): several boards chosen, the product's combined list is the
                 // answer; one board, today's cards below.
                 // #70: planned when what it reads changes, not on every render (a keystroke is one).
-                let plan = planMemo.plan(PlanMemo.Inputs(
-                    outcome: routing,
-                    primaryBoard: categories.first { $0.id == routing?.categoryID }?.primaryBoard,
-                    standingsStamp: standingsStamp, removed: removedRefinements,
-                    // #72: the surface's own answer says whether its board is stale, and the kept
-                    // copy's age whether the phone's standings are (review M3).
-                    primaryHealth: routedSurfaceHealth(answers, routing),
-                    phoneCopyDays: staleCopyDays(fetchedAt: standingsFetchedAt, now: Date())
-                ), standings: standings)
-                if case let .combined(view) = plan {
-                    combinedSection(view)
+                // D-188 clause 5: a question asked, or a surface the reader chose (read from no words),
+                // gets its family list.
+                let shown = plannedOutcome(routed: routing, chosen: chosenByReader ? task : nil,
+                                           answers: answers.map(\.surface))
+                let words = routing == nil ? nil : asked
+                let plan = planMemo.plan(planInputs(for: shown, answers, question: words), standings: standings)
+                // Ruling A (M20-W4): a coding question answers on two surfaces, and each gets its own
+                // family list; neither leads, and the note under them says so. Both lists or neither
+                // (`familyLists`): a paired surface that cannot combine leaves both answers as cards.
+                let paired = pairedSurface(routed: shown?.categoryID, answers: ordered.map(\.surface))
+                let pairedPlan: AnswerPlan? = paired.flatMap { surface in
+                    pairedOutcome(shown, surface: surface).map { outcome in
+                        pairedPlanMemo.plan(planInputs(for: outcome, answers, question: words), standings: standings)
+                    }
+                }
+                let lists = familyLists(plan, paired: paired != nil, pairedPlan: pairedPlan)
+                if let lists, !showingPrimaryAnswer {
+                    combinedSection(lists.first, surface: shown?.categoryID ?? task,
+                                    title: paired == nil ? nil : shown.map { surfaceTitle($0.categoryID) })
+                    if let paired, let second = lists.second {
+                        combinedSection(second, surface: paired, title: surfaceTitle(paired), isPaired: true)
+                        if !orderingNote.isEmpty {
+                            Text(orderingSentence(language)).font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
+                    primaryToggle(showingPrimary: false)
                 } else {
+                if lists != nil {
+                    primaryToggle(showingPrimary: true)
+                }
                 if case let .restorable(removed) = plan {
                     // Every refinement removed: the chips stay, so one tap puts a board back.
                     VStack(alignment: .leading, spacing: 8) {
@@ -310,28 +343,73 @@ struct ContentView: View {
         .refreshable { await load() }
     }
 
-    // MARK: - The combined list (D-168 clause 7, M17-W5)
+    // MARK: - The combined list (D-168 clause 7, M17-W5; the default since M20-W4)
+
+    /// What the plan reads (#70), with M20-W4's family, question and day.
+    private func planInputs(for routing: RoutingOutcome?, _ answers: [Answer], question: String?) -> PlanMemo.Inputs {
+        let info = categories.first { $0.id == routing?.categoryID }
+        var inputs = PlanMemo.Inputs(
+            outcome: routing, primaryBoard: info?.primaryBoard, standingsStamp: standingsStamp,
+            removed: removedRefinements,
+            // #72: the surface's own answer says whether its board is stale, and the kept copy's age
+            // whether the phone's standings are (review M3).
+            primaryHealth: routedSurfaceHealth(answers, routing),
+            phoneCopyDays: staleCopyDays(fetchedAt: standingsFetchedAt, now: Date())
+        )
+        inputs.family = info?.boards
+        inputs.refinedBoard = info?.refinedBoard
+        inputs.question = question
+        inputs.asOf = utcDay(Date())
+        return inputs
+    }
+
+    /// The day in UTC, which the 90-day line counts in whole days (D-188 clause 4, the W4 review's
+    /// R1): a local midnight east of UTC is the day before.
+    private func utcDay(_ now: Date) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        return calendar.startOfDay(for: now)
+    }
+
+    /// D-188 clause 5: the primary board's own answer, one tap from the combined list, and back.
+    private func primaryToggle(showingPrimary: Bool) -> some View {
+        Button(showingPrimary ? UIText.backToCombined(language) : UIText.primaryOnItsOwn(language)) {
+            showingPrimaryAnswer.toggle()
+        }
+        .font(.footnote)
+        .accessibilityIdentifier("primaryToggle")
+    }
 
     @ViewBuilder
-    private func combinedSection(_ view: CombinedView) -> some View {
+    private func combinedSection(_ view: CombinedView, surface: String, title: String? = nil,
+                                 isPaired: Bool = false) -> some View {
+        // Ruling A (the W4 review's M7): the second coding list's controls are its own.
+        let suffix = isPaired ? ".paired" : ""
+        let expanded = expandedLists.contains(surface)
         VStack(alignment: .leading, spacing: 12) {
+            // M20-W4, Ruling A: two coding surfaces' lists each name their surface above.
+            if let title { SectionTitle(text: title) }
             SectionTitle(text: UIText.combinedTitle(language))
-                .accessibilityIdentifier("combinedList")
-            // Why each board beyond the surface's own was added.
-            Text(UIText.alsoCounting(language)).font(.footnote).foregroundStyle(Design.muted)
-            refinementChips(view.refinements, removed: view.removed)
-            // #78 (M18-W2 P6): the served accessibility, as a reader filter. It hides rows; every
-            // row keeps its place among all the shared models.
-            Toggle(isOn: $onlyAPIOrOpenWeights) {
-                Text(UIText.accessFilter(language)).font(.footnote)
+                .accessibilityIdentifier("combinedList" + suffix)
+            // Why each board beyond the surface's own was added; nothing to say when none was (M3).
+            if !view.refinements.isEmpty {
+                Text(UIText.alsoCounting(language)).font(.footnote).foregroundStyle(Design.muted)
+                refinementChips(view.refinements, removed: view.removed)
             }
-            .tint(Design.accent)
-            .accessibilityIdentifier("accessFilter")
+            // #78 (M18-W2 P6): the served accessibility, as a reader filter. It hides rows; every
+            // row keeps its place among all the shared models. One switch for both coding lists.
+            if !isPaired {
+                Toggle(isOn: $onlyAPIOrOpenWeights) {
+                    Text(UIText.accessFilter(language)).font(.footnote)
+                }
+                .tint(Design.accent)
+                .accessibilityIdentifier("accessFilter")
+            }
             let rows = filteredEntries(view.list.entries, onlyAPIOrOpenWeights: onlyAPIOrOpenWeights)
             if onlyAPIOrOpenWeights {
                 Text(UIText.accessFilterCount(shown: rows.count, of: view.list.entries.count, language))
                     .font(.footnote).foregroundStyle(.secondary)
-                    .accessibilityIdentifier("accessFilterCount")
+                    .accessibilityIdentifier("accessFilterCount" + suffix)
             }
             Card {
                 VStack(alignment: .leading, spacing: 0) {
@@ -340,7 +418,7 @@ struct ContentView: View {
                             .padding(12)
                     }
                     // New finding A (M18-W2): the top ten, and the rest on request.
-                    let shown = Array(rows.prefix(visibleCount(total: rows.count, expanded: showingAllCombined)))
+                    let shown = Array(rows.prefix(visibleCount(total: rows.count, expanded: expanded)))
                     ForEach(shown, id: \.model.id) { entry in
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
                             // The combination's own place: tied models share it (review M1).
@@ -362,9 +440,9 @@ struct ContentView: View {
                     if rows.count > combinedVisibleRows {
                         Divider().padding(.leading, 12)
                         Button {
-                            showingAllCombined.toggle()
+                            if expanded { expandedLists.remove(surface) } else { expandedLists.insert(surface) }
                         } label: {
-                            Text(showingAllCombined ? UIText.showFewer(language)
+                            Text(expanded ? UIText.showFewer(language)
                                  : UIText.showAll(rows.count, language))
                                 .font(.subheadline)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -373,7 +451,7 @@ struct ContentView: View {
                         }
                         .buttonStyle(.plain)
                         .foregroundStyle(Design.accent)
-                        .accessibilityIdentifier("showAllCombined")
+                        .accessibilityIdentifier("showAllCombined" + suffix)
                     }
                     Divider().padding(.leading, 12)
                     NavigationLink {
@@ -391,7 +469,7 @@ struct ContentView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("seeTheBoards")
+                    .accessibilityIdentifier("seeTheBoards" + suffix)
                 }
             }
             // #67, #72 (M18-W2 P4): what this list must say is a field of its plan, held by a test on
@@ -481,7 +559,18 @@ struct ContentView: View {
                     Text(UIText.privateQuestion(language)).font(.caption)
                 }
                 .foregroundStyle(Design.muted)
+                // #208 (the owner's ask): which tier reads the question, said very small.
+                Text(UIText.onDeviceCaption(onDevice, language))
+                    .font(.caption2)
+                    .foregroundStyle(onDevice == .available ? AnyShapeStyle(Design.accent) : AnyShapeStyle(Design.muted))
+                    .accessibilityIdentifier("aiCaption")
             }
+            }
+            // #208: Apple Intelligence's moving glow around the question while it reads it.
+            .overlay {
+                if onDevice == .available {
+                    IntelligenceGlow(still: reduceMotion).allowsHitTesting(false)
+                }
             }
             matchedSurfaceRow
                 .padding(.horizontal, 2)
@@ -835,9 +924,10 @@ struct ContentView: View {
         let outcome = await router.route(typed, within: known)
         guard routingGate.isCurrent(ticket) else { return }
         // D-169 (M18-W3): input that is not a search, or that the app is not sure is one, sends no
-        // request: it is held, and the reader sees the note or is asked.
-        guard outcome.reading == .search else {
-            held = HeldReading(typed: typed, outcome: outcome)
+        // request: it is held (`HeldReading.holding`, in the Engine since #132), and the reader sees
+        // the note or is asked.
+        if let reading = HeldReading.holding(outcome, typed: typed) {
+            held = reading
             asked = typed
             routing = nil
             return
@@ -859,8 +949,10 @@ struct ContentView: View {
         }
         asked = typed
         routing = outcome
+        chosenByReader = false
         removedRefinements = []
-        showingAllCombined = false
+        expandedLists = []
+        showingPrimaryAnswer = false
         // REQ-GAP-001. A question nothing here measures is recorded on THIS device and nowhere
         // else. It goes to the register, never to `client` (REQ-RTR-004).
         if recordsGap(outcome) {
@@ -874,8 +966,7 @@ struct ContentView: View {
         // Review M3: one question at a time, as `submit` holds it; a tap while another routes would
         // take a newer question's ticket.
         guard !routingInFlight else { return }
-        var outcome = held.outcome
-        outcome.reading = .search
+        let outcome = held.confirmed
         routingInFlight = true
         Task {
             defer { routingInFlight = false }
@@ -885,9 +976,7 @@ struct ContentView: View {
 
     /// The reader said it is not: the note.
     private func decline(_ held: HeldReading) {
-        var outcome = held.outcome
-        outcome.reading = .notASearch
-        self.held = HeldReading(typed: held.typed, outcome: outcome)
+        self.held = held.declined
     }
 
     /// The note (no ranking, no request) or the question back (two taps, nothing sent until one).
@@ -895,7 +984,7 @@ struct ContentView: View {
     private func readingCard(_ held: HeldReading) -> some View {
         Card {
             VStack(alignment: .leading, spacing: 12) {
-                if held.outcome.reading == .unsure {
+                if held.asksBack {
                     Text(UIText.askBack(language)).font(.headline)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("askBack")
@@ -927,6 +1016,10 @@ struct ContentView: View {
         guard categories.contains(where: { $0.id == id }) else { return }
         routingGate.invalidate()
         routing = nil
+        // D-188 clause 5 (the W4 review's M4): the chosen surface gets its family list.
+        chosenByReader = true
+        showingPrimaryAnswer = false
+        expandedLists = []
         held = nil
         guard id != task else { return }
         task = id
@@ -978,7 +1071,7 @@ struct ContentView: View {
         standingsInFlight = true
         Task {
             defer { standingsInFlight = false }
-            if let kept = await StandingsStore.onDevice.currentKept(now: Date(), fetch: { try await client.boards() }) {
+            if let kept = await StandingsStore.onDevice.currentKept(fetch: { try await client.boards() }) {
                 standings = kept.standings
                 standingsFetchedAt = kept.fetchedAt
                 standingsStamp += 1
@@ -1003,6 +1096,28 @@ struct ContentView: View {
 // "See all N — M fit your budget". A design pass that quietly drops one of those would be the
 // worst outcome available here, because the disclosures are what make this product honest and not
 // one of them is load-bearing to a layout.
+
+/// #208: Apple Intelligence's moving glow, a gradient ring turning around the question card. Still
+/// where the reader asked for less motion.
+struct IntelligenceGlow: View {
+    let still: Bool
+
+    var body: some View {
+        // The angle is read from the clock, so turning Reduce Motion on stops it at once (the W4
+        // review's M5); thirty frames a second is enough for a slow turn.
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: still)) { context in
+            let turn = still ? 0 : context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 4) * 90
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(
+                    AngularGradient(colors: [.pink, .purple, .blue, .cyan, .orange, .pink], center: .center,
+                                    angle: .degrees(turn)),
+                    lineWidth: 3
+                )
+                .blur(radius: 1.5)
+        }
+        .accessibilityHidden(true)
+    }
+}
 
 /// A rounded surface with real padding. The one container everything sits in.
 struct Card<Content: View>: View {
@@ -1435,8 +1550,10 @@ struct CombinedDetail: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(UIText.combinedNote(models: view.sharedCount, boards: view.list.boards.count, language))
+            // #219: a family list holds up to about 215 models, so its rows are laid out as they come
+            // on screen, not all at once.
+            LazyVStack(alignment: .leading, spacing: 16) {
+                Text(orderNote(view, language))
                     .font(.subheadline)
                 SectionTitle(text: UIText.boardsBehind(language))
                 ForEach(view.list.boards) { board in
@@ -1476,8 +1593,3 @@ struct CombinedDetail: View {
     }
 }
 
-/// D-169 (M18-W3): what was typed, and how it was read, while the screen shows the note or asks.
-struct HeldReading: Equatable {
-    let typed: String
-    let outcome: RoutingOutcome
-}

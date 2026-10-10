@@ -383,8 +383,34 @@ extension CategoryHints {
         return String(word.lowercased().map { pairs[$0] ?? $0 }).replacingOccurrences(of: "\u{307}", with: "")
     }
 
-    private static func readings(_ question: String) -> [[String]] {
+    /// The question's words in plain letters, once per case folding (the Turkish one and the other).
+    static func readings(_ question: String) -> [[String]] {
         InputSignals.folds(question).map { InputSignals.wordsOf($0).map(plain) }
+    }
+
+    /// #206: the Turkish particles a question comparing models puts between their names.
+    static let comparisonParticles: Set<String> = ["mi", "mu", "hangisi", "hangi", "yoksa", "veya", "ya", "da",
+                                                   "de", "ve", "daha", "iyi", "en"]
+
+    /// #206: the names of a model's tiers, part of its name ("gemini pro", "claude haiku").
+    static let modelTierWords: Set<String> = ["pro", "mini", "flash", "sonnet", "opus", "haiku", "plus", "turbo",
+                                              "max", "ultra", "nano", "lite", "preview", "thinking"]
+
+    /// #206: a short question made only of model names and Turkish particles ("claude mu chatgpt mi").
+    /// It is not confidently Turkish, so the embedding would read it as English and place it on a
+    /// surface it does not name; it is a general question. A tier's name is part of a model's ("gemini
+    /// pro"), and a single letter is a version's tail ("gpt-4o").
+    static func comparesModelsOnly(_ question: String) -> Bool {
+        readings(question).contains { words in
+            // M21-W2 (the first review's K1): every family the registry names (`ModelFamilies`, generated
+            // from it), not twelve brands. Narrow by its shape: every word is a model name, a tier or a
+            // particle, so "kimi mi geldi" ("did some come?") is none.
+            let isModel = { (word: String) in generalWords.words.contains(word) || ModelFamilies.words.contains(word) }
+            return words.contains(where: isModel) && words.contains(where: comparisonParticles.contains)
+                && words.allSatisfy { word in
+                    isModel(word) || comparisonParticles.contains(word) || modelTierWords.contains(word) || word.count == 1
+                }
+        }
     }
 
     /// The surface a question names outright, among those the engine served, or nil.
@@ -515,6 +541,12 @@ struct SimilarityRouter: QuestionRouter {
         // D-187: a question that names a surface outright goes there, in either language and whether
         // or not the embedding below can load: the matches below need both, and either can be missing.
         let named = CategoryHints.namedSurface(question, within: known)
+        // #206 (M21-W2, the second review's M2): a comparison of model names is a general question,
+        // answered from `everyday` directly, whichever ranked families it names.
+        if named == nil, CategoryHints.comparesModelsOnly(question) {
+            return known.contains("everyday")
+                ? RoutingOutcome(categoryID: "everyday", tier: .similarity, unmeasured: false) : nil
+        }
         guard SimilarityRouter.readsEnglish(text),
               let embedding = NLContextualEmbedding(language: .english),
               embedding.hasAvailableAssets,

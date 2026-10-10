@@ -110,6 +110,8 @@ ios/EngineTests/ReadingTests.swift      # asserts Turkish inputs by their words,
                                         # LanguageTests.swift is exempt above
 ios/EngineTests/KeywordRoutingTests.swift # D-187: asserts Turkish questions by the words that name a
                                         # surface, for the reason LanguageTests.swift is exempt above
+ios/EngineTests/QuestionFamilyTests.swift # D-188: asserts Turkish questions by the words of a language
+                                        # or a domain, for the reason LanguageTests.swift is exempt above
 scripts/router_probe/image_tuning_questions.json  # M18-W3 (#113): the author's tuning set, half Turkish
 scripts/router_probe/notasearch_heldout_m18_questions.json  # M18-W3 (#66): the fresh held-out set (review B2),
                                   # half Turkish, written by an independent seat
@@ -123,3 +125,19 @@ scripts/router_probe/notasearch_heldout_m19_questions.json  # M19-W4 (#66, #177)
                                   # half Turkish, written by an independent seat; the Turkish IS the evidence
 scripts/router_probe/image_heldout_m19_questions.json  # M19-W4 (#113, #177): the fresh held-out set, half
                                   # Turkish, written by an independent seat; the Turkish IS the evidence
+docs/reviews/m20-wave-3-review-round-1.md # M20-W3: the first review record quotes the Turkish probe questions it ran verbatim, each translated;
+                                  # the Turkish IS the evidence that a word has a second reading
+scripts/router_probe/wording_heldout_m20_questions.json  # M20-W5 (#195): the fresh held-out set, half
+                                  # Turkish, written by an independent seat; the Turkish IS the evidence
+docs/research/m20-w5-runs/              # M20-W5 (#195): every probe run's per-question output, so a run
+                                        # can be re-scored; the questions are half Turkish
+ios/EngineTests/FamilyPlanTests.swift   # M20-W4: holds the family note and the older-boards note in Turkish, word for word
+ios/EngineTests/ReadingM21Tests.swift   # M21-W2 (#194, #218): asserts Turkish questions by their words, for the reason ReadingTests does
+docs/research/judgement/questions.json   # M21-W2 (#226): the judgement sheet's starter questions, half Turkish, as readers ask them
+docs/research/m21-w2-runs/              # M21-W2 (#66, #222): every probe run's per-question output and the wave's own
+                                        # sentences, half Turkish, so a run can be re-scored
+docs/reviews/m21-wave-2-review-round-1.md # M21-W2: the first review quotes the Turkish probe questions it ran verbatim, each translated;
+                                  # the Turkish IS the evidence that a reading rule reaches too far
+docs/reviews/m21-wave-2-review.md # M21-W2: the second review quotes the Turkish probe questions it ran verbatim, each translated;
+                                  # the Turkish IS the evidence that a reading rule reaches too far
+docs/reviews/m21-wave-2-tester.md # M21-W2: the Tester quotes its Turkish probe sentences verbatim, each translated; the Turkish is the evidence

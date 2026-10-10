@@ -12,9 +12,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.clients.arena_slices import ARENA_SLICES
+from app.workflows.board_tables import ARENA_SLICES, EPOCH_BOARDS
 from app.workflows.categories import CATEGORIES
-from app.workflows.sources import EPOCH_BOARDS
 
 
 @dataclass(frozen=True)

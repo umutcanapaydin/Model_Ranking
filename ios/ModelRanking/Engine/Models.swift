@@ -63,6 +63,13 @@ struct Category: Decodable, Identifiable, Equatable {
     /// D-168 (M17-W5). The board this surface ranks on, by id: the first board a question selecting
     /// this surface combines. `nil` from an engine older than W5, which then combines nothing.
     let primaryBoard: String?
+    /// D-188 (M20-W1). The surface's family: every board that measures its task, the primary first,
+    /// by id. `nil` from an engine older than M20: the surface then has no family on the phone.
+    let boards: [String]?
+    /// The M20 repo review's M1 (D-188 clause 6): the family's board a refinement takes the place of,
+    /// its board of Arena's text vote. `nil` where no refinement refines the surface, or from an engine
+    /// older than the M20 closure (a refinement then joins beside the family, as before).
+    let refinedBoard: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -77,6 +84,8 @@ struct Category: Decodable, Identifiable, Equatable {
         case minQuality = "min_quality"
         case priceExcludes = "price_excludes"
         case primaryBoard = "primary_board"
+        case boards
+        case refinedBoard = "refined_board"
     }
 }
 

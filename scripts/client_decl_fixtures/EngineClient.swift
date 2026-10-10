@@ -1,8 +1,8 @@
 // #51: the one network door, which the gate must ALLOW: a connection, and a decoded URL.
 import Foundation
 
-func fixtureClientFetches(_ address: URL) async throws -> Data {
-    try await URLSession.shared.data(from: address).0
+func fixtureClientFetches(_ address: URL) async throws -> Int64 {
+    try await URLSession(configuration: .ephemeral).bytes(from: address, delegate: nil).1.expectedContentLength
 }
 
 func fixtureClientDecodesAnAddress(_ data: Data) -> [URL] {
@@ -52,6 +52,10 @@ struct EngineClient {
     func boards() -> URL {
         baseURL
     }
+
+    func recommendation(task: String, budget: String) -> URL {
+        baseURL.appendingPathComponent(task + budget)
+    }
 }
 
 // The W2 review's M1: a relay through an object the sink holds as a constant, which another file
@@ -60,4 +64,34 @@ struct FixtureHeldRelayClient {
     static let relay = NSMutableString()
 
     func boardsQuery() -> String { (Self.relay as String) + fixtureRelayed() }
+}
+
+// #172: the sink's half of each route. REFUSED: a default value, a static initialiser and a kept
+// closure, each reading the screen's state; and Foundation's shared state, read in the sink itself.
+struct FixtureKept {
+    let make: () -> String
+}
+
+struct FixtureRoutesClient {
+    func boardsDefaulted() -> String { FixtureDefaulted().tag }
+    func boardsStatic() -> String { FixtureStatics.tag }
+    func boardsAssociated() -> String { FixtureStatics.associated }
+    func boardsKept(_ kept: FixtureKept) -> String { kept.make() }
+    func boardsThreadState() -> String { (Thread.main.threadDictionary["q"] as? String) ?? "" }
+    func boardsNotified() -> String {
+        NotificationCenter.default.post(name: Notification.Name("q"), object: nil)
+        return ""
+    }
+}
+
+// The M21-W3 review's B1: Foundation's process-wide state read in a sink, and another file's mutable
+// containers held in constants. REFUSED, each: a sink references only the Foundation declarations on
+// its list, and reads no constant of another file's that holds an object.
+struct FixtureProcessStateClient {
+    func threadName() -> String { Thread.main.name ?? "" }
+    func processName() -> String { ProcessInfo.processInfo.processName }
+    func queueName() -> String { OperationQueue.main.name ?? "" }
+    func zone() -> String { NSTimeZone.default.identifier }
+    func boxed() -> String { fixtureScreenBox as String }
+    func shelved() -> Int { FixtureShelf.box.count }
 }

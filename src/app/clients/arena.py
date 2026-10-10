@@ -99,6 +99,11 @@ ARENA_BOARDS: dict[str, ArenaBoard] = {
     "search_factuality": ArenaBoard(
         "arena_search_factuality", "search_factuality", "Arena search factuality", 20
     ),
+    # M21-W1 (#185): LMArena's own WebDev board, under the dataset card's CC-BY-4.0 grant, where
+    # `epoch_webdev` is Epoch's copy of it, which D-185 read arena.ai's site terms as keeping off a
+    # public artifact. 141 rows on the overall board of 2026-10-08, 91 of them ranked; 70 is below any
+    # real day and far above a truncation.
+    "webdev": ArenaBoard("arena_webdev", "webdev", "Arena WebDev", 70),
 }
 _PAGE = 100
 _MAX_PAGES = 50  # safety valve: latest split is a few hundred rows
@@ -449,6 +454,15 @@ class ArenaDocumentClient(ArenaClient):
 
     def __init__(self, split: str = "latest") -> None:
         super().__init__(config="document", split=split)
+
+
+class ArenaWebDevClient(ArenaClient):
+    """The `webdev` board: which model builds the best web app (#185)."""
+
+    name = "arena_webdev"
+
+    def __init__(self, split: str = "latest") -> None:
+        super().__init__(config="webdev", split=split)
 
 
 class ArenaFactualityClient(ArenaClient):

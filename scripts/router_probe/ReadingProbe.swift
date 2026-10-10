@@ -46,9 +46,8 @@ final class ReadingProbe: XCTestCase {
                 // As the app runs it with no model: the wording tier, its manual fallback, then the reading.
                 let tier = await SimilarityRouter().route(question, within: served)
                 let read = await TieredRouter(model: nil).route(question, within: served)
-                rows.append(["q": question, "surface": read.categoryID, "routed": tier?.categoryID ?? "nil",
-                             "unmeasured": "\(read.unmeasured)", "model": "nil", "reading": "\(read.reading)",
-                             "tier": "\(read.tier)", "declined": "\(tier?.unmeasured ?? true)"])
+                // #193 (M21-W2): the row is `ProbeRows.wordingRow`, in `EngineTests/`, which a test runs.
+                rows.append(ProbeRows.wordingRow(question, tier: tier, read: read))
                 continue
             }
             guard #available(macOS 26.0, iOS 26.0, *) else { return XCTFail("no FoundationModels here") }

@@ -540,6 +540,32 @@ final class FailureLanguageTests: OfflineTestCase {
     }
 }
 
+/// #223 (M21-W3): every refusal the engine can send is said in the reader's language, keyed on its
+/// code; the engine's own English is the fallback for a code this app does not know, and stays in the
+/// diagnostic either way.
+final class RefusalLanguageTests: OfflineTestCase {
+    private let codes = ["rate_limited", "unknown_host", "internal_error", "evidence_unavailable", "unknown_task",
+                         "unknown_budget"]
+
+    func testEveryKnownRefusalIsSaidInBothLanguages() {
+        for code in codes {
+            let refusal = EngineError.refused(status: 400, code: code, message: "the engine's English")
+            let english = refusal.errorDescription(.english), turkish = refusal.errorDescription(.turkish)
+            XCTAssertNotEqual(english, "the engine's English", code)
+            XCTAssertNotEqual(turkish, "the engine's English", code)
+            XCTAssertNotEqual(english, turkish, code)
+            XCTAssertTrue(refusal.diagnostic?.contains("the engine's English") == true, code)
+        }
+        XCTAssertEqual(Set(codes.map { EngineError.refused(status: 400, code: $0, message: "m").errorDescription(.turkish) }).count,
+                       codes.count, "two refusals say the same thing")
+    }
+
+    func testTheRateLimitSaysToWaitInTurkish() {
+        let refusal = EngineError.refused(status: 429, code: "rate_limited", message: "Too many requests")
+        XCTAssertTrue(refusal.errorDescription(.turkish)?.contains("bekle") == true)
+    }
+}
+
 /// #63 findings 5, 6 and 7 (M18-W2).
 final class TurkishWordingTests: OfflineTestCase {
     /// "SORUN" reads as "problem"; the label means "your question".
@@ -591,6 +617,49 @@ final class ScreenExplanationTests: OfflineTestCase {
                        "#2–4 gibi bir aralık, ölçümün bu modeli o sıralardaki diğerlerinden ayırt "
                        + "edemediği anlamına gelir.")
         XCTAssertNil(rangeNote(ranges: ranges, shown: [0], .english), "no range on screen, nothing to explain")
+    }
+
+    /// M20-W4 (#208, D-188): the caption under the question, the primary board's toggle and the
+    /// half-weight note, each in both languages.
+    func testTheM20SentencesAreSaidInBothLanguages() {
+        // The W4 review's M5: one caption per state, so a phone that cannot run the model is not told
+        // it is turned off.
+        let states: [OnDeviceState] = [.available, .notEligible, .turnedOff, .downloading, .unavailable]
+        for state in states {
+            XCTAssertNotEqual(UIText.onDeviceCaption(state, .english), UIText.onDeviceCaption(state, .turkish))
+        }
+        XCTAssertEqual(Set(states.map { UIText.onDeviceCaption($0, .english) }).count, states.count)
+        XCTAssertEqual(Set(states.map { UIText.onDeviceCaption($0, .turkish) }).count, states.count)
+        XCTAssertEqual(UIText.onDeviceCaption(.available, .english), "Apple Intelligence enhanced")
+        // The second round's M3: each state says its own case.
+        XCTAssertTrue(UIText.onDeviceCaption(.turnedOff, .english).hasPrefix("Apple Intelligence off"))
+        XCTAssertTrue(UIText.onDeviceCaption(.notEligible, .english).hasPrefix("No Apple Intelligence on this device"))
+        XCTAssertTrue(UIText.onDeviceCaption(.downloading, .english).contains("downloading"))
+        XCTAssertTrue(UIText.onDeviceCaption(.unavailable, .english).contains("unavailable"))
+        XCTAssertTrue(UIText.onDeviceCaption(.turnedOff, .turkish).contains("kapalı"))
+        XCTAssertTrue(UIText.onDeviceCaption(.notEligible, .turkish).contains("bu cihazda") || UIText.onDeviceCaption(.notEligible, .turkish).contains("Bu cihazda"))
+        XCTAssertNotEqual(UIText.primaryOnItsOwn(.english), UIText.primaryOnItsOwn(.turkish))
+        XCTAssertNotEqual(UIText.backToCombined(.english), UIText.backToCombined(.turkish))
+        let aider = [NamedBoard(name: "Aider", date: .unknown)]
+        XCTAssertNotEqual(UIText.olderBoards(aider, .english), UIText.olderBoards(aider, .turkish))
+    }
+
+    /// Tester (M20-W4, REQ-APP-007, #208): in Turkish too, each state of the on-device model gets its own
+    /// caption, so a model still downloading is never said to be unavailable, nor the other way round.
+    func testEachOnDeviceStateHasItsOwnCaptionInTurkish() {
+        XCTAssertEqual(UIText.onDeviceCaption(.available, .turkish), "Apple Intelligence ile güçlendirildi")
+        XCTAssertEqual(UIText.onDeviceCaption(.turnedOff, .turkish),
+                       "Apple Intelligence kapalı: sorular kelimelerle eşleşiyor")
+        XCTAssertEqual(UIText.onDeviceCaption(.notEligible, .turkish),
+                       "Bu cihazda Apple Intelligence yok: sorular kelimelerle eşleşiyor")
+        XCTAssertEqual(UIText.onDeviceCaption(.downloading, .turkish),
+                       "Apple Intelligence iniyor: şimdilik sorular kelimelerle eşleşiyor")
+        XCTAssertEqual(UIText.onDeviceCaption(.unavailable, .turkish),
+                       "Apple Intelligence şu an kullanılamıyor: sorular kelimelerle eşleşiyor")
+        XCTAssertEqual(UIText.onDeviceCaption(.downloading, .english),
+                       "Apple Intelligence is downloading: questions are matched by their words for now")
+        XCTAssertEqual(UIText.onDeviceCaption(.unavailable, .english),
+                       "Apple Intelligence is unavailable now: questions are matched by their words")
     }
 
     /// The combined list's tied places ("1, 1, 3") say why, once.

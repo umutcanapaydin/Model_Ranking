@@ -140,6 +140,29 @@ coverage-floor: install  ## W-041: no module carries materially less test proof 
 #: declarations drop together -- and it had been wrong three times. Deleting a test now requires
 #: deleting its line here, which a reviewer sees in the diff.
 SWIFT_TEST_MANIFEST := ios/EngineTests/test-manifest.txt
+#: #179: on macOS every `swift test` runs inside the same offline profile as `make test`, from `ios/`,
+#: so a child the Swift suite starts is offline too (the tripwire sees this process's sessions only).
+#: SwiftPM's own sandbox cannot nest inside it, so it is off (`--disable-sandbox`, measured by the
+#: M19-W3 review); the suite still runs nothing but the Engine's sources.
+#: R1 (the M21-W4 review): each `swift test` runs under `scripts/watchdog.py`, which kills it (SIGKILL) and
+#: fails past this many seconds, so a hang fails the leg instead of stalling it.
+SWIFT_TEST_LIMIT ?= 1800
+SWIFT_WATCHDOG = $(SYS_PY) -B ../scripts/watchdog.py $(SWIFT_TEST_LIMIT)
+SWIFT_TEST = $(if $(filter Darwin,$(UNAME_S)),MODEL_RANKING_REQUIRE_OFFLINE=1 $(SWIFT_WATCHDOG) /usr/bin/sandbox-exec -f ../scripts/offline.sb swift test --disable-sandbox,$(SWIFT_WATCHDOG) swift test)
+#: #181: the deadline tests again on a one-thread cooperative pool, after the whole suite. A call that
+#: blocks a thread in the router's race then holds the only thread, so the router is late while the
+#: tests' control timer, on a dispatch queue, is not. A filter that matched nothing would exit 0, so
+#: the count must be the manifest's.
+SWIFT_STRICT_POOL_RUN = want=`grep -c '\.SlowTierTests/' $(SWIFT_TEST_MANIFEST)`; \
+	out=`cd ios && LIBDISPATCH_COOPERATIVE_POOL_STRICT=1 $(SWIFT_TEST) --filter 'SlowTierTests/' 2>&1`; rc=$$?; \
+	echo "$$out" > build/swift-test-strict-pool.log; \
+	got=`echo "$$out" | grep -E "Executed [0-9]+ tests, with" | tail -1 | sed -E 's/.*Executed ([0-9]+) tests.*/\1/'`; \
+	if [ $$rc -ne 0 ] || [ "$$got" != "$$want" ]; then \
+		echo "$$out" | grep -E "error:|failed \(" | head -30; \
+		echo "swift-test FAIL: SlowTierTests on a one-thread pool ran $${got:-0} of $$want, or failed (\#181; build/swift-test-strict-pool.log)"; \
+		exit 1; \
+	fi; \
+	echo "swift-test PASS: SlowTierTests on a one-thread pool, $$got of $$want (\#181)"
 SWIFT_TEST_FLOOR := $(shell grep -c . $(SWIFT_TEST_MANIFEST))
 
 swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING sources
@@ -158,7 +181,7 @@ swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING so
 	@# first a pipe swallowing the status, then `runner` calling commands that do not exist, now
 	@# this. Same shape as `coverage-floor`: the floor is raised deliberately, never lowered quietly.
 	@if command -v swift > /dev/null 2>&1; then \
-		out=`cd ios && swift test 2>&1`; rc=$$?; mkdir -p build; echo "$$out" > build/swift-test.log; [ $$rc -eq 0 ] || { echo "$$out" | grep -E "error:|failed \(" | head -30; echo "(full swift output: build/swift-test.log)"; exit 1; }; \
+		out=`cd ios && $(SWIFT_TEST) 2>&1`; rc=$$?; mkdir -p build; echo "$$out" > build/swift-test.log; [ $$rc -eq 0 ] || { echo "$$out" | grep -E "error:|failed \(" | head -30; echo "(full swift output: build/swift-test.log)"; exit 1; }; \
 		line=`echo "$$out" | grep -E "Executed [0-9]+ tests, with" | tail -1`; \
 		if echo "$$line" | grep -q "skipped"; then \
 			echo "swift-test FAIL: a test was SKIPPED, which counts as executed."; \
@@ -172,7 +195,7 @@ swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING so
 			echo "  A suite that stops being discovered exits 0 and reports nothing."; \
 			exit 1; \
 		fi; \
-		( cd ios && swift test --list-tests 2>/dev/null ) | sort > build/swift-tests-discovered.txt; \
+		( cd ios && $(SWIFT_TEST) --list-tests 2>/dev/null ) | sort > build/swift-tests-discovered.txt; \
 		if ! diff -u $(SWIFT_TEST_MANIFEST) build/swift-tests-discovered.txt > build/swift-manifest.diff 2>&1; then \
 			echo "swift-test FAIL: the discovered tests are not the manifest (D-150)."; \
 			head -20 build/swift-manifest.diff; \
@@ -181,6 +204,7 @@ swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING so
 			exit 1; \
 		fi; \
 		echo "swift-test PASS: $$n test(s), each one named in $(SWIFT_TEST_MANIFEST)"; \
+		$(SWIFT_STRICT_POOL_RUN); \
 	else \
 		echo "swift-test SKIPPED NO-ENVIRONMENT: no swift toolchain on PATH"; \
 	fi
@@ -196,10 +220,11 @@ swift-test-parallel:  ## `swift-test` for `check-fast`: the same suite with --pa
 	@# A skip is read from the SOURCES: measured, `--parallel` reports a skipped test as passed.
 	@if command -v swift > /dev/null 2>&1; then \
 		mkdir -p build; rm -f build/swift-xunit.xml; \
-		out=`cd ios && swift test --parallel --xunit-output ../build/swift-xunit.xml 2>&1`; rc=$$?; \
+		out=`cd ios && $(SWIFT_TEST) --parallel --xunit-output ../build/swift-xunit.xml 2>&1`; rc=$$?; \
 		echo "$$out" > build/swift-test-parallel.log; \
 		[ $$rc -eq 0 ] || { echo "$$out" | grep -E "error:|failed|✘" | head -30; echo "(full swift output: build/swift-test-parallel.log)"; exit 1; }; \
-		$(SYS_PY) -B scripts/swift_xunit_gate.py build/swift-xunit.xml $(SWIFT_TEST_MANIFEST) $(dir $(SWIFT_TEST_MANIFEST)); \
+		$(SYS_PY) -B scripts/swift_xunit_gate.py build/swift-xunit.xml $(SWIFT_TEST_MANIFEST) $(dir $(SWIFT_TEST_MANIFEST)) || exit 1; \
+		$(SWIFT_STRICT_POOL_RUN); \
 	else \
 		echo "swift-test SKIPPED NO-ENVIRONMENT: no swift toolchain on PATH"; \
 	fi
@@ -208,7 +233,8 @@ client-decls: install  ## W-122 / D-126: the privacy invariant checked against R
 	@# Six rounds of a word list over the client were each bypassed by the next seat -- backticks,
 	@# a comment between two tokens, a typealias, `NSMutableURLRequest`, a markdown link, Handoff.
 	@# This type-checks the client against the iOS SDK and reads what the COMPILER bound each
-	@# reference to, where all of those are the same declaration. SKIPPED, loudly, with no Xcode.
+	@# reference to, where all of those are the same declaration. On a Mac without Xcode it fails
+	@# (#175); on another host it says SKIPPED.
 	$(PY) -B scripts/client_decl_gate.py
 
 wave-check-all: install  ## every wave-close record validated, not only the one you name

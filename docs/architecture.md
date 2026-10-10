@@ -12,7 +12,7 @@
 ```
 UPSTREAM SOURCES (untrusted input)
   prices : LiteLLM, OpenRouter
-  scores : SWE-bench Verified, Aider, six Arena boards and Arena's category slices (Hugging Face),
+  scores : SWE-bench Verified, Aider, seven Arena boards and Arena's category slices (Hugging Face),
            the Epoch AI bundle (a zip from epoch.ai; also each model's accessibility)
       |  bounded HTTP fetches, made only by the refresh's child process
       v
@@ -28,8 +28,9 @@ OWNER'S MAC: launchd service com.ilgar.modelranking.engine, a deployed release o
       |  the owner's deploy: app.workflows.public derives a public copy, without the sources
       |  whose terms do not permit it (D-185), and the image carries it
       v
-FLY.IO, prepared and not yet deployed: one machine, the `hosted` image, Host model-ranking.fly.dev
-    the same five routes over HTTPS; no refresh (D-116); a new deploy per refresh made public
+FLY.IO, serving TestFlight since 2026-10-07: one machine, the `hosted` image, Host model-ranking.fly.dev
+    the same five routes over HTTPS; no refresh (D-116); a new deploy per refresh made public;
+    one client limited to 120 requests a minute, a /v1/boards answer counting thirty (#187, INV-88)
       |
       v
 IPHONE APP (SwiftUI): a Debug build asks the Mac, a Release build (TestFlight) asks Fly.io
@@ -71,9 +72,10 @@ The sources are declared once, in `src/app/workflows/sources.py`, and the build 
 both derive from that list:
 
 - **Prices:** LiteLLM and OpenRouter. Both are required.
-- **Scores fetched over the network:** SWE-bench Verified and Aider, both required. Six Arena boards
+- **Scores fetched over the network:** SWE-bench Verified and Aider, both required. Seven Arena boards
   (`arena`, `arena_document`, `arena_factuality`, `arena_vision`, `arena_search`,
-  `arena_search_factuality`) are optional (D-121): without one, its surface says it has no evidence.
+  `arena_search_factuality`, `arena_webdev`) are optional (D-121): without one, its surface says it has
+  no evidence. `arena_webdev` is `web-dev`'s board since M21-W1 (D-190).
 - **Arena's category slices** (text and vision) and the Agent Arena boards are read from one parquet
   file per config (`src/app/clients/arena_slices.py`). Each slice is a board of its own (D-164).
 - **The Epoch AI bundle.** The refresh downloads it and the build only reads the unpacked
@@ -116,7 +118,7 @@ routes (`DECLARED_ROUTES`), all GET, and turns the docs and OpenAPI routes off.
 | Route | What it serves | ADRs |
 |---|---|---|
 | `/health` | `status`, `version`, `build` (L.7); `evidence` (`servable` or `unavailable`); the refresh's state, last outcome, carried and expired sources, drift, derived and unmatched names | D-154, D-156, D-157 |
-| `/v1/categories` | Each surface: benchmark, metric, ranking effort, close-call margin, floor (`min_quality`), out-of-100 anchor, what its price leaves out, its primary board, its second board's age | D-138, D-152, D-153, D-159, D-162, D-168 |
+| `/v1/categories` | Each surface: benchmark, metric, ranking effort, close-call margin, floor (`min_quality`), out-of-100 anchor, what its price leaves out, its primary board, its family of boards and the board a refinement takes the place of (`refined_board`, D-188 clause 6; `boards`, the primary first, `app.workflows.families`, D-188), its second board's age | D-138, D-152, D-153, D-159, D-162, D-168, D-188 |
 | `/v1/recommendations?task=&budget=` | One answer per surface: up to three picks, each with its model's id (`model_id`, D-182), with the facts the client words in its own language, and the full ranking in the engine's order, with source health and evidence dating. Each notice has its fact: `close_call_fact`, an empty answer's `unavailable_reason_code`, a source's `reason`. `task=coding` answers on both coding surfaces and neither leads (Ruling A) | D-115, D-125, D-136, D-176 |
 | `/v1/budgets` | The budget caps (`low` $2, `medium` $8 per 1M blended tokens, `unlimited`) and the blend weights | D-134 |
 | `/v1/boards` | Every board's standings as positions, never scores, and each model's name, vendor, blended price and accessibility. No parameters. Built once per artifact | D-167, D-173 |
@@ -265,9 +267,13 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
     manual tier and offers Change.
   - A note or a question back sends no request and records no gap.
 - **Refinements** (`Refinements.swift`, D-168): a declared table of Arena text slices, eight task
-  languages and eight domains, each with the surfaces it may refine. At most two are added. A
-  coding question takes none (Ruling A). Only the model tier refines.
-- **Engine client** (`EngineClient.swift`). The only code that talks to the network.
+  languages and eight domains, each with the surfaces it may refine. A coding question takes none
+  (Ruling A). The on-device model chooses them where it read the question; otherwise the answer plan
+  reads them from the question's words (`Refinements.read`, D-188 clause 6), the one reader, held in
+  part by the text pins (INV-89). Every refinement is a slice of Arena's text vote, so it takes the place of the
+  family's board of that vote (`refined_board` on `/v1/categories`): of a language and a domain, the
+  language stands.
+- **Engine client** (`EngineClient.swift`). The one network door, by design (D-126; held in part, INV-62).
   - The engine's address comes from the build's `EngineURL` (the `ENGINE_URL` setting in
     `ios/Config/Engine.xcconfig`), with loopback as the fallback. A Release build's address is the
     hosted engine, set after the local file's include so no local setting replaces it (D-185).
@@ -284,15 +290,19 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
   - The day's fetch starts after the answer, never before it. If a fetch fails, the kept copy is
     used.
   - The store refuses any address that is not a file on the device.
-- **Combination** (`Combine.swift`; D-160, D-167, D-168). The only file allowed to do arithmetic on
-  positions:
-  - it keeps only the models every chosen board ranks, and re-ranks them on each board among
-    themselves;
-  - it orders them by the sum of those ranks and breaks an equal sum by model id;
-  - tied models share a place on screen.
+- **Combination** (`Combine.swift`; D-160, D-167, D-168, D-188). The only file allowed to do
+  arithmetic on positions:
+  - `combineFamily` (D-188, the default since M20): a surface's family of boards, from
+    `/v1/categories`' `boards`. A model enters when half the family's boards rank it, rounded up; its
+    place is the mean of its percentile positions on them, every board counting the same; an older
+    or undated board is named under the list;
+  - `combine` (D-167, for an engine that names no family): only the models every chosen board ranks,
+    ordered by the sum of their ranks;
+  - equal values share a place, broken by model id.
 
-  `AnswerPlan.swift` decides what the screen shows: one board shows the cards, more than one shows
-  the combined list.
+  `AnswerPlan.swift` decides what the screen shows: the family's list for every question asked and
+  every surface chosen; a family of one board is its cards; the primary board's own answer is one
+  tap away; coding shows two family lists or neither (Ruling A).
   - A model the engine picks for more than one reason is one card carrying every label it earned
     (D-175, #63 finding 1): the picks that share a `model_id` (D-182).
   - The combined list shows ten rows, and the rest on request.
@@ -316,17 +326,20 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
   engine's English is shown. `Uncertainty.swift` is the one file allowed arithmetic on scores
   (D-138).
 - **Gates on the client.**
-  - `tests/unit/test_ios_client_contract.py` and the declaration gate below: arithmetic on a served
-    number happens only in its named places (D-181): scores and the tie margin in `Uncertainty.swift`,
-    the anchor's conversions out of 100, positions in `Combine.swift`, and prices only in
-    `priceInPages` in `Router.swift` and `Language.swift`.
-  - `scripts/client_decl_gate.py`: the network belongs only to `EngineClient.swift`, and the file
-    system only to `FrontDoor.swift` and `StandingsStore.swift`. It reads what the compiler resolved,
-    in all four build configurations: the two privacy sinks hold only values and call only what is
-    listed (D-180), arithmetic on a served number is followed through the names D-181 lists, a URL
-    made anywhere else is the network (#107), and a pin reads only code some build compiles (#110).
-    Gaps G-1 and G-2 in `docs/security-invariants.md` hold what they do not follow.
-  - `tests/unit/test_router_hints.py`: nothing the reader types reaches an engine call.
+  - `tests/unit/test_ios_client_contract.py` and the declaration gate below: D-181 names the places
+    arithmetic on a served number is permitted (scores and the tie margin in `Uncertainty.swift`, the
+    anchor's conversions out of 100, positions in `Combine.swift`, prices in `priceInPages` in
+    `Router.swift` and `Language.swift`). That no other place does it is held in part by the compiled
+    gate and the text pins: see INV-76 in `docs/security-invariants.md`.
+  - `scripts/client_decl_gate.py`: the declaration gate, which reads the declarations the compiler
+    resolved, in all four build configurations (D-126, W-122). The network, the file system, the
+    privacy sinks and the Release build's launch arguments are held in part by the compiled gate and
+    the text pins: see INV-62, INV-63, INV-66 and INV-75 in `docs/security-invariants.md`, whose gaps
+    name what is not held.
+  - `tests/unit/test_router_hints.py`: the privacy pins, the text half of the client gates. What
+    reaches an engine call, what the gap register keeps and the code the pins read are held in part
+    by the compiled gate and the text pins: see INV-64, INV-67 and INV-78 in
+    `docs/security-invariants.md`.
   - `make ui-test` (D-175): the screen's paths in the simulator, with scripted routing through the
     same boundary. It runs on the owner's Mac only, never in CI.
 
@@ -339,12 +352,14 @@ Nothing in this flow involves the phone.
 **A question, on the phone.**
 
 1. The reader types a question.
-2. The router, on the device, picks a surface and, on the model tier, up to two refinements.
+2. The router, on the device, picks a surface and, on the model tier, its refinements (the words
+   choose them otherwise, in the answer plan).
    The reading decides whether it is a search. A note ends here, and a question back waits for
    the reader's tap. Neither sends anything.
 3. The app asks `/v1/recommendations` for that surface.
-4. With no refinement kept, the screen shows the engine's cards. With one or more, and the
-   standings kept, the phone combines the boards itself and shows the combined list.
+4. With the standings kept, the phone combines the surface's family, a refinement in place of its
+   vote's board, and shows that list; a family of one board, or an engine that names none, shows the
+   engine's cards.
 
 **Standings, once a day.** The app fetches `/v1/boards` with no query string, the same way whatever
 was asked, so the request says nothing about the question (D-167 clause 1).
@@ -358,8 +373,8 @@ was asked, so the request says nothing about the question (D-167 clause 1).
 These requests cross the home network in cleartext when the opt-in is on (D-171 note 4). A
 TestFlight build sends them to the hosted engine over HTTPS.
 
-**What never crosses** (D-126; D-160 as amended by D-168 note 9; checked by
-`tests/unit/test_router_hints.py`):
+**What never crosses** (D-126; D-160 as amended by D-168 note 9; held in part by the compiled gate
+and the text pins: see INV-64, INV-66, INV-67 and INV-89 in `docs/security-invariants.md`):
 
 - the question's text;
 - the refinements chosen and the reader's removals;
@@ -394,6 +409,11 @@ no per-reader state.
 
 - With `MODEL_RANKING_ALLOWED_HOSTS` set, a request whose Host (port removed, case ignored) is not
   on the list gets `400 unknown_host` before any route runs.
+- Then the rate limit (#187, INV-88): with `MODEL_RANKING_RATE_LIMIT` set (120 in `fly.toml`), one
+  client (an IPv4 address or an IPv6 /64, from `Fly-Client-IP`) past it in a clock minute gets
+  `429 rate_limited` with `Retry-After`; a `/v1/boards` answer counts as thirty in a window of its
+  own, so standings never block a question (#228); a refused request is not charged; `/health` is
+  never limited, and a limiter that breaks serves the request (fails open).
 - With no list, a request that arrived on a network address rather than loopback is refused,
   whatever the bind.
 - The service always sets the list: `127.0.0.1` and `localhost`, plus the Mac's `.local` name and
@@ -471,7 +491,9 @@ owner's Mac
 ```
 Fly.io (D-116, D-185): prepared, deployed only by the owner
   scripts/deploy_hosted_engine.sh   origin/main's tip only, a clean tree; derives the public artifact,
-                                    stamps APP_BUILD=release-<sha>-data-<digest>, fly deploy
+                                    stamps APP_BUILD=release-<sha>-data-<digest>-from-<sha>
+                                    (the release that built the data, #198; data another release
+                                    built is refused unless DEPLOY_ACCEPT_DATA_FROM names it), fly deploy
                                     --remote-only --ha=false, then reads /health back
   Dockerfile, stage `hosted`        the `serve` stage (requirements/serve.lock, no pyarrow; the base by
                                     digest, #141) plus the public artifact at /srv/advisor.db, read-only,
@@ -540,7 +562,8 @@ Fly.io (D-116, D-185): prepared, deployed only by the owner
   availability (D-104). The only model is the phone's own. It only picks a surface, refinements and
   whether the input is a search, each from a closed set (D-126, D-168, D-169).
 - **Nothing the reader types leaves the phone.** The question's text, the refinements, the
-  removals and the gap register stay on the device (§3).
+  removals and the gap register stay on the device (§3). Held in part by the compiled gate and the
+  text pins: see INV-64 and INV-66 in `docs/security-invariants.md`.
 - **No analytics or telemetry in the app**, and no refresh button or freshness screen (D-151).
 - **No scores in the phone's standings, and no averaging across scales.** The phone combines
   positions only (D-105, D-167).
@@ -554,7 +577,8 @@ Fly.io (D-116, D-185): prepared, deployed only by the owner
 - #66, #113: the second round improved #66 and missed its bars, and left #113 where it was. The
   owner decides whether it ships as measured (PR #196).
 - #88: ruled by D-185 on the owner's standing instruction; the owner may overrule it.
-- The hosted engine has no rate limit and Fly no spending cap (#187), and the budget argument is
+- The hosted engine limits one client to 120 requests a minute (#187, INV-88); Fly has no spending
+  cap, and the client's address is trusted from `Fly-Client-IP` (gap G-9). The budget argument is
   #188.
 - `docs/security-invariants.md` names its open gaps, each on an issue. G-5 is one: in CI's test job
   a child process a test starts is beyond the suite's network guard.

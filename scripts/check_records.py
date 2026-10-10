@@ -1536,6 +1536,42 @@ def duplicate_drift(root: Path) -> list[Finding]:
     return f
 
 
+#: An ADR's amendment field: `**Amends**` (accepted) or `**Would amend**` (proposed), read up to the next
+#: ` · ` field separator, the next bold field or a blank line, so `**applies** D-167` is not read.
+#: The field's spellings in the log: `**Amends** D-n`, `**Amends:** D-n`, and a bold run that opens with it,
+#: `**Amends D-n clause 2.**`, in any case (the M21-W4 review's M6 and its second round's M5).
+AMENDS_FIELD = re.compile(r"\*\*(?:Amends|Would amend):?\*\*(.*?)(?=\s·\s|\*\*|\n\s*\n|\Z)"
+                          r"|\*\*(?:Amends|Would amend) ([^*]*?)\*\*", re.S | re.I)
+
+
+def adr_pointer_findings(root: Path) -> list[Finding]:
+    """A1 (#200, D-192 clause 1) -- every ADR an ADR amends carries an `**Amended by D-n` line naming it.
+
+    D-180 and D-181 amended five ADRs and none carried a pointer until a closure added them by hand,
+    so a reader of the amended ADR saw the rule as it was. Derived from the log itself, not listed."""
+    log = root / "docs" / "decisions.md"
+    if not log.is_file():
+        return []
+    text = log.read_text(encoding="utf-8")
+    heads = [(m.start(), m.group(1)) for m in re.finditer(r"^## (D-\d+)\b", text, re.M)]
+    sections: dict[str, tuple[int, str]] = {}
+    for i, (pos, adr) in enumerate(heads):
+        end = heads[i + 1][0] if i + 1 < len(heads) else len(text)
+        sections.setdefault(adr, (text.count("\n", 0, pos) + 1, text[pos:end]))
+    findings: list[Finding] = []
+    for adr, (line, body) in sections.items():
+        for field in AMENDS_FIELD.finditer(body):
+            said = field.group(1) or field.group(2) or ""
+            for target in sorted(set(re.findall(r"\bD-\d+\b", said)), key=lambda d: int(d[2:])):
+                if target == adr or target not in sections:
+                    continue
+                if not re.search(rf"\*\*Amended by {re.escape(adr)}\b", sections[target][1]):
+                    findings.append(Finding(Path("docs/decisions.md"), line, "A1",
+                                            f"{adr} amends {target}, and {target} carries no `**Amended by "
+                                            f"{adr}` line -- a reader of {target} sees the rule as it was (#200)"))
+    return findings
+
+
 def report(findings: list[Finding], label: str) -> int:
     if findings:
         for x in sorted(findings, key=lambda y: (str(y.path), y.line)):
@@ -1807,6 +1843,7 @@ def main() -> int:
     findings += telemetry_verdicts(root)                              # T1
     findings += root_path_refs(root)                                  # X4
     findings += rule_id_refs(root)                                    # X5
+    findings += adr_pointer_findings(root)                            # A1 (#200)
     # G1 (v5.2, 17-8) -- FAIL CLOSED. The Security seat's ratified V5C-110 amendment #4: an empty
     # or errored derived set is a FAILURE, never a vacuous pass. It was unmet at this exact site
     # until Increment 17: a one-line edit to an in-tree `.governed-records` produced

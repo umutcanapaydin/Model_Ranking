@@ -786,6 +786,17 @@ def _listed(record: dict[str, object], key: str) -> list[str]:
     return [str(item) for item in value] if isinstance(value, list) else []
 
 
+def _builds(previous: dict[str, object], code: int) -> tuple[str, str]:
+    """#198 (seed L.7 for the data): the build that ran this cycle, and the one that made the artifact
+    served now. Names and ids are applied when the data is built, so the hosted deploy names the
+    release that built what it ships (`scripts/deploy_hosted_engine.sh`)."""
+    built_by = os.environ.get("APP_BUILD", "").strip() or "unknown"
+    if code == EXIT_PUBLISHED:
+        return built_by, built_by
+    served_before = previous.get("served_built_by")
+    return built_by, served_before if isinstance(served_before, str) else "unknown"
+
+
 def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float) -> Path:
     """Record this cycle. REQ-REF-004.
 
@@ -831,6 +842,8 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
     last_published = previous.get("last_published_at")
     if code == EXIT_PUBLISHED:
         last_published = at
+
+    built_by, served_built_by = _builds(previous, code)
 
     # D-156. When each source last ARRIVED in a cycle whose content is what is served -- published,
     # or unchanged because it matched what is served. A refused or failed cycle's arrivals are not
@@ -895,6 +908,9 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
         "unmatched": list(outcome.unmatched) if served else _listed(previous, "unmatched"),
         #: #39: what this cycle found re-spelled (information; a refused night lists it too).
         "renamed": list(outcome.renamed),
+        #: #198: the build that ran this cycle, and the build that made the artifact served now.
+        "built_by": built_by,
+        "served_built_by": served_built_by,
     }
     # UNIQUE scratch, not a shared name. The artifact's candidate has always used `mkstemp` and
     # this used a fixed `<name>.writing` — the same lesson applied once. An independent review

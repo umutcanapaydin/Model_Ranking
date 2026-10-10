@@ -588,6 +588,37 @@ extension UIText {
         return language == .turkish ? names.1 : names.0
     }
 
+    /// #208: under the question, very small: which tier reads it, one line per state of the on-device
+    /// model (the W4 review's M5), so a phone that cannot run it is not told it is turned off.
+    static func onDeviceCaption(_ state: OnDeviceState, _ language: Language) -> String {
+        let turkish = language == .turkish
+        switch state {
+        case .available:
+            return turkish ? "Apple Intelligence ile güçlendirildi" : "Apple Intelligence enhanced"
+        case .turnedOff:
+            return turkish ? "Apple Intelligence kapalı: sorular kelimelerle eşleşiyor"
+                : "Apple Intelligence off: questions are matched by their words"
+        case .notEligible:
+            return turkish ? "Bu cihazda Apple Intelligence yok: sorular kelimelerle eşleşiyor"
+                : "No Apple Intelligence on this device: questions are matched by their words"
+        case .downloading:
+            return turkish ? "Apple Intelligence iniyor: şimdilik sorular kelimelerle eşleşiyor"
+                : "Apple Intelligence is downloading: questions are matched by their words for now"
+        case .unavailable:
+            return turkish ? "Apple Intelligence şu an kullanılamıyor: sorular kelimelerle eşleşiyor"
+                : "Apple Intelligence is unavailable now: questions are matched by their words"
+        }
+    }
+
+    /// D-188 clause 5 (M20-W4): the primary board's own answer, and back to the combined list.
+    static func primaryOnItsOwn(_ language: Language) -> String {
+        language == .turkish ? "Yalnızca ana tablonun cevabını göster" : "Show the primary board's own answer"
+    }
+
+    static func backToCombined(_ language: Language) -> String {
+        language == .turkish ? "Birleşik listemize dön" : "Back to our combined list"
+    }
+
     static func combinedTitle(_ language: Language) -> String {
         language == .turkish ? "Bu soruya göre birleşik sıralama" : "Combined for this question"
     }
@@ -659,6 +690,42 @@ extension UIText {
         case (.turkish, true): return "\(name) panosunu geri ekle"
         case (_, false): return "Remove the \(name) board"
         case (_, true): return "Add the \(name) board back"
+        }
+    }
+
+    /// D-188 clause 4 (M20-W4): the family's boards with no result in 90 days, or no date, said small
+    /// under the list, each with its date (the W4 review's B1). They count the same as the others.
+    static func olderBoards(_ boards: [NamedBoard], _ language: Language) -> String {
+        let names = boards.map { "\($0.name) (\(shortBoardDate($0.date, language)))" }.joined(separator: ", ")
+        let several = boards.count > 1
+        return language == .turkish
+            ? "\(names): 90 gündür yeni sonuç yok ya da tarih yok; bu listede diğerleri kadar sayıl"
+                + (several ? "ıyorlar." : "ıyor.")
+            : "\(names): no new result in 90 days, or no date; "
+                + (several ? "they count" : "it counts") + " the same as the others here."
+    }
+
+    /// D-188 clause 2 (the W4 review's B1): a family list says it is the product's own order, which
+    /// boards built it with each one's date, and how many of them a model needs.
+    static func familyNote(models: Int, boards: [NamedBoard], coverage: Int, _ language: Language) -> String {
+        let named = boards.map { "\($0.name), \(shortBoardDate($0.date, language))" }.joined(separator: "; ")
+        return language == .turkish
+            ? "Uygulamanın kendi listesi: \(boards.count) panodan kuruldu (\(named)). \(models) model; en az "
+                + "\(coverage) panoda yer alan bir model, o panolardaki göreli sıralarının ortalamasıyla yerleşir "
+                + "(her sıra, o panonun uzunluğuna oranla). Bu sırayı hiçbir liste yayımlamıyor."
+            : "Our own list, built from \(boards.count) boards (\(named)). \(models) models; a model ranked by at "
+                + "least \(coverage) of them is placed by the average of its relative places on those boards (each "
+                + "place as a share of that board's length). No leaderboard publishes this order."
+    }
+
+    /// A board's date in a list of boards: the day it was measured, the day it was read, or none.
+    static func shortBoardDate(_ date: BoardDate, _ language: Language) -> String {
+        switch date {
+        case let .measured(served): return readableDate(served, language) ?? served
+        case let .readOn(served):
+            let day = readableDate(served, language) ?? served
+            return language == .turkish ? "tarihsiz, \(day) okundu" : "undated, read \(day)"
+        case .unknown: return language == .turkish ? "tarih yok" : "no date"
         }
     }
 
@@ -736,9 +803,14 @@ extension UIText {
 // MARK: - M18-W2 (#96): the failure screen's sentences
 
 extension EngineError {
-    /// What happened, in the reader's language. English is `errorDescription` itself, so the two
-    /// cannot drift; the engine's own refusal is shown as it sent it, in either language.
+    /// What happened, in the reader's language. A refusal whose code this app knows is the app's own
+    /// sentence, English too; for any other code, and in `errorDescription`, the engine's words are
+    /// shown as it sent them.
     func errorDescription(_ language: Language) -> String? {
+        // #223: a refusal whose code this app knows is said in the reader's language, English too.
+        if case let .refused(_, code, _) = self, let sentence = EngineError.refusalSentence(code, language) {
+            return sentence
+        }
         guard language == .turkish else { return errorDescription }
         switch self {
         case .unreachable: return "Motor yanıt vermiyor."
@@ -747,6 +819,33 @@ extension EngineError {
         case .offline: return "Bu cihazın ağ bağlantısı yok."
         case let .refused(_, _, message): return message
         case .undecodable: return "Motorun cevabı bu uygulamanın okuyabildiği biçimde değildi."
+        }
+    }
+
+    /// #223 (M21-W3): an engine refusal in the reader's language, by its code. `nil` for a code this
+    /// app does not know: the engine's own English is then shown, and it stays in `diagnostic` always.
+    /// `tests/unit/test_error_codes.py` holds the cases equal to the codes the engine sends.
+    static func refusalSentence(_ code: String, _ language: Language) -> String? {
+        let turkish = language == .turkish
+        switch code {
+        case "rate_limited":
+            return turkish ? "Bu bağlantıdan bir dakikada çok fazla istek geldi. Biraz bekle ve tekrar dene."
+                : "Too many requests came from this connection in a minute. Wait a moment and try again."
+        case "unknown_host":
+            return turkish ? "Bu motor, uygulamanın sorduğu adreste cevap vermiyor."
+                : "This engine does not answer at the address the app asked."
+        case "internal_error":
+            return turkish ? "Motor bu isteği karşılayamadı." : "The engine could not serve this request."
+        case "evidence_unavailable":
+            return turkish ? "Motorun verileri şu anda kullanılamıyor." : "The engine's evidence is not available right now."
+        case "unknown_task":
+            return turkish ? "Motor, uygulamanın sorduğu görevi tanımıyor. Çözüm, uygulamayı güncellemek."
+                : "The engine does not know the task this app asked for. Updating the app is the fix."
+        case "unknown_budget":
+            return turkish ? "Motor, uygulamanın sorduğu bütçeyi tanımıyor. Çözüm, uygulamayı güncellemek."
+                : "The engine does not know the budget this app asked for. Updating the app is the fix."
+        default:
+            return nil
         }
     }
 

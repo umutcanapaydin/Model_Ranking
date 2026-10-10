@@ -30,9 +30,11 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import datetime as dt
+import ipaddress
 import logging
 import os
 import sqlite3
+import time
 from collections.abc import AsyncIterator
 from dataclasses import fields
 from pathlib import Path
@@ -46,6 +48,7 @@ from fastapi.responses import JSONResponse
 from app.adapter import nightly
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.coverage import SOURCE_STALE_DAYS, source_health
+from app.workflows.families import FAMILIES, REFINED_BOARD
 from app.workflows.floors import derived_floor
 from app.workflows.rank import (
     BLEND_INPUT_WEIGHT,
@@ -197,6 +200,129 @@ def _positive_env(name: str, default: str) -> int:
 
 
 MAX_CONCURRENT_REQUESTS = _positive_env("MODEL_RANKING_MAX_CONCURRENCY", "8")
+
+#: #187 (M20-W5): requests one client may make per minute. Unset or empty, nothing is limited (the
+#: owner's Mac); `fly.toml` sets it for the hosted engine. A fairness control, so it fails OPEN
+#: (AGENTS.md section 5): a limiter that breaks serves the request.
+RATE_LIMIT_VAR = "MODEL_RANKING_RATE_LIMIT"
+#: The most clients counted at once. Past it, an earlier minute's entries are dropped; if every entry
+#: is this minute's, a new client is served uncounted, and no count it holds is reset (the W5
+#: review's M1: a crowd of new addresses must not free a client already refused).
+RATE_WINDOW_KEYS = 10_000
+#: path -> how many requests one answer counts as. A `/v1/boards` answer is about 0.5 MB and a phone
+#: needs it once a day, so it counts as thirty: four a minute under a limit of 120 (the M20 closure
+#: security seat's S1), in a window of its own, so standings never block a question (#228). Every
+#: other path counts as one.
+RATE_WEIGHTS: dict[str, int] = {"/v1/boards": 30}
+#: client -> (the minute, its questions, its standings, whether this window's refusal was logged). One
+#: window per minute per client, its two counts in ONE entry, so the full-table rule ("a crowd of new
+#: clients never resets a count it holds") holds per client (the M21-W1 review's R1). A refused request
+#: is not charged (#228), so the counts alone cannot say whether a refusal was logged.
+_RATE_WINDOWS: dict[str, tuple[int, int, int, int]] = {}
+#: Which of a client's two counts a path is charged to: standings in one, everything else in the other
+#: (#228: standings never block questions).
+_STANDINGS, _QUESTIONS = 2, 1
+#: The minute a full table was last scanned for an earlier minute's entries, and the scans so far: a
+#: table full of this minute's clients is scanned once, not for every new one (the W5 Tester's T2).
+#: And the minute a broken limiter last warned, so it warns once a minute (the Tester's R1).
+_RATE_STATE: dict[str, int] = {"scanned": -1, "scans": 0, "warned": -1}
+
+
+def _rate_clock() -> float:
+    """The limiter's clock: the wall time, read in one place so a test can hold the minute still."""
+    return time.time()
+
+
+def rate_limit_problems() -> list[str]:
+    """What is wrong with the limit's setting, for the startup check: a strict environment refuses it."""
+    raw = os.environ.get(RATE_LIMIT_VAR, "").strip()
+    if not raw:
+        return []
+    try:
+        value = int(raw)
+    except ValueError:
+        return [f"{RATE_LIMIT_VAR} must be a whole number of requests per minute; got {raw!r}"]
+    return [] if value >= 0 else [f"{RATE_LIMIT_VAR} must not be negative; got {value}"]
+
+
+def _rate_limit() -> int:
+    """The limit in force, or 0 (no limit) when it is unset or unreadable; the startup check refuses
+    an unreadable one in production, and a relaxed environment serves rather than refuses."""
+    raw = os.environ.get(RATE_LIMIT_VAR, "").strip()
+    try:
+        return max(int(raw), 0) if raw else 0
+    except ValueError:
+        return 0
+
+
+def reset_rate_windows() -> None:
+    """Forget every count (tests)."""
+    _RATE_WINDOWS.clear()
+    _RATE_STATE.update(scanned=-1, scans=0, warned=-1)
+
+
+def rate_window_count() -> int:
+    return len(_RATE_WINDOWS)
+
+
+def rate_window_used(key: str, now: float, bucket: int = _QUESTIONS) -> int:
+    """What `key` has used of this minute's window, in one of its two counts (tests)."""
+    window = _RATE_WINDOWS.get(key)
+    return window[bucket] if window is not None and window[0] == int(now // 60) else 0
+
+
+def rate_table_scans() -> int:
+    """How many times a full table was scanned for an earlier minute's entries (tests)."""
+    return _RATE_STATE["scans"]
+
+
+def _client_key(request: Any) -> str:
+    """The client: Fly's proxy names it in `Fly-Client-IP`; otherwise the connection's address. An IPv6
+    address is counted by its /64, which one host holds whole (the W5 review's M1)."""
+    named = str(request.headers.get("fly-client-ip", "")).strip()
+    client = request.scope.get("client")
+    address = named[:64] if named else (str(client[0]) if client else "unknown")
+    try:
+        parsed = ipaddress.ip_address(address)
+    except ValueError:
+        return address
+    if isinstance(parsed, ipaddress.IPv6Address):
+        # An IPv4 address written as IPv6 is that IPv4 client (the W5 Tester's T1).
+        if parsed.ipv4_mapped is not None:
+            return str(parsed.ipv4_mapped)
+        return str(ipaddress.ip_network(f"{parsed}/64", strict=False))
+    return address
+
+
+def _over_limit(key: str, limit: int, now: float, weight: int = 1, bucket: int = _QUESTIONS) -> tuple[bool, int]:
+    """Count one request of `weight` for `key` in this minute, in one of its two counts; whether it is
+    past `limit`, and the seconds left."""
+    minute = int(now // 60)
+    wait = 60 - int(now % 60)
+    if key not in _RATE_WINDOWS and len(_RATE_WINDOWS) >= RATE_WINDOW_KEYS:
+        if _RATE_STATE["scanned"] != minute:
+            _RATE_STATE["scanned"] = minute
+            _RATE_STATE["scans"] += 1
+            for stale in [k for k, (start, *_rest) in _RATE_WINDOWS.items() if start != minute]:
+                del _RATE_WINDOWS[stale]
+        if len(_RATE_WINDOWS) >= RATE_WINDOW_KEYS:
+            return False, wait
+    window = list(_RATE_WINDOWS.get(key, (minute, 0, 0, 0)))
+    if window[0] != minute:
+        window = [minute, 0, 0, 0]
+    if window[bucket] + weight > limit:
+        # #228: a refused request is not charged, so a client that waits is served at once. Said once
+        # per client per window, and never with its address (the W5 review's M4).
+        if not window[3]:
+            _LOG.info("rate limited: one client passed %d requests in a minute", limit)
+        window[3] = 1
+        _RATE_WINDOWS[key] = (window[0], window[1], window[2], window[3])
+        return True, wait
+    window[bucket] += weight
+    _RATE_WINDOWS[key] = (window[0], window[1], window[2], window[3])
+    return False, wait
+
+
 
 #: The largest ranked-model count this process will serve. Measured rather than guessed: the
 #: Stage-4.0 pass drove a container capped at the VM size `fly.toml` declares and found ~10,000
@@ -593,6 +719,12 @@ def validate_startup_config(env: str | None = None) -> tuple[str, ...]:
             " verified (L.7)"
         )
 
+    # #187 (M20-W5): an unreadable request limit is a broken fairness control at boot, not per request.
+    problems.extend(rate_limit_problems())
+    if strict and not _rate_limit():
+        # The owner's Mac runs strict with no limit; a hosted engine sets one (`fly.toml`). Said, not
+        # refused (the W5 review's R2).
+        _LOG.warning("%s is unset or 0: this engine serves with no request limit", RATE_LIMIT_VAR)
     if problems and strict:
         raise ConfigError("; ".join(problems))
     return tuple(problems)
@@ -678,6 +810,36 @@ if _ALLOWED_ORIGINS:
         allow_methods=["GET"],
         allow_headers=["Accept", "Content-Type"],
     )
+
+
+@app.middleware("http")
+async def _limited(request: Any, call_next: Any) -> Any:
+    """#187: one client past the limit in a minute is told to wait; `/health` never is. Fails open.
+    Declared before `_known_host`, so Starlette runs the Host check first: a request to a Host not on
+    the list is a 400 and is never counted (INV-26; the M20 closure security seat's S2)."""
+    limit = _rate_limit()
+    if limit and request.url.path != "/health":
+        now = _rate_clock()
+        try:
+            # A weight above the limit costs the whole minute, never every minute (the closure fixes M4).
+            weight = min(RATE_WEIGHTS.get(request.url.path, 1), limit)
+            # #228: standings count apart from questions, in the client's one entry (the W1 review's R1),
+            # so standings never block questions (phones behind one carrier address fetch them together).
+            bucket = _STANDINGS if request.url.path in RATE_WEIGHTS else _QUESTIONS
+            over, wait = _over_limit(_client_key(request), limit, now, weight, bucket)
+        except Exception as exc:
+            # Fails open, and says so once a minute: a broken limiter must be seen (the W5 review's
+            # M4), not repeated on every request (the Tester's R1).
+            if _RATE_STATE["warned"] != int(now // 60):
+                _RATE_STATE["warned"] = int(now // 60)
+                _LOG.warning("rate limiter failed (%s); requests are served", type(exc).__name__)
+            over, wait = False, 0
+        if over:
+            response = _error(429, "rate_limited", "Too many requests from one client; try again shortly.")
+            response.headers["Retry-After"] = str(max(wait, 1))
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            return response
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -1352,6 +1514,13 @@ def categories() -> dict[str, Any]:
                 # when a question selects this surface; the benchmark's name cannot say which,
                 # since two boards publish SWE-bench Verified (#53).
                 "primary_board": spec.primary_source,
+                # M20-W1 (D-188 clause 1, #209): the surface's family, every board that measures its
+                # task, the primary first. The phone combines it and reads each board's date from
+                # `/v1/boards`, so no date is copied here.
+                "boards": list(FAMILIES[spec.id]),
+                # The M20 repo review's M1 (D-188 clause 6): the board a refinement takes the place of,
+                # the family's board of Arena's text vote; `null` where no refinement refines the surface.
+                "refined_board": REFINED_BOARD.get(spec.id),
                 # REQ-UNC-002. The age is the engine's own (`recommend.secondary_age_days`) against
                 # the artifact's anchor; `null` when the board is undated or unreadable.
                 "secondary_benchmark": spec.secondary_benchmark,

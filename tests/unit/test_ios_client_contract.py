@@ -32,9 +32,10 @@ MODELS = CLIENT / "Engine/Models.swift"
 
 
 def _swift(path: pathlib.Path) -> str:
-    """A Swift file as the compiler builds it: a branch no build compiles (`#if false`) is dropped, so
-    a pin never reads dead code as live (#110, the W2 review's M3). Comments are kept, and a directive
-    inside a comment or a string is none (the second W2 review's M3)."""
+    """A Swift file with each branch `_built_mask` reads as never built blanked (`#if false`, and the
+    conditions `_decide` reads as false from their literals), so a pin does not read that branch as
+    live (#110, the W2 review's M3). Comments are kept, so a `/* */` copy of a line a pin requires satisfies it (G-15, #247); a
+    directive inside a comment or a string is none (the second W2 review's M3)."""
     raw = path.read_text(encoding="utf-8")
     return "\n".join(line if built else "" for line, built in zip(raw.split("\n"), _built_mask(_stripped(raw)), strict=True))
 
@@ -208,13 +209,15 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
 #: Held-out sets already run, and so tuning now: M16's and M17's, M18-W3's first two (review B2),
 #: and M18-W3's three fresh ones, spent there and retired at M19-W4 (#177: four signal words were
 #: added after them with no origin shown); `heldout_questions.json` and
-#: `offtopic_heldout_questions.json` ran in M13 and M16 (its second review's K4). Shared by the
-#: held-out gates (#117).
+#: `offtopic_heldout_questions.json` ran in M13 and M16 (its second review's K4); M19-W4's two,
+#: measured there and replayed by five review rounds, retired at M20-W5 (#195) when a fresh set
+#: (`wording_heldout_m20_questions.json`) took their place. Shared by the held-out gates (#117).
 RETIRED_HELD_OUT = {"heldout_questions.json", "refinement_heldout_questions.json",
                     "coding_heldout_m17_questions.json", "notasearch_m17_heldout_questions.json",
                     "image_heldout_first_questions.json", "offtopic_heldout_questions.json",
                     "coding_heldout_m18_questions.json", "notasearch_heldout_m18_questions.json",
-                    "image_heldout_m18_questions.json"}
+                    "image_heldout_m18_questions.json", "notasearch_heldout_m19_questions.json",
+                    "image_heldout_m19_questions.json"}
 
 
 def _live_held_out_sets() -> list[pathlib.Path]:
@@ -281,19 +284,76 @@ def test_the_blend_the_detail_screen_states_is_the_engines() -> None:
 
 
 #: Numbers the ENGINE decided. Rounding, ordering and comparison of these belong to D-104/105/109.
-SERVED_NUMBERS = (
-    "score",
-    "secondaryScore",
-    "blendedPerM",
-    "inputPerM",
-    "outputPerM",
-    "higherEffortScore",
-    "eligibleCount",
-    "frontierSize",
-)
+#: #169 (M21-W3): a type the client decodes, opening on its own line, and a stored numeric property one
+#: level inside it. The compiled gate reads served fields from the compiler (`served_fields`); this is
+#: its half for the lanes with no Xcode, held equal to it on the fixture
+#: (`test_the_text_tripwire_names_the_compiled_served_fields_on_the_fixture`). Another declaration form
+#: may differ, and on CI only the text list runs (G-10).
+DECODED_STRUCT = re.compile(r"^(?:\w+ )*(?:struct|class) (\w+)\b[^{\n]*\b(?:Decodable|Codable)\b[^{\n]*\{", re.M)
+#: The M21-W3 review's M3: a type declared plainly and made `Decodable` in an extension, a decoded
+#: enum with a numeric payload (a served fact), and a stored field typed as one; and a decoded type's
+#: fields at any depth of indentation below it, a nested decoded type's included.
+ANY_TYPE = re.compile(r"^([ \t]*)(?:\w+ )*(?:struct|class) (\w+)\b[^{\n]*\{", re.M)
+DECODED_EXTENSION = re.compile(r"^extension (\w+)\s*:[^{\n]*\b(?:Decodable|Codable)\b", re.M)
+DECODED_ENUM = re.compile(r"^([ \t]*)(?:\w+ )*enum (\w+)\b[^{\n]*\b(?:Decodable|Codable)\b[^{\n]*\{", re.M)
+NUMERIC_CASE = re.compile(r"^\s*case (\w+)\((?:U?Int(?:8|16|32|64)?|Double|Float|CGFloat|Decimal)\)", re.M)
+NUMBER_TYPE = r"(?:U?Int(?:8|16|32|64)?|Double|Float|CGFloat|Decimal)"
 
 
-def test_the_client_performs_no_arithmetic_on_a_number_the_engine_sent() -> None:
+def _body(text: str, start: int, indent: str) -> str:
+    """A declaration's body: from its opening line to the closing brace at its own indentation; a
+    body written on its opening line (`struct S { let n: Int }`) is laid out one declaration a line."""
+    rest = text[start:]
+    line = rest.split("\n", 1)[0]
+    if line.rstrip().endswith("}"):
+        return "".join(f"\n{indent}    {part.strip()}" for part in line.rstrip()[:-1].split(";") if part.strip())
+    closing = re.search(rf"^{re.escape(indent)}\}}", rest, re.M)
+    return rest[: closing.start()] if closing else rest
+
+
+def _served_numbers(sources: dict[str, str] | None = None) -> set[str]:
+    """#169: every stored number a decoded type holds, as the compiled gate derives it, less the
+    types the engine never sends (`NOT_SERVED` in `scripts/client_decl_gate.py`); and (the M21-W3
+    review's M3) each decoded enum's numeric payload, by its case and its constructor, and each stored
+    field typed as such an enum, as `served_fields` and `_served_cases` derive them."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("client_decl_gate", CLIENT.parents[1] / "scripts/client_decl_gate.py")
+    assert spec and spec.loader
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    texts = list((sources if sources is not None else _swift_sources()).values())
+    extended = {name for text in texts for name in DECODED_EXTENSION.findall(text)}
+    facts: set[str] = set()
+    found: set[str] = set()
+    for text in texts:
+        for declared in DECODED_ENUM.finditer(text):
+            cases = set(NUMERIC_CASE.findall(_body(text, declared.end(), declared.group(1))))
+            if cases and declared.group(2) not in gate.NOT_SERVED:
+                facts.add(declared.group(2))
+                found |= cases | {f"{case}(_:)" for case in cases}
+    stored = re.compile(rf"^\s+(?:(?:public|private|internal|fileprivate) )?(?:let|var) (\w+): "
+                        rf"(?:{NUMBER_TYPE}|{'|'.join(sorted(facts)) or 'NoFact'})\??\s*(?:$|//|=)", re.M)
+    for text in texts:
+        for declared in ANY_TYPE.finditer(text):
+            name = declared.group(2)
+            decoded = DECODED_STRUCT.match(text, declared.start() + len(declared.group(1))) or name in extended
+            if not decoded or name in gate.NOT_SERVED:
+                continue
+            body = _body(text, declared.end(), declared.group(1))
+            # A nested type's fields belong to it, so only this type's own level is read.
+            inner = declared.group(1) + "    "
+            found |= {field for field in stored.findall(body)
+                      if re.search(rf"^{re.escape(inner)}(?:(?:public|private|internal|fileprivate) )?(?:let|var) "
+                                   rf"{re.escape(field)}:", body, re.M)}
+    return found
+
+
+#: The served numbers the text tripwire watches, derived (#169).
+SERVED_NUMBERS = tuple(sorted(_served_numbers()))
+
+
+def test_the_arithmetic_spellings_the_pin_reads_on_a_served_number_are_refused() -> None:
     """Trap 1, and it protects three ADRs at once.
 
     D-109 puts rounding at the output boundary, D-105 forbids cross-scale averaging and D-104 keeps
@@ -434,6 +494,10 @@ def test_score_arithmetic_happens_only_where_an_adr_permits_it() -> None:
 #: to a permitted receiver (`entries`, not `x.entries` or `answer.ranking`).
 SORTING_PERMITTED = {
     ("Combine.swift", "common"): "D-167 clause 3: shared models ordered by their combined ranks.",
+    ("Combine.swift", "means.keys"): (
+        "D-188 clause 3 (M20-W2): a family's models ordered by their mean percentile positions, "
+        "the product's own list, positions only."
+    ),
     ("Combine.swift", "placed"): (
         "#74: one board's shared positions, sorted once so each model's rank is a binary search "
         "rather than a scan (O(n log n), the same ranks)."
@@ -472,7 +536,7 @@ def _sort_receiver(code: str, start: int) -> str:
     return match.group(1) if match else ""
 
 
-def test_the_client_applies_no_ordering_of_its_own() -> None:
+def test_the_ordering_spellings_the_pin_reads_are_refused_in_the_client() -> None:
     """Ruling A's real cost, three milestones after the ruling.
 
     `/v1` emits two coding answers in a documented non-semantic order and states in the envelope
@@ -676,7 +740,7 @@ def test_every_failure_the_client_names_reaches_the_screen_with_a_sentence() -> 
     )
 
 
-def test_every_response_is_read_through_its_routes_ceiling() -> None:
+def test_the_one_request_is_read_through_its_routes_ceiling() -> None:
     """#56 (M17-W4 security S3): a whole response was buffered before any size check. The one
     request is streamed and read through `read(_:declared:upTo:)` with the route's ceiling; a second
     request, or a read that skips the ceiling, is what this refuses. ResponseCeilingTests holds the
@@ -911,7 +975,8 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     # D-169 (M18-W3): a question read as a search goes on to `apply`, which loads its surface.
     ask = re.search(r"private func ask\(\) async \{(.*?)\n    \}", home, re.S)
     assert ask, "the question path is gone"
-    assert re.search(r"guard outcome\.reading == \.search else \{.*?return\s*\}\s*await apply\(outcome,", ask.group(1), re.S), (
+    assert re.search(r"if let reading = HeldReading\.holding\(outcome, typed: typed\) \{.*?return\s*\}\s*await apply\(outcome,",
+                     ask.group(1), re.S), (
         "a question read as a search is no longer answered, or one that is not is"
     )
     applied = re.search(r"private func apply\(_ outcome: RoutingOutcome, typed: String, ticket: Int\) async \{(.*?)\n    \}", home, re.S)
@@ -929,16 +994,18 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     asked = ask.group(1)
     # D-169 clauses 4 and 5 (M18-W3 review M2): a held reading sends no request, loads nothing and
     # keeps nothing in the register. Its branch holds the question and returns, and nothing else.
-    held_branch = re.search(r"guard outcome\.reading == \.search else \{(.*?)\n        \}", asked, re.S)
+    # #132: the decision is `HeldReading.holding`, held by `HeldReadingTests`; this pins its wiring.
+    held_branch = re.search(r"if let reading = HeldReading\.holding\(outcome, typed: typed\) \{(.*?)\n        \}",
+                            asked, re.S)
     assert held_branch, "the branch for input that is not a search is gone"
     held_code = "\n".join(line.split("//", 1)[0] for line in held_branch.group(1).splitlines())
     for forbidden in ("load(", "client.", "gaps.", "recordsGap", "task =", "apply(", "routing = outcome", "Task {"):
         assert forbidden not in held_code, f"a held reading reaches `{forbidden}`"
-    assert re.search(r"held = HeldReading\(typed: typed, outcome: outcome\)", held_code), "the reading is not held"
+    assert re.search(r"held = reading\b", held_code), "the reading is not held"
     # The second review's M9: "Find a model" answers as routed, once, and "No" shows the note.
     confirm = re.search(r"private func confirm\(_ held: HeldReading\) \{(.*?)\n    \}", home, re.S)
     assert confirm and re.search(
-        r"guard !routingInFlight else \{ return \}.*outcome\.reading = \.search.*await apply\(outcome, typed: held\.typed",
+        r"guard !routingInFlight else \{ return \}.*let outcome = held\.confirmed.*await apply\(outcome, typed: held\.typed",
         confirm.group(1), re.S), "Find a model does not answer the held question as routed, once"
     # The third review's M19: "No" is exactly the note. Anything more, a gap kept or `confirm` called,
     # answers or records what the reader said is not a search.
@@ -946,10 +1013,8 @@ def test_the_front_door_is_wired_to_the_logic_it_depends_on() -> None:
     assert decline, "the path for No is gone"
     decline_code = [line.split("//", 1)[0].strip() for line in decline.group(1).splitlines()]
     assert [line for line in decline_code if line] == [
-        "var outcome = held.outcome",
-        "outcome.reading = .notASearch",
-        "self.held = HeldReading(typed: held.typed, outcome: outcome)",
-    ], "No does not show the note, or does more than show it"
+        "self.held = held.declined",
+    ], "No does not show the note, or does more than show it (`HeldReading.declined`, held by HeldReadingTests)"
     # The held card goes when a search is answered, first, before anything loads behind it.
     assert re.match(r"\s*held = nil\n", body), "an answered search leaves the held card over its ranking"
     assert re.search(
@@ -1347,7 +1412,7 @@ def test_the_held_card_stands_alone_and_shows_the_face_its_reading_asks_for() ->
     card = re.search(r"private func readingCard\(_ held: HeldReading\) -> some View \{(.*?)\n    \}", code, re.S)
     assert card, "the held card is gone"
     assert re.search(
-        r"if held\.outcome\.reading == \.unsure \{\s*Text\(UIText\.askBack\(language\)\).*?"
+        r"if held\.asksBack \{\s*Text\(UIText\.askBack\(language\)\).*?"
         r"\} else \{\s*Text\(UIText\.notASearchNote\(language\)\)",
         card.group(1),
         re.S,
@@ -1369,7 +1434,8 @@ def test_a_held_question_clears_the_old_answer_and_its_two_taps_do_what_they_say
     code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
     ask = re.search(r"private func ask\(\) async \{(.*?)\n    \}", code, re.S)
     assert ask, "the question path is gone"
-    held = re.search(r"guard outcome\.reading == \.search else \{(.*?)\n        \}", ask.group(1), re.S)
+    held = re.search(r"if let reading = HeldReading\.holding\(outcome, typed: typed\) \{(.*?)\n        \}",
+                     ask.group(1), re.S)
     assert held, "the branch for input that is not a search is gone"
     assert re.search(r"^\s*routing = nil\s*$", held.group(1), re.M), (
         "the previous question's surface and its notice stay on screen over a held one"
@@ -1466,7 +1532,7 @@ def test_the_probe_leaves_a_not_a_search_row_out_of_its_score() -> None:
 READ = re.compile(r"\.read_text\(")
 
 
-def test_every_swift_pin_here_reads_the_code_the_compiler_builds() -> None:
+def test_a_swift_read_in_this_file_goes_through_swift_which_drops_literally_false_branches() -> None:
     """The W2 review's M3 (#110, INV-78, REQ-GAP-001): F2 put both timeouts under `#if false` and
     passed `make check-fast`, because the timeout pin read the dead lines. A Swift file is read here
     through `_swift`, which drops what no build compiles; a raw read says why on its own line."""
@@ -1477,7 +1543,7 @@ def test_every_swift_pin_here_reads_the_code_the_compiler_builds() -> None:
     assert not raw, f"Swift read past `_swift`, so a `#if false` branch reads as live: {raw}"
 
 
-def test_a_directive_inside_a_comment_hides_nothing(tmp_path: pathlib.Path) -> None:
+def test_a_directive_inside_a_block_comment_is_not_read_as_one(tmp_path: pathlib.Path) -> None:
     """The second W2 review's M3 (#110, INV-78): `_swift` read directives in comments, so a `#if false`
     and an `#endif`, each in a block comment, hid the live code between them (F3), which the pins
     before the wave read. A comment is not a directive."""
@@ -1517,7 +1583,8 @@ def test_an_entry_matches_at_a_words_start_with_any_ending() -> None:
     word with any ending, Turkish suffixes and English plurals alike; not inside a word; and under
     three letters it is a suffix or a particle, not a signal. (Turkish letters are escaped: the
     repository is English, V4C-79.)"""
-    lists = [(["unut"], True), (["print", "\u00e7iz", "mu", "pirate"], False)]
+    # The tuple's flag is whether the app matches the list whole (#186); these are all read by their start.
+    lists = [(["unut"], False), (["print", "\u00e7iz", "mu", "pirate"], False)]
     held = ["talimatlar\u0131 unutsana", "a printer driver", "bir kedi \u00e7izsene", "bu mu", "a spirates"]
     assert _held_out_only_signals(lists, held, []) == ["print", "unut", "\u00e7iz"]
 
@@ -1586,36 +1653,14 @@ def test_every_signal_word_only_a_live_held_out_set_holds_is_reviewed() -> None:
 
 
 #: #117: each entry of `Reading.swift`'s lists that a live held-out set holds and no tuning set does,
-#: with where it came from. The M18 sets the first entries came from are retired (#177, M19-W4):
-#: four of their words were added after the sets existed, with no origin shown, so the sets became
-#: tuning and W4 measures on fresh ones. Each entry below was in the app before its set was
-#: written, so it cannot have come from it; or, marked so, it came from the W4 review after the set
-#: was measured and spent; measured, none of them changes a row of that set (the third W4 review's M1).
+#: with where it came from. The M19 sets the earlier entries came from are retired (#195, M20-W5);
+#: the live set is M20-W5's, written by an independent seat. Each entry below was in the app before
+#: that set was written, so it cannot have come from it.
 _BEFORE = "in the app before {set} was written ({sha}), so not read from it"
-_AFTER_MEASURE = "from the W4 review's {finding}, after {set} was measured and spent; measured, it changes no row of it"
 HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
-    "first": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
-    "from now on you": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
-    "geceler": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
-    "komutlar\u0131": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
-    "komutlar\u0131n\u0131": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
-    "sa\u011fol": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
-    "thx": _BEFORE.format(set="notasearch_heldout_m19", sha="23a81da"),
-    "blur": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "colourise": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "ikon": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "oil": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "paint": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "painting": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "poster": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "r\u00f6tu\u015fla": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "slider": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "sticker": _BEFORE.format(set="image_heldout_m19", sha="23a81da"),
-    "galeri": _AFTER_MEASURE.format(finding="MJ1", set="image_heldout_m19"),
-    "y\u00fckleme": _AFTER_MEASURE.format(finding="MJ1", set="image_heldout_m19"),
-    "chatbot": _AFTER_MEASURE.format(finding="MJ2", set="notasearch_heldout_m19"),
-    "deepseek": _AFTER_MEASURE.format(finding="MJ2", set="notasearch_heldout_m19"),
-    "gemini": _AFTER_MEASURE.format(finding="MJ2", set="notasearch_heldout_m19"),
+    "chatgpt": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
+    "grok": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
+    "resmin": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
 }
 #: A list of string literals: every word, phrase, verb and noun list in `Reading.swift`, the inline
 #: ones in its functions too, derived from the source rather than named here. One literal is a list
@@ -1625,17 +1670,24 @@ STRING_LIST = re.compile(r'\[\s*((?:"[^"\n]*"\s*,?\s*)+)\]')
 
 
 def _reading_lists() -> list[tuple[list[str], bool]]:
-    """#117: each list of strings in `Reading.swift`, and whether its entries are stems: a list whose
-    declaration names Turkish or stems, or one matched with `hasPrefix`."""
+    """#117: each list of strings in `Reading.swift`, with whether the app matches its entries whole
+    (#186; read per literal by `_lists_in`, the M21-W2 review's M6)."""
     code = "\n".join(line.split("//")[0] for line in _swift(CLIENT / "Engine/Reading.swift").splitlines())
-    lists = []
-    for found in STRING_LIST.finditer(code):
-        named = code[max(0, found.start() - 160):found.start()]
-        stems = (re.search(r"(Turkish|[Ss]tems)\b[^\n]*$", named) is not None
-                 or "hasPrefix" in code[found.end():found.end() + 60])
-        lists.append((re.findall(r'"([^"\n]*)"', found.group(1)), stems))
+    lists = _lists_in(code)
     assert sum(len(entries) for entries, _ in lists) > 100, "Reading.swift's lists were not read"
     return lists
+
+
+def _matched_whole(code: str, name: str) -> bool:
+    """#186: whether every use of the list `name` matches an entry whole: no use reads by `hasPrefix`
+    or `hasSuffix`, and at least one use is found: a method on it (`name.contains`) or a loop over it
+    whose test is whole (`for p in name where spaced.contains(" \\(p) ")`, the review's M6)."""
+    # Each use's own call, its parentheses balanced one level deep, not the text after it (the review's M6).
+    uses = [m.group(1) for m in re.finditer(rf"\b{re.escape(name)}\.\w+\(((?:[^()]|\([^()]*\))*)\)", code)]
+    # A method passed by name (`words.contains(where: factWordsTurkish.contains)`) is a whole use too.
+    uses += ["" for _ in re.finditer(rf"\b{re.escape(name)}\.(?:contains|firstIndex|first)\b(?!\()", code)]
+    uses += [m.group(1) for m in re.finditer(rf"\bin {re.escape(name)}\b([^\n]*)", code)]
+    return bool(uses) and not any("hasPrefix" in use or "hasSuffix" in use for use in uses)
 
 
 def test_every_fact_opener_and_small_talk_phrase_is_read_by_the_held_out_check() -> None:
@@ -1693,20 +1745,296 @@ def _held_and_tuning_strings() -> tuple[list[str], list[str]]:
     return held, tuning
 
 
-def _held_out_only_signals(lists: list[tuple[list[str], bool]], held: list[str], tuning: list[str]) -> list[str]:
-    """#117: each entry found in `held` and in no `tuning` string, sorted: at a word's start with any
-    ending (D-183); under three letters it is a suffix or a particle, not a signal. Case-folded on
-    every side. Whether a list holds stems no longer changes the match (the W3 review's M8)."""
-    held_text, tuning_text = "\n".join(held).casefold(), "\n".join(tuning).casefold()
+def _held_out_only_signals(
+    lists: list[tuple[list[str], bool]], held: list[str], tuning: list[str], plain_letters: bool = False
+) -> list[str]:
+    """#117: each entry found in `held` and in no `tuning` string, sorted. An entry the app matches
+    whole is matched whole (#186, M21-W2); any other at a word's start, with any ending (D-183, the W3
+    review's M8). Under three letters it is a suffix or a particle, not a signal. Case-folded on every
+    side; `plain_letters` folds the Turkish letters too, for the wording tier, which compares in plain
+    letters (D-187)."""
+    fold = _plain if plain_letters else str.casefold
+    held_text, tuning_text = fold("\n".join(held)), fold("\n".join(tuning))
     found = set()
-    for entries, _stems in lists:
+    for entries, whole in lists:
         for entry in entries:
-            word = entry.strip().casefold()
+            word = fold(entry.strip())
             if len(word) < 3:
                 continue
-            # At a word's start, with any ending (the W3 review's M8): a word's language cannot be read
-            # from its letters ("sistem komut"), and an English plural is the same word.
-            pattern = rf"(?<!\w){re.escape(word)}"
+            pattern = rf"(?<!\w){re.escape(word)}" + (r"(?!\w)" if whole else "")
             if re.search(pattern, held_text) and not re.search(pattern, tuning_text):
                 found.add(entry)
     return sorted(found)
+
+
+def _plain(text: str) -> str:
+    """Text in plain letters, as the wording tier compares it (`CategoryHints.plain`)."""
+    pairs = str.maketrans({"\u0131": "i", "\u015f": "s", "\u011f": "g", "\u00fc": "u", "\u00f6": "o",
+                           "\u00e7": "c", "\u00e2": "a", "\u00ee": "i", "\u00fb": "u"})
+    return text.casefold().translate(pairs).replace("\u0307", "")
+
+
+# --- The M21-W2 review's M6 -------------------------------------------------------------------------------
+
+#: One Swift shape per way `Reading.swift` matches a list: each literal is read with its own use's mode.
+_SHAPES = """
+    static let wholeList: Set<String> = ["alpha"]
+    static let stemList: Set<String> = ["bravo"]
+    static let phraseList = ["charlie delta"]
+    func uses(_ word: String, _ words: [String], _ spaced: String) -> Bool {
+        if wholeList.contains(word) || stemList.contains(where: word.hasPrefix) { return true }
+        for phrase in phraseList where spaced.contains(" \\(phrase) ") { return true }
+        let asks = ["echo", "foxtrot"].contains(words.first ?? "")
+        if words == ["golf"] { return false }
+        if ["hotel", "india"].contains(where: { word.hasPrefix($0) }) { return true }
+        let stems = ["juliet"]
+        if stems.contains(where: { word.hasPrefix($0) }) { return true }
+        return asks && words.contains(where: { ["kilo"].contains($0) }) || ["lima", "mike"].contains(word)
+    }
+"""
+
+
+def test_each_inline_list_is_read_with_its_own_uses_mode() -> None:
+    """M6 (a): a literal is read with the mode of its own use, not the last declaration above it."""
+    modes = {entry: whole for entries, whole in _lists_in(_SHAPES) for entry in entries}
+    assert modes == {
+        "alpha": True, "bravo": False, "charlie delta": True, "echo": True, "foxtrot": True, "golf": True,
+        "hotel": False, "india": False, "juliet": False, "kilo": True, "lima": True, "mike": True,
+    }
+
+
+def test_the_wording_read_holds_the_family_words() -> None:
+    """M6 (c): the generated family words (`ModelFamilies.swift`) are matched against questions too (a
+    comparison of model names, #206), so the held-out check reads them."""
+    entries = {entry for found, _whole in _wording_lists() for entry in found}
+    assert {"qwen", "mixtral", "kimi", "nemotron"} <= entries
+
+
+def _lists_in(code: str) -> list[tuple[list[str], bool]]:
+    """Each string literal list in `code`, and whether the app matches its entries whole (#186; the M21-W2
+    review's M6): a declaration's (`let name = [`) by the uses of its name, an inline one by its own use
+    right after it (`.contains(x)` and `== [` whole, `.contains(where: … hasPrefix …)` by its start).
+    Anything else is read by its start, the mode that flags less. The literals compared inline (`== "ne"`
+    whole, `hasPrefix("yıl")` by its start) are read too."""
+    lists: list[tuple[list[str], bool]] = []
+    for found in STRING_LIST.finditer(code):
+        entries = re.findall(r'"([^"\n]*)"', found.group(1))
+        before, after = code[max(0, found.start() - 200):found.start()], code[found.end():found.end() + 80]
+        declared = re.search(r"\b(?:let|var)\s+(\w+)\s*(?::[^=\n]+)?=\s*$", before)
+        if re.match(r"\s*\.contains\(where:[^\n]*hasPrefix", after):
+            whole = False
+        elif re.match(r"\s*\.\w+\(", after):
+            whole = bool(re.match(r"\s*\.contains\((?!where:)", after))
+        elif declared:
+            whole = _matched_whole(code, declared.group(1))
+        else:
+            whole = bool(re.search(r"==\s*$", before))
+        lists.append((entries, whole))
+    lists.append((re.findall(r'==\s*"([^"\n]+)"', code), True))
+    lists.append((re.findall(r'hasPrefix\("([^"\n]+)"\)', code), False))
+    return lists
+
+
+# --- M21-W2 (#186, #180): the held-out check matches as the app does, and reads the wording tier -------
+
+
+def test_an_entry_the_app_matches_whole_is_flagged_when_only_a_held_out_set_holds_it_whole() -> None:
+    """#186: the check matched every entry at a word's start with any ending, while the app matches many
+    lists whole. `nerede` held whole only by a held-out row, while a tuning row holds `nereden`, passed.
+    A list matched whole is now matched whole; one matched by its start stays so."""
+    held, tuning = ["kitap nerede"], ["nereden geldi bu"]
+    assert _held_out_only_signals([(["nerede"], True)], held, tuning) == ["nerede"]
+    assert _held_out_only_signals([(["nerede"], False)], held, tuning) == []
+
+
+def test_the_check_reads_how_each_list_is_matched_and_the_inline_literals() -> None:
+    """#186: whether a list is matched whole or by its start is read from the code that uses it, and the
+    literals compared inline (`$0 == "ne"`, `hasPrefix("yıl")`) are read too."""
+    modes: dict[str, bool] = {}
+    for entries, whole in _reading_lists():
+        for entry in entries:
+            modes[entry] = modes.get(entry, True) and whole
+    assert modes.get("kim") is True, "factWordsTurkish is matched whole"
+    assert modes.get("thx") is True, "smallTalkWords is matched whole"
+    assert modes.get("kodla") is False, "factExclusionStemsTurkish is matched by its start"
+    assert modes.get("zaman") is True and modes.get("ne") is True, "the inline == literals"
+    assert modes.get("y\u0131l") is False, "the inline hasPrefix literal"
+
+
+def test_the_wording_tiers_tuned_text_is_read_by_the_held_out_check() -> None:
+    """#180: the wording tier's hint sentences, its keyword lists (D-187) and the refinement words
+    (D-188 clause 6) are tuned text matched against questions too, so the check reads them."""
+    entries = {entry: whole for found, whole in _wording_lists() for entry in found}
+    assert {"parses", "comprehension"} <= set(entries), "the hint sentences were not read"
+    assert entries.get("traceback") is False, "a stem is matched by its start"
+    assert entries.get("codebase") is True, "a word is matched whole"
+    assert entries.get("unit test") is False and entries.get("book a flight") is True, "phrases"
+    assert entries.get("lawyer") is True and entries.get("hukuk") is False, "the refinement words"
+
+
+def test_every_wording_entry_only_a_live_held_out_set_holds_is_reviewed() -> None:
+    """#180: each entry of the wording tier's tuned text that a live held-out set holds and no tuning set
+    does is named in `WORDING_HELD_OUT_ONLY_REVIEWED`, with where it came from, as `Reading.swift`'s are."""
+    flagged = set(_held_out_only_signals(_wording_lists(), *_held_and_tuning_strings(), plain_letters=True))
+    assert flagged - set(WORDING_HELD_OUT_ONLY_REVIEWED) == set(), f"unreviewed: {sorted(flagged - set(WORDING_HELD_OUT_ONLY_REVIEWED))}"
+    assert set(WORDING_HELD_OUT_ONLY_REVIEWED) - flagged == set(), "reviewed entries no longer flagged; remove them"
+
+
+#: #180 (M21-W2): each entry of the wording tier's tuned text that a live held-out set holds and no tuning
+#: set does, with where it came from. The live set (`wording_heldout_m20`) was written by an independent
+#: seat that read no code, after M20-W3's `fb773fe`; every entry below was in the app before it, at `main`
+#: (`bd273bc`: the hint sentences and D-187's keyword lists) or in M20-W3 (the refinement words, #206).
+_WORDING_AT_MAIN = "in the app at bd273bc, before wording_heldout_m20 was written, so not read from it"
+_WORDING_IN_W3 = "added at {sha} (M20-W3), before wording_heldout_m20 was written by a seat that read no code"
+WORDING_HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
+    "agents": _WORDING_AT_MAIN,
+    "best llm": _WORDING_AT_MAIN,
+    "bilim": _WORDING_AT_MAIN,
+    "chatgpt": _WORDING_AT_MAIN,
+    "coding agent": _WORDING_AT_MAIN,
+    "commands": _WORDING_AT_MAIN,
+    "dress": _WORDING_AT_MAIN,
+    "grok": _WORDING_AT_MAIN,
+    "integral": _WORDING_AT_MAIN,
+    "kurgu": _WORDING_AT_MAIN,
+    "law": _WORDING_AT_MAIN,
+    "overall": _WORDING_AT_MAIN,
+    "php": _WORDING_AT_MAIN,
+    "rust code": _WORDING_AT_MAIN,
+    "searching": _WORDING_AT_MAIN,
+    "tasks": _WORDING_AT_MAIN,
+    "turev": _WORDING_AT_MAIN,
+    "user": _WORDING_AT_MAIN,
+    "yazan": _WORDING_AT_MAIN,
+    "learn": _WORDING_IN_W3.format(sha="fb773fe"),
+    "pazarlama": _WORDING_IN_W3.format(sha="7c12a7b"),
+    "poetry": _WORDING_IN_W3.format(sha="7c12a7b"),
+    "yoksa": _WORDING_IN_W3.format(sha="fb773fe"),
+}
+
+
+def _wording_lists() -> list[tuple[list[str], bool]]:
+    """#180 (M21-W2): the wording tier's tuned text, each entry with whether it is matched whole:
+    - the hint sentences (`CategoryHints.examples`), word by word, whole;
+    - the keyword lists (D-187): `stems:` by their start, `words:`, `unless:` and `names:` whole, each of
+      `phrases:` as words in a row (by its start where it ends in `*`), `marks:` by their start;
+    - every other literal in `CategoryHints` and in the refinement words (D-188 clause 6), whole, or by
+      its start where it ends in `*`.
+    Read from `Router.swift`'s `CategoryHints` and `Refinements.swift` from `struct Words` to `read`."""
+    router = _swift(CLIENT / "Engine/Router.swift")
+    refinements = _swift(CLIENT / "Engine/Refinements.swift")
+    # The review's M6 (c): the generated family words.
+    families = _swift(CLIENT / "Engine/ModelFamilies.swift")
+    regions = [router[router.index("enum CategoryHints"):router.index("protocol QuestionRouter")],
+               refinements[refinements.index("struct Words"):refinements.index("static func read(")]]
+    lists: list[tuple[list[str], bool]] = [(re.findall(r'"([^"\n]*)"', families), True)]
+    for region in regions:
+        code = "\n".join(line.split("//")[0] for line in region.splitlines())
+        taken: list[tuple[int, int]] = []
+        examples = re.search(r"static let examples[^=]*=\s*\[", code)
+        if examples:
+            end = _closing(code, examples.end() - 1)
+            taken.append((examples.start(), end))
+            sentences = re.findall(r'"([^"\n]*)"', code[examples.end():end])
+            lists.append(([word for sentence in sentences for word in re.findall(r"[^\W\d_]+", sentence)], True))
+        for label in re.finditer(r"\b(id|stems|words|phrases|marks|unless|names):\s*\[?", code):
+            if label.group(1) == "id":
+                quoted = re.match(r'\s*"[^"\n]*"', code[label.end():])
+                taken.append((label.start(), label.end() + (quoted.end() if quoted else 0)))
+                continue
+            if code[label.end() - 1] != "[":
+                continue
+            end = _closing(code, label.end() - 1)
+            taken.append((label.start(), end))
+            body = code[label.end():end]
+            if label.group(1) == "phrases":
+                for inner in re.findall(r"\[([^\[\]]*)\]", body):
+                    phrase = " ".join(re.findall(r'"([^"\n]*)"', inner))
+                    lists.append(([phrase.rstrip("*")], not phrase.endswith("*")))
+            else:
+                for entry in re.findall(r'"([^"\n]*)"', body):
+                    lists.append(([entry.rstrip("*")], label.group(1) in ("words", "unless", "names")
+                                  and not entry.endswith("*")))
+        for literal in re.finditer(r'"([^"\n]*)"', code):
+            entry = literal.group(1)
+            if any(start <= literal.start() <= end for start, end in taken) or "\\(" in entry:
+                continue
+            if re.search(r"[^\W\d_]", entry):
+                lists.append(([entry.rstrip("*")], not entry.endswith("*")))
+    return lists
+
+
+def _closing(code: str, start: int) -> int:
+    """The index of the bracket that closes the one at `start`."""
+    depth = 0
+    for index in range(start, len(code)):
+        depth += {"[": 1, "]": -1}.get(code[index], 0)
+        if depth == 0:
+            return index
+    return len(code)
+
+
+def test_the_screen_hands_the_refined_board_to_the_plan() -> None:
+    """The M20 closure fixes review's M5: the board a refinement replaces reaches the plan from the
+    served category; without it a refinement joins beside its vote's board again."""
+    view = _swift(CLIENT / "ContentView.swift")
+    assert re.search(r"inputs\.refinedBoard\s*=\s*info\?\.refinedBoard", view), "the plan is not given refined_board"
+
+
+def test_the_boards_screen_lays_out_its_rows_lazily() -> None:
+    """#219 (M21-W3): a family list holds up to about 215 models since D-188, so "See the boards"
+    lays its rows out as they come on screen, not all at once."""
+    view = _swift(CLIENT / "ContentView.swift")
+    detail = re.search(r"struct CombinedDetail: View \{.*?\n\}\n", view, re.S)
+    assert detail, "CombinedDetail is gone"
+    # The M21-W3 review's M4: the rows' ForEach is a direct child of the lazy stack, not anywhere in it.
+    lazy = re.search(r"\n( *)LazyVStack\([^\n]*\{\n(.*?)\n\1\}", detail.group(0), re.S)
+    assert lazy, "the boards screen draws every model at once"
+    child = lazy.group(1) + "    "
+    assert re.search(rf"^{child}ForEach\(view\.list\.entries\b", lazy.group(2), re.M), (
+        "the rows are not the lazy stack's own children, so they are laid out at once")
+
+
+def test_the_device_state_is_read_again_on_returning_to_the_foreground() -> None:
+    """#220 (M21-W3): Apple Intelligence can be turned on or off, or finish downloading, while the app
+    runs; the glow and the caption read its state again whenever the app comes back to the front."""
+    view = _swift(CLIENT / "ContentView.swift")
+    assert re.search(r"@State private var onDevice\b", view), "the device state is read once, at launch"
+    # The M21-W3 review's M4: the handler does exactly that, and re-asks nothing.
+    handler = re.search(r"\.onChange\(of: scenePhase\) \{ _, phase in\n(.*?)\n *\}\n", view, re.S)
+    assert handler, "the device state is not read again when the app returns to the front"
+    body = [line.strip() for line in handler.group(1).splitlines() if line.strip()]
+    assert body == ["if phase == .active { onDevice = TieredRouter.onDeviceState() }"], body
+
+
+def test_the_text_tripwire_reads_its_served_numbers_from_the_decoded_types() -> None:
+    """#169 (M21-W3): the text tripwire's served numbers come from the types the client decodes, as the
+    compiled gate's do (`served_fields`), so a number decoded tomorrow reaches both checks with no list
+    edited. Held on the shipping types and on a type planted in text."""
+    derived = _served_numbers()
+    assert {"score", "blendedPerM", "eligibleCount", "scoreAnchor", "closeCallMargin", "minQuality",
+            "behindBy"} <= derived, sorted(derived)
+    planted = "struct Fresh: Decodable {\n    let novelty: Double\n    static let constant = 2\n}\n"
+    assert "novelty" in _served_numbers({"Planted.swift": planted})
+    assert "constant" not in _served_numbers({"Planted.swift": planted})
+
+
+# --- The M21-W3 Tester (docs/reviews/m21-wave-3-tester.md) ------------------------------------------------
+
+
+def _view_code() -> str:
+    """`ContentView.swift` through `_swift`, with each line cut at `//`, as the pins above read it."""
+    return "\n".join(line.split("//", 1)[0] for line in _swift(CLIENT / "ContentView.swift").splitlines())
+
+
+def test_the_failure_view_says_the_error_in_the_readers_language() -> None:
+    """The M21-W3 Tester (#223): the Swift tests hold `errorDescription(_:)`, and
+    `test_every_failure_the_client_names_reaches_the_screen_with_a_sentence` holds that a view reads
+    `.errorDescription`. With the failure view reading the property, which is the engine's own
+    English for a refusal, every test stayed green. The failure view says the condition in the reader's
+    language. # covers REQ-APP-004"""
+    failure = re.search(r"private func failure\(_ error: EngineError\) -> some View \{(.*?)\n    \}\n", _view_code(), re.S)
+    assert failure, "the failure view is gone"
+    assert "Text(error.errorDescription(language) ?? \"\")" in failure.group(1), (
+        "the failure view does not say the error in the reader's language")
+    assert not re.search(r"\.errorDescription\b(?!\()", failure.group(1)), "the failure view reads the engine's own words"

@@ -94,7 +94,9 @@ _REPO = _SRC.parent
 #: in the owner's shell -- tokens included -- stays with the server.
 CHILD_ENV = ("PATH", "HOME", "LANG", "LC_ALL", "LC_CTYPE", "TMPDIR", "TZ", "SSL_CERT_FILE",
              "SSL_CERT_DIR", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy",
-             "no_proxy", *BOUND_VARIABLES)
+             "no_proxy", *BOUND_VARIABLES,
+             # #198: the build the server runs, so the refresh records which release made the data.
+             "APP_BUILD")
 #: The child's output kept for the log (security pass, MINOR-1): the tail, never the whole stream.
 #: 200 MB of output took the server to 974 MB when it was buffered whole.
 OUTPUT_TAIL_BYTES = 64 * 1024

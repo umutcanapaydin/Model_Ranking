@@ -935,3 +935,63 @@ review. The release's security verdict of record is `docs/reviews/release-securi
 - Every M19 session started outside the repository, so its hooks never loaded (#142), M18's
   closure lesson not kept; `make check-fast` was run by hand before each commit, with the one
   exception above. One ledger row records it.
+
+## M20 closure — 2026-10-08 — our own list for every question, and the seams between waves
+
+M19 left the engine ready for Fly.io and the app ready for TestFlight. On 2026-10-07 the owner
+deployed the engine and uploaded build 1. His first session on the phone found "not measured"
+answers and a licence filter he had not asked for. He ruled D-186 and D-187, and the hotfix (#207)
+shipped the same day. He then named the product's core: our own list for every question, built from
+every board that measures its task. M20 built it (D-188, proposed):
+- **The engine names each task's family of boards** on `/v1/categories` (W1).
+- **The phone combines a family** by mean percentile position. A model is kept when half the
+  family's boards rank it. Every board counts the same, and an older one is named (W2).
+- **The question picks its family,** and a language or a domain its refinement. The refinement comes
+  from the words where the on-device model did not read the question (W3).
+- **The family list is the default answer.** It says which boards built it, with their dates, and
+  keeps the primary board one tap away. Apple Intelligence's glow is on the question (W4).
+- **A rate limit on the hosted engine,** and a fresh labelled set to measure the reading (W5).
+
+Engineering shapes worth keeping:
+
+1. **A sentence that describes an order is part of the order.** W4's first list said its models were
+   "ranked on all N boards", the D-167 sentence, carried onto a list whose rule keeps a model at half
+   its boards. The second review found the next one: "mean position" for a mean of percentiles.
+   Every number in the note now comes from the same plan the list does, and a test reads each one.
+2. **Waves reviewed apart meet only at the closure.** W1 reviewed the families without refinements,
+   W3 the refinements without a combination, and W4 the screen. Only the milestone review saw that a
+   refinement, all of them Arena text slices, joined a family beside Arena's own text board, so one
+   vote counted twice on 14 of 54 lists. The fix names, per surface, the board a refinement replaces,
+   and a gate holds every family, with every refinement it allows, to one board a vote.
+3. **Nothing calling the code is a finding, not a detail.** W3's first review was BLOCKING because
+   the wave's functions had no caller and the PRD said MET. The wiring belonged to W4; the plan,
+   the PRD and a gate on the one reader now say so.
+4. **A word that names a language also names a people.** "French fries", "the Korean war", "in
+   Chinese stocks": an English language name counts only beside a word that makes it the task's
+   language. Two review rounds and a Tester each found another collision, and the held-out set
+   measured the trade: no language added wrongly, four real language tasks missed.
+5. **A held-out set measures the reading, not the answer.** W5's fresh set showed that our list
+   differs from the primary board's on about half its top ten. It could not say which is better,
+   because no one has judged the best model. D-188's revisit now reads the owner's judgement (#226).
+6. **Fail open, but say so.** The rate limit serves a request when it breaks. The reviews made it
+   warn once a minute, log a refusal without the address, and never let a crowd of new addresses
+   reset a count it holds. The closure seat then made a 0.5 MB `/v1/boards` answer count as thirty
+   requests.
+
+**The closure reviews.** The repo review (`docs/reviews/m20-repo-review.md`) was MINOR, with one
+MAJOR finding, the vote counted twice. It is fixed on the closure branch, and M2 to M9 are fixed or
+filed. The closure security seat (`docs/reviews/m20-closure-security-review.md`) was MINOR, and the
+release verdict of record stands for build 3. S1 to S4 are fixed, and S5 is gap G-9 under #187.
+
+**What was accepted rather than solved:**
+- on a device without Apple Intelligence, 8 of 71 held-out searches still fall to "not measured"
+  (#222, M21);
+- the client's address is trusted from `Fly-Client-IP`; only the owner's check after the deploy
+  shows that Fly sets it (G-9);
+- licences per source wait for production (D-186).
+
+**Control bypass** (the ledger rows are in `docs/control-events.csv`):
+- Three commits went in without a green `make check-fast` (`6ab7389`, `cf4aa2f`, `3c5954f`). That is
+  the control's third row, so it goes to the owner: fix it, re-scope it, or refuse it.
+- Every M20 session started outside the repository, so the hooks never loaded (#142). The clone has
+  no `core.hooksPath`, so the pre-push `make gate` never ran.

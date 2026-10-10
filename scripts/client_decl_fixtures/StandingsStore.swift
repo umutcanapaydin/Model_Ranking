@@ -21,6 +21,16 @@ struct StandingsStore {
     func save(_ fetched: FetchedStandings, at date: Date) {
         _ = (fetched, date)
     }
+
+    // #170: the store dates what it keeps by its own clock; the dated form is the store's own.
+    func currentKept(now: Date, fetch: () -> Int) -> Int? {
+        _ = now
+        return fetch()
+    }
+
+    func currentKept(fetch: () -> Int) -> Int? {
+        currentKept(now: Date(), fetch: fetch)
+    }
 }
 
 func fixtureStoreRestores(_ data: Data) -> FetchedStandings? {

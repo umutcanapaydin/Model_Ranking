@@ -15,6 +15,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -85,6 +87,7 @@ RAW_SKIP = re.compile(r"\bpytest\.(?:skip\(|xfail\(|mark\.(?:skip(?:if)?|xfail)\
                       r"|\bimport\s+pytest\s+as\b|\bskip\.Exception\b|\b_pytest\.outcomes\b")
 
 
+@pytest.mark.needs("git")
 def test_every_skip_goes_through_a_needs_marker() -> None:
     """#137: a raw skip call, a `skipif` mark or an `importorskip` skips in CI where the local check
     cannot see it, so the count would be short. Only the plugin that applies the markers may skip."""

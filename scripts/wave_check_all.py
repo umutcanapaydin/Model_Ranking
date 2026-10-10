@@ -155,6 +155,28 @@ def _load_wave_check():
     return module
 
 
+def record_lines(record: pathlib.Path, code: int, output: str) -> list[str]:
+    """The lines a passing record's check prints that say a rule was SKIPPED, each with its record; a failing
+    record's output is printed whole elsewhere."""
+    if code != 0:
+        return []
+    return [f"{record.as_posix()}: {line.strip()}" for line in output.splitlines() if line.startswith("SKIPPED")]
+
+
+def _run(check: object, records: list[pathlib.Path]) -> tuple[list[str], list[str]]:
+    """Each record's failure, whole, and each passing record's SKIPPED lines."""
+    failed: list[str] = []
+    skipped: list[str] = []
+    for record in records:
+        captured = io.StringIO()
+        with contextlib.redirect_stdout(captured), contextlib.redirect_stderr(captured):
+            code = check.main(["wave_check.py", str(record)])  # type: ignore[attr-defined]
+        if code != 0:
+            failed.append(f"{record.relative_to(ROOT)}\n{captured.getvalue()}".rstrip())
+        skipped += record_lines(record.relative_to(ROOT), code, captured.getvalue())
+    return failed, skipped
+
+
 def main() -> int:
     records = sorted(ROOT.glob(PATTERN))
     if not records:
@@ -191,16 +213,12 @@ def main() -> int:
     # measured is not the thing that runs" this project keeps finding elsewhere.
     check = _load_wave_check()
 
-    failed: list[str] = []
-    for record in in_scope:
-        captured = io.StringIO()
-        with contextlib.redirect_stdout(captured), contextlib.redirect_stderr(captured):
-            code = check.main(["wave_check.py", str(record)])
-        if code != 0:
-            failed.append(f"{record.relative_to(ROOT)}\n{captured.getvalue()}".rstrip())
+    failed, skipped = _run(check, in_scope)
 
     unclosed = [*missing_closes(ROOT), *headless_waves(ROOT)]
     for message in failed:
+        print(message)
+    for message in skipped:  # D-192 clause 2: a rule that did not run says so, on a pass too (the review's M8)
         print(message)
     for message in [*dodged, *unclosed]:
         print(f"wave-check-all: {message}")

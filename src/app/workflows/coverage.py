@@ -202,7 +202,9 @@ def plan_evidence_health(
                     )
                     raise ValueError(msg) from exc
                 age = (today - evidence_day).days
-                status = "fresh" if age < window_days else "stale"
+                # #216 (D-188 clause 4): one line in the engine, as `source_health` draws it:
+                # stale when MORE than the window's whole days old.
+                status = "fresh" if age <= window_days else "stale"
             item = PlanEvidenceHealth(
                 category=spec.id,
                 plan_id=plan_id,

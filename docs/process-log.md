@@ -649,3 +649,76 @@ Lesson: a rule that reads people's words meets the reviewer's next phrasing; mea
 - The 29 issues M19 took are in its GitHub milestone; M18's milestone is closed.
 - The deploy, the TestFlight upload and the four OWNER APPROVAL hook commits wait on the owner.
 Lesson: when what the reader is shown changes, run the screen's tests, even if only the reading moved.
+
+## 2026-10-08 — the first release live, the owner's first session on it, and M20: our own list for every question
+
+- The engine went live on Fly.io and TestFlight build 1 (0.1.0) was uploaded, both by the owner's
+  hand. His first session on the phone found "not measured" answers and a licence filter he had
+  not asked for. He ruled D-186 (every source on TestFlight, licences before production) and D-187
+  (an understood question is never "not measured"). The hotfix (#207) went through three review
+  rounds and was merged and redeployed.
+- The owner named the product's core: our own list for every question, built from many boards. M20
+  planned it (D-188, proposed) in five waves:
+  - W1: the engine names each surface's family of boards.
+  - W2: the phone combines a family by mean percentile position.
+  - W3: the question picks its family and its refinements.
+  - W4: the combined list is the default answer, with Apple Intelligence's glow (#208).
+  - W5: a rate limit on the hosted engine (#187), and a fresh labelled set (#195).
+- Every wave closed on its seats. W3 and W4 each drew a BLOCKING first review: W3's code was
+  reached by nothing, and W4's note claimed every model was on every board. Both were answered and
+  re-reviewed MINOR. Draft PRs #213, #215, #217, #221, #224 and #225 are stacked in that order.
+- The M21 plan takes the open queue, 44 issues, into its milestone.
+Lesson: a sentence that describes an order is part of the order; test the words against the rule that made the list.
+
+## 2026-10-08 — the M20 closure: one vote counted twice, and the release verdict for build 3
+
+- The repo review was MINOR, with one MAJOR: W3's refinements, all Arena text slices, joined W1's
+  families beside Arena's own text board, so one vote counted twice. Each wave was reviewed apart,
+  so only the milestone review saw it. A refinement now takes the place of its vote's board
+  (`refined_board`, D-188 clause 6), and a gate holds it. M2 to M9 are fixed or filed (#226).
+- The closure security seat was MINOR. The release verdict of record stands for build 3. Its S1 to
+  S4 are fixed: `/v1/boards` counts as thirty requests, the Host check runs before the limiter, a
+  broken payload cannot trap the family path, and INV-88 and INV-89 are in the register.
+- `make ui-test` on the closure: 18 of 19 and 2 of 2. The failing coding test passed alone (#227).
+- The ledger's `commit-after-check-fast` control reached its third row, which is the owner's to rule.
+Lesson: review the seams at the milestone's head; a wave reviewed alone cannot see what the next wave joins to it.
+
+
+## 2026-10-09/10 — M21-W1 to W3: the data a reader sees, reading what is not a search, the phone's promises
+
+- The owner asked for the open queue as drafts, then for the waves one at a time after a parallel run of
+  three hit the usage limit. Each wave ran alone from then on.
+- W1 (#236): one model per release (D-189), `web-dev` on LMArena's own board (D-190), the data's release
+  named and checked before a deploy, standings that never block questions. Its first review was BLOCKING
+  (releases still sharing scores), the second MINOR.
+- W2 (#240): model comparisons from every registry family, the held-out gates, the UI fixture and the
+  owner's judgement sheet ship; three reading rules (#194, #218, #222) came out after three verdicts each.
+- W3 (#250): the compiled gate refuses more shapes and its fixture is its definition; five review rounds
+  found records stating more than the gates hold, so the records now name the fixture's rules and point
+  at the register (#248 sweeps the older ones).
+- Every M21 session started outside the repository, so the hooks did not load (#142); the ledger row is
+  the milestone's.
+Lesson: a record that describes a gate in prose will be wider or narrower than the gate; point at its definition instead.
+
+## 2026-10-10 — M21-W4: the controls
+
+- The close checks read what the reviews said they missed: a close's commit range (the HIGH rule's diff,
+  an ADR first written beside its code, a process-log heading inside the range; #183, #201, #203), the
+  decision log's pointer pairs (#200), and a ledger row for each skipped gate and each session started
+  outside the repository (#202). CI's needs are read from its workflow (#182), and the tests that read the
+  checkout through git say so (#249).
+- The Swift legs run inside the offline profile (#179), and the deadline tests again on a one-thread pool
+  against a timer off the pool (#181). The fetch-deadline test's margin (#178) and the coding UI test's
+  scrolling (#227) were too tight for a loaded machine.
+- Fifteen cited test names and the records that restated a gated property were swept, with two narrow
+  checks over hand-kept lists (#248).
+- The Bash guard's second reading (#189) is in its own OWNER APPROVAL commit; CI's history and offline
+  halves are patches on #122 for the owner; #108 is carried, since its measurement traps a process.
+- D-192 was committed after `make check-records` but before `make check-fast` (`9cf8e12`); check-fast
+  passed after it with no change.
+- The wave's Code-Reviewer returned BLOCKING (`fa37f8e`): the guard's second reading stopped at a comment
+  and took a redirection for a command (B1), and the range rules read whatever range a close typed (M3 to
+  M8). The guard now has a lexer of its own (`64b862a`, for the owner's approval), the ranges start at the
+  wave's base (`da6b95f`), and every `swift test` runs under a watchdog.
+Lesson: a rule that reads history must say what a pruned history means as well as a missing one: a branch
+deleted after its merge read as an unreadable range.

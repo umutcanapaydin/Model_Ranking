@@ -12,6 +12,7 @@ from app.workflows.ingest import RunContext, ingest_litellm, ingest_swebench
 from app.workflows.registry import (
     MODEL_RULES,
     canonicalize,
+    canonicalize_with_reason,
     derive_identity,
     reconcile,
     split_harness,
@@ -673,3 +674,175 @@ def test_no_gpt5_minor_release_rule_takes_another_releases_variant(minor: str, v
         rule = canonicalize(name)
         own = f"gpt-{minor}-{variant.lower().removeprefix('thinking').strip(' -')}"
         assert rule is None or rule.canonical_id == own, (name, rule)
+
+
+# --- M21-W1 -----------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("name", "model"),
+    [
+        ("DeepSeek V3 (0324)", "deepseek-v3-0324"),
+        ("DeepSeek-V3 (Mar 2025)", "deepseek-v3-0324"),
+        ("deepseek-v3-0324", "deepseek-v3-0324"),
+        ("DeepSeek Chat V3 (prev)", "deepseek-v3"),
+        ("DeepSeek-V3", "deepseek-v3"),
+        ("deepseek-r1-0528", "deepseek-r1-0528"),
+        ("DeepSeek R1 (0528)", "deepseek-r1-0528"),
+        ("DeepSeek-R1 (May 2025)", "deepseek-r1-0528"),  # Epoch's spelling (the W1 review's B1)
+        ("deepseek-r1", "deepseek-r1"),
+        ("DeepSeek R1", "deepseek-r1"),
+    ],
+)
+def test_a_release_its_maker_names_apart_is_its_own_model(name: str, model: str) -> None:
+    """#163 (D-189): DeepSeek publishes V3-0324 and R1-0528 as releases of their own, and a board that
+    ranks both beside V3 and R1 ranked one model twice; a board's best row then put V3-0324's scores on
+    V3. Each is its own model, whichever way a board spells its date."""
+    rule = canonicalize(name)
+    assert rule is not None and rule.canonical_id == model, (name, rule)
+
+
+@pytest.mark.parametrize(
+    "alias", ["ft:gpt-4o-2024-08-06", "ft:gpt-4.1-mini-2025-04-14", "openai/ft:o4-mini-2025-04-16"]
+)
+def test_a_fine_tunes_price_never_reaches_its_base_model(alias: str) -> None:
+    """#165: a fine-tune is its owner's model, priced as one (D-157 refuses it on the derive path). The
+    curated rules matched it by search, so `ft:gpt-4o-...` fed `gpt-4o`'s price median at twice its
+    price. It is refused for its reason, as the modality guard refuses an image model."""
+    assert canonicalize_with_reason(alias) == (None, "fine-tune")
+    assert canonicalize(alias) is None
+
+
+@pytest.mark.parametrize("name", ["claude-haiku-5-5", "anthropic.claude-haiku-5-5", "openrouter/anthropic/claude-haiku-5.5",
+                                  "claude-haiku-5.5"])
+def test_claude_haiku_5_5_is_named_as_anthropic_spells_it(name: str) -> None:
+    """M21-W1: on the 2026-10-08 artifact Haiku 5.5 was derived and served as `claude-haiku5.5`
+    (`test_display_names.py` found it); a curated rule names it."""
+    rule = canonicalize(name)
+    assert rule is not None and (rule.canonical_id, rule.display) == ("claude-5.5-haiku", "Claude Haiku 5.5")
+
+
+@pytest.mark.parametrize("name", ["DeepSeek-R1-0528-Qwen3-8B", "deepseek-r1-0528-qwen3-8b",
+                                  "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B", "DeepSeek-R1-Distill-Llama-70B",
+                                  "deepseek-r1-qwen3-8b", "deepseek-r1-0528-distill",
+                                  "llamagate/deepseek-r1-8b", "deepseek-r1:8b", "deepseek-r1-7b", "deepseek-r1:32b"])
+def test_a_distilled_model_is_not_the_release_it_was_distilled_from(name: str) -> None:
+    """The W1 review's B2: R1-0528's rule took `DeepSeek-R1-0528-Qwen3-8B`, an 8B Qwen model distilled
+    from it. A distill or a small size after the release is another model, refused by both R1 rules."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id not in {"deepseek-r1", "deepseek-r1-0528"}, (name, rule)
+
+
+@pytest.mark.parametrize(
+    ("name", "model"),
+    [
+        ("mistral-large-2402", "mistral-large-1"),
+        ("mistral.mistral-large-2402-v1:0", "mistral-large-1"),
+        ("mistral-large-2407", "mistral-large-2"),
+        ("Mistral Large 2 (Jul 2024)", "mistral-large-2"),
+        ("vertex_ai/mistral-large@2407", "mistral-large-2"),
+        ("snowflake/mistral-large2", "mistral-large-2"),
+        ("mistral-large-2411", "mistral-large-2.1"),
+        ("Mistral Large 2 (Nov 2024)", "mistral-large-2.1"),
+        ("vertex_ai/mistral-large@2411-001", "mistral-large-2.1"),
+        ("mistral-large-3", "mistral-large-3"),
+        ("mistral/mistral-large-2512", "mistral-large-3"),
+        ("mistral.mistral-large-3-675b-instruct", "mistral-large-3"),
+        ("fireworks_ai/accounts/fireworks/models/mistral-large-3-fp8", "mistral-large-3"),
+        ("mistral-large-4", "mistral-large-4"),
+        ("mistralai/mistral-large-4-0", "mistral-large-4"),
+        ("claude-sonnet-4-6", "claude-4.6-sonnet"),
+        ("Claude Sonnet 4.6", "claude-4.6-sonnet"),
+        ("openrouter/anthropic/claude-sonnet-4.6", "claude-4.6-sonnet"),
+        ("claude-sonnet-4-6_high", "claude-4.6-sonnet"),
+        ("claude-sonnet-4-20250514", "claude-4-sonnet"),
+        ("Claude Sonnet 4", "claude-4-sonnet"),
+        ("Claude 4 Sonnet (20250514)", "claude-4-sonnet"),
+    ],
+)
+def test_a_gathered_family_is_split_into_the_releases_its_maker_names(name: str, model: str) -> None:
+    """The W1 review's B3 (D-189 clause 1): Arena ranked Mistral Large 2402, 2407, 2411, 3 and 4 all as
+    `mistral-large`, and four boards ranked Claude Sonnet 4.6 as `claude-4-sonnet`. Mistral names Large
+    1.0 (24.02), 2.0 (24.07), 2.1 (24.11), 3 (25.12) and 4 apart (docs.mistral.ai/getting-started/models,
+    read 2026-10-09); Anthropic names Sonnet 4.6 apart from Sonnet 4."""
+    rule = canonicalize(name)
+    assert rule is not None and rule.canonical_id == model, (name, rule)
+
+
+@pytest.mark.parametrize("name", ["mistralai/mistral-large", "Mistral Large", "azure_ai/mistral-large",
+                                  "mistral-large-latest", "vertex_ai/mistral-large@latest"])
+def test_an_undated_mistral_large_moves_and_reaches_no_release(name: str) -> None:
+    """D-166: the undated name has meant each release in turn, so it reaches none of them."""
+    assert canonicalize(name) is None
+    assert derive_identity(name) is None
+
+
+@pytest.mark.parametrize("name", ["GLM-4.6V", "glm-4.6v", "zai/glm-4.6v-flash"])
+def test_glm_4_6v_is_not_glm_4_6(name: str) -> None:
+    """The W1 review's K2: GLM-4.6V, the vision model, sat in GLM-4.6's rows and price median."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id != "glm-4.6", (name, rule)
+
+
+@pytest.mark.parametrize(
+    ("name", "model"),
+    [
+        ("GLM-4.6V", "glm-4.6v"),
+        ("glm-4.6v", "glm-4.6v"),
+        ("glm-4.6v_32K", "glm-4.6v"),  # Epoch's spellings (the second W1 review's M1)
+        ("glm-4.6v_unknown", "glm-4.6v"),
+        ("glm-4.6v-flash", "glm-4.6v-flash"),
+        ("zai/glm-4.6v-flash", "glm-4.6v-flash"),
+        ("GLM-4.6V-Flash (thinking)", "glm-4.6v-flash"),
+        ("glm-4.6", "glm-4.6"),
+        ("glm-4.6_32K", "glm-4.6"),
+    ],
+)
+def test_glm_4_6v_and_its_flash_are_each_their_own_model(name: str, model: str) -> None:
+    """The second W1 review's M1: GLM-4.6V-Flash, the small model Zhipu publishes beside GLM-4.6V, merged
+    into it, and Epoch's `glm-4.6v_32K` reached no rule. Each is its own model, in every spelling."""
+    rule = canonicalize(name)
+    assert rule is not None and rule.canonical_id == model, (name, rule)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "novita/deepseek/deepseek-r1-0528-qwen3-8b",
+        "fireworks_ai/accounts/fireworks/models/deepseek-r1-0528-distill-qwen3-8b",
+        "DeepSeek-R1-0528-Qwen3-8B",
+    ],
+)
+def test_the_qwen3_8b_distill_is_one_model_in_every_spelling(name: str) -> None:
+    """The second W1 review's M2 and M3: Fireworks' `-distill-qwen3-8b` reached no rule, and the distill's
+    rule could be removed with every test passing."""
+    rule = canonicalize(name)
+    assert rule is not None and rule.canonical_id == "deepseek-r1-0528-qwen3-8b", (name, rule)
+
+
+@pytest.mark.parametrize("name", ["claude-sonnet-4-7", "Claude Sonnet 4.7", "databricks/databricks-claude-sonnet-4-1"])
+def test_a_minor_sonnet_4_release_is_not_sonnet_4(name: str) -> None:
+    """The second W1 review's M3: a one-digit minor version after `4` is another release, not Sonnet 4."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id != "claude-4-sonnet", (name, rule)
+
+
+@pytest.mark.parametrize("name", ["DeepSeek-R1-Zero", "deepseek-r1-lite-preview", "tngtech/deepseek-r1t-chimera",
+                                  "deepseek-r1t2-chimera"])
+def test_a_model_named_after_r1_is_not_r1(name: str) -> None:
+    """The second W1 review's K2: R1-Zero, R1-Lite-Preview and the R1T Chimeras are models of their own."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id not in {"deepseek-r1", "deepseek-r1-0528"}, (name, rule)
+
+
+def test_volcengines_dated_r1_is_r1_0528() -> None:
+    """The second W1 review's K2: Volcengine spells R1-0528 `deepseek-r1-250528`."""
+    rule = canonicalize("volcengine/deepseek-r1-250528")
+    assert rule is not None and rule.canonical_id == "deepseek-r1-0528"
+
+
+@pytest.mark.parametrize("name", ["mistral-large-3.1", "mistral-large-3-1", "mistral-large-4.1", "Mistral Large 4.1"])
+def test_a_minor_mistral_large_release_is_not_its_major(name: str) -> None:
+    """The second W1 review's R2: as Sonnet 4's rule does, Large 3's and 4's refuse a minor version."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id not in {"mistral-large-3", "mistral-large-4"}, (name, rule)

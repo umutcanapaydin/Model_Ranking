@@ -229,7 +229,8 @@ def test_source_health_flags_a_source_that_went_quiet() -> None:
 
 def test_plan_evidence_health_partitions_every_plan_once() -> None:
     """REQ-ING-011b: selected evidence yields fresh/stale/undated/unscored exactly once."""
-    health = plan_evidence_health(_evidence_db(), CATEGORIES["coding"], today=dt.date(2026, 8, 16))
+    # #216: one line, "more than N days" is stale; the 60-day plan is stale against a 59-day window.
+    health = plan_evidence_health(_evidence_db(), CATEGORIES["coding"], today=dt.date(2026, 8, 16), window_days=59)
 
     assert PLAN_FRESH_DAYS == 60
     assert (health.total_plans, health.fresh, health.stale, health.undated, health.unscored) == (
@@ -256,8 +257,9 @@ def test_plan_evidence_health_uses_selected_row_not_source_max() -> None:
     ]
     plans = {
         row.plan_id: row
+        # #216: the plan is 60 days old; against a 59-day window it is stale on the one line.
         for row in plan_evidence_health(
-            conn, CATEGORIES["coding"], today=dt.date(2026, 8, 16)
+            conn, CATEGORIES["coding"], today=dt.date(2026, 8, 16), window_days=59
         ).plans
     }
 
@@ -429,3 +431,16 @@ def test_coverage_cli_read_only_survives_a_path_containing_a_question_mark(tmp_p
 
     assert probes and "readonly" in probes[0], probes
     assert tricky.stat().st_size == size_before
+
+
+def test_a_plans_evidence_draws_the_sources_line() -> None:
+    """#216 (D-188 clause 4): one line everywhere, "more than N whole days" is stale. A plan's evidence
+    exactly N days old is fresh, as a source's is (`test_boundary_exactly_at_the_window_is_not_stale`);
+    a day more is stale."""
+    def status(window: int) -> str:
+        health = plan_evidence_health(_evidence_db(), CATEGORIES["coding"], today=dt.date(2026, 8, 16),
+                                      window_days=window)
+        return {plan.plan_id: plan.status for plan in health.plans}["stale-plan"]
+
+    assert status(60) == "fresh", "60 days old against a 60-day window"
+    assert status(59) == "stale"
