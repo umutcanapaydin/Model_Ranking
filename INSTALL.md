@@ -140,7 +140,8 @@ In Git Bash (Windows) or a terminal (macOS, Linux), at the repository root.
 5. `make hooks` — *every clone*: `make gate` runs before every push, and before every commit the
    commit-msg gate runs one of three targets (`scripts/commit_gate.py`; the owner's ruling of 2026-10-10,
    `docs/refusals.md` R-1): `make check-fast`; `make check-red` for a declared red test commit (a `test:`
-   subject that says `red`, with a test staged), which leaves out the legs that run tests; or
+   subject that says `red` as a word of its own, with a test staged), which runs no test but builds the
+   Swift tests and collects the Python ones; or
    `make check-docs` for a docs-only commit (every staged path a Markdown file outside the code
    directories), which leaves out the Swift tests and the compiled gate. A human may bypass either hook with
    `--no-verify` and adds the row to `docs/control-events.csv`; an agent never does. Neither hook runs until

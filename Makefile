@@ -60,7 +60,7 @@ need = @command -v $(1) >/dev/null 2>&1 || { echo "$(1) not installed: cannot $(
 
 # Every target is declared phony. `conformance` is also a directory: undeclared, make called the
 # target "up to date" and never ran it, so `make gate` skipped the whole conformance suite.
-.PHONY: help ui-test install lock test lint format typecheck check check-fast check-red check-docs check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check
+.PHONY: help ui-test install lock test lint format typecheck check check-fast check-red check-docs swift-build-tests pytest-collect check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check
 
 help:  ## this list, generated from the annotation on each target (a hand-written list drifts)
 	@grep -hE '^[a-zA-Z0-9_.-]+:[^#]*## ' $(MAKEFILE_LIST) | sort \
@@ -215,11 +215,28 @@ check-fast: install  ## `make check`'s legs side by side -- what the post-edit h
 
 # The owner's ruling of 2026-10-10 on commit-after-check-fast, as the M21 closure applies it: the gates the
 # commit-msg hook runs (scripts/commit_gate.py) besides check-fast.
-check-red: install  ## a declared red test commit's gate: check-fast without the legs that run tests
-	@$(PY) scripts/check_fast.py --make "$(MAKE)" --without test swift-test conformance client-decls
+check-red: install  ## a declared red test commit's gate: check-fast without the legs that run tests, with the builds
+	@$(PY) scripts/check_fast.py --make "$(MAKE)" --without test swift-test conformance client-decls --with swift-build-tests pytest-collect
 
 check-docs: install  ## a docs-only commit's gate: check-fast without the Swift tests and the compiled gate, which read no Markdown
 	@$(PY) scripts/check_fast.py --make "$(MAKE)" --without swift-test client-decls
+
+#: check-red's builds (the fixes review's round 2, M1): a red commit's tests fail by design, so none runs, but
+#: its code and its tests must still compile and collect. `swift build --build-tests` runs as `swift test` does
+#: (offline on macOS, under the watchdog) and skips where swift-test skips.
+SWIFT_BUILD_TESTS = $(if $(filter Darwin,$(UNAME_S)),MODEL_RANKING_REQUIRE_OFFLINE=1 $(SWIFT_WATCHDOG) /usr/bin/sandbox-exec -f ../scripts/offline.sb swift build --build-tests --disable-sandbox,$(SWIFT_WATCHDOG) swift build --build-tests)
+
+swift-build-tests:  ## check-red's Swift leg: the Engine package and its tests compile; no test runs
+	@if command -v swift > /dev/null 2>&1; then \
+		mkdir -p build; out=`cd ios && $(SWIFT_BUILD_TESTS) 2>&1`; rc=$$?; echo "$$out" > build/swift-build-tests.log; \
+		[ $$rc -eq 0 ] || { echo "$$out" | grep -E "error:" | head -30; echo "swift-build-tests FAIL (full swift output: build/swift-build-tests.log)"; exit 1; }; \
+		echo "swift-build-tests PASS: the Swift package and its tests compile"; \
+	else \
+		echo "swift-build-tests SKIPPED NO-ENVIRONMENT: no swift toolchain on PATH"; \
+	fi
+
+pytest-collect: install  ## check-red's Python leg: every test module imports and is collected; no test runs
+	$(if $(ON_PYTHON),$(OFFLINE_RUN) $(PY) -m pytest --collect-only -q -p no:cacheprovider -o addopts="-ra --strict-markers --strict-config",@echo "pytest-collect SKIPPED NO-ENVIRONMENT: the stack is not python")
 
 swift-test-parallel:  ## `swift-test` for `check-fast`: the same suite with --parallel, judged from xUnit
 	@# `swift test --parallel` prints no `Executed N tests` line, and a serial run writes no xUnit
