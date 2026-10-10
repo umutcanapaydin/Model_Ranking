@@ -828,3 +828,37 @@ def test_a_ruling_that_names_no_owner_is_refused(tmp_path: Path) -> None:
     check = _module("wave_check")
     found = check.ledger_problems(_ledger("c,m1-closure,ruling,the closure decided,2026-10-04"), today="2026-10-10")
     assert any("owner" in p for p in found), found
+
+
+# --- the M21 closure fixes review: M4 (row 9's Bypass field) ----------------------------------------------
+
+
+def _bypass(sha: str, control: str = "commit-after-check-fast") -> str:
+    return _checklist("").replace("outcome: shipped`", f"outcome: shipped`. Bypass: `{sha}` (the `{control}` control)")
+
+
+def test_each_commit_a_bypass_names_needs_a_row_naming_it(tmp_path: Path) -> None:
+    """The fixes review's M4: a Bypass naming a code commit passed with only a `within-scope` row, or with a row
+    for another control the field mentioned. Each SHA needs a row naming it: a `bypass`, or a `within-scope`
+    only where the commit is docs-only or a declared red test commit by commit_gate's own rule."""
+    check = _module("wave_check")
+    root, _ = _wave_branch(tmp_path)
+    code = _commit(root, "fix: code", "2026-10-10T13:00:00", {"src/app/other.py": "x = 3\n"})
+    docs = _commit(root, "docs: notes", "2026-10-10T14:00:00", {"docs/notes.md": "notes\n"})
+    red = _commit(root, "test: x, red", "2026-10-10T15:00:00", {"tests/unit/test_x.py": "x = 1\n"})
+    for sha, kind, ok in ((code, "within-scope", False), (code, "bypass", True), (docs, "within-scope", True),
+                          (red, "within-scope", True)):
+        rows = [["commit-after-check-fast", "m30-w1", kind, f"{sha} was committed so", "2026-10-10"]]
+        found = check.skip_ledger_problems(_bypass(sha), "m30-w1", rows, root=root)
+        assert (found == []) == ok, (sha, kind, found)
+    other = [["commit-after-check-fast", "m30-w1", "bypass", "another commit", "2026-10-10"]]
+    assert any(code in p for p in check.skip_ledger_problems(_bypass(code), "m30-w1", other, root=root))
+
+
+def test_the_bypass_must_name_a_control_the_ledger_counts_in_any_case(tmp_path: Path) -> None:
+    """Mutant X4: a Bypass was satisfied by a row of the wave for whatever control. The control match is
+    case-insensitive, as row 9's other checks are."""
+    check = _module("wave_check")
+    text = _checklist("").replace("outcome: shipped`", "outcome: shipped`. Bypass: the COMMIT-AFTER-CHECK-FAST control")
+    assert check.skip_ledger_problems(text, "m30-w1", [["commit-after-check-fast", "m30-w1", "bypass", "x", "2026-10-10"]]) == []
+    assert check.skip_ledger_problems(text, "m30-w1", [["security-pass", "m30", "skip", "x", "2026-10-10"]])
