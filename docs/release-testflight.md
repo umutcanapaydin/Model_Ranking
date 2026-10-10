@@ -23,7 +23,10 @@ The M21 closure security seat says the release verdict stands for v2, on six con
 1. **Merge** the one combined pull request from `closure/m21`, with **Create a merge commit** (not squash
    or rebase). It carries every commit of #213, #215, #217, #221, #224, #225, #229 (the M20 closure),
    #236, #240, #250 and #251, so GitHub marks those merged too, and the close checks, which read the
-   commit history (D-192), keep the history they read. Then `git checkout main && git pull`.
+   commit history (D-192), keep the history they read. Then `git checkout main && git pull`, and restart
+   every Claude Code session open in the clone (close it, then `cd ~/Desktop/ILGAR/model_ranking && claude`):
+   the pull brings a changed guard and its new pin, and a session keeps the hooks it started with, so an old
+   session blocks every Bash call and every write (`INSTALL.md`, "Changing the Bash guard").
 2. **Run `make hooks` once** in your clone. From then on the commit-msg gate runs before every commit
    (`make check-fast`; `make check-red` for a declared red test commit; `make check-docs` for a docs-only
    one; `docs/refusals.md` R-1) and every push runs `make gate`, which runs the compiled gate
