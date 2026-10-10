@@ -716,5 +716,9 @@ Lesson: a record that describes a gate in prose will be wider or narrower than t
   halves are patches on #122 for the owner; #108 is carried, since its measurement traps a process.
 - D-192 was committed after `make check-records` but before `make check-fast` (`9cf8e12`); check-fast
   passed after it with no change.
+- The wave's Code-Reviewer returned BLOCKING (`fa37f8e`): the guard's second reading stopped at a comment
+  and took a redirection for a command (B1), and the range rules read whatever range a close typed (M3 to
+  M8). The guard now has a lexer of its own (`64b862a`, for the owner's approval), the ranges start at the
+  wave's base (`da6b95f`), and every `swift test` runs under a watchdog.
 Lesson: a rule that reads history must say what a pruned history means as well as a missing one: a branch
 deleted after its merge read as an unreadable range.
