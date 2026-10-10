@@ -721,3 +721,44 @@ def test_a_merged_close_edited_on_a_later_branch_still_says_skipped(tmp_path: Pa
     _closed(root, fixed, "2026-10-10T20:00:00")
     problems, skipped = check.history_problems(close, fixed, root)
     assert problems == [] and skipped and "merged" in skipped, (problems, skipped)
+
+
+# --- the M21 closure: the owner's ruling on commit-after-check-fast, and the bypass field ------------
+
+
+def _ledger(*rows: str) -> list[list[str]]:
+    import csv
+    import io
+
+    return [row for row in csv.reader(io.StringIO("\n".join(rows))) if row]
+
+
+def test_three_rows_after_a_controls_last_ruling_strike_and_rows_before_it_do_not(tmp_path: Path) -> None:
+    """The owner's ruling of 2026-10-10 ("fix and narrow"): the three-row rule counts only the rows dated
+    after a control's latest ruling or review. A reviewed control stays green; a new bypass after the ruling
+    still counts."""
+    check = _module("wave_check")
+    three = ("c,m1-w1,bypass,a,2026-10-01", "c,m1-w2,bypass,b,2026-10-02", "c,m1-w3,skip,c,2026-10-03")
+    assert check.ledger_strikes(_ledger(*three)) == ["c"]
+    assert check.ledger_strikes(_ledger(*three, "c,m1-closure,ruling,owner: re-scoped,2026-10-04")) == []
+    after = ("d,m2-w1,bypass,x,2026-10-05", "d,m2-w2,bypass,y,2026-10-06", "d,m2-w3,bypass,z,2026-10-07")
+    ruled = ("d,m1-closure,ruling,owner,2026-10-04",)
+    assert check.ledger_strikes(_ledger(*three, "c,m1-closure,ruling,owner,2026-10-04", *ruled, *after)) == ["d"]
+    assert check.ledger_strikes(_ledger(*ruled, *after[:2])) == []
+    same_day = ("e,m1-w1,bypass,a,2026-10-04", "e,m1-closure,review,closure,2026-10-04",
+                "e,m2-w1,bypass,b,2026-10-04", "e,m2-w2,bypass,c,2026-10-04", "e,m2-w3,bypass,d,2026-10-05")
+    assert check.ledger_strikes(_ledger(*same_day)) == ["e"], "a row of the ruling's day after it counts"
+    assert check.ledger_strikes(_ledger("f,m1-w1,within-scope,a,2026-10-01", "f,m1-w2,within-scope,b,2026-10-02",
+                                        "f,m1-w3,within-scope,c,2026-10-03")) == []
+
+
+def test_a_bypass_row_9_names_needs_its_ledger_row(tmp_path: Path) -> None:
+    """The M21 repo review's M1: row 9's `Bypass:` field named two bypasses no ledger row counted."""
+    check = _module("wave_check")
+    text = _checklist("").replace("outcome: shipped`", "outcome: shipped`. Bypass: `abc1234` (the "
+                                  "`commit-after-check-fast` control)")
+    assert any("Bypass" in p for p in check.skip_ledger_problems(text, "m30-w1", []))
+    rows = [["commit-after-check-fast", "m30-w1", "bypass", "abc1234", "2026-10-10"]]
+    assert check.skip_ledger_problems(text, "m30-w1", rows) == []
+    none = _checklist("").replace("outcome: shipped`", "outcome: shipped`. Bypass: none")
+    assert check.skip_ledger_problems(none, "m30-w1", []) == []
