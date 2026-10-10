@@ -78,14 +78,19 @@ echo "[deploy] the data was built by $DATA_BY; the code is release-$HEAD_SHORT"
 # names that very release in DEPLOY_ACCEPT_DATA_FROM (`unknown` for a record from before #198).
 if [ "$DATA_BY" = "missing" ] || [ "$DATA_BY" = "unreadable" ]; then
   echo "[deploy] refused: the served data's refresh record is $DATA_BY ($SERVED.refresh.json), so nothing" >&2
-  echo "         says which release built it; let the Mac's engine refresh once with this release" >&2
+  echo "         says which release built it, and no DEPLOY_ACCEPT_DATA_FROM accepts that; let the Mac's" >&2
+  echo "         engine publish a refresh with this release (docs/release-testflight.md, the v2 section)" >&2
   exit 1
 fi
 if [ "$FROM" != "$HEAD_SHORT" ]; then
-  if [ "${DEPLOY_ACCEPT_DATA_FROM:-}" != "$DATA_BY" ]; then
+  if [ "${DEPLOY_ACCEPT_DATA_FROM:-}" != "$DATA_BY" ] || { [ "$DATA_BY" != "unknown" ] && [ "${DATA_BY#release-}" = "$DATA_BY" ]; }; then
     echo "[deploy] refused: the served data was built by $DATA_BY, not release-$HEAD_SHORT; let the Mac's" >&2
-    echo "         engine refresh once with this release (docs/release-testflight.md, step 1.1), or deploy it" >&2
-    echo "         anyway with DEPLOY_ACCEPT_DATA_FROM=$DATA_BY" >&2
+    echo "         engine publish a refresh with this release (docs/release-testflight.md, the v2 section):" >&2
+    echo "         a night whose data is unchanged keeps the old builder's name, and a refresh run by hand" >&2
+    echo "         without APP_BUILD records unknown" >&2
+    case "$DATA_BY" in  # S5: only a release, or a record from before #198, may be named
+      release-*|unknown) echo "         Or deploy it anyway with DEPLOY_ACCEPT_DATA_FROM=$DATA_BY" >&2 ;;
+    esac
     exit 1
   fi
   if [ "$DATA_BY" = "unknown" ]; then
