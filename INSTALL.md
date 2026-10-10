@@ -18,6 +18,13 @@ which Claude Code reads from 2.1.295: there a hook that times out blocks the cal
 timed-out hook lets the call through, and only the guard's own 5 s bound (`.claude/hooks/bash_guard.py`)
 protects. Check with `claude --version`.
 
+**Changing the Bash guard.** The hook runs `.claude/hooks/bash_guard.py` only when its sha256 is the one
+`.claude/settings.json` pins, so a changed guard blocks every Bash call. To change it: edit the guard, put its
+new sha256 (`shasum -a 256 .claude/hooks/bash_guard.py`) in the hook's command in `.claude/settings.json`, and
+start a new Claude Code session, since a session keeps the hooks it started with. A session open when such a
+change is pulled blocks every Bash call until it is restarted. Agents cannot make this change: the hooks refuse
+their writes into `.claude/` and `.githooks/`.
+
 ## Windows
 
 Windows 10 or 11, working in **Git Bash**: every command in this file after the installs runs there,

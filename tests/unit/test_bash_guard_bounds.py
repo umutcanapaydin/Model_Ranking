@@ -2,7 +2,9 @@
 
 Below Claude Code 2.1.295 a hook that times out lets the call through, so the guard's own deadline is the
 only bound there. It is a timer thread that writes the BLOCKED line and exits 2: it works where SIGALRM
-does not (Windows' Git Bash, which INSTALL.md supports) and stops a long call into C as well.
+does not (Windows' Git Bash, which INSTALL.md supports). It does not stop a long call into C that holds the
+interpreter, which runs to its end first (the M21 closure fixes review's M6, measured); the hook's 30 s timeout
+and `onFailure` bound that. The tests slow the reading with `time.sleep`, which lets the thread run.
 """
 
 from __future__ import annotations
