@@ -762,3 +762,24 @@ def test_a_bypass_row_9_names_needs_its_ledger_row(tmp_path: Path) -> None:
     assert check.skip_ledger_problems(text, "m30-w1", rows) == []
     none = _checklist("").replace("outcome: shipped`", "outcome: shipped`. Bypass: none")
     assert check.skip_ledger_problems(none, "m30-w1", []) == []
+
+
+def test_a_first_wave_stacked_on_an_unmerged_closure_starts_at_that_closure(tmp_path: Path) -> None:
+    """The M21 repo review's M2: M22-W1 starts on closure/m21 while M20 and M21 are off main. Its range from
+    the closure was refused as narrower than main's base, and a range from main read the earlier milestones'
+    ADRs as its own. The wave's base is the merge base with the previous milestone's closure branch."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path, log="## 2026-10-10 — M30-W1, M31-W1\n\nwork.\n")
+    _commit(root, "an ADR beside its code", "2026-10-10T13:00:00",
+            {"docs/decisions.md": "# Decisions\n\n## D-1 — One\n\nBody.\n\n## D-2 — Two\n\nNew.\n",
+             "src/app/other.py": "x = 3\n"})
+    _closed(root, _close_text(base))
+    _git(root, "checkout", "-q", "-b", "closure/m30")
+    _commit(root, "the closure", "2026-10-10T16:00:00", {"docs/reviews/m30-closure.md": "closed\n"})
+    _git(root, "checkout", "-q", "-b", "wave/m31-w1")
+    _commit(root, "the next plan", "2026-10-10T17:00:00", {"docs/plans/m31-plan.md": f"# M31\n\n### W1 — one\n{GLOBS}"})
+    _commit(root, "wave work", "2026-10-10T18:00:00", {"src/app/other.py": "x = 4\n"})
+    text = (_close_text("closure/m30").replace("m30-wave-1-close", "m31-wave-1-close"))
+    close = _closed(root, text, "2026-10-10T19:00:00", "m31-wave-1-close.md")
+    problems, skipped = check.history_problems(close, text, root)
+    assert skipped is None and problems == [], problems
