@@ -84,6 +84,7 @@ Gate definitions change, so the owner reviews the wave (AGENTS.md §3).
   - `ios/ModelRanking/ContentView.swift` (added at M21-W3, #188: the screen builds the request's arguments)
   - `tests/conftest.py`
   - `.github/workflows/**`, `.claude/settings.json` (the owner's)
+  - `.claude/hooks/**`, `.githooks/**` (the guards the hooks run; added at M21-W4, the Tester's K1)
   - the deploy surface: `Dockerfile`, `fly.toml`, `.dockerignore`, `scripts/deploy_hosted_engine.sh`,
     `src/app/workflows/public.py`, `ios/Config/**`
 
