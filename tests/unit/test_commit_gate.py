@@ -88,7 +88,7 @@ def test_the_hook_runs_check_records_for_docs_and_check_fast_for_the_rest(tmp_pa
 
 
 def test_the_hook_refuses_the_commit_when_its_gate_fails(tmp_path: Path) -> None:
-    repo, log, env = _repo(tmp_path, make_exit=2)
+    repo, _, env = _repo(tmp_path, make_exit=2)
     done = _commit(repo, env, "src/app/x.py")
     assert done.returncode != 0 and "REFUSED" in done.stdout + done.stderr, done
     head = subprocess.run(["git", "rev-parse", "--verify", "-q", "HEAD"], cwd=repo, env=env, capture_output=True,

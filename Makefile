@@ -415,10 +415,10 @@ labels:  ## Stage 0: create the issue-label vocabulary on GitHub, once per repo 
 # Without `gh` it prints the table to create by hand, and exits 2.
 	@$(SYS_PY) scripts/create_labels.py
 
-hooks:  ## Stage 0, once per clone: `make gate` runs before every push (the enforcement where CI does not run)
-	$(call need,git,install the pre-push hook)
+hooks:  ## Stage 0, once per clone: `make check-fast` or `make check-records` before every commit, `make gate` before every push
+	$(call need,git,install the pre-commit and pre-push hooks)
 	@git config core.hooksPath .githooks
-	@echo "core.hooksPath = $$(git config core.hooksPath) -- pre-push now runs make gate"
+	@echo "core.hooksPath = $$(git config core.hooksPath) -- pre-commit now runs make check-fast (make check-records for a docs-only commit), pre-push runs make gate"
 
 install-check:  ## is this tree a COMPLETE install? (M0-M4 against INSTALL-MANIFEST.md)
 	@echo "[install-check] every PROJECT path present, no GP-INTERNAL path leaked"

@@ -130,7 +130,10 @@ In Git Bash (Windows) or a terminal (macOS, Linux), at the repository root.
 3. Name the project in `pyproject.toml`.
 4. `make install` — *every clone*: the venv, DevFlow's tooling and the project; it records the
    installed version in `.gp/installed`.
-5. `make hooks` — *every clone*: `make gate` runs before every push. Where GitHub Actions do not
+5. `make hooks` — *every clone*: `make gate` runs before every push, and before every commit
+   `make check-fast` runs, or `make check-records` for a docs-only commit (every staged path a Markdown
+   file outside the code directories, `scripts/commit_gate.py`; the owner's ruling of 2026-10-10,
+   `docs/refusals.md` R-1). Neither hook runs until this is done once. Where GitHub Actions do not
    run, this is the only gate between a change and the remote, and `make bootstrap-check` fails
    without it unless the brief records that both Actions and branch protection work here.
 6. `make labels` — once per repository: every lifecycle skill keys on the labels in
