@@ -139,6 +139,13 @@ def settings(prereqs: list[str], own: list[str],
     return list(dict.fromkeys(own)), forms, problems
 
 
+def without(prereqs: list[str], names: list[str]) -> tuple[list[str], list[str]]:
+    """(the prerequisites left, problems): `--without` drops these `check:` prerequisites, and a name that is
+    not one fails, as CHECK_FAST_FORMS does, so a typo cannot keep a leg that was meant to go."""
+    problems = [f"`{name}` in --without is not a prerequisite of `check:`" for name in names if name not in prereqs]
+    return [t for t in prereqs if t not in names], problems
+
+
 def legs(prereqs: list[str], own: list[str] | None = None) -> dict[str, list[str]]:
     """Every prerequisite in exactly one leg: code legs and a project's own legs alone, everything
     else in `records`."""
@@ -250,6 +257,8 @@ def main(argv: list[str]) -> int:
                                      description="the legs of `make check`, run side by side")
     parser.add_argument("--make", default="make", help="the make to start each leg with")
     parser.add_argument("--plan", action="store_true", help="print the legs and run nothing")
+    parser.add_argument("--without", nargs="+", default=[], metavar="TARGET",
+                        help="`check:` prerequisites to leave out (`make check-red`, `make check-docs`)")
     args = parser.parse_args(argv)
     if shutil.which(args.make) is None:
         print(f"check-fast CANNOT RUN: {args.make} not installed: cannot run the legs of "
@@ -261,8 +270,10 @@ def main(argv: list[str]) -> int:
         text = MAKEFILE.read_text(encoding="utf-8")
         if STACK_MK.is_file():
             text += "\n" + STACK_MK.read_text(encoding="utf-8")
-        prereqs = check_prerequisites(text)
-        own, forms, problems = settings(prereqs, *config(args.make))
+        prereqs, dropped = without(check_prerequisites(text), args.without)
+        own, forms, problems = settings(check_prerequisites(text), *config(args.make))
+        problems += dropped
+        own = [t for t in own if t in prereqs]
     except (OSError, ValueError) as exc:
         print(f"check-fast FAIL: {exc}")
         return 1

@@ -130,10 +130,14 @@ In Git Bash (Windows) or a terminal (macOS, Linux), at the repository root.
 3. Name the project in `pyproject.toml`.
 4. `make install` — *every clone*: the venv, DevFlow's tooling and the project; it records the
    installed version in `.gp/installed`.
-5. `make hooks` — *every clone*: `make gate` runs before every push, and before every commit
-   `make check-fast` runs, or `make check-records` for a docs-only commit (every staged path a Markdown
-   file outside the code directories, `scripts/commit_gate.py`; the owner's ruling of 2026-10-10,
-   `docs/refusals.md` R-1). Neither hook runs until this is done once. Where GitHub Actions do not
+5. `make hooks` — *every clone*: `make gate` runs before every push, and before every commit the
+   commit-msg gate runs one of three targets (`scripts/commit_gate.py`; the owner's ruling of 2026-10-10,
+   `docs/refusals.md` R-1): `make check-fast`; `make check-red` for a declared red test commit (a `test:`
+   subject that says `red`, with a test staged), which leaves out the legs that run tests; or
+   `make check-docs` for a docs-only commit (every staged path a Markdown file outside the code
+   directories), which leaves out the Swift tests and the compiled gate. A human may bypass either hook with
+   `--no-verify` and adds the row to `docs/control-events.csv`; an agent never does. Neither hook runs until
+   this is done once. Where GitHub Actions do not
    run, this is the only gate between a change and the remote, and `make bootstrap-check` fails
    without it unless the brief records that both Actions and branch protection work here.
 6. `make labels` — once per repository: every lifecycle skill keys on the labels in

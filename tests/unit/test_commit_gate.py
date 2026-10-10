@@ -134,7 +134,8 @@ def test_a_rename_out_of_the_code_directories_counts_both_paths(tmp_path: Path) 
     """M1: `git mv tests/unit/test_x.py docs/test_x.md` was gated as docs-only."""
     repo, log, env = _repo(tmp_path)
     assert _commit(repo, env, "tests/unit/test_x.py", "fix: x").returncode == 0
-    _git(repo, env, "mv", "tests/unit/test_x.py", "docs/test_x.md")
+    (repo / "docs").mkdir()
+    assert _git(repo, env, "mv", "tests/unit/test_x.py", "docs/test_x.md").returncode == 0
     assert _git(repo, env, "commit", "-q", "-m", "docs: move").returncode == 0
     assert _logged(log)[-1] == "check-fast"
 
@@ -142,7 +143,8 @@ def test_a_rename_out_of_the_code_directories_counts_both_paths(tmp_path: Path) 
 def test_a_commit_that_changes_the_gate_is_judged_by_heads_copy(tmp_path: Path) -> None:
     """M1: the hook ran the working tree's gate, so a commit changing the gate judged itself."""
     repo, log, env = _repo(tmp_path)
-    assert _commit(repo, env, "scripts/commit_gate.py", "fix: the gate").returncode == 0
+    _git(repo, env, "add", "scripts/commit_gate.py")
+    assert _git(repo, env, "commit", "-q", "-m", "fix: the gate").returncode == 0
     gate = repo / "scripts" / "commit_gate.py"
     gate.write_text(gate.read_text(encoding="utf-8").replace('return "check-fast"', 'return "check-docs"'),
                     encoding="utf-8")

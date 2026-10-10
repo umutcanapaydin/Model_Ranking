@@ -60,7 +60,7 @@ need = @command -v $(1) >/dev/null 2>&1 || { echo "$(1) not installed: cannot $(
 
 # Every target is declared phony. `conformance` is also a directory: undeclared, make called the
 # target "up to date" and never ran it, so `make gate` skipped the whole conformance suite.
-.PHONY: help ui-test install lock test lint format typecheck check check-fast check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check
+.PHONY: help ui-test install lock test lint format typecheck check check-fast check-red check-docs check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check
 
 help:  ## this list, generated from the annotation on each target (a hand-written list drifts)
 	@grep -hE '^[a-zA-Z0-9_.-]+:[^#]*## ' $(MAKEFILE_LIST) | sort \
@@ -212,6 +212,14 @@ swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING so
 
 check-fast: install  ## `make check`'s legs side by side -- what the post-edit hook runs; `make check` stays the merge gate
 	@$(PY) scripts/check_fast.py --make "$(MAKE)"
+
+# The owner's ruling of 2026-10-10 on commit-after-check-fast, as the M21 closure applies it: the gates the
+# commit-msg hook runs (scripts/commit_gate.py) besides check-fast.
+check-red: install  ## a declared red test commit's gate: check-fast without the legs that run tests
+	@$(PY) scripts/check_fast.py --make "$(MAKE)" --without test swift-test conformance client-decls
+
+check-docs: install  ## a docs-only commit's gate: check-fast without the Swift tests and the compiled gate, which read no Markdown
+	@$(PY) scripts/check_fast.py --make "$(MAKE)" --without swift-test client-decls
 
 swift-test-parallel:  ## `swift-test` for `check-fast`: the same suite with --parallel, judged from xUnit
 	@# `swift test --parallel` prints no `Executed N tests` line, and a serial run writes no xUnit
@@ -415,10 +423,10 @@ labels:  ## Stage 0: create the issue-label vocabulary on GitHub, once per repo 
 # Without `gh` it prints the table to create by hand, and exits 2.
 	@$(SYS_PY) scripts/create_labels.py
 
-hooks:  ## Stage 0, once per clone: `make check-fast` or `make check-records` before every commit, `make gate` before every push
-	$(call need,git,install the pre-commit and pre-push hooks)
+hooks:  ## Stage 0, once per clone: a gate before every commit (check-fast, check-red or check-docs), `make gate` before every push
+	$(call need,git,install the commit-msg and pre-push hooks)
 	@git config core.hooksPath .githooks
-	@echo "core.hooksPath = $$(git config core.hooksPath) -- pre-commit now runs make check-fast (make check-records for a docs-only commit), pre-push runs make gate"
+	@echo "core.hooksPath = $$(git config core.hooksPath) -- commit-msg now runs make check-fast (check-red for a declared red test commit, check-docs for a docs-only one), pre-push runs make gate"
 
 install-check:  ## is this tree a COMPLETE install? (M0-M4 against INSTALL-MANIFEST.md)
 	@echo "[install-check] every PROJECT path present, no GP-INTERNAL path leaked"

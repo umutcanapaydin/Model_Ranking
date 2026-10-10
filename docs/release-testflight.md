@@ -24,9 +24,10 @@ The M21 closure security seat says the release verdict stands for v2, on six con
    or rebase). It carries every commit of #213, #215, #217, #221, #224, #225, #229 (the M20 closure),
    #236, #240, #250 and #251, so GitHub marks those merged too, and the close checks, which read the
    commit history (D-192), keep the history they read. Then `git checkout main && git pull`.
-2. **Run `make hooks` once** in your clone. From then on every commit runs `make check-fast` (or
-   `make check-records` for a docs-only commit) and every push runs `make gate`, which runs the compiled
-   gate (`make client-decls`). Nothing runs that gate automatically until you do (G-10; condition 2).
+2. **Run `make hooks` once** in your clone. From then on the commit-msg gate runs before every commit
+   (`make check-fast`; `make check-red` for a declared red test commit; `make check-docs` for a docs-only
+   one; `docs/refusals.md` R-1) and every push runs `make gate`, which runs the compiled gate
+   (`make client-decls`). Nothing runs that gate automatically until you do (G-10; condition 2).
    Then, once, in a Claude Code session started in the repository, type `/hooks` and check that the Bash
    hook is listed; its `onFailure` needs Claude Code 2.1.295 or later (`INSTALL.md`; the seat's S8).
 3. **Run `make check`** on `main`'s tip after the merges, before the archive: it includes
