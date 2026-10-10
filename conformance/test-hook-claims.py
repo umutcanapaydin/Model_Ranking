@@ -489,6 +489,11 @@ def main() -> int:
             # pattern test fails, nothing matches, and the guard allowed everything -- so it must
             # refuse, even `git status`, with the line INSTALL.md points at.
             if bash_hook is not None:
+                # The M21-W4 Tester's M5: a hook that does not answer is a failure with its label, never a
+                # traceback that hides the run's other findings, and nothing it started outlives it.
+                r = run_hook(bash, "sleep 30", "{}", None, timeout=1)
+                if r.returncode in (0, 2):
+                    bad.append(f"run_hook returned {r.returncode} for a hook that did not answer within its limit")
                 # The M21-W4 review, round 2, M3: a hook that times out does not block (Claude Code proceeds
                 # with the call), so the guard answers within its own bound, and the hook blocks on failure.
                 started = time.monotonic()

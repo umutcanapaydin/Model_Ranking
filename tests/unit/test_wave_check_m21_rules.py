@@ -701,4 +701,23 @@ def test_the_pointer_back_names_the_adr_that_amends(tmp_path: Path) -> None:
     assert not any(m.startswith("D-2 amends D-3,") for m in found), found
 
 
+
+def test_a_merged_close_edited_on_a_later_branch_still_says_skipped(tmp_path: Path) -> None:
+    """The M21-W4 Tester's M1: W1's MED close, merged, then a typo fixed in it on W2's branch, which changes a
+    glob. Merged is asked of the commit that added the close, so the close is not read again with W2's
+    commits in its range."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path)
+    _commit(root, "wave one", "2026-10-10T13:00:00", {"src/app/other.py": "x = 9\n"})
+    text = _close_text(base, tier="MED")
+    close = _closed(root, text)
+    _git(root, "checkout", "-q", "main")
+    _git(root, "merge", "-q", "--ff-only", "wave/m30-w1")
+    _git(root, "checkout", "-q", "-b", "wave/m30-w2")
+    _commit(root, "wave two", "2026-10-10T19:00:00", {"src/app/adapter/main.py": "x = 2\n"})
+    fixed = text.replace("Filled by: lead", "Filled by: the lead")
+    _closed(root, fixed, "2026-10-10T20:00:00")
+    problems, skipped = check.history_problems(close, fixed, root)
+    assert problems == [] and skipped and "merged" in skipped, (problems, skipped)
+
 pytestmark = pytest.mark.needs("git")
