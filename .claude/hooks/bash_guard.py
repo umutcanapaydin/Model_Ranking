@@ -1,56 +1,59 @@
-"""#189: the Bash guard's second reading -- the command split as the shell splits it.
+"""#189: the Bash guard's second reading.
 
-The guard in `.claude/settings.json` matches the command's text, and runs first, unchanged. This reads
-the command with a lexer of its own and judges each simple command it finds:
-- after `;`, `&&`, `||`, `|`, `|&`, `&`, a newline, `(` or `)`, and inside `$( )`, backticks and `<( )`,
-  outside single quotes (in double quotes too); text in single quotes, and a here-document's body, is data;
-- with quotes removed and `$'..'` decoded; a `#` starts a comment only where a word would start, to the end
-  of its line; a redirection (`>`, `>>`, `<`, `2>`, `&>`, `>&`, `<<<`, `<<`) and its target are skipped and
-  the same command read on;
-- past assignments and the shell keywords (`then`, `do`, `{`, `!` and the rest), and past a wrapper
-  (WRAPPERS: `env`, `sudo`, `xargs`, `timeout`, `nice`, zsh's `noglob`, `nocorrect`, `-`, `repeat N` and
-  others): after a wrapper every later word is tried as the program, so an option's value is never taken
-  for it; `env -S`'s string is read as a command;
-- inside `bash`, `sh`, `zsh`, `dash` or `ksh` given `-c` (every word after it), a script file (its name
-  and arguments), or a here-document or here-string (its body); a shell that reads its commands from a
-  pipe or a file is blocked, since its commands cannot be read here; `eval`, `source`, `.` and
-  `find -exec` likewise.
+The text guard in `.claude/settings.json` runs first, unchanged. This one reads the command with a lexer of
+its own and judges each simple command it finds. It is a best effort against an agent's ordinary commands,
+not a parser of bash or zsh, and it only adds blocks to the text guard's.
 
-What it blocks, in those spellings:
-- `fly` or `flyctl` but the read-only subcommands in READ_ONLY_FLY, and any `fly` behind `xargs`, whose
-  arguments come from stdin (D-185);
+What it blocks:
+- `fly` or `flyctl` but the read-only subcommands in READ_ONLY_FLY, and `fly` behind `xargs` (D-185);
 - `deploy_hosted_engine.sh` run with anything but exactly `--dry-run` (D-185);
-- blocked too: a `git push` that forces (`--force` or a unique prefix of it, a short-option cluster holding
-  `f`, a `+` refspec), mirrors (`--mirror` or a unique prefix), pushes every branch (`--all`, `--branches`
-  or a prefix), names main, master or trunk as its destination, or runs behind `xargs` (AGENTS.md S3);
-- `git reset --hard` (or a prefix), `git clean` with `-f`, `git checkout --` or `.`, `git restore` without
-  `--staged` or with `--worktree` (or a prefix of either), and `rm` both recursive and forced
-  (permission-matrix.md S5);
-- a program word with an unquoted glob character (`fl[y]`, `*`, `?`, `{`), which names a program this
-  cannot know; a leading `=` (zsh's path expansion) is read as the name after it.
+- blocked too: a `git push` that forces, mirrors, pushes every branch, names main, master or trunk as its
+  destination (`main`, `heads/main`, `refs/heads/main`), or runs behind `xargs` (AGENTS.md S3);
+- `git reset --hard`, `git clean -f`, `git checkout --`, `.`, `-f` or a tree-ish with paths, `git switch -f`
+  or `--discard-changes`, `git stash clear`, `git restore` without `--staged` or with `--worktree`, and `rm`
+  both recursive and forced (permission-matrix.md S5). A git long option counts in any unique prefix.
 
-Not held, and how the owner may close each (G-7):
-- a program named through a variable, a command substitution or an alias (`$CMD deploy`, `$(echo fly)`),
-  or through a function or an alias defined in an earlier call;
-- a script's own contents (`bash deploy.sh` reads the name, not the file), and an interpreter given code
-  (`python -c`, `perl -e`, `node -e`);
-- a push set through `git -c` or `git config` (`remote.origin.push`, `push.default`), an alias such as
-  `git config alias.p 'push --force'`, and a git hook;
-- a wrapper this does not list (WRAPPERS), whose program is then read as an argument;
-- what the shell expands at run time: brace and tilde expansion beyond the program word, `IFS`, history.
-It only adds blocks to the text guard's. A command it cannot read (an unclosed quote or substitution) is
-blocked. Exit 2 blocks, with one line on stderr; exit 0 allows. The payload is the hook's JSON on stdin.
+Where it looks: each command after `;`, `&&`, `||`, `|`, `|&`, `&`, a newline, `(`, `)`, `{` or `}`; inside
+`$( )`, backticks (nested ones too), `<( )`, `${ }`, `$(( ))` and an unquoted here-document's body; past
+assignments, shell keywords and the wrappers in WRAPPERS (after one, every later word is tried as the
+program); inside `bash`, `sh`, `zsh`, `dash`, `ksh`, `csh`, `tcsh` or `fish` given `-c`, a script, a
+here-document or a here-string; and inside `eval`, `source`, `.`, `env -S` and `find -exec`. Text in single
+quotes and a quoted here-document's body are data; a `#` that starts a word starts a comment.
+
+It blocks what it cannot read, rather than reading it as data: an unclosed quote or substitution; a word
+with `(` written against it (zsh's glob qualifiers, `=( )`); a `${(flags)...}`; a brace expansion, or a
+pattern that could name a guarded program, as a program word; a shell or `source` reading its commands from
+a pipe, a file or stdin; a `-c` with no string; an input over MAX_INPUT characters; and any command it has
+not read within DEADLINE_S seconds. (A hook that times out does not block, so the guard keeps its own bound.)
+
+Not held, by class (G-7):
+- a program named when the command runs: through a variable, a substitution, an alias, a function, `hash`,
+  or a `PATH` holding a script of a guarded name;
+- code another program runs: a script's contents, `python -c`, `perl -e`, `node -e`, `awk`'s `system()`,
+  `make` recipes, git hooks and aliases (`git -c alias.x=...`, `git config`), `ssh host cmd`;
+- a wrapper not in WRAPPERS, whose program is then read as an argument;
+- what the shell expands when the command runs, beyond the program word: `IFS`, history, globs and braces in
+  arguments;
+- syntax this lexer does not model: it reads POSIX-like shell, and zsh's grammar beyond the forms above is
+  not held.
+Exit 2 blocks, with one line on stderr; exit 0 allows. The payload is the hook's JSON on stdin.
 """
 
 from __future__ import annotations
 
 import codecs
+import fnmatch
 import json
 import os
 import re
+import signal
 import sys
 from dataclasses import dataclass, field
 
+#: The longest command this reads; a longer one is blocked (the session's longest was under 20 000).
+MAX_INPUT = 32768
+#: How long the guard may read; past it, it blocks.
+DEADLINE_S = 5.0
 #: `fly` subcommands an agent may run: each reads, none changes the hosted engine.
 READ_ONLY_FLY = {("version",), ("help",), ("status",), ("logs",), ("auth", "whoami"), ("apps", "list"),
                  ("releases",), ("machine", "list"), ("machine", "status"), ("machines", "list"),
@@ -61,11 +64,15 @@ WRAPPERS = {"env", "command", "builtin", "time", "exec", "nohup", "nice", "sudo"
             "gtimeout", "caffeinate", "coproc", "noglob", "nocorrect", "-", "repeat", "function", "stdbuf",
             "setsid", "watch", "unbuffer", "script", "chronic", "ionice", "taskpolicy"}
 #: Shell words a command follows on its line: `then fly deploy` runs `fly deploy`.
-KEYWORDS = {"if", "then", "else", "elif", "do", "while", "until", "!", "{", "}", "fi", "done", "esac", "[", "[["}
-SHELLS = {"bash", "sh", "zsh", "dash", "ksh"}
+KEYWORDS = {"if", "then", "else", "elif", "do", "while", "until", "!", "fi", "done", "esac", "[", "[["}
+SHELLS = {"bash", "sh", "zsh", "dash", "ksh", "csh", "tcsh", "fish"}
+#: A shell or `source` given one of these reads its commands from stdin.
+STDIN_PATHS = {"-", "/dev/stdin", "/dev/fd/0", "/proc/self/fd/0"}
 PROTECTED = {"main", "master", "trunk"}
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?\+?=")
 DEPLOY = "deploy_hosted_engine.sh"
+#: The programs this guard reads; a program word written as a pattern that could match one is blocked.
+GUARDED = {"fly", "flyctl", DEPLOY, "git", "rm", "eval", "source", ".", "find", *SHELLS, *WRAPPERS}
 DESTRUCTIVE = "BLOCKED: destructive command (C.9, permission-matrix.md S5). Escalate to the owner instead."
 PROTECTED_PUSH = ("BLOCKED: the agent never pushes the protected branch (AGENTS.md S3). Push YOUR branch and open a "
                   "draft PR; a human marks it ready and merges.")
@@ -83,6 +90,14 @@ GIT_LONG = {
                 "--merge", "--conflict", "--ignore-unmerged", "--ignore-skip-worktree-bits", "--recurse-submodules",
                 "--overlay", "--no-overlay", "--pathspec-from-file", "--pathspec-file-nul"],
     "clean": ["--force", "--dry-run", "--quiet", "--exclude", "--interactive"],
+    "checkout": ["--force", "--ours", "--theirs", "--track", "--no-track", "--guess", "--no-guess", "--orphan",
+                 "--merge", "--conflict", "--patch", "--detach", "--quiet", "--progress", "--no-progress",
+                 "--ignore-skip-worktree-bits", "--ignore-other-worktrees", "--overwrite-ignore",
+                 "--no-overwrite-ignore", "--recurse-submodules", "--overlay", "--no-overlay",
+                 "--pathspec-from-file", "--pathspec-file-nul"],
+    "switch": ["--create", "--force-create", "--detach", "--guess", "--no-guess", "--force", "--discard-changes",
+               "--merge", "--conflict", "--quiet", "--progress", "--no-progress", "--track", "--no-track",
+               "--orphan", "--ignore-other-worktrees", "--recurse-submodules"],
     "rm": ["--recursive", "--force", "--interactive", "--one-file-system", "--no-preserve-root", "--preserve-root",
            "--dir", "--verbose"],
 }
@@ -97,6 +112,7 @@ class Word:
     text: str
     glob: bool = False      # an unquoted * ? [ or { in it
     equals: bool = False    # it starts with an unquoted = (zsh's path expansion)
+    quoted: bool = False    # some part of it was quoted
 
 
 @dataclass
@@ -110,14 +126,19 @@ class Command:
 class _Builder:
     def __init__(self) -> None:
         self.parts: list[str] = []
-        self.glob = self.equals = False
+        self.glob = self.equals = self.quoted = False
 
     def add(self, text: str, quoted: bool) -> None:
-        if not quoted:
+        if quoted:
+            self.quoted = True
+        else:
             if not self.parts and text.startswith("="):
                 self.equals = True
             self.glob = self.glob or any(ch in text for ch in "*?[{")
         self.parts.append(text)
+
+    def word(self) -> Word:
+        return Word("".join(self.parts), self.glob, self.equals, self.quoted)
 
 
 class Lexer:
@@ -128,21 +149,17 @@ class Lexer:
             raise Unreadable("substitutions nested too deep")
         self.s, self.i, self.depth = text, start, depth
         self.commands: list[Command] = []
-        self.pending: list[tuple[str, bool, Command]] = []
+        self.pending: list[tuple[str, bool, bool, Command]] = []  # delimiter, tabs stripped, quoted, owner
         self.patterns = 0  # `case ... in` seen: a `)` may end a pattern inside `$( )`
 
     # --- the command level ---------------------------------------------------------------------------
-    def parse(self, closing: str | None = None) -> None:
+    def parse(self, closing: str | None = None) -> None:  # noqa: C901 -- one branch per shell token
         cmd = Command()
         parens = 0
         last_end = -1
         s = self.s
         while self.i < len(s):
             c = s[self.i]
-            if closing == "`" and c == "`":
-                self.i += 1
-                self._end(cmd)
-                return
             if c in " \t":
                 self.i += 1
             elif s.startswith("\\\n", self.i):
@@ -163,8 +180,18 @@ class Lexer:
                 self.i += len(op)
                 cmd = self._end(cmd, piped=op in ("|", "|&"))
             elif c == "(":
-                if s.startswith("((", self.i) and not cmd.words:
-                    self._arithmetic(self.i + 2)  # `(( x <<= 1 ))` is arithmetic, not a here-document
+                if cmd.words and last_end == self.i:
+                    if s.startswith("()", self.i):  # `name()`: a function's name is no command
+                        self.i += 2
+                        cmd = Command()
+                    elif cmd.words[-1].text.endswith("="):  # `x=(a b)`: each element read as a command
+                        self.i += 1
+                        self._substitution(")")
+                    else:
+                        raise Unreadable("a word with `(` written against it (a zsh glob qualifier or `=( )`)")
+                elif s.startswith("((", self.i) and not cmd.words and (end := self._arith_end(self.i + 2)):
+                    self._expansions(s[self.i + 2:end - 2])  # `(( ... ))` is arithmetic
+                    self.i = end
                 else:
                     self.i += 1
                     parens += 1
@@ -180,16 +207,20 @@ class Lexer:
                 parens -= 1
                 cmd = self._end(cmd)
             else:
-                cmd.words.append(self._word(closing))
+                word = self._word()
                 last_end = self.i
-                if cmd.words[-1].text == "in" and len(cmd.words) >= 3 and cmd.words[0].text == "case":
+                if word.text in ("{", "}") and not word.quoted:
+                    cmd = self._end(cmd)  # a brace group's edge, and zsh's `if x {` and `} always {`
+                    continue
+                cmd.words.append(word)
+                if word.text == "in" and len(cmd.words) >= 3 and cmd.words[0].text == "case":
                     self.patterns += 1
                     cmd = self._end(cmd)
-                elif cmd.words[-1].text == "esac" and len(cmd.words) == 1:
+                elif word.text == "esac" and len(cmd.words) == 1:
                     self.patterns = max(0, self.patterns - 1)
         self._end(cmd)
         if closing:
-            raise Unreadable(f"an unclosed {'$(' if closing == ')' else 'backtick'} substitution")
+            raise Unreadable("an unclosed $( substitution")
 
     def _end(self, cmd: Command, piped: bool = False) -> Command:
         if cmd.words or cmd.fed:
@@ -197,18 +228,22 @@ class Lexer:
         return Command(piped=piped)
 
     def _bodies(self) -> None:
-        """At a newline: each here-document opened on the line just ended takes the lines up to its delimiter.
-        A body with no delimiter runs to the end, as the shell reads it."""
-        for delimiter, tabs, owner in self.pending:
+        """At a newline: each here-document opened on the line just ended takes the lines up to its delimiter
+        (to the end, if none). An unquoted delimiter's body is expanded as the shell expands it."""
+        for delimiter, tabs, quoted, owner in self.pending:
             lines: list[str] = []
             while self.i < len(self.s):
                 end = self.s.find("\n", self.i)
                 line = self.s[self.i:end] if end >= 0 else self.s[self.i:]
                 self.i = end + 1 if end >= 0 else len(self.s)
-                if (line.lstrip("\t") if tabs else line) == delimiter:
+                line = line.lstrip("\t") if tabs else line
+                if line == delimiter:
                     break
                 lines.append(line)
-            owner.fed.append("\n".join(lines))
+            body = "\n".join(lines)
+            if not quoted:
+                self._expansions(body)
+            owner.fed.append(body)
         self.pending = []
 
     def _redirect(self, cmd: Command) -> None:
@@ -225,21 +260,21 @@ class Lexer:
             if op in ("<<", "<<-", "<<<"):
                 raise Unreadable(f"`{op}` with nothing after it")
             return
-        target = self._word(None)
+        target = self._word()
         if op in ("<<", "<<-"):
-            self.pending.append((target.text, op == "<<-", cmd))
+            self.pending.append((target.text, op == "<<-", target.quoted, cmd))
         elif op == "<<<":
             cmd.fed.append(target.text)
         elif op in ("<", "<>", "<&"):
             cmd.from_file = True
 
     # --- the word level ------------------------------------------------------------------------------
-    def _word(self, closing: str | None) -> Word:
+    def _word(self) -> Word:
         b = _Builder()
         s = self.s
         while self.i < len(s):
             c = s[self.i]
-            if c in " \t\n;&|()<>" or (closing == "`" and c == "`"):
+            if c in " \t\n;&|()<>":
                 break
             if c == "\\":
                 if s.startswith("\\\n", self.i):
@@ -258,13 +293,11 @@ class Lexer:
             elif c == "$":
                 self._dollar(b, in_double=False)
             elif c == "`":
-                self.i += 1
-                self._substitution("`")
-                b.add("$(...)", True)
+                self._backtick(b)
             else:
                 b.add(c, False)
                 self.i += 1
-        return Word("".join(b.parts), b.glob, b.equals)
+        return b.word()
 
     def _double(self, b: _Builder) -> None:
         s = self.s
@@ -273,6 +306,7 @@ class Lexer:
             c = s[self.i]
             if c == '"':
                 self.i += 1
+                b.add("", True)
                 return
             if c == "\\" and s[self.i + 1:self.i + 2] in ('$', '`', '"', "\\", "\n"):
                 if s[self.i + 1] != "\n":
@@ -281,13 +315,28 @@ class Lexer:
             elif c == "$":
                 self._dollar(b, in_double=True)
             elif c == "`":
-                self.i += 1
-                self._substitution("`")
-                b.add("$(...)", True)
+                self._backtick(b)
             else:
                 b.add(c, True)
                 self.i += 1
         raise Unreadable("an unclosed double quote")
+
+    def _expansions(self, text: str) -> None:
+        """The substitutions in text the shell expands as it would inside double quotes: an unquoted
+        here-document's body, arithmetic, a `${ }`'s inner text. Each one's commands are judged."""
+        sub = Lexer(text, self.depth + 1)
+        b = _Builder()
+        while sub.i < len(text):
+            c = text[sub.i]
+            if c == "\\":
+                sub.i += 2
+            elif c == "$":
+                sub._dollar(b, in_double=True)
+            elif c == "`":
+                sub._backtick(b)
+            else:
+                sub.i += 1
+        self.commands.extend(sub.commands)
 
     def _dollar(self, b: _Builder, in_double: bool) -> None:
         s = self.s
@@ -300,50 +349,98 @@ class Lexer:
             raw = s[self.i + 2:end].encode("latin-1", "backslashreplace")
             b.add(codecs.decode(raw, "unicode_escape"), True)
             self.i = end + 1
-        elif s.startswith("$((", self.i):
-            self._arithmetic(self.i + 3)
+        elif s.startswith("$((", self.i) and (end := self._arith_end(self.i + 3)):
+            self._expansions(s[self.i + 3:end - 2])
             b.add("$((...))", True)
-        elif s.startswith("$(", self.i):
+            self.i = end
+        elif s.startswith("$(", self.i):  # `$((cmd) )` too: a substitution holding a subshell
             self.i += 2
             self._substitution(")")
             b.add("$(...)", True)
         elif s.startswith("${", self.i):
-            depth, j = 0, self.i + 1
-            while j < len(s):
-                depth += {"{": 1, "}": -1}.get(s[j], 0)
-                if depth == 0:
-                    break
-                j += 1
-            if j >= len(s):
-                raise Unreadable("an unclosed ${")
-            inner = s[self.i + 2:j]
-            if "$(" in inner or "`" in inner:  # `${x:-$(cmd)}` runs cmd
-                sub = Lexer(inner, self.depth + 1)
-                sub.parse()
-                self.commands.extend(sub.commands)
-            b.add("$" + s[self.i + 1:j + 1], True)
-            self.i = j + 1
+            end = self._brace_end(self.i + 2)
+            inner = s[self.i + 2:end]
+            if inner.startswith("("):
+                raise Unreadable("a `${(flags)...}`, which zsh may evaluate")
+            self._expansions(inner)
+            b.add("${...}", True)
+            self.i = end + 1
         else:
             name = re.match(r"\$([A-Za-z_][A-Za-z0-9_]*|[0-9@*#?$!-])", s[self.i:])
-            if name:
-                b.add(name.group(0), True)
-                self.i += name.end()
-            else:
-                b.add("$", True)
-                self.i += 1
+            b.add(name.group(0) if name else "$", True)
+            self.i += name.end() if name else 1
 
-    def _arithmetic(self, start: int) -> None:
-        """Past `$(( ... ))` or `(( ... ))`: arithmetic runs no command (a `<<` there is a shift)."""
-        depth, j = 2, start
-        while j < len(self.s) and depth:
-            depth += {"(": 1, ")": -1}.get(self.s[j], 0)
+    def _arith_end(self, start: int) -> int | None:
+        """The index past `))` closing an arithmetic `$((` or `((` opened before `start`; None when its two
+        closing parentheses are apart (`$((cmd) )` is a substitution) or never come."""
+        depth, one_at, j = 2, -1, start
+        while j < len(self.s):
+            ch = self.s[j]
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 1:
+                    one_at = j
+                elif depth == 0:
+                    return j + 1 if one_at == j - 1 else None
             j += 1
-        if depth:
-            raise Unreadable("an unclosed $((")
-        self.i = j
+        return None
+
+    def _brace_end(self, start: int) -> int:
+        """The index of the `}` that ends a `${` as bash ends it: the first unquoted, unescaped one outside a
+        nested `${ }` or parentheses."""
+        s, j, depth, parens = self.s, start, 1, 0
+        while j < len(s):
+            ch = s[j]
+            if ch == "\\":
+                j += 2
+                continue
+            if ch == "'":
+                end = s.find("'", j + 1)
+                if end < 0:
+                    raise Unreadable("an unclosed single quote in ${")
+                j = end + 1
+                continue
+            if ch == '"':
+                j += 1
+                while j < len(s) and s[j] != '"':
+                    j += 2 if s[j] == "\\" else 1
+                j += 1
+                continue
+            if s.startswith("${", j):
+                depth += 1
+                j += 2
+                continue
+            if ch == "(":
+                parens += 1
+            elif ch == ")":
+                parens = max(0, parens - 1)
+            elif ch == "}" and parens == 0:
+                depth -= 1
+                if depth == 0:
+                    return j
+            j += 1
+        raise Unreadable("an unclosed ${")
+
+    def _backtick(self, b: _Builder) -> None:
+        """A backtick substitution: its text with one level of `\\``, `\\$` and `\\\\` removed is a command line,
+        nested backticks included."""
+        s, j = self.s, self.i + 1
+        while j < len(s) and s[j] != "`":
+            j += 2 if s[j] == "\\" else 1
+        if j >= len(s):
+            raise Unreadable("an unclosed backtick")
+        inner = re.sub(r"\\([`$\\\"])", r"\1", s[self.i + 1:j])
+        sub = Lexer(inner, self.depth + 1)
+        sub.parse()
+        sub._bodies()
+        self.commands.extend(sub.commands)
+        b.add("$(...)", True)
+        self.i = j + 1
 
     def _substitution(self, closing: str) -> None:
-        """A command substitution, read in a quoting context of its own; its commands are judged too."""
+        """A `$( )` substitution, read in a quoting context of its own; its commands are judged too."""
         sub = Lexer(self.s, self.depth + 1, self.i)
         sub.parse(closing)
         self.commands.extend(sub.commands)
@@ -355,6 +452,8 @@ class Lexer:
 
 def judge_text(text: str, depth: int = 0) -> str | None:
     """Why the command must be blocked, or None."""
+    if len(text) > MAX_INPUT:
+        raise Unreadable(f"the command is over {MAX_INPUT} characters")
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     lexer = Lexer(text, depth)
     lexer.parse()
@@ -366,60 +465,54 @@ def judge_text(text: str, depth: int = 0) -> str | None:
 
 
 def judge_command(cmd: Command, depth: int) -> str | None:
+    """Past assignments and keywords; after a wrapper, every later word is tried as the program, in one pass."""
     words = cmd.words
     start = 0
     while start < len(words) and (ASSIGNMENT.match(words[start].text) or words[start].text in KEYWORDS):
         start += 1
     if start >= len(words):
         return None
-    candidates = [start]
-    xargs_at = len(words)
-    if _program(words[start]) in WRAPPERS:
-        candidates = list(range(start, len(words)))
-    for k in candidates:
-        program = _program(words[k])
+    if _program(words[start]) not in WRAPPERS:
+        return judge_words(words[start:], cmd, depth)
+    xargs_at, tried = len(words), 0
+    for k in range(start, len(words)):
+        word = words[k]
+        program = _program(word)
         if program == "xargs":
             xargs_at = min(xargs_at, k)
         if program == "env":
-            for j in range(k + 1, len(words)):
+            j = k + 1
+            while j < len(words) and (words[j].text.startswith("-") or ASSIGNMENT.match(words[j].text)):
                 arg = words[j].text
-                if arg in ("-S", "--split-string") and j + 1 < len(words):
-                    if (why := judge_text(words[j + 1].text, depth + 1)):
-                        return why
-                elif arg.startswith(("-S", "--split-string=")) and len(arg) > 2:
-                    if (why := judge_text(arg.split("=", 1)[-1] if arg.startswith("--") else arg[2:], depth + 1)):
-                        return why
-        if (program in WRAPPERS and k != len(words) - 1) or (k > start and words[k].text.startswith("-")
-                                                             and words[k].text != "-"):
+                text = (words[j + 1].text if arg in ("-S", "--split-string") and j + 1 < len(words) else
+                        arg.split("=", 1)[1] if arg.startswith("--split-string=") else
+                        arg[2:] if arg.startswith("-S") and len(arg) > 2 else None)
+                if text is not None and (why := judge_text(text, depth + 1)):
+                    return why
+                j += 1
+        if k > start and word.text.startswith("-") and word.text != "-":
             continue
-        if (why := judge_words(words[k:], cmd, depth, behind_xargs=xargs_at < k)):
-            return why
+        if program in WRAPPERS and k != len(words) - 1:
+            continue
+        if program in GUARDED or word.glob or word.equals:
+            tried += 1
+            if tried > 64:
+                raise Unreadable("more than 64 guarded programs behind wrappers")
+            if (why := judge_words(words[k:], cmd, depth, behind_xargs=xargs_at < k)):
+                return why
     return None
-
-
-#: The programs this guard reads; a program word written as a pattern that matches one is blocked.
-GUARDED = {"fly", "flyctl", DEPLOY, "git", "rm", "eval", "source", ".", "find", *SHELLS, *WRAPPERS}
-
-
-def _could_name_guarded(pattern: str) -> bool:
-    """Whether a glob (`fl[y]`, `*`, `{fly,x}`) in a program word could expand to a guarded program."""
-    import fnmatch
-
-    names = [pattern]
-    while any("{" in n and "," in n for n in names):
-        expanded = []
-        for name in names:
-            brace = re.search(r"\{([^{}]*,[^{}]*)\}", name)
-            expanded += ([name[:brace.start()] + part + name[brace.end():] for part in brace.group(1).split(",")]
-                         if brace else [name])
-        if expanded == names:
-            break
-        names = expanded
-    return any(fnmatch.fnmatchcase(guarded, os.path.basename(name)) for name in names for guarded in GUARDED)
 
 
 def _program(word: Word) -> str:
     return os.path.basename(word.text[1:] if word.equals else word.text)
+
+
+def _could_name_guarded(pattern: str) -> bool:
+    """Whether a pattern in a program word could be a guarded program. A brace expansion is not enumerated:
+    it is taken as one that could."""
+    if re.search(r"\{[^{}]*(,|\.\.)[^{}]*\}", pattern):
+        return True
+    return any(fnmatch.fnmatchcase(guarded, os.path.basename(pattern)) for guarded in GUARDED)
 
 
 def _unique(option: str, wanted: str, known: list[str]) -> bool:
@@ -430,9 +523,21 @@ def _unique(option: str, wanted: str, known: list[str]) -> bool:
     return name == wanted or not any(other.startswith(name) for other in known if other != wanted)
 
 
+def _stdin(cmd: Command, depth: int, who: str) -> str | None:
+    """A shell or `source` reading its commands from stdin: its here-documents and here-strings are read;
+    a pipe or a file is not, so it is blocked."""
+    if cmd.fed and not cmd.piped and not cmd.from_file:
+        for text in cmd.fed:
+            if (why := judge_text(text, depth + 1)):
+                return why
+        return None
+    return (f"BLOCKED: {who} reading its commands from a pipe, a file or stdin, which this guard cannot read "
+            "(#189); run the commands themselves, or the script by its name.")
+
+
 def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool = False) -> str | None:
     first = words[0]
-    if first.glob and first.text not in KEYWORDS and _could_name_guarded(first.text):
+    if first.glob and _could_name_guarded(first.text):
         return (f"BLOCKED: `{first.text}` names its program by a pattern that could be a guarded program, "
                 "which this guard cannot read (#189); write the program's name.")
     program = _program(first)
@@ -440,9 +545,9 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
     if program == "eval":
         return judge_text(" ".join(args), depth + 1)
     if program in SHELLS:
-        return _judge_shell(args, cmd, depth)
+        return _judge_shell(program, args, cmd, depth)
     if program in ("source", ".") and args:
-        return judge_words(words[1:], cmd, depth)
+        return _stdin(cmd, depth, f"`{program}`") if args[0] in STDIN_PATHS else judge_words(words[1:], cmd, depth)
     if program == "find":
         for i, arg in enumerate(args):
             if arg in ("-exec", "-execdir", "-ok", "-okdir"):
@@ -473,7 +578,7 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
     return None
 
 
-def _judge_shell(args: list[str], cmd: Command, depth: int) -> str | None:
+def _judge_shell(shell: str, args: list[str], cmd: Command, depth: int) -> str | None:
     """A shell runs `-c`'s string, a script file, or what it reads on stdin."""
     if any(a in ("--version", "--help") for a in args):
         return None
@@ -483,34 +588,37 @@ def _judge_shell(args: list[str], cmd: Command, depth: int) -> str | None:
         if arg == "--":
             j += 1
             break
-        if arg in ("-o", "+o", "-O", "+O"):
+        if arg in ("-o", "+o", "-O", "+O", "--rcfile", "--init-file"):
+            j += 2
+            continue
+        if shell == "fish" and arg in ("-C", "--init-command"):
+            if j + 1 < len(args) and (why := judge_text(args[j + 1], depth + 1)):
+                return why
             j += 2
             continue
         if arg.startswith(("-", "+")) and len(arg) > 1:
             if not arg.startswith("--"):
                 given_c = given_c or "c" in arg[1:]
                 reads_stdin = reads_stdin or "s" in arg[1:]
+            elif arg == "--command":
+                given_c = True
             j += 1
             continue
         break
     rest = args[j:]
     if given_c:
+        if not rest:
+            return f"BLOCKED: `{shell} -c` with no command string takes it from elsewhere, which this guard cannot read."
         for text in rest:  # the string, then $0 and its arguments: each read as a command
             if (why := judge_text(text, depth + 1)):
                 return why
         return None
-    if rest and not reads_stdin:
+    if rest and not reads_stdin and rest[0] not in STDIN_PATHS:
         return judge_words([Word(a) for a in rest], cmd, depth)
-    if cmd.fed and not cmd.piped and not cmd.from_file:
-        for text in cmd.fed:
-            if (why := judge_text(text, depth + 1)):
-                return why
-        return None
-    return ("BLOCKED: a shell reading its commands from a pipe or a file, which this guard cannot read (#189); "
-            "run the commands themselves, or the script by its name.")
+    return _stdin(cmd, depth, f"a shell (`{shell}`)")
 
 
-def _judge_git(args: list[str], behind_xargs: bool) -> str | None:
+def _judge_git(args: list[str], behind_xargs: bool) -> str | None:  # noqa: C901 -- one branch per subcommand
     i = 0
     while i < len(args) and args[i].startswith("-"):
         i += 2 if args[i] in ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path") else 1
@@ -530,14 +638,24 @@ def _judge_git(args: list[str], behind_xargs: bool) -> str | None:
         forced = "f" in letters or given("--force", "--force-with-lease", "--force-if-includes")
         if forced or given("--mirror") or any(ref.startswith("+") for ref in refs):
             return DESTRUCTIVE
-        targets = {ref.split(":")[-1].removeprefix("refs/heads/") for ref in refs}
+        targets = {ref.split(":")[-1].removeprefix("refs/").removeprefix("heads/") for ref in refs}
         if behind_xargs or given("--all", "--branches") or PROTECTED & targets:
             return PROTECTED_PUSH
     elif sub == "reset" and given("--hard"):
         return DESTRUCTIVE
     elif sub == "clean" and ("f" in letters or given("--force")):
         return DESTRUCTIVE
-    elif sub == "checkout" and ("--" in rest or "." in rest):
+    elif sub == "checkout":
+        if "--" in rest or "." in rest or "f" in letters or given("--force"):
+            return DESTRUCTIVE
+        creates = "b" in letters or "B" in letters or given("--orphan")
+        valued = {"-b", "-B", "--orphan", "--conflict", "--pathspec-from-file"}
+        plain = [a for n, a in enumerate(rest) if not a.startswith("-") and (n == 0 or rest[n - 1] not in valued)]
+        if not creates and len(plain) >= 2:  # a tree-ish, then paths: their changes are discarded
+            return DESTRUCTIVE
+    elif sub == "switch" and ("f" in letters or given("--force", "--discard-changes")):
+        return DESTRUCTIVE
+    elif sub == "stash" and rest[:1] == ["clear"]:
         return DESTRUCTIVE
     elif sub == "restore":
         staged = "S" in letters or given("--staged")
@@ -548,15 +666,22 @@ def _judge_git(args: list[str], behind_xargs: bool) -> str | None:
     return None
 
 
+def _expired(signum: int, frame: object) -> None:
+    raise Unreadable(f"the command was not read within {DEADLINE_S:g} s")
+
+
 def main() -> int:
     try:  # bytes, so a console's encoding (cp1254) cannot change what is read
+        signal.signal(signal.SIGALRM, _expired)
+        signal.setitimer(signal.ITIMER_REAL, DEADLINE_S)
         payload = json.loads(sys.stdin.buffer.read().decode("utf-8"))
         command = str(payload.get("tool_input", {}).get("command", "")) if isinstance(payload, dict) else ""
         why = judge_text(command) if command.strip() else None
-    except Exception as error:  # any doubt blocks: a guard that cannot read the call never allows it
+        signal.setitimer(signal.ITIMER_REAL, 0)
+    except BaseException as error:  # any doubt blocks: a guard that cannot read the call never allows it
         why = f"BLOCKED: this guard cannot read the command ({type(error).__name__}: {error}) (#189)."
     if why:
-        sys.stderr.buffer.write(why.encode("utf-8") + b"\n")
+        sys.stderr.buffer.write(why.encode("utf-8", "replace") + b"\n")
         return 2
     return 0
 
