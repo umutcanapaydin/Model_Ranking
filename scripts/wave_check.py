@@ -285,6 +285,13 @@ INPUT_PARSING_HIGH_FROM = "2026-10-04"
 PLAN_GLOBS_HIGH_FROM = "2026-10-06"
 
 
+#: The gates' own globs, which every plan's list carries (the M21 closure fixes review's M7): a wave that changes a
+#: gate is HIGH whatever its milestone's plan lists, so the gates do not lapse when a milestone ends.
+STANDING_GLOBS = ("scripts/wave_check.py", "scripts/check_records.py", "scripts/commit_gate.py", "scripts/check_fast.py",
+                  "scripts/client_decl_gate.py", "scripts/client_decl_fixtures/**", "Makefile", ".githooks/**",
+                  ".claude/**")
+
+
 def plan_globs(plan: pathlib.Path) -> list[str]:
     """#140: the security globs a milestone plan lists, under its `Security globs` bullet: every
     backticked path on the indented bullets that follow it. None (or no plan) is an empty list, which
@@ -302,7 +309,7 @@ def plan_globs(plan: pathlib.Path) -> list[str]:
         if not (re.match(r"^\s+-\s", line) or (re.match(r"^\s{3,}\S", line) and globs)):
             break
         globs += re.findall(r"`([^`]+)`", line)
-    return globs
+    return list(dict.fromkeys([*globs, *STANDING_GLOBS])) if globs else globs
 
 
 def _footprint_paths(touched: str) -> list[str]:

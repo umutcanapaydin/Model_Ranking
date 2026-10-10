@@ -165,7 +165,8 @@ def test_a_glob_bullet_that_wraps_keeps_every_glob(tmp_path: Path) -> None:
     """The W3 review's M3: a bullet whose globs wrap to a second line dropped the rest of the list."""
     plan = tmp_path / "m19-plan.md"
     plan.write_text("- **Security globs.** HIGH:\n  - `src/a.py` and\n    `ios/B.swift`\n  - `c/**`\n", encoding="utf-8")
-    assert _module("wave_check").plan_globs(plan) == ["src/a.py", "ios/B.swift", "c/**"]
+    check = _module("wave_check")
+    assert check.plan_globs(plan) == ["src/a.py", "ios/B.swift", "c/**", *check.STANDING_GLOBS]
 
 
 def test_wave_check_all_reports_a_headless_wave(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:

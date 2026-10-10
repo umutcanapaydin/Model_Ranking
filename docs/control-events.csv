@@ -1,7 +1,8 @@
 # ONE ledger for control skips and bypasses -- the only file a gate counts (`make wave-check`).
 # One row per event, appended at the moment it happens, never reconstructed later: a check that could
 # not run (skip), a check someone chose not to run (bypass), a go-live gate written N/A, and a human
-# `git push --no-verify` past the pre-push gate. An agent never uses --no-verify.
+# `git push --no-verify` past the pre-push gate or `git commit --no-verify` past the commit-msg gate. An agent
+# never uses --no-verify.
 # Three rows naming the same control turn the next wave-check RED: the CONTROL goes under review
 # (fix it, re-scope it, or refuse it in docs/refusals.md), not the people. A row that exists in one
 # run and vanishes in the next is a finding.
