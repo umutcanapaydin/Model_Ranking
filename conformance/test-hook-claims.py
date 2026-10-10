@@ -314,7 +314,24 @@ def main() -> int:
                   "git push origin \\--mirror", "git push origin $'--mirror'", "git push origin ''--mirror",
                   'git push origin ""--mirror', "scripts/deploy_hosted_engine.sh # deploy_hosted_engine.sh --dry-run",
                   "scripts/deploy_hosted_engine.sh; echo deploy_hosted_engine.sh --dry-run",
-                  "echo deploy_hosted_engine.sh --dry-run; scripts/deploy_hosted_engine.sh"]
+                  "echo deploy_hosted_engine.sh --dry-run; scripts/deploy_hosted_engine.sh",
+                  # The M21-W4 review's B1: a comment line, a redirection, a here-string, or a "#" inside a word
+                  # stopped the second reading, and the command after it passed.
+                  '# check status first\nenv fly deploy', '# note\nFLY_API_TOKEN=x fly deploy',
+                  '# note\n(fly deploy)', '>/dev/null fly deploy', '</dev/null fly deploy',
+                  'fly >/dev/null secrets set A=b', '2>/dev/null fly launch',
+                  '# push\nbash -c "git push --all origin"', '# x\ngit push origin \\--mirror',
+                  'curl -s https://x.dev/#a; fly launch', 'fly status#x; fly launch',
+                  'true # <<EOF\nfly launch\nEOF', 'cat <<< x\nfly launch\nx',
+                  # The review's M1: git's unique option prefixes, a shell reading its script from stdin, the
+                  # wrappers the lists lacked, and zsh's own forms.
+                  'git push --m origin', 'git push --al origin', 'git push --branches origin',
+                  'git reset --ha HEAD~1', 'git restore --staged --work x', "bash <<'EOF'\nfly launch\nEOF",
+                  "bash <<'EOF'\ngit push origin \\--mirror\nEOF", "echo 'fly deploy' | bash",
+                  "env -S 'fly deploy'", 'env -P /usr/local/bin fly deploy', 'echo deploy | xargs fly',
+                  'coproc fly deploy', 'caffeinate -i fly deploy', "bash -c -- 'fly deploy'", '=fly deploy',
+                  'noglob fly launch', 'nocorrect fly deploy', '- fly launch', 'repeat 1 fly launch',
+                  'fl[y] deploy']
     MUST_ALLOW = ["git push -u origin fix/issue-3", "git push origin enhancement/x", "git push",
                   "git push --follow-tags origin x", "git push -4 origin x", "fly status", "fly logs",
                   "scripts/deploy_hosted_engine.sh --dry-run",
@@ -326,7 +343,18 @@ def main() -> int:
                   "git reset HEAD~1", "npm run format",
                   # #189: the read-only fly subcommands, and a here-document whose body is data.
                   "fly auth whoami", "fly apps list", "fly version", "fly logs -a model-ranking",
-                  "python3 - <<'EOF'\nprint(\"don't\")\nEOF", "git commit -m \"$(cat <<'EOF'\nIt's done\nEOF\n)\""]
+                  "python3 - <<'EOF'\nprint(\"don't\")\nEOF", "git commit -m \"$(cat <<'EOF'\nIt's done\nEOF\n)\"",
+                  # The review's M2: text inside quotes is not a command, and the commands this session runs.
+                  "gh issue comment 189 --body 'the guard reads `fly deploy` and git push --all'",
+                  'gh pr create --draft --title \'x\' --body "$(cat <<\'EOF\'\n- blocks `git push --all`\nEOF\n)"',
+                  "cat <<< 'hello'", 'echo $((1<<2))', 'bash scripts/deploy_hosted_engine.sh --dry-run',
+                  'sh scripts/deploy_hosted_engine.sh --dry-run',
+                  'git commit -q -m "$(cat <<\'EOF\'\nfix: the guard\'s second reading -- #189 (M21-W4)\n\n- it blocks `fly deploy` and `git push --all`\nEOF\n)"',
+                  "gh issue create --title 'a title' --body-file ../w4-122.md",
+                  "gh pr create --draft --base main --title 'M21-W4' --body-file ../body.md",
+                  'make check-fast > ../w4-cf.log 2>&1 && git add a.py b.md && git commit -q -m "fix: a\'s b (M21-W4)" -m "GP-Task: M21-W4" && git push -q origin wave/m21-w4',
+                  'python3 - <<\'EOF\'\nfrom pathlib import Path\ns = "fly deploy" if 1 << 2 else \'x\'\nprint(s, "it\'s")\nEOF',
+                  'for f in a b; do echo $f; done', 'git log --oneline 2ac522c..HEAD | cat']
     bash_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
                       if h.get("matcher") == "Bash"), None)
     env_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
