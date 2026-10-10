@@ -192,7 +192,7 @@ def test_a_wave_with_no_process_log_entry_in_its_range_is_refused(tmp_path: Path
 def test_a_process_log_heading_spanning_the_range_passes(tmp_path: Path) -> None:
     """A heading written as a span of days (`2026-10-09/11`) covers each day in it."""
     check = _module("wave_check")
-    root, base = _repo(tmp_path, log="## 2026-10-09/11 — M30\n\nwork.\n")
+    root, base = _repo(tmp_path, log="## 2026-10-09/11 — M30-W1 to W2\n\nwork.\n")
     _commit(root, "work", "2026-10-10T13:00:00", {"src/app/other.py": "x = 5\n"})
     assert check.history_problems(root / "docs" / "plans" / "m30-wave-1-close.md", _close_text(base), root)[0] == []
 
@@ -246,14 +246,15 @@ def test_a_shallow_clone_or_no_history_says_skipped(tmp_path: Path) -> None:
 
 
 def test_a_close_dated_before_the_rules_is_not_read_for_history(tmp_path: Path) -> None:
-    """GPF-001: a gate does not invalidate a record written before it."""
+    """GPF-001: a gate does not invalidate a record written before it, committed before it too."""
     check = _module("wave_check")
     root, base = _repo(tmp_path, log="")
     _commit(root, "rule and code", "2026-10-09T13:00:00",
             {"docs/decisions.md": "# Decisions\n\n## D-1 — One\n\nBody.\n\n## D-2 — Two\n\nNew.\n",
             "src/app/adapter/main.py": "x = 7\n"})
-    assert check.history_problems(root / "docs" / "plans" / "m30-wave-1-close.md",
-                                  _close_text(base, tier="MED", date="2026-10-09"), root) == ([], None)
+    text = _close_text(base, tier="MED", date="2026-10-09")
+    _commit(root, "the close", "2026-10-09T14:00:00", {"docs/plans/m30-wave-1-close.md": text})
+    assert check.history_problems(root / "docs" / "plans" / "m30-wave-1-close.md", text, root) == ([], None)
 
 
 # --- #202 ----------------------------------------------------------------------------------------
@@ -275,9 +276,10 @@ def test_a_skipped_gate_with_no_ledger_row_is_refused(tmp_path: Path) -> None:
 
 
 def test_a_session_outside_the_repository_needs_its_ledger_row(tmp_path: Path) -> None:
-    """#202: every M19 session ran without the hooks, recorded only in each close's prose."""
+    """#202: every M19 session ran without the hooks, recorded only in each close's prose. The close says so
+    in a fixed field, `Session started in the repository: no` (the M21-W4 review's M7)."""
     check = _module("wave_check")
-    text = _row9("none", extra="The session started outside the repository, so its hooks did not load (#142).")
+    text = _row9("none", extra="Session started in the repository: no (#142).")
     assert any("repository-hooks" in p for p in check.skip_ledger_problems(text, "m30-w1", []))
     milestone_row = [["repository-hooks", "m30", "skip", "every session", "2026-10-10"]]
     assert check.skip_ledger_problems(text, "m30-w1", milestone_row) == []
@@ -288,5 +290,167 @@ def test_a_close_dated_before_the_rule_needs_no_ledger_row(tmp_path: Path) -> No
     text = _row9("make ui-test").replace("date: 2026-10-10", "date: 2026-10-09")
     assert check.skip_ledger_problems(text, "m30-w1", []) == []
 
+
+
+# --- the M21-W4 review: M3 to M8 -------------------------------------------------------------------
+
+
+def _wave_branch(tmp_path: Path, **kwargs: str) -> tuple[Path, str]:
+    """A milestone base on main, and wave/m30-w1 branched from it."""
+    root, base = _repo(tmp_path, **kwargs)
+    _git(root, "checkout", "-q", "-b", "wave/m30-w1")
+    return root, base
+
+
+def _closed(root: Path, text: str, date: str = "2026-10-10T18:00:00", name: str = "m30-wave-1-close.md") -> Path:
+    _commit(root, "the close", date, {f"docs/plans/{name}": text})
+    return root / "docs" / "plans" / name
+
+
+def test_a_range_narrower_than_the_wave_is_refused(tmp_path: Path) -> None:
+    """M3: a MED close whose range started after its glob change passed. The range starts at the wave's
+    base (the previous wave's close, or the milestone's base on main), or before it."""
+    check = _module("wave_check")
+    root, _ = _wave_branch(tmp_path)
+    _commit(root, "change the engine", "2026-10-10T13:00:00", {"src/app/adapter/main.py": "x = 2\n"})
+    narrow = _commit(root, "other", "2026-10-10T14:00:00", {"src/app/other.py": "x = 9\n"})
+    text = _close_text(narrow, tier="MED")
+    problems, _ = check.history_problems(_closed(root, text), text, root)
+    assert any("wave's base" in p for p in problems), problems
+
+
+def test_an_empty_range_is_refused(tmp_path: Path) -> None:
+    check = _module("wave_check")
+    root, _ = _wave_branch(tmp_path)
+    _commit(root, "work", "2026-10-10T13:00:00", {"src/app/other.py": "x = 9\n"})
+    text = _close_text("HEAD", tier="MED").replace("`HEAD...HEAD`", "`HEAD..HEAD`")
+    problems, _ = check.history_problems(root / "docs" / "plans" / "m30-wave-1-close.md", text, root)
+    assert any("empty" in p for p in problems), problems
+
+
+def test_a_backdated_close_committed_after_the_rules_is_read(tmp_path: Path) -> None:
+    """M3: a close dated 2026-10-09 escaped every history rule, whenever it was written."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path)
+    _commit(root, "change the engine", "2026-10-10T13:00:00", {"src/app/adapter/main.py": "x = 2\n"})
+    text = _close_text(base, tier="MED", date="2026-10-09")
+    problems, _ = check.history_problems(_closed(root, text), text, root)
+    assert any("src/app/adapter/main.py" in p for p in problems), problems
+
+
+def test_a_file_renamed_out_of_a_glob_still_counts(tmp_path: Path) -> None:
+    """M3: `git mv` out of a glob left only the new path in the diff."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path)
+    _write(root, "src/app/adapter/main.py", "x = 1\n" * 20)
+    _commit(root, "grow", "2026-10-10T12:30:00", {})
+    _git(root, "branch", "-f", "main", "HEAD")
+    base = _git(root, "rev-parse", "--short", "HEAD")
+    _git(root, "mv", "src/app/adapter/main.py", "src/app/adapter/main2.py")
+    _commit(root, "rename", "2026-10-10T13:00:00", {})
+    text = _close_text(base, tier="MED")
+    problems, _ = check.history_problems(_closed(root, text), text, root)
+    assert any("src/app/adapter/main.py" in p for p in problems), problems
+
+
+def test_a_two_dot_range_is_read_from_where_the_wave_forked(tmp_path: Path) -> None:
+    """M4: `main..HEAD` diffed against main's current tip, so a later commit on main counted as the wave's."""
+    check = _module("wave_check")
+    root, _ = _wave_branch(tmp_path)
+    _commit(root, "wave work", "2026-10-10T13:00:00", {"src/app/other.py": "x = 9\n"})
+    _git(root, "checkout", "-q", "main")
+    _commit(root, "main moves", "2026-10-10T13:30:00", {"src/app/adapter/main.py": "x = 3\n"})
+    _git(root, "checkout", "-q", "wave/m30-w1")
+    text = _close_text("main", tier="MED").replace("`main...HEAD`", "`main..HEAD`")
+    problems, _ = check.history_problems(_closed(root, text), text, root)
+    assert problems == [], problems
+
+
+def test_a_stacked_close_whose_base_branch_is_gone_reads_from_the_previous_close(tmp_path: Path) -> None:
+    """M4: a stacked wave's close failed once the wave below was merged and its branch deleted. Its range
+    starts at the previous wave's close, which the history still holds."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path)
+    _commit(root, "wave one", "2026-10-10T13:00:00", {"src/app/other.py": "x = 9\n"})
+    _closed(root, _close_text(base))
+    _git(root, "checkout", "-q", "-b", "wave/m30-w2")
+    _commit(root, "wave two", "2026-10-10T19:00:00", {"src/app/adapter/main.py": "x = 4\n"})
+    text = _close_text("wave/m30-w1", tier="MED").replace("m30-wave-1-close", "m30-wave-2-close")
+    close = _closed(root, text, "2026-10-10T20:00:00", "m30-wave-2-close.md")
+    _git(root, "branch", "-D", "wave/m30-w1")
+    problems, skipped = check.history_problems(close, text, root)
+    assert skipped is None and any("src/app/adapter/main.py" in p for p in problems), (problems, skipped)
+
+
+def test_an_adr_written_after_its_code_is_refused_even_alone(tmp_path: Path) -> None:
+    """M5 (#201): code first, then a docs-only commit adding the ADR, passed."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path)
+    _commit(root, "the code", "2026-10-10T13:00:00", {"src/app/other.py": "x = 3\n"})
+    _commit(root, "the rule", "2026-10-10T14:00:00",
+            {"docs/decisions.md": "# Decisions\n\n## D-1 — One\n\nBody.\n\n## D-2 — Two\n\nNew.\n"})
+    text = _close_text(base)
+    problems, _ = check.history_problems(_closed(root, text), text, root)
+    assert any("D-2" in p for p in problems), problems
+
+
+def test_the_process_log_heading_names_the_wave(tmp_path: Path) -> None:
+    """M5 (#203): any heading whose dates overlapped passed, another wave's included."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path, log="## 2026-10-10 — M30-W2: another wave\n\nwork.\n")
+    _commit(root, "work", "2026-10-10T13:00:00", {"src/app/other.py": "x = 4\n"})
+    text = _close_text(base)
+    problems, _ = check.history_problems(_closed(root, text), text, root)
+    assert any("M30-W1" in p for p in problems), problems
+
+
+def test_an_amends_in_its_other_spellings_needs_its_pointer_back(tmp_path: Path) -> None:
+    """M6: A1 read only `**Amends**`; `**Amends:**` and `**Amends D-n ...**` passed with no pointer."""
+    check = _module("check_records")
+    for field in ("**Amends:** D-1 clause 2", "**Amends D-1 clause 2.**"):
+        root = _decisions(tmp_path / str(len(field)), AMENDED.format(pointer="").replace("**Amends** D-1 clause 2", field))
+        assert any("D-2" in f.msg and "D-1" in f.msg for f in check.adr_pointer_findings(root)), field
+
+
+def _checklist(rows: str, skipped: str = "none", date: str = "2026-10-10") -> str:
+    return (f"---\ndate: {date}\n---\n{rows}"
+            f"| 9 | Ledger | `gates run: make check-fast · gates SKIPPED: {skipped} · outcome: shipped` | ✅ |\n")
+
+
+def test_every_skipped_or_waived_row_needs_its_ledger_row(tmp_path: Path) -> None:
+    """M7: a row marked SKIPPED NO-ENVIRONMENT, beside `gates SKIPPED: none`, reached no ledger."""
+    check = _module("wave_check")
+    text = _checklist("| 7 | `make ui-test` ran | no simulator | SKIPPED NO-ENVIRONMENT |\n")
+    assert any("ui-test" in p for p in check.skip_ledger_problems(text, "m30-w1", []))
+    rows = [["ui-test", "m30-w1", "skip", "no simulator", "2026-10-10"]]
+    assert check.skip_ledger_problems(text, "m30-w1", rows) == []
+
+
+def test_the_skipped_label_is_read_in_any_case_and_its_commas_inside_parentheses(tmp_path: Path) -> None:
+    check = _module("wave_check")
+    lower = _checklist("").replace("gates SKIPPED: none", "gates skipped: make ui-test")
+    assert any("ui-test" in p for p in check.skip_ledger_problems(lower, "m30-w1", []))
+    rows = [["ui-test", "m30-w1", "skip", "no simulator", "2026-10-10"]]
+    assert check.skip_ledger_problems(_checklist("", "make ui-test (no simulator, no Xcode)"), "m30-w1", rows) == []
+
+
+def test_the_session_field_is_read_and_prose_is_not(tmp_path: Path) -> None:
+    """M7: the outside-the-repository sentence is a fixed field; a negated sentence is not a skip, and from
+    2026-10-11 a close carries the field."""
+    check = _module("wave_check")
+    assert check.skip_ledger_problems(_row9("none", "Session started in the repository: yes."), "m30-w1", []) == []
+    assert check.skip_ledger_problems(_row9("none", "The session was not started outside the repository."),
+                                      "m30-w1", []) == []
+    later = _checklist("| 8 | No checkout | None (`x`) | ✅ |\n", date="2026-10-11")
+    assert any("Session started in the repository" in p for p in check.skip_ledger_problems(later, "m30-w1", []))
+
+
+def test_wave_check_all_prints_a_skip_on_a_pass(tmp_path: Path) -> None:
+    """M8: wave-check-all printed a record's output only when it failed, so CI never showed the SKIPPED line."""
+    every = _module("wave_check_all")
+    output = "SKIPPED [wave-check]: the history rules read nothing: a shallow clone\nwave-check PASS: x\n"
+    assert every.record_lines(Path("docs/plans/m30-wave-1-close.md"), 0, output) == [
+        "docs/plans/m30-wave-1-close.md: SKIPPED [wave-check]: the history rules read nothing: a shallow clone"]
+    assert every.record_lines(Path("docs/plans/m30-wave-1-close.md"), 0, "wave-check PASS: x\n") == []
 
 pytestmark = pytest.mark.needs("git")
