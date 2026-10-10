@@ -22,6 +22,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from types import ModuleType
 
@@ -42,7 +43,9 @@ def _gate() -> ModuleType:
 @pytest.mark.parametrize(("paths", "subject", "target"), [
     (["docs/process-log.md"], "docs: x", "check-docs"),
     (["AGENTS.md", "INSTALL.md", "docs/decisions.md", ".agents/rules/practices.md"], "docs: x", "check-docs"),
-    ([], "docs: x", "check-docs"),
+    # Round 2, M1: nothing staged (a reworded amend) is judged as any commit is, never as docs-only.
+    ([], "docs: x", "check-fast"),
+    ([], RED, "check-fast"),
     (["docs/control-events.csv"], "docs: x", "check-fast"),
     (["src/app/adapter/main.py"], "fix: x", "check-fast"),
     (["tests/unit/README.md"], "docs: x", "check-fast"),
@@ -55,6 +58,11 @@ def _gate() -> ModuleType:
     (["ios/UITests/XTests.swift"], RED, "check-red"),
     (["conformance/test-x.py"], RED, "check-red"),
     (["tests/unit/test_x.py"], "test: the RED case of x", "check-red"),
+    (["tests/unit/test_x.py"], "test: x (red)", "check-red"),
+    # Round 2, M1: `red` as a word of its own, not inside `red-to-green` or `red-ish`.
+    (["tests/unit/test_x.py", "src/app/x.py"], "test: the red-to-green order holds", "check-fast"),
+    (["tests/unit/test_x.py"], "test: a red-ish case", "check-fast"),
+    (["tests/unit/test_x.py"], "test: the pre-red state", "check-fast"),
     (["tests/unit/test_x.py"], "test: x holds", "check-fast"),
     (["tests/unit/test_x.py"], "test: reduce the noise", "check-fast"),
     (["tests/unit/test_x.py"], "fix: the red test passes", "check-fast"),
@@ -107,6 +115,70 @@ def _commit(repo: Path, env: dict[str, str], path: str, subject: str = "") -> su
 
 def _logged(log: Path) -> list[str]:
     return log.read_text(encoding="utf-8").split() if log.exists() else []
+
+
+def test_a_merge_is_never_docs_only_or_red() -> None:
+    """Round 2, M4: a merge brings in what its other parent holds, so neither its diff nor its subject
+    narrows its gate."""
+    assert _gate().target(["docs/notes.md"], "docs: x", merge=True) == "check-fast"
+    assert _gate().target(["tests/unit/test_x.py"], RED, merge=True) == "check-fast"
+
+
+def _editor(tmp_path: Path, message: str) -> str:
+    """A GIT_EDITOR that writes `message` above git's own template, as a person typing in the editor does."""
+    script = tmp_path / "editor.py"
+    script.write_text("import sys\nfrom pathlib import Path\nf = Path(sys.argv[1])\n"
+                      f"f.write_text({message!r} + '\\n' + f.read_text(encoding='utf-8'), encoding='utf-8')\n",
+                      encoding="utf-8")
+    return f"{sys.executable} {script}"
+
+
+@pytest.mark.parametrize(("form", "message", "target"), [
+    ("-m", ["test: e, red"], "check-red"),
+    # Under -m git keeps a `#` line: the subject is `#241 wire e`, which declares nothing (the review's probe).
+    ("-m", ["#241 wire e", "test: e, red"], "check-fast"),
+    ("-m", ["test: y\n# red"], "check-red"),
+    # In the editor git strips its comment lines, the template's and any typed.
+    ("editor", "test: x, red", "check-red"),
+    ("editor", "# a note to self\ntest: y, red", "check-red"),
+    ("editor", "test: y\n# red", "check-fast"),
+])
+def test_the_subject_is_read_as_git_records_it(tmp_path: Path, form: str, message: str | list[str],
+                                               target: str) -> None:
+    """Round 2, M1 and M7: the hook skipped every `#` line, which git keeps under `-m`, so it read `test: e,
+    red` where git recorded `#241 wire e` (mutant X4 survived: no test gave it git's comment lines). The gate
+    reads the subject under the cleanup git applies, and agrees with the `%s` git records."""
+    repo, log, env = _repo(tmp_path)
+    (repo / "tests").mkdir()
+    (repo / "tests" / "test_x.py").write_text("x = 1\n", encoding="utf-8")
+    _git(repo, env, "add", "tests/test_x.py")
+    if form == "-m":
+        done = _git(repo, env, "commit", "-q", *[a for line in message for a in ("-m", line)])
+    else:
+        done = subprocess.run([env["GIT"], "commit", "-q"], cwd=repo, env={**env, "GIT_EDITOR": _editor(tmp_path, str(message))},
+                              capture_output=True, text=True, timeout=60, check=False)
+    assert done.returncode == 0, done
+    recorded = _git(repo, env, "log", "-1", "--format=%s").stdout.strip()
+    assert _logged(log) == [target] == [_gate().target(["tests/test_x.py"], recorded)], recorded
+
+
+def test_a_reworded_amend_runs_check_fast(tmp_path: Path) -> None:
+    """Round 2, M1: an amend that only rewords stages nothing, and was gated as docs-only, so a Swift red commit
+    reworded to `fix:` landed without the Swift tests."""
+    repo, log, env = _repo(tmp_path)
+    assert _commit(repo, env, "tests/unit/test_x.py", RED).returncode == 0
+    assert _git(repo, env, "commit", "-q", "--amend", "-m", "fix: x").returncode == 0
+    assert _logged(log) == ["check-red", "check-fast"]
+
+
+def test_the_hook_gates_a_merge_with_check_fast(tmp_path: Path) -> None:
+    repo, log, env = _repo(tmp_path)
+    assert _commit(repo, env, "src/app/x.py", "fix: x").returncode == 0
+    _git(repo, env, "checkout", "-q", "-b", "side")
+    assert _commit(repo, env, "docs/notes.md", "docs: notes").returncode == 0
+    _git(repo, env, "checkout", "-q", "main")
+    assert _git(repo, env, "merge", "-q", "--no-ff", "--no-edit", "side").returncode == 0
+    assert _logged(log) == ["check-fast", "check-docs", "check-fast"]
 
 
 def test_the_hook_is_commit_msg_and_the_pre_commit_hook_is_gone() -> None:
@@ -175,3 +247,15 @@ def test_the_swift_tests_and_the_compiled_gate_read_no_markdown() -> None:
     reads = [node.value for node in ast.walk(tree) if isinstance(node, ast.Constant) and isinstance(node.value, str)
              and id(node) not in docstrings and re.search(r"\.md\b", node.value)]
     assert reads == [], f"client_decl_gate.py names a Markdown file in code: {reads}"
+
+
+def test_r1_says_who_checks_a_red_commit_and_claims_no_check_nobody_holds() -> None:
+    """Round 2, M1: R-1 and the gate said the Tester checks that each red commit fails only on its own tests, and
+    no role definition holds that check. R-1 says who does check a red commit, and that it may carry code."""
+    r1 = next(line for line in (ROOT / "docs" / "refusals.md").read_text(encoding="utf-8").splitlines()
+              if line.startswith("| R-1 |"))
+    gate = (ROOT / "scripts" / "commit_gate.py").read_text(encoding="utf-8")
+    for text in (r1, gate):
+        assert "Tester checks that each" not in re.sub(r"\s+", " ", text)
+    assert "SKILL.md" in r1 and "no role definition" in r1 and "may carry code" in r1, r1
+    assert "swift-build-tests" in r1 and "pytest-collect" in r1, r1
