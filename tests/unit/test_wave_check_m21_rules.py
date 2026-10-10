@@ -1090,3 +1090,20 @@ def test_the_records_say_what_the_hooks_hold_after_round_2() -> None:
     assert "linked worktree" in g7 and "this project's own" not in g7, "G-7 says which writes are refused"
     install = re.sub(r"\s+", " ", (ROOT / "INSTALL.md").read_text(encoding="utf-8"))
     assert "both hooks" in install, "INSTALL.md says the pin is in both hooks"
+
+
+def test_the_records_say_what_round_3_left() -> None:
+    """Round 3, M6: "before every commit" survived in INSTALL.md, the runbook and `make hooks`, where AGENTS.md and
+    R-1 say `git commit` and `git merge`. M1 and R1: G-7 says which case still over-refuses, and that every hook
+    interpreter runs with `-I -S`."""
+    install = re.sub(r"\s+", " ", (ROOT / "INSTALL.md").read_text(encoding="utf-8"))
+    runbook = re.sub(r"\s+", " ", (ROOT / "docs" / "release-testflight.md").read_text(encoding="utf-8"))
+    agents = re.sub(r"\s+", " ", (ROOT / "AGENTS.md").read_text(encoding="utf-8"))
+    hooks = (ROOT / "Makefile").read_text(encoding="utf-8").split("\nhooks:", 1)[1].split("\n\n", 1)[0]
+    for name, text in (("INSTALL.md", install), ("release-testflight.md", runbook), ("AGENTS.md", agents),
+                       ("make hooks", hooks)):
+        assert "before every commit" not in text, name
+        assert "git commit" in text and "git merge" in text, name
+    g7 = next(line for line in (ROOT / "docs" / "security-invariants.md").read_text(encoding="utf-8").splitlines()
+              if line.startswith("| G-7 |"))
+    assert "-I -S" in g7 and "over-refuse" in g7 and ".claude/worktrees" in g7, g7
