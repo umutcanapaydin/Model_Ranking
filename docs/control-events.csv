@@ -1,11 +1,17 @@
 # ONE ledger for control skips and bypasses -- the only file a gate counts (`make wave-check`).
 # One row per event, appended at the moment it happens, never reconstructed later: a check that could
 # not run (skip), a check someone chose not to run (bypass), a go-live gate written N/A, and a human
-# `git push --no-verify` past the pre-push gate. An agent never uses --no-verify.
+# `git push --no-verify` past the pre-push gate or `git commit --no-verify` past the commit-msg gate. An agent
+# never uses --no-verify.
 # Three rows naming the same control turn the next wave-check RED: the CONTROL goes under review
 # (fix it, re-scope it, or refuse it in docs/refusals.md), not the people. A row that exists in one
 # run and vanishes in the next is a finding.
 # kind: skip (could not run: no environment, no trigger, N/A) | bypass (chose not to run: pressure)
+#   | ruling (the owner's ruling on a control, its reason starting `the owner, YYYY-MM-DD`: the three-row rule
+#     counts only the rows below it in this file)
+#   | review (a closure's review of a control, which the owner may overrule: recorded; counts and resets nothing)
+#   | within-scope (an event inside a control as a ruling re-scoped it: recorded; counts and resets nothing)
+# date: YYYY-MM-DD, never later than the day the row is written (make wave-check allows a day past UTC's date)
 # wave: m<N>-w<W>, or `release` for a Stage 5 gate
 control,wave,kind,reason,date
 three-attempts,m17-w2,bypass,"owner waived the three-attempts stop for one more fix of the parquet read memory bound (third BLOCKING: m17-wave-2-security-rereview-2 S-R2-1; ruled in session, translated from Turkish: one last small fix)",2026-09-24
@@ -23,3 +29,15 @@ testflight-signed-archive,release,skip,"a signed archive and its upload need the
 repository-hooks,m19-closure,skip,"every M19 session started outside the repository, so the hooks in .claude/settings.json (the Bash guard, the post-edit check) never loaded, as each close's row 8 says; make check-fast ran by hand before each commit but 2dc5b9f; D-185 clause 5's deploy guard never ran, and nothing was deployed; #142, #189, #202; recorded at the M19 closure (repo review M12)",2026-10-07
 repository-hooks,m21,skip,"every M21 session started outside the repository, so the hooks in .claude/settings.json never loaded and the pre-push make gate is not installed on the clone (core.hooksPath unset); make check-fast was run by hand before each commit, the exceptions each recorded in its close; #142; recorded at M21-W4 (#202)",2026-10-10
 security-pass,m21,skip,"the per-wave security pass is N/A by rule (D-172); the M21 closure seat reads each slice (#241); recorded at M21-W4 for row 4 of the M21 closes (#202)",2026-10-10
+commit-after-check-fast,m20-w3,bypass,"cf4aa2f (the W3 Tester's M1 and M2 fix) was committed without a green make check-fast first; the M20 closure named it among the three events that reached the third row and wrote no row; recorded late at the M21 closure (the M21 repo review's M1)",2026-10-08
+commit-after-check-fast,m20-w4,bypass,"6ab7389 (familyBoards takes the primary board, a merge follow-up) was committed without a green make check-fast first; recorded late at the M21 closure (the M21 repo review's M1)",2026-10-08
+commit-after-check-fast,m20-w5,within-scope,"3c5954f, a declared red test commit (test: ..., red): within the control as the owner's ruling of 2026-10-10 is applied at the M21 closure, where a declared red commit runs make check-red and its own tests fail by design; first written as a bypass at the M21 closure, corrected after the fixes review's B1",2026-10-08
+repository-hooks,m20-closure,skip,"the M20 closure's sessions started outside the repository, so the hooks in .claude/settings.json never loaded (#142); recorded late at the M21 closure",2026-10-08
+commit-after-check-fast,m21-w2,within-scope,"9613a2b, a docs-only commit gated by make check-records (make check-fast ran green after it with no change): within the control as the owner re-scoped it on 2026-10-10, so recorded and not counted",2026-10-09
+commit-after-check-fast,m21-w4,within-scope,"9cf8e12 (D-192), a docs-only commit gated by make check-records (make check-fast ran green after it with no change): within the control as the owner re-scoped it on 2026-10-10, so recorded and not counted",2026-10-10
+commit-after-check-fast,m21-closure,ruling,"the owner, 2026-10-10 (translated from Turkish): fix and narrow. Fix: .githooks/pre-commit runs make check-fast before a commit that changes anything but docs and make check-records before a docs-only one, once make hooks is run. Narrow: a docs-only commit is gated by make check-records (docs/refusals.md R-1). The rows above are not counted again",2026-10-10
+repository-hooks,m21-closure,review,"the M21 closure's review of the control at its third row (not the owner's ruling; the owner may overrule it): fix in hand -- make hooks once makes the git-level gates (pre-commit, pre-push) run whatever directory a session starts in; the Claude Code hooks stay session-bound (#142), and the owner checks /hooks once in a session started in the repository (the closure security seat's S8)",2026-10-10
+commit-after-check-fast,m21-closure,review,"the agent's application of the owner's ruling at the M21 closure, after the fixes review's B1 (not the owner's ruling; the owner may overrule it): .githooks/commit-msg gates every commit with make check-fast, make check-red for a declared red test commit (test: ..., red, with a test staged; the legs that run tests left out) or make check-docs for a docs-only one (the Swift tests and the compiled gate left out). A declared red commit is within the control as applied, so M21's 49 red commits and the closure's seven need no rows",2026-10-10
+repository-hooks,m21-closure,ruling,"the owner, 2026-10-10 (translated from Turkish): fix -- start each session in the repository (cd ~/Desktop/ILGAR/model_ranking && claude), so the Claude Code hooks load, and run make hooks once, so the git-level gates run (#142)",2026-10-10
+commit-after-check-fast,m21-closure,bypass,"cd563f5 (the guard, OWNER APPROVAL) was committed without its own tree passing make check-fast: check-fast ran on the tree holding it and 42b62aa (the settings' new pin) together, and alone the pin refuses the changed guard, so conformance/test-hook-claims.py fails at cd563f5 (measured at the closure); a guard change and its re-pin belong in one commit",2026-10-10
+commit-after-check-fast,m21-closure,bypass,"85f80e3 (the commit gate, scripts/commit_gate.py) was committed without its own tree passing make check-fast: it removed .githooks/pre-commit, and the commit-msg hook its tests read came only in a024244 (OWNER APPROVAL), so tests/unit/test_commit_gate.py fails 6 tests at 85f80e3 (measured by the fixes review, round 2, M2); check-fast ran on the tree holding both; a change and the change its tests need belong in one commit",2026-10-10

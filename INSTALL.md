@@ -18,6 +18,14 @@ which Claude Code reads from 2.1.295: there a hook that times out blocks the cal
 timed-out hook lets the call through, and only the guard's own 5 s bound (`.claude/hooks/bash_guard.py`)
 protects. Check with `claude --version`.
 
+**Changing the Bash guard.** The Bash hook and the Write/Edit hook run `.claude/hooks/bash_guard.py` only
+when its sha256 is the one `.claude/settings.json` pins, so a changed guard blocks every Bash call and every
+write. To change it: edit the guard, put its new sha256 (`shasum -a 256 .claude/hooks/bash_guard.py`) in both
+hooks' commands in `.claude/settings.json`, and start a new Claude Code session, since a session keeps the
+hooks it started with. A session open when such a change is pulled blocks every Bash call and every write
+until it is restarted. Agents cannot make this change: the hooks refuse their writes into the `.claude/` and
+`.githooks/` of every work tree.
+
 ## Windows
 
 Windows 10 or 11, working in **Git Bash**: every command in this file after the installs runs there,
@@ -130,7 +138,18 @@ In Git Bash (Windows) or a terminal (macOS, Linux), at the repository root.
 3. Name the project in `pyproject.toml`.
 4. `make install` — *every clone*: the venv, DevFlow's tooling and the project; it records the
    installed version in `.gp/installed`.
-5. `make hooks` — *every clone*: `make gate` runs before every push. Where GitHub Actions do not
+5. `make hooks` — *every clone*: `make gate` runs before every push, and on every `git commit` and
+   `git merge` (git runs it on neither `cherry-pick` nor `rebase`) the commit-msg gate runs one of three
+   targets (`scripts/commit_gate.py`; the owner's ruling of 2026-10-10, `docs/refusals.md` R-1):
+   `make check-fast`; `make check-red` for a declared red test commit (a `test:`
+   subject that says `red` as a word of its own, with a test staged), which runs no test but builds the
+   Swift tests and collects the Python ones; or
+   `make check-docs` for a docs-only commit (every staged path a Markdown file outside the code
+   directories), which leaves out the Swift tests and the compiled gate. A human may bypass either hook with
+   `--no-verify` and adds the row to `docs/control-events.csv`; an agent never does. Neither hook runs until
+   this is done once. And start every Claude Code session in the repository (`cd <the clone> && claude`): its
+   hooks in `.claude/settings.json` (the Bash guard, the Write refusal, the post-edit check) load in no other
+   session (#142; the owner's ruling of 2026-10-10 on `repository-hooks`). Where GitHub Actions do not
    run, this is the only gate between a change and the remote, and `make bootstrap-check` fails
    without it unless the brief records that both Actions and branch protection work here.
 6. `make labels` — once per repository: every lifecycle skill keys on the labels in

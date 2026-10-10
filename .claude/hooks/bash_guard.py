@@ -1,8 +1,9 @@
-"""#189: the Bash guard's second reading.
+"""#189: the Bash guard's second reading, and the Write and Edit hook's refusal (`--write`).
 
 The text guard in `.claude/settings.json` runs first, unchanged. This one reads the command with a lexer of
 its own and judges each simple command it finds. It is a best effort against an agent's ordinary commands,
-not a parser of bash or zsh, and it only adds blocks to the text guard's.
+not a parser of bash or zsh, and it only adds blocks to the text guard's. Given `--write`, it judges the Write
+or Edit call's `file_path` instead: a `.env` file (permission-matrix.md S6), or a path `protected` refuses.
 
 What it blocks:
 - `fly` or `flyctl` but the read-only subcommands in READ_ONLY_FLY, and `fly` behind `xargs` (D-185);
@@ -11,7 +12,30 @@ What it blocks:
   destination (`main`, `heads/main`, `refs/heads/main`), or runs behind `xargs` (AGENTS.md S3);
 - `git reset --hard`, `git clean -f`, `git checkout --`, `.`, `-f` or a tree-ish with paths, `git switch -f`
   or `--discard-changes`, `git stash clear`, `git restore` without `--staged` or with `--worktree`, and `rm`
-  both recursive and forced (permission-matrix.md S5). A git long option counts in any unique prefix.
+  both recursive and forced (permission-matrix.md S5). A git long option counts in any unique prefix;
+- a write into the `.claude/` or `.githooks/` of any git work tree, the owner's hooks and settings (the M21
+  closure security seat's S3): a redirection there; `rm`, `mv`, `tee`, `touch`, `chmod` and their kind on a
+  path there; `cp`, `ln`, `install`, `rsync`, `ditto` or `dd` with a destination there (the last word, or
+  `-t`/`--target-directory` for `cp`, `mv`, `ln` and `install`, or `of=` for `dd`); `sed -i` or `perl -i` on
+  one; and `git rm`, `git mv`, `git checkout` or `git restore` naming one. Reading them is not refused.
+  In a cluster of short options, `t` is `-t` only before any letter that takes a value (VALUED: `install
+  -ostaff` names an owner); a `t` after one is doubt, and then every operand is judged a destination, as
+  for `install -d` (the fixes review's round 3, M2).
+  Which paths, exactly (`protected`; round 2's B1, as round 3's M1 left it): the path, `~` and variables
+  expanded, is resolved from the directory the command runs in, links followed on its longest existing
+  part. The work tree it lies in is the nearest directory above it that holds a `.git` entry, a file or a
+  directory: this clone, a linked worktree, any other clone, or a worktree Claude Code made inside a
+  repository's `.claude/worktrees/`. The path is refused when the directory directly below that work tree's
+  root is named `.claude` or `.githooks`, in any case. Claude Code's own `~/.claude` is not refused, as no
+  `.git` sits above it.
+  The directory a command runs in (`_linear`): when the text is only simple commands joined by `;`, `&&`,
+  `||`, newlines and pipes, with no `cd` in a pipe or a substitution and each `cd`, `pushd` or `chdir` to a
+  plain directory (no variable, substitution, glob, `-` or `~user`, and no `CDPATH` set), each command is
+  judged from the directories it can run in: a `cd` that succeeds moves there, one that fails stays, and
+  `&&` and `||` follow the status. Otherwise (a subshell, a group, a loop, `&`, `eval`, `source`, `popd`, a
+  `cd` this cannot read) every directory a `cd` reached is kept, each `cd` taken from each of them
+  (`_follow`), and a path is refused if it is protected from any of them. Past MAX_DIRS directories, the
+  command is not read.
 
 Where it looks: each command after `;`, `&&`, `||`, `|`, `|&`, `&`, a newline, `(`, `)`, `{` or `}`; inside
 `$( )`, backticks (nested ones too), `<( )`, `${ }`, `$(( ))` and an unquoted here-document's body; past
@@ -24,7 +48,10 @@ It blocks what it cannot read, rather than reading it as data: an unclosed quote
 with `(` written against it (zsh's glob qualifiers, `=( )`); a `${(flags)...}`; a brace expansion, or a
 pattern that could name a guarded program, as a program word; a shell or `source` reading its commands from
 a pipe, a file or stdin; a `-c` with no string; an input over MAX_INPUT characters; and any command it has
-not read within DEADLINE_S seconds. (A hook that times out does not block, so the guard keeps its own bound.)
+not read within DEADLINE_S seconds, a timer thread that writes the BLOCKED line and exits 2 wherever the
+guard runs (the M21 closure security seat's S2). The thread runs only when Python lets it: a long call into C
+that holds the interpreter (a regex over a long word) runs to its end first, so that case is bounded only by
+the hook's own 30 s timeout and `onFailure: "block"`, from Claude Code 2.1.295 (the fixes review's M6).
 
 Not held, by class (G-7):
 - a program named when the command runs: through a variable, a substitution, an alias, a function, `hash`,
@@ -32,6 +59,13 @@ Not held, by class (G-7):
 - code another program runs: a script's contents, `python -c`, `perl -e`, `node -e`, `awk`'s `system()`,
   `make` recipes, git hooks and aliases (`git -c alias.x=...`, `git config`), `ssh host cmd`;
 - a wrapper not in WRAPPERS, whose program is then read as an argument;
+- a push to a destination git chooses itself: a bare `git push`, `git push origin HEAD` or `@`, an upstream,
+  `push.default` or `remote.pushDefault` (from a checkout on main, each pushes main; GitHub's branch protection
+  is the control of record there, the M21 closure security seat's S4);
+- a write into `.claude/` or `.githooks/` by a program this does not list (`python -c`, `git apply`, `tar`, an
+  editor), through a path built when the command runs (`$(...)`, a variable set earlier in it, a glob), a
+  hard link made before, or a directory reached by a `cd` this does not follow (one to a built path, through
+  `CDPATH`, `cd -`, or repeated by a loop more than once);
 - what the shell expands when the command runs, beyond the program word: `IFS`, history, globs and braces in
   arguments;
 - syntax this lexer does not model: it reads POSIX-like shell, and zsh's grammar beyond the forms above is
@@ -46,14 +80,34 @@ import fnmatch
 import json
 import os
 import re
-import signal
 import sys
+import threading
 from dataclasses import dataclass, field
 
 #: The longest command this reads; a longer one is blocked (the session's longest was under 20 000).
 MAX_INPUT = 32768
 #: How long the guard may read; past it, it blocks.
 DEADLINE_S = 5.0
+#: The owner's hooks and settings: the directories of these names at a work tree's root (the M21 closure
+#: security seat's S3; `protected`).
+OWNED = (".claude", ".githooks")
+#: The directories the command may run in: the payload's `cwd`, then each a `cd` in it reaches (`_follow`).
+WHERE: dict[str, list[str]] = {"dirs": []}
+#: More directories than this, and the command is not read.
+MAX_DIRS = 64
+#: The commands that change the shell's directory, and the words that make a list one `_linear` cannot follow:
+#: shell grammar, and builtins that run text or change the directory in ways this does not read.
+DIR_CHANGES = {"cd", "pushd", "chdir"}
+SHELL_GRAMMAR = {"if", "then", "else", "elif", "fi", "do", "done", "while", "until", "for", "case", "esac", "select",
+                 "function", "coproc", "!", "repeat", "foreach", "end"}
+UNFOLLOWED = {"eval", "source", "popd"}
+#: Programs that change each path they are given, and those that change only their destination.
+CHANGES_EVERY = {"rm", "mv", "tee", "touch", "chmod", "chown", "chgrp", "truncate", "unlink", "rmdir", "shred", "mkdir"}
+CHANGES_LAST = {"cp", "ln", "install", "rsync", "dd", "ditto"}
+#: The programs whose `-t DIR` (`--target-directory`) is the destination; for any other, `-t` is not one.
+TARGET_OPTION = {"cp", "mv", "ln", "install"}
+#: Their short options that take a value (GNU's and BSD's): in a cluster, every letter after one is its value.
+VALUED = {"install": set("BDfghlmMNoST"), "cp": {"S"}, "mv": {"S"}, "ln": {"S"}}
 #: `fly` subcommands an agent may run: each reads, none changes the hosted engine.
 READ_ONLY_FLY = {("version",), ("help",), ("status",), ("logs",), ("auth", "whoami"), ("apps", "list"),
                  ("releases",), ("machine", "list"), ("machine", "status"), ("machines", "list"),
@@ -121,6 +175,9 @@ class Command:
     fed: list[str] = field(default_factory=list)   # here-document bodies and here-strings it reads
     piped: bool = False                             # its stdin is a pipe
     from_file: bool = False                         # its stdin is a file
+    writes: list[str] = field(default_factory=list)  # the paths its redirections write
+    joined: str = ""                                # what joins it to the command before: `;`, `&&`, `||`, `|`
+    inner: int = 0                                  # inside a substitution or a here-document's expansion
 
 
 class _Builder:
@@ -151,6 +208,7 @@ class Lexer:
         self.commands: list[Command] = []
         self.pending: list[tuple[str, bool, bool, Command]] = []  # delimiter, tabs stripped, quoted, owner
         self.patterns = 0  # `case ... in` seen: a `)` may end a pattern inside `$( )`
+        self.linear = True  # only `;`, `&&`, `||`, newlines and pipes join its commands (`_linear`)
 
     # --- the command level ---------------------------------------------------------------------------
     def parse(self, closing: str | None = None) -> None:  # noqa: C901 -- one branch per shell token
@@ -169,7 +227,7 @@ class Lexer:
                 self.i = end if end >= 0 else len(s)
             elif c == "\n":
                 self.i += 1
-                cmd = self._end(cmd)
+                cmd = self._end(cmd, joined=";")
                 self._bodies()
             elif c in "<>" or s.startswith("&>", self.i):
                 if cmd.words and last_end == self.i and cmd.words[-1].text.isdigit():
@@ -178,8 +236,10 @@ class Lexer:
             elif c in ";&|":
                 op = next(o for o in ("&&", "||", ";;&", ";;", ";&", "|&", "|", "&", ";") if s.startswith(o, self.i))
                 self.i += len(op)
-                cmd = self._end(cmd, piped=op in ("|", "|&"))
+                self.linear = self.linear and op in ("&&", "||", ";", "|", "|&")
+                cmd = self._end(cmd, piped=op in ("|", "|&"), joined=op)
             elif c == "(":
+                self.linear = False
                 if cmd.words and last_end == self.i:
                     if s.startswith("()", self.i):  # `name()`: a function's name is no command
                         self.i += 2
@@ -198,6 +258,7 @@ class Lexer:
                     cmd = self._end(cmd)
             elif c == ")":
                 self.i += 1
+                self.linear = False
                 if closing == ")" and parens == 0 and not self.patterns:
                     self._end(cmd)
                     return
@@ -210,10 +271,12 @@ class Lexer:
                 word = self._word()
                 last_end = self.i
                 if word.text in ("{", "}") and not word.quoted:
+                    self.linear = False
                     cmd = self._end(cmd)  # a brace group's edge, and zsh's `if x {` and `} always {`
                     continue
                 cmd.words.append(word)
                 if word.text == "in" and len(cmd.words) >= 3 and cmd.words[0].text == "case":
+                    self.linear = False
                     self.patterns += 1
                     cmd = self._end(cmd)
                 elif word.text == "esac" and len(cmd.words) == 1:
@@ -222,10 +285,18 @@ class Lexer:
         if closing:
             raise Unreadable("an unclosed $( substitution")
 
-    def _end(self, cmd: Command, piped: bool = False) -> Command:
+    def _end(self, cmd: Command, piped: bool = False, joined: str = ";") -> Command:
         if cmd.words or cmd.fed:
             self.commands.append(cmd)
-        return Command(piped=piped)
+        elif cmd.joined in ("&&", "||", "|", "|&"):  # `a &&` and a newline: what follows is joined by `&&`
+            piped, joined = cmd.piped, cmd.joined
+        return Command(piped=piped, joined=joined)
+
+    def _nested(self, commands: list[Command]) -> None:
+        """A substitution's or an expansion's commands, judged with the rest, marked as inside one."""
+        for nested in commands:
+            nested.inner += 1
+        self.commands.extend(commands)
 
     def _bodies(self) -> None:
         """At a newline: each here-document opened on the line just ended takes the lines up to its delimiter
@@ -267,6 +338,8 @@ class Lexer:
             cmd.fed.append(target.text)
         elif op in ("<", "<>", "<&"):
             cmd.from_file = True
+        if op in ("&>>", "&>", ">>", ">|", ">", "<>"):
+            cmd.writes.append(target.text)
 
     # --- the word level ------------------------------------------------------------------------------
     def _word(self) -> Word:
@@ -336,7 +409,7 @@ class Lexer:
                 sub._backtick(b)
             else:
                 sub.i += 1
-        self.commands.extend(sub.commands)
+        self._nested(sub.commands)
 
     def _dollar(self, b: _Builder, in_double: bool) -> None:
         s = self.s
@@ -435,7 +508,7 @@ class Lexer:
         sub = Lexer(inner, self.depth + 1)
         sub.parse()
         sub._bodies()
-        self.commands.extend(sub.commands)
+        self._nested(sub.commands)
         b.add("$(...)", True)
         self.i = j + 1
 
@@ -443,7 +516,7 @@ class Lexer:
         """A `$( )` substitution, read in a quoting context of its own; its commands are judged too."""
         sub = Lexer(self.s, self.depth + 1, self.i)
         sub.parse(closing)
-        self.commands.extend(sub.commands)
+        self._nested(sub.commands)
         self.pending.extend(sub.pending)
         self.i = sub.i
 
@@ -458,14 +531,26 @@ def judge_text(text: str, depth: int = 0) -> str | None:
     lexer = Lexer(text, depth)
     lexer.parse()
     lexer._bodies()  # a here-document opened on the last line runs to the end
-    for cmd in lexer.commands:
+    plan = _linear(lexer)
+    if plan is None:
+        _follow(lexer.commands)
+        for cmd in lexer.commands:
+            if (why := judge_command(cmd, depth)):
+                return why
+        return None
+    judged, reached = plan
+    for cmd, dirs in judged:
+        WHERE["dirs"] = dirs
         if (why := judge_command(cmd, depth)):
             return why
+    WHERE["dirs"] = reached  # what a text read after this one (an `eval`'s caller) is judged from
     return None
 
 
 def judge_command(cmd: Command, depth: int) -> str | None:
     """Past assignments and keywords; after a wrapper, every later word is tried as the program, in one pass."""
+    if any(_owners(path) for path in cmd.writes):
+        return OWNERS
     words = cmd.words
     start = 0
     while start < len(words) and (ASSIGNMENT.match(words[start].text) or words[start].text in KEYWORDS):
@@ -542,6 +627,8 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
                 "which this guard cannot read (#189); write the program's name.")
     program = _program(first)
     args = [w.text for w in words[1:]]
+    if (why := _writes_protected(program, args)):
+        return why
     if program == "eval":
         return judge_text(" ".join(args), depth + 1)
     if program in SHELLS:
@@ -575,6 +662,247 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
         forced = "f" in letters or any(_unique(a, "--force", GIT_LONG["rm"]) for a in longs)
         if recursive and forced:
             return DESTRUCTIVE
+    return None
+
+
+OWNERS = ("BLOCKED: .claude/ and .githooks/ hold the owner's hooks and settings; an agent does not write them "
+          "(OWNER APPROVAL, the M21 closure security seat's S3). Propose the change instead.")
+ENV_FILE = "BLOCKED: writes to .env are denied per permission-matrix.md S6 (default-deny secrets)."
+
+
+def protected(path: str, base: str) -> bool:
+    """Whether writing `path`, from the directory `base`, writes the hooks or settings of a git work tree: the
+    path (`~` and variables expanded, resolved from `base`, links followed on its longest existing part) lies
+    in the work tree whose root is the nearest directory above it holding a `.git` entry, and the directory
+    directly below that root is named `.claude` or `.githooks`, in any case. The Bash guard and the Write and
+    Edit hook both ask this (round 2's B1; round 3's M1: a worktree inside `.claude/worktrees/` is its own)."""
+    below = os.path.realpath(os.path.join(base or os.getcwd(), os.path.expandvars(os.path.expanduser(path))))
+    root = os.path.dirname(below)
+    while not os.path.lexists(os.path.join(root, ".git")):
+        if os.path.dirname(root) == root:
+            return False
+        below, root = root, os.path.dirname(root)
+    return os.path.basename(below).casefold() in OWNED
+
+
+def _owners(path: str, bases: list[str] | None = None) -> bool:
+    """Whether a path a command writes is protected from any directory the command may run in."""
+    return any(protected(path, base) for base in (bases if bases is not None else WHERE["dirs"]))
+
+
+def _resolved(base: str, path: str) -> str:
+    return os.path.realpath(os.path.join(base, os.path.expandvars(os.path.expanduser(path))))
+
+
+def _in_shell(words: list[str], keywords: bool = False) -> int:
+    """Where the program is, past assignments and the words that run it in the shell itself (`builtin`,
+    `command` with no option, `time` and its `-p`, zsh's `noglob` and `nocorrect`), and shell keywords if asked."""
+    i = 0
+    while i < len(words):
+        word = words[i]
+        if ASSIGNMENT.match(word) or word in ("builtin", "noglob", "nocorrect") or (keywords and word in KEYWORDS):
+            i += 1
+        elif word == "command" and i + 1 < len(words) and not words[i + 1].startswith("-"):
+            i += 1
+        elif word == "time":
+            i += 1
+            while i < len(words) and words[i].startswith("-"):
+                i += 1
+        else:
+            break
+    return i
+
+
+def _changes_into(cmd: Command) -> str | None:
+    """The directory a `cd`, `pushd` or `chdir` names (`~` for none), or None for any other command and for the
+    forms that name no directory (`cd -`, `pushd +1`)."""
+    words = [w.text for w in cmd.words]
+    i = _in_shell(words, keywords=True)
+    if i >= len(words) or words[i] not in ("cd", "pushd", "chdir"):
+        return None
+    rest = words[i + 1:]
+    while rest and rest[0].startswith("-") and rest[0] != "-":
+        done, rest = rest[0] == "--", rest[1:]
+        if done:
+            break
+    if not rest:
+        return "~" if words[i] != "pushd" else None
+    return None if rest[0] == "-" or rest[0].startswith("+") else rest[0]
+
+
+def _plain(cmd: Command) -> tuple[bool, str | None]:
+    """(whether `_linear` can follow it, the directory it changes into): a command of shell grammar, one that
+    runs text in the shell or pops its directory stack, or a `cd` to a directory this cannot name exactly, is
+    not followed (round 3's M1)."""
+    words = [w.text for w in cmd.words]
+    i = _in_shell(words)
+    if i >= len(words):
+        return True, None
+    if words[0] in SHELL_GRAMMAR or words[i] in SHELL_GRAMMAR or words[i] == "." or UNFOLLOWED & set(words):
+        return False, None
+    if words[i] not in DIR_CHANGES:
+        return not DIR_CHANGES & set(words), None   # `time cd x`, `echo cd`: a `cd` this does not place
+    operands = cmd.words[i + 1:]
+    while operands and operands[0].text.startswith("-") and operands[0].text != "-":
+        done, operands = operands[0].text == "--", operands[1:]
+        if done:
+            break
+    if not operands:
+        return words[i] != "pushd", "~" if words[i] != "pushd" else None
+    target = operands[0]
+    text = target.text
+    named = (len(operands) == 1 and text and not target.glob and not any(ch in text for ch in "$`")
+             and not text.startswith(("-", "+")) and (not text.startswith("~") or text == "~" or text.startswith("~/"))
+             and not (os.environ.get("CDPATH") and not text.startswith(("/", "./", "../", "~"))
+                      and text not in (".", "..")))
+    return (True, text) if named else (False, None)
+
+
+def _entered(base: str, target: str) -> list[str]:
+    """Where a `cd` to `target` from `base` lands: as the shell reads `..` (logically) and as the disk does."""
+    joined = os.path.join(base, os.path.expanduser(target))
+    return list(dict.fromkeys([os.path.normpath(joined), os.path.realpath(joined)]))
+
+
+def _linear(lexer: Lexer) -> tuple[list[tuple[Command, list[str]]], list[str]] | None:
+    """For a text of simple commands joined only by `;`, `&&`, `||`, newlines and pipes, each command with the
+    directories it can run in, and every directory reached; None for any other text (round 3's M1).
+
+    The state is a set of (directory, the last command's status). A command joined by `&&` runs where the
+    status is success, by `||` where it is failure, by `;` everywhere. A `cd` that succeeds lands where it
+    names; one that fails stays, with the status failure. Any other command may end either way. A pipe's
+    commands run where its first does. A substitution's commands are judged from every directory reached."""
+    readings = {id(cmd): _plain(cmd) for cmd in lexer.commands}
+    if not lexer.linear or not all(ok for ok, _ in readings.values()) or any(
+            cmd.inner and readings[id(cmd)][1] is not None for cmd in lexer.commands):
+        return None
+    states = [(d, True) for d in WHERE["dirs"]]
+    reached = list(WHERE["dirs"])
+    judged: list[tuple[Command, list[str]]] = []
+    top = [cmd for cmd in lexer.commands if not cmd.inner]
+    i = 0
+    while i < len(top):
+        group = [top[i]]
+        i += 1
+        while i < len(top) and top[i].joined in ("|", "|&"):
+            group.append(top[i])
+            i += 1
+        targets = [readings[id(cmd)][1] for cmd in group]
+        if len(group) > 1 and any(t is not None for t in targets):
+            return None   # a `cd` in a pipe runs in a subshell in bash and in the shell in zsh
+        joined = group[0].joined
+        runs = [st for st in states if joined in ("", ";") or st[1] == (joined == "&&")]
+        dirs = list(dict.fromkeys(d for d, _ in (runs or states)))
+        judged += [(cmd, dirs) for cmd in group]
+        landed: list[tuple[str, bool]] = []
+        for d, _ in runs:
+            target = targets[0]
+            landed += ([(n, True) for n in _entered(d, target)] + [(d, False)] if target is not None
+                       else [(d, True), (d, False)])
+        states = list(dict.fromkeys(landed + [st for st in states if st not in runs]))
+        reached = list(dict.fromkeys(reached + [d for d, _ in states]))
+        if len(reached) > MAX_DIRS:
+            raise Unreadable(f"the command changes into more than {MAX_DIRS} directories")
+    judged += [(cmd, reached) for cmd in lexer.commands if cmd.inner]
+    return judged, reached
+
+
+def _follow(commands: list[Command]) -> None:
+    """For a text `_linear` cannot follow: each directory a `cd` in these commands changes into, from every
+    directory reached before it, joins the ones a written path is judged from. They are never dropped: a `cd`
+    in a subshell or one that fails is taken as made, which can only refuse more."""
+    dirs = WHERE["dirs"]
+    for cmd in commands:
+        target = _changes_into(cmd)
+        if target is None:
+            continue
+        for found in [_resolved(d, target) for d in dirs]:
+            if found not in dirs:
+                dirs.append(found)
+        if len(dirs) > MAX_DIRS:
+            raise Unreadable(f"the command changes into more than {MAX_DIRS} directories")
+
+
+def _target_option(program: str, args: list[str]) -> tuple[list[str], bool]:
+    """(the `-t` values, doubt): `-t DIR`, `-tDIR`, a cluster whose `t` comes before any letter that takes a
+    value (VALUED), `--target-directory DIR` or `=DIR`, or a unique prefix of it. A `t` after such a letter
+    may be the value's or the option: that is doubt, and every operand is then judged (round 3's M2)."""
+    found: list[str] = []
+    doubt = False
+    for i, arg in enumerate(args):
+        following = args[i + 1] if i + 1 < len(args) else ""
+        name = arg.split("=", 1)[0]
+        if arg == "--":
+            break
+        if arg.startswith("--"):
+            if len(name) >= 3 and "--target-directory".startswith(name):
+                found.append(arg.split("=", 1)[1] if "=" in arg else following)
+        elif arg.startswith("-") and len(arg) > 1:
+            for j in range(1, len(arg)):
+                if arg[j] == "t":
+                    found.append(arg[j + 1:] or following)
+                    break
+                if arg[j] in VALUED.get(program, set()):
+                    doubt = doubt or "t" in arg[j + 1:]
+                    break
+    return [f for f in found if f], doubt
+
+
+def _install_dirs(args: list[str]) -> bool:
+    """`install -d` (`--directory`, a unique prefix of it, or a `d` in a cluster before any valued letter):
+    every operand is a directory it makes."""
+    for arg in args:
+        name = arg.split("=", 1)[0]
+        if arg.startswith("--") and len(name) >= 4 and "--directory".startswith(name):
+            return True
+        if arg.startswith("-") and not arg.startswith("--"):
+            for letter in arg[1:]:
+                if letter == "d":
+                    return True
+                if letter in VALUED["install"]:
+                    break
+    return False
+
+
+def _writes_protected(program: str, args: list[str]) -> str | None:
+    """A write into a work tree's `.claude/` or `.githooks/` by a program this lists (S3; round 2, B1 and M6)."""
+    paths = [a for a in args if not a.startswith("-")]
+    option, doubt = _target_option(program, args) if program in TARGET_OPTION else ([], False)
+    if program == "dd":
+        written = [a[3:] for a in args if a.startswith("of=")]
+    elif program in CHANGES_EVERY or doubt or (program == "install" and _install_dirs(args)):
+        written = paths + option
+    elif program in CHANGES_LAST:
+        written = option or paths[-1:]   # with `-t`, the last word is a source
+    else:
+        written = []
+    if any(_owners(a) for a in written):
+        return OWNERS
+    in_place = (program == "sed" and any(a.startswith("-i") or a == "--in-place" or a.startswith("--in-place=")
+                                         for a in args)) or (
+        program == "perl" and any(a.startswith("-") and not a.startswith("--") and "i" in a[1:] for a in args))
+    if (in_place and any(_owners(a) for a in paths)) or (program == "git" and _git_writes(args)):
+        return OWNERS
+    return None
+
+
+def _git_writes(args: list[str]) -> bool:
+    """`git rm`, `git mv`, `git checkout` or `git restore` naming a protected path, from each `-C` directory."""
+    bases, i = list(WHERE["dirs"]), 0
+    while i < len(args) and args[i].startswith("-"):
+        if args[i] == "-C" and i + 1 < len(args):
+            bases = [_resolved(base, args[i + 1]) for base in bases]
+        i += 2 if args[i] in ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path") else 1
+    sub, rest = (args[i], args[i + 1:]) if i < len(args) else ("", [])
+    return sub in ("rm", "mv", "checkout", "restore") and any(_owners(a, bases) for a in rest if not a.startswith("-"))
+
+
+def judge_write(path: str, base: str) -> str | None:
+    """The Write and Edit hook (`--write`): a `.env` file, or a path `protected` refuses."""
+    if path.endswith(".env") or ".env." in path:
+        return ENV_FILE
+    if path and protected(path, base):
+        return OWNERS
     return None
 
 
@@ -666,20 +994,37 @@ def _judge_git(args: list[str], behind_xargs: bool) -> str | None:  # noqa: C901
     return None
 
 
-def _expired(signum: int, frame: object) -> None:
-    raise Unreadable(f"the command was not read within {DEADLINE_S:g} s")
+def _expired() -> None:
+    """The guard's own bound (S2): a thread, so it holds where SIGALRM does not exist. It cannot stop a long call
+    into C that holds the interpreter; the hook's timeout bounds that."""
+    sys.stderr.buffer.write(f"BLOCKED: the command was not read within {DEADLINE_S:g} s (#189).\n".encode())
+    sys.stderr.flush()
+    os._exit(2)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    write = (sys.argv[1:] if argv is None else argv) == ["--write"]
+    timer = threading.Timer(DEADLINE_S, _expired)
+    timer.daemon = True
+    timer.start()
     try:  # bytes, so a console's encoding (cp1254) cannot change what is read
-        signal.signal(signal.SIGALRM, _expired)
-        signal.setitimer(signal.ITIMER_REAL, DEADLINE_S)
         payload = json.loads(sys.stdin.buffer.read().decode("utf-8"))
-        command = str(payload.get("tool_input", {}).get("command", "")) if isinstance(payload, dict) else ""
-        why = judge_text(command) if command.strip() else None
-        signal.setitimer(signal.ITIMER_REAL, 0)
+        if write and not isinstance(payload, dict):
+            raise ValueError("the payload is not a JSON object")
+        call = payload.get("tool_input", {}) if isinstance(payload, dict) else {}
+        # The directory the call runs in: the payload's `cwd`, which Claude Code always sends.
+        base = (str(payload.get("cwd") or "") if isinstance(payload, dict) else "") or \
+            os.environ.get("CLAUDE_PROJECT_DIR", "") or os.getcwd()
+        if write:
+            why = judge_write(str(call.get("file_path", "") or ""), base)
+        else:
+            WHERE["dirs"] = list(dict.fromkeys([os.path.normpath(os.path.abspath(base)), os.path.realpath(base)]))
+            command = str(call.get("command", ""))
+            why = judge_text(command) if command.strip() else None
+        timer.cancel()
     except BaseException as error:  # any doubt blocks: a guard that cannot read the call never allows it
-        why = f"BLOCKED: this guard cannot read the command ({type(error).__name__}: {error}) (#189)."
+        why = (f"BLOCKED: this guard cannot read the tool call ({type(error).__name__}: {error}) (#189)." if write else
+               f"BLOCKED: this guard cannot read the command ({type(error).__name__}: {error}) (#189).")
     if why:
         sys.stderr.buffer.write(why.encode("utf-8", "replace") + b"\n")
         return 2

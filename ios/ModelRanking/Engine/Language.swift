@@ -808,7 +808,8 @@ extension EngineError {
     /// shown as it sent them.
     func errorDescription(_ language: Language) -> String? {
         // #223: a refusal whose code this app knows is said in the reader's language, English too.
-        if case let .refused(_, code, _) = self, let sentence = EngineError.refusalSentence(code, language) {
+        if case let .refused(status, code, _) = self,
+           let sentence = EngineError.refusalSentence(code, language, status: status) {
             return sentence
         }
         guard language == .turkish else { return errorDescription }
@@ -825,9 +826,13 @@ extension EngineError {
     /// #223 (M21-W3): an engine refusal in the reader's language, by its code. `nil` for a code this
     /// app does not know: the engine's own English is then shown, and it stays in `diagnostic` always.
     /// `tests/unit/test_error_codes.py` holds the cases equal to the codes the engine sends.
-    static func refusalSentence(_ code: String, _ language: Language) -> String? {
+    static func refusalSentence(_ code: String, _ language: Language, status: Int? = nil) -> String? {
         let turkish = language == .turkish
         switch code {
+        case "unexpected":  // the phone's own: a non-200 answer in no shape it knows, as Fly's 502 or 503
+            let answered = status.map { turkish ? " \($0) koduyla" : " \($0)" } ?? ""
+            return turkish ? "Motor\(answered), bu uygulamanın tanımadığı bir biçimde cevap verdi."
+                : "The engine answered\(answered) in a shape this app did not recognise."
         case "rate_limited":
             return turkish ? "Bu bağlantıdan bir dakikada çok fazla istek geldi. Biraz bekle ve tekrar dene."
                 : "Too many requests came from this connection in a minute. Wait a moment and try again."

@@ -20,9 +20,12 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import re
 import subprocess
 from pathlib import Path
 from types import ModuleType
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -721,3 +724,395 @@ def test_a_merged_close_edited_on_a_later_branch_still_says_skipped(tmp_path: Pa
     _closed(root, fixed, "2026-10-10T20:00:00")
     problems, skipped = check.history_problems(close, fixed, root)
     assert problems == [] and skipped and "merged" in skipped, (problems, skipped)
+
+
+# --- the M21 closure: the owner's ruling on commit-after-check-fast, and the bypass field ------------
+
+
+def _ledger(*rows: str) -> list[list[str]]:
+    import csv
+    import io
+
+    return [row for row in csv.reader(io.StringIO("\n".join(rows))) if row]
+
+
+def test_three_rows_after_a_controls_last_ruling_strike_and_rows_before_it_do_not(tmp_path: Path) -> None:
+    """The owner's ruling of 2026-10-10 ("fix and narrow"): the three-row rule counts only the rows dated
+    after a control's latest ruling or review. A reviewed control stays green; a new bypass after the ruling
+    still counts."""
+    check = _module("wave_check")
+    three = ("c,m1-w1,bypass,a,2026-10-01", "c,m1-w2,bypass,b,2026-10-02", "c,m1-w3,skip,c,2026-10-03")
+    assert check.ledger_strikes(_ledger(*three)) == ["c"]
+    assert check.ledger_strikes(_ledger(*three, 'c,m1-closure,ruling,"the owner, 2026-10-04: re-scoped",2026-10-04')) == []
+    after = ("d,m2-w1,bypass,x,2026-10-05", "d,m2-w2,bypass,y,2026-10-06", "d,m2-w3,bypass,z,2026-10-07")
+    ruled = ('d,m1-closure,ruling,"the owner, 2026-10-04",2026-10-04',)
+    assert check.ledger_strikes(_ledger(*three, 'c,m1-closure,ruling,"the owner, 2026-10-04",2026-10-04', *ruled,
+                                        *after)) == ["d"]
+    assert check.ledger_strikes(_ledger(*ruled, *after[:2])) == []
+    same_day = ("e,m1-w1,bypass,a,2026-10-04", 'e,m1-closure,ruling,"the owner, 2026-10-04",2026-10-04',
+                "e,m2-w1,bypass,b,2026-10-04", "e,m2-w2,bypass,c,2026-10-04", "e,m2-w3,bypass,d,2026-10-05")
+    assert check.ledger_strikes(_ledger(*same_day)) == ["e"], "a row of the ruling's day after it counts"
+    assert check.ledger_strikes(_ledger("f,m1-w1,within-scope,a,2026-10-01", "f,m1-w2,within-scope,b,2026-10-02",
+                                        "f,m1-w3,within-scope,c,2026-10-03")) == []
+
+
+def test_a_bypass_row_9_names_needs_its_ledger_row(tmp_path: Path) -> None:
+    """The M21 repo review's M1: row 9's `Bypass:` field named two bypasses no ledger row counted."""
+    check = _module("wave_check")
+    text = _checklist("").replace("outcome: shipped`", "outcome: shipped`. Bypass: `abc1234` (the "
+                                  "`commit-after-check-fast` control)")
+    assert any("Bypass" in p for p in check.skip_ledger_problems(text, "m30-w1", []))
+    rows = [["commit-after-check-fast", "m30-w1", "bypass", "abc1234", "2026-10-10"]]
+    assert check.skip_ledger_problems(text, "m30-w1", rows) == []
+    none = _checklist("").replace("outcome: shipped`", "outcome: shipped`. Bypass: none")
+    assert check.skip_ledger_problems(none, "m30-w1", []) == []
+
+
+def test_a_first_wave_stacked_on_an_unmerged_closure_starts_at_that_closure(tmp_path: Path) -> None:
+    """The M21 repo review's M2: M22-W1 starts on closure/m21 while M20 and M21 are off main. Its range from
+    the closure was refused as narrower than main's base, and a range from main read the earlier milestones'
+    ADRs as its own. The wave's base is the merge base with the previous milestone's closure branch."""
+    check = _module("wave_check")
+    root, base = _wave_branch(tmp_path, log="## 2026-10-10 — M30-W1, M31-W1\n\nwork.\n")
+    _commit(root, "an ADR beside its code", "2026-10-10T13:00:00",
+            {"docs/decisions.md": "# Decisions\n\n## D-1 — One\n\nBody.\n\n## D-2 — Two\n\nNew.\n",
+             "src/app/other.py": "x = 3\n"})
+    _closed(root, _close_text(base))
+    _git(root, "checkout", "-q", "-b", "closure/m30")
+    _commit(root, "the closure", "2026-10-10T16:00:00", {"docs/reviews/m30-closure.md": "closed\n"})
+    _git(root, "checkout", "-q", "-b", "wave/m31-w1")
+    _commit(root, "the next plan", "2026-10-10T17:00:00", {"docs/plans/m31-plan.md": f"# M31\n\n### W1 — one\n{GLOBS}"})
+    _commit(root, "wave work", "2026-10-10T18:00:00", {"src/app/other.py": "x = 4\n"})
+    text = (_close_text("closure/m30").replace("m30-wave-1-close", "m31-wave-1-close"))
+    close = _closed(root, text, "2026-10-10T19:00:00", "m31-wave-1-close.md")
+    problems, skipped = check.history_problems(close, text, root)
+    assert skipped is None and problems == [], problems
+
+
+def test_an_amended_by_pointer_below_its_adrs_separator_is_refused(tmp_path: Path) -> None:
+    """The M21 repo review's M5: eleven pointers sat after the amended ADR's closing `---`, where a reader
+    takes them for the next ADR's first line."""
+    check = _module("check_records")
+    pointer = "**Amended by D-2 (2026-09-02)**: clause 2.\n"
+    above = AMENDED.format(pointer="\n" + pointer + "\n---\n")
+    below = AMENDED.format(pointer="\n---\n\n" + pointer)
+    text = above.replace("Body.\n\n## D-3", "Body.\n\n**Amended by D-3 (2026-09-03, proposed)**: all.\n\n## D-3")
+    assert [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path / "a", text))] == []
+    text = below.replace("Body.\n\n## D-3", "Body.\n\n**Amended by D-3 (2026-09-03, proposed)**: all.\n\n## D-3")
+    found = [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path / "b", text))]
+    assert any("below" in m and "D-1" in m for m in found), found
+
+
+
+# --- the M21 closure fixes review: M3 (the ledger's kinds and dates) ---------------------------------------
+
+
+def test_only_the_owners_ruling_resets_a_count(tmp_path: Path) -> None:
+    """The fixes review's M3: a `review` reset the count as a ruling does, with no owner; so did a
+    `within-scope` row (mutant X5). Only a `ruling` that names the owner resets; a review and a within-scope
+    row are recorded and count nothing."""
+    check = _module("wave_check")
+    three = ("c,m1-w1,bypass,a,2026-10-01", "c,m1-w2,bypass,b,2026-10-02", "c,m1-w3,skip,c,2026-10-03")
+    assert check.ledger_strikes(_ledger(*three, "c,m1-closure,review,the closure,2026-10-04")) == ["c"]
+    assert check.ledger_strikes(_ledger(*three, "c,m1-closure,within-scope,x,2026-10-04")) == ["c"]
+    assert check.ledger_strikes(_ledger(*three, "c,m1-closure,ruling,the closure decided,2026-10-04")) == ["c"]
+    assert check.ledger_strikes(_ledger(*three, 'c,m1-closure,ruling,"the owner, 2026-10-04: ruled",2026-10-04')) == []
+
+
+def test_a_ledger_date_must_be_iso_and_not_in_the_future(tmp_path: Path) -> None:
+    """The fixes review's M3: a review dated 2099-01-01 kept ten later bypasses from counting."""
+    check = _module("wave_check")
+    rows = _ledger("c,m1-w1,bypass,a,2026-10-01", "c,m1-w2,bypass,b,10/02/2026",
+                   'c,m1-closure,ruling,"the owner, 2099-01-01",2099-01-01')
+    found = check.ledger_problems(rows, today="2026-10-10")
+    assert any("10/02/2026" in p for p in found) and any("2099-01-01" in p for p in found), found
+    assert check.ledger_problems(_ledger("c,m1-w1,bypass,a,2026-10-10"), today="2026-10-10") == []
+
+
+def test_a_ruling_that_names_no_owner_is_refused(tmp_path: Path) -> None:
+    check = _module("wave_check")
+    found = check.ledger_problems(_ledger("c,m1-closure,ruling,the closure decided,2026-10-04"), today="2026-10-10")
+    assert any("owner" in p for p in found), found
+
+
+def test_a_ruling_is_the_owners_only_when_its_reason_starts_so(tmp_path: Path) -> None:
+    """Round 2, M3: `"the owner" in reason` matched the phrase both review rows carry ("not the owner's ruling;
+    the owner may overrule it"), so a review mistyped as a ruling reset the count, and nothing said so. A
+    ruling's reason starts `the owner, YYYY-MM-DD`, as both real rulings do."""
+    check = _module("wave_check")
+    three = ("c,m1-w1,bypass,a,2026-10-01", "c,m1-w2,bypass,b,2026-10-02", "c,m1-w3,skip,c,2026-10-03")
+    mislabel = ('c,m1-closure,ruling,"the agent\'s application (not the owner\'s ruling; the owner may overrule '
+                'it)",2026-10-04')
+    assert check.ledger_strikes(_ledger(*three, mislabel)) == ["c"]
+    assert any("the owner, YYYY-MM-DD" in p for p in check.ledger_problems(_ledger(mislabel), today="2026-10-10"))
+    for reason in ("the owner ruled", "the owner: re-scoped", "per the owner, 2026-10-04"):
+        row = f'c,m1-closure,ruling,"{reason}",2026-10-04'
+        assert check.ledger_strikes(_ledger(*three, row)) == ["c"], reason
+        assert check.ledger_problems(_ledger(row), today="2026-10-10"), reason
+    owner = 'c,m1-closure,ruling,"The owner, 2026-10-04 (translated from Turkish): fix",2026-10-04'
+    assert check.ledger_strikes(_ledger(*three, owner)) == []
+    assert check.ledger_problems(_ledger(owner), today="2026-10-10") == []
+
+
+def test_rows_count_by_their_place_after_the_last_ruling_not_their_date(tmp_path: Path) -> None:
+    """Round 2, M3: three bypasses appended after a ruling dated 2026-10-10, each dated 2026-10-09, counted
+    nothing; order was by date first. A row counts when it stands after the control's last ruling in the file."""
+    check = _module("wave_check")
+    ruling = 'c,m1-closure,ruling,"the owner, 2026-10-10",2026-10-10'
+    early = ("c,m2-w1,bypass,a,2026-10-09", "c,m2-w2,bypass,b,2026-10-09", "c,m2-w3,skip,c,2026-10-09")
+    assert check.ledger_strikes(_ledger(ruling, *early)) == ["c"]
+    late = ("c,m0-w1,bypass,a,2026-10-11", "c,m0-w2,bypass,b,2026-10-11", "c,m0-w3,skip,c,2026-10-11")
+    assert check.ledger_strikes(_ledger(*late, ruling)) == []
+
+
+def test_a_kind_outside_the_five_is_refused(tmp_path: Path) -> None:
+    """Round 2, M3: `bypassed` or `by-pass` counted nothing and raised nothing."""
+    check = _module("wave_check")
+    for kind in ("bypassed", "by-pass", "Ruling-ish", ""):
+        found = check.ledger_problems(_ledger(f"c,m1-w1,{kind},x,2026-10-01"), today="2026-10-10")
+        assert any("kind" in p for p in found), (kind, found)
+    for kind in ("skip", "bypass", "review", "within-scope", "BYPASS"):
+        assert check.ledger_problems(_ledger(f"c,m1-w1,{kind},x,2026-10-01"), today="2026-10-10") == [], kind
+
+
+def test_a_date_may_be_a_day_after_todays_utc_date(tmp_path: Path) -> None:
+    """Round 2, M3: today was the checker's local date, so a row the owner dated between 00:00 and 03:00 (UTC+3)
+    failed CI's UTC clock until 03:00. A row may be dated up to one day after today, and today is UTC."""
+    import datetime as dt
+
+    check = _module("wave_check")
+    assert check.ledger_problems(_ledger("c,m1-w1,bypass,a,2026-10-11"), today="2026-10-10") == []
+    assert check.ledger_problems(_ledger("c,m1-w1,bypass,a,2026-10-12"), today="2026-10-10")
+    utc = dt.datetime.now(dt.UTC).date()
+    assert check.ledger_problems(_ledger(f"c,m1-w1,bypass,a,{utc + dt.timedelta(days=1)}")) == []
+    assert check.ledger_problems(_ledger(f"c,m1-w1,bypass,a,{utc + dt.timedelta(days=2)}"))
+
+
+# --- the M21 closure fixes review: M4 (row 9's Bypass field) ----------------------------------------------
+
+
+def _bypass(sha: str, control: str = "commit-after-check-fast") -> str:
+    return _checklist("").replace("outcome: shipped`", f"outcome: shipped`. Bypass: `{sha}` (the `{control}` control)")
+
+
+def test_each_commit_a_bypass_names_needs_a_row_naming_it(tmp_path: Path) -> None:
+    """The fixes review's M4: a Bypass naming a code commit passed with only a `within-scope` row, or with a row
+    for another control the field mentioned. Each SHA needs a row naming it: a `bypass`, or a `within-scope`
+    only where the commit is docs-only or a declared red test commit by commit_gate's own rule."""
+    check = _module("wave_check")
+    root, _ = _wave_branch(tmp_path)
+    code = _commit(root, "fix: code", "2026-10-10T13:00:00", {"src/app/other.py": "x = 3\n"})
+    docs = _commit(root, "docs: notes", "2026-10-10T14:00:00", {"docs/notes.md": "notes\n"})
+    red = _commit(root, "test: x, red", "2026-10-10T15:00:00", {"tests/unit/test_x.py": "x = 1\n"})
+    for sha, kind, ok in ((code, "within-scope", False), (code, "bypass", True), (docs, "within-scope", True),
+                          (red, "within-scope", True)):
+        rows = [["commit-after-check-fast", "m30-w1", kind, f"{sha} was committed so", "2026-10-10"]]
+        found = check.skip_ledger_problems(_bypass(sha), "m30-w1", rows, root=root)
+        assert (found == []) == ok, (sha, kind, found)
+    other = [["commit-after-check-fast", "m30-w1", "bypass", "another commit", "2026-10-10"]]
+    assert any(code in p for p in check.skip_ledger_problems(_bypass(code), "m30-w1", other, root=root))
+
+
+def _within(sha: str) -> list[list[str]]:
+    return [["commit-after-check-fast", "m30-w1", "within-scope", f"{sha}, a docs-only commit", "2026-10-10"]]
+
+
+def test_a_merge_named_in_the_bypass_is_never_docs_only(tmp_path: Path) -> None:
+    """Round 2, M4: `git show --name-only` prints a merge's combined diff, only the files it resolved, so a merge
+    bringing in code whose one resolved file was Markdown read as docs-only and its within-scope row was
+    accepted. A merge is never docs-only or declared red."""
+    check = _module("wave_check")
+    root, _ = _wave_branch(tmp_path)
+    _git(root, "checkout", "-q", "-b", "side")
+    _commit(root, "fix: code", "2026-10-10T13:00:00", {"src/app/f.py": "x = 1\n", "docs/n.md": "side\n"})
+    _git(root, "checkout", "-q", "wave/m30-w1")
+    _commit(root, "docs: n", "2026-10-10T13:30:00", {"docs/n.md": "wave\n"})
+    # The merge stops on its conflict, so it runs with the identity _git sets and its status is not read; CI has no
+    # git identity, and a merge that failed there left an ordinary commit and a test that passed nothing.
+    ident = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.invalid", "GIT_COMMITTER_NAME": "t",
+             "GIT_COMMITTER_EMAIL": "t@example.invalid"}
+    subprocess.run(["git", "-C", str(root), "merge", "-q", "side"], capture_output=True, check=False, timeout=30,
+                   env={**os.environ, **ident})
+    assert (root / ".git" / "MERGE_HEAD").is_file(), "the merge did not start"
+    _commit(root, "docs: merge side", "2026-10-10T14:00:00", {"docs/n.md": "both\n"})
+    assert len(_git(root, "rev-list", "--parents", "-n", "1", "HEAD").split()) == 3, "HEAD is not a merge"
+    merge = _git(root, "rev-parse", "--short", "HEAD")
+    assert _git(root, "show", "--no-renames", "--name-only", "--format=", merge) == "docs/n.md"
+    found = check.skip_ledger_problems(_bypass(merge), "m30-w1", _within(merge), root=root)
+    assert any(merge in p and "check-fast" in p for p in found), found
+
+
+def test_a_rename_named_in_the_bypass_counts_both_sides(tmp_path: Path) -> None:
+    """Round 2, M4 (mutant X10): `_gate_target` without `--no-renames` passed every test. A rename of code into
+    docs/ is a code commit."""
+    check = _module("wave_check")
+    root, _ = _wave_branch(tmp_path)
+    _commit(root, "fix: code", "2026-10-10T13:00:00", {"src/app/f.py": "x = 1\n" * 20})
+    _git(root, "mv", "src/app/f.py", "docs/f.md")
+    _git(root, "commit", "-q", "-m", "docs: move", date="2026-10-10T14:00:00")
+    moved = _git(root, "rev-parse", "--short", "HEAD")
+    found = check.skip_ledger_problems(_bypass(moved), "m30-w1", _within(moved), root=root)
+    assert any(moved in p and "check-fast" in p for p in found), found
+
+
+def test_a_sha_no_commit_holds_is_a_problem_on_a_full_history(tmp_path: Path) -> None:
+    """Round 2, M4: a SHA no history holds was taken as written, with the SKIPPED note a shallow clone gets."""
+    check = _module("wave_check")
+    root, _ = _wave_branch(tmp_path)
+    notes: list[str] = []
+    found = check.skip_ledger_problems(_bypass("abcdef1"), "m30-w1", _within("abcdef1"), root=root, notes=notes)
+    assert any("abcdef1" in p for p in found) and notes == [], (found, notes)
+
+
+def test_every_ledger_control_the_bypass_names_needs_its_own_row(tmp_path: Path) -> None:
+    """Round 2, M4: `Bypass: commit-after-check-fast once; security-pass N/A` passed with a security-pass row
+    alone (round 1's second X4 form). Each control of the ledger the field names needs a row of its own."""
+    check = _module("wave_check")
+    text = _checklist("").replace("outcome: shipped`", "outcome: shipped`. Bypass: commit-after-check-fast once; "
+                                  "security-pass N/A")
+    ledger = [["commit-after-check-fast", "m29-w1", "bypass", "x", "2026-10-01"],
+              ["security-pass", "m30", "skip", "x", "2026-10-10"]]
+    found = check.skip_ledger_problems(text, "m30-w1", ledger)
+    assert any("commit-after-check-fast" in p for p in found), found
+    ledger.append(["commit-after-check-fast", "m30-w1", "bypass", "x", "2026-10-10"])
+    assert check.skip_ledger_problems(text, "m30-w1", ledger) == []
+
+
+def test_a_bypass_named_without_a_sha_needs_a_bypass_or_skip_row(tmp_path: Path) -> None:
+    """Round 3, M4: `Bypass: commit-after-check-fast once` passed on a within-scope, review or ruling row of the
+    control, none of which the three-row rule counts. A control the field names with no SHA of its rows needs a
+    `bypass` or `skip` row for the wave or its milestone."""
+    check = _module("wave_check")
+    text = _checklist("").replace("outcome: shipped`", "outcome: shipped`. Bypass: commit-after-check-fast once")
+    for kind, ok in (("bypass", True), ("skip", True), ("within-scope", False), ("review", False), ("ruling", False)):
+        reason = "the owner, 2026-10-10: x" if kind == "ruling" else "x"
+        found = check.skip_ledger_problems(text, "m22-w1", [["commit-after-check-fast", "m22", kind, reason, "2026-10-10"]])
+        assert (found == []) == ok, (kind, found)
+
+
+def test_the_bypass_must_name_a_control_the_ledger_counts_in_any_case(tmp_path: Path) -> None:
+    """Mutant X4: a Bypass was satisfied by a row of the wave for whatever control. The control match is
+    case-insensitive, as row 9's other checks are."""
+    check = _module("wave_check")
+    text = _checklist("").replace("outcome: shipped`", "outcome: shipped`. Bypass: the COMMIT-AFTER-CHECK-FAST control")
+    assert check.skip_ledger_problems(text, "m30-w1", [["commit-after-check-fast", "m30-w1", "bypass", "x", "2026-10-10"]]) == []
+    assert check.skip_ledger_problems(text, "m30-w1", [["security-pass", "m30", "skip", "x", "2026-10-10"]])
+
+
+def test_the_pass_line_counts_the_checklists_rows_not_the_ledgers(capsys: pytest.CaptureFixture[str]) -> None:
+    """Found while fixing the fixes review's M4: the ledger's rows were read into the name that counts the
+    checklist's rows, so `rows == 0` (a close with no rows) could never fire beside the ledger, and the PASS
+    line printed the ledger."""
+    check = _module("wave_check")
+    cwd = Path.cwd()
+    os.chdir(ROOT)
+    try:
+        assert check.main(["wave_check.py", "docs/plans/m21-wave-4-close.md"]) == 0
+    finally:
+        os.chdir(cwd)
+    assert re.search(r"\(\d+ row\(s\), all evidenced", capsys.readouterr().out)
+
+
+def test_a_plans_base_line_is_not_read(tmp_path: Path) -> None:
+    """The fixes review's M5: a `**Base:**` line in the plan, a docs-only edit, let a MED close read only the tail
+    of its range, past a glob change (mutant X6 survived). The line is not read: the previous closure's branch
+    covers the stacked milestone."""
+    check = _module("wave_check")
+    root, _ = _wave_branch(tmp_path)
+    _commit(root, "change the engine", "2026-10-10T13:00:00", {"src/app/adapter/main.py": "x = 2\n"})
+    narrow = _commit(root, "other", "2026-10-10T14:00:00", {"src/app/other.py": "x = 9\n"})
+    plan = root / "docs" / "plans" / "m30-plan.md"
+    _commit(root, "the plan names a base", "2026-10-10T15:00:00",
+            {"docs/plans/m30-plan.md": plan.read_text(encoding="utf-8") + f"\n**Base:** `{narrow}`\n"})
+    text = _close_text(narrow, tier="MED")
+    problems, _ = check.history_problems(_closed(root, text), text, root)
+    assert any("wave's base" in p for p in problems), problems
+
+
+# --- the M21 closure fixes review: M7 (the gates' standing globs, and the records) -------------------------
+
+
+def test_every_plan_reads_the_gates_standing_globs(tmp_path: Path) -> None:
+    """The fixes review's M7: M3's globs went into M21's plan, which no later wave reads; a wave of M22 that
+    weakens a gate would close MEDIUM. plan_globs adds a standing list kept in wave_check.py."""
+    check = _module("wave_check")
+    plan = tmp_path / "m30-plan.md"
+    plan.write_text(f"# M30\n{GLOBS}", encoding="utf-8")
+    globs = check.plan_globs(plan)
+    assert "src/app/adapter/main.py" in globs
+    for gate in ("scripts/wave_check.py", "scripts/check_records.py", "scripts/commit_gate.py", "scripts/check_fast.py",
+                 "scripts/client_decl_gate.py", "scripts/client_decl_fixtures/**", "Makefile", ".githooks/**", ".claude/**"):
+        assert gate in globs, gate
+    assert tuple(g for g in globs if g in check.STANDING_GLOBS) == check.STANDING_GLOBS
+
+
+def test_the_standing_globs_are_every_gate_and_each_names_a_file() -> None:
+    """Round 2, M5: the list left out three gates the repo review's M3 named (the two text pins and the offline
+    sandbox), two M21's plan lists (CI's workflows, the test configuration), and stack.mk, which adds check legs.
+    The list is pinned whole, and each entry names a file, so a typo cannot keep a gate out."""
+    check = _module("wave_check")
+    assert check.STANDING_GLOBS == (
+        "scripts/wave_check.py", "scripts/check_records.py", "scripts/commit_gate.py", "scripts/check_fast.py",
+        "scripts/client_decl_gate.py", "scripts/client_decl_fixtures/**", "Makefile", ".githooks/**", ".claude/**",
+        "tests/unit/test_router_hints.py", "tests/unit/test_ios_client_contract.py", "scripts/offline.sb",
+        ".github/workflows/**", "tests/conftest.py", "stack.mk")
+    for glob in check.STANDING_GLOBS:
+        # Before Python 3.13 a trailing ** matches directories only, so a directory's files are read through **/*.
+        files = ROOT.glob(glob + "/*" if glob.endswith("**") else glob)
+        assert any(path.is_file() for path in files), glob
+
+
+def test_the_records_name_the_commit_gate_and_the_write_refusal() -> None:
+    """The fixes review's M7: AGENTS.md let a human bypass only the pre-push gate and named neither the commit
+    gate nor the write refusal; the ledger's header named only `git push --no-verify`."""
+    agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    assert "commit-msg" in agents and ".githooks/" in agents and "refuse" in agents
+    header = "\n".join(line for line in (ROOT / "docs" / "control-events.csv").read_text(encoding="utf-8").splitlines()
+                       if line.startswith("#"))
+    assert "git commit --no-verify" in header and "git push --no-verify" in header
+
+
+def test_the_ledger_records_each_closure_commit_made_without_its_own_green_tree() -> None:
+    """Round 2, M2: 85f80e3 removed `.githooks/pre-commit`, and the `commit-msg` its tests read came only in
+    a024244, so its own tree failed six tests, as cd563f5's did; cd563f5 got a bypass row and 85f80e3 none."""
+    check = _module("wave_check")
+    rows = check._ledger_rows((ROOT / "docs" / "control-events.csv").read_text(encoding="utf-8"))
+    for sha in ("cd563f5", "85f80e3"):
+        assert any(row[:3] == ["commit-after-check-fast", "m21-closure", "bypass"] and row[3].startswith(sha)
+                   for row in rows), sha
+
+
+def test_the_records_say_what_the_hooks_hold_after_round_2() -> None:
+    """Round 2, B1, M6 and M8: G-7 claimed `-I` keeps any module from changing what runs, true of the guard file
+    only, and described a refusal for this project's directories alone; the runbook's v2 order had no restart,
+    so a session open at the pull blocks every Bash call; AGENTS.md said commit-msg gates every commit, and git
+    runs it on `git commit` and `git merge` only."""
+    runbook = (ROOT / "docs" / "release-testflight.md").read_text(encoding="utf-8")
+    step1 = re.sub(r"\s+", " ", runbook.split("## v2", 1)[1].split("\n2. ", 1)[0])
+    assert "restart" in step1 and "Claude Code session" in step1 and "INSTALL.md" in step1, step1
+    agents = re.sub(r"\s+", " ", (ROOT / "AGENTS.md").read_text(encoding="utf-8"))
+    assert "gates every commit" not in agents and "`git commit` and `git merge`" in agents
+    g7 = next(line for line in (ROOT / "docs" / "security-invariants.md").read_text(encoding="utf-8").splitlines()
+              if line.startswith("| G-7 |"))
+    assert "neither a changed guard nor a module placed beside it changes what runs" not in g7
+    assert "every interpreter" in g7 and "site-packages" in g7, "G-7 says what -I covers and what it does not"
+    assert "linked worktree" in g7 and "this project's own" not in g7, "G-7 says which writes are refused"
+    install = re.sub(r"\s+", " ", (ROOT / "INSTALL.md").read_text(encoding="utf-8"))
+    assert "both hooks" in install, "INSTALL.md says the pin is in both hooks"
+
+
+def test_the_records_say_what_round_3_left() -> None:
+    """Round 3, M6: "before every commit" survived in INSTALL.md, the runbook and `make hooks`, where AGENTS.md and
+    R-1 say `git commit` and `git merge`. M1 and R1: G-7 says which case still over-refuses, and that every hook
+    interpreter runs with `-I -S`."""
+    install = re.sub(r"\s+", " ", (ROOT / "INSTALL.md").read_text(encoding="utf-8"))
+    runbook = re.sub(r"\s+", " ", (ROOT / "docs" / "release-testflight.md").read_text(encoding="utf-8"))
+    agents = re.sub(r"\s+", " ", (ROOT / "AGENTS.md").read_text(encoding="utf-8"))
+    hooks = (ROOT / "Makefile").read_text(encoding="utf-8").split("\nhooks:", 1)[1].split("\n\n", 1)[0]
+    for name, text in (("INSTALL.md", install), ("release-testflight.md", runbook), ("AGENTS.md", agents),
+                       ("make hooks", hooks)):
+        assert "before every commit" not in text, name
+        assert "git commit" in text and "git merge" in text, name
+    g7 = next(line for line in (ROOT / "docs" / "security-invariants.md").read_text(encoding="utf-8").splitlines()
+              if line.startswith("| G-7 |"))
+    assert "-I -S" in g7 and "over-refuse" in g7 and ".claude/worktrees" in g7, g7

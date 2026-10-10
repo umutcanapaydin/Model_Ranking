@@ -285,6 +285,15 @@ INPUT_PARSING_HIGH_FROM = "2026-10-04"
 PLAN_GLOBS_HIGH_FROM = "2026-10-06"
 
 
+#: The gates' own globs, which every plan's list carries (the M21 closure fixes review's M7): a wave that changes a
+#: gate is HIGH whatever its milestone's plan lists, so the gates do not lapse when a milestone ends. Round 2's
+#: M5 added the text pins and the offline sandbox (INV-6), CI's workflows, the test configuration and stack.mk.
+STANDING_GLOBS = ("scripts/wave_check.py", "scripts/check_records.py", "scripts/commit_gate.py", "scripts/check_fast.py",
+                  "scripts/client_decl_gate.py", "scripts/client_decl_fixtures/**", "Makefile", ".githooks/**",
+                  ".claude/**", "tests/unit/test_router_hints.py", "tests/unit/test_ios_client_contract.py",
+                  "scripts/offline.sb", ".github/workflows/**", "tests/conftest.py", "stack.mk")
+
+
 def plan_globs(plan: pathlib.Path) -> list[str]:
     """#140: the security globs a milestone plan lists, under its `Security globs` bullet: every
     backticked path on the indented bullets that follow it. None (or no plan) is an empty list, which
@@ -302,7 +311,7 @@ def plan_globs(plan: pathlib.Path) -> list[str]:
         if not (re.match(r"^\s+-\s", line) or (re.match(r"^\s{3,}\S", line) and globs)):
             break
         globs += re.findall(r"`([^`]+)`", line)
-    return globs
+    return list(dict.fromkeys([*globs, *STANDING_GLOBS])) if globs else globs
 
 
 def _footprint_paths(touched: str) -> list[str]:
@@ -394,18 +403,27 @@ def _merged(root: pathlib.Path, commit: str) -> bool:
 
 
 def _wave_base(root: pathlib.Path, ids: re.Match[str] | None, end: str) -> str | None:
-    """Where the wave starts: the commit that added the previous wave's close, when the end's history holds it
-    and it is later than the milestone's base on main; else the milestone's base on main."""
-    main_base = next((b for ref in ("origin/main", "main") if (b := _git(root, "merge-base", end, ref))), None)
-    previous = None
-    if ids and int(ids.group(2)) > 1:
-        rel = f"docs/plans/m{ids.group(1)}-wave-{int(ids.group(2)) - 1}-close.md"
-        added = (_git(root, "log", "--diff-filter=A", "--format=%H", end, "--", rel) or "").splitlines()
-        if added and _git(root, "merge-base", "--is-ancestor", added[-1], end) is not None:
-            previous = added[-1]
-    if previous and (main_base is None or _git(root, "merge-base", "--is-ancestor", main_base, previous) is not None):
-        return previous
-    return main_base
+    """Where the wave starts: the latest of these that the end's history holds -- the milestone's base on main,
+    the merge base with the previous milestone's closure branch (`origin/closure/m<N-1>` or `closure/m<N-1>`,
+    the M21 repo review's M2: a milestone stacked on an unmerged closure), and the commit that added the
+    previous wave's close. A plan's `**Base:**` line is not read: a docs-only edit must not narrow a range
+    (the M21 closure fixes review's M5)."""
+    candidates = [next((b for ref in ("origin/main", "main") if (b := _git(root, "merge-base", end, ref))), None)]
+    if ids:
+        milestone, wave = int(ids.group(1)), int(ids.group(2))
+        candidates.append(next((b for ref in (f"origin/closure/m{milestone - 1}", f"closure/m{milestone - 1}")
+                                if (b := _git(root, "merge-base", end, ref))), None))
+        if wave > 1:
+            rel = f"docs/plans/m{milestone}-wave-{wave - 1}-close.md"
+            added = (_git(root, "log", "--diff-filter=A", "--format=%H", end, "--", rel) or "").splitlines()
+            candidates.append(added[-1] if added else None)
+    base = None
+    for commit in candidates:
+        if not commit or _git(root, "merge-base", "--is-ancestor", commit, end) is None:
+            continue
+        if base is None or _git(root, "merge-base", "--is-ancestor", base, commit) is not None:
+            base = commit
+    return base
 
 
 def _names_wave(heading: str, milestone: str, wave: int) -> bool:
@@ -550,7 +568,123 @@ def _outside_parentheses(listed: str) -> list[str]:
     return [*entries, current]
 
 
-def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]]) -> list[str]:
+def _ledger_rows(text: str) -> list[list[str]]:
+    """The ledger's rows, read as CSV (a reason may hold commas inside its quotes), without the header and
+    the comment lines."""
+    import csv
+
+    lines = [ln for ln in text.splitlines() if ln.strip() and not ln.startswith("#")
+             and not ln.lower().startswith("control,")]
+    return [[c.strip() for c in row] for row in csv.reader(lines) if row]
+
+
+#: The ledger's kinds (its header names each).
+KINDS = ("skip", "bypass", "ruling", "review", "within-scope")
+#: How the owner's ruling begins: both real rulings do (the fixes review's round 2, M3).
+OWNER_RULING = re.compile(r"the owner, \d{4}-\d{2}-\d{2}\b", re.IGNORECASE)
+
+
+def _owners_ruling(row: list[str]) -> bool:
+    return len(row) >= 5 and row[2].lower() == "ruling" and OWNER_RULING.match(row[3]) is not None
+
+
+def ledger_strikes(rows: list[list[str]]) -> list[str]:
+    """The controls with three or more `skip` or `bypass` rows after their last `ruling` by the owner (the owner's
+    ruling of 2026-10-10, as the M21 closure fixes review's round 2, M3 left it): a row counts by its place in
+    the file, after that ruling, whatever its date. A `review` or `within-scope` row is recorded and counts
+    nothing: it neither strikes nor resets. A new bypass after a ruling still counts."""
+    ruled: dict[str, int] = {row[0]: n for n, row in enumerate(rows) if _owners_ruling(row)}
+    counts: dict[str, int] = {}
+    for n, row in enumerate(rows):
+        if len(row) >= 3 and row[2].lower() in ("skip", "bypass") and n > ruled.get(row[0], -1):
+            counts[row[0]] = counts.get(row[0], 0) + 1
+    return sorted(control for control, n in counts.items() if n >= 3)
+
+
+def ledger_problems(rows: list[list[str]], today: str | None = None) -> list[str]:
+    """The fixes review's M3, as round 2 left it: every row's kind is one of KINDS; its date is ISO (YYYY-MM-DD)
+    and at most a day after today's UTC date, so a row the owner dates in UTC+3 passes CI while a future date
+    cannot hold later rows back; and a `ruling`'s reason starts `the owner, YYYY-MM-DD`, since only the owner's
+    ruling resets a count."""
+    import datetime as dt
+
+    latest = (dt.date.fromisoformat(today) if today else dt.datetime.now(dt.UTC).date()) + dt.timedelta(days=1)
+    found: list[str] = []
+    for row in rows:
+        where = f"the ledger row `{','.join(row[:3])}`"
+        if len(row) < 3 or row[2].lower() not in KINDS:
+            found.append(f"{where} has the kind `{row[2] if len(row) >= 3 else ''}`, not one of {', '.join(KINDS)}")
+        date = row[-1] if row else ""
+        try:
+            iso = re.fullmatch(r"\d{4}-\d{2}-\d{2}", date) is not None and dt.date.fromisoformat(date).isoformat() == date
+        except ValueError:
+            iso = False
+        if not iso:
+            found.append(f"{where} is dated `{date}`, not YYYY-MM-DD")
+        elif dt.date.fromisoformat(date) > latest:
+            found.append(f"{where} is dated {date}, more than a day after today ({latest - dt.timedelta(days=1)}, UTC)")
+        if len(row) >= 4 and row[2].lower() == "ruling" and not _owners_ruling(row):
+            found.append(f"{where} is a ruling whose reason does not start `the owner, YYYY-MM-DD`; only the owner's "
+                         "ruling resets a control's count")
+    return found
+
+
+#: A commit named in a record: 7 to 40 hex digits.
+SHA = re.compile(r"\b[0-9a-f]{7,40}\b")
+
+
+def _gate_target(root: pathlib.Path, sha: str) -> str | None:
+    """What scripts/commit_gate.py names for a commit (its paths with --no-renames, its subject; a merge is
+    never docs-only or red, round 2's M4), or None when the history cannot show the commit."""
+    import importlib.util
+
+    paths = _git(root, "show", "--no-renames", "--name-only", "--format=", sha)
+    subject = _git(root, "log", "-1", "--format=%s", sha)
+    parents = _git(root, "rev-list", "--parents", "-n", "1", sha)
+    if paths is None or subject is None or parents is None:
+        return None
+    spec = importlib.util.spec_from_file_location("commit_gate", pathlib.Path(__file__).resolve().parent / "commit_gate.py")
+    if spec is None or spec.loader is None:
+        return None
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    return str(gate.target([p for p in paths.splitlines() if p], subject, merge=len(parents.split()) > 2))
+
+
+def _bypassed_commits(said: str, wave_id: str, rows: list[list[str]], root: pathlib.Path | None,
+                      notes: list[str] | None) -> list[str]:
+    """The fixes review's M4: each commit row 9's Bypass names has a ledger row of the wave or its milestone whose
+    reason names it -- a `bypass`, or a `within-scope` only where the commit is docs-only or a declared red test
+    commit by commit_gate's own rule. On a full history a SHA no commit holds is a problem (round 2); where
+    there is none, or a shallow one, the within-scope row is taken as written, and the note says SKIPPED."""
+    found: list[str] = []
+    full = root is not None and _history_absent(root) is None
+    for sha in dict.fromkeys(SHA.findall(said)):
+        if full and root is not None and _git(root, "rev-parse", "-q", "--verify", f"{sha}^{{commit}}") is None:
+            found.append(f"row 9's Bypass names {sha}, and no commit in this history is {sha} (round 2's M4)")
+            continue
+        named = [row for row in rows if len(row) >= 4
+                 and any(tok.startswith(sha[:7]) or sha.startswith(tok) for tok in SHA.findall(row[3]))]
+        if any(row[2].lower() == "bypass" for row in named):
+            continue
+        if any(row[2].lower() == "within-scope" for row in named):
+            gated = _gate_target(root, sha) if full and root is not None else None
+            if gated is None:
+                if notes is not None:
+                    notes.append(f"row 9's Bypass names {sha}, whose within-scope row this history cannot confirm")
+                continue
+            if gated in ("check-docs", "check-red"):
+                continue
+            found.append(f"row 9's Bypass names {sha}, a commit commit_gate gates with {gated}: its row cannot be "
+                         "within-scope; it is a bypass (the fixes review's M4)")
+            continue
+        found.append(f"row 9's Bypass names {sha}, and `docs/control-events.csv` has no row for {wave_id} or its "
+                     "milestone whose reason names it (the fixes review's M4)")
+    return found
+
+
+def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]], root: pathlib.Path | None = None,
+                         notes: list[str] | None = None) -> list[str]:
     """D-192 clause 3 (#202), as the M21-W4 review left it: each gate row 9 lists as skipped (the label in
     any case, its list split on commas outside parentheses), each checklist row whose status says SKIPPED or
     WAIVED, and a close whose field says `Session started in the repository: no`, has a
@@ -589,6 +723,32 @@ def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]]) -> li
     if len({a.lower() for a in answers}) > 1:
         problems.append("row 8's evidence says both `Session started in the repository: yes` and `no` (#202)")
     field = SESSION_FIELD.search(row8[2]) if row8 and len(row8) > 2 else None
+    bypass = re.search(r"Bypass:\s*(.*?)(?:\s\|\s|$)", text, re.M)
+    said = bypass.group(1).strip().strip("`. ") if bypass else ""
+    if said and not said.lower().startswith("none") and not any(
+            re.search(r"(?<![\w-])" + re.escape(row[0].strip()) + r"(?![\w-])", said, re.I) for row in rows):
+        problems.append(f"row 9's `Bypass: {said[:60]}` names no control `docs/control-events.csv` has a row for, for "
+                        f"{wave_id} or its milestone -- a bypass the ledger does not count is invisible to the "
+                        "three-row rule (#202, the M21 repo review's M1)")
+    if said and not said.lower().startswith("none"):
+        # Round 2's M4: each control of the ledger the field names needs a row of its own for the wave. Round 3's
+        # M4: a `bypass` or `skip` row, which the three-row rule counts, unless a row of it names a SHA the field
+        # names (`_bypassed_commits` then judges that row's kind).
+        shas = SHA.findall(said)
+        for control in dict.fromkeys(row[0].strip().lower() for row in ledger if row and row[0].strip()):
+            if not re.search(r"(?<![\w-])" + re.escape(control) + r"(?![\w-])", said, re.I):
+                continue
+            own = [row for row in rows if row[0].strip().lower() == control]
+            by_sha = any(len(row) >= 4 and any(tok.startswith(sha[:7]) or sha.startswith(tok) for sha in shas
+                                               for tok in SHA.findall(row[3])) for row in own)
+            if not own:
+                problems.append(f"row 9's `Bypass:` names `{control}`, and `docs/control-events.csv` has no `{control}` "
+                                f"row for {wave_id} or its milestone (round 2's M4)")
+            elif not by_sha and not any(len(row) >= 3 and row[2].strip().lower() in ("bypass", "skip") for row in own):
+                problems.append(f"row 9's `Bypass:` names `{control}` with no SHA of its rows, and its rows for {wave_id} "
+                                "or its milestone hold no `bypass` or `skip`, the kinds the three-row rule counts "
+                                "(round 3's M4)")
+        problems += _bypassed_commits(said, wave_id, rows, root, notes)
     if field and field.group(1).lower() == "no" and not ledgered("repository-hooks"):
         problems.append(f"the close says `Session started in the repository: no`, and `docs/control-events.csv` "
                         f"has no `repository-hooks` row for {wave_id} or its milestone (#202, #142)")
@@ -765,12 +925,15 @@ def main(argv: list[str]) -> int:
         bad.extend(history)
         if skipped:
             print(f"SKIPPED [wave-check]: {skipped}")
-        ledger_rows = ([[c.strip() for c in ln.split(",")]
-                        for ln in LEDGER.read_text(encoding="utf-8", errors="replace").splitlines()
-                        if ln.strip() and not ln.startswith("#")] if LEDGER.is_file() else [])
+        ledger_rows = (_ledger_rows(LEDGER.read_text(encoding="utf-8", errors="replace"))
+                       if LEDGER.is_file() else [])
         wave_ids = re.match(r"m(\d+)-wave-(\d+)", p.name)
         if wave_ids:
-            bad.extend(skip_ledger_problems(text, f"m{wave_ids.group(1)}-w{wave_ids.group(2)}", ledger_rows))
+            notes: list[str] = []
+            bad.extend(skip_ledger_problems(text, f"m{wave_ids.group(1)}-w{wave_ids.group(2)}", ledger_rows,
+                                            root=root, notes=notes))
+            for note in notes:
+                print(f"SKIPPED [wave-check]: {note}")
 
     if rows == 0:
         bad.append("no checklist rows found -- this is not a filled checklist")
@@ -797,22 +960,14 @@ def main(argv: list[str]) -> int:
     # gate red: the CONTROL goes under review, not the people. A counter nobody counts is prose.
     ledger_waves: set = set()        # the waves the ledger has a row for
     if LEDGER.is_file():
-        from collections import Counter
-        counts: Counter = Counter()
-        for ln in LEDGER.read_text(encoding="utf-8", errors="replace").splitlines():
-            if ln.startswith("#") or ln.lower().startswith("control,") or not ln.strip():
-                continue
-            cells = [c.strip() for c in ln.split(",")]
-            if len(cells) >= 2:
-                ledger_waves.add(cells[1])
-            if len(cells) >= 3 and cells[2].lower() in ("skip", "bypass"):
-                counts[cells[0]] += 1
-        for control, n in sorted(counts.items()):
-            if n >= 3:
-                bad.append(f"`{control}` has {n} recorded skip/bypass events in {LEDGER} -- three "
-                           "is the review threshold. The CONTROL goes under review before this wave "
-                           "closes: fix it, re-scope it, or refuse it in docs/refusals.md. Do not "
-                           "record a fourth")
+        ledger_list = _ledger_rows(LEDGER.read_text(encoding="utf-8", errors="replace"))
+        ledger_waves = {row[1] for row in ledger_list if len(row) >= 2}
+        bad.extend(ledger_problems(ledger_list))
+        for control in ledger_strikes(ledger_list):
+            bad.append(f"`{control}` has three or more skip/bypass events in {LEDGER} since its last ruling "
+                       "or review -- three is the review threshold. The CONTROL goes under review before this "
+                       "wave closes: fix it, re-scope it, or refuse it in docs/refusals.md, and record the "
+                       "ruling as a `ruling` row. Do not record a fourth")
     elif re.search(r"\|\s*(SKIPPED|WAIVED)\b", text):
         bad.append(f"this checklist carries SKIPPED/WAIVED rows but {LEDGER} does not exist -- a skip "
                    "that is not counted is a skip that becomes permanent. Create the ledger "

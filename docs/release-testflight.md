@@ -12,24 +12,49 @@ artifact, the deploy script, the app's icon, privacy manifest and Release addres
 needs your accounts, your card or your signing identity. **Deploy only after you have merged the
 release's pull requests and the release's security verdict of record,
 `docs/reviews/release-security.md`, is PASS or MINOR (not BLOCKING).** The first release was M19's
-(TestFlight build 1); the next is build 3, below.
+(TestFlight build 1); the next is v2, build 4, below.
 
-## Build 3 (M20), in this order
+## v2 (M20 + M21), in this order
 
-1. **Merge** the M20 pull requests in order: #213 (the plans), #215, #217, #221, #224, #225, then the
-   M20 closure. The M20 closure security seat says the release verdict stands for build 3
-   (`docs/reviews/m20-closure-security-review.md`).
-2. **Deploy the engine first** (§1 steps 1, 5 and 6). From M21 on, let the Mac refresh once with the new
-   release before the deploy (§1 step 1): `web-dev`'s board (D-190) and the split DeepSeek releases (D-189)
-   arrive with the data. The deploy refuses data another release built, a dry run included (#198): it
-   says which release built the data, and `DEPLOY_ACCEPT_DATA_FROM=<that release>` deploys it anyway.
-   `unknown` accepts only a record that names no builder (one written before #198), and says so; a copy
-   with no record beside it, or a record nobody can read, is always refused. An app built for M20 against the old engine shows
-   no family list, and says nothing about it.
-3. **Check the families are served:** `curl -s https://model-ranking.fly.dev/v1/categories | grep -c
+This replaces the build-3 list: build 3 was never uploaded, and v2 ships M20 and M21 together as build 4.
+The M21 closure security seat says the release verdict stands for v2, on six conditions
+(`docs/reviews/m21-closure-security-review.md`, "The release re-read"); each step below names its condition.
+
+1. **Merge** the M21 closure's pull request (`closure/m21`), with **Create a merge commit** (not squash
+   or rebase), so the close checks, which read the commit history (D-192), keep the history they read.
+   The waves are on `main` already: #251, merged on 2026-10-10 with a merge commit (`0640401`), carried
+   #213, #215, #217, #221, #224, #225, #229 (the M20 closure), #236, #240 and #250, and GitHub marked them
+   merged. Then `git checkout main && git pull`, and restart
+   every Claude Code session open in the clone (close it, then `cd ~/Desktop/ILGAR/model_ranking && claude`):
+   the pull brings a changed guard and its new pin, and a session keeps the hooks it started with, so an old
+   session blocks every Bash call and every write (`INSTALL.md`, "Changing the Bash guard").
+2. **Run `make hooks` once** in your clone. From then on the commit-msg gate runs on every `git commit`
+   and `git merge`, though not on `cherry-pick` or `rebase` (`make check-fast`; `make check-red` for a
+   declared red test commit; `make check-docs` for a docs-only one; `docs/refusals.md` R-1), and every
+   push runs `make gate`, which runs the compiled gate
+   (`make client-decls`). Nothing runs that gate automatically until you do (G-10; condition 2).
+   And start every Claude Code session in the repository (`cd ~/Desktop/ILGAR/model_ranking && claude`), so
+   its hooks load: the Bash guard, the Write refusal and the post-edit check load in no other session (#142;
+   your ruling of 2026-10-10 on `repository-hooks`). Then, once, in such a session, type `/hooks` and check
+   that the Bash hook is listed; its `onFailure` needs Claude Code 2.1.295 or later (`INSTALL.md`; the seat's S8).
+3. **Run `make check`** on `main`'s tip after the merges, before the archive: it includes
+   `client-decls` (condition 2).
+4. **Let the Mac's engine refresh once with the new release** (§1 step 1; condition 1). The data names
+   `web-dev`'s board (D-190) and the split DeepSeek releases (D-189), and the deploy refuses data another
+   release built (#198). Wait for a night that *publishes*: a night whose data is unchanged keeps the old
+   builder's name, and a refresh run by hand without `APP_BUILD` records `unknown`. Then
+   `<served>.refresh.json` names `release-<sha>` for `main`'s tip. Do not use `DEPLOY_ACCEPT_DATA_FROM`
+   for v2.
+5. **Deploy** (§1 steps 5 and 6). The build is stamped `release-<sha>-data-<digest>-from-<sha>`.
+6. **Check the families are served:** `curl -s https://model-ranking.fly.dev/v1/categories | grep -c
    refined_board` must print a number above 0.
-4. **Check that Fly sets the client's address** (below, after the cost note).
-5. **Archive and upload build 3** (§2 steps 3 and 4). The build number is already 3.
+7. **Check that Fly sets the client's address** (below, after the cost note; condition 3).
+8. **Archive and upload build 4** (§2 steps 3 and 4; condition 4). `MARKETING_VERSION` is 0.2.0 and
+   `CURRENT_PROJECT_VERSION` is 4 in the project already. Archive only after the deploy's `/health`
+   check passes; the `plutil` readback of the signed archive must say `https://model-ranking.fly.dev`.
+9. **Keep the habits** (condition 5): `fly auth logout` after each deploy, watch the usage page while
+   people test, and `fly scale count 0` stops the engine at once. **Before external testers**, rule on
+   D-185's table (D-186 clause 3; condition 6).
 
 ## 1. The engine on Fly.io (once)
 
@@ -37,8 +62,10 @@ release's pull requests and the release's security verdict of record,
    install`, then `scripts/install_engine_service.sh` (it keeps the home-network mode it finds). The
    hosted engine serves a copy of the data your Mac's engine built, so the Mac must run the code you
    deploy: let it refresh once after the install (the next night, between 23:00 and 01:00), and check
-   that `curl -s http://127.0.0.1:8080/health` names the new release and a refresh after it. Nothing
-   yet records which release built the data (#198).
+   that `curl -s http://127.0.0.1:8080/health` names the new release and a refresh after it. The refresh
+   records which release built the served data (`<served>.refresh.json`, `served_built_by`, #198), and
+   the deploy refuses data another release built: a night whose data is unchanged keeps the old
+   builder's name, and a refresh run by hand without `APP_BUILD` records `unknown`.
 2. **Log in and add a card.** `fly auth login`. Fly asks for a payment method before it places a
    machine, even the smallest (D-123): add one at https://fly.io/dashboard → Billing. The
    declared machine (`shared-cpu-1x`, 256 MB, always on; the script deploys one, `--ha=false`)
@@ -53,7 +80,8 @@ release's pull requests and the release's security verdict of record,
    against it on `127.0.0.1:18080`.
 5. **Deploy.** From the repository: `scripts/deploy_hosted_engine.sh --dry-run` first (it derives
    the public artifact and checks the tree), then `scripts/deploy_hosted_engine.sh`. It builds on
-   Fly's builder, stamps the build with the commit, and stops with an error unless
+   Fly's builder, stamps the build `release-<sha>-data-<digest>-from-<sha>` (the code's commit, the public
+   artifact's digest, and the release that built the data), and stops with an error unless
    `https://model-ranking.fly.dev/health` answers that build.
 6. **Check it.** `make journey URL=https://model-ranking.fly.dev` runs the customer journey against
    the hosted engine: `/health` names the build, a coding question gets real picks, and every

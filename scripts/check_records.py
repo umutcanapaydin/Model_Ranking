@@ -1569,6 +1569,14 @@ def adr_pointer_findings(root: Path) -> list[Finding]:
                     findings.append(Finding(Path("docs/decisions.md"), line, "A1",
                                             f"{adr} amends {target}, and {target} carries no `**Amended by "
                                             f"{adr}` line -- a reader of {target} sees the rule as it was (#200)"))
+    for adr, (line, body) in sections.items():
+        # The M21 repo review's M5: a pointer after the ADR's closing `---` reads as the next ADR's first line.
+        rules = [m.end() for m in re.finditer(r"^---\s*$", body, re.M)]
+        for pointer in re.finditer(r"^\*\*Amended by D-\d+", body, re.M):
+            if rules and pointer.start() > rules[-1]:
+                findings.append(Finding(Path("docs/decisions.md"), line + body.count("\n", 0, pointer.start()), "A1",
+                                        f"{adr}'s `{pointer.group(0)}` line sits below its closing `---`, where a "
+                                        "reader takes it for the next ADR's first line -- move it above (#200)"))
     return findings
 
 

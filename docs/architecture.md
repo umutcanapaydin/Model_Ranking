@@ -239,7 +239,14 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
      plus `none`. A last closed field says whether the input is a search for a model at all
      (D-169 as amended). `ModelOutputBoundary` then drops any surface the engine did not serve and
      any refinement the chosen surface does not allow.
-  2. The wording tier: first the words that name a surface outright, in English and Turkish
+  2. The wording tier. Before it, a question made only of ranked families' names, tiers and Turkish
+     particles is a comparison, answered from `everyday` (D-191 clause 1, `Router.swift`). The family
+     names are `Engine/ModelFamilies.swift`, a file generated from the engine's registry
+     (`src/app/workflows/registry.py`) by `scripts/model_family_words.py` and held equal to it byte for
+     byte by `tests/unit/test_model_families.py`: a build-time dependency from `src/` into `ios/`, so the
+     phone's family words change only with an app build, and a registry change regenerates the file in the
+     same change. A reading that is not a search, or unsure, is held for the reader in
+     `Engine/HeldReading.swift`. Then the words that name a surface outright, in English and Turkish
      (`CategoryHints.surfaceWords`, D-187), then sentence similarity (`NLEmbedding`) against example
      questions for each surface. The words need no model and no embedding; where the embedding
      cannot run, a question about AI models in general is answered from `everyday`.

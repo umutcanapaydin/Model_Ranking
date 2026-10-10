@@ -6527,11 +6527,22 @@
 (source_file "/x/Imports.swift"
   (import_decl range=[/x/Imports.swift:3:1 - line:3:8] module="Foundation")
   (import_decl range=[/x/Imports.swift:4:1 - line:4:8] module="Network")
-  (func_decl range=[/x/Imports.swift:6:1 - line:6:38] "fixtureImportsOnly()" interface_type="() -> Int" access=internal result="Int" thrown_type="<null>"
-    (parameter_list range=[/x/Imports.swift:6:24 - line:6:25])
-    (brace_stmt range=[/x/Imports.swift:6:34 - line:6:38]
-      (return_stmt implicit range=[/x/Imports.swift:6:36 - line:6:36]
-        (integer_literal_expr type="Int" location=/x/Imports.swift:6:36 range=[/x/Imports.swift:6:36 - line:6:36] value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+  (import_decl range=[/x/Imports.swift:5:1 - line:5:8] module="ObjectiveC")
+  (func_decl range=[/x/Imports.swift:7:1 - line:7:38] "fixtureImportsOnly()" interface_type="() -> Int" access=internal result="Int" thrown_type="<null>"
+    (parameter_list range=[/x/Imports.swift:7:24 - line:7:25])
+    (brace_stmt range=[/x/Imports.swift:7:34 - line:7:38]
+      (return_stmt implicit range=[/x/Imports.swift:7:36 - line:7:36]
+        (integer_literal_expr type="Int" location=/x/Imports.swift:7:36 range=[/x/Imports.swift:7:36 - line:7:36] value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))))
+  (func_decl range=[/x/Imports.swift:11:1 - line:11:81] "fixtureRuntimeSelector()" interface_type="() -> Selector" access=internal result="Selector" thrown_type="<null>"
+    (parameter_list range=[/x/Imports.swift:11:28 - line:11:29])
+    (brace_stmt range=[/x/Imports.swift:11:43 - line:11:81]
+      (return_stmt implicit range=[/x/Imports.swift:11:45 - line:11:79]
+        (call_expr type="Selector" location=/x/Imports.swift:11:45 range=[/x/Imports.swift:11:45 - line:11:79] nothrow isolation_crossing="none"
+          (declref_expr type="(UnsafePointer<CChar>) -> Selector" location=/x/Imports.swift:11:45 range=[/x/Imports.swift:11:45 - line:11:45] decl="ObjectiveC.(file).sel_registerName@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk/usr/include/objc/objc.h:162:26" function_ref=single apply)
+          (argument_list
+            (argument
+              (string_to_pointer implicit type="UnsafePointer<CChar>" location=/x/Imports.swift:11:62 range=[/x/Imports.swift:11:62 - line:11:62]
+                (string_literal_expr type="String" location=/x/Imports.swift:11:62 range=[/x/Imports.swift:11:62 - line:11:62] encoding=utf8 value="fixtureSelector" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
 (source_file "/x/Models.swift"
   (import_decl range=[/x/Models.swift:3:1 - line:3:8] module="Foundation")
   (struct_decl range=[/x/Models.swift:5:1 - line:10:1] "Standing" interface_type="Standing.Type" access=internal non_resilient inherits="Decodable"

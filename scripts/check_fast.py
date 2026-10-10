@@ -42,9 +42,12 @@ order. A test that is red only in parallel teaches people to ignore red; mark it
 Each leg writes its own log under `build/check-fast/`. Every leg is reported, a failed one with the
 tail of its log.
 
-    python3 scripts/check_fast.py [--make make] [--plan]
+    python3 scripts/check_fast.py [--make make] [--plan] [--without TARGET...] [--with TARGET...]
 
 `--plan` prints `leg: target target...`, one leg per line, and runs nothing.
+`--without` leaves out `check:` prerequisites, and `--with` adds make targets outside `check:`, each a leg of
+its own: `make check-red` and `make check-docs` are check-fast so changed (`scripts/commit_gate.py`). A name
+`--without` finds in no `check:` line, or `--with` finds no target for or finds in `check:` already, FAILS.
 Exit: 0 every leg passed (or the plan was printed) · 1 a leg failed, or the legs cannot be derived
 or the two settings are invalid · 2 cannot run (make not installed).
 """
@@ -137,6 +140,21 @@ def settings(prereqs: list[str], own: list[str],
         else:
             forms[target] = form
     return list(dict.fromkeys(own)), forms, problems
+
+
+def without(prereqs: list[str], names: list[str]) -> tuple[list[str], list[str]]:
+    """(the prerequisites left, problems): `--without` drops these `check:` prerequisites, and a name that is
+    not one fails, as CHECK_FAST_FORMS does, so a typo cannot keep a leg that was meant to go."""
+    problems = [f"`{name}` in --without is not a prerequisite of `check:`" for name in names if name not in prereqs]
+    return [t for t in prereqs if t not in names], problems
+
+
+def added(makefile: str, names: list[str]) -> list[str]:
+    """The problems with `--with`: each name must be a make target, and not a `check:` prerequisite already."""
+    prereqs = check_prerequisites(makefile)
+    return [f"`{name}` in --with is a prerequisite of `check:` already" if name in prereqs else
+            f"`{name}` in --with is not a make target"
+            for name in names if name in prereqs or not re.search(rf"^{re.escape(name)}:(?![:=])", makefile, re.M)]
 
 
 def legs(prereqs: list[str], own: list[str] | None = None) -> dict[str, list[str]]:
@@ -250,6 +268,10 @@ def main(argv: list[str]) -> int:
                                      description="the legs of `make check`, run side by side")
     parser.add_argument("--make", default="make", help="the make to start each leg with")
     parser.add_argument("--plan", action="store_true", help="print the legs and run nothing")
+    parser.add_argument("--without", nargs="+", default=[], metavar="TARGET",
+                        help="`check:` prerequisites to leave out (`make check-red`, `make check-docs`)")
+    parser.add_argument("--with", dest="extra", nargs="+", default=[], metavar="TARGET",
+                        help="make targets outside `check:`, each run as a leg of its own (`make check-red`)")
     args = parser.parse_args(argv)
     if shutil.which(args.make) is None:
         print(f"check-fast CANNOT RUN: {args.make} not installed: cannot run the legs of "
@@ -261,8 +283,10 @@ def main(argv: list[str]) -> int:
         text = MAKEFILE.read_text(encoding="utf-8")
         if STACK_MK.is_file():
             text += "\n" + STACK_MK.read_text(encoding="utf-8")
-        prereqs = check_prerequisites(text)
-        own, forms, problems = settings(prereqs, *config(args.make))
+        prereqs, dropped = without(check_prerequisites(text), args.without)
+        own, forms, problems = settings(check_prerequisites(text), *config(args.make))
+        problems += dropped + added(text, args.extra)
+        own = [t for t in own if t in prereqs]
     except (OSError, ValueError) as exc:
         print(f"check-fast FAIL: {exc}")
         return 1
@@ -271,6 +295,7 @@ def main(argv: list[str]) -> int:
     if problems:
         return 1
     plan = legs(prereqs, own)
+    plan.update({t: [t] for t in args.extra})
     if args.plan:
         for name, targets in plan.items():
             print(f"{name}: {shown(targets, forms)}")

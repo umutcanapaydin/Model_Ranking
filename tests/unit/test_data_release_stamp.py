@@ -164,3 +164,24 @@ def test_nights_not_published_in_a_row_keep_naming_the_served_build(
     for night, code in enumerate((EXIT_FAILED, EXIT_REFUSED, EXIT_FAILED)):
         record = _cycle(target, code)
         assert (record["built_by"], record["served_built_by"]) == ("release-bbbbbbb", "release-aaaaaaa"), night
+
+
+# --- The M21 closure security seat (docs/reviews/m21-closure-security-review.md, S5) ----------------------
+
+
+@pytest.mark.parametrize("record", [None, "not json"])
+def test_no_name_accepts_a_missing_or_unreadable_record(tmp_path: Path, record: str | None) -> None:
+    """S5 (mutant D1): with the missing-or-unreadable refusal removed, the general refusal named the record's
+    state, and `DEPLOY_ACCEPT_DATA_FROM=missing` then deployed a copy no record dates. Neither name is
+    accepted, and no refusal suggests either."""
+    _repo, served, calls, env = _scratch(tmp_path)
+    if record is None:
+        status_path(served).unlink()
+    else:
+        status_path(served).write_text(record, encoding="utf-8")
+    state = "missing" if record is None else "unreadable"
+    done = _deploy({**env, "DEPLOY_ACCEPT_DATA_FROM": state})
+    assert done.returncode != 0, done.stdout + done.stderr
+    assert not calls.exists()
+    assert "DEPLOY_ACCEPT_DATA_FROM=missing" not in done.stderr
+    assert "DEPLOY_ACCEPT_DATA_FROM=unreadable" not in done.stderr
