@@ -389,6 +389,8 @@ def main() -> int:
                   # The M21 closure fixes review's M6: a destination given as an option, and another case.
                   'cp -t .claude/hooks x.py', 'cp --target-directory=.githooks x', 'install -t .githooks x',
                   'dd if=x of=.claude/settings.json', 'cp x .CLAUDE/settings.json',
+                  # Round 3, M2 and M7: `-t` ending a cluster, a value holding a `t`, and `install -d`'s every path.
+                  'install -vt .githooks x', 'install -ostaff x .githooks/commit-msg', 'install -d .githooks/x build',
                   # It blocks what it cannot read: an unclosed quote, substitution or backtick (no case held these).
                   "echo 'not closed", 'echo "not closed', 'echo $(date', 'echo `date', 'echo ${HOME']
     MUST_ALLOW = ["git push -u origin fix/issue-3", "git push origin enhancement/x", "git push",
@@ -426,7 +428,9 @@ def main() -> int:
                   'shasum -a 256 .claude/hooks/bash_guard.py', 'grep -n onFailure .claude/settings.json',
                   # The M21 closure fixes review, round 2, M6: `-t` is a destination for cp, mv, ln and install only,
                   # and with one the last word is a source; rsync's `-t` keeps times.
-                  'rsync -t .claude/settings.json /tmp/out', 'cp -t /tmp/out .claude/settings.json']
+                  'rsync -t .claude/settings.json /tmp/out', 'cp -t /tmp/out .claude/settings.json',
+                  # Round 3, M2: an option that takes a value is no `-t`, though its value holds a `t`.
+                  'install -o root .claude/settings.json /tmp/out']
     bash_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
                       if h.get("matcher") == "Bash"), None)
     env_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
@@ -528,6 +532,13 @@ def main() -> int:
             (worktree / ".git").write_text("gitdir: /nowhere/.git/worktrees/worktree\n", encoding="utf-8")
             (trees / "worktree-hooks").symlink_to(worktree / ".githooks")
             at_home = {"HOME": str(home)}
+            # Round 3, M1: Claude Code makes worktrees inside a repository's `.claude/` (`claude --worktree`, a
+            # subagent's `isolation: "worktree"`). Such a worktree is its own work tree: its files are writable,
+            # its own `.claude/` and `.githooks/` are not.
+            inner = clone / ".claude" / "worktrees" / "x"
+            for d in (inner / "src", inner / ".claude", inner / ".githooks"):
+                d.mkdir(parents=True)
+            (inner / ".git").write_text("gitdir: /nowhere/.git/worktrees/x\n", encoding="utf-8")
             if bash_hook is not None:
                 cases += [("Bash", f"`{c}` from {cwd.relative_to(trees)}", cmd(c, cwd), want, None, extra)
                           for c, cwd, want, extra in (
@@ -544,7 +555,32 @@ def main() -> int:
                               ("cp notes.md .claude/settings.json", plain, False, {}),
                               ("cat .githooks/commit-msg", worktree, False, {}),
                               ("mkdir -p ~/.claude/plans", plain, False, at_home),
-                              ('cp notes.md "$HOME/.claude/CLAUDE.md"', plain, False, at_home))]
+                              ('cp notes.md "$HOME/.claude/CLAUDE.md"', plain, False, at_home),
+                              # Round 3, M1: a worktree inside the clone's `.claude/` is a work tree of its own.
+                              ("echo x > src/f.py", inner, False, {}),
+                              ("touch src/new.py", inner, False, {}),
+                              ("echo x > .githooks/commit-msg", inner, True, {}),
+                              ("cp x .claude/settings.json", inner, True, {}),
+                              # M1: in commands joined by `;`, `&&`, `||` and pipes, a `cd` that leaves a directory
+                              # leaves it; a `cd` that may fail keeps the directory before it.
+                              ("cd .claude && ls && cd .. && echo x > notes.txt", clone, False, {}),
+                              ("cd .claude && ls | head -3 && cd .. && echo x > notes.txt", clone, False, {}),
+                              ("cd ~ && mkdir -p .claude/plans", clone, False, at_home),
+                              ("cd a1 && cd a2 && cd a3 && cd a4 && cd a5 && cd a6 && cd a7 && cd a8 && touch f", plain,
+                               False, {}),
+                              ("cd .claude; echo x > notes.txt", clone, True, {}),
+                              ("cd ios && cd .. && touch .githooks/x", worktree, True, {}),
+                              ("cd ios || echo no; touch .githooks/x", worktree, True, {}),
+                              ("cd .claude || echo x > notes.txt", clone, False, {}),
+                              # `time` runs its `cd` in the shell, as `builtin` and `command` do; a subshell's `cd`
+                              # moves nothing after it, and an `eval`'s moves everything after it.
+                              ("time cd .githooks; touch commit-msg", worktree, True, {}),
+                              ("(cd ios) && touch .githooks/x", worktree, True, {}),
+                              ('eval "cd .githooks" && touch commit-msg', worktree, True, {}),
+                              # Round 3, M7: elsewhere every directory a `cd` reached is kept, and each `cd` is taken
+                              # from each of them -- after one made in a subshell, too (G13) -- up to MAX_DIRS (G14).
+                              ("(cd ios); cd .githooks && touch x", worktree, True, {}),
+                              ("(cd a1; cd a2; cd a3; cd a4; cd a5; cd a6; cd a7; cd a8)", plain, True, {}))]
             if env_hook:
                 cases += [("Write", f"a write to `{f}`" + (f" from {cwd.relative_to(trees)}" if cwd else ""),
                            fpath(f, cwd), want, None, extra)
@@ -558,7 +594,12 @@ def main() -> int:
                               (str(trees / "worktree-hooks" / "pre-push"), None, True, {}),
                               (str(plain / ".claude" / "settings.json"), None, False, {}),
                               (".claude/x", plain, False, {}),
-                              (str(home / ".claude" / "projects" / "x" / "MEMORY.md"), None, False, at_home))]
+                              (str(home / ".claude" / "projects" / "x" / "MEMORY.md"), None, False, at_home),
+                              # Round 3, M1: a worktree inside the clone's `.claude/`.
+                              (str(inner / "src" / "f.py"), None, False, {}),
+                              ("src/f.py", inner, False, {}),
+                              (str(inner / ".claude" / "settings.json"), None, True, {}),
+                              (str(clone / ".claude" / "settings.json"), None, True, {}))]
                 # One refusal for both hooks: the Write hook runs the pinned guard, so a changed guard blocks it too.
                 cases.append(("Write", "a write with the guard changed by one byte", fpath("README.md"), True, None,
                               {"CLAUDE_PROJECT_DIR": str(changed)}))
@@ -566,8 +607,25 @@ def main() -> int:
             # project, which an agent writes) changes nothing. With a json.py there that exits 0, the text reading
             # still blocks with its own message, and the Write hook still refuses.
             for kind, entry in (("Bash", bash_hook), ("Write", env_hook)):
-                for unisolated in re.findall(r'"\$py"\s+(?!-I\b|\])[^;|]{0,40}', entry or ""):
-                    bad.append(f"the PreToolUse {kind} hook starts an interpreter without -I: `{unisolated}`")
+                for unisolated in re.findall(r'"\$py"\s+(?!-I -S\b|\])[^;|]{0,40}', entry or ""):
+                    bad.append(f"the PreToolUse {kind} hook starts an interpreter without -I -S: `{unisolated}`")
+            # Round 3, R1: `-S` too, so the site-packages of the interpreter found on PATH change nothing: a `.venv`
+            # first on PATH whose site-packages holds a `.pth` that ends the guard with exit 0 changes no verdict.
+            venv = pathlib.Path(tmp) / "venv"
+            made = subprocess.run([sys.executable, "-m", "venv", "--without-pip", str(venv)], capture_output=True,
+                                  timeout=120, check=False)
+            site = next(iter(sorted((venv / "lib").glob("python*/site-packages"))), None) if made.returncode == 0 else None
+            if site is None:
+                unevaluable.append("no virtual environment could be made here, so the -S case was not graded")
+            else:
+                (site / "zz_guard.pth").write_text('import os, sys; sys.argv[:1] and sys.argv[0].endswith("bash_guard.py")'
+                                                   ' and os._exit(0)\n', encoding="utf-8")
+                first = os.pathsep.join((str(venv / "bin"), os.environ.get("PATH", "")))
+                for kind, entry, payload in (("Bash", bash_hook, cmd("echo x > .githooks/commit-msg")),
+                                             ("Write", env_hook, fpath(".githooks/commit-msg"))):
+                    if entry and run_hook(bash, entry, payload, first).returncode != 2:
+                        bad.append(f"the PreToolUse {kind} hook let a write into .githooks/ through with a .pth in the "
+                                   "site-packages of the python3 first on PATH")
             planted = pathlib.Path(tmp) / "planted"
             planted.mkdir()
             (planted / "json.py").write_text("import sys\nsys.exit(0)\n", encoding="utf-8")
