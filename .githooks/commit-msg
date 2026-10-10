@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# commit-msg -- the owner's ruling of 2026-10-10 on `commit-after-check-fast` ("fix and narrow"), as the M21
+# closure applies it (docs/refusals.md R-1). Install once per clone: `make hooks`. It runs on `git merge` too.
+#
+# HEAD's copy of scripts/commit_gate.py names the gate from the staged paths (both sides of a rename) and the
+# subject, and the commit is refused when that gate fails:
+#   check-fast  -- any commit;
+#   check-red   -- a declared red test commit (`test: ..., red`, with a test staged): check-fast without the
+#                  legs that run tests;
+#   check-docs  -- a docs-only commit: check-fast without the Swift tests and the compiled gate.
+#
+# BYPASS. A human may commit with `git commit --no-verify` when that is right, and adds the row to
+# `docs/control-events.csv`; an agent never does.
+#
+# Exit: 0 the gate passed . non-zero commit refused.
+set -uo pipefail
+message="$1"
+case "$message" in /*) ;; *) message="$PWD/$message" ;; esac
+cd "$(git rev-parse --show-toplevel)" || exit 1
+refuse() { echo "commit-msg REFUSED the commit: $1" >&2; exit 1; }
+py="$(command -v python3 || command -v python)" || refuse "no python3 or python on PATH (see INSTALL.md)"
+# HEAD's copy of the gate, so a commit that changes the gate is not judged by its own change.
+gate="scripts/commit_gate.py" copy=""
+if git cat-file -e HEAD:scripts/commit_gate.py 2>/dev/null; then
+  copy="$(mktemp)" || refuse "no temporary file for HEAD's scripts/commit_gate.py"
+  git show HEAD:scripts/commit_gate.py > "$copy" || { rm -f "$copy"; refuse "HEAD's scripts/commit_gate.py cannot be read"; }
+  gate="$copy"
+fi
+# Read the index git is committing (GIT_INDEX_FILE may name a temporary one) before the environment is cleared.
+target="$("$py" -B "$gate" --message-file "$message")"
+status=$?
+[ -n "$copy" ] && rm -f "$copy"
+[ $status -eq 0 ] && [ -n "$target" ] || refuse "scripts/commit_gate.py could not name the gate"
+# Git exports GIT_DIR and GIT_INDEX_FILE to hooks; the gate's controls run git in throwaway repositories.
+unset $(git rev-parse --local-env-vars)
+command -v make >/dev/null 2>&1 || refuse "make not found (see INSTALL.md); make $target did not run"
+
+echo "commit-msg: running make $target"
+if make "$target"; then
+  exit 0
+fi
+refuse "make $target failed above. Fix it; a human may bypass with --no-verify and must add the row to docs/control-events.csv."
