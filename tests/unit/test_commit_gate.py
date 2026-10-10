@@ -259,3 +259,16 @@ def test_r1_says_who_checks_a_red_commit_and_claims_no_check_nobody_holds() -> N
         assert "Tester checks that each" not in re.sub(r"\s+", " ", text)
     assert "SKILL.md" in r1 and "no role definition" in r1 and "may carry code" in r1, r1
     assert "swift-build-tests" in r1 and "pytest-collect" in r1, r1
+
+
+def test_the_hook_runs_only_the_three_gates(tmp_path: Path) -> None:
+    """Round 2, R1: the hook ran whatever name HEAD's gate printed, so a committed gate that printed `help` let
+    the next commit pass on `make help`. A name other than check-fast, check-red or check-docs is refused."""
+    repo, log, env = _repo(tmp_path)
+    assert _commit(repo, env, "src/app/x.py", "fix: x").returncode == 0
+    (repo / "scripts" / "commit_gate.py").write_text("print('help')\n", encoding="utf-8")
+    _git(repo, env, "add", "scripts/commit_gate.py")
+    assert _git(repo, env, "commit", "-q", "-m", "fix: the gate").returncode == 0  # judged by HEAD's real gate
+    done = _commit(repo, env, "src/app/y.py", "fix: y")
+    assert done.returncode != 0 and "help" in done.stderr and "REFUSED" in done.stderr, done
+    assert "help" not in _logged(log)
