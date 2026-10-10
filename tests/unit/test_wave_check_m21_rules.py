@@ -10,6 +10,10 @@
 The history rules hold closes dated from 2026-10-10. Where there is no history (no git, or a shallow
 clone, as CI's test job checks out), they say SKIPPED; where the history is there and the range cannot be
 read, the close fails.
+
+No test here reads this checkout's history: the history tests build a repository of their own (they need
+the git binary, which every host that runs the suite has), and the rest read files or text. So none is
+marked `needs("git")`, and a tree from `git archive` runs them all (the M21-W4 Tester's M4).
 """
 
 from __future__ import annotations
@@ -19,8 +23,6 @@ import os
 import subprocess
 from pathlib import Path
 from types import ModuleType
-
-import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -77,7 +79,7 @@ def test_an_amends_with_no_pointer_back_is_refused(tmp_path: Path) -> None:
     found = [f.msg for f in check.adr_pointer_findings(root)]
     assert any("D-2" in m and "D-1" in m for m in found), found
     assert any("D-3" in m and "D-2" in m for m in found), found
-    assert not any("D-3" in m and "D-2 clause" in m for m in found), "`**applies**` is no amendment"
+    assert not any(m.startswith("D-2 amends D-3,") for m in found), "`**applies**` is no amendment"
 
 
 def test_an_amends_with_its_pointer_back_passes_and_applies_is_not_read(tmp_path: Path) -> None:
@@ -719,5 +721,3 @@ def test_a_merged_close_edited_on_a_later_branch_still_says_skipped(tmp_path: Pa
     _closed(root, fixed, "2026-10-10T20:00:00")
     problems, skipped = check.history_problems(close, fixed, root)
     assert problems == [] and skipped and "merged" in skipped, (problems, skipped)
-
-pytestmark = pytest.mark.needs("git")
