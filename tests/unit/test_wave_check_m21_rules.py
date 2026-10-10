@@ -1059,3 +1059,22 @@ def test_the_ledger_records_each_closure_commit_made_without_its_own_green_tree(
     for sha in ("cd563f5", "85f80e3"):
         assert any(row[:3] == ["commit-after-check-fast", "m21-closure", "bypass"] and row[3].startswith(sha)
                    for row in rows), sha
+
+
+def test_the_records_say_what_the_hooks_hold_after_round_2() -> None:
+    """Round 2, B1, M6 and M8: G-7 claimed `-I` keeps any module from changing what runs, true of the guard file
+    only, and described a refusal for this project's directories alone; the runbook's v2 order had no restart,
+    so a session open at the pull blocks every Bash call; AGENTS.md said commit-msg gates every commit, and git
+    runs it on `git commit` and `git merge` only."""
+    runbook = (ROOT / "docs" / "release-testflight.md").read_text(encoding="utf-8")
+    step1 = re.sub(r"\s+", " ", runbook.split("## v2", 1)[1].split("\n2. ", 1)[0])
+    assert "restart" in step1 and "Claude Code session" in step1 and "INSTALL.md" in step1, step1
+    agents = re.sub(r"\s+", " ", (ROOT / "AGENTS.md").read_text(encoding="utf-8"))
+    assert "gates every commit" not in agents and "`git commit` and `git merge`" in agents
+    g7 = next(line for line in (ROOT / "docs" / "security-invariants.md").read_text(encoding="utf-8").splitlines()
+              if line.startswith("| G-7 |"))
+    assert "neither a changed guard nor a module placed beside it changes what runs" not in g7
+    assert "every interpreter" in g7 and "site-packages" in g7, "G-7 says what -I covers and what it does not"
+    assert "linked worktree" in g7 and "this project's own" not in g7, "G-7 says which writes are refused"
+    install = re.sub(r"\s+", " ", (ROOT / "INSTALL.md").read_text(encoding="utf-8"))
+    assert "both hooks" in install, "INSTALL.md says the pin is in both hooks"
