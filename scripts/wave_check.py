@@ -632,36 +632,41 @@ SHA = re.compile(r"\b[0-9a-f]{7,40}\b")
 
 
 def _gate_target(root: pathlib.Path, sha: str) -> str | None:
-    """What scripts/commit_gate.py names for a commit (its paths with --no-renames, its subject), or None when
-    the history cannot show the commit."""
+    """What scripts/commit_gate.py names for a commit (its paths with --no-renames, its subject; a merge is
+    never docs-only or red, round 2's M4), or None when the history cannot show the commit."""
     import importlib.util
 
     paths = _git(root, "show", "--no-renames", "--name-only", "--format=", sha)
     subject = _git(root, "log", "-1", "--format=%s", sha)
-    if paths is None or subject is None:
+    parents = _git(root, "rev-list", "--parents", "-n", "1", sha)
+    if paths is None or subject is None or parents is None:
         return None
     spec = importlib.util.spec_from_file_location("commit_gate", pathlib.Path(__file__).resolve().parent / "commit_gate.py")
     if spec is None or spec.loader is None:
         return None
     gate = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gate)
-    return str(gate.target([p for p in paths.splitlines() if p], subject))
+    return str(gate.target([p for p in paths.splitlines() if p], subject, merge=len(parents.split()) > 2))
 
 
 def _bypassed_commits(said: str, wave_id: str, rows: list[list[str]], root: pathlib.Path | None,
                       notes: list[str] | None) -> list[str]:
     """The fixes review's M4: each commit row 9's Bypass names has a ledger row of the wave or its milestone whose
     reason names it -- a `bypass`, or a `within-scope` only where the commit is docs-only or a declared red test
-    commit by commit_gate's own rule. Where the history cannot show the commit, the within-scope row is taken
-    as written, and the note says SKIPPED."""
+    commit by commit_gate's own rule. On a full history a SHA no commit holds is a problem (round 2); where
+    there is none, or a shallow one, the within-scope row is taken as written, and the note says SKIPPED."""
     found: list[str] = []
+    full = root is not None and _history_absent(root) is None
     for sha in dict.fromkeys(SHA.findall(said)):
+        if full and root is not None and _git(root, "rev-parse", "-q", "--verify", f"{sha}^{{commit}}") is None:
+            found.append(f"row 9's Bypass names {sha}, and no commit in this history is {sha} (round 2's M4)")
+            continue
         named = [row for row in rows if len(row) >= 4
                  and any(tok.startswith(sha[:7]) or sha.startswith(tok) for tok in SHA.findall(row[3]))]
         if any(row[2].lower() == "bypass" for row in named):
             continue
         if any(row[2].lower() == "within-scope" for row in named):
-            gated = _gate_target(root, sha) if root is not None and not _history_absent(root) else None
+            gated = _gate_target(root, sha) if full and root is not None else None
             if gated is None:
                 if notes is not None:
                     notes.append(f"row 9's Bypass names {sha}, whose within-scope row this history cannot confirm")
@@ -724,6 +729,11 @@ def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]], root:
                         f"{wave_id} or its milestone -- a bypass the ledger does not count is invisible to the "
                         "three-row rule (#202, the M21 repo review's M1)")
     if said and not said.lower().startswith("none"):
+        # Round 2's M4: each control of the ledger the field names needs a row of its own for the wave.
+        for control in dict.fromkeys(row[0].strip().lower() for row in ledger if row and row[0].strip()):
+            if re.search(r"(?<![\w-])" + re.escape(control) + r"(?![\w-])", said, re.I) and not ledgered(control):
+                problems.append(f"row 9's `Bypass:` names `{control}`, and `docs/control-events.csv` has no `{control}` "
+                                f"row for {wave_id} or its milestone (round 2's M4)")
         problems += _bypassed_commits(said, wave_id, rows, root, notes)
     if field and field.group(1).lower() == "no" and not ledgered("repository-hooks"):
         problems.append(f"the close says `Session started in the repository: no`, and `docs/control-events.csv` "
