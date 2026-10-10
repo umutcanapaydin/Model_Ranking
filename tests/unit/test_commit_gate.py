@@ -162,6 +162,36 @@ def test_the_subject_is_read_as_git_records_it(tmp_path: Path, form: str, messag
     assert _logged(log) == [target] == [_gate().target(["tests/test_x.py"], recorded)], recorded
 
 
+SCISSORS = "# ------------------------ >8 ------------------------"
+
+
+@pytest.mark.parametrize(("config", "message", "target"), [
+    # core.commentChar: the editor drops the lines that start with it, and keeps `#` ones (mutant X3).
+    ({"core.commentChar": ";"}, "test: y\n; red", "check-fast"),
+    ({"core.commentChar": ";"}, "test: y\n# red", "check-red"),
+    # commit.cleanup whitespace keeps comment lines in the editor too (mutant X4).
+    ({"commit.cleanup": "whitespace"}, "# a note\ntest: y, red", "check-fast"),
+    # The scissors cut drops the line and what follows, under commit.cleanup scissors or commit.verbose (X5).
+    ({"commit.cleanup": "scissors"}, f"test: y\n{SCISSORS}\nred", "check-fast"),
+    ({"commit.verbose": "true"}, f"test: y\n{SCISSORS}\nred", "check-fast"),
+])
+def test_the_subject_follows_gits_cleanup_settings(tmp_path: Path, config: dict[str, str], message: str,
+                                                   target: str) -> None:
+    """Round 3, M7: the gate reads core.commentChar, commit.cleanup and the scissors cut, and no case held any of
+    them (mutants X3, X4 and X5 survived). Each is read as git records the subject, in the editor form."""
+    repo, log, env = _repo(tmp_path)
+    for key, value in config.items():
+        _git(repo, env, "config", key, value)
+    (repo / "tests").mkdir()
+    (repo / "tests" / "test_x.py").write_text("x = 1\n", encoding="utf-8")
+    _git(repo, env, "add", "tests/test_x.py")
+    done = subprocess.run([env["GIT"], "commit", "-q"], cwd=repo, env={**env, "GIT_EDITOR": _editor(tmp_path, message)},
+                          capture_output=True, text=True, timeout=60, check=False)
+    assert done.returncode == 0, done
+    recorded = _git(repo, env, "log", "-1", "--format=%s").stdout.strip()
+    assert _logged(log) == [target] == [_gate().target(["tests/test_x.py"], recorded)], recorded
+
+
 def test_a_reworded_amend_runs_check_fast(tmp_path: Path) -> None:
     """Round 2, M1: an amend that only rewords stages nothing, and was gated as docs-only, so a Swift red commit
     reworded to `fix:` landed without the Swift tests."""
