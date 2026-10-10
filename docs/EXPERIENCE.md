@@ -1030,7 +1030,8 @@ Engineering shapes worth keeping:
    see them. The owner ruled on the control: fix it with a hook and narrow it for docs. The first hook
    refused every red test commit, which the DevFlow makes on purpose, and the closure fixes review
    called it BLOCKING. A gate's exceptions are part of the gate. The commit-msg hook now reads the
-   subject, so a declared red commit runs every leg but the tests. A docs-only commit skips only the
+   subject, so a declared red commit skips the tests and the compiled privacy gate, whose self-test a red
+   commit's new fixture shape fails by design. A docs-only commit skips only the
    Swift legs, because the Python legs read Markdown too.
 5. **A guard is code, and its own target.** The guard's second reading drew two BLOCKING verdicts on
    its lexer. The closure seat then found two more problems: an agent could rewrite the guard in the

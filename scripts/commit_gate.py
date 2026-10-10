@@ -17,9 +17,11 @@ none lies under a code directory (CODE_DIRS). A file under `docs/` that is not M
 that reads Markdown; it leaves out only the Swift tests and the compiled gate, which read none
 (`tests/unit/test_commit_gate.py`).
 
-`check-red` leaves out the legs that run tests (`test`, `swift-test`, `conformance`, `client-decls`), and
-builds instead: `swift-build-tests` compiles the Swift package and its tests, and `pytest-collect` imports
-every Python test, so a red commit has no build or collection error. Lint, types and the records must pass.
+`check-red` leaves out the legs that run tests (`test`, `swift-test`, `conformance`) and the compiled privacy
+gate (`client-decls`): its self-test compares the fixture with the committed dump, and a red commit may add a
+shape the gate does not refuse yet. It builds instead: `swift-build-tests` compiles the Swift package and its
+tests, and `pytest-collect` imports every Python test, so a red commit has no build or collection error. Lint,
+types and the records must pass. The client outside the Engine package is compiled by `client-decls` only.
 Who checks that a red commit fails as it should: `docs/refusals.md` R-1.
 
 The subject is the one git records (`%s`, the fixes review's round 2, M1): the message after the cleanup git
