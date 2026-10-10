@@ -420,7 +420,8 @@ def history_problems(close: pathlib.Path, text: str, root: pathlib.Path) -> tupl
     """D-192 clause 2, as the M21-W4 review left it: what a close owes its wave's history.
 
     The range is read as `git diff A...B` reads it, from the merge base of its two ends, whatever its dots
-    (M4), and an end `HEAD` is pinned to the commit that added the close. It starts at the wave's base or
+    (M4), and an end `HEAD` is pinned to the last commit that changes the close, or HEAD while the close
+    has edits not yet committed (round 3's M1). It starts at the wave's base or
     before it (`_wave_base`) and holds a commit (M3); a start the history no longer holds is read from the
     merge base the footer records (``merge base `sha` ``), else from the wave's base (M4). Then:
     - #183: every path the range changed, both sides of a rename, is held to the plan's security globs;
@@ -428,7 +429,8 @@ def history_problems(close: pathlib.Path, text: str, root: pathlib.Path) -> tupl
       range that cites it, and after no code commit at all unless the plan named it before;
     - #203: `docs/process-log.md` has a heading naming the wave (`M21-W4`, or a span `M21-W1 to W4`), dated
       inside the range.
-    A close merged into main is not read again: the rules ran on its branch before the merge. A close dated
+    A close whose adding commit is on main is not read again, even after a later branch edits it: the rules
+    ran on its branch before the merge (the Tester's M1). A close dated
     before `HISTORY_RULES_FROM` is not read if it was committed before then too (GPF-001).
 
     Returns (problems, skipped): `skipped` says why the history was not read."""
@@ -458,7 +460,7 @@ def history_problems(close: pathlib.Path, text: str, root: pathlib.Path) -> tupl
     if typed_end.strip() not in ("", "HEAD"):
         return [f"the commit range `{spec}` must end at HEAD, the commit that adds the close, not at "
                 f"`{typed_end.strip()}`: an end the author names can leave the wave's last commits out (#183)"], None
-    own = (_git(root, "log", "-1", "--format=%H", "--", rel) or "") or None  # the close's own last commit
+    own = added[-1].split()[0] if added else None  # merged is asked of the commit that added the close (Tester M1)
     if own and _merged(root, own):
         return [], f"`{close.name}` is merged into main: the history rules ran on its branch before the merge (#183)"
     end = last_sha or "HEAD"

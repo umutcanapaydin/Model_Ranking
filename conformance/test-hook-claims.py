@@ -38,7 +38,7 @@ where `grep mypy` returns nothing.
 
 Exit 0 clean, 1 findings, 2 not evaluable here.
 """
-import sys, re, json, os, pathlib, subprocess, shutil, tempfile, time
+import contextlib, sys, re, json, os, pathlib, signal, subprocess, shutil, tempfile, time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from lib_record import missing_tool, runnable_bash                     # noqa: E402
@@ -135,7 +135,7 @@ def hook_paths(tmp: pathlib.Path) -> dict[str, str]:
 
 
 def run_hook(bash: str, command: str, payload: str, path: str | None = None,
-             extra: dict | None = None) -> subprocess.CompletedProcess:
+             extra: dict | None = None, timeout: float = 60) -> subprocess.CompletedProcess:
     env = dict(os.environ)
     if path is not None:
         env["PATH"] = path
@@ -143,8 +143,22 @@ def run_hook(bash: str, command: str, payload: str, path: str | None = None,
     # reading lives; a case that names another directory says so in `extra`.
     env["CLAUDE_PROJECT_DIR"] = str(pathlib.Path(__file__).resolve().parent.parent)
     env.update(extra or {})
-    return subprocess.run([bash, "-c", command], input=payload.encode("utf-8"),
-                          capture_output=True, env=env, timeout=60)
+    # The M21-W4 Tester's M5: the hook runs in a session of its own; one that does not answer within its limit
+    # has its whole group killed (the guard's interpreter included) and comes back as a failure, exit -9.
+    proc = subprocess.Popen([bash, "-c", command], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, env=env, start_new_session=hasattr(os, "killpg"))
+    try:
+        out, err = proc.communicate(payload.encode("utf-8"), timeout=timeout)
+        return subprocess.CompletedProcess(proc.args, proc.returncode, out, err)
+    except subprocess.TimeoutExpired:
+        with contextlib.suppress(ProcessLookupError, PermissionError):
+            if hasattr(os, "killpg"):
+                os.killpg(proc.pid, signal.SIGKILL)
+            else:
+                proc.kill()
+        out, err = proc.communicate()
+        said = f"the hook did not answer within {timeout:g} s; its process group was killed\n".encode()
+        return subprocess.CompletedProcess(proc.args, -9, out, said + err)
 
 
 def _err(r: subprocess.CompletedProcess) -> str:

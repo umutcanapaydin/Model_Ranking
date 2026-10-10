@@ -4722,7 +4722,8 @@ and test names that state a gate's property flatly (#248).
      with no commit found adding its heading is a problem (#201, M5, round 2's M5);
    - `docs/process-log.md` has a heading naming the wave (`M21-W4`, or a span `M21-W1 to W4`), dated
      inside the range (#203, M5).
-   A close is merged when its own last commit is on main; a merged close is not
+   A close is merged when the commit that added it is on main, whatever a later branch edits in it (the
+   M21-W4 Tester's M1); a merged close is not
    read again: the rules ran on its branch before the merge. Where there is no history to read (not a git
    checkout, or a shallow clone as CI's test job checks out), or a close is merged, the rules say SKIPPED,
    and `wave-check-all` prints that line on a pass too (M8).
