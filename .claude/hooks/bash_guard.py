@@ -1,8 +1,9 @@
-"""#189: the Bash guard's second reading.
+"""#189: the Bash guard's second reading, and the Write and Edit hook's refusal (`--write`).
 
 The text guard in `.claude/settings.json` runs first, unchanged. This one reads the command with a lexer of
 its own and judges each simple command it finds. It is a best effort against an agent's ordinary commands,
-not a parser of bash or zsh, and it only adds blocks to the text guard's.
+not a parser of bash or zsh, and it only adds blocks to the text guard's. Given `--write`, it judges the Write
+or Edit call's `file_path` instead: a `.env` file (permission-matrix.md S6), or a path `protected` refuses.
 
 What it blocks:
 - `fly` or `flyctl` but the read-only subcommands in READ_ONLY_FLY, and `fly` behind `xargs` (D-185);
@@ -12,13 +13,19 @@ What it blocks:
 - `git reset --hard`, `git clean -f`, `git checkout --`, `.`, `-f` or a tree-ish with paths, `git switch -f`
   or `--discard-changes`, `git stash clear`, `git restore` without `--staged` or with `--worktree`, and `rm`
   both recursive and forced (permission-matrix.md S5). A git long option counts in any unique prefix;
-- a write into this project's own `.claude/` or `.githooks/`, the owner's hooks and settings (the M21 closure
-  security seat's S3): a redirection there; `rm`, `mv`, `tee`, `touch`, `chmod` and their kind on a path
-  there; `cp`, `ln`, `install`, `rsync` or `dd` with a destination there, given last or as an option (`-t`,
-  `--target-directory`, `of=`); `sed -i` or `perl -i` on one; and `git rm`, `git mv`, `git checkout` or
-  `git restore` naming one. A path is resolved (links followed, `~` and variables expanded, relative to the
-  payload's `cwd`) and compared case-folded with `$CLAUDE_PROJECT_DIR/.claude/` and `.githooks/` (the fixes
-  review's M6), so Claude Code's own `~/.claude` is not refused. Reading them is not refused.
+- a write into the `.claude/` or `.githooks/` of any git work tree, the owner's hooks and settings (the M21
+  closure security seat's S3): a redirection there; `rm`, `mv`, `tee`, `touch`, `chmod` and their kind on a
+  path there; `cp`, `ln`, `install`, `rsync`, `ditto` or `dd` with a destination there (the last word, or
+  `-t`/`--target-directory` for `cp`, `mv`, `ln` and `install`, or `of=` for `dd`); `sed -i` or `perl -i` on
+  one; and `git rm`, `git mv`, `git checkout` or `git restore` naming one. Reading them is not refused.
+  Which paths, exactly (`protected`, the fixes review's round 2, B1): the path, `~` and variables expanded,
+  is resolved from the directory the command runs in, links followed on its longest existing part; it is
+  refused when a directory on it named `.claude` or `.githooks` (in any case) has a parent that holds a
+  `.git` entry, a file or a directory. That parent is a work-tree root: this clone, each of its linked
+  worktrees, and any other clone. Claude Code's own `~/.claude` is not refused, as no `.git` sits beside it.
+  The directory a command runs in is the payload's `cwd` and each one a `cd`, `pushd` or `git -C` in the
+  command changes into, taken in order from every directory reached before it; a path is refused if it is
+  protected from any of them.
 
 Where it looks: each command after `;`, `&&`, `||`, `|`, `|&`, `&`, a newline, `(`, `)`, `{` or `}`; inside
 `$( )`, backticks (nested ones too), `<( )`, `${ }`, `$(( ))` and an unquoted here-document's body; past
@@ -46,8 +53,9 @@ Not held, by class (G-7):
   `push.default` or `remote.pushDefault` (from a checkout on main, each pushes main; GitHub's branch protection
   is the control of record there, the M21 closure security seat's S4);
 - a write into `.claude/` or `.githooks/` by a program this does not list (`python -c`, `git apply`, `tar`, an
-  editor), through a path built when the command runs (`$(...)`, a variable set earlier in it), a hard link
-  made before, or a directory the command changes into (`cd .claude && ...`);
+  editor), through a path built when the command runs (`$(...)`, a variable set earlier in it, a glob), a
+  hard link made before, or a directory reached by a `cd` this does not follow (one to a built path, through
+  `CDPATH`, `cd -`, or repeated by a loop more than once);
 - what the shell expands when the command runs, beyond the program word: `IFS`, history, globs and braces in
   arguments;
 - syntax this lexer does not model: it reads POSIX-like shell, and zsh's grammar beyond the forms above is
@@ -70,16 +78,18 @@ from dataclasses import dataclass, field
 MAX_INPUT = 32768
 #: How long the guard may read; past it, it blocks.
 DEADLINE_S = 5.0
-#: The owner's hooks and settings: no write through Bash (the M21 closure security seat's S3). With
-#: CLAUDE_PROJECT_DIR set, a path is resolved (links followed, `~` and variables expanded, relative to the
-#: payload's `cwd`) and compared case-folded with the project's own `.claude/` and `.githooks/` (the fixes
-#: review's M6), so `~/.claude` is not the project's; without it, this literal pattern decides.
-OWNERS_PATH = re.compile(r"(^|[/=])\.(claude|githooks)(/|$)", re.IGNORECASE)
-#: Set by `main` from the payload and the environment.
-WHERE = {"cwd": "", "project": ""}
-#: Programs that change each path they are given, and those that change only their last one.
+#: The owner's hooks and settings: the directories of these names at a work tree's root (the M21 closure
+#: security seat's S3; `protected`).
+OWNED = (".claude", ".githooks")
+#: The directories the command may run in: the payload's `cwd`, then each a `cd` in it reaches (`_follow`).
+WHERE: dict[str, list[str]] = {"dirs": []}
+#: More directories than this, and the command is not read.
+MAX_DIRS = 64
+#: Programs that change each path they are given, and those that change only their destination.
 CHANGES_EVERY = {"rm", "mv", "tee", "touch", "chmod", "chown", "chgrp", "truncate", "unlink", "rmdir", "shred", "mkdir"}
 CHANGES_LAST = {"cp", "ln", "install", "rsync", "dd", "ditto"}
+#: The programs whose `-t DIR` (`--target-directory`) is the destination; for any other, `-t` is not one.
+TARGET_OPTION = {"cp", "mv", "ln", "install"}
 #: `fly` subcommands an agent may run: each reads, none changes the hosted engine.
 READ_ONLY_FLY = {("version",), ("help",), ("status",), ("logs",), ("auth", "whoami"), ("apps", "list"),
                  ("releases",), ("machine", "list"), ("machine", "status"), ("machines", "list"),
@@ -487,6 +497,7 @@ def judge_text(text: str, depth: int = 0) -> str | None:
     lexer = Lexer(text, depth)
     lexer.parse()
     lexer._bodies()  # a here-document opened on the last line runs to the end
+    _follow(lexer.commands)
     for cmd in lexer.commands:
         if (why := judge_command(cmd, depth)):
             return why
@@ -613,55 +624,123 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
 
 OWNERS = ("BLOCKED: .claude/ and .githooks/ hold the owner's hooks and settings; an agent does not write them "
           "(OWNER APPROVAL, the M21 closure security seat's S3). Propose the change instead.")
+ENV_FILE = "BLOCKED: writes to .env are denied per permission-matrix.md S6 (default-deny secrets)."
 
 
-def _owners(path: str) -> bool:
-    """Whether a path a command writes is the project's own `.claude/` or `.githooks/` (or under one)."""
-    path = path[3:] if path.startswith("of=") else path
-    project = WHERE["project"]
-    if not project:
-        return bool(OWNERS_PATH.search(path))
-    expanded = os.path.expandvars(os.path.expanduser(path))
-    full = os.path.normcase(os.path.realpath(os.path.join(WHERE["cwd"] or project, expanded))).casefold()
-    for name in (".claude", ".githooks"):
-        own = os.path.normcase(os.path.realpath(os.path.join(project, name))).casefold()
-        if full == own or full.startswith(own + os.sep):
+def protected(path: str, base: str) -> bool:
+    """Whether writing `path`, from the directory `base`, writes the hooks or settings of a git work tree: the
+    path (`~` and variables expanded, resolved from `base`, links followed on its longest existing part) lies
+    in a directory named `.claude` or `.githooks`, in any case, whose parent holds a `.git` entry. The Bash
+    guard and the Write and Edit hook both ask this (the fixes review's round 2, B1)."""
+    full = os.path.realpath(os.path.join(base or os.getcwd(), os.path.expandvars(os.path.expanduser(path))))
+    while True:
+        parent = os.path.dirname(full)
+        if os.path.basename(full).casefold() in OWNED and os.path.lexists(os.path.join(parent, ".git")):
             return True
-    return False
+        if parent == full:
+            return False
+        full = parent
 
 
-def _destinations(args: list[str]) -> list[str]:
-    """Destinations given as options: `-t DIR`, `--target-directory=DIR` or `--target-directory DIR`, `of=`."""
+def _owners(path: str, bases: list[str] | None = None) -> bool:
+    """Whether a path a command writes is protected from any directory the command may run in."""
+    return any(protected(path, base) for base in (bases if bases is not None else WHERE["dirs"]))
+
+
+def _resolved(base: str, path: str) -> str:
+    return os.path.realpath(os.path.join(base, os.path.expandvars(os.path.expanduser(path))))
+
+
+def _changes_into(cmd: Command) -> str | None:
+    """The directory a `cd`, `pushd` or `chdir` names (`~` for none), or None for any other command and for the
+    forms that name no directory (`cd -`, `pushd +1`)."""
+    words = [w.text for w in cmd.words]
+    i = 0
+    while i < len(words) and (ASSIGNMENT.match(words[i]) or words[i] in KEYWORDS or words[i] in ("builtin", "command")):
+        i += 1
+    if i >= len(words) or words[i] not in ("cd", "pushd", "chdir"):
+        return None
+    rest = words[i + 1:]
+    while rest and rest[0].startswith("-") and rest[0] != "-":
+        done, rest = rest[0] == "--", rest[1:]
+        if done:
+            break
+    if not rest:
+        return "~" if words[i] != "pushd" else None
+    return None if rest[0] == "-" or rest[0].startswith("+") else rest[0]
+
+
+def _follow(commands: list[Command]) -> None:
+    """Each directory a `cd` in these commands changes into, from every directory reached before it, joins the
+    ones a written path is judged from. They are never dropped: a `cd` in a subshell or one that fails is
+    taken as made, which can only refuse more."""
+    dirs = WHERE["dirs"]
+    for cmd in commands:
+        target = _changes_into(cmd)
+        if target is None:
+            continue
+        for found in [_resolved(d, target) for d in dirs]:
+            if found not in dirs:
+                dirs.append(found)
+        if len(dirs) > MAX_DIRS:
+            raise Unreadable(f"the command changes into more than {MAX_DIRS} directories")
+
+
+def _target_option(args: list[str]) -> list[str]:
+    """`-t DIR`, `-tDIR` (or a cluster ending `t`), `--target-directory DIR`, `=DIR`, or a unique prefix of it."""
     found: list[str] = []
     for i, arg in enumerate(args):
-        if arg in ("-t", "--target-directory") and i + 1 < len(args):
-            found.append(args[i + 1])
-        elif arg.startswith("--target-directory="):
-            found.append(arg.split("=", 1)[1])
-        elif arg.startswith("-t") and len(arg) > 2 and not arg.startswith("--"):
-            found.append(arg[2:])
-        elif arg.startswith("of="):
-            found.append(arg)
-    return found
+        name = arg.split("=", 1)[0]
+        if arg.startswith("--") and len(name) >= 3 and "--target-directory".startswith(name):
+            value = arg.split("=", 1)[1] if "=" in arg else (args[i + 1] if i + 1 < len(args) else "")
+            found.append(value)
+        elif arg.startswith("-") and not arg.startswith("--") and "t" in arg[1:]:
+            rest = arg[arg.index("t", 1) + 1:]
+            found.append(rest or (args[i + 1] if i + 1 < len(args) else ""))
+    return [f for f in found if f]
 
 
 def _writes_protected(program: str, args: list[str]) -> str | None:
-    """A write into the project's `.claude/` or `.githooks/` by a program this lists (S3, the fixes review's M6)."""
+    """A write into a work tree's `.claude/` or `.githooks/` by a program this lists (S3; round 2, B1 and M6)."""
     paths = [a for a in args if not a.startswith("-")]
-    options = _destinations(args)
-    if program in CHANGES_EVERY and any(_owners(a) for a in paths + options):
-        return OWNERS
-    if program in CHANGES_LAST and ((paths and _owners(paths[-1])) or any(_owners(a) for a in options)):
+    option = _target_option(args) if program in TARGET_OPTION else []
+    if program == "dd":
+        written = [a[3:] for a in args if a.startswith("of=")]
+    elif program == "install" and any(a in ("-d", "--directory") for a in args):
+        written = paths
+    elif program in CHANGES_EVERY:
+        written = paths + option
+    elif program in CHANGES_LAST:
+        written = option or paths[-1:]   # with `-t`, the last word is a source
+    else:
+        written = []
+    if any(_owners(a) for a in written):
         return OWNERS
     in_place = (program == "sed" and any(a.startswith("-i") or a == "--in-place" or a.startswith("--in-place=")
                                          for a in args)) or (
         program == "perl" and any(a.startswith("-") and not a.startswith("--") and "i" in a[1:] for a in args))
-    if in_place and any(_owners(a) for a in paths):
+    if (in_place and any(_owners(a) for a in paths)) or (program == "git" and _git_writes(args)):
         return OWNERS
-    if program == "git":
-        sub = next((a for a in args if not a.startswith("-")), "")
-        if sub in ("rm", "mv", "checkout", "restore") and any(_owners(a) for a in paths):
-            return OWNERS
+    return None
+
+
+def _git_writes(args: list[str]) -> bool:
+    """`git rm`, `git mv`, `git checkout` or `git restore` naming a protected path, from each `-C` directory."""
+    bases, i = list(WHERE["dirs"]), 0
+    while i < len(args) and args[i].startswith("-"):
+        if args[i] == "-C" and i + 1 < len(args):
+            bases = [_resolved(base, args[i + 1]) for base in bases]
+        i += 2 if args[i] in ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path") else 1
+    sub, rest = (args[i], args[i + 1:]) if i < len(args) else ("", [])
+    return sub in ("rm", "mv", "checkout", "restore") and any(_owners(a, bases) for a in rest if not a.startswith("-"))
+
+
+def judge_write(path: str, base: str) -> str | None:
+    """The Write and Edit hook (`--write`): a `.env` file, or a path `protected` refuses."""
+    if path.endswith(".env") or ".env." in path:
+        return ENV_FILE
+    if path and protected(path, base):
+        return OWNERS
     return None
 
 
@@ -761,19 +840,29 @@ def _expired() -> None:
     os._exit(2)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    write = (sys.argv[1:] if argv is None else argv) == ["--write"]
     timer = threading.Timer(DEADLINE_S, _expired)
     timer.daemon = True
     timer.start()
     try:  # bytes, so a console's encoding (cp1254) cannot change what is read
         payload = json.loads(sys.stdin.buffer.read().decode("utf-8"))
-        command = str(payload.get("tool_input", {}).get("command", "")) if isinstance(payload, dict) else ""
-        WHERE["cwd"] = str(payload.get("cwd") or "") if isinstance(payload, dict) else ""
-        WHERE["project"] = os.environ.get("CLAUDE_PROJECT_DIR", "")
-        why = judge_text(command) if command.strip() else None
+        if write and not isinstance(payload, dict):
+            raise ValueError("the payload is not a JSON object")
+        call = payload.get("tool_input", {}) if isinstance(payload, dict) else {}
+        # The directory the call runs in: the payload's `cwd`, which Claude Code always sends.
+        base = (str(payload.get("cwd") or "") if isinstance(payload, dict) else "") or \
+            os.environ.get("CLAUDE_PROJECT_DIR", "") or os.getcwd()
+        if write:
+            why = judge_write(str(call.get("file_path", "") or ""), base)
+        else:
+            WHERE["dirs"] = [os.path.realpath(base)]
+            command = str(call.get("command", ""))
+            why = judge_text(command) if command.strip() else None
         timer.cancel()
     except BaseException as error:  # any doubt blocks: a guard that cannot read the call never allows it
-        why = f"BLOCKED: this guard cannot read the command ({type(error).__name__}: {error}) (#189)."
+        why = (f"BLOCKED: this guard cannot read the tool call ({type(error).__name__}: {error}) (#189)." if write else
+               f"BLOCKED: this guard cannot read the command ({type(error).__name__}: {error}) (#189).")
     if why:
         sys.stderr.buffer.write(why.encode("utf-8", "replace") + b"\n")
         return 2
