@@ -449,16 +449,16 @@ def history_problems(close: pathlib.Path, text: str, root: pathlib.Path) -> tupl
     if not found:
         return ["the footer names no `Wave commit range` in backticks for git to read; it fails closed (#183)"], None
     spec = found.group(1).strip()
-    start, _, end = spec.partition("..." if "..." in spec else "..")
-    end = end or "HEAD"
-    committed = end != "HEAD"
-    if end == "HEAD" and added_sha:
-        end, committed = added_sha, True
+    start, _, typed_end = spec.partition("..." if "..." in spec else "..")
+    if typed_end.strip() not in ("", "HEAD"):
+        return [f"the commit range `{spec}` must end at HEAD, the commit that adds the close, not at "
+                f"`{typed_end.strip()}`: an end the author names can leave the wave's last commits out (#183)"], None
+    if added_sha and _merged(root, added_sha):
+        return [], f"`{close.name}` is merged into main: the history rules ran on its branch before the merge (#183)"
+    end = added_sha or "HEAD"
     unreadable = [f"the commit range `{spec}` cannot be read in this history; it fails closed (#183)"]
     if _git(root, "rev-parse", "--verify", f"{end}^{{commit}}") is None:
         return unreadable, None
-    if committed and _merged(root, end):
-        return [], f"`{close.name}` is merged into main: the history rules ran on its branch before the merge (#183)"
     wave_base = _wave_base(root, ids, end)
     recorded = re.search(r"merge base `([0-9a-f]{7,40})`", text)
     start_sha = (_git(root, "rev-parse", "--verify", f"{start}^{{commit}}")
@@ -491,9 +491,14 @@ def history_problems(close: pathlib.Path, text: str, root: pathlib.Path) -> tupl
     added_adrs = adrs(_git(root, "show", f"{end}:docs/decisions.md") or "") - adrs(
         _git(root, "show", f"{base}:docs/decisions.md") or "")
     for adr in sorted(added_adrs, key=lambda d: int(d[2:])):
-        first = (_git(root, "log", "--reverse", "--format=%H", "-S", f"## {adr} ", f"{base}..{end}", "--",
-                      "docs/decisions.md") or "").splitlines()
+        touching = set()
+        for pattern in (f"^## {adr}[^0-9]", f"^## {adr}$"):
+            touching |= set((_git(root, "log", "--format=%H", "-G", pattern, f"{base}..{end}", "--",
+                                  "docs/decisions.md") or "").split())
+        first = [sha for sha in (_git(root, "rev-list", "--reverse", f"{base}..{end}") or "").split() if sha in touching]
         if not first:
+            problems.append(f"{adr} is added in the range and no commit in it adds its heading -- the rule cannot "
+                            "tell when the decision was written (#201)")
             continue
         files = (_git(root, "show", "--name-only", "--format=", first[0]) or "").splitlines()
         named = bool(re.search(rf"\b{re.escape(adr)}\b", _git(root, "show", f"{first[0]}^:{plan_rel}") or ""))
@@ -553,7 +558,7 @@ def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]]) -> li
         return any(row[0].strip().lower() == control for row in rows)
 
     problems: list[str] = []
-    listed = re.search(r"gates SKIPPED:\s*(.*?)(?:\s·\s|`|$)", text, re.M | re.I)
+    listed = re.search(r"gates\s*\**\s*SKIPPED\s*\**\s*[:\u2014\u2013-]\s*(.*?)(?:\s·\s|`|$)", text, re.M | re.I)
     for entry in (_outside_parentheses(listed.group(1)) if listed else []):
         name = re.sub(r"^make\s+", "", entry.split("(")[0].strip().lower())
         name = re.sub(r"\s+", "-", name).strip(".-")
@@ -563,12 +568,19 @@ def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]]) -> li
                             "permanent (#202)")
     for line in text.splitlines():
         cells = [c.strip() for c in line.strip().strip("|").split("|")] if line.startswith("|") else []
-        if len(cells) >= 4 and re.match(r"\d+[a-z]?$", cells[0]) and re.search(r"\b(SKIPPED|WAIVED)\b", cells[-1], re.I):
+        if len(cells) >= 4 and re.match(r"\d+[a-z]?$", cells[0]) and re.search(r"\b(SKIPPED|WAIVED)\b|\bN/A\b",
+                                                                              cells[-1], re.I):
             said = " ".join(cells[1:])
-            if not any(re.search(rf"(?<![\w-]){re.escape(row[0].strip())}(?![\w-])", said, re.I) for row in rows):
+            if not any(re.search(r"(?<![\w-])" + r"[-\s]+".join(map(re.escape, row[0].strip().split("-"))) + r"(?![\w-])",
+                                 said, re.I) for row in rows):
                 problems.append(f"row {cells[0]} ({cells[1][:60]}) is marked `{cells[-1]}` and `docs/control-events.csv` "
                                 f"has no row for {wave_id} or its milestone naming the control it skipped (#202)")
-    field = SESSION_FIELD.search(text)
+    row8 = next((cells for line in text.splitlines() if line.startswith("|")
+                 for cells in [[c.strip() for c in line.strip().strip("|").split("|")]] if cells and cells[0] == "8"), None)
+    answers = SESSION_FIELD.findall(row8[2]) if row8 and len(row8) > 2 else []
+    if len({a.lower() for a in answers}) > 1:
+        problems.append("row 8's evidence says both `Session started in the repository: yes` and `no` (#202)")
+    field = SESSION_FIELD.search(row8[2]) if row8 and len(row8) > 2 else None
     if field and field.group(1).lower() == "no" and not ledgered("repository-hooks"):
         problems.append(f"the close says `Session started in the repository: no`, and `docs/control-events.csv` "
                         f"has no `repository-hooks` row for {wave_id} or its milestone (#202, #142)")

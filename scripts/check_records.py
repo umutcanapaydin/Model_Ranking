@@ -1539,9 +1539,9 @@ def duplicate_drift(root: Path) -> list[Finding]:
 #: An ADR's amendment field: `**Amends**` (accepted) or `**Would amend**` (proposed), read up to the next
 #: ` · ` field separator, the next bold field or a blank line, so `**applies** D-167` is not read.
 #: The field's spellings in the log: `**Amends** D-n`, `**Amends:** D-n`, and a bold run that opens with it,
-#: `**Amends D-n clause 2.**` (the M21-W4 review's M6).
+#: `**Amends D-n clause 2.**`, in any case (the M21-W4 review's M6 and its second round's M5).
 AMENDS_FIELD = re.compile(r"\*\*(?:Amends|Would amend):?\*\*(.*?)(?=\s·\s|\*\*|\n\s*\n|\Z)"
-                          r"|\*\*(?:Amends|Would amend) ([^*]*?)\*\*", re.S)
+                          r"|\*\*(?:Amends|Would amend) ([^*]*?)\*\*", re.S | re.I)
 
 
 def adr_pointer_findings(root: Path) -> list[Finding]:

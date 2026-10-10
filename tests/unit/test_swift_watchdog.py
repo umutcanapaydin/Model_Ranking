@@ -65,9 +65,9 @@ def _gone(pid: int, within: float = 5.0) -> bool:
 
 def _grandchild(pidfile: Path) -> int:
     deadline = time.monotonic() + 10
-    while time.monotonic() < deadline and not (pidfile.exists() and pidfile.read_text()):
+    while time.monotonic() < deadline and not (pidfile.exists() and pidfile.read_text(encoding="utf-8")):
         time.sleep(0.05)
-    return int(pidfile.read_text())
+    return int(pidfile.read_text(encoding="utf-8"))
 
 
 def test_a_timeout_kills_a_grandchild_in_a_session_of_its_own(tmp_path: Path) -> None:
