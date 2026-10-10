@@ -1049,3 +1049,13 @@ def test_the_records_name_the_commit_gate_and_the_write_refusal() -> None:
     header = "\n".join(line for line in (ROOT / "docs" / "control-events.csv").read_text(encoding="utf-8").splitlines()
                        if line.startswith("#"))
     assert "git commit --no-verify" in header and "git push --no-verify" in header
+
+
+def test_the_ledger_records_each_closure_commit_made_without_its_own_green_tree() -> None:
+    """Round 2, M2: 85f80e3 removed `.githooks/pre-commit`, and the `commit-msg` its tests read came only in
+    a024244, so its own tree failed six tests, as cd563f5's did; cd563f5 got a bypass row and 85f80e3 none."""
+    check = _module("wave_check")
+    rows = check._ledger_rows((ROOT / "docs" / "control-events.csv").read_text(encoding="utf-8"))
+    for sha in ("cd563f5", "85f80e3"):
+        assert any(row[:3] == ["commit-after-check-fast", "m21-closure", "bypass"] and row[3].startswith(sha)
+                   for row in rows), sha
