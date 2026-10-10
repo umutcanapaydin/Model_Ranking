@@ -574,12 +574,13 @@ def _ledger_rows(text: str) -> list[list[str]]:
 
 
 def ledger_strikes(rows: list[list[str]]) -> list[str]:
-    """The controls with three or more `skip` or `bypass` rows since their latest `ruling` or `review` row
-    (the owner's ruling of 2026-10-10): a row counts when its date is after the ruling's, or the same date
-    and later in the ledger. A reviewed control stays green; a new bypass after the ruling still counts."""
+    """The controls with three or more `skip` or `bypass` rows since their latest `ruling` that names the owner
+    (the owner's ruling of 2026-10-10, as the M21 closure fixes review's M3 left it): a row counts when its date
+    is after the ruling's, or the same date and later in the ledger. A `review` or `within-scope` row is
+    recorded and counts nothing: it neither strikes nor resets. A new bypass after a ruling still counts."""
     ruled: dict[str, tuple[str, int]] = {}
     for n, row in enumerate(rows):
-        if len(row) >= 5 and row[2].lower() in ("ruling", "review"):
+        if len(row) >= 5 and row[2].lower() == "ruling" and "the owner" in row[3].lower():
             ruled[row[0]] = max(ruled.get(row[0], ("", -1)), (row[-1], n))
     counts: dict[str, int] = {}
     for n, row in enumerate(rows):
@@ -588,6 +589,29 @@ def ledger_strikes(rows: list[list[str]]) -> list[str]:
             if since is None or (row[-1], n) > since:
                 counts[row[0]] = counts.get(row[0], 0) + 1
     return sorted(control for control, n in counts.items() if n >= 3)
+
+
+def ledger_problems(rows: list[list[str]], today: str | None = None) -> list[str]:
+    """The fixes review's M3: every row's date is ISO (YYYY-MM-DD) and not later than today, so a future date
+    cannot hold later rows back; and a `ruling` names the owner, since only the owner's ruling resets a count."""
+    import datetime as dt
+
+    today = today or dt.date.today().isoformat()
+    found: list[str] = []
+    for row in rows:
+        date = row[-1] if row else ""
+        try:
+            iso = re.fullmatch(r"\d{4}-\d{2}-\d{2}", date) is not None and dt.date.fromisoformat(date).isoformat() == date
+        except ValueError:
+            iso = False
+        if not iso:
+            found.append(f"the ledger row `{','.join(row[:3])}` is dated `{date}`, not YYYY-MM-DD")
+        elif date > today:
+            found.append(f"the ledger row `{','.join(row[:3])}` is dated {date}, after today ({today})")
+        if len(row) >= 4 and row[2].lower() == "ruling" and "the owner" not in row[3].lower():
+            found.append(f"the ledger row `{','.join(row[:3])}` is a ruling that does not name the owner; only the "
+                         "owner's ruling resets a control's count")
+    return found
 
 
 def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]]) -> list[str]:
@@ -846,6 +870,7 @@ def main(argv: list[str]) -> int:
     if LEDGER.is_file():
         rows = _ledger_rows(LEDGER.read_text(encoding="utf-8", errors="replace"))
         ledger_waves = {row[1] for row in rows if len(row) >= 2}
+        bad.extend(ledger_problems(rows))
         for control in ledger_strikes(rows):
             bad.append(f"`{control}` has three or more skip/bypass events in {LEDGER} since its last ruling "
                        "or review -- three is the review threshold. The CONTROL goes under review before this "

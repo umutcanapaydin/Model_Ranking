@@ -28,8 +28,10 @@ The M21 closure security seat says the release verdict stands for v2, on six con
    (`make check-fast`; `make check-red` for a declared red test commit; `make check-docs` for a docs-only
    one; `docs/refusals.md` R-1) and every push runs `make gate`, which runs the compiled gate
    (`make client-decls`). Nothing runs that gate automatically until you do (G-10; condition 2).
-   Then, once, in a Claude Code session started in the repository, type `/hooks` and check that the Bash
-   hook is listed; its `onFailure` needs Claude Code 2.1.295 or later (`INSTALL.md`; the seat's S8).
+   And start every Claude Code session in the repository (`cd ~/Desktop/ILGAR/model_ranking && claude`), so
+   its hooks load: the Bash guard, the Write refusal and the post-edit check load in no other session (#142;
+   your ruling of 2026-10-10 on `repository-hooks`). Then, once, in such a session, type `/hooks` and check
+   that the Bash hook is listed; its `onFailure` needs Claude Code 2.1.295 or later (`INSTALL.md`; the seat's S8).
 3. **Run `make check`** on `main`'s tip after the merges, before the archive: it includes
    `client-decls` (condition 2).
 4. **Let the Mac's engine refresh once with the new release** (§1 step 1; condition 1). The data names
