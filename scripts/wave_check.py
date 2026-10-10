@@ -550,6 +550,33 @@ def _outside_parentheses(listed: str) -> list[str]:
     return [*entries, current]
 
 
+def _ledger_rows(text: str) -> list[list[str]]:
+    """The ledger's rows, read as CSV (a reason may hold commas inside its quotes), without the header and
+    the comment lines."""
+    import csv
+
+    lines = [ln for ln in text.splitlines() if ln.strip() and not ln.startswith("#")
+             and not ln.lower().startswith("control,")]
+    return [[c.strip() for c in row] for row in csv.reader(lines) if row]
+
+
+def ledger_strikes(rows: list[list[str]]) -> list[str]:
+    """The controls with three or more `skip` or `bypass` rows since their latest `ruling` or `review` row
+    (the owner's ruling of 2026-10-10): a row counts when its date is after the ruling's, or the same date
+    and later in the ledger. A reviewed control stays green; a new bypass after the ruling still counts."""
+    ruled: dict[str, tuple[str, int]] = {}
+    for n, row in enumerate(rows):
+        if len(row) >= 5 and row[2].lower() in ("ruling", "review"):
+            ruled[row[0]] = max(ruled.get(row[0], ("", -1)), (row[-1], n))
+    counts: dict[str, int] = {}
+    for n, row in enumerate(rows):
+        if len(row) >= 3 and row[2].lower() in ("skip", "bypass"):
+            since = ruled.get(row[0])
+            if since is None or (row[-1], n) > since:
+                counts[row[0]] = counts.get(row[0], 0) + 1
+    return sorted(control for control, n in counts.items() if n >= 3)
+
+
 def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]]) -> list[str]:
     """D-192 clause 3 (#202), as the M21-W4 review left it: each gate row 9 lists as skipped (the label in
     any case, its list split on commas outside parentheses), each checklist row whose status says SKIPPED or
@@ -589,6 +616,13 @@ def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]]) -> li
     if len({a.lower() for a in answers}) > 1:
         problems.append("row 8's evidence says both `Session started in the repository: yes` and `no` (#202)")
     field = SESSION_FIELD.search(row8[2]) if row8 and len(row8) > 2 else None
+    bypass = re.search(r"Bypass:\s*(.*?)(?:\s\|\s|$)", text, re.M)
+    said = bypass.group(1).strip().strip("`. ") if bypass else ""
+    if said and not said.lower().startswith("none") and not any(
+            re.search(r"(?<![\w-])" + re.escape(row[0].strip()) + r"(?![\w-])", said) for row in rows):
+        problems.append(f"row 9's `Bypass: {said[:60]}` names no control `docs/control-events.csv` has a row for, for "
+                        f"{wave_id} or its milestone -- a bypass the ledger does not count is invisible to the "
+                        "three-row rule (#202, the M21 repo review's M1)")
     if field and field.group(1).lower() == "no" and not ledgered("repository-hooks"):
         problems.append(f"the close says `Session started in the repository: no`, and `docs/control-events.csv` "
                         f"has no `repository-hooks` row for {wave_id} or its milestone (#202, #142)")
@@ -797,22 +831,13 @@ def main(argv: list[str]) -> int:
     # gate red: the CONTROL goes under review, not the people. A counter nobody counts is prose.
     ledger_waves: set = set()        # the waves the ledger has a row for
     if LEDGER.is_file():
-        from collections import Counter
-        counts: Counter = Counter()
-        for ln in LEDGER.read_text(encoding="utf-8", errors="replace").splitlines():
-            if ln.startswith("#") or ln.lower().startswith("control,") or not ln.strip():
-                continue
-            cells = [c.strip() for c in ln.split(",")]
-            if len(cells) >= 2:
-                ledger_waves.add(cells[1])
-            if len(cells) >= 3 and cells[2].lower() in ("skip", "bypass"):
-                counts[cells[0]] += 1
-        for control, n in sorted(counts.items()):
-            if n >= 3:
-                bad.append(f"`{control}` has {n} recorded skip/bypass events in {LEDGER} -- three "
-                           "is the review threshold. The CONTROL goes under review before this wave "
-                           "closes: fix it, re-scope it, or refuse it in docs/refusals.md. Do not "
-                           "record a fourth")
+        rows = _ledger_rows(LEDGER.read_text(encoding="utf-8", errors="replace"))
+        ledger_waves = {row[1] for row in rows if len(row) >= 2}
+        for control in ledger_strikes(rows):
+            bad.append(f"`{control}` has three or more skip/bypass events in {LEDGER} since its last ruling "
+                       "or review -- three is the review threshold. The CONTROL goes under review before this "
+                       "wave closes: fix it, re-scope it, or refuse it in docs/refusals.md, and record the "
+                       "ruling as a `ruling` row. Do not record a fourth")
     elif re.search(r"\|\s*(SKIPPED|WAIVED)\b", text):
         bad.append(f"this checklist carries SKIPPED/WAIVED rows but {LEDGER} does not exist -- a skip "
                    "that is not counted is a skip that becomes permanent. Create the ledger "
