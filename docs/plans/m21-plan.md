@@ -85,6 +85,7 @@ Gate definitions change, so the owner reviews the wave (AGENTS.md §3).
   - `tests/conftest.py`
   - `.github/workflows/**`, `.claude/settings.json` (the owner's)
   - `.claude/hooks/**`, `.githooks/**` (the guards the hooks run; added at M21-W4, the Tester's K1)
+  - `scripts/client_decl_gate.py`, `scripts/client_decl_fixtures/**`, `tests/unit/test_router_hints.py`, `tests/unit/test_ios_client_contract.py`, `scripts/offline.sb`, `scripts/wave_check.py`, `scripts/check_records.py`, `Makefile` (the gates that hold the invariants; added at the M21 closure, the repo review's M3)
   - the deploy surface: `Dockerfile`, `fly.toml`, `.dockerignore`, `scripts/deploy_hosted_engine.sh`,
     `src/app/workflows/public.py`, `ios/Config/**`
 
