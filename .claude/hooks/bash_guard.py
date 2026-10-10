@@ -11,7 +11,11 @@ What it blocks:
   destination (`main`, `heads/main`, `refs/heads/main`), or runs behind `xargs` (AGENTS.md S3);
 - `git reset --hard`, `git clean -f`, `git checkout --`, `.`, `-f` or a tree-ish with paths, `git switch -f`
   or `--discard-changes`, `git stash clear`, `git restore` without `--staged` or with `--worktree`, and `rm`
-  both recursive and forced (permission-matrix.md S5). A git long option counts in any unique prefix.
+  both recursive and forced (permission-matrix.md S5). A git long option counts in any unique prefix;
+- a write into `.claude/` or `.githooks/`, the owner's hooks and settings (the M21 closure security seat's
+  S3): a redirection there; `rm`, `mv`, `tee`, `touch`, `chmod` and their kind on a path there; `cp`, `ln`,
+  `install`, `rsync` or `dd` with a destination there; `sed -i` or `perl -i` on one; and `git rm`, `git mv`,
+  `git checkout` or `git restore` naming one. Reading them is not refused.
 
 Where it looks: each command after `;`, `&&`, `||`, `|`, `|&`, `&`, a newline, `(`, `)`, `{` or `}`; inside
 `$( )`, backticks (nested ones too), `<( )`, `${ }`, `$(( ))` and an unquoted here-document's body; past
@@ -24,7 +28,9 @@ It blocks what it cannot read, rather than reading it as data: an unclosed quote
 with `(` written against it (zsh's glob qualifiers, `=( )`); a `${(flags)...}`; a brace expansion, or a
 pattern that could name a guarded program, as a program word; a shell or `source` reading its commands from
 a pipe, a file or stdin; a `-c` with no string; an input over MAX_INPUT characters; and any command it has
-not read within DEADLINE_S seconds. (A hook that times out does not block, so the guard keeps its own bound.)
+not read within DEADLINE_S seconds, a timer thread that writes the BLOCKED line and exits 2 wherever the
+guard runs, a long call into C included (the M21 closure security seat's S2). A hook that times out does not
+block below Claude Code 2.1.295, so the guard keeps its own bound.
 
 Not held, by class (G-7):
 - a program named when the command runs: through a variable, a substitution, an alias, a function, `hash`,
@@ -32,6 +38,10 @@ Not held, by class (G-7):
 - code another program runs: a script's contents, `python -c`, `perl -e`, `node -e`, `awk`'s `system()`,
   `make` recipes, git hooks and aliases (`git -c alias.x=...`, `git config`), `ssh host cmd`;
 - a wrapper not in WRAPPERS, whose program is then read as an argument;
+- a push to a destination git chooses itself: a bare `git push`, `git push origin HEAD` or `@`, an upstream,
+  `push.default` or `remote.pushDefault` (from a checkout on main, each pushes main; GitHub's branch protection
+  is the control of record there, the M21 closure security seat's S4);
+- a write into `.claude/` or `.githooks/` by a program this does not list (`python -c`, `git apply`, an editor);
 - what the shell expands when the command runs, beyond the program word: `IFS`, history, globs and braces in
   arguments;
 - syntax this lexer does not model: it reads POSIX-like shell, and zsh's grammar beyond the forms above is
@@ -46,14 +56,19 @@ import fnmatch
 import json
 import os
 import re
-import signal
 import sys
+import threading
 from dataclasses import dataclass, field
 
 #: The longest command this reads; a longer one is blocked (the session's longest was under 20 000).
 MAX_INPUT = 32768
 #: How long the guard may read; past it, it blocks.
 DEADLINE_S = 5.0
+#: The owner's hooks and settings: no write through Bash (the M21 closure security seat's S3).
+OWNERS_PATH = re.compile(r"(^|[/=])\.(claude|githooks)(/|$)")
+#: Programs that change each path they are given, and those that change only their last one.
+CHANGES_EVERY = {"rm", "mv", "tee", "touch", "chmod", "chown", "chgrp", "truncate", "unlink", "rmdir", "shred", "mkdir"}
+CHANGES_LAST = {"cp", "ln", "install", "rsync", "dd", "ditto"}
 #: `fly` subcommands an agent may run: each reads, none changes the hosted engine.
 READ_ONLY_FLY = {("version",), ("help",), ("status",), ("logs",), ("auth", "whoami"), ("apps", "list"),
                  ("releases",), ("machine", "list"), ("machine", "status"), ("machines", "list"),
@@ -121,6 +136,7 @@ class Command:
     fed: list[str] = field(default_factory=list)   # here-document bodies and here-strings it reads
     piped: bool = False                             # its stdin is a pipe
     from_file: bool = False                         # its stdin is a file
+    writes: list[str] = field(default_factory=list)  # the paths its redirections write
 
 
 class _Builder:
@@ -267,6 +283,8 @@ class Lexer:
             cmd.fed.append(target.text)
         elif op in ("<", "<>", "<&"):
             cmd.from_file = True
+        if op in ("&>>", "&>", ">>", ">|", ">", "<>"):
+            cmd.writes.append(target.text)
 
     # --- the word level ------------------------------------------------------------------------------
     def _word(self) -> Word:
@@ -466,6 +484,8 @@ def judge_text(text: str, depth: int = 0) -> str | None:
 
 def judge_command(cmd: Command, depth: int) -> str | None:
     """Past assignments and keywords; after a wrapper, every later word is tried as the program, in one pass."""
+    if any(OWNERS_PATH.search(path) for path in cmd.writes):
+        return OWNERS
     words = cmd.words
     start = 0
     while start < len(words) and (ASSIGNMENT.match(words[start].text) or words[start].text in KEYWORDS):
@@ -542,6 +562,8 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
                 "which this guard cannot read (#189); write the program's name.")
     program = _program(first)
     args = [w.text for w in words[1:]]
+    if (why := _writes_protected(program, args)):
+        return why
     if program == "eval":
         return judge_text(" ".join(args), depth + 1)
     if program in SHELLS:
@@ -575,6 +597,30 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
         forced = "f" in letters or any(_unique(a, "--force", GIT_LONG["rm"]) for a in longs)
         if recursive and forced:
             return DESTRUCTIVE
+    return None
+
+
+OWNERS = ("BLOCKED: .claude/ and .githooks/ hold the owner's hooks and settings; an agent does not write them "
+          "(OWNER APPROVAL, the M21 closure security seat's S3). Propose the change instead.")
+
+
+def _writes_protected(program: str, args: list[str]) -> str | None:
+    """A write into `.claude/` or `.githooks/` by a program this lists (S3)."""
+    paths = [a for a in args if not a.startswith("-") or a.startswith("of=")]
+    if program in CHANGES_EVERY and any(OWNERS_PATH.search(a) for a in paths):
+        return OWNERS
+    if program in CHANGES_LAST and paths and (OWNERS_PATH.search(paths[-1]) or any(
+            a.startswith("of=") and OWNERS_PATH.search(a) for a in args)):
+        return OWNERS
+    in_place = (program == "sed" and any(a.startswith("-i") or a == "--in-place" or a.startswith("--in-place=")
+                                         for a in args)) or (
+        program == "perl" and any(a.startswith("-") and not a.startswith("--") and "i" in a[1:] for a in args))
+    if in_place and any(OWNERS_PATH.search(a) for a in paths):
+        return OWNERS
+    if program == "git":
+        sub = next((a for a in args if not a.startswith("-")), "")
+        if sub in ("rm", "mv", "checkout", "restore") and any(OWNERS_PATH.search(a) for a in paths):
+            return OWNERS
     return None
 
 
@@ -666,18 +712,22 @@ def _judge_git(args: list[str], behind_xargs: bool) -> str | None:  # noqa: C901
     return None
 
 
-def _expired(signum: int, frame: object) -> None:
-    raise Unreadable(f"the command was not read within {DEADLINE_S:g} s")
+def _expired() -> None:
+    """The guard's own bound (S2): a thread, so it holds where SIGALRM does not exist and stops a call into C."""
+    sys.stderr.buffer.write(f"BLOCKED: the command was not read within {DEADLINE_S:g} s (#189).\n".encode())
+    sys.stderr.flush()
+    os._exit(2)
 
 
 def main() -> int:
+    timer = threading.Timer(DEADLINE_S, _expired)
+    timer.daemon = True
+    timer.start()
     try:  # bytes, so a console's encoding (cp1254) cannot change what is read
-        signal.signal(signal.SIGALRM, _expired)
-        signal.setitimer(signal.ITIMER_REAL, DEADLINE_S)
         payload = json.loads(sys.stdin.buffer.read().decode("utf-8"))
         command = str(payload.get("tool_input", {}).get("command", "")) if isinstance(payload, dict) else ""
         why = judge_text(command) if command.strip() else None
-        signal.setitimer(signal.ITIMER_REAL, 0)
+        timer.cancel()
     except BaseException as error:  # any doubt blocks: a guard that cannot read the call never allows it
         why = f"BLOCKED: this guard cannot read the command ({type(error).__name__}: {error}) (#189)."
     if why:
