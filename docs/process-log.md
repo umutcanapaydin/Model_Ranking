@@ -767,3 +767,23 @@ Lesson: a gate's exceptions are part of the gate. A hook that the DevFlow's own 
 Lesson: a hook is tested by the commits it gates. The commit-msg gate passed its own tests and every
 commit in the closure, and still refused the first ordinary commit in the owner's clone.
 
+
+## 2026-10-13 — the unlicensed sources move to licensed data (D-194)
+
+- The owner merged #263 (Credits), deployed it and uploaded build 5. They asked for each unsettled
+  source's licensed alternative instead of waiting for permission (D-194, #265).
+- models.dev (MIT) replaces OpenRouter's prices, read from each model maker's own entry. Its catalogue
+  also resells other makers' models under a maker's name; the first build priced Zhipu's GLM at
+  Alibaba's price until `registry.named_vendors` refused them. 314 models are priced, against 311.
+- `computer-use` ranks on TB 4.0's Apache-2.0 leaderboard repository: 21 models, all priced. TB 2.0's
+  Apache-2.0 raw submissions were measured and not taken: they keep submissions the official board took
+  down for cheating.
+- `abstract` ranks on ARC Prize's MIT public-evaluation runs. Hugging Face answered 429 a minute into
+  reading them, so the scores are derived once at a pinned revision and committed, with a contract test
+  on the revision. Only 32 of 70 settings carried a summary; the other 29 kept are scored from their
+  attempts, and the summary's own score is reproduced.
+- DeepSWE waits for the owner's Hugging Face token: the dataset is gated, and its format cannot be read.
+- A worktree's `make install` through a `.venv` symlink had rewritten the owner's editable install, and
+  their deploy failed until they reinstalled (#264). This wave's worktree built its own venv.
+Lesson: a licence is a property of a copy, not of a benchmark. TB 2.0's licensed copy held what its own
+maintainers had withdrawn, and models.dev's makers' catalogues held other makers' models.

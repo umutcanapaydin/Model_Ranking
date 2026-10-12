@@ -12,6 +12,10 @@ date: 2026-10-12
 > itself is the owner's ruling.
 
 **Answer: feasible, and small to build, with one cost: the board ranks about 17 models today, against 42.**
+
+**Outcome (D-194, 2026-10-13):** built. `computer-use` ranks on TB 4.0; all 21 of its models are priced, not
+17. The third way below was measured and not taken: the raw TB 2.0 submissions keep submissions the
+official board took down for cheating (tbench.ai's leaderboard integrity update).
 A third way keeps TB 2.0 under a licence: rebuild it from its own Apache-2.0 submissions (below).
 
 ## What exists, read on 2026-10-12
