@@ -168,9 +168,26 @@ def test_the_credits_sheet_shows_what_the_engine_layer_decides() -> None:
     sheet = view[view.index("private var creditsSheet"):]
     sheet = sheet[: sheet.index("\n    }\n") + 6]
     assert "CreditsScreen.state(standings, language)" in sheet
-    assert ".textSelection(.enabled)" in sheet
+    # The Tester's round-2 M1: the selection is on the credits' lines, and the empty texts are the ones
+    # `CreditsScreen` chose, never named here.
+    rows = sheet[sheet.index("ForEach(rows)"):sheet.index("case let .notSent")]
+    assert ".textSelection(.enabled)" in rows
     for line in ("row.publisher", "row.data", "row.dataLabel", "row.dataLink", "row.licence", "licenceLink"):
-        assert re.search(rf"Text\({re.escape(line)}\)", sheet), line
+        assert re.search(rf"Text\({re.escape(line)}\)", rows), line
+    assert "UIText.creditsUnavailable" not in sheet and "UIText.creditsNotSent" not in sheet
+    assert re.search(r"case let \.notSent\(text\), let \.notLoaded\(text\):\s*Text\(text\)", sheet)
+    # The Tester's round-2 B1: the CC BY notices are `CreditsScreen`'s, and the sheet draws them.
+    assert "Text(CreditsScreen.notice(language))" in sheet
+
+
+def test_the_credits_button_opens_the_sheet() -> None:
+    """The Tester's round-2 M2: the button sets the flag the sheet is presented on."""
+    import pathlib
+    import re
+
+    view = (pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/ContentView.swift").read_text(encoding="utf-8")
+    assert ".sheet(isPresented: $showingCredits) { creditsSheet }" in view
+    assert re.search(r'Button \{ showingCredits = true \} label: \{[^}]*\}\s*\.accessibilityIdentifier\("credits"\)', view)
 
 
 def test_every_publishers_licence_is_the_one_the_ruling_and_the_record_give() -> None:
