@@ -98,10 +98,12 @@ def test_the_swift_category_struct_can_be_parsed_at_all() -> None:
 
 
 def _declared_properties(struct: str) -> list[str]:
-    """Every `let name:` in the struct's own body — what the parser must account for."""
+    """Every stored property in the struct's own body, `let` or `var` (the #260 review's M6: `var
+    credits` was not read) — what the parser must account for. A computed `var` (one whose type is
+    followed by `{`) is not stored, and is not counted."""
     body = _struct_body(struct)
     head = body[: body.index("enum CodingKeys")] if "enum CodingKeys" in body else body
-    return re.findall(r"^\s*let\s+(\w+):", head, re.MULTILINE)
+    return re.findall(r"^\s*(?:let|var)\s+(\w+):[^{\n]*$", head, re.MULTILINE)
 
 
 def _assert_struct_is_satisfied(struct: str, entry: dict, where: str) -> None:
@@ -281,3 +283,8 @@ def test_the_boards_payload_satisfies_every_struct_the_app_decodes(
             _assert_struct_is_satisfied("Standing", standing, f"a standing on {board.get('id')!r}")
     for model in body["models"]:
         _assert_struct_is_satisfied("StandingModel", model, f"model {model.get('id')!r}")
+    # #260: the credits the Credits screen shows.
+    assert body["credits"], "the boards payload credits nobody"
+    assert "credits" in _declared_properties("Standings"), "the app does not decode the credits"
+    for credit in body["credits"]:
+        _assert_struct_is_satisfied("Credit", credit, f"credit {credit.get('id')!r}")

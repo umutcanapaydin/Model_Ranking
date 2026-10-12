@@ -104,6 +104,12 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "epoch_chess": EPOCH_ATTRIBUTION,
     "epoch_mystery": EPOCH_ATTRIBUTION,
 }
+#: Sources a payload serves that are not boards, and the citation each obliges (the #260 review's
+#: M1). Apart from `SOURCE_ATTRIBUTION`, whose keys are the boards the engine can serve.
+METADATA_ATTRIBUTION: dict[str, str] = {
+    # Each model's accessibility, from Epoch's model metadata (CC BY, the licence review's row 2).
+    "epoch_access": EPOCH_ATTRIBUTION,
+}
 
 
 #: #260: the publishers each citation credits, in the order the Credits screen names them. Keyed by the
@@ -116,8 +122,9 @@ CREDITS_BY_ATTRIBUTION: dict[str, tuple[str, ...]] = {
     SWEBENCH_ATTRIBUTION: ("swebench",),
     AIDER_ATTRIBUTION: ("aider",),
     EPOCH_ATTRIBUTION: ("epoch",),
-    # A board Epoch compiles credits its publisher first, then Epoch's compilation (#124).
-    **{EPOCH_EXTERNAL_ATTRIBUTION[source]: (publisher, "epoch") for source, publisher in (
+    # A board Epoch compiles credits its publisher first, then Epoch's compilation (#124), which claims
+    # no licence of its own (the #260 review's B1).
+    **{EPOCH_EXTERNAL_ATTRIBUTION[source]: (publisher, "epoch_compilation") for source, publisher in (
         ("epoch_arc_agi", "arc_prize"), ("epoch_deepswe_external", "datacurve"),
         ("epoch_terminalbench", "terminal_bench"), ("epoch_mmlu", "helm"), ("epoch_webdev", "arena_site"))},
 }
@@ -183,7 +190,7 @@ def attributions_for(
                else PRICING_ATTRIBUTION_LITELLM)
     owed = {pricing} if priced else set()
     for source in evidence_sources:
-        citation = SOURCE_ATTRIBUTION.get(source)
+        citation = SOURCE_ATTRIBUTION.get(source) or METADATA_ATTRIBUTION.get(source)
         if citation is None:
             msg = f"unattributed evidence source {source!r}; add it to SOURCE_ATTRIBUTION"
             raise ValueError(msg)

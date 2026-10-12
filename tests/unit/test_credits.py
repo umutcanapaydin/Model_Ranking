@@ -28,14 +28,15 @@ CREDIT_KEYS = {"id", "publisher", "data", "url", "licence", "licence_url"}
 
 
 def credits_for(attributions: list[str] | tuple[str, ...]) -> list[dict[str, str | None]]:
-    return rank.credits_for(attributions)  # type: ignore[no-any-return]
+    return rank.credits_for(attributions)
 
 
 def _ids(attributions: list[str] | tuple[str, ...]) -> list[str]:
     return [credit["id"] for credit in credits_for(attributions)]
 
 
-@pytest.mark.parametrize("citation", sorted({*ATTRIBUTIONS, PRICING_ATTRIBUTION_LITELLM, *SOURCE_ATTRIBUTION.values()}))
+@pytest.mark.parametrize("citation", sorted({*ATTRIBUTIONS, PRICING_ATTRIBUTION_LITELLM, *SOURCE_ATTRIBUTION.values(),
+                                              *rank.METADATA_ATTRIBUTION.values()}))
 def test_every_citation_the_engine_can_owe_has_a_credit(citation: str) -> None:
     """Derived from the catalogue and the per-source map, so a new attribution without a credit fails."""
     credits = credits_for([citation])
@@ -54,7 +55,7 @@ def test_an_attribution_with_no_credit_is_refused() -> None:
 
 def test_each_publisher_is_credited_once_in_the_order_the_attributions_come() -> None:
     owed = [EPOCH_EXTERNAL_ATTRIBUTION["epoch_arc_agi"], EPOCH_ATTRIBUTION, PRICING_ATTRIBUTION]
-    assert _ids(owed) == ["arc_prize", "epoch", "litellm", "openrouter"]
+    assert _ids(owed) == ["arc_prize", "epoch_compilation", "epoch", "litellm", "openrouter"]
 
 
 def test_a_board_epoch_compiles_credits_its_publisher_and_epochs_compilation() -> None:

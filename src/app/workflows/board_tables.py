@@ -82,11 +82,16 @@ _CC_BY_URL = "https://creativecommons.org/licenses/by/4.0/"
 #: The owner's D-185 ruling of 2026-10-12 (#260): every publisher whose data the engine serves. What
 #: each licence says is `docs/research/data-licences-2026-10-04.md`; the ruling is D-193.
 CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
-    Credit("lmarena", "LMArena", "Arena leaderboard dataset: the text, vision, document, search, WebDev "
-           "and agent boards", "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset",
+    Credit("lmarena", "LMArena", "\u00a9 LMArena. Arena leaderboard dataset: the text, vision, document, search, "
+           "WebDev and agent boards", "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset",
            "CC BY 4.0", _CC_BY_URL),
-    Credit("epoch", "Epoch AI", "Capabilities & benchmarking: its own boards, and its compilations of the "
-           "boards credited to their publishers here", "https://epoch.ai/benchmarks", "CC BY 4.0", _CC_BY_URL),
+    Credit("epoch", "Epoch AI", "Capabilities & benchmarking: the boards Epoch AI runs itself, and its "
+           "model metadata", "https://epoch.ai/benchmarks", "CC BY 4.0", _CC_BY_URL),
+    # The #260 review's B1: Epoch's external data "retains its original licensing", so its compilation
+    # claims none; each board's own credit names its publisher's terms.
+    Credit("epoch_compilation", "Epoch AI", "Capabilities & benchmarking: the boards Epoch AI gathers from "
+           "other publishers", "https://epoch.ai/benchmarks",
+           "Each board keeps its publisher's licence or terms, named in that publisher's credit", None),
     Credit("swebench", "SWE-bench", "SWE-bench leaderboard", "https://www.swebench.com", "CC BY-NC 4.0",
            "https://creativecommons.org/licenses/by-nc/4.0/"),
     Credit("aider", "Aider", "Aider polyglot leaderboard", "https://github.com/Aider-AI/aider", "Apache-2.0",
@@ -103,7 +108,7 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
            "https://www.tbench.ai/leaderboard/terminal-bench/2.0", "No licence stated on the leaderboard", None),
     Credit("helm", "Stanford CRFM HELM and the model makers", "MMLU scores: HELM Lite, and the model makers' "
            "technical reports on arXiv, compiled by Epoch AI", "https://crfm.stanford.edu/helm/lite/latest/",
-           "Apache-2.0 (HELM); each report as its authors published it",
+           "Apache-2.0 (the HELM repository, D-193); each report as its authors published it",
            "https://github.com/stanford-crfm/helm/blob/main/LICENSE"),
     Credit("arena_site", "LMArena (arena.ai)", "WebDev Arena leaderboard, compiled by Epoch AI",
            "https://arena.ai/leaderboard", "Arena Terms of Use",

@@ -345,8 +345,18 @@ struct Standings: Codable, Equatable {
     let boards: [BoardStandings]
     let models: [StandingModel]
     /// #260: each publisher the attributions credit, for the Credits screen. `nil` from an engine
-    /// that predates them, so a phone ahead of its engine still reads the boards.
-    var credits: [Credit]? = nil
+    /// that predates them, so a phone ahead of its engine still reads the boards. A `let`: the store
+    /// reads it, and a privacy sink reads no mutable state (INV-66).
+    let credits: [Credit]?
+
+    init(apiVersion: String, attributions: [String], boards: [BoardStandings], models: [StandingModel],
+         credits: [Credit]? = nil) {
+        self.apiVersion = apiVersion
+        self.attributions = attributions
+        self.boards = boards
+        self.models = models
+        self.credits = credits
+    }
 
     enum CodingKeys: String, CodingKey {
         case apiVersion = "api_version"

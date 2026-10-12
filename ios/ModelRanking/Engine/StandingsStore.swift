@@ -91,7 +91,10 @@ public struct StandingsStore {
     /// newer one could not be fetched can be said on screen (M18-W2 review M3, #72).
     func currentKept(now: Date, fetch: () async throws -> FetchedStandings) async -> KeptStandings? {
         let stored = load()
-        if let stored, stored.fetchedAt <= now, now.timeIntervalSince(stored.fetchedAt) < Self.maxAge {
+        // The #260 review's M2: a copy kept by a build from before the Credits screen holds no credits,
+        // and is fetched again at once rather than leaving the screen empty for up to a day.
+        if let stored, stored.standings.credits != nil, stored.fetchedAt <= now,
+           now.timeIntervalSince(stored.fetchedAt) < Self.maxAge {
             return KeptStandings(standings: stored.standings, fetchedAt: stored.fetchedAt)
         }
         do {

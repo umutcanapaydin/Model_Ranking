@@ -126,19 +126,6 @@ struct ContentView: View {
                     .accessibilityLabel(UIText.gapsTitle(language))
                     .accessibilityIdentifier("gaps")
                 }
-                ToolbarItem(placement: .topBarLeading) {
-                    // #260: the publishers, their licences and links, beside the register.
-                    Button { showingCredits = true } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: "info.circle")
-                            Text(UIText.creditsButton(language))
-                        }
-                        .font(.footnote)
-                        .padding(.horizontal, 4)
-                    }
-                    .accessibilityLabel(UIText.creditsTitle(language))
-                    .accessibilityIdentifier("credits")
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     // D-136. Two flags, because a flag is the one label that needs no language to
                     // read — which is the whole problem this milestone is about.
@@ -347,6 +334,14 @@ struct ContentView: View {
                 }
                 }
                 }
+                // #260: the publishers, their licences and links, at the end of every answer. Not in
+                // the bar, where a third item may not fit a narrow phone in Turkish (the review's M5);
+                // the button's text is its accessibility name, so Voice Control finds it (M4).
+                Button { showingCredits = true } label: {
+                    Label(UIText.creditsTitle(language), systemImage: "info.circle")
+                        .font(.footnote)
+                }
+                .accessibilityIdentifier("credits")
             }
             .padding(.horizontal, 22)
             .padding(.top, 16)

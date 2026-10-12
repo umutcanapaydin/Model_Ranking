@@ -380,12 +380,12 @@ public enum UIText {
         language == .turkish ? "Kaynaklar ve lisanslar" : "Sources and licences"
     }
 
-    /// What the screen is for, and the two notices an attribution licence asks for: that the lists are
-    /// this app's own combination of the data, and that the data comes without warranty.
+    /// What the screen is for, and the two notices an attribution licence asks for (CC BY 4.0 section
+    /// 3(a)(1)): how the app changed the data, and that it comes without warranty (the #260 review's M3).
     public static func creditsPurpose(_ language: Language) -> String {
         language == .turkish
-            ? "Sıralamalar bu yayıncıların ölçümlerinden ve fiyatlarından kurulur. Uygulamadaki listeler bu verilerin uygulamanın kendi birleştirmesidir. Veriler her yayıncının yayımladığı gibi, hiçbir garanti olmadan gösterilir."
-            : "The rankings are built from these publishers' measurements and prices. The lists in this app are its own combination of that data. The data is shown as each publisher published it, without any warranty."
+            ? "Sıralamalar bu yayıncıların ölçümlerinden ve fiyatlarından kurulur. Uygulama bunları değiştirerek gösterir: her tabloyu fiyatını bildiği modeller arasında yeniden sıralar ve tabloları kendi listelerinde birleştirir. Veriler yayıncılarından hiçbir garanti olmadan gelir."
+            : "The rankings are built from these publishers' measurements and prices. The app changes how they are shown: it ranks each board again among the models it can price, and combines boards into lists of its own. The data comes from its publishers without any warranty."
     }
 
     public static func creditsLicence(_ language: Language) -> String {
@@ -396,11 +396,11 @@ public enum UIText {
         language == .turkish ? "Veri" : "Data"
     }
 
-    /// The credits come with the boards; an engine that sends none, or no boards yet, leaves this.
+    /// The credits come with the boards; an engine that sends none, or boards not loaded yet, leaves this.
     public static func creditsUnavailable(_ language: Language) -> String {
         language == .turkish
-            ? "Kaynaklar tablolarla birlikte gelir. Uygulamayı bir kez internete bağlıyken açın."
-            : "The credits come with the boards. Open the app once while it is online."
+            ? "Kaynaklar tablolarla birlikte gelir. Tablolar henüz yüklenmedi."
+            : "The credits come with the boards, which have not loaded yet."
     }
 
     // MARK: - The screen's chrome (M15 UI refresh)
