@@ -80,6 +80,25 @@ final class StandingsStoreTests: OfflineTestCase {
         XCTAssertEqual(store().load()?.standings.credits, [])
     }
 
+    /// The #260 round-2 review's M1: an engine that sends no credits (before the #260 deploy, or after
+    /// a rollback) is asked once in a launch, not on every load. Dated by the clock, because the rule is
+    /// "kept since before this launch".
+    func testAnEngineThatSendsNoCreditsIsAskedOncePerLaunch() async throws {
+        let older = Data(String(decoding: standingsPayload, as: UTF8.self)
+            .replacingOccurrences(of: #","credits":[]"#, with: "").utf8)
+        let earlier = Date().addingTimeInterval(-7200)
+        store().save(try FetchedStandings(payload: older), at: earlier)
+        var fetches = 0
+        let fetch: () async throws -> FetchedStandings = {
+            fetches += 1
+            return try FetchedStandings(payload: older)
+        }
+        _ = await store().current(now: Date(), fetch: fetch)
+        _ = await store().current(now: Date().addingTimeInterval(60), fetch: fetch)
+        _ = await store().current(now: Date().addingTimeInterval(120), fetch: fetch)
+        XCTAssertEqual(fetches, 1, "an engine with no credits was asked on every load")
+    }
+
     func testTheSecondDayServesAndStoresTheRefetchAndWaitsADayAgain() async throws {
         // Third Tester B1: past the first day. A day-old store is replaced by what was fetched, the
         // fetched standings are what is served, and the new stamp starts the next day.

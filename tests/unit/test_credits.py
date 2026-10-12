@@ -119,3 +119,22 @@ def test_the_accessibility_epoch_publishes_is_credited_whatever_boards_are_serve
     assert payload["models"][0]["accessibility"] == "api"
     assert "epoch" in [c["id"] for c in payload["credits"]]
 
+
+def test_a_board_is_attributed_from_the_boards_alone() -> None:
+    """The #260 round-2 review's M3: a source that is not a board (`epoch_access`) does not pass the
+    board check, so a board that took its id would be refused, not served half-attributed."""
+    with pytest.raises(ValueError, match="SOURCE_ATTRIBUTION"):
+        rank.attributions_for(["epoch_access"], priced=False)
+
+
+def test_an_accessibility_source_nobody_credits_is_refused_by_its_own_map() -> None:
+    """The #260 round-2 review's M3: the error names the map the source belongs in."""
+    from .test_board_standings import _score
+
+    conn = _conn()
+    _score(conn, "arena", "Arena text", "elo", "a", "a", 1300.0)
+    conn.execute("INSERT INTO access (raw_name, model_id, accessibility, source, source_url, observed_at) "
+                 "VALUES ('a', 'a', 'api', 'somebody_access', 'u', '2026-09-25')")
+    with pytest.raises(ValueError, match="METADATA_ATTRIBUTION"):
+        _payload(conn)
+
