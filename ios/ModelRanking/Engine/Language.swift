@@ -392,7 +392,14 @@ public enum UIText {
         language == .turkish ? "Veri" : "Data"
     }
 
-    /// The credits come with the boards; an engine that sends none, or boards not loaded yet, leaves this.
+    /// The boards loaded, from an engine older than the Credits screen (the #260 round-2 review's M1).
+    public static func creditsNotSent(_ language: Language) -> String {
+        language == .turkish
+            ? "Uygulamanın bağlandığı sunucu kaynak bilgisini henüz göndermiyor."
+            : "The server this app reads does not send its credits yet."
+    }
+
+    /// The credits come with the boards, which have not loaded yet.
     public static func creditsUnavailable(_ language: Language) -> String {
         language == .turkish
             ? "Kaynaklar tablolarla birlikte gelir. Tablolar henüz yüklenmedi."

@@ -761,6 +761,9 @@ struct ContentView: View {
                         .textSelection(.enabled)
                         .accessibilityElement(children: .combine)
                     }
+                } else if standings != nil {
+                    // Loaded from an engine older than the screen (the round-2 review's M1).
+                    Text(UIText.creditsNotSent(language)).foregroundStyle(.secondary)
                 } else {
                     Text(UIText.creditsUnavailable(language)).foregroundStyle(.secondary)
                 }

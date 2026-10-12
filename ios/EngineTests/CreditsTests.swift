@@ -46,7 +46,7 @@ final class CreditsTests: OfflineTestCase {
 
     func testTheCreditsScreenSpeaksBothLanguages() {
         let texts: [(Language) -> String] = [UIText.creditsTitle, UIText.creditsPurpose, UIText.creditsLicence,
-                                             UIText.creditsData, UIText.creditsUnavailable]
+                                             UIText.creditsData, UIText.creditsUnavailable, UIText.creditsNotSent]
         for text in texts {
             XCTAssertFalse(text(.english).isEmpty)
             XCTAssertNotEqual(text(.english), text(.turkish))
