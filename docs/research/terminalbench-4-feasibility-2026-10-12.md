@@ -12,6 +12,7 @@ date: 2026-10-12
 > itself is the owner's ruling.
 
 **Answer: feasible, and small to build, with one cost: the board ranks about 17 models today, against 42.**
+A third way keeps TB 2.0 under a licence: rebuild it from its own Apache-2.0 submissions (below).
 
 ## What exists, read on 2026-10-12
 
@@ -24,12 +25,13 @@ date: 2026-10-12
   **Apache-2.0** (GitHub's API: `Apache-2.0`).
   - `leaderboard/leaderboard.yaml` defines the board `4-0-0`, "The official leaderboard for
     Terminal-Bench 4.0", shown on Harbor Hub.
-  - `leaderboard/submissions/` holds **21** submissions, one JSON file each, dated 2026-08-26 to
-    2026-10-06. Each names its model (`source_filter.model_name`, e.g. `anthropic/claude-opus-5-5`), the
+  - `leaderboard/submissions/` holds **21** submissions, one JSON file each. Their file names date them
+    2026-08-26 to 2026-10-06, when they were added; their runs (`metadata.date`) are dated 2026-05-28 to
+    2026-09-29. Each names its model (`source_filter.model_name`, e.g. `anthropic/claude-opus-5-5`), the
     agent, the reasoning effort, the run date and `metrics.accuracy`, a percentage with its 95 %
     interval over 330 trials.
-  - The leaderboard is live: the newest submission is six days old, and the repository was pushed on
-    2026-10-09.
+  - The leaderboard is live: the newest submission was added on 2026-10-06, and the repository was pushed
+    on 2026-10-09.
   - The task set `harborframework/terminal-bench` on Hugging Face (tag v4.0.0, 66 tasks) is Apache-2.0 too.
     The product needs no task, only the scores.
 - **The licence reaches the scores.** The submission files are in the Apache-2.0 repository. Nothing in
@@ -42,7 +44,7 @@ date: 2026-10-12
 |---|---|---|
 | licence | none stated | Apache-2.0 |
 | models | 59 on the board, 42 priced | 21 on the board, about 17 priced today |
-| newest run | 2026-05-14 (closed) | 2026-10-06 (open) |
+| newest run | 2026-05-14 (closed) | 2026-09-29 (open) |
 | agents | many scaffolds | one per model maker (Claude Code, Codex, Grok Build, mini-SWE-agent, Muse Code) |
 | effort | mixed | named on every submission (`max`, `xhigh`, `high`, `none`) |
 
@@ -55,6 +57,19 @@ date: 2026-10-12
   `qwen3.8-max-0902`.
 - **The two scales differ.** A 4.0 score is not a 2.0 score: the task sets differ. Each version must be its
   own board (D-105), never one board.
+
+## A third way: TB 2.0 from its own Apache-2.0 submissions
+
+The licence review (`docs/research/data-licences-2026-10-04.md`, note 5) found the raw TB 2.0 submissions
+in [`harborframework/terminal-bench-2-leaderboard`](https://huggingface.co/datasets/harborframework/terminal-bench-2-leaderboard),
+tagged **apache-2.0**. On 2026-10-12 it holds **76** agent-and-model folders under
+`submissions/terminal-bench/2.0/`, and its card says "SUBMISSIONS CLOSED".
+
+- **What it keeps.** The models TB 2.0 ranks today, under a licence, where Epoch's copy states none.
+- **What it costs.** It holds trials, not scores: each submission's accuracy is computed from its
+  per-trial results (the research record's effort L). It is frozen at 2026-05, like Epoch's copy.
+- **With 4.0.** Option (a) below can take this as its 2.0 board in place of Epoch's copy, so both
+  versions are licensed.
 
 ## How it would be built
 
