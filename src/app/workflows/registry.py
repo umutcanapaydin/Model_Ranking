@@ -684,6 +684,8 @@ DISPLAY_NAMES: dict[str, str] = {
     "qwen2.5-7b-instruct": "Qwen2.5 7B Instruct",
     "qwen3-4b": "Qwen3 4B",
     "qwen3.5-122b-a10b": "Qwen3.5 122B A10B",
+    "qwen3.5-flash": "Qwen3.5 Flash",  # #265: priced by models.dev since D-194, so served
+    "qwen3.5-plus": "Qwen3.5 Plus",
     "qwq-plus": "QwQ Plus",
     "trinity-large-thinking": "Trinity Large Thinking",
     # #112's remainder (M19-W1): served under a lower-case spelling of the id. Each name is its maker's,
@@ -694,6 +696,14 @@ DISPLAY_NAMES: dict[str, str] = {
     "command-a03-2025": "Command A (03-2025)",                   # docs.cohere.com/docs/command-a
     "command-r-plus08-2024": "Command R+ 08-2024",               # docs.cohere.com/docs/command-r-plus
     "command-r08-2024": "Command R 08-2024",                     # docs.cohere.com/docs/command-r
+    # Mistral (#265: priced by models.dev since D-194, so served), as docs.mistral.ai/getting-started/models
+    # names each (read 2026-10-13)
+    "devstral-medium2507": "Devstral Medium 1.0",
+    "mistral-medium2508": "Mistral Medium 3.1",
+    "mistral-small2506": "Mistral Small 3.2",
+    "open-mistral7b": "Mistral 7B",
+    "open-mixtral8x22b": "Mixtral 8x22B",
+    "open-mixtral8x7b": "Mixtral 8x7B",
     # Meta: its cards name the family "Code Llama" and the variant "Instruct" ("CodeLlama 70B Instruct")
     "codellama34b-instruct": "Code Llama 34B Instruct",  # huggingface.co/meta-llama/CodeLlama-34b-Instruct-hf
     "codellama70b-instruct": "Code Llama 70B Instruct",  # huggingface.co/meta-llama/CodeLlama-70b-Instruct-hf

@@ -23,7 +23,6 @@ from app.workflows.rank import ATTRIBUTIONS, PRICING_ATTRIBUTION, SOURCE_ATTRIBU
 EXTERNAL = {
     "epoch_arc_agi": ("ARC Prize", "https://arcprize.org/leaderboard"),
     "epoch_deepswe_external": ("DeepSWE", "https://deepswe.datacurve.ai/"),
-    "epoch_terminalbench": ("Terminal-Bench", "https://www.tbench.ai/leaderboard/terminal-bench/2.0"),
     "epoch_webdev": ("WebDev Arena", "https://arena.ai/leaderboard"),
     "epoch_mmlu": ("Stanford CRFM", "https://crfm.stanford.edu/helm/lite/latest/#/leaderboard/mmlu"),
 }

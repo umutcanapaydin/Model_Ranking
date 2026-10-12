@@ -37,7 +37,6 @@ BOARDS = {board.source_name: board for board in EPOCH_BOARDS}
 DATED_BOARDS = {
     "epoch_gpqa": "Started at",
     "epoch_aime": "Started at",
-    "epoch_terminalbench": "Run date",
     # M17-W3 (#37): Epoch-run boards, dated by their own evaluation, as GPQA is.
     "epoch_simpleqa": "Started at",
     "epoch_frontiermath": "Started at",
@@ -81,26 +80,30 @@ def test_every_declared_board_is_covered_by_this_file() -> None:
     assert set(BOARDS) == DATED_BOARDS.keys() | UNDATED_BOARDS
 
 
-def test_the_terminalbench_column_actually_parses(tmp_path: Path) -> None:
-    """A declaration nothing reads is not a repair.
+@pytest.mark.parametrize("source_name", sorted(DATED_BOARDS))
+def test_the_declared_date_column_actually_parses(tmp_path: Path, source_name: str) -> None:
+    """A declaration nothing reads is not a repair. Written for `epoch_terminalbench`, whose column was
+    there and unread; since D-194 (#265) TB 4.0 is read from its own repository and dated there
+    (`test_terminalbench_4.py`), and this holds every dated Epoch board to the same check.
 
     The header spelling is asserted against a fixture shaped like the real file, so a `date_column`
     naming a column that does not exist — which `parse_board` answers with `None`, silently —
     fails here instead of shipping.
     """
-    csv = tmp_path / "terminalbench_external.csv"
+    declared = BOARDS[source_name]
+    csv = tmp_path / declared.file
     csv.write_text(
-        "Model version,Accuracy mean,Release date,Run date\n"
+        f"Model version,{declared.score_column},Release date,{declared.date_column}\n"
         "Claude Opus 4.7,0.512,2026-01-15,2025-10-31\n"
         "GPT-5.6 Sol,0.488,2026-02-01,2025-11-02\n", encoding="utf-8"
     )
     board = EpochBoard(
-        file="terminalbench_external.csv",
-        source_name="epoch_terminalbench",
-        benchmark="TerminalBench",
-        metric="% resolved",
-        score_column="Accuracy mean",
-        date_column=BOARDS["epoch_terminalbench"].date_column,
+        file=declared.file,
+        source_name=declared.source_name,
+        benchmark=declared.benchmark,
+        metric=declared.metric,
+        score_column=declared.score_column,
+        date_column=declared.date_column,
     )
     rows, _ = parse_board(csv.read_text(encoding="utf-8"), board)
     dates = [row.run_date for row in rows]

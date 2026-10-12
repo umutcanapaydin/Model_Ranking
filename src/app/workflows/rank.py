@@ -48,11 +48,15 @@ PRICING_ATTRIBUTION = (
 PRICING_ATTRIBUTION_LITELLM = "Pricing data: BerriAI/litellm (MIT)"
 SWEBENCH_ATTRIBUTION = f"Coding scores: SWE-bench leaderboard, https://www.swebench.com ({CC_BY_NC_4})"
 AIDER_ATTRIBUTION = "Coding scores: Aider polyglot leaderboard, https://github.com/Aider-AI/aider (Apache-2.0)"
+#: D-194 (#265): TB 4.0's leaderboard, read from its repository in place of Epoch's copy of TB 2.0.
+TERMINALBENCH_ATTRIBUTION = ("Terminal-Bench 4.0 scores: Terminal-Bench leaderboard submissions, "
+                             "https://github.com/harbor-framework/terminal-bench (Apache-2.0)")
 ATTRIBUTIONS = (
     ARENA_ATTRIBUTION,
     PRICING_ATTRIBUTION,
     SWEBENCH_ATTRIBUTION,
     AIDER_ATTRIBUTION,
+    TERMINALBENCH_ATTRIBUTION,
     EPOCH_ATTRIBUTION,
     *EPOCH_EXTERNAL_ATTRIBUTION.values(),
 )
@@ -81,6 +85,7 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     **{board.source_name: ARENA_ATTRIBUTION for board in ARENA_SLICES},
     "swebench": SWEBENCH_ATTRIBUTION,
     "aider": AIDER_ATTRIBUTION,
+    "terminalbench_4": TERMINALBENCH_ATTRIBUTION,
     "epoch_swe_bench_verified": EPOCH_ATTRIBUTION,
     # #124: compiled by Epoch from another publisher, and credited to it.
     "epoch_deepswe_external": EPOCH_EXTERNAL_ATTRIBUTION["epoch_deepswe_external"],
@@ -92,7 +97,6 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "epoch_eci": EPOCH_ATTRIBUTION,
     "epoch_gpqa": EPOCH_ATTRIBUTION,
     "epoch_aime": EPOCH_ATTRIBUTION,
-    "epoch_terminalbench": EPOCH_EXTERNAL_ATTRIBUTION["epoch_terminalbench"],
     "epoch_arc_agi": EPOCH_EXTERNAL_ATTRIBUTION["epoch_arc_agi"],
     "epoch_webdev": EPOCH_EXTERNAL_ATTRIBUTION["epoch_webdev"],
     "epoch_mmlu": EPOCH_EXTERNAL_ATTRIBUTION["epoch_mmlu"],
@@ -120,12 +124,13 @@ CREDITS_BY_ATTRIBUTION: dict[str, tuple[str, ...]] = {
     PRICING_ATTRIBUTION_LITELLM: ("litellm",),
     SWEBENCH_ATTRIBUTION: ("swebench",),
     AIDER_ATTRIBUTION: ("aider",),
+    TERMINALBENCH_ATTRIBUTION: ("terminal_bench",),
     EPOCH_ATTRIBUTION: ("epoch",),
     # A board Epoch compiles credits its publisher first, then Epoch's compilation (#124), which claims
     # no licence of its own (the #260 review's B1).
     **{EPOCH_EXTERNAL_ATTRIBUTION[source]: (publisher, "epoch_compilation") for source, publisher in (
         ("epoch_arc_agi", "arc_prize"), ("epoch_deepswe_external", "datacurve"),
-        ("epoch_terminalbench", "terminal_bench"), ("epoch_mmlu", "helm"), ("epoch_webdev", "arena_site"))},
+        ("epoch_mmlu", "helm"), ("epoch_webdev", "arena_site"))},
 }
 
 

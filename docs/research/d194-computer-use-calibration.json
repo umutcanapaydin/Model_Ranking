@@ -1,0 +1,43 @@
+{
+  "surface": "computer-use",
+  "source": "terminalbench_4",
+  "benchmark": "Terminal-Bench 4.0",
+  "ranked_population": 21,
+  "floor": 44.5,
+  "above_floor": [
+    [
+      "Claude Opus 5.5",
+      64.85
+    ],
+    [
+      "Claude Sonnet 5.5",
+      61.82
+    ],
+    [
+      "GPT 6.1 Sol",
+      58.18
+    ],
+    [
+      "Claude Fable 5.1",
+      57.88
+    ],
+    [
+      "Claude Opus 5",
+      51.82
+    ],
+    [
+      "GPT 6 Sol",
+      49.39
+    ],
+    [
+      "Claude Fable 5",
+      44.55
+    ]
+  ],
+  "stderr": 1.648,
+  "stderr_from": "TB 4.0's metrics.accuracy_ci95_half_width / 1.96, the median of its 21 submissions on 2026-10-13",
+  "rule": "close_call = 2 x stderr; value_window ends mid-gap in the first gap wider than close_call past 3 candidates, else at the floor (D-194 clause 4)",
+  "close_call": 3.3,
+  "value_window": 10.0,
+  "candidates": 4
+}

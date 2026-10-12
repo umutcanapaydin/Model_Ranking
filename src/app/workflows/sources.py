@@ -43,6 +43,7 @@ from app.clients.litellm import LiteLLMClient, parse_pricing
 from app.clients.models_dev import ModelsDevClient, parse_models_dev
 from app.clients.protocols import RawSource
 from app.clients.swebench import SweBenchClient, parse_verified
+from app.clients.terminalbench import TerminalBench4Client, parse_terminalbench_4
 from app.workflows.board_tables import EPOCH_BOARDS as _EPOCH_BOARDS
 from app.workflows.ingest import (
     RunContext,
@@ -54,6 +55,7 @@ from app.workflows.ingest import (
     ingest_litellm,
     ingest_models_dev,
     ingest_swebench,
+    ingest_terminalbench_4,
 )
 
 IngestFn = Callable[[sqlite3.Connection, RawSource, RunContext], SourceReport]
@@ -153,6 +155,15 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         ingest=ingest_aider,
         parse=parse_polyglot,
         minimum_rows=1,
+    ),
+    # D-194 (#265): TB 4.0's leaderboard, Apache-2.0, in place of Epoch's copy of TB 2.0. 21 submissions
+    # on 2026-10-13; ten is a broken listing, not a quiet month.
+    RemoteSource(
+        name="terminalbench_4",
+        client=TerminalBench4Client,
+        ingest=ingest_terminalbench_4,
+        parse=parse_terminalbench_4,
+        minimum_rows=10,
     ),
     RemoteSource(
         name="arena",

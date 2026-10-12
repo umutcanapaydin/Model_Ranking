@@ -181,16 +181,18 @@ CATEGORIES: dict[str, CategorySpec] = {
     "computer-use": CategorySpec(
         id="computer-use",
         title="Operating a computer",
-        primary_benchmark="TerminalBench",
+        primary_benchmark="Terminal-Bench 4.0",
         metric="% resolved",
         score_unit="points",
         secondary_benchmark=None,
-        primary_source="epoch_terminalbench",
-        # STRUCTURALLY THIN. 59 models on the board, 33 that reconcile and carry a price. Sized on
-        # those 33, a 5-point window admits 5 candidates -- the 20 points an earlier draft argued
-        # for was measured on the full board and would have admitted every model above the floor.
-        value_window=5.0,
-        close_call=0.8,
+        primary_source="terminalbench_4",
+        # D-194 clause 4 (#265): measured on TB 4.0 by `scripts/calibrate_surface.py`
+        # (`docs/research/d194-computer-use-calibration.json`). 21 models, all priced; the tie margin is
+        # twice the board's median standard error, and the window ends in the 6.1-point gap below the
+        # fourth model, so it never splits two models the board cannot tell apart. TB 2.0's 5.0 / 0.8
+        # were measured on another scale (D-105).
+        value_window=10.0,
+        close_call=3.3,
     ),
     "abstract": CategorySpec(
         id="abstract",

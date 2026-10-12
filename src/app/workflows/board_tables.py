@@ -50,8 +50,6 @@ EPOCH_EXTERNAL_ATTRIBUTION: dict[str, str] = {
         ("epoch_mmlu", "MMLU scores: Stanford CRFM's HELM Lite leaderboard, "
                        "https://crfm.stanford.edu/helm/lite/latest/#/leaderboard/mmlu, and the model makers' "
                        "technical reports Epoch names for its other rows"),
-        ("epoch_terminalbench", "Terminal-Bench 2.0 scores: Terminal-Bench v2 leaderboard, "
-                                "https://www.tbench.ai/leaderboard/terminal-bench/2.0"),
         ("epoch_webdev", "WebDev Arena scores: LMArena's WebDev Arena leaderboard, https://arena.ai/leaderboard"),
     )
 }
@@ -104,8 +102,9 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
            "ARC Prize Terms", "https://arcprize.org/terms"),
     Credit("datacurve", "Datacurve", "DeepSWE leaderboard, compiled by Epoch AI", "https://deepswe.datacurve.ai/",
            "\u00a9 Datacurve; no licence published", None),
-    Credit("terminal_bench", "Terminal-Bench", "Terminal-Bench 2.0 leaderboard, compiled by Epoch AI",
-           "https://www.tbench.ai/leaderboard/terminal-bench/2.0", "No licence stated on the leaderboard", None),
+    Credit("terminal_bench", "Terminal-Bench (Harbor)", "Terminal-Bench 4.0 leaderboard submissions",
+           "https://github.com/harbor-framework/terminal-bench", "Apache-2.0",
+           "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE"),
     Credit("helm", "Stanford CRFM HELM and the model makers", "MMLU scores: HELM Lite, and the model makers' "
            "technical reports on arXiv, compiled by Epoch AI", "https://crfm.stanford.edu/helm/lite/latest/",
            "Apache-2.0 (the HELM repository, D-193); each report as its authors published it",
@@ -356,25 +355,6 @@ EPOCH_BOARDS: tuple[EpochBoard, ...] = (
         metric="% correct",
         score_column="mean_score",
         date_column="Started at",
-    ),
-    EpochBoard(
-        file="terminalbench_external.csv",
-        source_name="epoch_terminalbench",
-        benchmark="TerminalBench",
-        metric="% resolved",
-        score_column="Accuracy mean",
-        # M13-W2, REQ-UNC-003: this board is NOT one of the undated ones, and had been treated as
-        # one since it was declared. `terminalbench_external.csv` carries a `Run date` column
-        # populated on 204 of 204 rows with real evaluation dates from 2025-10-31 onward — a date
-        # the product held and threw away, leaving `computer-use` reporting its evidence as undated
-        # and therefore un-ageable.
-        #
-        # It is the exception the comment above this tuple did not anticipate: Epoch AGGREGATES
-        # this board rather than running it, and it still publishes when each run happened.
-        # `webdev_arena_external.csv` carries `Last updated` and is deliberately NOT wired the same
-        # way — 33 of 109 rows, every one the same value, which is the date the page was refreshed
-        # and not the date a model was measured.
-        date_column="Run date",
     ),
     EpochBoard(
         file="arc_agi_external.csv",

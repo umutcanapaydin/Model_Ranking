@@ -60,7 +60,7 @@ def test_each_publisher_is_credited_once_in_the_order_the_attributions_come() ->
 
 def test_a_board_epoch_compiles_credits_its_publisher_and_epochs_compilation() -> None:
     for source, publisher in (("epoch_arc_agi", "arc_prize"), ("epoch_deepswe_external", "datacurve"),
-                              ("epoch_terminalbench", "terminal_bench"), ("epoch_mmlu", "helm"),
+                              ("epoch_mmlu", "helm"),
                               ("epoch_webdev", "arena_site")):
         assert _ids([SOURCE_ATTRIBUTION[source]]) == [publisher, "epoch_compilation"], source
 
@@ -207,7 +207,7 @@ def test_every_publishers_licence_is_the_one_the_ruling_and_the_record_give() ->
         "models_dev": ("MIT", "https://github.com/sst/models.dev/blob/dev/LICENSE"),
         "arc_prize": ("ARC Prize Terms", "https://arcprize.org/terms"),
         "datacurve": ("\u00a9 Datacurve; no licence published", None),
-        "terminal_bench": ("No licence stated on the leaderboard", None),
+        "terminal_bench": ("Apache-2.0", "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE"),
         "helm": ("Apache-2.0 (the HELM repository, D-193); each report as its authors published it",
                  "https://github.com/stanford-crfm/helm/blob/main/LICENSE"),
         "arena_site": ("Arena Terms of Use", "https://help.arena.ai/articles/5629909088-terms-of-use"),

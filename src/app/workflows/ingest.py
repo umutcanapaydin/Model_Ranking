@@ -22,6 +22,7 @@ from app.clients.litellm import parse_pricing
 from app.clients.models_dev import parse_models_dev
 from app.clients.protocols import RawSource, SourceError
 from app.clients.swebench import parse_verified
+from app.clients.terminalbench import parse_terminalbench_4
 from app.workflows.registry import resolve_effort
 from app.workflows.run_records import RunContext as RunContext
 from app.workflows.run_records import SourceReport as SourceReport
@@ -178,6 +179,15 @@ def ingest_arena(conn: sqlite3.Connection, source: RawSource, run: RunContext) -
         skipped=skipped,
         effort_unknown=unclassified,
     )
+    run.reports.append(report)
+    return report
+
+
+def ingest_terminalbench_4(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
+    """Fetch + parse TB 4.0's leaderboard submissions and replace their working set (REQ-SRC-012)."""
+    rows, skipped = parse_terminalbench_4(source.fetch_raw(), source=source.name, source_url=source.url)
+    unclassified = _store_scores(conn, source.name, rows, run)
+    report = SourceReport(source=source.name, stored=len(rows), skipped=skipped, effort_unknown=unclassified)
     run.reports.append(report)
     return report
 
